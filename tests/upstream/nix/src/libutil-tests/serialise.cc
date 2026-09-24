@@ -1,0 +1,128 @@
+#include "nix/util/serialise.hh"
+#include "nix/util/config.hh"
+
+#include <boost/context/detail/exception.hpp>
+#include <gtest/gtest.h>
+#include <gmock/gmock.h>
+
+#include <limits>
+
+namespace nix {
+
+template<typename T>
+    requires std::is_integral_v<T>
+auto makeNumSource(T num)
+{
+    return sinkToSource([num](Sink & writer) { writer << num; });
+}
+
+TEST(readNum, negativeValuesSerialiseWellDefined)
+{
+    EXPECT_THROW(readNum<uint32_t>(*makeNumSource(int64_t(-1))), SerialisationError);
+    EXPECT_THROW(readNum<int64_t>(*makeNumSource(int16_t(-1))), SerialisationError);
+    EXPECT_EQ(readNum<uint64_t>(*makeNumSource(int64_t(-1))), std::numeric_limits<uint64_t>::max());
+    EXPECT_EQ(readNum<uint64_t>(*makeNumSource(int64_t(-2))), std::numeric_limits<uint64_t>::max() - 1);
+    /* The result doesn't depend on the source type - only the destination matters. */
+    EXPECT_EQ(readNum<uint64_t>(*makeNumSource(int32_t(-1))), std::numeric_limits<uint64_t>::max());
+    EXPECT_EQ(readNum<uint64_t>(*makeNumSource(int16_t(-1))), std::numeric_limits<uint64_t>::max());
+}
+
+TEST(readString, roundTrip)
+{
+    for (auto & s : std::vector<std::string>{"", "x", "1234567", "12345678", "123456789", std::string(300'000, 'a')}) {
+        StringSink sink;
+        sink << s;
+        StringSource source(sink.s);
+        EXPECT_EQ(readString(source), s);
+    }
+}
+
+TEST(readString, bogusLengthDoesNotPreallocate)
+{
+    // 1 TiB length prefix followed by EOF: must fail on the read, not by
+    // allocating (and zeroing) the announced size up front.
+    StringSink sink;
+    sink << (uint64_t(1) << 40);
+    StringSource source(sink.s);
+    EXPECT_THROW(readString(source), EndOfFile);
+}
+
+TEST(readError, bogusLevelIsClamped)
+{
+    for (uint64_t level : {
+             uint64_t(8),
+             uint64_t(1234),
+             uint64_t(std::numeric_limits<unsigned>::max()),
+         }) {
+        StringSink sink;
+        sink << "Error" << level << "Error" << "oops" << uint64_t(0) << uint64_t(0);
+        StringSource source(sink.s);
+        auto e = readError(source);
+        EXPECT_THAT(std::string(e.what()), ::testing::HasSubstr("oops"));
+        EXPECT_EQ(e.info().level, Verbosity::lvlVomit);
+    }
+}
+
+TEST(readError, uint64LevelError)
+{
+    StringSink sink;
+    sink << "Error" << std::numeric_limits<uint64_t>::max() << "Error" << "oops" << uint64_t(0) << uint64_t(0);
+    StringSource source(sink.s);
+    EXPECT_THROW(readError(source), SerialisationError);
+}
+
+TEST(readPadding, works)
+{
+    for (unsigned i = 0; i < 8; ++i)
+        EXPECT_NO_THROW(readPadding(i, *makeNumSource(0)));
+
+    for (unsigned len = 1; len < 8; ++len) {
+        EXPECT_THROW(readPadding(len, *makeNumSource(~uint64_t(0))), SerialisationError);
+        unsigned padLen = 8 - len;
+        for (unsigned byte = 0; byte < padLen; ++byte) {
+            uint64_t val = uint64_t{1} << (8 * byte);
+            EXPECT_THROW(readPadding(len, *makeNumSource(val)), SerialisationError);
+        }
+    }
+}
+
+// The following test catches the bug only under fcontext backend,
+// but Boost.Coroutine2 stack switching when abandoning confuses the
+// hell out of ASan. The workaround to getting ASan working isn't
+// immediately useful because it works only with ucontext implementation.
+// https://www.boost.org/doc/libs/1_89_0/libs/coroutine2/doc/html/coroutine2/stack/sanitizers.html
+#if !NIX_ASAN_ENABLED
+
+TEST(sourceToSink, forcedUnwindUcaughtExceptions)
+{
+    int uncaughtExceptions = 42;
+    bool caught = false;
+
+    auto sink = sourceToSink([&](Source & source) {
+        auto recordUncaughtExceptions = Finally([&]() { uncaughtExceptions = std::uncaught_exceptions(); });
+        try {
+            StringSink s;
+            source.drainInto(s, 8);
+            source.drainInto(s, 8);
+        } catch (const boost::context::detail::forced_unwind &) {
+            caught = true;
+            throw;
+        }
+    });
+
+    *sink << 42;
+
+    // Abandon the coroutine. This will trigger it to unwind with boost::context::detail::forced_unwind.
+    sink.reset();
+
+    ASSERT_TRUE(caught);
+    // This is a test for boost.context regression fixed by https://github.com/boostorg/context/pull/337.
+    // Without the fix std::uncaught_exceptions() *misreports* 0 while there's stack unwinding in progress.
+    // The issue only surfaces with libstdc++ and fcontext when boost.context
+    // uses fiber-specific exception states and messes with __cxa_get_globals().
+    ASSERT_EQ(uncaughtExceptions, 1);
+}
+
+#endif
+
+} // namespace nix
