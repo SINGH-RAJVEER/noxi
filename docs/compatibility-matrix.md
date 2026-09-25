@@ -15,7 +15,7 @@ This is the first qualification target and its current evidence, not a claim of 
 | Area | Current status | Evidence needed to pass |
 |---|---|---|
 | Nix language and evaluator | Unrun | Copied language suite and Nixpkgs evaluation comparison |
-| Derivation and path formats | Known gaps in vendored `nix-compat` | All copied fixtures and byte comparisons; see `crates/compat-tests/` |
+| Derivation and path formats | Partial fixture coverage; remaining gaps in `nix-compat` | All copied fixtures and byte comparisons; see `crates/compat-tests/` |
 | Store and garbage collection | Unrun | Existing-store, concurrency, integrity, and return-to-reference tests |
 | Build engine and sandbox | Unrun | Local and remote build behavior under the selected system |
 | Binary caches and signatures | Unrun | Cache exchange and trust decisions |
@@ -28,4 +28,4 @@ This is the first qualification target and its current evidence, not a claim of 
 | NixBox engine integration | Unrun | Locked-revision resolution, evaluated candidate plans, direct realization, declarative persistence, and recovery |
 | OS-native CLI diagnostics | Unrun | Structured rebuild events, concise errors, raw-log retrieval, JSON, TTY, and CI modes |
 
-"Known gaps" records the current fixture classifications, not a measured coverage percentage. Qualification requires a pinned Nixpkgs revision, completed interface inventory, test results, and release artifacts as defined in [verification](verification.md).
+The ATerm parser now accepts repeated input-source paths and canonicalizes them to a set. Two copied derivation fixtures exercise that behavior. Other fixture gaps remain, and this is not a measured coverage percentage. Qualification requires a pinned Nixpkgs revision, completed interface inventory, test results, and release artifacts as defined in [verification](verification.md).

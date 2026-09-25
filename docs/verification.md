@@ -6,6 +6,8 @@ The copied CppNix 2.36.0 tests under [tests/upstream/nix/](../tests/upstream/nix
 
 `crates/compat-tests/` already classifies the copied ATerm derivation fixtures against vendored `nix-compat`. Its expectation table names unsupported forms, including content-addressed and dynamic derivations. These classified gaps are useful progress markers, not passing compatibility cases.
 
+Repeated input-source paths in the copied ATerm fixtures are accepted and collapsed to a set. The resulting serialization is canonical rather than byte-identical to the duplicate-bearing fixture; the test reparses it and compares the derivation value. This establishes that narrow parser behavior, not complete derivation or store compatibility.
+
 For each compatibility test, record the reference binary and nix-rs binary, platform, input revision, feature settings, store configuration, command or operation, expected result, actual result, and disposition. Tests that cannot yet run against nix-rs remain unrun. Tests that fail for a known reference issue still need an explicit compatibility decision; do not quietly rewrite expected output.
 
 ## Differential testing

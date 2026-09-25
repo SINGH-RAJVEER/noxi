@@ -16,6 +16,8 @@ const FIXTURE_DIR: &str = "../../tests/upstream/nix/src/libstore-tests/data/deri
 enum Expect {
 	/// Parses, and serialising it again reproduces the file byte for byte.
 	RoundTrip,
+	/// Parses, and serialises to an equivalent derivation after canonicalising its input sources.
+	Canonicalizes,
 	/// CppNix accepts this file, but `nix-compat` does not yet.
 	Gap(&'static str),
 	/// Invalid input that CppNix also rejects.
@@ -27,7 +29,6 @@ enum Expect {
 
 use Expect::*;
 
-const DUPLICATE_SOURCES: &str = "input sources repeat after hash anonymisation; CppNix collects them into a set, nix-compat rejects duplicates";
 const CA_FLOATING: &str = "floating content-addressed outputs (ca-derivations) are not supported";
 const DEFERRED: &str = "deferred outputs with empty path and hash (masked form) are not supported";
 const DYN_DRV: &str = "DrvWithVersion / dynamic derivations are not supported";
@@ -47,8 +48,8 @@ const EXPECTATIONS: &[(&str, Expect)] = &[
 		Gap(CA_FLOATING),
 	),
 	("dyn-dep-derivation.drv", Gap(DYN_DRV)),
-	("firefox.drv", Gap(DUPLICATE_SOURCES)),
-	("hello.drv", Gap(DUPLICATE_SOURCES)),
+	("firefox.drv", Canonicalizes),
+	("hello.drv", Canonicalizes),
 	("ia/advanced-attributes-defaults.drv", RoundTrip),
 	("ia/advanced-attributes.drv", RoundTrip),
 	(
@@ -129,6 +130,12 @@ fn derivations_match_expectations() {
 
 		let ok = match expect {
 			RoundTrip => actual == "round-trips",
+			Canonicalizes => parsed.as_ref().is_ok_and(|drv| {
+				let canonical = drv.to_aterm_bytes();
+				canonical != bytes
+					&& UnverifiedDerivation::from_aterm_bytes(&canonical)
+						.is_ok_and(|reparsed| reparsed == *drv)
+			}),
 			AcceptedUnverified => parsed.is_ok(),
 			Gap(_) | Reject => parsed.is_err(),
 		};

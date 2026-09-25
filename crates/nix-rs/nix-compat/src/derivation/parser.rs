@@ -225,14 +225,7 @@ fn parse_input_sources(i: &[u8]) -> NomResult<&[u8], BTreeSet<StorePath>> {
 	let mut input_sources: BTreeSet<_> = BTreeSet::new();
 	for input_source in input_sources_lst.into_iter() {
 		let input_source = string_to_store_path(i, input_source.as_str())?;
-		if input_sources.contains(&input_source) {
-			return Err(nom::Err::Failure(NomError {
-				input: i,
-				code: ErrorKind::DuplicateInputSource(input_source.to_owned()),
-			}));
-		} else {
-			input_sources.insert(input_source);
-		}
+		input_sources.insert(input_source);
 	}
 
 	Ok((i, input_sources))
@@ -547,27 +540,20 @@ mod tests {
 		assert!(rest.is_empty(), "rest must be empty");
 	}
 
-	/// Ensures the input sources parser complains about duplicate input sources
+	/// Input sources are a set, so a repeated path is accepted once.
 	#[test]
-	fn parse_input_sources_fail_dup_keys() {
+	fn parse_input_sources_deduplicates() {
 		let input: &'static [u8] = b"[\"/nix/store/55lwldka5nyxa08wnvlizyqw02ihy8ic-foo\",\"/nix/store/55lwldka5nyxa08wnvlizyqw02ihy8ic-foo\"]";
-		let e = super::parse_input_sources(input).expect_err("must fail");
-
-		match e {
-			nom::Err::Failure(e) => {
-				assert_eq!(
-					ErrorKind::DuplicateInputSource(
-						StorePathRef::from_absolute_path(
-							"/nix/store/55lwldka5nyxa08wnvlizyqw02ihy8ic-foo".as_bytes()
-						)
-						.unwrap()
-						.to_owned()
-					),
-					e.code
-				);
-			}
-			_ => panic!("unexpected error"),
-		}
+		let (rest, parsed) = super::parse_input_sources(input).expect("must parse");
+		assert!(rest.is_empty());
+		assert_eq!(
+			parsed,
+			BTreeSet::from([StorePathRef::from_absolute_path(
+				"/nix/store/55lwldka5nyxa08wnvlizyqw02ihy8ic-foo".as_bytes()
+			)
+			.unwrap()
+			.to_owned()])
+		);
 	}
 
 	#[rstest]

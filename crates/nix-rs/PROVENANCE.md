@@ -39,6 +39,7 @@ Without `glue`, `nix-rs-eval` evaluates only the pure language. It cannot instan
 - The workspace root `Cargo.toml` copies Snix's `[workspace.dependencies]` and `[workspace.package]`, and leaves out its `[patch.crates-io]` overrides of hyper and tonic, which none of these crates use.
 - The root `Cargo.lock` began as Snix's lock file at the revision above.
 - The imported directory was renamed to `crates/nix-rs/`; package names, Rust imports, evaluator test paths, and project-facing diagnostics were renamed from their upstream identifiers. The evaluator's placeholder `nixVersion` string changed from its upstream branding to nix-rs branding. These edits are not compatibility fixes.
+- The derivation ATerm parser now accepts duplicate input-source paths and collapses them into the existing set representation. This is a local compatibility change, covered by unit and copied-fixture tests.
 
 The imported evaluation algorithms have not been deliberately changed.
 
