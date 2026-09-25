@@ -13,5 +13,6 @@ The [root plan](../PLAN.md) states the sole product direction. These documents d
 | [NixBox integration](nixbox-integration.md) | Typed package operations, direct engine use, and declarative persistence |
 | [Rebuild diagnostics and logging](logging.md) | Rebuild phases, event schema, error rendering, output modes, and log tests |
 | [Verification and release](verification.md) | Test oracles, differential tests, and release gates |
+| [Development environment](development.md) | Pinned Rust shell and local check commands |
 
 Use [CONTEXT.md](../CONTEXT.md) for project vocabulary. The copied CppNix tests remain in [tests/upstream/nix/](../tests/upstream/nix/) with provenance in [tests/README.md](../tests/README.md). The imported Rust crates live in `crates/nix-rs/`, with their upstream revision in `crates/nix-rs/PROVENANCE.md`; their current presence is not a compatibility result. `crates/compat-tests/` contains initial fixture checks and records known gaps.
