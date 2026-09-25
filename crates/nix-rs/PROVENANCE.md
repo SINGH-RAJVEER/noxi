@@ -1,0 +1,57 @@
+# Imported Rust crate provenance
+
+The crates in this directory are copied from Snix, a Rust reimplementation of Nix components.
+
+| Field | Value |
+|---|---|
+| Upstream | https://git.snix.dev/snix/snix |
+| Revision | `22ca63bdb71c221001526304eca934385fb47c26` (2026-09-24) |
+| Copied on | 2026-09-25 |
+| Upstream licence | GPL-3.0, text in [LICENSE](LICENSE). Snix's protocol buffer definitions are MIT, but none are vendored here. |
+
+## What was copied and why
+
+| Directory | Crate | Reason |
+|---|---|---|
+| `nix-compat/` | `nix-compat` | Nix formats and protocols: store paths, nixbase32, hashes, NAR, ATerm derivations, narinfo, realisations, flake references, `nix.conf`, daemon wire types. It has no dependency on other Snix crates. |
+| `nix-compat-derive/` | `nix-compat-derive` | Proc macros that `nix-compat` uses for daemon wire serialisation |
+| `nix-compat-derive-tests/` | `nix-compat-derive-tests` | Tests for those macros |
+| `eval/` | `nix-rs-eval` (upstream `snix-eval`) | Nix language parser, compiler and bytecode VM, with the pure builtins |
+| `eval/builtin-macros/` | `nix-rs-eval-builtin-macros` (upstream `snix-eval-builtin-macros`) | Proc macros for defining builtins |
+| `serde/` | `nix-rs-serde` (upstream `snix-serde`) | Deserialises Nix values into Rust types, for reading configuration |
+
+## What was not copied and why
+
+| Snix component | Reason |
+|---|---|
+| `castore`, `store`, `nar-bridge`, `castore-http` | Built on Snix's own chunked content-addressed storage and gRPC services. nix-rs has to own the CppNix `/nix/store` layout and SQLite database, which this design does not provide. |
+| `build`, `build-glue` | Sandboxes through OCI and bubblewrap behind a gRPC build protocol, not the CppNix build-user and namespace model |
+| `glue` | Supplies `derivation`, `derivationStrict`, the fetchers, `import` and the store-aware builtins. It depends on `castore`, `store` and `build`. |
+| `nix-daemon` | A thin adapter onto `castore`/`store`. The protocol types it relies on are already in `nix-compat::nix_daemon`. |
+| `cli/*`, `tracing` | Snix-specific binaries and telemetry setup |
+
+Without `glue`, `nix-rs-eval` evaluates only the pure language. It cannot instantiate derivations or fetch sources, so nothing in this workspace can evaluate Nixpkgs to `.drv` paths yet.
+
+## Local modifications
+
+- Reformatted with the root `rustfmt.toml` (hard tabs, width 4), and changed TOML indentation to tabs.
+- Removed Snix's depot build files (each crate's `default.nix`). They depend on Snix's monorepo tooling.
+- The workspace root `Cargo.toml` copies Snix's `[workspace.dependencies]` and `[workspace.package]`, and leaves out its `[patch.crates-io]` overrides of hyper and tonic, which none of these crates use.
+- The root `Cargo.lock` began as Snix's lock file at the revision above.
+- The imported directory was renamed to `crates/nix-rs/`; package names, Rust imports, evaluator test paths, and project-facing diagnostics were renamed from their upstream identifiers. The evaluator's placeholder `nixVersion` string changed from its upstream branding to nix-rs branding. These edits are not compatibility fixes.
+
+The imported evaluation algorithms have not been deliberately changed.
+
+## Test status at import
+
+`cargo test --workspace --all-features --no-fail-fast` on rustc 1.100.0-nightly (2026-09-15):
+
+- All tests pass except one: `nix-compat-derive-tests`, test `ui`. It is a trybuild snapshot of compiler error messages. Snix pins Rust 1.95, and the error text differs on newer compilers; on this nightly, one of the compile-fail cases also triggers an internal compiler error. This is a toolchain difference, not a behaviour difference.
+- `crates/compat-tests` checks `nix-compat` against the CppNix derivation fixtures in `tests/upstream/`. The gaps it records are listed in that test file.
+
+## Refreshing from upstream
+
+1. Check out the new Snix revision somewhere else.
+2. Format its copies with this repository's `rustfmt.toml`, convert TOML indentation, and apply the local crate and identifier rename before comparing, so the diff shows behavior changes rather than branding changes.
+3. Diff against this directory, apply the changes, and update the revision above.
+4. Run the workspace tests and `crates/compat-tests`. Update the expectation table there if behaviour changed.

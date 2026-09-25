@@ -1,0 +1,10 @@
+[package]
+name = "nix-rs-serde"
+version = "0.1.0"
+edition = "2024"
+rust-version.workspace = true
+
+[dependencies]
+nix-rs-eval = { path = "../eval" }
+serde = { workspace = true, features = ["derive"] }
+bstr = { workspace = true, features = ["serde"] }

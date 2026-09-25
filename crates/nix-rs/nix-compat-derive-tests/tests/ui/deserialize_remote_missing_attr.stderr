@@ -1,0 +1,6 @@
+error: Missing from_str, from or try_from attribute
+  --> tests/ui/deserialize_remote_missing_attr.rs:11:5
+   |
+11 | /     #[nix()]
+12 | |     Value
+   | |_________^

@@ -1,0 +1,12 @@
+[package]
+name = "nixrs-compat-tests"
+version.workspace = true
+rust-version.workspace = true
+edition = "2024"
+publish = false
+description = "Differential tests that check vendored and first-party crates against the upstream CppNix fixtures in tests/upstream"
+
+[dependencies]
+
+[dev-dependencies]
+nix-compat = { path = "../nix-rs/nix-compat" }

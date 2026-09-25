@@ -1,0 +1,86 @@
+[package]
+name = "nix-compat"
+version = "0.1.0"
+edition = "2024"
+rust-version.workspace = true
+
+[features]
+# async NAR readers, writers and hashing tooling.
+# The NAR reader also needs the `wire` feature.
+async = ["digest", "futures", "tokio", "tokio-util"]
+# hashbrown::Equivalent impls
+hashbrown = ["dep:hashbrown"]
+# code emitting low-level packets used in the daemon protocol and NAR reader.
+wire = ["tokio", "pin-project-lite", "bytes"]
+flakeref = ["url"]
+# nix-daemon protocol handling
+daemon = ["tokio", "nix-compat-derive", "futures", "serde"]
+# serde support on types
+serde = ["dep:serde", "dep:serde_json", "dep:serde_with", "dep:cfg_eval"]
+test = []
+
+default = ["async", "hashbrown", "wire"]
+
+[dependencies]
+aho-corasick.workspace = true
+bitflags.workspace = true
+bstr = { workspace = true, features = ["alloc", "unicode", "serde"] }
+data-encoding.workspace = true
+digest = { workspace = true, optional = true }
+ed25519.workspace = true
+ed25519-dalek.workspace = true
+futures = { workspace = true, optional = true }
+hashbrown = { workspace = true, optional = true }
+md-5.workspace = true
+nom.workspace = true
+serde = { workspace = true, features = ["derive"], optional = true }
+serde_json = { workspace = true, optional = true }
+serde_with = { workspace = true, optional = true }
+sha1.workspace = true
+sha2.workspace = true
+smol_str.workspace = true
+thiserror.workspace = true
+tracing.workspace = true
+bytes = { workspace = true, optional = true }
+tokio = { workspace = true, features = [
+	"io-util",
+	"macros",
+	"sync",
+], optional = true }
+tokio-util = { workspace = true, features = ["io"], optional = true }
+pin-project-lite = { workspace = true, optional = true }
+num_enum = "0.7.3"
+url = { workspace = true, optional = true }
+cfg_eval = { workspace = true, optional = true }
+
+[dependencies.nix-compat-derive]
+path = "../nix-compat-derive"
+optional = true
+
+[dev-dependencies]
+criterion = { workspace = true, features = ["html_reports"] }
+futures.workspace = true
+hex-literal.workspace = true
+mimalloc.workspace = true
+mockall.workspace = true
+pretty_assertions = { workspace = true, features = ["unstable"] }
+proptest = { workspace = true, features = ["std", "alloc", "tempfile"] }
+rstest.workspace = true
+rstest_reuse.workspace = true
+smol_str.workspace = true
+tokio-test.workspace = true
+zstd.workspace = true
+
+[[bench]]
+name = "derivation_aterm"
+harness = false
+
+[[bench]]
+name = "narinfo_parse"
+harness = false
+
+[package.metadata.docs.rs]
+all-features = true
+
+[package.metadata.cargo-machete]
+ignored = ["futures"]

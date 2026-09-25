@@ -1,0 +1,13 @@
+error[E0277]: the trait bound `Test: From<u64>` is not satisfied
+ --> tests/ui/deserialize_try_from_missing.rs:4:18
+  |
+4 | #[nix(try_from = "u64")]
+  |                  ^^^^^ unsatisfied trait bound
+  |
+help: the trait `From<u64>` is not implemented for `Test`
+ --> tests/ui/deserialize_try_from_missing.rs:5:1
+  |
+5 | pub struct Test;
+  | ^^^^^^^^^^^^^^^
+  = note: required for `u64` to implement `Into<Test>`
+  = note: required for `Test` to implement `TryFrom<u64>`

@@ -1,0 +1,18 @@
+[package]
+name = "nix-compat-derive-tests"
+version = "0.1.0"
+edition = "2024"
+rust-version.workspace = true
+
+[dev-dependencies]
+trybuild.workspace = true
+tokio = { workspace = true, features = ["io-util", "macros", "rt"] }
+
+[dev-dependencies.nix-compat]
+version = "0.1.0"
+path = "../nix-compat"
+features = ["test", "wire"]
+
+[dev-dependencies.nix-compat-derive]
+version = "0.1.0"
+path = "../nix-compat-derive"
