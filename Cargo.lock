@@ -1327,6 +1327,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "nix-rs-cli"
+version = "0.1.0"
+dependencies = [
+ "nix-rs-eval",
+ "tempfile",
+]
+
+[[package]]
 name = "nix-rs-eval"
 version = "0.1.0"
 dependencies = [
@@ -1388,8 +1396,10 @@ dependencies = [
 name = "nixrs-compat-tests"
 version = "0.1.0"
 dependencies = [
+ "data-encoding",
  "nix-compat",
  "serde_json",
+ "tokio",
 ]
 
 [[package]]

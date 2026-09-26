@@ -9,6 +9,7 @@ members = [
 	"crates/nix-rs/nix-compat-derive-tests",
 	"crates/nix-rs/serde",
 	"crates/compat-tests",
+	"crates/nix-rs-cli",
 ]
 
 [workspace.package]

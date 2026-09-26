@@ -1,0 +1,17 @@
+[package]
+name = "nix-rs-cli"
+version.workspace = true
+rust-version.workspace = true
+edition = "2024"
+publish = false
+description = "Preview command-line entry point for the nix-rs package manager"
+
+[[bin]]
+name = "nixrs"
+path = "src/main.rs"
+
+[dependencies]
+nix-rs-eval = { path = "../nix-rs/eval", default-features = false }
+
+[dev-dependencies]
+tempfile.workspace = true
