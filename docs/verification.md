@@ -4,9 +4,13 @@
 
 The copied CppNix 2.36.0 tests under [tests/upstream/nix/](../tests/upstream/nix/) are the initial test oracle. The snapshot contains language fixtures, shell tests, NixOS integration definitions, C++ unit test sources, and golden data. Its original commit is unknown. Preserve the copied data and record a specific upstream revision on the next refresh. [Test snapshot notes](../tests/README.md)
 
+The full official Nix repository can be fetched into the ignored `tests/upstream/nix-official/` checkout with `just nix-tests-update`; `tests/upstream/nix-official.lock` records its exact revision. It is a separate, current upstream reference for running CppNix's own build and test suite. Its results do not substitute for running the same cases against nix-rs, and its release tag must not be mixed with the fixed 2.36.0 fixture expectations. [Upstream test workflow](../tests/README.md)
+
 `crates/compat-tests/` already classifies the copied ATerm derivation fixtures against vendored `nix-compat`. Its expectation table names unsupported forms, including content-addressed and dynamic derivations. These classified gaps are useful progress markers, not passing compatibility cases.
 
 The ATerm parser follows CppNix 2.36's parsing rules for ordering, duplicates and escapes. The anonymised `hello.drv` and `firefox.drv` fixtures contain distinct paths that share a digest; they now round-trip byte for byte. `crates/compat-tests/tests/upstream_masked_hash.rs` checks the hashes that decide input-addressed output paths against CppNix's masked-hash fixtures: fixed-output hashing, hash derivation modulo, and output paths computed from the fully masked form. The `intermediate-*` fixtures state output paths computed before their output environment variables existed. They disagree with CppNix's own fully masked form, and verification rejects them; the test records this upstream fixture quirk explicitly. These checks cover narrow format behavior, not complete derivation or store compatibility.
+
+`crates/compat-tests/tests/upstream_worker_protocol.rs` decodes the number of values stated by each JSON fixture at the version CppNix's test uses, and requires byte-identical re-encoding (decoding only, for the lossy reads CppNix also only reads). A count-bound read is necessary because an optional value at EOF may be interpreted as absent rather than as stream termination. It also checks decoded values against those the C++ test constructs. Three fixtures in the snapshot are not referenced by its C++ tests and are marked stale. Fixtures that need protocol feature negotiation, and the handshake, remain gaps.
 
 `crates/compat-tests/tests/upstream_nars.rs` runs the copied CppNix NAR fixtures through the Rust archive reader and writer. It checks the valid one-byte archive byte for byte, leaves trailing data unread, and rejects the copied malformed archives with their expected error categories. This covers archive parsing only; store import/export and cache exchange remain unrun.
 
@@ -32,6 +36,8 @@ The copied shell suite needs an isolated test store and compatible executables b
 ## System tests
 
 For each release matrix row, run installation and upgrade tests in virtual machines, then qualify claimed hardware targets. Verify first boot, login, networking, a system change through each client, rebuild after reboot, failed evaluation, failed build, stale preview rejection, interrupted switch, rollback, and recovery media. Include a migration test from a reference CppNix installation if existing-system drop-in support is claimed for that row.
+
+For the later OS image, qualify ordinary systemd-boot and Lanzaboote Secure Boot as separate installer paths. Test key enrollment and enforcement on the Secure Boot path, signed generation updates, refusal to boot an unsigned artifact, key loss, failed signing, and recovery. The image must rebuild itself through nix-rs after installation. [Boot security](secure-boot.md), [system lifecycle](system.md)
 
 The [configuration workflow](configuration-workflow.md) requires additional cases for external source edits, staged build versus saved-source mismatch, interrupted journal writes, and desired configuration diverging from the running generation after partial activation.
 

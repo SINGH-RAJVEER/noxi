@@ -4,9 +4,17 @@
 
 The distribution must publish an installer image for every supported boot mode and architecture. An installation selects disks, filesystems, accounts, network configuration, bootloader, and a NixOS configuration source. The installer must show the exact storage operations before writing to disk and produce a configuration that the installed nix-rs engine can evaluate again after reboot.
 
+On supported UEFI machines, the installer offers ordinary systemd-boot and Lanzaboote Secure Boot as distinct choices. It checks firmware, EFI System Partition, signing, and recovery prerequisites before applying the selected boot policy, then records that policy in the generated Nix source. The installer must not claim Secure Boot is active until the installed system boots with enforcement enabled. [Boot and Secure Boot specification](secure-boot.md)
+
 The installed system must include nix-rs as the default package manager and daemon, its system management tools, a working Nix language configuration, and a recovery route. Installation is complete only after the machine boots from the installed system and can build a second system generation with nix-rs. A successful installer image build is insufficient.
 
 Development may use an isolated reference CppNix instance to bootstrap artifacts and compare outputs. The released installed system must perform normal evaluation, builds, substitutions, and store maintenance through nix-rs.
+
+## Image construction and first boot
+
+The OS flake must produce installed-system, live-installer, VM, and recovery outputs from pinned Nixpkgs and nix-rs inputs. Each published image records its source revision, lock revisions, target architecture, supported firmware mode, boot policy, and checksum. Building an image only proves that an artifact exists; boot and self-maintenance need separate tests.
+
+The installer writes a configuration source that identifies the selected disk and boot policy without encoding secrets in the Nix store. After installation, test first boot, daemon startup, network availability where configured, the selected boot entry, and the running generation. Then build and activate a second generation using the installed nix-rs binaries and daemon. Inspect the resulting closure and operation trace to confirm normal maintenance did not call CppNix. A failed second rebuild must leave the installed generation bootable and report source, store, and boot state separately.
 
 ## System generations
 
