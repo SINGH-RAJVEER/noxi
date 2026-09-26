@@ -14,6 +14,7 @@ pub enum HashAlgo {
 	Sha1,
 	Sha256,
 	Sha512,
+	Blake3,
 }
 
 impl HashAlgo {
@@ -24,6 +25,7 @@ impl HashAlgo {
 			HashAlgo::Sha1 => "sha1",
 			HashAlgo::Sha256 => "sha256",
 			HashAlgo::Sha512 => "sha512",
+			HashAlgo::Blake3 => "blake3",
 		}
 	}
 
@@ -34,6 +36,7 @@ impl HashAlgo {
 			HashAlgo::Sha1 => "sha1-",
 			HashAlgo::Sha256 => "sha256-",
 			HashAlgo::Sha512 => "sha512-",
+			HashAlgo::Blake3 => "blake3-",
 		}
 	}
 
@@ -44,6 +47,7 @@ impl HashAlgo {
 			HashAlgo::Sha256 => 32,
 			HashAlgo::Sha512 => 64,
 			HashAlgo::Md5 => 16,
+			HashAlgo::Blake3 => 32,
 		}
 	}
 }
@@ -63,6 +67,7 @@ impl FromStr for HashAlgo {
 			"sha1" => Ok(Self::Sha1),
 			"sha256" => Ok(Self::Sha256),
 			"sha512" => Ok(Self::Sha512),
+			"blake3" => Ok(Self::Blake3),
 			_ => Err(Error::InvalidAlgo(algo_str.to_string())),
 		}
 	}

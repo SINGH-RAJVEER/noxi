@@ -82,6 +82,7 @@ impl OutputHash {
 				HashAlgo::Sha1 => "r:sha1",
 				HashAlgo::Sha256 => "r:sha256",
 				HashAlgo::Sha512 => "r:sha512",
+				HashAlgo::Blake3 => "r:blake3",
 			},
 		}
 	}

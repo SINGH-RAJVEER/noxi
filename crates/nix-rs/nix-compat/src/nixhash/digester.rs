@@ -11,6 +11,7 @@ enum Inner {
 	Sha1(sha1::Sha1),
 	Sha256(Sha256Digester),
 	Sha512(sha2::Sha512),
+	Blake3(blake3::Hasher),
 }
 
 /// A digester that takes in bytes and ultimately produces a [`NixHash`].
@@ -39,6 +40,7 @@ impl NixHashDigester {
 			HashAlgo::Sha1 => Self(Inner::Sha1(sha1::Sha1::new())),
 			HashAlgo::Sha256 => Self(Inner::Sha256(Sha256Digester::new())),
 			HashAlgo::Sha512 => Self(Inner::Sha512(sha2::Sha512::new())),
+			HashAlgo::Blake3 => Self(Inner::Blake3(blake3::Hasher::new())),
 		}
 	}
 
@@ -49,6 +51,7 @@ impl NixHashDigester {
 			Inner::Sha1(_) => HashAlgo::Sha1,
 			Inner::Sha256(_) => HashAlgo::Sha256,
 			Inner::Sha512(_) => HashAlgo::Sha512,
+			Inner::Blake3(_) => HashAlgo::Blake3,
 		}
 	}
 
@@ -59,6 +62,9 @@ impl NixHashDigester {
 			Inner::Sha1(d) => d.update(data),
 			Inner::Sha256(d) => d.update(data),
 			Inner::Sha512(d) => d.update(data),
+			Inner::Blake3(d) => {
+				d.update(data.as_ref());
+			}
 		}
 	}
 
@@ -78,6 +84,7 @@ impl NixHashDigester {
 				let digest: [u8; HashAlgo::Sha512.digest_length()] = d.finalize().into();
 				NixHash::Sha512(Box::new(digest))
 			}
+			Inner::Blake3(d) => NixHash::Blake3(*d.finalize().as_bytes()),
 		}
 	}
 }

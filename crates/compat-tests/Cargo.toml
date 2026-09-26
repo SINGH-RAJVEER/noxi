@@ -9,4 +9,5 @@ description = "Differential tests that check vendored and first-party crates aga
 [dependencies]
 
 [dev-dependencies]
-nix-compat = { path = "../nix-rs/nix-compat" }
+nix-compat = { path = "../nix-rs/nix-compat", features = ["serde"] }
+serde_json.workspace = true

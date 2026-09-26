@@ -22,9 +22,9 @@ pub use digester::NixHashDigester;
 pub use io::{copy_buf_hashed, copy_buf_sha256, copy_hashed, copy_sha256};
 pub use sha256::{Sha256, Sha256Digester};
 
-/// NixHash represents hashes known by Nix (md5/sha1/sha256/sha512).
+/// NixHash represents hashes known by Nix (md5/sha1/sha256/sha512/blake3).
 ///
-/// Internally, these are represented as an enum of 4 kinds (the latter being
+/// Internally, these are represented as an enum (sha512 being
 /// boxed for size reasons, as we rarely use sha512, having a pointer there
 /// is fine).
 ///
@@ -66,15 +66,16 @@ pub enum NixHash {
 	Sha1([u8; 20]),
 	Sha256([u8; 32]),
 	Sha512(Box<[u8; 64]>),
+	Blake3([u8; 32]),
 }
 
-/// Same order as sorting the corresponding nixbase32 strings.
-///
-/// This order is used in the ATerm serialization of a derivation
-/// and thus affects the calculated output hash.
+/// Sort by digest bytes, then algorithm when the bytes are equal.
+/// The tie-breaker keeps values with different algorithms distinct in ordered collections.
 impl Ord for NixHash {
 	fn cmp(&self, other: &NixHash) -> Ordering {
-		self.digest_as_bytes().cmp(other.digest_as_bytes())
+		self.digest_as_bytes()
+			.cmp(other.digest_as_bytes())
+			.then_with(|| self.algo().as_str().cmp(other.algo().as_str()))
 	}
 }
 
@@ -102,6 +103,7 @@ impl NixHash {
 			NixHash::Sha1(_) => HashAlgo::Sha1,
 			NixHash::Sha256(_) => HashAlgo::Sha256,
 			NixHash::Sha512(_) => HashAlgo::Sha512,
+			NixHash::Blake3(_) => HashAlgo::Blake3,
 		}
 	}
 
@@ -112,6 +114,7 @@ impl NixHash {
 			NixHash::Sha1(digest) => digest,
 			NixHash::Sha256(digest) => digest,
 			NixHash::Sha512(digest) => digest.as_ref(),
+			NixHash::Blake3(digest) => digest,
 		}
 	}
 
@@ -128,6 +131,7 @@ impl NixHash {
 			HashAlgo::Sha1 => NixHash::Sha1(digest.try_into().unwrap()),
 			HashAlgo::Sha256 => NixHash::Sha256(digest.try_into().unwrap()),
 			HashAlgo::Sha512 => NixHash::Sha512(Box::new(digest.try_into().unwrap())),
+			HashAlgo::Blake3 => NixHash::Blake3(digest.try_into().unwrap()),
 		})
 	}
 
@@ -143,6 +147,7 @@ impl NixHash {
 			"sha512" => nixbase32::decode_fixed(digest)
 				.map(Box::new)
 				.map(NixHash::Sha512),
+			"blake3" => nixbase32::decode_fixed(digest).map(NixHash::Blake3),
 			_ => return None,
 		})
 		.ok()
@@ -256,6 +261,8 @@ impl NixHash {
 				Some(decode_digest(rest.as_bytes(), HashAlgo::Sha512)?)
 			} else if let Some(rest) = s.strip_prefix("md5:") {
 				Some(decode_digest(rest.as_bytes(), HashAlgo::Md5)?)
+			} else if let Some(rest) = s.strip_prefix("blake3:") {
+				Some(decode_digest(rest.as_bytes(), HashAlgo::Blake3)?)
 			} else {
 				None
 			}
