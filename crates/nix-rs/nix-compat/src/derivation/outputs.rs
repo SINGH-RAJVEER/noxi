@@ -17,10 +17,21 @@ use crate::{
 /// And while the fixed output also has a name and a [`StorePath`] it
 /// addtionally also has a [`OutputHash`].
 ///
+/// Outputs can also be deferred: input addressed, but with paths that are not
+/// known yet, because computing them needs the output paths of a derivation
+/// that is itself not input addressed. CppNix writes them with an empty path.
+/// Deferred outputs have names but no [`StorePath`], so [`Outputs::iter`] and
+/// [`Outputs::get`] skip them, while [`Outputs::names`] and [`Outputs::len`]
+/// include them.
+///
 /// # Invariants
 /// - Only a single FOD output is allowed and it must be named `out`
 /// - Duplicately named outputs is an error
-/// - Outputs can not be empty
+/// - Outputs are all of one kind (fixed, input addressed or deferred)
+/// - Outputs can not be empty, except in an [`UnverifiedDerivation`] parsed
+///   from ATerm, which CppNix also accepts; building or verifying it fails.
+///
+/// [`UnverifiedDerivation`]: crate::derivation::UnverifiedDerivation
 ///
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Outputs(OutputsInner);
@@ -34,6 +45,20 @@ impl Outputs {
 			output_hash,
 			store_path,
 		})
+	}
+
+	/// Create deferred `Outputs` with the provided names.
+	///
+	/// This will return a [`OutputsError`] if there are no names.
+	pub fn deferred_from_names<I>(it: I) -> Result<Self, OutputsError>
+	where
+		I: IntoIterator<Item = OutputName>,
+	{
+		let names: BTreeSet<OutputName> = it.into_iter().collect();
+		if names.is_empty() {
+			return Err(OutputsError::NoOutputs());
+		}
+		Ok(Outputs(OutputsInner::Deferred(names)))
 	}
 
 	/// Try to create input addressed `Outputs` from the provided iterator.
@@ -99,6 +124,9 @@ impl Outputs {
 				let output_names = outputs.into_keys().collect();
 				OutputsBuilder::InputAddressed(output_names)
 			}
+			// A builder always computes the paths, which is what filling in
+			// deferred outputs means.
+			OutputsInner::Deferred(names) => OutputsBuilder::InputAddressed(names),
 		}
 	}
 
@@ -263,6 +291,19 @@ impl Outputs {
 	#[must_use]
 	pub fn is_input_addressed(&self) -> bool {
 		self.0.is_input_addressed()
+	}
+
+	/// Returns `true` if these are deferred outputs, whose paths are not known yet.
+	#[must_use]
+	pub fn is_deferred(&self) -> bool {
+		self.0.is_deferred()
+	}
+
+	/// Returns `true` if there are no outputs. Only a parsed, unverified
+	/// derivation can have none.
+	#[must_use]
+	pub fn is_empty(&self) -> bool {
+		self.0.len() == 0
 	}
 }
 
@@ -625,6 +666,10 @@ impl UnverifiedOutputsBuilder {
 			return Ok(());
 		}
 
+		if self.0.is_deferred() {
+			return Err(OutputsError::MixedOutputKinds());
+		}
+
 		if self.is_fixed() || output_hash.is_some() {
 			return Err(OutputsError::MoreThanOneOutputButFixed());
 		}
@@ -633,6 +678,7 @@ impl UnverifiedOutputsBuilder {
 			OutputsInner::Fixed { .. } => {
 				return Err(OutputsError::MoreThanOneOutputButFixed());
 			}
+			OutputsInner::Deferred(_) => unreachable!("checked above"),
 			OutputsInner::InputAddressed(mut outputs) => {
 				if outputs.insert(output_name.clone(), output_path).is_some() {
 					return Err(OutputsError::DuplicateOutputName(output_name));
@@ -641,6 +687,32 @@ impl UnverifiedOutputsBuilder {
 			}
 		}
 		Ok(())
+	}
+
+	/// Try to insert a new deferred output (one without a path yet).
+	///
+	/// All outputs must be deferred if any is, and duplicate names are an error.
+	pub fn try_insert_deferred(&mut self, output_name: OutputName) -> Result<(), OutputsError> {
+		match &mut self.0 {
+			OutputsInner::InputAddressed(outputs) if outputs.is_empty() => {
+				self.0 = OutputsInner::Deferred(BTreeSet::from([output_name]));
+				Ok(())
+			}
+			OutputsInner::Deferred(names) => {
+				if !names.insert(output_name.clone()) {
+					return Err(OutputsError::DuplicateOutputName(output_name));
+				}
+				Ok(())
+			}
+			_ => Err(OutputsError::MixedOutputKinds()),
+		}
+	}
+
+	/// Consume this builder and return the [`Outputs`], allowing there to be
+	/// none. CppNix's parser accepts a derivation without outputs and only
+	/// rejects it when the derivation type is determined.
+	pub(crate) fn build_allow_empty(self) -> Outputs {
+		Outputs(self.0)
 	}
 
 	/// Consume this builder and return the built [`Outputs`] or an error if not possible.
@@ -692,6 +764,7 @@ enum OutputsInner {
 		store_path: StorePath,
 	},
 	InputAddressed(BTreeMap<OutputName, StorePath>),
+	Deferred(BTreeSet<OutputName>),
 }
 
 impl OutputsInner {
@@ -703,7 +776,12 @@ impl OutputsInner {
 		match self {
 			OutputsInner::Fixed { .. } => 1,
 			OutputsInner::InputAddressed(outputs) => outputs.len(),
+			OutputsInner::Deferred(names) => names.len(),
 		}
+	}
+
+	pub fn is_deferred(&self) -> bool {
+		matches!(self, OutputsInner::Deferred(_))
 	}
 
 	pub fn is_fixed(&self) -> bool {
@@ -722,6 +800,7 @@ impl OutputsInner {
 		match self {
 			OutputsInner::Fixed { .. } => *name == OutputName::out(),
 			OutputsInner::InputAddressed(outputs) => outputs.contains_key(name),
+			OutputsInner::Deferred(names) => names.contains(name),
 		}
 	}
 
@@ -744,6 +823,7 @@ impl OutputsInner {
 			OutputsInner::InputAddressed(outputs) => {
 				OutputNames(OutputNameInner::BTreeMap(outputs.keys()))
 			}
+			OutputsInner::Deferred(names) => OutputNames(OutputNameInner::BTreeSet(names.iter())),
 		}
 	}
 
@@ -754,6 +834,9 @@ impl OutputsInner {
 			)),
 			OutputsInner::InputAddressed(outputs) => {
 				IntoOutputNames(IntoOutputNameInner::BTreeMap(outputs.into_keys()))
+			}
+			OutputsInner::Deferred(names) => {
+				IntoOutputNames(IntoOutputNameInner::BTreeSet(names.into_iter()))
 			}
 		}
 	}
@@ -766,6 +849,7 @@ impl OutputsInner {
 				Iter(IterI::Fixed(std::iter::once((OUT, store_path))))
 			}
 			OutputsInner::InputAddressed(outputs) => Iter(IterI::InputAddressed(outputs.iter())),
+			OutputsInner::Deferred(_) => Iter(IterI::Empty),
 		}
 	}
 
@@ -777,6 +861,7 @@ impl OutputsInner {
 			OutputsInner::InputAddressed(outputs) => {
 				IntoIter(IntoIterI::InputAddressed(outputs.into_iter()))
 			}
+			OutputsInner::Deferred(_) => IntoIter(IntoIterI::Empty),
 		}
 	}
 }
@@ -911,6 +996,10 @@ pub enum OutputsError {
 	DuplicateOutputName(OutputName),
 	#[error("encountered fixed-output derivation, but more than 1 output in total")]
 	MoreThanOneOutputButFixed(),
+	#[error("can't mix derivation output types")]
+	MixedOutputKinds(),
+	#[error("derivation has deferred outputs, so it has no hash derivation modulo")]
+	Deferred(),
 	#[error("invalid output name for fixed-output derivation: {0}")]
 	InvalidOutputNameForFixed(String),
 	#[error("invalid calculated output derivation path name: {0}")]
@@ -933,6 +1022,7 @@ impl fmt::Debug for Iter<'_> {
 enum IterI<'a> {
 	Fixed(std::iter::Once<(&'a OutputName, &'a StorePath)>),
 	InputAddressed(std::collections::btree_map::Iter<'a, OutputName, StorePath>),
+	Empty,
 }
 
 impl<'a> Iterator for Iter<'a> {
@@ -942,12 +1032,14 @@ impl<'a> Iterator for Iter<'a> {
 		match &mut self.0 {
 			IterI::Fixed(it) => it.next(),
 			IterI::InputAddressed(it) => it.next(),
+			IterI::Empty => None,
 		}
 	}
 	fn size_hint(&self) -> (usize, Option<usize>) {
 		match &self.0 {
 			IterI::Fixed(it) => it.size_hint(),
 			IterI::InputAddressed(it) => it.size_hint(),
+			IterI::Empty => (0, Some(0)),
 		}
 	}
 }
@@ -971,6 +1063,7 @@ impl fmt::Debug for IntoIter {
 enum IntoIterI {
 	Fixed(std::iter::Once<(OutputName, StorePath)>),
 	InputAddressed(std::collections::btree_map::IntoIter<OutputName, StorePath>),
+	Empty,
 }
 
 impl Iterator for IntoIter {
@@ -980,12 +1073,14 @@ impl Iterator for IntoIter {
 		match &mut self.0 {
 			IntoIterI::Fixed(it) => it.next(),
 			IntoIterI::InputAddressed(it) => it.next(),
+			IntoIterI::Empty => None,
 		}
 	}
 	fn size_hint(&self) -> (usize, Option<usize>) {
 		match &self.0 {
 			IntoIterI::Fixed(it) => it.size_hint(),
 			IntoIterI::InputAddressed(it) => it.size_hint(),
+			IntoIterI::Empty => (0, Some(0)),
 		}
 	}
 }

@@ -6,10 +6,10 @@
 use nom::Parser;
 use nom::bytes::streaming::tag;
 use nom::character::streaming::char as nomchar;
-use nom::combinator::{all_consuming, consumed, map_res};
-use nom::multi::{separated_list0, separated_list1};
+use nom::combinator::{all_consuming, consumed};
+use nom::multi::separated_list0;
 use nom::sequence::{delimited, preceded, separated_pair, terminated};
-use std::collections::{BTreeMap, BTreeSet, btree_map};
+use std::collections::{BTreeMap, BTreeSet};
 use thiserror;
 
 use crate::derivation::parse_error::{ErrorKind, NomError, NomResult, into_nomerror};
@@ -53,7 +53,9 @@ pub fn parse(i: &[u8]) -> Result<UnverifiedDerivation, Error<&[u8]>> {
 			debug_assert!(rest.is_empty());
 
 			// invoke validate
-			builder.build_unverified(outputs).map_err(Error::Validation)
+			builder
+				.build_unverified_as_parsed(outputs)
+				.map_err(Error::Validation)
 		}
 		Err(nom::Err::Incomplete(_)) => Err(Error::Incomplete),
 		Err(nom::Err::Error(e) | nom::Err::Failure(e)) => Err(e.into()),
@@ -69,7 +71,7 @@ pub fn parse_streaming(i: &[u8]) -> (Result<UnverifiedDerivation, Error<&[u8]>>,
 	match consumed(parse_derivation).parse(i) {
 		Ok((_, (rest, (builder, outputs)))) => {
 			// invoke validate
-			match builder.build_unverified(outputs) {
+			match builder.build_unverified_as_parsed(outputs) {
 				Ok(derivation) => (Ok(derivation), rest),
 				Err(e) => (Err(Error::Validation(e)), i),
 			}
@@ -81,65 +83,74 @@ pub fn parse_streaming(i: &[u8]) -> (Result<UnverifiedDerivation, Error<&[u8]>>,
 
 /// Parse one output in ATerm. This is 4 string fields inside parans:
 /// output name, output path, algo (and mode), digest.
-/// Returns the [`OutputName`], output [`StorePath`] and possible FOD [`OutputHash`].
-fn parse_output(i: &[u8]) -> NomResult<&[u8], (OutputName, StorePath, Option<OutputHash>)> {
-	delimited(
-        nomchar('('),
-        map_res(
-            |i| {
-                (
-                    terminated(aterm::parse_string_field, nomchar(',')),
-                    terminated(aterm::parse_string_field, nomchar(',')),
-                    terminated(aterm::parse_string_field, nomchar(',')),
-                    aterm::parse_bytes_field,
-                )
-                    .parse(i)
-                    .map_err(into_nomerror)
-            },
-            |(output_name_str, output_path_str, algo_and_mode, encoded_digest)| -> Result<_, nom::Err<NomError<&[u8]>>> {
-                let output_name: OutputName = output_name_str.parse().map_err(|err| {
-                    nom::Err::Failure(NomError {
-                        input: i,
-                        code: ErrorKind::InvalidOutputName(err),
-                    })
-                })?;
+/// Returns the [`OutputName`], the output [`StorePath`] (absent for outputs
+/// whose path is not known yet) and possible FOD [`OutputHash`].
+fn parse_output(i: &[u8]) -> NomResult<&[u8], (OutputName, Option<StorePath>, Option<OutputHash>)> {
+	let (rest, (output_name_str, output_path_str, algo_and_mode, encoded_digest)) = delimited(
+		nomchar('('),
+		|i| {
+			(
+				terminated(aterm::parse_unquoted_string_field, nomchar(',')),
+				terminated(aterm::parse_unquoted_string_field, nomchar(',')),
+				terminated(aterm::parse_string_field, nomchar(',')),
+				aterm::parse_bytes_field,
+			)
+				.parse(i)
+				.map_err(into_nomerror)
+		},
+		nomchar(')'),
+	)
+	.parse(i)?;
 
-                // This can't be an empty string in ATerms written to disk.
-                // This being an empty string can only occur during output path calculation.
-                let path = string_to_store_path(i, &output_path_str)?;
+	// Validate outside a combinator, so the specific error reaches the caller.
+	let output_name: OutputName = output_name_str.parse().map_err(|err| {
+		nom::Err::Failure(NomError {
+			input: i,
+			code: ErrorKind::InvalidOutputName(err),
+		})
+	})?;
 
-                let output_hash = if algo_and_mode.is_empty() && encoded_digest.is_empty() {
-                    None
-                } else {
-                    let digest =
-                        data_encoding::HEXLOWER
-                            .decode(&encoded_digest)
-                            .map_err(|err| {
-                                nom::Err::Failure(NomError {
-                                    input: i,
-                                    code: ErrorKind::NixHashError(
-                                        // TODO: do we still need the outer error?
-                                        nixhash::Error::InvalidBase16Encoding(err),
-                                    ),
-                                })
-                            })?;
+	// An empty path is a deferred output, or a floating content-addressed one.
+	let path = if output_path_str.is_empty() {
+		None
+	} else {
+		Some(string_to_store_path(i, &output_path_str)?)
+	};
 
-                    Some(
-                        OutputHash::from_mode_algo_and_digest(&algo_and_mode, digest)
-                            .map_err(|err| {
-                                nom::Err::Failure(NomError {
-                                    input: i,
-                                    code: ErrorKind::NixHashError(err),
-                                })
-                            })?,
-                    )
-                };
-                Ok((output_name, path, output_hash))
-            },
-        ),
-        nomchar(')'),
-    )
-    .parse(i)
+	// A hash algorithm without a path is a floating content-addressed or
+	// impure output, which CppNix only accepts with experimental features.
+	if path.is_none() && !algo_and_mode.is_empty() {
+		return Err(nom::Err::Failure(NomError {
+			input: i,
+			code: ErrorKind::FloatingContentAddressedOutput(output_name),
+		}));
+	}
+
+	let output_hash = if algo_and_mode.is_empty() && encoded_digest.is_empty() {
+		None
+	} else {
+		let digest = data_encoding::HEXLOWER
+			.decode(&encoded_digest)
+			.map_err(|err| {
+				nom::Err::Failure(NomError {
+					input: i,
+					code: ErrorKind::NixHashError(
+						// TODO: do we still need the outer error?
+						nixhash::Error::InvalidBase16Encoding(err),
+					),
+				})
+			})?;
+
+		Some(
+			OutputHash::from_mode_algo_and_digest(&algo_and_mode, digest).map_err(|err| {
+				nom::Err::Failure(NomError {
+					input: i,
+					code: ErrorKind::NixHashError(err),
+				})
+			})?,
+		)
+	};
+	Ok((rest, (output_name, path, output_hash)))
 }
 
 /// Parse multiple outputs in ATerm. This is a list of things acccepted by
@@ -150,7 +161,7 @@ fn parse_output(i: &[u8]) -> NomResult<&[u8], (OutputName, StorePath, Option<Out
 fn parse_outputs(i: &[u8]) -> NomResult<&[u8], Outputs> {
 	let res = delimited(
 		nomchar('['),
-		separated_list1(tag(","), parse_output),
+		separated_list0(tag(","), parse_output),
 		nomchar(']'),
 	)
 	.parse(i);
@@ -158,22 +169,39 @@ fn parse_outputs(i: &[u8]) -> NomResult<&[u8], Outputs> {
 	match res {
 		Ok((rst, outputs_lst)) => {
 			let mut builder = UnverifiedOutputsBuilder::default();
+			let mut previous: Option<OutputName> = None;
 			for (output_name, store_path, output_hash) in outputs_lst {
-				builder
-					.try_insert(output_name, store_path, output_hash)
-					.map_err(|err| {
-						nom::Err::Failure(NomError {
+				if let Some(previous) = &previous
+					&& previous > &output_name
+				{
+					return Err(nom::Err::Failure(NomError {
+						input: i,
+						code: ErrorKind::Unsorted(format!("output name '{output_name}'")),
+					}));
+				}
+				previous = Some(output_name.clone());
+				let inserted = match (store_path, output_hash) {
+					(Some(store_path), output_hash) => {
+						builder.try_insert(output_name, store_path, output_hash)
+					}
+					(None, None) => builder.try_insert_deferred(output_name),
+					(None, Some(_)) => {
+						return Err(nom::Err::Failure(NomError {
 							input: i,
-							code: ErrorKind::InvalidOutputs(err),
-						})
-					})?;
+							code: ErrorKind::FloatingContentAddressedOutput(output_name),
+						}));
+					}
+				};
+				inserted.map_err(|err| {
+					nom::Err::Failure(NomError {
+						input: i,
+						code: ErrorKind::InvalidOutputs(err),
+					})
+				})?;
 			}
-			let outputs = builder.try_build().map_err(|err| {
-				nom::Err::Failure(NomError {
-					input: i,
-					code: ErrorKind::InvalidOutputs(err),
-				})
-			})?;
+			// CppNix's parser accepts a derivation without outputs; it is
+			// rejected later, when its type is determined.
+			let outputs = builder.build_allow_empty();
 			Ok((rst, outputs))
 		}
 		// pass regular parse errors along
@@ -184,12 +212,22 @@ fn parse_outputs(i: &[u8]) -> NomResult<&[u8], Outputs> {
 fn parse_input_derivations(
 	i: &[u8],
 ) -> NomResult<&[u8], BTreeMap<StorePath, BTreeSet<OutputName>>> {
-	let (i, input_derivations_list) = parse_kv(aterm::parse_string_list)(i)?;
+	let (i, input_derivations_list) = parse_kv(
+		aterm::parse_unquoted_string_field,
+		aterm::parse_unquoted_string_list,
+	)(i)?;
 
 	// This is a HashMap of drv paths to a list of output names.
 	let mut input_derivations: BTreeMap<StorePath, BTreeSet<_>> = BTreeMap::new();
 
 	for (input_derivation, output_names_strings) in input_derivations_list {
+		if output_names_strings.is_empty() {
+			return Err(nom::Err::Failure(NomError {
+				input: i,
+				code: ErrorKind::InputDerivationWithoutOutputs(input_derivation),
+			}));
+		}
+
 		let mut output_names = BTreeSet::<OutputName>::new();
 		for output_name_string in output_names_strings.into_iter() {
 			let output_name = OutputName::try_from(output_name_string).map_err(|err| {
@@ -208,6 +246,14 @@ fn parse_input_derivations(
 					),
 				}));
 			}
+			if output_names.last().is_some_and(|last| last > &output_name) {
+				return Err(nom::Err::Failure(NomError {
+					input: i,
+					code: ErrorKind::Unsorted(format!(
+						"output name '{output_name}' of input derivation {input_derivation}"
+					)),
+				}));
+			}
 			output_names.insert(output_name);
 		}
 
@@ -220,11 +266,26 @@ fn parse_input_derivations(
 }
 
 fn parse_input_sources(i: &[u8]) -> NomResult<&[u8], BTreeSet<StorePath>> {
-	let (i, input_sources_lst) = aterm::parse_string_list(i).map_err(into_nomerror)?;
+	let (i, input_sources_lst) = aterm::parse_unquoted_string_list(i).map_err(into_nomerror)?;
 
-	let mut input_sources: BTreeSet<_> = BTreeSet::new();
+	let mut input_sources: BTreeSet<StorePath> = BTreeSet::new();
 	for input_source in input_sources_lst.into_iter() {
 		let input_source = string_to_store_path(i, input_source.as_str())?;
+		match input_sources.last() {
+			Some(last) if last == &input_source => {
+				return Err(nom::Err::Failure(NomError {
+					input: i,
+					code: ErrorKind::DuplicateInputSource(input_source),
+				}));
+			}
+			Some(last) if last > &input_source => {
+				return Err(nom::Err::Failure(NomError {
+					input: i,
+					code: ErrorKind::Unsorted(format!("input source {input_source}")),
+				}));
+			}
+			_ => {}
+		}
 		input_sources.insert(input_source);
 	}
 
@@ -268,7 +329,7 @@ pub fn parse_derivation(i: &[u8]) -> NomResult<&[u8], (DerivationBuilder, Output
 				terminated(parse_input_sources, nomchar(',')),
 				// // parse system
 				|i| {
-					terminated(aterm::parse_string_field, nomchar(','))
+					terminated(aterm::parse_unquoted_string_field, nomchar(','))
 						.parse(i)
 						.map_err(into_nomerror)
 				},
@@ -285,7 +346,7 @@ pub fn parse_derivation(i: &[u8]) -> NomResult<&[u8], (DerivationBuilder, Output
 						.map_err(into_nomerror)
 				},
 				// parse environment
-				parse_kv(aterm::parse_bytes_field),
+				parse_kv(aterm::parse_string_field, aterm::parse_bytes_field),
 			),
 			nomchar(')'),
 		)
@@ -303,7 +364,7 @@ pub fn parse_derivation(i: &[u8]) -> NomResult<&[u8], (DerivationBuilder, Output
 				let builder = DerivationBuilder {
 					arguments,
 					command,
-					environment,
+					environment: environment.into_iter().collect(),
 					input_derivations,
 					input_sources,
 					outputs: outputs_builder,
@@ -321,10 +382,16 @@ pub fn parse_derivation(i: &[u8]) -> NomResult<&[u8], (DerivationBuilder, Output
 /// In terms of ATerm, this is just a 2-tuple,
 /// but we have the additional restriction that the first element needs to be
 /// unique across all tuples.
-pub(crate) fn parse_kv<'a, V, VF>(
+///
+/// Like CppNix, the keys must appear in strictly ascending order.
+pub(crate) fn parse_kv<'a, V, KF, VF>(
+	kf: KF,
 	vf: VF,
-) -> impl FnMut(&'a [u8]) -> NomResult<&'a [u8], BTreeMap<String, V>> + 'static
+) -> impl FnMut(&'a [u8]) -> NomResult<&'a [u8], Vec<(String, V)>> + 'static
 where
+	KF: FnMut(&'a [u8]) -> nom::IResult<&'a [u8], String, nom::error::Error<&'a [u8]>>
+		+ Clone
+		+ 'static,
 	VF: FnMut(&'a [u8]) -> nom::IResult<&'a [u8], V, nom::error::Error<&'a [u8]>> + Clone + 'static,
 {
 	move |i|
@@ -338,7 +405,7 @@ where
                 delimited(
                     nomchar('('),
                     separated_pair(
-                        aterm::parse_string_field,
+                        kf.clone(),
                         nomchar(','),
                         vf.clone(),
                     ),
@@ -348,21 +415,23 @@ where
 
             match res {
                 Ok((rest, pairs)) => {
-                    let mut kvs: BTreeMap<String, V> = BTreeMap::new();
-                    for (k, v) in pairs.into_iter() {
-                        // collect the 2-tuple to a BTreeMap,
-                        // and fail if the key was already seen before.
-                        match kvs.entry(k) {
-                            btree_map::Entry::Vacant(e) => { e.insert(v); },
-                            btree_map::Entry::Occupied(e) => {
-                                return Err(nom::Err::Failure(NomError {
-                                    input: i,
-                                    code: ErrorKind::DuplicateMapKey(e.key().clone()),
-                                }));
-                            }
+                    // fail if a key was already seen, or is out of order.
+                    for window in pairs.windows(2) {
+                        let (previous, key) = (&window[0].0, &window[1].0);
+                        if previous == key {
+                            return Err(nom::Err::Failure(NomError {
+                                input: i,
+                                code: ErrorKind::DuplicateMapKey(key.clone()),
+                            }));
+                        }
+                        if previous > key {
+                            return Err(nom::Err::Failure(NomError {
+                                input: i,
+                                code: ErrorKind::Unsorted(format!("map key '{key}'")),
+                            }));
                         }
                     }
-                    Ok((rest, kvs))
+                    Ok((rest, pairs))
                 }
                 Err(e) => Err(e),
             }
@@ -428,7 +497,7 @@ mod tests {
 
 	static EXP_INPUT_DERIVATIONS_SIMPLE_ATERM: LazyLock<String> = LazyLock::new(|| {
 		format!(
-			"[(\"{0}\",[\"out\"]),(\"{1}\",[\"out\",\"lib\"])]",
+			"[(\"{0}\",[\"out\"]),(\"{1}\",[\"lib\",\"out\"])]",
 			"/nix/store/8bjm87p310sb7r2r0sg4xrynlvg86j8k-hello-2.12.1.tar.gz.drv",
 			"/nix/store/p3jc8aw45dza6h52v81j7lk69khckmcj-bash-5.2-p15.drv"
 		)
@@ -450,10 +519,13 @@ mod tests {
 		#[case] expected: &BTreeMap<String, BString>,
 		#[case] exp_rest: &[u8],
 	) {
-		let (rest, parsed) =
-			super::parse_kv(crate::aterm::parse_bytes_field)(input).expect("must parse");
+		let (rest, parsed) = super::parse_kv(
+			crate::aterm::parse_string_field,
+			crate::aterm::parse_bytes_field,
+		)(input)
+		.expect("must parse");
 		assert_eq!(exp_rest, rest, "expected remainder");
-		assert_eq!(*expected, parsed);
+		assert_eq!(*expected, parsed.into_iter().collect());
 	}
 
 	#[rstest]
@@ -465,7 +537,10 @@ mod tests {
 	#[case::incomplete_complicated_multi_outer_sep(b"[(\"a\",\"b\"),")]
 	fn parse_kv_incomplete(#[case] input: &'static [u8]) {
 		assert!(matches!(
-			super::parse_kv(crate::aterm::parse_bytes_field)(input),
+			super::parse_kv(
+				crate::aterm::parse_string_field,
+				crate::aterm::parse_bytes_field
+			)(input),
 			Err(nom::Err::Incomplete(_))
 		));
 	}
@@ -474,11 +549,33 @@ mod tests {
 	#[test]
 	fn parse_kv_fail_dup_keys() {
 		let input: &'static [u8] = b"[(\"a\",\"1\"),(\"a\",\"2\")]";
-		let e = super::parse_kv(crate::aterm::parse_bytes_field)(input).expect_err("must fail");
+		let e = super::parse_kv(
+			crate::aterm::parse_string_field,
+			crate::aterm::parse_bytes_field,
+		)(input)
+		.expect_err("must fail");
 
 		match e {
 			nom::Err::Failure(e) => {
 				assert_eq!(ErrorKind::DuplicateMapKey("a".to_string()), e.code);
+			}
+			_ => panic!("unexpected error"),
+		}
+	}
+
+	/// Keys must be in ascending order, as CppNix's `parseMap` requires.
+	#[test]
+	fn parse_kv_fail_unsorted_keys() {
+		let input: &'static [u8] = b"[(\"b\",\"1\"),(\"a\",\"2\")]";
+		let e = super::parse_kv(
+			crate::aterm::parse_string_field,
+			crate::aterm::parse_bytes_field,
+		)(input)
+		.expect_err("must fail");
+
+		match e {
+			nom::Err::Failure(e) => {
+				assert_eq!(ErrorKind::Unsorted("map key 'a'".to_string()), e.code);
 			}
 			_ => panic!("unexpected error"),
 		}
@@ -525,7 +622,7 @@ mod tests {
 	/// Ensure parsing input sources works
 	#[rstest]
 	#[case::empty(b"[]", &BTreeSet::new())]
-	#[case::simple(b"[\"/nix/store/55lwldka5nyxa08wnvlizyqw02ihy8ic-has-multi-out\",\"/nix/store/2vixb94v0hy2xc6p7mbnxxcyc095yyia-has-multi-out-lib\"]", &EXP_INPUT_SOURCES_SIMPLE)]
+	#[case::simple(b"[\"/nix/store/2vixb94v0hy2xc6p7mbnxxcyc095yyia-has-multi-out-lib\",\"/nix/store/55lwldka5nyxa08wnvlizyqw02ihy8ic-has-multi-out\"]", &EXP_INPUT_SOURCES_SIMPLE)]
 	fn parse_input_sources(#[case] input: &'static [u8], #[case] expected: &BTreeSet<String>) {
 		let (rest, parsed) = super::parse_input_sources(input).expect("must parse");
 
@@ -540,20 +637,45 @@ mod tests {
 		assert!(rest.is_empty(), "rest must be empty");
 	}
 
-	/// Input sources are a set, so a repeated path is accepted once.
+	/// A repeated input source is rejected, as CppNix's `checkMonotonic` does.
 	#[test]
-	fn parse_input_sources_deduplicates() {
+	fn parse_input_sources_fail_dup() {
 		let input: &'static [u8] = b"[\"/nix/store/55lwldka5nyxa08wnvlizyqw02ihy8ic-foo\",\"/nix/store/55lwldka5nyxa08wnvlizyqw02ihy8ic-foo\"]";
+		let e = super::parse_input_sources(input).expect_err("must fail");
+
+		match e {
+			nom::Err::Failure(e) => assert_eq!(
+				ErrorKind::DuplicateInputSource(
+					StorePathRef::from_absolute_path(
+						"/nix/store/55lwldka5nyxa08wnvlizyqw02ihy8ic-foo".as_bytes()
+					)
+					.unwrap()
+					.to_owned()
+				),
+				e.code
+			),
+			_ => panic!("unexpected error"),
+		}
+	}
+
+	/// Two paths that share a digest but differ in name are distinct, and are
+	/// ordered by name. The anonymised CppNix `hello.drv` fixture relies on this.
+	#[test]
+	fn parse_input_sources_same_digest_different_names() {
+		let input: &'static [u8] = b"[\"/nix/store/55lwldka5nyxa08wnvlizyqw02ihy8ic-bar\",\"/nix/store/55lwldka5nyxa08wnvlizyqw02ihy8ic-foo\"]";
 		let (rest, parsed) = super::parse_input_sources(input).expect("must parse");
 		assert!(rest.is_empty());
-		assert_eq!(
-			parsed,
-			BTreeSet::from([StorePathRef::from_absolute_path(
-				"/nix/store/55lwldka5nyxa08wnvlizyqw02ihy8ic-foo".as_bytes()
-			)
-			.unwrap()
-			.to_owned()])
-		);
+		assert_eq!(parsed.len(), 2);
+
+		let reversed: &'static [u8] = b"[\"/nix/store/55lwldka5nyxa08wnvlizyqw02ihy8ic-foo\",\"/nix/store/55lwldka5nyxa08wnvlizyqw02ihy8ic-bar\"]";
+		super::parse_input_sources(reversed).expect_err("unsorted input sources must fail");
+	}
+
+	/// Store paths are unquoted fields: an escape sequence in one is rejected.
+	#[test]
+	fn parse_input_sources_fail_escape() {
+		let input: &'static [u8] = b"[\"/nix/store/55lwldka5nyxa08wnvlizyqw02ihy8ic-f\\\"oo\"]";
+		super::parse_input_sources(input).expect_err("must fail");
 	}
 
 	#[rstest]
@@ -577,13 +699,52 @@ mod tests {
             }),
         )
     )]
+	#[case::deferred(
+        br#"("out","","","")"#,
+        (OutputName::out(), None, None)
+    )]
 	fn parse_output(
 		#[case] input: &[u8],
-		#[case] expected: (OutputName, StorePath, Option<OutputHash>),
+		#[case] expected: (OutputName, impl Into<Option<StorePath>>, Option<OutputHash>),
 	) {
 		let (rest, parsed) = super::parse_output(input).expect("must parse");
 		assert!(rest.is_empty());
-		assert_eq!(expected, parsed);
+		assert_eq!((expected.0, expected.1.into(), expected.2), parsed);
+	}
+
+	/// A hash algorithm without a path is a floating content-addressed output,
+	/// which CppNix only accepts with the ca-derivations experimental feature.
+	#[test]
+	fn parse_output_fail_floating() {
+		let e = super::parse_output(br#"("out","","r:sha256","")"#).expect_err("must fail");
+		match e {
+			nom::Err::Failure(e) => assert_eq!(
+				ErrorKind::FloatingContentAddressedOutput(OutputName::out()),
+				e.code
+			),
+			_ => panic!("unexpected error"),
+		}
+	}
+
+	/// CppNix's parser accepts deferred outputs and derivations without outputs.
+	#[rstest]
+	#[case::deferred(br#"[("dev","","",""),("out","","","")]"#, 2)]
+	#[case::none(b"[]", 0)]
+	fn parse_outputs_unverified_forms(#[case] input: &[u8], #[case] len: usize) {
+		let (rest, parsed) = super::parse_outputs(input).expect("must parse");
+		assert!(rest.is_empty());
+		assert_eq!(parsed.len(), len);
+		assert_eq!(parsed.iter().count(), 0, "no output has a known path");
+	}
+
+	/// Output kinds cannot be mixed, and outputs must be sorted.
+	#[rstest]
+	#[case::mixed(
+		br#"[("dev","","",""),("out","/nix/store/5vyvcwah9l9kf07d52rcgdk70g2f4y13-foo","","")]"#
+	)]
+	#[case::unsorted(br#"[("out","","",""),("dev","","","")]"#)]
+	fn parse_outputs_fail(#[case] input: &[u8]) {
+		super::parse_outputs(input).expect_err("must fail");
 	}
 
 	#[rstest]

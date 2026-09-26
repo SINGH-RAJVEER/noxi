@@ -514,4 +514,30 @@ mod tests {
 			.expect_err("must fail")
 		);
 	}
+
+	/// CppNix orders store paths by comparing their base names (`<hash>-<name>`)
+	/// as strings, and writes derivation inputs in that order. Our `Ord` must
+	/// agree, including for paths that share a digest.
+	#[test]
+	fn ord_matches_base_name_string_order() {
+		let mut paths: Vec<StorePath> = (0u8..64)
+			.flat_map(|i| {
+				let mut digest = [0u8; DIGEST_SIZE];
+				for (n, byte) in digest.iter_mut().enumerate() {
+					*byte = i
+						.wrapping_mul(37)
+						.wrapping_add((n as u8).wrapping_mul(i | 1));
+				}
+				["a", "b-lib", "b"].map(|name| {
+					StorePath::from_name_and_digest_fixed(name, digest).expect("valid store path")
+				})
+			})
+			.collect();
+
+		let mut by_string = paths.clone();
+		by_string.sort_by_key(|p| p.to_string());
+		paths.sort();
+
+		assert_eq!(paths, by_string);
+	}
 }

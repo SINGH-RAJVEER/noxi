@@ -175,8 +175,16 @@ impl StorePath {
 /// `StorePath`s are sorted by their reverse digest to match the sorting order
 /// of the nixbase32-encoded string.
 impl Ord for StorePathRef<'_> {
+	/// Orders like CppNix, which compares the base names (`<hash>-<name>`)
+	/// as strings. Comparing the digest bytes in reverse matches the order of
+	/// their nixbase32 encoding; ties are broken by name, so that two paths
+	/// sharing a digest are distinct, consistent with `Eq`.
 	fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-		self.digest.iter().rev().cmp(other.digest.iter().rev())
+		self.digest
+			.iter()
+			.rev()
+			.cmp(other.digest.iter().rev())
+			.then_with(|| self.name.cmp(other.name))
 	}
 }
 

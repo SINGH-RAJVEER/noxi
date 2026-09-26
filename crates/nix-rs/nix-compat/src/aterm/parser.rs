@@ -14,9 +14,13 @@ use nom::{IResult, Parser};
 /// Parse a bstr and undo any escaping (which is why this needs to allocate).
 // FUTUREWORK: have a version for fields that are known to not need escaping
 // (like store paths), and use &str.
+///
+/// Like CppNix, bytes that have an escape sequence (newline, carriage return,
+/// tab, backslash, double quote) must be written escaped, so a raw one ends the
+/// field and fails the parse.
 fn parse_escaped_bytes(i: &[u8]) -> IResult<&[u8], BString> {
 	escaped_transform(
-		is_not("\"\\"),
+		is_not("\"\\\n\r\t"),
 		'\\',
 		alt((
 			value("\\".as_bytes(), nomchar('\\')),
@@ -51,6 +55,33 @@ pub(crate) fn parse_string_field(i: &[u8]) -> IResult<&[u8], String> {
 			|bstr| String::from_utf8(bstr.to_vec()),
 		),
 		nomchar('\"'),
+	)
+	.parse(i)
+}
+
+/// Parse a field in double quotes that must not contain any escape sequence,
+/// and return it as a [String].
+///
+/// CppNix reads store paths, output names and the platform this way: they come
+/// from restricted alphabets, so an escape would be a second encoding of the same
+/// value and is rejected.
+pub(crate) fn parse_unquoted_string_field(i: &[u8]) -> IResult<&[u8], String> {
+	delimited(
+		nomchar('\"'),
+		map_res(opt(is_not("\"\\")), |b: Option<&[u8]>| {
+			String::from_utf8(b.unwrap_or_default().to_vec())
+		}),
+		nomchar('\"'),
+	)
+	.parse(i)
+}
+
+/// Parse a list of unquoted string fields (enclosed in brackets).
+pub(crate) fn parse_unquoted_string_list(i: &[u8]) -> IResult<&[u8], Vec<String>> {
+	delimited(
+		nomchar('['),
+		separated_list0(nomchar(','), parse_unquoted_string_field),
+		nomchar(']'),
 	)
 	.parse(i)
 }

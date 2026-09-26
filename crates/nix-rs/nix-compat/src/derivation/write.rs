@@ -133,6 +133,16 @@ impl AtermWriteable for Outputs {
 				],
 			)?;
 			write_char(writer, PAREN_CLOSE)?;
+		} else if self.is_deferred() {
+			for (ii, output_name) in self.names().enumerate() {
+				if ii > 0 {
+					write_char(writer, COMMA)?;
+				}
+
+				write_char(writer, PAREN_OPEN)?;
+				write_array_elements(writer, [output_name.as_str(), "", "", ""])?;
+				write_char(writer, PAREN_CLOSE)?;
+			}
 		} else {
 			for (ii, (output_name, store_path)) in self.iter().enumerate() {
 				let path_str = store_path.to_absolute_path();

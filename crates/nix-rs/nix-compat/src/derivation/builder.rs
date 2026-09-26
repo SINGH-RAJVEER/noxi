@@ -116,7 +116,13 @@ impl DerivationBuilder {
 		Ok(hasher.finalize())
 	}
 
-	fn hash_derivation_modulo<L>(&self, lookup: L) -> Result<Sha256, DerivationError>
+	/// The masked hash that input-addressed output paths are computed from.
+	///
+	/// `mask` decides which environment variables named after outputs are
+	/// blanked. When constructing a derivation every output gets one, as
+	/// `derivationStrict` sets them before computing paths. When validating an
+	/// existing derivation, CppNix's `maskOutputs` only blanks those present.
+	fn masked_hash<L>(&self, lookup: L, mask: OutputEnvMask) -> Result<Sha256, DerivationError>
 	where
 		L: HashDerivationModuloLookup,
 	{
@@ -129,7 +135,13 @@ impl DerivationBuilder {
 			self.environment
 				.iter()
 				.map(|(k, v)| (k.as_str(), v.as_slice())),
-			self.outputs.names().map(|name| (name.as_str(), &b""[..])),
+			self.outputs
+				.names()
+				.filter(|name| {
+					mask == OutputEnvMask::AllOutputs
+						|| self.environment.contains_key(name.as_str())
+				})
+				.map(|name| (name.as_str(), &b""[..])),
 		);
 		self.hash_derivation_modulo_with_outputs(environment, &self.outputs, lookup)
 	}
@@ -154,6 +166,18 @@ impl DerivationBuilder {
 	where
 		L: HashDerivationModuloLookup,
 	{
+		self.calculate_outputs_masked(name, lookup, OutputEnvMask::AllOutputs)
+	}
+
+	pub(super) fn calculate_outputs_masked<L>(
+		&self,
+		name: &str,
+		lookup: L,
+		mask: OutputEnvMask,
+	) -> Result<Outputs, DerivationError>
+	where
+		L: HashDerivationModuloLookup,
+	{
 		match &self.outputs {
 			OutputsBuilder::Fixed(output_hash) => {
 				// For fixed output derivation we use [build_ca_path], otherwise we
@@ -175,7 +199,7 @@ impl DerivationBuilder {
 				Err(OutputsError::NoOutputs().into())
 			}
 			OutputsBuilder::InputAddressed(output_names) => {
-				let hash_derivation_modulo = self.hash_derivation_modulo(lookup)?;
+				let hash_derivation_modulo = self.masked_hash(lookup, mask)?;
 				let mut outputs = BTreeMap::new();
 				for output_name in output_names.iter() {
 					// Assemble the name, which is either the drv-name suffixed `-{output_name}`,
@@ -258,6 +282,25 @@ impl DerivationBuilder {
 		})
 	}
 
+	/// Like [`Self::build_unverified`], but leaves the environment as it is.
+	///
+	/// This is how a parsed derivation is built: CppNix's parser does not add
+	/// environment variables for outputs, so neither may we, or a derivation
+	/// without them would not round-trip.
+	pub(super) fn build_unverified_as_parsed(
+		mut self,
+		outputs: Outputs,
+	) -> Result<UnverifiedDerivation, DerivationError> {
+		self.validate()?;
+		if self.outputs != outputs {
+			self.outputs = outputs.clone().into_builder();
+		}
+		Ok(UnverifiedDerivation {
+			builder: self,
+			outputs,
+		})
+	}
+
 	/// [Validate] the fields of this builder.
 	///
 	/// [Validate]: #validation
@@ -291,4 +334,13 @@ impl DerivationBuilder {
 
 		Ok(())
 	}
+}
+
+/// Which environment variables named after outputs are blanked in the masked form.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(super) enum OutputEnvMask {
+	/// Every output, as when constructing a derivation.
+	AllOutputs,
+	/// Only outputs whose variable exists, as when validating one.
+	ExistingOnly,
 }

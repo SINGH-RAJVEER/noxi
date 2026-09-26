@@ -58,20 +58,27 @@ mod derivation {
 		}
 	}
 
+	/// Mirrors CppNix's `derivation::write`: the number of outputs, then for
+	/// each its name, its path (empty while deferred), hash algorithm and hash.
 	impl NixSerialize for Outputs {
 		async fn serialize<W>(&self, writer: &mut W) -> Result<(), W::Error>
 		where
 			W: crate::wire::ser::NixWrite,
 		{
-			for (output_name, path) in self {
+			writer.write_value(&self.len()).await?;
+			for output_name in self.names() {
 				writer.write_value(output_name).await?;
-				writer.write_value(path).await?;
+				match self.get(output_name) {
+					Some(path) => writer.write_value(path).await?,
+					None => writer.write_slice(&[]).await?,
+				}
 				writer.write_value(&self.as_fixed_output_hash()).await?;
 			}
 			Ok(())
 		}
 	}
 
+	/// Mirrors CppNix's `derivation::read`.
 	impl NixDeserialize for Outputs {
 		async fn try_deserialize<R>(reader: &mut R) -> Result<Option<Self>, R::Error>
 		where
@@ -82,16 +89,91 @@ mod derivation {
 				let mut builder = UnverifiedOutputsBuilder::new();
 				for _ in 0..len {
 					let output_name = reader.read_value::<OutputName>().await?;
-					let store_path = reader.read_value::<StorePath>().await?;
+					let store_path = reader.read_value::<Option<StorePath>>().await?;
 					let output_hash = reader.read_value::<Option<OutputHash>>().await?;
-					builder
-						.try_insert(output_name, store_path, output_hash)
-						.map_err(R::Error::custom)?;
+					match (store_path, output_hash) {
+						(Some(store_path), output_hash) => {
+							builder.try_insert(output_name, store_path, output_hash)
+						}
+						(None, None) => builder.try_insert_deferred(output_name),
+						(None, Some(_)) => {
+							return Err(R::Error::invalid_data(format!(
+								"output {output_name} is content-addressed and floating, which requires the ca-derivations experimental feature"
+							)));
+						}
+					}
+					.map_err(R::Error::custom)?;
 				}
-				Ok(Some(builder.try_build().map_err(R::Error::custom)?))
+				// CppNix reads a derivation without outputs and only rejects it
+				// when its type is determined.
+				Ok(Some(builder.build_allow_empty()))
 			} else {
 				Ok(None)
 			}
+		}
+	}
+
+	#[cfg(test)]
+	mod tests {
+		use rstest::rstest;
+
+		use crate::derivation::{OutputName, Outputs};
+		use crate::wire::de::{NixRead as _, NixReader};
+		use crate::wire::ser::{NixWrite as _, NixWriter};
+		use tokio::io::AsyncWriteExt as _;
+
+		async fn write(outputs: &Outputs) -> Vec<u8> {
+			let mut bytes = Vec::new();
+			let mut writer = NixWriter::new(&mut bytes);
+			writer.write_value(outputs).await.unwrap();
+			writer.flush().await.unwrap();
+			bytes
+		}
+
+		/// A wire string: its length, then its bytes padded to 8.
+		fn wire_string(s: &str) -> Vec<u8> {
+			let mut out = (s.len() as u64).to_le_bytes().to_vec();
+			out.extend_from_slice(s.as_bytes());
+			out.resize(8 + s.len().div_ceil(8) * 8, 0);
+			out
+		}
+
+		/// Outputs are written like CppNix's `derivation::write`: a count,
+		/// then name, path (empty while deferred), hash algorithm and hash.
+		#[tokio::test]
+		async fn deferred_outputs_encoding() {
+			let outputs = Outputs::deferred_from_names([
+				OutputName::out(),
+				OutputName::from_static("dev").unwrap(),
+			])
+			.unwrap();
+
+			let mut expected = 2u64.to_le_bytes().to_vec();
+			for name in ["dev", "out"] {
+				expected.extend(wire_string(name));
+				expected.extend(wire_string(""));
+				expected.extend(wire_string(""));
+				expected.extend(wire_string(""));
+			}
+
+			assert_eq!(write(&outputs).await, expected);
+		}
+
+		#[tokio::test]
+		#[rstest]
+		#[case::input_addressed(
+			Outputs::input_addressed_from_iter([(
+				OutputName::out(),
+				"5vyvcwah9l9kf07d52rcgdk70g2f4y13-foo".parse().unwrap(),
+			)])
+			.unwrap()
+		)]
+		#[case::deferred(Outputs::deferred_from_names([OutputName::out()]).unwrap())]
+		async fn outputs_roundtrip(#[case] outputs: Outputs) {
+			let bytes = write(&outputs).await;
+			let mut reader = NixReader::new(std::io::Cursor::new(bytes));
+			let read: Outputs = reader.read_value().await.unwrap();
+			assert_eq!(read, outputs);
 		}
 	}
 }

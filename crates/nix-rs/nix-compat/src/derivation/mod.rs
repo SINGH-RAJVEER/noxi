@@ -244,6 +244,22 @@ impl UnverifiedDerivation {
 			drv_path,
 			inner: self,
 		};
+		// CppNix's validation accepts deferred outputs. If their paths can be
+		// computed already, it warns that they should have been filled in.
+		if drv.outputs.is_deferred() {
+			match drv.recalculate_outputs(lookup_fn) {
+				Ok(outputs) => tracing::warn!(
+					drv_path = %drv.drv_path,
+					?outputs,
+					"derivation has deferred outputs whose paths are already known"
+				),
+				Err(DerivationError::MissingInputDerivation(_))
+				| Err(DerivationError::InvalidOutputs(outputs::OutputsError::Deferred())) => {}
+				Err(e) => return Err(e),
+			}
+			return Ok(drv);
+		}
+
 		let outputs = drv.recalculate_outputs(lookup_fn)?;
 		if drv.outputs != outputs {
 			return Err(DerivationError::InvalidOutputs(
@@ -336,6 +352,12 @@ impl UnverifiedDerivation {
 			return Ok(hdm);
 		}
 
+		// Like CppNix's `hashInput`, a derivation whose outputs are deferred
+		// has no hash; anything depending on it is deferred too.
+		if self.outputs.is_deferred() {
+			return Err(outputs::OutputsError::Deferred().into());
+		}
+
 		// Non-Fixed-output derivations return the sha256 digest of the ATerm
 		// notation, but with all input_derivation paths replaced by a recursive
 		// call to this function.
@@ -349,11 +371,15 @@ impl UnverifiedDerivation {
 	}
 
 	/// Recalculate and return the [`Outputs`] of this `UnverifiedDerivation`.
+	///
+	/// Like CppNix's validation, only the environment variables named after
+	/// outputs that exist are blanked in the masked form.
 	pub fn recalculate_outputs<L>(&self, name: &str, lookup: L) -> Result<Outputs, DerivationError>
 	where
 		L: HashDerivationModuloLookup,
 	{
-		self.builder.calculate_outputs(name, lookup)
+		self.builder
+			.calculate_outputs_masked(name, lookup, builder::OutputEnvMask::ExistingOnly)
 	}
 
 	/// Split this `UnverifiedDerivation` into its constituent parts.

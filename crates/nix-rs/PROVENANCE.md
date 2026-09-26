@@ -39,7 +39,8 @@ Without `glue`, `nix-rs-eval` evaluates only the pure language. It cannot instan
 - The workspace root `Cargo.toml` copies Snix's `[workspace.dependencies]` and `[workspace.package]`, and leaves out its `[patch.crates-io]` overrides of hyper and tonic, which none of these crates use.
 - The root `Cargo.lock` began as Snix's lock file at the revision above.
 - The imported directory was renamed to `crates/nix-rs/`; package names, Rust imports, evaluator test paths, and project-facing diagnostics were renamed from their upstream identifiers. The evaluator's placeholder `nixVersion` string changed from its upstream branding to nix-rs branding. These edits are not compatibility fixes.
-- The derivation ATerm parser now accepts duplicate input-source paths and collapses them into the existing set representation. This is a local compatibility change, covered by unit and copied-fixture tests.
+- 2026-09-26: `StorePath` ordering now breaks ties on the name when two paths share a digest, matching CppNix's comparison of `<hash>-<name>` base names. Before, such paths compared equal, so a set of input sources silently dropped one of them. This replaced an earlier local change that accepted duplicate input sources and collapsed them.
+- 2026-09-26: The derivation ATerm parser follows CppNix 2.36's parsing rules. Outputs, input derivations, the output names of each input derivation, input sources, and environment keys must be in strictly ascending order without duplicates. An input derivation must list at least one output. Store paths, output names and the platform must not contain escape sequences. Newline, carriage return and tab must be escaped in string fields.
 - Four imported trybuild diagnostic snapshots now reflect the renamed crate location and Rust 1.95.0 wording. The pinned toolchain is supplied by `devenv.nix`.
 
 The imported evaluation algorithms have not been deliberately changed.

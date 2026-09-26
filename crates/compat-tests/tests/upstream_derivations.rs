@@ -8,7 +8,7 @@
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
-use nix_compat::derivation::UnverifiedDerivation;
+use nix_compat::derivation::{Derivation, UnverifiedDerivation, lookup_fn};
 
 const FIXTURE_DIR: &str = "../../tests/upstream/nix/src/libstore-tests/data/derivation";
 
@@ -16,40 +16,50 @@ const FIXTURE_DIR: &str = "../../tests/upstream/nix/src/libstore-tests/data/deri
 enum Expect {
 	/// Parses, and serialising it again reproduces the file byte for byte.
 	RoundTrip,
-	/// Parses, and serialises to an equivalent derivation after canonicalising its input sources.
-	Canonicalizes,
-	/// CppNix accepts this file, but `nix-compat` does not yet.
-	Gap(&'static str),
-	/// Invalid input that CppNix also rejects.
+	/// CppNix only parses this with the named experimental feature enabled, so
+	/// under default settings both reject it. `nix-compat` has no support for
+	/// the feature yet, which is a gap for matrix rows that enable it.
+	Experimental(&'static str),
+	/// Invalid input that CppNix also rejects while parsing.
 	Reject,
-	/// Invalid according to CppNix, but only detectable once output paths are
-	/// verified, so the unverified parser accepts it.
-	AcceptedUnverified,
+	/// CppNix rejects this while parsing because a fixed output's stated path
+	/// does not match its content address. `nix-compat` checks this when it
+	/// verifies output paths, so the unverified parse accepts it and the
+	/// verified parse (with the derivation name CppNix's test uses) rejects it.
+	RejectOnVerify(&'static str),
+	/// The fully masked form that the input address is hashed from. CppNix
+	/// only writes it (its input derivations are named by hash, not path), so
+	/// neither implementation parses it. It is an oracle for hash-derivation-modulo.
+	HashModuloForm,
+	/// Outside the x86_64-linux compatibility matrix row.
+	OutOfScope(&'static str),
 }
 
 use Expect::*;
 
-const CA_FLOATING: &str = "floating content-addressed outputs (ca-derivations) are not supported";
-const DEFERRED: &str = "deferred outputs with empty path and hash (masked form) are not supported";
-const DYN_DRV: &str = "DrvWithVersion / dynamic derivations are not supported";
+const CA_FLOATING: &str = "ca-derivations";
+const DYN_DRV: &str = "dynamic-derivations";
 
 const EXPECTATIONS: &[(&str, Expect)] = &[
-	("bad-ca-fixed-path.drv", AcceptedUnverified),
+	("bad-ca-fixed-path.drv", RejectOnVerify("fixed")),
 	("bad-old-version-dyn-deps.drv", Reject),
 	("bad-version.drv", Reject),
-	("ca/advanced-attributes-defaults.drv", Gap(CA_FLOATING)),
-	("ca/advanced-attributes.drv", Gap(CA_FLOATING)),
+	(
+		"ca/advanced-attributes-defaults.drv",
+		Experimental(CA_FLOATING),
+	),
+	("ca/advanced-attributes.drv", Experimental(CA_FLOATING)),
 	(
 		"ca/advanced-attributes-structured-attrs-defaults.drv",
-		Gap(CA_FLOATING),
+		Experimental(CA_FLOATING),
 	),
 	(
 		"ca/advanced-attributes-structured-attrs.drv",
-		Gap(CA_FLOATING),
+		Experimental(CA_FLOATING),
 	),
-	("dyn-dep-derivation.drv", Gap(DYN_DRV)),
-	("firefox.drv", Canonicalizes),
-	("hello.drv", Canonicalizes),
+	("dyn-dep-derivation.drv", Experimental(DYN_DRV)),
+	("firefox.drv", RoundTrip),
+	("hello.drv", RoundTrip),
 	("ia/advanced-attributes-defaults.drv", RoundTrip),
 	("ia/advanced-attributes.drv", RoundTrip),
 	(
@@ -58,22 +68,22 @@ const EXPECTATIONS: &[(&str, Expect)] = &[
 	),
 	("ia/advanced-attributes-structured-attrs.drv", RoundTrip),
 	("masked/intermediate-first.drv", RoundTrip),
-	("masked/intermediate-first-fully-masked.drv", Gap(DEFERRED)),
+	("masked/intermediate-first-fully-masked.drv", HashModuloForm),
 	("masked/intermediate-second.drv", RoundTrip),
-	("masked/intermediate-second-fully-masked.drv", Gap(DEFERRED)),
-	("masked/parent-joined.drv", Gap(DEFERRED)),
-	("masked/parent-joined-fully-masked.drv", Gap(DEFERRED)),
-	("masked/parent-split.drv", Gap(DEFERRED)),
-	("masked/parent-split-fully-masked.drv", Gap(DEFERRED)),
+	(
+		"masked/intermediate-second-fully-masked.drv",
+		HashModuloForm,
+	),
+	("masked/parent-joined.drv", RoundTrip),
+	("masked/parent-joined-fully-masked.drv", HashModuloForm),
+	("masked/parent-split.drv", RoundTrip),
+	("masked/parent-split-fully-masked.drv", HashModuloForm),
 	("masked/source-first.drv", RoundTrip),
 	("masked/source-second.drv", RoundTrip),
-	(
-		"simple-derivation.drv",
-		Gap("derivations with zero outputs are rejected"),
-	),
+	("simple-derivation.drv", RoundTrip),
 	(
 		"windows-store-dir.drv",
-		Gap("store directories other than /nix/store are not supported"),
+		OutOfScope("Windows store directory encoding"),
 	),
 ];
 
@@ -130,14 +140,11 @@ fn derivations_match_expectations() {
 
 		let ok = match expect {
 			RoundTrip => actual == "round-trips",
-			Canonicalizes => parsed.as_ref().is_ok_and(|drv| {
-				let canonical = drv.to_aterm_bytes();
-				canonical != bytes
-					&& UnverifiedDerivation::from_aterm_bytes(&canonical)
-						.is_ok_and(|reparsed| reparsed == *drv)
-			}),
-			AcceptedUnverified => parsed.is_ok(),
-			Gap(_) | Reject => parsed.is_err(),
+			RejectOnVerify(drv_name) => {
+				parsed.is_ok()
+					&& Derivation::from_aterm_bytes(drv_name, lookup_fn(|_| None), &bytes).is_err()
+			}
+			Experimental(_) | Reject | HashModuloForm | OutOfScope(_) => parsed.is_err(),
 		};
 
 		if !ok {
@@ -148,5 +155,18 @@ fn derivations_match_expectations() {
 	assert!(
 		mismatches.is_empty(),
 		"fixtures changed behaviour: {mismatches:#?}"
+	);
+}
+
+/// CppNix parses a derivation without outputs, but rejects it as soon as its
+/// type is determined ("must have at least one output"), which verification does.
+#[test]
+fn zero_output_derivation_fails_verification() {
+	let bytes = std::fs::read(fixture_root().join("simple-derivation.drv")).expect("fixture");
+	let err = Derivation::from_aterm_bytes("simple-derivation", lookup_fn(|_| None), &bytes)
+		.expect_err("a derivation without outputs must not verify");
+	assert!(
+		format!("{err:?}").contains("NoOutputs"),
+		"unexpected error: {err:?}"
 	);
 }

@@ -23,6 +23,24 @@ pub enum ErrorKind {
 	#[error("duplicate input source: {0}")]
 	DuplicateInputSource(StorePath),
 
+	/// A map key, set item or output does not follow the previous one in
+	/// ascending order. CppNix requires the canonical order, so the same
+	/// derivation cannot have more than one encoding.
+	#[error("{0} does not appear in a sorted order")]
+	Unsorted(String),
+
+	/// An output has a hash algorithm but no path or hash: a floating
+	/// content-addressed output. CppNix only accepts these with the
+	/// `ca-derivations` experimental feature, which nix-compat does not support.
+	#[error(
+		"output {0} is content-addressed and floating, which requires the ca-derivations experimental feature"
+	)]
+	FloatingContentAddressedOutput(OutputName),
+
+	/// An input derivation entry lists no outputs.
+	#[error("input derivation {0} specifies no outputs")]
+	InputDerivationWithoutOutputs(String),
+
 	#[error("invalind output name")]
 	InvalidOutputName(#[from] ParseOutputNameError),
 
