@@ -21,8 +21,8 @@ This is the first qualification target and its current evidence, not a claim of 
 | Store and garbage collection | Unrun | Existing-store, concurrency, integrity, and return-to-reference tests |
 | Build engine and sandbox | Unrun | Local and remote build behavior under the selected system |
 | Binary caches and signatures | Unrun | Cache exchange and trust decisions |
-| Daemon protocol | Unrun | Wire fixtures and client/daemon pairings |
-| CLI and configuration | Unrun | Legacy and new command suites, settings, flakes, profiles |
+| Daemon protocol | Worker-protocol value fixtures round-trip byte for byte, except those needing protocol feature negotiation (`realisation-with-path-not-hash`) and the handshake; daemon pairings unrun | All wire fixtures, handshake and feature negotiation, every operation, and client/daemon pairings; see `crates/compat-tests/tests/upstream_worker_protocol.rs` |
+| CLI and configuration | `nixrs` preview pure-expression evaluation tested; replacement command suite unrun | Legacy and new command suites, settings, flakes, profiles |
 | C and C++ libraries | Unrun | Consumer inventory and binary interoperability |
 | NixOS activation | Unrun | Build, switch, boot, test, dry activation, rollback |
 | Installed OS lifecycle | Unrun | Install, self-update, reboot, recovery |
@@ -30,4 +30,4 @@ This is the first qualification target and its current evidence, not a claim of 
 | NixBox engine integration | Unrun | Locked-revision resolution, evaluated candidate plans, direct realization, declarative persistence, and recovery |
 | OS-native CLI diagnostics | Unrun | Structured rebuild events, concise errors, raw-log retrieval, JSON, TTY, and CI modes |
 
-The ATerm parser follows CppNix's ordering, duplicate and escape rules, and the masked-hash fixtures check input-addressed path computation. Remaining derivation gaps are deferred outputs, zero-output derivations, floating content-addressed and impure outputs, and `DrvWithVersion`. They are listed in `crates/compat-tests/tests/upstream_derivations.rs`. This is not a measured coverage percentage. Qualification requires a pinned Nixpkgs revision, completed interface inventory, test results, and release artifacts as defined in [verification](verification.md).
+The ATerm parser follows CppNix's ordering, duplicate and escape rules, and the masked-hash fixtures check input-addressed path computation. Deferred outputs and zero-output derivations parse and round-trip as CppNix accepts them; zero outputs fail verification as CppNix's type check does. Floating content-addressed and impure outputs and `DrvWithVersion` are rejected, which matches CppNix only while `ca-derivations`, `impure-derivations` and `dynamic-derivations` are disabled; configurations enabling them remain gaps. They are listed in `crates/compat-tests/tests/upstream_derivations.rs`. This is not a measured coverage percentage. Qualification requires a pinned Nixpkgs revision, completed interface inventory, test results, and release artifacts as defined in [verification](verification.md).

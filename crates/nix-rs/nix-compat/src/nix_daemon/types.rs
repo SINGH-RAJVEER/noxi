@@ -1,10 +1,11 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::time::Duration;
 
-use crate::derivation::{DerivationBuilder, DerivationError, Outputs, UnverifiedDerivation};
+use crate::derivation::{
+	DerivationBuilder, DerivationError, OutputName, Outputs, UnverifiedDerivation,
+};
 use crate::derived_path::DerivedPath;
-use crate::nixbase32;
-use crate::realisation::{DrvOutput, Realisation};
+
 use crate::wire::de::Error;
 use crate::{
 	narinfo::Signature,
@@ -219,8 +220,12 @@ pub struct UnkeyedValidPathInfo {
 	pub references: Vec<StorePath>,
 	pub registration_time: u64,
 	pub nar_size: u64,
+	// CppNix only sends the following from protocol 1.16 on.
+	#[nix(version = "16..")]
 	pub ultimate: bool,
+	#[nix(version = "16..")]
 	pub signatures: Vec<Signature<String>>,
+	#[nix(version = "16..")]
 	pub ca: Option<CAHash>,
 }
 
@@ -286,14 +291,18 @@ impl NixSerialize for NarHash {
 	where
 		W: NixWrite,
 	{
-		nixbase32::encode(&self.0).serialize(writer).await
+		// CppNix writes the NAR hash as Base16, and reads any encoding.
+		data_encoding::HEXLOWER
+			.encode(&self.0)
+			.serialize(writer)
+			.await
 	}
 }
 
 /// Info type used by [super::worker_protocol::Operation::AddToStoreNar] and [super::worker_protocol::Operation::AddMultipleToStore]
 ///
 /// Carries the path, signatures, and metadata returned by the daemon protocol.
-#[derive(NixDeserialize, Debug)]
+#[derive(NixDeserialize, NixSerialize, Debug, Clone, PartialEq)]
 pub struct ValidPathInfo {
 	// - path :: [StorePath][se-StorePath]
 	pub path: StorePath,
@@ -317,7 +326,87 @@ pub struct BuildResult {
 	#[nix(version = "37..")]
 	pub cpu_system: Option<Microseconds>,
 	#[nix(version = "28..")]
-	pub built_outputs: BTreeMap<DrvOutput, Realisation>,
+	pub built_outputs: BuiltOutputs,
+}
+
+/// The path and signatures of one built output, as in CppNix's
+/// `UnkeyedRealisation`. The output it belongs to is its key in [`BuiltOutputs`].
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct UnkeyedRealisation {
+	pub out_path: StorePath,
+	pub signatures: Vec<Signature<String>>,
+}
+
+/// The outputs of a build, by output name, as CppNix's `BuildResult` keeps them.
+///
+/// Without the `realisation-with-path-not-hash` protocol feature (which
+/// nix-compat does not negotiate), CppNix sends these from protocol 1.28 on as
+/// a string map. Each key is `sha256:<zero hash>!<output name>` and each value
+/// the JSON `{"id":<key>,"outPath":<path>}`. When reading, it only uses the
+/// output name and the path, so signatures do not travel in this form.
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub struct BuiltOutputs(pub BTreeMap<OutputName, UnkeyedRealisation>);
+
+/// The key CppNix writes for an output in the string-map form.
+fn compat_output_id(output_name: &OutputName) -> String {
+	format!("sha256:{}!{output_name}", "0".repeat(64))
+}
+
+impl NixSerialize for BuiltOutputs {
+	async fn serialize<W>(&self, writer: &mut W) -> Result<(), W::Error>
+	where
+		W: NixWrite,
+	{
+		use crate::wire::ser::Error;
+		writer.write_value(&self.0.len()).await?;
+		for (output_name, realisation) in &self.0 {
+			let id = compat_output_id(output_name);
+			// Keys in the order CppNix's JSON library writes them.
+			let json = format!(
+				"{{\"id\":{},\"outPath\":{}}}",
+				serde_json::to_string(&id).map_err(W::Error::custom)?,
+				serde_json::to_string(&realisation.out_path.to_string())
+					.map_err(W::Error::custom)?,
+			);
+			writer.write_value(&id).await?;
+			writer.write_value(&json).await?;
+		}
+		Ok(())
+	}
+}
+
+impl NixDeserialize for BuiltOutputs {
+	async fn try_deserialize<R>(reader: &mut R) -> Result<Option<Self>, R::Error>
+	where
+		R: ?Sized + NixRead + Send,
+	{
+		let Some(entries) = reader.try_read_value::<BTreeMap<String, String>>().await? else {
+			return Ok(None);
+		};
+		let mut outputs = BTreeMap::new();
+		for (id, json) in entries {
+			let (_, output_name) = id.split_once('!').ok_or_else(|| {
+				R::Error::invalid_data(format!("invalid derivation output id {id}"))
+			})?;
+			let output_name: OutputName = output_name.parse().map_err(R::Error::invalid_data)?;
+			let value: serde_json::Value =
+				serde_json::from_str(&json).map_err(R::Error::invalid_data)?;
+			let out_path = value
+				.get("outPath")
+				.and_then(serde_json::Value::as_str)
+				.ok_or_else(|| R::Error::invalid_data(format!("realisation {id} has no outPath")))?
+				.parse::<StorePath>()
+				.map_err(R::Error::invalid_data)?;
+			outputs.insert(
+				output_name,
+				UnkeyedRealisation {
+					out_path,
+					signatures: Vec::new(),
+				},
+			);
+		}
+		Ok(Some(BuiltOutputs(outputs)))
+	}
 }
 
 pub type KeyedBuildResults = Vec<KeyedBuildResult>;

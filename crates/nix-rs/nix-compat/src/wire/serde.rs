@@ -159,6 +159,29 @@ mod derivation {
 			assert_eq!(write(&outputs).await, expected);
 		}
 
+		/// Absence and end of stream are different: an empty string is an
+		/// absent path, but no data at all is a truncated message.
+		#[tokio::test]
+		async fn optional_values_distinguish_absent_from_truncated() {
+			use crate::nixhash::CAHash;
+			use crate::store_path::StorePath;
+
+			let mut empty = NixReader::new(std::io::Cursor::new(Vec::<u8>::new()));
+			assert!(empty.read_value::<Option<StorePath>>().await.is_err());
+
+			let mut empty = NixReader::new(std::io::Cursor::new(Vec::<u8>::new()));
+			assert!(empty.read_value::<Option<CAHash>>().await.is_err());
+
+			let absent = 0u64.to_le_bytes().to_vec();
+			let mut reader = NixReader::new(std::io::Cursor::new(absent.clone()));
+			assert_eq!(
+				reader.read_value::<Option<StorePath>>().await.unwrap(),
+				None
+			);
+			let mut reader = NixReader::new(std::io::Cursor::new(absent));
+			assert_eq!(reader.read_value::<Option<CAHash>>().await.unwrap(), None);
+		}
+
 		#[tokio::test]
 		#[rstest]
 		#[case::input_addressed(
@@ -302,7 +325,8 @@ mod nixhash {
 			match value {
 				Some(value) => {
 					if value.is_empty() {
-						Ok(None)
+						// CppNix writes an absent content address as "".
+						Ok(Some(None))
 					} else {
 						Ok(Some(Some(CAHash::from_nix_hex_str(&value).ok_or_else(
 							|| R::Error::invalid_data(format!("Invalid cahash {value}")),
@@ -459,7 +483,9 @@ mod store_path {
 						.map_err(R::Error::invalid_data)
 				}
 			} else {
-				Ok(Some(None))
+				// End of stream, not an absent path: `None` lets `read_value`
+				// report the truncation instead of accepting it.
+				Ok(None)
 			}
 		}
 	}

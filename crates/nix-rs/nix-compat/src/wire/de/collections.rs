@@ -5,6 +5,9 @@ use std::{
 
 use super::{NixDeserialize, NixRead};
 
+/// Upper bound on the number of items preallocated from a length read off the wire.
+const MAX_PREALLOCATED_ITEMS: usize = 1024;
+
 #[allow(clippy::manual_async_fn)]
 impl<T> NixDeserialize for Vec<T>
 where
@@ -18,7 +21,10 @@ where
 	{
 		async move {
 			if let Some(len) = reader.try_read_value::<usize>().await? {
-				let mut ret = Vec::with_capacity(len);
+				// `len` comes from the peer: preallocate only a bounded amount,
+				// so a bogus length fails on missing data instead of aborting
+				// on an impossible allocation.
+				let mut ret = Vec::with_capacity(len.min(MAX_PREALLOCATED_ITEMS));
 				for _ in 0..len {
 					ret.push(reader.read_value().await?);
 				}
@@ -129,5 +135,15 @@ mod test {
 		let mut reader = NixReader::new(mock);
 		let actual: E = reader.read_value().await.unwrap();
 		assert_eq!(actual, expected);
+	}
+
+	/// A length read off the wire must not decide how much is allocated up
+	/// front: an impossible length fails on missing data instead of aborting.
+	#[tokio::test]
+	async fn huge_length_is_an_error() {
+		let mut bytes = u64::MAX.to_le_bytes().to_vec();
+		bytes.extend(0u64.to_le_bytes());
+		let mut reader = NixReader::new(std::io::Cursor::new(bytes));
+		assert!(reader.read_value::<Vec<u64>>().await.is_err());
 	}
 }
