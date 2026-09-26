@@ -1,5 +1,15 @@
 # Upstream Nix compatibility tests
 
+## Official source checkout
+
+Run `just nix-tests-update` at the repository root to fetch the full official [NixOS/nix](https://github.com/NixOS/nix) source tree and its tests at the newest numbered stable release tag. The command writes the selected tag and exact commit to [`upstream/nix-official.lock`](upstream/nix-official.lock) and places the checkout in `upstream/nix-official/`. That checkout is ignored by the parent repository; a fresh clone can run `just nix-tests-sync` to fetch the recorded commit. Run `bash scripts/update-nix-tests.sh master` to track the newest development commit, or pass a numbered tag such as `2.35.2` to select a specific release. The updater refuses to overwrite local changes inside the official checkout.
+
+The official checkout includes the upstream implementation and its Meson test definitions, so it can be used to run CppNix's own suite as a reference. Those tests are not yet a nix-rs test runner: C++ unit tests build against CppNix, and functional tests require a configured upstream environment and compatible command implementations. The lock file records test provenance, while the checkout itself remains a reproducible local dependency rather than committed duplicate source.
+
+The fixed fixture snapshot below identifies itself as 2.36.0 from a source tree without commit metadata. Check the lock file for the official checkout's selected release; do not treat differing revisions as the same test oracle or replace one with the other without revising the compatibility matrix and expected results.
+
+## Fixed compatibility snapshot
+
 `upstream/nix/` is a byte-for-byte test snapshot copied from a CppNix 2.36.0 reference tree. Its source tree had no Git commit metadata in this checkout, so the version alone does not identify a unique upstream commit. The upstream implementation source is not kept here. Keep the snapshot unchanged when refreshing it; write Rust adaptations and test runners outside `upstream/`.
 
 The snapshot includes:

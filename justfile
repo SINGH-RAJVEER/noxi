@@ -28,5 +28,13 @@ test-core:
 test-fixtures:
 	cargo test -p nixrs-compat-tests --tests
 
+# Fetch the latest official stable Nix source and tests; record its exact revision.
+nix-tests-update:
+	bash scripts/update-nix-tests.sh latest
+
+# Restore the exact official Nix source revision recorded in the lock file.
+nix-tests-sync:
+	bash scripts/update-nix-tests.sh sync
+
 # Run the complete development check in the pinned devenv shell.
 ci: fmt-check check test

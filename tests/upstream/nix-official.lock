@@ -1,0 +1,3 @@
+repository=https://github.com/NixOS/nix.git
+ref=2.35.2
+commit=2c73b59da29606068c0c98db015dd3a66955525d

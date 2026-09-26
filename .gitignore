@@ -2,3 +2,4 @@
 /.devenv
 /.devenv.flake.nix
 /.direnv
+/tests/upstream/nix-official/
