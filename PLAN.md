@@ -1,8 +1,8 @@
-# nix-rs OS plan
+# nix-rs plan
 
-This is the only product plan for this repository. Build a NixOS-derived operating system whose package manager is nix-rs, a Rust implementation intended to replace the supported CppNix release without changing existing Nix configurations or workflows. The OS includes a CLI, TUI, and GPUI-based NixBox GUI backed by the same operations. New behavior is additive and cannot change legacy results unless a user explicitly selects it.
+This is the only product plan for this repository. First deliver nix-rs as a 100% drop-in replacement for the supported CppNix release. Then build a NixOS-derived operating system whose default package manager is that qualified Rust implementation. The OS includes a CLI, TUI, and GPUI-based NixBox GUI backed by the same operations. New behavior is additive and cannot change legacy results unless a user explicitly selects it.
 
-The required outcome is an installed system that can evaluate its own configuration, build its next generation, activate it, reboot into it, roll back, and maintain its store using nix-rs. An image that merely boots with nix-rs installed does not meet this goal. The product and acceptance criteria are specified in [docs/](docs/README.md).
+The first deliverable is an independently installable package manager that can replace CppNix on a supported existing system and operate its store through the declared compatibility matrix. The later OS deliverable is an installed system that can evaluate its own configuration, build its next generation, activate it, reboot into it, roll back, and maintain its store using nix-rs. An image that merely boots with nix-rs installed does not meet this goal. The product and acceptance criteria are specified in [docs/](docs/README.md).
 
 ## Compatibility promise
 
@@ -28,8 +28,8 @@ The current Cargo workspace contains selected imported Rust crates under `crates
 2. Implement and qualify Nix formats and primitives: paths, hashes, NAR, derivations, narinfo, signatures, and protocol encodings.
 3. Implement the local store, daemon, substitution, garbage collection, profile management, and build scheduling. Test existing-store interoperation and interrupted operations before making it the default system daemon.
 4. Complete the evaluator, builtins, fetchers, flakes, and command set. Compare outputs, errors, and build graphs with the pinned reference; test real Nixpkgs configurations.
-5. Build the OS definition, installer, system management operations, CLI, TUI, and GPUI-based NixBox GUI. Qualify installation, system switches, boot, upgrades, recovery, and parity among interfaces.
-6. Run the full compatibility and release gates on supported systems. Publish only with a traceable matrix and a tested path back to a working generation.
+5. Complete the CppNix 2.36.0 compatibility matrix on the supported existing-system target, including commands, daemon and library interfaces, existing-store interoperation, and NixOS rebuilds driven by nix-rs. Publish the drop-in package manager only when every applicable compatibility gate passes.
+6. Build the OS definition, installer, system management operations, CLI, TUI, and GPUI-based NixBox GUI on that qualified engine. Qualify installation, system switches, boot, upgrades, recovery, and parity among interfaces before publishing the OS.
 
 Reference CppNix may be used in isolated development and test environments to produce expected results. Public OS releases under this plan use nix-rs for normal evaluation, building, and store maintenance. There is no separate product track based on an upstream Nix engine.
 

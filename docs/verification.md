@@ -6,7 +6,11 @@ The copied CppNix 2.36.0 tests under [tests/upstream/nix/](../tests/upstream/nix
 
 `crates/compat-tests/` already classifies the copied ATerm derivation fixtures against vendored `nix-compat`. Its expectation table names unsupported forms, including content-addressed and dynamic derivations. These classified gaps are useful progress markers, not passing compatibility cases.
 
-Repeated input-source paths in the copied ATerm fixtures are accepted and collapsed to a set. The resulting serialization is canonical rather than byte-identical to the duplicate-bearing fixture; the test reparses it and compares the derivation value. This establishes that narrow parser behavior, not complete derivation or store compatibility.
+The ATerm parser follows CppNix 2.36's parsing rules for ordering, duplicates and escapes. The anonymised `hello.drv` and `firefox.drv` fixtures contain distinct paths that share a digest; they now round-trip byte for byte. `crates/compat-tests/tests/upstream_masked_hash.rs` checks the hashes that decide input-addressed output paths against CppNix's masked-hash fixtures: fixed-output hashing, hash derivation modulo, and output paths computed from the fully masked form. The `intermediate-*` fixtures state output paths computed before their output environment variables existed. They disagree with CppNix's own fully masked form, and verification rejects them; the test records this upstream fixture quirk explicitly. These checks cover narrow format behavior, not complete derivation or store compatibility.
+
+`crates/compat-tests/tests/upstream_nars.rs` runs the copied CppNix NAR fixtures through the Rust archive reader and writer. It checks the valid one-byte archive byte for byte, leaves trailing data unread, and rejects the copied malformed archives with their expected error categories. This covers archive parsing only; store import/export and cache exchange remain unrun.
+
+`crates/compat-tests/tests/upstream_hashes.rs` checks BLAKE3 digests against three copied CppNix vectors and checks JSON encoding against its copied fixture. The library accepts BLAKE3 hashes, but the reference exposes them behind the `blake3-hashes` experimental feature. No nix-rs command or configuration layer enforces that feature gate yet, so BLAKE3 command compatibility remains unrun.
 
 For each compatibility test, record the reference binary and nix-rs binary, platform, input revision, feature settings, store configuration, command or operation, expected result, actual result, and disposition. Tests that cannot yet run against nix-rs remain unrun. Tests that fail for a known reference issue still need an explicit compatibility decision; do not quietly rewrite expected output.
 
@@ -37,13 +41,14 @@ Qualify the GPUI-based NixBox GUI in a graphical VM: verify package and option i
 
 Run tests for the public C and C++ library interfaces or maintain an explicit list of incompatible consumers. A release with a required incompatible interface cannot claim 100% drop-in behavior for its matrix row. Security checks cover multi-user authorization, trusted users, sandbox escape attempts, cache signature rejection, and secret handling.
 
-## Release gate
+## Release gates
 
-A release candidate passes only when:
+The package-manager MVP comes first. It can be described as a 100% drop-in replacement only when the CppNix 2.36.0 compatibility matrix is complete for its declared existing-system target and every applicable command, setting, format, build, store, daemon, cache, and public library interface passes. This includes rebuilding a supported existing NixOS installation with nix-rs, existing-store interoperation, return to the reference implementation, and a safe installation and rollback procedure for the package manager. Publish the tested binaries, source revisions, licenses, reports, signatures, and known limits with the release. OS installation, recovery-media, TUI, and GUI rows remain separate later gates and do not weaken this first compatibility claim.
 
-1. The compatibility matrix is complete and every applicable test and interface is passing, including protocol and library interoperability.
-2. The installed OS builds and activates its next generation using nix-rs, with no CppNix dependency for normal maintenance.
-3. Installer, update, rollback, and recovery workflows pass on every advertised platform.
-4. Release artifacts, source revisions, licenses, test reports, signatures, and known limits are published together.
+The later OS release additionally requires:
 
-If any gate is open, continue development and report the specific gap. Do not describe the release as 100% compatible or drop-in until all gates close.
+1. The installed OS builds and activates its next generation using nix-rs, with no CppNix dependency for normal maintenance.
+2. Installer, update, rollback, and recovery workflows pass on every advertised platform.
+3. CLI, TUI, and GPUI-based NixBox GUI operations pass their shared behavior and accessibility tests.
+
+If a gate is open, continue development and report the specific gap. Neither release can claim behavior that its matrix has not qualified.

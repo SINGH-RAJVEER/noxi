@@ -1,6 +1,6 @@
 # Initial compatibility matrix
 
-This is the first qualification target and its current evidence, not a claim of compatibility. Add a row for each additional reference release, architecture, or feature setting. Keep failures and unrun cases visible.
+This is the first qualification target and its current evidence, not a claim of compatibility. Qualify the existing-system package-manager replacement first; the installed OS and NixBox interface rows are later release gates. Add a row for each additional reference release, architecture, or feature setting. Keep failures and unrun cases visible.
 
 | Field | Initial target |
 |---|---|
@@ -15,7 +15,9 @@ This is the first qualification target and its current evidence, not a claim of 
 | Area | Current status | Evidence needed to pass |
 |---|---|---|
 | Nix language and evaluator | Unrun | Copied language suite and Nixpkgs evaluation comparison |
+| Hash algorithms | Partial fixture coverage, including BLAKE3 vectors and JSON | All reference formats, feature-gate behavior, hashing commands, and store consumers |
 | Derivation and path formats | Partial fixture coverage; remaining gaps in `nix-compat` | All copied fixtures and byte comparisons; see `crates/compat-tests/` |
+| NAR archive format | Partial fixture coverage | Copied valid and malformed NAR fixtures, serialization, import/export, and store exchange |
 | Store and garbage collection | Unrun | Existing-store, concurrency, integrity, and return-to-reference tests |
 | Build engine and sandbox | Unrun | Local and remote build behavior under the selected system |
 | Binary caches and signatures | Unrun | Cache exchange and trust decisions |
@@ -28,4 +30,4 @@ This is the first qualification target and its current evidence, not a claim of 
 | NixBox engine integration | Unrun | Locked-revision resolution, evaluated candidate plans, direct realization, declarative persistence, and recovery |
 | OS-native CLI diagnostics | Unrun | Structured rebuild events, concise errors, raw-log retrieval, JSON, TTY, and CI modes |
 
-The ATerm parser now accepts repeated input-source paths and canonicalizes them to a set. Two copied derivation fixtures exercise that behavior. Other fixture gaps remain, and this is not a measured coverage percentage. Qualification requires a pinned Nixpkgs revision, completed interface inventory, test results, and release artifacts as defined in [verification](verification.md).
+The ATerm parser follows CppNix's ordering, duplicate and escape rules, and the masked-hash fixtures check input-addressed path computation. Remaining derivation gaps are deferred outputs, zero-output derivations, floating content-addressed and impure outputs, and `DrvWithVersion`. They are listed in `crates/compat-tests/tests/upstream_derivations.rs`. This is not a measured coverage percentage. Qualification requires a pinned Nixpkgs revision, completed interface inventory, test results, and release artifacts as defined in [verification](verification.md).

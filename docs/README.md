@@ -1,10 +1,10 @@
-# nix-rs OS specifications
+# nix-rs specifications
 
-The [root plan](../PLAN.md) states the sole product direction. These documents define what the OS and replacement engine must do and how their claims are verified. They are design specifications, not statements that the current workspace already implements the behavior.
+The [root plan](../PLAN.md) states the sole product direction: qualify the drop-in package manager first, then build the OS on it. These documents define what the replacement engine and later OS must do and how their claims are verified. They are design specifications, not statements that the current workspace already implements the behavior.
 
 | Document | Subject |
 |---|---|
-| [Product and architecture](product.md) | OS behavior, engine modules, and shared interface |
+| [Product and architecture](product.md) | Package-manager MVP, later OS behavior, engine modules, and shared interface |
 | [Compatibility contract](compatibility.md) | Exact meaning of a drop-in replacement and its release matrix |
 | [Compatibility matrix](compatibility-matrix.md) | Initial reference target and visible qualification status |
 | [System lifecycle](system.md) | Installation, activation, upgrades, recovery, and authority |

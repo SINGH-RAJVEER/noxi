@@ -24,9 +24,9 @@ test:
 test-core:
 	cargo test --workspace --all-features --no-fail-fast --exclude nix-compat-derive-tests
 
-# Run compatibility checks against the copied CppNix derivation fixtures.
+# Run compatibility checks against the copied CppNix fixtures.
 test-fixtures:
-	cargo test -p nixrs-compat-tests --test upstream_derivations
+	cargo test -p nixrs-compat-tests --tests
 
 # Run the complete development check in the pinned devenv shell.
 ci: fmt-check check test
