@@ -200,6 +200,10 @@ impl FileReader<'_, '_> {
 		while !self.is_empty() {
 			let buf = self.fill_buf()?;
 			let n = try_or_poison!(self.reader, dst.write(buf));
+			if n == 0 {
+				self.reader.status.poison();
+				return Err(io::ErrorKind::WriteZero.into());
+			}
 			self.consume(n)?;
 		}
 
