@@ -1,6 +1,6 @@
 use std::{env, fs, path::PathBuf, process::ExitCode};
 
-use nix_rs_eval::Evaluation;
+use nix_rs_eval::{EvalMode, Evaluation};
 
 fn main() -> ExitCode {
 	let mut args = env::args().skip(1);
@@ -33,6 +33,7 @@ fn main() -> ExitCode {
 
 fn evaluate(expression: &str, location: Option<PathBuf>) -> ExitCode {
 	let result = Evaluation::builder_pure()
+		.mode(EvalMode::Strict)
 		.build()
 		.evaluate(expression, location);
 	if !result.errors.is_empty() {

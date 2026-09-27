@@ -20,6 +20,7 @@ Each numbered section is a work package. Its checkboxes are the subtasks, and th
 
 ## 1. Build a differential compatibility runner
 
+- [x] Add an initial ten-case pure-evaluation comparison that records both executable versions, exit codes, stdout, stderr, expressions, and mismatches as JSON. A host Nix 2.34.8 check passes 10/10; the pinned 2.36.0 reference and full language suite remain unrun.
 - [ ] Run reference CppNix and nix-rs in isolated test stores with identical environment, configuration, feature flags, inputs, and timeouts.
 - [ ] Capture exit code, stdout, stderr, structured output, produced paths, derivation bytes, NAR bytes, store metadata, and daemon exchanges where applicable.
 - [ ] Make every copied fixture discoverable and classified as passing, known gap, reference anomaly, or unrun. Fail when an unclassified fixture appears.

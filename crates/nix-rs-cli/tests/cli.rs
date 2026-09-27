@@ -13,6 +13,16 @@ fn evaluates_a_pure_expression() {
 }
 
 #[test]
+fn evaluates_nested_values_before_printing() {
+	let output = Command::new(env!("CARGO_BIN_EXE_nixrs"))
+		.args(["eval", "--expr", "rec { a = 1; b = [ (a + 1) ]; }"])
+		.output()
+		.expect("run nixrs");
+	assert!(output.status.success());
+	assert_eq!(output.stdout, b"{ a = 1; b = [ 2 ]; }\n");
+}
+
+#[test]
 fn evaluates_a_pure_file() {
 	let directory = tempdir().expect("temporary directory");
 	let path = directory.path().join("answer.nix");

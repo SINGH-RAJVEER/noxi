@@ -28,6 +28,12 @@ test-core:
 test-fixtures:
 	cargo test -p nixrs-compat-tests --tests
 
+# Compare the preview evaluator with an explicitly selected CppNix executable.
+eval-compare reference report="/tmp/nix-rs-eval-comparison.json":
+	cargo build -p nix-rs-cli --bin nixrs
+	cargo build -p nixrs-compat-tests --bin differential-eval
+	target/debug/differential-eval "{{reference}}" target/debug/nixrs "{{report}}"
+
 # Fetch the latest official stable Nix source and tests; record its exact revision.
 nix-tests-update:
 	bash scripts/update-nix-tests.sh latest
