@@ -1,4 +1,4 @@
-error[E0277]: the trait bound `Test: From<u64>` is not satisfied
+error[E0277]: the trait bound `Test: TryFrom<u64>` is not satisfied
  --> tests/ui/deserialize_try_from_missing.rs:4:18
   |
 4 | #[nix(try_from = "u64")]

@@ -1,7 +1,7 @@
 use proc_macro2::{Span, TokenStream};
 use quote::{ToTokens, quote, quote_spanned};
 use syn::spanned::Spanned;
-use syn::{DeriveInput, Generics, Path, Type};
+use syn::{DeriveInput, Expr, Generics, Lit, Path, RangeLimits, Type};
 
 use crate::internal::attrs::Default;
 use crate::internal::inputs::RemoteInput;
@@ -13,6 +13,18 @@ pub fn expand_nix_deserialize(
 ) -> syn::Result<TokenStream> {
 	let cx = Context::new();
 	let cont = Container::from_ast(&cx, crate_path, input);
+	if let Some(Container {
+		data: Data::Enum(variants),
+		ident,
+		..
+	}) = &cont
+		&& let Some(missing) = first_uncovered_minor_version(variants)
+	{
+		cx.error_spanned(
+			*ident,
+			format!("version ranges do not cover protocol minor version {missing}"),
+		);
+	}
 	cx.check()?;
 	let cont = cont.unwrap();
 
@@ -26,6 +38,49 @@ pub fn expand_nix_deserialize(
 		&cont.original.generics,
 		body,
 	))
+}
+
+/// Diagnose literal version gaps before emitting an async match. On affected
+/// nightly compilers, recovering from the match's E0004 error causes an ICE.
+fn first_uncovered_minor_version(variants: &[Variant<'_>]) -> Option<u8> {
+	fn bound(expr: &Expr) -> Option<u16> {
+		match expr {
+			Expr::Lit(lit) => match &lit.lit {
+				Lit::Int(value) => value.base10_parse().ok(),
+				_ => None,
+			},
+			_ => None,
+		}
+	}
+
+	let mut covered = [false; 256];
+	for variant in variants {
+		let range = &variant.attrs.version;
+		let start = match &range.start {
+			Some(expr) => bound(expr)?,
+			None => 0,
+		};
+		let end_exclusive = match &range.end {
+			Some(expr) => {
+				let end = bound(expr)?;
+				match range.limits {
+					RangeLimits::Closed(_) => end.checked_add(1)?,
+					RangeLimits::HalfOpen(_) => end,
+				}
+			}
+			None => 256,
+		};
+		if start > 255 || end_exclusive > 256 {
+			return None;
+		}
+		for version in start..end_exclusive {
+			covered[usize::from(version)] = true;
+		}
+	}
+	covered
+		.iter()
+		.position(|value| !value)
+		.map(|index| index as u8)
 }
 
 pub fn expand_nix_deserialize_remote(

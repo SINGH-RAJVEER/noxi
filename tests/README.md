@@ -6,7 +6,7 @@ Run `just nix-tests-update` at the repository root to fetch the full official [N
 
 The official checkout includes the upstream implementation and its Meson test definitions, so it can be used to run CppNix's own suite as a reference. Those tests are not yet a nix-rs test runner: C++ unit tests build against CppNix, and functional tests require a configured upstream environment and compatible command implementations. The lock file records test provenance, while the checkout itself remains a reproducible local dependency rather than committed duplicate source.
 
-The fixed fixture snapshot below identifies itself as 2.36.0 from a source tree without commit metadata. Check the lock file for the official checkout's selected release; do not treat differing revisions as the same test oracle or replace one with the other without revising the compatibility matrix and expected results.
+The fixed fixture snapshot below identifies itself as 2.36.0 from a source tree without commit metadata. On 2026-09-27, `git ls-remote` found no `2.36*` release tag in the official repository. Check the lock file for the official checkout's selected release; do not treat differing revisions as the same test oracle or replace one with the other without revising the compatibility matrix and expected results.
 
 ## Fixed compatibility snapshot
 

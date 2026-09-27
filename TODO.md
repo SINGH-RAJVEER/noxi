@@ -8,13 +8,13 @@ Each numbered section is a work package. Its checkboxes are the subtasks, and th
 
 ## 0. Make the baseline reproducible
 
-- [ ] Pin the exact CppNix 2.36.0 source commit and record how it relates to the copied snapshot, whose original commit is unknown. Do not assume that a version string proves identical source.
+- [ ] Pin the exact CppNix 2.36.0 source commit and record how it relates to the copied snapshot, whose original commit is unknown. On 2026-09-27, the official repository exposed no `2.36*` release tag; keep this gate open rather than treating the snapshot's `.version` as source provenance.
 - [ ] Pin a Nixpkgs and NixOS revision, a Home Manager revision, the reference feature settings, and the x86_64-linux VM image for the first compatibility row.
 - [ ] Inventory every executable, `nix.conf` setting, experimental feature, protocol version, and public library interface exposed by that reference build. Record what NixOS and Home Manager actually invoke.
 - [ ] Define expected behavior for both an empty store and a copy of an existing CppNix store. Preserve a reference-only VM snapshot for rollback tests.
 - [x] Keep the copied fixture tree unchanged and provide a command to fetch a revision-recorded official Nix checkout with `just nix-tests-update` and `just nix-tests-sync`.
 - [x] Provide a pinned nightly development shell and a separate preview flake package. The shell and package builds have been exercised locally.
-- [ ] Resolve the pinned nightly's rustc internal compiler error in `nix-compat-derive-tests` without accepting an ICE as expected diagnostic output. Keep the full test command as a release gate.
+- [x] Resolve the pinned nightly's rustc internal compiler error in `nix-compat-derive-tests` by diagnosing uncovered enum versions before generating the async match. The UI suite and full `just ci` pass without accepting an ICE as expected output.
 - [x] Resolve the long-running `fixtures_match_expectations` worker-protocol test by reading the fixture's stated value count. The full worker-protocol test now completes in normal Cargo test runs.
 - [x] Commit the intended working-tree changes in reviewable Jujutsu changes and verify a clean-clone flake build of the `nixrs` preview package.
 
