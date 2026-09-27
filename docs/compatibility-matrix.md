@@ -14,7 +14,7 @@ This is the first qualification target and its current evidence, not a claim of 
 
 | Area | Current status | Evidence needed to pass |
 |---|---|---|
-| Nix language and evaluator | Unrun | Copied language suite and Nixpkgs evaluation comparison |
+| Nix language and evaluator | Copied language fixtures run against the evaluator: 105 of 486 pass; remaining outcomes are tracked in `crates/compat-tests/expectations/upstream-lang.txt` | Every language fixture passing, the `lang.sh` script checks, and Nixpkgs evaluation comparison |
 | Hash algorithms | Partial fixture coverage, including BLAKE3 vectors and JSON | All reference formats, feature-gate behavior, hashing commands, and store consumers |
 | Derivation and path formats | Partial fixture coverage; remaining gaps in `nix-compat` | All copied fixtures and byte comparisons; see `crates/compat-tests/` |
 | NAR archive format | Partial fixture coverage | Copied valid and malformed NAR fixtures, serialization, import/export, and store exchange |

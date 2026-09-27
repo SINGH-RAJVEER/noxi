@@ -1398,6 +1398,7 @@ version = "0.1.0"
 dependencies = [
  "data-encoding",
  "nix-compat",
+ "nix-rs-eval",
  "serde_json",
  "tempfile",
  "tokio",

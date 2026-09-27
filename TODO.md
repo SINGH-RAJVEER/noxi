@@ -24,8 +24,9 @@ Each numbered section is a work package. Its checkboxes are the subtasks, and th
 - [x] Add an initial ten-case pure-evaluation comparison that records both executable versions, exit codes, stdout, stderr, expressions, and mismatches as JSON. A host Nix 2.34.8 check passes 10/10; the pinned 2.36.0 reference and full language suite remain unrun.
 - [ ] Run reference CppNix and nix-rs in isolated test stores with identical environment, configuration, feature flags, inputs, and timeouts.
 - [ ] Capture exit code, stdout, stderr, structured output, produced paths, derivation bytes, NAR bytes, store metadata, and daemon exchanges where applicable.
-- [ ] Make every copied fixture discoverable and classified as passing, known gap, reference anomaly, or unrun. Fail when an unclassified fixture appears.
-- [ ] Adapt the upstream language tests to run against the Rust evaluator; retain source locations and expected failures.
+- [ ] Make every copied fixture discoverable and classified as passing, known gap, reference anomaly, or unrun. Fail when an unclassified fixture appears. Language fixtures and derivation fixtures are done; the other copied groups are not.
+- [x] Run every copied language fixture against the Rust evaluator in isolated child processes with timeouts, fail on unclassified fixture files, and record each case's observed outcome so any change fails the test. 105 of 486 cases pass; see `crates/compat-tests/expectations/upstream-lang.txt`.
+- [ ] Close the language fixture gaps: CppNix-format diagnostics with source locations and traces, a `--parse` printer, the `.flags` options, missing builtins, and the crash and unexpected-success cases.
 - [ ] Adapt upstream functional shell tests to call nix-rs binaries. Do not count tests that still call installed CppNix as nix-rs passes.
 - [ ] Add wire-level tests for all supported daemon protocol versions and feature negotiations, using the copied worker fixtures as an initial corpus.
 - [ ] Store machine-readable results with reference revision, platform, feature settings, and command so each row in the compatibility matrix has inspectable evidence.
