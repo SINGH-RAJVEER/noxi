@@ -16,7 +16,7 @@ Each numbered section is a work package. Its checkboxes are the subtasks, and th
 - [x] Provide a pinned nightly development shell and a separate preview flake package. The shell and package builds have been exercised locally.
 - [ ] Resolve the pinned nightly's rustc internal compiler error in `nix-compat-derive-tests` without accepting an ICE as expected diagnostic output. Keep the full test command as a release gate.
 - [x] Resolve the long-running `fixtures_match_expectations` worker-protocol test by reading the fixture's stated value count. The full worker-protocol test now completes in normal Cargo test runs.
-- [ ] Commit the intended current working-tree changes in reviewable Jujutsu changes, keeping unrelated work separate, and verify a clean-clone build.
+- [x] Commit the intended working-tree changes in reviewable Jujutsu changes and verify a clean-clone flake build of the `nixrs` preview package.
 
 ## 1. Build a differential compatibility runner
 

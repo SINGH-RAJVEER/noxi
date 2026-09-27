@@ -20,7 +20,7 @@ For each compatibility test, record the reference binary and nix-rs binary, plat
 
 ## Differential testing
 
-The initial `differential-eval` runner compares ten pure expressions using `nix-instantiate --eval --strict --expr` and `nixrs eval --expr`, with an isolated temporary home and identical empty `NIX_PATH` and `NIX_CONFIG`. Run `just eval-compare /path/to/nix-instantiate /path/to/report.json` in the development shell. The JSON report contains the executable versions, arguments, expressions, exit codes, stdout, stderr, and mismatch disposition. The local Nix 2.34.8 run matched 10/10 after the preview CLI was made strict; it is a development check, not evidence for the target CppNix 2.36.0 release. This runner covers no store operations and has no per-case timeout yet.
+The initial `differential-eval` runner compares ten pure expressions using `nix-instantiate --eval --strict --expr` and `nixrs eval --expr`, with an isolated temporary home and identical empty `NIX_PATH` and `NIX_CONFIG`. Run `just eval-compare /path/to/nix-instantiate /path/to/report.json` in the development shell. The JSON report contains the executable versions, arguments, expressions, exit codes, stdout, stderr, and mismatch disposition. The local Nix 2.34.8 run matched 10/10 after the preview CLI was made strict; it is a development check, not evidence for the target CppNix 2.36.0 release. The flake preview package also built from a clean local Git clone, and its installed binary evaluated a nested value. This runner covers no store operations and has no per-case timeout yet.
 
 Compare both engines with identical inputs and isolated stores. The comparison must cover:
 
