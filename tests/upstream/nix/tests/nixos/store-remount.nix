@@ -2,7 +2,7 @@
 # mount flags like `nodev` are locked in a user namespace
 # (https://github.com/NixOS/nix/issues/9705).
 
-{ lib, nixComponents, ... }:
+{ lib, ... }:
 
 {
   name = "store-remount";
@@ -12,7 +12,7 @@
     {
       virtualisation.writableStore = true;
       virtualisation.additionalPaths = [
-        nixComponents.nix-cli
+        pkgs.nix
         pkgs.util-linux
         pkgs.strace
         pkgs.gnugrep

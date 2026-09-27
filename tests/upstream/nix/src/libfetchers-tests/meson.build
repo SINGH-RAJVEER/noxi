@@ -33,9 +33,6 @@ deps_private += rapidcheck
 gtest = dependency('gtest', main : true)
 deps_private += gtest
 
-gmock = dependency('gmock')
-deps_private += gmock
-
 libgit2 = dependency('libgit2')
 deps_private += libgit2
 
@@ -48,7 +45,6 @@ sources = files(
   'git-utils.cc',
   'git.cc',
   'input.cc',
-  'merkle-tar-adapter.cc',
   'nix_api_fetchers.cc',
   'public-key.cc',
 )
@@ -59,7 +55,7 @@ include_dirs = [ include_directories('.') ]
 this_exe = executable(
   meson.project_name(),
   sources,
-  dependencies : deps_private_subproject + deps_private + deps_private_no_pkgconfig,
+  dependencies : deps_private_subproject + deps_private + deps_other,
   include_directories : include_dirs,
   # TODO: -lrapidcheck, see ../libutil-support/build.meson
   link_args : linker_export_flags + [ '-lrapidcheck' ],

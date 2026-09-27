@@ -7,10 +7,12 @@
 
 namespace rc {
 
+using namespace nix;
+
 template<>
-struct Arbitrary<nix::Hash>
+struct Arbitrary<Hash>
 {
-    static Gen<nix::Hash> arbitrary();
+    static Gen<Hash> arbitrary();
 };
 
 } // namespace rc

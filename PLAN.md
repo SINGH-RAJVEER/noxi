@@ -6,7 +6,7 @@ The first deliverable is an independently installable package manager that can r
 
 ## Compatibility promise
 
-The first reference is CppNix 2.36.0 as of unreleased `master` commit `8f7ed1c1d`, the revision the copied test snapshot matches, with x86_64-linux as the initial qualification target. Before any release is called a 100% drop-in replacement, every applicable observable behavior of that reference must meet the [compatibility contract](docs/compatibility.md), including legacy and new commands, Nix language evaluation, fetchers, flakes, store formats and paths, daemon protocols, profiles, garbage collection, cache exchange, build behavior, configuration settings, and public library interfaces used by supported consumers. The [release matrix](docs/compatibility-matrix.md) must name the exact operating systems, architectures, Nixpkgs revisions, and feature flags tested. Later reference releases or additional architectures require a new matrix and qualification run.
+The first reference is CppNix 2.35.2, the newest numbered release when it was selected, with x86_64-linux as the initial qualification target. Before any release is called a 100% drop-in replacement, every applicable observable behavior of that reference must meet the [compatibility contract](docs/compatibility.md), including legacy and new commands, Nix language evaluation, fetchers, flakes, store formats and paths, daemon protocols, profiles, garbage collection, cache exchange, build behavior, configuration settings, and public library interfaces used by supported consumers. The [release matrix](docs/compatibility-matrix.md) must name the exact operating systems, architectures, Nixpkgs revisions, and feature flags tested. Later reference releases or additional architectures require a new matrix and qualification run.
 
 The phrase "100% compatible" is a release gate, not a claim about the current code. A missing interface or untested behavior cannot be silently omitted from the gate. If a required interface cannot be reproduced, the release cannot use the drop-in claim. New tweaks use new commands, settings, or negotiated protocol extensions so existing scripts and artifacts retain their meaning.
 
@@ -28,7 +28,7 @@ The current Cargo workspace contains selected imported Rust crates under `crates
 2. Implement and qualify Nix formats and primitives: paths, hashes, NAR, derivations, narinfo, signatures, and protocol encodings.
 3. Implement the local store, daemon, substitution, garbage collection, profile management, and build scheduling. Test existing-store interoperation and interrupted operations before making it the default system daemon.
 4. Complete the evaluator, builtins, fetchers, flakes, and command set. Compare outputs, errors, and build graphs with the pinned reference; test real Nixpkgs configurations.
-5. Complete the CppNix 2.36.0 compatibility matrix on the supported existing-system target, including commands, daemon and library interfaces, existing-store interoperation, and NixOS rebuilds driven by nix-rs. Publish the drop-in package manager only when every applicable compatibility gate passes.
+5. Complete the CppNix 2.35.2 compatibility matrix on the supported existing-system target, including commands, daemon and library interfaces, existing-store interoperation, and NixOS rebuilds driven by nix-rs. Publish the drop-in package manager only when every applicable compatibility gate passes.
 6. Build the OS definition, installer, system management operations, CLI, TUI, and GPUI-based NixBox GUI on that qualified engine. Qualify installation, system switches, boot, upgrades, recovery, and parity among interfaces before publishing the OS.
 
 Reference CppNix may be used in isolated development and test environments to produce expected results. Public OS releases under this plan use nix-rs for normal evaluation, building, and store maintenance. There is no separate product track based on an upstream Nix engine.
@@ -40,7 +40,6 @@ The repository has a Cargo workspace with selected imported crates under the nix
 ## Decisions required before a release candidate
 
 - Boot modes and additional CPU architectures after x86_64-linux.
-- Whether the reference stays on the unreleased 2.36.0 development commit that the test snapshot matches, moves to the 2.36.0 release once tagged, or moves to a tagged release such as 2.35.2.
 - Exact Nixpkgs and NixOS baseline revision paired with the reference release.
 - Public project name and distribution branding.
 - The first set of opt-in tweaks beyond reference Nix behavior.

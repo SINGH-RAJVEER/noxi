@@ -352,14 +352,8 @@ count() {
 
 trap onError ERR
 
-# Note: with newer AppArmor stacks, this restriction doesn't prevent *creating*
-# a user namespace, but denies mounting inside it, which Nix's sandbox needs.
-unprivilegedUserNamespacesSupported() {
-  ! { [[ -f /proc/sys/kernel/apparmor_restrict_unprivileged_userns ]] && [[ $(< /proc/sys/kernel/apparmor_restrict_unprivileged_userns) -eq 1 ]]; }
-}
-
 requiresUnprivilegedUserNamespaces() {
-  if ! unprivilegedUserNamespacesSupported; then
+  if [[ -f /proc/sys/kernel/apparmor_restrict_unprivileged_userns ]] && [[ $(< /proc/sys/kernel/apparmor_restrict_unprivileged_userns) -eq 1 ]]; then
     skipTest "Unprivileged user namespaces are disabled. Run 'sudo sysctl -w /proc/sys/kernel/apparmor_restrict_unprivileged_userns=0' to allow, and run these tests."
   fi
 }
@@ -374,7 +368,7 @@ initGitRepo() {
     local extraArgs="${2-}"
 
     # shellcheck disable=SC2086 # word splitting of extraArgs is intended
-    git -C "$repo" init --initial-branch=master $extraArgs
+    git -C "$repo" init $extraArgs
     git -C "$repo" config user.email "foobar@example.com"
     git -C "$repo" config user.name "Foobar"
 }

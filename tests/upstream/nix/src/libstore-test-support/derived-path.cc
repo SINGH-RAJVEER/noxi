@@ -4,10 +4,10 @@
 #include "nix/store/tests/derived-path.hh"
 
 namespace rc {
+using namespace nix;
 
-Gen<nix::SingleDerivedPath::Opaque> Arbitrary<nix::SingleDerivedPath::Opaque>::arbitrary()
+Gen<SingleDerivedPath::Opaque> Arbitrary<SingleDerivedPath::Opaque>::arbitrary()
 {
-    using namespace nix;
     return gen::map(gen::arbitrary<StorePath>(), [](StorePath path) {
         return DerivedPath::Opaque{
             .path = path,
@@ -15,9 +15,8 @@ Gen<nix::SingleDerivedPath::Opaque> Arbitrary<nix::SingleDerivedPath::Opaque>::a
     });
 }
 
-Gen<nix::SingleDerivedPath::Built> Arbitrary<nix::SingleDerivedPath::Built>::arbitrary()
+Gen<SingleDerivedPath::Built> Arbitrary<SingleDerivedPath::Built>::arbitrary()
 {
-    using namespace nix;
     return gen::mapcat(gen::arbitrary<SingleDerivedPath>(), [](SingleDerivedPath drvPath) {
         return gen::map(gen::arbitrary<StorePathName>(), [drvPath](StorePathName outputPath) {
             return SingleDerivedPath::Built{
@@ -28,9 +27,8 @@ Gen<nix::SingleDerivedPath::Built> Arbitrary<nix::SingleDerivedPath::Built>::arb
     });
 }
 
-Gen<nix::DerivedPath::Built> Arbitrary<nix::DerivedPath::Built>::arbitrary()
+Gen<DerivedPath::Built> Arbitrary<DerivedPath::Built>::arbitrary()
 {
-    using namespace nix;
     return gen::mapcat(gen::arbitrary<SingleDerivedPath>(), [](SingleDerivedPath drvPath) {
         return gen::map(gen::arbitrary<OutputsSpec>(), [drvPath](OutputsSpec outputs) {
             return DerivedPath::Built{
@@ -41,9 +39,8 @@ Gen<nix::DerivedPath::Built> Arbitrary<nix::DerivedPath::Built>::arbitrary()
     });
 }
 
-Gen<nix::SingleDerivedPath> Arbitrary<nix::SingleDerivedPath>::arbitrary()
+Gen<SingleDerivedPath> Arbitrary<SingleDerivedPath>::arbitrary()
 {
-    using namespace nix;
     return gen::mapcat(gen::inRange<uint8_t>(0, std::variant_size_v<SingleDerivedPath::Raw>), [](uint8_t n) {
         switch (n) {
         case 0:
@@ -56,9 +53,8 @@ Gen<nix::SingleDerivedPath> Arbitrary<nix::SingleDerivedPath>::arbitrary()
     });
 }
 
-Gen<nix::DerivedPath> Arbitrary<nix::DerivedPath>::arbitrary()
+Gen<DerivedPath> Arbitrary<DerivedPath>::arbitrary()
 {
-    using namespace nix;
     return gen::mapcat(gen::inRange<uint8_t>(0, std::variant_size_v<DerivedPath::Raw>), [](uint8_t n) {
         switch (n) {
         case 0:

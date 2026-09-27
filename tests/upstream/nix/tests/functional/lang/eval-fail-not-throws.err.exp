@@ -1,5 +1,5 @@
 error:
-       … in the argument of '!'
+       … in the argument of the not operator
          at /pwd/lang/eval-fail-not-throws.nix:1:3:
             1| !(throw "uh oh!")
              |   ^

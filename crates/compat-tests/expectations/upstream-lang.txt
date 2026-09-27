@@ -67,7 +67,6 @@ eval-fail-deepseq-list-attr unexpected-success
 eval-fail-deepseq-stack-overflow error-message E001
 eval-fail-deepseq error-message E002
 eval-fail-derivation-name error-message E010
-eval-fail-derivation-stack-trace unrun-flags
 eval-fail-derivation-structuredAttrs-stack-overflow error-message E010
 eval-fail-derivationStrict-1 error-message E005
 eval-fail-derivationStrict-10 error-message E005
@@ -168,9 +167,7 @@ eval-fail-hashfile-missing error-message E029
 eval-fail-head-1 error-message E006
 eval-fail-head-2 error-message E019
 eval-fail-home-path-fatal unrun-flags
-eval-fail-infinite-recursion-builtin error-message E014
 eval-fail-infinite-recursion-lambda unrun-flags
-eval-fail-interpolation-list error-message E018
 eval-fail-intersectAttrs-1 error-message E006
 eval-fail-intersectAttrs-2 error-message E006
 eval-fail-length-1 error-message E006
@@ -202,8 +199,6 @@ eval-fail-mutual-recursion error-message E001
 eval-fail-nested-list-items error-message E018
 eval-fail-nonexist-path unexpected-success
 eval-fail-not-throws error-message E001
-eval-fail-operator-trace error-message E001
-eval-fail-outPath-abort error-message E002
 eval-fail-overflowing-add crash
 eval-fail-overflowing-div crash
 eval-fail-overflowing-mul crash
@@ -221,10 +216,6 @@ eval-fail-readDir-nonexistent-1 error-message E029
 eval-fail-readDir-nonexistent-2 error-message E029
 eval-fail-readDir-not-a-directory-1 error-message E029
 eval-fail-readDir-not-a-directory-2 error-message E029
-eval-fail-readFileType-outPath-abort error-message E002
-eval-fail-readFileType-outPath-non-absolute error-message E020
-eval-fail-readFileType-toString-non-absolute error-message E020
-eval-fail-readFileType-toString-not-function error-message E013
 eval-fail-recursion error-message E014
 eval-fail-remove error-message E005
 eval-fail-removeAttrs-1 error-message E006
@@ -266,16 +257,11 @@ eval-fail-tail-1 error-message E006
 eval-fail-tail-2 error-message E023
 eval-fail-to-path error-message E020
 eval-fail-toJSON-non-utf-8 error-message none
-eval-fail-toJSON-outPath-through-toString error-message E018
 eval-fail-toJSON-stack-overflow crash
-eval-fail-toJSON-toString-not-string error-message E018
-eval-fail-toJSON-toString-returns-attrs error-message E018
 eval-fail-toJSON error-message E001
 eval-fail-toPath-1 error-message E018
 eval-fail-toPath-2 error-message E020
 eval-fail-toString-1 error-message E018
-eval-fail-toString-not-function error-message E013
-eval-fail-toString-returns-non-coercible error-message E018
 eval-fail-undeclared-arg-import error-message E031
 eval-fail-undeclared-arg error-message E031
 eval-fail-url-literal unrun-flags
@@ -415,9 +401,6 @@ eval-okay-substring-context unexpected-failure E005
 eval-okay-substring pass
 eval-okay-symlink-resolution pass
 eval-okay-tail-call-1 disabled
-eval-okay-toJSON-peel output
-eval-okay-toString-peel output
-eval-okay-toString-returning-path pass
 eval-okay-tojson pass
 eval-okay-toxml pass
 eval-okay-toxml2 pass
@@ -428,8 +411,6 @@ eval-okay-url-literal-default pass
 eval-okay-url-literal-quoted-fatal unrun-flags
 eval-okay-url-literal-warn unrun-flags
 eval-okay-versions pass
-eval-okay-warn-indentation unexpected-failure E005
-eval-okay-warn-indentation2 unexpected-failure E005
 eval-okay-with pass
 eval-okay-xml pass
 eval-okay-zipAttrsWith pass

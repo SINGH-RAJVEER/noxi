@@ -1,12 +1,9 @@
 #include "nix/util/url.hh"
-#include "nix/util/tests/capture-logging.hh"
 #include "nix/util/tests/gmock-matchers.hh"
-
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
 
 #include <ranges>
-#include <optional>
 
 namespace nix {
 
@@ -28,19 +25,7 @@ std::ostream & operator<<(std::ostream & os, const FixGitURLParam & param)
 }
 
 class FixGitURLTestSuite : public ::testing::TestWithParam<FixGitURLParam>
-{
-    std::optional<testing::CaptureLogging> captureLogging;
-
-    void SetUp() override
-    {
-        captureLogging.emplace();
-    }
-
-    void TearDown() override
-    {
-        captureLogging.reset();
-    }
-};
+{};
 
 INSTANTIATE_TEST_SUITE_P(
     FixGitURLs,
@@ -381,7 +366,7 @@ TEST_P(FixGitURLTestSuite, parsedNormalized)
     EXPECT_EQ(actual.to_string(), p.expected);
 }
 
-TEST_F(FixGitURLTestSuite, rejectFileURLWithAuthority)
+TEST(FixGitURLTestSuite, rejectFileURLWithAuthority)
 {
     /* From the underlying `parseURL` validations. */
     EXPECT_THAT(
@@ -390,7 +375,7 @@ TEST_F(FixGitURLTestSuite, rejectFileURLWithAuthority)
             testing::HasSubstrIgnoreANSIMatcher("file:// URL 'file://var/repos/x' has unexpected authority 'var'")));
 }
 
-TEST_F(FixGitURLTestSuite, rejectRelativePath)
+TEST(FixGitURLTestSuite, rejectRelativePath)
 {
     /* From the underlying `parseURL` validations. */
     EXPECT_THAT(
@@ -398,7 +383,7 @@ TEST_F(FixGitURLTestSuite, rejectRelativePath)
         ::testing::ThrowsMessage<BadURL>(testing::HasSubstrIgnoreANSIMatcher("doesn't have a scheme")));
 }
 
-TEST_F(FixGitURLTestSuite, rejectEmptyPathGitScp)
+TEST(FixGitURLTestSuite, rejectEmptyPathGitScp)
 {
     /* Reject SCP-style URLs with no path component. */
     EXPECT_THAT(
@@ -407,7 +392,7 @@ TEST_F(FixGitURLTestSuite, rejectEmptyPathGitScp)
             testing::HasSubstrIgnoreANSIMatcher("SCP-style Git URL 'host:' has an empty path")));
 }
 
-TEST_F(FixGitURLTestSuite, rejectMalformedBracketedURLs)
+TEST(FixGitURLTestSuite, rejectMalformedBracketedURLs)
 {
     /* Brackets not in host position go through the colon-based path,
        consistent with git (which also finds the first colon). These
@@ -433,7 +418,7 @@ TEST_F(FixGitURLTestSuite, rejectMalformedBracketedURLs)
     EXPECT_EQ(parsed3.authority->user, "user:");
 }
 
-TEST_F(FixGitURLTestSuite, mismatchedBrackets)
+TEST(FixGitURLTestSuite, mismatchedBrackets)
 {
     /* Missing `]`: git's `host_end()` falls back to `end = host` and
        finds the first `:` as separator. We do the same — fall through
@@ -469,7 +454,7 @@ TEST_F(FixGitURLTestSuite, mismatchedBrackets)
         ::testing::ThrowsMessage<BadURL>(testing::HasSubstrIgnoreANSIMatcher("is not a valid IPv6 address")));
 }
 
-TEST_F(FixGitURLTestSuite, slashBeforeColonIsNotScp)
+TEST(FixGitURLTestSuite, slashBeforeColonIsNotScp)
 {
     /* A slash before the first colon means it's not SCP — consistent
        with git's `url_is_local_not_ssh()`. */
@@ -478,7 +463,7 @@ TEST_F(FixGitURLTestSuite, slashBeforeColonIsNotScp)
         ::testing::ThrowsMessage<BadURL>(testing::HasSubstrIgnoreANSIMatcher("doesn't have a scheme")));
 }
 
-TEST_F(FixGitURLTestSuite, noColonIsNotScp)
+TEST(FixGitURLTestSuite, noColonIsNotScp)
 {
     /* No `:` at all means not SCP — consistent with git's
        `url_is_local_not_ssh()` in `connect.c`.
@@ -494,7 +479,7 @@ TEST_F(FixGitURLTestSuite, noColonIsNotScp)
         ::testing::ThrowsMessage<BadURL>(testing::HasSubstrIgnoreANSIMatcher("is not a valid URL")));
 }
 
-TEST_F(FixGitURLTestSuite, gitBugDiscardedCharsBetweenBracketAndColon)
+TEST(FixGitURLTestSuite, gitBugDiscardedCharsBetweenBracketAndColon)
 {
     /* Git's `host_end()` returns `end` past `]`, then `strchr(end, ':')`
        finds `:` anywhere after — silently discarding characters between

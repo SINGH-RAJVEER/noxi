@@ -158,7 +158,9 @@ INSTANTIATE_TEST_SUITE_P(DummyStoreJSON, DummyStoreJsonTest, [] {
             "one-derivation",
             [&] {
                 auto store = writeCfg->openDummyStore();
-                store->writeDerivation(Derivation{.name = "foo"});
+                Derivation drv;
+                drv.name = "foo";
+                store->writeDerivation(drv);
                 return store;
             }(),
         },

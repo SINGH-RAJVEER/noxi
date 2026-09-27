@@ -3,7 +3,9 @@
 
 namespace nix {
 
-std::map<std::string, std::set<std::string>> testGraph = {
+using namespace std;
+
+map<string, set<string>> testGraph = {
     {"A", {"B", "C", "G"}},
     {"B", {"A"}}, // Loops back to A
     {"C", {"F"}}, // Indirect reference
@@ -15,9 +17,9 @@ std::map<std::string, std::set<std::string>> testGraph = {
 
 TEST(closure, correctClosure)
 {
-    std::set<std::string> aClosure;
-    std::set<std::string> expectedClosure = {"A", "B", "C", "F", "G"};
-    computeClosure<std::string>(
+    set<string> aClosure;
+    set<string> expectedClosure = {"A", "B", "C", "F", "G"};
+    computeClosure<string>(
         {"A"}, aClosure, [&](const std::string & currentNode) -> asio::awaitable<std::set<std::string>> {
             co_return testGraph[currentNode];
         });
@@ -30,10 +32,10 @@ TEST(closure, properlyHandlesDirectExceptions)
     struct TestExn
     {};
 
-    std::set<std::string> aClosure;
+    set<string> aClosure;
     std::size_t callCount = 0;
     EXPECT_THROW(
-        computeClosure<std::string>(
+        computeClosure<string>(
             {"A", "B"},
             aClosure,
             [&](const std::string &) -> asio::awaitable<std::set<std::string>> {

@@ -6,11 +6,11 @@ Run `just nix-tests-update` at the repository root to fetch the full official [N
 
 The official checkout includes the upstream implementation and its Meson test definitions, so it can be used to run CppNix's own suite as a reference. Those tests are not yet a nix-rs test runner: C++ unit tests build against CppNix, and functional tests require a configured upstream environment and compatible command implementations. The lock file records test provenance, while the checkout itself remains a reproducible local dependency rather than committed duplicate source.
 
-The fixed fixture snapshot below is an unreleased 2.36.0 development revision of `master`, pinned in [`upstream/nix-snapshot.lock`](upstream/nix-snapshot.lock) as described under [Snapshot provenance](#snapshot-provenance). The official checkout currently tracks the 2.35.2 release. Check both lock files before comparing results; do not treat differing revisions as the same test oracle or replace one with the other without revising the compatibility matrix and expected results.
+The fixed fixture snapshot below is copied from the 2.35.2 release and pinned in [`upstream/nix-snapshot.lock`](upstream/nix-snapshot.lock), as described under [Snapshot provenance](#snapshot-provenance). Both lock files currently name the same commit. `just nix-tests-update` moves the official checkout to the next tag when one is published, but the snapshot stays on 2.35.2 until it is refreshed deliberately. Check both lock files before comparing results; do not treat differing revisions as the same test oracle or replace one with the other without revising the compatibility matrix and expected results.
 
 ## Fixed compatibility snapshot
 
-`upstream/nix/` is a byte-for-byte test snapshot copied from a CppNix 2.36.0 development tree. The copy carried no Git commit metadata; its upstream revision was recovered afterwards, as recorded below. The upstream implementation source is not kept here. Keep the snapshot unchanged when refreshing it; write Rust adaptations and test runners outside `upstream/`.
+`upstream/nix/` is a byte-for-byte test snapshot of the CppNix 2.35.2 release. The upstream implementation source is not kept here. Keep the snapshot unchanged when refreshing it; write Rust adaptations and test runners outside `upstream/`.
 
 The snapshot includes:
 
@@ -18,7 +18,7 @@ The snapshot includes:
 |---|---|
 | `upstream/nix/tests/functional/` | Shell tests, Nix language fixtures, expected output, and helpers |
 | `upstream/nix/tests/nixos/` | NixOS integration and virtual machine test definitions |
-| `upstream/nix/tests/installer/`, `fuzzing-engine/`, `filetransfer-retry-backoff/` | Other upstream test groups |
+| `upstream/nix/tests/installer/`, `filetransfer-retry-backoff/` | Other upstream test groups |
 | `upstream/nix/src/lib*-tests/` | C++ unit tests and golden data for the evaluator, fetchers, flakes, store, and utilities |
 | `upstream/nix/src/lib*-test-support/` and `upstream/nix/nix-meson-build-support/` | Helpers required by those upstream suites |
 | `upstream/nix/COPYING` | Upstream license text for the copied material |
@@ -27,19 +27,11 @@ The copied directory shape preserves relative fixture symlinks. One deliberately
 
 ## Snapshot provenance
 
-No `2.36*` release tag or maintenance branch existed in the official repository on 2026-09-27; `master` reports `.version` 2.36.0 with `officialRelease = false`. The snapshot is therefore a pre-release development tree, not a 2.36.0 release.
+The snapshot was extracted with `git archive` from tag `2.35.2`, commit `2c73b59da29606068c0c98db015dd3a66955525d`, the newest numbered release on 2026-09-28. [`upstream/nix-snapshot.lock`](upstream/nix-snapshot.lock) records that commit and the Git object ID of each of the 17 copied paths: the top-level files and directories, plus each entry under `src/` and `tests/`.
 
-Every copied path was matched against official `master` history by Git object ID. All 18 recorded paths, the top-level files and directories plus each entry under `src/` and `tests/`, are identical to those of two consecutive first-parent `master` commits, and to three side-branch commits merged around them:
+An earlier snapshot, introduced in `046abec1`, came from unreleased `master` commit `8f7ed1c1d` (version 2.36.0). The 2.35.2 tag is on the `2.35-maintenance` branch, which left `master` on 2026-06-22. It lacks several fixture groups that the earlier snapshot had, including the masked derivation fixtures, the valid NAR fixtures, 19 language cases, and `tests/fuzzing-engine/`. [Verification](../docs/verification.md) lists how each missing group affects the compatibility tests.
 
-| Commit | Date (UTC) | Relation |
-|---|---|---|
-| `8fd18d36f67c7b23013dc1115019103423784fba` | 2026-09-22 | First-parent merge of #16503; start of the matching window |
-| `8f7ed1c1d1246bfa98cefd152c87d1ea26a3d463` | 2026-09-23 | First-parent merge of #16510; end of the window and the pinned reference |
-| `a87e844de8f6f996185df2fcaf2c35f84fcfa565`, `455fd887eb7a1ee50497fe5d683195115c47a9cb`, `9ef3048973b4f66202bc342909e78f7c069eca55` | 2026-09-23 to 2026-09-24 | Side-branch commits with the same test objects |
-
-The preceding first-parent commit (`b0ca18b59`) and the following one (`28f79ac85`) both change copied test paths, so the snapshot came from this window. The two first-parent commits differ only in `src/libstore-c/nix_api_store.cc`, which is outside the snapshot. The test data cannot choose between them, but that C API change matters for the public library interface gate. [`upstream/nix-snapshot.lock`](upstream/nix-snapshot.lock) pins the later commit, `8f7ed1c1d`, and records the object ID of each copied path.
-
-Run `just nix-snapshot-verify` to check that the working-tree snapshot still has the recorded object IDs and that no unrecorded path was added under the top level, `src/`, or `tests/`. Run `just nix-snapshot-verify upstream` to also fetch the pinned commit's trees without file contents and confirm that it has the same objects. A reference CppNix executable used against these fixtures must be built from the pinned commit; binaries from other revisions, including the 2.35.2 official checkout, are different references.
+Run `just nix-snapshot-verify` to check that the working-tree snapshot still has the recorded object IDs and that no unrecorded path was added under the top level, `src/`, or `tests/`. Run `just nix-snapshot-verify upstream` to also fetch the pinned commit's trees without file contents and confirm that it has the same objects. A reference CppNix executable used against these fixtures must be the 2.35.2 release. Binaries from other revisions are different references.
 
 ## Using the snapshot
 

@@ -2,8 +2,6 @@
 
 source common.sh
 
-signIfNeeded
-
 # The substituters didn't work prior to this time.
 requireDaemonNewerThan "2.18.0pre20230808"
 

@@ -7,9 +7,10 @@
 
 namespace rc {
 
-Gen<nix::Hash> Arbitrary<nix::Hash>::arbitrary()
+using namespace nix;
+
+Gen<Hash> Arbitrary<Hash>::arbitrary()
 {
-    using namespace nix;
     Hash prototype(HashAlgorithm::SHA1);
     return gen::apply(
         [](const std::vector<uint8_t> & v) {

@@ -2,26 +2,19 @@
 
 {
   config,
-  nixComponents,
   ...
 }:
 
 let
   pkgs = config.nodes.machine.nixpkgs.pkgs;
 
-  nixImage = pkgs.callPackage ../../docker.nix {
-    dockerTools = pkgs.dockerTools.override { nix = nixComponents.nix-cli; };
-    nix = nixComponents.nix-cli;
-  };
-
+  nixImage = pkgs.callPackage ../../docker.nix { };
   nixUserImage = pkgs.callPackage ../../docker.nix {
     name = "nix-user";
     uid = 1000;
     gid = 1000;
     uname = "user";
     gname = "user";
-    dockerTools = pkgs.dockerTools.override { nix = nixComponents.nix-cli; };
-    nix = nixComponents.nix-cli;
   };
 
   containerTestScript = ./nix-docker-test.sh;

@@ -22,26 +22,21 @@ enum Expect {
 	Experimental(&'static str),
 	/// Invalid input that CppNix also rejects while parsing.
 	Reject,
-	/// CppNix rejects this while parsing because a fixed output's stated path
-	/// does not match its content address. `nix-compat` checks this when it
-	/// verifies output paths, so the unverified parse accepts it and the
-	/// verified parse (with the derivation name CppNix's test uses) rejects it.
-	RejectOnVerify(&'static str),
-	/// The fully masked form that the input address is hashed from. CppNix
-	/// only writes it (its input derivations are named by hash, not path), so
-	/// neither implementation parses it. It is an oracle for hash-derivation-modulo.
-	HashModuloForm,
-	/// Outside the x86_64-linux compatibility matrix row.
-	OutOfScope(&'static str),
+	/// A known gap: CppNix accepts this, but `nix-compat` rejects it under the
+	/// named stricter rule, which it took from CppNix's development branch.
+	Divergent(&'static str),
 }
 
 use Expect::*;
 
 const CA_FLOATING: &str = "ca-derivations";
 const DYN_DRV: &str = "dynamic-derivations";
+/// CppNix 2.35.2 inserts input derivations into a map in any order, letting a
+/// later duplicate replace an earlier one. The anonymised fixtures list inputs
+/// that share a digest out of path order.
+const UNSORTED_INPUT_DRVS: &str = "input derivations must be strictly sorted";
 
 const EXPECTATIONS: &[(&str, Expect)] = &[
-	("bad-ca-fixed-path.drv", RejectOnVerify("fixed")),
 	("bad-old-version-dyn-deps.drv", Reject),
 	("bad-version.drv", Reject),
 	(
@@ -58,8 +53,8 @@ const EXPECTATIONS: &[(&str, Expect)] = &[
 		Experimental(CA_FLOATING),
 	),
 	("dyn-dep-derivation.drv", Experimental(DYN_DRV)),
-	("firefox.drv", RoundTrip),
-	("hello.drv", RoundTrip),
+	("firefox.drv", Divergent(UNSORTED_INPUT_DRVS)),
+	("hello.drv", Divergent(UNSORTED_INPUT_DRVS)),
 	("ia/advanced-attributes-defaults.drv", RoundTrip),
 	("ia/advanced-attributes.drv", RoundTrip),
 	(
@@ -67,24 +62,7 @@ const EXPECTATIONS: &[(&str, Expect)] = &[
 		RoundTrip,
 	),
 	("ia/advanced-attributes-structured-attrs.drv", RoundTrip),
-	("masked/intermediate-first.drv", RoundTrip),
-	("masked/intermediate-first-fully-masked.drv", HashModuloForm),
-	("masked/intermediate-second.drv", RoundTrip),
-	(
-		"masked/intermediate-second-fully-masked.drv",
-		HashModuloForm,
-	),
-	("masked/parent-joined.drv", RoundTrip),
-	("masked/parent-joined-fully-masked.drv", HashModuloForm),
-	("masked/parent-split.drv", RoundTrip),
-	("masked/parent-split-fully-masked.drv", HashModuloForm),
-	("masked/source-first.drv", RoundTrip),
-	("masked/source-second.drv", RoundTrip),
 	("simple-derivation.drv", RoundTrip),
-	(
-		"windows-store-dir.drv",
-		OutOfScope("Windows store directory encoding"),
-	),
 ];
 
 fn fixture_root() -> PathBuf {
@@ -140,11 +118,7 @@ fn derivations_match_expectations() {
 
 		let ok = match expect {
 			RoundTrip => actual == "round-trips",
-			RejectOnVerify(drv_name) => {
-				parsed.is_ok()
-					&& Derivation::from_aterm_bytes(drv_name, lookup_fn(|_| None), &bytes).is_err()
-			}
-			Experimental(_) | Reject | HashModuloForm | OutOfScope(_) => parsed.is_err(),
+			Experimental(_) | Reject | Divergent(_) => parsed.is_err(),
 		};
 
 		if !ok {

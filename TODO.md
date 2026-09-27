@@ -8,8 +8,10 @@ Each numbered section is a work package. Its checkboxes are the subtasks, and th
 
 ## 0. Make the baseline reproducible
 
-- [x] Pin the CppNix source commit for the copied snapshot. No 2.36.0 release exists; the snapshot matches unreleased `master` commits `8fd18d36f` to `8f7ed1c1d` object for object, and `tests/upstream/nix-snapshot.lock` pins `8f7ed1c1d`. `just nix-snapshot-verify upstream` passes.
-- [ ] Decide whether the first reference stays on that development commit or moves to a tagged release, then build the reference executables from the chosen commit.
+- [x] Pin the CppNix source commit for the copied snapshot. The first snapshot matched unreleased 2.36.0 `master` commit `8f7ed1c1d`.
+- [x] Choose the reference: the newest numbered release, CppNix 2.35.2 (`2c73b59`). The snapshot was refreshed from that tag, and `just nix-snapshot-verify upstream` passes.
+- [ ] Build the 2.35.2 reference executables and record their store paths for differential runs.
+- [ ] Resolve the two derivation divergences from 2.35.2: unsorted input derivations and colliding hash-modulo inputs. Add a differential test for the latter against a 2.35.2 binary.
 - [ ] Pin a Nixpkgs and NixOS revision, a Home Manager revision, the reference feature settings, and the x86_64-linux VM image for the first compatibility row.
 - [ ] Inventory every executable, `nix.conf` setting, experimental feature, protocol version, and public library interface exposed by that reference build. Record what NixOS and Home Manager actually invoke.
 - [ ] Define expected behavior for both an empty store and a copy of an existing CppNix store. Preserve a reference-only VM snapshot for rollback tests.
@@ -21,11 +23,11 @@ Each numbered section is a work package. Its checkboxes are the subtasks, and th
 
 ## 1. Build a differential compatibility runner
 
-- [x] Add an initial ten-case pure-evaluation comparison that records both executable versions, exit codes, stdout, stderr, expressions, and mismatches as JSON. A host Nix 2.34.8 check passes 10/10; the pinned 2.36.0 reference and full language suite remain unrun.
+- [x] Add an initial ten-case pure-evaluation comparison that records both executable versions, exit codes, stdout, stderr, expressions, and mismatches as JSON. A host Nix 2.34.8 check passes 10/10; a run against the 2.35.2 reference remains unrun.
 - [ ] Run reference CppNix and nix-rs in isolated test stores with identical environment, configuration, feature flags, inputs, and timeouts.
 - [ ] Capture exit code, stdout, stderr, structured output, produced paths, derivation bytes, NAR bytes, store metadata, and daemon exchanges where applicable.
 - [ ] Make every copied fixture discoverable and classified as passing, known gap, reference anomaly, or unrun. Fail when an unclassified fixture appears. Language fixtures and derivation fixtures are done; the other copied groups are not.
-- [x] Run every copied language fixture against the Rust evaluator in isolated child processes with timeouts, fail on unclassified fixture files, and record each case's observed outcome so any change fails the test. 105 of 486 cases pass; see `crates/compat-tests/expectations/upstream-lang.txt`.
+- [x] Run every copied language fixture against the Rust evaluator in isolated child processes with timeouts, fail on unclassified fixture files, and record each case's observed outcome so any change fails the test. 104 of 467 cases pass; see `crates/compat-tests/expectations/upstream-lang.txt`.
 - [ ] Close the language fixture gaps: CppNix-format diagnostics with source locations and traces, a `--parse` printer, the `.flags` options, missing builtins, and the crash and unexpected-success cases.
 - [ ] Adapt upstream functional shell tests to call nix-rs binaries. Do not count tests that still call installed CppNix as nix-rs passes.
 - [ ] Add wire-level tests for all supported daemon protocol versions and feature negotiations, using the copied worker fixtures as an initial corpus.
@@ -34,7 +36,7 @@ Each numbered section is a work package. Its checkboxes are the subtasks, and th
 
 ## 2. Finish formats and cryptographic primitives
 
-- [x] Exercise selected hash, derivation, NAR, and masked-output-path fixtures against the imported compatibility crates.
+- [x] Exercise selected hash, derivation, and NAR fixtures against the imported compatibility crates. The masked-output-path fixtures went with the move to 2.35.2.
 - [ ] Cover every reference hash encoding and algorithm, including invalid input behavior and experimental feature gates.
 - [ ] Complete store-path, content-address, derivation, output-specification, and realisation parsing and serialization for the enabled reference features.
 - [ ] Implement NAR streaming, import/export, compression, and malformed-input behavior beyond the current small fixture set.

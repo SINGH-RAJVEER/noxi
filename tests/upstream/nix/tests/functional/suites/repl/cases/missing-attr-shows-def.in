@@ -1,3 +1,0 @@
-# COM: a missing nested attribute reports where the containing set is defined
-s = { a = { }; }
-s.a.b

@@ -216,7 +216,7 @@ fi
 # Only fast-fail should be reported as a failure.
 # Uses fifo for synchronization to ensure deterministic behavior.
 # Requires -j2 so slow and fast-fail run concurrently (fifo deadlocks if serialized).
-if isDaemonNewer "2.34pre" && canUseSandbox && unprivilegedUserNamespacesSupported; then
+if isDaemonNewer "2.34pre" && canUseSandbox; then
     fifoDir="$TEST_ROOT/cancelled-builds-fifo"
     mkdir -p "$fifoDir"
     mkfifo "$fifoDir/fifo"
@@ -229,7 +229,7 @@ if isDaemonNewer "2.34pre" && canUseSandbox && unprivilegedUserNamespacesSupport
     if ! isTestOnNixOS; then
         sandboxPathsArg=(--option sandbox-paths "/nix/store")
     fi
-    out="$(nix flake check ./cancelled-builds --no-sandbox-fallback --impure -L -j2 \
+    out="$(nix flake check ./cancelled-builds --impure -L -j2 \
         --option sandbox true \
         "${sandboxPathsArg[@]}" \
         --option sandbox-build-dir /build-tmp \
@@ -255,7 +255,7 @@ if isDaemonNewer "2.34pre" && canUseSandbox && unprivilegedUserNamespacesSupport
         sandboxPathsArg=(--option sandbox-paths "/nix/store")
     fi
     system=$(nix eval --raw --impure --expr builtins.currentSystem)
-    out="$(nix build --no-sandbox-fallback --impure -L -j2 \
+    out="$(nix build --impure -L -j2 \
         --option sandbox true \
         "${sandboxPathsArg[@]}" \
         --option sandbox-build-dir /build-tmp \

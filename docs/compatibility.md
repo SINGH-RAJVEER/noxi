@@ -2,7 +2,7 @@
 
 ## Reference and claim
 
-The initial reference release is CppNix 2.36.0 on x86_64-linux. No 2.36.0 tag exists yet, so the reference is pinned to the unreleased development commit recorded in the [compatibility matrix](compatibility-matrix.md). A claim of "100% backwards compatible" applies only to a published [compatibility matrix](compatibility-matrix.md) that names the CPU architecture, operating system, reference release, Nixpkgs revision, enabled experimental features, store configuration, and supported client and daemon pairings. For each row, every behavior exposed by the reference and applicable to that row is required. An untested item is incomplete, not a pass. The matrix must identify any platform the product does not support instead of implying universal support.
+The initial reference release is CppNix 2.35.2 on x86_64-linux, the newest numbered release when it was selected on 2026-09-28. A claim of "100% backwards compatible" applies only to a published [compatibility matrix](compatibility-matrix.md) that names the CPU architecture, operating system, reference release, Nixpkgs revision, enabled experimental features, store configuration, and supported client and daemon pairings. For each row, every behavior exposed by the reference and applicable to that row is required. An untested item is incomplete, not a pass. The matrix must identify any platform the product does not support instead of implying universal support.
 
 The target is a full drop-in replacement, so the inventory includes command behavior and public library consumers, not only the Nix language and file formats. Exact compatibility is the acceptance goal. The repository has not reached it.
 

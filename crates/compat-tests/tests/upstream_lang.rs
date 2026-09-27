@@ -259,7 +259,7 @@ fn read_or_empty(path: &Path) -> String {
 }
 
 /// Lists the cases and fails on any file that is not a case, a companion of a
-/// case, or a listed support file.
+/// case, or a listed support file, and on any listed support file that is missing.
 fn discover() -> Result<Vec<Case>, Vec<String>> {
 	let mut names: Vec<String> = fs::read_dir(lang_dir())
 		.expect("language fixture directory must be readable")
@@ -284,7 +284,7 @@ fn discover() -> Result<Vec<Case>, Vec<String>> {
 		})
 		.collect();
 
-	let unclassified: Vec<String> = names
+	let mut unclassified: Vec<String> = names
 		.into_iter()
 		.filter(|name| {
 			let is_case = name
@@ -298,6 +298,14 @@ fn discover() -> Result<Vec<Case>, Vec<String>> {
 			!(is_case || is_companion || is_support)
 		})
 		.collect();
+
+	// A listed support file that no longer exists is a stale classification.
+	unclassified.extend(
+		SUPPORT
+			.iter()
+			.filter(|(support, _)| !lang_dir().join(support).exists())
+			.map(|(support, _)| format!("{support} (listed as support, but missing)")),
+	);
 
 	if unclassified.is_empty() {
 		Ok(cases)

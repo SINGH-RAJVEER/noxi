@@ -29,10 +29,6 @@ void HttpsBinaryCacheStoreTest::SetUp()
 {
     LibStoreNetworkTest::SetUp();
 
-    /* A skip in the base returns from the base only, so guard the setup below. */
-    if (IsSkipped())
-        return;
-
 #ifdef _WIN32
     GTEST_SKIP() << "HTTPS store tests are not supported on Windows";
 #endif
@@ -96,8 +92,7 @@ void HttpsBinaryCacheStoreTest::SetUp()
 void HttpsBinaryCacheStoreTest::TearDown()
 {
 #ifndef _WIN32 /* FIXME: Can't yet start background processes on windows */
-    if (serverPid)
-        serverPid.kill();
+    serverPid.kill();
 #endif
     delTmpDir.reset();
     testFileTransferSettings.reset();
