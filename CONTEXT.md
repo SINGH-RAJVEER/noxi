@@ -13,7 +13,7 @@ The Rust package manager that implements the supported Nix behavior used by the 
 _Avoid_: frontend, OS
 
 **reference release**:
-The pinned CppNix release whose observable behavior defines a compatibility qualification run.
+The pinned CppNix release, or pinned development commit when no release exists, whose observable behavior defines a compatibility qualification run.
 _Avoid_: latest Nix, upstream in general
 
 **compatibility matrix**:

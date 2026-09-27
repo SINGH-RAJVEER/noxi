@@ -47,4 +47,4 @@ nix-snapshot-verify mode="local":
 	bash scripts/verify-nix-snapshot.sh "{{mode}}"
 
 # Run the complete development check in the pinned devenv shell.
-ci: fmt-check check test
+ci: fmt-check nix-snapshot-verify check test
