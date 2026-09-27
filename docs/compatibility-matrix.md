@@ -4,7 +4,7 @@ This is the first qualification target and its current evidence, not a claim of 
 
 | Field | Initial target |
 |---|---|
-| Reference package manager | CppNix 2.36.0 |
+| Reference package manager | CppNix 2.36.0 pre-release, NixOS/nix `master` commit `8f7ed1c1d1246bfa98cefd152c87d1ea26a3d463`; no 2.36.0 release tag existed on 2026-09-27 |
 | Architecture and OS | x86_64-linux, NixOS-derived system |
 | Nixpkgs revision | To pin before system qualification |
 | Experimental features | Inventory all features present in the reference; record enabled and disabled configurations |

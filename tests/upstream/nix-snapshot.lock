@@ -1,0 +1,26 @@
+# Provenance of the fixed CppNix test snapshot in tests/upstream/nix/.
+# Each object line records the Git object ID of one snapshot path; the commit has identical objects.
+repository=https://github.com/NixOS/nix.git
+version=2.36.0
+release=unreleased
+commit=8f7ed1c1d1246bfa98cefd152c87d1ea26a3d463
+window-start=8fd18d36f67c7b23013dc1115019103423784fba
+window-end=8f7ed1c1d1246bfa98cefd152c87d1ea26a3d463
+object=f6683e74e0f0130f246dbf7054f4cacc88ca84b0 COPYING
+object=3a05135cd86d8209a8f9adc0bf86b9ac75f35e8d .version
+object=1f87fa9d982c3c6ab350a5de04b387a5213ef204 nix-meson-build-support
+object=10ad532f8da690d72a8ff41baa98a98782d7a6af src/libexpr-test-support
+object=6b494310d826a83ea74a9d534547e481c702e93b src/libexpr-tests
+object=e121534a4f20ec2c5784288d643308d39a6cc5f4 src/libfetchers-tests
+object=6c9ee5ec76a091a9ab0b2adfd25c127821939874 src/libflake-tests
+object=00d584ef52c13041d02d3dddafca75130876ccd7 src/libstore-test-support
+object=64c8c35348a52d3221412912dbe9114fb39dc998 src/libstore-tests
+object=627828519725e5f905e26ac7f247d2ad9ac52d5e src/libutil-test-support
+object=dc4cffe34b3db63c1bbe1d0a15889bfc029f739d src/libutil-tests
+object=ed0cdf60bf9e1e67b1278e49a03ac3482972ae3d src/nix-functional-tests
+object=b142498c05b27813b9c01e54db3b7f39b2b81917 tests/filetransfer-retry-backoff
+object=9595e6edbfb3b2f959f450177806b0873e07bd0e tests/functional
+object=90ce1b9dbf80914a6a69af329c2f2cc25e7f1eab tests/fuzzing-engine
+object=526a9272ce720dbc6dce3672acf5412f2ceedd76 tests/installer
+object=15bb692d213a5804fb09b5d535618a48ee07b7d8 tests/nixos
+object=d9825da6a74f1cb158d04d5fa4dbe3ce5ef36d29 tests/repl-completion.nix

@@ -8,7 +8,8 @@ Each numbered section is a work package. Its checkboxes are the subtasks, and th
 
 ## 0. Make the baseline reproducible
 
-- [ ] Pin the exact CppNix 2.36.0 source commit and record how it relates to the copied snapshot, whose original commit is unknown. On 2026-09-27, the official repository exposed no `2.36*` release tag; keep this gate open rather than treating the snapshot's `.version` as source provenance.
+- [x] Pin the CppNix source commit for the copied snapshot. No 2.36.0 release exists; the snapshot matches unreleased `master` commits `8fd18d36f` to `8f7ed1c1d` object for object, and `tests/upstream/nix-snapshot.lock` pins `8f7ed1c1d`. `just nix-snapshot-verify upstream` passes.
+- [ ] Decide whether the first reference stays on that development commit or moves to a tagged release, then build the reference executables from the chosen commit.
 - [ ] Pin a Nixpkgs and NixOS revision, a Home Manager revision, the reference feature settings, and the x86_64-linux VM image for the first compatibility row.
 - [ ] Inventory every executable, `nix.conf` setting, experimental feature, protocol version, and public library interface exposed by that reference build. Record what NixOS and Home Manager actually invoke.
 - [ ] Define expected behavior for both an empty store and a copy of an existing CppNix store. Preserve a reference-only VM snapshot for rollback tests.

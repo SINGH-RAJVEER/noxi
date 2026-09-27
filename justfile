@@ -42,5 +42,9 @@ nix-tests-update:
 nix-tests-sync:
 	bash scripts/update-nix-tests.sh sync
 
+# Check the fixed test snapshot against its recorded upstream objects; pass "upstream" to fetch the commit too.
+nix-snapshot-verify mode="local":
+	bash scripts/verify-nix-snapshot.sh "{{mode}}"
+
 # Run the complete development check in the pinned devenv shell.
 ci: fmt-check check test

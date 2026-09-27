@@ -40,7 +40,8 @@ The repository has a Cargo workspace with selected imported crates under the nix
 ## Decisions required before a release candidate
 
 - Boot modes and additional CPU architectures after x86_64-linux.
-- Exact Nixpkgs and NixOS baseline revision paired with CppNix 2.36.0.
+- Whether the reference stays on the unreleased 2.36.0 development commit that the test snapshot matches, moves to the 2.36.0 release once tagged, or moves to a tagged release such as 2.35.2.
+- Exact Nixpkgs and NixOS baseline revision paired with the reference release.
 - Public project name and distribution branding.
 - The first set of opt-in tweaks beyond reference Nix behavior.
 - Licensing and redistribution treatment of imported code and upstream test material.
