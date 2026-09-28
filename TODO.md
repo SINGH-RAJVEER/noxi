@@ -11,7 +11,7 @@ Each numbered section is a work package. Its checkboxes are the subtasks, and th
 - [x] Pin the CppNix source commit for the copied snapshot. The first snapshot matched unreleased 2.36.0 `master` commit `8f7ed1c1d`.
 - [x] Choose the reference: the newest numbered release, CppNix 2.35.2 (`2c73b59`). The snapshot was refreshed from that tag, and `just nix-snapshot-verify upstream` passes.
 - [x] Build the 2.35.2 reference executables and record their store path for differential runs. The `nix-reference` flake package is upstream's build at `/nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2`; `just reference` builds it.
-- [ ] Resolve the two derivation divergences from 2.35.2: unsorted input derivations and colliding hash-modulo inputs. Add a differential test for the latter against a 2.35.2 binary.
+- [ ] Resolve the derivation divergences from 2.35.2: ATerm ordering and duplicate handling in all five collections, and colliding hash-modulo inputs. Add differential tests against the 2.35.2 binary for the cases without fixtures.
 - [ ] Pin a Nixpkgs and NixOS revision, a Home Manager revision, the reference feature settings, and the x86_64-linux VM image for the first compatibility row.
 - [ ] Inventory every executable, `nix.conf` setting, experimental feature, protocol version, and public library interface exposed by that reference build. Record what NixOS and Home Manager actually invoke.
 - [ ] Define expected behavior for both an empty store and a copy of an existing CppNix store. Preserve a reference-only VM snapshot for rollback tests.
