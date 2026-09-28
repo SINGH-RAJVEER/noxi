@@ -10,7 +10,7 @@ Each numbered section is a work package. Its checkboxes are the subtasks, and th
 
 - [x] Pin the CppNix source commit for the copied snapshot. The first snapshot matched unreleased 2.36.0 `master` commit `8f7ed1c1d`.
 - [x] Choose the reference: the newest numbered release, CppNix 2.35.2 (`2c73b59`). The snapshot was refreshed from that tag, and `just nix-snapshot-verify upstream` passes.
-- [ ] Build the 2.35.2 reference executables and record their store paths for differential runs.
+- [x] Build the 2.35.2 reference executables and record their store path for differential runs. The `nix-reference` flake package is upstream's build at `/nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2`; `just reference` builds it.
 - [ ] Resolve the two derivation divergences from 2.35.2: unsorted input derivations and colliding hash-modulo inputs. Add a differential test for the latter against a 2.35.2 binary.
 - [ ] Pin a Nixpkgs and NixOS revision, a Home Manager revision, the reference feature settings, and the x86_64-linux VM image for the first compatibility row.
 - [ ] Inventory every executable, `nix.conf` setting, experimental feature, protocol version, and public library interface exposed by that reference build. Record what NixOS and Home Manager actually invoke.
@@ -23,7 +23,7 @@ Each numbered section is a work package. Its checkboxes are the subtasks, and th
 
 ## 1. Build a differential compatibility runner
 
-- [x] Add an initial ten-case pure-evaluation comparison that records both executable versions, exit codes, stdout, stderr, expressions, and mismatches as JSON. A host Nix 2.34.8 check passes 10/10; a run against the 2.35.2 reference remains unrun.
+- [x] Add an initial ten-case pure-evaluation comparison that records both executable versions, exit codes, stdout, stderr, expressions, and mismatches as JSON. The 2.35.2 reference run (`just eval-compare-reference`) passes 10/10; the full language suite is not yet compared against the reference binary.
 - [ ] Run reference CppNix and nix-rs in isolated test stores with identical environment, configuration, feature flags, inputs, and timeouts.
 - [ ] Capture exit code, stdout, stderr, structured output, produced paths, derivation bytes, NAR bytes, store metadata, and daemon exchanges where applicable.
 - [ ] Make every copied fixture discoverable and classified as passing, known gap, reference anomaly, or unrun. Fail when an unclassified fixture appears. Language fixtures and derivation fixtures are done; the other copied groups are not.

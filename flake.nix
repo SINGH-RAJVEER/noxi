@@ -7,9 +7,12 @@
 			url = "github:oxalica/rust-overlay";
 			inputs.nixpkgs.follows = "nixpkgs";
 		};
+		# The CppNix release that defines expected behavior. Keep its own inputs
+		# so the build is upstream's, which cache.nixos.org already provides.
+		nix-reference.url = "github:NixOS/nix/2.35.2";
 	};
 
-	outputs = { self, nixpkgs, rust-overlay }:
+	outputs = { self, nixpkgs, rust-overlay, nix-reference }:
 		let
 			systems = [ "x86_64-linux" ];
 			forAllSystems = f: nixpkgs.lib.genAttrs systems f;
@@ -39,6 +42,7 @@
 			packages = forAllSystems (system: {
 				default = packageFor system;
 				nixrs = packageFor system;
+				nix-reference = nix-reference.packages.${system}.nix;
 			});
 			apps = forAllSystems (system: {
 				default = {

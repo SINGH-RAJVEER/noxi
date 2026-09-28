@@ -34,6 +34,14 @@ eval-compare reference report="/tmp/nix-rs-eval-comparison.json":
 	cargo build -p nixrs-compat-tests --bin differential-eval
 	target/debug/differential-eval "{{reference}}" target/debug/nixrs "{{report}}"
 
+# Build the pinned CppNix reference release (substituted from cache.nixos.org) at target/nix-reference.
+reference:
+	nix build .#nix-reference --out-link target/nix-reference
+
+# Compare the preview evaluator with the pinned CppNix reference release.
+eval-compare-reference report="target/eval-comparison-reference.json": reference
+	just eval-compare target/nix-reference/bin/nix-instantiate "{{report}}"
+
 # Fetch the latest official stable Nix source and tests; record its exact revision.
 nix-tests-update:
 	bash scripts/update-nix-tests.sh latest

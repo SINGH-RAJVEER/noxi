@@ -4,7 +4,7 @@ This is the first qualification target and its current evidence, not a claim of 
 
 | Field | Initial target |
 |---|---|
-| Reference package manager | CppNix 2.35.2, tag `2.35.2`, commit `2c73b59da29606068c0c98db015dd3a66955525d` |
+| Reference package manager | CppNix 2.35.2, tag `2.35.2`, commit `2c73b59da29606068c0c98db015dd3a66955525d`; flake package `nix-reference` at `/nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2` |
 | Architecture and OS | x86_64-linux, NixOS-derived system |
 | Nixpkgs revision | To pin before system qualification |
 | Experimental features | Inventory all features present in the reference; record enabled and disabled configurations |
