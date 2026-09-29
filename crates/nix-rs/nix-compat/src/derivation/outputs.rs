@@ -25,7 +25,8 @@ use crate::{
 /// include them.
 ///
 /// # Invariants
-/// - Only a single FOD output is allowed and it must be named `out`
+/// - Only a single FOD output is allowed. Public constructors use `out`, while
+///   parsing ATerm preserves the name found in the file.
 /// - Duplicately named outputs is an error
 /// - Outputs are all of one kind (fixed, input addressed or deferred)
 /// - Outputs can not be empty, except in an [`UnverifiedDerivation`] parsed
@@ -42,6 +43,7 @@ impl Outputs {
 	/// This single fixed output is always named `out`.
 	pub fn fixed_output(output_hash: OutputHash, store_path: StorePath) -> Self {
 		Outputs(OutputsInner::Fixed {
+			name: OutputName::out(),
 			output_hash,
 			store_path,
 		})
@@ -108,6 +110,7 @@ impl Outputs {
 		if let OutputsInner::Fixed {
 			output_hash,
 			store_path,
+			..
 		} = &self.0
 		{
 			Some((output_hash, store_path))
@@ -656,6 +659,7 @@ impl UnverifiedOutputsBuilder {
 		if self.is_empty() {
 			if let Some(output_hash) = output_hash {
 				self.0 = OutputsInner::Fixed {
+					name: output_name,
 					output_hash,
 					store_path: output_path,
 				};
@@ -760,6 +764,7 @@ impl IntoIterator for UnverifiedOutputsBuilder {
 #[derive(Clone, Debug, PartialEq, Eq)]
 enum OutputsInner {
 	Fixed {
+		name: OutputName,
 		output_hash: OutputHash,
 		store_path: StorePath,
 	},
@@ -798,7 +803,9 @@ impl OutputsInner {
 
 	pub fn contains_key(&self, name: &OutputName) -> bool {
 		match self {
-			OutputsInner::Fixed { .. } => *name == OutputName::out(),
+			OutputsInner::Fixed {
+				name: fixed_name, ..
+			} => name == fixed_name,
 			OutputsInner::InputAddressed(outputs) => outputs.contains_key(name),
 			OutputsInner::Deferred(names) => names.contains(name),
 		}
@@ -806,9 +813,11 @@ impl OutputsInner {
 
 	pub fn get(&self, name: &OutputName) -> Option<&StorePath> {
 		match self {
-			OutputsInner::Fixed { store_path, .. } if *name == OutputName::out() => {
-				Some(store_path)
-			}
+			OutputsInner::Fixed {
+				name: fixed_name,
+				store_path,
+				..
+			} if name == fixed_name => Some(store_path),
 			OutputsInner::InputAddressed(outputs) => outputs.get(name),
 			_ => None,
 		}
@@ -816,9 +825,8 @@ impl OutputsInner {
 
 	pub fn names(&self) -> OutputNames<'_> {
 		match self {
-			OutputsInner::Fixed { .. } => {
-				const OUT: &OutputName = &OutputName::out();
-				OutputNames(OutputNameInner::Single(std::iter::once(OUT)))
+			OutputsInner::Fixed { name, .. } => {
+				OutputNames(OutputNameInner::Single(std::iter::once(name)))
 			}
 			OutputsInner::InputAddressed(outputs) => {
 				OutputNames(OutputNameInner::BTreeMap(outputs.keys()))
@@ -829,9 +837,9 @@ impl OutputsInner {
 
 	pub fn into_names(self) -> IntoOutputNames {
 		match self {
-			OutputsInner::Fixed { .. } => IntoOutputNames(IntoOutputNameInner::Single(
-				std::iter::once(OutputName::out()),
-			)),
+			OutputsInner::Fixed { name, .. } => {
+				IntoOutputNames(IntoOutputNameInner::Single(std::iter::once(name)))
+			}
 			OutputsInner::InputAddressed(outputs) => {
 				IntoOutputNames(IntoOutputNameInner::BTreeMap(outputs.into_keys()))
 			}
@@ -844,10 +852,9 @@ impl OutputsInner {
 	/// Gets an iterator over the entries of the outputs, sorted by name.
 	pub fn iter(&self) -> Iter<'_> {
 		match self {
-			OutputsInner::Fixed { store_path, .. } => {
-				const OUT: &OutputName = &OutputName::out();
-				Iter(IterI::Fixed(std::iter::once((OUT, store_path))))
-			}
+			OutputsInner::Fixed {
+				name, store_path, ..
+			} => Iter(IterI::Fixed(std::iter::once((name, store_path)))),
 			OutputsInner::InputAddressed(outputs) => Iter(IterI::InputAddressed(outputs.iter())),
 			OutputsInner::Deferred(_) => Iter(IterI::Empty),
 		}
@@ -855,9 +862,9 @@ impl OutputsInner {
 
 	fn into_iter_internal(self) -> IntoIter {
 		match self {
-			OutputsInner::Fixed { store_path, .. } => IntoIter(IntoIterI::Fixed(std::iter::once(
-				(OutputName::out(), store_path),
-			))),
+			OutputsInner::Fixed {
+				name, store_path, ..
+			} => IntoIter(IntoIterI::Fixed(std::iter::once((name, store_path)))),
 			OutputsInner::InputAddressed(outputs) => {
 				IntoIter(IntoIterI::InputAddressed(outputs.into_iter()))
 			}
@@ -885,9 +892,9 @@ pub enum OutputsBuilder {
 impl OutputsBuilder {
 	/// Gets an iterator over the names of the outputs, in sorted order.
 	pub fn names(&self) -> OutputNames<'_> {
-		const OUT: &OutputName = &OutputName::out();
+		static OUT: std::sync::LazyLock<OutputName> = std::sync::LazyLock::new(OutputName::out);
 		match self {
-			OutputsBuilder::Fixed(_) => OutputNames(OutputNameInner::Single(std::iter::once(OUT))),
+			OutputsBuilder::Fixed(_) => OutputNames(OutputNameInner::Single(std::iter::once(&OUT))),
 			OutputsBuilder::InputAddressed(outputs) => {
 				OutputNames(OutputNameInner::BTreeSet(outputs.iter()))
 			}

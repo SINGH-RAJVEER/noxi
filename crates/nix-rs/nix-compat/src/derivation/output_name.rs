@@ -1,101 +1,93 @@
 use std::{fmt, str::FromStr};
 
-use smol_str::SmolStr;
+use bstr::BString;
 
 use crate::store_path;
 
-/// A derivation output name.
-///
-/// This is a derivation output name, so the 'out' or 'bin' bit that has
-/// been verified to not contain invalid characters.
-///
-/// Output names may also not be empty or be called `drv`.
+/// A derivation output name. Public constructors validate names, while ATerm
+/// parsing retains arbitrary bytes as CppNix does.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-#[cfg_attr(
-	feature = "serde",
-	derive(serde_with::DeserializeFromStr, serde_with::SerializeDisplay)
-)]
-pub struct OutputName(SmolStr);
+pub struct OutputName(BString);
 
 impl OutputName {
-	/// Return this output name as a str
-	pub fn as_str(&self) -> &str {
-		self.0.as_str()
+	/// Return the exact bytes of this output name.
+	pub fn as_bytes(&self) -> &[u8] {
+		self.0.as_slice()
 	}
 
-	/// Tries to construct from a &'static str.
+	/// Return this output name as UTF-8, if it is valid UTF-8.
+	pub fn as_str(&self) -> Option<&str> {
+		std::str::from_utf8(self.as_bytes()).ok()
+	}
+
+	/// Construct a validated name from a static string.
 	pub fn from_static(s: &'static str) -> Result<Self, ParseOutputNameError> {
-		validate(s)?;
-
-		Ok(Self(SmolStr::new_static(s)))
+		validate(s.as_bytes())?;
+		Ok(Self(s.into()))
 	}
 
-	/// Return `OutputName` for default output named `"out"`.
-	pub const fn out() -> Self {
-		Self(SmolStr::new_static("out"))
+	pub(super) fn from_aterm_unchecked(s: BString) -> Self {
+		Self(s)
+	}
+
+	pub(super) fn validate(&self) -> Result<(), ParseOutputNameError> {
+		validate(self.as_bytes())
+	}
+
+	/// Return the default output name `out`.
+	pub fn out() -> Self {
+		Self("out".into())
 	}
 }
 
-fn validate<S: AsRef<str>>(s: S) -> Result<(), ParseOutputNameError> {
-	let name = s.as_ref();
-	store_path::validate_name(name.as_bytes())?;
-
-	// Disallow the reserved 'drv' name, which may appear in store path names,
-	// but not in Derivations.
-	if name == "drv" {
+fn validate(name: &[u8]) -> Result<(), ParseOutputNameError> {
+	store_path::validate_name(name)?;
+	if name == b"drv" {
 		return Err(ParseOutputNameError::ReservedNameDrv);
 	}
-
 	Ok(())
 }
 
 impl PartialEq<&str> for OutputName {
 	fn eq(&self, other: &&str) -> bool {
-		self.as_str() == *other
+		self.as_bytes() == other.as_bytes()
 	}
 }
 impl PartialEq<str> for OutputName {
 	fn eq(&self, other: &str) -> bool {
-		self.as_str() == other
+		self.as_bytes() == other.as_bytes()
 	}
 }
 impl PartialEq<OutputName> for &str {
 	fn eq(&self, other: &OutputName) -> bool {
-		*self == other.as_str()
+		self.as_bytes() == other.as_bytes()
 	}
 }
 impl PartialEq<OutputName> for str {
 	fn eq(&self, other: &OutputName) -> bool {
-		self == other.as_str()
+		self.as_bytes() == other.as_bytes()
 	}
 }
 impl PartialEq<String> for OutputName {
 	fn eq(&self, other: &String) -> bool {
-		self.as_str() == other.as_str()
+		self.as_bytes() == other.as_bytes()
 	}
 }
-
 impl PartialEq<OutputName> for String {
 	fn eq(&self, other: &OutputName) -> bool {
-		self.as_str() == other.as_str()
+		self.as_bytes() == other.as_bytes()
 	}
 }
 
 impl fmt::Display for OutputName {
 	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-		f.write_str(self.as_str())
+		f.write_str(&String::from_utf8_lossy(self.as_bytes()))
 	}
 }
 
-impl AsRef<str> for OutputName {
-	fn as_ref(&self) -> &str {
-		self.as_str()
-	}
-}
-
-impl std::borrow::Borrow<str> for OutputName {
-	fn borrow(&self) -> &str {
-		self.as_str()
+impl AsRef<[u8]> for OutputName {
+	fn as_ref(&self) -> &[u8] {
+		self.as_bytes()
 	}
 }
 
@@ -109,9 +101,8 @@ impl FromStr for OutputName {
 	type Err = ParseOutputNameError;
 
 	fn from_str(s: &str) -> Result<Self, Self::Err> {
-		validate(s)?;
-
-		Ok(Self(SmolStr::new(s)))
+		validate(s.as_bytes())?;
+		Ok(Self(s.into()))
 	}
 }
 
@@ -119,21 +110,33 @@ impl TryFrom<String> for OutputName {
 	type Error = ParseOutputNameError;
 
 	fn try_from(value: String) -> Result<Self, Self::Error> {
-		validate(&value)?;
-
-		Ok(Self(SmolStr::new(value)))
+		validate(value.as_bytes())?;
+		Ok(Self(value.into()))
 	}
 }
 
-impl From<OutputName> for String {
-	fn from(value: OutputName) -> Self {
-		value.0.into()
+#[cfg(feature = "serde")]
+impl serde::Serialize for OutputName {
+	fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+	where
+		S: serde::Serializer,
+	{
+		use serde::ser::Error;
+		self.as_str()
+			.ok_or_else(|| S::Error::custom("output name is not UTF-8"))?
+			.serialize(serializer)
 	}
 }
 
-impl From<&OutputName> for String {
-	fn from(value: &OutputName) -> Self {
-		value.as_str().into()
+#[cfg(feature = "serde")]
+impl<'de> serde::Deserialize<'de> for OutputName {
+	fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+	where
+		D: serde::Deserializer<'de>,
+	{
+		use serde::de::Error;
+		let name = <String as serde::Deserialize>::deserialize(deserializer)?;
+		name.try_into().map_err(D::Error::custom)
 	}
 }
 

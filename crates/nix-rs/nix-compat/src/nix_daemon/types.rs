@@ -441,10 +441,14 @@ impl TryFrom<BasicDerivation> for UnverifiedDerivation {
 	fn try_from(value: BasicDerivation) -> Result<Self, Self::Error> {
 		DerivationBuilder {
 			input_sources: value.input_sources,
-			system: value.system,
-			command: value.command,
-			arguments: value.arguments,
-			environment: value.environment,
+			system: value.system.into(),
+			command: value.command.into(),
+			arguments: value.arguments.into_iter().map(Into::into).collect(),
+			environment: value
+				.environment
+				.into_iter()
+				.map(|(key, value)| (key.into(), value))
+				.collect(),
 			..Default::default()
 		}
 		.build_unverified(value.outputs)

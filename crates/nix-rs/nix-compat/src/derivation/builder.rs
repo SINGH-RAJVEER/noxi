@@ -8,8 +8,8 @@ use crate::derivation::outputs::OutputsBuilder;
 use crate::derivation::write::{AtermWriteable, shadow};
 use crate::derivation::{Derivation, UnverifiedDerivation};
 use crate::derivation::{
-	DerivationError, HashDerivationModuloLookup, OutputHashMode, OutputName, Outputs,
-	outputs::OutputsError,
+	DerivationError, DrvHashModulo, HashDerivationModuloLookup, OutputHashMode, OutputName,
+	Outputs, outputs::OutputsError,
 };
 use crate::nixhash::{Sha256, Sha256Digester};
 use crate::store_path::{self, StorePath};
@@ -51,16 +51,16 @@ use crate::store_path::{self, StorePath};
 pub struct DerivationBuilder {
 	/// Command line arguments to builder
 	#[cfg_attr(feature = "serde", serde(rename = "args"))]
-	pub arguments: Vec<String>,
+	pub arguments: Vec<BString>,
 
 	/// Command to execute. This is usually a path to `bash`.
 	///
 	/// **NOTE:** This is called `builder` in cppnix and in Nix code.
-	pub command: String,
+	pub command: BString,
 
 	/// Environment variables to include in build environmennt.
 	#[cfg_attr(feature = "serde", serde(rename = "env"))]
-	pub environment: BTreeMap<String, BString>,
+	pub environment: BTreeMap<BString, BString>,
 
 	/// Map from drv path to output names used from this derivation.
 	#[cfg_attr(feature = "serde", serde(rename = "inputDrvs"))]
@@ -74,7 +74,7 @@ pub struct DerivationBuilder {
 	pub outputs: OutputsBuilder,
 
 	/// System used to build this derivation.
-	pub system: String,
+	pub system: BString,
 }
 
 impl DerivationBuilder {
@@ -98,13 +98,27 @@ impl DerivationBuilder {
 		// Like CppNix 2.35.2's `insert_or_assign`, when two inputs have the same
 		// hash, the output names of the later one in path order replace those of
 		// the earlier one instead of being merged with them.
-		let mut replacements = BTreeMap::<Sha256, &BTreeSet<OutputName>>::new();
+		let mut replacements = BTreeMap::<Sha256, BTreeSet<OutputName>>::new();
 		for (drv_path, output_names) in &self.input_derivations {
 			let hdm = lookup
 				.lookup_hdm(&drv_path.as_ref())
 				.ok_or_else(|| DerivationError::MissingInputDerivation(drv_path.clone()))?;
-
-			replacements.insert(hdm, output_names);
+			match hdm {
+				DrvHashModulo::Regular(hash) => {
+					replacements.insert(hash, output_names.clone());
+				}
+				DrvHashModulo::Fixed(output_hashes) => {
+					for output_name in output_names {
+						let hash = output_hashes.get(output_name).ok_or_else(|| {
+							DerivationError::MissingFixedInputOutput(
+								drv_path.clone(),
+								output_name.clone(),
+							)
+						})?;
+						replacements.insert(*hash, BTreeSet::from([OutputName::out()]));
+					}
+				}
+			}
 		}
 
 		let mut hasher = Sha256Digester::new();
@@ -114,7 +128,7 @@ impl DerivationBuilder {
 			outputs,
 			replacements
 				.iter()
-				.map(|(hdm, output_names)| (hdm, *output_names)),
+				.map(|(hdm, output_names)| (hdm, output_names)),
 		);
 
 		Ok(hasher.finalize())
@@ -138,14 +152,14 @@ impl DerivationBuilder {
 		let environment = shadow(
 			self.environment
 				.iter()
-				.map(|(k, v)| (k.as_str(), v.as_slice())),
+				.map(|(k, v)| (k.as_slice(), v.as_slice())),
 			self.outputs
 				.names()
 				.filter(|name| {
 					mask == OutputEnvMask::AllOutputs
-						|| self.environment.contains_key(name.as_str())
+						|| self.environment.contains_key(name.as_bytes())
 				})
-				.map(|name| (name.as_str(), &b""[..])),
+				.map(|name| (name.as_bytes(), &b""[..])),
 		);
 		self.hash_derivation_modulo_with_outputs(environment, &self.outputs, lookup)
 	}
@@ -203,6 +217,13 @@ impl DerivationBuilder {
 				Err(OutputsError::NoOutputs().into())
 			}
 			OutputsBuilder::InputAddressed(output_names) => {
+				for output_name in output_names {
+					output_name.validate().map_err(|_| {
+						DerivationError::InvalidOutputs(OutputsError::InvalidOutputName(
+							output_name.to_string(),
+						))
+					})?;
+				}
 				let hash_derivation_modulo = self.masked_hash(lookup, mask)?;
 				let mut outputs = BTreeMap::new();
 				for output_name in output_names.iter() {
@@ -261,12 +282,19 @@ impl DerivationBuilder {
 		mut self,
 		outputs: Outputs,
 	) -> Result<UnverifiedDerivation, DerivationError> {
+		for output_name in outputs.names() {
+			output_name.validate().map_err(|_| {
+				DerivationError::InvalidOutputs(OutputsError::InvalidOutputName(
+					output_name.to_string(),
+				))
+			})?;
+		}
 		// Set environment variables corresponding to outputs to the store path of the outputs.
 		for (output_name, store_path) in outputs.iter() {
 			if self
 				.environment
 				.insert(
-					output_name.to_string(),
+					output_name.as_bytes().into(),
 					store_path.to_absolute_path().into(),
 				)
 				.is_some()
@@ -314,12 +342,19 @@ impl DerivationBuilder {
 	/// [Validate]: #validation
 	fn validate(&self) -> Result<(), DerivationError> {
 		// Validate all input_derivation paths to end with .drv.
-		// The output names are already validated as we're using the OutputName type.
-		for input_derivation_path in self.input_derivations.keys() {
+		for (input_derivation_path, output_names) in &self.input_derivations {
 			if !input_derivation_path.name().ends_with(".drv") {
 				return Err(DerivationError::InvalidInputDerivationPrefix(
 					input_derivation_path.to_string(),
 				));
+			}
+			for output_name in output_names {
+				output_name.validate().map_err(|_| {
+					DerivationError::InvalidInputDerivationOutputName(
+						input_derivation_path.to_string(),
+						output_name.to_string(),
+					)
+				})?;
 			}
 		}
 

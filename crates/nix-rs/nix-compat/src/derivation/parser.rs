@@ -90,7 +90,7 @@ fn parse_output(i: &[u8]) -> NomResult<&[u8], (OutputName, Option<StorePath>, Op
 		nomchar('('),
 		|i| {
 			(
-				terminated(aterm::parse_string_field, nomchar(',')),
+				terminated(aterm::parse_bytes_field, nomchar(',')),
 				terminated(aterm::parse_string_field, nomchar(',')),
 				terminated(aterm::parse_string_field, nomchar(',')),
 				aterm::parse_bytes_field,
@@ -102,13 +102,8 @@ fn parse_output(i: &[u8]) -> NomResult<&[u8], (OutputName, Option<StorePath>, Op
 	)
 	.parse(i)?;
 
-	// Validate outside a combinator, so the specific error reaches the caller.
-	let output_name: OutputName = output_name_str.parse().map_err(|err| {
-		nom::Err::Failure(NomError {
-			input: i,
-			code: ErrorKind::InvalidOutputName(err),
-		})
-	})?;
+	// CppNix's ATerm parser stores output names without validating them.
+	let output_name = OutputName::from_aterm_unchecked(output_name_str);
 
 	// An empty path is a deferred output, or a floating content-addressed one.
 	let path = if output_path_str.is_empty() {
@@ -216,22 +211,15 @@ fn parse_input_derivations(
 	i: &[u8],
 ) -> NomResult<&[u8], BTreeMap<StorePath, BTreeSet<OutputName>>> {
 	let (i, input_derivations_list) =
-		parse_kv(aterm::parse_string_field, aterm::parse_string_list)(i)?;
+		parse_kv(aterm::parse_string_field, aterm::parse_bytes_list)(i)?;
 
 	let mut input_derivations: BTreeMap<StorePath, BTreeSet<_>> = BTreeMap::new();
 
 	for (input_derivation, output_names_strings) in input_derivations_list {
 		let output_names = output_names_strings
 			.into_iter()
-			.map(|output_name| {
-				OutputName::try_from(output_name).map_err(|err| {
-					nom::Err::Failure(NomError {
-						input: i,
-						code: ErrorKind::InvalidOutputName(err),
-					})
-				})
-			})
-			.collect::<Result<BTreeSet<_>, _>>()?;
+			.map(OutputName::from_aterm_unchecked)
+			.collect();
 
 		let input_derivation = string_to_store_path(i, input_derivation.as_str())?;
 
@@ -290,24 +278,24 @@ pub fn parse_derivation(i: &[u8]) -> NomResult<&[u8], (DerivationBuilder, Output
 				terminated(parse_input_sources, nomchar(',')),
 				// // parse system
 				|i| {
-					terminated(aterm::parse_string_field, nomchar(','))
+					terminated(aterm::parse_bytes_field, nomchar(','))
 						.parse(i)
 						.map_err(into_nomerror)
 				},
 				// // parse builder
 				|i| {
-					terminated(aterm::parse_string_field, nomchar(','))
+					terminated(aterm::parse_bytes_field, nomchar(','))
 						.parse(i)
 						.map_err(into_nomerror)
 				},
 				// // parse arguments
 				|i| {
-					terminated(aterm::parse_string_list, nomchar(','))
+					terminated(aterm::parse_bytes_list, nomchar(','))
 						.parse(i)
 						.map_err(into_nomerror)
 				},
 				// parse environment
-				parse_kv(aterm::parse_string_field, aterm::parse_bytes_field),
+				parse_kv(aterm::parse_bytes_field, aterm::parse_bytes_field),
 			),
 			nomchar(')'),
 		)
@@ -343,14 +331,12 @@ pub fn parse_derivation(i: &[u8]) -> NomResult<&[u8], (DerivationBuilder, Output
 /// In terms of ATerm, this is just a list of 2-tuples. Pairs are returned in
 /// input order, so collecting them into a map keeps the last value of a
 /// repeated key, as CppNix 2.35.2's `insert_or_assign` does.
-pub(crate) fn parse_kv<'a, V, KF, VF>(
+pub(crate) fn parse_kv<'a, K, V, KF, VF>(
 	kf: KF,
 	vf: VF,
-) -> impl FnMut(&'a [u8]) -> NomResult<&'a [u8], Vec<(String, V)>> + 'static
+) -> impl FnMut(&'a [u8]) -> NomResult<&'a [u8], Vec<(K, V)>> + 'static
 where
-	KF: FnMut(&'a [u8]) -> nom::IResult<&'a [u8], String, nom::error::Error<&'a [u8]>>
-		+ Clone
-		+ 'static,
+	KF: FnMut(&'a [u8]) -> nom::IResult<&'a [u8], K, nom::error::Error<&'a [u8]>> + Clone + 'static,
 	VF: FnMut(&'a [u8]) -> nom::IResult<&'a [u8], V, nom::error::Error<&'a [u8]>> + Clone + 'static,
 {
 	move |i|

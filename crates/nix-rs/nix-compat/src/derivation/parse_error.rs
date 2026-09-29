@@ -3,7 +3,7 @@
 use nom::IResult;
 
 use crate::{
-	derivation::{OutputName, ParseOutputNameError, outputs::OutputsError},
+	derivation::{OutputName, outputs::OutputsError},
 	nixhash, store_path,
 };
 
@@ -18,9 +18,6 @@ pub enum ErrorKind {
 		"output {0} is content-addressed and floating, which requires the ca-derivations experimental feature"
 	)]
 	FloatingContentAddressedOutput(OutputName),
-
-	#[error("invalind output name")]
-	InvalidOutputName(#[from] ParseOutputNameError),
 
 	#[error("invalid outputs")]
 	InvalidOutputs(#[from] OutputsError),

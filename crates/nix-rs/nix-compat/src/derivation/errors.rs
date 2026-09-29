@@ -21,6 +21,8 @@ pub enum DerivationError {
 	InvalidInputDerivationPath(String, #[source] store_path::ParseStorePathError),
 	#[error("unable to lookup input derivation {0}")]
 	MissingInputDerivation(StorePath),
+	#[error("input derivation {0} has no fixed output named {1}")]
+	MissingFixedInputOutput(StorePath, super::OutputName),
 	#[error("input derivation {0} doesn't end with .drv")]
 	InvalidInputDerivationPrefix(String),
 	#[error("input derivation {0} output names are empty")]

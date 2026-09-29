@@ -6,17 +6,18 @@ This is the first qualification target and its current evidence, not a claim of 
 |---|---|
 | Reference package manager | CppNix 2.35.2, tag `2.35.2`, commit `2c73b59da29606068c0c98db015dd3a66955525d`; flake package `nix-reference` at `/nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2` |
 | Architecture and OS | x86_64-linux, NixOS-derived system |
-| Nixpkgs revision | To pin before system qualification |
-| Experimental features | Inventory all features present in the reference; record enabled and disabled configurations |
+| Nixpkgs and NixOS module revision | `e94cb152ed51bd6e24eb4a41f1460252beb52cd2` (x86_64-linux); locked in `tests/qualification/flake.lock` as the root's `nixpkgs_2` input |
+| Home Manager revision | `7b4c5ec4bedaf1e062bbc1bcaeddbc6bd242aa1b`; its `nixpkgs` follows the qualification flake's pinned Nixpkgs input |
+| Reference feature profile | VM module sets `nix-command flakes`; `nix show-config --json` under this profile reports effective `flakes`, `fetch-tree`, and `nix-command`. Other feature profiles remain unqualified. |
 | Store | Existing CppNix store and fresh store, both in isolated environments |
 | Client and daemon pairings | Reference/reference, nix-rs/nix-rs, reference/nix-rs, and nix-rs/reference where supported by the reference protocol |
-| Boot mode | UEFI virtual machine first; physical hardware support to be listed before release |
+| Boot mode and VM | UEFI QEMU VM from `tests/qualification/flake.nix`, with the pinned CppNix package and Home Manager NixOS module. `nix eval path:./tests/qualification#nixosConfigurations.reference.config.system.build.vm.drvPath` succeeds. Image build, boot, snapshot, and rollback evidence are still pending. Physical hardware support must be listed before release. |
 
 | Area | Current status | Evidence needed to pass |
 |---|---|---|
 | Nix language and evaluator | Copied language fixtures run against the evaluator: 104 of 467 pass; remaining outcomes are tracked in `crates/compat-tests/expectations/upstream-lang.txt` | Every language fixture passing, the `lang.sh` script checks, and Nixpkgs evaluation comparison |
 | Hash algorithms | Partial fixture coverage, including BLAKE3 vectors and JSON | All reference formats, feature-gate behavior, hashing commands, and store consumers |
-| Derivation and path formats | Partial fixture coverage. ATerm parsing and colliding hash-modulo inputs follow 2.35.2, with a reference-generated fixture for the collision; non-UTF-8 text fields, unchecked output names and unusual fixed-output input requests still differ | All copied fixtures and byte comparisons; see `crates/compat-tests/` |
+| Derivation and path formats | Partial fixture coverage. ATerm parsing, non-UTF-8 text and output names, colliding hash-modulo inputs, and unusual fixed-output input requests have local tests or reference-generated fixtures | All copied fixtures and byte comparisons; see `crates/compat-tests/` |
 | NAR archive format | Malformed-archive fixtures only; 2.35.2 has no valid NAR fixture | Copied valid and malformed NAR fixtures, serialization, import/export, and store exchange |
 | Store and garbage collection | Unrun | Existing-store, concurrency, integrity, and return-to-reference tests |
 | Build engine and sandbox | Unrun | Local and remote build behavior under the selected system |

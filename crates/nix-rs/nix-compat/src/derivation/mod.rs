@@ -68,7 +68,7 @@
 //! of input derivations would be written, it has instead been replaced with the
 //! [Derivation Input] HDM or the [Fixed] HDM (depending on what type of derivation it is).
 //!
-//! This is the hash used returned by [`UnverifiedDerivation::hash_derivation_modulo`].
+//! [`UnverifiedDerivation::hash_derivation_modulo`] returns this digest for an input-addressed derivation, or a map from output name to [Fixed] digest for a fixed-output derivation.
 //!
 //!
 //! ## Derivation Output
@@ -106,7 +106,7 @@ mod tests;
 pub use crate::nixhash::{CAHash, NixHash};
 pub use builder::DerivationBuilder;
 pub use errors::DerivationError;
-pub use hdm_lookup::{HashDerivationModuloLookup, lookup_fn};
+pub use hdm_lookup::{DrvHashModulo, HashDerivationModuloLookup, lookup_fn};
 pub use output::{OutputHash, OutputHashMode};
 pub use output_name::{OutputName, ParseOutputNameError};
 #[doc(inline)]
@@ -340,16 +340,21 @@ impl UnverifiedDerivation {
 		))
 	}
 
-	/// Calculates the [hash derivation module] of this `UnverifiedDerivation`.
+	/// Calculates the [hash derivation modulo] of this `UnverifiedDerivation`.
 	///
-	/// [hash derivation module]: nix_compat::derivation#hash-derivation-module
-	pub fn hash_derivation_modulo<L>(&self, lookup: L) -> Result<Sha256, DerivationError>
+	/// [hash derivation modulo]: nix_compat::derivation#hash-derivation-modulo
+	pub fn hash_derivation_modulo<L>(&self, lookup: L) -> Result<DrvHashModulo, DerivationError>
 	where
 		L: HashDerivationModuloLookup,
 	{
-		// Fixed-output derivations return a fixed hash.
+		// Fixed-output derivations expose the hash under their output name.
 		if let Some(hdm) = self.fod_digest() {
-			return Ok(hdm);
+			let name = self
+				.outputs
+				.names()
+				.next()
+				.expect("fixed output has a name");
+			return Ok(DrvHashModulo::Fixed(BTreeMap::from([(name.clone(), hdm)])));
 		}
 
 		// Like CppNix's `hashInput`, a derivation whose outputs are deferred
@@ -363,11 +368,9 @@ impl UnverifiedDerivation {
 		// call to this function.
 		// We call [hdm_lookup] rather than recursing
 		// ourselves, so callers can precompute this.
-		self.builder.hash_derivation_modulo_with_outputs(
-			&self.builder.environment,
-			&self.outputs,
-			lookup,
-		)
+		self.builder
+			.hash_derivation_modulo_with_outputs(&self.builder.environment, &self.outputs, lookup)
+			.map(DrvHashModulo::Regular)
 	}
 
 	/// Recalculate and return the [`Outputs`] of this `UnverifiedDerivation`.
@@ -385,13 +388,13 @@ impl UnverifiedDerivation {
 	/// Split this `UnverifiedDerivation` into its constituent parts.
 	pub fn into_parts(mut self) -> (DerivationBuilder, Outputs) {
 		for output_name in self.outputs.names() {
-			self.builder.environment.remove(output_name.as_str());
+			self.builder.environment.remove(output_name.as_bytes());
 		}
 		(self.builder, self.outputs)
 	}
 
 	/// Return command line arguments to builder
-	pub fn arguments(&self) -> &[String] {
+	pub fn arguments(&self) -> &[BString] {
 		&self.builder.arguments
 	}
 
@@ -400,12 +403,12 @@ impl UnverifiedDerivation {
 	/// This is usually a path to `bash`.
 	///
 	/// **NOTE:** This is called `builder` in cppnix and in Nix code.
-	pub fn command(&self) -> &str {
-		&self.builder.command
+	pub fn command(&self) -> &bstr::BStr {
+		self.builder.command.as_ref()
 	}
 
 	/// Return environment variables to include in build environmennt.
-	pub fn environment(&self) -> &BTreeMap<String, BString> {
+	pub fn environment(&self) -> &BTreeMap<BString, BString> {
 		&self.builder.environment
 	}
 
@@ -425,8 +428,8 @@ impl UnverifiedDerivation {
 	}
 
 	/// Return system used to build this derivation.
-	pub fn system(&self) -> &str {
-		&self.builder.system
+	pub fn system(&self) -> &bstr::BStr {
+		self.builder.system.as_ref()
 	}
 }
 
@@ -479,16 +482,33 @@ mod serde_impl {
 		where
 			S: serde::Serializer,
 		{
-			use serde::ser::SerializeMap;
+			use serde::ser::{Error, SerializeMap};
+
+			let arguments = self
+				.arguments()
+				.iter()
+				.map(|arg| std::str::from_utf8(arg).map_err(S::Error::custom))
+				.collect::<Result<Vec<_>, _>>()?;
+			let command = std::str::from_utf8(self.command().as_ref()).map_err(S::Error::custom)?;
+			let system = std::str::from_utf8(self.system().as_ref()).map_err(S::Error::custom)?;
+			let environment = self
+				.environment()
+				.iter()
+				.map(|(key, value)| {
+					std::str::from_utf8(key)
+						.map(|key| (key, value))
+						.map_err(S::Error::custom)
+				})
+				.collect::<Result<BTreeMap<_, _>, _>>()?;
 
 			let mut map = serializer.serialize_map(Some(7))?;
-			map.serialize_entry("args", self.arguments())?;
-			map.serialize_entry("builder", self.command())?;
-			map.serialize_entry("env", self.environment())?;
+			map.serialize_entry("args", &arguments)?;
+			map.serialize_entry("builder", command)?;
+			map.serialize_entry("env", &environment)?;
 			map.serialize_entry("inputDrvs", self.input_derivations())?;
 			map.serialize_entry("inputSrcs", self.input_sources())?;
 			map.serialize_entry("outputs", self.outputs())?;
-			map.serialize_entry("system", self.system())?;
+			map.serialize_entry("system", system)?;
 			map.end()
 		}
 	}
@@ -513,13 +533,17 @@ mod serde_impl {
 			let h = Helper::deserialize(deserializer)?;
 			let outputs = h.outputs;
 			let builder = DerivationBuilder {
-				arguments: h.args,
-				command: h.builder,
-				environment: h.env,
+				arguments: h.args.into_iter().map(Into::into).collect(),
+				command: h.builder.into(),
+				environment: h
+					.env
+					.into_iter()
+					.map(|(key, value)| (key.into(), value))
+					.collect(),
 				input_derivations: h.input_drvs,
 				input_sources: h.input_srcs,
 				outputs: outputs.clone().into_builder(),
-				system: h.system,
+				system: h.system.into(),
 			};
 			Ok(UnverifiedDerivation { builder, outputs })
 		}

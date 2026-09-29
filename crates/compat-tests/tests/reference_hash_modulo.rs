@@ -17,8 +17,7 @@
 use std::collections::{BTreeMap, HashMap};
 use std::path::Path;
 
-use nix_compat::derivation::{Derivation, UnverifiedDerivation, lookup_fn};
-use nix_compat::nixhash::Sha256;
+use nix_compat::derivation::{Derivation, DrvHashModulo, UnverifiedDerivation, lookup_fn};
 use nix_compat::store_path::StorePath;
 
 const FIXTURE_DIR: &str = concat!(
@@ -54,10 +53,10 @@ fn read(path: &Path) -> Vec<u8> {
 /// paths from its inputs' hashes, and return each one's hash modulo.
 fn verify_all() -> (
 	BTreeMap<StorePath, (String, Vec<u8>)>,
-	HashMap<StorePath, Sha256>,
+	HashMap<StorePath, DrvHashModulo>,
 ) {
 	let drvs = fixtures();
-	let mut hashes = HashMap::<StorePath, Sha256>::new();
+	let mut hashes = HashMap::<StorePath, DrvHashModulo>::new();
 
 	while hashes.len() < drvs.len() {
 		let ready: Vec<_> = drvs
@@ -77,7 +76,7 @@ fn verify_all() -> (
 		);
 
 		for (path, (name, bytes)) in ready {
-			let lookup = || lookup_fn(|input| hashes.get(&input.to_owned()).copied());
+			let lookup = || lookup_fn(|input| hashes.get(&input.to_owned()).cloned());
 			let drv = UnverifiedDerivation::from_aterm_bytes(bytes).unwrap();
 			assert_eq!(
 				&drv.calculate_derivation_path(name).unwrap(),
@@ -108,7 +107,7 @@ fn intermediates_share_a_hash() {
 	let intermediate_hashes: Vec<_> = drvs
 		.iter()
 		.filter(|(_, (name, _))| name == "intermediate")
-		.map(|(path, _)| hashes[path])
+		.map(|(path, _)| hashes[path].clone())
 		.collect();
 	assert_eq!(intermediate_hashes.len(), 2);
 	assert_eq!(intermediate_hashes[0], intermediate_hashes[1]);

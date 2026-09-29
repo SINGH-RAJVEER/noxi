@@ -66,6 +66,16 @@ pub(crate) fn parse_string_list(i: &[u8]) -> IResult<&[u8], Vec<String>> {
 	.parse(i)
 }
 
+/// Parse a list of byte strings without requiring UTF-8.
+pub(crate) fn parse_bytes_list(i: &[u8]) -> IResult<&[u8], Vec<BString>> {
+	delimited(
+		nomchar('['),
+		separated_list0(nomchar(','), parse_bytes_field),
+		nomchar(']'),
+	)
+	.parse(i)
+}
+
 #[cfg(test)]
 mod tests {
 	use rstest::rstest;

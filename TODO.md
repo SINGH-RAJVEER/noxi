@@ -12,8 +12,8 @@ Each numbered section is a work package. Its checkboxes are the subtasks, and th
 - [x] Choose the reference: the newest numbered release, CppNix 2.35.2 (`2c73b59`). The snapshot was refreshed from that tag, and `just nix-snapshot-verify upstream` passes.
 - [x] Build the 2.35.2 reference executables and record their store path for differential runs. The `nix-reference` flake package is upstream's build at `/nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2`; `just reference` builds it.
 - [x] Resolve the derivation divergences from 2.35.2: ATerm ordering, duplicates, escapes and parse-time validation follow `parseDerivation`, and colliding hash-modulo inputs follow `insert_or_assign`, checked against derivations the 2.35.2 reference wrote.
-- [ ] Accept non-UTF-8 platform, builder, argument, environment-key and output-name bytes, unchecked output names, and 2.35.2's fixed-output input handling in `nix-compat` ([verification](docs/verification.md)).
-- [ ] Pin a Nixpkgs and NixOS revision, a Home Manager revision, the reference feature settings, and the x86_64-linux VM image for the first compatibility row.
+- [x] Match 2.35.2's fixed-output input handling in `nix-compat` ([verification](docs/verification.md)). The lookup distinguishes regular and per-output fixed hashes; empty and missing requested outputs have focused tests, and reference-generated derivations check ordinary output paths. ATerm retains non-UTF-8 platform, builder, argument, environment-key, and output-name bytes, including invalid fixed-output names; JSON remains UTF-8-only for names.
+- [x] Pin a Nixpkgs and NixOS revision, a Home Manager revision, the reference feature settings, and the x86_64-linux VM image for the first compatibility row. `tests/qualification/flake.lock` pins the inputs; its UEFI CppNix reference VM built, reached multi-user mode, started Nix and Home Manager, and shut down cleanly. The matrix records the exact revisions and scope.
 - [ ] Inventory every executable, `nix.conf` setting, experimental feature, protocol version, and public library interface exposed by that reference build. Record what NixOS and Home Manager actually invoke.
 - [ ] Define expected behavior for both an empty store and a copy of an existing CppNix store. Preserve a reference-only VM snapshot for rollback tests.
 - [x] Keep the copied fixture tree unchanged and provide a command to fetch a revision-recorded official Nix checkout with `just nix-tests-update` and `just nix-tests-sync`.
@@ -24,7 +24,7 @@ Each numbered section is a work package. Its checkboxes are the subtasks, and th
 
 ## 1. Build a differential compatibility runner
 
-- [x] Add an initial ten-case pure-evaluation comparison that records both executable versions, exit codes, stdout, stderr, expressions, and mismatches as JSON. The 2.35.2 reference run (`just eval-compare-reference`) passes 10/10; the full language suite is not yet compared against the reference binary.
+- [x] Add an initial ten-case pure-evaluation comparison that records both executable versions, exit codes, stdout, stderr, expressions, timeouts, and mismatches as JSON. The 2.35.2 reference run (`just eval-compare-reference`) passes 10/10 with controlled environment and per-command timeouts; the full language suite is not yet compared against the reference binary.
 - [ ] Run reference CppNix and nix-rs in isolated test stores with identical environment, configuration, feature flags, inputs, and timeouts.
 - [ ] Capture exit code, stdout, stderr, structured output, produced paths, derivation bytes, NAR bytes, store metadata, and daemon exchanges where applicable.
 - [ ] Make every copied fixture discoverable and classified as passing, known gap, reference anomaly, or unrun. Fail when an unclassified fixture appears. Language fixtures and derivation fixtures are done; the other copied groups are not.

@@ -7,6 +7,7 @@ use crate::aterm::write_escaped;
 use crate::derivation::{DerivationBuilder, OutputName, Outputs, OutputsBuilder};
 use crate::nixhash::Sha256;
 use crate::store_path::{StorePath, StorePathRef};
+use bstr::BString;
 use data_encoding::HEXLOWER;
 use smol_str::format_smolstr;
 
@@ -55,6 +56,12 @@ impl AtermWriteable for String {
 	}
 }
 
+impl AtermWriteable for BString {
+	fn aterm_write(&self, writer: &mut impl io::Write) -> std::io::Result<()> {
+		write_field(writer, self, true)
+	}
+}
+
 impl AtermWriteable for &str {
 	fn aterm_write(&self, writer: &mut impl Write) -> std::io::Result<()> {
 		write_field(writer, self, true)
@@ -75,7 +82,15 @@ impl AtermWriteable for Sha256 {
 
 impl AtermWriteable for OutputName {
 	fn aterm_write(&self, writer: &mut impl io::Write) -> std::io::Result<()> {
-		write_field(writer, self.as_ref(), false)
+		write_field(writer, self.as_bytes(), true)
+	}
+}
+
+struct QuotedBytes<'a>(&'a [u8]);
+
+impl AtermWriteable for QuotedBytes<'_> {
+	fn aterm_write(&self, writer: &mut impl io::Write) -> std::io::Result<()> {
+		write_field(writer, self.0, true)
 	}
 }
 
@@ -89,10 +104,14 @@ impl AtermWriteable for OutputsBuilder {
 				write_array_elements(
 					writer,
 					[
-						OutputName::out().as_str(),
-						"",
-						output_hash.as_mode_and_algo_str(),
-						&data_encoding::HEXLOWER.encode(output_hash.hash.digest_as_bytes()),
+						QuotedBytes(b"out"),
+						QuotedBytes(b""),
+						QuotedBytes(output_hash.as_mode_and_algo_str().as_bytes()),
+						QuotedBytes(
+							data_encoding::HEXLOWER
+								.encode(output_hash.hash.digest_as_bytes())
+								.as_bytes(),
+						),
 					],
 				)?;
 
@@ -105,7 +124,15 @@ impl AtermWriteable for OutputsBuilder {
 					}
 
 					write_char(writer, PAREN_OPEN)?;
-					write_array_elements(writer, [output_name.as_str(), "", "", ""])?;
+					write_array_elements(
+						writer,
+						[
+							QuotedBytes(output_name.as_bytes()),
+							QuotedBytes(b""),
+							QuotedBytes(b""),
+							QuotedBytes(b""),
+						],
+					)?;
 					write_char(writer, PAREN_CLOSE)?;
 				}
 			}
@@ -121,15 +148,20 @@ impl AtermWriteable for Outputs {
 		write_char(writer, BRACKET_OPEN)?;
 		if let Some((output_hash, store_path)) = self.as_fixed_output() {
 			let path_str = store_path.to_absolute_path();
+			let output_name = self.names().next().expect("fixed output has a name");
 
 			write_char(writer, PAREN_OPEN)?;
 			write_array_elements(
 				writer,
 				[
-					OutputName::out().as_str(),
-					&path_str,
-					output_hash.as_mode_and_algo_str(),
-					&data_encoding::HEXLOWER.encode(output_hash.hash.digest_as_bytes()),
+					QuotedBytes(output_name.as_bytes()),
+					QuotedBytes(path_str.as_bytes()),
+					QuotedBytes(output_hash.as_mode_and_algo_str().as_bytes()),
+					QuotedBytes(
+						data_encoding::HEXLOWER
+							.encode(output_hash.hash.digest_as_bytes())
+							.as_bytes(),
+					),
 				],
 			)?;
 			write_char(writer, PAREN_CLOSE)?;
@@ -140,7 +172,15 @@ impl AtermWriteable for Outputs {
 				}
 
 				write_char(writer, PAREN_OPEN)?;
-				write_array_elements(writer, [output_name.as_str(), "", "", ""])?;
+				write_array_elements(
+					writer,
+					[
+						QuotedBytes(output_name.as_bytes()),
+						QuotedBytes(b""),
+						QuotedBytes(b""),
+						QuotedBytes(b""),
+					],
+				)?;
 				write_char(writer, PAREN_CLOSE)?;
 			}
 		} else {
@@ -151,7 +191,15 @@ impl AtermWriteable for Outputs {
 				}
 
 				write_char(writer, PAREN_OPEN)?;
-				write_array_elements(writer, [output_name.as_str(), &path_str, "", ""])?;
+				write_array_elements(
+					writer,
+					[
+						QuotedBytes(output_name.as_bytes()),
+						QuotedBytes(path_str.as_bytes()),
+						QuotedBytes(b""),
+						QuotedBytes(b""),
+					],
+				)?;
 				write_char(writer, PAREN_CLOSE)?;
 			}
 		}
@@ -301,17 +349,17 @@ fn write_input_sources(
 	Ok(())
 }
 
-fn write_system(writer: &mut impl Write, platform: &str) -> Result<(), Error> {
+fn write_system(writer: &mut impl Write, platform: &[u8]) -> Result<(), Error> {
 	write_field(writer, platform, true)?;
 	Ok(())
 }
 
-fn write_builder(writer: &mut impl Write, builder: &str) -> Result<(), Error> {
+fn write_builder(writer: &mut impl Write, builder: &[u8]) -> Result<(), Error> {
 	write_field(writer, builder, true)?;
 	Ok(())
 }
 
-fn write_arguments(writer: &mut impl Write, arguments: &[String]) -> Result<(), io::Error> {
+fn write_arguments(writer: &mut impl Write, arguments: &[BString]) -> Result<(), io::Error> {
 	write_char(writer, BRACKET_OPEN)?;
 	write_array_elements(writer, arguments)?;
 	write_char(writer, BRACKET_CLOSE)?;

@@ -1,11 +1,10 @@
 #[cfg(feature = "serde")]
 use crate::derivation::output::OutputHash;
 use crate::derivation::{DerivationBuilder, UnverifiedDerivation};
-#[cfg(feature = "serde")]
+use crate::derivation::{DerivationError, DrvHashModulo};
 use crate::derivation::{OutputName, OutputsBuilder, lookup_fn};
 #[cfg(test)]
 use crate::nixhash::Sha256;
-#[cfg(feature = "serde")]
 use crate::store_path::{StorePath, StorePathRef};
 #[cfg(feature = "serde")]
 use bstr::{BStr, BString};
@@ -13,12 +12,10 @@ use bstr::{BStr, BString};
 use hex_literal::hex;
 #[cfg(feature = "serde")]
 use rstest::rstest;
-#[cfg(feature = "serde")]
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 use std::fs;
 #[cfg(feature = "serde")]
 use std::path::{Path, PathBuf};
-#[cfg(feature = "serde")]
 use std::str::FromStr;
 
 const RESOURCES_PATHS: &str = "src/derivation/tests/derivation_tests";
@@ -98,7 +95,7 @@ fn from_aterm_bytes(
 	}) {
 		assert_eq!(
 			&[0xc5, 0xc4, 0xd6][..],
-			parsed_drv.environment().get("chars").unwrap(),
+			parsed_drv.environment().get(b"chars".as_slice()).unwrap(),
 			"expected bytes to match",
 		);
 	} else {
@@ -130,7 +127,9 @@ fn from_aterm_bytes_duplicate_map_key() {
 
 	let drv = UnverifiedDerivation::from_aterm_bytes(&buf).expect("must parse");
 	assert_eq!(
-		drv.environment().get("name").map(|v| v.as_slice()),
+		drv.environment()
+			.get(b"name".as_slice())
+			.map(|v| v.as_slice()),
 		Some(&b"bar"[..])
 	);
 
@@ -234,7 +233,74 @@ fn hash_derivation_modulo_fixed(#[case] drv_path: &str, #[case] expected_digest:
 	let actual = drv
 		.hash_derivation_modulo(lookup_fn(|_| panic!("must not be called")))
 		.expect("must calculate hdm");
-	assert_eq!(expected_digest, actual);
+	assert_eq!(
+		crate::derivation::DrvHashModulo::Fixed(std::collections::BTreeMap::from([(
+			OutputName::out(),
+			expected_digest,
+		)])),
+		actual
+	);
+}
+
+#[test]
+fn fixed_input_with_no_requested_outputs_has_no_masked_input() {
+	let input = StorePath::from_str("0hm2f1psjpcwg8fijsmr4wwxrx59s092-bar.drv").unwrap();
+	let mut builder = DerivationBuilder {
+		command: ":".into(),
+		system: ":".into(),
+		..Default::default()
+	};
+	let without_input = builder
+		.hash_derivation_modulo_with_outputs(
+			&builder.environment,
+			&builder.outputs,
+			lookup_fn(|_| panic!("no lookup expected")),
+		)
+		.unwrap();
+	builder.input_derivations.insert(input, BTreeSet::new());
+	let with_empty_input = builder
+		.hash_derivation_modulo_with_outputs(
+			&builder.environment,
+			&builder.outputs,
+			lookup_fn(|_| {
+				Some(DrvHashModulo::Fixed(BTreeMap::from([(
+					OutputName::out(),
+					Sha256::new([1; 32]),
+				)])))
+			}),
+		)
+		.unwrap();
+	assert_eq!(with_empty_input, without_input);
+}
+
+#[test]
+fn fixed_input_requires_the_requested_output() {
+	let input = StorePath::from_str("0hm2f1psjpcwg8fijsmr4wwxrx59s092-bar.drv").unwrap();
+	let missing = OutputName::from_static("missing").unwrap();
+	let mut builder = DerivationBuilder {
+		command: ":".into(),
+		system: ":".into(),
+		..Default::default()
+	};
+	builder
+		.input_derivations
+		.insert(input.clone(), BTreeSet::from([missing.clone()]));
+	let error = builder
+		.hash_derivation_modulo_with_outputs(
+			&builder.environment,
+			&builder.outputs,
+			lookup_fn(|_| {
+				Some(DrvHashModulo::Fixed(BTreeMap::from([(
+					OutputName::out(),
+					Sha256::new([1; 32]),
+				)])))
+			}),
+		)
+		.unwrap_err();
+	assert_eq!(
+		error,
+		DerivationError::MissingFixedInputOutput(input, missing)
+	);
 }
 
 /// This reads a Derivation (in A-Term), trims out all fields containing
@@ -344,23 +410,23 @@ fn output_paths(#[case] name: &str, #[case] drv_path_str: &str) {
 fn output_path_construction() {
 	// create the bar derivation
 	let mut bar_drv = DerivationBuilder {
-		command: ":".to_string(),
-		system: ":".to_string(),
+		command: ":".into(),
+		system: ":".into(),
 		..Default::default()
 	};
 
 	// assemble bar env
 	let bar_env = &mut bar_drv.environment;
-	bar_env.insert("builder".to_string(), ":".into());
-	bar_env.insert("name".to_string(), "bar".into());
-	bar_env.insert("out".to_string(), "".into()); // will be calculated
+	bar_env.insert("builder".into(), ":".into());
+	bar_env.insert("name".into(), "bar".into());
+	bar_env.insert("out".into(), "".into()); // will be calculated
 	bar_env.insert(
-		"outputHash".to_string(),
+		"outputHash".into(),
 		"08813cbee9903c62be4c5027726a418a300da4500b2d369d3af9286f4815ceba".into(),
 	);
-	bar_env.insert("outputHashAlgo".to_string(), "sha256".into());
-	bar_env.insert("outputHashMode".to_string(), "recursive".into());
-	bar_env.insert("system".to_string(), ":".into());
+	bar_env.insert("outputHashAlgo".into(), "sha256".into());
+	bar_env.insert("outputHashMode".into(), "recursive".into());
+	bar_env.insert("system".into(), ":".into());
 
 	// assemble bar outputs
 	bar_drv.outputs = OutputsBuilder::Fixed(
@@ -400,21 +466,21 @@ fn output_path_construction() {
 
 	// create foo derivation
 	let mut foo_drv = DerivationBuilder {
-		command: ":".to_string(),
-		system: ":".to_string(),
+		command: ":".into(),
+		system: ":".into(),
 		..Default::default()
 	};
 
 	// assemble foo env
 	let foo_env = &mut foo_drv.environment;
 	foo_env.insert(
-		"bar".to_string(),
+		"bar".into(),
 		bar_output_path.to_absolute_path().as_bytes().into(),
 	);
-	foo_env.insert("builder".to_string(), ":".into());
-	foo_env.insert("name".to_string(), "foo".into());
-	foo_env.insert("out".to_string(), "".into()); // will be calculated
-	foo_env.insert("system".to_string(), ":".into());
+	foo_env.insert("builder".into(), ":".into());
+	foo_env.insert("name".into(), "foo".into());
+	foo_env.insert("out".into(), "".into()); // will be calculated
+	foo_env.insert("system".into(), ":".into());
 
 	// assemble foo input_derivations
 	foo_drv
@@ -429,7 +495,7 @@ fn output_path_construction() {
 				if drv_path.to_string() != "0hm2f1psjpcwg8fijsmr4wwxrx59s092-bar.drv" {
 					panic!("lookup called with unexpected drv_path: {drv_path}");
 				}
-				Some(bar_drv_hash_derivation_modulo)
+				Some(bar_drv_hash_derivation_modulo.clone())
 			}),
 		)
 		.expect("must build derivation");

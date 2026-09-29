@@ -83,6 +83,8 @@ Nix formats and protocols: store paths, nixbase32, hashes, NAR, ATerm derivation
 
 - Derivation ATerm parsing follows CppNix 2.35.2 instead of the 2.36.0 development rules. The five collections may appear in any order; a repeated output keeps the first entry, a repeated input derivation or environment key keeps the last, and repeated output names and input sources collapse. Input derivations may list no outputs. Every string field decodes escapes as 2.35.2 does, including store paths, output names and the platform, and raw newlines, carriage returns and tabs are accepted. Parsed derivations skip the builder's field validation. The `Unsorted`, `DuplicateMapKey`, `DuplicateInputSource`, `DuplicateInputDerivationOutputName` and `InputDerivationWithoutOutputs` parse errors are removed (2026-09-29).
 - Input-addressed hashing lets the later of two input derivations with the same hash replace the earlier one's output names, as 2.35.2 does, instead of merging them (2026-09-29).
+- The derivation platform, builder, arguments, environment keys and output names are byte strings. ATerm parsing and writing keep non-UTF-8 bytes and output names that a new derivation could not use, as 2.35.2 does; JSON serialisation returns an error for fields that are not UTF-8 (2026-09-29).
+- `hash_derivation_modulo` and `HashDerivationModuloLookup` use `DrvHashModulo`, which keeps a fixed-output derivation's hash under its output name. A requested fixed output is masked as `out`, an empty request contributes nothing, and a missing output is an error, as in 2.35.2 (2026-09-29).
 
 ### 0.1.0 - unpublished
 
@@ -145,10 +147,13 @@ Internal test crate that checks the workspace crates against the CppNix 2.35.2 f
 #### Added
 
 - `reference_hash_modulo`, which verifies derivations the 2.35.2 reference wrote for CppNix issue #16307's graph (2026-09-29).
+- `derivation_parser_extensions`, which checks that non-UTF-8 fields and unchecked output names round-trip through ATerm (2026-09-29).
+- `differential_eval`, which checks the comparison runner against mock executables (2026-09-29).
 
 #### Changed
 
 - `hello.drv` and `firefox.drv` are expected to parse and canonicalise instead of being recorded as divergences (2026-09-29).
+- `differential-eval` runs both engines in a cleared environment with temporary empty configuration, a dummy store and a per-command timeout (`NIXRS_DIFF_TIMEOUT_MS`, default 20 seconds), and records timeouts in its report (2026-09-29).
 
 ### 0.1.0 - unpublished
 
