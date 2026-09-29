@@ -28,33 +28,50 @@ unrun src/libstore-tests/data/derivation/**/*.json # derivation and output JSON
 
 # libstore: protocols
 table:upstream_worker_protocol src/libstore-tests/data/worker-protocol/*
+pass:upstream_shared_protocols src/libstore-tests/data/common-protocol/string.*
+pass:upstream_shared_protocols src/libstore-tests/data/common-protocol/store-path.*
+pass:upstream_shared_protocols src/libstore-tests/data/common-protocol/content-address.*
+pass:upstream_shared_protocols src/libstore-tests/data/common-protocol/optional-store-path.*
+pass:upstream_shared_protocols src/libstore-tests/data/common-protocol/optional-content-address.*
+pass:upstream_shared_protocols src/libstore-tests/data/common-protocol/vector.*
+pass:upstream_shared_protocols src/libstore-tests/data/common-protocol/set.*
 unrun src/libstore-tests/data/common-protocol/* # shared serialisers used by both protocols
+pass:upstream_shared_protocols src/libstore-tests/data/serve-protocol/string.*
+pass:upstream_shared_protocols src/libstore-tests/data/serve-protocol/store-path.*
+pass:upstream_shared_protocols src/libstore-tests/data/serve-protocol/content-address.*
+pass:upstream_shared_protocols src/libstore-tests/data/serve-protocol/optional-store-path.*
+pass:upstream_shared_protocols src/libstore-tests/data/serve-protocol/optional-content-address.*
+pass:upstream_shared_protocols src/libstore-tests/data/serve-protocol/vector.*
+pass:upstream_shared_protocols src/libstore-tests/data/serve-protocol/set.*
 unrun src/libstore-tests/data/serve-protocol/* # serve protocol 2.x
 unrun src/libstore-tests/data/worker-substitution/**/* # substitution goals
 
 # libstore: other formats
-unrun src/libstore-tests/data/build-result/*
+table:upstream_realisation_json src/libstore-tests/data/build-result/*
 table:upstream_store_json src/libstore-tests/data/content-address/*
 table:upstream_store_json src/libstore-tests/data/derived-path/*
 unrun src/libstore-tests/data/dummy-store/*
 unrun src/libstore-tests/data/machines/* # remote builder machine specifications
-unrun src/libstore-tests/data/nar-info/**/*
+table:upstream_path_info_json src/libstore-tests/data/nar-info/**/*
 table:upstream_store_json src/libstore-tests/data/outputs-spec/**/*
-unrun src/libstore-tests/data/path-info/**/*
-unrun src/libstore-tests/data/realisation/*
+table:upstream_path_info_json src/libstore-tests/data/path-info/**/*
+table:upstream_realisation_json src/libstore-tests/data/realisation/*
 table:upstream_store_json src/libstore-tests/data/store-path/*
 unrun src/libstore-tests/data/store-reference/* # store URLs and parameters
 
 # libutil
 pass:upstream_nars src/libutil-tests/data/nars/*.nar
 pass:upstream_hashes src/libutil-tests/data/hash/blake3.json
-unrun src/libutil-tests/data/hash/*.json
-unrun src/libutil-tests/data/git/* # git object hashing
+pass:upstream_hashes src/libutil-tests/data/hash/sha256.json
+anomaly src/libutil-tests/data/hash/sha512.json # CppNix 2.35.2's HashJSON sha512 row constructs SHA256
+pass:upstream_git_objects src/libutil-tests/data/git/hello-world*.bin
+pass:upstream_git_objects src/libutil-tests/data/git/tree-*.bin
+pass:upstream_git_objects src/libutil-tests/data/git/tree-*.txt
 unrun src/libutil-tests/data/memory-source-accessor/*
 unrun src/libutil-tests/data/nar-listing/*
 
 # libfetchers
-unrun src/libfetchers-tests/data/public-key/*
+table:upstream_fetcher_public_key src/libfetchers-tests/data/public-key/*
 
 # Functional and system tests
 table:upstream_lang tests/functional/lang/**/*

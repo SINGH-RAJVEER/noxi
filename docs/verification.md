@@ -19,12 +19,17 @@ Every copied fixture file has a classification in `crates/compat-tests/expectati
 
 On 2026-09-30 the 1,916 files were classified as follows:
 
-- 1,081 are in per-file tables: 992 language, 58 worker-protocol, 17 store JSON, and 14 derivation files.
-- 9 pass: the malformed NARs and the BLAKE3 hash JSON.
-- 823 are unrun.
+- 1,116 are in per-file tables: 992 language, 58 worker-protocol, 20 path-info and nar-info, 17 store JSON, 14 derivation, 12 realisation and build-result, and 3 fetcher public-key files.
+- 44 pass: the malformed NARs, six Git object files, the BLAKE3 and SHA-256 hash JSON files, and 28 shared common and serve protocol files.
+- 1 is a reference anomaly: `hash/sha512.json` contains a SHA-256 hash because CppNix 2.35.2's `HashJSON` test constructs SHA-256 for its `sha512` row.
+- 752 are unrun.
 - 3 are ignored.
 
-The unrun files include the common and serve protocol fixtures, narinfo, path-info, realisation, store-reference, build-result, and git hashing data, and every shell and NixOS test outside `lang`.
+The seven shared primitive cases in each of the common and serve protocol fixture groups now decode and re-encode byte for byte in `upstream_shared_protocols`. Their 28 binary and JSON files are classified as passing; realisation and serve-specific protocol fixtures remain unrun, along with store-reference, git hashing data, and every shell and NixOS test outside `lang`.
+
+`upstream_fetcher_public_key` checks the three copied fetcher key JSON fixtures. `simple` and `defaultType` read and write the same JSON, while `noRoundTrip` omits `type` on input and is read as `ssh-ed25519`; writing it makes the type explicit, as the 2.35.2 reference does. These source-fetcher declarations are separate from narinfo trusted verifying keys.
+
+`upstream_git_objects` checks the copied Git blob and SHA-1/SHA-256 tree objects against `nix_compat::git` byte for byte, including their listed modes, names, and child hashes. It also rejects malformed object headers and tree entries. This covers the object encoding in the `git-hashing` fixture group; feature gating and source-accessor integration remain open.
 
 The ATerm parser in `nix-compat` accepts what 2.35.2's `parseDerivation` accepts:
 
@@ -44,7 +49,7 @@ Differences from 2.35.2 that remain:
 
 The masked-hash, `bad-ca-fixed-path.drv`, and `windows-store-dir.drv` fixtures are absent from 2.35.2, and their tests were removed with the refresh. These checks cover narrow format behavior, not complete derivation or store compatibility.
 
-CppNix 2.35.2's JSON forms for store paths, content addresses, output specifications, and deriving paths live in `nix_compat::cppnix_json`, separate from the imported `serde` implementations, which follow Snix's conventions. `upstream_store_json` decodes each of the 17 fixtures, compares the values CppNix's unit tests construct, and re-encodes 14 of them byte for byte. The other 3 are nested deriving paths that 2.35.2 accepts only with `dynamic-derivations`. Both engines reject them by default, and nix-rs cannot yet accept them with the feature enabled.
+CppNix 2.35.2's JSON forms for store paths, content addresses, output specifications, and deriving paths live in `nix_compat::cppnix_json`, separate from the imported `serde` implementations, which follow Snix's conventions. `upstream_store_json` decodes each of the 17 fixtures, compares the values CppNix's unit tests construct, and re-encodes 14 of them byte for byte. The other 3 are nested deriving paths that 2.35.2 accepts only with `dynamic-derivations`. Both engines reject them by default, and nix-rs cannot yet accept them with the feature enabled. `cppnix_json::{PathInfo, NarInfo}` implement the path-info and narinfo JSON in all three format versions. `upstream_path_info_json` checks that each of the 20 fixtures decodes to the value CppNix's tests construct, including the self-referencing content-addressed path. It also checks that the 18 fixtures CppNix writes re-encode byte for byte. `cppnix_json` also covers `DrvOutput`, `Realisation`, `UnkeyedRealisation`, and `BuildResult`. `upstream_realisation_json` checks all 12 realisation and build-result fixtures. The checks cover the decoded values, the re-encoded bytes, and realisation fingerprints. They also check that signing a fingerprint with the test key from `realisation.cc` reproduces 2.35.2's ed25519 signatures exactly, and that those signatures verify.
 
 `crates/compat-tests/tests/upstream_worker_protocol.rs` decodes the number of values stated by each JSON fixture at the version CppNix's test uses, and requires byte-identical re-encoding (decoding only, for the lossy reads CppNix also only reads). A count-bound read is necessary because an optional value at EOF may be interpreted as absent rather than as stream termination. It also checks decoded values against those the C++ test constructs. Three fixtures in the snapshot are not referenced by its C++ tests and are marked stale. Fixtures that need protocol feature negotiation, and the handshake, remain gaps.
 
