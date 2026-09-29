@@ -1,0 +1,65 @@
+# Classification of every file copied from CppNix 2.35.2 into tests/nix/src/*-tests/data
+# and tests/nix/tests, checked by tests/fixture_inventory.rs.
+#
+# Each line is `<class> <glob> [# note]`; the first matching line wins. Paths are
+# relative to tests/nix. `**` matches any number of directories, `*` matches within
+# one path segment. Every pattern must match at least one file.
+#
+# Classes:
+#   table:<test>  The named test in crates/compat-tests/tests lists each file itself
+#                 with its expected outcome (pass, known gap, or reference anomaly).
+#   pass:<test>   The named test reads the file and passes.
+#   gap           A nix-rs test reads the file and records a known failure.
+#   anomaly       The reference's own behavior for this file is anomalous; see the note.
+#   unrun         No nix-rs test reads the file yet.
+#   ignore        Not a fixture: placeholders and generator scripts.
+
+# Placeholders and generator scripts
+ignore src/*/data/.gitkeep
+ignore src/libutil-tests/data/git/check-data.sh
+
+# libstore: derivations
+table:upstream_derivations src/libstore-tests/data/derivation/**/*.drv
+unrun src/libstore-tests/data/derivation/ca/derivation-options/*.json # derivation options JSON
+unrun src/libstore-tests/data/derivation/ia/derivation-options/*.json # derivation options JSON
+unrun src/libstore-tests/data/derivation/invariants/* # derivation invariant checks
+unrun src/libstore-tests/data/derivation/try-resolve/* # CA derivation resolution
+unrun src/libstore-tests/data/derivation/**/*.json # derivation and output JSON
+
+# libstore: protocols
+table:upstream_worker_protocol src/libstore-tests/data/worker-protocol/*
+unrun src/libstore-tests/data/common-protocol/* # shared serialisers used by both protocols
+unrun src/libstore-tests/data/serve-protocol/* # serve protocol 2.x
+unrun src/libstore-tests/data/worker-substitution/**/* # substitution goals
+
+# libstore: other formats
+unrun src/libstore-tests/data/build-result/*
+unrun src/libstore-tests/data/content-address/*
+unrun src/libstore-tests/data/derived-path/*
+unrun src/libstore-tests/data/dummy-store/*
+unrun src/libstore-tests/data/machines/* # remote builder machine specifications
+unrun src/libstore-tests/data/nar-info/**/*
+unrun src/libstore-tests/data/outputs-spec/**/*
+unrun src/libstore-tests/data/path-info/**/*
+unrun src/libstore-tests/data/realisation/*
+unrun src/libstore-tests/data/store-path/*
+unrun src/libstore-tests/data/store-reference/* # store URLs and parameters
+
+# libutil
+pass:upstream_nars src/libutil-tests/data/nars/*.nar
+pass:upstream_hashes src/libutil-tests/data/hash/blake3.json
+unrun src/libutil-tests/data/hash/*.json
+unrun src/libutil-tests/data/git/* # git object hashing
+unrun src/libutil-tests/data/memory-source-accessor/*
+unrun src/libutil-tests/data/nar-listing/*
+
+# libfetchers
+unrun src/libfetchers-tests/data/public-key/*
+
+# Functional and system tests
+table:upstream_lang tests/functional/lang/**/*
+unrun tests/functional/**/* # shell tests; they need a nix-rs runner (TODO section 1)
+unrun tests/nixos/**/* # NixOS VM tests
+unrun tests/installer/**/*
+unrun tests/filetransfer-retry-backoff/**/*
+unrun tests/repl-completion.nix

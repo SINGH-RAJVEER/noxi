@@ -10,6 +10,22 @@ The full official Nix repository can be fetched into the ignored `tests/nix-offi
 
 `crates/compat-tests/` already classifies the copied ATerm derivation fixtures against vendored `nix-compat`. Its expectation table names unsupported forms, including content-addressed and dynamic derivations. These classified gaps are useful progress markers, not passing compatibility cases.
 
+Every copied fixture file has a classification in `crates/compat-tests/expectations/fixtures.txt`: `table` (a named test lists each file with its expected outcome), `pass`, `gap`, `anomaly`, `unrun`, or `ignore` for placeholders and generator scripts. `cargo test -p nixrs-compat-tests --test fixture_inventory` walks the `src/*-tests/data` trees and `tests/` in the snapshot. It fails on these conditions:
+
+- A file is unclassified.
+- A pattern matches nothing.
+- A `table` or `pass` entry names a test that does not refer to the fixture's directory.
+- A `pass` entry's test does not name each file it claims.
+
+On 2026-09-30 the 1,916 files were classified as follows:
+
+- 1,064 are in per-file tables: 992 language, 58 worker-protocol, and 14 derivation files.
+- 9 pass: the malformed NARs and the BLAKE3 hash JSON.
+- 840 are unrun.
+- 3 are ignored.
+
+The unrun files include the common and serve protocol fixtures, narinfo, path-info, realisation, store-path, store-reference, content-address, outputs-spec, derived-path, build-result, and git hashing data, and every shell and NixOS test outside `lang`.
+
 The ATerm parser in `nix-compat` accepts what 2.35.2's `parseDerivation` accepts:
 
 - Outputs, input derivations, each input derivation's output names, input sources, and environment variables may appear in any order. A repeated output keeps the first entry (`emplace`); a repeated input derivation or environment key keeps the last (`insert_or_assign`); repeated output names and input sources collapse into sets. An input derivation may list no outputs. Serialising again writes the canonical sorted form, as CppNix does. `upstream_derivations.rs` checks that 2.35.2's anonymised `hello.drv` and `firefox.drv`, which list inputs sharing a digest out of path order, parse and canonicalise stably.
@@ -51,6 +67,8 @@ In a debug build, 104 cases pass. The other outcomes are:
 Overflow checks are enabled only in debug builds. In release builds the four overflow cases wrap silently instead of panicking, so the table describes debug-profile `cargo test` runs. Neither behavior matches CppNix, which reports an error. The ad hoc checks at the top of `lang.sh`, covering `trace`, `warn`, `addErrorContext`, and `non-eval-fail-bad-drvPath.nix`, are not fixture files and remain unrun. `eval-okay-hash.exp` has no matching case upstream, so it is recorded as a reference anomaly.
 
 `crates/compat-tests/tests/upstream_hashes.rs` checks BLAKE3 digests against three copied CppNix vectors and checks JSON encoding against its copied fixture. The library accepts BLAKE3 hashes, but the reference exposes them behind the `blake3-hashes` experimental feature. No nix-rs command or configuration layer enforces that feature gate yet, so BLAKE3 command compatibility remains unrun.
+
+`crates/compat-tests/tests/reference_hash_formats.rs` records `nix hash convert` results from the pinned 2.35.2 binary for `abc` under MD5, SHA-1, SHA-256, SHA-512, and BLAKE3. It checks hex, nix32, base64, and SRI parsing and output, plus malformed digest rejection. A custom case found that 2.35.2 accepts uppercase hex; `nix-compat` now does too. The reference rejects BLAKE3 when `blake3-hashes` is disabled and accepts it when enabled. The Rust hash library has no feature setting, and nix-rs has no equivalent `nix hash convert` command yet, so that command-level gate remains open.
 
 For each compatibility test, record the reference binary and nix-rs binary, platform, input revision, feature settings, store configuration, command or operation, expected result, actual result, and disposition. Tests that cannot yet run against nix-rs remain unrun. Tests that fail for a known reference issue still need an explicit compatibility decision; do not quietly rewrite expected output.
 

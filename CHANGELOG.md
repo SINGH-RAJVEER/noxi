@@ -149,6 +149,7 @@ Internal test crate that checks the workspace crates against the CppNix 2.35.2 f
 - `reference_hash_modulo`, which verifies derivations the 2.35.2 reference wrote for CppNix issue #16307's graph (2026-09-29).
 - `derivation_parser_extensions`, which checks that non-UTF-8 fields and unchecked output names round-trip through ATerm (2026-09-29).
 - `differential_eval`, which checks the comparison runner against mock executables (2026-09-29).
+- `fixture_inventory` and `expectations/fixtures.txt`, which classify every file copied into `tests/nix` and fail on an unclassified fixture, a stale pattern, or a pass claim that the named test does not back (2026-09-30).
 
 #### Changed
 
