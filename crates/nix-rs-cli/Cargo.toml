@@ -3,15 +3,16 @@ name = "nix-rs-cli"
 version.workspace = true
 rust-version.workspace = true
 edition = "2024"
-publish = false
 description = "Preview command-line entry point for the nix-rs package manager"
+license = "Apache-2.0"
+repository = "https://github.com/SINGH-RAJVEER/nix-rs"
 
 [[bin]]
 name = "nixrs"
 path = "src/main.rs"
 
 [dependencies]
-nix-rs-eval = { path = "../nix-rs/eval", default-features = false }
+nix-rs-eval = { path = "../nix-rs/eval", version = "0.1.0", default-features = false }
 
 [dev-dependencies]
 tempfile.workspace = true

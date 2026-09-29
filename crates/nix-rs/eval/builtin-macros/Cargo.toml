@@ -4,6 +4,9 @@ version = "0.0.1"
 authors = ["Griffin Smith <root@gws.fyi>"]
 edition = "2024"
 rust-version.workspace = true
+description = "Procedural macros for defining nix-rs-eval builtins, derived from snix-eval-builtin-macros"
+license = "GPL-3.0-only"
+repository = "https://github.com/SINGH-RAJVEER/nix-rs"
 
 [dependencies]
 syn = { version = "1.0.109", features = [

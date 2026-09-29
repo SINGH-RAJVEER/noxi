@@ -3,12 +3,15 @@ name = "nix-rs-eval"
 version = "0.1.0"
 edition = "2024"
 rust-version.workspace = true
+description = "Nix language parser, compiler and bytecode evaluator for nix-rs, derived from snix-eval"
+license = "GPL-3.0-only"
+repository = "https://github.com/SINGH-RAJVEER/nix-rs"
 
 [lib]
 name = "nix_rs_eval"
 
 [dependencies]
-builtin-macros = { path = "./builtin-macros", package = "nix-rs-eval-builtin-macros" }
+builtin-macros = { path = "./builtin-macros", version = "0.0.1", package = "nix-rs-eval-builtin-macros" }
 bytes.workspace = true
 bstr = { workspace = true, features = ["serde"] }
 codemap.workspace = true
