@@ -1,0 +1,15 @@
+[package]
+name = "nix-rs-flakeref"
+version.workspace = true
+rust-version.workspace = true
+edition = "2024"
+description = "Nix flake reference parser and formatter"
+license = "GPL-3.0-only"
+repository = "https://github.com/SINGH-RAJVEER/nix-rs"
+
+[dependencies]
+thiserror.workspace = true
+url.workspace = true
+
+[dev-dependencies]
+pretty_assertions = { workspace = true, features = ["unstable"] }

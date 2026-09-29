@@ -5,6 +5,8 @@ extern crate self as nix_compat;
 pub(crate) mod aterm;
 #[cfg(feature = "serde")]
 pub mod cppnix_json;
+#[cfg(all(feature = "serde", feature = "wire"))]
+pub mod cppnix_serve;
 pub mod derivation;
 #[cfg(feature = "serde")]
 pub mod fetchers;
@@ -13,9 +15,10 @@ pub mod log;
 pub mod nar;
 pub mod narinfo;
 pub mod nix_http;
-pub mod nixbase32;
+pub use nix_rs_hash::nixbase32;
 pub mod nixcpp;
-pub mod nixhash;
+pub use nix_rs_hash::format_sha256;
+pub use nix_rs_hash::nixhash;
 pub mod path_info;
 pub mod store_path;
 #[cfg(feature = "serde")]
@@ -33,4 +36,4 @@ pub mod test;
 #[cfg(feature = "daemon")]
 pub use nix_daemon::worker_protocol;
 #[cfg(feature = "flakeref")]
-pub mod flakeref;
+pub use nix_rs_flakeref as flakeref;

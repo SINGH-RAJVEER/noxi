@@ -13,7 +13,7 @@ The crates in this directory are copied from Snix, a Rust reimplementation of Ni
 
 | Directory | Crate | Reason |
 |---|---|---|
-| `nix-compat/` | `nix-compat` | Nix formats and protocols: store paths, nixbase32, hashes, NAR, ATerm derivations, narinfo, realisations, flake references, `nix.conf`, daemon wire types. It has no dependency on other Snix crates. |
+| `nix-compat/` | `nix-compat` | Nix formats and protocols: store paths, NAR, ATerm derivations, narinfo, realisations, `nix.conf`, daemon wire types. Its former nixbase32, hash, and flake reference modules are extracted to `crates/nix-rs-hash/` and `crates/nix-rs-flakeref/` and reexported. |
 | `nix-compat-derive/` | `nix-compat-derive` | Proc macros that `nix-compat` uses for daemon wire serialisation |
 | `nix-compat-derive-tests/` | `nix-compat-derive-tests` | Tests for those macros |
 | `eval/` | `nix-rs-eval` (upstream `snix-eval`) | Nix language parser, compiler and bytecode VM, with the pure builtins |
@@ -34,6 +34,10 @@ Without `glue`, `nix-rs-eval` evaluates only the pure language. It cannot instan
 
 ## Local modifications
 
+- 2026-09-30: Evaluator integer operators and arithmetic builtins use checked addition, subtraction, multiplication, and division. Negation uses checked subtraction from zero, matching CppNix 2.35.2. Overflow yields `IntegerOverflow` rather than a debug panic or release wrapping, and builtin division now rejects integer and float zero before inspecting the numerator. Focused tests cover both profiles; reference diagnostic rendering remains incomplete.
+- 2026-09-30: Added `cppnix_serve` value codecs and handshake functions following CppNix 2.35.2 commit `2c73b59da29606068c0c98db015dd3a66955525d`, especially `src/libstore/serve-protocol.cc` and its characterization tests. The reference source's license is recorded in `tests/nix/COPYING`. These 2.x codecs are separate from the imported worker-protocol types and preserve the reference's version-dependent, lossy fields; fixture coverage does not qualify serve commands or daemon pairings.
+- 2026-09-30: Moved `nixbase32` and `nixhash` into the project-owned `nix-rs-hash` crate. `nix-compat` depends on it and reexports the existing module paths and `format_sha256!` macro. The extracted source remains derived from the recorded Snix revision and retains its GPL-3.0-only license.
+- 2026-09-30: Moved `flakeref` into the project-owned `nix-rs-flakeref` crate. `nix-compat` reexports the existing module path through its `flakeref` feature. The extracted source remains derived from the recorded Snix revision and retains its GPL-3.0-only license.
 - Reformatted with the root `rustfmt.toml` (hard tabs, width 4), and changed TOML indentation to tabs.
 - Removed Snix's depot build files (each crate's `default.nix`). They depend on Snix's monorepo tooling.
 - The workspace root `Cargo.toml` copies Snix's `[workspace.dependencies]` and `[workspace.package]`, and leaves out its `[patch.crates-io]` overrides of hyper and tonic, which none of these crates use.
@@ -47,7 +51,7 @@ Without `glue`, `nix-rs-eval` evaluates only the pure language. It cannot instan
 - 2026-09-30: Added `cppnix_json`, a new module with CppNix 2.35.2's JSON encodings for store paths, hashes, content addresses, output specifications, deriving paths, path info, narinfo, realisations and build results. The imported `serde` implementations are unchanged.
 - Four imported trybuild diagnostic snapshots now reflect the renamed crate location and Rust 1.95.0 wording. The pinned toolchain is supplied by `devenv.nix`.
 
-The imported evaluation algorithms have not been deliberately changed.
+Apart from the checked arithmetic and division changes above, the imported evaluation algorithms have not been deliberately changed.
 
 ## Test status at import
 

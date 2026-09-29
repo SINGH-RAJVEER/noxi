@@ -18,6 +18,10 @@ Version 0.1.0 of the preview command and the evaluator it links are published on
 
 The two imported crates keep Snix's GPL-3.0 license and include the text from `crates/nix-rs/LICENSE`. The CLI's own source is Apache-2.0, but the `nixrs` binary links `nix-rs-eval`, so a distributed binary must meet GPL-3.0 terms. Published versions are permanent: a version can be yanked but its source stays public. A new version needs its changes recorded in [CHANGELOG.md](../CHANGELOG.md) and its crate's version raised, including the versions written on the path dependencies, and `cargo publish -p nix-rs-eval-builtin-macros -p nix-rs-eval -p nix-rs-cli` publishes the set in dependency order. These are preview crates: their APIs are not stable, and the release gate below still applies.
 
+The local `nix-rs-hash` crate contains hash and Nix base32 code extracted from `nix-compat`; it is unpublished and retains the imported code's GPL-3.0-only license. `nix-compat` reexports its former paths, so this split does not require downstream source changes.
+
+The local `nix-rs-flakeref` crate contains flake reference parsing and formatting extracted from `nix-compat`; it is unpublished under the same license. The existing `nix-compat` `flakeref` feature still exposes `nix_compat::flakeref`.
+
 ## Replacement milestones
 
 | Milestone | Work required | Evidence before advancing |
@@ -28,9 +32,11 @@ The two imported crates keep Snix's GPL-3.0 license and include the text from `c
 | Store and builds | Implement existing-store metadata, NAR and narinfo exchange, signatures, substitution, sandboxed local and remote builds, roots, garbage collection, profiles, and crash recovery | Exercise copied stores, concurrent clients, interrupted writes, cache trust, and return to CppNix on isolated test systems |
 | Daemon and system integration | Implement worker protocol negotiation and operations, multi-user authorization, `nix-daemon`, service/socket behavior, and every executable NixOS expects from `nix.package` | Test reference and nix-rs clients against each supported daemon pairing; rebuild and roll back an existing NixOS VM using nix-rs as `nix.package` |
 | Home Manager | Support standalone `home-manager build` and `switch`, its flake mode, and Home Manager as a NixOS module through the same engine | Compare built user profiles, activation, generations, and failure recovery on a pinned Home Manager revision |
-| Distribution and crate release | Publish the complete flake package and separately publish a coherent set of versioned Rust crates with resolvable dependencies, source licenses, and documented APIs | Build from a clean clone, `cargo package` every public crate, verify clean installation and upgrade, and run the published artifacts through the compatibility matrix |
+| Distribution and optional crate release | Publish the complete flake package; separately publish additional versioned Rust crates only if selected, with resolvable dependencies, source licenses, and documented API stability | Build from a clean clone, `cargo package` each selected crate, verify clean installation and upgrade, and run the exact packaged release-profile artifacts through the compatibility matrix before publication |
 
-The matrix in [compatibility](compatibility-matrix.md) remains the release gate. A command shim that delegates to CppNix, or a binary placed earlier on `PATH`, does not establish engine compatibility. Before setting `nix.package` to nix-rs, the package must provide the expected executable set and daemon, preserve the existing store, and pass a tested rollback to CppNix. Use isolated VMs and store copies for these gates.
+These milestones are qualification areas, not a strict implementation order. Follow the [TODO execution order](../TODO.md#execution-order): connect minimal command, evaluation, and store operations first, then extend them through builds and the daemon before completing all workflows. Discover public C and C++ library consumers during baseline work so ABI and packaging requirements are known before the replacement architecture is fixed. Additional Rust crate publication is optional for the binary release; it does not require a stable Rust API promise.
+
+The matrix in [compatibility](compatibility-matrix.md) remains the release gate. A command shim that delegates to CppNix, or a binary placed earlier on `PATH`, does not establish engine compatibility. Provisional replacement packages may be wired to `nix.package` in disposable qualification VM overlays to obtain rebuild and rollback evidence, with one store-writing daemon at a time. Before publishing a replacement module or recommending host deployment, the package must provide the expected executable set and daemon, preserve the existing store, and pass a tested rollback to CppNix.
 
 ## Installation path
 

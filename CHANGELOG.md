@@ -10,12 +10,26 @@ Changes that have not reached a version yet go under an `Unreleased` heading for
 | [`nix-rs-eval`](#nix-rs-eval) | 0.1.0 | [published](https://crates.io/crates/nix-rs-eval) | GPL-3.0-only |
 | [`nix-rs-eval-builtin-macros`](#nix-rs-eval-builtin-macros) | 0.0.1 | [published](https://crates.io/crates/nix-rs-eval-builtin-macros) | GPL-3.0-only |
 | [`nix-compat`](#nix-compat) | 0.1.0 | unpublished; the name belongs to another owner | GPL-3.0 (Snix) |
+| [`nix-rs-hash`](#nix-rs-hash) | 0.1.0 | unpublished | GPL-3.0-only (Snix-derived) |
+| [`nix-rs-flakeref`](#nix-rs-flakeref) | 0.1.0 | unpublished | GPL-3.0-only (Snix-derived) |
 | [`nix-compat-derive`](#nix-compat-derive) | 0.1.0 | unpublished; the name belongs to another owner | GPL-3.0 (Snix) |
 | [`nix-rs-serde`](#nix-rs-serde) | 0.1.0 | unpublished | GPL-3.0 (Snix) |
 | [`nixrs-compat-tests`](#nixrs-compat-tests) | 0.1.0 | internal, `publish = false` | none declared |
 | [`nix-compat-derive-tests`](#nix-compat-derive-tests) | 0.1.0 | internal | GPL-3.0 (Snix) |
 
 The imported crates come from [Snix](https://git.snix.dev/snix/snix) revision `22ca63bdb71c221001526304eca934385fb47c26` (2026-09-24), copied on 2026-09-25. Import-time changes common to all of them: formatting with the root `rustfmt.toml` (hard tabs, width 4), tab-indented TOML, removal of Snix's per-crate `default.nix` build files, and renaming of package names, Rust imports, test paths and project-facing diagnostics from their Snix identifiers.
+
+## nix-rs-hash
+
+### Unreleased
+
+- Extracted Nix hash values, digest helpers, Nix base32 encoding, and their tests from `nix-compat`. `nix-compat` reexports the previous paths.
+
+## nix-rs-flakeref
+
+### Unreleased
+
+- Extracted flake reference parsing, formatting, and their tests from `nix-compat`. The `flakeref` feature still exposes `nix_compat::flakeref`.
 
 ## nix-rs-cli
 
@@ -39,6 +53,12 @@ Published to crates.io; `cargo install nix-rs-cli` installs the `nixrs` binary.
 ## nix-rs-eval
 
 Nix language parser, compiler and bytecode VM with the pure builtins, imported from `snix-eval`.
+
+### Unreleased
+
+#### Fixed
+
+- Integer operators and arithmetic builtins return evaluation errors for overflow in debug and release builds instead of panicking or wrapping. Negating the minimum integer follows checked `0 - value`, and builtin division now rejects integer and float zero with the reference's divisor-first behavior. Full reference diagnostic rendering remains open.
 
 ### 0.1.0 - 2026-09-29
 
@@ -81,6 +101,8 @@ Nix formats and protocols: store paths, nixbase32, hashes, NAR, ATerm derivation
 
 #### Changed
 
+- Moved Nix hash and Nix base32 implementation into `nix-rs-hash`, retaining `nix_compat::nixhash`, `nix_compat::nixbase32`, and `format_sha256!` as reexports (2026-09-30).
+- Moved flake reference parsing and formatting into `nix-rs-flakeref`, retaining `nix_compat::flakeref` behind the existing feature (2026-09-30).
 - Derivation ATerm parsing follows CppNix 2.35.2 instead of the 2.36.0 development rules. The five collections may appear in any order; a repeated output keeps the first entry, a repeated input derivation or environment key keeps the last, and repeated output names and input sources collapse. Input derivations may list no outputs. Every string field decodes escapes as 2.35.2 does, including store paths, output names and the platform, and raw newlines, carriage returns and tabs are accepted. Parsed derivations skip the builder's field validation. The `Unsorted`, `DuplicateMapKey`, `DuplicateInputSource`, `DuplicateInputDerivationOutputName` and `InputDerivationWithoutOutputs` parse errors are removed (2026-09-29).
 - Input-addressed hashing lets the later of two input derivations with the same hash replace the earlier one's output names, as 2.35.2 does, instead of merging them (2026-09-29).
 - The derivation platform, builder, arguments, environment keys and output names are byte strings. ATerm parsing and writing keep non-UTF-8 bytes and output names that a new derivation could not use, as 2.35.2 does; JSON serialisation returns an error for fields that are not UTF-8 (2026-09-29).
@@ -88,6 +110,7 @@ Nix formats and protocols: store paths, nixbase32, hashes, NAR, ATerm derivation
 
 #### Added
 
+- `cppnix_serve`, with serve 2.x value codecs, versioned build options, and client/server handshakes. Copied fixtures check exact bytes and decoded values, including the deliberately lossy 2.6 build result; real serve commands remain unimplemented.
 - `cppnix_json`, with CppNix 2.35.2's JSON encodings of store paths, SRI hashes, content addresses, output specifications, and deriving paths. Nested deriving paths and `git` content addresses return `Error::Unsupported` with the experimental feature they need (2026-09-30).
 - `cppnix_json::{PathInfo, NarInfo, Signature, PathInfoFormat}`: CppNix's `UnkeyedValidPathInfo` and `UnkeyedNarInfo` JSON in format versions 1, 2 and 3, including the version-1 fallbacks for a missing `version` and `storeDir` (2026-09-30).
 - `cppnix_json::{DrvOutput, Realisation, UnkeyedRealisation, BuildResult}`: CppNix's realisation and build-result JSON, realisation fingerprints, and signing and verification with Nix signing keys (2026-09-30).
