@@ -47,6 +47,36 @@ fn blake3_json_matches_cppnix_fixture() {
 }
 
 #[test]
+fn sha256_json_matches_cppnix_fixture() {
+	let name = "sha256.json";
+	let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+		.join("../../tests/nix/src/libutil-tests/data/hash")
+		.join(name);
+	let fixture = fs::read_to_string(path).expect("CppNix hash fixture must exist");
+	let expected = HashAlgo::Sha256.digest_bytes("asdf");
+	let decoded: NixHash = serde_json::from_str(&fixture).expect("parse CppNix hash JSON");
+	assert_eq!(decoded, expected);
+	assert_eq!(serde_json::to_string(&expected).unwrap(), fixture.trim());
+}
+
+#[test]
+fn mislabeled_sha512_fixture_matches_cppnix_test_value() {
+	// CppNix 2.35.2's HashJSON test constructs SHA256 for its "sha512" row.
+	// The copied fixture therefore has a SHA256 SRI, despite its filename.
+	let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+		.join("../../tests/nix/src/libutil-tests/data/hash/sha512.json");
+	let fixture = fs::read_to_string(path).expect("CppNix hash fixture must exist");
+	let cppnix_value = HashAlgo::Sha256.digest_bytes("asdf");
+	let decoded: NixHash = serde_json::from_str(&fixture).expect("parse CppNix hash JSON");
+	assert_eq!(decoded, cppnix_value);
+	assert_eq!(
+		serde_json::to_string(&cppnix_value).unwrap(),
+		fixture.trim()
+	);
+	assert_ne!(decoded, HashAlgo::Sha512.digest_bytes("asdf"));
+}
+
+#[test]
 fn different_algorithms_with_the_same_digest_stay_distinct() {
 	let digest = [0; 32];
 	let hashes = BTreeSet::from([NixHash::Sha256(digest), NixHash::Blake3(digest)]);

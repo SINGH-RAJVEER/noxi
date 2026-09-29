@@ -1,6 +1,6 @@
 use crate::nixbase32;
 use bstr::ByteSlice;
-use data_encoding::{BASE64, BASE64_NOPAD, HEXLOWER};
+use data_encoding::{BASE64, BASE64_NOPAD, HEXLOWER, HEXLOWER_PERMISSIVE};
 use std::cmp::Ordering;
 use std::fmt::Display;
 use thiserror;
@@ -311,7 +311,7 @@ fn decode_digest(s: &[u8], algo: HashAlgo) -> Result<NixHash, Error> {
 	// for the chosen hash algo, calculate the expected (decoded) digest length
 	// (as bytes)
 	let digest = if s.len() == HEXLOWER.encode_len(algo.digest_length()) {
-		HEXLOWER
+		HEXLOWER_PERMISSIVE
 			.decode(s.as_ref())
 			.map_err(Error::InvalidBase16Encoding)?
 	} else if s.len() == nixbase32::encode_len(algo.digest_length()) {
