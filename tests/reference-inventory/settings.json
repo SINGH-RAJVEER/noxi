@@ -1,0 +1,867 @@
+{
+  "abort-on-warn": {
+    "aliases": [],
+    "defaultValue": false,
+    "documentedDefault": true,
+    "experimentalFeature": null
+  },
+  "accept-flake-config": {
+    "aliases": [],
+    "defaultValue": false,
+    "documentedDefault": true,
+    "experimentalFeature": "flakes"
+  },
+  "access-tokens": {
+    "aliases": [],
+    "defaultValue": {},
+    "documentedDefault": true,
+    "experimentalFeature": null
+  },
+  "allow-dirty": {
+    "aliases": [],
+    "defaultValue": true,
+    "documentedDefault": true,
+    "experimentalFeature": null
+  },
+  "allow-dirty-locks": {
+    "aliases": [],
+    "defaultValue": false,
+    "documentedDefault": true,
+    "experimentalFeature": "flakes"
+  },
+  "allow-import-from-derivation": {
+    "aliases": [],
+    "defaultValue": true,
+    "documentedDefault": true,
+    "experimentalFeature": null
+  },
+  "allow-new-privileges": {
+    "aliases": [],
+    "defaultValue": false,
+    "documentedDefault": true,
+    "experimentalFeature": null
+  },
+  "allow-symlinked-store": {
+    "aliases": [],
+    "defaultValue": false,
+    "documentedDefault": true,
+    "experimentalFeature": null
+  },
+  "allow-unsafe-native-code-during-evaluation": {
+    "aliases": [],
+    "defaultValue": false,
+    "documentedDefault": true,
+    "experimentalFeature": null
+  },
+  "allowed-impure-host-deps": {
+    "aliases": [],
+    "defaultValue": [],
+    "documentedDefault": true,
+    "experimentalFeature": null
+  },
+  "allowed-uris": {
+    "aliases": [],
+    "defaultValue": [],
+    "documentedDefault": true,
+    "experimentalFeature": null
+  },
+  "allowed-users": {
+    "aliases": [],
+    "defaultValue": [
+      "*"
+    ],
+    "documentedDefault": true,
+    "experimentalFeature": null
+  },
+  "always-allow-substitutes": {
+    "aliases": [],
+    "defaultValue": false,
+    "documentedDefault": true,
+    "experimentalFeature": null
+  },
+  "auto-allocate-uids": {
+    "aliases": [],
+    "defaultValue": false,
+    "documentedDefault": true,
+    "experimentalFeature": "auto-allocate-uids"
+  },
+  "auto-optimise-store": {
+    "aliases": [],
+    "defaultValue": false,
+    "documentedDefault": true,
+    "experimentalFeature": null
+  },
+  "bash-prompt": {
+    "aliases": [],
+    "defaultValue": "",
+    "documentedDefault": true,
+    "experimentalFeature": null
+  },
+  "bash-prompt-prefix": {
+    "aliases": [],
+    "defaultValue": "",
+    "documentedDefault": true,
+    "experimentalFeature": null
+  },
+  "bash-prompt-suffix": {
+    "aliases": [],
+    "defaultValue": "",
+    "documentedDefault": true,
+    "experimentalFeature": null
+  },
+  "build-dir": {
+    "aliases": [],
+    "defaultValue": null,
+    "documentedDefault": true,
+    "experimentalFeature": null
+  },
+  "build-hook": {
+    "aliases": [],
+    "defaultValue": [
+      "nix",
+      "__build-remote"
+    ],
+    "documentedDefault": true,
+    "experimentalFeature": null
+  },
+  "build-poll-interval": {
+    "aliases": [],
+    "defaultValue": 5,
+    "documentedDefault": true,
+    "experimentalFeature": null
+  },
+  "build-users-group": {
+    "aliases": [],
+    "defaultValue": null,
+    "documentedDefault": false,
+    "experimentalFeature": null
+  },
+  "builders": {
+    "aliases": [],
+    "defaultValue": null,
+    "documentedDefault": false,
+    "experimentalFeature": null
+  },
+  "builders-use-substitutes": {
+    "aliases": [],
+    "defaultValue": false,
+    "documentedDefault": true,
+    "experimentalFeature": null
+  },
+  "commit-lock-file-summary": {
+    "aliases": [
+      "commit-lockfile-summary"
+    ],
+    "defaultValue": "",
+    "documentedDefault": true,
+    "experimentalFeature": "flakes"
+  },
+  "compress-build-log": {
+    "aliases": [
+      "build-compress-log"
+    ],
+    "defaultValue": true,
+    "documentedDefault": true,
+    "experimentalFeature": null
+  },
+  "connect-timeout": {
+    "aliases": [],
+    "defaultValue": 15,
+    "documentedDefault": true,
+    "experimentalFeature": null
+  },
+  "cores": {
+    "aliases": [
+      "build-cores"
+    ],
+    "defaultValue": 0,
+    "documentedDefault": true,
+    "experimentalFeature": null
+  },
+  "debugger-on-trace": {
+    "aliases": [],
+    "defaultValue": false,
+    "documentedDefault": true,
+    "experimentalFeature": null
+  },
+  "debugger-on-warn": {
+    "aliases": [],
+    "defaultValue": false,
+    "documentedDefault": true,
+    "experimentalFeature": null
+  },
+  "diff-hook": {
+    "aliases": [],
+    "defaultValue": null,
+    "documentedDefault": true,
+    "experimentalFeature": null
+  },
+  "download-buffer-size": {
+    "aliases": [],
+    "defaultValue": 1048576,
+    "documentedDefault": true,
+    "experimentalFeature": null
+  },
+  "download-speed": {
+    "aliases": [],
+    "defaultValue": 0,
+    "documentedDefault": true,
+    "experimentalFeature": null
+  },
+  "eval-attrset-update-layer-rhs-threshold": {
+    "aliases": [],
+    "defaultValue": 16,
+    "documentedDefault": true,
+    "experimentalFeature": null
+  },
+  "eval-cache": {
+    "aliases": [],
+    "defaultValue": true,
+    "documentedDefault": true,
+    "experimentalFeature": null
+  },
+  "eval-profile-file": {
+    "aliases": [],
+    "defaultValue": "nix.profile",
+    "documentedDefault": true,
+    "experimentalFeature": null
+  },
+  "eval-profiler": {
+    "aliases": [],
+    "defaultValue": "disabled",
+    "documentedDefault": true,
+    "experimentalFeature": null
+  },
+  "eval-profiler-frequency": {
+    "aliases": [],
+    "defaultValue": 99,
+    "documentedDefault": true,
+    "experimentalFeature": null
+  },
+  "eval-system": {
+    "aliases": [],
+    "defaultValue": "",
+    "documentedDefault": true,
+    "experimentalFeature": null
+  },
+  "experimental-features": {
+    "aliases": [],
+    "defaultValue": [],
+    "documentedDefault": true,
+    "experimentalFeature": null
+  },
+  "external-builders": {
+    "aliases": [],
+    "defaultValue": [],
+    "documentedDefault": true,
+    "experimentalFeature": null
+  },
+  "extra-platforms": {
+    "aliases": [],
+    "defaultValue": null,
+    "documentedDefault": false,
+    "experimentalFeature": null
+  },
+  "fallback": {
+    "aliases": [
+      "build-fallback"
+    ],
+    "defaultValue": false,
+    "documentedDefault": true,
+    "experimentalFeature": null
+  },
+  "filetransfer-retry-attempts": {
+    "aliases": [
+      "download-attempts"
+    ],
+    "defaultValue": 5,
+    "documentedDefault": true,
+    "experimentalFeature": null
+  },
+  "filetransfer-retry-delay": {
+    "aliases": [],
+    "defaultValue": 100,
+    "documentedDefault": true,
+    "experimentalFeature": null
+  },
+  "filetransfer-retry-delay-rate-limited": {
+    "aliases": [],
+    "defaultValue": 5000,
+    "documentedDefault": true,
+    "experimentalFeature": null
+  },
+  "filetransfer-retry-jitter": {
+    "aliases": [],
+    "defaultValue": true,
+    "documentedDefault": true,
+    "experimentalFeature": null
+  },
+  "filetransfer-retry-max-delay": {
+    "aliases": [],
+    "defaultValue": 60000,
+    "documentedDefault": true,
+    "experimentalFeature": null
+  },
+  "filter-syscalls": {
+    "aliases": [],
+    "defaultValue": true,
+    "documentedDefault": true,
+    "experimentalFeature": null
+  },
+  "flake-registry": {
+    "aliases": [],
+    "defaultValue": "https://channels.nixos.org/flake-registry.json",
+    "documentedDefault": true,
+    "experimentalFeature": "flakes"
+  },
+  "fsync-metadata": {
+    "aliases": [],
+    "defaultValue": true,
+    "documentedDefault": true,
+    "experimentalFeature": null
+  },
+  "fsync-store-paths": {
+    "aliases": [],
+    "defaultValue": false,
+    "documentedDefault": true,
+    "experimentalFeature": null
+  },
+  "gc-reserved-space": {
+    "aliases": [],
+    "defaultValue": 8388608,
+    "documentedDefault": true,
+    "experimentalFeature": null
+  },
+  "hashed-mirrors": {
+    "aliases": [],
+    "defaultValue": [],
+    "documentedDefault": true,
+    "experimentalFeature": null
+  },
+  "http-connections": {
+    "aliases": [
+      "binary-caches-parallel-connections"
+    ],
+    "defaultValue": 25,
+    "documentedDefault": true,
+    "experimentalFeature": null
+  },
+  "http2": {
+    "aliases": [],
+    "defaultValue": true,
+    "documentedDefault": true,
+    "experimentalFeature": null
+  },
+  "http3": {
+    "aliases": [],
+    "defaultValue": false,
+    "documentedDefault": true,
+    "experimentalFeature": null
+  },
+  "id-count": {
+    "aliases": [],
+    "defaultValue": 8388608,
+    "documentedDefault": true,
+    "experimentalFeature": null
+  },
+  "ignore-try": {
+    "aliases": [],
+    "defaultValue": false,
+    "documentedDefault": true,
+    "experimentalFeature": null
+  },
+  "ignored-acls": {
+    "aliases": [],
+    "defaultValue": [
+      "security.csm",
+      "security.selinux",
+      "system.nfs4_acl"
+    ],
+    "documentedDefault": true,
+    "experimentalFeature": null
+  },
+  "impersonate-linux-26": {
+    "aliases": [
+      "build-impersonate-linux-26"
+    ],
+    "defaultValue": false,
+    "documentedDefault": true,
+    "experimentalFeature": null
+  },
+  "impure-env": {
+    "aliases": [],
+    "defaultValue": {},
+    "documentedDefault": true,
+    "experimentalFeature": "configurable-impure-env"
+  },
+  "json-log-path": {
+    "aliases": [],
+    "defaultValue": null,
+    "documentedDefault": true,
+    "experimentalFeature": null
+  },
+  "keep-build-log": {
+    "aliases": [
+      "build-keep-log"
+    ],
+    "defaultValue": true,
+    "documentedDefault": true,
+    "experimentalFeature": null
+  },
+  "keep-derivations": {
+    "aliases": [
+      "gc-keep-derivations"
+    ],
+    "defaultValue": true,
+    "documentedDefault": true,
+    "experimentalFeature": null
+  },
+  "keep-env-derivations": {
+    "aliases": [
+      "env-keep-derivations"
+    ],
+    "defaultValue": false,
+    "documentedDefault": true,
+    "experimentalFeature": null
+  },
+  "keep-failed": {
+    "aliases": [],
+    "defaultValue": false,
+    "documentedDefault": true,
+    "experimentalFeature": null
+  },
+  "keep-going": {
+    "aliases": [],
+    "defaultValue": false,
+    "documentedDefault": true,
+    "experimentalFeature": null
+  },
+  "keep-outputs": {
+    "aliases": [
+      "gc-keep-outputs"
+    ],
+    "defaultValue": false,
+    "documentedDefault": true,
+    "experimentalFeature": null
+  },
+  "lint-absolute-path-literals": {
+    "aliases": [],
+    "defaultValue": "ignore",
+    "documentedDefault": true,
+    "experimentalFeature": null
+  },
+  "lint-short-path-literals": {
+    "aliases": [],
+    "defaultValue": "ignore",
+    "documentedDefault": true,
+    "experimentalFeature": null
+  },
+  "lint-url-literals": {
+    "aliases": [],
+    "defaultValue": "ignore",
+    "documentedDefault": true,
+    "experimentalFeature": null
+  },
+  "log-lines": {
+    "aliases": [],
+    "defaultValue": 25,
+    "documentedDefault": true,
+    "experimentalFeature": null
+  },
+  "max-build-log-size": {
+    "aliases": [
+      "build-max-log-size"
+    ],
+    "defaultValue": 0,
+    "documentedDefault": true,
+    "experimentalFeature": null
+  },
+  "max-call-depth": {
+    "aliases": [],
+    "defaultValue": 10000,
+    "documentedDefault": true,
+    "experimentalFeature": null
+  },
+  "max-free": {
+    "aliases": [],
+    "defaultValue": 9223372036854775807,
+    "documentedDefault": true,
+    "experimentalFeature": null
+  },
+  "max-jobs": {
+    "aliases": [
+      "build-max-jobs"
+    ],
+    "defaultValue": 1,
+    "documentedDefault": true,
+    "experimentalFeature": null
+  },
+  "max-silent-time": {
+    "aliases": [
+      "build-max-silent-time"
+    ],
+    "defaultValue": 0,
+    "documentedDefault": true,
+    "experimentalFeature": null
+  },
+  "max-substitution-jobs": {
+    "aliases": [
+      "substitution-max-jobs"
+    ],
+    "defaultValue": 16,
+    "documentedDefault": true,
+    "experimentalFeature": null
+  },
+  "min-free": {
+    "aliases": [],
+    "defaultValue": 0,
+    "documentedDefault": true,
+    "experimentalFeature": null
+  },
+  "min-free-check-interval": {
+    "aliases": [],
+    "defaultValue": 5,
+    "documentedDefault": true,
+    "experimentalFeature": null
+  },
+  "nar-buffer-size": {
+    "aliases": [],
+    "defaultValue": 33554432,
+    "documentedDefault": true,
+    "experimentalFeature": null
+  },
+  "narinfo-cache-meta-ttl": {
+    "aliases": [],
+    "defaultValue": 604800,
+    "documentedDefault": true,
+    "experimentalFeature": null
+  },
+  "narinfo-cache-negative-ttl": {
+    "aliases": [],
+    "defaultValue": 3600,
+    "documentedDefault": true,
+    "experimentalFeature": null
+  },
+  "narinfo-cache-positive-ttl": {
+    "aliases": [],
+    "defaultValue": 2592000,
+    "documentedDefault": true,
+    "experimentalFeature": null
+  },
+  "netrc-file": {
+    "aliases": [],
+    "defaultValue": "$NIX_CONF_DIR/netrc",
+    "documentedDefault": true,
+    "experimentalFeature": null
+  },
+  "nix-path": {
+    "aliases": [],
+    "defaultValue": null,
+    "documentedDefault": false,
+    "experimentalFeature": null
+  },
+  "nix-shell-always-looks-for-shell-nix": {
+    "aliases": [],
+    "defaultValue": true,
+    "documentedDefault": true,
+    "experimentalFeature": null
+  },
+  "nix-shell-shebang-arguments-relative-to-script": {
+    "aliases": [],
+    "defaultValue": true,
+    "documentedDefault": true,
+    "experimentalFeature": null
+  },
+  "plugin-files": {
+    "aliases": [],
+    "defaultValue": [],
+    "documentedDefault": true,
+    "experimentalFeature": null
+  },
+  "post-build-hook": {
+    "aliases": [],
+    "defaultValue": "",
+    "documentedDefault": true,
+    "experimentalFeature": null
+  },
+  "pre-build-hook": {
+    "aliases": [],
+    "defaultValue": "",
+    "documentedDefault": true,
+    "experimentalFeature": null
+  },
+  "preallocate-contents": {
+    "aliases": [],
+    "defaultValue": false,
+    "documentedDefault": true,
+    "experimentalFeature": null
+  },
+  "print-missing": {
+    "aliases": [],
+    "defaultValue": true,
+    "documentedDefault": true,
+    "experimentalFeature": null
+  },
+  "pure-eval": {
+    "aliases": [],
+    "defaultValue": false,
+    "documentedDefault": true,
+    "experimentalFeature": null
+  },
+  "require-drop-supplementary-groups": {
+    "aliases": [],
+    "defaultValue": false,
+    "documentedDefault": true,
+    "experimentalFeature": null
+  },
+  "require-sigs": {
+    "aliases": [],
+    "defaultValue": true,
+    "documentedDefault": true,
+    "experimentalFeature": null
+  },
+  "restrict-eval": {
+    "aliases": [],
+    "defaultValue": false,
+    "documentedDefault": true,
+    "experimentalFeature": null
+  },
+  "run-diff-hook": {
+    "aliases": [],
+    "defaultValue": false,
+    "documentedDefault": true,
+    "experimentalFeature": null
+  },
+  "sandbox": {
+    "aliases": [
+      "build-use-chroot",
+      "build-use-sandbox"
+    ],
+    "defaultValue": true,
+    "documentedDefault": true,
+    "experimentalFeature": null
+  },
+  "sandbox-build-dir": {
+    "aliases": [],
+    "defaultValue": "/build",
+    "documentedDefault": true,
+    "experimentalFeature": null
+  },
+  "sandbox-dev-shm-size": {
+    "aliases": [],
+    "defaultValue": "50%",
+    "documentedDefault": true,
+    "experimentalFeature": null
+  },
+  "sandbox-fallback": {
+    "aliases": [],
+    "defaultValue": true,
+    "documentedDefault": true,
+    "experimentalFeature": null
+  },
+  "sandbox-paths": {
+    "aliases": [
+      "build-chroot-dirs",
+      "build-sandbox-paths"
+    ],
+    "defaultValue": {},
+    "documentedDefault": true,
+    "experimentalFeature": null
+  },
+  "secret-key-files": {
+    "aliases": [],
+    "defaultValue": [],
+    "documentedDefault": true,
+    "experimentalFeature": null
+  },
+  "show-trace": {
+    "aliases": [],
+    "defaultValue": false,
+    "documentedDefault": true,
+    "experimentalFeature": null
+  },
+  "ssl-cert-file": {
+    "aliases": [],
+    "defaultValue": null,
+    "documentedDefault": false,
+    "experimentalFeature": null
+  },
+  "stalled-download-timeout": {
+    "aliases": [],
+    "defaultValue": 300,
+    "documentedDefault": true,
+    "experimentalFeature": null
+  },
+  "start-id": {
+    "aliases": [],
+    "defaultValue": 872415232,
+    "documentedDefault": true,
+    "experimentalFeature": null
+  },
+  "store": {
+    "aliases": [],
+    "defaultValue": "auto",
+    "documentedDefault": true,
+    "experimentalFeature": null
+  },
+  "substitute": {
+    "aliases": [
+      "build-use-substitutes"
+    ],
+    "defaultValue": true,
+    "documentedDefault": true,
+    "experimentalFeature": null
+  },
+  "substituters": {
+    "aliases": [
+      "binary-caches"
+    ],
+    "defaultValue": [
+      "https://cache.nixos.org/"
+    ],
+    "documentedDefault": true,
+    "experimentalFeature": null
+  },
+  "sync-before-registering": {
+    "aliases": [],
+    "defaultValue": false,
+    "documentedDefault": true,
+    "experimentalFeature": null
+  },
+  "system": {
+    "aliases": [],
+    "defaultValue": "x86_64-linux",
+    "documentedDefault": true,
+    "experimentalFeature": null
+  },
+  "system-features": {
+    "aliases": [],
+    "defaultValue": null,
+    "documentedDefault": false,
+    "experimentalFeature": null
+  },
+  "tarball-ttl": {
+    "aliases": [],
+    "defaultValue": 3600,
+    "documentedDefault": true,
+    "experimentalFeature": null
+  },
+  "timeout": {
+    "aliases": [
+      "build-timeout"
+    ],
+    "defaultValue": 0,
+    "documentedDefault": true,
+    "experimentalFeature": null
+  },
+  "trace-function-calls": {
+    "aliases": [],
+    "defaultValue": false,
+    "documentedDefault": true,
+    "experimentalFeature": null
+  },
+  "trace-import-from-derivation": {
+    "aliases": [],
+    "defaultValue": false,
+    "documentedDefault": true,
+    "experimentalFeature": null
+  },
+  "trace-verbose": {
+    "aliases": [],
+    "defaultValue": false,
+    "documentedDefault": true,
+    "experimentalFeature": null
+  },
+  "trust-tarballs-from-git-forges": {
+    "aliases": [],
+    "defaultValue": true,
+    "documentedDefault": true,
+    "experimentalFeature": null
+  },
+  "trusted-public-keys": {
+    "aliases": [
+      "binary-cache-public-keys"
+    ],
+    "defaultValue": [
+      "cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY="
+    ],
+    "documentedDefault": true,
+    "experimentalFeature": null
+  },
+  "trusted-substituters": {
+    "aliases": [
+      "trusted-binary-caches"
+    ],
+    "defaultValue": [],
+    "documentedDefault": true,
+    "experimentalFeature": null
+  },
+  "trusted-users": {
+    "aliases": [],
+    "defaultValue": [
+      "root"
+    ],
+    "documentedDefault": true,
+    "experimentalFeature": null
+  },
+  "upgrade-nix-store-path-url": {
+    "aliases": [],
+    "defaultValue": "https://github.com/NixOS/nixpkgs/raw/master/nixos/modules/installer/tools/nix-fallback-paths.nix",
+    "documentedDefault": true,
+    "experimentalFeature": null
+  },
+  "use-case-hack": {
+    "aliases": [],
+    "defaultValue": false,
+    "documentedDefault": true,
+    "experimentalFeature": null
+  },
+  "use-cgroups": {
+    "aliases": [],
+    "defaultValue": false,
+    "documentedDefault": true,
+    "experimentalFeature": null
+  },
+  "use-registries": {
+    "aliases": [],
+    "defaultValue": true,
+    "documentedDefault": true,
+    "experimentalFeature": "flakes"
+  },
+  "use-sqlite-wal": {
+    "aliases": [],
+    "defaultValue": true,
+    "documentedDefault": true,
+    "experimentalFeature": null
+  },
+  "use-xdg-base-directories": {
+    "aliases": [],
+    "defaultValue": false,
+    "documentedDefault": true,
+    "experimentalFeature": null
+  },
+  "user-agent-suffix": {
+    "aliases": [],
+    "defaultValue": "",
+    "documentedDefault": true,
+    "experimentalFeature": null
+  },
+  "warn-dirty": {
+    "aliases": [],
+    "defaultValue": true,
+    "documentedDefault": true,
+    "experimentalFeature": null
+  },
+  "warn-large-path-threshold": {
+    "aliases": [],
+    "defaultValue": 0,
+    "documentedDefault": true,
+    "experimentalFeature": null
+  },
+  "warn-short-path-literals": {
+    "aliases": [],
+    "defaultValue": false,
+    "documentedDefault": true,
+    "experimentalFeature": null
+  }
+}

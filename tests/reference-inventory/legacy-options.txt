@@ -1,0 +1,206 @@
+# Read from nix-official at 2c73b59da29606068c0c98db015dd3a66955525d: doc/manual/source/command-ref
+nix-build --arg
+nix-build --argstr
+nix-build --attr
+nix-build --dry-run
+nix-build --no-out-link
+nix-build --out-link
+nix-build -A
+nix-build -o
+nix-channel --add
+nix-channel --list
+nix-channel --list-generations
+nix-channel --remove
+nix-channel --rollback
+nix-channel --update
+nix-collect-garbage --delete-old
+nix-collect-garbage --delete-older-than
+nix-collect-garbage --dry-run
+nix-collect-garbage --max-freed
+nix-collect-garbage -d
+nix-copy-closure --from
+nix-copy-closure --gzip
+nix-copy-closure --include-outputs
+nix-copy-closure --to
+nix-copy-closure --use-substitutes
+nix-copy-closure -s
+nix-copy-closure -v
+nix-env --arg
+nix-env --argstr
+nix-env --dry-run
+nix-env --file
+nix-env --option
+nix-env --profile
+nix-env --system-filter
+nix-env -f
+nix-env -p
+nix-hash --base32
+nix-hash --flat
+nix-hash --to-base16
+nix-hash --to-base32
+nix-hash --to-base64
+nix-hash --to-sri
+nix-hash --truncate
+nix-hash --type
+nix-instantiate --add-root
+nix-instantiate --arg
+nix-instantiate --attr
+nix-instantiate --eval
+nix-instantiate --expr
+nix-instantiate --find-file
+nix-instantiate --json
+nix-instantiate --parse
+nix-instantiate --raw
+nix-instantiate --read-write-mode
+nix-instantiate --strict
+nix-instantiate --xml
+nix-instantiate -A
+nix-instantiate -E
+nix-prefetch-url --name
+nix-prefetch-url --print-path
+nix-prefetch-url --type
+nix-prefetch-url --unpack
+nix-shell --arg
+nix-shell --argstr
+nix-shell --attr
+nix-shell --command
+nix-shell --exclude
+nix-shell --keep
+nix-shell --packages
+nix-shell --pure
+nix-shell --run
+nix-shell -A
+nix-shell -p
+nix-store --add-root
+nix-store --option
+nix-env --delete-generations --delete-generations
+nix-env --install --attr
+nix-env --install --from-expression
+nix-env --install --from-profile
+nix-env --install --install
+nix-env --install --prebuilt-only
+nix-env --install --preserve-installed
+nix-env --install --priority
+nix-env --install --remove-all
+nix-env --install -A
+nix-env --install -E
+nix-env --install -P
+nix-env --install -b
+nix-env --install -i
+nix-env --install -r
+nix-env --list-generations --list-generations
+nix-env --query --attr
+nix-env --query --attr-path
+nix-env --query --available
+nix-env --query --compare-versions
+nix-env --query --description
+nix-env --query --drv-path
+nix-env --query --installed
+nix-env --query --json
+nix-env --query --meta
+nix-env --query --no-name
+nix-env --query --out-path
+nix-env --query --prebuilt-only
+nix-env --query --query
+nix-env --query --status
+nix-env --query --system
+nix-env --query --xml
+nix-env --query -A
+nix-env --query -P
+nix-env --query -a
+nix-env --query -b
+nix-env --query -c
+nix-env --query -q
+nix-env --query -s
+nix-env --rollback --rollback
+nix-env --set-flag --set-flag
+nix-env --switch-generation --switch-generation
+nix-env --switch-generation -G
+nix-env --switch-profile --switch-profile
+nix-env --switch-profile -S
+nix-env --uninstall --uninstall
+nix-env --uninstall -e
+nix-env --upgrade --always
+nix-env --upgrade --attr
+nix-env --upgrade --eq
+nix-env --upgrade --from-expression
+nix-env --upgrade --from-profile
+nix-env --upgrade --leq
+nix-env --upgrade --lt
+nix-env --upgrade --prebuilt-only
+nix-env --upgrade --preserve-installed
+nix-env --upgrade --upgrade
+nix-env --upgrade -A
+nix-env --upgrade -E
+nix-env --upgrade -P
+nix-env --upgrade -b
+nix-env --upgrade -u
+nix-store --add --add
+nix-store --delete --delete
+nix-store --delete --ignore-liveness
+nix-store --dump-db --dump-db
+nix-store --gc --gc
+nix-store --gc --max-freed
+nix-store --gc --print-dead
+nix-store --gc --print-live
+nix-store --gc --print-roots
+nix-store --import --import
+nix-store --load-db --load-db
+nix-store --opt-common --add-root
+nix-store --query --binding
+nix-store --query --deriver
+nix-store --query --force-realise
+nix-store --query --graph
+nix-store --query --hash
+nix-store --query --outputs
+nix-store --query --query
+nix-store --query --references
+nix-store --query --referrers
+nix-store --query --referrers-closure
+nix-store --query --requisites
+nix-store --query --roots
+nix-store --query --size
+nix-store --query --tree
+nix-store --query --use-output
+nix-store --query --valid-derivers
+nix-store --query -R
+nix-store --query -b
+nix-store --query -d
+nix-store --query -f
+nix-store --query -q
+nix-store --query -u
+nix-store --read-log --read-log
+nix-store --read-log -l
+nix-store --realise --dry-run
+nix-store --realise --realise
+nix-store --realise -r
+nix-store --repair-path --repair-path
+nix-store --serve --serve
+nix-store --serve --write
+nix-store --verify --check-contents
+nix-store --verify --repair
+nix-store --verify --verify
+opt-common --arg
+opt-common --arg-from-file
+opt-common --arg-from-stdin
+opt-common --argstr
+opt-common --attr
+opt-common --cores
+opt-common --eval-store
+opt-common --expr
+opt-common --fallback
+opt-common --help
+opt-common --impure
+opt-common --keep-failed
+opt-common --keep-going
+opt-common --log-format
+opt-common --max-jobs
+opt-common --max-silent-time
+opt-common --no-build-output
+opt-common --option
+opt-common --quiet
+opt-common --readonly-mode
+opt-common --repair
+opt-common --timeout
+opt-common --verbose
+opt-common --version

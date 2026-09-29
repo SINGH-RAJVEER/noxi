@@ -1,0 +1,28 @@
+# Files installed by the reference package, relative to its output.
+# nix (Nix) 2.35.2 at /nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2
+bin/nix
+bin/nix-build
+bin/nix-channel
+bin/nix-collect-garbage
+bin/nix-copy-closure
+bin/nix-daemon
+bin/nix-env
+bin/nix-hash
+bin/nix-instantiate
+bin/nix-prefetch-url
+bin/nix-shell
+bin/nix-store
+etc/profile.d/nix-daemon.fish
+etc/profile.d/nix-daemon.sh
+etc/profile.d/nix.fish
+etc/profile.d/nix.sh
+lib/systemd/system/nix-daemon.service
+lib/systemd/system/nix-daemon.socket
+lib/tmpfiles.d/nix-daemon.conf
+libexec/nix-nswrapper
+libexec/nix/build-remote
+# Shell completions
+share/bash-completion/completions/nix
+share/fish/vendor_completions.d/nix.fish
+share/zsh/site-functions/_nix
+share/zsh/site-functions/run-help-nix

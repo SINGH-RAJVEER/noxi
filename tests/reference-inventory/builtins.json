@@ -1,0 +1,728 @@
+{
+  "abort": {
+    "args": [
+      "s"
+    ],
+    "experimentalFeature": null
+  },
+  "add": {
+    "args": [
+      "e1",
+      "e2"
+    ],
+    "experimentalFeature": null
+  },
+  "addDrvOutputDependencies": {
+    "args": [
+      "s"
+    ],
+    "experimentalFeature": null
+  },
+  "addErrorContext": {
+    "args": [
+      "context",
+      "value"
+    ],
+    "experimentalFeature": null
+  },
+  "all": {
+    "args": [
+      "pred",
+      "list"
+    ],
+    "experimentalFeature": null
+  },
+  "any": {
+    "args": [
+      "pred",
+      "list"
+    ],
+    "experimentalFeature": null
+  },
+  "attrNames": {
+    "args": [
+      "set"
+    ],
+    "experimentalFeature": null
+  },
+  "attrValues": {
+    "args": [
+      "set"
+    ],
+    "experimentalFeature": null
+  },
+  "baseNameOf": {
+    "args": [
+      "x"
+    ],
+    "experimentalFeature": null
+  },
+  "bitAnd": {
+    "args": [
+      "e1",
+      "e2"
+    ],
+    "experimentalFeature": null
+  },
+  "bitOr": {
+    "args": [
+      "e1",
+      "e2"
+    ],
+    "experimentalFeature": null
+  },
+  "bitXor": {
+    "args": [
+      "e1",
+      "e2"
+    ],
+    "experimentalFeature": null
+  },
+  "break": {
+    "args": [
+      "v"
+    ],
+    "experimentalFeature": null
+  },
+  "builtins": {
+    "args": null,
+    "experimentalFeature": null
+  },
+  "catAttrs": {
+    "args": [
+      "attr",
+      "list"
+    ],
+    "experimentalFeature": null
+  },
+  "ceil": {
+    "args": [
+      "number"
+    ],
+    "experimentalFeature": null
+  },
+  "compareVersions": {
+    "args": [
+      "s1",
+      "s2"
+    ],
+    "experimentalFeature": null
+  },
+  "concatLists": {
+    "args": [
+      "lists"
+    ],
+    "experimentalFeature": null
+  },
+  "concatMap": {
+    "args": [
+      "f",
+      "list"
+    ],
+    "experimentalFeature": null
+  },
+  "concatStringsSep": {
+    "args": [
+      "separator",
+      "list"
+    ],
+    "experimentalFeature": null
+  },
+  "convertHash": {
+    "args": [
+      "args"
+    ],
+    "experimentalFeature": null
+  },
+  "currentSystem": {
+    "args": null,
+    "experimentalFeature": null
+  },
+  "currentTime": {
+    "args": null,
+    "experimentalFeature": null
+  },
+  "deepSeq": {
+    "args": [
+      "e1",
+      "e2"
+    ],
+    "experimentalFeature": null
+  },
+  "dirOf": {
+    "args": [
+      "s"
+    ],
+    "experimentalFeature": null
+  },
+  "div": {
+    "args": [
+      "e1",
+      "e2"
+    ],
+    "experimentalFeature": null
+  },
+  "elem": {
+    "args": [
+      "x",
+      "xs"
+    ],
+    "experimentalFeature": null
+  },
+  "elemAt": {
+    "args": [
+      "xs",
+      "n"
+    ],
+    "experimentalFeature": null
+  },
+  "false": {
+    "args": null,
+    "experimentalFeature": null
+  },
+  "fetchClosure": {
+    "args": [
+      "args"
+    ],
+    "experimentalFeature": "fetch-closure"
+  },
+  "fetchGit": {
+    "args": [
+      "args"
+    ],
+    "experimentalFeature": null
+  },
+  "fetchTarball": {
+    "args": [
+      "args"
+    ],
+    "experimentalFeature": null
+  },
+  "fetchTree": {
+    "args": [
+      "input"
+    ],
+    "experimentalFeature": "fetch-tree"
+  },
+  "fetchurl": {
+    "args": [
+      "arg"
+    ],
+    "experimentalFeature": null
+  },
+  "filter": {
+    "args": [
+      "f",
+      "list"
+    ],
+    "experimentalFeature": null
+  },
+  "filterSource": {
+    "args": [
+      "e1",
+      "e2"
+    ],
+    "experimentalFeature": null
+  },
+  "findFile": {
+    "args": [
+      "search-path",
+      "lookup-path"
+    ],
+    "experimentalFeature": null
+  },
+  "flakeRefToString": {
+    "args": [
+      "attrs"
+    ],
+    "experimentalFeature": "flakes"
+  },
+  "floor": {
+    "args": [
+      "number"
+    ],
+    "experimentalFeature": null
+  },
+  "foldl'": {
+    "args": [
+      "op",
+      "nul",
+      "list"
+    ],
+    "experimentalFeature": null
+  },
+  "fromJSON": {
+    "args": [
+      "e"
+    ],
+    "experimentalFeature": null
+  },
+  "fromTOML": {
+    "args": [
+      "e"
+    ],
+    "experimentalFeature": null
+  },
+  "functionArgs": {
+    "args": [
+      "f"
+    ],
+    "experimentalFeature": null
+  },
+  "genList": {
+    "args": [
+      "generator",
+      "length"
+    ],
+    "experimentalFeature": null
+  },
+  "genericClosure": {
+    "args": [
+      "attrset"
+    ],
+    "experimentalFeature": null
+  },
+  "getAttr": {
+    "args": [
+      "s",
+      "set"
+    ],
+    "experimentalFeature": null
+  },
+  "getContext": {
+    "args": [
+      "s"
+    ],
+    "experimentalFeature": null
+  },
+  "getEnv": {
+    "args": [
+      "s"
+    ],
+    "experimentalFeature": null
+  },
+  "getFlake": {
+    "args": [
+      "args"
+    ],
+    "experimentalFeature": "flakes"
+  },
+  "groupBy": {
+    "args": [
+      "f",
+      "list"
+    ],
+    "experimentalFeature": null
+  },
+  "hasAttr": {
+    "args": [
+      "s",
+      "set"
+    ],
+    "experimentalFeature": null
+  },
+  "hasContext": {
+    "args": [
+      "s"
+    ],
+    "experimentalFeature": null
+  },
+  "hashFile": {
+    "args": [
+      "type",
+      "p"
+    ],
+    "experimentalFeature": null
+  },
+  "hashString": {
+    "args": [
+      "type",
+      "s"
+    ],
+    "experimentalFeature": null
+  },
+  "head": {
+    "args": [
+      "list"
+    ],
+    "experimentalFeature": null
+  },
+  "import": {
+    "args": [
+      "path"
+    ],
+    "experimentalFeature": null
+  },
+  "intersectAttrs": {
+    "args": [
+      "e1",
+      "e2"
+    ],
+    "experimentalFeature": null
+  },
+  "isAttrs": {
+    "args": [
+      "e"
+    ],
+    "experimentalFeature": null
+  },
+  "isBool": {
+    "args": [
+      "e"
+    ],
+    "experimentalFeature": null
+  },
+  "isFloat": {
+    "args": [
+      "e"
+    ],
+    "experimentalFeature": null
+  },
+  "isFunction": {
+    "args": [
+      "e"
+    ],
+    "experimentalFeature": null
+  },
+  "isInt": {
+    "args": [
+      "e"
+    ],
+    "experimentalFeature": null
+  },
+  "isList": {
+    "args": [
+      "e"
+    ],
+    "experimentalFeature": null
+  },
+  "isNull": {
+    "args": [
+      "e"
+    ],
+    "experimentalFeature": null
+  },
+  "isPath": {
+    "args": [
+      "e"
+    ],
+    "experimentalFeature": null
+  },
+  "isString": {
+    "args": [
+      "e"
+    ],
+    "experimentalFeature": null
+  },
+  "langVersion": {
+    "args": null,
+    "experimentalFeature": null
+  },
+  "length": {
+    "args": [
+      "e"
+    ],
+    "experimentalFeature": null
+  },
+  "lessThan": {
+    "args": [
+      "e1",
+      "e2"
+    ],
+    "experimentalFeature": null
+  },
+  "listToAttrs": {
+    "args": [
+      "e"
+    ],
+    "experimentalFeature": null
+  },
+  "map": {
+    "args": [
+      "f",
+      "list"
+    ],
+    "experimentalFeature": null
+  },
+  "mapAttrs": {
+    "args": [
+      "f",
+      "attrset"
+    ],
+    "experimentalFeature": null
+  },
+  "match": {
+    "args": [
+      "regex",
+      "str"
+    ],
+    "experimentalFeature": null
+  },
+  "mul": {
+    "args": [
+      "e1",
+      "e2"
+    ],
+    "experimentalFeature": null
+  },
+  "nixPath": {
+    "args": null,
+    "experimentalFeature": null
+  },
+  "nixVersion": {
+    "args": null,
+    "experimentalFeature": null
+  },
+  "null": {
+    "args": null,
+    "experimentalFeature": null
+  },
+  "outputOf": {
+    "args": [
+      "derivation-reference",
+      "output-name"
+    ],
+    "experimentalFeature": "dynamic-derivations"
+  },
+  "parseDrvName": {
+    "args": [
+      "s"
+    ],
+    "experimentalFeature": null
+  },
+  "parseFlakeRef": {
+    "args": [
+      "flake-ref"
+    ],
+    "experimentalFeature": "flakes"
+  },
+  "partition": {
+    "args": [
+      "pred",
+      "list"
+    ],
+    "experimentalFeature": null
+  },
+  "path": {
+    "args": [
+      "args"
+    ],
+    "experimentalFeature": null
+  },
+  "pathExists": {
+    "args": [
+      "path"
+    ],
+    "experimentalFeature": null
+  },
+  "placeholder": {
+    "args": [
+      "output"
+    ],
+    "experimentalFeature": null
+  },
+  "readDir": {
+    "args": [
+      "path"
+    ],
+    "experimentalFeature": null
+  },
+  "readFile": {
+    "args": [
+      "path"
+    ],
+    "experimentalFeature": null
+  },
+  "readFileType": {
+    "args": [
+      "p"
+    ],
+    "experimentalFeature": null
+  },
+  "removeAttrs": {
+    "args": [
+      "set",
+      "list"
+    ],
+    "experimentalFeature": null
+  },
+  "replaceStrings": {
+    "args": [
+      "from",
+      "to",
+      "s"
+    ],
+    "experimentalFeature": null
+  },
+  "scopedImport": {
+    "args": [
+      "scope",
+      "path"
+    ],
+    "experimentalFeature": null
+  },
+  "seq": {
+    "args": [
+      "e1",
+      "e2"
+    ],
+    "experimentalFeature": null
+  },
+  "sort": {
+    "args": [
+      "comparator",
+      "list"
+    ],
+    "experimentalFeature": null
+  },
+  "split": {
+    "args": [
+      "regex",
+      "str"
+    ],
+    "experimentalFeature": null
+  },
+  "splitVersion": {
+    "args": [
+      "s"
+    ],
+    "experimentalFeature": null
+  },
+  "storeDir": {
+    "args": null,
+    "experimentalFeature": null
+  },
+  "storePath": {
+    "args": [
+      "path"
+    ],
+    "experimentalFeature": null
+  },
+  "stringLength": {
+    "args": [
+      "e"
+    ],
+    "experimentalFeature": null
+  },
+  "sub": {
+    "args": [
+      "e1",
+      "e2"
+    ],
+    "experimentalFeature": null
+  },
+  "substring": {
+    "args": [
+      "start",
+      "len",
+      "s"
+    ],
+    "experimentalFeature": null
+  },
+  "tail": {
+    "args": [
+      "list"
+    ],
+    "experimentalFeature": null
+  },
+  "throw": {
+    "args": [
+      "s"
+    ],
+    "experimentalFeature": null
+  },
+  "toFile": {
+    "args": [
+      "name",
+      "s"
+    ],
+    "experimentalFeature": null
+  },
+  "toJSON": {
+    "args": [
+      "e"
+    ],
+    "experimentalFeature": null
+  },
+  "toPath": {
+    "args": [
+      "s"
+    ],
+    "experimentalFeature": null
+  },
+  "toString": {
+    "args": [
+      "e"
+    ],
+    "experimentalFeature": null
+  },
+  "toXML": {
+    "args": [
+      "e"
+    ],
+    "experimentalFeature": null
+  },
+  "trace": {
+    "args": [
+      "e1",
+      "e2"
+    ],
+    "experimentalFeature": null
+  },
+  "traceVerbose": {
+    "args": [
+      "e1",
+      "e2"
+    ],
+    "experimentalFeature": null
+  },
+  "true": {
+    "args": null,
+    "experimentalFeature": null
+  },
+  "tryEval": {
+    "args": [
+      "e"
+    ],
+    "experimentalFeature": null
+  },
+  "typeOf": {
+    "args": [
+      "e"
+    ],
+    "experimentalFeature": null
+  },
+  "unsafeDiscardOutputDependency": {
+    "args": [
+      "s"
+    ],
+    "experimentalFeature": null
+  },
+  "unsafeDiscardStringContext": {
+    "args": [
+      "s"
+    ],
+    "experimentalFeature": null
+  },
+  "unsafeGetAttrPos": {
+    "args": [
+      "s",
+      "set"
+    ],
+    "experimentalFeature": null
+  },
+  "warn": {
+    "args": [
+      "e1",
+      "e2"
+    ],
+    "experimentalFeature": null
+  },
+  "zipAttrsWith": {
+    "args": [
+      "f",
+      "list"
+    ],
+    "experimentalFeature": null
+  }
+}

@@ -1,0 +1,7544 @@
+{
+  "commands": {
+    "nix build": {
+      "experimentalFeature": "nix-command",
+      "flags": {
+        "arg": {
+          "arity": 2,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "arg-from-file": {
+          "arity": 2,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "arg-from-stdin": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "argstr": {
+          "arity": 2,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "commit-lock-file": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "debugger": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "dry-run": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "eval-store": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "expr": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "file": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": "f"
+        },
+        "impure": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "include": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": "I"
+        },
+        "inputs-from": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "json": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "no-link": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "no-pretty": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "no-registries": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "no-update-lock-file": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "no-write-lock-file": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "out-link": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": "o"
+        },
+        "output-lock-file": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "override-flake": {
+          "arity": 2,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "override-input": {
+          "arity": 2,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "pretty": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "print-out-paths": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "profile": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "rebuild": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "recreate-lock-file": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "reference-lock-file": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "repair": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "stdin": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "update-input": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        }
+      }
+    },
+    "nix bundle": {
+      "experimentalFeature": "nix-command",
+      "flags": {
+        "arg": {
+          "arity": 2,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "arg-from-file": {
+          "arity": 2,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "arg-from-stdin": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "argstr": {
+          "arity": 2,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "bundler": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": "B"
+        },
+        "commit-lock-file": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "debugger": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "eval-store": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "expr": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "file": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": "f"
+        },
+        "impure": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "include": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": "I"
+        },
+        "inputs-from": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "no-registries": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "no-update-lock-file": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "no-write-lock-file": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "out-link": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": "o"
+        },
+        "output-lock-file": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "override-flake": {
+          "arity": 2,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "override-input": {
+          "arity": 2,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "recreate-lock-file": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "reference-lock-file": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "repair": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "update-input": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        }
+      }
+    },
+    "nix config": {
+      "experimentalFeature": "nix-command",
+      "flags": {}
+    },
+    "nix config check": {
+      "experimentalFeature": null,
+      "flags": {}
+    },
+    "nix config show": {
+      "experimentalFeature": "nix-command",
+      "flags": {
+        "json": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "no-pretty": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "pretty": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        }
+      }
+    },
+    "nix copy": {
+      "experimentalFeature": "nix-command",
+      "flags": {
+        "all": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "arg": {
+          "arity": 2,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "arg-from-file": {
+          "arity": 2,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "arg-from-stdin": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "argstr": {
+          "arity": 2,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "commit-lock-file": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "debugger": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "derivation": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "eval-store": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "expr": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "file": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": "f"
+        },
+        "from": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "impure": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "include": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": "I"
+        },
+        "inputs-from": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "no-check-sigs": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "no-recursive": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "no-registries": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "no-update-lock-file": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "no-write-lock-file": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "out-link": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": "o"
+        },
+        "output-lock-file": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "override-flake": {
+          "arity": 2,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "override-input": {
+          "arity": 2,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "profile": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "recreate-lock-file": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "reference-lock-file": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "repair": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "stdin": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "substitute-on-destination": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": "s"
+        },
+        "to": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "update-input": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        }
+      }
+    },
+    "nix daemon": {
+      "experimentalFeature": "nix-command",
+      "flags": {
+        "default-trust": {
+          "arity": 0,
+          "experimentalFeature": "daemon-trust-override",
+          "shortName": null
+        },
+        "force-trusted": {
+          "arity": 0,
+          "experimentalFeature": "daemon-trust-override",
+          "shortName": null
+        },
+        "force-untrusted": {
+          "arity": 0,
+          "experimentalFeature": "daemon-trust-override",
+          "shortName": null
+        },
+        "process-ops": {
+          "arity": 0,
+          "experimentalFeature": "mounted-ssh-store",
+          "shortName": null
+        },
+        "socket-path": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "stdio": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        }
+      }
+    },
+    "nix derivation": {
+      "experimentalFeature": "nix-command",
+      "flags": {}
+    },
+    "nix derivation add": {
+      "experimentalFeature": "nix-command",
+      "flags": {
+        "dry-run": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        }
+      }
+    },
+    "nix derivation show": {
+      "experimentalFeature": "nix-command",
+      "flags": {
+        "arg": {
+          "arity": 2,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "arg-from-file": {
+          "arity": 2,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "arg-from-stdin": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "argstr": {
+          "arity": 2,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "commit-lock-file": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "debugger": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "eval-store": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "expr": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "file": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": "f"
+        },
+        "impure": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "include": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": "I"
+        },
+        "inputs-from": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "no-pretty": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "no-registries": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "no-update-lock-file": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "no-write-lock-file": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "output-lock-file": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "override-flake": {
+          "arity": 2,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "override-input": {
+          "arity": 2,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "pretty": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "recreate-lock-file": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "recursive": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": "r"
+        },
+        "reference-lock-file": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "repair": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "stdin": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "update-input": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        }
+      }
+    },
+    "nix develop": {
+      "experimentalFeature": "nix-command",
+      "flags": {
+        "arg": {
+          "arity": 2,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "arg-from-file": {
+          "arity": 2,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "arg-from-stdin": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "argstr": {
+          "arity": 2,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "build": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "check": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "command": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": "c"
+        },
+        "commit-lock-file": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "configure": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "debugger": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "eval-store": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "expr": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "file": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": "f"
+        },
+        "ignore-env": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": "i"
+        },
+        "impure": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "include": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": "I"
+        },
+        "inputs-from": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "install": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "installcheck": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "keep-env-var": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": "k"
+        },
+        "no-registries": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "no-update-lock-file": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "no-write-lock-file": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "output-lock-file": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "override-flake": {
+          "arity": 2,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "override-input": {
+          "arity": 2,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "phase": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "profile": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "recreate-lock-file": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "redirect": {
+          "arity": 2,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "reference-lock-file": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "repair": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "set-env-var": {
+          "arity": 2,
+          "experimentalFeature": null,
+          "shortName": "s"
+        },
+        "unpack": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "unset-env-var": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": "u"
+        },
+        "update-input": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        }
+      }
+    },
+    "nix edit": {
+      "experimentalFeature": "nix-command",
+      "flags": {
+        "arg": {
+          "arity": 2,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "arg-from-file": {
+          "arity": 2,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "arg-from-stdin": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "argstr": {
+          "arity": 2,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "commit-lock-file": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "debugger": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "eval-store": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "expr": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "file": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": "f"
+        },
+        "impure": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "include": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": "I"
+        },
+        "inputs-from": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "no-registries": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "no-update-lock-file": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "no-write-lock-file": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "output-lock-file": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "override-flake": {
+          "arity": 2,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "override-input": {
+          "arity": 2,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "recreate-lock-file": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "reference-lock-file": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "repair": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "update-input": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        }
+      }
+    },
+    "nix env": {
+      "experimentalFeature": "nix-command",
+      "flags": {}
+    },
+    "nix env shell": {
+      "experimentalFeature": "nix-command",
+      "flags": {
+        "arg": {
+          "arity": 2,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "arg-from-file": {
+          "arity": 2,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "arg-from-stdin": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "argstr": {
+          "arity": 2,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "command": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": "c"
+        },
+        "commit-lock-file": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "debugger": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "eval-store": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "expr": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "file": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": "f"
+        },
+        "ignore-env": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": "i"
+        },
+        "impure": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "include": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": "I"
+        },
+        "inputs-from": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "keep-env-var": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": "k"
+        },
+        "no-registries": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "no-update-lock-file": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "no-write-lock-file": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "output-lock-file": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "override-flake": {
+          "arity": 2,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "override-input": {
+          "arity": 2,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "recreate-lock-file": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "reference-lock-file": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "repair": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "set-env-var": {
+          "arity": 2,
+          "experimentalFeature": null,
+          "shortName": "s"
+        },
+        "stdin": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "unset-env-var": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": "u"
+        },
+        "update-input": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        }
+      }
+    },
+    "nix eval": {
+      "experimentalFeature": "nix-command",
+      "flags": {
+        "apply": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "arg": {
+          "arity": 2,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "arg-from-file": {
+          "arity": 2,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "arg-from-stdin": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "argstr": {
+          "arity": 2,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "commit-lock-file": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "debugger": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "eval-store": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "expr": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "file": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": "f"
+        },
+        "impure": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "include": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": "I"
+        },
+        "inputs-from": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "json": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "no-pretty": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "no-registries": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "no-update-lock-file": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "no-write-lock-file": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "output-lock-file": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "override-flake": {
+          "arity": 2,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "override-input": {
+          "arity": 2,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "pretty": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "raw": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "read-only": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "recreate-lock-file": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "reference-lock-file": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "repair": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "update-input": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "write-to": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        }
+      }
+    },
+    "nix flake": {
+      "experimentalFeature": "nix-command",
+      "flags": {}
+    },
+    "nix flake archive": {
+      "experimentalFeature": "nix-command",
+      "flags": {
+        "arg": {
+          "arity": 2,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "arg-from-file": {
+          "arity": 2,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "arg-from-stdin": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "argstr": {
+          "arity": 2,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "commit-lock-file": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "debugger": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "dry-run": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "eval-store": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "impure": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "include": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": "I"
+        },
+        "inputs-from": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "json": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "no-check-sigs": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "no-pretty": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "no-registries": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "no-update-lock-file": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "no-write-lock-file": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "output-lock-file": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "override-flake": {
+          "arity": 2,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "override-input": {
+          "arity": 2,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "pretty": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "recreate-lock-file": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "reference-lock-file": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "repair": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "to": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "update-input": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        }
+      }
+    },
+    "nix flake check": {
+      "experimentalFeature": "nix-command",
+      "flags": {
+        "all-systems": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "arg": {
+          "arity": 2,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "arg-from-file": {
+          "arity": 2,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "arg-from-stdin": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "argstr": {
+          "arity": 2,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "commit-lock-file": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "debugger": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "eval-store": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "impure": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "include": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": "I"
+        },
+        "inputs-from": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "no-build": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "no-registries": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "no-update-lock-file": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "no-write-lock-file": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "out-link": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": "o"
+        },
+        "output-lock-file": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "override-flake": {
+          "arity": 2,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "override-input": {
+          "arity": 2,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "print-out-paths": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "recreate-lock-file": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "reference-lock-file": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "repair": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "update-input": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        }
+      }
+    },
+    "nix flake clone": {
+      "experimentalFeature": "nix-command",
+      "flags": {
+        "arg": {
+          "arity": 2,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "arg-from-file": {
+          "arity": 2,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "arg-from-stdin": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "argstr": {
+          "arity": 2,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "commit-lock-file": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "debugger": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "dest": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": "f"
+        },
+        "eval-store": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "impure": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "include": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": "I"
+        },
+        "inputs-from": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "no-registries": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "no-update-lock-file": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "no-write-lock-file": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "output-lock-file": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "override-flake": {
+          "arity": 2,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "override-input": {
+          "arity": 2,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "recreate-lock-file": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "reference-lock-file": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "repair": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "update-input": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        }
+      }
+    },
+    "nix flake info": {
+      "experimentalFeature": "nix-command",
+      "flags": {
+        "arg": {
+          "arity": 2,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "arg-from-file": {
+          "arity": 2,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "arg-from-stdin": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "argstr": {
+          "arity": 2,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "commit-lock-file": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "debugger": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "eval-store": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "impure": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "include": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": "I"
+        },
+        "inputs-from": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "json": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "no-pretty": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "no-registries": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "no-update-lock-file": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "no-write-lock-file": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "output-lock-file": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "override-flake": {
+          "arity": 2,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "override-input": {
+          "arity": 2,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "pretty": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "recreate-lock-file": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "reference-lock-file": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "repair": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "update-input": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        }
+      }
+    },
+    "nix flake init": {
+      "experimentalFeature": "nix-command",
+      "flags": {
+        "arg": {
+          "arity": 2,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "arg-from-file": {
+          "arity": 2,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "arg-from-stdin": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "argstr": {
+          "arity": 2,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "debugger": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "eval-store": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "impure": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "include": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": "I"
+        },
+        "override-flake": {
+          "arity": 2,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "repair": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "template": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": "t"
+        }
+      }
+    },
+    "nix flake lock": {
+      "experimentalFeature": "nix-command",
+      "flags": {
+        "arg": {
+          "arity": 2,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "arg-from-file": {
+          "arity": 2,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "arg-from-stdin": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "argstr": {
+          "arity": 2,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "commit-lock-file": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "debugger": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "eval-store": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "impure": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "include": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": "I"
+        },
+        "inputs-from": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "no-registries": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "no-update-lock-file": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "output-lock-file": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "override-flake": {
+          "arity": 2,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "override-input": {
+          "arity": 2,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "recreate-lock-file": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "reference-lock-file": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "repair": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "update-input": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        }
+      }
+    },
+    "nix flake metadata": {
+      "experimentalFeature": "nix-command",
+      "flags": {
+        "arg": {
+          "arity": 2,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "arg-from-file": {
+          "arity": 2,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "arg-from-stdin": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "argstr": {
+          "arity": 2,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "commit-lock-file": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "debugger": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "eval-store": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "impure": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "include": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": "I"
+        },
+        "inputs-from": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "json": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "no-pretty": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "no-registries": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "no-update-lock-file": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "no-write-lock-file": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "output-lock-file": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "override-flake": {
+          "arity": 2,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "override-input": {
+          "arity": 2,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "pretty": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "recreate-lock-file": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "reference-lock-file": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "repair": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "update-input": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        }
+      }
+    },
+    "nix flake new": {
+      "experimentalFeature": "nix-command",
+      "flags": {
+        "arg": {
+          "arity": 2,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "arg-from-file": {
+          "arity": 2,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "arg-from-stdin": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "argstr": {
+          "arity": 2,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "debugger": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "eval-store": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "impure": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "include": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": "I"
+        },
+        "override-flake": {
+          "arity": 2,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "repair": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "template": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": "t"
+        }
+      }
+    },
+    "nix flake prefetch": {
+      "experimentalFeature": "nix-command",
+      "flags": {
+        "arg": {
+          "arity": 2,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "arg-from-file": {
+          "arity": 2,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "arg-from-stdin": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "argstr": {
+          "arity": 2,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "commit-lock-file": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "debugger": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "eval-store": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "impure": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "include": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": "I"
+        },
+        "inputs-from": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "json": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "no-pretty": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "no-registries": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "no-update-lock-file": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "no-write-lock-file": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "out-link": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": "o"
+        },
+        "output-lock-file": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "override-flake": {
+          "arity": 2,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "override-input": {
+          "arity": 2,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "pretty": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "recreate-lock-file": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "reference-lock-file": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "repair": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "update-input": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        }
+      }
+    },
+    "nix flake prefetch-inputs": {
+      "experimentalFeature": "nix-command",
+      "flags": {
+        "arg": {
+          "arity": 2,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "arg-from-file": {
+          "arity": 2,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "arg-from-stdin": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "argstr": {
+          "arity": 2,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "commit-lock-file": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "debugger": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "eval-store": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "impure": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "include": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": "I"
+        },
+        "inputs-from": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "no-registries": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "no-update-lock-file": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "no-write-lock-file": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "output-lock-file": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "override-flake": {
+          "arity": 2,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "override-input": {
+          "arity": 2,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "recreate-lock-file": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "reference-lock-file": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "repair": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "update-input": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        }
+      }
+    },
+    "nix flake show": {
+      "experimentalFeature": "nix-command",
+      "flags": {
+        "all-systems": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "arg": {
+          "arity": 2,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "arg-from-file": {
+          "arity": 2,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "arg-from-stdin": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "argstr": {
+          "arity": 2,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "commit-lock-file": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "debugger": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "eval-store": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "impure": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "include": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": "I"
+        },
+        "inputs-from": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "json": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "legacy": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "no-pretty": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "no-registries": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "no-update-lock-file": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "no-write-lock-file": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "output-lock-file": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "override-flake": {
+          "arity": 2,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "override-input": {
+          "arity": 2,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "pretty": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "recreate-lock-file": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "reference-lock-file": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "repair": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "update-input": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        }
+      }
+    },
+    "nix flake update": {
+      "experimentalFeature": "nix-command",
+      "flags": {
+        "arg": {
+          "arity": 2,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "arg-from-file": {
+          "arity": 2,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "arg-from-stdin": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "argstr": {
+          "arity": 2,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "commit-lock-file": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "debugger": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "eval-store": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "flake": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "impure": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "include": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": "I"
+        },
+        "inputs-from": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "no-registries": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "output-lock-file": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "override-flake": {
+          "arity": 2,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "override-input": {
+          "arity": 2,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "recreate-lock-file": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "reference-lock-file": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "repair": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "update-input": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        }
+      }
+    },
+    "nix fmt": {
+      "experimentalFeature": "nix-command",
+      "flags": {
+        "arg": {
+          "arity": 2,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "arg-from-file": {
+          "arity": 2,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "arg-from-stdin": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "argstr": {
+          "arity": 2,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "commit-lock-file": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "debugger": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "eval-store": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "expr": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "file": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": "f"
+        },
+        "impure": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "include": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": "I"
+        },
+        "inputs-from": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "json": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "no-pretty": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "no-registries": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "no-update-lock-file": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "no-write-lock-file": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "output-lock-file": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "override-flake": {
+          "arity": 2,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "override-input": {
+          "arity": 2,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "pretty": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "recreate-lock-file": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "reference-lock-file": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "repair": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "update-input": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        }
+      }
+    },
+    "nix formatter": {
+      "experimentalFeature": "nix-command",
+      "flags": {}
+    },
+    "nix formatter build": {
+      "experimentalFeature": "nix-command",
+      "flags": {
+        "arg": {
+          "arity": 2,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "arg-from-file": {
+          "arity": 2,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "arg-from-stdin": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "argstr": {
+          "arity": 2,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "commit-lock-file": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "debugger": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "eval-store": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "expr": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "file": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": "f"
+        },
+        "impure": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "include": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": "I"
+        },
+        "inputs-from": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "no-link": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "no-registries": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "no-update-lock-file": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "no-write-lock-file": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "out-link": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": "o"
+        },
+        "output-lock-file": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "override-flake": {
+          "arity": 2,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "override-input": {
+          "arity": 2,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "recreate-lock-file": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "reference-lock-file": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "repair": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "update-input": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        }
+      }
+    },
+    "nix formatter run": {
+      "experimentalFeature": "nix-command",
+      "flags": {
+        "arg": {
+          "arity": 2,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "arg-from-file": {
+          "arity": 2,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "arg-from-stdin": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "argstr": {
+          "arity": 2,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "commit-lock-file": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "debugger": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "eval-store": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "expr": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "file": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": "f"
+        },
+        "impure": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "include": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": "I"
+        },
+        "inputs-from": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "json": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "no-pretty": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "no-registries": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "no-update-lock-file": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "no-write-lock-file": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "output-lock-file": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "override-flake": {
+          "arity": 2,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "override-input": {
+          "arity": 2,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "pretty": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "recreate-lock-file": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "reference-lock-file": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "repair": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "update-input": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        }
+      }
+    },
+    "nix hash": {
+      "experimentalFeature": "nix-command",
+      "flags": {}
+    },
+    "nix hash convert": {
+      "experimentalFeature": "nix-command",
+      "flags": {
+        "from": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "hash-algo": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "to": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        }
+      }
+    },
+    "nix hash file": {
+      "experimentalFeature": "nix-command",
+      "flags": {
+        "base16": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "base32": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "base64": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "sri": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "type": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        }
+      }
+    },
+    "nix hash path": {
+      "experimentalFeature": "nix-command",
+      "flags": {
+        "algo": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "base16": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "base32": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "base64": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "format": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "mode": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "sri": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "type": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        }
+      }
+    },
+    "nix hash to-base16": {
+      "experimentalFeature": "nix-command",
+      "flags": {
+        "type": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        }
+      }
+    },
+    "nix hash to-base32": {
+      "experimentalFeature": "nix-command",
+      "flags": {
+        "type": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        }
+      }
+    },
+    "nix hash to-base64": {
+      "experimentalFeature": "nix-command",
+      "flags": {
+        "type": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        }
+      }
+    },
+    "nix hash to-sri": {
+      "experimentalFeature": "nix-command",
+      "flags": {
+        "type": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        }
+      }
+    },
+    "nix help": {
+      "experimentalFeature": "nix-command",
+      "flags": {}
+    },
+    "nix help-stores": {
+      "experimentalFeature": "nix-command",
+      "flags": {}
+    },
+    "nix key": {
+      "experimentalFeature": "nix-command",
+      "flags": {}
+    },
+    "nix key convert-secret-to-public": {
+      "experimentalFeature": "nix-command",
+      "flags": {}
+    },
+    "nix key generate-secret": {
+      "experimentalFeature": "nix-command",
+      "flags": {
+        "key-name": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        }
+      }
+    },
+    "nix log": {
+      "experimentalFeature": "nix-command",
+      "flags": {
+        "arg": {
+          "arity": 2,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "arg-from-file": {
+          "arity": 2,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "arg-from-stdin": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "argstr": {
+          "arity": 2,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "commit-lock-file": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "debugger": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "eval-store": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "expr": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "file": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": "f"
+        },
+        "impure": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "include": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": "I"
+        },
+        "inputs-from": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "no-registries": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "no-update-lock-file": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "no-write-lock-file": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "output-lock-file": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "override-flake": {
+          "arity": 2,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "override-input": {
+          "arity": 2,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "recreate-lock-file": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "reference-lock-file": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "repair": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "update-input": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        }
+      }
+    },
+    "nix nar": {
+      "experimentalFeature": "nix-command",
+      "flags": {}
+    },
+    "nix nar cat": {
+      "experimentalFeature": "nix-command",
+      "flags": {}
+    },
+    "nix nar dump-path": {
+      "experimentalFeature": "nix-command",
+      "flags": {}
+    },
+    "nix nar ls": {
+      "experimentalFeature": "nix-command",
+      "flags": {
+        "directory": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": "d"
+        },
+        "json": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "long": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": "l"
+        },
+        "no-pretty": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "pretty": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "recursive": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": "R"
+        }
+      }
+    },
+    "nix nar pack": {
+      "experimentalFeature": "nix-command",
+      "flags": {}
+    },
+    "nix path-info": {
+      "experimentalFeature": "nix-command",
+      "flags": {
+        "all": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "arg": {
+          "arity": 2,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "arg-from-file": {
+          "arity": 2,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "arg-from-stdin": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "argstr": {
+          "arity": 2,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "closure-size": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": "S"
+        },
+        "commit-lock-file": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "debugger": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "derivation": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "eval-store": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "expr": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "file": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": "f"
+        },
+        "human-readable": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": "h"
+        },
+        "impure": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "include": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": "I"
+        },
+        "inputs-from": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "json": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "json-format": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "no-pretty": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "no-registries": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "no-update-lock-file": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "no-write-lock-file": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "output-lock-file": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "override-flake": {
+          "arity": 2,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "override-input": {
+          "arity": 2,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "pretty": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "recreate-lock-file": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "recursive": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": "r"
+        },
+        "reference-lock-file": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "repair": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "sigs": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "size": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": "s"
+        },
+        "stdin": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "update-input": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        }
+      }
+    },
+    "nix print-dev-env": {
+      "experimentalFeature": "nix-command",
+      "flags": {
+        "arg": {
+          "arity": 2,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "arg-from-file": {
+          "arity": 2,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "arg-from-stdin": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "argstr": {
+          "arity": 2,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "commit-lock-file": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "debugger": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "eval-store": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "expr": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "file": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": "f"
+        },
+        "impure": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "include": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": "I"
+        },
+        "inputs-from": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "json": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "no-pretty": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "no-registries": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "no-update-lock-file": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "no-write-lock-file": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "output-lock-file": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "override-flake": {
+          "arity": 2,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "override-input": {
+          "arity": 2,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "pretty": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "profile": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "recreate-lock-file": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "redirect": {
+          "arity": 2,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "reference-lock-file": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "repair": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "update-input": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        }
+      }
+    },
+    "nix profile": {
+      "experimentalFeature": "nix-command",
+      "flags": {}
+    },
+    "nix profile add": {
+      "experimentalFeature": "nix-command",
+      "flags": {
+        "arg": {
+          "arity": 2,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "arg-from-file": {
+          "arity": 2,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "arg-from-stdin": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "argstr": {
+          "arity": 2,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "commit-lock-file": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "debugger": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "eval-store": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "expr": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "file": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": "f"
+        },
+        "impure": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "include": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": "I"
+        },
+        "inputs-from": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "no-registries": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "no-update-lock-file": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "no-write-lock-file": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "output-lock-file": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "override-flake": {
+          "arity": 2,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "override-input": {
+          "arity": 2,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "priority": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "profile": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "recreate-lock-file": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "reference-lock-file": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "repair": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "stdin": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "update-input": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        }
+      }
+    },
+    "nix profile diff-closures": {
+      "experimentalFeature": "nix-command",
+      "flags": {
+        "profile": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        }
+      }
+    },
+    "nix profile history": {
+      "experimentalFeature": "nix-command",
+      "flags": {
+        "arg": {
+          "arity": 2,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "arg-from-file": {
+          "arity": 2,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "arg-from-stdin": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "argstr": {
+          "arity": 2,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "debugger": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "eval-store": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "impure": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "include": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": "I"
+        },
+        "override-flake": {
+          "arity": 2,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "profile": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "repair": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        }
+      }
+    },
+    "nix profile list": {
+      "experimentalFeature": "nix-command",
+      "flags": {
+        "arg": {
+          "arity": 2,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "arg-from-file": {
+          "arity": 2,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "arg-from-stdin": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "argstr": {
+          "arity": 2,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "debugger": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "eval-store": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "impure": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "include": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": "I"
+        },
+        "json": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "no-pretty": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "override-flake": {
+          "arity": 2,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "pretty": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "profile": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "repair": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        }
+      }
+    },
+    "nix profile remove": {
+      "experimentalFeature": "nix-command",
+      "flags": {
+        "all": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "arg": {
+          "arity": 2,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "arg-from-file": {
+          "arity": 2,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "arg-from-stdin": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "argstr": {
+          "arity": 2,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "debugger": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "eval-store": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "impure": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "include": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": "I"
+        },
+        "override-flake": {
+          "arity": 2,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "profile": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "regex": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "repair": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        }
+      }
+    },
+    "nix profile rollback": {
+      "experimentalFeature": "nix-command",
+      "flags": {
+        "dry-run": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "profile": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "to": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        }
+      }
+    },
+    "nix profile upgrade": {
+      "experimentalFeature": "nix-command",
+      "flags": {
+        "all": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "arg": {
+          "arity": 2,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "arg-from-file": {
+          "arity": 2,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "arg-from-stdin": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "argstr": {
+          "arity": 2,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "commit-lock-file": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "debugger": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "dry-run": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "eval-store": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "expr": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "file": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": "f"
+        },
+        "impure": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "include": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": "I"
+        },
+        "inputs-from": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "no-registries": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "no-update-lock-file": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "no-write-lock-file": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "output-lock-file": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "override-flake": {
+          "arity": 2,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "override-input": {
+          "arity": 2,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "profile": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "recreate-lock-file": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "reference-lock-file": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "regex": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "repair": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "update-input": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        }
+      }
+    },
+    "nix profile wipe-history": {
+      "experimentalFeature": "nix-command",
+      "flags": {
+        "dry-run": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "older-than": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "profile": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        }
+      }
+    },
+    "nix registry": {
+      "experimentalFeature": "nix-command",
+      "flags": {}
+    },
+    "nix registry add": {
+      "experimentalFeature": "nix-command",
+      "flags": {
+        "arg": {
+          "arity": 2,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "arg-from-file": {
+          "arity": 2,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "arg-from-stdin": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "argstr": {
+          "arity": 2,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "eval-store": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "impure": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "include": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": "I"
+        },
+        "override-flake": {
+          "arity": 2,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "registry": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "repair": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        }
+      }
+    },
+    "nix registry list": {
+      "experimentalFeature": "nix-command",
+      "flags": {}
+    },
+    "nix registry pin": {
+      "experimentalFeature": "nix-command",
+      "flags": {
+        "arg": {
+          "arity": 2,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "arg-from-file": {
+          "arity": 2,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "arg-from-stdin": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "argstr": {
+          "arity": 2,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "debugger": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "eval-store": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "impure": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "include": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": "I"
+        },
+        "override-flake": {
+          "arity": 2,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "registry": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "repair": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        }
+      }
+    },
+    "nix registry remove": {
+      "experimentalFeature": "nix-command",
+      "flags": {
+        "registry": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        }
+      }
+    },
+    "nix registry resolve": {
+      "experimentalFeature": "nix-command",
+      "flags": {}
+    },
+    "nix repl": {
+      "experimentalFeature": null,
+      "flags": {
+        "arg": {
+          "arity": 2,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "arg-from-file": {
+          "arity": 2,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "arg-from-stdin": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "argstr": {
+          "arity": 2,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "commit-lock-file": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "debugger": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "eval-store": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "expr": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "file": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": "f"
+        },
+        "impure": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "include": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": "I"
+        },
+        "inputs-from": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "no-registries": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "no-update-lock-file": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "no-write-lock-file": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "output-lock-file": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "override-flake": {
+          "arity": 2,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "override-input": {
+          "arity": 2,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "recreate-lock-file": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "reference-lock-file": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "repair": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "stdin": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "update-input": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        }
+      }
+    },
+    "nix run": {
+      "experimentalFeature": "nix-command",
+      "flags": {
+        "arg": {
+          "arity": 2,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "arg-from-file": {
+          "arity": 2,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "arg-from-stdin": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "argstr": {
+          "arity": 2,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "commit-lock-file": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "debugger": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "eval-store": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "expr": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "file": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": "f"
+        },
+        "ignore-env": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": "i"
+        },
+        "impure": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "include": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": "I"
+        },
+        "inputs-from": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "keep-env-var": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": "k"
+        },
+        "no-registries": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "no-update-lock-file": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "no-write-lock-file": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "output-lock-file": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "override-flake": {
+          "arity": 2,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "override-input": {
+          "arity": 2,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "recreate-lock-file": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "reference-lock-file": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "repair": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "set-env-var": {
+          "arity": 2,
+          "experimentalFeature": null,
+          "shortName": "s"
+        },
+        "unset-env-var": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": "u"
+        },
+        "update-input": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        }
+      }
+    },
+    "nix search": {
+      "experimentalFeature": "nix-command",
+      "flags": {
+        "arg": {
+          "arity": 2,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "arg-from-file": {
+          "arity": 2,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "arg-from-stdin": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "argstr": {
+          "arity": 2,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "commit-lock-file": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "debugger": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "eval-store": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "exclude": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": "e"
+        },
+        "expr": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "file": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": "f"
+        },
+        "impure": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "include": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": "I"
+        },
+        "inputs-from": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "json": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "no-pretty": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "no-registries": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "no-update-lock-file": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "no-write-lock-file": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "output-lock-file": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "override-flake": {
+          "arity": 2,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "override-input": {
+          "arity": 2,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "pretty": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "recreate-lock-file": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "reference-lock-file": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "repair": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "update-input": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        }
+      }
+    },
+    "nix store": {
+      "experimentalFeature": "nix-command",
+      "flags": {}
+    },
+    "nix store add": {
+      "experimentalFeature": "nix-command",
+      "flags": {
+        "dry-run": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "hash-algo": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "mode": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "name": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": "n"
+        }
+      }
+    },
+    "nix store add-file": {
+      "experimentalFeature": "nix-command",
+      "flags": {
+        "dry-run": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "hash-algo": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "mode": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "name": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": "n"
+        }
+      }
+    },
+    "nix store add-path": {
+      "experimentalFeature": "nix-command",
+      "flags": {
+        "dry-run": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "hash-algo": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "mode": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "name": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": "n"
+        }
+      }
+    },
+    "nix store build-trace": {
+      "experimentalFeature": "nix-command",
+      "flags": {}
+    },
+    "nix store build-trace info": {
+      "experimentalFeature": "nix-command",
+      "flags": {
+        "all": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "arg": {
+          "arity": 2,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "arg-from-file": {
+          "arity": 2,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "arg-from-stdin": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "argstr": {
+          "arity": 2,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "commit-lock-file": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "debugger": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "derivation": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "eval-store": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "expr": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "file": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": "f"
+        },
+        "impure": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "include": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": "I"
+        },
+        "inputs-from": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "json": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "no-pretty": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "no-registries": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "no-update-lock-file": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "no-write-lock-file": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "output-lock-file": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "override-flake": {
+          "arity": 2,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "override-input": {
+          "arity": 2,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "pretty": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "recreate-lock-file": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "recursive": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": "r"
+        },
+        "reference-lock-file": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "repair": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "stdin": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "update-input": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        }
+      }
+    },
+    "nix store cat": {
+      "experimentalFeature": "nix-command",
+      "flags": {}
+    },
+    "nix store copy-log": {
+      "experimentalFeature": "nix-command",
+      "flags": {
+        "arg": {
+          "arity": 2,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "arg-from-file": {
+          "arity": 2,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "arg-from-stdin": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "argstr": {
+          "arity": 2,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "commit-lock-file": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "debugger": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "eval-store": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "expr": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "file": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": "f"
+        },
+        "from": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "impure": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "include": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": "I"
+        },
+        "inputs-from": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "no-registries": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "no-update-lock-file": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "no-write-lock-file": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "output-lock-file": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "override-flake": {
+          "arity": 2,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "override-input": {
+          "arity": 2,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "recreate-lock-file": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "reference-lock-file": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "repair": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "stdin": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "to": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "update-input": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        }
+      }
+    },
+    "nix store copy-sigs": {
+      "experimentalFeature": "nix-command",
+      "flags": {
+        "all": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "arg": {
+          "arity": 2,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "arg-from-file": {
+          "arity": 2,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "arg-from-stdin": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "argstr": {
+          "arity": 2,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "commit-lock-file": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "debugger": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "derivation": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "eval-store": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "expr": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "file": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": "f"
+        },
+        "impure": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "include": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": "I"
+        },
+        "inputs-from": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "no-registries": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "no-update-lock-file": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "no-write-lock-file": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "output-lock-file": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "override-flake": {
+          "arity": 2,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "override-input": {
+          "arity": 2,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "recreate-lock-file": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "recursive": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": "r"
+        },
+        "reference-lock-file": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "repair": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "stdin": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "substituter": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": "s"
+        },
+        "update-input": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        }
+      }
+    },
+    "nix store delete": {
+      "experimentalFeature": "nix-command",
+      "flags": {
+        "all": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "also-referrers": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "arg": {
+          "arity": 2,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "arg-from-file": {
+          "arity": 2,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "arg-from-stdin": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "argstr": {
+          "arity": 2,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "commit-lock-file": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "debugger": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "derivation": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "eval-store": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "expr": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "file": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": "f"
+        },
+        "ignore-liveness": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "impure": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "include": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": "I"
+        },
+        "inputs-from": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "no-registries": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "no-update-lock-file": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "no-write-lock-file": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "output-lock-file": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "override-flake": {
+          "arity": 2,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "override-input": {
+          "arity": 2,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "recreate-lock-file": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "recursive": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": "r"
+        },
+        "reference-lock-file": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "repair": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "skip-alive": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "stdin": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "update-input": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        }
+      }
+    },
+    "nix store diff-closures": {
+      "experimentalFeature": "nix-command",
+      "flags": {
+        "arg": {
+          "arity": 2,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "arg-from-file": {
+          "arity": 2,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "arg-from-stdin": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "argstr": {
+          "arity": 2,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "commit-lock-file": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "debugger": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "derivation": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "eval-store": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "expr": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "file": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": "f"
+        },
+        "impure": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "include": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": "I"
+        },
+        "inputs-from": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "no-registries": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "no-update-lock-file": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "no-write-lock-file": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "output-lock-file": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "override-flake": {
+          "arity": 2,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "override-input": {
+          "arity": 2,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "recreate-lock-file": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "reference-lock-file": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "repair": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "update-input": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        }
+      }
+    },
+    "nix store dump-path": {
+      "experimentalFeature": "nix-command",
+      "flags": {
+        "all": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "arg": {
+          "arity": 2,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "arg-from-file": {
+          "arity": 2,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "arg-from-stdin": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "argstr": {
+          "arity": 2,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "commit-lock-file": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "debugger": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "derivation": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "eval-store": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "expr": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "file": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": "f"
+        },
+        "impure": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "include": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": "I"
+        },
+        "inputs-from": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "no-registries": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "no-update-lock-file": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "no-write-lock-file": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "output-lock-file": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "override-flake": {
+          "arity": 2,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "override-input": {
+          "arity": 2,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "recreate-lock-file": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "recursive": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": "r"
+        },
+        "reference-lock-file": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "repair": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "stdin": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "update-input": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        }
+      }
+    },
+    "nix store gc": {
+      "experimentalFeature": "nix-command",
+      "flags": {
+        "dry-run": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "max": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        }
+      }
+    },
+    "nix store info": {
+      "experimentalFeature": "nix-command",
+      "flags": {
+        "json": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "no-pretty": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "pretty": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        }
+      }
+    },
+    "nix store ls": {
+      "experimentalFeature": "nix-command",
+      "flags": {
+        "directory": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": "d"
+        },
+        "json": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "long": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": "l"
+        },
+        "no-pretty": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "pretty": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "recursive": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": "R"
+        }
+      }
+    },
+    "nix store make-content-addressed": {
+      "experimentalFeature": "nix-command",
+      "flags": {
+        "all": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "arg": {
+          "arity": 2,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "arg-from-file": {
+          "arity": 2,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "arg-from-stdin": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "argstr": {
+          "arity": 2,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "commit-lock-file": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "debugger": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "derivation": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "eval-store": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "expr": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "file": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": "f"
+        },
+        "from": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "impure": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "include": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": "I"
+        },
+        "inputs-from": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "json": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "no-pretty": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "no-registries": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "no-update-lock-file": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "no-write-lock-file": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "output-lock-file": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "override-flake": {
+          "arity": 2,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "override-input": {
+          "arity": 2,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "pretty": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "recreate-lock-file": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "recursive": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": "r"
+        },
+        "reference-lock-file": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "repair": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "stdin": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "to": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "update-input": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        }
+      }
+    },
+    "nix store optimise": {
+      "experimentalFeature": "nix-command",
+      "flags": {}
+    },
+    "nix store path-from-hash-part": {
+      "experimentalFeature": "nix-command",
+      "flags": {}
+    },
+    "nix store prefetch-file": {
+      "experimentalFeature": "nix-command",
+      "flags": {
+        "executable": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "expected-hash": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "hash-type": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "json": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "name": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "no-pretty": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "pretty": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "unpack": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        }
+      }
+    },
+    "nix store repair": {
+      "experimentalFeature": "nix-command",
+      "flags": {
+        "all": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "arg": {
+          "arity": 2,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "arg-from-file": {
+          "arity": 2,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "arg-from-stdin": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "argstr": {
+          "arity": 2,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "commit-lock-file": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "debugger": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "derivation": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "eval-store": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "expr": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "file": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": "f"
+        },
+        "impure": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "include": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": "I"
+        },
+        "inputs-from": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "no-registries": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "no-update-lock-file": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "no-write-lock-file": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "output-lock-file": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "override-flake": {
+          "arity": 2,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "override-input": {
+          "arity": 2,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "recreate-lock-file": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "recursive": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": "r"
+        },
+        "reference-lock-file": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "repair": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "stdin": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "update-input": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        }
+      }
+    },
+    "nix store roots-daemon": {
+      "experimentalFeature": "local-overlay-store",
+      "flags": {}
+    },
+    "nix store sign": {
+      "experimentalFeature": "nix-command",
+      "flags": {
+        "all": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "arg": {
+          "arity": 2,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "arg-from-file": {
+          "arity": 2,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "arg-from-stdin": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "argstr": {
+          "arity": 2,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "commit-lock-file": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "debugger": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "derivation": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "eval-store": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "expr": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "file": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": "f"
+        },
+        "impure": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "include": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": "I"
+        },
+        "inputs-from": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "key-file": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": "k"
+        },
+        "no-registries": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "no-update-lock-file": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "no-write-lock-file": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "output-lock-file": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "override-flake": {
+          "arity": 2,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "override-input": {
+          "arity": 2,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "recreate-lock-file": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "recursive": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": "r"
+        },
+        "reference-lock-file": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "repair": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "stdin": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "update-input": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        }
+      }
+    },
+    "nix store verify": {
+      "experimentalFeature": "nix-command",
+      "flags": {
+        "all": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "arg": {
+          "arity": 2,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "arg-from-file": {
+          "arity": 2,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "arg-from-stdin": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "argstr": {
+          "arity": 2,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "commit-lock-file": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "debugger": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "derivation": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "eval-store": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "expr": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "file": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": "f"
+        },
+        "impure": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "include": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": "I"
+        },
+        "inputs-from": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "no-contents": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "no-registries": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "no-trust": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "no-update-lock-file": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "no-write-lock-file": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "output-lock-file": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "override-flake": {
+          "arity": 2,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "override-input": {
+          "arity": 2,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "recreate-lock-file": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "recursive": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": "r"
+        },
+        "reference-lock-file": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "repair": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "sigs-needed": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": "n"
+        },
+        "stdin": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "substituter": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": "s"
+        },
+        "update-input": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        }
+      }
+    },
+    "nix upgrade-nix": {
+      "experimentalFeature": null,
+      "flags": {
+        "dry-run": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "nix-store-paths-url": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "profile": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": "p"
+        }
+      }
+    },
+    "nix why-depends": {
+      "experimentalFeature": "nix-command",
+      "flags": {
+        "all": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": "a"
+        },
+        "arg": {
+          "arity": 2,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "arg-from-file": {
+          "arity": 2,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "arg-from-stdin": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "argstr": {
+          "arity": 2,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "commit-lock-file": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "debugger": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "derivation": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "eval-store": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "expr": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "file": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": "f"
+        },
+        "impure": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "include": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": "I"
+        },
+        "inputs-from": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "no-registries": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "no-update-lock-file": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "no-write-lock-file": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "output-lock-file": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "override-flake": {
+          "arity": 2,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "override-input": {
+          "arity": 2,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "precise": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "recreate-lock-file": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "reference-lock-file": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "repair": {
+          "arity": 0,
+          "experimentalFeature": null,
+          "shortName": null
+        },
+        "update-input": {
+          "arity": 1,
+          "experimentalFeature": null,
+          "shortName": null
+        }
+      }
+    }
+  },
+  "fetchers": [
+    "file",
+    "git",
+    "github",
+    "gitlab",
+    "hg",
+    "indirect",
+    "path",
+    "sourcehut",
+    "tarball"
+  ],
+  "globalFlags": {
+    "abort-on-warn": {
+      "arity": 0,
+      "experimentalFeature": null,
+      "shortName": null
+    },
+    "accept-flake-config": {
+      "arity": 0,
+      "experimentalFeature": "flakes",
+      "shortName": null
+    },
+    "access-tokens": {
+      "arity": 1,
+      "experimentalFeature": null,
+      "shortName": null
+    },
+    "allow-dirty": {
+      "arity": 0,
+      "experimentalFeature": null,
+      "shortName": null
+    },
+    "allow-dirty-locks": {
+      "arity": 0,
+      "experimentalFeature": "flakes",
+      "shortName": null
+    },
+    "allow-import-from-derivation": {
+      "arity": 0,
+      "experimentalFeature": null,
+      "shortName": null
+    },
+    "allow-new-privileges": {
+      "arity": 0,
+      "experimentalFeature": null,
+      "shortName": null
+    },
+    "allow-symlinked-store": {
+      "arity": 0,
+      "experimentalFeature": null,
+      "shortName": null
+    },
+    "allow-unsafe-native-code-during-evaluation": {
+      "arity": 0,
+      "experimentalFeature": null,
+      "shortName": null
+    },
+    "allowed-impure-host-deps": {
+      "arity": 1,
+      "experimentalFeature": null,
+      "shortName": null
+    },
+    "allowed-uris": {
+      "arity": 1,
+      "experimentalFeature": null,
+      "shortName": null
+    },
+    "allowed-users": {
+      "arity": 1,
+      "experimentalFeature": null,
+      "shortName": null
+    },
+    "always-allow-substitutes": {
+      "arity": 0,
+      "experimentalFeature": null,
+      "shortName": null
+    },
+    "auto-allocate-uids": {
+      "arity": 0,
+      "experimentalFeature": "auto-allocate-uids",
+      "shortName": null
+    },
+    "auto-optimise-store": {
+      "arity": 0,
+      "experimentalFeature": null,
+      "shortName": null
+    },
+    "bash-prompt": {
+      "arity": 1,
+      "experimentalFeature": null,
+      "shortName": null
+    },
+    "bash-prompt-prefix": {
+      "arity": 1,
+      "experimentalFeature": null,
+      "shortName": null
+    },
+    "bash-prompt-suffix": {
+      "arity": 1,
+      "experimentalFeature": null,
+      "shortName": null
+    },
+    "build-dir": {
+      "arity": 1,
+      "experimentalFeature": null,
+      "shortName": null
+    },
+    "build-hook": {
+      "arity": 1,
+      "experimentalFeature": null,
+      "shortName": null
+    },
+    "build-poll-interval": {
+      "arity": 1,
+      "experimentalFeature": null,
+      "shortName": null
+    },
+    "build-users-group": {
+      "arity": 1,
+      "experimentalFeature": null,
+      "shortName": null
+    },
+    "builders": {
+      "arity": 1,
+      "experimentalFeature": null,
+      "shortName": null
+    },
+    "builders-use-substitutes": {
+      "arity": 0,
+      "experimentalFeature": null,
+      "shortName": null
+    },
+    "commit-lock-file-summary": {
+      "arity": 1,
+      "experimentalFeature": "flakes",
+      "shortName": null
+    },
+    "compress-build-log": {
+      "arity": 0,
+      "experimentalFeature": null,
+      "shortName": null
+    },
+    "connect-timeout": {
+      "arity": 1,
+      "experimentalFeature": null,
+      "shortName": null
+    },
+    "cores": {
+      "arity": 1,
+      "experimentalFeature": null,
+      "shortName": null
+    },
+    "debug": {
+      "arity": 0,
+      "experimentalFeature": null,
+      "shortName": null
+    },
+    "debugger-on-trace": {
+      "arity": 0,
+      "experimentalFeature": null,
+      "shortName": null
+    },
+    "debugger-on-warn": {
+      "arity": 0,
+      "experimentalFeature": null,
+      "shortName": null
+    },
+    "diff-hook": {
+      "arity": 1,
+      "experimentalFeature": null,
+      "shortName": null
+    },
+    "download-buffer-size": {
+      "arity": 1,
+      "experimentalFeature": null,
+      "shortName": null
+    },
+    "download-speed": {
+      "arity": 1,
+      "experimentalFeature": null,
+      "shortName": null
+    },
+    "eval-attrset-update-layer-rhs-threshold": {
+      "arity": 1,
+      "experimentalFeature": null,
+      "shortName": null
+    },
+    "eval-cache": {
+      "arity": 0,
+      "experimentalFeature": null,
+      "shortName": null
+    },
+    "eval-profile-file": {
+      "arity": 1,
+      "experimentalFeature": null,
+      "shortName": null
+    },
+    "eval-profiler": {
+      "arity": 1,
+      "experimentalFeature": null,
+      "shortName": null
+    },
+    "eval-profiler-frequency": {
+      "arity": 1,
+      "experimentalFeature": null,
+      "shortName": null
+    },
+    "eval-system": {
+      "arity": 1,
+      "experimentalFeature": null,
+      "shortName": null
+    },
+    "experimental-features": {
+      "arity": 1,
+      "experimentalFeature": null,
+      "shortName": null
+    },
+    "external-builders": {
+      "arity": 1,
+      "experimentalFeature": null,
+      "shortName": null
+    },
+    "extra-access-tokens": {
+      "arity": 1,
+      "experimentalFeature": null,
+      "shortName": null
+    },
+    "extra-allowed-uris": {
+      "arity": 1,
+      "experimentalFeature": null,
+      "shortName": null
+    },
+    "extra-allowed-users": {
+      "arity": 1,
+      "experimentalFeature": null,
+      "shortName": null
+    },
+    "extra-build-hook": {
+      "arity": 1,
+      "experimentalFeature": null,
+      "shortName": null
+    },
+    "extra-experimental-features": {
+      "arity": 1,
+      "experimentalFeature": null,
+      "shortName": null
+    },
+    "extra-extra-platforms": {
+      "arity": 1,
+      "experimentalFeature": null,
+      "shortName": null
+    },
+    "extra-hashed-mirrors": {
+      "arity": 1,
+      "experimentalFeature": null,
+      "shortName": null
+    },
+    "extra-ignored-acls": {
+      "arity": 1,
+      "experimentalFeature": null,
+      "shortName": null
+    },
+    "extra-impure-env": {
+      "arity": 1,
+      "experimentalFeature": "configurable-impure-env",
+      "shortName": null
+    },
+    "extra-nix-path": {
+      "arity": 1,
+      "experimentalFeature": null,
+      "shortName": null
+    },
+    "extra-platforms": {
+      "arity": 1,
+      "experimentalFeature": null,
+      "shortName": null
+    },
+    "extra-sandbox-paths": {
+      "arity": 1,
+      "experimentalFeature": null,
+      "shortName": null
+    },
+    "extra-secret-key-files": {
+      "arity": 1,
+      "experimentalFeature": null,
+      "shortName": null
+    },
+    "extra-substituters": {
+      "arity": 1,
+      "experimentalFeature": null,
+      "shortName": null
+    },
+    "extra-system-features": {
+      "arity": 1,
+      "experimentalFeature": null,
+      "shortName": null
+    },
+    "extra-trusted-public-keys": {
+      "arity": 1,
+      "experimentalFeature": null,
+      "shortName": null
+    },
+    "extra-trusted-substituters": {
+      "arity": 1,
+      "experimentalFeature": null,
+      "shortName": null
+    },
+    "extra-trusted-users": {
+      "arity": 1,
+      "experimentalFeature": null,
+      "shortName": null
+    },
+    "fallback": {
+      "arity": 0,
+      "experimentalFeature": null,
+      "shortName": null
+    },
+    "filetransfer-retry-attempts": {
+      "arity": 1,
+      "experimentalFeature": null,
+      "shortName": null
+    },
+    "filetransfer-retry-delay": {
+      "arity": 1,
+      "experimentalFeature": null,
+      "shortName": null
+    },
+    "filetransfer-retry-delay-rate-limited": {
+      "arity": 1,
+      "experimentalFeature": null,
+      "shortName": null
+    },
+    "filetransfer-retry-jitter": {
+      "arity": 0,
+      "experimentalFeature": null,
+      "shortName": null
+    },
+    "filetransfer-retry-max-delay": {
+      "arity": 1,
+      "experimentalFeature": null,
+      "shortName": null
+    },
+    "filter-syscalls": {
+      "arity": 0,
+      "experimentalFeature": null,
+      "shortName": null
+    },
+    "flake-registry": {
+      "arity": 1,
+      "experimentalFeature": "flakes",
+      "shortName": null
+    },
+    "fsync-metadata": {
+      "arity": 0,
+      "experimentalFeature": null,
+      "shortName": null
+    },
+    "fsync-store-paths": {
+      "arity": 0,
+      "experimentalFeature": null,
+      "shortName": null
+    },
+    "gc-reserved-space": {
+      "arity": 1,
+      "experimentalFeature": null,
+      "shortName": null
+    },
+    "hashed-mirrors": {
+      "arity": 1,
+      "experimentalFeature": null,
+      "shortName": null
+    },
+    "help": {
+      "arity": 0,
+      "experimentalFeature": null,
+      "shortName": null
+    },
+    "http-connections": {
+      "arity": 1,
+      "experimentalFeature": null,
+      "shortName": null
+    },
+    "http2": {
+      "arity": 0,
+      "experimentalFeature": null,
+      "shortName": null
+    },
+    "http3": {
+      "arity": 0,
+      "experimentalFeature": null,
+      "shortName": null
+    },
+    "id-count": {
+      "arity": 1,
+      "experimentalFeature": null,
+      "shortName": null
+    },
+    "ignore-try": {
+      "arity": 0,
+      "experimentalFeature": null,
+      "shortName": null
+    },
+    "ignored-acls": {
+      "arity": 1,
+      "experimentalFeature": null,
+      "shortName": null
+    },
+    "impersonate-linux-26": {
+      "arity": 0,
+      "experimentalFeature": null,
+      "shortName": null
+    },
+    "impure-env": {
+      "arity": 1,
+      "experimentalFeature": "configurable-impure-env",
+      "shortName": null
+    },
+    "json-log-path": {
+      "arity": 1,
+      "experimentalFeature": null,
+      "shortName": null
+    },
+    "keep-build-log": {
+      "arity": 0,
+      "experimentalFeature": null,
+      "shortName": null
+    },
+    "keep-derivations": {
+      "arity": 0,
+      "experimentalFeature": null,
+      "shortName": null
+    },
+    "keep-env-derivations": {
+      "arity": 0,
+      "experimentalFeature": null,
+      "shortName": null
+    },
+    "keep-failed": {
+      "arity": 0,
+      "experimentalFeature": null,
+      "shortName": null
+    },
+    "keep-going": {
+      "arity": 0,
+      "experimentalFeature": null,
+      "shortName": null
+    },
+    "keep-outputs": {
+      "arity": 0,
+      "experimentalFeature": null,
+      "shortName": null
+    },
+    "lint-absolute-path-literals": {
+      "arity": 1,
+      "experimentalFeature": null,
+      "shortName": null
+    },
+    "lint-short-path-literals": {
+      "arity": 1,
+      "experimentalFeature": null,
+      "shortName": null
+    },
+    "lint-url-literals": {
+      "arity": 1,
+      "experimentalFeature": null,
+      "shortName": null
+    },
+    "log-format": {
+      "arity": 1,
+      "experimentalFeature": null,
+      "shortName": null
+    },
+    "log-lines": {
+      "arity": 1,
+      "experimentalFeature": null,
+      "shortName": null
+    },
+    "max-build-log-size": {
+      "arity": 1,
+      "experimentalFeature": null,
+      "shortName": null
+    },
+    "max-call-depth": {
+      "arity": 1,
+      "experimentalFeature": null,
+      "shortName": null
+    },
+    "max-free": {
+      "arity": 1,
+      "experimentalFeature": null,
+      "shortName": null
+    },
+    "max-jobs": {
+      "arity": 1,
+      "experimentalFeature": null,
+      "shortName": null
+    },
+    "max-silent-time": {
+      "arity": 1,
+      "experimentalFeature": null,
+      "shortName": null
+    },
+    "max-substitution-jobs": {
+      "arity": 1,
+      "experimentalFeature": null,
+      "shortName": null
+    },
+    "min-free": {
+      "arity": 1,
+      "experimentalFeature": null,
+      "shortName": null
+    },
+    "min-free-check-interval": {
+      "arity": 1,
+      "experimentalFeature": null,
+      "shortName": null
+    },
+    "nar-buffer-size": {
+      "arity": 1,
+      "experimentalFeature": null,
+      "shortName": null
+    },
+    "narinfo-cache-meta-ttl": {
+      "arity": 1,
+      "experimentalFeature": null,
+      "shortName": null
+    },
+    "narinfo-cache-negative-ttl": {
+      "arity": 1,
+      "experimentalFeature": null,
+      "shortName": null
+    },
+    "narinfo-cache-positive-ttl": {
+      "arity": 1,
+      "experimentalFeature": null,
+      "shortName": null
+    },
+    "netrc-file": {
+      "arity": 1,
+      "experimentalFeature": null,
+      "shortName": null
+    },
+    "nix-path": {
+      "arity": 1,
+      "experimentalFeature": null,
+      "shortName": null
+    },
+    "nix-shell-always-looks-for-shell-nix": {
+      "arity": 0,
+      "experimentalFeature": null,
+      "shortName": null
+    },
+    "nix-shell-shebang-arguments-relative-to-script": {
+      "arity": 0,
+      "experimentalFeature": null,
+      "shortName": null
+    },
+    "no-abort-on-warn": {
+      "arity": 0,
+      "experimentalFeature": null,
+      "shortName": null
+    },
+    "no-accept-flake-config": {
+      "arity": 0,
+      "experimentalFeature": "flakes",
+      "shortName": null
+    },
+    "no-allow-dirty": {
+      "arity": 0,
+      "experimentalFeature": null,
+      "shortName": null
+    },
+    "no-allow-dirty-locks": {
+      "arity": 0,
+      "experimentalFeature": "flakes",
+      "shortName": null
+    },
+    "no-allow-import-from-derivation": {
+      "arity": 0,
+      "experimentalFeature": null,
+      "shortName": null
+    },
+    "no-allow-new-privileges": {
+      "arity": 0,
+      "experimentalFeature": null,
+      "shortName": null
+    },
+    "no-allow-symlinked-store": {
+      "arity": 0,
+      "experimentalFeature": null,
+      "shortName": null
+    },
+    "no-allow-unsafe-native-code-during-evaluation": {
+      "arity": 0,
+      "experimentalFeature": null,
+      "shortName": null
+    },
+    "no-always-allow-substitutes": {
+      "arity": 0,
+      "experimentalFeature": null,
+      "shortName": null
+    },
+    "no-auto-allocate-uids": {
+      "arity": 0,
+      "experimentalFeature": "auto-allocate-uids",
+      "shortName": null
+    },
+    "no-auto-optimise-store": {
+      "arity": 0,
+      "experimentalFeature": null,
+      "shortName": null
+    },
+    "no-builders-use-substitutes": {
+      "arity": 0,
+      "experimentalFeature": null,
+      "shortName": null
+    },
+    "no-compress-build-log": {
+      "arity": 0,
+      "experimentalFeature": null,
+      "shortName": null
+    },
+    "no-debugger-on-trace": {
+      "arity": 0,
+      "experimentalFeature": null,
+      "shortName": null
+    },
+    "no-debugger-on-warn": {
+      "arity": 0,
+      "experimentalFeature": null,
+      "shortName": null
+    },
+    "no-eval-cache": {
+      "arity": 0,
+      "experimentalFeature": null,
+      "shortName": null
+    },
+    "no-fallback": {
+      "arity": 0,
+      "experimentalFeature": null,
+      "shortName": null
+    },
+    "no-filetransfer-retry-jitter": {
+      "arity": 0,
+      "experimentalFeature": null,
+      "shortName": null
+    },
+    "no-filter-syscalls": {
+      "arity": 0,
+      "experimentalFeature": null,
+      "shortName": null
+    },
+    "no-fsync-metadata": {
+      "arity": 0,
+      "experimentalFeature": null,
+      "shortName": null
+    },
+    "no-fsync-store-paths": {
+      "arity": 0,
+      "experimentalFeature": null,
+      "shortName": null
+    },
+    "no-http2": {
+      "arity": 0,
+      "experimentalFeature": null,
+      "shortName": null
+    },
+    "no-http3": {
+      "arity": 0,
+      "experimentalFeature": null,
+      "shortName": null
+    },
+    "no-ignore-try": {
+      "arity": 0,
+      "experimentalFeature": null,
+      "shortName": null
+    },
+    "no-impersonate-linux-26": {
+      "arity": 0,
+      "experimentalFeature": null,
+      "shortName": null
+    },
+    "no-keep-build-log": {
+      "arity": 0,
+      "experimentalFeature": null,
+      "shortName": null
+    },
+    "no-keep-derivations": {
+      "arity": 0,
+      "experimentalFeature": null,
+      "shortName": null
+    },
+    "no-keep-env-derivations": {
+      "arity": 0,
+      "experimentalFeature": null,
+      "shortName": null
+    },
+    "no-keep-failed": {
+      "arity": 0,
+      "experimentalFeature": null,
+      "shortName": null
+    },
+    "no-keep-going": {
+      "arity": 0,
+      "experimentalFeature": null,
+      "shortName": null
+    },
+    "no-keep-outputs": {
+      "arity": 0,
+      "experimentalFeature": null,
+      "shortName": null
+    },
+    "no-nix-shell-always-looks-for-shell-nix": {
+      "arity": 0,
+      "experimentalFeature": null,
+      "shortName": null
+    },
+    "no-nix-shell-shebang-arguments-relative-to-script": {
+      "arity": 0,
+      "experimentalFeature": null,
+      "shortName": null
+    },
+    "no-preallocate-contents": {
+      "arity": 0,
+      "experimentalFeature": null,
+      "shortName": null
+    },
+    "no-print-missing": {
+      "arity": 0,
+      "experimentalFeature": null,
+      "shortName": null
+    },
+    "no-pure-eval": {
+      "arity": 0,
+      "experimentalFeature": null,
+      "shortName": null
+    },
+    "no-require-drop-supplementary-groups": {
+      "arity": 0,
+      "experimentalFeature": null,
+      "shortName": null
+    },
+    "no-require-sigs": {
+      "arity": 0,
+      "experimentalFeature": null,
+      "shortName": null
+    },
+    "no-restrict-eval": {
+      "arity": 0,
+      "experimentalFeature": null,
+      "shortName": null
+    },
+    "no-run-diff-hook": {
+      "arity": 0,
+      "experimentalFeature": null,
+      "shortName": null
+    },
+    "no-sandbox": {
+      "arity": 0,
+      "experimentalFeature": null,
+      "shortName": null
+    },
+    "no-sandbox-fallback": {
+      "arity": 0,
+      "experimentalFeature": null,
+      "shortName": null
+    },
+    "no-show-trace": {
+      "arity": 0,
+      "experimentalFeature": null,
+      "shortName": null
+    },
+    "no-substitute": {
+      "arity": 0,
+      "experimentalFeature": null,
+      "shortName": null
+    },
+    "no-sync-before-registering": {
+      "arity": 0,
+      "experimentalFeature": null,
+      "shortName": null
+    },
+    "no-trace-function-calls": {
+      "arity": 0,
+      "experimentalFeature": null,
+      "shortName": null
+    },
+    "no-trace-import-from-derivation": {
+      "arity": 0,
+      "experimentalFeature": null,
+      "shortName": null
+    },
+    "no-trace-verbose": {
+      "arity": 0,
+      "experimentalFeature": null,
+      "shortName": null
+    },
+    "no-trust-tarballs-from-git-forges": {
+      "arity": 0,
+      "experimentalFeature": null,
+      "shortName": null
+    },
+    "no-use-case-hack": {
+      "arity": 0,
+      "experimentalFeature": null,
+      "shortName": null
+    },
+    "no-use-cgroups": {
+      "arity": 0,
+      "experimentalFeature": null,
+      "shortName": null
+    },
+    "no-use-registries": {
+      "arity": 0,
+      "experimentalFeature": "flakes",
+      "shortName": null
+    },
+    "no-use-sqlite-wal": {
+      "arity": 0,
+      "experimentalFeature": null,
+      "shortName": null
+    },
+    "no-use-xdg-base-directories": {
+      "arity": 0,
+      "experimentalFeature": null,
+      "shortName": null
+    },
+    "no-warn-dirty": {
+      "arity": 0,
+      "experimentalFeature": null,
+      "shortName": null
+    },
+    "no-warn-short-path-literals": {
+      "arity": 0,
+      "experimentalFeature": null,
+      "shortName": null
+    },
+    "offline": {
+      "arity": 0,
+      "experimentalFeature": "nix-command",
+      "shortName": null
+    },
+    "option": {
+      "arity": 2,
+      "experimentalFeature": null,
+      "shortName": null
+    },
+    "plugin-files": {
+      "arity": 1,
+      "experimentalFeature": null,
+      "shortName": null
+    },
+    "post-build-hook": {
+      "arity": 1,
+      "experimentalFeature": null,
+      "shortName": null
+    },
+    "pre-build-hook": {
+      "arity": 1,
+      "experimentalFeature": null,
+      "shortName": null
+    },
+    "preallocate-contents": {
+      "arity": 0,
+      "experimentalFeature": null,
+      "shortName": null
+    },
+    "print-build-logs": {
+      "arity": 0,
+      "experimentalFeature": "nix-command",
+      "shortName": "L"
+    },
+    "print-missing": {
+      "arity": 0,
+      "experimentalFeature": null,
+      "shortName": null
+    },
+    "pure-eval": {
+      "arity": 0,
+      "experimentalFeature": null,
+      "shortName": null
+    },
+    "quiet": {
+      "arity": 0,
+      "experimentalFeature": null,
+      "shortName": null
+    },
+    "refresh": {
+      "arity": 0,
+      "experimentalFeature": "nix-command",
+      "shortName": null
+    },
+    "relaxed-sandbox": {
+      "arity": 0,
+      "experimentalFeature": null,
+      "shortName": null
+    },
+    "require-drop-supplementary-groups": {
+      "arity": 0,
+      "experimentalFeature": null,
+      "shortName": null
+    },
+    "require-sigs": {
+      "arity": 0,
+      "experimentalFeature": null,
+      "shortName": null
+    },
+    "restrict-eval": {
+      "arity": 0,
+      "experimentalFeature": null,
+      "shortName": null
+    },
+    "run-diff-hook": {
+      "arity": 0,
+      "experimentalFeature": null,
+      "shortName": null
+    },
+    "sandbox": {
+      "arity": 0,
+      "experimentalFeature": null,
+      "shortName": null
+    },
+    "sandbox-build-dir": {
+      "arity": 1,
+      "experimentalFeature": null,
+      "shortName": null
+    },
+    "sandbox-dev-shm-size": {
+      "arity": 1,
+      "experimentalFeature": null,
+      "shortName": null
+    },
+    "sandbox-fallback": {
+      "arity": 0,
+      "experimentalFeature": null,
+      "shortName": null
+    },
+    "sandbox-paths": {
+      "arity": 1,
+      "experimentalFeature": null,
+      "shortName": null
+    },
+    "secret-key-files": {
+      "arity": 1,
+      "experimentalFeature": null,
+      "shortName": null
+    },
+    "show-trace": {
+      "arity": 0,
+      "experimentalFeature": null,
+      "shortName": null
+    },
+    "ssl-cert-file": {
+      "arity": 1,
+      "experimentalFeature": null,
+      "shortName": null
+    },
+    "stalled-download-timeout": {
+      "arity": 1,
+      "experimentalFeature": null,
+      "shortName": null
+    },
+    "start-id": {
+      "arity": 1,
+      "experimentalFeature": null,
+      "shortName": null
+    },
+    "store": {
+      "arity": 1,
+      "experimentalFeature": null,
+      "shortName": null
+    },
+    "substitute": {
+      "arity": 0,
+      "experimentalFeature": null,
+      "shortName": null
+    },
+    "substituters": {
+      "arity": 1,
+      "experimentalFeature": null,
+      "shortName": null
+    },
+    "sync-before-registering": {
+      "arity": 0,
+      "experimentalFeature": null,
+      "shortName": null
+    },
+    "system": {
+      "arity": 1,
+      "experimentalFeature": null,
+      "shortName": null
+    },
+    "system-features": {
+      "arity": 1,
+      "experimentalFeature": null,
+      "shortName": null
+    },
+    "tarball-ttl": {
+      "arity": 1,
+      "experimentalFeature": null,
+      "shortName": null
+    },
+    "timeout": {
+      "arity": 1,
+      "experimentalFeature": null,
+      "shortName": null
+    },
+    "trace-function-calls": {
+      "arity": 0,
+      "experimentalFeature": null,
+      "shortName": null
+    },
+    "trace-import-from-derivation": {
+      "arity": 0,
+      "experimentalFeature": null,
+      "shortName": null
+    },
+    "trace-verbose": {
+      "arity": 0,
+      "experimentalFeature": null,
+      "shortName": null
+    },
+    "trust-tarballs-from-git-forges": {
+      "arity": 0,
+      "experimentalFeature": null,
+      "shortName": null
+    },
+    "trusted-public-keys": {
+      "arity": 1,
+      "experimentalFeature": null,
+      "shortName": null
+    },
+    "trusted-substituters": {
+      "arity": 1,
+      "experimentalFeature": null,
+      "shortName": null
+    },
+    "trusted-users": {
+      "arity": 1,
+      "experimentalFeature": null,
+      "shortName": null
+    },
+    "upgrade-nix-store-path-url": {
+      "arity": 1,
+      "experimentalFeature": null,
+      "shortName": null
+    },
+    "use-case-hack": {
+      "arity": 0,
+      "experimentalFeature": null,
+      "shortName": null
+    },
+    "use-cgroups": {
+      "arity": 0,
+      "experimentalFeature": null,
+      "shortName": null
+    },
+    "use-registries": {
+      "arity": 0,
+      "experimentalFeature": "flakes",
+      "shortName": null
+    },
+    "use-sqlite-wal": {
+      "arity": 0,
+      "experimentalFeature": null,
+      "shortName": null
+    },
+    "use-xdg-base-directories": {
+      "arity": 0,
+      "experimentalFeature": null,
+      "shortName": null
+    },
+    "user-agent-suffix": {
+      "arity": 1,
+      "experimentalFeature": null,
+      "shortName": null
+    },
+    "verbose": {
+      "arity": 0,
+      "experimentalFeature": null,
+      "shortName": "v"
+    },
+    "version": {
+      "arity": 0,
+      "experimentalFeature": null,
+      "shortName": null
+    },
+    "warn-dirty": {
+      "arity": 0,
+      "experimentalFeature": null,
+      "shortName": null
+    },
+    "warn-large-path-threshold": {
+      "arity": 1,
+      "experimentalFeature": null,
+      "shortName": null
+    },
+    "warn-short-path-literals": {
+      "arity": 0,
+      "experimentalFeature": null,
+      "shortName": null
+    }
+  },
+  "stores": [
+    "Dummy Store",
+    "Experimental Local Overlay Store",
+    "Experimental SSH Store",
+    "Experimental SSH Store with filesystem mounted",
+    "HTTP Binary Cache Store",
+    "Local Binary Cache Store",
+    "Local Daemon Store",
+    "Local Store",
+    "S3 Binary Cache Store",
+    "SSH Store"
+  ]
+}

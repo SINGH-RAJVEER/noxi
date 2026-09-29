@@ -1,0 +1,23 @@
+[
+  "auto-allocate-uids",
+  "blake3-hashes",
+  "ca-derivations",
+  "cgroups",
+  "configurable-impure-env",
+  "daemon-trust-override",
+  "dynamic-derivations",
+  "external-builders",
+  "fetch-closure",
+  "fetch-tree",
+  "flakes",
+  "git-hashing",
+  "impure-derivations",
+  "local-overlay-store",
+  "mounted-ssh-store",
+  "nix-command",
+  "parse-toml-timestamps",
+  "pipe-operators",
+  "read-only-local-store",
+  "recursive-nix",
+  "verified-fetches"
+]

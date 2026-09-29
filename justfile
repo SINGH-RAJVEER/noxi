@@ -42,6 +42,10 @@ reference:
 eval-compare-reference report="target/eval-comparison-reference.json": reference
 	just eval-compare target/nix-reference/bin/nix-instantiate "{{report}}"
 
+# Record the pinned reference's executables, settings, features, commands, builtins, protocols and C API in tests/reference-inventory.
+reference-inventory: reference
+	bash scripts/reference-inventory.sh
+
 # Fetch the latest official stable Nix source and tests; record its exact revision.
 nix-tests-update:
 	bash scripts/update-nix-tests.sh latest

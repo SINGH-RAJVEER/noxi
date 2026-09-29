@@ -7,6 +7,7 @@ The [root plan](../PLAN.md) states the sole product direction: qualify the drop-
 | [Product and architecture](product.md) | Package-manager MVP, later OS behavior, engine modules, and shared interface |
 | [Compatibility contract](compatibility.md) | Exact meaning of a drop-in replacement and its release matrix |
 | [Compatibility matrix](compatibility-matrix.md) | Initial reference target and visible qualification status |
+| [Reference inventory](reference-inventory.md) | Everything CppNix 2.35.2 exposes, and what the pinned NixOS and Home Manager call |
 | [System lifecycle](system.md) | Installation, activation, upgrades, recovery, and authority |
 | [Boot and Secure Boot](secure-boot.md) | Installer choice between systemd-boot and Lanzaboote, signing, enrollment, and recovery |
 | [Interface behavior](interfaces.md) | CLI, TUI, GUI, configuration edits, and parity |
