@@ -18,6 +18,8 @@ use crate::derived_path::{DerivedPath, OutputSpec};
 use crate::nixhash::{CAHash, NixHash};
 use crate::store_path::StorePath;
 
+pub mod derivation;
+
 /// Experimental feature that allows nested (dynamic) derivation outputs.
 pub const DYNAMIC_DERIVATIONS: &str = "dynamic-derivations";
 /// Experimental feature that allows `git` content addresses.
@@ -67,6 +69,12 @@ pub enum Error {
 	Integer(&'static str),
 	#[error("unknown build result status '{0}'")]
 	BuildStatus(String),
+	#[error("unsupported derivation JSON format version {0}; expected version 4")]
+	DerivationVersion(u64),
+	#[error("invalid derivation output JSON")]
+	DerivationOutput,
+	#[error("experimental feature '{0}' is required")]
+	FeatureRequired(&'static str),
 }
 
 fn type_name(value: &Value) -> &'static str {
