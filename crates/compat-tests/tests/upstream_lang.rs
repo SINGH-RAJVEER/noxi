@@ -30,12 +30,9 @@ use serde_json::{Value as Json, json};
 
 const FUNCTIONAL_DIR: &str = concat!(
 	env!("CARGO_MANIFEST_DIR"),
-	"/../../tests/upstream/nix/tests/functional"
+	"/../../tests/nix/tests/functional"
 );
-const SNAPSHOT_LOCK: &str = concat!(
-	env!("CARGO_MANIFEST_DIR"),
-	"/../../tests/upstream/nix-snapshot.lock"
-);
+const SNAPSHOT_LOCK: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../../tests/nix-snapshot.lock");
 const EXPECTATIONS: &str = concat!(
 	env!("CARGO_MANIFEST_DIR"),
 	"/expectations/upstream-lang.txt"
@@ -597,7 +594,7 @@ fn write_report(cases: &[Case], runs: &[Run]) -> io::Result<()> {
 		})
 		.collect();
 	let report = json!({
-		"reference": {"snapshot": "tests/upstream/nix/tests/functional/lang", "commit": reference_commit},
+		"reference": {"snapshot": "tests/nix/tests/functional/lang", "commit": reference_commit},
 		"candidate": {"evaluator": "nix-rs-eval", "version": env!("CARGO_PKG_VERSION"), "io": "impure", "mode": "strict"},
 		"platform": format!("{}-{}", env::consts::ARCH, env::consts::OS),
 		"environment": {

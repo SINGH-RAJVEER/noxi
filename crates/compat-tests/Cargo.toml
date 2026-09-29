@@ -4,7 +4,7 @@ version.workspace = true
 rust-version.workspace = true
 edition = "2024"
 publish = false
-description = "Differential tests that check vendored and first-party crates against the upstream CppNix fixtures in tests/upstream"
+description = "Differential tests that check vendored and first-party crates against the upstream CppNix fixtures in tests/nix"
 
 [dependencies]
 serde_json.workspace = true

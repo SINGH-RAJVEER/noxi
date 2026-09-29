@@ -17,4 +17,4 @@ The [root plan](../PLAN.md) states the sole product direction: qualify the drop-
 | [Development environment](development.md) | Pinned Rust shell and local check commands |
 | [Flake and crate distribution](distribution.md) | Installable preview, replacement milestones, and NixOS and Home Manager gates |
 
-Use [CONTEXT.md](../CONTEXT.md) for project vocabulary. The copied CppNix tests remain in [tests/upstream/nix/](../tests/upstream/nix/) with provenance in [tests/README.md](../tests/README.md). The imported Rust crates live in `crates/nix-rs/`, with their upstream revision in `crates/nix-rs/PROVENANCE.md`; their current presence is not a compatibility result. `crates/compat-tests/` contains initial fixture checks and records known gaps.
+Use [CONTEXT.md](../CONTEXT.md) for project vocabulary. The copied CppNix tests remain in [tests/nix/](../tests/nix/) with provenance in [verification](verification.md#test-snapshot). The imported Rust crates live in `crates/nix-rs/`, with their upstream revision in `crates/nix-rs/PROVENANCE.md`; their current presence is not a compatibility result. `crates/compat-tests/` contains initial fixture checks and records known gaps.

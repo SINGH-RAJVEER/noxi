@@ -8,7 +8,7 @@ use nix_compat::nar;
 
 fn fixture(name: &str) -> Vec<u8> {
 	let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-		.join("../../tests/upstream/nix/src/libutil-tests/data/nars")
+		.join("../../tests/nix/src/libutil-tests/data/nars")
 		.join(format!("{name}.nar"));
 	fs::read(path).expect("upstream NAR fixture must exist")
 }

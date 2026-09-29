@@ -10,7 +10,7 @@ use std::path::{Path, PathBuf};
 
 use nix_compat::derivation::{Derivation, UnverifiedDerivation, lookup_fn};
 
-const FIXTURE_DIR: &str = "../../tests/upstream/nix/src/libstore-tests/data/derivation";
+const FIXTURE_DIR: &str = "../../tests/nix/src/libstore-tests/data/derivation";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum Expect {

@@ -2,8 +2,8 @@
 set -euo pipefail
 
 root_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-checkout_dir="${root_dir}/tests/upstream/nix-official"
-lock_file="${root_dir}/tests/upstream/nix-official.lock"
+checkout_dir="${root_dir}/tests/nix-official"
+lock_file="${root_dir}/tests/nix-official.lock"
 remote_url="https://github.com/NixOS/nix.git"
 selection="${1:-latest}"
 

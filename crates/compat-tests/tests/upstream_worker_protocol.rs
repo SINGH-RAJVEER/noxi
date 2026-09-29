@@ -27,7 +27,7 @@ use nix_compat::wire::de::{NixDeserialize, NixRead, NixReader};
 use nix_compat::wire::ser::{NixSerialize, NixWrite, NixWriter};
 use tokio::io::AsyncWriteExt;
 
-const FIXTURE_DIR: &str = "../../tests/upstream/nix/src/libstore-tests/data/worker-protocol";
+const FIXTURE_DIR: &str = "../../tests/nix/src/libstore-tests/data/worker-protocol";
 
 /// The oldest version CppNix's tests use for serialisers that ignore it.
 const DEFAULT: (u8, u8) = (1, 10);

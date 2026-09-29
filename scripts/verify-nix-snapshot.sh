@@ -2,8 +2,8 @@
 set -euo pipefail
 
 root_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-snapshot_prefix="tests/upstream/nix"
-lock_file="${root_dir}/tests/upstream/nix-snapshot.lock"
+snapshot_prefix="tests/nix"
+lock_file="${root_dir}/tests/nix-snapshot.lock"
 mode="${1:-local}"
 
 usage() {

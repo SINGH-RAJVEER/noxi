@@ -38,7 +38,7 @@ fn blake3_matches_cppnix_vectors() {
 #[test]
 fn blake3_json_matches_cppnix_fixture() {
 	let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-		.join("../../tests/upstream/nix/src/libutil-tests/data/hash/blake3.json");
+		.join("../../tests/nix/src/libutil-tests/data/hash/blake3.json");
 	let fixture = fs::read_to_string(path).expect("CppNix hash fixture must exist");
 	let expected = HashAlgo::Blake3.digest_bytes("asdf");
 	let decoded: NixHash = serde_json::from_str(&fixture).expect("parse CppNix hash JSON");

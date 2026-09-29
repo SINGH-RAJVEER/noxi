@@ -2,11 +2,11 @@
 
 ## Reference evidence
 
-The copied CppNix 2.35.2 tests under [tests/upstream/nix/](../tests/upstream/nix/) are the initial test oracle. The snapshot contains language fixtures, shell tests, NixOS integration definitions, C++ unit test sources, and golden data. It matches tag `2.35.2` (commit `2c73b59`) object for object, and `just nix-snapshot-verify` checks that it stays unchanged. Preserve the copied data and record the upstream revision on each refresh. [Test snapshot notes](../tests/README.md)
+The copied CppNix 2.35.2 tests under [tests/nix/](../tests/nix/) are the initial test oracle. The snapshot contains language fixtures, shell tests, NixOS integration definitions, C++ unit test sources, and golden data. It matches tag `2.35.2` (commit `2c73b59`) object for object, and `just nix-snapshot-verify` checks that it stays unchanged. Preserve the copied data and record the upstream revision on each refresh. [Test snapshot](#test-snapshot)
 
-The reference is the newest numbered CppNix release, 2.35.2, as of 2026-09-28. The previous snapshot came from an unreleased 2.36.0 development commit; [snapshot provenance](../tests/README.md#snapshot-provenance) records the change. Reference executables for fixture comparisons must be the 2.35.2 release.
+The reference is the newest numbered CppNix release, 2.35.2, as of 2026-09-28. The previous snapshot came from an unreleased 2.36.0 development commit; [the test snapshot notes](#test-snapshot) records the change. Reference executables for fixture comparisons must be the 2.35.2 release.
 
-The full official Nix repository can be fetched into the ignored `tests/upstream/nix-official/` checkout with `just nix-tests-update`; `tests/upstream/nix-official.lock` records its exact revision. It is used to run CppNix's own build and test suite. It currently names the same commit as the snapshot. Its results do not substitute for running the same cases against nix-rs. When `just nix-tests-update` moves it to a newer tag, do not mix that tag with the fixed 2.35.2 fixture expectations. [Upstream test workflow](../tests/README.md)
+The full official Nix repository can be fetched into the ignored `tests/nix-official/` checkout with `just nix-tests-update`; `tests/nix-official.lock` records its exact revision. It is used to run CppNix's own build and test suite. It currently names the same commit as the snapshot. Its results do not substitute for running the same cases against nix-rs. When `just nix-tests-update` moves it to a newer tag, do not mix that tag with the fixed 2.35.2 fixture expectations.
 
 `crates/compat-tests/` already classifies the copied ATerm derivation fixtures against vendored `nix-compat`. Its expectation table names unsupported forms, including content-addressed and dynamic derivations. These classified gaps are useful progress markers, not passing compatibility cases.
 
@@ -43,6 +43,27 @@ Overflow checks are enabled only in debug builds. In release builds the four ove
 
 For each compatibility test, record the reference binary and nix-rs binary, platform, input revision, feature settings, store configuration, command or operation, expected result, actual result, and disposition. Tests that cannot yet run against nix-rs remain unrun. Tests that fail for a known reference issue still need an explicit compatibility decision; do not quietly rewrite expected output.
 
+### Test snapshot
+
+`tests/nix/` is a byte-for-byte copy of these paths from the CppNix 2.35.2 release. The upstream implementation source is not kept.
+
+| Path | Purpose |
+|---|---|
+| `tests/nix/tests/functional/` | Shell tests, Nix language fixtures, expected output, and helpers |
+| `tests/nix/tests/nixos/` | NixOS integration and virtual machine test definitions |
+| `tests/nix/tests/installer/`, `filetransfer-retry-backoff/` | Other upstream test groups |
+| `tests/nix/src/lib*-tests/` | C++ unit tests and golden data for the evaluator, fetchers, flakes, store, and utilities |
+| `tests/nix/src/lib*-test-support/`, `tests/nix/nix-meson-build-support/` | Helpers those suites require |
+| `tests/nix/COPYING` | Upstream license text for the copied material |
+
+Relative fixture symlinks are preserved, including one deliberately broken symlink in the language fixtures, and `src/nix-functional-tests` points to the copied functional suite. The snapshot is not a standalone CppNix build: its Meson targets depend on upstream implementation code, so the original suite runs from the separate `tests/nix-official/` checkout.
+
+The snapshot was extracted with `git archive` from tag `2.35.2`, commit `2c73b59da29606068c0c98db015dd3a66955525d`, the newest numbered release on 2026-09-28. `tests/nix-snapshot.lock` records that commit and the Git object ID of each of the 17 copied paths: the top-level files and directories, plus each entry under `src/` and `tests/`. `just nix-snapshot-verify` checks the working tree against those object IDs and rejects any unrecorded path at those levels; `just nix-snapshot-verify upstream` also fetches the commit's trees without file contents and compares them.
+
+An earlier snapshot, introduced in `046abec1`, came from unreleased `master` commit `8f7ed1c1d` (version 2.36.0). The 2.35.2 tag is on the `2.35-maintenance` branch, which left `master` on 2026-06-22. It lacks the masked derivation fixtures, the valid NAR fixtures, 19 language cases, and `tests/fuzzing-engine/` from the earlier snapshot; the paragraphs above give the effect on each compatibility test.
+
+`tests/nix-official.lock` and `tests/nix-snapshot.lock` currently name the same commit. `just nix-tests-update` moves the official checkout to the next numbered tag, or `bash scripts/update-nix-tests.sh master` or a specific tag selects another revision; the updater refuses to overwrite local changes in the checkout. The snapshot stays on 2.35.2 until it is refreshed deliberately. To refresh it, copy the same paths from the new revision with symlinks intact, record the commit and each object ID in `tests/nix-snapshot.lock`, run `just nix-snapshot-verify upstream`, and revise the compatibility matrix and expectation tables. Never edit copied fixtures to make nix-rs pass; record a divergence instead.
+
 ## Differential testing
 
 The initial `differential-eval` runner compares ten pure expressions using `nix-instantiate --eval --strict --expr` and `nixrs eval --expr`, with an isolated temporary home and identical empty `NIX_PATH` and `NIX_CONFIG`. Run `just eval-compare /path/to/nix-instantiate /path/to/report.json` in the development shell. The JSON report contains the executable versions, arguments, expressions, exit codes, stdout, stderr, and mismatch disposition. Against the pinned reference, `just eval-compare-reference` matched 10/10 on 2026-09-28 using `nix-instantiate (Nix) 2.35.2` at `/nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2`, the same path upstream's flake produces at `2c73b59`. Ten pure expressions are development evidence, not language qualification. The flake preview package also built from a clean local Git clone, and its installed binary evaluated a nested value. This runner covers no store operations and has no per-case timeout yet.
@@ -58,7 +79,7 @@ Compare both engines with identical inputs and isolated stores. The comparison m
 
 Compare bytes where formats or command output require exactness. For build outputs whose content is intrinsically nondeterministic under the reference, compare behavior and invariants without incorrectly treating a changing output hash as proof of an engine defect. Keep these cases identified in the matrix.
 
-The copied shell suite needs an isolated test store and compatible executables before it can validate nix-rs. The copied C++ tests are specifications for Rust ports and format fixtures; they are not Rust test results. NixOS tests require VM execution. [Nix test snapshot notes](../tests/README.md)
+The copied shell suite needs an isolated test store and compatible executables before it can validate nix-rs. The copied C++ tests are specifications for Rust ports and format fixtures; they are not Rust test results. NixOS tests require VM execution. [Test snapshot](#test-snapshot)
 
 ## System tests
 
