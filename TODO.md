@@ -33,12 +33,18 @@ Each numbered section is a work package. Its checkboxes are the subtasks, and th
 - [x] Make every copied fixture discoverable and classified as passing, known gap, reference anomaly, or unrun. Fail when an unclassified fixture appears. `crates/compat-tests/expectations/fixtures.txt` classifies all 1,916 copied files, and `fixture_inventory` fails on an unclassified file, a stale pattern, or an unbacked pass claim.
 - [ ] Turn the 840 `unrun` fixtures into `pass`, `gap`, or `anomaly` entries, one fixture group at a time, starting with the common and serve protocol, narinfo, path-info, realisation, and store-path groups.
 	- [x] `store-path`, `content-address`, `outputs-spec`, and `derived-path` JSON against `nix-compat`. `nix_compat::cppnix_json` implements 2.35.2's encodings; `upstream_store_json` round-trips 14 of the 17 fixtures byte for byte, and the 3 nested deriving paths need `dynamic-derivations`, which both engines reject by default.
-	- [ ] `nar-info` and `path-info` JSON against `nix-compat`.
-	- [ ] `realisation` and `build-result` JSON against `nix-compat`.
-	- [ ] `common-protocol` and `serve-protocol` binary fixtures against `nix-compat`'s wire types. **[locked: codex-root]**
-	- [ ] `derivation` JSON, `derivation-options`, `invariants`, and `try-resolve` fixtures.
+	- [x] `nar-info` and `path-info` JSON against `nix-compat`. `cppnix_json::{PathInfo, NarInfo}` read and write format versions 1 to 3, with and without impure fields; `upstream_path_info_json` decodes all 20 fixtures to the values CppNix's tests build and re-encodes the 18 written ones byte for byte.
+	- [x] `realisation` and `build-result` JSON against `nix-compat`. `cppnix_json` adds `DrvOutput`, `Realisation`, `UnkeyedRealisation` with fingerprints, signing and verification, and `BuildResult`. `upstream_realisation_json` matches all 12 fixtures, including the test key's ed25519 signatures byte for byte.
+	- [ ] `common-protocol` and `serve-protocol` binary fixtures against `nix-compat`'s wire types. Seven shared primitive cases in each group pass byte-for-byte round trips (`upstream_shared_protocols`); 28 fixture files moved from `unrun` to `pass`. Realisation, build-result, path-info, handshake, and serve-specific cases remain open.
+	- [ ] `derivation` JSON and derivation output JSON fixtures. **[locked: claude-fixture-groups]**
+	- [ ] `derivation-options` fixtures (advanced attributes).
+	- [ ] `derivation/invariants` fixtures (filling in deferred output paths).
+	- [ ] `derivation/try-resolve` fixtures (resolving content-addressed inputs).
 	- [ ] `store-reference`, `machines`, `dummy-store`, and `worker-substitution` fixtures.
-	- [ ] libutil `git`, `memory-source-accessor`, `nar-listing`, and remaining `hash` fixtures, and libfetchers `public-key`.
+	- [ ] libutil `memory-source-accessor` and `nar-listing` fixtures.
+	- [x] libutil `git` object fixtures. `nix_compat::git` parses and writes the copied blob and SHA-1/SHA-256 trees byte for byte, checks each listed entry, and rejects malformed headers and entries; source-accessor integration and `git-hashing` feature enforcement remain separate gates.
+	- [x] Remaining libutil `hash` fixtures. `sha256.json` matches the reference value; `sha512.json` is a reference anomaly because CppNix 2.35.2's `sha512` test constructs SHA-256. Custom tests preserve both outcomes.
+	- [x] libfetchers `public-key` JSON. `nix_compat::fetchers::PublicKey` matches both round-trip fixtures and the read-only missing-type fixture, which defaults to `ssh-ed25519`.
 - [x] Run every copied language fixture against the Rust evaluator in isolated child processes with timeouts, fail on unclassified fixture files, and record each case's observed outcome so any change fails the test. 104 of 467 cases pass; see `crates/compat-tests/expectations/upstream-lang.txt`.
 - [ ] Close the language fixture gaps: CppNix-format diagnostics with source locations and traces, a `--parse` printer, the `.flags` options, missing builtins, and the crash and unexpected-success cases.
 - [ ] Adapt upstream functional shell tests to call nix-rs binaries. Do not count tests that still call installed CppNix as nix-rs passes.
