@@ -2,9 +2,21 @@
 
 ## Current package boundary
 
-The first installable artifact is the `nixrs` preview command. The repository flake exposes `packages.x86_64-linux.nixrs`, `packages.x86_64-linux.default`, and an app that runs that command. `cargo install --path crates/nix-rs-cli --locked` installs the same binary from a checkout. It currently evaluates a pure expression with `nixrs eval --expr EXPRESSION` or `nixrs eval --file PATH`. The CLI deeply forces the result before printing it, matching the strict evaluator mode used by the initial differential runner. File evaluation reports the source path in diagnostics, but the pure evaluator cannot perform store-backed or impure operations. Its name deliberately differs from `nix`, and it does not own the store or daemon. It cannot replace `nix.package` or satisfy a NixOS or Home Manager rebuild. Publishing a crate on crates.io is a later step; a working local Cargo installation is not a published, independently resolvable crate.
+The first installable artifact is the `nixrs` preview command. The repository flake exposes `packages.x86_64-linux.nixrs`, `packages.x86_64-linux.default`, and an app that runs that command. `cargo install --path crates/nix-rs-cli --locked` installs the same binary from a checkout. It currently evaluates a pure expression with `nixrs eval --expr EXPRESSION` or `nixrs eval --file PATH`. The CLI deeply forces the result before printing it, matching the strict evaluator mode used by the initial differential runner. File evaluation reports the source path in diagnostics, but the pure evaluator cannot perform store-backed or impure operations. Its name deliberately differs from `nix`, and it does not own the store or daemon. It cannot replace `nix.package` or satisfy a NixOS or Home Manager rebuild. The preview is also on crates.io, so `cargo install nix-rs-cli` installs the same `nixrs` binary without a checkout.
 
 A NixOS user may add the preview flake package to `environment.systemPackages`, or a Home Manager user may add it to `home.packages`. Both methods install `nixrs` alongside CppNix. Neither changes the daemon or the `nix` command. Do not expose a replacement NixOS module until the replacement gates below pass.
+
+## Published crates
+
+Version 0.1.0 of the preview command and the evaluator it links are published on crates.io under the SINGH-RAJVEER account. The names `nixrs` and `nix-rs` belong to unrelated crates, and `nix-compat` and `nix-compat-derive` belong to their upstream authors, so the imported format crates stay unpublished until they are renamed.
+
+| Crate | Version | License | Contents |
+|---|---|---|---|
+| [`nix-rs-eval-builtin-macros`](https://crates.io/crates/nix-rs-eval-builtin-macros) | 0.0.1 | GPL-3.0-only | Procedural macros for defining builtins, derived from `snix-eval-builtin-macros` |
+| [`nix-rs-eval`](https://crates.io/crates/nix-rs-eval) | 0.1.0 | GPL-3.0-only | Nix language evaluator, derived from `snix-eval` |
+| [`nix-rs-cli`](https://crates.io/crates/nix-rs-cli) | 0.1.0 | Apache-2.0 | The `nixrs` preview command |
+
+The two imported crates keep Snix's GPL-3.0 license and include the text from `crates/nix-rs/LICENSE`. The CLI's own source is Apache-2.0, but the `nixrs` binary links `nix-rs-eval`, so a distributed binary must meet GPL-3.0 terms. Published versions are permanent: a version can be yanked but its source stays public. A new version needs its crate's version raised, including the versions written on the path dependencies, and `cargo publish -p nix-rs-eval-builtin-macros -p nix-rs-eval -p nix-rs-cli` publishes the set in dependency order. These are preview crates: their APIs are not stable, and the release gate below still applies.
 
 ## Replacement milestones
 

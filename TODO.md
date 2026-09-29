@@ -94,6 +94,7 @@ Each numbered section is a work package. Its checkboxes are the subtasks, and th
 ## 8. Package and qualify the MVP release
 
 - [ ] Make the flake build reproducibly from a clean clone and provide the qualified replacement package, app, checks, daemon, and NixOS integration module.
+- [x] Publish the preview command set to crates.io: `nix-rs-eval-builtin-macros` 0.0.1, `nix-rs-eval` 0.1.0 and `nix-rs-cli` 0.1.0 ([distribution](docs/distribution.md#published-crates)).
 - [ ] Decide which Rust crates have stable public APIs; make their dependencies independently resolvable, run `cargo package`, and publish only after license and provenance review.
 - [ ] Audit imported code and copied test licenses; include attribution and source revisions in release artifacts.
 - [ ] Test installation, upgrade, failed upgrade, rollback, and removal in disposable VMs before documenting host installation.
