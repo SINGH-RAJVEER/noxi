@@ -23,6 +23,8 @@ in
 		pkgs.ninja
 		pkgs.nix
 		pkgs.pkg-config
+		pkgs.socat
+		pkgs.sqlite
 		pkgs.zstd
 	];
 }

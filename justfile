@@ -46,6 +46,18 @@ eval-compare-reference report="target/eval-comparison-reference.json": reference
 reference-inventory: reference
 	bash scripts/reference-inventory.sh
 
+# Boot the pinned CppNix reference VM once and keep its disk as the read-only rollback base in target/qualification.
+reference-vm-snapshot:
+	bash scripts/reference-vm-snapshot.sh snapshot
+
+# Create a disposable copy-on-write overlay of the reference VM base for one test run.
+reference-vm-overlay name:
+	bash scripts/reference-vm-snapshot.sh overlay "{{name}}"
+
+# Boot a temporary overlay of the reference VM base and check the base is unchanged.
+reference-vm-verify:
+	bash scripts/reference-vm-snapshot.sh verify
+
 # Fetch the latest official stable Nix source and tests; record its exact revision.
 nix-tests-update:
 	bash scripts/update-nix-tests.sh latest

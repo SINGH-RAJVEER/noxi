@@ -1,0 +1,59 @@
+# Created by `nix store info --store ROOT` on an empty directory
+# Layout (mode, type, path); database file sizes vary and are omitted
+drwxr-xr-x d nix
+drwxr-xr-x d nix/store
+drwxr-xr-x d nix/store/.links
+drwxr-xr-x d nix/var
+drwxr-xr-x d nix/var/nix
+drwxr-xr-x d nix/var/nix/db
+-rw------- f nix/var/nix/db/big-lock
+-rw-r--r-- f nix/var/nix/db/db.sqlite
+-rw-r--r-- f nix/var/nix/db/db.sqlite-shm
+-rw-r--r-- f nix/var/nix/db/db.sqlite-wal
+-rw------- f nix/var/nix/db/reserved
+-rw-r--r-- f nix/var/nix/db/schema
+drwxr-xr-x d nix/var/nix/gcroots
+drwxr-xr-x d nix/var/nix/gcroots/per-user
+drwxr-xr-x d nix/var/nix/profiles
+drwxr-xr-x d nix/var/nix/profiles/per-user
+drwxr-xr-x d nix/var/nix/temproots
+# nix/var/nix/db/schema
+10
+# SchemaMigrations
+20260309-drop-redundant-indexreferrer
+# journal_mode
+wal
+# SQL schema
+CREATE INDEX IndexDerivationOutputs on DerivationOutputs(path);
+CREATE INDEX IndexReference on Refs(reference);
+CREATE TABLE DerivationOutputs (
+    drv  integer not null,
+    id   text not null, -- symbolic output id, usually "out"
+    path text not null,
+    primary key (drv, id),
+    foreign key (drv) references ValidPaths(id) on delete cascade
+);
+CREATE TABLE Refs (
+    referrer  integer not null,
+    reference integer not null,
+    primary key (referrer, reference),
+    foreign key (referrer) references ValidPaths(id) on delete cascade,
+    foreign key (reference) references ValidPaths(id) on delete restrict
+);
+CREATE TABLE SchemaMigrations (migration text primary key not null);
+CREATE TABLE ValidPaths (
+    id               integer primary key autoincrement not null,
+    path             text unique not null,
+    hash             text not null, -- base16 representation
+    registrationTime integer not null,
+    deriver          text,
+    narSize          integer,
+    ultimate         integer, -- null implies "false"
+    sigs             text, -- space-separated
+    ca               text -- if not null, an assertion that the path is content-addressed; see ValidPathInfo
+);
+CREATE TABLE sqlite_sequence(name,seq);
+CREATE TRIGGER DeleteSelfRefs before delete on ValidPaths
+  begin
+    delete from Refs where referrer = old.id and reference = old.id;
+  end;

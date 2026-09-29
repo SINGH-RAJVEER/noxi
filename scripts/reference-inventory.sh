@@ -141,6 +141,29 @@ run_nix __dump-language | jq -S '
 	cd "${root_dir}"
 } >"${out_dir}/legacy-options.txt"
 
+# The layout, schema and migrations of a fresh local store as the reference
+# creates it, using a chroot store under the scratch directory.
+if command -v sqlite3 >/dev/null; then
+	run_nix --extra-experimental-features nix-command store info --store "${scratch}/store" >/dev/null
+	{
+		echo "# Created by \`nix store info --store ROOT\` on an empty directory"
+		echo "# Layout (mode, type, path); database file sizes vary and are omitted"
+		(cd "${scratch}/store" && find . -mindepth 1 -printf '%M %y %p\n' | sed 's# \./# #' | LC_ALL=C sort -k3)
+		echo "# nix/var/nix/db/schema"
+		cat "${scratch}/store/nix/var/nix/db/schema"
+		echo
+		echo "# SchemaMigrations"
+		sqlite3 "file:${scratch}/store/nix/var/nix/db/db.sqlite?mode=ro" 'select migration from SchemaMigrations order by migration'
+		echo "# journal_mode"
+		sqlite3 "file:${scratch}/store/nix/var/nix/db/db.sqlite?mode=ro" 'pragma journal_mode'
+		echo "# SQL schema"
+		sqlite3 "file:${scratch}/store/nix/var/nix/db/db.sqlite?mode=ro" \
+			"select sql || ';' from sqlite_master where sql is not null order by type, name"
+	} >"${out_dir}/empty-store.txt"
+else
+	echo "sqlite3 not found; leaving ${out_dir}/empty-store.txt unchanged" >&2
+fi
+
 # Public C API functions by library. The C++ headers under src/lib*/include are
 # also installed, but have no stable interface to enumerate.
 {

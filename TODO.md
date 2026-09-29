@@ -4,6 +4,8 @@ This checklist tracks the first release: nix-rs replacing the selected CppNix re
 
 A checked item below means it exists and has focused local evidence in the current working tree. It does not mean the item is committed, published, or qualified for replacement. Keep a failing or unrun test visible until the corresponding behavior passes against a pinned reference.
 
+Several agents work on this list at once. Before starting an item, append a lock such as ` **[locked: agent-name]**` to its line, and remove it when the item is finished or abandoned. Skip any item another agent has locked.
+
 Each numbered section is a work package. Its checkboxes are the subtasks, and the package is complete only when every applicable checkbox has evidence in the compatibility matrix.
 
 ## 0. Make the baseline reproducible
@@ -16,7 +18,7 @@ Each numbered section is a work package. Its checkboxes are the subtasks, and th
 - [x] Pin a Nixpkgs and NixOS revision, a Home Manager revision, the reference feature settings, and the x86_64-linux VM image for the first compatibility row. `tests/qualification/flake.lock` pins the inputs; its UEFI CppNix reference VM built, reached multi-user mode, started Nix and Home Manager, and shut down cleanly. The matrix records the exact revisions and scope.
 - [x] Inventory every executable, `nix.conf` setting, experimental feature, protocol version, and public library interface exposed by that reference build. Record what NixOS and Home Manager actually invoke. `just reference-inventory` writes `tests/reference-inventory/` from the reference build and source, and [reference inventory](docs/reference-inventory.md) lists the pinned NixOS and Home Manager call sites, read from their source.
 - [ ] Confirm the NixOS and Home Manager call sites by tracing the executables they run in the qualification VM during rebuild, switch, garbage collection, and Home Manager activation.
-- [ ] Define expected behavior for both an empty store and a copy of an existing CppNix store. Preserve a reference-only VM snapshot for rollback tests.
+- [x] Define expected behavior for both an empty store and a copy of an existing CppNix store. Preserve a reference-only VM snapshot for rollback tests. [Expected store states](docs/compatibility.md#expected-store-states) specifies both, with the reference's fresh-store layout recorded in `tests/reference-inventory/empty-store.txt`. `just reference-vm-snapshot` keeps a read-only CppNix-only VM base, and `just reference-vm-verify` boots an overlay of it without changing the base.
 - [x] Keep the copied fixture tree unchanged and provide a command to fetch a revision-recorded official Nix checkout with `just nix-tests-update` and `just nix-tests-sync`.
 - [x] Provide a pinned nightly development shell and a separate preview flake package. The shell and package builds have been exercised locally.
 - [x] Resolve the pinned nightly's rustc internal compiler error in `nix-compat-derive-tests` by diagnosing uncovered enum versions before generating the async match. The UI suite and full `just ci` pass without accepting an ICE as expected output.
@@ -39,7 +41,7 @@ Each numbered section is a work package. Its checkboxes are the subtasks, and th
 ## 2. Finish formats and cryptographic primitives
 
 - [x] Exercise selected hash, derivation, and NAR fixtures against the imported compatibility crates. The masked-output-path fixtures went with the move to 2.35.2.
-- [ ] Cover every reference hash encoding and algorithm, including invalid input behavior and experimental feature gates.
+- [ ] Cover every reference hash encoding and algorithm, including invalid input behavior and experimental feature gates. [LOCK: Codex /root]
 - [ ] Complete store-path, content-address, derivation, output-specification, and realisation parsing and serialization for the enabled reference features.
 - [ ] Implement NAR streaming, import/export, compression, and malformed-input behavior beyond the current small fixture set.
 - [ ] Implement narinfo parsing and serialization, signatures, trusted-key checks, and cache metadata validation.
