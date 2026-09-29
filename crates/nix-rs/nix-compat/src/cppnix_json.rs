@@ -7,7 +7,7 @@
 //! `adl_serializer<T>::to_json`/`from_json` pairs and names it in its
 //! documentation.
 
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 
 use data_encoding::BASE64;
 
@@ -65,6 +65,8 @@ pub enum Error {
 	Unsigned(&'static str),
 	#[error("expected an integer for '{0}'")]
 	Integer(&'static str),
+	#[error("unknown build result status '{0}'")]
+	BuildStatus(String),
 }
 
 fn type_name(value: &Value) -> &'static str {
@@ -589,6 +591,281 @@ impl NarInfo {
 			compression,
 			file_hash,
 			file_size,
+		})
+	}
+}
+
+/// CppNix's `DrvOutput`: one output of a derivation, the key of a
+/// realisation. The output name is not validated, as in CppNix.
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+pub struct DrvOutput {
+	pub drv_path: StorePath,
+	pub output_name: String,
+}
+
+impl DrvOutput {
+	/// `adl_serializer<DrvOutput>::to_json`.
+	pub fn to_json(&self) -> Value {
+		json!({ "drvPath": store_path_to_json(&self.drv_path), "outputName": self.output_name })
+	}
+
+	/// `adl_serializer<DrvOutput>::from_json`.
+	pub fn from_json(value: &Value) -> Result<Self, Error> {
+		let object = as_object(value)?;
+		Ok(Self {
+			drv_path: store_path_from_json(field(object, "drvPath")?)?,
+			output_name: as_str(field(object, "outputName")?, "output name string")?.to_owned(),
+		})
+	}
+}
+
+/// CppNix's `UnkeyedRealisation`: the output path a derivation output
+/// realised to, with signatures over its fingerprint.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct UnkeyedRealisation {
+	pub out_path: StorePath,
+	pub signatures: BTreeSet<Signature>,
+}
+
+impl UnkeyedRealisation {
+	/// `adl_serializer<UnkeyedRealisation>::to_json`. Signatures use the
+	/// object form.
+	pub fn to_json(&self) -> Value {
+		json!({
+			"outPath": store_path_to_json(&self.out_path),
+			"signatures": self.signatures.iter().map(Signature::to_json).collect::<Vec<_>>(),
+		})
+	}
+
+	/// `adl_serializer<UnkeyedRealisation>::from_json`. Signatures may be
+	/// missing, or use either the object or the `name:base64` form.
+	pub fn from_json(value: &Value) -> Result<Self, Error> {
+		let object = as_object(value)?;
+		let signatures = match object.get("signatures") {
+			None => BTreeSet::new(),
+			Some(signatures) => signatures
+				.as_array()
+				.ok_or(Error::Type {
+					expected: "array of signatures",
+					got: type_name(signatures),
+				})?
+				.iter()
+				.map(Signature::from_json)
+				.collect::<Result<_, _>>()?,
+		};
+		Ok(Self {
+			out_path: store_path_from_json(field(object, "outPath")?)?,
+			signatures,
+		})
+	}
+
+	/// `UnkeyedRealisation::fingerprint`: the compact JSON of the keyed
+	/// realisation without its signatures, which is what gets signed.
+	pub fn fingerprint(&self, key: &DrvOutput) -> String {
+		json!({
+			"key": key.to_json(),
+			"value": { "outPath": store_path_to_json(&self.out_path) },
+		})
+		.to_string()
+	}
+
+	/// `UnkeyedRealisation::sign` without inserting the signature.
+	pub fn sign<S>(&self, key: &DrvOutput, signer: &crate::narinfo::SigningKey<S>) -> Signature
+	where
+		S: ed25519::signature::Signer<ed25519::Signature>,
+	{
+		let signature = signer.sign(self.fingerprint(key).as_bytes());
+		Signature {
+			key_name: signature.name().to_string(),
+			sig: signature.bytes().to_vec(),
+		}
+	}
+
+	/// `UnkeyedRealisation::checkSignature` for one trusted key: the names
+	/// must match and the signature must verify over the fingerprint.
+	pub fn check_signature(
+		&self,
+		key: &DrvOutput,
+		verifying_key: &crate::narinfo::VerifyingKey,
+		signature: &Signature,
+	) -> bool {
+		let Ok(bytes) = <[u8; 64]>::try_from(signature.sig.as_slice()) else {
+			return false;
+		};
+		let signature = crate::narinfo::SignatureRef::new(signature.key_name.as_str(), bytes);
+		verifying_key.verify(&self.fingerprint(key), &signature)
+	}
+}
+
+/// CppNix's `Realisation`: an [`UnkeyedRealisation`] with its key.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Realisation {
+	pub id: DrvOutput,
+	pub value: UnkeyedRealisation,
+}
+
+impl Realisation {
+	/// `adl_serializer<Realisation>::to_json`.
+	pub fn to_json(&self) -> Value {
+		json!({ "key": self.id.to_json(), "value": self.value.to_json() })
+	}
+
+	/// `adl_serializer<Realisation>::from_json`.
+	pub fn from_json(value: &Value) -> Result<Self, Error> {
+		let object = as_object(value)?;
+		Ok(Self {
+			id: DrvOutput::from_json(field(object, "key")?)?,
+			value: UnkeyedRealisation::from_json(field(object, "value")?)?,
+		})
+	}
+}
+
+/// `BuildResult::Success::Status` names.
+pub const BUILD_SUCCESS_STATUSES: &[&str] = &[
+	"Built",
+	"Substituted",
+	"AlreadyValid",
+	"ResolvesToAlreadyValid",
+];
+
+/// `BuildResult::Failure::Status` names.
+pub const BUILD_FAILURE_STATUSES: &[&str] = &[
+	"PermanentFailure",
+	"InputRejected",
+	"OutputRejected",
+	"TransientFailure",
+	"CachedFailure",
+	"TimedOut",
+	"MiscFailure",
+	"DependencyFailed",
+	"LogLimitExceeded",
+	"NotDeterministic",
+	"NoSubstituters",
+	"HashMismatch",
+];
+
+/// Whether a build succeeded, as the variant inside CppNix's `BuildResult`.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum BuildOutcome {
+	Success {
+		/// One of [`BUILD_SUCCESS_STATUSES`].
+		status: String,
+		built_outputs: BTreeMap<String, UnkeyedRealisation>,
+	},
+	Failure {
+		/// One of [`BUILD_FAILURE_STATUSES`].
+		status: String,
+		error_msg: String,
+		is_non_deterministic: bool,
+	},
+}
+
+/// CppNix's `BuildResult`. CPU times are in microseconds.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct BuildResult {
+	pub outcome: BuildOutcome,
+	pub times_built: u64,
+	pub start_time: u64,
+	pub stop_time: u64,
+	pub cpu_user: Option<u64>,
+	pub cpu_system: Option<u64>,
+}
+
+impl BuildResult {
+	/// `adl_serializer<BuildResult>::to_json`.
+	pub fn to_json(&self) -> Value {
+		let mut object = Map::new();
+		object.insert("timesBuilt".into(), json!(self.times_built));
+		object.insert("startTime".into(), json!(self.start_time));
+		object.insert("stopTime".into(), json!(self.stop_time));
+		if let Some(cpu_user) = self.cpu_user {
+			object.insert("cpuUser".into(), json!(cpu_user));
+		}
+		if let Some(cpu_system) = self.cpu_system {
+			object.insert("cpuSystem".into(), json!(cpu_system));
+		}
+		match &self.outcome {
+			BuildOutcome::Success {
+				status,
+				built_outputs,
+			} => {
+				object.insert("success".into(), json!(true));
+				object.insert("status".into(), json!(status));
+				object.insert(
+					"builtOutputs".into(),
+					Value::Object(
+						built_outputs
+							.iter()
+							.map(|(name, realisation)| (name.clone(), realisation.to_json()))
+							.collect(),
+					),
+				);
+			}
+			BuildOutcome::Failure {
+				status,
+				error_msg,
+				is_non_deterministic,
+			} => {
+				object.insert("success".into(), json!(false));
+				object.insert("status".into(), json!(status));
+				object.insert("errorMsg".into(), json!(error_msg));
+				object.insert("isNonDeterministic".into(), json!(is_non_deterministic));
+			}
+		}
+		Value::Object(object)
+	}
+
+	/// `adl_serializer<BuildResult>::from_json`.
+	pub fn from_json(value: &Value) -> Result<Self, Error> {
+		let object = as_object(value)?;
+		let unsigned = |name: &'static str| -> Result<u64, Error> {
+			field(object, name)?.as_u64().ok_or(Error::Unsigned(name))
+		};
+		let optional_unsigned = |name: &'static str| -> Result<Option<u64>, Error> {
+			object
+				.get(name)
+				.map(|value| value.as_u64().ok_or(Error::Unsigned(name)))
+				.transpose()
+		};
+		let boolean = |name: &'static str| -> Result<bool, Error> {
+			let value = field(object, name)?;
+			value.as_bool().ok_or(Error::Type {
+				expected: "boolean",
+				got: type_name(value),
+			})
+		};
+		let status = as_str(field(object, "status")?, "status string")?.to_owned();
+		let outcome = if boolean("success")? {
+			if !BUILD_SUCCESS_STATUSES.contains(&status.as_str()) {
+				return Err(Error::BuildStatus(status));
+			}
+			let outputs = as_object(field(object, "builtOutputs")?)?;
+			BuildOutcome::Success {
+				status,
+				built_outputs: outputs
+					.iter()
+					.map(|(name, realisation)| {
+						Ok((name.clone(), UnkeyedRealisation::from_json(realisation)?))
+					})
+					.collect::<Result<_, Error>>()?,
+			}
+		} else {
+			if !BUILD_FAILURE_STATUSES.contains(&status.as_str()) {
+				return Err(Error::BuildStatus(status));
+			}
+			BuildOutcome::Failure {
+				status,
+				error_msg: as_str(field(object, "errorMsg")?, "error message string")?.to_owned(),
+				is_non_deterministic: boolean("isNonDeterministic")?,
+			}
+		};
+		Ok(Self {
+			outcome,
+			times_built: unsigned("timesBuilt")?,
+			start_time: unsigned("startTime")?,
+			stop_time: unsigned("stopTime")?,
+			cpu_user: optional_unsigned("cpuUser")?,
+			cpu_system: optional_unsigned("cpuSystem")?,
 		})
 	}
 }

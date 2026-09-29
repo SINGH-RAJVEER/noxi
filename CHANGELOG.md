@@ -90,6 +90,7 @@ Nix formats and protocols: store paths, nixbase32, hashes, NAR, ATerm derivation
 
 - `cppnix_json`, with CppNix 2.35.2's JSON encodings of store paths, SRI hashes, content addresses, output specifications, and deriving paths. Nested deriving paths and `git` content addresses return `Error::Unsupported` with the experimental feature they need (2026-09-30).
 - `cppnix_json::{PathInfo, NarInfo, Signature, PathInfoFormat}`: CppNix's `UnkeyedValidPathInfo` and `UnkeyedNarInfo` JSON in format versions 1, 2 and 3, including the version-1 fallbacks for a missing `version` and `storeDir` (2026-09-30).
+- `cppnix_json::{DrvOutput, Realisation, UnkeyedRealisation, BuildResult}`: CppNix's realisation and build-result JSON, realisation fingerprints, and signing and verification with Nix signing keys (2026-09-30).
 
 ### 0.1.0 - unpublished
 
@@ -157,6 +158,7 @@ Internal test crate that checks the workspace crates against the CppNix 2.35.2 f
 - `fixture_inventory` and `expectations/fixtures.txt`, which classify every file copied into `tests/nix` and fail on an unclassified fixture, a stale pattern, or a pass claim that the named test does not back (2026-09-30).
 - `upstream_store_json`, which checks `nix_compat::cppnix_json` against the store-path, content-address, outputs-spec and derived-path fixtures (2026-09-30).
 - `upstream_path_info_json`, which checks path-info and nar-info JSON against the values CppNix's tests construct (2026-09-30).
+- `upstream_realisation_json`, which checks realisation and build-result JSON, realisation fingerprints, and signatures made with CppNix's test key (2026-09-30).
 
 #### Changed
 
