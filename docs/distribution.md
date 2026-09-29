@@ -16,7 +16,7 @@ Version 0.1.0 of the preview command and the evaluator it links are published on
 | [`nix-rs-eval`](https://crates.io/crates/nix-rs-eval) | 0.1.0 | GPL-3.0-only | Nix language evaluator, derived from `snix-eval` |
 | [`nix-rs-cli`](https://crates.io/crates/nix-rs-cli) | 0.1.0 | Apache-2.0 | The `nixrs` preview command |
 
-The two imported crates keep Snix's GPL-3.0 license and include the text from `crates/nix-rs/LICENSE`. The CLI's own source is Apache-2.0, but the `nixrs` binary links `nix-rs-eval`, so a distributed binary must meet GPL-3.0 terms. Published versions are permanent: a version can be yanked but its source stays public. A new version needs its crate's version raised, including the versions written on the path dependencies, and `cargo publish -p nix-rs-eval-builtin-macros -p nix-rs-eval -p nix-rs-cli` publishes the set in dependency order. These are preview crates: their APIs are not stable, and the release gate below still applies.
+The two imported crates keep Snix's GPL-3.0 license and include the text from `crates/nix-rs/LICENSE`. The CLI's own source is Apache-2.0, but the `nixrs` binary links `nix-rs-eval`, so a distributed binary must meet GPL-3.0 terms. Published versions are permanent: a version can be yanked but its source stays public. A new version needs its changes recorded in [CHANGELOG.md](../CHANGELOG.md) and its crate's version raised, including the versions written on the path dependencies, and `cargo publish -p nix-rs-eval-builtin-macros -p nix-rs-eval -p nix-rs-cli` publishes the set in dependency order. These are preview crates: their APIs are not stable, and the release gate below still applies.
 
 ## Replacement milestones
 
