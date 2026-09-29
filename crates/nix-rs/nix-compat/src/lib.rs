@@ -8,6 +8,7 @@ pub mod cppnix_json;
 pub mod derivation;
 #[cfg(feature = "serde")]
 pub mod fetchers;
+pub mod git;
 pub mod log;
 pub mod nar;
 pub mod narinfo;
