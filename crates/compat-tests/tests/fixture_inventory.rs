@@ -92,9 +92,9 @@ fn glob_matches(pattern: &[&str], path: &[&str]) -> bool {
 	match pattern.split_first() {
 		None => path.is_empty(),
 		Some((&"**", rest)) => (0..=path.len()).any(|skip| glob_matches(rest, &path[skip..])),
-		Some((segment, rest)) => path
-			.split_first()
-			.is_some_and(|(first, tail)| segment_matches(segment, first) && glob_matches(rest, tail)),
+		Some((segment, rest)) => path.split_first().is_some_and(|(first, tail)| {
+			segment_matches(segment, first) && glob_matches(rest, tail)
+		}),
 	}
 }
 
@@ -102,7 +102,11 @@ fn collect_files(dir: &Path, root: &Path, only_data: bool, out: &mut Vec<String>
 	for entry in std::fs::read_dir(dir).expect("snapshot directory must be readable") {
 		let entry = entry.expect("directory entry");
 		let path = entry.path();
-		let relative = path.strip_prefix(root).unwrap().to_string_lossy().into_owned();
+		let relative = path
+			.strip_prefix(root)
+			.unwrap()
+			.to_string_lossy()
+			.into_owned();
 		// Do not follow directory symlinks: src/nix-functional-tests links to
 		// tests/functional, which is walked directly.
 		if entry.file_type().expect("file type").is_dir() {
@@ -142,7 +146,11 @@ fn file_stem(path: &str) -> &str {
 fn every_fixture_is_classified() {
 	let rules = parse_manifest();
 	let files = fixture_files();
-	assert!(files.len() > 1000, "snapshot looks incomplete: {} files", files.len());
+	assert!(
+		files.len() > 1000,
+		"snapshot looks incomplete: {} files",
+		files.len()
+	);
 
 	let mut unclassified = Vec::new();
 	let mut hits = vec![0usize; rules.len()];
@@ -173,7 +181,11 @@ fn every_fixture_is_classified() {
 		.filter(|(_, hits)| **hits == 0)
 		.map(|(rule, _)| format!("line {}: {}", rule.line, rule.pattern))
 		.collect();
-	assert!(stale.is_empty(), "patterns that match no file:\n{}", stale.join("\n"));
+	assert!(
+		stale.is_empty(),
+		"patterns that match no file:\n{}",
+		stale.join("\n")
+	);
 
 	eprintln!("fixture classification: {by_class:?}");
 }
@@ -215,7 +227,10 @@ fn claimed_tests_read_their_fixtures() {
 			if first == Some(index) && glob_matches(&pattern, &segments) {
 				let stem = file_stem(file);
 				if !source.contains(&format!("\"{stem}")) {
-					problems.push(format!("line {}: {test} never names {stem:?} ({file})", rule.line));
+					problems.push(format!(
+						"line {}: {test} never names {stem:?} ({file})",
+						rule.line
+					));
 				}
 			}
 		}
@@ -236,7 +251,10 @@ fn glob_semantics() {
 	assert!(!matches("a/**/*.drv", "a/b/x.json"));
 	assert!(matches("a/*", "a/x"));
 	assert!(!matches("a/*", "a/b/x"));
-	assert!(matches("src/*/data/.gitkeep", "src/libexpr-tests/data/.gitkeep"));
+	assert!(matches(
+		"src/*/data/.gitkeep",
+		"src/libexpr-tests/data/.gitkeep"
+	));
 	assert!(matches("a/b-*-c", "a/b-x-c"));
 	assert!(!matches("a/b-*-c", "a/b-x-d"));
 }

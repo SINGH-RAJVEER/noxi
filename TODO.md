@@ -32,6 +32,13 @@ Each numbered section is a work package. Its checkboxes are the subtasks, and th
 - [ ] Capture exit code, stdout, stderr, structured output, produced paths, derivation bytes, NAR bytes, store metadata, and daemon exchanges where applicable.
 - [x] Make every copied fixture discoverable and classified as passing, known gap, reference anomaly, or unrun. Fail when an unclassified fixture appears. `crates/compat-tests/expectations/fixtures.txt` classifies all 1,916 copied files, and `fixture_inventory` fails on an unclassified file, a stale pattern, or an unbacked pass claim.
 - [ ] Turn the 840 `unrun` fixtures into `pass`, `gap`, or `anomaly` entries, one fixture group at a time, starting with the common and serve protocol, narinfo, path-info, realisation, and store-path groups.
+	- [x] `store-path`, `content-address`, `outputs-spec`, and `derived-path` JSON against `nix-compat`. `nix_compat::cppnix_json` implements 2.35.2's encodings; `upstream_store_json` round-trips 14 of the 17 fixtures byte for byte, and the 3 nested deriving paths need `dynamic-derivations`, which both engines reject by default.
+	- [ ] `nar-info` and `path-info` JSON against `nix-compat`.
+	- [ ] `realisation` and `build-result` JSON against `nix-compat`.
+	- [ ] `common-protocol` and `serve-protocol` binary fixtures against `nix-compat`'s wire types. **[locked: codex-root]**
+	- [ ] `derivation` JSON, `derivation-options`, `invariants`, and `try-resolve` fixtures.
+	- [ ] `store-reference`, `machines`, `dummy-store`, and `worker-substitution` fixtures.
+	- [ ] libutil `git`, `memory-source-accessor`, `nar-listing`, and remaining `hash` fixtures, and libfetchers `public-key`.
 - [x] Run every copied language fixture against the Rust evaluator in isolated child processes with timeouts, fail on unclassified fixture files, and record each case's observed outcome so any change fails the test. 104 of 467 cases pass; see `crates/compat-tests/expectations/upstream-lang.txt`.
 - [ ] Close the language fixture gaps: CppNix-format diagnostics with source locations and traces, a `--parse` printer, the `.flags` options, missing builtins, and the crash and unexpected-success cases.
 - [ ] Adapt upstream functional shell tests to call nix-rs binaries. Do not count tests that still call installed CppNix as nix-rs passes.
@@ -42,7 +49,7 @@ Each numbered section is a work package. Its checkboxes are the subtasks, and th
 ## 2. Finish formats and cryptographic primitives
 
 - [x] Exercise selected hash, derivation, and NAR fixtures against the imported compatibility crates. The masked-output-path fixtures went with the move to 2.35.2.
-- [ ] Cover every reference hash encoding and algorithm, including invalid input behavior and experimental feature gates. [LOCK: Codex /root]
+- [ ] Cover every reference hash encoding and algorithm, including invalid input behavior and experimental feature gates. A custom 2.35.2 `nix hash convert` matrix covers MD5, SHA-1, SHA-256, SHA-512, and BLAKE3 in hex, nix32, base64, and SRI, including malformed inputs. The command-level BLAKE3 feature gate and remaining CLI behavior are open.
 - [ ] Complete store-path, content-address, derivation, output-specification, and realisation parsing and serialization for the enabled reference features.
 - [ ] Implement NAR streaming, import/export, compression, and malformed-input behavior beyond the current small fixture set.
 - [ ] Implement narinfo parsing and serialization, signatures, trusted-key checks, and cache metadata validation.

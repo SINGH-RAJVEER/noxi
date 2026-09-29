@@ -19,12 +19,12 @@ Every copied fixture file has a classification in `crates/compat-tests/expectati
 
 On 2026-09-30 the 1,916 files were classified as follows:
 
-- 1,064 are in per-file tables: 992 language, 58 worker-protocol, and 14 derivation files.
+- 1,081 are in per-file tables: 992 language, 58 worker-protocol, 17 store JSON, and 14 derivation files.
 - 9 pass: the malformed NARs and the BLAKE3 hash JSON.
-- 840 are unrun.
+- 823 are unrun.
 - 3 are ignored.
 
-The unrun files include the common and serve protocol fixtures, narinfo, path-info, realisation, store-path, store-reference, content-address, outputs-spec, derived-path, build-result, and git hashing data, and every shell and NixOS test outside `lang`.
+The unrun files include the common and serve protocol fixtures, narinfo, path-info, realisation, store-reference, build-result, and git hashing data, and every shell and NixOS test outside `lang`.
 
 The ATerm parser in `nix-compat` accepts what 2.35.2's `parseDerivation` accepts:
 
@@ -43,6 +43,8 @@ Differences from 2.35.2 that remain:
 - JSON output cannot represent non-UTF-8 output names and returns an error for them; ATerm retains the original bytes.
 
 The masked-hash, `bad-ca-fixed-path.drv`, and `windows-store-dir.drv` fixtures are absent from 2.35.2, and their tests were removed with the refresh. These checks cover narrow format behavior, not complete derivation or store compatibility.
+
+CppNix 2.35.2's JSON forms for store paths, content addresses, output specifications, and deriving paths live in `nix_compat::cppnix_json`, separate from the imported `serde` implementations, which follow Snix's conventions. `upstream_store_json` decodes each of the 17 fixtures, compares the values CppNix's unit tests construct, and re-encodes 14 of them byte for byte. The other 3 are nested deriving paths that 2.35.2 accepts only with `dynamic-derivations`. Both engines reject them by default, and nix-rs cannot yet accept them with the feature enabled.
 
 `crates/compat-tests/tests/upstream_worker_protocol.rs` decodes the number of values stated by each JSON fixture at the version CppNix's test uses, and requires byte-identical re-encoding (decoding only, for the lossy reads CppNix also only reads). A count-bound read is necessary because an optional value at EOF may be interpreted as absent rather than as stream termination. It also checks decoded values against those the C++ test constructs. Three fixtures in the snapshot are not referenced by its C++ tests and are marked stale. Fixtures that need protocol feature negotiation, and the handshake, remain gaps.
 

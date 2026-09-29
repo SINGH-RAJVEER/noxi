@@ -3,6 +3,8 @@
 extern crate self as nix_compat;
 
 pub(crate) mod aterm;
+#[cfg(feature = "serde")]
+pub mod cppnix_json;
 pub mod derivation;
 pub mod log;
 pub mod nar;

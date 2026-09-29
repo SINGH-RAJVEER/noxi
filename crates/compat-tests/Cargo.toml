@@ -16,6 +16,7 @@ nix-compat = { path = "../nix-rs/nix-compat", features = ["serde", "daemon"] }
 data-encoding.workspace = true
 tokio = { workspace = true, features = ["io-util", "macros", "rt"] }
 serde_json.workspace = true
+sha2.workspace = true
 
 [[test]]
 name = "upstream_lang"

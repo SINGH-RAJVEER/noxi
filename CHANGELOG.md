@@ -86,6 +86,10 @@ Nix formats and protocols: store paths, nixbase32, hashes, NAR, ATerm derivation
 - The derivation platform, builder, arguments, environment keys and output names are byte strings. ATerm parsing and writing keep non-UTF-8 bytes and output names that a new derivation could not use, as 2.35.2 does; JSON serialisation returns an error for fields that are not UTF-8 (2026-09-29).
 - `hash_derivation_modulo` and `HashDerivationModuloLookup` use `DrvHashModulo`, which keeps a fixed-output derivation's hash under its output name. A requested fixed output is masked as `out`, an empty request contributes nothing, and a missing output is an error, as in 2.35.2 (2026-09-29).
 
+#### Added
+
+- `cppnix_json`, with CppNix 2.35.2's JSON encodings of store paths, SRI hashes, content addresses, output specifications, and deriving paths. Nested deriving paths and `git` content addresses return `Error::Unsupported` with the experimental feature they need (2026-09-30).
+
 ### 0.1.0 - unpublished
 
 #### Added
@@ -150,6 +154,7 @@ Internal test crate that checks the workspace crates against the CppNix 2.35.2 f
 - `derivation_parser_extensions`, which checks that non-UTF-8 fields and unchecked output names round-trip through ATerm (2026-09-29).
 - `differential_eval`, which checks the comparison runner against mock executables (2026-09-29).
 - `fixture_inventory` and `expectations/fixtures.txt`, which classify every file copied into `tests/nix` and fail on an unclassified fixture, a stale pattern, or a pass claim that the named test does not back (2026-09-30).
+- `upstream_store_json`, which checks `nix_compat::cppnix_json` against the store-path, content-address, outputs-spec and derived-path fixtures (2026-09-30).
 
 #### Changed
 

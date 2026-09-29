@@ -1400,6 +1400,7 @@ dependencies = [
  "nix-compat",
  "nix-rs-eval",
  "serde_json",
+ "sha2",
  "tempfile",
  "tokio",
 ]
