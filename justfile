@@ -50,6 +50,10 @@ nix-tests-update:
 nix-tests-sync:
 	bash scripts/update-nix-tests.sh sync
 
+# Replace tests/nix with the test paths of the checked-out official commit and rewrite its lock file.
+nix-snapshot-refresh:
+	bash scripts/update-nix-tests.sh snapshot
+
 # Check the fixed test snapshot against its recorded upstream objects; pass "upstream" to fetch the commit too.
 nix-snapshot-verify mode="local":
 	bash scripts/verify-nix-snapshot.sh "{{mode}}"
