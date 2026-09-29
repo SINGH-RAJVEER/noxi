@@ -34,7 +34,8 @@ use crate::store_path::{self, StorePath};
 ///
 /// ## Validation
 ///
-/// When building a [`Derivation`] or an [`UnverifiedDerivation`] the following things are checked:
+/// When building a [`Derivation`] or an [`UnverifiedDerivation`] from a builder the following things
+/// are checked. Parsing ATerm skips these checks, as CppNix 2.35.2 does:
 /// - [`StorePath`] of input derivations end in `.drv`.
 /// - `system` is not empty.
 /// - `builder` is not empty.
@@ -93,16 +94,17 @@ impl DerivationBuilder {
 	{
 		// For each input_derivation, look up the hash derivation modulo,
 		// and replace the derivation path with the hash_derivation_modulo.
-		let mut replacements = BTreeMap::<Sha256, BTreeSet<OutputName>>::new();
+		//
+		// Like CppNix 2.35.2's `insert_or_assign`, when two inputs have the same
+		// hash, the output names of the later one in path order replace those of
+		// the earlier one instead of being merged with them.
+		let mut replacements = BTreeMap::<Sha256, &BTreeSet<OutputName>>::new();
 		for (drv_path, output_names) in &self.input_derivations {
 			let hdm = lookup
 				.lookup_hdm(&drv_path.as_ref())
 				.ok_or_else(|| DerivationError::MissingInputDerivation(drv_path.clone()))?;
 
-			replacements
-				.entry(hdm)
-				.or_default()
-				.extend(output_names.iter().cloned());
+			replacements.insert(hdm, output_names);
 		}
 
 		let mut hasher = Sha256Digester::new();
@@ -110,7 +112,9 @@ impl DerivationBuilder {
 			&mut hasher,
 			environment,
 			outputs,
-			replacements.iter(),
+			replacements
+				.iter()
+				.map(|(hdm, output_names)| (hdm, *output_names)),
 		);
 
 		Ok(hasher.finalize())
@@ -282,16 +286,20 @@ impl DerivationBuilder {
 		})
 	}
 
-	/// Like [`Self::build_unverified`], but leaves the environment as it is.
+	/// Like [`Self::build_unverified`], but leaves the environment as it is and
+	/// skips [validation].
 	///
 	/// This is how a parsed derivation is built: CppNix's parser does not add
 	/// environment variables for outputs, so neither may we, or a derivation
-	/// without them would not round-trip.
+	/// without them would not round-trip. CppNix 2.35.2 also accepts an empty
+	/// platform, builder or environment key and input derivations without a
+	/// `.drv` name, both when parsing and when checking a derivation's invariants.
+	///
+	/// [validation]: #validation
 	pub(super) fn build_unverified_as_parsed(
 		mut self,
 		outputs: Outputs,
 	) -> Result<UnverifiedDerivation, DerivationError> {
-		self.validate()?;
 		if self.outputs != outputs {
 			self.outputs = outputs.clone().into_builder();
 		}

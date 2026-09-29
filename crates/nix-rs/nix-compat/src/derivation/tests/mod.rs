@@ -1,8 +1,5 @@
-use super::parse_error::ErrorKind;
 #[cfg(feature = "serde")]
 use crate::derivation::output::OutputHash;
-use crate::derivation::parse_error::NomError;
-use crate::derivation::parser::Error;
 use crate::derivation::{DerivationBuilder, UnverifiedDerivation};
 #[cfg(feature = "serde")]
 use crate::derivation::{OutputName, OutputsBuilder, lookup_fn};
@@ -124,21 +121,41 @@ fn from_aterm_bytes(
 	);
 }
 
+/// A repeated environment key keeps its last value, as CppNix 2.35.2's
+/// `insert_or_assign` does, and serialising again drops the repeat.
 #[test]
 fn from_aterm_bytes_duplicate_map_key() {
 	let buf: Vec<u8> =
 		fs::read(format!("{}/{}", RESOURCES_PATHS, "duplicate.drv")).expect("unable to read .drv");
 
-	let err = UnverifiedDerivation::from_aterm_bytes(&buf).expect_err("must fail");
+	let drv = UnverifiedDerivation::from_aterm_bytes(&buf).expect("must parse");
+	assert_eq!(
+		drv.environment().get("name").map(|v| v.as_slice()),
+		Some(&b"bar"[..])
+	);
 
-	match err {
-		Error::Parser(NomError { input: _, code }) => {
-			assert_eq!(code, ErrorKind::DuplicateMapKey("name".to_string()));
-		}
-		_ => {
-			panic!("unexpected error");
-		}
-	}
+	let canonical = drv.to_aterm_bytes();
+	assert_eq!(
+		canonical.len(),
+		buf.len() - br#",("name","foo")"#.len(),
+		"only the replaced pair is dropped"
+	);
+}
+
+/// CppNix 2.35.2 parses an empty platform, builder and environment key, and
+/// input derivations whose name lacks `.drv`; building one from a
+/// [`DerivationBuilder`] still rejects them.
+#[test]
+fn from_aterm_bytes_accepts_what_builders_reject() {
+	let aterm = br#"Derive([("out","/nix/store/4q0pg5zpfmznxscq3avycvf9xdvx50n3-bar","","")],[("/nix/store/4q0pg5zpfmznxscq3avycvf9xdvx50n3-bar",["out"])],[],"","",[],[("","x")])"#;
+
+	let drv = UnverifiedDerivation::from_aterm_bytes(aterm).expect("must parse");
+	assert_eq!(drv.to_aterm_bytes(), aterm);
+
+	let (builder, outputs) = drv.into_parts();
+	builder
+		.build_unverified(outputs)
+		.expect_err("builders validate their fields");
 }
 
 /// Read in a derivation in ATerm, but add some garbage at the end.

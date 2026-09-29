@@ -16,25 +16,21 @@ const FIXTURE_DIR: &str = "../../tests/nix/src/libstore-tests/data/derivation";
 enum Expect {
 	/// Parses, and serialising it again reproduces the file byte for byte.
 	RoundTrip,
+	/// Parses, but the file is not in canonical order. Serialising it again
+	/// sorts it, as CppNix does, and that canonical form round-trips.
+	Canonicalises,
 	/// CppNix only parses this with the named experimental feature enabled, so
 	/// under default settings both reject it. `nix-compat` has no support for
 	/// the feature yet, which is a gap for matrix rows that enable it.
 	Experimental(&'static str),
 	/// Invalid input that CppNix also rejects while parsing.
 	Reject,
-	/// A known gap: CppNix accepts this, but `nix-compat` rejects it under the
-	/// named stricter rule, which it took from CppNix's development branch.
-	Divergent(&'static str),
 }
 
 use Expect::*;
 
 const CA_FLOATING: &str = "ca-derivations";
 const DYN_DRV: &str = "dynamic-derivations";
-/// CppNix 2.35.2 inserts input derivations into a map in any order, letting a
-/// later duplicate replace an earlier one. The anonymised fixtures list inputs
-/// that share a digest out of path order.
-const UNSORTED_INPUT_DRVS: &str = "input derivations must be strictly sorted";
 
 const EXPECTATIONS: &[(&str, Expect)] = &[
 	("bad-old-version-dyn-deps.drv", Reject),
@@ -53,8 +49,10 @@ const EXPECTATIONS: &[(&str, Expect)] = &[
 		Experimental(CA_FLOATING),
 	),
 	("dyn-dep-derivation.drv", Experimental(DYN_DRV)),
-	("firefox.drv", Divergent(UNSORTED_INPUT_DRVS)),
-	("hello.drv", Divergent(UNSORTED_INPUT_DRVS)),
+	// The anonymised fixtures list input derivations that share a digest out
+	// of path order.
+	("firefox.drv", Canonicalises),
+	("hello.drv", Canonicalises),
 	("ia/advanced-attributes-defaults.drv", RoundTrip),
 	("ia/advanced-attributes.drv", RoundTrip),
 	(
@@ -112,13 +110,22 @@ fn derivations_match_expectations() {
 
 		let actual = match &parsed {
 			Ok(drv) if drv.to_aterm_bytes() == bytes => "round-trips",
-			Ok(_) => "parses but re-serialises differently",
+			Ok(drv) => {
+				let canonical = drv.to_aterm_bytes();
+				match UnverifiedDerivation::from_aterm_bytes(&canonical) {
+					Ok(again) if again == *drv && again.to_aterm_bytes() == canonical => {
+						"canonicalises"
+					}
+					_ => "parses but its canonical form does not round-trip",
+				}
+			}
 			Err(_) => "fails to parse",
 		};
 
 		let ok = match expect {
 			RoundTrip => actual == "round-trips",
-			Experimental(_) | Reject | Divergent(_) => parsed.is_err(),
+			Canonicalises => actual == "canonicalises",
+			Experimental(_) | Reject => parsed.is_err(),
 		};
 
 		if !ok {

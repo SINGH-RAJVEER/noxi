@@ -77,6 +77,13 @@ Published to crates.io.
 
 Nix formats and protocols: store paths, nixbase32, hashes, NAR, ATerm derivations, narinfo, realisations, flake references, `nix.conf` and daemon wire types.
 
+### Unreleased
+
+#### Changed
+
+- Derivation ATerm parsing follows CppNix 2.35.2 instead of the 2.36.0 development rules. The five collections may appear in any order; a repeated output keeps the first entry, a repeated input derivation or environment key keeps the last, and repeated output names and input sources collapse. Input derivations may list no outputs. Every string field decodes escapes as 2.35.2 does, including store paths, output names and the platform, and raw newlines, carriage returns and tabs are accepted. Parsed derivations skip the builder's field validation. The `Unsorted`, `DuplicateMapKey`, `DuplicateInputSource`, `DuplicateInputDerivationOutputName` and `InputDerivationWithoutOutputs` parse errors are removed (2026-09-29).
+- Input-addressed hashing lets the later of two input derivations with the same hash replace the earlier one's output names, as 2.35.2 does, instead of merging them (2026-09-29).
+
 ### 0.1.0 - unpublished
 
 #### Added
@@ -102,8 +109,8 @@ Nix formats and protocols: store paths, nixbase32, hashes, NAR, ATerm derivation
 
 #### Known divergences from CppNix 2.35.2
 
-- 2.35.2 accepts the five ATerm collections in any order and resolves duplicates per collection, so `nix-compat` rejects its `hello.drv` and `firefox.drv` fixtures.
-- Input-addressed hashing merges the output names of input derivations whose hashes collide, as imported from Snix and as CppNix fixed in issue #16307 after 2.35.2. 2.35.2 overwrites one of them, so such derivations can get different output paths.
+- 2.35.2 accepts the five ATerm collections in any order and resolves duplicates per collection, so `nix-compat` rejects its `hello.drv` and `firefox.drv` fixtures. Resolved in Unreleased.
+- Input-addressed hashing merges the output names of input derivations whose hashes collide, as imported from Snix and as CppNix fixed in issue #16307 after 2.35.2. 2.35.2 overwrites one of them, so such derivations can get different output paths. Resolved in Unreleased.
 
 ## nix-compat-derive
 
@@ -132,6 +139,16 @@ Deserialises Nix values into Rust types, imported from `snix-serde`.
 ## nixrs-compat-tests
 
 Internal test crate that checks the workspace crates against the CppNix 2.35.2 fixtures in `tests/nix/`. Not published.
+
+### Unreleased
+
+#### Added
+
+- `reference_hash_modulo`, which verifies derivations the 2.35.2 reference wrote for CppNix issue #16307's graph (2026-09-29).
+
+#### Changed
+
+- `hello.drv` and `firefox.drv` are expected to parse and canonicalise instead of being recorded as divergences (2026-09-29).
 
 ### 0.1.0 - unpublished
 

@@ -4,7 +4,7 @@
 //! [ATerm]: http://program-transformation.org/Tools/ATermFormat.html
 use bstr::BString;
 use nom::branch::alt;
-use nom::bytes::streaming::{escaped_transform, is_not};
+use nom::bytes::streaming::{escaped_transform, is_not, take};
 use nom::character::streaming::char as nomchar;
 use nom::combinator::{map_res, opt, value};
 use nom::multi::separated_list0;
@@ -12,22 +12,19 @@ use nom::sequence::delimited;
 use nom::{IResult, Parser};
 
 /// Parse a bstr and undo any escaping (which is why this needs to allocate).
-// FUTUREWORK: have a version for fields that are known to not need escaping
-// (like store paths), and use &str.
 ///
-/// Like CppNix, bytes that have an escape sequence (newline, carriage return,
-/// tab, backslash, double quote) must be written escaped, so a raw one ends the
-/// field and fails the parse.
+/// Like CppNix 2.35.2's `parseString`, `\n`, `\r` and `\t` decode to newline,
+/// carriage return and tab, and a backslash before any other byte yields that
+/// byte. Raw newlines, carriage returns and tabs are accepted as they are.
 fn parse_escaped_bytes(i: &[u8]) -> IResult<&[u8], BString> {
 	escaped_transform(
-		is_not("\"\\\n\r\t"),
+		is_not("\"\\"),
 		'\\',
 		alt((
-			value("\\".as_bytes(), nomchar('\\')),
 			value("\n".as_bytes(), nomchar('n')),
 			value("\t".as_bytes(), nomchar('t')),
 			value("\r".as_bytes(), nomchar('r')),
-			value("\"".as_bytes(), nomchar('\"')),
+			take(1usize),
 		)),
 	)(i)
 	.map(|(i, v)| (i, BString::new(v)))
@@ -59,33 +56,6 @@ pub(crate) fn parse_string_field(i: &[u8]) -> IResult<&[u8], String> {
 	.parse(i)
 }
 
-/// Parse a field in double quotes that must not contain any escape sequence,
-/// and return it as a [String].
-///
-/// CppNix reads store paths, output names and the platform this way: they come
-/// from restricted alphabets, so an escape would be a second encoding of the same
-/// value and is rejected.
-pub(crate) fn parse_unquoted_string_field(i: &[u8]) -> IResult<&[u8], String> {
-	delimited(
-		nomchar('\"'),
-		map_res(opt(is_not("\"\\")), |b: Option<&[u8]>| {
-			String::from_utf8(b.unwrap_or_default().to_vec())
-		}),
-		nomchar('\"'),
-	)
-	.parse(i)
-}
-
-/// Parse a list of unquoted string fields (enclosed in brackets).
-pub(crate) fn parse_unquoted_string_list(i: &[u8]) -> IResult<&[u8], Vec<String>> {
-	delimited(
-		nomchar('['),
-		separated_list0(nomchar(','), parse_unquoted_string_field),
-		nomchar(']'),
-	)
-	.parse(i)
-}
-
 /// Parse a list of string fields (enclosed in brackets)
 pub(crate) fn parse_string_list(i: &[u8]) -> IResult<&[u8], Vec<String>> {
 	delimited(
@@ -106,6 +76,9 @@ mod tests {
 	#[case::doublequote(br#""\"""#, br#"""#, b"")]
 	#[case::colon(br#"":""#, b":", b"")]
 	#[case::doublequote_rest(br#""\""Rest"#, br#"""#, b"Rest")]
+	#[case::escapes(br#""a\n\r\t\\\"b""#, b"a\n\r\t\\\"b", b"")]
+	#[case::other_escape(br#""\a\-\/""#, b"a-/", b"")]
+	#[case::raw_control(b"\"a\nb\tc\rd\"", b"a\nb\tc\rd", b"")]
 	fn test_parse_bstr_field(
 		#[case] input: &[u8],
 		#[case] expected: &[u8],

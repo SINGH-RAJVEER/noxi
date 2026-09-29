@@ -4,31 +4,13 @@ use nom::IResult;
 
 use crate::{
 	derivation::{OutputName, ParseOutputNameError, outputs::OutputsError},
-	nixhash,
-	store_path::{self, StorePath},
+	nixhash, store_path,
 };
 
 pub type NomResult<I, O> = IResult<I, O, NomError<I>>;
 
 #[derive(Debug, thiserror::Error, PartialEq)]
 pub enum ErrorKind {
-	/// duplicate key in map
-	#[error("duplicate map key: {0}")]
-	DuplicateMapKey(String),
-
-	/// Input derivation has two outputs with the same name
-	#[error("duplicate output name {0} for input derivation {1}")]
-	DuplicateInputDerivationOutputName(OutputName, String),
-
-	#[error("duplicate input source: {0}")]
-	DuplicateInputSource(StorePath),
-
-	/// A map key, set item or output does not follow the previous one in
-	/// ascending order. CppNix requires the canonical order, so the same
-	/// derivation cannot have more than one encoding.
-	#[error("{0} does not appear in a sorted order")]
-	Unsorted(String),
-
 	/// An output has a hash algorithm but no path or hash: a floating
 	/// content-addressed output. CppNix only accepts these with the
 	/// `ca-derivations` experimental feature, which nix-compat does not support.
@@ -36,10 +18,6 @@ pub enum ErrorKind {
 		"output {0} is content-addressed and floating, which requires the ca-derivations experimental feature"
 	)]
 	FloatingContentAddressedOutput(OutputName),
-
-	/// An input derivation entry lists no outputs.
-	#[error("input derivation {0} specifies no outputs")]
-	InputDerivationWithoutOutputs(String),
 
 	#[error("invalind output name")]
 	InvalidOutputName(#[from] ParseOutputNameError),

@@ -90,8 +90,8 @@ fn parse_output(i: &[u8]) -> NomResult<&[u8], (OutputName, Option<StorePath>, Op
 		nomchar('('),
 		|i| {
 			(
-				terminated(aterm::parse_unquoted_string_field, nomchar(',')),
-				terminated(aterm::parse_unquoted_string_field, nomchar(',')),
+				terminated(aterm::parse_string_field, nomchar(',')),
+				terminated(aterm::parse_string_field, nomchar(',')),
 				terminated(aterm::parse_string_field, nomchar(',')),
 				aterm::parse_bytes_field,
 			)
@@ -158,6 +158,9 @@ fn parse_output(i: &[u8]) -> NomResult<&[u8], (OutputName, Option<StorePath>, Op
 /// it to a BTreeMap.
 /// We don't use parse_kv here, as it's dealing with 2-tuples, and these are
 /// 4-tuples.
+///
+/// Like CppNix 2.35.2, outputs may appear in any order, and when a name repeats
+/// the first output with that name is kept (`emplace`).
 fn parse_outputs(i: &[u8]) -> NomResult<&[u8], Outputs> {
 	let res = delimited(
 		nomchar('['),
@@ -169,17 +172,11 @@ fn parse_outputs(i: &[u8]) -> NomResult<&[u8], Outputs> {
 	match res {
 		Ok((rst, outputs_lst)) => {
 			let mut builder = UnverifiedOutputsBuilder::default();
-			let mut previous: Option<OutputName> = None;
+			let mut seen = BTreeSet::<OutputName>::new();
 			for (output_name, store_path, output_hash) in outputs_lst {
-				if let Some(previous) = &previous
-					&& previous > &output_name
-				{
-					return Err(nom::Err::Failure(NomError {
-						input: i,
-						code: ErrorKind::Unsorted(format!("output name '{output_name}'")),
-					}));
+				if !seen.insert(output_name.clone()) {
+					continue;
 				}
-				previous = Some(output_name.clone());
 				let inserted = match (store_path, output_hash) {
 					(Some(store_path), output_hash) => {
 						builder.try_insert(output_name, store_path, output_hash)
@@ -209,53 +206,32 @@ fn parse_outputs(i: &[u8]) -> NomResult<&[u8], Outputs> {
 	}
 }
 
+/// Parse the input derivations.
+///
+/// Like CppNix 2.35.2, entries may appear in any order, and a repeated path
+/// replaces the earlier entry (`insert_or_assign`). Each entry's output names
+/// form a set: they may appear in any order, repeats collapse, and the set may
+/// be empty.
 fn parse_input_derivations(
 	i: &[u8],
 ) -> NomResult<&[u8], BTreeMap<StorePath, BTreeSet<OutputName>>> {
-	let (i, input_derivations_list) = parse_kv(
-		aterm::parse_unquoted_string_field,
-		aterm::parse_unquoted_string_list,
-	)(i)?;
+	let (i, input_derivations_list) =
+		parse_kv(aterm::parse_string_field, aterm::parse_string_list)(i)?;
 
-	// This is a HashMap of drv paths to a list of output names.
 	let mut input_derivations: BTreeMap<StorePath, BTreeSet<_>> = BTreeMap::new();
 
 	for (input_derivation, output_names_strings) in input_derivations_list {
-		if output_names_strings.is_empty() {
-			return Err(nom::Err::Failure(NomError {
-				input: i,
-				code: ErrorKind::InputDerivationWithoutOutputs(input_derivation),
-			}));
-		}
-
-		let mut output_names = BTreeSet::<OutputName>::new();
-		for output_name_string in output_names_strings.into_iter() {
-			let output_name = OutputName::try_from(output_name_string).map_err(|err| {
-				nom::Err::Failure(NomError {
-					input: i,
-					code: ErrorKind::InvalidOutputName(err),
+		let output_names = output_names_strings
+			.into_iter()
+			.map(|output_name| {
+				OutputName::try_from(output_name).map_err(|err| {
+					nom::Err::Failure(NomError {
+						input: i,
+						code: ErrorKind::InvalidOutputName(err),
+					})
 				})
-			})?;
-
-			if output_names.contains(&output_name) {
-				return Err(nom::Err::Failure(NomError {
-					input: i,
-					code: ErrorKind::DuplicateInputDerivationOutputName(
-						output_name,
-						input_derivation,
-					),
-				}));
-			}
-			if output_names.last().is_some_and(|last| last > &output_name) {
-				return Err(nom::Err::Failure(NomError {
-					input: i,
-					code: ErrorKind::Unsorted(format!(
-						"output name '{output_name}' of input derivation {input_derivation}"
-					)),
-				}));
-			}
-			output_names.insert(output_name);
-		}
+			})
+			.collect::<Result<BTreeSet<_>, _>>()?;
 
 		let input_derivation = string_to_store_path(i, input_derivation.as_str())?;
 
@@ -265,31 +241,16 @@ fn parse_input_derivations(
 	Ok((i, input_derivations))
 }
 
+/// Parse the input sources. Like CppNix 2.35.2, they form a set: any order is
+/// accepted, and repeats collapse.
 fn parse_input_sources(i: &[u8]) -> NomResult<&[u8], BTreeSet<StorePath>> {
-	let (i, input_sources_lst) = aterm::parse_unquoted_string_list(i).map_err(into_nomerror)?;
+	let (i, input_sources_lst) = aterm::parse_string_list(i).map_err(into_nomerror)?;
 
-	let mut input_sources: BTreeSet<StorePath> = BTreeSet::new();
-	for input_source in input_sources_lst.into_iter() {
-		let input_source = string_to_store_path(i, input_source.as_str())?;
-		match input_sources.last() {
-			Some(last) if last == &input_source => {
-				return Err(nom::Err::Failure(NomError {
-					input: i,
-					code: ErrorKind::DuplicateInputSource(input_source),
-				}));
-			}
-			Some(last) if last > &input_source => {
-				return Err(nom::Err::Failure(NomError {
-					input: i,
-					code: ErrorKind::Unsorted(format!("input source {input_source}")),
-				}));
-			}
-			_ => {}
-		}
-		input_sources.insert(input_source);
-	}
-
-	Ok((i, input_sources))
+	input_sources_lst
+		.iter()
+		.map(|input_source| string_to_store_path(i, input_source))
+		.collect::<Result<_, _>>()
+		.map(|input_sources| (i, input_sources))
 }
 
 fn string_to_store_path<'i>(
@@ -329,7 +290,7 @@ pub fn parse_derivation(i: &[u8]) -> NomResult<&[u8], (DerivationBuilder, Output
 				terminated(parse_input_sources, nomchar(',')),
 				// // parse system
 				|i| {
-					terminated(aterm::parse_unquoted_string_field, nomchar(','))
+					terminated(aterm::parse_string_field, nomchar(','))
 						.parse(i)
 						.map_err(into_nomerror)
 				},
@@ -377,13 +338,11 @@ pub fn parse_derivation(i: &[u8]) -> NomResult<&[u8], (DerivationBuilder, Output
 	.parse(i)
 }
 
-/// Parse a list of key/value pairs into a BTreeMap.
+/// Parse a list of key/value pairs.
 /// The parser for the values can be passed in.
-/// In terms of ATerm, this is just a 2-tuple,
-/// but we have the additional restriction that the first element needs to be
-/// unique across all tuples.
-///
-/// Like CppNix, the keys must appear in strictly ascending order.
+/// In terms of ATerm, this is just a list of 2-tuples. Pairs are returned in
+/// input order, so collecting them into a map keeps the last value of a
+/// repeated key, as CppNix 2.35.2's `insert_or_assign` does.
 pub(crate) fn parse_kv<'a, V, KF, VF>(
 	kf: KF,
 	vf: VF,
@@ -399,7 +358,7 @@ where
     delimited(
         nomchar('['),
         |ii| {
-            let res = separated_list0(
+            separated_list0(
                 nomchar(','),
                 // inside parens
                 delimited(
@@ -411,30 +370,7 @@ where
                     ),
                     nomchar(')'),
                 ),
-            ).parse(ii).map_err(into_nomerror);
-
-            match res {
-                Ok((rest, pairs)) => {
-                    // fail if a key was already seen, or is out of order.
-                    for window in pairs.windows(2) {
-                        let (previous, key) = (&window[0].0, &window[1].0);
-                        if previous == key {
-                            return Err(nom::Err::Failure(NomError {
-                                input: i,
-                                code: ErrorKind::DuplicateMapKey(key.clone()),
-                            }));
-                        }
-                        if previous > key {
-                            return Err(nom::Err::Failure(NomError {
-                                input: i,
-                                code: ErrorKind::Unsorted(format!("map key '{key}'")),
-                            }));
-                        }
-                    }
-                    Ok((rest, pairs))
-                }
-                Err(e) => Err(e),
-            }
+            ).parse(ii).map_err(into_nomerror)
         },
         nomchar(']'),
     ).parse(i)
@@ -545,40 +481,26 @@ mod tests {
 		));
 	}
 
-	/// Ensures the kv parser complains about duplicate map keys
+	/// Pairs come back in input order, whatever it is, so collecting them into
+	/// a map keeps the last value of a repeated key, as CppNix 2.35.2 does.
 	#[test]
-	fn parse_kv_fail_dup_keys() {
-		let input: &'static [u8] = b"[(\"a\",\"1\"),(\"a\",\"2\")]";
-		let e = super::parse_kv(
+	fn parse_kv_any_order_last_wins() {
+		let input: &'static [u8] = b"[(\"b\",\"1\"),(\"a\",\"2\"),(\"b\",\"3\")]";
+		let (rest, parsed) = super::parse_kv(
 			crate::aterm::parse_string_field,
 			crate::aterm::parse_bytes_field,
 		)(input)
-		.expect_err("must fail");
+		.expect("must parse");
+		assert!(rest.is_empty());
 
-		match e {
-			nom::Err::Failure(e) => {
-				assert_eq!(ErrorKind::DuplicateMapKey("a".to_string()), e.code);
-			}
-			_ => panic!("unexpected error"),
-		}
-	}
-
-	/// Keys must be in ascending order, as CppNix's `parseMap` requires.
-	#[test]
-	fn parse_kv_fail_unsorted_keys() {
-		let input: &'static [u8] = b"[(\"b\",\"1\"),(\"a\",\"2\")]";
-		let e = super::parse_kv(
-			crate::aterm::parse_string_field,
-			crate::aterm::parse_bytes_field,
-		)(input)
-		.expect_err("must fail");
-
-		match e {
-			nom::Err::Failure(e) => {
-				assert_eq!(ErrorKind::Unsorted("map key 'a'".to_string()), e.code);
-			}
-			_ => panic!("unexpected error"),
-		}
+		let map: BTreeMap<String, BString> = parsed.into_iter().collect();
+		assert_eq!(
+			map,
+			BTreeMap::from([
+				("a".to_string(), BString::from("2")),
+				("b".to_string(), BString::from("3")),
+			])
+		);
 	}
 
 	/// Ensure parsing input derivations works.
@@ -595,28 +517,31 @@ mod tests {
 		assert!(rest.is_empty(), "rest must be empty");
 	}
 
-	/// Ensures the input derivation parser complains about duplicate output names
+	/// Input derivations may be in any order and a repeated path replaces the
+	/// earlier entry. Output names may be in any order, repeats collapse, and an
+	/// empty list is accepted.
 	#[test]
-	fn parse_input_derivations_fail_dup_output_names() {
+	fn parse_input_derivations_any_order_last_wins() {
+		let bash = "/nix/store/p3jc8aw45dza6h52v81j7lk69khckmcj-bash-5.2-p15.drv";
+		let hello = "/nix/store/8bjm87p310sb7r2r0sg4xrynlvg86j8k-hello-2.12.1.tar.gz.drv";
 		let input_str = format!(
-			"[(\"{0}\",[\"out\"]),(\"{1}\",[\"out\",\"out\"])]",
-			"/nix/store/8bjm87p310sb7r2r0sg4xrynlvg86j8k-hello-2.12.1.tar.gz.drv",
-			"/nix/store/p3jc8aw45dza6h52v81j7lk69khckmcj-bash-5.2-p15.drv"
+			"[(\"{bash}\",[\"out\"]),(\"{hello}\",[]),(\"{bash}\",[\"out\",\"lib\",\"out\"])]"
 		);
-		let e = super::parse_input_derivations(input_str.as_bytes()).expect_err("must fail");
+		let (rest, parsed) =
+			super::parse_input_derivations(input_str.as_bytes()).expect("must parse");
+		assert!(rest.is_empty());
 
-		match e {
-			nom::Err::Failure(e) => {
-				assert_eq!(
-					ErrorKind::DuplicateInputDerivationOutputName(
-						"out".parse().expect("Valid OutputName"),
-						"/nix/store/p3jc8aw45dza6h52v81j7lk69khckmcj-bash-5.2-p15.drv".to_string(),
-					),
-					e.code
-				);
-			}
-			_ => panic!("unexpected error"),
-		}
+		let expected = BTreeMap::from([
+			(
+				StorePath::from_absolute_path(hello.as_bytes()).unwrap(),
+				BTreeSet::new(),
+			),
+			(
+				StorePath::from_absolute_path(bash.as_bytes()).unwrap(),
+				BTreeSet::from([OutputName::out(), "lib".parse().unwrap()]),
+			),
+		]);
+		assert_eq!(expected, parsed);
 	}
 
 	/// Ensure parsing input sources works
@@ -637,45 +562,39 @@ mod tests {
 		assert!(rest.is_empty(), "rest must be empty");
 	}
 
-	/// A repeated input source is rejected, as CppNix's `checkMonotonic` does.
+	/// Input sources form a set: repeats collapse and any order is accepted.
+	/// Two paths that share a digest but differ in name are distinct; the
+	/// anonymised CppNix `hello.drv` fixture relies on this.
 	#[test]
-	fn parse_input_sources_fail_dup() {
-		let input: &'static [u8] = b"[\"/nix/store/55lwldka5nyxa08wnvlizyqw02ihy8ic-foo\",\"/nix/store/55lwldka5nyxa08wnvlizyqw02ihy8ic-foo\"]";
-		let e = super::parse_input_sources(input).expect_err("must fail");
-
-		match e {
-			nom::Err::Failure(e) => assert_eq!(
-				ErrorKind::DuplicateInputSource(
-					StorePathRef::from_absolute_path(
-						"/nix/store/55lwldka5nyxa08wnvlizyqw02ihy8ic-foo".as_bytes()
-					)
-					.unwrap()
-					.to_owned()
-				),
-				e.code
-			),
-			_ => panic!("unexpected error"),
-		}
-	}
-
-	/// Two paths that share a digest but differ in name are distinct, and are
-	/// ordered by name. The anonymised CppNix `hello.drv` fixture relies on this.
-	#[test]
-	fn parse_input_sources_same_digest_different_names() {
-		let input: &'static [u8] = b"[\"/nix/store/55lwldka5nyxa08wnvlizyqw02ihy8ic-bar\",\"/nix/store/55lwldka5nyxa08wnvlizyqw02ihy8ic-foo\"]";
+	fn parse_input_sources_set() {
+		let input: &'static [u8] = b"[\"/nix/store/55lwldka5nyxa08wnvlizyqw02ihy8ic-foo\",\"/nix/store/55lwldka5nyxa08wnvlizyqw02ihy8ic-bar\",\"/nix/store/55lwldka5nyxa08wnvlizyqw02ihy8ic-foo\"]";
 		let (rest, parsed) = super::parse_input_sources(input).expect("must parse");
 		assert!(rest.is_empty());
-		assert_eq!(parsed.len(), 2);
-
-		let reversed: &'static [u8] = b"[\"/nix/store/55lwldka5nyxa08wnvlizyqw02ihy8ic-foo\",\"/nix/store/55lwldka5nyxa08wnvlizyqw02ihy8ic-bar\"]";
-		super::parse_input_sources(reversed).expect_err("unsorted input sources must fail");
+		assert_eq!(
+			parsed
+				.iter()
+				.map(StorePath::to_absolute_path)
+				.collect::<Vec<_>>(),
+			[
+				"/nix/store/55lwldka5nyxa08wnvlizyqw02ihy8ic-bar",
+				"/nix/store/55lwldka5nyxa08wnvlizyqw02ihy8ic-foo",
+			]
+		);
 	}
 
-	/// Store paths are unquoted fields: an escape sequence in one is rejected.
+	/// Store paths are decoded like any other string, so an escaped character
+	/// is accepted if the decoded path is valid.
 	#[test]
-	fn parse_input_sources_fail_escape() {
-		let input: &'static [u8] = b"[\"/nix/store/55lwldka5nyxa08wnvlizyqw02ihy8ic-f\\\"oo\"]";
-		super::parse_input_sources(input).expect_err("must fail");
+	fn parse_input_sources_escape() {
+		let input: &'static [u8] = b"[\"/nix/store/55lwldka5nyxa08wnvlizyqw02ihy8ic-f\\oo\"]";
+		let (_, parsed) = super::parse_input_sources(input).expect("must parse");
+		assert_eq!(
+			parsed.first().map(StorePath::to_absolute_path).as_deref(),
+			Some("/nix/store/55lwldka5nyxa08wnvlizyqw02ihy8ic-foo")
+		);
+
+		let invalid: &'static [u8] = b"[\"/nix/store/55lwldka5nyxa08wnvlizyqw02ihy8ic-f\\\"oo\"]";
+		super::parse_input_sources(invalid).expect_err("a quote is not valid in a store path");
 	}
 
 	#[rstest]
@@ -737,14 +656,26 @@ mod tests {
 		assert_eq!(parsed.iter().count(), 0, "no output has a known path");
 	}
 
-	/// Output kinds cannot be mixed, and outputs must be sorted.
-	#[rstest]
-	#[case::mixed(
-		br#"[("dev","","",""),("out","/nix/store/5vyvcwah9l9kf07d52rcgdk70g2f4y13-foo","","")]"#
-	)]
-	#[case::unsorted(br#"[("out","","",""),("dev","","","")]"#)]
-	fn parse_outputs_fail(#[case] input: &[u8]) {
-		super::parse_outputs(input).expect_err("must fail");
+	/// Output kinds cannot be mixed.
+	#[test]
+	fn parse_outputs_fail_mixed() {
+		super::parse_outputs(
+			br#"[("dev","","",""),("out","/nix/store/5vyvcwah9l9kf07d52rcgdk70g2f4y13-foo","","")]"#,
+		)
+		.expect_err("must fail");
+	}
+
+	/// Outputs may be in any order, and the first of two outputs with the same
+	/// name is kept, as CppNix 2.35.2's `emplace` does. The discarded duplicate
+	/// would otherwise be an invalid mix of kinds.
+	#[test]
+	fn parse_outputs_any_order_first_wins() {
+		let (rest, parsed) = super::parse_outputs(
+			br#"[("out","/nix/store/55lwldka5nyxa08wnvlizyqw02ihy8ic-has-multi-out","",""),("lib","/nix/store/2vixb94v0hy2xc6p7mbnxxcyc095yyia-has-multi-out-lib","",""),("out","","","")]"#,
+		)
+		.expect("must parse");
+		assert!(rest.is_empty());
+		assert_eq!(*EXP_MULTI_OUTPUTS, parsed);
 	}
 
 	#[rstest]

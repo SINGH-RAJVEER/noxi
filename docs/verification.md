@@ -10,10 +10,19 @@ The full official Nix repository can be fetched into the ignored `tests/nix-offi
 
 `crates/compat-tests/` already classifies the copied ATerm derivation fixtures against vendored `nix-compat`. Its expectation table names unsupported forms, including content-addressed and dynamic derivations. These classified gaps are useful progress markers, not passing compatibility cases.
 
-The ATerm parser in `nix-compat` was aligned with the 2.36.0 development branch's rules and fixtures before the reference moved to 2.35.2. Several of those rules differ from the reference:
+The ATerm parser in `nix-compat` accepts what 2.35.2's `parseDerivation` accepts:
 
-- `nix-compat` requires strictly ascending entries without duplicates in outputs, input derivations, each input derivation's output names, input sources, and environment variables. 2.35.2's `parseDerivation` accepts all five in any order. For duplicates, 2.35.2 keeps the first output (`emplace`), keeps the last input derivation and the last environment value (`insert_or_assign`), and collapses repeated output names and input sources into sets. Only the input-derivation rule is exercised by a fixture: `nix-compat` rejects 2.35.2's anonymised `hello.drv` and `firefox.drv`, which list inputs sharing a digest out of path order. `crates/compat-tests/tests/upstream_derivations.rs` records both fixtures as known divergences. In 2.35.2 these files are only used by a parse benchmark, not by a correctness test. The other four collections differ without a fixture test.
-- Hash derivation modulo in `nix-compat` merges input derivations whose hashes collide, following the fix for CppNix issue #16307. That fix landed on `master` in August 2026 and was not backported. 2.35.2's `hashDerivationModulo` inserts each input with `insert_or_assign`, so a colliding entry overwrites the earlier one. Derivation graphs with two input derivations that mask to the same hash can therefore get different output paths from nix-rs and from the reference. 2.35.2 has no masked-derivation fixtures, so this gap has no fixture test. It needs a differential test against a 2.35.2 binary.
+- Outputs, input derivations, each input derivation's output names, input sources, and environment variables may appear in any order. A repeated output keeps the first entry (`emplace`); a repeated input derivation or environment key keeps the last (`insert_or_assign`); repeated output names and input sources collapse into sets. An input derivation may list no outputs. Serialising again writes the canonical sorted form, as CppNix does. `upstream_derivations.rs` checks that 2.35.2's anonymised `hello.drv` and `firefox.drv`, which list inputs sharing a digest out of path order, parse and canonicalise stably.
+- Every string field decodes `\n`, `\r` and `\t`, and a backslash before any other byte yields that byte, including in store paths, output names and the platform. Raw newlines, carriage returns and tabs are accepted.
+- An empty platform, builder or environment key, and input derivations whose name lacks `.drv`, parse; only derivations built from a `DerivationBuilder` reject them.
+
+Hash derivation modulo follows 2.35.2's `insert_or_assign`: when two input derivations mask to the same hash, the output names of the later one in path order replace the earlier one's. `crates/compat-tests/tests/reference_hash_modulo.rs` checks this against derivations that the 2.35.2 reference wrote for CppNix issue #16307's graph, stored in `crates/compat-tests/fixtures/hash-modulo-collision/` with the expression that produced them. Merging the output names instead, as `master` does since the #16307 fix, fails that test.
+
+Differences from 2.35.2 that remain:
+
+- The platform, builder, arguments, environment keys and output names must be valid UTF-8, because `nix-compat` stores them as Rust strings. 2.35.2 accepts any bytes.
+- Output names must be valid Nix output names when parsed. 2.35.2's parser does not check them.
+- For a fixed-output input derivation, 2.35.2 inserts one `out` entry per requested output name and fails on a name the derivation lacks. `nix-compat` inserts the requested names as they are. The two agree for the usual request of `out`, but differ for an empty list or another name.
 
 The masked-hash, `bad-ca-fixed-path.drv`, and `windows-store-dir.drv` fixtures are absent from 2.35.2, and their tests were removed with the refresh. These checks cover narrow format behavior, not complete derivation or store compatibility.
 
