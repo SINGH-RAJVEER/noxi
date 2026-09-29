@@ -7,8 +7,6 @@
 			url = "github:oxalica/rust-overlay";
 			inputs.nixpkgs.follows = "nixpkgs";
 		};
-		# The CppNix release that defines expected behavior. Keep its own inputs
-		# so the build is upstream's, which cache.nixos.org already provides.
 		nix-reference.url = "github:NixOS/nix/2.35.2";
 	};
 
