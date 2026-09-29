@@ -11,6 +11,7 @@ The [root plan](../PLAN.md) states the sole product direction: qualify the drop-
 | [Boot and Secure Boot](secure-boot.md) | Installer choice between systemd-boot and Lanzaboote, signing, enrollment, and recovery |
 | [Interface behavior](interfaces.md) | CLI, TUI, GUI, configuration edits, and parity |
 | [Declarative configuration workflow](configuration-workflow.md) | Source of truth, staged edits, rebuild, runtime actions, and rollback |
+| [Lua configuration](lua-configuration.md) | Lua as the default language for user configuration on native surfaces, alongside Nix |
 | [NixBox integration](nixbox-integration.md) | Typed package operations, direct engine use, and declarative persistence |
 | [Rebuild diagnostics and logging](logging.md) | Rebuild phases, event schema, error rendering, output modes, and log tests |
 | [Verification and release](verification.md) | Test oracles, differential tests, and release gates |

@@ -1,6 +1,6 @@
 # nix-rs plan
 
-This is the only product plan for this repository. First deliver nix-rs as a 100% drop-in replacement for the supported CppNix release. Then build a NixOS-derived operating system whose default package manager is that qualified Rust implementation. The OS includes a CLI, TUI, and GPUI-based NixBox GUI backed by the same operations. New behavior is additive and cannot change legacy results unless a user explicitly selects it.
+This is the only product plan for this repository. First deliver nix-rs as a 100% drop-in replacement for the supported CppNix release. Then build a NixOS-derived operating system whose default package manager is that qualified Rust implementation. The OS includes a CLI, TUI, and GPUI-based NixBox GUI backed by the same operations. New behavior is additive and cannot change legacy results unless a user explicitly selects it. The native surfaces, not the compatibility commands, may choose their own defaults: they read and write user configuration in Lua by default and still accept Nix.
 
 The first deliverable is an independently installable package manager that can replace CppNix on a supported existing system and operate its store through the declared compatibility matrix. The later OS deliverable is an installed system that can evaluate its own configuration, build its next generation, activate it, reboot into it, roll back, and maintain its store using nix-rs. An image that merely boots with nix-rs installed does not meet this goal. The product and acceptance criteria are specified in [docs/](docs/README.md).
 
@@ -16,7 +16,8 @@ The phrase "100% compatible" is a release gate, not a claim about the current co
 - A NixOS-derived system definition uses Nixpkgs modules and activation machinery to build, switch, boot, test, and roll back generations. The system's default engine is nix-rs.
 - The OS-native CLI, TUI, and GPUI-based NixBox GUI share NixBox's structured operations and events. Legacy compatibility commands call the nix-rs engine with their reference semantics. Privileged operations pass through a constrained authorization interface.
 - The [NixBox crates](docs/nixbox-integration.md) evolve into the typed operation and planning layer. They resolve packages and options against the locked inputs through the nix-rs engine, compare the resulting build graph, and coordinate realization and generation changes. They do more than edit Nix text or shell out to rebuild commands.
-- Persistent changes use the [declarative configuration workflow](docs/configuration-workflow.md): NixBox plans and builds the semantic change, persists the desired state in Nix source, verifies it, and activates that generation. Direct runtime actions are marked temporary.
+- Persistent changes use the [declarative configuration workflow](docs/configuration-workflow.md): NixBox plans and builds the semantic change, persists the desired state in configuration source, verifies it, and activates that generation. Direct runtime actions are marked temporary.
+- [Lua configuration](docs/lua-configuration.md) lets users write NixOS and Home Manager configurations in Lua. Native surfaces default to it and still accept Nix; the configurations evaluate to the same modules and build the same system. Nixpkgs and the module definitions stay in Nix.
 - The OS-native CLI uses [structured rebuild diagnostics](docs/logging.md): precise errors, meaningful progress, full raw logs on demand, and truthful final system state. Compatibility commands retain reference output unless users opt into the new renderer.
 - The distribution supplies an installer image, signed releases, updates, a recovery path, and documented support for its target hardware.
 
@@ -42,7 +43,7 @@ The repository has a Cargo workspace with selected imported crates under the nix
 - Boot modes and additional CPU architectures after x86_64-linux.
 - Exact Nixpkgs and NixOS baseline revision paired with the reference release.
 - Public project name and distribution branding.
-- The first set of opt-in tweaks beyond reference Nix behavior.
+- The first set of opt-in tweaks beyond reference Nix behavior. Lua configuration is already decided; its runtime and Nix interoperation remain open in [Lua configuration](docs/lua-configuration.md#open-questions).
 - Licensing and redistribution treatment of imported code and upstream test material.
 - The compatibility procedure for public C and C++ library consumers.
 - Installer storage and encryption support, signing keys, update channel, and release cadence.

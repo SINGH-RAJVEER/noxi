@@ -1,6 +1,6 @@
 # Package-manager MVP todo
 
-This checklist tracks the first release: nix-rs replacing the selected CppNix release on an existing x86_64-linux NixOS system. The installed operating system, installer, TUI, GPUI NixBox GUI, and opt-in behavior changes come after this gate. [PLAN.md](PLAN.md) defines the product order; [docs/compatibility.md](docs/compatibility.md), [docs/compatibility-matrix.md](docs/compatibility-matrix.md), and [docs/verification.md](docs/verification.md) define what a drop-in claim requires.
+This checklist tracks the first release: nix-rs replacing the selected CppNix release on an existing x86_64-linux NixOS system. The installed operating system, installer, TUI, GPUI NixBox GUI, Lua configuration, and opt-in behavior changes come after this gate. [PLAN.md](PLAN.md) defines the product order; [docs/compatibility.md](docs/compatibility.md), [docs/compatibility-matrix.md](docs/compatibility-matrix.md), and [docs/verification.md](docs/verification.md) define what a drop-in claim requires.
 
 A checked item below means it exists and has focused local evidence in the current working tree. It does not mean the item is committed, published, or qualified for replacement. Keep a failing or unrun test visible until the corresponding behavior passes against a pinned reference.
 
@@ -80,7 +80,7 @@ Each numbered section is a work package. Its checkboxes are the subtasks, and th
 - [ ] Match exit codes, stdout, stderr, JSON fields, log modes, and command side effects; use differential tests for scripts that parse output.
 - [ ] Cover core workflows: evaluate, build, develop, shell, run, flake, profile, store, copy, path-info, log, search, and garbage collection.
 - [ ] Inventory public C and C++ library consumers on the supported target and either provide compatible interfaces or keep the drop-in gate open.
-- [ ] Keep new diagnostics, TUI, and GUI entry points opt-in so compatibility commands retain their reference behavior.
+- [ ] Keep new diagnostics, TUI, and GUI entry points opt-in so compatibility commands retain their reference behavior. Compatibility commands never evaluate `.lua` files, even though native surfaces default to [Lua configuration](docs/lua-configuration.md).
 
 ## 7. Prove NixOS and Home Manager replacement
 
@@ -102,6 +102,21 @@ Each numbered section is a work package. Its checkboxes are the subtasks, and th
 - [ ] Run security checks for daemon authorization, sandbox escape attempts, untrusted caches, signatures, malformed inputs, and secret handling.
 - [ ] Publish binaries, source, signatures, test reports, known limits, and a safe migration and rollback procedure. Call the release a 100% drop-in replacement only after every applicable gate passes.
 
+## After the package-manager MVP: Lua configuration
+
+Native surfaces default to Lua for user configuration and still accept Nix, as specified in [Lua configuration](docs/lua-configuration.md). This work is not a drop-in gate, and it must be usable before the installer generates Lua configurations.
+
+- [ ] Choose, pin, and embed a Lua runtime; record its version and license.
+- [ ] Define how a Lua configuration maps to a NixOS or Home Manager module: imports, option definitions, module arguments, `lib` helpers such as `mkIf` and `mkForce`, and access to lazy Nix values without forcing `pkgs` or `config`.
+- [ ] Carry string contexts and store-path dependencies through Lua values so derivation inputs match the Nix equivalent.
+- [ ] Sandbox the runtime: no `io`, `os`, arbitrary `require`, clock, randomness, or network outside tracked inputs; test that each attempt fails with a diagnostic.
+- [ ] Implement native configuration discovery: explicit path, Lua only, Nix only, and a stop naming both files when both exist.
+- [ ] Report Lua syntax, runtime, and module-system errors with `.lua` locations in the structured diagnostics, including traces that cross Lua and Nix code.
+- [ ] Write pinned NixOS configurations in both Lua and Nix and require identical `system.build.toplevel` derivation paths; list any differences from options that embed the configuration source.
+- [ ] Do the same for standalone and module-based Home Manager configurations.
+- [ ] Test that compatibility commands, including `nixos-rebuild` and `home-manager`, give identical results with and without `.lua` files present, and document how a Lua-configured system is rebuilt.
+- [ ] Settle the open questions: Nix modules importing Lua, flake outputs for Lua configurations, Lua engine settings, and a Nix-to-Lua converter with formatter and editor support.
+
 ## After the package-manager MVP: OS image and boot
 
 - [ ] Define the first OS release matrix: architecture, UEFI firmware, installation media, supported filesystems, storage layouts, graphics and headless profiles, and the Nixpkgs baseline. Record unsupported hardware rather than implying universal support.
@@ -117,7 +132,7 @@ Each numbered section is a work package. Its checkboxes are the subtasks, and th
 
 - [ ] Design an installer plan that shows the selected disks, partitions, filesystems, encryption, boot path, users, network, and configuration source before any destructive write.
 - [ ] Implement guided and manual storage paths with explicit support boundaries. Test preservation of untouched disks, cancellation before writes, interrupted partitioning, and install retry.
-- [ ] Generate Nix source and a lock file that the installed engine can evaluate unchanged. Keep installer-only state out of the permanent configuration unless it is needed for future rebuilds.
+- [ ] Generate a Lua configuration, including the hardware module, and a lock file that the installed engine can evaluate unchanged. Keep installer-only state out of the permanent configuration unless it is needed for future rebuilds.
 - [ ] Implement boot choice validation: firmware mode, EFI system partition, key state, signing capability, and recovery route. Do not silently downgrade a requested Secure Boot installation.
 - [ ] Configure initial users and authentication, secret handling, networking, locale, and hardware-derived settings without placing credentials in the Nix store.
 - [ ] Install and verify the bootloader, boot the installed system, confirm the active generation and daemon, and rebuild once from the installed configuration.
@@ -139,7 +154,7 @@ Each numbered section is a work package. Its checkboxes are the subtasks, and th
 - [ ] Implement typed package, option, flake, system, and store operations backed by nix-rs evaluation and realization, with target-lock-revision resolution and source provenance.
 - [ ] Give the OS-native CLI, TUI, and GPUI GUI one versioned operation and event interface. No client should parse human-readable build output to infer engine state.
 - [ ] Implement the structured diagnostics, progress, full-log retrieval, JSON mode, redaction, and actual final-state reporting specified in [logging](docs/logging.md).
-- [ ] Implement safe structured edits to an application-owned Nix module, with source editing for expressions the interface cannot represent and explicit Save draft, Apply, and Rollback actions.
+- [ ] Implement safe structured edits to an application-owned module in the configuration's language, Lua or Nix, with source editing for expressions the interface cannot represent and explicit Save draft, Apply, and Rollback actions.
 - [ ] Keep desktop clients unprivileged; authorize privileged actions through a narrow service that checks the reviewed plan and target.
 - [ ] Test equivalent operations through CLI, TUI, and GUI, including headless recovery, keyboard use, accessibility labels, long builds, cancellation, reconnect, and restart recovery.
 
@@ -154,7 +169,7 @@ Each numbered section is a work package. Its checkboxes are the subtasks, and th
 ## Longer-term work after the first OS release
 
 - [ ] Add architectures, firmware modes, filesystems, encrypted-storage layouts, and hardware targets only with explicit build, boot, rollback, and recovery qualification for each new matrix row.
-- [ ] Maintain compatibility matrices for later CppNix releases and Nixpkgs/Home Manager revisions. Separate additive nix-rs features from reference behavior with versioned opt-in settings.
+- [ ] Maintain compatibility matrices for later CppNix releases and Nixpkgs/Home Manager revisions. Separate additive nix-rs features from reference behavior with versioned opt-in settings; native-surface defaults such as Lua configuration stay out of compatibility commands.
 - [ ] Support explicit migration between ordinary systemd-boot and Lanzaboote Secure Boot, plus signing-key rotation, only after their preview, recovery, and post-reboot verification paths are tested.
 - [ ] Treat TPM-bound disk unlocking as a separate installer feature with a stated PCR policy, recovery credential, and tested response to firmware, bootloader, and kernel updates.
 - [ ] Define a public extension API for NixBox operations and diagnostics without granting third-party interfaces unrestricted store or root access.

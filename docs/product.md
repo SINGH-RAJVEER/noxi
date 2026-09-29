@@ -2,15 +2,16 @@
 
 ## Product
 
-The first deliverable is nix-rs as an independently installable drop-in replacement for CppNix on the qualified existing-system target. It must preserve the supported reference release's commands, configuration, store and daemon behavior, and public interfaces before it can carry the 100% compatibility claim. A later deliverable is an installable NixOS-derived operating system whose package manager is nix-rs. That system must rebuild and maintain itself with the qualified engine. The distribution retains the Nix language, Nixpkgs package and module definitions, and NixOS system generation model. The initial reference is CppNix 2.35.2, recorded in the [compatibility matrix](compatibility-matrix.md); the exact Nixpkgs revision and platform matrix must be fixed before implementation claims are measured. [NixOS manual](https://nixos.org/manual/nixos/stable/)
+The first deliverable is nix-rs as an independently installable drop-in replacement for CppNix on the qualified existing-system target. It must preserve the supported reference release's commands, configuration, store and daemon behavior, and public interfaces before it can carry the 100% compatibility claim. A later deliverable is an installable NixOS-derived operating system whose package manager is nix-rs. That system must rebuild and maintain itself with the qualified engine. The distribution retains the Nix language, Nixpkgs package and module definitions, and NixOS system generation model. User configuration on the OS and the native `nixrs` commands defaults to [Lua](lua-configuration.md), which evaluates to the same modules. The initial reference is CppNix 2.35.2, recorded in the [compatibility matrix](compatibility-matrix.md); the exact Nixpkgs revision and platform matrix must be fixed before implementation claims are measured. [NixOS manual](https://nixos.org/manual/nixos/stable/)
 
-The package-manager MVP provides the reference-compatible CLI and daemon before the OS is built. The later OS adds a native TUI and GPUI-based NixBox GUI for system management. Users can keep handwritten Nix configuration. The interface can manage supported settings, show where effective values came from, preview a build and activation, and select an earlier generation. Additional features must use explicit extension points and preserve compatibility defaults.
+The package-manager MVP provides the reference-compatible CLI and daemon before the OS is built. The later OS adds a native TUI and GPUI-based NixBox GUI for system management. Users can keep handwritten Nix configuration or write it in Lua. The interface can manage supported settings, show where effective values came from, preview a build and activation, and select an earlier generation. Additional features must use explicit extension points and preserve compatibility defaults.
 
 ## Required modules and seams
 
 | Module | Interface obligation | Owned behavior |
 |---|---|---|
 | Nix language evaluator | Evaluate an expression under defined inputs and settings; return values, derivations, and diagnostics | Parsing, laziness, builtins, string contexts, imports, source positions |
+| Lua configuration evaluator | Evaluate a Lua configuration to NixOS or Home Manager modules for native surfaces | Pure Lua runtime, access to Nix values, source positions |
 | Input resolver | Resolve Nix paths and flake references under configuration and lock state | Fetching, hashing, filtering, cache policy |
 | Store | Read, register, query, import, export, and collect objects | Store paths, references, metadata, integrity, profiles, roots |
 | Build engine | Realize derivations and stream logs and status | Scheduling, sandboxing, substitution, remote builders, cancellation |

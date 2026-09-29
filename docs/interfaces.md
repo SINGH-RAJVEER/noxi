@@ -12,11 +12,11 @@ The module must support at least: inspect current configuration and generations;
 
 Existing Nix and NixOS command names, options, exit codes, JSON fields, stdout, stderr, and environment effects belong to the [compatibility contract](compatibility.md). A friendly interactive interface does not alter those commands. New interface commands must be distinguishable and opt-in. Automated callers must be able to request stable machine-readable results without parsing TUI or GUI text.
 
-## Nix configuration editing
+## Configuration editing
 
 NixOS options are defined and merged by modules; effective values can come from imports, functions, conditions, and override priorities. A GUI cannot assume that every effective value corresponds to one editable literal. The NixOS manual describes module definitions and merges. [NixOS modules](https://nixos.org/manual/nixos/stable/)
 
-The initial structured editor owns a clearly identified imported Nix module. It writes only that module, keeps unrelated handwritten files unchanged, and reevaluates the complete configuration before presenting a result. Where an option derives from user code or conflicts with another definition, show the source location and offer a source edit path rather than silently inserting a stronger override. Preserve comments and formatting in files the application does not own. The source and rebuild transaction is defined in [the declarative configuration workflow](configuration-workflow.md).
+The initial structured editor owns a clearly identified imported module, written in Lua when the configuration is Lua and in Nix otherwise. It writes only that module, keeps unrelated handwritten files unchanged, and reevaluates the complete configuration before presenting a result. Where an option derives from user code or conflicts with another definition, show the source location and offer a source edit path rather than silently inserting a stronger override. Preserve comments and formatting in files the application does not own. The source and rebuild transaction is defined in [the declarative configuration workflow](configuration-workflow.md).
 
 The UI must expose all operations offered by its shared operation module and all option metadata available from the selected configuration. It may render an option as a form control only when it can represent the value and write it back without changing unrelated semantics. Complex expressions remain accessible through source editing. A visible "unsupported structured edit" result is preferable to a misleading toggle.
 

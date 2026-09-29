@@ -25,5 +25,13 @@ A built NixOS system closure that can be selected for activation or boot and ret
 _Avoid_: package version
 
 **extension**:
-A new nix-rs behavior that requires an explicit command, setting, or negotiated protocol capability and preserves reference behavior by default.
+A new nix-rs behavior that requires an explicit command, setting, or negotiated protocol capability and preserves reference behavior by default. A native surface's own defaults, such as Lua configuration, belong to the extension the user selects by using that surface.
 _Avoid_: changed default
+
+**native surface**:
+A nix-rs entry point with no CppNix counterpart: the `nixrs` command, the OS installer, and the NixBox CLI, TUI, and GUI. Compatibility commands are not native surfaces.
+_Avoid_: new CLI (when a compatibility command is meant)
+
+**Lua configuration**:
+A NixOS or Home Manager configuration written in Lua that evaluates to the same modules as its Nix equivalent. It is the default on native surfaces; compatibility commands never read it.
+_Avoid_: Lua package set, Nix replacement

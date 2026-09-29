@@ -33,7 +33,9 @@ The system must not start two independent daemons writing the same store. Instal
 
 An extension is opt-in through a new command, setting, or negotiated protocol capability. With extensions disabled, it must leave reference file formats, hashes, paths, command output, and daemon messages unchanged. Extension data needed for long-term system maintenance must survive rollback or provide a documented reversal procedure.
 
-Examples may include richer progress events, configuration previews, and GUI-managed edits. The public compatibility commands retain their reference defaults. A new UI is not evidence of compatibility and does not excuse missing legacy behavior.
+Examples may include richer progress events, configuration previews, and GUI-managed edits. The public compatibility commands retain their reference defaults.
+
+[Lua configuration](lua-configuration.md) is an extension of the native surfaces. They default to Lua for user configuration, but compatibility commands never evaluate `.lua` files, and the matrix rows and their evidence are unaffected by it. A new UI is not evidence of compatibility and does not excuse missing legacy behavior.
 
 ## Evidence required to close a matrix row
 

@@ -29,16 +29,16 @@ For `Install { package = "ripgrep", scope = NixOS }`, NixBox must:
 2. Construct a typed desired-state change. Determine whether the package is already provided by an application-owned definition, another module, a user profile, or a flake output. Report those sources instead of guessing from a package name.
 3. Ask the nix-rs evaluator to compute the candidate NixOS module result and `system.build.toplevel`. Report the exact resulting derivation, affected closure, expected download/build work, and any option conflict.
 4. Request needed store paths or builds through the nix-rs engine and stream structured events. At this stage a cache or store may change, but the active OS generation does not.
-5. Persist the successful desired-state change as Nix configuration, re-evaluate the saved source, and verify it produces the built closure before activation.
+5. Persist the successful desired-state change as configuration source, re-evaluate the saved source, and verify it produces the built closure before activation.
 6. Invoke the selected generation action through the system manager and report source, build, running generation, and boot default separately.
 
 Removing a package is the same kind of semantic operation. It may remove an application-owned declaration, but it must not erase a package that still comes from another module. Garbage collection is a later explicit store operation, not an automatic side effect of removing a declaration.
 
 ## Declarative persistence
 
-The durable desired state is still expressed in the Nix language. NixBox may generate a small imported Nix module for declarations it owns, and it may update a lock in an explicit input-update operation. Rendering that module is a persistence step for a typed, evaluator-checked plan, not the full implementation of package management. UI settings or an internal operation journal are not competing sources of OS truth.
+The durable desired state is expressed in configuration source: Lua by default, or Nix when the configuration is written in Nix, as specified in [Lua configuration](lua-configuration.md). NixBox may generate a small imported module in that language for declarations it owns, and it may update a lock in an explicit input-update operation. Rendering that module is a persistence step for a typed, evaluator-checked plan, not the full implementation of package management. UI settings or an internal operation journal are not competing sources of OS truth.
 
-For handwritten or computed Nix definitions, NixBox can inspect effective options and source locations through the evaluator. It may offer a source edit when it cannot make a safe structured edit. It must not silently use `mkForce`, rewrite arbitrary expressions, or infer persistent intent from a `systemctl` change. The [configuration workflow](configuration-workflow.md) specifies staging, source revision checks, saved-source verification, and partial failure handling.
+For handwritten or computed definitions in either language, NixBox can inspect effective options and source locations through the evaluator. It may offer a source edit when it cannot make a safe structured edit. It must not silently use `mkForce`, rewrite arbitrary expressions, or infer persistent intent from a `systemctl` change. The [configuration workflow](configuration-workflow.md) specifies staging, source revision checks, saved-source verification, and partial failure handling.
 
 NixBox's current write-before-rebuild behavior must be replaced or explicitly mapped to the separate **Save draft** operation. **Apply** stages and builds first so a failed evaluation or build leaves the committed configuration unchanged. If activation fails after persistence, keep the new desired state visible as pending and report the actual running state.
 
