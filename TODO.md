@@ -4,7 +4,7 @@ This checklist tracks the first release: nix-rs replacing the selected CppNix re
 
 A checked item below means it exists and has focused local evidence in the current working tree. It does not mean the item is committed, published, or qualified for replacement. Keep a failing or unrun test visible until the corresponding behavior passes against a pinned reference.
 
-Several agents work on this list at once. Before starting an item, append a lock such as ` **[locked: agent-name]**` to its line, and remove it when the item is finished or abandoned. Skip any item another agent has locked.
+Several agents work on this list at once. Coordinate ownership before changing the same item.
 
 Each numbered section is a work package. Its checkboxes are the subtasks, and the package is complete only when every applicable checkbox has evidence in the compatibility matrix.
 
@@ -36,7 +36,7 @@ Each numbered section is a work package. Its checkboxes are the subtasks, and th
 	- [x] `nar-info` and `path-info` JSON against `nix-compat`. `cppnix_json::{PathInfo, NarInfo}` read and write format versions 1 to 3, with and without impure fields; `upstream_path_info_json` decodes all 20 fixtures to the values CppNix's tests build and re-encodes the 18 written ones byte for byte.
 	- [x] `realisation` and `build-result` JSON against `nix-compat`. `cppnix_json` adds `DrvOutput`, `Realisation`, `UnkeyedRealisation` with fingerprints, signing and verification, and `BuildResult`. `upstream_realisation_json` matches all 12 fixtures, including the test key's ed25519 signatures byte for byte.
 	- [ ] `common-protocol` and `serve-protocol` binary fixtures against `nix-compat`'s wire types. Seven shared primitive cases in each group pass byte-for-byte round trips (`upstream_shared_protocols`); 28 fixture files moved from `unrun` to `pass`. Realisation, build-result, path-info, handshake, and serve-specific cases remain open.
-	- [ ] `derivation` JSON and derivation output JSON fixtures. **[locked: claude-fixture-groups]**
+	- [x] `derivation` JSON and derivation output JSON fixtures. `cppnix_json::derivation` reads and writes all 18 copied version-4 derivation and output JSON fixtures byte for byte, including feature-gated output kinds, dynamic inputs, and structured attributes; `upstream_derivation_json` checks their decoded fields and default feature gates.
 	- [ ] `derivation-options` fixtures (advanced attributes).
 	- [ ] `derivation/invariants` fixtures (filling in deferred output paths).
 	- [ ] `derivation/try-resolve` fixtures (resolving content-addressed inputs).

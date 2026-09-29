@@ -24,7 +24,7 @@ unrun src/libstore-tests/data/derivation/ca/derivation-options/*.json # derivati
 unrun src/libstore-tests/data/derivation/ia/derivation-options/*.json # derivation options JSON
 unrun src/libstore-tests/data/derivation/invariants/* # derivation invariant checks
 unrun src/libstore-tests/data/derivation/try-resolve/* # CA derivation resolution
-unrun src/libstore-tests/data/derivation/**/*.json # derivation and output JSON
+table:upstream_derivation_json src/libstore-tests/data/derivation/**/*.json # derivation and output JSON
 
 # libstore: protocols
 table:upstream_worker_protocol src/libstore-tests/data/worker-protocol/*

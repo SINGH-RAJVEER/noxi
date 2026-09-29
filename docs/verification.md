@@ -19,10 +19,10 @@ Every copied fixture file has a classification in `crates/compat-tests/expectati
 
 On 2026-09-30 the 1,916 files were classified as follows:
 
-- 1,116 are in per-file tables: 992 language, 58 worker-protocol, 20 path-info and nar-info, 17 store JSON, 14 derivation, 12 realisation and build-result, and 3 fetcher public-key files.
+- 1,134 are in per-file tables: 992 language, 58 worker-protocol, 20 path-info and nar-info, 18 derivation JSON, 17 store JSON, 14 derivation ATerm, 12 realisation and build-result, and 3 fetcher public-key files.
 - 44 pass: the malformed NARs, six Git object files, the BLAKE3 and SHA-256 hash JSON files, and 28 shared common and serve protocol files.
 - 1 is a reference anomaly: `hash/sha512.json` contains a SHA-256 hash because CppNix 2.35.2's `HashJSON` test constructs SHA-256 for its `sha512` row.
-- 752 are unrun.
+- 734 are unrun.
 - 3 are ignored.
 
 The seven shared primitive cases in each of the common and serve protocol fixture groups now decode and re-encode byte for byte in `upstream_shared_protocols`. Their 28 binary and JSON files are classified as passing; realisation and serve-specific protocol fixtures remain unrun, along with store-reference, git hashing data, and every shell and NixOS test outside `lang`.
@@ -30,6 +30,8 @@ The seven shared primitive cases in each of the common and serve protocol fixtur
 `upstream_fetcher_public_key` checks the three copied fetcher key JSON fixtures. `simple` and `defaultType` read and write the same JSON, while `noRoundTrip` omits `type` on input and is read as `ssh-ed25519`; writing it makes the type explicit, as the 2.35.2 reference does. These source-fetcher declarations are separate from narinfo trusted verifying keys.
 
 `upstream_git_objects` checks the copied Git blob and SHA-1/SHA-256 tree objects against `nix_compat::git` byte for byte, including their listed modes, names, and child hashes. It also rejects malformed object headers and tree entries. This covers the object encoding in the `git-hashing` fixture group; feature gating and source-accessor integration remain open.
+
+`upstream_derivation_json` checks all 18 copied version-4 derivation and output JSON fixtures against the typed `cppnix_json::derivation` model. It checks output kinds, derivation names, output counts, structured-attribute presence, simple inputs, dynamic input children, and byte-identical JSON re-encoding. Fixed text, floating, impure, and dynamic-input cases require their respective experimental features at read time. This covers JSON representation; deriving output paths, interpreting structured attributes, and resolving dynamic dependencies remain separate work.
 
 The ATerm parser in `nix-compat` accepts what 2.35.2's `parseDerivation` accepts:
 
