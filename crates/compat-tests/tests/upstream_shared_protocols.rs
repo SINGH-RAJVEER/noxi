@@ -24,6 +24,8 @@ const SHARED: &[&str] = &[
 	"set",
 ];
 
+const STALE_COMMON: &[&str] = &["drv-output", "realisation", "realisation-with-deps"];
+
 fn fixture(group: &str, stem: &str, extension: &str) -> PathBuf {
 	Path::new(env!("CARGO_MANIFEST_DIR"))
 		.join("../../tests/nix/src/libstore-tests/data")
@@ -144,4 +146,31 @@ async fn shared_fixtures_match_cppnix() {
 			result.unwrap_or_else(|error| panic!("{group}/{stem}: {error}"));
 		}
 	}
+}
+
+#[test]
+fn common_fixtures_have_explicit_reference_dispositions() {
+	let source = include_str!("../../../tests/nix/src/libstore-tests/common-protocol.cc");
+	for stem in SHARED {
+		assert!(
+			source.contains(&format!("\"{stem}\"")),
+			"active case {stem}"
+		);
+	}
+	for stem in STALE_COMMON {
+		assert!(
+			!source.contains(&format!("\"{stem}\"")),
+			"{stem} is no longer stale; run and reclassify it"
+		);
+	}
+	let expected: BTreeSet<_> = SHARED
+		.iter()
+		.chain(STALE_COMMON)
+		.flat_map(|stem| [format!("{stem}.bin"), format!("{stem}.json")])
+		.collect();
+	let actual = std::fs::read_dir(fixture(COMMON, "string", "bin").parent().unwrap())
+		.unwrap()
+		.map(|entry| entry.unwrap().file_name().into_string().unwrap())
+		.collect();
+	assert_eq!(expected, actual, "new common fixtures need a disposition");
 }
