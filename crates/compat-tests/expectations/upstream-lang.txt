@@ -91,7 +91,7 @@ eval-fail-derivationStrict-8 error-message E005
 eval-fail-derivationStrict-9 error-message E005
 eval-fail-div-1 error-message E006
 eval-fail-div-2 error-message E006
-eval-fail-div-3 error-message E006
+eval-fail-div-3 error-message E033
 eval-fail-dup-dynamic-attrs error-message E016
 eval-fail-duplicate-traces error-message E001
 eval-fail-dynamic-attrs-inherit-2 error-message E009
@@ -199,10 +199,10 @@ eval-fail-mutual-recursion error-message E001
 eval-fail-nested-list-items error-message E018
 eval-fail-nonexist-path unexpected-success
 eval-fail-not-throws error-message E001
-eval-fail-overflowing-add crash
-eval-fail-overflowing-div crash
-eval-fail-overflowing-mul crash
-eval-fail-overflowing-sub crash
+eval-fail-overflowing-add error-message E043
+eval-fail-overflowing-div error-message E043
+eval-fail-overflowing-mul error-message E043
+eval-fail-overflowing-sub error-message E043
 eval-fail-parseDrvName-1 error-message E006
 eval-fail-partition-1 error-message E006
 eval-fail-partition-2 error-message E006
