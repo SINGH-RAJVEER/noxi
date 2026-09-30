@@ -1,0 +1,24 @@
+[package]
+name = "nix-rs-commands"
+version.workspace = true
+rust-version.workspace = true
+edition = "2024"
+description = "CppNix-compatible command implementations for nix-rs"
+license = "GPL-3.0-only"
+repository = "https://github.com/SINGH-RAJVEER/nix-rs"
+publish = false
+
+# Named like the CppNix commands they replace, so they are not installed by
+# the preview flake package and never shadow a system Nix.
+[[bin]]
+name = "nix-instantiate"
+path = "src/bin/nix-instantiate.rs"
+
+[dependencies]
+nix-rs-eval = { path = "../nix-rs/eval", default-features = false, features = ["impure"] }
+nix-rs-glue = { path = "../nix-rs-glue" }
+rustc-hash.workspace = true
+smol_str.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true
