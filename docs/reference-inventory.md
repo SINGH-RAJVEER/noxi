@@ -20,7 +20,7 @@ This page lists what CppNix 2.35.2 exposes and what the pinned NixOS and Home Ma
 
 `cli.json` does not cover the legacy commands (`nix-build`, `nix-channel`, `nix-collect-garbage`, `nix-copy-closure`, `nix-daemon`, `nix-env`, `nix-hash`, `nix-instantiate`, `nix-prefetch-url`, `nix-shell`, `nix-store`). They parse their own arguments, and CppNix has no machine-readable dump of them, so `legacy-options.txt` reads the reference manual's command pages instead. An option the parser accepts but the manual omits is missing from that file; the differential tests are the check for those. Every legacy name is a symlink to `bin/nix`, which dispatches on its executable name, so a replacement must dispatch the same way or install separate executables at the same paths.
 
-The reference also installs C++ headers and shared libraries (`nix-util`, `nix-store`, `nix-fetchers`, `nix-expr`, `nix-flake`, `nix-main`, `nix-cmd`, and their `-c` variants). The C++ interfaces have no stability promise upstream. Which consumers of either interface need support on the target system is still open ([§6 of the TODO](../TODO.md)).
+The reference also installs C++ headers and shared libraries (`nix-util`, `nix-store`, `nix-fetchers`, `nix-expr`, `nix-flake`, `nix-main`, `nix-cmd`, and their `-c` variants). The C++ interfaces have no stability promise upstream. Which consumers of either interface need support on the target system is still open. Discover consumers during §0 of the [TODO](../TODO.md), then implement and qualify their interfaces in §6. Record source-build and unchanged-binary interoperability separately; matching exported function names alone does not prove ABI compatibility.
 
 ## What NixOS calls
 

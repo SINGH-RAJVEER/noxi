@@ -27,8 +27,8 @@ The current Cargo workspace contains selected imported Rust crates under `crates
 
 1. Establish the source provenance, compatibility inventory, test environments, and x86_64-linux baseline. Keep the copied upstream tests in `tests/nix/` unchanged.
 2. Implement and qualify Nix formats and primitives: paths, hashes, NAR, derivations, narinfo, signatures, and protocol encodings.
-3. Implement the local store, daemon, substitution, garbage collection, profile management, and build scheduling. Test existing-store interoperation and interrupted operations before making it the default system daemon.
-4. Complete the evaluator, builtins, fetchers, flakes, and command set. Compare outputs, errors, and build graphs with the pinned reference; test real Nixpkgs configurations.
+3. Connect a minimal compatibility command, evaluator, and local store to create and realize a small derivation with matching bytes, paths, output, and metadata. Extend it through the daemon, substitution, and sandboxed builds; test cross-engine pairings early. Pure evaluator fixes can proceed in parallel, while store-backed builtins and import-from-derivation depend on store and build support.
+4. Complete the evaluator, builtins, fetchers, flakes, commands, store operations, and required public library interfaces. Compare outputs, errors, and build graphs with the pinned reference; test real Nixpkgs configurations. Test existing-store interoperation and interrupted operations before recommending replacement of a user's system daemon.
 5. Complete the CppNix 2.35.2 compatibility matrix on the supported existing-system target, including commands, daemon and library interfaces, existing-store interoperation, and NixOS rebuilds driven by nix-rs. Publish the drop-in package manager only when every applicable compatibility gate passes.
 6. Build the OS definition, installer, system management operations, CLI, TUI, and GPUI-based NixBox GUI on that qualified engine. Qualify installation, system switches, boot, upgrades, recovery, and parity among interfaces before publishing the OS.
 
@@ -38,14 +38,19 @@ Reference CppNix may be used in isolated development and test environments to pr
 
 The repository has a Cargo workspace with selected imported crates under the nix-rs name, a copied CppNix test snapshot, and initial derivation fixture classification tests in `crates/compat-tests/`. Those tests record current format gaps; they do not establish engine parity. NixBox is currently in a separate checkout and still writes managed files and invokes rebuild subprocesses; its lower-level engine integration is specified but not implemented here. The repository does not yet contain a complete nix-rs engine, OS image, or installer. The copied C++ and shell tests need Rust runners or an isolated compatibility environment before they can qualify a release. The test snapshot's origin and limits are recorded in [verification](docs/verification.md#test-snapshot).
 
-## Decisions required before a release candidate
+## Decisions required before the package-manager release candidate
 
-- Boot modes and additional CPU architectures after x86_64-linux.
-- Exact Nixpkgs and NixOS baseline revision paired with the reference release.
 - Public project name and distribution branding.
-- The first set of opt-in tweaks beyond reference Nix behavior. Lua configuration is already decided; its runtime and Nix interoperation remain open in [Lua configuration](docs/lua-configuration.md#open-questions).
 - Licensing and redistribution treatment of imported code and upstream test material.
-- The compatibility procedure for public C and C++ library consumers.
+- Required public C and C++ library consumers and their compatibility procedure. Discover these during baseline work, not after the command set is complete.
+- Release signing keys, package-manager update channel, and release cadence.
+
+The initial Nixpkgs/NixOS and Home Manager revisions are already pinned in the [compatibility matrix](docs/compatibility-matrix.md). Changing them requires a new qualification run, not another baseline decision.
+
+## Decisions for the later OS release
+
+- Boot modes and additional CPU architectures after the initial x86_64-linux target.
+- The first set of opt-in tweaks beyond reference Nix behavior. Lua configuration is already decided; its runtime and Nix interoperation remain open in [Lua configuration](docs/lua-configuration.md#open-questions).
 - Installer storage and encryption support, signing keys, update channel, and release cadence.
 
 These decisions select concrete support targets within this plan.
