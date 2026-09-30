@@ -16,17 +16,17 @@ This is the first qualification target and its current evidence, not a claim of 
 
 | Area | Current status | Evidence needed to pass |
 |---|---|---|
-| Nix language and evaluator | Copied language fixtures run against the evaluator: 104 of 467 pass; remaining outcomes are tracked in `crates/compat-tests/expectations/upstream-lang.txt` | Every language fixture passing, the `lang.sh` script checks, and Nixpkgs evaluation comparison |
+| Nix language and evaluator | 104 of 467 copied cases pass; four overflow crashes now produce evaluation errors, leaving one deep-JSON crash. 43 focused arithmetic cases pass in debug and release; diagnostics remain gaps in `crates/compat-tests/expectations/upstream-lang.txt` | Every applicable language case and the `lang.sh` script checks matching the reference, explicit dispositions for reference-disabled and anomalous cases, and Nixpkgs evaluation comparison |
 | Hash algorithms | Partial fixture coverage, including BLAKE3 vectors and JSON. The copied `sha512.json` fixture is a reference anomaly: its CppNix test constructs a SHA-256 hash. | All reference formats, feature-gate behavior, hashing commands, and store consumers |
 | Derivation and path formats | Partial fixture coverage. ATerm parsing, all 18 copied version-4 derivation/output JSON fixtures, non-UTF-8 text and output names, colliding hash-modulo inputs, and unusual fixed-output input requests have local tests or reference-generated fixtures | All copied fixtures and byte comparisons; see `crates/compat-tests/` |
-| Copied fixture inventory | Every copied fixture file is classified in `crates/compat-tests/expectations/fixtures.txt`, and `fixture_inventory` fails on an unclassified file; 734 of 1,916 are still unrun | No `unrun` entries for behavior in the declared scope |
-| NAR archive format | Malformed-archive fixtures only; 2.35.2 has no valid NAR fixture | Copied valid and malformed NAR fixtures, serialization, import/export, and store exchange |
+| Copied fixture inventory | Every copied fixture file is classified in `crates/compat-tests/expectations/fixtures.txt`, and `fixture_inventory` fails on an unclassified file; 697 of 1,916 are still unrun | No `unrun` entries for behavior in the declared scope |
+| NAR archive format | Eight copied malformed archives plus four reference-generated valid dumps; 16 sync/async reader and writer comparisons pass in `reference_nars` | Remaining malformed/resource-limit behavior, import/export, compression, and store exchange |
 | Store and garbage collection | Unrun | Existing-store, concurrency, integrity, and return-to-reference tests |
 | Build engine and sandbox | Unrun | Local and remote build behavior under the selected system |
 | Binary caches and signatures | Unrun | Cache exchange and trust decisions |
-| Daemon protocol | Worker-protocol value fixtures and 14 shared common/serve primitive cases round-trip byte for byte, except worker fixtures needing protocol feature negotiation (`realisation-with-path-not-hash`) and the handshake; daemon pairings unrun | All wire fixtures, handshake and feature negotiation, every operation, and client/daemon pairings; see `crates/compat-tests/tests/upstream_worker_protocol.rs` and `crates/compat-tests/tests/upstream_shared_protocols.rs` |
+| Daemon protocol | Worker values and shared common/serve primitives have fixture checks. 25 additional serve value and handshake files pass in `upstream_serve_protocol`, including the read-only 2.6 result; twelve stale common/serve files are anomalies. Worker handshake/feature negotiation and daemon pairings remain open | Remaining worker fixtures, worker handshake and feature negotiation, every operation, serve commands, and real client/daemon pairings; see the protocol tests in `crates/compat-tests/tests/` |
 | CLI and configuration | `nixrs` preview pure-expression evaluation tested; replacement command suite unrun | Legacy and new command suites, settings, flakes, profiles |
-| C and C++ libraries | Unrun | Consumer inventory and binary interoperability |
+| C and C++ libraries | Unrun | Early consumer inventory, compatible headers and packaging, source-consumer builds, and unchanged-binary interoperability |
 | NixOS activation | Unrun | Build, switch, boot, test, dry activation, rollback |
 | Installed OS lifecycle | Unrun | Install, self-update, reboot, recovery |
 | TUI and GPUI-based NixBox GUI parity | Unrun | Shared operations and events, preview/apply, failures, recovery, accessibility, headless fallback |

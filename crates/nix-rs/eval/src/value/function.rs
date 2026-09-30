@@ -74,6 +74,12 @@ impl Lambda {
 	pub fn chunk(&mut self) -> &mut Chunk {
 		&mut self.chunk
 	}
+
+	/// For a function taking an attribute set pattern, whether the pattern
+	/// accepts extra attributes (`...`); `None` for a plain `name: ...`.
+	pub fn formals_ellipsis(&self) -> Option<bool> {
+		self.formals.as_ref().map(|formals| formals.ellipsis)
+	}
 }
 
 ///

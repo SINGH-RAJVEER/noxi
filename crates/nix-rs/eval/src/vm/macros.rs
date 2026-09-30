@@ -6,30 +6,57 @@
 /// types.
 #[macro_export]
 macro_rules! arithmetic_op {
-    ( $self:ident, $op:tt ) => {{ // TODO: remove
-        let b = $self.pop();
-        let a = $self.pop();
-        let result = fallible!($self, arithmetic_op!(&a, &b, $op));
-        $self.push(result);
-    }};
+	( $self:ident, $op:tt ) => {{ // TODO: remove
+		let b = $self.pop();
+		let a = $self.pop();
+		let result = fallible!($self, arithmetic_op!(&a, &b, $op));
+		$self.push(result);
+	}};
 
-    ( $a:expr, $b:expr, $op:tt ) => {{
-        match ($a, $b) {
-            (Value::Integer(i1), Value::Integer(i2)) => Ok(Value::Integer(i1 $op i2)),
-            (Value::Float(f1), Value::Float(f2)) => Ok(Value::Float(f1 $op f2)),
-            (Value::Integer(i1), Value::Float(f2)) => Ok(Value::Float(*i1 as f64 $op f2)),
-            (Value::Float(f1), Value::Integer(i2)) => Ok(Value::Float(f1 $op *i2 as f64)),
+	( $a:expr, $b:expr, + ) => {
+		$crate::arithmetic_op!(@checked $a, $b, +, checked_add, "adding")
+	};
+	( $a:expr, $b:expr, - ) => {
+		$crate::arithmetic_op!(@checked $a, $b, -, checked_sub, "subtracting")
+	};
+	( $a:expr, $b:expr, * ) => {
+		$crate::arithmetic_op!(@checked $a, $b, *, checked_mul, "multiplying")
+	};
+	( $a:expr, $b:expr, / ) => {{
+		let (a, b) = ($a, $b);
+		// The reference checks the divisor before choosing integer or float arithmetic.
+		match b {
+			$crate::Value::Integer(0) => Err($crate::ErrorKind::DivisionByZero),
+			$crate::Value::Float(f) if *f == 0.0 => Err($crate::ErrorKind::DivisionByZero),
+			_ => $crate::arithmetic_op!(@checked a, b, /, checked_div, "dividing"),
+		}
+	}};
 
-            (v1, v2) => Err(ErrorKind::TypeError {
-                expected: "number (either int or float)",
-                actual: if v1.is_number() {
-                    v2.type_of()
-                } else {
-                    v1.type_of()
-                },
-            }),
-        }
-    }};
+	( @checked $a:expr, $b:expr, $op:tt, $checked:ident, $operation:literal ) => {{
+		match ($a, $b) {
+			($crate::Value::Integer(i1), $crate::Value::Integer(i2)) => i1
+				.$checked(*i2)
+				.map($crate::Value::Integer)
+				.ok_or($crate::ErrorKind::IntegerOverflow {
+					operation: $operation,
+					operator: stringify!($op),
+					lhs: *i1,
+					rhs: *i2,
+				}),
+			($crate::Value::Float(f1), $crate::Value::Float(f2)) => Ok($crate::Value::Float(f1 $op f2)),
+			($crate::Value::Integer(i1), $crate::Value::Float(f2)) => Ok($crate::Value::Float(*i1 as f64 $op f2)),
+			($crate::Value::Float(f1), $crate::Value::Integer(i2)) => Ok($crate::Value::Float(f1 $op *i2 as f64)),
+
+			(v1, v2) => Err($crate::ErrorKind::TypeError {
+				expected: "number (either int or float)",
+				actual: if v1.is_number() {
+					v2.type_of()
+				} else {
+					v1.type_of()
+				},
+			}),
+		}
+	}};
 }
 
 /// This macro simplifies the implementation of comparison operations.

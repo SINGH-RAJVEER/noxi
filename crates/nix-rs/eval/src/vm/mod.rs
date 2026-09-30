@@ -918,21 +918,17 @@ where
 
 				Op::Div => lifted_pop! {
 					self(b, a) => {
-						match b {
-							Value::Integer(0) => return frame.error(self, ErrorKind::DivisionByZero),
-							Value::Float(0.0_f64) => {
-								return frame.error(self, ErrorKind::DivisionByZero)
-							}
-							_ => {}
-						};
-
 						let result = arithmetic_op!(&a, &b, /).with_span(&frame, self)?;
 						self.stack.push(result);
 					}
 				},
 
 				Op::Negate => match self.stack_pop() {
-					Value::Integer(i) => self.stack.push(Value::Integer(-i)),
+					Value::Integer(i) => {
+						let result = arithmetic_op!(&Value::Integer(0), &Value::Integer(i), -)
+							.with_span(&frame, self)?;
+						self.stack.push(result);
+					}
 					Value::Float(f) => self.stack.push(Value::Float(-f)),
 					Value::Catchable(cex) => self.stack.push(Value::Catchable(cex)),
 					v => {

@@ -136,6 +136,14 @@ pub enum ErrorKind {
 	#[error("division by zero")]
 	DivisionByZero,
 
+	#[error("integer overflow in {operation} {lhs} {operator} {rhs}")]
+	IntegerOverflow {
+		operation: &'static str,
+		operator: &'static str,
+		lhs: i64,
+		rhs: i64,
+	},
+
 	#[error("attribute key '{key}' already defined")]
 	DuplicateAttrsKey { key: String },
 
@@ -745,6 +753,7 @@ impl Error {
 			| ErrorKind::TypeError { .. }
 			| ErrorKind::Incomparable { .. }
 			| ErrorKind::DivisionByZero
+			| ErrorKind::IntegerOverflow { .. }
 			| ErrorKind::DynamicKeyInScope(_)
 			| ErrorKind::UnknownStaticVariable
 			| ErrorKind::UnknownDynamicVariable(_)
@@ -821,6 +830,7 @@ impl Error {
 			ErrorKind::UnexpectedArgumentBuiltin { .. } => "E040",
 			ErrorKind::InvalidHash(_) => "E041",
 			ErrorKind::InvalidRegex(_) => "E042",
+			ErrorKind::IntegerOverflow { .. } => "E043",
 
 			// Special error code for errors from other nix-rs
 			// components. We may want to introduce a code namespacing
