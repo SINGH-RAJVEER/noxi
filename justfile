@@ -34,6 +34,11 @@ eval-compare reference report="/tmp/nix-rs-eval-comparison.json":
 	cargo build -p nixrs-compat-tests --bin differential-eval
 	target/debug/differential-eval "{{reference}}" target/debug/nixrs "{{report}}"
 
+# Check nix-instantiate's Nixpkgs derivation and output paths against those recorded from the reference.
+nixpkgs-paths:
+	NIXRS_NIXPKGS="$(nix eval --raw --impure --expr '(builtins.getFlake "path:{{justfile_directory()}}").inputs.nixpkgs.outPath')" \
+		cargo test -p nix-rs-commands --test instantiate -- --ignored
+
 # Build the pinned CppNix reference release (substituted from cache.nixos.org) at target/nix-reference.
 reference:
 	nix build .#nix-reference --out-link target/nix-reference
@@ -58,6 +63,16 @@ reference-vm-overlay name:
 reference-vm-verify:
 	bash scripts/reference-vm-snapshot.sh verify
 
+# --no-link keeps the check's output out of ./result.
+
+# Boot a NixOS machine running the pinned reference and check the packaged nixrs against it.
+vm-test:
+	nix build --no-link --print-build-logs ".#checks.$(nix eval --raw --impure --expr builtins.currentSystem).vm"
+
+# Open the VM test's machine in the interactive test driver.
+vm:
+	nix run ".#checks.$(nix eval --raw --impure --expr builtins.currentSystem).vm.driverInteractive"
+
 # Fetch the latest official stable Nix source and tests; record its exact revision.
 nix-tests-update:
 	bash scripts/update-nix-tests.sh latest
@@ -76,3 +91,6 @@ nix-snapshot-verify mode="local":
 
 # Run the complete development check in the pinned devenv shell.
 ci: fmt-check nix-snapshot-verify check test
+
+# Run the complete development check and then the VM test, which boots a machine.
+ci-vm: ci vm-test

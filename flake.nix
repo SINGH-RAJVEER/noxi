@@ -29,7 +29,17 @@
 				rustPlatform.buildRustPackage {
 					pname = "nixrs-preview";
 					version = "0.1.0";
-					src = pkgs.lib.cleanSource ./.;
+					# Only what Cargo reads, so editing docs or the VM test script does
+					# not rebuild the binary the VM test installs.
+					src = pkgs.lib.fileset.toSource {
+						root = ./.;
+						fileset = pkgs.lib.fileset.unions [
+							./.cargo
+							./Cargo.lock
+							./Cargo.toml
+							./crates
+						];
+					};
 					cargoLock.lockFile = ./Cargo.lock;
 					cargoBuildFlags = [ "-p" "nix-rs-cli" ];
 					cargoTestFlags = [ "-p" "nix-rs-cli" ];
@@ -51,6 +61,12 @@
 			});
 			checks = forAllSystems (system: {
 				nixrs = self.packages.${system}.default;
+				# Boots a NixOS machine running the pinned reference; see tests/vm/.
+				vm = import ./tests/vm/test.nix {
+					nixrs = self.packages.${system}.default;
+					nixReference = self.packages.${system}.nix-reference;
+					inherit (nixpkgs.legacyPackages.${system}) testers;
+				};
 			});
 		};
 }
