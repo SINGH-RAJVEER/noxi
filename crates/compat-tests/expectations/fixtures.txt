@@ -35,7 +35,9 @@ pass:upstream_shared_protocols src/libstore-tests/data/common-protocol/optional-
 pass:upstream_shared_protocols src/libstore-tests/data/common-protocol/optional-content-address.*
 pass:upstream_shared_protocols src/libstore-tests/data/common-protocol/vector.*
 pass:upstream_shared_protocols src/libstore-tests/data/common-protocol/set.*
-unrun src/libstore-tests/data/common-protocol/* # shared serialisers used by both protocols
+anomaly src/libstore-tests/data/common-protocol/drv-output.* # stale hash-based model; no matching 2.35.2 common codec or test
+anomaly src/libstore-tests/data/common-protocol/realisation.* # stale hash-based model; no matching 2.35.2 common codec or test
+anomaly src/libstore-tests/data/common-protocol/realisation-with-deps.* # stale hash-based model; no matching 2.35.2 common codec or test
 pass:upstream_shared_protocols src/libstore-tests/data/serve-protocol/string.*
 pass:upstream_shared_protocols src/libstore-tests/data/serve-protocol/store-path.*
 pass:upstream_shared_protocols src/libstore-tests/data/serve-protocol/content-address.*
@@ -43,7 +45,24 @@ pass:upstream_shared_protocols src/libstore-tests/data/serve-protocol/optional-s
 pass:upstream_shared_protocols src/libstore-tests/data/serve-protocol/optional-content-address.*
 pass:upstream_shared_protocols src/libstore-tests/data/serve-protocol/vector.*
 pass:upstream_shared_protocols src/libstore-tests/data/serve-protocol/set.*
-unrun src/libstore-tests/data/serve-protocol/* # serve protocol 2.x
+pass:upstream_serve_protocol src/libstore-tests/data/serve-protocol/drv-output-2.8.*
+pass:upstream_serve_protocol src/libstore-tests/data/serve-protocol/unkeyed-realisation-2.8.*
+pass:upstream_serve_protocol src/libstore-tests/data/serve-protocol/realisation-2.8.*
+pass:upstream_serve_protocol src/libstore-tests/data/serve-protocol/build-result-2.2.*
+pass:upstream_serve_protocol src/libstore-tests/data/serve-protocol/build-result-2.3.*
+pass:upstream_serve_protocol src/libstore-tests/data/serve-protocol/build-result-2.6.* # reference reads only; old ids and signatures are discarded
+pass:upstream_serve_protocol src/libstore-tests/data/serve-protocol/build-result-2.7-compat.*
+pass:upstream_serve_protocol src/libstore-tests/data/serve-protocol/build-result-2.8.*
+pass:upstream_serve_protocol src/libstore-tests/data/serve-protocol/unkeyed-valid-path-info-2.3.*
+pass:upstream_serve_protocol src/libstore-tests/data/serve-protocol/unkeyed-valid-path-info-2.4.*
+pass:upstream_serve_protocol src/libstore-tests/data/serve-protocol/build-options-2.1.bin
+pass:upstream_serve_protocol src/libstore-tests/data/serve-protocol/build-options-2.2.bin
+pass:upstream_serve_protocol src/libstore-tests/data/serve-protocol/build-options-2.3.bin
+pass:upstream_serve_protocol src/libstore-tests/data/serve-protocol/build-options-2.7.bin
+pass:upstream_serve_protocol src/libstore-tests/data/serve-protocol/handshake-to-client.bin
+anomaly src/libstore-tests/data/serve-protocol/drv-output.* # stale hash-based model; absent from 2.35.2 serve-protocol.cc tests
+anomaly src/libstore-tests/data/serve-protocol/realisation.* # stale hash-based model; absent from 2.35.2 serve-protocol.cc tests
+anomaly src/libstore-tests/data/serve-protocol/realisation-with-deps.* # stale hash-based model; absent from 2.35.2 serve-protocol.cc tests
 unrun src/libstore-tests/data/worker-substitution/**/* # substitution goals
 
 # libstore: other formats

@@ -1,0 +1,157 @@
+{
+	"reference_release": "2.35.2",
+	"source_url": "https://github.com/NixOS/nix",
+	"source_revision": "2c73b59da29606068c0c98db015dd3a66955525d",
+	"source_tag": "2.35.2",
+	"source_revision_evidence": "flake.lock nodes.nix-reference.locked.rev",
+	"platform": "x86_64-linux",
+	"version_command": [
+		"/nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2/bin/nix-store",
+		"--version"
+	],
+	"version_output": "nix-store (Nix) 2.35.2",
+	"generation_command": "python3 crates/compat-tests/fixtures/nar-reference/generate.py",
+	"hex_encoding": "lowercase hex of unmodified nix-store --dump stdout; whitespace ignored",
+	"source_modes": {
+		"regular": "0644",
+		"executable": "0755",
+		"directory": "0755"
+	},
+	"creation_order": "directory entries created in descending raw byte order",
+	"scope": "Filesystem dumps only; no store open, import, export, or registration.",
+	"cases": {
+		"regular": {
+			"command": [
+				"/nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2/bin/nix-store",
+				"--dump",
+				"/tmp/opencode/nar-oracles-1hh7uijv/regular"
+			],
+			"exit_code": 0,
+			"stderr": "",
+			"nar_size": 136,
+			"nar_sha256": "d720a8d1e0573781e8e18cc61d7db4419464c2e529ba82bf6173fa49dc08273e",
+			"source": {
+				"type": "regular",
+				"executable": false,
+				"contents_hex": "4e415200ff800d0a0162696e61727900656e64"
+			}
+		},
+		"executable": {
+			"command": [
+				"/nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2/bin/nix-store",
+				"--dump",
+				"/tmp/opencode/nar-oracles-1hh7uijv/executable"
+			],
+			"exit_code": 0,
+			"stderr": "",
+			"nar_size": 176,
+			"nar_sha256": "1a77d0a62c755f177d919780357864ed8d212bf86710180e79820c145cb94279",
+			"source": {
+				"type": "regular",
+				"executable": true,
+				"contents_hex": "23212f62696e2f73680a7072696e746620277265666572656e63655c6e270a"
+			}
+		},
+		"symlink": {
+			"command": [
+				"/nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2/bin/nix-store",
+				"--dump",
+				"/tmp/opencode/nar-oracles-1hh7uijv/symlink"
+			],
+			"exit_code": 0,
+			"stderr": "",
+			"nar_size": 136,
+			"nar_sha256": "93755d0a3ecd576c6ebb17efdbd426f0c4fa486c9ec35600916380d9a20b6cbe",
+			"source": {
+				"type": "symlink",
+				"target_hex": "2e2e2f6d697373696e672f746172676574"
+			}
+		},
+		"directory": {
+			"command": [
+				"/nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2/bin/nix-store",
+				"--dump",
+				"/tmp/opencode/nar-oracles-1hh7uijv/directory"
+			],
+			"exit_code": 0,
+			"stderr": "",
+			"nar_size": 1872,
+			"nar_sha256": "8671c3d43dea4d9677ceea00d3d925e9e22e5aaf035cf94dafc82f80aca0f03b",
+			"source": {
+				"type": "directory",
+				"entries": [
+					{
+						"name_hex": "2e656d707479",
+						"node": {
+							"type": "regular",
+							"executable": false,
+							"contents_hex": ""
+						}
+					},
+					{
+						"name_hex": "412d65786563757461626c65",
+						"node": {
+							"type": "regular",
+							"executable": true,
+							"contents_hex": "23212f62696e2f73680a7072696e746620277265666572656e63655c6e270a"
+						}
+					},
+					{
+						"name_hex": "612d62696e617279",
+						"node": {
+							"type": "regular",
+							"executable": false,
+							"contents_hex": "4e415200ff800d0a0162696e61727900656e64"
+						}
+					},
+					{
+						"name_hex": "6e6573746564",
+						"node": {
+							"type": "directory",
+							"entries": [
+								{
+									"name_hex": "656d7074792d646972",
+									"node": {
+										"type": "directory",
+										"entries": []
+									}
+								},
+								{
+									"name_hex": "6c696e6b",
+									"node": {
+										"type": "symlink",
+										"target_hex": "2e2e2f612d62696e617279"
+									}
+								},
+								{
+									"name_hex": "7a2d74657874",
+									"node": {
+										"type": "regular",
+										"executable": false,
+										"contents_hex": "6e65737465640a"
+									}
+								}
+							]
+						}
+					},
+					{
+						"name_hex": "7a2d6c617374",
+						"node": {
+							"type": "regular",
+							"executable": false,
+							"contents_hex": "6c6173740a"
+						}
+					},
+					{
+						"name_hex": "ff2d6c617374",
+						"node": {
+							"type": "regular",
+							"executable": false,
+							"contents_hex": "686967682062797465206e616d650a"
+						}
+					}
+				]
+			}
+		}
+	}
+}
