@@ -48,7 +48,7 @@ The later [fleet planner and adapters](distributed-computing.md#module-interface
 
 NixBox must expose connected-machine relationships and their effects, including etcd voters/learners, database primary/replicas, Kubernetes control-plane/worker roles, traffic endpoints, and capacity ownership. It delegates service transitions to qualified topology adapters and infrastructure admission to provisioning adapters. Kubernetes remains responsible for workload scheduling. Remote Nix builders and Kubernetes workers are distinct roles.
 
-The shared interface must expose inventory and topology inspection, drift, bounded rollout, bootstrap/join, drain/removal, capacity changes, supported recovery, and resume. Results identify saved desired state and actual per-machine generations and service membership. Durable journals, identity checks, protected topology transitions, and stale-coordinator fencing must prevent an interrupted or competing operation from repeating unsafe work. Generic shell hooks or regexes over command output cannot replace these contracts.
+The shared interface must expose inventory and topology inspection, drift, bounded rollout, bootstrap/join, drain/removal, capacity changes, supported recovery, and resume. Results identify saved desired state and actual per-machine generations and service membership. Durable journals, identity checks, protected topology transitions, shared availability reservations, and stale-coordinator fencing must prevent an interrupted or competing operation from repeating unsafe work or jointly exceeding disruption limits. Generic shell hooks or regexes over command output cannot replace these contracts.
 
 ## Integration and qualification
 

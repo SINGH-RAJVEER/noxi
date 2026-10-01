@@ -22,7 +22,7 @@ The later [distributed-computing capability](distributed-computing.md) must supp
 
 Cluster bootstrap and role assignment follow a reviewed fleet plan. An enrolled machine is not yet a ready Kubernetes worker, etcd voter, or database replica. The selected topology adapter verifies its service-specific readiness before adding it to active traffic or scheduling. Configuration must distinguish shared policy from architecture-specific generations, runtime membership, and persistent service data.
 
-Retirement requires draining assigned workloads, completing supported membership removal, applying data-retention policy, and revoking credentials before releasing infrastructure. A failed drain or unknown remote state blocks destructive cleanup. Replacement is an explicit identity and membership operation, not reuse of an unreachable machine's IP address.
+Retirement requires draining assigned workloads, completing supported membership removal, applying data-retention policy, revoking fleet credentials, and establishing backend-specific denial of further service access before releasing infrastructure. Deleting a Kubernetes Node or bootstrap token does not revoke an already-issued client certificate. A failed drain, ineffective access denial, or unknown remote state blocks destructive cleanup or requires explicit quarantine. Replacement is an explicit identity and membership operation, not reuse of an unreachable machine's IP address.
 
 ## System generations
 
@@ -52,4 +52,4 @@ The TUI and GUI run without root privileges. A narrowly scoped privileged module
 
 Only one daemon may own writes to a store at a time. System activation and store migration need exclusive operations where required. Log authorization failures without exposing credentials. Generated Nix store objects are public by default in common deployments, so credentials must stay out of generated configuration and build inputs.
 
-Remote mutations additionally require authenticated target identity, scoped authority, replay protection, durable operation identifiers, and stale-coordinator fencing. Local activation serialization and protected cross-machine topology transitions are separate requirements. Routine fleet operations must use typed authorized steps, not unrestricted remote-root shell execution. Machine enrollment, cluster credentials, cache trust, and recovery authority must remain distinct permissions.
+Remote mutations additionally require authenticated target identity, scoped authority, replay protection, durable operation identifiers, and stale-coordinator fencing. Local activation serialization, protected cross-machine topology transitions, and availability reservations across concurrent plans are separate requirements. Routine fleet operations must use typed authorized steps, not unrestricted remote-root shell execution. Machine enrollment, cluster credentials, cache trust, and recovery authority must remain distinct permissions.

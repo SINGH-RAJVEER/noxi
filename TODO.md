@@ -197,9 +197,9 @@ Native surfaces default to Lua for user configuration and still accept Nix, as s
 - [ ] Qualify target enrollment, authenticated remote execution, scoped authorization, replay rejection, credential rotation/revocation, and disconnected-operation recovery before permitting remote mutation.
 - [ ] Implement immutable fleet plans with frozen target sets, per-machine derivations, tracked inventory inputs, dependency ordering, stale-state rejection, and saved-source verification.
 - [ ] Implement durable coordinator/executor journals, topology-transition serialization, stale-coordinator fencing, cancellation boundaries, and resume after lost acknowledgements or partial activation.
-- [ ] Qualify canary and health-gated fleet rollouts, per-topology availability limits, reboot verification, and honest completed/failed/unreachable/blocked/pending results.
+- [ ] Qualify canary and health-gated fleet rollouts, shared per-topology availability reservations across concurrent plans, reboot verification, and honest completed/failed/unreachable/blocked/pending results.
 - [ ] Implement and qualify kubeadm bootstrap, join, drain, membership changes, certificates, upgrades, and recovery for each advertised stacked or external-etcd topology.
-- [ ] Implement and qualify K3s server/agent lifecycle with separate evidence for single-server SQLite, embedded-etcd HA, and each advertised external datastore.
+- [ ] Implement and qualify K3s server/agent lifecycle with separate evidence for single-server SQLite, embedded-etcd HA, and each advertised external datastore. Include role-specific token lifetimes, rotation, and snapshot-associated server-token recovery.
 - [ ] Implement connected-machine resolution and network policy with explicit API, workload, replication, management, and storage endpoints; qualify chosen CNI/CSI and load-balancing implementations.
 - [ ] Qualify etcd membership transitions, learners where supported, quorum-aware maintenance, backup, and loss-of-majority recovery. Keep independent datastore ownership explicit.
 - [ ] Choose and qualify the first primary/replica service adapter, including replication lag, promotion authority, fencing, routing, data-loss policy, and divergent-primary recovery.
@@ -208,7 +208,7 @@ Native surfaces default to Lua for user configuration and still accept Nix, as s
 - [ ] Provide headless fleet inspection, plan/apply/resume, topology and drift views, and correlated structured events with equivalent CLI/TUI/GUI results.
 - [ ] Qualify multi-site partitions, local authority policy, reconnect, unknown-state reporting, and recovery without overwriting newer runtime membership.
 - [ ] Measure representative 100-, 1,000-, and 10,000-machine tiers with stated hardware, workloads, latency/resource budgets, and failure cases. Label simulations and advertise only demonstrated support limits.
-- [ ] Publish exact fleet support combinations, artifacts, security and recovery procedures, unsupported transitions, and release evidence separately from CppNix compatibility qualification.
+- [ ] Publish exact fleet support combinations, per-cluster and fleet-wide limits, artifacts, security and recovery procedures, unsupported transitions, and release evidence separately from CppNix compatibility qualification.
 
 ## Longer-term work after the first OS release
 
