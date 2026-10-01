@@ -359,7 +359,7 @@ Before claiming a supported fleet size, publish measured results and release-spe
 
 1. Design the single-machine OS's typed lifecycle, source journal, identity, and authorization contracts so fleet operations can use them without replacing NixOS generation semantics.
 2. Qualify authenticated remote execution, replay protection, conflict detection, durable recovery, and headless enrollment after the single-machine OS foundation. No remote mutation ships before these gates pass.
-3. Qualify bounded fleet rollouts, connected-machine descriptions, kubeadm and K3s lifecycle adapters, and the first explicitly supported quorum and primary/replica adapters.
-4. Add qualified provisioning, load-balancing, autoscaling, heterogeneous targets, multi-site policies, and measured large-fleet tiers. Expand support only with new evidence.
+3. Qualify bounded fleet rollouts, connected-machine descriptions, kubeadm and K3s lifecycle adapters with their required networking and load balancing, and the first explicitly supported quorum and primary/replica adapters.
+4. Expand provisioning, load-balancing, autoscaling, heterogeneous targets, multi-site policies, and measured large-fleet tiers. Expand support only with new evidence.
 
 The [root plan](../PLAN.md) remains the only product plan, and the [execution checklist](../TODO.md) tracks this work. Before the first fleet release, settle the typed configuration schema, transport and enrollment method, coordinator authority/fencing, initial supported versions and architectures, service-adapter scope, network and storage implementations, provisioning integrations, backup ownership, and scale budgets. Document each selected support combination and each unsupported transition. None of these decisions may weaken the package-manager compatibility gate.

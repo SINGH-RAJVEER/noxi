@@ -81,7 +81,7 @@ A checked item below means it exists and has focused local evidence in the curre
 - [ ] Match fresh-store initialization, supported schema upgrades, named migrations, read-only opens, and unsupported-schema rejection from [expected store states](docs/compatibility.md#expected-store-states). After each supported write or upgrade, require CppNix to reopen the store without repair or nix-rs-only migrations.
 - [ ] Implement atomic path registration, NAR import/export, integrity verification, locking, and crash recovery; test concurrent clients and interrupted writes.
 - [ ] Implement binary-cache lookup, download, substitution, narinfo and signature verification, upload, and offline behavior.
-- [ ] Implement derivation realization, dependency scheduling, fixed-output checks, logs, cancellation, and failure propagation. `nix-rs-build`'s `LocalBuilder` realises input-addressed and fixed-output derivations depth first through the library API; `reference_build` compares ten cases with 2.35.2, including structured attributes, multiple outputs, input derivations, fixed-output hashes and mismatches, and builder, missing-output, cycle and reference-check failures. Build logs, floating content-addressed outputs, substitution, parallel scheduling, cancellation and a command entry point remain open.
+- [ ] Implement derivation realization, dependency scheduling, fixed-output checks, logs, cancellation, and failure propagation. `nix-rs-build`'s `LocalBuilder` realises input-addressed and fixed-output derivations depth first through the library API; `reference_build` compares eleven cases with 2.35.2, including build logs, structured attributes, multiple outputs, input derivations, fixed-output hashes and mismatches, and builder, missing-output, cycle and reference-check failures. `max-build-log-size`, floating content-addressed outputs, substitution, parallel scheduling, cancellation and a command entry point remain open.
 - [ ] Implement sandboxed local builds with the reference environment and isolation rules; then add supported remote-builder behavior. The Linux sandbox runs unprivileged builds in a diverted `--store ROOT`, and a probe of its environment, identity, generated `/etc` files, uid and gid maps and directory layout matches the reference byte for byte. Builds without a sandbox, build users, `auto-allocate-uids`, seccomp and network-isolation probes, and remote builders remain open.
 - [ ] Implement profile generations, roots, garbage collection, and store optimization with existing-store compatibility tests.
 - [ ] Test a copied CppNix store in both directions: use it with nix-rs, then return it to CppNix without data loss or invalid metadata.
@@ -163,6 +163,7 @@ Native surfaces default to Lua for user configuration and still accept Nix, as s
 ## After the package-manager MVP: self-maintenance and recovery
 
 - [ ] Implement OS-native `build`, `test`, `boot`, `switch`, and `dry-activate` operations with the distinct NixOS effects specified in [system lifecycle](docs/system.md).
+- [ ] Make lifecycle requests bind to a stable target identity, source revision, exact closure, and durable operation identifier so later fleet execution can reuse them without changing single-machine semantics. Remote execution remains gated on the fleet security and recovery work below.
 - [ ] Make configuration and lock revisions authoritative for persistent changes. Stage, evaluate, build, save, verify, and activate each change as specified in [the configuration workflow](docs/configuration-workflow.md).
 - [ ] Journal source edits and activation state so interrupted operations can report and recover partial outcomes without erasing unrelated edits.
 - [ ] Track built, running, and boot-default generations separately. Keep a known-good boot entry until a user-directed retention policy allows collection.
@@ -188,6 +189,27 @@ Native surfaces default to Lua for user configuration and still accept Nix, as s
 - [ ] Run installer and system security reviews for disk selection, key custody, privilege boundaries, untrusted caches, sandboxing, secret handling, and image-signing infrastructure.
 - [ ] Publish installation and recovery instructions, supported hardware, known limitations, signed artifacts, source revisions, and test evidence. Do not call an image self-maintaining until it rebuilds and switches using nix-rs after installation.
 
+## After the first OS release: fleets and distributed computing
+
+[Distributed computing](docs/distributed-computing.md) specifies the intended fleet capability. This is not a package-manager MVP gate or implemented support. The single-machine OS contracts must allow this work without promising an atomic fleet switch.
+
+- [ ] Define the typed fleet schema and equivalent Lua/Nix representations for stable identities, inventory revisions, hardware profiles, groups, connections, cluster roles, service topologies, and ownership.
+- [ ] Qualify target enrollment, authenticated remote execution, scoped authorization, replay rejection, credential rotation/revocation, and disconnected-operation recovery before permitting remote mutation.
+- [ ] Implement immutable fleet plans with frozen target sets, per-machine derivations, tracked inventory inputs, dependency ordering, stale-state rejection, and saved-source verification.
+- [ ] Implement durable coordinator/executor journals, topology-transition serialization, stale-coordinator fencing, cancellation boundaries, and resume after lost acknowledgements or partial activation.
+- [ ] Qualify canary and health-gated fleet rollouts, per-topology availability limits, reboot verification, and honest completed/failed/unreachable/blocked/pending results.
+- [ ] Implement and qualify kubeadm bootstrap, join, drain, membership changes, certificates, upgrades, and recovery for each advertised stacked or external-etcd topology.
+- [ ] Implement and qualify K3s server/agent lifecycle with separate evidence for single-server SQLite, embedded-etcd HA, and each advertised external datastore.
+- [ ] Implement connected-machine resolution and network policy with explicit API, workload, replication, management, and storage endpoints; qualify chosen CNI/CSI and load-balancing implementations.
+- [ ] Qualify etcd membership transitions, learners where supported, quorum-aware maintenance, backup, and loss-of-majority recovery. Keep independent datastore ownership explicit.
+- [ ] Choose and qualify the first primary/replica service adapter, including replication lag, promotion authority, fencing, routing, data-loss policy, and divergent-primary recovery.
+- [ ] Implement bounded worker-capacity policies and qualified provisioning/enrollment adapters. Test autoscaler/manual-plan conflicts, exhausted capacity, safe scale-in, disruption budgets, and storage constraints.
+- [ ] Qualify heterogeneous target evaluation, architecture-correct closure distribution, workload images, and supported device/network/storage integrations; do not infer portability from shared roles.
+- [ ] Provide headless fleet inspection, plan/apply/resume, topology and drift views, and correlated structured events with equivalent CLI/TUI/GUI results.
+- [ ] Qualify multi-site partitions, local authority policy, reconnect, unknown-state reporting, and recovery without overwriting newer runtime membership.
+- [ ] Measure representative 100-, 1,000-, and 10,000-machine tiers with stated hardware, workloads, latency/resource budgets, and failure cases. Label simulations and advertise only demonstrated support limits.
+- [ ] Publish exact fleet support combinations, artifacts, security and recovery procedures, unsupported transitions, and release evidence separately from CppNix compatibility qualification.
+
 ## Longer-term work after the first OS release
 
 - [ ] Add architectures, firmware modes, filesystems, encrypted-storage layouts, and hardware targets only with explicit build, boot, rollback, and recovery qualification for each new matrix row.
@@ -195,6 +217,5 @@ Native surfaces default to Lua for user configuration and still accept Nix, as s
 - [ ] Support explicit migration between ordinary systemd-boot and Lanzaboote Secure Boot, plus signing-key rotation, only after their preview, recovery, and post-reboot verification paths are tested.
 - [ ] Treat TPM-bound disk unlocking as a separate installer feature with a stated PCR policy, recovery credential, and tested response to firmware, bootloader, and kernel updates.
 - [ ] Define a public extension API for NixBox operations and diagnostics without granting third-party interfaces unrestricted store or root access.
-- [ ] Add remote-machine management only after target identity, authorization, replay protection, and disconnected-operation recovery are specified and tested.
 - [ ] Establish performance baselines for evaluation, cache substitution, local and remote builds, daemon startup, memory use, and large rebuild diagnostics; compare with the pinned reference before claiming improvements.
 - [ ] Maintain release signing, vulnerability response, provenance records for imported crates, compatibility reports, migration notes, and supported upgrade paths across OS releases.

@@ -127,7 +127,7 @@ The copied shell suite needs an isolated test store and compatible executables b
 
 ## System tests
 
-`crates/compat-tests/tests/reference_build.rs` checks `nix-rs-build`'s `LocalBuilder` against the 2.35.2 reference. For each case the reference writes the derivation into two temporary `--store ROOT` stores that also hold the flake's statically linked `test-busybox`. The reference builds it in one store and nix-rs builds it in the other. Both use a sandbox, one core, no `sandbox-paths`, no build users, and the same system features. The output paths and `nix path-info --json` metadata other than the registration time must match, and the reference must verify the store nix-rs wrote with `--check-contents`. On 2026-10-02 all ten cases passed:
+`crates/compat-tests/tests/reference_build.rs` checks `nix-rs-build`'s `LocalBuilder` against the 2.35.2 reference. For each case the reference writes the derivation into two temporary `--store ROOT` stores that also hold the flake's statically linked `test-busybox`. The reference builds it in one store and nix-rs builds it in the other. Both use a sandbox, one core, no `sandbox-paths`, no build users, and the same system features. The output paths and `nix path-info --json` metadata other than the registration time must match, and the reference must verify the store nix-rs wrote with `--check-contents`. On 2026-10-02 all eleven cases passed:
 
 - a single-output derivation;
 - a probe whose output records the sorted environment, `id`, host name, generated `/etc/passwd`, `/etc/group` and `/etc/hosts`, working directory, directory listings and modes, uid and gid maps, umask and core limit, which is byte-identical;
@@ -137,10 +137,11 @@ The copied shell suite needs an isolated test store and compatible executables b
 - structured attributes with two outputs, `exportReferencesGraph`, an ignored `passAsFile`, and values that exercise `.attrs.sh` and `.attrs.json` formatting: a string with a quote and a placeholder, an integer above 2^31, integral and fractional floats on both sides of nlohmann's exponent threshold, mixed lists, nested lists, objects, and keys that are not shell names;
 - a flat fixed-output derivation;
 - a recursive fixed-output hash mismatch, with the reference's message and status;
-- a builder exiting with status 3, compared by message lines and status;
+- a build log with standard output, standard error and an unterminated line, which the reference's `nix-store -l` reads identically from both stores;
+- a builder that prints lines, a carriage return and an `@nix` message and exits with status 3, compared by message lines and status with `nix-store --realise`, and with the log tail against `nix build`;
 - a missing output, an output reference cycle, and a `disallowedReferences` violation, compared by message lines and status.
 
-The comparisons call the library, not a `nix-store --realise` replacement, and run without build users. They do not cover build logs, `builtin:` builders, floating content-addressed outputs, unsandboxed builds, seccomp filtering, network isolation of fixed-output builds, timeouts, cancellation, concurrent builds of one output, or interrupted builds.
+The comparisons call the library, not a `nix-store --realise` replacement, and run without build users. They do not cover `max-build-log-size`, `builtin:` builders, floating content-addressed outputs, unsandboxed builds, seccomp filtering, network isolation of fixed-output builds, timeouts, cancellation, concurrent builds of one output, or interrupted builds.
 
 The unpublished `nix-rs-store` preview also has isolated local-store comparisons in `crates/compat-tests/tests/reference_store.rs`. On 2026-10-01, its five cases passed with `NIXRS_REFERENCE_BIN=/nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2/bin`. They check fresh-store layout, path/NAR metadata, import validation, reference-created data read by nix-rs, nix-rs-created data reopened and verified by CppNix, cycles, and vanished paths. Each case uses temporary store roots and empty configuration; these are not tests against the host's live store or the stateful qualification VM. The two store unit tests pass too. This evidence does not qualify garbage collection, schema migration coverage, concurrent writers, interrupted writes, daemon ownership handoff, or whole-system rollback. `nix-rs-build` has the preview build comparisons described above, which are not build-engine qualification.
 
@@ -170,6 +171,14 @@ Qualify the GPUI-based NixBox GUI in a graphical VM: verify package and option i
 
 Run tests for the public C and C++ library interfaces or maintain an explicit list of incompatible consumers. A release with a required incompatible interface cannot claim 100% drop-in behavior for its matrix row. Security checks cover multi-user authorization, trusted users, sandbox escape attempts, cache signature rejection, and secret handling.
 
+## Fleet tests
+
+The later [distributed-computing specification](distributed-computing.md#acceptance-cases-and-release-evidence) requires project-owned multi-machine tests, not reinterpretation of copied remote-build fixtures as fleet qualification. Record the exact OS artifacts, locked inputs, backend/service versions, architectures, network/storage/provisioning adapters, topology, machine count, workloads, failure injection, and commands. None of these fleet behaviors has current qualification evidence.
+
+Test equivalent Lua/Nix inventory and per-target closures, homogeneous build reuse, heterogeneous execution, identity-bound enrollment, kubeadm and K3s lifecycle, load-balancer traffic failover, bounded scaling, safe drain, etcd replacement and majority-loss recovery, and the first qualified primary/replica adapter's fencing and data-loss behavior. Include stale plans, conflicting coordinators, lost acknowledgements, partial activation, restart/resume, revoked credentials, and site partitions. A successful generation switch is not a passing cluster-readiness or data-recovery assertion.
+
+Scale qualification uses representative 100-, 1,000-, and 10,000-machine tiers as planned targets, with published latency, memory, bandwidth, convergence, and recovery budgets. Small functional tests establish correctness before scale runs. Label simulator evidence and do not use it to claim real-machine boot or traffic behavior. Advertise only the supported backend/architecture/topology combinations and fleet-size limits actually demonstrated.
+
 ## Release gates
 
 The package-manager MVP comes first. It can be described as a 100% drop-in replacement only when the CppNix 2.35.2 compatibility matrix is complete for its declared existing-system target and every applicable command, setting, format, build, store, daemon, cache, and public library interface passes. This includes rebuilding a supported existing NixOS installation with nix-rs, existing-store interoperation, return to the reference implementation, and a safe installation and rollback procedure for the package manager. Publish the tested binaries, source revisions, licenses, reports, signatures, and known limits with the release. OS installation, recovery-media, TUI, and GUI rows remain separate later gates and do not weaken this first compatibility claim.
@@ -182,4 +191,6 @@ The later OS release additionally requires:
 2. Installer, update, rollback, and recovery workflows pass on every advertised platform.
 3. CLI, TUI, and GPUI-based NixBox GUI operations pass their shared behavior and accessibility tests.
 
-If a gate is open, continue development and report the specific gap. Neither release can claim behavior that its matrix has not qualified.
+A later release advertising fleet or distributed-computing support must additionally pass the fleet security, lifecycle, service-topology, partial-recovery, and measured-scale gates for every advertised support combination. Single-machine OS qualification and CppNix compatibility cannot substitute for those results, and fleet results cannot substitute for either earlier gate.
+
+If a gate is open, continue development and report the specific gap. No release can claim behavior that its qualification evidence does not cover.

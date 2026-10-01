@@ -22,6 +22,7 @@ From a checkout, `nix run . -- eval --expr '1 + 2'` builds and runs the same com
 | [Compatibility matrix](docs/compatibility-matrix.md) | Initial reference target and visible qualification status |
 | [Reference inventory](docs/reference-inventory.md) | Everything CppNix 2.35.2 exposes, and what the pinned NixOS and Home Manager call |
 | [System lifecycle](docs/system.md) | Installation, activation, upgrades, recovery, and authority |
+| [Distributed computing and fleets](docs/distributed-computing.md) | Homogeneous and heterogeneous fleets, kubeadm/K3s, service topologies, load balancing, scaling, and coordinated recovery |
 | [Boot and Secure Boot](docs/secure-boot.md) | Installer choice between systemd-boot and Lanzaboote, signing, enrollment, and recovery |
 | [Interface behavior](docs/interfaces.md) | CLI, TUI, GUI, configuration edits, and parity |
 | [Declarative configuration workflow](docs/configuration-workflow.md) | Source of truth, staged edits, rebuild, runtime actions, and rollback |

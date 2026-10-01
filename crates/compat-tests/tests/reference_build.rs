@@ -143,15 +143,25 @@ impl Env {
 		&self,
 		drv: &StorePath,
 	) -> nix_rs_build::Result<std::collections::BTreeMap<String, StorePath>> {
+		self.nix_rs_realise_with(drv, |_| {})
+	}
+
+	fn nix_rs_realise_with(
+		&self,
+		drv: &StorePath,
+		configure: impl FnOnce(&mut BuildSettings),
+	) -> nix_rs_build::Result<std::collections::BTreeMap<String, StorePath>> {
 		let mut config = LocalStoreConfig::with_root(&self.root("nix-rs"));
 		config.require_sigs = false;
 		let store = LocalStore::open(config).unwrap();
-		let settings = BuildSettings {
+		let mut settings = BuildSettings {
 			sandbox_paths: Vec::new(),
 			build_cores: 1,
 			system_features: SYSTEM_FEATURES.split(' ').map(String::from).collect(),
+			nix_command: true,
 			..BuildSettings::default()
 		};
+		configure(&mut settings);
 		LocalBuilder::new(&store, &settings).realise(drv, &mut |_| {})
 	}
 
@@ -420,6 +430,36 @@ fn fixed_output_hash_mismatch_fails_like_the_reference() {
 	env.verify("nix-rs");
 }
 
+/// The reference reads the build log nix-rs wrote back as the one it wrote
+/// itself.
+#[test]
+fn build_logs_match_the_reference() {
+	let env = Env::new();
+	let drv = env.instantiate(
+		r#"derivation {
+			name = "logs";
+			system = "x86_64-linux";
+			builder = "${builtins.storePath @busybox@}/bin/sh";
+			args = [ "-c" "echo to stdout; echo to stderr >&2; printf 'no newline'; echo x > $out" ];
+		}"#,
+	);
+	env.build_both(&drv);
+	let log = |store: &str| {
+		let root = env.root(store);
+		env.reference_ok(
+			"nix-store",
+			&[
+				"--store",
+				root.to_str().unwrap(),
+				"-l",
+				&drv.to_absolute_path(),
+			],
+		)
+	};
+	assert_eq!(log("nix-rs"), log("reference"));
+	assert_eq!(log("nix-rs"), "to stdout\nto stderr\nno newline");
+}
+
 #[test]
 fn builder_failures_fail_like_the_reference() {
 	let env = Env::new();
@@ -428,7 +468,7 @@ fn builder_failures_fail_like_the_reference() {
 			name = "fails";
 			system = "x86_64-linux";
 			builder = "${builtins.storePath @busybox@}/bin/sh";
-			args = [ "-c" "exit 3" ];
+			args = [ "-c" ''echo one; echo two >&2; printf 'three\rTHREE\n@nix {"action":"msg","level":0,"msg":"hidden"}\nfour'; exit 3'' ];
 		}"#,
 	);
 	let reference = env.reference_realise(&drv);
@@ -442,6 +482,38 @@ fn builder_failures_fail_like_the_reference() {
 			"missing {line:?} in:\n{stderr}"
 		);
 	}
+	// `nix build` without `--print-build-logs` ends the error with the log
+	// tail instead, leaving out `@nix` messages and overwritten text.
+	let error = env
+		.nix_rs_realise_with(&drv, |s| s.show_log_tail = true)
+		.unwrap_err();
+	let message = error.to_string();
+	let root = env.root("reference");
+	let output = env.reference(
+		"nix",
+		&[
+			"build",
+			"--no-link",
+			"--store",
+			root.to_str().unwrap(),
+			&format!("{}^*", drv.to_absolute_path()),
+		],
+	);
+	let stderr = String::from_utf8_lossy(&output.stderr);
+	for line in message.lines() {
+		assert!(
+			stderr.contains(line.trim()),
+			"missing {line:?} in:\n{stderr}"
+		);
+	}
+	let tail = message.split_once("Last 4 log lines:\n").unwrap().1;
+	assert_eq!(
+		tail,
+		format!(
+			"> one\n> two\n> THREE\n> four\nFor full logs, run:\n  nix log {}",
+			drv.to_absolute_path()
+		)
+	);
 }
 
 #[test]

@@ -6,6 +6,8 @@ The first deliverable is nix-rs as an independently installable drop-in replacem
 
 The package-manager MVP provides the reference-compatible CLI and daemon before the OS is built. The later OS adds a native TUI and GPUI-based NixBox GUI for system management. Users can keep handwritten Nix configuration or write it in Lua. The interface can manage supported settings, show where effective values came from, preview a build and activation, and select an earlier generation. Additional features must use explicit extension points and preserve compatibility defaults.
 
+nix-rs OS must support a planned distributed-computing model for large homogeneous and heterogeneous fleets. Shared configuration describes machines, roles, connections, and service topology; exact per-machine generations and safe transition plans remain explicit. Kubernetes through kubeadm or K3s, load balancing, bounded scaling, etcd quorums, and qualified primary/replica services are specified in [distributed computing](distributed-computing.md). This capability follows the single-machine OS foundation and is not present in the current workspace.
+
 ## Required modules and seams
 
 | Module | Interface obligation | Owned behavior |
@@ -18,6 +20,10 @@ The package-manager MVP provides the reference-compatible CLI and daemon before 
 | Daemon | Serve required client operations with reference permission semantics | Protocol negotiation, authentication, trusted-user rules, concurrency |
 | System manager | Evaluate and realize a NixOS system generation, then request an activation action | Build planning, authorization, generation state, rollback coordination |
 | NixBox operation module | Accept typed package and option requests; produce evaluated candidate plans and structured events | Target-aware search, package resolution, module inspection, preview, operation state, recovery |
+| Fleet planner | Resolve a fleet revision and typed change into exact targets, closures, and ordered steps | Inventory and placement, dependency graph, capacity checks, safe batches, partial outcomes |
+| Topology adapter | Execute authorized service transitions with declared preconditions and verified postconditions | Backend-specific cluster bootstrap, membership, drain, promotion, fencing, upgrade, recovery |
+| Machine executor | Apply reviewed steps bound to a machine identity and operation identifier | Local authorization, serialized activation, durable results, reboot verification |
+| Provisioning adapter | Resolve bounded capacity changes to admitted machines or explicit capacity failures | Infrastructure-specific creation, enrollment, readiness, and decommissioning |
 | Distribution | Produce and update the installed OS | Installer image, defaults, boot, release artifacts, recovery |
 
 The seams between these modules must keep compatibility decisions in the engine, not scatter them across three clients. NixBox calls the engine for evaluation, store realization, and build events; it does not parse command output as its source of truth. Each module's interface must specify accepted inputs, side effects, failure modes, and what may be retried. The imported Rust code can be adapted internally where qualified, but its current APIs and behavior do not establish drop-in compatibility. The planned NixBox changes are specified in [NixBox integration](nixbox-integration.md).
@@ -33,6 +39,12 @@ The seams between these modules must keep compatibility decisions in the engine,
 The NixOS manual identifies `system.build.toplevel` as the complete system closure and documents `switch-to-configuration` as the activation entry point. The distribution must preserve those semantics unless a change is an explicit extension. [NixOS system switch](https://nixos.org/manual/nixos/stable/)
 
 The [configuration workflow](configuration-workflow.md) defines source ownership, staging, external edits, and partial failures. Configuration is authoritative for persistent system state; direct runtime actions are explicit and temporary.
+
+## Fleet operation path
+
+Fleet operations preserve this path for each machine, then add authenticated target identity, a frozen target set, cross-machine dependency ordering, topology-specific safety checks, and durable recovery. Machine groups share policy, not necessarily a closure. Realization is reused only for identical derivations, and each target receives its architecture-correct generation.
+
+Kubernetes owns Pod scheduling and assigned runtime objects. Topology adapters coordinate supported cluster and service transitions; they do not create a universal distributed scheduler or database failover algorithm. NixBox presents one reviewed fleet plan and independent per-machine outcomes. An OS generation rollback cannot reverse mutable datastore state, and no source or activation transaction is atomic across the fleet. [Fleet rollout and recovery](distributed-computing.md#fleet-plan-rollout-and-recovery)
 
 ## Repository ownership
 

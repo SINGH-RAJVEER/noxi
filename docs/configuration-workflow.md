@@ -21,7 +21,7 @@ The interface must tolerate edits made outside it. On every apply, compare the c
 The interface has distinct operations:
 
 - **Save draft** writes a proposed configuration change without building or activating it. It clearly marks the system as still running an older generation.
-- **Apply** resolves a typed request with the nix-rs engine, stages its Nix representation, validates and builds the resulting closure, saves the source change, then performs the selected activation action. The final report distinguishes source saved, closure built, running generation, and boot default.
+- **Apply** resolves a typed request with the nix-rs engine, stages its representation in the configuration's language, validates and builds the resulting closure, saves the source change, then performs the selected activation action. The final report distinguishes source saved, closure built, running generation, and boot default.
 - **Discard draft** removes only application-owned pending edits after checking that no one else changed them.
 - **Rollback** selects a prior system generation and, if requested, restores its recorded configuration revision. Rolling back only the running generation must not silently rewrite the source files.
 
@@ -36,6 +36,16 @@ An apply operation follows this sequence:
 
 No filesystem transaction can make a source edit, store build, bootloader update, and service restart atomic as one operation. The system therefore keeps a journal and reports partial outcomes honestly. If activation fails after the source change, show that the desired configuration and running system diverge, offer retry and rollback actions, and never erase external edits during recovery.
 
+## Fleet desired state
+
+The later [fleet workflow](distributed-computing.md#fleet-plan-rollout-and-recovery) extends this contract to a common authoritative configuration, recorded inventory, and locked inputs. NixBox may own an explicitly imported fleet module for supported structured declarations; it must preserve unrelated shared modules and per-machine overrides. Live discovery and runtime membership are observations, not permission to rewrite inventory during pure evaluation.
+
+A fleet preview freezes selectors to exact machine identities and records the candidate closure for every target. It also shows connection changes, cluster membership, capacity requirements, ordered batches, disruption limits, and any data migration. A shared role is not proof that every machine builds the same closure. Changes to inventory, source, target identity, or relevant service membership require revalidation or a new preview before mutation.
+
+Apply stages and realizes the approved candidate closures, saves and verifies the desired fleet revision, then executes health-gated steps. Per-machine activation locks remain necessary; a separate protected topology operation serializes quorum changes and primary promotion. The source journal and operation journal must survive partial completion and coordinator restart. A plan never silently expands to newly discovered machines after approval.
+
+The result distinguishes saved fleet revision, per-target built/running/boot generations, actual membership, and completed, failed, blocked, unreachable, or not-started work. Rollback is a reviewed set of supported per-machine and service transitions, not a global transaction. Datastore recovery, divergent replicas, and binary downgrades after a data migration need service-specific procedures.
+
 ## Direct runtime actions
 
 Some operations are intentionally temporary: restart a service, stop a failed unit, inspect logs, enter rescue mode, or test a built generation without changing the boot default. These are explicit runtime actions, not configuration edits. The UI labels their effect and warns when a later rebuild may undo it. It never records a runtime action as a persistent option change unless the configuration source is updated and a generation is built.
@@ -49,3 +59,5 @@ A user enables OpenSSH in the GUI. The GUI submits a typed option change to NixB
 ## Acceptance cases
 
 Test a normal package or option edit; an imported conflicting definition; a computed read-only value; an external source edit during preview; a failed evaluation; a failed build; an interrupted multi-file write; staging and final-source evaluation producing different closures; a failed service activation; a temporary runtime restart; and rollback of generation without source rollback. For every case, assert the source revision, built closure, running generation, boot default, and user-facing diagnostic.
+
+Fleet cases additionally cover stale inventory, selector expansion, identity replacement, shared and per-machine definition conflicts, equivalent Lua/Nix target evaluation, partial convergence, conflicting topology transitions, and resume without replaying unsafe membership or promotion actions. [Fleet acceptance cases](distributed-computing.md#acceptance-cases-and-release-evidence)

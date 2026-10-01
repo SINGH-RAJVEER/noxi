@@ -12,6 +12,7 @@ This is specified, not implemented. The workspace has no Lua runtime, and the op
 |---|---|
 | NixOS system configuration (`configuration.lua`) | Lua by default; Nix still supported |
 | Home Manager configuration (`home.lua`) | Lua by default; Nix still supported |
+| Native fleet inventory, shared profiles, cluster and service-topology configuration | Lua by default; Nix still supported; planned schema in [distributed computing](distributed-computing.md) |
 | Module owned by NixBox (`nixrs-managed.lua`) | Same language as the configuration that imports it |
 | Nixpkgs, its library, and the NixOS and Home Manager module definitions | Nix, unchanged |
 | `flake.lock`, derivations, store paths, and every other reference format | Unchanged |
@@ -43,6 +44,8 @@ Evaluation stays pure and reproducible. Lua code cannot read files, the environm
 
 For equivalent inputs, a Lua configuration and its Nix translation must produce the same `system.build.toplevel` derivation path. Options that embed the configuration source itself, such as `system.copySystemConfiguration`, are the only expected differences and must be listed in the test results.
 
+For fleet configuration, equivalent Lua and Nix inputs must resolve the same machine identities, relationships, placement and transition policy, and per-machine derivations. Hardware profiles and target-system differences remain explicit. Inventory imported from etcd or a provisioning system must first become a recorded, tracked input; the evaluator cannot discover machines by querying runtime services. [Fleet configuration contract](distributed-computing.md#configuration-contract-and-heterogeneous-machines)
+
 ## Diagnostics
 
 Errors in Lua sources use the [structured diagnostics](logging.md) with the `.lua` file, line, and column. A module-system error caused by a Lua definition names that definition's Lua location, and traces that cross Lua and Nix code show both.
@@ -56,6 +59,7 @@ Errors in Lua sources use the [structured diagnostics](logging.md) with the `.lu
 - Lua syntax errors, runtime errors, and unknown options report Lua source locations.
 - The installer's generated Lua configuration evaluates unchanged after the first reboot and builds a second generation.
 - NixBox edits to a Lua configuration pass the [configuration workflow](configuration-workflow.md) acceptance cases.
+- Equivalent Lua and Nix fleet inputs produce matching inventory, topology, policy, and per-target closures for homogeneous and heterogeneous groups. Live discovery, unknown machine references, and unsupported target systems produce the specified diagnostics rather than changing evaluation implicitly.
 
 ## Open questions
 

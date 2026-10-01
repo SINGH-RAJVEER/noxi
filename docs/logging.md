@@ -43,6 +43,14 @@ Structured events are the source of truth. The pretty terminal output, TUI, GUI,
 
 The JSON mode emits one versioned object per line on stderr, with stable field names and event ordering within an operation. Structured command results remain on stdout. The existing Nix `internal-json` mode belongs to the compatibility command behavior; the new event schema has its own version and compatibility policy. Nix's manual describes `internal-json` as structured but warns that its message text can change between releases. [Nix log formats](https://nix.dev/manual/nix/2.35/command-ref/nix-build.html)
 
+## Fleet operation events
+
+The later [fleet operations](distributed-computing.md#large-fleet-execution-and-visibility) use a parent operation and attributable child operations. Relevant events add fleet revision, stable machine identity, cluster/topology identity, batch or step identifier, coordinator authority epoch when used, observation time, and service health. Report drain, membership change, provisioning, reboot/reconnect, fencing, and replication checks as typed steps, not unexplained build output.
+
+Ordering is defined within each producer stream and its coordinator-recorded event stream. An aggregate sequence is receipt order, not a global causal order across machines. Durable cursors and deduplication identifiers must let clients reconnect without treating a repeated event as a repeated mutation. Large fleets require filtered/paginated results, bounded normal output, and backpressure; fetching status must not fetch every full log.
+
+Final results distinguish completed, failed, unreachable, blocked, and not-started targets, saved desired revision, actual per-machine generations, and verified runtime membership. Quorum loss, replication lag, insufficient capacity, expired authority, and failed traffic checks retain their specific diagnostics. A count of successful activations is not a percentage of service availability or proof of fleet convergence.
+
 ## Human-facing output rules
 
 - In a TTY, show one compact status area with current phase, active jobs, elapsed time, and useful counters. Do not redraw the entire terminal for every build line.
@@ -78,3 +86,5 @@ The same shape applies to a [Lua configuration](lua-configuration.md): the locat
 Test the renderer and underlying events separately. Fixture cases must include a Nix syntax error, invalid option, conflicting definitions, unavailable flake input, hash mismatch, untrusted cache signature, sandbox denial, failed derivation, remote build failure, daemon authorization failure, failed service activation, stale preview, cancellation, and recovery after interrupted output. For each case, assert the error code, phase, source or artifact, cause, next action when justified, actual system state, and full-log reference.
 
 Run the same operation in TTY, redirected, `NO_COLOR`, narrow terminal, debug, and JSON modes. Assert that stdout remains usable by scripts, JSON parses as its declared version, sensitive values never appear, and large builder logs do not flood normal output. Compare compatibility-command output separately to the reference release; improvements in the OS-native renderer cannot excuse a compatibility regression.
+
+Fleet cases add interleaved child events, reconnect with duplicate delivery, filtered large-fleet output, unreachable targets, stopped batches, lost quorum, blocked drain, denied promotion, exhausted capacity, and stale-coordinator rejection. Assert truthful per-target state and service diagnostics without fabricated aggregate progress or secret-bearing enrollment data.

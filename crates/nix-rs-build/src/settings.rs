@@ -61,6 +61,19 @@ pub struct BuildSettings {
 	/// Seconds of silence or total time after which a build is killed; 0 disables.
 	pub max_silent_time: u64,
 	pub timeout: u64,
+	/// `keep-build-log`.
+	pub keep_build_log: bool,
+	/// `compress-build-log`.
+	pub compress_build_log: bool,
+	/// `log-lines`: how many lines of a failed build's log an error shows.
+	pub log_lines: usize,
+	/// Whether the `nix-command` experimental feature is enabled, which
+	/// changes the log command failed builds suggest.
+	pub nix_command: bool,
+	/// Whether a failed build's error ends with the last `log_lines` lines
+	/// of its log. CppNix does this unless its logger already prints build
+	/// output, as the legacy commands and `--print-build-logs` do.
+	pub show_log_tail: bool,
 }
 
 /// The sandbox shell compiled into this build, like CppNix's
@@ -105,6 +118,11 @@ impl Default for BuildSettings {
 			allowed_impure_host_prefixes: Vec::new(),
 			max_silent_time: 0,
 			timeout: 0,
+			keep_build_log: true,
+			compress_build_log: true,
+			log_lines: 25,
+			nix_command: false,
+			show_log_tail: false,
 		}
 	}
 }

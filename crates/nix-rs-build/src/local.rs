@@ -748,6 +748,87 @@ fn create_temp_dir(root: &Path, prefix: &str) -> io::Result<PathBuf> {
 	}
 }
 
+/// A build's log file.
+enum LogFile {
+	Plain(fs::File),
+	Bzip2(bzip2::write::BzEncoder<fs::File>),
+}
+
+impl LogFile {
+	fn write_all(&mut self, data: &[u8]) -> io::Result<()> {
+		use std::io::Write;
+		match self {
+			LogFile::Plain(f) => f.write_all(data),
+			LogFile::Bzip2(f) => f.write_all(data),
+		}
+	}
+
+	fn finish(self) -> io::Result<()> {
+		use std::io::Write;
+		match self {
+			LogFile::Plain(mut f) => f.flush(),
+			LogFile::Bzip2(f) => f.finish()?.flush(),
+		}
+	}
+}
+
+/// The last lines of a build's output, CppNix's `BuildLog`: a carriage
+/// return restarts the line, and `@nix` JSON messages are not log lines.
+struct LogTail {
+	max: usize,
+	lines: std::collections::VecDeque<Vec<u8>>,
+	line: Vec<u8>,
+	pos: usize,
+}
+
+impl LogTail {
+	fn new(max: usize) -> Self {
+		Self {
+			max,
+			lines: Default::default(),
+			line: Vec::new(),
+			pos: 0,
+		}
+	}
+
+	fn feed(&mut self, data: &[u8]) {
+		for &c in data {
+			match c {
+				b'\r' => self.pos = 0,
+				b'\n' => self.flush_line(),
+				_ => {
+					if self.pos >= self.line.len() {
+						self.line.resize(self.pos + 1, 0);
+					}
+					self.line[self.pos] = c;
+					self.pos += 1;
+				}
+			}
+		}
+	}
+
+	fn flush(&mut self) {
+		if !self.line.is_empty() {
+			self.flush_line();
+		}
+	}
+
+	fn flush_line(&mut self) {
+		self.line.truncate(self.pos);
+		let line = std::mem::take(&mut self.line);
+		self.pos = 0;
+		let json = line
+			.strip_prefix(b"@nix ")
+			.is_some_and(|rest| serde_json::from_slice::<Value>(rest).is_ok());
+		if !json {
+			self.lines.push_back(line);
+			if self.lines.len() > self.max {
+				self.lines.pop_front();
+			}
+		}
+	}
+}
+
 /// The directories of one build attempt, removed by [`Build::cleanup`].
 struct Build<'b> {
 	builder: &'b LocalBuilder<'b>,
@@ -1103,15 +1184,56 @@ impl<'b> Build<'b> {
 			max_silent_time: settings.max_silent_time,
 			timeout: settings.timeout,
 		};
-		let status = sandbox::run(&spec, log)?;
+		let mut log_file = self.open_log_file()?;
+		let mut tail = LogTail::new(settings.log_lines);
+		let mut write_error = None;
+		let status = sandbox::run(&spec, &mut |data: &[u8]| {
+			tail.feed(data);
+			if let Some(file) = &mut log_file
+				&& let Err(e) = file.write_all(data)
+			{
+				write_error.get_or_insert(e);
+			}
+			log(data);
+		});
+		tail.flush();
+		if let Some(file) = log_file {
+			file.finish()?;
+		}
+		if let Some(e) = write_error {
+			return Err(e.into());
+		}
+		let status = status?;
 		if !status.success() {
 			let mut msg = format!(
-				"Cannot build '{}'.\nReason: builder {}.\nOutput paths:",
+				"Cannot build '{}'.\nReason: builder {}.",
 				print(&self.drv_path),
 				status.describe()
 			);
-			for output in &self.outputs {
+			let mut outputs = self.outputs.clone();
+			outputs.sort();
+			if !outputs.is_empty() {
+				msg += "\nOutput paths:";
+			}
+			for output in &outputs {
 				msg += &format!("\n  {}", print(output));
+			}
+			if settings.show_log_tail && !tail.lines.is_empty() {
+				msg += &format!("\nLast {} log lines:\n", tail.lines.len());
+				for line in &tail.lines {
+					msg += "> ";
+					msg += &String::from_utf8_lossy(line);
+					msg.push('\n');
+				}
+				msg += &format!(
+					"For full logs, run:\n  {} {}",
+					if settings.nix_command {
+						"nix log"
+					} else {
+						"nix-store -l"
+					},
+					print(&self.drv_path)
+				);
 			}
 			return Err(BuildError::failed(
 				if self.sandboxed {
@@ -1123,6 +1245,37 @@ impl<'b> Build<'b> {
 			));
 		}
 		Ok(())
+	}
+
+	/// `LogFile`: `LOGDIR/drvs/XX/REST`, compressed with bzip2 unless
+	/// `compress-build-log` is off.
+	fn open_log_file(&self) -> Result<Option<LogFile>> {
+		let settings = self.builder.settings;
+		if !settings.keep_build_log {
+			return Ok(None);
+		}
+		let base = self.drv_path.to_string();
+		let dir = self
+			.builder
+			.store
+			.config()
+			.log_dir
+			.join("drvs")
+			.join(&base[..2]);
+		fs::create_dir_all(&dir)?;
+		let mut name = base[2..].to_owned();
+		if settings.compress_build_log {
+			name += ".bz2";
+		}
+		let file = fs::File::create(dir.join(name))?;
+		Ok(Some(if settings.compress_build_log {
+			LogFile::Bzip2(bzip2::write::BzEncoder::new(
+				file,
+				bzip2::Compression::best(),
+			))
+		} else {
+			LogFile::Plain(file)
+		}))
 	}
 
 	fn cleanup(&self) {

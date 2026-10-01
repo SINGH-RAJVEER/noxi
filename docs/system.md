@@ -16,6 +16,14 @@ The OS flake must produce installed-system, live-installer, VM, and recovery out
 
 The installer writes a Lua configuration source that identifies the selected disk and boot policy without encoding secrets in the Nix store. After installation, test first boot, daemon startup, network availability where configured, the selected boot entry, and the running generation. Then build and activate a second generation using the installed nix-rs binaries and daemon. Inspect the resulting closure and operation trace to confirm normal maintenance did not call CppNix. A failed second rebuild must leave the installed generation bootable and report source, store, and boot state separately.
 
+## Fleet enrollment and role lifecycle
+
+The later [distributed-computing capability](distributed-computing.md) must support headless enrollment into an authorized fleet, including provisioning images and existing installed machines. Enrollment binds a stable inventory identity to authenticated runtime credentials and records the target system and hardware profile. A hostname, address, or copied image alone cannot establish that identity. A generic image must not embed shared long-lived machine credentials.
+
+Cluster bootstrap and role assignment follow a reviewed fleet plan. An enrolled machine is not yet a ready Kubernetes worker, etcd voter, or database replica. The selected topology adapter verifies its service-specific readiness before adding it to active traffic or scheduling. Configuration must distinguish shared policy from architecture-specific generations, runtime membership, and persistent service data.
+
+Retirement requires draining assigned workloads, completing supported membership removal, applying data-retention policy, and revoking credentials before releasing infrastructure. A failed drain or unknown remote state blocks destructive cleanup. Replacement is an explicit identity and membership operation, not reuse of an unreachable machine's IP address.
+
 ## System generations
 
 The manager must preserve the NixOS distinction among `build`, `test`, `boot`, `switch`, and `dry-activate`. `build` realizes a system without activation. `test` activates it for the running system without changing the boot default. `boot` sets the next boot target without changing the running system. `switch` changes both. `dry-activate` reports intended changes without performing them. NixOS documents these behaviors and the generated `switch-to-configuration` program. [NixOS configuration changes](https://nixos.org/manual/nixos/stable/), [system switch](https://nixos.org/manual/nixos/stable/)
@@ -34,6 +42,8 @@ Each release must define how it receives Nixpkgs, nix-rs, kernel, and installer 
 
 Recovery media must be able to inspect and repair an installed system when the current generation cannot boot or the primary daemon cannot start. Recovery must be tested with a broken configuration, failed activation, damaged boot default, and a failed package-manager update. Reverting an OS generation does not undo changes to mutable application data; release notes must name migrations that need a separate backup or reversal.
 
+Fleet updates preserve these generation semantics per machine and add topology-aware batching, canaries, workload drain, quorum and primary availability checks, and post-reboot service verification. A completed activation is not sufficient to declare the cluster healthy. Partial rollouts retain exact per-machine states and a resumable journal; they cannot report a fleet-wide atomic switch. Reject rollback to software incompatible with already migrated persistent data and offer the qualified service recovery path instead. [Fleet rollout and recovery](distributed-computing.md#fleet-plan-rollout-and-recovery)
+
 The initial OS profile must retain NixOS switching support. The NixOS `image-based-appliance` profile disables `switch-to-configuration`; it does not satisfy this product's self-maintaining system requirement without a different, fully specified update model. [NixOS manual](https://nixos.org/manual/nixos/stable/)
 
 ## Privilege and trust
@@ -41,3 +51,5 @@ The initial OS profile must retain NixOS switching support. The NixOS `image-bas
 The TUI and GUI run without root privileges. A narrowly scoped privileged module authorizes store and system mutations and applies the same trust model used by compatibility commands. Do not accept arbitrary shell commands from an interface client as a substitute for typed operations. Untrusted builders must remain sandboxed; binary-cache signatures and substituter trust decisions must match the reference behavior in compatibility mode.
 
 Only one daemon may own writes to a store at a time. System activation and store migration need exclusive operations where required. Log authorization failures without exposing credentials. Generated Nix store objects are public by default in common deployments, so credentials must stay out of generated configuration and build inputs.
+
+Remote mutations additionally require authenticated target identity, scoped authority, replay protection, durable operation identifiers, and stale-coordinator fencing. Local activation serialization and protected cross-machine topology transitions are separate requirements. Routine fleet operations must use typed authorized steps, not unrestricted remote-root shell execution. Machine enrollment, cluster credentials, cache trust, and recovery authority must remain distinct permissions.

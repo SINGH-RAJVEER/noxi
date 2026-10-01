@@ -26,6 +26,14 @@ Before a privileged change, display the exact file diff, selected inputs, build 
 
 The TUI and GUI should provide generation comparison and rollback controls, but neither may imply that rolling back the system also restores mutable user data. Accessibility, keyboard navigation, and text alternatives are required interface acceptance criteria before a graphical release.
 
+## Fleet and topology operations
+
+When the later [distributed-computing capability](distributed-computing.md) is offered, all three clients must support fleet inventory and relationship inspection, per-machine generation and drift views, fleet plan preview, safe apply, cancellation, resume, and qualified cluster/capacity/recovery actions. The CLI must support the full headless workflow with versioned machine-readable results. A GUI session cannot be required for fleet coordination or recovery.
+
+Preview shows the fleet revision, resolved target count and identities, architecture-specific closures, membership and connection changes, load-balancing and capacity policy, disruption limits, dependency order, and requested authority. Large target sets require searchable or paginated detail, not a hidden wildcard behind an Apply button. The interface must distinguish a workload replica change from a worker-capacity change or an etcd membership change.
+
+Execution shows completed, failed, blocked, unreachable, and not-started targets with service-specific health and correlated logs. Saved desired state, actual generations, boot defaults, runtime membership, and replication lag remain separate facts. Unknown remote state must not look healthy. Recovery must explain its service-specific data and availability effects; no control may imply an atomic fleet rollback or automatic repair of split brain.
+
 ## GPUI-based NixBox GUI
 
 The desktop application belongs in a planned `nixbox-gui` crate. It consumes the same versioned NixBox operation interface as the CLI and TUI; GPUI owns rendering and interaction, not evaluation, store mutation, authorization, or activation. Keep the GUI process unprivileged. A narrowly scoped system service authorizes and executes privileged operations after the user has reviewed the evaluated plan. The GUI must show the target host and scope before applying a change.
