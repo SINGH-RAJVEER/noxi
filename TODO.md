@@ -4,27 +4,6 @@ This checklist tracks the first release: nix-rs replacing the selected CppNix re
 
 A checked item below means it exists and has focused local evidence in the current working tree. It does not mean the item is committed, published, or qualified for replacement. Keep a failing or unrun test visible until the corresponding behavior passes against a pinned reference.
 
-Several agents work on this list at once. Coordinate ownership before changing the same item.
-
-### Active work locks
-
-Reserve a bounded task and its files here before editing. Also respect inline lock markers on checklist items. Do not take an existing reservation or clear it without its owner's confirmation. Remove your reservation after recording results; unchecked work remains available for a later task.
-
-| Reservation | Task | Owned files |
-|---|---|---|
-| claude-store | §4 local store: fresh init, open existing, register paths, NAR import/export, checked against the reference | `crates/nix-rs-store/`, `crates/compat-tests/tests/reference_store.rs` |
-
-Each numbered section is a work package. Its checkboxes are the subtasks, and the package is complete only when every applicable checkbox has evidence in the compatibility matrix.
-
-## Execution order
-
-The section numbers group work, not a strict execution order. This MVP is the full drop-in compatibility release; intermediate results remain previews, not smaller compatibility claims.
-
-1. Finish the baseline in §0, including public library consumer discovery, and establish §1's isolated runner and evidence format. Add cases as operations become available; completing the runner's full coverage is a release gate, not a prerequisite for implementation. Continue formats and pure evaluator fixes in parallel.
-2. Connect a minimal compatibility command, evaluator, and store to produce the same `.drv` bytes and output paths as the reference. Realize a small derivation with nix-rs and compare its output and registered metadata. Use isolated stores; this is not a release gate by itself.
-3. Extend that workflow through the daemon, substitution, and sandboxed builds. Test cross-engine pairings early. Store-backed builtins and import-from-derivation depend on this work, so do not wait for all evaluation work to finish before starting §4 and §5.
-4. Expand evaluator, flake, command, and library coverage against the inventory. Qualify NixOS and Home Manager replacement in disposable VM overlays, then qualify the exact release artifacts in §8.
-
 ## 0. Make the baseline reproducible
 
 - [x] Pin the CppNix source commit for the copied snapshot. The first snapshot matched unreleased 2.36.0 `master` commit `8f7ed1c1d`.

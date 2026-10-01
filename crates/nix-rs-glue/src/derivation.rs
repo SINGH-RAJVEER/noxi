@@ -172,24 +172,38 @@ pub(crate) mod derivation_builtins {
 			Ok(())
 		}
 
+		// A catchable error from any forced attribute is returned as is, so
+		// `builtins.tryEval` still sees the original `throw`.
 		let ignore_nulls = match input.select(IGNORE_NULLS) {
-			Some(b) => generators::request_force(&co, b.clone()).await.as_bool()?,
+			Some(b) => {
+				let b = generators::request_force(&co, b.clone()).await;
+				if b.is_catchable() {
+					return Ok(b);
+				}
+				b.as_bool()?
+			}
 			None => false,
 		};
 
 		// A sorted map, so the `__json` keys come out in CppNix's order.
 		let mut structured_attrs: Option<BTreeMap<&str, serde_json::Value>> =
 			match input.select(STRUCTURED_ATTRS) {
-				Some(b) => generators::request_force(&co, b.clone())
-					.await
-					.as_bool()?
-					.then_some(Default::default()),
+				Some(b) => {
+					let b = generators::request_force(&co, b.clone()).await;
+					if b.is_catchable() {
+						return Ok(b);
+					}
+					b.as_bool()?.then_some(Default::default())
+				}
 				None => None,
 			};
 
 		for (arg_name, arg_value) in input.iter_sorted() {
 			let arg_name = arg_name.to_str()?;
 			let value = generators::request_force(&co, arg_value.clone()).await;
+			if value.is_catchable() {
+				return Ok(value);
+			}
 
 			if ignore_nulls && matches!(value, Value::Null) {
 				continue;
@@ -211,10 +225,12 @@ pub(crate) mod derivation_builtins {
 
 					output_names = Vec::with_capacity(outputs.len());
 					for output in outputs {
-						let output_name = generators::request_force(&co, output)
-							.await
-							.to_str()
-							.context("determining output name")?;
+						let output_name = generators::request_force(&co, output).await;
+						if output_name.is_catchable() {
+							return Ok(output_name);
+						}
+						let output_name =
+							output_name.to_str().context("determining output name")?;
 						input_context.mimic(&output_name);
 						let output_name: OutputName = output_name
 							.to_str()?
@@ -271,10 +287,14 @@ pub(crate) mod derivation_builtins {
 
 					match structured_attrs {
 						Some(ref mut structured_attrs) => {
-							if value.is_catchable() {
-								return Ok(value);
-							}
-							let (val_json, context) = value.into_contextful_json(&co).await?;
+							let (val_json, context) = match value.into_contextful_json(&co).await {
+								Ok(json) => json,
+								// A `throw` nested in the value.
+								Err(ErrorKind::CatchableError(cek)) => {
+									return Ok(Value::Catchable(Box::new(cek)));
+								}
+								Err(err) => return Err(err),
+							};
 							input_context.extend(context);
 							structured_attrs.insert(arg_name, val_json);
 						}

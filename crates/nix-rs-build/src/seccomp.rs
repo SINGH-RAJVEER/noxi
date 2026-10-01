@@ -63,11 +63,12 @@ fn program() -> Vec<libc::sock_filter> {
 		for rule in rules {
 			match rule {
 				Rule::SetidMode { nr, arg } => {
-					// 6 instructions; each failed test jumps past the rest.
+					// 7 instructions; each failed test jumps past the rest,
+					// including the final return.
 					prog.push(insn(BPF_LD_W_ABS, 0, 0, OFFSET_ARCH));
-					prog.push(insn(BPF_JMP_JEQ_K, 0, 4, arch));
+					prog.push(insn(BPF_JMP_JEQ_K, 0, 5, arch));
 					prog.push(insn(BPF_LD_W_ABS, 0, 0, OFFSET_NR));
-					prog.push(insn(BPF_JMP_JEQ_K, 0, 2, nr));
+					prog.push(insn(BPF_JMP_JEQ_K, 0, 3, nr));
 					prog.push(insn(BPF_LD_W_ABS, 0, 0, offset_arg_low(arg)));
 					prog.push(insn(BPF_JMP_JSET_K, 0, 1, (libc::S_ISUID | libc::S_ISGID) as u32));
 					prog.push(insn(BPF_RET_K, 0, 0, SECCOMP_RET_ERRNO | libc::EPERM as u32));
@@ -108,4 +109,54 @@ pub fn install() -> io::Result<()> {
 		return Err(io::Error::new(error.kind(), format!("unable to load seccomp BPF program: {error}")));
 	}
 	Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+	use super::*;
+
+	/// Run `prog` on a syscall as the kernel would, without installing it.
+	fn verdict(prog: &[libc::sock_filter], arch: u32, nr: u32, args: [u64; 6]) -> u32 {
+		let word = |offset: u32| match offset {
+			OFFSET_NR => nr,
+			OFFSET_ARCH => arch,
+			offset => args[(offset as usize - 16) / 8] as u32,
+		};
+		let (mut pc, mut acc) = (0, 0);
+		loop {
+			let insn = prog[pc];
+			pc += 1;
+			match insn.code {
+				BPF_LD_W_ABS => acc = word(insn.k),
+				BPF_JMP_JEQ_K | BPF_JMP_JSET_K => {
+					let taken = if insn.code == BPF_JMP_JEQ_K { acc == insn.k } else { acc & insn.k != 0 };
+					pc += usize::from(if taken { insn.jt } else { insn.jf });
+				}
+				BPF_RET_K => return insn.k,
+				code => panic!("unexpected instruction {code:#x}"),
+			}
+		}
+	}
+
+	#[test]
+	fn filters_only_the_listed_calls() {
+		let prog = program();
+		let eperm = SECCOMP_RET_ERRNO | libc::EPERM as u32;
+		let enotsup = SECCOMP_RET_ERRNO | libc::ENOTSUP as u32;
+		let setuid = u64::from(libc::S_ISUID);
+		let x86_64 = |nr, args| verdict(&prog, AUDIT_ARCH_X86_64, nr, args);
+		// read, and chmod and fchmodat without setuid or setgid.
+		assert_eq!(x86_64(0, [0; 6]), SECCOMP_RET_ALLOW);
+		assert_eq!(x86_64(90, [0, 0o755, 0, 0, 0, 0]), SECCOMP_RET_ALLOW);
+		assert_eq!(x86_64(268, [0, 0, 0o644, 0, 0, 0]), SECCOMP_RET_ALLOW);
+		assert_eq!(x86_64(90, [0, setuid | 0o755, 0, 0, 0, 0]), eperm);
+		assert_eq!(x86_64(268, [0, 0, u64::from(libc::S_ISGID), 0, 0, 0]), eperm);
+		assert_eq!(x86_64(188, [0; 6]), enotsup);
+		assert_eq!(x86_64(90 | X32_SYSCALL_BIT, [0, setuid, 0, 0, 0, 0]), eperm);
+		// i386 numbers: chmod is 15, while 90 is mmap there.
+		let i386 = |nr, args| verdict(&prog, AUDIT_ARCH_I386, nr, args);
+		assert_eq!(i386(90, [0, setuid, 0, 0, 0, 0]), SECCOMP_RET_ALLOW);
+		assert_eq!(i386(15, [0, setuid, 0, 0, 0, 0]), eperm);
+		assert_eq!(i386(226, [0; 6]), enotsup);
+	}
 }

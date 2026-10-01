@@ -8,6 +8,7 @@ use std::path::Path;
 use std::process::{Command, Output};
 
 use serde_json::Value;
+use sha2::{Digest, Sha256};
 use tempfile::tempdir;
 
 fn executable(path: &Path, script: &str) {
@@ -208,6 +209,59 @@ fn stderr_alone_is_a_mismatch() {
 		case["candidate"]["exit_code"]
 	);
 	assert_eq!(case["candidate"]["stderr"], "warning\n");
+}
+
+#[test]
+fn crashes_with_equal_output_are_a_mismatch() {
+	let dir = tempdir().expect("temporary directory");
+	let reference = dir.path().join("reference");
+	let candidate = dir.path().join("candidate");
+	let report = dir.path().join("report.json");
+	// Both print the same invalid UTF-8, then die by different signals.
+	let crash = |expression_arg, signal| {
+		format!(
+			"case \"${{{expression_arg}-}}\" in\n\t'1 + 2 * 3') printf '\\377\\n'; kill -{signal} $$ ;;\nesac\n"
+		)
+	};
+	executable(&reference, &format!("{}{REFERENCE}", crash(4, "ABRT")));
+	executable(&candidate, &format!("{}{CANDIDATE}", crash(3, "TERM")));
+
+	let output = run(&reference, &candidate, &report);
+	assert_eq!(output.status.code(), Some(1), "{output:?}");
+	let json = read_report(&report);
+	let case = &json["cases"][0];
+	assert_eq!(case["matches"], false);
+	assert_eq!(case["reference"]["stdout"], case["candidate"]["stdout"]);
+	assert_eq!(case["reference"]["exit_code"], Value::Null);
+	assert_eq!(case["reference"]["signal"], 6);
+	assert_eq!(case["candidate"]["signal"], 15);
+	assert_eq!(case["candidate"]["stdout_hex"], "ff0a");
+	assert_eq!(case["candidate"]["exit_code"], Value::Null);
+	assert_eq!(json["cases"][1]["reference"]["signal"], Value::Null);
+}
+
+#[test]
+fn report_identifies_the_compared_binaries() {
+	let dir = tempdir().expect("temporary directory");
+	let reference = dir.path().join("reference");
+	let candidate = dir.path().join("candidate");
+	let report = dir.path().join("report.json");
+	executable(&reference, REFERENCE);
+	executable(&candidate, CANDIDATE);
+
+	let output = run(&reference, &candidate, &report);
+	assert_eq!(output.status.code(), Some(0), "{output:?}");
+	let json = read_report(&report);
+	let digest = |path: &Path| {
+		let digest = Sha256::digest(fs::read(path).unwrap());
+		digest
+			.iter()
+			.map(|byte| format!("{byte:02x}"))
+			.collect::<String>()
+	};
+	assert_eq!(json["reference"]["sha256"], digest(&reference));
+	assert_eq!(json["candidate"]["sha256"], digest(&candidate));
+	assert_ne!(json["reference"]["sha256"], json["candidate"]["sha256"]);
 }
 
 #[test]

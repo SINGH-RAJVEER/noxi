@@ -667,3 +667,31 @@ fn reference_cycles_and_vanished_paths_are_handled() {
 	drop(store);
 	env.reference_verify();
 }
+
+#[test]
+fn handles_to_one_store_share_its_temporary_roots() {
+	let env = Env::new();
+	let first = env.open();
+	let second = env.open();
+	let a = sp("/nix/store/00000000000000000000000000000000-a");
+	let b = sp("/nix/store/11111111111111111111111111111111-b");
+	first.add_temp_root(&a).unwrap();
+	second.add_temp_root(&b).unwrap();
+	first.add_temp_root(&b).unwrap();
+	let file = env
+		.root()
+		.join("nix/var/nix/temproots")
+		.join(std::process::id().to_string());
+	assert_eq!(
+		fs::read(&file).unwrap(),
+		[&a, &b, &b]
+			.map(|path| path.to_absolute_path() + "\0")
+			.concat()
+			.into_bytes()
+	);
+	// As in CppNix, the last handle removes the file.
+	drop(first);
+	assert!(file.exists());
+	drop(second);
+	assert!(!file.exists());
+}

@@ -13,6 +13,7 @@ in
 	packages = [
 		rustToolchain
 		pkgs.bash
+		pkgs.cargo-nextest
 		pkgs.cmake
 		pkgs.coreutils
 		pkgs.gawk

@@ -8,6 +8,7 @@ description = "Differential tests that check vendored and first-party crates aga
 
 [dependencies]
 serde_json.workspace = true
+sha2.workspace = true
 tempfile.workspace = true
 
 [dev-dependencies]

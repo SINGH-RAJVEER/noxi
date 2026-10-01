@@ -71,14 +71,17 @@ impl Write for RefScanSink {
 		// Scan the previous tail joined with the start of this buffer, then
 		// the buffer itself.
 		let head = buf.len().min(HASH_LEN - 1);
-		if !self.tail.is_empty() {
-			let mut joined = std::mem::take(&mut self.tail);
-			joined.extend_from_slice(&buf[..head]);
-			self.scan(&joined);
-		}
+		let mut joined = std::mem::take(&mut self.tail);
+		joined.extend_from_slice(&buf[..head]);
+		self.scan(&joined);
 		self.scan(buf);
-		let keep = buf.len().min(HASH_LEN - 1);
-		self.tail = buf[buf.len() - keep..].to_vec();
+		// The last bytes seen so far, which may span several short writes.
+		self.tail = if buf.len() >= HASH_LEN - 1 {
+			buf[buf.len() - (HASH_LEN - 1)..].to_vec()
+		} else {
+			// `joined` is the previous tail and all of `buf`.
+			joined[joined.len().saturating_sub(HASH_LEN - 1)..].to_vec()
+		};
 		Ok(buf.len())
 	}
 

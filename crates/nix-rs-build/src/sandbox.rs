@@ -173,6 +173,7 @@ pub fn run(spec: &SandboxSpec, log: &mut dyn FnMut(&[u8])) -> Result<ExitStatus>
 		}
 	};
 
+	let builder = Builder(Some(pid));
 	let mut sync_write = File::from(sync_write);
 	let setup = (|| -> io::Result<()> {
 		let proc = PathBuf::from(format!("/proc/{pid}"));
@@ -198,7 +199,6 @@ pub fn run(spec: &SandboxSpec, log: &mut dyn FnMut(&[u8])) -> Result<ExitStatus>
 	let _ = sync_write.write_all(if ok { b"1\n" } else { b"0\n" });
 	drop(sync_write);
 	if let Err(e) = setup {
-		kill_and_wait(pid);
 		return Err(BuildError::Other(format!("setting up the build user namespace: {e}")));
 	}
 
@@ -209,7 +209,7 @@ pub fn run(spec: &SandboxSpec, log: &mut dyn FnMut(&[u8])) -> Result<ExitStatus>
 			Some(line) if line.first() == Some(&2) => break,
 			Some(line) if line.first() == Some(&1) => {
 				let rest = reader.read_rest()?;
-				let status = wait_pid(pid)?;
+				let status = builder.wait()?;
 				return Err(BuildError::Other(format!(
 					"while setting up the build environment: {}{}",
 					String::from_utf8_lossy(&rest).trim_end(),
@@ -218,7 +218,7 @@ pub fn run(spec: &SandboxSpec, log: &mut dyn FnMut(&[u8])) -> Result<ExitStatus>
 			}
 			Some(line) => tracing::debug!("sandbox setup: {}", String::from_utf8_lossy(&line)),
 			None => {
-				let status = wait_pid(pid)?;
+				let status = builder.wait()?;
 				return Err(BuildError::Other(format!(
 					"while waiting for the build environment to initialize ({})",
 					ExitStatus(status).describe()
@@ -250,12 +250,30 @@ pub fn run(spec: &SandboxSpec, log: &mut dyn FnMut(&[u8])) -> Result<ExitStatus>
 		}
 	}
 	if let Some(message) = timed_out {
-		kill_and_wait(pid);
+		drop(builder);
 		return Err(BuildError::failed(FailureStatus::TimedOut, message));
 	}
 	// The builder may have closed the terminal before exiting.
-	let status = wait_pid(pid)?;
+	let status = builder.wait()?;
 	Ok(ExitStatus(status))
+}
+
+/// The started builder. Dropping it before [`Builder::wait`] kills and
+/// reaps it, so no error return leaves it running.
+struct Builder(Option<libc::pid_t>);
+
+impl Builder {
+	fn wait(mut self) -> io::Result<libc::c_int> {
+		wait_pid(self.0.take().expect("not yet waited for"))
+	}
+}
+
+impl Drop for Builder {
+	fn drop(&mut self) {
+		if let Some(pid) = self.0.take() {
+			kill_and_wait(pid);
+		}
+	}
 }
 
 fn poll_timeout(spec: &SandboxSpec, start: Instant, last_output: Instant) -> Option<Duration> {
@@ -457,6 +475,10 @@ fn helper_main(slave: &CStr, spec: &SandboxSpec, sync_read: RawFd, pid_write: Ra
 			return Err(io::Error::last_os_error());
 		}
 		if pid == 0 {
+			// CLOEXEC keeps this open until exec, and the parent reads the
+			// PID pipe to EOF before letting the builder exec.
+			// SAFETY: the builder never uses the helper's end of the pipe.
+			unsafe { libc::close(pid_write) };
 			let code = child_main(sync_read, spec, plan);
 			// SAFETY: the builder failed before exec.
 			unsafe { libc::_exit(code) };

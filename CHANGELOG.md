@@ -63,6 +63,15 @@ Published to crates.io; `cargo install nix-rs-cli` installs the `nixrs` binary.
 
 Nix language parser, compiler and bytecode VM with the pure builtins, imported from `snix-eval`.
 
+### Unreleased
+
+#### Added
+
+- `Evaluation::evaluate_in_dir` evaluates code that has no file, such as an `--expr` argument, with relative paths resolved against a given directory instead of the process's current directory. Diagnostics and `__curPos` still treat the code as having no file (2026-10-01).
+- `EvaluationBuilder::get_nix_path` returns the search path set so far (2026-10-01).
+
+`nix-rs-glue` and `nix-rs-commands` now use both methods, so this version has to be published, and their `nix-rs-eval` requirement raised to it, before either of them is published again.
+
 ### 0.2.0 - 2026-10-01
 
 #### Changed
@@ -187,6 +196,13 @@ Serializes Rust values into Nix and deserializes Nix values into Rust types, imp
 
 ## nix-rs-glue
 
+### Unreleased
+
+#### Fixed
+
+- `derivationStrict` returns a `throw` from `__ignoreNulls`, `__structuredAttrs`, `args`, `outputs`, an output name, or a value nested in a structured attribute as a catchable error, so `builtins.tryEval` catches it as CppNix 2.35.2 does. It previously reported a type error and the command exited 1 (2026-10-01).
+- `configure` appends the built-in `<nix/...>` files to a search path already set on the builder instead of replacing it with `NIX_PATH` (2026-10-01).
+
 ### 0.1.0 - 2026-10-01
 
 - Adapted store-aware builtins and derivation handling from the recorded Snix glue crates. Read-only evaluation computes derivation, file, and filtered-source store paths while retaining dependencies in memory; it does not write to the store or build derivations.
@@ -194,6 +210,12 @@ Serializes Rust values into Nix and deserializes Nix values into Rust types, imp
 - Unix-only preview with unstable APIs, versioned registry dependencies, and bundled GPL/LGPL provenance notices.
 
 ## nix-rs-commands
+
+### Unreleased
+
+#### Fixed
+
+- `instantiate::run` resolves relative paths in `--expr` against the directory it is given rather than the process's current directory. The `nix-instantiate` binary passes its current directory, so its behavior is unchanged (2026-10-01).
 
 ### 0.1.0 - 2026-10-01
 
@@ -222,6 +244,8 @@ Internal test crate that checks the workspace crates against the CppNix 2.35.2 f
 
 - `hello.drv` and `firefox.drv` are expected to parse and canonicalise instead of being recorded as divergences (2026-09-29).
 - `differential-eval` runs both engines in a cleared environment with temporary empty configuration, a dummy store and a per-command timeout (`NIXRS_DIFF_TIMEOUT_MS`, default 20 seconds), and records timeouts in its report (2026-09-29).
+- `differential-eval` records the signal that ended each run and never counts a run ended by a signal as a match, since a signal leaves no exit code and two different crashes would otherwise compare equal. Output that is not valid UTF-8 is also recorded as hex, and the report gives each executable's resolved path and SHA-256 (2026-10-01).
+- `upstream_lang` records the signal that ended a `crash` case in its JSON report (2026-10-01).
 
 ### 0.1.0 - unpublished
 
@@ -255,9 +279,11 @@ Internal trybuild tests for `nix-compat-derive`.
 
 - Adds an unpublished local-store preview with the schema-10 SQLite layout, validity/reference metadata, path registration, NAR import/export, canonicalization, and store locks.
 - Two local unit tests and five isolated reference comparisons pass. Garbage collection, substitution, daemon ownership, concurrency/crash recovery, and full existing-store downgrade qualification remain open.
+- Every `LocalStore` handle to one store in a process appends to the same `temproots/<pid>` file. A second handle used to delete and recreate it, which hid the first handle's temporary roots from the garbage collector. Dropping the last handle now also removes the file, as CppNix's `~LocalStore` does (2026-10-01).
 
 ## nix-rs-build
 
 ### Unreleased
 
 - Saves draft build-option parsing, reference scanning, settings, seccomp, and Linux sandbox helpers. The crate has no entry point and is not integrated into the Cargo workspace, so this is not a compiled or qualified build engine.
+- Fixes found while compiling the draft in a separate scratch crate, where its four unit tests pass; the sandbox itself has not been run. The builder now closes its inherited copy of the PID pipe's write end, which kept the parent's read to EOF waiting while the builder waited for the parent. A seccomp rule whose architecture or syscall number does not match now skips to the next rule instead of returning `EPERM`, which denied every syscall; a test runs the filter program without installing it. The builder is killed and reaped on every error return after it starts. Reference scanning finds a hash split across more than two short writes (2026-10-01).

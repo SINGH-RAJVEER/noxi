@@ -18,6 +18,7 @@ use std::env;
 use std::fmt::Write as _;
 use std::fs;
 use std::io::{self, Read, Write};
+use std::os::unix::process::ExitStatusExt;
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command, ExitCode, Stdio};
 use std::sync::Mutex;
@@ -238,6 +239,8 @@ struct Run {
 	/// The evaluator's error code for failures, so a change of cause is visible.
 	error_code: Option<String>,
 	exit_code: Option<i32>,
+	/// The signal that ended the run, which leaves no exit code.
+	signal: Option<i32>,
 	stdout: String,
 	stderr: String,
 	elapsed: Duration,
@@ -440,6 +443,7 @@ fn run(case: &Case, scratch: &Path) -> Run {
 	let stdout = String::from_utf8_lossy(&stdout.join().expect("stdout reader")).into_owned();
 	let stderr = String::from_utf8_lossy(&stderr.join().expect("stderr reader")).into_owned();
 	let exit_code = status.and_then(|status| status.code());
+	let signal = status.and_then(|status| status.signal());
 
 	let outcome = match (status, exit_code) {
 		(None, _) => Outcome::Timeout,
@@ -476,6 +480,7 @@ fn run(case: &Case, scratch: &Path) -> Run {
 		outcome,
 		error_code,
 		exit_code,
+		signal,
 		stdout,
 		stderr,
 		elapsed,
@@ -498,6 +503,7 @@ fn skipped(outcome: Outcome) -> Run {
 		outcome,
 		error_code: None,
 		exit_code: None,
+		signal: None,
 		stdout: String::new(),
 		stderr: String::new(),
 		elapsed: Duration::ZERO,
@@ -587,6 +593,7 @@ fn write_report(cases: &[Case], runs: &[Run]) -> io::Result<()> {
 				"outcome": run.outcome.name(),
 				"error_code": run.error_code,
 				"exit_code": run.exit_code,
+				"signal": run.signal,
 				"stdout": run.stdout,
 				"stderr": run.stderr,
 				"elapsed_ms": run.elapsed.as_millis(),

@@ -16,17 +16,18 @@ fmt-check:
 check:
 	cargo check --workspace --all-features
 
-# Run every workspace test, including compiler-diagnostic snapshots.
+# Run every workspace test, including compiler-diagnostic snapshots, then the doctests nextest skips.
 test:
-	cargo test --workspace --all-features --no-fail-fast
+	cargo nextest run --workspace --all-features --no-fail-fast
+	cargo test --doc --workspace --all-features --no-fail-fast
 
 # Run the workspace tests without the toolchain-sensitive UI snapshot crate.
 test-core:
-	cargo test --workspace --all-features --no-fail-fast --exclude nix-compat-derive-tests
+	cargo nextest run --workspace --all-features --no-fail-fast --exclude nix-compat-derive-tests
 
 # Run compatibility checks against the copied CppNix fixtures.
 test-fixtures:
-	cargo test -p nixrs-compat-tests --tests
+	cargo nextest run -p nixrs-compat-tests --tests
 
 # Compare the preview evaluator with an explicitly selected CppNix executable.
 eval-compare reference report="/tmp/nix-rs-eval-comparison.json":
@@ -37,7 +38,7 @@ eval-compare reference report="/tmp/nix-rs-eval-comparison.json":
 # Check nix-instantiate's Nixpkgs derivation and output paths against those recorded from the reference.
 nixpkgs-paths:
 	NIXRS_NIXPKGS="$(nix eval --raw --impure --expr '(builtins.getFlake "path:{{justfile_directory()}}").inputs.nixpkgs.outPath')" \
-		cargo test -p nix-rs-commands --test instantiate -- --ignored
+		cargo nextest run -p nix-rs-commands --test instantiate --run-ignored only
 
 # Build the pinned CppNix reference release (substituted from cache.nixos.org) at target/nix-reference.
 reference:

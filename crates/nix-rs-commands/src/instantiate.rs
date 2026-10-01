@@ -266,7 +266,7 @@ pub fn run(options: &Options, cwd: &Path, stdout: &mut dyn Write) -> ExitCode {
 		.env(Some(&env))
 		.mode(mode);
 	let source = builder.source_map().clone();
-	let result = builder.build().evaluate(&driver, None);
+	let result = builder.build().evaluate_in_dir(&driver, cwd.to_path_buf());
 
 	for warning in &result.warnings {
 		warning.fancy_format_stderr(&source);

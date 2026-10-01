@@ -7,8 +7,8 @@ use std::io::{self, BufRead, Read, Write};
 use std::os::unix::fs::{DirBuilderExt, MetadataExt, PermissionsExt};
 use std::os::unix::net::UnixStream;
 use std::path::{Path, PathBuf};
-use std::sync::Mutex;
 use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::{Arc, Mutex, Weak};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use nix_compat::derivation::{DrvHashModulo, UnverifiedDerivation, lookup_fn};
@@ -44,10 +44,45 @@ pub struct LocalStore {
 	/// Held in shared mode while the store is open, so that no schema
 	/// upgrade happens underneath.
 	_global_lock: Option<File>,
-	temp_roots: Mutex<Option<File>>,
+	temp_roots: Mutex<Option<Arc<TempRootsFile>>>,
 	gc_lock: Mutex<Option<File>>,
 	roots_socket: Mutex<Option<UnixStream>>,
 	public_keys: Vec<VerifyingKey>,
+}
+
+/// Each store's open `temproots/<pid>` file, by path.
+static TEMP_ROOTS_FILES: Mutex<BTreeMap<PathBuf, Weak<TempRootsFile>>> =
+	Mutex::new(BTreeMap::new());
+
+/// A `temproots/<pid>` file, locked while open. It is closed and removed
+/// when the last store handle using it is dropped, as CppNix's
+/// `~LocalStore` does.
+struct TempRootsFile {
+	path: PathBuf,
+	file: Mutex<File>,
+}
+
+impl TempRootsFile {
+	/// Whether `path` still names this file.
+	fn is_at(&self, path: &Path) -> bool {
+		let file = self.file.lock().unwrap_or_else(|e| e.into_inner());
+		match (fs::metadata(path), file.metadata()) {
+			(Ok(named), Ok(open)) => (named.dev(), named.ino()) == (open.dev(), open.ino()),
+			_ => false,
+		}
+	}
+}
+
+impl Drop for TempRootsFile {
+	fn drop(&mut self) {
+		// Holding the map keeps another handle from creating the file
+		// again between the check and the removal.
+		let mut files = TEMP_ROOTS_FILES.lock().unwrap_or_else(|e| e.into_inner());
+		if self.is_at(&self.path) {
+			let _ = fs::remove_file(&self.path);
+			files.remove(&self.path);
+		}
+	}
 }
 
 impl std::fmt::Debug for LocalStore {
@@ -686,6 +721,45 @@ impl LocalStore {
 
 	// Roots
 
+	/// This process's temporary-roots file, `temproots/<pid>`, shared by
+	/// every handle to the store. A handle that recreated the file would
+	/// hide the roots other handles had written from the collector.
+	fn shared_temp_roots(&self) -> Result<Arc<TempRootsFile>> {
+		let path = self
+			.config
+			.state_dir
+			.join("temproots")
+			.join(std::process::id().to_string());
+		let mut files = TEMP_ROOTS_FILES.lock().unwrap_or_else(|e| e.into_inner());
+		let existing = files.get(&path).and_then(Weak::upgrade);
+		// Unless the state directory was replaced since.
+		if let Some(existing) = &existing
+			&& existing.is_at(&path)
+		{
+			return Ok(Arc::clone(existing));
+		}
+		let file = loop {
+			let _ = fs::remove_file(&path);
+			let file = open_lock_file(&path, true)?.expect("created lock file");
+			lock_file(&file, LockType::Write, true)?;
+			// The collector deletes files it finds unlocked; retry if it
+			// did so before we locked this one.
+			if file.metadata()?.len() == 0 {
+				break file;
+			}
+		};
+		let file = Arc::new(TempRootsFile {
+			path: path.clone(),
+			file: Mutex::new(file),
+		});
+		files.insert(path, Arc::downgrade(&file));
+		// Unlock the map first: dropping the last handle to a replaced file
+		// locks it.
+		drop(files);
+		drop(existing);
+		Ok(file)
+	}
+
 	fn open_gc_lock(&self) -> Result<File> {
 		let path = self.config.state_dir.join("gc.lock");
 		Ok(open_lock_file(&path, true)
@@ -700,22 +774,7 @@ impl LocalStore {
 		}
 		let mut temp_roots = self.temp_roots.lock().unwrap_or_else(|e| e.into_inner());
 		if temp_roots.is_none() {
-			let file_path = self
-				.config
-				.state_dir
-				.join("temproots")
-				.join(std::process::id().to_string());
-			loop {
-				let _ = fs::remove_file(&file_path);
-				let file = open_lock_file(&file_path, true)?.expect("created lock file");
-				lock_file(&file, LockType::Write, true)?;
-				// The collector deletes files it finds unlocked; retry if it
-				// did so before we locked this one.
-				if file.metadata()?.len() == 0 {
-					*temp_roots = Some(file);
-					break;
-				}
-			}
+			*temp_roots = Some(self.shared_temp_roots()?);
 		}
 
 		let mut gc_lock = self.gc_lock.lock().unwrap_or_else(|e| e.into_inner());
@@ -736,7 +795,13 @@ impl LocalStore {
 
 		let mut record = print(path).into_bytes();
 		record.push(0);
-		temp_roots.as_mut().expect("created").write_all(&record)?;
+		temp_roots
+			.as_ref()
+			.expect("created")
+			.file
+			.lock()
+			.unwrap_or_else(|e| e.into_inner())
+			.write_all(&record)?;
 		lock_file(gc_file, LockType::None, false)?;
 		Ok(())
 	}

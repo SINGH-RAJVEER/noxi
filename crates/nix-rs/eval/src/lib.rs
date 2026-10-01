@@ -264,6 +264,11 @@ impl<'co, 'ro, 'env, IO> EvaluationBuilder<'co, 'ro, 'env, IO> {
 		Self { nix_path, ..self }
 	}
 
+	/// The search path set so far, if any.
+	pub fn get_nix_path(&self) -> Option<&str> {
+		self.nix_path.as_deref()
+	}
+
 	pub fn env(self, env: Option<&'env FxHashMap<SmolStr, Value>>) -> Self {
 		Self { env, ..self }
 	}
@@ -474,10 +479,24 @@ where
 	/// Evaluate the provided source code, at an optional location of the source
 	/// code (i.e. path to the file it was read from; used for error reporting,
 	/// and for resolving relative paths in impure functions)
-	pub fn evaluate(
+	pub fn evaluate(self, code: impl AsRef<str>, location: Option<PathBuf>) -> EvaluationResult {
+		self.evaluate_at(code, location.clone(), location)
+	}
+
+	/// Evaluate source code that was not read from a file, such as a
+	/// `--expr` argument, resolving its relative paths against `dir` rather
+	/// than the process's current directory.
+	pub fn evaluate_in_dir(self, code: impl AsRef<str>, dir: PathBuf) -> EvaluationResult {
+		self.evaluate_at(code, None, Some(dir))
+	}
+
+	/// Evaluate `code` named `location` in diagnostics and positions, with
+	/// relative paths resolved against `base`.
+	fn evaluate_at(
 		mut self,
 		code: impl AsRef<str>,
 		location: Option<PathBuf>,
+		base: Option<PathBuf>,
 	) -> EvaluationResult {
 		let mut result = EvaluationResult::default();
 		let source = self.source_map();
@@ -495,7 +514,7 @@ where
 			&mut result,
 			code.as_ref(),
 			file.clone(),
-			location,
+			base,
 			source.clone(),
 			self.globals.clone(),
 			self.env,

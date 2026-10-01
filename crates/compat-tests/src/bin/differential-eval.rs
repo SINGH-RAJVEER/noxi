@@ -4,12 +4,14 @@
 use std::env;
 use std::fs;
 use std::io::{Read, Seek, SeekFrom};
+use std::os::unix::process::ExitStatusExt;
 use std::path::{Path, PathBuf};
 use std::process::{Command, ExitCode, ExitStatus, Stdio};
 use std::thread;
 use std::time::{Duration, Instant};
 
 use serde_json::{Value, json};
+use sha2::{Digest, Sha256};
 
 const CASES: &[(&str, &str)] = &[
 	("integer", "1 + 2 * 3"),
@@ -98,13 +100,39 @@ fn run(program: &Path, args: &[&str], home: &Path, timeout: Duration) -> Result<
 	})
 }
 
+fn hex(bytes: &[u8]) -> String {
+	bytes.iter().map(|byte| format!("{byte:02x}")).collect()
+}
+
+/// `bytes` as text, and also as hex when the text is lossy, so a report
+/// keeps every byte it compared.
+fn output_fields(report: &mut serde_json::Map<String, Value>, name: &str, bytes: &[u8]) {
+	report.insert(name.into(), String::from_utf8_lossy(bytes).into());
+	if std::str::from_utf8(bytes).is_err() {
+		report.insert(format!("{name}_hex"), hex(bytes).into());
+	}
+}
+
 fn captured(output: &Captured) -> Value {
-	json!({
-		"exit_code": output.status.code(),
-		"stdout": String::from_utf8_lossy(&output.stdout),
-		"stderr": String::from_utf8_lossy(&output.stderr),
-		"timed_out": output.timed_out,
-	})
+	let mut report = serde_json::Map::new();
+	report.insert("exit_code".into(), output.status.code().into());
+	report.insert("signal".into(), output.status.signal().into());
+	output_fields(&mut report, "stdout", &output.stdout);
+	output_fields(&mut report, "stderr", &output.stderr);
+	report.insert("timed_out".into(), output.timed_out.into());
+	Value::Object(report)
+}
+
+/// The executable's path as given, and the SHA-256 of the file it resolves
+/// to, so a report names the exact binaries it compared.
+fn artifact(path: &Path, version: &Captured) -> Result<Value, String> {
+	let bytes = fs::read(path).map_err(|error| format!("{}: {error}", path.display()))?;
+	Ok(json!({
+		"path": path,
+		"resolved": fs::canonicalize(path).map_err(|error| format!("{}: {error}", path.display()))?,
+		"sha256": hex(&Sha256::digest(&bytes)),
+		"version": String::from_utf8_lossy(&version.stdout).trim(),
+	}))
 }
 
 fn absolute_program(path: &str) -> Result<PathBuf, String> {
@@ -164,8 +192,11 @@ fn execute() -> Result<bool, String> {
 			home.path(),
 			timeout,
 		)?;
+		// A signal leaves no exit code, so two different crashes would
+		// otherwise compare equal; a crash is never a match.
 		let matches = !reference_output.timed_out
 			&& !candidate_output.timed_out
+			&& reference_output.status.code().is_some()
 			&& reference_output.status.code() == candidate_output.status.code()
 			&& reference_output.stdout == candidate_output.stdout
 			&& reference_output.stderr == candidate_output.stderr;
@@ -180,8 +211,8 @@ fn execute() -> Result<bool, String> {
 	}
 	let report_json = json!({
 		"platform": env::consts::ARCH.to_owned() + "-" + env::consts::OS,
-		"reference": {"path": reference, "version": String::from_utf8_lossy(&reference_version.stdout).trim()},
-		"candidate": {"path": candidate, "version": String::from_utf8_lossy(&candidate_version.stdout).trim()},
+		"reference": artifact(reference, &reference_version)?,
+		"candidate": artifact(candidate, &candidate_version)?,
 		"reference_argv": ["--eval", "--strict", "--expr", "EXPRESSION"],
 		"candidate_argv": ["eval", "--expr", "EXPRESSION"],
 		"environment": {"HOME": "isolated temporary directory", "NIX_PATH": "", "NIX_CONFIG": "", "NIX_REMOTE": "dummy://", "NIX_STORE_DIR": "/nix/store", "NIX_CONF_DIR": "temporary empty directory", "NIX_USER_CONF_FILES": "temporary nonexistent file", "XDG_CONFIG_DIRS": "temporary empty directory", "PATH": env::var("PATH").unwrap_or_default(), "LC_ALL": "C", "TZ": "UTC"},

@@ -2,7 +2,7 @@
 
 This is the only product plan for this repository. First deliver nix-rs as a 100% drop-in replacement for the supported CppNix release. Then build a NixOS-derived operating system whose default package manager is that qualified Rust implementation. The OS includes a CLI, TUI, and GPUI-based NixBox GUI backed by the same operations. New behavior is additive and cannot change legacy results unless a user explicitly selects it. The native surfaces, not the compatibility commands, may choose their own defaults: they read and write user configuration in Lua by default and still accept Nix.
 
-The first deliverable is an independently installable package manager that can replace CppNix on a supported existing system and operate its store through the declared compatibility matrix. The later OS deliverable is an installed system that can evaluate its own configuration, build its next generation, activate it, reboot into it, roll back, and maintain its store using nix-rs. An image that merely boots with nix-rs installed does not meet this goal. The product and acceptance criteria are specified in [docs/](docs/README.md).
+The first deliverable is an independently installable package manager that can replace CppNix on a supported existing system and operate its store through the declared compatibility matrix. The later OS deliverable is an installed system that can evaluate its own configuration, build its next generation, activate it, reboot into it, roll back, and maintain its store using nix-rs. An image that merely boots with nix-rs installed does not meet this goal. The product and acceptance criteria are specified in [docs/](docs/), indexed by the [README](README.md).
 
 ## Compatibility promise
 

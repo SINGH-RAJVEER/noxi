@@ -24,12 +24,17 @@ EOF
 # The EXIT trap runs after a function returns, so these stay global.
 scratch=""
 qemu_pid=""
+# Files that a failed or interrupted run must not leave behind.
+discard=()
 cleanup() {
 	if [[ -n "${qemu_pid}" ]]; then
 		kill "${qemu_pid}" 2>/dev/null || true
 	fi
 	if [[ -n "${scratch}" ]]; then
 		rm -rf "${scratch}"
+	fi
+	if ((${#discard[@]})); then
+		rm -f "${discard[@]}"
 	fi
 }
 trap cleanup EXIT
@@ -91,13 +96,19 @@ check_base() {
 		echo "missing ${manifest}; run: just reference-vm-snapshot" >&2
 		exit 1
 	fi
-	local expected actual
-	expected="$(sed -n 's/^base_sha256=//p' "${manifest}")"
-	actual="$(sha256sum "${out_dir}/reference-base.qcow2" | cut -d' ' -f1)"
-	if [[ "${expected}" != "${actual}" ]]; then
-		echo "reference base changed since its snapshot; recreate it" >&2
-		exit 1
-	fi
+	local key file expected actual
+	for key in base efi_vars; do
+		case "${key}" in
+			base) file="${out_dir}/reference-base.qcow2" ;;
+			efi_vars) file="${out_dir}/reference-efi-vars.fd" ;;
+		esac
+		expected="$(sed -n "s/^${key}_sha256=//p" "${manifest}")"
+		actual="$(sha256sum "${file}" 2>/dev/null | cut -d' ' -f1)"
+		if [[ -z "${expected}" || "${expected}" != "${actual}" ]]; then
+			echo "${file} changed since its snapshot; recreate it" >&2
+			exit 1
+		fi
+	done
 }
 
 snapshot() {
@@ -109,22 +120,39 @@ snapshot() {
 		"${out_dir}/reference-boot.log"
 
 	qemu_img="$(grep -oE '/nix/store/[^ ]+/bin/qemu-img' "${vm}/bin/run-nixrs-reference-vm" | head -n1)"
-	rm -f "${out_dir}/reference-base.qcow2" "${out_dir}/reference-efi-vars.fd"
-	"${qemu_img}" convert -O qcow2 "${scratch}/reference.qcow2" "${out_dir}/reference-base.qcow2"
-	cp "${scratch}/reference-efi-vars.fd" "${out_dir}/reference-efi-vars.fd"
-	chmod 0444 "${out_dir}/reference-base.qcow2" "${out_dir}/reference-efi-vars.fd"
+	# Write the replacement beside the old base, which stays usable until
+	# the new files and manifest are complete.
+	local base="${out_dir}/reference-base.qcow2" efi="${out_dir}/reference-efi-vars.fd"
+	discard=("${base}.new" "${efi}.new" "${manifest}.new")
+	rm -f "${discard[@]}"
+	"${qemu_img}" convert -O qcow2 "${scratch}/reference.qcow2" "${base}.new"
+	cp "${scratch}/reference-efi-vars.fd" "${efi}.new"
+	chmod 0444 "${base}.new" "${efi}.new"
 	{
 		echo "vm=${vm}"
 		echo "qemu_img=${qemu_img}"
 		echo "created=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
-		echo "base_sha256=$(sha256sum "${out_dir}/reference-base.qcow2" | cut -d' ' -f1)"
-		echo "efi_vars_sha256=$(sha256sum "${out_dir}/reference-efi-vars.fd" | cut -d' ' -f1)"
-	} >"${manifest}"
-	echo "wrote ${out_dir}/reference-base.qcow2"
+		echo "base_sha256=$(sha256sum "${base}.new" | cut -d' ' -f1)"
+		echo "efi_vars_sha256=$(sha256sum "${efi}.new" | cut -d' ' -f1)"
+	} >"${manifest}.new"
+	# Existing overlays are backed by the old base and stop matching it.
+	mv -f "${base}.new" "${base}"
+	mv -f "${efi}.new" "${efi}"
+	mv -f "${manifest}.new" "${manifest}"
+	discard=()
+	echo "wrote ${base}"
 }
 
 overlay() {
 	local name="$1"
+	if [[ ! "${name}" =~ ^[A-Za-z0-9][A-Za-z0-9._-]*$ || "${name}" == reference-* ]]; then
+		echo "overlay name must be letters, digits, '.', '_' or '-', and not start with 'reference-'" >&2
+		exit 2
+	fi
+	if [[ -e "${out_dir}/${name}.qcow2" || -e "${out_dir}/${name}-efi-vars.fd" ]]; then
+		echo "overlay ${name} already exists; delete ${out_dir}/${name}.qcow2 and ${out_dir}/${name}-efi-vars.fd to discard it" >&2
+		exit 1
+	fi
 	check_base
 	local qemu_img
 	qemu_img="$(sed -n 's/^qemu_img=//p' "${manifest}")"
@@ -140,6 +168,7 @@ verify() {
 	vm="$(sed -n 's/^vm=//p' "${manifest}")"
 	scratch="$(mktemp -d)"
 	overlay "${name}" >/dev/null
+	discard=("${out_dir}/${name}.qcow2" "${out_dir}/${name}-efi-vars.fd")
 	boot_and_power_off "${vm}" "${out_dir}/${name}.qcow2" "${out_dir}/${name}-efi-vars.fd" \
 		"${out_dir}/reference-verify.log"
 	rm -f "${out_dir}/${name}.qcow2" "${out_dir}/${name}-efi-vars.fd"

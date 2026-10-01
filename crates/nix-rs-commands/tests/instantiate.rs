@@ -134,6 +134,32 @@ const CASES: &[(&str, &str, i32)] = &[
 		r#"{ "/nix/store/l9ldjc53ry43x24hvq73jx7dx0489mhj-a.drv" = { outputs = [ "out" ]; }; }"#,
 		0,
 	),
+	// A `throw` in any attribute stays catchable.
+	(
+		r#"builtins.tryEval (derivation { name = "a"; system = "x"; builder = "/bin/sh"; __ignoreNulls = throw "s"; }).drvPath"#,
+		"{ success = false; value = false; }",
+		0,
+	),
+	(
+		r#"builtins.tryEval (derivation { name = "a"; system = "x"; builder = "/bin/sh"; __structuredAttrs = throw "s"; }).drvPath"#,
+		"{ success = false; value = false; }",
+		0,
+	),
+	(
+		r#"builtins.tryEval (derivation { name = "a"; system = "x"; builder = "/bin/sh"; args = throw "s"; }).drvPath"#,
+		"{ success = false; value = false; }",
+		0,
+	),
+	(
+		r#"builtins.tryEval (derivation { name = "a"; system = "x"; builder = "/bin/sh"; outputs = [ (throw "s") ]; }).drvPath"#,
+		"{ success = false; value = false; }",
+		0,
+	),
+	(
+		r#"builtins.tryEval (derivation { name = "a"; system = "x"; builder = "/bin/sh"; __structuredAttrs = true; foo = { x = throw "s"; }; }).drvPath"#,
+		"{ success = false; value = false; }",
+		0,
+	),
 ];
 
 fn fixture_dir(dir: &Path) {
@@ -278,4 +304,19 @@ fn matches_reference_nixpkgs_paths() {
 			"{attr}"
 		);
 	}
+}
+
+/// A library caller's directory, not the process's, resolves relative paths
+/// in `--expr`.
+#[test]
+fn resolves_paths_against_the_given_directory() {
+	let dir = tempfile::tempdir().unwrap();
+	fixture_dir(dir.path());
+	let options = nix_rs_commands::instantiate::parse_args(
+		["--eval", "--expr", "builtins.readFile ./f.txt"].map(String::from),
+	)
+	.unwrap();
+	let mut stdout = Vec::new();
+	nix_rs_commands::instantiate::run(&options, dir.path(), &mut stdout);
+	assert_eq!(String::from_utf8(stdout).unwrap(), "\"hi\\n\"\n");
 }

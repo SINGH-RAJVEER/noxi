@@ -22,15 +22,16 @@ pub mod store;
 pub use store::{ReadOnlyStore, StoreIO};
 
 /// Enable impure evaluation with `store` computing store paths, and add the
-/// store-aware builtins.
+/// store-aware builtins. A search path already set on `builder` is kept;
+/// otherwise `NIX_PATH` is used.
 pub fn configure<'co, 'ro, 'env>(
 	builder: EvaluationBuilder<'co, 'ro, 'env, Box<dyn EvalIO>>,
 	store: Rc<ReadOnlyStore>,
 ) -> EvaluationBuilder<'co, 'ro, 'env, Box<dyn EvalIO>> {
 	let builder = builder.enable_impure(Some(Box::new(StoreIO::new(Rc::clone(&store)))));
 	// CppNix looks up `<nix/...>` in its built-in files after the search path.
-	let nix_path = match std::env::var("NIX_PATH") {
-		Ok(path) if !path.is_empty() => format!("{path}:nix={}", store::COREPKGS_DIR),
+	let nix_path = match builder.get_nix_path() {
+		Some(path) if !path.is_empty() => format!("{path}:nix={}", store::COREPKGS_DIR),
 		_ => format!("nix={}", store::COREPKGS_DIR),
 	};
 	builder
@@ -77,5 +78,22 @@ mod unsupported_builtins {
 	#[builtin("getFlake")]
 	async fn builtin_get_flake(_co: GenCo, #[lazy] _args: Value) -> Result<Value, ErrorKind> {
 		Err(ErrorKind::NotImplemented("builtins.getFlake"))
+	}
+}
+
+#[cfg(test)]
+mod tests {
+	use nix_rs_eval::Evaluation;
+
+	use super::*;
+
+	#[test]
+	fn keeps_a_search_path_set_on_the_builder() {
+		let builder = Evaluation::builder_pure().nix_path(Some("a=/b".into()));
+		let builder = configure(builder, ReadOnlyStore::new());
+		assert_eq!(
+			builder.get_nix_path(),
+			Some(format!("a=/b:nix={}", store::COREPKGS_DIR).as_str())
+		);
 	}
 }
