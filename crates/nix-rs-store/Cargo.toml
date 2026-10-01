@@ -1,0 +1,20 @@
+[package]
+name = "nix-rs-store"
+version.workspace = true
+rust-version.workspace = true
+edition = "2024"
+description = "A local Nix store compatible with CppNix's on-disk format"
+license = "GPL-3.0-only"
+repository = "https://github.com/SINGH-RAJVEER/nix-rs"
+publish = false
+
+[dependencies]
+libc.workspace = true
+nix-compat = { package = "nix-rs-compat", path = "../nix-rs/nix-compat", version = "0.1.0" }
+rusqlite = { version = "0.40.2", features = ["bundled"] }
+sha2.workspace = true
+thiserror.workspace = true
+tracing.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true
