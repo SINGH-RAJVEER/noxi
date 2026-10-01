@@ -249,6 +249,7 @@ Internal test crate that checks the workspace crates against the CppNix 2.35.2 f
 - `upstream_store_json`, which checks `nix_compat::cppnix_json` against the store-path, content-address, outputs-spec and derived-path fixtures (2026-09-30).
 - `upstream_path_info_json`, which checks path-info and nar-info JSON against the values CppNix's tests construct (2026-09-30).
 - `upstream_realisation_json`, which checks realisation and build-result JSON, realisation fingerprints, and signatures made with CppNix's test key (2026-09-30).
+- `reference_build`, which builds derivations the 2.35.2 reference wrote with both the reference and `nix-rs-build` in separate temporary stores and compares the outputs, `nix path-info --json` metadata, the reference's verification of the nix-rs store, a probe of the sandbox environment, and failure messages and statuses (2026-10-02).
 - `upstream_derivation_options`, which reads and writes the six `derivation-options` JSON fixtures byte for byte and checks that `nix-rs-build` derives the same options, required system features, substitution and `uid-range` decisions from the eight advanced-attributes derivations as CppNix's `derivation-advanced-attrs.cc` (2026-10-02).
 
 #### Changed
@@ -288,6 +289,7 @@ Internal trybuild tests for `nix-compat-derive`.
 
 ### Unreleased
 
+- `LocalStore::create_temp_dir_in_store` and `ca_hash_of` are public, for the build engine (2026-10-02).
 - Adds an unpublished local-store preview with the schema-10 SQLite layout, validity/reference metadata, path registration, NAR import/export, canonicalization, and store locks.
 - Two local unit tests and five isolated reference comparisons pass. Garbage collection, substitution, daemon ownership, concurrency/crash recovery, and full existing-store downgrade qualification remain open.
 - Every `LocalStore` handle to one store in a process appends to the same `temproots/<pid>` file. A second handle used to delete and recreate it, which hid the first handle's temporary roots from the garbage collector. Dropping the last handle now also removes the file, as CppNix's `~LocalStore` does (2026-10-01).
@@ -296,6 +298,7 @@ Internal trybuild tests for `nix-compat-derive`.
 
 ### Unreleased
 
+- `local::LocalBuilder` realises a derivation in a local store, building its input derivations first, following CppNix 2.35.2's `DerivationBuildingGoal`, `DerivationBuilderImpl` and `ChrootLinuxDerivationBuilder`. It computes the input closure, locks and temporarily roots the outputs, removes invalid leftovers, builds the reference environment (including `passAsFile`, `exportReferencesGraph` and output placeholders), runs the builder in the sandbox with only the input closure visible, and then canonicalises, scans, orders and registers the outputs with the derivation as deriver. Fixed outputs are checked against their content address, and a mismatched output is kept under its actual path as CppNix does. `checkOutputs` size and reference rules apply. Builds without a sandbox, structured attributes, `builtin:` builders, floating content-addressed outputs and build logs are rejected or not written yet (2026-10-02).
 - The crate is now a workspace member with a library entry point, so it compiles and its unit tests run with the rest of the workspace. The sandbox is still not connected to a scheduler and has not run a build (2026-10-02).
 - `options::DerivationOptions` follows CppNix 2.35.2's `DerivationOptions<Inputs>`: it is generic over `StorePath` and `DerivedInput` inputs, reads `__sandboxProfile` and `__darwinAllowLocalNetworking`, maps content-addressed placeholders to the input outputs they stand for when `ca-derivations` is enabled, names a derivation's own outputs as `DrvRef::Output`, returns the warnings CppNix prints for top-level attributes that structured attributes ignore, and reads and writes CppNix's JSON form. `try_resolve`, `get_required_system_features`, `substitutes_allowed` and `use_uid_range` match their CppNix counterparts (2026-10-02).
 - Saves draft build-option parsing, reference scanning, settings, seccomp, and Linux sandbox helpers. Until 2026-10-02 the crate had no entry point and was not in the Cargo workspace.

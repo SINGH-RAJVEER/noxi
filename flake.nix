@@ -49,6 +49,9 @@
 				default = packageFor system;
 				nixrs = packageFor system;
 				nix-reference = nix-reference.packages.${system}.nix;
+				# A statically linked busybox with no references, used as the
+				# builder in the build comparison tests.
+				test-busybox = nixpkgs.legacyPackages.${system}.pkgsStatic.busybox;
 			});
 			apps = forAllSystems (system: {
 				default = {

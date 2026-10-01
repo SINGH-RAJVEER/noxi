@@ -40,9 +40,10 @@ nixpkgs-paths:
 	NIXRS_NIXPKGS="$(nix eval --raw --impure --expr '(builtins.getFlake "path:{{justfile_directory()}}").inputs.nixpkgs.outPath')" \
 		cargo nextest run -p nix-rs-commands --test instantiate --run-ignored only
 
-# Build the pinned CppNix reference release (substituted from cache.nixos.org) at target/nix-reference.
+# Build the pinned CppNix reference release (substituted from cache.nixos.org) at target/nix-reference, and the static busybox the build comparisons use at target/test-busybox.
 reference:
 	nix build .#nix-reference --out-link target/nix-reference
+	nix build .#test-busybox --out-link target/test-busybox
 
 # Compare the preview evaluator with the pinned CppNix reference release.
 eval-compare-reference report="target/eval-comparison-reference.json": reference

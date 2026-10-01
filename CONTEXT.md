@@ -35,3 +35,19 @@ _Avoid_: new CLI (when a compatibility command is meant)
 **Lua configuration**:
 A NixOS or Home Manager configuration written in Lua that evaluates to the same modules as its Nix equivalent. It is the default on native surfaces; compatibility commands never read it.
 _Avoid_: Lua package set, Nix replacement
+
+**fleet**:
+A set of nix-rs OS machines managed from a common authoritative configuration, with stable machine identities and explicit administrative ownership. A fleet may contain several independent clusters and machines outside any cluster.
+_Avoid_: cluster when the whole managed machine set is meant
+
+**fleet revision**:
+The recorded configuration, machine inventory, and locked inputs that define a fleet's desired state at a particular revision.
+_Avoid_: current fleet state when desired state is meant
+
+**fleet plan**:
+A reviewed desired-state change tied to a fleet revision, an exact target set, per-machine system generations, and service-aware transition rules. It is not a promise of simultaneous or atomic activation across machines.
+_Avoid_: fleet generation, global switch
+
+**service topology**:
+A declarative description of a distributed service's member relationships, placement, and availability requirements within a fleet. Quorum membership and primary/replica relationships are different kinds of service topology.
+_Avoid_: master-slave setup, machine list when relationships are meant

@@ -698,8 +698,8 @@ impl LocalStore {
 	}
 
 	/// A directory in the store that the garbage collector leaves alone
-	/// while the returned file stays open.
-	fn create_temp_dir_in_store(&self) -> Result<(PathBuf, File)> {
+	/// while the returned file stays open, CppNix's `createTempDirInStore`.
+	pub fn create_temp_dir_in_store(&self) -> Result<(PathBuf, File)> {
 		static COUNTER: AtomicU64 = AtomicU64::new(0);
 		loop {
 			let dir = self.config.real_store_dir.join(format!(
@@ -992,7 +992,7 @@ fn nix32_with_algo(hash: &NixHash) -> String {
 
 /// The content address of the files at `path`, computed the way `claimed`
 /// was.
-fn ca_hash_of(path: &Path, claimed: &CAHash) -> Result<CAHash> {
+pub fn ca_hash_of(path: &Path, claimed: &CAHash) -> Result<CAHash> {
 	let algo = claimed.hash().algo();
 	Ok(match claimed {
 		CAHash::Nar(_) => {

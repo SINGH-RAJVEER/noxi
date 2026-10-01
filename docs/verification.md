@@ -127,7 +127,21 @@ The copied shell suite needs an isolated test store and compatible executables b
 
 ## System tests
 
-The unpublished `nix-rs-store` preview also has isolated local-store comparisons in `crates/compat-tests/tests/reference_store.rs`. On 2026-10-01, its five cases passed with `NIXRS_REFERENCE_BIN=/nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2/bin`. They check fresh-store layout, path/NAR metadata, import validation, reference-created data read by nix-rs, nix-rs-created data reopened and verified by CppNix, cycles, and vanished paths. Each case uses temporary store roots and empty configuration; these are not tests against the host's live store or the stateful qualification VM. The two store unit tests pass too. This evidence does not qualify garbage collection, schema migration coverage, concurrent writers, interrupted writes, daemon ownership handoff, or whole-system rollback. `nix-rs-build` is a workspace member whose derivation options are checked against the reference fixtures, but its sandbox has not run a build and it has no build-engine qualification evidence.
+`crates/compat-tests/tests/reference_build.rs` checks `nix-rs-build`'s `LocalBuilder` against the 2.35.2 reference. For each case the reference writes the derivation into two temporary `--store ROOT` stores that also hold the flake's statically linked `test-busybox`. The reference builds it in one store and nix-rs builds it in the other. Both use a sandbox, one core, no `sandbox-paths`, no build users, and the same system features. The output paths and `nix path-info --json` metadata other than the registration time must match, and the reference must verify the store nix-rs wrote with `--check-contents`. On 2026-10-02 all nine cases passed:
+
+- a single-output derivation;
+- a probe whose output records the sorted environment, `id`, host name, generated `/etc/passwd`, `/etc/group` and `/etc/hosts`, working directory, directory listings and modes, uid and gid maps, umask and core limit, which is byte-identical;
+- an input derivation with two outputs used by a derivation with two outputs, one referring to itself and to the other;
+- output placeholders in arguments, environment and `passAsFile` contents;
+- `exportReferencesGraph`;
+- a flat fixed-output derivation;
+- a recursive fixed-output hash mismatch, with the reference's message and status;
+- a builder exiting with status 3, compared by message lines and status;
+- a missing output, an output reference cycle, and a `disallowedReferences` violation, compared by message lines and status.
+
+The comparisons call the library, not a `nix-store --realise` replacement, and run without build users. They do not cover build logs, structured attributes, `builtin:` builders, floating content-addressed outputs, unsandboxed builds, seccomp filtering, network isolation of fixed-output builds, timeouts, cancellation, concurrent builds of one output, or interrupted builds.
+
+The unpublished `nix-rs-store` preview also has isolated local-store comparisons in `crates/compat-tests/tests/reference_store.rs`. On 2026-10-01, its five cases passed with `NIXRS_REFERENCE_BIN=/nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2/bin`. They check fresh-store layout, path/NAR metadata, import validation, reference-created data read by nix-rs, nix-rs-created data reopened and verified by CppNix, cycles, and vanished paths. Each case uses temporary store roots and empty configuration; these are not tests against the host's live store or the stateful qualification VM. The two store unit tests pass too. This evidence does not qualify garbage collection, schema migration coverage, concurrent writers, interrupted writes, daemon ownership handoff, or whole-system rollback. `nix-rs-build` has the preview build comparisons described above, which are not build-engine qualification.
 
 The flake check `vm`, run with `just vm-test`, boots a NixOS machine from the root flake's Nixpkgs. The machine's `nix.package` is the `nix-reference` input, 2.35.2, and the flake's `nixrs` package is installed beside it. [`tests/vm/test-script.py`](../tests/vm/test-script.py) checks only what the host-side tests cannot:
 
