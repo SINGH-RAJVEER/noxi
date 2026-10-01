@@ -1,39 +1,48 @@
 # Changelog
 
-Changes to each crate in this workspace, grouped by crate and version, newest first. Dates are commit dates. A version marked *unpublished* exists only in this repository. Published versions are permanent on crates.io, so add a new version section before raising a crate's version, and keep the entries for already published versions unchanged.
+Changes to each crate in this workspace, grouped by crate and version, newest first. New release entries use publication dates; older entries retain their recorded commit dates. A version marked *unpublished* or *pending publication* exists only in this repository. Published versions are permanent on crates.io, so add a new version section before raising a crate's version, and keep the entries for already published versions unchanged.
 
 Changes that have not reached a version yet go under an `Unreleased` heading for that crate.
 
 | Crate | Current version | crates.io | License |
 |---|---|---|---|
-| [`nix-rs-cli`](#nix-rs-cli) | 0.1.0 | [published](https://crates.io/crates/nix-rs-cli) | Apache-2.0 |
-| [`nix-rs-eval`](#nix-rs-eval) | 0.1.0 | [published](https://crates.io/crates/nix-rs-eval) | GPL-3.0-only |
+| [`nix-rs-cli`](#nix-rs-cli) | 0.1.1 | [published](https://crates.io/crates/nix-rs-cli/0.1.1) | Apache-2.0 |
+| [`nix-rs-eval`](#nix-rs-eval) | 0.2.0 | [published](https://crates.io/crates/nix-rs-eval/0.2.0) | GPL-3.0-only |
 | [`nix-rs-eval-builtin-macros`](#nix-rs-eval-builtin-macros) | 0.0.1 | [published](https://crates.io/crates/nix-rs-eval-builtin-macros) | GPL-3.0-only |
-| [`nix-compat`](#nix-compat) | 0.1.0 | unpublished; the name belongs to another owner | GPL-3.0 (Snix) |
-| [`nix-rs-hash`](#nix-rs-hash) | 0.1.0 | unpublished | GPL-3.0-only (Snix-derived) |
-| [`nix-rs-flakeref`](#nix-rs-flakeref) | 0.1.0 | unpublished | GPL-3.0-only (Snix-derived) |
-| [`nix-compat-derive`](#nix-compat-derive) | 0.1.0 | unpublished; the name belongs to another owner | GPL-3.0 (Snix) |
-| [`nix-rs-serde`](#nix-rs-serde) | 0.1.0 | unpublished | GPL-3.0 (Snix) |
+| [`nix-rs-compat`](#nix-rs-compat) | 0.1.0 | [published](https://crates.io/crates/nix-rs-compat/0.1.0) | GPL-3.0-only (Snix-derived) |
+| [`nix-rs-hash`](#nix-rs-hash) | 0.1.0 | [published](https://crates.io/crates/nix-rs-hash/0.1.0) | GPL-3.0-only (Snix-derived) |
+| [`nix-rs-flakeref`](#nix-rs-flakeref) | 0.1.0 | [published](https://crates.io/crates/nix-rs-flakeref/0.1.0) | GPL-3.0-only (Snix-derived) |
+| [`nix-rs-compat-derive`](#nix-rs-compat-derive) | 0.1.0 | [published](https://crates.io/crates/nix-rs-compat-derive/0.1.0) | GPL-3.0-only (Snix-derived) |
+| [`nix-rs-serde`](#nix-rs-serde) | 0.1.0 | [published](https://crates.io/crates/nix-rs-serde/0.1.0) | GPL-3.0-only (Snix-derived) |
+| [`nix-rs-glue`](#nix-rs-glue) | 0.1.0 | [published](https://crates.io/crates/nix-rs-glue/0.1.0) | GPL-3.0-only (Snix-derived) |
+| [`nix-rs-commands`](#nix-rs-commands) | 0.1.0 | [published](https://crates.io/crates/nix-rs-commands/0.1.0) | GPL-3.0-only |
+| [`nix-rs-store`](#nix-rs-store) | 0.1.0 | unpublished, `publish = false` | GPL-3.0-only |
+| [`nix-rs-build`](#nix-rs-build) | 0.1.0 | unintegrated draft, `publish = false` | GPL-3.0-only |
 | [`nixrs-compat-tests`](#nixrs-compat-tests) | 0.1.0 | internal, `publish = false` | none declared |
-| [`nix-compat-derive-tests`](#nix-compat-derive-tests) | 0.1.0 | internal | GPL-3.0 (Snix) |
+| [`nix-compat-derive-tests`](#nix-compat-derive-tests) | 0.1.0 | internal, `publish = false` | GPL-3.0 (Snix) |
 
 The imported crates come from [Snix](https://git.snix.dev/snix/snix) revision `22ca63bdb71c221001526304eca934385fb47c26` (2026-09-24), copied on 2026-09-25. Import-time changes common to all of them: formatting with the root `rustfmt.toml` (hard tabs, width 4), tab-indented TOML, removal of Snix's per-crate `default.nix` build files, and renaming of package names, Rust imports, test paths and project-facing diagnostics from their Snix identifiers.
 
 ## nix-rs-hash
 
-### Unreleased
+### 0.1.0 - 2026-10-01
 
 - Extracted Nix hash values, digest helpers, Nix base32 encoding, and their tests from `nix-compat`. `nix-compat` reexports the previous paths.
 
 ## nix-rs-flakeref
 
-### Unreleased
+### 0.1.0 - 2026-10-01
 
 - Extracted flake reference parsing, formatting, and their tests from `nix-compat`. The `flakeref` feature still exposes `nix_compat::flakeref`.
 
 ## nix-rs-cli
 
 The `nixrs` preview command. It evaluates pure Nix expressions and does not own a store or daemon.
+
+### 0.1.1 - 2026-10-01
+
+- Depends on `nix-rs-eval` 0.2.0 so the preview reports integer-overflow and division-by-zero errors consistently in debug and release builds.
+- Includes package-local README, license, and provenance notices. The command remains a pure-evaluation preview, not a CppNix replacement.
 
 ### 0.1.0 - 2026-09-29
 
@@ -54,7 +63,13 @@ Published to crates.io; `cargo install nix-rs-cli` installs the `nixrs` binary.
 
 Nix language parser, compiler and bytecode VM with the pure builtins, imported from `snix-eval`.
 
-### Unreleased
+### 0.2.0 - 2026-10-01
+
+#### Changed
+
+- Adds public `ErrorKind::IntegerOverflow` and diagnostic code `E043`. This changes an exhaustively matchable enum, so the evaluator uses a new minor version rather than a patch release.
+- Adds `Lambda::formals_ellipsis()` for callers implementing Nix function-argument behavior.
+- Includes standalone provenance and the license text for bundled LGPL language fixtures.
 
 #### Fixed
 
@@ -93,14 +108,15 @@ Published to crates.io.
 
 - crates.io metadata: description, `GPL-3.0-only` license with the GPL text included, and repository link (2026-09-29).
 
-## nix-compat
+## nix-rs-compat
 
 Nix formats and protocols: store paths, nixbase32, hashes, NAR, ATerm derivations, narinfo, realisations, flake references, `nix.conf` and daemon wire types.
 
-### Unreleased
+### 0.1.0 - 2026-10-01
 
 #### Changed
 
+- Renamed the package from the occupied `nix-compat` name to `nix-rs-compat`; the library remains `nix_compat`. Registry dependencies on the extracted crates and derive macro are versioned. This is the first public release of this project's implementation, not an update to upstream's crate.
 - Moved Nix hash and Nix base32 implementation into `nix-rs-hash`, retaining `nix_compat::nixhash`, `nix_compat::nixbase32`, and `format_sha256!` as reexports (2026-09-30).
 - Moved flake reference parsing and formatting into `nix-rs-flakeref`, retaining `nix_compat::flakeref` behind the existing feature (2026-09-30).
 - Derivation ATerm parsing follows CppNix 2.35.2 instead of the 2.36.0 development rules. The five collections may appear in any order; a repeated output keeps the first entry, a repeated input derivation or environment key keeps the last, and repeated output names and input sources collapse. Input derivations may list no outputs. Every string field decodes escapes as 2.35.2 does, including store paths, output names and the platform, and raw newlines, carriage returns and tabs are accepted. Parsed derivations skip the builder's field validation. The `Unsorted`, `DuplicateMapKey`, `DuplicateInputSource`, `DuplicateInputDerivationOutputName` and `InputDerivationWithoutOutputs` parse errors are removed (2026-09-29).
@@ -115,7 +131,7 @@ Nix formats and protocols: store paths, nixbase32, hashes, NAR, ATerm derivation
 - `cppnix_json::{PathInfo, NarInfo, Signature, PathInfoFormat}`: CppNix's `UnkeyedValidPathInfo` and `UnkeyedNarInfo` JSON in format versions 1, 2 and 3, including the version-1 fallbacks for a missing `version` and `storeDir` (2026-09-30).
 - `cppnix_json::{DrvOutput, Realisation, UnkeyedRealisation, BuildResult}`: CppNix's realisation and build-result JSON, realisation fingerprints, and signing and verification with Nix signing keys (2026-09-30).
 
-### 0.1.0 - unpublished
+### Pre-publication history
 
 #### Added
 
@@ -140,18 +156,19 @@ Nix formats and protocols: store paths, nixbase32, hashes, NAR, ATerm derivation
 
 #### Known divergences from CppNix 2.35.2
 
-- 2.35.2 accepts the five ATerm collections in any order and resolves duplicates per collection, so `nix-compat` rejects its `hello.drv` and `firefox.drv` fixtures. Resolved in Unreleased.
-- Input-addressed hashing merges the output names of input derivations whose hashes collide, as imported from Snix and as CppNix fixed in issue #16307 after 2.35.2. 2.35.2 overwrites one of them, so such derivations can get different output paths. Resolved in Unreleased.
+- 2.35.2 accepts the five ATerm collections in any order and resolves duplicates per collection, so the original import rejected its `hello.drv` and `firefox.drv` fixtures. Resolved in this project's first public release.
+- Input-addressed hashing merged the output names of input derivations whose hashes collide, as imported from Snix and as CppNix fixed in issue #16307 after 2.35.2. 2.35.2 overwrites one of them, so such derivations could get different output paths. Resolved in this project's first public release.
 
-## nix-compat-derive
+## nix-rs-compat-derive
 
 Procedural macros for `nix-compat`'s daemon wire serialisation.
 
-### 0.1.0 - unpublished
+### 0.1.0 - 2026-10-01
 
 #### Added
 
 - Imported from Snix's `nix-compat-derive` at the revision above (2026-09-25).
+- Published package name is `nix-rs-compat-derive`; the library remains `nix_compat_derive`, preserving existing generated-code paths and dependency aliases.
 
 #### Fixed
 
@@ -159,13 +176,30 @@ Procedural macros for `nix-compat`'s daemon wire serialisation.
 
 ## nix-rs-serde
 
-Deserialises Nix values into Rust types, imported from `snix-serde`.
+Serializes Rust values into Nix and deserializes Nix values into Rust types, imported from `snix-serde`.
 
-### 0.1.0 - unpublished
+### 0.1.0 - 2026-10-01
 
 #### Added
 
-- Imported from `snix-serde` at the revision above (2026-09-25). No behavior changes.
+- Imported from `snix-serde` at the revision above (2026-09-25), with local `from_value` and Rust-to-Nix serialization APIs recorded in the package provenance.
+- Exposes `from_str`, `from_str_with_config`, `from_value`, `to_value`, and `to_string`; depends on `nix-rs-eval` 0.2.0 with standalone GPL/provenance notices.
+
+## nix-rs-glue
+
+### 0.1.0 - 2026-10-01
+
+- Adapted store-aware builtins and derivation handling from the recorded Snix glue crates. Read-only evaluation computes derivation, file, and filtered-source store paths while retaining dependencies in memory; it does not write to the store or build derivations.
+- Includes `derivation`, `derivationStrict`, path and text-file handling, and embedded Nix support expressions. Network fetchers and flake evaluation remain explicitly unsupported.
+- Unix-only preview with unstable APIs, versioned registry dependencies, and bundled GPL/LGPL provenance notices.
+
+## nix-rs-commands
+
+### 0.1.0 - 2026-10-01
+
+- Adds the partial `nix-instantiate --eval` command with strict/JSON output, expressions, files/stdin, attribute selection, and `--arg`/`--argstr`, backed by the read-only glue.
+- Instantiation without `--eval` requires a writable store and remains unsupported. Full command/output/configuration compatibility is not qualified.
+- Installing this crate provides the name `nix-instantiate`, which can shadow CppNix. Use an isolated installation prefix and an explicit executable path during development.
 
 ## nixrs-compat-tests
 
@@ -175,6 +209,7 @@ Internal test crate that checks the workspace crates against the CppNix 2.35.2 f
 
 #### Added
 
+- `reference_store`, with isolated fresh-store layout, path/NAR import and metadata, and bidirectional CppNix store checks. Five cases pass against the pinned 2.35.2 executables; broader store qualification remains open.
 - `reference_hash_modulo`, which verifies derivations the 2.35.2 reference wrote for CppNix issue #16307's graph (2026-09-29).
 - `derivation_parser_extensions`, which checks that non-UTF-8 fields and unchecked output names round-trip through ATerm (2026-09-29).
 - `differential_eval`, which checks the comparison runner against mock executables (2026-09-29).
@@ -213,3 +248,16 @@ Internal trybuild tests for `nix-compat-derive`.
 #### Changed
 
 - Compile-error snapshots updated for the renamed crate location and the pinned nightly toolchain's diagnostics (2026-09-25 to 2026-09-27).
+
+## nix-rs-store
+
+### Unreleased
+
+- Adds an unpublished local-store preview with the schema-10 SQLite layout, validity/reference metadata, path registration, NAR import/export, canonicalization, and store locks.
+- Two local unit tests and five isolated reference comparisons pass. Garbage collection, substitution, daemon ownership, concurrency/crash recovery, and full existing-store downgrade qualification remain open.
+
+## nix-rs-build
+
+### Unreleased
+
+- Saves draft build-option parsing, reference scanning, settings, seccomp, and Linux sandbox helpers. The crate has no entry point and is not integrated into the Cargo workspace, so this is not a compiled or qualified build engine.

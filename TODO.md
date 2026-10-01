@@ -12,6 +12,7 @@ Reserve a bounded task and its files here before editing. Also respect inline lo
 
 | Reservation | Task | Owned files |
 |---|---|---|
+| claude-store | §4 local store: fresh init, open existing, register paths, NAR import/export, checked against the reference | `crates/nix-rs-store/`, `crates/compat-tests/tests/reference_store.rs` |
 
 Each numbered section is a work package. Its checkboxes are the subtasks, and the package is complete only when every applicable checkbox has evidence in the compatibility matrix.
 
@@ -135,8 +136,8 @@ The section numbers group work, not a strict execution order. This MVP is the fu
 ## 8. Package and qualify the MVP release
 
 - [ ] Make the flake build reproducibly from a clean clone and provide the qualified replacement package, app, checks, daemon, and NixOS integration module.
-- [x] Publish the preview command set to crates.io: `nix-rs-eval-builtin-macros` 0.0.1, `nix-rs-eval` 0.1.0 and `nix-rs-cli` 0.1.0 ([distribution](docs/distribution.md#published-crates)).
-- [ ] Decide which additional Rust crates, if any, to publish separately and document their API stability. For each selected crate, make dependencies independently resolvable, run `cargo package`, and review license and provenance before publication. Stable Rust APIs and additional crate publication are not prerequisites for the drop-in binary release.
+- [x] Publish the preview command set to crates.io: `nix-rs-eval-builtin-macros` 0.0.1, `nix-rs-eval` 0.2.0 and `nix-rs-cli` 0.1.1 ([distribution](docs/distribution.md#published-crates)).
+- [x] Publish the selected additional preview crates with versioned registry dependencies and package-local license/provenance notices. `nix-rs-hash`, `nix-rs-flakeref`, `nix-rs-compat`, `nix-rs-compat-derive`, `nix-rs-serde`, `nix-rs-glue`, and `nix-rs-commands` 0.1.0 passed package/build checks and were confirmed on crates.io on 2026-10-01. Their APIs are unstable; internal harnesses and the in-progress store stay private. Stable Rust APIs and additional crate publication are not prerequisites for the drop-in binary release.
 - [ ] Audit imported code and copied test licenses; include attribution and source revisions in release artifacts.
 - [ ] Test installation, upgrade, failed upgrade, rollback, and removal in disposable VMs before documenting host installation.
 - [ ] Run the applicable compatibility suite against the exact packaged release-profile executables and libraries, not only debug builds or workspace tests. Record artifact hashes and build inputs in the reports, and rerun affected qualification when an artifact changes.

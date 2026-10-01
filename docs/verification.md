@@ -125,6 +125,8 @@ The copied shell suite needs an isolated test store and compatible executables b
 
 ## System tests
 
+The unpublished `nix-rs-store` preview also has isolated local-store comparisons in `crates/compat-tests/tests/reference_store.rs`. On 2026-10-01, its five cases passed with `NIXRS_REFERENCE_BIN=/nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2/bin`. They check fresh-store layout, path/NAR metadata, import validation, reference-created data read by nix-rs, nix-rs-created data reopened and verified by CppNix, cycles, and vanished paths. Each case uses temporary store roots and empty configuration; these are not tests against the host's live store or the stateful qualification VM. The two store unit tests pass too. This evidence does not qualify garbage collection, schema migration coverage, concurrent writers, interrupted writes, daemon ownership handoff, or whole-system rollback. The `nix-rs-build` files are still an unintegrated draft without a crate entry point and have no build-engine qualification evidence.
+
 The flake check `vm`, run with `just vm-test`, boots a NixOS machine from the root flake's Nixpkgs. The machine's `nix.package` is the `nix-reference` input, 2.35.2, and the flake's `nixrs` package is installed beside it. [`tests/vm/test-script.py`](../tests/vm/test-script.py) checks only what the host-side tests cannot:
 
 - The machine's `nix-instantiate` is the pinned release.
