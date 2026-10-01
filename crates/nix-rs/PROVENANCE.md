@@ -1,6 +1,6 @@
 # Imported Rust crate provenance
 
-The crates in this directory are copied from Snix, a Rust reimplementation of Nix components.
+The crates in this directory are copied from Snix, a Rust reimplementation of Nix components. Extracted hash and flake reference crates and adapted read-only glue live in sibling directories. Each runtime package has a concise bundled `PROVENANCE.md`; this file keeps the import history.
 
 | Field | Value |
 |---|---|
@@ -13,27 +13,32 @@ The crates in this directory are copied from Snix, a Rust reimplementation of Ni
 
 | Directory | Crate | Reason |
 |---|---|---|
-| `nix-compat/` | `nix-compat` | Nix formats and protocols: store paths, NAR, ATerm derivations, narinfo, realisations, `nix.conf`, daemon wire types. Its former nixbase32, hash, and flake reference modules are extracted to `crates/nix-rs-hash/` and `crates/nix-rs-flakeref/` and reexported. |
-| `nix-compat-derive/` | `nix-compat-derive` | Proc macros that `nix-compat` uses for daemon wire serialisation |
+| `nix-compat/` | `nix-rs-compat`, Rust library `nix_compat` | Nix formats and protocols: store paths, NAR, ATerm derivations, narinfo, realisations, `nix.conf`, daemon wire types. Its former nixbase32, hash, and flake reference modules are extracted to `crates/nix-rs-hash/` and `crates/nix-rs-flakeref/` and reexported. |
+| `nix-compat-derive/` | `nix-rs-compat-derive`, Rust library `nix_compat_derive` | Proc macros used for daemon wire serialisation |
 | `nix-compat-derive-tests/` | `nix-compat-derive-tests` | Tests for those macros |
 | `eval/` | `nix-rs-eval` (upstream `snix-eval`) | Nix language parser, compiler and bytecode VM, with the pure builtins |
 | `eval/builtin-macros/` | `nix-rs-eval-builtin-macros` (upstream `snix-eval-builtin-macros`) | Proc macros for defining builtins |
 | `serde/` | `nix-rs-serde` (upstream `snix-serde`) | Deserialises Nix values into Rust types, for reading configuration |
+
+`crates/nix-rs-glue/` now adapts derivation/context handling from Snix's `snix/glue/src/builtins/derivation.rs` and known-path tracking from `snix/build-glue/src/known_paths.rs` at the same revision. It also copies Snix's Nix-derived `derivation.nix` wrapper and CppNix 2.35.2's `src/libexpr/fetchurl.nix`. These Nix expressions retain LGPL-2.1-or-later; their origins and bundled `COPYING` are recorded in that package's provenance. Evaluator fixtures under `eval/src/tests/nix_tests/` cite Nix 2.3.16 and retain LGPL terms, with a package-local `COPYING`. Snix contributors and earlier upstream authors retain authorship; renamed packages and directories do not change that.
+
+The runtime publication set uses initial `0.1.0` releases for hash, flake references, renamed compatibility crates, Serde, glue, and commands; evaluator `0.2.0` and CLI `0.1.1` are preview updates. The already-public builtin macro package remains unchanged at `0.0.1`. Package READMEs and provenance do not establish packaging or compatibility test results.
 
 ## What was not copied and why
 
 | Snix component | Reason |
 |---|---|
 | `castore`, `store`, `nar-bridge`, `castore-http` | Built on Snix's own chunked content-addressed storage and gRPC services. nix-rs has to own the CppNix `/nix/store` layout and SQLite database, which this design does not provide. |
-| `build`, `build-glue` | Sandboxes through OCI and bubblewrap behind a gRPC build protocol, not the CppNix build-user and namespace model |
-| `glue` | Supplies `derivation`, `derivationStrict`, the fetchers, `import` and the store-aware builtins. It depends on `castore`, `store` and `build`. |
+| `build`, build execution from `build-glue` | Sandboxes through OCI and bubblewrap behind a gRPC build protocol, not the CppNix build-user and namespace model. Only known-path tracking from `build-glue` is adapted locally. |
+| Full `glue` store integration and fetchers | Depend on Snix storage/build services. Local glue adapts a subset for read-only path calculation and local evaluation; those services and network fetchers remain excluded. |
 | `nix-daemon` | A thin adapter onto `castore`/`store`. The protocol types it relies on are already in `nix-compat::nix_daemon`. |
 | `cli/*`, `tracing` | Snix-specific binaries and telemetry setup |
 
-Without `glue`, `nix-rs-eval` evaluates only the pure language. It cannot instantiate derivations or fetch sources, so nothing in this workspace can evaluate Nixpkgs to `.drv` paths yet.
+`nix-rs-eval` alone supplies pure evaluation and configurable local I/O, without store-aware derivation builtins. The adapted `nix-rs-glue` adds read-only derivation and imported-path calculation, so partial local Nixpkgs evaluation can produce `.drv` path strings. It writes no store contents, realises no outputs, and fetches no sources. Complete Nixpkgs/NixOS evaluation, writable stores, builds, and drop-in reference compatibility remain unqualified.
 
 ## Local modifications
 
+- 2026-10-01: Prepared package-local preview READMEs, provenance, and missing license copies for runtime publication. Compatibility package names become `nix-rs-compat` and `nix-rs-compat-derive`, preserving Rust library names `nix_compat` and `nix_compat_derive`. GPL notices preserve the Snix source license; package-local LGPL notices cover the imported evaluator fixtures and bundled glue expressions.
 - 2026-09-30: Evaluator integer operators and arithmetic builtins use checked addition, subtraction, multiplication, and division. Negation uses checked subtraction from zero, matching CppNix 2.35.2. Overflow yields `IntegerOverflow` rather than a debug panic or release wrapping, and builtin division now rejects integer and float zero before inspecting the numerator. Focused tests cover both profiles; reference diagnostic rendering remains incomplete.
 - 2026-09-30: Added `cppnix_serve` value codecs and handshake functions following CppNix 2.35.2 commit `2c73b59da29606068c0c98db015dd3a66955525d`, especially `src/libstore/serve-protocol.cc` and its characterization tests. The reference source's license is recorded in `tests/nix/COPYING`. These 2.x codecs are separate from the imported worker-protocol types and preserve the reference's version-dependent, lossy fields; fixture coverage does not qualify serve commands or daemon pairings.
 - 2026-09-30: Moved `nixbase32` and `nixhash` into the project-owned `nix-rs-hash` crate. `nix-compat` depends on it and reexports the existing module paths and `format_sha256!` macro. The extracted source remains derived from the recorded Snix revision and retains its GPL-3.0-only license.
@@ -44,14 +49,14 @@ Without `glue`, `nix-rs-eval` evaluates only the pure language. It cannot instan
 - The root `Cargo.lock` began as Snix's lock file at the revision above.
 - The imported directory was renamed to `crates/nix-rs/`; package names, Rust imports, evaluator test paths, and project-facing diagnostics were renamed from their upstream identifiers. The evaluator's placeholder `nixVersion` string changed from its upstream branding to nix-rs branding. These edits are not compatibility fixes.
 - 2026-09-26: `StorePath` ordering now breaks ties on the name when two paths share a digest, matching CppNix's comparison of `<hash>-<name>` base names. Before, such paths compared equal, so a set of input sources silently dropped one of them. This replaced an earlier local change that accepted duplicate input sources and collapsed them.
-- 2026-09-26: The derivation ATerm parser follows CppNix 2.36's parsing rules. Outputs, input derivations, the output names of each input derivation, input sources, and environment keys must be in strictly ascending order without duplicates. An input derivation must list at least one output. Store paths, output names and the platform must not contain escape sequences. Newline, carriage return and tab must be escaped in string fields.
+- 2026-09-26, superseded on 2026-09-29: The derivation ATerm parser initially followed CppNix 2.36 development ordering and escape rules. The default now follows CppNix 2.35.2, revision `2c73b59da29606068c0c98db015dd3a66955525d`: collections accept arbitrary order, duplicate outputs keep the first entry, duplicate input derivations and environment keys keep the last, and set entries collapse. Empty input output-name sets, decoded escapes in all fields, and raw newline/carriage-return/tab bytes are accepted as the reference accepts them. Parsing skips new-derivation field validation.
 - 2026-09-26: Derivation outputs can be deferred (input addressed, path not yet known), and a parsed derivation may have no outputs, as in CppNix's parser; verification rejects zero outputs and accepts deferred ones with a warning, as CppNix's validation does. Output environment variables are blanked in the masked form for every output when constructing a derivation, but only where present when validating one (CppNix's `maskOutputs`). Parsing no longer adds output environment variables. Derivation outputs on the daemon wire are written with their count, matching CppNix's `derivation::write`.
 - 2026-09-27: Worker protocol fixes found by CppNix's worker-protocol fixtures. `Option<StorePath>` reports end of stream as such instead of an absent path, and `Option<CAHash>` reads CppNix's empty string as absent instead of as end of stream. `UnkeyedValidPathInfo` only carries `ultimate`, signatures and CA from protocol 1.16, and its NAR hash is written as Base16. `ValidPathInfo` can be written. Lengths read off the wire no longer size allocations directly. `BuildResult` keeps built outputs by output name (`BuiltOutputs`, `UnkeyedRealisation`), as CppNix 2.36 does, with its string-map encoding for clients without the `realisation-with-path-not-hash` feature.
 - 2026-09-29: Derivation string fields follow CppNix 2.35.2's byte handling. The platform, builder, arguments, environment keys and output names are byte strings, so ATerm parsing and writing keep non-UTF-8 bytes and output names that CppNix accepts without validation; JSON serialisation still requires UTF-8. `hash_derivation_modulo` returns `DrvHashModulo`, which keeps a fixed-output derivation's hash under its output name, as CppNix's `DrvHash` does, instead of one digest for all outputs.
 - 2026-09-30: Added `cppnix_json`, a new module with CppNix 2.35.2's JSON encodings for store paths, hashes, content addresses, output specifications, deriving paths, path info, narinfo, realisations and build results. The imported `serde` implementations are unchanged.
 - Four imported trybuild diagnostic snapshots now reflect the renamed crate location and Rust 1.95.0 wording. The pinned toolchain is supplied by `devenv.nix`.
 
-Apart from the checked arithmetic and division changes above, the imported evaluation algorithms have not been deliberately changed.
+The evaluator's arithmetic changes and the separate adapted glue are local behavior changes. Glue does not import Snix's storage services, build execution, or fetchers. Package naming and formatting changes are recorded separately from behavior changes in the package-local provenance files.
 
 ## Test status at import
 
