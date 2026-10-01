@@ -127,19 +127,20 @@ The copied shell suite needs an isolated test store and compatible executables b
 
 ## System tests
 
-`crates/compat-tests/tests/reference_build.rs` checks `nix-rs-build`'s `LocalBuilder` against the 2.35.2 reference. For each case the reference writes the derivation into two temporary `--store ROOT` stores that also hold the flake's statically linked `test-busybox`. The reference builds it in one store and nix-rs builds it in the other. Both use a sandbox, one core, no `sandbox-paths`, no build users, and the same system features. The output paths and `nix path-info --json` metadata other than the registration time must match, and the reference must verify the store nix-rs wrote with `--check-contents`. On 2026-10-02 all nine cases passed:
+`crates/compat-tests/tests/reference_build.rs` checks `nix-rs-build`'s `LocalBuilder` against the 2.35.2 reference. For each case the reference writes the derivation into two temporary `--store ROOT` stores that also hold the flake's statically linked `test-busybox`. The reference builds it in one store and nix-rs builds it in the other. Both use a sandbox, one core, no `sandbox-paths`, no build users, and the same system features. The output paths and `nix path-info --json` metadata other than the registration time must match, and the reference must verify the store nix-rs wrote with `--check-contents`. On 2026-10-02 all ten cases passed:
 
 - a single-output derivation;
 - a probe whose output records the sorted environment, `id`, host name, generated `/etc/passwd`, `/etc/group` and `/etc/hosts`, working directory, directory listings and modes, uid and gid maps, umask and core limit, which is byte-identical;
 - an input derivation with two outputs used by a derivation with two outputs, one referring to itself and to the other;
 - output placeholders in arguments, environment and `passAsFile` contents;
 - `exportReferencesGraph`;
+- structured attributes with two outputs, `exportReferencesGraph`, an ignored `passAsFile`, and values that exercise `.attrs.sh` and `.attrs.json` formatting: a string with a quote and a placeholder, an integer above 2^31, integral and fractional floats on both sides of nlohmann's exponent threshold, mixed lists, nested lists, objects, and keys that are not shell names;
 - a flat fixed-output derivation;
 - a recursive fixed-output hash mismatch, with the reference's message and status;
 - a builder exiting with status 3, compared by message lines and status;
 - a missing output, an output reference cycle, and a `disallowedReferences` violation, compared by message lines and status.
 
-The comparisons call the library, not a `nix-store --realise` replacement, and run without build users. They do not cover build logs, structured attributes, `builtin:` builders, floating content-addressed outputs, unsandboxed builds, seccomp filtering, network isolation of fixed-output builds, timeouts, cancellation, concurrent builds of one output, or interrupted builds.
+The comparisons call the library, not a `nix-store --realise` replacement, and run without build users. They do not cover build logs, `builtin:` builders, floating content-addressed outputs, unsandboxed builds, seccomp filtering, network isolation of fixed-output builds, timeouts, cancellation, concurrent builds of one output, or interrupted builds.
 
 The unpublished `nix-rs-store` preview also has isolated local-store comparisons in `crates/compat-tests/tests/reference_store.rs`. On 2026-10-01, its five cases passed with `NIXRS_REFERENCE_BIN=/nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2/bin`. They check fresh-store layout, path/NAR metadata, import validation, reference-created data read by nix-rs, nix-rs-created data reopened and verified by CppNix, cycles, and vanished paths. Each case uses temporary store roots and empty configuration; these are not tests against the host's live store or the stateful qualification VM. The two store unit tests pass too. This evidence does not qualify garbage collection, schema migration coverage, concurrent writers, interrupted writes, daemon ownership handoff, or whole-system rollback. `nix-rs-build` has the preview build comparisons described above, which are not build-engine qualification.
 

@@ -204,6 +204,21 @@ impl Env {
 		fs::read(self.root(store).join("nix/store").join(path.to_string())).unwrap()
 	}
 
+	/// The contents of a regular-file output, or the listing of a directory.
+	fn read_tree(&self, store: &str, path: &StorePath) -> Vec<u8> {
+		let real = self.root(store).join("nix/store").join(path.to_string());
+		if real.is_dir() {
+			let mut names: Vec<String> = fs::read_dir(&real)
+				.unwrap()
+				.map(|e| e.unwrap().file_name().to_string_lossy().into_owned())
+				.collect();
+			names.sort();
+			names.join("\n").into_bytes()
+		} else {
+			fs::read(real).unwrap()
+		}
+	}
+
 	/// Build `drv` with both engines and check that they register the same
 	/// outputs. Returns the output paths.
 	fn build_both(&self, drv: &StorePath) -> Vec<StorePath> {
@@ -479,5 +494,45 @@ fn missing_outputs_and_reference_checks_fail_like_the_reference() {
 				"missing {line:?} in:\n{stderr}"
 			);
 		}
+	}
+}
+
+#[test]
+fn structured_attributes_match_the_reference() {
+	let env = Env::new();
+	let drv = env.instantiate(
+		r#"let bb = builtins.storePath @busybox@; in derivation {
+			name = "structured";
+			system = "x86_64-linux";
+			builder = "${bb}/bin/sh";
+			__structuredAttrs = true;
+			outputs = [ "out" "dev" ];
+			string = "it's ${builtins.placeholder "dev"}";
+			int = 3000000000;
+			float = 2.0;
+			fraction = 0.00001;
+			fixed = 1.0e14;
+			exponent = 1.0e15;
+			list = [ 1 "x" null true false ];
+			attrs = { k = 1; "with space" = "v"; };
+			nested = [ [ 1 ] ];
+			"not a var" = 1;
+			exportReferencesGraph.closure = [ bb ];
+			passAsFile = [ "string" ];
+			outputChecks.out.maxSize = 100000;
+			args = [ "-c" ''
+				# ash cannot source .attrs.sh, so take the paths from the JSON.
+				get() { ${bb}/bin/grep -o "\"$1\":\"[^\"]*\"" .attrs.json | ${bb}/bin/head -1 | ${bb}/bin/cut -d '"' -f 4; }
+				${bb}/bin/mkdir $(get dev)
+				{ ${bb}/bin/env | ${bb}/bin/sort; ${bb}/bin/cat .attrs.sh .attrs.json; } > $(get out)
+			'' ];
+		}"#,
+	);
+	let outputs = env.build_both(&drv);
+	for output in &outputs {
+		assert_eq!(
+			env.read_tree("nix-rs", output),
+			env.read_tree("reference", output)
+		);
 	}
 }

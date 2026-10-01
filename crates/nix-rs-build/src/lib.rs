@@ -13,5 +13,6 @@ pub mod refscan;
 pub mod sandbox;
 pub mod seccomp;
 pub mod settings;
+pub mod structured;
 
 pub use error::{BuildError, FailureStatus, Result};

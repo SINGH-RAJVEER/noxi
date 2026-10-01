@@ -27,6 +27,7 @@ use nix_compat::store_path::{self, STORE_DIR, StorePath, hash_placeholder};
 use nix_rs_store::canonicalise::canonicalise_path_metadata;
 use nix_rs_store::lock::PathLocks;
 use nix_rs_store::{LocalStore, ValidPathInfo, ca_hash_of, delete_path, nar};
+use serde_json::{Map, Value};
 use sha2::{Digest, Sha256};
 
 use crate::error::{BuildError, FailureStatus, Result};
@@ -34,6 +35,7 @@ use crate::options::{self, DerivationOptions, DrvRef, OutputChecks, OutputChecks
 use crate::refscan::scan_for_references;
 use crate::sandbox::{self, Bind, SandboxSpec};
 use crate::settings::{BuildSettings, SandboxMode};
+use crate::structured;
 
 /// `DerivationBuilderImpl::homeDir`.
 const HOME_DIR: &str = "/homeless-shelter";
@@ -193,12 +195,6 @@ impl<'a> LocalBuilder<'a> {
 		let is_fixed = drv.outputs().is_fixed();
 
 		let parsed = options::structured_attrs(drv.environment())?;
-		if parsed.is_some() {
-			return Err(BuildError::Other(format!(
-				"building '{}' needs structured attributes, which nix-rs cannot build yet",
-				print(drv_path)
-			)));
-		}
 		let env: BTreeMap<BString, BString> = drv
 			.environment()
 			.iter()
@@ -296,7 +292,7 @@ impl<'a> LocalBuilder<'a> {
 			)));
 		}
 
-		let build = Build::start(self, drv_path, drv_name, outputs, &drv_options, is_fixed)?;
+		let build = Build::start(self, drv_path, outputs, &drv_options, parsed, is_fixed)?;
 		let result = build.run(drv, &env, &input_paths, log).and_then(|()| {
 			self.register_outputs(
 				drv_path,
@@ -765,15 +761,16 @@ struct Build<'b> {
 	impure_env_vars: BTreeSet<String>,
 	pass_as_file: BTreeSet<String>,
 	export_references_graph: BTreeMap<String, BTreeSet<StorePath>>,
+	structured: Option<Map<String, Value>>,
 }
 
 impl<'b> Build<'b> {
 	fn start(
 		builder: &'b LocalBuilder<'b>,
 		drv_path: &StorePath,
-		_drv_name: &str,
 		outputs: &BTreeMap<String, KnownOutput>,
 		drv_options: &DerivationOptions<StorePath>,
+		structured: Option<Map<String, Value>>,
 		is_fixed: bool,
 	) -> Result<Self> {
 		let store = builder.store;
@@ -803,6 +800,7 @@ impl<'b> Build<'b> {
 			impure_env_vars: drv_options.impure_env_vars.clone(),
 			pass_as_file: drv_options.pass_as_file.clone(),
 			export_references_graph: drv_options.export_references_graph.clone(),
+			structured,
 		})
 	}
 
@@ -827,10 +825,10 @@ impl<'b> Build<'b> {
 		Ok(())
 	}
 
-	/// `initEnv` with `DesugaredEnv::create` for derivations without
-	/// structured attributes.
+	/// `initEnv` with `DesugaredEnv::create`.
 	fn environment(
 		&self,
+		drv: &UnverifiedDerivation,
 		env: &BTreeMap<BString, BString>,
 		input_paths: &BTreeSet<StorePath>,
 		rewrites: &BTreeMap<String, String>,
@@ -846,7 +844,40 @@ impl<'b> Build<'b> {
 		set("NIX_STORE", STORE_DIR);
 		set("NIX_BUILD_CORES", &settings.effective_cores().to_string());
 
-		for (name, value) in env {
+		if let Some(attrs) = &self.structured {
+			// `StructuredAttrs::prepareStructuredAttrs`.
+			let mut json = attrs.clone();
+			let outputs: Map<String, Value> = drv
+				.outputs()
+				.iter()
+				.map(|(name, _)| {
+					let name = name.to_string();
+					let placeholder = hash_placeholder(&name);
+					(name, Value::String(placeholder))
+				})
+				.collect();
+			json.insert("outputs".to_owned(), Value::Object(outputs));
+			for (key, paths) in &self.export_references_graph {
+				let paths = self.export_references(paths, input_paths)?;
+				json.insert(key.clone(), self.path_info_json(&paths)?);
+			}
+			for (var, file, contents) in [
+				(
+					"NIX_ATTRS_SH_FILE",
+					".attrs.sh",
+					structured::write_shell(&json),
+				),
+				(
+					"NIX_ATTRS_JSON_FILE",
+					".attrs.json",
+					structured::dump(&Value::Object(json.clone())),
+				),
+			] {
+				self.write_builder_file(file, &rewrite_strings(contents.into_bytes(), rewrites))?;
+				out.insert(var.into(), format!("{build_top}/{file}").into());
+			}
+		}
+		for (name, value) in env.iter().filter(|_| self.structured.is_none()) {
 			let name_str = name.to_str_lossy();
 			if self.pass_as_file.contains(name_str.as_ref()) {
 				let file = format!(
@@ -862,7 +893,11 @@ impl<'b> Build<'b> {
 				out.insert(name.clone(), value.clone());
 			}
 		}
-		for (file, paths) in &self.export_references_graph {
+		for (file, paths) in self
+			.export_references_graph
+			.iter()
+			.filter(|_| self.structured.is_none())
+		{
 			let registration = self.validity_registration(paths, input_paths)?;
 			self.write_builder_file(file, &rewrite_strings(registration.into_bytes(), rewrites))?;
 		}
@@ -892,12 +927,13 @@ impl<'b> Build<'b> {
 		Ok(out)
 	}
 
-	/// `makeValidityRegistration(exportReferences(paths, inputPaths), false, false)`.
-	fn validity_registration(
+	/// `Store::exportReferences`: the closure of `paths`, which must be
+	/// inputs, with the closures of the outputs of derivations in it.
+	fn export_references(
 		&self,
 		paths: &BTreeSet<StorePath>,
 		input_paths: &BTreeSet<StorePath>,
-	) -> Result<String> {
+	) -> Result<BTreeSet<StorePath>> {
 		let store = self.builder.store;
 		let mut closure = BTreeSet::new();
 		for path in paths {
@@ -920,6 +956,58 @@ impl<'b> Build<'b> {
 				}
 			}
 		}
+		Ok(closure)
+	}
+
+	fn query(&self, path: &StorePath) -> Result<ValidPathInfo> {
+		self.builder
+			.store
+			.query_path_info(path)?
+			.ok_or_else(|| BuildError::Other(format!("path '{}' is not valid", print(path))))
+	}
+
+	/// `pathInfoToJSON` from `parsed-derivations.cc`.
+	fn path_info_json(&self, paths: &BTreeSet<StorePath>) -> Result<Value> {
+		let mut list = Vec::new();
+		for path in paths {
+			let info = self.query(path)?;
+			let mut closure = BTreeSet::new();
+			self.builder.closure(path, &mut closure)?;
+			let mut closure_size = 0;
+			for p in &closure {
+				closure_size += self.query(p)?.nar_size;
+			}
+			let mut object = Map::new();
+			object.insert("narHash".to_owned(), Value::String(info.nar_hash_nix32()));
+			object.insert("narSize".to_owned(), info.nar_size.into());
+			object.insert(
+				"references".to_owned(),
+				Value::Array(
+					info.references
+						.iter()
+						.map(|r| Value::String(print(r)))
+						.collect(),
+				),
+			);
+			if let Some(ca) = &info.ca {
+				object.insert("ca".to_owned(), Value::String(ca.to_string()));
+			}
+			object.insert("path".to_owned(), Value::String(print(path)));
+			object.insert("valid".to_owned(), Value::Bool(true));
+			object.insert("closureSize".to_owned(), closure_size.into());
+			list.push(Value::Object(object));
+		}
+		Ok(Value::Array(list))
+	}
+
+	/// `makeValidityRegistration(exportReferences(paths, inputPaths), false, false)`.
+	fn validity_registration(
+		&self,
+		paths: &BTreeSet<StorePath>,
+		input_paths: &BTreeSet<StorePath>,
+	) -> Result<String> {
+		let store = self.builder.store;
+		let closure = self.export_references(paths, input_paths)?;
 		let mut s = String::new();
 		for path in &closure {
 			let info = store
@@ -950,7 +1038,7 @@ impl<'b> Build<'b> {
 			.iter()
 			.map(|(name, path)| (hash_placeholder(&name.to_string()), print(path)))
 			.collect();
-		let env = self.environment(env, input_paths, &rewrites)?;
+		let env = self.environment(drv, env, input_paths, &rewrites)?;
 
 		let mut binds: BTreeMap<PathBuf, Bind> = BTreeMap::new();
 		for path in &settings.sandbox_paths {
