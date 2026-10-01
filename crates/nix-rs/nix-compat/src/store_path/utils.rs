@@ -1,6 +1,6 @@
 use std::fmt::Display;
 
-use super::{ParseStorePathError, STORE_DIR, StorePathRef};
+use super::{ParseStorePathError, STORE_DIR, StorePath, StorePathRef};
 use crate::derivation::OutputName;
 use crate::nixhash::{HashAlgo, NixHash, Sha256};
 use crate::{format_sha256, nixbase32};
@@ -191,6 +191,27 @@ pub fn hash_placeholder(name: &str) -> String {
 		"/{}",
 		nixbase32::encode(&format_sha256!("nix-output:{name}"))
 	)
+}
+
+/// CppNix's `DownstreamPlaceholder::unknownCaOutput`: the placeholder that
+/// stands for output `output_name` of the content-addressed derivation
+/// `drv_path` until it is built.
+pub fn downstream_placeholder(drv_path: &StorePath, output_name: &[u8]) -> String {
+	use crate::nixhash::Sha256Digester;
+	let drv_name = drv_path
+		.name()
+		.strip_suffix(".drv")
+		.unwrap_or(drv_path.name());
+	let mut hasher = Sha256Digester::new();
+	hasher.update(b"nix-upstream-output:");
+	hasher.update(nixbase32::encode(drv_path.digest()).as_bytes());
+	hasher.update(b":");
+	hasher.update(drv_name.as_bytes());
+	if output_name != b"out" {
+		hasher.update(b"-");
+		hasher.update(output_name);
+	}
+	format!("/{}", nixbase32::encode(hasher.finalize().as_ref()))
 }
 
 #[cfg(test)]

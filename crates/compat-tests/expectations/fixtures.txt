@@ -20,8 +20,8 @@ ignore src/libutil-tests/data/git/check-data.sh
 
 # libstore: derivations
 table:upstream_derivations src/libstore-tests/data/derivation/**/*.drv
-unrun src/libstore-tests/data/derivation/ca/derivation-options/*.json # derivation options JSON
-unrun src/libstore-tests/data/derivation/ia/derivation-options/*.json # derivation options JSON
+table:upstream_derivation_options src/libstore-tests/data/derivation/ca/derivation-options/*.json # derivation options JSON
+table:upstream_derivation_options src/libstore-tests/data/derivation/ia/derivation-options/*.json # derivation options JSON
 unrun src/libstore-tests/data/derivation/invariants/* # derivation invariant checks
 unrun src/libstore-tests/data/derivation/try-resolve/* # CA derivation resolution
 table:upstream_derivation_json src/libstore-tests/data/derivation/**/*.json # derivation and output JSON

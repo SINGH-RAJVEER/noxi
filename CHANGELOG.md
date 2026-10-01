@@ -17,7 +17,7 @@ Changes that have not reached a version yet go under an `Unreleased` heading for
 | [`nix-rs-glue`](#nix-rs-glue) | 0.1.0 | [published](https://crates.io/crates/nix-rs-glue/0.1.0) | GPL-3.0-only (Snix-derived) |
 | [`nix-rs-commands`](#nix-rs-commands) | 0.1.0 | [published](https://crates.io/crates/nix-rs-commands/0.1.0) | GPL-3.0-only |
 | [`nix-rs-store`](#nix-rs-store) | 0.1.0 | unpublished, `publish = false` | GPL-3.0-only |
-| [`nix-rs-build`](#nix-rs-build) | 0.1.0 | unintegrated draft, `publish = false` | GPL-3.0-only |
+| [`nix-rs-build`](#nix-rs-build) | 0.1.0 | unpublished workspace preview, `publish = false` | GPL-3.0-only |
 | [`nixrs-compat-tests`](#nixrs-compat-tests) | 0.1.0 | internal, `publish = false` | none declared |
 | [`nix-compat-derive-tests`](#nix-compat-derive-tests) | 0.1.0 | internal, `publish = false` | GPL-3.0 (Snix) |
 
@@ -120,6 +120,16 @@ Published to crates.io.
 ## nix-rs-compat
 
 Nix formats and protocols: store paths, nixbase32, hashes, NAR, ATerm derivations, narinfo, realisations, flake references, `nix.conf` and daemon wire types.
+
+### Unreleased
+
+#### Added
+
+- `store_path::downstream_placeholder`, CppNix's `DownstreamPlaceholder::unknownCaOutput`: the placeholder string for an output of a content-addressed derivation that has not been built (2026-10-02).
+
+#### Fixed
+
+- `cppnix_serve` is compiled only with the `daemon` feature, whose wire implementations it needs. Enabling `serde` and `wire` without `daemon` failed to compile (2026-10-02).
 
 ### 0.1.0 - 2026-10-01
 
@@ -239,6 +249,7 @@ Internal test crate that checks the workspace crates against the CppNix 2.35.2 f
 - `upstream_store_json`, which checks `nix_compat::cppnix_json` against the store-path, content-address, outputs-spec and derived-path fixtures (2026-09-30).
 - `upstream_path_info_json`, which checks path-info and nar-info JSON against the values CppNix's tests construct (2026-09-30).
 - `upstream_realisation_json`, which checks realisation and build-result JSON, realisation fingerprints, and signatures made with CppNix's test key (2026-09-30).
+- `upstream_derivation_options`, which reads and writes the six `derivation-options` JSON fixtures byte for byte and checks that `nix-rs-build` derives the same options, required system features, substitution and `uid-range` decisions from the eight advanced-attributes derivations as CppNix's `derivation-advanced-attrs.cc` (2026-10-02).
 
 #### Changed
 
@@ -285,5 +296,7 @@ Internal trybuild tests for `nix-compat-derive`.
 
 ### Unreleased
 
-- Saves draft build-option parsing, reference scanning, settings, seccomp, and Linux sandbox helpers. The crate has no entry point and is not integrated into the Cargo workspace, so this is not a compiled or qualified build engine.
+- The crate is now a workspace member with a library entry point, so it compiles and its unit tests run with the rest of the workspace. The sandbox is still not connected to a scheduler and has not run a build (2026-10-02).
+- `options::DerivationOptions` follows CppNix 2.35.2's `DerivationOptions<Inputs>`: it is generic over `StorePath` and `DerivedInput` inputs, reads `__sandboxProfile` and `__darwinAllowLocalNetworking`, maps content-addressed placeholders to the input outputs they stand for when `ca-derivations` is enabled, names a derivation's own outputs as `DrvRef::Output`, returns the warnings CppNix prints for top-level attributes that structured attributes ignore, and reads and writes CppNix's JSON form. `try_resolve`, `get_required_system_features`, `substitutes_allowed` and `use_uid_range` match their CppNix counterparts (2026-10-02).
+- Saves draft build-option parsing, reference scanning, settings, seccomp, and Linux sandbox helpers. Until 2026-10-02 the crate had no entry point and was not in the Cargo workspace.
 - Fixes found while compiling the draft in a separate scratch crate, where its four unit tests pass; the sandbox itself has not been run. The builder now closes its inherited copy of the PID pipe's write end, which kept the parent's read to EOF waiting while the builder waited for the parent. A seccomp rule whose architecture or syscall number does not match now skips to the next rule instead of returning `EPERM`, which denied every syscall; a test runs the filter program without installing it. The builder is killed and reaped on every error return after it starts. Reference scanning finds a hash split across more than two short writes (2026-10-01).

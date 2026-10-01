@@ -5,7 +5,7 @@ extern crate self as nix_compat;
 pub(crate) mod aterm;
 #[cfg(feature = "serde")]
 pub mod cppnix_json;
-#[cfg(all(feature = "serde", feature = "wire"))]
+#[cfg(all(feature = "daemon", feature = "wire"))]
 pub mod cppnix_serve;
 pub mod derivation;
 #[cfg(feature = "serde")]

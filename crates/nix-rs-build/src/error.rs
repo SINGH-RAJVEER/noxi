@@ -29,7 +29,10 @@ pub enum BuildError {
 
 	/// The build ran or was attempted and failed.
 	#[error("{message}")]
-	Failed { status: FailureStatus, message: String },
+	Failed {
+		status: FailureStatus,
+		message: String,
+	},
 
 	#[error("{0}")]
 	Other(String),

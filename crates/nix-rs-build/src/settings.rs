@@ -88,9 +88,15 @@ impl Default for BuildSettings {
 			]
 			.map(String::from)
 			.into(),
-			system_features: ["benchmark", "big-parallel", "kvm", "nixos-test", "uid-range"]
-				.map(String::from)
-				.into(),
+			system_features: [
+				"benchmark",
+				"big-parallel",
+				"kvm",
+				"nixos-test",
+				"uid-range",
+			]
+			.map(String::from)
+			.into(),
 			build_cores: 0,
 			keep_failed: false,
 			allow_new_privileges: false,

@@ -69,7 +69,10 @@ impl ExitStatus {
 			let sig = libc::WTERMSIG(status);
 			// SAFETY: strsignal returns a static or thread-local string.
 			let description = unsafe { CStr::from_ptr(libc::strsignal(sig)) };
-			format!("failed due to signal {sig} ({})", description.to_string_lossy())
+			format!(
+				"failed due to signal {sig} ({})",
+				description.to_string_lossy()
+			)
 		} else {
 			"died abnormally".to_owned()
 		}
@@ -77,7 +80,8 @@ impl ExitStatus {
 }
 
 fn cstring(bytes: &[u8]) -> io::Result<CString> {
-	CString::new(bytes).map_err(|_| io::Error::new(io::ErrorKind::InvalidInput, "string contains a NUL byte"))
+	CString::new(bytes)
+		.map_err(|_| io::Error::new(io::ErrorKind::InvalidInput, "string contains a NUL byte"))
 }
 
 fn cpath(path: &Path) -> io::Result<CString> {
@@ -95,14 +99,21 @@ fn check(ret: libc::c_int, what: impl FnOnce() -> String) -> io::Result<()> {
 fn pipe() -> io::Result<(OwnedFd, OwnedFd)> {
 	let mut fds = [0; 2];
 	// SAFETY: `fds` has room for two descriptors.
-	check(unsafe { libc::pipe2(fds.as_mut_ptr(), libc::O_CLOEXEC) }, || "creating a pipe".to_owned())?;
+	check(
+		unsafe { libc::pipe2(fds.as_mut_ptr(), libc::O_CLOEXEC) },
+		|| "creating a pipe".to_owned(),
+	)?;
 	// SAFETY: pipe2 returned two new descriptors.
 	Ok(unsafe { (OwnedFd::from_raw_fd(fds[0]), OwnedFd::from_raw_fd(fds[1])) })
 }
 
 /// Create the chroot skeleton: `root/tmp`, `root/etc`, and the store
 /// directory, as CppNix's `setupBuildChroot` does.
-pub fn setup_chroot(chroot_parent: &Path, store_dir: &Path, sandboxed: bool) -> io::Result<PathBuf> {
+pub fn setup_chroot(
+	chroot_parent: &Path,
+	store_dir: &Path,
+	sandboxed: bool,
+) -> io::Result<PathBuf> {
 	nix_rs_store::delete_path(chroot_parent).map_err(io::Error::other)?;
 	fs::DirBuilder::new().mode(0o700).create(chroot_parent)?;
 	let root = chroot_parent.join("root");
@@ -113,7 +124,10 @@ pub fn setup_chroot(chroot_parent: &Path, store_dir: &Path, sandboxed: bool) -> 
 	fs::set_permissions(&tmp, fs::Permissions::from_mode(0o1777))?;
 	fs::create_dir_all(root.join("etc"))?;
 	if sandboxed {
-		fs::write(root.join("etc/hosts"), "127.0.0.1 localhost\n::1 localhost\n")?;
+		fs::write(
+			root.join("etc/hosts"),
+			"127.0.0.1 localhost\n::1 localhost\n",
+		)?;
 	}
 	let chroot_store = root.join(store_dir.strip_prefix("/").unwrap_or(store_dir));
 	fs::create_dir_all(&chroot_store)?;
@@ -131,7 +145,9 @@ pub fn run(spec: &SandboxSpec, log: &mut dyn FnMut(&[u8])) -> Result<ExitStatus>
 	// SAFETY: posix_openpt returned a new descriptor.
 	let master = unsafe { OwnedFd::from_raw_fd(master) };
 	// SAFETY: `master` is a pseudoterminal master.
-	check(unsafe { libc::unlockpt(master.as_raw_fd()) }, || "unlocking pseudoterminal".to_owned())?;
+	check(unsafe { libc::unlockpt(master.as_raw_fd()) }, || {
+		"unlocking pseudoterminal".to_owned()
+	})?;
 	let mut name = [0 as libc::c_char; 128];
 	// SAFETY: `name` has the length passed.
 	if unsafe { libc::ptsname_r(master.as_raw_fd(), name.as_mut_ptr(), name.len()) } != 0 {
@@ -150,7 +166,13 @@ pub fn run(spec: &SandboxSpec, log: &mut dyn FnMut(&[u8])) -> Result<ExitStatus>
 	if helper == 0 {
 		drop(pid_read);
 		drop(sync_write);
-		let code = helper_main(&slave_name, spec, sync_read.as_raw_fd(), pid_write.as_raw_fd(), &child_plan);
+		let code = helper_main(
+			&slave_name,
+			spec,
+			sync_read.as_raw_fd(),
+			pid_write.as_raw_fd(),
+			&child_plan,
+		);
 		// SAFETY: exiting the forked helper without running destructors.
 		unsafe { libc::_exit(code) };
 	}
@@ -199,7 +221,9 @@ pub fn run(spec: &SandboxSpec, log: &mut dyn FnMut(&[u8])) -> Result<ExitStatus>
 	let _ = sync_write.write_all(if ok { b"1\n" } else { b"0\n" });
 	drop(sync_write);
 	if let Err(e) = setup {
-		return Err(BuildError::Other(format!("setting up the build user namespace: {e}")));
+		return Err(BuildError::Other(format!(
+			"setting up the build user namespace: {e}"
+		)));
 	}
 
 	// Read setup messages until the child reports it is ready.
@@ -213,7 +237,11 @@ pub fn run(spec: &SandboxSpec, log: &mut dyn FnMut(&[u8])) -> Result<ExitStatus>
 				return Err(BuildError::Other(format!(
 					"while setting up the build environment: {}{}",
 					String::from_utf8_lossy(&rest).trim_end(),
-					if libc::WIFEXITED(status) { String::new() } else { format!(" ({})", ExitStatus(status).describe()) }
+					if libc::WIFEXITED(status) {
+						String::new()
+					} else {
+						format!(" ({})", ExitStatus(status).describe())
+					}
 				)));
 			}
 			Some(line) => tracing::debug!("sandbox setup: {}", String::from_utf8_lossy(&line)),
@@ -243,7 +271,10 @@ pub fn run(spec: &SandboxSpec, log: &mut dyn FnMut(&[u8])) -> Result<ExitStatus>
 				if spec.timeout != 0 && start.elapsed() >= Duration::from_secs(spec.timeout) {
 					timed_out = Some(format!("timed out after {} seconds", spec.timeout));
 				} else {
-					timed_out = Some(format!("timed out after {} seconds of silence", spec.max_silent_time));
+					timed_out = Some(format!(
+						"timed out after {} seconds of silence",
+						spec.max_silent_time
+					));
 				}
 				break;
 			}
@@ -279,7 +310,8 @@ impl Drop for Builder {
 fn poll_timeout(spec: &SandboxSpec, start: Instant, last_output: Instant) -> Option<Duration> {
 	let mut timeout: Option<Duration> = None;
 	if spec.max_silent_time != 0 {
-		timeout = Some(Duration::from_secs(spec.max_silent_time).saturating_sub(last_output.elapsed()));
+		timeout =
+			Some(Duration::from_secs(spec.max_silent_time).saturating_sub(last_output.elapsed()));
 	}
 	if spec.timeout != 0 {
 		let left = Duration::from_secs(spec.timeout).saturating_sub(start.elapsed());
@@ -354,7 +386,9 @@ impl PtyReader {
 			events: libc::POLLIN,
 			revents: 0,
 		};
-		let ms = timeout.map(|t| t.as_millis().min(i32::MAX as u128) as i32).unwrap_or(-1);
+		let ms = timeout
+			.map(|t| t.as_millis().min(i32::MAX as u128) as i32)
+			.unwrap_or(-1);
 		loop {
 			// SAFETY: one valid pollfd.
 			let ret = unsafe { libc::poll(&mut pfd, 1, ms) };
@@ -403,7 +437,11 @@ impl PtyReader {
 					self.pending = pending;
 				}
 				Poll::Eof | Poll::Timeout => {
-					return Ok(if pending.is_empty() { None } else { Some(pending) });
+					return Ok(if pending.is_empty() {
+						None
+					} else {
+						Some(pending)
+					});
 				}
 			}
 		}
@@ -431,7 +469,12 @@ struct ChildPlan {
 impl ChildPlan {
 	fn new(spec: &SandboxSpec) -> io::Result<Self> {
 		let store_rel = spec.store_dir.strip_prefix("/").unwrap_or(&spec.store_dir);
-		let base_name = spec.builder.rsplit(|&b| b == b'/').next().unwrap_or(&spec.builder).to_vec();
+		let base_name = spec
+			.builder
+			.rsplit(|&b| b == b'/')
+			.next()
+			.unwrap_or(&spec.builder)
+			.to_vec();
 		let mut argv = vec![cstring(&base_name)?];
 		for arg in &spec.args {
 			argv.push(cstring(arg)?);
@@ -442,14 +485,24 @@ impl ChildPlan {
 			build_dir: cpath(&spec.build_dir_in_sandbox)?,
 			builder: cstring(&spec.builder)?,
 			argv,
-			envp: spec.env.iter().map(|e| cstring(e)).collect::<io::Result<_>>()?,
+			envp: spec
+				.env
+				.iter()
+				.map(|e| cstring(e))
+				.collect::<io::Result<_>>()?,
 		})
 	}
 }
 
 /// The helper process: take the terminal as stderr, then create the
 /// builder in new namespaces as a sibling (CLONE_PARENT).
-fn helper_main(slave: &CStr, spec: &SandboxSpec, sync_read: RawFd, pid_write: RawFd, plan: &ChildPlan) -> i32 {
+fn helper_main(
+	slave: &CStr,
+	spec: &SandboxSpec,
+	sync_read: RawFd,
+	pid_write: RawFd,
+	plan: &ChildPlan,
+) -> i32 {
 	let result = (|| -> io::Result<libc::pid_t> {
 		open_slave(slave)?;
 		// SAFETY: dropping supplementary groups; EPERM is tolerated.
@@ -470,7 +523,16 @@ fn helper_main(slave: &CStr, spec: &SandboxSpec, sync_read: RawFd, pid_write: Ra
 		}
 		// SAFETY: a raw clone without a new stack behaves like fork; the
 		// child only runs `child_main` and then exits or execs.
-		let pid = unsafe { libc::syscall(libc::SYS_clone, flags as libc::c_ulong, 0usize, 0usize, 0usize, 0usize) };
+		let pid = unsafe {
+			libc::syscall(
+				libc::SYS_clone,
+				flags as libc::c_ulong,
+				0usize,
+				0usize,
+				0usize,
+				0usize,
+			)
+		};
 		if pid == -1 {
 			return Err(io::Error::last_os_error());
 		}
@@ -501,12 +563,19 @@ fn helper_main(slave: &CStr, spec: &SandboxSpec, sync_read: RawFd, pid_write: Ra
 
 fn open_slave(slave: &CStr) -> io::Result<()> {
 	// SAFETY: `slave` is NUL-terminated.
-	let fd = unsafe { libc::open(slave.as_ptr(), libc::O_RDWR | libc::O_NOCTTY | libc::O_CLOEXEC) };
+	let fd = unsafe {
+		libc::open(
+			slave.as_ptr(),
+			libc::O_RDWR | libc::O_NOCTTY | libc::O_CLOEXEC,
+		)
+	};
 	check(fd, || "opening pseudoterminal slave".to_owned())?;
 	// SAFETY: `term` is filled by tcgetattr.
 	let mut term: libc::termios = unsafe { std::mem::zeroed() };
 	// SAFETY: `fd` is a terminal and `term` is writable.
-	check(unsafe { libc::tcgetattr(fd, &mut term) }, || "getting pseudoterminal attributes".to_owned())?;
+	check(unsafe { libc::tcgetattr(fd, &mut term) }, || {
+		"getting pseudoterminal attributes".to_owned()
+	})?;
 	// SAFETY: `term` is a valid termios.
 	unsafe { libc::cfmakeraw(&mut term) };
 	// SAFETY: `fd` is a terminal.
@@ -514,7 +583,9 @@ fn open_slave(slave: &CStr) -> io::Result<()> {
 		"putting pseudoterminal into raw mode".to_owned()
 	})?;
 	// SAFETY: both descriptors are open.
-	check(unsafe { libc::dup2(fd, libc::STDERR_FILENO) }, || "cannot pipe standard error into log file".to_owned())?;
+	check(unsafe { libc::dup2(fd, libc::STDERR_FILENO) }, || {
+		"cannot pipe standard error into log file".to_owned()
+	})?;
 	// SAFETY: `fd` is ours and stderr keeps a duplicate.
 	unsafe { libc::close(fd) };
 	Ok(())
@@ -533,9 +604,11 @@ fn child_main(sync_read: RawFd, spec: &SandboxSpec, plan: &ChildPlan) -> i32 {
 			// SAFETY: the argument and environment arrays are NUL-terminated
 			// pointer lists that outlive the call.
 			unsafe {
-				let mut argv: Vec<*const libc::c_char> = plan.argv.iter().map(|a| a.as_ptr()).collect();
+				let mut argv: Vec<*const libc::c_char> =
+					plan.argv.iter().map(|a| a.as_ptr()).collect();
 				argv.push(std::ptr::null());
-				let mut envp: Vec<*const libc::c_char> = plan.envp.iter().map(|e| e.as_ptr()).collect();
+				let mut envp: Vec<*const libc::c_char> =
+					plan.envp.iter().map(|e| e.as_ptr()).collect();
 				envp.push(std::ptr::null());
 				libc::execve(plan.builder.as_ptr(), argv.as_ptr(), envp.as_ptr());
 			}
@@ -558,10 +631,14 @@ fn child_setup(sync_read: RawFd, spec: &SandboxSpec, plan: &ChildPlan) -> io::Re
 	// SAFETY: plain process-state syscalls.
 	unsafe {
 		check(libc::setsid(), || "creating a new session".to_owned())?;
-		check(libc::dup2(libc::STDERR_FILENO, libc::STDOUT_FILENO), || "cannot dup stderr into stdout".to_owned())?;
+		check(libc::dup2(libc::STDERR_FILENO, libc::STDOUT_FILENO), || {
+			"cannot dup stderr into stdout".to_owned()
+		})?;
 		let null = libc::open(c"/dev/null".as_ptr(), libc::O_RDWR | libc::O_CLOEXEC);
 		check(null, || "cannot open '/dev/null'".to_owned())?;
-		check(libc::dup2(null, libc::STDIN_FILENO), || "cannot dup null device into stdin".to_owned())?;
+		check(libc::dup2(null, libc::STDIN_FILENO), || {
+			"cannot dup null device into stdin".to_owned()
+		})?;
 		libc::close(null);
 	}
 
@@ -608,7 +685,13 @@ fn close_extra_fds() {
 	}
 }
 
-fn mount(source: Option<&CStr>, target: &CStr, fstype: Option<&CStr>, flags: libc::c_ulong, data: Option<&CStr>) -> io::Result<()> {
+fn mount(
+	source: Option<&CStr>,
+	target: &CStr,
+	fstype: Option<&CStr>,
+	flags: libc::c_ulong,
+	data: Option<&CStr>,
+) -> io::Result<()> {
 	// SAFETY: all pointers are NUL-terminated strings or null.
 	let ret = unsafe {
 		libc::mount(
@@ -628,13 +711,24 @@ fn enter_chroot(spec: &SandboxSpec, plan: &ChildPlan) -> io::Result<()> {
 	}
 	// SAFETY: fixed strings with their lengths.
 	unsafe {
-		check(libc::sethostname(c"localhost".as_ptr(), 10), || "cannot set host name".to_owned())?;
-		check(libc::setdomainname(c"(none)".as_ptr(), 7), || "cannot set domain name".to_owned())?;
+		check(libc::sethostname(c"localhost".as_ptr(), 10), || {
+			"cannot set host name".to_owned()
+		})?;
+		check(libc::setdomainname(c"(none)".as_ptr(), 7), || {
+			"cannot set domain name".to_owned()
+		})?;
 	}
 
-	mount(None, c"/", None, libc::MS_PRIVATE | libc::MS_REC, None).map_err(|e| io::Error::other(format!("unable to make '/' private: {e}")))?;
+	mount(None, c"/", None, libc::MS_PRIVATE | libc::MS_REC, None)
+		.map_err(|e| io::Error::other(format!("unable to make '/' private: {e}")))?;
 	mount(Some(&plan.root), &plan.root, None, libc::MS_BIND, None)?;
-	mount(Some(&plan.store_in_root), &plan.store_in_root, None, libc::MS_BIND, None)?;
+	mount(
+		Some(&plan.store_in_root),
+		&plan.store_in_root,
+		None,
+		libc::MS_BIND,
+		None,
+	)?;
 	mount(None, &plan.store_in_root, None, libc::MS_SHARED, None)?;
 
 	let root = &spec.chroot_root;
@@ -646,7 +740,13 @@ fn enter_chroot(spec: &SandboxSpec, plan: &ChildPlan) -> io::Result<()> {
 		if spec.kvm && Path::new("/dev/kvm").exists() {
 			devices.push("/dev/kvm");
 		}
-		devices.extend(["/dev/null", "/dev/random", "/dev/tty", "/dev/urandom", "/dev/zero"]);
+		devices.extend([
+			"/dev/null",
+			"/dev/random",
+			"/dev/tty",
+			"/dev/urandom",
+			"/dev/zero",
+		]);
 		for device in devices {
 			binds.push(Bind {
 				target: PathBuf::from(device),
@@ -661,7 +761,10 @@ fn enter_chroot(spec: &SandboxSpec, plan: &ChildPlan) -> io::Result<()> {
 	}
 
 	if !spec.sandboxed {
-		fs::write(root.join("etc/nsswitch.conf"), "hosts: files dns\nservices: files\n")?;
+		fs::write(
+			root.join("etc/nsswitch.conf"),
+			"hosts: files dns\nservices: files\n",
+		)?;
 		for path in ["/etc/resolv.conf", "/etc/services", "/etc/hosts"] {
 			if Path::new(path).exists() {
 				binds.push(Bind {
@@ -692,14 +795,37 @@ fn enter_chroot(spec: &SandboxSpec, plan: &ChildPlan) -> io::Result<()> {
 
 	if Path::new("/dev/pts/ptmx").exists() && !root.join("dev/ptmx").exists() {
 		let pts = cpath(&root.join("dev/pts"))?;
-		match mount(Some(c"none"), &pts, Some(c"devpts"), 0, Some(c"newinstance,mode=0620")) {
+		match mount(
+			Some(c"none"),
+			&pts,
+			Some(c"devpts"),
+			0,
+			Some(c"newinstance,mode=0620"),
+		) {
 			Ok(()) => {
 				std::os::unix::fs::symlink("/dev/pts/ptmx", root.join("dev/ptmx"))?;
-				let _ = fs::set_permissions(root.join("dev/pts/ptmx"), fs::Permissions::from_mode(0o666));
+				let _ = fs::set_permissions(
+					root.join("dev/pts/ptmx"),
+					fs::Permissions::from_mode(0o666),
+				);
 			}
 			Err(e) if e.raw_os_error() == Some(libc::EINVAL) => {
-				do_bind(root, &Bind { target: "/dev/pts".into(), source: "/dev/pts".into(), optional: false })?;
-				do_bind(root, &Bind { target: "/dev/ptmx".into(), source: "/dev/ptmx".into(), optional: false })?;
+				do_bind(
+					root,
+					&Bind {
+						target: "/dev/pts".into(),
+						source: "/dev/pts".into(),
+						optional: false,
+					},
+				)?;
+				do_bind(
+					root,
+					&Bind {
+						target: "/dev/ptmx".into(),
+						source: "/dev/ptmx".into(),
+						optional: false,
+					},
+				)?;
 			}
 			Err(e) => return Err(e),
 		}
@@ -709,18 +835,34 @@ fn enter_chroot(spec: &SandboxSpec, plan: &ChildPlan) -> io::Result<()> {
 
 	// SAFETY: namespace and root changes for this process only.
 	unsafe {
-		check(libc::unshare(libc::CLONE_NEWNS), || "unsharing mount namespace".to_owned())?;
-		check(libc::chdir(plan.root.as_ptr()), || "cannot change directory to the chroot".to_owned())?;
-		check(libc::mkdir(c"real-root".as_ptr(), 0o500), || "cannot create real-root directory".to_owned())?;
+		check(libc::unshare(libc::CLONE_NEWNS), || {
+			"unsharing mount namespace".to_owned()
+		})?;
+		check(libc::chdir(plan.root.as_ptr()), || {
+			"cannot change directory to the chroot".to_owned()
+		})?;
+		check(libc::mkdir(c"real-root".as_ptr(), 0o500), || {
+			"cannot create real-root directory".to_owned()
+		})?;
 		check(
-			libc::syscall(libc::SYS_pivot_root, c".".as_ptr(), c"real-root".as_ptr()) as libc::c_int,
+			libc::syscall(libc::SYS_pivot_root, c".".as_ptr(), c"real-root".as_ptr())
+				as libc::c_int,
 			|| "cannot pivot old root directory onto the chroot".to_owned(),
 		)?;
-		check(libc::chroot(c".".as_ptr()), || "cannot change root directory".to_owned())?;
-		check(libc::umount2(c"real-root".as_ptr(), libc::MNT_DETACH), || "cannot unmount real root filesystem".to_owned())?;
-		check(libc::rmdir(c"real-root".as_ptr()), || "cannot remove real-root directory".to_owned())?;
+		check(libc::chroot(c".".as_ptr()), || {
+			"cannot change root directory".to_owned()
+		})?;
+		check(
+			libc::umount2(c"real-root".as_ptr(), libc::MNT_DETACH),
+			|| "cannot unmount real root filesystem".to_owned(),
+		)?;
+		check(libc::rmdir(c"real-root".as_ptr()), || {
+			"cannot remove real-root directory".to_owned()
+		})?;
 		if !spec.allow_new_privileges {
-			check(libc::prctl(libc::PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0), || "failed to set PR_SET_NO_NEW_PRIVS".to_owned())?;
+			check(libc::prctl(libc::PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0), || {
+				"failed to set PR_SET_NO_NEW_PRIVS".to_owned()
+			})?;
 		}
 	}
 	if spec.filter_syscalls {
@@ -738,7 +880,8 @@ fn bring_up_loopback() -> io::Result<()> {
 		for (i, b) in b"lo".iter().enumerate() {
 			ifr.ifr_name[i] = *b as libc::c_char;
 		}
-		ifr.ifr_ifru.ifru_flags = (libc::IFF_UP | libc::IFF_LOOPBACK | libc::IFF_RUNNING) as libc::c_short;
+		ifr.ifr_ifru.ifru_flags =
+			(libc::IFF_UP | libc::IFF_LOOPBACK | libc::IFF_RUNNING) as libc::c_short;
 		let ret = libc::ioctl(fd, libc::SIOCSIFFLAGS, &ifr);
 		libc::close(fd);
 		check(ret, || "cannot set loopback interface flags".to_owned())
@@ -749,17 +892,36 @@ fn bring_up_loopback() -> io::Result<()> {
 /// directories and files, and copy symlinks.
 fn do_bind(root: &Path, bind: &Bind) -> io::Result<()> {
 	let rel = bind.target.strip_prefix("/").unwrap_or(&bind.target);
-	if rel.as_os_str().is_empty() || rel.components().any(|c| matches!(c, std::path::Component::ParentDir)) {
-		return Err(io::Error::other(format!("invalid path to bind mount in the chroot: '{}'", bind.target.display())));
+	if rel.as_os_str().is_empty()
+		|| rel
+			.components()
+			.any(|c| matches!(c, std::path::Component::ParentDir))
+	{
+		return Err(io::Error::other(format!(
+			"invalid path to bind mount in the chroot: '{}'",
+			bind.target.display()
+		)));
 	}
 	let target = root.join(rel);
 	let metadata = match fs::symlink_metadata(&bind.source) {
 		Ok(m) => m,
-		Err(e) if bind.optional && matches!(e.kind(), io::ErrorKind::NotFound | io::ErrorKind::NotADirectory) => {
+		Err(e)
+			if bind.optional
+				&& matches!(
+					e.kind(),
+					io::ErrorKind::NotFound | io::ErrorKind::NotADirectory
+				) =>
+		{
 			return Ok(());
 		}
 		Err(e) => {
-			return Err(io::Error::new(e.kind(), format!("getting attributes of path '{}': {e}", bind.source.display())));
+			return Err(io::Error::new(
+				e.kind(),
+				format!(
+					"getting attributes of path '{}': {e}",
+					bind.source.display()
+				),
+			));
 		}
 	};
 	if let Some(parent) = target.parent() {
@@ -769,13 +931,37 @@ fn do_bind(root: &Path, bind: &Bind) -> io::Result<()> {
 	let ctarget = cpath(&target)?;
 	if metadata.is_dir() {
 		fs::create_dir_all(&target)?;
-		mount(Some(&source), &ctarget, Some(c""), libc::MS_BIND | libc::MS_REC, None)
-			.map_err(|e| io::Error::other(format!("bind mount from '{}' to '{}' failed: {e}", bind.source.display(), target.display())))
+		mount(
+			Some(&source),
+			&ctarget,
+			Some(c""),
+			libc::MS_BIND | libc::MS_REC,
+			None,
+		)
+		.map_err(|e| {
+			io::Error::other(format!(
+				"bind mount from '{}' to '{}' failed: {e}",
+				bind.source.display(),
+				target.display()
+			))
+		})
 	} else if metadata.file_type().is_symlink() {
 		std::os::unix::fs::symlink(fs::read_link(&bind.source)?, &target)
 	} else {
 		File::options().write(true).create_new(true).open(&target)?;
-		mount(Some(&source), &ctarget, Some(c""), libc::MS_BIND | libc::MS_REC, None)
-			.map_err(|e| io::Error::other(format!("bind mount from '{}' to '{}' failed: {e}", bind.source.display(), target.display())))
+		mount(
+			Some(&source),
+			&ctarget,
+			Some(c""),
+			libc::MS_BIND | libc::MS_REC,
+			None,
+		)
+		.map_err(|e| {
+			io::Error::other(format!(
+				"bind mount from '{}' to '{}' failed: {e}",
+				bind.source.display(),
+				target.display()
+			))
+		})
 	}
 }

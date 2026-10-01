@@ -1277,6 +1277,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "nix-rs-build"
+version = "0.1.0"
+dependencies = [
+ "bstr",
+ "libc",
+ "nix-rs-compat",
+ "nix-rs-store",
+ "serde_json",
+ "sha2",
+ "tempfile",
+ "thiserror",
+ "tracing",
+]
+
+[[package]]
 name = "nix-rs-cli"
 version = "0.1.1"
 dependencies = [
@@ -1465,7 +1480,9 @@ dependencies = [
 name = "nixrs-compat-tests"
 version = "0.1.0"
 dependencies = [
+ "bstr",
  "data-encoding",
+ "nix-rs-build",
  "nix-rs-compat",
  "nix-rs-eval",
  "nix-rs-store",

@@ -17,12 +17,12 @@ Every copied fixture file has a classification in `crates/compat-tests/expectati
 - A `table` or `pass` entry names a test that does not refer to the fixture's directory.
 - A `pass` entry's test does not name each file it claims.
 
-On 2026-09-30 the 1,916 files were classified as follows:
+On 2026-10-02 the 1,916 files were classified as follows:
 
-- 1,134 are in per-file tables: 992 language, 58 worker-protocol, 20 path-info and nar-info, 18 derivation JSON, 17 store JSON, 14 derivation ATerm, 12 realisation and build-result, and 3 fetcher public-key files.
+- 1,140 are in per-file tables: 992 language, 58 worker-protocol, 20 path-info and nar-info, 18 derivation JSON, 17 store JSON, 14 derivation ATerm, 12 realisation and build-result, 6 derivation options, and 3 fetcher public-key files.
 - 69 pass: the malformed NARs, six Git object files, the BLAKE3 and SHA-256 hash JSON files, 28 shared common and serve protocol files, and 25 additional serve value and handshake files.
 - 13 are reference anomalies: `hash/sha512.json` contains a SHA-256 hash because CppNix 2.35.2's `HashJSON` test constructs SHA-256 for its `sha512` row; twelve old hash-based common and serve drv-output and realisation files are absent from the pinned C++ tests.
-- 697 are unrun.
+- 691 are unrun.
 - 3 are ignored.
 
 The seven shared primitive cases in each of the common and serve protocol fixture groups decode and re-encode byte for byte in `upstream_shared_protocols`. Their 28 binary and JSON files are classified as passing. The six remaining common-protocol drv-output and realisation files are stale: neither the pinned test nor the common codecs names those types, while worker and serve use their own versioned realisation codecs. An inventory test guards all 20 common files and confirms which stems the pinned C++ test names. These anomalies are not runtime passes or exclusions of realisation behavior from the compatibility gate. Store-reference, git hashing data, and every shell and NixOS test outside `lang` remain unrun.
@@ -50,6 +50,8 @@ The hash-modulo lookup now distinguishes a regular derivation's single digest fr
 Differences from 2.35.2 that remain:
 
 - JSON output cannot represent non-UTF-8 output names and returns an error for them; ATerm retains the original bytes.
+
+`crates/compat-tests/tests/upstream_derivation_options.rs` checks `nix-rs-build`'s derivation options against the six `derivation-options` JSON fixtures and CppNix 2.35.2's `derivation-advanced-attrs.cc`. Each fixture reads and writes byte for byte, and the four input-addressed ones also read as `DerivationOptions<StorePath>`. The four input-addressed advanced-attributes derivations, parsed from ATerm, produce the JSON of the fixture CppNix compares them with, along with the same required system features, substitution decision, and `uid-range` use. The four content-addressed ones do too, with `ca-derivations` enabled and placeholders mapped to the input outputs they stand for. Their floating outputs are not accepted by the ATerm parser yet, so their environment and inputs come from the equivalent derivation JSON fixtures. Without `ca-derivations`, a placeholder in a reference check is read as an output name and one in `exportReferencesGraph` is rejected as a path outside the store, as CppNix does. Nested placeholders for outputs of dynamic derivations are not supported, and these options are not yet applied to a build.
 
 The masked-hash, `bad-ca-fixed-path.drv`, and `windows-store-dir.drv` fixtures are absent from 2.35.2, and their tests were removed with the refresh. These checks cover narrow format behavior, not complete derivation or store compatibility.
 
@@ -125,7 +127,7 @@ The copied shell suite needs an isolated test store and compatible executables b
 
 ## System tests
 
-The unpublished `nix-rs-store` preview also has isolated local-store comparisons in `crates/compat-tests/tests/reference_store.rs`. On 2026-10-01, its five cases passed with `NIXRS_REFERENCE_BIN=/nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2/bin`. They check fresh-store layout, path/NAR metadata, import validation, reference-created data read by nix-rs, nix-rs-created data reopened and verified by CppNix, cycles, and vanished paths. Each case uses temporary store roots and empty configuration; these are not tests against the host's live store or the stateful qualification VM. The two store unit tests pass too. This evidence does not qualify garbage collection, schema migration coverage, concurrent writers, interrupted writes, daemon ownership handoff, or whole-system rollback. The `nix-rs-build` files are still an unintegrated draft without a crate entry point and have no build-engine qualification evidence.
+The unpublished `nix-rs-store` preview also has isolated local-store comparisons in `crates/compat-tests/tests/reference_store.rs`. On 2026-10-01, its five cases passed with `NIXRS_REFERENCE_BIN=/nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2/bin`. They check fresh-store layout, path/NAR metadata, import validation, reference-created data read by nix-rs, nix-rs-created data reopened and verified by CppNix, cycles, and vanished paths. Each case uses temporary store roots and empty configuration; these are not tests against the host's live store or the stateful qualification VM. The two store unit tests pass too. This evidence does not qualify garbage collection, schema migration coverage, concurrent writers, interrupted writes, daemon ownership handoff, or whole-system rollback. `nix-rs-build` is a workspace member whose derivation options are checked against the reference fixtures, but its sandbox has not run a build and it has no build-engine qualification evidence.
 
 The flake check `vm`, run with `just vm-test`, boots a NixOS machine from the root flake's Nixpkgs. The machine's `nix.package` is the `nix-reference` input, 2.35.2, and the flake's `nixrs` package is installed beside it. [`tests/vm/test-script.py`](../tests/vm/test-script.py) checks only what the host-side tests cannot:
 

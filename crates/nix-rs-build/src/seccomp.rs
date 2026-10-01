@@ -34,10 +34,19 @@ enum Rule {
 fn rules(chmod: [u32; 4], xattrs: [u32; 9]) -> Vec<Rule> {
 	let [chmod_nr, fchmod, fchmodat, fchmodat2] = chmod;
 	let mut rules = vec![
-		Rule::SetidMode { nr: chmod_nr, arg: 1 },
+		Rule::SetidMode {
+			nr: chmod_nr,
+			arg: 1,
+		},
 		Rule::SetidMode { nr: fchmod, arg: 1 },
-		Rule::SetidMode { nr: fchmodat, arg: 2 },
-		Rule::SetidMode { nr: fchmodat2, arg: 2 },
+		Rule::SetidMode {
+			nr: fchmodat,
+			arg: 2,
+		},
+		Rule::SetidMode {
+			nr: fchmodat2,
+			arg: 2,
+		},
 	];
 	rules.extend(xattrs.map(|nr| Rule::NoXattr { nr }));
 	rules
@@ -51,15 +60,25 @@ fn program() -> Vec<libc::sock_filter> {
 	// chmod, fchmod, fchmodat, fchmodat2; then setxattr, lsetxattr,
 	// fsetxattr, getxattr, lgetxattr, fgetxattr, listxattr, llistxattr,
 	// flistxattr.
-	let x86_64 = rules([90, 91, 268, 452], [188, 189, 190, 191, 192, 193, 194, 195, 196]);
+	let x86_64 = rules(
+		[90, 91, 268, 452],
+		[188, 189, 190, 191, 192, 193, 194, 195, 196],
+	);
 	let x32 = rules(
 		[90, 91, 268, 452].map(|n| n | X32_SYSCALL_BIT),
 		[188, 189, 190, 191, 192, 193, 194, 195, 196].map(|n| n | X32_SYSCALL_BIT),
 	);
-	let i386 = rules([15, 94, 306, 452], [226, 227, 228, 229, 230, 231, 232, 233, 234]);
+	let i386 = rules(
+		[15, 94, 306, 452],
+		[226, 227, 228, 229, 230, 231, 232, 233, 234],
+	);
 
 	let mut prog = Vec::new();
-	for (arch, rules) in [(AUDIT_ARCH_X86_64, x86_64), (AUDIT_ARCH_X86_64, x32), (AUDIT_ARCH_I386, i386)] {
+	for (arch, rules) in [
+		(AUDIT_ARCH_X86_64, x86_64),
+		(AUDIT_ARCH_X86_64, x32),
+		(AUDIT_ARCH_I386, i386),
+	] {
 		for rule in rules {
 			match rule {
 				Rule::SetidMode { nr, arg } => {
@@ -70,15 +89,30 @@ fn program() -> Vec<libc::sock_filter> {
 					prog.push(insn(BPF_LD_W_ABS, 0, 0, OFFSET_NR));
 					prog.push(insn(BPF_JMP_JEQ_K, 0, 3, nr));
 					prog.push(insn(BPF_LD_W_ABS, 0, 0, offset_arg_low(arg)));
-					prog.push(insn(BPF_JMP_JSET_K, 0, 1, (libc::S_ISUID | libc::S_ISGID) as u32));
-					prog.push(insn(BPF_RET_K, 0, 0, SECCOMP_RET_ERRNO | libc::EPERM as u32));
+					prog.push(insn(
+						BPF_JMP_JSET_K,
+						0,
+						1,
+						(libc::S_ISUID | libc::S_ISGID) as u32,
+					));
+					prog.push(insn(
+						BPF_RET_K,
+						0,
+						0,
+						SECCOMP_RET_ERRNO | libc::EPERM as u32,
+					));
 				}
 				Rule::NoXattr { nr } => {
 					prog.push(insn(BPF_LD_W_ABS, 0, 0, OFFSET_ARCH));
 					prog.push(insn(BPF_JMP_JEQ_K, 0, 3, arch));
 					prog.push(insn(BPF_LD_W_ABS, 0, 0, OFFSET_NR));
 					prog.push(insn(BPF_JMP_JEQ_K, 0, 1, nr));
-					prog.push(insn(BPF_RET_K, 0, 0, SECCOMP_RET_ERRNO | libc::ENOTSUP as u32));
+					prog.push(insn(
+						BPF_RET_K,
+						0,
+						0,
+						SECCOMP_RET_ERRNO | libc::ENOTSUP as u32,
+					));
 				}
 			}
 		}
@@ -106,7 +140,10 @@ pub fn install() -> io::Result<()> {
 	};
 	if ret == -1 {
 		let error = io::Error::last_os_error();
-		return Err(io::Error::new(error.kind(), format!("unable to load seccomp BPF program: {error}")));
+		return Err(io::Error::new(
+			error.kind(),
+			format!("unable to load seccomp BPF program: {error}"),
+		));
 	}
 	Ok(())
 }
@@ -129,7 +166,11 @@ mod tests {
 			match insn.code {
 				BPF_LD_W_ABS => acc = word(insn.k),
 				BPF_JMP_JEQ_K | BPF_JMP_JSET_K => {
-					let taken = if insn.code == BPF_JMP_JEQ_K { acc == insn.k } else { acc & insn.k != 0 };
+					let taken = if insn.code == BPF_JMP_JEQ_K {
+						acc == insn.k
+					} else {
+						acc & insn.k != 0
+					};
 					pc += usize::from(if taken { insn.jt } else { insn.jf });
 				}
 				BPF_RET_K => return insn.k,
@@ -150,7 +191,10 @@ mod tests {
 		assert_eq!(x86_64(90, [0, 0o755, 0, 0, 0, 0]), SECCOMP_RET_ALLOW);
 		assert_eq!(x86_64(268, [0, 0, 0o644, 0, 0, 0]), SECCOMP_RET_ALLOW);
 		assert_eq!(x86_64(90, [0, setuid | 0o755, 0, 0, 0, 0]), eperm);
-		assert_eq!(x86_64(268, [0, 0, u64::from(libc::S_ISGID), 0, 0, 0]), eperm);
+		assert_eq!(
+			x86_64(268, [0, 0, u64::from(libc::S_ISGID), 0, 0, 0]),
+			eperm
+		);
 		assert_eq!(x86_64(188, [0; 6]), enotsup);
 		assert_eq!(x86_64(90 | X32_SYSCALL_BIT, [0, setuid, 0, 0, 0, 0]), eperm);
 		// i386 numbers: chmod is 15, while 90 is mmap there.

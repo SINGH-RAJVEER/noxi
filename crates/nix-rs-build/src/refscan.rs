@@ -92,7 +92,10 @@ impl Write for RefScanSink {
 
 /// The candidates whose hash parts occur in the NAR serialisation of
 /// `path`.
-pub fn scan_for_references(path: &Path, candidates: &BTreeSet<StorePath>) -> io::Result<BTreeSet<StorePath>> {
+pub fn scan_for_references(
+	path: &Path,
+	candidates: &BTreeSet<StorePath>,
+) -> io::Result<BTreeSet<StorePath>> {
 	let mut sink = RefScanSink::new(candidates);
 	nix_rs_store::nar::dump_path(&mut sink, path)?;
 	Ok(sink.finish())
