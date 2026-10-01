@@ -1,10 +1,14 @@
 [package]
-name = "nix-compat-derive"
+name = "nix-rs-compat-derive"
 version = "0.1.0"
 edition = "2024"
 rust-version.workspace = true
+description = "Procedural macros for nix-rs Nix protocol serialization, derived from Snix"
+license = "GPL-3.0-only"
+repository = "https://github.com/SINGH-RAJVEER/nix-rs"
 
 [lib]
+name = "nix_compat_derive"
 proc-macro = true
 
 [dependencies]
@@ -13,6 +17,7 @@ quote = { workspace = true, features = ["proc-macro"] }
 syn = { version = "2.0.76", features = ["full", "extra-traits"] }
 
 [dev-dependencies.nix-compat]
+package = "nix-rs-compat"
 path = "../nix-compat"
 default-features = false
 features = ["async", "wire", "test"]

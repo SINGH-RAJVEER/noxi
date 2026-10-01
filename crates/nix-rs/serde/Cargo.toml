@@ -3,8 +3,11 @@ name = "nix-rs-serde"
 version = "0.1.0"
 edition = "2024"
 rust-version.workspace = true
+description = "Serialize and deserialize Nix values with serde, derived from Snix serde"
+license = "GPL-3.0-only"
+repository = "https://github.com/SINGH-RAJVEER/nix-rs"
 
 [dependencies]
-nix-rs-eval = { path = "../eval" }
+nix-rs-eval = { path = "../eval", version = "0.2.0" }
 serde = { workspace = true, features = ["derive"] }
 bstr = { workspace = true, features = ["serde"] }

@@ -28,7 +28,7 @@
 				in
 				rustPlatform.buildRustPackage {
 					pname = "nixrs-preview";
-					version = "0.1.0";
+					version = "0.1.1";
 					# Only what Cargo reads, so editing docs or the VM test script does
 					# not rebuild the binary the VM test installs.
 					src = pkgs.lib.fileset.toSource {

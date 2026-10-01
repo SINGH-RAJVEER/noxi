@@ -12,7 +12,7 @@ tempfile.workspace = true
 
 [dev-dependencies]
 nix-rs-eval = { path = "../nix-rs/eval", default-features = false, features = ["impure"] }
-nix-compat = { path = "../nix-rs/nix-compat", features = ["serde", "daemon"] }
+nix-compat = { package = "nix-rs-compat", path = "../nix-rs/nix-compat", features = ["serde", "daemon"] }
 data-encoding.workspace = true
 tokio = { workspace = true, features = ["io-util", "macros", "rt"] }
 serde_json.workspace = true
