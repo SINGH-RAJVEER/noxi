@@ -5,13 +5,16 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::io::{Read, Write};
 
 use nix_compat::nixbase32;
+use nix_compat::nixhash::HashAlgo;
 use nix_compat::store_path::StorePath;
+use nix_rs_build::local::{BuildEvent, LocalBuilder};
 use nix_rs_build::missing::{DerivedPath, query_missing};
+use nix_rs_store::FileIngestionMethod;
 use nix_rs_store::{LocalStore, ValidPathInfo};
 
 use crate::error::{Error, Result};
 use crate::settings::DaemonSettings;
-use crate::wire::{Reader, Version, Writer, version};
+use crate::wire::{FramedReader, Reader, Version, Writer, version};
 
 pub const WORKER_MAGIC_1: u64 = 0x6e697863;
 pub const WORKER_MAGIC_2: u64 = 0x6478696f;
@@ -42,6 +45,12 @@ pub const LVL_INFO: u64 = 3;
 /// Worker operations, `WorkerProto::Op`.
 pub mod op {
 	pub const IS_VALID_PATH: u64 = 1;
+	pub const ADD_TO_STORE: u64 = 7;
+	pub const ADD_TEXT_TO_STORE: u64 = 8;
+	pub const BUILD_PATHS: u64 = 9;
+	pub const ADD_INDIRECT_ROOT: u64 = 12;
+	pub const BUILD_PATHS_WITH_RESULTS: u64 = 46;
+	pub const ADD_PERM_ROOT: u64 = 47;
 	pub const QUERY_REFERRERS: u64 = 6;
 	pub const ENSURE_PATH: u64 = 10;
 	pub const ADD_TEMP_ROOT: u64 = 11;
@@ -68,7 +77,32 @@ pub struct Logger {
 	pending: Vec<Vec<u8>>,
 	pub verbosity: u64,
 	version: Version,
+	next_activity: u64,
 }
+
+/// A field of an activity or result, `Logger::Field`.
+pub enum Field<'a> {
+	Int(u64),
+	Str(&'a str),
+}
+
+fn write_fields<W: Write>(out: &mut Writer<W>, fields: &[Field<'_>]) {
+	out.u64(fields.len() as u64);
+	for field in fields {
+		match field {
+			Field::Int(n) => {
+				out.u64(0).u64(*n);
+			}
+			Field::Str(s) => {
+				out.u64(1).string(s);
+			}
+		}
+	}
+}
+
+/// `ActivityType` and `ResultType` values.
+pub const ACT_BUILD: u64 = 105;
+pub const RES_BUILD_LOG_LINE: u64 = 101;
 
 impl Logger {
 	fn new(version: Version) -> Self {
@@ -77,6 +111,7 @@ impl Logger {
 			pending: Vec::new(),
 			verbosity: 3,
 			version,
+			next_activity: 0,
 		}
 	}
 
@@ -107,6 +142,51 @@ impl Logger {
 			LVL_WARN,
 			&format!("\x1b[35;1mwarning:\x1b[0m {message}"),
 		)
+	}
+
+	/// `startActivity`; returns the activity's ID.
+	pub fn start_activity<W: Write>(
+		&mut self,
+		out: &mut Writer<W>,
+		level: u64,
+		kind: u64,
+		text: &str,
+		fields: &[Field<'_>],
+	) -> Result<u64> {
+		self.next_activity += 1;
+		let id = (u64::from(std::process::id()) << 32) + self.next_activity;
+		let mut message = Writer::new(std::io::sink());
+		message
+			.u64(STDERR_START_ACTIVITY)
+			.u64(id)
+			.u64(level)
+			.u64(kind)
+			.string(text);
+		write_fields(&mut message, fields);
+		message.u64(0);
+		self.enqueue(out, message.take())?;
+		Ok(id)
+	}
+
+	/// `stopActivity`.
+	pub fn stop_activity<W: Write>(&mut self, out: &mut Writer<W>, id: u64) -> Result<()> {
+		let mut message = Writer::new(std::io::sink());
+		message.u64(STDERR_STOP_ACTIVITY).u64(id);
+		self.enqueue(out, message.take())
+	}
+
+	/// `result`.
+	pub fn result<W: Write>(
+		&mut self,
+		out: &mut Writer<W>,
+		id: u64,
+		kind: u64,
+		fields: &[Field<'_>],
+	) -> Result<()> {
+		let mut message = Writer::new(std::io::sink());
+		message.u64(STDERR_RESULT).u64(id).u64(kind);
+		write_fields(&mut message, fields);
+		self.enqueue(out, message.take())
 	}
 
 	pub fn start_work<W: Write>(&mut self, out: &mut Writer<W>) -> Result<()> {
@@ -160,7 +240,7 @@ pub struct Connection<'a, R: Read, W: Write> {
 
 /// `BasicServerConnection::handshake` and `postHandshake`, then the
 /// operation loop.
-pub fn process_connection<R: Read, W: Write>(
+pub fn process_connection<R: Read + Send, W: Write>(
 	read: R,
 	write: W,
 	store: &LocalStore,
@@ -261,7 +341,7 @@ fn nar_hash_base16(info: &ValidPathInfo) -> String {
 	info.nar_hash.iter().map(|b| format!("{b:02x}")).collect()
 }
 
-impl<R: Read, W: Write> Connection<'_, R, W> {
+impl<R: Read + Send, W: Write> Connection<'_, R, W> {
 	fn start(&mut self) -> Result<()> {
 		self.logger.start_work(&mut self.to)
 	}
@@ -466,7 +546,255 @@ impl<R: Read, W: Write> Connection<'_, R, W> {
 					.u64(missing.download_size)
 					.u64(missing.nar_size);
 			}
+			op::ADD_TO_STORE => self.add_to_store()?,
+			op::ADD_TEXT_TO_STORE => {
+				let suffix = self.from.read_string()?;
+				let contents = self.from.read_bytes()?;
+				let refs = self.from.read_store_paths()?;
+				self.start()?;
+				let path = self
+					.store
+					.add_text_to_store(&suffix, &contents, &refs, false)?;
+				self.stop();
+				self.to.store_path(&path);
+			}
+			op::ADD_INDIRECT_ROOT => {
+				let path = absolute(&self.from.read_string()?);
+				self.start()?;
+				self.store.add_indirect_root(&path)?;
+				self.stop();
+				self.to.u64(1);
+			}
+			op::ADD_PERM_ROOT => {
+				if self.trust != Trust::Trusted {
+					return Err(Error::Nix(
+						"you are not privileged to create perm roots\n\nhint: you can just do this client-side without special privileges, and probably want to do that instead.".into(),
+					));
+				}
+				let path = self.from.read_store_path()?;
+				let root = absolute(&self.from.read_string()?);
+				self.start()?;
+				let root = self.store.add_perm_root(&path, &root)?;
+				self.stop();
+				self.to.string(&root.to_string_lossy());
+			}
+			op::BUILD_PATHS | op::BUILD_PATHS_WITH_RESULTS => self.build_paths(op)?,
 			op => return Err(Error::Nix(format!("invalid operation {op}"))),
+		}
+		Ok(())
+	}
+
+	fn read_derived_paths(&mut self) -> Result<Vec<(String, DerivedPath)>> {
+		let n = self.from.read_u64()?;
+		let mut targets = Vec::new();
+		for _ in 0..n {
+			let s = self.from.read_string()?;
+			let path = DerivedPath::parse_legacy(&s, |p| {
+				crate::wire::parse_store_path(p)
+					.map_err(|e| nix_rs_build::BuildError::Other(e.to_string()))
+			})
+			.map_err(|e| Error::Nix(e.to_string()))?;
+			targets.push((s, path));
+		}
+		Ok(targets)
+	}
+
+	/// `WorkerProto::Op::AddToStore` for protocol 1.25 and later.
+	fn add_to_store(&mut self) -> Result<()> {
+		if self.version < version(1, 25) {
+			return Err(Error::Nix(
+				"AddToStore before protocol 1.25 is not supported".into(),
+			));
+		}
+		let name = self.from.read_string()?;
+		let method = self.from.read_string()?;
+		let refs = self.from.read_store_paths()?;
+		let repair = self.from.read_bool()?;
+		self.start()?;
+		let (dump, hash, algo) = parse_method_algo(&method);
+		let result = {
+			let mut source = FramedReader::new(&mut self.from);
+			let result = match (dump, hash, algo) {
+				(Some(dump), Some(hash), Some(algo)) => self
+					.store
+					.add_to_store_from_dump(&mut source, &name, dump, hash, algo, &refs, repair)
+					.map_err(Error::from),
+				_ => Err(Error::Nix(format!(
+					"content address method '{method}' is not supported"
+				))),
+			};
+			source.drain()?;
+			result
+		};
+		let path = result?;
+		let info = self.query_path_info(&path)?;
+		self.stop();
+		self.to.store_path(&path);
+		self.write_path_info(&info);
+		Ok(())
+	}
+
+	/// `BuildPaths` and `BuildPathsWithResults`.
+	fn build_paths(&mut self, op: u64) -> Result<()> {
+		let targets = self.read_derived_paths()?;
+		let mode = self.from.read_u64()?;
+		if mode == 1 && self.trust != Trust::Trusted {
+			return Err(Error::Nix(
+				"repairing is not allowed because you are not in 'trusted-users'".into(),
+			));
+		}
+		if mode != 0 {
+			return Err(Error::Nix(
+				"nix-rs does not support repairing or checking builds yet".into(),
+			));
+		}
+		self.start()?;
+		let store = self.store;
+		let settings = self.settings;
+		let builder =
+			LocalBuilder::new(store, &settings.build).with_substituters(&settings.substituters);
+		let mut results = Vec::new();
+		let mut first_error = None;
+		for (text, target) in &targets {
+			let started = now();
+			let result = match target {
+				DerivedPath::Opaque(path) => {
+					if store.is_valid_path(path)? {
+						Ok(BuildOutcome::AlreadyValid(BTreeMap::new()))
+					} else {
+						store
+							.substitute(&settings.substituters, path)
+							.map(|()| BuildOutcome::Substituted(BTreeMap::new()))
+							.map_err(|e| (e.to_string(), 14))
+					}
+				}
+				DerivedPath::Built { drv_path, outputs } => {
+					let mut built = false;
+					let mut io_error = None;
+					let mut buffers: BTreeMap<StorePath, (u64, LineBuffer)> = BTreeMap::new();
+					let logger = &mut self.logger;
+					let to = &mut self.to;
+					let mut events = |event: BuildEvent<'_>| {
+						let result = (|| -> Result<()> {
+							match event {
+								BuildEvent::Started { drv_path } => {
+									built = true;
+									let path = drv_path.to_absolute_path();
+									let id = logger.start_activity(
+										to,
+										LVL_INFO,
+										ACT_BUILD,
+										&format!("building '{path}'"),
+										&[
+											Field::Str(&path),
+											Field::Str(""),
+											Field::Int(1),
+											Field::Int(1),
+										],
+									)?;
+									buffers.insert(drv_path.clone(), (id, LineBuffer::default()));
+								}
+								BuildEvent::Output(data) => {
+									if let Some((id, buffer)) = buffers.values_mut().last() {
+										for line in buffer.feed(data) {
+											logger.result(
+												to,
+												*id,
+												RES_BUILD_LOG_LINE,
+												&[Field::Str(&String::from_utf8_lossy(&line))],
+											)?;
+										}
+									}
+								}
+								BuildEvent::Finished { drv_path, .. } => {
+									if let Some((id, mut buffer)) = buffers.remove(drv_path) {
+										if let Some(line) = buffer.flush() {
+											logger.result(
+												to,
+												id,
+												RES_BUILD_LOG_LINE,
+												&[Field::Str(&String::from_utf8_lossy(&line))],
+											)?;
+										}
+										logger.stop_activity(to, id)?;
+									}
+								}
+							}
+							Ok(())
+						})();
+						if let Err(e) = result {
+							io_error.get_or_insert(e);
+						}
+					};
+					let result =
+						builder.realise_with_events(drv_path, outputs.as_ref(), &mut events);
+					if let Some(e) = io_error {
+						return Err(e);
+					}
+					match result {
+						Ok(paths) => {
+							let wanted: BTreeMap<String, StorePath> = paths
+								.into_iter()
+								.filter(|(name, _)| {
+									outputs.as_ref().is_none_or(|o| o.contains(name))
+								})
+								.collect();
+							Ok(if built {
+								BuildOutcome::Built(wanted)
+							} else {
+								BuildOutcome::AlreadyValid(wanted)
+							})
+						}
+						Err(e) => Err((e.to_string(), failure_code(&e))),
+					}
+				}
+			};
+			if let Err((message, _)) = &result {
+				first_error.get_or_insert(message.clone());
+			}
+			results.push((text.clone(), result, started, now()));
+		}
+		if op == op::BUILD_PATHS {
+			if let Some(message) = first_error {
+				return Err(Error::Nix(message));
+			}
+			self.stop();
+			self.to.u64(1);
+			return Ok(());
+		}
+		self.stop();
+		self.to.u64(results.len() as u64);
+		for (text, result, start, stop) in results {
+			self.to.string(&text);
+			let (status, message, outputs, times_built) = match result {
+				Ok(BuildOutcome::Built(outputs)) => (0, String::new(), outputs, 1),
+				Ok(BuildOutcome::Substituted(outputs)) => (1, String::new(), outputs, 0),
+				Ok(BuildOutcome::AlreadyValid(outputs)) => (2, String::new(), outputs, 0),
+				Err((message, code)) => (code, message, BTreeMap::new(), 0),
+			};
+			self.to.u64(status).string(&message);
+			if self.version >= version(1, 29) {
+				self.to.u64(times_built).bool(false).u64(start).u64(stop);
+			}
+			if self.version >= version(1, 37) {
+				self.to.u64(0).u64(0);
+			}
+			if self.features.contains("realisation-with-path-not-hash") {
+				self.to.u64(outputs.len() as u64);
+				for (name, path) in &outputs {
+					self.to.string(name).store_path(path).u64(0);
+				}
+			} else if self.version >= version(1, 28) {
+				self.to.u64(outputs.len() as u64);
+				let dummy =
+					"sha256:0000000000000000000000000000000000000000000000000000000000000000";
+				for (name, path) in &outputs {
+					let id = format!("{dummy}!{name}");
+					self.to
+						.string(&id)
+						.string(&format!("{{\"id\":\"{id}\",\"outPath\":\"{}\"}}", path));
+				}
+			}
 		}
 		Ok(())
 	}
@@ -548,4 +876,114 @@ impl<R: Read, W: Write> Connection<'_, R, W> {
 /// The hash part of a store path, as `QueryPathFromHashPart` receives it.
 pub fn hash_part(path: &StorePath) -> String {
 	nixbase32::encode(path.digest())
+}
+
+enum BuildOutcome {
+	Built(BTreeMap<String, StorePath>),
+	Substituted(BTreeMap<String, StorePath>),
+	AlreadyValid(BTreeMap<String, StorePath>),
+}
+
+/// The wire code of a failed build's `BuildResult` status.
+fn failure_code(e: &nix_rs_build::BuildError) -> u64 {
+	use nix_rs_build::FailureStatus::*;
+	match e.status() {
+		PermanentFailure => 3,
+		InputRejected => 4,
+		OutputRejected | HashMismatch => 5,
+		TransientFailure => 6,
+		CachedFailure => 7,
+		TimedOut => 8,
+		MiscFailure => 9,
+		DependencyFailed => 10,
+		LogLimitExceeded => 11,
+		NotDeterministic => 12,
+		NoSubstituters => 14,
+	}
+}
+
+fn now() -> u64 {
+	std::time::SystemTime::now()
+		.duration_since(std::time::UNIX_EPOCH)
+		.map(|d| d.as_secs())
+		.unwrap_or(0)
+}
+
+/// `absPath` relative to the daemon's working directory, `/`.
+fn absolute(path: &str) -> std::path::PathBuf {
+	let path = std::path::Path::new(path);
+	if path.is_absolute() {
+		path.to_owned()
+	} else {
+		std::path::Path::new("/").join(path)
+	}
+}
+
+/// `ContentAddressMethod::parseWithAlgo` for the methods the store can
+/// ingest: the dump format, hashing method and algorithm.
+fn parse_method_algo(
+	s: &str,
+) -> (
+	Option<FileIngestionMethod>,
+	Option<FileIngestionMethod>,
+	Option<HashAlgo>,
+) {
+	let (dump, hash, algo) = if let Some(algo) = s.strip_prefix("text:") {
+		(FileIngestionMethod::Flat, FileIngestionMethod::Text, algo)
+	} else if let Some(algo) = s.strip_prefix("fixed:r:") {
+		(
+			FileIngestionMethod::NixArchive,
+			FileIngestionMethod::NixArchive,
+			algo,
+		)
+	} else if let Some(algo) = s.strip_prefix("fixed:") {
+		if algo.starts_with("git:") {
+			return (None, None, None);
+		}
+		(FileIngestionMethod::Flat, FileIngestionMethod::Flat, algo)
+	} else {
+		return (None, None, None);
+	};
+	(Some(dump), Some(hash), algo.parse().ok())
+}
+
+/// Splits builder output into log lines as CppNix's `BuildLog` does: a
+/// carriage return restarts the line.
+#[derive(Default)]
+pub struct LineBuffer {
+	line: Vec<u8>,
+	pos: usize,
+}
+
+impl LineBuffer {
+	pub fn feed(&mut self, data: &[u8]) -> Vec<Vec<u8>> {
+		let mut lines = Vec::new();
+		for &c in data {
+			match c {
+				b'\r' => self.pos = 0,
+				b'\n' => {
+					self.line.truncate(self.pos);
+					lines.push(std::mem::take(&mut self.line));
+					self.pos = 0;
+				}
+				_ => {
+					if self.pos >= self.line.len() {
+						self.line.resize(self.pos + 1, 0);
+					}
+					self.line[self.pos] = c;
+					self.pos += 1;
+				}
+			}
+		}
+		lines
+	}
+
+	pub fn flush(&mut self) -> Option<Vec<u8>> {
+		if self.line.is_empty() {
+			return None;
+		}
+		self.line.truncate(self.pos);
+		self.pos = 0;
+		Some(std::mem::take(&mut self.line))
+	}
 }

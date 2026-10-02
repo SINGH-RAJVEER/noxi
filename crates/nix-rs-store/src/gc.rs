@@ -915,3 +915,77 @@ mod tests {
 		assert_eq!(render_size(1536, true), "   1.5 KiB");
 	}
 }
+
+impl LocalStore {
+	/// `LocalStore::addIndirectRoot`: link
+	/// `gcroots/auto/<nix32(sha1(path))>` to `path`, so the link at `path`
+	/// is a root while it exists.
+	pub fn add_indirect_root(&self, path: &Path) -> Result<()> {
+		use nix_compat::nixhash::{HashAlgo, NixHashDigester};
+		let mut digester = NixHashDigester::new(HashAlgo::Sha1);
+		digester.update(path.as_os_str().as_encoded_bytes());
+		let hash = nixbase32::encode(digester.finalize().digest_as_bytes());
+		let dir = self.config().state_dir.join("gcroots/auto");
+		fs::create_dir_all(&dir)?;
+		replace_symlink(path, &dir.join(hash))
+	}
+
+	/// `IndirectRootStore::addPermRoot`: make `gc_root` a symlink to
+	/// `path` and register it as an indirect root. Returns the link.
+	pub fn add_perm_root(&self, path: &StorePath, gc_root: &Path) -> Result<PathBuf> {
+		if gc_root.starts_with(STORE_DIR) {
+			return Err(Error::Other(format!(
+				"creating a garbage collector root (\"{}\") in the Nix store is forbidden (are you running nix-build inside the store?)",
+				gc_root.display()
+			)));
+		}
+		self.add_temp_root(path)?;
+		if let Ok(metadata) = fs::symlink_metadata(gc_root) {
+			let points_into_store = metadata.file_type().is_symlink()
+				&& fs::read_link(gc_root).is_ok_and(|t| t.starts_with(STORE_DIR));
+			if !points_into_store {
+				return Err(Error::Other(format!(
+					"cannot create symlink \"{}\"; already exists",
+					gc_root.display()
+				)));
+			}
+		}
+		replace_symlink(Path::new(&print(path)), gc_root)?;
+		self.add_indirect_root(gc_root)?;
+		Ok(gc_root.to_owned())
+	}
+}
+
+/// CppNix's `replaceSymlink`: create `link` pointing at `target`
+/// atomically through a temporary name.
+fn replace_symlink(target: &Path, link: &Path) -> Result<()> {
+	let parent = link.parent().unwrap_or(Path::new("/"));
+	let name = link
+		.file_name()
+		.map(|n| n.to_string_lossy().into_owned())
+		.unwrap_or_default();
+	for n in 0.. {
+		let tmp = parent.join(format!(".{n}_{name}"));
+		match std::os::unix::fs::symlink(target, &tmp) {
+			Ok(()) => {}
+			Err(e) if e.kind() == io::ErrorKind::AlreadyExists => continue,
+			Err(e) => {
+				return Err(Error::io(
+					format!(
+						"creating symlink \"{}\" -> \"{}\"",
+						tmp.display(),
+						target.display()
+					),
+					e,
+				));
+			}
+		}
+		return fs::rename(&tmp, link).map_err(|e| {
+			Error::io(
+				format!("renaming \"{}\" to \"{}\"", tmp.display(), link.display()),
+				e,
+			)
+		});
+	}
+	unreachable!()
+}

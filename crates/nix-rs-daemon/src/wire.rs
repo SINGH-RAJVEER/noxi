@@ -75,6 +75,55 @@ impl<R: Read> Reader<R> {
 	}
 }
 
+/// CppNix's `FramedSource`: data sent as length-prefixed frames ending
+/// with an empty frame.
+pub struct FramedReader<'a, R: Read> {
+	from: &'a mut Reader<R>,
+	pending: Vec<u8>,
+	pos: usize,
+	eof: bool,
+}
+
+impl<'a, R: Read> FramedReader<'a, R> {
+	pub fn new(from: &'a mut Reader<R>) -> Self {
+		Self {
+			from,
+			pending: Vec::new(),
+			pos: 0,
+			eof: false,
+		}
+	}
+
+	/// Read and discard the rest of the frames, as `~FramedSource` does.
+	pub fn drain(&mut self) -> Result<()> {
+		let mut sink = [0u8; 65536];
+		while self.read(&mut sink)? != 0 {}
+		Ok(())
+	}
+}
+
+impl<R: Read> Read for FramedReader<'_, R> {
+	fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
+		if self.eof {
+			return Ok(0);
+		}
+		if self.pos >= self.pending.len() {
+			let len = self.from.read_u64().map_err(io::Error::other)? as usize;
+			if len == 0 {
+				self.eof = true;
+				return Ok(0);
+			}
+			self.pending.resize(len, 0);
+			self.from.get_mut().read_exact(&mut self.pending)?;
+			self.pos = 0;
+		}
+		let n = buf.len().min(self.pending.len() - self.pos);
+		buf[..n].copy_from_slice(&self.pending[self.pos..self.pos + n]);
+		self.pos += n;
+		Ok(n)
+	}
+}
+
 /// CppNix's `parseStorePath` and its error messages.
 pub fn parse_store_path(s: &str) -> Result<StorePath> {
 	StorePath::from_absolute_path(s.as_bytes()).map_err(|e| {

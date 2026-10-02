@@ -85,6 +85,12 @@ impl Env {
 		format!("unix://{}", self.root(&format!("{name}.sock")).display())
 	}
 
+	/// The store URL a client uses for daemon `name`: its socket, with the
+	/// root the client reads store files from.
+	fn store_url(&self, name: &str) -> String {
+		format!("{}?root={}", self.socket(name), self.root(name).display())
+	}
+
 	fn new() -> Self {
 		let dir = tempfile::tempdir().unwrap();
 		for sub in ["conf", "home"] {
@@ -156,7 +162,11 @@ impl Env {
 		env.reference_daemon = Some(reference);
 
 		let listener = UnixListener::bind(env.root("nix-rs.sock")).unwrap();
-		let settings = DaemonSettings::new(LocalStoreConfig::with_root(&env.root("nix-rs")));
+		let mut settings = DaemonSettings::new(LocalStoreConfig::with_root(&env.root("nix-rs")));
+		settings.build.sandbox_paths = Vec::new();
+		settings.build.build_cores = 1;
+		// The reference daemon runs with `nix-command` enabled.
+		settings.build.nix_command = true;
 		std::thread::spawn(move || serve(listener, &settings));
 
 		let deadline = Instant::now() + Duration::from_secs(20);
@@ -175,16 +185,19 @@ impl Env {
 	fn compare(&self, program: &str, args: &[&str]) -> Output {
 		let mut outputs = Vec::new();
 		for daemon in ["reference", "nix-rs"] {
-			let socket = self.socket(daemon);
-			let mut full = vec!["--store", socket.as_str()];
-			full.extend_from_slice(args);
+			let url = self.store_url(daemon);
+			let args: Vec<String> = args.iter().map(|a| a.replace("{daemon}", daemon)).collect();
+			let mut full = vec!["--store", url.as_str()];
+			full.extend(args.iter().map(String::as_str));
 			let output = self.run(program, &full);
 			outputs.push(output);
 		}
 		let normalise = |bytes: &[u8], name: &str| {
 			let text = String::from_utf8_lossy(bytes)
 				.replace(&self.root(name).display().to_string(), "ROOT")
-				.replace(&self.socket(name), "SOCKET");
+				.replace(&self.store_url(name), "SOCKET")
+				.replace(&self.socket(name), "SOCKET")
+				.replace(&format!("link-{name}"), "link-DAEMON");
 			// Process IDs in temporary-root file names differ.
 			text.lines()
 				.map(|line| match line.split_once("/temproots/") {
@@ -259,5 +272,50 @@ fn untrusted_clients_get_the_reference_warnings_and_censored_roots() {
 		"{}",
 		String::from_utf8_lossy(&output.stderr)
 	);
+	env.compare("nix-store", &["--gc", "--print-roots"]);
+}
+
+fn write_expr(env: &Env, name: &str, script: &str) -> String {
+	let file = env.dir.path().join(format!("{name}.nix"));
+	fs::write(
+		&file,
+		format!(
+			r#"derivation {{ name = "{name}"; system = "x86_64-linux"; builder = "${{builtins.storePath {}}}/bin/sh"; args = [ "-c" "{script}" ]; }}"#,
+			env.busybox
+		),
+	)
+	.unwrap();
+	file.to_string_lossy().into_owned()
+}
+
+#[test]
+fn builds_through_the_daemon_match_the_reference() {
+	let env = Env::new();
+	let expr = write_expr(
+		&env,
+		"daemon-built",
+		"echo line one; echo line two >&2; printf partial; echo $builder > $out",
+	);
+	let output = env.compare("nix-build", &[&expr, "--no-out-link"]);
+	let out = String::from_utf8(output.stdout).unwrap().trim().to_owned();
+	assert!(out.ends_with("-daemon-built"), "{out}");
+	assert!(String::from_utf8_lossy(&output.stderr).contains("line two"));
+	env.compare("nix", &["path-info", "--json", &out]);
+	env.compare("nix-store", &["-q", "--references", &out]);
+
+	// Building again finds the output valid.
+	env.compare("nix-build", &[&expr, "--no-out-link"]);
+
+	// A failing build reports the same error.
+	let failing = write_expr(&env, "daemon-failed", "echo before failing; exit 7");
+	env.compare("nix-build", &[&failing, "--no-out-link"]);
+}
+
+#[test]
+fn indirect_roots_through_the_daemon_match_the_reference() {
+	let env = Env::new();
+	let expr = write_expr(&env, "daemon-rooted", "echo rooted > $out");
+	let link = env.dir.path().join("link-{daemon}");
+	env.compare("nix-build", &[&expr, "-o", link.to_str().unwrap()]);
 	env.compare("nix-store", &["--gc", "--print-roots"]);
 }

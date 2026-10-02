@@ -44,6 +44,21 @@ fn print(path: &StorePath) -> String {
 	path.to_absolute_path()
 }
 
+/// What happens while realising, for callers that report progress the
+/// way CppNix's build activities do.
+#[derive(Debug)]
+pub enum BuildEvent<'a> {
+	/// A derivation is about to be built.
+	Started { drv_path: &'a StorePath },
+	/// Output from the builder.
+	Output(&'a [u8]),
+	/// The build ended, successfully or with `error`.
+	Finished {
+		drv_path: &'a StorePath,
+		error: Option<&'a BuildError>,
+	},
+}
+
 /// Builds derivations into one local store.
 pub struct LocalBuilder<'a> {
 	store: &'a LocalStore,
@@ -115,8 +130,11 @@ impl<'a> LocalBuilder<'a> {
 		drv_path: &StorePath,
 		log: &mut dyn FnMut(&[u8]),
 	) -> Result<BTreeMap<String, StorePath>> {
-		let mut done = BTreeMap::new();
-		self.realise_inner(drv_path, None, &mut done, &mut Vec::new(), log)
+		self.realise_with_events(drv_path, None, &mut |event| {
+			if let BuildEvent::Output(data) = event {
+				log(data)
+			}
+		})
 	}
 
 	/// Realise the outputs named in `wanted` (`drv^out,dev`) and return the
@@ -128,8 +146,23 @@ impl<'a> LocalBuilder<'a> {
 		wanted: &BTreeSet<String>,
 		log: &mut dyn FnMut(&[u8]),
 	) -> Result<BTreeMap<String, StorePath>> {
+		self.realise_with_events(drv_path, Some(wanted), &mut |event| {
+			if let BuildEvent::Output(data) = event {
+				log(data)
+			}
+		})
+	}
+
+	/// Realise `wanted` outputs (all if `None`), reporting each build's
+	/// start, output and end to `events`.
+	pub fn realise_with_events(
+		&self,
+		drv_path: &StorePath,
+		wanted: Option<&BTreeSet<String>>,
+		events: &mut dyn FnMut(BuildEvent<'_>),
+	) -> Result<BTreeMap<String, StorePath>> {
 		let mut done = BTreeMap::new();
-		self.realise_inner(drv_path, Some(wanted), &mut done, &mut Vec::new(), log)
+		self.realise_inner(drv_path, wanted, &mut done, &mut Vec::new(), events)
 	}
 
 	fn realise_inner(
@@ -138,7 +171,7 @@ impl<'a> LocalBuilder<'a> {
 		wanted: Option<&BTreeSet<String>>,
 		done: &mut BTreeMap<StorePath, BTreeSet<String>>,
 		stack: &mut Vec<StorePath>,
-		log: &mut dyn FnMut(&[u8]),
+		events: &mut dyn FnMut(BuildEvent<'_>),
 	) -> Result<BTreeMap<String, StorePath>> {
 		if stack.contains(drv_path) {
 			return Err(BuildError::Other(format!(
@@ -214,12 +247,18 @@ impl<'a> LocalBuilder<'a> {
 			stack.push(drv_path.clone());
 			for (input, names) in drv.input_derivations() {
 				let names: BTreeSet<String> = names.iter().map(|n| n.to_string()).collect();
-				self.realise_inner(input, Some(&names), done, stack, log)?;
+				self.realise_inner(input, Some(&names), done, stack, events)?;
 			}
 			stack.pop();
 
 			if !self.all_valid(&wanted_outputs)? {
-				self.build(drv_path, &drv, &outputs, log)?;
+				events(BuildEvent::Started { drv_path });
+				let result = self.build(drv_path, &drv, &outputs, events);
+				events(BuildEvent::Finished {
+					drv_path,
+					error: result.as_ref().err(),
+				});
+				result?;
 			}
 		}
 		done.entry(drv_path.clone()).or_default().extend(wanted);
@@ -302,7 +341,7 @@ impl<'a> LocalBuilder<'a> {
 		drv_path: &StorePath,
 		drv: &UnverifiedDerivation,
 		outputs: &BTreeMap<String, KnownOutput>,
-		log: &mut dyn FnMut(&[u8]),
+		events: &mut dyn FnMut(BuildEvent<'_>),
 	) -> Result<()> {
 		let drv_name = drv_path
 			.name()
@@ -409,7 +448,7 @@ impl<'a> LocalBuilder<'a> {
 		}
 
 		let build = Build::start(self, drv_path, outputs, &drv_options, parsed, is_fixed)?;
-		let result = build.run(drv, &env, &input_paths, log).and_then(|()| {
+		let result = build.run(drv, &env, &input_paths, events).and_then(|()| {
 			self.register_outputs(
 				drv_path,
 				drv_name,
@@ -1224,7 +1263,7 @@ impl<'b> Build<'b> {
 		drv: &UnverifiedDerivation,
 		env: &BTreeMap<BString, BString>,
 		input_paths: &BTreeSet<StorePath>,
-		log: &mut dyn FnMut(&[u8]),
+		events: &mut dyn FnMut(BuildEvent<'_>),
 	) -> Result<()> {
 		let settings = self.builder.settings;
 		let store = self.builder.store;
@@ -1310,7 +1349,7 @@ impl<'b> Build<'b> {
 			{
 				write_error.get_or_insert(e);
 			}
-			log(data);
+			events(BuildEvent::Output(data));
 		});
 		tail.flush();
 		if let Some(file) = log_file {

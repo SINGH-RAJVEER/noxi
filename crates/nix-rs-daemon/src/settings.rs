@@ -29,7 +29,12 @@ impl DaemonSettings {
 	pub fn new(store: LocalStoreConfig) -> Self {
 		Self {
 			store,
-			build: BuildSettings::default(),
+			// A daemon worker's logger does not print build output, so
+			// failed builds end with the log tail, as in CppNix.
+			build: BuildSettings {
+				show_log_tail: true,
+				..BuildSettings::default()
+			},
 			substituters: Vec::new(),
 			trusted_substituters: Vec::new(),
 			trusted_users: vec!["root".to_owned()],

@@ -296,6 +296,7 @@ Internal trybuild tests for `nix-compat-derive`.
 
 ### Unreleased
 
+- `LocalStore::add_indirect_root` and `add_perm_root` create `gcroots/auto` links and permanent roots as CppNix does, and `CachedPath` carries the narinfo `FileSize` (2026-10-02).
 - `gc` implements garbage collection after CppNix 2.35.2's `gc.cc`: roots under `gcroots` and `profiles` with indirect and stale `auto` links, live processes' temporary roots (removing stale files), runtime roots from `/proc`, the `keep-outputs` and `keep-derivations` closure rules, deletion of referrers before references under the exclusive `gc.lock`, `max-freed`, `.links` cleanup, and a `gc-socket/socket` server so clients of either implementation can add temporary roots during a collection. `collect_garbage` returns live or dead paths, deletes dead or specific paths, and reports freed bytes as CppNix estimates them (2026-10-02).
 
 ### 0.1.0 - pending publication
@@ -310,12 +311,14 @@ Internal trybuild tests for `nix-compat-derive`.
 
 ### Unreleased
 
+- Builds and store writes over the daemon: `AddToStore` (text, flat and recursive content addresses from a framed source), `AddTextToStore`, `AddIndirectRoot`, `AddPermRoot` for trusted clients, and `BuildPaths` and `BuildPathsWithResults`, which realise through `nix-rs-build` and report each build as an `actBuild` activity with one `resBuildLogLine` result per output line. Failed builds end their error with the log tail, as a CppNix daemon worker's do (2026-10-02).
 - New crate: a Nix daemon library that speaks CppNix 2.35.2's worker protocol over a Unix socket. It performs the 1.38 handshake with feature negotiation, reports trust from peer credentials with `trusted-users`, `allowed-users` and `build-users-group`, forks a process per connection, sends log lines and structured errors on the stderr channel, applies `SetOptions` with CppNix's restricted-setting warnings for untrusted clients, and implements the path, referrer, deriver, derivation-output, validity, hash-part, temporary-root, root-listing, NAR and missing-path queries. Builds, imports, GC and permanent roots are not implemented yet, and there is no `nix-daemon` binary (2026-10-02).
 
 ## nix-rs-build
 
 ### Unreleased
 
+- `LocalBuilder::realise_with_events` reports each build's start, output and end as `BuildEvent`s (2026-10-02).
 - `missing::query_missing` follows CppNix's `queryMissing`: which paths realising some derived paths would build, substitute or not find, with download and NAR sizes (2026-10-02).
 - `LocalBuilder` realises only the outputs a derivation uses from each input derivation, and `realise_outputs` realises the named outputs of a derivation (`drv^out,dev`). Previously every output of every input had to be valid, so a garbage-collected `dev` or `man` output caused the whole input to be rebuilt (2026-10-02).
 
