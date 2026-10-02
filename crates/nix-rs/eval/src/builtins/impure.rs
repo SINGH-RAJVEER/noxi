@@ -48,10 +48,7 @@ mod impure_builtins {
 		let dir = generators::request_read_dir(&co, path).await;
 		let res = dir.into_iter().map(|(name, ftype)| {
 			(
-				// TODO: propagate Vec<u8> or bytes::Bytes into NixString.
-				NixString::from(
-					String::from_utf8(name.to_vec()).expect("parsing file name as string"),
-				),
+				NixString::from(name.as_ref()),
 				Value::from(ftype.to_string()),
 			)
 		});
@@ -98,4 +95,35 @@ pub fn impure_builtins() -> Vec<(&'static str, Value)> {
 	}
 
 	result
+}
+
+#[cfg(all(test, unix))]
+mod tests {
+	use std::ffi::OsStr;
+	use std::os::unix::ffi::OsStrExt;
+
+	use crate::{Evaluation, NixString};
+
+	#[test]
+	fn read_dir_preserves_non_utf8_filename() {
+		let dir = tempfile::tempdir().unwrap();
+		let filename = b"file-\xff";
+		std::fs::write(dir.path().join(OsStr::from_bytes(filename)), b"").unwrap();
+
+		let result = Evaluation::builder_impure()
+			.build()
+			.evaluate(&format!("builtins.readDir {}", dir.path().display()), None);
+		assert!(
+			result.errors.is_empty(),
+			"evaluation failed: {:?}",
+			result.errors
+		);
+
+		let value = result.value.unwrap();
+		let attrs = value.to_attrs().unwrap();
+		assert_eq!(attrs.len(), 1);
+		let (key, file_type) = attrs.iter().next().unwrap();
+		assert_eq!(&key[..], filename);
+		assert_eq!(file_type.to_str().unwrap(), NixString::from("regular"));
+	}
 }

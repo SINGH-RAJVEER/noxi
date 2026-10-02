@@ -1,6 +1,154 @@
 use crate::*;
 use pretty_assertions::assert_matches;
 
+fn underlying_error_kind(mut kind: &ErrorKind) -> &ErrorKind {
+	while let ErrorKind::BytecodeError(error) | ErrorKind::NativeError { err: error, .. } = kind {
+		kind = &error.kind;
+	}
+	kind
+}
+
+#[rstest::rstest]
+#[case("abort")]
+#[case("throw")]
+fn error_builtin_coerces_message(#[case] builtin: &str) {
+	for argument in [
+		r#"{ __toString = _: "coerced"; }"#,
+		r#"{ outPath = "coerced"; }"#,
+		r#"builtins.appendContext "coerced" { "/nix/store/00000000000000000000000000000000-source" = { path = true; }; }"#,
+	] {
+		let expression = format!("{builtin} ({argument})");
+		let result = Evaluation::builder_pure()
+			.build()
+			.evaluate(&expression, None);
+		assert_eq!(result.errors.len(), 1, "{expression}: {:?}", result.errors);
+		match underlying_error_kind(&result.errors[0].kind) {
+			ErrorKind::Abort(message) if builtin == "abort" => assert_eq!(message, "coerced"),
+			ErrorKind::CatchableError(CatchableErrorKind::Throw(message)) if builtin == "throw" => {
+				assert_eq!(message.as_bytes(), b"coerced");
+			}
+			error => panic!("{expression}: unexpected error {error:?}"),
+		}
+	}
+}
+
+#[rstest::rstest]
+#[case("abort")]
+#[case("throw")]
+fn error_builtin_uses_weak_coercion(#[case] builtin: &str) {
+	for argument in ["42", "true", "null", r#"[ "message" ]"#] {
+		let expression = format!("builtins.tryEval ({builtin} ({argument}))");
+		let result = Evaluation::builder_pure()
+			.build()
+			.evaluate(&expression, None);
+		assert_eq!(result.errors.len(), 1, "{expression}: {:?}", result.errors);
+		assert_matches!(
+			underlying_error_kind(&result.errors[0].kind),
+			ErrorKind::NotCoercibleToString { .. }
+		);
+	}
+}
+
+#[rstest::rstest]
+#[case("abort")]
+#[case("throw")]
+fn error_builtin_propagates_coercion_throw(#[case] builtin: &str) {
+	let expression = format!(r#"{builtin} {{ __toString = _: throw "inner"; }}"#);
+	let result = Evaluation::builder_pure()
+		.build()
+		.evaluate(&expression, None);
+	assert_eq!(result.errors.len(), 1);
+	assert_matches!(
+		&result.errors[0].kind,
+		ErrorKind::CatchableError(CatchableErrorKind::Throw(message)) if message.as_bytes() == b"inner"
+	);
+}
+
+#[test]
+fn append_context_adds_and_preserves_dependencies() {
+	let result = Evaluation::builder_pure().build().evaluate(
+		r#"
+		let
+			path = "/nix/store/00000000000000000000000000000000-source";
+			drv = "/nix/store/00000000000000000000000000000000-test.drv";
+			plain = { ${path} = { path = true; }; };
+			outputs = { ${drv} = { allOutputs = true; outputs = [ "out" ]; }; };
+			initial = builtins.appendContext "text" plain;
+			grown = builtins.appendContext initial outputs;
+		in
+			builtins.getContext initial == plain
+			&& builtins.getContext grown == plain // outputs
+			&& builtins.getContext (builtins.appendContext grown plain) == plain // outputs
+			&& builtins.getContext (builtins.appendContext initial {}) == plain
+			&& !(builtins.hasContext (builtins.appendContext "text" {}))
+			&& builtins.unsafeDiscardStringContext grown == "text"
+		"#,
+		None,
+	);
+	assert!(result.errors.is_empty(), "{:?}", result.errors);
+	assert_matches!(result.value, Some(Value::Bool(true)));
+}
+
+// Results checked with the pinned CppNix 2.35.2 reference. Its split uses
+// std::cregex_iterator, including an empty match after a nonempty match.
+#[rstest::rstest]
+#[case("", "abc", r#"[ "" [] "a" [] "b" [] "c" [] "" ]"#)]
+#[case("()", "abc", r#"[ "" [ "" ] "a" [ "" ] "b" [ "" ] "c" [ "" ] "" ]"#)]
+#[case("^", "abc", r#"[ "" [] "abc" ]"#)]
+#[case("$", "abc", r#"[ "abc" [] "" ]"#)]
+#[case("a*", "abc", r#"[ "" [] "" [] "b" [] "c" [] "" ]"#)]
+#[case("b*", "abc", r#"[ "" [] "a" [] "" [] "c" [] "" ]"#)]
+#[case("", "", r#"[ "" [] "" ]"#)]
+#[case("a*", "aa", r#"[ "" [] "" [] "" ]"#)]
+#[case(
+	"",
+	"é",
+	r#"[ "" [] (builtins.substring 0 1 "é") [] (builtins.substring 1 1 "é") [] "" ]"#
+)]
+#[case(
+	"(.)",
+	"é",
+	r#"[ "" [ (builtins.substring 0 1 "é") ] "" [ (builtins.substring 1 1 "é") ] "" ]"#
+)]
+fn split_zero_width_matches(#[case] regex: &str, #[case] text: &str, #[case] expected: &str) {
+	let expression = format!(r#"builtins.split "{regex}" "{text}" == {expected}"#);
+	let result = Evaluation::builder_pure()
+		.build()
+		.evaluate(&expression, None);
+	assert!(
+		result.errors.is_empty(),
+		"{expression}: {:?}",
+		result.errors
+	);
+	assert_matches!(result.value, Some(Value::Bool(true)));
+}
+
+#[rstest::rstest]
+#[case(r#"lengths (builtins.split "" "é") == [ 0 null 1 null 1 null 0 ]"#)]
+#[case(r#"lengths (builtins.split "." "é") == [ 0 null 0 null 0 ]"#)]
+#[case(r#"builtins.split "[[:alpha:]]" "é" == [ "é" ]"#)]
+#[case(r#"lengths (builtins.split "" byte) == [ 0 null 1 null 0 ]"#)]
+#[case(r#"builtins.split "(.)" byte == [ "" [ byte ] "" ]"#)]
+#[case(r#"builtins.split "x" byte == [ byte ]"#)]
+fn split_matches_and_preserves_bytes(#[case] assertion: &str) {
+	// Checked with CppNix 2.35.2, including the invalid UTF-8 substring.
+	let expression = format!(
+		r#"let
+			byte = builtins.substring 0 1 "é";
+			lengths = xs: map (x: if builtins.isString x then builtins.stringLength x else null) xs;
+		in {assertion}"#
+	);
+	let result = Evaluation::builder_pure()
+		.build()
+		.evaluate(&expression, None);
+	assert!(
+		result.errors.is_empty(),
+		"{expression}: {:?}",
+		result.errors
+	);
+	assert_matches!(result.value, Some(Value::Bool(true)));
+}
+
 #[test]
 fn test_source_builtin() {
 	// Test an evaluation with a source-only builtin. The test ensures

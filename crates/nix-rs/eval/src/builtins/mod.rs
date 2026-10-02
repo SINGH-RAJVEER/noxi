@@ -83,9 +83,24 @@ pub async fn coerce_value_to_path(
 #[derive(Debug, Default)]
 struct BuiltinState {
 	regex_cache: RefCell<FxHashMap<String, Regex>>,
+	split_regex_cache: RefCell<FxHashMap<String, regex::bytes::Regex>>,
 }
 
 impl BuiltinState {
+	fn get_split_regex(&self, pattern: &str) -> Result<regex::bytes::Regex, regex::Error> {
+		let mut map = self.split_regex_cache.borrow_mut();
+		Ok(match map.entry(pattern.to_string()) {
+			Entry::Occupied(occupied) => occupied.get().clone(),
+			Entry::Vacant(vacant) => {
+				// CppNix uses std::regex over char iterators, matching individual bytes.
+				let re = regex::bytes::RegexBuilder::new(pattern)
+					.unicode(false)
+					.build()?;
+				vacant.insert(re).clone()
+			}
+		})
+	}
+
 	fn get_regex(&self, pattern: &str) -> Result<Regex, regex::Error> {
 		let mut map = self.regex_cache.borrow_mut();
 		Ok(match map.entry(pattern.to_string()) {
@@ -125,12 +140,18 @@ mod pure_builtins {
 
 	#[builtin("abort")]
 	async fn builtin_abort(co: GenCo, message: Value) -> Result<Value, ErrorKind> {
-		// TODO(sterni): coerces to string
-		// Although `abort` does not make use of any context,
-		// we must still accept contextful strings as parameters.
-		// If `to_str` was used, this would err out with an unexpected type error.
-		// Therefore, we explicitly accept contextful strings and ignore their contexts.
-		Err(ErrorKind::Abort(message.to_contextful_str()?.to_string()))
+		let message = try_cek_to_value!(
+			generators::request_string_coerce(
+				&co,
+				message,
+				CoercionKind {
+					strong: false,
+					import_paths: true,
+				},
+			)
+			.await
+		);
+		Err(ErrorKind::Abort(message.as_bstr().to_string()))
 	}
 
 	#[builtin("add")]
@@ -721,54 +742,62 @@ mod pure_builtins {
 		// In this implementation, we do none of that, no syntax checks, no realization.
 		// The next `TODO` are the checks that Nix implements.
 		let mut ctx_elements: FxHashSet<NixContextElement> = FxHashSet::default();
-		let span = generators::request_span(&co).await;
-		let origin = origin
-			.coerce_to_string(
-				co,
+		let mut origin = try_cek_to_value!(
+			generators::request_string_coerce(
+				&co,
+				origin,
 				CoercionKind {
 					strong: true,
 					import_paths: true,
 				},
-				span,
 			)
-			.await?;
-		let mut origin = origin.to_contextful_str()?;
+			.await
+		);
 
 		let added_context = added_context.to_attrs()?;
 		for (context_key, context_element) in added_context.into_iter() {
 			// Invariant checks:
 			// - TODO: context_key must be a syntactically valid store path.
-			// - Perform a deep force `context_element`.
-			let context_element = context_element.to_attrs()?;
-			if let Some(path) = context_element.select("path")
-				&& path.as_bool()?
-			{
-				ctx_elements.insert(NixContextElement::Plain(context_key.to_string()));
+			let context_element =
+				try_value!(generators::request_force(&co, context_element).await).to_attrs()?;
+			if let Some(path) = context_element.select("path") {
+				if try_value!(generators::request_force(&co, path.clone()).await).as_bool()? {
+					ctx_elements
+						.insert(NixContextElement::Plain(context_key.as_bstr().to_string()));
+				}
 			}
-			if let Some(all_outputs) = context_element.select("allOutputs")
-				&& all_outputs.as_bool()?
-			{
-				// TODO: check if `context_key` is a derivation path.
-				// This may require realization.
-				ctx_elements.insert(NixContextElement::Derivation(context_key.to_string()));
+			if let Some(all_outputs) = context_element.select("allOutputs") {
+				if try_value!(generators::request_force(&co, all_outputs.clone()).await)
+					.as_bool()?
+				{
+					// TODO: check if `context_key` is a derivation path.
+					// This may require realization.
+					ctx_elements.insert(NixContextElement::Derivation(
+						context_key.as_bstr().to_string(),
+					));
+				}
 			}
 			if let Some(some_outputs) = context_element.select("outputs") {
-				let some_outputs = some_outputs.to_list()?;
+				let some_outputs =
+					try_value!(generators::request_force(&co, some_outputs.clone()).await)
+						.to_list()?;
 				// TODO: check if `context_key` is a derivation path.
 				// This may require realization.
 				for output in some_outputs.into_iter() {
-					let output = output.to_str()?;
+					let output =
+						try_value!(generators::request_force(&co, output).await).to_str()?;
 					ctx_elements.insert(NixContextElement::Single {
-						derivation: context_key.to_string(),
-						name: output.to_string(),
+						derivation: context_key.as_bstr().to_string(),
+						name: output.as_bstr().to_string(),
 					});
 				}
 			}
 		}
 
 		if let Some(origin_ctx) = origin.context_mut() {
-			origin_ctx.extend(ctx_elements)
-			// TODO: didn't we forget cases where origin had no context?
+			origin_ctx.extend(ctx_elements);
+		} else {
+			origin = NixString::new_context_from(ctx_elements.into(), origin);
 		}
 
 		Ok(origin.into())
@@ -1215,18 +1244,19 @@ mod pure_builtins {
 		}
 
 		let s = str.to_contextful_str()?;
-		let text = s.to_str()?;
+		let text = s.as_bytes();
 		let re = regex.to_str()?;
 		let re = re.to_str()?;
 		let re = state
-			.get_regex(re)
+			.get_split_regex(re)
 			.map_err(|_| ErrorKind::InvalidRegex(re.to_string()))?;
 		let mut capture_locations = re.capture_locations();
 		let num_captures = capture_locations.len();
 		let mut ret = Vec::new();
 		let mut pos = 0;
+		let mut search_pos = 0;
 
-		while let Some(thematch) = re.captures_read_at(&mut capture_locations, text, pos) {
+		while let Some(thematch) = re.captures_read_at(&mut capture_locations, text, search_pos) {
 			// push the unmatched characters preceding the match
 			ret.push(Value::from(NixString::new_inherit_context_from(
 				&s,
@@ -1249,10 +1279,16 @@ mod pure_builtins {
 				})
 				.collect();
 			ret.push(Value::List(NixList::from(v)));
-			if pos == text.len() {
-				break;
-			}
 			pos = thematch.end();
+			search_pos = pos;
+			if thematch.is_empty() {
+				// CppNix's regex iterator advances after an empty match, while
+				// retaining skipped characters in the next unmatched prefix.
+				if pos == text.len() {
+					break;
+				}
+				search_pos += 1;
+			}
 		}
 
 		// push the unmatched characters following the last match
@@ -1433,9 +1469,18 @@ mod pure_builtins {
 			return Ok(message);
 		}
 
-		// TODO(sterni): coerce to string
-		// We do not care about the context here explicitly.
-		Ok(Value::from(CatchableErrorKind::Throw(message.to_str()?)))
+		let message = try_cek_to_value!(
+			generators::request_string_coerce(
+				&co,
+				message,
+				CoercionKind {
+					strong: false,
+					import_paths: true,
+				},
+			)
+			.await
+		);
+		Ok(Value::from(CatchableErrorKind::Throw(message)))
 	}
 
 	#[builtin("toString")]
