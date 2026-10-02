@@ -608,3 +608,102 @@ fn structured_attributes_match_the_reference() {
 		);
 	}
 }
+
+/// A Nixpkgs package that misses the binary cache, built on top of a
+/// substituted stdenv. Set `NIXRS_NIXPKGS` to the root flake's Nixpkgs
+/// source (`just nixpkgs-paths` shows how); it downloads from
+/// cache.nixos.org, so it only runs with `--run-ignored`.
+#[test]
+#[ignore = "needs NIXRS_NIXPKGS and cache.nixos.org"]
+fn nixpkgs_hello_matches_the_reference() {
+	const CACHE: &str = "https://cache.nixos.org";
+	const KEY: &str = "cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY=";
+	let nixpkgs = std::env::var("NIXRS_NIXPKGS").expect("NIXRS_NIXPKGS");
+	let env = Env::new();
+	// The reference's compiled-in sandbox shell, which stdenv's
+	// `#!/bin/sh` scripts need.
+	let sandbox_paths = String::from_utf8(
+		Command::new(reference_bin().join("nix"))
+			.args(["config", "show", "sandbox-paths"])
+			.env_clear()
+			.env("HOME", env.dir.path().join("home"))
+			.env("NIX_CONF_DIR", env.dir.path().join("conf"))
+			.env("NIX_CONFIG", "experimental-features = nix-command")
+			.output()
+			.unwrap()
+			.stdout,
+	)
+	.unwrap()
+	.trim()
+	.to_owned();
+	let drv = env.instantiate(&format!(
+		r#"(import {nixpkgs} {{ system = "x86_64-linux"; config = {{ }}; overlays = [ ]; }}).hello.overrideAttrs (_: {{
+			NIXRS_CACHE_MISS = "1";
+		}})"#
+	));
+
+	let root = env.root("reference");
+	let output = env.reference(
+		"nix-store",
+		&[
+			"--store",
+			root.to_str().unwrap(),
+			"--realise",
+			&drv.to_absolute_path(),
+			"--option",
+			"substituters",
+			CACHE,
+			"--option",
+			"trusted-public-keys",
+			KEY,
+			"--option",
+			"sandbox-paths",
+			&sandbox_paths,
+		],
+	);
+	assert!(
+		output.status.success(),
+		"the reference failed:\n{}",
+		String::from_utf8_lossy(&output.stderr)
+	);
+	let mut reference: Vec<StorePath> = String::from_utf8(output.stdout)
+		.unwrap()
+		.lines()
+		.map(|l| StorePath::from_absolute_path(l.as_bytes()).unwrap())
+		.collect();
+	reference.sort();
+
+	let mut config = LocalStoreConfig::with_root(&env.root("nix-rs"));
+	config.trusted_public_keys = vec![KEY.to_owned()];
+	let store = LocalStore::open(config).unwrap();
+	let settings = BuildSettings {
+		sandbox_paths: sandbox_paths
+			.split_whitespace()
+			.map(nix_rs_build::settings::SandboxPath::parse)
+			.collect(),
+		build_cores: 1,
+		system_features: SYSTEM_FEATURES.split(' ').map(String::from).collect(),
+		nix_command: true,
+		..BuildSettings::default()
+	};
+	let caches = [nix_rs_store::binary_cache::BinaryCache::open(CACHE).unwrap()];
+	let mut log = Vec::new();
+	let outputs = LocalBuilder::new(&store, &settings)
+		.with_substituters(&caches)
+		.realise(&drv, &mut |data| log.extend_from_slice(data))
+		.unwrap_or_else(|e| {
+			panic!(
+				"nix-rs failed: {e}\nlog tail:\n{}",
+				String::from_utf8_lossy(&log[log.len().saturating_sub(4000)..])
+			)
+		});
+	let mut nix_rs: Vec<StorePath> = outputs.into_values().collect();
+	nix_rs.sort();
+	assert_eq!(nix_rs, reference);
+	let paths: Vec<&StorePath> = reference.iter().collect();
+	assert_eq!(
+		env.path_info("nix-rs", &paths),
+		env.path_info("reference", &paths)
+	);
+	env.verify("nix-rs");
+}

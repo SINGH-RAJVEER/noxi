@@ -309,8 +309,14 @@ impl LocalStore {
 				continue;
 			}
 			for reference in &cached.info.references {
-				if reference != path {
-					self.substitute_inner(caches, reference, done)?;
+				if reference != path
+					&& let Err(e) = self.substitute_inner(caches, reference, done)
+				{
+					tracing::error!("{e}");
+					return Err(Error::Other(format!(
+						"some references of path '{}' could not be realised",
+						print(path)
+					)));
 				}
 			}
 			for reference in &cached.info.references {
@@ -322,10 +328,18 @@ impl LocalStore {
 					)));
 				}
 			}
-			let mut nar = cache.nar(&cached)?;
-			self.add_to_store(&cached.info, &mut nar, false, !cache.trusted)?;
-			done.insert(path.clone());
-			return Ok(());
+			// A failed download falls through to the next cache, as
+			// `PathSubstitutionGoal::tryToRun` does.
+			let result = cache.nar(&cached).and_then(|mut nar| {
+				self.add_to_store(&cached.info, &mut nar, false, !cache.trusted)
+			});
+			match result {
+				Ok(()) => {
+					done.insert(path.clone());
+					return Ok(());
+				}
+				Err(e) => tracing::error!("{e}"),
+			}
 		}
 		if let Some(e) = last_error {
 			return Err(e);

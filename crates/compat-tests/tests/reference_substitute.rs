@@ -366,16 +366,12 @@ fn corrupt_nars_are_rejected() {
 		.substitute(&[BinaryCache::open(&cache).unwrap()], &env.out)
 		.unwrap_err()
 		.to_string();
+	// Both log the hash mismatch and then fail as having no substitute.
+	assert!(stderr.contains("hash mismatch importing path"), "{stderr}");
 	assert!(
-		error.contains("hash mismatch importing path"),
-		"nix-rs: {error}"
+		stderr.contains(&error),
+		"nix-rs: {error}\nreference: {stderr}"
 	);
-	for line in error.lines() {
-		assert!(
-			stderr.contains(line.trim()),
-			"missing {line:?} in:\n{stderr}"
-		);
-	}
 }
 
 /// Serve the files in `dir` over HTTP on a local port, answering 404 for

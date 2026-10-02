@@ -74,6 +74,9 @@ pub struct BuildSettings {
 	/// of its log. CppNix does this unless its logger already prints build
 	/// output, as the legacy commands and `--print-build-logs` do.
 	pub show_log_tail: bool,
+	/// `always-allow-substitutes`: substitute even derivations with
+	/// `allowSubstitutes = false`.
+	pub always_allow_substitutes: bool,
 }
 
 /// The sandbox shell compiled into this build, like CppNix's
@@ -123,6 +126,7 @@ impl Default for BuildSettings {
 			log_lines: 25,
 			nix_command: false,
 			show_log_tail: false,
+			always_allow_substitutes: false,
 		}
 	}
 }

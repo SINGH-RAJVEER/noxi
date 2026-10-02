@@ -9,8 +9,7 @@
 //!
 //! Not supported yet: builds without a sandbox, `builtin:` builders,
 //! content-addressed floating, impure and deferred outputs, substitution,
-//! remote builders, build logs in the log directory, and `--check` and
-//! `--repair` modes.
+//! remote builders, and `--check` and `--repair` modes.
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::fs;
@@ -26,6 +25,7 @@ use nix_compat::nixhash::{CAHash, NixHash};
 use nix_compat::store_path::{self, STORE_DIR, StorePath, hash_placeholder};
 use nix_rs_store::canonicalise::canonicalise_path_metadata;
 use nix_rs_store::lock::PathLocks;
+use nix_rs_store::binary_cache::BinaryCache;
 use nix_rs_store::{LocalStore, ValidPathInfo, ca_hash_of, delete_path, nar};
 use serde_json::{Map, Value};
 use sha2::{Digest, Sha256};
@@ -48,6 +48,7 @@ fn print(path: &StorePath) -> String {
 pub struct LocalBuilder<'a> {
 	store: &'a LocalStore,
 	settings: &'a BuildSettings,
+	substituters: &'a [BinaryCache],
 }
 
 /// An output a derivation declares, with the path it must produce.
@@ -59,7 +60,51 @@ struct KnownOutput {
 
 impl<'a> LocalBuilder<'a> {
 	pub fn new(store: &'a LocalStore, settings: &'a BuildSettings) -> Self {
-		Self { store, settings }
+		Self {
+			store,
+			settings,
+			substituters: &[],
+		}
+	}
+
+	/// Substitute from `caches` before building, as CppNix does with
+	/// `substituters`.
+	pub fn with_substituters(mut self, caches: &'a [BinaryCache]) -> Self {
+		self.substituters = caches;
+		self
+	}
+
+	/// Try to substitute `path`; a failure is logged, not returned.
+	fn try_substitute(&self, path: &StorePath) -> bool {
+		if self.substituters.is_empty() {
+			return false;
+		}
+		match self.store.substitute(self.substituters, path) {
+			Ok(()) => true,
+			Err(e) => {
+				tracing::debug!("cannot substitute '{}': {e}", print(path));
+				false
+			}
+		}
+	}
+
+	/// Whether the derivation's options allow substituting its outputs.
+	fn substitutes_allowed(&self, drv: &UnverifiedDerivation) -> Result<bool> {
+		let parsed = options::structured_attrs(drv.environment())?;
+		let env: BTreeMap<BString, BString> = drv
+			.environment()
+			.iter()
+			.filter(|(k, _)| k.as_slice() != b"__json")
+			.map(|(k, v)| (k.clone(), v.clone()))
+			.collect();
+		let options = DerivationOptions::new(
+			&env,
+			parsed.as_ref(),
+			drv.input_derivations(),
+			false,
+			&mut Vec::new(),
+		)?;
+		Ok(options.substitutes_allowed(self.settings.always_allow_substitutes))
 	}
 
 	/// Realise every output of the derivation at `drv_path`, building its
@@ -92,6 +137,39 @@ impl<'a> LocalBuilder<'a> {
 		}
 		let drv = self.store.read_derivation(drv_path)?;
 		let outputs = known_outputs(drv_path, &drv)?;
+
+		// Like `DerivationGoal`, substitute missing outputs before
+		// realising any inputs, which then may not be needed at all.
+		if !self.substituters.is_empty()
+			&& !self.all_valid(&outputs)?
+			&& self.substitutes_allowed(&drv)?
+		{
+			for output in outputs.values() {
+				if !self.store.is_valid_path(&output.path)? {
+					self.try_substitute(&output.path);
+				}
+			}
+		}
+		if self.all_valid(&outputs)? {
+			let paths: BTreeMap<String, StorePath> = outputs
+				.into_iter()
+				.map(|(name, output)| (name, output.path))
+				.collect();
+			done.insert(drv_path.clone(), paths.clone());
+			return Ok(paths);
+		}
+
+		for src in drv.input_sources() {
+			if !self.store.is_valid_path(src)? && !self.try_substitute(src) {
+				return Err(BuildError::failed(
+					FailureStatus::DependencyFailed,
+					format!(
+						"path '{}' is required, but there is no substituter that can build it",
+						print(src)
+					),
+				));
+			}
+		}
 
 		stack.push(drv_path.clone());
 		for input in drv.input_derivations().keys() {
