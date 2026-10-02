@@ -14,7 +14,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output};
 
-use nix_compat::narinfo::NarInfo;
+use nix_compat::narinfo::{NarInfo, parse_keypair};
 use nix_compat::store_path::StorePath;
 use nix_rs_store::binary_cache::BinaryCache;
 use nix_rs_store::{LocalStore, LocalStoreConfig};
@@ -247,6 +247,311 @@ impl Env {
 			assert!(!stderr.contains(bad), "verify reported problems:\n{stderr}");
 		}
 	}
+}
+
+#[test]
+fn signed_local_upload_matches_reference_and_round_trips() {
+	use std::io::Read;
+
+	let env = Env::new();
+	let source = env.nix_rs_store("src");
+	let original = source.query_path_info(&env.out).unwrap().unwrap();
+	let (key, _) =
+		parse_keypair(fs::read_to_string(env.secret_key_file()).unwrap().trim()).unwrap();
+	let keys = [key];
+	let url = format!("file://{}", env.root("rust-upload").display());
+	let cache = BinaryCache::open(&url).unwrap();
+	cache.upload_closure(&source, &env.out, &keys).unwrap();
+	let reference_url = env.make_cache("reference-upload", "compression=none", true);
+	let reference_cache = BinaryCache::open(&reference_url).unwrap();
+	assert_eq!(
+		fs::read_to_string(env.root("rust-upload/nix-cache-info")).unwrap(),
+		"StoreDir: /nix/store\n"
+	);
+	for path in [&env.out, &env.busybox] {
+		let text = cache.narinfo_text(path).unwrap().unwrap();
+		assert_eq!(text, reference_cache.narinfo_text(path).unwrap().unwrap());
+		let mut actual = Vec::new();
+		cache
+			.nar(&cache.query_path_info(path).unwrap().unwrap())
+			.unwrap()
+			.read_to_end(&mut actual)
+			.unwrap();
+		let mut expected = Vec::new();
+		reference_cache
+			.nar(&reference_cache.query_path_info(path).unwrap().unwrap())
+			.unwrap()
+			.read_to_end(&mut expected)
+			.unwrap();
+		assert_eq!(actual, expected);
+		assert!(text.ends_with('\n'));
+	}
+	let first = cache.narinfo_text(&env.out).unwrap();
+	cache.upload_closure(&source, &env.out, &keys).unwrap();
+	assert_eq!(cache.narinfo_text(&env.out).unwrap(), first);
+	assert_eq!(source.query_path_info(&env.out).unwrap().unwrap(), original);
+
+	let output = env.reference_substitute("reference-from-upload", &url, &env.out);
+	assert!(
+		output.status.success(),
+		"{}",
+		String::from_utf8_lossy(&output.stderr)
+	);
+	env.nix_rs_store("rust-from-upload")
+		.substitute(&[cache], &env.out)
+		.unwrap();
+	assert_eq!(
+		env.path_info("rust-from-upload"),
+		env.path_info("reference-from-upload")
+	);
+	env.verify("rust-from-upload");
+}
+
+#[test]
+fn local_upload_preserves_signatures_across_key_rotation() {
+	let mut env = Env::new();
+	let inherited =
+		BinaryCache::open(&env.make_cache("inherited", "compression=none", true)).unwrap();
+	let source = env.nix_rs_store("src");
+	assert!(
+		source
+			.query_path_info(&env.out)
+			.unwrap()
+			.unwrap()
+			.ca
+			.is_none()
+	);
+	for path in [&env.out, &env.busybox] {
+		source
+			.add_signatures(
+				path,
+				&inherited.query_path_info(path).unwrap().unwrap().info.sigs,
+			)
+			.unwrap();
+	}
+	let secret = env.reference_ok("nix", &["key", "generate-secret", "--key-name", "test"]);
+	fs::write(env.secret_key_file(), &secret).unwrap();
+	let (key, _) = parse_keypair(secret.trim()).unwrap();
+	let cache =
+		BinaryCache::open(&format!("file://{}", env.root("rotate-upload").display())).unwrap();
+	cache.upload_closure(&source, &env.out, &[key]).unwrap();
+	let reference =
+		BinaryCache::open(&env.make_cache("reference-rotate", "compression=none", true)).unwrap();
+	assert_eq!(
+		cache.narinfo_text(&env.out).unwrap(),
+		reference.narinfo_text(&env.out).unwrap()
+	);
+
+	let rotated = env.reference_ok("nix", &["key", "generate-secret", "--key-name", "rotate-1"]);
+	let (key, _) = parse_keypair(rotated.trim()).unwrap();
+	let keys = [key];
+	cache.upload_closure(&source, &env.out, &keys).unwrap();
+	let text = cache.narinfo_text(&env.out).unwrap().unwrap();
+	let signatures = NarInfo::parse(&text).unwrap().signatures;
+	assert_eq!(signatures.len(), 3);
+	assert_eq!(
+		signatures.iter().map(|sig| *sig.name()).collect::<Vec<_>>(),
+		["rotate-1", "test", "test-1"]
+	);
+	cache.upload_closure(&source, &env.out, &keys).unwrap();
+	assert_eq!(cache.narinfo_text(&env.out).unwrap().unwrap(), text);
+	assert_eq!(
+		source
+			.query_path_info(&env.out)
+			.unwrap()
+			.unwrap()
+			.sigs
+			.len(),
+		1
+	);
+
+	let wrong = env.reference_ok("nix", &["key", "generate-secret", "--key-name", "wrong-1"]);
+	env.public_key = env
+		.reference_with_input("nix", &["key", "convert-secret-to-public"], &wrong)
+		.trim()
+		.to_owned();
+	let output = env.reference_substitute("wrong-key-reference", cache.uri(), &env.out);
+	assert!(!output.status.success());
+	assert!(String::from_utf8_lossy(&output.stderr).contains("not signed by any of the keys"));
+	let destination = env.nix_rs_store("wrong-key-rust");
+	assert!(destination.substitute(&[cache], &env.out).is_err());
+	assert!(!destination.is_valid_path(&env.out).unwrap());
+}
+
+#[test]
+fn local_cache_rejects_unsafe_nar_locations_like_reference() {
+	let env = Env::new();
+	let url = env.make_cache("unsafe-locations", "compression=none", true);
+	let cache = BinaryCache::open(&url).unwrap();
+	let dir = env.root("unsafe-locations");
+	let name = format!(
+		"{}.narinfo",
+		nix_compat::nixbase32::encode(env.out.digest())
+	);
+	let original = cache.narinfo_text(&env.out).unwrap().unwrap();
+	let original_url = NarInfo::parse(&original).unwrap().url.to_owned();
+	fs::copy(dir.join(&original_url), env.root("outside.nar")).unwrap();
+	for (index, location) in [
+		"../outside.nar".to_owned(),
+		format!("nar/./{}", original_url.strip_prefix("nar/").unwrap()),
+		"nar/../../outside.nar".to_owned(),
+		env.root("outside.nar").display().to_string(),
+	]
+	.iter()
+	.enumerate()
+	{
+		let mut narinfo = NarInfo::parse(&original).unwrap();
+		narinfo.url = location;
+		fs::write(dir.join(&name), narinfo.to_string()).unwrap();
+		let cached = cache.query_path_info(&env.out).unwrap().unwrap();
+		let error = match cache.nar(&cached) {
+			Ok(_) => panic!("accepted unsafe local cache location: {location}"),
+			Err(error) => error.to_string(),
+		};
+		let output = env.reference_substitute(&format!("unsafe-reference-{index}"), &url, &env.out);
+		assert!(!output.status.success());
+		let stderr = String::from_utf8_lossy(&output.stderr);
+		assert!(
+			stderr.contains(&error),
+			"nix-rs: {error}\nreference: {stderr}"
+		);
+	}
+}
+
+#[test]
+fn local_upload_does_not_advertise_corrupt_source_or_leak_temporary_files() {
+	use std::os::unix::fs::PermissionsExt;
+
+	let env = Env::new();
+	let source = env.nix_rs_store("src");
+	let original = source.query_path_info(&env.out).unwrap().unwrap();
+	let (key, _) =
+		parse_keypair(fs::read_to_string(env.secret_key_file()).unwrap().trim()).unwrap();
+	let keys = [key];
+	for case in 0..4 {
+		let mut bad = original.clone();
+		match case {
+			0 => bad.nar_hash[0] ^= 1,
+			1 => bad.nar_size += 1,
+			2 => bad.nar_size = 0,
+			3 => {
+				bad.sigs.insert("invalid-signature".into());
+			}
+			_ => unreachable!(),
+		}
+		source.register_valid_path(&bad).unwrap();
+		let dir = env.root(&format!("bad-source-{case}"));
+		let cache = BinaryCache::open(&format!("file://{}", dir.display())).unwrap();
+		assert!(cache.upload_closure(&source, &env.out, &keys).is_err());
+		assert!(cache.narinfo_text(&env.out).unwrap().is_none());
+		assert!(cache.narinfo_text(&env.busybox).unwrap().is_some());
+		assert!(fs::read_dir(dir.join("nar")).unwrap().all(|entry| {
+			entry
+				.unwrap()
+				.path()
+				.extension()
+				.is_some_and(|ext| ext == "nar")
+		}));
+	}
+	source.register_valid_path(&original).unwrap();
+	let cache =
+		BinaryCache::open(&format!("file://{}", env.root("preserve-good").display())).unwrap();
+	cache.upload_closure(&source, &env.out, &keys).unwrap();
+	let good = cache.narinfo_text(&env.out).unwrap();
+	let contents = source.real_path(&env.out).join("ref");
+	fs::set_permissions(&contents, fs::Permissions::from_mode(0o644)).unwrap();
+	fs::write(&contents, b"corrupt source contents\n").unwrap();
+	assert!(cache.upload_closure(&source, &env.out, &keys).is_err());
+	assert_eq!(cache.narinfo_text(&env.out).unwrap(), good);
+}
+
+#[test]
+fn local_upload_recovers_from_failed_publication_without_advertising_the_root() {
+	let env = Env::new();
+	let source = env.nix_rs_store("src");
+	let (key, _) =
+		parse_keypair(fs::read_to_string(env.secret_key_file()).unwrap().trim()).unwrap();
+	let keys = [key];
+	let info = source.query_path_info(&env.out).unwrap().unwrap();
+	let dir = env.root("failed-publication");
+	let blocker = dir.join(format!(
+		"nar/{}.nar",
+		nix_compat::nixbase32::encode(&info.nar_hash)
+	));
+	fs::create_dir_all(&blocker).unwrap();
+	let cache = BinaryCache::open(&format!("file://{}", dir.display())).unwrap();
+	assert!(cache.upload_closure(&source, &env.out, &keys).is_err());
+	assert!(cache.narinfo_text(&env.out).unwrap().is_none());
+	assert!(cache.narinfo_text(&env.busybox).unwrap().is_some());
+	assert!(fs::read_dir(dir.join("nar")).unwrap().all(|entry| {
+		entry
+			.unwrap()
+			.path()
+			.extension()
+			.is_some_and(|ext| ext == "nar")
+	}));
+	fs::remove_dir(blocker).unwrap();
+	cache.upload_closure(&source, &env.out, &keys).unwrap();
+	assert!(cache.narinfo_text(&env.out).unwrap().is_some());
+	let output = env.reference_substitute("reference-after-retry", cache.uri(), &env.out);
+	assert!(
+		output.status.success(),
+		"{}",
+		String::from_utf8_lossy(&output.stderr)
+	);
+}
+
+#[test]
+fn local_upload_roots_the_source_until_the_uploading_handle_is_dropped() {
+	use nix_rs_store::gc::{GcAction, GcOptions};
+
+	let env = Env::new();
+	// Reference-created objects have no roots held by a Rust seeding handle.
+	let source = env.nix_rs_store("src");
+	let collector = env.nix_rs_store("src");
+	let (key, _) =
+		parse_keypair(fs::read_to_string(env.secret_key_file()).unwrap().trim()).unwrap();
+	let cache = BinaryCache::open(&format!("file://{}", env.root("gc-upload").display())).unwrap();
+	cache.upload_closure(&source, &env.out, &[key]).unwrap();
+	let roots = collector.find_temp_roots(false, &mut |_| {}).unwrap();
+	assert!(roots.contains_key(&env.out));
+	assert!(roots.contains_key(&env.busybox));
+	collector
+		.collect_garbage(&GcOptions::new(GcAction::DeleteDead), &mut |_| {})
+		.unwrap();
+	assert!(collector.is_valid_path(&env.out).unwrap());
+	assert!(collector.is_valid_path(&env.busybox).unwrap());
+	drop(source);
+	let deleted = collector
+		.collect_garbage(&GcOptions::new(GcAction::DeleteDead), &mut |_| {})
+		.unwrap();
+	assert!(
+		deleted.paths.contains(&env.out.to_absolute_path()),
+		"{deleted:?}"
+	);
+}
+
+#[test]
+fn local_upload_rejects_unprotected_sources_and_http_destinations() {
+	let env = Env::new();
+	let source = env.nix_rs_store("src");
+	let (key, _) =
+		parse_keypair(fs::read_to_string(env.secret_key_file()).unwrap().trim()).unwrap();
+	let keys = [key];
+	let dir = env.root("rejected-upload");
+	let cache = BinaryCache::open(&format!("file://{}", dir.display())).unwrap();
+	assert!(cache.upload_closure(&source, &env.out, &keys[..0]).is_err());
+	let mut config = LocalStoreConfig::with_root(&env.root("src"));
+	config.read_only = true;
+	let readonly = LocalStore::open(config).unwrap();
+	assert!(cache.upload_closure(&readonly, &env.out, &keys).is_err());
+	assert!(!dir.exists());
+	let http = BinaryCache::open(&serve(env.root("nonexistent-http-cache"))).unwrap();
+	let error = http
+		.upload_closure(&source, &env.out, &keys)
+		.unwrap_err()
+		.to_string();
+	assert!(error.contains("require a file:// cache"));
 }
 
 #[test]

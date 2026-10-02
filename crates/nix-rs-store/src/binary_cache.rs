@@ -8,15 +8,19 @@
 //! [`LocalStore::add_to_store`], which checks its hash and size.
 
 use std::collections::BTreeSet;
-use std::fs;
-use std::io::{self, BufRead, BufReader, Read};
-use std::path::PathBuf;
+use std::fs::{self, File};
+use std::io::{self, BufRead, BufReader, BufWriter, Read, Write};
+use std::os::unix::fs::PermissionsExt;
+use std::path::{Path, PathBuf};
 
-use nix_compat::narinfo::NarInfo;
+use nix_compat::narinfo::{Flags, NarInfo, Signature, SigningKey};
 use nix_compat::store_path::{STORE_DIR, StorePath};
+use tempfile::NamedTempFile;
 
 use crate::error::{Error, Result};
 use crate::local::LocalStore;
+use crate::lock::PathLocks;
+use crate::nar::HashSink;
 use crate::path_info::ValidPathInfo;
 
 fn print(path: &StorePath) -> String {
@@ -126,10 +130,186 @@ impl BinaryCache {
 		&self.info
 	}
 
+	/// Export `path` and its reference closure to a local, uncompressed cache.
+	/// NAR bytes must match source metadata before signing. Dependencies are
+	/// published first; a failed upload may leave completed dependencies behind.
+	/// The source must permit temporary GC roots, which remain until its last
+	/// participating handle is dropped. Cache directories must be trusted.
+	pub fn upload_closure<S>(
+		&self,
+		source: &LocalStore,
+		path: &StorePath,
+		signing_keys: &[SigningKey<S>],
+	) -> Result<()>
+	where
+		S: ed25519::signature::Signer<ed25519::Signature>,
+	{
+		let Transport::File(dir) = &self.transport else {
+			return Err(Error::Other(
+				"binary cache uploads require a file:// cache".into(),
+			));
+		};
+		if source.config().read_only {
+			return Err(Error::Other(
+				"binary cache upload requires source GC protection".into(),
+			));
+		}
+		if signing_keys.is_empty() {
+			return Err(Error::Other(
+				"binary cache upload requires a signing key".into(),
+			));
+		}
+		for key in signing_keys {
+			if key.name().is_empty()
+				|| !key
+					.name()
+					.chars()
+					.all(|c| c.is_alphanumeric() || c == '-' || c == '.')
+			{
+				return Err(Error::Other("invalid binary cache signing key name".into()));
+			}
+		}
+		fs::create_dir_all(dir.join("nar"))
+			.map_err(|e| Error::io(format!("creating binary cache '{}'", self.uri), e))?;
+		// Revalidate existing cache ownership even if it changed after open.
+		BinaryCache::open(&self.uri)?;
+		if self.get_file("nix-cache-info")?.is_none() {
+			write_atomic(&dir.join("nix-cache-info"), b"StoreDir: /nix/store\n")?;
+		}
+		self.upload_path(
+			source,
+			path,
+			signing_keys,
+			&mut BTreeSet::new(),
+			&mut BTreeSet::new(),
+		)
+	}
+
+	fn upload_path<S>(
+		&self,
+		source: &LocalStore,
+		path: &StorePath,
+		signing_keys: &[SigningKey<S>],
+		visiting: &mut BTreeSet<StorePath>,
+		done: &mut BTreeSet<StorePath>,
+	) -> Result<()>
+	where
+		S: ed25519::signature::Signer<ed25519::Signature>,
+	{
+		if done.contains(path) {
+			return Ok(());
+		}
+		if !visiting.insert(path.clone()) {
+			return Err(Error::Other(format!(
+				"cycle in upload references of '{}'",
+				print(path)
+			)));
+		}
+		source.add_temp_root(path)?;
+		let info = source
+			.query_path_info(path)?
+			.ok_or_else(|| Error::InvalidPath(print(path)))?;
+		for reference in &info.references {
+			if reference != path {
+				self.upload_path(source, reference, signing_keys, visiting, done)?;
+			}
+		}
+		let Transport::File(dir) = &self.transport else {
+			unreachable!()
+		};
+		let mut temporary = NamedTempFile::new_in(dir.join("nar"))
+			.map_err(|e| Error::io("staging binary cache NAR", e))?;
+		let (hash, size) = {
+			let mut sink = UploadSink {
+				file: BufWriter::new(temporary.as_file_mut()),
+				hash: HashSink::new(),
+			};
+			source.nar_from_path(path, &mut sink)?;
+			sink.flush()
+				.map_err(|e| Error::io("flushing binary cache NAR", e))?;
+			sink.hash.finish()
+		};
+		if hash != info.nar_hash || size != info.nar_size || size == 0 {
+			return Err(Error::Other(format!(
+				"NAR hash or size mismatch exporting path '{}'",
+				print(path)
+			)));
+		}
+		let url = format!("nar/{}.nar", nix_compat::nixbase32::encode(&hash));
+		let metadata_path = local_cache_path(
+			dir,
+			&format!("{}.narinfo", nix_compat::nixbase32::encode(path.digest())),
+		)?;
+		// Serialize signature merging and publication between Rust exporters.
+		let _publication_lock = PathLocks::lock([metadata_path.clone()])?;
+		let mut signatures = info
+			.sigs
+			.iter()
+			.map(|sig| {
+				Signature::<String>::parse(sig).map_err(|_| {
+					Error::Other(format!("invalid source signature for '{}'", print(path)))
+				})
+			})
+			.collect::<Result<Vec<_>>>()?;
+		if let Some(text) = self.narinfo_text(path)? {
+			let existing = NarInfo::parse(&text).map_err(|e| {
+				Error::Other(format!("invalid cache metadata for '{}': {e}", print(path)))
+			})?;
+			if existing.store_path != info.path.as_ref()
+				|| Some(existing.fingerprint()) != info.fingerprint()
+			{
+				return Err(Error::Other(format!(
+					"conflicting cache metadata for '{}'",
+					print(path)
+				)));
+			}
+			signatures.extend(existing.signatures.iter().map(Signature::to_owned));
+		}
+		let deriver = info
+			.deriver
+			.as_ref()
+			.map(|deriver| {
+				let name = deriver.to_string();
+				let base = name.strip_suffix(".drv").ok_or_else(|| {
+					Error::Other(format!("invalid deriver for '{}'", print(path)))
+				})?;
+				StorePath::from_bytes(base.as_bytes())
+					.map_err(|_| Error::Other(format!("invalid deriver for '{}'", print(path))))
+			})
+			.transpose()?;
+		let mut narinfo = NarInfo {
+			flags: Flags::empty(),
+			store_path: info.path.as_ref(),
+			nar_hash: hash,
+			nar_size: size,
+			references: info.references.iter().map(StorePath::as_ref).collect(),
+			signatures: signatures.iter().map(Signature::as_ref).collect(),
+			ca: info.ca.clone(),
+			system: None,
+			deriver: deriver.as_ref().map(StorePath::as_ref),
+			url: &url,
+			compression: None,
+			file_hash: Some(hash),
+			file_size: Some(size),
+		};
+		for key in signing_keys {
+			narinfo.add_signature(key);
+		}
+		narinfo
+			.signatures
+			.sort_by(|a, b| a.name().cmp(b.name()).then(a.bytes().cmp(b.bytes())));
+		narinfo.signatures.dedup();
+		persist_atomic(temporary, &local_cache_path(dir, &url)?)?;
+		write_atomic(&metadata_path, narinfo.to_string().as_bytes())?;
+		visiting.remove(path);
+		done.insert(path.clone());
+		Ok(())
+	}
+
 	/// A file of the cache, or `None` if it has none by that name.
 	fn open_file(&self, name: &str) -> Result<Option<Box<dyn Read + Send>>> {
 		match &self.transport {
-			Transport::File(dir) => match fs::File::open(dir.join(name)) {
+			Transport::File(dir) => match fs::File::open(local_cache_path(dir, name)?) {
 				Ok(file) => Ok(Some(Box::new(file))),
 				Err(e) if e.kind() == io::ErrorKind::NotFound => Ok(None),
 				Err(e) => Err(Error::io(
@@ -216,6 +396,68 @@ impl BinaryCache {
 			Box::new(BufReader::new(file)),
 		)
 	}
+}
+
+fn local_cache_path(root: &Path, name: &str) -> Result<PathBuf> {
+	if name.is_empty() {
+		return Err(Error::Other(
+			"local binary cache path must not be empty".into(),
+		));
+	}
+	if name.contains('\0') {
+		return Err(Error::Other(
+			"local binary cache path must not contain NUL bytes".into(),
+		));
+	}
+	if Path::new(name).is_absolute() {
+		return Err(Error::Other(format!(
+			"local binary cache path '{name}' must not be absolute"
+		)));
+	}
+	// Path::components normalizes interior '.', so inspect the raw segments.
+	if name.split('/').any(|part| part == "." || part == "..") {
+		return Err(Error::Other(format!(
+			"local binary cache path '{name}' must not contain '..' or '.' segments"
+		)));
+	}
+	Ok(root.join(name))
+}
+
+/// Hash exactly the bytes accepted by the staging writer.
+struct UploadSink<W> {
+	file: W,
+	hash: HashSink,
+}
+
+impl<W: Write> Write for UploadSink<W> {
+	fn write(&mut self, bytes: &[u8]) -> io::Result<usize> {
+		let count = self.file.write(bytes)?;
+		self.hash.write_all(&bytes[..count])?;
+		Ok(count)
+	}
+
+	fn flush(&mut self) -> io::Result<()> {
+		self.file.flush()
+	}
+}
+
+fn persist_atomic(temporary: NamedTempFile, destination: &Path) -> Result<()> {
+	temporary
+		.as_file()
+		.set_permissions(fs::Permissions::from_mode(0o644))?;
+	temporary.as_file().sync_all()?;
+	temporary
+		.persist(destination)
+		.map_err(|e| Error::io(format!("publishing '{}'", destination.display()), e.error))?;
+	File::open(destination.parent().expect("cache file has a parent"))?.sync_all()?;
+	Ok(())
+}
+
+fn write_atomic(destination: &Path, bytes: &[u8]) -> Result<()> {
+	let mut temporary =
+		NamedTempFile::new_in(destination.parent().expect("cache file has a parent"))?;
+	temporary.write_all(bytes)?;
+	persist_atomic(temporary, destination)
 }
 
 /// A narinfo's path metadata, NAR location and compression.
