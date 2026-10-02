@@ -141,6 +141,8 @@ The copied shell suite needs an isolated test store and compatible executables b
 - a builder that prints lines, a carriage return and an `@nix` message and exits with status 3, compared by message lines and status with `nix-store --realise`, and with the log tail against `nix build`;
 - a missing output, an output reference cycle, and a `disallowedReferences` violation, compared by message lines and status.
 
+An ignored case, run with `NIXRS_NIXPKGS` set and `--run-ignored only`, instantiates the root flake's Nixpkgs `hello` with an extra environment variable so that it misses the binary cache. Both engines substitute its inputs from `https://cache.nixos.org`, checked with that cache's key, and use the reference's compiled-in `/bin/sh` sandbox path. On 2026-10-02 nix-rs built `hello` itself with the same output paths and `nix path-info --json` metadata as the reference, and the reference verified the nix-rs store; the run took 247 seconds.
+
 The comparisons call the library, not a `nix-store --realise` replacement, and run without build users. They do not cover `max-build-log-size`, `builtin:` builders, floating content-addressed outputs, unsandboxed builds, seccomp filtering, network isolation of fixed-output builds, timeouts, cancellation, concurrent builds of one output, or interrupted builds.
 
 `crates/compat-tests/tests/reference_substitute.rs` checks binary caches and substitution against the 2.35.2 reference. The reference builds a path that refers to the test busybox and itself, then copies the closure into `file://` caches, signed with a key from `nix key generate-secret` or unsigned, with no compression and with xz, bzip2, zstd, gzip and brotli. On 2026-10-02 its five cases passed:
@@ -152,6 +154,16 @@ The comparisons call the library, not a `nix-store --realise` replacement, and r
 - the signed cache served by a local HTTP server substitutes with matching metadata, and a path it lacks fails with the reference's message.
 
 An ignored test, run with `--run-ignored only`, substitutes the test busybox from `https://cache.nixos.org` and checks it against that cache's real signing key; it passed on 2026-10-02. Uploads, `netrc`, TLS settings, narinfo signing by nix-rs, the narinfo disk cache, `--fallback`, and substitution during a build are not covered.
+
+`crates/compat-tests/tests/reference_gc.rs` checks garbage collection against the 2.35.2 reference. The reference builds a small graph in a temporary store: outputs that refer to each other and to the test busybox, an unbuilt derivation, added sources, unrooted garbage, an indirect root from `--add-root`, a `nix-env` profile, and a direct root for the busybox. The store is copied twice, and each engine works on its own copy. On 2026-10-02 its five cases passed:
+
+- the roots nix-rs finds, with the places that make them roots, equal `nix-store --gc --print-roots`;
+- live and dead paths equal `--print-live` and `--print-dead`;
+- a collection deletes the same paths as `nix-store --gc`, leaves the same valid paths, and both stores verify;
+- deleting a live path fails with the reference's message, and deleting a dead derivation deletes the same paths;
+- a temporary root that a second nix-rs handle sends to the GC socket while the collector holds the lock keeps its path.
+
+The busybox is rooted in both copies so that runtime roots from builds running elsewhere on the host cannot make the results differ. The command output of `--gc`, `--print-roots` and `nix-collect-garbage`, profile generation management, store optimisation, and cross-engine socket clients are not covered.
 
 The unpublished `nix-rs-store` preview also has isolated local-store comparisons in `crates/compat-tests/tests/reference_store.rs`. On 2026-10-01, its five cases passed with `NIXRS_REFERENCE_BIN=/nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2/bin`. They check fresh-store layout, path/NAR metadata, import validation, reference-created data read by nix-rs, nix-rs-created data reopened and verified by CppNix, cycles, and vanished paths. Each case uses temporary store roots and empty configuration; these are not tests against the host's live store or the stateful qualification VM. The two store unit tests pass too. This evidence does not qualify garbage collection, schema migration coverage, concurrent writers, interrupted writes, daemon ownership handoff, or whole-system rollback. `nix-rs-build` has the preview build comparisons described above, which are not build-engine qualification.
 

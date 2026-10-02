@@ -760,7 +760,7 @@ impl LocalStore {
 		Ok(file)
 	}
 
-	fn open_gc_lock(&self) -> Result<File> {
+	pub(crate) fn open_gc_lock(&self) -> Result<File> {
 		let path = self.config.state_dir.join("gc.lock");
 		Ok(open_lock_file(&path, true)
 			.context(|| format!("opening '{}'", path.display()))?

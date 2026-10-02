@@ -253,6 +253,7 @@ Internal test crate that checks the workspace crates against the CppNix 2.35.2 f
 - `upstream_store_json`, which checks `nix_compat::cppnix_json` against the store-path, content-address, outputs-spec and derived-path fixtures (2026-09-30).
 - `upstream_path_info_json`, which checks path-info and nar-info JSON against the values CppNix's tests construct (2026-09-30).
 - `upstream_realisation_json`, which checks realisation and build-result JSON, realisation fingerprints, and signatures made with CppNix's test key (2026-09-30).
+- `reference_gc`, which compares printed roots, live and dead paths, collection results and remaining paths, and specific deletions with the reference on copies of one store, and checks that a temporary root sent to the nix-rs GC socket during a collection keeps its path (2026-10-02).
 - `reference_substitute`, which has the reference sign and copy a closure into `file://` caches with six compression methods and checks narinfo round trips, substitution metadata including signatures and derivers, unsigned and trusted caches, and corrupt NARs against the reference (2026-10-02).
 - `reference_build`, which builds derivations the 2.35.2 reference wrote with both the reference and `nix-rs-build` in separate temporary stores and compares the outputs, `nix path-info --json` metadata, the reference's verification of the nix-rs store, a probe of the sandbox environment, and failure messages and statuses (2026-10-02).
 - `upstream_derivation_options`, which reads and writes the six `derivation-options` JSON fixtures byte for byte and checks that `nix-rs-build` derives the same options, required system features, substitution and `uid-range` decisions from the eight advanced-attributes derivations as CppNix's `derivation-advanced-attrs.cc` (2026-10-02).
@@ -291,6 +292,10 @@ Internal trybuild tests for `nix-compat-derive`.
 - Compile-error snapshots updated for the renamed crate location and the pinned nightly toolchain's diagnostics (2026-09-25 to 2026-09-27).
 
 ## nix-rs-store
+
+### Unreleased
+
+- `gc` implements garbage collection after CppNix 2.35.2's `gc.cc`: roots under `gcroots` and `profiles` with indirect and stale `auto` links, live processes' temporary roots (removing stale files), runtime roots from `/proc`, the `keep-outputs` and `keep-derivations` closure rules, deletion of referrers before references under the exclusive `gc.lock`, `max-freed`, `.links` cleanup, and a `gc-socket/socket` server so clients of either implementation can add temporary roots during a collection. `collect_garbage` returns live or dead paths, deletes dead or specific paths, and reports freed bytes as CppNix estimates them (2026-10-02).
 
 ### 0.1.0 - pending publication
 

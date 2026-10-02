@@ -10,6 +10,7 @@ pub mod canonicalise;
 pub mod config;
 mod db;
 pub mod error;
+pub mod gc;
 mod local;
 pub mod lock;
 pub mod nar;
