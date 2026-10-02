@@ -65,11 +65,14 @@ A checked item below means it exists and has focused local evidence in the curre
 
 - [x] Ship a non-conflicting `nixrs` preview binary that evaluates pure `--expr` and `--file` inputs, with focused CLI tests.
 - [ ] Close the language gaps recorded by §1: laziness, coercion, equality, missing builtins, paths, imports, string contexts, CppNix-format diagnostics with source locations and traces, and invalid inputs accepted by nix-rs. Match integer-overflow errors and deep-value handling in both debug and release builds rather than accepting panics or silent wrapping.
+	- [x] Fix contextless `appendContext`, weak `abort`/`throw` message coercion, byte-wise zero-width `split` progress, and non-UTF-8 `readDir` keys with focused regression tests. Store-context validation, POSIX regex equivalence, diagnostics, and the other language gaps remain open.
 	- [x] Replace integer arithmetic panics and wrapping with evaluation errors for addition, subtraction, multiplication, division, and negation, including builtin/operator parity and division by integer or float zero. All 43 focused arithmetic cases pass in debug and release. The four copied overflow cases now record `error-message E043`, not `pass`; full reference diagnostic rendering remains open.
-- [ ] Integrate derivation creation with the store: preserve string-context dependencies and compare `derivationStrict` results, `.drv` bytes, and computed output paths against the reference before attempting full Nixpkgs evaluation. **[locked: claude-glue]**
-- [ ] Implement the required builtins and impure evaluation boundary, including filesystem and environment access, fetchers, and import-from-derivation. **[locked: claude-glue]**
-- [ ] Match source filtering and path-copy behavior because these change derivation inputs and store paths. **[locked: claude-glue]**
+- [ ] Integrate derivation creation with the store: preserve string-context dependencies and compare `derivationStrict` results, `.drv` bytes, and computed output paths against the reference before attempting full Nixpkgs evaluation.
+	- [x] Add opt-in diverted writable evaluation that registers text, copied/filtered sources, and derivations with their database references. Verify captured source hashes before registration, logical filter paths, dependency-output references, and unchanged read-only behavior. Realization and IFD are not implemented by this milestone; see [verification](docs/verification.md#rust-core-completion-work).
+- [ ] Implement the required builtins and impure evaluation boundary, including filesystem and environment access, fetchers, and import-from-derivation.
+- [ ] Match source filtering and path-copy behavior because these change derivation inputs and store paths.
 - [ ] Parse, resolve, update, and write flake references and `flake.lock` with registry and follows semantics matching the reference.
+	- [x] Fix selected flake-reference parse/format round trips for forge refs and hosts, transport queries, Mercurial, plain Git, explicit source types, and relative paths. Full format compatibility, registries, fetching, and locks remain open.
 - [ ] Evaluate flake outputs and selected Nixpkgs packages with the same values and derivation graphs as CppNix.
 - [ ] Evaluate a pinned NixOS configuration and both standalone and module-based Home Manager configurations before claiming they are supported.
 - [ ] Keep improved evaluator diagnostics behind an opt-in interface when their output would change legacy command behavior.
@@ -96,7 +99,8 @@ A checked item below means it exists and has focused local evidence in the curre
 
 ## 6. Complete the command and configuration contract
 
-- [ ] Provide the `nix` executable and required legacy commands, including `nix-build`, `nix-instantiate`, `nix-store`, `nix-env`, and other names found in the reference inventory. **[locked: claude-glue]**
+- [ ] Provide the `nix` executable and required legacy commands, including `nix-build`, `nix-instantiate`, `nix-store`, `nix-env`, and other names found in the reference inventory.
+	- [x] Permit single-derivation `nix-instantiate` selections with an explicit diverted `--store local?root=ROOT`, and support `--eval --read-write-mode`. Read-only diverted reads retain the selected root. Recursive selections, builds, permanent roots, and the remaining commands remain open.
 - [ ] Implement command arguments, option aliases, environment variables, `nix.conf`, experimental feature gates, registries, and profiles with matching precedence.
 - [ ] Match exit codes, stdout, stderr, JSON fields, log modes, and command side effects; use differential tests for scripts that parse output.
 - [ ] Cover core workflows: evaluate, build, develop, shell, run, flake, profile, store, copy, path-info, log, search, and garbage collection.

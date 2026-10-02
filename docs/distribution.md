@@ -13,17 +13,21 @@ The crates below are published on crates.io under the SINGH-RAJVEER account. The
 | Crate | Version | License | Contents |
 |---|---|---|---|
 | [`nix-rs-eval-builtin-macros`](https://crates.io/crates/nix-rs-eval-builtin-macros) | 0.0.1 | GPL-3.0-only | Procedural macros for defining builtins, derived from `snix-eval-builtin-macros` |
-| [`nix-rs-eval`](https://crates.io/crates/nix-rs-eval) | 0.2.0 | GPL-3.0-only | Nix language evaluator, derived from `snix-eval` |
+| [`nix-rs-eval`](https://crates.io/crates/nix-rs-eval) | 0.2.1 | GPL-3.0-only | Nix language evaluator, derived from `snix-eval` |
 | [`nix-rs-cli`](https://crates.io/crates/nix-rs-cli) | 0.1.1 | Apache-2.0 | The `nixrs` preview command |
 | [`nix-rs-hash`](https://crates.io/crates/nix-rs-hash) | 0.1.0 | GPL-3.0-only | Hash and Nix base32 formats |
 | [`nix-rs-flakeref`](https://crates.io/crates/nix-rs-flakeref) | 0.1.0 | GPL-3.0-only | Flake reference parser and formatter |
-| [`nix-rs-compat`](https://crates.io/crates/nix-rs-compat) | 0.1.0 | GPL-3.0-only | Nix formats and protocol values |
+| [`nix-rs-compat`](https://crates.io/crates/nix-rs-compat) | 0.1.1 | GPL-3.0-only | Nix formats and protocol values |
 | [`nix-rs-compat-derive`](https://crates.io/crates/nix-rs-compat-derive) | 0.1.0 | GPL-3.0-only | Wire derive macros |
 | [`nix-rs-serde`](https://crates.io/crates/nix-rs-serde) | 0.1.0 | GPL-3.0-only | Bidirectional serde bridge |
-| [`nix-rs-glue`](https://crates.io/crates/nix-rs-glue) | 0.1.0 | GPL-3.0-only | Read-only store-aware evaluation on Unix |
-| [`nix-rs-commands`](https://crates.io/crates/nix-rs-commands) | 0.1.0 | GPL-3.0-only | Partial read-only `nix-instantiate --eval` command |
+| [`nix-rs-glue`](https://crates.io/crates/nix-rs-glue) | 0.1.1 | GPL-3.0-only | Read-only store-aware evaluation on Unix |
+| [`nix-rs-commands`](https://crates.io/crates/nix-rs-commands) | 0.1.1 | GPL-3.0-only | Partial read-only `nix-instantiate --eval` command |
+| [`nix-rs-store`](https://crates.io/crates/nix-rs-store) | 0.1.0 | GPL-3.0-only | Experimental local store and cache substitution |
+| [`nix-rs-build`](https://crates.io/crates/nix-rs-build) | 0.1.0 | GPL-3.0-only | Experimental local sandboxed derivation builder |
 
 Imported code retains Snix's GPL-3.0 license, with package-local text and provenance; bundled LGPL Nix material has its own notices and license text. The CLI's own source is Apache-2.0, but the `nixrs` binary links `nix-rs-eval`, so a distributed binary must meet GPL-3.0 terms. Published versions are permanent: a version can be yanked but its source stays public. Record each release in [CHANGELOG.md](../CHANGELOG.md), bump changed crates and versioned path dependencies, package and verify the archives, then publish the selected packages in dependency order. Reuse an unchanged dependency's existing registry release rather than attempting to upload the same version again. These are preview crates: their APIs are not stable, and publication does not close the drop-in release gate.
+
+Each bump of an existing crate must increment its patch version by exactly one, or `0.0.1`. Keep its major and minor versions unchanged and do not skip patch numbers. New crates use their selected initial version. Leave unchanged crates at their existing releases, and raise a consumer's dependency minimum when it needs functionality introduced by a new patch. Historical release versions remain unchanged.
 
 The `nix-rs-hash` crate contains hash and Nix base32 code extracted from the compatibility library and retains GPL-3.0-only. The library reexports its former paths, so the split does not require downstream source changes.
 
@@ -33,11 +37,22 @@ The `nix-rs-flakeref` crate contains extracted flake reference parsing and forma
 
 Nine new versions were published on 2026-10-01 after all-feature package verification, archive/license/provenance inspection, and the workspace test suite. The registry API confirmed all ten versions from that release existed, were not yanked, and belonged to SINGH-RAJVEER. The unchanged builtin-macro crate remains at its existing 0.0.1 release. Internal compatibility and derive test crates remain private. Store and build publication was excluded from that release, not permanently prohibited.
 
-The 2026-10-02 release set is being prepared: evaluator 0.2.1, compatibility 0.1.1, glue 0.1.1, commands 0.1.1, and first releases of store and build at 0.1.0. Registry upload and checksum confirmation remain pending. Unchanged CLI, hash, flake-reference, Serde, and macro crates reuse their published releases. Glue and commands require the new evaluator methods, and build requires compatibility 0.1.1's downstream placeholder and corrected feature gate.
+Six versions were published on 2026-10-02: evaluator 0.2.1, compatibility 0.1.1, glue 0.1.1, commands 0.1.1, and first releases of store and build at 0.1.0. The crates.io API confirms all six are present, not yanked, and match the local package SHA-256 checksums below. Unchanged CLI, hash, flake-reference, Serde, and macro crates reuse their published releases. Glue and commands require the new evaluator methods, and build requires compatibility 0.1.1's downstream placeholder and corrected feature gate.
+
+The upload used a separate Jujutsu release workspace frozen from checkpoint `f90a0278`, with package-notice and formatting corrections. All-feature package verification and license/provenance checks passed, as did 28 focused local-store, build, substitution, and derivation-option comparisons, with two optional tests ignored. Later garbage-collection and selective-input-output changes remain under `Unreleased`; continued development was not silently included in these immutable registry versions. [Verification](verification.md#crate-release-checks)
+
+| Package | Uploaded archive SHA-256 |
+|---|---|
+| `nix-rs-compat` 0.1.1 | `6bec113dfb559d98155af332bb249cd5f116bc041a2f2931eee397a47f2dd0bf` |
+| `nix-rs-eval` 0.2.1 | `1945e5afc33d1f99713308c8f31c13537501b47e5b03fcf786c9541ab9d046d2` |
+| `nix-rs-store` 0.1.0 | `cfb89e07f166bbde39531ebe5deff622c4b4424d6cd14518832faf9cdc1f0444` |
+| `nix-rs-glue` 0.1.1 | `bc3b7ec5dc9e7ca6fa26692e7fb849f2be809b8e9994f3b87ba79668324df1a4` |
+| `nix-rs-build` 0.1.0 | `7900ac39e5046cc654d97f78137425252832ee0578979d344abc6e31f6ceea97` |
+| `nix-rs-commands` 0.1.1 | `b51e5aec8aefa2bea0376ae006f130e017f4277ca677257b8312bff39b251982` |
 
 The new store and build crates are experimental library previews for isolated temporary stores on the tested x86_64-linux target. Store includes local metadata/NAR handling and selected local/HTTP(S) cache substitution. Build includes the local sandbox path, output checks, structured attributes, logs, and configured substitution. Neither supplies a complete command/daemon replacement or qualifies live-store maintenance, sandbox security, NixOS rebuilds, remote scheduling, or other architectures.
 
-The occupied compatibility package names are replaced without changing internal import paths. Consumers can use `nix-compat = { package = "nix-rs-compat", version = "0.1.0" }` and the corresponding derive-macro alias. Package archives carry their license text and source provenance. All APIs are previews; registry publication does not close the drop-in release gate.
+The occupied compatibility package names are replaced without changing internal import paths. Consumers can use `nix-compat = { package = "nix-rs-compat", version = "0.1.1" }` and the corresponding derive-macro alias. Package archives carry their license text and source provenance. All APIs are previews; registry publication does not close the drop-in release gate.
 
 `cargo install nix-rs-commands` installs `nix-instantiate`, unlike the non-conflicting `nixrs` preview. Use `cargo install nix-rs-commands --root /path/to/isolated-prefix` and call that executable by absolute path; do not replace or shadow the system's CppNix during development.
 

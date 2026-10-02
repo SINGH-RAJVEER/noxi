@@ -7,21 +7,19 @@ Changes that have not reached a version yet go under an `Unreleased` heading for
 | Crate | Current version | crates.io | License |
 |---|---|---|---|
 | [`nix-rs-cli`](#nix-rs-cli) | 0.1.1 | [published](https://crates.io/crates/nix-rs-cli/0.1.1) | Apache-2.0 |
-| [`nix-rs-eval`](#nix-rs-eval) | 0.2.1 | pending publication | GPL-3.0-only |
+| [`nix-rs-eval`](#nix-rs-eval) | 0.2.1 | [published](https://crates.io/crates/nix-rs-eval/0.2.1) | GPL-3.0-only |
 | [`nix-rs-eval-builtin-macros`](#nix-rs-eval-builtin-macros) | 0.0.1 | [published](https://crates.io/crates/nix-rs-eval-builtin-macros) | GPL-3.0-only |
-| [`nix-rs-compat`](#nix-rs-compat) | 0.1.1 | pending publication | GPL-3.0-only (Snix-derived) |
-| [`nix-rs-hash`](#nix-rs-hash) | 0.1.0 | [published](https://crates.io/crates/nix-rs-hash/0.1.0) | GPL-3.0-only (Snix-derived) |
-| [`nix-rs-flakeref`](#nix-rs-flakeref) | 0.1.0 | [published](https://crates.io/crates/nix-rs-flakeref/0.1.0) | GPL-3.0-only (Snix-derived) |
-| [`nix-rs-compat-derive`](#nix-rs-compat-derive) | 0.1.0 | [published](https://crates.io/crates/nix-rs-compat-derive/0.1.0) | GPL-3.0-only (Snix-derived) |
-| [`nix-rs-serde`](#nix-rs-serde) | 0.1.0 | [published](https://crates.io/crates/nix-rs-serde/0.1.0) | GPL-3.0-only (Snix-derived) |
-| [`nix-rs-glue`](#nix-rs-glue) | 0.1.1 | pending publication | GPL-3.0-only (Snix-derived) |
-| [`nix-rs-commands`](#nix-rs-commands) | 0.1.1 | pending publication | GPL-3.0-only |
-| [`nix-rs-store`](#nix-rs-store) | 0.1.0 | pending publication | GPL-3.0-only |
-| [`nix-rs-build`](#nix-rs-build) | 0.1.0 | pending publication | GPL-3.0-only |
+| [`nix-rs-compat`](#nix-rs-compat) | 0.1.1 | [published](https://crates.io/crates/nix-rs-compat/0.1.1) | GPL-3.0-only |
+| [`nix-rs-hash`](#nix-rs-hash) | 0.1.0 | [published](https://crates.io/crates/nix-rs-hash/0.1.0) | GPL-3.0-only |
+| [`nix-rs-flakeref`](#nix-rs-flakeref) | 0.1.0 | [published](https://crates.io/crates/nix-rs-flakeref/0.1.0) | GPL-3.0-only |
+| [`nix-rs-compat-derive`](#nix-rs-compat-derive) | 0.1.0 | [published](https://crates.io/crates/nix-rs-compat-derive/0.1.0) | GPL-3.0-only |
+| [`nix-rs-serde`](#nix-rs-serde) | 0.1.0 | [published](https://crates.io/crates/nix-rs-serde/0.1.0) | GPL-3.0-only |
+| [`nix-rs-glue`](#nix-rs-glue) | 0.1.1 | [published](https://crates.io/crates/nix-rs-glue/0.1.1) | GPL-3.0-only |
+| [`nix-rs-commands`](#nix-rs-commands) | 0.1.1 | [published](https://crates.io/crates/nix-rs-commands/0.1.1) | GPL-3.0-only |
+| [`nix-rs-store`](#nix-rs-store) | 0.1.0 | [published](https://crates.io/crates/nix-rs-store/0.1.0) | GPL-3.0-only |
+| [`nix-rs-build`](#nix-rs-build) | 0.1.0 | [published](https://crates.io/crates/nix-rs-build/0.1.0) | GPL-3.0-only |
 | [`nixrs-compat-tests`](#nixrs-compat-tests) | 0.1.0 | internal, `publish = false` | none declared |
-| [`nix-compat-derive-tests`](#nix-compat-derive-tests) | 0.1.0 | internal, `publish = false` | GPL-3.0 (Snix) |
-
-The imported crates come from [Snix](https://git.snix.dev/snix/snix) revision `22ca63bdb71c221001526304eca934385fb47c26` (2026-09-24), copied on 2026-09-25. Import-time changes common to all of them: formatting with the root `rustfmt.toml` (hard tabs, width 4), tab-indented TOML, removal of Snix's per-crate `default.nix` build files, and renaming of package names, Rust imports, test paths and project-facing diagnostics from their Snix identifiers.
+| [`nix-compat-derive-tests`](#nix-compat-derive-tests) | 0.1.0 | internal, `publish = false` | GPL-3.0 |
 
 ## nix-rs-hash
 
@@ -30,6 +28,16 @@ The imported crates come from [Snix](https://git.snix.dev/snix/snix) revision `2
 - Extracted Nix hash values, digest helpers, Nix base32 encoding, and their tests from `nix-compat`. `nix-compat` reexports the previous paths.
 
 ## nix-rs-flakeref
+
+### Unreleased
+
+#### Changed
+
+- **Breaking:** `FlakeRef::Mercurial` has a required `url` field holding the transport URL without the `hg+` prefix or its `ref` and `rev` attributes (2026-10-03).
+
+#### Fixed
+
+- Parsing and formatting round trip for forge references with refs, revisions and hosts, transport query parameters (which stay out of the fetcher attributes and survive formatting), Mercurial and plain Git locations, explicit `file` and `tarball` types, and relative paths. A repeated query parameter keeps its first value, as CppNix 2.35.2's `decodeQuery` does, and boolean attributes accept only `1` (2026-10-03).
 
 ### 0.1.0 - 2026-10-01
 
@@ -63,7 +71,16 @@ Published to crates.io; `cargo install nix-rs-cli` installs the `nixrs` binary.
 
 Nix language parser, compiler and bytecode VM with the pure builtins, imported from `snix-eval`.
 
-### 0.2.1 - pending publication
+### Unreleased
+
+#### Fixed
+
+- `builtins.appendContext` adds a context to a string that had none, and keeps an existing context (2026-10-03).
+- `abort` and `throw` coerce their message weakly, as CppNix does, and propagate a `throw` raised while coercing it (2026-10-03).
+- `builtins.split` advances one byte after a zero-width match, including inside multibyte input, instead of one character (2026-10-03).
+- `builtins.readDir` returns entries whose names are not valid UTF-8 (2026-10-03).
+
+### 0.2.1 - 2026-10-02
 
 #### Added
 
@@ -121,7 +138,13 @@ Published to crates.io.
 
 Nix formats and protocols: store paths, nixbase32, hashes, NAR, ATerm derivations, narinfo, realisations, flake references, `nix.conf` and daemon wire types.
 
-### 0.1.1 - pending publication
+### Unreleased
+
+#### Fixed
+
+- The async NAR reader rejects reuse of a node after an abandoned child or an exhausted directory, and poisons its reader tree after an error or a cancelled, partially polled directory read. The three poisoning tests that were ignored now run (2026-10-03).
+
+### 0.1.1 - 2026-10-02
 
 #### Added
 
@@ -206,7 +229,14 @@ Serializes Rust values into Nix and deserializes Nix values into Rust types, imp
 
 ## nix-rs-glue
 
-### 0.1.1 - pending publication
+### Unreleased
+
+#### Added
+
+- `EvaluatorStore::writable(root)` evaluates against a diverted local store under an existing absolute `root` and registers text files, copied and filtered sources, and derivation ATerm bytes with their references. Expected source hashes are checked against the captured bytes before those bytes are registered, and source filters see logical `/nix/store` paths. `EvaluatorStore::read_only(root)` reads through the same diversion without opening the database for writing. System roots and symlinked store or state directories are rejected. Outputs are not built, and import-from-derivation is not supported (2026-10-03).
+- `ReadOnlyStore` is now an alias of `EvaluatorStore` (2026-10-03).
+
+### 0.1.1 - 2026-10-02
 
 - Requires `nix-rs-eval` 0.2.1 for search-path inspection and explicit-directory evaluation.
 
@@ -223,7 +253,13 @@ Serializes Rust values into Nix and deserializes Nix values into Rust types, imp
 
 ## nix-rs-commands
 
-### 0.1.1 - pending publication
+### Unreleased
+
+#### Added
+
+- `nix-instantiate` without `--eval` instantiates a selection that is a single derivation into an explicit diverted store given as `--store local?root=ROOT`, and prints its `.drv` path. `--eval --read-write-mode` evaluates with that store writable. Other `--store` values are rejected, `--json` requires `--eval`, and no builds or permanent roots are made (2026-10-03).
+
+### 0.1.1 - 2026-10-02
 
 - Requires `nix-rs-eval` 0.2.1 and `nix-rs-glue` 0.1.1 so registry builds include the corrected evaluation and builtin behavior.
 
@@ -256,6 +292,7 @@ Internal test crate that checks the workspace crates against the CppNix 2.35.2 f
 - `reference_daemon`, which runs unchanged reference clients against the reference daemon and the nix-rs daemon serving copies of one store and compares exit status, standard output and standard error (2026-10-02).
 - `reference_gc`, which compares printed roots, live and dead paths, collection results and remaining paths, and specific deletions with the reference on copies of one store, and checks that a temporary root sent to the nix-rs GC socket during a collection keeps its path (2026-10-02).
 - `reference_substitute`, which has the reference sign and copy a closure into `file://` caches with six compression methods and checks narinfo round trips, substitution metadata including signatures and derivers, unsigned and trusted caches, and corrupt NARs against the reference (2026-10-02).
+- `reference_substitute` also checks `BinaryCache::upload_closure`: a signed nix-rs upload has the same narinfo text and NAR bytes as the reference's uncompressed upload and round-trips, signatures survive key rotation, corrupt sources and failed publications advertise nothing, and the source keeps temporary roots until its handle is dropped. It checks that the same unsafe NAR URLs fail with both engines (2026-10-03).
 - `reference_build`, which builds derivations the 2.35.2 reference wrote with both the reference and `nix-rs-build` in separate temporary stores and compares the outputs, `nix path-info --json` metadata, the reference's verification of the nix-rs store, a probe of the sandbox environment, and failure messages and statuses (2026-10-02).
 - `upstream_derivation_options`, which reads and writes the six `derivation-options` JSON fixtures byte for byte and checks that `nix-rs-build` derives the same options, required system features, substitution and `uid-range` decisions from the eight advanced-attributes derivations as CppNix's `derivation-advanced-attrs.cc` (2026-10-02).
 
@@ -296,11 +333,13 @@ Internal trybuild tests for `nix-compat-derive`.
 
 ### Unreleased
 
+- `BinaryCache::upload_closure` exports a path and its references to a `file://` cache as uncompressed NARs with signed narinfo files, publishing references first. NAR bytes are checked against the source's metadata before signing, existing signatures are kept when keys rotate, temporary files are not left behind, the root is advertised only after its closure, and the source holds temporary roots for the uploaded paths. HTTP destinations and read-only sources are rejected (2026-10-03).
+- `BinaryCache::nar` refuses a narinfo `URL` in a `file://` cache that is absolute or has `.` or `..` segments, as CppNix does (2026-10-03).
 - `LocalStore::verify_store` takes a log callback and reports CppNix's progress and error messages at their verbosity levels, checks the hashes of `.links` entries with `check_contents`, and reports filled-in NAR sizes (2026-10-02).
 - `LocalStore::add_indirect_root` and `add_perm_root` create `gcroots/auto` links and permanent roots as CppNix does, and `CachedPath` carries the narinfo `FileSize` (2026-10-02).
 - `gc` implements garbage collection after CppNix 2.35.2's `gc.cc`: roots under `gcroots` and `profiles` with indirect and stale `auto` links, live processes' temporary roots (removing stale files), runtime roots from `/proc`, the `keep-outputs` and `keep-derivations` closure rules, deletion of referrers before references under the exclusive `gc.lock`, `max-freed`, `.links` cleanup, and a `gc-socket/socket` server so clients of either implementation can add temporary roots during a collection. `collect_garbage` returns live or dead paths, deletes dead or specific paths, and reports freed bytes as CppNix estimates them (2026-10-02).
 
-### 0.1.0 - pending publication
+### 0.1.0 - 2026-10-02
 
 - `binary_cache::BinaryCache` reads `file://`, `http://` and `https://` binary caches (HTTP through `ureq` with rustls; 404 and 403 mean a missing file, as in CppNix): `nix-cache-info` (rejecting a cache for another store directory), narinfo files, and NARs compressed with none, xz, bzip2, zstd, gzip or brotli. `LocalStore::substitute` substitutes a path and its references in cache priority order after CppNix's `PathSubstitutionGoal`, skipping copies not signed by a trusted key unless the cache has `trusted=1`, and imports each NAR with its hash and size checked (2026-10-02).
 - `LocalStore::create_temp_dir_in_store` and `ca_hash_of` are public, for the build engine (2026-10-02).
@@ -324,7 +363,7 @@ Internal trybuild tests for `nix-compat-derive`.
 - `missing::query_missing` follows CppNix's `queryMissing`: which paths realising some derived paths would build, substitute or not find, with download and NAR sizes (2026-10-02).
 - `LocalBuilder` realises only the outputs a derivation uses from each input derivation, and `realise_outputs` realises the named outputs of a derivation (`drv^out,dev`). Previously every output of every input had to be valid, so a garbage-collected `dev` or `man` output caused the whole input to be rebuilt (2026-10-02).
 
-### 0.1.0 - pending publication
+### 0.1.0 - 2026-10-02
 
 - First registry release of the experimental local builder, with versioned dependencies on `nix-rs-store` 0.1.0 and `nix-rs-compat` 0.1.1. The tested development target is x86_64-linux; this is not a complete build-engine or sandbox-security qualification.
 - `LocalBuilder::with_substituters` tries configured binary caches for missing outputs and inputs before building. Complete substitution/fallback and build-engine behavior remains unqualified.
