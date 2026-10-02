@@ -6,14 +6,14 @@ edition = "2024"
 description = "Derivation builds for the nix-rs engine, compatible with CppNix's sandbox"
 license = "GPL-3.0-only"
 repository = "https://github.com/SINGH-RAJVEER/nix-rs"
-publish = false
+publish = ["crates-io"]
 
 [dependencies]
 bstr.workspace = true
 bzip2 = "0.6"
 libc.workspace = true
-nix-compat = { package = "nix-rs-compat", path = "../nix-rs/nix-compat", version = "0.1.0", features = ["serde"] }
-nix-rs-store = { path = "../nix-rs-store" }
+nix-compat = { package = "nix-rs-compat", path = "../nix-rs/nix-compat", version = "0.1.1", features = ["serde"] }
+nix-rs-store = { path = "../nix-rs-store", version = "0.1.0" }
 serde_json.workspace = true
 sha2.workspace = true
 thiserror.workspace = true

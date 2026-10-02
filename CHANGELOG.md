@@ -7,17 +7,17 @@ Changes that have not reached a version yet go under an `Unreleased` heading for
 | Crate | Current version | crates.io | License |
 |---|---|---|---|
 | [`nix-rs-cli`](#nix-rs-cli) | 0.1.1 | [published](https://crates.io/crates/nix-rs-cli/0.1.1) | Apache-2.0 |
-| [`nix-rs-eval`](#nix-rs-eval) | 0.2.0 | [published](https://crates.io/crates/nix-rs-eval/0.2.0) | GPL-3.0-only |
+| [`nix-rs-eval`](#nix-rs-eval) | 0.2.1 | pending publication | GPL-3.0-only |
 | [`nix-rs-eval-builtin-macros`](#nix-rs-eval-builtin-macros) | 0.0.1 | [published](https://crates.io/crates/nix-rs-eval-builtin-macros) | GPL-3.0-only |
-| [`nix-rs-compat`](#nix-rs-compat) | 0.1.0 | [published](https://crates.io/crates/nix-rs-compat/0.1.0) | GPL-3.0-only (Snix-derived) |
+| [`nix-rs-compat`](#nix-rs-compat) | 0.1.1 | pending publication | GPL-3.0-only (Snix-derived) |
 | [`nix-rs-hash`](#nix-rs-hash) | 0.1.0 | [published](https://crates.io/crates/nix-rs-hash/0.1.0) | GPL-3.0-only (Snix-derived) |
 | [`nix-rs-flakeref`](#nix-rs-flakeref) | 0.1.0 | [published](https://crates.io/crates/nix-rs-flakeref/0.1.0) | GPL-3.0-only (Snix-derived) |
 | [`nix-rs-compat-derive`](#nix-rs-compat-derive) | 0.1.0 | [published](https://crates.io/crates/nix-rs-compat-derive/0.1.0) | GPL-3.0-only (Snix-derived) |
 | [`nix-rs-serde`](#nix-rs-serde) | 0.1.0 | [published](https://crates.io/crates/nix-rs-serde/0.1.0) | GPL-3.0-only (Snix-derived) |
-| [`nix-rs-glue`](#nix-rs-glue) | 0.1.0 | [published](https://crates.io/crates/nix-rs-glue/0.1.0) | GPL-3.0-only (Snix-derived) |
-| [`nix-rs-commands`](#nix-rs-commands) | 0.1.0 | [published](https://crates.io/crates/nix-rs-commands/0.1.0) | GPL-3.0-only |
-| [`nix-rs-store`](#nix-rs-store) | 0.1.0 | unpublished, `publish = false` | GPL-3.0-only |
-| [`nix-rs-build`](#nix-rs-build) | 0.1.0 | unpublished workspace preview, `publish = false` | GPL-3.0-only |
+| [`nix-rs-glue`](#nix-rs-glue) | 0.1.1 | pending publication | GPL-3.0-only (Snix-derived) |
+| [`nix-rs-commands`](#nix-rs-commands) | 0.1.1 | pending publication | GPL-3.0-only |
+| [`nix-rs-store`](#nix-rs-store) | 0.1.0 | pending publication | GPL-3.0-only |
+| [`nix-rs-build`](#nix-rs-build) | 0.1.0 | pending publication | GPL-3.0-only |
 | [`nixrs-compat-tests`](#nixrs-compat-tests) | 0.1.0 | internal, `publish = false` | none declared |
 | [`nix-compat-derive-tests`](#nix-compat-derive-tests) | 0.1.0 | internal, `publish = false` | GPL-3.0 (Snix) |
 
@@ -63,14 +63,14 @@ Published to crates.io; `cargo install nix-rs-cli` installs the `nixrs` binary.
 
 Nix language parser, compiler and bytecode VM with the pure builtins, imported from `snix-eval`.
 
-### Unreleased
+### 0.2.1 - pending publication
 
 #### Added
 
 - `Evaluation::evaluate_in_dir` evaluates code that has no file, such as an `--expr` argument, with relative paths resolved against a given directory instead of the process's current directory. Diagnostics and `__curPos` still treat the code as having no file (2026-10-01).
 - `EvaluationBuilder::get_nix_path` returns the search path set so far (2026-10-01).
 
-`nix-rs-glue` and `nix-rs-commands` now use both methods, so this version has to be published, and their `nix-rs-eval` requirement raised to it, before either of them is published again.
+`nix-rs-glue` and `nix-rs-commands` require this evaluator version for these methods.
 
 ### 0.2.0 - 2026-10-01
 
@@ -121,7 +121,7 @@ Published to crates.io.
 
 Nix formats and protocols: store paths, nixbase32, hashes, NAR, ATerm derivations, narinfo, realisations, flake references, `nix.conf` and daemon wire types.
 
-### Unreleased
+### 0.1.1 - pending publication
 
 #### Added
 
@@ -206,7 +206,9 @@ Serializes Rust values into Nix and deserializes Nix values into Rust types, imp
 
 ## nix-rs-glue
 
-### Unreleased
+### 0.1.1 - pending publication
+
+- Requires `nix-rs-eval` 0.2.1 for search-path inspection and explicit-directory evaluation.
 
 #### Fixed
 
@@ -221,7 +223,9 @@ Serializes Rust values into Nix and deserializes Nix values into Rust types, imp
 
 ## nix-rs-commands
 
-### Unreleased
+### 0.1.1 - pending publication
+
+- Requires `nix-rs-eval` 0.2.1 and `nix-rs-glue` 0.1.1 so registry builds include the corrected evaluation and builtin behavior.
 
 #### Fixed
 
@@ -288,22 +292,25 @@ Internal trybuild tests for `nix-compat-derive`.
 
 ## nix-rs-store
 
-### Unreleased
+### 0.1.0 - pending publication
 
 - `binary_cache::BinaryCache` reads `file://`, `http://` and `https://` binary caches (HTTP through `ureq` with rustls; 404 and 403 mean a missing file, as in CppNix): `nix-cache-info` (rejecting a cache for another store directory), narinfo files, and NARs compressed with none, xz, bzip2, zstd, gzip or brotli. `LocalStore::substitute` substitutes a path and its references in cache priority order after CppNix's `PathSubstitutionGoal`, skipping copies not signed by a trusted key unless the cache has `trusted=1`, and imports each NAR with its hash and size checked (2026-10-02).
 - `LocalStore::create_temp_dir_in_store` and `ca_hash_of` are public, for the build engine (2026-10-02).
-- Adds an unpublished local-store preview with the schema-10 SQLite layout, validity/reference metadata, path registration, NAR import/export, canonicalization, and store locks.
-- Two local unit tests and five isolated reference comparisons pass. Garbage collection, substitution, daemon ownership, concurrency/crash recovery, and full existing-store downgrade qualification remain open.
+- First registry release of the local-store preview with the schema-10 SQLite layout, validity/reference metadata, path registration, NAR import/export, canonicalization, and store locks.
+- Two local unit tests and six isolated local-store comparisons pass, along with selected cache-substitution comparisons. Garbage collection, full cache behavior, daemon ownership, concurrency/crash recovery, and full existing-store downgrade qualification remain open.
 - Every `LocalStore` handle to one store in a process appends to the same `temproots/<pid>` file. A second handle used to delete and recreate it, which hid the first handle's temporary roots from the garbage collector. Dropping the last handle now also removes the file, as CppNix's `~LocalStore` does (2026-10-01).
 
 ## nix-rs-build
 
-### Unreleased
+### 0.1.0 - pending publication
+
+- First registry release of the experimental local builder, with versioned dependencies on `nix-rs-store` 0.1.0 and `nix-rs-compat` 0.1.1. The tested development target is x86_64-linux; this is not a complete build-engine or sandbox-security qualification.
+- `LocalBuilder::with_substituters` tries configured binary caches for missing outputs and inputs before building. Complete substitution/fallback and build-engine behavior remains unqualified.
 
 - Builds write their output to `LOGDIR/drvs/XX/REST.bz2`, or uncompressed with `compress-build-log = false`, unless `keep-build-log` is off, so `nix-store -l` reads the logs nix-rs writes. A failed build lists its outputs sorted by path and, with `show_log_tail`, ends with the last `log-lines` lines of output as CppNix's `nix build` does, leaving out `@nix` messages and text overwritten by a carriage return (2026-10-02).
 - `LocalBuilder` builds derivations with structured attributes. `structured` writes `.attrs.json` with nlohmann's compact formatting, sorted keys and float notation, and `.attrs.sh` with CppNix's rules, including its conversion of numbers through `float` and 32-bit `int`. `exportReferencesGraph` entries become path-info JSON with closure sizes, and `outputs` maps each output to its path (2026-10-02).
 - `local::LocalBuilder` realises a derivation in a local store, building its input derivations first, following CppNix 2.35.2's `DerivationBuildingGoal`, `DerivationBuilderImpl` and `ChrootLinuxDerivationBuilder`. It computes the input closure, locks and temporarily roots the outputs, removes invalid leftovers, builds the reference environment (including `passAsFile`, `exportReferencesGraph` and output placeholders), runs the builder in the sandbox with only the input closure visible, and then canonicalises, scans, orders and registers the outputs with the derivation as deriver. Fixed outputs are checked against their content address, and a mismatched output is kept under its actual path as CppNix does. `checkOutputs` size and reference rules apply. Builds without a sandbox, `builtin:` builders and floating content-addressed outputs are rejected (2026-10-02).
-- The crate is now a workspace member with a library entry point, so it compiles and its unit tests run with the rest of the workspace. The sandbox is still not connected to a scheduler and has not run a build (2026-10-02).
+- The crate became a workspace member with a library entry point before `LocalBuilder` connected the sandbox to the local build path. Scheduling across concurrent or remote builders remains unimplemented (2026-10-02).
 - `options::DerivationOptions` follows CppNix 2.35.2's `DerivationOptions<Inputs>`: it is generic over `StorePath` and `DerivedInput` inputs, reads `__sandboxProfile` and `__darwinAllowLocalNetworking`, maps content-addressed placeholders to the input outputs they stand for when `ca-derivations` is enabled, names a derivation's own outputs as `DrvRef::Output`, returns the warnings CppNix prints for top-level attributes that structured attributes ignore, and reads and writes CppNix's JSON form. `try_resolve`, `get_required_system_features`, `substitutes_allowed` and `use_uid_range` match their CppNix counterparts (2026-10-02).
 - Saves draft build-option parsing, reference scanning, settings, seccomp, and Linux sandbox helpers. Until 2026-10-02 the crate had no entry point and was not in the Cargo workspace.
-- Fixes found while compiling the draft in a separate scratch crate, where its four unit tests pass; the sandbox itself has not been run. The builder now closes its inherited copy of the PID pipe's write end, which kept the parent's read to EOF waiting while the builder waited for the parent. A seccomp rule whose architecture or syscall number does not match now skips to the next rule instead of returning `EPERM`, which denied every syscall; a test runs the filter program without installing it. The builder is killed and reaped on every error return after it starts. Reference scanning finds a hash split across more than two short writes (2026-10-01).
+- Initial draft fixes were checked in a separate scratch crate before real sandbox builds were connected. The builder closes its inherited copy of the PID pipe's write end, which kept the parent's read to EOF waiting while the builder waited for the parent. A seccomp rule whose architecture or syscall number does not match skips to the next rule instead of returning `EPERM`, which denied every syscall; a test runs the filter program without installing it. The builder is killed and reaped on every error return after it starts. Reference scanning finds a hash split across more than two short writes (2026-10-01).
