@@ -1,20 +1,21 @@
-//! A store that computes paths without writing them, as CppNix does in
-//! read-only mode (the default for `nix-instantiate --eval`).
-//!
-//! Imported paths, derivations and `builtins.toFile` results get the store
-//! paths CppNix would give them, but nothing is written to `/nix/store`.
-//! Derivations are kept in memory so later derivations can refer to them.
+//! Evaluator store state, read-only by default. Writable mode registers
+//! text, imported paths and derivations in an explicitly diverted local
+//! store, while retaining CppNix 2.35.2's logical `/nix/store` paths.
 
 use std::cell::{RefCell, RefMut};
+use std::collections::BTreeSet;
 use std::ffi::{OsStr, OsString};
 use std::io;
 use std::os::unix::ffi::OsStrExt;
 use std::path::{Path, PathBuf};
 use std::rc::Rc;
 
-use nix_compat::nixhash::NixHash;
+use nix_compat::derivation::Derivation;
+use nix_compat::nixhash::{HashAlgo, NixHash};
 use nix_compat::store_path::{self, STORE_DIR, StorePath};
 use nix_rs_eval::{EvalIO, FileType, StdIO};
+use nix_rs_store::{FileIngestionMethod, LocalStore, LocalStoreConfig};
+use sha2::{Digest, Sha256};
 
 use crate::errors::ImportError;
 use crate::known_paths::KnownPaths;
@@ -22,13 +23,210 @@ use crate::nar::{self, Filter};
 
 /// State shared by the store-aware builtins of one evaluation.
 #[derive(Debug, Default)]
-pub struct ReadOnlyStore {
+pub struct EvaluatorStore {
 	known_paths: RefCell<KnownPaths>,
+	local: Option<LocalStore>,
+	real_store_dir: Option<PathBuf>,
 }
 
-impl ReadOnlyStore {
+/// A source captured once, before any store registration.
+pub(crate) struct CapturedImport {
+	name: String,
+	bytes: Vec<u8>,
+	recursive: bool,
+	hash: NixHash,
+	path: StorePath,
+}
+
+/// Compatibility name for the default, read-only evaluator store.
+pub type ReadOnlyStore = EvaluatorStore;
+
+impl EvaluatorStore {
 	pub fn new() -> Rc<Self> {
 		Rc::new(Self::default())
+	}
+
+	fn diverted_config(root: &Path) -> io::Result<LocalStoreConfig> {
+		let root = root.canonicalize()?;
+		if root == Path::new("/") || root.starts_with("/nix") || !root.is_dir() {
+			return Err(io::Error::other(
+				"writable evaluation requires a diverted store root",
+			));
+		}
+		// Reject redirected store/state directories before LocalStore opens
+		// anything. In particular, a root with nix -> /nix is not diverted.
+		for relative in [
+			"nix/store/.links",
+			"nix/var/nix/profiles/per-user",
+			"nix/var/nix/gcroots/per-user",
+			"nix/var/nix/temproots",
+			"nix/var/nix/gc.lock",
+			"nix/var/nix/gc-socket/socket",
+			"nix/var/nix/db/reserved",
+			"nix/var/nix/db/big-lock",
+			"nix/var/nix/db/schema",
+			"nix/var/nix/db/db.sqlite",
+			"nix/var/nix/db/db.sqlite-wal",
+			"nix/var/nix/db/db.sqlite-shm",
+			"nix/var/log/nix",
+		] {
+			let mut path = root.clone();
+			for component in Path::new(relative).components() {
+				path.push(component);
+				match std::fs::symlink_metadata(&path) {
+					Ok(meta) if meta.file_type().is_symlink() => {
+						return Err(io::Error::other(
+							"diverted store directories must not be symlinks",
+						));
+					}
+					Ok(_) => {}
+					Err(e) if e.kind() == io::ErrorKind::NotFound => {}
+					Err(e) => return Err(e),
+				}
+			}
+		}
+		Ok(LocalStoreConfig::with_root(&root))
+	}
+
+	/// Map a diverted store without opening its database or creating files.
+	pub fn read_only(root: &Path) -> io::Result<Rc<Self>> {
+		let config = Self::diverted_config(root)?;
+		Ok(Rc::new(Self {
+			real_store_dir: Some(config.real_store_dir),
+			..Self::default()
+		}))
+	}
+
+	/// Open a writable `local?root=ROOT` store. ROOT must already exist.
+	/// Logical paths remain `/nix/store`; system stores are never opened.
+	pub fn writable(root: &Path) -> io::Result<Rc<Self>> {
+		let config = Self::diverted_config(root)?;
+		let real_store_dir = Some(config.real_store_dir.clone());
+		let local = LocalStore::open(config).map_err(io::Error::other)?;
+		Ok(Rc::new(Self {
+			known_paths: RefCell::default(),
+			local: Some(local),
+			real_store_dir,
+		}))
+	}
+
+	pub fn local_store(&self) -> Option<&LocalStore> {
+		self.local.as_ref()
+	}
+
+	pub fn add_text(
+		&self,
+		name: &str,
+		contents: &[u8],
+		references: &BTreeSet<StorePath>,
+	) -> io::Result<StorePath> {
+		if let Some(local) = &self.local {
+			return local
+				.add_text_to_store(name, contents, references, false)
+				.map_err(io::Error::other);
+		}
+		store_path::build_text_path(name, contents, references.iter().map(StorePath::as_ref))
+			.map(|p| p.to_owned())
+			.map_err(io::Error::other)
+	}
+
+	pub(crate) fn register_derivation(&self, drv: &Derivation) -> io::Result<()> {
+		if self.local.is_some() {
+			let references = drv
+				.input_sources()
+				.iter()
+				.chain(drv.input_derivations().keys())
+				.cloned()
+				.collect();
+			let path = self.add_text(drv.drv_path().name(), &drv.to_aterm_bytes(), &references)?;
+			if &path != drv.drv_path() {
+				return Err(io::Error::other(
+					"registered derivation path differs from evaluator path",
+				));
+			}
+		}
+		Ok(())
+	}
+
+	pub(crate) fn physical_path(&self, path: &Path) -> PathBuf {
+		if let Some(real) = &self.real_store_dir
+			&& let Ok(rest) = path.strip_prefix(STORE_DIR)
+		{
+			return if rest.as_os_str().is_empty() {
+				real.clone()
+			} else {
+				real.join(rest)
+			};
+		}
+		path.to_owned()
+	}
+
+	pub(crate) fn logical_path(&self, path: &Path) -> PathBuf {
+		if let Some(real) = &self.real_store_dir
+			&& let Ok(rest) = path.strip_prefix(real)
+		{
+			return Path::new(STORE_DIR).join(rest);
+		}
+		path.to_owned()
+	}
+
+	pub(crate) fn capture_import(
+		&self,
+		path: &Path,
+		name: &str,
+		recursive: bool,
+		filter: Option<&mut Filter<'_>>,
+	) -> io::Result<CapturedImport> {
+		let physical = self.physical_path(path);
+		let bytes = if recursive {
+			let mut bytes = Vec::new();
+			nar::dump_path(&mut bytes, &physical, filter)?;
+			bytes
+		} else {
+			std::fs::read(physical)?
+		};
+		let hash = NixHash::Sha256(Sha256::digest(&bytes).into());
+		let store_path = ca_path(name, recursive, &hash, path)?;
+		Ok(CapturedImport {
+			name: name.to_owned(),
+			bytes,
+			recursive,
+			hash,
+			path: store_path,
+		})
+	}
+
+	pub(crate) fn import_captured(
+		&self,
+		captured: CapturedImport,
+		expected: Option<&NixHash>,
+	) -> io::Result<StorePath> {
+		// Both hashing and ingestion use these bytes. No source filesystem
+		// reads, or store writes, occur between verification and ingestion.
+		if expected.is_some_and(|hash| hash != &captured.hash) {
+			return Err(io::Error::other(
+				"store path mismatch in (possibly filtered) path",
+			));
+		}
+		if let Some(local) = &self.local {
+			let method = if captured.recursive {
+				FileIngestionMethod::NixArchive
+			} else {
+				FileIngestionMethod::Flat
+			};
+			return local
+				.add_to_store_from_dump(
+					&mut io::Cursor::new(captured.bytes),
+					&captured.name,
+					method,
+					method,
+					HashAlgo::Sha256,
+					&BTreeSet::new(),
+					false,
+				)
+				.map_err(io::Error::other);
+		}
+		Ok(captured.path)
 	}
 
 	pub fn known_paths(&self) -> RefMut<'_, KnownPaths> {
@@ -42,14 +240,22 @@ impl ReadOnlyStore {
 		name: &str,
 		filter: Option<&mut Filter<'_>>,
 	) -> io::Result<StorePath> {
-		let digest = nar::nar_sha256(path, filter)?;
+		if self.local.is_some() {
+			let captured = self.capture_import(path, name, true, filter)?;
+			return self.import_captured(captured, None);
+		}
+		let digest = nar::nar_sha256(&self.physical_path(path), filter)?;
 		ca_path(name, true, &NixHash::Sha256(digest), path)
 	}
 
 	/// The store path a flat copy of the regular file `path` gets, hashed
 	/// with SHA-256.
 	pub fn import_flat(&self, path: &Path, name: &str) -> io::Result<StorePath> {
-		let digest = nar::file_sha256(path)?;
+		if self.local.is_some() {
+			let captured = self.capture_import(path, name, false, None)?;
+			return self.import_captured(captured, None);
+		}
+		let digest = nar::file_sha256(&self.physical_path(path))?;
 		ca_path(name, false, &NixHash::Sha256(digest), path)
 	}
 }
@@ -63,6 +269,64 @@ pub(crate) fn ca_path(
 	store_path::build_ca_path(name, recursive, hash, std::iter::empty(), false)
 		.map(|path| path.to_owned())
 		.map_err(|_| io_error(ImportError::InvalidName(path.to_owned())))
+}
+
+#[cfg(test)]
+mod tests {
+	use super::*;
+
+	#[test]
+	fn expected_hash_is_checked_against_captured_bytes_before_registration() {
+		for recursive in [false, true] {
+			let root = tempfile::tempdir().unwrap();
+			let source = tempfile::tempdir().unwrap();
+			let file = source.path().join("source");
+			std::fs::write(&file, "original").unwrap();
+			let store = EvaluatorStore::writable(root.path()).unwrap();
+			let captured = store
+				.capture_import(&file, "source", recursive, None)
+				.unwrap();
+			let expected_hash = captured.hash.clone();
+			let expected_path = captured.path.clone();
+			// Deterministically replace the source between capture and ingestion.
+			std::fs::write(&file, "replacement").unwrap();
+			let wrong_hash = if recursive {
+				nar::nar_sha256(&file, None).unwrap()
+			} else {
+				nar::file_sha256(&file).unwrap()
+			};
+			assert_ne!(expected_hash, NixHash::Sha256(wrong_hash));
+			let rejected = store
+				.capture_import(&file, "rejected", recursive, None)
+				.unwrap();
+			assert!(
+				store
+					.import_captured(rejected, Some(&expected_hash))
+					.is_err()
+			);
+			assert!(
+				store
+					.local_store()
+					.unwrap()
+					.query_all_valid_paths()
+					.unwrap()
+					.is_empty()
+			);
+			let imported = store
+				.import_captured(captured, Some(&expected_hash))
+				.unwrap();
+			assert_eq!(imported, expected_path);
+			let local = store.local_store().unwrap();
+			assert_eq!(
+				std::fs::read(local.real_path(&imported)).unwrap(),
+				b"original"
+			);
+			assert_eq!(
+				local.query_all_valid_paths().unwrap(),
+				[expected_path].into()
+			);
+		}
+	}
 }
 
 pub(crate) fn io_error(error: ImportError) -> io::Error {
@@ -103,7 +367,7 @@ fn corepkg(path: &Path) -> Option<Corepkg> {
 		.map(|(_, contents)| Corepkg::File(contents))
 }
 
-/// Local file access, with path imports computed by a [`ReadOnlyStore`].
+/// Local file access and imports through an [`EvaluatorStore`].
 pub struct StoreIO {
 	store: Rc<ReadOnlyStore>,
 }
@@ -119,13 +383,13 @@ impl EvalIO for StoreIO {
 		if path.starts_with(COREPKGS_DIR) {
 			return Ok(corepkg(path).is_some());
 		}
-		StdIO.path_exists(path)
+		StdIO.path_exists(&self.store.physical_path(path))
 	}
 
 	fn open(&self, path: &Path) -> io::Result<Box<dyn io::Read>> {
 		match corepkg(path) {
 			Some(Corepkg::File(contents)) => Ok(Box::new(contents.as_bytes())),
-			_ => StdIO.open(path),
+			_ => StdIO.open(&self.store.physical_path(path)),
 		}
 	}
 
@@ -133,7 +397,7 @@ impl EvalIO for StoreIO {
 		match corepkg(path) {
 			Some(Corepkg::Root) => Ok(FileType::Directory),
 			Some(Corepkg::File(_)) => Ok(FileType::Regular),
-			None => StdIO.file_type(path),
+			None => StdIO.file_type(&self.store.physical_path(path)),
 		}
 	}
 
@@ -148,13 +412,37 @@ impl EvalIO for StoreIO {
 					)
 				})
 				.collect()),
-			_ => StdIO.read_dir(path),
+			_ => StdIO.read_dir(&self.store.physical_path(path)),
 		}
 	}
 
 	fn import_path(&self, path: &Path) -> io::Result<PathBuf> {
+		if self.store.real_store_dir.is_some()
+			&& let Ok((store_path, _)) = StorePath::from_absolute_path_full(path)
+		{
+			if let Some(local) = &self.store.local {
+				if !local.is_valid_path(&store_path).map_err(io::Error::other)? {
+					return Err(io::Error::other("cannot import an invalid store path"));
+				}
+			}
+			return Ok(path.to_owned());
+		}
 		let name = import_name(path)?;
 		if let Some(Corepkg::File(contents)) = corepkg(path) {
+			if let Some(local) = &self.store.local {
+				let imported = local
+					.add_to_store_from_dump(
+						&mut contents.as_bytes(),
+						name,
+						FileIngestionMethod::Flat,
+						FileIngestionMethod::NixArchive,
+						HashAlgo::Sha256,
+						&BTreeSet::new(),
+						false,
+					)
+					.map_err(io::Error::other)?;
+				return Ok(PathBuf::from(imported.to_absolute_path()));
+			}
 			let digest = nar::bytes_nar_sha256(contents.as_bytes())?;
 			let imported = ca_path(name, true, &NixHash::Sha256(digest), path)?;
 			return Ok(PathBuf::from(imported.to_absolute_path()));

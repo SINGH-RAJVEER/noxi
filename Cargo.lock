@@ -1548,6 +1548,7 @@ dependencies = [
  "data-encoding",
  "nix-rs-compat",
  "nix-rs-eval",
+ "nix-rs-store",
  "serde_json",
  "sha2",
  "tempfile",
@@ -1590,6 +1591,7 @@ version = "0.1.0"
 dependencies = [
  "brotli-decompressor",
  "bzip2",
+ "ed25519",
  "flate2",
  "libc",
  "lzma-rust2",

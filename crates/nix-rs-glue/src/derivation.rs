@@ -65,6 +65,7 @@ fn populate_inputs(
 	drv: &mut DerivationBuilder,
 	context: NixContext,
 	known_paths: &KnownPaths,
+	state: &ReadOnlyStore,
 ) -> Result<(), DerivationError> {
 	for element in context.iter() {
 		match element {
@@ -95,7 +96,14 @@ fn populate_inputs(
 				let closure = known_paths.closure(&drv_path);
 				for path in &closure {
 					let absolute = path.to_absolute_path();
-					if std::fs::symlink_metadata(&absolute).is_err() {
+					let valid = match state.local_store() {
+						Some(local) => local.is_valid_path(path).unwrap_or(false),
+						None => std::fs::symlink_metadata(
+							state.physical_path(std::path::Path::new(&absolute)),
+						)
+						.is_ok(),
+					};
+					if !valid {
 						return Err(DerivationError::InvalidPath(absolute));
 					}
 				}
@@ -363,7 +371,7 @@ pub(crate) mod derivation_builtins {
 		}
 
 		let mut known_paths = state.known_paths();
-		populate_inputs(&mut drv, input_context, &known_paths)?;
+		populate_inputs(&mut drv, input_context, &known_paths, &state)?;
 
 		let drv = drv
 			.build(&name, &*known_paths)
@@ -395,6 +403,12 @@ pub(crate) mod derivation_builtins {
 				))),
 		));
 
+		state
+			.register_derivation(&drv)
+			.map_err(|error| ErrorKind::IO {
+				path: Some(drv_path.into()),
+				error: Rc::new(error),
+			})?;
 		known_paths
 			.add_verified_derivation(drv)
 			.map_err(DerivationError::InvalidDerivation)?;

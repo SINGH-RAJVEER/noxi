@@ -1,9 +1,9 @@
 //! Store-aware builtins for the nix-rs evaluator.
 //!
-//! [`configure`] turns an evaluation into CppNix 2.35.2's read-only mode,
-//! the default for `nix-instantiate --eval`. Derivations, imported paths and
-//! `builtins.toFile` results get the store paths CppNix computes for them,
-//! but nothing is written to the store and nothing is fetched. Derived from
+//! [`configure`] adds CppNix 2.35.2-compatible store builtins. The default
+//! [`EvaluatorStore`] computes paths without writing; explicitly diverted
+//! writable stores also register text, sources and derivations. Neither
+//! mode builds outputs or fetches sources. Derived from
 //! Snix's `glue` and `build-glue` crates; see `PROVENANCE.md` in
 //! `crates/nix-rs/`.
 
@@ -19,14 +19,14 @@ pub mod known_paths;
 pub mod nar;
 pub mod store;
 
-pub use store::{ReadOnlyStore, StoreIO};
+pub use store::{EvaluatorStore, ReadOnlyStore, StoreIO};
 
 /// Enable impure evaluation with `store` computing store paths, and add the
 /// store-aware builtins. A search path already set on `builder` is kept;
 /// otherwise `NIX_PATH` is used.
 pub fn configure<'co, 'ro, 'env>(
 	builder: EvaluationBuilder<'co, 'ro, 'env, Box<dyn EvalIO>>,
-	store: Rc<ReadOnlyStore>,
+	store: Rc<EvaluatorStore>,
 ) -> EvaluationBuilder<'co, 'ro, 'env, Box<dyn EvalIO>> {
 	let builder = builder.enable_impure(Some(Box::new(StoreIO::new(Rc::clone(&store)))));
 	// CppNix looks up `<nix/...>` in its built-in files after the search path.

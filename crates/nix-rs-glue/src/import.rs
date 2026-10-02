@@ -1,5 +1,5 @@
 //! `builtins.path`, `builtins.filterSource`, `builtins.toFile` and
-//! `builtins.storePath`, which compute store paths without writing them.
+//! `builtins.storePath`, with optional diverted local-store registration.
 
 use std::collections::{BTreeSet, HashSet};
 use std::ffi::OsString;
@@ -11,7 +11,7 @@ use std::sync::Arc;
 
 use bstr::ByteSlice;
 use nix_compat::nixhash::{HashAlgo, NixHash};
-use nix_compat::store_path::{self, StorePath};
+use nix_compat::store_path::StorePath;
 use nix_rs_eval::builtin_macros::builtins;
 use nix_rs_eval::generators::{self, GenCo};
 use nix_rs_eval::{
@@ -21,7 +21,7 @@ use nix_rs_eval::{
 
 use crate::errors::ImportError;
 use crate::nar::EntryType;
-use crate::store::{ReadOnlyStore, ca_path, import_name};
+use crate::store::{ReadOnlyStore, import_name};
 
 fn io_error(path: &Path, error: std::io::Error) -> ErrorKind {
 	ErrorKind::IO {
@@ -78,6 +78,7 @@ async fn coerce_to_path(
 /// Call the Nix `filter` on every entry below `root`, depth first in name
 /// order as CppNix's `dumpPath` does, and return the entries it keeps.
 async fn filtered_entries(
+	state: &ReadOnlyStore,
 	co: &GenCo,
 	root: &Path,
 	filter: &Value,
@@ -111,7 +112,7 @@ async fn filtered_entries(
 			co,
 			filter.clone(),
 			[
-				Value::from(child.as_os_str().as_bytes()),
+				Value::from(state.logical_path(&child).as_os_str().as_bytes()),
 				Value::from(ty.as_nix_str()),
 			],
 		)
@@ -142,34 +143,28 @@ async fn add_path(
 	expected: Option<NixHash>,
 ) -> Result<Value, ErrorKind> {
 	// `addPath` follows every symlink in the path, including the last.
-	let resolved = fs::canonicalize(path).map_err(|e| io_error(path, e))?;
+	let resolved = fs::canonicalize(state.physical_path(path)).map_err(|e| io_error(path, e))?;
 
 	let included = match &filter {
-		Some(filter) => match filtered_entries(co, &resolved, filter).await? {
+		Some(filter) => match filtered_entries(state, co, &resolved, filter).await? {
 			Ok(included) => Some(included),
 			Err(cek) => return Ok(Value::Catchable(Box::new(cek))),
 		},
 		None => None,
 	};
 
-	let store_path = if recursive {
-		let mut keep = |p: &Path, _| Ok(included.as_ref().is_none_or(|set| set.contains(p)));
+	let mut keep = |p: &Path, _| Ok(included.as_ref().is_none_or(|set| set.contains(p)));
+	let store_path = if expected.is_some() {
+		let captured = state
+			.capture_import(&resolved, name, recursive, Some(&mut keep))
+			.map_err(|e| io_error(path, e))?;
+		state.import_captured(captured, expected.as_ref())
+	} else if recursive {
 		state.import_nar(&resolved, name, Some(&mut keep))
 	} else {
 		state.import_flat(&resolved, name)
 	}
 	.map_err(|e| io_error(path, e))?;
-
-	if let Some(expected) = expected {
-		let expected_path =
-			ca_path(name, recursive, &expected, path).map_err(|e| io_error(path, e))?;
-		if expected_path != store_path {
-			return Err(ErrorKind::Abort(format!(
-				"store path mismatch in (possibly filtered) path added from '{}'",
-				path.display()
-			)));
-		}
-	}
 
 	Ok(store_path_string(&store_path))
 }
@@ -311,25 +306,39 @@ pub(crate) mod import_builtins {
 			}
 		}
 
-		let path = store_path::build_text_path(
-			&name,
-			contents.as_bytes(),
-			references.iter().map(StorePath::as_ref),
-		)
-		.map_err(|e| ErrorKind::NixRsError(Arc::new(e)))?
-		.to_owned();
+		let path = state
+			.add_text(&name, contents.as_bytes(), &references)
+			.map_err(|e| ErrorKind::NixRsError(Arc::new(e)))?;
 		state.known_paths().add_text(path.clone(), references);
 		Ok(store_path_string(&path))
 	}
 
 	#[builtin("storePath")]
-	async fn builtin_store_path(co: GenCo, path: Value) -> Result<Value, ErrorKind> {
+	async fn builtin_store_path(
+		state: Rc<ReadOnlyStore>,
+		co: GenCo,
+		path: Value,
+	) -> Result<Value, ErrorKind> {
 		let path = try_cek_to_value!(coerce_to_path(&co, path).await?);
 		let absolute = path.as_os_str().as_bytes();
 		let (store_path, _rest) = StorePath::from_absolute_path_full(&path).map_err(|_| {
 			ErrorKind::Abort(format!("path '{}' is not in the Nix store", path.display()))
 		})?;
 		// Read-only mode records the dependency without checking validity.
+		if let Some(local) = state.local_store() {
+			if !local
+				.is_valid_path(&store_path)
+				.map_err(|e| ErrorKind::NixRsError(Arc::new(e)))?
+			{
+				return Err(ErrorKind::Abort(format!(
+					"path '{}' is not valid",
+					store_path.to_absolute_path()
+				)));
+			}
+			local
+				.add_temp_root(&store_path)
+				.map_err(|e| ErrorKind::NixRsError(Arc::new(e)))?;
+		}
 		Ok(Value::String(NixString::new_context_from(
 			NixContextElement::Plain(store_path.to_absolute_path()).into(),
 			absolute,

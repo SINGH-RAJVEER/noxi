@@ -1,9 +1,9 @@
-//! `nix-instantiate --eval`, matching CppNix 2.35.2's read-only evaluation.
+//! `nix-instantiate`, following CppNix 2.35.2's read-only evaluation default.
 //!
 //! Supported: `--eval`, `--strict`, `--json`, `--expr`/`-E`, `--attr`/`-A`,
 //! `--arg`, `--argstr`, file arguments including `<lookup>` paths and `-`
-//! for standard input. Instantiating derivations without `--eval` needs a
-//! writable store and is rejected.
+//! for standard input. Single derivation selections can be instantiated
+//! with an explicit `--store local?root=ROOT`. No builds or permanent GC roots are made.
 
 use std::fmt::Write as _;
 use std::io::{self, Read, Write};
@@ -25,6 +25,10 @@ pub enum AutoArg {
 #[derive(Debug, Default, Clone, PartialEq, Eq)]
 pub struct Options {
 	pub eval: bool,
+	/// Explicit diverted local store, `local?root=ROOT`.
+	pub store: Option<String>,
+	/// Permit writes during `--eval`; normal instantiation writes by default.
+	pub read_write_mode: bool,
 	pub strict: bool,
 	pub json: bool,
 	/// `--expr`: positional arguments are expressions rather than files.
@@ -45,6 +49,8 @@ pub fn parse_args(args: impl IntoIterator<Item = String>) -> Result<Options, Str
 	};
 	while let Some(arg) = args.next() {
 		match arg.as_str() {
+			"--store" => options.store = Some(value(&mut args, &arg)?),
+			"--read-write-mode" => options.read_write_mode = true,
 			"--eval" | "--eval-only" => options.eval = true,
 			"--strict" => options.strict = true,
 			"--json" => options.json = true,
@@ -204,7 +210,11 @@ in __nixrs_forceEach [\n",
 			if !options.auto_args.is_empty() {
 				selection = format!("(__nixrs_autoCall {selection})");
 			}
-			if options.json {
+			if !options.eval {
+				selection = format!(
+					"(let __nixrs_selected = {selection}; in if __nixrs_selected.type or null == \"derivation\" then builtins.storePath __nixrs_selected.drvPath else throw \"expected a derivation for instantiation\")"
+				);
+			} else if options.json {
 				selection = format!("(builtins.toJSON {selection})");
 			}
 			driver.push_str(&selection);
@@ -237,9 +247,14 @@ mod driver_builtins {
 
 /// Run `nix-instantiate` with already parsed options.
 pub fn run(options: &Options, cwd: &Path, stdout: &mut dyn Write) -> ExitCode {
-	if !options.eval {
+	if !options.eval && options.json {
+		eprintln!("error: --json requires --eval");
+		return ExitCode::FAILURE;
+	}
+	let writable = !options.eval || options.read_write_mode;
+	if writable && options.store.is_none() {
 		eprintln!(
-			"error: nix-rs cannot instantiate derivations yet, because it has no writable store; pass --eval"
+			"error: writable evaluation requires --store local?root=ROOT; pass --eval for read-only evaluation"
 		);
 		return ExitCode::FAILURE;
 	}
@@ -256,8 +271,42 @@ pub fn run(options: &Options, cwd: &Path, stdout: &mut dyn Write) -> ExitCode {
 		.into_iter()
 		.map(|(name, value)| (SmolStr::new(format!("__nixrs_{name}")), value))
 		.collect();
-	let store = nix_rs_glue::ReadOnlyStore::new();
-	let mode = if options.strict || options.json {
+	// Validate even read-only selections rather than silently accepting a
+	// daemon, system store, or unsupported URI parameters.
+	let root = match options.store.as_deref() {
+		None => None,
+		Some(uri) => match uri.strip_prefix("local?root=") {
+			Some(root)
+				if !root.is_empty()
+					&& !root.contains(['&', '?', '%'])
+					&& Path::new(root).is_absolute() =>
+			{
+				Some(Path::new(root))
+			}
+			_ => {
+				eprintln!("error: only --store local?root=ABSOLUTE_ROOT is supported");
+				return ExitCode::FAILURE;
+			}
+		},
+	};
+	let store = match root {
+		Some(root) => {
+			let store = if writable {
+				nix_rs_glue::EvaluatorStore::writable(root)
+			} else {
+				nix_rs_glue::EvaluatorStore::read_only(root)
+			};
+			match store {
+				Ok(store) => store,
+				Err(error) => {
+					eprintln!("error: {error}");
+					return ExitCode::FAILURE;
+				}
+			}
+		}
+		None => nix_rs_glue::ReadOnlyStore::new(),
+	};
+	let mode = if !options.eval || options.strict || options.json {
 		EvalMode::Strict
 	} else {
 		EvalMode::Lazy
@@ -282,11 +331,24 @@ pub fn run(options: &Options, cwd: &Path, stdout: &mut dyn Write) -> ExitCode {
 		return ExitCode::FAILURE;
 	};
 	for value in results.iter() {
-		let written = match value {
-			Value::String(s) if options.json => stdout
-				.write_all(s.as_bytes())
-				.and_then(|()| stdout.write_all(b"\n")),
-			value => writeln!(stdout, "{value}"),
+		let written = if !options.eval {
+			let string = match value.to_contextful_str() {
+				Ok(string) => string,
+				Err(error) => {
+					eprintln!("error: {error}");
+					return ExitCode::FAILURE;
+				}
+			};
+			stdout
+				.write_all(string.as_bytes())
+				.and_then(|()| stdout.write_all(b"\n"))
+		} else {
+			match value {
+				Value::String(s) if options.json => stdout
+					.write_all(s.as_bytes())
+					.and_then(|()| stdout.write_all(b"\n")),
+				value => writeln!(stdout, "{value}"),
+			}
 		};
 		if written.is_err() {
 			return ExitCode::FAILURE;

@@ -7,6 +7,160 @@ use std::os::unix::fs::{PermissionsExt, symlink};
 use std::path::Path;
 use std::process::Command;
 
+#[test]
+fn instantiation_requires_explicit_diversion_and_registers_drv_bytes() {
+	let root = tempfile::tempdir().unwrap();
+	let expr = r#"derivation { name = "a"; system = "x"; builder = "/bin/sh"; }"#;
+	let output = Command::new(env!("CARGO_BIN_EXE_nix-instantiate"))
+		.args([
+			"--store",
+			&format!("local?root={}", root.path().display()),
+			"-E",
+			expr,
+		])
+		.output()
+		.unwrap();
+	assert!(
+		output.status.success(),
+		"{}",
+		String::from_utf8_lossy(&output.stderr)
+	);
+	assert_eq!(
+		output.stdout,
+		b"/nix/store/l9ldjc53ry43x24hvq73jx7dx0489mhj-a.drv\n"
+	);
+	let bytes = fs::read(
+		root.path()
+			.join("nix/store/l9ldjc53ry43x24hvq73jx7dx0489mhj-a.drv"),
+	)
+	.unwrap();
+	assert!(bytes.starts_with(b"Derive("));
+	assert!(root.path().join("nix/var/nix/db/db.sqlite").is_file());
+	let invalid = Command::new(env!("CARGO_BIN_EXE_nix-instantiate"))
+		.args([
+			"--store",
+			&format!("local?root={}", root.path().display()),
+			"-E",
+			r#"{ type = "derivation"; drvPath = "/nix/store/00000000000000000000000000000000-missing.drv"; }"#,
+		])
+		.output()
+		.unwrap();
+	assert!(!invalid.status.success());
+	assert!(invalid.stdout.is_empty());
+	for args in [
+		vec!["-E", expr],
+		vec!["--store", "local", "-E", expr],
+		vec!["--store", "local?root=/", "-E", expr],
+	] {
+		assert!(
+			!Command::new(env!("CARGO_BIN_EXE_nix-instantiate"))
+				.args(args)
+				.output()
+				.unwrap()
+				.status
+				.success()
+		);
+	}
+}
+
+#[test]
+fn evaluation_writes_only_with_read_write_mode() {
+	let root = tempfile::tempdir().unwrap();
+	let uri = format!("local?root={}", root.path().display());
+	let mut command = Command::new(env!("CARGO_BIN_EXE_nix-instantiate"));
+	command.args([
+		"--store",
+		&uri,
+		"--eval",
+		"-E",
+		r#"builtins.toFile "x" "y""#,
+	]);
+	let readonly = command.output().unwrap();
+	assert!(readonly.status.success());
+	assert!(!root.path().join("nix").exists());
+	let writable = command.arg("--read-write-mode").output().unwrap();
+	assert!(
+		writable.status.success(),
+		"{}",
+		String::from_utf8_lossy(&writable.stderr)
+	);
+	assert_eq!(readonly.stdout, writable.stdout);
+	assert_eq!(
+		fs::read(
+			root.path()
+				.join("nix/store/lfngsssysp6h1v4ccqg23c52s9sjl779-x")
+		)
+		.unwrap(),
+		b"y"
+	);
+}
+
+#[test]
+fn readonly_store_selection_maps_files_without_opening_or_mutating_the_store() {
+	let root = tempfile::tempdir().unwrap();
+	let logical = "/nix/store/00000000000000000000000000000000-fixture";
+	let physical_store = root.path().join("nix/store");
+	fs::create_dir_all(&physical_store).unwrap();
+	let fixture = physical_store.join("00000000000000000000000000000000-fixture");
+	fs::write(&fixture, "diverted fixture").unwrap();
+	let before = fs::metadata(&fixture).unwrap();
+	let expr = format!(
+		r#"builtins.seq (builtins.toFile "not-written" "text") (builtins.seq ((derivation {{ name = "not-written"; system = "x"; builder = "/bin/sh"; }}).drvPath) (builtins.readFile "{logical}"))"#
+	);
+	let uri = format!("local?root={}", root.path().display());
+	for (expr, expected) in [
+		(expr, "\"diverted fixture\"\n"),
+		(format!(r#"builtins.pathExists "{logical}""#), "true\n"),
+		(
+			"builtins.attrNames (builtins.readDir \"/nix/store\")".to_owned(),
+			"[ \"00000000000000000000000000000000-fixture\" ]\n",
+		),
+	] {
+		let output = Command::new(env!("CARGO_BIN_EXE_nix-instantiate"))
+			.args(["--store", &uri, "--eval", "--strict", "-E", &expr])
+			.output()
+			.unwrap();
+		assert!(
+			output.status.success(),
+			"{}",
+			String::from_utf8_lossy(&output.stderr)
+		);
+		assert_eq!(output.stdout, expected.as_bytes());
+	}
+	assert!(!root.path().join("nix/var").exists());
+	assert_eq!(fs::read_dir(&physical_store).unwrap().count(), 1);
+	assert_eq!(fs::read(&fixture).unwrap(), b"diverted fixture");
+	let after = fs::metadata(&fixture).unwrap();
+	assert_eq!(before.permissions().mode(), after.permissions().mode());
+	assert_eq!(before.modified().unwrap(), after.modified().unwrap());
+}
+
+#[test]
+fn instantiation_forces_each_selection_once() {
+	let root = tempfile::tempdir().unwrap();
+	let uri = format!("local?root={}", root.path().display());
+	let output = Command::new(env!("CARGO_BIN_EXE_nix-instantiate"))
+		.args([
+			"--store", &uri, "-E",
+			r#"builtins.trace "selection-forced" (derivation { name = "a"; system = "x"; builder = "/bin/sh"; })"#,
+		]).output().unwrap();
+	assert!(
+		output.status.success(),
+		"{}",
+		String::from_utf8_lossy(&output.stderr)
+	);
+	assert_eq!(
+		output.stdout,
+		b"/nix/store/l9ldjc53ry43x24hvq73jx7dx0489mhj-a.drv\n"
+	);
+	assert_eq!(
+		String::from_utf8_lossy(&output.stderr)
+			.matches("selection-forced")
+			.count(),
+		1
+	);
+}
+
 /// Expression, reference stdout, reference exit status. The expressions run
 /// in a directory holding the files `fixture_dir` creates. An empty stdout
 /// with status 1 is an error in both engines: a `sha256` mismatch, a
