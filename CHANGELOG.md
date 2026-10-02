@@ -307,6 +307,10 @@ Internal trybuild tests for `nix-compat-derive`.
 
 ## nix-rs-build
 
+### Unreleased
+
+- `LocalBuilder` realises only the outputs a derivation uses from each input derivation, and `realise_outputs` realises the named outputs of a derivation (`drv^out,dev`). Previously every output of every input had to be valid, so a garbage-collected `dev` or `man` output caused the whole input to be rebuilt (2026-10-02).
+
 ### 0.1.0 - pending publication
 
 - First registry release of the experimental local builder, with versioned dependencies on `nix-rs-store` 0.1.0 and `nix-rs-compat` 0.1.1. The tested development target is x86_64-linux; this is not a complete build-engine or sandbox-security qualification.

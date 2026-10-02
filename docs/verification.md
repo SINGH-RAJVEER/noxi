@@ -127,7 +127,7 @@ The copied shell suite needs an isolated test store and compatible executables b
 
 ## System tests
 
-`crates/compat-tests/tests/reference_build.rs` checks `nix-rs-build`'s `LocalBuilder` against the 2.35.2 reference. For each case the reference writes the derivation into two temporary `--store ROOT` stores that also hold the flake's statically linked `test-busybox`. The reference builds it in one store and nix-rs builds it in the other. Both use a sandbox, one core, no `sandbox-paths`, no build users, and the same system features. The output paths and `nix path-info --json` metadata other than the registration time must match, and the reference must verify the store nix-rs wrote with `--check-contents`. On 2026-10-02 all eleven cases passed:
+`crates/compat-tests/tests/reference_build.rs` checks `nix-rs-build`'s `LocalBuilder` against the 2.35.2 reference. For each case the reference writes the derivation into two temporary `--store ROOT` stores that also hold the flake's statically linked `test-busybox`. The reference builds it in one store and nix-rs builds it in the other. Both use a sandbox, one core, no `sandbox-paths`, no build users, and the same system features. The output paths and `nix path-info --json` metadata other than the registration time must match, and the reference must verify the store nix-rs wrote with `--check-contents`. On 2026-10-02 all twelve cases passed:
 
 - a single-output derivation;
 - a probe whose output records the sorted environment, `id`, host name, generated `/etc/passwd`, `/etc/group` and `/etc/hosts`, working directory, directory listings and modes, uid and gid maps, umask and core limit, which is byte-identical;
@@ -139,7 +139,8 @@ The copied shell suite needs an isolated test store and compatible executables b
 - a recursive fixed-output hash mismatch, with the reference's message and status;
 - a build log with standard output, standard error and an unterminated line, which the reference's `nix-store -l` reads identically from both stores;
 - a builder that prints lines, a carriage return and an `@nix` message and exits with status 3, compared by message lines and status with `nix-store --realise`, and with the log tail against `nix build`;
-- a missing output, an output reference cycle, and a `disallowedReferences` violation, compared by message lines and status.
+- a missing output, an output reference cycle, and a `disallowedReferences` violation, compared by message lines and status;
+- rebuilding a derivation whose input's unused `dev` output was deleted, which neither engine rebuilds.
 
 An ignored case, run with `NIXRS_NIXPKGS` set and `--run-ignored only`, instantiates the root flake's Nixpkgs `hello` with an extra environment variable so that it misses the binary cache. Both engines substitute its inputs from `https://cache.nixos.org`, checked with that cache's key, and use the reference's compiled-in `/bin/sh` sandbox path. On 2026-10-02 nix-rs built `hello` itself with the same output paths and `nix path-info --json` metadata as the reference, and the reference verified the nix-rs store; the run took 247 seconds.
 

@@ -116,19 +116,30 @@ impl<'a> LocalBuilder<'a> {
 		log: &mut dyn FnMut(&[u8]),
 	) -> Result<BTreeMap<String, StorePath>> {
 		let mut done = BTreeMap::new();
-		self.realise_inner(drv_path, &mut done, &mut Vec::new(), log)
+		self.realise_inner(drv_path, None, &mut done, &mut Vec::new(), log)
+	}
+
+	/// Realise the outputs named in `wanted` (`drv^out,dev`) and return the
+	/// paths of all the derivation's outputs. Input derivations only have
+	/// the outputs this derivation uses realised, as in CppNix.
+	pub fn realise_outputs(
+		&self,
+		drv_path: &StorePath,
+		wanted: &BTreeSet<String>,
+		log: &mut dyn FnMut(&[u8]),
+	) -> Result<BTreeMap<String, StorePath>> {
+		let mut done = BTreeMap::new();
+		self.realise_inner(drv_path, Some(wanted), &mut done, &mut Vec::new(), log)
 	}
 
 	fn realise_inner(
 		&self,
 		drv_path: &StorePath,
-		done: &mut BTreeMap<StorePath, BTreeMap<String, StorePath>>,
+		wanted: Option<&BTreeSet<String>>,
+		done: &mut BTreeMap<StorePath, BTreeSet<String>>,
 		stack: &mut Vec<StorePath>,
 		log: &mut dyn FnMut(&[u8]),
 	) -> Result<BTreeMap<String, StorePath>> {
-		if let Some(outputs) = done.get(drv_path) {
-			return Ok(outputs.clone());
-		}
 		if stack.contains(drv_path) {
 			return Err(BuildError::Other(format!(
 				"cycle detected in the input derivations of '{}'",
@@ -137,55 +148,82 @@ impl<'a> LocalBuilder<'a> {
 		}
 		let drv = self.store.read_derivation(drv_path)?;
 		let outputs = known_outputs(drv_path, &drv)?;
+		let all_paths = |outputs: &BTreeMap<String, KnownOutput>| -> BTreeMap<String, StorePath> {
+			outputs
+				.iter()
+				.map(|(name, output)| (name.clone(), output.path.clone()))
+				.collect()
+		};
+		let wanted: BTreeSet<String> = match wanted {
+			Some(names) => {
+				if let Some(missing) = names.iter().find(|n| !outputs.contains_key(*n)) {
+					return Err(BuildError::Other(format!(
+						"derivation '{}' does not have wanted outputs '{missing}'",
+						print(drv_path)
+					)));
+				}
+				names.clone()
+			}
+			None => outputs.keys().cloned().collect(),
+		};
+		if done
+			.get(drv_path)
+			.is_some_and(|ensured| wanted.is_subset(ensured))
+		{
+			return Ok(all_paths(&outputs));
+		}
+		let wanted_outputs: BTreeMap<String, KnownOutput> = outputs
+			.iter()
+			.filter(|(name, _)| wanted.contains(*name))
+			.map(|(name, output)| {
+				(
+					name.clone(),
+					KnownOutput {
+						path: output.path.clone(),
+						fixed: output.fixed.clone(),
+					},
+				)
+			})
+			.collect();
 
 		// Like `DerivationGoal`, substitute missing outputs before
 		// realising any inputs, which then may not be needed at all.
 		if !self.substituters.is_empty()
-			&& !self.all_valid(&outputs)?
+			&& !self.all_valid(&wanted_outputs)?
 			&& self.substitutes_allowed(&drv)?
 		{
-			for output in outputs.values() {
+			for output in wanted_outputs.values() {
 				if !self.store.is_valid_path(&output.path)? {
 					self.try_substitute(&output.path);
 				}
 			}
 		}
-		if self.all_valid(&outputs)? {
-			let paths: BTreeMap<String, StorePath> = outputs
-				.into_iter()
-				.map(|(name, output)| (name, output.path))
-				.collect();
-			done.insert(drv_path.clone(), paths.clone());
-			return Ok(paths);
-		}
+		if !self.all_valid(&wanted_outputs)? {
+			for src in drv.input_sources() {
+				if !self.store.is_valid_path(src)? && !self.try_substitute(src) {
+					return Err(BuildError::failed(
+						FailureStatus::DependencyFailed,
+						format!(
+							"path '{}' is required, but there is no substituter that can build it",
+							print(src)
+						),
+					));
+				}
+			}
 
-		for src in drv.input_sources() {
-			if !self.store.is_valid_path(src)? && !self.try_substitute(src) {
-				return Err(BuildError::failed(
-					FailureStatus::DependencyFailed,
-					format!(
-						"path '{}' is required, but there is no substituter that can build it",
-						print(src)
-					),
-				));
+			stack.push(drv_path.clone());
+			for (input, names) in drv.input_derivations() {
+				let names: BTreeSet<String> = names.iter().map(|n| n.to_string()).collect();
+				self.realise_inner(input, Some(&names), done, stack, log)?;
+			}
+			stack.pop();
+
+			if !self.all_valid(&wanted_outputs)? {
+				self.build(drv_path, &drv, &outputs, log)?;
 			}
 		}
-
-		stack.push(drv_path.clone());
-		for input in drv.input_derivations().keys() {
-			self.realise_inner(input, done, stack, log)?;
-		}
-		stack.pop();
-
-		if !self.all_valid(&outputs)? {
-			self.build(drv_path, &drv, &outputs, log)?;
-		}
-		let paths: BTreeMap<String, StorePath> = outputs
-			.into_iter()
-			.map(|(name, output)| (name, output.path))
-			.collect();
-		done.insert(drv_path.clone(), paths.clone());
-		Ok(paths)
+		done.entry(drv_path.clone()).or_default().extend(wanted);
+		Ok(all_paths(&outputs))
 	}
 
 	fn all_valid(&self, outputs: &BTreeMap<String, KnownOutput>) -> Result<bool> {

@@ -707,3 +707,63 @@ fn nixpkgs_hello_matches_the_reference() {
 	);
 	env.verify("nix-rs");
 }
+
+/// Only the outputs a derivation uses are realised: an input's deleted
+/// `dev` output stays missing when the top derivation is rebuilt.
+#[test]
+fn only_used_input_outputs_are_realised() {
+	let env = Env::new();
+	let drv = env.instantiate(
+		r#"let
+			bb = builtins.storePath @busybox@;
+			dep = derivation {
+				name = "dep";
+				system = "x86_64-linux";
+				builder = "${bb}/bin/sh";
+				outputs = [ "out" "dev" ];
+				args = [ "-c" "echo out > $out; echo dev > $dev" ];
+			};
+		in derivation {
+			name = "uses-out";
+			system = "x86_64-linux";
+			builder = "${bb}/bin/sh";
+			args = [ "-c" "echo ${dep.out} > $out" ];
+		}"#,
+	);
+	let top = env.build_both(&drv);
+	let query = |store: &str, args: &[&str]| -> String {
+		let root = env.root(store);
+		let mut full = vec!["--store", root.to_str().unwrap()];
+		full.extend_from_slice(args);
+		env.reference_ok("nix-store", &full)
+	};
+	let dep_drv = query(
+		"reference",
+		&["-q", "--references", &drv.to_absolute_path()],
+	)
+	.lines()
+	.find(|l| l.ends_with("-dep.drv"))
+	.unwrap()
+	.to_owned();
+	let dev = query("reference", &["-q", "--outputs", &dep_drv])
+		.lines()
+		.find(|l| l.ends_with("-dep-dev"))
+		.unwrap()
+		.to_owned();
+	for store in ["reference", "nix-rs"] {
+		query(store, &["--delete", &top[0].to_absolute_path(), &dev]);
+	}
+	env.build_both(&drv);
+	for store in ["reference", "nix-rs"] {
+		let output = env.reference(
+			"nix-store",
+			&[
+				"--store",
+				env.root(store).to_str().unwrap(),
+				"--check-validity",
+				&dev,
+			],
+		);
+		assert!(!output.status.success(), "{store} rebuilt {dev}");
+	}
+}
