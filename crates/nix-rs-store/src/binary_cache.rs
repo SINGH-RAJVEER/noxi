@@ -2,7 +2,7 @@
 //! CppNix 2.35.2's `BinaryCacheStore`, `LocalBinaryCacheStore` and
 //! `PathSubstitutionGoal`.
 //!
-//! Only `file://` caches are read so far. Substitution checks signatures
+//! `file://`, `http://` and `https://` caches are read. Substitution checks signatures
 //! against the store's trusted keys before downloading, substitutes
 //! references first, and imports each NAR through
 //! [`LocalStore::add_to_store`], which checks its hash and size.
@@ -30,33 +30,63 @@ pub struct CacheInfo {
 	pub priority: u32,
 }
 
-/// A binary cache in a local directory, a `file://` URL.
+/// Where a cache's files are.
+#[derive(Clone)]
+enum Transport {
+	/// A local directory, a `file://` URL.
+	File(PathBuf),
+	/// An HTTP(S) server; the URL has no trailing slash.
+	Http(String, ureq::Agent),
+}
+
+impl std::fmt::Debug for Transport {
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		match self {
+			Transport::File(dir) => write!(f, "File({})", dir.display()),
+			Transport::Http(url, _) => write!(f, "Http({url})"),
+		}
+	}
+}
+
+/// A binary cache: `file://` (`LocalBinaryCacheStore`) or `http(s)://`
+/// (`HttpBinaryCacheStore`).
 #[derive(Clone, Debug)]
-pub struct FileBinaryCache {
+pub struct BinaryCache {
 	uri: String,
-	dir: PathBuf,
+	transport: Transport,
 	info: CacheInfo,
 	/// Whether paths from this cache need no signature (`?trusted=1`).
 	pub trusted: bool,
 }
 
-impl FileBinaryCache {
-	/// Open the cache at a `file://` URL, checking that it is for
-	/// `/nix/store` (`BinaryCacheStore::init`).
+impl BinaryCache {
+	/// Open the cache at a URL, checking that it is for `/nix/store`
+	/// (`BinaryCacheStore::init`).
 	pub fn open(uri: &str) -> Result<Self> {
-		let rest = uri
-			.strip_prefix("file://")
-			.ok_or_else(|| Error::Other(format!("'{uri}' is not a file:// binary cache")))?;
-		let (path, query) = rest.split_once('?').unwrap_or((rest, ""));
+		let (base, query) = uri.split_once('?').unwrap_or((uri, ""));
 		let mut trusted = false;
 		for param in query.split('&').filter(|p| !p.is_empty()) {
 			if let Some(value) = param.strip_prefix("trusted=") {
 				trusted = value == "1" || value == "true";
 			}
 		}
+		let transport = if let Some(path) = base.strip_prefix("file://") {
+			Transport::File(PathBuf::from(path))
+		} else if base.starts_with("http://") || base.starts_with("https://") {
+			let agent = ureq::Agent::config_builder()
+				.http_status_as_error(false)
+				.user_agent(concat!("nix-rs/", env!("CARGO_PKG_VERSION")))
+				.build()
+				.into();
+			Transport::Http(base.trim_end_matches('/').to_owned(), agent)
+		} else {
+			return Err(Error::Other(format!(
+				"don't know how to open binary cache '{uri}'"
+			)));
+		};
 		let mut cache = Self {
-			uri: format!("file://{path}"),
-			dir: PathBuf::from(path),
+			uri: base.trim_end_matches('/').to_owned(),
+			transport,
 			info: CacheInfo {
 				want_mass_query: false,
 				priority: 50,
@@ -96,15 +126,44 @@ impl FileBinaryCache {
 		&self.info
 	}
 
-	fn get_file(&self, name: &str) -> Result<Option<Vec<u8>>> {
-		match fs::read(self.dir.join(name)) {
-			Ok(bytes) => Ok(Some(bytes)),
-			Err(e) if e.kind() == io::ErrorKind::NotFound => Ok(None),
-			Err(e) => Err(Error::io(
-				format!("reading '{name}' from '{}'", self.uri),
-				e,
-			)),
+	/// A file of the cache, or `None` if it has none by that name.
+	fn open_file(&self, name: &str) -> Result<Option<Box<dyn Read + Send>>> {
+		match &self.transport {
+			Transport::File(dir) => match fs::File::open(dir.join(name)) {
+				Ok(file) => Ok(Some(Box::new(file))),
+				Err(e) if e.kind() == io::ErrorKind::NotFound => Ok(None),
+				Err(e) => Err(Error::io(
+					format!("reading '{name}' from '{}'", self.uri),
+					e,
+				)),
+			},
+			Transport::Http(base, agent) => {
+				let url = format!("{base}/{name}");
+				let response = agent
+					.get(&url)
+					.call()
+					.map_err(|e| Error::Other(format!("unable to download '{url}': {e}")))?;
+				match response.status().as_u16() {
+					200..=299 => Ok(Some(Box::new(response.into_body().into_reader()))),
+					// S3 answers 403 for files that do not exist.
+					404 | 403 => Ok(None),
+					status => Err(Error::Other(format!(
+						"unable to download '{url}': HTTP error {status}"
+					))),
+				}
+			}
 		}
+	}
+
+	fn get_file(&self, name: &str) -> Result<Option<Vec<u8>>> {
+		let Some(mut reader) = self.open_file(name)? else {
+			return Ok(None);
+		};
+		let mut bytes = Vec::new();
+		reader
+			.read_to_end(&mut bytes)
+			.map_err(|e| Error::io(format!("reading '{name}' from '{}'", self.uri), e))?;
+		Ok(Some(bytes))
 	}
 
 	/// The text of `HASH.narinfo` for `path`, if the cache has it.
@@ -145,12 +204,11 @@ impl FileBinaryCache {
 
 	/// The decompressed NAR of a cached path.
 	pub fn nar(&self, cached: &CachedPath) -> Result<Box<dyn BufRead + Send>> {
-		let path = self.dir.join(&cached.url);
-		let file = fs::File::open(&path).map_err(|e| {
-			Error::io(
-				format!("opening '{}' from binary cache '{}'", cached.url, self.uri),
-				e,
-			)
+		let file = self.open_file(&cached.url)?.ok_or_else(|| {
+			Error::Other(format!(
+				"file '{}' does not exist in binary cache '{}'",
+				cached.url, self.uri
+			))
 		})?;
 		decompress(
 			cached.compression.as_deref(),
@@ -196,8 +254,8 @@ impl LocalStore {
 	/// Substitute `path` and its closure from `caches`, tried in priority
 	/// order (`PathSubstitutionGoal`). Fails if no cache has a trusted
 	/// copy of `path`.
-	pub fn substitute(&self, caches: &[FileBinaryCache], path: &StorePath) -> Result<()> {
-		let mut sorted: Vec<&FileBinaryCache> = caches.iter().collect();
+	pub fn substitute(&self, caches: &[BinaryCache], path: &StorePath) -> Result<()> {
+		let mut sorted: Vec<&BinaryCache> = caches.iter().collect();
 		sorted.sort_by_key(|c| c.info.priority);
 		let mut done = BTreeSet::new();
 		self.substitute_inner(&sorted, path, &mut done)
@@ -205,7 +263,7 @@ impl LocalStore {
 
 	fn substitute_inner(
 		&self,
-		caches: &[&FileBinaryCache],
+		caches: &[&BinaryCache],
 		path: &StorePath,
 		done: &mut BTreeSet<StorePath>,
 	) -> Result<()> {

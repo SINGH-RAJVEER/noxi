@@ -12,6 +12,7 @@ publish = false
 brotli-decompressor = "5.0"
 bzip2 = "0.6"
 flate2 = "1.1"
+ureq = "3"
 libc.workspace = true
 lzma-rust2 = { version = "0.15", default-features = false, features = ["std", "xz"] }
 nix-compat = { package = "nix-rs-compat", path = "../nix-rs/nix-compat", version = "0.1.0" }

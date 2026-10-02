@@ -290,7 +290,7 @@ Internal trybuild tests for `nix-compat-derive`.
 
 ### Unreleased
 
-- `binary_cache::FileBinaryCache` reads `file://` binary caches: `nix-cache-info` (rejecting a cache for another store directory), narinfo files, and NARs compressed with none, xz, bzip2, zstd, gzip or brotli. `LocalStore::substitute` substitutes a path and its references in cache priority order after CppNix's `PathSubstitutionGoal`, skipping copies not signed by a trusted key unless the cache has `trusted=1`, and imports each NAR with its hash and size checked (2026-10-02).
+- `binary_cache::BinaryCache` reads `file://`, `http://` and `https://` binary caches (HTTP through `ureq` with rustls; 404 and 403 mean a missing file, as in CppNix): `nix-cache-info` (rejecting a cache for another store directory), narinfo files, and NARs compressed with none, xz, bzip2, zstd, gzip or brotli. `LocalStore::substitute` substitutes a path and its references in cache priority order after CppNix's `PathSubstitutionGoal`, skipping copies not signed by a trusted key unless the cache has `trusted=1`, and imports each NAR with its hash and size checked (2026-10-02).
 - `LocalStore::create_temp_dir_in_store` and `ca_hash_of` are public, for the build engine (2026-10-02).
 - Adds an unpublished local-store preview with the schema-10 SQLite layout, validity/reference metadata, path registration, NAR import/export, canonicalization, and store locks.
 - Two local unit tests and five isolated reference comparisons pass. Garbage collection, substitution, daemon ownership, concurrency/crash recovery, and full existing-store downgrade qualification remain open.

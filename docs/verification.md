@@ -143,14 +143,15 @@ The copied shell suite needs an isolated test store and compatible executables b
 
 The comparisons call the library, not a `nix-store --realise` replacement, and run without build users. They do not cover `max-build-log-size`, `builtin:` builders, floating content-addressed outputs, unsandboxed builds, seccomp filtering, network isolation of fixed-output builds, timeouts, cancellation, concurrent builds of one output, or interrupted builds.
 
-`crates/compat-tests/tests/reference_substitute.rs` checks binary caches and substitution against the 2.35.2 reference. The reference builds a path that refers to the test busybox and itself, then copies the closure into `file://` caches, signed with a key from `nix key generate-secret` or unsigned, with no compression and with xz, bzip2, zstd, gzip and brotli. On 2026-10-02 its four cases passed:
+`crates/compat-tests/tests/reference_substitute.rs` checks binary caches and substitution against the 2.35.2 reference. The reference builds a path that refers to the test busybox and itself, then copies the closure into `file://` caches, signed with a key from `nix key generate-secret` or unsigned, with no compression and with xz, bzip2, zstd, gzip and brotli. On 2026-10-02 its five cases passed:
 
 - every narinfo file in an xz and an uncompressed cache parses and prints back byte for byte;
 - substituting the closure from each signed cache into a fresh store registers the same `nix path-info --json` metadata, apart from registration time, in nix-rs as in the reference, including the signature, deriver and `ultimate = false`, and the reference verifies the nix-rs store;
 - an unsigned cache is refused with the reference's error and accepted with `?trusted=1`, again with matching metadata;
-- a NAR with a flipped byte is rejected with the reference's hash-mismatch message.
+- a NAR with a flipped byte is rejected with the reference's hash-mismatch message;
+- the signed cache served by a local HTTP server substitutes with matching metadata, and a path it lacks fails with the reference's message.
 
-HTTP caches, uploads, narinfo signing by nix-rs, the narinfo disk cache, `--fallback`, and substitution during a build are not covered.
+An ignored test, run with `--run-ignored only`, substitutes the test busybox from `https://cache.nixos.org` and checks it against that cache's real signing key; it passed on 2026-10-02. Uploads, `netrc`, TLS settings, narinfo signing by nix-rs, the narinfo disk cache, `--fallback`, and substitution during a build are not covered.
 
 The unpublished `nix-rs-store` preview also has isolated local-store comparisons in `crates/compat-tests/tests/reference_store.rs`. On 2026-10-01, its five cases passed with `NIXRS_REFERENCE_BIN=/nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2/bin`. They check fresh-store layout, path/NAR metadata, import validation, reference-created data read by nix-rs, nix-rs-created data reopened and verified by CppNix, cycles, and vanished paths. Each case uses temporary store roots and empty configuration; these are not tests against the host's live store or the stateful qualification VM. The two store unit tests pass too. This evidence does not qualify garbage collection, schema migration coverage, concurrent writers, interrupted writes, daemon ownership handoff, or whole-system rollback. `nix-rs-build` has the preview build comparisons described above, which are not build-engine qualification.
 

@@ -16,7 +16,7 @@ use std::process::{Command, Output};
 
 use nix_compat::narinfo::NarInfo;
 use nix_compat::store_path::StorePath;
-use nix_rs_store::binary_cache::FileBinaryCache;
+use nix_rs_store::binary_cache::BinaryCache;
 use nix_rs_store::{LocalStore, LocalStoreConfig};
 use serde_json::Value;
 
@@ -290,7 +290,7 @@ fn signed_caches_substitute_like_the_reference() {
 			String::from_utf8_lossy(&output.stderr)
 		);
 		env.nix_rs_store(&nix_rs)
-			.substitute(&[FileBinaryCache::open(&cache).unwrap()], &env.out)
+			.substitute(&[BinaryCache::open(&cache).unwrap()], &env.out)
 			.unwrap_or_else(|e| panic!("{name}: {e}"));
 		let info = env.path_info(&nix_rs);
 		assert_eq!(info, env.path_info(&reference), "{name}");
@@ -314,7 +314,7 @@ fn unsigned_caches_are_refused_unless_trusted() {
 	let stderr = String::from_utf8_lossy(&output.stderr);
 	let error = env
 		.nix_rs_store("nix-rs")
-		.substitute(&[FileBinaryCache::open(&cache).unwrap()], &env.out)
+		.substitute(&[BinaryCache::open(&cache).unwrap()], &env.out)
 		.unwrap_err()
 		.to_string();
 	assert!(
@@ -331,7 +331,7 @@ fn unsigned_caches_are_refused_unless_trusted() {
 		String::from_utf8_lossy(&output.stderr)
 	);
 	env.nix_rs_store("nix-rs")
-		.substitute(&[FileBinaryCache::open(&trusted).unwrap()], &env.out)
+		.substitute(&[BinaryCache::open(&trusted).unwrap()], &env.out)
 		.unwrap();
 	assert_eq!(env.path_info("nix-rs"), env.path_info("reference"));
 	env.verify("nix-rs");
@@ -363,7 +363,7 @@ fn corrupt_nars_are_rejected() {
 	let stderr = String::from_utf8_lossy(&output.stderr);
 	let error = env
 		.nix_rs_store("nix-rs")
-		.substitute(&[FileBinaryCache::open(&cache).unwrap()], &env.out)
+		.substitute(&[BinaryCache::open(&cache).unwrap()], &env.out)
 		.unwrap_err()
 		.to_string();
 	assert!(
@@ -376,4 +376,120 @@ fn corrupt_nars_are_rejected() {
 			"missing {line:?} in:\n{stderr}"
 		);
 	}
+}
+
+/// Serve the files in `dir` over HTTP on a local port, answering 404 for
+/// anything missing. Returns the base URL.
+fn serve(dir: PathBuf) -> String {
+	use std::io::{BufRead, BufReader, Write};
+	let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+	let url = format!("http://{}", listener.local_addr().unwrap());
+	std::thread::spawn(move || {
+		for stream in listener.incoming() {
+			let Ok(stream) = stream else { continue };
+			let dir = dir.clone();
+			std::thread::spawn(move || {
+				let mut reader = BufReader::new(stream.try_clone().unwrap());
+				let mut request = String::new();
+				if reader.read_line(&mut request).is_err() {
+					return;
+				}
+				loop {
+					let mut line = String::new();
+					if reader.read_line(&mut line).unwrap_or(0) == 0 || line == "\r\n" {
+						break;
+					}
+				}
+				let mut parts = request.split_whitespace();
+				let method = parts.next().unwrap_or("");
+				let path = parts.next().unwrap_or("/").trim_start_matches('/');
+				let mut stream = stream;
+				let file = (!path.contains(".."))
+					.then(|| fs::read(dir.join(path)).ok())
+					.flatten();
+				let response = match file {
+					Some(body) => {
+						let mut head = format!(
+							"HTTP/1.1 200 OK\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
+							body.len()
+						)
+						.into_bytes();
+						if method != "HEAD" {
+							head.extend(body);
+						}
+						head
+					}
+					None => {
+						b"HTTP/1.1 404 Not Found\r\nContent-Length: 0\r\nConnection: close\r\n\r\n"
+							.to_vec()
+					}
+				};
+				let _ = stream.write_all(&response);
+			});
+		}
+	});
+	url
+}
+
+#[test]
+fn http_caches_substitute_like_the_reference() {
+	let env = Env::new();
+	let cache = env.make_cache("http", "", true);
+	let url = serve(PathBuf::from(cache.strip_prefix("file://").unwrap()));
+	let output = env.reference_substitute("reference", &url, &env.out);
+	assert!(
+		output.status.success(),
+		"{}",
+		String::from_utf8_lossy(&output.stderr)
+	);
+	env.nix_rs_store("nix-rs")
+		.substitute(&[BinaryCache::open(&url).unwrap()], &env.out)
+		.unwrap();
+	assert_eq!(env.path_info("nix-rs"), env.path_info("reference"));
+	env.verify("nix-rs");
+
+	// A path the cache does not have.
+	let missing: StorePath = "00000000000000000000000000000000-missing".parse().unwrap();
+	let output = env.reference_substitute("reference-missing", &url, &missing);
+	let stderr = String::from_utf8_lossy(&output.stderr);
+	let error = env
+		.nix_rs_store("nix-rs-missing")
+		.substitute(&[BinaryCache::open(&url).unwrap()], &missing)
+		.unwrap_err()
+		.to_string();
+	assert!(
+		stderr.contains(&error),
+		"nix-rs: {error}\nreference: {stderr}"
+	);
+}
+
+/// Substitute the test busybox from cache.nixos.org, checked with its real
+/// signing key. Needs the network, so it only runs with `--run-ignored`.
+#[test]
+#[ignore = "downloads from cache.nixos.org"]
+fn cache_nixos_org_substitutes_with_its_signing_key() {
+	let busybox = fs::canonicalize(from_env_or_target(
+		"NIXRS_TEST_BUSYBOX",
+		"test-busybox",
+		"bin/busybox",
+	))
+	.unwrap();
+	let busybox = StorePath::from_absolute_path(busybox.to_str().unwrap().as_bytes()).unwrap();
+	let dir = tempfile::tempdir().unwrap();
+	let mut config = LocalStoreConfig::with_root(dir.path());
+	config.trusted_public_keys =
+		vec!["cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY=".to_owned()];
+	let store = LocalStore::open(config).unwrap();
+	store
+		.substitute(
+			&[BinaryCache::open("https://cache.nixos.org").unwrap()],
+			&busybox,
+		)
+		.unwrap();
+	let info = store.query_path_info(&busybox).unwrap().unwrap();
+	assert!(
+		info.sigs
+			.iter()
+			.any(|s| s.starts_with("cache.nixos.org-1:"))
+	);
 }
