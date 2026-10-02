@@ -662,7 +662,7 @@ fn reference_cycles_and_vanished_paths_are_handled() {
 	let real = store.real_path(&a);
 	fs::set_permissions(&real, fs::Permissions::from_mode(0o644)).unwrap();
 	fs::remove_file(&real).unwrap();
-	assert!(!store.verify_store(true).unwrap());
+	assert!(!store.verify_store(true, &mut |_, _| {}).unwrap());
 	assert!(!store.is_valid_path(&a).unwrap());
 	drop(store);
 	env.reference_verify();

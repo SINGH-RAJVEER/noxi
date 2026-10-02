@@ -2,14 +2,16 @@
 //! `TunnelLogger` and `performOp` in `daemon.cc`.
 
 use std::collections::{BTreeMap, BTreeSet};
-use std::io::{Read, Write};
+use std::io::{self, BufReader, Read, Write};
 
+use nix_compat::log::VerbosityLevel;
 use nix_compat::nixbase32;
-use nix_compat::nixhash::HashAlgo;
+use nix_compat::nixhash::{CAHash, HashAlgo, NixHash};
 use nix_compat::store_path::StorePath;
 use nix_rs_build::local::{BuildEvent, LocalBuilder};
 use nix_rs_build::missing::{DerivedPath, query_missing};
 use nix_rs_store::FileIngestionMethod;
+use nix_rs_store::gc::{GcAction, GcOptions};
 use nix_rs_store::{LocalStore, ValidPathInfo};
 
 use crate::error::{Error, Result};
@@ -58,6 +60,7 @@ pub mod op {
 	pub const FIND_ROOTS: u64 = 14;
 	pub const QUERY_DERIVER: u64 = 18;
 	pub const SET_OPTIONS: u64 = 19;
+	pub const COLLECT_GARBAGE: u64 = 20;
 	pub const QUERY_DERIVATION_OUTPUTS: u64 = 22;
 	pub const QUERY_ALL_VALID_PATHS: u64 = 23;
 	pub const QUERY_PATH_INFO: u64 = 26;
@@ -65,9 +68,13 @@ pub mod op {
 	pub const QUERY_PATH_FROM_HASH_PART: u64 = 29;
 	pub const QUERY_VALID_PATHS: u64 = 31;
 	pub const QUERY_VALID_DERIVERS: u64 = 33;
+	pub const VERIFY_STORE: u64 = 35;
+	pub const ADD_SIGNATURES: u64 = 37;
 	pub const NAR_FROM_PATH: u64 = 38;
+	pub const ADD_TO_STORE_NAR: u64 = 39;
 	pub const QUERY_MISSING: u64 = 40;
 	pub const QUERY_DERIVATION_OUTPUT_MAP: u64 = 41;
+	pub const ADD_MULTIPLE_TO_STORE: u64 = 44;
 }
 
 /// `TunnelLogger`: messages are queued until an operation starts work,
@@ -470,15 +477,8 @@ impl<R: Read + Send, W: Write> Connection<'_, R, W> {
 			}
 			op::FIND_ROOTS => {
 				self.start()?;
-				let mut lines = Vec::new();
-				let roots = self
-					.store
-					.find_roots(self.trust == Trust::NotTrusted, &mut |line| {
-						lines.push(line.to_owned())
-					})?;
-				for line in lines {
-					self.logger.log(&mut self.to, LVL_INFO, &line)?;
-				}
+				let censor = self.trust == Trust::NotTrusted;
+				let roots = self.with_info_log(|store, log| store.find_roots(censor, log))?;
 				self.stop();
 				let count: usize = roots.values().map(BTreeSet::len).sum();
 				self.to.u64(count as u64);
@@ -579,8 +579,118 @@ impl<R: Read + Send, W: Write> Connection<'_, R, W> {
 				self.to.string(&root.to_string_lossy());
 			}
 			op::BUILD_PATHS | op::BUILD_PATHS_WITH_RESULTS => self.build_paths(op)?,
+			op::COLLECT_GARBAGE => self.collect_garbage()?,
+			op::ADD_TO_STORE_NAR => self.add_to_store_nar()?,
+			op::ADD_MULTIPLE_TO_STORE => self.add_multiple_to_store()?,
+			op::VERIFY_STORE => {
+				let check_contents = self.from.read_bool()?;
+				let repair = self.from.read_bool()?;
+				self.start()?;
+				if repair && self.trust != Trust::Trusted {
+					return Err(Error::Nix("you are not privileged to repair paths".into()));
+				}
+				if repair {
+					return Err(Error::Nix(
+						"nix-rs does not support repairing paths yet".into(),
+					));
+				}
+				let errors = self.with_log(|store, log| store.verify_store(check_contents, log))?;
+				self.stop();
+				self.to.bool(errors);
+			}
+			op::ADD_SIGNATURES => {
+				let path = self.from.read_store_path()?;
+				let sigs: BTreeSet<String> = self.from.read_strings()?.into_iter().collect();
+				self.start()?;
+				self.store.add_signatures(&path, &sigs)?;
+				self.stop();
+				self.to.u64(1);
+			}
 			op => return Err(Error::Nix(format!("invalid operation {op}"))),
 		}
+		Ok(())
+	}
+
+	/// Run `f` on the store, sending the lines it logs to the client at
+	/// `lvlInfo` as they happen.
+	fn with_info_log<T>(
+		&mut self,
+		f: impl FnOnce(&LocalStore, &mut dyn FnMut(&str)) -> nix_rs_store::Result<T>,
+	) -> Result<T> {
+		self.with_log(|store, log| f(store, &mut |line| log(VerbosityLevel::Info, line)))
+	}
+
+	/// Run `f` on the store, sending the lines it logs to the client at
+	/// their levels as they happen.
+	fn with_log<T>(
+		&mut self,
+		f: impl FnOnce(&LocalStore, &mut dyn FnMut(VerbosityLevel, &str)) -> nix_rs_store::Result<T>,
+	) -> Result<T> {
+		let store = self.store;
+		let (logger, to) = (&mut self.logger, &mut self.to);
+		let mut send_error = None;
+		let result = f(store, &mut |level, line| {
+			if send_error.is_none()
+				&& let Err(e) = logger.log(to, level as u64, line)
+			{
+				send_error = Some(e);
+			}
+		});
+		match send_error {
+			Some(e) => Err(e),
+			None => Ok(result?),
+		}
+	}
+
+	/// `WorkerProto::Op::CollectGarbage`.
+	fn collect_garbage(&mut self) -> Result<()> {
+		let action = match self.from.read_u64()? {
+			0 => GcAction::ReturnLive,
+			1 => GcAction::ReturnDead,
+			2 => GcAction::DeleteDead,
+			3 => GcAction::DeleteSpecific,
+			_ => return Err(Error::Nix("Invalid GC action".into())),
+		};
+		let mut options = GcOptions::new(action);
+		if self.features.contains("delete-dead-specific-referrers") {
+			match self.from.read_u64()? {
+				1 => {}
+				0 => {
+					options.paths = Some(self.from.read_store_paths()?);
+					options.delete_referrers = self.from.read_bool()?;
+				}
+				_ => {
+					return Err(Error::Nix(
+						"Invalid whole store indicator from remote".into(),
+					));
+				}
+			}
+		} else {
+			let paths = self.from.read_store_paths()?;
+			if !paths.is_empty() || action == GcAction::DeleteSpecific {
+				if action == GcAction::DeleteDead {
+					return Err(Error::Nix("Garbage collecting specific paths requested but it is not supported by the negotiated protocol".into()));
+				}
+				options.paths = Some(paths);
+			}
+		}
+		options.ignore_liveness = self.from.read_bool()?;
+		options.max_freed = self.from.read_u64()?;
+		for _ in 0..3 {
+			self.from.read_u64()?; // obsolete
+		}
+		options.keep_outputs = self.settings.gc_keep_outputs;
+		options.keep_derivations = self.settings.gc_keep_derivations;
+		self.start()?;
+		if options.ignore_liveness {
+			return Err(Error::Nix("you are not allowed to ignore liveness".into()));
+		}
+		let results = self.with_info_log(|store, log| store.collect_garbage(&options, log))?;
+		self.stop();
+		self.to
+			.strings(results.paths.iter().map(String::as_str))
+			.u64(results.bytes_freed)
+			.u64(0); // obsolete
 		Ok(())
 	}
 
@@ -631,6 +741,67 @@ impl<R: Read + Send, W: Write> Connection<'_, R, W> {
 		self.stop();
 		self.to.store_path(&path);
 		self.write_path_info(&info);
+		Ok(())
+	}
+
+	/// `WorkerProto::Op::AddToStoreNar` for protocol 1.23 and later.
+	fn add_to_store_nar(&mut self) -> Result<()> {
+		let path = self.from.read_store_path()?;
+		let mut info = read_path_info(&mut self.from, path)?;
+		let repair = self.from.read_bool()?;
+		let dont_check_sigs = self.from.read_bool()? && self.trust == Trust::Trusted;
+		if self.trust != Trust::Trusted {
+			info.ultimate = false;
+		}
+		if self.version < version(1, 23) {
+			return Err(Error::Nix(
+				"AddToStoreNar before protocol 1.23 is not supported".into(),
+			));
+		}
+		self.start()?;
+		let store = self.store;
+		let mut framed = FramedReader::new(&mut self.from);
+		let result = store.add_to_store(
+			&info,
+			&mut BufReader::new(&mut framed),
+			repair,
+			!dont_check_sigs,
+		);
+		framed.drain()?;
+		result?;
+		self.stop();
+		Ok(())
+	}
+
+	/// `WorkerProto::Op::AddMultipleToStore`: a framed stream of path
+	/// infos, each followed by its NAR.
+	fn add_multiple_to_store(&mut self) -> Result<()> {
+		let repair = self.from.read_bool()?;
+		let dont_check_sigs = self.from.read_bool()? && self.trust == Trust::Trusted;
+		self.start()?;
+		let store = self.store;
+		let mut framed = FramedReader::new(&mut self.from);
+		let result = (|| -> Result<()> {
+			let mut source = Reader::new(&mut framed);
+			let expected = source.read_u64()?;
+			for _ in 0..expected {
+				let path = source.read_store_path()?;
+				let mut info = read_path_info(&mut source, path)?;
+				info.ultimate = false;
+				let mut nar = source.get_mut().take(info.nar_size);
+				store.add_to_store(
+					&info,
+					&mut BufReader::new(&mut nar),
+					repair,
+					!dont_check_sigs,
+				)?;
+				io::copy(&mut nar, &mut io::sink())?;
+			}
+			Ok(())
+		})();
+		framed.drain()?;
+		result?;
+		self.stop();
 		Ok(())
 	}
 
@@ -871,6 +1042,35 @@ impl<R: Read + Send, W: Write> Connection<'_, R, W> {
 		self.stop();
 		Ok(())
 	}
+}
+
+/// `WorkerProto::Serialise<UnkeyedValidPathInfo>::read` at protocol 1.16
+/// or later.
+fn read_path_info<R: Read>(from: &mut Reader<R>, path: StorePath) -> Result<ValidPathInfo> {
+	let deriver = match from.read_string()? {
+		s if s.is_empty() => None,
+		s => Some(crate::wire::parse_store_path(&s)?),
+	};
+	let hash = from.read_string()?;
+	let nar_hash = match NixHash::from_str(&hash, Some(HashAlgo::Sha256)) {
+		Ok(NixHash::Sha256(digest)) => digest,
+		_ => return Err(Error::Nix(format!("invalid SHA-256 hash '{hash}'"))),
+	};
+	let mut info = ValidPathInfo::new(path, nar_hash);
+	info.deriver = deriver;
+	info.references = from.read_store_paths()?;
+	info.registration_time = from.read_u64()? as i64;
+	info.nar_size = from.read_u64()?;
+	info.ultimate = from.read_bool()?;
+	info.sigs = from.read_strings()?.into_iter().collect();
+	let ca = from.read_string()?;
+	if !ca.is_empty() {
+		info.ca = Some(
+			CAHash::from_nix_hex_str(&ca)
+				.ok_or_else(|| Error::Nix(format!("invalid content address '{ca}'")))?,
+		);
+	}
+	Ok(info)
 }
 
 /// The hash part of a store path, as `QueryPathFromHashPart` receives it.

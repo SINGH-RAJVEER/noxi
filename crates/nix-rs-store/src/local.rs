@@ -12,6 +12,7 @@ use std::sync::{Arc, Mutex, Weak};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use nix_compat::derivation::{DrvHashModulo, UnverifiedDerivation, lookup_fn};
+use nix_compat::log::VerbosityLevel;
 use nix_compat::narinfo::VerifyingKey;
 use nix_compat::nixbase32;
 use nix_compat::nixhash::{CAHash, HashAlgo, NixHash, NixHashDigester};
@@ -865,12 +866,25 @@ impl LocalStore {
 		Ok(())
 	}
 
-	/// Check that valid paths exist (removing those that vanished without
-	/// referrers) and, with `check_contents`, that their NAR hashes match.
-	/// Returns whether errors were found.
-	pub fn verify_store(&self, check_contents: bool) -> Result<bool> {
+	/// `verifyStore`: check that valid paths exist (removing those that
+	/// vanished without referrers) and, with `check_contents`, that hard
+	/// links and paths have the hashes they should. Messages CppNix prints
+	/// at the default verbosity go to `log` with their levels. Returns
+	/// whether errors were found.
+	pub fn verify_store(
+		&self,
+		check_contents: bool,
+		log: &mut dyn FnMut(VerbosityLevel, &str),
+	) -> Result<bool> {
+		log(VerbosityLevel::Info, "reading the Nix store...");
 		let gc_lock = self.open_gc_lock()?;
-		lock_file(&gc_lock, LockType::Read, true)?;
+		if !lock_file(&gc_lock, LockType::Read, false)? {
+			log(
+				VerbosityLevel::Info,
+				"waiting for the big garbage collector lock...",
+			);
+			lock_file(&gc_lock, LockType::Read, true)?;
+		}
 
 		let mut on_disk = BTreeSet::new();
 		for entry in fs::read_dir(&self.config.real_store_dir)? {
@@ -880,14 +894,35 @@ impl LocalStore {
 			}
 		}
 
+		log(VerbosityLevel::Info, "checking path existence...");
 		let mut errors = false;
 		let mut done = BTreeSet::new();
 		let mut valid = BTreeSet::new();
 		for path in self.query_all_valid_paths()? {
-			self.verify_path(&path, &on_disk, &mut done, &mut valid, &mut errors)?;
+			self.verify_path(&path, &on_disk, &mut done, &mut valid, &mut errors, log)?;
 		}
 
 		if check_contents {
+			log(VerbosityLevel::Info, "checking link hashes...");
+			let links = self.config.real_store_dir.join(".links");
+			for entry in fs::read_dir(&links)? {
+				let entry = entry?;
+				let name = entry.file_name().to_string_lossy().into_owned();
+				let (digest, _) = nar::hash_path(&entry.path())?;
+				let hash = nixbase32::encode(&digest);
+				if hash != name {
+					log(
+						VerbosityLevel::Error,
+						&format!(
+							"link \"{}\" was modified! expected hash {name}, got '{hash}'",
+							entry.path().display()
+						),
+					);
+					errors = true;
+				}
+			}
+
+			log(VerbosityLevel::Info, "checking store hashes...");
 			for path in &valid {
 				let Some(info) = self.query_path_info(path)? else {
 					continue;
@@ -895,21 +930,31 @@ impl LocalStore {
 				match nar::hash_path(&self.real_path(path)) {
 					Ok((digest, size)) => {
 						if info.nar_hash != digest {
-							tracing::error!(
-								"path '{}' was modified! expected hash '{}', got '{}'",
-								print(path),
-								info.nar_hash_nix32(),
-								format_args!("sha256:{}", nixbase32::encode(&digest))
+							log(
+								VerbosityLevel::Error,
+								&format!(
+									"path '{}' was modified! expected hash '{}', got '{}'",
+									print(path),
+									info.nar_hash_nix32(),
+									format_args!("sha256:{}", nixbase32::encode(&digest))
+								),
 							);
 							errors = true;
 						} else if info.nar_size == 0 {
+							log(
+								VerbosityLevel::Info,
+								&format!("updating size field on '{}' to {size}", print(path)),
+							);
 							let mut info = info;
 							info.nar_size = size;
 							update_path_info(&self.db(), &info)?;
 						}
 					}
 					Err(e) => {
-						tracing::error!("{e}");
+						log(
+							VerbosityLevel::Error,
+							&format!("\x1b[31;1merror:\x1b[0m {e}"),
+						);
 						errors = true;
 					}
 				}
@@ -925,6 +970,7 @@ impl LocalStore {
 		done: &mut BTreeSet<StorePath>,
 		valid: &mut BTreeSet<StorePath>,
 		errors: &mut bool,
+		log: &mut dyn FnMut(VerbosityLevel, &str),
 	) -> Result<()> {
 		if !done.insert(path.clone()) {
 			return Ok(());
@@ -936,24 +982,30 @@ impl LocalStore {
 		let mut can_invalidate = true;
 		for referrer in self.query_referrers(path)? {
 			if &referrer != path {
-				self.verify_path(&referrer, on_disk, done, valid, errors)?;
+				self.verify_path(&referrer, on_disk, done, valid, errors, log)?;
 				if valid.contains(&referrer) {
 					can_invalidate = false;
 				}
 			}
 		}
 		if can_invalidate {
-			tracing::info!(
-				"path '{}' disappeared, removing from database...",
-				print(path)
+			log(
+				VerbosityLevel::Info,
+				&format!(
+					"path '{}' disappeared, removing from database...",
+					print(path)
+				),
 			);
 			self.db()
 				.prepare_cached("delete from ValidPaths where path = ?")?
 				.execute([print(path)])?;
 		} else {
-			tracing::error!(
-				"path '{}' disappeared, but it still has valid referrers!",
-				print(path)
+			log(
+				VerbosityLevel::Error,
+				&format!(
+					"path '{}' disappeared, but it still has valid referrers!",
+					print(path)
+				),
 			);
 			*errors = true;
 		}

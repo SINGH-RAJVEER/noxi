@@ -19,6 +19,10 @@ pub struct DaemonSettings {
 	pub allowed_users: Vec<String>,
 	/// `build-users-group`, whose members may not connect.
 	pub build_users_group: Option<String>,
+	/// `keep-outputs`.
+	pub gc_keep_outputs: bool,
+	/// `keep-derivations`.
+	pub gc_keep_derivations: bool,
 	/// The version the daemon reports in the handshake. CppNix reports its
 	/// own release; the default reports the reference release this daemon
 	/// is compatible with, so clients that show it see a version they know.
@@ -40,6 +44,8 @@ impl DaemonSettings {
 			trusted_users: vec!["root".to_owned()],
 			allowed_users: vec!["*".to_owned()],
 			build_users_group: None,
+			gc_keep_outputs: false,
+			gc_keep_derivations: true,
 			daemon_version: "2.35.2".to_owned(),
 		}
 	}

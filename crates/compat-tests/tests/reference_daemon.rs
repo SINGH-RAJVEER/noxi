@@ -7,6 +7,8 @@
 //! standard error must match.
 
 use std::fs;
+use std::io::Write;
+use std::os::unix::fs::PermissionsExt;
 use std::os::unix::net::UnixListener;
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Output};
@@ -92,6 +94,11 @@ impl Env {
 	}
 
 	fn new() -> Self {
+		Self::with_trust(false)
+	}
+
+	/// With `trusted`, both daemons trust the user running the tests.
+	fn with_trust(trusted: bool) -> Self {
 		let dir = tempfile::tempdir().unwrap();
 		for sub in ["conf", "home"] {
 			fs::create_dir(dir.path().join(sub)).unwrap();
@@ -150,11 +157,20 @@ impl Env {
 			assert!(status.success());
 		}
 
+		let user = String::from_utf8(Command::new("id").arg("-un").output().unwrap().stdout)
+			.unwrap()
+			.trim()
+			.to_owned();
+		let mut daemon_config = CONFIG.to_owned();
+		if trusted {
+			daemon_config.push_str(&format!("trusted-users = {user}\n"));
+		}
 		let reference = env
 			.command(
 				"nix-daemon",
 				&["--store", env.root("reference").to_str().unwrap()],
 			)
+			.env("NIX_CONFIG", daemon_config)
 			.env("NIX_DAEMON_SOCKET_PATH", env.root("reference.sock"))
 			.stderr(std::process::Stdio::null())
 			.spawn()
@@ -167,6 +183,9 @@ impl Env {
 		settings.build.build_cores = 1;
 		// The reference daemon runs with `nix-command` enabled.
 		settings.build.nix_command = true;
+		if trusted {
+			settings.trusted_users.push(user);
+		}
 		std::thread::spawn(move || serve(listener, &settings));
 
 		let deadline = Instant::now() + Duration::from_secs(20);
@@ -183,14 +202,34 @@ impl Env {
 	/// Run a client against both daemons and check they behave the same.
 	/// Returns the output of the run against nix-rs.
 	fn compare(&self, program: &str, args: &[&str]) -> Output {
+		self.compare_with_input(program, args, None)
+	}
+
+	/// [`Env::compare`] with `stdin` as the client's standard input. In
+	/// `args`, `{daemon}` is replaced by the daemon's name and `{store}` by
+	/// its store URL.
+	fn compare_with_input(&self, program: &str, args: &[&str], stdin: Option<&[u8]>) -> Output {
 		let mut outputs = Vec::new();
 		for daemon in ["reference", "nix-rs"] {
 			let url = self.store_url(daemon);
-			let args: Vec<String> = args.iter().map(|a| a.replace("{daemon}", daemon)).collect();
+			let args: Vec<String> = args
+				.iter()
+				.map(|a| a.replace("{daemon}", daemon).replace("{store}", &url))
+				.collect();
 			let mut full = vec!["--store", url.as_str()];
 			full.extend(args.iter().map(String::as_str));
-			let output = self.run(program, &full);
-			outputs.push(output);
+			let mut command = self.command(program, &full);
+			command
+				.stdin(std::process::Stdio::piped())
+				.stdout(std::process::Stdio::piped())
+				.stderr(std::process::Stdio::piped());
+			let mut child = command.spawn().unwrap();
+			let mut input = child.stdin.take().unwrap();
+			if let Some(stdin) = stdin {
+				input.write_all(stdin).unwrap();
+			}
+			drop(input);
+			outputs.push(child.wait_with_output().unwrap());
 		}
 		let normalise = |bytes: &[u8], name: &str| {
 			let text = String::from_utf8_lossy(bytes)
@@ -198,6 +237,9 @@ impl Env {
 				.replace(&self.store_url(name), "SOCKET")
 				.replace(&self.socket(name), "SOCKET")
 				.replace(&format!("link-{name}"), "link-DAEMON");
+			// Paths built by each daemon may be registered in different
+			// seconds; the times are compared with a tolerance below.
+			let text = mask_registration_times(&text);
 			// Process IDs in temporary-root file names differ.
 			text.lines()
 				.map(|line| match line.split_once("/temproots/") {
@@ -208,6 +250,15 @@ impl Env {
 				.join("\n")
 		};
 		let (reference, nix_rs) = (&outputs[0], &outputs[1]);
+		let times = |output: &Output| registration_times(&String::from_utf8_lossy(&output.stdout));
+		let (reference_times, nix_rs_times) = (times(reference), times(nix_rs));
+		assert_eq!(nix_rs_times.len(), reference_times.len());
+		for (a, b) in nix_rs_times.iter().zip(&reference_times) {
+			assert!(
+				*a != 0 && a.abs_diff(*b) <= 2,
+				"{program} {args:?}: registration time {a}, reference {b}"
+			);
+		}
 		assert_eq!(
 			nix_rs.status.code(),
 			reference.status.code(),
@@ -227,6 +278,36 @@ impl Env {
 		);
 		outputs.pop().unwrap()
 	}
+}
+
+const REGISTRATION_TIME: &str = "\"registrationTime\":";
+
+/// The values of `"registrationTime"` JSON fields.
+fn registration_times(text: &str) -> Vec<u64> {
+	text.split(REGISTRATION_TIME)
+		.skip(1)
+		.map(|rest| {
+			let end = rest
+				.find(|c: char| !c.is_ascii_digit())
+				.unwrap_or(rest.len());
+			rest[..end].parse().unwrap()
+		})
+		.collect()
+}
+
+/// Replace the values of `"registrationTime"` JSON fields with 0.
+fn mask_registration_times(text: &str) -> String {
+	const FIELD: &str = REGISTRATION_TIME;
+	let mut out = String::new();
+	let mut rest = text;
+	while let Some(i) = rest.find(FIELD) {
+		let (head, tail) = rest.split_at(i + FIELD.len());
+		out.push_str(head);
+		out.push('0');
+		rest = tail.trim_start_matches(|c: char| c.is_ascii_digit());
+	}
+	out.push_str(rest);
+	out
 }
 
 #[test]
@@ -318,4 +399,204 @@ fn indirect_roots_through_the_daemon_match_the_reference() {
 	let link = env.dir.path().join("link-{daemon}");
 	env.compare("nix-build", &[&expr, "-o", link.to_str().unwrap()]);
 	env.compare("nix-store", &["--gc", "--print-roots"]);
+}
+
+#[test]
+fn garbage_collection_through_the_daemon_matches_the_reference() {
+	let env = Env::new();
+	let out = env.out.clone();
+	let busybox = env.busybox.clone();
+	let expr = write_expr(&env, "daemon-kept", "echo kept > $out");
+	let link = env.dir.path().join("kept-{daemon}");
+	env.compare("nix-build", &[&expr, "-o", link.to_str().unwrap()]);
+	for args in [
+		vec!["--gc", "--print-live"],
+		vec!["--gc", "--print-dead"],
+		vec!["--delete", &busybox],
+		vec!["--delete", &out],
+		vec!["--gc", "--max-freed", "1"],
+		vec!["--gc"],
+		vec!["--gc", "--print-dead"],
+	] {
+		env.compare("nix-store", &args);
+	}
+	env.compare("nix-collect-garbage", &[]);
+	env.compare("nix", &["store", "gc", "--dry-run"]);
+	env.compare("nix", &["path-info", "--all"]);
+}
+
+/// Add two files to a third store, for copying into the daemons' stores.
+/// Returns the store's URL and the paths.
+fn other_store_paths(env: &Env) -> (String, Vec<String>) {
+	let other = env.root("other").to_string_lossy().into_owned();
+	let mut paths = Vec::new();
+	for name in ["first", "second"] {
+		let file = env.dir.path().join(name);
+		fs::write(&file, format!("{name} file\n")).unwrap();
+		let path = env.run_ok(
+			"nix-store",
+			&["--store", &other, "--add", file.to_str().unwrap()],
+		);
+		paths.push(path.trim().to_owned());
+	}
+	(format!("local?root={other}"), paths)
+}
+
+fn export(env: &Env, store: &str, path: &str) -> Vec<u8> {
+	let output = env.run("nix-store", &["--store", store, "--export", path]);
+	assert!(
+		output.status.success(),
+		"{}",
+		String::from_utf8_lossy(&output.stderr)
+	);
+	output.stdout
+}
+
+#[test]
+fn untrusted_copies_and_imports_need_signatures_like_the_reference() {
+	let env = Env::new();
+	let (other, paths) = other_store_paths(&env);
+	// Content-addressed paths need no signatures.
+	env.compare(
+		"nix",
+		&[
+			"copy",
+			"--no-check-sigs",
+			"--from",
+			&other,
+			"--to",
+			"{store}",
+			&paths[0],
+		],
+	);
+	// Imported paths are input-addressed, and do.
+	env.compare_with_input(
+		"nix-store",
+		&["--import"],
+		Some(&export(&env, &other, &paths[0])),
+	);
+	let imported = env.root("imported").to_string_lossy().into_owned();
+	let mut import = env.command("nix-store", &["--store", &imported, "--import"]);
+	import.stdin(std::process::Stdio::piped());
+	let mut child = import.spawn().unwrap();
+	child
+		.stdin
+		.take()
+		.unwrap()
+		.write_all(&export(&env, &other, &paths[1]))
+		.unwrap();
+	assert!(child.wait().unwrap().success());
+	let output = env.compare(
+		"nix",
+		&[
+			"copy",
+			"--no-check-sigs",
+			"--from",
+			&format!("local?root={imported}"),
+			"--to",
+			"{store}",
+			&paths[1],
+		],
+	);
+	assert!(
+		String::from_utf8_lossy(&output.stderr).contains("lacks a signature by a trusted key"),
+		"{}",
+		String::from_utf8_lossy(&output.stderr)
+	);
+	env.compare("nix", &["path-info", &paths[0], &paths[1]]);
+}
+
+#[test]
+fn copies_imports_and_signatures_through_the_daemon_match_the_reference() {
+	let env = Env::with_trust(true);
+	let (other, paths) = other_store_paths(&env);
+	let (first, second) = (paths[0].as_str(), paths[1].as_str());
+	env.compare(
+		"nix",
+		&[
+			"copy",
+			"--no-check-sigs",
+			"--from",
+			&other,
+			"--to",
+			"{store}",
+			first,
+		],
+	);
+	// Copies keep the source's registration time.
+	let source_time = |path: &str| {
+		registration_times(&env.run_ok("nix", &["path-info", "--json", "--store", &other, path]))
+	};
+	let output = env.compare("nix", &["path-info", "--json", first]);
+	assert_eq!(
+		registration_times(&String::from_utf8_lossy(&output.stdout)),
+		source_time(first)
+	);
+
+	// `nix-store --import` sends paths one at a time.
+	env.compare_with_input(
+		"nix-store",
+		&["--import"],
+		Some(&export(&env, &other, second)),
+	);
+	env.compare("nix", &["path-info", "--json", second]);
+
+	// Copying valid paths again does nothing.
+	env.compare(
+		"nix",
+		&[
+			"copy",
+			"--no-check-sigs",
+			"--from",
+			&other,
+			"--to",
+			"{store}",
+			first,
+			second,
+		],
+	);
+
+	let key = env.dir.path().join("key");
+	let secret = env.run_ok("nix", &["key", "generate-secret", "--key-name", "test-1"]);
+	fs::write(&key, secret).unwrap();
+	env.compare(
+		"nix",
+		&["store", "sign", "--key-file", key.to_str().unwrap(), first],
+	);
+	env.compare("nix", &["path-info", "--sigs", first, second]);
+}
+
+#[test]
+fn verification_through_the_daemon_matches_the_reference() {
+	let env = Env::new();
+	env.compare("nix-store", &["--verify"]);
+	env.compare("nix-store", &["--verify", "--check-contents"]);
+	env.compare("nix-store", &["--verify", "--repair"]);
+
+	let modified = write_expr(&env, "daemon-modified", "echo original > $out");
+	let modified = env.compare("nix-build", &[&modified, "--no-out-link"]);
+	let modified = String::from_utf8(modified.stdout)
+		.unwrap()
+		.trim()
+		.to_owned();
+	let vanished = write_expr(&env, "daemon-vanished", "echo vanished > $out");
+	let vanished = env.compare("nix-build", &[&vanished, "--no-out-link"]);
+	let vanished = String::from_utf8(vanished.stdout)
+		.unwrap()
+		.trim()
+		.to_owned();
+	for daemon in ["reference", "nix-rs"] {
+		let root = env.root(daemon);
+		let real = |path: &str| root.join(path.trim_start_matches('/'));
+		let store_dir = real("nix/store");
+		fs::set_permissions(&store_dir, fs::Permissions::from_mode(0o755)).unwrap();
+		fs::set_permissions(real(&modified), fs::Permissions::from_mode(0o644)).unwrap();
+		fs::write(real(&modified), "changed\n").unwrap();
+		fs::set_permissions(real(&vanished), fs::Permissions::from_mode(0o644)).unwrap();
+		fs::remove_file(real(&vanished)).unwrap();
+	}
+	env.compare("nix-store", &["--verify"]);
+	env.compare("nix-store", &["--verify", "--check-contents", "--quiet"]);
+	env.compare("nix-store", &["--verify", "--check-contents"]);
+	env.compare("nix", &["path-info", &vanished]);
 }

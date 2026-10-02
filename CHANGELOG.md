@@ -296,6 +296,7 @@ Internal trybuild tests for `nix-compat-derive`.
 
 ### Unreleased
 
+- `LocalStore::verify_store` takes a log callback and reports CppNix's progress and error messages at their verbosity levels, checks the hashes of `.links` entries with `check_contents`, and reports filled-in NAR sizes (2026-10-02).
 - `LocalStore::add_indirect_root` and `add_perm_root` create `gcroots/auto` links and permanent roots as CppNix does, and `CachedPath` carries the narinfo `FileSize` (2026-10-02).
 - `gc` implements garbage collection after CppNix 2.35.2's `gc.cc`: roots under `gcroots` and `profiles` with indirect and stale `auto` links, live processes' temporary roots (removing stale files), runtime roots from `/proc`, the `keep-outputs` and `keep-derivations` closure rules, deletion of referrers before references under the exclusive `gc.lock`, `max-freed`, `.links` cleanup, and a `gc-socket/socket` server so clients of either implementation can add temporary roots during a collection. `collect_garbage` returns live or dead paths, deletes dead or specific paths, and reports freed bytes as CppNix estimates them (2026-10-02).
 
@@ -311,6 +312,7 @@ Internal trybuild tests for `nix-compat-derive`.
 
 ### Unreleased
 
+- Garbage collection, NAR imports, signatures and verification over the daemon: `CollectGarbage` with and without the `delete-dead-specific-referrers` feature, sending the collector's progress lines to the client as they happen; `AddToStoreNar` and `AddMultipleToStore`, which check signatures unless a trusted client asks otherwise and clear `ultimate` as CppNix does; `AddSignatures`; and `VerifyStore`, which refuses repair for untrusted clients and does not repair yet. `DaemonSettings` gains `gc_keep_outputs` and `gc_keep_derivations` (2026-10-02).
 - Builds and store writes over the daemon: `AddToStore` (text, flat and recursive content addresses from a framed source), `AddTextToStore`, `AddIndirectRoot`, `AddPermRoot` for trusted clients, and `BuildPaths` and `BuildPathsWithResults`, which realise through `nix-rs-build` and report each build as an `actBuild` activity with one `resBuildLogLine` result per output line. Failed builds end their error with the log tail, as a CppNix daemon worker's do (2026-10-02).
 - New crate: a Nix daemon library that speaks CppNix 2.35.2's worker protocol over a Unix socket. It performs the 1.38 handshake with feature negotiation, reports trust from peer credentials with `trusted-users`, `allowed-users` and `build-users-group`, forks a process per connection, sends log lines and structured errors on the stderr channel, applies `SetOptions` with CppNix's restricted-setting warnings for untrusted clients, and implements the path, referrer, deriver, derivation-output, validity, hash-part, temporary-root, root-listing, NAR and missing-path queries. Builds, imports, GC and permanent roots are not implemented yet, and there is no `nix-daemon` binary (2026-10-02).
 

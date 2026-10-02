@@ -656,9 +656,9 @@ impl LocalStore {
 		};
 
 		struct LimitReached;
-		let mut delete_from_store = |base_name: &str,
-		                             results: &mut GcResults,
-		                             log: &mut dyn FnMut(&str)|
+		let delete_from_store = |base_name: &str,
+		                         results: &mut GcResults,
+		                         log: &mut dyn FnMut(&str)|
 		 -> Result<std::result::Result<(), LimitReached>> {
 			let real = real_store.join(base_name);
 			if base_name.starts_with("tmp-") {
