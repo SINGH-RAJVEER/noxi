@@ -88,9 +88,9 @@ A checked item below means it exists and has focused local evidence in the curre
 
 ## 5. Implement the daemon and authorization boundary
 
-- [ ] Complete worker-protocol framing, handshakes, version negotiation, operations, responses, errors, and feature negotiation for the pinned reference.
+- [ ] Complete worker-protocol framing, handshakes, version negotiation, operations, responses, errors, and feature negotiation for the pinned reference. The `nix-rs-daemon` preview performs the 1.38 handshake and feature exchange, `SetOptions`, the stderr log and error channel, and the read-only, temporary-root, root-listing and missing-path operations; builds, imports, GC, permanent roots, activities, and versions below 1.38 remain open.
 - [ ] Implement multi-user authorization, trusted users, allowed store operations, daemon configuration, sockets, and service lifecycle.
-- [ ] Test reference client with reference daemon, nix-rs client with nix-rs daemon, and both cross-engine pairings where the protocol permits them.
+- [ ] Test reference client with reference daemon, nix-rs client with nix-rs daemon, and both cross-engine pairings where the protocol permits them. `reference_daemon` runs reference clients against both daemons on copies of one store, with identical exit status and output for 17 query commands and an untrusted client's warnings and censored roots.
 - [ ] Verify simultaneous clients, disconnects, cancellations, daemon restart, malformed messages, and privilege boundaries.
 - [ ] Package the daemon and service units expected by the selected NixOS module without altering a live host during qualification.
 

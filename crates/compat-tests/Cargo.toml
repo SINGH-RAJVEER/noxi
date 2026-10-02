@@ -16,6 +16,7 @@ nix-rs-eval = { path = "../nix-rs/eval", default-features = false, features = ["
 nix-compat = { package = "nix-rs-compat", path = "../nix-rs/nix-compat", features = ["serde", "daemon"] }
 nix-rs-store = { path = "../nix-rs-store" }
 nix-rs-build = { path = "../nix-rs-build" }
+nix-rs-daemon = { path = "../nix-rs-daemon" }
 bstr.workspace = true
 data-encoding.workspace = true
 tokio = { workspace = true, features = ["io-util", "macros", "rt"] }

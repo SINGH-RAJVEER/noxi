@@ -10,6 +10,7 @@ members = [
 	"crates/nix-rs-glue",
 	"crates/nix-rs-store",
 	"crates/nix-rs-build",
+	"crates/nix-rs-daemon",
 	"crates/nix-rs-commands",
 	"crates/nix-rs/nix-compat-derive",
 	"crates/nix-rs/nix-compat-derive-tests",

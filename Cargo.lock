@@ -1469,6 +1469,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "nix-rs-daemon"
+version = "0.1.0"
+dependencies = [
+ "libc",
+ "nix-rs-build",
+ "nix-rs-compat",
+ "nix-rs-store",
+ "tempfile",
+ "thiserror",
+ "tracing",
+]
+
+[[package]]
 name = "nix-rs-eval"
 version = "0.2.1"
 dependencies = [
@@ -1598,6 +1611,7 @@ dependencies = [
  "data-encoding",
  "nix-rs-build",
  "nix-rs-compat",
+ "nix-rs-daemon",
  "nix-rs-eval",
  "nix-rs-store",
  "serde_json",

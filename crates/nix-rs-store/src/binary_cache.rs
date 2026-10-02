@@ -199,6 +199,7 @@ impl BinaryCache {
 			info,
 			url: narinfo.url.to_owned(),
 			compression: narinfo.compression.map(str::to_owned),
+			file_size: narinfo.file_size,
 		}))
 	}
 
@@ -224,6 +225,8 @@ pub struct CachedPath {
 	pub url: String,
 	/// `None` for `Compression: none`.
 	pub compression: Option<String>,
+	/// The size of the compressed NAR, `FileSize`.
+	pub file_size: Option<u64>,
 }
 
 /// Wrap `reader` in the decompressor for a narinfo `Compression` value.

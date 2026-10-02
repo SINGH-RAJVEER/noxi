@@ -253,6 +253,7 @@ Internal test crate that checks the workspace crates against the CppNix 2.35.2 f
 - `upstream_store_json`, which checks `nix_compat::cppnix_json` against the store-path, content-address, outputs-spec and derived-path fixtures (2026-09-30).
 - `upstream_path_info_json`, which checks path-info and nar-info JSON against the values CppNix's tests construct (2026-09-30).
 - `upstream_realisation_json`, which checks realisation and build-result JSON, realisation fingerprints, and signatures made with CppNix's test key (2026-09-30).
+- `reference_daemon`, which runs unchanged reference clients against the reference daemon and the nix-rs daemon serving copies of one store and compares exit status, standard output and standard error (2026-10-02).
 - `reference_gc`, which compares printed roots, live and dead paths, collection results and remaining paths, and specific deletions with the reference on copies of one store, and checks that a temporary root sent to the nix-rs GC socket during a collection keeps its path (2026-10-02).
 - `reference_substitute`, which has the reference sign and copy a closure into `file://` caches with six compression methods and checks narinfo round trips, substitution metadata including signatures and derivers, unsigned and trusted caches, and corrupt NARs against the reference (2026-10-02).
 - `reference_build`, which builds derivations the 2.35.2 reference wrote with both the reference and `nix-rs-build` in separate temporary stores and compares the outputs, `nix path-info --json` metadata, the reference's verification of the nix-rs store, a probe of the sandbox environment, and failure messages and statuses (2026-10-02).
@@ -305,10 +306,17 @@ Internal trybuild tests for `nix-compat-derive`.
 - Two local unit tests and six isolated local-store comparisons pass, along with selected cache-substitution comparisons. Garbage collection, full cache behavior, daemon ownership, concurrency/crash recovery, and full existing-store downgrade qualification remain open.
 - Every `LocalStore` handle to one store in a process appends to the same `temproots/<pid>` file. A second handle used to delete and recreate it, which hid the first handle's temporary roots from the garbage collector. Dropping the last handle now also removes the file, as CppNix's `~LocalStore` does (2026-10-01).
 
+## nix-rs-daemon
+
+### Unreleased
+
+- New crate: a Nix daemon library that speaks CppNix 2.35.2's worker protocol over a Unix socket. It performs the 1.38 handshake with feature negotiation, reports trust from peer credentials with `trusted-users`, `allowed-users` and `build-users-group`, forks a process per connection, sends log lines and structured errors on the stderr channel, applies `SetOptions` with CppNix's restricted-setting warnings for untrusted clients, and implements the path, referrer, deriver, derivation-output, validity, hash-part, temporary-root, root-listing, NAR and missing-path queries. Builds, imports, GC and permanent roots are not implemented yet, and there is no `nix-daemon` binary (2026-10-02).
+
 ## nix-rs-build
 
 ### Unreleased
 
+- `missing::query_missing` follows CppNix's `queryMissing`: which paths realising some derived paths would build, substitute or not find, with download and NAR sizes (2026-10-02).
 - `LocalBuilder` realises only the outputs a derivation uses from each input derivation, and `realise_outputs` realises the named outputs of a derivation (`drv^out,dev`). Previously every output of every input had to be valid, so a garbage-collected `dev` or `man` output caused the whole input to be rebuilt (2026-10-02).
 
 ### 0.1.0 - pending publication

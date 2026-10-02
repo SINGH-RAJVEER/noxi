@@ -8,6 +8,7 @@
 
 pub mod error;
 pub mod local;
+pub mod missing;
 pub mod options;
 pub mod refscan;
 pub mod sandbox;
