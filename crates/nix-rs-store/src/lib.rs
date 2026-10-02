@@ -5,6 +5,7 @@
 //! implementation can use a store the other one wrote. The behavior follows
 //! `src/libstore/local-store.cc` and its helpers in the pinned reference.
 
+pub mod binary_cache;
 pub mod canonicalise;
 pub mod config;
 mod db;

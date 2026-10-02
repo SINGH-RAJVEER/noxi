@@ -249,6 +249,7 @@ Internal test crate that checks the workspace crates against the CppNix 2.35.2 f
 - `upstream_store_json`, which checks `nix_compat::cppnix_json` against the store-path, content-address, outputs-spec and derived-path fixtures (2026-09-30).
 - `upstream_path_info_json`, which checks path-info and nar-info JSON against the values CppNix's tests construct (2026-09-30).
 - `upstream_realisation_json`, which checks realisation and build-result JSON, realisation fingerprints, and signatures made with CppNix's test key (2026-09-30).
+- `reference_substitute`, which has the reference sign and copy a closure into `file://` caches with six compression methods and checks narinfo round trips, substitution metadata including signatures and derivers, unsigned and trusted caches, and corrupt NARs against the reference (2026-10-02).
 - `reference_build`, which builds derivations the 2.35.2 reference wrote with both the reference and `nix-rs-build` in separate temporary stores and compares the outputs, `nix path-info --json` metadata, the reference's verification of the nix-rs store, a probe of the sandbox environment, and failure messages and statuses (2026-10-02).
 - `upstream_derivation_options`, which reads and writes the six `derivation-options` JSON fixtures byte for byte and checks that `nix-rs-build` derives the same options, required system features, substitution and `uid-range` decisions from the eight advanced-attributes derivations as CppNix's `derivation-advanced-attrs.cc` (2026-10-02).
 
@@ -289,6 +290,7 @@ Internal trybuild tests for `nix-compat-derive`.
 
 ### Unreleased
 
+- `binary_cache::FileBinaryCache` reads `file://` binary caches: `nix-cache-info` (rejecting a cache for another store directory), narinfo files, and NARs compressed with none, xz, bzip2, zstd, gzip or brotli. `LocalStore::substitute` substitutes a path and its references in cache priority order after CppNix's `PathSubstitutionGoal`, skipping copies not signed by a trusted key unless the cache has `trusted=1`, and imports each NAR with its hash and size checked (2026-10-02).
 - `LocalStore::create_temp_dir_in_store` and `ca_hash_of` are public, for the build engine (2026-10-02).
 - Adds an unpublished local-store preview with the schema-10 SQLite layout, validity/reference metadata, path registration, NAR import/export, canonicalization, and store locks.
 - Two local unit tests and five isolated reference comparisons pass. Garbage collection, substitution, daemon ownership, concurrency/crash recovery, and full existing-store downgrade qualification remain open.

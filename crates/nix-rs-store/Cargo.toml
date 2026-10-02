@@ -9,12 +9,17 @@ repository = "https://github.com/SINGH-RAJVEER/nix-rs"
 publish = false
 
 [dependencies]
+brotli-decompressor = "5.0"
+bzip2 = "0.6"
+flate2 = "1.1"
 libc.workspace = true
+lzma-rust2 = { version = "0.15", default-features = false, features = ["std", "xz"] }
 nix-compat = { package = "nix-rs-compat", path = "../nix-rs/nix-compat", version = "0.1.0" }
 rusqlite = { version = "0.40.2", features = ["bundled"] }
 sha2.workspace = true
 thiserror.workspace = true
 tracing.workspace = true
+zstd.workspace = true
 
 [dev-dependencies]
 tempfile.workspace = true

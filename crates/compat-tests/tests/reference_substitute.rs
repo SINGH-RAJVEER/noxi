@@ -1,0 +1,379 @@
+//! Binary caches and substitution checked against the pinned CppNix 2.35.2
+//! reference.
+//!
+//! The reference builds a path that refers to the test busybox, then copies
+//! its closure into `file://` caches, signed or not and with each
+//! compression method. Narinfo files must read and print back byte for
+//! byte, and substituting from each cache into a fresh store must register
+//! the same metadata in nix-rs as in the reference.
+//!
+//! The reference executables and the busybox come from the same places as
+//! in `reference_build` (`just reference`).
+
+use std::fs;
+use std::path::{Path, PathBuf};
+use std::process::{Command, Output};
+
+use nix_compat::narinfo::NarInfo;
+use nix_compat::store_path::StorePath;
+use nix_rs_store::binary_cache::FileBinaryCache;
+use nix_rs_store::{LocalStore, LocalStoreConfig};
+use serde_json::Value;
+
+fn from_env_or_target(var: &str, target: &str, probe: &str) -> PathBuf {
+	if let Some(path) = std::env::var_os(var) {
+		return PathBuf::from(path);
+	}
+	let path = Path::new(env!("CARGO_MANIFEST_DIR"))
+		.join("../../target")
+		.join(target);
+	assert!(
+		path.join(probe).exists(),
+		"{target} is missing; run `just reference` or set {var}"
+	);
+	path
+}
+
+struct Env {
+	dir: tempfile::TempDir,
+	public_key: String,
+	/// The built path and the busybox it refers to.
+	out: StorePath,
+	busybox: StorePath,
+}
+
+impl Env {
+	fn new() -> Self {
+		let dir = tempfile::tempdir().unwrap();
+		for sub in ["conf", "home"] {
+			fs::create_dir(dir.path().join(sub)).unwrap();
+		}
+		let busybox = fs::canonicalize(from_env_or_target(
+			"NIXRS_TEST_BUSYBOX",
+			"test-busybox",
+			"bin/busybox",
+		))
+		.unwrap();
+		let mut env = Env {
+			dir,
+			public_key: String::new(),
+			busybox: StorePath::from_absolute_path(busybox.to_str().unwrap().as_bytes()).unwrap(),
+			out: StorePath::from_absolute_path(busybox.to_str().unwrap().as_bytes()).unwrap(),
+		};
+		let secret = env.reference_ok("nix", &["key", "generate-secret", "--key-name", "test-1"]);
+		fs::write(env.secret_key_file(), &secret).unwrap();
+		env.public_key = env
+			.reference_with_input("nix", &["key", "convert-secret-to-public"], &secret)
+			.trim()
+			.to_owned();
+
+		let src = env.root("src");
+		env.reference_ok(
+			"nix",
+			&[
+				"copy",
+				"--no-check-sigs",
+				"--to",
+				&format!("local?root={}", src.display()),
+				&env.busybox.to_absolute_path(),
+			],
+		);
+		let expr = env.dir.path().join("expr.nix");
+		fs::write(
+			&expr,
+			format!(
+				r#"let bb = builtins.storePath {}; in derivation {{
+					name = "cached";
+					system = "x86_64-linux";
+					builder = "${{bb}}/bin/sh";
+					args = [ "-c" "${{bb}}/bin/mkdir $out; echo ${{bb}} > $out/ref; ${{bb}}/bin/ln -s $out $out/self" ];
+				}}"#,
+				env.busybox.to_absolute_path()
+			),
+		)
+		.unwrap();
+		let out = env.reference_ok(
+			"nix-build",
+			&[
+				"--store",
+				src.to_str().unwrap(),
+				"--no-out-link",
+				expr.to_str().unwrap(),
+			],
+		);
+		env.out = StorePath::from_absolute_path(out.trim().as_bytes()).unwrap();
+		env
+	}
+
+	fn secret_key_file(&self) -> PathBuf {
+		self.dir.path().join("secret-key")
+	}
+
+	fn root(&self, name: &str) -> PathBuf {
+		self.dir.path().join(name)
+	}
+
+	fn command(&self, program: &str, args: &[&str]) -> Command {
+		let bin = from_env_or_target("NIXRS_REFERENCE_BIN", "nix-reference/bin", "nix-store");
+		let mut command = Command::new(bin.join(program));
+		command
+			.args(args)
+			.env_clear()
+			.env("HOME", self.dir.path().join("home"))
+			.env("NIX_CONF_DIR", self.dir.path().join("conf"))
+			.env(
+				"NIX_CONFIG",
+				"experimental-features = nix-command\nbuild-users-group =\nsubstituters =\nsandbox = true\nsandbox-fallback = false\nsandbox-paths =\ncores = 1\n",
+			)
+			.env("PATH", "/run/current-system/sw/bin:/usr/bin:/bin");
+		command
+	}
+
+	fn reference(&self, program: &str, args: &[&str]) -> Output {
+		self.command(program, args).output().unwrap()
+	}
+
+	fn reference_ok(&self, program: &str, args: &[&str]) -> String {
+		let output = self.reference(program, args);
+		assert!(
+			output.status.success(),
+			"{program} {args:?} failed:\n{}",
+			String::from_utf8_lossy(&output.stderr)
+		);
+		String::from_utf8(output.stdout).unwrap()
+	}
+
+	fn reference_with_input(&self, program: &str, args: &[&str], input: &str) -> String {
+		use std::io::Write;
+		let mut child = self
+			.command(program, args)
+			.stdin(std::process::Stdio::piped())
+			.stdout(std::process::Stdio::piped())
+			.spawn()
+			.unwrap();
+		child
+			.stdin
+			.take()
+			.unwrap()
+			.write_all(input.as_bytes())
+			.unwrap();
+		let output = child.wait_with_output().unwrap();
+		assert!(output.status.success());
+		String::from_utf8(output.stdout).unwrap()
+	}
+
+	/// Copy the built path's closure into a new cache. Returns its URL.
+	fn make_cache(&self, name: &str, params: &str, sign: bool) -> String {
+		let dir = self.root(name);
+		let mut url = format!("file://{}?{params}", dir.display());
+		if sign {
+			url += &format!("&secret-key={}", self.secret_key_file().display());
+		}
+		let src = self.root("src");
+		self.reference_ok(
+			"nix",
+			&[
+				"copy",
+				"--store",
+				src.to_str().unwrap(),
+				"--to",
+				&url,
+				&self.out.to_absolute_path(),
+			],
+		);
+		format!("file://{}", dir.display())
+	}
+
+	fn reference_substitute(&self, store: &str, cache: &str, path: &StorePath) -> Output {
+		let root = self.root(store);
+		self.reference(
+			"nix-store",
+			&[
+				"--store",
+				root.to_str().unwrap(),
+				"--realise",
+				&path.to_absolute_path(),
+				"--option",
+				"substituters",
+				cache,
+				"--option",
+				"trusted-public-keys",
+				&self.public_key,
+			],
+		)
+	}
+
+	fn nix_rs_store(&self, store: &str) -> LocalStore {
+		let mut config = LocalStoreConfig::with_root(&self.root(store));
+		config.trusted_public_keys = vec![self.public_key.clone()];
+		LocalStore::open(config).unwrap()
+	}
+
+	fn path_info(&self, store: &str) -> Value {
+		let root = self.root(store);
+		let paths = [self.out.to_absolute_path(), self.busybox.to_absolute_path()];
+		let mut json: Value = serde_json::from_str(&self.reference_ok(
+			"nix",
+			&[
+				"path-info",
+				"--json",
+				"--store",
+				root.to_str().unwrap(),
+				&paths[0],
+				&paths[1],
+			],
+		))
+		.unwrap();
+		for info in json.as_object_mut().unwrap().values_mut() {
+			info.as_object_mut().unwrap().remove("registrationTime");
+		}
+		json
+	}
+
+	fn verify(&self, store: &str) {
+		let root = self.root(store);
+		let output = self.reference(
+			"nix-store",
+			&[
+				"--store",
+				root.to_str().unwrap(),
+				"--verify",
+				"--check-contents",
+			],
+		);
+		let stderr = String::from_utf8_lossy(&output.stderr);
+		assert!(output.status.success(), "verify failed:\n{stderr}");
+		for bad in ["error", "warning", "modified", "disappeared"] {
+			assert!(!stderr.contains(bad), "verify reported problems:\n{stderr}");
+		}
+	}
+}
+
+#[test]
+fn narinfo_files_read_and_print_byte_for_byte() {
+	let env = Env::new();
+	for (name, params) in [("xz", ""), ("none", "compression=none")] {
+		let cache = env.make_cache(name, params, true);
+		let dir = PathBuf::from(cache.strip_prefix("file://").unwrap());
+		let mut count = 0;
+		for entry in fs::read_dir(&dir).unwrap() {
+			let path = entry.unwrap().path();
+			if path.extension().is_some_and(|e| e == "narinfo") {
+				let text = fs::read_to_string(&path).unwrap();
+				let narinfo = NarInfo::parse(&text).unwrap();
+				assert_eq!(narinfo.to_string(), text, "{}", path.display());
+				count += 1;
+			}
+		}
+		assert_eq!(count, 2, "the built path and busybox");
+	}
+}
+
+#[test]
+fn signed_caches_substitute_like_the_reference() {
+	let env = Env::new();
+	for (name, params) in [
+		("xz", ""),
+		("none", "compression=none"),
+		("bzip2", "compression=bzip2"),
+		("zstd", "compression=zstd"),
+		("gzip", "compression=gzip"),
+		("br", "compression=br"),
+	] {
+		let cache = env.make_cache(name, params, true);
+		let reference = format!("reference-{name}");
+		let nix_rs = format!("nix-rs-{name}");
+		let output = env.reference_substitute(&reference, &cache, &env.out);
+		assert!(
+			output.status.success(),
+			"{name}: {}",
+			String::from_utf8_lossy(&output.stderr)
+		);
+		env.nix_rs_store(&nix_rs)
+			.substitute(&[FileBinaryCache::open(&cache).unwrap()], &env.out)
+			.unwrap_or_else(|e| panic!("{name}: {e}"));
+		let info = env.path_info(&nix_rs);
+		assert_eq!(info, env.path_info(&reference), "{name}");
+		let out = &info[env.out.to_absolute_path()];
+		assert_eq!(out["signatures"].as_array().unwrap().len(), 1, "{info}");
+		assert!(
+			out["deriver"].as_str().unwrap().ends_with("-cached.drv"),
+			"{info}"
+		);
+		assert_eq!(out["ultimate"], Value::Bool(false), "{info}");
+		env.verify(&nix_rs);
+	}
+}
+
+#[test]
+fn unsigned_caches_are_refused_unless_trusted() {
+	let env = Env::new();
+	let cache = env.make_cache("unsigned", "", false);
+	let output = env.reference_substitute("reference", &cache, &env.out);
+	assert!(!output.status.success());
+	let stderr = String::from_utf8_lossy(&output.stderr);
+	let error = env
+		.nix_rs_store("nix-rs")
+		.substitute(&[FileBinaryCache::open(&cache).unwrap()], &env.out)
+		.unwrap_err()
+		.to_string();
+	assert!(
+		stderr.contains(&error),
+		"nix-rs: {error}\nreference: {stderr}"
+	);
+	assert!(stderr.contains("as it's not signed by any of the keys in 'trusted-public-keys'"));
+
+	let trusted = format!("{cache}?trusted=1");
+	let output = env.reference_substitute("reference", &trusted, &env.out);
+	assert!(
+		output.status.success(),
+		"{}",
+		String::from_utf8_lossy(&output.stderr)
+	);
+	env.nix_rs_store("nix-rs")
+		.substitute(&[FileBinaryCache::open(&trusted).unwrap()], &env.out)
+		.unwrap();
+	assert_eq!(env.path_info("nix-rs"), env.path_info("reference"));
+	env.verify("nix-rs");
+}
+
+#[test]
+fn corrupt_nars_are_rejected() {
+	let env = Env::new();
+	let cache = env.make_cache("corrupt", "compression=none", true);
+	let dir = PathBuf::from(cache.strip_prefix("file://").unwrap());
+	// Flip a byte inside the busybox NAR's file contents.
+	let narinfo = fs::read_to_string(dir.join(format!(
+		"{}.narinfo",
+		nix_compat::nixbase32::encode(env.busybox.digest())
+	)))
+	.unwrap();
+	let url = narinfo
+		.lines()
+		.find_map(|l| l.strip_prefix("URL: "))
+		.unwrap();
+	let nar = dir.join(url);
+	let mut bytes = fs::read(&nar).unwrap();
+	let middle = bytes.len() / 2;
+	bytes[middle] ^= 0xff;
+	fs::write(&nar, bytes).unwrap();
+
+	let output = env.reference_substitute("reference", &cache, &env.out);
+	assert!(!output.status.success());
+	let stderr = String::from_utf8_lossy(&output.stderr);
+	let error = env
+		.nix_rs_store("nix-rs")
+		.substitute(&[FileBinaryCache::open(&cache).unwrap()], &env.out)
+		.unwrap_err()
+		.to_string();
+	assert!(
+		error.contains("hash mismatch importing path"),
+		"nix-rs: {error}"
+	);
+	for line in error.lines() {
+		assert!(
+			stderr.contains(line.trim()),
+			"missing {line:?} in:\n{stderr}"
+		);
+	}
+}
