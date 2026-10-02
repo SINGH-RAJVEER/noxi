@@ -1,6 +1,6 @@
 [package]
 name = "nix-rs-commands"
-version.workspace = true
+version = "0.1.1"
 rust-version.workspace = true
 edition = "2024"
 description = "CppNix-compatible command implementations for nix-rs"
@@ -14,8 +14,8 @@ name = "nix-instantiate"
 path = "src/bin/nix-instantiate.rs"
 
 [dependencies]
-nix-rs-eval = { path = "../nix-rs/eval", version = "0.2.0", default-features = false, features = ["impure"] }
-nix-rs-glue = { path = "../nix-rs-glue", version = "0.1.0" }
+nix-rs-eval = { path = "../nix-rs/eval", version = "0.2.1", default-features = false, features = ["impure"] }
+nix-rs-glue = { path = "../nix-rs-glue", version = "0.1.1" }
 rustc-hash.workspace = true
 smol_str.workspace = true
 

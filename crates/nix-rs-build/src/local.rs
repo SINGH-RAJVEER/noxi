@@ -8,7 +8,7 @@
 //! the derivation as their deriver.
 //!
 //! Not supported yet: builds without a sandbox, `builtin:` builders,
-//! content-addressed floating, impure and deferred outputs, substitution,
+//! content-addressed floating, impure and deferred outputs,
 //! remote builders, and `--check` and `--repair` modes.
 
 use std::collections::{BTreeMap, BTreeSet};
@@ -23,9 +23,9 @@ use nix_compat::derivation::{OutputHashMode, UnverifiedDerivation};
 use nix_compat::nixbase32;
 use nix_compat::nixhash::{CAHash, NixHash};
 use nix_compat::store_path::{self, STORE_DIR, StorePath, hash_placeholder};
+use nix_rs_store::binary_cache::BinaryCache;
 use nix_rs_store::canonicalise::canonicalise_path_metadata;
 use nix_rs_store::lock::PathLocks;
-use nix_rs_store::binary_cache::BinaryCache;
 use nix_rs_store::{LocalStore, ValidPathInfo, ca_hash_of, delete_path, nar};
 use serde_json::{Map, Value};
 use sha2::{Digest, Sha256};

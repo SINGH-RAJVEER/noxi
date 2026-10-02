@@ -12,6 +12,8 @@ Local source and release history are at https://github.com/SINGH-RAJVEER/nix-rs 
 
 Local changes include formatting, crate dependency aliases, extracted hash and flake reference modules with reexports, store-path ordering, byte-preserving derivation fields, derivation parsing/hashing, worker-protocol fields, and new `cppnix_json` and `cppnix_serve` modules.
 
+Release `0.1.1` adds the downstream content-addressed output placeholder helper following the reference's `DownstreamPlaceholder::unknownCaOutput` and corrects the serve-codec feature gate. These changes retain the existing GPL-3.0-only package terms and reference-source notices.
+
 The reference source is [CppNix 2.35.2](https://github.com/NixOS/nix/tree/2c73b59da29606068c0c98db015dd3a66955525d), revision `2c73b59da29606068c0c98db015dd3a66955525d`, under LGPL-2.1-or-later. Relevant files include `src/libstore/derivations.cc`, store-path and JSON implementations, `worker-protocol.cc`, and `serve-protocol.cc`. The repository's copied reference fixtures and license live outside this package in `tests/nix/`; they are distinct from the imported Snix test data here.
 
 An early local ATerm parser enforced development-version 2.36 ordering rules. That behavior was superseded on 2026-09-29 by 2.35.2 parsing: collections accept arbitrary order, repeated outputs keep the first entry, repeated input derivations and environment keys keep the last, and set entries collapse. Experimental output and dynamic-derivation behavior remains incomplete.

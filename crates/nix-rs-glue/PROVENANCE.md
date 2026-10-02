@@ -19,3 +19,5 @@ CppNix 2.35.2 also supplies the read-only evaluation reference, especially `src/
 Local source and release history are at https://github.com/SINGH-RAJVEER/nix-rs under `crates/nix-rs-glue/`. Initial release `0.1.0` adapts the upstream logic to read-only store-path calculation, in-memory derivation/text tracking, local imports, path filtering, NAR hashing, and core-package lookup. It changes coercion, structured attributes, context handling, and derivation construction for the 2.35.2 reference.
 
 Snix's storage services, build execution, and fetch tracking are excluded. Nothing writes to the store, fetches sources, substitutes paths, or realises derivation outputs. Local I/O is not sandboxed. Printed paths do not establish the existence of their contents, and partial Nixpkgs evaluation is not full Nixpkgs/NixOS or store compatibility qualification.
+
+Release `0.1.1` corrects catchable derivation-attribute errors and preserves an existing caller-supplied search path. Its dependency on evaluator `0.2.1` supplies the new search-path inspection method; the imported source and license scopes remain unchanged.

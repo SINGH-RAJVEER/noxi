@@ -1,6 +1,6 @@
 [package]
 name = "nix-rs-glue"
-version.workspace = true
+version = "0.1.1"
 rust-version.workspace = true
 edition = "2024"
 description = "Store-aware builtins for the nix-rs evaluator, derived from Snix's glue crates"
@@ -12,7 +12,7 @@ bstr.workspace = true
 bytes.workspace = true
 data-encoding.workspace = true
 nix-compat = { package = "nix-rs-compat", path = "../nix-rs/nix-compat", version = "0.1.0" }
-nix-rs-eval = { path = "../nix-rs/eval", version = "0.2.0", default-features = false, features = ["impure"] }
+nix-rs-eval = { path = "../nix-rs/eval", version = "0.2.1", default-features = false, features = ["impure"] }
 serde_json.workspace = true
 sha2.workspace = true
 thiserror.workspace = true

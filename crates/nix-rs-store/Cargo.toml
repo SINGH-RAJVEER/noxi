@@ -6,7 +6,7 @@ edition = "2024"
 description = "A local Nix store compatible with CppNix's on-disk format"
 license = "GPL-3.0-only"
 repository = "https://github.com/SINGH-RAJVEER/nix-rs"
-publish = false
+publish = ["crates-io"]
 
 [dependencies]
 brotli-decompressor = "5.0"

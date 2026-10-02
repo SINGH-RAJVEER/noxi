@@ -19,3 +19,5 @@ The imported source retains its Snix and earlier upstream contributors' authorsh
 Local source and release history are at https://github.com/SINGH-RAJVEER/nix-rs under `crates/nix-rs/eval/`. Release `0.2.0` includes the package/import/test-path renaming, formatting, and checked integer arithmetic, negation, and division-by-zero behavior. The reference for these changes is [CppNix 2.35.2](https://github.com/NixOS/nix/tree/2c73b59da29606068c0c98db015dd3a66955525d), revision `2c73b59da29606068c0c98db015dd3a66955525d`, especially `src/libexpr/primops.cc`, under LGPL-2.1-or-later.
 
 This preview retains unsupported cases and diagnostic differences. It can evaluate the pure language and provide configured local I/O, but does not itself implement store-aware derivation builtins, a writable store, builds, or fetching. The separate read-only glue does not establish complete Nixpkgs/NixOS or reference-release qualification.
+
+Release `0.2.1` adds explicit-directory evaluation for fileless expressions and search-path inspection for callers. It retains the source and license scopes above.
