@@ -56,6 +56,8 @@ pub enum FlakeRef {
 	Mercurial {
 		r#ref: Option<String>,
 		rev: Option<String>,
+		/// Transport URL without the `hg+` prefix or `ref`/`rev` query attributes.
+		url: Url,
 	},
 	Path {
 		last_modified: Option<u64>,
@@ -150,6 +152,9 @@ impl std::str::FromStr for FlakeRef {
 				"file" => FetchType::File,
 				"tarball" => FetchType::Tarball,
 				"git" => FetchType::Git,
+				"hg" if matches!(protocol, "http" | "https" | "ssh" | "file") => {
+					FetchType::Mercurial
+				}
 				"github" => FetchType::GitHub,
 				"gitlab" => FetchType::GitLab,
 				"sourcehut" => FetchType::SourceHut,
@@ -181,6 +186,9 @@ impl std::str::FromStr for FlakeRef {
 
 		// Extract query parameters
 		let query_pairs = extract_query_pairs(&url);
+		// Keep fetcher attributes out of the transport URL. Unknown parameters
+		// belong to the transport and must survive formatting.
+		remove_query_params(&mut url, fetch_type.query_params());
 
 		// Process URL based on fetch type
 		Ok(match fetch_type {
@@ -225,6 +233,11 @@ impl std::str::FromStr for FlakeRef {
 					verify_commit: params.verify_commit,
 				}
 			}
+			FetchType::Mercurial => FlakeRef::Mercurial {
+				url,
+				r#ref: query_pairs.get("ref").cloned(),
+				rev: query_pairs.get("rev").cloned(),
+			},
 			FetchType::Path => {
 				let params = extract_common_file_params(&query_pairs);
 				FlakeRef::Path {
@@ -317,16 +330,65 @@ enum FetchType {
 	GitHub,
 	GitLab,
 	Indirect,
+	Mercurial,
 	Path,
 	SourceHut,
 	Tarball,
 }
 
+const FILE_QUERY_PARAMS: &[&str] = &["narHash", "rev", "revCount", "lastModified"];
+const GIT_QUERY_PARAMS: &[&str] = &[
+	"ref",
+	"rev",
+	"keytype",
+	"publicKey",
+	"publicKeys",
+	"shallow",
+	"submodules",
+	"exportIgnore",
+	"allRefs",
+	"verifyCommit",
+];
+
+impl FetchType {
+	fn query_params(&self) -> &[&str] {
+		match self {
+			Self::File | Self::Tarball => FILE_QUERY_PARAMS,
+			Self::Git => GIT_QUERY_PARAMS,
+			Self::Mercurial => &["ref", "rev"],
+			_ => &[],
+		}
+	}
+}
+
+fn remove_query_params(url: &mut Url, keys: &[&str]) {
+	// Retain raw transport pairs, including their encoding and repeated keys.
+	let retained = url.query().map(|query| {
+		query
+			.split('&')
+			.filter(|pair| {
+				let key = pair.split_once('=').map_or(*pair, |(key, _)| key);
+				let decoded = decode_path_segment(key).ok();
+				!keys
+					.iter()
+					.any(|candidate| decoded.as_deref() == Some(candidate))
+			})
+			.collect::<Vec<_>>()
+			.join("&")
+	});
+	url.set_query(retained.as_deref().filter(|query| !query.is_empty()));
+}
+
 // Helper functions for query parameters
 fn extract_query_pairs(url: &Url) -> HashMap<String, String> {
-	url.query_pairs()
-		.map(|(k, v)| (k.to_string(), v.to_string()))
-		.collect()
+	let mut params = HashMap::new();
+	for (key, value) in url.query_pairs() {
+		// CppNix 2.35.2's decodeQuery uses map::emplace: the first wins.
+		params
+			.entry(key.into_owned())
+			.or_insert_with(|| value.into_owned());
+	}
+	params
 }
 
 fn get_param(query_pairs: &HashMap<String, String>, key: &str) -> Option<u64> {
@@ -334,10 +396,7 @@ fn get_param(query_pairs: &HashMap<String, String>, key: &str) -> Option<u64> {
 }
 
 fn get_bool_param(query_pairs: &HashMap<String, String>, key: &str) -> bool {
-	query_pairs
-		.get(key)
-		.map(|v| v == "1" || v.to_lowercase() == "true")
-		.unwrap_or(false)
+	query_pairs.get(key).map(|v| v == "1").unwrap_or(false)
 }
 
 // Parameter extractors
@@ -372,6 +431,10 @@ fn extract_repo_params(
 	query_pairs: &HashMap<String, String>,
 ) -> Result<RepoHostParams, FlakeRefError> {
 	let (owner, repo, path_ref) = parse_path_segments(url)?;
+	let (path_ref, path_rev) = match path_ref {
+		Some(value) if is_git_revision(&value) => (None, Some(value.to_ascii_lowercase())),
+		value => (value, None),
+	};
 
 	// Check for branch/tag conflicts
 	if path_ref.is_some() && query_pairs.contains_key("ref") {
@@ -379,14 +442,33 @@ fn extract_repo_params(
 			"URL contains multiple branch/tag names".to_string(),
 		));
 	}
+	if path_rev.is_some() && query_pairs.contains_key("rev") {
+		return Err(FlakeRefError::UnsupportedType(
+			"URL contains multiple commit hashes".to_string(),
+		));
+	}
 
 	let r#ref = path_ref.or_else(|| query_pairs.get("ref").cloned());
+	let rev = path_rev
+		.or_else(|| query_pairs.get("rev").cloned())
+		.map(|value| {
+			if is_git_revision(&value) {
+				value.to_ascii_lowercase()
+			} else {
+				value
+			}
+		});
+	if r#ref.is_some() && rev.is_some() {
+		return Err(FlakeRefError::UnsupportedType(
+			"URL contains both a commit hash and a branch/tag name".to_string(),
+		));
+	}
 
 	Ok(RepoHostParams {
 		owner,
 		repo,
 		r#ref,
-		rev: query_pairs.get("rev").cloned(),
+		rev,
 		host: query_pairs.get("host").cloned(),
 		keytype: query_pairs.get("keytype").cloned(),
 		public_key: query_pairs.get("publicKey").cloned(),
@@ -398,7 +480,12 @@ fn extract_repo_params(
 
 // URL parsing helpers
 fn parse_path_segments(url: &Url) -> Result<(String, String, Option<String>), FlakeRefError> {
-	let path_segments: Vec<&str> = url.path().trim_start_matches('/').splitn(3, '/').collect();
+	let path_segments = url
+		.path()
+		.split('/')
+		.filter(|s| !s.is_empty())
+		.map(decode_path_segment)
+		.collect::<Result<Vec<_>, _>>()?;
 
 	if path_segments.len() < 2 {
 		return Err(FlakeRefError::UnsupportedType(
@@ -409,8 +496,49 @@ fn parse_path_segments(url: &Url) -> Result<(String, String, Option<String>), Fl
 	Ok((
 		path_segments[0].to_string(),
 		path_segments[1].to_string(),
-		path_segments.get(2).map(|&s| s.to_string()),
+		(path_segments.len() > 2).then(|| path_segments[2..].join("/")),
 	))
+}
+
+fn decode_path_segment(value: &str) -> Result<String, FlakeRefError> {
+	let mut bytes = Vec::new();
+	let mut input = value.bytes();
+	while let Some(byte) = input.next() {
+		if byte == b'%' {
+			let digit = |byte: Option<u8>| byte.and_then(|c| (c as char).to_digit(16));
+			let high = digit(input.next());
+			let low = digit(input.next());
+			match (high, low) {
+				(Some(high), Some(low)) => bytes.push((high * 16 + low) as u8),
+				_ => {
+					return Err(FlakeRefError::UnsupportedType(
+						"invalid percent escape".into(),
+					));
+				}
+			}
+		} else {
+			bytes.push(byte);
+		}
+	}
+	String::from_utf8(bytes)
+		.map_err(|_| FlakeRefError::UnsupportedType("non-UTF-8 path segment".into()))
+}
+
+fn encode_path_segment(value: &str) -> String {
+	use std::fmt::Write;
+	let mut encoded = String::new();
+	for byte in value.bytes() {
+		if byte.is_ascii_alphanumeric() || b"-._~:@".contains(&byte) {
+			encoded.push(byte as char);
+		} else {
+			write!(encoded, "%{byte:02X}").unwrap();
+		}
+	}
+	encoded
+}
+
+fn is_git_revision(value: &str) -> bool {
+	value.len() == 40 && value.bytes().all(|c| c.is_ascii_hexdigit())
 }
 
 // Helper function for tarball detection
@@ -498,6 +626,7 @@ fn append_repo_host_params(url: &mut Url, params: &RepoHostParams) {
 			("rev", params.rev.clone()),
 			("keytype", params.keytype.clone()),
 			("publicKey", params.public_key.clone()),
+			("host", params.host.clone()),
 		],
 	);
 	append_public_keys_param(url, &params.public_keys);
@@ -515,6 +644,7 @@ impl FlakeRef {
 				last_modified,
 			} => {
 				let mut url = url.clone();
+				remove_query_params(&mut url, FILE_QUERY_PARAMS);
 				let params = FileParams {
 					nar_hash: nar_hash.clone(),
 					rev: rev.clone(),
@@ -522,7 +652,11 @@ impl FlakeRef {
 					last_modified: *last_modified,
 				};
 				append_common_file_params(&mut url, &params);
-				url
+				if is_tarball_extension(url.path()) {
+					Url::parse(&format!("file+{url}")).unwrap()
+				} else {
+					url
+				}
 			}
 			FlakeRef::Git {
 				url,
@@ -538,6 +672,7 @@ impl FlakeRef {
 				verify_commit,
 			} => {
 				let mut url = url.clone();
+				remove_query_params(&mut url, GIT_QUERY_PARAMS);
 				let params = GitParams {
 					r#ref: r#ref.clone(),
 					rev: rev.clone(),
@@ -551,7 +686,11 @@ impl FlakeRef {
 					verify_commit: *verify_commit,
 				};
 				append_git_params(&mut url, &params);
-				Url::parse(&format!("git+{}", url.as_str())).unwrap()
+				if url.scheme() == "git" {
+					url
+				} else {
+					Url::parse(&format!("git+{url}")).unwrap()
+				}
 			}
 			FlakeRef::GitHub {
 				owner,
@@ -590,17 +729,29 @@ impl FlakeRef {
 					_ => unreachable!(),
 				};
 
-				let mut url = Url::parse(&format!("{scheme}://{owner}/{repo}")).unwrap();
-				if let Some(h) = host {
-					url.set_host(Some(h)).unwrap();
+				let mut path = format!(
+					"{scheme}:{}/{}",
+					encode_path_segment(owner),
+					encode_path_segment(repo)
+				);
+				// A hash-shaped branch name must stay in the query to avoid
+				// reparsing it as a revision. Keep legacy non-hex revisions there too.
+				let path_ref = r#ref
+					.as_ref()
+					.filter(|value| !value.is_empty() && !is_git_revision(value));
+				let path_rev = rev.as_ref().filter(|value| is_git_revision(value));
+				if let Some(value) = path_ref.or(path_rev) {
+					path.push('/');
+					path.push_str(&encode_path_segment(value));
 				}
+				let mut url = Url::parse(&path).unwrap();
 
 				let params = RepoHostParams {
 					owner: owner.clone(),
 					repo: repo.clone(),
 					host: host.clone(),
-					r#ref: r#ref.clone(),
-					rev: rev.clone(),
+					r#ref: r#ref.clone().filter(|_| path_ref.is_none()),
+					rev: rev.clone().filter(|_| path_rev.is_none()),
 					keytype: keytype.clone(),
 					public_key: public_key.clone(),
 					public_keys: public_keys.clone(),
@@ -620,7 +771,7 @@ impl FlakeRef {
 				rev_count,
 				last_modified,
 			} => {
-				let mut url = Url::parse(&format!("path://{}", path.display())).unwrap();
+				let mut url = Url::parse(&format!("path:{}", path.display())).unwrap();
 				let params = FileParams {
 					nar_hash: nar_hash.clone(),
 					rev: rev.clone(),
@@ -638,6 +789,7 @@ impl FlakeRef {
 				last_modified,
 			} => {
 				let mut url = url.clone();
+				remove_query_params(&mut url, FILE_QUERY_PARAMS);
 				let params = FileParams {
 					nar_hash: nar_hash.clone(),
 					rev: rev.clone(),
@@ -645,12 +797,17 @@ impl FlakeRef {
 					last_modified: *last_modified,
 				};
 				append_common_file_params(&mut url, &params);
-				url
+				if is_tarball_extension(url.path()) {
+					url
+				} else {
+					Url::parse(&format!("tarball+{url}")).unwrap()
+				}
 			}
-			FlakeRef::Mercurial { r#ref, rev } => {
-				let mut url = Url::parse("hg://").unwrap();
+			FlakeRef::Mercurial { url, r#ref, rev } => {
+				let mut url = url.clone();
+				remove_query_params(&mut url, &["ref", "rev"]);
 				append_params(&mut url, &[("ref", r#ref.clone()), ("rev", rev.clone())]);
-				url
+				Url::parse(&format!("hg+{url}")).unwrap()
 			}
 		}
 	}
