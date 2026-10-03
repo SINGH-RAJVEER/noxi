@@ -530,6 +530,96 @@ fn matches_reference_nixpkgs_paths() {
 	}
 }
 
+/// The qualification VM's NixOS configuration from
+/// `tests/qualification/flake.nix`, without its `nix.package`, which comes
+/// from a flake input. It uses Home Manager as a NixOS module and is
+/// evaluated through `nixos/lib/eval-config.nix`, as `nixosSystem` does.
+const QUALIFICATION_SYSTEM: &str = r#"{ nixpkgs, homeManager }:
+let
+  system = import "${nixpkgs}/nixos/lib/eval-config.nix" {
+    system = "x86_64-linux";
+    modules = [
+      "${nixpkgs}/nixos/modules/virtualisation/qemu-vm.nix"
+      (import "${homeManager}/nixos")
+      ({ ... }: {
+        system.stateVersion = "26.05";
+        networking.hostName = "nixrs-reference";
+        boot.kernelParams = [ "console=ttyS0" ];
+        boot.loader.grub.efiSupport = true;
+        boot.loader.grub.efiInstallAsRemovable = true;
+        virtualisation.memorySize = 2048;
+        virtualisation.diskSize = 8192;
+        virtualisation.useBootLoader = true;
+        virtualisation.useEFIBoot = true;
+        nix.settings.experimental-features = [ "nix-command" "flakes" ];
+        users.users.qualification.isNormalUser = true;
+        home-manager.useGlobalPkgs = true;
+        home-manager.users.qualification = { ... }: {
+          home.stateVersion = "26.05";
+        };
+      })
+    ];
+  };
+  standalone = import "${homeManager}/modules" {
+    pkgs = import nixpkgs { system = "x86_64-linux"; };
+    configuration = { pkgs, ... }: {
+      home.username = "qualification";
+      home.homeDirectory = "/home/qualification";
+      home.stateVersion = "26.05";
+      home.packages = [ pkgs.hello ];
+      programs.git.enable = true;
+    };
+  };
+in
+[
+  system.config.system.build.toplevel.drvPath
+  system.config.system.build.vm.drvPath
+  system.config.home-manager.users.qualification.home.activationPackage.drvPath
+  standalone.activationPackage.drvPath
+]
+"#;
+
+/// Derivation paths of the qualification NixOS system, its VM, its Home
+/// Manager generation and a standalone Home Manager generation, recorded
+/// from the reference for the qualification flake's locked Nixpkgs
+/// (`e94cb152`) and Home Manager (`7b4c5ec4`). Set
+/// `NIXRS_QUALIFICATION_NIXPKGS` and `NIXRS_QUALIFICATION_HOME_MANAGER` to
+/// those sources; `just nixos-paths` does.
+#[test]
+#[ignore = "needs the qualification inputs; run with `just nixos-paths`"]
+fn matches_reference_nixos_paths() {
+	let nixpkgs =
+		std::env::var("NIXRS_QUALIFICATION_NIXPKGS").expect("NIXRS_QUALIFICATION_NIXPKGS");
+	let home_manager = std::env::var("NIXRS_QUALIFICATION_HOME_MANAGER")
+		.expect("NIXRS_QUALIFICATION_HOME_MANAGER");
+	let dir = tempfile::tempdir().unwrap();
+	fs::write(dir.path().join("system.nix"), QUALIFICATION_SYSTEM).unwrap();
+	let args = [
+		"--eval",
+		"--strict",
+		"system.nix",
+		"--argstr",
+		"nixpkgs",
+		&nixpkgs,
+		"--argstr",
+		"homeManager",
+		&home_manager,
+	];
+	let (stdout, code) = instantiate(dir.path(), &args);
+	assert_eq!(
+		(stdout.as_str(), code),
+		(
+			concat!(
+				"[ \"/nix/store/f7rbcys5ki5q0bvnalm75sq15cfn7n3b-nixos-system-nixrs-reference-26.11pre-git.drv\" ",
+				"\"/nix/store/d111q3a19x7bfpw1hrry7dcyx60awhly-nixos-vm.drv\" ",
+				"\"/nix/store/ks2l014wl7n9pm5h58y94wj03mbbmjin-home-manager-generation.drv\" ",
+				"\"/nix/store/09p2niv7bmc293ji0wsdqdihgia3jbjc-home-manager-generation.drv\" ]\n"
+			),
+			0
+		)
+	);
+}
+
 /// A library caller's directory, not the process's, resolves relative paths
 /// in `--expr`.
 #[test]

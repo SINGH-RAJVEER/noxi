@@ -38,7 +38,13 @@ eval-compare reference report="/tmp/nix-rs-eval-comparison.json":
 # Check nix-instantiate's Nixpkgs derivation and output paths against those recorded from the reference.
 nixpkgs-paths:
 	NIXRS_NIXPKGS="$(nix eval --raw --impure --expr '(builtins.getFlake "path:{{justfile_directory()}}").inputs.nixpkgs.outPath')" \
-		cargo nextest run -p nix-rs-commands --test instantiate --run-ignored only
+		cargo nextest run -p nix-rs-commands --test instantiate --run-ignored only -E 'test(matches_reference_nixpkgs_paths)'
+
+# Check the qualification NixOS system, its VM and Home Manager generations, and a standalone Home Manager generation against the derivation paths recorded from the reference.
+nixos-paths:
+	NIXRS_QUALIFICATION_NIXPKGS="$(nix eval --raw --impure --expr '(builtins.getFlake "path:{{justfile_directory()}}/tests/qualification").inputs.nixpkgs.outPath')" \
+	NIXRS_QUALIFICATION_HOME_MANAGER="$(nix eval --raw --impure --expr '(builtins.getFlake "path:{{justfile_directory()}}/tests/qualification").inputs.home-manager.outPath')" \
+		cargo nextest run -p nix-rs-commands --test instantiate --run-ignored only -E 'test(matches_reference_nixos_paths)'
 
 # Build the pinned CppNix reference release (substituted from cache.nixos.org) at target/nix-reference, and the static busybox the build comparisons use at target/test-busybox.
 reference:

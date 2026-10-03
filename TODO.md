@@ -75,7 +75,7 @@ A checked item below means it exists and has focused local evidence in the curre
 - [ ] Parse, resolve, update, and write flake references and `flake.lock` with registry and follows semantics matching the reference.
 	- [x] Fix selected flake-reference parse/format round trips for forge refs and hosts, transport queries, Mercurial, plain Git, explicit source types, and relative paths. Full format compatibility, registries, fetching, and locks remain open.
 - [ ] Evaluate flake outputs and selected Nixpkgs packages with the same values and derivation graphs as CppNix.
-- [ ] Evaluate a pinned NixOS configuration and both standalone and module-based Home Manager configurations before claiming they are supported.
+- [x] Evaluate a pinned NixOS configuration and both standalone and module-based Home Manager configurations before claiming they are supported. `just nixos-paths` matches the reference's derivation paths for the qualification VM configuration (without its flake-provided `nix.package`), its VM, its Home Manager module generation, and a standalone Home Manager generation, evaluated through `eval-config.nix`. The flake entry point and flake-mode Home Manager are covered by the flake items.
 - [ ] Keep improved evaluator diagnostics behind an opt-in interface when their output would change legacy command behavior.
 
 ## 4. Implement the store, caches, and build engine
