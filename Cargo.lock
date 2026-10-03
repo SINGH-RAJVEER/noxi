@@ -1409,7 +1409,7 @@ dependencies = [
 
 [[package]]
 name = "nix-rs-commands"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "nix-rs-compat",
  "nix-rs-eval",
@@ -1485,7 +1485,7 @@ dependencies = [
 
 [[package]]
 name = "nix-rs-eval"
-version = "0.2.1"
+version = "0.2.2"
 dependencies = [
  "bstr",
  "bytes",
@@ -1544,7 +1544,7 @@ dependencies = [
 
 [[package]]
 name = "nix-rs-glue"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "bstr",
  "bytes",

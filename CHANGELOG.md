@@ -7,15 +7,15 @@ Changes that have not reached a version yet go under an `Unreleased` heading for
 | Crate | Current version | crates.io | License |
 |---|---|---|---|
 | [`nix-rs-cli`](#nix-rs-cli) | 0.1.1 | [published](https://crates.io/crates/nix-rs-cli/0.1.1) | Apache-2.0 |
-| [`nix-rs-eval`](#nix-rs-eval) | 0.2.1 | [published](https://crates.io/crates/nix-rs-eval/0.2.1) | GPL-3.0-only |
+| [`nix-rs-eval`](#nix-rs-eval) | 0.2.2 | pending publication | GPL-3.0-only |
 | [`nix-rs-eval-builtin-macros`](#nix-rs-eval-builtin-macros) | 0.0.1 | [published](https://crates.io/crates/nix-rs-eval-builtin-macros) | GPL-3.0-only |
 | [`nix-rs-compat`](#nix-rs-compat) | 0.1.1 | [published](https://crates.io/crates/nix-rs-compat/0.1.1) | GPL-3.0-only |
 | [`nix-rs-hash`](#nix-rs-hash) | 0.1.0 | [published](https://crates.io/crates/nix-rs-hash/0.1.0) | GPL-3.0-only |
 | [`nix-rs-flakeref`](#nix-rs-flakeref) | 0.1.0 | [published](https://crates.io/crates/nix-rs-flakeref/0.1.0) | GPL-3.0-only |
 | [`nix-rs-compat-derive`](#nix-rs-compat-derive) | 0.1.0 | [published](https://crates.io/crates/nix-rs-compat-derive/0.1.0) | GPL-3.0-only |
 | [`nix-rs-serde`](#nix-rs-serde) | 0.1.0 | [published](https://crates.io/crates/nix-rs-serde/0.1.0) | GPL-3.0-only |
-| [`nix-rs-glue`](#nix-rs-glue) | 0.1.1 | [published](https://crates.io/crates/nix-rs-glue/0.1.1) | GPL-3.0-only |
-| [`nix-rs-commands`](#nix-rs-commands) | 0.1.1 | [published](https://crates.io/crates/nix-rs-commands/0.1.1) | GPL-3.0-only |
+| [`nix-rs-glue`](#nix-rs-glue) | 0.1.2 | pending publication | GPL-3.0-only |
+| [`nix-rs-commands`](#nix-rs-commands) | 0.1.2 | pending publication | GPL-3.0-only |
 | [`nix-rs-store`](#nix-rs-store) | 0.1.0 | [published](https://crates.io/crates/nix-rs-store/0.1.0) | GPL-3.0-only |
 | [`nix-rs-build`](#nix-rs-build) | 0.1.0 | [published](https://crates.io/crates/nix-rs-build/0.1.0) | GPL-3.0-only |
 | [`nixrs-compat-tests`](#nixrs-compat-tests) | 0.1.0 | internal, `publish = false` | none declared |
@@ -71,7 +71,7 @@ Published to crates.io; `cargo install nix-rs-cli` installs the `nixrs` binary.
 
 Nix language parser, compiler and bytecode VM with the pure builtins, imported from `snix-eval`.
 
-### Unreleased
+### 0.2.2 - pending publication
 
 #### Added
 
@@ -82,6 +82,9 @@ Nix language parser, compiler and bytecode VM with the pure builtins, imported f
 
 #### Fixed
 
+- `builtins.fromJSON` and `builtins.fromTOML` reject NUL bytes and match CppNix's integer range, timestamp feature, and errors; `builtins.sort` uses stable peeksort and propagates catchable comparator errors; `builtins.genericClosure` orders keys using Nix comparison.
+- The compiler rejects duplicate static attribute bindings and embedded NUL bytes in string literals, and derivation construction rejects invalid or empty output sets.
+- `EvaluationBuilder::max_call_depth` applies the configured recursion limit to `builtins.toJSON`.
 - `builtins.replaceStrings` forces a replacement only when it is first used, matches an empty pattern after the last character, and rejects `from` and `to` lists of different lengths, after CppNix's `prim_replaceStrings` (2026-10-03).
 - `builtins.floor` and `builtins.ceil` return an integer argument unchanged and reject a rounded float outside the integer range (2026-10-03).
 - `builtins.baseNameOf` removes one trailing slash before taking the last component, so `baseNameOf "a/"` is `"a"` (2026-10-03).
@@ -161,7 +164,7 @@ Nix formats and protocols: store paths, nixbase32, hashes, NAR, ATerm derivation
 
 - The async NAR reader rejects reuse of a node after an abandoned child or an exhausted directory, and poisons its reader tree after an error or a cancelled, partially polled directory read. The three poisoning tests that were ignored now run (2026-10-03).
 
-### 0.1.1 - 2026-10-02
+### 0.2.1 - 2026-10-02
 
 #### Added
 
@@ -246,7 +249,13 @@ Serializes Rust values into Nix and deserializes Nix values into Rust types, imp
 
 ## nix-rs-glue
 
-### Unreleased
+### 0.1.2 - pending publication
+
+- Requires `nix-rs-eval` 0.2.2 for the CppNix-compatible evaluator behavior.
+
+#### Fixed
+
+- Derivation construction rejects an output named `drvPath` and empty output sets, and reports duplicate output names using CppNix's error text.
 
 #### Added
 
@@ -274,7 +283,13 @@ Serializes Rust values into Nix and deserializes Nix values into Rust types, imp
 
 ## nix-rs-commands
 
-### Unreleased
+### 0.1.2 - pending publication
+
+- Requires `nix-rs-eval` 0.2.2 and `nix-rs-glue` 0.1.2 for the updated evaluator and derivation behavior.
+
+#### Fixed
+
+- `--max-call-depth` applies to recursive JSON conversion. The executable evaluates on a 64 MiB thread stack, matching CppNix's stack limit.
 
 #### Fixed
 
