@@ -136,6 +136,10 @@ pub enum ErrorKind {
 	#[error("division by zero")]
 	DivisionByZero,
 
+	/// An error CppNix reports as a plain `EvalError` with this message.
+	#[error("{0}")]
+	EvalError(String),
+
 	#[error("integer overflow in {operation} {lhs} {operator} {rhs}")]
 	IntegerOverflow {
 		operation: &'static str,
@@ -753,6 +757,7 @@ impl Error {
 			| ErrorKind::TypeError { .. }
 			| ErrorKind::Incomparable { .. }
 			| ErrorKind::DivisionByZero
+			| ErrorKind::EvalError(_)
 			| ErrorKind::IntegerOverflow { .. }
 			| ErrorKind::DynamicKeyInScope(_)
 			| ErrorKind::UnknownStaticVariable
@@ -831,6 +836,7 @@ impl Error {
 			ErrorKind::InvalidHash(_) => "E041",
 			ErrorKind::InvalidRegex(_) => "E042",
 			ErrorKind::IntegerOverflow { .. } => "E043",
+			ErrorKind::EvalError(_) => "E044",
 
 			// Special error code for errors from other nix-rs
 			// components. We may want to introduce a code namespacing

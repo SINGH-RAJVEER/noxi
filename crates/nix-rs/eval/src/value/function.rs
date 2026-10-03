@@ -13,6 +13,10 @@ pub(crate) struct Formals {
 	/// Map from argument name, to whether that argument is required
 	pub(crate) arguments: BTreeMap<NixString, bool>,
 
+	/// The span of each argument's name, which `builtins.functionArgs`
+	/// gives its attributes as positions.
+	pub(crate) argument_spans: BTreeMap<NixString, Span>,
+
 	/// Do the formals of this function accept extra arguments
 	pub(crate) ellipsis: bool,
 

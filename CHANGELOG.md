@@ -73,8 +73,18 @@ Nix language parser, compiler and bytecode VM with the pure builtins, imported f
 
 ### Unreleased
 
+#### Added
+
+- `builtins.break`, which returns its argument, as CppNix does without a debugger (2026-10-03).
+- `ErrorKind::EvalError`, for errors CppNix reports as a plain `EvalError` with a message (2026-10-03).
+
 #### Fixed
 
+- `builtins.replaceStrings` forces a replacement only when it is first used, matches an empty pattern after the last character, and rejects `from` and `to` lists of different lengths, after CppNix's `prim_replaceStrings` (2026-10-03).
+- `builtins.floor` and `builtins.ceil` return an integer argument unchanged and reject a rounded float outside the integer range (2026-10-03).
+- `builtins.baseNameOf` removes one trailing slash before taking the last component, so `baseNameOf "a/"` is `"a"` (2026-10-03).
+- `builtins.functionArgs` gives each attribute the position of its formal argument, for `builtins.unsafeGetAttrPos` (2026-10-03).
+- A lone carriage return ends a `#` comment and counts as a line break, and a carriage return, alone or before a line feed, reads as a line feed in a `"` string, as in CppNix's lexer. Indented strings and escaped carriage returns are unchanged (2026-10-03).
 - `builtins.toXML` and XML output write `null` as `<null />`, as CppNix does, instead of an open and a close tag (2026-10-03).
 - `builtins.appendContext` adds a context to a string that had none, and keeps an existing context (2026-10-03).
 - `abort` and `throw` coerce their message weakly, as CppNix does, and propagate a `throw` raised while coercing it (2026-10-03).

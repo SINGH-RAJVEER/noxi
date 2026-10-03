@@ -40,6 +40,7 @@ async fn import_impl(
 	// string source files.
 	let mut contents = String::new();
 	reader.read_to_string(&mut contents)?;
+	let contents = crate::line_endings::normalize(&contents).into_owned();
 
 	let parsed = rnix::ast::Root::parse(&contents);
 	let errors = parsed.errors();

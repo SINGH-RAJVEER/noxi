@@ -316,3 +316,37 @@ fn integer_arithmetic_preserves_valid_results(#[case] expression: &str, #[case] 
 		(actual, expected) => panic!("{expression}: expected {expected:?}, got {actual:?}"),
 	}
 }
+
+/// Edge cases of builtins and literals the copied language fixtures do not
+/// check, with results and messages recorded from CppNix 2.35.2.
+#[rstest::rstest]
+#[case("builtins.ceil (-9223372036854775807 - 1)", Ok("-9223372036854775808"))]
+#[case(
+	"builtins.floor 1.0e30",
+	Err("NixFloat argument 1e+30 is not in the range of NixInt")
+)]
+#[case(
+	"builtins.replaceStrings [ \"a\" ] [ ] \"x\"",
+	Err("'from' and 'to' arguments passed to builtins.replaceStrings have different lengths")
+)]
+#[case("\"a\r\nb\\\r\nc\rd\"", Ok("\"a\\nb\\r\\nc\\nd\""))]
+fn builtin_and_literal_edge_cases(#[case] expression: &str, #[case] expected: Result<&str, &str>) {
+	let result = Evaluation::builder_pure()
+		.build()
+		.evaluate(expression, None);
+	match expected {
+		Ok(value) => {
+			assert!(
+				result.errors.is_empty(),
+				"{expression}: {:?}",
+				result.errors
+			);
+			assert_eq!(result.value.unwrap().to_string(), value, "{expression}");
+		}
+		Err(message) => {
+			assert_eq!(result.errors.len(), 1, "{expression}");
+			let diagnostic = result.errors[0].fancy_format_str();
+			assert!(diagnostic.contains(message), "{expression}: {diagnostic}");
+		}
+	}
+}

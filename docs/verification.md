@@ -67,14 +67,14 @@ The pinned nightly previously crashed while compiling the derive UI fixture for 
 
 Until 2026-10-03 the runner reported its single test as ignored when nextest listed ignored tests, so `cargo nextest run` skipped it and only `cargo test` ran it. It also evaluated with the bare evaluator, without the store-aware builtins. Running the command instead moved 7 cases to `pass` (`autoargs`, `context`, `delayed-with`, `delayed-with-inherit`, `eq-derivations`, `path`, `substring-context`) and changed no passing case.
 
-In a debug build, 111 cases pass. The other outcomes are:
+In a debug build, 116 cases pass. The other outcomes are:
 
 | Outcome | Cases | Main causes |
 |---|---|---|
 | `error-message` | 283 | The case failed as expected but did not reproduce CppNix's diagnostic text and trace. This includes the four controlled integer-overflow errors. Some fail for a different reason than the one under test, for example `fetchurl`, `fetchTree` and `filterSource` cases that reach an unimplemented fetcher or a different argument check first. |
-| `output` | 22 | 12 `parse-okay` cases have no printer equivalent to `--parse`. Of the other 10, most print a different value; `print` prints `builtins.trace` output with an extra type suffix, `deprecate-cursed-or` omits a deprecation warning, and `derivation-legacy` prints a different output path. |
+| `output` | 23 | 13 `parse-okay` cases have no printer equivalent to `--parse`. Of the other 10, most print a different value; `print` prints `builtins.trace` output with an extra type suffix, `deprecate-cursed-or` omits a deprecation warning, and `derivation-legacy` prints a different output path. |
 | `unexpected-success` | 20 | The parser accepts duplicate and mixed nested attributes. Evaluation accepts NUL bytes in strings and JSON/TOML input, out-of-range JSON numbers, TOML timestamps without the experimental feature, incomparable `genericClosure` keys, an unsorted `sort` comparator, and `derivationStrict-14`. |
-| `unexpected-failure` | 12 | Missing builtins (`convertHash`, `parseFlakeRef`, `flakeRefToString`, `break`), a CRLF parse error, `-I name=path` search-path entries, `import` of a directory, `baseNameOf`, `replaceStrings`, string context introspection, and float handling. |
+| `unexpected-failure` | 6 | Missing builtins (`convertHash`, `parseFlakeRef`, `flakeRefToString`, `addDrvOutputDependencies`), the `__nixPath` search-path variable, and `scopedImport` with an overridden `import`. |
 | `unrun-flags` | 16 | Cases whose `.flags` use options `nix-instantiate` rejects: the path and URL literal lints, `--impure`, `--max-call-depth`, and `--extra-experimental-features`. |
 | `crash` | 2 | `toJSON` and a structured-attributes derivation overflow the stack on deep nesting. |
 | `disabled` | 1 | Upstream disables `eval-okay-tail-call-1`. |
@@ -105,7 +105,7 @@ Flake-reference tests now cover forge formatting and selectors, empty refs, tran
 
 The async NAR reader now rejects reuse after abandoned children or exhausted directories, and poisons its reader tree after errors or partially polled directory-read cancellation. All three formerly ignored poisoning tests are enabled. All 16 reference NAR tests and both malformed-NAR compatibility tests pass. This does not establish general NAR resource limits or prevent direct reuse of an underlying reader outside the returned tree.
 
-On 2026-10-03, `cargo nextest run --workspace --all-features` passed 2,631 tests with 4 skipped, with `NIXRS_REFERENCE_BIN` set to the pinned 2.35.2 build, and the doctests and formatting check passed. One of the skipped tests was the language runner, which nextest did not run until the listing fix described above. After that fix, the language table reports 111 passes out of 467 cases; its known gaps and the ignored network/Nixpkgs tests remain visible. Later review fixes received focused tests. No live host store or system service was replaced.
+On 2026-10-03, `cargo nextest run --workspace --all-features` passed 2,631 tests with 4 skipped, with `NIXRS_REFERENCE_BIN` set to the pinned 2.35.2 build, and the doctests and formatting check passed. One of the skipped tests was the language runner, which nextest did not run until the listing fix described above. After that fix, the language table reported 111 passes out of 467 cases; its known gaps and the ignored network/Nixpkgs tests remain visible. Later review fixes received focused tests. No live host store or system service was replaced.
 
 The next milestones are end-to-end realization and IFD, build scheduling and controls, store/cache/configuration completeness, the authorized daemon and client boundary, fetching/flakes/profiles and the command suite, then packaged NixOS/Home Manager qualification. None is complete solely because the local regression suite passes.
 

@@ -18,6 +18,7 @@ mod chunk;
 mod compiler;
 mod errors;
 mod io;
+mod line_endings;
 pub mod observer;
 mod opcode;
 mod pretty_ast;
@@ -458,13 +459,14 @@ where
 			.map(|p| p.to_string_lossy().to_string())
 			.unwrap_or_else(|| REPL_LOCATION.into());
 
-		let file = source.add_file(location_str, code.as_ref().to_string());
+		let code = line_endings::normalize(code.as_ref());
+		let file = source.add_file(location_str, code.to_string());
 
 		let compiler_observer = self.compiler_observer.take();
 
 		parse_compile_internal(
 			&mut result,
-			code.as_ref(),
+			&code,
 			file,
 			location,
 			source,
@@ -506,13 +508,14 @@ where
 			.map(|p| p.to_string_lossy().to_string())
 			.unwrap_or_else(|| REPL_LOCATION.into());
 
-		let file = source.add_file(location_str, code.as_ref().to_string());
+		let code = line_endings::normalize(code.as_ref());
+		let file = source.add_file(location_str, code.to_string());
 
 		let compiler_observer = self.compiler_observer.take();
 
 		let lambda = match parse_compile_internal(
 			&mut result,
-			code.as_ref(),
+			&code,
 			file.clone(),
 			base,
 			source.clone(),

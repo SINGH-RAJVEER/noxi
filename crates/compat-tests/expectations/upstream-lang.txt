@@ -105,7 +105,7 @@ eval-fail-elemAt-2 error-message E019
 eval-fail-elemAt-3 error-message E019
 eval-fail-empty-formals error-message E031
 eval-fail-eol-1 error-message E028
-eval-fail-eol-2 error-message E027
+eval-fail-eol-2 error-message E028
 eval-fail-eol-3 error-message E028
 eval-fail-fetchTree-negative error-message E999
 eval-fail-fetchTree-relative-path error-message E999
@@ -223,7 +223,7 @@ eval-fail-removeAttrs-2 error-message E006
 eval-fail-removeAttrs-3 error-message E006
 eval-fail-replaceStrings-1 error-message E006
 eval-fail-replaceStrings-2 error-message E006
-eval-fail-replaceStrings-3 error-message E006
+eval-fail-replaceStrings-3 error-message E044
 eval-fail-replaceStrings-4 error-message E006
 eval-fail-replaceStrings-5 error-message E006
 eval-fail-replaceStrings-6 error-message E006
@@ -284,8 +284,8 @@ eval-okay-attrs6 output
 eval-okay-autoargs pass
 eval-okay-backslash-newline-1 pass
 eval-okay-backslash-newline-2 pass
-eval-okay-baseNameOf unexpected-failure E003
-eval-okay-break unexpected-failure E005
+eval-okay-baseNameOf pass
+eval-okay-break pass
 eval-okay-builtins-add pass
 eval-okay-builtins-dirOf pass
 eval-okay-builtins pass
@@ -327,7 +327,7 @@ eval-okay-filter pass
 eval-okay-flake-ref-to-string unexpected-failure E005
 eval-okay-flatten pass
 eval-okay-float pass
-eval-okay-floor-ceil unexpected-failure E006
+eval-okay-floor-ceil pass
 eval-okay-foldlStrict-lazy-elements pass
 eval-okay-foldlStrict-lazy-initial-accumulator pass
 eval-okay-foldlStrict pass
@@ -336,7 +336,7 @@ eval-okay-fromTOML pass
 eval-okay-fromjson-escapes pass
 eval-okay-fromjson pass
 eval-okay-functionargs pass
-eval-okay-getattrpos-functionargs unexpected-failure E006
+eval-okay-getattrpos-functionargs pass
 eval-okay-getattrpos-undefined pass
 eval-okay-getattrpos pass
 eval-okay-getenv pass
@@ -382,7 +382,7 @@ eval-okay-regrettable-rec-attrset-merge pass
 eval-okay-remove pass
 eval-okay-repeated-empty-attrs pass
 eval-okay-repeated-empty-list pass
-eval-okay-replacestrings unexpected-failure E001
+eval-okay-replacestrings pass
 eval-okay-scope-1 pass
 eval-okay-scope-2 pass
 eval-okay-scope-3 pass
@@ -456,7 +456,7 @@ parse-fail-unexpected-uri error-message E015
 parse-fail-unexpected-with error-message E015
 parse-fail-utf8 error-message E015
 parse-okay-1 output
-parse-okay-crlf unexpected-failure E015
+parse-okay-crlf output
 parse-okay-dup-attrs-5 output
 parse-okay-dup-attrs-6 output
 parse-okay-ind-string output

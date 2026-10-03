@@ -574,7 +574,7 @@ impl Compiler<'_, '_> {
 	}
 
 	fn compile_str(&mut self, slot: LocalIdx, node: &ast::Str) {
-		let parts = node.normalized_parts();
+		let parts = normalized_str_parts(node);
 
 		// We need to thunk string expressions if they are the result of
 		// interpolation. A string that only consists of a single part (`"${foo}"`)
@@ -1130,11 +1130,13 @@ impl Compiler<'_, '_> {
 		// then finalise any necessary recursion into the scope.
 		let mut entries: Vec<TrackedFormal> = vec![];
 		let mut arguments = BTreeMap::default();
+		let mut argument_spans = BTreeMap::default();
 
 		for entry in pattern.pat_entries() {
 			let ident = entry.ident().unwrap();
 			let idx = self.declare_local(&ident, ident.to_string());
 
+			argument_spans.insert(ident.clone().into(), self.span_for(&ident));
 			arguments.insert(ident.into(), entry.default().is_some());
 
 			if let Some(default_expr) = entry.default() {
@@ -1257,6 +1259,7 @@ impl Compiler<'_, '_> {
 		(
 			(Formals {
 				arguments,
+				argument_spans,
 				ellipsis,
 				span,
 				name: pat_bind_name,
@@ -1595,9 +1598,54 @@ impl Compiler<'_, '_> {
 	}
 }
 
+/// The parts of a string literal with escapes interpreted. In a `"` string,
+/// CppNix's `unescapeStr` reads an unescaped carriage return, alone or
+/// followed by a line feed, as a line feed; `rnix` keeps it.
+fn normalized_str_parts(node: &ast::Str) -> Vec<ast::InterpolPart<String>> {
+	let mut parts = node.normalized_parts();
+	let multiline = rowan::ast::AstNode::syntax(node)
+		.first_token()
+		.is_some_and(|token| token.text() == "''");
+	if multiline {
+		return parts;
+	}
+	for (part, raw) in parts.iter_mut().zip(node.parts()) {
+		if let (ast::InterpolPart::Literal(value), ast::InterpolPart::Literal(raw)) = (part, raw) {
+			let raw = raw.syntax().text();
+			if raw.contains('\r') {
+				*value = unescape_str(raw);
+			}
+		}
+	}
+	parts
+}
+
+/// CppNix's `unescapeStr` for the text of a `"` string.
+fn unescape_str(raw: &str) -> String {
+	let mut out = String::with_capacity(raw.len());
+	let mut chars = raw.chars().peekable();
+	while let Some(c) = chars.next() {
+		match c {
+			'\\' => match chars.next() {
+				Some('n') => out.push('\n'),
+				Some('r') => out.push('\r'),
+				Some('t') => out.push('\t'),
+				Some(c) => out.push(c),
+				None => {}
+			},
+			'\r' => {
+				out.push('\n');
+				chars.next_if_eq(&'\n');
+			}
+			c => out.push(c),
+		}
+	}
+	out
+}
+
 /// Convert a non-dynamic string expression to a string if possible.
 fn expr_static_str(node: &ast::Str) -> Option<SmolStr> {
-	let mut parts = node.normalized_parts();
+	let mut parts = normalized_str_parts(node);
 
 	if parts.len() != 1 {
 		return None;

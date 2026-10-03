@@ -226,10 +226,21 @@ mod pure_builtins {
 			.await?
 			.to_contextful_str()?;
 
-		let mut bs = (**s).to_owned();
-		if let Some(last_slash) = bs.rfind_char('/') {
-			bs = bs[(last_slash + 1)..].into();
+		// CppNix's `legacyBaseNameOf`: drop one trailing slash, then take
+		// what follows the last slash.
+		let bytes: &[u8] = &s;
+		if bytes.is_empty() {
+			return Ok(NixString::new_inherit_context_from(&s, "").into());
 		}
+		let mut last = bytes.len() - 1;
+		if bytes[last] == b'/' && last > 0 {
+			last -= 1;
+		}
+		let start = bytes[..=last]
+			.iter()
+			.rposition(|&b| b == b'/')
+			.map_or(0, |pos| pos + 1);
+		let bs: BString = bytes[start..=last].into();
 		Ok(NixString::new_inherit_context_from(&s, bs).into())
 	}
 
@@ -246,6 +257,12 @@ mod pure_builtins {
 	#[builtin("bitXor")]
 	async fn builtin_bit_xor(co: GenCo, x: Value, y: Value) -> Result<Value, ErrorKind> {
 		Ok(Value::Integer(x.as_int()? ^ y.as_int()?))
+	}
+
+	/// Without a debugger, `break` returns its argument, as CppNix's does.
+	#[builtin("break")]
+	async fn builtin_break(co: GenCo, #[lazy] value: Value) -> Result<Value, ErrorKind> {
+		Ok(value)
 	}
 
 	#[builtin("catAttrs")]
@@ -267,7 +284,7 @@ mod pure_builtins {
 
 	#[builtin("ceil")]
 	async fn builtin_ceil(co: GenCo, double: Value) -> Result<Value, ErrorKind> {
-		Ok(Value::Integer(double.as_float()?.ceil() as i64))
+		round_to_int(&double, f64::ceil)
 	}
 
 	#[builtin("compareVersions")]
@@ -435,7 +452,7 @@ mod pure_builtins {
 
 	#[builtin("floor")]
 	async fn builtin_floor(co: GenCo, double: Value) -> Result<Value, ErrorKind> {
-		Ok(Value::Integer(double.as_float()?.floor() as i64))
+		round_to_int(&double, f64::floor)
 	}
 
 	#[builtin("foldl'")]
@@ -473,8 +490,14 @@ mod pure_builtins {
 		} else {
 			return Ok(Value::attrs(NixAttrs::empty()));
 		};
-		Ok(Value::attrs(NixAttrs::from_iter(
-			formals.arguments.iter().map(|(k, v)| (k.clone(), (*v))),
+		Ok(Value::attrs(NixAttrs::from_iter_with_pos(
+			formals.arguments.iter().map(|(k, v)| {
+				(
+					k.clone(),
+					Value::Bool(*v),
+					formals.argument_spans.get(k).copied(),
+				)
+			}),
 		)))
 	}
 
@@ -1130,91 +1153,64 @@ mod pure_builtins {
 		to: Value,
 		s: Value,
 	) -> Result<Value, ErrorKind> {
+		// After CppNix's `prim_replaceStrings`: the `from` strings are forced
+		// up front, a replacement only when it is first used.
 		let from = from.to_list()?;
-		for val in &from {
-			try_value!(generators::request_force(&co, val.clone()).await);
-		}
-
 		let to = to.to_list()?;
-		for val in &to {
-			try_value!(generators::request_force(&co, val.clone()).await);
+		if from.len() != to.len() {
+			return Err(ErrorKind::EvalError(
+				"'from' and 'to' arguments passed to builtins.replaceStrings have different lengths"
+					.into(),
+			));
+		}
+		let mut patterns = Vec::with_capacity(from.len());
+		for val in &from {
+			let val = try_value!(generators::request_force(&co, val.clone()).await);
+			patterns.push(val.to_contextful_str()?);
 		}
 
 		let mut string = s.to_contextful_str()?;
-
-		let mut res = BString::default();
-
-		let mut i: usize = 0;
-		let mut empty_string_replace = false;
 		let mut context = NixContext::new();
-
 		if let Some(string_context) = string.take_context() {
 			context.extend(*string_context);
 		}
+		let string: &[u8] = &string;
 
-		// This can't be implemented using Rust's string.replace() as
-		// well as a map because we need to handle errors with results
-		// as well as "reset" the iterator to zero for the replacement
-		// everytime there's a successful match.
-		// Also, Rust's string.replace allocates a new string
-		// on every call which is not preferable.
-		'outer: while i < string.len() {
-			// Try a match in all the from strings
-			for elem in std::iter::zip(from.iter(), to.iter()) {
-				let from = elem.0.to_contextful_str()?;
-				let mut to = elem.1.to_contextful_str()?;
-
-				if i + from.len() > string.len() {
-					continue;
-				}
-
-				// We already applied a from->to with an empty from
-				// transformation.
-				// Let's skip it so that we don't loop infinitely
-				if empty_string_replace && from.is_empty() {
-					continue;
-				}
-
-				// if we match the `from` string, let's replace
-				if string[i..i + from.len()] == *from {
-					res.push_str(&to);
-					i += from.len();
-					if let Some(to_ctx) = to.take_context() {
-						context.extend(*to_ctx);
+		let mut cache: Vec<Option<BString>> = vec![None; to.len()];
+		let mut res = BString::default();
+		// Loop one past the end so that an empty pattern also matches there.
+		let mut p = 0;
+		while p <= string.len() {
+			let found = patterns
+				.iter()
+				.position(|pattern| string[p..].starts_with(pattern));
+			match found {
+				Some(index) => {
+					if cache[index].is_none() {
+						let replacement =
+							try_value!(generators::request_force(&co, to[index].clone()).await);
+						let mut replacement = replacement.to_contextful_str()?;
+						if let Some(to_ctx) = replacement.take_context() {
+							context.extend(*to_ctx);
+						}
+						cache[index] = Some(BString::from(&**replacement));
 					}
-
-					// remember if we applied the empty from->to
-					empty_string_replace = from.is_empty();
-
-					continue 'outer;
+					res.push_str(cache[index].as_ref().unwrap());
+					if patterns[index].is_empty() {
+						if let Some(&byte) = string.get(p) {
+							res.push(byte);
+						}
+						p += 1;
+					} else {
+						p += patterns[index].len();
+					}
 				}
-			}
-
-			// If we don't match any `from`, we simply add a character
-			res.push_str(&string[i..i + 1]);
-			i += 1;
-
-			// Since we didn't apply anything transformation,
-			// we reset the empty string replacement
-			empty_string_replace = false;
-		}
-
-		// Special case when the string is empty or at the string's end
-		// and one of the from is also empty
-		for elem in std::iter::zip(from.iter(), to.iter()) {
-			let from = elem.0.to_contextful_str()?;
-			// We mutate `to` by consuming its context
-			// if we perform a successful replacement.
-			// Therefore, it's fine if `to` was mutate and we reuse it here.
-			// We don't need to merge again the context, it's already in the right state.
-			let mut to = elem.1.to_contextful_str()?;
-
-			if from.is_empty() {
-				res.push_str(&to);
-				if let Some(to_ctx) = to.take_context() {
-					context.extend(*to_ctx);
+				None => {
+					if let Some(&byte) = string.get(p) {
+						res.push(byte);
+					}
+					p += 1;
 				}
-				break;
 			}
 		}
 
@@ -1600,6 +1596,26 @@ mod pure_builtins {
 		});
 
 		Ok(Value::attrs(NixAttrs::from_iter(attrs)))
+	}
+}
+
+/// `builtins.floor` and `builtins.ceil` after CppNix: an integer is returned
+/// unchanged, and a rounded float must lie within the integer range.
+fn round_to_int(value: &Value, round: fn(f64) -> f64) -> Result<Value, ErrorKind> {
+	if let Value::Integer(i) = value {
+		return Ok(Value::Integer(*i));
+	}
+	let float = value.as_float()?;
+	let rounded = round(float);
+	// A power of two, so the comparison is exact.
+	let min = i64::MIN as f64;
+	if rounded >= min && rounded < -min {
+		Ok(Value::Integer(rounded as i64))
+	} else {
+		Err(ErrorKind::EvalError(format!(
+			"NixFloat argument {} is not in the range of NixInt",
+			Value::Float(float)
+		)))
 	}
 }
 

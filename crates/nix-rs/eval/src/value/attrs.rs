@@ -547,6 +547,28 @@ impl NixAttrs {
 		*kind == "derivation"
 	}
 
+	/// An attribute set whose attributes have the given positions.
+	pub(crate) fn from_iter_with_pos(
+		iter: impl IntoIterator<Item = (NixString, Value, Option<Span>)>,
+	) -> NixAttrs {
+		let mut attrs = FxHashMap::default();
+		let mut pos = FxHashMap::default();
+		for (key, value, span) in iter {
+			if let Some(span) = span {
+				pos.insert(key.clone(), span);
+			}
+			attrs.insert(key, value);
+		}
+		if attrs.is_empty() {
+			return AttrsRep::Empty.into();
+		}
+		AttrsRep::Map {
+			attrs,
+			pos: (!pos.is_empty()).then(|| Box::new(pos)),
+		}
+		.into()
+	}
+
 	pub fn get_attr_pos<K>(&self, key: &K) -> Option<Span>
 	where
 		K: Borrow<BStr> + ?Sized,
