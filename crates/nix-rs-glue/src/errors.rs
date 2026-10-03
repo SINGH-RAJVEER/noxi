@@ -8,7 +8,7 @@ use thiserror::Error;
 /// Errors related to derivation construction.
 #[derive(Debug, Error)]
 pub enum DerivationError {
-	#[error("an output with the name '{0}' is already defined")]
+	#[error("duplicate derivation output '{0}'")]
 	DuplicateOutput(OutputName),
 	#[error("fixed-output derivations can only have the default `out`-output")]
 	ConflictingOutputTypes,

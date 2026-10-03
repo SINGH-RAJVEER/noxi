@@ -247,7 +247,18 @@ pub(crate) mod derivation_builtins {
 						if output_names.contains(&output_name) {
 							return Err(DerivationError::DuplicateOutput(output_name).into());
 						}
+						// The result already has a `drvPath` attribute.
+						if output_name.as_str() == Some("drvPath") {
+							return Err(ErrorKind::EvalError(
+								"invalid derivation output name 'drvPath'".into(),
+							));
+						}
 						output_names.push(output_name);
+					}
+					if output_names.is_empty() {
+						return Err(ErrorKind::EvalError(
+							"derivation cannot have an empty set of outputs".into(),
+						));
 					}
 					drv.outputs =
 						OutputsBuilder::InputAddressed(output_names.iter().cloned().collect());
