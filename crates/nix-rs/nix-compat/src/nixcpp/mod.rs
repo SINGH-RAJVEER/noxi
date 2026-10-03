@@ -7,6 +7,7 @@
 //! protocol live elsewhere.
 
 pub mod conf;
+pub mod machines;
 pub mod settings;
 pub mod store_reference;
 pub mod url;

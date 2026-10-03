@@ -39,7 +39,8 @@ A checked item below means it exists and has focused local evidence in the curre
 	- [ ] `derivation/invariants` fixtures (filling in deferred output paths).
 	- [ ] `derivation/try-resolve` fixtures (resolving content-addressed inputs).
 	- [x] `store-reference` fixtures. `nix_compat::nixcpp::store_reference` parses all 22 Linux cases and renders the nine round-trip cases byte for byte in `upstream_store_reference`; the Windows-only path is rejected as the Linux reference rejects it.
-	- [ ] `machines`, `dummy-store`, and `worker-substitution` fixtures.
+	- [x] `machines` fixtures. `nix_compat::nixcpp::machines` parses remote builder specifications as `Machine::parseConfig` does; `upstream_machines` covers every case of the pinned test and both copied files.
+	- [ ] `dummy-store` and `worker-substitution` fixtures; they need a store implementation.
 	- [x] libutil `memory-source-accessor` and `nar-listing` fixtures. `nix_compat::fso::File` reads and writes CppNix's in-memory file tree JSON, and `nar::listing` writes 2.35.2's deep and shallow NAR listings; `upstream_file_listings` matches all four files byte for byte from the reference's example trees.
 	- [x] libutil `git` object fixtures. `nix_compat::git` parses and writes the copied blob and SHA-1/SHA-256 trees byte for byte, checks each listed entry, and rejects malformed headers and entries; source-accessor integration and `git-hashing` feature enforcement remain separate gates.
 	- [x] Remaining libutil `hash` fixtures. `sha256.json` matches the reference value; `sha512.json` is a reference anomaly because CppNix 2.35.2's `sha512` test constructs SHA-256. Custom tests preserve both outcomes.

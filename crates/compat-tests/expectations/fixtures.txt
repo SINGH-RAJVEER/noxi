@@ -70,7 +70,7 @@ table:upstream_realisation_json src/libstore-tests/data/build-result/*
 table:upstream_store_json src/libstore-tests/data/content-address/*
 table:upstream_store_json src/libstore-tests/data/derived-path/*
 unrun src/libstore-tests/data/dummy-store/*
-unrun src/libstore-tests/data/machines/* # remote builder machine specifications
+pass:upstream_machines src/libstore-tests/data/machines/* # remote builder machine specifications
 table:upstream_path_info_json src/libstore-tests/data/nar-info/**/*
 table:upstream_store_json src/libstore-tests/data/outputs-spec/**/*
 table:upstream_path_info_json src/libstore-tests/data/path-info/**/*
