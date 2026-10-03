@@ -23,7 +23,8 @@ pub use store::{EvaluatorStore, ReadOnlyStore, StoreIO};
 
 /// Enable impure evaluation with `store` computing store paths, and add the
 /// store-aware builtins. A search path already set on `builder` is kept;
-/// otherwise `NIX_PATH` is used.
+/// otherwise `NIX_PATH` is used. Set the builder's experimental features
+/// first: builtins gated on a feature are added only when it is enabled.
 pub fn configure<'co, 'ro, 'env>(
 	builder: EvaluationBuilder<'co, 'ro, 'env, Box<dyn EvalIO>>,
 	store: Rc<EvaluatorStore>,
@@ -34,11 +35,18 @@ pub fn configure<'co, 'ro, 'env>(
 		Some(path) if !path.is_empty() => format!("{path}:nix={}", store::COREPKGS_DIR),
 		_ => format!("nix={}", store::COREPKGS_DIR),
 	};
+	// `fetchTree` exists only with the `fetch-tree` experimental feature,
+	// which `flakes` implies.
+	let fetch_tree = builder.experimental_feature_enabled("fetch-tree");
 	builder
 		.nix_path(Some(nix_path))
 		.add_builtins(derivation::derivation_builtins::builtins(Rc::clone(&store)))
 		.add_builtins(import::import_builtins::builtins(store))
-		.add_builtins(unsupported_builtins::builtins())
+		.add_builtins(
+			unsupported_builtins::builtins()
+				.into_iter()
+				.filter(move |(name, _)| fetch_tree || *name != "fetchTree"),
+		)
 		.add_src_builtin("derivation", include_str!("derivation.nix"))
 }
 

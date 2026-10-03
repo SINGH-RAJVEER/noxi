@@ -3,8 +3,10 @@
 //! Supported: `--eval`, `--strict`, `--json`, `--xml` with `--no-location`,
 //! `--expr`/`-E`, `--attr`/`-A`, `--arg`, `--argstr`, `-I`/`--include`, file
 //! arguments including `<lookup>` paths and `-` for standard input.
-//! `--show-trace` and `--no-show-trace` are accepted, but error traces are not
-//! rendered in CppNix's format yet. Single derivation selections can be instantiated
+//! Settings come from `nix.conf`, `NIX_CONFIG` and settings flags such as
+//! `--option`, `--extra-experimental-features` and `--show-trace`, which is
+//! accepted but does not change the output: error traces are not rendered in
+//! CppNix's format yet. Single derivation selections can be instantiated
 //! with an explicit `--store local?root=ROOT`. No builds or permanent GC roots are made.
 
 use std::fmt::Write as _;
@@ -12,6 +14,7 @@ use std::io::{self, Read, Write};
 use std::path::Path;
 use std::process::ExitCode;
 
+use nix_compat::nixcpp::settings::Settings;
 use nix_rs_eval::builtin_macros::builtins;
 use nix_rs_eval::{EvalMode, Evaluation, Value};
 use rustc_hash::FxHashMap;
@@ -24,7 +27,7 @@ pub enum AutoArg {
 	Str(String),
 }
 
-#[derive(Debug, Default, Clone, PartialEq, Eq)]
+#[derive(Debug, Default, Clone)]
 pub struct Options {
 	pub eval: bool,
 	/// Explicit diverted local store, `local?root=ROOT`.
@@ -37,8 +40,8 @@ pub struct Options {
 	pub xml: bool,
 	/// `--no-location`: omit source positions from XML output.
 	pub no_location: bool,
-	/// `--show-trace`, accepted for compatibility.
-	pub show_trace: bool,
+	/// Settings from the configuration files and the command line.
+	pub settings: Settings,
 	/// `-I` search-path entries, searched before `NIX_PATH`.
 	pub include: Vec<String>,
 	/// `--expr`: positional arguments are expressions rather than files.
@@ -48,10 +51,17 @@ pub struct Options {
 	pub auto_args: Vec<(String, AutoArg)>,
 }
 
-/// Parse the command line after the program name. The error is the message
-/// CppNix prints after `error: `.
-pub fn parse_args(args: impl IntoIterator<Item = String>) -> Result<Options, String> {
-	let mut options = Options::default();
+/// Parse the command line after the program name, applying settings flags
+/// such as `--option NAME VALUE` and `--extra-experimental-features` to
+/// `settings`. The error is the message CppNix prints after `error: `.
+pub fn parse_args(
+	args: impl IntoIterator<Item = String>,
+	settings: Settings,
+) -> Result<Options, String> {
+	let mut options = Options {
+		settings,
+		..Options::default()
+	};
 	let mut args = args.into_iter();
 	let value = |args: &mut dyn Iterator<Item = String>, flag: &str| {
 		args.next()
@@ -72,8 +82,6 @@ pub fn parse_args(args: impl IntoIterator<Item = String>) -> Result<Options, Str
 				options.json = false;
 			}
 			"--no-location" => options.no_location = true,
-			"--show-trace" => options.show_trace = true,
-			"--no-show-trace" => options.show_trace = false,
 			"-I" | "--include" => options.include.push(value(&mut args, &arg)?),
 			"--expr" | "-E" => options.from_args = true,
 			"--attr" | "-A" => options.attr_paths.push(value(&mut args, &arg)?),
@@ -93,7 +101,10 @@ pub fn parse_args(args: impl IntoIterator<Item = String>) -> Result<Options, Str
 			}
 			"--" => options.inputs.extend(args.by_ref()),
 			flag if flag.starts_with('-') && flag != "-" => {
-				return Err(format!("unrecognised flag '{flag}'"));
+				match options.settings.apply_flag(flag, || args.next()) {
+					Some(result) => result.map_err(|error| error.to_string())?,
+					None => return Err(format!("unrecognised flag '{flag}'")),
+				}
 			}
 			_ => options.inputs.push(arg),
 		}
@@ -336,7 +347,8 @@ pub fn run(options: &Options, cwd: &Path, stdout: &mut dyn Write) -> ExitCode {
 	} else {
 		EvalMode::Lazy
 	};
-	let mut builder = Evaluation::builder_pure();
+	let mut builder =
+		Evaluation::builder_pure().experimental_features(options.settings.experimental_features());
 	if !options.include.is_empty() {
 		// CppNix searches `-I` entries before `NIX_PATH`.
 		let mut nix_path = options.include.join(":");

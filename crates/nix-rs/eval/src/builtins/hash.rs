@@ -58,13 +58,14 @@ pub fn parse_hash_format(name: &[u8]) -> Result<HashFormat, ErrorKind> {
 }
 
 /// CppNix's `parseHashAlgo`. BLAKE3 needs the `blake3-hashes` experimental
-/// feature, which this evaluator does not enable.
-pub fn parse_hash_algo(name: &[u8]) -> Result<HashAlgo, ErrorKind> {
+/// feature.
+pub fn parse_hash_algo(name: &[u8], blake3: bool) -> Result<HashAlgo, ErrorKind> {
 	match name {
 		b"md5" => Ok(HashAlgo::Md5),
 		b"sha1" => Ok(HashAlgo::Sha1),
 		b"sha256" => Ok(HashAlgo::Sha256),
 		b"sha512" => Ok(HashAlgo::Sha512),
+		b"blake3" if blake3 => Ok(HashAlgo::Blake3),
 		b"blake3" => Err(blake3_disabled()),
 		_ => Err(ErrorKind::EvalError(format!(
 			"unknown hash algorithm '{}', expect 'blake3', 'md5', 'sha1', 'sha256', or 'sha512'",
@@ -82,11 +83,11 @@ fn blake3_disabled() -> ErrorKind {
 
 /// CppNix's `Hash::parseAny`: an SRI hash, an `algo:digest` hash, or a bare
 /// digest of `algo`.
-pub fn parse_any(text: &[u8], algo: Option<HashAlgo>) -> Result<NixHash, ErrorKind> {
+pub fn parse_any(text: &[u8], algo: Option<HashAlgo>, blake3: bool) -> Result<NixHash, ErrorKind> {
 	let text = text
 		.to_str()
 		.map_err(|_| ErrorKind::InvalidHash(text.as_bstr().to_string()))?;
-	if text.starts_with("blake3-") || text.starts_with("blake3:") {
+	if !blake3 && (text.starts_with("blake3-") || text.starts_with("blake3:")) {
 		return Err(blake3_disabled());
 	}
 	NixHash::from_str(text, algo).map_err(|error| match error {

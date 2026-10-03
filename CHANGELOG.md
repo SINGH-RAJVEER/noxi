@@ -78,6 +78,7 @@ Nix language parser, compiler and bytecode VM with the pure builtins, imported f
 - `builtins.break`, which returns its argument, as CppNix does without a debugger (2026-10-03).
 - `builtins.convertHash`, after CppNix's `prim_convertHash`: SRI, `algo:digest` and bare digests in base16, nix32 or base64, printed as `base16`, `nix32`, `base32` (with CppNix's deprecation warning), `base64` or `sri`. BLAKE3 is refused as when the `blake3-hashes` experimental feature is disabled. The evaluator now depends on `nix-rs-hash` 0.1.0 (2026-10-03).
 - `ErrorKind::EvalError`, for errors CppNix reports as a plain `EvalError` with a message (2026-10-03).
+- `EvaluationBuilder::experimental_features` and `experimental_feature_enabled`, the CppNix experimental features builtins consult. `builtins.convertHash` accepts BLAKE3 when `blake3-hashes` is enabled (2026-10-03).
 
 #### Fixed
 
@@ -151,6 +152,10 @@ Published to crates.io.
 Nix formats and protocols: store paths, nixbase32, hashes, NAR, ATerm derivations, narinfo, realisations, flake references, `nix.conf` and daemon wire types.
 
 ### Unreleased
+
+#### Added
+
+- `nixcpp::settings` reads configuration as CppNix 2.35.2 does: `$NIX_CONF_DIR/nix.conf`, the user configuration files from `NIX_USER_CONF_FILES` or the XDG directories in reverse order, then `NIX_CONFIG`; `include` and `!include` relative to the including file; `experimental-features` lines before the others; `extra-NAME` appending to list settings and their defaults; aliases; settings flags (`--option`, `--NAME`, `--no-NAME`, `--extra-NAME`); ignored settings of disabled experimental features; and the reference's warnings and error messages. The table of the 134 known settings and 21 experimental features is generated from the reference inventory by `scripts/settings-table.py` (2026-10-03).
 
 #### Fixed
 
@@ -248,6 +253,10 @@ Serializes Rust values into Nix and deserializes Nix values into Rust types, imp
 - `EvaluatorStore::writable(root)` evaluates against a diverted local store under an existing absolute `root` and registers text files, copied and filtered sources, and derivation ATerm bytes with their references. Expected source hashes are checked against the captured bytes before those bytes are registered, and source filters see logical `/nix/store` paths. `EvaluatorStore::read_only(root)` reads through the same diversion without opening the database for writing. System roots and symlinked store or state directories are rejected. Outputs are not built, and import-from-derivation is not supported (2026-10-03).
 - `ReadOnlyStore` is now an alias of `EvaluatorStore` (2026-10-03).
 
+#### Changed
+
+- `configure` adds `builtins.fetchTree` only when the builder enables the `fetch-tree` experimental feature, which `flakes` implies, as in CppNix (2026-10-03).
+
 ### 0.1.1 - 2026-10-02
 
 - Requires `nix-rs-eval` 0.2.1 for search-path inspection and explicit-directory evaluation.
@@ -274,6 +283,7 @@ Serializes Rust values into Nix and deserializes Nix values into Rust types, imp
 
 #### Added
 
+- `nix-instantiate` reads `nix.conf`, the user configuration files and `NIX_CONFIG` through `nix_compat::nixcpp::settings`, accepts settings flags such as `--option`, `--extra-experimental-features` and `--max-call-depth`, prints CppNix's configuration warnings, and enables the configured experimental features in the evaluator. `parse_args` takes the loaded settings. Most settings are accepted without changing behaviour yet (2026-10-03).
 - `nix-instantiate` accepts `--xml` together with `--no-location` (the last of `--json` and `--xml` wins, as in CppNix), `-I` and `--include`, whose entries are searched before `NIX_PATH`, and `--show-trace` and `--no-show-trace`, which do not change the output yet (2026-10-03).
 - `nix-instantiate` without `--eval` instantiates a selection that is a single derivation into an explicit diverted store given as `--store local?root=ROOT`, and prints its `.drv` path. `--eval --read-write-mode` evaluates with that store writable. Other `--store` values are rejected, `--json` requires `--eval`, and no builds or permanent roots are made (2026-10-03).
 
@@ -310,6 +320,7 @@ Internal test crate that checks the workspace crates against the CppNix 2.35.2 f
 - `reference_daemon`, which runs unchanged reference clients against the reference daemon and the nix-rs daemon serving copies of one store and compares exit status, standard output and standard error (2026-10-02).
 - `reference_gc`, which compares printed roots, live and dead paths, collection results and remaining paths, and specific deletions with the reference on copies of one store, and checks that a temporary root sent to the nix-rs GC socket during a collection keeps its path (2026-10-02).
 - `reference_substitute`, which has the reference sign and copy a closure into `file://` caches with six compression methods and checks narinfo round trips, substitution metadata including signatures and derivers, unsigned and trusted caches, and corrupt NARs against the reference (2026-10-02).
+- `upstream_lang` gives each case the configuration `common/init.sh` writes for functional tests through `NIX_CONF_DIR` (2026-10-03).
 - `upstream_lang` runs `eval-*` cases through nix-rs's `nix-instantiate` with the arguments and `.flags` `lang.sh` uses, instead of the bare evaluator, and is no longer listed as an ignored test, which made `cargo nextest run` skip it (2026-10-03).
 - `reference_substitute` also checks `BinaryCache::upload_closure`: a signed nix-rs upload has the same narinfo text and NAR bytes as the reference's uncompressed upload and round-trips, signatures survive key rotation, corrupt sources and failed publications advertise nothing, and the source keeps temporary roots until its handle is dropped. It checks that the same unsafe NAR URLs fail with both engines (2026-10-03).
 - `reference_build`, which builds derivations the 2.35.2 reference wrote with both the reference and `nix-rs-build` in separate temporary stores and compares the outputs, `nix path-info --json` metadata, the reference's verification of the nix-rs store, a probe of the sandbox environment, and failure messages and statuses (2026-10-02).

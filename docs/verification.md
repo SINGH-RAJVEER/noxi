@@ -67,15 +67,17 @@ The pinned nightly previously crashed while compiling the derive UI fixture for 
 
 Until 2026-10-03 the runner reported its single test as ignored when nextest listed ignored tests, so `cargo nextest run` skipped it and only `cargo test` ran it. It also evaluated with the bare evaluator, without the store-aware builtins. Running the command instead moved 7 cases to `pass` (`autoargs`, `context`, `delayed-with`, `delayed-with-inherit`, `eq-derivations`, `path`, `substring-context`) and changed no passing case.
 
-In a debug build, 117 cases pass. The other outcomes are:
+Each case runs with the configuration `common/init.sh` writes for functional tests outside NixOS (`nix-command` and `flakes` enabled, `show-trace`, and an `include` of `nix.conf.extra`), placed in the runner's scratch directory as `NIX_CONF_DIR`. Settings flags in `.flags` files, such as the lint settings and `--max-call-depth`, are accepted by the command, so those cases now run; the settings themselves are not acted on yet.
+
+In a debug build, 122 cases pass. The other outcomes are:
 
 | Outcome | Cases | Main causes |
 |---|---|---|
-| `error-message` | 283 | The case failed as expected but did not reproduce CppNix's diagnostic text and trace. This includes the four controlled integer-overflow errors. Some fail for a different reason than the one under test, for example `fetchurl`, `fetchTree` and `filterSource` cases that reach an unimplemented fetcher or a different argument check first. |
-| `output` | 23 | 13 `parse-okay` cases have no printer equivalent to `--parse`. Of the other 10, most print a different value; `print` prints `builtins.trace` output with an extra type suffix, `deprecate-cursed-or` omits a deprecation warning, and `derivation-legacy` prints a different output path. |
+| `error-message` | 287 | The case failed as expected but did not reproduce CppNix's diagnostic text and trace. This includes the four controlled integer-overflow errors, and the lint and `--max-call-depth` cases whose flags start instantiation, which needs an explicit diverted store. Some fail for a different reason than the one under test, for example `fetchurl`, `fetchTree` and `filterSource` cases that reach an unimplemented fetcher or a different argument check first. |
+| `output` | 28 | 13 `parse-okay` cases have no printer equivalent to `--parse`. Five `*-warn` cases and `fromTOML-timestamps` need the lint settings and TOML timestamps, which are accepted but not implemented. Of the other 9, most print a different value; `print` prints `builtins.trace` output with an extra type suffix, `deprecate-cursed-or` omits a deprecation warning, and `derivation-legacy` prints a different output path. |
 | `unexpected-success` | 20 | The parser accepts duplicate and mixed nested attributes. Evaluation accepts NUL bytes in strings and JSON/TOML input, out-of-range JSON numbers, TOML timestamps without the experimental feature, incomparable `genericClosure` keys, an unsorted `sort` comparator, and `derivationStrict-14`. |
 | `unexpected-failure` | 5 | Missing builtins (`parseFlakeRef`, `flakeRefToString`, `addDrvOutputDependencies`), the `__nixPath` search-path variable, and `scopedImport` with an overridden `import`. |
-| `unrun-flags` | 16 | Cases whose `.flags` use options `nix-instantiate` rejects: the path and URL literal lints, `--impure`, `--max-call-depth`, and `--extra-experimental-features`. |
+| `unrun-flags` | 2 | `--impure` (`home-path` cases), which `nix-instantiate` does not accept yet. |
 | `crash` | 2 | `toJSON` and a structured-attributes derivation overflow the stack on deep nesting. |
 | `disabled` | 1 | Upstream disables `eval-okay-tail-call-1`. |
 

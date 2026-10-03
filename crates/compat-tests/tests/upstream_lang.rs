@@ -30,6 +30,7 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use std::thread;
 use std::time::{Duration, Instant};
 
+use nix_compat::nixcpp::settings::Settings;
 use nix_rs_commands::instantiate;
 use nix_rs_eval::{EvalMode, Evaluation};
 use serde_json::{Value as Json, json};
@@ -51,7 +52,8 @@ const BLESS_VAR: &str = "NIXRS_COMPAT_BLESS";
 const TIMEOUT: Duration = Duration::from_secs(20);
 
 /// The environment `lang.sh` exports for every case. `common/vars.sh` also
-/// unsets `NIX_PATH` and points `HOME` at a per-run test directory.
+/// unsets `NIX_PATH`, points `HOME` at a per-run test directory, and sets
+/// `NIX_CONF_DIR` to the configuration [`write_test_config`] writes.
 const SHARED_ENV: &[(&str, &str)] = &[
 	("TEST_VAR", "foo"),
 	("NIX_REMOTE", "dummy://"),
@@ -371,7 +373,18 @@ fn child_parse(file: &Path) -> ExitCode {
 
 /// Run nix-rs's `nix-instantiate` for an `eval-*` case.
 fn child_instantiate(args: Vec<String>) -> ExitCode {
-	let options = instantiate::parse_args(args).expect("arguments checked by the parent");
+	let settings = match Settings::load(|name| env::var(name).ok()) {
+		Ok(settings) => settings,
+		Err(error) => {
+			eprintln!("error: {error}");
+			return ExitCode::FAILURE;
+		}
+	};
+	let mut options =
+		instantiate::parse_args(args, settings).expect("arguments checked by the parent");
+	for warning in options.settings.finish() {
+		eprintln!("warning: {warning}");
+	}
 	let cwd = env::current_dir().expect("fixture working directory");
 	instantiate::run(&options, &cwd, &mut io::stdout().lock())
 }
@@ -381,7 +394,8 @@ fn spawn(case: &Case, scratch: &Path, args: &[String]) -> io::Result<Child> {
 	command
 		.env_clear()
 		.envs(SHARED_ENV.iter().copied())
-		.env("HOME", scratch.join("test-home"));
+		.env("HOME", scratch.join("test-home"))
+		.env("NIX_CONF_DIR", scratch.join("etc"));
 	if case.kind == Kind::EvalOkay {
 		command.envs(EVAL_OKAY_ENV.iter().copied());
 	}
@@ -437,7 +451,9 @@ fn run(case: &Case, scratch: &Path) -> Run {
 		Operation::Parse => Vec::new(),
 		Operation::Eval | Operation::EvalXml => case.instantiate_args(),
 	};
-	if case.operation() != Operation::Parse && instantiate::parse_args(args.clone()).is_err() {
+	if case.operation() != Operation::Parse
+		&& instantiate::parse_args(args.clone(), Settings::default()).is_err()
+	{
 		return skipped(Outcome::UnrunFlags);
 	}
 
@@ -527,8 +543,41 @@ fn skipped(outcome: Outcome) -> Run {
 	}
 }
 
+/// Writes the configuration `common/init.sh` gives every functional test
+/// outside NixOS into `scratch/etc`, for `NIX_CONF_DIR`.
+fn write_test_config(scratch: &Path) -> io::Result<()> {
+	let etc = scratch.join("etc");
+	fs::create_dir_all(&etc)?;
+	let user = env::var("USER").unwrap_or_else(|_| "nixbld".to_owned());
+	fs::write(
+		etc.join("nix.conf"),
+		format!(
+			"build-users-group =
+keep-derivations = false
+sandbox = false
+experimental-features = nix-command
+gc-reserved-space = 0
+substituters =
+flake-registry = {}/registry.json
+show-trace = true
+include nix.conf.extra
+trusted-users = {user}
+",
+			scratch.display()
+		),
+	)?;
+	fs::write(
+		etc.join("nix.conf.extra"),
+		"fsync-metadata = false
+extra-experimental-features = flakes
+!include nix.conf.extra.not-there
+",
+	)
+}
+
 fn run_all(cases: &[Case]) -> Vec<Run> {
 	let scratch = tempfile::tempdir().expect("scratch directory for post-processing");
+	write_test_config(scratch.path()).expect("write the test configuration");
 	let next = AtomicUsize::new(0);
 	let results = Mutex::new(BTreeMap::new());
 	let workers = thread::available_parallelism().map_or(4, |count| count.get());

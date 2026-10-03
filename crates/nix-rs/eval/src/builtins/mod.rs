@@ -84,6 +84,23 @@ pub async fn coerce_value_to_path(
 struct BuiltinState {
 	regex_cache: RefCell<FxHashMap<String, Regex>>,
 	split_regex_cache: RefCell<FxHashMap<String, regex::bytes::Regex>>,
+	/// The enabled CppNix experimental features, shared with the builder.
+	experimental_features: ExperimentalFeatures,
+}
+
+/// The enabled CppNix experimental features, by name. An
+/// [`crate::EvaluationBuilder`] and the builtins it creates share one set.
+#[derive(Clone, Debug, Default)]
+pub struct ExperimentalFeatures(Rc<RefCell<std::collections::BTreeSet<String>>>);
+
+impl ExperimentalFeatures {
+	pub fn set(&self, features: impl IntoIterator<Item = String>) {
+		*self.0.borrow_mut() = features.into_iter().collect();
+	}
+
+	pub fn enabled(&self, feature: &str) -> bool {
+		self.0.borrow().contains(feature)
+	}
 }
 
 impl BuiltinState {
@@ -827,21 +844,29 @@ mod pure_builtins {
 	}
 
 	#[builtin("convertHash")]
-	async fn builtin_convert_hash(co: GenCo, args: Value) -> Result<Value, ErrorKind> {
+	async fn builtin_convert_hash(
+		state: Rc<BuiltinState>,
+		co: GenCo,
+		args: Value,
+	) -> Result<Value, ErrorKind> {
+		let blake3 = state.experimental_features.enabled("blake3-hashes");
 		let args = args.to_attrs()?;
 		let hash = args.select_required("hash")?.clone();
 		let hash = try_value!(generators::request_force(&co, hash).await).to_str()?;
 		let algo = match args.select("hashAlgo") {
 			Some(algo) => {
 				let algo = try_value!(generators::request_force(&co, algo.clone()).await);
-				Some(crate::builtins::hash::parse_hash_algo(&algo.to_str()?)?)
+				Some(crate::builtins::hash::parse_hash_algo(
+					&algo.to_str()?,
+					blake3,
+				)?)
 			}
 			None => None,
 		};
 		let format = args.select_required("toHashFormat")?.clone();
 		let format = try_value!(generators::request_force(&co, format).await).to_str()?;
 		let format = crate::builtins::hash::parse_hash_format(&format)?;
-		let hash = crate::builtins::hash::parse_any(&hash, algo)?;
+		let hash = crate::builtins::hash::parse_any(&hash, algo, blake3)?;
 		Ok(Value::from(crate::builtins::hash::to_string(&hash, format)))
 	}
 
@@ -1667,7 +1692,17 @@ async fn bgc_insert_key(
 /// The set of standard pure builtins in Nix, mostly concerned with
 /// data structure manipulation (string, attrs, list, etc. functions).
 pub fn pure_builtins() -> Vec<(&'static str, Value)> {
-	let mut result = pure_builtins::builtins(Rc::new(BuiltinState::default()));
+	pure_builtins_with_features(ExperimentalFeatures::default())
+}
+
+/// [`pure_builtins`] whose behaviour depends on `experimental_features`.
+pub fn pure_builtins_with_features(
+	experimental_features: ExperimentalFeatures,
+) -> Vec<(&'static str, Value)> {
+	let mut result = pure_builtins::builtins(Rc::new(BuiltinState {
+		experimental_features,
+		..Default::default()
+	}));
 
 	// Pure-value builtins
 	result.push(("nixVersion", Value::from("2.18.3-compat-nix-rs-0.1")));

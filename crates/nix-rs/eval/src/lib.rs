@@ -96,6 +96,7 @@ pub struct EvaluationBuilder<'co, 'ro, 'env, IO> {
 	enable_import: bool,
 	mode: EvalMode,
 	nix_path: Option<String>,
+	experimental_features: builtins::ExperimentalFeatures,
 	compiler_observer: Option<&'co mut dyn CompilerObserver>,
 	runtime_observer: Option<&'ro mut dyn RuntimeObserver>,
 }
@@ -151,7 +152,8 @@ where
 // with similar naming conventions to the ones already present) but don't expose fields publicly!
 impl<'co, 'ro, 'env, IO> EvaluationBuilder<'co, 'ro, 'env, IO> {
 	pub fn new(io_handle: IO) -> Self {
-		let mut builtins = builtins::pure_builtins();
+		let experimental_features = builtins::ExperimentalFeatures::default();
+		let mut builtins = builtins::pure_builtins_with_features(experimental_features.clone());
 		builtins.extend(builtins::placeholders()); // these are temporary
 
 		Self {
@@ -165,6 +167,7 @@ impl<'co, 'ro, 'env, IO> EvaluationBuilder<'co, 'ro, 'env, IO> {
 			env: None,
 			mode: Default::default(),
 			nix_path: None,
+			experimental_features,
 			compiler_observer: None,
 			runtime_observer: None,
 		}
@@ -179,6 +182,7 @@ impl<'co, 'ro, 'env, IO> EvaluationBuilder<'co, 'ro, 'env, IO> {
 			enable_import: self.enable_import,
 			mode: self.mode,
 			nix_path: self.nix_path,
+			experimental_features: self.experimental_features,
 			compiler_observer: self.compiler_observer,
 			runtime_observer: self.runtime_observer,
 		}
@@ -263,6 +267,24 @@ impl<'co, 'ro, 'env, IO> EvaluationBuilder<'co, 'ro, 'env, IO> {
 
 	pub fn nix_path(self, nix_path: Option<String>) -> Self {
 		Self { nix_path, ..self }
+	}
+
+	/// Enable the named CppNix experimental features, replacing those
+	/// enabled before. Builtins whose behaviour depends on a feature see the
+	/// change.
+	pub fn experimental_features<I, S>(self, features: I) -> Self
+	where
+		I: IntoIterator<Item = S>,
+		S: Into<String>,
+	{
+		self.experimental_features
+			.set(features.into_iter().map(Into::into));
+		self
+	}
+
+	/// Whether the named CppNix experimental feature is enabled.
+	pub fn experimental_feature_enabled(&self, feature: &str) -> bool {
+		self.experimental_features.enabled(feature)
 	}
 
 	/// The search path set so far, if any.

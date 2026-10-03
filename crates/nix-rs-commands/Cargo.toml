@@ -14,6 +14,7 @@ name = "nix-instantiate"
 path = "src/bin/nix-instantiate.rs"
 
 [dependencies]
+nix-compat = { package = "nix-rs-compat", path = "../nix-rs/nix-compat", version = "0.1.1" }
 nix-rs-eval = { path = "../nix-rs/eval", version = "0.2.1", default-features = false, features = ["impure"] }
 nix-rs-glue = { path = "../nix-rs-glue", version = "0.1.1" }
 rustc-hash.workspace = true

@@ -538,9 +538,69 @@ fn resolves_paths_against_the_given_directory() {
 	fixture_dir(dir.path());
 	let options = nix_rs_commands::instantiate::parse_args(
 		["--eval", "--expr", "builtins.readFile ./f.txt"].map(String::from),
+		Default::default(),
 	)
 	.unwrap();
 	let mut stdout = Vec::new();
 	nix_rs_commands::instantiate::run(&options, dir.path(), &mut stdout);
 	assert_eq!(String::from_utf8(stdout).unwrap(), "\"hi\\n\"\n");
+}
+
+/// Configuration files, `NIX_CONFIG` and settings flags, with the warnings
+/// and errors recorded from the reference.
+#[test]
+fn reads_configuration_like_cppnix() {
+	let dir = tempfile::tempdir().unwrap();
+	let conf = dir.path().join("etc");
+	fs::create_dir(&conf).unwrap();
+	let run = |nix_conf: &str, args: &[&str]| {
+		fs::write(conf.join("nix.conf"), nix_conf).unwrap();
+		let output = Command::new(env!("CARGO_BIN_EXE_nix-instantiate"))
+			.args(args)
+			.current_dir(dir.path())
+			.env_clear()
+			.env("NIX_CONF_DIR", &conf)
+			.env("NIX_USER_CONF_FILES", "")
+			.output()
+			.unwrap();
+		(
+			String::from_utf8(output.stdout).unwrap(),
+			String::from_utf8(output.stderr).unwrap(),
+			output.status.code().unwrap(),
+		)
+	};
+	let has_fetch_tree = ["--eval", "-E", "builtins ? fetchTree"];
+	assert_eq!(
+		run("", &has_fetch_tree),
+		("false\n".into(), String::new(), 0)
+	);
+	assert_eq!(
+		run("extra-experimental-features = flakes\n", &has_fetch_tree),
+		("true\n".into(), String::new(), 0)
+	);
+	let mut args = vec![
+		"--extra-experimental-features",
+		"fetch-tree",
+		"--option",
+		"baz",
+		"1",
+	];
+	args.extend(has_fetch_tree);
+	assert_eq!(
+		run("foo-unknown = 1\nflake-registry = /x\n", &args),
+		(
+			"true\n".into(),
+			"warning: Ignoring setting 'flake-registry' because experimental feature 'flakes' is not enabled\nwarning: unknown setting 'baz'\nwarning: unknown setting 'foo-unknown'\n".into(),
+			0
+		)
+	);
+	let (stdout, stderr, code) = run("max-call-depth=3\n", &has_fetch_tree);
+	assert_eq!((stdout.as_str(), code), ("", 1));
+	assert!(
+		stderr.starts_with(&format!(
+			"error: syntax error in configuration line 'max-call-depth=3' in \"{}/nix.conf\"\nTry '",
+			conf.display()
+		)),
+		"{stderr}"
+	);
 }
