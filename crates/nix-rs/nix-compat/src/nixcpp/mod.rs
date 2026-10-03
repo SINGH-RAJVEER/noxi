@@ -8,6 +8,8 @@
 
 pub mod conf;
 pub mod machines;
+#[cfg(feature = "serde")]
+pub mod narinfo;
 pub mod settings;
 pub mod store_reference;
 pub mod url;
