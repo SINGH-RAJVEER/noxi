@@ -3,6 +3,8 @@
 use std::collections::BTreeSet;
 use std::path::PathBuf;
 
+use nix_compat::nixcpp::settings::Settings;
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum SandboxMode {
 	Enabled,
@@ -41,6 +43,10 @@ impl SandboxPath {
 
 #[derive(Clone, Debug)]
 pub struct BuildSettings {
+	pub keep_going: bool,
+	pub try_fallback: bool,
+	pub use_substitutes: bool,
+	pub max_build_jobs: u64,
 	pub sandbox: SandboxMode,
 	pub sandbox_fallback: bool,
 	pub sandbox_paths: Vec<SandboxPath>,
@@ -86,6 +92,10 @@ pub const SANDBOX_SHELL: Option<&str> = option_env!("NIXRS_SANDBOX_SHELL");
 impl Default for BuildSettings {
 	fn default() -> Self {
 		Self {
+			keep_going: false,
+			try_fallback: false,
+			use_substitutes: true,
+			max_build_jobs: 1,
 			sandbox: SandboxMode::Enabled,
 			sandbox_fallback: true,
 			sandbox_paths: SANDBOX_SHELL
@@ -132,6 +142,76 @@ impl Default for BuildSettings {
 }
 
 impl BuildSettings {
+	/// Apply the shared configuration loader's typed values. Fields absent
+	/// from the configuration retain their existing defaults.
+	pub fn apply_config(&mut self, settings: &Settings) {
+		self.keep_failed = settings.get_bool("keep-failed", self.keep_failed);
+		self.keep_going = settings.get_bool("keep-going", self.keep_going);
+		self.try_fallback = settings.get_bool("fallback", self.try_fallback);
+		self.use_substitutes = settings.get_bool("substitute", self.use_substitutes);
+		self.build_cores = settings.get_int("cores", self.build_cores.into()) as u32;
+		self.max_silent_time =
+			settings.get_int("max-silent-time", self.max_silent_time as i64) as u64;
+		self.timeout = settings.get_int("timeout", self.timeout as i64) as u64;
+		self.keep_build_log = settings.get_bool("keep-build-log", self.keep_build_log);
+		self.compress_build_log = settings.get_bool("compress-build-log", self.compress_build_log);
+		self.log_lines = settings.get_int("log-lines", self.log_lines as i64) as usize;
+		self.sandbox_fallback = settings.get_bool("sandbox-fallback", self.sandbox_fallback);
+		self.allow_new_privileges =
+			settings.get_bool("allow-new-privileges", self.allow_new_privileges);
+		self.filter_syscalls = settings.get_bool("filter-syscalls", self.filter_syscalls);
+		self.always_allow_substitutes =
+			settings.get_bool("always-allow-substitutes", self.always_allow_substitutes);
+		if settings.get("experimental-features").is_some() {
+			self.nix_command = settings.experimental_features().contains("nix-command");
+		}
+		if let Some(value) = settings.get("max-jobs") {
+			self.max_build_jobs = if value == "auto" {
+				std::thread::available_parallelism().map_or(1, |n| n.get() as u64)
+			} else {
+				value.parse().unwrap_or(self.max_build_jobs)
+			};
+		}
+		if let Some(value) = settings.get("sandbox") {
+			self.sandbox = match value {
+				"false" => SandboxMode::Disabled,
+				"relaxed" => SandboxMode::Relaxed,
+				_ => SandboxMode::Enabled,
+			};
+		}
+		if settings.get("sandbox-paths").is_some() {
+			self.sandbox_paths = settings
+				.get_list("sandbox-paths", &[])
+				.into_iter()
+				.map(SandboxPath::parse)
+				.collect();
+		}
+		if let Some(value) = settings.get("build-dir") {
+			self.build_dir = (!value.is_empty()).then(|| PathBuf::from(value));
+		}
+		for (name, target) in [
+			("system", &mut self.system),
+			("sandbox-build-dir", &mut self.sandbox_build_dir),
+			("sandbox-shm-size", &mut self.sandbox_shm_size),
+		] {
+			if let Some(value) = settings.get(name) {
+				*target = value.to_owned();
+			}
+		}
+		for (name, target) in [
+			("extra-platforms", &mut self.extra_platforms),
+			("system-features", &mut self.system_features),
+		] {
+			if settings.get(name).is_some() {
+				*target = settings
+					.get_list(name, &[])
+					.into_iter()
+					.map(str::to_owned)
+					.collect();
+			}
+		}
+	}
+
 	/// The value of `NIX_BUILD_CORES`.
 	pub fn effective_cores(&self) -> u32 {
 		if self.build_cores != 0 {

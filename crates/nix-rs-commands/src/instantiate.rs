@@ -186,7 +186,7 @@ fn root_expression(options: &Options, input: &str, cwd: &Path) -> io::Result<Str
 
 /// The expression evaluated for all inputs and attribute paths: a list with
 /// one result per selection, in command-line order.
-fn driver_expression(options: &Options, cwd: &Path) -> io::Result<String> {
+fn driver_expression(options: &Options, cwd: &Path, build_outputs: bool) -> io::Result<String> {
 	let mut driver = String::from("let\n__nixrs_autoArgs = {\n");
 	for (name, arg) in &options.auto_args {
 		let value = match arg {
@@ -243,8 +243,13 @@ in __nixrs_forceEach [\n",
 				selection = format!("(__nixrs_autoCall {selection})");
 			}
 			if !options.eval {
+				let result = if build_outputs {
+					"builtins.toJSON { drvPath = builtins.storePath __nixrs_selected.drvPath; outputName = __nixrs_selected.outputName or \"out\"; }"
+				} else {
+					"builtins.storePath __nixrs_selected.drvPath"
+				};
 				selection = format!(
-					"(let __nixrs_selected = {selection}; in if __nixrs_selected.type or null == \"derivation\" then builtins.storePath __nixrs_selected.drvPath else throw \"expected a derivation for instantiation\")"
+					"(let __nixrs_selected = {selection}; in if __nixrs_selected.type or null == \"derivation\" then {result} else throw \"expected a derivation for instantiation\")"
 				);
 			} else if options.json {
 				selection = format!("(builtins.toJSON {selection})");
@@ -279,6 +284,36 @@ mod driver_builtins {
 
 /// Run `nix-instantiate` with already parsed options.
 pub fn run(options: &Options, cwd: &Path, stdout: &mut dyn Write) -> ExitCode {
+	run_with_store(options, cwd, stdout, None)
+}
+
+/// Run with an evaluator store retained by the caller through subsequent
+/// realization. Its temporary roots protect the newly instantiated graph.
+pub fn run_with_store(
+	options: &Options,
+	cwd: &Path,
+	stdout: &mut dyn Write,
+	supplied_store: Option<std::rc::Rc<nix_rs_glue::EvaluatorStore>>,
+) -> ExitCode {
+	run_internal(options, cwd, stdout, supplied_store, false)
+}
+
+pub(crate) fn run_for_build(
+	options: &Options,
+	cwd: &Path,
+	stdout: &mut dyn Write,
+	store: std::rc::Rc<nix_rs_glue::EvaluatorStore>,
+) -> ExitCode {
+	run_internal(options, cwd, stdout, Some(store), true)
+}
+
+fn run_internal(
+	options: &Options,
+	cwd: &Path,
+	stdout: &mut dyn Write,
+	supplied_store: Option<std::rc::Rc<nix_rs_glue::EvaluatorStore>>,
+	build_outputs: bool,
+) -> ExitCode {
 	if !options.eval && options.json {
 		eprintln!("error: --json requires --eval");
 		return ExitCode::FAILURE;
@@ -295,7 +330,7 @@ pub fn run(options: &Options, cwd: &Path, stdout: &mut dyn Write) -> ExitCode {
 		return ExitCode::FAILURE;
 	}
 
-	let driver = match driver_expression(options, cwd) {
+	let driver = match driver_expression(options, cwd, build_outputs) {
 		Ok(driver) => driver,
 		Err(error) => {
 			eprintln!("error: {error}");
@@ -325,8 +360,9 @@ pub fn run(options: &Options, cwd: &Path, stdout: &mut dyn Write) -> ExitCode {
 			}
 		},
 	};
-	let store = match root {
-		Some(root) => {
+	let store = match (supplied_store, root) {
+		(Some(store), _) => store,
+		(None, Some(root)) => {
 			let store = if writable {
 				nix_rs_glue::EvaluatorStore::writable(root)
 			} else {
@@ -340,7 +376,7 @@ pub fn run(options: &Options, cwd: &Path, stdout: &mut dyn Write) -> ExitCode {
 				}
 			}
 		}
-		None => nix_rs_glue::ReadOnlyStore::new(),
+		(None, None) => nix_rs_glue::ReadOnlyStore::new(),
 	};
 	let mode = if !options.eval || options.strict || options.json || options.xml {
 		EvalMode::Strict

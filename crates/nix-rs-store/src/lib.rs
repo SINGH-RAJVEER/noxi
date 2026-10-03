@@ -13,7 +13,9 @@ pub mod error;
 pub mod gc;
 mod local;
 pub mod lock;
+pub mod logs;
 pub mod nar;
+pub mod optimise;
 pub mod path_info;
 
 pub use config::LocalStoreConfig;

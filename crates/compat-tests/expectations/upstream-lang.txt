@@ -5,9 +5,9 @@ eval-fail-abort error-message E002
 eval-fail-abs-path-fatal error-message none
 eval-fail-add-1 error-message E006
 eval-fail-add-2 error-message E006
-eval-fail-addDrvOutputDependencies-empty-context error-message E005
-eval-fail-addDrvOutputDependencies-multi-elem-context error-message E005
-eval-fail-addDrvOutputDependencies-wrong-element-kind error-message E005
+eval-fail-addDrvOutputDependencies-empty-context error-message E044
+eval-fail-addDrvOutputDependencies-multi-elem-context error-message E044
+eval-fail-addDrvOutputDependencies-wrong-element-kind error-message E044
 eval-fail-addErrorContext-example error-message E001
 eval-fail-all-1 error-message E006
 eval-fail-all-2 error-message E006
@@ -67,7 +67,7 @@ eval-fail-deepseq-list-attr error-message E001
 eval-fail-deepseq-stack-overflow error-message E001
 eval-fail-deepseq error-message E002
 eval-fail-derivation-name error-message E997
-eval-fail-derivation-structuredAttrs-stack-overflow crash
+eval-fail-derivation-structuredAttrs-stack-overflow error-message E044
 eval-fail-derivationStrict-1 error-message E006
 eval-fail-derivationStrict-10 error-message E006
 eval-fail-derivationStrict-11 error-message E006
@@ -120,7 +120,7 @@ eval-fail-filterSource-2 error-message E020
 eval-fail-filterSource-3 error-message E013
 eval-fail-filterSource-4 error-message E013
 eval-fail-filterSource-5 error-message E006
-eval-fail-flake-ref-to-string-negative-integer error-message E005
+eval-fail-flake-ref-to-string-negative-integer error-message E044
 eval-fail-floor-1 error-message E006
 eval-fail-foldlPrime-1 error-message E006
 eval-fail-foldlPrime-2 error-message E006
@@ -257,7 +257,7 @@ eval-fail-tail-1 error-message E006
 eval-fail-tail-2 error-message E023
 eval-fail-to-path error-message E020
 eval-fail-toJSON-non-utf-8 error-message E029
-eval-fail-toJSON-stack-overflow crash
+eval-fail-toJSON-stack-overflow error-message E044
 eval-fail-toJSON error-message E001
 eval-fail-toPath-1 error-message E018
 eval-fail-toPath-2 error-message E020
@@ -296,7 +296,7 @@ eval-okay-comments pass
 eval-okay-concat pass
 eval-okay-concatmap pass
 eval-okay-concatstringssep pass
-eval-okay-context-introspection unexpected-failure E005
+eval-okay-context-introspection pass
 eval-okay-context pass
 eval-okay-convertHash pass
 eval-okay-curpos pass
@@ -324,7 +324,7 @@ eval-okay-equal-function-direct-identical pass
 eval-okay-equal-function-list-distinct-similar pass
 eval-okay-equal-function-list-identical pass
 eval-okay-filter pass
-eval-okay-flake-ref-to-string unexpected-failure E005
+eval-okay-flake-ref-to-string pass
 eval-okay-flatten pass
 eval-okay-float pass
 eval-okay-floor-ceil pass
@@ -361,7 +361,7 @@ eval-okay-nested-with pass
 eval-okay-new-let pass
 eval-okay-null-dynamic-attrs pass
 eval-okay-overrides pass
-eval-okay-parse-flake-ref unexpected-failure E005
+eval-okay-parse-flake-ref pass
 eval-okay-partition pass
 eval-okay-path-string-interpolation pass
 eval-okay-path pass

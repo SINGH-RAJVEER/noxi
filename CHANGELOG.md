@@ -31,6 +31,8 @@ Changes that have not reached a version yet go under an `Unreleased` heading for
 
 ### Unreleased
 
+- Expose fetcher-attribute parsing and formatting for evaluator builtins, with reference checks for common inputs and repeated query parameters. (2026-10-03).
+
 #### Changed
 
 - **Breaking:** `FlakeRef::Mercurial` has a required `url` field holding the transport URL without the `hg+` prefix or its `ref` and `rev` attributes (2026-10-03).
@@ -70,6 +72,10 @@ Published to crates.io; `cargo install nix-rs-cli` installs the `nixrs` binary.
 ## nix-rs-eval
 
 Nix language parser, compiler and bytecode VM with the pure builtins, imported from `snix-eval`.
+
+### Unreleased
+
+- Avoid recursive JSON conversion, serialization and release, and release long attribute-set chains iteratively. The two recorded deep-value crashes now return controlled errors (2026-10-03).
 
 ### 0.2.2 - 2026-10-03
 
@@ -249,6 +255,10 @@ Serializes Rust values into Nix and deserializes Nix values into Rust types, imp
 
 ## nix-rs-glue
 
+### Unreleased
+
+- Add `addDrvOutputDependencies`, `parseFlakeRef` and `flakeRefToString` store-aware builtins, and configure writable evaluator stores through shared settings. (2026-10-03).
+
 ### 0.1.2 - 2026-10-03
 
 - Requires `nix-rs-eval` 0.2.2 for the CppNix-compatible evaluator behavior.
@@ -282,6 +292,10 @@ Serializes Rust values into Nix and deserializes Nix values into Rust types, imp
 - Unix-only preview with unstable APIs, versioned registry dependencies, and bundled GPL/LGPL provenance notices.
 
 ## nix-rs-commands
+
+### Unreleased
+
+- Add diverted-store `nix-build` and selected `nix-store` operations. Build evaluation retains temporary roots, honors selected output names and creates optional permanent result roots; reference comparisons cover both output selections and six metadata/closure queries. (2026-10-03).
 
 ### 0.1.2 - 2026-10-03
 
@@ -378,6 +392,8 @@ Internal trybuild tests for `nix-compat-derive`.
 
 ### Unreleased
 
+- Add NAR-hash inode deduplication and streamed compressed build-log imports, plus diverted-root validation and shared local-store settings. (2026-10-03).
+
 - `BinaryCache::upload_closure` exports a path and its references to a `file://` cache as uncompressed NARs with signed narinfo files, publishing references first. NAR bytes are checked against the source's metadata before signing, existing signatures are kept when keys rotate, temporary files are not left behind, the root is advertised only after its closure, and the source holds temporary roots for the uploaded paths. HTTP destinations and read-only sources are rejected (2026-10-03).
 - `BinaryCache::nar` refuses a narinfo `URL` in a `file://` cache that is absolute or has `.` or `..` segments, as CppNix does (2026-10-03).
 - `LocalStore::verify_store` takes a log callback and reports CppNix's progress and error messages at their verbosity levels, checks the hashes of `.links` entries with `check_contents`, and reports filled-in NAR sizes (2026-10-02).
@@ -396,6 +412,8 @@ Internal trybuild tests for `nix-compat-derive`.
 
 ### Unreleased
 
+- Add a standalone diverted-store daemon, per-connection client settings, worker version 1.39, substitutable-path query handlers, optimisation and trusted framed build-log uploads. Reference comparisons cover client build cores, optimisation and log uploads; dedicated substitution-query wire comparisons and three further operations remain open (2026-10-03).
+
 - Garbage collection, NAR imports, signatures and verification over the daemon: `CollectGarbage` with and without the `delete-dead-specific-referrers` feature, sending the collector's progress lines to the client as they happen; `AddToStoreNar` and `AddMultipleToStore`, which check signatures unless a trusted client asks otherwise and clear `ultimate` as CppNix does; `AddSignatures`; and `VerifyStore`, which refuses repair for untrusted clients and does not repair yet. `DaemonSettings` gains `gc_keep_outputs` and `gc_keep_derivations` (2026-10-02).
 - Builds and store writes over the daemon: `AddToStore` (text, flat and recursive content addresses from a framed source), `AddTextToStore`, `AddIndirectRoot`, `AddPermRoot` for trusted clients, and `BuildPaths` and `BuildPathsWithResults`, which realise through `nix-rs-build` and report each build as an `actBuild` activity with one `resBuildLogLine` result per output line. Failed builds end their error with the log tail, as a CppNix daemon worker's do (2026-10-02).
 - New crate: a Nix daemon library that speaks CppNix 2.35.2's worker protocol over a Unix socket. It performs the 1.38 handshake with feature negotiation, reports trust from peer credentials with `trusted-users`, `allowed-users` and `build-users-group`, forks a process per connection, sends log lines and structured errors on the stderr channel, applies `SetOptions` with CppNix's restricted-setting warnings for untrusted clients, and implements the path, referrer, deriver, derivation-output, validity, hash-part, temporary-root, root-listing, NAR and missing-path queries. Builds, imports, GC and permanent roots are not implemented yet, and there is no `nix-daemon` binary (2026-10-02).
@@ -403,6 +421,8 @@ Internal trybuild tests for `nix-compat-derive`.
 ## nix-rs-build
 
 ### Unreleased
+
+- Apply shared build settings, honor substitution and fallback decisions, and reject local builds when max-jobs is zero. Execution remains sequential (2026-10-03).
 
 - `LocalBuilder::realise_with_events` reports each build's start, output and end as `BuildEvent`s (2026-10-02).
 - `missing::query_missing` follows CppNix's `queryMissing`: which paths realising some derived paths would build, substitute or not find, with download and NAR sizes (2026-10-02).

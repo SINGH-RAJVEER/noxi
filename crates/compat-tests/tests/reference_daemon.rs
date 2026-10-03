@@ -282,6 +282,67 @@ impl Env {
 
 const REGISTRATION_TIME: &str = "\"registrationTime\":";
 
+#[test]
+fn client_build_cores_are_applied_without_leaking_between_connections() {
+	let env = Env::new();
+	for cores in [2, 3] {
+		let expression = format!(
+			r#"derivation {{ name = "client-cores-{cores}"; system = "x86_64-linux"; builder = "${{builtins.storePath {}}}/bin/sh"; args = [ "-c" "echo $NIX_BUILD_CORES > $out" ]; }}"#,
+			env.busybox
+		);
+		let output = env.compare(
+			"nix-build",
+			&[
+				"--store",
+				"{store}",
+				"--no-out-link",
+				"--cores",
+				&cores.to_string(),
+				"--expr",
+				&expression,
+			],
+		);
+		assert!(output.status.success());
+		let path = String::from_utf8(output.stdout).unwrap();
+		let physical = env.root("nix-rs").join(path.trim().trim_start_matches('/'));
+		assert_eq!(fs::read_to_string(physical).unwrap(), format!("{cores}\n"));
+	}
+}
+
+#[test]
+fn store_optimisation_through_daemon_matches_reference() {
+	let env = Env::new();
+	env.compare("nix-store", &["--store", "{store}", "--optimise"]);
+	for daemon in ["reference", "nix-rs"] {
+		let links = env.root(daemon).join("nix/store/.links");
+		assert!(fs::read_dir(links).unwrap().next().is_some());
+	}
+}
+
+#[test]
+fn build_log_upload_through_daemon_matches_reference() {
+	let env = Env::with_trust(true);
+	for daemon in ["reference", "nix-rs"] {
+		let logs = env.root(daemon).join("nix/var/log/nix/drvs");
+		if logs.exists() {
+			fs::remove_dir_all(logs).unwrap();
+		}
+	}
+	env.compare(
+		"nix",
+		&[
+			"store",
+			"copy-log",
+			"--from",
+			env.root("src").to_str().unwrap(),
+			"--to",
+			"{store}",
+			&env.drv,
+		],
+	);
+	env.compare("nix", &["log", "--store", "{store}", &env.drv]);
+}
+
 /// The values of `"registrationTime"` JSON fields.
 fn registration_times(text: &str) -> Vec<u64> {
 	text.split(REGISTRATION_TIME)

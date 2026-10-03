@@ -90,15 +90,31 @@ impl<'a> LocalBuilder<'a> {
 	}
 
 	/// Try to substitute `path`; a failure is logged, not returned.
-	fn try_substitute(&self, path: &StorePath) -> bool {
-		if self.substituters.is_empty() {
-			return false;
+	fn try_substitute(&self, path: &StorePath) -> Result<bool> {
+		if !self.settings.use_substitutes || self.substituters.is_empty() {
+			return Ok(false);
+		}
+		let mut available = false;
+		for cache in self.substituters {
+			match cache.query_path_info(path) {
+				Ok(Some(_)) => {
+					available = true;
+					break;
+				}
+				Ok(None) => {}
+				Err(error) if !self.settings.try_fallback => return Err(error.into()),
+				Err(error) => tracing::debug!("cannot query substitute '{}': {error}", print(path)),
+			}
+		}
+		if !available {
+			return Ok(false);
 		}
 		match self.store.substitute(self.substituters, path) {
-			Ok(()) => true,
+			Ok(()) => Ok(true),
+			Err(error) if !self.settings.try_fallback => Err(error.into()),
 			Err(e) => {
 				tracing::debug!("cannot substitute '{}': {e}", print(path));
-				false
+				Ok(false)
 			}
 		}
 	}
@@ -221,19 +237,20 @@ impl<'a> LocalBuilder<'a> {
 
 		// Like `DerivationGoal`, substitute missing outputs before
 		// realising any inputs, which then may not be needed at all.
-		if !self.substituters.is_empty()
+		if self.settings.use_substitutes
+			&& !self.substituters.is_empty()
 			&& !self.all_valid(&wanted_outputs)?
 			&& self.substitutes_allowed(&drv)?
 		{
 			for output in wanted_outputs.values() {
 				if !self.store.is_valid_path(&output.path)? {
-					self.try_substitute(&output.path);
+					self.try_substitute(&output.path)?;
 				}
 			}
 		}
 		if !self.all_valid(&wanted_outputs)? {
 			for src in drv.input_sources() {
-				if !self.store.is_valid_path(src)? && !self.try_substitute(src) {
+				if !self.store.is_valid_path(src)? && !self.try_substitute(src)? {
 					return Err(BuildError::failed(
 						FailureStatus::DependencyFailed,
 						format!(
@@ -252,6 +269,15 @@ impl<'a> LocalBuilder<'a> {
 			stack.pop();
 
 			if !self.all_valid(&wanted_outputs)? {
+				if self.settings.max_build_jobs == 0 {
+					return Err(BuildError::failed(
+						FailureStatus::InputRejected,
+						format!(
+							"Cannot build '{}'.\nReason: local builds are disabled (max-jobs = 0)\nHint: set 'max-jobs' to a non-zero value to enable local builds, or configure remote builders via 'builders'",
+							print(drv_path)
+						),
+					));
+				}
 				events(BuildEvent::Started { drv_path });
 				let result = self.build(drv_path, &drv, &outputs, events);
 				events(BuildEvent::Finished {

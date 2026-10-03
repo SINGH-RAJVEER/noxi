@@ -33,6 +33,64 @@ pub struct LocalStoreConfig {
 }
 
 impl LocalStoreConfig {
+	pub fn diverted(root: &Path) -> std::io::Result<LocalStoreConfig> {
+		let root = root.canonicalize()?;
+		if root == Path::new("/") || root.starts_with("/nix") || !root.is_dir() {
+			return Err(std::io::Error::other(
+				"writable evaluation requires a diverted store root",
+			));
+		}
+		// Reject redirected store/state directories before LocalStore opens
+		// anything. In particular, a root with nix -> /nix is not diverted.
+		for relative in [
+			"nix/store/.links",
+			"nix/var/nix/profiles/per-user",
+			"nix/var/nix/gcroots/per-user",
+			"nix/var/nix/temproots",
+			"nix/var/nix/gc.lock",
+			"nix/var/nix/gc-socket/socket",
+			"nix/var/nix/db/reserved",
+			"nix/var/nix/db/big-lock",
+			"nix/var/nix/db/schema",
+			"nix/var/nix/db/db.sqlite",
+			"nix/var/nix/db/db.sqlite-wal",
+			"nix/var/nix/db/db.sqlite-shm",
+			"nix/var/log/nix",
+		] {
+			let mut path = root.clone();
+			for component in Path::new(relative).components() {
+				path.push(component);
+				match std::fs::symlink_metadata(&path) {
+					Ok(meta) if meta.file_type().is_symlink() => {
+						return Err(std::io::Error::other(
+							"diverted store directories must not be symlinks",
+						));
+					}
+					Ok(_) => {}
+					Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
+					Err(e) => return Err(e),
+				}
+			}
+		}
+		Ok(Self::with_root(&root))
+	}
+
+	/// Apply local-store settings after selecting its filesystem root.
+	pub fn apply_config(&mut self, settings: &nix_compat::nixcpp::settings::Settings) {
+		self.reserved_size =
+			settings.get_int("gc-reserved-space", self.reserved_size as i64) as u64;
+		self.fsync_metadata = settings.get_bool("fsync-metadata", self.fsync_metadata);
+		self.use_sqlite_wal = settings.get_bool("use-sqlite-wal", self.use_sqlite_wal);
+		self.require_sigs = settings.get_bool("require-sigs", self.require_sigs);
+		if settings.get("trusted-public-keys").is_some() {
+			self.trusted_public_keys = settings
+				.get_list("trusted-public-keys", &[])
+				.into_iter()
+				.map(str::to_owned)
+				.collect();
+		}
+	}
+
 	/// The settings of the system store. `NIX_STATE_DIR` and `NIX_LOG_DIR`
 	/// move the state and log directories; a store directory other than
 	/// `/nix/store` is not supported.

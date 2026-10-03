@@ -3,8 +3,8 @@
 //!
 //! The crate is a preview. [`options`] is checked against the reference's
 //! fixtures, and [`local::LocalBuilder`] builds derivations in the
-//! [`sandbox`] with results compared against the reference, but it has no
-//! command entry point and is not qualified as a build engine.
+//! [`sandbox`] with results compared against the reference, and is connected to the experimental diverted-store commands. It is not
+//! qualified as a system build engine.
 
 pub mod error;
 pub mod local;

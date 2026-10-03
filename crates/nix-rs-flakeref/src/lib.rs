@@ -5,6 +5,8 @@
 use std::{collections::HashMap, path::PathBuf};
 use url::Url;
 
+pub mod attrs;
+
 #[derive(Debug)]
 #[non_exhaustive]
 pub enum FlakeRef {

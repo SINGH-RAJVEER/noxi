@@ -30,6 +30,43 @@ pub struct DaemonSettings {
 }
 
 impl DaemonSettings {
+	pub fn from_config(
+		mut store: LocalStoreConfig,
+		settings: &nix_compat::nixcpp::settings::Settings,
+	) -> nix_rs_store::Result<Self> {
+		store.apply_config(settings);
+		let mut result = Self::new(store);
+		result.build.apply_config(settings);
+		result.substituters = settings
+			.get_list("substituters", &["https://cache.nixos.org/"])
+			.into_iter()
+			.map(BinaryCache::open)
+			.collect::<nix_rs_store::Result<Vec<_>>>()?;
+		result.trusted_substituters = settings
+			.get_list("trusted-substituters", &[])
+			.into_iter()
+			.map(str::to_owned)
+			.collect();
+		result.trusted_users = settings
+			.get_list("trusted-users", &["root"])
+			.into_iter()
+			.map(str::to_owned)
+			.collect();
+		result.allowed_users = settings
+			.get_list("allowed-users", &["*"])
+			.into_iter()
+			.map(str::to_owned)
+			.collect();
+		result.build_users_group = settings
+			.get("build-users-group")
+			.filter(|group| !group.is_empty())
+			.map(str::to_owned);
+		result.gc_keep_outputs = settings.get_bool("keep-outputs", result.gc_keep_outputs);
+		result.gc_keep_derivations =
+			settings.get_bool("keep-derivations", result.gc_keep_derivations);
+		Ok(result)
+	}
+
 	pub fn new(store: LocalStoreConfig) -> Self {
 		Self {
 			store,
