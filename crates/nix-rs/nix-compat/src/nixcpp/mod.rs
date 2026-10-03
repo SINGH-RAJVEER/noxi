@@ -8,4 +8,6 @@
 
 pub mod conf;
 pub mod settings;
+pub mod store_reference;
+pub mod url;
 mod settings_table;

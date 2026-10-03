@@ -76,7 +76,7 @@ table:upstream_store_json src/libstore-tests/data/outputs-spec/**/*
 table:upstream_path_info_json src/libstore-tests/data/path-info/**/*
 table:upstream_realisation_json src/libstore-tests/data/realisation/*
 table:upstream_store_json src/libstore-tests/data/store-path/*
-unrun src/libstore-tests/data/store-reference/* # store URLs and parameters
+table:upstream_store_reference src/libstore-tests/data/store-reference/* # store URLs and parameters; the Windows path is a Linux parse error
 
 # libutil
 pass:upstream_nars src/libutil-tests/data/nars/*.nar
