@@ -54,9 +54,9 @@ impl Sorter<'_> {
 		if result.is_catchable() {
 			return Ok(Err(result));
 		}
-		let less = result
-			.as_bool()
-			.context("evaluating the return value of the sorting function passed to builtins.sort")?;
+		let less = result.as_bool().context(
+			"evaluating the return value of the sorting function passed to builtins.sort",
+		)?;
 		Ok(Ok(less != negate))
 	}
 
@@ -121,9 +121,9 @@ impl Sorter<'_> {
 			if result.is_catchable() {
 				return Ok(Err(result));
 			}
-			let right_first = result
-				.as_bool()
-				.context("evaluating the return value of the sorting function passed to builtins.sort")?;
+			let right_first = result.as_bool().context(
+				"evaluating the return value of the sorting function passed to builtins.sort",
+			)?;
 			if right_first {
 				self.data[output] = self.buffer[right].clone();
 				right += 1;
@@ -176,11 +176,17 @@ impl Sorter<'_> {
 			let (i, j) = if !step!(self.less(middle, middle - 1, false).await) {
 				(
 					step!(self.decreasing_suffix(left_run_end, middle, true).await),
-					step!(self.decreasing_prefix(middle - 1, right_run_begin, true).await),
+					step!(
+						self.decreasing_prefix(middle - 1, right_run_begin, true)
+							.await
+					),
 				)
 			} else {
 				let i = step!(self.decreasing_suffix(left_run_end, middle, false).await);
-				let j = step!(self.decreasing_prefix(middle - 1, right_run_begin, false).await);
+				let j = step!(
+					self.decreasing_prefix(middle - 1, right_run_begin, false)
+						.await
+				);
 				self.data[i..j].reverse();
 				(i, j)
 			};

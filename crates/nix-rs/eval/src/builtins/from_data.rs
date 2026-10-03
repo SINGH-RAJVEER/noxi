@@ -145,9 +145,11 @@ fn format_datetime(datetime: &toml::value::Datetime) -> String {
 		}
 	}
 	match &datetime.offset {
-		Some(toml::value::Offset::Z) | Some(toml::value::Offset::Custom { hours: 0, minutes: 0 }) => {
-			out.push('Z')
-		}
+		Some(toml::value::Offset::Z)
+		| Some(toml::value::Offset::Custom {
+			hours: 0,
+			minutes: 0,
+		}) => out.push('Z'),
 		Some(toml::value::Offset::Custom { hours, minutes }) => {
 			let sign = if *hours < 0 { '-' } else { '+' };
 			out.push_str(&format!("{sign}{:02}:{minutes:02}", hours.unsigned_abs()));

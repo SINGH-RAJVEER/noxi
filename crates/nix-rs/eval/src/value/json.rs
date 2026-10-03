@@ -58,7 +58,8 @@ impl Value {
 				let mut out = Vec::with_capacity(l.len());
 
 				for val in l.into_iter() {
-					let (json_item, ctx) = Box::pin(val.into_contextful_json_at(co, depth + 1)).await?;
+					let (json_item, ctx) =
+						Box::pin(val.into_contextful_json_at(co, depth + 1)).await?;
 					context.extend(ctx);
 					out.push(json_item);
 				}
@@ -107,7 +108,8 @@ impl Value {
 
 				let mut out = Map::with_capacity(attrs.len());
 				for (name, value) in attrs.into_iter_sorted() {
-					let (json_value, ctx) = Box::pin(value.into_contextful_json_at(co, depth + 1)).await?;
+					let (json_value, ctx) =
+						Box::pin(value.into_contextful_json_at(co, depth + 1)).await?;
 					context.extend(ctx);
 					out.insert(name.to_str()?.to_owned(), json_value);
 				}
