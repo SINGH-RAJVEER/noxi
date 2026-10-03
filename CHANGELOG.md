@@ -9,7 +9,7 @@ Changes that have not reached a version yet go under an `Unreleased` heading for
 | [`nix-rs-cli`](#nix-rs-cli) | 0.1.1 | [published](https://crates.io/crates/nix-rs-cli/0.1.1) | Apache-2.0 |
 | [`nix-rs-eval`](#nix-rs-eval) | 0.2.2 | pending publication | GPL-3.0-only |
 | [`nix-rs-eval-builtin-macros`](#nix-rs-eval-builtin-macros) | 0.0.1 | [published](https://crates.io/crates/nix-rs-eval-builtin-macros) | GPL-3.0-only |
-| [`nix-rs-compat`](#nix-rs-compat) | 0.1.1 | [published](https://crates.io/crates/nix-rs-compat/0.1.1) | GPL-3.0-only |
+| [`nix-rs-compat`](#nix-rs-compat) | 0.1.2 | pending publication | GPL-3.0-only |
 | [`nix-rs-hash`](#nix-rs-hash) | 0.1.0 | [published](https://crates.io/crates/nix-rs-hash/0.1.0) | GPL-3.0-only |
 | [`nix-rs-flakeref`](#nix-rs-flakeref) | 0.1.0 | [published](https://crates.io/crates/nix-rs-flakeref/0.1.0) | GPL-3.0-only |
 | [`nix-rs-compat-derive`](#nix-rs-compat-derive) | 0.1.0 | [published](https://crates.io/crates/nix-rs-compat-derive/0.1.0) | GPL-3.0-only |
@@ -154,7 +154,7 @@ Published to crates.io.
 
 Nix formats and protocols: store paths, nixbase32, hashes, NAR, ATerm derivations, narinfo, realisations, flake references, `nix.conf` and daemon wire types.
 
-### Unreleased
+### 0.1.2 - pending publication
 
 #### Added
 
