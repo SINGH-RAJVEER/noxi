@@ -405,6 +405,76 @@ fn rejects_what_needs_a_writable_store() {
 	assert_eq!(code, 1);
 }
 
+/// `--xml --no-location`, the last of `--json` and `--xml` winning, and `-I`
+/// entries searched before `NIX_PATH`, as recorded from the reference.
+#[test]
+fn prints_xml_and_searches_include_paths() {
+	let dir = tempfile::tempdir().unwrap();
+	let (stdout, code) = instantiate(
+		dir.path(),
+		&[
+			"--eval",
+			"--xml",
+			"--no-location",
+			"--strict",
+			"-E",
+			"{ a = [ 1 \"x\" true null ]; b = 1.5; }",
+		],
+	);
+	assert_eq!(code, 0);
+	assert_eq!(
+		stdout,
+		"<?xml version='1.0' encoding='utf-8'?>
+<expr>
+  <attrs>
+    <attr name=\"a\">
+      <list>
+        <int value=\"1\" />
+        <string value=\"x\" />
+        <bool value=\"true\" />
+        <null />
+      </list>
+    </attr>
+    <attr name=\"b\">
+      <float value=\"1.5\" />
+    </attr>
+  </attrs>
+</expr>
+"
+	);
+	let (stdout, code) = instantiate(dir.path(), &["--eval", "--xml", "--json", "-E", "1"]);
+	assert_eq!((stdout.as_str(), code), ("1\n", 0));
+	let (stdout, code) = instantiate(dir.path(), &["--eval", "--json", "-E", "{ a = [ 1 ]; }"]);
+	assert_eq!((stdout.as_str(), code), ("{\"a\":[1]}\n", 0));
+	// Source locations in XML output are not implemented.
+	let (_, code) = instantiate(dir.path(), &["--eval", "--xml", "-E", "1"]);
+	assert_eq!(code, 1);
+
+	for (sub, text) in [
+		("d1/x.nix", "\"one\""),
+		("d2/x.nix", "\"two\""),
+		("d2/y.nix", "\"y2\""),
+	] {
+		let path = dir.path().join(sub);
+		fs::create_dir_all(path.parent().unwrap()).unwrap();
+		fs::write(path, text).unwrap();
+	}
+	let output = Command::new(env!("CARGO_BIN_EXE_nix-instantiate"))
+		.args(["--eval", "--strict", "--show-trace", "-I", "d1", "-E"])
+		.arg("[ (import <x.nix>) (import <y.nix>) ]")
+		.current_dir(dir.path())
+		.env("NIX_PATH", "d2")
+		.output()
+		.unwrap();
+	assert_eq!(
+		(
+			String::from_utf8_lossy(&output.stdout).as_ref(),
+			output.status.code()
+		),
+		("[ \"one\" \"y2\" ]\n", Some(0))
+	);
+}
+
 /// Derivation and output paths of real Nixpkgs packages, recorded from the
 /// reference for the root flake's locked Nixpkgs (`714a5f8c`). A matching
 /// `.drv` path means the whole derivation graph below it, byte for byte.

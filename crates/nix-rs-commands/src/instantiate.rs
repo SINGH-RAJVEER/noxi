@@ -1,8 +1,10 @@
 //! `nix-instantiate`, following CppNix 2.35.2's read-only evaluation default.
 //!
-//! Supported: `--eval`, `--strict`, `--json`, `--expr`/`-E`, `--attr`/`-A`,
-//! `--arg`, `--argstr`, file arguments including `<lookup>` paths and `-`
-//! for standard input. Single derivation selections can be instantiated
+//! Supported: `--eval`, `--strict`, `--json`, `--xml` with `--no-location`,
+//! `--expr`/`-E`, `--attr`/`-A`, `--arg`, `--argstr`, `-I`/`--include`, file
+//! arguments including `<lookup>` paths and `-` for standard input.
+//! `--show-trace` and `--no-show-trace` are accepted, but error traces are not
+//! rendered in CppNix's format yet. Single derivation selections can be instantiated
 //! with an explicit `--store local?root=ROOT`. No builds or permanent GC roots are made.
 
 use std::fmt::Write as _;
@@ -31,6 +33,14 @@ pub struct Options {
 	pub read_write_mode: bool,
 	pub strict: bool,
 	pub json: bool,
+	/// `--xml`; the last of `--json` and `--xml` wins, as in CppNix.
+	pub xml: bool,
+	/// `--no-location`: omit source positions from XML output.
+	pub no_location: bool,
+	/// `--show-trace`, accepted for compatibility.
+	pub show_trace: bool,
+	/// `-I` search-path entries, searched before `NIX_PATH`.
+	pub include: Vec<String>,
 	/// `--expr`: positional arguments are expressions rather than files.
 	pub from_args: bool,
 	pub inputs: Vec<String>,
@@ -53,7 +63,18 @@ pub fn parse_args(args: impl IntoIterator<Item = String>) -> Result<Options, Str
 			"--read-write-mode" => options.read_write_mode = true,
 			"--eval" | "--eval-only" => options.eval = true,
 			"--strict" => options.strict = true,
-			"--json" => options.json = true,
+			"--json" => {
+				options.json = true;
+				options.xml = false;
+			}
+			"--xml" => {
+				options.xml = true;
+				options.json = false;
+			}
+			"--no-location" => options.no_location = true,
+			"--show-trace" => options.show_trace = true,
+			"--no-show-trace" => options.show_trace = false,
+			"-I" | "--include" => options.include.push(value(&mut args, &arg)?),
 			"--expr" | "-E" => options.from_args = true,
 			"--attr" | "-A" => options.attr_paths.push(value(&mut args, &arg)?),
 			"--arg" | "--argstr" => {
@@ -251,6 +272,10 @@ pub fn run(options: &Options, cwd: &Path, stdout: &mut dyn Write) -> ExitCode {
 		eprintln!("error: --json requires --eval");
 		return ExitCode::FAILURE;
 	}
+	if options.eval && options.xml && !options.no_location {
+		eprintln!("error: --xml output with source locations is not supported; pass --no-location");
+		return ExitCode::FAILURE;
+	}
 	let writable = !options.eval || options.read_write_mode;
 	if writable && options.store.is_none() {
 		eprintln!(
@@ -306,20 +331,28 @@ pub fn run(options: &Options, cwd: &Path, stdout: &mut dyn Write) -> ExitCode {
 		}
 		None => nix_rs_glue::ReadOnlyStore::new(),
 	};
-	let mode = if !options.eval || options.strict || options.json {
+	let mode = if !options.eval || options.strict || options.json || options.xml {
 		EvalMode::Strict
 	} else {
 		EvalMode::Lazy
 	};
-	let mut builder = nix_rs_glue::configure(Evaluation::builder_pure(), store)
+	let mut builder = Evaluation::builder_pure();
+	if !options.include.is_empty() {
+		// CppNix searches `-I` entries before `NIX_PATH`.
+		let mut nix_path = options.include.join(":");
+		if let Some(env) = std::env::var("NIX_PATH").ok().filter(|p| !p.is_empty()) {
+			nix_path.push(':');
+			nix_path.push_str(&env);
+		}
+		builder = builder.nix_path(Some(nix_path));
+	}
+	let builder = nix_rs_glue::configure(builder, store)
 		.env(Some(&env))
 		.mode(mode);
-	let source = builder.source_map().clone();
+	// The evaluator's own lints (unused bindings, legacy `let`, ...) have no
+	// CppNix equivalent, so this compatibility command does not print them.
 	let result = builder.build().evaluate_in_dir(&driver, cwd.to_path_buf());
 
-	for warning in &result.warnings {
-		warning.fancy_format_stderr(&source);
-	}
 	if !result.errors.is_empty() {
 		for error in &result.errors {
 			error.fancy_format_stderr();
@@ -343,7 +376,19 @@ pub fn run(options: &Options, cwd: &Path, stdout: &mut dyn Write) -> ExitCode {
 				.write_all(string.as_bytes())
 				.and_then(|()| stdout.write_all(b"\n"))
 		} else {
+			// Strict evaluation leaves forced thunks in the result list.
+			let forced;
+			let value = match value {
+				Value::Thunk(thunk) => {
+					forced = thunk.value().clone();
+					&forced
+				}
+				value => value,
+			};
 			match value {
+				value if options.xml => nix_rs_eval::builtins::value_to_xml(&mut *stdout, value)
+					.map(|_| ())
+					.map_err(|error| io::Error::other(error.to_string())),
 				Value::String(s) if options.json => stdout
 					.write_all(s.as_bytes())
 					.and_then(|()| stdout.write_all(b"\n")),

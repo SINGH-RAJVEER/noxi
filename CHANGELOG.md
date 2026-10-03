@@ -75,6 +75,7 @@ Nix language parser, compiler and bytecode VM with the pure builtins, imported f
 
 #### Fixed
 
+- `builtins.toXML` and XML output write `null` as `<null />`, as CppNix does, instead of an open and a close tag (2026-10-03).
 - `builtins.appendContext` adds a context to a string that had none, and keeps an existing context (2026-10-03).
 - `abort` and `throw` coerce their message weakly, as CppNix does, and propagate a `throw` raised while coercing it (2026-10-03).
 - `builtins.split` advances one byte after a zero-width match, including inside multibyte input, instead of one character (2026-10-03).
@@ -255,8 +256,14 @@ Serializes Rust values into Nix and deserializes Nix values into Rust types, imp
 
 ### Unreleased
 
+#### Fixed
+
+- `nix-instantiate --eval --json` printed the JSON text as a quoted Nix string (2026-10-03).
+- `nix-instantiate` no longer prints the evaluator's own lint warnings, such as unused bindings and legacy `let`, which CppNix does not have (2026-10-03).
+
 #### Added
 
+- `nix-instantiate` accepts `--xml` together with `--no-location` (the last of `--json` and `--xml` wins, as in CppNix), `-I` and `--include`, whose entries are searched before `NIX_PATH`, and `--show-trace` and `--no-show-trace`, which do not change the output yet (2026-10-03).
 - `nix-instantiate` without `--eval` instantiates a selection that is a single derivation into an explicit diverted store given as `--store local?root=ROOT`, and prints its `.drv` path. `--eval --read-write-mode` evaluates with that store writable. Other `--store` values are rejected, `--json` requires `--eval`, and no builds or permanent roots are made (2026-10-03).
 
 ### 0.1.1 - 2026-10-02
@@ -292,6 +299,7 @@ Internal test crate that checks the workspace crates against the CppNix 2.35.2 f
 - `reference_daemon`, which runs unchanged reference clients against the reference daemon and the nix-rs daemon serving copies of one store and compares exit status, standard output and standard error (2026-10-02).
 - `reference_gc`, which compares printed roots, live and dead paths, collection results and remaining paths, and specific deletions with the reference on copies of one store, and checks that a temporary root sent to the nix-rs GC socket during a collection keeps its path (2026-10-02).
 - `reference_substitute`, which has the reference sign and copy a closure into `file://` caches with six compression methods and checks narinfo round trips, substitution metadata including signatures and derivers, unsigned and trusted caches, and corrupt NARs against the reference (2026-10-02).
+- `upstream_lang` runs `eval-*` cases through nix-rs's `nix-instantiate` with the arguments and `.flags` `lang.sh` uses, instead of the bare evaluator, and is no longer listed as an ignored test, which made `cargo nextest run` skip it (2026-10-03).
 - `reference_substitute` also checks `BinaryCache::upload_closure`: a signed nix-rs upload has the same narinfo text and NAR bytes as the reference's uncompressed upload and round-trips, signatures survive key rotation, corrupt sources and failed publications advertise nothing, and the source keeps temporary roots until its handle is dropped. It checks that the same unsafe NAR URLs fail with both engines (2026-10-03).
 - `reference_build`, which builds derivations the 2.35.2 reference wrote with both the reference and `nix-rs-build` in separate temporary stores and compares the outputs, `nix path-info --json` metadata, the reference's verification of the nix-rs store, a probe of the sandbox environment, and failure messages and statuses (2026-10-02).
 - `upstream_derivation_options`, which reads and writes the six `derivation-options` JSON fixtures byte for byte and checks that `nix-rs-build` derives the same options, required system features, substitution and `uid-range` decisions from the eight advanced-attributes derivations as CppNix's `derivation-advanced-attrs.cc` (2026-10-02).

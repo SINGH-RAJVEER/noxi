@@ -80,8 +80,7 @@ fn value_variant_to_xml<W: Write>(w: &mut XmlEmitter<W>, value: &Value) -> Resul
 		Value::Thunk(t) => return value_variant_to_xml(w, &t.value()),
 
 		Value::Null => {
-			w.write_open_tag("null", &[])?;
-			w.write_closing_tag("null")?;
+			w.write_self_closing_tag("null", &[])?;
 		}
 
 		Value::Bool(b) => return write_typed_value(w, "bool", b),
