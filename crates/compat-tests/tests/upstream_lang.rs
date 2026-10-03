@@ -5,6 +5,10 @@
 //! `/pwd` substitution and post-processing, and its output is compared with
 //! the expected files. Each case runs in a child process (this test binary,
 //! re-executed) so hangs and stack overflows are contained and timed out.
+//! `eval-*` children run nix-rs's `nix-instantiate` with the arguments
+//! `lang.sh` passes, including each case's `.flags`; a case whose arguments
+//! the command rejects is recorded as `unrun-flags`. `parse-*` children only
+//! compile the file, because `nix-instantiate --parse` has no AST printer yet.
 //!
 //! Every file in the fixture directory must be a case, a companion of one, or
 //! a listed support file. Every case must appear in `upstream-lang.txt` with
@@ -26,7 +30,8 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use std::thread;
 use std::time::{Duration, Instant};
 
-use nix_rs_eval::{EvalMode, Evaluation, Value, builtins::value_to_xml};
+use nix_rs_commands::instantiate;
+use nix_rs_eval::{EvalMode, Evaluation};
 use serde_json::{Value as Json, json};
 
 const FUNCTIONAL_DIR: &str = concat!(
@@ -133,27 +138,16 @@ impl Kind {
 enum Operation {
 	/// `nix-instantiate --parse - < FILE`
 	Parse,
-	/// `nix-instantiate --eval --strict FILE`
+	/// `nix-instantiate --eval --strict FILE`, or the case's flags
 	Eval,
 	/// `nix-instantiate --eval --xml --no-location --strict FILE`
 	EvalXml,
 }
 
-impl Operation {
-	fn name(self) -> &'static str {
-		match self {
-			Operation::Parse => "parse",
-			Operation::Eval => "eval",
-			Operation::EvalXml => "eval-xml",
-		}
-	}
-
-	fn from_name(name: &str) -> Option<Self> {
-		[Operation::Parse, Operation::Eval, Operation::EvalXml]
-			.into_iter()
-			.find(|operation| operation.name() == name)
-	}
-}
+/// Child mode for a `parse-*` case: compile the file argument.
+const CHILD_PARSE: &str = "parse";
+/// Child mode for an `eval-*` case: run `nix-instantiate` with the arguments.
+const CHILD_INSTANTIATE: &str = "instantiate";
 
 /// What happened when a case ran, compared with the reference expectations.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -171,7 +165,7 @@ enum Outcome {
 	Timeout,
 	/// Ended by a signal or an exit status other than 0 or 1.
 	Crash,
-	/// Needs `nix-instantiate` flags the harness cannot express for nix-rs yet.
+	/// Needs `nix-instantiate` arguments that nix-rs's command rejects.
 	UnrunFlags,
 	/// Upstream disables the case with an `.exp-disabled` file.
 	Disabled,
@@ -231,6 +225,42 @@ impl Case {
 			Kind::EvalOkay if self.has(".exp.xml") => Operation::EvalXml,
 			Kind::EvalOkay | Kind::EvalFail => Operation::Eval,
 		}
+	}
+
+	/// The `nix-instantiate` arguments `lang.sh` passes for an `eval-*` case.
+	/// An `eval-fail` case's `.flags` replace the defaults, with comments
+	/// removed; an `eval-okay` case's first `.flags` line comes before them.
+	fn instantiate_args(&self) -> Vec<String> {
+		let flags = fs::read_to_string(self.companion(".flags")).ok();
+		let file = lang_dir()
+			.join(format!("{}.nix", self.name))
+			.to_string_lossy()
+			.into_owned();
+		let words = |text: &str| {
+			text.split_whitespace()
+				.map(str::to_owned)
+				.collect::<Vec<_>>()
+		};
+		let mut args = match (self.kind, self.operation(), flags) {
+			(Kind::EvalFail, _, Some(flags)) => flags
+				.lines()
+				.flat_map(|line| words(line.split('#').next().unwrap_or_default()))
+				.collect(),
+			(Kind::EvalFail, _, None) => words("--eval --strict --show-trace"),
+			(_, Operation::EvalXml, _) => words("--eval --xml --no-location --strict"),
+			(_, _, flags) => {
+				let mut args = words(
+					flags
+						.as_deref()
+						.and_then(|f| f.lines().next())
+						.unwrap_or(""),
+				);
+				args.extend(words("--eval --strict"));
+				args
+			}
+		};
+		args.push(file);
+		args
 	}
 }
 
@@ -314,7 +344,9 @@ fn discover() -> Result<Vec<Case>, Vec<String>> {
 	}
 }
 
-fn child(operation: Operation, file: &Path) -> ExitCode {
+/// Compile a `parse-*` case. nix-rs has no printer for CppNix's `--parse`
+/// output, so success prints nothing.
+fn child_parse(file: &Path) -> ExitCode {
 	let code = match fs::read_to_string(file) {
 		Ok(code) => code,
 		Err(error) => {
@@ -322,53 +354,29 @@ fn child(operation: Operation, file: &Path) -> ExitCode {
 			return ExitCode::FAILURE;
 		}
 	};
-	let builder = Evaluation::builder_impure()
+	// `--parse` reads standard input, so the parse has no file location.
+	let result = Evaluation::builder_impure()
 		.mode(EvalMode::Strict)
-		.nix_path(env::var("NIX_PATH").ok());
-
-	let result = match operation {
-		// `--parse` reads standard input, so the parse has no file location.
-		Operation::Parse => builder.build().compile_only(&code, None),
-		Operation::Eval | Operation::EvalXml => {
-			builder.build().evaluate(&code, Some(file.to_owned()))
-		}
-	};
-	if !result.errors.is_empty() {
-		for error in result.errors {
-			error.fancy_format_stderr();
-		}
-		return ExitCode::FAILURE;
+		.build()
+		.compile_only(&code, None);
+	for error in &result.errors {
+		error.fancy_format_stderr();
 	}
-
-	match (operation, result.value) {
-		// nix-rs has no printer for CppNix's `--parse` output yet.
-		(Operation::Parse, _) => ExitCode::SUCCESS,
-		(_, Some(Value::Catchable(error))) => {
-			eprintln!("error: {error}");
-			ExitCode::FAILURE
-		}
-		(Operation::EvalXml, Some(value)) => {
-			let mut stdout = io::stdout().lock();
-			match value_to_xml(&mut stdout, &value) {
-				Ok(_) => ExitCode::SUCCESS,
-				Err(error) => {
-					eprintln!("error: {error}");
-					ExitCode::FAILURE
-				}
-			}
-		}
-		(_, Some(value)) => {
-			println!("{value}");
-			ExitCode::SUCCESS
-		}
-		(_, None) => {
-			eprintln!("error: evaluation produced no value");
-			ExitCode::FAILURE
-		}
+	if result.errors.is_empty() {
+		ExitCode::SUCCESS
+	} else {
+		ExitCode::FAILURE
 	}
 }
 
-fn spawn(case: &Case, scratch: &Path) -> io::Result<Child> {
+/// Run nix-rs's `nix-instantiate` for an `eval-*` case.
+fn child_instantiate(args: Vec<String>) -> ExitCode {
+	let options = instantiate::parse_args(args).expect("arguments checked by the parent");
+	let cwd = env::current_dir().expect("fixture working directory");
+	instantiate::run(&options, &cwd, &mut io::stdout().lock())
+}
+
+fn spawn(case: &Case, scratch: &Path, args: &[String]) -> io::Result<Child> {
 	let mut command = Command::new(env::current_exe()?);
 	command
 		.env_clear()
@@ -378,10 +386,15 @@ fn spawn(case: &Case, scratch: &Path) -> io::Result<Child> {
 		command.envs(EVAL_OKAY_ENV.iter().copied());
 	}
 	// `nix-instantiate` makes its file argument absolute before evaluating it.
+	if case.operation() == Operation::Parse {
+		command
+			.arg(lang_dir().join(format!("{}.nix", case.name)))
+			.env(CHILD_VAR, CHILD_PARSE);
+	} else {
+		command.args(args).env(CHILD_VAR, CHILD_INSTANTIATE);
+	}
 	command
-		.arg(lang_dir().join(format!("{}.nix", case.name)))
 		.current_dir(functional_dir())
-		.env(CHILD_VAR, case.operation().name())
 		.stdin(Stdio::null())
 		.stdout(Stdio::piped())
 		.stderr(Stdio::piped())
@@ -420,12 +433,16 @@ fn run(case: &Case, scratch: &Path) -> Run {
 	if case.has(".exp-disabled") {
 		return skipped(Outcome::Disabled);
 	}
-	if case.has(".flags") {
+	let args = match case.operation() {
+		Operation::Parse => Vec::new(),
+		Operation::Eval | Operation::EvalXml => case.instantiate_args(),
+	};
+	if case.operation() != Operation::Parse && instantiate::parse_args(args.clone()).is_err() {
 		return skipped(Outcome::UnrunFlags);
 	}
 
 	let started = Instant::now();
-	let mut child = spawn(case, scratch).expect("re-execute the test binary for a fixture");
+	let mut child = spawn(case, scratch, &args).expect("re-execute the test binary for a fixture");
 	let stdout = drain(child.stdout.take().expect("piped stdout"));
 	let stderr = drain(child.stderr.take().expect("piped stderr"));
 	let status = loop {
@@ -589,7 +606,10 @@ fn write_report(cases: &[Case], runs: &[Run]) -> io::Result<()> {
 			json!({
 				"name": case.name,
 				"kind": format!("{:?}", case.kind),
-				"operation": case.operation().name(),
+				"command": match case.operation() {
+					Operation::Parse => vec!["--parse".to_owned(), "-".to_owned()],
+					Operation::Eval | Operation::EvalXml => case.instantiate_args(),
+				},
 				"outcome": run.outcome.name(),
 				"error_code": run.error_code,
 				"exit_code": run.exit_code,
@@ -618,14 +638,22 @@ fn write_report(cases: &[Case], runs: &[Run]) -> io::Result<()> {
 }
 
 fn main() -> ExitCode {
-	if let Ok(operation) = env::var(CHILD_VAR) {
-		let operation = Operation::from_name(&operation).expect("known child operation");
-		let file = env::args_os().nth(1).expect("fixture path argument");
-		return child(operation, Path::new(&file));
+	if let Ok(mode) = env::var(CHILD_VAR) {
+		return match mode.as_str() {
+			CHILD_PARSE => {
+				let file = env::args_os().nth(1).expect("fixture path argument");
+				child_parse(Path::new(&file))
+			}
+			CHILD_INSTANTIATE => child_instantiate(env::args().skip(1).collect()),
+			_ => panic!("unknown child mode {mode}"),
+		};
 	}
-	// Cargo passes libtest arguments such as `--list`; this harness has one test.
+	// Cargo and nextest pass libtest arguments such as `--list`; this harness
+	// has one test, which is not ignored.
 	if env::args().any(|arg| arg == "--list") {
-		println!("upstream_lang: test");
+		if !env::args().any(|arg| arg == "--ignored") {
+			println!("upstream_lang: test");
+		}
 		return ExitCode::SUCCESS;
 	}
 

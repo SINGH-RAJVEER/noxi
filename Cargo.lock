@@ -1612,6 +1612,7 @@ dependencies = [
  "bstr",
  "data-encoding",
  "nix-rs-build",
+ "nix-rs-commands",
  "nix-rs-compat",
  "nix-rs-daemon",
  "nix-rs-eval",

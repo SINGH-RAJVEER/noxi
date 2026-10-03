@@ -13,6 +13,7 @@ tempfile.workspace = true
 
 [dev-dependencies]
 nix-rs-eval = { path = "../nix-rs/eval", default-features = false, features = ["impure"] }
+nix-rs-commands = { path = "../nix-rs-commands" }
 nix-compat = { package = "nix-rs-compat", path = "../nix-rs/nix-compat", features = ["serde", "daemon"] }
 nix-rs-store = { path = "../nix-rs-store" }
 nix-rs-build = { path = "../nix-rs-build" }

@@ -6,9 +6,9 @@ eval-fail-abs-path-fatal unrun-flags
 eval-fail-add-1 error-message E006
 eval-fail-add-2 error-message E006
 eval-fail-addDrvOutputDependencies-empty-context error-message E005
-eval-fail-addDrvOutputDependencies-multi-elem-context error-message E010
-eval-fail-addDrvOutputDependencies-wrong-element-kind error-message E010
-eval-fail-addErrorContext-example unrun-flags
+eval-fail-addDrvOutputDependencies-multi-elem-context error-message E005
+eval-fail-addDrvOutputDependencies-wrong-element-kind error-message E005
+eval-fail-addErrorContext-example error-message E001
 eval-fail-all-1 error-message E006
 eval-fail-all-2 error-message E006
 eval-fail-all-3 error-message E006
@@ -32,9 +32,9 @@ eval-fail-assert error-message E003
 eval-fail-attr-name-type error-message E006
 eval-fail-attrNames-1 error-message E006
 eval-fail-attrValues-1 error-message E006
-eval-fail-attrset-merge-drops-later-rec error-message E010
+eval-fail-attrset-merge-drops-later-rec error-message E028
 eval-fail-bad-string-interpolation-1 error-message E018
-eval-fail-bad-string-interpolation-2 unexpected-success
+eval-fail-bad-string-interpolation-2 error-message E029
 eval-fail-bad-string-interpolation-3 error-message E018
 eval-fail-bad-string-interpolation-4 error-message E018
 eval-fail-baseNameOf-1 error-message E018
@@ -66,60 +66,60 @@ eval-fail-concatStringsSep-3 error-message E018
 eval-fail-deepseq-list-attr unexpected-success
 eval-fail-deepseq-stack-overflow error-message E001
 eval-fail-deepseq error-message E002
-eval-fail-derivation-name error-message E010
-eval-fail-derivation-structuredAttrs-stack-overflow error-message E010
-eval-fail-derivationStrict-1 error-message E005
-eval-fail-derivationStrict-10 error-message E005
-eval-fail-derivationStrict-11 error-message E005
-eval-fail-derivationStrict-12 error-message E005
-eval-fail-derivationStrict-13 error-message E005
-eval-fail-derivationStrict-14 error-message E005
-eval-fail-derivationStrict-15 error-message E005
-eval-fail-derivationStrict-16 error-message E005
-eval-fail-derivationStrict-17 error-message E005
-eval-fail-derivationStrict-19 error-message E005
+eval-fail-derivation-name error-message E997
+eval-fail-derivation-structuredAttrs-stack-overflow crash
+eval-fail-derivationStrict-1 error-message E006
+eval-fail-derivationStrict-10 error-message E006
+eval-fail-derivationStrict-11 error-message E006
+eval-fail-derivationStrict-12 error-message E006
+eval-fail-derivationStrict-13 error-message E997
+eval-fail-derivationStrict-14 unexpected-success
+eval-fail-derivationStrict-15 error-message E997
+eval-fail-derivationStrict-16 error-message E006
+eval-fail-derivationStrict-17 error-message E006
+eval-fail-derivationStrict-19 error-message E006
 eval-fail-derivationStrict-2 error-message E005
-eval-fail-derivationStrict-20 error-message E005
-eval-fail-derivationStrict-21 error-message E005
-eval-fail-derivationStrict-22 error-message E005
-eval-fail-derivationStrict-3 error-message E005
-eval-fail-derivationStrict-4 error-message E005
-eval-fail-derivationStrict-5 error-message E005
-eval-fail-derivationStrict-6 error-message E005
-eval-fail-derivationStrict-7 error-message E005
-eval-fail-derivationStrict-8 error-message E005
-eval-fail-derivationStrict-9 error-message E005
+eval-fail-derivationStrict-20 error-message E018
+eval-fail-derivationStrict-21 error-message E018
+eval-fail-derivationStrict-22 error-message E018
+eval-fail-derivationStrict-3 error-message E006
+eval-fail-derivationStrict-4 error-message E997
+eval-fail-derivationStrict-5 error-message E006
+eval-fail-derivationStrict-6 error-message E006
+eval-fail-derivationStrict-7 error-message E997
+eval-fail-derivationStrict-8 error-message E997
+eval-fail-derivationStrict-9 error-message E018
 eval-fail-div-1 error-message E006
 eval-fail-div-2 error-message E006
 eval-fail-div-3 error-message E033
 eval-fail-dup-dynamic-attrs error-message E016
 eval-fail-duplicate-traces error-message E001
-eval-fail-dynamic-attrs-inherit-2 error-message E009
-eval-fail-dynamic-attrs-inherit error-message E009
-eval-fail-dynamic-attrs-let-2 error-message E009
-eval-fail-dynamic-attrs-let-3 error-message E009
-eval-fail-dynamic-attrs-let error-message E009
+eval-fail-dynamic-attrs-inherit-2 error-message E028
+eval-fail-dynamic-attrs-inherit error-message E028
+eval-fail-dynamic-attrs-let-2 error-message E028
+eval-fail-dynamic-attrs-let-3 error-message E028
+eval-fail-dynamic-attrs-let error-message E028
 eval-fail-elem-1 error-message E006
 eval-fail-elemAt-1 error-message E006
 eval-fail-elemAt-2 error-message E019
 eval-fail-elemAt-3 error-message E019
 eval-fail-empty-formals error-message E031
-eval-fail-eol-1 error-message E010
-eval-fail-eol-2 error-message E015
-eval-fail-eol-3 error-message E010
-eval-fail-fetchTree-negative error-message E005
-eval-fail-fetchTree-relative-path error-message E005
-eval-fail-fetchurl-baseName-attrs-name error-message E005
-eval-fail-fetchurl-baseName-attrs error-message E005
-eval-fail-fetchurl-baseName error-message E005
+eval-fail-eol-1 error-message E028
+eval-fail-eol-2 error-message E027
+eval-fail-eol-3 error-message E028
+eval-fail-fetchTree-negative error-message E999
+eval-fail-fetchTree-relative-path error-message E999
+eval-fail-fetchurl-baseName-attrs-name error-message E999
+eval-fail-fetchurl-baseName-attrs error-message E999
+eval-fail-fetchurl-baseName error-message E999
 eval-fail-filter-1 error-message E006
 eval-fail-filter-2 error-message E013
 eval-fail-filter-3 error-message E006
-eval-fail-filterSource-1 error-message E005
-eval-fail-filterSource-2 error-message E005
-eval-fail-filterSource-3 error-message E005
-eval-fail-filterSource-4 error-message E005
-eval-fail-filterSource-5 error-message E005
+eval-fail-filterSource-1 error-message E018
+eval-fail-filterSource-2 error-message E020
+eval-fail-filterSource-3 error-message E013
+eval-fail-filterSource-4 error-message E013
+eval-fail-filterSource-5 error-message E006
 eval-fail-flake-ref-to-string-negative-integer error-message E005
 eval-fail-floor-1 error-message E006
 eval-fail-foldlPrime-1 error-message E006
@@ -197,7 +197,7 @@ eval-fail-mul-1 error-message E006
 eval-fail-mul-2 error-message E006
 eval-fail-mutual-recursion error-message E001
 eval-fail-nested-list-items error-message E018
-eval-fail-nonexist-path unexpected-success
+eval-fail-nonexist-path error-message E029
 eval-fail-not-throws error-message E001
 eval-fail-overflowing-add error-message E043
 eval-fail-overflowing-div error-message E043
@@ -207,11 +207,11 @@ eval-fail-parseDrvName-1 error-message E006
 eval-fail-partition-1 error-message E006
 eval-fail-partition-2 error-message E006
 eval-fail-partition-3 error-message E006
-eval-fail-path-slash error-message E015
+eval-fail-path-slash error-message E027
 eval-fail-pathExists-1 error-message E018
 eval-fail-pathExists-2 error-message E020
-eval-fail-pipe-operators error-message E999
-eval-fail-placeholder-1 error-message E005
+eval-fail-pipe-operators error-message E028
+eval-fail-placeholder-1 error-message E006
 eval-fail-readDir-nonexistent-1 error-message E029
 eval-fail-readDir-nonexistent-2 error-message E029
 eval-fail-readDir-not-a-directory-1 error-message E029
@@ -230,7 +230,7 @@ eval-fail-replaceStrings-6 error-message E006
 eval-fail-scope-5 error-message E014
 eval-fail-seq error-message E002
 eval-fail-set-override unexpected-success
-eval-fail-set error-message E010
+eval-fail-set error-message E028
 eval-fail-short-path-literal unrun-flags
 eval-fail-sort-1 error-message E006
 eval-fail-sort-2 unexpected-success
@@ -242,7 +242,7 @@ eval-fail-split-1 error-message E006
 eval-fail-split-2 error-message E006
 eval-fail-split-3 error-message E042
 eval-fail-splitVersion-1 error-message E006
-eval-fail-storePath-1 error-message E005
+eval-fail-storePath-1 error-message E018
 eval-fail-string-nul-1 unexpected-success
 eval-fail-string-nul-2 unexpected-success
 eval-fail-stringLength-1 error-message E018
@@ -256,7 +256,7 @@ eval-fail-substring error-message E019
 eval-fail-tail-1 error-message E006
 eval-fail-tail-2 error-message E023
 eval-fail-to-path error-message E020
-eval-fail-toJSON-non-utf-8 error-message none
+eval-fail-toJSON-non-utf-8 error-message E029
 eval-fail-toJSON-stack-overflow crash
 eval-fail-toJSON error-message E001
 eval-fail-toPath-1 error-message E018
@@ -281,7 +281,7 @@ eval-okay-attrs3 pass
 eval-okay-attrs4 pass
 eval-okay-attrs5 pass
 eval-okay-attrs6 output
-eval-okay-autoargs unrun-flags
+eval-okay-autoargs pass
 eval-okay-backslash-newline-1 pass
 eval-okay-backslash-newline-2 pass
 eval-okay-baseNameOf unexpected-failure E003
@@ -296,15 +296,15 @@ eval-okay-comments pass
 eval-okay-concat pass
 eval-okay-concatmap pass
 eval-okay-concatstringssep pass
-eval-okay-context-introspection unexpected-failure E010
-eval-okay-context unexpected-failure E002
+eval-okay-context-introspection unexpected-failure E005
+eval-okay-context pass
 eval-okay-convertHash unexpected-failure E005
 eval-okay-curpos pass
 eval-okay-deepseq pass
-eval-okay-delayed-with-inherit unexpected-failure E010
-eval-okay-delayed-with unexpected-failure E011
+eval-okay-delayed-with-inherit pass
+eval-okay-delayed-with pass
 eval-okay-deprecate-cursed-or output
-eval-okay-derivation-legacy unexpected-failure E005
+eval-okay-derivation-legacy output
 eval-okay-dotdotslash-abs-fatal unrun-flags
 eval-okay-dotdotslash-path-fatal unrun-flags
 eval-okay-dotslash-abs-fatal unrun-flags
@@ -315,7 +315,7 @@ eval-okay-dynamic-attrs-bare pass
 eval-okay-dynamic-attrs pass
 eval-okay-elem pass
 eval-okay-empty-args pass
-eval-okay-eq-derivations unexpected-failure E010
+eval-okay-eq-derivations pass
 eval-okay-eq pass
 eval-okay-equal-function-attrset-distinct-similar pass
 eval-okay-equal-function-attrset-identical pass
@@ -345,7 +345,7 @@ eval-okay-hashfile pass
 eval-okay-hashstring pass
 eval-okay-home-path-warn unrun-flags
 eval-okay-if pass
-eval-okay-import unexpected-failure E010
+eval-okay-import unexpected-failure E028
 eval-okay-ind-string pass
 eval-okay-inherit-attr-pos output
 eval-okay-inherit-from output
@@ -364,7 +364,7 @@ eval-okay-overrides output
 eval-okay-parse-flake-ref unexpected-failure E005
 eval-okay-partition pass
 eval-okay-path-string-interpolation pass
-eval-okay-path unexpected-failure E005
+eval-okay-path pass
 eval-okay-pathexists output
 eval-okay-patterns pass
 eval-okay-print output
@@ -389,7 +389,7 @@ eval-okay-scope-3 pass
 eval-okay-scope-4 pass
 eval-okay-scope-6 pass
 eval-okay-scope-7 pass
-eval-okay-search-path unrun-flags
+eval-okay-search-path unexpected-failure E011
 eval-okay-seq pass
 eval-okay-short-path-literal-warn unrun-flags
 eval-okay-short-path-variation unrun-flags
@@ -397,7 +397,7 @@ eval-okay-sort pass
 eval-okay-splitversion pass
 eval-okay-string pass
 eval-okay-strings-as-attrs-names pass
-eval-okay-substring-context unexpected-failure E005
+eval-okay-substring-context pass
 eval-okay-substring pass
 eval-okay-symlink-resolution pass
 eval-okay-tail-call-1 disabled
