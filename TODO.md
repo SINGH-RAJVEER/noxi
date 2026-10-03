@@ -35,9 +35,9 @@ A checked item below means it exists and has focused local evidence in the curre
 	- [x] Finish `common-protocol` fixture dispositions. Seven shared primitive cases pass byte-for-byte round trips in `upstream_shared_protocols`; six old hash-based drv-output and realisation files have no corresponding 2.35.2 common codec or test and are recorded as anomalies, not passes. The test guards all 20 files and their reference dispositions.
 	- [x] Cover the active `serve-protocol` value and handshake fixtures. `cppnix_serve` matches 25 additional copied files across versions 2.1 to 2.8; `upstream_serve_protocol` checks semantics, exact writes, version gates, malformed inputs, and the intentionally read-only 2.6 build result. Six stale hash-based files absent from the pinned C++ tests are recorded as anomalies, not passes. Serve commands and real client/server exchange remain separate gates.
 	- [x] `derivation` JSON and derivation output JSON fixtures. `cppnix_json::derivation` reads and writes all 18 copied version-4 derivation and output JSON fixtures byte for byte, including feature-gated output kinds, dynamic inputs, and structured attributes; `upstream_derivation_json` checks their decoded fields and default feature gates.
-	- [ ] `derivation-options` fixtures (advanced attributes).
-	- [ ] `derivation/invariants` fixtures (filling in deferred output paths).
-	- [ ] `derivation/try-resolve` fixtures (resolving content-addressed inputs).
+	- [x] `derivation-options` fixtures (advanced attributes). Covered by `upstream_derivation_options`.
+	- [x] `derivation/invariants` fixtures (filling in deferred output paths). `upstream_derivation_resolution` matches the reference, including its no-env-var anomaly.
+	- [x] `derivation/try-resolve` fixtures (resolving content-addressed inputs). `upstream_derivation_resolution` resolves all four cases.
 	- [x] `store-reference` fixtures. `nix_compat::nixcpp::store_reference` parses all 22 Linux cases and renders the nine round-trip cases byte for byte in `upstream_store_reference`; the Windows-only path is rejected as the Linux reference rejects it.
 	- [x] `machines` fixtures. `nix_compat::nixcpp::machines` parses remote builder specifications as `Machine::parseConfig` does; `upstream_machines` covers every case of the pinned test and both copied files.
 	- [ ] `dummy-store` and `worker-substitution` fixtures; they need a store implementation.

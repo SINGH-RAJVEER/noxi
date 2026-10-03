@@ -22,8 +22,8 @@ ignore src/libutil-tests/data/git/check-data.sh
 table:upstream_derivations src/libstore-tests/data/derivation/**/*.drv
 table:upstream_derivation_options src/libstore-tests/data/derivation/ca/derivation-options/*.json # derivation options JSON
 table:upstream_derivation_options src/libstore-tests/data/derivation/ia/derivation-options/*.json # derivation options JSON
-unrun src/libstore-tests/data/derivation/invariants/* # derivation invariant checks
-unrun src/libstore-tests/data/derivation/try-resolve/* # CA derivation resolution
+pass:upstream_derivation_resolution src/libstore-tests/data/derivation/invariants/* # derivation invariant checks; the no-env-var post state fails the reference's own check
+pass:upstream_derivation_resolution src/libstore-tests/data/derivation/try-resolve/* # CA derivation resolution
 table:upstream_derivation_json src/libstore-tests/data/derivation/**/*.json # derivation and output JSON
 
 # libstore: protocols
