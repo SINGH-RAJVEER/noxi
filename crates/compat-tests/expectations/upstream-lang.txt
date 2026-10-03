@@ -63,7 +63,7 @@ eval-fail-concatMap-4 error-message E006
 eval-fail-concatStringsSep-1 error-message E006
 eval-fail-concatStringsSep-2 error-message E006
 eval-fail-concatStringsSep-3 error-message E018
-eval-fail-deepseq-list-attr unexpected-success
+eval-fail-deepseq-list-attr error-message E001
 eval-fail-deepseq-stack-overflow error-message E001
 eval-fail-deepseq error-message E002
 eval-fail-derivation-name error-message E997
@@ -127,14 +127,14 @@ eval-fail-foldlPrime-2 error-message E006
 eval-fail-foldlPrime-3 error-message E013
 eval-fail-foldlPrime-4 error-message E006
 eval-fail-foldlStrict-strict-op-application error-message E001
-eval-fail-fromJSON-keyWithNullByte unexpected-success
-eval-fail-fromJSON-overflowing unexpected-success
-eval-fail-fromJSON-valueWithNullByte unexpected-success
-eval-fail-fromTOML-keyWithNullByte unexpected-success
+eval-fail-fromJSON-keyWithNullByte error-message E044
+eval-fail-fromJSON-overflowing error-message E044
+eval-fail-fromJSON-valueWithNullByte error-message E044
+eval-fail-fromTOML-keyWithNullByte error-message E044
 eval-fail-fromTOML-overflow error-message E035
-eval-fail-fromTOML-timestamps unexpected-success
+eval-fail-fromTOML-timestamps error-message E044
 eval-fail-fromTOML-underflow error-message E035
-eval-fail-fromTOML-valueWithNullByte unexpected-success
+eval-fail-fromTOML-valueWithNullByte error-message E044
 eval-fail-functionArgs-1 error-message E006
 eval-fail-genList-1 error-message E006
 eval-fail-genList-2 error-message E013
@@ -143,12 +143,12 @@ eval-fail-genList-4 error-message E002
 eval-fail-genericClosure-deeply-nested-element error-message E005
 eval-fail-genericClosure-element-missing-key error-message E005
 eval-fail-genericClosure-element-not-attrset error-message E006
-eval-fail-genericClosure-keys-incompatible-types unexpected-success
-eval-fail-genericClosure-keys-uncomparable unexpected-success
+eval-fail-genericClosure-keys-incompatible-types error-message E007
+eval-fail-genericClosure-keys-uncomparable error-message E007
 eval-fail-genericClosure-missing-operator error-message E005
 eval-fail-genericClosure-missing-startSet error-message E005
 eval-fail-genericClosure-not-attrset error-message E006
-eval-fail-genericClosure-operator-not-function error-message E013
+eval-fail-genericClosure-operator-not-function error-message E006
 eval-fail-genericClosure-operator-not-list error-message E006
 eval-fail-genericClosure-startSet-not-list error-message E006
 eval-fail-getAttr-1 error-message E006
@@ -233,7 +233,7 @@ eval-fail-set-override unexpected-success
 eval-fail-set error-message E028
 eval-fail-short-path-literal error-message none
 eval-fail-sort-1 error-message E006
-eval-fail-sort-2 unexpected-success
+eval-fail-sort-2 error-message E006
 eval-fail-sort-3 error-message E013
 eval-fail-sort-4 error-message E006
 eval-fail-sort-5 error-message E007
@@ -243,8 +243,8 @@ eval-fail-split-2 error-message E006
 eval-fail-split-3 error-message E042
 eval-fail-splitVersion-1 error-message E006
 eval-fail-storePath-1 error-message E018
-eval-fail-string-nul-1 unexpected-success
-eval-fail-string-nul-2 unexpected-success
+eval-fail-string-nul-1 error-message E028
+eval-fail-string-nul-2 error-message E028
 eval-fail-stringLength-1 error-message E018
 eval-fail-sub-1 error-message E006
 eval-fail-sub-2 error-message E006
@@ -331,7 +331,7 @@ eval-okay-floor-ceil pass
 eval-okay-foldlStrict-lazy-elements pass
 eval-okay-foldlStrict-lazy-initial-accumulator pass
 eval-okay-foldlStrict pass
-eval-okay-fromTOML-timestamps output
+eval-okay-fromTOML-timestamps pass
 eval-okay-fromTOML pass
 eval-okay-fromjson-escapes pass
 eval-okay-fromjson pass
@@ -414,16 +414,16 @@ eval-okay-versions pass
 eval-okay-with pass
 eval-okay-xml pass
 eval-okay-zipAttrsWith pass
-parse-fail-dup-attrs-1 unexpected-success
-parse-fail-dup-attrs-2 unexpected-success
-parse-fail-dup-attrs-3 error-message E012
-parse-fail-dup-attrs-4 unexpected-success
-parse-fail-dup-attrs-7 unexpected-success
+parse-fail-dup-attrs-1 error-message E016
+parse-fail-dup-attrs-2 error-message E016
+parse-fail-dup-attrs-3 error-message E016
+parse-fail-dup-attrs-4 error-message E016
+parse-fail-dup-attrs-7 error-message E016
 parse-fail-dup-formals error-message E012
 parse-fail-eof-in-string error-message E015
 parse-fail-eof-pos error-message E015
-parse-fail-mixed-nested-attrs1 unexpected-success
-parse-fail-mixed-nested-attrs2 unexpected-success
+parse-fail-mixed-nested-attrs1 error-message E016
+parse-fail-mixed-nested-attrs2 error-message E016
 parse-fail-patterns-1 error-message E012
 parse-fail-regression-20060610 error-message E010
 parse-fail-undef-var-2 error-message E015
