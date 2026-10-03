@@ -11,21 +11,41 @@ let
 in
 {
 	packages = [
+		# Rust and native code compiled by Cargo dependencies.
 		rustToolchain
-		pkgs.bash
 		pkgs.cargo-nextest
+		pkgs.stdenv.cc
+		pkgs.gnumake
 		pkgs.cmake
-		pkgs.coreutils
-		pkgs.gawk
-		pkgs.git
-		pkgs.just
-		pkgs.jq
 		pkgs.meson
 		pkgs.ninja
-		pkgs.nix
 		pkgs.pkg-config
-		pkgs.socat
+
+		# Repository workflows, fixture scripts and release inspection.
+		pkgs.bash
+		pkgs.coreutils
+		pkgs.findutils
+		pkgs.gawk
+		pkgs.gnugrep
+		pkgs.gnused
+		pkgs.gnutar
+		pkgs.gzip
+		pkgs.bzip2
+		pkgs.xz
+		pkgs.curl
+		pkgs.git
+		pkgs.jujutsu
+		pkgs.just
+		pkgs.jq
+		pkgs.ripgrep
+		pkgs.nix
+		pkgs.python3
+		pkgs.uv
 		pkgs.sqlite
 		pkgs.zstd
+
+		# VM disk inspection and the reference VM's monitor connection.
+		pkgs.qemu_kvm
+		pkgs.socat
 	];
 }
