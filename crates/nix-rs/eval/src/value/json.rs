@@ -18,6 +18,21 @@ impl Value {
 	/// and accumulate all encountered context in the second's element
 	/// of the return type.
 	pub async fn into_contextful_json(self, co: &GenCo) -> Result<(Json, NixContext), ErrorKind> {
+		self.into_contextful_json_at(co, 0).await
+	}
+
+	/// [`Value::into_contextful_json`] at nesting `depth`. Like CppNix, this
+	/// fails rather than overflowing the stack beyond `max-call-depth`.
+	async fn into_contextful_json_at(
+		self,
+		co: &GenCo,
+		depth: usize,
+	) -> Result<(Json, NixContext), ErrorKind> {
+		if depth >= crate::max_call_depth() {
+			return Err(ErrorKind::EvalError(
+				"stack overflow; max-call-depth exceeded".into(),
+			));
+		}
 		let self_forced = generators::request_force(co, self).await;
 		let mut context = NixContext::new();
 
@@ -43,7 +58,7 @@ impl Value {
 				let mut out = Vec::with_capacity(l.len());
 
 				for val in l.into_iter() {
-					let (json_item, ctx) = Box::pin(val.into_contextful_json(co)).await?;
+					let (json_item, ctx) = Box::pin(val.into_contextful_json_at(co, depth + 1)).await?;
 					context.extend(ctx);
 					out.push(json_item);
 				}
@@ -85,14 +100,14 @@ impl Value {
 				// value (regardless of what it is!).
 				if let Some(out_path) = attrs.select("outPath") {
 					let (json_out_path, ctx) =
-						Box::pin(out_path.clone().into_contextful_json(co)).await?;
+						Box::pin(out_path.clone().into_contextful_json_at(co, depth + 1)).await?;
 					context.extend(ctx);
 					return Ok((json_out_path, context));
 				}
 
 				let mut out = Map::with_capacity(attrs.len());
 				for (name, value) in attrs.into_iter_sorted() {
-					let (json_value, ctx) = Box::pin(value.into_contextful_json(co)).await?;
+					let (json_value, ctx) = Box::pin(value.into_contextful_json_at(co, depth + 1)).await?;
 					context.extend(ctx);
 					out.insert(name.to_str()?.to_owned(), json_value);
 				}

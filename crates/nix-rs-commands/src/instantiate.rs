@@ -348,7 +348,9 @@ pub fn run(options: &Options, cwd: &Path, stdout: &mut dyn Write) -> ExitCode {
 		EvalMode::Lazy
 	};
 	let mut builder =
-		Evaluation::builder_pure().experimental_features(options.settings.experimental_features());
+		Evaluation::builder_pure()
+			.experimental_features(options.settings.experimental_features())
+			.max_call_depth(options.settings.get_int("max-call-depth", 10000).max(0) as usize);
 	if !options.include.is_empty() {
 		// CppNix searches `-I` entries before `NIX_PATH`.
 		let mut nix_path = options.include.join(":");

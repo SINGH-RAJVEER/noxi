@@ -3,7 +3,20 @@ use std::process::ExitCode;
 use nix_compat::nixcpp::settings::Settings;
 use nix_rs_commands::instantiate;
 
+/// CppNix raises its stack limit to 64 MiB so that deep evaluations do not
+/// overflow; evaluating on a thread of that size does the same.
+const STACK_SIZE: usize = 64 * 1024 * 1024;
+
 fn main() -> ExitCode {
+	std::thread::Builder::new()
+		.stack_size(STACK_SIZE)
+		.spawn(run)
+		.expect("start the evaluation thread")
+		.join()
+		.unwrap_or(ExitCode::FAILURE)
+}
+
+fn run() -> ExitCode {
 	let program = std::env::args()
 		.next()
 		.unwrap_or_else(|| "nix-instantiate".to_owned());

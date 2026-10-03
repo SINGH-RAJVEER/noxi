@@ -148,6 +148,16 @@ where
 	}
 }
 
+thread_local! {
+	/// CppNix's `max-call-depth`, which bounds recursive conversions such as
+	/// `builtins.toJSON` on this thread.
+	static MAX_CALL_DEPTH: std::cell::Cell<usize> = const { std::cell::Cell::new(10000) };
+}
+
+pub(crate) fn max_call_depth() -> usize {
+	MAX_CALL_DEPTH.with(std::cell::Cell::get)
+}
+
 // NOTE(aspen): The methods here are intentionally incomplete; feel free to add new ones (ideally
 // with similar naming conventions to the ones already present) but don't expose fields publicly!
 impl<'co, 'ro, 'env, IO> EvaluationBuilder<'co, 'ro, 'env, IO> {
@@ -279,6 +289,14 @@ impl<'co, 'ro, 'env, IO> EvaluationBuilder<'co, 'ro, 'env, IO> {
 	{
 		self.experimental_features
 			.set(features.into_iter().map(Into::into));
+		self
+	}
+
+	/// Set CppNix's `max-call-depth` (default 10000) for evaluations on this
+	/// thread. Deeper recursive conversions, such as `builtins.toJSON` of a
+	/// deeply nested value, fail with CppNix's stack overflow error.
+	pub fn max_call_depth(self, depth: usize) -> Self {
+		MAX_CALL_DEPTH.with(|max| max.set(depth));
 		self
 	}
 
@@ -555,15 +573,9 @@ where
 		let nix_path = self
 			.nix_path
 			.as_ref()
-			.and_then(|s| match nix_search_path::NixSearchPath::from_str(s) {
-				Ok(path) => Some(path),
-				Err(err) => {
-					result.warnings.push(EvalWarning {
-						kind: WarningKind::InvalidNixPath(err.to_string()),
-						span: file.span,
-					});
-					None
-				}
+			.map(|s| match nix_search_path::NixSearchPath::from_str(s) {
+				Ok(path) => path,
+				Err(never) => match never {},
 			})
 			.unwrap_or_default();
 
