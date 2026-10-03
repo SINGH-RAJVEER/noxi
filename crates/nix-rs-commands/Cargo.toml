@@ -14,6 +14,10 @@ name = "nix-instantiate"
 path = "src/bin/nix-instantiate.rs"
 
 [[bin]]
+name = "nix-build"
+path = "src/bin/nix-build.rs"
+
+[[bin]]
 name = "nix-store"
 path = "src/bin/nix-store.rs"
 
@@ -26,6 +30,7 @@ nix-rs-store = { path = "../nix-rs-store", version = "0.1.0" }
 libc.workspace = true
 rustc-hash.workspace = true
 smol_str.workspace = true
+tempfile.workspace = true
 
 [dev-dependencies]
 tempfile.workspace = true

@@ -1,0 +1,53 @@
+# CppNix gap review, 2026-10-03
+
+This review compares the current working tree with the selected package-manager MVP: replacing CppNix 2.35.2 on the pinned x86_64-linux NixOS target. The installed OS, installer, Lua, NixBox UI and fleet work follow this release. This is a source review with focused backend test results from the accompanying progress audit, not a full compatibility qualification. Existing evaluator and command edits were retained. [Scope](PLAN.md), [acceptance contract](docs/compatibility.md), [reference provenance](tests/nix-snapshot.lock)
+
+The implementation has working Rust store, cache, sandboxed build and daemon components. It cannot yet replace the reference executable suite or drive the required system lifecycle. Format fixtures, backend interoperability and end-to-end package-manager replacement are separate levels of evidence. [Commands](crates/nix-rs-commands/Cargo.toml), [store implementation](crates/nix-rs-store/src/local.rs), [builder](crates/nix-rs-build/src/local.rs), [daemon](crates/nix-rs-daemon/src/connection.rs)
+
+## What is implemented
+
+| Area | Concrete implementation and evidence | Boundary |
+|---|---|---|
+| Local store | Schema-10 layout, migrations, SQLite path metadata, references, registration, NAR import/export, integrity checks, shared temporary roots and path locks. Reference comparisons cover fresh stores and bidirectional reopening. | Copies and diverted stores; no whole-system replacement qualification. [Implementation](crates/nix-rs-store/src/local.rs), [tests](crates/compat-tests/tests/reference_store.rs) |
+| Garbage collection | Root discovery, live/dead traversal, deletion and GC socket implementation; reference comparisons include specific-path deletion and GC socket roots. | Profile generation management, optimisation, concurrency and crash qualification remain open. [Implementation](crates/nix-rs-store/src/gc.rs), [tests](crates/compat-tests/tests/reference_gc.rs), [remaining work](TODO.md) |
+| Caches | Local and HTTP(S) substitution, signature/hash/size checks, multiple decompression formats; signed local-cache closure upload with key rotation, GC protection and failed-publication tests. | Upload is explicitly limited to `file://`; HTTP upload, narinfo disk cache, complete authentication/TLS settings, offline and parallel download behavior remain open. [Implementation](crates/nix-rs-store/src/binary_cache.rs), [tests](crates/compat-tests/tests/reference_substitute.rs) |
+| Local builds | Input-addressed and fixed-output derivations, dependency recursion, multiple outputs, structured attributes, reference checks, sandbox, logs and failures. | Sequential library backend; no Rust build command. [Implementation](crates/nix-rs-build/src/local.rs), [tests](crates/compat-tests/tests/reference_build.rs) |
+| Daemon | Unix peer authorization, worker handshake, stderr tunnel, store queries, roots, GC, imports, signatures, non-repair verification and builds. | Library/server functions and a test harness; incomplete protocol and settings semantics. [Connection](crates/nix-rs-daemon/src/connection.rs), [server](crates/nix-rs-daemon/src/server.rs), [manifest](crates/nix-rs-daemon/Cargo.toml) |
+
+The accompanying audit reran `reference_store`, `reference_gc`, `reference_build`, `reference_substitute` and `reference_daemon`: 43 tests passed and two optional tests were skipped. This strengthens the listed backend evidence, but those skipped tests and all missing workflows remain open. See the accompanying progress report for commands and evaluator results.
+
+## Shortcomings by priority
+
+### Blocking: command coverage and connected workflows
+
+The only compatibility binary declared by `nix-rs-commands` is `nix-instantiate`, and its writable mode requires an explicit diverted local store. `nixrs` exposes pure-expression evaluation. The preview flake installs only `nix-rs-cli`; there is no replacement `nix` command suite, `nix-build`, `nix-store`, `nix-env` or packaged `nix-daemon` binary here. The reference inventory includes 12 executables and 96 `nix` commands. Existing scripts cannot use the current package as their replacement. [Command manifest](crates/nix-rs-commands/Cargo.toml), [instantiate checks](crates/nix-rs-commands/src/instantiate.rs), [preview CLI](crates/nix-rs-cli/src/main.rs), [flake](flake.nix), [inventory](docs/reference-inventory.md)
+
+The build comparison harness instantiates expressions with CppNix in both stores, then calls the Rust `LocalBuilder` for one side. The daemon harness likewise uses reference clients and reference-generated initial derivations. These are useful cross-engine backend tests; they do not demonstrate nix-rs evaluating arbitrary Nixpkgs expressions, instantiating their graph and building it through nix-rs commands. The Nixpkgs `hello` build test is optional and normally ignored. [Build setup](crates/compat-tests/tests/reference_build.rs), [daemon setup](crates/compat-tests/tests/reference_daemon.rs)
+
+### High: accepted daemon settings are silently discarded
+
+`Connection::set_options` reads `keep-failed`, `keep-going`, fallback, maximum jobs, silent timeout, build cores and substitution fields into unused variables. Apart from logger verbosity, trusted overrides are logged rather than applied to the immutable daemon settings. Matching warning text does not establish setting behavior: a client request for timeout, cores, keep-failed or substitution policy can be accepted while the configured defaults continue to govern the build. Functional settings tests must exercise the resulting behavior. [SetOptions](crates/nix-rs-daemon/src/connection.rs), [daemon settings](crates/nix-rs-daemon/src/settings.rs), [build settings](crates/nix-rs-build/src/settings.rs)
+
+### High: worker protocol and operations are incomplete
+
+The daemon advertises worker version 1.38; pinned CppNix advertises 1.39. Negotiation down to 1.38 can explain successful covered client operations, but does not prove current-wire parity. Source labels describing 1.38 as the latest 2.35.2 version are incorrect. [Rust constants](crates/nix-rs-daemon/src/connection.rs), [recorded reference](tests/reference-inventory/protocols.txt), [official pinned header](https://github.com/NixOS/nix/blob/2c73b59da29606068c0c98db015dd3a66955525d/src/libstore/include/nix/store/worker-protocol.hh)
+
+Eight active reference operations are absent from the Rust dispatch: `QuerySubstitutablePathInfo`, `QuerySubstitutablePathInfos`, `QuerySubstitutablePaths`, `OptimiseStore`, `BuildDerivation`, `RegisterDrvOutput`, `QueryRealisation` and `AddBuildLog`. They reach the invalid-operation fallback. Repair verification and repair/check build modes are explicitly rejected. Older-protocol imports below 1.23/1.25 are also explicitly unsupported, despite the handshake accepting versions as old as 1.18. Applicability of experimental realisation operations must be evaluated against the selected feature profile; missing core operations remain blockers. [Dispatch and checks](crates/nix-rs-daemon/src/connection.rs), [reference operation inventory](tests/reference-inventory/protocols.txt)
+
+### High: production build behavior and multi-user isolation remain open
+
+The builder traverses dependencies depth first and builds them sequentially. It explicitly lacks unsandboxed and remote builds, builtin builders, floating content-addressed, impure and deferred outputs, and repair/check modes. The selected `nix-command flakes` profile does not enable every experimental output mode, so those exclusions must be classified by scope; ordinary scheduling, supported sandbox settings and remote-builder behavior cannot be inferred from a small local corpus. [Builder](crates/nix-rs-build/src/local.rs), [feature profile](docs/compatibility-matrix.md), [build gates](TODO.md)
+
+Sandbox UID/GID maps use the calling process's UID/GID. There is no build-user pool allocation in `BuildSettings`; `build-users-group` in the daemon is used for connection authorization. The diverted unprivileged sandbox probe is useful evidence, but does not qualify the reference's multi-user build-user model on a root-owned system daemon. This is an unqualified security boundary, not a demonstrated sandbox escape. [UID mapping](crates/nix-rs-build/src/sandbox.rs), [build settings](crates/nix-rs-build/src/settings.rs), [peer checks](crates/nix-rs-daemon/src/server.rs), [explicit remaining gates](TODO.md)
+
+### Blocking: store lifecycle, public libraries and system replacement
+
+Current evidence does not close concurrent readers/writers, interrupted registration or collection, daemon disconnect/cancellation/restart, profile generations, optimisation, or whole-store return to the reference after a system switch. Public C/C++ consumers and unchanged-binary interoperability are still open. The booted qualification VM uses CppNix; nix-rs-driven NixOS build/test/boot/switch/dry activation, Home Manager activation, reboot and rollback have not passed. These are part of the package-manager MVP, even though the new OS image and installer follow it. [Qualification contract](docs/compatibility.md), [matrix](docs/compatibility-matrix.md), [MVP gates](TODO.md)
+
+### Medium: status documents understate recent backend progress
+
+The store README says GC and daemon support are not implemented, while their code and reference tests exist. The compatibility matrix and TODO still describe cache upload as wholly unrun/open, while signed `file://` upload and seven focused tests are present. Build substitution also exists in `LocalBuilder::with_substituters`. Counts and statements should be refreshed from current code and runs before using documentation to estimate completion. [Stale README](crates/nix-rs-store/README.md), [matrix](docs/compatibility-matrix.md), [TODO](TODO.md), [upload implementation](crates/nix-rs-store/src/binary_cache.rs), [upload tests](crates/compat-tests/tests/reference_substitute.rs), [builder substitution](crates/nix-rs-build/src/local.rs)
+
+## Implication for progress estimates
+
+A percentage should weight evaluator/flakes, command workflows, store/build/daemon behavior, libraries and system/release qualification. It should not divide implemented protocol operations by all opcodes, count imported code as qualified, or count anomaly/reference-disabled fixtures as passes. Backend implementation is substantially further along than the full replacement product. The remaining command surface, evaluator graph compatibility, effective settings and system lifecycle represent major work rather than final release polish. [MVP scope](PLAN.md), [zero-gap release requirement](docs/verification.md)

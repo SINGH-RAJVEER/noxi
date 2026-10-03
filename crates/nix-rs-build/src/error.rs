@@ -53,3 +53,31 @@ impl BuildError {
 		}
 	}
 }
+
+impl FailureStatus {
+	/// CppNix's `ExitStatusFlags::failingExitStatus` for a single failure:
+	/// 100 for a failed build, with bits for a timeout (101), a hash
+	/// mismatch (102) and nondeterminism (104), and 1 otherwise.
+	pub fn exit_status(self) -> u8 {
+		match self {
+			FailureStatus::PermanentFailure | FailureStatus::InputRejected => 100,
+			FailureStatus::TimedOut => 101,
+			FailureStatus::HashMismatch => 102,
+			FailureStatus::NotDeterministic => 0b1100000 | 0b1000,
+			_ => 1,
+		}
+	}
+}
+
+impl From<BuildError> for nix_rs_store::Error {
+	fn from(error: BuildError) -> Self {
+		match error {
+			BuildError::Store(error) => error,
+			BuildError::Failed { status, message } => nix_rs_store::Error::Build {
+				exit_status: status.exit_status(),
+				message,
+			},
+			error => nix_rs_store::Error::Other(error.to_string()),
+		}
+	}
+}

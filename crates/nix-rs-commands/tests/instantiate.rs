@@ -8,7 +8,7 @@ use std::path::Path;
 use std::process::Command;
 
 #[test]
-fn instantiation_requires_explicit_diversion_and_registers_drv_bytes() {
+fn instantiation_registers_drv_bytes_in_a_diverted_store() {
 	let root = tempfile::tempdir().unwrap();
 	let expr = r#"derivation { name = "a"; system = "x"; builder = "/bin/sh"; }"#;
 	let output = Command::new(env!("CARGO_BIN_EXE_nix-instantiate"))
@@ -47,19 +47,24 @@ fn instantiation_requires_explicit_diversion_and_registers_drv_bytes() {
 		.unwrap();
 	assert!(!invalid.status.success());
 	assert!(invalid.stdout.is_empty());
-	for args in [
-		vec!["-E", expr],
-		vec!["--store", "local", "-E", expr],
-		vec!["--store", "local?root=/", "-E", expr],
+	// A root must be a directory outside /nix, and nix-rs cannot use the
+	// daemon yet. Neither touches a store.
+	for (args, error) in [
+		(
+			vec!["--store", "local?root=/", "-E", expr],
+			"error: store root '/' must be a directory outside /nix\n",
+		),
+		(
+			vec!["--store", "daemon", "-E", expr],
+			"error: connecting to the Nix daemon is not supported by nix-rs yet; use a local store\n",
+		),
 	] {
-		assert!(
-			!Command::new(env!("CARGO_BIN_EXE_nix-instantiate"))
-				.args(args)
-				.output()
-				.unwrap()
-				.status
-				.success()
-		);
+		let output = Command::new(env!("CARGO_BIN_EXE_nix-instantiate"))
+			.args(args)
+			.output()
+			.unwrap();
+		assert!(!output.status.success());
+		assert_eq!(String::from_utf8_lossy(&output.stderr), error);
 	}
 }
 

@@ -11,14 +11,19 @@
 
 use std::fmt::Write as _;
 use std::io::{self, Read, Write};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::process::ExitCode;
+use std::rc::Rc;
 
 use nix_compat::nixcpp::settings::Settings;
+use nix_compat::store_path::StorePath;
 use nix_rs_eval::builtin_macros::builtins;
 use nix_rs_eval::{Ambiguous, EvalMode, Evaluation, Value};
+use nix_rs_store::Store;
 use rustc_hash::FxHashMap;
 use smol_str::SmolStr;
+
+use crate::store;
 
 /// A value passed with `--arg` or `--argstr`.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -30,8 +35,12 @@ pub enum AutoArg {
 #[derive(Debug, Default, Clone)]
 pub struct Options {
 	pub eval: bool,
-	/// Explicit diverted local store, `local?root=ROOT`.
+	/// `--store`: the store URI, overriding the `store` setting.
 	pub store: Option<String>,
+	/// `--add-root`: make the derivations GC roots with this name.
+	pub gc_root: Option<String>,
+	/// Warn about results that are not GC roots (`--no-gc-warning` clears).
+	pub gc_warning: bool,
 	/// Permit writes during `--eval`; normal instantiation writes by default.
 	pub read_write_mode: bool,
 	pub strict: bool,
@@ -58,8 +67,20 @@ pub fn parse_args(
 	args: impl IntoIterator<Item = String>,
 	settings: Settings,
 ) -> Result<Options, String> {
+	parse_args_with(args, settings, |_, _| None)
+}
+
+/// [`parse_args`] for a command with its own flags: `extra` is offered each
+/// flag first, with the remaining arguments, and returns `None` for flags it
+/// does not know.
+pub fn parse_args_with(
+	args: impl IntoIterator<Item = String>,
+	settings: Settings,
+	mut extra: impl FnMut(&str, &mut dyn Iterator<Item = String>) -> Option<Result<(), String>>,
+) -> Result<Options, String> {
 	let mut options = Options {
 		settings,
+		gc_warning: true,
 		..Options::default()
 	};
 	let mut args = args.into_iter();
@@ -68,8 +89,17 @@ pub fn parse_args(
 			.ok_or_else(|| format!("flag '{flag}' requires 1 argument"))
 	};
 	while let Some(arg) = args.next() {
+		if arg.starts_with('-')
+			&& let Some(result) = extra(&arg, &mut args)
+		{
+			result?;
+			continue;
+		}
 		match arg.as_str() {
 			"--store" => options.store = Some(value(&mut args, &arg)?),
+			"--add-root" => options.gc_root = Some(value(&mut args, &arg)?),
+			"--indirect" => {}
+			"--no-gc-warning" => options.gc_warning = false,
 			"--read-write-mode" => options.read_write_mode = true,
 			"--eval" | "--eval-only" => options.eval = true,
 			"--strict" => options.strict = true,
@@ -206,6 +236,20 @@ __nixrs_autoCall = f:
 	else if ellipsis then f __nixrs_autoArgs
 	else f (builtins.intersectAttrs (builtins.functionArgs f) __nixrs_autoArgs);
 __nixrs_forceEach = results: builtins.foldl' (acc: v: builtins.seq v acc) results results;
+__nixrs_isDerivation = v: builtins.isAttrs v && v ? type && v.type == \"derivation\";
+__nixrs_pair = d: [ d.drvPath (d.outputName or \"\") ];
+__nixrs_getDerivations = v:
+	let v' = __nixrs_autoCall v; in
+	if __nixrs_isDerivation v' then [ (__nixrs_pair v') ]
+	else if builtins.isAttrs v' then builtins.concatMap (name:
+		let x = v'.${name}; in
+		if builtins.match \"[A-Za-z_][A-Za-z0-9_+-]*\" name == null then [ ]
+		else if __nixrs_isDerivation x then [ (__nixrs_pair x) ]
+		else if builtins.isAttrs x && x ? recurseForDerivations && x.recurseForDerivations then __nixrs_getDerivations x
+		else [ ]) (builtins.attrNames v')
+	else if builtins.isList v' then builtins.concatMap (x:
+		if __nixrs_isDerivation x then [ (__nixrs_pair x) ] else __nixrs_getDerivations x) v'
+	else throw \"expression does not evaluate to a derivation (or a set or list of those)\";
 __nixrs_select = v: name:
 	let v' = __nixrs_autoCall v; in
 	if builtins.isList v' && builtins.match \"[0-9]+\" name != null
@@ -243,9 +287,7 @@ in __nixrs_forceEach [\n",
 				selection = format!("(__nixrs_autoCall {selection})");
 			}
 			if !options.eval {
-				selection = format!(
-					"(let __nixrs_selected = {selection}; in if __nixrs_selected.type or null == \"derivation\" then builtins.storePath __nixrs_selected.drvPath else throw \"expected a derivation for instantiation\")"
-				);
+				selection = format!("(__nixrs_getDerivations {selection})");
 			} else if options.json {
 				selection = format!("(builtins.toJSON {selection})");
 			}
@@ -277,70 +319,51 @@ mod driver_builtins {
 	}
 }
 
-/// Run `nix-instantiate` with already parsed options.
-pub fn run(options: &Options, cwd: &Path, stdout: &mut dyn Write) -> ExitCode {
-	if !options.eval && options.json {
-		eprintln!("error: --json requires --eval");
-		return ExitCode::FAILURE;
-	}
-	if options.eval && options.xml && !options.no_location {
-		eprintln!("error: --xml output with source locations is not supported; pass --no-location");
-		return ExitCode::FAILURE;
-	}
-	let writable = !options.eval || options.read_write_mode;
-	if writable && options.store.is_none() {
-		eprintln!(
-			"error: writable evaluation requires --store local?root=ROOT; pass --eval for read-only evaluation"
-		);
-		return ExitCode::FAILURE;
-	}
+/// The store an evaluation registers paths in, and the result of each
+/// selection, in command-line order.
+pub struct Evaluated {
+	pub store: Option<Rc<dyn Store>>,
+	pub results: Vec<Value>,
+}
 
-	let driver = match driver_expression(options, cwd) {
-		Ok(driver) => driver,
-		Err(error) => {
-			eprintln!("error: {error}");
-			return ExitCode::FAILURE;
-		}
+/// Evaluate the selections of `options`. Errors are printed; the exit code
+/// is returned. Unless `options.eval`, each result is a list of
+/// `[ drvPath outputName ]` pairs, as CppNix's `getDerivations` finds them.
+pub fn evaluate(options: &Options, cwd: &Path) -> Result<Evaluated, ExitCode> {
+	let fail = |message: &dyn std::fmt::Display| {
+		eprintln!("error: {message}");
+		ExitCode::FAILURE
 	};
+	let driver = driver_expression(options, cwd).map_err(|e| fail(&e))?;
 
 	let env: FxHashMap<SmolStr, Value> = driver_builtins::builtins()
 		.into_iter()
 		.map(|(name, value)| (SmolStr::new(format!("__nixrs_{name}")), value))
 		.collect();
-	// Validate even read-only selections rather than silently accepting a
-	// daemon, system store, or unsupported URI parameters.
-	let root = match options.store.as_deref() {
-		None => None,
-		Some(uri) => match uri.strip_prefix("local?root=") {
-			Some(root)
-				if !root.is_empty()
-					&& !root.contains(['&', '?', '%'])
-					&& Path::new(root).is_absolute() =>
-			{
-				Some(Path::new(root))
-			}
-			_ => {
-				eprintln!("error: only --store local?root=ABSOLUTE_ROOT is supported");
-				return ExitCode::FAILURE;
-			}
-		},
-	};
-	let store = match root {
-		Some(root) => {
-			let store = if writable {
-				nix_rs_glue::EvaluatorStore::writable(root)
-			} else {
-				nix_rs_glue::EvaluatorStore::read_only(root)
-			};
-			match store {
-				Ok(store) => store,
-				Err(error) => {
-					eprintln!("error: {error}");
-					return ExitCode::FAILURE;
-				}
-			}
+	let writable = !options.eval || options.read_write_mode;
+	let uri = store::store_uri(options.store.as_deref(), &options.settings);
+	let (evaluator_store, store) = if writable {
+		match store::open(&uri, &options.settings).map_err(|e| fail(&e))? {
+			Some(opened) => (
+				nix_rs_glue::EvaluatorStore::with_store(
+					opened.store.clone(),
+					opened.real_store_dir.clone(),
+				),
+				Some(opened.store),
+			),
+			None => (nix_rs_glue::ReadOnlyStore::new(), None),
 		}
-		None => nix_rs_glue::ReadOnlyStore::new(),
+	} else {
+		// Read-only evaluation computes paths without opening a store, but
+		// reads a diverted store's files where they are.
+		let root = uri
+			.strip_prefix("local?root=")
+			.filter(|root| !root.is_empty() && !root.contains(['&', '?', '%']));
+		let store = match root {
+			Some(root) => nix_rs_glue::EvaluatorStore::read_only(Path::new(root)).map_err(|e| fail(&e))?,
+			None => nix_rs_glue::ReadOnlyStore::new(),
+		};
+		(store, None)
 	};
 	let mode = if !options.eval || options.strict || options.json || options.xml {
 		EvalMode::Strict
@@ -359,7 +382,7 @@ pub fn run(options: &Options, cwd: &Path, stdout: &mut dyn Write) -> ExitCode {
 		}
 		builder = builder.nix_path(Some(nix_path));
 	}
-	let builder = nix_rs_glue::configure(builder, store)
+	let builder = nix_rs_glue::configure(builder, evaluator_store)
 		.env(Some(&env))
 		.mode(mode);
 	// The evaluator's own lints (unused bindings, legacy `let`, ...) have no
@@ -370,47 +393,151 @@ pub fn run(options: &Options, cwd: &Path, stdout: &mut dyn Write) -> ExitCode {
 		for error in &result.errors {
 			error.fancy_format_stderr();
 		}
-		return ExitCode::FAILURE;
+		return Err(ExitCode::FAILURE);
 	}
 	let Some(Value::List(results)) = result.value else {
-		eprintln!("error: evaluation produced no value");
-		return ExitCode::FAILURE;
+		return Err(fail(&"evaluation produced no value"));
 	};
-	for value in results.iter() {
-		let written = if !options.eval {
-			let string = match value.to_contextful_str() {
-				Ok(string) => string,
-				Err(error) => {
-					eprintln!("error: {error}");
-					return ExitCode::FAILURE;
-				}
+	Ok(Evaluated {
+		store,
+		results: results.iter().map(forced).collect(),
+	})
+}
+
+/// Strict evaluation leaves forced thunks in the result lists.
+fn forced(value: &Value) -> Value {
+	match value {
+		Value::Thunk(thunk) if thunk.is_evaluated() => forced(&thunk.value()),
+		value => value.clone(),
+	}
+}
+
+/// The derivations a non-`--eval` evaluation found: path and output name.
+pub fn derivations(results: &[Value]) -> Result<Vec<(StorePath, String)>, String> {
+	let mut derivations = Vec::new();
+	for result in results {
+		let Value::List(pairs) = result else {
+			return Err("instantiation produced no derivation list".to_owned());
+		};
+		for pair in pairs.iter() {
+			let Value::List(pair) = forced(pair) else {
+				return Err("instantiation produced an invalid derivation".to_owned());
 			};
-			stdout
-				.write_all(string.as_bytes())
-				.and_then(|()| stdout.write_all(b"\n"))
-		} else {
-			// Strict evaluation leaves forced thunks in the result list.
-			let forced;
-			let value = match value {
-				Value::Thunk(thunk) => {
-					forced = thunk.value().clone();
-					&forced
-				}
-				value => value,
-			};
-			match value {
-				value if options.xml => nix_rs_eval::builtins::value_to_xml(&mut *stdout, value)
-					.map(|_| ())
-					.map_err(|error| io::Error::other(error.to_string())),
-				Value::String(s) if options.json => stdout
-					.write_all(s.as_bytes())
-					.and_then(|()| stdout.write_all(b"\n")),
-				value => writeln!(stdout, "{}", Ambiguous(value)),
+			let drv_path = forced(pair.get(0).ok_or("missing derivation path")?)
+				.to_contextful_str()
+				.map_err(|e| e.to_string())?;
+			let output = forced(pair.get(1).ok_or("missing output name")?)
+				.to_contextful_str()
+				.map_err(|e| e.to_string())?;
+			let drv_path = StorePath::from_absolute_path(drv_path.as_bytes())
+				.map_err(|_| {
+					format!(
+						"invalid derivation path '{}'",
+						String::from_utf8_lossy(drv_path.as_bytes())
+					)
+				})?;
+			let output = String::from_utf8(output.as_bytes().to_vec()).map_err(|e| e.to_string())?;
+			if output.is_empty() {
+				return Err(format!(
+					"derivation '{}' lacks an 'outputName' attribute",
+					drv_path.to_absolute_path()
+				));
 			}
+			derivations.push((drv_path, output));
+		}
+	}
+	Ok(derivations)
+}
+
+/// Run `nix-instantiate` with already parsed options.
+pub fn run(options: &Options, cwd: &Path, stdout: &mut dyn Write) -> ExitCode {
+	if !options.eval && options.json {
+		eprintln!("error: --json requires --eval");
+		return ExitCode::FAILURE;
+	}
+	if options.eval && options.xml && !options.no_location {
+		eprintln!("error: --xml output with source locations is not supported; pass --no-location");
+		return ExitCode::FAILURE;
+	}
+	let evaluated = match evaluate(options, cwd) {
+		Ok(evaluated) => evaluated,
+		Err(code) => return code,
+	};
+
+	if !options.eval {
+		let derivations = match derivations(&evaluated.results) {
+			Ok(derivations) => derivations,
+			Err(error) => {
+				eprintln!("error: {error}");
+				return ExitCode::FAILURE;
+			}
+		};
+		let mut root_nr = 0;
+		let mut warned = false;
+		for (drv_path, output) in derivations {
+			let mut printed = drv_path.to_absolute_path();
+			match (&options.gc_root, &evaluated.store) {
+				(Some(gc_root), Some(store)) => {
+					root_nr += 1;
+					let mut root = absolute_path(cwd, Path::new(gc_root)).into_os_string();
+					if root_nr > 1 {
+						root.push(format!("-{root_nr}"));
+					}
+					match store.add_perm_root(&drv_path, Path::new(&root)) {
+						Ok(link) => printed = link.display().to_string(),
+						Err(error) => {
+							eprintln!("error: {error}");
+							return ExitCode::FAILURE;
+						}
+					}
+				}
+				(None, _) if !warned && options.gc_warning => {
+					warned = true;
+					eprintln!(
+						"warning: you did not specify '--add-root'; the result might be removed by the garbage collector"
+					);
+				}
+				_ => {}
+			}
+			if output != "out" {
+				printed.push('!');
+				printed.push_str(&output);
+			}
+			if writeln!(stdout, "{printed}").is_err() {
+				return ExitCode::FAILURE;
+			}
+		}
+		return ExitCode::SUCCESS;
+	}
+
+	for value in &evaluated.results {
+		let written = match value {
+			value if options.xml => nix_rs_eval::builtins::value_to_xml(&mut *stdout, value)
+				.map(|_| ())
+				.map_err(|error| io::Error::other(error.to_string())),
+			Value::String(s) if options.json => stdout
+				.write_all(s.as_bytes())
+				.and_then(|()| stdout.write_all(b"\n")),
+			value => writeln!(stdout, "{}", Ambiguous(value)),
 		};
 		if written.is_err() {
 			return ExitCode::FAILURE;
 		}
 	}
 	ExitCode::SUCCESS
+}
+
+/// CppNix's `absPath`: `path` relative to `cwd`, normalised lexically.
+pub fn absolute_path(cwd: &Path, path: &Path) -> PathBuf {
+	let mut out = PathBuf::new();
+	for component in cwd.join(path).components() {
+		match component {
+			std::path::Component::ParentDir => {
+				out.pop();
+			}
+			std::path::Component::CurDir => {}
+			c => out.push(c),
+		}
+	}
+	out
 }

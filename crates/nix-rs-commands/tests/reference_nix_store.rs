@@ -95,6 +95,8 @@ impl Env {
 		let executable = match engine {
 			"reference" => reference_bin().join(program),
 			_ => PathBuf::from(match program {
+				"nix-build" => env!("CARGO_BIN_EXE_nix-build"),
+				"nix-instantiate" => env!("CARGO_BIN_EXE_nix-instantiate"),
 				"nix-store" => env!("CARGO_BIN_EXE_nix-store"),
 				_ => panic!("no nix-rs executable for {program}"),
 			}),
@@ -146,13 +148,17 @@ impl Env {
 	/// working directories, and require the same result once each engine's
 	/// directory name is replaced. Returns the reference's standard output.
 	fn same(&self, args: &[&str]) -> String {
+		self.same_with("nix-store", args)
+	}
+
+	fn same_with(&self, program: &str, args: &[&str]) -> String {
 		let results: Vec<(i32, String, String)> = ENGINES
 			.iter()
 			.map(|engine| {
 				let store = self.store(engine);
 				let mut full = vec!["--store", &store];
 				full.extend_from_slice(args);
-				let output = self.run(engine, "nix-store", &full, Some(&self.cwd(engine)));
+				let output = self.run(engine, program, &full, Some(&self.cwd(engine)));
 				let normalise = |bytes: &[u8]| {
 					String::from_utf8_lossy(bytes).replace(
 						&self.dir.path().join(engine).display().to_string(),
@@ -166,7 +172,7 @@ impl Env {
 				)
 			})
 			.collect();
-		assert_eq!(results[1], results[0], "nix-store {args:?}");
+		assert_eq!(results[1], results[0], "{program} {args:?}");
 		results[0].1.clone()
 	}
 }
@@ -266,4 +272,91 @@ fn realises_with_roots_and_queries_like_cppnix() {
 		String::from_utf8_lossy(&output.stderr),
 		"reading the Nix store...\nchecking path existence...\nchecking link hashes...\nchecking store hashes...\n"
 	);
+}
+
+/// A set of derivations as `nix-build` and `nix-instantiate` collect them:
+/// attributes in name order, recursing only into `recurseForDerivations`.
+const SET_EXPR: &str = r#"
+let
+  bb = builtins.storePath @busybox@;
+  mk = name: outputs: derivation {
+    inherit name outputs;
+    system = "x86_64-linux";
+    builder = "${bb}/bin/sh";
+    args = [ "-c" "for o in $outputs; do eval \"echo ${name} > \\$$o\"; done" ];
+  };
+  multi = mk "multi" [ "out" "dev" ];
+in
+{
+  b = multi.dev;
+  a = multi;
+  c = { recurseForDerivations = true; d = mk "dep" [ "out" ]; };
+  e = { skipped = mk "skipped" [ "out" ]; };
+  "not an attr path" = mk "odd" [ "out" ];
+  f = 1;
+}
+"#;
+
+#[test]
+fn builds_and_instantiates_with_roots_like_cppnix() {
+	let env = Env::new();
+	let file = env.dir.path().join("set.nix");
+	fs::write(&file, SET_EXPR.replace("@busybox@", &env.busybox)).unwrap();
+	let file = file.to_str().unwrap();
+
+	let instantiated = env.same_with("nix-instantiate", &[file, "--add-root", "drv"]);
+	assert_eq!(
+		instantiated,
+		"<engine>/work/drv\n<engine>/work/drv-2!dev\n<engine>/work/drv-3\n"
+	);
+	env.same_with("nix-instantiate", &[file]);
+	env.same_with("nix-instantiate", &[file, "-A", "c"]);
+
+	env.same_with("nix-build", &[file, "--dry-run"]);
+	let built = env.same_with("nix-build", &[file]);
+	assert_eq!(built.lines().count(), 3);
+	for link in ["result", "result-dev", "result-2"] {
+		for engine in ENGINES {
+			assert!(
+				env.cwd(engine).join(link).is_symlink(),
+				"{engine} makes {link}"
+			);
+		}
+	}
+	env.same_with("nix-build", &[file, "-A", "b", "-o", "custom"]);
+	env.same_with("nix-build", &[file, "-A", "a", "--no-out-link"]);
+	env.same_with("nix-build", &[file, "-A", "c.d"]);
+	env.same_with("nix-store", &["-q", "--requisites", "custom-dev"]);
+}
+
+const FAILING_EXPR: &str = r#"
+let
+  bb = builtins.storePath @busybox@;
+  mk = name: cmd: extra: derivation ({
+    inherit name;
+    system = "x86_64-linux";
+    builder = "${bb}/bin/sh";
+    args = [ "-c" cmd ];
+  } // extra);
+  fails = mk "fails" "echo line1; echo line2 >&2; exit 3" { };
+in
+{
+  inherit fails;
+  dependent = mk "dependent" "echo ${fails} > $out" { };
+  noOutput = mk "no-output" "true" { };
+}
+"#;
+
+#[test]
+fn reports_failed_builds_like_cppnix() {
+	let env = Env::new();
+	let file = env.dir.path().join("failing.nix");
+	fs::write(&file, FAILING_EXPR.replace("@busybox@", &env.busybox)).unwrap();
+	let file = file.to_str().unwrap();
+
+	env.same_with("nix-build", &[file, "-A", "fails"]);
+	env.same_with("nix-build", &[file, "-A", "noOutput"]);
+	env.same_with("nix-build", &[file, "-A", "dependent"]);
+	let drv = env.same_with("nix-instantiate", &[file, "-A", "fails", "--no-gc-warning"]);
+	env.same(&["-r", drv.trim()]);
 }

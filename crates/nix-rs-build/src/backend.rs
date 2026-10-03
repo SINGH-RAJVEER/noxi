@@ -55,6 +55,46 @@ impl LocalBackend {
 	}
 }
 
+impl LocalBackend {
+	/// The derivations realising `paths` builds, each after its inputs and
+	/// otherwise in order of name and path.
+	fn build_order(&self, paths: &[DerivedPath]) -> Result<Vec<StorePath>> {
+		let will_build = self.query_missing(paths)?.will_build;
+		let mut inputs: BTreeMap<StorePath, BTreeSet<StorePath>> = BTreeMap::new();
+		for drv in &will_build {
+			let drv_inputs = self
+				.store
+				.read_derivation(drv)?
+				.input_derivations()
+				.keys()
+				.filter(|input| will_build.contains(*input))
+				.cloned()
+				.collect();
+			inputs.insert(drv.clone(), drv_inputs);
+		}
+		let key = |path: &StorePath| (path.name().to_owned(), path.to_absolute_path());
+		let mut ready: BTreeSet<(String, String, StorePath)> = BTreeSet::new();
+		for (drv, drv_inputs) in &inputs {
+			if drv_inputs.is_empty() {
+				let (name, path) = key(drv);
+				ready.insert((name, path, drv.clone()));
+			}
+		}
+		let mut order = Vec::new();
+		while let Some((_, _, drv)) = ready.pop_first() {
+			inputs.remove(&drv);
+			for (other, other_inputs) in inputs.iter_mut() {
+				if other_inputs.remove(&drv) && other_inputs.is_empty() {
+					let (name, path) = key(other);
+					ready.insert((name, path, other.clone()));
+				}
+			}
+			order.push(drv);
+		}
+		Ok(order)
+	}
+}
+
 impl Store for LocalBackend {
 	fn real_path(&self, path: &StorePath) -> PathBuf {
 		self.store.real_path(path)
@@ -160,6 +200,11 @@ impl Store for LocalBackend {
 				BuildEvent::Finished { .. } => Ok(()),
 			};
 		};
+		// CppNix's worker starts ready builds in the order of their goal keys,
+		// `dd$NAME$PATH`, so independent derivations build in name order.
+		for drv in self.build_order(paths)? {
+			builder.realise_with_events(&drv, None, &mut events)?;
+		}
 		for path in paths {
 			match path {
 				DerivedPath::Opaque(path) => {
@@ -176,7 +221,7 @@ impl Store for LocalBackend {
 				DerivedPath::Built { drv, outputs } => {
 					let wanted = (!outputs.is_empty()).then_some(outputs);
 					let result = builder.realise_with_events(drv, wanted, &mut events);
-					result.map_err(|e| Error::Other(e.to_string()))?;
+					result?;
 				}
 			}
 		}

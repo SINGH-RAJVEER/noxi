@@ -5,6 +5,7 @@
 
 pub mod cli;
 pub mod instantiate;
+pub mod nix_build;
 pub mod nix_store;
 pub mod paths;
 pub mod store;

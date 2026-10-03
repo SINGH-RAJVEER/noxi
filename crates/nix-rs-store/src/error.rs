@@ -29,6 +29,11 @@ pub enum Error {
 	#[error("{0} is corrupt")]
 	CorruptSchema(PathBuf),
 
+	/// A build or substitution failed; commands exit with `exit_status`,
+	/// CppNix's `failingExitStatus`.
+	#[error("{message}")]
+	Build { exit_status: u8, message: String },
+
 	/// Any other failure, with CppNix's message.
 	#[error("{0}")]
 	Other(String),

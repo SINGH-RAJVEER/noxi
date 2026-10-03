@@ -13,12 +13,38 @@ const STACK_SIZE: usize = 64 * 1024 * 1024;
 pub enum Failure {
 	Usage(String),
 	Error(String),
+	/// An error with an exit status other than 1, such as a failed build.
+	Exit(u8, String),
 }
 
-impl<E: std::fmt::Display> From<E> for Failure {
-	fn from(error: E) -> Self {
+impl From<String> for Failure {
+	fn from(error: String) -> Self {
+		Failure::Error(error)
+	}
+}
+
+impl From<std::io::Error> for Failure {
+	fn from(error: std::io::Error) -> Self {
 		Failure::Error(error.to_string())
 	}
+}
+
+impl From<nix_rs_store::Error> for Failure {
+	fn from(error: nix_rs_store::Error) -> Self {
+		match error {
+			nix_rs_store::Error::Build {
+				exit_status,
+				message,
+			} => Failure::Exit(exit_status, message),
+			error => Failure::Error(error.to_string()),
+		}
+	}
+}
+
+/// Print an error as CppNix does: continuation lines line up after the
+/// `error: ` prefix.
+pub fn print_error(message: &str) {
+	eprintln!("error: {}", message.trim_end().replace('\n', "\n       "));
 }
 
 /// Run `command` with the settings from the configuration files and the
@@ -45,8 +71,12 @@ pub fn main(
 					ExitCode::FAILURE
 				}
 				Err(Failure::Error(message)) => {
-					eprintln!("error: {message}");
+					print_error(&message);
 					ExitCode::FAILURE
+				}
+				Err(Failure::Exit(status, message)) => {
+					print_error(&message);
+					ExitCode::from(status)
 				}
 			}
 		})
