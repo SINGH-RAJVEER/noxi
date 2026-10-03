@@ -203,7 +203,11 @@ impl<'a, 'r> DirReader<'a, 'r> {
 
 		read::token(self.reader, &nar::wire::TOK_NOD).await?;
 
-		let node = Node::new(self.reader, self.status.child()).await?;
+		let status = self.status.child();
+		if status.depth >= nar::wire::MAX_DEPTH {
+			return Err(nar::wire::depth_error());
+		}
+		let node = Node::new(self.reader, status).await?;
 		guard.disarm();
 		Ok(Some(Entry {
 			name: &self.prev_name,
@@ -218,6 +222,8 @@ struct Status {
 	poisoned: Arc<AtomicBool>,
 	ready: Arc<AtomicBool>,
 	parent_ready: Option<Arc<AtomicBool>>,
+	/// How deep the node is nested; the root is at depth zero.
+	depth: usize,
 }
 
 impl Status {
@@ -226,6 +232,7 @@ impl Status {
 			poisoned: Arc::new(AtomicBool::new(false)),
 			ready: Arc::new(AtomicBool::new(true)),
 			parent_ready: None,
+			depth: 0,
 		}
 	}
 
@@ -235,6 +242,7 @@ impl Status {
 			poisoned: self.poisoned.clone(),
 			ready: Arc::new(AtomicBool::new(true)),
 			parent_ready: Some(self.ready.clone()),
+			depth: self.depth + 1,
 		}
 	}
 

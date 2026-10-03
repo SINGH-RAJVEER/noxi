@@ -7,6 +7,7 @@ use std::os::unix::ffi::OsStrExt;
 use std::os::unix::fs::{DirBuilderExt, OpenOptionsExt, PermissionsExt};
 use std::path::Path;
 
+use nix_compat::nar::MAX_DEPTH;
 use nix_compat::nar::reader as nar_reader;
 use nix_compat::nar::writer::sync as nar_writer;
 use sha2::{Digest, Sha256};
@@ -15,10 +16,21 @@ use sha2::{Digest, Sha256};
 /// byte order of their names; a regular file is executable when its owner
 /// may execute it.
 pub fn dump_path<W: Write>(writer: &mut W, path: &Path) -> io::Result<()> {
-	dump(nar_writer::open(writer)?, path)
+	dump(nar_writer::open(writer)?, path, 0)
 }
 
-fn dump<W: Write>(node: nar_writer::Node<'_, W>, path: &Path) -> io::Result<()> {
+/// CppNix's error for a node nested [`MAX_DEPTH`] deep.
+pub fn depth_error(path: &Path) -> io::Error {
+	io::Error::other(format!(
+		"path '{}' exceeds maximum NAR directory depth of {MAX_DEPTH}",
+		path.display()
+	))
+}
+
+fn dump<W: Write>(node: nar_writer::Node<'_, W>, path: &Path, depth: usize) -> io::Result<()> {
+	if depth >= MAX_DEPTH {
+		return Err(depth_error(path));
+	}
 	let metadata = fs::symlink_metadata(path)?;
 	let file_type = metadata.file_type();
 	if file_type.is_symlink() {
@@ -34,7 +46,11 @@ fn dump<W: Write>(node: nar_writer::Node<'_, W>, path: &Path) -> io::Result<()> 
 		names.sort_by(|a, b| a.as_bytes().cmp(b.as_bytes()));
 		let mut directory = node.directory()?;
 		for name in names {
-			dump(directory.entry(name.as_bytes())?, &path.join(&name))?;
+			dump(
+				directory.entry(name.as_bytes())?,
+				&path.join(&name),
+				depth + 1,
+			)?;
 		}
 		directory.close()
 	} else {

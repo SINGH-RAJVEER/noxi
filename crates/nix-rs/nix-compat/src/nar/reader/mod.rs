@@ -28,6 +28,9 @@ pub type Reader<'a> = dyn BufRead + Send + 'a;
 struct ArchiveReader<'a, 'r> {
 	inner: &'a mut Reader<'r>,
 
+	/// How deep the node being read is nested; the root is at depth zero.
+	depth: usize,
+
 	/// In debug mode, also track when we need to abandon this archive reader.
 	///
 	/// The archive reader must be abandoned when:
@@ -54,6 +57,7 @@ pub fn open<'a, 'r>(reader: &'a mut Reader<'r>) -> io::Result<Node<'a, 'r>> {
 	read::token(reader, &wire::TOK_NAR)?;
 	Node::new(ArchiveReader {
 		inner: reader,
+		depth: 0,
 		status: ArchiveReaderStatus::top(),
 	})
 }
@@ -339,10 +343,16 @@ impl<'a, 'r> DirReader<'a, 'r> {
 
 		try_or_poison!(self.reader, read::token(self.reader.inner, &wire::TOK_NOD));
 
+		let mut child = self.reader.child();
+		if child.depth >= wire::MAX_DEPTH {
+			child.status.poison();
+			return Err(wire::depth_error());
+		}
+
 		Ok(Some(Entry {
 			name: &self.prev_name,
 			// Don't need to worry about poisoning here: Node::new will do it for us if needed
-			node: Node::new(self.reader.child())?,
+			node: Node::new(child)?,
 		}))
 	}
 }
@@ -441,6 +451,7 @@ impl<'r> ArchiveReader<'_, 'r> {
 	fn child(&mut self) -> ArchiveReader<'_, 'r> {
 		ArchiveReader {
 			inner: self.inner,
+			depth: self.depth + 1,
 			#[cfg(not(debug_assertions))]
 			status: ArchiveReaderStatus::None(PhantomData),
 			#[cfg(debug_assertions)]

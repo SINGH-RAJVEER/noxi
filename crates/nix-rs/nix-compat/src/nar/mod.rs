@@ -12,3 +12,4 @@ mod copy_async;
 pub use copy::copy;
 #[cfg(all(feature = "async", feature = "wire"))]
 pub use copy_async::copy as copy_async;
+pub use wire::{MAX_DEPTH, MAX_NAME_LEN, MAX_TARGET_LEN};
