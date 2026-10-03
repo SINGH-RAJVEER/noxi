@@ -386,14 +386,14 @@ impl Compiler<'_, '_> {
 			}
 
 			ast::Expr::Assert(assert) => {
-				self.thunk(slot, assert, move |c, s| c.compile_assert(s, assert))
+				self.thunk(slot, assert, move |c, s| c.compile_assert(s, assert, false))
 			}
-			ast::Expr::IfElse(if_else) => {
-				self.thunk(slot, if_else, move |c, s| c.compile_if_else(s, if_else))
-			}
+			ast::Expr::IfElse(if_else) => self.thunk(slot, if_else, move |c, s| {
+				c.compile_if_else(s, if_else, false)
+			}),
 
 			ast::Expr::LetIn(let_in) => {
-				self.thunk(slot, let_in, move |c, s| c.compile_let_in(s, let_in))
+				self.thunk(slot, let_in, move |c, s| c.compile_let_in(s, let_in, false))
 			}
 
 			ast::Expr::Ident(ident) => self.compile_ident(slot, ident),
@@ -977,7 +977,7 @@ impl Compiler<'_, '_> {
 	///  if condition is true.└┼─5─→     ...         │
 	///                        └─────────────────────┘
 	/// ```
-	fn compile_assert(&mut self, slot: LocalIdx, node: &ast::Assert) {
+	fn compile_assert(&mut self, slot: LocalIdx, node: &ast::Assert, tail: bool) {
 		// Compile the assertion condition to leave its value on the stack.
 		self.compile(slot, node.condition().unwrap());
 		self.emit_force(&node.condition().unwrap());
@@ -989,7 +989,7 @@ impl Compiler<'_, '_> {
 		self.push_u16(0);
 
 		self.push_op(Op::Pop, node);
-		self.compile(slot, node.body().unwrap());
+		self.compile_body(slot, node.body().unwrap(), tail);
 
 		let else_idx = self.push_op(Op::Jump, node);
 		self.push_u16(0);
@@ -1015,7 +1015,7 @@ impl Compiler<'_, '_> {
 	///  if condition is true.└┼─6─→     ...        ←┼───┘
 	///                        └─────────────────────┘
 	/// ```
-	fn compile_if_else(&mut self, slot: LocalIdx, node: &ast::IfElse) {
+	fn compile_if_else(&mut self, slot: LocalIdx, node: &ast::IfElse, tail: bool) {
 		self.compile(slot, node.condition().unwrap());
 		self.emit_force(&node.condition().unwrap());
 
@@ -1026,14 +1026,14 @@ impl Compiler<'_, '_> {
 		self.push_u16(0);
 
 		self.push_op(Op::Pop, node); // discard condition value
-		self.compile(slot, node.body().unwrap());
+		self.compile_body(slot, node.body().unwrap(), tail);
 
 		let else_idx = self.push_op(Op::Jump, node);
 		self.push_u16(0);
 
 		self.patch_jump(then_idx); // patch jump *to* else_body
 		self.push_op(Op::Pop, node); // discard condition value
-		self.compile(slot, node.else_body().unwrap());
+		self.compile_body(slot, node.else_body().unwrap(), tail);
 
 		self.patch_jump(else_idx); // patch jump *over* else body
 		self.patch_jump(throw_idx); // patch jump *over* else body
@@ -1310,7 +1310,7 @@ impl Compiler<'_, '_> {
 		if let Some(name) = self.context().lambda.name.clone() {
 			self.scope_mut().name_phantom(slot, name);
 		}
-		self.compile(slot, node.body().unwrap());
+		self.compile_tail(slot, node.body().unwrap());
 		if let Some((formals, throw_idx)) = formals {
 			self.context_mut().lambda.formals = Some(formals);
 			// For formals, there's no single parameter name, use empty string
@@ -1434,6 +1434,34 @@ impl Compiler<'_, '_> {
 					self.push_uvarint(self.scope().stack_index(outer_slot).0 as u64);
 				}
 			}
+		}
+	}
+
+	/// Compile an expression whose value the current frame returns. CppNix
+	/// evaluates a function's body when the function is called, so an
+	/// application or conditional there runs inside the call instead of in a
+	/// thunk the caller forces afterwards. Recursive calls then nest as in
+	/// CppNix, where `max-call-depth` counts them. `with` bodies stay
+	/// thunked: the VM's dynamic with-stack must be empty whenever another
+	/// frame runs.
+	fn compile_tail(&mut self, slot: LocalIdx, expr: ast::Expr) {
+		match &expr {
+			ast::Expr::Paren(paren) => self.compile_tail(slot, paren.expr().unwrap()),
+			ast::Expr::Apply(apply) => self.compile_apply(slot, apply),
+			ast::Expr::IfElse(if_else) => self.compile_if_else(slot, if_else, true),
+			ast::Expr::Assert(assert) => self.compile_assert(slot, assert, true),
+			ast::Expr::LetIn(let_in) => self.compile_let_in(slot, let_in, true),
+			_ => self.compile(slot, expr),
+		}
+	}
+
+	/// Compile the body of a conditional, assertion or `let`, in tail
+	/// position if the expression itself is.
+	pub(super) fn compile_body(&mut self, slot: LocalIdx, expr: ast::Expr, tail: bool) {
+		if tail {
+			self.compile_tail(slot, expr);
+		} else {
+			self.compile(slot, expr);
 		}
 	}
 

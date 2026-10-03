@@ -913,11 +913,11 @@ impl Compiler<'_, '_> {
 	///
 	/// Unless in a non-standard scope, the encountered values are simply pushed
 	/// on the stack and their indices noted in the entries vector.
-	pub(super) fn compile_let_in(&mut self, slot: LocalIdx, node: &ast::LetIn) {
+	pub(super) fn compile_let_in(&mut self, slot: LocalIdx, node: &ast::LetIn, tail: bool) {
 		let guard = self.compile_bindings(slot, BindingsKind::LetIn, node);
 
 		// Deal with the body, then clean up the locals afterwards.
-		self.compile(slot, node.body().unwrap());
+		self.compile_body(slot, node.body().unwrap(), tail);
 		self.cleanup_scope(node, guard);
 	}
 

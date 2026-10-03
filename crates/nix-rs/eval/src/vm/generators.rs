@@ -263,6 +263,7 @@ where
 			generator,
 			span,
 			state: GeneratorState::AwaitingValue,
+			depth: self.call_depth,
 		});
 	}
 
@@ -277,6 +278,7 @@ where
 			span,
 			state: GeneratorState::Running,
 			generator: Gen::new(|co| pin_generator(r#gen(co))),
+			depth: self.call_depth,
 		});
 	}
 
@@ -413,6 +415,7 @@ where
 									upvalues,
 									ip: CodeIdx(0),
 									stack_offset: self.stack.len(),
+									depth: self.call_depth,
 								},
 							});
 

@@ -84,6 +84,9 @@ trait WithSpan<T, S: GetSpan, IO> {
 	fn with_span(self, top_span: S, vm: &VM<IO>) -> Result<T, Error>;
 }
 
+/// The most frames of the frame stack an error records.
+const MAX_TRACE_FRAMES: usize = 1000;
+
 impl<T, S: GetSpan, IO> WithSpan<T, S, IO> for Result<T, ErrorKind> {
 	fn with_span(self, top_span: S, vm: &VM<IO>) -> Result<T, Error> {
 		match self {
@@ -92,8 +95,10 @@ impl<T, S: GetSpan, IO> WithSpan<T, S, IO> for Result<T, ErrorKind> {
 				let mut error = Error::new(kind, top_span.get_span(), vm.source.clone());
 
 				// Wrap the top-level error in chaining errors for each element
-				// of the frame stack.
-				for frame in vm.frames.iter().rev() {
+				// of the frame stack. Recursion can leave many thousands of
+				// frames, and so many nested errors would overflow the stack
+				// when dropped or printed, so only the innermost are kept.
+				for frame in vm.frames.iter().rev().take(MAX_TRACE_FRAMES) {
 					match frame {
 						Frame::BytecodeFrame { span, .. } => {
 							error = Error::new(
@@ -135,6 +140,10 @@ struct BytecodeFrame {
 
 	/// Stack offset, i.e. the frames "view" into the VM's full stack.
 	stack_offset: usize,
+
+	/// The function calls active when this frame runs, itself included if
+	/// it is one; see [`VM::call_depth`].
+	depth: usize,
 }
 
 impl BytecodeFrame {
@@ -226,6 +235,9 @@ enum Frame {
 
 		/// Generator itself, which can be resumed with `.resume()`.
 		generator: Generator,
+
+		/// The function calls active when this frame runs.
+		depth: usize,
 	},
 }
 
@@ -368,6 +380,15 @@ struct VM<'o, IO> {
 	/// Control is yielded to the outer VM loop, which evaluates the next frame
 	/// and returns the result itself to the `builtins.tryEval` frame.
 	try_eval_frames: Vec<usize>,
+
+	/// The function calls active in the running frame, CppNix's
+	/// `callDepth`. Each frame records it, so that a frame resumed after
+	/// others ran restores its own.
+	call_depth: usize,
+
+	/// CppNix's `max-call-depth`: a call made with more calls than this
+	/// already active fails.
+	max_call_depth: usize,
 }
 
 impl<'o, IO> VM<'o, IO>
@@ -396,6 +417,8 @@ where
 			import_cache: Default::default(),
 			path_import_cache: Default::default(),
 			try_eval_frames: vec![],
+			call_depth: 0,
+			max_call_depth: crate::max_call_depth(),
 		}
 	}
 
@@ -413,6 +436,10 @@ where
 		while let Some(frame) = self.frames.pop() {
 			self.reasonable_span = frame.span();
 			let frame_id = self.frames.len();
+			self.call_depth = match &frame {
+				Frame::BytecodeFrame { bytecode_frame, .. } => bytecode_frame.depth,
+				Frame::Generator { depth, .. } => *depth,
+			};
 
 			match frame {
 				Frame::BytecodeFrame {
@@ -442,6 +469,7 @@ where
 					span,
 					state,
 					generator,
+					..
 				} => {
 					self.observer
 						.observe_enter_generator(frame_id, name, &self.stack);
@@ -1169,6 +1197,7 @@ where
 				span,
 				name,
 				state: GeneratorState::Running,
+				depth: self.call_depth,
 			}),
 		}
 
@@ -1182,7 +1211,14 @@ where
 		callable: Value,
 	) -> EvalResult<()> {
 		match callable {
-			Value::Builtin(builtin) => self.call_builtin(span, builtin),
+			// The parent frame resumes after the call: a call in tail
+			// position of a conditional or `let` is followed by more code.
+			Value::Builtin(builtin) => {
+				if let Some((parent_span, parent_frame)) = parent {
+					self.push_bytecode_frame(parent_span, parent_frame);
+				}
+				self.call_builtin(span, builtin)
+			}
 			Value::Thunk(thunk) => self.call_value(span, parent, thunk.value().clone()),
 
 			Value::Closure(closure) => {
@@ -1195,9 +1231,17 @@ where
 				// `stack_len - 1`.
 				let stack_offset = self.stack.len() - 1;
 
-				// Reenqueue the parent frame, which should only have
-				// `OpReturn` left. Not throwing it away leads to more
-				// useful error traces.
+				// Like CppNix, count nested calls, tail calls included, so
+				// unbounded recursion fails instead of running forever.
+				if self.call_depth > self.max_call_depth {
+					return Err(ErrorKind::EvalError(
+						"stack overflow; max-call-depth exceeded".into(),
+					))
+					.with_span(span, self);
+				}
+
+				// Reenqueue the parent frame, which resumes after the call.
+				// Keeping it also leads to more useful error traces.
 				if let Some((parent_span, parent_frame)) = parent {
 					self.push_bytecode_frame(parent_span, parent_frame);
 				}
@@ -1209,6 +1253,7 @@ where
 						upvalues: closure.upvalues(),
 						ip: CodeIdx(0),
 						stack_offset,
+						depth: self.call_depth + 1,
 					},
 				);
 
@@ -1231,6 +1276,9 @@ where
 				// applying a `throw` to anything is still a `throw`, so we just
 				// push it back on the stack.
 				self.stack.push(val);
+				if let Some((parent_span, parent_frame)) = parent {
+					self.push_bytecode_frame(parent_span, parent_frame);
+				}
 				Ok(())
 			}
 
@@ -1504,6 +1552,7 @@ where
 			upvalues: Rc::new(Upvalues::with_capacity(0)),
 			ip: CodeIdx(0),
 			stack_offset: 0,
+			depth: 0,
 		},
 	});
 
