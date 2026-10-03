@@ -72,8 +72,8 @@ eval-fail-derivationStrict-1 error-message E006
 eval-fail-derivationStrict-10 error-message E006
 eval-fail-derivationStrict-11 error-message E006
 eval-fail-derivationStrict-12 error-message E006
-eval-fail-derivationStrict-13 error-message E997
-eval-fail-derivationStrict-14 unexpected-success
+eval-fail-derivationStrict-13 error-message E044
+eval-fail-derivationStrict-14 error-message E044
 eval-fail-derivationStrict-15 error-message E997
 eval-fail-derivationStrict-16 error-message E006
 eval-fail-derivationStrict-17 error-message E006
