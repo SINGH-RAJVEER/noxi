@@ -7,3 +7,5 @@
 //! protocol live elsewhere.
 
 pub mod conf;
+pub mod settings;
+mod settings_table;

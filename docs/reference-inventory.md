@@ -9,7 +9,7 @@ This page lists what CppNix 2.35.2 exposes and what the pinned NixOS and Home Ma
 | File | Contents | 2.35.2 count |
 |---|---|---|
 | `files.txt` | Executables, libexec helpers, systemd units, tmpfiles and profile scripts, and shell completions in the reference package | 12 executables, 2 libexec helpers, 3 service files, 4 profile scripts |
-| `settings.json` | Every `nix.conf` setting with its aliases, gating experimental feature, and documented default. Undocumented defaults depend on the build machine and are recorded as `null`. | 134 settings, 7 gated |
+| `settings.json` | Every `nix.conf` setting with its aliases, gating experimental feature, and documented default. Undocumented defaults depend on the build machine and are recorded as `null`. `scripts/settings-table.py` turns this file and `experimental-features.json` into `nix_compat::nixcpp`'s settings table; rerun it when they change. | 134 settings, 7 gated |
 | `experimental-features.json` | Experimental feature names | 21 |
 | `cli.json` | The `nix` command tree with each command's flags and gating feature, the global flags, the store types, and the fetcher types | 96 commands and subcommands, 218 global flags, 10 store types, 9 fetchers |
 | `builtins.json` | Every builtin and constant with its argument names and gating feature | 116, 6 gated |
