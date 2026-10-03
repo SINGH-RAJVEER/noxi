@@ -574,6 +574,7 @@ impl Compiler<'_, '_> {
 	}
 
 	fn compile_str(&mut self, slot: LocalIdx, node: &ast::Str) {
+		self.check_str_nul(node);
 		let parts = normalized_str_parts(node);
 
 		// We need to thunk string expressions if they are the result of
@@ -1589,6 +1590,40 @@ impl Compiler<'_, '_> {
 	fn emit_warning<N: ToSpan>(&mut self, node: &N, kind: WarningKind) {
 		let span = self.span_for(node);
 		self.warnings.push(EvalWarning { kind, span })
+	}
+
+	/// CppNix's lexer rejects a string literal with a NUL byte, showing the
+	/// unescaped text of a `"` string or the raw text of an indented string.
+	fn check_str_nul(&mut self, node: &ast::Str) {
+		let multiline = rowan::ast::AstNode::syntax(node)
+			.first_token()
+			.is_some_and(|token| token.text() == "''");
+		for (index, part) in node.parts().enumerate() {
+			if let ast::InterpolPart::Literal(literal) = part {
+				let mut raw = literal.syntax().text();
+				let mut start = literal.syntax().text_range().start();
+				// CppNix's `''` token takes the spaces and line feed after it.
+				if multiline && index == 0 {
+					let spaces = raw.len() - raw.trim_start_matches(' ').len();
+					if raw[spaces..].starts_with('\n') {
+						raw = &raw[spaces + 1..];
+						start += rnix::TextSize::from(spaces as u32 + 1);
+					}
+				}
+				if raw.contains('\0') {
+					let text = if multiline {
+						raw.to_owned()
+					} else {
+						unescape_str(raw)
+					};
+					self.emit_error(
+						&rnix::TextRange::new(start, start),
+						ErrorKind::EvalError(crate::builtins::nul_message(text.as_bytes())),
+					);
+					return;
+				}
+			}
+		}
 	}
 
 	fn emit_error<N: ToSpan>(&mut self, node: &N, kind: ErrorKind) {

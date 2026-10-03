@@ -7,6 +7,7 @@
 use std::iter::Peekable;
 
 use rnix::ast::HasEntry;
+use rustc_hash::FxHashSet;
 use rowan::ast::AstChildren;
 
 use crate::spans::{EntireFile, OrEntireFile};
@@ -139,6 +140,35 @@ impl Binding {
 
 			Binding::Set(existing) => {
 				if let ast::Expr::AttrSet(new) = entry.expr {
+					// CppNix merges two attribute set literals only if the new
+					// one defines none of the existing keys.
+					let mut existing_keys: FxHashSet<SmolStr> = existing
+						.entries
+						.iter()
+						.filter_map(|entry| entry.remaining_path.clone().peek().and_then(expr_static_attr_str))
+						.collect();
+					existing_keys.extend(
+						existing
+							.inherits
+							.iter()
+							.flat_map(|inherit| inherit.attrs())
+							.filter_map(|attr| expr_static_attr_str(&attr)),
+					);
+					let new_keys = ast::HasEntry::attrpath_values(&new)
+						.filter_map(|entry| entry.attrpath()?.attrs().next())
+						.chain(ast::HasEntry::inherits(&new).flat_map(|inherit| inherit.attrs()));
+					for attr in new_keys {
+						if let Some(name) = expr_static_attr_str(&attr)
+							&& existing_keys.contains(&name)
+						{
+							c.emit_error(
+								&attr,
+								ErrorKind::DuplicateAttrsKey {
+									key: name.to_string(),
+								},
+							);
+						}
+					}
 					existing.inherits.extend(ast::HasEntry::inherits(&new));
 					existing
 						.entries
@@ -324,6 +354,7 @@ impl Compiler<'_, '_> {
 		slot: LocalIdx,
 		kind: BindingsKind,
 		count: &mut usize,
+		declared: &mut FxHashSet<SmolStr>,
 		node: &N,
 	) -> Vec<(ast::Expr, SmolStr, Span)>
 	where
@@ -340,6 +371,19 @@ impl Compiler<'_, '_> {
 			if inherit.attrs().peekable().peek().is_none() {
 				self.emit_warning(&inherit, WarningKind::EmptyInherit);
 				continue;
+			}
+
+			for attr in inherit.attrs() {
+				if let Some(name) = expr_static_attr_str(&attr)
+					&& !declared.insert(name.clone())
+				{
+					self.emit_error(
+						&attr,
+						ErrorKind::DuplicateAttrsKey {
+							key: name.to_string(),
+						},
+					);
+				}
 			}
 
 			match inherit.from() {
@@ -476,6 +520,7 @@ impl Compiler<'_, '_> {
 		kind: BindingsKind,
 		count: &mut usize,
 		bindings: &mut TrackedBindings,
+		declared: &mut FxHashSet<SmolStr>,
 		node: &N,
 	) where
 		N: ToSpan + HasEntryProxy,
@@ -488,6 +533,18 @@ impl Compiler<'_, '_> {
 				Ok(()) => continue,
 				Err(entry) => entry,
 			};
+
+			if let Some(name) = expr_static_attr_str(&key)
+				&& !declared.insert(name.clone())
+			{
+				self.emit_error(
+					&key,
+					ErrorKind::DuplicateAttrsKey {
+						key: name.to_string(),
+					},
+				);
+				continue;
+			}
 
 			*count += 1;
 
@@ -661,9 +718,12 @@ impl Compiler<'_, '_> {
 		// Vector to track all observed bindings.
 		let mut bindings = TrackedBindings::new();
 
-		let inherit_froms = self.compile_plain_inherits(slot, kind, &mut count, node);
+		// Statically known names defined so far, which CppNix's parser
+		// rejects defining again.
+		let mut declared = FxHashSet::default();
+		let inherit_froms = self.compile_plain_inherits(slot, kind, &mut count, &mut declared, node);
 		self.declare_namespaced_inherits(kind, inherit_froms, &mut bindings);
-		self.declare_bindings(kind, &mut count, &mut bindings, node);
+		self.declare_bindings(kind, &mut count, &mut bindings, &mut declared, node);
 
 		// Check if we can bail out on empty bindings
 		if count == 0 {
