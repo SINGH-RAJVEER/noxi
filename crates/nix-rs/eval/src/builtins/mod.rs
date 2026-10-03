@@ -15,7 +15,6 @@ use std::collections::hash_map::Entry;
 use std::path::PathBuf;
 use std::rc::Rc;
 
-use crate::value::PointerEquality;
 use crate::vm::generators::{self, GenCo};
 use crate::warnings::WarningKind;
 use crate::{
@@ -28,7 +27,10 @@ use crate::{arithmetic_op, try_cek};
 
 use self::versions::{VersionPart, VersionPartsIter};
 
+mod from_data;
+pub(crate) use from_data::nul_message;
 mod hash;
+mod sort;
 mod to_xml;
 mod versions;
 
@@ -139,9 +141,7 @@ mod pure_builtins {
 	use os_str_bytes::OsStringBytes;
 	use rustc_hash::{FxHashMap, FxHashSet};
 
-	use crate::{
-		AddContext, NixContext, NixContextElement, try_cek_to_value, value::PointerEquality,
-	};
+	use crate::{NixContext, NixContextElement, try_cek_to_value, value::PointerEquality};
 
 	use super::*;
 
@@ -279,6 +279,7 @@ mod pure_builtins {
 	/// Without a debugger, `break` returns its argument, as CppNix's does.
 	#[builtin("break")]
 	async fn builtin_break(co: GenCo, #[lazy] value: Value) -> Result<Value, ErrorKind> {
+		let _ = co;
 		Ok(value)
 	}
 
@@ -382,7 +383,7 @@ mod pure_builtins {
 
 	#[builtin("deepSeq")]
 	async fn builtin_deep_seq(co: GenCo, x: Value, y: Value) -> Result<Value, ErrorKind> {
-		generators::request_deep_force(&co, x).await;
+		try_value!(generators::request_deep_force(&co, x).await);
 		Ok(y)
 	}
 
@@ -521,7 +522,8 @@ mod pure_builtins {
 	#[builtin("fromJSON")]
 	async fn builtin_from_json(co: GenCo, json: Value) -> Result<Value, ErrorKind> {
 		let json_str = json.to_str()?;
-		serde_json::from_slice(&json_str).map_err(|err| err.into())
+		let json: serde_json::Value = serde_json::from_slice(&json_str)?;
+		from_data::json_to_value(json)
 	}
 
 	#[builtin("toJSON")]
@@ -540,51 +542,81 @@ mod pure_builtins {
 	}
 
 	#[builtin("fromTOML")]
-	async fn builtin_from_toml(co: GenCo, toml: Value) -> Result<Value, ErrorKind> {
+	async fn builtin_from_toml(
+		state: Rc<BuiltinState>,
+		co: GenCo,
+		toml: Value,
+	) -> Result<Value, ErrorKind> {
 		let toml_str = toml.to_str()?;
-
-		toml::from_str(toml_str.to_str()?).map_err(|err| err.into())
+		let toml: toml::Value = toml::from_str(toml_str.to_str()?)?;
+		from_data::toml_to_value(
+			toml,
+			state.experimental_features.enabled("parse-toml-timestamps"),
+		)
 	}
 
 	#[builtin("genericClosure")]
 	async fn builtin_generic_closure(co: GenCo, input: Value) -> Result<Value, ErrorKind> {
+		// After CppNix's `prim_genericClosure`, which keeps the keys in an
+		// ordered set, so keys must be comparable.
 		let attrs = input.to_attrs()?;
+		let start_set = generators::request_force(&co, attrs.select_required("startSet")?.clone())
+			.await;
+		let start_set = try_value!(start_set).to_list()?;
+		if start_set.is_empty() {
+			return Ok(Value::List(start_set));
+		}
+		let operator = attrs.select_required("operator")?.clone();
+		let operator = try_value!(generators::request_force(&co, operator).await);
+		if !matches!(operator, Value::Closure(_) | Value::Builtin(_))
+			&& !matches!(&operator, Value::Attrs(attrs) if attrs.select("__functor").is_some())
+		{
+			return Err(ErrorKind::TypeError {
+				expected: "lambda",
+				actual: operator.type_of(),
+			});
+		}
 
-		// The work set is maintained as a VecDeque because new items
-		// are popped from the front.
-		let mut work_set: VecDeque<Value> =
-			generators::request_force(&co, attrs.select_required("startSet")?.clone())
-				.await
-				.to_list()?
-				.into_iter()
-				.collect();
-
-		let operator = attrs.select_required("operator")?;
-
+		let span = generators::request_span(&co).await;
+		let mut work_set: VecDeque<Value> = start_set.into_iter().collect();
 		let mut res = Vec::new();
-		let mut done_keys: Vec<Value> = vec![];
+		let mut keys: Vec<Value> = Vec::new();
 
 		while let Some(val) = work_set.pop_front() {
-			let val = generators::request_force(&co, val).await;
-			let attrs = val.to_attrs()?;
-			let key = attrs.select_required("key")?;
+			let val = try_value!(generators::request_force(&co, val).await);
+			let key = val.to_attrs()?.select_required("key")?.clone();
+			let key = try_value!(generators::request_force(&co, key).await);
 
-			let value_missing =
-				try_cek_to_value!(bgc_insert_key(&co, key.clone(), &mut done_keys).await?);
-
-			if !value_missing {
+			// Binary search for the key among the sorted keys seen so far.
+			let (mut low, mut high) = (0, keys.len());
+			let mut found = false;
+			while low < high {
+				let mid = (low + high) / 2;
+				match try_cek_to_value!(
+					key.clone()
+						.nix_cmp_ordering_ref(keys[mid].clone(), &co, span)
+						.await?
+				) {
+					Ordering::Less => high = mid,
+					Ordering::Greater => low = mid + 1,
+					Ordering::Equal => {
+						found = true;
+						break;
+					}
+				}
+			}
+			if found {
 				continue;
 			}
+			keys.insert(low, key);
 
 			res.push(val.clone());
-
 			let op_result = generators::request_force(
 				&co,
 				generators::request_call_with(&co, operator.clone(), [val]).await,
 			)
 			.await;
-
-			work_set.extend(op_result.to_list()?);
+			work_set.extend(try_value!(op_result).to_list()?);
 		}
 
 		Ok(Value::List(NixList::from(res)))
@@ -1341,51 +1373,32 @@ mod pure_builtins {
 
 	#[builtin("sort")]
 	async fn builtin_sort(co: GenCo, comparator: Value, list: Value) -> Result<Value, ErrorKind> {
+		// After CppNix's `prim_sort`: the list is forced first, then the
+		// comparator, which must be a function, then every element.
 		let list = list.to_list()?;
-		let mut len = list.len();
-		let mut data = list.into_inner();
-
-		// Asynchronous sorting algorithm in which the comparator can make use of
-		// VM requests (required as `builtins.sort` uses comparators written in
-		// Nix).
-		//
-		// This is a simple, optimised bubble sort implementation. The choice of
-		// algorithm is constrained by the comparator in Nix not being able to
-		// yield equality, and us being unable to use the standard library
-		// implementation of sorting (which is a lot longer, but a lot more
-		// efficient) here.
-		// TODO(amjoseph): Investigate potential impl in Nix code, or nix-rs bytecode.
-		loop {
-			let mut new_len = 0;
-			for i in 1..len {
-				if try_value!(
-					generators::request_force(
-						&co,
-						generators::request_call_with(
-							&co,
-							comparator.clone(),
-							[data[i].clone(), data[i - 1].clone()],
-						)
-						.await,
-					)
-					.await
-				)
-				.as_bool()
-				.context("evaluating comparator in `builtins.sort`")?
-				{
-					data.swap(i, i - 1);
-					new_len = i;
-				}
-			}
-
-			if new_len == 0 {
-				break;
-			}
-
-			len = new_len;
+		if list.is_empty() {
+			return Ok(Value::List(list));
 		}
-
-		Ok(Value::List(data.into()))
+		let comparator = try_value!(comparator);
+		let is_function = match &comparator {
+			Value::Closure(_) | Value::Builtin(_) => true,
+			Value::Attrs(attrs) => attrs.select("__functor").is_some(),
+			_ => false,
+		};
+		if !is_function {
+			return Err(ErrorKind::TypeError {
+				expected: "lambda",
+				actual: comparator.type_of(),
+			});
+		}
+		let mut data = Vec::with_capacity(list.len());
+		for value in list.into_inner() {
+			data.push(try_value!(generators::request_force(&co, value).await));
+		}
+		match sort::peeksort(&co, &comparator, data).await? {
+			Ok(data) => Ok(Value::List(data.into())),
+			Err(catchable) => Ok(catchable),
+		}
 	}
 
 	#[builtin("splitVersion")]
@@ -1661,32 +1674,6 @@ fn round_to_int(value: &Value, round: fn(f64) -> f64) -> Result<Value, ErrorKind
 			Value::Float(float)
 		)))
 	}
-}
-
-/// Internal helper function for genericClosure, determining whether a
-/// value has been seen before.
-async fn bgc_insert_key(
-	co: &GenCo,
-	key: Value,
-	done: &mut Vec<Value>,
-) -> Result<Result<bool, CatchableErrorKind>, ErrorKind> {
-	for existing in done.iter() {
-		if try_cek!(
-			generators::check_equality(
-				co,
-				existing.clone(),
-				key.clone(),
-				// TODO(tazjin): not actually sure which semantics apply here
-				PointerEquality::ForbidAll,
-			)
-			.await?
-		) {
-			return Ok(Ok(false));
-		}
-	}
-
-	done.push(key);
-	Ok(Ok(true))
 }
 
 /// The set of standard pure builtins in Nix, mostly concerned with

@@ -752,13 +752,23 @@ impl Value {
 		co: GenCo,
 		span: Span,
 	) -> Result<Result<Ordering, CatchableErrorKind>, ErrorKind> {
+		Self::nix_cmp_ordering_(self, other, &co, span).await
+	}
+
+	/// [`Value::nix_cmp_ordering`] for callers that compare several times.
+	pub async fn nix_cmp_ordering_ref(
+		self,
+		other: Self,
+		co: &GenCo,
+		span: Span,
+	) -> Result<Result<Ordering, CatchableErrorKind>, ErrorKind> {
 		Self::nix_cmp_ordering_(self, other, co, span).await
 	}
 
 	async fn nix_cmp_ordering_(
 		myself: Self,
 		other: Self,
-		co: GenCo,
+		co: &GenCo,
 		span: Span,
 	) -> Result<Result<Ordering, CatchableErrorKind>, ErrorKind> {
 		// this is a stack of ((v1,v2),peq) triples to be compared;
@@ -775,14 +785,14 @@ impl Value {
 			};
 			if ptr_eq == PointerEquality::AllowAll {
 				if a.clone()
-					.nix_eq(b.clone(), &co, PointerEquality::AllowAll, span)
+					.nix_eq(b.clone(), co, PointerEquality::AllowAll, span)
 					.await?
 					.as_bool()?
 				{
 					continue;
 				}
-				a = a.force(&co, span).await?;
-				b = b.force(&co, span).await?;
+				a = a.force(co, span).await?;
+				b = b.force(co, span).await?;
 			}
 			let result = match (a, b) {
 				(Value::Catchable(c), _) => return Ok(Err(*c)),
@@ -791,6 +801,10 @@ impl Value {
 				(Value::Integer(i1), Value::Integer(i2)) => i1.cmp(&i2),
 				(Value::Float(f1), Value::Float(f2)) => f1.total_cmp(&f2),
 				(Value::String(s1), Value::String(s2)) => s1.cmp(&s2),
+				(Value::Path(p1), Value::Path(p2)) => p1
+					.as_os_str()
+					.as_encoded_bytes()
+					.cmp(p2.as_os_str().as_encoded_bytes()),
 				(Value::List(l1), Value::List(l2)) => {
 					let max = l1.len().max(l2.len());
 					for j in 0..max {
