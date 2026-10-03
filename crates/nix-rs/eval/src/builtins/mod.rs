@@ -826,6 +826,25 @@ mod pure_builtins {
 		Ok(origin.into())
 	}
 
+	#[builtin("convertHash")]
+	async fn builtin_convert_hash(co: GenCo, args: Value) -> Result<Value, ErrorKind> {
+		let args = args.to_attrs()?;
+		let hash = args.select_required("hash")?.clone();
+		let hash = try_value!(generators::request_force(&co, hash).await).to_str()?;
+		let algo = match args.select("hashAlgo") {
+			Some(algo) => {
+				let algo = try_value!(generators::request_force(&co, algo.clone()).await);
+				Some(crate::builtins::hash::parse_hash_algo(&algo.to_str()?)?)
+			}
+			None => None,
+		};
+		let format = args.select_required("toHashFormat")?.clone();
+		let format = try_value!(generators::request_force(&co, format).await).to_str()?;
+		let format = crate::builtins::hash::parse_hash_format(&format)?;
+		let hash = crate::builtins::hash::parse_any(&hash, algo)?;
+		Ok(Value::from(crate::builtins::hash::to_string(&hash, format)))
+	}
+
 	#[builtin("hashString")]
 	async fn builtin_hash_string(co: GenCo, algo: Value, s: Value) -> Result<Value, ErrorKind> {
 		hash_nix_string(algo.to_str()?, std::io::Cursor::new(s.to_str()?)).map(Value::from)

@@ -67,14 +67,14 @@ The pinned nightly previously crashed while compiling the derive UI fixture for 
 
 Until 2026-10-03 the runner reported its single test as ignored when nextest listed ignored tests, so `cargo nextest run` skipped it and only `cargo test` ran it. It also evaluated with the bare evaluator, without the store-aware builtins. Running the command instead moved 7 cases to `pass` (`autoargs`, `context`, `delayed-with`, `delayed-with-inherit`, `eq-derivations`, `path`, `substring-context`) and changed no passing case.
 
-In a debug build, 116 cases pass. The other outcomes are:
+In a debug build, 117 cases pass. The other outcomes are:
 
 | Outcome | Cases | Main causes |
 |---|---|---|
 | `error-message` | 283 | The case failed as expected but did not reproduce CppNix's diagnostic text and trace. This includes the four controlled integer-overflow errors. Some fail for a different reason than the one under test, for example `fetchurl`, `fetchTree` and `filterSource` cases that reach an unimplemented fetcher or a different argument check first. |
 | `output` | 23 | 13 `parse-okay` cases have no printer equivalent to `--parse`. Of the other 10, most print a different value; `print` prints `builtins.trace` output with an extra type suffix, `deprecate-cursed-or` omits a deprecation warning, and `derivation-legacy` prints a different output path. |
 | `unexpected-success` | 20 | The parser accepts duplicate and mixed nested attributes. Evaluation accepts NUL bytes in strings and JSON/TOML input, out-of-range JSON numbers, TOML timestamps without the experimental feature, incomparable `genericClosure` keys, an unsorted `sort` comparator, and `derivationStrict-14`. |
-| `unexpected-failure` | 6 | Missing builtins (`convertHash`, `parseFlakeRef`, `flakeRefToString`, `addDrvOutputDependencies`), the `__nixPath` search-path variable, and `scopedImport` with an overridden `import`. |
+| `unexpected-failure` | 5 | Missing builtins (`parseFlakeRef`, `flakeRefToString`, `addDrvOutputDependencies`), the `__nixPath` search-path variable, and `scopedImport` with an overridden `import`. |
 | `unrun-flags` | 16 | Cases whose `.flags` use options `nix-instantiate` rejects: the path and URL literal lints, `--impure`, `--max-call-depth`, and `--extra-experimental-features`. |
 | `crash` | 2 | `toJSON` and a structured-attributes derivation overflow the stack on deep nesting. |
 | `disabled` | 1 | Upstream disables `eval-okay-tail-call-1`. |

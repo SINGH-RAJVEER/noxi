@@ -76,6 +76,7 @@ Nix language parser, compiler and bytecode VM with the pure builtins, imported f
 #### Added
 
 - `builtins.break`, which returns its argument, as CppNix does without a debugger (2026-10-03).
+- `builtins.convertHash`, after CppNix's `prim_convertHash`: SRI, `algo:digest` and bare digests in base16, nix32 or base64, printed as `base16`, `nix32`, `base32` (with CppNix's deprecation warning), `base64` or `sri`. BLAKE3 is refused as when the `blake3-hashes` experimental feature is disabled. The evaluator now depends on `nix-rs-hash` 0.1.0 (2026-10-03).
 - `ErrorKind::EvalError`, for errors CppNix reports as a plain `EvalError` with a message (2026-10-03).
 
 #### Fixed

@@ -19,6 +19,7 @@ codemap-diagnostic.workspace = true
 genawaiter.workspace = true
 hashbrown.workspace = true
 itertools.workspace = true
+nix-rs-hash = { path = "../../nix-rs-hash", version = "0.1.0" }
 lexical-core = { workspace = true, features = ["format", "parse-floats"] }
 os_str_bytes = { workspace = true, features = ["conversions"] }
 path-clean.workspace = true

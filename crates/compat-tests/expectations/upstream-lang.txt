@@ -298,7 +298,7 @@ eval-okay-concatmap pass
 eval-okay-concatstringssep pass
 eval-okay-context-introspection unexpected-failure E005
 eval-okay-context pass
-eval-okay-convertHash unexpected-failure E005
+eval-okay-convertHash pass
 eval-okay-curpos pass
 eval-okay-deepseq pass
 eval-okay-delayed-with-inherit pass

@@ -1498,6 +1498,7 @@ dependencies = [
  "md-5",
  "mimalloc",
  "nix-rs-eval-builtin-macros",
+ "nix-rs-hash",
  "os_str_bytes",
  "path-clean",
  "pretty_assertions",
