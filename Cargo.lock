@@ -1411,9 +1411,12 @@ dependencies = [
 name = "nix-rs-commands"
 version = "0.1.2"
 dependencies = [
+ "libc",
+ "nix-rs-build",
  "nix-rs-compat",
  "nix-rs-eval",
  "nix-rs-glue",
+ "nix-rs-store",
  "rustc-hash 2.1.3",
  "smol_str",
  "tempfile",

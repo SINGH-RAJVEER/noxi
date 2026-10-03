@@ -6,6 +6,7 @@
 //! [`sandbox`] with results compared against the reference, but it has no
 //! command entry point and is not qualified as a build engine.
 
+pub mod backend;
 pub mod error;
 pub mod local;
 pub mod missing;

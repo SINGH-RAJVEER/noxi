@@ -33,7 +33,7 @@ fn materializes_text_sources_and_derivations_with_references() {
 	.unwrap();
 	symlink("source", source.path().join("link")).unwrap();
 	let store = EvaluatorStore::writable(root.path()).unwrap();
-	let local = store.local_store().unwrap();
+	let local = store.store().unwrap();
 	let copied = path(evaluate(&store, source.path(), r#""${./source}""#));
 	assert_eq!(fs::read(local.real_path(&copied)).unwrap(), b"hello");
 	assert_ne!(
@@ -128,7 +128,7 @@ fn readonly_computes_the_same_paths_without_opening_a_store() {
 	let source = tempfile::tempdir().unwrap();
 	fs::write(source.path().join("source"), "hello").unwrap();
 	let readonly = EvaluatorStore::new();
-	assert!(readonly.local_store().is_none());
+	assert!(readonly.store().is_none());
 	let expressions = [
 		r#"builtins.toFile "x" "y""#,
 		r#""${./source}""#,
@@ -159,10 +159,10 @@ fn writable_drvpath_dependencies_use_the_diverted_database() {
 	let store = EvaluatorStore::writable(root.path()).unwrap();
 	let expr = r#"let a = derivation { name = "a"; system = "x"; builder = "/bin/sh"; }; in (derivation { name = "b"; system = "x"; builder = "/bin/sh"; dep = a.drvPath; }).drvPath"#;
 	let result = path(evaluate(&store, root.path(), expr));
-	assert!(store.local_store().unwrap().is_valid_path(&result).unwrap());
+	assert!(store.store().unwrap().is_valid_path(&result).unwrap());
 	drop(store);
 	let readonly = EvaluatorStore::read_only(root.path()).unwrap();
-	assert!(readonly.local_store().is_none());
+	assert!(readonly.store().is_none());
 	assert_eq!(path(evaluate(&readonly, root.path(), expr)), result);
 }
 
@@ -175,7 +175,7 @@ fn dependency_outputs_register_the_input_drv_not_the_unbuilt_output_as_a_referen
 		root.path(),
 		r#"let a = derivation { name = "a"; system = "x"; builder = "/bin/sh"; outputs = [ "out" "dev" ]; }; in (derivation { name = "b"; system = "x"; builder = "/bin/sh"; dep = a.dev; }).drvPath"#,
 	));
-	let local = store.local_store().unwrap();
+	let local = store.store().unwrap();
 	let known = store.known_paths();
 	let drv = known.get_drv_by_drvpath(&result.as_ref()).unwrap();
 	assert_eq!(drv.input_derivations().len(), 1);
@@ -239,7 +239,7 @@ fn diverted_source_filters_receive_logical_paths_in_both_store_modes() {
 		] {
 			assert_eq!(path(evaluate(&store, root.path(), &expr)), expected);
 		}
-		if let Some(local) = store.local_store() {
+		if let Some(local) = store.store() {
 			assert_eq!(
 				fs::read(local.real_path(&expected).join("sub/keep")).unwrap(),
 				b"nested"
@@ -278,9 +278,9 @@ fn hash_mismatch_does_not_register_the_source() {
 	let result = configure(Evaluation::builder_pure(), store.clone()).build().evaluate_in_dir(
 		r#"builtins.path { path = ./source; sha256 = "sha256-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="; }"#, source.path().to_owned());
 	assert!(!result.errors.is_empty());
+	let config = nix_rs_store::LocalStoreConfig::with_root(&root.path().canonicalize().unwrap());
 	assert!(
-		store
-			.local_store()
+		nix_rs_store::LocalStore::open(config)
 			.unwrap()
 			.query_all_valid_paths()
 			.unwrap()

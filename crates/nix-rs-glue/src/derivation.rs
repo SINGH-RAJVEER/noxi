@@ -96,7 +96,7 @@ fn populate_inputs(
 				let closure = known_paths.closure(&drv_path);
 				for path in &closure {
 					let absolute = path.to_absolute_path();
-					let valid = match state.local_store() {
+					let valid = match state.store() {
 						Some(local) => local.is_valid_path(path).unwrap_or(false),
 						None => std::fs::symlink_metadata(
 							state.physical_path(std::path::Path::new(&absolute)),

@@ -1,0 +1,123 @@
+//! Store path listings shared by the legacy commands.
+
+use std::collections::BTreeSet;
+
+use nix_compat::store_path::StorePath;
+use nix_rs_store::gc::render_size;
+use nix_rs_store::{Missing, Store};
+
+use crate::cli::Failure;
+
+fn print(path: &StorePath) -> String {
+	path.to_absolute_path()
+}
+
+/// CppNix's `topoSortPaths`: each path before the paths it refers to.
+/// Paths outside `paths` are not followed.
+pub fn topo_sort(
+	store: &dyn Store,
+	paths: &BTreeSet<StorePath>,
+) -> Result<Vec<StorePath>, Failure> {
+	fn visit(
+		store: &dyn Store,
+		items: &BTreeSet<StorePath>,
+		path: &StorePath,
+		parent: Option<&StorePath>,
+		visited: &mut BTreeSet<StorePath>,
+		parents: &mut BTreeSet<StorePath>,
+		sorted: &mut Vec<StorePath>,
+	) -> Result<(), Failure> {
+		if parents.contains(path) {
+			return Err(Failure::Error(format!(
+				"cycle detected in the references of '{}' from '{}'",
+				print(path),
+				parent.map(print).unwrap_or_default()
+			)));
+		}
+		if !visited.insert(path.clone()) {
+			return Ok(());
+		}
+		parents.insert(path.clone());
+		let references = store
+			.query_path_info(path)?
+			.map(|info| info.references)
+			.unwrap_or_default();
+		for reference in &references {
+			if reference != path && items.contains(reference) {
+				visit(
+					store,
+					items,
+					reference,
+					Some(path),
+					visited,
+					parents,
+					sorted,
+				)?;
+			}
+		}
+		sorted.push(path.clone());
+		parents.remove(path);
+		Ok(())
+	}
+
+	let mut sorted = Vec::new();
+	let mut visited = BTreeSet::new();
+	let mut parents = BTreeSet::new();
+	for path in paths {
+		visit(
+			store,
+			paths,
+			path,
+			None,
+			&mut visited,
+			&mut parents,
+			&mut sorted,
+		)?;
+	}
+	sorted.reverse();
+	Ok(sorted)
+}
+
+/// CppNix's `printMissing`, on standard error.
+pub fn print_missing(store: &dyn Store, missing: &Missing) -> Result<(), Failure> {
+	if !missing.will_build.is_empty() {
+		if missing.will_build.len() == 1 {
+			eprintln!("this derivation will be built:");
+		} else {
+			eprintln!(
+				"these {} derivations will be built:",
+				missing.will_build.len()
+			);
+		}
+		for path in topo_sort(store, &missing.will_build)?.iter().rev() {
+			eprintln!("  {}", print(path));
+		}
+	}
+	if !missing.will_substitute.is_empty() {
+		let sizes = format!(
+			"{} download, {} unpacked",
+			render_size(missing.download_size as i64, false),
+			render_size(missing.nar_size as i64, false)
+		);
+		if missing.will_substitute.len() == 1 {
+			eprintln!("this path will be fetched ({sizes}):");
+		} else {
+			eprintln!(
+				"these {} paths will be fetched ({sizes}):",
+				missing.will_substitute.len()
+			);
+		}
+		let mut sorted: Vec<&StorePath> = missing.will_substitute.iter().collect();
+		sorted.sort_by(|a, b| (a.name(), print(a)).cmp(&(b.name(), print(b))));
+		for path in sorted {
+			eprintln!("  {}", print(path));
+		}
+	}
+	if !missing.unknown.is_empty() {
+		eprintln!("don't know how to build these paths:");
+		for path in &missing.unknown {
+			eprintln!("  {}", print(path));
+		}
+	}
+	Ok(())
+}

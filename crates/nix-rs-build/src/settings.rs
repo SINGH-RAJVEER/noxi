@@ -3,6 +3,8 @@
 use std::collections::BTreeSet;
 use std::path::PathBuf;
 
+use nix_compat::nixcpp::settings::Settings;
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum SandboxMode {
 	Enabled,
@@ -145,5 +147,78 @@ impl BuildSettings {
 	/// Whether this machine can build for `system`.
 	pub fn can_build_platform(&self, system: &str) -> bool {
 		system == self.system || self.extra_platforms.contains(system)
+	}
+}
+
+impl BuildSettings {
+	/// The build settings of a loaded configuration, with CppNix's defaults
+	/// for those that are not set.
+	pub fn from_settings(settings: &Settings) -> Self {
+		let default = BuildSettings::default();
+		let list = |name: &str, default: &BTreeSet<String>| -> BTreeSet<String> {
+			let default: Vec<&str> = default.iter().map(String::as_str).collect();
+			settings
+				.get_list(name, &default)
+				.into_iter()
+				.map(str::to_owned)
+				.collect()
+		};
+		let default_paths: Vec<String> = default
+			.sandbox_paths
+			.iter()
+			.map(|p| {
+				format!(
+					"{}={}{}",
+					p.target,
+					p.source,
+					if p.optional { "?" } else { "" }
+				)
+			})
+			.collect();
+		let default_paths: Vec<&str> = default_paths.iter().map(String::as_str).collect();
+		let uint = |name: &str, default: u64| settings.get_int(name, default as i64).max(0) as u64;
+		BuildSettings {
+			sandbox: match settings.get("sandbox") {
+				Some("false") => SandboxMode::Disabled,
+				Some("relaxed") => SandboxMode::Relaxed,
+				Some(_) => SandboxMode::Enabled,
+				None => default.sandbox,
+			},
+			sandbox_fallback: settings.get_bool("sandbox-fallback", default.sandbox_fallback),
+			sandbox_paths: settings
+				.get_list("sandbox-paths", &default_paths)
+				.into_iter()
+				.map(SandboxPath::parse)
+				.collect(),
+			build_dir: settings
+				.get("build-dir")
+				.filter(|d| !d.is_empty())
+				.map(PathBuf::from),
+			sandbox_build_dir: settings
+				.get("sandbox-build-dir")
+				.map_or(default.sandbox_build_dir.clone(), str::to_owned),
+			sandbox_shm_size: settings
+				.get("sandbox-dev-shm-size")
+				.map_or(default.sandbox_shm_size.clone(), str::to_owned),
+			system: settings
+				.get("system")
+				.map_or(default.system.clone(), str::to_owned),
+			extra_platforms: list("extra-platforms", &default.extra_platforms),
+			system_features: list("system-features", &default.system_features),
+			build_cores: uint("cores", default.build_cores.into()) as u32,
+			keep_failed: settings.get_bool("keep-failed", default.keep_failed),
+			allow_new_privileges: settings
+				.get_bool("allow-new-privileges", default.allow_new_privileges),
+			filter_syscalls: settings.get_bool("filter-syscalls", default.filter_syscalls),
+			max_silent_time: uint("max-silent-time", default.max_silent_time),
+			timeout: uint("timeout", default.timeout),
+			keep_build_log: settings.get_bool("keep-build-log", default.keep_build_log),
+			compress_build_log: settings.get_bool("compress-build-log", default.compress_build_log),
+			log_lines: uint("log-lines", default.log_lines as u64) as usize,
+			nix_command: settings.experimental_features().contains("nix-command"),
+			always_allow_substitutes: settings
+				.get_bool("always-allow-substitutes", default.always_allow_substitutes),
+			..default
+		}
 	}
 }

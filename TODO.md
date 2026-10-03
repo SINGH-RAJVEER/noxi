@@ -80,7 +80,7 @@ A checked item below means it exists and has focused local evidence in the curre
 
 ## 4. Implement the store, caches, and build engine
 
-- [ ] Define a store interface that supports local and daemon-backed operations without bypassing the single store owner.
+- [ ] Define a store interface that supports local and daemon-backed operations without bypassing the single store owner. `nix_rs_store::Store` covers the operations the legacy commands and the evaluator use; `nix-rs-build`'s `LocalBackend` implements it for a local store that builds and substitutes, and the evaluator registers derivations and sources through it. Commands select the store as CppNix's `auto` does. The daemon-client implementation is open.
 - [ ] Read and validate existing store metadata, references, validity records, roots, and profiles without modifying a user's live store during development.
 - [ ] Match fresh-store initialization, supported schema upgrades, named migrations, read-only opens, and unsupported-schema rejection from [expected store states](docs/compatibility.md#expected-store-states). After each supported write or upgrade, require CppNix to reopen the store without repair or nix-rs-only migrations.
 - [ ] Implement atomic path registration, NAR import/export, integrity verification, locking, and crash recovery; test concurrent clients and interrupted writes.
@@ -100,7 +100,7 @@ A checked item below means it exists and has focused local evidence in the curre
 
 ## 6. Complete the command and configuration contract
 
-- [ ] Provide the `nix` executable and required legacy commands, including `nix-build`, `nix-instantiate`, `nix-store`, `nix-env`, and other names found in the reference inventory.
+- [ ] Provide the `nix` executable and required legacy commands, including `nix-build`, `nix-instantiate`, `nix-store`, `nix-env`, and other names found in the reference inventory. `nix-store --realise` (with `--add-root`, `--dry-run`, `--ignore-unknown`) and `--query` (outputs, requisites, references, referrers, derivers, bindings, hashes and sizes) match the reference's output, errors, roots and missing-path summary in `reference_nix_store`; the other operations fail explicitly.
 	- [x] `nix-instantiate` accepts `--xml --no-location`, `-I`/`--include` ahead of `NIX_PATH`, and `--show-trace`/`--no-show-trace` (traces are not rendered in CppNix's format yet), prints `--json` results unquoted, and no longer prints nix-rs's own lint warnings. `--xml` with locations, `--parse`, the lint flags, `--max-call-depth` and `--extra-experimental-features` remain open.
 	- [x] Permit single-derivation `nix-instantiate` selections with an explicit diverted `--store local?root=ROOT`, and support `--eval --read-write-mode`. Read-only diverted reads retain the selected root. Recursive selections, builds, permanent roots, and the remaining commands remain open.
 - [ ] Implement command arguments, option aliases, environment variables, `nix.conf`, experimental feature gates, registries, and profiles with matching precedence.

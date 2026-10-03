@@ -5,6 +5,7 @@
 //! implementation can use a store the other one wrote. The behavior follows
 //! `src/libstore/local-store.cc` and its helpers in the pinned reference.
 
+pub mod api;
 pub mod binary_cache;
 pub mod canonicalise;
 pub mod config;
@@ -16,6 +17,7 @@ pub mod lock;
 pub mod nar;
 pub mod path_info;
 
+pub use api::{DerivedPath, Missing, Store};
 pub use config::LocalStoreConfig;
 pub use error::{Error, Result};
 pub use local::{FileIngestionMethod, LocalStore, ca_hash_of, delete_path};

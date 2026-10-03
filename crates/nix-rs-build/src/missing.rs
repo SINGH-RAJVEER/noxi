@@ -40,15 +40,7 @@ impl DerivedPath {
 	}
 }
 
-/// `MissingPaths`.
-#[derive(Clone, Debug, Default, PartialEq, Eq)]
-pub struct Missing {
-	pub will_build: BTreeSet<StorePath>,
-	pub will_substitute: BTreeSet<StorePath>,
-	pub unknown: BTreeSet<StorePath>,
-	pub download_size: u64,
-	pub nar_size: u64,
-}
+pub use nix_rs_store::Missing;
 
 /// `queryMissing`.
 pub fn query_missing(

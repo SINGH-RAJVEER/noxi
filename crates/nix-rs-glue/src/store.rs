@@ -14,7 +14,7 @@ use nix_compat::derivation::Derivation;
 use nix_compat::nixhash::{HashAlgo, NixHash};
 use nix_compat::store_path::{self, STORE_DIR, StorePath};
 use nix_rs_eval::{EvalIO, FileType, StdIO};
-use nix_rs_store::{FileIngestionMethod, LocalStore, LocalStoreConfig};
+use nix_rs_store::{FileIngestionMethod, LocalStore, LocalStoreConfig, Store};
 use sha2::{Digest, Sha256};
 
 use crate::errors::ImportError;
@@ -22,11 +22,23 @@ use crate::known_paths::KnownPaths;
 use crate::nar::{self, Filter};
 
 /// State shared by the store-aware builtins of one evaluation.
-#[derive(Debug, Default)]
+#[derive(Default)]
 pub struct EvaluatorStore {
 	known_paths: RefCell<KnownPaths>,
-	local: Option<LocalStore>,
+	/// The store that registers text, imports and derivations; `None`
+	/// evaluates read-only, computing paths without writing them.
+	store: Option<Rc<dyn Store>>,
 	real_store_dir: Option<PathBuf>,
+}
+
+impl std::fmt::Debug for EvaluatorStore {
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		f.debug_struct("EvaluatorStore")
+			.field("known_paths", &self.known_paths)
+			.field("writable", &self.store.is_some())
+			.field("real_store_dir", &self.real_store_dir)
+			.finish()
+	}
 }
 
 /// A source captured once, before any store registration.
@@ -103,15 +115,22 @@ impl EvaluatorStore {
 		let config = Self::diverted_config(root)?;
 		let real_store_dir = Some(config.real_store_dir.clone());
 		let local = LocalStore::open(config).map_err(io::Error::other)?;
-		Ok(Rc::new(Self {
-			known_paths: RefCell::default(),
-			local: Some(local),
-			real_store_dir,
-		}))
+		Ok(Self::with_store(Rc::new(local), real_store_dir))
 	}
 
-	pub fn local_store(&self) -> Option<&LocalStore> {
-		self.local.as_ref()
+	/// Register paths in `store`, whose paths appear under
+	/// `real_store_dir` when it is not `/nix/store`.
+	pub fn with_store(store: Rc<dyn Store>, real_store_dir: Option<PathBuf>) -> Rc<Self> {
+		Rc::new(Self {
+			known_paths: RefCell::default(),
+			store: Some(store),
+			real_store_dir,
+		})
+	}
+
+	/// The store paths are registered in, if evaluation is writable.
+	pub fn store(&self) -> Option<&dyn Store> {
+		self.store.as_deref()
 	}
 
 	pub fn add_text(
@@ -120,9 +139,9 @@ impl EvaluatorStore {
 		contents: &[u8],
 		references: &BTreeSet<StorePath>,
 	) -> io::Result<StorePath> {
-		if let Some(local) = &self.local {
-			return local
-				.add_text_to_store(name, contents, references, false)
+		if let Some(store) = &self.store {
+			return store
+				.add_text_to_store(name, contents, references)
 				.map_err(io::Error::other);
 		}
 		store_path::build_text_path(name, contents, references.iter().map(StorePath::as_ref))
@@ -131,7 +150,7 @@ impl EvaluatorStore {
 	}
 
 	pub(crate) fn register_derivation(&self, drv: &Derivation) -> io::Result<()> {
-		if self.local.is_some() {
+		if self.store.is_some() {
 			let references = drv
 				.input_sources()
 				.iter()
@@ -208,13 +227,13 @@ impl EvaluatorStore {
 				"store path mismatch in (possibly filtered) path",
 			));
 		}
-		if let Some(local) = &self.local {
+		if let Some(store) = &self.store {
 			let method = if captured.recursive {
 				FileIngestionMethod::NixArchive
 			} else {
 				FileIngestionMethod::Flat
 			};
-			return local
+			return store
 				.add_to_store_from_dump(
 					&mut io::Cursor::new(captured.bytes),
 					&captured.name,
@@ -222,7 +241,6 @@ impl EvaluatorStore {
 					method,
 					HashAlgo::Sha256,
 					&BTreeSet::new(),
-					false,
 				)
 				.map_err(io::Error::other);
 		}
@@ -240,7 +258,7 @@ impl EvaluatorStore {
 		name: &str,
 		filter: Option<&mut Filter<'_>>,
 	) -> io::Result<StorePath> {
-		if self.local.is_some() {
+		if self.store.is_some() {
 			let captured = self.capture_import(path, name, true, filter)?;
 			return self.import_captured(captured, None);
 		}
@@ -251,7 +269,7 @@ impl EvaluatorStore {
 	/// The store path a flat copy of the regular file `path` gets, hashed
 	/// with SHA-256.
 	pub fn import_flat(&self, path: &Path, name: &str) -> io::Result<StorePath> {
-		if self.local.is_some() {
+		if self.store.is_some() {
 			let captured = self.capture_import(path, name, false, None)?;
 			return self.import_captured(captured, None);
 		}
@@ -299,32 +317,30 @@ mod tests {
 			let rejected = store
 				.capture_import(&file, "rejected", recursive, None)
 				.unwrap();
+			let rejected_path = rejected.path.clone();
 			assert!(
 				store
 					.import_captured(rejected, Some(&expected_hash))
 					.is_err()
 			);
 			assert!(
-				store
-					.local_store()
+				!store
+					.store()
 					.unwrap()
-					.query_all_valid_paths()
+					.is_valid_path(&rejected_path)
 					.unwrap()
-					.is_empty()
 			);
 			let imported = store
 				.import_captured(captured, Some(&expected_hash))
 				.unwrap();
 			assert_eq!(imported, expected_path);
-			let local = store.local_store().unwrap();
+			let local = store.store().unwrap();
 			assert_eq!(
 				std::fs::read(local.real_path(&imported)).unwrap(),
 				b"original"
 			);
-			assert_eq!(
-				local.query_all_valid_paths().unwrap(),
-				[expected_path].into()
-			);
+			assert!(local.is_valid_path(&expected_path).unwrap());
+			assert!(!local.is_valid_path(&rejected_path).unwrap());
 		}
 	}
 }
@@ -420,8 +436,8 @@ impl EvalIO for StoreIO {
 		if self.store.real_store_dir.is_some()
 			&& let Ok((store_path, _)) = StorePath::from_absolute_path_full(path)
 		{
-			if let Some(local) = &self.store.local {
-				if !local.is_valid_path(&store_path).map_err(io::Error::other)? {
+			if let Some(store) = &self.store.store {
+				if !store.is_valid_path(&store_path).map_err(io::Error::other)? {
 					return Err(io::Error::other("cannot import an invalid store path"));
 				}
 			}
@@ -429,8 +445,8 @@ impl EvalIO for StoreIO {
 		}
 		let name = import_name(path)?;
 		if let Some(Corepkg::File(contents)) = corepkg(path) {
-			if let Some(local) = &self.store.local {
-				let imported = local
+			if let Some(store) = &self.store.store {
+				let imported = store
 					.add_to_store_from_dump(
 						&mut contents.as_bytes(),
 						name,
@@ -438,7 +454,6 @@ impl EvalIO for StoreIO {
 						FileIngestionMethod::NixArchive,
 						HashAlgo::Sha256,
 						&BTreeSet::new(),
-						false,
 					)
 					.map_err(io::Error::other)?;
 				return Ok(PathBuf::from(imported.to_absolute_path()));

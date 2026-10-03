@@ -325,7 +325,7 @@ pub(crate) mod import_builtins {
 			ErrorKind::Abort(format!("path '{}' is not in the Nix store", path.display()))
 		})?;
 		// Read-only mode records the dependency without checking validity.
-		if let Some(local) = state.local_store() {
+		if let Some(local) = state.store() {
 			if !local
 				.is_valid_path(&store_path)
 				.map_err(|e| ErrorKind::NixRsError(Arc::new(e)))?
