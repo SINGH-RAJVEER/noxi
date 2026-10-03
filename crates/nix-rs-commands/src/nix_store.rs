@@ -43,6 +43,30 @@ struct NixStore<'a> {
 
 /// Run `nix-store` with the arguments after the program name.
 pub fn main(mut settings: Settings, args: Vec<String>) -> Result<ExitCode, Failure> {
+	if args
+		.iter()
+		.take_while(|arg| arg.as_str() != "--")
+		.any(|arg| {
+			matches!(
+				arg.as_str(),
+				"--gc" | "--delete" | "--dump" | "--verify" | "--optimise" | "--optimize"
+			)
+		}) {
+		let args = args.into_iter().map(|arg| {
+			if arg == "--optimize" {
+				"--optimise".into()
+			} else {
+				arg
+			}
+		});
+		let mut options = crate::maintenance::parse_args(args, settings).map_err(Failure::Usage)?;
+		print_setting_warnings(&mut options.settings);
+		return Ok(crate::maintenance::run(
+			&options,
+			&mut io::stdout().lock(),
+			&mut io::stderr().lock(),
+		));
+	}
 	let mut op = None;
 	let mut op_flags = Vec::new();
 	let mut op_args = Vec::new();

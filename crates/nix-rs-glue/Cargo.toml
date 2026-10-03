@@ -17,6 +17,7 @@ nix-rs-store = { path = "../nix-rs-store", version = "0.1.0" }
 serde_json.workspace = true
 sha2.workspace = true
 thiserror.workspace = true
+nix-rs-flakeref = { path = "../nix-rs-flakeref", version = "0.1.0" }
 
 [dev-dependencies]
 tempfile.workspace = true

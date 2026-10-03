@@ -533,8 +533,7 @@ mod pure_builtins {
 			Err(ErrorKind::CatchableError(catchable)) => Ok(Value::Catchable(Box::new(catchable))),
 			Err(err) => Err(err),
 			Ok((json, context)) => {
-				let json_str = serde_json::to_string(&json)
-					.map_err(|err| ErrorKind::JsonError(err.to_string()))?;
+				let json_str = crate::value::into_json_string(json)?;
 				Ok(Value::String(NixString::new_context_from(
 					context, json_str,
 				)))

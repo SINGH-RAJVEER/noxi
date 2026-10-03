@@ -18,6 +18,7 @@ mod attrs;
 mod builtin;
 mod function;
 mod json;
+pub(crate) use json::into_json_string;
 mod list;
 mod path;
 mod print;

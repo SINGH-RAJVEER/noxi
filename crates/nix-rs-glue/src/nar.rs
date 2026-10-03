@@ -7,6 +7,7 @@ use std::os::unix::ffi::OsStrExt;
 use std::os::unix::fs::PermissionsExt;
 use std::path::Path;
 
+use nix_compat::nar::MAX_DEPTH;
 use nix_compat::nar::writer::sync as nar;
 use sha2::{Digest, Sha256};
 
@@ -57,7 +58,7 @@ pub fn dump_path<W: Write>(
 ) -> io::Result<()> {
 	let metadata = fs::symlink_metadata(path)?;
 	let ty = entry_type(path, &metadata)?;
-	dump(nar::open(writer)?, path, &metadata, ty, filter)
+	dump(nar::open(writer)?, path, &metadata, ty, filter, 0)
 }
 
 fn dump<W: Write>(
@@ -66,7 +67,15 @@ fn dump<W: Write>(
 	metadata: &fs::Metadata,
 	ty: EntryType,
 	mut filter: Option<&mut Filter<'_>>,
+	depth: usize,
 ) -> io::Result<()> {
+	// CppNix's `narMaxDepth`.
+	if depth >= MAX_DEPTH {
+		return Err(io::Error::other(format!(
+			"path '{}' exceeds maximum NAR directory depth of {MAX_DEPTH}",
+			path.display()
+		)));
+	}
 	match ty {
 		EntryType::Symlink => node.symlink(fs::read_link(path)?.as_os_str().as_bytes()),
 		EntryType::Regular => {
@@ -97,6 +106,7 @@ fn dump<W: Write>(
 					&metadata,
 					ty,
 					filter.as_deref_mut(),
+					depth + 1,
 				)?;
 			}
 			directory.close()

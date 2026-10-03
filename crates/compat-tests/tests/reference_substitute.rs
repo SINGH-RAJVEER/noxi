@@ -15,6 +15,7 @@ use std::path::{Path, PathBuf};
 use std::process::{Command, Output};
 
 use nix_compat::narinfo::{NarInfo, parse_keypair};
+use nix_compat::nixcpp::narinfo as cppnix;
 use nix_compat::store_path::StorePath;
 use nix_rs_store::binary_cache::BinaryCache;
 use nix_rs_store::{LocalStore, LocalStoreConfig};
@@ -567,6 +568,9 @@ fn narinfo_files_read_and_print_byte_for_byte() {
 				let text = fs::read_to_string(&path).unwrap();
 				let narinfo = NarInfo::parse(&text).unwrap();
 				assert_eq!(narinfo.to_string(), text, "{}", path.display());
+				let name = path.file_name().unwrap().to_str().unwrap();
+				let narinfo = cppnix::NarInfo::parse(text.as_bytes(), name).unwrap();
+				assert_eq!(narinfo.to_string(), text, "{}", path.display());
 				count += 1;
 			}
 		}
@@ -677,6 +681,196 @@ fn corrupt_nars_are_rejected() {
 		stderr.contains(&error),
 		"nix-rs: {error}\nreference: {stderr}"
 	);
+}
+
+/// Each change to the built path's narinfo, applied to the text the
+/// reference wrote.
+type Edit = fn(&str) -> String;
+
+fn replace_line(text: &str, field: &str, line: &str) -> String {
+	text.lines()
+		.map(|l| {
+			if l.starts_with(&format!("{field}:")) {
+				line.to_owned()
+			} else {
+				l.to_owned()
+			}
+		})
+		.map(|l| l + "\n")
+		.collect()
+}
+
+fn drop_line(text: &str, field: &str) -> String {
+	text.lines()
+		.filter(|l| !l.starts_with(&format!("{field}:")))
+		.map(|l| format!("{l}\n"))
+		.collect()
+}
+
+const MALFORMED_NARINFO: &[(&str, Edit)] = &[
+	("no colon", |_| "garbage".into()),
+	("no final newline", |t| t.trim_end_matches('\n').into()),
+	("a bad first line", |t| format!("X\n{t}")),
+	("no StorePath", |t| drop_line(t, "StorePath")),
+	("no NarHash", |t| drop_line(t, "NarHash")),
+	("no URL", |t| drop_line(t, "URL")),
+	("zero NarSize", |t| replace_line(t, "NarSize", "NarSize: 0")),
+	("bad NarSize", |t| {
+		replace_line(t, "NarSize", "NarSize: abc")
+	}),
+	("bad FileSize", |t| {
+		replace_line(t, "FileSize", "FileSize: -1")
+	}),
+	("bad NarHash", |t| {
+		replace_line(t, "NarHash", "NarHash: sha256:zz")
+	}),
+	("untyped NarHash", |t| {
+		replace_line(t, "NarHash", "NarHash: abc")
+	}),
+	("unknown NarHash algorithm", |t| {
+		replace_line(t, "NarHash", "NarHash: foo:abc")
+	}),
+	("BLAKE3 NarHash", |t| {
+		replace_line(t, "NarHash", "NarHash: blake3:abc")
+	}),
+	("unknown Compression", |t| {
+		replace_line(t, "Compression", "Compression: foo")
+	}),
+	("StorePath outside the store", |t| {
+		replace_line(t, "StorePath", "StorePath: /foo/bar")
+	}),
+	("empty StorePath", |t| {
+		replace_line(t, "StorePath", "StorePath: ")
+	}),
+	("short reference", |t| {
+		replace_line(t, "References", "References: abc")
+	}),
+	("reference with a bad name", |t| {
+		replace_line(
+			t,
+			"References",
+			"References: xp0dpr9yz5h0fk5c5lpj7zzqjbdh3w8c-f!",
+		)
+	}),
+	("reference with a bad hash", |t| {
+		replace_line(
+			t,
+			"References",
+			"References: eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee-f",
+		)
+	}),
+	("second References", |t| {
+		let refs = t.lines().find(|l| l.starts_with("References:")).unwrap();
+		format!("{t}{refs}\n")
+	}),
+	("bad Deriver", |t| replace_line(t, "Deriver", "Deriver: !x")),
+	("signature without a key", |t| format!("{t}Sig: nokey\n")),
+	("signature with bad base64", |t| format!("{t}Sig: k:!!!\n")),
+	("empty signature", |t| format!("{t}Sig: k:\n")),
+	("second CA", |t| {
+		let ca = "CA: text:sha256:1b8m03r63zqhnjf7l5wnldhh7c134ap5vpj0850ymkq1iyzicy5s";
+		format!("{t}{ca}\n{ca}\n")
+	}),
+	("CA without a prefix", |t| format!("{t}CA: bogus\n")),
+	("CA with an unknown prefix", |t| {
+		format!("{t}CA: foo:sha256:abc\n")
+	}),
+	("CA without an algorithm", |t| {
+		format!("{t}CA: fixed:r:sha256\n")
+	}),
+	("CA with an unknown algorithm", |t| {
+		format!("{t}CA: fixed:r:foo:abc\n")
+	}),
+	("CA with a short hash", |t| {
+		format!("{t}CA: fixed:r:sha256:zz\n")
+	}),
+	("CA with bad nix32", |t| {
+		format!("{t}CA: fixed:r:sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee\n")
+	}),
+	("Git CA", |t| {
+		format!("{t}CA: fixed:git:sha1:0000000000000000000000000000000000000000\n")
+	}),
+	// The value starts two bytes after the colon, so the NAR's URL loses
+	// its first character and the download fails.
+	("URL without a space", |t| t.replace("URL: ", "URL:")),
+	// Read as bzip2, which the uncompressed NAR is not.
+	("empty Compression", |t| {
+		replace_line(t, "Compression", "Compression: ")
+	}),
+];
+
+#[test]
+fn malformed_narinfo_files_fail_like_the_reference() {
+	let env = Env::new();
+	let cache = env.make_cache("malformed", "compression=none", true);
+	let dir = PathBuf::from(cache.strip_prefix("file://").unwrap());
+	let file = dir.join(format!(
+		"{}.narinfo",
+		nix_compat::nixbase32::encode(env.out.digest())
+	));
+	let original = fs::read_to_string(&file).unwrap();
+	for (index, (name, edit)) in MALFORMED_NARINFO.iter().enumerate() {
+		fs::write(&file, edit(&original)).unwrap();
+		let output = env.reference_substitute(&format!("reference-{index}"), &cache, &env.out);
+		let stderr = String::from_utf8_lossy(&output.stderr);
+		assert!(!output.status.success(), "{name}: the reference succeeded");
+		let error = env
+			.nix_rs_store(&format!("nix-rs-{index}"))
+			.substitute(&[BinaryCache::open(&cache).unwrap()], &env.out)
+			.expect_err(name)
+			.to_string();
+		assert!(
+			stderr.contains(&format!("error: {error}\n")),
+			"{name}\nnix-rs: {error}\nreference: {stderr}"
+		);
+	}
+
+	// A corrupt narinfo is logged, and the next cache is tried.
+	fs::write(&file, "garbage").unwrap();
+	let good = env.make_cache("well-formed", "compression=none", true);
+	let both = format!("{cache} {good}");
+	let output = env.reference_substitute("reference-fallthrough", &both, &env.out);
+	let stderr = String::from_utf8_lossy(&output.stderr);
+	assert!(output.status.success(), "{stderr}");
+	assert!(
+		stderr.contains("is corrupt: expecting ':' at line 1"),
+		"{stderr}"
+	);
+	env.nix_rs_store("nix-rs-fallthrough")
+		.substitute(
+			&[
+				BinaryCache::open(&cache).unwrap(),
+				BinaryCache::open(&good).unwrap(),
+			],
+			&env.out,
+		)
+		.unwrap();
+	assert_eq!(
+		env.path_info("nix-rs-fallthrough"),
+		env.path_info("reference-fallthrough")
+	);
+
+	// Unknown fields are ignored, and the store path is made canonical.
+	for (index, edit) in [(|t: &str| format!("{t}Foo: bar\n")) as Edit, |t| {
+		t.replace("StorePath: /nix/store/", "StorePath: /nix/store/../store/")
+	}]
+	.iter()
+	.enumerate()
+	{
+		fs::write(&file, edit(&original)).unwrap();
+		let reference = format!("reference-ok-{index}");
+		let output = env.reference_substitute(&reference, &cache, &env.out);
+		assert!(
+			output.status.success(),
+			"{}",
+			String::from_utf8_lossy(&output.stderr)
+		);
+		let nix_rs = format!("nix-rs-ok-{index}");
+		env.nix_rs_store(&nix_rs)
+			.substitute(&[BinaryCache::open(&cache).unwrap()], &env.out)
+			.unwrap();
+		assert_eq!(env.path_info(&nix_rs), env.path_info(&reference));
+	}
 }
 
 /// Serve the files in `dir` over HTTP on a local port, answering 404 for

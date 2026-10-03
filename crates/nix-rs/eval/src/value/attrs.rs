@@ -77,6 +77,40 @@ impl AttrsRep {
 #[derive(Clone, Debug, Default)]
 pub struct NixAttrs(pub(super) Rc<AttrsRep>);
 
+thread_local! {
+	static ATTR_DROP_QUEUE: std::cell::RefCell<(bool, Vec<Rc<AttrsRep>>)> = const { std::cell::RefCell::new((false, Vec::new())) };
+}
+
+impl Drop for NixAttrs {
+	fn drop(&mut self) {
+		if Rc::strong_count(&self.0) != 1 || matches!(*self.0, AttrsRep::Empty) {
+			return;
+		}
+		// Releasing a forced linked list must not recurse through every tail.
+		// Nested attribute drops enqueue their backing store for this loop.
+		let rep = std::mem::take(&mut self.0);
+		let mut rep = Some(rep);
+		let _ = ATTR_DROP_QUEUE.try_with(|queue| {
+			{
+				let mut queue = queue.borrow_mut();
+				queue.1.push(rep.take().expect("attribute backing store"));
+				if queue.0 {
+					return;
+				}
+				queue.0 = true;
+			}
+			loop {
+				let item = queue.borrow_mut().1.pop();
+				match item {
+					Some(item) => drop(item),
+					None => break,
+				}
+			}
+			queue.borrow_mut().0 = false;
+		});
+	}
+}
+
 impl From<AttrsRep> for NixAttrs {
 	fn from(rep: AttrsRep) -> Self {
 		NixAttrs(Rc::new(rep))
@@ -186,6 +220,10 @@ impl<'de> Deserialize<'de> for NixAttrs {
 }
 
 impl NixAttrs {
+	fn into_rep(mut self) -> Rc<AttrsRep> {
+		std::mem::take(&mut self.0)
+	}
+
 	pub fn empty() -> Self {
 		AttrsRep::Empty.into()
 	}
@@ -222,7 +260,10 @@ impl NixAttrs {
 		};
 
 		// Slightly more advanced, but still optimised updates
-		match (Rc::unwrap_or_clone(self.0), Rc::unwrap_or_clone(other.0)) {
+		match (
+			Rc::unwrap_or_clone(self.into_rep()),
+			Rc::unwrap_or_clone(other.into_rep()),
+		) {
 			(AttrsRep::Map { mut attrs, .. }, AttrsRep::KV { name, value }) => {
 				attrs.insert(NAME.clone(), name);
 				attrs.insert(VALUE.clone(), value);
@@ -351,7 +392,7 @@ impl NixAttrs {
 	/// Same as [IntoIterator::into_iter], but marks call sites which rely on the
 	/// iteration being lexicographic.
 	pub fn into_iter_sorted(self) -> OwnedAttrsIterator {
-		let iter = match Rc::<AttrsRep>::try_unwrap(self.0) {
+		let iter = match Rc::<AttrsRep>::try_unwrap(self.into_rep()) {
 			Ok(attrs) => match attrs {
 				AttrsRep::Empty => IntoIterRepr::Empty,
 				AttrsRep::Map { attrs, .. } => {
@@ -590,7 +631,7 @@ impl IntoIterator for NixAttrs {
 	type IntoIter = OwnedAttrsIterator;
 
 	fn into_iter(self) -> Self::IntoIter {
-		match Rc::unwrap_or_clone(self.0) {
+		match Rc::unwrap_or_clone(self.into_rep()) {
 			AttrsRep::Empty => OwnedAttrsIterator(IntoIterRepr::Empty),
 			AttrsRep::KV { name, value } => OwnedAttrsIterator(IntoIterRepr::Finite(
 				vec![(NAME.clone(), name), (VALUE.clone(), value)].into_iter(),

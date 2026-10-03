@@ -64,6 +64,17 @@
 pub const MAX_NAME_LEN: usize = 255;
 /// Maximum length of a symlink target
 pub const MAX_TARGET_LEN: usize = 4095;
+/// Nodes may be nested at most this deep; the root is at depth zero.
+/// CppNix 2.35.2's `narMaxDepth` bounds both dumping and parsing.
+pub const MAX_DEPTH: usize = 64;
+
+/// The reader's error for a node nested [MAX_DEPTH] deep, as CppNix's.
+pub(crate) fn depth_error() -> std::io::Error {
+	std::io::Error::new(
+		std::io::ErrorKind::InvalidData,
+		format!("bad archive: NAR directory nesting exceeds maximum depth of {MAX_DEPTH}"),
+	)
+}
 
 #[cfg(test)]
 fn token(xs: &[&str]) -> Vec<u8> {

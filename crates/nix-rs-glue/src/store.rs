@@ -59,45 +59,7 @@ impl EvaluatorStore {
 	}
 
 	fn diverted_config(root: &Path) -> io::Result<LocalStoreConfig> {
-		let root = root.canonicalize()?;
-		if root == Path::new("/") || root.starts_with("/nix") || !root.is_dir() {
-			return Err(io::Error::other(
-				"writable evaluation requires a diverted store root",
-			));
-		}
-		// Reject redirected store/state directories before LocalStore opens
-		// anything. In particular, a root with nix -> /nix is not diverted.
-		for relative in [
-			"nix/store/.links",
-			"nix/var/nix/profiles/per-user",
-			"nix/var/nix/gcroots/per-user",
-			"nix/var/nix/temproots",
-			"nix/var/nix/gc.lock",
-			"nix/var/nix/gc-socket/socket",
-			"nix/var/nix/db/reserved",
-			"nix/var/nix/db/big-lock",
-			"nix/var/nix/db/schema",
-			"nix/var/nix/db/db.sqlite",
-			"nix/var/nix/db/db.sqlite-wal",
-			"nix/var/nix/db/db.sqlite-shm",
-			"nix/var/log/nix",
-		] {
-			let mut path = root.clone();
-			for component in Path::new(relative).components() {
-				path.push(component);
-				match std::fs::symlink_metadata(&path) {
-					Ok(meta) if meta.file_type().is_symlink() => {
-						return Err(io::Error::other(
-							"diverted store directories must not be symlinks",
-						));
-					}
-					Ok(_) => {}
-					Err(e) if e.kind() == io::ErrorKind::NotFound => {}
-					Err(e) => return Err(e),
-				}
-			}
-		}
-		Ok(LocalStoreConfig::with_root(&root))
+		LocalStoreConfig::diverted(root)
 	}
 
 	/// Map a diverted store without opening its database or creating files.
@@ -112,7 +74,15 @@ impl EvaluatorStore {
 	/// Open a writable `local?root=ROOT` store. ROOT must already exist.
 	/// Logical paths remain `/nix/store`; system stores are never opened.
 	pub fn writable(root: &Path) -> io::Result<Rc<Self>> {
-		let config = Self::diverted_config(root)?;
+		Self::writable_with_settings(root, &nix_compat::nixcpp::settings::Settings::default())
+	}
+
+	pub fn writable_with_settings(
+		root: &Path,
+		settings: &nix_compat::nixcpp::settings::Settings,
+	) -> io::Result<Rc<Self>> {
+		let mut config = Self::diverted_config(root)?;
+		config.apply_config(settings);
 		let real_store_dir = Some(config.real_store_dir.clone());
 		let local = LocalStore::open(config).map_err(io::Error::other)?;
 		Ok(Self::with_store(Rc::new(local), real_store_dir))

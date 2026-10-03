@@ -1,135 +1,209 @@
-/// Implementation of Value serialisation *to* JSON.
-///
-/// This can not be implemented through standard serde-derive methods,
-/// as there is internal Nix logic that must happen within the
-/// serialisation methods.
+//! Nix-aware JSON conversion with an explicit traversal stack.
+
 use super::{CoercionKind, Value};
-use crate::NixContext;
 use crate::errors::ErrorKind;
 use crate::generators::{self, GenCo};
-
+use crate::{NixContext, NixContextElement};
 use bstr::ByteSlice;
-use serde_json::Value as Json; // name clash with *our* `Value`
-use serde_json::value::to_value;
-use serde_json::{Map, Number};
+use serde_json::{Map, Number, Value as Json};
 
-impl Value {
-	/// Transforms the structure into a JSON
-	/// and accumulate all encountered context in the second's element
-	/// of the return type.
-	pub async fn into_contextful_json(self, co: &GenCo) -> Result<(Json, NixContext), ErrorKind> {
-		self.into_contextful_json_at(co, 0).await
-	}
+enum Work {
+	Value(Value, usize),
+	List(usize),
+	Attrs(Vec<String>),
+}
 
-	/// [`Value::into_contextful_json`] at nesting `depth`. Like CppNix, this
-	/// fails rather than overflowing the stack beyond `max-call-depth`.
-	async fn into_contextful_json_at(
-		self,
-		co: &GenCo,
-		depth: usize,
-	) -> Result<(Json, NixContext), ErrorKind> {
-		if depth >= crate::max_call_depth() {
-			return Err(ErrorKind::EvalError(
-				"stack overflow; max-call-depth exceeded".into(),
-			));
+/// Drop completed JSON values without recursive container destruction.
+struct Results(Vec<Json>);
+
+impl Drop for Results {
+	fn drop(&mut self) {
+		while let Some(value) = self.0.pop() {
+			match value {
+				Json::Array(values) => self.0.extend(values),
+				Json::Object(values) => self.0.extend(values.into_values()),
+				_ => {}
+			}
 		}
-		let self_forced = generators::request_force(co, self).await;
-		let mut context = NixContext::new();
+	}
+}
 
-		let value = match self_forced {
-			Value::Null => Json::Null,
-			Value::Bool(b) => Json::Bool(b),
-			Value::Integer(i) => Json::Number(Number::from(i)),
-			Value::Float(f) => to_value(f)?,
-			Value::String(s) => {
-				context.mimic(&s);
-
-				Json::String(s.to_str()?.to_owned())
-			}
-
-			Value::Path(p) => {
-				let imported = generators::request_path_import(co, *p).await;
-				let path = imported.to_string_lossy().to_string();
-				context = context.append(crate::NixContextElement::Plain(path.clone()));
-				Json::String(path)
-			}
-
-			Value::List(l) => {
-				let mut out = Vec::with_capacity(l.len());
-
-				for val in l.into_iter() {
-					let (json_item, ctx) =
-						Box::pin(val.into_contextful_json_at(co, depth + 1)).await?;
-					context.extend(ctx);
-					out.push(json_item);
-				}
-
-				Json::Array(out)
-			}
-
-			Value::Attrs(attrs) => {
-				// Attribute sets with a callable `__toString` attribute
-				// serialise to the string-coerced version of the result of
-				// calling that.
-				if attrs.select("__toString").is_some() {
-					let span = generators::request_span(co).await;
-					match Value::Attrs(attrs)
-						.coerce_to_string_(
-							co,
-							CoercionKind {
-								strong: false,
-								import_paths: false,
-							},
-							span,
-						)
-						.await?
-					{
-						Value::Catchable(cek) => return Err(ErrorKind::CatchableError(*cek)),
-						Value::String(s) => {
-							// We need a fresh context here because `__toString` will discard
-							// everything.
-							let mut fresh = NixContext::new();
-							fresh.mimic(&s);
-							return Ok((Json::String(s.to_str()?.to_owned()), fresh));
-						}
-						_ => panic!("Value::coerce_to_string_() returned a non-string!"),
+/// Serialize and release a JSON tree without recursive traversal.
+pub(crate) fn into_json_string(value: Json) -> Result<String, ErrorKind> {
+	enum Part<'a> {
+		Value(&'a Json),
+		Text(&'static str),
+		Key(&'a str),
+	}
+	let root = Results(vec![value]);
+	let mut pending = vec![Part::Value(&root.0[0])];
+	let mut output = String::new();
+	while let Some(part) = pending.pop() {
+		match part {
+			Part::Text(text) => output.push_str(text),
+			Part::Key(key) => output.push_str(&serde_json::to_string(key)?),
+			Part::Value(Json::Array(values)) => {
+				output.push('[');
+				pending.push(Part::Text("]"));
+				for (index, value) in values.iter().enumerate().rev() {
+					pending.push(Part::Value(value));
+					if index > 0 {
+						pending.push(Part::Text(","));
 					}
 				}
-
-				// Attribute sets with an `outPath` attribute
-				// serialise to a JSON serialisation of that inner
-				// value (regardless of what it is!).
-				if let Some(out_path) = attrs.select("outPath") {
-					let (json_out_path, ctx) =
-						Box::pin(out_path.clone().into_contextful_json_at(co, depth + 1)).await?;
-					context.extend(ctx);
-					return Ok((json_out_path, context));
-				}
-
-				let mut out = Map::with_capacity(attrs.len());
-				for (name, value) in attrs.into_iter_sorted() {
-					let (json_value, ctx) =
-						Box::pin(value.into_contextful_json_at(co, depth + 1)).await?;
-					context.extend(ctx);
-					out.insert(name.to_str()?.to_owned(), json_value);
-				}
-
-				Json::Object(out)
 			}
-
-			Value::Catchable(c) => return Err(ErrorKind::CatchableError(*c)),
-
-			val @ Value::Closure(_)
-			| val @ Value::Thunk(_)
-			| val @ Value::Builtin(_)
-			| val @ Value::AttrNotFound
-			| val @ Value::Blueprint(_)
-			| val @ Value::DeferredUpvalue(_)
-			| val @ Value::UnresolvedPath(_)
-			| val @ Value::FinaliseRequest(_) => {
-				return Err(ErrorKind::NotSerialisableToJson(val.type_of()));
+			Part::Value(Json::Object(values)) => {
+				output.push('{');
+				pending.push(Part::Text("}"));
+				for (index, (key, value)) in values.iter().enumerate().rev() {
+					pending.push(Part::Value(value));
+					pending.push(Part::Text(":"));
+					pending.push(Part::Key(key));
+					if index > 0 {
+						pending.push(Part::Text(","));
+					}
+				}
 			}
-		};
-		Ok((value, context))
+			Part::Value(value) => output.push_str(&serde_json::to_string(value)?),
+		}
+	}
+	Ok(output)
+}
+
+#[cfg(test)]
+mod tests {
+	use super::*;
+
+	#[test]
+	fn serializes_and_drops_deep_json_on_a_small_stack() {
+		std::thread::Builder::new()
+			.stack_size(256 * 1024)
+			.spawn(|| {
+				let mut value = Json::Null;
+				for _ in 0..20_000 {
+					value = Json::Array(vec![value]);
+				}
+				let output = into_json_string(value).unwrap();
+				assert_eq!(output.len(), 40_004);
+				assert!(output.starts_with("[[[["));
+				assert!(output.ends_with("]]]]"));
+			})
+			.unwrap()
+			.join()
+			.unwrap();
+	}
+
+	#[test]
+	fn preserves_json_escaping_and_container_order() {
+		let value = serde_json::json!({"z": [1, true, null], "a": "\"\n\\"});
+		let expected = serde_json::to_string(&value).unwrap();
+		assert_eq!(into_json_string(value).unwrap(), expected);
+	}
+}
+
+impl Value {
+	/// Convert values in reference evaluation order, preserving contexts and
+	/// limiting depth before Rust's call stack can overflow.
+	pub async fn into_contextful_json(self, co: &GenCo) -> Result<(Json, NixContext), ErrorKind> {
+		let mut work = vec![Work::Value(self, 0)];
+		let mut results = Results(Vec::new());
+		let mut context = NixContext::new();
+		while let Some(item) = work.pop() {
+			match item {
+				Work::List(count) => {
+					let values = results.0.split_off(results.0.len() - count);
+					results.0.push(Json::Array(values));
+				}
+				Work::Attrs(names) => {
+					let values = results.0.split_off(results.0.len() - names.len());
+					results.0.push(Json::Object(
+						names.into_iter().zip(values).collect::<Map<_, _>>(),
+					));
+				}
+				Work::Value(value, depth) => {
+					if depth >= crate::max_call_depth() {
+						return Err(ErrorKind::EvalError(
+							"stack overflow; max-call-depth exceeded".into(),
+						));
+					}
+					let value = generators::request_force(co, value).await;
+					let json = match value {
+						Value::Null => Json::Null,
+						Value::Bool(value) => Json::Bool(value),
+						Value::Integer(value) => Json::Number(Number::from(value)),
+						Value::Float(value) => serde_json::value::to_value(value)?,
+						Value::String(value) => {
+							context.mimic(&value);
+							Json::String(value.to_str()?.to_owned())
+						}
+						Value::Path(path) => {
+							let path = generators::request_path_import(co, *path)
+								.await
+								.to_string_lossy()
+								.into_owned();
+							context = context.append(NixContextElement::Plain(path.clone()));
+							Json::String(path)
+						}
+						Value::List(values) => {
+							work.push(Work::List(values.len()));
+							let values: Vec<_> = values.into_iter().collect();
+							work.extend(
+								values
+									.into_iter()
+									.rev()
+									.map(|value| Work::Value(value, depth + 1)),
+							);
+							continue;
+						}
+						Value::Attrs(attrs) => {
+							if attrs.select("__toString").is_some() {
+								let span = generators::request_span(co).await;
+								match Value::Attrs(attrs)
+									.coerce_to_string_(
+										co,
+										CoercionKind {
+											strong: false,
+											import_paths: false,
+										},
+										span,
+									)
+									.await?
+								{
+									Value::Catchable(error) => {
+										return Err(ErrorKind::CatchableError(*error));
+									}
+									Value::String(value) => {
+										context.mimic(&value);
+										Json::String(value.to_str()?.to_owned())
+									}
+									_ => unreachable!("string coercion returned a non-string"),
+								}
+							} else if let Some(path) = attrs.select("outPath") {
+								work.push(Work::Value(path.clone(), depth + 1));
+								continue;
+							} else {
+								let entries: Vec<_> = attrs.into_iter_sorted().collect();
+								let names = entries
+									.iter()
+									.map(|(name, _)| name.to_str().map(str::to_owned))
+									.collect::<Result<Vec<_>, _>>()?;
+								work.push(Work::Attrs(names));
+								work.extend(
+									entries
+										.into_iter()
+										.rev()
+										.map(|(_, value)| Work::Value(value, depth + 1)),
+								);
+								continue;
+							}
+						}
+						Value::Catchable(error) => return Err(ErrorKind::CatchableError(*error)),
+						value => return Err(ErrorKind::NotSerialisableToJson(value.type_of())),
+					};
+					results.0.push(json);
+				}
+			}
+		}
+		Ok((results.0.pop().expect("root JSON value"), context))
 	}
 }

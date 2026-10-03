@@ -71,7 +71,8 @@ pub fn main(settings: Settings, args: Vec<String>) -> Result<ExitCode, Failure> 
 		let path = input.split('!').next().unwrap_or(input);
 		if !options.from_args && path.starts_with("/nix/store/") && path.ends_with(".drv") {
 			return Err(Failure::Error(
-				"nix-build with store derivation arguments is not supported by nix-rs yet".to_owned(),
+				"nix-build with store derivation arguments is not supported by nix-rs yet"
+					.to_owned(),
 			));
 		}
 	}

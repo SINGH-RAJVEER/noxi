@@ -484,7 +484,11 @@ fn parse_value(info: &SettingInfo, value: &str) -> Result<String, Error> {
 			}
 		},
 		Kind::Int => {
-			value.parse::<i64>().map_err(|_| invalid())?;
+			if info.name == "cores" {
+				value.parse::<u32>().map_err(|_| invalid())?;
+			} else {
+				value.parse::<i64>().map_err(|_| invalid())?;
+			}
 			value.to_owned()
 		}
 		Kind::MaxJobs if value == "auto" => value.to_owned(),
@@ -616,6 +620,11 @@ mod tests {
 			(
 				"show-trace = maybe",
 				"Boolean setting 'show-trace' has invalid value 'maybe'",
+			),
+			("cores = -1", "setting 'cores' has invalid value '-1'"),
+			(
+				"cores = 4294967296",
+				"setting 'cores' has invalid value '4294967296'",
 			),
 			(
 				"include missing.conf",

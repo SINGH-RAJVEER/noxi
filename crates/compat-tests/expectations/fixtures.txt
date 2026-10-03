@@ -22,8 +22,8 @@ ignore src/libutil-tests/data/git/check-data.sh
 table:upstream_derivations src/libstore-tests/data/derivation/**/*.drv
 table:upstream_derivation_options src/libstore-tests/data/derivation/ca/derivation-options/*.json # derivation options JSON
 table:upstream_derivation_options src/libstore-tests/data/derivation/ia/derivation-options/*.json # derivation options JSON
-unrun src/libstore-tests/data/derivation/invariants/* # derivation invariant checks
-unrun src/libstore-tests/data/derivation/try-resolve/* # CA derivation resolution
+pass:upstream_derivation_resolution src/libstore-tests/data/derivation/invariants/* # derivation invariant checks; the no-env-var post state fails the reference's own check
+pass:upstream_derivation_resolution src/libstore-tests/data/derivation/try-resolve/* # CA derivation resolution
 table:upstream_derivation_json src/libstore-tests/data/derivation/**/*.json # derivation and output JSON
 
 # libstore: protocols
@@ -70,13 +70,13 @@ table:upstream_realisation_json src/libstore-tests/data/build-result/*
 table:upstream_store_json src/libstore-tests/data/content-address/*
 table:upstream_store_json src/libstore-tests/data/derived-path/*
 unrun src/libstore-tests/data/dummy-store/*
-unrun src/libstore-tests/data/machines/* # remote builder machine specifications
+pass:upstream_machines src/libstore-tests/data/machines/* # remote builder machine specifications
 table:upstream_path_info_json src/libstore-tests/data/nar-info/**/*
 table:upstream_store_json src/libstore-tests/data/outputs-spec/**/*
 table:upstream_path_info_json src/libstore-tests/data/path-info/**/*
 table:upstream_realisation_json src/libstore-tests/data/realisation/*
 table:upstream_store_json src/libstore-tests/data/store-path/*
-unrun src/libstore-tests/data/store-reference/* # store URLs and parameters
+table:upstream_store_reference src/libstore-tests/data/store-reference/* # store URLs and parameters; the Windows path is a Linux parse error
 
 # libutil
 pass:upstream_nars src/libutil-tests/data/nars/*.nar
@@ -86,8 +86,8 @@ anomaly src/libutil-tests/data/hash/sha512.json # CppNix 2.35.2's HashJSON sha51
 pass:upstream_git_objects src/libutil-tests/data/git/hello-world*.bin
 pass:upstream_git_objects src/libutil-tests/data/git/tree-*.bin
 pass:upstream_git_objects src/libutil-tests/data/git/tree-*.txt
-unrun src/libutil-tests/data/memory-source-accessor/*
-unrun src/libutil-tests/data/nar-listing/*
+pass:upstream_file_listings src/libutil-tests/data/memory-source-accessor/*
+pass:upstream_file_listings src/libutil-tests/data/nar-listing/*
 
 # libfetchers
 table:upstream_fetcher_public_key src/libfetchers-tests/data/public-key/*

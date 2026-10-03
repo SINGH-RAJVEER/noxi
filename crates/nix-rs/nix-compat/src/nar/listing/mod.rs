@@ -9,7 +9,7 @@
 //! offset. Validating the contents is the caller's responsibility.
 
 use std::{
-	collections::BTreeMap,
+	collections::{BTreeMap, BTreeSet},
 	path::{Component, Path},
 };
 
@@ -32,15 +32,20 @@ pub enum ListingError {
 	InvalidEncoding,
 }
 
-#[derive(Debug, Deserialize)]
+/// A deep listing entry, CppNix's `NarListing`.
+///
+/// CppNix 2.35.2 writes every regular file's `executable` flag, omits an
+/// unknown size and an unknown or zero `narOffset`, and sorts object keys.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq)]
 #[serde(tag = "type", rename_all = "lowercase")]
 pub enum ListingEntry {
 	Regular {
-		size: u64,
+		#[serde(default)]
+		size: Option<u64>,
 		#[serde(default)]
 		executable: bool,
-		#[serde(rename = "narOffset")]
-		nar_offset: u64,
+		#[serde(rename = "narOffset", default, deserialize_with = "nar_offset")]
+		nar_offset: Option<u64>,
 	},
 	Directory {
 		// It's tempting to think that the key should be a `Vec<u8>`
@@ -53,7 +58,78 @@ pub enum ListingEntry {
 	},
 }
 
-// Custom Serialize impl, as otherwise type would always come first, causing noncanonical JSON.
+/// A listing of one directory level, CppNix's `ShallowNarListing`. A
+/// directory's entries are written as empty objects.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq)]
+#[serde(tag = "type", rename_all = "lowercase")]
+pub enum ShallowListingEntry {
+	Regular {
+		#[serde(default)]
+		size: Option<u64>,
+		#[serde(default)]
+		executable: bool,
+		#[serde(rename = "narOffset", default, deserialize_with = "nar_offset")]
+		nar_offset: Option<u64>,
+	},
+	Directory {
+		#[serde(deserialize_with = "opaque_entries")]
+		entries: BTreeSet<String>,
+	},
+	Symlink {
+		target: String,
+	},
+}
+
+/// CppNix reads a zero `narOffset` as unknown.
+fn nar_offset<'de, D>(deserializer: D) -> Result<Option<u64>, D::Error>
+where
+	D: serde::Deserializer<'de>,
+{
+	Ok(Option::<u64>::deserialize(deserializer)?.filter(|offset| *offset != 0))
+}
+
+/// CppNix ignores the value of each shallow directory entry.
+fn opaque_entries<'de, D>(deserializer: D) -> Result<BTreeSet<String>, D::Error>
+where
+	D: serde::Deserializer<'de>,
+{
+	let entries = BTreeMap::<String, serde::de::IgnoredAny>::deserialize(deserializer)?;
+	Ok(entries.into_keys().collect())
+}
+
+fn serialize_regular<S>(
+	serializer: S,
+	size: &Option<u64>,
+	executable: bool,
+	nar_offset: &Option<u64>,
+) -> Result<S::Ok, S::Error>
+where
+	S: serde::Serializer,
+{
+	let len = 2 + usize::from(size.is_some()) + usize::from(nar_offset.is_some());
+	let mut map = serializer.serialize_map(Some(len))?;
+	map.serialize_entry("executable", &executable)?;
+	if let Some(nar_offset) = nar_offset {
+		map.serialize_entry("narOffset", nar_offset)?;
+	}
+	if let Some(size) = size {
+		map.serialize_entry("size", size)?;
+	}
+	map.serialize_entry("type", "regular")?;
+	map.end()
+}
+
+fn serialize_symlink<S>(serializer: S, target: &str) -> Result<S::Ok, S::Error>
+where
+	S: serde::Serializer,
+{
+	let mut map = serializer.serialize_map(Some(2))?;
+	map.serialize_entry("target", target)?;
+	map.serialize_entry("type", "symlink")?;
+	map.end()
+}
+
+// Custom Serialize impls, as otherwise type would always come first, causing noncanonical JSON.
 impl Serialize for ListingEntry {
 	fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
 	where
@@ -64,28 +140,51 @@ impl Serialize for ListingEntry {
 				size,
 				executable,
 				nar_offset,
-			} => {
-				let mut map = serializer.serialize_map(Some(if *executable { 4 } else { 3 }))?;
-				if *executable {
-					map.serialize_entry("executable", &true)?;
-				}
-				map.serialize_entry("narOffset", nar_offset)?;
-				map.serialize_entry("size", size)?;
-				map.serialize_entry("type", "regular")?;
-				map.end()
-			}
+			} => serialize_regular(serializer, size, *executable, nar_offset),
 			ListingEntry::Directory { entries } => {
 				let mut map = serializer.serialize_map(Some(2))?;
 				map.serialize_entry("entries", entries)?;
 				map.serialize_entry("type", "directory")?;
 				map.end()
 			}
-			ListingEntry::Symlink { target } => {
-				let mut map = serializer.serialize_map(Some(2))?;
-				map.serialize_entry("target", target)?;
-				map.serialize_entry("type", "symlink")?;
+			ListingEntry::Symlink { target } => serialize_symlink(serializer, target),
+		}
+	}
+}
+
+impl Serialize for ShallowListingEntry {
+	fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+	where
+		S: serde::Serializer,
+	{
+		struct Opaque<'a>(&'a BTreeSet<String>);
+
+		impl Serialize for Opaque<'_> {
+			fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+			where
+				S: serde::Serializer,
+			{
+				let mut map = serializer.serialize_map(Some(self.0.len()))?;
+				for name in self.0 {
+					map.serialize_entry(name, &BTreeMap::<(), ()>::new())?;
+				}
 				map.end()
 			}
+		}
+
+		match self {
+			ShallowListingEntry::Regular {
+				size,
+				executable,
+				nar_offset,
+			} => serialize_regular(serializer, size, *executable, nar_offset),
+			ShallowListingEntry::Directory { entries } => {
+				let mut map = serializer.serialize_map(Some(2))?;
+				map.serialize_entry("entries", &Opaque(entries))?;
+				map.serialize_entry("type", "directory")?;
+				map.end()
+			}
+			ShallowListingEntry::Symlink { target } => serialize_symlink(serializer, target),
 		}
 	}
 }

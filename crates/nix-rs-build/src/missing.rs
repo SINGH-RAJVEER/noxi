@@ -54,6 +54,9 @@ pub fn query_missing(
 	let mut visited = BTreeSet::new();
 	let mut todo: Vec<DerivedPath> = targets.to_vec();
 	let substitutable = |path: &StorePath| -> Option<(u64, u64, BTreeSet<StorePath>)> {
+		if !use_substitutes {
+			return None;
+		}
 		substituters.iter().find_map(|cache| {
 			let cached = cache.query_path_info(path).ok().flatten()?;
 			Some((

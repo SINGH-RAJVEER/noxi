@@ -13,7 +13,10 @@ use std::io::{self, BufRead, BufReader, BufWriter, Read, Write};
 use std::os::unix::fs::PermissionsExt;
 use std::path::{Path, PathBuf};
 
+use data_encoding::BASE64;
 use nix_compat::narinfo::{Flags, NarInfo, Signature, SigningKey};
+use nix_compat::nixcpp::narinfo as cppnix;
+use nix_compat::nixhash::NixHash;
 use nix_compat::store_path::{STORE_DIR, StorePath};
 use tempfile::NamedTempFile;
 
@@ -354,32 +357,36 @@ impl BinaryCache {
 			.map(|bytes| String::from_utf8_lossy(&bytes).into_owned()))
 	}
 
-	/// The metadata the cache records for `path`.
+	/// The metadata the cache records for `path`, read as the reference
+	/// reads it, with its errors for malformed files.
 	pub fn query_path_info(&self, path: &StorePath) -> Result<Option<CachedPath>> {
-		let Some(text) = self.narinfo_text(path)? else {
+		let name = format!("{}.narinfo", nix_compat::nixbase32::encode(path.digest()));
+		let Some(bytes) = self.get_file(&name)? else {
 			return Ok(None);
 		};
-		let narinfo = NarInfo::parse(&text).map_err(|e| {
-			Error::Other(format!(
-				"cannot parse NAR info for '{}' from '{}': {e}",
-				print(path),
-				self.uri
-			))
-		})?;
-		let mut info = ValidPathInfo::new(narinfo.store_path.to_owned(), narinfo.nar_hash);
+		let narinfo =
+			cppnix::NarInfo::parse(&bytes, &name).map_err(|e| Error::Other(e.to_string()))?;
+		let NixHash::Sha256(nar_hash) = narinfo.nar_hash else {
+			return Err(Error::Other(format!(
+				"NAR info file '{name}' has a {} NAR hash; only SHA-256 is supported",
+				narinfo.nar_hash.algo()
+			)));
+		};
+		let mut info = ValidPathInfo::new(narinfo.path, nar_hash);
 		info.nar_size = narinfo.nar_size;
-		info.references = narinfo.references.iter().map(|r| r.to_owned()).collect();
-		info.sigs = narinfo.signatures.iter().map(|s| s.to_string()).collect();
-		info.ca = narinfo.ca.clone();
-		info.deriver = narinfo.deriver.map(|d| {
-			StorePath::from_bytes(format!("{d}.drv").as_bytes())
-				.expect("a deriver with .drv appended is a valid store path")
-		});
+		info.references = narinfo.references;
+		info.sigs = narinfo
+			.sigs
+			.iter()
+			.map(|sig| format!("{}:{}", sig.key_name, BASE64.encode(&sig.sig)))
+			.collect();
+		info.ca = narinfo.ca;
+		info.deriver = narinfo.deriver;
 		Ok(Some(CachedPath {
 			info,
-			url: narinfo.url.to_owned(),
-			compression: narinfo.compression.map(str::to_owned),
-			file_size: narinfo.file_size,
+			url: narinfo.url,
+			compression: (narinfo.compression != "none").then_some(narinfo.compression),
+			file_size: (narinfo.file_size != 0).then_some(narinfo.file_size),
 		}))
 	}
 

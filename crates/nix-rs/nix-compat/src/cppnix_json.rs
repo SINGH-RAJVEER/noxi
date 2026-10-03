@@ -19,6 +19,7 @@ use crate::nixhash::{CAHash, NixHash};
 use crate::store_path::StorePath;
 
 pub mod derivation;
+pub mod derivation_hash;
 
 /// Experimental feature that allows nested (dynamic) derivation outputs.
 pub const DYNAMIC_DERIVATIONS: &str = "dynamic-derivations";

@@ -360,7 +360,9 @@ pub fn evaluate(options: &Options, cwd: &Path) -> Result<Evaluated, ExitCode> {
 			.strip_prefix("local?root=")
 			.filter(|root| !root.is_empty() && !root.contains(['&', '?', '%']));
 		let store = match root {
-			Some(root) => nix_rs_glue::EvaluatorStore::read_only(Path::new(root)).map_err(|e| fail(&e))?,
+			Some(root) => {
+				nix_rs_glue::EvaluatorStore::read_only(Path::new(root)).map_err(|e| fail(&e))?
+			}
 			None => nix_rs_glue::ReadOnlyStore::new(),
 		};
 		(store, None)
@@ -429,14 +431,14 @@ pub fn derivations(results: &[Value]) -> Result<Vec<(StorePath, String)>, String
 			let output = forced(pair.get(1).ok_or("missing output name")?)
 				.to_contextful_str()
 				.map_err(|e| e.to_string())?;
-			let drv_path = StorePath::from_absolute_path(drv_path.as_bytes())
-				.map_err(|_| {
-					format!(
-						"invalid derivation path '{}'",
-						String::from_utf8_lossy(drv_path.as_bytes())
-					)
-				})?;
-			let output = String::from_utf8(output.as_bytes().to_vec()).map_err(|e| e.to_string())?;
+			let drv_path = StorePath::from_absolute_path(drv_path.as_bytes()).map_err(|_| {
+				format!(
+					"invalid derivation path '{}'",
+					String::from_utf8_lossy(drv_path.as_bytes())
+				)
+			})?;
+			let output =
+				String::from_utf8(output.as_bytes().to_vec()).map_err(|e| e.to_string())?;
 			if output.is_empty() {
 				return Err(format!(
 					"derivation '{}' lacks an 'outputName' attribute",

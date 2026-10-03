@@ -7,5 +7,10 @@
 //! protocol live elsewhere.
 
 pub mod conf;
+pub mod machines;
+#[cfg(feature = "serde")]
+pub mod narinfo;
 pub mod settings;
 mod settings_table;
+pub mod store_reference;
+pub mod url;

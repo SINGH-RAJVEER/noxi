@@ -74,6 +74,7 @@ pub fn open(uri: &str, settings: &Settings) -> Result<Option<OpenStore>, String>
 		Some(root) => diverted_config(root)?,
 		None => LocalStoreConfig::system(),
 	};
+	config.apply_config(settings);
 	config.read_only = read_only;
 	config.require_sigs = settings.get_bool("require-sigs", config.require_sigs);
 	let default_keys: Vec<&str> = config

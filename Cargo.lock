@@ -1541,6 +1541,7 @@ name = "nix-rs-flakeref"
 version = "0.1.0"
 dependencies = [
  "pretty_assertions",
+ "serde_json",
  "thiserror",
  "url",
 ]
@@ -1554,6 +1555,7 @@ dependencies = [
  "data-encoding",
  "nix-rs-compat",
  "nix-rs-eval",
+ "nix-rs-flakeref",
  "nix-rs-store",
  "serde_json",
  "sha2",
@@ -1597,6 +1599,7 @@ version = "0.1.0"
 dependencies = [
  "brotli-decompressor",
  "bzip2",
+ "data-encoding",
  "ed25519",
  "flate2",
  "libc",
@@ -1623,6 +1626,7 @@ dependencies = [
  "nix-rs-daemon",
  "nix-rs-eval",
  "nix-rs-store",
+ "serde",
  "serde_json",
  "sha2",
  "tempfile",

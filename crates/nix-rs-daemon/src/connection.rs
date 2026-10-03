@@ -21,7 +21,7 @@ use crate::wire::{FramedReader, Reader, Version, Writer, version};
 pub const WORKER_MAGIC_1: u64 = 0x6e697863;
 pub const WORKER_MAGIC_2: u64 = 0x6478696f;
 /// The newest protocol version, `WorkerProto::latest` in 2.35.2.
-pub const PROTOCOL_VERSION: Version = version(1, 38);
+pub const PROTOCOL_VERSION: Version = version(1, 39);
 /// `WorkerProto::minimum`.
 pub const MINIMUM_PROTOCOL_VERSION: Version = version(1, 18);
 /// `WorkerProto::latest.features`.
@@ -67,7 +67,11 @@ pub mod op {
 	pub const QUERY_DERIVATION_OUTPUT_NAMES: u64 = 28;
 	pub const QUERY_PATH_FROM_HASH_PART: u64 = 29;
 	pub const QUERY_VALID_PATHS: u64 = 31;
+	pub const QUERY_SUBSTITUTABLE_PATH_INFO: u64 = 21;
+	pub const QUERY_SUBSTITUTABLE_PATH_INFOS: u64 = 30;
+	pub const QUERY_SUBSTITUTABLE_PATHS: u64 = 32;
 	pub const QUERY_VALID_DERIVERS: u64 = 33;
+	pub const OPTIMISE_STORE: u64 = 34;
 	pub const VERIFY_STORE: u64 = 35;
 	pub const ADD_SIGNATURES: u64 = 37;
 	pub const NAR_FROM_PATH: u64 = 38;
@@ -75,6 +79,7 @@ pub mod op {
 	pub const QUERY_MISSING: u64 = 40;
 	pub const QUERY_DERIVATION_OUTPUT_MAP: u64 = 41;
 	pub const ADD_MULTIPLE_TO_STORE: u64 = 44;
+	pub const ADD_BUILD_LOG: u64 = 45;
 }
 
 /// `TunnelLogger`: messages are queued until an operation starts work,
@@ -242,7 +247,7 @@ pub struct Connection<'a, R: Read, W: Write> {
 	pub features: BTreeSet<String>,
 	pub trust: Trust,
 	pub store: &'a LocalStore,
-	pub settings: &'a DaemonSettings,
+	pub settings: DaemonSettings,
 }
 
 /// `BasicServerConnection::handshake` and `postHandshake`, then the
@@ -286,7 +291,7 @@ pub fn process_connection<R: Read + Send, W: Write>(
 		features,
 		trust,
 		store,
-		settings,
+		settings: settings.clone(),
 	};
 
 	// postHandshake.
@@ -380,6 +385,92 @@ impl<R: Read + Send, W: Write> Connection<'_, R, W> {
 
 	fn perform_op(&mut self, op: u64) -> Result<()> {
 		match op {
+			op::ADD_BUILD_LOG => {
+				let name = self.from.read_string()?;
+				let path = StorePath::from_bytes(name.as_bytes())
+					.map_err(|error| Error::Nix(error.to_string()))?;
+				self.start()?;
+				if self.trust != Trust::Trusted {
+					return Err(Error::Nix("you are not privileged to add logs".into()));
+				}
+				let mut source = FramedReader::new(&mut self.from);
+				let result = self.store.add_build_log(&path, &mut source);
+				source.drain()?;
+				result?;
+				self.stop();
+				self.to.u64(1);
+			}
+			op::OPTIMISE_STORE => {
+				self.start()?;
+				let stats = self.store.optimise()?;
+				self.logger.log(
+					&mut self.to,
+					LVL_INFO,
+					&format!(
+						"{} freed by hard-linking {} files",
+						nix_rs_store::gc::render_size(stats.bytes_freed as i64, false),
+						stats.files_linked
+					),
+				)?;
+				self.stop();
+				self.to.u64(1);
+			}
+			op::QUERY_SUBSTITUTABLE_PATH_INFO
+			| op::QUERY_SUBSTITUTABLE_PATH_INFOS
+			| op::QUERY_SUBSTITUTABLE_PATHS => {
+				let single = op == op::QUERY_SUBSTITUTABLE_PATH_INFO;
+				let paths = if single {
+					BTreeSet::from([self.from.read_store_path()?])
+				} else if op == op::QUERY_SUBSTITUTABLE_PATH_INFOS && self.version >= version(1, 22)
+				{
+					let count = self.from.read_u64()?;
+					let mut paths = BTreeSet::new();
+					for _ in 0..count {
+						paths.insert(self.from.read_store_path()?);
+						let ca = self.from.read_string()?;
+						if !ca.is_empty() {
+							CAHash::from_nix_hex_str(&ca).ok_or_else(|| {
+								Error::Nix(format!("invalid content address '{ca}'"))
+							})?;
+						}
+					}
+					paths
+				} else {
+					self.from.read_store_paths()?
+				};
+				self.start()?;
+				let mut infos = BTreeMap::new();
+				if self.settings.build.use_substitutes {
+					for path in paths {
+						for cache in &self.settings.substituters {
+							if op == op::QUERY_SUBSTITUTABLE_PATHS && !cache.info().want_mass_query
+							{
+								continue;
+							}
+							if let Some(info) = cache.query_path_info(&path)? {
+								infos.insert(path, info);
+								break;
+							}
+						}
+					}
+				}
+				self.stop();
+				if op == op::QUERY_SUBSTITUTABLE_PATHS {
+					self.to.store_paths(infos.keys());
+				} else {
+					self.to.u64(infos.len() as u64);
+					for (path, cached) in infos {
+						if !single {
+							self.to.store_path(&path);
+						}
+						self.to
+							.opt_store_path(cached.info.deriver.as_ref())
+							.store_paths(cached.info.references.iter())
+							.u64(cached.file_size.unwrap_or(0))
+							.u64(cached.info.nar_size);
+					}
+				}
+			}
 			op::IS_VALID_PATH => {
 				let path = self.from.read_store_path()?;
 				self.start()?;
@@ -391,7 +482,10 @@ impl<R: Read + Send, W: Write> Connection<'_, R, W> {
 				let paths = self.from.read_store_paths()?;
 				let substitute = self.version >= version(1, 27) && self.from.read_bool()?;
 				self.start()?;
-				if substitute && !self.settings.substituters.is_empty() {
+				if substitute
+					&& self.settings.build.use_substitutes
+					&& !self.settings.substituters.is_empty()
+				{
 					for path in &paths {
 						if !self.store.is_valid_path(path)? {
 							let _ = self.store.substitute(&self.settings.substituters, path);
@@ -458,6 +552,12 @@ impl<R: Read + Send, W: Write> Connection<'_, R, W> {
 				let path = self.from.read_store_path()?;
 				self.start()?;
 				if !self.store.is_valid_path(&path)? {
+					if !self.settings.build.use_substitutes {
+						return Err(Error::Nix(format!(
+							"path '{}' is not valid and substitution is disabled",
+							path.to_absolute_path()
+						)));
+					}
 					self.store.substitute(&self.settings.substituters, &path)?;
 				}
 				self.stop();
@@ -534,7 +634,7 @@ impl<R: Read + Send, W: Write> Connection<'_, R, W> {
 				let missing = query_missing(
 					self.store,
 					&self.settings.substituters,
-					true,
+					self.settings.build.use_substitutes,
 					self.settings.build.always_allow_substitutes,
 					&targets,
 				)?;
@@ -821,7 +921,7 @@ impl<R: Read + Send, W: Write> Connection<'_, R, W> {
 		}
 		self.start()?;
 		let store = self.store;
-		let settings = self.settings;
+		let settings = &self.settings;
 		let builder =
 			LocalBuilder::new(store, &settings.build).with_substituters(&settings.substituters);
 		let mut results = Vec::new();
@@ -832,6 +932,14 @@ impl<R: Read + Send, W: Write> Connection<'_, R, W> {
 				DerivedPath::Opaque(path) => {
 					if store.is_valid_path(path)? {
 						Ok(BuildOutcome::AlreadyValid(BTreeMap::new()))
+					} else if !settings.build.use_substitutes {
+						Err((
+							format!(
+								"path '{}' is not valid and substitution is disabled",
+								path.to_absolute_path()
+							),
+							14,
+						))
 					} else {
 						store
 							.substitute(&settings.substituters, path)
@@ -924,6 +1032,9 @@ impl<R: Read + Send, W: Write> Connection<'_, R, W> {
 				first_error.get_or_insert(message.clone());
 			}
 			results.push((text.clone(), result, started, now()));
+			if first_error.is_some() && !settings.build.keep_going {
+				break;
+			}
 		}
 		if op == op::BUILD_PATHS {
 			if let Some(message) = first_error {
@@ -979,18 +1090,18 @@ impl<R: Read + Send, W: Write> Connection<'_, R, W> {
 
 	/// `WorkerProto::Op::SetOptions` and `ClientSettings::apply`.
 	fn set_options(&mut self) -> Result<()> {
-		let _keep_failed = self.from.read_u64()?;
-		let _keep_going = self.from.read_u64()?;
-		let _try_fallback = self.from.read_u64()?;
+		let keep_failed = self.from.read_bool()?;
+		let keep_going = self.from.read_bool()?;
+		let try_fallback = self.from.read_bool()?;
 		let verbosity = self.from.read_u64()?;
-		let _max_build_jobs = self.from.read_u64()?;
-		let _max_silent_time = self.from.read_u64()?;
+		let max_build_jobs = self.from.read_u64()?;
+		let max_silent_time = self.from.read_u64()?;
 		self.from.read_u64()?; // obsolete useBuildHook
 		let _verbose_build = self.from.read_u64()?;
 		self.from.read_u64()?; // obsolete logType
 		self.from.read_u64()?; // obsolete printBuildTrace
-		let _build_cores = self.from.read_u64()?;
-		let _use_substitutes = self.from.read_u64()?;
+		let build_cores = self.from.read_u64()?;
+		let use_substitutes = self.from.read_bool()?;
 		let n = self.from.read_u64()?;
 		let mut overrides = BTreeMap::new();
 		for _ in 0..n {
@@ -1000,6 +1111,15 @@ impl<R: Read + Send, W: Write> Connection<'_, R, W> {
 		}
 		self.start()?;
 		self.logger.verbosity = verbosity;
+		self.settings.build.keep_failed = keep_failed;
+		self.settings.build.keep_going = keep_going;
+		self.settings.build.try_fallback = try_fallback;
+		self.settings.build.max_build_jobs = max_build_jobs;
+		self.settings.build.max_silent_time = max_silent_time;
+		self.settings.build.build_cores = u32::try_from(build_cores)
+			.map_err(|_| Error::Protocol("build cores exceed unsigned integer range".into()))?;
+		self.settings.build.use_substitutes = use_substitutes;
+		let mut accepted = nix_compat::nixcpp::settings::Settings::default();
 		for (name, value) in &overrides {
 			let unrestricted = matches!(
 				name.as_str(),
@@ -1018,8 +1138,11 @@ impl<R: Read + Send, W: Write> Connection<'_, R, W> {
 					"Ignoring the client-specified plugin-files.\nThe client specifying plugins to the daemon never made sense, and was removed in Nix >=2.14.",
 				)?;
 			} else if self.trust == Trust::Trusted || unrestricted {
-				tracing::debug!("client setting '{name}' = '{value}'");
+				if let Err(error) = accepted.set(name, value) {
+					self.logger.warn(&mut self.to, &error.to_string())?;
+				}
 			} else if matches!(name.as_str(), "substituters" | "binary-caches") {
+				let mut permitted = Vec::new();
 				for substituter in value.split_whitespace() {
 					if !self.settings.trusted_substituter(substituter) {
 						self.logger.warn(
@@ -1028,8 +1151,13 @@ impl<R: Read + Send, W: Write> Connection<'_, R, W> {
 								"ignoring untrusted substituter '{substituter}', you are not a trusted user.\nRun `man nix.conf` for more information on the `substituters` configuration option."
 							),
 						)?;
+					} else {
+						permitted.push(substituter);
 					}
 				}
+				accepted
+					.set("substituters", &permitted.join(" "))
+					.map_err(|error| Error::Nix(error.to_string()))?;
 			} else {
 				self.logger.warn(
 					&mut self.to,
@@ -1038,6 +1166,14 @@ impl<R: Read + Send, W: Write> Connection<'_, R, W> {
 					),
 				)?;
 			}
+		}
+		self.settings.build.apply_config(&accepted);
+		if accepted.get("substituters").is_some() {
+			self.settings.substituters = accepted
+				.get_list("substituters", &[])
+				.into_iter()
+				.map(nix_rs_store::binary_cache::BinaryCache::open)
+				.collect::<nix_rs_store::Result<Vec<_>>>()?;
 		}
 		self.stop();
 		Ok(())

@@ -276,6 +276,122 @@ fn simple_derivation_matches_the_reference() {
 	assert_eq!(env.read("nix-rs", &outputs[0]), b"hello\n");
 }
 
+#[test]
+fn rust_build_command_evaluates_instantiates_and_realises_without_reference_derivations() {
+	for output in ["out", "dev"] {
+		rust_build_command_matches_reference_output(output);
+	}
+}
+
+fn rust_build_command_matches_reference_output(output: &str) {
+	let env = Env::new();
+	let expression = format!(
+		r#"(derivation {{ name = "rust-command"; system = "x86_64-linux"; builder = "${{builtins.storePath {}}}/bin/sh"; outputs = [ "out" "dev" ]; args = [ "-c" "echo $NIX_BUILD_CORES > $out; echo dev > $dev" ]; }}).{output}"#,
+		env.busybox
+	);
+	let reference = env.reference_ok(
+		"nix-build",
+		&[
+			"--store",
+			env.root("reference").to_str().unwrap(),
+			"--no-out-link",
+			"--expr",
+			&expression,
+		],
+	);
+	let mut settings = nix_compat::nixcpp::settings::Settings::default();
+	for (name, value) in [("substituters", ""), ("sandbox-paths", ""), ("cores", "1")] {
+		settings.set(name, value).unwrap();
+	}
+	let mut options = nix_rs_commands::build::parse_args(
+		[
+			"--store".to_owned(),
+			format!("local?root={}", env.root("nix-rs").display()),
+			"--no-out-link".to_owned(),
+			"--expr".to_owned(),
+			expression,
+		],
+		settings,
+	)
+	.unwrap();
+	options.out_link = Some("result".into());
+	let mut stdout = Vec::new();
+	let mut stderr = Vec::new();
+	assert_eq!(
+		nix_rs_commands::build::run(&options, env.dir.path(), &mut stdout, &mut stderr),
+		std::process::ExitCode::SUCCESS,
+		"{}",
+		String::from_utf8_lossy(&stderr)
+	);
+	assert_eq!(String::from_utf8(stdout).unwrap(), reference);
+	assert_eq!(
+		fs::read_link(env.dir.path().join("result")).unwrap(),
+		Path::new(reference.trim())
+	);
+	assert!(
+		env.reference_ok(
+			"nix-store",
+			&[
+				"--store",
+				env.root("nix-rs").to_str().unwrap(),
+				"--gc",
+				"--print-live"
+			]
+		)
+		.lines()
+		.any(|path| path == reference.trim())
+	);
+	let path = StorePath::from_absolute_path(reference.trim().as_bytes()).unwrap();
+	assert_eq!(
+		env.read_tree("reference", &path),
+		env.read_tree("nix-rs", &path)
+	);
+	assert_eq!(
+		env.path_info("reference", &[&path]),
+		env.path_info("nix-rs", &[&path])
+	);
+	for query in [
+		"--hash",
+		"--size",
+		"--references",
+		"--referrers",
+		"--deriver",
+		"--requisites",
+	] {
+		let expected = env.reference_ok(
+			"nix-store",
+			&[
+				"--store",
+				env.root("reference").to_str().unwrap(),
+				"--query",
+				query,
+				reference.trim(),
+			],
+		);
+		let options = nix_rs_commands::maintenance::parse_args(
+			[
+				"--store".to_owned(),
+				format!("local?root={}", env.root("nix-rs").display()),
+				"--query".to_owned(),
+				query.to_owned(),
+				reference.trim().to_owned(),
+			],
+			nix_compat::nixcpp::settings::Settings::default(),
+		)
+		.unwrap();
+		let mut actual = Vec::new();
+		let mut stderr = Vec::new();
+		assert_eq!(
+			nix_rs_commands::maintenance::run(&options, &mut actual, &mut stderr),
+			std::process::ExitCode::SUCCESS,
+			"{query}: {}",
+			String::from_utf8_lossy(&stderr)
+		);
+		assert_eq!(String::from_utf8(actual).unwrap(), expected, "{query}");
+	}
+	env.verify("nix-rs");
+}
+
 /// The builder records what it can observe of its sandbox: environment,
 /// identity, generated files, and the directory layout.
 #[test]
