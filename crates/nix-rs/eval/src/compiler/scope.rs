@@ -23,8 +23,10 @@ enum LocalName {
 	Ident(String),
 
 	/// Phantom stack value (e.g. attribute set used for `with`) that
-	/// must be accounted for to calculate correct stack offsets.
-	Phantom,
+	/// must be accounted for to calculate correct stack offsets. A
+	/// phantom holding a named attribute's value carries that name for
+	/// display, but it cannot be resolved.
+	Phantom(Option<SmolStr>),
 }
 
 /// Represents a single local already known to the compiler.
@@ -59,7 +61,7 @@ impl Local {
 	/// Retrieve the name of the given local (if available).
 	pub fn name(&self) -> Option<SmolStr> {
 		match &self.name {
-			LocalName::Phantom => None,
+			LocalName::Phantom(name) => name.clone(),
 			LocalName::Ident(name) => Some(SmolStr::new(name)),
 		}
 	}
@@ -68,7 +70,7 @@ impl Local {
 	pub fn is_ignored(&self) -> bool {
 		match &self.name {
 			LocalName::Ident(name) => name.starts_with('_'),
-			LocalName::Phantom => false,
+			LocalName::Phantom(_) => false,
 		}
 	}
 
@@ -232,12 +234,20 @@ impl Scope {
 	/// Declare a local variable that occupies a stack slot and should
 	/// be accounted for, but is not directly accessible by users
 	/// (e.g. attribute sets used for `with`).
+	/// Name a phantom local for display, such as in the name of a function
+	/// it holds.
+	pub fn name_phantom(&mut self, idx: LocalIdx, name: SmolStr) {
+		if let LocalName::Phantom(phantom) = &mut self.locals[idx.0].name {
+			*phantom = Some(name);
+		}
+	}
+
 	pub fn declare_phantom(&mut self, span: codemap::Span, initialised: bool) -> LocalIdx {
 		let idx = self.locals.len();
 		self.locals.push(Local {
 			initialised,
 			span: Some(span),
-			name: LocalName::Phantom,
+			name: LocalName::Phantom(None),
 			depth: self.scope_depth,
 			needs_finaliser: false,
 			must_thunk: false,

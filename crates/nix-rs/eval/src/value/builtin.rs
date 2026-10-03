@@ -86,6 +86,11 @@ impl Builtin {
 		self.0.name
 	}
 
+	/// Whether the builtin has been applied to some of its arguments.
+	pub fn has_partials(&self) -> bool {
+		!self.0.partials.is_empty()
+	}
+
 	pub fn documentation(&self) -> Option<&'static str> {
 		self.0.documentation
 	}

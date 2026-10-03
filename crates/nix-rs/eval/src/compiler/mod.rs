@@ -34,7 +34,7 @@ use crate::observer::{CompilerObserver, OptionalCompilerObserver};
 use crate::opcode::{CodeIdx, Op, Position, UpvalueIdx};
 use crate::spans::ToSpan;
 use crate::upvalues::UpvalueData;
-use crate::value::{Closure, Formals, Lambda, NixAttrs, Thunk, Value};
+use crate::value::{Closure, Formals, Lambda, NixAttrs, NixList, Thunk, Value};
 use crate::warnings::{EvalWarning, WarningKind};
 use crate::{CoercionKind, NixString};
 
@@ -371,6 +371,10 @@ impl Compiler<'_, '_> {
 				self.thunk(slot, has_attr, move |c, s| c.compile_has_attr(s, has_attr))
 			}
 
+			// CppNix shares one empty list value instead of a thunk.
+			ast::Expr::List(list) if list.items().next().is_none() => {
+				self.emit_constant(Value::List(NixList::construct(0, vec![])), list)
+			}
 			ast::Expr::List(list) => self.thunk(slot, list, move |c, s| c.compile_list(s, list)),
 
 			ast::Expr::AttrSet(attrs) => {
@@ -394,7 +398,12 @@ impl Compiler<'_, '_> {
 
 			ast::Expr::Ident(ident) => self.compile_ident(slot, ident),
 			ast::Expr::With(with) => self.thunk(slot, with, |c, s| c.compile_with(s, with)),
+			// A function bound directly to a name takes that name, as in
+			// CppNix.
 			ast::Expr::Lambda(lambda) => self.thunk(slot, lambda, move |c, s| {
+				if let Some(name) = c.context().lambda.name.clone() {
+					c.scope_mut().name_phantom(s, name);
+				}
 				c.compile_lambda_or_thunk(false, s, lambda, |c, s| c.compile_lambda(s, lambda))
 			}),
 			ast::Expr::Apply(apply) => {
@@ -582,7 +591,9 @@ impl Compiler<'_, '_> {
 		// can't desugar to the enclosed expression (`foo`) because we need to
 		// coerce the result to a string value. This would require forcing the
 		// value of the inner expression, so we need to wrap it in another thunk.
-		if parts.len() != 1 || matches!(&parts[0], ast::InterpolPart::Interpolation(_)) {
+		//
+		// An empty string has no parts and is a constant, as in CppNix.
+		if parts.len() > 1 || matches!(parts.first(), Some(ast::InterpolPart::Interpolation(_))) {
 			self.thunk(slot, node, move |c, s| {
 				c.compile_str_parts(s, node, parts);
 			});
@@ -1294,6 +1305,11 @@ impl Compiler<'_, '_> {
 			}
 		};
 
+		// A function directly returning a function passes its name on, as
+		// CppNix's `ExprLambda::setName` does.
+		if let Some(name) = self.context().lambda.name.clone() {
+			self.scope_mut().name_phantom(slot, name);
+		}
 		self.compile(slot, node.body().unwrap());
 		if let Some((formals, throw_idx)) = formals {
 			self.context_mut().lambda.formals = Some(formals);

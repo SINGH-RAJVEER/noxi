@@ -229,7 +229,7 @@ eval-fail-replaceStrings-5 error-message E006
 eval-fail-replaceStrings-6 error-message E006
 eval-fail-scope-5 error-message E014
 eval-fail-seq error-message E002
-eval-fail-set-override unexpected-success
+eval-fail-set-override error-message E006
 eval-fail-set error-message E028
 eval-fail-short-path-literal error-message none
 eval-fail-sort-1 error-message E006
@@ -280,7 +280,7 @@ eval-okay-attrs2 pass
 eval-okay-attrs3 pass
 eval-okay-attrs4 pass
 eval-okay-attrs5 pass
-eval-okay-attrs6 output
+eval-okay-attrs6 pass
 eval-okay-autoargs pass
 eval-okay-backslash-newline-1 pass
 eval-okay-backslash-newline-2 pass
@@ -348,7 +348,7 @@ eval-okay-if pass
 eval-okay-import unexpected-failure E028
 eval-okay-ind-string pass
 eval-okay-inherit-attr-pos output
-eval-okay-inherit-from output
+eval-okay-inherit-from pass
 eval-okay-intersectAttrs pass
 eval-okay-let pass
 eval-okay-list pass
@@ -360,14 +360,14 @@ eval-okay-merge-dynamic-attrs pass
 eval-okay-nested-with pass
 eval-okay-new-let pass
 eval-okay-null-dynamic-attrs pass
-eval-okay-overrides output
+eval-okay-overrides pass
 eval-okay-parse-flake-ref unexpected-failure E005
 eval-okay-partition pass
 eval-okay-path-string-interpolation pass
 eval-okay-path pass
 eval-okay-pathexists output
 eval-okay-patterns pass
-eval-okay-print output
+eval-okay-print pass
 eval-okay-readDir-symlinked-directory pass
 eval-okay-readDir pass
 eval-okay-readFileType pass
@@ -404,7 +404,7 @@ eval-okay-tail-call-1 disabled
 eval-okay-tojson pass
 eval-okay-toxml pass
 eval-okay-toxml2 pass
-eval-okay-tryeval-failed-thunk-reeval output
+eval-okay-tryeval-failed-thunk-reeval pass
 eval-okay-tryeval pass
 eval-okay-types pass
 eval-okay-url-literal-default pass

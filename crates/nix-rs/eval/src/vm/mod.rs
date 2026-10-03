@@ -678,6 +678,11 @@ where
 					}
 				}
 
+				Op::Dup => {
+					let value = self.stack_peek(0).clone();
+					self.stack.push(value);
+				}
+
 				Op::Pop => {
 					self.stack.pop();
 				}

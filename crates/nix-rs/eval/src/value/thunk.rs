@@ -38,7 +38,7 @@ use super::{Lambda, TotalDisplay};
 use codemap::Span;
 
 /// Internal representation of a suspended native thunk.
-struct SuspendedNative(Box<dyn Fn() -> Result<Value, ErrorKind>>);
+pub(super) struct SuspendedNative(Box<dyn Fn() -> Result<Value, ErrorKind>>);
 
 impl Debug for SuspendedNative {
 	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -52,7 +52,7 @@ impl Debug for SuspendedNative {
 /// (Suspended or RecursiveClosure).  The [`Thunk::value()`] function may
 /// not be called until the thunk is in the final state (Evaluated).
 #[derive(Debug)]
-enum ThunkRepr {
+pub(super) enum ThunkRepr {
 	/// Thunk is closed over some values, suspended and awaiting
 	/// execution.
 	Suspended {
@@ -130,7 +130,7 @@ impl ThunkRepr {
 /// Every reference cycle involving `Value`s will contain at least
 /// one `Thunk`.
 #[derive(Clone, Debug)]
-pub struct Thunk(Rc<RefCell<ThunkRepr>>);
+pub struct Thunk(pub(super) Rc<RefCell<ThunkRepr>>);
 
 impl Thunk {
 	pub fn new_closure(lambda: Rc<Lambda>) -> Self {
@@ -383,6 +383,11 @@ impl Thunk {
 			},
 			_ => false,
 		}
+	}
+
+	/// The identity of the thunk, for detecting repeated values.
+	pub(super) fn as_ptr(&self) -> *const () {
+		Rc::as_ptr(&self.0).cast()
 	}
 
 	/// Helper function to format thunks in observer output.

@@ -12,6 +12,7 @@ use std::cmp::{self, Ordering};
 use std::collections::BTreeMap;
 use std::collections::VecDeque;
 use std::collections::hash_map::Entry;
+use std::io::Write as _;
 use std::path::PathBuf;
 use std::rc::Rc;
 
@@ -21,7 +22,7 @@ use crate::{
 	self as nix_rs_eval,
 	builtins::hash::hash_nix_string,
 	errors::{CatchableErrorKind, ErrorKind},
-	value::{CoercionKind, NixAttrs, NixList, NixString, Thunk, Value},
+	value::{CoercionKind, NixAttrs, NixList, NixString, PrintOptions, Thunk, Value},
 };
 use crate::{arithmetic_op, try_cek};
 
@@ -560,8 +561,8 @@ mod pure_builtins {
 		// After CppNix's `prim_genericClosure`, which keeps the keys in an
 		// ordered set, so keys must be comparable.
 		let attrs = input.to_attrs()?;
-		let start_set = generators::request_force(&co, attrs.select_required("startSet")?.clone())
-			.await;
+		let start_set =
+			generators::request_force(&co, attrs.select_required("startSet")?.clone()).await;
 		let start_set = try_value!(start_set).to_list()?;
 		if start_set.is_empty() {
 			return Ok(Value::List(start_set));
@@ -1568,11 +1569,27 @@ mod pure_builtins {
 	}
 
 	#[builtin("trace")]
-	async fn builtin_trace(co: GenCo, message: Value, value: Value) -> Result<Value, ErrorKind> {
+	async fn builtin_trace(
+		co: GenCo,
+		message: Value,
+		#[lazy] value: Value,
+	) -> Result<Value, ErrorKind> {
 		// TODO(grfn): `trace` should be pluggable and capturable, probably via a method on
 		// the VM
-		eprintln!("trace: {} :: {}", message, message.type_of());
-		Ok(value)
+		if message.is_catchable() {
+			return Ok(message);
+		}
+		// CppNix prints a string message as is and other values with its
+		// `ValuePrinter`.
+		let message = match message {
+			Value::String(s) => s,
+			message => generators::request_print(&co, message, PrintOptions::UNLIMITED).await,
+		};
+		let mut line = b"trace: ".to_vec();
+		line.extend_from_slice(message.as_bytes());
+		line.push(b'\n');
+		let _ = std::io::stderr().write_all(&line);
+		Ok(generators::request_force(&co, value).await)
 	}
 
 	#[builtin("toPath")]

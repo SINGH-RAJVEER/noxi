@@ -198,6 +198,11 @@ impl NixAttrs {
 		Rc::ptr_eq(&self.0, &other.0)
 	}
 
+	/// The identity of the shared set, for detecting repeated values.
+	pub(crate) fn as_ptr(&self) -> *const () {
+		Rc::as_ptr(&self.0).cast()
+	}
+
 	/// Return an attribute set containing the merge of the two
 	/// provided sets. Keys from the `other` set have precedence.
 	pub fn update(self, other: Self) -> Self {

@@ -16,7 +16,7 @@ use std::future::Future;
 
 use crate::FileType;
 use crate::NixString;
-use crate::value::PointerEquality;
+use crate::value::{PointerEquality, PrintOptions, ValuePrinter};
 use crate::warnings::{EvalWarning, WarningKind};
 
 use super::*;
@@ -127,6 +127,10 @@ pub enum VMRequest {
 	/// Request column, line and file name for the given span.
 	/// Used by builtins.unsafeGetAttrPos
 	GetSpanPos(Span),
+
+	/// Request that the VM prints the value as CppNix's `ValuePrinter`
+	/// does, which needs the source positions of functions.
+	Print(Value, PrintOptions),
 }
 
 /// Human-readable representation of a generator message, used by observers.
@@ -186,6 +190,7 @@ impl Display for VMRequest {
 			VMRequest::ReadFileType(p) => write!(f, "read_file_type({})", p.to_string_lossy()),
 			VMRequest::GetEnv(p) => write!(f, "get_env({})", p.to_string_lossy()),
 			VMRequest::GetSpanPos(span) => write!(f, "get_span_pos({:?})", span),
+			VMRequest::Print(v, _) => write!(f, "print({})", v.type_of()),
 		}
 	}
 }
@@ -555,6 +560,11 @@ where
 							]);
 							message = VMResponse::GetSpanPos(Value::Attrs(v));
 						}
+
+						VMRequest::Print(value, options) => {
+							let printed = ValuePrinter::print(&self.source, options, &value);
+							message = VMResponse::Value(NixString::from(printed).into());
+						}
 					}
 				}
 
@@ -777,6 +787,14 @@ pub(crate) async fn request_read_dir(co: &GenCo, path: PathBuf) -> Vec<(bytes::B
 pub(crate) async fn request_span(co: &GenCo) -> Span {
 	match co.yield_(VMRequest::Span).await {
 		VMResponse::Span(span) => span,
+		msg => panic!("nix-rs bug: VM responded with incorrect generator message: {msg}"),
+	}
+}
+
+/// Print a value as CppNix's `ValuePrinter` does.
+pub async fn request_print(co: &GenCo, value: Value, options: PrintOptions) -> NixString {
+	match co.yield_(VMRequest::Print(value, options)).await {
+		VMResponse::Value(Value::String(s)) => s,
 		msg => panic!("nix-rs bug: VM responded with incorrect generator message: {msg}"),
 	}
 }

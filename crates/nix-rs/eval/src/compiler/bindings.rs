@@ -7,14 +7,17 @@
 use std::iter::Peekable;
 
 use rnix::ast::HasEntry;
-use rustc_hash::FxHashSet;
 use rowan::ast::AstChildren;
+use rustc_hash::FxHashSet;
 
 use crate::spans::{EntireFile, OrEntireFile};
 
 use super::{scope::ScopeGuard, *};
 
 type PeekableAttrs = Peekable<AstChildren<ast::Attr>>;
+
+/// The attribute through which a recursive set overrides its own values.
+const OVERRIDES: &str = "__overrides";
 
 /// What kind of bindings scope is being compiled?
 #[derive(Clone, Copy, PartialEq)]
@@ -101,6 +104,9 @@ enum Binding {
 		namespace: ast::Expr,
 		name: SmolStr,
 		span: Span,
+		/// Index into [`TrackedBindings::namespaces`] when the namespace
+		/// is shared with other names of the same `inherit`.
+		shared: Option<usize>,
 	},
 
 	Plain {
@@ -145,7 +151,13 @@ impl Binding {
 					let mut existing_keys: FxHashSet<SmolStr> = existing
 						.entries
 						.iter()
-						.filter_map(|entry| entry.remaining_path.clone().peek().and_then(expr_static_attr_str))
+						.filter_map(|entry| {
+							entry
+								.remaining_path
+								.clone()
+								.peek()
+								.and_then(expr_static_attr_str)
+						})
 						.collect();
 					existing_keys.extend(
 						existing
@@ -229,11 +241,19 @@ impl TrackedBinding {
 
 struct TrackedBindings {
 	bindings: Vec<TrackedBinding>,
+
+	/// Namespaces of `inherit (e) a b ...` with several names. As in
+	/// CppNix, each is evaluated once, through a phantom local bound after
+	/// all other values; its slot is recorded once declared.
+	namespaces: Vec<(ast::Expr, Option<LocalIdx>)>,
 }
 
 impl TrackedBindings {
 	fn new() -> Self {
-		TrackedBindings { bindings: vec![] }
+		TrackedBindings {
+			bindings: vec![],
+			namespaces: vec![],
+		}
 	}
 
 	/// Attempt to merge an entry into an existing matching binding, assuming
@@ -477,6 +497,22 @@ impl Compiler<'_, '_> {
 		bindings: &mut TrackedBindings,
 	) {
 		for (from, name, span) in inherit_froms {
+			let node = rowan::ast::AstNode::syntax(&from).clone();
+			let names = inherit_froms_count(&node);
+			let shared = (names > 1).then(|| {
+				match bindings
+					.namespaces
+					.iter()
+					.position(|(e, _)| *rowan::ast::AstNode::syntax(e) == node)
+				{
+					Some(idx) => idx,
+					None => {
+						bindings.namespaces.push((from.clone(), None));
+						bindings.namespaces.len() - 1
+					}
+				}
+			});
+
 			let key_slot = if kind.is_attrs() {
 				// In an attribute set, the keys themselves are placed on the
 				// stack but their stack slot is inaccessible (it is only
@@ -508,8 +544,48 @@ impl Compiler<'_, '_> {
 					namespace: from,
 					name,
 					span,
+					shared,
 				},
 			);
+		}
+	}
+
+	/// Declare the phantom locals holding shared `inherit` namespaces and
+	/// track their values, after all other bindings so that the stack holds
+	/// them above every value.
+	fn declare_shared_namespaces(&mut self, bindings: &mut TrackedBindings) {
+		for idx in 0..bindings.namespaces.len() {
+			let expr = bindings.namespaces[idx].0.clone();
+			let span = self.span_for(&expr);
+			let slot = self.scope_mut().declare_phantom(span, false);
+			bindings.namespaces[idx].1 = Some(slot);
+			bindings.track_new(
+				KeySlot::None {
+					name: SmolStr::default(),
+				},
+				slot,
+				Binding::Plain { expr },
+			);
+		}
+	}
+
+	/// Push an `inherit` namespace: the expression itself, or the shared
+	/// phantom local holding it in the scope enclosing the current thunk.
+	fn compile_inherit_namespace(
+		&mut self,
+		slot: LocalIdx,
+		namespace: &ast::Expr,
+		shared: Option<LocalIdx>,
+	) {
+		match shared {
+			Some(local) => {
+				let parent = self.contexts.len() - 2;
+				self.contexts[parent].scope.mark_used(local);
+				let upvalue = self.add_upvalue(self.contexts.len() - 1, UpvalueKind::Local(local));
+				self.push_op(Op::GetUpvalue, namespace);
+				self.push_uvarint(upvalue.0 as u64);
+			}
+			None => self.compile(slot, namespace.clone()),
 		}
 	}
 
@@ -589,7 +665,13 @@ impl Compiler<'_, '_> {
 
 				// In non-recursive attribute sets, the value is inaccessible
 				// (only consumed by `OpAttrs`).
-				BindingsKind::Attrs => self.scope_mut().declare_phantom(key_span, false),
+				BindingsKind::Attrs => {
+					let idx = self.scope_mut().declare_phantom(key_span, false);
+					if let KeySlot::Static { name, .. } = &key_slot {
+						self.scope_mut().name_phantom(idx, name.clone());
+					}
+					idx
+				}
 			};
 
 			let binding = if entry.remaining_path.peek().is_some() {
@@ -640,11 +722,25 @@ impl Compiler<'_, '_> {
 
 	/// Actually binds all tracked bindings by emitting the bytecode that places
 	/// them in their stack slots.
-	fn bind_values(&mut self, bindings: TrackedBindings) {
+	///
+	/// With `overrides`, every statically named value other than
+	/// `__overrides` itself is bound as `__overrides.<name> or <value>`, so
+	/// recursive references see the overriding value as in CppNix.
+	fn bind_values(&mut self, bindings: TrackedBindings, overrides: bool) {
 		let mut value_indices: Vec<LocalIdx> = vec![];
+		let namespaces: Vec<Option<LocalIdx>> =
+			bindings.namespaces.iter().map(|(_, slot)| *slot).collect();
+		let shared_slot = |shared: Option<usize>| shared.and_then(|idx| namespaces[idx]);
 
 		for binding in bindings.bindings.into_iter() {
 			value_indices.push(binding.value_slot);
+
+			let overridable = match &binding.key_slot {
+				KeySlot::Static { name, .. } if overrides && name != OVERRIDES => {
+					Some(name.clone())
+				}
+				_ => None,
+			};
 
 			match binding.key_slot {
 				KeySlot::None { .. } => {} // nothing to do here
@@ -661,6 +757,45 @@ impl Compiler<'_, '_> {
 				}
 			}
 
+			if let Some(name) = overridable {
+				let span = OrEntireFile(self.scope()[binding.value_slot].span);
+				let value = binding.binding;
+				self.thunk(binding.value_slot, &span, |c, s| {
+					c.compile_identifier_access(s, OVERRIDES, &span);
+					c.emit_force(&span);
+					c.emit_constant(name.as_str().into(), &span);
+					c.push_op(Op::AttrsTrySelect, &span);
+					let not_found = c.push_op(Op::JumpIfNotFound, &span);
+					c.push_u16(0);
+					let found = c.push_op(Op::Jump, &span);
+					c.push_u16(0);
+					c.patch_jump(not_found);
+
+					match value {
+						Binding::InheritFrom {
+							namespace,
+							name,
+							span,
+							shared,
+						} => {
+							c.compile_inherit_namespace(s, &namespace, shared_slot(shared));
+							c.emit_force(&namespace);
+							c.emit_constant(name.as_str().into(), &span);
+							c.push_op(Op::AttrsSelect, &span);
+						}
+						Binding::Plain { expr } => c.compile(s, expr),
+						Binding::Set(set) => {
+							let g = c.compile_bindings(s, set.kind, &set);
+							c.scope_mut().end_scope(g);
+						}
+					}
+
+					c.patch_jump(found);
+				});
+				self.scope_mut().mark_initialised(binding.value_slot);
+				continue;
+			}
+
 			match binding.binding {
 				// This entry is an inherit (from) expr. The value is placed on
 				// the stack by selecting an attribute.
@@ -668,11 +803,13 @@ impl Compiler<'_, '_> {
 					namespace,
 					name,
 					span,
+					shared,
 				} => {
 					// Create a thunk wrapping value (which may be one as well)
 					// to avoid forcing the from expr too early.
+					let shared = shared_slot(shared);
 					self.thunk(binding.value_slot, &namespace, |c, s| {
-						c.compile(s, namespace.clone());
+						c.compile_inherit_namespace(s, &namespace, shared);
 						c.emit_force(&namespace);
 
 						c.emit_constant(name.as_str().into(), &span);
@@ -721,7 +858,8 @@ impl Compiler<'_, '_> {
 		// Statically known names defined so far, which CppNix's parser
 		// rejects defining again.
 		let mut declared = FxHashSet::default();
-		let inherit_froms = self.compile_plain_inherits(slot, kind, &mut count, &mut declared, node);
+		let inherit_froms =
+			self.compile_plain_inherits(slot, kind, &mut count, &mut declared, node);
 		self.declare_namespaced_inherits(kind, inherit_froms, &mut bindings);
 		self.declare_bindings(kind, &mut count, &mut bindings, &mut declared, node);
 
@@ -737,12 +875,35 @@ impl Compiler<'_, '_> {
 			return scope_guard;
 		}
 
+		// A recursive set with a statically named `__overrides` attribute
+		// forces it while the set is built and updates the set with it. Plain
+		// inherits are bound before this is known, so sibling references to
+		// them still see the inherited value.
+		let overrides = kind == BindingsKind::RecAttrs && declared.contains(OVERRIDES);
+
+		self.declare_shared_namespaces(&mut bindings);
+		let shared_namespaces = bindings.namespaces.len();
+
 		// Actually bind values and ensure they are on the stack.
-		self.bind_values(bindings);
+		self.bind_values(bindings, overrides);
 
 		if kind.is_attrs() {
+			// The shared namespaces have been captured by the values that
+			// use them and are not attributes.
+			for _ in 0..shared_namespaces {
+				self.push_op(Op::Pop, node);
+			}
 			self.push_op(Op::Attrs, node);
 			self.push_uvarint(count as u64);
+		}
+
+		if overrides {
+			self.push_op(Op::Dup, node);
+			self.emit_constant(OVERRIDES.into(), node);
+			self.push_op(Op::AttrsSelect, node);
+			self.emit_force(node);
+			self.push_op(Op::AssertAttrs, node);
+			self.push_op(Op::AttrsUpdate, node);
 		}
 
 		scope_guard
@@ -899,4 +1060,15 @@ impl Compiler<'_, '_> {
 		self.contexts[ctx_idx].lambda.upvalue_count += 1;
 		idx
 	}
+}
+
+/// The number of names an `inherit (e) ...` clause with namespace `node`
+/// inherits.
+fn inherit_froms_count(node: &rnix::SyntaxNode) -> usize {
+	use rowan::ast::AstNode;
+	// The namespace expression is inside the `(e)` node of the clause.
+	node.parent()
+		.and_then(|from| from.parent())
+		.and_then(ast::Inherit::cast)
+		.map_or(1, |inherit| inherit.attrs().count())
 }

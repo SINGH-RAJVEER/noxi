@@ -61,7 +61,10 @@ pub use crate::warnings::{EvalWarning, WarningKind};
 pub use builtin_macros;
 use smol_str::SmolStr;
 
-pub use crate::value::{Builtin, CoercionKind, NixAttrs, NixList, NixString, Value};
+pub use crate::value::{
+	Ambiguous, Builtin, CoercionKind, NixAttrs, NixList, NixString, PrintOptions, Value,
+	ValuePrinter,
+};
 
 pub(crate) const REPL_LOCATION: &str = "[code]";
 

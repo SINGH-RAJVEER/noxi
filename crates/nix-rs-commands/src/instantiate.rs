@@ -16,7 +16,7 @@ use std::process::ExitCode;
 
 use nix_compat::nixcpp::settings::Settings;
 use nix_rs_eval::builtin_macros::builtins;
-use nix_rs_eval::{EvalMode, Evaluation, Value};
+use nix_rs_eval::{Ambiguous, EvalMode, Evaluation, Value};
 use rustc_hash::FxHashMap;
 use smol_str::SmolStr;
 
@@ -347,10 +347,9 @@ pub fn run(options: &Options, cwd: &Path, stdout: &mut dyn Write) -> ExitCode {
 	} else {
 		EvalMode::Lazy
 	};
-	let mut builder =
-		Evaluation::builder_pure()
-			.experimental_features(options.settings.experimental_features())
-			.max_call_depth(options.settings.get_int("max-call-depth", 10000).max(0) as usize);
+	let mut builder = Evaluation::builder_pure()
+		.experimental_features(options.settings.experimental_features())
+		.max_call_depth(options.settings.get_int("max-call-depth", 10000).max(0) as usize);
 	if !options.include.is_empty() {
 		// CppNix searches `-I` entries before `NIX_PATH`.
 		let mut nix_path = options.include.join(":");
@@ -406,7 +405,7 @@ pub fn run(options: &Options, cwd: &Path, stdout: &mut dyn Write) -> ExitCode {
 				Value::String(s) if options.json => stdout
 					.write_all(s.as_bytes())
 					.and_then(|()| stdout.write_all(b"\n")),
-				value => writeln!(stdout, "{value}"),
+				value => writeln!(stdout, "{}", Ambiguous(value)),
 			}
 		};
 		if written.is_err() {
