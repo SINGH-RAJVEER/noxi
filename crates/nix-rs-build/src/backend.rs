@@ -14,6 +14,7 @@ use nix_rs_store::{
 	DerivedPath, Error, FileIngestionMethod, LocalStore, Missing, Result, Store, ValidPathInfo,
 };
 
+use crate::error::BuildError;
 use crate::local::{BuildEvent, LocalBuilder};
 use crate::missing;
 use crate::settings::BuildSettings;
@@ -58,7 +59,7 @@ impl LocalBackend {
 impl LocalBackend {
 	/// The derivations realising `paths` builds, each after its inputs and
 	/// otherwise in order of name and path.
-	fn build_order(&self, paths: &[DerivedPath]) -> Result<Vec<StorePath>> {
+	fn build_order(&self, paths: &[DerivedPath]) -> Result<Vec<(StorePath, BTreeSet<StorePath>)>> {
 		let will_build = self.query_missing(paths)?.will_build;
 		let mut inputs: BTreeMap<StorePath, BTreeSet<StorePath>> = BTreeMap::new();
 		for drv in &will_build {
@@ -80,18 +81,42 @@ impl LocalBackend {
 				ready.insert((name, path, drv.clone()));
 			}
 		}
+		let mut waiting = inputs.clone();
 		let mut order = Vec::new();
 		while let Some((_, _, drv)) = ready.pop_first() {
-			inputs.remove(&drv);
-			for (other, other_inputs) in inputs.iter_mut() {
+			waiting.remove(&drv);
+			for (other, other_inputs) in waiting.iter_mut() {
 				if other_inputs.remove(&drv) && other_inputs.is_empty() {
 					let (name, path) = key(other);
 					ready.insert((name, path, other.clone()));
 				}
 			}
-			order.push(drv);
+			let drv_inputs = inputs.remove(&drv).unwrap_or_default();
+			order.push((drv, drv_inputs));
 		}
 		Ok(order)
+	}
+
+	/// CppNix's failure of a derivation goal whose input failed to build.
+	fn dependency_failed(&self, drv: &StorePath) -> Result<String> {
+		let mut message = format!(
+			"Cannot build '{}'.\nReason: 1 dependency failed.",
+			drv.to_absolute_path()
+		);
+		let derivation = self.store.read_derivation(drv)?;
+		let mut outputs: Vec<String> = derivation
+			.outputs()
+			.store_paths()
+			.map(StorePath::to_absolute_path)
+			.collect();
+		outputs.sort();
+		if !outputs.is_empty() {
+			message += "\nOutput paths:";
+		}
+		for output in outputs {
+			message += &format!("\n  {output}");
+		}
+		Ok(message)
 	}
 }
 
@@ -202,8 +227,66 @@ impl Store for LocalBackend {
 		};
 		// CppNix's worker starts ready builds in the order of their goal keys,
 		// `dd$NAME$PATH`, so independent derivations build in name order.
-		for drv in self.build_order(paths)? {
-			builder.realise_with_events(&drv, None, &mut events)?;
+		// Without `--keep-going`, a failure starts nothing new: the
+		// derivations waiting on it fail in turn, those that are not
+		// requested logging why, until a requested one fails.
+		let targets: BTreeSet<&StorePath> = paths
+			.iter()
+			.filter_map(|path| match path {
+				DerivedPath::Built { drv, .. } => Some(drv),
+				DerivedPath::Opaque(_) => None,
+			})
+			.collect();
+		let order = self.build_order(paths)?;
+		let mut built: BTreeSet<&StorePath> = BTreeSet::new();
+		let mut failed: BTreeSet<&StorePath> = BTreeSet::new();
+		let mut exit_status = 1;
+		let mut failure = None;
+		for (drv, inputs) in &order {
+			let message = if failed.is_empty() {
+				match builder.realise_with_events(drv, None, &mut events) {
+					Ok(_) => {
+						built.insert(drv);
+						continue;
+					}
+					Err(BuildError::Failed { status, message }) => {
+						exit_status = status.exit_status();
+						message
+					}
+					Err(error) => return Err(error.into()),
+				}
+			} else if inputs.iter().any(|input| failed.contains(input)) {
+				self.dependency_failed(drv)?
+			} else {
+				continue;
+			};
+			failed.insert(drv);
+			if targets.contains(drv) {
+				failure = Some(message);
+				break;
+			}
+			log_error(&message);
+		}
+		if let Some(message) = failure {
+			let unfinished: BTreeSet<String> = targets
+				.iter()
+				.filter(|drv| {
+					!built.contains(**drv) && order.iter().any(|(other, _)| other == **drv)
+				})
+				.map(|drv| drv.to_absolute_path())
+				.collect();
+			if unfinished.len() == 1 {
+				return Err(Error::Build {
+					exit_status,
+					message,
+				});
+			}
+			log_error(&message);
+			let quoted: Vec<String> = unfinished.iter().map(|p| format!("'{p}'")).collect();
+			return Err(Error::Build {
+				exit_status,
+				message: format!("build of {} failed", quoted.join(", ")),
+			});
 		}
 		for path in paths {
 			match path {
@@ -227,4 +310,10 @@ impl Store for LocalBackend {
 		}
 		Ok(())
 	}
+}
+
+/// Print an error as CppNix's `logError` does: continuation lines line up
+/// after the `error: ` prefix.
+fn log_error(message: &str) {
+	eprintln!("error: {}", message.trim_end().replace('\n', "\n       "));
 }
