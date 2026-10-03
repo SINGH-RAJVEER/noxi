@@ -10,6 +10,8 @@ pub mod cppnix_serve;
 pub mod derivation;
 #[cfg(feature = "serde")]
 pub mod fetchers;
+#[cfg(feature = "serde")]
+pub mod fso;
 pub mod git;
 pub mod log;
 pub mod nar;

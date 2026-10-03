@@ -1620,6 +1620,7 @@ dependencies = [
  "nix-rs-daemon",
  "nix-rs-eval",
  "nix-rs-store",
+ "serde",
  "serde_json",
  "sha2",
  "tempfile",

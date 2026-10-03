@@ -17,12 +17,12 @@ Every copied fixture file has a classification in `crates/compat-tests/expectati
 - A `table` or `pass` entry names a test that does not refer to the fixture's directory.
 - A `pass` entry's test does not name each file it claims.
 
-On 2026-10-02 the 1,916 files were classified as follows:
+On 2026-10-03 the 1,916 files were classified as follows:
 
 - 1,140 are in per-file tables: 992 language, 58 worker-protocol, 20 path-info and nar-info, 18 derivation JSON, 17 store JSON, 14 derivation ATerm, 12 realisation and build-result, 6 derivation options, and 3 fetcher public-key files.
-- 69 pass: the malformed NARs, six Git object files, the BLAKE3 and SHA-256 hash JSON files, 28 shared common and serve protocol files, and 25 additional serve value and handshake files.
+- 73 pass: the malformed NARs, six Git object files, the BLAKE3 and SHA-256 hash JSON files, 28 shared common and serve protocol files, 25 additional serve value and handshake files, and four memory-source-accessor and NAR listing JSON files.
 - 13 are reference anomalies: `hash/sha512.json` contains a SHA-256 hash because CppNix 2.35.2's `HashJSON` test constructs SHA-256 for its `sha512` row; twelve old hash-based common and serve drv-output and realisation files are absent from the pinned C++ tests.
-- 691 are unrun.
+- 687 are unrun.
 - 3 are ignored.
 
 The seven shared primitive cases in each of the common and serve protocol fixture groups decode and re-encode byte for byte in `upstream_shared_protocols`. Their 28 binary and JSON files are classified as passing. The six remaining common-protocol drv-output and realisation files are stale: neither the pinned test nor the common codecs names those types, while worker and serve use their own versioned realisation codecs. An inventory test guards all 20 common files and confirms which stems the pinned C++ test names. These anomalies are not runtime passes or exclusions of realisation behavior from the compatibility gate. Store-reference, git hashing data, and every shell and NixOS test outside `lang` remain unrun.

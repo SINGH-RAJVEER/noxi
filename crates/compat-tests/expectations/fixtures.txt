@@ -86,8 +86,8 @@ anomaly src/libutil-tests/data/hash/sha512.json # CppNix 2.35.2's HashJSON sha51
 pass:upstream_git_objects src/libutil-tests/data/git/hello-world*.bin
 pass:upstream_git_objects src/libutil-tests/data/git/tree-*.bin
 pass:upstream_git_objects src/libutil-tests/data/git/tree-*.txt
-unrun src/libutil-tests/data/memory-source-accessor/*
-unrun src/libutil-tests/data/nar-listing/*
+pass:upstream_file_listings src/libutil-tests/data/memory-source-accessor/*
+pass:upstream_file_listings src/libutil-tests/data/nar-listing/*
 
 # libfetchers
 table:upstream_fetcher_public_key src/libfetchers-tests/data/public-key/*
