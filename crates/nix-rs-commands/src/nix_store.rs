@@ -17,7 +17,7 @@ use std::process::ExitCode;
 
 use nix_compat::nixbase32;
 use nix_compat::nixcpp::settings::Settings;
-use nix_compat::store_path::{STORE_DIR, StorePath};
+use nix_compat::store_path::StorePath;
 use nix_rs_store::{DerivedPath, Store};
 
 use crate::cli::{Failure, print_setting_warnings};
@@ -219,33 +219,8 @@ fn output_paths(
 }
 
 impl NixStore<'_> {
-	/// `Store::followLinksToStorePath`: follow symlinks outside the store
-	/// until reaching a store path.
 	fn follow_links(&self, arg: &str) -> Result<StorePath, Failure> {
-		let mut path = absolute(&self.cwd, Path::new(arg));
-		let mut follows = 0;
-		while !path.starts_with(STORE_DIR) || path == Path::new(STORE_DIR) {
-			match std::fs::symlink_metadata(&path) {
-				Ok(meta) if meta.file_type().is_symlink() => {}
-				_ => break,
-			}
-			follows += 1;
-			if follows >= 1024 {
-				return Err(Failure::Error(format!(
-					"too many symbolic links encountered while resolving '{arg}'"
-				)));
-			}
-			let target = std::fs::read_link(&path)?;
-			let parent = path.parent().map(Path::to_owned).unwrap_or_default();
-			path = absolute(&parent, &target);
-		}
-		match StorePath::from_absolute_path_full(&path) {
-			Ok((store_path, _)) if path.starts_with(STORE_DIR) => Ok(store_path),
-			_ => Err(Failure::Error(format!(
-				"path \"{}\" is not in the Nix store",
-				path.display()
-			))),
-		}
+		crate::paths::follow_links_to_store_path(&self.cwd, arg)
 	}
 
 	fn gc_warning(&self) {

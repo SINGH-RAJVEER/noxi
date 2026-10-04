@@ -320,12 +320,8 @@ impl Store for LocalBackend {
 					if self.store.is_valid_path(path)? {
 						continue;
 					}
-					self.store.substitute(substituters, path).map_err(|e| {
-						Error::Other(format!(
-							"path '{}' does not exist and cannot be created: {e}",
-							path.to_absolute_path()
-						))
-					})?;
+					// CppNix throws the substitution goal's own failure.
+					self.store.substitute(substituters, path)?;
 				}
 				DerivedPath::Built { drv, outputs } => {
 					let wanted = (!outputs.is_empty()).then_some(outputs);

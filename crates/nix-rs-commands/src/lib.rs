@@ -9,6 +9,7 @@ pub mod collect_garbage;
 pub mod instantiate;
 pub mod maintenance;
 pub mod nix_build;
+pub mod nix_env;
 pub mod nix_store;
 pub mod paths;
 pub mod store;

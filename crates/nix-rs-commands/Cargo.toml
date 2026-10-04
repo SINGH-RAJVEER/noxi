@@ -25,6 +25,10 @@ path = "src/bin/nix-store.rs"
 name = "nix-collect-garbage"
 path = "src/bin/nix-collect-garbage.rs"
 
+[[bin]]
+name = "nix-env"
+path = "src/bin/nix-env.rs"
+
 [dependencies]
 nix-compat = { package = "nix-rs-compat", path = "../nix-rs/nix-compat", version = "0.1.2" }
 nix-rs-eval = { path = "../nix-rs/eval", version = "0.2.2", default-features = false, features = ["impure"] }

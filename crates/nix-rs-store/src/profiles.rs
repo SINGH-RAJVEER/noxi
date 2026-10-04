@@ -11,7 +11,7 @@ use path_clean::PathClean;
 
 use crate::gc::replace_symlink;
 use crate::lock::PathLocks;
-use crate::{Error, LocalStore, Result};
+use crate::{Error, Result, Store};
 
 /// One generation link of a profile.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -93,7 +93,7 @@ pub fn lock_profile(profile: &Path) -> Result<PathLocks> {
 /// `createGeneration`: a new generation link to `out_path`, or the last
 /// one if it already points there.
 pub fn create_generation(
-	store: &LocalStore,
+	store: &dyn Store,
 	profile: &Path,
 	out_path: &StorePath,
 ) -> Result<PathBuf> {

@@ -1,8 +1,9 @@
 //! Store path listings shared by the legacy commands.
 
 use std::collections::BTreeSet;
+use std::path::Path;
 
-use nix_compat::store_path::StorePath;
+use nix_compat::store_path::{STORE_DIR, StorePath};
 use nix_rs_store::gc::render_size;
 use nix_rs_store::{Missing, Store};
 
@@ -10,6 +11,35 @@ use crate::cli::Failure;
 
 fn print(path: &StorePath) -> String {
 	path.to_absolute_path()
+}
+
+/// `Store::followLinksToStorePath`: follow symlinks outside the store
+/// until reaching a store path, relative to `cwd`.
+pub fn follow_links_to_store_path(cwd: &Path, arg: &str) -> Result<StorePath, Failure> {
+	let mut path = crate::instantiate::absolute_path(cwd, Path::new(arg));
+	let mut follows = 0;
+	while !path.starts_with(STORE_DIR) || path == Path::new(STORE_DIR) {
+		match std::fs::symlink_metadata(&path) {
+			Ok(meta) if meta.file_type().is_symlink() => {}
+			_ => break,
+		}
+		follows += 1;
+		if follows >= 1024 {
+			return Err(Failure::Error(format!(
+				"too many symbolic links encountered while resolving '{arg}'"
+			)));
+		}
+		let target = std::fs::read_link(&path)?;
+		let parent = path.parent().map(Path::to_owned).unwrap_or_default();
+		path = crate::instantiate::absolute_path(&parent, &target);
+	}
+	match StorePath::from_absolute_path_full(&path) {
+		Ok((store_path, _)) if path.starts_with(STORE_DIR) => Ok(store_path),
+		_ => Err(Failure::Error(format!(
+			"path \"{}\" is not in the Nix store",
+			path.display()
+		))),
+	}
 }
 
 /// CppNix's `topoSortPaths`: each path before the paths it refers to.
