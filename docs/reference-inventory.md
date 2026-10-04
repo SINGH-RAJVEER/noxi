@@ -24,7 +24,7 @@ The reference also installs C++ headers and shared libraries (`nix-util`, `nix-s
 
 ## What NixOS calls
 
-This list comes from reading the pinned Nixpkgs `e94cb152` source. It shows what the system depends on at build, activation, and service time, and ranks the command set for the MVP. It is not a trace of a running system; the qualification VM still has to confirm it.
+This list comes from reading the pinned Nixpkgs `e94cb152` source. It shows what the system depends on at build, activation, and service time, and ranks the command set for the MVP. The rows marked in [traced calls](#traced-calls) were confirmed on a running system; the rest are read from source only.
 
 | Caller | Invocation |
 |---|---|
@@ -50,3 +50,29 @@ From the pinned Home Manager `7b4c5ec4` source:
 | Profile update (`home-environment.nix`) | `nix-env --profile <profile> --set <generation>`, or `nix profile` equivalents when the user's profile is a `nix profile` manifest |
 
 As a NixOS module, Home Manager activates each user through a systemd unit that runs the same activation script, so the activation-time calls above apply to both modes.
+
+## Traced calls
+
+`just reference-trace` runs the `trace` check of `tests/qualification/flake.nix`. It boots a NixOS test machine built from the pinned Nixpkgs, Home Manager and reference CppNix, with Home Manager for one user, the garbage-collection and optimisation timers, and kernel auditing of every `execve`. The audit sees each command whichever package it comes from, so callers that bypass `nix.package` would also show up. The machine then runs, in order: `nixos-rebuild switch --flake` to a second generation, a Home Manager service restart, the `nix-gc` and `nix-optimise` services, `nixos-rebuild list-generations`, `nixos-rebuild switch --rollback --flake`, and `nix-collect-garbage -d`. The rebuild target is prebuilt and every locked flake input is in the guest's store, so the offline guest evaluates it to the same derivations and builds nothing. The check writes the raw audit log, `calls.json` (every Nix call with its phase, arguments, user and parent commands, plus each scenario's output) and `calls.txt` (one line per call) to its output; `just reference-trace` links it at `target/qualification/trace`.
+
+The run on 2026-10-04 recorded these calls. All of them ran the reference package's `bin/nix` under the legacy name shown; nothing ran another Nix.
+
+| Phase | Caller | Invocation |
+|---|---|---|
+| Boot | `nix-daemon.service` | `nix-daemon --daemon` |
+| Boot | The test machine's store registration | `nix-store --load-db`. This comes from the test framework's `regInfo`, not from NixOS on a real machine |
+| Boot and service restart | Home Manager activation, as the user | `nix-build --quiet --expr {} --no-out-link`, `nix-env -q`, `nix-store --realise <generation> --add-root <state>/gcroots/new-home`, `nix-env -i <home-manager-path>`, `nix-store --realise <generation> --add-root <state>/gcroots/current-home` |
+| `nixos-rebuild switch --flake` | `nixos-rebuild`, then the target's `nixos-rebuild` it re-executes | `nix --extra-experimental-features 'nix-command flakes' build --print-out-paths <flake>#nixosConfigurations."<name>".config.system.build.nixos-rebuild --no-link`, then `nix-instantiate --find-file nixos-system`, the same `nix build` for `config.system.build.toplevel`, and `nix-env -p /nix/var/nix/profiles/system --set <toplevel>` |
+| `nixos-rebuild list-generations` | `nixos-rebuild` | `nix-instantiate --find-file nixos-system`; generations are read from the profile links |
+| `nixos-rebuild switch --rollback --flake` | `nixos-rebuild` | The re-execution build above, `nix-instantiate --find-file nixos-system`, and `nix-env --rollback -p /nix/var/nix/profiles/system` |
+| `nix-gc.service` | systemd | `nix-collect-garbage` with `nix.gc.options` (none here) |
+| `nix-optimise.service` | systemd | `nix-store --optimise` |
+| By hand | root | `nix-collect-garbage -d` |
+
+Compared with the source reading above:
+
+- **Confirmed:** `nix-daemon --daemon`, the timers' commands, flake-mode `nix build --print-out-paths`, `nix-env -p <profile> --set` and `--rollback`, and Home Manager's `nix-build --expr {}`, `nix-env -q` and `nix-store --realise --add-root`.
+- **Newly found:** Home Manager as a NixOS module installs its generation with `nix-env -i <path>`, not `nix-env --set`. `nixos-rebuild` calls `nix-instantiate --find-file nixos-system` even in flake mode and for `list-generations`. With the default re-execution, every `nixos-rebuild` action first builds the target's own `nixos-rebuild`.
+- **Not traced:** classic-mode `nixos-rebuild` (`nix-build`, `nix-instantiate --add-root`, `nix-channel --update`), remote targets (`nix-copy-closure`, `nix copy`), `nixos-install`, the standalone `home-manager` command, `nix profile` profiles, and `nix config show`, which runs only while the system is built. These rows remain read from source.
+
+The trace records commands, not daemon traffic. Home Manager runs as an unprivileged user, so its calls reach the store through the daemon socket, while `nixos-rebuild` runs as root and opens the store directly.

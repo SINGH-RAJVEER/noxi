@@ -71,6 +71,10 @@ reference-vm-overlay name:
 reference-vm-verify:
 	bash scripts/reference-vm-snapshot.sh verify
 
+# Boot the pinned reference system, run its rebuild, Home Manager and garbage-collection scenarios, and record every Nix command they run in target/qualification/trace.
+reference-trace:
+	nix build --out-link target/qualification/trace --print-build-logs "path:{{justfile_directory()}}/tests/qualification#checks.x86_64-linux.trace"
+
 # --no-link keeps the check's output out of ./result.
 
 # Boot a NixOS machine running the pinned reference and check the packaged nixrs against it.

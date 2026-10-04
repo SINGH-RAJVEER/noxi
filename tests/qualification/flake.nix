@@ -39,9 +39,13 @@
 					})
 				];
 			};
+			trace = import ./trace.nix { inherit self nixpkgs home-manager nix-reference; };
 		in
 		{
 			nixosConfigurations.reference = reference;
+			# The generation the trace check's guest rebuilds and switches to.
+			nixosConfigurations.trace-target = trace.target;
 			packages.${system}.reference-vm = reference.config.system.build.vm;
+			checks.${system}.trace = trace.check;
 		};
 }
