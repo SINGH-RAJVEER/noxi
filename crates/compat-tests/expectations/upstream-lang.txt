@@ -389,7 +389,7 @@ eval-okay-scope-3 pass
 eval-okay-scope-4 pass
 eval-okay-scope-6 pass
 eval-okay-scope-7 pass
-eval-okay-search-path unexpected-failure E011
+eval-okay-search-path pass
 eval-okay-seq pass
 eval-okay-short-path-literal-warn output
 eval-okay-short-path-variation output

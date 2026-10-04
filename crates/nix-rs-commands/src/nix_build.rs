@@ -51,9 +51,8 @@ pub fn main(settings: Settings, args: Vec<String>) -> Result<ExitCode, Failure> 
 				unsupported = Some(flag.to_owned());
 				Ok(())
 			}
-			"--eval" | "--eval-only" | "--strict" | "--json" | "--xml" | "--add-root" => {
-				Err(format!("unrecognised flag '{flag}'"))
-			}
+			"--eval" | "--eval-only" | "--strict" | "--json" | "--xml" | "--add-root"
+			| "--find-file" => Err(format!("unrecognised flag '{flag}'")),
 			_ => return None,
 		})
 	})

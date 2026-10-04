@@ -39,6 +39,9 @@ fn run() -> ExitCode {
 	for warning in options.settings.finish() {
 		eprintln!("warning: {warning}");
 	}
+	if options.find_file {
+		return instantiate::find_files(&options);
+	}
 	let cwd = match std::env::current_dir() {
 		Ok(cwd) => cwd,
 		Err(error) => {

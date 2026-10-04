@@ -123,7 +123,7 @@ pub enum CatchableErrorKind {
 	UnimplementedFeature(Box<str>),
 
 	/// Resolving a user-supplied angle brackets path literal failed in some way.
-	#[error("Nix path entry could not be resolved: {0}")]
+	#[error("{0}")]
 	NixPathResolution(Box<str>),
 }
 

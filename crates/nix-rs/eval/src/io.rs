@@ -79,6 +79,16 @@ pub trait EvalIO {
 	/// * `builtins.pathExists :: path -> bool`
 	fn path_exists(&self, path: &Path) -> io::Result<bool>;
 
+	/// Resolve every symlink in the path, as CppNix's `resolveSymlinks` does
+	/// for a search-path result. An error means the path does not exist.
+	fn canonicalize(&self, path: &Path) -> io::Result<PathBuf> {
+		if self.path_exists(path)? {
+			Ok(path.to_owned())
+		} else {
+			Err(io::ErrorKind::NotFound.into())
+		}
+	}
+
 	/// Open the file at the specified path to a `io::Read`.
 	fn open(&self, path: &Path) -> io::Result<Box<dyn io::Read>>;
 
@@ -131,6 +141,10 @@ impl EvalIO for StdIO {
 	fn path_exists(&self, path: &Path) -> io::Result<bool> {
 		// In general, an IO error indicates the path doesn't exist
 		Ok(path.try_exists().unwrap_or(false))
+	}
+
+	fn canonicalize(&self, path: &Path) -> io::Result<PathBuf> {
+		std::fs::canonicalize(path)
 	}
 
 	fn open(&self, path: &Path) -> io::Result<Box<dyn io::Read>> {

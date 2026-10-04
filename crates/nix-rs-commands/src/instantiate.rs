@@ -1,8 +1,9 @@
 //! `nix-instantiate`, following CppNix 2.35.2's read-only evaluation default.
 //!
 //! Supported: `--eval`, `--strict`, `--json`, `--xml` with `--no-location`,
-//! `--expr`/`-E`, `--attr`/`-A`, `--arg`, `--argstr`, `-I`/`--include`, file
-//! arguments including `<lookup>` paths and `-` for standard input.
+//! `--expr`/`-E`, `--attr`/`-A`, `--arg`, `--argstr`, `-I`/`--include`,
+//! `--find-file`, file arguments including `<lookup>` paths and `-` for
+//! standard input.
 //! Settings come from `nix.conf`, `NIX_CONFIG` and settings flags such as
 //! `--option`, `--extra-experimental-features` and `--show-trace`, which is
 //! accepted but does not change the output: error traces are not rendered in
@@ -53,6 +54,8 @@ pub struct Options {
 	pub settings: Settings,
 	/// `-I` search-path entries, searched before `NIX_PATH`.
 	pub include: Vec<String>,
+	/// `--find-file`: print where each input is in the lookup path.
+	pub find_file: bool,
 	/// `--expr`: positional arguments are expressions rather than files.
 	pub from_args: bool,
 	pub inputs: Vec<String>,
@@ -78,6 +81,17 @@ pub fn parse_args_with(
 	settings: Settings,
 	mut extra: impl FnMut(&str, &mut dyn Iterator<Item = String>) -> Option<Result<(), String>>,
 ) -> Result<Options, String> {
+	// CppNix's `initGC` sets `nix-path` from `NIX_PATH`, even an empty one,
+	// after reading the configuration and before the command line.
+	let mut settings = settings;
+	if let Ok(nix_path) = std::env::var("NIX_PATH") {
+		settings
+			.set(
+				"nix-path",
+				&nix_rs_eval::parse_nix_path(&nix_path).join(" "),
+			)
+			.map_err(|error| error.to_string())?;
+	}
 	let mut options = Options {
 		settings,
 		gc_warning: true,
@@ -113,6 +127,7 @@ pub fn parse_args_with(
 			}
 			"--no-location" => options.no_location = true,
 			"-I" | "--include" => options.include.push(value(&mut args, &arg)?),
+			"--find-file" => options.find_file = true,
 			"--expr" | "-E" => options.from_args = true,
 			"--attr" | "-A" => options.attr_paths.push(value(&mut args, &arg)?),
 			"--arg" | "--argstr" => {
@@ -140,6 +155,87 @@ pub fn parse_args_with(
 		}
 	}
 	Ok(options)
+}
+
+/// The lookup path as CppNix's `EvalState` assembles it: the `-I` entries,
+/// then the `nix-path` setting, then those of the default channel
+/// directories that exist unless `restrict-eval` is set. Pure evaluation
+/// has none.
+pub fn search_path(options: &Options) -> Vec<String> {
+	if options.settings.get_bool("pure-eval", false) {
+		return Vec::new();
+	}
+	let mut elements = options.include.clone();
+	elements.extend(
+		options
+			.settings
+			.get_list("nix-path", &[])
+			.into_iter()
+			.map(str::to_owned),
+	);
+	if options.settings.get_bool("restrict-eval", false) {
+		return elements;
+	}
+	let env = |name| {
+		std::env::var_os(name)
+			.filter(|value| !value.is_empty())
+			.map(PathBuf::from)
+	};
+	let home = env("HOME").unwrap_or_default();
+	let def_expr = if options.settings.get_bool("use-xdg-base-directories", false) {
+		env("NIX_STATE_HOME")
+			.unwrap_or_else(|| {
+				env("XDG_STATE_HOME")
+					.unwrap_or_else(|| home.join(".local/state"))
+					.join("nix")
+			})
+			.join("defexpr")
+	} else {
+		home.join(".nix-defexpr")
+	};
+	let root_channels = nix_rs_store::LocalStoreConfig::system()
+		.state_dir
+		.join("profiles/per-user/root/channels");
+	for (path, prefix) in [
+		(def_expr.join("channels"), ""),
+		(root_channels.join("nixpkgs"), "nixpkgs="),
+		(root_channels, ""),
+	] {
+		if path.exists() {
+			elements.push(format!("{prefix}{}", path.display()));
+		}
+	}
+	elements
+}
+
+/// `--find-file`: print the physical path of each input in the lookup path.
+pub fn find_files(options: &Options) -> ExitCode {
+	let search_path = nix_rs_eval::NixSearchPath::new(
+		search_path(options)
+			.iter()
+			.map(|element| nix_rs_eval::NixSearchPathEntry::parse(element))
+			.collect(),
+		None,
+	)
+	.with_pure_eval(options.settings.get_bool("pure-eval", false));
+	let io = Box::new(nix_rs_eval::StdIO) as Box<dyn nix_rs_eval::EvalIO>;
+	let mut stdout = io::stdout().lock();
+	for input in &options.inputs {
+		match search_path.resolve(&io, input) {
+			Ok(path) => {
+				let _ = writeln!(stdout, "{}", path.display());
+			}
+			Err(_) if input.starts_with("nix/") => {
+				eprintln!("error: '<{input}>' has no physical path");
+				return ExitCode::FAILURE;
+			}
+			Err(error) => {
+				eprintln!("error: {error}");
+				return ExitCode::FAILURE;
+			}
+		}
+	}
+	ExitCode::SUCCESS
 }
 
 /// Split an attribute path the way CppNix's `parseAttrPath` does.
@@ -372,18 +468,11 @@ pub fn evaluate(options: &Options, cwd: &Path) -> Result<Evaluated, ExitCode> {
 	} else {
 		EvalMode::Lazy
 	};
-	let mut builder = Evaluation::builder_pure()
+	let builder = Evaluation::builder_pure()
 		.experimental_features(options.settings.experimental_features())
-		.max_call_depth(options.settings.get_int("max-call-depth", 10000).max(0) as usize);
-	if !options.include.is_empty() {
-		// CppNix searches `-I` entries before `NIX_PATH`.
-		let mut nix_path = options.include.join(":");
-		if let Some(env) = std::env::var("NIX_PATH").ok().filter(|p| !p.is_empty()) {
-			nix_path.push(':');
-			nix_path.push_str(&env);
-		}
-		builder = builder.nix_path(Some(nix_path));
-	}
+		.max_call_depth(options.settings.get_int("max-call-depth", 10000).max(0) as usize)
+		.search_path(search_path(options))
+		.pure_eval(options.settings.get_bool("pure-eval", false));
 	let builder = nix_rs_glue::configure(builder, evaluator_store)
 		.env(Some(&env))
 		.mode(mode);

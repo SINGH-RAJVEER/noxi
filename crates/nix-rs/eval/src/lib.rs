@@ -42,7 +42,6 @@ use observer::OptionalCompilerObserver;
 use rustc_hash::FxHashMap;
 use std::path::PathBuf;
 use std::rc::Rc;
-use std::str::FromStr;
 use std::sync::Arc;
 
 use crate::observer::{CompilerObserver, RuntimeObserver};
@@ -53,6 +52,9 @@ use crate::vm::run_lambda;
 pub use crate::compiler::{CompilationOutput, GlobalsMap, compile, prepare_globals};
 pub use crate::errors::{AddContext, CatchableErrorKind, Error, ErrorKind, EvalResult};
 pub use crate::io::{DummyIO, EvalIO, FileType};
+pub use crate::nix_search_path::{
+	NixSearchPath, NixSearchPathEntry, is_pseudo_url, parse_nix_path,
+};
 pub use crate::pretty_ast::pretty_print_expr;
 pub use crate::source::SourceCode;
 pub use crate::value::{NixContext, NixContextElement};
@@ -98,7 +100,9 @@ pub struct EvaluationBuilder<'co, 'ro, 'env, IO> {
 	io_handle: IO,
 	enable_import: bool,
 	mode: EvalMode,
-	nix_path: Option<String>,
+	search_path: Option<Vec<String>>,
+	corepkgs_dir: Option<PathBuf>,
+	pure_eval: bool,
 	experimental_features: builtins::ExperimentalFeatures,
 	compiler_observer: Option<&'co mut dyn CompilerObserver>,
 	runtime_observer: Option<&'ro mut dyn RuntimeObserver>,
@@ -117,6 +121,15 @@ where
 	/// - Copies all other configured fields to the [`Evaluation`]
 	pub fn build(self) -> Evaluation<'co, 'ro, 'env, IO> {
 		let source_map = self.source_map.unwrap_or_default();
+		let nix_search_path = NixSearchPath::new(
+			self.search_path
+				.iter()
+				.flatten()
+				.map(|element| NixSearchPathEntry::parse(element))
+				.collect(),
+			self.corepkgs_dir,
+		)
+		.with_pure_eval(self.pure_eval);
 
 		let globals = match self.globals {
 			BuilderGlobals::Globals(globals) => globals,
@@ -128,6 +141,7 @@ where
 				if let Some(store_dir) = self.io_handle.as_ref().store_dir() {
 					builtins.push(("storeDir", store_dir.into()));
 				}
+				builtins.push(("nixPath", builtins::nix_path_value(&nix_search_path)));
 
 				crate::compiler::prepare_globals(
 					builtins,
@@ -144,7 +158,7 @@ where
 			env: self.env,
 			io_handle: self.io_handle,
 			mode: self.mode,
-			nix_path: self.nix_path,
+			nix_search_path,
 			compiler_observer: self.compiler_observer,
 			runtime_observer: self.runtime_observer,
 		}
@@ -179,7 +193,9 @@ impl<'co, 'ro, 'env, IO> EvaluationBuilder<'co, 'ro, 'env, IO> {
 			}),
 			env: None,
 			mode: Default::default(),
-			nix_path: None,
+			search_path: None,
+			corepkgs_dir: None,
+			pure_eval: false,
 			experimental_features,
 			compiler_observer: None,
 			runtime_observer: None,
@@ -194,7 +210,9 @@ impl<'co, 'ro, 'env, IO> EvaluationBuilder<'co, 'ro, 'env, IO> {
 			env: self.env,
 			enable_import: self.enable_import,
 			mode: self.mode,
-			nix_path: self.nix_path,
+			search_path: self.search_path,
+			corepkgs_dir: self.corepkgs_dir,
+			pure_eval: self.pure_eval,
 			experimental_features: self.experimental_features,
 			compiler_observer: self.compiler_observer,
 			runtime_observer: self.runtime_observer,
@@ -278,8 +296,36 @@ impl<'co, 'ro, 'env, IO> EvaluationBuilder<'co, 'ro, 'env, IO> {
 		Self { mode, ..self }
 	}
 
+	/// Set the lookup path from a `NIX_PATH` value, split as CppNix does.
 	pub fn nix_path(self, nix_path: Option<String>) -> Self {
-		Self { nix_path, ..self }
+		Self {
+			search_path: nix_path.map(|s| parse_nix_path(&s)),
+			..self
+		}
+	}
+
+	/// Set the lookup path's elements, each `prefix=path` or `path`.
+	pub fn search_path(self, elements: Vec<String>) -> Self {
+		Self {
+			search_path: Some(elements),
+			..self
+		}
+	}
+
+	/// CppNix's `pure-eval`. Only `<...>` lookups honour it so far: the
+	/// caller leaves the lookup path empty, and a missing file names pure
+	/// evaluation as the reason.
+	pub fn pure_eval(self, pure_eval: bool) -> Self {
+		Self { pure_eval, ..self }
+	}
+
+	/// The directory `<nix/...>` paths resolve in when no lookup path entry
+	/// has the file.
+	pub fn corepkgs_dir(self, dir: Option<PathBuf>) -> Self {
+		Self {
+			corepkgs_dir: dir,
+			..self
+		}
 	}
 
 	/// Enable the named CppNix experimental features, replacing those
@@ -306,11 +352,6 @@ impl<'co, 'ro, 'env, IO> EvaluationBuilder<'co, 'ro, 'env, IO> {
 	/// Whether the named CppNix experimental feature is enabled.
 	pub fn experimental_feature_enabled(&self, feature: &str) -> bool {
 		self.experimental_features.enabled(feature)
-	}
-
-	/// The search path set so far, if any.
-	pub fn get_nix_path(&self) -> Option<&str> {
-		self.nix_path.as_deref()
 	}
 
 	pub fn env(self, env: Option<&'env FxHashMap<SmolStr, Value>>) -> Self {
@@ -374,8 +415,8 @@ impl EvaluationBuilder<'_, '_, '_, Box<dyn EvalIO>> {
 
 		// Make `NIX_PATH` resolutions work by default, unless the
 		// user already overrode this with something else.
-		if self.nix_path.is_none() {
-			self.nix_path = std::env::var("NIX_PATH").ok();
+		if self.search_path.is_none() {
+			self.search_path = std::env::var("NIX_PATH").ok().map(|s| parse_nix_path(&s));
 		}
 		self
 	}
@@ -414,9 +455,8 @@ pub struct Evaluation<'co, 'ro, 'env, IO> {
 	/// See the documentation for [`EvalMode`] for more information.
 	mode: EvalMode,
 
-	/// (optional) Nix search path, e.g. the value of `NIX_PATH` used
-	/// for resolving items on the search path (such as `<nixpkgs>`).
-	nix_path: Option<String>,
+	/// The lookup path for resolving `<...>` paths such as `<nixpkgs>`.
+	nix_search_path: NixSearchPath,
 
 	/// (optional) compiler observer for reporting on compilation
 	/// details, like the emitted bytecode.
@@ -573,19 +613,10 @@ where
 		// If bytecode was returned, there were no errors and the
 		// code is safe to execute.
 
-		let nix_path = self
-			.nix_path
-			.as_ref()
-			.map(|s| match nix_search_path::NixSearchPath::from_str(s) {
-				Ok(path) => path,
-				Err(never) => match never {},
-			})
-			.unwrap_or_default();
-
 		let runtime_observer = self.runtime_observer.take();
 
 		let vm_result = run_lambda(
-			nix_path,
+			self.nix_search_path,
 			self.io_handle,
 			runtime_observer,
 			source.clone(),

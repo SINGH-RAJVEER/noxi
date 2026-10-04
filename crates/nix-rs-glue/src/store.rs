@@ -372,6 +372,17 @@ impl EvalIO for StoreIO {
 		StdIO.path_exists(&self.store.physical_path(path))
 	}
 
+	fn canonicalize(&self, path: &Path) -> io::Result<PathBuf> {
+		if path.starts_with(COREPKGS_DIR) {
+			return match corepkg(path) {
+				Some(_) => Ok(path.to_owned()),
+				None => Err(io::ErrorKind::NotFound.into()),
+			};
+		}
+		let real = StdIO.canonicalize(&self.store.physical_path(path))?;
+		Ok(self.store.logical_path(&real))
+	}
+
 	fn open(&self, path: &Path) -> io::Result<Box<dyn io::Read>> {
 		match corepkg(path) {
 			Some(Corepkg::File(contents)) => Ok(Box::new(contents.as_bytes())),

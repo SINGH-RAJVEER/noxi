@@ -984,8 +984,7 @@ where
 					Value::UnresolvedPath(path) => {
 						let resolved = self
 							.nix_search_path
-							.resolve(&self.io_handle, *path)
-							.with_span(&frame, self)?;
+							.resolve(&self.io_handle, &path.to_string_lossy());
 						self.stack.push(resolved.into());
 					}
 

@@ -52,8 +52,9 @@ const BLESS_VAR: &str = "NIXRS_COMPAT_BLESS";
 const TIMEOUT: Duration = Duration::from_secs(20);
 
 /// The environment `lang.sh` exports for every case. `common/vars.sh` also
-/// unsets `NIX_PATH`, points `HOME` at a per-run test directory, and sets
-/// `NIX_CONF_DIR` to the configuration [`write_test_config`] writes.
+/// unsets `NIX_PATH`, points `HOME` and `NIX_STATE_DIR` at a per-run test
+/// directory, and sets `NIX_CONF_DIR` to the configuration
+/// [`write_test_config`] writes.
 const SHARED_ENV: &[(&str, &str)] = &[
 	("TEST_VAR", "foo"),
 	("NIX_REMOTE", "dummy://"),
@@ -395,6 +396,7 @@ fn spawn(case: &Case, scratch: &Path, args: &[String]) -> io::Result<Child> {
 		.env_clear()
 		.envs(SHARED_ENV.iter().copied())
 		.env("HOME", scratch.join("test-home"))
+		.env("NIX_STATE_DIR", scratch.join("var/nix"))
 		.env("NIX_CONF_DIR", scratch.join("etc"));
 	if case.kind == Kind::EvalOkay {
 		command.envs(EVAL_OKAY_ENV.iter().copied());
@@ -676,6 +678,7 @@ fn write_report(cases: &[Case], runs: &[Run]) -> io::Result<()> {
 		"environment": {
 			"all": SHARED_ENV.iter().map(|(key, value)| (key.to_string(), json!(value))).collect::<serde_json::Map<_, _>>(),
 			"eval_okay": EVAL_OKAY_ENV.iter().map(|(key, value)| (key.to_string(), json!(value))).collect::<serde_json::Map<_, _>>(),
+			"all_cases": {"NIX_STATE_DIR": "per-run test directory"},
 			"other_cases": {"HOME": "per-run test directory", "NIX_PATH": null},
 		},
 		"timeout_seconds": TIMEOUT.as_secs(),

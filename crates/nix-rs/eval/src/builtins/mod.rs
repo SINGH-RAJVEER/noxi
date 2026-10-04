@@ -1694,6 +1694,21 @@ fn round_to_int(value: &Value, round: fn(f64) -> f64) -> Result<Value, ErrorKind
 
 /// The set of standard pure builtins in Nix, mostly concerned with
 /// data structure manipulation (string, attrs, list, etc. functions).
+/// `builtins.nixPath`: the lookup path as `{ prefix, path }` sets.
+pub(crate) fn nix_path_value(search_path: &crate::NixSearchPath) -> Value {
+	let entries: Vec<Value> = search_path
+		.entries()
+		.iter()
+		.map(|entry| {
+			Value::attrs(NixAttrs::from_iter([
+				("path", Value::from(entry.path.as_str())),
+				("prefix", Value::from(entry.prefix.as_str())),
+			]))
+		})
+		.collect();
+	Value::List(NixList::from(entries))
+}
+
 pub fn pure_builtins() -> Vec<(&'static str, Value)> {
 	pure_builtins_with_features(ExperimentalFeatures::default())
 }

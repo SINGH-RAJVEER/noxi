@@ -30,17 +30,13 @@ pub fn configure<'co, 'ro, 'env>(
 	store: Rc<EvaluatorStore>,
 ) -> EvaluationBuilder<'co, 'ro, 'env, Box<dyn EvalIO>> {
 	let builder = builder.enable_impure(Some(Box::new(StoreIO::new(Rc::clone(&store)))));
-	// CppNix looks up `<nix/...>` in its built-in files after the search path.
-	let nix_path = match builder.get_nix_path() {
-		Some(path) if !path.is_empty() => format!("{path}:nix={}", store::COREPKGS_DIR),
-		_ => format!("nix={}", store::COREPKGS_DIR),
-	};
 	// `fetchTree` exists only with the `fetch-tree` experimental feature,
 	// which `flakes` implies.
 	let fetch_tree = builder.experimental_feature_enabled("fetch-tree");
 	let flakes = builder.experimental_feature_enabled("flakes");
 	builder
-		.nix_path(Some(nix_path))
+		// CppNix looks up `<nix/...>` in its built-in files after the search path.
+		.corepkgs_dir(Some(store::COREPKGS_DIR.into()))
 		.add_builtins(derivation::derivation_builtins::builtins(Rc::clone(&store)))
 		.add_builtins(import::import_builtins::builtins(store))
 		.add_builtins(context_builtins::builtins())
@@ -233,22 +229,5 @@ mod flake_builtins {
 		Ok(Value::from(
 			nix_rs_flakeref::attrs::to_string(&values).map_err(ErrorKind::EvalError)?,
 		))
-	}
-}
-
-#[cfg(test)]
-mod tests {
-	use nix_rs_eval::Evaluation;
-
-	use super::*;
-
-	#[test]
-	fn keeps_a_search_path_set_on_the_builder() {
-		let builder = Evaluation::builder_pure().nix_path(Some("a=/b".into()));
-		let builder = configure(builder, ReadOnlyStore::new());
-		assert_eq!(
-			builder.get_nix_path(),
-			Some(format!("a=/b:nix={}", store::COREPKGS_DIR).as_str())
-		);
 	}
 }

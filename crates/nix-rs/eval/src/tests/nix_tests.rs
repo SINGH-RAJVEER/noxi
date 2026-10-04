@@ -69,6 +69,10 @@ where
 		self.actual.as_ref().path_exists(path)
 	}
 
+	fn canonicalize(&self, path: &Path) -> io::Result<PathBuf> {
+		self.actual.as_ref().canonicalize(path)
+	}
+
 	fn open(&self, path: &Path) -> io::Result<Box<dyn io::Read>> {
 		self.actual.as_ref().open(path)
 	}

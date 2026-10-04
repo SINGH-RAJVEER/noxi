@@ -17,9 +17,45 @@ mod impure_builtins {
 
 	use super::*;
 	use crate::{
+		NixSearchPathEntry,
 		builtins::{coerce_value_to_path, hash::hash_nix_string},
 		try_cek_to_value,
+		value::CoercionKind,
 	};
+
+	/// `builtins.findFile`, which `<...>` calls when `__findFile` or
+	/// `__nixPath` is rebound.
+	#[builtin("findFile")]
+	async fn builtin_find_file(
+		co: GenCo,
+		search_path: Value,
+		path: Value,
+	) -> Result<Value, ErrorKind> {
+		let mut entries = Vec::new();
+		for element in search_path.to_list()?.into_iter() {
+			let element = generators::request_force(&co, element).await.to_attrs()?;
+			let prefix = match element.select("prefix") {
+				Some(prefix) => {
+					let prefix = generators::request_force(&co, prefix.clone()).await;
+					String::from_utf8_lossy(&prefix.to_str()?).into_owned()
+				}
+				None => String::new(),
+			};
+			let entry_path = element.select_required("path")?.clone();
+			let kind = CoercionKind {
+				strong: false,
+				import_paths: false,
+			};
+			let entry_path =
+				try_cek_to_value!(generators::request_string_coerce(&co, entry_path, kind).await);
+			entries.push(NixSearchPathEntry {
+				prefix,
+				path: String::from_utf8_lossy(entry_path.as_bytes()).into_owned(),
+			});
+		}
+		let path = String::from_utf8_lossy(&path.to_str()?).into_owned();
+		Ok(generators::request_find_file(&co, entries, path).await)
+	}
 
 	#[builtin("getEnv")]
 	async fn builtin_get_env(co: GenCo, var: Value) -> Result<Value, ErrorKind> {

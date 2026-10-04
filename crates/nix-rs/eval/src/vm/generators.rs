@@ -15,6 +15,7 @@ use std::fmt::Display;
 use std::future::Future;
 
 use crate::FileType;
+use crate::NixSearchPathEntry;
 use crate::NixString;
 use crate::value::{PointerEquality, PrintOptions, ValuePrinter};
 use crate::warnings::{EvalWarning, WarningKind};
@@ -128,6 +129,9 @@ pub enum VMRequest {
 	/// Used by builtins.unsafeGetAttrPos
 	GetSpanPos(Span),
 
+	/// Request that the VM looks `path` up in a lookup path of `entries`.
+	FindFile(Vec<NixSearchPathEntry>, String),
+
 	/// Request that the VM prints the value as CppNix's `ValuePrinter`
 	/// does, which needs the source positions of functions.
 	Print(Value, PrintOptions),
@@ -190,6 +194,7 @@ impl Display for VMRequest {
 			VMRequest::ReadFileType(p) => write!(f, "read_file_type({})", p.to_string_lossy()),
 			VMRequest::GetEnv(p) => write!(f, "get_env({})", p.to_string_lossy()),
 			VMRequest::GetSpanPos(span) => write!(f, "get_span_pos({:?})", span),
+			VMRequest::FindFile(_, path) => write!(f, "find_file({path})"),
 			VMRequest::Print(v, _) => write!(f, "print({})", v.type_of()),
 		}
 	}
@@ -508,6 +513,14 @@ where
 							message = VMResponse::Directory(dir);
 						}
 
+						VMRequest::FindFile(entries, path) => {
+							let found = self
+								.nix_search_path
+								.with_entries(entries)
+								.resolve(&self.io_handle, &path);
+							message = VMResponse::Value(found.into());
+						}
+
 						VMRequest::Span => {
 							message = VMResponse::Span(self.reasonable_span);
 						}
@@ -767,6 +780,18 @@ pub(crate) async fn request_path_import(co: &GenCo, path: PathBuf) -> PathBuf {
 pub async fn request_open_file(co: &GenCo, path: PathBuf) -> Box<dyn std::io::Read> {
 	match co.yield_(VMRequest::OpenFile(path)).await {
 		VMResponse::Reader(value) => value,
+		msg => panic!("nix-rs bug: VM responded with incorrect generator message: {msg}"),
+	}
+}
+
+#[cfg_attr(not(feature = "impure"), allow(unused))]
+pub(crate) async fn request_find_file(
+	co: &GenCo,
+	entries: Vec<NixSearchPathEntry>,
+	path: String,
+) -> Value {
+	match co.yield_(VMRequest::FindFile(entries, path)).await {
+		VMResponse::Value(value) => value,
 		msg => panic!("nix-rs bug: VM responded with incorrect generator message: {msg}"),
 	}
 }

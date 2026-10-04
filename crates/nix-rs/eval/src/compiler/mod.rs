@@ -122,16 +122,18 @@ pub type GlobalsMap = FxHashMap<&'static str, Value>;
 /// Set of builtins that (if they exist) should be made available in
 /// the global scope, meaning that they can be accessed not just
 /// through `builtins.<name>`, but directly as `<name>`. This is not
-/// configurable, it is based on what Nix 2.3 exposed.
+/// configurable; it is what CppNix 2.35 exposes without a `__` prefix.
 const GLOBAL_BUILTINS: &[&str] = &[
 	"abort",
 	"baseNameOf",
+	"break",
 	"derivation",
 	"derivationStrict",
 	"dirOf",
 	"fetchGit",
 	"fetchMercurial",
 	"fetchTarball",
+	"fetchTree",
 	"fromTOML",
 	"import",
 	"isNull",
@@ -530,10 +532,26 @@ impl Compiler<'_, '_> {
 	fn compile_search_path(&mut self, slot: LocalIdx, node: &ast::PathSearch) {
 		let raw_path = node.to_string();
 		let path = &raw_path[1..(raw_path.len() - 1)];
-		// Make a thunk to resolve the path (without using `findFile`, at least for now?)
-		self.thunk(slot, node, move |c, _| {
-			c.emit_constant(Value::UnresolvedPath(Box::new(path.into())), node);
-			c.push_op(Op::FindFile, node);
+		// CppNix reads `<path>` as `__findFile __nixPath "path"`. Unless a
+		// binding shadows either name, that is the evaluation's own lookup.
+		let shadowed = ["__findFile", "__nixPath"].iter().any(|name| {
+			self.contexts
+				.iter()
+				.any(|ctx| !matches!(ctx.scope.resolve_local(name), LocalPosition::Unknown))
+		});
+		self.thunk(slot, node, move |c, s| {
+			if shadowed {
+				c.emit_constant(Value::from(path), node);
+				c.compile_identifier_access(s, "__nixPath", node);
+				c.compile_identifier_access(s, "__findFile", node);
+				c.emit_force(node);
+				c.push_op(Op::Call, node);
+				c.emit_force(node);
+				c.push_op(Op::Call, node);
+			} else {
+				c.emit_constant(Value::UnresolvedPath(Box::new(path.into())), node);
+				c.push_op(Op::FindFile, node);
+			}
 		});
 	}
 
@@ -1890,9 +1908,31 @@ pub fn prepare_globals(
 				globals.insert(global, builtin);
 			}
 		}
+		// CppNix's base environment has every other builtin as `__name`.
+		for (name, builtin) in &builtins {
+			if !GLOBAL_BUILTINS.contains(name)
+				&& !matches!(*name, "builtins" | "true" | "false" | "null")
+			{
+				globals.insert(dunder_name(name), builtin.clone());
+			}
+		}
 
 		globals
 	}))
+}
+
+/// `__name` for a builtin `name`, allocated once per name.
+fn dunder_name(name: &'static str) -> &'static str {
+	thread_local! {
+		static NAMES: std::cell::RefCell<FxHashMap<&'static str, &'static str>> =
+			std::cell::RefCell::default();
+	}
+	NAMES.with(|names| {
+		*names
+			.borrow_mut()
+			.entry(name)
+			.or_insert_with(|| Box::leak(format!("__{name}").into_boxed_str()))
+	})
 }
 
 pub fn compile(

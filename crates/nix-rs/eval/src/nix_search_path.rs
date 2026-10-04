@@ -1,162 +1,207 @@
+//! CppNix's lookup path, which `<...>` paths, `builtins.findFile` and
+//! `nix-instantiate --find-file` search.
+
 use path_clean::PathClean;
-use std::convert::Infallible;
+use rustc_hash::FxHashMap;
+use std::cell::RefCell;
 use std::path::{Path, PathBuf};
-use std::str::FromStr;
+use std::rc::Rc;
 
 use crate::EvalIO;
-use crate::errors::{CatchableErrorKind, ErrorKind};
+use crate::errors::CatchableErrorKind;
 
+/// One lookup path element: `prefix=path`, or a bare `path` with an empty
+/// prefix.
 #[derive(Debug, Clone, PartialEq, Eq)]
-enum NixSearchPathEntry {
-	/// Resolve subdirectories of this path within `<...>` brackets. This
-	/// corresponds to bare paths within the `NIX_PATH` environment variable
-	///
-	/// For example, with `NixSearchPathEntry::Path("/example")` and the following
-	/// directory structure:
-	///
-	/// ```notrust
-	/// example
-	/// └── subdir
-	///     └── grandchild
-	/// ```
-	///
-	/// A Nix path literal `<subdir>` would resolve to `/example/subdir`, and a
-	/// Nix path literal `<subdir/grandchild>` would resolve to
-	/// `/example/subdir/grandchild`
-	Path(PathBuf),
-
-	/// Resolve paths starting with `prefix` as subdirectories of `path`. This
-	/// corresponds to `prefix=path` within the `NIX_PATH` environment variable.
-	///
-	/// For example, with `NixSearchPathEntry::Prefix { prefix: "prefix", path:
-	/// "/example" }` and the following directory structure:
-	///
-	/// ```notrust
-	/// example
-	/// └── subdir
-	///     └── grandchild
-	/// ```
-	///
-	/// A Nix path literal `<prefix/subdir>` would resolve to `/example/subdir`,
-	/// and a Nix path literal `<prefix/subdir/grandchild>` would resolve to
-	/// `/example/subdir/grandchild`
-	Prefix { prefix: PathBuf, path: PathBuf },
-}
-
-fn canonicalise(path: PathBuf) -> Result<PathBuf, ErrorKind> {
-	let absolute = if path.is_absolute() {
-		path
-	} else {
-		// TODO(tazjin): probably panics in wasm?
-		std::env::current_dir()
-			.map_err(|e| ErrorKind::IO {
-				path: Some(path.clone()),
-				error: e.into(),
-			})?
-			.join(path)
-	}
-	.clean();
-
-	Ok(absolute)
+pub struct NixSearchPathEntry {
+	pub prefix: String,
+	pub path: String,
 }
 
 impl NixSearchPathEntry {
-	/// Determine whether this path entry matches the given lookup path.
-	///
-	/// For bare paths, an entry is considered to match if a matching
-	/// file exists under it.
-	///
-	/// For prefixed path, an entry matches if the prefix does.
-	// TODO(tazjin): verify these rules in the C++ impl, seems fishy.
-	fn resolve<IO>(&self, io: IO, lookup_path: &Path) -> Result<Option<PathBuf>, ErrorKind>
-	where
-		IO: AsRef<dyn EvalIO>,
-	{
-		let path = match self {
-			NixSearchPathEntry::Path(parent) => canonicalise(parent.join(lookup_path))?,
+	/// `LookupPath::Elem::parse`: the prefix ends at the first `=`.
+	pub fn parse(element: &str) -> Self {
+		match element.split_once('=') {
+			Some((prefix, path)) => Self {
+				prefix: prefix.to_owned(),
+				path: path.to_owned(),
+			},
+			None => Self {
+				prefix: String::new(),
+				path: element.to_owned(),
+			},
+		}
+	}
 
-			NixSearchPathEntry::Prefix { prefix, path } => {
-				if let Ok(child_path) = lookup_path.strip_prefix(prefix) {
-					canonicalise(path.join(child_path))?
-				} else {
-					return Ok(None);
-				}
+	/// `LookupPath::Prefix::suffixIfPotentialMatch`: the rest of `path`
+	/// after the prefix and its separating `/`, if the prefix matches.
+	fn suffix<'a>(&self, path: &'a str) -> Option<&'a str> {
+		let n = self.prefix.len();
+		let need_separator = n > 0 && n < path.len();
+		if need_separator && path.as_bytes()[n] != b'/' {
+			return None;
+		}
+		if !path.starts_with(&self.prefix) {
+			return None;
+		}
+		Some(&path[if need_separator { n + 1 } else { n }..])
+	}
+}
+
+/// `EvalSettings::isPseudoUrl`: a value CppNix downloads rather than reads.
+pub fn is_pseudo_url(s: &str) -> bool {
+	if s.starts_with("channel:") {
+		return true;
+	}
+	match s.find("://") {
+		Some(pos) => matches!(
+			&s[..pos],
+			"http" | "https" | "file" | "channel" | "git" | "s3" | "ssh"
+		),
+		None => false,
+	}
+}
+
+/// `EvalSettings::parseNixPath`: split `NIX_PATH` at colons, except the one
+/// after a URL's scheme or a `flake:` reference.
+pub fn parse_nix_path(s: &str) -> Vec<String> {
+	let bytes = s.as_bytes();
+	let mut elements = Vec::new();
+	let mut p = 0;
+	while p != bytes.len() {
+		let start = p;
+		let mut value_start = p;
+		while p != bytes.len() && bytes[p] != b':' {
+			if bytes[p] == b'=' {
+				value_start = p + 1;
 			}
-		};
-
-		if io.as_ref().path_exists(&path).map_err(|e| ErrorKind::IO {
-			path: Some(path.clone()),
-			error: e.into(),
-		})? {
-			Ok(Some(path))
-		} else {
-			Ok(None)
+			p += 1;
 		}
+		if p == bytes.len() {
+			if p != start {
+				elements.push(s[start..p].to_owned());
+			}
+			break;
+		}
+		let value = &s[value_start..];
+		if is_pseudo_url(value) || value.starts_with("flake:") {
+			p += 1;
+			while p != bytes.len() && bytes[p] != b':' {
+				p += 1;
+			}
+		}
+		elements.push(s[start..p].to_owned());
+		if p == bytes.len() {
+			break;
+		}
+		p += 1;
 	}
+	elements
 }
 
-impl FromStr for NixSearchPathEntry {
-	type Err = Infallible;
-
-	fn from_str(s: &str) -> Result<Self, Self::Err> {
-		match s.split_once('=') {
-			Some((prefix, path)) => Ok(Self::Prefix {
-				prefix: prefix.into(),
-				path: path.into(),
-			}),
-			None => Ok(Self::Path(s.into())),
-		}
-	}
-}
-
-/// Struct implementing the format and path resolution rules of the `NIX_PATH`
-/// environment variable.
-///
-/// This struct can be constructed by parsing a string using the [`FromStr`]
-/// impl, or via [`str::parse`]. Nix `<...>` paths can then be resolved using
-/// [`NixSearchPath::resolve`].
-#[derive(Default, Debug, Clone, PartialEq, Eq)]
+/// The lookup path of an evaluation, with CppNix's resolution rules.
+#[derive(Default, Debug, Clone)]
 pub struct NixSearchPath {
 	entries: Vec<NixSearchPathEntry>,
+	/// Where `<nix/...>` resolves when no entry has the file.
+	corepkgs: Option<PathBuf>,
+	/// CppNix's `pure-eval`, which changes the error for a missing file.
+	pure_eval: bool,
+	/// Each entry value's resolved directory, shared with the search paths
+	/// `builtins.findFile` makes, so that a missing entry warns once.
+	resolved: Rc<RefCell<FxHashMap<String, Option<PathBuf>>>>,
 }
 
 impl NixSearchPath {
-	/// Attempt to resolve the given `path` within this [`NixSearchPath`] using the
-	/// path resolution rules for `<...>`-style paths
-	pub fn resolve<P, IO>(
-		&self,
-		io: IO,
-		path: P,
-	) -> Result<Result<PathBuf, CatchableErrorKind>, ErrorKind>
+	pub fn new(entries: Vec<NixSearchPathEntry>, corepkgs: Option<PathBuf>) -> Self {
+		Self {
+			entries,
+			corepkgs,
+			pure_eval: false,
+			resolved: Rc::default(),
+		}
+	}
+
+	pub fn with_pure_eval(self, pure_eval: bool) -> Self {
+		Self { pure_eval, ..self }
+	}
+
+	/// A search path of other entries, sharing this one's resolutions.
+	pub fn with_entries(&self, entries: Vec<NixSearchPathEntry>) -> Self {
+		Self {
+			entries,
+			corepkgs: self.corepkgs.clone(),
+			pure_eval: self.pure_eval,
+			resolved: Rc::clone(&self.resolved),
+		}
+	}
+
+	pub fn entries(&self) -> &[NixSearchPathEntry] {
+		&self.entries
+	}
+
+	/// `EvalState::resolveLookupPathPath`: the directory an entry's value
+	/// names, or `None` with a warning when it does not exist.
+	fn resolve_entry(&self, io: &dyn EvalIO, value: &str) -> Option<PathBuf> {
+		if let Some(cached) = self.resolved.borrow().get(value) {
+			return cached.clone();
+		}
+		if is_pseudo_url(value) {
+			eprintln!("warning: Nix search path entry '{value}' cannot be downloaded, ignoring");
+		}
+		let path = Path::new(value);
+		let path = if path.is_absolute() {
+			path.to_owned()
+		} else {
+			std::env::current_dir().unwrap_or_default().join(path)
+		}
+		.clean();
+		let resolved = if io.canonicalize(&path).is_ok() {
+			Some(path)
+		} else {
+			eprintln!("warning: Nix search path entry '{value}' does not exist, ignoring");
+			None
+		};
+		self.resolved
+			.borrow_mut()
+			.insert(value.to_owned(), resolved.clone());
+		resolved
+	}
+
+	/// `EvalState::findFile`: the first entry with the file, symlinks
+	/// resolved, falling back to the built-in `<nix/...>` files.
+	pub fn resolve<IO>(&self, io: IO, path: &str) -> Result<PathBuf, CatchableErrorKind>
 	where
-		P: AsRef<Path>,
 		IO: AsRef<dyn EvalIO>,
 	{
-		let path = path.as_ref();
+		let io = io.as_ref();
 		for entry in &self.entries {
-			if let Some(p) = entry.resolve(&io, path)? {
-				return Ok(Ok(p));
+			let Some(suffix) = entry.suffix(path) else {
+				continue;
+			};
+			let Some(root) = self.resolve_entry(io, &entry.path) else {
+				continue;
+			};
+			let candidate = root.join(suffix.trim_start_matches('/')).clean();
+			if let Ok(found) = io.canonicalize(&candidate) {
+				return Ok(found);
 			}
 		}
-		Ok(Err(CatchableErrorKind::NixPathResolution(
+		if let (Some(rest), Some(corepkgs)) = (path.strip_prefix("nix/"), &self.corepkgs) {
+			return Ok(corepkgs.join(rest.trim_start_matches('/')).clean());
+		}
+		let message = if self.pure_eval {
 			format!(
-				"path '{}' was not found in the Nix search path",
-				path.display()
+				"cannot look up '<{path}>' in pure evaluation mode (use '--impure' to override)"
 			)
-			.into_boxed_str(),
-		)))
-	}
-}
-
-impl FromStr for NixSearchPath {
-	type Err = Infallible;
-
-	fn from_str(s: &str) -> Result<Self, Self::Err> {
-		let entries = s
-			.split(':')
-			.map(|s| s.parse())
-			.collect::<Result<Vec<_>, _>>()?;
-		Ok(NixSearchPath { entries })
+		} else {
+			format!(
+				"file '{path}' was not found in the Nix search path (add it using $NIX_PATH or -I)"
+			)
+		};
+		Err(CatchableErrorKind::NixPathResolution(
+			message.into_boxed_str(),
+		))
 	}
 }
 
@@ -164,103 +209,76 @@ impl FromStr for NixSearchPath {
 mod tests {
 	use super::*;
 
-	mod parse {
-		use super::*;
+	#[test]
+	fn parses_nix_path_like_cppnix() {
+		assert_eq!(
+			parse_nix_path("nixpkgs=/my/nixpkgs:/etc/nixos::"),
+			["nixpkgs=/my/nixpkgs", "/etc/nixos", ""]
+		);
+		assert_eq!(
+			parse_nix_path("a=https://example.org/x.tar.gz:b=flake:nixpkgs:/c"),
+			["a=https://example.org/x.tar.gz", "b=flake:nixpkgs", "/c"]
+		);
+		assert_eq!(
+			parse_nix_path("channel:nixos-unstable"),
+			["channel:nixos-unstable"]
+		);
+		assert!(parse_nix_path("").is_empty());
+	}
 
-		#[test]
-		fn bare_paths() {
-			assert_eq!(
-				NixSearchPath::from_str("/foo/bar:/baz").unwrap(),
-				NixSearchPath {
-					entries: vec![
-						NixSearchPathEntry::Path("/foo/bar".into()),
-						NixSearchPathEntry::Path("/baz".into())
-					],
-				}
-			);
-		}
-
-		#[test]
-		fn mixed_prefix_and_paths() {
-			assert_eq!(
-				NixSearchPath::from_str("nixpkgs=/my/nixpkgs:/etc/nixos").unwrap(),
-				NixSearchPath {
-					entries: vec![
-						NixSearchPathEntry::Prefix {
-							prefix: "nixpkgs".into(),
-							path: "/my/nixpkgs".into()
-						},
-						NixSearchPathEntry::Path("/etc/nixos".into())
-					],
-				}
-			);
-		}
+	#[test]
+	fn matches_prefixes_at_separators() {
+		let entry = NixSearchPathEntry::parse("nixpkgs=/x");
+		assert_eq!(entry.suffix("nixpkgs"), Some(""));
+		assert_eq!(entry.suffix("nixpkgs/lib"), Some("lib"));
+		assert_eq!(entry.suffix("nixpkgs-unstable"), None);
+		assert_eq!(entry.suffix("nix"), None);
+		assert_eq!(NixSearchPathEntry::parse("/x").suffix("a/b"), Some("a/b"));
 	}
 
 	// this uses StdIO, which is only available with the impure feature.
 	#[cfg(feature = "impure")]
-	mod resolve {
+	#[test]
+	fn resolves_entries_in_order_through_symlinks() {
 		use crate::StdIO;
-		use path_clean::PathClean;
-		use std::env::current_dir;
 
-		use super::*;
+		let dir = tempfile::tempdir().unwrap();
+		let root = dir.path().canonicalize().unwrap();
+		std::fs::create_dir_all(root.join("a/sub")).unwrap();
+		std::fs::write(root.join("a/sub/x.nix"), "1").unwrap();
+		std::fs::create_dir_all(root.join("b")).unwrap();
+		std::fs::write(root.join("b/y.nix"), "2").unwrap();
+		std::os::unix::fs::symlink(root.join("b"), root.join("link")).unwrap();
 
-		#[test]
-		fn simple_dir() {
-			let nix_search_path = NixSearchPath::from_str("./.").unwrap();
-			let io = Box::new(StdIO {}) as Box<dyn EvalIO>;
-			let res = nix_search_path.resolve(&io, "src").unwrap();
-			assert_eq!(
-				res.unwrap().to_path_buf(),
-				current_dir().unwrap().join("src").clean()
-			);
-		}
-
-		#[test]
-		fn failed_resolution() {
-			let nix_search_path = NixSearchPath::from_str("./.").unwrap();
-			let io = Box::new(StdIO {}) as Box<dyn EvalIO>;
-			let err = nix_search_path.resolve(&io, "nope").unwrap();
-			assert!(
-				matches!(err, Err(CatchableErrorKind::NixPathResolution(..))),
-				"err = {err:?}"
-			);
-		}
-
-		#[test]
-		fn second_in_path() {
-			let nix_search_path = NixSearchPath::from_str("./.:/").unwrap();
-			let io = Box::new(StdIO {}) as Box<dyn EvalIO>;
-			let res = nix_search_path.resolve(&io, "etc").unwrap();
-			assert_eq!(res.unwrap().to_path_buf(), Path::new("/etc"));
-		}
-
-		// NOTE: vibm8ccl5d2x2r3mvx5m2s768w2w64s2 is a random string chosen for being unlikely to exist in /
-
-		#[test]
-		fn prefix() {
-			let nix_search_path =
-				NixSearchPath::from_str("/:vibm8ccl5d2x2r3mvx5m2s768w2w64s2=.").unwrap();
-			let io = Box::new(StdIO {}) as Box<dyn EvalIO>;
-			let res = nix_search_path
-				.resolve(&io, "vibm8ccl5d2x2r3mvx5m2s768w2w64s2/src")
-				.unwrap();
-			assert_eq!(
-				res.unwrap().to_path_buf(),
-				current_dir().unwrap().join("src").clean()
-			);
-		}
-
-		#[test]
-		fn matching_prefix() {
-			let nix_search_path =
-				NixSearchPath::from_str("/:vibm8ccl5d2x2r3mvx5m2s768w2w64s2=.").unwrap();
-			let io = Box::new(StdIO {}) as Box<dyn EvalIO>;
-			let res = nix_search_path
-				.resolve(&io, "vibm8ccl5d2x2r3mvx5m2s768w2w64s2")
-				.unwrap();
-			assert_eq!(res.unwrap().to_path_buf(), current_dir().unwrap().clean());
-		}
+		let entries = [
+			"/nonexistent-search-path-entry".to_owned(),
+			format!("p={}", root.join("link").display()),
+			root.join("a").display().to_string(),
+		];
+		let search_path = NixSearchPath::new(
+			entries
+				.iter()
+				.map(|e| NixSearchPathEntry::parse(e))
+				.collect(),
+			Some("/corepkgs".into()),
+		);
+		let io = Box::new(StdIO) as Box<dyn EvalIO>;
+		assert_eq!(
+			search_path.resolve(&io, "sub/x.nix").unwrap(),
+			root.join("a/sub/x.nix")
+		);
+		assert_eq!(
+			search_path.resolve(&io, "p/y.nix").unwrap(),
+			root.join("b/y.nix")
+		);
+		assert_eq!(search_path.resolve(&io, "p").unwrap(), root.join("b"));
+		assert_eq!(
+			search_path.resolve(&io, "nix/fetchurl.nix").unwrap(),
+			Path::new("/corepkgs/fetchurl.nix")
+		);
+		assert!(matches!(
+			search_path.resolve(&io, "y.nix"),
+			Err(CatchableErrorKind::NixPathResolution(_))
+		));
 	}
 }

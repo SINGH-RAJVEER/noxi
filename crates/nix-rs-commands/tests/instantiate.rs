@@ -480,6 +480,70 @@ fn prints_xml_and_searches_include_paths() {
 	);
 }
 
+/// `--find-file` and `<...>` lookups as recorded from the reference: `-I`
+/// entries before `NIX_PATH`, prefixes matched at `/`, symlinks resolved,
+/// a missing entry warned about once, a rebound `__nixPath`, and the error.
+#[test]
+fn finds_files_in_the_lookup_path() {
+	let dir = tempfile::tempdir().unwrap();
+	let root = dir.path().canonicalize().unwrap();
+	fs::create_dir_all(root.join("a/sub")).unwrap();
+	fs::write(root.join("a/sub/x.nix"), "1").unwrap();
+	fs::create_dir_all(root.join("b")).unwrap();
+	fs::write(root.join("b/y.nix"), "2").unwrap();
+	symlink(root.join("b"), root.join("link")).unwrap();
+	let run = |nix_path: &str, args: &[&str]| {
+		let output = Command::new(env!("CARGO_BIN_EXE_nix-instantiate"))
+			.args(args)
+			.current_dir(&root)
+			.env("HOME", &root)
+			.env("NIX_STATE_DIR", root.join("var/nix"))
+			.env("NIX_PATH", nix_path)
+			.output()
+			.unwrap();
+		(
+			String::from_utf8(output.stdout).unwrap(),
+			String::from_utf8(output.stderr).unwrap(),
+			output.status.code().unwrap(),
+		)
+	};
+	let r = root.display();
+	let (stdout, _, code) = run(
+		"p=link:/nonexistent",
+		&["-I", "a", "--find-file", "sub/x.nix", "p/y.nix", "p"],
+	);
+	assert_eq!(
+		(stdout, code),
+		(format!("{r}/a/sub/x.nix\n{r}/b/y.nix\n{r}/b\n"), 0)
+	);
+	let (stdout, stderr, code) = run("p=a:/nonexistent", &["--find-file", "p-x"]);
+	assert_eq!(
+		(stdout.as_str(), stderr.as_str(), code),
+		(
+			"",
+			"warning: Nix search path entry '/nonexistent' does not exist, ignoring\n\
+			error: file 'p-x' was not found in the Nix search path (add it using $NIX_PATH or -I)\n",
+			1
+		)
+	);
+	let (stdout, _, code) = run(
+		"a",
+		&[
+			"--eval",
+			"--strict",
+			"-E",
+			"[ (import <sub/x.nix>) (let __nixPath = [ { path = ./b; } ]; in import <y.nix>) __nixPath ]",
+		],
+	);
+	assert_eq!(
+		(stdout, code),
+		(
+			"[ 1 2 [ { path = \"a\"; prefix = \"\"; } ] ]\n".to_owned(),
+			0
+		)
+	);
+}
+
 /// Derivation and output paths of real Nixpkgs packages, recorded from the
 /// reference for the root flake's locked Nixpkgs (`714a5f8c`). A matching
 /// `.drv` path means the whole derivation graph below it, byte for byte.

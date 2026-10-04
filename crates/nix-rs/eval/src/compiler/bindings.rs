@@ -942,7 +942,7 @@ impl Compiler<'_, '_> {
 	}
 
 	/// Resolve and compile access to an identifier in the scope.
-	fn compile_identifier_access<N: ToSpan + Clone>(
+	pub(super) fn compile_identifier_access<N: ToSpan + Clone>(
 		&mut self,
 		slot: LocalIdx,
 		ident: &str,
