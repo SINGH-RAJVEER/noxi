@@ -357,6 +357,8 @@ fn reports_failed_builds_like_cppnix() {
 	env.same_with("nix-build", &[file, "-A", "fails"]);
 	env.same_with("nix-build", &[file, "-A", "noOutput"]);
 	env.same_with("nix-build", &[file, "-A", "dependent"]);
+	env.same_with("nix-build", &[file, "-A", "fails", "-A", "dependent"]);
+	env.same_with("nix-build", &[file, "-A", "fails", "-A", "noOutput"]);
 	let drv = env.same_with("nix-instantiate", &[file, "-A", "fails", "--no-gc-warning"]);
 	env.same(&["-r", drv.trim()]);
 }

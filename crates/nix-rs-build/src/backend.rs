@@ -228,8 +228,9 @@ impl Store for LocalBackend {
 		// CppNix's worker starts ready builds in the order of their goal keys,
 		// `dd$NAME$PATH`, so independent derivations build in name order.
 		// Without `--keep-going`, a failure starts nothing new: the
-		// derivations waiting on it fail in turn, those that are not
-		// requested logging why, until a requested one fails.
+		// derivations waiting on it fail in turn until a requested one
+		// fails, which stops the worker. A failure another derivation waits
+		// on is logged at once.
 		let targets: BTreeSet<&StorePath> = paths
 			.iter()
 			.filter_map(|path| match path {
@@ -238,6 +239,7 @@ impl Store for LocalBackend {
 			})
 			.collect();
 		let order = self.build_order(paths)?;
+		let has_waiters = |drv: &StorePath| order.iter().any(|(_, inputs)| inputs.contains(drv));
 		let mut built: BTreeSet<&StorePath> = BTreeSet::new();
 		let mut failed: BTreeSet<&StorePath> = BTreeSet::new();
 		let mut exit_status = 1;
@@ -261,28 +263,52 @@ impl Store for LocalBackend {
 				continue;
 			};
 			failed.insert(drv);
+			if has_waiters(drv) {
+				eprintln!("{}", format_error(&message));
+			}
 			if targets.contains(drv) {
 				failure = Some(message);
 				break;
 			}
-			log_error(&message);
 		}
 		if let Some(message) = failure {
-			let unfinished: BTreeSet<String> = targets
+			// `Store::buildPaths` walks the requested goals in key order. The
+			// first failure is held and later ones are logged; requested
+			// goals the stopped worker never finished carry an empty failure,
+			// which logs as an empty line.
+			let mut unfinished: Vec<&StorePath> = targets
 				.iter()
-				.filter(|drv| {
-					!built.contains(**drv) && order.iter().any(|(other, _)| other == **drv)
-				})
-				.map(|drv| drv.to_absolute_path())
+				.copied()
+				.filter(|drv| !built.contains(drv) && order.iter().any(|(other, _)| other == *drv))
 				.collect();
+			unfinished.sort_by_key(|drv| (drv.name().to_owned(), drv.to_absolute_path()));
 			if unfinished.len() == 1 {
 				return Err(Error::Build {
 					exit_status,
 					message,
 				});
 			}
-			log_error(&message);
-			let quoted: Vec<String> = unfinished.iter().map(|p| format!("'{p}'")).collect();
+			let failed_target = failed.iter().find(|drv| targets.contains(*drv));
+			let mut held = None;
+			for drv in &unfinished {
+				let text = if Some(drv) == failed_target {
+					format_error(&message)
+				} else {
+					String::new()
+				};
+				match held {
+					None => held = Some(text),
+					Some(_) => eprintln!("{text}"),
+				}
+			}
+			if let Some(text) = held {
+				eprintln!("{text}");
+			}
+			let mut quoted: Vec<String> = unfinished
+				.iter()
+				.map(|drv| format!("'{}'", drv.to_absolute_path()))
+				.collect();
+			quoted.sort();
 			return Err(Error::Build {
 				exit_status,
 				message: format!("build of {} failed", quoted.join(", ")),
@@ -312,8 +338,8 @@ impl Store for LocalBackend {
 	}
 }
 
-/// Print an error as CppNix's `logError` does: continuation lines line up
+/// Format an error as CppNix's `logError` does: continuation lines line up
 /// after the `error: ` prefix.
-fn log_error(message: &str) {
-	eprintln!("error: {}", message.trim_end().replace('\n', "\n       "));
+fn format_error(message: &str) -> String {
+	format!("error: {}", message.trim_end().replace('\n', "\n       "))
 }
