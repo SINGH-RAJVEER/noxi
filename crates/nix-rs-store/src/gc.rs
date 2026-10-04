@@ -223,7 +223,6 @@ struct Shared {
 /// records each store path a client sends as a temporary root.
 struct RootsServer {
 	shared: Arc<(Mutex<Shared>, Condvar)>,
-	path: PathBuf,
 	stop: Arc<std::sync::atomic::AtomicBool>,
 	thread: Option<std::thread::JoinHandle<()>>,
 }
@@ -260,7 +259,6 @@ impl RootsServer {
 		};
 		Ok(Self {
 			shared,
-			path,
 			stop,
 			thread: Some(thread),
 		})
