@@ -10,6 +10,7 @@ let
 	};
 in
 {
+	dotenv.disableHint = true;
 	packages = [
 		# Rust and native code compiled by Cargo dependencies.
 		rustToolchain
