@@ -1414,6 +1414,7 @@ dependencies = [
  "libc",
  "nix-rs-build",
  "nix-rs-compat",
+ "nix-rs-daemon",
  "nix-rs-eval",
  "nix-rs-glue",
  "nix-rs-store",

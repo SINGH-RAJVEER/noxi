@@ -7,11 +7,22 @@ use std::os::unix::fs::{PermissionsExt, symlink};
 use std::path::Path;
 use std::process::Command;
 
+/// The command, kept away from the host's store: its daemon socket and
+/// `NIX_REMOTE` point nowhere, so a store-less instantiation fails rather
+/// than writing to the system store.
+fn nix_instantiate() -> Command {
+	let mut command = Command::new(env!("CARGO_BIN_EXE_nix-instantiate"));
+	command
+		.env("NIX_DAEMON_SOCKET_PATH", "/nonexistent/nix-rs-test.sock")
+		.env("NIX_REMOTE", "unix:///nonexistent/nix-rs-test.sock");
+	command
+}
+
 #[test]
 fn instantiation_registers_drv_bytes_in_a_diverted_store() {
 	let root = tempfile::tempdir().unwrap();
 	let expr = r#"derivation { name = "a"; system = "x"; builder = "/bin/sh"; }"#;
-	let output = Command::new(env!("CARGO_BIN_EXE_nix-instantiate"))
+	let output = nix_instantiate()
 		.args([
 			"--store",
 			&format!("local?root={}", root.path().display()),
@@ -36,7 +47,7 @@ fn instantiation_registers_drv_bytes_in_a_diverted_store() {
 	.unwrap();
 	assert!(bytes.starts_with(b"Derive("));
 	assert!(root.path().join("nix/var/nix/db/db.sqlite").is_file());
-	let invalid = Command::new(env!("CARGO_BIN_EXE_nix-instantiate"))
+	let invalid = nix_instantiate()
 		.args([
 			"--store",
 			&format!("local?root={}", root.path().display()),
@@ -47,32 +58,32 @@ fn instantiation_registers_drv_bytes_in_a_diverted_store() {
 		.unwrap();
 	assert!(!invalid.status.success());
 	assert!(invalid.stdout.is_empty());
-	// A root must be a directory outside /nix, and nix-rs cannot use the
-	// daemon yet. Neither touches a store.
-	for (args, error) in [
-		(
-			vec!["--store", "local?root=/", "-E", expr],
-			"error: store root '/' must be a directory outside /nix\n",
-		),
-		(
-			vec!["--store", "daemon", "-E", expr],
-			"error: connecting to the Nix daemon is not supported by nix-rs yet; use a local store\n",
-		),
-	] {
-		let output = Command::new(env!("CARGO_BIN_EXE_nix-instantiate"))
-			.args(args)
-			.output()
-			.unwrap();
-		assert!(!output.status.success());
-		assert_eq!(String::from_utf8_lossy(&output.stderr), error);
-	}
+	// A root must be a directory outside /nix, and a daemon must be
+	// reachable. Neither touches a store.
+	let output = nix_instantiate()
+		.args(["--store", "local?root=/", "-E", expr])
+		.output()
+		.unwrap();
+	assert!(!output.status.success());
+	assert_eq!(
+		String::from_utf8_lossy(&output.stderr),
+		"error: store root '/' must be a directory outside /nix\n"
+	);
+	let output = nix_instantiate()
+		.args(["--store", "daemon", "-E", expr])
+		.output()
+		.unwrap();
+	assert!(!output.status.success());
+	assert!(String::from_utf8_lossy(&output.stderr).contains(
+		"cannot connect to socket at '/nonexistent/nix-rs-test.sock': No such file or directory"
+	));
 }
 
 #[test]
 fn evaluation_writes_only_with_read_write_mode() {
 	let root = tempfile::tempdir().unwrap();
 	let uri = format!("local?root={}", root.path().display());
-	let mut command = Command::new(env!("CARGO_BIN_EXE_nix-instantiate"));
+	let mut command = nix_instantiate();
 	command.args([
 		"--store",
 		&uri,
@@ -121,7 +132,7 @@ fn readonly_store_selection_maps_files_without_opening_or_mutating_the_store() {
 			"[ \"00000000000000000000000000000000-fixture\" ]\n",
 		),
 	] {
-		let output = Command::new(env!("CARGO_BIN_EXE_nix-instantiate"))
+		let output = nix_instantiate()
 			.args(["--store", &uri, "--eval", "--strict", "-E", &expr])
 			.output()
 			.unwrap();
@@ -144,7 +155,7 @@ fn readonly_store_selection_maps_files_without_opening_or_mutating_the_store() {
 fn instantiation_forces_each_selection_once() {
 	let root = tempfile::tempdir().unwrap();
 	let uri = format!("local?root={}", root.path().display());
-	let output = Command::new(env!("CARGO_BIN_EXE_nix-instantiate"))
+	let output = nix_instantiate()
 		.args([
 			"--store", &uri, "-E",
 			r#"builtins.trace "selection-forced" (derivation { name = "a"; system = "x"; builder = "/bin/sh"; })"#,
@@ -331,7 +342,7 @@ fn fixture_dir(dir: &Path) {
 }
 
 fn instantiate(cwd: &Path, args: &[&str]) -> (String, i32) {
-	let output = Command::new(env!("CARGO_BIN_EXE_nix-instantiate"))
+	let output = nix_instantiate()
 		.args(args)
 		.current_dir(cwd)
 		.env("NIX_PATH", "")
@@ -464,7 +475,7 @@ fn prints_xml_and_searches_include_paths() {
 		fs::create_dir_all(path.parent().unwrap()).unwrap();
 		fs::write(path, text).unwrap();
 	}
-	let output = Command::new(env!("CARGO_BIN_EXE_nix-instantiate"))
+	let output = nix_instantiate()
 		.args(["--eval", "--strict", "--show-trace", "-I", "d1", "-E"])
 		.arg("[ (import <x.nix>) (import <y.nix>) ]")
 		.current_dir(dir.path())
@@ -493,7 +504,7 @@ fn finds_files_in_the_lookup_path() {
 	fs::write(root.join("b/y.nix"), "2").unwrap();
 	symlink(root.join("b"), root.join("link")).unwrap();
 	let run = |nix_path: &str, args: &[&str]| {
-		let output = Command::new(env!("CARGO_BIN_EXE_nix-instantiate"))
+		let output = nix_instantiate()
 			.args(args)
 			.current_dir(&root)
 			.env("HOME", &root)
@@ -714,7 +725,7 @@ fn reads_configuration_like_cppnix() {
 	fs::create_dir(&conf).unwrap();
 	let run = |nix_conf: &str, args: &[&str]| {
 		fs::write(conf.join("nix.conf"), nix_conf).unwrap();
-		let output = Command::new(env!("CARGO_BIN_EXE_nix-instantiate"))
+		let output = nix_instantiate()
 			.args(args)
 			.current_dir(dir.path())
 			.env_clear()

@@ -369,3 +369,96 @@ mod test {
 		);
 	}
 }
+
+/// CppNix's `filterANSIEscapes`, as its simple logger applies it to every
+/// line: escape sequences are removed, except colour (SGR) sequences unless
+/// `filter_all`, tabs expand to the next multiple of eight columns, and
+/// carriage returns and bells are dropped.
+pub fn filter_ansi_escapes(s: &[u8], filter_all: bool) -> Vec<u8> {
+	let mut out = Vec::with_capacity(s.len());
+	let mut width = 0usize;
+	let mut i = 0;
+	while i < s.len() {
+		match s[i] {
+			0x1b => {
+				let start = i;
+				i += 1;
+				let mut last = 0u8;
+				if s.get(i) == Some(&b'[') {
+					i += 1;
+					while i < s.len() && (0x30..=0x3f).contains(&s[i]) {
+						i += 1;
+					}
+					while i < s.len() && (0x20..=0x2f).contains(&s[i]) {
+						i += 1;
+					}
+					if i < s.len() && (0x40..=0x7e).contains(&s[i]) {
+						last = s[i];
+						i += 1;
+					}
+				} else if s.get(i) == Some(&b']') {
+					i += 1;
+					while i < s.len() && s[i] != 0x1b && s[i] != 0x07 {
+						i += 1;
+					}
+					if i < s.len() {
+						let terminator = s[i];
+						i += 1;
+						if terminator == 0x1b && s.get(i) == Some(&b'\\') {
+							last = b'\\';
+							i += 1;
+						}
+					}
+				} else if i < s.len() && (0x40..=0x5f).contains(&s[i]) {
+					i += 1;
+				}
+				if !filter_all && last == b'm' {
+					out.extend_from_slice(&s[start..i]);
+				}
+			}
+			b'\t' => {
+				loop {
+					width += 1;
+					out.push(b' ');
+					if width % 8 == 0 {
+						break;
+					}
+				}
+				i += 1;
+			}
+			b'\r' | 0x07 => i += 1,
+			byte => {
+				// Columns only matter for tab stops: control characters take
+				// none, and other characters one.
+				let len = match byte {
+					0xc0..=0xdf => 2,
+					0xe0..=0xef => 3,
+					0xf0..=0xf7 => 4,
+					_ => 1,
+				}
+				.min(s.len() - i);
+				if byte >= 0x20 && byte != 0x7f && !(0x80..0xc0).contains(&byte) {
+					width += 1;
+				}
+				out.extend_from_slice(&s[i..i + len]);
+				i += len;
+			}
+		}
+	}
+	out
+}
+
+#[cfg(test)]
+mod filter_tests {
+	use super::filter_ansi_escapes;
+
+	#[test]
+	fn filters_escapes_like_cppnix() {
+		let text = b"\x1b[35;1mwarning:\x1b[0m a\tb\r\x1b]8;;http://x\x1b\\link\x1b]8;;\x07";
+		assert_eq!(filter_ansi_escapes(text, true), b"warning: a      blink");
+		assert_eq!(
+			filter_ansi_escapes(text, false),
+			b"\x1b[35;1mwarning:\x1b[0m a      blink"
+		);
+	}
+}

@@ -6,6 +6,7 @@
 //! handling and the read-only and root operations, and is started by tests
 //! rather than installed as `nix-daemon`.
 
+pub mod client;
 pub mod connection;
 pub mod error;
 pub mod server;

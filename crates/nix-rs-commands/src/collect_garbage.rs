@@ -114,6 +114,8 @@ pub fn main(mut settings: Settings, args: Vec<String>) -> Result<ExitCode, Failu
 		dry_run: false,
 	};
 	let mut max_freed = None;
+	// LegacyArgs applies `--store` without marking the setting as set.
+	let mut store = None;
 	let mut args = args.into_iter();
 	while let Some(arg) = args.next() {
 		let value = |args: &mut std::vec::IntoIter<String>| {
@@ -131,6 +133,7 @@ pub fn main(mut settings: Settings, args: Vec<String>) -> Result<ExitCode, Failu
 				pruning.older_than = Some(value(&mut args)?);
 			}
 			"--dry-run" => pruning.dry_run = true,
+			"--store" => store = Some(value(&mut args)?),
 			"--max-freed" => {
 				let size = parse_size(&value(&mut args)?).map_err(Failure::Usage)?;
 				max_freed = Some(size.max(0) as u64);
@@ -167,7 +170,7 @@ pub fn main(mut settings: Settings, args: Vec<String>) -> Result<ExitCode, Failu
 		}
 	}
 
-	let uri = store::store_uri(None, &settings);
+	let uri = store::store_uri(store.as_deref(), &settings);
 	let Some((store, _)) = store::open_local(&uri, &settings)? else {
 		return Err(Failure::Error(format!(
 			"store '{uri}' does not support garbage collection"

@@ -1182,7 +1182,10 @@ impl<R: Read + Send, W: Write> Connection<'_, R, W> {
 
 /// `WorkerProto::Serialise<UnkeyedValidPathInfo>::read` at protocol 1.16
 /// or later.
-fn read_path_info<R: Read>(from: &mut Reader<R>, path: StorePath) -> Result<ValidPathInfo> {
+pub(crate) fn read_path_info<R: Read>(
+	from: &mut Reader<R>,
+	path: StorePath,
+) -> Result<ValidPathInfo> {
 	let deriver = match from.read_string()? {
 		s if s.is_empty() => None,
 		s => Some(crate::wire::parse_store_path(&s)?),

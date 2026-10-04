@@ -28,9 +28,219 @@ pub fn store_uri(uri: Option<&str>, settings: &Settings) -> String {
 		.unwrap_or_else(|| "auto".to_owned())
 }
 
+/// The libstore and file-transfer settings that `RemoteStore::setOptions`
+/// forwards when they were set, from CppNix 2.35.2's `globals.hh`,
+/// `local-settings.hh`, `worker-settings.hh` and `filetransfer.hh`, less
+/// those it sends as fixed fields or never forwards.
+const FORWARDED_SETTINGS: &[&str] = &[
+	"allow-new-privileges",
+	"allow-symlinked-store",
+	"allowed-impure-host-deps",
+	"always-allow-substitutes",
+	"auto-allocate-uids",
+	"auto-optimise-store",
+	"build-dir",
+	"build-hook",
+	"build-poll-interval",
+	"build-users-group",
+	"builders",
+	"builders-use-substitutes",
+	"compress-build-log",
+	"connect-timeout",
+	"diff-hook",
+	"download-buffer-size",
+	"download-speed",
+	"external-builders",
+	"extra-platforms",
+	"filetransfer-retry-attempts",
+	"filetransfer-retry-delay",
+	"filetransfer-retry-delay-rate-limited",
+	"filetransfer-retry-jitter",
+	"filetransfer-retry-max-delay",
+	"filter-syscalls",
+	"fsync-metadata",
+	"fsync-store-paths",
+	"gc-reserved-space",
+	"hashed-mirrors",
+	"http-connections",
+	"http2",
+	"http3",
+	"id-count",
+	"ignored-acls",
+	"impersonate-linux-26",
+	"impure-env",
+	"keep-build-log",
+	"keep-derivations",
+	"keep-outputs",
+	"log-lines",
+	"max-build-log-size",
+	"max-free",
+	"max-substitution-jobs",
+	"min-free",
+	"min-free-check-interval",
+	"nar-buffer-size",
+	"narinfo-cache-meta-ttl",
+	"narinfo-cache-negative-ttl",
+	"narinfo-cache-positive-ttl",
+	"netrc-file",
+	"post-build-hook",
+	"pre-build-hook",
+	"print-missing",
+	"require-drop-supplementary-groups",
+	"require-sigs",
+	"run-diff-hook",
+	"sandbox",
+	"sandbox-build-dir",
+	"sandbox-dev-shm-size",
+	"sandbox-fallback",
+	"sandbox-paths",
+	"secret-key-files",
+	"ssl-cert-file",
+	"stalled-download-timeout",
+	"start-id",
+	"store",
+	"substituters",
+	"sync-before-registering",
+	"system",
+	"system-features",
+	"timeout",
+	"trusted-public-keys",
+	"trusted-substituters",
+	"use-cgroups",
+	"use-sqlite-wal",
+	"use-xdg-base-directories",
+	"user-agent-suffix",
+	"warn-large-path-threshold",
+];
+
+/// The defaults that `extra-NAME` extends, for the forwarded list settings
+/// whose default is not empty.
+fn list_default(name: &str) -> &'static str {
+	match name {
+		"build-hook" => "nix __build-remote",
+		"ignored-acls" => "security.csm security.selinux system.nfs4_acl",
+		"substituters" => "https://cache.nixos.org/",
+		"trusted-public-keys" => "cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY=",
+		_ => "",
+	}
+}
+
+/// What `RemoteStore::setOptions` sends for `settings`.
+fn client_options(settings: &Settings) -> nix_rs_daemon::client::ClientOptions {
+	let max_jobs = match settings.get("max-jobs") {
+		Some("auto") => std::thread::available_parallelism().map_or(1, |n| n.get() as u64),
+		Some(value) => value.parse().unwrap_or(1),
+		None => 1,
+	};
+	let overrides = settings
+		.overridden()
+		.filter(|(name, _, _)| FORWARDED_SETTINGS.contains(name))
+		.map(|(name, value, replaces_default)| {
+			let value = if replaces_default {
+				value.to_owned()
+			} else {
+				[list_default(name), value]
+					.into_iter()
+					.filter(|part| !part.is_empty())
+					.collect::<Vec<_>>()
+					.join(" ")
+			};
+			(name.to_owned(), value)
+		})
+		.collect();
+	nix_rs_daemon::client::ClientOptions {
+		keep_failed: settings.get_bool("keep-failed", false),
+		keep_going: settings.get_bool("keep-going", false),
+		try_fallback: settings.get_bool("fallback", false),
+		max_build_jobs: max_jobs,
+		max_silent_time: settings.get_int("max-silent-time", 0).max(0) as u64,
+		build_cores: settings.get_int("cores", 0).max(0) as u64,
+		use_substitutes: settings.get_bool("substitute", true),
+		overrides,
+		..Default::default()
+	}
+}
+
+/// Where a store URI leads.
+enum Target {
+	Dummy,
+	Local {
+		root: Option<PathBuf>,
+		read_only: bool,
+	},
+	Daemon {
+		socket: PathBuf,
+		root: Option<PathBuf>,
+	},
+}
+
+/// Resolve `uri` as CppNix's store registry does for the supported kinds.
+fn resolve(uri: &str) -> Result<Target, String> {
+	let (scheme, query) = uri.split_once('?').unwrap_or((uri, ""));
+	let mut root = None;
+	let mut read_only = false;
+	for param in query.split('&').filter(|p| !p.is_empty()) {
+		match param.split_once('=') {
+			Some(("root", value)) if !value.is_empty() => root = Some(PathBuf::from(value)),
+			Some(("read-only", value)) => read_only = value == "true",
+			_ => return Err(format!("unsupported store parameter '{param}' in '{uri}'")),
+		}
+	}
+	let daemon_socket = || {
+		std::env::var_os("NIX_DAEMON_SOCKET_PATH")
+			.filter(|path| !path.is_empty())
+			.map(PathBuf::from)
+			.unwrap_or_else(|| {
+				LocalStoreConfig::system()
+					.state_dir
+					.join("daemon-socket/socket")
+			})
+	};
+	Ok(match scheme {
+		"dummy" | "dummy://" => Target::Dummy,
+		"local" => Target::Local { root, read_only },
+		"auto" if root.is_some() => Target::Local { root, read_only },
+		"auto" => {
+			let state_dir = LocalStoreConfig::system().state_dir;
+			if accessible(&state_dir) || !daemon_socket().exists() {
+				Target::Local { root, read_only }
+			} else {
+				Target::Daemon {
+					socket: daemon_socket(),
+					root,
+				}
+			}
+		}
+		"daemon" | "unix" | "unix://" => Target::Daemon {
+			socket: daemon_socket(),
+			root,
+		},
+		_ if scheme.starts_with("unix://") => Target::Daemon {
+			socket: PathBuf::from(&scheme["unix://".len()..]),
+			root,
+		},
+		_ => {
+			return Err(format!(
+				"don't know how to open Nix store with scheme '{scheme}'"
+			));
+		}
+	})
+}
+
 /// Open the store named by `uri`. `dummy://` and other stores that cannot
 /// hold paths yield `None`.
 pub fn open(uri: &str, settings: &Settings) -> Result<Option<OpenStore>, String> {
+	if let Target::Daemon { socket, root } = resolve(uri)? {
+		let store = nix_rs_daemon::client::DaemonStore::new(
+			&socket,
+			root.as_deref(),
+			&client_options(settings),
+		);
+		return Ok(Some(OpenStore {
+			store: Rc::new(store),
+			real_store_dir: root.map(|root| root.join("nix/store")),
+		}));
+	}
 	let Some((store, real_store_dir)) = open_local(uri, settings)? else {
 		return Ok(None);
 	};
@@ -56,45 +266,16 @@ pub fn open_local(
 	uri: &str,
 	settings: &Settings,
 ) -> Result<Option<(LocalStore, Option<PathBuf>)>, String> {
-	let (scheme, query) = uri.split_once('?').unwrap_or((uri, ""));
-	let mut root = None;
-	let mut read_only = false;
-	for param in query.split('&').filter(|p| !p.is_empty()) {
-		match param.split_once('=') {
-			Some(("root", value)) if !value.is_empty() => root = Some(PathBuf::from(value)),
-			Some(("read-only", value)) => read_only = value == "true",
-			_ => return Err(format!("unsupported store parameter '{param}' in '{uri}'")),
-		}
-	}
-	let local = match scheme {
-		"dummy" | "dummy://" => return Ok(None),
-		"local" => true,
-		"auto" if root.is_some() => true,
-		"auto" => {
-			let state_dir = LocalStoreConfig::system().state_dir;
-			if accessible(&state_dir) {
-				true
-			} else if state_dir.join("daemon-socket/socket").exists() {
-				false
-			} else {
-				true
-			}
-		}
-		"daemon" | "unix" => false,
-		_ if scheme.starts_with("unix://") => false,
-		_ => {
-			return Err(format!(
-				"don't know how to open Nix store with scheme '{scheme}'"
-			));
+	let (root, read_only) = match resolve(uri)? {
+		Target::Dummy => return Ok(None),
+		Target::Local { root, read_only } => (root, read_only),
+		Target::Daemon { .. } => {
+			return Err(
+				"operations through the Nix daemon other than the store interface are not supported by nix-rs yet; use a local store"
+					.to_owned(),
+			);
 		}
 	};
-	if !local {
-		return Err(
-			"connecting to the Nix daemon is not supported by nix-rs yet; use a local store"
-				.to_owned(),
-		);
-	}
-
 	let mut config = match &root {
 		Some(root) => diverted_config(root)?,
 		None => LocalStoreConfig::system(),

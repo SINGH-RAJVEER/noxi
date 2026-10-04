@@ -40,6 +40,9 @@ enum Operation {
 /// The state shared by the operations.
 struct Globals {
 	settings: Settings,
+	/// `--store`, which LegacyArgs applies without marking the setting as
+	/// set, so a daemon is not sent it.
+	store: Option<String>,
 	profile: PathBuf,
 	dry_run: bool,
 	cwd: PathBuf,
@@ -118,6 +121,7 @@ pub fn main(mut settings: Settings, args: Vec<String>) -> Result<ExitCode, Failu
 	let mut op_args = Vec::new();
 	let mut profile = None;
 	let mut dry_run = false;
+	let mut store = None;
 	let mut args = args.into_iter();
 	while let Some(arg) = args.next() {
 		let old_op = op;
@@ -125,6 +129,10 @@ pub fn main(mut settings: Settings, args: Vec<String>) -> Result<ExitCode, Failu
 			args.next()
 				.ok_or_else(|| Failure::Usage(format!("'{arg}' requires an argument")))
 		};
+		if arg == "--store" {
+			store = Some(value(&mut args)?);
+			continue;
+		}
 		if arg.starts_with('-')
 			&& let Some(result) = settings.apply_flag(&arg, || args.next())
 		{
@@ -198,6 +206,7 @@ pub fn main(mut settings: Settings, args: Vec<String>) -> Result<ExitCode, Failu
 		.unwrap_or_else(|| profiles::default_profile(&state_dir, use_xdg));
 	let globals = Globals {
 		settings,
+		store,
 		profile,
 		dry_run,
 		cwd,
@@ -292,7 +301,7 @@ fn op_set(globals: &Globals, flags: &[String], args: &[String]) -> Result<(), Fa
 			"--set requires exactly one derivation".into(),
 		));
 	};
-	let uri = store::store_uri(None, &globals.settings);
+	let uri = store::store_uri(globals.store.as_deref(), &globals.settings);
 	let Some(opened) = store::open(&uri, &globals.settings)? else {
 		return Err(Failure::Error(
 			"--set is not supported for this Nix store".into(),

@@ -314,6 +314,14 @@ impl Settings {
 		self.values.get(name).map(|entry| entry.value.as_str())
 	}
 
+	/// The settings that were set, by canonical name, with their values and
+	/// whether the value replaces the default rather than extending it.
+	pub fn overridden(&self) -> impl Iterator<Item = (&'static str, &str, bool)> {
+		self.values
+			.iter()
+			.map(|(name, entry)| (*name, entry.value.as_str(), entry.replaces_default))
+	}
+
 	/// The value of a Boolean setting, or `default`.
 	pub fn get_bool(&self, name: &str, default: bool) -> bool {
 		self.get(name).map_or(default, |value| value == "true")
