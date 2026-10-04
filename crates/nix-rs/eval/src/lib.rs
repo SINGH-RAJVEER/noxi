@@ -64,8 +64,8 @@ pub use builtin_macros;
 use smol_str::SmolStr;
 
 pub use crate::value::{
-	Ambiguous, Builtin, CoercionKind, NixAttrs, NixList, NixString, PrintOptions, Value,
-	ValuePrinter,
+	Ambiguous, AmbiguousUnshared, Builtin, CoercionKind, NixAttrs, NixList, NixString,
+	PrintOptions, Value, ValuePrinter,
 };
 
 pub(crate) const REPL_LOCATION: &str = "[code]";

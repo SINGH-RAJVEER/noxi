@@ -7,6 +7,7 @@
 //! qualified as a system build engine.
 
 pub mod backend;
+pub mod buildenv;
 pub mod error;
 pub mod local;
 pub mod missing;

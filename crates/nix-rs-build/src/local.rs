@@ -398,10 +398,11 @@ impl<'a> LocalBuilder<'a> {
 
 		let features = drv_options.get_required_system_features(true);
 		self.check_platform(drv_path, drv, &features)?;
-		if drv.command().starts_with(b"builtin:") {
+		let builtin = drv.command().strip_prefix(b"builtin:");
+		if let Some(name) = builtin.filter(|name| *name != b"buildenv") {
 			return Err(BuildError::Other(format!(
 				"unsupported builtin builder '{}'",
-				drv.command().to_str_lossy()
+				name.to_str_lossy()
 			)));
 		}
 		if drv_options.use_uid_range(true) {
@@ -466,6 +467,27 @@ impl<'a> LocalBuilder<'a> {
 				SandboxMode::Disabled => false,
 				SandboxMode::Relaxed => !is_fixed && !drv_options.no_chroot,
 			};
+		if builtin.is_some() {
+			// CppNix runs builtin builders in the builder's process, in the
+			// sandbox when there is one and in the store otherwise; their
+			// outputs are registered as any build's are.
+			let mut build = Build::start(self, drv_path, outputs, &drv_options, parsed, is_fixed)?;
+			build.direct = !use_sandbox;
+			let result = build.run_buildenv(drv, outputs, events).and_then(|()| {
+				self.register_outputs(
+					drv_path,
+					drv_name,
+					outputs,
+					&drv_options,
+					&input_paths,
+					&build,
+				)
+			});
+			build.cleanup();
+			result?;
+			locks.set_deletion(true);
+			return Ok(());
+		}
 		if !use_sandbox {
 			return Err(BuildError::Other(format!(
 				"cannot build '{}': nix-rs only builds in the sandbox so far",
@@ -1019,6 +1041,9 @@ struct Build<'b> {
 	tmp_dir: PathBuf,
 	chroot_parent: PathBuf,
 	chroot_root: PathBuf,
+	/// Whether outputs are built at their real store paths, as an
+	/// unsandboxed build's are, rather than in the chroot.
+	direct: bool,
 	sandboxed: bool,
 	impure_env_vars: BTreeSet<String>,
 	pass_as_file: BTreeSet<String>,
@@ -1058,6 +1083,7 @@ impl<'b> Build<'b> {
 			tmp_dir,
 			chroot_parent,
 			chroot_root,
+			direct: false,
 			sandboxed: !is_fixed,
 			impure_env_vars: drv_options.impure_env_vars.clone(),
 			pass_as_file: drv_options.pass_as_file.clone(),
@@ -1067,6 +1093,9 @@ impl<'b> Build<'b> {
 	}
 
 	fn path_in_chroot(&self, path: &StorePath) -> PathBuf {
+		if self.direct {
+			return self.builder.store.real_path(path);
+		}
 		self.chroot_root
 			.join(STORE_DIR.trim_start_matches('/'))
 			.join(path.to_string())
@@ -1386,46 +1415,122 @@ impl<'b> Build<'b> {
 		}
 		let status = status?;
 		if !status.success() {
-			let mut msg = format!(
-				"Cannot build '{}'.\nReason: builder {}.",
-				print(&self.drv_path),
-				status.describe()
-			);
-			let mut outputs = self.outputs.clone();
-			outputs.sort();
-			if !outputs.is_empty() {
-				msg += "\nOutput paths:";
-			}
-			for output in &outputs {
-				msg += &format!("\n  {}", print(output));
-			}
-			if settings.show_log_tail && !tail.lines.is_empty() {
-				msg += &format!("\nLast {} log lines:\n", tail.lines.len());
-				for line in &tail.lines {
-					msg += "> ";
-					msg += &String::from_utf8_lossy(line);
-					msg.push('\n');
-				}
-				msg += &format!(
-					"For full logs, run:\n  {} {}",
-					if settings.nix_command {
-						"nix log"
-					} else {
-						"nix-store -l"
-					},
-					print(&self.drv_path)
-				);
-			}
-			return Err(BuildError::failed(
-				if self.sandboxed {
-					FailureStatus::PermanentFailure
-				} else {
-					FailureStatus::TransientFailure
-				},
-				msg,
-			));
+			return Err(self.failure(&status, &tail));
 		}
 		Ok(())
+	}
+
+	/// `builtin:buildenv`, logged as a builder process is: its warnings and
+	/// error go to the build log, and an error fails the build with exit
+	/// code 1.
+	fn run_buildenv(
+		&self,
+		drv: &UnverifiedDerivation,
+		outputs: &BTreeMap<String, KnownOutput>,
+		events: &mut dyn FnMut(BuildEvent<'_>),
+	) -> Result<()> {
+		let settings = self.builder.settings;
+		let store = self.builder.store;
+		let env: BTreeMap<String, String> = drv
+			.environment()
+			.iter()
+			.map(|(k, v)| (k.to_str_lossy().into_owned(), v.to_str_lossy().into_owned()))
+			.collect();
+		let out = outputs.get("out").ok_or_else(|| {
+			BuildError::Other("builtin:buildenv needs an output 'out'".to_owned())
+		})?;
+		let output_names: BTreeSet<String> = outputs.values().map(|o| o.path.to_string()).collect();
+		let chroot_store = self.chroot_root.join(STORE_DIR.trim_start_matches('/'));
+		let real_store = store.config().real_store_dir.clone();
+		let real = |path: &Path| -> PathBuf {
+			let Ok(rest) = path.strip_prefix(STORE_DIR) else {
+				return path.to_owned();
+			};
+			let name = rest.iter().next().map(|n| n.to_string_lossy().into_owned());
+			if !self.direct && name.is_some_and(|n| output_names.contains(&n)) {
+				chroot_store.join(rest)
+			} else {
+				real_store.join(rest)
+			}
+		};
+		let mut log_file = self.open_log_file()?;
+		let mut tail = LogTail::new(settings.log_lines);
+		let mut write_error = None;
+		let mut log = |line: &str| {
+			let data = format!("{line}\n");
+			tail.feed(data.as_bytes());
+			if let Some(file) = &mut log_file
+				&& let Err(e) = file.write_all(data.as_bytes())
+			{
+				write_error.get_or_insert(e);
+			}
+			events(BuildEvent::Output(data.as_bytes()));
+		};
+		let result = crate::buildenv::builtin_buildenv(
+			&env,
+			Path::new(&print(&out.path)),
+			&real,
+			&mut |warning| log(&format!("warning: {warning}")),
+		);
+		if let Err(error) = &result {
+			log(&nix_compat::log::format_error(&error.0));
+		}
+		tail.flush();
+		if let Some(file) = log_file {
+			file.finish()?;
+		}
+		if let Some(e) = write_error {
+			return Err(e.into());
+		}
+		match result {
+			Ok(()) => Ok(()),
+			// The wait status of a process that exited with code 1.
+			Err(_) => Err(self.failure(&sandbox::ExitStatus(1 << 8), &tail)),
+		}
+	}
+
+	/// The failure of a builder that exited with `status`, with the log
+	/// tail CppNix shows.
+	fn failure(&self, status: &sandbox::ExitStatus, tail: &LogTail) -> BuildError {
+		let settings = self.builder.settings;
+		let mut msg = format!(
+			"Cannot build '{}'.\nReason: builder {}.",
+			print(&self.drv_path),
+			status.describe()
+		);
+		let mut outputs = self.outputs.clone();
+		outputs.sort();
+		if !outputs.is_empty() {
+			msg += "\nOutput paths:";
+		}
+		for output in &outputs {
+			msg += &format!("\n  {}", print(output));
+		}
+		if settings.show_log_tail && !tail.lines.is_empty() {
+			msg += &format!("\nLast {} log lines:\n", tail.lines.len());
+			for line in &tail.lines {
+				msg += "> ";
+				msg += &String::from_utf8_lossy(line);
+				msg.push('\n');
+			}
+			msg += &format!(
+				"For full logs, run:\n  {} {}",
+				if settings.nix_command {
+					"nix log"
+				} else {
+					"nix-store -l"
+				},
+				print(&self.drv_path)
+			);
+		}
+		BuildError::failed(
+			if self.sandboxed {
+				FailureStatus::PermanentFailure
+			} else {
+				FailureStatus::TransientFailure
+			},
+			msg,
+		)
 	}
 
 	/// `LogFile`: `LOGDIR/drvs/XX/REST`, compressed with bzip2 unless

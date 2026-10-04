@@ -25,7 +25,17 @@ pub struct Ambiguous<'a>(pub &'a Value);
 
 impl Display for Ambiguous<'_> {
 	fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-		print(self.0, None, f, &mut FxHashSet::default())
+		print(self.0, None, f, &mut Some(FxHashSet::default()))
+	}
+}
+
+/// Displays a value as `printAmbiguous` does without a set of seen values,
+/// as `nix-env` writes a manifest: nothing prints as `«repeated»`.
+pub struct AmbiguousUnshared<'a>(pub &'a Value);
+
+impl Display for AmbiguousUnshared<'_> {
+	fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+		print(self.0, None, f, &mut None)
 	}
 }
 
@@ -33,11 +43,15 @@ fn print(
 	value: &Value,
 	cell: Option<*const ()>,
 	f: &mut Formatter<'_>,
-	seen: &mut FxHashSet<*const ()>,
+	seen: &mut Option<FxHashSet<*const ()>>,
 ) -> fmt::Result {
 	match value {
 		Value::Attrs(attrs) => {
-			if !attrs.is_empty() && !seen.insert(attrs.as_ptr()) {
+			if !attrs.is_empty()
+				&& seen
+					.as_mut()
+					.is_some_and(|seen| !seen.insert(attrs.as_ptr()))
+			{
 				return f.write_str("«repeated»");
 			}
 			f.write_str("{ ")?;
@@ -49,7 +63,10 @@ fn print(
 			f.write_str("}")
 		}
 		Value::List(list) => {
-			if !list.is_empty() && cell.is_some_and(|cell| !seen.insert(cell)) {
+			if !list.is_empty()
+				&& let (Some(cell), Some(seen)) = (cell, seen.as_mut())
+				&& !seen.insert(cell)
+			{
 				return f.write_str("«repeated»");
 			}
 			f.write_str("[ ")?;

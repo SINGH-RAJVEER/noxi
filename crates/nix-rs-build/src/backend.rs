@@ -337,5 +337,5 @@ impl Store for LocalBackend {
 /// Format an error as CppNix's `logError` does: continuation lines line up
 /// after the `error: ` prefix.
 fn format_error(message: &str) -> String {
-	format!("error: {}", message.trim_end().replace('\n', "\n       "))
+	nix_compat::log::format_error(message)
 }

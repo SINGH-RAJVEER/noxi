@@ -13,3 +13,4 @@ pub mod nix_env;
 pub mod nix_store;
 pub mod paths;
 pub mod store;
+pub mod user_env;

@@ -35,7 +35,7 @@ pub(crate) use function::Formals;
 pub use function::{Closure, Lambda};
 pub use list::NixList;
 pub use path::canon_path;
-pub use print::{Ambiguous, PrintOptions, ValuePrinter};
+pub use print::{Ambiguous, AmbiguousUnshared, PrintOptions, ValuePrinter};
 pub use string::{NixContext, NixContextElement, NixString};
 pub use thunk::Thunk;
 

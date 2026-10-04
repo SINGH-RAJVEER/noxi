@@ -462,3 +462,33 @@ mod filter_tests {
 		);
 	}
 }
+
+/// An error message as CppNix's `showErrorInfo` prints it without colour:
+/// `error: ` and the message, continuation lines indented under it, and
+/// each line's trailing whitespace removed, as `indent` does.
+pub fn format_error(message: &str) -> String {
+	let mut out = String::new();
+	for (i, line) in message
+		.trim_end_matches([' ', '\n', '\r', '\t'])
+		.split('\n')
+		.enumerate()
+	{
+		if i > 0 {
+			out.push('\n');
+		}
+		let prefix = if i == 0 { "error: " } else { "       " };
+		out.push_str(format!("{prefix}{line}").trim_end_matches([' ', '\n', '\r', '\t']));
+	}
+	out
+}
+
+#[cfg(test)]
+mod format_error_tests {
+	#[test]
+	fn indents_continuation_lines_and_blank_lines_stay_empty() {
+		assert_eq!(
+			super::format_error("conflict:\n\n  a\n  b\n"),
+			"error: conflict:\n\n         a\n         b"
+		);
+	}
+}

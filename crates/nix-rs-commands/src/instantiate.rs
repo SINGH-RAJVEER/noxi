@@ -264,6 +264,11 @@ pub fn parse_attr_path(path: &str) -> Result<Vec<String>, String> {
 	Ok(parts)
 }
 
+/// A Nix string literal holding `s`, for expressions built from text.
+pub fn nix_string_literal(s: &str) -> String {
+	nix_string(s)
+}
+
 /// A Nix string literal holding `s`.
 fn nix_string(s: &str) -> String {
 	let mut out = String::with_capacity(s.len() + 2);

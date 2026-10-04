@@ -44,7 +44,7 @@ impl From<nix_rs_store::Error> for Failure {
 /// Print an error as CppNix does: continuation lines line up after the
 /// `error: ` prefix.
 pub fn print_error(message: &str) {
-	eprintln!("error: {}", message.trim_end().replace('\n', "\n       "));
+	eprintln!("{}", nix_compat::log::format_error(message));
 }
 
 /// Run `command` with the settings from the configuration files and the

@@ -1,11 +1,13 @@
 //! `nix-env`, following CppNix 2.35.2's `src/nix/nix-env/nix-env.cc`.
 //!
-//! Supported: `--set` with store path arguments, `--rollback`,
+//! Supported: `--install` and `--set` with store path arguments,
+//! `--uninstall`, `--query` of the installed elements (with `--no-name`,
+//! `--out-path`, `--drv-path` and `--system`), `--rollback`,
 //! `--switch-generation`/`-G`, `--list-generations`,
 //! `--delete-generations`, `--switch-profile`/`-S` and `--version`, with
 //! `--profile`/`-p`, `--dry-run` and settings flags. Selecting
-//! derivations from Nix expressions and the operations that build user
-//! environments fail explicitly.
+//! derivations from Nix expressions, `--upgrade`, `--set-flag` and the
+//! other query options fail explicitly.
 
 use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
@@ -20,6 +22,7 @@ use crate::cli::{Failure, print_setting_warnings};
 use crate::instantiate::absolute_path;
 use crate::paths::{follow_links_to_store_path, print_missing};
 use crate::store;
+use crate::user_env::{self, DrvName, Element};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum Operation {
@@ -133,7 +136,9 @@ pub fn main(mut settings: Settings, args: Vec<String>) -> Result<ExitCode, Failu
 			store = Some(value(&mut args)?);
 			continue;
 		}
+		// CppNix keeps `nix-env`'s own `--system` rather than the setting's.
 		if arg.starts_with('-')
+			&& arg != "--system"
 			&& let Some(result) = settings.apply_flag(&arg, || args.next())
 		{
 			result.map_err(|error| Failure::Usage(error.to_string()))?;
@@ -255,13 +260,12 @@ pub fn main(mut settings: Settings, args: Vec<String>) -> Result<ExitCode, Failu
 			no_flags(&op_flags)?;
 			delete_generations(&globals.profile, &op_args, dry_run, &mut log)?;
 		}
-		Operation::Install
-		| Operation::Uninstall
-		| Operation::Upgrade
-		| Operation::SetFlag
-		| Operation::Query => {
+		Operation::Install => return op_install(&globals, &op_flags, &op_args),
+		Operation::Uninstall => return op_uninstall(&globals, &op_flags, &op_args),
+		Operation::Query => return op_query(&globals, &op_flags, &op_args),
+		Operation::Upgrade | Operation::SetFlag => {
 			return Err(Failure::Error(
-				"nix-env operations on user environments are not supported by nix-rs yet".into(),
+				"nix-env --upgrade and --set-flag are not supported by nix-rs yet".into(),
 			));
 		}
 	}
@@ -408,4 +412,310 @@ fn delete_generations(
 		}
 	}
 	Ok(())
+}
+
+/// Open the store the operations on user environments use.
+fn open_store(globals: &Globals) -> Result<store::OpenStore, Failure> {
+	let uri = store::store_uri(globals.store.as_deref(), &globals.settings);
+	store::open(&uri, &globals.settings)?
+		.ok_or_else(|| Failure::Error(format!("store '{uri}' cannot hold user environments")))
+}
+
+/// `--from-expression`, `--from-profile` and `--attr` select from Nix
+/// expressions or another profile, which nix-rs does not do yet.
+fn unsupported_source(op: &str, flag: &str) -> Failure {
+	Failure::Error(format!(
+		"nix-env {op} {flag} is not supported by nix-rs yet"
+	))
+}
+
+/// `queryInstSources` for store path arguments.
+fn store_path_elements(
+	globals: &Globals,
+	store: &dyn nix_rs_store::Store,
+	args: &[String],
+) -> Result<Vec<Element>, Failure> {
+	if !args.first().is_some_and(|arg| arg.contains('/')) {
+		return Err(Failure::Error(
+			"nix-env selecting derivations from Nix expressions is not supported by nix-rs yet"
+				.into(),
+		));
+	}
+	args.iter()
+		.map(|arg| {
+			let path = follow_links_to_store_path(&globals.cwd, arg)?;
+			Element::from_store_path(store, path)
+		})
+		.collect()
+}
+
+/// `printMissing` for elements: what installing them builds or fetches.
+fn print_missing_elements(
+	store: &dyn nix_rs_store::Store,
+	elements: &[Element],
+) -> Result<(), Failure> {
+	let targets: Vec<DerivedPath> = elements
+		.iter()
+		.map(|e| match &e.drv_path {
+			Some(drv) => DerivedPath::Built {
+				drv: drv.clone(),
+				outputs: BTreeSet::new(),
+			},
+			None => DerivedPath::Opaque(e.out_path.clone()),
+		})
+		.collect();
+	print_missing(store, &store.query_missing(&targets)?)
+}
+
+/// `opInstall` and `installDerivations`.
+fn op_install(globals: &Globals, flags: &[String], args: &[String]) -> Result<ExitCode, Failure> {
+	let mut preserve_installed = false;
+	let mut remove_all = false;
+	let mut priority = None;
+	let mut flags = flags.iter();
+	while let Some(flag) = flags.next() {
+		match flag.as_str() {
+			"--from-expression" | "-E" | "--from-profile" | "--attr" | "-A" => {
+				return Err(unsupported_source("--install", flag));
+			}
+			"--preserve-installed" | "-P" => preserve_installed = true,
+			"--remove-all" | "-r" => remove_all = true,
+			"--priority" => priority = flags.next().and_then(|p| p.parse::<i64>().ok()),
+			_ => return Err(Failure::Usage(format!("unknown flag '{flag}'"))),
+		}
+	}
+	let opened = open_store(globals)?;
+	let store = opened.store.as_ref();
+	let mut new = store_path_elements(globals, store, args)?;
+	if let Some(priority) = priority {
+		for element in &mut new {
+			element.set_meta("priority", nix_rs_eval::Value::Integer(priority));
+		}
+	}
+	let new_names: BTreeSet<String> = new.iter().map(|e| DrvName::new(&e.name).name).collect();
+	let keep_derivations = globals.settings.get_bool("keep-env-derivations", false);
+	loop {
+		let token = user_env::lock_token(&globals.profile);
+		let mut all = new.clone();
+		if !remove_all {
+			let installed =
+				match user_env::query_installed(&globals.settings, &globals.cwd, &globals.profile)?
+				{
+					Ok(installed) => installed,
+					Err(code) => return Ok(code),
+				};
+			for element in installed {
+				let name = DrvName::new(&element.name).name;
+				if !preserve_installed
+					&& new_names.contains(&name)
+					&& !element.meta_bool("keep", false)
+				{
+					eprintln!("replacing old '{}'", element.name);
+				} else {
+					all.push(element);
+				}
+			}
+			for element in &new {
+				eprintln!("installing '{}'", element.name);
+			}
+		}
+		print_missing_elements(store, &new)?;
+		if globals.dry_run {
+			return Ok(ExitCode::SUCCESS);
+		}
+		match user_env::create_user_env(
+			store,
+			&globals.settings,
+			globals.store.as_deref(),
+			&globals.cwd,
+			&all,
+			&globals.profile,
+			keep_derivations,
+			&token,
+		)? {
+			Ok(true) => return Ok(ExitCode::SUCCESS),
+			Ok(false) => continue,
+			Err(code) => return Ok(code),
+		}
+	}
+}
+
+/// `opUninstall` and `uninstallDerivations`.
+fn op_uninstall(globals: &Globals, flags: &[String], args: &[String]) -> Result<ExitCode, Failure> {
+	no_flags(flags)?;
+	let opened = open_store(globals)?;
+	let store = opened.store.as_ref();
+	let keep_derivations = globals.settings.get_bool("keep-env-derivations", false);
+	loop {
+		let token = user_env::lock_token(&globals.profile);
+		let mut elements =
+			match user_env::query_installed(&globals.settings, &globals.cwd, &globals.profile)? {
+				Ok(installed) => installed,
+				Err(code) => return Ok(code),
+			};
+		for selector in args {
+			let removed: Vec<bool> = if selector.contains('/') {
+				let path = follow_links_to_store_path(&globals.cwd, selector)?;
+				elements.iter().map(|e| e.out_path == path).collect()
+			} else {
+				let wanted = DrvName::new(selector);
+				elements
+					.iter()
+					.map(|e| wanted.matches(&DrvName::new(&e.name)))
+					.collect()
+			};
+			if !removed.contains(&true) {
+				eprintln!("warning: selector '{selector}' matched no installed derivations");
+			}
+			// `std::partition` keeps the order of neither part; the kept
+			// elements are only written back, so their order is CppNix's
+			// only when nothing is removed before them.
+			let mut kept = Vec::new();
+			for (element, remove) in elements.into_iter().zip(removed) {
+				if remove {
+					eprintln!("uninstalling '{}'", element.name);
+				} else {
+					kept.push(element);
+				}
+			}
+			elements = kept;
+		}
+		if globals.dry_run {
+			return Ok(ExitCode::SUCCESS);
+		}
+		match user_env::create_user_env(
+			store,
+			&globals.settings,
+			globals.store.as_deref(),
+			&globals.cwd,
+			&elements,
+			&globals.profile,
+			keep_derivations,
+			&token,
+		)? {
+			Ok(true) => return Ok(ExitCode::SUCCESS),
+			Ok(false) => continue,
+			Err(code) => return Ok(code),
+		}
+	}
+}
+
+/// `opQuery` of the installed elements, printed as `printTable` does.
+fn op_query(globals: &Globals, flags: &[String], args: &[String]) -> Result<ExitCode, Failure> {
+	let mut print_name = true;
+	let mut print_out_path = false;
+	let mut print_drv_path = false;
+	let mut print_system = false;
+	for flag in flags {
+		match flag.as_str() {
+			"--no-name" => print_name = false,
+			"--out-path" => print_out_path = true,
+			"--drv-path" => print_drv_path = true,
+			"--system" => print_system = true,
+			"--installed" => {}
+			"--status" | "-s" | "--description" | "--compare-versions" | "-c" | "--meta"
+			| "--available" | "-a" | "--xml" | "--json" | "--attr-path" | "-P" | "--attr"
+			| "-A" => {
+				return Err(Failure::Error(format!(
+					"nix-env --query {flag} is not supported by nix-rs yet"
+				)));
+			}
+			_ => return Err(Failure::Usage(format!("unknown flag '{flag}'"))),
+		}
+	}
+	let installed =
+		match user_env::query_installed(&globals.settings, &globals.cwd, &globals.profile)? {
+			Ok(installed) => installed,
+			Err(code) => return Ok(code),
+		};
+	// `filterBySelector`: every selector must match something.
+	let mut elements = if args.is_empty() {
+		installed
+	} else {
+		let mut selected = Vec::new();
+		let mut taken = vec![false; installed.len()];
+		for selector in args {
+			let wanted = DrvName::new(selector);
+			let mut matched = false;
+			for (i, element) in installed.iter().enumerate() {
+				if wanted.matches(&DrvName::new(&element.name)) {
+					matched = true;
+					if !taken[i] {
+						taken[i] = true;
+						selected.push(element.clone());
+					}
+				}
+			}
+			if !matched {
+				return Err(Failure::Error(format!(
+					"selector '{selector}' matches no derivations"
+				)));
+			}
+		}
+		selected
+	};
+	// `cmpElemByName`: case-insensitive, stable.
+	elements.sort_by(|a, b| {
+		a.name
+			.bytes()
+			.map(|c| c.to_ascii_uppercase())
+			.cmp(b.name.bytes().map(|c| c.to_ascii_uppercase()))
+	});
+	let mut table: Vec<Vec<String>> = Vec::new();
+	for element in &elements {
+		let mut columns = Vec::new();
+		if print_name {
+			columns.push(element.name.clone());
+		}
+		if print_system {
+			columns.push(element.system.clone());
+		}
+		if print_drv_path {
+			columns.push(
+				element
+					.drv_path
+					.as_ref()
+					.map_or("-".to_owned(), StorePath::to_absolute_path),
+			);
+		}
+		if print_out_path {
+			let mut text = String::new();
+			for (name, path) in &element.outputs {
+				if !text.is_empty() {
+					text.push(';');
+				}
+				if name != "out" {
+					text.push_str(name);
+					text.push('=');
+				}
+				text.push_str(&path.to_absolute_path());
+			}
+			columns.push(text);
+		}
+		table.push(columns);
+	}
+	print_table(&table);
+	Ok(ExitCode::SUCCESS)
+}
+
+/// `printTable`: columns padded to their widest cell plus two spaces.
+fn print_table(table: &[Vec<String>]) {
+	let columns = table.first().map_or(0, Vec::len);
+	let mut widths = vec![0; columns];
+	for row in table {
+		for (width, cell) in widths.iter_mut().zip(row) {
+			*width = (*width).max(cell.len());
+		}
+	}
+	for row in table {
+		let mut line = String::new();
+		for (i, cell) in row.iter().enumerate() {
+			let cell = cell.replace('\n', " ");
+			line.push_str(&cell);
+			if i + 1 < columns {
+				line.push_str(&" ".repeat(widths[i] - cell.len() + 2));
+			}
+		}
+		println!("{line}");
+	}
 }
