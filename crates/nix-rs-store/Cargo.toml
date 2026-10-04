@@ -18,6 +18,7 @@ ureq = "3"
 libc.workspace = true
 lzma-rust2 = { version = "0.15", default-features = false, features = ["std", "xz"] }
 nix-compat = { package = "nix-rs-compat", path = "../nix-rs/nix-compat", version = "0.1.0", features = ["serde"] }
+path-clean.workspace = true
 rusqlite = { version = "0.40.2", features = ["bundled"] }
 sha2.workspace = true
 tempfile.workspace = true

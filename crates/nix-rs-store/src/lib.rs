@@ -18,6 +18,7 @@ pub mod logs;
 pub mod nar;
 pub mod optimise;
 pub mod path_info;
+pub mod profiles;
 
 pub use api::{DerivedPath, Missing, Store};
 pub use config::LocalStoreConfig;

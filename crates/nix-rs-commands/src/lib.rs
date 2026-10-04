@@ -5,6 +5,7 @@
 
 pub mod build;
 pub mod cli;
+pub mod collect_garbage;
 pub mod instantiate;
 pub mod maintenance;
 pub mod nix_build;

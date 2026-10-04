@@ -274,7 +274,7 @@ impl Drop for RootsServer {
 		if let Some(thread) = self.thread.take() {
 			let _ = thread.join();
 		}
-		let _ = fs::remove_file(&self.path);
+		// CppNix leaves the socket behind; clients find nobody listening.
 	}
 }
 
@@ -433,8 +433,8 @@ impl LocalStore {
 					));
 				}
 			};
-			let mut children: Vec<PathBuf> = entries.flatten().map(|e| e.path()).collect();
-			children.sort();
+			// CppNix's `DirectoryIterator` order, which its messages follow.
+			let children: Vec<PathBuf> = entries.flatten().map(|e| e.path()).collect();
 			for child in children {
 				self.find_roots_in(&child, roots, log)?;
 			}
@@ -821,7 +821,8 @@ impl LocalStore {
 					}
 					_ => log("determining live/dead paths..."),
 				}
-				let mut names: Vec<String> = fs::read_dir(&real_store)
+				// `readdir` order, as CppNix deletes.
+				let names: Vec<String> = fs::read_dir(&real_store)
 					.map_err(|e| {
 						Error::io(format!("opening directory '{}'", real_store.display()), e)
 					})?
@@ -829,7 +830,6 @@ impl LocalStore {
 					.map(|e| e.file_name().to_string_lossy().into_owned())
 					.filter(|n| n != ".links")
 					.collect();
-				names.sort();
 				for name in names {
 					let step = match StorePath::from_bytes(name.as_bytes()) {
 						Ok(path) => maybe_delete(&path, &mut alive, &mut dead, &mut results, log)?,
@@ -958,7 +958,7 @@ impl LocalStore {
 
 /// CppNix's `replaceSymlink`: create `link` pointing at `target`
 /// atomically through a temporary name.
-fn replace_symlink(target: &Path, link: &Path) -> Result<()> {
+pub fn replace_symlink(target: &Path, link: &Path) -> Result<()> {
 	let parent = link.parent().unwrap_or(Path::new("/"));
 	let name = link
 		.file_name()

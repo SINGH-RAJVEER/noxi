@@ -1605,6 +1605,7 @@ dependencies = [
  "libc",
  "lzma-rust2",
  "nix-rs-compat",
+ "path-clean",
  "rusqlite",
  "sha2",
  "tempfile",

@@ -31,6 +31,31 @@ pub fn store_uri(uri: Option<&str>, settings: &Settings) -> String {
 /// Open the store named by `uri`. `dummy://` and other stores that cannot
 /// hold paths yield `None`.
 pub fn open(uri: &str, settings: &Settings) -> Result<Option<OpenStore>, String> {
+	let Some((store, real_store_dir)) = open_local(uri, settings)? else {
+		return Ok(None);
+	};
+	let substituters = if settings.get_bool("substitute", true) {
+		settings
+			.get_list("substituters", &["https://cache.nixos.org/"])
+			.into_iter()
+			.map(str::to_owned)
+			.collect()
+	} else {
+		Vec::new()
+	};
+	let backend = LocalBackend::new(store, BuildSettings::from_settings(settings), substituters);
+	Ok(Some(OpenStore {
+		store: Rc::new(backend),
+		real_store_dir,
+	}))
+}
+
+/// Open the local store named by `uri`, and where its paths are visible to
+/// this process if that is not `/nix/store`. `dummy://` yields `None`.
+pub fn open_local(
+	uri: &str,
+	settings: &Settings,
+) -> Result<Option<(LocalStore, Option<PathBuf>)>, String> {
 	let (scheme, query) = uri.split_once('?').unwrap_or((uri, ""));
 	let mut root = None;
 	let mut read_only = false;
@@ -91,20 +116,7 @@ pub fn open(uri: &str, settings: &Settings) -> Result<Option<OpenStore>, String>
 	config.fsync_metadata = settings.get_bool("fsync-metadata", config.fsync_metadata);
 	let real_store_dir = root.as_ref().map(|_| config.real_store_dir.clone());
 	let store = LocalStore::open(config).map_err(|e| e.to_string())?;
-	let substituters = if settings.get_bool("substitute", true) {
-		settings
-			.get_list("substituters", &["https://cache.nixos.org/"])
-			.into_iter()
-			.map(str::to_owned)
-			.collect()
-	} else {
-		Vec::new()
-	};
-	let backend = LocalBackend::new(store, BuildSettings::from_settings(settings), substituters);
-	Ok(Some(OpenStore {
-		store: Rc::new(backend),
-		real_store_dir,
-	}))
+	Ok(Some((store, real_store_dir)))
 }
 
 /// CppNix's `auto` test: whether the state directory is readable and
