@@ -73,11 +73,13 @@ A checked item below means it exists and has focused local evidence in the curre
 - [ ] Integrate derivation creation with the store: preserve string-context dependencies and compare `derivationStrict` results, `.drv` bytes, and computed output paths against the reference before attempting full Nixpkgs evaluation.
 	- [x] Add opt-in diverted writable evaluation that registers text, copied/filtered sources, and derivations with their database references. Verify captured source hashes before registration, logical filter paths, dependency-output references, and unchanged read-only behavior. Realization and IFD are not implemented by this milestone; see [verification](docs/verification.md#rust-core-completion-work).
 - [ ] Implement the required builtins and impure evaluation boundary, including filesystem and environment access, fetchers, and import-from-derivation.
+	- [ ] Add `builtins.warn`, `builtins.traceVerbose` and `scopedImport`, which the reference's base environment has and a diff of every builtin name against it found missing. Nixpkgs' `lib.warn` uses `builtins.warn` when it exists, so evaluation warnings take its fallback path under nix-rs until then.
 - [ ] Match source filtering and path-copy behavior because these change derivation inputs and store paths.
 - [ ] Parse, resolve, update, and write flake references and `flake.lock` with registry and follows semantics matching the reference.
 	- [x] Fix selected flake-reference parse/format round trips for forge refs and hosts, transport queries, Mercurial, plain Git, explicit source types, and relative paths. Full format compatibility, registries, fetching, and locks remain open.
 - [ ] Evaluate flake outputs and selected Nixpkgs packages with the same values and derivation graphs as CppNix.
 - [x] Evaluate a pinned NixOS configuration and both standalone and module-based Home Manager configurations before claiming they are supported. `just nixos-paths` matches the reference's derivation paths for the qualification VM configuration (without its flake-provided `nix.package`), its VM, its Home Manager module generation, and a standalone Home Manager generation, evaluated through `eval-config.nix`. The flake entry point and flake-mode Home Manager are covered by the flake items.
+- [ ] Bring evaluation time close to the reference's. The four derivation paths of `just nixos-paths` take 23.3 s with a release build of nix-rs's `nix-instantiate` and 4.7 s with the reference on the same machine (2026-10-04), with identical results.
 - [ ] Keep improved evaluator diagnostics behind an opt-in interface when their output would change legacy command behavior.
 
 ## 4. Implement the store, caches, and build engine
