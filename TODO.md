@@ -1,6 +1,8 @@
 # Package-manager MVP todo
 
-This checklist tracks the first release: nix-rs replacing the selected CppNix release on an existing x86_64-linux NixOS system. The installed operating system, installer, TUI, GPUI NixBox GUI, Lua configuration, and opt-in behavior changes come after this gate. [PLAN.md](PLAN.md) defines the product order; [docs/compatibility.md](docs/compatibility.md), [docs/compatibility-matrix.md](docs/compatibility-matrix.md), and [docs/verification.md](docs/verification.md) define what a drop-in claim requires.
+This checklist tracks the first release: nix-rs replacing the selected CppNix release on an existing x86_64-linux NixOS system. The installed operating system, installer, TUI, GPUI NixBox GUI, Lua configuration, native projects and development environments, and opt-in behavior changes come after this gate. [PLAN.md](PLAN.md) defines the product order; [docs/compatibility.md](docs/compatibility.md), [docs/compatibility-matrix.md](docs/compatibility-matrix.md), and [docs/verification.md](docs/verification.md) define what a drop-in claim requires.
+
+Sections 0 through 8 are the package-manager MVP. Ordinary flakes, `devShells`, `nix develop`, `nix shell`, `nix run`, and legacy `nix-shell` stay in that scope, including their reference lock, hook, and environment effects. The dedicated `nixrs env` workflow, built-in server supervision, PostgreSQL adapter, and optional `nixrs project` manifests are later extensions. Their shared engine dependencies belong in the MVP where the reference requires them; their native schemas, commands, and runtime behavior do not. [MVP scope and later gates](docs/product.md#mvp-scope-and-later-gates) records this boundary.
 
 A checked item below means it exists and has focused local evidence in the current working tree. It does not mean the item is committed, published, or qualified for replacement. Keep a failing or unrun test visible until the corresponding behavior passes against a pinned reference.
 
@@ -117,8 +119,9 @@ A checked item below means it exists and has focused local evidence in the curre
 	- [x] Load settings as CppNix 2.35.2 does: `$NIX_CONF_DIR/nix.conf`, user files in reverse order, `NIX_CONFIG`, `include`/`!include`, experimental features applied first, `extra-` appends, aliases, the `flakes`-implies-`fetch-tree` rule, settings flags, and the reference's warnings and errors. `nix_compat::nixcpp::settings` uses a table generated from the reference inventory; `nix-instantiate` uses it and gates `fetchTree` on `fetch-tree`. Acting on most settings, the lint settings, and moving `nix-rs-daemon` onto this loader remain open.
 - [ ] Match exit codes, stdout, stderr, JSON fields, log modes, and command side effects; use differential tests for scripts that parse output.
 - [ ] Cover core workflows: evaluate, build, develop, shell, run, flake, profile, store, copy, path-info, log, search, and garbage collection.
+	- [ ] Qualify `nix develop`, `nix shell`, `nix run`, and legacy `nix-shell` with reference-supported flake and expression inputs, covering selection, lock-file effects, tool paths and variables, shell hooks, child exit status, and signal handling. These commands do not depend on implementing the native environment supervisor.
 - [ ] Provide the C and C++ interfaces required by the §0 consumer inventory, including headers, library names, SONAMEs, symbols, link metadata, and installation paths. Rebuild source consumers and run unchanged reference-linked binaries against the replacement libraries; keep the drop-in gate open for any required incompatible consumer.
-- [ ] Keep new diagnostics, TUI, and GUI entry points opt-in so compatibility commands retain their reference behavior. Compatibility commands never evaluate `.lua` files, even though native surfaces default to [Lua configuration](docs/lua-configuration.md).
+- [ ] Verify that adjacent Lua configurations, dedicated environment entries, and optional native project manifests leave compatibility discovery, lock effects, output, and environment behavior unchanged. Compatibility commands never evaluate `.lua` files. Any shipped native command or improved diagnostic renderer must be explicitly selected; implementing it, a TUI, or a GUI is later work. Repeat affected compatibility cases when extensions ship.
 
 ## 7. Prove NixOS and Home Manager replacement
 
@@ -137,6 +140,7 @@ A checked item below means it exists and has focused local evidence in the curre
 - [ ] Audit imported code and copied test licenses; include attribution and source revisions in release artifacts.
 - [ ] Test installation, upgrade, failed upgrade, rollback, and removal in disposable VMs before documenting host installation.
 - [ ] Run the applicable compatibility suite against the exact packaged release-profile executables and libraries, not only debug builds or workspace tests. Record artifact hashes and build inputs in the reports, and rerun affected qualification when an artifact changes.
+- [ ] Establish performance baselines for evaluation, cache substitution, local and remote builds, daemon startup, memory use, and large rebuild diagnostics against the pinned reference using the packaged release artifacts. Record hardware, workloads, settings, input revisions, and observed gaps alongside the qualification reports so later improvement claims have a reproducible comparison.
 - [ ] Complete the x86_64-linux compatibility matrix with zero applicable gaps or unrun behaviors for the exact declared reference and feature set.
 - [ ] Run security checks for daemon authorization, sandbox escape attempts, untrusted caches, signatures, malformed inputs, and secret handling.
 - [ ] Publish binaries, source, signatures, test reports, known limits, and a safe migration and rollback procedure. Call the release a 100% drop-in replacement only after every applicable gate passes.
@@ -155,6 +159,30 @@ Native surfaces default to Lua for user configuration and still accept Nix, as s
 - [ ] Do the same for standalone and module-based Home Manager configurations.
 - [ ] Test that compatibility commands, including `nixos-rebuild` and `home-manager`, give identical results with and without `.lua` files present, and document how a Lua-configured system is rebuilt.
 - [ ] Settle the open questions: Nix modules importing Lua, flake outputs for Lua configurations, Lua engine settings, and a Nix-to-Lua converter with formatter and editor support.
+
+## After the package-manager MVP: development environments
+
+[Native projects and development environments](docs/development-environments.md) specifies standard flake environments and a dedicated built-in devenv equivalent, with optional native input/output manifests. The 100% drop-in gate remains unchanged; native manifest conversion is never required for flakes or dedicated environments. This extension depends on the qualified engine and shared Lua bridge; it can ship on supported existing systems before the OS installer.
+
+- [ ] Settle dedicated environment entry names, schema versions, selector syntax, library packaging, and Lua/Nix environment helper APIs.
+- [ ] Implement dedicated environment discovery and direct evaluation, named environments, existing flake input sources, and flake-exported environments; support selecting the MVP-qualified ordinary development shells without manifest conversion.
+- [ ] Implement native environment lock create/update with the reference graph encoding and selected input authority, frozen native inputs by default, explicit diffs, stale-source rejection, interrupted-write recovery, and offline diagnostics. Compatibility commands retain their reference lock effects.
+- [ ] Normalize equivalent dedicated and flake-exported Lua/Nix environment modules with one resolved input graph, deterministic composition, source provenance, preserved store contexts, and validated task/server graphs.
+- [ ] Realize tool closures through nix-rs; support shell entry, command execution, scripts, finite tasks, environment export, and correctly retained/released GC roots.
+- [ ] Implement an unprivileged built-in supervisor with dependency-aware startup, bounded readiness probes, restart limits, graceful process-group shutdown, detached sessions, partial-failure cleanup, and attributed logs.
+- [ ] Qualify session identity and private runtime records, separate Jujutsu workspace state, stale-plan rejection, authenticated controls, guardian cleanup, and recovery without killing unrelated processes.
+- [ ] Implement declared ports, runtime inputs, opt-in file watching, secret providers and dotenv parsing without evaluation/store leakage or implicit lock updates.
+- [ ] Qualify a PostgreSQL adapter with explicit initialization, version/data compatibility, readiness, preserved mutable state, and guarded cleanup. Add further adapters only with their own evidence.
+- [ ] Expose versioned operations, results, events, and headless inspection/recovery; any shipped TUI/GUI environment controls must share their semantics.
+- [ ] Run all [environment acceptance cases](docs/development-environments.md#acceptance-cases-and-release-evidence) in disposable workspaces and stores, publish the exact support matrix, and compare reference flake/shell commands, lock effects, hooks, output, and environment effects with native files present. Keep every 100% drop-in requirement in the compatibility gate.
+
+## After the package-manager MVP: optional native projects
+
+Optional `nixrs project` manifests have their own extension qualification. They can reuse the shared input and environment modules, but neither dedicated environments nor ordinary flakes require them. This work does not block the package-manager MVP or the first environment release.
+
+- [ ] Settle optional native manifest names, project schema versions, output selector syntax, and Lua/Nix project helper APIs.
+- [ ] Qualify optional native project discovery, named outputs, lock operations, input dependencies, and target-system validation.
+- [ ] Implement `project init`, `show`, `build`, `run`, and `check` through the shared engine with frozen locked inputs and explicit lock updates. Inspection must not run tasks or servers; build checks and runtime integration tasks retain their distinct effects.
 
 ## After the package-manager MVP: OS image and boot
 
@@ -234,5 +262,5 @@ Native surfaces default to Lua for user configuration and still accept Nix, as s
 - [ ] Support explicit migration between ordinary systemd-boot and Lanzaboote Secure Boot, plus signing-key rotation, only after their preview, recovery, and post-reboot verification paths are tested.
 - [ ] Treat TPM-bound disk unlocking as a separate installer feature with a stated PCR policy, recovery credential, and tested response to firmware, bootloader, and kernel updates.
 - [ ] Define a public extension API for NixBox operations and diagnostics without granting third-party interfaces unrestricted store or root access.
-- [ ] Establish performance baselines for evaluation, cache substitution, local and remote builds, daemon startup, memory use, and large rebuild diagnostics; compare with the pinned reference before claiming improvements.
+- [ ] Improve evaluation, cache substitution, local and remote builds, daemon startup, memory use, and large rebuild diagnostics using the MVP performance baselines. Repeat comparable measurements against the pinned reference before claiming improvements.
 - [ ] Maintain release signing, vulnerability response, provenance records for imported crates, compatibility reports, migration notes, and supported upgrade paths across OS releases.

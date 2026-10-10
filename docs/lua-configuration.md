@@ -4,6 +4,8 @@
 
 nix-rs accepts user configuration written in Lua as well as in the Nix language, and its native surfaces default to Lua. A Lua configuration describes the same NixOS or Home Manager modules as a Nix configuration and builds the same system. It is an [extension](compatibility.md#extensions): the compatibility commands keep the reference behavior and never read Lua files, so the drop-in claim is unaffected.
 
+Dedicated environment declarations and optional native project manifests also default to Lua. They normalize to the same input/output and environment definitions as their native Nix equivalents, rather than to a NixOS system module. The dedicated devenv equivalent works directly or with existing flake inputs; standard `flake.nix` remains Nix and is fully supported without conversion. Their contract is in [native projects and development environments](development-environments.md). They reuse the Lua runtime and Nix value bridge specified here, with no change to the 100% drop-in gate.
+
 This is specified, not implemented. The workspace has no Lua runtime, and the open questions at the end must be settled before the first implementation.
 
 ## Scope
@@ -12,10 +14,11 @@ This is specified, not implemented. The workspace has no Lua runtime, and the op
 |---|---|
 | NixOS system configuration (`configuration.lua`) | Lua by default; Nix still supported |
 | Home Manager configuration (`home.lua`) | Lua by default; Nix still supported |
+| Dedicated development environments and optional native project inputs/outputs | Lua by default; Nix still supported; standard flakes remain a supported route; planned schema in [development environments](development-environments.md) |
 | Native fleet inventory, shared profiles, cluster and service-topology configuration | Lua by default; Nix still supported; planned schema in [distributed computing](distributed-computing.md) |
 | Module owned by NixBox (`nixrs-managed.lua`) | Same language as the configuration that imports it |
 | Nixpkgs, its library, and the NixOS and Home Manager module definitions | Nix, unchanged |
-| `flake.lock`, derivations, store paths, and every other reference format | Unchanged |
+| `flake.lock`, derivations, store paths, and every other reference format | Unchanged; native `project.lock` and standalone `environment.lock` use the reference lock graph encoding |
 | `nix.conf` and other engine settings | Unchanged; see the open questions |
 
 Lua is a way to write user configuration, not a second package set. Packages, modules, and the module system itself stay in Nix and are evaluated by the Nix language evaluator.
@@ -25,6 +28,7 @@ Lua is a way to write user configuration, not a second package set. Packages, mo
 | Surface | Behavior |
 |---|---|
 | Native `nixrs` configuration and system commands | Discover, evaluate, and build Lua or Nix configurations; create new ones in Lua |
+| Native `nixrs project` and `nixrs env` commands | Prefer dedicated Lua or Nix environment entries, support existing flakes and optional native projects, and use explicit selection on ambiguity; create new native templates in Lua |
 | OS installer | Generates `configuration.lua` and its hardware module in Lua |
 | NixBox operations | Write the owned module in Lua when the configuration is Lua |
 | Templates and examples shipped with nix-rs | Lua first, with a Nix equivalent where one is documented |
@@ -46,6 +50,8 @@ For equivalent inputs, a Lua configuration and its Nix translation must produce 
 
 For fleet configuration, equivalent Lua and Nix inputs must resolve the same machine identities, relationships, placement and transition policy, and per-machine derivations. Hardware profiles and target-system differences remain explicit. Inventory imported from etcd or a provisioning system must first become a recorded, tracked input; the evaluator cannot discover machines by querying runtime services. [Fleet configuration contract](distributed-computing.md#configuration-contract-and-heterogeneous-machines)
 
+For native projects and environments, equivalent Lua and Nix declarations must resolve the same locked inputs, exported package and tool derivations, and normalized task/server graph. Runtime paths and secret-provider references remain typed declarations until execution; their values cannot be read by Lua evaluation. A development shell or server session does not produce or activate `system.build.toplevel`.
+
 ## Diagnostics
 
 Errors in Lua sources use the [structured diagnostics](logging.md) with the `.lua` file, line, and column. A module-system error caused by a Lua definition names that definition's Lua location, and traces that cross Lua and Nix code show both.
@@ -60,6 +66,7 @@ Errors in Lua sources use the [structured diagnostics](logging.md) with the `.lu
 - The installer's generated Lua configuration evaluates unchanged after the first reboot and builds a second generation.
 - NixBox edits to a Lua configuration pass the [configuration workflow](configuration-workflow.md) acceptance cases.
 - Equivalent Lua and Nix fleet inputs produce matching inventory, topology, policy, and per-target closures for homogeneous and heterogeneous groups. Live discovery, unknown machine references, and unsupported target systems produce the specified diagnostics rather than changing evaluation implicitly.
+- Equivalent Lua and Nix native projects and environments pass the [environment acceptance cases](development-environments.md#acceptance-cases-and-release-evidence), including pure evaluation, identical tool derivations, shared locked inputs, and source-located composition errors.
 
 ## Open questions
 

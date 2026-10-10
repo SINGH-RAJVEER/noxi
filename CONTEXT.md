@@ -33,8 +33,28 @@ A nix-rs entry point with no CppNix counterpart: the `nixrs` command, the OS ins
 _Avoid_: new CLI (when a compatibility command is meant)
 
 **Lua configuration**:
-A NixOS or Home Manager configuration written in Lua that evaluates to the same modules as its Nix equivalent. It is the default on native surfaces; compatibility commands never read it.
+User configuration written in Lua on native surfaces, with the same meaning as its Nix equivalent. System and Home Manager configurations describe modules; native projects and environments describe their inputs, outputs, and runtime declarations.
 _Avoid_: Lua package set, Nix replacement
+
+**project manifest**:
+A declaration of a project's inputs and named outputs, including environments alongside packages, applications, and checks. Standard flakes are supported project manifests; native manifests are an optional extension.
+_Avoid_: environment file when inputs and outputs are meant
+
+**development environment**:
+A declaration of a tool closure, shell settings, tasks, and the servers that run with those tools and settings. It may use the dedicated environment interface or be exported by a project manifest, and is distinct from a running environment session.
+_Avoid_: shell when the whole environment is meant, system generation
+
+**environment session**:
+A running instance of a development environment at a recorded configuration revision, with its own supervised processes and runtime observations.
+_Avoid_: environment definition, system service
+
+**development server**:
+A long-running process declared in a development environment, including a local database, application server, or worker. It belongs to that environment's session rather than the installed system or a fleet.
+_Avoid_: NixOS service, fleet member
+
+**environment task**:
+A finite command declared in a development environment, such as initialization, migration, a build, or a test. Its successful completion can be a prerequisite for another task or a development server.
+_Avoid_: development server when a finite command is meant
 
 **fleet**:
 A set of nix-rs OS machines managed from a common authoritative configuration, with stable machine identities and explicit administrative ownership. A fleet may contain several independent clusters and machines outside any cluster.

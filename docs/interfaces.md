@@ -26,6 +26,12 @@ Before a privileged change, display the exact file diff, selected inputs, build 
 
 The TUI and GUI should provide generation comparison and rollback controls, but neither may imply that rolling back the system also restores mutable user data. Accessibility, keyboard navigation, and text alternatives are required interface acceptance criteria before a graphical release.
 
+## Project and environment operations
+
+The planned [native project and environment interface](development-environments.md#native-commands-and-operation-interface) adds a dedicated devenv equivalent for environment planning and preparation, shell entry, tasks, and local server lifecycle. It works directly or with existing flake inputs, and flakes may export the same environment definitions. Optional native project operations add input/output inspection and explicit lock updates. These extension operations retain the selected source and lock revision in their results. Their planner uses the engine directly; their built-in supervisor runs under the owning user. No native manifest conversion is required, and compatibility flake and shell commands retain their full reference behavior.
+
+The initial release may provide the headless CLI before graphical environment controls. Every shipped client uses the same typed operations and reports the selected environment, frozen plan, actual process readiness, state paths, endpoints, failed dependencies, and stale session revision. An environment definition, realized tool closure, and running session are separate facts. Starting a development server is a runtime action and does not enable a NixOS service, write a configuration change, or create a system generation.
+
 ## Fleet and topology operations
 
 When the later [distributed-computing capability](distributed-computing.md) is offered, all three clients must support fleet inventory and relationship inspection, per-machine generation and drift views, fleet plan preview, safe apply, cancellation, resume, and qualified cluster/capacity/recovery actions. The CLI must support the full headless workflow with versioned machine-readable results. A GUI session cannot be required for fleet coordination or recovery.
