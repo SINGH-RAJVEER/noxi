@@ -6,9 +6,16 @@ use mimalloc::MiMalloc;
 static GLOBAL: MiMalloc = MiMalloc;
 
 fn interpret(code: &str) {
-	nix_rs_eval::Evaluation::builder_pure()
+	let result = nix_rs_eval::Evaluation::builder_pure()
+		.mode(nix_rs_eval::EvalMode::Strict)
 		.build()
 		.evaluate(code, None);
+	assert!(
+		result.errors.is_empty(),
+		"benchmark evaluation failed: {:?}",
+		result.errors
+	);
+	black_box(result.value.expect("benchmark must produce a forced value"));
 }
 
 fn eval_literals(c: &mut Criterion) {
@@ -42,7 +49,7 @@ fn eval_merge_attrs(c: &mut Criterion) {
 			"{{{}}}",
 			(0..10000).map(|n| format!("a{n} = {n};")).join(" ")
 		);
-		let expr = format!("{{ c = 3 }} // {large_attrs}");
+		let expr = format!("{{ c = 3; }} // {large_attrs}");
 		b.iter(move || {
 			interpret(black_box(&expr));
 		})

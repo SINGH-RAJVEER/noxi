@@ -4,3 +4,4 @@
 /.devenv.flake.nix
 /.direnv
 /tests/nix-official/
+/benchmarks/__pycache__/

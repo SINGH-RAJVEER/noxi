@@ -51,6 +51,22 @@ reference:
 	nix build .#nix-reference --out-link target/nix-reference
 	nix build .#test-busybox --out-link target/test-busybox
 
+# Build portable release executables before collecting timings.
+bench-build:
+	cargo build --release -p nix-rs-cli -p nix-rs-commands -p nix-rs-daemon
+
+# Validate benchmark oracles, process accounting, and timeout cleanup.
+bench-test:
+	uv run --no-project --no-config python -m unittest discover -s benchmarks -p 'test_*.py' -v
+
+# List catalog cases and available subset adapters.
+bench-list:
+	uv run --no-project --no-config python benchmarks/run.py --list
+
+# Run selected cases; builds and reference fixture preparation are outside timing.
+bench reference="target/nix-reference/bin" candidate="target/release" busybox="target/test-busybox" *args:
+	uv run --no-project --no-config python benchmarks/run.py --reference-bin "{{reference}}" --candidate-bin "{{candidate}}" --busybox "{{busybox}}" {{args}}
+
 # Compare the preview evaluator with the pinned CppNix reference release.
 eval-compare-reference report="target/eval-comparison-reference.json": reference
 	just eval-compare target/nix-reference/bin/nix-instantiate "{{report}}"

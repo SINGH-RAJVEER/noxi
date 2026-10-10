@@ -17,6 +17,7 @@ The phrase "100% compatible" is a release gate, not a claim about the current co
 ## Product architecture
 
 - A Nix-compatible Rust engine evaluates the Nix language, resolves inputs, builds derivations, owns the local store, substitutes from caches, and speaks required protocols.
+- The [performance architecture](docs/performance.md) plans shared validated operation graphs, bounded realization workers, reduced metadata work, and evaluator reuse. The [benchmark protocol](docs/performance-benchmarks.md) compares these hypotheses against the pinned CppNix with matched work, cache states, resources, and usable-result milestones. Experimental storage and native service results have separate comparisons.
 - A NixOS-derived system definition uses Nixpkgs modules and activation machinery to build, switch, boot, test, and roll back generations. The system's default engine is nix-rs.
 - The OS-native CLI, TUI, and GPUI-based NixBox GUI share NixBox's structured operations and events. Legacy compatibility commands call the nix-rs engine with their reference semantics. Privileged operations pass through a constrained authorization interface.
 - The [NixBox crates](docs/nixbox-integration.md) evolve into the typed operation and planning layer. They resolve packages and options against the locked inputs through the nix-rs engine, compare the resulting build graph, and coordinate realization and generation changes. They do more than edit Nix text or shell out to rebuild commands.

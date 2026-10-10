@@ -75,28 +75,7 @@ impl LocalBackend {
 				.collect();
 			inputs.insert(drv.clone(), drv_inputs);
 		}
-		let key = |path: &StorePath| (path.name().to_owned(), path.to_absolute_path());
-		let mut ready: BTreeSet<(String, String, StorePath)> = BTreeSet::new();
-		for (drv, drv_inputs) in &inputs {
-			if drv_inputs.is_empty() {
-				let (name, path) = key(drv);
-				ready.insert((name, path, drv.clone()));
-			}
-		}
-		let mut waiting = inputs.clone();
-		let mut order = Vec::new();
-		while let Some((_, _, drv)) = ready.pop_first() {
-			waiting.remove(&drv);
-			for (other, other_inputs) in waiting.iter_mut() {
-				if other_inputs.remove(&drv) && other_inputs.is_empty() {
-					let (name, path) = key(other);
-					ready.insert((name, path, other.clone()));
-				}
-			}
-			let drv_inputs = inputs.remove(&drv).unwrap_or_default();
-			order.push((drv, drv_inputs));
-		}
-		Ok(order)
+		Ok(order_builds(inputs))
 	}
 
 	/// CppNix's failure of a derivation goal whose input failed to build.
@@ -120,6 +99,52 @@ impl LocalBackend {
 		}
 		Ok(message)
 	}
+}
+
+/// Visit only a completed node's dependents instead of rescanning all waiting nodes.
+/// The ready queue retains the existing name/path ordering and each goal's inputs.
+fn order_builds(
+	mut inputs: BTreeMap<StorePath, BTreeSet<StorePath>>,
+) -> Vec<(StorePath, BTreeSet<StorePath>)> {
+	let key = |path: &StorePath| {
+		(
+			path.name().to_owned(),
+			path.to_absolute_path(),
+			path.clone(),
+		)
+	};
+	let mut dependents: BTreeMap<StorePath, Vec<StorePath>> = BTreeMap::new();
+	let mut remaining = BTreeMap::new();
+	let mut ready = BTreeSet::new();
+	for (drv, drv_inputs) in &inputs {
+		remaining.insert(drv.clone(), drv_inputs.len());
+		if drv_inputs.is_empty() {
+			ready.insert(key(drv));
+		}
+		for input in drv_inputs {
+			dependents
+				.entry(input.clone())
+				.or_default()
+				.push(drv.clone());
+		}
+	}
+	let mut order = Vec::with_capacity(inputs.len());
+	while let Some((_, _, drv)) = ready.pop_first() {
+		if let Some(nodes) = dependents.get(&drv) {
+			for other in nodes {
+				let count = remaining.get_mut(other).expect("dependent is in the graph");
+				*count -= 1;
+				if *count == 0 {
+					ready.insert(key(other));
+				}
+			}
+		}
+		order.push((
+			drv.clone(),
+			inputs.remove(&drv).expect("ready goal is in the graph"),
+		));
+	}
+	order
 }
 
 impl Store for LocalBackend {
@@ -347,4 +372,110 @@ impl Store for LocalBackend {
 /// after the `error: ` prefix.
 fn format_error(message: &str) -> String {
 	nix_compat::log::format_error(message)
+}
+
+#[cfg(test)]
+mod order_tests {
+	use super::*;
+
+	// The prior scan implementation is an independent compatibility oracle.
+	fn scan_order(
+		mut inputs: BTreeMap<StorePath, BTreeSet<StorePath>>,
+	) -> Vec<(StorePath, BTreeSet<StorePath>)> {
+		let key = |p: &StorePath| (p.name().to_owned(), p.to_absolute_path(), p.clone());
+		let mut waiting = inputs.clone();
+		let mut ready: BTreeSet<_> = inputs
+			.iter()
+			.filter(|(_, deps)| deps.is_empty())
+			.map(|(p, _)| key(p))
+			.collect();
+		let mut order = Vec::new();
+		while let Some((_, _, path)) = ready.pop_first() {
+			waiting.remove(&path);
+			for (other, deps) in &mut waiting {
+				if deps.remove(&path) && deps.is_empty() {
+					ready.insert(key(other));
+				}
+			}
+			order.push((path.clone(), inputs.remove(&path).unwrap()));
+		}
+		order
+	}
+
+	fn path(i: usize) -> StorePath {
+		StorePath::from_bytes(format!("{i:032b}-goal-{}.drv", i % 5).as_bytes()).unwrap()
+	}
+
+	#[test]
+	fn indexed_order_preserves_dependencies_and_ready_ties() {
+		for seed in 0..40u64 {
+			let mut random = seed;
+			let mut graph = BTreeMap::new();
+			for i in 0..60 {
+				let mut deps = BTreeSet::new();
+				for j in 0..i {
+					random = random.wrapping_mul(6364136223846793005).wrapping_add(1);
+					if random >> 60 == 0 {
+						deps.insert(path(j));
+					}
+				}
+				graph.insert(path(i), deps);
+			}
+			assert_eq!(order_builds(graph.clone()), scan_order(graph));
+		}
+	}
+
+	#[test]
+	fn empty_and_cyclic_graphs_preserve_scan_behavior() {
+		assert!(order_builds(BTreeMap::new()).is_empty());
+		let graph = BTreeMap::from([
+			(path(0), BTreeSet::from([path(1)])),
+			(path(1), BTreeSet::from([path(0)])),
+			(path(2), BTreeSet::new()),
+		]);
+		assert_eq!(order_builds(graph.clone()), scan_order(graph));
+	}
+
+	/// Isolate O09 from sandbox setup and store I/O. This is a native algorithm
+	/// comparison, not a CppNix or end-to-end realization benchmark.
+	#[test]
+	#[ignore = "diagnostic timing; run in release mode on an otherwise idle host"]
+	fn ordering_scaling() {
+		for shape in ["chain", "wide"] {
+			for size in [256, 1024, 4096] {
+				let graph: BTreeMap<_, _> = (0..size)
+					.map(|i| {
+						let inputs = if shape == "chain" && i > 0 {
+							BTreeSet::from([path(i - 1)])
+						} else {
+							BTreeSet::new()
+						};
+						(path(i), inputs)
+					})
+					.collect();
+				let expected = scan_order(graph.clone());
+				for sample in 0..30 {
+					let roles = if sample % 2 == 0 {
+						["scan", "indexed"]
+					} else {
+						["indexed", "scan"]
+					};
+					for role in roles {
+						let input = graph.clone();
+						let start = std::time::Instant::now();
+						let actual = if role == "scan" {
+							scan_order(std::hint::black_box(input))
+						} else {
+							order_builds(std::hint::black_box(input))
+						};
+						let elapsed = start.elapsed().as_secs_f64();
+						assert_eq!(actual, expected);
+						println!(
+							"{{\"benchmark\":\"ordering\",\"shape\":\"{shape}\",\"size\":{size},\"sample\":{sample},\"role\":\"{role}\",\"elapsed_s\":{elapsed}}}"
+						);
+					}
+				}
+			}
+		}
+	}
 }

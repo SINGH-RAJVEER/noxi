@@ -30,6 +30,8 @@ From a checkout, `nix run . -- eval --expr '1 + 2'` builds and runs the same com
 | [Native projects and development environments](docs/development-environments.md) | Compatible flake environments, a dedicated devenv equivalent, optional native projects, and built-in server supervision |
 | [NixBox integration](docs/nixbox-integration.md) | Typed package operations, direct engine use, and declarative persistence |
 | [Rebuild diagnostics and logging](docs/logging.md) | Rebuild phases, event schema, error rendering, output modes, and log tests |
+| [Performance architecture](docs/performance.md) | Optimization hypotheses, CppNix prior art, compatibility constraints, and implementation order |
+| [Benchmarks against CppNix](docs/performance-benchmarks.md) | Paired measurement protocol and 154 planned scenarios across 18 families |
 | [Verification and release](docs/verification.md) | Test oracles, differential tests, and release gates |
 | [Development environment](docs/development.md) | Pinned Rust shell and local check commands |
 | [Flake and crate distribution](docs/distribution.md) | Installable preview, replacement milestones, and NixOS and Home Manager gates |
