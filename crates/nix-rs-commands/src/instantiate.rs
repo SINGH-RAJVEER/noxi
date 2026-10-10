@@ -73,9 +73,9 @@ pub fn parse_args(
 	parse_args_with(args, settings, |_, _| None)
 }
 
-/// [`parse_args`] for a command with its own flags: `extra` is offered each
-/// flag first, with the remaining arguments, and returns `None` for flags it
-/// does not know.
+/// [`parse_args`] for a command with its own flags. Shared legacy flags are
+/// handled first, then `extra` receives the remaining flags and arguments.
+/// It returns `None` for flags it does not know.
 pub fn parse_args_with(
 	args: impl IntoIterator<Item = String>,
 	settings: Settings,
@@ -97,12 +97,17 @@ pub fn parse_args_with(
 		gc_warning: true,
 		..Options::default()
 	};
-	let mut args = args.into_iter();
+	let mut args = crate::cli::ArgStream::new(args);
 	let value = |args: &mut dyn Iterator<Item = String>, flag: &str| {
 		args.next()
 			.ok_or_else(|| format!("flag '{flag}' requires 1 argument"))
 	};
-	while let Some(arg) = args.next() {
+	while let Some(arg) = args.next_arg() {
+		if let Some(result) = crate::cli::apply_common_flag(&arg, &mut args, &mut options.settings)
+		{
+			result.map_err(failure_message)?;
+			continue;
+		}
 		if arg.starts_with('-')
 			&& let Some(result) = extra(&arg, &mut args)
 		{
@@ -236,6 +241,15 @@ pub fn find_files(options: &Options) -> ExitCode {
 		}
 	}
 	ExitCode::SUCCESS
+}
+
+/// The message of a failure from the shared flag handling.
+fn failure_message(failure: crate::cli::Failure) -> String {
+	match failure {
+		crate::cli::Failure::Usage(message)
+		| crate::cli::Failure::Error(message)
+		| crate::cli::Failure::Exit(_, message) => message,
+	}
 }
 
 /// Split an attribute path the way CppNix's `parseAttrPath` does.
@@ -589,9 +603,11 @@ pub fn run(options: &Options, cwd: &Path, stdout: &mut dyn Write) -> ExitCode {
 				}
 				(None, _) if !warned && options.gc_warning => {
 					warned = true;
-					eprintln!(
-						"warning: you did not specify '--add-root'; the result might be removed by the garbage collector"
-					);
+					if nix_compat::log::log_enabled(nix_compat::log::VerbosityLevel::Warn) {
+						eprintln!(
+							"warning: you did not specify '--add-root'; the result might be removed by the garbage collector"
+						);
+					}
 				}
 				_ => {}
 			}

@@ -33,8 +33,16 @@ pub fn parse_args(
 	let mut query = String::new();
 	let mut paths = Vec::new();
 	let mut check_contents = false;
-	let mut args = args.into_iter();
-	while let Some(arg) = args.next() {
+	let mut args = crate::cli::ArgStream::new(args);
+	while let Some(arg) = args.next_arg() {
+		if let Some(result) = crate::cli::apply_common_flag(&arg, &mut args, &mut settings) {
+			result.map_err(|failure| match failure {
+				crate::cli::Failure::Usage(message)
+				| crate::cli::Failure::Error(message)
+				| crate::cli::Failure::Exit(_, message) => message,
+			})?;
+			continue;
+		}
 		match arg.as_str() {
 			"--store" => {
 				let uri = args.next().ok_or("--store requires an argument")?;
@@ -243,7 +251,9 @@ fn execute(
 					gc.paths = Some(paths.into_iter().collect());
 				}
 				let result = store.collect_garbage(&gc, &mut |message| {
-					let _ = writeln!(stderr, "{message}");
+					if nix_compat::log::log_enabled(nix_compat::log::VerbosityLevel::Info) {
+						let _ = writeln!(stderr, "{message}");
+					}
 				})?;
 				if matches!(action, GcAction::ReturnLive | GcAction::ReturnDead) {
 					for path in result.paths {

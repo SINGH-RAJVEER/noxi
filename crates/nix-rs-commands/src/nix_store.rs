@@ -77,8 +77,12 @@ pub fn main(mut settings: Settings, args: Vec<String>) -> Result<ExitCode, Failu
 	let mut store_uri = None;
 	let cwd = std::env::current_dir()?;
 
-	let mut args = args.into_iter();
-	while let Some(arg) = args.next() {
+	let mut args = crate::cli::ArgStream::new(args);
+	while let Some(arg) = args.next_arg() {
+		if let Some(result) = crate::cli::apply_common_flag(&arg, &mut args, &mut settings) {
+			result?;
+			continue;
+		}
 		let previous = op;
 		match arg.as_str() {
 			"--version" => {
@@ -127,6 +131,7 @@ pub fn main(mut settings: Settings, args: Vec<String>) -> Result<ExitCode, Failu
 			"--indirect" => {}
 			"--no-output" => no_output = true,
 			"--no-gc-warning" => gc_warning = false,
+			"--" => op_args.extend(args.by_ref()),
 			"--store" => {
 				store_uri =
 					Some(args.next().ok_or_else(|| {
@@ -224,7 +229,10 @@ impl NixStore<'_> {
 	}
 
 	fn gc_warning(&self) {
-		if self.gc_warning && !self.warned.replace(true) {
+		if self.gc_warning
+			&& !self.warned.replace(true)
+			&& nix_compat::log::log_enabled(nix_compat::log::VerbosityLevel::Warn)
+		{
 			eprintln!(
 				"warning: you did not specify '--add-root'; the result might be removed by the garbage collector"
 			);

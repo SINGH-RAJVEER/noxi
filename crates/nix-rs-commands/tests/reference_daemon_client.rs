@@ -229,6 +229,22 @@ fn commands_work_through_the_reference_daemon() {
 		("nix-build", vec!["expr.nix", "-A", "ok", "--no-out-link"]),
 		("nix-build", vec!["expr.nix", "-A", "ok", "-o", "result-ok"]),
 		("nix-build", vec!["expr.nix", "-A", "fail", "--no-out-link"]),
+		(
+			"nix-build",
+			vec!["expr.nix", "-A", "fail", "--no-out-link", "-Q"],
+		),
+		(
+			"nix-build",
+			vec![
+				"expr.nix",
+				"-A",
+				"fail",
+				"--no-out-link",
+				"--quiet",
+				"--quiet",
+			],
+		),
+		("nix-store", vec!["-qR", busybox]),
 		("nix-store", vec!["--realise", missing]),
 		("nix-env", vec!["-p", "{work}/profile", "--set", busybox]),
 		("nix-store", vec!["-q", "--referrers", busybox]),

@@ -108,8 +108,11 @@ pub fn topo_sort(
 	Ok(sorted)
 }
 
-/// CppNix's `printMissing`, on standard error.
+/// CppNix's `printMissing`, on standard error at `lvlInfo`.
 pub fn print_missing(store: &dyn Store, missing: &Missing) -> Result<(), Failure> {
+	if !nix_compat::log::log_enabled(nix_compat::log::VerbosityLevel::Info) {
+		return Ok(());
+	}
 	if !missing.will_build.is_empty() {
 		if missing.will_build.len() == 1 {
 			eprintln!("this derivation will be built:");

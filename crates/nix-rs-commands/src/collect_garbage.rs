@@ -16,7 +16,9 @@ use nix_compat::nixcpp::settings::Settings;
 use nix_rs_store::gc::{GcAction, GcOptions, render_size};
 use nix_rs_store::{LocalStoreConfig, profiles};
 
-use crate::cli::{Failure, print_setting_warnings};
+use crate::cli::{
+	ArgStream, Failure, apply_common_flag, parse_int_with_unit, print_setting_warnings,
+};
 use crate::store;
 
 /// How `--delete-old` and `--delete-older-than` prune each profile.
@@ -42,7 +44,12 @@ fn remove_old_generations(dir: &Path, pruning: &Pruning) -> Result<(), Failure> 
 	let can_write = access(dir, libc::W_OK);
 	let entries = fs::read_dir(dir)
 		.map_err(|e| Failure::Error(format!("reading directory \"{}\": {e}", dir.display())))?;
-	let mut log = |message: &str| eprintln!("{message}");
+	// Generations are deleted at `lvlNotice`.
+	let mut log = |message: &str| {
+		if nix_compat::log::log_enabled(nix_compat::log::VerbosityLevel::Notice) {
+			eprintln!("{message}");
+		}
+	};
 	for entry in entries {
 		let path = entry?.path();
 		let Ok(metadata) = fs::symlink_metadata(&path) else {
@@ -55,7 +62,9 @@ fn remove_old_generations(dir: &Path, pruning: &Pruning) -> Result<(), Failure> 
 				Err(e) => return Err(e.into()),
 			};
 			if link.to_string_lossy().contains("link") {
-				eprintln!("removing old generations of profile {}", path.display());
+				if nix_compat::log::log_enabled(nix_compat::log::VerbosityLevel::Info) {
+					eprintln!("removing old generations of profile {}", path.display());
+				}
 				match &pruning.older_than {
 					Some(spec) => {
 						let time = profiles::parse_older_than_time_spec(spec, now())
@@ -84,28 +93,6 @@ fn now() -> i64 {
 		.unwrap_or(0)
 }
 
-/// `string2IntWithUnitPrefix<int64_t>`: an integer with an optional `K`,
-/// `M`, `G` or `T` suffix.
-fn parse_size(s: &str) -> Result<i64, String> {
-	let (digits, multiplier) = match s.chars().last().map(|c| c.to_ascii_uppercase()) {
-		Some(unit) if unit.is_ascii_alphabetic() => {
-			let shift = match unit {
-				'K' => 10,
-				'M' => 20,
-				'G' => 30,
-				'T' => 40,
-				_ => return Err(format!("invalid unit specifier '{unit}'")),
-			};
-			(&s[..s.len() - 1], 1i64 << shift)
-		}
-		_ => (s, 1),
-	};
-	match digits.parse::<i64>() {
-		Ok(n) if !digits.starts_with('+') => Ok(n.wrapping_mul(multiplier)),
-		_ => Err(format!("'{digits}' is not an integer")),
-	}
-}
-
 /// Run `nix-collect-garbage` with the arguments after the program name.
 pub fn main(mut settings: Settings, args: Vec<String>) -> Result<ExitCode, Failure> {
 	let mut remove_old = false;
@@ -116,12 +103,16 @@ pub fn main(mut settings: Settings, args: Vec<String>) -> Result<ExitCode, Failu
 	let mut max_freed = None;
 	// LegacyArgs applies `--store` without marking the setting as set.
 	let mut store = None;
-	let mut args = args.into_iter();
-	while let Some(arg) = args.next() {
-		let value = |args: &mut std::vec::IntoIter<String>| {
+	let mut args = ArgStream::new(args);
+	while let Some(arg) = args.next_arg() {
+		let value = |args: &mut ArgStream| {
 			args.next()
 				.ok_or_else(|| Failure::Usage(format!("'{arg}' requires an argument")))
 		};
+		if let Some(result) = apply_common_flag(&arg, &mut args, &mut settings) {
+			result?;
+			continue;
+		}
 		match arg.as_str() {
 			"--version" => {
 				println!("nix-collect-garbage (Nix) 2.35.2");
@@ -134,8 +125,14 @@ pub fn main(mut settings: Settings, args: Vec<String>) -> Result<ExitCode, Failu
 			}
 			"--dry-run" => pruning.dry_run = true,
 			"--store" => store = Some(value(&mut args)?),
+			"--no-gc-warning" => {}
+			"--" => {
+				if let Some(arg) = args.next() {
+					return Err(Failure::Usage(format!("unexpected argument '{arg}'")));
+				}
+			}
 			"--max-freed" => {
-				let size = parse_size(&value(&mut args)?).map_err(Failure::Usage)?;
+				let size = parse_int_with_unit(&value(&mut args)?).map_err(Failure::Usage)?;
 				max_freed = Some(size.max(0) as u64);
 			}
 			flag if flag.starts_with('-') => match settings.apply_flag(flag, || args.next()) {
@@ -186,7 +183,11 @@ pub fn main(mut settings: Settings, args: Vec<String>) -> Result<ExitCode, Failu
 	}
 	options.keep_outputs = settings.get_bool("keep-outputs", false);
 	options.keep_derivations = settings.get_bool("keep-derivations", true);
-	let result = store.collect_garbage(&options, &mut |message| eprintln!("{message}"));
+	let result = store.collect_garbage(&options, &mut |message| {
+		if nix_compat::log::log_enabled(nix_compat::log::VerbosityLevel::Info) {
+			eprintln!("{message}");
+		}
+	});
 	// `printFreed` reports what was freed even when collection fails.
 	let results = match &result {
 		Ok(results) => results.clone(),
@@ -203,18 +204,4 @@ pub fn main(mut settings: Settings, args: Vec<String>) -> Result<ExitCode, Failu
 	}
 	result?;
 	Ok(ExitCode::SUCCESS)
-}
-
-#[cfg(test)]
-mod tests {
-	use super::*;
-
-	#[test]
-	fn parses_sizes_with_units() {
-		assert_eq!(parse_size("1K"), Ok(1024));
-		assert_eq!(parse_size("2g"), Ok(2 << 30));
-		assert_eq!(parse_size("-5"), Ok(-5));
-		assert_eq!(parse_size("x"), Err("invalid unit specifier 'X'".into()));
-		assert_eq!(parse_size("1.5"), Err("'1.5' is not an integer".into()));
-	}
 }

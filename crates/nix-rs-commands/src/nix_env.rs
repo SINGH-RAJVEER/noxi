@@ -18,7 +18,7 @@ use nix_compat::store_path::StorePath;
 use nix_rs_store::gc::replace_symlink;
 use nix_rs_store::{DerivedPath, LocalStoreConfig, profiles};
 
-use crate::cli::{Failure, print_setting_warnings};
+use crate::cli::{ArgStream, Failure, apply_common_flag, print_setting_warnings};
 use crate::instantiate::absolute_path;
 use crate::paths::{follow_links_to_store_path, print_missing};
 use crate::store;
@@ -125,15 +125,22 @@ pub fn main(mut settings: Settings, args: Vec<String>) -> Result<ExitCode, Failu
 	let mut profile = None;
 	let mut dry_run = false;
 	let mut store = None;
-	let mut args = args.into_iter();
-	while let Some(arg) = args.next() {
+	let mut args = ArgStream::new(args);
+	while let Some(arg) = args.next_arg() {
 		let old_op = op;
-		let value = |args: &mut std::vec::IntoIter<String>| {
+		let value = |args: &mut ArgStream| {
 			args.next()
 				.ok_or_else(|| Failure::Usage(format!("'{arg}' requires an argument")))
 		};
+		if let Some(result) = apply_common_flag(&arg, &mut args, &mut settings) {
+			result?;
+			continue;
+		}
 		if arg == "--store" {
 			store = Some(value(&mut args)?);
+			continue;
+		}
+		if arg == "--no-gc-warning" {
 			continue;
 		}
 		// CppNix keeps `nix-env`'s own `--system` rather than the setting's.
@@ -173,11 +180,14 @@ pub fn main(mut settings: Settings, args: Vec<String>) -> Result<ExitCode, Failu
 			"--list-generations" => op = Some(Operation::ListGenerations),
 			"--delete-generations" => op = Some(Operation::DeleteGenerations),
 			"--dry-run" => {
-				eprintln!("(dry run; not doing anything)");
+				if nix_compat::log::log_enabled(nix_compat::log::VerbosityLevel::Info) {
+					eprintln!("(dry run; not doing anything)");
+				}
 				dry_run = true;
 			}
 			"--system-filter" => drop(value(&mut args)?),
 			"--prebuilt-only" | "-b" => {}
+			"--" => op_args.extend(args.by_ref()),
 			flag if !flag.is_empty() && flag.starts_with('-') => {
 				op_flags.push(arg.clone());
 				let takes_value = flag == "--from-profile"
@@ -216,7 +226,12 @@ pub fn main(mut settings: Settings, args: Vec<String>) -> Result<ExitCode, Failu
 		dry_run,
 		cwd,
 	};
-	let mut log = |message: &str| eprintln!("{message}");
+	// Profile changes are reported at `lvlNotice`.
+	let mut log = |message: &str| {
+		if nix_compat::log::log_enabled(nix_compat::log::VerbosityLevel::Notice) {
+			eprintln!("{message}");
+		}
+	};
 	match op {
 		Operation::Version => unreachable!(),
 		Operation::Set => op_set(&globals, &op_flags, &op_args)?,
@@ -510,13 +525,17 @@ fn op_install(globals: &Globals, flags: &[String], args: &[String]) -> Result<Ex
 					&& new_names.contains(&name)
 					&& !element.meta_bool("keep", false)
 				{
-					eprintln!("replacing old '{}'", element.name);
+					if nix_compat::log::log_enabled(nix_compat::log::VerbosityLevel::Info) {
+						eprintln!("replacing old '{}'", element.name);
+					}
 				} else {
 					all.push(element);
 				}
 			}
 			for element in &new {
-				eprintln!("installing '{}'", element.name);
+				if nix_compat::log::log_enabled(nix_compat::log::VerbosityLevel::Info) {
+					eprintln!("installing '{}'", element.name);
+				}
 			}
 		}
 		print_missing_elements(store, &new)?;
@@ -565,7 +584,9 @@ fn op_uninstall(globals: &Globals, flags: &[String], args: &[String]) -> Result<
 					.collect()
 			};
 			if !removed.contains(&true) {
-				eprintln!("warning: selector '{selector}' matched no installed derivations");
+				if nix_compat::log::log_enabled(nix_compat::log::VerbosityLevel::Warn) {
+					eprintln!("warning: selector '{selector}' matched no installed derivations");
+				}
 			}
 			// `std::partition` keeps the order of neither part; the kept
 			// elements are only written back, so their order is CppNix's
@@ -573,7 +594,9 @@ fn op_uninstall(globals: &Globals, flags: &[String], args: &[String]) -> Result<
 			let mut kept = Vec::new();
 			for (element, remove) in elements.into_iter().zip(removed) {
 				if remove {
-					eprintln!("uninstalling '{}'", element.name);
+					if nix_compat::log::log_enabled(nix_compat::log::VerbosityLevel::Info) {
+						eprintln!("uninstalling '{}'", element.name);
+					}
 				} else {
 					kept.push(element);
 				}

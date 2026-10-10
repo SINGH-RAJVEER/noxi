@@ -141,6 +141,11 @@ fn collects_garbage_like_cppnix() {
 		&["--delete-older-than", "5d"],
 		&["-d"],
 		&["--max-freed", "1K", "--dry-run"],
+		&["--max-freed", "+1K", "--dry-run"],
+		&["-d", "--dry-run", "--"],
+		&["-d", "--dry-run", "--quiet"],
+		&["-d", "--dry-run", "--quiet", "--quiet"],
+		&["-j1", "-k", "--delete-older-than", "5d", "--dry-run"],
 	] {
 		let expected = run(&dir, &reference, args);
 		let actual = run(&dir, nix_rs, args);

@@ -156,6 +156,8 @@ fn client_options(settings: &Settings) -> nix_rs_daemon::client::ClientOptions {
 		max_silent_time: settings.get_int("max-silent-time", 0).max(0) as u64,
 		build_cores: settings.get_int("cores", 0).max(0) as u64,
 		use_substitutes: settings.get_bool("substitute", true),
+		verbosity: nix_compat::log::verbosity(),
+		verbose_build: nix_compat::log::print_build_logs(),
 		overrides,
 		..Default::default()
 	}
@@ -253,7 +255,11 @@ pub fn open(uri: &str, settings: &Settings) -> Result<Option<OpenStore>, String>
 	} else {
 		Vec::new()
 	};
-	let backend = LocalBackend::new(store, BuildSettings::from_settings(settings), substituters);
+	let mut build_settings = BuildSettings::from_settings(settings);
+	// The simple logger is verbose, so failed builds omit their log tail,
+	// unless `--no-build-output` hides the build output.
+	build_settings.show_log_tail = !nix_compat::log::print_build_logs();
+	let backend = LocalBackend::new(store, build_settings, substituters);
 	Ok(Some(OpenStore {
 		store: Rc::new(backend),
 		real_store_dir,

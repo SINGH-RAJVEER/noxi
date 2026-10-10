@@ -47,7 +47,9 @@ impl LocalBackend {
 				.filter_map(|uri| match BinaryCache::open(uri) {
 					Ok(cache) => Some(cache),
 					Err(e) => {
-						eprintln!("warning: disabling substituter '{uri}': {e}");
+						if nix_compat::log::log_enabled(nix_compat::log::VerbosityLevel::Warn) {
+							eprintln!("warning: disabling substituter '{uri}': {e}");
+						}
 						None
 					}
 				})
@@ -218,10 +220,17 @@ impl Store for LocalBackend {
 		let mut events = |event: BuildEvent<'_>| {
 			let mut stderr = std::io::stderr();
 			let _ = match event {
-				BuildEvent::Started { drv_path } => {
+				// The build activity is at `lvlInfo`; its output is shown
+				// unless build logs are off.
+				BuildEvent::Started { drv_path }
+					if nix_compat::log::log_enabled(nix_compat::log::VerbosityLevel::Info) =>
+				{
 					writeln!(stderr, "building '{}'...", drv_path.to_absolute_path())
 				}
-				BuildEvent::Output(data) => stderr.write_all(data),
+				BuildEvent::Output(data) if nix_compat::log::print_build_logs() => {
+					stderr.write_all(data)
+				}
+				BuildEvent::Started { .. } | BuildEvent::Output(_) => Ok(()),
 				BuildEvent::Finished { .. } => Ok(()),
 			};
 		};

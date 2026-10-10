@@ -221,6 +221,12 @@ fn realises_with_roots_and_queries_like_cppnix() {
 	env.same(&["-r", &format!("{drv}!dev")]);
 	env.same(&["-r", "result"]);
 	env.same(&["-r", "--dry-run", &drv]);
+	// `--quiet` lowers the verbosity one level per flag: the first hides
+	// `lvlInfo`, the second `lvlNotice`, the third the warnings.
+	env.same(&["-r", "--dry-run", "--quiet", &drv]);
+	env.same(&["-r", &drv, "--quiet", "--quiet"]);
+	env.same(&["-r", &drv, "--quiet", "--quiet", "--quiet"]);
+	env.same(&["-r", &drv, "-j1", "--cores", "2K", "--max-jobs", "4"]);
 
 	for query in [
 		vec!["-q", &drv],
@@ -245,6 +251,17 @@ fn realises_with_roots_and_queries_like_cppnix() {
 		vec!["-q", "--hash", "--size", "result"],
 		vec!["-q", "--references", "/tmp"],
 		vec!["-q", "--frobnicate", "result"],
+		vec!["-qR", &drv],
+		vec!["-qR", "--", &drv],
+		vec!["-qRu", &drv],
+		vec!["-qb", "extra", &drv],
+		vec!["-q", "-vb", "extra", &drv],
+		vec!["-q", "--cores", "-1K", &drv],
+		vec!["-q", "--timeout", "+1", &drv],
+		vec!["-q", "--max-jobs", "2K", &drv],
+		vec!["-q", "--max-jobs", "4294967296", &drv],
+		vec!["-q", "--cores", "18446744073709551615", &drv],
+		vec!["--cores"],
 	] {
 		env.same(&query);
 	}
@@ -359,6 +376,19 @@ fn reports_failed_builds_like_cppnix() {
 	env.same_with("nix-build", &[file, "-A", "dependent"]);
 	env.same_with("nix-build", &[file, "-A", "fails", "-A", "dependent"]);
 	env.same_with("nix-build", &[file, "-A", "fails", "-A", "noOutput"]);
+	env.same_with("nix-build", &[file, "-A", "fails", "-Q"]);
+	env.same_with("nix-build", &[file, "-A", "fails", "--quiet"]);
+	env.same_with(
+		"nix-build",
+		&[
+			file,
+			"-A",
+			"fails",
+			"--no-build-output",
+			"--log-format",
+			"raw-with-logs",
+		],
+	);
 	let drv = env.same_with("nix-instantiate", &[file, "-A", "fails", "--no-gc-warning"]);
 	env.same(&["-r", drv.trim()]);
 }

@@ -764,6 +764,21 @@ fn reads_configuration_like_cppnix() {
 			0
 		)
 	);
+	// Three reductions hide warnings; one verbose flag restores them.
+	args.extend(["--quiet", "--quiet", "--quiet"]);
+	assert_eq!(
+		run("foo-unknown = 1\n", &args),
+		("true\n".into(), String::new(), 0)
+	);
+	args.push("-v");
+	assert_eq!(
+		run("foo-unknown = 1\n", &args),
+		(
+			"true\n".into(),
+			"warning: unknown setting 'baz'\nwarning: unknown setting 'foo-unknown'\n".into(),
+			0
+		)
+	);
 	let (stdout, stderr, code) = run("max-call-depth=3\n", &has_fetch_tree);
 	assert_eq!((stdout.as_str(), code), ("", 1));
 	assert!(

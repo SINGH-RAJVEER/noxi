@@ -36,9 +36,7 @@ fn run() -> ExitCode {
 		Ok(options) => options,
 		Err(message) => return usage(&message),
 	};
-	for warning in options.settings.finish() {
-		eprintln!("warning: {warning}");
-	}
+	nix_rs_commands::cli::print_setting_warnings(&mut options.settings);
 	if options.find_file {
 		return instantiate::find_files(&options);
 	}

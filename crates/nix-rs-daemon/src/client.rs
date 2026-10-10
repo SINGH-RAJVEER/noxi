@@ -78,6 +78,7 @@ struct Connection {
 	to: Writer<UnixStream>,
 	version: Version,
 	verbosity: u64,
+	print_build_logs: bool,
 }
 
 /// A store whose owner is a daemon.
@@ -157,8 +158,8 @@ impl Connection {
 					let fields = self.read_fields()?;
 					let line = fields.into_iter().next().unwrap_or_default();
 					match kind {
-						RES_BUILD_LOG_LINE => log_line(&line),
-						RES_POST_BUILD_LOG_LINE => {
+						RES_BUILD_LOG_LINE if self.print_build_logs => log_line(&line),
+						RES_POST_BUILD_LOG_LINE if self.print_build_logs => {
 							log_line(&[b"post-build-hook: ".as_slice(), &line].concat());
 						}
 						_ => {}
@@ -260,6 +261,7 @@ impl DaemonStore {
 			to: Writer::new(stream),
 			version: PROTOCOL_VERSION,
 			verbosity: self.options.verbosity,
+			print_build_logs: self.options.verbose_build,
 		};
 		let features = handshake(&mut conn).map_err(|e| {
 			nix_rs_store::Error::Other(format!(

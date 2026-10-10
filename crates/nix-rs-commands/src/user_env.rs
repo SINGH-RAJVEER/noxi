@@ -427,10 +427,12 @@ pub fn create_user_env(
 
 	let _lock = profiles::lock_profile(profile)?;
 	if lock_token(profile) != token {
-		eprintln!(
-			"profile \"{}\" changed while we were busy; restarting",
-			profile.display()
-		);
+		if nix_compat::log::log_enabled(nix_compat::log::VerbosityLevel::Info) {
+			eprintln!(
+				"profile \"{}\" changed while we were busy; restarting",
+				profile.display()
+			);
+		}
 		return Ok(Ok(false));
 	}
 	let generation = profiles::create_generation(store, profile, &out)?;

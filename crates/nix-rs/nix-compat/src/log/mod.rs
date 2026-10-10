@@ -492,3 +492,32 @@ mod format_error_tests {
 		);
 	}
 }
+
+static VERBOSITY: std::sync::atomic::AtomicU64 =
+	std::sync::atomic::AtomicU64::new(VerbosityLevel::Info as u64);
+static PRINT_BUILD_LOGS: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(true);
+
+/// The process's verbosity, CppNix's global `verbosity`: `lvlInfo` unless
+/// changed by `--verbose`, `--quiet` or `--debug`.
+pub fn verbosity() -> u64 {
+	VERBOSITY.load(std::sync::atomic::Ordering::Relaxed)
+}
+
+pub fn set_verbosity(level: u64) {
+	VERBOSITY.store(level, std::sync::atomic::Ordering::Relaxed);
+}
+
+/// Whether a message at `level` is printed.
+pub fn log_enabled(level: VerbosityLevel) -> bool {
+	level as u64 <= verbosity()
+}
+
+/// Whether build output is printed, as the simple logger's
+/// `printBuildLogs`: on until `--no-build-output` or a raw `--log-format`.
+pub fn print_build_logs() -> bool {
+	PRINT_BUILD_LOGS.load(std::sync::atomic::Ordering::Relaxed)
+}
+
+pub fn set_print_build_logs(print: bool) {
+	PRINT_BUILD_LOGS.store(print, std::sync::atomic::Ordering::Relaxed);
+}
