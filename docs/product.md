@@ -20,6 +20,7 @@ The scope expansion preserves the package-manager MVP as the complete CppNix rep
 | Reference development workflows within the MVP | Ordinary flakes and `devShells`, `nix develop`, `nix shell`, `nix run`, and legacy `nix-shell`, including reference selection, lock-file effects, hooks, output, and environment behavior |
 | Native environments after the MVP | Shared Lua bridge, dedicated entries and locks, flake-exported environments, tasks, built-in unprivileged supervision, PostgreSQL, session recovery, and environment acceptance evidence; this release can run on existing systems |
 | Optional native projects after the MVP | Native input/output manifests and `nixrs project` operations with separate qualification; these are not a prerequisite for ordinary flakes or the first native environment release |
+| Scoped applications after the MVP | Independent user and machine application declarations, profile planning/build/apply/rollback, and [scope qualification](scoped-application-builds.md); project applications reuse native environments, and machine visibility needs qualified OS integration |
 | Later OS release | Images, installer, boot, system management, recovery, NixBox CLI/TUI/GUI, and single-machine OS qualification |
 | Fleets after the single-machine OS foundation | Authenticated remote execution, fleet plans, topology adapters, bounded capacity management, and measured support limits |
 

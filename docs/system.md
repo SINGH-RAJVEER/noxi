@@ -36,6 +36,8 @@ Persistent changes follow the [declarative configuration workflow](configuration
 
 Every rebuild phase, including partial activation, must emit the [structured events and final state report](logging.md). A failed switch cannot be reported as a generic build failure or as success merely because the new closure exists.
 
+[Scoped application profiles](scoped-application-builds.md) have independent declarations and generations. Eligible user or machine application changes build and switch only their profile, leaving the running OS generation and boot default unchanged. Application rollback, system rollback, and application-data recovery remain separate operations. Machine profile visibility requires qualified base OS integration.
+
 ## Updates and recovery
 
 Each release must define how it receives Nixpkgs, nix-rs, kernel, and installer fixes. Pin the inputs used to build a generation. Test upgrades from the preceding supported release and a return to a known-good boot entry. Do not change `system.stateVersion` merely to select newer packages; retain it according to NixOS migration guidance.

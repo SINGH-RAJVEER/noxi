@@ -26,6 +26,10 @@ Before a privileged change, display the exact file diff, selected inputs, build 
 
 The TUI and GUI should provide generation comparison and rollback controls, but neither may imply that rolling back the system also restores mutable user data. Accessibility, keyboard navigation, and text alternatives are required interface acceptance criteria before a graphical release.
 
+## Scoped application operations
+
+The planned [scoped application feature](scoped-application-builds.md) adds user and machine application profile planning, build-only, apply, removal, update, and rollback; project application changes reuse environment operations. Show the selected scope, owner, declaration revision, locked inputs, dependency work, and actual application generation. Eligible changes do not create or activate a system generation. Explain any required system or Home Manager activation and present a separate plan instead of silently widening the operation. All clients must show duplicate providers and executable precedence across scopes.
+
 ## Project and environment operations
 
 The planned [native project and environment interface](development-environments.md#native-commands-and-operation-interface) adds a dedicated devenv equivalent for environment planning and preparation, shell entry, tasks, and local server lifecycle. It works directly or with existing flake inputs, and flakes may export the same environment definitions. Optional native project operations add input/output inspection and explicit lock updates. These extension operations retain the selected source and lock revision in their results. Their planner uses the engine directly; their built-in supervisor runs under the owning user. No native manifest conversion is required, and compatibility flake and shell commands retain their full reference behavior.

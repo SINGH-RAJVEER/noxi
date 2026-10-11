@@ -34,7 +34,11 @@ For `Install { package = "ripgrep", scope = NixOS }`, NixBox must:
 
 Removing a package is the same kind of semantic operation. It may remove an application-owned declaration, but it must not erase a package that still comes from another module. Garbage collection is a later explicit store operation, not an automatic side effect of removing a declaration.
 
+The planned [scoped application operations](scoped-application-builds.md) add independent user and machine application profiles; project selections reuse the native environment contract. NixBox resolves their declarations against the selected scope's locked inputs and builds only its candidate profile closure. It persists and verifies the owned declaration before switching that profile. The NixOS-scoped request above still requires the system-generation workflow. Application-only requests must not silently become NixOS edits or invoke system activation.
+
 ## Declarative persistence
+
+For independent application profiles, NixBox persists the owned application declaration in the selected scope rather than importing its package selection into the NixOS module graph. That declaration is authoritative for the profile; system configuration remains authoritative for system generations.
 
 The durable desired state is expressed in configuration source: Lua by default, or Nix when the configuration is written in Nix, as specified in [Lua configuration](lua-configuration.md). NixBox may generate a small imported module in that language for declarations it owns, and it may update a lock in an explicit input-update operation. Rendering that module is a persistence step for a typed, evaluator-checked plan, not the full implementation of package management. UI settings or an internal operation journal are not competing sources of OS truth.
 

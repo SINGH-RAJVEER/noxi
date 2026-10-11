@@ -185,6 +185,16 @@ Optional `nixrs project` manifests have their own extension qualification. They 
 - [ ] Qualify optional native project discovery, named outputs, lock operations, input dependencies, and target-system validation.
 - [ ] Implement `project init`, `show`, `build`, `run`, and `check` through the shared engine with frozen locked inputs and explicit lock updates. Inspection must not run tasks or servers; build checks and runtime integration tasks retain their distinct effects.
 
+## After the package-manager MVP: scoped application builds
+
+[Scoped application builds](docs/scoped-application-builds.md) specifies independent user and machine application profiles that avoid a full system generation for eligible package changes. Project scope reuses native environments. This is an additive extension; reference-compatible profile and NixOS behavior remains in the MVP.
+
+- [ ] Define equivalent Lua/Nix application declarations, locked inputs, typed scopes, profile ownership/paths, executable precedence, and stable operation schemas.
+- [ ] Implement eligibility checks and previews with package provenance, dependency work, collisions, and separate plans for changes requiring system or Home Manager activation.
+- [ ] Implement scoped build-only, draft, apply, update, removal, and rollback through nix-rs and NixBox, with source/profile revision checks, journal recovery, and GC roots.
+- [ ] Qualify user application visibility and machine profile integration, including authority, supported desktop discovery, reboot persistence, and preservation during system rebuilds.
+- [ ] Run the scope acceptance cases with equivalent CLI/TUI/GUI results, trace proof of no system build or activation for eligible changes, compatibility checks, and measured build/apply costs.
+
 ## After the package-manager MVP: OS image and boot
 
 - [ ] Define the first OS release matrix: architecture, UEFI firmware, installation media, supported filesystems, storage layouts, graphics and headless profiles, and the Nixpkgs baseline. Record unsupported hardware rather than implying universal support.

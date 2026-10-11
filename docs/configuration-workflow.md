@@ -8,6 +8,8 @@ This matches NixOS's documented model: edit the configuration, run a rebuild, an
 
 The approach is hybrid in the interface, not in the source of truth. A form, source editor, CLI command, and package search can all propose the same typed change. NixBox evaluates it against the exact locked inputs, drives store and build work through nix-rs, and records persistent intent in an imported module. The system still follows its committed configuration. [NixBox integration](nixbox-integration.md) defines this lower-level role.
 
+The planned [scoped application workflow](scoped-application-builds.md) applies the same source-first contract to independently declared application profiles. Its candidate and activation target is the selected application profile, with its own locked inputs and generations. Eligible application changes build and switch that profile without constructing a system generation. The system sequence below applies to changes in NixOS configuration; profile operations use the scoped sequence and report application generation separately from running OS and boot state.
+
 ## Ownership and round trips
 
 NixBox owns one explicitly imported module, provisionally `nixrs-managed.lua`, or `nixrs-managed.nix` when the configuration importing it is written in Nix. It renders that module deterministically from evaluated package selections and typed option values after constructing a candidate plan. It may also update a lock file in a separate, explicit input-update operation. The generated file records desired state; it does not replace package resolution, module evaluation, store realization, or activation. NixBox must not rewrite an arbitrary user module to make a toggle work.
