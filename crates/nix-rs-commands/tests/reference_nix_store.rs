@@ -160,14 +160,28 @@ impl Env {
 				full.extend_from_slice(args);
 				let output = self.run(engine, program, &full, Some(&self.cwd(engine)));
 				let normalise = |bytes: &[u8]| {
-					String::from_utf8_lossy(bytes).replace(
+					let text = String::from_utf8_lossy(bytes).replace(
 						&self.dir.path().join(engine).display().to_string(),
 						"<engine>",
-					)
+					);
+					// Each command has its own process ID. Keep the diagnostic
+					// and store path, normalizing only that generated component.
+					regex::Regex::new(r"(<engine>/root/nix/var/nix/temproots/)[0-9]+")
+						.unwrap()
+						.replace_all(&text, "${1}<pid>")
+						.into_owned()
 				};
+				let mut stdout = normalise(&output.stdout);
+				if args.contains(&"--roots") {
+					// CppNix's Roots is unordered. Compare the lines exactly
+					// after sorting, unlike --gc --print-roots, which is ordered.
+					let mut lines: Vec<_> = stdout.lines().collect();
+					lines.sort();
+					stdout = lines.into_iter().map(|line| format!("{line}\n")).collect();
+				}
 				(
 					output.status.code().unwrap_or(-1),
-					normalise(&output.stdout),
+					stdout,
 					normalise(&output.stderr),
 				)
 			})
@@ -241,6 +255,20 @@ fn realises_with_roots_and_queries_like_cppnix() {
 		vec!["-q", "--deriver", "result"],
 		vec!["-q", "-d", "result-dev"],
 		vec!["-q", "--valid-derivers", "result"],
+		vec!["-q", "--roots", "result"],
+		vec!["-q", "--roots", &drv],
+		vec!["-q", "--roots", &drv, "--no-keep-derivations"],
+		vec!["-q", "--roots", &drv, "--use-output"],
+		vec!["-q", "--roots", "result", "--keep-outputs"],
+		vec!["--gc", "--print-roots"],
+		vec!["--gc", "--print-live"],
+		vec!["--gc", "--print-dead"],
+		vec!["--delete", "result"],
+		vec!["--optimise"],
+		vec!["--optimize"],
+		vec!["--optimise", "--quiet"],
+		vec!["--optimise", "unexpected"],
+		vec!["--optimise", "--unknown"],
 		vec!["-q", "--binding", "extra", &drv],
 		vec!["-q", "-b", "extra", "result"],
 		vec!["-q", "-b", "missing", &drv],

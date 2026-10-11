@@ -2,8 +2,7 @@
 //! `src/nix/nix-collect-garbage/nix-collect-garbage.cc`.
 //!
 //! Supported: `--delete-old`/`-d`, `--delete-older-than`, `--dry-run`,
-//! `--max-freed` and settings flags, on a local store. Collecting through
-//! the daemon is not supported yet.
+//! `--max-freed` and settings flags, on a local or daemon-backed store.
 
 use std::collections::BTreeSet;
 use std::ffi::CString;
@@ -168,7 +167,7 @@ pub fn main(mut settings: Settings, args: Vec<String>) -> Result<ExitCode, Failu
 	}
 
 	let uri = store::store_uri(store.as_deref(), &settings);
-	let Some((store, _)) = store::open_local(&uri, &settings)? else {
+	let Some(opened) = store::open(&uri, &settings)? else {
 		return Err(Failure::Error(format!(
 			"store '{uri}' does not support garbage collection"
 		)));
@@ -183,7 +182,7 @@ pub fn main(mut settings: Settings, args: Vec<String>) -> Result<ExitCode, Failu
 	}
 	options.keep_outputs = settings.get_bool("keep-outputs", false);
 	options.keep_derivations = settings.get_bool("keep-derivations", true);
-	let result = store.collect_garbage(&options, &mut |message| {
+	let result = opened.store.collect_garbage(&options, &mut |message| {
 		if nix_compat::log::log_enabled(nix_compat::log::VerbosityLevel::Info) {
 			eprintln!("{message}");
 		}

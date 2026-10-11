@@ -10,6 +10,7 @@ use nix_compat::derivation::UnverifiedDerivation;
 use nix_compat::nixhash::HashAlgo;
 use nix_compat::store_path::StorePath;
 
+use crate::gc::{GcOptions, GcResults, Roots};
 use crate::{Error, FileIngestionMethod, LocalStore, Result, ValidPathInfo};
 
 /// A path to realise: a store path, or outputs of a derivation.
@@ -81,6 +82,32 @@ pub trait Store {
 	/// root; returns the link.
 	fn add_perm_root(&self, path: &StorePath, gc_root: &Path) -> Result<PathBuf>;
 
+	/// The collector's roots. Remote stores let the daemon decide which
+	/// root names the client may see.
+	fn find_roots(&self, _censor: bool, _log: &mut dyn FnMut(&str)) -> Result<Roots> {
+		Err(Error::Other(
+			"store does not support root listing".to_owned(),
+		))
+	}
+
+	/// Collect through the store owner, retaining its liveness checks.
+	fn collect_garbage(
+		&self,
+		_options: &GcOptions,
+		_log: &mut dyn FnMut(&str),
+	) -> Result<GcResults> {
+		Err(Error::Other(
+			"store does not support garbage collection".to_owned(),
+		))
+	}
+
+	/// Deduplicate store files through their owner.
+	fn optimise_store(&self, _log: &mut dyn FnMut(&str)) -> Result<()> {
+		Err(Error::Other(
+			"store does not support optimisation".to_owned(),
+		))
+	}
+
 	/// Realise the paths, building or substituting as needed.
 	fn build_paths(&self, paths: &[DerivedPath]) -> Result<()>;
 
@@ -116,6 +143,24 @@ pub trait Store {
 /// A local store without a builder only realises paths that are already
 /// valid.
 impl Store for LocalStore {
+	fn optimise_store(&self, log: &mut dyn FnMut(&str)) -> Result<()> {
+		let stats = self.optimise()?;
+		log(&format!(
+			"{} freed by hard-linking {} files",
+			crate::gc::render_size(stats.bytes_freed as i64, false),
+			stats.files_linked
+		));
+		Ok(())
+	}
+
+	fn find_roots(&self, censor: bool, log: &mut dyn FnMut(&str)) -> Result<Roots> {
+		LocalStore::find_roots(self, censor, log)
+	}
+
+	fn collect_garbage(&self, options: &GcOptions, log: &mut dyn FnMut(&str)) -> Result<GcResults> {
+		LocalStore::collect_garbage(self, options, log)
+	}
+
 	fn real_path(&self, path: &StorePath) -> PathBuf {
 		LocalStore::real_path(self, path)
 	}

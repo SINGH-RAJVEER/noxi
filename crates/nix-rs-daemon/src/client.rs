@@ -15,7 +15,7 @@ use std::path::{Path, PathBuf};
 use nix_compat::derivation::UnverifiedDerivation;
 use nix_compat::nixhash::HashAlgo;
 use nix_compat::store_path::{STORE_DIR, StorePath};
-use nix_rs_store::gc::replace_symlink;
+use nix_rs_store::gc::{GcAction, GcOptions, GcResults, Roots, replace_symlink};
 use nix_rs_store::{DerivedPath, FileIngestionMethod, Missing, Store, ValidPathInfo};
 
 use crate::connection::{
@@ -77,6 +77,7 @@ struct Connection {
 	from: Reader<UnixStream>,
 	to: Writer<UnixStream>,
 	version: Version,
+	features: BTreeSet<String>,
 	verbosity: u64,
 	print_build_logs: bool,
 }
@@ -260,6 +261,7 @@ impl DaemonStore {
 			from: Reader::new(read),
 			to: Writer::new(stream),
 			version: PROTOCOL_VERSION,
+			features: BTreeSet::new(),
 			verbosity: self.options.verbosity,
 			print_build_logs: self.options.verbose_build,
 		};
@@ -272,6 +274,7 @@ impl DaemonStore {
 		if !features.contains("disable-set-options") {
 			set_options(&mut conn, &self.options).map_err(store_error)?;
 		}
+		conn.features = features;
 		Ok(conn)
 	}
 
@@ -434,6 +437,72 @@ fn legacy_string(path: &DerivedPath) -> String {
 }
 
 impl Store for DaemonStore {
+	fn optimise_store(&self, _log: &mut dyn FnMut(&str)) -> nix_rs_store::Result<()> {
+		self.with_conn(|conn| {
+			conn.to.u64(op::OPTIMISE_STORE);
+			conn.process_stderr()?;
+			conn.from.read_u64().map(drop)
+		})
+	}
+
+	fn find_roots(&self, _censor: bool, _log: &mut dyn FnMut(&str)) -> nix_rs_store::Result<Roots> {
+		self.with_conn(|conn| {
+			conn.to.u64(op::FIND_ROOTS);
+			conn.process_stderr()?;
+			let count = conn.from.read_u64()?;
+			let mut roots = Roots::new();
+			for _ in 0..count {
+				let link = conn.from.read_string()?;
+				let path = conn.from.read_store_path()?;
+				roots.entry(path).or_default().insert(link);
+			}
+			Ok(roots)
+		})
+	}
+
+	fn collect_garbage(
+		&self,
+		options: &GcOptions,
+		_log: &mut dyn FnMut(&str),
+	) -> nix_rs_store::Result<GcResults> {
+		self.with_conn(|conn| {
+			let specific = conn.features.contains("delete-dead-specific-referrers");
+			if !specific && options.paths.is_some() {
+				if options.action != GcAction::DeleteSpecific {
+					return Err(Error::Nix("Your daemon version is too old to support garbage collecting a specific set of paths".into()));
+				}
+				if options.delete_referrers {
+					return Err(Error::Nix("Your daemon version is too old to support deleting referrers.".into()));
+				}
+			}
+			conn.to.u64(op::COLLECT_GARBAGE).u64(match options.action {
+				GcAction::ReturnLive => 0,
+				GcAction::ReturnDead => 1,
+				GcAction::DeleteDead => 2,
+				GcAction::DeleteSpecific => 3,
+			});
+			if specific {
+				match &options.paths {
+					None => { conn.to.u64(1); }
+					Some(paths) => {
+						conn.to.u64(0).store_paths(paths.iter()).bool(options.delete_referrers);
+					}
+				}
+			} else {
+				let empty = BTreeSet::new();
+				conn.to.store_paths(options.paths.as_ref().unwrap_or(&empty).iter());
+			}
+			conn.to.bool(options.ignore_liveness).u64(options.max_freed).u64(0).u64(0).u64(0);
+			conn.process_stderr()?;
+			let result = GcResults {
+				paths: conn.from.read_strings()?.into_iter().collect(),
+				bytes_freed: conn.from.read_u64()?,
+			};
+			conn.from.read_u64()?; // obsolete
+			Ok(result)
+		})
+	}
+
 	fn real_path(&self, path: &StorePath) -> PathBuf {
 		self.real_store_dir.join(path.to_string())
 	}
@@ -596,6 +665,113 @@ impl Store for DaemonStore {
 #[cfg(test)]
 mod tests {
 	use super::*;
+
+	fn connected(features: &[&str]) -> (DaemonStore, UnixStream) {
+		let (client, daemon) = UnixStream::pair().unwrap();
+		for stream in [&client, &daemon] {
+			stream
+				.set_read_timeout(Some(std::time::Duration::from_secs(5)))
+				.unwrap();
+			stream
+				.set_write_timeout(Some(std::time::Duration::from_secs(5)))
+				.unwrap();
+		}
+		let store = DaemonStore::new(Path::new("unused.sock"), None, &ClientOptions::default());
+		*store.conn.borrow_mut() = Some(Connection {
+			from: Reader::new(client.try_clone().unwrap()),
+			to: Writer::new(client),
+			version: version(1, 38),
+			features: features
+				.iter()
+				.map(|feature| (*feature).to_owned())
+				.collect(),
+			verbosity: 3,
+			print_build_logs: true,
+		});
+		(store, daemon)
+	}
+
+	#[test]
+	fn gc_encodings_follow_negotiated_features_and_leave_the_connection_aligned() {
+		let path = StorePath::from_bytes(b"00000000000000000000000000000000-x").unwrap();
+		for feature in [false, true] {
+			for specific in [false, true] {
+				let (store, daemon) = connected(if feature {
+					&["delete-dead-specific-referrers"]
+				} else {
+					&[]
+				});
+				let expected = path.clone();
+				let worker = std::thread::spawn(move || {
+					let mut from = Reader::new(daemon.try_clone().unwrap());
+					let mut to = Writer::new(daemon);
+					assert_eq!(from.read_u64().unwrap(), op::COLLECT_GARBAGE);
+					assert_eq!(from.read_u64().unwrap(), if specific { 3 } else { 2 });
+					if feature {
+						assert_eq!(from.read_u64().unwrap(), if specific { 0 } else { 1 });
+					}
+					if specific {
+						assert_eq!(from.read_store_paths().unwrap(), [expected.clone()].into());
+						if feature {
+							assert!(from.read_bool().unwrap());
+						}
+					} else if !feature {
+						assert!(from.read_store_paths().unwrap().is_empty());
+					}
+					assert!(!from.read_bool().unwrap());
+					assert_eq!(from.read_u64().unwrap(), 1024);
+					for _ in 0..3 {
+						assert_eq!(from.read_u64().unwrap(), 0);
+					}
+					to.u64(STDERR_LAST)
+						.strings([expected.to_absolute_path().as_str()].into_iter())
+						.u64(99)
+						.u64(0);
+					to.flush().unwrap();
+					assert_eq!(from.read_u64().unwrap(), op::IS_VALID_PATH);
+					assert_eq!(from.read_store_path().unwrap(), expected);
+					to.u64(STDERR_LAST).bool(false);
+					to.flush().unwrap();
+				});
+				let mut options = GcOptions::new(if specific {
+					GcAction::DeleteSpecific
+				} else {
+					GcAction::DeleteDead
+				});
+				options.max_freed = 1024;
+				if specific {
+					options.paths = Some([path.clone()].into());
+					options.delete_referrers = feature;
+				}
+				assert_eq!(
+					store.collect_garbage(&options, &mut |_| {}).unwrap(),
+					GcResults {
+						paths: [path.to_absolute_path()].into(),
+						bytes_freed: 99
+					}
+				);
+				assert!(!store.is_valid_path(&path).unwrap());
+				worker.join().unwrap();
+			}
+		}
+	}
+
+	#[test]
+	fn rejects_specific_gc_without_the_negotiated_feature_before_sending_an_operation() {
+		let (store, mut daemon) = connected(&[]);
+		for action in [GcAction::DeleteDead, GcAction::DeleteSpecific] {
+			let mut options = GcOptions::new(action);
+			options.paths = Some(BTreeSet::new());
+			options.delete_referrers = true;
+			let error = store.collect_garbage(&options, &mut |_| {}).unwrap_err();
+			assert!(error.to_string().contains("Your daemon version is too old"));
+		}
+		daemon.set_nonblocking(true).unwrap();
+		assert_eq!(
+			daemon.read(&mut [0u8; 1]).unwrap_err().kind(),
+			io::ErrorKind::WouldBlock
+		);
+	}
 
 	#[test]
 	fn renders_derived_paths_as_cppnix_does() {

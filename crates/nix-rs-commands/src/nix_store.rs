@@ -5,6 +5,9 @@
 //! (`--include-outputs`), `--references`, `--referrers`,
 //! `--referrers-closure`, `--deriver`, `--valid-derivers`, `--binding`,
 //! `--hash` and `--size`, plus `--use-output` and `--force-realise`.
+//! Maintenance: `--gc` with live/dead/root listings and `--max-freed`,
+//! `--delete`, `--query --roots`, and `--optimise`/`--optimize`, locally
+//! or through the owning daemon.
 //! General flags: `--add-root`, `--indirect`, `--no-output`,
 //! `--no-gc-warning`, `--stdin` and settings flags. Other operations fail
 //! explicitly.
@@ -18,6 +21,7 @@ use std::process::ExitCode;
 use nix_compat::nixbase32;
 use nix_compat::nixcpp::settings::Settings;
 use nix_compat::store_path::StorePath;
+use nix_rs_store::gc::{GcAction, GcOptions, render_size};
 use nix_rs_store::{DerivedPath, Store};
 
 use crate::cli::{Failure, print_setting_warnings};
@@ -28,6 +32,9 @@ use crate::store;
 enum Operation {
 	Realise,
 	Query,
+	Gc,
+	Delete,
+	Optimise,
 }
 
 /// State of one `nix-store` invocation.
@@ -46,12 +53,8 @@ pub fn main(mut settings: Settings, args: Vec<String>) -> Result<ExitCode, Failu
 	if args
 		.iter()
 		.take_while(|arg| arg.as_str() != "--")
-		.any(|arg| {
-			matches!(
-				arg.as_str(),
-				"--gc" | "--delete" | "--dump" | "--verify" | "--optimise" | "--optimize"
-			)
-		}) {
+		.any(|arg| matches!(arg.as_str(), "--dump" | "--verify"))
+	{
 		let args = args.into_iter().map(|arg| {
 			if arg == "--optimize" {
 				"--optimise".into()
@@ -91,11 +94,13 @@ pub fn main(mut settings: Settings, args: Vec<String>) -> Result<ExitCode, Failu
 			}
 			"--realise" | "--realize" | "-r" => op = Some(Operation::Realise),
 			"--query" | "-q" => op = Some(Operation::Query),
+			"--gc" => op = Some(Operation::Gc),
+			"--delete" => op = Some(Operation::Delete),
+			"--optimise" | "--optimize" => op = Some(Operation::Optimise),
 			"--add"
 			| "-A"
 			| "--add-fixed"
 			| "--print-fixed-path"
-			| "--delete"
 			| "--print-env"
 			| "--read-log"
 			| "-l"
@@ -103,7 +108,6 @@ pub fn main(mut settings: Settings, args: Vec<String>) -> Result<ExitCode, Failu
 			| "--load-db"
 			| "--register-validity"
 			| "--check-validity"
-			| "--gc"
 			| "--dump"
 			| "--restore"
 			| "--export"
@@ -112,8 +116,6 @@ pub fn main(mut settings: Settings, args: Vec<String>) -> Result<ExitCode, Failu
 			| "--verify"
 			| "--verify-path"
 			| "--repair-path"
-			| "--optimise"
-			| "--optimize"
 			| "--serve"
 			| "--generate-binary-cache-key"
 			| "--help" => {
@@ -180,7 +182,20 @@ pub fn main(mut settings: Settings, args: Vec<String>) -> Result<ExitCode, Failu
 	let mut stdout = io::stdout().lock();
 	match op {
 		Operation::Realise => command.realise(&op_flags, &op_args, &mut stdout)?,
-		Operation::Query => command.query(&op_flags, op_args, &mut stdout)?,
+		Operation::Query => command.query(&op_flags, op_args, &settings, &mut stdout)?,
+		Operation::Gc | Operation::Delete => {
+			command.collect_garbage(op, &op_flags, &op_args, &settings, &mut stdout)?;
+		}
+		Operation::Optimise => {
+			if !op_flags.is_empty() || !op_args.is_empty() {
+				return Err(Failure::Usage("no arguments expected".into()));
+			}
+			command.store.optimise_store(&mut |message| {
+				if nix_compat::log::log_enabled(nix_compat::log::VerbosityLevel::Info) {
+					eprintln!("{message}");
+				}
+			})?;
+		}
 	}
 	Ok(ExitCode::SUCCESS)
 }
@@ -224,6 +239,97 @@ fn output_paths(
 }
 
 impl NixStore<'_> {
+	fn collect_garbage(
+		&self,
+		op: Operation,
+		flags: &[String],
+		args: &[String],
+		settings: &Settings,
+		stdout: &mut dyn Write,
+	) -> Result<(), Failure> {
+		let mut options = GcOptions::new(if op == Operation::Delete {
+			GcAction::DeleteSpecific
+		} else {
+			GcAction::DeleteDead
+		});
+		options.keep_outputs = settings.get_bool("keep-outputs", false);
+		options.keep_derivations = settings.get_bool("keep-derivations", true);
+		let mut print_roots = false;
+		let mut flags = flags.iter();
+		while let Some(flag) = flags.next() {
+			match (op, flag.as_str()) {
+				(Operation::Delete, "--ignore-liveness") => options.ignore_liveness = true,
+				(Operation::Delete, _) => {
+					return Err(Failure::Usage(format!("unknown flag '{flag}'")));
+				}
+				(_, "--print-roots") => print_roots = true,
+				(_, "--print-live") => options.action = GcAction::ReturnLive,
+				(_, "--print-dead") => options.action = GcAction::ReturnDead,
+				(_, "--max-freed") => {
+					let value = flags
+						.next()
+						.ok_or_else(|| Failure::Usage(format!("'{flag}' requires an argument")))?;
+					options.max_freed = crate::cli::parse_int_with_unit(value)
+						.map_err(Failure::Usage)?
+						.max(0) as u64;
+				}
+				_ => return Err(Failure::Usage(format!("bad sub-operation '{flag}' in GC"))),
+			}
+		}
+		if op == Operation::Delete {
+			options.paths = Some(
+				args.iter()
+					.map(|arg| self.follow_links(arg))
+					.collect::<Result<_, _>>()?,
+			);
+		} else if !args.is_empty() {
+			return Err(Failure::Usage("no arguments expected".into()));
+		}
+		if options.max_freed != u64::MAX
+			&& (matches!(options.action, GcAction::ReturnLive | GcAction::ReturnDead)
+				|| print_roots)
+		{
+			return Err(Failure::Usage("option --max-freed cannot be combined with --print-live, --print-dead, or --print-roots".into()));
+		}
+		let mut log = |message: &str| {
+			if nix_compat::log::log_enabled(nix_compat::log::VerbosityLevel::Info) {
+				eprintln!("{message}");
+			}
+		};
+		if print_roots {
+			let roots = self.store.find_roots(false, &mut log)?;
+			let mut sorted = BTreeSet::new();
+			for (path, links) in roots {
+				for link in links {
+					sorted.insert((link, path.clone()));
+				}
+			}
+			for (link, path) in sorted {
+				// C++ filesystem paths print quoted, escaping quotes and backslashes.
+				let link = link.replace('\\', "\\\\").replace('"', "\\\"");
+				writeln!(stdout, "\"{link}\" -> {}", path.to_absolute_path())?;
+			}
+		} else {
+			let result = self.store.collect_garbage(&options, &mut log);
+			// CppNix's finalizer prints the summary even if collection fails.
+			let results = result.as_ref().ok().cloned().unwrap_or_default();
+			if matches!(options.action, GcAction::ReturnLive | GcAction::ReturnDead) {
+				for path in results.paths {
+					writeln!(stdout, "{path}")?;
+				}
+			} else {
+				writeln!(
+					stdout,
+					"{} store paths deleted, {} freed",
+					results.paths.len(),
+					render_size(results.bytes_freed as i64, false)
+				)?;
+			}
+			result?;
+		}
+		Ok(())
+	}
+
 	fn follow_links(&self, arg: &str) -> Result<StorePath, Failure> {
 		crate::paths::follow_links_to_store_path(&self.cwd, arg)
 	}
@@ -411,6 +517,7 @@ impl NixStore<'_> {
 		&self,
 		flags: &[String],
 		mut args: Vec<String>,
+		settings: &Settings,
 		out: &mut dyn Write,
 	) -> Result<(), Failure> {
 		#[derive(Clone, Copy, PartialEq, Eq)]
@@ -425,6 +532,7 @@ impl NixStore<'_> {
 			Binding,
 			Hash,
 			Size,
+			Roots,
 		}
 		let mut query = None;
 		let mut use_output = false;
@@ -452,7 +560,8 @@ impl NixStore<'_> {
 				}
 				"--hash" => query = Some(Query::Hash),
 				"--size" => query = Some(Query::Size),
-				"--tree" | "--graph" | "--graphml" | "--resolve" | "--roots" => {
+				"--roots" => query = Some(Query::Roots),
+				"--tree" | "--graph" | "--graphml" | "--resolve" => {
 					return Err(Failure::Error(format!(
 						"nix-store --query {flag} is not supported by nix-rs yet"
 					)));
@@ -495,15 +604,41 @@ impl NixStore<'_> {
 					for path in self.maybe_use_outputs(path, use_output, force_realise)? {
 						match query {
 							Query::Requisites => {
-								paths.extend(self.closure(&path, false, include_outputs)?)
+								paths.extend(self.closure(&path, false, include_outputs, false)?)
 							}
 							Query::References => paths.extend(self.info(&path)?.references),
 							Query::Referrers => paths.extend(self.referrers(&path)?),
-							_ => paths.extend(self.closure(&path, true, false)?),
+							_ => paths.extend(self.closure(&path, true, false, false)?),
 						}
 					}
 				}
 				print_sorted(paths, out)?;
+			}
+			Query::Roots => {
+				let mut referrers = BTreeSet::new();
+				for arg in &args {
+					let path = self.follow_links(arg)?;
+					for path in self.maybe_use_outputs(path, use_output, force_realise)? {
+						referrers.extend(self.closure(
+							&path,
+							true,
+							settings.get_bool("keep-outputs", false),
+							settings.get_bool("keep-derivations", true),
+						)?);
+					}
+				}
+				let roots = self.store.find_roots(false, &mut |message| {
+					if nix_compat::log::log_enabled(nix_compat::log::VerbosityLevel::Info) {
+						eprintln!("{message}");
+					}
+				})?;
+				for (path, links) in roots {
+					if referrers.contains(&path) {
+						for link in links {
+							writeln!(out, "{link} -> {}", print(&path))?;
+						}
+					}
+				}
 			}
 			Query::Deriver => {
 				for arg in &args {
@@ -586,6 +721,7 @@ impl NixStore<'_> {
 		start: &StorePath,
 		flip: bool,
 		include_outputs: bool,
+		include_derivers: bool,
 	) -> Result<BTreeSet<StorePath>, Failure> {
 		let mut done = BTreeSet::new();
 		let mut pending = vec![start.clone()];
@@ -599,6 +735,16 @@ impl NixStore<'_> {
 				self.info(&path)?.references.into_iter().collect()
 			};
 			if include_outputs && !flip && path.name().ends_with(".drv") {
+				for output in self.store.query_derivation_outputs(&path)?.into_values() {
+					if self.store.is_valid_path(&output)? {
+						next.push(output);
+					}
+				}
+			}
+			if include_outputs && flip {
+				next.extend(self.valid_derivers(&path)?);
+			}
+			if include_derivers && flip && path.name().ends_with(".drv") {
 				for output in self.store.query_derivation_outputs(&path)?.into_values() {
 					if self.store.is_valid_path(&output)? {
 						next.push(output);

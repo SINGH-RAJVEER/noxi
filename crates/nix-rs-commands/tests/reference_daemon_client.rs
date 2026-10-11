@@ -47,6 +47,7 @@ fn nix_rs_bin(program: &str) -> &'static str {
 		"nix-env" => env!("CARGO_BIN_EXE_nix-env"),
 		"nix-instantiate" => env!("CARGO_BIN_EXE_nix-instantiate"),
 		"nix-store" => env!("CARGO_BIN_EXE_nix-store"),
+		"nix-collect-garbage" => env!("CARGO_BIN_EXE_nix-collect-garbage"),
 		_ => unreachable!(),
 	}
 }
@@ -117,6 +118,7 @@ impl Env {
   ok = derivation {{ name = "ok"; system = "x86_64-linux"; builder = "${{bb}}/bin/sh"; args = [ "-c" "echo building ok; printf 'tab\there\n'; echo $builder > $out" ]; }};
   fail = derivation {{ name = "fail"; system = "x86_64-linux"; builder = "${{bb}}/bin/sh"; args = [ "-c" "echo about to fail; exit 3" ]; }};
   text = builtins.toFile "note" "hello";
+	text2 = builtins.toFile "note2" "hello";
 }}"#,
 			env.busybox
 		);
@@ -189,25 +191,50 @@ impl Env {
 		);
 		let args: Vec<String> = args
 			.iter()
-			.map(|arg| arg.replace("{work}", &work.display().to_string()))
+			.map(|arg| {
+				arg.replace("{work}", &work.display().to_string()).replace(
+					"{state}",
+					&self.root(engine).join("nix/var/nix").display().to_string(),
+				)
+			})
+			.collect();
+		// Indirect root names hash absolute link paths, so separate copied
+		// stores have different names. Preserve each link's identity while
+		// normalizing its generated name, including links removed by GC.
+		let auto_roots: Vec<_> = fs::read_dir(self.root(engine).join("nix/var/nix/gcroots/auto"))
+			.into_iter()
+			.flatten()
+			.map(|entry| {
+				let path = entry.unwrap().path();
+				let target = fs::read_link(&path).unwrap();
+				(
+					path.display().to_string(),
+					format!("AUTO({})", target.display()),
+				)
+			})
 			.collect();
 		let output = self
 			.command(&executable)
 			.current_dir(&work)
+			.env("NIX_STATE_DIR", self.root(engine).join("nix/var/nix"))
 			.arg("--store")
 			.arg(&store)
 			.args(&args)
 			.output()
 			.unwrap();
-		format!(
-			"{}{}exit {:?}",
+		let mut result = format!(
+			"stdout:\n{}stderr:\n{}exit {:?}",
 			String::from_utf8_lossy(&output.stdout),
 			String::from_utf8_lossy(&output.stderr),
 			output.status.code()
-		)
-		.replace(&self.root(engine).display().to_string(), "ROOT")
-		.replace(&work.display().to_string(), "WORK")
-		.replace(&executable.display().to_string(), program)
+		);
+		for (path, target) in auto_roots {
+			result = result.replace(&path, &target);
+		}
+		result
+			.replace(&self.root(engine).display().to_string(), "ROOT")
+			.replace(&work.display().to_string(), "WORK")
+			.replace(&executable.display().to_string(), program)
 	}
 }
 
@@ -263,5 +290,132 @@ fn commands_work_through_the_reference_daemon() {
 		let work = env.dir.path().join(format!("work-{engine}"));
 		assert!(fs::read_link(work.join("result-ok")).is_ok());
 		assert!(fs::read_link(work.join("profile-1-link")).is_ok());
+	}
+}
+
+#[test]
+fn garbage_collection_works_through_both_daemons() {
+	let env = Env::new();
+	let busybox = env.busybox.as_str();
+	let cases: Vec<(&str, Vec<&str>)> = vec![
+		("nix-build", vec!["expr.nix", "-A", "ok", "-o", "result-ok"]),
+		(
+			"nix-instantiate",
+			vec!["expr.nix", "-A", "text", "--eval", "--read-write-mode"],
+		),
+		("nix-store", vec!["--gc", "--print-roots"]),
+		("nix-store", vec!["-q", "--roots", busybox]),
+		("nix-store", vec!["-q", "--roots", "{work}/result-ok"]),
+		("nix-store", vec!["--gc", "--print-live"]),
+		("nix-store", vec!["--gc", "--print-dead"]),
+		(
+			"nix-store",
+			vec!["--gc", "--print-dead", "--max-freed", "1K"],
+		),
+		(
+			"nix-store",
+			vec!["--gc", "--print-roots", "--max-freed", "1"],
+		),
+		("nix-store", vec!["--gc", busybox]),
+		("nix-store", vec!["--gc", "--unknown"]),
+		("nix-store", vec!["--delete", busybox]),
+		("nix-store", vec!["--delete", "--ignore-liveness", busybox]),
+		("nix-store", vec!["--delete"]),
+		(
+			"nix-env",
+			vec!["-p", "{state}/profiles/gc", "--set", busybox],
+		),
+		(
+			"nix-env",
+			vec!["-p", "{state}/profiles/gc", "--set", "{work}/result-ok"],
+		),
+		("nix-collect-garbage", vec!["--dry-run"]),
+		("nix-collect-garbage", vec!["-d", "--dry-run"]),
+		("nix-collect-garbage", vec!["-d"]),
+		("nix-store", vec!["--gc", "--max-freed", "1"]),
+		("nix-collect-garbage", vec!["--max-freed", "1"]),
+		("nix-collect-garbage", vec![]),
+		("nix-store", vec!["--gc", "--print-dead"]),
+	];
+	for (program, args) in cases {
+		let expected = env.run("reference", program, &args);
+		for engine in ["nix-rs", "pair"] {
+			assert_eq!(
+				env.run(engine, program, &args),
+				expected,
+				"{program} {args:?} through {engine}"
+			);
+		}
+	}
+	for engine in ["reference", "nix-rs", "pair"] {
+		assert!(
+			fs::symlink_metadata(env.root(engine).join("nix/var/nix/profiles/gc-1-link")).is_err()
+		);
+		assert!(
+			fs::symlink_metadata(env.root(engine).join("nix/var/nix/profiles/gc-2-link")).is_ok()
+		);
+		let store = nix_rs_store::LocalStore::open(nix_rs_store::LocalStoreConfig::with_root(
+			&env.root(engine),
+		))
+		.unwrap();
+		assert!(
+			store
+				.is_valid_path(
+					&nix_compat::store_path::StorePath::from_absolute_path(busybox.as_bytes())
+						.unwrap()
+				)
+				.unwrap()
+		);
+		let reference = env.run("reference", "nix-store", &["--gc", "--print-live"]);
+		assert_eq!(
+			env.run(engine, "nix-store", &["--gc", "--print-live"]),
+			reference
+		);
+	}
+}
+
+#[test]
+fn optimisation_works_through_both_daemons() {
+	use std::os::unix::fs::MetadataExt;
+	let env = Env::new();
+	let cases: Vec<(&str, Vec<&str>)> = vec![
+		(
+			"nix-instantiate",
+			vec!["expr.nix", "-A", "text", "--eval", "--read-write-mode"],
+		),
+		(
+			"nix-instantiate",
+			vec!["expr.nix", "-A", "text2", "--eval", "--read-write-mode"],
+		),
+		("nix-store", vec!["--optimise"]),
+		("nix-store", vec!["--optimize"]),
+		("nix-store", vec!["--optimise", "--quiet"]),
+		("nix-store", vec!["--optimise", "--unknown"]),
+		("nix-store", vec!["--optimise", "unexpected"]),
+	];
+	for (program, args) in cases {
+		let expected = env.run("reference", program, &args);
+		for engine in ["nix-rs", "pair"] {
+			assert_eq!(
+				env.run(engine, program, &args),
+				expected,
+				"{program} {args:?} through {engine}"
+			);
+		}
+	}
+	for engine in ["reference", "nix-rs", "pair"] {
+		let paths: Vec<_> = fs::read_dir(env.root(engine).join("nix/store"))
+			.unwrap()
+			.map(|entry| entry.unwrap().path())
+			.filter(|path| {
+				let name = path.file_name().unwrap().to_string_lossy();
+				name.ends_with("-note") || name.ends_with("-note2")
+			})
+			.collect();
+		assert_eq!(paths.len(), 2);
+		let first = fs::metadata(&paths[0]).unwrap();
+		let second = fs::metadata(&paths[1]).unwrap();
+		assert_eq!((first.dev(), first.ino()), (second.dev(), second.ino()));
+		assert_eq!(fs::read(&paths[0]).unwrap(), b"hello");
 	}
 }

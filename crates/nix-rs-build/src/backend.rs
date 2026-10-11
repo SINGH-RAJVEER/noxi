@@ -148,6 +148,26 @@ fn order_builds(
 }
 
 impl Store for LocalBackend {
+	fn optimise_store(&self, log: &mut dyn FnMut(&str)) -> Result<()> {
+		Store::optimise_store(&self.store, log)
+	}
+
+	fn find_roots(
+		&self,
+		censor: bool,
+		log: &mut dyn FnMut(&str),
+	) -> Result<nix_rs_store::gc::Roots> {
+		self.store.find_roots(censor, log)
+	}
+
+	fn collect_garbage(
+		&self,
+		options: &nix_rs_store::gc::GcOptions,
+		log: &mut dyn FnMut(&str),
+	) -> Result<nix_rs_store::gc::GcResults> {
+		self.store.collect_garbage(options, log)
+	}
+
 	fn real_path(&self, path: &StorePath) -> PathBuf {
 		self.store.real_path(path)
 	}
