@@ -15,6 +15,11 @@
 //! In the context of Nix builds, callers also use this interface to determine
 //! how store paths are opened and so on.
 
+use bstr::ByteSlice;
+use path_clean::PathClean;
+
+use crate::{NixString, Value};
+
 use std::{
 	ffi::{OsStr, OsString},
 	io,
@@ -89,8 +94,70 @@ pub trait EvalIO {
 		}
 	}
 
+	/// Read a symlink without resolving its target. Virtual filesystems can
+	/// override this when importing expressions through symbolic links.
+	fn read_link(&self, _path: &Path) -> io::Result<PathBuf> {
+		Err(io::ErrorKind::Unsupported.into())
+	}
+
+	/// Resolve the final symlink and select `default.nix` for a directory.
+	/// Ancestor symlinks remain in the expression's lexical path, matching
+	/// CppNix's `resolveExprPath` and its relative path semantics.
+	fn resolve_import_path(&self, path: &Path) -> io::Result<PathBuf> {
+		let mut resolved = path.to_owned().clean();
+		let mut follow_count = 0;
+		while let Some(parent) = resolved.parent() {
+			follow_count += 1;
+			if follow_count >= 1024 {
+				return Err(io::Error::other(format!(
+					"too many symbolic links encountered while traversing the path '{}'",
+					resolved.display()
+				)));
+			}
+			let physical = self
+				.canonicalize(parent)?
+				.join(resolved.file_name().unwrap());
+			if !matches!(self.file_type(&physical)?, FileType::Symlink) {
+				break;
+			}
+			resolved = parent.join(self.read_link(&physical)?).clean();
+		}
+		// canonicalize also rejects a remaining cycle or an excessive chain.
+		let real = self.canonicalize(&resolved)?;
+		if matches!(self.file_type(&real)?, FileType::Directory) {
+			resolved.push("default.nix");
+		}
+		Ok(resolved)
+	}
+
+	/// Realize the dependencies of a path string before filesystem access.
+	/// Store integrations build requested outputs and rewrite placeholders.
+	fn realise_path(&self, path: &NixString) -> io::Result<PathBuf> {
+		Ok(path.to_path().map_err(io::Error::other)?.to_owned())
+	}
+
+	/// Read a registered store derivation as its raw import attributes:
+	/// `drvPath`, `name`, `outputs`, and each output's contextual string.
+	/// `None` leaves the path to ordinary Nix expression import.
+	fn import_derivation(&self, _path: &Path) -> io::Result<Option<Value>> {
+		Ok(None)
+	}
+
 	/// Open the file at the specified path to a `io::Read`.
 	fn open(&self, path: &Path) -> io::Result<Box<dyn io::Read>>;
+
+	/// Read a Nix string, retaining references that occur in a stored file.
+	fn read_file(&self, path: &Path) -> io::Result<NixString> {
+		let mut bytes = Vec::new();
+		self.open(path)?.read_to_end(&mut bytes)?;
+		if bytes.contains(&0) {
+			return Err(io::Error::other(format!(
+				"the contents of the file '{}' cannot be represented as a Nix string",
+				path.display()
+			)));
+		}
+		Ok(NixString::from(bytes))
+	}
 
 	/// Return the [FileType] of the given path, or an error if it doesn't
 	/// exist.
@@ -145,6 +212,10 @@ impl EvalIO for StdIO {
 
 	fn canonicalize(&self, path: &Path) -> io::Result<PathBuf> {
 		std::fs::canonicalize(path)
+	}
+
+	fn read_link(&self, path: &Path) -> io::Result<PathBuf> {
+		std::fs::read_link(path)
 	}
 
 	fn open(&self, path: &Path) -> io::Result<Box<dyn io::Read>> {

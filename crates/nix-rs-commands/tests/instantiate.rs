@@ -226,14 +226,129 @@ fn sequencing_matches_the_reference() {
 	}
 }
 
-/// The command, kept away from the host's store: its daemon socket and
-/// `NIX_REMOTE` point nowhere, so a store-less instantiation fails rather
-/// than writing to the system store.
+#[test]
+fn scoped_import_matches_the_reference() {
+	let dir = tempfile::tempdir().unwrap();
+	fs::create_dir(dir.path().join("nested")).unwrap();
+	fs::write(
+		dir.path().join("nested/default.nix"),
+		r#"[ x (f 5) (import ./child.nix) ]"#,
+	)
+	.unwrap();
+	fs::write(dir.path().join("nested/child.nix"), "7").unwrap();
+	fs::write(
+		dir.path().join("shadow.nix"),
+		"[ builtins.x true null import ]",
+	)
+	.unwrap();
+	fs::write(dir.path().join("memo.nix"), r#"builtins.trace "scoped" x"#).unwrap();
+	fs::write(
+		dir.path().join("plain.nix"),
+		r#"builtins.trace "ordinary" 3"#,
+	)
+	.unwrap();
+	fs::write(dir.path().join("empty.nix"), "1").unwrap();
+	fs::write(dir.path().join("nested/base.nix"), "./.").unwrap();
+	symlink("nested/base.nix", dir.path().join("file-link.nix")).unwrap();
+	symlink("nested", dir.path().join("dir-link")).unwrap();
+	symlink("file-link.nix", dir.path().join("chain.nix")).unwrap();
+	symlink("plain.nix", dir.path().join("plain-link.nix")).unwrap();
+	fs::create_dir(dir.path().join("default-link")).unwrap();
+	symlink(
+		"../nested/base.nix",
+		dir.path().join("default-link/default.nix"),
+	)
+	.unwrap();
+	let reference = reference_instantiate();
+	let candidate = Path::new(env!("CARGO_BIN_EXE_nix-instantiate"));
+	for expression in [
+		r#"[ (import ./file-link.nix) (import ./chain.nix) (import ./dir-link/base.nix) (import ./default-link) ]"#,
+		r#"[ (scopedImport {} ./file-link.nix) (scopedImport {} ./chain.nix) (scopedImport {} ./dir-link/base.nix) (scopedImport {} ./default-link) ]"#,
+		r#"[ (import ./plain.nix) (import ./plain-link.nix) ]"#,
+		r#"scopedImport { x = 4; f = v: v + 1; } ./dir-link"#,
+		r#"scopedImport { x = 4; f = v: v + 1; unused = throw "unused"; } ./nested"#,
+		r#"builtins.scopedImport { x = 4; f = v: v + 1; } ./nested/default.nix"#,
+		r#"scopedImport { builtins = { x = 9; }; true = 10; null = 11; import = 12; } ./shadow.nix"#,
+		r#"[ (scopedImport { x = 1; } ./memo.nix) (scopedImport { x = 2; } ./memo.nix) ]"#,
+		r#"[ (import ./plain.nix) (import ./plain.nix) ]"#,
+		r#"scopedImport (builtins.trace "scope" {}) (builtins.trace "path" ./empty.nix)"#,
+		r#"builtins.tryEval (scopedImport (throw "unused scope") (throw "path"))"#,
+	] {
+		let expected = message_evaluation(&reference, dir.path(), expression, "", &[], "");
+		let actual = message_evaluation(candidate, dir.path(), expression, "", &[], "");
+		assert!(
+			expected.status.success(),
+			"reference {expression}: {:?}",
+			expected
+		);
+		assert_eq!(
+			(actual.status.code(), actual.stdout, actual.stderr),
+			(expected.status.code(), expected.stdout, expected.stderr),
+			"{expression}"
+		);
+	}
+}
+
+#[test]
+fn mapped_store_imports_match_the_reference() {
+	let source = tempfile::tempdir().unwrap();
+	let directory = source.path().join("expression");
+	fs::create_dir(&directory).unwrap();
+	fs::write(directory.join("default.nix"), "import ./child.nix").unwrap();
+	fs::write(directory.join("child.nix"), "[ 17 ./. ]").unwrap();
+	fs::write(directory.join("scope.nix"), "x + import ./value.nix").unwrap();
+	fs::write(directory.join("value.nix"), "4").unwrap();
+	symlink("child.nix", directory.join("link.nix")).unwrap();
+	let reference_root = tempfile::tempdir().unwrap();
+	let candidate_root = tempfile::tempdir().unwrap();
+	let reference = reference_instantiate();
+	let candidate = Path::new(env!("CARGO_BIN_EXE_nix-instantiate"));
+	for expression in [
+		r#"let p = builtins.path { path = ./expression; }; in import p"#,
+		r#"let p = builtins.path { path = ./expression; }; in import "${p}/link.nix""#,
+		r#"let p = builtins.path { path = ./expression; }; in scopedImport { x = 8; } "${p}/scope.nix""#,
+	] {
+		let run = |program: &Path, root: &Path| {
+			Command::new(program)
+				.env_clear()
+				.env("HOME", source.path())
+				.env("NIX_CONF_DIR", source.path())
+				.env("NIX_USER_CONF_FILES", "")
+				.env("NIX_PATH", "")
+				.current_dir(source.path())
+				.args([
+					"--store",
+					&format!("local?root={}", root.display()),
+					"--read-write-mode",
+					"--eval",
+					"--strict",
+					"--expr",
+					expression,
+				])
+				.output()
+				.unwrap()
+		};
+		let expected = run(&reference, reference_root.path());
+		let actual = run(candidate, candidate_root.path());
+		assert!(
+			expected.status.success(),
+			"reference {expression}: {expected:?}"
+		);
+		assert_eq!(
+			(actual.status.code(), actual.stdout, actual.stderr),
+			(expected.status.code(), expected.stdout, expected.stderr),
+			"{expression}"
+		);
+	}
+}
+
+/// Compute-only tests use the dummy store. Explicit local-store tests use
+/// disposable roots, and an explicitly selected daemon points nowhere.
 fn nix_instantiate() -> Command {
 	let mut command = Command::new(env!("CARGO_BIN_EXE_nix-instantiate"));
 	command
 		.env("NIX_DAEMON_SOCKET_PATH", "/nonexistent/nix-rs-test.sock")
-		.env("NIX_REMOTE", "unix:///nonexistent/nix-rs-test.sock");
+		.env("NIX_REMOTE", "dummy://");
 	command
 }
 
@@ -299,7 +414,7 @@ fn instantiation_registers_drv_bytes_in_a_diverted_store() {
 }
 
 #[test]
-fn evaluation_writes_only_with_read_write_mode() {
+fn evaluation_registers_paths_only_with_read_write_mode() {
 	let root = tempfile::tempdir().unwrap();
 	let uri = format!("local?root={}", root.path().display());
 	let mut command = nix_instantiate();
@@ -312,7 +427,13 @@ fn evaluation_writes_only_with_read_write_mode() {
 	]);
 	let readonly = command.output().unwrap();
 	assert!(readonly.status.success());
-	assert!(!root.path().join("nix").exists());
+	assert!(root.path().join("nix/var/nix/db/db.sqlite").exists());
+	assert!(
+		!root
+			.path()
+			.join("nix/store/lfngsssysp6h1v4ccqg23c52s9sjl779-x")
+			.exists()
+	);
 	let writable = command.arg("--read-write-mode").output().unwrap();
 	assert!(
 		writable.status.success(),
@@ -331,39 +452,86 @@ fn evaluation_writes_only_with_read_write_mode() {
 }
 
 #[test]
-fn readonly_store_selection_maps_files_without_opening_or_mutating_the_store() {
+fn readonly_store_selection_matches_reference_initialization_without_registering_values() {
 	let root = tempfile::tempdir().unwrap();
+	let reference_root = tempfile::tempdir().unwrap();
 	let logical = "/nix/store/00000000000000000000000000000000-fixture";
 	let physical_store = root.path().join("nix/store");
 	fs::create_dir_all(&physical_store).unwrap();
 	let fixture = physical_store.join("00000000000000000000000000000000-fixture");
 	fs::write(&fixture, "diverted fixture").unwrap();
+	let reference_fixture = reference_root
+		.path()
+		.join("nix/store/00000000000000000000000000000000-fixture");
+	fs::create_dir_all(reference_fixture.parent().unwrap()).unwrap();
+	fs::write(&reference_fixture, "diverted fixture").unwrap();
 	let before = fs::metadata(&fixture).unwrap();
 	let expr = format!(
 		r#"builtins.seq (builtins.toFile "not-written" "text") (builtins.seq ((derivation {{ name = "not-written"; system = "x"; builder = "/bin/sh"; }}).drvPath) (builtins.readFile "{logical}"))"#
 	);
 	let uri = format!("local?root={}", root.path().display());
-	for (expr, expected) in [
-		(expr, "\"diverted fixture\"\n"),
-		(format!(r#"builtins.pathExists "{logical}""#), "true\n"),
+	for (expr, expected, status) in [
+		("1".to_owned(), "1\n", 0),
+		(expr, "\"diverted fixture\"\n", 0),
+		(format!(r#"builtins.pathExists "{logical}""#), "true\n", 0),
 		(
 			"builtins.attrNames (builtins.readDir \"/nix/store\")".to_owned(),
-			"[ \"00000000000000000000000000000000-fixture\" ]\n",
+			"",
+			1,
 		),
 	] {
 		let output = nix_instantiate()
 			.args(["--store", &uri, "--eval", "--strict", "-E", &expr])
 			.output()
 			.unwrap();
-		assert!(
-			output.status.success(),
-			"{}",
-			String::from_utf8_lossy(&output.stderr)
-		);
+		assert_eq!(output.status.code(), Some(status), "{output:?}");
+		let reference = Command::new(reference_instantiate())
+			.env_clear()
+			.env("HOME", reference_root.path())
+			.env("NIX_CONF_DIR", reference_root.path())
+			.env("NIX_USER_CONF_FILES", "")
+			.env("NIX_CONFIG", "build-users-group =\nsubstituters =\n")
+			.args([
+				"--store",
+				&format!("local?root={}", reference_root.path().display()),
+				"--eval",
+				"--strict",
+				"-E",
+				&expr,
+			])
+			.output()
+			.unwrap();
+		assert_eq!(reference.status.code(), Some(status), "{reference:?}");
+		assert_eq!(&output.stdout, &reference.stdout);
+		if status == 0 {
+			assert_eq!(&output.stderr, &reference.stderr);
+		} else {
+			assert!(
+				String::from_utf8_lossy(&output.stderr)
+					.contains("path '/' is not a valid store path")
+			);
+			assert!(
+				String::from_utf8_lossy(&reference.stderr)
+					.contains("path '/' is not a valid store path")
+			);
+		}
 		assert_eq!(output.stdout, expected.as_bytes());
+		assert!(root.path().join("nix/var/nix/db/db.sqlite").exists());
+		assert!(
+			reference_root
+				.path()
+				.join("nix/var/nix/db/db.sqlite")
+				.exists()
+		);
 	}
-	assert!(!root.path().join("nix/var").exists());
-	assert_eq!(fs::read_dir(&physical_store).unwrap().count(), 1);
+	assert!(root.path().join("nix/var/nix/db/db.sqlite").exists());
+	assert!(
+		reference_root
+			.path()
+			.join("nix/var/nix/db/db.sqlite")
+			.exists()
+	);
+	assert_eq!(fs::read_dir(&physical_store).unwrap().count(), 2);
 	assert_eq!(fs::read(&fixture).unwrap(), b"diverted fixture");
 	let after = fs::metadata(&fixture).unwrap();
 	assert_eq!(before.permissions().mode(), after.permissions().mode());

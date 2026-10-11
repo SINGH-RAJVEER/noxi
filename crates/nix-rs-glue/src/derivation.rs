@@ -88,7 +88,7 @@ fn populate_inputs(
 			// path in it must already be there.
 			NixContextElement::Derivation(drv_path) => {
 				let drv_path = parse_store_path(drv_path)?;
-				if known_paths.get_drv_by_drvpath(&drv_path.as_ref()).is_none() {
+				if known_paths.get_unverified_drv(&drv_path.as_ref()).is_none() {
 					return Err(DerivationError::UnknownDerivation(
 						drv_path.to_absolute_path(),
 					));
@@ -108,7 +108,7 @@ fn populate_inputs(
 					}
 				}
 				for path in closure {
-					if let Some(input) = known_paths.get_drv_by_drvpath(&path.as_ref()) {
+					if let Some(input) = known_paths.get_unverified_drv(&path.as_ref()) {
 						let names = input.outputs().names().cloned();
 						match drv.input_derivations.entry(path.clone()) {
 							btree_map::Entry::Vacant(entry) => {
@@ -381,6 +381,12 @@ pub(crate) mod derivation_builtins {
 			);
 		}
 
+		state
+			.load_context(&input_context)
+			.map_err(|error| ErrorKind::IO {
+				path: None,
+				error: Rc::new(error),
+			})?;
 		let mut known_paths = state.known_paths();
 		populate_inputs(&mut drv, input_context, &known_paths, &state)?;
 

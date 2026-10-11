@@ -249,40 +249,19 @@ impl Frame {
 	}
 }
 
+/// Values indexed by the expression path resolved through `EvalIO`.
+/// Only final symlinks are resolved: ancestor aliases can have distinct
+/// relative path semantics, and must not share an evaluation result.
 #[derive(Default)]
-/// The `ImportCache` holds the `Value` resulting from `import`ing a certain
-/// file, so that the same file doesn't need to be re-evaluated multiple times.
-/// Currently the real path of the imported file (determined using
-/// [`std::fs::canonicalize()`], not to be confused with our
-/// [`crate::value::canon_path()`]) is used to identify the file,
-/// just like C++ Nix does.
-///
-/// Errors while determining the real path are currently just ignored, since we
-/// pass around some fake paths like `/__corepkgs__/fetchurl.nix`.
-///
-/// In the future, we could use something more sophisticated, like file hashes.
-/// However, a consideration is that the eval cache is observable via impurities
-/// like pointer equality and `builtins.trace`.
 struct ImportCache(FxHashMap<PathBuf, Value>);
 
 impl ImportCache {
 	fn get(&self, path: impl AsRef<Path>) -> Option<&Value> {
-		let path = path.as_ref();
-		let path = match std::fs::canonicalize(path).map_err(ErrorKind::from) {
-			Ok(path) => path,
-			Err(_) => path.to_owned(),
-		};
-		self.0.get(&path)
+		self.0.get(path.as_ref())
 	}
 
 	fn insert(&mut self, path: PathBuf, value: Value) -> Option<Value> {
-		self.0.insert(
-			match std::fs::canonicalize(path.as_path()).map_err(ErrorKind::from) {
-				Ok(path) => path,
-				Err(_) => path,
-			},
-			value,
-		)
+		self.0.insert(path, value)
 	}
 }
 
@@ -323,6 +302,9 @@ struct VM<'o, IO> {
 	/// they compile to. Note that this reuses thunks, too!
 	// TODO: should probably be based on a file hash
 	pub import_cache: ImportCache,
+
+	/// Ordinary imports keep their resolved path even if a symlink changes.
+	import_resolution_cache: FxHashMap<PathBuf, PathBuf>,
 
 	/// Path import cache, mapping absolute file paths to paths in the store.
 	// TODO: should probably be based on a file hash
@@ -415,6 +397,7 @@ where
 			with_stack: vec![],
 			warnings: vec![],
 			import_cache: Default::default(),
+			import_resolution_cache: Default::default(),
 			path_import_cache: Default::default(),
 			try_eval_frames: vec![],
 			call_depth: 0,

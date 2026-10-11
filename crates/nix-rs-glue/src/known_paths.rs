@@ -7,7 +7,7 @@
 use std::collections::{BTreeSet, HashMap};
 
 use nix_compat::derivation::{
-	Derivation, DerivationError, DrvHashModulo, HashDerivationModuloLookup,
+	Derivation, DerivationError, DrvHashModulo, HashDerivationModuloLookup, UnverifiedDerivation,
 };
 use nix_compat::store_path::{StorePath, StorePathRef};
 
@@ -16,6 +16,7 @@ use nix_compat::store_path::{StorePath, StorePathRef};
 pub struct KnownPaths {
 	/// Derivations by their `.drv` path, with their hash derivation modulo.
 	derivations: HashMap<StorePath, (DrvHashModulo, Derivation)>,
+	imported_derivations: HashMap<StorePath, (DrvHashModulo, UnverifiedDerivation)>,
 
 	/// The references of text files written by `builtins.toFile`, which
 	/// the closure of a derivation that depends on them has to include.
@@ -28,6 +29,29 @@ impl KnownPaths {
 		self.derivations
 			.get(&drv_path.to_owned())
 			.map(|(_, derivation)| derivation)
+	}
+
+	/// Return data for a local or previously registered derivation.
+	pub fn get_unverified_drv(&self, path: &StorePathRef) -> Option<&UnverifiedDerivation> {
+		self.get_drv_by_drvpath(path)
+			.map(Derivation::as_unverified)
+			.or_else(|| {
+				self.imported_derivations
+					.get(&path.to_owned())
+					.map(|(_, drv)| drv)
+			})
+	}
+
+	/// Cache an existing store derivation without revalidating its output
+	/// paths, matching the reference store's derivation reader.
+	pub fn add_imported_derivation(
+		&mut self,
+		path: StorePath,
+		drv: UnverifiedDerivation,
+	) -> Result<(), DerivationError> {
+		let hash = drv.hash_derivation_modulo(&*self)?;
+		self.imported_derivations.insert(path, (hash, drv));
+		Ok(())
 	}
 
 	/// Insert a derivation whose inputs are all already known.
@@ -48,7 +72,10 @@ impl KnownPaths {
 	/// text file to the paths in its context. Anything else, such as an
 	/// imported source, has none.
 	fn references(&self, path: &StorePath) -> BTreeSet<StorePath> {
-		if let Some((_, drv)) = self.derivations.get(path) {
+		if let Some(references) = self.text_references.get(path) {
+			return references.clone();
+		}
+		if let Some(drv) = self.get_unverified_drv(&path.as_ref()) {
 			drv.input_sources()
 				.iter()
 				.chain(drv.input_derivations().keys())
@@ -77,5 +104,10 @@ impl HashDerivationModuloLookup for &KnownPaths {
 		self.derivations
 			.get(&drv_path.to_owned())
 			.map(|(hash_derivation_modulo, _)| hash_derivation_modulo.clone())
+			.or_else(|| {
+				self.imported_derivations
+					.get(&drv_path.to_owned())
+					.map(|(hash, _)| hash.clone())
+			})
 	}
 }

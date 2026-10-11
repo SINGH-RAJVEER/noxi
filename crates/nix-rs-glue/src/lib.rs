@@ -2,8 +2,9 @@
 //!
 //! [`configure`] adds CppNix 2.35.2-compatible store builtins. The default
 //! [`EvaluatorStore`] computes paths without writing; explicitly diverted
-//! writable stores also register text, sources and derivations. Neither
-//! mode builds outputs or fetches sources. Derived from
+//! writable stores also register text, sources and derivations. A configured
+//! owner can build requested output contexts during writable evaluation.
+//! Fetching remains unavailable. Derived from
 //! Snix's `glue` and `build-glue` crates; see `PROVENANCE.md` in
 //! `crates/nix-rs/`.
 
@@ -29,7 +30,10 @@ pub fn configure<'co, 'ro, 'env>(
 	builder: EvaluationBuilder<'co, 'ro, 'env, Box<dyn EvalIO>>,
 	store: Rc<EvaluatorStore>,
 ) -> EvaluationBuilder<'co, 'ro, 'env, Box<dyn EvalIO>> {
-	let builder = builder.enable_impure(Some(Box::new(StoreIO::new(Rc::clone(&store)))));
+	let ca_derivations = builder.experimental_feature_enabled("ca-derivations");
+	let builder = builder.enable_impure(Some(Box::new(
+		StoreIO::new(Rc::clone(&store)).with_ca_derivations(ca_derivations),
+	)));
 	// `fetchTree` exists only with the `fetch-tree` experimental feature,
 	// which `flakes` implies.
 	let fetch_tree = builder.experimental_feature_enabled("fetch-tree");

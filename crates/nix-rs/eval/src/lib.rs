@@ -585,7 +585,7 @@ where
 			&mut result,
 			&code,
 			file,
-			location,
+			location.and_then(|path| path.parent().map(PathBuf::from)),
 			source,
 			self.globals,
 			self.env,
@@ -599,7 +599,10 @@ where
 	/// code (i.e. path to the file it was read from; used for error reporting,
 	/// and for resolving relative paths in impure functions)
 	pub fn evaluate(self, code: impl AsRef<str>, location: Option<PathBuf>) -> EvaluationResult {
-		self.evaluate_at(code, location.clone(), location)
+		let base = location
+			.as_ref()
+			.and_then(|path| path.parent().map(PathBuf::from));
+		self.evaluate_at(code, location, base)
 	}
 
 	/// Evaluate source code that was not read from a file, such as a

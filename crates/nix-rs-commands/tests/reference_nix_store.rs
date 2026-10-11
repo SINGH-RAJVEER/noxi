@@ -420,3 +420,370 @@ fn reports_failed_builds_like_cppnix() {
 	let drv = env.same_with("nix-instantiate", &[file, "-A", "fails", "--no-gc-warning"]);
 	env.same(&["-r", drv.trim()]);
 }
+
+#[test]
+fn imports_registered_derivations_like_cppnix() {
+	let env = Env::new();
+	let drv = env.instantiate(
+		r#"let
+		leaf = builtins.toFile "leaf" "first";
+		source = builtins.toFile "source" leaf;
+		dep = derivation { name = "imported-dependency"; system = "x86_64-linux"; builder = "/bin/sh"; };
+	in derivation {
+		name = "imported"; system = "x86_64-linux"; builder = "/bin/sh";
+		outputs = [ "out" "dev" ]; input = dep; inherit source;
+	}"#,
+	);
+	for import in [
+		format!("import {drv}"),
+		format!("scopedImport (abort \"unused scope\") {drv}"),
+	] {
+		let expression = format!(
+			r#"let d = {import}; in {{
+			inherit (d) name type outputName drvPath; path = d.outPath;
+			keys = builtins.attrNames d;
+			all = map (o: {{ inherit (o) outputName; path = o.outPath; }}) d.all;
+			outContext = builtins.getContext d.out.outPath;
+			drvContext = builtins.getContext d.drvPath;
+			recursive = d.dev.all == d.all;
+		}}"#
+		);
+		let json = env.same_with(
+			"nix-instantiate",
+			&["--eval", "--strict", "--json", "-E", &expression],
+		);
+		let value: serde_json::Value = serde_json::from_str(&json).unwrap();
+		assert_eq!(value["outputName"], "dev");
+		assert_eq!(value["recursive"], true);
+	}
+	env.same_with(
+		"nix-instantiate",
+		&["-E", &format!("import {drv}"), "--no-gc-warning"],
+	);
+	for dependency in ["d.out", "d.drvPath"] {
+		let expression = format!(
+			r#"let d = import {drv}; in (derivation {{
+			name = "consumer"; system = "x86_64-linux"; builder = "/bin/sh";
+			src = {dependency};
+		}}).drvPath"#
+		);
+		let json = env.same_with(
+			"nix-instantiate",
+			&["--eval", "--strict", "--json", "-E", &expression],
+		);
+		assert!(json.contains("consumer.drv"));
+		env.same_with(
+			"nix-instantiate",
+			&["-E", &expression, "--eval", "--read-write-mode"],
+		);
+	}
+}
+
+#[test]
+fn realizes_import_contexts_like_cppnix() {
+	let env = Env::new();
+	let expression = format!(
+		r#"let
+		bb = builtins.storePath {};
+		d = derivation {{ name = "import-expression"; system = "x86_64-linux";
+			builder = "${{bb}}/bin/sh"; args = [ "-c" "echo '{{ answer = 42; }}' > $out" ];
+		}};
+	in import d"#,
+		env.busybox
+	);
+	let json = env.same_with(
+		"nix-instantiate",
+		&["--eval", "--read-write-mode", "--json", "-E", &expression],
+	);
+	assert_eq!(
+		serde_json::from_str::<serde_json::Value>(&json).unwrap()["answer"],
+		42
+	);
+	// Reuse the valid output; neither engine should log another build.
+	env.same_with(
+		"nix-instantiate",
+		&["--eval", "--read-write-mode", "--json", "-E", &expression],
+	);
+
+	let drv = env.instantiate(
+		r#"let bb = builtins.storePath @busybox@; in derivation {
+		name = "registered-ifd"; system = "x86_64-linux"; builder = "${bb}/bin/sh";
+		args = [ "-c" "echo 23 > $out" ];
+	}"#,
+	);
+	let imported = format!("import (import {drv})");
+	for engine in ENGINES {
+		let result = env.run(
+			engine,
+			"nix-instantiate",
+			&[
+				"--store",
+				&env.store(engine),
+				"--eval",
+				"--strict",
+				"-E",
+				&imported,
+			],
+			None,
+		);
+		assert_eq!(result.status.code(), Some(1), "{engine}: {result:?}");
+		assert!(
+			String::from_utf8_lossy(&result.stderr).contains("no write access to the Nix store")
+		);
+	}
+	let value = env.same_with(
+		"nix-instantiate",
+		&["--eval", "--read-write-mode", "--strict", "-E", &imported],
+	);
+	assert_eq!(value, "23\n");
+	// Read-only evaluation may reuse an already valid output.
+	assert_eq!(
+		env.same_with("nix-instantiate", &["--eval", "--strict", "-E", &imported]),
+		"23\n"
+	);
+	for flags in [
+		vec![],
+		vec!["--abort-on-warn"],
+		vec!["--quiet", "--quiet", "--quiet"],
+	] {
+		let mut args = vec![
+			"--eval",
+			"--strict",
+			"--option",
+			"trace-import-from-derivation",
+			"true",
+			"-E",
+			&imported,
+		];
+		args.extend(flags);
+		assert_eq!(env.same_with("nix-instantiate", &args), "23\n");
+	}
+	let file = format!("builtins.readFile (import {drv})");
+	assert_eq!(
+		env.same_with("nix-instantiate", &["--eval", "--json", "-E", &file]),
+		"\"23\\n\"\n"
+	);
+
+	let multi = format!(
+		r#"let
+		bb = builtins.storePath {};
+		d = derivation {{ name = "multi-ifd"; system = "x86_64-linux"; outputs = [ "out" "dev" ];
+			builder = "${{bb}}/bin/sh"; args = [ "-c" "echo 31 > $out; echo 32 > $dev" ];
+		}};
+		p = builtins.appendContext d.outPath (builtins.getContext d.dev.outPath);
+	in import p"#,
+		env.busybox
+	);
+	assert_eq!(
+		env.same_with(
+			"nix-instantiate",
+			&[
+				"--eval",
+				"--read-write-mode",
+				"--strict",
+				"--option",
+				"trace-import-from-derivation",
+				"true",
+				"-E",
+				&multi
+			]
+		),
+		"31\n"
+	);
+
+	let blocked = env.instantiate(
+		r#"let bb = builtins.storePath @busybox@; in derivation {
+		name = "blocked-ifd"; system = "x86_64-linux"; builder = "${bb}/bin/sh";
+		args = [ "-c" "echo 1 > $out" ];
+	}"#,
+	);
+	for engine in ENGINES {
+		let output = env.run(
+			engine,
+			"nix-instantiate",
+			&[
+				"--store",
+				&env.store(engine),
+				"--eval",
+				"-E",
+				&format!("import (import {blocked})"),
+				"--option",
+				"allow-import-from-derivation",
+				"false",
+			],
+			None,
+		);
+		assert_eq!(output.status.code(), Some(1), "{engine}: {output:?}");
+		assert!(
+			String::from_utf8_lossy(&output.stderr)
+				.contains("allow-import-from-derivation' is disabled")
+		);
+		let out = env.run(
+			"reference",
+			"nix-store",
+			&[
+				"--store",
+				&env.store(engine),
+				"--query",
+				"--outputs",
+				&blocked,
+			],
+			None,
+		);
+		assert!(out.status.success());
+		let out = String::from_utf8(out.stdout).unwrap();
+		assert!(
+			!env.root(engine)
+				.join(out.trim().trim_start_matches('/'))
+				.exists()
+		);
+	}
+}
+
+#[test]
+fn imports_deferred_drv_outputs_with_the_reference_gate() {
+	let env = Env::new();
+	let bytes = r#"Derive([("out","","","")],[],[],"x","/bin/sh",[],[("name","deferred")])"#;
+	let seed = format!(
+		"builtins.toFile \"deferred.drv\" {}",
+		serde_json::to_string(bytes).unwrap()
+	);
+	let mut drv = None;
+	for engine in ENGINES {
+		let result = env.run(
+			"reference",
+			"nix-instantiate",
+			&[
+				"--store",
+				&env.store(engine),
+				"--eval",
+				"--read-write-mode",
+				"--raw",
+				"-E",
+				&seed,
+			],
+			None,
+		);
+		assert!(result.status.success(), "{result:?}");
+		let path = String::from_utf8(result.stdout).unwrap();
+		assert!(drv.as_ref().is_none_or(|old| old == &path));
+		drv = Some(path);
+	}
+	let expression = format!("(import {}).outPath", drv.unwrap().trim());
+	for engine in ENGINES {
+		let result = env.run(
+			engine,
+			"nix-instantiate",
+			&["--store", &env.store(engine), "--eval", "-E", &expression],
+			None,
+		);
+		assert_eq!(result.status.code(), Some(1), "{engine}: {result:?}");
+		assert!(String::from_utf8_lossy(&result.stderr).contains("ca-derivations' is disabled"));
+	}
+	let value = env.same_with(
+		"nix-instantiate",
+		&[
+			"--eval",
+			"--strict",
+			"--json",
+			"--extra-experimental-features",
+			"ca-derivations",
+			"-E",
+			&expression,
+		],
+	);
+	assert!(
+		serde_json::from_str::<String>(&value)
+			.unwrap()
+			.starts_with('/')
+	);
+}
+
+#[test]
+fn reads_store_file_contexts_like_cppnix() {
+	let env = Env::new();
+	let expression = r#"let
+		a = builtins.toFile "a" "present";
+		b = builtins.toFile "b" "absent";
+		doc = builtins.toFile "document" (a + builtins.substring 0 0 b);
+	in builtins.getContext (builtins.readFile doc)"#;
+	let value = env.same_with(
+		"nix-instantiate",
+		&[
+			"--eval",
+			"--read-write-mode",
+			"--strict",
+			"--json",
+			"-E",
+			expression,
+		],
+	);
+	assert_eq!(
+		serde_json::from_str::<serde_json::Value>(&value)
+			.unwrap()
+			.as_object()
+			.unwrap()
+			.len(),
+		1
+	);
+	let file = env.dir.path().join("binary-string");
+	fs::write(&file, b"cannot\0read").unwrap();
+	let expression = format!("builtins.tryEval (builtins.readFile {})", file.display());
+	for engine in ENGINES {
+		let result = env.run(
+			engine,
+			"nix-instantiate",
+			&[
+				"--store",
+				&env.store(engine),
+				"--eval",
+				"--strict",
+				"-E",
+				&expression,
+			],
+			None,
+		);
+		assert_eq!(result.status.code(), Some(1));
+		assert!(
+			String::from_utf8_lossy(&result.stderr)
+				.contains("cannot be represented as a Nix string")
+		);
+	}
+}
+
+#[test]
+fn failed_ifd_keeps_the_build_exit_status() {
+	let env = Env::new();
+	let expression = format!(
+		r#"let bb = builtins.storePath {}; in import (derivation {{
+		name = "failed-ifd"; system = "x86_64-linux"; builder = "${{bb}}/bin/sh";
+		args = [ "-c" "echo failed IFD >&2; exit 3" ];
+	}})"#,
+		env.busybox
+	);
+	let mut expected = None;
+	for engine in ENGINES {
+		let result = env.run(
+			engine,
+			"nix-instantiate",
+			&[
+				"--store",
+				&env.store(engine),
+				"--eval",
+				"--read-write-mode",
+				"--strict",
+				"-E",
+				&expression,
+			],
+			None,
+		);
+		assert!(result.stdout.is_empty());
+		assert!(String::from_utf8_lossy(&result.stderr).contains("failed-ifd"));
+		if engine == "reference" {
+			assert_eq!(result.status.code(), Some(100), "{result:?}");
+			expected = result.status.code();
+		} else {
+			assert_eq!(result.status.code(), expected, "{result:?}");
+		}
+	}
+}

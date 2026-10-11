@@ -73,6 +73,10 @@ where
 		self.actual.as_ref().canonicalize(path)
 	}
 
+	fn read_link(&self, path: &Path) -> io::Result<PathBuf> {
+		self.actual.as_ref().read_link(path)
+	}
+
 	fn open(&self, path: &Path) -> io::Result<Box<dyn io::Read>> {
 		self.actual.as_ref().open(path)
 	}

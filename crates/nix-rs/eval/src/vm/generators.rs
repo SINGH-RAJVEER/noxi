@@ -107,6 +107,21 @@ pub enum VMRequest {
 	/// Request that the VM opens the specified file and provides a reader.
 	OpenFile(PathBuf),
 
+	/// Read a contextual Nix string from a file.
+	ReadFile(PathBuf),
+
+	/// Resolve an expression path through the evaluation filesystem.
+	ResolveImportPath {
+		path: PathBuf,
+		memoize: bool,
+	},
+
+	/// Realize a path string through the evaluator's store integration.
+	RealisePath(NixString),
+
+	/// Read the raw attributes of a registered derivation, if applicable.
+	ImportDerivation(PathBuf),
+
 	/// Request that the VM checks whether the given path exists.
 	PathExists(PathBuf),
 
@@ -187,6 +202,14 @@ impl Display for VMRequest {
 			VMRequest::OpenFile(p) => {
 				write!(f, "open_file({})", p.to_string_lossy())
 			}
+			VMRequest::ResolveImportPath { path: p, .. } => {
+				write!(f, "resolve_import_path({})", p.to_string_lossy())
+			}
+			VMRequest::RealisePath(p) => write!(f, "realise_path({p})"),
+			VMRequest::ImportDerivation(p) => {
+				write!(f, "import_derivation({})", p.to_string_lossy())
+			}
+			VMRequest::ReadFile(p) => write!(f, "read_file({})", p.to_string_lossy()),
 			VMRequest::PathExists(p) => write!(f, "path_exists({})", p.to_string_lossy()),
 			VMRequest::ReadDir(p) => write!(f, "read_dir({})", p.to_string_lossy()),
 			VMRequest::Span => write!(f, "span"),
@@ -485,6 +508,69 @@ where
 							message = VMResponse::Reader(reader)
 						}
 
+						VMRequest::ResolveImportPath { path, memoize } => {
+							let cached = memoize
+								.then(|| self.import_resolution_cache.get(&path))
+								.flatten();
+							let resolved = if let Some(cached) = cached {
+								cached.clone()
+							} else {
+								let resolved = self
+									.io_handle
+									.as_ref()
+									.resolve_import_path(&path)
+									.map_err(|e| ErrorKind::IO {
+										path: Some(path.clone()),
+										error: e.into(),
+									})
+									.with_span(span, self)?;
+								if memoize {
+									self.import_resolution_cache.insert(path, resolved.clone());
+								}
+								resolved
+							};
+							message = VMResponse::Path(resolved);
+						}
+
+						VMRequest::RealisePath(path) => {
+							let realised = self
+								.io_handle
+								.as_ref()
+								.realise_path(&path)
+								.map_err(|e| ErrorKind::IO {
+									path: path.to_path().ok().map(PathBuf::from),
+									error: e.into(),
+								})
+								.with_span(span, self)?;
+							message = VMResponse::Path(realised);
+						}
+
+						VMRequest::ImportDerivation(path) => {
+							let attrs = self
+								.io_handle
+								.as_ref()
+								.import_derivation(&path)
+								.map_err(|e| ErrorKind::IO {
+									path: Some(path),
+									error: e.into(),
+								})
+								.with_span(span, self)?;
+							message = VMResponse::Value(attrs.unwrap_or(Value::Null));
+						}
+
+						VMRequest::ReadFile(path) => {
+							let string = self
+								.io_handle
+								.as_ref()
+								.read_file(&path)
+								.map_err(|e| ErrorKind::IO {
+									path: Some(path),
+									error: e.into(),
+								})
+								.with_span(span, self)?;
+							message = VMResponse::Value(Value::String(string));
+						}
+
 						VMRequest::PathExists(path) => {
 							let exists = self
 								.io_handle
@@ -772,6 +858,44 @@ pub(crate) async fn request_import_cache_put(co: &GenCo, path: PathBuf, value: V
 pub(crate) async fn request_path_import(co: &GenCo, path: PathBuf) -> PathBuf {
 	match co.yield_(VMRequest::PathImport(path)).await {
 		VMResponse::Path(path) => path,
+		msg => panic!("nix-rs bug: VM responded with incorrect generator message: {msg}"),
+	}
+}
+
+/// Resolve an import through the evaluator's filesystem rather than the host.
+pub(crate) async fn request_resolve_import_path(
+	co: &GenCo,
+	path: PathBuf,
+	memoize: bool,
+) -> PathBuf {
+	match co
+		.yield_(VMRequest::ResolveImportPath { path, memoize })
+		.await
+	{
+		VMResponse::Path(path) => path,
+		msg => panic!("nix-rs bug: VM responded with incorrect generator message: {msg}"),
+	}
+}
+
+/// Realize a path's string context before reading its file.
+pub async fn request_realise_path(co: &GenCo, path: NixString) -> PathBuf {
+	match co.yield_(VMRequest::RealisePath(path)).await {
+		VMResponse::Path(path) => path,
+		msg => panic!("nix-rs bug: VM responded with incorrect generator message: {msg}"),
+	}
+}
+
+pub(crate) async fn request_import_derivation(co: &GenCo, path: PathBuf) -> Option<Value> {
+	match co.yield_(VMRequest::ImportDerivation(path)).await {
+		VMResponse::Value(Value::Null) => None,
+		VMResponse::Value(attrs) => Some(attrs),
+		msg => panic!("nix-rs bug: VM responded with incorrect generator message: {msg}"),
+	}
+}
+
+pub(crate) async fn request_read_file(co: &GenCo, path: PathBuf) -> Value {
+	match co.yield_(VMRequest::ReadFile(path)).await {
+		VMResponse::Value(string) => string,
 		msg => panic!("nix-rs bug: VM responded with incorrect generator message: {msg}"),
 	}
 }

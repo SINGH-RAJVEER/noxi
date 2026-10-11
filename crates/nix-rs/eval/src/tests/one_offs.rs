@@ -400,3 +400,59 @@ fn builtin_and_literal_edge_cases(#[case] expression: &str, #[case] expected: Re
 		}
 	}
 }
+
+#[test]
+fn named_sources_resolve_relative_paths_without_host_files() {
+	let location = std::path::PathBuf::from("/nonexistent/nixrs-virtual-source/source.nix");
+	let expected = std::path::Path::new("/nonexistent/nixrs-virtual-source/child.nix");
+	let result = Evaluation::builder_pure()
+		.build()
+		.evaluate("./child.nix", Some(location));
+	assert!(result.errors.is_empty(), "{:?}", result.errors);
+	assert_eq!(result.value.unwrap().to_path().unwrap().as_path(), expected);
+}
+
+#[test]
+#[cfg(feature = "impure")]
+fn ordinary_imports_reuse_resolution_after_the_file_is_removed() {
+	let dir = tempfile::tempdir().unwrap();
+	let file = dir.path().join("value.nix");
+	std::fs::write(&file, r#"builtins.trace "remove source" 17"#).unwrap();
+	let remove = file.clone();
+	let result = Evaluation::builder_impure()
+		.message_output(move |_| std::fs::remove_file(&remove).unwrap())
+		.build()
+		.evaluate_in_dir(
+			"if import ./value.nix == 17 then import ./value.nix else 0",
+			dir.path().to_owned(),
+		);
+	assert!(result.errors.is_empty(), "{:?}", result.errors);
+	assert_matches!(result.value, Some(Value::Integer(17)));
+	assert!(!file.exists());
+}
+
+#[test]
+#[cfg(all(feature = "impure", unix))]
+fn scoped_imports_resolve_symlinks_each_time() {
+	let dir = tempfile::tempdir().unwrap();
+	let link = dir.path().join("link.nix");
+	std::fs::write(
+		dir.path().join("first.nix"),
+		r#"builtins.trace "retarget" 17"#,
+	)
+	.unwrap();
+	std::fs::write(dir.path().join("second.nix"), "23").unwrap();
+	std::os::unix::fs::symlink("first.nix", &link).unwrap();
+	let result = Evaluation::builder_impure()
+		.message_output(move |_| {
+			std::fs::remove_file(&link).unwrap();
+			std::os::unix::fs::symlink("second.nix", &link).unwrap();
+		})
+		.build()
+		.evaluate_in_dir(
+			"if scopedImport {} ./link.nix == 17 then scopedImport {} ./link.nix else 0",
+			dir.path().to_owned(),
+		);
+	assert!(result.errors.is_empty(), "{:?}", result.errors);
+	assert_matches!(result.value, Some(Value::Integer(23)));
+}

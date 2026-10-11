@@ -15,8 +15,7 @@ use nix_compat::store_path::StorePath;
 use nix_rs_eval::builtin_macros::builtins;
 use nix_rs_eval::generators::{self, GenCo};
 use nix_rs_eval::{
-	CatchableErrorKind, CoercionKind, ErrorKind, NixContextElement, NixString, Value,
-	try_cek_to_value,
+	CatchableErrorKind, ErrorKind, NixContextElement, NixString, Value, try_cek_to_value,
 };
 
 use crate::errors::ImportError;
@@ -43,36 +42,6 @@ fn entry_type(path: &Path) -> Result<EntryType, ErrorKind> {
 	} else {
 		Err(ImportError::UnsupportedFileType(path.to_owned()).into())
 	}
-}
-
-/// Coerce a value to a filesystem path as CppNix's `coerceToPath` does:
-/// paths as they are, strings only when absolute.
-async fn coerce_to_path(
-	co: &GenCo,
-	value: Value,
-) -> Result<Result<PathBuf, CatchableErrorKind>, ErrorKind> {
-	let value = generators::request_force(co, value).await;
-	if let Value::Path(path) = value {
-		return Ok(Ok(*path));
-	}
-	let string = match generators::request_string_coerce(
-		co,
-		value,
-		CoercionKind {
-			strong: false,
-			import_paths: false,
-		},
-	)
-	.await
-	{
-		Ok(string) => string,
-		Err(cek) => return Ok(Err(cek)),
-	};
-	let path = PathBuf::from(std::ffi::OsStr::from_bytes(string.as_bytes()));
-	if !path.is_absolute() {
-		return Err(ErrorKind::NotAnAbsolutePath(path));
-	}
-	Ok(Ok(path))
 }
 
 /// Call the Nix `filter` on every entry below `root`, depth first in name
@@ -189,7 +158,8 @@ pub(crate) mod import_builtins {
 		#[lazy] filter: Value,
 		path: Value,
 	) -> Result<Value, ErrorKind> {
-		let path = try_cek_to_value!(coerce_to_path(&co, path).await?);
+		let path =
+			try_cek_to_value!(nix_rs_eval::builtins::realise_value_to_path(&co, path).await?);
 		let filter = generators::request_force(&co, filter).await;
 		if filter.is_catchable() {
 			return Ok(filter);
@@ -216,7 +186,9 @@ pub(crate) mod import_builtins {
 		for (key, value) in args.iter_sorted() {
 			match key.to_str()? {
 				"path" => {
-					path = Some(try_cek_to_value!(coerce_to_path(&co, value.clone()).await?));
+					path = Some(try_cek_to_value!(
+						nix_rs_eval::builtins::realise_value_to_path(&co, value.clone()).await?
+					));
 				}
 				"name" => {
 					let value = generators::request_force(&co, value.clone()).await;
@@ -319,7 +291,8 @@ pub(crate) mod import_builtins {
 		co: GenCo,
 		path: Value,
 	) -> Result<Value, ErrorKind> {
-		let path = try_cek_to_value!(coerce_to_path(&co, path).await?);
+		let path =
+			try_cek_to_value!(nix_rs_eval::builtins::realise_value_to_path(&co, path).await?);
 		let absolute = path.as_os_str().as_bytes();
 		let (store_path, _rest) = StorePath::from_absolute_path_full(&path).map_err(|_| {
 			ErrorKind::Abort(format!("path '{}' is not in the Nix store", path.display()))

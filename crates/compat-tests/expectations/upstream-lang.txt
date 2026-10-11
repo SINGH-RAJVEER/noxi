@@ -345,7 +345,7 @@ eval-okay-hashfile pass
 eval-okay-hashstring pass
 eval-okay-home-path-warn unrun-flags
 eval-okay-if pass
-eval-okay-import unexpected-failure E028
+eval-okay-import pass
 eval-okay-ind-string pass
 eval-okay-inherit-attr-pos output
 eval-okay-inherit-from pass

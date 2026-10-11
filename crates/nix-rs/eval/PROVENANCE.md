@@ -14,6 +14,8 @@ The imported source retains its Snix and earlier upstream contributors' authorsh
 
 `src/tests/nix_rs_tests/` contains upstream evaluator-specific cases and local additions. Its local name does not imply that nix-rs authored the imported cases. The separate project reference fixtures under repository-root `tests/nix/` are not this older suite and are outside this package.
 
+`src/compiler/imported-drv-to-derivation.nix` adapts `src/libexpr/imported-drv-to-derivation.nix` from CppNix 2.35.2, revision `2c73b59da29606068c0c98db015dd3a66955525d`. Only layout and the source notice changed. Its Nix authors retain authorship and LGPL-2.1-or-later terms; [COPYING](COPYING) supplies the license text. It constructs recursive derivation output values after a configured I/O integration reads a registered derivation.
+
 ## Local changes and limits
 
 Local source and release history are at https://github.com/SINGH-RAJVEER/nix-rs under `crates/nix-rs/eval/`. Release `0.2.0` includes the package/import/test-path renaming, formatting, and checked integer arithmetic, negation, and division-by-zero behavior. The reference for these changes is [CppNix 2.35.2](https://github.com/NixOS/nix/tree/2c73b59da29606068c0c98db015dd3a66955525d), revision `2c73b59da29606068c0c98db015dd3a66955525d`, especially `src/libexpr/primops.cc`, under LGPL-2.1-or-later.

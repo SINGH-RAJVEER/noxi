@@ -194,7 +194,7 @@ impl<'source, 'observer> Compiler<'source, 'observer> {
 		file: &'source codemap::File,
 		observer: OptionalCompilerObserver<'observer>,
 	) -> EvalResult<Self> {
-		let mut root_dir = match location {
+		let root_dir = match location {
 			Some(dir) if cfg!(target_arch = "wasm32") || dir.is_absolute() => Ok(dir),
 			_ => {
 				let current_dir = std::env::current_dir().map_err(|e| {
@@ -213,13 +213,6 @@ impl<'source, 'observer> Compiler<'source, 'observer> {
 				}
 			}
 		}?;
-
-		// If the path passed from the caller points to a file, the
-		// filename itself needs to be truncated as this must point to a
-		// directory.
-		if root_dir.is_file() {
-			root_dir.pop();
-		}
 
 		#[cfg(not(target_arch = "wasm32"))]
 		debug_assert!(root_dir.is_absolute());
@@ -1860,6 +1853,10 @@ pub fn prepare_globals(
 		if enable_import {
 			let import = Value::Builtin(import::builtins_import(weak, source.clone()));
 			builtins.insert("import", import);
+			builtins.insert(
+				"scopedImport",
+				Value::Builtin(import::builtins_scoped_import(weak, source.clone())),
+			);
 		}
 
 		// Next, the actual map of globals which the compiler will use
@@ -1935,6 +1932,7 @@ fn dunder_name(name: &'static str) -> &'static str {
 	})
 }
 
+/// Compile with `location` as the lexical directory for relative paths.
 pub fn compile(
 	expr: &ast::Expr,
 	location: Option<PathBuf>,

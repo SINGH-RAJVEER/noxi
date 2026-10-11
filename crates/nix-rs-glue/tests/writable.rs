@@ -309,3 +309,110 @@ fn store_path_validity_is_checked_only_in_writable_mode() {
 	);
 	assert_eq!(path(evaluate(&writable, root.path(), expr)), expected);
 }
+
+#[test]
+fn imports_directories_and_symlinks_in_the_diverted_store() {
+	let root = tempfile::tempdir().unwrap();
+	let source = tempfile::tempdir().unwrap();
+	fs::write(source.path().join("default.nix"), "import ./child.nix").unwrap();
+	fs::write(source.path().join("child.nix"), "[ 17 ./. ]").unwrap();
+	symlink("child.nix", source.path().join("link.nix")).unwrap();
+	fs::write(source.path().join("scope.nix"), "x + import ./value.nix").unwrap();
+	fs::write(source.path().join("value.nix"), "4").unwrap();
+	let writable = EvaluatorStore::writable(root.path()).unwrap();
+	let imported = path(evaluate(&writable, source.path(), r#""${./.}""#));
+	// The logical path is absent from the host's /nix/store. Each mode must
+	// resolve its directory and symlinks through the evaluator's mapped I/O.
+	for store in [writable, EvaluatorStore::read_only(root.path()).unwrap()] {
+		for suffix in ["", "/default.nix", "/link.nix"] {
+			let expression = format!("import {}{suffix}", imported.to_absolute_path());
+			let result = evaluate(&store, source.path(), &expression)
+				.to_list()
+				.unwrap();
+			assert_eq!(result[0].as_int().unwrap(), 17);
+			assert_eq!(
+				result[1].to_path().unwrap().as_path(),
+				Path::new(&imported.to_absolute_path())
+			);
+		}
+		let expression = format!(
+			"scopedImport {{ x = 8; }} {}/scope.nix",
+			imported.to_absolute_path()
+		);
+		assert_eq!(
+			evaluate(&store, source.path(), &expression)
+				.as_int()
+				.unwrap(),
+			12
+		);
+	}
+}
+
+#[test]
+fn derivation_import_ignores_scope_and_preserves_output_contexts() {
+	let root = tempfile::tempdir().unwrap();
+	let store = EvaluatorStore::writable(root.path()).unwrap();
+	let drv = path(evaluate(
+		&store,
+		root.path(),
+		r#"(derivation {
+		name = "imported"; system = "x"; builder = "/bin/sh"; outputs = [ "out" "dev" ];
+	}).drvPath"#,
+	));
+	for store in [store, EvaluatorStore::read_only(root.path()).unwrap()] {
+		let expression = format!(
+			r#"let d = scopedImport (abort "unused scope") {}; in [
+			d.name d.outputName (builtins.attrNames (builtins.getContext d.out.outPath))
+			(d.dev.all == d.all)
+		]"#,
+			drv.to_absolute_path()
+		);
+		let values = evaluate(&store, root.path(), &expression)
+			.to_list()
+			.unwrap();
+		assert_eq!(values[0].to_str().unwrap(), "imported");
+		assert_eq!(values[1].to_str().unwrap(), "dev");
+		assert_eq!(
+			values[2].to_list().unwrap()[0].to_str().unwrap(),
+			drv.to_absolute_path().as_str()
+		);
+		assert!(values[3].as_bool().unwrap());
+	}
+}
+
+#[test]
+fn unregistered_drv_files_are_imported_as_expressions() {
+	let root = tempfile::tempdir().unwrap();
+	let store = EvaluatorStore::writable(root.path()).unwrap();
+	let fake: StorePath = "00000000000000000000000000000000-expression.drv"
+		.parse()
+		.unwrap();
+	fs::write(store.store().unwrap().real_path(&fake), "41").unwrap();
+	let expression = format!("import {}", fake.to_absolute_path());
+	assert_eq!(
+		evaluate(&store, root.path(), &expression).as_int().unwrap(),
+		41
+	);
+}
+
+#[test]
+fn read_file_retains_only_references_that_occur_in_its_contents() {
+	let root = tempfile::tempdir().unwrap();
+	let store = EvaluatorStore::writable(root.path()).unwrap();
+	let expression = r#"let
+		a = builtins.toFile "a" "present";
+		b = builtins.toFile "b" "absent";
+		doc = builtins.toFile "document" (a + builtins.substring 0 0 b);
+	in [ a b (builtins.attrNames (builtins.getContext (builtins.readFile doc))) ]"#;
+	let values = evaluate(&store, root.path(), expression).to_list().unwrap();
+	let context = values[2].to_list().unwrap();
+	assert_eq!(context.len(), 1);
+	assert_eq!(
+		context[0].to_str().unwrap(),
+		values[0].to_contextful_str().unwrap()
+	);
+	assert_ne!(
+		context[0].to_str().unwrap(),
+		values[1].to_contextful_str().unwrap()
+	);
+}

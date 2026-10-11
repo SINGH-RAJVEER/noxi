@@ -21,3 +21,5 @@ Local source and release history are at https://github.com/SINGH-RAJVEER/nix-rs 
 Snix's storage services, build execution, and fetch tracking are excluded. Nothing writes to the store, fetches sources, substitutes paths, or realises derivation outputs. Local I/O is not sandboxed. Printed paths do not establish the existence of their contents, and partial Nixpkgs evaluation is not full Nixpkgs/NixOS or store compatibility qualification.
 
 Release `0.1.1` corrects catchable derivation-attribute errors and preserves an existing caller-supplied search path. Its dependency on evaluator `0.2.1` supplies the new search-path inspection method; the imported source and license scopes remain unchanged.
+
+The current workspace extends the preview with optional store-owner registration, registered derivation imports and context realization. The shared build/store interface supplies output realization; Snix storage services and fetching remain excluded. The evaluator owns the bundled CppNix imported-derivation helper and records its LGPL source notice in its package-local provenance. This development evidence does not change the published release claims above.

@@ -3,18 +3,21 @@
 //! store, while retaining CppNix 2.35.2's logical `/nix/store` paths.
 
 use std::cell::{RefCell, RefMut};
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 use std::ffi::{OsStr, OsString};
 use std::io::{self, Seek, Write};
-use std::os::unix::ffi::OsStrExt;
+use std::os::unix::ffi::{OsStrExt, OsStringExt};
 use std::path::{Path, PathBuf};
 use std::rc::Rc;
 
-use nix_compat::derivation::Derivation;
+use bstr::ByteSlice;
+use nix_compat::derivation::{Derivation, UnverifiedDerivation};
 use nix_compat::nixhash::{HashAlgo, NixHash};
 use nix_compat::store_path::{self, STORE_DIR, StorePath};
-use nix_rs_eval::{EvalIO, FileType, StdIO};
-use nix_rs_store::{FileIngestionMethod, LocalStore, LocalStoreConfig, Store};
+use nix_rs_eval::{
+	EvalIO, FileType, NixAttrs, NixContext, NixContextElement, NixString, StdIO, Value,
+};
+use nix_rs_store::{DerivedPath, FileIngestionMethod, LocalStore, LocalStoreConfig, Store};
 use sha2::{Digest, Sha256};
 use tempfile::SpooledTempFile;
 
@@ -30,6 +33,10 @@ pub struct EvaluatorStore {
 	/// evaluates read-only, computing paths without writing them.
 	store: Option<Rc<dyn Store>>,
 	real_store_dir: Option<PathBuf>,
+	read_access: RefCell<Option<Rc<dyn Store>>>,
+	opener: Option<Box<dyn Fn() -> io::Result<Option<Rc<dyn Store>>>>>,
+	allow_ifd: std::cell::Cell<Option<bool>>,
+	trace_ifd: std::cell::Cell<bool>,
 }
 
 impl std::fmt::Debug for EvaluatorStore {
@@ -86,10 +93,62 @@ impl EvaluatorStore {
 	/// Map a diverted store without opening its database or creating files.
 	pub fn read_only(root: &Path) -> io::Result<Rc<Self>> {
 		let config = Self::diverted_config(root)?;
-		Ok(Rc::new(Self {
-			real_store_dir: Some(config.real_store_dir),
+		Ok(Self::with_read_access(
+			Some(config.real_store_dir.clone()),
+			move || {
+				LocalStore::open(config.clone())
+					.map(|store| Some(Rc::new(store) as Rc<dyn Store>))
+					.map_err(io::Error::other)
+			},
+		))
+	}
+
+	/// Compute values without registration while querying an already opened
+	/// owner. Legacy commands open their owner before evaluation.
+	pub fn with_read_store(store: Rc<dyn Store>, real_store_dir: Option<PathBuf>) -> Rc<Self> {
+		Rc::new(Self {
+			real_store_dir,
+			read_access: RefCell::new(Some(store)),
 			..Self::default()
-		}))
+		})
+	}
+
+	/// Compute store paths without registration, opening the selected owner
+	/// only when context realization or derivation inspection needs it.
+	pub fn with_read_access(
+		real_store_dir: Option<PathBuf>,
+		opener: impl Fn() -> io::Result<Option<Rc<dyn Store>>> + 'static,
+	) -> Rc<Self> {
+		Rc::new(Self {
+			real_store_dir,
+			opener: Some(Box::new(opener)),
+			..Self::default()
+		})
+	}
+
+	fn access_store(&self) -> io::Result<Option<Rc<dyn Store>>> {
+		if let Some(store) = &self.store {
+			return Ok(Some(store.clone()));
+		}
+		if let Some(store) = self.read_access.borrow().as_ref() {
+			return Ok(Some(store.clone()));
+		}
+		let store = match &self.opener {
+			Some(open) => open()?,
+			None => None,
+		};
+		*self.read_access.borrow_mut() = store.clone();
+		Ok(store)
+	}
+
+	/// Whether output-context access may build during evaluation.
+	pub fn allow_import_from_derivation(&self, enabled: bool) {
+		self.allow_ifd.set(Some(enabled));
+	}
+
+	/// Log the reference's warning for every output-context realization.
+	pub fn trace_import_from_derivation(&self, enabled: bool) {
+		self.trace_ifd.set(enabled);
 	}
 
 	/// Open a writable `local?root=ROOT` store. ROOT must already exist.
@@ -116,6 +175,7 @@ impl EvaluatorStore {
 			known_paths: RefCell::default(),
 			store: Some(store),
 			real_store_dir,
+			..Self::default()
 		})
 	}
 
@@ -138,6 +198,89 @@ impl EvaluatorStore {
 		store_path::build_text_path(name, contents, references.iter().map(StorePath::as_ref))
 			.map(|p| p.to_owned())
 			.map_err(io::Error::other)
+	}
+
+	/// Load dependency hashes from the selected owner before constructing a
+	/// derivation from output contexts created in an earlier evaluation.
+	pub(crate) fn load_context(&self, context: &NixContext) -> io::Result<()> {
+		for element in context.iter() {
+			let (path, deep) = match element {
+				NixContextElement::Plain(_) => continue,
+				NixContextElement::Single { derivation, .. } => (derivation, false),
+				NixContextElement::Derivation(path) => (path, true),
+			};
+			let path = StorePath::from_absolute_path(path.as_bytes()).map_err(io::Error::other)?;
+			self.load_derivation(&path)?;
+			if deep && let Some(store) = self.access_store()? {
+				let mut pending = vec![path];
+				let mut seen = BTreeSet::new();
+				while let Some(path) = pending.pop() {
+					if !seen.insert(path.clone()) {
+						continue;
+					}
+					let info = store
+						.query_path_info(&path)
+						.map_err(io::Error::other)?
+						.ok_or_else(|| {
+							io::Error::other(format!(
+								"path '{}' is not valid",
+								path.to_absolute_path()
+							))
+						})?;
+					pending.extend(info.references.iter().cloned());
+					self.known_paths
+						.borrow_mut()
+						.add_text(path.clone(), info.references);
+					if path.name().ends_with(".drv") {
+						self.load_derivation(&path)?;
+					}
+				}
+			}
+		}
+		Ok(())
+	}
+
+	fn load_derivation(&self, path: &StorePath) -> io::Result<()> {
+		if self
+			.known_paths
+			.borrow()
+			.get_unverified_drv(&path.as_ref())
+			.is_some()
+		{
+			return Ok(());
+		}
+		let store = self
+			.access_store()?
+			.ok_or_else(|| io::Error::other("cannot read a derivation without a store"))?;
+		let mut pending: Vec<(StorePath, Option<UnverifiedDerivation>)> =
+			vec![(path.clone(), None)];
+		let mut active = BTreeSet::new();
+		while let Some((path, drv)) = pending.pop() {
+			if self
+				.known_paths
+				.borrow()
+				.get_unverified_drv(&path.as_ref())
+				.is_some()
+			{
+				continue;
+			}
+			if let Some(drv) = drv {
+				active.remove(&path);
+				self.known_paths
+					.borrow_mut()
+					.add_imported_derivation(path, drv)
+					.map_err(io::Error::other)?;
+				continue;
+			}
+			if !active.insert(path.clone()) {
+				return Err(io::Error::other("cycle in derivation dependencies"));
+			}
+			let drv = store.read_derivation(&path).map_err(io::Error::other)?;
+			let inputs: Vec<_> = drv.input_derivations().keys().cloned().collect();
+			pending.push((path, Some(drv)));
+			pending.extend(inputs.into_iter().rev().map(|path| (path, None)));
+		}
+		Ok(())
 	}
 
 	pub(crate) fn register_derivation(&self, drv: &Derivation) -> io::Result<()> {
@@ -385,11 +528,21 @@ fn corepkg(path: &Path) -> Option<Corepkg> {
 /// Local file access and imports through an [`EvaluatorStore`].
 pub struct StoreIO {
 	store: Rc<ReadOnlyStore>,
+	ca_derivations: bool,
 }
 
 impl StoreIO {
 	pub fn new(store: Rc<ReadOnlyStore>) -> Self {
-		Self { store }
+		Self {
+			store,
+			ca_derivations: false,
+		}
+	}
+
+	/// Enable the reference's placeholder gate for deferred outputs.
+	pub fn with_ca_derivations(mut self, enabled: bool) -> Self {
+		self.ca_derivations = enabled;
+		self
 	}
 }
 
@@ -412,6 +565,208 @@ impl EvalIO for StoreIO {
 		Ok(self.store.logical_path(&real))
 	}
 
+	fn realise_path(&self, string: &NixString) -> io::Result<PathBuf> {
+		let path = string.to_path().map_err(io::Error::other)?.to_owned();
+		let elements: Vec<_> = string
+			.iter_context()
+			.flat_map(|context| context.iter())
+			.collect();
+		if elements.is_empty() {
+			return Ok(path);
+		}
+		let store = self
+			.store
+			.access_store()?
+			.ok_or_else(|| io::Error::other("cannot realize a path context without a store"))?;
+		let mut requests: BTreeMap<StorePath, BTreeSet<String>> = BTreeMap::new();
+		for element in &elements {
+			let raw = match element {
+				NixContextElement::Plain(path) | NixContextElement::Derivation(path) => path,
+				NixContextElement::Single { name, derivation } => {
+					let drv = StorePath::from_absolute_path(derivation.as_bytes())
+						.map_err(io::Error::other)?;
+					requests.entry(drv).or_default().insert(name.clone());
+					derivation
+				}
+			};
+			let path = StorePath::from_absolute_path(raw.as_bytes()).map_err(io::Error::other)?;
+			if !store.is_valid_path(&path).map_err(io::Error::other)? {
+				return Err(io::Error::other(format!(
+					"path '{}' is not valid",
+					path.to_absolute_path()
+				)));
+			}
+		}
+		if requests.is_empty() {
+			return Ok(path);
+		}
+		if !self.store.allow_ifd.get().unwrap_or(true) {
+			let (drv, outputs) = requests.first_key_value().unwrap();
+			return Err(io::Error::other(format!(
+				"cannot build '{}^{}' during evaluation because the option 'allow-import-from-derivation' is disabled",
+				drv.to_absolute_path(),
+				outputs
+					.first()
+					.expect("context requests at least one output")
+			)));
+		}
+		if self.store.trace_ifd.get()
+			&& nix_compat::log::log_enabled(nix_compat::log::VerbosityLevel::Warn)
+		{
+			let (drv, outputs) = requests.first_key_value().unwrap();
+			eprintln!(
+				"warning: built '{}^{}' during evaluation due to an import from derivation",
+				drv.to_absolute_path(),
+				outputs
+					.first()
+					.expect("context requests at least one output")
+			);
+		}
+		let targets: Vec<_> = requests
+			.iter()
+			.map(|(drv, outputs)| DerivedPath::Built {
+				drv: drv.clone(),
+				outputs: outputs.clone(),
+			})
+			.collect();
+		if self.store.store.is_none() {
+			for (drv, names) in &requests {
+				let outputs = store
+					.query_derivation_outputs(drv)
+					.map_err(io::Error::other)?;
+				for name in names {
+					let output = outputs.get(name).ok_or_else(|| {
+						io::Error::other("cannot realize an unknown output in read-only evaluation")
+					})?;
+					if !store.is_valid_path(output).map_err(io::Error::other)? {
+						return Err(io::Error::other(format!(
+							"cannot substitute path '{}' - no write access to the Nix store",
+							output.to_absolute_path()
+						)));
+					}
+				}
+			}
+		} else {
+			store.build_paths(&targets).map_err(io::Error::other)?;
+		}
+		let mut bytes = path.as_os_str().as_bytes().to_vec();
+		for (drv, names) in requests {
+			let outputs = store
+				.query_derivation_outputs(&drv)
+				.map_err(io::Error::other)?;
+			for name in names {
+				let output = outputs.get(&name).ok_or_else(|| {
+					io::Error::other(format!(
+						"derivation '{}' does not have an output named '{name}'",
+						drv.to_absolute_path()
+					))
+				})?;
+				let placeholder = store_path::downstream_placeholder(&drv, name.as_bytes());
+				bytes = bytes.replace(placeholder.as_bytes(), output.to_absolute_path().as_bytes());
+				store.add_temp_root(output).map_err(io::Error::other)?;
+			}
+		}
+		Ok(PathBuf::from(OsString::from_vec(bytes)))
+	}
+
+	fn import_derivation(&self, path: &Path) -> io::Result<Option<Value>> {
+		let Ok(drv_path) = StorePath::from_absolute_path(path.as_os_str().as_bytes()) else {
+			return Ok(None);
+		};
+		if !drv_path.name().ends_with(".drv") {
+			return Ok(None);
+		}
+		let Some(store) = self.store.access_store()? else {
+			return Ok(None);
+		};
+		if !store.is_valid_path(&drv_path).map_err(io::Error::other)? {
+			return Ok(None);
+		}
+		let drv = store.read_derivation(&drv_path).map_err(io::Error::other)?;
+		let absolute = drv_path.to_absolute_path();
+		let mut attrs: Vec<(NixString, Value)> = vec![
+			(
+				"drvPath".into(),
+				NixString::new_context_from(
+					NixContextElement::Derivation(absolute.clone()).into(),
+					absolute.as_str(),
+				)
+				.into(),
+			),
+			(
+				"name".into(),
+				Value::from(
+					drv.environment()
+						.get(&bstr::BString::from("name"))
+						.map(|s| s.as_slice())
+						.unwrap_or_default(),
+				),
+			),
+			(
+				"outputs".into(),
+				Value::List(
+					drv.outputs()
+						.names()
+						.map(|name| Value::from(name.as_bytes()))
+						.collect::<Vec<_>>()
+						.into(),
+				),
+			),
+		];
+		for name in drv.outputs().names() {
+			if drv.outputs().get(name).is_none() && !self.ca_derivations {
+				return Err(io::Error::other(
+					"experimental Nix feature 'ca-derivations' is disabled; add '--extra-experimental-features ca-derivations' to enable it",
+				));
+			}
+			let output = drv
+				.outputs()
+				.get(name)
+				.map(StorePath::to_absolute_path)
+				.unwrap_or_else(|| store_path::downstream_placeholder(&drv_path, name.as_bytes()));
+			let string = NixString::new_context_from(
+				NixContextElement::Single {
+					name: name.to_string(),
+					derivation: absolute.clone(),
+				}
+				.into(),
+				output,
+			);
+			attrs.push((NixString::from(name.as_bytes()), string.into()));
+		}
+		Ok(Some(Value::Attrs(NixAttrs::from_iter(attrs))))
+	}
+
+	fn read_file(&self, path: &Path) -> io::Result<NixString> {
+		let mut bytes = Vec::new();
+		self.open(path)?.read_to_end(&mut bytes)?;
+		if bytes.contains(&0) {
+			return Err(io::Error::other(format!(
+				"the contents of the file '{}' cannot be represented as a Nix string",
+				path.display()
+			)));
+		}
+		let mut context = NixContext::new();
+		if let Ok((stored, _)) = StorePath::from_absolute_path_full(path)
+			&& let Some(store) = self.store.access_store()?
+			&& let Ok(Some(info)) = store.query_path_info(&stored)
+		{
+			for reference in info.references {
+				let absolute = reference.to_absolute_path();
+				let start = STORE_DIR.len() + 1;
+				let hash = &absolute.as_bytes()[start..start + 32];
+				if bytes.windows(hash.len()).any(|window| window == hash) {
+					context = context.append(NixContextElement::Plain(absolute));
+				}
+			}
+		}
+		Ok(NixString::new_context_from(context, bytes))
+	}
+
+	fn read_link(&self, path: &Path) -> io::Result<PathBuf> {
+		StdIO.read_link(&self.store.physical_path(path))
+	}
+
 	fn open(&self, path: &Path) -> io::Result<Box<dyn io::Read>> {
 		match corepkg(path) {
 			Some(Corepkg::File(contents)) => Ok(Box::new(contents.as_bytes())),
@@ -428,6 +783,9 @@ impl EvalIO for StoreIO {
 	}
 
 	fn read_dir(&self, path: &Path) -> io::Result<Vec<(bytes::Bytes, FileType)>> {
+		if self.store.real_store_dir.is_some() && path == Path::new(STORE_DIR) {
+			return Err(io::Error::other("path '/' is not a valid store path"));
+		}
 		match corepkg(path) {
 			Some(Corepkg::Root) => Ok(COREPKGS
 				.iter()

@@ -8,7 +8,9 @@
 //! `--option`, `--extra-experimental-features` and `--show-trace`, which is
 //! accepted but does not change the output: error traces are not rendered in
 //! CppNix's format yet. Single derivation selections can be instantiated
-//! with an explicit `--store local?root=ROOT`. No builds or permanent GC roots are made.
+//! with an explicit `--store local?root=ROOT`. The selected owner opens
+//! before evaluation. Read-only evaluation does not register computed paths;
+//! `--read-write-mode` also allows IFD builds through that owner.
 
 use std::fmt::Write as _;
 use std::io::{self, IsTerminal, Read, Write};
@@ -434,6 +436,24 @@ mod driver_builtins {
 	}
 }
 
+/// Keep the owner's build status through the evaluator's I/O wrappers.
+fn evaluation_build_exit_status(error: &(dyn std::error::Error + 'static)) -> Option<u8> {
+	let mut cause = Some(error);
+	while let Some(error) = cause {
+		if let Some(nix_rs_store::Error::Build { exit_status, .. }) =
+			error.downcast_ref::<nix_rs_store::Error>()
+		{
+			return Some(*exit_status);
+		}
+		cause = if let Some(error) = error.downcast_ref::<io::Error>() {
+			error.get_ref().map(|error| error as &dyn std::error::Error)
+		} else {
+			error.source()
+		};
+	}
+	None
+}
+
 /// The store an evaluation registers paths in, and the result of each
 /// selection, in command-line order.
 pub struct Evaluated {
@@ -457,31 +477,29 @@ pub fn evaluate(options: &Options, cwd: &Path) -> Result<Evaluated, ExitCode> {
 		.collect();
 	let writable = !options.eval || options.read_write_mode;
 	let uri = store::store_uri(options.store.as_deref(), &options.settings);
-	let (evaluator_store, store) = if writable {
-		match store::open(&uri, &options.settings).map_err(|e| fail(&e))? {
-			Some(opened) => (
-				nix_rs_glue::EvaluatorStore::with_store(
-					opened.store.clone(),
-					opened.real_store_dir.clone(),
-				),
-				Some(opened.store),
-			),
-			None => (nix_rs_glue::ReadOnlyStore::new(), None),
-		}
-	} else {
-		// Read-only evaluation computes paths without opening a store, but
-		// reads a diverted store's files where they are.
-		let root = uri
-			.strip_prefix("local?root=")
-			.filter(|root| !root.is_empty() && !root.contains(['&', '?', '%']));
-		let store = match root {
-			Some(root) => {
-				nix_rs_glue::EvaluatorStore::read_only(Path::new(root)).map_err(|e| fail(&e))?
-			}
-			None => nix_rs_glue::ReadOnlyStore::new(),
-		};
-		(store, None)
+	let (evaluator_store, store) = match store::open(&uri, &options.settings)
+		.map_err(|e| fail(&e))?
+	{
+		Some(opened) if writable => (
+			nix_rs_glue::EvaluatorStore::with_store(opened.store.clone(), opened.real_store_dir),
+			Some(opened.store),
+		),
+		Some(opened) => (
+			nix_rs_glue::EvaluatorStore::with_read_store(opened.store, opened.real_store_dir),
+			None,
+		),
+		None => (nix_rs_glue::ReadOnlyStore::new(), None),
 	};
+	evaluator_store.allow_import_from_derivation(
+		options
+			.settings
+			.get_bool("allow-import-from-derivation", true),
+	);
+	evaluator_store.trace_import_from_derivation(
+		options
+			.settings
+			.get_bool("trace-import-from-derivation", false),
+	);
 	let mode = if !options.eval || options.strict || options.json || options.xml {
 		EvalMode::Strict
 	} else {
@@ -523,7 +541,11 @@ pub fn evaluate(options: &Options, cwd: &Path) -> Result<Evaluated, ExitCode> {
 		for error in &result.errors {
 			error.fancy_format_stderr();
 		}
-		return Err(ExitCode::FAILURE);
+		let status = result
+			.errors
+			.iter()
+			.find_map(|error| evaluation_build_exit_status(error));
+		return Err(status.map(ExitCode::from).unwrap_or(ExitCode::FAILURE));
 	}
 	let Some(Value::List(results)) = result.value else {
 		return Err(fail(&"evaluation produced no value"));

@@ -419,3 +419,52 @@ fn optimisation_works_through_both_daemons() {
 		assert_eq!(fs::read(&paths[0]).unwrap(), b"hello");
 	}
 }
+
+#[test]
+fn imports_and_realizes_through_both_daemons() {
+	let env = Env::new();
+	let expression = format!(
+		r#"let
+		bb = builtins.storePath {};
+		d = derivation {{ name = "daemon-ifd"; system = "x86_64-linux";
+			builder = "${{bb}}/bin/sh"; args = [ "-c" "echo '{{ answer = 42; }}' > $out" ];
+		}};
+	in import d"#,
+		env.busybox
+	);
+	for flags in [
+		vec![
+			"--eval",
+			"--read-write-mode",
+			"--strict",
+			"--json",
+			"-E",
+			&expression,
+		],
+		vec!["--eval", "--strict", "--json", "-E", &expression],
+	] {
+		let expected = env.run("reference", "nix-instantiate", &flags);
+		assert!(expected.contains("exit Some(0)"), "{expected}");
+		for engine in ["nix-rs", "pair"] {
+			assert_eq!(
+				env.run(engine, "nix-instantiate", &flags),
+				expected,
+				"{engine}"
+			);
+		}
+	}
+	let fails = expression
+		.replace("daemon-ifd", "daemon-failed-ifd")
+		.replace(
+			"echo '{ answer = 42; }' > $out",
+			"echo failed IFD >&2; exit 3",
+		);
+	let args = ["--eval", "--read-write-mode", "--strict", "-E", &fails];
+	let expected = env.run("reference", "nix-instantiate", &args);
+	assert!(expected.ends_with("exit Some(1)"), "{expected}");
+	for engine in ["nix-rs", "pair"] {
+		let actual = env.run(engine, "nix-instantiate", &args);
+		assert!(actual.ends_with("exit Some(1)"), "{engine}: {actual}");
+		assert!(actual.contains("daemon-failed-ifd"));
+	}
+}

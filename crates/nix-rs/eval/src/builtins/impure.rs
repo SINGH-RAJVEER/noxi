@@ -18,7 +18,7 @@ mod impure_builtins {
 	use super::*;
 	use crate::{
 		NixSearchPathEntry,
-		builtins::{coerce_value_to_path, hash::hash_nix_string},
+		builtins::{hash::hash_nix_string, realise_value_to_path},
 		try_cek_to_value,
 		value::CoercionKind,
 	};
@@ -67,20 +67,20 @@ mod impure_builtins {
 
 	#[builtin("hashFile")]
 	async fn builtin_hash_file(co: GenCo, algo: Value, path: Value) -> Result<Value, ErrorKind> {
-		let path = try_cek_to_value!(coerce_value_to_path(&co, path).await?);
+		let path = try_cek_to_value!(realise_value_to_path(&co, path).await?);
 		let r = generators::request_open_file(&co, path).await;
 		hash_nix_string(algo.to_str()?, r).map(Value::from)
 	}
 
 	#[builtin("pathExists")]
 	async fn builtin_path_exists(co: GenCo, path: Value) -> Result<Value, ErrorKind> {
-		let path = try_cek_to_value!(coerce_value_to_path(&co, path).await?);
+		let path = try_cek_to_value!(realise_value_to_path(&co, path).await?);
 		Ok(generators::request_path_exists(&co, path).await)
 	}
 
 	#[builtin("readDir")]
 	async fn builtin_read_dir(co: GenCo, path: Value) -> Result<Value, ErrorKind> {
-		let path = try_cek_to_value!(coerce_value_to_path(&co, path).await?);
+		let path = try_cek_to_value!(realise_value_to_path(&co, path).await?);
 		let dir = generators::request_read_dir(&co, path).await;
 		let res = dir.into_iter().map(|(name, ftype)| {
 			(
@@ -94,17 +94,13 @@ mod impure_builtins {
 
 	#[builtin("readFile")]
 	async fn builtin_read_file(co: GenCo, path: Value) -> Result<Value, ErrorKind> {
-		let path = try_cek_to_value!(coerce_value_to_path(&co, path).await?);
-		let mut buf = Vec::new();
-		generators::request_open_file(&co, path)
-			.await
-			.read_to_end(&mut buf)?;
-		Ok(Value::from(buf))
+		let path = try_cek_to_value!(realise_value_to_path(&co, path).await?);
+		Ok(generators::request_read_file(&co, path).await)
 	}
 
 	#[builtin("readFileType")]
 	async fn builtin_read_file_type(co: GenCo, path: Value) -> Result<Value, ErrorKind> {
-		let path = try_cek_to_value!(coerce_value_to_path(&co, path).await?);
+		let path = try_cek_to_value!(realise_value_to_path(&co, path).await?);
 		Ok(Value::from(
 			generators::request_read_file_type(&co, path)
 				.await

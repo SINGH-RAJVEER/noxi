@@ -83,6 +83,34 @@ pub async fn coerce_value_to_path(
 	}
 }
 
+/// Coerce a filesystem path and realize its string-context dependencies.
+/// Path literals are passed through without copying them into the store.
+pub async fn realise_value_to_path(
+	co: &GenCo,
+	value: Value,
+) -> Result<Result<PathBuf, CatchableErrorKind>, ErrorKind> {
+	let value = generators::request_force(co, value).await;
+	if let Value::Path(path) = value {
+		return Ok(Ok(*path));
+	}
+	let string = try_cek!(
+		generators::request_string_coerce(
+			co,
+			value,
+			CoercionKind {
+				strong: false,
+				import_paths: false
+			}
+		)
+		.await
+	);
+	let path = string.to_path()?.to_owned();
+	if !path.is_absolute() {
+		return Err(ErrorKind::NotAnAbsolutePath(path));
+	}
+	Ok(Ok(generators::request_realise_path(co, string).await))
+}
+
 #[derive(Default)]
 struct BuiltinState {
 	regex_cache: RefCell<FxHashMap<String, Regex>>,

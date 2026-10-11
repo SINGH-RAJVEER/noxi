@@ -6,12 +6,16 @@
 //! instance, or observers).
 
 use super::GlobalsMap;
+use bstr::ByteSlice;
 use genawaiter::rc::Gen;
+use rustc_hash::FxHashMap;
+use smol_str::SmolStr;
+use std::path::PathBuf;
 use std::rc::Weak;
 
 use crate::{
 	ErrorKind, SourceCode, Value,
-	builtins::coerce_value_to_path,
+	builtins::realise_value_to_path,
 	generators::pin_generator,
 	try_cek_to_value,
 	value::{Builtin, Thunk},
@@ -24,23 +28,79 @@ async fn import_impl(
 	source: SourceCode,
 	mut args: Vec<Value>,
 ) -> Result<Value, ErrorKind> {
-	// TODO(sterni): canon_path()?
-	let mut path = try_cek_to_value!(coerce_value_to_path(&co, args.pop().unwrap()).await?);
+	let path = try_cek_to_value!(realise_value_to_path(&co, args.pop().unwrap()).await?);
 
-	if path.is_dir() {
-		path.push("default.nix");
+	if let Some(value) = import_derivation(&co, globals.clone(), source.clone(), &path).await? {
+		return Ok(value);
 	}
+
+	let path = generators::request_resolve_import_path(&co, path, true).await;
 
 	if let Some(cached) = generators::request_import_cache_lookup(&co, path.clone()).await {
 		return Ok(cached);
 	}
 
-	let mut reader = generators::request_open_file(&co, path.clone()).await;
+	let res = compile_file(&co, globals, source, path.clone(), None).await?;
+	generators::request_import_cache_put(&co, path, res.clone()).await;
+	Ok(res)
+}
+
+/// `scopedImport scope path`: the file compiled with the attributes of
+/// `scope` as variables around it, shadowing the builtins of the same name.
+/// Each call compiles the file again; results are not cached.
+async fn scoped_import_impl(
+	co: GenCo,
+	globals: Weak<GlobalsMap>,
+	source: SourceCode,
+	mut args: Vec<Value>,
+) -> Result<Value, ErrorKind> {
+	let path = args.pop().unwrap();
+	// The reference realises the path before inspecting the scope. In
+	// particular, a failing path must leave scope values unevaluated.
+	let path = try_cek_to_value!(realise_value_to_path(&co, path).await?);
+	if let Some(value) = import_derivation(&co, globals.clone(), source.clone(), &path).await? {
+		return Ok(value);
+	}
+	let scope = generators::request_force(&co, args.pop().unwrap()).await;
+	if scope.is_catchable() {
+		return Ok(scope);
+	}
+	let scope: FxHashMap<SmolStr, Value> = scope
+		.to_attrs()?
+		.iter()
+		.map(|(name, value)| (SmolStr::new(name.to_str_lossy()), value.clone()))
+		.collect();
+
+	let path = generators::request_resolve_import_path(&co, path, false).await;
+	compile_file(&co, globals, source, path, Some(&scope)).await
+}
+
+/// Read, parse and compile the Nix file at `path` with `env` as variables
+/// around it, and return a thunk of its value.
+async fn compile_file(
+	co: &GenCo,
+	globals: Weak<GlobalsMap>,
+	source: SourceCode,
+	path: PathBuf,
+	env: Option<&FxHashMap<SmolStr, Value>>,
+) -> Result<Value, ErrorKind> {
+	let mut reader = generators::request_open_file(co, path.clone()).await;
 	// We read to a String instead of a Vec<u8> because rnix only supports
 	// string source files.
 	let mut contents = String::new();
 	reader.read_to_string(&mut contents)?;
-	let contents = crate::line_endings::normalize(&contents).into_owned();
+	compile_contents(co, globals, source, path, env, &contents).await
+}
+
+async fn compile_contents(
+	co: &GenCo,
+	globals: Weak<GlobalsMap>,
+	source: SourceCode,
+	path: PathBuf,
+	env: Option<&FxHashMap<SmolStr, Value>>,
+	contents: &str,
+) -> Result<Value, ErrorKind> {
+	let contents = crate::line_endings::normalize(contents).into_owned();
 
 	let parsed = rnix::ast::Root::parse(&contents);
 	let errors = parsed.errors();
@@ -56,14 +116,14 @@ async fn import_impl(
 
 	let result = crate::compiler::compile(
 		&parsed.tree().expr().unwrap(),
-		Some(path.clone()),
+		path.parent().map(PathBuf::from),
 		// The VM must ensure that a strong reference to the globals outlives
 		// any self-references (which are weak) embedded within the globals. If
 		// the expect() below panics, it means that did not happen.
 		globals
 			.upgrade()
 			.expect("globals dropped while still in use"),
-		None,
+		env,
 		&source,
 		&file,
 		Default::default(),
@@ -81,19 +141,48 @@ async fn import_impl(
 	}
 
 	for warning in result.warnings {
-		generators::emit_warning(&co, warning).await;
+		generators::emit_warning(co, warning).await;
 	}
 
 	// Compilation succeeded, we can construct a thunk from whatever it spat
 	// out and return that.
-	let res = Value::Thunk(Thunk::new_suspended(
+	Ok(Value::Thunk(Thunk::new_suspended(
 		result.lambda,
-		generators::request_span(&co).await,
-	));
+		generators::request_span(co).await,
+	)))
+}
 
-	generators::request_import_cache_put(&co, path, res.clone()).await;
-
-	Ok(res)
+/// Store-specific derivation reading stays behind EvalIO. The recursive
+/// output/all graph is constructed by the reference's Nix helper, so it
+/// retains the same laziness and pointer equality as normal evaluation.
+async fn import_derivation(
+	co: &GenCo,
+	globals: Weak<GlobalsMap>,
+	source: SourceCode,
+	path: &std::path::Path,
+) -> Result<Option<Value>, ErrorKind> {
+	let Some(attrs) = generators::request_import_derivation(co, path.to_owned()).await else {
+		return Ok(None);
+	};
+	let helper_path = PathBuf::from("/__corepkgs__/imported-drv-to-derivation.nix");
+	let helper = match generators::request_import_cache_lookup(co, helper_path.clone()).await {
+		Some(helper) => helper,
+		None => {
+			let helper = compile_contents(
+				co,
+				globals,
+				source,
+				helper_path.clone(),
+				None,
+				include_str!("imported-drv-to-derivation.nix"),
+			)
+			.await?;
+			generators::request_import_cache_put(co, helper_path, helper.clone()).await;
+			helper
+		}
+	};
+	let value = generators::request_call_with(co, helper, [attrs]).await;
+	Ok(Some(generators::request_force(co, value).await))
 }
 
 /// Constructs the `import` builtin. This builtin is special in that
@@ -114,6 +203,28 @@ pub(super) fn builtins_import(globals: &Weak<GlobalsMap>, source: SourceCode) ->
 		1,
 		move |args| {
 			Gen::new(|co| pin_generator(import_impl(co, globals.clone(), source.clone(), args)))
+		},
+	)
+}
+
+/// Constructs the `scopedImport` builtin, which captures the same state as
+/// `import`.
+pub(super) fn builtins_scoped_import(globals: &Weak<GlobalsMap>, source: SourceCode) -> Builtin {
+	let globals = globals.clone();
+
+	Builtin::new(
+		"scopedImport",
+		Some("Import the given file with the attributes of a set in scope"),
+		2,
+		move |args| {
+			Gen::new(|co| {
+				pin_generator(scoped_import_impl(
+					co,
+					globals.clone(),
+					source.clone(),
+					args,
+				))
+			})
 		},
 	)
 }
