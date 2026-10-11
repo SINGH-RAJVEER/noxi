@@ -141,7 +141,7 @@ A checked item below means it exists and has focused local evidence in the curre
 - [ ] Audit imported code and copied test licenses; include attribution and source revisions in release artifacts.
 - [ ] Test installation, upgrade, failed upgrade, rollback, and removal in disposable VMs before documenting host installation.
 - [ ] Run the applicable compatibility suite against the exact packaged release-profile executables and libraries, not only debug builds or workspace tests. Record artifact hashes and build inputs in the reports, and rerun affected qualification when an artifact changes.
-- [ ] Establish performance baselines for evaluation, cache substitution, local and remote builds, daemon startup, memory use, and large rebuild diagnostics against the pinned reference using the packaged release artifacts. Record hardware, workloads, settings, input revisions, and observed gaps alongside the qualification reports so later improvement claims have a reproducible comparison.
+- [ ] Establish performance baselines for evaluation, cache substitution, local and remote builds, daemon startup, memory use, and large rebuild diagnostics against the pinned reference using the packaged release artifacts. Follow the [benchmark protocol](docs/performance-benchmarks.md) and [scenario catalog](benchmarks/catalog.tsv); record hardware, workloads, settings, input revisions, and observed gaps alongside the qualification reports so later improvement claims have a reproducible comparison.
 - [ ] Complete the x86_64-linux compatibility matrix with zero applicable gaps or unrun behaviors for the exact declared reference and feature set.
 - [ ] Run security checks for daemon authorization, sandbox escape attempts, untrusted caches, signatures, malformed inputs, and secret handling.
 - [ ] Publish binaries, source, signatures, test reports, known limits, and a safe migration and rollback procedure. Call the release a 100% drop-in replacement only after every applicable gate passes.
@@ -275,3 +275,17 @@ Optional `nixrs project` manifests have their own extension qualification. They 
 - [ ] Define a public extension API for NixBox operations and diagnostics without granting third-party interfaces unrestricted store or root access.
 - [ ] Improve evaluation, cache substitution, local and remote builds, daemon startup, memory use, and large rebuild diagnostics using the MVP performance baselines. Repeat comparable measurements against the pinned reference before claiming improvements.
 - [ ] Maintain release signing, vulnerability response, provenance records for imported crates, compatibility reports, migration notes, and supported upgrade paths across OS releases.
+
+## Performance architecture and measurement
+
+The [performance plan](docs/performance.md) defines 32 hypotheses and the [catalog](benchmarks/catalog.tsv) defines 154 scenarios across 18 families. The [runner](benchmarks/README.md) has 38 offline subset adapters; 116 scenarios remain planned. Initial O06/O09 changes bound source capture and index dependency edges. Each engine experiment needs affected compatibility checks, and native/experimental work follows its own feature gates.
+
+- [x] Implement the initial paired timing runner, capability/blocker report, isolated state resets, process-tree accounting, timeouts, result schema, and correctness oracles. Repair existing evaluator benchmark validity and forcing checks before using them as evidence.
+- [x] Implement and validate offline subsets for expressions, trees, derivation chains, databases, signed caches, builds, RPC pairings, profile rollback, maintenance, and injected failures. Preserve pre-change release binaries for paired comparisons.
+- [x] Bound captured source bytes with immutable spooling and replace build-order scans with indexed reverse edges, retaining ready order, dependency inputs and serial realization.
+- [ ] Complete the broader fixture dimensions and first ten full baseline contracts named in the performance plan, including warm-cache CACHE-04. Unsupported adapters and dimensions remain explicit.
+- [ ] Measure operation-local metadata reuse, immutable source spooling, indexed graph planning, bulk store queries, protocol call reduction, and bounded log handling separately against pre-change nix-rs and pinned CppNix.
+- [ ] Qualify bounded parallel realization and shared-goal coordination with resource limits, cross-client policy isolation, roots, cancellation, failure propagation, fairness, and mixed-engine daemon/store evidence.
+- [ ] Add real package, standard shell, NixOS, Home Manager, and remote workloads as their compatibility support lands; add equivalent native environment/service comparisons after that extension exists.
+- [ ] Investigate evaluator caching/representation, sandbox reuse, allocators/LTO/PGO, filesystem copies, and GC improvements from measured profiles; keep cold/warm and memory regressions visible.
+- [ ] Evaluate chunked storage, lazy materialization, delta/metadata protocols, and fleet reuse in separate opt-in research lanes with first-use/full-use, offline, recovery, and compatibility import/export evidence.

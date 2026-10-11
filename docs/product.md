@@ -26,7 +26,7 @@ The scope expansion preserves the package-manager MVP as the complete CppNix rep
 
 Shared evaluator, input, store, and build behavior required by CppNix remains MVP work even when a native extension will reuse it. Native schemas, the environment supervisor, Lua defaults, improved diagnostic renderers, and graphical interfaces have later implementation gates. Compatibility tests must preserve reference behavior when adjacent native files are present, and extensions must repeat affected tests when they ship.
 
-Record comparable package-manager performance baselines with the MVP release evidence, including the exact packaged artifacts and pinned reference. Later optimization and performance claims use those measurements; the compatibility matrix continues to require every applicable reference behavior.
+Record comparable package-manager performance baselines with the MVP release evidence, including the exact packaged artifacts and pinned reference. The [performance architecture](performance.md) inventories optimization hypotheses and their implementation order; the [benchmark specification](performance-benchmarks.md) defines matched work, cold/warm states, correctness checks, resources, and usable-result milestones. Measurement starts during the MVP. Optimization experiments need affected compatibility evidence, and experimental backends and native environments retain separate qualification. The compatibility matrix continues to require every applicable reference behavior.
 
 ## Required modules and seams
 

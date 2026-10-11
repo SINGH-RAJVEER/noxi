@@ -5,7 +5,7 @@
 use std::cell::{RefCell, RefMut};
 use std::collections::BTreeSet;
 use std::ffi::{OsStr, OsString};
-use std::io;
+use std::io::{self, Seek, Write};
 use std::os::unix::ffi::OsStrExt;
 use std::path::{Path, PathBuf};
 use std::rc::Rc;
@@ -16,6 +16,7 @@ use nix_compat::store_path::{self, STORE_DIR, StorePath};
 use nix_rs_eval::{EvalIO, FileType, StdIO};
 use nix_rs_store::{FileIngestionMethod, LocalStore, LocalStoreConfig, Store};
 use sha2::{Digest, Sha256};
+use tempfile::SpooledTempFile;
 
 use crate::errors::ImportError;
 use crate::known_paths::KnownPaths;
@@ -44,10 +45,30 @@ impl std::fmt::Debug for EvaluatorStore {
 /// A source captured once, before any store registration.
 pub(crate) struct CapturedImport {
 	name: String,
-	bytes: Vec<u8>,
+	bytes: SpooledTempFile,
 	recursive: bool,
 	hash: NixHash,
 	path: StorePath,
+}
+
+/// Bound the resident capture while preserving exactly the bytes that were hashed.
+const IMPORT_MEMORY_LIMIT: usize = 8 * 1024 * 1024;
+
+struct ImportCapture {
+	bytes: SpooledTempFile,
+	hash: Sha256,
+}
+
+impl Write for ImportCapture {
+	fn write(&mut self, bytes: &[u8]) -> io::Result<usize> {
+		let count = self.bytes.write(bytes)?;
+		self.hash.update(&bytes[..count]);
+		Ok(count)
+	}
+
+	fn flush(&mut self) -> io::Result<()> {
+		self.bytes.flush()
+	}
 }
 
 /// Compatibility name for the default, read-only evaluator store.
@@ -167,18 +188,21 @@ impl EvaluatorStore {
 		filter: Option<&mut Filter<'_>>,
 	) -> io::Result<CapturedImport> {
 		let physical = self.physical_path(path);
-		let bytes = if recursive {
-			let mut bytes = Vec::new();
-			nar::dump_path(&mut bytes, &physical, filter)?;
-			bytes
-		} else {
-			std::fs::read(physical)?
+		let mut capture = ImportCapture {
+			bytes: tempfile::spooled_tempfile(IMPORT_MEMORY_LIMIT),
+			hash: Sha256::new(),
 		};
-		let hash = NixHash::Sha256(Sha256::digest(&bytes).into());
+		if recursive {
+			nar::dump_path(&mut capture, &physical, filter)?;
+		} else {
+			io::copy(&mut std::fs::File::open(physical)?, &mut capture)?;
+		};
+		let hash = NixHash::Sha256(capture.hash.finalize().into());
+		capture.bytes.rewind()?;
 		let store_path = ca_path(name, recursive, &hash, path)?;
 		Ok(CapturedImport {
 			name: name.to_owned(),
-			bytes,
+			bytes: capture.bytes,
 			recursive,
 			hash,
 			path: store_path,
@@ -187,7 +211,7 @@ impl EvaluatorStore {
 
 	pub(crate) fn import_captured(
 		&self,
-		captured: CapturedImport,
+		mut captured: CapturedImport,
 		expected: Option<&NixHash>,
 	) -> io::Result<StorePath> {
 		// Both hashing and ingestion use these bytes. No source filesystem
@@ -205,7 +229,7 @@ impl EvaluatorStore {
 			};
 			return store
 				.add_to_store_from_dump(
-					&mut io::Cursor::new(captured.bytes),
+					&mut captured.bytes,
 					&captured.name,
 					method,
 					method,
@@ -265,15 +289,23 @@ mod tests {
 
 	#[test]
 	fn expected_hash_is_checked_against_captured_bytes_before_registration() {
+		for size in [8, IMPORT_MEMORY_LIMIT + 1] {
+			check_capture_survives_replacement(size);
+		}
+	}
+
+	fn check_capture_survives_replacement(size: usize) {
 		for recursive in [false, true] {
 			let root = tempfile::tempdir().unwrap();
 			let source = tempfile::tempdir().unwrap();
 			let file = source.path().join("source");
-			std::fs::write(&file, "original").unwrap();
+			let original = vec![b'o'; size];
+			std::fs::write(&file, &original).unwrap();
 			let store = EvaluatorStore::writable(root.path()).unwrap();
 			let captured = store
 				.capture_import(&file, "source", recursive, None)
 				.unwrap();
+			assert_eq!(captured.bytes.is_rolled(), size > IMPORT_MEMORY_LIMIT);
 			let expected_hash = captured.hash.clone();
 			let expected_path = captured.path.clone();
 			// Deterministically replace the source between capture and ingestion.
@@ -305,10 +337,7 @@ mod tests {
 				.unwrap();
 			assert_eq!(imported, expected_path);
 			let local = store.store().unwrap();
-			assert_eq!(
-				std::fs::read(local.real_path(&imported)).unwrap(),
-				b"original"
-			);
+			assert_eq!(std::fs::read(local.real_path(&imported)).unwrap(), original);
 			assert!(local.is_valid_path(&expected_path).unwrap());
 			assert!(!local.is_valid_path(&rejected_path).unwrap());
 		}
