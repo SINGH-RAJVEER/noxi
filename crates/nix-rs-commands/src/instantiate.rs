@@ -11,7 +11,7 @@
 //! with an explicit `--store local?root=ROOT`. No builds or permanent GC roots are made.
 
 use std::fmt::Write as _;
-use std::io::{self, Read, Write};
+use std::io::{self, IsTerminal, Read, Write};
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 use std::rc::Rc;
@@ -489,6 +489,26 @@ pub fn evaluate(options: &Options, cwd: &Path) -> Result<Evaluated, ExitCode> {
 	};
 	let builder = Evaluation::builder_pure()
 		.experimental_features(options.settings.experimental_features())
+		.trace_verbose(options.settings.get_bool("trace-verbose", false))
+		.message_output(|bytes| {
+			// CppNix's simple logger preserves color only on suitable terminals.
+			let keep_color = io::stderr().is_terminal()
+				&& std::env::var("TERM").is_ok_and(|term| term != "dumb")
+				&& std::env::var_os("NO_COLOR").is_none()
+				&& std::env::var_os("NOCOLOR").is_none();
+			let bytes = nix_compat::log::filter_ansi_escapes(bytes, !keep_color);
+			let _ = io::stderr().write_all(&bytes);
+		})
+		.warning_output(nix_compat::log::log_enabled(
+			nix_compat::log::VerbosityLevel::Warn,
+		))
+		.abort_on_warn(
+			options.settings.get_bool(
+				"abort-on-warn",
+				std::env::var("NIX_ABORT_ON_WARN")
+					.is_ok_and(|value| matches!(value.as_str(), "1" | "yes" | "true")),
+			),
+		)
 		.max_call_depth(options.settings.get_int("max-call-depth", 10000).max(0) as usize)
 		.search_path(search_path(options))
 		.pure_eval(options.settings.get_bool("pure-eval", false));

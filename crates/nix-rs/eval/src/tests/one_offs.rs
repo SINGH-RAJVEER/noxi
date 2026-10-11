@@ -1,6 +1,56 @@
 use crate::*;
 use pretty_assertions::assert_matches;
 
+#[test]
+fn evaluator_message_settings_remain_independent() {
+	// Build both evaluations before running either. Settings attached to
+	// one builtin set must not change a second set on the same thread.
+	let fatal = Evaluation::builder_pure()
+		.abort_on_warn(true)
+		.warning_output(false)
+		.build();
+	let ordinary = Evaluation::builder_pure().warning_output(false).build();
+	let expr = r#"builtins.tryEval (builtins.warn "warning" 1)"#;
+	let fatal = fatal.evaluate(expr, None);
+	assert_eq!(fatal.errors.len(), 1);
+	assert_matches!(underlying_error_kind(&fatal.errors[0].kind), ErrorKind::EvalError(message) if message.contains("abort-on-warn"));
+	let ordinary = ordinary.evaluate(expr, None);
+	assert!(ordinary.errors.is_empty(), "{:?}", ordinary.errors);
+	let attrs = ordinary.value.unwrap().to_attrs().unwrap();
+	assert_eq!(attrs.select("success").unwrap().as_bool().unwrap(), true);
+
+	let verbose = Evaluation::builder_pure().trace_verbose(true).build();
+	let quiet = Evaluation::builder_pure().build();
+	let expr = r#"builtins.traceVerbose (throw "forced message") 1"#;
+	assert_eq!(verbose.evaluate(expr, None).errors.len(), 1);
+	let quiet = quiet.evaluate(expr, None);
+	assert!(quiet.errors.is_empty(), "{:?}", quiet.errors);
+	assert_matches!(quiet.value, Some(Value::Integer(1)));
+}
+
+#[test]
+fn evaluator_message_sink_preserves_evaluation_order() {
+	let messages = std::rc::Rc::new(std::cell::RefCell::new(Vec::new()));
+	let sink = messages.clone();
+	let result = Evaluation::builder_pure()
+		.trace_verbose(true)
+		.message_output(move |bytes| sink.borrow_mut().push(bytes.to_vec()))
+		.build()
+		.evaluate(
+			r#"builtins.warn "first" (builtins.traceVerbose "second" 123)"#,
+			None,
+		);
+	assert!(result.errors.is_empty(), "{:?}", result.errors);
+	assert_matches!(result.value, Some(Value::Integer(123)));
+	assert_eq!(
+		*messages.borrow(),
+		vec![
+			b"evaluation warning: first\n".to_vec(),
+			b"trace: second\n".to_vec()
+		]
+	);
+}
+
 fn underlying_error_kind(mut kind: &ErrorKind) -> &ErrorKind {
 	while let ErrorKind::BytecodeError(error) | ErrorKind::NativeError { err: error, .. } = kind {
 		kind = &error.kind;

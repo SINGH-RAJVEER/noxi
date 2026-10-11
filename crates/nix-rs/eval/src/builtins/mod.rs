@@ -83,12 +83,36 @@ pub async fn coerce_value_to_path(
 	}
 }
 
-#[derive(Debug, Default)]
+#[derive(Default)]
 struct BuiltinState {
 	regex_cache: RefCell<FxHashMap<String, Regex>>,
 	split_regex_cache: RefCell<FxHashMap<String, regex::bytes::Regex>>,
 	/// The enabled CppNix experimental features, shared with the builder.
 	experimental_features: ExperimentalFeatures,
+	messages: EvaluationMessages,
+}
+
+/// Message settings shared by a builder and its own builtin closures.
+/// Separate evaluations on one thread retain independent settings.
+#[derive(Clone)]
+pub(crate) struct EvaluationMessages {
+	pub(crate) trace_verbose: Rc<std::cell::Cell<bool>>,
+	pub(crate) abort_on_warn: Rc<std::cell::Cell<bool>>,
+	pub(crate) warning_output: Rc<std::cell::Cell<bool>>,
+	pub(crate) output: Rc<RefCell<Rc<dyn Fn(&[u8])>>>,
+}
+
+impl Default for EvaluationMessages {
+	fn default() -> Self {
+		Self {
+			trace_verbose: Rc::new(std::cell::Cell::new(false)),
+			abort_on_warn: Rc::new(std::cell::Cell::new(false)),
+			warning_output: Rc::new(std::cell::Cell::new(true)),
+			output: Rc::new(RefCell::new(Rc::new(|bytes| {
+				let _ = std::io::stderr().write_all(bytes);
+			}))),
+		}
+	}
 }
 
 /// The enabled CppNix experimental features, by name. An
@@ -131,6 +155,50 @@ impl BuiltinState {
 			}
 		})
 	}
+}
+
+/// Print a `builtins.trace` message: strings as they are and other values
+/// with CppNix's `ValuePrinter`.
+async fn print_trace(co: &GenCo, message: Value, messages: &EvaluationMessages) {
+	let message = match message {
+		Value::String(s) => s,
+		message => generators::request_print(co, message, PrintOptions::UNLIMITED).await,
+	};
+	let mut line = b"trace: ".to_vec();
+	line.extend_from_slice(message.as_bytes());
+	line.push(b'\n');
+	(messages.output.borrow())(&line);
+}
+
+/// A message as CppNix's `showErrorInfo` lays it out: trailing whitespace
+/// removed from the message and from every line, the prefix on the first
+/// line and continuation lines indented to its width. An empty message
+/// prints only the newline.
+fn warning_lines(prefix: &[u8], message: &[u8]) -> Vec<u8> {
+	fn chomp(s: &[u8]) -> &[u8] {
+		let end = s
+			.iter()
+			.rposition(|b| !b" \n\r\t".contains(b))
+			.map_or(0, |i| i + 1);
+		&s[..end]
+	}
+	let mut out = Vec::new();
+	let message = chomp(message);
+	if !message.is_empty() {
+		let indent = vec![b' '; prefix.len()];
+		for (i, line) in message.split(|&b| b == b'\n').enumerate() {
+			let mut indented = if i == 0 {
+				prefix.to_vec()
+			} else {
+				out.push(b'\n');
+				indent.clone()
+			};
+			indented.extend_from_slice(line);
+			out.extend_from_slice(chomp(&indented));
+		}
+	}
+	out.push(b'\n');
+	out
 }
 
 #[builtins(state = "Rc<BuiltinState>")]
@@ -1294,10 +1362,11 @@ mod pure_builtins {
 	}
 
 	#[builtin("seq")]
-	async fn builtin_seq(co: GenCo, _x: Value, y: Value) -> Result<Value, ErrorKind> {
-		// The builtin calling infra has already forced both args for us, so
-		// we just return the second and ignore the first
-		Ok(y)
+	async fn builtin_seq(co: GenCo, _x: Value, #[lazy] y: Value) -> Result<Value, ErrorKind> {
+		// Only the first argument is forced by the calling infrastructure.
+		// The second must remain lazy until the first succeeds, including
+		// when the first throws and the second would abort.
+		Ok(generators::request_force(&co, y).await)
 	}
 
 	#[builtin("split")]
@@ -1569,6 +1638,7 @@ mod pure_builtins {
 
 	#[builtin("trace")]
 	async fn builtin_trace(
+		state: Rc<BuiltinState>,
 		co: GenCo,
 		message: Value,
 		#[lazy] value: Value,
@@ -1578,16 +1648,53 @@ mod pure_builtins {
 		if message.is_catchable() {
 			return Ok(message);
 		}
-		// CppNix prints a string message as is and other values with its
-		// `ValuePrinter`.
-		let message = match message {
-			Value::String(s) => s,
-			message => generators::request_print(&co, message, PrintOptions::UNLIMITED).await,
-		};
-		let mut line = b"trace: ".to_vec();
-		line.extend_from_slice(message.as_bytes());
-		line.push(b'\n');
-		let _ = std::io::stderr().write_all(&line);
+		print_trace(&co, message, &state.messages).await;
+		Ok(generators::request_force(&co, value).await)
+	}
+
+	/// `builtins.trace` when `trace-verbose` is set, and otherwise a function
+	/// returning its second argument, as in CppNix.
+	#[builtin("traceVerbose")]
+	async fn builtin_trace_verbose(
+		state: Rc<BuiltinState>,
+		co: GenCo,
+		#[lazy] message: Value,
+		#[lazy] value: Value,
+	) -> Result<Value, ErrorKind> {
+		if state.messages.trace_verbose.get() {
+			let message = generators::request_force(&co, message).await;
+			if message.is_catchable() {
+				return Ok(message);
+			}
+			print_trace(&co, message, &state.messages).await;
+		}
+		Ok(generators::request_force(&co, value).await)
+	}
+
+	#[builtin("warn")]
+	async fn builtin_warn(
+		state: Rc<BuiltinState>,
+		co: GenCo,
+		message: Value,
+		#[lazy] value: Value,
+	) -> Result<Value, ErrorKind> {
+		if message.is_catchable() {
+			return Ok(message);
+		}
+		// Only strings are accepted, so that later versions can give other
+		// values a meaning.
+		let message = message.to_contextful_str()?;
+		if state.messages.warning_output.get() {
+			(state.messages.output.borrow())(&warning_lines(
+				b"evaluation warning: ",
+				message.as_bytes(),
+			));
+		}
+		if state.messages.abort_on_warn.get() {
+			return Err(ErrorKind::EvalError(
+				"aborting to reveal stack trace of warning, as abort-on-warn is set".to_owned(),
+			));
+		}
 		Ok(generators::request_force(&co, value).await)
 	}
 
@@ -1717,8 +1824,16 @@ pub fn pure_builtins() -> Vec<(&'static str, Value)> {
 pub fn pure_builtins_with_features(
 	experimental_features: ExperimentalFeatures,
 ) -> Vec<(&'static str, Value)> {
+	pure_builtins_with_messages(experimental_features, EvaluationMessages::default())
+}
+
+pub(crate) fn pure_builtins_with_messages(
+	experimental_features: ExperimentalFeatures,
+	messages: EvaluationMessages,
+) -> Vec<(&'static str, Value)> {
 	let mut result = pure_builtins::builtins(Rc::new(BuiltinState {
 		experimental_features,
+		messages,
 		..Default::default()
 	}));
 

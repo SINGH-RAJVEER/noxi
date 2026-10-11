@@ -7,6 +7,225 @@ use std::os::unix::fs::{PermissionsExt, symlink};
 use std::path::Path;
 use std::process::Command;
 
+fn reference_instantiate() -> std::path::PathBuf {
+	std::env::var_os("NIXRS_REFERENCE_BIN")
+		.map(std::path::PathBuf::from)
+		.unwrap_or_else(|| {
+			Path::new(env!("CARGO_MANIFEST_DIR")).join("../../target/nix-reference/bin")
+		})
+		.join("nix-instantiate")
+}
+
+/// Read-only, isolated evaluation with either engine, including the
+/// configuration and environment that control warning behavior.
+fn message_evaluation(
+	program: &Path,
+	dir: &Path,
+	expression: &str,
+	config: &str,
+	flags: &[&str],
+	abort_env: &str,
+) -> std::process::Output {
+	Command::new(program)
+		.env_clear()
+		.env("HOME", dir)
+		.env("NIX_CONF_DIR", dir)
+		.env("NIX_USER_CONF_FILES", "")
+		.env("NIX_CONFIG", config)
+		.env("NIX_PATH", "")
+		.env("NIX_ABORT_ON_WARN", abort_env)
+		.current_dir(dir)
+		.args([
+			"--store", "dummy://", "--eval", "--strict", "--expr", expression,
+		])
+		.args(flags)
+		.output()
+		.unwrap()
+}
+
+#[test]
+fn warning_and_verbose_trace_behavior_matches_the_reference() {
+	let dir = tempfile::tempdir().unwrap();
+	fs::write(dir.path().join("ansi-message"), b"\x1b[31mred\x1b[0m").unwrap();
+	let reference = reference_instantiate();
+	let candidate = Path::new(env!("CARGO_BIN_EXE_nix-instantiate"));
+	let cases: Vec<(&str, &str, Vec<&str>, &str)> = vec![
+		(
+			r#"builtins.warn (builtins.readFile ./ansi-message) 123"#,
+			"",
+			vec![],
+			"",
+		),
+		(
+			r#"builtins.trace (builtins.readFile ./ansi-message) 123"#,
+			"",
+			vec![],
+			"",
+		),
+		(
+			r#"builtins.traceVerbose (builtins.readFile ./ansi-message) 123"#,
+			"",
+			vec!["--trace-verbose"],
+			"",
+		),
+		(r#"builtins.warn "Hello %" 123"#, "", vec![], ""),
+		(
+			r#"builtins.warn "line one\n\nline three  \n" 123"#,
+			"",
+			vec![],
+			"",
+		),
+		(r#"builtins.warn "" 123"#, "", vec![], ""),
+		(
+			r#"builtins.warn "hidden" 123"#,
+			"",
+			vec!["--quiet", "--quiet", "--quiet"],
+			"",
+		),
+		(
+			r#"builtins.warn "shown" 123"#,
+			"",
+			vec!["--quiet", "--quiet", "--quiet", "-v"],
+			"",
+		),
+		(
+			r#"builtins.warn "not aborted" 123"#,
+			"abort-on-warn = false\n",
+			vec![],
+			"yes",
+		),
+		(
+			r#"builtins.warn "not aborted" 123"#,
+			"",
+			vec!["--no-abort-on-warn"],
+			"true",
+		),
+		(r#"builtins.warn "not aborted" 123"#, "", vec![], "TRUE"),
+		(
+			r#"builtins.traceVerbose (throw "unused") 123"#,
+			"",
+			vec![],
+			"",
+		),
+		(
+			r#"builtins.traceVerbose "Hello" 123"#,
+			"",
+			vec!["--trace-verbose"],
+			"",
+		),
+		(
+			r#"builtins.traceVerbose "Hello" 123"#,
+			"trace-verbose = true\n",
+			vec![],
+			"",
+		),
+		(
+			r#"builtins.traceVerbose (throw "unused") 123"#,
+			"trace-verbose = true\n",
+			vec!["--no-trace-verbose"],
+			"",
+		),
+		(
+			r#"__traceVerbose "alias" 123"#,
+			"",
+			vec!["--trace-verbose"],
+			"",
+		),
+		(r#"__warn "alias" 123"#, "", vec![], ""),
+		(
+			r#"builtins.tryEval (builtins.warn (throw "message") (throw "value"))"#,
+			"",
+			vec![],
+			"",
+		),
+	];
+	for (expression, config, flags, abort_env) in cases {
+		let expected = message_evaluation(
+			&reference,
+			dir.path(),
+			expression,
+			config,
+			&flags,
+			abort_env,
+		);
+		assert!(
+			expected.status.success(),
+			"reference {expression}: {:?}",
+			expected
+		);
+		let actual =
+			message_evaluation(candidate, dir.path(), expression, config, &flags, abort_env);
+		assert_eq!(
+			(actual.status.code(), actual.stdout, actual.stderr),
+			(expected.status.code(), expected.stdout, expected.stderr),
+			"{expression} {flags:?}"
+		);
+	}
+	// The legacy diagnostic renderer remains a separate gate. Check the
+	// failure semantics here without treating its text as a matching result.
+	for (expression, config, flags, abort_env) in [
+		(
+			r#"builtins.tryEval (builtins.warn "abort" (builtins.trace "unforced" 123))"#,
+			"abort-on-warn = true\n",
+			vec![],
+			"",
+		),
+		(
+			r#"builtins.warn "abort" 123"#,
+			"",
+			vec!["--abort-on-warn"],
+			"",
+		),
+		(r#"builtins.warn "abort" 123"#, "", vec![], "1"),
+		(r#"builtins.warn "abort" 123"#, "", vec![], "yes"),
+		(r#"builtins.warn "abort" 123"#, "", vec![], "true"),
+		(r#"builtins.tryEval (builtins.warn 1 123)"#, "", vec![], ""),
+	] {
+		let expected = message_evaluation(
+			&reference,
+			dir.path(),
+			expression,
+			config,
+			&flags,
+			abort_env,
+		);
+		let actual =
+			message_evaluation(candidate, dir.path(), expression, config, &flags, abort_env);
+		assert_eq!(expected.status.code(), Some(1), "reference {expression}");
+		assert_eq!(actual.status.code(), expected.status.code(), "{expression}");
+		assert!(actual.stdout.is_empty());
+		if expression.contains("\"abort\"") {
+			assert!(String::from_utf8_lossy(&actual.stderr).contains("abort-on-warn is set"));
+			assert!(!String::from_utf8_lossy(&actual.stderr).contains("trace: unforced"));
+		}
+	}
+}
+
+#[test]
+fn sequencing_matches_the_reference() {
+	let dir = tempfile::tempdir().unwrap();
+	let reference = reference_instantiate();
+	let candidate = Path::new(env!("CARGO_BIN_EXE_nix-instantiate"));
+	for expression in [
+		r#"builtins.seq (builtins.trace "first" 1) (builtins.trace "second" 2)"#,
+		r#"builtins.tryEval (builtins.seq (throw "first") (abort "second"))"#,
+		r#"builtins.seq [ (throw "unforced element") ] 2"#,
+		r#"builtins.seq { x = throw "unforced attribute"; } 2"#,
+	] {
+		let expected = message_evaluation(&reference, dir.path(), expression, "", &[], "");
+		let actual = message_evaluation(candidate, dir.path(), expression, "", &[], "");
+		assert!(
+			expected.status.success(),
+			"reference {expression}: {expected:?}"
+		);
+		assert_eq!(
+			(actual.status.code(), actual.stdout, actual.stderr),
+			(expected.status.code(), expected.stdout, expected.stderr),
+			"{expression}"
+		);
+	}
+}
+
 /// The command, kept away from the host's store: its daemon socket and
 /// `NIX_REMOTE` point nowhere, so a store-less instantiation fails rather
 /// than writing to the system store.

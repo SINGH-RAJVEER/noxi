@@ -302,6 +302,18 @@ The final all-feature development check passed 2,649 tests with four optional sk
 
 Both JSON serialization regressions also pass in the release profile, including the 20,000-level tree on a 256 KiB stack. The connected build comparison checks that its result link points to the selected output and that CppNix reports the output as live after temporary evaluator roots have been released.
 
+### Warning, verbose trace and sequencing
+
+`warn` and `traceVerbose` are in `builtins` and exposed as `__warn`/`__traceVerbose`. Message settings and sinks belong to each evaluator's builtin closures, so configuring an evaluation does not change another evaluation on the same thread. Library tests verify independent abort/verbose behavior and warning-before-value message order.
+
+`nix-instantiate` applies `trace-verbose` and `abort-on-warn` from configuration and flags. The default abort setting recognizes `NIX_ABORT_ON_WARN` values `1`, `yes` and `true`; explicit configuration or flags override it. A disabled verbose trace leaves its message unevaluated. `warn` requires a string, emits it before evaluating the second argument, and aborts before that argument when configured, even inside `tryEval`. Quiet logging suppresses warnings without suppressing an abort. Builtin message output uses the simple logger's ANSI filtering.
+
+`warning_and_verbose_trace_behavior_matches_the_reference` compares successful stdout, stderr and exit status byte for byte with CppNix 2.35.2. Cases include multiline/empty/percent-containing warnings, aliases, quiet levels, configuration and environment precedence, lazy verbose messages and ANSI escapes on piped stderr. Fatal-warning and non-string cases compare failure status and semantics; their full diagnostics remain unqualified.
+
+`builtins.seq` previously forced its arguments in reverse order. Its second argument is now lazy until its first argument succeeds. `sequencing_matches_the_reference` compares trace order, a first-argument throw with a second-argument abort, and shallow forcing of list/set arguments with CppNix 2.35.2.
+
+Focused evaluator and command checks validate this milestone. Scoped imports and store-aware imports remain open.
+
 ### Store maintenance through the shared owner
 
 `Store::{find_roots, collect_garbage, optimise_store}` dispatch maintenance to the local store or its owning daemon. Commands use the normal store URI and configuration precedence. The GC client retains negotiated features, uses the reference's specific-path encoding when `delete-dead-specific-referrers` is available, and otherwise sends the legacy path set. Unsupported specific-path and referrer-deletion requests fail before an operation is written. Unit tests check both encodings and a subsequent query on the same connection, including the obsolete response field.

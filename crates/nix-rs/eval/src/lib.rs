@@ -104,6 +104,7 @@ pub struct EvaluationBuilder<'co, 'ro, 'env, IO> {
 	corepkgs_dir: Option<PathBuf>,
 	pure_eval: bool,
 	experimental_features: builtins::ExperimentalFeatures,
+	messages: builtins::EvaluationMessages,
 	compiler_observer: Option<&'co mut dyn CompilerObserver>,
 	runtime_observer: Option<&'ro mut dyn RuntimeObserver>,
 }
@@ -180,7 +181,9 @@ pub(crate) fn max_call_depth() -> usize {
 impl<'co, 'ro, 'env, IO> EvaluationBuilder<'co, 'ro, 'env, IO> {
 	pub fn new(io_handle: IO) -> Self {
 		let experimental_features = builtins::ExperimentalFeatures::default();
-		let mut builtins = builtins::pure_builtins_with_features(experimental_features.clone());
+		let messages = builtins::EvaluationMessages::default();
+		let mut builtins =
+			builtins::pure_builtins_with_messages(experimental_features.clone(), messages.clone());
 		builtins.extend(builtins::placeholders()); // these are temporary
 
 		Self {
@@ -197,6 +200,7 @@ impl<'co, 'ro, 'env, IO> EvaluationBuilder<'co, 'ro, 'env, IO> {
 			corepkgs_dir: None,
 			pure_eval: false,
 			experimental_features,
+			messages,
 			compiler_observer: None,
 			runtime_observer: None,
 		}
@@ -214,6 +218,7 @@ impl<'co, 'ro, 'env, IO> EvaluationBuilder<'co, 'ro, 'env, IO> {
 			corepkgs_dir: self.corepkgs_dir,
 			pure_eval: self.pure_eval,
 			experimental_features: self.experimental_features,
+			messages: self.messages,
 			compiler_observer: self.compiler_observer,
 			runtime_observer: self.runtime_observer,
 		}
@@ -346,6 +351,35 @@ impl<'co, 'ro, 'env, IO> EvaluationBuilder<'co, 'ro, 'env, IO> {
 	/// deeply nested value, fail with CppNix's stack overflow error.
 	pub fn max_call_depth(self, depth: usize) -> Self {
 		MAX_CALL_DEPTH.with(|max| max.set(depth));
+		self
+	}
+
+	/// Set CppNix's `trace-verbose` (default false) for this evaluation:
+	/// whether `builtins.traceVerbose` prints its message like
+	/// `builtins.trace`.
+	pub fn trace_verbose(self, enabled: bool) -> Self {
+		self.messages.trace_verbose.set(enabled);
+		self
+	}
+
+	/// Set CppNix's `abort-on-warn` (default false) for this evaluation:
+	/// whether `builtins.warn` fails after printing its warning.
+	pub fn abort_on_warn(self, enabled: bool) -> Self {
+		self.messages.abort_on_warn.set(enabled);
+		self
+	}
+
+	/// Whether `builtins.warn` prints to standard error, default true.
+	/// Suppressing output does not disable `abort-on-warn`.
+	pub fn warning_output(self, enabled: bool) -> Self {
+		self.messages.warning_output.set(enabled);
+		self
+	}
+
+	/// Send builtin trace and warning messages to this sink, default stderr.
+	/// Each call receives a complete message, including its final newline.
+	pub fn message_output(self, output: impl Fn(&[u8]) + 'static) -> Self {
+		*self.messages.output.borrow_mut() = Rc::new(output);
 		self
 	}
 
