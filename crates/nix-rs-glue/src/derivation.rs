@@ -316,6 +316,19 @@ pub(crate) mod derivation_builtins {
 							};
 							input_context.extend(context);
 							structured_attrs.insert(arg_name, val_json);
+							if matches!(
+								arg_name,
+								"allowedReferences"
+									| "allowedRequisites" | "disallowedReferences"
+									| "disallowedRequisites" | "maxClosureSize"
+									| "maxSize"
+							) && nix_compat::log::log_enabled(
+								nix_compat::log::VerbosityLevel::Warn,
+							) {
+								eprintln!(
+									"warning: In a derivation named '{name}', 'structuredAttrs' disables the effect of the derivation attribute '{arg_name}'; use 'outputChecks.<output>.{arg_name}' instead"
+								);
+							}
 						}
 						None => {
 							let val_str = try_cek_to_value!(coerce_importing(&co, value).await);

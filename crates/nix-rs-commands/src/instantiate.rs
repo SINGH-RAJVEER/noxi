@@ -1,6 +1,6 @@
 //! `nix-instantiate`, following CppNix 2.35.2's read-only evaluation default.
 //!
-//! Supported: `--eval`, `--strict`, `--json`, `--xml` with `--no-location`,
+//! Supported: `--parse`, `--impure`, `--eval`, `--strict`, `--json`, `--xml` with `--no-location`,
 //! `--expr`/`-E`, `--attr`/`-A`, `--arg`, `--argstr`, `-I`/`--include`,
 //! `--find-file`, file arguments including `<lookup>` paths and `-` for
 //! standard input.
@@ -666,10 +666,30 @@ pub fn parse(options: &Options, cwd: &Path, stdout: &mut dyn Write) -> ExitCode 
 			let mut code = String::new();
 			(io::stdin().read_to_string(&mut code).map(|_| code), None)
 		} else {
-			let mut path = cwd.join(input);
+			let mut path = if is_lookup_path(input) {
+				let lookup = nix_rs_eval::NixSearchPath::new(
+					search_path(options)
+						.iter()
+						.map(|entry| nix_rs_eval::NixSearchPathEntry::parse(entry))
+						.collect(),
+					None,
+				)
+				.with_pure_eval(options.settings.get_bool("pure-eval", false));
+				let io = Box::new(nix_rs_eval::StdIO) as Box<dyn nix_rs_eval::EvalIO>;
+				match lookup.resolve(&io, &input[1..input.len() - 1]) {
+					Ok(path) => path,
+					Err(error) => {
+						eprintln!("error: {error}");
+						return ExitCode::FAILURE;
+					}
+				}
+			} else {
+				cwd.join(input)
+			};
 			if path.is_dir() {
 				path.push("default.nix");
 			}
+			let path = std::fs::canonicalize(&path).unwrap_or(path);
 			(std::fs::read_to_string(&path), Some(path))
 		};
 		let code = match code {

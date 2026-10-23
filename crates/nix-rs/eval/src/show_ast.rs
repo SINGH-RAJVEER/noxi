@@ -306,17 +306,18 @@ impl Printer<'_> {
 			ast::Expr::PathAbs(p) => self.path(p.parts(), false),
 			ast::Expr::PathRel(p) => self.path(p.parts(), false),
 			ast::Expr::PathHome(p) => self.path(p.parts(), true),
-			ast::Expr::PathSearch(p) => format!(
-				"(__findFile __nixPath {})",
-				string(
-					p.content()
-						.unwrap()
-						.syntax()
-						.text()
-						.trim_start_matches('<')
-						.trim_end_matches('>')
-				)
-			),
+			ast::Expr::PathSearch(p) => {
+				return Expr::Text("__findFile".to_owned())
+					.call(Expr::Text("__nixPath".to_owned()))
+					.call(Expr::Text(string(
+						p.content()
+							.unwrap()
+							.syntax()
+							.text()
+							.trim_start_matches('<')
+							.trim_end_matches('>'),
+					)));
+			}
 			ast::Expr::AttrSet(s) => return Expr::Set(s.rec_token().is_some(), self.bindings(&s)),
 			ast::Expr::LegacyLet(l) => {
 				format!("({}).body", Expr::Set(true, self.bindings(&l)).show())
@@ -411,7 +412,11 @@ impl Printer<'_> {
 			}
 			ast::Expr::UnaryOp(u) => match u.operator().unwrap() {
 				ast::UnaryOpKind::Invert => format!("(! {})", show(u.expr().unwrap())),
-				ast::UnaryOpKind::Negate => format!("(__sub 0 {})", show(u.expr().unwrap())),
+				ast::UnaryOpKind::Negate => {
+					return Expr::Text("__sub".to_owned())
+						.call(Expr::Text("0".to_owned()))
+						.call(self.expr(u.expr().unwrap()));
+				}
 			},
 			ast::Expr::BinOp(b) => {
 				use ast::BinOpKind::*;
@@ -419,11 +424,20 @@ impl Printer<'_> {
 				let right = self.expr(b.rhs().unwrap());
 				let (l, r) = (left.show(), right.show());
 				match b.operator().unwrap() {
-					Sub => format!("(__sub {l} {r})"),
-					Mul => format!("(__mul {l} {r})"),
-					Div => format!("(__div {l} {r})"),
-					Less => format!("(__lessThan {l} {r})"),
-					More => format!("(__lessThan {r} {l})"),
+					Sub | Mul | Div | Less => {
+						return Expr::Text(
+							match b.operator().unwrap() {
+								Sub => "__sub",
+								Mul => "__mul",
+								Div => "__div",
+								_ => "__lessThan",
+							}
+							.to_owned(),
+						)
+						.call(left)
+						.call(right);
+					}
+					More => return Expr::Text("__lessThan".to_owned()).call(right).call(left),
 					LessOrEq => format!("(! (__lessThan {r} {l}))"),
 					MoreOrEq => format!("(! (__lessThan {l} {r}))"),
 					PipeRight => return right.call(left),

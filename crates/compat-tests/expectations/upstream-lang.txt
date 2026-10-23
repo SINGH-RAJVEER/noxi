@@ -304,7 +304,7 @@ eval-okay-deepseq pass
 eval-okay-delayed-with-inherit pass
 eval-okay-delayed-with pass
 eval-okay-deprecate-cursed-or pass
-eval-okay-derivation-legacy output
+eval-okay-derivation-legacy pass
 eval-okay-dotdotslash-abs-fatal pass
 eval-okay-dotdotslash-path-fatal pass
 eval-okay-dotslash-abs-fatal pass
@@ -347,7 +347,7 @@ eval-okay-home-path-warn pass
 eval-okay-if pass
 eval-okay-import pass
 eval-okay-ind-string pass
-eval-okay-inherit-attr-pos output
+eval-okay-inherit-attr-pos pass
 eval-okay-inherit-from pass
 eval-okay-intersectAttrs pass
 eval-okay-let pass
@@ -365,7 +365,7 @@ eval-okay-parse-flake-ref pass
 eval-okay-partition pass
 eval-okay-path-string-interpolation pass
 eval-okay-path pass
-eval-okay-pathexists output
+eval-okay-pathexists pass
 eval-okay-patterns pass
 eval-okay-print pass
 eval-okay-readDir-symlinked-directory pass
@@ -374,7 +374,7 @@ eval-okay-readFileType pass
 eval-okay-readfile pass
 eval-okay-redefine-builtin pass
 eval-okay-regex-match pass
-eval-okay-regex-match2 output
+eval-okay-regex-match2 pass
 eval-okay-regex-split pass
 eval-okay-regression-20220122 pass
 eval-okay-regression-20220125 pass
