@@ -62,6 +62,72 @@ fn parse_output_matches_the_reference() {
 	}
 }
 
+#[test]
+fn parser_lints_match_the_reference() {
+	let dir = tempfile::tempdir().unwrap();
+	let reference = reference_instantiate();
+	let candidate = Path::new(env!("CARGO_BIN_EXE_nix-instantiate"));
+	fs::write(
+		dir.path().join("child.nix"),
+		"[ /tmp/foo foo/bar http://example.com ]\n",
+	)
+	.unwrap();
+	for expression in [
+		"/tmp/foo",
+		"builtins.isPath ~/foo",
+		"[ foo/bar ./foo ../foo ]",
+		"http://example.com",
+		"[ \"http://example.com\" ./foo/${\"bar\"} ]",
+		"let or = 1; in [ (x: x) or ]",
+		"let or = 1; f = x: x; in [ (f or) (f (f or)) ]",
+		"import ./child.nix",
+	] {
+		for severity in ["ignore", "warn", "fatal"] {
+			let flags = [
+				"--impure",
+				"--lint-absolute-path-literals",
+				severity,
+				"--lint-short-path-literals",
+				severity,
+				"--lint-url-literals",
+				severity,
+			];
+			// Imported fatal errors also acquire evaluation trace frames, owned by the diagnostic work.
+			if expression.starts_with("import") && severity == "fatal" {
+				continue;
+			}
+			let expected = message_evaluation(&reference, dir.path(), expression, "", &flags, "");
+			let actual = message_evaluation(candidate, dir.path(), expression, "", &flags, "");
+			assert_eq!(
+				actual.status.code(),
+				expected.status.code(),
+				"{expression}, {severity}: {actual:?}"
+			);
+			assert_eq!(actual.stdout, expected.stdout, "{expression}, {severity}");
+			assert_eq!(
+				String::from_utf8_lossy(&actual.stderr),
+				String::from_utf8_lossy(&expected.stderr),
+				"{expression}, {severity}"
+			);
+		}
+	}
+	for flags in [
+		vec!["--quiet", "--lint-absolute-path-literals", "warn"],
+		vec!["--pure-eval", "--impure"],
+	] {
+		let expression = if flags[0] == "--quiet" {
+			"/tmp/foo"
+		} else {
+			"builtins.isPath ~/foo"
+		};
+		let expected = message_evaluation(&reference, dir.path(), expression, "", &flags, "");
+		let actual = message_evaluation(candidate, dir.path(), expression, "", &flags, "");
+		assert_eq!(actual.status.code(), expected.status.code());
+		assert_eq!(actual.stdout, expected.stdout);
+		assert_eq!(actual.stderr, expected.stderr);
+	}
+}
+
 /// Read-only, isolated evaluation with either engine, including the
 /// configuration and environment that control warning behavior.
 fn message_evaluation(

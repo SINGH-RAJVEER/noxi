@@ -1942,6 +1942,7 @@ pub fn compile(
 	file: &codemap::File,
 	observer: OptionalCompilerObserver<'_>,
 ) -> EvalResult<CompilationOutput> {
+	source.check(expr, file)?;
 	let mut c = Compiler::new(location, globals.clone(), env, source, file, observer)?;
 
 	let root_span = c.span_for(expr);

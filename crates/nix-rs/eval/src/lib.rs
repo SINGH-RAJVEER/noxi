@@ -21,6 +21,7 @@ mod io;
 mod line_endings;
 pub mod observer;
 mod opcode;
+pub mod parser_lints;
 mod pretty_ast;
 mod show_ast;
 mod source;

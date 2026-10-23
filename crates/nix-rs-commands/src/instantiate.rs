@@ -323,29 +323,59 @@ fn is_lookup_path(s: &str) -> bool {
 }
 
 /// The Nix expression one input evaluates to before attribute selection.
-fn root_expression(options: &Options, input: &str, cwd: &Path) -> io::Result<String> {
+fn root_expression(
+	options: &Options,
+	input: &str,
+	cwd: &Path,
+	lints: &crate::instantiate_lints::Lints,
+) -> io::Result<String> {
 	if options.from_args {
+		lints
+			.preflight(input, "«string»", true)
+			.map_err(|error| io::Error::other(error.to_string()))?;
 		return Ok(format!("({input}\n)"));
 	}
 	if input == "-" {
 		let mut expr = String::new();
 		io::stdin().read_to_string(&mut expr)?;
+		lints
+			.preflight(&expr, "«stdin»", true)
+			.map_err(|error| io::Error::other(error.to_string()))?;
 		return Ok(format!("({expr}\n)"));
 	}
 	if is_lookup_path(input) {
 		return Ok(format!("(import {input})"));
 	}
 	let path = cwd.join(input);
+	let source_path = if path.is_dir() {
+		path.join("default.nix")
+	} else {
+		path.clone()
+	};
+	if let Ok(code) = std::fs::read_to_string(&source_path) {
+		lints
+			.preflight(&code, &source_path.to_string_lossy(), false)
+			.map_err(|error| io::Error::other(error.to_string()))?;
+	}
 	Ok(format!("(import {})", nix_string(&path.to_string_lossy())))
 }
 
 /// The expression evaluated for all inputs and attribute paths: a list with
 /// one result per selection, in command-line order.
-fn driver_expression(options: &Options, cwd: &Path) -> io::Result<String> {
+fn driver_expression(
+	options: &Options,
+	cwd: &Path,
+	lints: &crate::instantiate_lints::Lints,
+) -> io::Result<String> {
 	let mut driver = String::from("let\n__nixrs_autoArgs = {\n");
 	for (name, arg) in &options.auto_args {
 		let value = match arg {
-			AutoArg::Expr(expr) => format!("({expr}\n)"),
+			AutoArg::Expr(expr) => {
+				lints
+					.preflight(expr, "«string»", true)
+					.map_err(|error| io::Error::other(error.to_string()))?;
+				format!("({expr}\n)")
+			}
 			AutoArg::Str(s) => nix_string(s),
 		};
 		let _ = writeln!(driver, "{} = {value};", nix_string(name));
@@ -400,7 +430,7 @@ in __nixrs_forceEach [\n",
 	};
 
 	for input in inputs {
-		let root = root_expression(options, input, cwd)?;
+		let root = root_expression(options, input, cwd, lints)?;
 		for attr_path in &attr_paths {
 			let parts = parse_attr_path(attr_path)
 				.map_err(|message| io::Error::new(io::ErrorKind::InvalidInput, message))?;
@@ -477,7 +507,14 @@ pub fn evaluate(options: &Options, cwd: &Path) -> Result<Evaluated, ExitCode> {
 		eprintln!("error: {message}");
 		ExitCode::FAILURE
 	};
-	let driver = driver_expression(options, cwd).map_err(|e| fail(&e))?;
+	let lints = crate::instantiate_lints::Lints::new(&options.settings);
+	let driver = driver_expression(options, cwd, &lints).map_err(|error| {
+		if lints.failed.get() {
+			ExitCode::FAILURE
+		} else {
+			fail(&error)
+		}
+	})?;
 
 	let env: FxHashMap<SmolStr, Value> = driver_builtins::builtins()
 		.into_iter()
@@ -514,6 +551,7 @@ pub fn evaluate(options: &Options, cwd: &Path) -> Result<Evaluated, ExitCode> {
 		EvalMode::Lazy
 	};
 	let builder = Evaluation::builder_pure()
+		.with_source_map(lints.source_map())
 		.experimental_features(options.settings.experimental_features())
 		.trace_verbose(options.settings.get_bool("trace-verbose", false))
 		.message_output(|bytes| {
@@ -546,6 +584,9 @@ pub fn evaluate(options: &Options, cwd: &Path) -> Result<Evaluated, ExitCode> {
 	let result = builder.build().evaluate_in_dir(&driver, cwd.to_path_buf());
 
 	if !result.errors.is_empty() {
+		if lints.failed.get() {
+			return Err(ExitCode::FAILURE);
+		}
 		for error in &result.errors {
 			error.fancy_format_stderr();
 		}
@@ -611,6 +652,7 @@ pub fn derivations(results: &[Value]) -> Result<Vec<(StorePath, String)>, String
 
 /// Parse each input without evaluating it or opening a store.
 pub fn parse(options: &Options, cwd: &Path, stdout: &mut dyn Write) -> ExitCode {
+	let lints = crate::instantiate_lints::Lints::new(&options.settings);
 	let default = ["./default.nix".to_owned()];
 	let inputs = if options.inputs.is_empty() && !options.from_args {
 		&default[..]
@@ -641,6 +683,19 @@ pub fn parse(options: &Options, cwd: &Path, stdout: &mut dyn Write) -> ExitCode 
 			.as_ref()
 			.and_then(|path| path.parent())
 			.unwrap_or(cwd);
+		let name = location
+			.as_ref()
+			.map(|path| path.to_string_lossy().into_owned())
+			.unwrap_or_else(|| {
+				if options.from_args {
+					"«string»".to_owned()
+				} else {
+					"«stdin»".to_owned()
+				}
+			});
+		if lints.preflight(&code, &name, true).is_err() {
+			return ExitCode::FAILURE;
+		}
 		let result = Evaluation::builder_impure()
 			.build()
 			.compile_only(&code, location.clone());
