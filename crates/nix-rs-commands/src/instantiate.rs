@@ -38,6 +38,7 @@ pub enum AutoArg {
 #[derive(Debug, Default, Clone)]
 pub struct Options {
 	pub eval: bool,
+	pub parse: bool,
 	/// `--store`: the store URI, overriding the `store` setting.
 	pub store: Option<String>,
 	/// `--add-root`: make the derivations GC roots with this name.
@@ -123,6 +124,13 @@ pub fn parse_args_with(
 			"--no-gc-warning" => options.gc_warning = false,
 			"--read-write-mode" => options.read_write_mode = true,
 			"--eval" | "--eval-only" => options.eval = true,
+			"--parse" => options.parse = true,
+			"--impure" => {
+				options
+					.settings
+					.set("pure-eval", "false")
+					.map_err(|error| error.to_string())?;
+			}
 			"--strict" => options.strict = true,
 			"--json" => {
 				options.json = true;
@@ -601,8 +609,65 @@ pub fn derivations(results: &[Value]) -> Result<Vec<(StorePath, String)>, String
 	Ok(derivations)
 }
 
+/// Parse each input without evaluating it or opening a store.
+pub fn parse(options: &Options, cwd: &Path, stdout: &mut dyn Write) -> ExitCode {
+	let default = ["./default.nix".to_owned()];
+	let inputs = if options.inputs.is_empty() && !options.from_args {
+		&default[..]
+	} else {
+		&options.inputs
+	};
+	for input in inputs {
+		let (code, location) = if options.from_args {
+			(Ok(input.clone()), None)
+		} else if input == "-" {
+			let mut code = String::new();
+			(io::stdin().read_to_string(&mut code).map(|_| code), None)
+		} else {
+			let mut path = cwd.join(input);
+			if path.is_dir() {
+				path.push("default.nix");
+			}
+			(std::fs::read_to_string(&path), Some(path))
+		};
+		let code = match code {
+			Ok(code) => code,
+			Err(error) => {
+				eprintln!("error: {error}");
+				return ExitCode::FAILURE;
+			}
+		};
+		let base = location
+			.as_ref()
+			.and_then(|path| path.parent())
+			.unwrap_or(cwd);
+		let result = Evaluation::builder_impure()
+			.build()
+			.compile_only(&code, location.clone());
+		if !result.errors.is_empty() {
+			for error in &result.errors {
+				error.fancy_format_stderr();
+			}
+			return ExitCode::FAILURE;
+		}
+		if writeln!(
+			stdout,
+			"{}",
+			nix_rs_eval::show_expr(result.expr.as_ref().unwrap(), base)
+		)
+		.is_err()
+		{
+			return ExitCode::FAILURE;
+		}
+	}
+	ExitCode::SUCCESS
+}
+
 /// Run `nix-instantiate` with already parsed options.
 pub fn run(options: &Options, cwd: &Path, stdout: &mut dyn Write) -> ExitCode {
+	if options.parse {
+		return parse(options, cwd, stdout);
+	}
 	if !options.eval && options.json {
 		eprintln!("error: --json requires --eval");
 		return ExitCode::FAILURE;

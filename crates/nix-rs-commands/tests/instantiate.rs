@@ -16,6 +16,52 @@ fn reference_instantiate() -> std::path::PathBuf {
 		.join("nix-instantiate")
 }
 
+#[test]
+fn parse_output_matches_the_reference() {
+	let dir = tempfile::tempdir().unwrap();
+	let reference = reference_instantiate();
+	let candidate = Path::new(env!("CARGO_BIN_EXE_nix-instantiate"));
+	for expression in [
+		"{ z.b = 1; z.a = 2; z = { c = 3; }; a = rec { inherit (builtins) map; }; }",
+		"let b = 2; c = {}; in { f = 3; inherit (c) e d; inherit b; a = 1; }",
+		"args@{ z ? 1, a, ... }: assert a; with args; if a then z else null",
+		"[ (1 + 2 + 3) (1 - 2) (2 * 3) (4 / 2) (-1) (!true) (1 < 2) (1 <= 2) (2 > 1) (2 >= 1) ]",
+		"[ (true && false) (true || false) (true -> false) (1 == 2) (1 != 2) ([] ++ []) ({} // {}) ]",
+		"[ (builtins.map (x: x) []) ({} ? a.b) ({}.a.b or 1) <nix/a> __curPos ]",
+		"[ \"a${1}b\" \"${1}\" ''\n  foo\n  bar\n'' http://example.com ]",
+		"[ ./foo/../bar /foo/../bar ~/foo ./foo/${\"bar\"}/baz ]",
+		"{ \"a b\" = 1; ${\"static\"} = 2; ${1 + 2} = 3; \"${\"dynamic\"}\" = 4; }",
+		"let { body = 1; x = 2; }",
+		"[ 0.0 1.23456789 1.0e6 0.0000001 ]",
+	] {
+		let run = |program: &Path| {
+			Command::new(program)
+				.env_clear()
+				.env("HOME", dir.path())
+				.env("NIX_CONF_DIR", dir.path())
+				.env("NIX_USER_CONF_FILES", "")
+				.env("NIX_CONFIG", "")
+				.current_dir(dir.path())
+				.args(["--parse", "--expr", expression])
+				.output()
+				.unwrap()
+		};
+		let expected = run(&reference);
+		let actual = run(candidate);
+		assert!(
+			expected.status.success(),
+			"reference {expression}: {expected:?}"
+		);
+		assert_eq!(
+			actual.status.code(),
+			expected.status.code(),
+			"{expression}: {actual:?}"
+		);
+		assert_eq!(actual.stdout, expected.stdout, "{expression}");
+		assert_eq!(actual.stderr, expected.stderr, "{expression}");
+	}
+}
+
 /// Read-only, isolated evaluation with either engine, including the
 /// configuration and environment that control warning behavior.
 fn message_evaluation(
