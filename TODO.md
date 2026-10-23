@@ -130,7 +130,7 @@ A checked item below means it exists and has focused local evidence in the curre
 
 ## 7. Prove NixOS and Home Manager replacement
 
-- [ ] Build a provisional replacement package with the complete executable set and wire it to the selected Nixpkgs `nix.package` and daemon service options only in disposable qualification VM overlays. Verify that migration selects exactly one store-writing daemon; host replacement instructions remain gated on successful qualification.
+- [ ] Build a provisional replacement package with the complete executable set and wire it to the selected Nixpkgs `nix.package` and daemon service options only in disposable qualification VM overlays. The provisional flake package and VM-only overlay/module now exist; six missing command implementations are explicit failing placeholders. Verify that migration selects exactly one store-writing daemon; host replacement instructions remain gated on successful qualification.
 - [ ] Compare `nixos-rebuild build`, `test`, `boot`, `switch`, and `dry-activate` results, activation effects, boot entries, generations, and failure recovery.
 - [ ] Rebuild an existing CppNix-managed NixOS VM with nix-rs, reboot into the resulting generation, make a second change, and roll back.
 - [ ] Test standalone Home Manager build and switch, flake mode, and Home Manager as a NixOS module using the same engine.

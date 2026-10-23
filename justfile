@@ -122,3 +122,27 @@ ci: fmt-check nix-snapshot-verify check test
 
 # Run the complete development check and then the VM test, which boots a machine.
 ci-vm: ci vm-test
+
+# Build the exact provisional engine package and check its executable layout.
+replacement-package:
+	nix build --out-link target/qualification/replacement .#checks.x86_64-linux.replacement
+	nix build --no-link .#checks.x86_64-linux.replacement-layout
+
+# Boot a private-disk VM and preserve all passing, failing and blocked steps.
+# Modes: nixos, home-manager, distribution. A report build is not a gate pass.
+qualification-report mode:
+	nix build --out-link "target/qualification/{{mode}}-report" --print-build-logs ".#qualification-{{mode}}-report"
+
+# Strict gate: fails if any recorded step fails or is blocked.
+qualification-gate mode:
+	just qualification-report "{{mode}}"
+	nix build --no-link --print-build-logs ".#checks.x86_64-linux.qualification-{{mode}}"
+
+qualification-nixos:
+	just qualification-gate nixos
+
+qualification-home-manager:
+	just qualification-gate home-manager
+
+qualification-distribution:
+	just qualification-gate distribution
