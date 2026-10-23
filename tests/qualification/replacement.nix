@@ -15,7 +15,8 @@ let
 		postBuild = ''echo upgrade-fixture > "$out/qualification-upgrade"'';
 	};
 	common = { lib, ... }: {
-		imports = [ self.nixosModules.qualification home-manager.nixosModules.home-manager ];
+		disabledModules = [ "virtualisation/qemu-vm.nix" ];
+		imports = [ (import ../../nix/qualification-qemu-vm.nix { inherit nixpkgs; }) self.nixosModules.qualification home-manager.nixosModules.home-manager ];
 		system.stateVersion = "26.05";
 		system.switch.enable = true;
 		virtualisation = {

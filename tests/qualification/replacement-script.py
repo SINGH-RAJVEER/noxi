@@ -66,7 +66,7 @@ def restore():
 	probe("return-to-cppnix", REFERENCE + "/bin/nix --version")
 	# Full metadata/content verification, against this guest's disk only.
 	probe("cppnix-store-verification", REFERENCE + "/bin/nix-store --verify --check-contents")
-	machine.succeed("test $(readlink -f /proc/$(systemctl show -p MainPID --value nix-daemon.service)/exe) = " + REFERENCE + "/bin/nix")
+	probe("reference-daemon-executable", shell("test $(readlink -f /proc/$(systemctl show -p MainPID --value nix-daemon.service)/exe) = $(readlink -f " + REFERENCE + "/bin/nix)"))
 
 
 start_all()
@@ -133,6 +133,7 @@ report = {
 	"schema": 1,
 	"mode": MODE,
 	"candidate": CANDIDATE,
+	"source": SOURCE,
 	"reference": REFERENCE,
 	"nixpkgs": NIXPKGS,
 	"home_manager": HM,

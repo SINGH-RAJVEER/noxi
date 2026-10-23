@@ -14,13 +14,13 @@
 		# The upstream package normally ships these units. Define them here
 		# against the same package, retaining exactly one daemon service.
 		systemd.services.nix-daemon.serviceConfig = {
-			ExecStart = lib.mkForce "${config.nix.package}/bin/nix-daemon --daemon";
+			ExecStart = lib.mkForce [ "" "${config.nix.package}/bin/nix-daemon --daemon" ];
 			KillMode = lib.mkForce "control-group";
 			Restart = lib.mkForce "no";
 		};
 		systemd.sockets.nix-daemon = {
 			wantedBy = [ "sockets.target" ];
-			listenStreams = [ "/nix/var/nix/daemon-socket/socket" ];
+			listenStreams = [ "" "/nix/var/nix/daemon-socket/socket" ];
 			socketConfig = { SocketMode = "0666"; DirectoryMode = "0755"; };
 		};
 		# Nixpkgs validates with the modern `nix` CLI, currently absent.
