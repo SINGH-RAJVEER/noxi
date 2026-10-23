@@ -8,8 +8,7 @@ let
 	};
 	members = [ "nix-rs-cli" ] ++ pkgs.lib.optionals replacement [ "nix-rs-commands" "nix-rs-daemon" ];
 	flags = pkgs.lib.concatMap (member: [ "-p" member ]) members;
-in
-rustPlatform.buildRustPackage {
+	binaryPackage = rustPlatform.buildRustPackage {
 	pname = if replacement then "nixrs-replacement-provisional" else "nixrs-preview";
 	version = "0.1.1";
 	src = pkgs.lib.fileset.toSource {
@@ -50,4 +49,23 @@ rustPlatform.buildRustPackage {
 		license = pkgs.lib.licenses.gpl3Only;
 		mainProgram = "nixrs";
 	};
+};
+in
+if !replacement then binaryPackage else pkgs.symlinkJoin {
+	name = "nixrs-replacement-provisional-${binaryPackage.version}";
+	inherit (binaryPackage) pname version meta;
+	paths = [ binaryPackage ];
+	postBuild = ''
+		mkdir -p "$out/lib/tmpfiles.d" "$out/lib/systemd/system"
+		printf '%s\n' \
+			'd /nix/var/nix/daemon-socket 0755 root root -' \
+			'd /nix/var/nix/db 0755 root root -' \
+			'd /nix/var/nix/profiles 0755 root root -' \
+			'd /nix/var/nix/gcroots 0755 root root -' > "$out/lib/tmpfiles.d/nix-daemon.conf"
+		printf '%s\n' '[Unit]' 'Description=nix-rs qualification daemon' \
+			'[Service]' "ExecStart=$out/bin/nix-daemon --daemon" > "$out/lib/systemd/system/nix-daemon.service"
+		printf '%s\n' '[Unit]' 'Description=nix-rs qualification daemon socket' \
+			'[Socket]' 'ListenStream=/nix/var/nix/daemon-socket/socket' \
+			'SocketMode=0666' 'DirectoryMode=0755' > "$out/lib/systemd/system/nix-daemon.socket"
+	'';
 }

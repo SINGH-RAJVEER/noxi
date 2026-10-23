@@ -40,12 +40,11 @@ def handoff():
 	# CppNix writer remains while Rust opens the existing guest store.
 	machine.succeed("systemctl stop nix-daemon.socket nix-daemon.service")
 	probe("handoff-no-reference-writer", shell("! pgrep -x nix-daemon"))
-	machine.succeed(
-		"mkdir -p /run/systemd/system/nix-daemon.service.d; "
-		"printf '[Service]\\nExecStart=\\nExecStart=" + CANDIDATE + "/bin/nix-daemon --daemon\\nRestart=no\\n' "
-		"> /run/systemd/system/nix-daemon.service.d/qualification.conf; "
-		"systemctl daemon-reload"
-	)
+	# Bootstrap the VM-only nix.package/module with a prebuilt generation.
+	# This tests activation wiring, not a generation built by nix-rs.
+	probe("bootstrap-candidate-module", paths["bootstrap"] + "/bin/switch-to-configuration test")
+	machine.succeed("systemctl stop nix-daemon.socket nix-daemon.service; systemctl reset-failed nix-daemon.service")
+	probe("module-daemon-unit", "systemctl cat nix-daemon.service nix-daemon.socket")
 	# Use the packaged clients for every subsequent command, including
 	# children spawned by nixos-rebuild and Home Manager.
 	machine.succeed("mkdir -p /run/qualification-bin; cp -as " + CANDIDATE + "/bin/. /run/qualification-bin/")
@@ -56,9 +55,9 @@ def handoff():
 
 
 def restore():
+	machine.succeed("systemctl stop nix-daemon.socket nix-daemon.service")
+	probe("restore-reference-generation", shell("$(cat /root/reference-system)/bin/switch-to-configuration test"))
 	machine.succeed(
-		"systemctl stop nix-daemon.socket nix-daemon.service; "
-		"rm -f /run/systemd/system/nix-daemon.service.d/qualification.conf; "
 		"rm -rf /run/qualification-bin; systemctl daemon-reload; systemctl reset-failed nix-daemon.service; "
 		"systemctl start nix-daemon.socket nix-daemon.service"
 	)
@@ -78,6 +77,7 @@ probe("reference-boot", REFERENCE + "/bin/nix --version")
 probe("seed-system-profile", REFERENCE + "/bin/nix-env -p /nix/var/nix/profiles/system --set /run/current-system")
 machine.succeed("readlink -f /run/current-system > /root/reference-system")
 paths = json.loads(machine.succeed("cat /etc/qualification/paths.json"))
+SOURCE = machine.succeed("readlink -f /etc/qualification/source").strip()
 probe("artifact-hashes", shell("sha256sum " + CANDIDATE + "/libexec/nix-rs/*"))
 
 if MODE == "distribution":
@@ -106,12 +106,12 @@ else:
 			command = env + " home-manager -f /etc/qualification/home.nix -I home-manager=" + HM + " " + action
 			probe("standalone-" + action, "su - qualification -c " + shlex.quote(command))
 		for action in ["build", "switch"]:
-			command = env + " home-manager --flake path:" + machine.succeed("readlink -f /etc/qualification/source").strip() + "#qualification " + action
+			command = env + " home-manager --flake path:" + SOURCE + "#qualification " + action
 			probe("standalone-flake-" + action, "su - qualification -c " + shlex.quote(command))
 		probe("standalone-activation-marker", "test -f /home/qualification/qualification-marker")
 		probe("module-activation", shell("systemctl restart home-manager-qualification.service; systemctl is-active home-manager-qualification.service"))
 	else:
-		flake = "path:" + machine.succeed("readlink -f /etc/qualification/source").strip()
+		flake = "path:" + SOURCE
 		results = {}
 		for action in ["build", "dry-activate", "test", "switch", "boot"]:
 			results[action] = probe("rebuild-" + action, env + " nixos-rebuild " + action + " --flake " + flake + "#qualification-one --no-reexec")
@@ -127,10 +127,6 @@ else:
 		else:
 			for step in ["reboot-new-generation", "second-change", "second-generation-marker", "rollback", "rollback-marker"]:
 				blocked(step, "rebuild-boot failed; no candidate boot generation exists")
-		# Restore the runtime handoff first, then the saved system generation
-		# if a future candidate actually advanced the profile.
-		machine.succeed("systemctl stop nix-daemon.socket nix-daemon.service")
-		machine.succeed("$(cat /root/reference-system)/bin/switch-to-configuration test")
 	restore()
 
 report = {

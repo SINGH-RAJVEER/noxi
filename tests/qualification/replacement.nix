@@ -65,6 +65,7 @@ let
 		nixrs.qualification.enable = engine;
 		environment.etc."qualification-generation".text = marker;
 	} "nixos").config.nodes.machine;
+	bootstrap = generation "bootstrap" true;
 	first = generation "one" true;
 	second = generation "two" true;
 	recovery = generation "cppnix" false;
@@ -72,12 +73,14 @@ let
 	reports = lib.genAttrs [ "nixos" "home-manager" "distribution" ] (mode: mkTest {
 		environment.etc."qualification/source".source = self;
 		environment.etc."qualification/paths.json".text = builtins.toJSON {
+			bootstrap = bootstrap.system.build.toplevel;
 			first = first.system.build.toplevel;
 			second = second.system.build.toplevel;
 			recovery = recovery.system.build.toplevel;
 		};
 		system.extraDependencies = [
 			candidate upgrade
+			bootstrap.system.build.toplevel
 			first.system.build.toplevel second.system.build.toplevel recovery.system.build.toplevel
 		] ++ inputSources;
 	} mode);
