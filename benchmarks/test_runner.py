@@ -65,6 +65,15 @@ class OracleTests(unittest.TestCase):
 		self.assertEqual(summary["reference"]["paired_geometric_speedup"], 2)
 		self.assertTrue(summary["reference"]["exploratory"])
 
+	def test_named_baselines_are_summarized_independently(self):
+		rows = [{"pair_id": "a", "role": role, "elapsed_s": seconds,
+			"correctness": {"status": "passed"}} for role, seconds in
+			[("reference", 1), ("original", 6), ("baseline", 4), ("candidate", 2)]]
+		summary = paired_summary(rows, 1, bootstrap=100)
+		self.assertEqual(set(summary), {"reference", "original", "baseline"})
+		self.assertAlmostEqual(summary["original"]["paired_geometric_speedup"], 3)
+		self.assertEqual(summary["baseline"]["paired_geometric_speedup"], 2)
+
 	def test_failure_cannot_leave_an_absent_output_registered(self):
 		with tempfile.TemporaryDirectory() as temp:
 			root = Path(temp)

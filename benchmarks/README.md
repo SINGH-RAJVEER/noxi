@@ -25,6 +25,8 @@ devenv shell -- uv run --no-project --no-config python benchmarks/run.py --recor
 
 Rebuild after the change, then add `--baseline-bin target/benchmarks/baseline/bin` to the run. Each matched block contains reference, candidate, and baseline commands, ordered by a recorded seed. Setup and correctness inspection run outside the clock. A failing side invalidates the entire block. A failed preflight prevents timing that case.
 
+For a sequence of optimizations, add preserved artifacts with repeatable `--comparison-bin NAME=DIR`, for example `--comparison-bin original=target/benchmarks/eval-original/bin`. Each participates in the same shuffled block and correctness gate, retains its own source record, and receives a separate comparison with the candidate. Raw samples also support adjacent-step comparisons without rerunning engines in different host conditions.
+
 ## Implemented subsets
 
 | Cases | Current work |

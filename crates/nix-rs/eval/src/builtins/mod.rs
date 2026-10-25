@@ -734,8 +734,13 @@ mod pure_builtins {
 		// the best span we can get…
 		let span = generators::request_span(&co).await;
 
+		let lambda = Thunk::suspended_call_lambda(span);
 		for i in 0..len {
-			let val = Value::Thunk(Thunk::new_suspended_call(generator.clone(), i.into(), span));
+			let val = Value::Thunk(Thunk::new_suspended_call_with_lambda(
+				generator.clone(),
+				i.into(),
+				lambda.clone(),
+			));
 			out.push(val);
 		}
 
@@ -1160,8 +1165,13 @@ mod pure_builtins {
 		// the best span we can get…
 		let span = generators::request_span(&co).await;
 
+		let lambda = Thunk::suspended_call_lambda(span);
 		for val in list {
-			let result = Value::Thunk(Thunk::new_suspended_call(f.clone(), val, span));
+			let result = Value::Thunk(Thunk::new_suspended_call_with_lambda(
+				f.clone(),
+				val,
+				lambda.clone(),
+			));
 			out.push(result)
 		}
 
@@ -1180,13 +1190,18 @@ mod pure_builtins {
 		// the best span we can get…
 		let span = generators::request_span(&co).await;
 
+		let lambda = Thunk::suspended_call_lambda(span);
 		for (key, value) in attrs.into_iter() {
-			let result = Value::Thunk(Thunk::new_suspended_call(
+			let result = Value::Thunk(Thunk::new_suspended_call_with_lambda(
 				f.clone(),
 				key.clone().into(),
-				span,
+				lambda.clone(),
 			));
-			let result = Value::Thunk(Thunk::new_suspended_call(result, value, span));
+			let result = Value::Thunk(Thunk::new_suspended_call_with_lambda(
+				result,
+				value,
+				lambda.clone(),
+			));
 
 			out.insert(key, result);
 		}
@@ -1790,15 +1805,16 @@ mod pure_builtins {
 		let span = generators::request_span(&co).await;
 
 		// apply the function to each element
+		let lambda = Thunk::suspended_call_lambda(span);
 		let attrs = merged.into_iter().map(|(key, vals)| {
-			let val = Value::Thunk(Thunk::new_suspended_call(
-				Value::Thunk(Thunk::new_suspended_call(
+			let val = Value::Thunk(Thunk::new_suspended_call_with_lambda(
+				Value::Thunk(Thunk::new_suspended_call_with_lambda(
 					f.clone(),
 					key.clone().into(),
-					span,
+					lambda.clone(),
 				)),
 				Value::List(NixList::construct(vals.len(), vals)),
-				span,
+				lambda.clone(),
 			));
 			(key, val)
 		});

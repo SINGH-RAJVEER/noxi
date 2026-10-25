@@ -8,6 +8,8 @@ The direct-capture allocation change passed `devenv shell -- just ci`, all 2,725
 
 The memoized-thunk fast path retains normal generator forcing for suspended, blackholed, and indirectly evaluated thunks. All 2,725 nextest tests still pass with five skipped. Paired measurements use the preceding direct-capture release artifact; the qualification gate stays open until the measured gap is close to the reference.
 
+Both path recipes and doctests also passed for the memoized-thunk change. Its five-pair exploratory comparison, 21.330 s versus 22.567 s for the preceding build, has an inconclusive speedup interval. The next allocation change shares only mapped-call bytecode; captures remain separate for each element and the normal forcing machinery still evaluates them.
+
 The first implementation passed ten runner tests, the targeted build/glue unit tests, fifteen command/evaluator/daemon integration tests against the pinned reference, and all seven repaired evaluator benchmark checks. Two Nixpkgs/NixOS path tests remained ignored because their qualification inputs were not selected. The native ordering diagnostic ran 360 samples with exact-order checks. The [initial local results](performance-benchmarks.md#initial-local-results) record 30-block comparisons and their limits; component success does not qualify package usability or system activation.
 
 ## Reference evidence
