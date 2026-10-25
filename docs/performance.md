@@ -1,22 +1,44 @@
 # Performance architecture and optimization plan
 
-Status: first implementation, 2026-10-11. The [runner](../benchmarks/README.md) supports 38 offline subsets of the 154 catalog scenarios. O06 now bounds immutable source capture with an 8 MiB spool threshold; O09 now indexes dependency edges while retaining serial realization and ready ordering. The remaining hypotheses and unimplemented parts of those two hypotheses remain proposed work. The [benchmark specification](performance-benchmarks.md), [scenario catalog](../benchmarks/catalog.tsv), and [CppNix research](performance-research.md) define the evidence required before advertising an optimization.
+Status: evaluator measurements updated 2026-10-25. The [runner](../benchmarks/README.md) supports 39 subsets of the 154 catalog scenarios. O06 bounds immutable source capture with an 8 MiB spool threshold; O09 indexes dependency edges while retaining serial realization and ready ordering. EVAL-08 now covers the qualification NixOS and Home Manager derivation paths. The remaining hypotheses and unimplemented parts of those hypotheses remain proposed work. The [benchmark specification](performance-benchmarks.md), [scenario catalog](../benchmarks/catalog.tsv), and [CppNix research](performance-research.md) define the evidence required before advertising an optimization.
+
+## Qualification evaluator measurements, 2026-10-25
+
+EVAL-08 evaluates the exact four derivation paths from `just nixos-paths`: the qualification NixOS system, its VM, its Home Manager module generation, and a standalone Home Manager generation. Nixpkgs is locked at `e94cb152ed51bd6e24eb4a41f1460252beb52cd2` and Home Manager at `7b4c5ec4bedaf1e062bbc1bcaeddbc6bd242aa1b`. Every engine must independently match all four recorded paths as strict JSON and then match the pinned reference. Host Nix resolves the source paths outside timing; each timed engine evaluates the modules itself against a read-only dummy store.
+
+The final run, `target/benchmarks/eval-hotpaths-final-30`, contains 30 shuffled matched blocks with five release artifacts, plus one preflight per artifact. All 155 invocations passed. Builds used the normal portable release profile through `devenv shell -- just bench-build`. All engines inherited affinity `0-3,12-15` on an AMD Ryzen AI 9 HX 370, four physical faster cores with their SMT siblings. This is a fixed-resource lane: those cores advertise 5.16 GHz versus 3.29 GHz for the other cores. The governor remained `powersave`; OS page cache and other host activity were uncontrolled. These are fresh CLI processes and isolated application state.
+
+Wall and process-tree CPU times are medians. RSS and cgroup memory columns are medians of each invocation's peak. Cgroup memory includes charged page cache and is distinct from target process RSS. Step speedups are paired geometric means with 2,000-resample bootstrap intervals; the final column is the ratio of wall-time medians.
+
+| Engine / cumulative change | Wall s | CPU s | Peak RSS MiB | Cgroup peak MiB | Speedup over preceding nix-rs, 95% CI | Wall / CppNix |
+| --- | ---: | ---: | ---: | ---: | --- | ---: |
+| CppNix 2.35.2 | 3.186 | 4.143 | 979.4 | 967.0 | n/a | 1.000x |
+| Original nix-rs, `569e1b3` | 22.927 | 22.839 | 4,694.8 | 4,697.7 | baseline | 7.197x |
+| Direct captures, `04469d5` | 21.737 | 21.656 | 4,612.4 | 4,615.4 | 1.053x [1.044, 1.060] | 6.824x |
+| Memoized forcing, `2fe6949` | 20.450 | 20.377 | 4,612.7 | 4,615.3 | 1.065x [1.058, 1.075] | 6.419x |
+| Shared mapped-call bytecode, `772d833` + `a77b06f` | 19.526 | 19.419 | 3,240.5 | 3,241.0 | 1.047x [1.041, 1.054] | 6.129x |
+
+The cumulative paired speedup is 1.175x, 95% interval [1.170, 1.180]. The wall-time medians differ by 3.401 s, a 14.8% reduction. Median peak RSS fell by 31.0%; the largest observed target RSS was 4,695.1 MiB for the original and 3,241.2 MiB for the final candidate. Evaluation still takes 6.1 times the reference's median elapsed time, so TODO section 3's near-reference gate remains open. These measurements qualify this four-path workload in this resource lane.
+
+The changes address costs identified by flat `cycles:u` profiling:
+
+- Directly install populated captures when constructing VM thunks and closures, reserve the known capture count, and remove redundant reference-count operations. This avoids allocating a capture vector only to replace it immediately.
+- Read fully memoized thunk values directly in bytecode and builtin force/try-force requests. Suspended thunks, blackholes, and evaluated thunks pointing to another thunk retain the normal forcing path.
+- Share one generated application lambda per invocation of `map`, `mapAttrs`, `genList`, and `zipAttrsWith`. Each resulting thunk keeps its own argument and callee captures. Empty results return before allocating application bytecode. The ordinary suspended-thunk machinery, source spans, and error types remain unchanged.
+
+After timing, fresh controlled profiles of the preserved original and final artifacts used the same isolated environment and affinity. `perf record -e cycles:u -c 10000000` collected 10,756 and 9,211 samples respectively, with zero lost samples; both profiling invocations also matched the four-path oracle. The visible libc allocation/free/reallocation routines account for approximately 22% of original samples and 19% of final samples. In the final profile, bytecode dispatch accounts for 9.71%, generator dispatch for 8.20%, and thunk forcing for 5.11%. These fractions describe a smaller total cycle count, approximately 107.56 billion original versus 92.11 billion final, and do not replace the 30-block timing estimate. Further evaluation-time work needs to address the remaining VM/generator and value-management costs. Raw data, flat reports and exact commands/environments are in `target/benchmarks/profiles/controlled-{original,candidate}.{data,txt,json}`; `target/benchmarks/profile-eval.py` reproduces them. The host rejected frequency sampling and call-stack capture, so these are fixed-period, user-space flat profiles.
+
+The reference-generated `eval-okay-shared-mapped-call-captures` fixture checks empty-result laziness and independent captured values for all four builtins. Full CI passed 2,726 nextest tests with five skipped and all doctests; all twelve benchmark-runner tests passed. Both `just nixos-paths` and `just nixpkgs-paths` passed unchanged after every optimization stage.
+
+The original release and each intermediate artifact, source identities, exact arguments and isolated environments, fixture digest, CPU/I/O counters, target RSS, cgroup memory, stdout/stderr, and manifest are retained under `target/benchmarks/`. The final manifest's 470 files and every measured binary digest were verified. `eval-hotpaths-final-30-adjacent-summary.json` and `analyze-eval.py` retain the adjacent-stage analysis outside the sealed run directory. Preliminary `eval-baseline`, `eval-captures`, and `eval-forced` runs were exploratory; the partial `eval-hotpaths-30` and `eval-hotpaths-bigcores-30` matrices were stopped to control affinity and remove empty-result allocation respectively. Their samples are not pooled with the final run.
+
+Reproduce the final matrix after preserving artifacts as described in the benchmark README:
+
+```sh
+devenv shell -- taskset -c 0-3,12-15 just bench target/nix-reference/bin target/benchmarks/eval-final/bin target/test-busybox --baseline-bin target/benchmarks/eval-forced-baseline/bin --comparison-bin original=target/benchmarks/eval-original/bin --comparison-bin captures=target/benchmarks/eval-captures-baseline/bin --case EVAL-08 --samples 30 --timeout 300 --output target/benchmarks/eval-hotpaths-repeat
+```
 
 ## What should become faster
-
-### Qualification evaluator measurements, 2026-10-25
-
-EVAL-08 now measures the exact four-path `just nixos-paths` workload with locked inputs, strict JSON correctness, an optional preserved nix-rs baseline, and cgroup/process RSS accounting. A release preflight before the evaluator changes took 24.324 s and 4,695 MiB peak process RSS; pinned CppNix 2.35.2 took 5.498 s and 992 MiB. This single preflight reproduces the gap; it is not a 30-pair performance claim. The initial three-pair run, `target/benchmarks/eval-baseline`, encountered severe shared-host CPU and memory pressure and is excluded from optimization claims.
-
-The flat `cycles:u` profile in `target/benchmarks/profiles/original.data` collected 13,067 samples without loss. Allocation/free routines account for roughly 21% of cycles; bytecode dispatch accounts for 8.65%, generator dispatch for 6.06%, and thunk forcing for 5.25%. Call-stack capture and frequency sampling were rejected by the host, so use fixed-period sampling. The first change passes populated captures directly into suspended thunk/closure constructors and reserves the known capture count. This removes throwaway capture-vector allocation and growth without changing forcing, recursion finalization, or error types. A comparison preflight used 4,612 MiB candidate RSS versus 4,693 MiB for the preserved baseline; paired timing is recorded separately before accepting a speed claim.
-
-The five-pair exploratory `eval-captures` run passed every four-path oracle. Shared-host load makes its elapsed-time estimate inconclusive: candidate median 34.040 s, preserved baseline 58.801 s, reference 4.523 s; paired baseline/candidate geometric speedup 1.215 with 95% bootstrap interval 0.990 to 1.515. Median target RSS fell from 4,693 to 4,611 MiB, and cgroup peak from 4,700 to 4,627 MiB. Keep the allocation reduction, but do not interpret this run as a demonstrated latency gain. Full CI passed 2,725 nextest tests with five skipped and all doctests. Both `just nixos-paths` and `just nixpkgs-paths` passed unchanged.
-
-The next VM change reads already memoized thunk values directly in bytecode forcing and builtin force/try-force requests. Suspended thunks, blackholes, and evaluated thunks pointing to other thunks still enter the ordinary forcing path. This removes generator allocation and VM suspension for cache hits without changing laziness or error construction. Measurements compare against the preserved `eval-captures-baseline` artifact and pinned reference.
-
-Its five-pair exploratory `eval-forced` run measured median 21.330 s versus preceding nix-rs 22.567 s and CppNix 3.449 s. The paired speedup interval, 0.939 to 1.097, remains inconclusive. Full CI and both path recipes passed. The second profile collected 9,843 cycle samples with no loss; dispatch and allocation still dominate. The third change shares the generated application lambda within `map`, `mapAttrs`, `genList`, and `zipAttrsWith`, keeping each call's argument and callee in separate captures. The ordinary suspended-thunk representation, forcing protocol, source spans, and error types remain unchanged.
-
-Empty mapped collections return before creating application bytecode. A reference-generated evaluator fixture checks their function laziness and independent captures across mapped closures, attributes, generated lists, and zipped attributes. Qualification measurements use the same affinity for every engine on heterogeneous CPUs; this host's faster physical cores are CPUs `0-3` with SMT siblings `12-15`, advertised at 5.16 GHz versus 3.29 GHz for the other cores. Earlier unrestricted runs remain exploratory and are not pooled with this controlled lane.
 
 Measure time until an installed package actually runs, a development shell executes its first command, development services pass readiness checks, and a system generation completes activation. Download completion, derivation evaluation, and a CLI returning early are intermediate milestones.
 
