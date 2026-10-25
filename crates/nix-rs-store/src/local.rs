@@ -17,7 +17,7 @@ use nix_compat::narinfo::VerifyingKey;
 use nix_compat::nixbase32;
 use nix_compat::nixhash::{CAHash, HashAlgo, NixHash, NixHashDigester};
 use nix_compat::store_path::{STORE_DIR, StorePath, StorePathRef};
-use rusqlite::{Connection, OptionalExtension, params};
+use rusqlite::{Connection, OptionalExtension, TransactionBehavior, params};
 
 use crate::canonicalise::canonicalise_path_metadata;
 use crate::config::LocalStoreConfig;
@@ -37,6 +37,14 @@ pub enum FileIngestionMethod {
 	/// The contents of a text file, which may reference other store paths
 	/// (`text:` content addresses). Only valid as a hash method.
 	Text,
+}
+
+/// CppNix's `UnkeyedRealisation`: the path a derivation output was realised
+/// to, with signatures in `name:base64` form.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Realisation {
+	pub out_path: StorePath,
+	pub signatures: BTreeSet<String>,
 }
 
 pub struct LocalStore {
@@ -241,10 +249,10 @@ impl LocalStore {
 			db::open(&db_path, mode, &settings)?
 		};
 
-		if !config.read_only && db::upgrade_schema(&conn, true)? {
+		if !config.read_only && db::upgrade_schema(&conn, true, config.ca_derivations)? {
 			let lock = global_lock.as_ref().expect("writable store holds the lock");
 			acquire_write(lock)?;
-			db::upgrade_schema(&conn, false)?;
+			db::upgrade_schema(&conn, false, config.ca_derivations)?;
 			lock_file(lock, LockType::Read, true)?;
 		}
 
@@ -371,7 +379,10 @@ impl LocalStore {
 	/// cycle.
 	pub fn register_valid_paths(&self, infos: &[ValidPathInfo]) -> Result<()> {
 		let mut db = self.db();
-		let tx = db.transaction()?;
+		// Take the writer reservation before reading. Upgrading a deferred
+		// read transaction can fail with SQLITE_BUSY_SNAPSHOT, bypassing the
+		// busy timeout when another client commits in between.
+		let tx = db.transaction_with_behavior(TransactionBehavior::Immediate)?;
 		for info in infos {
 			if query_id(&tx, &info.path)?.is_some() {
 				update_path_info(&tx, info)?;
@@ -499,13 +510,92 @@ impl LocalStore {
 	/// Add signatures to a valid path.
 	pub fn add_signatures(&self, path: &StorePath, sigs: &BTreeSet<String>) -> Result<()> {
 		let mut db = self.db();
-		let tx = db.transaction()?;
+		let tx = db.transaction_with_behavior(TransactionBehavior::Immediate)?;
 		let mut info =
 			query_path_info(&tx, path)?.ok_or_else(|| Error::InvalidPath(print(path)))?;
 		info.sigs.extend(sigs.iter().cloned());
 		update_path_info(&tx, &info)?;
 		tx.commit()?;
 		Ok(())
+	}
+
+	// Realisations
+
+	fn require_ca_derivations(&self) -> Result<()> {
+		if self.config.ca_derivations {
+			Ok(())
+		} else {
+			Err(Error::Other(
+				"experimental Nix feature 'ca-derivations' is disabled; add '--extra-experimental-features ca-derivations' to enable it".to_owned(),
+			))
+		}
+	}
+
+	/// `LocalStore::registerDrvOutput`: record that output `output` of
+	/// `drv_path` was realised to `realisation.out_path`. Signatures merge
+	/// into an existing record for the same path; a record for another path
+	/// is an error.
+	pub fn register_drv_output(
+		&self,
+		drv_path: &StorePath,
+		output: &str,
+		realisation: &Realisation,
+	) -> Result<()> {
+		self.require_ca_derivations()?;
+		let mut db = self.db();
+		let tx = db.transaction_with_behavior(TransactionBehavior::Immediate)?;
+		match query_realisation(&tx, drv_path, output)? {
+			Some(old) if old.out_path == realisation.out_path => {
+				let mut sigs = old.signatures;
+				sigs.extend(realisation.signatures.iter().cloned());
+				tx.prepare_cached(
+					"update BuildTraceV3 set signatures = ? where drvPath = ? and outputName = ?",
+				)?
+				.execute(params![
+					sigs.into_iter().collect::<Vec<_>>().join(" "),
+					drv_path.to_string(),
+					output
+				])?;
+			}
+			Some(old) => {
+				return Err(Error::Other(format!(
+					"Trying to register a realisation of '{drv_path}^{output}', but we already have another one locally.\nLocal:  {}\nRemote: {}",
+					print(&old.out_path),
+					print(&realisation.out_path)
+				)));
+			}
+			None => {
+				tx.prepare_cached(
+					"insert into BuildTraceV3 (drvPath, outputName, outputPath, signatures) values (?, ?, ?, ?)",
+				)?
+				.execute(params![
+					drv_path.to_string(),
+					output,
+					print(&realisation.out_path),
+					realisation
+						.signatures
+						.iter()
+						.cloned()
+						.collect::<Vec<_>>()
+						.join(" ")
+				])?;
+			}
+		}
+		tx.commit()?;
+		Ok(())
+	}
+
+	/// `LocalStore::queryRealisation`. Without `ca-derivations` there are no
+	/// realisations.
+	pub fn query_realisation(
+		&self,
+		drv_path: &StorePath,
+		output: &str,
+	) -> Result<Option<Realisation>> {
+		if !self.config.ca_derivations {
+			return Ok(None);
+		}
+		query_realisation(&self.db(), drv_path, output)
 	}
 
 	/// Whether `info` lacks the signatures `require-sigs` demands.
@@ -1136,6 +1226,33 @@ fn query_path_info(db: &Connection, path: &StorePath) -> Result<Option<ValidPath
 	Ok(Some(info))
 }
 
+fn query_realisation(
+	db: &Connection,
+	drv_path: &StorePath,
+	output: &str,
+) -> Result<Option<Realisation>> {
+	let row: Option<(String, Option<String>)> = db
+		.prepare_cached(
+			"select outputPath, signatures from BuildTraceV3 where drvPath = ? and outputName = ? order by id limit 1",
+		)?
+		.query_row(params![drv_path.to_string(), output], |row| {
+			Ok((row.get(0)?, row.get(1)?))
+		})
+		.optional()?;
+	let Some((out_path, sigs)) = row else {
+		return Ok(None);
+	};
+	Ok(Some(Realisation {
+		out_path: parse_store_path(&out_path)?,
+		signatures: sigs
+			.unwrap_or_default()
+			.split(' ')
+			.filter(|s| !s.is_empty())
+			.map(str::to_owned)
+			.collect(),
+	}))
+}
+
 fn query_referrers(db: &Connection, path: &StorePath) -> Result<BTreeSet<StorePath>> {
 	let mut stmt = db.prepare_cached(
 		"select path from Refs join ValidPaths on referrer = id where reference = (select id from ValidPaths where path = ?)",
@@ -1233,18 +1350,16 @@ pub fn delete_path(path: &Path) -> Result<()> {
 	Ok(())
 }
 
-fn read_schema(path: &Path) -> Result<u32> {
+fn read_schema(path: &Path) -> Result<i32> {
 	match fs::read_to_string(path) {
-		Ok(s) => s
-			.trim()
-			.parse()
-			.map_err(|_| Error::CorruptSchema(path.to_owned())),
+		// `string2Int<int>`: surrounding whitespace makes the file corrupt.
+		Ok(s) => s.parse().map_err(|_| Error::CorruptSchema(path.to_owned())),
 		Err(e) if e.kind() == io::ErrorKind::NotFound => Ok(0),
 		Err(e) => Err(Error::io(format!("reading '{}'", path.display()), e)),
 	}
 }
 
-fn write_schema(path: &Path, version: u32) -> Result<()> {
+fn write_schema(path: &Path, version: i32) -> Result<()> {
 	let mut file = File::create(path).context(|| format!("writing '{}'", path.display()))?;
 	file.write_all(version.to_string().as_bytes())?;
 	file.sync_all()?;
