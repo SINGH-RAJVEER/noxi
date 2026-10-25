@@ -47,6 +47,9 @@ in
 		pkgs.cargo-deny
 		pkgs.cargo-about
 
+		# Evaluator profiling.
+		pkgs.perf
+
 		# VM disk inspection and the reference VM's monitor connection.
 		pkgs.qemu_kvm
 		pkgs.socat

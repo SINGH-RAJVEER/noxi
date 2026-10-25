@@ -705,8 +705,12 @@ pub async fn request_stack_pop(co: &GenCo) -> Value {
 
 /// Force any value and return the evaluated result from the VM.
 pub async fn request_force(co: &GenCo, val: Value) -> Value {
-	if let Value::Thunk(_) = val {
-		match co.yield_(VMRequest::ForceValue(val)).await {
+	if let Value::Thunk(thunk) = val {
+		let thunk = match thunk.force_if_evaluated() {
+			Ok(value) => return value,
+			Err(thunk) => thunk,
+		};
+		match co.yield_(VMRequest::ForceValue(Value::Thunk(thunk))).await {
 			VMResponse::Value(value) => value,
 			msg => panic!("nix-rs bug: VM responded with incorrect generator message: {msg}"),
 		}
@@ -717,8 +721,12 @@ pub async fn request_force(co: &GenCo, val: Value) -> Value {
 
 /// Force a value
 pub(crate) async fn request_try_force(co: &GenCo, val: Value) -> Value {
-	if let Value::Thunk(_) = val {
-		match co.yield_(VMRequest::TryForce(val)).await {
+	if let Value::Thunk(thunk) = val {
+		let thunk = match thunk.force_if_evaluated() {
+			Ok(value) => return value,
+			Err(thunk) => thunk,
+		};
+		match co.yield_(VMRequest::TryForce(Value::Thunk(thunk))).await {
 			VMResponse::Value(value) => value,
 			msg => panic!("nix-rs bug: VM responded with incorrect generator message: {msg}"),
 		}

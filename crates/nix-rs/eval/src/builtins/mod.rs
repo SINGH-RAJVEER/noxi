@@ -731,12 +731,20 @@ mod pure_builtins {
 			len.try_into()
 				.map_err(|_| ErrorKind::Abort(format!("can not create list of size {len}")))?,
 		);
+		if len == 0 {
+			return Ok(Value::List(out.into()));
+		}
 
 		// the best span we can get…
 		let span = generators::request_span(&co).await;
 
+		let lambda = Thunk::suspended_call_lambda(span);
 		for i in 0..len {
-			let val = Value::Thunk(Thunk::new_suspended_call(generator.clone(), i.into(), span));
+			let val = Value::Thunk(Thunk::new_suspended_call_with_lambda(
+				generator.clone(),
+				i.into(),
+				lambda.clone(),
+			));
 			out.push(val);
 		}
 
@@ -1157,12 +1165,20 @@ mod pure_builtins {
 	async fn builtin_map(co: GenCo, #[lazy] f: Value, list_val: Value) -> Result<Value, ErrorKind> {
 		let list = list_val.to_list()?;
 		let mut out = Vec::with_capacity(list.len());
+		if list.is_empty() {
+			return Ok(Value::List(out.into()));
+		}
 
 		// the best span we can get…
 		let span = generators::request_span(&co).await;
 
+		let lambda = Thunk::suspended_call_lambda(span);
 		for val in list {
-			let result = Value::Thunk(Thunk::new_suspended_call(f.clone(), val, span));
+			let result = Value::Thunk(Thunk::new_suspended_call_with_lambda(
+				f.clone(),
+				val,
+				lambda.clone(),
+			));
 			out.push(result)
 		}
 
@@ -1177,17 +1193,25 @@ mod pure_builtins {
 	) -> Result<Value, ErrorKind> {
 		let attrs = attrs.to_attrs()?;
 		let mut out = FxHashMap::default();
+		if attrs.is_empty() {
+			return Ok(Value::attrs(out.into()));
+		}
 
 		// the best span we can get…
 		let span = generators::request_span(&co).await;
 
+		let lambda = Thunk::suspended_call_lambda(span);
 		for (key, value) in attrs.into_iter() {
-			let result = Value::Thunk(Thunk::new_suspended_call(
+			let result = Value::Thunk(Thunk::new_suspended_call_with_lambda(
 				f.clone(),
 				key.clone().into(),
-				span,
+				lambda.clone(),
 			));
-			let result = Value::Thunk(Thunk::new_suspended_call(result, value, span));
+			let result = Value::Thunk(Thunk::new_suspended_call_with_lambda(
+				result,
+				value,
+				lambda.clone(),
+			));
 
 			out.insert(key, result);
 		}
@@ -1789,18 +1813,22 @@ mod pure_builtins {
 			}
 		}
 
+		if merged.is_empty() {
+			return Ok(Value::attrs(NixAttrs::empty()));
+		}
 		let span = generators::request_span(&co).await;
 
 		// apply the function to each element
+		let lambda = Thunk::suspended_call_lambda(span);
 		let attrs = merged.into_iter().map(|(key, vals)| {
-			let val = Value::Thunk(Thunk::new_suspended_call(
-				Value::Thunk(Thunk::new_suspended_call(
+			let val = Value::Thunk(Thunk::new_suspended_call_with_lambda(
+				Value::Thunk(Thunk::new_suspended_call_with_lambda(
 					f.clone(),
 					key.clone().into(),
-					span,
+					lambda.clone(),
 				)),
 				Value::List(NixList::construct(vals.len(), vals)),
-				span,
+				lambda.clone(),
 			));
 			(key, val)
 		});

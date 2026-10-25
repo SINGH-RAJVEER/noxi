@@ -1,6 +1,6 @@
 # Benchmarks against CppNix
 
-Status: initial implementation, 2026-10-11. The [runner](../benchmarks/README.md) implements 38 offline subsets of the 154 scenarios in [catalog.tsv](../benchmarks/catalog.tsv). This document defines the broader contracts, including dimensions the runner does not yet collect. The [architecture plan](performance.md) names the hypotheses, and the [research appendix](performance-research.md) establishes existing CppNix behavior. Unsupported work remains visible in coverage reports.
+Status: evaluator qualification adapter added 2026-10-25. The [runner](../benchmarks/README.md) implements 39 subsets of the 154 scenarios in [catalog.tsv](../benchmarks/catalog.tsv), including the locked four-path NixOS/Home Manager workload in EVAL-08. This document defines the broader contracts, including dimensions the runner does not yet collect. The [architecture plan](performance.md) names the hypotheses, and the [research appendix](performance-research.md) establishes existing CppNix behavior. Unsupported work remains visible in coverage reports.
 
 ## Questions every result must answer
 
@@ -17,6 +17,8 @@ Use the project-pinned CppNix 2.35.2 release at `2c73b59da29606068c0c98db015dd3a
 Build candidate binaries with the normal portable release profile and recorded feature set. The existing `release-with-debug` profile can support profiling; record any difference from distributed release settings. Do not time Cargo/Nix builds of the benchmarking tools or their package-manager artifacts inside installation scenarios. Record the packaging expression, source revision, dirty tree digest, Cargo lock digest, compiler, build flags, linked libraries, allocator, binary digests, executable paths, and versions for both engines. A JJ change ID alone is insufficient to identify a mutable working copy.
 
 Each optimization needs two comparisons: candidate versus its pre-change nix-rs baseline, and candidate versus pinned CppNix. Keep raw values even where a case has no comparable reference command. Use a separate named lane for a newer CppNix release or custom source build; never mix it into the pinned report. Optional native CPU flags or PGO have their own lanes and held-out workloads.
+
+The runner accepts additional preserved artifacts with repeatable `--comparison-bin NAME=DIR`. This puts every optimization stage into the same shuffled, correctness-gated block, so adjacent changes and the cumulative change can be compared under the same host conditions. On heterogeneous CPUs, set the affinity of the entire runner, for example `devenv shell -- taskset -c 0-3,12-15 just bench ...`, and retain its recorded affinity as a distinct resource lane. Never pin just the candidate. The [qualification evaluator measurements](performance.md#qualification-evaluator-measurements-2026-10-25) use this protocol for EVAL-08.
 
 No benchmark may hide a helper engine. If nix-rs uses CppNix to prepare a derivation outside timing, call the case a realization benchmark. For an end-to-end install, its own timed evaluation/input/store work must produce the result. Record builder/helper executable identities, every store client/server pairing, and time attributable to each engine.
 
