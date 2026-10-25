@@ -14,6 +14,10 @@ name = "nix"
 path = "src/bin/nix.rs"
 
 [[bin]]
+name = "nix-hash"
+path = "src/bin/nix-hash.rs"
+
+[[bin]]
 name = "nix-shell"
 path = "src/bin/nix-shell.rs"
 

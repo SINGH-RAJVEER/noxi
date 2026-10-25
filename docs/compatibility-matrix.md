@@ -17,7 +17,7 @@ This is the first qualification target and its current evidence, not a claim of 
 | Area | Current status | Evidence needed to pass |
 |---|---|---|
 | Nix language and evaluator | 133 of 467 copied cases pass through nix-rs's `nix-instantiate`; `warn`, `traceVerbose` and ordinary-file `scopedImport`, diverted-store/symlink path resolution, registered `.drv` imports and input-addressed IFD through local and both daemon pairings have focused reference comparisons; all six recorded overflow/deep-nesting crashes now produce controlled evaluation errors. 43 focused arithmetic cases pass in debug and release; diagnostics remain gaps in `crates/compat-tests/expectations/upstream-lang.txt` | Every applicable language case and the `lang.sh` script checks matching the reference, explicit dispositions for reference-disabled and anomalous cases, and Nixpkgs evaluation comparison |
-| Hash algorithms | Partial fixture coverage, including BLAKE3 vectors and JSON. The copied `sha512.json` fixture is a reference anomaly: its CppNix test constructs a SHA-256 hash. | All reference formats, feature-gate behavior, hashing commands, and store consumers |
+| Hash algorithms | Fixture coverage, including BLAKE3 vectors and JSON; `nix hash`, `nix-hash` and the `blake3-hashes` gate compared with the reference for every algorithm and format, including malformed input. The copied `sha512.json` fixture is a reference anomaly: its CppNix test constructs a SHA-256 hash. | Git tree hashing (`--mode git`), store consumers |
 | Derivation and path formats | Partial fixture coverage. ATerm parsing, all 18 copied version-4 derivation/output JSON fixtures, non-UTF-8 text and output names, colliding hash-modulo inputs, and unusual fixed-output input requests have local tests or reference-generated fixtures | All copied fixtures and byte comparisons; see `crates/compat-tests/` |
 | Copied fixture inventory | Every copied fixture file is classified in `crates/compat-tests/expectations/fixtures.txt`, and `fixture_inventory` fails on an unclassified file; 691 of 1,916 are still unrun | No `unrun` entries for behavior in the declared scope |
 | NAR archive format | Eight copied malformed archives plus four reference-generated valid dumps; 16 sync/async reader and writer comparisons pass in `reference_nars`. 22 boundary archives and the 64-level nesting limit match the reference in `reference_nar_limits` | macOS case-hack, and CppNix messages for reader errors other than nesting depth |
@@ -40,6 +40,8 @@ Modern CLI inventory and the initial section 6 gaps are recorded in [verificatio
 
 | Modern CLI group | Measured coverage | Remaining |
 |---|---|---|
+| `hash`, `nix-hash` | Every subcommand, format and algorithm flag, NAR and flat path hashing, malformed input, BLAKE3 gate order, aliases and legacy `nix-hash` flags | `--mode git`, `--help` pages |
+| Dispatcher | `nix-command` and flag feature gates in CppNix's order, suggestions, sub-command lists, aliases, `--option` warnings, Internet check, multi-call legacy names | `--help`, `--refresh`, verbose `--version`, shebang scripts |
 | `eval` | Expression/file, raw/JSON, selection/apply, pure defaults and flag precedence | Pure filesystem policy, evaluator diagnostics, flakes and other flags |
 | `build` | Fresh expression builds and logs; cached JSON, dry-run JSON, printed paths, link order | Fresh-build JSON timing/resource metadata, complete installable selection |
 | `path-info` | JSON formats 1/2/3, recursive/closure-size output | All-store selection, nonlocal stores, expression installables |

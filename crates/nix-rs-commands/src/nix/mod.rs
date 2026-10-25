@@ -3,6 +3,7 @@ mod args;
 mod command_store;
 pub mod execution;
 mod expression;
+pub mod hash;
 mod inspection;
 pub(crate) mod pure;
 mod table;
@@ -21,6 +22,8 @@ pub(super) struct Parsed {
 	pub command: &'static str,
 	pub settings: Settings,
 	pub flags: BTreeMap<String, Vec<Vec<String>>>,
+	/// The command's own flags in the order they were given.
+	pub sequence: Vec<(String, Vec<String>)>,
 	pub operands: Vec<String>,
 }
 impl Parsed {
@@ -43,13 +46,15 @@ struct Program {
 	settings: Settings,
 	flags: BTreeMap<String, Vec<Vec<String>>>,
 }
-#[derive(Default)]
 struct Handler {
+	command: &'static str,
 	flags: BTreeMap<String, Vec<Vec<String>>>,
+	sequence: Vec<(String, Vec<String>)>,
 	operands: Vec<String>,
 }
 impl args::Handler<Program> for Handler {
 	fn flag(&mut self, ctx: &mut Program, name: &str, values: Vec<String>) -> Result<(), Failure> {
+		hash::check_flag(&ctx.settings, self.command, name, &values)?;
 		if name == "no-link" {
 			self.flags.remove("out-link");
 		}
@@ -100,6 +105,7 @@ impl args::Handler<Program> for Handler {
 				.set("pure-eval", "false")
 				.map_err(|e| e.to_string())?;
 		}
+		self.sequence.push((name.into(), values.clone()));
 		self.flags.entry(name.into()).or_default().push(values);
 		Ok(())
 	}
@@ -110,53 +116,148 @@ impl args::Handler<Program> for Handler {
 }
 impl args::Program for Program {
 	type Handler = Handler;
-	fn handler(&mut self, _: &'static args::Command) -> Handler {
-		Handler::default()
+	fn handler(&mut self, command: &'static args::Command) -> Handler {
+		Handler {
+			command: command.path,
+			flags: BTreeMap::new(),
+			sequence: Vec::new(),
+			operands: Vec::new(),
+		}
 	}
 	fn warn(&mut self, message: &str) {
-		eprintln!("warning: {message}");
+		warn(message);
 	}
 	fn global_flag(
 		&mut self,
 		flag: &'static args::Flag,
 		values: Vec<String>,
 	) -> Result<(), Failure> {
-		let canonical = format!("--{}", flag.name);
-		let mut iter = values.clone().into_iter();
-		if let Some(result) = apply_common_flag(&canonical, &mut iter, &mut self.settings) {
-			result?;
-		} else if let Some(result) = self.settings.apply_flag(&canonical, || iter.next()) {
-			result.map_err(|e| Failure::Usage(e.to_string()))?;
-		} else {
-			match flag.name {
-				"offline" | "no-net" => {
-					self.settings
-						.set("substitute", "false")
-						.map_err(|e| e.to_string())?;
-				}
-				"version" | "help" | "help-config" | "store" | "print-build-logs"
-				| "no-gc-warning" => {}
-				_ => return Err(unsupported(&canonical)),
+		match flag.name {
+			"help" | "version" => {}
+			"offline" | "no-net" => {
+				self.settings
+					.set("substitute", "false")
+					.map_err(|e| e.to_string())?;
 			}
-		}
-		if flag.name == "print-build-logs" {
-			nix_compat::log::set_print_build_logs(true);
+			"print-build-logs" => nix_compat::log::set_print_build_logs(true),
+			"refresh" => return Err(unsupported("--refresh")),
+			_ => apply_setting_flag(&mut self.settings, flag, values.clone())?,
 		}
 		self.flags.entry(flag.name.into()).or_default().push(values);
 		Ok(())
 	}
 }
+
+/// The global flags of `nix` that the legacy commands do not have.
+const NIX_ONLY_FLAGS: &[&str] = &[
+	"help",
+	"version",
+	"offline",
+	"no-net",
+	"refresh",
+	"print-build-logs",
+];
+
+fn warn(message: &str) {
+	if nix_compat::log::log_enabled(nix_compat::log::VerbosityLevel::Warn) {
+		eprintln!("warning: {message}");
+	}
+}
+
+/// Apply one of `MixCommonArgs`' flags: the logging flags, `--max-jobs`,
+/// `--option`, whose invalid values are only warned about, and the flags
+/// generated from the settings.
+fn apply_setting_flag(
+	settings: &mut Settings,
+	flag: &'static args::Flag,
+	values: Vec<String>,
+) -> Result<(), Failure> {
+	let canonical = format!("--{}", flag.name);
+	let mut iter = values.into_iter();
+	if let Some(result) = apply_common_flag(&canonical, &mut iter, settings) {
+		return result;
+	}
+	if flag.name == "option" {
+		let (name, value) = (
+			iter.next().unwrap_or_default(),
+			iter.next().unwrap_or_default(),
+		);
+		if let Err(error) = settings.set(&name, &value) {
+			warn(&error.to_string());
+		}
+		return Ok(());
+	}
+	match settings.apply_flag(&canonical, || iter.next()) {
+		Some(result) => result.map_err(|e| Failure::Usage(e.to_string())),
+		None => Err(unsupported(&canonical)),
+	}
+}
+
 fn gate(settings: &Settings, feature: &str) -> Result<(), Failure> {
 	if settings.experimental_features().contains(feature) {
 		return Ok(());
 	}
-	Err(Failure::Error(format!(
-		"experimental Nix feature '{feature}' is disabled; add '--extra-experimental-features {feature}' to enable it"
+	Err(Failure::Error(nix_compat::nixcpp::hash::missing_feature(
+		feature,
 	)))
+}
+
+/// `haveInternet`: a non-loopback IPv4 address, a non-loopback and
+/// non-link-local IPv6 address, or a proxy variable.
+fn have_internet() -> bool {
+	let mut addrs: *mut libc::ifaddrs = std::ptr::null_mut();
+	// SAFETY: getifaddrs fills in a list that freeifaddrs releases below.
+	if unsafe { libc::getifaddrs(&mut addrs) } != 0 {
+		return true;
+	}
+	let mut found = false;
+	let mut cursor = addrs;
+	while !cursor.is_null() && !found {
+		// SAFETY: cursor walks the list getifaddrs returned.
+		let ifa = unsafe { &*cursor };
+		cursor = ifa.ifa_next;
+		if ifa.ifa_addr.is_null() {
+			continue;
+		}
+		// SAFETY: the family says which sockaddr type the address is.
+		match i32::from(unsafe { (*ifa.ifa_addr).sa_family }) {
+			libc::AF_INET => {
+				let addr = unsafe { &*(ifa.ifa_addr as *const libc::sockaddr_in) };
+				found = u32::from_be(addr.sin_addr.s_addr) != libc::INADDR_LOOPBACK;
+			}
+			libc::AF_INET6 => {
+				let addr = unsafe { &*(ifa.ifa_addr as *const libc::sockaddr_in6) };
+				let ip = std::net::Ipv6Addr::from(addr.sin6_addr.s6_addr);
+				found = !ip.is_loopback() && !ip.is_unicast_link_local();
+			}
+			_ => {}
+		}
+	}
+	// SAFETY: addrs came from getifaddrs.
+	unsafe { libc::freeifaddrs(addrs) };
+	// CppNix's upper-case proxy names are empty, so only these count.
+	found
+		|| ["http_proxy", "https_proxy", "ftp_proxy", "all_proxy"]
+			.iter()
+			.any(|name| std::env::var_os(name).is_some())
+}
+
+/// `NixMultiCommand::run` without a subcommand.
+fn requires_subcommand(path: &str) -> Failure {
+	let mut names: Vec<&str> = args::Command::subcommands(path).collect();
+	names.sort_by_key(|name| format!("{name}`"));
+	let list: Vec<String> = names.iter().map(|name| format!("  · {name}")).collect();
+	Failure::Usage(format!(
+		"nix {path} requires a sub-command. Available sub-commands:\n\n{}",
+		list.join("\n")
+	))
 }
 
 pub fn main(mut settings: Settings, args: Vec<String>) -> Result<ExitCode, Failure> {
 	nix_compat::log::set_print_build_logs(false);
+	if std::io::IsTerminal::is_terminal(&std::io::stderr()) {
+		nix_compat::log::set_verbosity(nix_compat::log::VerbosityLevel::Notice as u64);
+	}
 	if let Ok(path) = std::env::var("NIX_PATH") {
 		settings
 			.set("nix-path", &nix_rs_eval::parse_nix_path(&path).join(" "))
@@ -166,27 +267,50 @@ pub fn main(mut settings: Settings, args: Vec<String>) -> Result<ExitCode, Failu
 		settings,
 		flags: BTreeMap::new(),
 	};
-	let parsed = args::parse(&mut program, args)?;
-	if program.flags.contains_key("version") {
-		println!("nix (Nix) 2.35.2");
-		return Ok(ExitCode::SUCCESS);
+	// CppNix ignores usage errors when help was requested.
+	let parsed = match args::parse(&mut program, args) {
+		Err(Failure::Usage(_)) if program.flags.contains_key("help") => None,
+		parsed => Some(parsed?),
+	};
+	print_setting_warnings(&mut program.settings);
+	if let Some(parsed) = &parsed {
+		for feature in &parsed.flag_features {
+			gate(&program.settings, feature)?;
+		}
 	}
 	if program.flags.contains_key("help") {
 		return Err(unsupported("--help"));
 	}
+	let parsed = parsed.expect("parsed without help");
+	if program.flags.contains_key("version") {
+		if nix_compat::log::verbosity() > nix_compat::log::VerbosityLevel::Info as u64 {
+			return Err(unsupported("--version with --verbose"));
+		}
+		println!("nix (Nix) 2.35.2");
+		return Ok(ExitCode::SUCCESS);
+	}
 	let mut levels = parsed.levels;
-	let level = levels
-		.pop()
+	let top = levels
+		.first()
 		.ok_or_else(|| Failure::Usage("no subcommand specified".into()))?;
+	if let Some(feature) = top.command.feature {
+		gate(&program.settings, feature)?;
+	}
+	if !program.flags.contains_key("offline")
+		&& !program.flags.contains_key("no-net")
+		&& !have_internet()
+	{
+		warn("you don't have Internet access; disabling some network-dependent features");
+		if program.settings.get("substitute").is_none() {
+			program
+				.settings
+				.set("substitute", "false")
+				.map_err(|e| e.to_string())?;
+		}
+	}
+	let level = levels.pop().expect("a selected command");
 	if level.command.is_multi() {
-		return Err(Failure::Usage("no subcommand specified".into()));
-	}
-	print_setting_warnings(&mut program.settings);
-	if let Some(feature) = level.command.feature {
-		gate(&program.settings, feature)?;
-	}
-	for feature in parsed.flag_features {
-		gate(&program.settings, feature)?;
+		return Err(requires_subcommand(level.command.path));
 	}
 	let supported: &[&str] = match level.command.path {
 		"develop" => &[
@@ -285,7 +409,7 @@ pub fn main(mut settings: Settings, args: Vec<String>) -> Result<ExitCode, Failu
 		_ => &[],
 	};
 	for name in level.handler.flags.keys() {
-		if !supported.contains(&name.as_str()) {
+		if !level.command.path.starts_with("hash ") && !supported.contains(&name.as_str()) {
 			return Err(unsupported(&format!("{} --{name}", level.command.path)));
 		}
 	}
@@ -297,8 +421,12 @@ pub fn main(mut settings: Settings, args: Vec<String>) -> Result<ExitCode, Failu
 		command: level.command.path,
 		settings: program.settings,
 		flags,
+		sequence: level.handler.sequence,
 		operands: level.handler.operands,
 	};
+	if parsed.command.starts_with("hash ") {
+		return hash::run(parsed);
+	}
 	ensure_diverted_root(&parsed)?;
 	match parsed.command {
 		"eval" => expression::eval(parsed),
