@@ -5,6 +5,7 @@ use std::fmt::Write;
 use std::path::{Path, PathBuf};
 
 use rnix::ast::{self, AstToken, HasEntry, InterpolPart, PathContent};
+use rowan::ast::AstNode;
 
 use crate::compiler::normalized_str_parts;
 
@@ -39,6 +40,176 @@ fn identifier(value: &str) -> String {
 	} else {
 		string(value)
 	}
+}
+
+/// One `IND_STR` token the lexer produces and whether it takes part in
+/// indentation (escapes such as `''$` do not).
+struct IndToken {
+	text: String,
+	has_indentation: bool,
+}
+
+/// Splits the literal text of an indented string into the lexer's tokens, so
+/// escapes such as `''$` and `'''` stay separate strings as in CppNix.
+fn ind_tokens(raw: &str) -> Vec<IndToken> {
+	let chars: Vec<char> = raw.chars().collect();
+	let mut tokens = Vec::new();
+	let mut push = |text: String, has_indentation| {
+		tokens.push(IndToken {
+			text,
+			has_indentation,
+		})
+	};
+	let mut i = 0;
+	while i < chars.len() {
+		let rest = &chars[i..];
+		if rest.starts_with(&['\'', '\'', '$']) {
+			push("$".to_owned(), false);
+			i += 3;
+		} else if rest.starts_with(&['\'', '\'', '\'']) {
+			push("''".to_owned(), false);
+			i += 3;
+		} else if rest.starts_with(&['\'', '\'', '\\']) && rest.len() > 3 {
+			let escaped = match rest[3] {
+				'n' => '\n',
+				'r' => '\r',
+				't' => '\t',
+				c => c,
+			};
+			push(escaped.to_string(), false);
+			i += 4;
+		} else {
+			let start = i;
+			while i < chars.len() {
+				let next = chars.get(i + 1).copied();
+				match chars[i] {
+					'$' if next.is_some_and(|n| n != '{' && n != '\'') => i += 2,
+					'\'' if next.is_some_and(|n| n != '\'' && n != '$') => i += 2,
+					'$' | '\'' => break,
+					_ => i += 1,
+				}
+			}
+			if i > start {
+				push(chars[start..i].iter().collect(), true);
+			} else if chars[i] == '$' {
+				push("$".to_owned(), false);
+				i += 1;
+			} else {
+				push("'".to_owned(), false);
+				i += 1;
+			}
+		}
+	}
+	tokens
+}
+
+/// A piece of an indented string: a lexer token or an interpolation, with
+/// whether the interpolated expression is itself a string literal.
+enum IndPart {
+	Token(IndToken),
+	Code { text: String, is_string: bool },
+}
+
+/// `ParserState::stripIndentation`: the parts that remain, as text pieces
+/// (`Err` holds interpolated code).
+fn strip_indentation(es: Vec<IndPart>) -> Vec<IndPart> {
+	let mut at_start_of_line = true;
+	let mut min_indent = 1_000_000usize;
+	let mut cur_indent = 0usize;
+	for part in &es {
+		let IndPart::Token(token) = part else {
+			if at_start_of_line {
+				at_start_of_line = false;
+				min_indent = min_indent.min(cur_indent);
+			}
+			continue;
+		};
+		if !token.has_indentation {
+			if at_start_of_line {
+				at_start_of_line = false;
+				min_indent = min_indent.min(cur_indent);
+			}
+			continue;
+		}
+		for byte in token.text.bytes() {
+			if at_start_of_line {
+				match byte {
+					b' ' => cur_indent += 1,
+					b'\n' => cur_indent = 0,
+					_ => {
+						at_start_of_line = false;
+						min_indent = min_indent.min(cur_indent);
+					}
+				}
+			} else if byte == b'\n' {
+				at_start_of_line = true;
+				cur_indent = 0;
+			}
+		}
+	}
+
+	let mut out = Vec::new();
+	at_start_of_line = true;
+	let mut cur_dropped = 0usize;
+	let mut remaining = es.len();
+	let mut first_part = true;
+	for part in es {
+		match part {
+			IndPart::Code { text, is_string } => {
+				at_start_of_line = false;
+				cur_dropped = 0;
+				out.push(IndPart::Code { text, is_string });
+				first_part = false;
+			}
+			IndPart::Token(token) => {
+				let mut kept = Vec::new();
+				for byte in token.text.bytes() {
+					if at_start_of_line {
+						match byte {
+							b' ' => {
+								if cur_dropped >= min_indent {
+									kept.push(byte);
+								}
+								cur_dropped += 1;
+							}
+							b'\n' => {
+								cur_dropped = 0;
+								kept.push(byte);
+							}
+							_ => {
+								at_start_of_line = false;
+								cur_dropped = 0;
+								kept.push(byte);
+							}
+						}
+					} else {
+						kept.push(byte);
+						if byte == b'\n' {
+							at_start_of_line = true;
+						}
+					}
+				}
+				if first_part && kept.first() == Some(&b'\n') {
+					kept.remove(0);
+				}
+				first_part = false;
+				if remaining == 1
+					&& let Some(last_newline) = kept.iter().rposition(|&b| b == b'\n')
+					&& kept[last_newline + 1..].iter().all(|&b| b == b' ')
+				{
+					kept.truncate(last_newline + 1);
+				}
+				if !kept.is_empty() {
+					out.push(IndPart::Token(IndToken {
+						text: String::from_utf8_lossy(&kept).into_owned(),
+						has_indentation: token.has_indentation,
+					}));
+				}
+			}
+		}
+		remaining -= 1;
+	}
+	out
 }
 
 enum Name {
@@ -218,7 +389,88 @@ impl Printer<'_> {
 		out
 	}
 
+	fn is_indented(s: &ast::Str) -> bool {
+		s.syntax().children_with_tokens().any(|child| {
+			matches!(child, rowan::NodeOrToken::Token(t)
+				if t.kind() == rnix::SyntaxKind::TOKEN_STRING_START && t.text() == "''")
+		})
+	}
+
+	/// Whether `expr` is an `ExprString` once parsed.
+	fn is_string(&self, expr: &ast::Expr) -> bool {
+		match expr {
+			ast::Expr::Paren(p) => p.expr().is_some_and(|e| self.is_string(&e)),
+			ast::Expr::Literal(l) => matches!(l.kind(), ast::LiteralKind::Uri(_)),
+			ast::Expr::Str(s) if Self::is_indented(s) => self.ind_str(s).1,
+			ast::Expr::Str(s) => normalized_str_parts(s)
+				.iter()
+				.all(|part| matches!(part, InterpolPart::Literal(_))),
+			_ => false,
+		}
+	}
+
+	/// An indented string as CppNix builds it, and whether the result is a
+	/// plain string rather than a concatenation.
+	fn ind_str(&self, s: &ast::Str) -> (String, bool) {
+		let mut es = Vec::new();
+		let mut raw = String::new();
+		let flush = |raw: &mut String, es: &mut Vec<IndPart>| {
+			if !raw.is_empty() {
+				es.extend(ind_tokens(raw).into_iter().map(IndPart::Token));
+				raw.clear();
+			}
+		};
+		for child in s.syntax().children_with_tokens() {
+			match child {
+				rowan::NodeOrToken::Token(t)
+					if t.kind() == rnix::SyntaxKind::TOKEN_STRING_CONTENT =>
+				{
+					raw.push_str(t.text());
+				}
+				rowan::NodeOrToken::Node(n) => {
+					flush(&mut raw, &mut es);
+					let expr = ast::Interpol::cast(n).and_then(|i| i.expr()).unwrap();
+					es.push(IndPart::Code {
+						text: self.expr(expr.clone()).show(),
+						is_string: self.is_string(&expr),
+					});
+				}
+				rowan::NodeOrToken::Token(_) => {}
+			}
+		}
+		flush(&mut raw, &mut es);
+		if es.is_empty() {
+			return (string(""), true);
+		}
+		let mut parts = strip_indentation(es);
+		if parts.is_empty() {
+			return (string(""), true);
+		}
+		if let [only] = parts.as_slice() {
+			match only {
+				IndPart::Token(t) => return (string(&t.text), true),
+				IndPart::Code {
+					text,
+					is_string: true,
+				} => return (text.clone(), true),
+				IndPart::Code { .. } => {}
+			}
+		}
+		let shown = parts
+			.drain(..)
+			.map(|part| match part {
+				IndPart::Token(t) => string(&t.text),
+				IndPart::Code { text, .. } => text,
+			})
+			.collect::<Vec<_>>()
+			.join(" + ");
+		(format!("({shown})"), false)
+	}
+
 	fn str(&self, s: &ast::Str) -> String {
+		if Self::is_indented(s) {
+			return self.ind_str(s).0;
+		}
 		let parts = normalized_str_parts(s);
 		if parts
 			.iter()
