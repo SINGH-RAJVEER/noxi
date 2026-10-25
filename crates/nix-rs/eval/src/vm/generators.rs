@@ -292,6 +292,7 @@ where
 			span,
 			state: GeneratorState::AwaitingValue,
 			depth: self.call_depth,
+			trace: self.current.1.clone(),
 		});
 	}
 
@@ -307,6 +308,7 @@ where
 			state: GeneratorState::Running,
 			generator: Gen::new(|co| pin_generator(r#gen(co))),
 			depth: self.call_depth,
+			trace: FrameTrace::None,
 		});
 	}
 
@@ -439,6 +441,7 @@ where
 							self.frames.push(Frame::BytecodeFrame {
 								span,
 								bytecode_frame: BytecodeFrame {
+									trace: FrameTrace::None,
 									lambda,
 									upvalues,
 									ip: CodeIdx(0),
@@ -674,6 +677,7 @@ where
 				// be left on the stack.
 				genawaiter::GeneratorState::Complete(result) => {
 					let value = result.with_span(span, self)?;
+					let value = self.trace_catchable(value, None, None);
 					self.stack.push(value);
 					return Ok(true);
 				}

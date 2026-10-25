@@ -49,6 +49,9 @@ const REPORT: &str = concat!(env!("CARGO_TARGET_TMPDIR"), "/upstream-lang-report
 /// Selects child mode; its value is the operation to run on the file argument.
 const CHILD_VAR: &str = "NIXRS_COMPAT_LANG_CHILD";
 const BLESS_VAR: &str = "NIXRS_COMPAT_BLESS";
+/// Where a child writes the evaluator's code for each error it printed, one
+/// per line, since CppNix-format diagnostics do not show them.
+const ERROR_CODE_VAR: &str = "NIXRS_COMPAT_ERROR_CODES";
 const TIMEOUT: Duration = Duration::from_secs(20);
 
 /// The environment `lang.sh` exports for every case. `common/vars.sh` also
@@ -363,8 +366,9 @@ fn child_parse(file: &Path) -> ExitCode {
 		.build()
 		.compile_only(&code, None);
 	for error in &result.errors {
-		error.fancy_format_stderr();
+		eprintln!("{}", error.cppnix_format(true));
 	}
+	write_error_codes(result.errors.iter().map(|error| error.code()));
 	if result.errors.is_empty() {
 		ExitCode::SUCCESS
 	} else {
@@ -387,7 +391,17 @@ fn child_instantiate(args: Vec<String>) -> ExitCode {
 		eprintln!("warning: {warning}");
 	}
 	let cwd = env::current_dir().expect("fixture working directory");
-	instantiate::run(&options, &cwd, &mut io::stdout().lock())
+	let code = instantiate::run(&options, &cwd, &mut io::stdout().lock());
+	write_error_codes(options.error_codes.borrow().iter().copied());
+	code
+}
+
+/// Record the error codes for the parent, which lists the first in the table.
+fn write_error_codes<'a>(codes: impl Iterator<Item = &'a str>) {
+	if let Some(path) = env::var_os(ERROR_CODE_VAR) {
+		let codes: String = codes.map(|code| format!("{code}\n")).collect();
+		fs::write(path, codes).expect("write the error codes");
+	}
 }
 
 fn spawn(case: &Case, scratch: &Path, args: &[String]) -> io::Result<Child> {
@@ -398,6 +412,7 @@ fn spawn(case: &Case, scratch: &Path, args: &[String]) -> io::Result<Child> {
 		.env("HOME", scratch.join("test-home"))
 		.env("NIX_STATE_DIR", scratch.join("var/nix"))
 		.env("NIX_CONF_DIR", scratch.join("etc"));
+	command.env(ERROR_CODE_VAR, error_code_file(case, scratch));
 	if case.kind == Kind::EvalOkay {
 		command.envs(EVAL_OKAY_ENV.iter().copied());
 	}
@@ -510,7 +525,7 @@ fn run(case: &Case, scratch: &Path) -> Run {
 	};
 
 	let error_code = matches!(outcome, Outcome::ErrorMessage | Outcome::UnexpectedFailure)
-		.then(|| error_code(&stderr));
+		.then(|| error_code(case, scratch));
 	Run {
 		outcome,
 		error_code,
@@ -522,15 +537,17 @@ fn run(case: &Case, scratch: &Path) -> Run {
 	}
 }
 
-/// The first `error[E…]` code the evaluator printed, or `none`.
-fn error_code(stderr: &str) -> String {
-	stderr
+fn error_code_file(case: &Case, scratch: &Path) -> PathBuf {
+	scratch.join(format!("{}.codes", case.name))
+}
+
+/// The code of the first error the evaluator printed, or `none`.
+fn error_code(case: &Case, scratch: &Path) -> String {
+	read_or_empty(&error_code_file(case, scratch))
 		.lines()
-		.find_map(|line| {
-			let code = line.strip_prefix("error[")?.split_once(']')?.0;
-			Some(code.to_owned())
-		})
-		.unwrap_or_else(|| "none".to_owned())
+		.next()
+		.unwrap_or("none")
+		.to_owned()
 }
 
 fn skipped(outcome: Outcome) -> Run {

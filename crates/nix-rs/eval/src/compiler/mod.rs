@@ -1292,6 +1292,7 @@ impl Compiler<'_, '_> {
 	}
 
 	fn compile_lambda(&mut self, slot: LocalIdx, node: &ast::Lambda) -> Option<CodeIdx> {
+		self.context_mut().lambda.span = Some(self.span_for(node));
 		// Compile the function itself, recording its formal arguments (if any)
 		// for later use
 		let formals = match node.param().unwrap() {

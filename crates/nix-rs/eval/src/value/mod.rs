@@ -1056,6 +1056,7 @@ fn type_error(expected: &'static str, actual: &Value) -> ErrorKind {
 	ErrorKind::TypeError {
 		expected,
 		actual: actual.type_of(),
+		value: Some(Box::new(actual.clone())),
 	}
 }
 

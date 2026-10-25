@@ -5,9 +5,10 @@
 //! `--find-file`, file arguments including `<lookup>` paths and `-` for
 //! standard input.
 //! Settings come from `nix.conf`, `NIX_CONFIG` and settings flags such as
-//! `--option`, `--extra-experimental-features` and `--show-trace`, which is
-//! accepted but does not change the output: error traces are not rendered in
-//! CppNix's format yet. Single derivation selections can be instantiated
+//! `--option`, `--extra-experimental-features` and `--show-trace`.
+//! Evaluation errors are printed in CppNix's format, with function-call
+//! frames under `show-trace`; `NIXRS_DIAGNOSTICS=codespan` selects nix-rs's
+//! annotated source renderer instead. Single derivation selections can be instantiated
 //! with an explicit `--store local?root=ROOT`. The selected owner opens
 //! before evaluation. Read-only evaluation does not register computed paths;
 //! `--read-write-mode` also allows IFD builds through that owner.
@@ -63,6 +64,9 @@ pub struct Options {
 	pub inputs: Vec<String>,
 	pub attr_paths: Vec<String>,
 	pub auto_args: Vec<(String, AutoArg)>,
+	/// The evaluator's code of each evaluation error printed, such as `E006`,
+	/// for callers that classify failures.
+	pub error_codes: Rc<std::cell::RefCell<Vec<&'static str>>>,
 }
 
 /// Parse the command line after the program name, applying settings flags
@@ -535,11 +539,17 @@ pub fn evaluate(options: &Options, cwd: &Path) -> Result<Evaluated, ExitCode> {
 		.mode(mode);
 	// The evaluator's own lints (unused bindings, legacy `let`, ...) have no
 	// CppNix equivalent, so this compatibility command does not print them.
-	let result = builder.build().evaluate_in_dir(&driver, cwd.to_path_buf());
+	// The driver expression is this command's own code: CppNix-format
+	// traces leave out its frames and positions.
+	let result = builder
+		.build()
+		.hide_root_source()
+		.evaluate_in_dir(&driver, cwd.to_path_buf());
 
 	if !result.errors.is_empty() {
 		for error in &result.errors {
-			error.fancy_format_stderr();
+			options.error_codes.borrow_mut().push(error.code());
+			print_evaluation_error(error, &options.settings);
 		}
 		let status = result
 			.errors
@@ -694,4 +704,22 @@ pub fn absolute_path(cwd: &Path, path: &Path) -> PathBuf {
 		}
 	}
 	out
+}
+
+/// Selects the codespan renderer for evaluation errors instead of CppNix's
+/// format, when set to `codespan`.
+pub const DIAGNOSTICS_VAR: &str = "NIXRS_DIAGNOSTICS";
+
+/// Print an evaluation error as CppNix does, with function-call frames if
+/// the `show-trace` setting is on. `NIXRS_DIAGNOSTICS=codespan` selects
+/// nix-rs's annotated source renderer instead.
+pub fn print_evaluation_error(error: &nix_rs_eval::Error, settings: &Settings) {
+	if std::env::var_os(DIAGNOSTICS_VAR).is_some_and(|value| value == "codespan") {
+		error.fancy_format_stderr();
+	} else {
+		eprintln!(
+			"{}",
+			error.cppnix_format(settings.get_bool("show-trace", false))
+		);
+	}
 }

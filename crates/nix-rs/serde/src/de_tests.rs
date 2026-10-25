@@ -227,6 +227,7 @@ mod test_builtins {
 			_ => Err(ErrorKind::TypeError {
 				expected: "string",
 				actual: "not string",
+				value: None,
 			}),
 		}
 	}

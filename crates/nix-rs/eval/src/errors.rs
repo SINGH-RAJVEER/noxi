@@ -125,6 +125,43 @@ pub enum CatchableErrorKind {
 	/// Resolving a user-supplied angle brackets path literal failed in some way.
 	#[error("{0}")]
 	NixPathResolution(Box<str>),
+
+	/// A catchable error with the CppNix trace of where it was raised.
+	#[error("{kind}")]
+	Traced {
+		kind: Box<CatchableErrorKind>,
+		info: Rc<CatchableTrace>,
+	},
+}
+
+/// What CppNix shows for a catchable error, captured where it was raised,
+/// since catchable errors propagate as values after their frames are gone.
+#[derive(Debug)]
+pub struct CatchableTrace {
+	/// Outermost first.
+	pub traces: Vec<Trace>,
+	/// The error's own position, if CppNix prints one.
+	pub span: Option<Span>,
+	/// The message, if it differs from the error's.
+	pub message: Option<String>,
+}
+
+impl CatchableErrorKind {
+	/// The error without any captured trace.
+	pub fn untraced(&self) -> &CatchableErrorKind {
+		match self {
+			CatchableErrorKind::Traced { kind, .. } => kind.untraced(),
+			kind => kind,
+		}
+	}
+
+	/// The trace captured where the error was raised, if any.
+	pub fn trace(&self) -> Option<&CatchableTrace> {
+		match self {
+			CatchableErrorKind::Traced { info, .. } => Some(info),
+			_ => None,
+		}
+	}
 }
 
 #[derive(thiserror::Error, Clone, Debug)]
@@ -175,6 +212,8 @@ pub enum ErrorKind {
 	TypeError {
 		expected: &'static str,
 		actual: &'static str,
+		/// The value of the wrong type, which CppNix prints.
+		value: Option<Box<Value>>,
 	},
 
 	#[error("can not compare a {lhs} with a {rhs}")]
@@ -193,7 +232,7 @@ pub enum ErrorKind {
 
 	/// Unknown variable in statically known scope.
 	#[error("variable not found")]
-	UnknownStaticVariable,
+	UnknownStaticVariable(String),
 
 	/// Unknown variable in dynamic scope (with, rec, ...).
 	#[error(
@@ -319,7 +358,12 @@ to a missing value in the attribute set(s) included via `with`."#
 
 	/// An unexpected argument was supplied to a function that takes formal parameters
 	#[error("Unexpected argument `{arg}` supplied to function")]
-	UnexpectedArgumentFormals { arg: NixString, formals_span: Span },
+	UnexpectedArgumentFormals {
+		arg: NixString,
+		formals_span: Span,
+		/// The function called, for CppNix's message.
+		lambda: Option<Rc<crate::value::Lambda>>,
+	},
 
 	/// Invalid UTF-8 was encoutered somewhere
 	#[error("Invalid UTF-8 in string")]
@@ -361,6 +405,8 @@ to a missing value in the attribute set(s) included via `with`."#
 	#[error("internal ErrorKind::WithContext variant leaked")]
 	WithContext {
 		context: String,
+		/// Where CppNix positions this trace frame, if anywhere.
+		span: Option<Span>,
 		underlying: Box<ErrorKind>,
 	},
 
@@ -458,12 +504,38 @@ impl From<toml::de::Error> for ErrorKind {
 	}
 }
 
+/// One frame of a CppNix-style error trace, printed as `… HINT` with an
+/// optional `at FILE:LINE:COLUMN:` position.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Trace {
+	pub span: Option<Span>,
+	pub hint: String,
+	/// CppNix adds this frame only with `--show-trace`, like its
+	/// function-call frames.
+	pub show_trace_only: bool,
+}
+
+impl Trace {
+	pub fn new(span: Option<Span>, hint: impl Into<String>) -> Self {
+		Trace {
+			span,
+			hint: hint.into(),
+			show_trace_only: false,
+		}
+	}
+}
+
 #[derive(Clone, Debug)]
 pub struct Error {
 	pub kind: ErrorKind,
 	pub span: Span,
-	pub contexts: Vec<String>,
+	/// Frames added where the error was raised, outermost first.
+	pub contexts: Vec<Trace>,
 	pub source: SourceCode,
+	/// CppNix's trace of the evaluation that led to this error, outermost
+	/// first; the [`contexts`](Self::contexts) of the innermost error
+	/// follow it.
+	pub traces: Vec<Trace>,
 }
 
 impl Error {
@@ -471,11 +543,12 @@ impl Error {
 		let mut contexts = vec![];
 		while let ErrorKind::WithContext {
 			context,
+			span,
 			underlying,
 		} = kind
 		{
 			kind = *underlying;
-			contexts.push(context);
+			contexts.push(Trace::new(span, context));
 		}
 
 		Error {
@@ -483,7 +556,17 @@ impl Error {
 			span,
 			contexts,
 			source,
+			traces: vec![],
 		}
+	}
+
+	/// The innermost error of a chain of native and bytecode frames.
+	pub fn innermost(&self) -> &Error {
+		let mut error = self;
+		while let ErrorKind::NativeError { err, .. } | ErrorKind::BytecodeError(err) = &error.kind {
+			error = err;
+		}
+		error
 	}
 }
 
@@ -760,7 +843,7 @@ impl Error {
 			| ErrorKind::EvalError(_)
 			| ErrorKind::IntegerOverflow { .. }
 			| ErrorKind::DynamicKeyInScope(_)
-			| ErrorKind::UnknownStaticVariable
+			| ErrorKind::UnknownStaticVariable(_)
 			| ErrorKind::UnknownDynamicVariable(_)
 			| ErrorKind::VariableAlreadyDefined(_)
 			| ErrorKind::NotCallable(_)
@@ -795,8 +878,17 @@ impl Error {
 
 	/// Return the unique error code for this variant which can be
 	/// used to refer users to documentation.
-	fn code(&self) -> &'static str {
+	pub fn code(&self) -> &'static str {
+		if let ErrorKind::CatchableError(cek @ CatchableErrorKind::Traced { .. }) = &self.kind {
+			return Error::new(
+				ErrorKind::CatchableError(cek.untraced().clone()),
+				self.span,
+				self.source.clone(),
+			)
+			.code();
+		}
 		match self.kind {
+			ErrorKind::CatchableError(CatchableErrorKind::Traced { .. }) => unreachable!(),
 			ErrorKind::CatchableError(CatchableErrorKind::Throw(_)) => "E001",
 			ErrorKind::Abort(_) => "E002",
 			ErrorKind::CatchableError(CatchableErrorKind::AssertionFailed) => "E003",
@@ -806,7 +898,7 @@ impl Error {
 			ErrorKind::Incomparable { .. } => "E007",
 			ErrorKind::CatchableError(CatchableErrorKind::NixPathResolution(_)) => "E008",
 			ErrorKind::DynamicKeyInScope(_) => "E009",
-			ErrorKind::UnknownStaticVariable => "E010",
+			ErrorKind::UnknownStaticVariable(_) => "E010",
 			ErrorKind::UnknownDynamicVariable(_) => "E011",
 			ErrorKind::VariableAlreadyDefined(_) => "E012",
 			ErrorKind::NotCallable(_) => "E013",
@@ -939,7 +1031,7 @@ impl Error {
 
 		for ctx in &self.contexts {
 			spans.push(SpanLabel {
-				label: Some(format!("while {ctx}")),
+				label: Some(ctx.hint.clone()),
 				span: self.span,
 				style: SpanStyle::Secondary,
 			});
@@ -1040,30 +1132,37 @@ fn is_new_span(this_span: Span, parent: Option<&SpanLabel>) -> bool {
 }
 
 // Convenience methods to add context on other types.
-pub trait AddContext {
-	/// Add context to the error-carrying type.
-	fn context<S: Into<String>>(self, ctx: S) -> Self;
+pub trait AddContext: Sized {
+	/// Add context to the error-carrying type, printed as `while CTX`.
+	fn context<S: Into<String>>(self, ctx: S) -> Self {
+		self.trace(None, format!("while {}", ctx.into()))
+	}
+
+	/// Add a CppNix trace frame with this exact hint, at an optional
+	/// position.
+	fn trace<S: Into<String>>(self, span: Option<Span>, hint: S) -> Self;
 }
 
 impl AddContext for ErrorKind {
-	fn context<S: Into<String>>(self, ctx: S) -> Self {
+	fn trace<S: Into<String>>(self, span: Option<Span>, hint: S) -> Self {
 		ErrorKind::WithContext {
-			context: ctx.into(),
+			context: hint.into(),
+			span,
 			underlying: Box::new(self),
 		}
 	}
 }
 
 impl<T> AddContext for Result<T, ErrorKind> {
-	fn context<S: Into<String>>(self, ctx: S) -> Self {
-		self.map_err(|kind| kind.context(ctx))
+	fn trace<S: Into<String>>(self, span: Option<Span>, hint: S) -> Self {
+		self.map_err(|kind| kind.trace(span, hint))
 	}
 }
 
 impl<T> AddContext for Result<T, Error> {
-	fn context<S: Into<String>>(self, ctx: S) -> Self {
+	fn trace<S: Into<String>>(self, span: Option<Span>, hint: S) -> Self {
 		self.map_err(|err| Error {
-			kind: err.kind.context(ctx),
+			kind: err.kind.trace(span, hint),
 			..err
 		})
 	}

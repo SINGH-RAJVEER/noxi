@@ -28,7 +28,7 @@ use crate::{
 	chunk::Chunk,
 	cmp_op,
 	compiler::GlobalsMap,
-	errors::{CatchableErrorKind, Error, ErrorKind, EvalResult},
+	errors::{CatchableErrorKind, CatchableTrace, Error, ErrorKind, EvalResult, Trace},
 	io::EvalIO,
 	lifted_pop,
 	nix_search_path::NixSearchPath,
@@ -93,6 +93,7 @@ impl<T, S: GetSpan, IO> WithSpan<T, S, IO> for Result<T, ErrorKind> {
 			Ok(something) => Ok(something),
 			Err(kind) => {
 				let mut error = Error::new(kind, top_span.get_span(), vm.source.clone());
+				let traces = vm.traces(Some(&error.kind));
 
 				// Wrap the top-level error in chaining errors for each element
 				// of the frame stack. Recursion can leave many thousands of
@@ -120,6 +121,7 @@ impl<T, S: GetSpan, IO> WithSpan<T, S, IO> for Result<T, ErrorKind> {
 					}
 				}
 
+				error.traces = traces;
 				Err(error)
 			}
 		}
@@ -129,6 +131,9 @@ impl<T, S: GetSpan, IO> WithSpan<T, S, IO> for Result<T, ErrorKind> {
 struct BytecodeFrame {
 	/// The lambda currently being executed.
 	lambda: Rc<Lambda>,
+
+	/// The CppNix trace frames this frame contributes to errors.
+	trace: FrameTrace,
 
 	/// Optional captured upvalues of this frame (if a thunk or
 	/// closure if being evaluated).
@@ -238,6 +243,31 @@ enum Frame {
 
 		/// The function calls active when this frame runs.
 		depth: usize,
+
+		/// The CppNix trace frames this frame contributes to errors.
+		trace: FrameTrace,
+	},
+}
+
+/// What a frame contributes to a CppNix-style error trace.
+#[derive(Clone, Debug, Default)]
+pub(crate) enum FrameTrace {
+	/// Thunks, internal generators and the top level add nothing.
+	#[default]
+	None,
+
+	/// A builtin applied to all its arguments: `while calling the 'NAME'
+	/// builtin`, at the call unless another builtin made it.
+	Builtin {
+		name: &'static str,
+		call_site: Option<Span>,
+	},
+
+	/// The body of a function: `from call site` for a call in Nix code,
+	/// then `while calling 'NAME'`, both only with `--show-trace`.
+	Lambda {
+		lambda: Rc<Lambda>,
+		call_site: Option<Span>,
 	},
 }
 
@@ -245,6 +275,13 @@ impl Frame {
 	pub fn span(&self) -> Span {
 		match self {
 			Frame::BytecodeFrame { span, .. } | Frame::Generator { span, .. } => *span,
+		}
+	}
+
+	fn trace(&self) -> &FrameTrace {
+		match self {
+			Frame::BytecodeFrame { bytecode_frame, .. } => &bytecode_frame.trace,
+			Frame::Generator { trace, .. } => trace,
 		}
 	}
 }
@@ -371,6 +408,10 @@ struct VM<'o, IO> {
 	/// CppNix's `max-call-depth`: a call made with more calls than this
 	/// already active fails.
 	max_call_depth: usize,
+
+	/// The frame the outer loop is running: its index in the frame stack and
+	/// its trace, for errors raised before it is pushed back.
+	current: (usize, FrameTrace),
 }
 
 impl<'o, IO> VM<'o, IO>
@@ -402,6 +443,7 @@ where
 			try_eval_frames: vec![],
 			call_depth: 0,
 			max_call_depth: crate::max_call_depth(),
+			current: (0, FrameTrace::None),
 		}
 	}
 
@@ -419,6 +461,7 @@ where
 		while let Some(frame) = self.frames.pop() {
 			self.reasonable_span = frame.span();
 			let frame_id = self.frames.len();
+			self.current = (frame_id, frame.trace().clone());
 			self.call_depth = match &frame {
 				Frame::BytecodeFrame { bytecode_frame, .. } => bytecode_frame.depth,
 				Frame::Generator { depth, .. } => *depth,
@@ -757,6 +800,7 @@ where
 							ErrorKind::TypeError {
 								expected: "bool",
 								actual: val.type_of(),
+								value: Some(Box::new(val.clone())),
 							},
 						);
 					}
@@ -771,6 +815,7 @@ where
 							ErrorKind::TypeError {
 								expected: "set",
 								actual: val.type_of(),
+								value: Some(Box::new(val.clone())),
 							},
 						);
 					}
@@ -899,6 +944,7 @@ where
 								ErrorKind::UnexpectedArgumentFormals {
 									arg: arg.clone(),
 									formals_span: formals.span,
+									lambda: Some(frame.lambda.clone()),
 								},
 							);
 						}
@@ -953,6 +999,7 @@ where
 							ErrorKind::TypeError {
 								expected: "number (either int or float)",
 								actual: v.type_of(),
+								value: Some(Box::new(v.clone())),
 							},
 						);
 					}
@@ -1056,6 +1103,93 @@ where
 		self.stack.push(attrs);
 		Ok(())
 	}
+}
+
+impl<IO> VM<'_, IO> {
+	/// The CppNix trace of the running evaluation, outermost first: the
+	/// frames on the stack, then the running frame unless it was already
+	/// pushed back. `error` is the error being raised, if any.
+	fn traces(&self, error: Option<&ErrorKind>) -> Vec<Trace> {
+		let current = (self.frames.len() <= self.current.0).then_some(&self.current.1);
+		let frames: Vec<&FrameTrace> = self
+			.frames
+			.iter()
+			.map(Frame::trace)
+			.chain(current)
+			.collect();
+		// CppNix checks a call's arguments against the function's formals
+		// before it evaluates the body, so only `from call site` applies.
+		let formals_error = matches!(error, Some(ErrorKind::UnexpectedArgumentFormals { .. }));
+		let hidden = |span: &Span| self.source.is_hidden(*span);
+		let mut traces = vec![];
+		for (i, frame) in frames.iter().enumerate() {
+			match frame {
+				FrameTrace::None => {}
+				FrameTrace::Builtin { name, call_site } => {
+					if !call_site.as_ref().is_some_and(hidden) {
+						traces.push(Trace::new(
+							*call_site,
+							format!("while calling the '{name}' builtin"),
+						));
+					}
+				}
+				FrameTrace::Lambda { lambda, call_site } => {
+					if lambda.span.as_ref().is_none_or(hidden) {
+						continue;
+					}
+					let checking_formals = formals_error && i == frames.len() - 1;
+					if let Some(call_site) = call_site.filter(|span| !hidden(span)) {
+						traces.push(Trace {
+							show_trace_only: !checking_formals,
+							..Trace::new(Some(call_site), "from call site")
+						});
+					}
+					if !checking_formals {
+						let name = match &lambda.name {
+							Some(name) => format!("'{name}'"),
+							None => "anonymous lambda".to_owned(),
+						};
+						traces.push(Trace {
+							show_trace_only: true,
+							..Trace::new(lambda.span, format!("while calling {name}"))
+						});
+					}
+				}
+			}
+		}
+		traces
+	}
+}
+
+impl<IO> VM<'_, IO>
+where
+	IO: AsRef<dyn EvalIO> + 'static,
+{
+	/// Record where a catchable error produced by the running frame was
+	/// raised, unless `builtins.tryEval` will discard it.
+	pub(crate) fn trace_catchable(
+		&self,
+		value: Value,
+		span: Option<Span>,
+		message: Option<String>,
+	) -> Value {
+		match value {
+			Value::Catchable(kind)
+				if self.try_eval_frames.is_empty()
+					&& !matches!(*kind, CatchableErrorKind::Traced { .. }) =>
+			{
+				Value::Catchable(Box::new(CatchableErrorKind::Traced {
+					kind,
+					info: Rc::new(CatchableTrace {
+						traces: self.traces(None),
+						span,
+						message,
+					}),
+				}))
+			}
+			value => value,
+		}
+	}
 
 	/// Access the last bytecode frame present in the frame stack.
 	fn last_bytecode_frame(&self) -> Option<&BytecodeFrame> {
@@ -1143,6 +1277,7 @@ where
 						ErrorKind::TypeError {
 							expected: "string or path",
 							actual: val.type_of(),
+							value: Some(Box::new(val.clone())),
 						},
 					);
 				}
@@ -1163,7 +1298,12 @@ where
 	///
 	/// Due to this, once control flow exits this function, the generator will
 	/// automatically be run by the VM.
-	fn call_builtin(&mut self, span: Span, mut builtin: Builtin) -> EvalResult<()> {
+	fn call_builtin(
+		&mut self,
+		span: Span,
+		call_site: Option<Span>,
+		mut builtin: Builtin,
+	) -> EvalResult<()> {
 		let builtin_name = builtin.name();
 		self.observer.observe_enter_builtin(builtin_name);
 
@@ -1180,6 +1320,10 @@ where
 				name,
 				state: GeneratorState::Running,
 				depth: self.call_depth,
+				trace: FrameTrace::Builtin {
+					name: builtin_name,
+					call_site,
+				},
 			}),
 		}
 
@@ -1196,15 +1340,17 @@ where
 			// The parent frame resumes after the call: a call in tail
 			// position of a conditional or `let` is followed by more code.
 			Value::Builtin(builtin) => {
+				let call_site = parent.is_some().then_some(span);
 				if let Some((parent_span, parent_frame)) = parent {
 					self.push_bytecode_frame(parent_span, parent_frame);
 				}
-				self.call_builtin(span, builtin)
+				self.call_builtin(span, call_site, builtin)
 			}
 			Value::Thunk(thunk) => self.call_value(span, parent, thunk.value().clone()),
 
 			Value::Closure(closure) => {
 				let lambda = closure.lambda();
+				let call_site = parent.as_ref().map(|_| span);
 				self.observer.observe_tail_call(self.frames.len(), &lambda);
 
 				// The stack offset is always `stack.len() - arg_count`, and
@@ -1231,6 +1377,10 @@ where
 				self.push_bytecode_frame(
 					span,
 					BytecodeFrame {
+						trace: FrameTrace::Lambda {
+							lambda: lambda.clone(),
+							call_site,
+						},
 						lambda,
 						upvalues: closure.upvalues(),
 						ip: CodeIdx(0),
@@ -1530,6 +1680,7 @@ where
 	vm.frames.push(Frame::BytecodeFrame {
 		span: root_span,
 		bytecode_frame: BytecodeFrame {
+			trace: FrameTrace::None,
 			lambda,
 			upvalues: Rc::new(Upvalues::with_capacity(0)),
 			ip: CodeIdx(0),

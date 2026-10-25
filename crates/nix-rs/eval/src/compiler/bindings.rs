@@ -982,7 +982,7 @@ impl Compiler<'_, '_> {
 				}
 
 				// Otherwise, this variable is missing.
-				self.emit_error(node, ErrorKind::UnknownStaticVariable);
+				self.emit_error(node, ErrorKind::UnknownStaticVariable(ident.to_string()));
 			}
 
 			LocalPosition::Known(idx) => {

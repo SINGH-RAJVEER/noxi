@@ -670,6 +670,7 @@ mod pure_builtins {
 			return Err(ErrorKind::TypeError {
 				expected: "lambda",
 				actual: operator.type_of(),
+				value: Some(Box::new(operator.clone())),
 			});
 		}
 
@@ -1486,6 +1487,7 @@ mod pure_builtins {
 			return Err(ErrorKind::TypeError {
 				expected: "lambda",
 				actual: comparator.type_of(),
+				value: Some(Box::new(comparator.clone())),
 			});
 		}
 		let mut data = Vec::with_capacity(list.len());

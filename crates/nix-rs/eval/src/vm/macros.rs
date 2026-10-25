@@ -47,14 +47,14 @@ macro_rules! arithmetic_op {
 			($crate::Value::Integer(i1), $crate::Value::Float(f2)) => Ok($crate::Value::Float(*i1 as f64 $op f2)),
 			($crate::Value::Float(f1), $crate::Value::Integer(i2)) => Ok($crate::Value::Float(f1 $op *i2 as f64)),
 
-			(v1, v2) => Err($crate::ErrorKind::TypeError {
-				expected: "number (either int or float)",
-				actual: if v1.is_number() {
-					v2.type_of()
-				} else {
-					v1.type_of()
-				},
-			}),
+			(v1, v2) => {
+				let found = if v1.is_number() { v2 } else { v1 };
+				Err($crate::ErrorKind::TypeError {
+					expected: "number (either int or float)",
+					actual: found.type_of(),
+					value: Some(Box::new(found.clone())),
+				})
+			}
 		}
 	}};
 }

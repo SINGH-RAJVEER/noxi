@@ -72,6 +72,10 @@ pub struct Lambda {
 	/// Parameter name for simple functions (e.g., `name: ...`).
 	/// Used by builtins.toXML to generate proper parameter names.
 	pub(crate) param_name: String,
+
+	/// Where the function starts, CppNix's `ExprLambda::pos`; `None` for
+	/// thunks.
+	pub(crate) span: Option<codemap::Span>,
 }
 
 impl Lambda {

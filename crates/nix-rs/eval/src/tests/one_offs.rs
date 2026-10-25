@@ -74,8 +74,8 @@ fn error_builtin_coerces_message(#[case] builtin: &str) {
 		assert_eq!(result.errors.len(), 1, "{expression}: {:?}", result.errors);
 		match underlying_error_kind(&result.errors[0].kind) {
 			ErrorKind::Abort(message) if builtin == "abort" => assert_eq!(message, "coerced"),
-			ErrorKind::CatchableError(CatchableErrorKind::Throw(message)) if builtin == "throw" => {
-				assert_eq!(message.as_bytes(), b"coerced");
+			ErrorKind::CatchableError(cek) if builtin == "throw" => {
+				assert_matches!(cek.untraced(), CatchableErrorKind::Throw(message) if message.as_bytes() == b"coerced");
 			}
 			error => panic!("{expression}: unexpected error {error:?}"),
 		}
@@ -108,10 +108,10 @@ fn error_builtin_propagates_coercion_throw(#[case] builtin: &str) {
 		.build()
 		.evaluate(&expression, None);
 	assert_eq!(result.errors.len(), 1);
-	assert_matches!(
-		&result.errors[0].kind,
-		ErrorKind::CatchableError(CatchableErrorKind::Throw(message)) if message.as_bytes() == b"inner"
-	);
+	let ErrorKind::CatchableError(cek) = &result.errors[0].kind else {
+		panic!("unexpected error {:?}", result.errors[0]);
+	};
+	assert_matches!(cek.untraced(), CatchableErrorKind::Throw(message) if message.as_bytes() == b"inner");
 }
 
 #[test]
@@ -226,7 +226,7 @@ fn skip_broken_bytecode() {
 		.evaluate(/* code = */ "x", None);
 
 	assert_eq!(result.errors.len(), 1);
-	assert_matches!(result.errors[0].kind, ErrorKind::UnknownStaticVariable);
+	assert_matches!(result.errors[0].kind, ErrorKind::UnknownStaticVariable(_));
 }
 
 /// Checks that deep forcing happens in lexicographic key order
@@ -244,10 +244,10 @@ fn key_order_deep_force() {
 	);
 	assert_eq!(result.errors.len(), 1);
 
-	assert_matches!(
-		&result.errors[0].kind,
-		ErrorKind::CatchableError(CatchableErrorKind::Throw(s)) if s == &NixString::from("aaa")
-	);
+	let ErrorKind::CatchableError(cek) = &result.errors[0].kind else {
+		panic!("unexpected error {:?}", result.errors[0]);
+	};
+	assert_matches!(cek.untraced(), CatchableErrorKind::Throw(s) if s == &NixString::from("aaa"));
 }
 
 #[test]
