@@ -1,6 +1,6 @@
 # Benchmarks against CppNix
 
-Status: initial implementation, 2026-10-11. The [runner](../benchmarks/README.md) implements 38 offline subsets of the 154 scenarios in [catalog.tsv](../benchmarks/catalog.tsv). This document defines the broader contracts, including dimensions the runner does not yet collect. The [architecture plan](performance.md) names the hypotheses, and the [research appendix](performance-research.md) establishes existing CppNix behavior. Unsupported work remains visible in coverage reports.
+Status: evaluator qualification adapter added 2026-10-25. The [runner](../benchmarks/README.md) implements 39 subsets of the 154 scenarios in [catalog.tsv](../benchmarks/catalog.tsv), including the locked four-path NixOS/Home Manager workload in EVAL-08. This document defines the broader contracts, including dimensions the runner does not yet collect. The [architecture plan](performance.md) names the hypotheses, and the [research appendix](performance-research.md) establishes existing CppNix behavior. Unsupported work remains visible in coverage reports.
 
 ## Questions every result must answer
 

@@ -4,6 +4,14 @@ Status: first implementation, 2026-10-11. The [runner](../benchmarks/README.md) 
 
 ## What should become faster
 
+### Qualification evaluator measurements, 2026-10-25
+
+EVAL-08 now measures the exact four-path `just nixos-paths` workload with locked inputs, strict JSON correctness, an optional preserved nix-rs baseline, and cgroup/process RSS accounting. A release preflight before the evaluator changes took 24.324 s and 4,695 MiB peak process RSS; pinned CppNix 2.35.2 took 5.498 s and 992 MiB. This single preflight reproduces the gap; it is not a 30-pair performance claim. The initial three-pair run, `target/benchmarks/eval-baseline`, encountered severe shared-host CPU and memory pressure and is excluded from optimization claims.
+
+The flat `cycles:u` profile in `target/benchmarks/profiles/original.data` collected 13,067 samples without loss. Allocation/free routines account for roughly 21% of cycles; bytecode dispatch accounts for 8.65%, generator dispatch for 6.06%, and thunk forcing for 5.25%. Call-stack capture and frequency sampling were rejected by the host, so use fixed-period sampling. The first change passes populated captures directly into suspended thunk/closure constructors and reserves the known capture count. This removes throwaway capture-vector allocation and growth without changing forcing, recursion finalization, or error types. A comparison preflight used 4,612 MiB candidate RSS versus 4,693 MiB for the preserved baseline; paired timing is recorded separately before accepting a speed claim.
+
+The five-pair exploratory `eval-captures` run passed every four-path oracle. Shared-host load makes its elapsed-time estimate inconclusive: candidate median 34.040 s, preserved baseline 58.801 s, reference 4.523 s; paired baseline/candidate geometric speedup 1.215 with 95% bootstrap interval 0.990 to 1.515. Median target RSS fell from 4,693 to 4,611 MiB, and cgroup peak from 4,700 to 4,627 MiB. Keep the allocation reduction, but do not interpret this run as a demonstrated latency gain. Full CI passed 2,725 nextest tests with five skipped and all doctests. Both `just nixos-paths` and `just nixpkgs-paths` passed unchanged.
+
 Measure time until an installed package actually runs, a development shell executes its first command, development services pass readiness checks, and a system generation completes activation. Download completion, derivation evaluation, and a CLI returning early are intermediate milestones.
 
 The strongest architectural change is to share a validated operation plan and deduplicate work across evaluation, closure discovery, substitution, building, and environment creation. Then overlap independent work within explicit CPU, memory, network, disk, and build-user limits. A faster interpreter alone cannot remove network latency, filesystem metadata writes, compilation, shell hooks, or service restarts.

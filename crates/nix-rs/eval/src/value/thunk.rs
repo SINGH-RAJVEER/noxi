@@ -134,18 +134,32 @@ pub struct Thunk(pub(super) Rc<RefCell<ThunkRepr>>);
 
 impl Thunk {
 	pub fn new_closure(lambda: Rc<Lambda>) -> Self {
+		let upvalues = Upvalues::with_capacity(lambda.upvalue_count);
+		Self::new_closure_with_upvalues(lambda, upvalues)
+	}
+
+	pub(crate) fn new_closure_with_upvalues(lambda: Rc<Lambda>, upvalues: Upvalues) -> Self {
 		Thunk(Rc::new(RefCell::new(ThunkRepr::Evaluated(Value::Closure(
 			Rc::new(Closure {
-				upvalues: Rc::new(Upvalues::with_capacity(lambda.upvalue_count)),
-				lambda: lambda.clone(),
+				upvalues: Rc::new(upvalues),
+				lambda,
 			}),
 		)))))
 	}
 
 	pub fn new_suspended(lambda: Rc<Lambda>, span: Span) -> Self {
+		let upvalues = Upvalues::with_capacity(lambda.upvalue_count);
+		Self::new_suspended_with_upvalues(lambda, span, upvalues)
+	}
+
+	pub(crate) fn new_suspended_with_upvalues(
+		lambda: Rc<Lambda>,
+		span: Span,
+		upvalues: Upvalues,
+	) -> Self {
 		Thunk(Rc::new(RefCell::new(ThunkRepr::Suspended {
-			upvalues: Rc::new(Upvalues::with_capacity(lambda.upvalue_count)),
-			lambda: lambda.clone(),
+			upvalues: Rc::new(upvalues),
+			lambda,
 			span,
 		})))
 	}

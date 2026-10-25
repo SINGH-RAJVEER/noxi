@@ -45,6 +45,9 @@ in
 		pkgs.sqlite
 		pkgs.zstd
 
+		# Evaluator profiling.
+		pkgs.perf
+
 		# VM disk inspection and the reference VM's monitor connection.
 		pkgs.qemu_kvm
 		pkgs.socat

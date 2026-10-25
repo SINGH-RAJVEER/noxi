@@ -527,19 +527,17 @@ where
 							((upvalues.len() > 0) || (upvalues.with_stack_len() > 0)),
 							"OpThunkClosure should not be called for plain lambdas",
 						);
-						Thunk::new_closure(blueprint)
+						Thunk::new_closure_with_upvalues(blueprint, upvalues)
 					} else {
-						Thunk::new_suspended(blueprint, frame.current_span())
+						Thunk::new_suspended_with_upvalues(
+							blueprint,
+							frame.current_span(),
+							upvalues,
+						)
 					};
 
-					self.stack.push(Value::Thunk(thunk.clone()));
-
-					// From this point on we internally mutate the
-					// upvalues. The closure (if `is_closure`) is
-					// already in its stack slot, which means that it
-					// can capture itself as an upvalue for
-					// self-recursion.
-					*thunk.upvalues_mut() = upvalues;
+					// Recursive captures remain deferred until Op::Finalise.
+					self.stack.push(Value::Thunk(thunk));
 				}
 
 				Op::Force => {
@@ -1277,7 +1275,7 @@ where
 		let count = data.count();
 		let capture_with = data.captures_with();
 
-		let mut static_upvalues = vec![];
+		let mut static_upvalues = Vec::with_capacity(count);
 
 		let with_stack = if capture_with {
 			// Start the captured with_stack off of the
