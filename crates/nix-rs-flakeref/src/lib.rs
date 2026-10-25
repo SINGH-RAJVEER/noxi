@@ -2,10 +2,19 @@
 // It defines the `FlakeRef` enum which represents different types of flake sources
 // (such as Git repositories, GitHub repos, local paths, etc.), along with functionality
 // to parse URLs into `FlakeRef` instances and convert them back to URIs.
+use ::url::Url;
 use std::{collections::HashMap, path::PathBuf};
-use url::Url;
 
 pub mod attrs;
+pub mod error;
+pub mod flake_ref;
+pub mod input;
+pub mod json;
+pub mod lockfile;
+pub mod registry;
+pub mod url;
+
+pub use error::{Error, notice, warn};
 
 #[derive(Debug)]
 #[non_exhaustive]
@@ -132,7 +141,7 @@ impl FlakeRefOutput {
 #[derive(Debug, thiserror::Error)]
 pub enum FlakeRefError {
 	#[error("failed to parse URL: {0}")]
-	UrlParseError(#[from] url::ParseError),
+	UrlParseError(#[from] ::url::ParseError),
 	#[error("unsupported input type: {0}")]
 	UnsupportedType(String),
 }

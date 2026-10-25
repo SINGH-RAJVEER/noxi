@@ -23,7 +23,8 @@ use tempfile::SpooledTempFile;
 
 use crate::errors::ImportError;
 use crate::known_paths::KnownPaths;
-use crate::nar::{self, Filter};
+use crate::mount::Mount;
+use crate::nar::{self, EntryType, Filter};
 
 /// State shared by the store-aware builtins of one evaluation.
 #[derive(Default)]
@@ -37,6 +38,10 @@ pub struct EvaluatorStore {
 	opener: Option<Box<dyn Fn() -> io::Result<Option<Rc<dyn Store>>>>>,
 	allow_ifd: std::cell::Cell<Option<bool>>,
 	trace_ifd: std::cell::Cell<bool>,
+	/// Fetched trees served at logical store paths, keyed by store path.
+	mounts: RefCell<BTreeMap<PathBuf, Mount>>,
+	pub(crate) fetch_config: RefCell<crate::fetch::FetchConfig>,
+	pub(crate) fetch_state: RefCell<crate::fetch::FetchState>,
 }
 
 impl std::fmt::Debug for EvaluatorStore {
@@ -301,7 +306,140 @@ impl EvaluatorStore {
 		Ok(())
 	}
 
+	/// The mount serving `path` and the path relative to its root.
+	pub(crate) fn mount_of(&self, path: &Path) -> Option<(Mount, PathBuf)> {
+		let mounts = self.mounts.borrow();
+		if mounts.is_empty() {
+			return None;
+		}
+		let (store_path, rest) = StorePath::from_absolute_path_full(path).ok()?;
+		let mount = mounts.get(Path::new(&store_path.to_absolute_path()))?;
+		Some((mount.clone(), rest.to_owned()))
+	}
+
+	/// Where `path` can be read, if it is mounted or valid in the store.
+	pub(crate) fn valid_store_path(&self, path: &StorePath) -> Option<PathBuf> {
+		if self.is_mounted(path) {
+			return Some(self.physical_path(Path::new(&path.to_absolute_path())));
+		}
+		let store = self.access_store().ok()??;
+		store
+			.is_valid_path(path)
+			.ok()?
+			.then(|| store.real_path(path))
+	}
+
+	/// Hash a fetched tree as a NAR and make it available at its store
+	/// path: copied into a writable store, otherwise served from `mount`.
+	pub(crate) fn add_tree(&self, name: &str, mount: &Mount) -> io::Result<(StorePath, NixHash)> {
+		let mut keep = |p: &Path, _| Ok(mount.allows_physical(p));
+		let filter: Option<&mut Filter<'_>> = if mount.filter.is_some() {
+			Some(&mut keep)
+		} else {
+			None
+		};
+		if let Some(store) = &self.store {
+			let mut capture = ImportCapture {
+				bytes: tempfile::spooled_tempfile(IMPORT_MEMORY_LIMIT),
+				hash: Sha256::new(),
+			};
+			nar::dump_path(&mut capture, &mount.root, filter)?;
+			let hash = NixHash::Sha256(capture.hash.finalize().into());
+			let path = ca_path(name, true, &hash, &mount.root)?;
+			if !store.is_valid_path(&path).map_err(io::Error::other)? {
+				capture.bytes.rewind()?;
+				store
+					.add_to_store_from_dump(
+						&mut capture.bytes,
+						name,
+						FileIngestionMethod::NixArchive,
+						FileIngestionMethod::NixArchive,
+						HashAlgo::Sha256,
+						&BTreeSet::new(),
+					)
+					.map_err(io::Error::other)?;
+			}
+			return Ok((path, hash));
+		}
+		let mut hasher = Sha256::new();
+		nar::dump_path(&mut hasher, &mount.root, filter)?;
+		let hash = NixHash::Sha256(hasher.finalize().into());
+		let path = ca_path(name, true, &hash, &mount.root)?;
+		self.mount(&path, mount.clone());
+		Ok((path, hash))
+	}
+
+	/// Whether `path` is the root of, or inside, a mounted tree.
+	pub fn is_mounted(&self, path: &StorePath) -> bool {
+		self.mounts
+			.borrow()
+			.contains_key(Path::new(&path.to_absolute_path()))
+	}
+
+	/// Serve `root` at `path` for the rest of the evaluation.
+	pub(crate) fn mount(&self, path: &StorePath, mount: Mount) {
+		self.mounts
+			.borrow_mut()
+			.insert(PathBuf::from(path.to_absolute_path()), mount);
+	}
+
+	/// The mount whose physical root contains `physical`.
+	fn mount_at_physical(&self, physical: &Path) -> Option<(PathBuf, Mount)> {
+		self.mounts
+			.borrow()
+			.iter()
+			.filter(|(_, mount)| physical.starts_with(&mount.root))
+			.max_by_key(|(_, mount)| mount.root.as_os_str().len())
+			.map(|(logical, mount)| (logical.clone(), mount.clone()))
+	}
+
+	/// Check that a mounted `path` is visible through its tree's filter.
+	pub(crate) fn check_visible(&self, path: &Path) -> io::Result<()> {
+		if let Some((mount, rel)) = self.mount_of(path)
+			&& let Some(filter) = &mount.filter
+			&& !filter.allows(&rel)
+		{
+			return Err(filter.not_allowed(&rel));
+		}
+		Ok(())
+	}
+
+	/// Dump `physical` as a NAR, hiding what its mount's filter hides.
+	pub(crate) fn dump_filtered<W: io::Write>(
+		&self,
+		writer: &mut W,
+		physical: &Path,
+		mut filter: Option<&mut Filter<'_>>,
+	) -> io::Result<()> {
+		let mount = self
+			.mount_at_physical(physical)
+			.map(|(_, mount)| mount)
+			.filter(|mount| mount.filter.is_some());
+		match mount {
+			None => nar::dump_path(writer, physical, filter),
+			Some(mount) => {
+				let mut combined = |p: &Path, ty: EntryType| -> io::Result<bool> {
+					if !mount.allows_physical(p) {
+						return Ok(false);
+					}
+					match filter.as_deref_mut() {
+						Some(filter) => filter(p, ty),
+						None => Ok(true),
+					}
+				};
+				nar::dump_path(writer, physical, Some(&mut combined))
+			}
+		}
+	}
+
 	pub(crate) fn physical_path(&self, path: &Path) -> PathBuf {
+		if let Some((mount, rest)) = self.mount_of(path) {
+			return if rest.as_os_str().is_empty() {
+				mount.root
+			} else {
+				mount.root.join(rest)
+			};
+		}
 		if let Some(real) = &self.real_store_dir
 			&& let Ok(rest) = path.strip_prefix(STORE_DIR)
 		{
@@ -315,6 +453,15 @@ impl EvaluatorStore {
 	}
 
 	pub(crate) fn logical_path(&self, path: &Path) -> PathBuf {
+		if let Some((logical, mount)) = self.mount_at_physical(path)
+			&& let Ok(rest) = path.strip_prefix(&mount.root)
+		{
+			return if rest.as_os_str().is_empty() {
+				logical
+			} else {
+				logical.join(rest)
+			};
+		}
 		if let Some(real) = &self.real_store_dir
 			&& let Ok(rest) = path.strip_prefix(real)
 		{
@@ -336,7 +483,7 @@ impl EvaluatorStore {
 			hash: Sha256::new(),
 		};
 		if recursive {
-			nar::dump_path(&mut capture, &physical, filter)?;
+			self.dump_filtered(&mut capture, &physical, filter)?;
 		} else {
 			io::copy(&mut std::fs::File::open(physical)?, &mut capture)?;
 		};
@@ -399,7 +546,9 @@ impl EvaluatorStore {
 			let captured = self.capture_import(path, name, true, filter)?;
 			return self.import_captured(captured, None);
 		}
-		let digest = nar::nar_sha256(&self.physical_path(path), filter)?;
+		let mut hasher = Sha256::new();
+		self.dump_filtered(&mut hasher, &self.physical_path(path), filter)?;
+		let digest: [u8; 32] = hasher.finalize().into();
 		ca_path(name, true, &NixHash::Sha256(digest), path)
 	}
 
@@ -548,6 +697,9 @@ impl StoreIO {
 
 impl EvalIO for StoreIO {
 	fn path_exists(&self, path: &Path) -> io::Result<bool> {
+		if self.store.check_visible(path).is_err() {
+			return Ok(false);
+		}
 		if path.starts_with(COREPKGS_DIR) {
 			return Ok(corepkg(path).is_some());
 		}
@@ -570,6 +722,11 @@ impl EvalIO for StoreIO {
 		let elements: Vec<_> = string
 			.iter_context()
 			.flat_map(|context| context.iter())
+			.filter(|element| match element {
+				NixContextElement::Plain(path) => !StorePath::from_absolute_path(path.as_bytes())
+					.is_ok_and(|path| self.store.is_mounted(&path)),
+				_ => true,
+			})
 			.collect();
 		if elements.is_empty() {
 			return Ok(path);
@@ -764,10 +921,12 @@ impl EvalIO for StoreIO {
 	}
 
 	fn read_link(&self, path: &Path) -> io::Result<PathBuf> {
+		self.store.check_visible(path)?;
 		StdIO.read_link(&self.store.physical_path(path))
 	}
 
 	fn open(&self, path: &Path) -> io::Result<Box<dyn io::Read>> {
+		self.store.check_visible(path)?;
 		match corepkg(path) {
 			Some(Corepkg::File(contents)) => Ok(Box::new(contents.as_bytes())),
 			_ => StdIO.open(&self.store.physical_path(path)),
@@ -775,6 +934,7 @@ impl EvalIO for StoreIO {
 	}
 
 	fn file_type(&self, path: &Path) -> io::Result<FileType> {
+		self.store.check_visible(path)?;
 		match corepkg(path) {
 			Some(Corepkg::Root) => Ok(FileType::Directory),
 			Some(Corepkg::File(_)) => Ok(FileType::Regular),
@@ -783,6 +943,7 @@ impl EvalIO for StoreIO {
 	}
 
 	fn read_dir(&self, path: &Path) -> io::Result<Vec<(bytes::Bytes, FileType)>> {
+		self.store.check_visible(path)?;
 		if self.store.real_store_dir.is_some() && path == Path::new(STORE_DIR) {
 			return Err(io::Error::other("path '/' is not a valid store path"));
 		}
@@ -796,7 +957,22 @@ impl EvalIO for StoreIO {
 					)
 				})
 				.collect()),
-			_ => StdIO.read_dir(&self.store.physical_path(path)),
+			_ => {
+				let entries = StdIO.read_dir(&self.store.physical_path(path))?;
+				match self.store.mount_of(path) {
+					Some((
+						Mount {
+							filter: Some(filter),
+							..
+						},
+						rel,
+					)) => Ok(entries
+						.into_iter()
+						.filter(|(name, _)| filter.allows(&rel.join(OsStr::from_bytes(name))))
+						.collect()),
+					_ => Ok(entries),
+				}
+			}
 		}
 	}
 
@@ -833,7 +1009,7 @@ impl EvalIO for StoreIO {
 		// CppNix resolves symlinks in the ancestors only, so a symlink
 		// named directly is copied as a symlink.
 		let resolved = match path.parent() {
-			Some(parent) => parent.canonicalize()?.join(name),
+			Some(parent) => self.store.physical_path(parent).canonicalize()?.join(name),
 			None => path.to_owned(),
 		};
 		let imported = self.store.import_nar(&resolved, name, None)?;

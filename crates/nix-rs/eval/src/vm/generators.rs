@@ -39,6 +39,8 @@ pub(crate) enum GeneratorState {
 ///
 /// Responses are returned to generators via the [`VMResponse`] type.
 pub enum VMRequest {
+	/// Look up a builtin in this evaluation, preserving its compiler globals.
+	Builtin(&'static str),
 	/// Request that the VM forces this value. This message is first sent to the
 	/// VM with the unforced value, then returned to the generator with the
 	/// forced result.
@@ -186,6 +188,7 @@ impl Display for VMRequest {
 				if *import_paths { "" } else { "non_" },
 				v.type_of()
 			),
+			VMRequest::Builtin(name) => write!(f, "builtin({name})"),
 			VMRequest::Call(v) => write!(f, "call({v})"),
 			VMRequest::EnterLambda { lambda, .. } => {
 				write!(f, "enter_lambda({:p})", *lambda)
@@ -460,6 +463,18 @@ where
 							message = VMResponse::Empty;
 						}
 
+						VMRequest::Builtin(name) => {
+							let attrs = self.globals["builtins"]
+								.to_attrs()
+								.expect("builtins is an attribute set");
+							message = VMResponse::Value(
+								attrs
+									.select_required(name.as_bytes())
+									.with_span(span, self)?
+									.clone(),
+							);
+						}
+
 						VMRequest::ImportCacheLookup(path) => {
 							if let Some(cached) = self.import_cache.get(&path) {
 								message = VMResponse::Value(cached.clone());
@@ -712,6 +727,15 @@ pub async fn request_force(co: &GenCo, val: Value) -> Value {
 		}
 	} else {
 		val
+	}
+}
+
+/// Return a builtin from the active evaluation. Store-aware builtins use this
+/// to import Nix helpers with the caller's globals and import cache.
+pub async fn request_builtin(co: &GenCo, name: &'static str) -> Value {
+	match co.yield_(VMRequest::Builtin(name)).await {
+		VMResponse::Value(value) => value,
+		msg => panic!("nix-rs bug: VM responded with incorrect generator message: {msg}"),
 	}
 }
 
