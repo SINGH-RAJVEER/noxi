@@ -5,6 +5,7 @@
 //! serves it at its store path, copying it only into a writable store.
 
 pub(crate) mod builtins;
+pub mod flake;
 pub(crate) mod git;
 pub(crate) mod github;
 pub(crate) mod path;

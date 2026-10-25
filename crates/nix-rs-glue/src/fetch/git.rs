@@ -239,7 +239,7 @@ pub(crate) fn get_accessor(
 		} else {
 			let head = head.clone().unwrap_or_else(|| "0".repeat(40));
 			result.attrs.insert("rev".into(), head.into());
-			if let Ok(branch) = text(&repo, &["symbolic-ref", "--short", "HEAD"]) {
+			if let Ok(branch) = text(&repo, &["symbolic-ref", "HEAD"]) {
 				result.attrs.insert("ref".into(), branch.into());
 			}
 		}
@@ -264,7 +264,7 @@ pub(crate) fn get_accessor(
 		}
 		for entry in stage
 			.split(|b| *b == 0)
-			.filter(|e| e.starts_with(b"160000 "))
+			.filter(|e| submodules && e.starts_with(b"160000 "))
 		{
 			let tab = entry.iter().position(|b| *b == b'\t').unwrap();
 			fs::create_dir_all(

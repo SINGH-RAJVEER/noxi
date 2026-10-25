@@ -656,7 +656,10 @@ pub(crate) fn import_name(path: &Path) -> io::Result<&str> {
 /// an in-memory filesystem after the search path finds nothing.
 pub const COREPKGS_DIR: &str = "/__corepkgs__";
 
-const COREPKGS: &[(&str, &str)] = &[("fetchurl.nix", include_str!("corepkgs/fetchurl.nix"))];
+const COREPKGS: &[(&str, &str)] = &[
+	("fetchurl.nix", include_str!("corepkgs/fetchurl.nix")),
+	("call-flake.nix", include_str!("corepkgs/call-flake.nix")),
+];
 
 enum Corepkg {
 	Root,

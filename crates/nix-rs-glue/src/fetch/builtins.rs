@@ -16,6 +16,24 @@ pub(crate) fn error(error: impl std::fmt::Display) -> ErrorKind {
 	ErrorKind::EvalError(error.to_string())
 }
 
+pub(crate) fn final_tree_builtin(store: &Rc<EvaluatorStore>) -> Value {
+	final_fetch_builtins::builtins(store.clone()).remove(0).1
+}
+
+#[builtins(state = "Rc<EvaluatorStore>")]
+mod final_fetch_builtins {
+	use super::*;
+	use nix_rs_eval::generators::Gen;
+	#[builtin("fetchFinalTree")]
+	async fn builtin_final_tree(
+		state: Rc<EvaluatorStore>,
+		co: GenCo,
+		value: Value,
+	) -> Result<Value, ErrorKind> {
+		fetch_tree(&state, &co, value, false, true).await
+	}
+}
+
 pub(crate) async fn string(co: &GenCo, value: Value) -> Result<String, ErrorKind> {
 	let string = generators::request_string_coerce(
 		co,
@@ -354,7 +372,19 @@ pub(crate) mod fetch_builtins {
 		co: GenCo,
 		value: Value,
 	) -> Result<Value, ErrorKind> {
-		let _ = (state, co, value);
-		Err(ErrorKind::NotImplemented("builtins.getFlake"))
+		if !state.fetch_settings().flakes {
+			return Err(error(
+				"experimental Nix feature 'flakes' is disabled; add '--extra-experimental-features flakes' to enable it",
+			));
+		}
+		let reference = string(&co, value).await?;
+		let locked = super::super::flake::lock_flake(
+			&state,
+			&co,
+			&reference,
+			&super::super::flake::LockOptions::default(),
+		)
+		.await?;
+		locked.evaluate(&state, &co).await
 	}
 }
