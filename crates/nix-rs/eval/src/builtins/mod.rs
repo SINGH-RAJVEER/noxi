@@ -730,6 +730,9 @@ mod pure_builtins {
 			len.try_into()
 				.map_err(|_| ErrorKind::Abort(format!("can not create list of size {len}")))?,
 		);
+		if len == 0 {
+			return Ok(Value::List(out.into()));
+		}
 
 		// the best span we can get…
 		let span = generators::request_span(&co).await;
@@ -1161,6 +1164,9 @@ mod pure_builtins {
 	async fn builtin_map(co: GenCo, #[lazy] f: Value, list_val: Value) -> Result<Value, ErrorKind> {
 		let list = list_val.to_list()?;
 		let mut out = Vec::with_capacity(list.len());
+		if list.is_empty() {
+			return Ok(Value::List(out.into()));
+		}
 
 		// the best span we can get…
 		let span = generators::request_span(&co).await;
@@ -1186,6 +1192,9 @@ mod pure_builtins {
 	) -> Result<Value, ErrorKind> {
 		let attrs = attrs.to_attrs()?;
 		let mut out = FxHashMap::default();
+		if attrs.is_empty() {
+			return Ok(Value::attrs(out.into()));
+		}
 
 		// the best span we can get…
 		let span = generators::request_span(&co).await;
@@ -1802,6 +1811,9 @@ mod pure_builtins {
 			}
 		}
 
+		if merged.is_empty() {
+			return Ok(Value::attrs(NixAttrs::empty()));
+		}
 		let span = generators::request_span(&co).await;
 
 		// apply the function to each element
