@@ -107,11 +107,11 @@ eval-fail-empty-formals error-message E031
 eval-fail-eol-1 error-message E028
 eval-fail-eol-2 error-message E028
 eval-fail-eol-3 error-message E028
-eval-fail-fetchTree-negative error-message E999
-eval-fail-fetchTree-relative-path error-message E999
-eval-fail-fetchurl-baseName-attrs-name error-message E999
-eval-fail-fetchurl-baseName-attrs error-message E999
-eval-fail-fetchurl-baseName error-message E999
+eval-fail-fetchTree-negative error-message E044
+eval-fail-fetchTree-relative-path error-message E044
+eval-fail-fetchurl-baseName-attrs-name error-message E044
+eval-fail-fetchurl-baseName-attrs error-message E044
+eval-fail-fetchurl-baseName error-message E044
 eval-fail-filter-1 error-message E006
 eval-fail-filter-2 error-message E013
 eval-fail-filter-3 error-message E006

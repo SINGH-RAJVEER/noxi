@@ -64,6 +64,8 @@ pub struct Options {
 	pub inputs: Vec<String>,
 	pub attr_paths: Vec<String>,
 	pub auto_args: Vec<(String, AutoArg)>,
+	/// Flake registry rewrites supplied on the command line.
+	pub override_flakes: Vec<(String, String)>,
 }
 
 /// Parse the command line after the program name, applying settings flags
@@ -118,6 +120,11 @@ pub fn parse_args_with(
 			continue;
 		}
 		match arg.as_str() {
+			"--override-flake" => {
+				let from = value(&mut args, &arg)?;
+				let to = value(&mut args, &arg)?;
+				options.override_flakes.push((from, to));
+			}
 			"--store" => options.store = Some(value(&mut args, &arg)?),
 			"--add-root" => options.gc_root = Some(value(&mut args, &arg)?),
 			"--indirect" => {}
@@ -545,6 +552,40 @@ pub fn evaluate(options: &Options, cwd: &Path) -> Result<Evaluated, ExitCode> {
 			.settings
 			.get_bool("trace-import-from-derivation", false),
 	);
+	let mut fetch = nix_rs_glue::fetch::FetchConfig {
+		pure_eval: options.settings.get_bool("pure-eval", false),
+		override_flakes: options.override_flakes.clone(),
+		cwd: cwd.to_owned(),
+		..Default::default()
+	};
+	fetch.settings.allow_dirty = options.settings.get_bool("allow-dirty", true);
+	fetch.settings.warn_dirty = options.settings.get_bool("warn-dirty", true);
+	fetch.settings.allow_dirty_locks = options.settings.get_bool("allow-dirty-locks", false);
+	fetch.settings.use_registries = options.settings.get_bool("use-registries", true);
+	fetch.settings.trust_tarballs_from_git_forges = options
+		.settings
+		.get_bool("trust-tarballs-from-git-forges", true);
+	fetch.settings.flake_registry = options
+		.settings
+		.get("flake-registry")
+		.unwrap_or("https://channels.nixos.org/flake-registry.json")
+		.to_owned();
+	fetch.settings.verified_fetches = options
+		.settings
+		.experimental_features()
+		.contains("verified-fetches");
+	fetch.settings.access_tokens = options
+		.settings
+		.get("access-tokens")
+		.unwrap_or_default()
+		.split_whitespace()
+		.filter_map(|entry| {
+			entry
+				.split_once('=')
+				.map(|(host, token)| (host.to_owned(), token.to_owned()))
+		})
+		.collect();
+	evaluator_store.configure_fetching(fetch);
 	let mode = if !options.eval || options.strict || options.json || options.xml {
 		EvalMode::Strict
 	} else {

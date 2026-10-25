@@ -19,3 +19,9 @@ sha2.workspace = true
 tempfile.workspace = true
 thiserror.workspace = true
 nix-rs-flakeref = { path = "../nix-rs-flakeref", version = "0.1.0" }
+tar = "0.4"
+flate2 = "1.1"
+bzip2 = "0.6"
+lzma-rust2 = { version = "0.15", default-features = false, features = ["std", "xz"] }
+zstd.workspace = true
+ureq = "3"
