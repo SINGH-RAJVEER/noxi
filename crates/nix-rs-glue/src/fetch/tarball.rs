@@ -11,6 +11,10 @@ use crate::mount::Mount;
 use crate::store::EvaluatorStore;
 
 pub(crate) fn download_bytes(url: &str) -> Result<Vec<u8>> {
+	download_with_headers(url, &[])
+}
+
+pub(crate) fn download_with_headers(url: &str, headers: &[(String, String)]) -> Result<Vec<u8>> {
 	let parsed = parse_url(url, true)?;
 	if parsed.scheme == "file" {
 		return Ok(fs::read(url_path_to_path(&parsed.path)?)?);
@@ -18,7 +22,11 @@ pub(crate) fn download_bytes(url: &str) -> Result<Vec<u8>> {
 	if !matches!(parsed.scheme.as_str(), "http" | "https") {
 		return Err(Error::new(format!("unsupported download URL '{url}'")));
 	}
-	ureq::get(url)
+	let mut request = ureq::get(url).header("User-Agent", "Nix/2.35.2");
+	for (name, value) in headers {
+		request = request.header(name, value);
+	}
+	request
 		.call()
 		.map_err(|e| Error::new(e.to_string()))?
 		.body_mut()

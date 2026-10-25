@@ -529,6 +529,17 @@ pub fn evaluate(options: &Options, cwd: &Path) -> Result<Evaluated, ExitCode> {
 		.settings
 		.experimental_features()
 		.contains("verified-fetches");
+	fetch.settings.access_tokens = options
+		.settings
+		.get("access-tokens")
+		.unwrap_or_default()
+		.split_whitespace()
+		.filter_map(|entry| {
+			entry
+				.split_once('=')
+				.map(|(host, token)| (host.to_owned(), token.to_owned()))
+		})
+		.collect();
 	evaluator_store.configure_fetching(fetch);
 	let mode = if !options.eval || options.strict || options.json || options.xml {
 		EvalMode::Strict

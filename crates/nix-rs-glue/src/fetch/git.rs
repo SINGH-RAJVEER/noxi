@@ -38,6 +38,36 @@ fn boolean(input: &Input, name: &str) -> Result<bool> {
 	Ok(maybe_get_bool_attr(&input.attrs, name)?.unwrap_or(false))
 }
 
+/// Fetch into an evaluation-owned bare repository. No shell interpolation,
+/// checkout hooks, credentials prompts, or persistent cache are involved.
+fn remote_repo(url: &str, input: &Input) -> Result<Rc<tempfile::TempDir>> {
+	if boolean(input, "submodules")? {
+		return Err(Error::new("remote Git submodules are not implemented"));
+	}
+	let keep = Rc::new(tempfile::tempdir()?);
+	run(keep.path(), &["init", "--bare", "--quiet"])?;
+	let reference = input.get_ref()?.unwrap_or_else(|| "HEAD".into());
+	let shallow = boolean(input, "shallow")?;
+	let revision = input.get_rev()?.map(|rev| git_rev(&rev));
+	let fetch_ref = if boolean(input, "allRefs")? && !shallow {
+		"+refs/*:refs/*"
+	} else if shallow {
+		revision.as_deref().unwrap_or(&reference)
+	} else {
+		&reference
+	};
+	let mut args = vec!["fetch", "--quiet", "--force"];
+	if shallow {
+		args.push("--depth=1");
+	}
+	args.extend(["--", url, fetch_ref]);
+	run(keep.path(), &args)?;
+	if boolean(input, "allRefs")? && !shallow {
+		run(keep.path(), &["fetch", "--quiet", "--", url, &reference])?;
+	}
+	Ok(keep)
+}
+
 fn ignored(repo: &Path, paths: &BTreeSet<PathBuf>) -> Result<BTreeSet<PathBuf>> {
 	use std::io::Write;
 	use std::process::Stdio;
@@ -140,9 +170,21 @@ pub(crate) fn get_accessor(
 	let url = get_str_attr(&input.attrs, "url")?;
 	let parsed = fix_git_url(&url)?;
 	if parsed.scheme != "file" {
-		return Err(Error::new(format!(
-			"nix-rs does not yet support remote Git input '{url}'"
-		)));
+		let repo = remote_repo(&url, input)?;
+		let mut local = input.clone();
+		local.attrs.insert(
+			"url".into(),
+			format!("file://{}", repo.path().display()).into(),
+		);
+		if local.get_rev()?.is_none() {
+			local.attrs.insert(
+				"rev".into(),
+				text(repo.path(), &["rev-parse", "--verify", "FETCH_HEAD"])?.into(),
+			);
+		}
+		let (mount, mut locked) = get_accessor(_store, settings, &local)?;
+		locked.attrs.insert("url".into(), url.into());
+		return Ok((mount, locked));
 	}
 	let repo = fs::canonicalize(url_path_to_path(&parsed.path)?)?;
 	if boolean(input, "lfs")?
@@ -162,6 +204,12 @@ pub(crate) fn get_accessor(
 		));
 	}
 	let shallow = boolean(input, "shallow")?;
+	if !shallow && text(&repo, &["rev-parse", "--is-shallow-repository"])? == "true" {
+		return Err(Error::new(format!(
+			"'{}' is a shallow Git repository, so 'revCount' is not available",
+			repo.display()
+		)));
+	}
 	let worktree =
 		input.get_ref()?.is_none() && input.get_rev()?.is_none() && repo.join(".git").exists();
 	let mut result = input.clone();
@@ -310,9 +358,16 @@ pub(crate) fn get_accessor(
 			.map_err(|e| Error::new(e.to_string()))?,
 		None => 0,
 	};
-	result
-		.attrs
-		.insert("lastModified".into(), Attr::Int(modified));
+	if worktree {
+		result
+			.attrs
+			.insert("lastModified".into(), Attr::Int(modified));
+	} else {
+		result
+			.attrs
+			.entry("lastModified".into())
+			.or_insert(Attr::Int(modified));
+	}
 	if !shallow && result.get_rev()?.is_some() {
 		let count = match rev {
 			Some(rev) => text(&repo, &["rev-list", "--count", &rev])?
@@ -326,4 +381,56 @@ pub(crate) fn get_accessor(
 			.or_insert(Attr::Int(count));
 	}
 	Ok((mount, result))
+}
+
+#[cfg(test)]
+mod tests {
+	use super::*;
+	#[test]
+	fn remote_transport_fetches_refs_and_shallow_revisions_offline() {
+		let source = tempfile::tempdir().unwrap();
+		run(source.path(), &["init", "--quiet", "-b", "main"]).unwrap();
+		for _ in 0..2 {
+			run(
+				source.path(),
+				&[
+					"-c",
+					"user.name=Fetcher test",
+					"-c",
+					"user.email=fetcher@example.invalid",
+					"commit",
+					"--allow-empty",
+					"--quiet",
+					"-m",
+					"commit",
+				],
+			)
+			.unwrap();
+		}
+		let revision = text(source.path(), &["rev-parse", "HEAD"]).unwrap();
+		let url = format!("file://{}", source.path().display());
+		let settings = FetchSettings::default();
+		for (shallow, all_refs) in [(false, false), (false, true), (true, false)] {
+			let input = Input::from_attrs(
+				&settings,
+				[
+					("type".into(), "git".into()),
+					("url".into(), url.clone().into()),
+					("shallow".into(), Attr::Bool(shallow)),
+					("allRefs".into(), Attr::Bool(all_refs)),
+				]
+				.into(),
+			)
+			.unwrap();
+			let fetched = remote_repo(&url, &input).unwrap();
+			assert_eq!(
+				text(fetched.path(), &["rev-parse", "FETCH_HEAD"]).unwrap(),
+				revision
+			);
+			assert_eq!(
+				text(fetched.path(), &["rev-list", "--count", "FETCH_HEAD"]).unwrap(),
+				if shallow { "1" } else { "2" }
+			);
+		}
+	}
 }

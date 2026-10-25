@@ -1,5 +1,6 @@
 use bstr::ByteSlice;
 use std::fs;
+use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
@@ -190,6 +191,129 @@ fn file_tarballs_match_reference() {
 	compare(
 		fixture.path(),
 		&format!("builtins.readFile ((builtins.fetchTarball {url}) + \"/file\")"),
+	);
+	let mut gzip = flate2::write::GzEncoder::new(Vec::new(), flate2::Compression::default());
+	gzip.write_all(&bytes).unwrap();
+	let mut bzip = bzip2::write::BzEncoder::new(Vec::new(), bzip2::Compression::default());
+	bzip.write_all(&bytes).unwrap();
+	for (extension, compressed) in [
+		("gz", gzip.finish().unwrap()),
+		("bz2", bzip.finish().unwrap()),
+		(
+			"zst",
+			zstd::stream::encode_all(bytes.as_slice(), 1).unwrap(),
+		),
+	] {
+		let archive = fixture.path().join(format!("source.tar.{extension}"));
+		fs::write(&archive, compressed).unwrap();
+		compare(
+			fixture.path(),
+			&format!(
+				"builtins.fetchTree {{ type = \"tarball\"; url = {}; }}",
+				json!(format!("file://{}", archive.display()))
+			),
+		);
+	}
+}
+
+#[test]
+fn fetched_git_tree_is_registered_in_the_diverted_store() {
+	let fixture = tempfile::tempdir().unwrap();
+	repo(fixture.path());
+	let root = tempfile::tempdir().unwrap();
+	let store = EvaluatorStore::writable(root.path()).unwrap();
+	let expression = format!(
+		"let tree = builtins.fetchTree {{ type = \"git\"; url = {}; }}; in {{ path = tree.outPath; hash = tree.narHash; }}",
+		json!(format!("file://{}", fixture.path().display()))
+	);
+	let result = configure(
+		Evaluation::builder_pure().experimental_features(["flakes", "fetch-tree"]),
+		store.clone(),
+	)
+	.mode(EvalMode::Strict)
+	.build()
+	.evaluate_in_dir(
+		&format!("builtins.toJSON ({expression})"),
+		fixture.path().to_owned(),
+	);
+	assert!(result.errors.is_empty(), "{:?}", result.errors);
+	let actual: Value = serde_json::from_str(
+		result
+			.value
+			.unwrap()
+			.to_contextful_str()
+			.unwrap()
+			.to_str()
+			.unwrap(),
+	)
+	.unwrap();
+	if let Some(expected) = compare(fixture.path(), &expression) {
+		assert_eq!(actual, expected);
+	}
+	let path = nix_compat::store_path::StorePath::from_absolute_path(
+		actual["path"].as_str().unwrap().as_bytes(),
+	)
+	.unwrap();
+	let local = store.store().unwrap();
+	let info = local.query_path_info(&path).unwrap().unwrap();
+	assert_eq!(
+		nix_compat::nixhash::NixHash::Sha256(info.nar_hash).to_sri_string(),
+		actual["hash"].as_str().unwrap()
+	);
+	assert_eq!(
+		fs::read(local.real_path(&path).join("flake.nix")).unwrap(),
+		fs::read(fixture.path().join("flake.nix")).unwrap()
+	);
+	fs::remove_file(fixture.path().join("flake.nix")).unwrap();
+	let result = configure(Evaluation::builder_pure(), store)
+		.build()
+		.evaluate(
+			&format!(
+				"builtins.readFile ({} + \"/flake.nix\")",
+				json!(path.to_absolute_path())
+			),
+			None,
+		);
+	assert!(result.errors.is_empty(), "{:?}", result.errors);
+	assert_eq!(
+		result
+			.value
+			.unwrap()
+			.to_contextful_str()
+			.unwrap()
+			.to_str()
+			.unwrap(),
+		"{ outputs = { self }: { answer = 42; }; }"
+	);
+}
+
+#[test]
+#[ignore = "downloads the pinned Nix source from GitHub; offline tests cover local sources"]
+fn github_fetch_matches_reference_live() {
+	let fixture = tempfile::tempdir().unwrap();
+	compare(
+		fixture.path(),
+		"builtins.fetchTree \"github:NixOS/nix/2c73b59da29606068c0c98db015dd3a66955525d\"",
+	);
+}
+
+#[test]
+#[ignore = "requires GitHub API quota; the pinned-archive comparison does not use the API"]
+fn github_tag_resolution_matches_reference_live() {
+	let fixture = tempfile::tempdir().unwrap();
+	compare(
+		fixture.path(),
+		"builtins.fetchTree \"github:NixOS/nix/2.35.2\"",
+	);
+}
+
+#[test]
+#[ignore = "fetches the pinned Nix Git revision over HTTPS; local transport tests are offline"]
+fn remote_git_fetch_matches_reference_live() {
+	let fixture = tempfile::tempdir().unwrap();
+	compare(
+		fixture.path(),
+		"builtins.fetchTree { type = \"git\"; url = \"https://github.com/NixOS/nix\"; rev = \"2c73b59da29606068c0c98db015dd3a66955525d\"; shallow = true; }",
 	);
 }
 
