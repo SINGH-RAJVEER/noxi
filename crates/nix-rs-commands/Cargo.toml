@@ -10,6 +10,10 @@ repository = "https://github.com/SINGH-RAJVEER/nix-rs"
 # Named like the CppNix commands they replace, so they are not installed by
 # the preview flake package and never shadow a system Nix.
 [[bin]]
+name = "nix"
+path = "src/bin/nix.rs"
+
+[[bin]]
 name = "nix-instantiate"
 path = "src/bin/nix-instantiate.rs"
 
@@ -41,6 +45,7 @@ libc.workspace = true
 rustc-hash.workspace = true
 smol_str.workspace = true
 tempfile.workspace = true
+serde_json.workspace = true
 
 [dev-dependencies]
 tempfile.workspace = true

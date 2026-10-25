@@ -35,3 +35,13 @@ This is the first qualification target and its current evidence, not a claim of 
 | OS-native CLI diagnostics | Unrun | Structured rebuild events, concise errors, raw-log retrieval, JSON, TTY, and CI modes |
 
 The ATerm parser accepts entries in any order and resolves duplicates and escapes as 2.35.2 does, and input-addressed paths are checked against a derivation graph the 2.35.2 reference wrote; the remaining differences are listed in [verification](verification.md). Deferred outputs and zero-output derivations parse and round-trip as CppNix accepts them; zero outputs fail verification as CppNix's type check does. Floating content-addressed and impure outputs and `DrvWithVersion` are rejected, which matches CppNix only while `ca-derivations`, `impure-derivations` and `dynamic-derivations` are disabled; configurations enabling them remain gaps. They are listed in `crates/compat-tests/tests/upstream_derivations.rs`. This is not a measured coverage percentage. Qualification requires a pinned Nixpkgs revision, completed interface inventory, test results, and release artifacts as defined in [verification](verification.md).
+
+Modern CLI inventory and the initial section 6 gaps are recorded in [verification](verification.md#modern-command-inventory-and-qualification). No modern command family is qualified by the legacy command tests.
+
+| Modern CLI group | Measured coverage | Remaining |
+|---|---|---|
+| `eval` | Expression/file, raw/JSON, selection and apply; feature precedence | Evaluator diagnostics, flakes, remaining flags |
+| `build` | Existing store paths, links, printed paths and JSON; derivations use shared builder | Fresh-build JSON metadata, complete build/installable qualification |
+| `path-info` | JSON formats 1/2/3, recursive/closure-size output | All-store selection, nonlocal stores, expression installables |
+| `store` | Local add, ls, cat, dump, verify, info/ping and selected maintenance | Remote accessors, all-store selection and advanced policies |
+| Other section 6 commands | Inventory recorded; explicit unsupported dispatch | Derivation show, log, copy, copy-closure and expression environments |
