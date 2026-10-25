@@ -716,7 +716,12 @@ pub fn parse(options: &Options, cwd: &Path, stdout: &mut dyn Write) -> ExitCode 
 		if lints.preflight(&code, &name, true).is_err() {
 			return ExitCode::FAILURE;
 		}
-		let result = Evaluation::builder_impure()
+		// The store builtins (`derivation`, ...) are globals, so names that use
+		// them are bound as in CppNix.
+		let builder = Evaluation::builder_pure()
+			.experimental_features(options.settings.experimental_features());
+		let result = nix_rs_glue::configure(builder, nix_rs_glue::ReadOnlyStore::new())
+			.mode(EvalMode::Strict)
 			.build()
 			.compile_only(&code, location.clone());
 		if !result.errors.is_empty() {
