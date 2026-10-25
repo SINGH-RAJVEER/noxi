@@ -5,7 +5,7 @@
 use bstr::{ByteSlice, ByteVec};
 use builtin_macros::builtins;
 use genawaiter::rc::Gen;
-use regex::Regex;
+use regex::bytes::Regex;
 use rustc_hash::FxHashMap;
 use std::cell::RefCell;
 use std::cmp::{self, Ordering};
@@ -28,6 +28,7 @@ use crate::{arithmetic_op, try_cek};
 
 use self::versions::{VersionPart, VersionPartsIter};
 
+mod extended_regex;
 mod from_data;
 pub(crate) use from_data::nul_message;
 mod hash;
@@ -173,12 +174,12 @@ impl BuiltinState {
 		})
 	}
 
-	fn get_regex(&self, pattern: &str) -> Result<Regex, regex::Error> {
+	fn get_regex(&self, pattern: &str) -> Result<Regex, ()> {
 		let mut map = self.regex_cache.borrow_mut();
 		Ok(match map.entry(pattern.to_string()) {
 			Entry::Occupied(occupied) => occupied.get().clone(),
 			Entry::Vacant(vacant) => {
-				let re = Regex::new(pattern)?;
+				let re = extended_regex::compile(pattern)?;
 				vacant.insert(re).clone()
 			}
 		})
@@ -1213,10 +1214,10 @@ mod pure_builtins {
 		let re = re.to_str()?;
 		let re = re.to_str()?;
 		let re = state
-			.get_regex(&format!("^{re}$"))
+			.get_regex(re)
 			.map_err(|_| ErrorKind::InvalidRegex(re.to_string()))?;
 
-		match re.captures(s.to_str()?) {
+		match re.captures(s.as_bytes()) {
 			Some(caps) => Ok(Value::List(
 				caps.iter()
 					.skip(1)
@@ -1228,7 +1229,8 @@ mod pure_builtins {
 						// can be observed in make-initrd.nix when it comes
 						// to compressors which are matched over their full command
 						// and then a compressor name will be extracted from that.
-						grp.map(|g| Value::from(g.as_str())).unwrap_or(Value::Null)
+						grp.map(|g| Value::from(g.as_bytes()))
+							.unwrap_or(Value::Null)
 					})
 					.collect::<Vec<Value>>()
 					.into(),

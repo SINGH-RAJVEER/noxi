@@ -1691,7 +1691,7 @@ impl Compiler<'_, '_> {
 /// The parts of a string literal with escapes interpreted. In a `"` string,
 /// CppNix's `unescapeStr` reads an unescaped carriage return, alone or
 /// followed by a line feed, as a line feed; `rnix` keeps it.
-fn normalized_str_parts(node: &ast::Str) -> Vec<ast::InterpolPart<String>> {
+pub(crate) fn normalized_str_parts(node: &ast::Str) -> Vec<ast::InterpolPart<String>> {
 	let mut parts = node.normalized_parts();
 	let multiline = rowan::ast::AstNode::syntax(node)
 		.first_token()
@@ -1942,6 +1942,7 @@ pub fn compile(
 	file: &codemap::File,
 	observer: OptionalCompilerObserver<'_>,
 ) -> EvalResult<CompilationOutput> {
+	source.check(expr, file)?;
 	let mut c = Compiler::new(location, globals.clone(), env, source, file, observer)?;
 
 	let root_span = c.span_for(expr);

@@ -440,6 +440,8 @@ impl Compiler<'_, '_> {
 
 						// Place key on the stack when compiling attribute sets.
 						if kind.is_attrs() {
+							let span = self.span_for(&attr);
+							self.push_attrset_pos(span);
 							self.emit_constant(name.as_str().into(), &attr);
 							let span = self.span_for(&attr);
 							self.scope_mut().declare_phantom(span, true);
@@ -514,6 +516,7 @@ impl Compiler<'_, '_> {
 			});
 
 			let key_slot = if kind.is_attrs() {
+				self.push_attrset_pos(span);
 				// In an attribute set, the keys themselves are placed on the
 				// stack but their stack slot is inaccessible (it is only
 				// consumed by `OpAttrs`).
