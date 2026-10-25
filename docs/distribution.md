@@ -92,6 +92,8 @@ The current source workspace also builds `nix-instantiate`, `nix-build`, `nix-st
 
 `overlays.qualification` supplies the package and `nixosModules.qualification` sets `nix.package` and the single `nix-daemon` service when `nixrs.qualification.enable` is true. Import them only in disposable VM test overlays. The module retains the reference daemon arguments and socket contract so unsupported integration remains observable. It disables build-time `nix.conf` validation because the validating modern CLI is absent; guest command tests must report that gap. No host migration or qualified replacement is provided.
 
+The package installs `THIRD_PARTY.md` and the workspace `LICENSE`, `COPYING`, `NOTICE` and `PROVENANCE.md` files that exist under `share/doc/nix-rs`, preserving their relative paths. The preview notice was imported from `mvp/license-audit`; it covers the preview dependency graph only. The larger commands/daemon dependency notices and the audit's open licensing decisions remain release blockers. A root `LICENSE` or `NOTICE` is installed if present; neither is invented by the package builder. See [licensing](licensing.md).
+
 ## Recorded package and VM milestone c60e3e3
 
 The [qualification evidence](verification.md#recorded-vm-qualification-at-c60e3e3) records the committed provisional package and VM infrastructure at `c60e3e3`. A clean Git clone built the preview, replacement package and executable-layout check. The tested replacement artifact is `/nix/store/9smxwm90h4pm4zkwcjscxb5yv6saam3v-nixrs-replacement-provisional-0.1.1`; its report includes executable SHA-256 hashes. Later concurrent packaging and qualification refactors were preserved and are not covered by those runs.
