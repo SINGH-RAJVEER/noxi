@@ -34,6 +34,7 @@ From a checkout, `nix run . -- eval --expr '1 + 2'` builds and runs the same com
 | [Performance architecture](docs/performance.md) | Optimization hypotheses, CppNix prior art, compatibility constraints, and implementation order |
 | [Benchmarks against CppNix](docs/performance-benchmarks.md) | Paired measurement protocol and 154 planned scenarios across 18 families |
 | [Verification and release](docs/verification.md) | Test oracles, differential tests, and release gates |
+| [Licensing and third-party code](docs/licensing.md) | Imported and copied code, copied tests, dependency licenses, conflicts, and the release notice in [THIRD_PARTY.md](THIRD_PARTY.md) |
 | [Development environment](docs/development.md) | Pinned Rust shell and local check commands |
 | [Flake and crate distribution](docs/distribution.md) | Installable preview, replacement milestones, and NixOS and Home Manager gates |
 

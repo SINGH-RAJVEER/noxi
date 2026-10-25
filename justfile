@@ -29,6 +29,15 @@ test-core:
 test-fixtures:
 	cargo nextest run -p nixrs-compat-tests --tests
 
+# Check every shipped dependency license against the accepted set in deny.toml.
+licenses:
+	cargo deny check licenses
+
+# Regenerate THIRD_PARTY.md for the nixrs preview binary from the locked dependency graph, then append the LGPL-2.1 text of the bundled CppNix helper, which cargo-about does not see.
+third-party:
+	cargo about generate --locked --offline --fail -m crates/nix-rs-cli/Cargo.toml -c about.toml third-party.hbs -o THIRD_PARTY.md
+	{ printf '\n## GNU Lesser General Public License 2.1 (bundled CppNix helper)\n\nThe CppNix helper `imported-drv-to-derivation.nix` is licensed LGPL-2.1-or-later; the text below is the LGPL-2.1 from its reference copy.\n\n~~~text\n'; cat crates/nix-rs/eval/COPYING; printf '~~~\n'; } >> THIRD_PARTY.md
+
 # Compare the preview evaluator with an explicitly selected CppNix executable.
 eval-compare reference report="/tmp/nix-rs-eval-comparison.json":
 	cargo build -p nix-rs-cli --bin nixrs
