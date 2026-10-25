@@ -14,9 +14,17 @@ use crate::cli::Failure;
 use crate::instantiate::{self, AutoArg, Options, nix_string_literal};
 
 pub fn options(parsed: &Parsed, eval: bool) -> Result<Options, Failure> {
+	if parsed.has("expr") && parsed.has("file") {
+		return Err(Failure::Usage("'--file' and '--expr' are exclusive".into()));
+	}
+	if parsed.has("file") && parsed.settings.get_bool("pure-eval", false) {
+		return Err(Failure::Usage(
+			"'--file' is not compatible with '--pure-eval'".into(),
+		));
+	}
+	let pure = !parsed.has("file") && parsed.settings.get_bool("pure-eval", true);
 	parsed.unsupported(&[
 		"eval-store",
-		"read-only",
 		"write-to",
 		"debugger",
 		"override-input",
@@ -24,13 +32,18 @@ pub fn options(parsed: &Parsed, eval: bool) -> Result<Options, Failure> {
 		"profile",
 	])?;
 	let mut options = Options {
+		modern_pure: pure,
 		eval,
-		read_write_mode: !eval,
+		read_write_mode: !parsed.has("read-only"),
 		strict: true,
 		settings: parsed.settings.clone(),
 		store: parsed.value("store").map(str::to_owned),
 		..Options::default()
 	};
+	options
+		.settings
+		.set("pure-eval", if pure { "true" } else { "false" })
+		.map_err(|e| e.to_string())?;
 	if let Some(includes) = parsed.flags.get("include") {
 		options.include = includes.iter().map(|v| v[0].clone()).collect();
 	}
@@ -51,8 +64,14 @@ pub fn options(parsed: &Parsed, eval: bool) -> Result<Options, Failure> {
 	let root = if let Some(expression) = parsed.value("expr") {
 		expression.to_owned()
 	} else if let Some(file) = parsed.value("file") {
-		let absolute = instantiate::absolute_path(&std::env::current_dir()?, Path::new(file));
-		format!("import {}", nix_string_literal(&absolute.to_string_lossy()))
+		if instantiate::is_lookup_path(file) {
+			format!("import {file}")
+		} else if file == "-" {
+			std::io::read_to_string(std::io::stdin())?
+		} else {
+			let absolute = instantiate::absolute_path(&std::env::current_dir()?, Path::new(file));
+			format!("import {}", nix_string_literal(&absolute.to_string_lossy()))
+		}
 	} else {
 		return Err(unsupported(&format!(
 			"{} flake installables; use --expr or --file",
@@ -219,6 +238,16 @@ pub fn build(parsed: Parsed) -> Result<ExitCode, Failure> {
 		target.store.build_paths(&target.paths)?;
 	}
 	let mut result = Vec::new();
+	for path in &target.paths {
+		let outputs = outputs(target.store.as_ref(), path)?;
+		result.push(match path {
+			DerivedPath::Opaque(path) => json!(path.to_absolute_path()),
+			DerivedPath::Built { drv, .. } => json!({"drvPath": drv.to_absolute_path(), "outputs": outputs.into_iter().map(|(name,path)| (name,path.to_absolute_path())).collect::<BTreeMap<_,_>>()}),
+		});
+	}
+	if parsed.has("json") {
+		println!("{}", json!(result));
+	}
 	for (index, path) in target.paths.iter().enumerate() {
 		let outputs = outputs(target.store.as_ref(), path)?;
 		for (name, output) in &outputs {
@@ -238,14 +267,6 @@ pub fn build(parsed: Parsed) -> Result<ExitCode, Failure> {
 				println!("{}", output.to_absolute_path());
 			}
 		}
-		result.push(match path {
-			DerivedPath::Opaque(path) if parsed.has("dry-run") => json!(path.to_absolute_path()),
-			DerivedPath::Opaque(path) => json!(path.to_absolute_path()),
-			DerivedPath::Built { drv, .. } => json!({"drvPath": drv.to_absolute_path(), "outputs": outputs.into_iter().map(|(name,path)| (name,path.to_absolute_path())).collect::<BTreeMap<_,_>>()}),
-		});
-	}
-	if parsed.has("json") {
-		println!("{}", json!(result));
 	}
 	Ok(ExitCode::SUCCESS)
 }

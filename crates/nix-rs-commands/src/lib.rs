@@ -7,6 +7,7 @@ pub mod build;
 pub mod cli;
 pub mod collect_garbage;
 pub mod instantiate;
+pub mod legacy_environment;
 pub mod maintenance;
 pub mod nix;
 pub mod nix_build;

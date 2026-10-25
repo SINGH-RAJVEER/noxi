@@ -37,6 +37,8 @@ pub enum AutoArg {
 
 #[derive(Debug, Default, Clone)]
 pub struct Options {
+	/// Apply the modern command's pure builtins and explicit filesystem limit.
+	pub modern_pure: bool,
 	pub eval: bool,
 	/// `--store`: the store URI, overriding the `store` setting.
 	pub store: Option<String>,
@@ -305,7 +307,7 @@ fn nix_string(s: &str) -> String {
 	out
 }
 
-fn is_lookup_path(s: &str) -> bool {
+pub(crate) fn is_lookup_path(s: &str) -> bool {
 	s.len() > 2
 		&& s.starts_with('<')
 		&& s.ends_with('>')
@@ -535,7 +537,18 @@ pub fn evaluate(options: &Options, cwd: &Path) -> Result<Evaluated, ExitCode> {
 		.mode(mode);
 	// The evaluator's own lints (unused bindings, legacy `let`, ...) have no
 	// CppNix equivalent, so this compatibility command does not print them.
-	let result = builder.build().evaluate_in_dir(&driver, cwd.to_path_buf());
+	let result = if options.modern_pure {
+		crate::nix::pure::evaluate(
+			builder,
+			&env,
+			mode,
+			options.settings.get_int("max-call-depth", 10000).max(0) as usize,
+			&driver,
+			cwd,
+		)
+	} else {
+		builder.build().evaluate_in_dir(&driver, cwd.to_path_buf())
+	};
 
 	if !result.errors.is_empty() {
 		for error in &result.errors {

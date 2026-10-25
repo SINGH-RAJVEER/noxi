@@ -1411,6 +1411,7 @@ dependencies = [
 name = "nix-rs-commands"
 version = "0.1.2"
 dependencies = [
+ "bytes",
  "libc",
  "nix-rs-build",
  "nix-rs-compat",

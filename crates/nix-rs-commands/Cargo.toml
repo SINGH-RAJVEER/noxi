@@ -14,6 +14,14 @@ name = "nix"
 path = "src/bin/nix.rs"
 
 [[bin]]
+name = "nix-shell"
+path = "src/bin/nix-shell.rs"
+
+[[bin]]
+name = "nix-copy-closure"
+path = "src/bin/nix-copy-closure.rs"
+
+[[bin]]
 name = "nix-instantiate"
 path = "src/bin/nix-instantiate.rs"
 
@@ -34,6 +42,7 @@ name = "nix-env"
 path = "src/bin/nix-env.rs"
 
 [dependencies]
+bytes.workspace = true
 nix-compat = { package = "nix-rs-compat", path = "../nix-rs/nix-compat", version = "0.1.2" }
 nix-rs-eval = { path = "../nix-rs/eval", version = "0.2.2", default-features = false, features = ["impure"] }
 nix-rs-build = { path = "../nix-rs-build", version = "0.1.0" }

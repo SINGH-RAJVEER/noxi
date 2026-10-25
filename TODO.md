@@ -112,6 +112,7 @@ A checked item below means it exists and has focused local evidence in the curre
 ## 6. Complete the command and configuration contract
 
 - [x] Add the modern `nix` dispatcher, reference-derived declarations, feature gating and differential coverage of eval, existing-path builds and selected local store commands. Full section 6 qualification stays open; see [modern CLI evidence](docs/verification.md#modern-command-inventory-and-qualification).
+- [x] Compare modern fresh-expression builds, derivation JSON, local logs, signed file-cache copy and expression shell/run execution against 2.35.2 in diverted stores. Document pure-filesystem, fresh-build JSON, development-shell and copy-closure library limits; keep full qualification open.
 - [x] Inventory the two CLI crates and record the missing modern commands in [verification](docs/verification.md#modern-command-inventory-and-qualification).
 
 - [ ] Provide the `nix` executable and required legacy commands, including `nix-build`, `nix-instantiate`, `nix-store`, `nix-env`, and other names found in the reference inventory. `nix-store --realise` (with `--add-root`, `--dry-run`, `--ignore-unknown`) and `--query` (outputs, requisites, references, referrers, derivers, bindings, hashes and sizes) match the reference's output, errors, roots and missing-path summary in `reference_nix_store`; maintenance also includes GC, root queries and optimisation locally and through a daemon; other operations remain partial or fail explicitly.
