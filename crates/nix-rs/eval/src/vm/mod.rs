@@ -546,6 +546,13 @@ where
 							Value::Thunk(t) => t,
 							_ => unreachable!(),
 						};
+						let thunk = match thunk.force_if_evaluated() {
+							Ok(value) => {
+								self.stack.push(value);
+								continue;
+							}
+							Err(thunk) => thunk,
+						};
 
 						let gen_span = frame.current_span();
 

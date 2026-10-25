@@ -6,6 +6,8 @@ The 2026-10-25 EVAL-08 adapter checks the exact four qualification derivation pa
 
 The direct-capture allocation change passed `devenv shell -- just ci`, all 2,725 nextest tests with five skipped and all doctests, plus both path-parity recipes. Its five-pair exploratory run preserved all paths and reduced median target RSS from 4,693 to 4,611 MiB. The latency interval includes no improvement, so latency remains unqualified.
 
+The memoized-thunk fast path retains normal generator forcing for suspended, blackholed, and indirectly evaluated thunks. All 2,725 nextest tests still pass with five skipped. Paired measurements use the preceding direct-capture release artifact; the qualification gate stays open until the measured gap is close to the reference.
+
 The first implementation passed ten runner tests, the targeted build/glue unit tests, fifteen command/evaluator/daemon integration tests against the pinned reference, and all seven repaired evaluator benchmark checks. Two Nixpkgs/NixOS path tests remained ignored because their qualification inputs were not selected. The native ordering diagnostic ran 360 samples with exact-order checks. The [initial local results](performance-benchmarks.md#initial-local-results) record 30-block comparisons and their limits; component success does not qualify package usability or system activation.
 
 ## Reference evidence

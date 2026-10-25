@@ -337,6 +337,16 @@ impl Thunk {
 		self.0.borrow().is_forced()
 	}
 
+	/// Read a memoized result without scheduling a forcing generator. An
+	/// evaluated thunk pointing to another thunk still needs normal forcing.
+	pub(crate) fn force_if_evaluated(self) -> Result<Value, Self> {
+		if self.is_forced() {
+			Ok(self.unwrap_or_clone())
+		} else {
+			Err(self)
+		}
+	}
+
 	/// Returns a reference to the inner evaluated value of a thunk.
 	/// It is an error to call this on a thunk that has not been
 	/// forced, or is not otherwise known to be fully evaluated.
