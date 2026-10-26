@@ -1,0 +1,137 @@
+{
+	"schema": 2,
+	"revision": "8dbc158068f93d6ced87c40fbdfcd00d47a3e0ab",
+	"scope": "Frozen committed qualification infrastructure; disposable VM stores only. Report builds pass while strict replacement gates fail.",
+	"locked_inputs": {
+		"nixpkgs": {
+			"lastModified": 1790323409,
+			"narHash": "sha256-VVTPf+Hyd5ebpjBMHmrLMSBIeW6ls48Bqtosj7CNKLA=",
+			"owner": "NixOS",
+			"repo": "nixpkgs",
+			"rev": "e94cb152ed51bd6e24eb4a41f1460252beb52cd2",
+			"type": "github"
+		},
+		"home-manager": {
+			"lastModified": 1790365885,
+			"narHash": "sha256-iQ0ebhiVo64NktTnwft9hNxlFu4j5cvljVxyJaEVIP4=",
+			"owner": "nix-community",
+			"repo": "home-manager",
+			"rev": "7b4c5ec4bedaf1e062bbc1bcaeddbc6bd242aa1b",
+			"type": "github"
+		},
+		"nix-reference": {
+			"lastModified": 1786568958,
+			"narHash": "sha256-C/YEm/5IPiAMxQH5aHlkwgQMkLqK7NVsudEWdlzBZAA=",
+			"owner": "NixOS",
+			"repo": "nix",
+			"rev": "2c73b59da29606068c0c98db015dd3a66955525d",
+			"type": "github"
+		},
+		"rust-overlay": {
+			"lastModified": 1790407471,
+			"narHash": "sha256-M8elY2UShg4ZuLTiRLEHO+ae5xQFp3/ReQdxp/R+1UU=",
+			"owner": "oxalica",
+			"repo": "rust-overlay",
+			"rev": "4e9bb05a9ab6c37dc74c22974ebed6e36dc73eb2",
+			"type": "github"
+		}
+	},
+	"flake_lock_sha256": "da9931b3802767c8f441a5ed6aea7e761ee076a95a99c8595b7fefe6f06c60d7",
+	"test_script_sha256": "68840dbb1e28bcb8ec1f2d720b064d0644db0d8ef960815622510d1ab2fc545e",
+	"candidate": "/nix/store/35ar5spnws52xgx97rsdnhgkchx2f8fi-nixrs-replacement-provisional-0.1.1",
+	"clean_clone_builds": [
+		{
+			"drvPath": "/nix/store/r6cpixjawamx6zfbhmk35zm4if315cba-nixrs-preview-0.1.1.drv",
+			"outputs": {
+				"out": "/nix/store/lp4462a2s194r7gr527d2zk9bl0hbacj-nixrs-preview-0.1.1"
+			}
+		},
+		{
+			"drvPath": "/nix/store/ac5q4w676imxylixwcd47whz6yxfsrmn-nixrs-replacement-provisional-0.1.1.drv",
+			"outputs": {
+				"out": "/nix/store/35ar5spnws52xgx97rsdnhgkchx2f8fi-nixrs-replacement-provisional-0.1.1"
+			}
+		},
+		{
+			"drvPath": "/nix/store/3hlkj8hzkizxjb9nwfrws093p44gi3qn-nixrs-replacement-layout.drv",
+			"outputs": {
+				"out": "/nix/store/gc7i3yfa92i3gr69wz5zm3vjh3959r8v-nixrs-replacement-layout"
+			}
+		}
+	],
+	"clean_clone_validation": "Clean checkout at this revision; preview, replacement and layout built successfully with normal Nix caches and stayed clean.",
+	"binary_rebuild_comparison": {
+		"nixrs": "a1a02a3d074f397d08d8d28d2ad48ba45032bad6686da28c06a133fc6ae2d34c",
+		"nix-build": "ace5fb74035aa0ba176caff401fa23c2ec606b7a6ef9d7ac28840fb1e1fb95ad",
+		"nix-instantiate": "9cf26044977e23862f6bcd7a44f9c20834739e04f9b3121f7a5e39fa8d40c4a6",
+		"nix-store": "e2d3c8645d59e8d8e71fad3586b7d0942678b166e03fe931b7261db71f3f48a3",
+		"nix-env": "0159133a61635a2cff205c11fc614c1cb1b538d8130c6abff3c18aecac855926",
+		"nix-collect-garbage": "ed8ecdf7fae4977947b2988c7a9bf3a2f79e46ea83b2b735bfac3acc584e828c",
+		"nix-daemon": "42f9550b55555f47544b12a5463b5d80c697775ee49614f28273a2f341be1c6b"
+	},
+	"overlay_evaluation": {
+		"package": "/nix/store/35ar5spnws52xgx97rsdnhgkchx2f8fi-nixrs-replacement-provisional-0.1.1",
+		"versionMetadata": "2.35.2"
+	},
+	"reports": {
+		"nixos": {
+			"drv_path": "/nix/store/jzn6k67gfg6hl5m1dvqzwknkqa9a04yx-vm-test-run-nixrs-qualification-nixos.drv",
+			"strict_gate_drv_path": "/nix/store/685ygsyap4kkvcdkcg0a9306yh6h47iv-nixrs-qualification-nixos-gate.drv",
+			"file": "nixos.json",
+			"sha256": "b07871e874b0267ae5ed93a01ea29bc4e360f389ef719188b80c20fde49b3105",
+			"report_output": "/nix/store/xnycsvs94ib45awglfzbwn8ghnavj7fw-vm-test-run-nixrs-qualification-nixos",
+			"report_build_exit_code": 0,
+			"strict_gate_build_exit_code": 1,
+			"started_utc": "2026-10-26T02:45:06Z",
+			"finished_utc": "2026-10-26T02:58:32Z",
+			"counts": {
+				"pass": 41,
+				"fail": 11
+			}
+		},
+		"home-manager": {
+			"drv_path": "/nix/store/467fa6y2d3wvf4vkwz6ly3l8bzsfbzgb-vm-test-run-nixrs-qualification-home-manager.drv",
+			"strict_gate_drv_path": "/nix/store/93vpl3bd8mj6ccjllw79av6nymj36y19-nixrs-qualification-home-manager-gate.drv",
+			"file": "home-manager.json",
+			"sha256": "e7da0f7af459a75fe5e6db826122e048a3e671889c9d5a44f41a5310411574da",
+			"report_output": "/nix/store/bzdcr8fqm65xj8mvs3w40576av5srv9m-vm-test-run-nixrs-qualification-home-manager",
+			"report_build_exit_code": 0,
+			"strict_gate_build_exit_code": 1,
+			"started_utc": "2026-10-26T02:39:06Z",
+			"finished_utc": "2026-10-26T02:42:15Z",
+			"counts": {
+				"pass": 24,
+				"fail": 14
+			}
+		},
+		"lifecycle": {
+			"drv_path": "/nix/store/2709f0wcbhxwrc0jakg8kvn4i0acdyl8-vm-test-run-nixrs-qualification-lifecycle.drv",
+			"strict_gate_drv_path": "/nix/store/6xsl3zmyhlsri5rhijxk926x4pbhc5np-nixrs-qualification-lifecycle-gate.drv",
+			"file": "lifecycle.json",
+			"sha256": "d5fce93ac6e0a2b488d5da3491f382a61071206577c00458419372924e2f812b",
+			"report_output": "/nix/store/1yffrhhch9fmjnfr9xh0a8spgx39a0c1-vm-test-run-nixrs-qualification-lifecycle",
+			"report_build_exit_code": 0,
+			"strict_gate_build_exit_code": 1,
+			"started_utc": "2026-10-26T02:42:15Z",
+			"finished_utc": "2026-10-26T02:45:06Z",
+			"counts": {
+				"pass": 42,
+				"fail": 8
+			}
+		}
+	},
+	"limits": [
+		"Probe counts include controls and diagnostics and are not compatibility percentages.",
+		"All strict qualification gates fail; no host replacement or release is qualified.",
+		"Upgrade fixture contains the same engine binaries at a distinct package path.",
+		"System generations and source inputs are preloaded; cached realization does not qualify a fresh system closure build.",
+		"Removal checks active profiles, boot entries and executable selection. The saved recovery system retains offline fixture closures.",
+		"THIRD_PARTY.md covers the preview. Full commands/daemon dependency notices and audit decisions remain open."
+	],
+	"build_input_recovery": {
+		"initial_error": "curl: (7) Failed to connect to static.crates.io:443 after 10010 ms: Could not connect to server",
+		"crate": "mimalloc 0.1.52",
+		"sha256": "2d4139bb28d14ad1facf21d5eb8825051b326e172d216b39f6d31df53cc97862",
+		"recovery": "Verified the local Cargo archive against Cargo.lock and imported the identical fixed-output source with nix-store --add-fixed sha256; subsequent package/layout and clean-clone builds passed."
+	}
+}

@@ -98,6 +98,8 @@ The current reports use the pinned `tests/qualification` inputs. `just qualifica
 
 ## Recorded package and VM milestone c60e3e3
 
+The later [8dbc158 qualification](verification.md#recorded-vm-qualification-at-8dbc158) records a clean-clone build, byte-identical rebuilt engine executables, real offline classic/flake controls, system lifecycle probes and successful CppNix recovery/store verification in all three modes. Its strict gates fail. These results describe the pre-integration executable set; subsequent integration must rerun the affected package and VM checks.
+
 The [qualification evidence](verification.md#recorded-vm-qualification-at-c60e3e3) records the committed provisional package and VM infrastructure at `c60e3e3`. A clean Git clone built the preview, replacement package and executable-layout check. The tested replacement artifact is `/nix/store/9smxwm90h4pm4zkwcjscxb5yv6saam3v-nixrs-replacement-provisional-0.1.1`; its report includes executable SHA-256 hashes. Later concurrent packaging and qualification refactors were preserved and are not covered by those runs.
 
 This milestone includes daemon service/socket units and tmpfiles rules, the qualification-only overlay/module, private bootable test disks and `just` recipes. The VM module supplies target-version metadata only to Nixpkgs' configuration formatter and skips its modern-CLI configuration check so the guest can expose unsupported commands. These test accommodations do not qualify the package for host deployment.

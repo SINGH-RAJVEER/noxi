@@ -131,6 +131,7 @@ A checked item below means it exists and has focused local evidence in the curre
 ## 7. Prove NixOS and Home Manager replacement
 
 - [x] Add and run disposable VM report probes and strict gates for the committed `c60e3e3` milestone. [Recorded qualification](docs/verification.md#recorded-vm-qualification-at-c60e3e3) includes exact packaged hashes, failing steps and recovery. All three strict gates fail; concurrent infrastructure refactors are outside this evidence.
+- [x] Refresh packaging and disposable qualification at `8dbc158`, including real classic/flake controls, system lifecycle transitions and completed store verification in every mode. [Recorded results](docs/verification.md#recorded-vm-qualification-at-8dbc158) preserve each error. All strict gates fail; this is the pre-integration artifact.
 
 - [ ] Build a provisional replacement package with the complete executable set and wire it to the selected Nixpkgs `nix.package` and daemon service options only in disposable qualification VM overlays. The provisional flake package and VM-only overlay/module now exist; six missing command implementations are explicit failing placeholders. Verify that migration selects exactly one store-writing daemon; host replacement instructions remain gated on successful qualification.
 - [ ] Compare `nixos-rebuild build`, `test`, `boot`, `switch`, and `dry-activate` results, activation effects, boot entries, generations, and failure recovery. All five flake actions exited 127 on the missing `nix` command at `c60e3e3`; reboot, second change and system rollback remain blocked.
@@ -142,6 +143,7 @@ A checked item below means it exists and has focused local evidence in the curre
 ## 8. Package and qualify the MVP release
 
 - [x] Build the preview and provisional replacement packages and executable-layout check from a clean Git clone at `c60e3e3`. The six missing command implementations remain explicit failing placeholders; this is not a qualified release.
+- [x] Repeat clean-clone package/layout builds at `8dbc158` and compare all seven engine executables with a newly rebuilt locked binary package byte for byte. Available notices are installed. Full command compatibility and the commands/daemon notice audit remain open.
 
 - [ ] Make the flake build reproducibly from a clean clone and provide the qualified replacement package, app, checks, daemon, and NixOS integration module.
 - [x] Publish the preview command set to crates.io: `nix-rs-eval-builtin-macros` 0.0.1, `nix-rs-eval` 0.2.0 and `nix-rs-cli` 0.1.1 ([distribution](docs/distribution.md#published-crates)).
