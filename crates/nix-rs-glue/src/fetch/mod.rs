@@ -246,7 +246,8 @@ fn get_accessor_unchecked(store: &EvaluatorStore, input: &Input) -> Result<(Moun
 			&nar_hash,
 			std::iter::empty(),
 			false,
-		) && let Some(physical) = store.valid_store_path(&path.to_owned())
+		)
+		&& let Some(physical) = store.valid_store_path(&path.to_owned())
 	{
 		return Ok((Mount::new(physical), input.clone()));
 	}

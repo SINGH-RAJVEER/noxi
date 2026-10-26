@@ -319,8 +319,10 @@ pub(crate) mod derivation_builtins {
 							if matches!(
 								arg_name,
 								"allowedReferences"
-									| "allowedRequisites" | "disallowedReferences"
-									| "disallowedRequisites" | "maxClosureSize"
+									| "allowedRequisites"
+									| "disallowedReferences"
+									| "disallowedRequisites"
+									| "maxClosureSize"
 									| "maxSize"
 							) && nix_compat::log::log_enabled(
 								nix_compat::log::VerbosityLevel::Warn,

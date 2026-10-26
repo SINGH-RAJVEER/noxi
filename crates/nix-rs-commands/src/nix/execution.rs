@@ -294,13 +294,14 @@ fn helper_inner(args: Vec<String>) -> Result<(), String> {
 				c"overlay".as_ptr(),
 				libc::MS_MGC_VAL,
 				options.as_ptr().cast(),
-			) != 0 && libc::mount(
-				store.as_ptr(),
-				c"/nix/store".as_ptr(),
-				std::ptr::null(),
-				libc::MS_BIND,
-				std::ptr::null(),
 			) != 0
+				&& libc::mount(
+					store.as_ptr(),
+					c"/nix/store".as_ptr(),
+					std::ptr::null(),
+					libc::MS_BIND,
+					std::ptr::null(),
+				) != 0
 			{
 				return Err(format!(
 					"mounting '{}' on '/nix/store': {}",

@@ -1391,7 +1391,8 @@ impl<R: Read + Send, W: Write + Send> Connection<'_, R, W> {
 			let unrestricted = matches!(
 				name.as_str(),
 				"build-timeout"
-					| "timeout" | "max-silent-time"
+					| "timeout"
+					| "max-silent-time"
 					| "build-max-silent-time"
 					| "build-poll-interval"
 					| "connect-timeout"

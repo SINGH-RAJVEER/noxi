@@ -177,7 +177,8 @@ mod tests {
 			fs::symlink_metadata(root.join(p))
 				.unwrap()
 				.permissions()
-				.mode() & 0o7777
+				.mode()
+				& 0o7777
 		};
 		assert_eq!(mode("file"), 0o444);
 		assert_eq!(mode("exe"), 0o555);

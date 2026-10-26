@@ -641,7 +641,8 @@ impl Value {
 							let s2 = s2.to_str();
 
 							if let (Ok(s1), Ok(s2)) = (s1, s2)
-								&& s1 == "derivation" && s2 == "derivation"
+								&& s1 == "derivation"
+								&& s2 == "derivation"
 							{
 								// TODO(tazjin): are the outPaths really required,
 								// or should it fall through?
