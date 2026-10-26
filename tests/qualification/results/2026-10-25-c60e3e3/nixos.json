@@ -1,0 +1,205 @@
+{
+	"schema": 1,
+	"mode": "nixos",
+	"candidate": "/nix/store/9smxwm90h4pm4zkwcjscxb5yv6saam3v-nixrs-replacement-provisional-0.1.1",
+	"source": "/nix/store/di9s766kicrawf41f906k87gr42sww0p-source",
+	"reference": "/nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2",
+	"nixpkgs": "/nix/store/2s013d7g7sna6rls7nk0yy8343h6mdiw-source",
+	"home_manager": "/nix/store/da7apr6rx9mpa0ljpircmwwsxnmrjb43-source",
+	"upgrade_fixture": "/nix/store/dqfncf479382kf4r39f3giqf8574vp6y-nixrs-replacement-upgrade-fixture",
+	"steps": [
+		{
+			"name": "reference-boot",
+			"command": "/nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2/bin/nix --version",
+			"exit_code": 0,
+			"expected_exit_code": 0,
+			"status": "pass",
+			"output": "nix (Nix) 2.35.2\n"
+		},
+		{
+			"name": "seed-system-profile",
+			"command": "/nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2/bin/nix-env -p /nix/var/nix/profiles/system --set /run/current-system",
+			"exit_code": 0,
+			"expected_exit_code": 0,
+			"status": "pass",
+			"output": ""
+		},
+		{
+			"name": "artifact-hashes",
+			"command": "bash -c 'sha256sum /nix/store/9smxwm90h4pm4zkwcjscxb5yv6saam3v-nixrs-replacement-provisional-0.1.1/libexec/nix-rs/*'",
+			"exit_code": 0,
+			"expected_exit_code": 0,
+			"status": "pass",
+			"output": "f495f292b38272ca4806cbdf80af1619f3ccdd6bdc2e8f89881e1d8af2eee00a  /nix/store/9smxwm90h4pm4zkwcjscxb5yv6saam3v-nixrs-replacement-provisional-0.1.1/libexec/nix-rs/nix-build\n5d307d0ac2930ef8aed24f5a36d4ab3cbe4fd88dba83c6758b847fb1bbcd79ea  /nix/store/9smxwm90h4pm4zkwcjscxb5yv6saam3v-nixrs-replacement-provisional-0.1.1/libexec/nix-rs/nix-collect-garbage\ndbf9f4c22337bc6039c9335597482e7b29880c45323f03909b78433f49df9042  /nix/store/9smxwm90h4pm4zkwcjscxb5yv6saam3v-nixrs-replacement-provisional-0.1.1/libexec/nix-rs/nix-daemon\ncda392daabe0adff2dd746fc993306c95fc7ea0d5d6a0d86bbc54f8d8b3b8d5e  /nix/store/9smxwm90h4pm4zkwcjscxb5yv6saam3v-nixrs-replacement-provisional-0.1.1/libexec/nix-rs/nix-env\n1011d183261f4f0b0d2e5e98cac606818b9d41495a7b1df9b94941fcff293b54  /nix/store/9smxwm90h4pm4zkwcjscxb5yv6saam3v-nixrs-replacement-provisional-0.1.1/libexec/nix-rs/nix-instantiate\na1a02a3d074f397d08d8d28d2ad48ba45032bad6686da28c06a133fc6ae2d34c  /nix/store/9smxwm90h4pm4zkwcjscxb5yv6saam3v-nixrs-replacement-provisional-0.1.1/libexec/nix-rs/nixrs\ndce042587dbbac4dec61ba6b08bdc33d26505253b162f19ad06673e2e84e4502  /nix/store/9smxwm90h4pm4zkwcjscxb5yv6saam3v-nixrs-replacement-provisional-0.1.1/libexec/nix-rs/nix-store\n7b86c8dd1449ebdeeb43b5d1f121ea5f103e1e8453d678070b52942a76f19005  /nix/store/9smxwm90h4pm4zkwcjscxb5yv6saam3v-nixrs-replacement-provisional-0.1.1/libexec/nix-rs/unimplemented\n"
+		},
+		{
+			"name": "handoff-no-reference-writer",
+			"command": "bash -c '! pgrep -x nix-daemon'",
+			"exit_code": 0,
+			"expected_exit_code": 0,
+			"status": "pass",
+			"output": ""
+		},
+		{
+			"name": "bootstrap-candidate-module",
+			"command": "/nix/store/j24hr7a6i9948ri6vx4ssa6xrlad3gzc-nixos-system-machine-test/bin/switch-to-configuration test",
+			"exit_code": 4,
+			"expected_exit_code": 0,
+			"status": "fail",
+			"output": "Checking switch inhibitors... done\nNOT restarting the following changed units: register-nix-paths.service\nactivating the configuration...\nsetting up /etc...\nremoving obsolete symlink \u2018/etc/qualification/paths.json\u2019...\nremoving obsolete symlink \u2018/etc/qualification/source\u2019...\nrestarting sysinit-reactivation.target\nreloading the following units: dbus-broker.service\nrestarting the following units: home-manager-qualification.service\nFailed to restart home-manager-qualification.service\nthe following new units were started: sysinit-reactivation.target, systemd-tmpfiles-resetup.service\nwarning: the following units failed: home-manager-qualification.service, nix-daemon.service, nix-daemon.socket\n\u00d7 home-manager-qualification.service - Home Manager environment for qualification\n     Loaded: loaded (/etc/systemd/system/home-manager-qualification.service; enabled; preset: ignored)\n     Active: failed (Result: exit-code) since Fri 2026-10-23 00:35:43 UTC; 265ms ago\n   Duration: 6.546s\n Invocation: 53ad16822b57445d9775ad90d4221e2c\n    Process: 1106 ExecStart=/nix/store/glh099li22hv93n9n7hi8s6r9fnl5r4c-hm-setup-env /nix/store/ybhci2b5z31w4843r7p433qbqhjj7j7i-home-manager-generation (code=exited, status=1/FAILURE)\n   Main PID: 1106 (code=exited, status=1/FAILURE)\n         IP: 0B in, 0B out\n         IO: 0B read, 0B written\n   Mem peak: 2.3M\n        CPU: 30ms\n\nOct 23 00:35:43 machine systemd[1]: Starting Home Manager environment for qualification...\nOct 23 00:35:43 machine hm-activate-qualification[1106]: Starting Home Manager activation\nOct 23 00:35:43 machine hm-activate-qualification[1114]: error: cannot open connection to remote store 'daemon': Connection reset by peer (os error 104)\nOct 23 00:35:43 machine systemd[1]: home-manager-qualification.service: Main process exited, code=exited, status=1/FAILURE\nOct 23 00:35:43 machine systemd[1]: home-manager-qualification.service: Failed with result 'exit-code'.\nOct 23 00:35:43 machine systemd[1]: Failed to start Home Manager environment for qualification.\n\n\u00d7 nix-daemon.service - nix-rs qualification daemon\n     Loaded: loaded (/etc/systemd/system/nix-daemon.service; linked; preset: ignored)\n    Drop-In: /nix/store/4db9mz1xlzvg5g4pz4b18n9jhiaqi1iq-system-units/nix-daemon.service.d\n             \u2514\u2500overrides.conf\n     Active: failed (Result: start-limit-hit) since Fri 2026-10-23 00:35:43 UTC; 505ms ago\n   Duration: 17ms\n Invocation: 6455be883fbf4af594b3afcbe7611b19\nTriggeredBy: \u00d7 nix-daemon.socket\n    Process: 1044 ExecStart=/nix/store/9smxwm90h4pm4zkwcjscxb5yv6saam3v-nixrs-replacement-provisional-0.1.1/bin/nix-daemon --daemon (code=exited, status=1/FAILURE)\n   Main PID: 1044 (code=exited, status=1/FAILURE)\n         IP: 0B in, 0B out\n         IO: 0B read, 0B written\n   Mem peak: 2M\n        CPU: 8ms\n\nOct 23 00:35:42 machine systemd[1]: Started nix-rs qualification daemon.\nOct 23 00:35:43 machine nix-daemon[1044]: error: unrecognised flag '--daemon'\nOct 23 00:35:43 machine systemd[1]: nix-daemon.service: Main process exited, code=exited, status=1/FAILURE\nOct 23 00:35:43 machine systemd[1]: nix-daemon.service: Failed with result 'exit-code'.\nOct 23 00:35:43 machine systemd[1]: nix-daemon.service: Start request repeated too quickly.\nOct 23 00:35:43 machine systemd[1]: nix-daemon.service: Failed with result 'start-limit-hit'.\nOct 23 00:35:43 machine systemd[1]: Failed to start nix-rs qualification daemon.\nOct 23 00:35:43 machine systemd[1]: nix-daemon.service: Start request repeated too quickly.\nOct 23 00:35:43 machine systemd[1]: nix-daemon.service: Failed with result 'start-limit-hit'.\nOct 23 00:35:43 machine systemd[1]: Failed to start nix-rs qualification daemon.\n\n\u00d7 nix-daemon.socket - nix-rs qualification daemon socket\n     Loaded: loaded (/etc/systemd/system/nix-daemon.socket; enabled; preset: ignored)\n    Drop-In: /nix/store/4db9mz1xlzvg5g4pz4b18n9jhiaqi1iq-system-units/nix-daemon.socket.d\n             \u2514\u2500overrides.conf\n     Active: failed (Result: service-start-limit-hit) since Fri 2026-10-23 00:35:43 UTC; 282ms ago\n   Duration: 48ms\n Invocation: fc981f99a6c344af9bc914fdb63e4d8b\n   Triggers: \u25cf nix-daemon.service\n     Listen: /nix/var/nix/daemon-socket/socket (Stream)\n\nOct 23 00:35:43 machine systemd[1]: Listening on nix-rs qualification daemon socket.\nOct 23 00:35:43 machine systemd[1]: nix-daemon.socket: Failed with result 'service-start-limit-hit'.\n"
+		},
+		{
+			"name": "module-daemon-unit",
+			"command": "systemctl cat nix-daemon.service nix-daemon.socket",
+			"exit_code": 0,
+			"expected_exit_code": 0,
+			"status": "pass",
+			"output": "# /etc/systemd/system/nix-daemon.service -> /nix/store/9smxwm90h4pm4zkwcjscxb5yv6saam3v-nixrs-replacement-provisional-0.1.1/lib/systemd/system/nix-daemon.service\n[Unit]\nDescription=nix-rs qualification daemon\n[Service]\nExecStart=/nix/store/9smxwm90h4pm4zkwcjscxb5yv6saam3v-nixrs-replacement-provisional-0.1.1/bin/nix-daemon --daemon\n\n# /nix/store/4db9mz1xlzvg5g4pz4b18n9jhiaqi1iq-system-units/nix-daemon.service.d/overrides.conf -> /nix/store/76l4c56v7bs215cvv1j15ldl003qywb1-unit-nix-daemon.service/nix-daemon.service\n[Unit]\nX-Restart-Triggers=/nix/store/id0xwdcpi3g0l20ah3kf7cd26zbg0az4-X-Restart-Triggers-nix-daemon\n\n[Service]\nEnvironment=\"CURL_CA_BUNDLE=/nix/store/biiabd2fcxdxmy0f99r7i88nziqdqsy6-nss-cacert-3.126/etc/ssl/certs/ca-bundle.crt\"\nEnvironment=\"LOCALE_ARCHIVE=/nix/store/hvznc01w42na6hiad627833ci4dhjvnc-glibc-locales-2.42-84/lib/locale/locale-archive\"\nEnvironment=\"PATH=/nix/store/9smxwm90h4pm4zkwcjscxb5yv6saam3v-nixrs-replacement-provisional-0.1.1/bin:/nix/store/5j1k7bxsljgrgql1cmr98wng8lpk2idn-openssh-10.5p1/bin:/nix/store/xjl7p8dvyk2j53kqf7f43kdj4ypbxz7g-coreutils-9.11/bin:/nix/store/i9wgqa0l88aprvpwfaq5hkfa6pklhlv0-findutils-4.11.0/bin:/nix/store/xmvbzzxm5snla5a2cyfhm7hjy9bifx7n-gnugrep-3.12/bin:/nix/store/qf2wzyq4irhgyhnq3s2hz0ldjq3w8a3x-gnused-4.10/bin:/nix/store/baxgs06659w4i6ggsfr56srjrb52v1h8-systemd-261.2/bin:/nix/store/9smxwm90h4pm4zkwcjscxb5yv6saam3v-nixrs-replacement-provisional-0.1.1/sbin:/nix/store/5j1k7bxsljgrgql1cmr98wng8lpk2idn-openssh-10.5p1/sbin:/nix/store/xjl7p8dvyk2j53kqf7f43kdj4ypbxz7g-coreutils-9.11/sbin:/nix/store/i9wgqa0l88aprvpwfaq5hkfa6pklhlv0-findutils-4.11.0/sbin:/nix/store/xmvbzzxm5snla5a2cyfhm7hjy9bifx7n-gnugrep-3.12/sbin:/nix/store/qf2wzyq4irhgyhnq3s2hz0ldjq3w8a3x-gnused-4.10/sbin:/nix/store/baxgs06659w4i6ggsfr56srjrb52v1h8-systemd-261.2/sbin\"\nEnvironment=\"TZDIR=/nix/store/fh8svr4ds87z84iarfnxrlfpjlbmc816-tzdata-2026c/share/zoneinfo\"\nX-StopIfChanged=false\nCPUSchedulingPolicy=other\nExecStart=\nExecStart=/nix/store/9smxwm90h4pm4zkwcjscxb5yv6saam3v-nixrs-replacement-provisional-0.1.1/bin/nix-daemon --daemon\nIOSchedulingClass=best-effort\nIOSchedulingPriority=4\nKillMode=control-group\nRestart=no\n\n# /etc/systemd/system/nix-daemon.socket -> /nix/store/9smxwm90h4pm4zkwcjscxb5yv6saam3v-nixrs-replacement-provisional-0.1.1/lib/systemd/system/nix-daemon.socket\n[Unit]\nDescription=nix-rs qualification daemon socket\n[Socket]\nListenStream=/nix/var/nix/daemon-socket/socket\nSocketMode=0666\nDirectoryMode=0755\n\n# /nix/store/4db9mz1xlzvg5g4pz4b18n9jhiaqi1iq-system-units/nix-daemon.socket.d/overrides.conf -> /nix/store/2smkxzzdgyhxljmq2snz9nv3gs523d0r-unit-nix-daemon.socket/nix-daemon.socket\n[Unit]\n\n[Socket]\nDirectoryMode=0755\nSocketMode=0666\n\nListenStream=\nListenStream=/nix/var/nix/daemon-socket/socket\n\n\n[Install]\nWantedBy=sockets.target sockets.target\n"
+		},
+		{
+			"name": "daemon-start",
+			"command": "bash -c 'systemctl start nix-daemon.service; sleep 1; systemctl is-active nix-daemon.service'",
+			"exit_code": 3,
+			"expected_exit_code": 0,
+			"status": "fail",
+			"output": "failed\n"
+		},
+		{
+			"name": "daemon-journal",
+			"command": "journalctl -u nix-daemon.service --no-pager -n 35",
+			"exit_code": 0,
+			"expected_exit_code": 0,
+			"status": "pass",
+			"output": "Oct 23 00:35:36 machine nix-daemon[724]: accepted connection from pid 782, user qualification\nOct 23 00:35:36 machine nix-daemon[724]: reaped child process 785, status = succeeded\nOct 23 00:35:41 machine systemd[1]: Stopping Nix Daemon...\nOct 23 00:35:41 machine systemd[1]: nix-daemon.service: Deactivated successfully.\nOct 23 00:35:41 machine systemd[1]: Stopped Nix Daemon.\nOct 23 00:35:42 machine systemd[1]: Started nix-rs qualification daemon.\nOct 23 00:35:42 machine nix-daemon[1036]: error: unrecognised flag '--daemon'\nOct 23 00:35:42 machine systemd[1]: nix-daemon.service: Main process exited, code=exited, status=1/FAILURE\nOct 23 00:35:42 machine systemd[1]: nix-daemon.service: Failed with result 'exit-code'.\nOct 23 00:35:42 machine systemd[1]: Started nix-rs qualification daemon.\nOct 23 00:35:42 machine nix-daemon[1038]: error: unrecognised flag '--daemon'\nOct 23 00:35:42 machine systemd[1]: nix-daemon.service: Main process exited, code=exited, status=1/FAILURE\nOct 23 00:35:42 machine systemd[1]: nix-daemon.service: Failed with result 'exit-code'.\nOct 23 00:35:42 machine systemd[1]: Started nix-rs qualification daemon.\nOct 23 00:35:42 machine nix-daemon[1040]: error: unrecognised flag '--daemon'\nOct 23 00:35:42 machine systemd[1]: nix-daemon.service: Main process exited, code=exited, status=1/FAILURE\nOct 23 00:35:42 machine systemd[1]: nix-daemon.service: Failed with result 'exit-code'.\nOct 23 00:35:42 machine systemd[1]: Started nix-rs qualification daemon.\nOct 23 00:35:42 machine nix-daemon[1042]: error: unrecognised flag '--daemon'\nOct 23 00:35:42 machine systemd[1]: nix-daemon.service: Main process exited, code=exited, status=1/FAILURE\nOct 23 00:35:42 machine systemd[1]: nix-daemon.service: Failed with result 'exit-code'.\nOct 23 00:35:42 machine systemd[1]: Started nix-rs qualification daemon.\nOct 23 00:35:43 machine nix-daemon[1044]: error: unrecognised flag '--daemon'\nOct 23 00:35:43 machine systemd[1]: nix-daemon.service: Main process exited, code=exited, status=1/FAILURE\nOct 23 00:35:43 machine systemd[1]: nix-daemon.service: Failed with result 'exit-code'.\nOct 23 00:35:43 machine systemd[1]: nix-daemon.service: Start request repeated too quickly.\nOct 23 00:35:43 machine systemd[1]: nix-daemon.service: Failed with result 'start-limit-hit'.\nOct 23 00:35:43 machine systemd[1]: Failed to start nix-rs qualification daemon.\nOct 23 00:35:43 machine systemd[1]: nix-daemon.service: Start request repeated too quickly.\nOct 23 00:35:43 machine systemd[1]: nix-daemon.service: Failed with result 'start-limit-hit'.\nOct 23 00:35:43 machine systemd[1]: Failed to start nix-rs qualification daemon.\nOct 23 00:35:43 machine systemd[1]: Started nix-rs qualification daemon.\nOct 23 00:35:43 machine nix-daemon[1141]: error: unrecognised flag '--daemon'\nOct 23 00:35:43 machine systemd[1]: nix-daemon.service: Main process exited, code=exited, status=1/FAILURE\nOct 23 00:35:43 machine systemd[1]: nix-daemon.service: Failed with result 'exit-code'.\n"
+		},
+		{
+			"name": "client-nix",
+			"command": "/nix/store/9smxwm90h4pm4zkwcjscxb5yv6saam3v-nixrs-replacement-provisional-0.1.1/bin/nix --version",
+			"exit_code": 127,
+			"expected_exit_code": 0,
+			"status": "fail",
+			"output": "nix-rs qualification gap: nix is not implemented\n"
+		},
+		{
+			"name": "client-nix-instantiate",
+			"command": "/nix/store/9smxwm90h4pm4zkwcjscxb5yv6saam3v-nixrs-replacement-provisional-0.1.1/bin/nix-instantiate --eval --strict --expr '1 + 2'",
+			"exit_code": 0,
+			"expected_exit_code": 0,
+			"status": "pass",
+			"output": "3\n"
+		},
+		{
+			"name": "rebuild-build",
+			"command": "env PATH=/run/qualification-bin:/run/current-system/sw/bin NIX_PATH=nixpkgs=/nix/store/2s013d7g7sna6rls7nk0yy8343h6mdiw-source nixos-rebuild build --flake path:/nix/store/di9s766kicrawf41f906k87gr42sww0p-source#qualification-one --no-reexec",
+			"exit_code": 127,
+			"expected_exit_code": 0,
+			"status": "fail",
+			"output": "building the system configuration...\nnix-rs qualification gap: nix is not implemented\nCommand 'nix --extra-experimental-features 'nix-command flakes' build --print-out-paths 'path:/nix/store/di9s766kicrawf41f906k87gr42sww0p-source#nixosConfigurations.\"qualification-one\".config.system.build.toplevel'' returned non-zero exit status 127.\n"
+		},
+		{
+			"name": "rebuild-dry-activate",
+			"command": "env PATH=/run/qualification-bin:/run/current-system/sw/bin NIX_PATH=nixpkgs=/nix/store/2s013d7g7sna6rls7nk0yy8343h6mdiw-source nixos-rebuild dry-activate --flake path:/nix/store/di9s766kicrawf41f906k87gr42sww0p-source#qualification-one --no-reexec",
+			"exit_code": 127,
+			"expected_exit_code": 0,
+			"status": "fail",
+			"output": "building the system configuration...\nnix-rs qualification gap: nix is not implemented\nCommand 'nix --extra-experimental-features 'nix-command flakes' build --print-out-paths 'path:/nix/store/di9s766kicrawf41f906k87gr42sww0p-source#nixosConfigurations.\"qualification-one\".config.system.build.toplevel' --no-link' returned non-zero exit status 127.\n"
+		},
+		{
+			"name": "rebuild-test",
+			"command": "env PATH=/run/qualification-bin:/run/current-system/sw/bin NIX_PATH=nixpkgs=/nix/store/2s013d7g7sna6rls7nk0yy8343h6mdiw-source nixos-rebuild test --flake path:/nix/store/di9s766kicrawf41f906k87gr42sww0p-source#qualification-one --no-reexec",
+			"exit_code": 127,
+			"expected_exit_code": 0,
+			"status": "fail",
+			"output": "building the system configuration...\nnix-rs qualification gap: nix is not implemented\nCommand 'nix --extra-experimental-features 'nix-command flakes' build --print-out-paths 'path:/nix/store/di9s766kicrawf41f906k87gr42sww0p-source#nixosConfigurations.\"qualification-one\".config.system.build.toplevel' --no-link' returned non-zero exit status 127.\n"
+		},
+		{
+			"name": "rebuild-switch",
+			"command": "env PATH=/run/qualification-bin:/run/current-system/sw/bin NIX_PATH=nixpkgs=/nix/store/2s013d7g7sna6rls7nk0yy8343h6mdiw-source nixos-rebuild switch --flake path:/nix/store/di9s766kicrawf41f906k87gr42sww0p-source#qualification-one --no-reexec",
+			"exit_code": 127,
+			"expected_exit_code": 0,
+			"status": "fail",
+			"output": "building the system configuration...\nnix-rs qualification gap: nix is not implemented\nCommand 'nix --extra-experimental-features 'nix-command flakes' build --print-out-paths 'path:/nix/store/di9s766kicrawf41f906k87gr42sww0p-source#nixosConfigurations.\"qualification-one\".config.system.build.toplevel' --no-link' returned non-zero exit status 127.\n"
+		},
+		{
+			"name": "rebuild-boot",
+			"command": "env PATH=/run/qualification-bin:/run/current-system/sw/bin NIX_PATH=nixpkgs=/nix/store/2s013d7g7sna6rls7nk0yy8343h6mdiw-source nixos-rebuild boot --flake path:/nix/store/di9s766kicrawf41f906k87gr42sww0p-source#qualification-one --no-reexec",
+			"exit_code": 127,
+			"expected_exit_code": 0,
+			"status": "fail",
+			"output": "building the system configuration...\nnix-rs qualification gap: nix is not implemented\nCommand 'nix --extra-experimental-features 'nix-command flakes' build --print-out-paths 'path:/nix/store/di9s766kicrawf41f906k87gr42sww0p-source#nixosConfigurations.\"qualification-one\".config.system.build.toplevel' --no-link' returned non-zero exit status 127.\n"
+		},
+		{
+			"name": "selected-first-generation",
+			"command": "grep -x one /etc/qualification-generation",
+			"exit_code": 1,
+			"expected_exit_code": 0,
+			"status": "fail",
+			"output": ""
+		},
+		{
+			"name": "reboot-new-generation",
+			"status": "blocked",
+			"reason": "rebuild-boot failed; no candidate boot generation exists"
+		},
+		{
+			"name": "second-change",
+			"status": "blocked",
+			"reason": "rebuild-boot failed; no candidate boot generation exists"
+		},
+		{
+			"name": "second-generation-marker",
+			"status": "blocked",
+			"reason": "rebuild-boot failed; no candidate boot generation exists"
+		},
+		{
+			"name": "rollback",
+			"status": "blocked",
+			"reason": "rebuild-boot failed; no candidate boot generation exists"
+		},
+		{
+			"name": "rollback-marker",
+			"status": "blocked",
+			"reason": "rebuild-boot failed; no candidate boot generation exists"
+		},
+		{
+			"name": "restore-reference-generation",
+			"command": "bash -c '$(cat /root/reference-system)/bin/switch-to-configuration test'",
+			"exit_code": 0,
+			"expected_exit_code": 0,
+			"status": "pass",
+			"output": "Checking switch inhibitors... done\nstopping the following units: systemd-tmpfiles-resetup.service\nNOT restarting the following changed units: register-nix-paths.service\nactivating the configuration...\nsetting up /etc...\nremoving obsolete symlink \u2018/etc/qualification-generation\u2019...\nrestarting sysinit-reactivation.target\nreloading the following units: dbus-broker.service\nstarting the following units: systemd-tmpfiles-resetup.service\n"
+		},
+		{
+			"name": "restore-system-profile",
+			"command": "bash -c '/nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2/bin/nix-env -p /nix/var/nix/profiles/system --set $(cat /root/reference-system)'",
+			"exit_code": 0,
+			"expected_exit_code": 0,
+			"status": "pass",
+			"output": ""
+		},
+		{
+			"name": "return-to-cppnix",
+			"command": "/nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2/bin/nix --version",
+			"exit_code": 0,
+			"expected_exit_code": 0,
+			"status": "pass",
+			"output": "nix (Nix) 2.35.2\n"
+		},
+		{
+			"name": "cppnix-store-verification",
+			"command": "/nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2/bin/nix-store --verify --check-contents",
+			"exit_code": 0,
+			"expected_exit_code": 0,
+			"status": "pass",
+			"output": "reading the Nix store...\nchecking path existence...\nchecking link hashes...\nchecking store hashes...\n"
+		},
+		{
+			"name": "reference-daemon-executable",
+			"command": "bash -c 'test $(readlink -f /proc/$(systemctl show -p MainPID --value nix-daemon.service)/exe) = $(readlink -f /nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2/bin/nix)'",
+			"exit_code": 0,
+			"expected_exit_code": 0,
+			"status": "pass",
+			"output": ""
+		}
+	]
+}

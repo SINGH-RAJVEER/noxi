@@ -141,21 +141,25 @@ A checked item below means it exists and has focused local evidence in the curre
 
 ## 7. Prove NixOS and Home Manager replacement
 
-- [ ] Build a provisional replacement package with the complete executable set and wire it to the selected Nixpkgs `nix.package` and daemon service options only in disposable qualification VM overlays. Verify that migration selects exactly one store-writing daemon; host replacement instructions remain gated on successful qualification.
-- [ ] Compare `nixos-rebuild build`, `test`, `boot`, `switch`, and `dry-activate` results, activation effects, boot entries, generations, and failure recovery.
+- [x] Add and run disposable VM report probes and strict gates for the committed `c60e3e3` milestone. [Recorded qualification](docs/verification.md#recorded-vm-qualification-at-c60e3e3) includes exact packaged hashes, failing steps and recovery. All three strict gates fail; concurrent infrastructure refactors are outside this evidence.
+
+- [ ] Build a provisional replacement package with the complete executable set and wire it to the selected Nixpkgs `nix.package` and daemon service options only in disposable qualification VM overlays. The provisional flake package and VM-only overlay/module now exist; six missing command implementations are explicit failing placeholders. Verify that migration selects exactly one store-writing daemon; host replacement instructions remain gated on successful qualification.
+- [ ] Compare `nixos-rebuild build`, `test`, `boot`, `switch`, and `dry-activate` results, activation effects, boot entries, generations, and failure recovery. All five flake actions exited 127 on the missing `nix` command at `c60e3e3`; reboot, second change and system rollback remain blocked.
 - [ ] Rebuild an existing CppNix-managed NixOS VM with nix-rs, reboot into the resulting generation, make a second change, and roll back.
-- [ ] Test standalone Home Manager build and switch, flake mode, and Home Manager as a NixOS module using the same engine.
+- [ ] Test standalone Home Manager build and switch, flake mode, and Home Manager as a NixOS module using the same engine. At `c60e3e3`, classic commands failed on the unavailable daemon, flake commands exited 127 on missing `nix`, and module activation failed.
 - [ ] Compare user profiles, activation effects, generations, and rollback for the pinned Home Manager revision.
-- [ ] Demonstrate a documented return to CppNix after a failed or successful nix-rs switch, including existing-store reuse.
+- [ ] Demonstrate a documented return to CppNix after a failed or successful nix-rs switch, including existing-store reuse. Return after failed prebuilt activation passed at `c60e3e3`, including daemon identity and full store verification in the NixOS run. Recovery after an engine-built generation is still unqualified.
 
 ## 8. Package and qualify the MVP release
+
+- [x] Build the preview and provisional replacement packages and executable-layout check from a clean Git clone at `c60e3e3`. The six missing command implementations remain explicit failing placeholders; this is not a qualified release.
 
 - [ ] Make the flake build reproducibly from a clean clone and provide the qualified replacement package, app, checks, daemon, and NixOS integration module.
 - [x] Publish the preview command set to crates.io: `nix-rs-eval-builtin-macros` 0.0.1, `nix-rs-eval` 0.2.0 and `nix-rs-cli` 0.1.1 ([distribution](docs/distribution.md#published-crates)).
 - [x] Publish the selected additional preview crates with versioned registry dependencies and package-local license/provenance notices. `nix-rs-hash`, `nix-rs-flakeref`, `nix-rs-compat`, `nix-rs-compat-derive`, `nix-rs-serde`, `nix-rs-glue`, and `nix-rs-commands` 0.1.0 passed package/build checks and were confirmed on crates.io on 2026-10-01. Their APIs are unstable; internal harnesses and the in-progress store stay private. Stable Rust APIs and additional crate publication are not prerequisites for the drop-in binary release.
 - [ ] Audit imported code and copied test licenses; include attribution and source revisions in release artifacts.
 	- Audit recorded: [licensing](docs/licensing.md) inventories imported and copied code, copied tests, and the shipped dependency licenses; `just licenses` gates them and `just third-party` generates [THIRD_PARTY.md](THIRD_PARTY.md). Open: decide the `nix-rs-cli` Apache-2.0 vs GPL-3.0-only conflict, add a root `LICENSE`, install the notice and source revisions in the flake's packaged artifact, and generate notices for `nix-rs-commands` and `nix-rs-daemon` before they ship.
-- [ ] Test installation, upgrade, failed upgrade, rollback, and removal in disposable VMs before documenting host installation.
+- [ ] Test installation, upgrade, failed upgrade, rollback, and removal in disposable VMs before documenting host installation. The `c60e3e3` package-profile fixture passed these transitions, but both package generations use the same binaries and removal did not exercise manifest selection. Its modern CLI probe failed, and final store verification timed out; the release gate stays open.
 - [ ] Run the applicable compatibility suite against the exact packaged release-profile executables and libraries, not only debug builds or workspace tests. Record artifact hashes and build inputs in the reports, and rerun affected qualification when an artifact changes.
 - [ ] Establish performance baselines for evaluation, cache substitution, local and remote builds, daemon startup, memory use, and large rebuild diagnostics against the pinned reference using the packaged release artifacts. Follow the [benchmark protocol](docs/performance-benchmarks.md) and [scenario catalog](benchmarks/catalog.tsv); record hardware, workloads, settings, input revisions, and observed gaps alongside the qualification reports so later improvement claims have a reproducible comparison.
 - [ ] Complete the x86_64-linux compatibility matrix with zero applicable gaps or unrun behaviors for the exact declared reference and feature set.

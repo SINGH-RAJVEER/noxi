@@ -8,46 +8,50 @@
 			inputs.nixpkgs.follows = "nixpkgs";
 		};
 		nix-reference.url = "github:NixOS/nix/2.35.2";
+		# The pinned Nixpkgs, Home Manager and CppNix of the qualification
+		# matrix row. A relative input shares this repository's lock, and its
+		# own inputs keep the revisions tests/qualification/flake.lock records.
+		qualification.url = "path:./tests/qualification";
 	};
 
-	outputs = { self, nixpkgs, rust-overlay, nix-reference }:
+	outputs = { self, nixpkgs, rust-overlay, nix-reference, qualification }:
 		let
 			systems = [ "x86_64-linux" ];
 			forAllSystems = f: nixpkgs.lib.genAttrs systems f;
-			packageFor = system:
-				let
-					pkgs = import nixpkgs {
-						inherit system;
-						overlays = [ (import rust-overlay) ];
-					};
-					toolchain = pkgs.rust-bin.nightly."2026-09-20".minimal;
-					rustPlatform = pkgs.makeRustPlatform {
-						cargo = toolchain;
-						rustc = toolchain;
-					};
-				in
-				rustPlatform.buildRustPackage {
-					pname = "nixrs-preview";
-					version = "0.1.1";
-					src = pkgs.lib.fileset.toSource {
-						root = ./.;
-						fileset = pkgs.lib.fileset.unions [
-							./.cargo
-							./Cargo.lock
-							./Cargo.toml
-							./crates
-						];
-					};
-					cargoLock.lockFile = ./Cargo.lock;
-					cargoBuildFlags = [ "-p" "nix-rs-cli" ];
-					cargoTestFlags = [ "-p" "nix-rs-cli" ];
-					cargoInstallFlags = [ "-p" "nix-rs-cli" ];
-				};
+			preview = system: import ./nix/package.nix {
+				pkgs = nixpkgs.legacyPackages.${system};
+				inherit rust-overlay;
+			};
+			replacement = import ./tests/qualification/replacement/test.nix {
+				inherit self rust-overlay;
+				inherit (qualification.inputs) nixpkgs home-manager nix-reference;
+			};
 		in
 		{
+			# The generations the qualification VMs switch to, for flake-mode
+			# probes and inspection. Never deploy them to a host.
+			nixosConfigurations = replacement.configurations;
+			homeConfigurations.qualification = qualification.inputs.home-manager.lib.homeManagerConfiguration {
+				pkgs = qualification.inputs.nixpkgs.legacyPackages.x86_64-linux;
+				modules = [ ./tests/qualification/replacement/home.nix ];
+			};
+			# The provisional replacement for disposable VM overlays only.
+			overlays.qualification = final: prev: {
+				nixrs-replacement = import ./nix/package.nix {
+					pkgs = final;
+					inherit rust-overlay;
+					replacement = true;
+				};
+			};
+			nixosModules.qualification = import ./nix/qualification-module.nix;
 			packages = forAllSystems (system: {
-				default = packageFor system;
-				nixrs = packageFor system;
+				default = preview system;
+				nixrs = preview system;
+				# Built against the qualification row's Nixpkgs.
+				nixrs-replacement = replacement.candidate;
+				qualification-nixos-report = replacement.reports.nixos;
+				qualification-home-manager-report = replacement.reports.home-manager;
+				qualification-lifecycle-report = replacement.reports.lifecycle;
 				nix-reference = nix-reference.packages.${system}.nix;
 				# A statically linked busybox with no references, used as the
 				# builder in the build comparison tests.
@@ -60,14 +64,55 @@
 					meta.description = "Run the nix-rs preview command";
 				};
 			});
-			checks = forAllSystems (system: {
-				nixrs = self.packages.${system}.default;
-				# Boots a NixOS machine running the pinned reference; see tests/vm/.
-				vm = import ./tests/vm/test.nix {
+			checks = forAllSystems (system:
+				let
+					pkgs = nixpkgs.legacyPackages.${system};
+					package = self.packages.${system}.nixrs-replacement;
+				in
+				{
 					nixrs = self.packages.${system}.default;
-					nixReference = self.packages.${system}.nix-reference;
-					inherit (nixpkgs.legacyPackages.${system}) testers;
-				};
-			});
+					replacement = package;
+					# The reference's executable names, the daemon units, and the
+					# evaluator answering from the packaged binaries.
+					replacement-layout = pkgs.runCommand "nixrs-replacement-layout" { } ''
+						package=${package}
+						ls ${self.packages.${system}.nix-reference}/bin | sort > reference-commands
+						ls "$package/bin" | grep -vx nixrs | sort > replacement-commands
+						diff -u reference-commands replacement-commands
+						printf '%s\n' ${pkgs.lib.escapeShellArgs package.implemented} | sort > engine-commands
+						ls ${package.binaryPackage}/bin | sort > built-commands
+						diff -u engine-commands built-commands
+						test -s "$package/share/doc/nix-rs/THIRD_PARTY.md"
+						test -s "$package/share/doc/nix-rs/crates/nix-rs/PROVENANCE.md"
+						test -s "$package/share/doc/nix-rs/crates/nix-rs/eval/COPYING"
+						for command in ${pkgs.lib.escapeShellArgs (package.implemented ++ package.unimplemented)}; do
+							test -x "$package/bin/$command"
+						done
+						for command in ${pkgs.lib.escapeShellArgs package.unimplemented}; do
+							status=0
+							"$package/bin/$command" --version 2> err || status=$?
+							test "$status" -eq 127
+							grep -q 'is not implemented' err
+						done
+						grep -qx "ExecStart=@$package/bin/nix-daemon nix-daemon --daemon" "$package/lib/systemd/system/nix-daemon.service"
+						grep -qx 'ListenStream=/nix/var/nix/daemon-socket/socket' "$package/lib/systemd/system/nix-daemon.socket"
+						test -f "$package/lib/tmpfiles.d/nix-daemon.conf"
+						"$package/bin/nixrs" eval --expr '1 + 2' | grep -x 3
+						"$package/bin/nix-instantiate" --store dummy:// --eval --strict --expr '1 + 2' | grep -x 3
+						touch "$out"
+					'';
+					# Strict replacement gates: each fails unless every step of its
+					# VM scenario passed. `just qualification-report MODE` keeps
+					# the report of a failing run.
+					qualification-nixos = replacement.checks.nixos;
+					qualification-home-manager = replacement.checks.home-manager;
+					qualification-lifecycle = replacement.checks.lifecycle;
+					# Boots a NixOS machine running the pinned reference; see tests/vm/.
+					vm = import ./tests/vm/test.nix {
+						nixrs = self.packages.${system}.default;
+						nixReference = self.packages.${system}.nix-reference;
+						inherit (pkgs) testers;
+					};
+				});
 		};
 }

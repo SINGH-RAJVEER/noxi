@@ -198,3 +198,7 @@ Crates in the `nixrs` closure, excluding `nix-rs-cli` itself. The license is eac
 | unicode-width | 0.2.2 | MIT OR Apache-2.0 | https://github.com/unicode-rs/unicode-width |
 | vu128 | 1.1.0 | 0BSD | https://github.com/jmillikin/rust-vu128 |
 | zmij | 1.0.23 | MIT | https://github.com/dtolnay/zmij |
+
+## Packaged notices
+
+The flake package installs [THIRD_PARTY.md](../THIRD_PARTY.md) and every workspace `LICENSE`, `COPYING`, `NOTICE` and `PROVENANCE.md` under `share/doc/nix-rs`, keeping the source directory structure. It also installs a root `LICENSE` or `NOTICE` if one exists; there is currently no root `LICENSE`. `THIRD_PARTY.md` covers the `nixrs` preview, including imported Snix code and the embedded CppNix derivation helper. It is not a complete dependency notice for the commands and daemon executables, so installing the available notices does not close the release license audit.
