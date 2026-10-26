@@ -1,6 +1,7 @@
 //! New-style `nix` commands. Unsupported library operations fail explicitly.
 mod args;
 mod command_store;
+mod config;
 mod develop;
 pub mod execution;
 mod expression;
@@ -314,6 +315,7 @@ pub fn main(mut settings: Settings, args: Vec<String>) -> Result<ExitCode, Failu
 		return Err(requires_subcommand(level.command.path));
 	}
 	let supported: &[&str] = match level.command.path {
+		"config show" => &["json"],
 		"develop" => &[
 			"arg",
 			"argstr",
@@ -435,6 +437,9 @@ pub fn main(mut settings: Settings, args: Vec<String>) -> Result<ExitCode, Failu
 	};
 	if parsed.command.starts_with("hash ") {
 		return hash::run(parsed);
+	}
+	if parsed.command == "config show" {
+		return config::show(parsed);
 	}
 	ensure_diverted_root(&parsed)?;
 	match parsed.command {

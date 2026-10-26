@@ -33,7 +33,7 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
 				root = Some(PathBuf::from(path));
 			}
 			"--version" => {
-				println!("nix-daemon (nix-rs preview) {}", env!("CARGO_PKG_VERSION"));
+				println!("nix-daemon (Nix) 2.35.2");
 				return Ok(());
 			}
 			"--help" => {

@@ -32,10 +32,17 @@ fn run() -> ExitCode {
 			return ExitCode::FAILURE;
 		}
 	};
-	let mut options = match instantiate::parse_args(std::env::args().skip(1), settings) {
-		Ok(options) => options,
-		Err(message) => return usage(&message),
-	};
+	let mut options =
+		match instantiate::parse_args_with(std::env::args().skip(1), settings, |flag, _| {
+			if flag == "--version" {
+				println!("nix-instantiate (Nix) 2.35.2");
+				std::process::exit(0);
+			}
+			None
+		}) {
+			Ok(options) => options,
+			Err(message) => return usage(&message),
+		};
 	nix_rs_commands::cli::print_setting_warnings(&mut options.settings);
 	if options.find_file {
 		return instantiate::find_files(&options);
