@@ -2,6 +2,11 @@ use std::{env, fs, path::PathBuf, process::ExitCode};
 
 use nix_rs_eval::{EvalMode, Evaluation};
 
+// Evaluation allocates and frees millions of small values, which mimalloc
+// serves faster than the system allocator.
+#[global_allocator]
+static GLOBAL: mimalloc::MiMalloc = mimalloc::MiMalloc;
+
 fn main() -> ExitCode {
 	let mut args = env::args().skip(1);
 	match (args.next().as_deref(), args.next().as_deref(), args.next()) {

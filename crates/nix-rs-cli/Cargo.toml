@@ -12,6 +12,7 @@ name = "nixrs"
 path = "src/main.rs"
 
 [dependencies]
+mimalloc.workspace = true
 nix-rs-eval = { path = "../nix-rs/eval", version = "0.2.0", default-features = false }
 
 [dev-dependencies]
