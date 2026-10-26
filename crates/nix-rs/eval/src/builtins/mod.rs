@@ -670,13 +670,9 @@ mod pure_builtins {
 	async fn builtin_elem_at(co: GenCo, xs: Value, i: Value) -> Result<Value, ErrorKind> {
 		let xs = xs.to_list()?;
 		let i = i.as_int()?;
-		if i < 0 {
-			Err(ErrorKind::IndexOutOfBounds { index: i })
-		} else {
-			match xs.get(i as usize) {
-				Some(x) => Ok(x.clone()),
-				None => Err(ErrorKind::IndexOutOfBounds { index: i }),
-			}
+		match usize::try_from(i).ok().and_then(|index| xs.get(index)) {
+			Some(value) => Ok(value.clone()),
+			None => Err(ErrorKind::EvalError(format!("'builtins.elemAt' called with index {i} on a list of size {}", xs.len()))),
 		}
 	}
 
@@ -733,7 +729,7 @@ mod pure_builtins {
 			return Ok(Value::attrs(NixAttrs::empty()));
 		}
 
-		let lambda = &f.as_closure()?.lambda();
+		let lambda = &f.as_closure().map_err(|_| ErrorKind::EvalError("'functionArgs' requires a function".into()))?.lambda();
 		let formals = if let Some(formals) = &lambda.formals {
 			formals
 		} else {
@@ -863,7 +859,7 @@ mod pure_builtins {
 		let len = length.as_int()?;
 		let mut out = Vec::with_capacity(
 			len.try_into()
-				.map_err(|_| ErrorKind::Abort(format!("can not create list of size {len}")))?,
+				.map_err(|_| ErrorKind::EvalError(format!("cannot create list of size {len}")))?,
 		);
 		if len == 0 {
 			return Ok(Value::List(out.into()));
@@ -893,7 +889,7 @@ mod pure_builtins {
 		match xs.select(&k) {
 			Some(x) => Ok(x.clone()),
 			None => Err(ErrorKind::AttributeNotFound {
-				name: k.to_string(),
+				name: k.to_str_lossy().into_owned(),
 				suggestions: vec![],
 			}
 			.trace(None, "in the attribute set under consideration")),
@@ -1160,7 +1156,7 @@ mod pure_builtins {
 
 		match list.to_list()?.get(0) {
 			Some(x) => Ok(x.clone()),
-			None => Err(ErrorKind::IndexOutOfBounds { index: 0 }),
+			None => Err(ErrorKind::EvalError("'builtins.head' called on an empty list".into())),
 		}
 	}
 
@@ -1517,10 +1513,10 @@ mod pure_builtins {
 		let mut patterns = Vec::with_capacity(from.len());
 		for val in &from {
 			let val = try_value!(generators::request_force(&co, val.clone()).await);
-			patterns.push(val.to_contextful_str()?);
+			patterns.push(val.to_contextful_str().trace(None, "while evaluating one of the strings to replace passed to builtins.replaceStrings")?);
 		}
 
-		let mut string = s.to_contextful_str()?;
+		let mut string = s.to_contextful_str().trace(None, "while evaluating the third argument passed to builtins.replaceStrings")?;
 		let mut context = NixContext::new();
 		if let Some(string_context) = string.take_context() {
 			context.extend(*string_context);
@@ -1765,7 +1761,7 @@ mod pure_builtins {
 		let x = x.to_contextful_str()?;
 
 		if beg < 0 {
-			return Err(ErrorKind::IndexOutOfBounds { index: beg });
+			return Err(ErrorKind::EvalError("negative start position in 'substring'".into()));
 		}
 		let beg = beg as usize;
 

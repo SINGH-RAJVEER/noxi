@@ -481,6 +481,9 @@ pub fn builtins(args: TokenStream, item: TokenStream) -> TokenStream {
 /// CppNix's checks of builtin arguments: the type each primop forces an
 /// argument to before using it, and the trace frame of its type error.
 const ARGUMENT_CHECKS: &[(&str, usize, &str, &str)] = &[
+	("compareVersions", 0, "String", "while evaluating the first argument passed to builtins.compareVersions"),
+	("compareVersions", 1, "String", "while evaluating the second argument passed to builtins.compareVersions"),
+
 	(
 		"attrNames",
 		0,
