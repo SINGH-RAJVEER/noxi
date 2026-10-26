@@ -22,5 +22,7 @@ help: the trait `NixDeserialize` is not implemented for `BadType`
 note: required by a bound in `try_read_value`
  --> $WORKSPACE/crates/nix-rs/nix-compat/src/wire/de/mod.rs
   |
+  | pub trait NixRead: Send {
+...
   |     fn try_read_value<V: NixDeserialize>(
   |                          ^^^^^^^^^^^^^^ required by this bound in `NixRead::try_read_value`
