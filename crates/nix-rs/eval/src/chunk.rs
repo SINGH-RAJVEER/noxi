@@ -42,6 +42,10 @@ pub struct Chunk {
 	/// AttrSet emits its own thunk and each thunk creates its own Chunk.
 	pub attrsets_pos_spans: Vec<codemap::Span>,
 
+	/// The positions of the attributes of the first set constructed from that
+	/// AttrSet, for later sets with the same attributes to share.
+	pub(crate) attrset_positions: std::cell::OnceCell<crate::value::AttrPositions>,
+
 	spans: Vec<SourceSpan>,
 
 	/// Index of the last operation (i.e. not data) written to the code vector.

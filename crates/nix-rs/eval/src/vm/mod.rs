@@ -1326,10 +1326,11 @@ where
 	}
 
 	fn run_attrset(&mut self, count: usize, frame: &BytecodeFrame) -> EvalResult<()> {
-		let attrs = NixAttrs::construct(
+		let attrs = NixAttrs::construct_with_positions(
 			count,
 			self.stack.split_off(self.stack.len() - count * 2),
 			&frame.chunk().attrsets_pos_spans,
+			Some(&frame.chunk().attrset_positions),
 		)
 		.with_span(frame, self)?
 		.map(Value::attrs)

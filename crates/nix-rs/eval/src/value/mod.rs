@@ -30,6 +30,7 @@ use crate::AddContext;
 use crate::errors::{CatchableErrorKind, ErrorKind, Trace};
 use crate::opcode::StackIdx;
 use crate::vm::generators::{self, GenCo};
+pub(crate) use attrs::AttrPositions;
 pub use attrs::NixAttrs;
 pub(crate) use attrs::cppnix_attribute_order;
 pub use builtin::{Builtin, BuiltinResult};
