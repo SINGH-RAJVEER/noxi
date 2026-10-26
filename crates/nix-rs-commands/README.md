@@ -26,3 +26,7 @@ GPL-3.0-only. See [LICENSE](LICENSE) and [PROVENANCE.md](PROVENANCE.md).
 ## Unreleased build and store commands
 
 The current source workspace adds `nix-build` and `nix-store`, requiring an explicit diverted store. `nix-build` evaluates and realizes selected derivation outputs and creates optional permanent result roots. `nix-store` implements selected local queries, realization, NAR dumping, verification, optimisation and garbage collection. Recursive selections, modern commands, profiles, complete flag compatibility and live-system replacement remain open. See [distribution](../../docs/distribution.md#local-engine-commands-under-development) for source-build instructions.
+
+## Unreleased modern commands
+
+The source workspace also builds `nix`, with selected expression eval/build, path-info, store, derivation-show, local-log, file-cache-copy, shell and run operations. `nix-shell`, `nix-copy-closure` and `nix develop` report explicit missing-library errors for their remaining environment/transport work. The measured subset and outstanding limits are in the [modern command coverage table](../../docs/compatibility-matrix.md). Use the absolute binary path and a diverted store for development. These commands have not been published or qualified as a system replacement.

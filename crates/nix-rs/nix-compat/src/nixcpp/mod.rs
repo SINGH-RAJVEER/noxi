@@ -7,6 +7,7 @@
 //! protocol live elsewhere.
 
 pub mod conf;
+pub mod hash;
 pub mod machines;
 #[cfg(feature = "serde")]
 pub mod narinfo;
