@@ -514,17 +514,19 @@ where
 		while let Some(frame) = self.frames.pop() {
 			self.reasonable_span = frame.span();
 			let frame_id = self.frames.len();
-			self.current = (frame_id, frame.trace().clone());
-			self.call_depth = match &frame {
-				Frame::BytecodeFrame { bytecode_frame, .. } => bytecode_frame.depth,
-				Frame::Generator { depth, .. } => *depth,
-			};
-
 			match frame {
 				Frame::BytecodeFrame {
 					bytecode_frame,
 					span,
 				} => {
+					// The frame keeps its own trace, which it may update as it runs.
+					// Most frames are thunks without one, so skip the clone for those.
+					let trace = match &bytecode_frame.trace {
+						FrameTrace::None => FrameTrace::None,
+						trace => trace.clone(),
+					};
+					self.current = (frame_id, trace);
+					self.call_depth = bytecode_frame.depth;
 					self.observer
 						.observe_enter_bytecode_frame(0, &bytecode_frame.lambda, frame_id);
 
@@ -548,8 +550,13 @@ where
 					span,
 					state,
 					generator,
-					..
+					depth,
+					trace,
 				} => {
+					// A generator records its trace only while suspended, so the
+					// running trace takes it and re-enqueuing moves it back.
+					self.current = (frame_id, trace);
+					self.call_depth = depth;
 					self.observer
 						.observe_enter_generator(frame_id, name, &self.stack);
 

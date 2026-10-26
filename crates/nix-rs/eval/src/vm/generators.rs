@@ -297,7 +297,9 @@ where
 			span,
 			state: GeneratorState::AwaitingValue,
 			depth: self.call_depth,
-			trace: self.current.1.clone(),
+			// The generator was running, so the running trace is its own; once it
+			// is back on the frame stack, `traces` no longer reads it.
+			trace: std::mem::take(&mut self.current.1),
 		});
 	}
 
