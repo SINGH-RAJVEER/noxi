@@ -1418,6 +1418,7 @@ where
 {
 	/// Record where a catchable error produced by the running frame was
 	/// raised, unless `builtins.tryEval` will discard it.
+	#[inline]
 	pub(crate) fn trace_catchable(
 		&self,
 		value: Value,
@@ -1430,6 +1431,7 @@ where
 	/// [`trace_catchable`](Self::trace_catchable) with the running frame's
 	/// trace, if it is at hand. A catchable error that carries only the
 	/// frames of the generator that raised it gets the others prepended.
+	#[inline]
 	fn trace_catchable_in(
 		&self,
 		value: Value,
@@ -1437,9 +1439,21 @@ where
 		span: Option<Span>,
 		message: Option<String>,
 	) -> Value {
-		if !self.try_eval_frames.is_empty() {
+		// Nearly every value a frame produces is not an error.
+		if !matches!(value, Value::Catchable(_)) || !self.try_eval_frames.is_empty() {
 			return value;
 		}
+		self.trace_catchable_error(value, running, span, message)
+	}
+
+	#[cold]
+	fn trace_catchable_error(
+		&self,
+		value: Value,
+		running: Option<&FrameTrace>,
+		span: Option<Span>,
+		message: Option<String>,
+	) -> Value {
 		match value {
 			Value::Catchable(kind) => match *kind {
 				CatchableErrorKind::Traced { kind, info } if info.relative => {
