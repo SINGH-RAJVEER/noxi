@@ -535,9 +535,26 @@ fn kind_message(error: &Error) -> (String, Option<Span>, Vec<String>) {
 			at,
 			vec![],
 		),
-		ErrorKind::NotAnAbsolutePath(path) => (format!("string '{}' doesn't represent an absolute path", path.display()), None, vec![]),
-		ErrorKind::UnknownHashType(name) => (format!("unknown hash algorithm '{name}', expect 'blake3', 'md5', 'sha1', 'sha256', or 'sha512'"), None, vec![]),
-		ErrorKind::TailEmptyList => ("'builtins.tail' called on an empty list".into(), None, vec![]),
+		ErrorKind::NotAnAbsolutePath(path) => (
+			format!(
+				"string '{}' doesn't represent an absolute path",
+				path.display()
+			),
+			None,
+			vec![],
+		),
+		ErrorKind::UnknownHashType(name) => (
+			format!(
+				"unknown hash algorithm '{name}', expect 'blake3', 'md5', 'sha1', 'sha256', or 'sha512'"
+			),
+			None,
+			vec![],
+		),
+		ErrorKind::TailEmptyList => (
+			"'builtins.tail' called on an empty list".into(),
+			None,
+			vec![],
+		),
 
 		ErrorKind::EvalError(message) => (message.clone(), None, vec![]),
 		kind => (kind.to_string(), None, vec![]),
