@@ -462,8 +462,8 @@ impl LocalStore {
 			.map(|(name, path)| (name, Some(path)))
 			.collect();
 		if self.config.ca_derivations {
-			let derivation = self.read_derivation(drv)?;
-			for name in derivation.outputs().names() {
+			let derivation = self.read_build_derivation(drv)?;
+			for name in derivation.basic.outputs().names() {
 				if let Some(realisation) = self.query_realisation(drv, &name.to_string())? {
 					outputs.insert(name.to_string(), Some(realisation.out_path));
 				} else {

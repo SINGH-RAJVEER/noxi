@@ -94,19 +94,12 @@ pub fn query_missing(
 				}
 				let build_drv = store.read_build_derivation(&drv_path)?;
 				let drv = &build_drv.basic;
+				let output_map = store.query_partial_derivation_output_map(&drv_path)?;
 				let mut invalid = BTreeSet::new();
 				let mut unknown_output = false;
-				for name in drv.outputs().names() {
-					let wanted = outputs
-						.as_ref()
-						.is_none_or(|o| o.contains(&name.to_string()));
+				for (name, path) in output_map {
+					let wanted = outputs.as_ref().is_none_or(|o| o.contains(&name));
 					if wanted {
-						let path = match drv.outputs().get(name) {
-							Some(path) => Some(path.clone()),
-							None => store
-								.query_realisation(&drv_path, &name.to_string())?
-								.map(|r| r.out_path),
-						};
 						match path {
 							Some(path) if !store.is_valid_path(&path)? => {
 								invalid.insert(path);
