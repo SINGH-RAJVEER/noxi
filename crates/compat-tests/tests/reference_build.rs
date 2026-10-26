@@ -1201,6 +1201,9 @@ fn parallel_builds_bound_jobs_share_dependencies_and_preserve_logs() {
 		let mut peak = 0;
 		let batch = LocalBuilder::new(&store, &settings)
 			.realise_many_with_events(&[(drv.clone(), None)], &mut |identity, event| match event {
+				BuildEvent::PathChecked { .. } => {
+					panic!("ordinary builds must not report repair checks")
+				}
 				BuildEvent::Started { drv_path } => {
 					assert_eq!(identity, drv_path);
 					assert!(active.insert(identity.clone()));
