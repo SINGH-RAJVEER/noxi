@@ -6,6 +6,7 @@ use ::url::Url;
 use std::{collections::HashMap, path::PathBuf};
 
 pub mod attrs;
+pub mod cache;
 pub mod error;
 pub mod flake_ref;
 pub mod input;

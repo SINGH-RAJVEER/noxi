@@ -40,32 +40,117 @@ fn boolean(input: &Input, name: &str) -> Result<bool> {
 
 /// Fetch into an evaluation-owned bare repository. No shell interpolation,
 /// checkout hooks, credentials prompts, or persistent cache are involved.
-fn remote_repo(url: &str, input: &Input) -> Result<Rc<tempfile::TempDir>> {
-	if boolean(input, "submodules")? {
-		return Err(Error::new("remote Git submodules are not implemented"));
-	}
-	let keep = Rc::new(tempfile::tempdir()?);
-	run(keep.path(), &["init", "--bare", "--quiet"])?;
-	let reference = input.get_ref()?.unwrap_or_else(|| "HEAD".into());
+fn remote_repo(
+	url: &str,
+	input: &Input,
+	directory: &Path,
+	ttl: u64,
+	offline: bool,
+) -> Result<PathBuf> {
+	use sha2::{Digest, Sha256};
 	let shallow = boolean(input, "shallow")?;
+	let hash = nix_compat::nixhash::NixHash::Sha256(Sha256::digest(url.as_bytes()).into())
+		.to_nix_nixbase32();
+	let name =
+		hash.strip_prefix("sha256:").unwrap().to_owned() + if shallow { "-shallow" } else { "" };
+	let repo = directory.join("gitv3").join(name);
+	fs::create_dir_all(repo.parent().unwrap())?;
+	let lock = fs::OpenOptions::new()
+		.create(true)
+		.truncate(false)
+		.write(true)
+		.open(repo.with_extension("lock"))?;
+	lock.lock()?;
+	fs::create_dir_all(&repo)?;
+	if !repo.join("config").exists() {
+		run(&repo, &["init", "--bare", "--quiet"])?;
+	}
+	run(&repo, &["config", "remote.origin.url", url])?;
+	let mut reference = input.get_ref()?.unwrap_or_else(|| "HEAD".into());
 	let revision = input.get_rev()?.map(|rev| git_rev(&rev));
+	if revision
+		.as_ref()
+		.is_some_and(|rev| run(&repo, &["cat-file", "-e", &format!("{rev}^{{commit}}")]).is_ok())
+	{
+		return Ok(repo);
+	}
+	if reference == "HEAD" && revision.is_none() {
+		if let Ok(head) = text(&repo, &["symbolic-ref", "HEAD"])
+			&& run(&repo, &["rev-parse", "--verify", "HEAD"]).is_ok()
+		{
+			reference = head;
+		} else if !offline {
+			let head = text(&repo, &["ls-remote", "--symref", "--", url, "HEAD"])?;
+			if let Some(target) = head.lines().find_map(|line| {
+				line.strip_prefix("ref: ")
+					.and_then(|line| line.split_whitespace().next())
+			}) {
+				reference = target.into();
+				run(&repo, &["symbolic-ref", "HEAD", target])?;
+			}
+		}
+	}
+	let ref_file = if reference.starts_with("refs/") || reference == "HEAD" {
+		repo.join(&reference)
+	} else {
+		repo.join("refs/heads").join(&reference)
+	};
+	let valid = run(&repo, &["rev-parse", "--verify", &reference]).is_ok();
+	let fresh = fs::metadata(&ref_file)
+		.and_then(|m| m.modified())
+		.ok()
+		.and_then(|m| m.elapsed().ok())
+		.is_some_and(|age| age.as_secs() < ttl);
+	if revision.is_none() && valid && (offline || fresh && !boolean(input, "allRefs")?) {
+		return Ok(repo);
+	}
+	if offline {
+		return Err(Error::new(format!(
+			"cannot fetch Git input '{}' in offline mode",
+			input.display()
+		)));
+	}
 	let fetch_ref = if boolean(input, "allRefs")? && !shallow {
 		"+refs/*:refs/*"
-	} else if shallow {
-		revision.as_deref().unwrap_or(&reference)
+	} else if let Some(revision) = &revision {
+		revision
 	} else {
-		&reference
+		""
+	};
+	let refspec = if reference.starts_with("refs/") {
+		format!("{reference}:{reference}")
+	} else if reference == "HEAD" {
+		"HEAD:HEAD".into()
+	} else {
+		format!("refs/heads/{reference}:refs/heads/{reference}")
+	};
+	let fetch_ref = if fetch_ref.is_empty() {
+		&refspec
+	} else {
+		fetch_ref
 	};
 	let mut args = vec!["fetch", "--quiet", "--force"];
 	if shallow {
 		args.push("--depth=1");
 	}
 	args.extend(["--", url, fetch_ref]);
-	run(keep.path(), &args)?;
-	if boolean(input, "allRefs")? && !shallow {
-		run(keep.path(), &["fetch", "--quiet", "--", url, &reference])?;
+	if let Err(error) = run(&repo, &args) {
+		if !valid || revision.is_some() {
+			return Err(error);
+		}
+		warn(&format!(
+			"could not update local clone of Git repository '{url}'; continuing with the most recent version"
+		));
 	}
-	Ok(keep)
+	if boolean(input, "allRefs")? && !shallow {
+		run(&repo, &["fetch", "--quiet", "--", url, &refspec])?;
+	}
+	if revision.is_none()
+		&& let Ok(file) = fs::OpenOptions::new().write(true).open(ref_file)
+	{
+		file.set_modified(std::time::SystemTime::now())?;
+	}
+	Ok(repo)
 }
 
 fn ignored(repo: &Path, paths: &BTreeSet<PathBuf>) -> Result<BTreeSet<PathBuf>> {
@@ -112,7 +197,7 @@ fn ignored(repo: &Path, paths: &BTreeSet<PathBuf>) -> Result<BTreeSet<PathBuf>> 
 }
 
 /// Export immutable Git objects without running checkout filters or copying `.git`.
-fn export(
+pub(super) fn export(
 	repo: &Path,
 	rev: &str,
 	destination: &Path,
@@ -125,7 +210,7 @@ fn export(
 		tar::Archive::new(std::io::Cursor::new(bytes)).unpack(destination)?;
 		return Ok(());
 	}
-	let entries = run(repo, &["ls-tree", "-rz", "--full-tree", rev])?;
+	let entries = run(repo, &["ls-tree", "-rtz", "--full-tree", rev])?;
 	for entry in entries.split(|b| *b == 0).filter(|e| !e.is_empty()) {
 		let tab = entry
 			.iter()
@@ -141,7 +226,9 @@ fn export(
 		let relative = Path::new(std::ffi::OsStr::from_bytes(&entry[tab + 1..]));
 		let path = destination.join(relative);
 		fs::create_dir_all(path.parent().unwrap())?;
-		if mode == "160000" {
+		if mode == "040000" {
+			fs::create_dir_all(&path)?;
+		} else if mode == "160000" {
 			fs::create_dir_all(&path)?;
 			if submodules {
 				export(&repo.join(relative), object, &path, true, false)?;
@@ -163,26 +250,39 @@ fn export(
 }
 
 pub(crate) fn get_accessor(
-	_store: &EvaluatorStore,
+	store: &EvaluatorStore,
 	settings: &FetchSettings,
 	input: &Input,
 ) -> Result<(Mount, Input)> {
 	let url = get_str_attr(&input.attrs, "url")?;
 	let parsed = fix_git_url(&url)?;
 	if parsed.scheme != "file" {
-		let repo = remote_repo(&url, input)?;
+		let repo = remote_repo(
+			&url,
+			input,
+			&store.fetch_cache_dir(),
+			settings.tarball_ttl,
+			store.fetch_config.borrow().offline,
+		)?;
 		let mut local = input.clone();
-		local.attrs.insert(
-			"url".into(),
-			format!("file://{}", repo.path().display()).into(),
-		);
+		local
+			.attrs
+			.insert("url".into(), format!("file://{}", repo.display()).into());
 		if local.get_rev()?.is_none() {
 			local.attrs.insert(
 				"rev".into(),
-				text(repo.path(), &["rev-parse", "--verify", "FETCH_HEAD"])?.into(),
+				text(
+					&repo,
+					&[
+						"rev-parse",
+						"--verify",
+						input.get_ref()?.as_deref().unwrap_or("HEAD"),
+					],
+				)?
+				.into(),
 			);
 		}
-		let (mount, mut locked) = get_accessor(_store, settings, &local)?;
+		let (mount, mut locked) = get_accessor(store, settings, &local)?;
 		locked.attrs.insert("url".into(), url.into());
 		return Ok((mount, locked));
 	}
@@ -422,13 +522,11 @@ mod tests {
 				.into(),
 			)
 			.unwrap();
-			let fetched = remote_repo(&url, &input).unwrap();
+			let cache = tempfile::tempdir().unwrap();
+			let fetched = remote_repo(&url, &input, cache.path(), 3600, false).unwrap();
+			assert_eq!(text(&fetched, &["rev-parse", "HEAD"]).unwrap(), revision);
 			assert_eq!(
-				text(fetched.path(), &["rev-parse", "FETCH_HEAD"]).unwrap(),
-				revision
-			);
-			assert_eq!(
-				text(fetched.path(), &["rev-list", "--count", "FETCH_HEAD"]).unwrap(),
+				text(&fetched, &["rev-list", "--count", "HEAD"]).unwrap(),
 				if shallow { "1" } else { "2" }
 			);
 		}

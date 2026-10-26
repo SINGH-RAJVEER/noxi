@@ -25,8 +25,10 @@ fn reference() -> Option<PathBuf> {
 
 fn candidate(cwd: &Path, expression: &str) -> Value {
 	let store = EvaluatorStore::new();
+	let cache = tempfile::tempdir().unwrap();
 	store.configure_fetching(FetchConfig {
 		cwd: cwd.to_owned(),
+		cache_dir: Some(cache.path().to_owned()),
 		..FetchConfig::default()
 	});
 	let result = configure(
@@ -69,7 +71,7 @@ fn compare(cwd: &Path, expression: &str) -> Option<Value> {
 		.env("NIX_CONF_DIR", home.path())
 		.env(
 			"NIX_CONFIG",
-			"experimental-features = nix-command flakes\nflake-registry =\nwarn-dirty = false\n",
+			"experimental-features = nix-command flakes\nflake-registry =\nsubstituters =\nwarn-dirty = false\n",
 		)
 		.env("NIX_PATH", "")
 		.current_dir(cwd)
@@ -353,8 +355,10 @@ fn lock_candidate(
 	options: nix_rs_glue::fetch::flake::LockOptions,
 ) {
 	let store = EvaluatorStore::new();
+	let cache = tempfile::tempdir().unwrap();
 	store.configure_fetching(FetchConfig {
 		cwd: cwd.to_owned(),
+		cache_dir: Some(cache.path().to_owned()),
 		..FetchConfig::default()
 	});
 	let state = std::rc::Rc::new(LockTest {
@@ -390,7 +394,7 @@ fn reference_lock(cwd: &Path, flake_ref: &str, extra: &[&str]) -> bool {
 		.env("NIX_CONF_DIR", home.path())
 		.env(
 			"NIX_CONFIG",
-			"experimental-features = nix-command flakes\nflake-registry =\nwarn-dirty = false\n",
+			"experimental-features = nix-command flakes\nflake-registry =\nsubstituters =\nwarn-dirty = false\n",
 		)
 		.args([
 			"--store",

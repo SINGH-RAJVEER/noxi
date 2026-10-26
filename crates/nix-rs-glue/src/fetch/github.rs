@@ -101,7 +101,7 @@ fn archive_url(
 }
 
 pub(crate) fn get_accessor(
-	_store: &EvaluatorStore,
+	store: &EvaluatorStore,
 	settings: &FetchSettings,
 	scheme: Scheme,
 	input: &Input,
@@ -122,12 +122,14 @@ pub(crate) fn get_accessor(
 		None => {
 			let reference = input.get_ref()?.unwrap_or_else(|| "HEAD".into());
 			let bytes = super::tarball::download_with_headers(
+				store,
 				&api_url(scheme, &host, &owner, &repo, &reference),
 				&headers,
 			)?;
 			if scheme == Scheme::SourceHut {
 				let target = if reference == "HEAD" {
 					let head = super::tarball::download_with_headers(
+						store,
 						&format!("https://{host}/{owner}/{repo}/HEAD"),
 						&headers,
 					)?;
@@ -158,8 +160,7 @@ pub(crate) fn get_accessor(
 		}
 	};
 	let url = archive_url(scheme, &host, &owner, &repo, &rev, !headers.is_empty());
-	let (mount, modified) =
-		super::tarball::unpack(super::tarball::download_with_headers(&url, &headers)?)?;
+	let (mount, modified) = super::tarball::download_tarball(store, &url, &headers)?;
 	let mut result = input.clone();
 	result.attrs.remove("ref");
 	result.attrs.insert("rev".into(), rev.into());
