@@ -17,8 +17,8 @@ let
 	members = [ "nix-rs-cli" ] ++ lib.optionals replacement [ "nix-rs-commands" "nix-rs-daemon" ];
 	flags = lib.concatMap (member: [ "-p" member ]) members;
 	# The executables CppNix 2.35.2 installs that nix-rs does not implement.
-	unimplemented = [ "nix" "nix-shell" "nix-copy-closure" "nix-channel" "nix-prefetch-url" "nix-hash" ];
-	implemented = [ "nixrs" "nix-build" "nix-instantiate" "nix-store" "nix-env" "nix-collect-garbage" "nix-daemon" ];
+	unimplemented = [ "nix-channel" "nix-prefetch-url" ];
+	implemented = [ "nixrs" "nix" "nix-build" "nix-instantiate" "nix-store" "nix-env" "nix-collect-garbage" "nix-daemon" "nix-shell" "nix-copy-closure" "nix-hash" ];
 	notices = lib.fileset.toSource {
 		root = ../.;
 		fileset = lib.fileset.unions (

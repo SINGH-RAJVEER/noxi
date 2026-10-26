@@ -173,6 +173,7 @@ def swap_to_nixrs(label: str) -> bool:
 	)
 	run("nixrs-version", "nix-instantiate --version")
 	run("nixrs-modern-cli", "nix --version")
+	run("nixrs-config-show", "nix config show --json")
 	daemons("nixrs", expected["candidate"])
 	return selected
 

@@ -461,7 +461,7 @@ The replacement build and layout checks are `nix build .#checks.x86_64-linux.rep
 
 `devenv shell -- just replacement-package` builds the locked replacement package and checks every built engine executable against its installed layout, the reference's command names, explicit exit-127 placeholders, available notices, daemon units and the packaged evaluator. The default package remains the preview. These checks do not qualify the missing commands.
 
-`devenv shell -- just qualification-report MODE` runs `nixos`, `home-manager` or `lifecycle` from a private bootable 16 GiB disk with 4 GiB RAM and two CPUs. The pinned inputs come from `tests/qualification`; the guest has no substituters. CppNix controls check classic and flake fixture outputs before selecting the candidate. The guest uses the same source files and context-free input paths as the host and compares derivation/output paths. Successful cached realization is distinct from building a new system closure from source. Commands have a 1,800-second timeout, and reports preserve complete stdout, stderr and exit status. `qualification-gate MODE` rejects every failed or blocked step.
+`devenv shell -- just qualification-report MODE` runs `nixos`, `home-manager` or `lifecycle` from a private bootable 16 GiB disk with 4 GiB RAM and two CPUs. The pinned inputs come from `tests/qualification`; the guest has no substituters. CppNix controls check classic and flake fixture outputs before selecting the candidate. The guest uses the same source files and context-free input paths as the host and compares derivation/output paths. Successful cached realization is distinct from building a new system closure from source. Guest commands have a 1,800-second guard and the pinned test driver has a 900-second execution deadline; reports preserve complete stdout, stderr and exit status. `qualification-gate MODE` rejects every failed or blocked step.
 
 The NixOS mode exercises `build`, `dry-activate`, `test`, `switch` and `boot`, checks activation/profile/boot-entry effects, and attempts reboot, a second change and rollback. Failed wrapper commands remain failures even when separately labelled component probes make progress. Components cannot activate a prebuilt generation after failed evaluation or realization. Home Manager uses its own standalone user and working directory, checks classic and flake build/switch, and probes the NixOS module service. Lifecycle exercises system installation, a distinct package-path upgrade fixture, failed evaluation/build diagnostics, rollback and removal from active system profiles. Both package variants contain the same engine binaries; a real release-to-release upgrade remains unqualified. The recovery base deliberately retains offline fixture closures, so removal does not demonstrate collection of every candidate byte.
 
@@ -513,3 +513,160 @@ The VM-only module supplies target-version metadata to Nixpkgs' `nix.conf` forma
 To reproduce these historical reports, use a separate clean checkout at `c60e3e3`. Run `devenv shell -- just replacement-package`, then `devenv shell -- just qualification-report MODE`, for `nixos`, `home-manager` and `distribution`. Reports are linked under `target/qualification/MODE-report`. `devenv shell -- just qualification-MODE` runs the corresponding strict gate and is expected to fail at this milestone. The definitions can be inspected with `git show c60e3e3:tests/qualification/replacement.nix` and `git show c60e3e3:tests/qualification/replacement-script.py`.
 
 Recovery is exercised inside the guest only. The harness saves the reference system path and seeds its profile before stopping the CppNix socket and service. After the candidate probes it stops those units, runs the saved reference generation's `switch-to-configuration test`, reloads systemd, starts the reference socket and service, restores the system profile using the pinned reference `nix-env`, and checks the daemon executable and store. The required reference closure is already on the disk. This is a tested failed-activation recovery path for the fixture, not host migration instructions.
+
+### Recorded VM qualification at 8dbc158
+
+The [manifest](../tests/qualification/results/2026-10-26-8dbc158/manifest.json) and complete reports record the frozen `8dbc158068f93d6ced87c40fbdfcd00d47a3e0ab` infrastructure and candidate `/nix/store/35ar5spnws52xgx97rsdnhgkchx2f8fi-nixrs-replacement-provisional-0.1.1` on 2026-10-26 UTC. All CppNix control probes passed. All three report derivations completed, and all three strict qualification checks ran and failed with exit 1. Counts include controls, diagnostic commands and recovery checks, not compatibility coverage.
+
+A clean Git clone built the preview, provisional replacement and strengthened layout check and stayed clean. The replacement layout matches every executable built by the Rust package and every CppNix 2.35.2 command name. Six unimplemented commands explicitly exit 127. The module with its default overlay package evaluated to the tested replacement derivation. All seven installed engine executables matched the newly rebuilt binary package byte for byte using the same locked toolchain. Available third-party notices, licenses and provenance files are installed; the larger commands/daemon dependency notice and unresolved license decisions remain open.
+
+The first rebuild attempt could not download `mimalloc 0.1.52`: `curl: (7) Failed to connect to static.crates.io:443 after 10010 ms: Could not connect to server`. Its local Cargo archive matched the locked SHA-256 `2d4139bb28d14ad1facf21d5eb8825051b326e172d216b39f6d31df53cc97862`; importing that identical fixed-output source allowed the subsequent package, layout and clean-clone builds to pass. No host service or configuration was changed, and no engine crate was edited.
+
+#### NixOS outcomes
+
+Classic `nixos-rebuild build`, including default re-execution, `dry-activate` and `boot` passed. Derivation/output comparisons, the boot entry, reboot into generation two, its marker, the second change's generation effect and rollback to generation two passed. `test`, `switch`, the second `switch` and rollback commands each exited 4 because daemon-dependent services failed, even where their requested generation was selected. These command failures remain failures. The flake build exited 127 on the absent modern CLI. This run checks evaluation and cached realization of preloaded closures; a fresh complete system closure build remains unqualified.
+
+#### Home Manager outcomes
+
+CppNix standalone classic and flake build controls both reached the expected activation package. Candidate classic build and switch failed with `error[E029]` while registering `pkgs/stdenv/generic/source-stdenv.sh`, ending in `cannot connect to socket at '/nix/var/nix/daemon-socket/socket': Connection refused`. Direct component activation also failed to connect. Flake build and switch exited 127 on missing `nix`. Module activation failed with a nonzero service result. These failures do not establish an independent evaluator mismatch: the first observed blocker is the daemon that cannot start.
+
+#### Lifecycle and recovery outcomes
+
+CppNix installation of the candidate and candidate upgrade/rollback commands selected the expected generations but exited 4 during activation. The upgrade package marker and its rewritten daemon unit were selected correctly. The deliberately failed upgrade returned 1 with the intended assertion and preserved the active system/profile. The deliberately failed builder returned 100 and exposed its log, matching CppNix. Rollback selected the original candidate generation. Both package variants have identical engine binaries, so this fixture does not qualify a release-to-release engine upgrade.
+
+Every mode returned to the saved CppNix generation, rebooted, verified the resolved running daemon executable, completed `nix-store --verify --check-contents` and reused the existing system closure. Lifecycle also removed old profile generations, refreshed the boot menu, checked removal of candidate boot entries and active executable selection, collected garbage and verified the store again. The recovery base retains offline fixture closures; removal checks active installation state rather than collection of every fixture byte. Successful recovery after these partial activations is distinct from a fully successful candidate activation.
+
+#### Exact failing steps
+
+The daemon journal records `error: unrecognised flag '--daemon'`. Its repeated exits leave systemd with `start-limit-hit` and `service-start-limit-hit`. Each failed step is listed below with its observed diagnostic or failed condition. The linked JSON preserves the complete command, stdout, stderr, expected status and actual status, including activation journals.
+
+[nixos report](../tests/qualification/results/2026-10-26-8dbc158/nixos.json): 41 pass, 11 fail.
+
+- `swap-to-nixrs` (exit 4): `warning: the following units failed: home-manager-qualification.service, nix-daemon.service, nix-daemon.socket`
+- `nixrs-version` (exit 1): `error: unrecognised flag '--version'`
+- `nixrs-modern-cli` (exit 127): `nix-rs qualification gap: nix is not implemented`
+- `nixrs-socket-active` (exit 3): `failed`
+- `nixrs-daemon-start` (exit 3): `Job for nix-daemon.service failed because start of the service was attempted too often.`
+- `nixrs-single-store-daemon` (fail): `units ['nix-daemon.service', 'nix-daemon.socket'], MainPID 0, daemon executables [], expected executable /nix/store/35ar5spnws52xgx97rsdnhgkchx2f8fi-nixrs-replacement-provisional-0.1.1/libexec/nix-rs/nix-daemon`
+- `rebuild-test` (exit 4): `warning: the following units failed: home-manager-qualification.service, nix-daemon.service, nix-daemon.socket`
+- `rebuild-switch` (exit 4): `warning: the following units failed: home-manager-qualification.service, nix-daemon.service, nix-daemon.socket`
+- `rebuild-flake-build` (exit 127): `Command 'nix --extra-experimental-features 'nix-command flakes' build --print-out-paths '/nix/store/r1v0jab2pid31dirpbixijpgfzj1gp8m-flake.nix#nixosConfigurations."two".config.system.build.toplevel' --no-write-lock-file' returned non-zero exit status 127.`
+- `second-change-switch` (exit 4): `warning: the following units failed: home-manager-qualification.service, nix-daemon.service, nix-daemon.socket`
+- `rollback` (exit 4): `warning: the following units failed: home-manager-qualification.service, nix-daemon.service, nix-daemon.socket`
+
+[home-manager report](../tests/qualification/results/2026-10-26-8dbc158/home-manager.json): 24 pass, 14 fail.
+
+- `swap-to-nixrs` (exit 4): `warning: the following units failed: home-manager-qualification.service, nix-daemon.service, nix-daemon.socket`
+- `nixrs-version` (exit 1): `error: unrecognised flag '--version'`
+- `nixrs-modern-cli` (exit 127): `nix-rs qualification gap: nix is not implemented`
+- `nixrs-socket-active` (exit 3): `failed`
+- `nixrs-daemon-start` (exit 3): `Job for nix-daemon.service failed because start of the service was attempted too often.`
+- `nixrs-single-store-daemon` (fail): `units ['nix-daemon.service', 'nix-daemon.socket'], MainPID 0, daemon executables [], expected executable /nix/store/35ar5spnws52xgx97rsdnhgkchx2f8fi-nixrs-replacement-provisional-0.1.1/libexec/nix-rs/nix-daemon`
+- `standalone-build` (exit 1): `error[E029]: I/O error: /nix/store/2s013d7g7sna6rls7nk0yy8343h6mdiw-source/pkgs/stdenv/generic/source-stdenv.sh: cannot connect to socket at '/nix/var/nix/daemon-socket/socket': Connection refused`
+- `standalone-switch` (exit 1): `error[E029]: I/O error: /nix/store/2s013d7g7sna6rls7nk0yy8343h6mdiw-source/pkgs/stdenv/generic/source-stdenv.sh: cannot connect to socket at '/nix/var/nix/daemon-socket/socket': Connection refused`
+- `component-standalone-activate` (exit 1): `error: cannot connect to socket at '/nix/var/nix/daemon-socket/socket': Connection refused`
+- `standalone-marker` (exit 1): `cat: /home/standalone/qualification-marker: No such file or directory`
+- `standalone-generations` (exit 1): `No stdout or stderr output.`
+- `standalone-flake-build` (exit 127): `nix-rs qualification gap: nix is not implemented`
+- `standalone-flake-switch` (exit 127): `nix-rs qualification gap: nix is not implemented`
+- `module-activation` (exit 1): `Job for home-manager-qualification.service failed because the control process exited with error code.`
+
+[lifecycle report](../tests/qualification/results/2026-10-26-8dbc158/lifecycle.json): 42 pass, 8 fail.
+
+- `lifecycle-install` (exit 4): `warning: the following units failed: home-manager-qualification.service, nix-daemon.service, nix-daemon.socket`
+- `nixrs-version` (exit 1): `error: unrecognised flag '--version'`
+- `nixrs-modern-cli` (exit 127): `nix-rs qualification gap: nix is not implemented`
+- `nixrs-socket-active` (exit 3): `failed`
+- `nixrs-daemon-start` (exit 3): `Job for nix-daemon.service failed because start of the service was attempted too often.`
+- `nixrs-single-store-daemon` (fail): `units ['nix-daemon.service', 'nix-daemon.socket'], MainPID 0, daemon executables [], expected executable /nix/store/35ar5spnws52xgx97rsdnhgkchx2f8fi-nixrs-replacement-provisional-0.1.1/libexec/nix-rs/nix-daemon`
+- `upgrade` (exit 4): `warning: the following units failed: home-manager-qualification.service, nix-daemon.service, nix-daemon.socket`
+- `rollback` (exit 4): `warning: the following units failed: home-manager-qualification.service, nix-daemon.service, nix-daemon.socket`
+
+#### Engine blockers at 8dbc158
+
+1. Implement the CppNix daemon invocation and then qualify its default-store/socket path. The packaged unit runs `nix-daemon --daemon`; the candidate exits 1 with `error: unrecognised flag '--daemon'`. There is no running candidate daemon, and the socket reaches its start limit. This blocks clean NixOS installation, test/switch/upgrade/rollback activation and unprivileged Home Manager store operations. The worker protocol and store behavior beyond this startup failure remain unqualified; these reports do not identify a separate protocol defect.
+2. Implement the modern `nix` CLI required by flake workflows. `nix --version`, NixOS flake build, and Home Manager flake build/switch exit 127 with `nix-rs qualification gap: nix is not implemented`. The NixOS invocation requires `--extra-experimental-features 'nix-command flakes' build --print-out-paths` and a flake attribute. The fixture also exercises `--no-link` and `--no-write-lock-file` in its CppNix controls. The VM module currently disables `nix config show` configuration validation; that accommodation must be removed and the validating command qualified once implemented.
+3. Add the legacy version flag to `nix-instantiate`. `nix-instantiate --version` exits 1 with `error: unrecognised flag '--version'`, while the pinned reference version probe succeeds. Match the reference output and exit status independently of the VM-only package metadata.
+4. Implement the other five missing reference commands: `nix-shell`, `nix-copy-closure`, `nix-channel`, `nix-prefetch-url` and `nix-hash`. The layout check confirms their current explicit exit-127 placeholders. Their command/flag behavior still requires compatibility qualification after implementation.
+
+Rerun the three strict gates against the resulting packaged artifact after engine changes. The passing classic cached-build and recovery steps do not close clean activation, standalone Home Manager, real release upgrade, complete executable compatibility or the overall TODO sections 7 and 8 gates.
+
+### Integrated VM qualification at 44d9bd7
+
+The [manifest](../tests/qualification/results/2026-10-26-44d9bd7/manifest.json) and complete reports record source `44d9bd7ca78ba169da39e6b4709b2c9aa324801e` and candidate `/nix/store/c52f14n0i3gpy46wpjdmxhl707wkrqi1-nixrs-replacement-provisional-0.1.1` on 2026-10-26 UTC. The branch merged `mvp/integration` at `78a8596` through merge `5cb2e4e`, then changed only packaging, qualification probes and documentation. All CppNix control probes passed. All three report derivations completed; all three strict gates failed with exit 1. Counts include controls, diagnostics and recovery, not compatibility percentages. The earlier `c60e3e3` and `8dbc158` result directories are retained.
+
+A clean Git clone built the preview, replacement and executable-layout check and stayed clean. Both `devenv shell -- nix build --rebuild --no-link .#nixrs-replacement` and the locked binary-package rebuild (`.#packages.x86_64-linux.nixrs-replacement.binaryPackage`) passed; all eleven installed engine executables match the rebuilt binary package byte for byte. The manifest records inputs, derivations, outputs and executable SHA-256 hashes. `nix`, `nix-shell`, `nix-copy-closure` and `nix-hash` now use the integrated implementations. Only `nix-channel` and `nix-prefetch-url` remain explicit exit-127 placeholders. The layout also passed modern expression evaluation. Available third-party notices are installed; commands/daemon dependency notices and the remaining licensing decisions stay open.
+
+The VM probe command guard is 1,800 seconds and the pinned test driver has a 900-second execution deadline, both above the former 180-second store-verification limit. Full store verification completed in all three modes. All system activation, daemon changes and store migration probes ran in disposable VMs. No host service or configuration was changed.
+
+#### Integrated NixOS outcomes
+
+Classic `nixos-rebuild build`, including default re-execution, `dry-activate` and `boot` passed. Derivation/output comparisons, the boot entry, reboot into generation two, the second change's generation effect and rollback's generation effect passed. `test`, `switch`, the second `switch` and rollback commands exited 4 because daemon-dependent units failed, even where the requested generation was selected. These command failures remain failures. All closures were preloaded: cached evaluation and realization do not qualify a fresh complete system closure build.
+
+The real modern executable passes `nix --version` with `nix (Nix) 2.35.2`. The NixOS flake command now exits 1 with `error: nix build --no-write-lock-file is not supported by nix-rs yet`. The exact dispatched command is preserved in `rebuild-flake-build`: `nix --extra-experimental-features 'nix-command flakes' build --print-out-paths '/nix/store/gf1g3g74w6aazm88p5jp9xjmjq4gwdia-flake.nix#nixosConfigurations."two".config.system.build.toplevel' --no-write-lock-file`. This first unsupported flag prevents independent qualification of flake installable resolution.
+
+#### Integrated Home Manager outcomes
+
+CppNix standalone classic and flake controls reached the expected activation package. Candidate standalone classic build and switch fail with `error[E029]` while registering `pkgs/stdenv/generic/source-stdenv.sh`: `cannot connect to socket at '/nix/var/nix/daemon-socket/socket': Connection refused`. Direct activation also cannot connect; the expected user marker is absent and generation listing exits 1 without output. The module activation service fails. These are observed consequences of unavailable daemon startup; the reports do not establish an independent evaluator defect. Flake build and switch both exit 1 on unsupported `nix build --no-write-lock-file`.
+
+#### Integrated lifecycle and recovery outcomes
+
+Installation, upgrade and rollback selected their expected system generations but returned 4 during activation. The upgrade fixture selected its distinct package path, marker and rewritten daemon unit. The deliberately failed evaluation returned 1 with the intended assertion and preserved the active system/profile. The failed builder returned 100 with its log, matching CppNix. Both package variants contain identical engine binaries, so this fixture does not qualify an upgrade between engine releases.
+
+Every mode restored the saved CppNix generation, rebooted, verified the running daemon executable, completed `nix-store --verify --check-contents` and reused the existing system closure. Lifecycle also removed old profile generations, refreshed the boot menu, checked candidate boot-entry removal and active executable selection, collected garbage and verified the store again. The recovery base retains offline fixture closures: removal checks active installation state, not collection of every candidate byte. These successful recovery checks do not qualify a fully successful candidate activation.
+
+#### Exact integrated failing steps
+
+The candidate daemon journal still records `error: unrecognised flag '--daemon'`; repeated startup failures produce `start-limit-hit` and `service-start-limit-hit`. Below is every failed step with its exact diagnostic or failed condition. Each linked JSON contains the full command, stdout, stderr, expected status and actual status, including activation journals.
+
+[nixos report](../tests/qualification/results/2026-10-26-44d9bd7/nixos.json): 42 pass, 11 fail.
+
+- `swap-to-nixrs` (exit 4): `warning: the following units failed: home-manager-qualification.service, nix-daemon.service, nix-daemon.socket`
+- `nixrs-version` (exit 1): `error: unrecognised flag '--version'`
+- `nixrs-config-show` (exit 1): `error: nix config show --json is not supported by nix-rs yet`
+- `nixrs-socket-active` (exit 3): `failed`
+- `nixrs-daemon-start` (exit 3): `Job for nix-daemon.service failed because start of the service was attempted too often.`
+- `nixrs-single-store-daemon` (fail): `units ['nix-daemon.service', 'nix-daemon.socket'], MainPID 0, daemon executables [], expected executable /nix/store/c52f14n0i3gpy46wpjdmxhl707wkrqi1-nixrs-replacement-provisional-0.1.1/libexec/nix-rs/nix-daemon`
+- `rebuild-test` (exit 4): `warning: the following units failed: home-manager-qualification.service, nix-daemon.service, nix-daemon.socket`
+- `rebuild-switch` (exit 4): `warning: the following units failed: home-manager-qualification.service, nix-daemon.service, nix-daemon.socket`
+- `rebuild-flake-build` (exit 1): `error: nix build --no-write-lock-file is not supported by nix-rs yet`
+- `second-change-switch` (exit 4): `warning: the following units failed: home-manager-qualification.service, nix-daemon.service, nix-daemon.socket`
+- `rollback` (exit 4): `warning: the following units failed: home-manager-qualification.service, nix-daemon.service, nix-daemon.socket`
+
+[home-manager report](../tests/qualification/results/2026-10-26-44d9bd7/home-manager.json): 25 pass, 14 fail.
+
+- `swap-to-nixrs` (exit 4): `warning: the following units failed: home-manager-qualification.service, nix-daemon.service, nix-daemon.socket`
+- `nixrs-version` (exit 1): `error: unrecognised flag '--version'`
+- `nixrs-config-show` (exit 1): `error: nix config show --json is not supported by nix-rs yet`
+- `nixrs-socket-active` (exit 3): `failed`
+- `nixrs-daemon-start` (exit 3): `Job for nix-daemon.service failed because start of the service was attempted too often.`
+- `nixrs-single-store-daemon` (fail): `units ['nix-daemon.service', 'nix-daemon.socket'], MainPID 0, daemon executables [], expected executable /nix/store/c52f14n0i3gpy46wpjdmxhl707wkrqi1-nixrs-replacement-provisional-0.1.1/libexec/nix-rs/nix-daemon`
+- `standalone-build` (exit 1): `error[E029]: I/O error: /nix/store/2s013d7g7sna6rls7nk0yy8343h6mdiw-source/pkgs/stdenv/generic/source-stdenv.sh: cannot connect to socket at '/nix/var/nix/daemon-socket/socket': Connection refused`
+- `standalone-switch` (exit 1): `error[E029]: I/O error: /nix/store/2s013d7g7sna6rls7nk0yy8343h6mdiw-source/pkgs/stdenv/generic/source-stdenv.sh: cannot connect to socket at '/nix/var/nix/daemon-socket/socket': Connection refused`
+- `component-standalone-activate` (exit 1): `error: cannot connect to socket at '/nix/var/nix/daemon-socket/socket': Connection refused`
+- `standalone-marker` (exit 1): `cat: /home/standalone/qualification-marker: No such file or directory`
+- `standalone-generations` (exit 1): `No stdout or stderr output.`
+- `standalone-flake-build` (exit 1): `error: nix build --no-write-lock-file is not supported by nix-rs yet`
+- `standalone-flake-switch` (exit 1): `error: nix build --no-write-lock-file is not supported by nix-rs yet`
+- `module-activation` (exit 1): `Job for home-manager-qualification.service failed because the control process exited with error code.`
+
+[lifecycle report](../tests/qualification/results/2026-10-26-44d9bd7/lifecycle.json): 43 pass, 8 fail.
+
+- `lifecycle-install` (exit 4): `warning: the following units failed: home-manager-qualification.service, nix-daemon.service, nix-daemon.socket`
+- `nixrs-version` (exit 1): `error: unrecognised flag '--version'`
+- `nixrs-config-show` (exit 1): `error: nix config show --json is not supported by nix-rs yet`
+- `nixrs-socket-active` (exit 3): `failed`
+- `nixrs-daemon-start` (exit 3): `Job for nix-daemon.service failed because start of the service was attempted too often.`
+- `nixrs-single-store-daemon` (fail): `units ['nix-daemon.service', 'nix-daemon.socket'], MainPID 0, daemon executables [], expected executable /nix/store/c52f14n0i3gpy46wpjdmxhl707wkrqi1-nixrs-replacement-provisional-0.1.1/libexec/nix-rs/nix-daemon`
+- `upgrade` (exit 4): `warning: the following units failed: home-manager-qualification.service, nix-daemon.service, nix-daemon.socket`
+- `rollback` (exit 4): `warning: the following units failed: home-manager-qualification.service, nix-daemon.service, nix-daemon.socket`
+
+## Prioritized engine gaps blocking integrated replacement
+
+1. Support the packaged `nix-daemon --daemon` invocation, default store and systemd socket activation. The daemon exits 1 with `error: unrecognised flag '--daemon'`; the identity check observes `MainPID 0` and no daemon executables. This blocks clean installation, NixOS test/switch/upgrade/rollback activation and unprivileged Home Manager store operations. Qualify exactly one running store-writing daemon, client access and recovery after the startup fix. Protocol behavior beyond this failure remains unqualified; no separate protocol defect is established here.
+2. Support `nix build --no-write-lock-file` and qualify flake installables in the NixOS and standalone Home Manager invocations. All three observed flake workflows stop at `error: nix build --no-write-lock-file is not supported by nix-rs yet`, exit 1. The command requires `--extra-experimental-features 'nix-command flakes'`, `--print-out-paths` and attribute selection; the fixtures also exercise `--no-link`. Installable resolution and output selection remain unqualified behind this first flag rejection. The modern executable itself now runs; the former exit-127 `nix` placeholder is gone.
+3. Implement configuration inspection, including `nix config show --json`, which exits 1 with `error: nix config show --json is not supported by nix-rs yet`. The VM module still sets `nix.checkConfig = false`; the explicit guest probe exposes the missing behavior. Restore Nixpkgs configuration validation and qualify its actual command once implemented.
+4. Implement `nix-instantiate --version`, currently exit 1 with `error: unrecognised flag '--version'`. Match CppNix output and exit status independently of the VM module's target-version metadata.
+5. Implement the remaining `nix-channel` and `nix-prefetch-url` commands. Their packaged placeholders explicitly exit 127; the layout confirms that failure contract, not compatibility. The newly packaged `nix-shell`, `nix-copy-closure` and `nix-hash` require their applicable compatibility coverage too; shipping real executables alone does not qualify every behavior.
+
+Rerun all three strict gates against the new packaged artifact after engine changes. Clean activation, standalone Home Manager, fresh system builds, a real release-to-release upgrade, complete executable compatibility and the overall TODO sections 7 and 8 gates remain open.

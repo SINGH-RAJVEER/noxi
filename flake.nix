@@ -98,6 +98,7 @@
 						grep -qx 'ListenStream=/nix/var/nix/daemon-socket/socket' "$package/lib/systemd/system/nix-daemon.socket"
 						test -f "$package/lib/tmpfiles.d/nix-daemon.conf"
 						"$package/bin/nixrs" eval --expr '1 + 2' | grep -x 3
+						"$package/bin/nix" --extra-experimental-features 'nix-command flakes' --store dummy:// eval --expr '1 + 2' | grep -x 3
 						"$package/bin/nix-instantiate" --store dummy:// --eval --strict --expr '1 + 2' | grep -x 3
 						touch "$out"
 					'';
