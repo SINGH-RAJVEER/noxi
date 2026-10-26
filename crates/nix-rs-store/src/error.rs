@@ -26,7 +26,7 @@ pub enum Error {
 	#[error("cannot delete path '{path}' because it is in use by {referrers}")]
 	PathInUse { path: String, referrers: String },
 
-	#[error("{0} is corrupt")]
+	#[error("\"{}\" is corrupt", .0.display())]
 	CorruptSchema(PathBuf),
 
 	/// A build or substitution failed; commands exit with `exit_status`,
