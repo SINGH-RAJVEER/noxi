@@ -119,6 +119,15 @@ impl Chunk {
 		Some((self.code[self.last_op].into(), self.last_op))
 	}
 
+	/// Release the spare capacity of a finished chunk, which stays alive as
+	/// long as its lambda.
+	pub fn shrink_to_fit(&mut self) {
+		self.code.shrink_to_fit();
+		self.constants.shrink_to_fit();
+		self.attrsets_pos_spans.shrink_to_fit();
+		self.spans.shrink_to_fit();
+	}
+
 	pub fn push_constant(&mut self, data: Value) -> ConstantIdx {
 		let idx = self.constants.len();
 		self.constants.push(data);

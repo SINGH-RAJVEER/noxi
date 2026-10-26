@@ -1371,7 +1371,7 @@ impl Compiler<'_, '_> {
 		}
 		self.compile_tail(slot, node.body().unwrap());
 		if let Some((formals, throw_idx)) = formals {
-			self.context_mut().lambda.formals = Some(formals);
+			self.context_mut().lambda.formals = Some(Box::new(formals));
 			// For formals, there's no single parameter name, use empty string
 			self.context_mut().lambda.param_name = String::new();
 			Some(throw_idx)
@@ -1431,6 +1431,7 @@ impl Compiler<'_, '_> {
 			.lambda
 			.chunk
 			.push_op(Op::Return, self.span_for(node));
+		compiled.lambda.chunk.shrink_to_fit();
 
 		let lambda = Rc::new(compiled.lambda);
 		if is_suspended_thunk {
