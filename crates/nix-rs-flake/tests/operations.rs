@@ -176,6 +176,11 @@ fn run_with_overrides(
 		EvaluatorStore::writable(root.path()).unwrap()
 	};
 	store.configure_fetching(FetchConfig {
+		settings: nix_rs_flakeref::input::FetchSettings {
+			flake_registry: String::new(),
+			..Default::default()
+		},
+		offline: true,
 		override_flakes: overrides,
 		cwd: cwd.into(),
 		cache_dir: Some(cache.path().into()),
