@@ -249,6 +249,97 @@ pub(super) fn export(
 	Ok(())
 }
 
+fn copy_tree(source: &Path, destination: &Path) -> Result<()> {
+	fs::create_dir_all(destination)?;
+	for entry in fs::read_dir(source)? {
+		let entry = entry?;
+		let from = entry.path();
+		let to = destination.join(entry.file_name());
+		let meta = fs::symlink_metadata(&from)?;
+		if meta.is_dir() {
+			copy_tree(&from, &to)?;
+		} else if meta.file_type().is_symlink() {
+			symlink(fs::read_link(from)?, to)?;
+		} else {
+			fs::copy(from, to)?;
+		}
+	}
+	Ok(())
+}
+
+fn resolve_submodule_url(origin: &str, location: &str) -> Result<String> {
+	if !location.starts_with("./") && !location.starts_with("../") {
+		return Ok(location.into());
+	}
+	let mut parsed = fix_git_url(origin)?;
+	for elem in location.split('/') {
+		match elem {
+			"." | "" => {}
+			".." => {
+				parsed.path.pop();
+			}
+			value => parsed.path.push(value.into()),
+		}
+	}
+	Ok(parsed.to_string())
+}
+
+fn export_submodules(
+	store: &EvaluatorStore,
+	settings: &FetchSettings,
+	input: &Input,
+	repo: &Path,
+	revision: &str,
+	destination: &Path,
+) -> Result<()> {
+	let blob = format!("{revision}:.gitmodules");
+	let Ok(paths) = text(
+		repo,
+		&[
+			"config",
+			"--blob",
+			&blob,
+			"--get-regexp",
+			"^submodule\\..*\\.path$",
+		],
+	) else {
+		return Ok(());
+	};
+	let origin = text(repo, &["config", "--get", "remote.origin.url"])
+		.unwrap_or(get_str_attr(&input.attrs, "url")?);
+	for line in paths.lines() {
+		let Some((key, path)) = line.split_once(char::is_whitespace) else {
+			return Err(Error::new("invalid submodule path entry"));
+		};
+		let name = key.strip_suffix(".path").unwrap();
+		let location = text(
+			repo,
+			&["config", "--blob", &blob, "--get", &format!("{name}.url")],
+		)?;
+		let entry = text(repo, &["ls-tree", revision, "--", path])?;
+		let Some(header) = entry.split_once('\t').map(|e| e.0) else {
+			continue;
+		};
+		let Some(rev) = header.strip_prefix("160000 commit ") else {
+			continue;
+		};
+		let url = resolve_submodule_url(&origin, &location)?;
+		let attrs = [
+			("type".into(), "git".into()),
+			("url".into(), url.into()),
+			("rev".into(), rev.into()),
+			("allRefs".into(), Attr::Bool(true)),
+			("submodules".into(), Attr::Bool(true)),
+			("lfs".into(), Attr::Bool(boolean(input, "lfs")?)),
+		]
+		.into();
+		let submodule = Input::from_attrs(settings, attrs)?;
+		let (tree, _) = get_accessor(store, settings, &submodule)?;
+		copy_tree(&tree.root, &destination.join(path))?;
+	}
+	Ok(())
+}
+
 pub(crate) fn get_accessor(
 	store: &EvaluatorStore,
 	settings: &FetchSettings,
@@ -287,14 +378,11 @@ pub(crate) fn get_accessor(
 		return Ok((mount, locked));
 	}
 	let repo = fs::canonicalize(url_path_to_path(&parsed.path)?)?;
-	if boolean(input, "lfs")?
-		|| boolean(input, "verifyCommit")?
+	if boolean(input, "verifyCommit")?
 		|| input.attrs.contains_key("publicKey")
 		|| input.attrs.contains_key("publicKeys")
 	{
-		return Err(Error::new(
-			"Git LFS and verified fetches are not implemented",
-		));
+		return Err(Error::new("verified fetches are not implemented"));
 	}
 	let submodules = boolean(input, "submodules")?;
 	let export_ignore = boolean(input, "exportIgnore")?;
@@ -343,6 +431,11 @@ pub(crate) fn get_accessor(
 						.filter(|e| !e.is_empty())
 						.map(|e| rel.join(std::ffi::OsStr::from_bytes(e))),
 				);
+			} else if submodules {
+				return Err(Error::new(format!(
+					"Failed to fetch git repository 'file://{}'",
+					repo.join(&rel).display()
+				)));
 			}
 		}
 		let ignored = if export_ignore {
@@ -441,10 +534,18 @@ pub(crate) fn get_accessor(
 		)?;
 		result.attrs.insert("rev".into(), commit.clone().into());
 		if result.get_ref()?.is_none() {
-			result.attrs.insert("ref".into(), "HEAD".into());
+			let default_ref = text(&repo, &["symbolic-ref", "--quiet", "HEAD"])
+				.unwrap_or_else(|_| "master".into());
+			result.attrs.insert("ref".into(), default_ref.into());
 		}
 		let keep = Rc::new(tempfile::tempdir()?);
-		export(&repo, &commit, keep.path(), submodules, export_ignore)?;
+		export(&repo, &commit, keep.path(), false, export_ignore)?;
+		if submodules {
+			export_submodules(store, settings, input, &repo, &commit, keep.path())?;
+		}
+		if boolean(input, "lfs")? {
+			super::lfs::smudge(store, &repo, &commit, keep.path())?;
+		}
 		mount = Mount {
 			root: keep.path().to_owned(),
 			filter: None,

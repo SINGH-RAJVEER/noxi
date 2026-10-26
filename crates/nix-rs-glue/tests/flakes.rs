@@ -601,3 +601,284 @@ fn initialized_git_submodules_match_reference() {
 		&format!("builtins.fetchGit {{ url = {url}; submodules = true; }}"),
 	);
 }
+
+#[test]
+fn self_submodules_and_deinitialized_pinned_submodules_match_reference() {
+	let fixture = tempfile::tempdir().unwrap();
+	let child = fixture.path().join("child");
+	let root = fixture.path().join("root");
+	fs::create_dir_all(&child).unwrap();
+	fs::create_dir_all(&root).unwrap();
+	repo(&child);
+	repo(&root);
+	git(
+		&root,
+		&[
+			"-c",
+			"protocol.file.allow=always",
+			"submodule",
+			"add",
+			"../child",
+			"child",
+		],
+	);
+	fs::write(root.join("flake.nix"), r#"{
+	inputs.self.submodules = true;
+	outputs = { self }: {
+		child = builtins.readFile (self.outPath + "/child/flake.nix");
+		info = {
+			inherit (self) outPath narHash lastModified lastModifiedDate rev revCount;
+			sourceInfo = builtins.map (key: { inherit key; value = self.sourceInfo.${key}; }) (builtins.attrNames self.sourceInfo);
+		};
+	};
+}"#).unwrap();
+	git(&root, &["add", "."]);
+	git(&root, &["commit", "-m", "self submodules"]);
+	let rev = git(&root, &["rev-parse", "HEAD"]);
+	let reference = format!("git+file://{}", root.display());
+	compare(
+		&root,
+		&format!(
+			"let f = builtins.getFlake {}; in {{ inherit (f) child info; }}",
+			json!(reference)
+		),
+	);
+	git(&root, &["submodule", "deinit", "-f", "--all"]);
+	compare(
+		&root,
+		&format!(
+			"builtins.fetchTree {{ type = \"git\"; url = {}; rev = \"{rev}\"; submodules = true; }}",
+			json!(format!("file://{}", root.display()))
+		),
+	);
+	compare(
+		&root,
+		&format!(
+			"let f = builtins.getFlake {}; in {{ inherit (f) child info; }}",
+			json!(format!("{reference}?rev={rev}"))
+		),
+	);
+}
+
+#[test]
+fn explicit_cli_overrides_are_sticky_and_match_reference_lock_bytes() {
+	let fixture = tempfile::tempdir().unwrap();
+	let root = fixture.path().join("root");
+	let first = fixture.path().join("first");
+	let second = fixture.path().join("second");
+	for path in [&root, &first, &second] {
+		fs::create_dir(path).unwrap();
+		repo(path);
+	}
+	fs::write(root.join("flake.nix"), format!("{{ inputs.dep.url = \"git+file://{}\"; outputs = {{ self, dep }}: {{ inherit (dep) answer; }}; }}", first.display())).unwrap();
+	let reference = format!("path:{}", root.display());
+	let replacement = format!("git+file://{}", second.display());
+	let write = fixture.path().join("candidate.lock");
+	let options = nix_rs_glue::fetch::flake::LockOptions {
+		override_inputs: [(vec!["dep".into()], replacement.clone())].into(),
+		..Default::default()
+	};
+	lock_candidate(&root, &reference, &write, options);
+	assert!(reference_lock(
+		&root,
+		&reference,
+		&["--override-input", "dep", &replacement]
+	));
+	assert_eq!(
+		fs::read(&write).unwrap(),
+		fs::read(root.join("flake.lock")).unwrap()
+	);
+	lock_candidate(&root, &reference, &write, Default::default());
+	reference_lock(&root, &reference, &[]);
+	assert_eq!(
+		fs::read(write).unwrap(),
+		fs::read(root.join("flake.lock")).unwrap()
+	);
+}
+
+#[test]
+fn graph_failures_match_reference_messages() {
+	fn message(kind: &nix_rs_eval::ErrorKind) -> &str {
+		match kind {
+			nix_rs_eval::ErrorKind::EvalError(message) => message,
+			nix_rs_eval::ErrorKind::BytecodeError(error)
+			| nix_rs_eval::ErrorKind::NativeError { err: error, .. } => message(&error.kind),
+			nix_rs_eval::ErrorKind::WithContext { underlying, .. } => message(underlying),
+			_ => panic!("{kind:?}"),
+		}
+	}
+	let Some(reference) = reference() else {
+		return;
+	};
+	let fixture = tempfile::tempdir().unwrap();
+	let home = tempfile::tempdir().unwrap();
+	let root = tempfile::tempdir().unwrap();
+	let inputs: Vec<String> = [
+		"a.follows = \"missing\";",
+		"a.follows = \"a\";",
+		"a.follows = \"b\"; b.follows = \"a\";",
+		"a.follows = \"b/child\"; b.follows = \"a\";",
+		"a.follows = \"\"; b.follows = \"a/noSuchInput\";",
+	]
+	.into_iter()
+	.map(str::to_owned)
+	.chain([format!("a.url = \"path:{}\";", fixture.path().display())])
+	.collect();
+	for inputs in inputs {
+		fs::write(
+			fixture.path().join("flake.nix"),
+			format!("{{ inputs = {{ {inputs} }}; outputs = {{ self, ... }}: {{}}; }}"),
+		)
+		.unwrap();
+		let expression = format!(
+			"builtins.getFlake {}",
+			json!(format!("path:{}", fixture.path().display()))
+		);
+		let output = Command::new(&reference)
+			.env_clear()
+			.env("PATH", std::env::var_os("PATH").unwrap())
+			.env("HOME", home.path())
+			.env("NIX_CONF_DIR", home.path())
+			.env(
+				"NIX_CONFIG",
+				"experimental-features = flakes nix-command\nflake-registry =\nsubstituters =\n",
+			)
+			.args([
+				"--store",
+				&format!("local?root={}", root.path().display()),
+				"--eval",
+				"--strict",
+				"--json",
+				"--expr",
+				&expression,
+			])
+			.output()
+			.unwrap();
+		assert!(!output.status.success(), "{inputs}");
+		let stderr = String::from_utf8(output.stderr).unwrap();
+		let expected = stderr.rsplit_once("error: ").unwrap().1.trim();
+		let store = EvaluatorStore::new();
+		store.configure_fetching(FetchConfig {
+			cwd: fixture.path().into(),
+			cache_dir: Some(home.path().join("candidate-cache")),
+			..Default::default()
+		});
+		let result = configure(
+			Evaluation::builder_pure().experimental_features(["flakes"]),
+			store,
+		)
+		.build()
+		.evaluate_in_dir(&expression, fixture.path().into());
+		assert_eq!(result.errors.len(), 1, "{inputs}: {:?}", result.errors);
+		let actual = message(&result.errors[0].kind);
+		assert_eq!(actual, expected, "{inputs}");
+	}
+	fs::write(
+		fixture.path().join("flake.nix"),
+		"{ outputs = { self }: {}; }",
+	)
+	.unwrap();
+	for inputs in [
+		serde_json::json!({"a":"missing"}),
+		serde_json::json!({"a":"root"}),
+	] {
+		fs::write(
+			fixture.path().join("flake.lock"),
+			serde_json::to_vec(
+				&serde_json::json!({"nodes":{"root":{"inputs":inputs}},"root":"root","version":7}),
+			)
+			.unwrap(),
+		)
+		.unwrap();
+		let expression = format!(
+			"builtins.getFlake {}",
+			json!(format!("path:{}", fixture.path().display()))
+		);
+		let output = Command::new(&reference)
+			.env_clear()
+			.env("PATH", std::env::var_os("PATH").unwrap())
+			.env("HOME", home.path())
+			.env("NIX_CONF_DIR", home.path())
+			.env(
+				"NIX_CONFIG",
+				"experimental-features = flakes nix-command\nflake-registry =\nsubstituters =\n",
+			)
+			.args([
+				"--store",
+				&format!("local?root={}", root.path().display()),
+				"--eval",
+				"--expr",
+				&expression,
+			])
+			.output()
+			.unwrap();
+		assert!(!output.status.success());
+		let stderr = String::from_utf8(output.stderr).unwrap();
+		let expected = stderr.rsplit_once("error: ").unwrap().1.trim();
+		let store = EvaluatorStore::new();
+		store.configure_fetching(FetchConfig {
+			cwd: fixture.path().into(),
+			cache_dir: Some(home.path().join("candidate-cache")),
+			..Default::default()
+		});
+		let result = configure(
+			Evaluation::builder_pure().experimental_features(["flakes"]),
+			store,
+		)
+		.build()
+		.evaluate(&expression, None);
+		assert_eq!(message(&result.errors[0].kind), expected);
+	}
+	fs::remove_file(fixture.path().join("flake.lock")).unwrap();
+	repo(fixture.path());
+	fs::write(
+		fixture.path().join("flake.nix"),
+		format!(
+			"{{ inputs.child.url = \"git+file://{}\"; outputs = {{ self, child }}: {{}}; }}",
+			fixture.path().display()
+		),
+	)
+	.unwrap();
+	git(fixture.path(), &["add", "."]);
+	git(fixture.path(), &["commit", "-m", "unlocked child"]);
+	let rev = git(fixture.path(), &["rev-parse", "HEAD"]);
+	let expression = format!(
+		"builtins.getFlake {}",
+		json!(format!("git+file://{}?rev={rev}", fixture.path().display()))
+	);
+	let output = Command::new(&reference)
+		.env_clear()
+		.env("PATH", std::env::var_os("PATH").unwrap())
+		.env("HOME", home.path())
+		.env("NIX_CONF_DIR", home.path())
+		.env(
+			"NIX_CONFIG",
+			"experimental-features = flakes nix-command\nsubstituters =\nflake-registry =\n",
+		)
+		.args([
+			"--store",
+			&format!("local?root={}", root.path().display()),
+			"--pure-eval",
+			"--eval",
+			"--expr",
+			&expression,
+		])
+		.output()
+		.unwrap();
+	assert!(!output.status.success());
+	let stderr = String::from_utf8(output.stderr).unwrap();
+	let expected = stderr.rsplit_once("error: ").unwrap().1.trim();
+	let store = EvaluatorStore::new();
+	store.configure_fetching(FetchConfig {
+		pure_eval: true,
+		cache_dir: Some(home.path().join("candidate-cache")),
+		..Default::default()
+	});
+	let result = configure(
+		Evaluation::builder_pure().experimental_features(["flakes"]),
+		store,
+	)
+	.build()
+	.evaluate(&expression, None);
+	assert_eq!(message(&result.errors[0].kind), expected);
+}
