@@ -34,6 +34,11 @@ let
 		postBuild = ''echo upgrade > "$out/share/nix-rs/qualification-upgrade"'';
 	};
 	homeManagerPackage = pkgs.callPackage (home-manager + "/home-manager") { path = home-manager; };
+	homeConfiguration = import (home-manager + "/home-manager/home-manager.nix") {
+		inherit pkgs;
+		confPath = "${./home.nix}";
+		confAttr = "";
+	};
 
 	common =
 		{ lib, ... }:
@@ -139,11 +144,7 @@ in
 	# The standalone generation `home-manager -f home.nix build` evaluates.
 	home = {
 		config = "${./home.nix}";
-		activation =
-			(import (home-manager + "/home-manager/home-manager.nix") {
-				inherit pkgs;
-				confPath = "${./home.nix}";
-				confAttr = "";
-			}).activationPackage;
+		configuration = homeConfiguration;
+		activation = homeConfiguration.activationPackage;
 	};
 }

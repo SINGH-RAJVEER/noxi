@@ -71,7 +71,7 @@ let
 					};
 				in {
 					nixosConfigurations = builtins.mapAttrs (name: config: { inherit config; }) machines.generations;
-					homeConfigurations.standalone.activationPackage = machines.home.activation;
+					homeConfigurations.standalone = machines.home.configuration;
 				};
 		}
 	'';
@@ -104,6 +104,7 @@ let
 			machines.candidate
 			machines.upgrade
 			machines.home.activation
+			machines.home.config
 			source
 			nixpkgs
 			home-manager
