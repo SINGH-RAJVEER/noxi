@@ -1,6 +1,6 @@
 # Packaged notices
 
-`THIRD_PARTY.md` is copied from the `mvp/license-audit` branch. It covers the `nixrs` preview, including imported Snix code and the embedded CppNix derivation helper. It is not a complete dependency notice for the commands and daemon executables. The audit branch's `docs/licensing.md` remains the source of the broader audit and its unresolved decisions.
+`THIRD_PARTY.md` is copied from the `mvp/license-audit` branch at `429b0355985d02ba83aa172bac61d5f62f5d5138`. It covers the `nixrs` preview, including imported Snix code and the embedded CppNix derivation helper. It is not a complete dependency notice for the commands and daemon executables. The audit branch's `docs/licensing.md` remains the source of the broader audit and its unresolved decisions. Its `just third-party` generation workflow is on that branch, not this packaging branch.
 
 The flake package installs that notice and every existing workspace `LICENSE`, `COPYING`, `NOTICE` and `PROVENANCE.md` under `share/doc/nix-rs`, keeping the source directory structure. It also installs a root `LICENSE` or `NOTICE` if one exists. There is currently no root `LICENSE`.
 
