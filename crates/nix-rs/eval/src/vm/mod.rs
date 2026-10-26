@@ -140,6 +140,16 @@ impl<T, S: GetSpan, IO> WithSpan<T, S, IO> for Result<T, ErrorKind> {
 								vm.source.clone(),
 							);
 						}
+						Frame::Force { span, .. } => {
+							error = Error::new(
+								ErrorKind::NativeError {
+									err: Box::new(error),
+									gen_type: "force",
+								},
+								*span,
+								vm.source.clone(),
+							);
+						}
 					}
 				}
 
@@ -281,6 +291,23 @@ enum Frame {
 		/// The CppNix trace frames this frame contributes to errors.
 		trace: FrameTrace,
 	},
+
+	/// The `force` generator of a suspended thunk, whose code the VM entered
+	/// directly instead. It runs once that code returns, storing the result
+	/// and leaving it on the stack as the generator would.
+	Force {
+		/// The thunk being forced, a blackhole until it is updated.
+		thunk: Thunk,
+
+		/// Where the thunk was suspended, the span its generator would have.
+		span: Span,
+
+		/// Where the thunk was forced.
+		forced_at: Span,
+
+		/// The function calls active when this frame runs.
+		depth: usize,
+	},
 }
 
 /// What a frame contributes to a CppNix-style error trace.
@@ -324,10 +351,15 @@ pub(crate) enum FrameTrace {
 	Frame(Trace),
 }
 
+/// The trace of frames that contribute none.
+const NO_TRACE: &FrameTrace = &FrameTrace::None;
+
 impl Frame {
 	pub fn span(&self) -> Span {
 		match self {
-			Frame::BytecodeFrame { span, .. } | Frame::Generator { span, .. } => *span,
+			Frame::BytecodeFrame { span, .. }
+			| Frame::Generator { span, .. }
+			| Frame::Force { span, .. } => *span,
 		}
 	}
 
@@ -335,6 +367,7 @@ impl Frame {
 		match self {
 			Frame::BytecodeFrame { bytecode_frame, .. } => &bytecode_frame.trace,
 			Frame::Generator { trace, .. } => trace,
+			Frame::Force { .. } => NO_TRACE,
 		}
 	}
 }
@@ -508,6 +541,42 @@ where
 		})
 	}
 
+	/// Force a thunk as a `force` generator at `span` would. The code of a
+	/// suspended thunk is entered directly, under a [`Frame::Force`] that
+	/// stands in for the generator: the same frames, spans and blackhole.
+	fn enqueue_force(&mut self, span: Span, thunk: Thunk) {
+		match thunk.begin_direct_force(span) {
+			Some((lambda, upvalues, suspended_at)) => {
+				self.frames.push(Frame::Force {
+					thunk,
+					span: suspended_at,
+					forced_at: span,
+					depth: self.call_depth,
+				});
+				self.push_bytecode_frame(
+					suspended_at,
+					BytecodeFrame {
+						trace: FrameTrace::None,
+						lambda,
+						upvalues,
+						ip: CodeIdx(0),
+						stack_offset: self.stack.len(),
+						depth: self.call_depth,
+					},
+				);
+			}
+			None => self.enqueue_generator("force", span, |co| Thunk::force(thunk, co, span)),
+		}
+	}
+
+	/// Force a value as a `force` generator at `span` would.
+	fn enqueue_force_value(&mut self, span: Span, value: Value) {
+		match value {
+			Value::Thunk(thunk) => self.enqueue_force(span, thunk),
+			value => self.enqueue_generator("force", span, |co| value.force_owned_genco(co, span)),
+		}
+	}
+
 	/// Run the VM's primary (outer) execution loop, continuing execution based
 	/// on the current frame at the top of the frame stack.
 	fn execute(mut self) -> EvalResult<RuntimeResult> {
@@ -572,6 +641,38 @@ where
 
 						Err(err) => return Err(err),
 					};
+				}
+
+				// The code of a directly forced thunk has returned its value.
+				Frame::Force {
+					thunk,
+					span,
+					forced_at,
+					depth,
+				} => {
+					self.current = (frame_id, FrameTrace::None);
+					self.call_depth = depth;
+					self.observer
+						.observe_enter_generator(frame_id, "force", &self.stack);
+
+					let value = self.stack_pop();
+					match thunk.finish_direct_force(value) {
+						Some(value) => {
+							let value = self.trace_catchable(value, None, None);
+							self.stack.push(value);
+							self.observer
+								.observe_exit_generator(frame_id, "force", &self.stack);
+						}
+
+						// The value is another thunk, which the generator forces.
+						None => {
+							self.enqueue_generator("force", span, |co| {
+								Thunk::force(thunk, co, forced_at)
+							});
+							self.observer
+								.observe_suspend_generator(frame_id, "force", &self.stack);
+						}
+					}
 				}
 			}
 		}
@@ -659,9 +760,7 @@ where
 						let gen_span = frame.current_span();
 
 						self.push_bytecode_frame(span, frame);
-						self.enqueue_generator("force", gen_span, |co| {
-							Thunk::force(thunk, co, gen_span)
-						});
+						self.enqueue_force(gen_span, thunk);
 
 						return Ok(false);
 					}

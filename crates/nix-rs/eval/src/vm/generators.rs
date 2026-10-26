@@ -365,9 +365,7 @@ where
 						// back to the outer VM loop.
 						VMRequest::ForceValue(value) => {
 							self.reenqueue_generator(name, span, generator);
-							self.enqueue_generator("force", span, |co| {
-								value.force_owned_genco(co, span)
-							});
+							self.enqueue_force_value(span, value);
 							return Ok(false);
 						}
 
@@ -392,9 +390,7 @@ where
 							self.reenqueue_generator(name, span, generator);
 
 							let value = self.stack[self.with_stack[idx]].clone();
-							self.enqueue_generator("force", span, |co| {
-								value.force_owned_genco(co, span)
-							});
+							self.enqueue_force_value(span, value);
 
 							return Ok(false);
 						}
@@ -413,9 +409,7 @@ where
 								.upvalues
 								.get_from_with_stack(idx)
 								.expect("nix-rs bug: upvalue not found on stack");
-							self.enqueue_generator("force", span, |co| {
-								value.force_owned_genco(co, span)
-							});
+							self.enqueue_force_value(span, value);
 
 							return Ok(false);
 						}
