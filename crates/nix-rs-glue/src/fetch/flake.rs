@@ -25,6 +25,10 @@ use crate::store::EvaluatorStore;
 pub struct LockOptions {
 	/// Re-resolve these input paths, retaining unrelated locked inputs.
 	pub update_inputs: BTreeSet<InputAttrPath>,
+	/// Explicit command-line replacements; paths are rooted at the top-level flake.
+	pub override_inputs: BTreeMap<InputAttrPath, String>,
+	/// Override the evaluation mode's policy for creating unlocked entries.
+	pub allow_unlocked: Option<bool>,
 	pub recreate: bool,
 }
 
@@ -404,9 +408,28 @@ impl Resolver<'_> {
 					nix_rs_flakeref::lockfile::warn_override_for_missing(&prefix, &name);
 				}
 			}
-			for (name, spec) in inputs {
+			for (name, mut spec) in inputs {
 				let mut path = prefix.clone();
 				path.push(name.clone());
+				let declared = spec.reference.clone();
+				let cli_override = self.options.override_inputs.get(&path);
+				if let Some(replacement) = cli_override {
+					let cwd = self.store.fetch_config.borrow().cwd.clone();
+					spec.reference = Some(
+						parse_flake_ref(
+							&self.store.fetch_settings(),
+							replacement,
+							ParseOptions {
+								base_dir: Some(&cwd),
+								..ParseOptions::default()
+							},
+						)
+						.map_err(error)?,
+					);
+					spec.follows = None;
+					spec.base = cwd;
+					spec.parent = Vec::new();
+				}
 				if let Some(follows) = spec.follows {
 					self.lock.nodes[node]
 						.inputs
@@ -436,6 +459,7 @@ impl Resolver<'_> {
 				};
 				let old_locked = old_child.and_then(|child| old.nodes[child].locked.clone());
 				let reuse = !self.options.recreate
+					&& cli_override.is_none()
 					&& !self.options.update_inputs.contains(&path)
 					&& old_locked.as_ref().is_some_and(|l| {
 						l.original_ref.canonicalize() == original.canonicalize()
@@ -466,6 +490,11 @@ impl Resolver<'_> {
 						.update_inputs
 						.iter()
 						.any(|update| update.starts_with(&path))
+					&& !self
+						.options
+						.override_inputs
+						.keys()
+						.any(|update| update.starts_with(&path))
 				{
 					let child =
 						self.copy_old(&old, old_child.unwrap(), &old_prefix, &mut HashMap::new());
@@ -477,6 +506,19 @@ impl Resolver<'_> {
 				} else {
 					original.clone()
 				};
+				if !reuse
+					&& !self
+						.options
+						.allow_unlocked
+						.unwrap_or(!self.store.pure_eval())
+					&& !reference.input.is_locked(&settings)
+					&& reference.input.is_relative().is_none()
+				{
+					return Err(error(format!(
+						"cannot update unlocked flake input '{}' in pure mode",
+						path.join("/")
+					)));
+				}
 				if self.parents.contains(&original) {
 					return Err(error(format!(
 						"found circular import of flake '{original}'"
@@ -491,7 +533,11 @@ impl Resolver<'_> {
 					)
 				} else {
 					let registries = if settings.use_registries {
-						UseRegistries::Limited
+						if cli_override.is_some() {
+							UseRegistries::All
+						} else {
+							UseRegistries::Limited
+						}
 					} else {
 						UseRegistries::No
 					};
@@ -506,7 +552,11 @@ impl Resolver<'_> {
 					inputs: BTreeMap::new(),
 					locked: Some(LockedNode {
 						locked_ref: locked.clone(),
-						original_ref: original,
+						original_ref: if cli_override.is_some() {
+							declared.unwrap_or(original)
+						} else {
+							original
+						},
 						is_flake: spec.is_flake,
 						parent_input_attr_path: parent,
 					}),
