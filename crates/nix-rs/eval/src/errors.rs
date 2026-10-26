@@ -144,6 +144,9 @@ pub struct CatchableTrace {
 	pub span: Option<Span>,
 	/// The message, if it differs from the error's.
 	pub message: Option<String>,
+	/// Whether `traces` are only the frames inside the raising generator,
+	/// to which the VM prepends those of the running evaluation.
+	pub relative: bool,
 }
 
 impl CatchableErrorKind {
@@ -198,7 +201,11 @@ pub enum ErrorKind {
 	InvalidAttributeName(Value),
 
 	#[error("attribute with name '{name}' could not be found in the set")]
-	AttributeNotFound { name: String },
+	AttributeNotFound {
+		name: String,
+		/// The closest existing names, CppNix's `Did you mean …?`.
+		suggestions: Vec<String>,
+	},
 
 	/// Attempted to index into a list beyond its boundaries.
 	#[error("list index '{index}' is out of bounds")]
@@ -245,7 +252,7 @@ to a missing value in the attribute set(s) included via `with`."#
 
 	/// User is defining the same variable twice at the same depth.
 	#[error("variable has already been defined")]
-	VariableAlreadyDefined(Option<Span>),
+	VariableAlreadyDefined(Option<Span>, String),
 
 	/// Attempt to call something that is not callable.
 	#[error("only functions and builtins can be called, but this is a '{0}'")]
@@ -288,6 +295,8 @@ to a missing value in the attribute set(s) included via `with`."#
 	NotCoercibleToString {
 		from: &'static str,
 		kind: CoercionKind,
+		/// The value, which CppNix prints.
+		value: Option<Box<Value>>,
 	},
 
 	/// The given string doesn't represent an absolute path
@@ -400,6 +409,11 @@ to a missing value in the attribute set(s) included via `with`."#
 	/// proceed.
 	#[error("feature not yet implemented in nix-rs: {0}")]
 	NotImplemented(&'static str),
+
+	/// Internal variant which should disappear during error construction:
+	/// CppNix prints the position of the error it wraps.
+	#[error("{0}")]
+	Positioned(Box<ErrorKind>),
 
 	/// Internal variant which should disappear during error construction.
 	#[error("internal ErrorKind::WithContext variant leaked")]
@@ -536,20 +550,31 @@ pub struct Error {
 	/// first; the [`contexts`](Self::contexts) of the innermost error
 	/// follow it.
 	pub traces: Vec<Trace>,
+	/// Whether CppNix prints the error's own position.
+	pub show_position: bool,
 }
 
 impl Error {
 	pub fn new(mut kind: ErrorKind, span: Span, source: SourceCode) -> Self {
 		let mut contexts = vec![];
-		while let ErrorKind::WithContext {
-			context,
-			span,
-			underlying,
-		} = kind
-		{
-			kind = *underlying;
-			contexts.push(Trace::new(span, context));
-		}
+		let mut show_position = false;
+		let kind = loop {
+			match kind {
+				ErrorKind::WithContext {
+					context,
+					span,
+					underlying,
+				} => {
+					contexts.push(Trace::new(span, context));
+					kind = *underlying;
+				}
+				ErrorKind::Positioned(underlying) => {
+					show_position = true;
+					kind = *underlying;
+				}
+				kind => break kind,
+			}
+		};
 
 		Error {
 			kind,
@@ -557,6 +582,7 @@ impl Error {
 			contexts,
 			source,
 			traces: vec![],
+			show_position,
 		}
 	}
 
@@ -845,7 +871,7 @@ impl Error {
 			| ErrorKind::DynamicKeyInScope(_)
 			| ErrorKind::UnknownStaticVariable(_)
 			| ErrorKind::UnknownDynamicVariable(_)
-			| ErrorKind::VariableAlreadyDefined(_)
+			| ErrorKind::VariableAlreadyDefined(..)
 			| ErrorKind::NotCallable(..)
 			| ErrorKind::InfiniteRecursion { .. }
 			| ErrorKind::ParseErrors(_)
@@ -867,6 +893,7 @@ impl Error {
 			| ErrorKind::NixRsBug { .. }
 			| ErrorKind::NotImplemented(_)
 			| ErrorKind::WithContext { .. }
+			| ErrorKind::Positioned(_)
 			| ErrorKind::UnknownHashType(_)
 			| ErrorKind::InvalidHash(_)
 			| ErrorKind::InvalidRegex(_)
@@ -900,7 +927,7 @@ impl Error {
 			ErrorKind::DynamicKeyInScope(_) => "E009",
 			ErrorKind::UnknownStaticVariable(_) => "E010",
 			ErrorKind::UnknownDynamicVariable(_) => "E011",
-			ErrorKind::VariableAlreadyDefined(_) => "E012",
+			ErrorKind::VariableAlreadyDefined(..) => "E012",
 			ErrorKind::NotCallable(..) => "E013",
 			ErrorKind::InfiniteRecursion { .. } => "E014",
 			ErrorKind::ParseErrors(_) => "E015",
@@ -952,6 +979,7 @@ impl Error {
 			ErrorKind::WithContext { .. } => {
 				panic!("internal ErrorKind::WithContext variant leaked")
 			}
+			ErrorKind::Positioned(_) => panic!("internal ErrorKind::Positioned variant leaked"),
 		}
 	}
 

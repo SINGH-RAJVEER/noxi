@@ -8,18 +8,29 @@ use rusqlite::{Connection, OpenFlags, OptionalExtension};
 use crate::error::Result;
 
 /// The current store schema version, `nixSchemaVersion`.
-pub const SCHEMA_VERSION: u32 = 10;
+pub const SCHEMA_VERSION: i32 = 10;
 
 /// The initial schema, copied from CppNix 2.35.2's `schema.sql`.
 const SCHEMA: &str = include_str!("schema.sql");
 
-/// Named migrations applied after the numbered schema, in order. Migrations
-/// that depend on experimental features (`20251017-ca-derivations`) are not
-/// listed.
-const MIGRATIONS: &[(&str, &str)] = &[(
-	"20260309-drop-redundant-indexreferrer",
-	"drop index if exists IndexReferrer",
-)];
+/// The realisation tables, copied from CppNix 2.35.2's
+/// `ca-specific-schema.sql`.
+const CA_SCHEMA: &str = include_str!("ca-specific-schema.sql");
+
+/// The migration that creates [`CA_SCHEMA`], applied only while the
+/// `ca-derivations` experimental feature is enabled.
+pub const CA_MIGRATION: &str = "20251017-ca-derivations";
+
+/// Named migrations applied after the numbered schema, in CppNix's order.
+/// The flag marks migrations that need `ca-derivations`.
+const MIGRATIONS: &[(&str, &str, bool)] = &[
+	(CA_MIGRATION, CA_SCHEMA, true),
+	(
+		"20260309-drop-redundant-indexreferrer",
+		"drop index if exists IndexReferrer",
+		false,
+	),
+];
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum OpenMode {
@@ -103,9 +114,10 @@ pub fn open(path: &Path, mode: OpenMode, settings: &DbSettings) -> Result<Connec
 	Ok(conn)
 }
 
-/// Apply the named migrations. With `dry_run`, only report whether any is
-/// needed. Returns whether a migration was (or would be) applied.
-pub fn upgrade_schema(conn: &Connection, dry_run: bool) -> Result<bool> {
+/// Apply the named migrations, `upgradeDBSchema`. With `dry_run`, only
+/// report whether any is needed. Returns whether a migration was (or would
+/// be) applied.
+pub fn upgrade_schema(conn: &Connection, dry_run: bool, ca_derivations: bool) -> Result<bool> {
 	let mut changed = false;
 	let has_table = conn
 		.query_row(
@@ -128,8 +140,8 @@ pub fn upgrade_schema(conn: &Connection, dry_run: bool) -> Result<bool> {
 		.query_map([], |row| row.get(0))?
 		.collect::<Result<_, _>>()?;
 
-	for (name, statement) in MIGRATIONS {
-		if applied.iter().any(|m| m == name) {
+	for (name, statement, needs_ca) in MIGRATIONS {
+		if (*needs_ca && !ca_derivations) || applied.iter().any(|m| m == name) {
 			continue;
 		}
 		changed = true;

@@ -39,6 +39,8 @@ pub(crate) enum GeneratorState {
 ///
 /// Responses are returned to generators via the [`VMResponse`] type.
 pub enum VMRequest {
+	/// Look up a builtin in this evaluation, preserving its compiler globals.
+	Builtin(&'static str),
 	/// Request that the VM forces this value. This message is first sent to the
 	/// VM with the unforced value, then returned to the generator with the
 	/// forced result.
@@ -72,7 +74,8 @@ pub enum VMRequest {
 	StackPop,
 
 	/// Request that the VM coerces this value to a string.
-	StringCoerce(Value, CoercionKind),
+	/// Coerce a value to a string, with the CppNix trace frame of a failure.
+	StringCoerce(Value, CoercionKind, Option<&'static str>),
 
 	/// Request that the VM calls the given value, with arguments already
 	/// prepared on the stack. Value must already be forced.
@@ -179,6 +182,7 @@ impl Display for VMRequest {
 					strong,
 					import_paths,
 				},
+				_,
 			) => write!(
 				f,
 				"{}_{}importing_string_coerce({})",
@@ -186,6 +190,7 @@ impl Display for VMRequest {
 				if *import_paths { "" } else { "non_" },
 				v.type_of()
 			),
+			VMRequest::Builtin(name) => write!(f, "builtin({name})"),
 			VMRequest::Call(v) => write!(f, "call({v})"),
 			VMRequest::EnterLambda { lambda, .. } => {
 				write!(f, "enter_lambda({:p})", *lambda)
@@ -422,11 +427,16 @@ where
 							return Ok(false);
 						}
 
-						VMRequest::StringCoerce(val, kind) => {
+						VMRequest::StringCoerce(val, kind, context) => {
 							self.reenqueue_generator(name, span, generator);
 							self.enqueue_generator("coerce_to_string", span, |co| {
 								val.coerce_to_string(co, kind, span)
 							});
+							if let Some(context) = context
+								&& let Some(Frame::Generator { trace, .. }) = self.frames.last_mut()
+							{
+								*trace = FrameTrace::Context(context);
+							}
 							return Ok(false);
 						}
 
@@ -466,6 +476,18 @@ where
 						VMRequest::EmitWarningKind(kind) => {
 							self.emit_warning(kind);
 							message = VMResponse::Empty;
+						}
+
+						VMRequest::Builtin(name) => {
+							let attrs = self.globals["builtins"]
+								.to_attrs()
+								.expect("builtins is an attribute set");
+							message = VMResponse::Value(
+								attrs
+									.select_required(name.as_bytes())
+									.with_span(span, self)?
+									.clone(),
+							);
 						}
 
 						VMRequest::ImportCacheLookup(path) => {
@@ -714,8 +736,12 @@ pub async fn request_stack_pop(co: &GenCo) -> Value {
 
 /// Force any value and return the evaluated result from the VM.
 pub async fn request_force(co: &GenCo, val: Value) -> Value {
-	if let Value::Thunk(_) = val {
-		match co.yield_(VMRequest::ForceValue(val)).await {
+	if let Value::Thunk(thunk) = val {
+		let thunk = match thunk.force_if_evaluated() {
+			Ok(value) => return value,
+			Err(thunk) => thunk,
+		};
+		match co.yield_(VMRequest::ForceValue(Value::Thunk(thunk))).await {
 			VMResponse::Value(value) => value,
 			msg => panic!("nix-rs bug: VM responded with incorrect generator message: {msg}"),
 		}
@@ -724,10 +750,23 @@ pub async fn request_force(co: &GenCo, val: Value) -> Value {
 	}
 }
 
+/// Return a builtin from the active evaluation. Store-aware builtins use this
+/// to import Nix helpers with the caller's globals and import cache.
+pub async fn request_builtin(co: &GenCo, name: &'static str) -> Value {
+	match co.yield_(VMRequest::Builtin(name)).await {
+		VMResponse::Value(value) => value,
+		msg => panic!("nix-rs bug: VM responded with incorrect generator message: {msg}"),
+	}
+}
+
 /// Force a value
 pub(crate) async fn request_try_force(co: &GenCo, val: Value) -> Value {
-	if let Value::Thunk(_) = val {
-		match co.yield_(VMRequest::TryForce(val)).await {
+	if let Value::Thunk(thunk) = val {
+		let thunk = match thunk.force_if_evaluated() {
+			Ok(value) => return value,
+			Err(thunk) => thunk,
+		};
+		match co.yield_(VMRequest::TryForce(Value::Thunk(thunk))).await {
 			VMResponse::Value(value) => value,
 			msg => panic!("nix-rs bug: VM responded with incorrect generator message: {msg}"),
 		}
@@ -774,9 +813,20 @@ pub async fn request_string_coerce(
 	val: Value,
 	kind: CoercionKind,
 ) -> Result<NixString, CatchableErrorKind> {
+	request_string_coerce_in(co, val, kind, None).await
+}
+
+/// [`request_string_coerce`] with CppNix's trace frame for a failure, such as
+/// `while evaluating the first argument passed to builtins.toString`.
+pub async fn request_string_coerce_in(
+	co: &GenCo,
+	val: Value,
+	kind: CoercionKind,
+	context: Option<&'static str>,
+) -> Result<NixString, CatchableErrorKind> {
 	match val {
 		Value::String(s) => Ok(s),
-		_ => match co.yield_(VMRequest::StringCoerce(val, kind)).await {
+		_ => match co.yield_(VMRequest::StringCoerce(val, kind, context)).await {
 			VMResponse::Value(Value::Catchable(c)) => Err(*c),
 			VMResponse::Value(value) => Ok(value
 				.to_contextful_str()

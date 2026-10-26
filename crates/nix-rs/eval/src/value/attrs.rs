@@ -347,6 +347,7 @@ impl NixAttrs {
 		self.select(key)
 			.ok_or_else(|| ErrorKind::AttributeNotFound {
 				name: key.borrow().to_string(),
+				suggestions: vec![],
 			})
 	}
 
@@ -470,6 +471,7 @@ impl NixAttrs {
 
 		// Optimisation: KV pattern
 		if count == 2
+			&& spans.is_empty()
 			&& let Some(kv) = attempt_optimise_kv(&mut stack_slice)
 		{
 			return Ok(Ok(kv));
@@ -869,4 +871,73 @@ impl DoubleEndedIterator for OwnedAttrsIterator {
 			IntoIterRepr::Map(inner) => inner.next(),
 		}
 	}
+}
+
+/// The names CppNix interns when it starts, in order. Its attribute sets
+/// iterate in symbol order, so these come first, before other names.
+const CPPNIX_STATIC_SYMBOLS: &[&[u8]] = &[
+	b"outPath",
+	b"drvPath",
+	b"type",
+	b"meta",
+	b"name",
+	b"value",
+	b"system",
+	b"__overrides",
+	b"outputs",
+	b"outputName",
+	b"__ignoreNulls",
+	b"file",
+	b"line",
+	b"column",
+	b"__functor",
+	b"__toString",
+	b"right",
+	b"wrong",
+	b"__structuredAttrs",
+	b"__json",
+	b"allowedReferences",
+	b"allowedRequisites",
+	b"disallowedReferences",
+	b"disallowedRequisites",
+	b"maxSize",
+	b"maxClosureSize",
+	b"builder",
+	b"args",
+	b"__contentAddressed",
+	b"__impure",
+	b"outputHash",
+	b"outputHashAlgo",
+	b"outputHashMode",
+	b"recurseForDerivations",
+	b"description",
+	b"self",
+	b"startSet",
+	b"operator",
+	b"key",
+	b"path",
+	b"prefix",
+	b"outputSpecified",
+	b"__sub",
+	b"__lessThan",
+	b"__mul",
+	b"__div",
+	b"or",
+	b"__findFile",
+	b"__nixPath",
+	b"body",
+];
+
+/// An approximation of the order CppNix iterates an attribute set in,
+/// which decides which failing attribute it reports: names it interns at
+/// startup first, in that order, then the others by name. CppNix orders
+/// the others by when it first parsed them.
+pub(crate) fn cppnix_attribute_order(a: &[u8], b: &[u8]) -> std::cmp::Ordering {
+	let rank = |name: &[u8]| {
+		CPPNIX_STATIC_SYMBOLS
+			.iter()
+			.position(|symbol| *symbol == name)
+			.unwrap_or(CPPNIX_STATIC_SYMBOLS.len())
+	};
+	rank(a).cmp(&rank(b)).then_with(|| a.cmp(b))
 }

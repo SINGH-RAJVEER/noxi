@@ -15,10 +15,43 @@ use codemap::{CodeMap, Span};
 
 /// Tracks all source code in a nix-rs evaluation for accurate error
 /// reporting.
-#[derive(Clone, Debug)]
-pub struct SourceCode(Rc<RefCell<CodeMap>>, Rc<RefCell<Vec<Span>>>);
+#[derive(Clone)]
+pub struct SourceCode(
+	Rc<RefCell<CodeMap>>,
+	Rc<RefCell<Vec<Span>>>,
+	Option<Rc<SourceCheck>>,
+	Rc<RefCell<Vec<(Span, Span)>>>,
+);
+
+type SourceCheck = dyn Fn(&rnix::ast::Expr, &codemap::File) -> Result<(), crate::ErrorKind>;
+
+impl std::fmt::Debug for SourceCode {
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		f.debug_tuple("SourceCode").field(&self.0).finish()
+	}
+}
 
 impl SourceCode {
+	/// Validate each parsed source before compilation, including imported files.
+	/// The callback belongs to this source map, so independent evaluations do not share policy.
+	pub fn with_source_check(
+		mut self,
+		check: impl Fn(&rnix::ast::Expr, &codemap::File) -> Result<(), crate::ErrorKind> + 'static,
+	) -> Self {
+		self.2 = Some(Rc::new(check));
+		self
+	}
+
+	pub(crate) fn check(
+		&self,
+		expr: &rnix::ast::Expr,
+		file: &codemap::File,
+	) -> crate::EvalResult<()> {
+		if let Some(check) = &self.2 {
+			check(expr, file).map_err(|kind| crate::Error::new(kind, file.span, self.clone()))?;
+		}
+		Ok(())
+	}
 	/// Access a read-only reference to the codemap.
 	pub fn codemap(&self) -> Ref<'_, CodeMap> {
 		self.0.borrow()
@@ -62,8 +95,27 @@ impl SourceCode {
 		self.1.borrow_mut().push(file.span);
 	}
 
+	/// Map a fragment of generated code back to the original input.
+	pub(crate) fn map_fragment(&self, generated: Span, original: Span) {
+		self.3.borrow_mut().push((generated, original));
+	}
+
+	/// Resolve a generated-code span to its original input, when present.
+	pub(crate) fn original_span(&self, span: Span) -> Span {
+		self.3
+			.borrow()
+			.iter()
+			.find_map(|(generated, original)| {
+				(generated.low() <= span.low() && span.high() <= generated.high()).then(|| {
+					original.subspan(span.low() - generated.low(), span.high() - generated.low())
+				})
+			})
+			.unwrap_or(span)
+	}
+
 	/// Whether `span` is in a file marked with [`hide_file`](Self::hide_file).
 	pub fn is_hidden(&self, span: Span) -> bool {
+		let span = self.original_span(span);
 		self.1
 			.borrow()
 			.iter()
@@ -76,6 +128,8 @@ impl Default for SourceCode {
 	fn default() -> Self {
 		Self(
 			Rc::new(RefCell::new(CodeMap::new())),
+			Rc::new(RefCell::new(vec![])),
+			None,
 			Rc::new(RefCell::new(vec![])),
 		)
 	}

@@ -134,18 +134,32 @@ pub struct Thunk(pub(super) Rc<RefCell<ThunkRepr>>);
 
 impl Thunk {
 	pub fn new_closure(lambda: Rc<Lambda>) -> Self {
+		let upvalues = Upvalues::with_capacity(lambda.upvalue_count);
+		Self::new_closure_with_upvalues(lambda, upvalues)
+	}
+
+	pub(crate) fn new_closure_with_upvalues(lambda: Rc<Lambda>, upvalues: Upvalues) -> Self {
 		Thunk(Rc::new(RefCell::new(ThunkRepr::Evaluated(Value::Closure(
 			Rc::new(Closure {
-				upvalues: Rc::new(Upvalues::with_capacity(lambda.upvalue_count)),
-				lambda: lambda.clone(),
+				upvalues: Rc::new(upvalues),
+				lambda,
 			}),
 		)))))
 	}
 
 	pub fn new_suspended(lambda: Rc<Lambda>, span: Span) -> Self {
+		let upvalues = Upvalues::with_capacity(lambda.upvalue_count);
+		Self::new_suspended_with_upvalues(lambda, span, upvalues)
+	}
+
+	pub(crate) fn new_suspended_with_upvalues(
+		lambda: Rc<Lambda>,
+		span: Span,
+		upvalues: Upvalues,
+	) -> Self {
 		Thunk(Rc::new(RefCell::new(ThunkRepr::Suspended {
-			upvalues: Rc::new(Upvalues::with_capacity(lambda.upvalue_count)),
-			lambda: lambda.clone(),
+			upvalues: Rc::new(upvalues),
+			lambda,
 			span,
 		})))
 	}
@@ -162,29 +176,42 @@ impl Thunk {
 	/// a function does not need to be forced immediately, because e.g. it is
 	/// stored in an attribute set.
 	pub fn new_suspended_call(callee: Value, arg: Value, span: Span) -> Self {
-		let mut lambda = Lambda::default();
+		Self::new_suspended_call_with_lambda(callee, arg, Self::suspended_call_lambda(span))
+	}
 
-		let arg_idx = lambda.chunk().push_constant(arg);
-		let f_idx = lambda.chunk().push_constant(callee);
+	/// Builtins producing many lazy calls can share this bytecode. Arguments
+	/// belong to each thunk's captures, so forcing one call cannot change another.
+	pub(crate) fn suspended_call_lambda(span: Span) -> Rc<Lambda> {
+		let mut lambda = Lambda::default();
+		lambda.upvalue_count = 2;
 
 		// This is basically a recreation of compile_apply():
 		// We need to push the argument onto the stack and then the function.
 		// The function (not the argument) needs to be forced before calling.
-		lambda.chunk.push_op(Op::Constant, span);
-		lambda.chunk.push_uvarint(arg_idx.0 as u64);
-		lambda.chunk.push_op(Op::Constant, span);
-		lambda.chunk.push_uvarint(f_idx.0 as u64);
+		lambda.chunk.push_op(Op::GetUpvalue, span);
+		lambda.chunk.push_uvarint(0);
+		lambda.chunk.push_op(Op::GetUpvalue, span);
+		lambda.chunk.push_uvarint(1);
 		lambda.chunk.push_op(Op::Force, span);
 		lambda.chunk.push_op(Op::Call, span);
 
 		// Inform the VM that the chunk has ended
 		lambda.chunk.push_op(Op::Return, span);
 
-		Thunk(Rc::new(RefCell::new(ThunkRepr::Suspended {
-			upvalues: Rc::new(Upvalues::with_capacity(0)),
-			lambda: Rc::new(lambda),
+		Rc::new(lambda)
+	}
+
+	pub(crate) fn new_suspended_call_with_lambda(
+		callee: Value,
+		arg: Value,
+		lambda: Rc<Lambda>,
+	) -> Self {
+		let span = lambda.chunk.first_span();
+		Self::new_suspended_with_upvalues(
+			lambda,
 			span,
-		})))
+			Upvalues::from_raw_parts(vec![arg, callee], vec![]),
+		)
 	}
 
 	fn prepare_blackhole(&self, forced_at: Span) -> ThunkRepr {
@@ -321,6 +348,16 @@ impl Thunk {
 	/// Returns true if forcing this thunk will not change it.
 	pub fn is_forced(&self) -> bool {
 		self.0.borrow().is_forced()
+	}
+
+	/// Read a memoized result without scheduling a forcing generator. An
+	/// evaluated thunk pointing to another thunk still needs normal forcing.
+	pub(crate) fn force_if_evaluated(self) -> Result<Value, Self> {
+		if self.is_forced() {
+			Ok(self.unwrap_or_clone())
+		} else {
+			Err(self)
+		}
 	}
 
 	/// Returns a reference to the inner evaluated value of a thunk.

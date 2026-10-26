@@ -187,7 +187,7 @@ def paired_summary(records: list[dict], seed: int, bootstrap: int = 2000) -> dic
 		if sample.get("stage", "samples") == "samples" and sample["correctness"]["status"] == "passed":
 			groups[sample["pair_id"]][sample["role"]] = sample
 	result = {}
-	for baseline in ["reference", "baseline"]:
+	for baseline in sorted({role for group in groups.values() for role in group} - {"candidate"}):
 		pairs = [(v[baseline], v["candidate"]) for v in groups.values() if baseline in v and "candidate" in v]
 		if not pairs:
 			continue
@@ -305,6 +305,8 @@ def parser() -> argparse.ArgumentParser:
 	result.add_argument("--reference-bin", type=Path)
 	result.add_argument("--candidate-bin", type=Path, default=ROOT / "target/release")
 	result.add_argument("--baseline-bin", type=Path)
+	result.add_argument("--comparison-bin", action="append", default=[], metavar="NAME=DIR",
+		help="additional preserved release artifact, repeatable; every engine must pass each matched block")
 	result.add_argument("--busybox", type=Path)
 	result.add_argument("--case", action="append", default=[], help="case ID, repeatable; default is all offline adapters")
 	result.add_argument("--suite", choices=["pr", "nightly", "release", "research"])
@@ -345,6 +347,13 @@ def main() -> int:
 	engines = {"reference": args.reference_bin.absolute(), "candidate": args.candidate_bin.absolute()}
 	if args.baseline_bin:
 		engines["baseline"] = args.baseline_bin.absolute()
+	for entry in args.comparison_bin:
+		name, separator, directory = entry.partition("=")
+		if not separator or not directory or not name or not name.replace("-", "").replace("_", "").isalnum():
+			parser().error("--comparison-bin must be NAME=DIR with an alphanumeric, hyphen or underscore name")
+		if name in engines:
+			parser().error(f"duplicate comparison engine: {name}")
+		engines[name] = Path(directory).absolute()
 	coverage, summaries = [], {}
 	with tempfile.TemporaryDirectory(prefix="nixrs-benchmark-") as temp:
 		work = Path(temp)
@@ -353,9 +362,11 @@ def main() -> int:
 		if ref_version.get("version_exit") != 0 or not ref_version.get("version_stdout", "").strip().endswith("2.35.2"):
 			raise RuntimeError("reference must be the pinned CppNix 2.35.2 artifact")
 		identity = source_identity()
-		if args.baseline_bin:
-			baseline_identity = args.baseline_bin.parent / "source.json"
-			artifacts["baseline"]["source_identity"] = json.loads(baseline_identity.read_text()) if baseline_identity.exists() else {"unverified_source": True}
+		for role, directory in engines.items():
+			if role in {"reference", "candidate"}:
+				continue
+			baseline_identity = directory.parent / "source.json"
+			artifacts[role]["source_identity"] = json.loads(baseline_identity.read_text()) if baseline_identity.exists() else {"unverified_source": True}
 		metadata = {"schema_version": SCHEMA_VERSION, "run_id": output.name,
 			"runner_sources": {name: digest(ROOT / "benchmarks" / name) for name in ["run.py", "fixtures.py", "process.py", "exec.c", "catalog.tsv"]},
 			"collector_runtime": {"python": sys.version, "cc": subprocess.run(["cc", "--version"], capture_output=True, text=True, check=True).stdout.splitlines()[0],

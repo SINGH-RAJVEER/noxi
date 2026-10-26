@@ -103,6 +103,7 @@ pub(crate) fn is_internal_file(name: &str) -> bool {
 /// The position of the start of `span`, or `None` if it is in generated
 /// code.
 pub fn position(source: &SourceCode, span: Span) -> Option<Pos> {
+	let span = source.original_span(span);
 	if source.is_hidden(span) {
 		return None;
 	}
@@ -401,6 +402,16 @@ fn lambda_name(lambda: &Lambda) -> String {
 /// CppNix's message for `error`, the position it prints with it, and any
 /// suggestions.
 fn message(error: &Error) -> (String, Option<Span>, Vec<String>) {
+	let (message, span, suggestions) = kind_message(error);
+	(
+		message,
+		span.or(error.show_position.then_some(error.span)),
+		suggestions,
+	)
+}
+
+/// [`message`] by error kind, before an explicit position applies.
+fn kind_message(error: &Error) -> (String, Option<Span>, Vec<String>) {
 	let at = Some(error.span);
 	match &error.kind {
 		ErrorKind::Abort(message) => (
@@ -438,9 +449,11 @@ fn message(error: &Error) -> (String, Option<Span>, Vec<String>) {
 		ErrorKind::UnknownStaticVariable(name) | ErrorKind::UnknownDynamicVariable(name) => {
 			(format!("undefined variable '{name}'"), at, vec![])
 		}
-		ErrorKind::AttributeNotFound { name } => {
-			(format!("attribute '{name}' missing"), at, vec![])
-		}
+		ErrorKind::AttributeNotFound { name, suggestions } => (
+			format!("attribute '{name}' missing"),
+			None,
+			suggestions.clone(),
+		),
 		ErrorKind::UnexpectedArgumentFormals {
 			arg,
 			lambda: Some(lambda),
@@ -495,6 +508,33 @@ fn message(error: &Error) -> (String, Option<Span>, Vec<String>) {
 			None,
 			vec![],
 		),
+		ErrorKind::NotCoercibleToString {
+			value: Some(value), ..
+		} => (
+			format!(
+				"cannot coerce {} to a string: {}",
+				show_type(value),
+				print_value(&error.source, value)
+			),
+			None,
+			vec![],
+		),
+		ErrorKind::VariableAlreadyDefined(_, name) => (
+			format!("duplicate formal function argument '{name}'"),
+			at,
+			vec![],
+		),
+		ErrorKind::DynamicKeyInScope(scope) => (
+			format!(
+				"dynamic attributes not allowed in {}",
+				match *scope {
+					"let-expression" => "let",
+					scope => scope,
+				}
+			),
+			at,
+			vec![],
+		),
 		ErrorKind::EvalError(message) => (message.clone(), None, vec![]),
 		kind => (kind.to_string(), None, vec![]),
 	}
@@ -503,6 +543,13 @@ fn message(error: &Error) -> (String, Option<Span>, Vec<String>) {
 /// The diagnostic CppNix prints for `error`.
 fn error_info(error: &Error) -> ErrorInfo<'_> {
 	let inner = error.innermost();
+	// CppNix stops at the first error of a file that does not compile.
+	let inner = match &inner.kind {
+		ErrorKind::ImportCompilerError { errors, .. } if !errors.is_empty() => {
+			errors[0].innermost()
+		}
+		_ => inner,
+	};
 	let (mut message, mut span, suggestions) = message(inner);
 	let mut traces = error.traces.clone();
 	if let ErrorKind::CatchableError(cek) = &inner.kind

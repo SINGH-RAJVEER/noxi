@@ -1,0 +1,164 @@
+{
+	"schema": 3,
+	"revision": "44d9bd7ca78ba169da39e6b4709b2c9aa324801e",
+	"integration_merge": "5cb2e4e40075267122c93e18bbdbddb09f6a4439",
+	"integration_revision": "78a85968d384a5df5ea52e21e6c6f44297f3cb09",
+	"candidate": "/nix/store/c52f14n0i3gpy46wpjdmxhl707wkrqi1-nixrs-replacement-provisional-0.1.1",
+	"implemented": [
+		"nixrs",
+		"nix",
+		"nix-build",
+		"nix-instantiate",
+		"nix-store",
+		"nix-env",
+		"nix-collect-garbage",
+		"nix-daemon",
+		"nix-shell",
+		"nix-copy-closure",
+		"nix-hash"
+	],
+	"unimplemented": [
+		"nix-channel",
+		"nix-prefetch-url"
+	],
+	"locked_inputs": {
+		"nixpkgs": {
+			"lastModified": 1790323409,
+			"narHash": "sha256-VVTPf+Hyd5ebpjBMHmrLMSBIeW6ls48Bqtosj7CNKLA=",
+			"owner": "NixOS",
+			"repo": "nixpkgs",
+			"rev": "e94cb152ed51bd6e24eb4a41f1460252beb52cd2",
+			"type": "github"
+		},
+		"home-manager": {
+			"lastModified": 1790365885,
+			"narHash": "sha256-iQ0ebhiVo64NktTnwft9hNxlFu4j5cvljVxyJaEVIP4=",
+			"owner": "nix-community",
+			"repo": "home-manager",
+			"rev": "7b4c5ec4bedaf1e062bbc1bcaeddbc6bd242aa1b",
+			"type": "github"
+		},
+		"nix-reference": {
+			"lastModified": 1786568958,
+			"narHash": "sha256-C/YEm/5IPiAMxQH5aHlkwgQMkLqK7NVsudEWdlzBZAA=",
+			"owner": "NixOS",
+			"repo": "nix",
+			"rev": "2c73b59da29606068c0c98db015dd3a66955525d",
+			"type": "github"
+		},
+		"rust-overlay": {
+			"lastModified": 1790407471,
+			"narHash": "sha256-M8elY2UShg4ZuLTiRLEHO+ae5xQFp3/ReQdxp/R+1UU=",
+			"owner": "oxalica",
+			"repo": "rust-overlay",
+			"rev": "4e9bb05a9ab6c37dc74c22974ebed6e36dc73eb2",
+			"type": "github"
+		}
+	},
+	"flake_lock_sha256": "da9931b3802767c8f441a5ed6aea7e761ee076a95a99c8595b7fefe6f06c60d7",
+	"test_script_sha256": "0658fe80470a55e988592e7e04f135f509a6351634ec2da37a93bc513390288e",
+	"guest_command_timeout_seconds": 1800,
+	"driver_execute_timeout_seconds": 900,
+	"clean_clone_build_exit_code": 0,
+	"clean_clone_stayed_clean": true,
+	"clean_clone_builds": [
+		{
+			"drvPath": "/nix/store/8l2pbdgcn9w9rggswsf678l159sfc8k2-nixrs-preview-0.1.1.drv",
+			"outputs": {
+				"out": "/nix/store/xvrr4vigbxjjwzhr9k3sd27lpw0a2908-nixrs-preview-0.1.1"
+			}
+		},
+		{
+			"drvPath": "/nix/store/3b8h2044a0sy5cx0i1s6ihs4vqma3527-nixrs-replacement-provisional-0.1.1.drv",
+			"outputs": {
+				"out": "/nix/store/c52f14n0i3gpy46wpjdmxhl707wkrqi1-nixrs-replacement-provisional-0.1.1"
+			}
+		},
+		{
+			"drvPath": "/nix/store/bnwgbp6a1vh9wnbajlp0ky7ckkf3yhb6-nixrs-replacement-layout.drv",
+			"outputs": {
+				"out": "/nix/store/5b4j5pn9hwwnkhi9l66rshw3ssbl0182-nixrs-replacement-layout"
+			}
+		}
+	],
+	"reproducibility": {
+		"command": "nix build --rebuild --no-link .#packages.x86_64-linux.nixrs-replacement.binaryPackage",
+		"exit_code": 0,
+		"binary_package": "/nix/store/xqs12yyphlah8iwzcyhsm1m8ngg6wc95-nixrs-replacement-provisional-0.1.1",
+		"binary_package_drv_path": "/nix/store/12ficc31599cw5agywg0rrx80icmkwnd-nixrs-replacement-provisional-0.1.1.drv",
+		"installed_executable_sha256": {
+			"nixrs": "5bc8324f9f6e9e8e01289b3a9176b8b2243bb329bd7dfdeba03b64e948038b83",
+			"nix": "39610ca2b107355a960dbaca0398457109d05e1a5e358bf4429543115431492a",
+			"nix-build": "39d41c1126118277d46b265abd01f25bf2f867ce0529290dd4ac27cd26ff4586",
+			"nix-instantiate": "e9045905aeca6a673b73b1d2ea128f2e44c52adae450ae53934542db60743afe",
+			"nix-store": "13a3ac50e3f593e29e01260aa0b95555f85e16cb18594b60b2795f924847f314",
+			"nix-env": "20330639e0ce42865725de32b7a799fc91a6a06f5277ab74c8ee33c9137bd787",
+			"nix-collect-garbage": "0d255e235ecae2d291e50371540f1007feb9ae0118076e57424375c873439300",
+			"nix-daemon": "7c28dd8420288f4e5f25472d0de433f347066a40984d9522da91858798a3e075",
+			"nix-shell": "0a8054f3c5ca439c2738d68250a840aec2665f679c919819911b9bf23613c295",
+			"nix-copy-closure": "fcbad5a4f07468b5e2e97ee0bf692813afb2fb7052006c274ee491c8229f686c",
+			"nix-hash": "1a42a7ab62a5b146effefc163b772f316ca74e5c1bbcbf9b886b1e97ec83cd49"
+		},
+		"replacement_package": {
+			"command": "nix build --rebuild --no-link .#nixrs-replacement",
+			"exit_code": 0,
+			"drv_path": "/nix/store/3b8h2044a0sy5cx0i1s6ihs4vqma3527-nixrs-replacement-provisional-0.1.1.drv",
+			"output": "/nix/store/c52f14n0i3gpy46wpjdmxhl707wkrqi1-nixrs-replacement-provisional-0.1.1"
+		}
+	},
+	"reports": {
+		"nixos": {
+			"file": "nixos.json",
+			"sha256": "e8b125c216f7924da58c80c929147f6e6103b5396d61e9dc9d19f75f034e1278",
+			"drv_path": "/nix/store/5nffph31f7lkzn3ifrhqid4x0i5g1ry6-vm-test-run-nixrs-qualification-nixos.drv",
+			"report_output": "/nix/store/11qfx179hd5f7gz8kc4dzk9y859b7ali-vm-test-run-nixrs-qualification-nixos",
+			"report_build_exit_code": 0,
+			"strict_gate_drv_path": "/nix/store/6z56047a70q187fspfvklamzcrb71ryn-nixrs-qualification-nixos-gate.drv",
+			"strict_gate_build_exit_code": 1,
+			"started_utc": "2026-10-26T06:22:42Z",
+			"finished_utc": "2026-10-26T06:29:31Z",
+			"counts": {
+				"pass": 42,
+				"fail": 11
+			}
+		},
+		"home-manager": {
+			"file": "home-manager.json",
+			"sha256": "a7b08f9448343c0a43e1b4b2b633ee075adc40e2f0cb92ec5bae96078ceb8ff5",
+			"drv_path": "/nix/store/0076kyj6wcr1nj8g17ny6gsdcl20x589-vm-test-run-nixrs-qualification-home-manager.drv",
+			"report_output": "/nix/store/kql7xpnq1krzj9c2csgr64y7v48wnxyr-vm-test-run-nixrs-qualification-home-manager",
+			"report_build_exit_code": 0,
+			"strict_gate_drv_path": "/nix/store/00qz99lc8cmq8dp62jc1lmyfswn1jqnc-nixrs-qualification-home-manager-gate.drv",
+			"strict_gate_build_exit_code": 1,
+			"started_utc": "2026-10-26T06:29:31Z",
+			"finished_utc": "2026-10-26T06:31:48Z",
+			"counts": {
+				"pass": 25,
+				"fail": 14
+			}
+		},
+		"lifecycle": {
+			"file": "lifecycle.json",
+			"sha256": "4b9bcaf87eb99dd0f8646dd4abd7abbf3275250b6f8bc7fd8cf5281d8f34756b",
+			"drv_path": "/nix/store/3mq7ida86qafqc36ssi2a66l035mbnlm-vm-test-run-nixrs-qualification-lifecycle.drv",
+			"report_output": "/nix/store/whdhyr65fwyjbby3vzplbjrs24v2ly24-vm-test-run-nixrs-qualification-lifecycle",
+			"report_build_exit_code": 0,
+			"strict_gate_drv_path": "/nix/store/7d0virs1zhq1290y32pcilb8drx7k6p7-nixrs-qualification-lifecycle-gate.drv",
+			"strict_gate_build_exit_code": 1,
+			"started_utc": "2026-10-26T06:31:48Z",
+			"finished_utc": "2026-10-26T06:34:52Z",
+			"counts": {
+				"pass": 43,
+				"fail": 8
+			}
+		}
+	},
+	"limits": [
+		"Probe counts include controls, diagnostics and recovery; they are not compatibility percentages.",
+		"All three strict gates failed. Report derivation success does not qualify replacement.",
+		"Guest generations are preloaded; successful cached evaluation/realization is not a fresh full system closure build.",
+		"Upgrade fixture has the same engine binaries at a distinct package path, with its own daemon unit.",
+		"Removal checks active generations, boot entries and executable selection; recovery fixtures remain retained by the base closure.",
+		"THIRD_PARTY.md covers the preview. Commands/daemon dependency notices and remaining license audit decisions are open."
+	]
+}

@@ -1,0 +1,32 @@
+# cargo-deny license policy for the nixrs preview dependency graph.
+#
+# Run with `just licenses`. The accepted set matches about.toml, which generates
+# THIRD_PARTY.md. Licenses here are all compatible with distributing the
+# GPL-3.0-only binary; see docs/licensing.md for the review.
+
+[graph]
+targets = ["x86_64-unknown-linux-gnu"]
+exclude-dev = true
+
+[licenses]
+allow = [
+	"Apache-2.0",
+	"Apache-2.0 WITH LLVM-exception",
+	"BSD-2-Clause",
+	"BSD-3-Clause",
+	"bzip2-1.0.6",
+	"CC0-1.0",
+	"CDLA-Permissive-2.0",
+	"GPL-3.0-only",
+	"ISC",
+	"MIT",
+	"MIT-0",
+	"Unicode-3.0",
+	"Unlicense",
+	"Zlib",
+	"0BSD",
+]
+
+[licenses.private]
+# Crates with publish = false are not distributed and carry no license field.
+ignore = true

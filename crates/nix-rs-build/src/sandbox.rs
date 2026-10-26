@@ -138,6 +138,19 @@ pub fn setup_chroot(
 /// Run the builder described by `spec`, passing its output to `log`.
 /// Returns how it exited.
 pub fn run(spec: &SandboxSpec, log: &mut dyn FnMut(&[u8])) -> Result<ExitStatus> {
+	run_cancellable(spec, log, &|| false)
+}
+
+/// Run a builder with cooperative cancellation in the parent. Killing the
+/// PID-namespace init also kills its descendants; `Builder` reaps it.
+pub fn run_cancellable(
+	spec: &SandboxSpec,
+	log: &mut dyn FnMut(&[u8]),
+	cancelled: &dyn Fn() -> bool,
+) -> Result<ExitStatus> {
+	if cancelled() {
+		return Err(BuildError::Cancelled);
+	}
 	// The pseudoterminal that carries the builder's output.
 	// SAFETY: posix_openpt has no memory-safety preconditions.
 	let master = unsafe { libc::posix_openpt(libc::O_RDWR | libc::O_NOCTTY | libc::O_CLOEXEC) };
@@ -260,7 +273,14 @@ pub fn run(spec: &SandboxSpec, log: &mut dyn FnMut(&[u8])) -> Result<ExitStatus>
 	let mut last_output = Instant::now();
 	let mut timed_out = None;
 	loop {
-		let wait = poll_timeout(spec, start, last_output);
+		if cancelled() {
+			return Err(BuildError::Cancelled);
+		}
+		let wait = Some(
+			poll_timeout(spec, start, last_output)
+				.unwrap_or(Duration::from_millis(100))
+				.min(Duration::from_millis(100)),
+		);
 		match reader.poll(wait)? {
 			Poll::Data(data) => {
 				last_output = Instant::now();
@@ -270,11 +290,15 @@ pub fn run(spec: &SandboxSpec, log: &mut dyn FnMut(&[u8])) -> Result<ExitStatus>
 			Poll::Timeout => {
 				if spec.timeout != 0 && start.elapsed() >= Duration::from_secs(spec.timeout) {
 					timed_out = Some(format!("timed out after {} seconds", spec.timeout));
-				} else {
+				} else if spec.max_silent_time != 0
+					&& last_output.elapsed() >= Duration::from_secs(spec.max_silent_time)
+				{
 					timed_out = Some(format!(
 						"timed out after {} seconds of silence",
 						spec.max_silent_time
 					));
+				} else {
+					continue;
 				}
 				break;
 			}
@@ -285,7 +309,49 @@ pub fn run(spec: &SandboxSpec, log: &mut dyn FnMut(&[u8])) -> Result<ExitStatus>
 		return Err(BuildError::failed(FailureStatus::TimedOut, message));
 	}
 	// The builder may have closed the terminal before exiting.
-	let status = builder.wait()?;
+	let mut builder = builder;
+	let status = loop {
+		let mut status = 0;
+		// SAFETY: the PID belongs to this builder, and status is writable.
+		let result = unsafe {
+			libc::waitpid(
+				builder.0.expect("builder is running"),
+				&mut status,
+				libc::__WALL | libc::WNOHANG,
+			)
+		};
+		if result > 0 {
+			builder.0 = None;
+			break status;
+		}
+		if result < 0 {
+			let error = io::Error::last_os_error();
+			if error.raw_os_error() != Some(libc::EINTR) {
+				return Err(error.into());
+			}
+		}
+		if cancelled() {
+			return Err(BuildError::Cancelled);
+		}
+		if spec.timeout != 0 && start.elapsed() >= Duration::from_secs(spec.timeout) {
+			return Err(BuildError::failed(
+				FailureStatus::TimedOut,
+				format!("timed out after {} seconds", spec.timeout),
+			));
+		}
+		if spec.max_silent_time != 0
+			&& last_output.elapsed() >= Duration::from_secs(spec.max_silent_time)
+		{
+			return Err(BuildError::failed(
+				FailureStatus::TimedOut,
+				format!(
+					"timed out after {} seconds of silence",
+					spec.max_silent_time
+				),
+			));
+		}
+		std::thread::sleep(Duration::from_millis(10));
+	};
 	Ok(ExitStatus(status))
 }
 

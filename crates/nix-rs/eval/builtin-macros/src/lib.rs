@@ -2,7 +2,7 @@ extern crate proc_macro;
 
 use proc_macro::TokenStream;
 use proc_macro2::Span;
-use quote::{ToTokens, quote, quote_spanned};
+use quote::{ToTokens, format_ident, quote, quote_spanned};
 use syn::parse::Parse;
 use syn::spanned::Spanned;
 use syn::{
@@ -117,6 +117,8 @@ fn parse_module_args(args: TokenStream) -> Option<Type> {
 ///
 /// Each invocation of the `#[builtin]` annotation within the module should be passed a string
 /// literal for the name of the builtin.
+/// A non-async builtin omits `GenCo` and registers a synchronous body as well
+/// as a generator fallback for forcing its strict arguments.
 ///
 /// # Examples
 /// ```ignore
@@ -159,6 +161,7 @@ pub fn builtins(args: TokenStream, item: TokenStream) -> TokenStream {
 	};
 
 	let mut builtins = vec![];
+	let mut synchronous_functions = vec![];
 	for item in items.iter_mut() {
 		if let Item::Fn(f) = item
 			&& let Some(builtin_attr_pos) = f
@@ -172,10 +175,11 @@ pub fn builtins(args: TokenStream, item: TokenStream) -> TokenStream {
 				Err(err) => return err.into_compile_error().into(),
 			};
 
-			if f.sig.inputs.len() <= 1 {
+			let synchronous = f.sig.asyncness.is_none();
+			if f.sig.inputs.len() < if synchronous { 1 } else { 2 } {
 				return (quote_spanned!(
 					f.sig.inputs.span() =>
-						compile_error!("Builtin functions must take at least two arguments")
+						compile_error!("Builtin functions must take at least one value argument")
 				))
 				.into();
 			}
@@ -198,6 +202,13 @@ pub fn builtins(args: TokenStream, item: TokenStream) -> TokenStream {
 			let mut rewritten_args = std::mem::take(&mut f.sig.inputs)
 				.into_iter()
 				.collect::<Vec<_>>();
+			if synchronous {
+				rewritten_args.insert(
+					usize::from(captures_state),
+					parse_quote!(co: nix_rs_eval::generators::GenCo),
+				);
+				f.sig.asyncness = Some(Default::default());
+			}
 
 			// Split out the value arguments from the static arguments.
 			let split_idx = if captures_state { 2 } else { 1 };
@@ -271,12 +282,6 @@ pub fn builtins(args: TokenStream, item: TokenStream) -> TokenStream {
 			rewritten_args.push(parse_quote_spanned!(sig_span=> mut values: Vec<Value>));
 			f.sig.inputs = rewritten_args.into_iter().collect();
 
-			// Rewrite the body of the function to do said argument forcing.
-			//
-			// This is done by creating a new block for each of the
-			// arguments that evaluates it, and wraps the inner block.
-			// Once every argument is forced, the arguments CppNix checks are
-			// checked in its order.
 			let checks = argument_checks(&name.value())
 				.into_iter()
 				.filter_map(|check| {
@@ -309,7 +314,49 @@ pub fn builtins(args: TokenStream, item: TokenStream) -> TokenStream {
 							None => run,
 						},
 					)
-				});
+				})
+				.collect::<Vec<_>>();
+			let sync_name = format_ident!("{}_sync", f.sig.ident);
+			if synchronous {
+				let mut sync = f.clone();
+				sync.sig.ident = sync_name.clone();
+				sync.sig.asyncness = None;
+				sync.sig.inputs = sync
+					.sig
+					.inputs
+					.into_iter()
+					.enumerate()
+					.filter_map(|(idx, arg)| (idx != usize::from(captures_state)).then_some(arg))
+					.collect();
+				let block = &sync.block;
+				*sync.block = parse_quote! {{ #(#checks)* #block }};
+				for arg in builtin_arguments.iter().rev() {
+					let block = &sync.block;
+					let ty = &arg.ty;
+					let ident = &arg.name;
+					let propagate = if arg.strict && !arg.catch {
+						quote!(if #ident.is_catchable() { return Ok(#ident); })
+					} else {
+						quote!()
+					};
+					*sync.block = parse_quote_spanned! { arg.span => {
+						let #ident: #ty = values.pop().expect("nix-rs bug: builtin called with incorrect number of arguments");
+						#propagate
+						#block
+					}};
+				}
+				let block = &sync.block;
+				*sync.block = parse_quote! {{ values.reverse(); #block }};
+				synchronous_functions.push(Item::Fn(sync));
+			}
+
+			// Rewrite the body of the function to do said argument forcing.
+			//
+			// This is done by creating a new block for each of the
+			// arguments that evaluates it, and wraps the inner block.
+			// Once every argument is forced, the arguments CppNix checks are
+			// checked in its order.
+
 			let block = &f.block;
 			*f.block = parse_quote! {{
 				#(#checks)*
@@ -373,29 +420,47 @@ pub fn builtins(args: TokenStream, item: TokenStream) -> TokenStream {
 				Some(docs) => quote!(Some(#docs)),
 				None => quote!(None),
 			};
+			let strict = builtin_arguments
+				.iter()
+				.map(|arg| arg.strict)
+				.collect::<Vec<_>>();
+			let constructor = if synchronous {
+				quote!(nix_rs_eval::Builtin::new_with_sync)
+			} else {
+				quote!(nix_rs_eval::Builtin::new)
+			};
 
 			if captures_state {
+				let sync_state = synchronous.then(|| quote!(let sync_state = state.clone();));
+				let sync_args = synchronous.then(
+					|| quote!(, &[#(#strict),*], move |values| #sync_name(sync_state.clone(), values)),
+				);
 				builtins.push(quote_spanned! { builtin_attr.span() => {
-                    let inner_state = state.clone();
-                    nix_rs_eval::Builtin::new(
-                        #name,
-                        #docstring,
-                        #arg_count,
-                        move |values| Gen::new(|co| nix_rs_eval::generators::pin_generator(#fn_name(inner_state.clone(), co, values))),
-                    )
-                }});
-			} else {
-				builtins.push(quote_spanned! { builtin_attr.span() => {
-					nix_rs_eval::Builtin::new(
+					let inner_state = state.clone();
+					#sync_state
+					#constructor(
 						#name,
 						#docstring,
 						#arg_count,
-						|values| Gen::new(|co| nix_rs_eval::generators::pin_generator(#fn_name(co, values))),
+						move |values| Gen::new(|co| nix_rs_eval::generators::pin_generator(#fn_name(inner_state.clone(), co, values)))
+						#sync_args
+					)
+				}});
+			} else {
+				let sync_args = synchronous.then(|| quote!(, &[#(#strict),*], #sync_name));
+				builtins.push(quote_spanned! { builtin_attr.span() => {
+					#constructor(
+						#name,
+						#docstring,
+						#arg_count,
+						|values| Gen::new(|co| nix_rs_eval::generators::pin_generator(#fn_name(co, values)))
+						#sync_args
 					)
 				}});
 			}
 		}
 	}
+	items.extend(synchronous_functions);
 
 	if let Some(state_type) = state_type {
 		items.push(parse_quote! {

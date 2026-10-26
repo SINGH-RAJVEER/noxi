@@ -213,8 +213,13 @@ pub enum Op {
 	/// Close scopes while leaving their expression value around.
 	CloseScope,
 
-	/// Return an error indicating that an `assert` failed
+	/// Return an error indicating that an `assert` failed, with the condition
+	/// as CppNix shows it at `{1}`.
 	AssertFail,
+
+	/// Report the first difference between `{3}` and `{2}` for a failed
+	/// `assert {3} == {2}`, with the condition as CppNix shows it at `{1}`.
+	AssertEqFail,
 
 	// Lambdas & closures
 	/// Call the value at `{1}` in a new VM bytecode frame

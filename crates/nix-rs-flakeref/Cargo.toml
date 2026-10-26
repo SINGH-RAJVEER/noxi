@@ -8,9 +8,12 @@ license = "GPL-3.0-only"
 repository = "https://github.com/SINGH-RAJVEER/nix-rs"
 
 [dependencies]
+nix-rs-hash = { path = "../nix-rs-hash", version = "0.1.0" }
 thiserror.workspace = true
 url.workspace = true
 serde_json.workspace = true
+rusqlite = { version = "0.40.2", features = ["bundled"] }
+
 
 [dev-dependencies]
 pretty_assertions = { workspace = true, features = ["unstable"] }

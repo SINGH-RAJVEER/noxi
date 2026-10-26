@@ -67,7 +67,10 @@ pub fn main(
 			match result {
 				Ok(code) => code,
 				Err(Failure::Usage(message)) => {
-					eprintln!("error: {message}\nTry '{program} --help' for more information.");
+					eprintln!(
+						"{}\nTry '{program} --help' for more information.",
+						nix_compat::log::format_error(&message)
+					);
 					ExitCode::FAILURE
 				}
 				Err(Failure::Error(message)) => {

@@ -440,6 +440,8 @@ impl Compiler<'_, '_> {
 
 						// Place key on the stack when compiling attribute sets.
 						if kind.is_attrs() {
+							let span = self.span_for(&attr);
+							self.push_attrset_pos(span);
 							self.emit_constant(name.as_str().into(), &attr);
 							let span = self.span_for(&attr);
 							self.scope_mut().declare_phantom(span, true);
@@ -514,6 +516,7 @@ impl Compiler<'_, '_> {
 			});
 
 			let key_slot = if kind.is_attrs() {
+				self.push_attrset_pos(span);
 				// In an attribute set, the keys themselves are placed on the
 				// stack but their stack slot is inaccessible (it is only
 				// consumed by `OpAttrs`).
@@ -643,7 +646,8 @@ impl Compiler<'_, '_> {
 				},
 
 				None => {
-					self.emit_error(&key, ErrorKind::DynamicKeyInScope("let-expression"));
+					// CppNix reports the `let` expression.
+					self.emit_error(node, ErrorKind::DynamicKeyInScope("let-expression"));
 					continue;
 				}
 			};
@@ -929,8 +933,10 @@ impl Compiler<'_, '_> {
 		// (OpAttrs consumes all of these locals).
 		self.scope_mut().end_scope(g);
 
+		self.context_mut().lambda.select_path = Some("body".into());
 		self.emit_constant("body".into(), node);
 		self.push_op(Op::AttrsSelect, node);
+		self.emit_force(node);
 	}
 
 	/// Is the given identifier defined *by the user* in any current scope?
