@@ -616,9 +616,8 @@ fn unsupported_library_operations_fail_before_building_or_exporting() {
 		String::from_utf8_lossy(&result.stderr)
 			.contains("pure filesystem evaluation is not supported")
 	);
-	let result = f.run(false, &["develop", "--expr", expr], "nix-command");
-	assert_eq!(result.status.code(), Some(1));
-	assert!(String::from_utf8_lossy(&result.stderr).contains("build-environment capture"));
+	// A derivation whose builder is not bash is rejected as by the reference.
+	f.same(&["develop", "--expr", expr]);
 }
 
 #[test]
