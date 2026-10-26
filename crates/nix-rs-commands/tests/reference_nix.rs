@@ -616,9 +616,8 @@ fn unsupported_library_operations_fail_before_building_or_exporting() {
 		String::from_utf8_lossy(&result.stderr)
 			.contains("pure filesystem evaluation is not supported")
 	);
-	let result = f.run(false, &["develop", "--expr", expr], "nix-command");
-	assert_eq!(result.status.code(), Some(1));
-	assert!(String::from_utf8_lossy(&result.stderr).contains("build-environment capture"));
+	// A derivation whose builder is not bash is rejected as by the reference.
+	f.same(&["develop", "--expr", expr]);
 }
 
 #[test]
@@ -655,18 +654,11 @@ fn legacy_environment_entrypoints_and_explicit_limits() {
 		assert_eq!(actual.stdout, expected.stdout);
 		assert_eq!(actual.stderr, expected.stderr);
 	}
-	for (program, args, message) in [
-		(
-			"nix-shell",
-			vec!["--expr", "{}", "--run", "true"],
-			"build-environment capture",
-		),
-		(
-			"nix-copy-closure",
-			vec!["--to", "localhost"],
-			"local mode is not supported",
-		),
-	] {
+	for (program, args, message) in [(
+		"nix-copy-closure",
+		vec!["--to", "localhost"],
+		"local mode is not supported",
+	)] {
 		let actual = run(false, program, &args);
 		assert_eq!(actual.status.code(), Some(1));
 		assert!(actual.stdout.is_empty());

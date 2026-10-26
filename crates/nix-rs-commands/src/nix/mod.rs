@@ -1,6 +1,7 @@
 //! New-style `nix` commands. Unsupported library operations fail explicitly.
 mod args;
 mod command_store;
+mod develop;
 pub mod execution;
 mod expression;
 pub mod hash;
@@ -328,7 +329,15 @@ pub fn main(mut settings: Settings, args: Vec<String>) -> Result<ExitCode, Failu
 			"unset-env-var",
 			"unset",
 			"set-env-var",
+			"phase",
+			"unpack",
+			"configure",
+			"build",
+			"check",
+			"install",
+			"installcheck",
 		],
+		"print-dev-env" => &["arg", "argstr", "expr", "file", "include", "impure", "json"],
 		"derivation show" => &[
 			"arg",
 			"argstr",
@@ -437,9 +446,8 @@ pub fn main(mut settings: Settings, args: Vec<String>) -> Result<ExitCode, Failu
 		"copy" => transfer::copy(parsed),
 		"env shell" => execution::shell(parsed),
 		"run" => execution::run(parsed),
-		"develop" => Err(unsupported(
-			"develop (build-environment capture is not available in the shared library)",
-		)),
+		"develop" => develop::develop(parsed),
+		"print-dev-env" => develop::print_dev_env(parsed),
 		command if command.starts_with("store ") => command_store::run(parsed),
 		command => Err(unsupported(command)),
 	}

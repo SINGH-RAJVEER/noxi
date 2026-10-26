@@ -43,74 +43,11 @@ pub fn show(parsed: Parsed) -> Result<ExitCode, Failure> {
 		paths = target.store.compute_closure(&paths)?;
 	}
 	let mut result = BTreeMap::new();
-	let utf8 = |bytes: &[u8]| {
-		std::str::from_utf8(bytes)
-			.map(str::to_owned)
-			.map_err(|_| unsupported("derivation show of non-UTF-8 fields"))
-	};
 	for path in paths {
 		if !path.name().ends_with(".drv") {
 			continue;
 		}
-		let drv = target.store.read_derivation(&path)?;
-		let outputs = if let Some(hash) = drv.outputs().as_fixed_output_hash() {
-			let ca = if hash.mode == OutputHashMode::Recursive {
-				CAHash::Nar(hash.hash.clone())
-			} else {
-				CAHash::Flat(hash.hash.clone())
-			};
-			drv.outputs()
-				.names()
-				.map(|name| (name.clone(), Output::Fixed(ca.clone())))
-				.collect()
-		} else if drv.outputs().is_deferred() {
-			drv.outputs()
-				.names()
-				.map(|name| (name.clone(), Output::Deferred))
-				.collect()
-		} else {
-			drv.outputs()
-				.iter()
-				.map(|(name, path)| (name.clone(), Output::InputAddressed(path.clone())))
-				.collect()
-		};
-		let mut env = drv
-			.environment()
-			.iter()
-			.map(|(key, value)| Ok((utf8(key)?, utf8(value)?)))
-			.collect::<Result<BTreeMap<_, _>, Failure>>()?;
-		let structured_attrs = env
-			.remove("__json")
-			.map(|text| serde_json::from_str(&text))
-			.transpose()
-			.map_err(|e| e.to_string())?;
-		let drv = Derivation {
-			name: path.name().strip_suffix(".drv").unwrap().to_owned(),
-			outputs,
-			system: utf8(drv.system())?,
-			builder: utf8(drv.command())?,
-			args: drv
-				.arguments()
-				.iter()
-				.map(|a| utf8(a))
-				.collect::<Result<_, _>>()?,
-			env,
-			input_sources: drv.input_sources().clone(),
-			input_derivations: drv
-				.input_derivations()
-				.iter()
-				.map(|(path, outputs)| {
-					(
-						path.clone(),
-						InputNode {
-							outputs: outputs.clone(),
-							dynamic_outputs: BTreeMap::new(),
-						},
-					)
-				})
-				.collect(),
-			structured_attrs,
-		};
+		let drv = json_derivation(target.store.as_ref(), &path)?;
 		result.insert(path.to_string(), drv.to_json());
 	}
 	println!("{}", json!({"version":4,"derivations":result}));
@@ -190,4 +127,76 @@ pub fn log(parsed: Parsed) -> Result<ExitCode, Failure> {
 	Err(Failure::Error(format!(
 		"build log of '{what}' is not available"
 	)))
+}
+
+/// The derivation at `path` in CppNix's JSON model, which `derivation show`
+/// prints and `develop` rewrites.
+pub(super) fn json_derivation(
+	store: &dyn nix_rs_store::Store,
+	path: &nix_compat::store_path::StorePath,
+) -> Result<Derivation, Failure> {
+	let utf8 = |bytes: &[u8]| {
+		std::str::from_utf8(bytes)
+			.map(str::to_owned)
+			.map_err(|_| unsupported("derivation show of non-UTF-8 fields"))
+	};
+	let drv = store.read_derivation(path)?;
+	let outputs = if let Some(hash) = drv.outputs().as_fixed_output_hash() {
+		let ca = if hash.mode == OutputHashMode::Recursive {
+			CAHash::Nar(hash.hash.clone())
+		} else {
+			CAHash::Flat(hash.hash.clone())
+		};
+		drv.outputs()
+			.names()
+			.map(|name| (name.clone(), Output::Fixed(ca.clone())))
+			.collect()
+	} else if drv.outputs().is_deferred() {
+		drv.outputs()
+			.names()
+			.map(|name| (name.clone(), Output::Deferred))
+			.collect()
+	} else {
+		drv.outputs()
+			.iter()
+			.map(|(name, path)| (name.clone(), Output::InputAddressed(path.clone())))
+			.collect()
+	};
+	let mut env = drv
+		.environment()
+		.iter()
+		.map(|(key, value)| Ok((utf8(key)?, utf8(value)?)))
+		.collect::<Result<BTreeMap<_, _>, Failure>>()?;
+	let structured_attrs = env
+		.remove("__json")
+		.map(|text| serde_json::from_str(&text))
+		.transpose()
+		.map_err(|e| e.to_string())?;
+	Ok(Derivation {
+		name: path.name().strip_suffix(".drv").unwrap().to_owned(),
+		outputs,
+		system: utf8(drv.system())?,
+		builder: utf8(drv.command())?,
+		args: drv
+			.arguments()
+			.iter()
+			.map(|a| utf8(a))
+			.collect::<Result<_, _>>()?,
+		env,
+		input_sources: drv.input_sources().clone(),
+		input_derivations: drv
+			.input_derivations()
+			.iter()
+			.map(|(path, outputs)| {
+				(
+					path.clone(),
+					InputNode {
+						outputs: outputs.clone(),
+						dynamic_outputs: BTreeMap::new(),
+					},
+				)
+			})
+			.collect(),
+		structured_attrs,
+	})
 }

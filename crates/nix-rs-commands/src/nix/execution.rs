@@ -150,7 +150,7 @@ pub(super) fn run(mut parsed: Parsed) -> Result<ExitCode, Failure> {
 	exec_store(&parsed, child)
 }
 
-fn environment(parsed: &Parsed, program: &str) -> Result<Command, Failure> {
+pub(super) fn environment(parsed: &Parsed, program: &str) -> Result<Command, Failure> {
 	let ignore = parsed.has("ignore-env") || parsed.has("ignore-environment");
 	if ignore && (parsed.has("unset-env-var") || parsed.has("unset")) {
 		return Err(Failure::Usage(
@@ -192,7 +192,7 @@ fn environment(parsed: &Parsed, program: &str) -> Result<Command, Failure> {
 	Ok(child)
 }
 
-fn exec_store(parsed: &Parsed, mut child: Command) -> Result<ExitCode, Failure> {
+pub(super) fn exec_store(parsed: &Parsed, mut child: Command) -> Result<ExitCode, Failure> {
 	let uri = crate::store::store_uri(parsed.value("store"), &parsed.settings);
 	let Some((_, real)) = crate::store::open_local(&uri, &parsed.settings)? else {
 		return Err(unsupported("execution with non-local stores"));

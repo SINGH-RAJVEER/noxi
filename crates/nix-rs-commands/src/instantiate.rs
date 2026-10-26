@@ -68,6 +68,8 @@ pub struct Options {
 	pub auto_args: Vec<(String, AutoArg)>,
 	/// Flake registry rewrites supplied on the command line.
 	pub override_flakes: Vec<(String, String)>,
+	/// `nix-shell`: functions with an `inNixShell` argument get it as `true`.
+	pub in_nix_shell: bool,
 }
 
 /// Parse the command line after the program name, applying settings flags
@@ -390,15 +392,19 @@ fn driver_expression(
 		let _ = writeln!(driver, "{} = {value};", nix_string(name));
 	}
 	// CppNix's `autoCallFunction`: functors are called with themselves, and
-	// functions with a pattern get the automatic arguments they accept.
+	// functions with a pattern get the automatic arguments they accept; for
+	// `nix-shell`, those taking `inNixShell` also get it as `true`.
+	driver.push_str("};\n");
+	let _ = writeln!(driver, "__nixrs_inNixShell = {};", options.in_nix_shell);
 	driver.push_str(
-		"};
+		"__nixrs_shellArgs = __nixrs_autoArgs // { inNixShell = true; };
 __nixrs_autoCall = f:
 	if builtins.isAttrs f && f ? __functor then __nixrs_autoCall (f.__functor f)
 	else let ellipsis = __nixrs_formals f; in
 	if ellipsis == null then f
-	else if ellipsis then f __nixrs_autoArgs
-	else f (builtins.intersectAttrs (builtins.functionArgs f) __nixrs_autoArgs);
+	else let args = if __nixrs_inNixShell && builtins.functionArgs f ? inNixShell then __nixrs_shellArgs else __nixrs_autoArgs; in
+	if ellipsis then f args
+	else f (builtins.intersectAttrs (builtins.functionArgs f) args);
 __nixrs_forceEach = results: builtins.foldl' (acc: v: builtins.seq v acc) results results;
 __nixrs_isDerivation = v: builtins.isAttrs v && v ? type && v.type == \"derivation\";
 __nixrs_pair = d: [ d.drvPath (d.outputName or \"\") ];

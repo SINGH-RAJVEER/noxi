@@ -1,7 +1,7 @@
 use std::process::ExitCode;
 
 use nix_rs_commands::{
-	cli, collect_garbage, legacy_environment, nix, nix_build, nix_env, nix_store,
+	cli, collect_garbage, legacy_environment, nix, nix_build, nix_env, nix_shell, nix_store,
 };
 
 fn main() -> ExitCode {
@@ -24,7 +24,7 @@ fn main() -> ExitCode {
 		"nix-store" => cli::main("nix-store", nix_store::main),
 		"nix-env" => cli::main("nix-env", nix_env::main),
 		"nix-collect-garbage" => cli::main("nix-collect-garbage", collect_garbage::main),
-		"nix-shell" => cli::main("nix-shell", legacy_environment::shell),
+		"nix-shell" => cli::main("nix-shell", nix_shell::main),
 		"nix-copy-closure" => cli::main("nix-copy-closure", legacy_environment::copy_closure),
 		_ => cli::main("nix", nix::main),
 	}

@@ -3,26 +3,6 @@ use crate::cli::{ArgStream, Failure, apply_common_flag, print_setting_warnings};
 use nix_compat::nixcpp::settings::Settings;
 use std::process::ExitCode;
 
-pub fn shell(settings: Settings, args: Vec<String>) -> Result<ExitCode, Failure> {
-	if args == ["--version"] {
-		println!("nix-shell (Nix) 2.35.2");
-		return Ok(ExitCode::SUCCESS);
-	}
-	let mut options = crate::instantiate::parse_args_with(args, settings, |flag, rest| {
-		Some(match flag {
-			"--pure" | "--impure" | "--keep-failed" => Ok(()),
-			"--run" | "--command" | "--keep" | "-p" | "--packages" => rest
-				.next()
-				.ok_or_else(|| format!("flag '{flag}' requires 1 argument"))
-				.map(drop),
-			_ => return None,
-		})
-	})
-	.map_err(Failure::Usage)?;
-	print_setting_warnings(&mut options.settings);
-	Err(Failure::Error("nix-shell is not supported by nix-rs yet: build-environment capture and shell-hook setup are unavailable in the shared library".into()))
-}
-
 pub fn copy_closure(mut settings: Settings, args: Vec<String>) -> Result<ExitCode, Failure> {
 	let mut args = ArgStream::new(args);
 	let mut host = None;
