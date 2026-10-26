@@ -436,6 +436,23 @@ pub fn main(mut settings: Settings, args: Vec<String>) -> Result<ExitCode, Failu
 	if parsed.command.starts_with("hash ") {
 		return hash::run(parsed);
 	}
+	// With build logs, CppNix's `bar` formats (the default) print each
+	// build log line after `NAME> `; the shared build backend writes raw
+	// output, which only matches the `raw-with-logs` format.
+	let bar = parsed
+		.value("log-format")
+		.is_none_or(|format| format.starts_with("bar"));
+	if bar
+		&& nix_compat::log::print_build_logs()
+		&& matches!(
+			parsed.command,
+			"build" | "develop" | "print-dev-env" | "env shell" | "run" | "eval"
+		) {
+		return Err(unsupported(&format!(
+			"{} with build logs in the bar log format (use --log-format raw-with-logs)",
+			parsed.command
+		)));
+	}
 	ensure_diverted_root(&parsed)?;
 	match parsed.command {
 		"eval" => expression::eval(parsed),

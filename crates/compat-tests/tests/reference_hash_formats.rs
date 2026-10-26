@@ -410,6 +410,37 @@ mod commands {
 		}
 	}
 
+	/// The `nix` executable runs the legacy command it is named as.
+	#[test]
+	fn multi_call_names_match_reference() {
+		let fixture = Fixture::new();
+		for program in [
+			"nix-build",
+			"nix-store",
+			"nix-env",
+			"nix-collect-garbage",
+			"nix-shell",
+			"nix-instantiate",
+			"nix-copy-closure",
+			"nix-hash",
+		] {
+			fixture.check("", program, &["--version"]);
+		}
+		for program in ["nix-channel", "nix-prefetch-url", "nix-daemon"] {
+			let output = Command::new(candidate())
+				.arg0(program)
+				.arg("--version")
+				.env_clear()
+				.output()
+				.unwrap();
+			assert_eq!(output.status.code(), Some(1), "{program}");
+			assert_eq!(
+				String::from_utf8_lossy(&output.stderr),
+				format!("error: {program} is not supported by nix-rs yet\n")
+			);
+		}
+	}
+
 	#[test]
 	fn legacy_nix_hash_matches_reference() {
 		let fixture = Fixture::new();

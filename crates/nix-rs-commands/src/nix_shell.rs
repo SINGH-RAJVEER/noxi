@@ -253,6 +253,19 @@ pub fn main(settings: Settings, args: Vec<String>) -> Result<ExitCode, Failure> 
 	let mut to_build = Vec::new();
 	let mut shell = std::env::var("NIX_BUILD_SHELL").ok();
 	let mut shell_drv = None;
+	// nix-rs skips `flake:` and URL lookup path entries, which the reference
+	// resolves; `<nixpkgs>` from one would give it `bashInteractive`.
+	if shell.is_none()
+		&& instantiate::search_path(&options).iter().any(|entry| {
+			let value = entry
+				.split_once('=')
+				.map_or(entry.as_str(), |(_, value)| value);
+			value.starts_with("flake:") || value.contains("://") || value.starts_with("channel:")
+		}) {
+		return Err(Failure::Error(
+			"nix-shell without NIX_BUILD_SHELL and with flake:, channel: or URL lookup path entries is not supported by nix-rs yet".into(),
+		));
+	}
 	if shell.is_none() {
 		let bash = instantiate::Options {
 			from_args: true,
@@ -358,6 +371,10 @@ pub fn main(settings: Settings, args: Vec<String>) -> Result<ExitCode, Failure> 
 	let mut file_nr = 0;
 	for (name, value) in drv.environment() {
 		let name = String::from_utf8_lossy(name).into_owned();
+		// CppNix keeps structured attributes out of the environment.
+		if parsed.is_some() && name == "__json" {
+			continue;
+		}
 		if drv_options.pass_as_file.contains(&name) {
 			let file = tmp_dir.join(format!(".attr-{file_nr}"));
 			file_nr += 1;

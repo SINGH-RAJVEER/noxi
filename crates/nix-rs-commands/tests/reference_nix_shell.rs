@@ -100,6 +100,27 @@ in {{ inNixShell ? false, extra ? "none" }}: derivation {{
 				),
 			)
 			.unwrap();
+			fs::write(
+				fixture.engine(engine).join("work/structured.nix"),
+				format!(
+					r#"let bb = builtins.storePath {busybox}; in derivation {{
+	name = "structured";
+	system = "x86_64-linux";
+	builder = "${{bb}}/bin/sh";
+	args = [ "-c" "echo > $out" ];
+	__structuredAttrs = true;
+	outputs = [ "out" "doc" ];
+	foo = "bar";
+	num = 3;
+	list = [ "a" "b" ];
+	attrs = {{ x = "y"; }};
+	outputChecks.out.allowedReferences = [ ];
+}}
+"#,
+					busybox = busybox.display()
+				),
+			)
+			.unwrap();
 		}
 		fixture
 	}
@@ -234,4 +255,43 @@ fn unsupported_modes_fail_explicitly() {
 		stderr.contains("is not supported by nix-rs yet"),
 		"{stderr}"
 	);
+	// The default shell would come from a `flake:` `<nixpkgs>`, which nix-rs
+	// skips and the reference resolves.
+	let output = Command::new(env!("CARGO_BIN_EXE_nix-shell"))
+		.arg0("nix-shell")
+		.args(["--store", &f.store("nix-rs"), "--run", "true"])
+		.current_dir(f.engine("nix-rs").join("work"))
+		.env_clear()
+		.env("HOME", f.dir.path().join("home"))
+		.env("NIX_CONF_DIR", f.dir.path().join("conf"))
+		.env("NIX_PATH", "nixpkgs=flake:nixpkgs")
+		.env("PATH", PATH)
+		.env(
+			"NIX_CONFIG",
+			"experimental-features = nix-command\nbuild-users-group =\nsubstituters =\nsandbox = true\nsandbox-fallback = false\n",
+		)
+		.output()
+		.unwrap();
+	assert_eq!(output.status.code(), Some(1));
+	assert!(
+		String::from_utf8_lossy(&output.stderr).contains("is not supported by nix-rs yet"),
+		"{}",
+		String::from_utf8_lossy(&output.stderr)
+	);
+}
+
+#[test]
+fn passes_structured_attributes_as_files() {
+	let f = Fixture::new();
+	f.same(&[
+		"structured.nix",
+		"--run",
+		"cat $NIX_ATTRS_JSON_FILE; echo; cat $NIX_ATTRS_SH_FILE; echo; declare -p outputs list attrs foo num; echo \"${__json-unset}\"",
+	]);
+	f.same(&[
+		"structured.nix",
+		"--pure",
+		"--run",
+		"env | sort | grep -v -e ^_= -e ^PWD= -e ^OLDPWD=",
+	]);
 }

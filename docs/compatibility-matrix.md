@@ -41,7 +41,7 @@ Modern CLI inventory and the initial section 6 gaps are recorded in [verificatio
 | Modern CLI group | Measured coverage | Remaining |
 |---|---|---|
 | `hash`, `nix-hash` | Every subcommand, format and algorithm flag, NAR and flat path hashing, malformed input, BLAKE3 gate order, aliases and legacy `nix-hash` flags | `--mode git`, `--help` pages |
-| Dispatcher | `nix-command` and flag feature gates in CppNix's order, suggestions, sub-command lists, aliases, `--option` warnings, Internet check, multi-call legacy names | `--help`, `--refresh`, verbose `--version`, shebang scripts |
+| Dispatcher | `nix-command` and flag feature gates in CppNix's order, suggestions, sub-command lists, aliases, `--option` warnings, multi-call legacy names | `--help`, `--refresh`, verbose `--version`, shebang scripts, prefixed `bar` build logs (`-L`), unrun: Internet check, `--help` hiding usage errors |
 | `eval` | Expression/file, raw/JSON, selection/apply, pure defaults and flag precedence | Pure filesystem policy, evaluator diagnostics, flakes and other flags |
 | `build` | Fresh expression builds and logs; cached JSON, dry-run JSON, printed paths, link order | Fresh-build JSON timing/resource metadata, complete installable selection |
 | `path-info` | JSON formats 1/2/3, recursive/closure-size output | All-store selection, nonlocal stores, expression installables |
