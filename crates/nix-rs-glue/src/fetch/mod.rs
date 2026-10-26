@@ -5,9 +5,11 @@
 //! serves it at its store path, copying it only into a writable store.
 
 pub(crate) mod builtins;
+mod cache;
 pub mod flake;
 pub(crate) mod git;
 pub(crate) mod github;
+pub mod http;
 pub(crate) mod path;
 pub(crate) mod tarball;
 
@@ -35,6 +37,9 @@ pub struct FetchConfig {
 	pub pure_eval: bool,
 	pub override_flakes: Vec<(String, String)>,
 	pub cwd: PathBuf,
+	pub cache_dir: Option<PathBuf>,
+	pub offline: bool,
+	pub http: Option<Rc<dyn http::Client>>,
 }
 
 /// A fetched input, as CppNix's input cache keeps it.
@@ -68,6 +73,31 @@ impl EvaluatorStore {
 		self.fetch_config.borrow().pure_eval
 	}
 
+	pub(crate) fn fetch_cache_dir(&self) -> PathBuf {
+		self.fetch_config
+			.borrow()
+			.cache_dir
+			.clone()
+			.unwrap_or_else(nix_rs_flakeref::cache::cache_dir)
+	}
+
+	pub(crate) fn fetch_cache(&self) -> Result<nix_rs_flakeref::cache::Cache> {
+		nix_rs_flakeref::cache::Cache::open(&self.fetch_cache_dir())
+	}
+
+	pub(crate) fn http_request(&self, request: &http::Request) -> Result<http::Response> {
+		let config = self.fetch_config.borrow();
+		if config.offline {
+			return Err(Error::new(format!(
+				"cannot download '{}' in offline mode",
+				request.url
+			)));
+		}
+		let client = config.http.clone().unwrap_or_else(|| Rc::new(http::Native));
+		drop(config);
+		client.request(request)
+	}
+
 	/// The flag, user, system and global registries, read once.
 	pub(crate) fn registries(&self) -> Result<Rc<Vec<Registry>>> {
 		if let Some(registries) = &self.fetch_state.borrow().registries {
@@ -96,7 +126,7 @@ impl EvaluatorStore {
 		} else if global.starts_with('/') {
 			Registry::read(settings, Path::new(global), RegistryType::Global)
 		} else {
-			let bytes = tarball::download_bytes(global)?;
+			let bytes = tarball::download_bytes(self, global)?;
 			Registry::parse(
 				settings,
 				&String::from_utf8_lossy(&bytes),

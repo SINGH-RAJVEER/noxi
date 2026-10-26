@@ -1555,6 +1555,7 @@ version = "0.1.0"
 dependencies = [
  "nix-rs-hash",
  "pretty_assertions",
+ "rusqlite",
  "serde_json",
  "thiserror",
  "url",
