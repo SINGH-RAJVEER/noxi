@@ -233,7 +233,17 @@ async fn read_inputs(
 	let value = generators::request_force(co, value).await;
 	let attrs = value.to_attrs()?;
 	let mut inputs = match attrs.select("inputs") {
-		Some(value) => parse_inputs(store, co, value.clone(), base, prefix).await?,
+		Some(value) => {
+			let value = generators::request_force(co, value.clone()).await;
+			let inputs = value.to_attrs()?;
+			let filtered = Value::attrs(NixAttrs::from_iter(
+				inputs
+					.iter()
+					.filter(|(key, _)| key.as_bytes() != b"self")
+					.map(|(key, value)| (key.clone(), value.clone())),
+			));
+			parse_inputs(store, co, filtered, base, prefix).await?
+		}
 		None => BTreeMap::new(),
 	};
 	let outputs = attrs.select_required("outputs")?.clone();
@@ -283,6 +293,50 @@ fn fetch_source(
 	let logical = PathBuf::from(path.to_absolute_path()).join(&subdir);
 	let attrs = tree_attrs(&path, &input, false)?;
 	Ok((FlakeRef::new(input, subdir), logical, attrs))
+}
+
+async fn fetch_flake_source(
+	store: &EvaluatorStore,
+	co: &GenCo,
+	original: &FlakeRef,
+	registries: UseRegistries,
+) -> Result<(FlakeRef, PathBuf, Value), ErrorKind> {
+	let (locked, base, info) = fetch_source(store, original, registries)?;
+	let import = generators::request_builtin(co, "import").await;
+	let value =
+		generators::request_call_with(co, import, [Value::Path(Box::new(base.join("flake.nix")))])
+			.await;
+	let value = generators::request_force(co, value).await;
+	let attrs = value.to_attrs()?;
+	let Some(inputs) = attrs.select("inputs") else {
+		return Ok((locked, base, info));
+	};
+	let inputs = generators::request_force(co, inputs.clone()).await;
+	let inputs = inputs.to_attrs()?;
+	let Some(self_attrs) = inputs.select("self") else {
+		return Ok((locked, base, info));
+	};
+	let self_attrs = generators::request_force(co, self_attrs.clone()).await;
+	let self_attrs = self_attrs.to_attrs()?;
+	let mut updated = locked.clone();
+	for (key, value) in self_attrs.iter_sorted() {
+		let key = key.to_str()?;
+		if !matches!(key, "submodules" | "lfs") {
+			return Err(error(format!(
+				"flake 'self' attribute '{key}' is not supported"
+			)));
+		}
+		let value = generators::request_force(co, value.clone()).await;
+		updated
+			.input
+			.attrs
+			.insert(key.into(), Attr::Bool(value.as_bool()?));
+	}
+	if updated == locked {
+		return Ok((locked, base, info));
+	}
+	updated.input.attrs.remove("narHash");
+	fetch_source(store, &updated, UseRegistries::No)
 }
 
 struct Resolver<'a> {
@@ -436,15 +490,16 @@ impl Resolver<'_> {
 						None,
 					)
 				} else {
-					let (locked, base, source) = fetch_source(
-						self.store,
-						&reference,
-						if settings.use_registries {
-							UseRegistries::Limited
-						} else {
-							UseRegistries::No
-						},
-					)?;
+					let registries = if settings.use_registries {
+						UseRegistries::Limited
+					} else {
+						UseRegistries::No
+					};
+					let (locked, base, source) = if spec.is_flake {
+						fetch_flake_source(self.store, self.co, &reference, registries).await?
+					} else {
+						fetch_source(self.store, &reference, registries)?
+					};
 					(locked, base, Some(source))
 				};
 				let child = self.lock.add_node(Node {
@@ -514,15 +569,17 @@ pub async fn lock_flake(
 			"cannot call 'getFlake' on unlocked flake reference '{reference}', at (none) (use --impure to override)"
 		)));
 	}
-	let (locked_ref, out_path, source) = fetch_source(
+	let (locked_ref, out_path, source) = fetch_flake_source(
 		store,
+		co,
 		&original,
 		if settings.use_registries {
 			UseRegistries::All
 		} else {
 			UseRegistries::No
 		},
-	)?;
+	)
+	.await?;
 	let inputs = read_inputs(store, co, &out_path, &[]).await?;
 	let old = read_lock(store, &out_path)?;
 	let mut resolver = Resolver {

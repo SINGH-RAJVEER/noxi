@@ -601,3 +601,61 @@ fn initialized_git_submodules_match_reference() {
 		&format!("builtins.fetchGit {{ url = {url}; submodules = true; }}"),
 	);
 }
+
+#[test]
+fn self_submodules_and_deinitialized_pinned_submodules_match_reference() {
+	let fixture = tempfile::tempdir().unwrap();
+	let child = fixture.path().join("child");
+	let root = fixture.path().join("root");
+	fs::create_dir_all(&child).unwrap();
+	fs::create_dir_all(&root).unwrap();
+	repo(&child);
+	repo(&root);
+	git(
+		&root,
+		&[
+			"-c",
+			"protocol.file.allow=always",
+			"submodule",
+			"add",
+			"../child",
+			"child",
+		],
+	);
+	fs::write(root.join("flake.nix"), r#"{
+	inputs.self.submodules = true;
+	outputs = { self }: {
+		child = builtins.readFile (self.outPath + "/child/flake.nix");
+		info = {
+			inherit (self) outPath narHash lastModified lastModifiedDate rev revCount;
+			sourceInfo = builtins.map (key: { inherit key; value = self.sourceInfo.${key}; }) (builtins.attrNames self.sourceInfo);
+		};
+	};
+}"#).unwrap();
+	git(&root, &["add", "."]);
+	git(&root, &["commit", "-m", "self submodules"]);
+	let rev = git(&root, &["rev-parse", "HEAD"]);
+	let reference = format!("git+file://{}", root.display());
+	compare(
+		&root,
+		&format!(
+			"let f = builtins.getFlake {}; in {{ inherit (f) child info; }}",
+			json!(reference)
+		),
+	);
+	git(&root, &["submodule", "deinit", "-f", "--all"]);
+	compare(
+		&root,
+		&format!(
+			"builtins.fetchTree {{ type = \"git\"; url = {}; rev = \"{rev}\"; submodules = true; }}",
+			json!(format!("file://{}", root.display()))
+		),
+	);
+	compare(
+		&root,
+		&format!(
+			"let f = builtins.getFlake {}; in {{ inherit (f) child info; }}",
+			json!(format!("{reference}?rev={rev}"))
+		),
+	);
+}

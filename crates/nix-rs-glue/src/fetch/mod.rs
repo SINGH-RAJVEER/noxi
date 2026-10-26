@@ -10,6 +10,7 @@ pub mod flake;
 pub(crate) mod git;
 pub(crate) mod github;
 pub mod http;
+mod lfs;
 pub(crate) mod path;
 pub(crate) mod tarball;
 
