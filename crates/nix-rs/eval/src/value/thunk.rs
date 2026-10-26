@@ -255,7 +255,7 @@ impl Thunk {
 			// evaluation is completed detected an evaluation cycle.
 			let inner = myself.0.replace(myself.prepare_blackhole(span));
 
-			match inner {
+			let value = match inner {
 				// If there was already a blackhole in the thunk, this is an
 				// evaluation cycle.
 				ThunkRepr::Blackhole {
@@ -270,13 +270,8 @@ impl Thunk {
 					});
 				}
 
-				// If there is a native function stored in the thunk, evaluate it
-				// and replace this thunk's representation with the result.
-				ThunkRepr::Native(native) => {
-					let value = native.0()?;
-					myself.0.replace(ThunkRepr::Evaluated(value));
-					continue;
-				}
+				// Evaluate native computations without entering bytecode.
+				ThunkRepr::Native(native) => native.0()?,
 
 				// When encountering a suspended thunk, request that the VM enters
 				// it and produces the result.
@@ -288,9 +283,7 @@ impl Thunk {
 					// TODO(amjoseph): use #[tailcall::mutual] here.  This can
 					// be turned into a tailcall to vm::execute_bytecode() by
 					// passing `also_update` to it.
-					let value = generators::request_enter_lambda(co, lambda, upvalues, span).await;
-					myself.0.replace(ThunkRepr::Evaluated(value));
-					continue;
+					generators::request_enter_lambda(co, lambda, upvalues, span).await
 				}
 
 				// nested thunks -- try to flatten before forcing
@@ -326,7 +319,23 @@ impl Thunk {
 				ThunkRepr::Evaluated(val) => {
 					return Ok(val);
 				}
+			};
+
+			if matches!(value, Value::Thunk(_)) {
+				myself.0.replace(ThunkRepr::Evaluated(value));
+				continue;
 			}
+
+			// Return the completed value directly. Shared thunks and aliases still
+			// memoize it, while a uniquely owned thunk can simply be dropped. This
+			// avoids storing, testing and borrowing the result again on another lap.
+			if Rc::strong_count(&myself.0) > 1 {
+				myself.0.replace(ThunkRepr::Evaluated(value.clone()));
+			}
+			for other_thunk in also_update {
+				other_thunk.replace(ThunkRepr::Evaluated(value.clone()));
+			}
+			return Ok(value);
 		}
 	}
 
@@ -464,5 +473,22 @@ impl ThunkSet {
 	pub fn insert(&mut self, thunk: &Thunk) -> bool {
 		let ptr: *const ThunkRepr = thunk.0.as_ptr();
 		self.0.insert(ptr)
+	}
+}
+
+#[cfg(test)]
+mod tests {
+	use super::*;
+
+	#[test]
+	fn unique_native_thunk_completes_without_yielding() {
+		let thunk = Thunk::new_suspended_native(Box::new(|| Ok(Value::Integer(42))));
+		let mut generator = generators::Gen::new(|co| {
+			generators::pin_generator(Thunk::force(thunk, co, crate::test_utils::dummy_span()))
+		});
+		assert!(matches!(
+			generator.resume_with(generators::VMResponse::Empty),
+			genawaiter::GeneratorState::Complete(Ok(Value::Integer(42)))
+		));
 	}
 }

@@ -1,6 +1,45 @@
 use crate::*;
 use pretty_assertions::assert_matches;
 
+#[rstest::rstest]
+#[case(0)]
+#[case(1)]
+#[case(2)]
+fn shared_native_thunk_aliases_memoize_once(#[case] depth: usize) {
+	use crate::value::Thunk;
+	use std::{cell::Cell, rc::Rc};
+	let calls = Rc::new((0..=depth).map(|_| Cell::new(0)).collect::<Vec<_>>());
+	let leaf_calls = calls.clone();
+	let mut thunk = Thunk::new_suspended_native(Box::new(move || {
+		leaf_calls[0].set(leaf_calls[0].get() + 1);
+		Ok(Value::Integer(21))
+	}));
+	let mut aliases = vec![thunk.clone()];
+	for index in 1..=depth {
+		let inner = thunk;
+		let calls = calls.clone();
+		thunk = Thunk::new_suspended_native(Box::new(move || {
+			calls[index].set(calls[index].get() + 1);
+			Ok(Value::Thunk(inner.clone()))
+		}));
+		aliases.push(thunk.clone());
+	}
+	let result = Evaluation::builder_pure()
+		.add_builtins([("sharedNative", Value::Thunk(thunk))])
+		.build()
+		.evaluate(
+			"builtins.add builtins.sharedNative builtins.sharedNative",
+			None,
+		);
+	assert!(result.errors.is_empty(), "{:?}", result.errors);
+	assert_eq!(result.value.unwrap().as_int().unwrap(), 42);
+	for (thunk, calls) in aliases.iter().zip(calls.iter()) {
+		assert_eq!(calls.get(), 1);
+		assert!(thunk.is_forced());
+		assert_eq!(thunk.value().as_int().unwrap(), 21);
+	}
+}
+
 #[test]
 fn evaluator_message_settings_remain_independent() {
 	// Build both evaluations before running either. Settings attached to
