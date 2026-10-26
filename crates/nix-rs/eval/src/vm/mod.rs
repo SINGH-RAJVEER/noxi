@@ -1175,6 +1175,9 @@ where
 		match builtin.apply(self.stack_pop()) {
 			// Partially applied builtin is just pushed back on the stack.
 			BuiltinResult::Partial(partial) => self.stack.push(Value::Builtin(partial)),
+			BuiltinResult::Synchronous(result) => {
+				self.stack.push(result.with_span(span, self)?);
+			}
 
 			// Builtin is fully applied and the generator needs to be run by the VM.
 			BuiltinResult::Called(name, generator) => self.frames.push(Frame::Generator {
