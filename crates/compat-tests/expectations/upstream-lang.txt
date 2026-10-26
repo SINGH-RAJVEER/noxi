@@ -52,7 +52,7 @@ eval-fail-catAttrs-3 pass
 eval-fail-catAttrs-4 pass
 eval-fail-ceil-1 pass
 eval-fail-compareVersions-1 pass
-eval-fail-compareVersions-2 error-message E006
+eval-fail-compareVersions-2 pass
 eval-fail-concatLists-1 pass
 eval-fail-concatLists-2 pass
 eval-fail-concatLists-3 pass
@@ -101,8 +101,8 @@ eval-fail-dynamic-attrs-let-3 pass
 eval-fail-dynamic-attrs-let pass
 eval-fail-elem-1 pass
 eval-fail-elemAt-1 pass
-eval-fail-elemAt-2 error-message E019
-eval-fail-elemAt-3 error-message E019
+eval-fail-elemAt-2 pass
+eval-fail-elemAt-3 pass
 eval-fail-empty-formals pass
 eval-fail-eol-1 pass
 eval-fail-eol-2 pass
@@ -135,11 +135,11 @@ eval-fail-fromTOML-overflow error-message E035
 eval-fail-fromTOML-timestamps pass
 eval-fail-fromTOML-underflow error-message E035
 eval-fail-fromTOML-valueWithNullByte pass
-eval-fail-functionArgs-1 error-message E006
+eval-fail-functionArgs-1 pass
 eval-fail-genList-1 pass
 eval-fail-genList-2 error-message E013
 eval-fail-genList-3 error-message E006
-eval-fail-genList-4 error-message E002
+eval-fail-genList-4 pass
 eval-fail-genericClosure-deeply-nested-element error-message E005
 eval-fail-genericClosure-element-missing-key error-message E005
 eval-fail-genericClosure-element-not-attrset error-message E006
@@ -153,11 +153,11 @@ eval-fail-genericClosure-operator-not-list error-message E006
 eval-fail-genericClosure-startSet-not-list error-message E006
 eval-fail-getAttr-1 pass
 eval-fail-getAttr-2 pass
-eval-fail-getAttr-3 error-message E005
+eval-fail-getAttr-3 pass
 eval-fail-getEnv-1 pass
 eval-fail-groupBy-1 pass
 eval-fail-groupBy-2 pass
-eval-fail-groupBy-3 error-message E006
+eval-fail-groupBy-3 pass
 eval-fail-hasAttr-1 pass
 eval-fail-hasAttr-2 pass
 eval-fail-hashString-1 pass
@@ -165,7 +165,7 @@ eval-fail-hashString-2 error-message E039
 eval-fail-hashString-3 pass
 eval-fail-hashfile-missing error-message E029
 eval-fail-head-1 pass
-eval-fail-head-2 error-message E019
+eval-fail-head-2 pass
 eval-fail-home-path-fatal pass
 eval-fail-infinite-recursion-lambda error-message E044
 eval-fail-intersectAttrs-1 pass
@@ -224,9 +224,9 @@ eval-fail-removeAttrs-3 pass
 eval-fail-replaceStrings-1 pass
 eval-fail-replaceStrings-2 pass
 eval-fail-replaceStrings-3 pass
-eval-fail-replaceStrings-4 error-message E006
+eval-fail-replaceStrings-4 pass
 eval-fail-replaceStrings-5 error-message E006
-eval-fail-replaceStrings-6 error-message E006
+eval-fail-replaceStrings-6 pass
 eval-fail-scope-5 pass
 eval-fail-seq pass
 eval-fail-set-override error-message E006
@@ -251,10 +251,10 @@ eval-fail-sub-2 pass
 eval-fail-substring-1 pass
 eval-fail-substring-2 pass
 eval-fail-substring-3 pass
-eval-fail-substring-4 error-message E019
-eval-fail-substring error-message E019
+eval-fail-substring-4 pass
+eval-fail-substring pass
 eval-fail-tail-1 pass
-eval-fail-tail-2 error-message E023
+eval-fail-tail-2 pass
 eval-fail-to-path error-message E020
 eval-fail-toJSON-non-utf-8 error-message E029
 eval-fail-toJSON-stack-overflow error-message E044

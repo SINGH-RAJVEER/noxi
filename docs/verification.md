@@ -101,11 +101,11 @@ The diagnostics/integration merge preserves the parse printer, lint callbacks an
 
 On 2026-10-26, the combined diagnostics/integration state passed `CARGO_BUILD_JOBS=4 NEXTEST_TEST_THREADS=4 devenv shell -- just ci`: formatting, snapshot verification, all-feature workspace checking, all 2,830 tests with nine optional tests skipped, and doctests. The full language and replacement gates remain open.
 
-In a debug build, 310 cases pass. The other outcomes are:
+In a debug build, 323 cases pass. The other outcomes are:
 
 | Outcome | Cases | Main causes |
 |---|---|---|
-| `error-message` | 156 | The case failed as expected but did not reproduce CppNix's diagnostic text and trace. Remaining groups include derivation frames, recursive comparisons, parser errors, call errors and missing-argument errors. This includes the four controlled integer-overflow errors, `set-override`, and the `--max-call-depth` cases whose flags start instantiation, which needs an explicit diverted store. Some fail for a different reason than the one under test, for example `fetchurl`, `fetchTree` and `filterSource` cases that reach an unimplemented fetcher or a different argument check first. |
+| `error-message` | 143 | The case failed as expected but did not reproduce CppNix's diagnostic text and trace. Remaining groups include derivation frames, recursive comparisons, parser errors, call errors and missing-argument errors. This includes the four controlled integer-overflow errors, `set-override`, and the `--max-call-depth` cases whose flags start instantiation, which needs an explicit diverted store. Some fail for a different reason than the one under test, for example `fetchurl`, `fetchTree` and `filterSource` cases that reach an unimplemented fetcher or a different argument check first. |
 | `output` | 0 | The 13 parse-success cases, six warning-output cases and four remaining evaluator-output cases all match their expected bytes. |
 | `unexpected-failure` | 0 | `scopedImport` with an overridden `import` now passes. |
 | `unrun-flags` | 0 | `--impure` is accepted and clears `pure-eval`, so both `home-path` cases run. Their warning and fatal lint expectations now pass. |
