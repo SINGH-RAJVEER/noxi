@@ -67,7 +67,8 @@ impl LocalBackend {
 		for drv in &will_build {
 			let drv_inputs = self
 				.store
-				.read_derivation(drv)?
+				.read_build_derivation(drv)?
+				.basic
 				.input_derivations()
 				.keys()
 				.filter(|input| will_build.contains(*input))
@@ -279,6 +280,65 @@ impl Store for LocalBackend {
 				BuildEvent::Finished { .. } => Ok(()),
 			};
 		};
+		if self.settings.max_build_jobs > 1 || self.settings.keep_going {
+			let targets: Vec<_> = paths
+				.iter()
+				.filter_map(|path| match path {
+					DerivedPath::Built { drv, outputs } => Some((
+						drv.clone(),
+						(!outputs.is_empty()).then_some(outputs.clone()),
+					)),
+					DerivedPath::Opaque(_) => None,
+				})
+				.collect();
+			let mut batch =
+				builder.realise_many_with_events(&targets, &mut |_, event| events(event))?;
+			let exit_status = batch.exit_status();
+			let mut failed_targets = Vec::new();
+			for (path, _) in &targets {
+				if let Some(error) = batch.failures.remove(path) {
+					let message = if error.status() == crate::FailureStatus::DependencyFailed {
+						self.dependency_failed(path)?
+					} else {
+						error.to_string()
+					};
+					failed_targets.push((path.clone(), message));
+				}
+			}
+			for error in batch.failures.into_values() {
+				if !matches!(error, BuildError::Cancelled) {
+					eprintln!("{}", format_error(&error.to_string()));
+				}
+			}
+			if failed_targets.len() == 1 {
+				return Err(Error::Build {
+					exit_status,
+					message: failed_targets.remove(0).1,
+				});
+			}
+			if !failed_targets.is_empty() {
+				let mut quoted: Vec<_> = failed_targets
+					.iter()
+					.map(|(p, _)| format!("'{}'", p.to_absolute_path()))
+					.collect();
+				quoted.sort();
+				for (_, message) in failed_targets {
+					eprintln!("{}", format_error(&message));
+				}
+				return Err(Error::Build {
+					exit_status,
+					message: format!("build of {} failed", quoted.join(", ")),
+				});
+			}
+			for path in paths {
+				if let DerivedPath::Opaque(path) = path
+					&& !self.store.is_valid_path(path)?
+				{
+					self.store.substitute(substituters, path)?;
+				}
+			}
+			return Ok(());
+		}
 		// CppNix's worker starts ready builds in the order of their goal keys,
 		// `dd$NAME$PATH`, so independent derivations build in name order.
 		// Without `--keep-going`, a failure starts nothing new: the

@@ -1,8 +1,8 @@
 //! Flake references as fetcher attribute sets, for the evaluator builtins.
 
 use crate::FlakeRef;
+use ::url::Url;
 use serde_json::{Map, Value};
-use url::Url;
 
 pub fn parse(reference: &str) -> Result<Map<String, Value>, String> {
 	if reference.contains('#') {

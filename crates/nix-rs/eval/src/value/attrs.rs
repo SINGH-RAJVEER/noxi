@@ -470,6 +470,7 @@ impl NixAttrs {
 
 		// Optimisation: KV pattern
 		if count == 2
+			&& spans.is_empty()
 			&& let Some(kv) = attempt_optimise_kv(&mut stack_slice)
 		{
 			return Ok(Ok(kv));

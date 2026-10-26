@@ -1,0 +1,109 @@
+{
+	"schema": 1,
+	"revision": "c60e3e3b8958e6fe3235495d929867c0fa8033e4",
+	"scope": "Committed c60e3e3 milestone only. Concurrent packaging and qualification refactors were preserved and were not included in this evidence.",
+	"locked_inputs": {
+		"nixpkgs": {
+			"lastModified": 1790323409,
+			"narHash": "sha256-VVTPf+Hyd5ebpjBMHmrLMSBIeW6ls48Bqtosj7CNKLA=",
+			"owner": "NixOS",
+			"repo": "nixpkgs",
+			"rev": "e94cb152ed51bd6e24eb4a41f1460252beb52cd2",
+			"type": "github"
+		},
+		"home-manager": {
+			"lastModified": 1790365885,
+			"narHash": "sha256-iQ0ebhiVo64NktTnwft9hNxlFu4j5cvljVxyJaEVIP4=",
+			"owner": "nix-community",
+			"repo": "home-manager",
+			"rev": "7b4c5ec4bedaf1e062bbc1bcaeddbc6bd242aa1b",
+			"type": "github"
+		},
+		"nix-reference": {
+			"lastModified": 1786568958,
+			"narHash": "sha256-C/YEm/5IPiAMxQH5aHlkwgQMkLqK7NVsudEWdlzBZAA=",
+			"owner": "NixOS",
+			"repo": "nix",
+			"rev": "2c73b59da29606068c0c98db015dd3a66955525d",
+			"type": "github"
+		},
+		"rust-overlay": {
+			"lastModified": 1790407471,
+			"narHash": "sha256-M8elY2UShg4ZuLTiRLEHO+ae5xQFp3/ReQdxp/R+1UU=",
+			"owner": "oxalica",
+			"repo": "rust-overlay",
+			"rev": "4e9bb05a9ab6c37dc74c22974ebed6e36dc73eb2",
+			"type": "github"
+		}
+	},
+	"clean_clone_builds": [
+		{
+			"drvPath": "/nix/store/2ldfq8zk67v7zs7ayg09s1kj97aw53i8-nixrs-preview-0.1.1.drv",
+			"outputs": {
+				"out": "/nix/store/wgz4m1d7s1xw8d4gvizifc569q59k060-nixrs-preview-0.1.1"
+			}
+		},
+		{
+			"drvPath": "/nix/store/966sjy42lqsd3paq2d5q9rqin48pbk3b-nixrs-replacement-provisional-0.1.1.drv",
+			"outputs": {
+				"out": "/nix/store/9smxwm90h4pm4zkwcjscxb5yv6saam3v-nixrs-replacement-provisional-0.1.1"
+			}
+		},
+		{
+			"drvPath": "/nix/store/a65jm7bl5n71pq54i6qggg37177bnpdj-nixrs-replacement-layout.drv",
+			"outputs": {
+				"out": "/nix/store/zscdc6k8v818i942aifqk9w4pnpw0vfp-nixrs-replacement-layout"
+			}
+		}
+	],
+	"clean_clone_validation": "Clean Git checkout at this revision, using the normal Nix cache. This is not a separate compiler bit-reproducibility audit.",
+	"reports": {
+		"nixos": {
+			"file": "nixos.json",
+			"sha256": "d27d5b3a88e5ace3e2f0d755a2ef1463fada33e229d0e8fffe47c0f528fcb648",
+			"report_output": "/nix/store/qsmwv5g7pqh21sbj3kdllb2r4agcahhj-vm-test-run-nixrs-qualification-nixos",
+			"source": "/nix/store/di9s766kicrawf41f906k87gr42sww0p-source",
+			"run_date_utc": "2026-10-23",
+			"report_build_exit_code": 0,
+			"strict_gate_build_exit_code": 1,
+			"counts": {
+				"pass": 12,
+				"fail": 9,
+				"blocked": 5
+			}
+		},
+		"home-manager": {
+			"file": "home-manager.json",
+			"sha256": "0f7aecb1eafcd3654a87e66b2259b66a826180422953b8874208ed3db7364946",
+			"report_output": "/nix/store/x7jabw5s9ap27z8lmhak20lj6m6zvk67-vm-test-run-nixrs-qualification-home-manager",
+			"source": "/nix/store/di9s766kicrawf41f906k87gr42sww0p-source",
+			"run_date_utc": "2026-10-25",
+			"report_build_exit_code": 0,
+			"strict_gate_build_exit_code": 1,
+			"counts": {
+				"pass": 11,
+				"fail": 10
+			}
+		},
+		"distribution": {
+			"file": "distribution.json",
+			"sha256": "7fe1bcb6b7cbbac537a5e082c4eb9671f2db2ee0f2f769b8c758f288203847cc",
+			"report_output": "/nix/store/axgw82fi67aaq8qy7f3pfplscmrcrrcw-vm-test-run-nixrs-qualification-distribution",
+			"source": "/nix/store/di9s766kicrawf41f906k87gr42sww0p-source",
+			"run_date_utc": "2026-10-25",
+			"report_build_exit_code": 0,
+			"strict_gate_build_exit_code": 1,
+			"counts": {
+				"pass": 12,
+				"fail": 2
+			}
+		}
+	},
+	"limits": [
+		"Probe counts include diagnostics and are not compatibility percentages.",
+		"All three strict qualification gates failed.",
+		"The upgrade fixture uses the same engine binaries with a distinct package path and marker.",
+		"Removal reached an empty profile, but the selector matched no installed derivations in the --set fixture.",
+		"Home Manager and distribution store verification timed out after 180 seconds. NixOS store verification passed."
+	]
+}

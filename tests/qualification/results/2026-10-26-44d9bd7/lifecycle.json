@@ -1,0 +1,527 @@
+{
+	"schema": 2,
+	"mode": "lifecycle",
+	"expected": {
+		"candidate": "/nix/store/c52f14n0i3gpy46wpjdmxhl707wkrqi1-nixrs-replacement-provisional-0.1.1",
+		"generations": {
+			"one": {
+				"drv": "/nix/store/zx16bk5zpl0rk8h1syr2a6y79dvj68yv-nixos-system-machine-test.drv",
+				"out": "/nix/store/bwxrjp5yc7zw97261fh603ig6qd607d6-nixos-system-machine-test"
+			},
+			"three": {
+				"drv": "/nix/store/m0iql3c8mfqrn50wacxy6z39s4c073cq-nixos-system-machine-test.drv",
+				"out": "/nix/store/9fky2g4by6pxj8b262bz75zmqm9y2935-nixos-system-machine-test"
+			},
+			"two": {
+				"drv": "/nix/store/jjwhg84miw1c0h4bvcsbr709awb365vz-nixos-system-machine-test.drv",
+				"out": "/nix/store/rwvlsfl3rb6yyczynzy09d9y8sgcvvx6-nixos-system-machine-test"
+			},
+			"upgrade": {
+				"drv": "/nix/store/4iwv8n7hgpl57v1x05jhfyp0pff5abb8-nixos-system-machine-test.drv",
+				"out": "/nix/store/ym9j83m8zvsq2a2ff93yh3j1z42knc1j-nixos-system-machine-test"
+			}
+		},
+		"home": {
+			"config": "/nix/store/p3pc7d64fvgwbmhfpl6v39v0hdv20m6r-home.nix",
+			"drv": "/nix/store/fxpbdghjdrwyxjmra18x70vmzda1p87q-home-manager-generation.drv",
+			"out": "/nix/store/wxxwgpdpyzpbj5ypw3jawn49dc45jsxx-home-manager-generation"
+		},
+		"reference": "/nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2",
+		"upgrade": "/nix/store/yi11ly17gyzj6hj3wfa9kkzacwb15bqn-nixrs-replacement-upgrade-fixture"
+	},
+	"summary": {
+		"pass": 43,
+		"fail": 8
+	},
+	"steps": [
+		{
+			"name": "reference-boot",
+			"status": "pass",
+			"command": "nix-instantiate --version",
+			"user": "root",
+			"exit_status": 0,
+			"expected_status": 0,
+			"stdout": "nix-instantiate (Nix) 2.35.2\n",
+			"stderr": "",
+			"detail": "expected nix-instantiate (Nix) 2.35.2, got 'nix-instantiate (Nix) 2.35.2'"
+		},
+		{
+			"name": "seed-system-profile",
+			"status": "pass",
+			"command": "nix-env -p /nix/var/nix/profiles/system --set /run/current-system",
+			"user": "root",
+			"exit_status": 0,
+			"expected_status": 0,
+			"stdout": "",
+			"stderr": "",
+			"detail": ""
+		},
+		{
+			"name": "candidate-artifacts",
+			"status": "pass",
+			"command": "sha256sum /nix/store/c52f14n0i3gpy46wpjdmxhl707wkrqi1-nixrs-replacement-provisional-0.1.1/libexec/nix-rs/*",
+			"user": "root",
+			"exit_status": 0,
+			"expected_status": 0,
+			"stdout": "39610ca2b107355a960dbaca0398457109d05e1a5e358bf4429543115431492a  /nix/store/c52f14n0i3gpy46wpjdmxhl707wkrqi1-nixrs-replacement-provisional-0.1.1/libexec/nix-rs/nix\n39d41c1126118277d46b265abd01f25bf2f867ce0529290dd4ac27cd26ff4586  /nix/store/c52f14n0i3gpy46wpjdmxhl707wkrqi1-nixrs-replacement-provisional-0.1.1/libexec/nix-rs/nix-build\n0d255e235ecae2d291e50371540f1007feb9ae0118076e57424375c873439300  /nix/store/c52f14n0i3gpy46wpjdmxhl707wkrqi1-nixrs-replacement-provisional-0.1.1/libexec/nix-rs/nix-collect-garbage\nfcbad5a4f07468b5e2e97ee0bf692813afb2fb7052006c274ee491c8229f686c  /nix/store/c52f14n0i3gpy46wpjdmxhl707wkrqi1-nixrs-replacement-provisional-0.1.1/libexec/nix-rs/nix-copy-closure\n7c28dd8420288f4e5f25472d0de433f347066a40984d9522da91858798a3e075  /nix/store/c52f14n0i3gpy46wpjdmxhl707wkrqi1-nixrs-replacement-provisional-0.1.1/libexec/nix-rs/nix-daemon\n20330639e0ce42865725de32b7a799fc91a6a06f5277ab74c8ee33c9137bd787  /nix/store/c52f14n0i3gpy46wpjdmxhl707wkrqi1-nixrs-replacement-provisional-0.1.1/libexec/nix-rs/nix-env\n1a42a7ab62a5b146effefc163b772f316ca74e5c1bbcbf9b886b1e97ec83cd49  /nix/store/c52f14n0i3gpy46wpjdmxhl707wkrqi1-nixrs-replacement-provisional-0.1.1/libexec/nix-rs/nix-hash\ne9045905aeca6a673b73b1d2ea128f2e44c52adae450ae53934542db60743afe  /nix/store/c52f14n0i3gpy46wpjdmxhl707wkrqi1-nixrs-replacement-provisional-0.1.1/libexec/nix-rs/nix-instantiate\n5bc8324f9f6e9e8e01289b3a9176b8b2243bb329bd7dfdeba03b64e948038b83  /nix/store/c52f14n0i3gpy46wpjdmxhl707wkrqi1-nixrs-replacement-provisional-0.1.1/libexec/nix-rs/nixrs\n0a8054f3c5ca439c2738d68250a840aec2665f679c919819911b9bf23613c295  /nix/store/c52f14n0i3gpy46wpjdmxhl707wkrqi1-nixrs-replacement-provisional-0.1.1/libexec/nix-rs/nix-shell\n13a3ac50e3f593e29e01260aa0b95555f85e16cb18594b60b2795f924847f314  /nix/store/c52f14n0i3gpy46wpjdmxhl707wkrqi1-nixrs-replacement-provisional-0.1.1/libexec/nix-rs/nix-store\nb5369e6113c729c9a5273ff070c84226427fa65a6d2161b0438552a45d5f7176  /nix/store/c52f14n0i3gpy46wpjdmxhl707wkrqi1-nixrs-replacement-provisional-0.1.1/libexec/nix-rs/unimplemented\n",
+			"stderr": "",
+			"detail": ""
+		},
+		{
+			"name": "control-cppnix-flake-build",
+			"status": "pass",
+			"command": "nix build --no-link --no-write-lock-file --print-out-paths /nix/store/gf1g3g74w6aazm88p5jp9xjmjq4gwdia-flake.nix#nixosConfigurations.two.config.system.build.toplevel",
+			"user": "root",
+			"exit_status": 0,
+			"expected_status": 0,
+			"stdout": "/nix/store/rwvlsfl3rb6yyczynzy09d9y8sgcvvx6-nixos-system-machine-test\n",
+			"stderr": "warning: not writing modified lock file of flake 'path:/nix/store/gf1g3g74w6aazm88p5jp9xjmjq4gwdia-flake.nix':\n\u2022 Added input 'home-manager':\n    'path:/nix/store/da7apr6rx9mpa0ljpircmwwsxnmrjb43-source?lastModified=0&narHash=sha256-iQ0ebhiVo64NktTnwft9hNxlFu4j5cvljVxyJaEVIP4%3D' (1970-01-01)\n\u2022 Added input 'nixpkgs':\n    'path:/nix/store/2s013d7g7sna6rls7nk0yy8343h6mdiw-source?lastModified=0&narHash=sha256-VVTPf%2BHyd5ebpjBMHmrLMSBIeW6ls48Bqtosj7CNKLA%3D' (1970-01-01)\n\u2022 Added input 'rust-overlay':\n    'path:/nix/store/h8gxvvvlcbbv40ywprgzrkxylhk4pgsz-source?lastModified=0&narHash=sha256-M8elY2UShg4ZuLTiRLEHO%2Bae5xQFp3/ReQdxp/R%2B1UU%3D' (1970-01-01)\n\u2022 Added input 'source':\n    'path:/nix/store/k6f9w7y28r2bz2622di174w4qnp5cpd5-source?lastModified=0&narHash=sha256-rf7USrN0a6ocQZ7wvjUmd86%2BYEKotvB8BSykhZmM650%3D' (1970-01-01)\n",
+			"detail": "expected /nix/store/rwvlsfl3rb6yyczynzy09d9y8sgcvvx6-nixos-system-machine-test, got '/nix/store/rwvlsfl3rb6yyczynzy09d9y8sgcvvx6-nixos-system-machine-test'"
+		},
+		{
+			"name": "control-cppnix-failed-build",
+			"status": "pass",
+			"command": "nix-build --no-out-link --expr 'let pkgs = import <nixpkgs> {}; in derivation { name = \"qualification-failing-build\"; system = \"x86_64-linux\"; builder = \"${pkgs.bash}/bin/bash\"; args = [ \"-c\" \"echo deliberate build failure >&2; exit 1\" ]; }'",
+			"user": "root",
+			"exit_status": 100,
+			"expected_status": 100,
+			"stdout": "",
+			"stderr": "this derivation will be built:\n  /nix/store/zl64gfppaiqmycchiigs06r37wb8cs8z-qualification-failing-build.drv\nbuilding '/nix/store/zl64gfppaiqmycchiigs06r37wb8cs8z-qualification-failing-build.drv'...\ndeliberate build failure\nerror: Cannot build '/nix/store/zl64gfppaiqmycchiigs06r37wb8cs8z-qualification-failing-build.drv'.\n       Reason: builder failed with exit code 1.\n       Output paths:\n         /nix/store/ysskybdngwmdikzjvzc84xzvf4ckvsgq-qualification-failing-build\n",
+			"detail": ""
+		},
+		{
+			"name": "control-cppnix-failed-build-log",
+			"status": "pass",
+			"detail": "the control builder must start and print its deliberate failure"
+		},
+		{
+			"name": "control-cppnix-failed-upgrade",
+			"status": "pass",
+			"command": "nixos-rebuild build --file /nix/store/f2wrn4w1qxphda1892cdy3bv25nkycb7-qualification-system.nix --attr broken --no-reexec",
+			"user": "root",
+			"exit_status": 1,
+			"expected_status": 1,
+			"stdout": "",
+			"stderr": "building the system configuration...\nerror:\n       \u2026 while calling the 'head' builtin\n         at /nix/store/2s013d7g7sna6rls7nk0yy8343h6mdiw-source/lib/attrsets.nix:1729:13:\n         1728|           if length values == 1 || pred here (elemAt values 1) (head values) then\n         1729|             head values\n             |             ^\n         1730|           else\n\n       \u2026 while evaluating the attribute 'value'\n         at /nix/store/2s013d7g7sna6rls7nk0yy8343h6mdiw-source/lib/modules.nix:1181:7:\n         1180|     // {\n         1181|       value = addErrorContext \"while evaluating the option `${showOption loc}':\" (\n             |       ^\n         1182|         # Apply the 'apply' function to the merged value. This allows options to\n\n       \u2026 while evaluating the option `nodes.machine.system.build.toplevel':\n\n       \u2026 while evaluating definitions from `/nix/store/2s013d7g7sna6rls7nk0yy8343h6mdiw-source/nixos/modules/system/activation/top-level.nix':\n\n       (stack trace truncated; use '--show-trace' to show the full, detailed trace)\n\n       error:\n       Failed assertions:\n       - nix-rs qualification: deliberately failing upgrade\nCommand 'nix-build /nix/store/f2wrn4w1qxphda1892cdy3bv25nkycb7-qualification-system.nix --attr broken.config.system.build.toplevel' returned non-zero exit status 1.\n",
+			"detail": ""
+		},
+		{
+			"name": "control-cppnix-failed-upgrade-assertion",
+			"status": "pass",
+			"detail": "the control must report the intentional assertion"
+		},
+		{
+			"name": "control-cppnix-instantiate-one",
+			"status": "pass",
+			"command": "nix-instantiate /nix/store/f2wrn4w1qxphda1892cdy3bv25nkycb7-qualification-system.nix -A one.config.system.build.toplevel --add-root /tmp/control-cppnix-instantiate-one.drv && readlink -f /tmp/control-cppnix-instantiate-one.drv",
+			"user": "root",
+			"exit_status": 0,
+			"expected_status": 0,
+			"stdout": "/tmp/control-cppnix-instantiate-one.drv\n/nix/store/zx16bk5zpl0rk8h1syr2a6y79dvj68yv-nixos-system-machine-test.drv\n",
+			"stderr": "",
+			"detail": "expected /nix/store/zx16bk5zpl0rk8h1syr2a6y79dvj68yv-nixos-system-machine-test.drv, got '/nix/store/zx16bk5zpl0rk8h1syr2a6y79dvj68yv-nixos-system-machine-test.drv'"
+		},
+		{
+			"name": "control-cppnix-rebuild-build-one",
+			"status": "pass",
+			"command": "cd /tmp && nixos-rebuild build --file /nix/store/f2wrn4w1qxphda1892cdy3bv25nkycb7-qualification-system.nix --attr one --no-reexec && readlink -f result",
+			"user": "root",
+			"exit_status": 0,
+			"expected_status": 0,
+			"stdout": "/nix/store/bwxrjp5yc7zw97261fh603ig6qd607d6-nixos-system-machine-test\n/nix/store/bwxrjp5yc7zw97261fh603ig6qd607d6-nixos-system-machine-test\n",
+			"stderr": "building the system configuration...\nDone. The new configuration is ",
+			"detail": "expected /nix/store/bwxrjp5yc7zw97261fh603ig6qd607d6-nixos-system-machine-test, got '/nix/store/bwxrjp5yc7zw97261fh603ig6qd607d6-nixos-system-machine-test'"
+		},
+		{
+			"name": "lifecycle-install",
+			"status": "fail",
+			"command": "nixos-rebuild switch --file /nix/store/f2wrn4w1qxphda1892cdy3bv25nkycb7-qualification-system.nix --attr one --no-reexec",
+			"user": "root",
+			"exit_status": 4,
+			"expected_status": 0,
+			"stdout": "",
+			"stderr": "building the system configuration...\nChecking switch inhibitors... done\nupdating GRUB 2 menu...\nNOT restarting the following changed units: register-nix-paths.service\nactivating the configuration...\nsetting up /etc...\nremoving obsolete symlink \u2018/etc/qualification/expected.json\u2019...\nremoving obsolete symlink \u2018/etc/qualification/flake\u2019...\nremoving obsolete symlink \u2018/etc/qualification/system.nix\u2019...\nrestarting sysinit-reactivation.target\nreloading the following units: dbus-broker.service\nrestarting the following units: home-manager-qualification.service, nix-daemon.service\nFailed to restart home-manager-qualification.service\nthe following new units were started: sysinit-reactivation.target, systemd-tmpfiles-resetup.service\nwarning: the following units failed: home-manager-qualification.service, nix-daemon.service, nix-daemon.socket\n\u00d7 home-manager-qualification.service - Home Manager environment for qualification\n     Loaded: loaded (/etc/systemd/system/home-manager-qualification.service; enabled; preset: ignored)\n     Active: failed (Result: exit-code) since Mon 2026-10-26 06:33:00 UTC; 262ms ago\n   Duration: 45.009s\n Invocation: 1350e58207a547329cd5450d20c0ea88\n    Process: 1150 ExecStart=/nix/store/glh099li22hv93n9n7hi8s6r9fnl5r4c-hm-setup-env /nix/store/hafqiqkxhaz06wh1apicq2wrxpn7rrda-home-manager-generation (code=exited, status=1/FAILURE)\n   Main PID: 1150 (code=exited, status=1/FAILURE)\n         IP: 0B in, 0B out\n         IO: 0B read, 0B written\n   Mem peak: 2.2M\n        CPU: 17ms\n\nOct 26 06:33:00 machine systemd[1]: home-manager-qualification.service: Main process exited, code=exited, status=1/FAILURE\nOct 26 06:33:00 machine systemd[1]: home-manager-qualification.service: Failed with result 'exit-code'.\nOct 26 06:33:00 machine systemd[1]: Failed to start Home Manager environment for qualification.\nOct 26 06:33:00 machine systemd[1]: Starting Home Manager environment for qualification...\nOct 26 06:33:00 machine hm-activate-qualification[1150]: Starting Home Manager activation\nOct 26 06:33:00 machine hm-activate-qualification[1165]: error: cannot open connection to remote store 'daemon': Connection reset by peer (os error 104)\nOct 26 06:33:00 machine systemd[1]: home-manager-qualification.service: Main process exited, code=exited, status=1/FAILURE\nOct 26 06:33:00 machine systemd[1]: home-manager-qualification.service: Failed with result 'exit-code'.\nOct 26 06:33:00 machine systemd[1]: Failed to start Home Manager environment for qualification.\n\n\u00d7 nix-daemon.service - Nix Daemon\n     Loaded: loaded (/etc/systemd/system/nix-daemon.service; linked; preset: ignored)\n    Drop-In: /nix/store/4qzxz6gahbjmaix8nvmglr00dgjv0757-system-units/nix-daemon.service.d\n             \u2514\u2500overrides.conf\n     Active: failed (Result: start-limit-hit) since Mon 2026-10-26 06:33:00 UTC; 421ms ago\n   Duration: 12ms\n Invocation: 119c49367e2349ee9836ef3f069ff639\nTriggeredBy: \u00d7 nix-daemon.socket\n       Docs: man:nix-daemon\n             https://nixos.org/manual\n    Process: 1147 ExecStart=nix-daemon --daemon (code=exited, status=1/FAILURE)\n   Main PID: 1147 (code=exited, status=1/FAILURE)\n         IP: 0B in, 0B out\n         IO: 0B read, 0B written\n   Mem peak: 2.2M\n        CPU: 6ms\n\nOct 26 06:33:00 machine systemd[1]: Started Nix Daemon.\nOct 26 06:33:00 machine nix-daemon[1147]: error: unrecognised flag '--daemon'\nOct 26 06:33:00 machine systemd[1]: nix-daemon.service: Main process exited, code=exited, status=1/FAILURE\nOct 26 06:33:00 machine systemd[1]: nix-daemon.service: Failed with result 'exit-code'.\nOct 26 06:33:00 machine systemd[1]: nix-daemon.service: Start request repeated too quickly.\nOct 26 06:33:00 machine systemd[1]: nix-daemon.service: Failed with result 'start-limit-hit'.\nOct 26 06:33:00 machine systemd[1]: Failed to start Nix Daemon.\nOct 26 06:33:00 machine systemd[1]: nix-daemon.service: Start request repeated too quickly.\nOct 26 06:33:00 machine systemd[1]: nix-daemon.service: Failed with result 'start-limit-hit'.\nOct 26 06:33:00 machine systemd[1]: Failed to start Nix Daemon.\n\n\u00d7 nix-daemon.socket - Nix Daemon Socket\n     Loaded: loaded (/etc/systemd/system/nix-daemon.socket; enabled; preset: ignored)\n    Drop-In: /nix/store/4qzxz6gahbjmaix8nvmglr00dgjv0757-system-units/nix-daemon.socket.d\n             \u2514\u2500overrides.conf\n     Active: failed (Result: service-start-limit-hit) since Mon 2026-10-26 06:33:00 UTC; 275ms ago\n   Duration: 132ms\n Invocation: 267f840a784544c39662e131c70e5cc3\n   Triggers: \u25cf nix-daemon.service\n     Listen: /nix/var/nix/daemon-socket/socket (Stream)\n\nOct 26 06:33:00 machine systemd[1]: nix-daemon.socket: Failed with result 'service-start-limit-hit'.\nOct 26 06:33:00 machine systemd[1]: Listening on Nix Daemon Socket.\nOct 26 06:33:00 machine systemd[1]: nix-daemon.socket: Failed with result 'service-start-limit-hit'.\nCommand 'systemd-run -E LOCALE_ARCHIVE -E NIXOS_INSTALL_BOOTLOADER -E NIXOS_NO_CHECK --collect --no-ask-password --pipe --quiet --service-type=exec --unit=nixos-rebuild-switch-to-configuration /nix/store/bwxrjp5yc7zw97261fh603ig6qd607d6-nixos-system-machine-test/bin/switch-to-configuration switch' returned non-zero exit status 4.\n",
+			"detail": ""
+		},
+		{
+			"name": "lifecycle-install-generation",
+			"status": "pass",
+			"detail": "current system /nix/store/bwxrjp5yc7zw97261fh603ig6qd607d6-nixos-system-machine-test, expected one /nix/store/bwxrjp5yc7zw97261fh603ig6qd607d6-nixos-system-machine-test"
+		},
+		{
+			"name": "lifecycle-install-commands-on-path",
+			"status": "pass",
+			"command": "readlink -f $(command -v nix-instantiate)",
+			"user": "root",
+			"exit_status": 0,
+			"expected_status": 0,
+			"stdout": "/nix/store/c52f14n0i3gpy46wpjdmxhl707wkrqi1-nixrs-replacement-provisional-0.1.1/libexec/nix-rs/nix-instantiate\n",
+			"stderr": "",
+			"detail": "/nix/store/c52f14n0i3gpy46wpjdmxhl707wkrqi1-nixrs-replacement-provisional-0.1.1/libexec/nix-rs/nix-instantiate"
+		},
+		{
+			"name": "nixrs-version",
+			"status": "fail",
+			"command": "nix-instantiate --version",
+			"user": "root",
+			"exit_status": 1,
+			"expected_status": 0,
+			"stdout": "",
+			"stderr": "error: unrecognised flag '--version'\nTry 'nix-instantiate --help' for more information.\n",
+			"detail": ""
+		},
+		{
+			"name": "nixrs-modern-cli",
+			"status": "pass",
+			"command": "nix --version",
+			"user": "root",
+			"exit_status": 0,
+			"expected_status": 0,
+			"stdout": "nix (Nix) 2.35.2\n",
+			"stderr": "",
+			"detail": ""
+		},
+		{
+			"name": "nixrs-config-show",
+			"status": "fail",
+			"command": "nix config show --json",
+			"user": "root",
+			"exit_status": 1,
+			"expected_status": 0,
+			"stdout": "",
+			"stderr": "error: nix config show --json is not supported by nix-rs yet\n",
+			"detail": ""
+		},
+		{
+			"name": "nixrs-socket-active",
+			"status": "fail",
+			"command": "systemctl is-active nix-daemon.socket",
+			"user": "root",
+			"exit_status": 3,
+			"expected_status": 0,
+			"stdout": "failed\n",
+			"stderr": "",
+			"detail": ""
+		},
+		{
+			"name": "nixrs-daemon-start",
+			"status": "fail",
+			"command": "systemctl start nix-daemon.service; sleep 2; systemctl is-active nix-daemon.service",
+			"user": "root",
+			"exit_status": 3,
+			"expected_status": 0,
+			"stdout": "failed\n",
+			"stderr": "Job for nix-daemon.service failed because start of the service was attempted too often.\nSee \"systemctl status nix-daemon.service\" and \"journalctl -xeu nix-daemon.service\" for details.\nTo force a start use \"systemctl reset-failed nix-daemon.service\"\nfollowed by \"systemctl start nix-daemon.service\" again.\n",
+			"detail": ""
+		},
+		{
+			"name": "nixrs-daemon-journal",
+			"status": "pass",
+			"command": "journalctl -b -u nix-daemon.service -u nix-daemon.socket --no-pager -n 40",
+			"user": "root",
+			"exit_status": 0,
+			"expected_status": 0,
+			"stdout": "Oct 26 06:32:15 machine nix-daemon[724]: accepted connection from pid 756, user qualification\nOct 26 06:32:15 machine nix-daemon[724]: reaped child process 759, status = succeeded\nOct 26 06:32:15 machine nix-daemon[724]: accepted connection from pid 782, user qualification\nOct 26 06:32:15 machine nix-daemon[724]: reaped child process 785, status = succeeded\nOct 26 06:33:00 machine systemd[1]: Stopping Nix Daemon...\nOct 26 06:33:00 machine systemd[1]: nix-daemon.service: Deactivated successfully.\nOct 26 06:33:00 machine systemd[1]: Stopped Nix Daemon.\nOct 26 06:33:00 machine systemd[1]: nix-daemon.service: Consumed 189ms CPU time over 45.608s wall clock time, 22.6M memory peak, 640K read from disk, 9.7M written to disk.\nOct 26 06:33:00 machine systemd[1]: Started Nix Daemon.\nOct 26 06:33:00 machine nix-daemon[1133]: error: unrecognised flag '--daemon'\nOct 26 06:33:00 machine systemd[1]: nix-daemon.service: Main process exited, code=exited, status=1/FAILURE\nOct 26 06:33:00 machine systemd[1]: nix-daemon.service: Failed with result 'exit-code'.\nOct 26 06:33:00 machine systemd[1]: Started Nix Daemon.\nOct 26 06:33:00 machine nix-daemon[1141]: error: unrecognised flag '--daemon'\nOct 26 06:33:00 machine systemd[1]: nix-daemon.service: Main process exited, code=exited, status=1/FAILURE\nOct 26 06:33:00 machine systemd[1]: nix-daemon.service: Failed with result 'exit-code'.\nOct 26 06:33:00 machine systemd[1]: Started Nix Daemon.\nOct 26 06:33:00 machine nix-daemon[1143]: error: unrecognised flag '--daemon'\nOct 26 06:33:00 machine systemd[1]: nix-daemon.service: Main process exited, code=exited, status=1/FAILURE\nOct 26 06:33:00 machine systemd[1]: nix-daemon.service: Failed with result 'exit-code'.\nOct 26 06:33:00 machine systemd[1]: Started Nix Daemon.\nOct 26 06:33:00 machine nix-daemon[1145]: error: unrecognised flag '--daemon'\nOct 26 06:33:00 machine systemd[1]: nix-daemon.service: Main process exited, code=exited, status=1/FAILURE\nOct 26 06:33:00 machine systemd[1]: nix-daemon.service: Failed with result 'exit-code'.\nOct 26 06:33:00 machine systemd[1]: Started Nix Daemon.\nOct 26 06:33:00 machine nix-daemon[1147]: error: unrecognised flag '--daemon'\nOct 26 06:33:00 machine systemd[1]: nix-daemon.service: Main process exited, code=exited, status=1/FAILURE\nOct 26 06:33:00 machine systemd[1]: nix-daemon.service: Failed with result 'exit-code'.\nOct 26 06:33:00 machine systemd[1]: nix-daemon.service: Start request repeated too quickly.\nOct 26 06:33:00 machine systemd[1]: nix-daemon.service: Failed with result 'start-limit-hit'.\nOct 26 06:33:00 machine systemd[1]: Failed to start Nix Daemon.\nOct 26 06:33:00 machine systemd[1]: nix-daemon.socket: Failed with result 'service-start-limit-hit'.\nOct 26 06:33:00 machine systemd[1]: Listening on Nix Daemon Socket.\nOct 26 06:33:00 machine systemd[1]: nix-daemon.service: Start request repeated too quickly.\nOct 26 06:33:00 machine systemd[1]: nix-daemon.service: Failed with result 'start-limit-hit'.\nOct 26 06:33:00 machine systemd[1]: Failed to start Nix Daemon.\nOct 26 06:33:00 machine systemd[1]: nix-daemon.socket: Failed with result 'service-start-limit-hit'.\nOct 26 06:33:01 machine systemd[1]: nix-daemon.service: Start request repeated too quickly.\nOct 26 06:33:01 machine systemd[1]: nix-daemon.service: Failed with result 'start-limit-hit'.\nOct 26 06:33:01 machine systemd[1]: Failed to start Nix Daemon.\n",
+			"stderr": "",
+			"detail": ""
+		},
+		{
+			"name": "nixrs-single-store-daemon",
+			"status": "fail",
+			"detail": "units ['nix-daemon.service', 'nix-daemon.socket'], MainPID 0, daemon executables [], expected executable /nix/store/c52f14n0i3gpy46wpjdmxhl707wkrqi1-nixrs-replacement-provisional-0.1.1/libexec/nix-rs/nix-daemon"
+		},
+		{
+			"name": "upgrade",
+			"status": "fail",
+			"command": "nixos-rebuild switch --file /nix/store/f2wrn4w1qxphda1892cdy3bv25nkycb7-qualification-system.nix --attr upgrade --no-reexec",
+			"user": "root",
+			"exit_status": 4,
+			"expected_status": 0,
+			"stdout": "",
+			"stderr": "building the system configuration...\nChecking switch inhibitors... done\nupdating GRUB 2 menu...\nstopping the following units: systemd-tmpfiles-resetup.service\nNOT restarting the following changed units: register-nix-paths.service\nactivating the configuration...\nsetting up /etc...\nrestarting sysinit-reactivation.target\nreloading the following units: dbus-broker.service\nstarting the following units: systemd-tmpfiles-resetup.service\nwarning: the following units failed: home-manager-qualification.service, nix-daemon.service, nix-daemon.socket\n\u00d7 home-manager-qualification.service - Home Manager environment for qualification\n     Loaded: loaded (/etc/systemd/system/home-manager-qualification.service; enabled; preset: ignored)\n     Active: failed (Result: exit-code) since Mon 2026-10-26 06:33:31 UTC; 262ms ago\n   Duration: 45.009s\n Invocation: bcafb89aff494a8883f070f6a5c4c47f\n    Process: 1409 ExecStart=/nix/store/glh099li22hv93n9n7hi8s6r9fnl5r4c-hm-setup-env /nix/store/ld4paqk75zpdm526qki0lvmcqzv2ian0-home-manager-generation (code=exited, status=1/FAILURE)\n   Main PID: 1409 (code=exited, status=1/FAILURE)\n         IP: 0B in, 0B out\n         IO: 176K read, 0B written\n   Mem peak: 2.2M\n        CPU: 49ms\n\nOct 26 06:33:31 machine systemd[1]: Starting Home Manager environment for qualification...\nOct 26 06:33:31 machine hm-activate-qualification[1409]: Starting Home Manager activation\nOct 26 06:33:31 machine hm-activate-qualification[1417]: error: cannot open connection to remote store 'daemon': Connection reset by peer (os error 104)\nOct 26 06:33:31 machine systemd[1]: home-manager-qualification.service: Main process exited, code=exited, status=1/FAILURE\nOct 26 06:33:31 machine systemd[1]: home-manager-qualification.service: Failed with result 'exit-code'.\nOct 26 06:33:31 machine systemd[1]: Failed to start Home Manager environment for qualification.\n\n\u00d7 nix-daemon.service - Nix Daemon\n     Loaded: loaded (/etc/systemd/system/nix-daemon.service; linked; preset: ignored)\n    Drop-In: /nix/store/x6ljlw7d3d0xdpxlx5vf0hfy16x28vs1-system-units/nix-daemon.service.d\n             \u2514\u2500overrides.conf\n     Active: failed (Result: start-limit-hit) since Mon 2026-10-26 06:33:31 UTC; 275ms ago\n   Duration: 17ms\n Invocation: 89b2d727c8dc479fb6c212093e94eddb\nTriggeredBy: \u00d7 nix-daemon.socket\n       Docs: man:nix-daemon\n             https://nixos.org/manual\n    Process: 1486 ExecStart=nix-daemon --daemon (code=exited, status=1/FAILURE)\n   Main PID: 1486 (code=exited, status=1/FAILURE)\n         IP: 0B in, 0B out\n         IO: 0B read, 0B written\n   Mem peak: 2.2M\n        CPU: 8ms\n\nOct 26 06:33:31 machine systemd[1]: Started Nix Daemon.\nOct 26 06:33:31 machine nix-daemon[1486]: error: unrecognised flag '--daemon'\nOct 26 06:33:31 machine systemd[1]: nix-daemon.service: Main process exited, code=exited, status=1/FAILURE\nOct 26 06:33:31 machine systemd[1]: nix-daemon.service: Failed with result 'exit-code'.\nOct 26 06:33:31 machine systemd[1]: nix-daemon.service: Start request repeated too quickly.\nOct 26 06:33:31 machine systemd[1]: nix-daemon.service: Failed with result 'start-limit-hit'.\nOct 26 06:33:31 machine systemd[1]: Failed to start Nix Daemon.\n\n\u00d7 nix-daemon.socket - Nix Daemon Socket\n     Loaded: loaded (/etc/systemd/system/nix-daemon.socket; enabled; preset: ignored)\n    Drop-In: /nix/store/x6ljlw7d3d0xdpxlx5vf0hfy16x28vs1-system-units/nix-daemon.socket.d\n             \u2514\u2500overrides.conf\n     Active: failed (Result: service-start-limit-hit) since Mon 2026-10-26 06:33:31 UTC; 273ms ago\n   Duration: 366ms\n Invocation: 2c16d0468c3b400c8e14720d77741f3b\n   Triggers: \u25cf nix-daemon.service\n     Listen: /nix/var/nix/daemon-socket/socket (Stream)\n\nOct 26 06:33:31 machine systemd[1]: Listening on Nix Daemon Socket.\nOct 26 06:33:31 machine systemd[1]: nix-daemon.socket: Failed with result 'service-start-limit-hit'.\nCommand 'systemd-run -E LOCALE_ARCHIVE -E NIXOS_INSTALL_BOOTLOADER -E NIXOS_NO_CHECK --collect --no-ask-password --pipe --quiet --service-type=exec --unit=nixos-rebuild-switch-to-configuration /nix/store/ym9j83m8zvsq2a2ff93yh3j1z42knc1j-nixos-system-machine-test/bin/switch-to-configuration switch' returned non-zero exit status 4.\n",
+			"detail": ""
+		},
+		{
+			"name": "upgrade-generation",
+			"status": "pass",
+			"detail": "current system /nix/store/ym9j83m8zvsq2a2ff93yh3j1z42knc1j-nixos-system-machine-test, expected upgrade /nix/store/ym9j83m8zvsq2a2ff93yh3j1z42knc1j-nixos-system-machine-test"
+		},
+		{
+			"name": "upgrade-package-selected",
+			"status": "pass",
+			"command": "systemctl cat nix-daemon.service | grep -F 'ExecStart=@/nix/store/yi11ly17gyzj6hj3wfa9kkzacwb15bqn-nixrs-replacement-upgrade-fixture/bin/nix-daemon nix-daemon --daemon' && cat /nix/store/yi11ly17gyzj6hj3wfa9kkzacwb15bqn-nixrs-replacement-upgrade-fixture/share/nix-rs/qualification-upgrade",
+			"user": "root",
+			"exit_status": 0,
+			"expected_status": 0,
+			"stdout": "ExecStart=@/nix/store/yi11ly17gyzj6hj3wfa9kkzacwb15bqn-nixrs-replacement-upgrade-fixture/bin/nix-daemon nix-daemon --daemon\nupgrade\n",
+			"stderr": "",
+			"detail": "expected upgrade, got 'upgrade'"
+		},
+		{
+			"name": "failed-upgrade",
+			"status": "pass",
+			"command": "nixos-rebuild switch --file /nix/store/f2wrn4w1qxphda1892cdy3bv25nkycb7-qualification-system.nix --attr broken --no-reexec",
+			"user": "root",
+			"exit_status": 1,
+			"expected_status": 1,
+			"stdout": "",
+			"stderr": "building the system configuration...\nerror[E001]: error thrown: \"\\nFailed assertions:\\n- nix-rs qualification: deliberately failing upgrade\"\n  --> [code]:1:1\n   |\n1  | / let\n2  | | __nixrs_autoArgs = {\n3  | | };\n4  | | __nixrs_inNixShell = false;\n...  |\n34 | | (__nixrs_getDerivations (__nixrs_select (__nixrs_select (__nixrs_select (__nixrs_select (__nixrs_select (import \"/nix/store/f2wrn4w1qxphda1892cdy3bv25nkycb7-qualification-system.nix\") \"broken\") \"config\") \"system\") \"build\") \"toplevel\"))\n35 | | ]\n   | |_^\n\nCommand 'nix-build /nix/store/f2wrn4w1qxphda1892cdy3bv25nkycb7-qualification-system.nix --attr broken.config.system.build.toplevel --no-out-link' returned non-zero exit status 1.\n",
+			"detail": ""
+		},
+		{
+			"name": "failed-upgrade-reports-assertion",
+			"status": "pass",
+			"detail": "the assertion message must reach the user"
+		},
+		{
+			"name": "failed-upgrade-unchanged",
+			"status": "pass",
+			"detail": "current /nix/store/ym9j83m8zvsq2a2ff93yh3j1z42knc1j-nixos-system-machine-test profile /nix/store/ym9j83m8zvsq2a2ff93yh3j1z42knc1j-nixos-system-machine-test, before /nix/store/ym9j83m8zvsq2a2ff93yh3j1z42knc1j-nixos-system-machine-test /nix/store/ym9j83m8zvsq2a2ff93yh3j1z42knc1j-nixos-system-machine-test"
+		},
+		{
+			"name": "failed-build",
+			"status": "pass",
+			"command": "nix-build --no-out-link --expr 'let pkgs = import <nixpkgs> {}; in derivation { name = \"qualification-failing-build\"; system = \"x86_64-linux\"; builder = \"${pkgs.bash}/bin/bash\"; args = [ \"-c\" \"echo deliberate build failure >&2; exit 1\" ]; }'",
+			"user": "root",
+			"exit_status": 100,
+			"expected_status": 100,
+			"stdout": "",
+			"stderr": "this derivation will be built:\n  /nix/store/zl64gfppaiqmycchiigs06r37wb8cs8z-qualification-failing-build.drv\nbuilding '/nix/store/zl64gfppaiqmycchiigs06r37wb8cs8z-qualification-failing-build.drv'...\ndeliberate build failure\nerror: Cannot build '/nix/store/zl64gfppaiqmycchiigs06r37wb8cs8z-qualification-failing-build.drv'.\n       Reason: builder failed with exit code 1.\n       Output paths:\n         /nix/store/ysskybdngwmdikzjvzc84xzvf4ckvsgq-qualification-failing-build\n",
+			"detail": ""
+		},
+		{
+			"name": "failed-build-reports-log",
+			"status": "pass",
+			"detail": "the builder's log must reach the user"
+		},
+		{
+			"name": "rollback",
+			"status": "fail",
+			"command": "nixos-rebuild switch --rollback  --no-reexec",
+			"user": "root",
+			"exit_status": 4,
+			"expected_status": 0,
+			"stdout": "",
+			"stderr": "building the system configuration...\nswitching profile from version 3 to 2\nChecking switch inhibitors... done\nupdating GRUB 2 menu...\nstopping the following units: systemd-tmpfiles-resetup.service\nNOT restarting the following changed units: register-nix-paths.service\nactivating the configuration...\nsetting up /etc...\nrestarting sysinit-reactivation.target\nreloading the following units: dbus-broker.service\nstarting the following units: systemd-tmpfiles-resetup.service\nwarning: the following units failed: home-manager-qualification.service, nix-daemon.service, nix-daemon.socket\n\u00d7 home-manager-qualification.service - Home Manager environment for qualification\n     Loaded: loaded (/etc/systemd/system/home-manager-qualification.service; enabled; preset: ignored)\n     Active: failed (Result: exit-code) since Mon 2026-10-26 06:33:43 UTC; 259ms ago\n   Duration: 45.009s\n Invocation: 1a07bf1436e2476ca548baa74832d80d\n    Process: 1708 ExecStart=/nix/store/glh099li22hv93n9n7hi8s6r9fnl5r4c-hm-setup-env /nix/store/hafqiqkxhaz06wh1apicq2wrxpn7rrda-home-manager-generation (code=exited, status=1/FAILURE)\n   Main PID: 1708 (code=exited, status=1/FAILURE)\n         IP: 0B in, 0B out\n         IO: 0B read, 0B written\n   Mem peak: 2.3M\n        CPU: 12ms\n\nOct 26 06:33:43 machine systemd[1]: Starting Home Manager environment for qualification...\nOct 26 06:33:43 machine hm-activate-qualification[1708]: Starting Home Manager activation\nOct 26 06:33:43 machine hm-activate-qualification[1716]: error: cannot open connection to remote store 'daemon': Connection reset by peer (os error 104)\nOct 26 06:33:43 machine systemd[1]: home-manager-qualification.service: Main process exited, code=exited, status=1/FAILURE\nOct 26 06:33:43 machine systemd[1]: home-manager-qualification.service: Failed with result 'exit-code'.\nOct 26 06:33:43 machine systemd[1]: Failed to start Home Manager environment for qualification.\n\n\u00d7 nix-daemon.service - Nix Daemon\n     Loaded: loaded (/etc/systemd/system/nix-daemon.service; linked; preset: ignored)\n    Drop-In: /nix/store/4qzxz6gahbjmaix8nvmglr00dgjv0757-system-units/nix-daemon.service.d\n             \u2514\u2500overrides.conf\n     Active: failed (Result: start-limit-hit) since Mon 2026-10-26 06:33:43 UTC; 265ms ago\n   Duration: 5ms\n Invocation: 232490ca1d3e4241a5d6e49672d54188\nTriggeredBy: \u00d7 nix-daemon.socket\n       Docs: man:nix-daemon\n             https://nixos.org/manual\n    Process: 1726 ExecStart=nix-daemon --daemon (code=exited, status=1/FAILURE)\n   Main PID: 1726 (code=exited, status=1/FAILURE)\n         IP: 0B in, 0B out\n         IO: 0B read, 0B written\n   Mem peak: 2.2M\n        CPU: 3ms\n\nOct 26 06:33:43 machine systemd[1]: Started Nix Daemon.\nOct 26 06:33:43 machine nix-daemon[1726]: error: unrecognised flag '--daemon'\nOct 26 06:33:43 machine systemd[1]: nix-daemon.service: Main process exited, code=exited, status=1/FAILURE\nOct 26 06:33:43 machine systemd[1]: nix-daemon.service: Failed with result 'exit-code'.\nOct 26 06:33:43 machine systemd[1]: nix-daemon.service: Start request repeated too quickly.\nOct 26 06:33:43 machine systemd[1]: nix-daemon.service: Failed with result 'start-limit-hit'.\nOct 26 06:33:43 machine systemd[1]: Failed to start Nix Daemon.\n\n\u00d7 nix-daemon.socket - Nix Daemon Socket\n     Loaded: loaded (/etc/systemd/system/nix-daemon.socket; enabled; preset: ignored)\n    Drop-In: /nix/store/4qzxz6gahbjmaix8nvmglr00dgjv0757-system-units/nix-daemon.socket.d\n             \u2514\u2500overrides.conf\n     Active: failed (Result: service-start-limit-hit) since Mon 2026-10-26 06:33:43 UTC; 264ms ago\n   Duration: 173ms\n Invocation: 508f8abf8f2c4f8ea9f7c15936adc117\n   Triggers: \u25cf nix-daemon.service\n     Listen: /nix/var/nix/daemon-socket/socket (Stream)\n\nOct 26 06:33:43 machine systemd[1]: Listening on Nix Daemon Socket.\nOct 26 06:33:43 machine systemd[1]: nix-daemon.socket: Failed with result 'service-start-limit-hit'.\nCommand 'systemd-run -E LOCALE_ARCHIVE -E NIXOS_INSTALL_BOOTLOADER -E NIXOS_NO_CHECK --collect --no-ask-password --pipe --quiet --service-type=exec --unit=nixos-rebuild-switch-to-configuration /nix/var/nix/profiles/system/bin/switch-to-configuration switch' returned non-zero exit status 4.\n",
+			"detail": ""
+		},
+		{
+			"name": "rollback-generation",
+			"status": "pass",
+			"detail": "current system /nix/store/bwxrjp5yc7zw97261fh603ig6qd607d6-nixos-system-machine-test, expected one /nix/store/bwxrjp5yc7zw97261fh603ig6qd607d6-nixos-system-machine-test"
+		},
+		{
+			"name": "return-to-cppnix-switch-generation",
+			"status": "pass",
+			"command": "nix-env -p /nix/var/nix/profiles/system --switch-generation 1",
+			"user": "root",
+			"exit_status": 0,
+			"expected_status": 0,
+			"stdout": "",
+			"stderr": "switching profile from version 2 to 1\n",
+			"detail": ""
+		},
+		{
+			"name": "return-to-cppnix-activate",
+			"status": "pass",
+			"command": "/nix/var/nix/profiles/system/bin/switch-to-configuration switch",
+			"user": "root",
+			"exit_status": 0,
+			"expected_status": 0,
+			"stdout": "setting up /etc...\n",
+			"stderr": "Checking switch inhibitors... done\nupdating GRUB 2 menu...\nstopping the following units: systemd-tmpfiles-resetup.service\nNOT restarting the following changed units: register-nix-paths.service\nactivating the configuration...\nremoving obsolete symlink \u2018/etc/qualification-generation\u2019...\nrestarting sysinit-reactivation.target\nreloading the following units: dbus-broker.service\nstarting the following units: systemd-tmpfiles-resetup.service\n",
+			"detail": ""
+		},
+		{
+			"name": "return-to-cppnix-generation",
+			"status": "pass",
+			"detail": "current /nix/store/wy11qg5wjhc0kb4fawaqisb0lndfyswk-nixos-system-machine-test, CppNix generation /nix/store/wy11qg5wjhc0kb4fawaqisb0lndfyswk-nixos-system-machine-test"
+		},
+		{
+			"name": "return-to-cppnix-reboot",
+			"status": "pass",
+			"detail": "booted /nix/store/wy11qg5wjhc0kb4fawaqisb0lndfyswk-nixos-system-machine-test, expected /nix/store/wy11qg5wjhc0kb4fawaqisb0lndfyswk-nixos-system-machine-test"
+		},
+		{
+			"name": "return-to-cppnix-version",
+			"status": "pass",
+			"command": "nix-instantiate --version",
+			"user": "root",
+			"exit_status": 0,
+			"expected_status": 0,
+			"stdout": "nix-instantiate (Nix) 2.35.2\n",
+			"stderr": "",
+			"detail": "expected nix-instantiate (Nix) 2.35.2, got 'nix-instantiate (Nix) 2.35.2'"
+		},
+		{
+			"name": "cppnix-socket-active",
+			"status": "pass",
+			"command": "systemctl is-active nix-daemon.socket",
+			"user": "root",
+			"exit_status": 0,
+			"expected_status": 0,
+			"stdout": "active\n",
+			"stderr": "",
+			"detail": ""
+		},
+		{
+			"name": "cppnix-daemon-start",
+			"status": "pass",
+			"command": "systemctl start nix-daemon.service; sleep 2; systemctl is-active nix-daemon.service",
+			"user": "root",
+			"exit_status": 0,
+			"expected_status": 0,
+			"stdout": "active\n",
+			"stderr": "",
+			"detail": ""
+		},
+		{
+			"name": "cppnix-daemon-journal",
+			"status": "pass",
+			"command": "journalctl -b -u nix-daemon.service -u nix-daemon.socket --no-pager -n 40",
+			"user": "root",
+			"exit_status": 0,
+			"expected_status": 0,
+			"stdout": "Oct 26 06:33:57 machine systemd[1]: Listening on Nix Daemon Socket.\nOct 26 06:33:58 machine systemd[1]: Started Nix Daemon.\nOct 26 06:33:58 machine nix-daemon[714]: accepted connection from pid 555, user qualification\nOct 26 06:33:58 machine nix-daemon[714]: reaped child process 717, status = succeeded\nOct 26 06:33:58 machine nix-daemon[714]: accepted connection from pid 734, user qualification\nOct 26 06:33:58 machine nix-daemon[714]: reaped child process 737, status = succeeded\nOct 26 06:33:58 machine nix-daemon[714]: accepted connection from pid 748, user qualification\nOct 26 06:33:58 machine nix-daemon[714]: reaped child process 751, status = succeeded\nOct 26 06:33:58 machine nix-daemon[714]: accepted connection from pid 771, user qualification\nOct 26 06:33:58 machine nix-daemon[714]: reaped child process 774, status = succeeded\n",
+			"stderr": "",
+			"detail": ""
+		},
+		{
+			"name": "cppnix-single-store-daemon",
+			"status": "pass",
+			"detail": "units ['nix-daemon.service', 'nix-daemon.socket'], MainPID 714, daemon executables ['/nix/store/irfrbndi76zhkvqsfhmsn4a99iafck29-nix-2.35.2/bin/nix'], expected executable /nix/store/irfrbndi76zhkvqsfhmsn4a99iafck29-nix-2.35.2/bin/nix"
+		},
+		{
+			"name": "return-to-cppnix-list-generations",
+			"status": "pass",
+			"command": "nix-env -p /nix/var/nix/profiles/system --list-generations",
+			"user": "root",
+			"exit_status": 0,
+			"expected_status": 0,
+			"stdout": "   1   2026-10-26 06:23:37   (current)\n   2   2026-10-26 06:32:59   \n   3   2026-10-26 06:33:30   \n",
+			"stderr": "",
+			"detail": ""
+		},
+		{
+			"name": "return-to-cppnix-verify-store",
+			"status": "pass",
+			"command": "nix-store --verify --check-contents",
+			"user": "root",
+			"exit_status": 0,
+			"expected_status": 0,
+			"stdout": "",
+			"stderr": "reading the Nix store...\nchecking path existence...\nchecking link hashes...\nchecking store hashes...\n",
+			"detail": ""
+		},
+		{
+			"name": "return-to-cppnix-reuses-store",
+			"status": "pass",
+			"command": "cd /tmp && nixos-rebuild build --file /nix/store/f2wrn4w1qxphda1892cdy3bv25nkycb7-qualification-system.nix --attr two --no-reexec && readlink -f result",
+			"user": "root",
+			"exit_status": 0,
+			"expected_status": 0,
+			"stdout": "/nix/store/rwvlsfl3rb6yyczynzy09d9y8sgcvvx6-nixos-system-machine-test\n/nix/store/rwvlsfl3rb6yyczynzy09d9y8sgcvvx6-nixos-system-machine-test\n",
+			"stderr": "building the system configuration...\nDone. The new configuration is ",
+			"detail": "expected /nix/store/rwvlsfl3rb6yyczynzy09d9y8sgcvvx6-nixos-system-machine-test, got '/nix/store/rwvlsfl3rb6yyczynzy09d9y8sgcvvx6-nixos-system-machine-test'"
+		},
+		{
+			"name": "removal-delete-generations",
+			"status": "pass",
+			"command": "nix-env -p /nix/var/nix/profiles/system --delete-generations old",
+			"user": "root",
+			"exit_status": 0,
+			"expected_status": 0,
+			"stdout": "",
+			"stderr": "removing profile version 2\nremoving profile version 3\n",
+			"detail": ""
+		},
+		{
+			"name": "removal-refresh-boot-menu",
+			"status": "pass",
+			"command": "/nix/store/wy11qg5wjhc0kb4fawaqisb0lndfyswk-nixos-system-machine-test/bin/switch-to-configuration boot",
+			"user": "root",
+			"exit_status": 0,
+			"expected_status": 0,
+			"stdout": "",
+			"stderr": "Not checking switch inhibitors (action = boot)\nupdating GRUB 2 menu...\n",
+			"detail": ""
+		},
+		{
+			"name": "removal-no-one-boot-entry",
+			"status": "pass",
+			"command": "! grep -F /nix/store/bwxrjp5yc7zw97261fh603ig6qd607d6-nixos-system-machine-test /boot/grub/grub.cfg",
+			"user": "root",
+			"exit_status": 0,
+			"expected_status": 0,
+			"stdout": "",
+			"stderr": "",
+			"detail": ""
+		},
+		{
+			"name": "removal-no-three-boot-entry",
+			"status": "pass",
+			"command": "! grep -F /nix/store/9fky2g4by6pxj8b262bz75zmqm9y2935-nixos-system-machine-test /boot/grub/grub.cfg",
+			"user": "root",
+			"exit_status": 0,
+			"expected_status": 0,
+			"stdout": "",
+			"stderr": "",
+			"detail": ""
+		},
+		{
+			"name": "removal-no-two-boot-entry",
+			"status": "pass",
+			"command": "! grep -F /nix/store/rwvlsfl3rb6yyczynzy09d9y8sgcvvx6-nixos-system-machine-test /boot/grub/grub.cfg",
+			"user": "root",
+			"exit_status": 0,
+			"expected_status": 0,
+			"stdout": "",
+			"stderr": "",
+			"detail": ""
+		},
+		{
+			"name": "removal-no-upgrade-boot-entry",
+			"status": "pass",
+			"command": "! grep -F /nix/store/ym9j83m8zvsq2a2ff93yh3j1z42knc1j-nixos-system-machine-test /boot/grub/grub.cfg",
+			"user": "root",
+			"exit_status": 0,
+			"expected_status": 0,
+			"stdout": "",
+			"stderr": "",
+			"detail": ""
+		},
+		{
+			"name": "removal-collect-garbage",
+			"status": "pass",
+			"command": "nix-collect-garbage",
+			"user": "root",
+			"exit_status": 0,
+			"expected_status": 0,
+			"stdout": "127 store paths deleted, 998.5 KiB freed\n",
+			"stderr": "finding garbage collector roots...\nremoving stale link from \"/nix/var/nix/gcroots/auto/3pgjxk288s510l8xhmivfqyz40hymfz8\" to \"/nix/var/nix/profiles/system-2-link\"\nremoving stale link from \"/nix/var/nix/gcroots/auto/j3wbyr55nq19j2lk7p6ybj4c6xynh7jw\" to \"/nix/var/nix/profiles/system-3-link\"\nremoving stale link from \"/nix/var/nix/gcroots/auto/149fkcl64rx82mydq9vnbs1jb2l73i6d\" to \"/build/root/nix/var/nix/profiles/system-1-link\"\nremoving stale link from \"/nix/var/nix/gcroots/auto/9r26g16mk6kjmxmy2bz91gqc0xlz5r8v\" to \"/tmp/nix-build-1047-1302599239/result\"\nremoving stale link from \"/nix/var/nix/gcroots/auto/gsz9n2gp7ld5dk78jddv147x18yi4rsq\" to \"/home/qualification/.local/state/home-manager/gcroots/new-home\"\nremoving stale link from \"/nix/var/nix/gcroots/auto/bxyw2ka7vwnph6pivf2isbh8md6smsvc\" to \"/tmp/nix-build-O6kx45/result\"\nremoving stale temporary roots file \"/nix/var/nix/temproots/1012\"\ndeleting garbage...\ndeleting '/nix/store/ya80w5flrmayd2xn784hhxq64iv3nl4m-xonsh-0.24.2.drv'\ndeleting '/nix/store/z2nznbflznxsrmhv03kijlxq1pgp17qv-python3-3.14.7-env.drv'\ndeleting '/nix/store/mjafqp06lz4spp329h5nv4m9s10il05c-python3.14-xonsh-0.24.2.drv'\ndeleting '/nix/store/0hmmqw6dk7war40jv96v1cqc16cgkz11-python3.14-pytest-subprocess-1.6.0.drv'\ndeleting '/nix/store/n4cfh6xjxk3aiv9jrvyal1ab0jjsll8m-python3.14-anyio-4.14.2.drv'\ndeleting '/nix/store/l7fr8rk5zfjhaavg1fx5r16lq2cz0mgq-source.drv'\ndeleting '/nix/store/l90qzjwgysifb9jjqwpg8v8zry3i8cla-python3.14-prompt-toolkit-3.0.52.drv'\ndeleting '/nix/store/hhzx9311ks6dp6z567vchph5fgpp7g8s-python3.14-trio-0.33.0.drv'\ndeleting '/nix/store/zamgxmc6n75dwlnksswach0w9lgcqsja-python3.14-pytest-trio-0.8.0.drv'\ndeleting '/nix/store/fl29v2qkw2krqz7xf1m41mshdkv3zq6j-python3.14-outcome-1.3.0.post0.drv'\ndeleting '/nix/store/plkklznldh934pj0wkh77ma38y3z4i3m-outcome-1.3.0.post0.tar.gz.drv'\ndeleting '/nix/store/waa159r4haslqdnfim92s2sj8wsbz3q8-python3.14-trustme-1.2.1.drv'\ndeleting '/nix/store/j1wx2r6w809cbjivdd4w713mbkf4z20h-python3.14-uvloop-0.22.1.drv'\ndeleting '/nix/store/avbcihxjm9id1fayzj5r34bkczchf9x8-python3.14-service-identity-26.1.0.drv'\ndeleting '/nix/store/n2z73sfcvcg5mjyvkmm5v4b5slbsaqbc-python3.14-pyopenssl-26.3.0.drv'\ndeleting '/nix/store/048pvds1c3m59ipkqd88r3n75xbldllm-python3.14-cryptography-50.0.0.drv'\ndeleting '/nix/store/rhlc7sjp9z0csbvwfwlc9i3vinyk6z8n-python3.14-cryptography-vectors-50.0.0.drv'\ndeleting '/nix/store/1qdh8l7ii7rmf7dya91y762c888ni0p2-cryptography-50.0.0-vendor.drv'\ndeleting '/nix/store/d5p10a6dpmhm088c38nd3g8lfw1ffcd2-cryptography-50.0.0-vendor-staging.drv'\ndeleting '/nix/store/gvw4hyjqgqb013cgvr84mqfqcv711m8s-source.drv'\ndeleting '/nix/store/6vy20y0impfskx0wkyld5vxbl1sy44am-python3.14-bcrypt-5.0.0.drv'\ndeleting '/nix/store/xicxgkjvxzihan6xxzm5yd0i5ig04q8r-python3.14-setuptools-rust-1.13.0.drv'\ndeleting '/nix/store/8aqq2y3p3ys3jvcpn60nva69ffxskny8-zsh-5.9.2.drv'\ndeleting '/nix/store/969qvn8i4l4dfibjgfaxf5jn07654w3q-yodl-4.05.00.drv'\ndeleting '/nix/store/4iwv8n7hgpl57v1x05jhfyp0pff5abb8-nixos-system-machine-test.drv'\ndeleting '/nix/store/c27s2a8382r1xlyy3w9n25iqzmssb6qk-activate.drv'\ndeleting '/nix/store/p2pr1njcwbiz9ifa4lpkw72b3f9zzwsc-etc.drv'\ndeleting '/nix/store/83gvvz3xhc82918h1l4r690z08m2lxhn-system-units.drv'\ndeleting '/nix/store/3mqq7zymmmsbs31gxb4vxfhk9lr5sqa6-python3.14-uv-build-0.11.28.drv'\ndeleting '/nix/store/zhryy7vgjzchckngszv6qhsny5lihqwk-uv-build-0.11.28-vendor.drv'\ndeleting '/nix/store/bsljjycw98k7w1hg221s1drwnvvnx6a6-source'\ndeleting '/nix/store/9r9zr45hkh36n3d48czs3p2pmsmmrv9j-unit-systemd-tmpfiles-resetup.service.drv'\ndeleting '/nix/store/0l7rcma6qmf002cssmmqi465w05lyc61-X-Restart-Triggers-systemd-tmpfiles-resetup.drv'\ndeleting '/nix/store/fxlnsmkqk4vn8li80p1fh6q5bg0lhzq7-tmpfiles.d.drv'\ndeleting '/nix/store/4qqgv1yqmqj54vycscv6apbiv2al7p0m-source.drv'\ndeleting '/nix/store/y7a8mhwzlanj13g9g78bgjvgaxims8q7-bcrypt-5.0.0-vendor.drv'\ndeleting '/nix/store/hwn9yvg4ygg7j9m0jlnjkgfzvysxhny7-bcrypt-5.0.0-vendor-staging.drv'\ndeleting '/nix/store/nk10bj9ikfs58pyr8bqa764dkf2krhl8-source.drv'\ndeleting '/nix/store/mkj2q1n1wz0fqb3rma6h2qsxkqa0dkgy-python3.14-pretend-1.0.9.drv'\ndeleting '/nix/store/3zaq0q86i1iyxiwwh51kcqnb4max2lkp-source.drv'\ndeleting '/nix/store/grws7bkbxqkm8qrkr8x19lblad97jkhj-python3.14-sniffio-1.3.1.drv'\ndeleting '/nix/store/42ig21snv6rlgj6wrix8iyxnw38p774k-python3.14-curio-1.6-unstable-2024-04-11.drv'\ndeleting '/nix/store/ycdjmx9zgy57mhwnbr2651gb2cir4bx7-qualification-qemu-vm.nix'\ndeleting '/nix/store/9064mk4sgsap30r3h9b1rj8r51z8432d-source.drv'\ndeleting '/nix/store/v7q01417fvjrbc51mv2kflk2l5d72y3c-unit-nix-daemon.service.drv'\ndeleting '/nix/store/9d3lvvlh47z6in56dngcsl2rdkihm392-trustme-1.2.1.tar.gz.drv'\ndeleting '/nix/store/ndz885im6ll1akih8kxqlc057056705r-user-generators.drv'\ndeleting '/nix/store/qm8qq3ay3zj9bgb3rp379a7gbbwivgf7-python3.14-pyasn1-modules-0.4.2.drv'\ndeleting '/nix/store/6d1sv4jj6dp26rm9mk8dqca1hrarm80z-system-generators.drv'\ndeleting '/nix/store/kfr6p088cw061qpx1d4zxf24x28l04hs-source.drv'\ndeleting '/nix/store/zw1zlzr268kcrdrq5zgmx777xrpk4g7l-python3.14-semantic-version-2.10.0.drv'\ndeleting '/nix/store/bxgkv0ljqgkq7hn778wxbjirjs8igqxh-unit-home-manager-qualification.service.drv'\ndeleting '/nix/store/v7m9fk2a7gf5g9vpyn41fixc5v89pjbc-python3.14-exceptiongroup-1.3.1.drv'\ndeleting '/nix/store/fzhlphwrfxx2q9n4lydnfv5cmwah1gcj-home-manager-generation.drv'\ndeleting '/nix/store/dz4jlv7xdzn3pglmbbp8fl5sb9yn6gc8-python3.14-astor-0.8.1-unstable-2024-03-30.drv'\ndeleting '/nix/store/q71a2fy9v13vawncw3npsbv14znx8rv9-source.drv'\ndeleting '/nix/store/dx2gf2d7i7d6wb0ikrjs57aj135xk3i9-match-repr-fix.patch.drv'\ndeleting '/nix/store/b38l7d40l3xbk26d33dihap4a1gikwy6-uv-build-0.11.28-vendor-staging.drv'\ndeleting '/nix/store/w6c5c0ivw1yp4xz1m4h7qsfdyhs7yfd5-source.drv'\ndeleting '/nix/store/ksxvpakhr2wjz758310sxr5fx0ysk1g9-source.drv'\ndeleting '/nix/store/2c5k3nfax4nf6df7r1d4zy3cj2rm435j-unit-register-nix-paths.service.drv'\ndeleting '/nix/store/sv0pdwymy8jkcvh5jxvvy3i6y3zbnp8y-tz_completion.patch'\ndeleting '/nix/store/079q7bqsdnjprj3na6n326s3q401s4r5-unit-nix-gc.service.drv'\ndeleting '/nix/store/2ck2pkwcg0jzypr0g8s0zwn02amklrwc-user-units.drv'\ndeleting '/nix/store/nwk9pqz2w0cpp292klgg5r5w7hm9i3n9-unit-dbus-broker.service.drv'\ndeleting '/nix/store/g0n0fh1iy8yw3m7lb6wrwypsmx91bwp7-python314-compat.patch'\ndeleting '/nix/store/6i8417hbxpy2b2a93m8z637rf81i70nd-source.drv'\ndeleting '/nix/store/jjwhg84miw1c0h4bvcsbr709awb365vz-nixos-system-machine-test.drv'\ndeleting '/nix/store/2b9hvwylq6hpscfnisz8xxsk5m1pqs55-activate.drv'\ndeleting '/nix/store/fi5n8i77dgzlhkcqqn2vdksqshxwi6ga-python3.14-pyte-0.8.2.drv'\ndeleting '/nix/store/qj503y207cnzv55wv0c1hi8zcarb20v4-python3.14-wcwidth-0.8.2.drv'\ndeleting '/nix/store/hi9zaxl7zbvij3r4nca1lww2467m316w-unit-dbus-broker.service.drv'\ndeleting '/nix/store/s9z2gx1x97q432gkv53ps2idj5dkfg25-X-Restart-Triggers-dbus-broker.drv'\ndeleting '/nix/store/y2dwldcnysnmmx7vy0601ak6z32ql6fg-dbus-1.drv'\ndeleting '/nix/store/p41mwsrpd4xssbbf7xagf09lvmj9mxvn-python3.14-ply-3.11.drv'\ndeleting '/nix/store/jr1cch33217i5k2yyvqzmfl90n2ajyvs-ply-3.11.tar.gz.drv'\ndeleting '/nix/store/ma7zq95dlhaznmm814c8qjkqdhf1dmkg-python3.14-pyasn1-0.6.4.drv'\ndeleting '/nix/store/9a1m0hvygm1dxfx5369mmn9x4hx4lrmz-glibc-2.42-84-source.drv'\ndeleting '/nix/store/yl5y8z3j4dg9yhrd81q2mfj0hra81kzk-fish-4.9.3.drv'\ndeleting '/nix/store/swncbrlbssc9q50376v7n88z4zzaqdf2-cargo-deps-vendor.drv'\ndeleting '/nix/store/fkb2w2vlrgv9a1l2c1gzp6lp6s3vbj78-cargo-deps-vendor-staging.drv'\ndeleting '/nix/store/fx71cas0jjn4a2x3xmiizr6bi2xmsyhw-setuptools_rust-1.13.0.tar.gz.drv'\ndeleting '/nix/store/04lrynr71b6zhjavi37qcc08irdhpcz0-source.drv'\ndeleting '/nix/store/zl64gfppaiqmycchiigs06r37wb8cs8z-qualification-failing-build.drv'\ndeleting '/nix/store/9h97fpvb24j5js088p35dz782jp9ninj-system-path.drv'\ndeleting '/nix/store/gkync13p8595i41hn3zyd598hnawvyf4-nixos-rebuild-ng-26.11.drv'\ndeleting '/nix/store/5yygqfka86f8lz93fpaakpzhqxl7jzb3-closure-info'\ndeleting '/nix/store/272kiar79w2810l5ybjwwc032483497w-nix-darwin-path.patch'\ndeleting '/nix/store/xmhalkyq8adsfqpqhm90xm1k4capj5dx-nixos-option-26.11.drv'\ndeleting '/nix/store/30mkl10ra41nh8kz3yams7xsfkjh8w84-unit-nix-optimise.service.drv'\ndeleting '/nix/store/jv97yib4cvi166ck04gw40qfb3zjhwhx-disable_suid_test.patch'\ndeleting '/nix/store/dyyz0zsknsca88dffi5zgfq586p8y0km-etc-qualification-generation.drv'\ndeleting '/nix/store/3ihs43vcyvjr6fy4q0m7bkwn3yz5kff7-python3.14-pytest-rerunfailures-16.4.drv'\ndeleting '/nix/store/d6jjgrkkli3rqnbixg9s1fy6hh2nqv85-python3.14-flit-scm-1.7.0.drv'\ndeleting '/nix/store/10lr1jzdw4w0r5ad6qm7dg19svnp6fkr-config.fish.appendix.drv'\ndeleting '/nix/store/r9ydxc89j01pq1bbs78lb4mi50vh0brl-unit-script-register-nix-paths-start.drv'\ndeleting '/nix/store/q89mc80wr573fwxm71zc2l7rqpyfvmpi-system-shutdown.drv'\ndeleting '/nix/store/jzbv1984k9xi45smhmn2gxm0sj06hdlp-activation-script.drv'\ndeleting '/nix/store/69kas868vjbyiy8hrflgx3gah1afmf0d-unit-script-nix-gc-start.drv'\ndeleting '/nix/store/znrd179vgj2ibwah2gy8djrgh7x6kzl4-nixrs-replacement-upgrade-fixture.drv'\ndeleting '/nix/store/7as961vhjjwalanmil84qzb6iqi4lkxa-python3-3.14.7-env.drv'\ndeleting '/nix/store/qdf66v1v24cr5sxiz3277mkl3cg06w6g-etc.drv'\ndeleting '/nix/store/y5vdqdjpa4yi2s93mzp9sq00c875p2m9-source.drv'\ndeleting '/nix/store/8awddhlr7mgnw7psck6la90193gh26iq-semantic_version-2.10.0.tar.gz.drv'\ndeleting '/nix/store/ijzif1kbhgcjlm97r9ng06n259nd8gpb-skip-sgr-tests.patch'\ndeleting '/nix/store/4wzrg0fiyf9i8mlf2m9xzn5asjc7gr0q-source.drv'\ndeleting '/nix/store/zac6dsa0c5dc0rhk8x5jk3csxl8v9xbf-icmake-9.03.01.drv'\ndeleting '/nix/store/r67x0vrs208kh62ab6jbf144xsivlb16-source.drv'\ndeleting '/nix/store/j9ajlxdvhykxwj4ivwamlm2zxls3p9r2-etc-qualification-generation.drv'\ndeleting '/nix/store/iwgq8rwwxgb71vwcf92ifw4cy6l4qj9c-source.drv'\ndeleting '/nix/store/386p4m4w8bf0kg5mffh7lk4ilb0gc61n-source.drv'\ndeleting '/nix/store/jsfvk216difjgk3ncpazm9511ia451sr-sniffio-1.3.1.tar.gz.drv'\ndeleting '/nix/store/i0jcm3pjrixsfvv9087alpkv5xrjdvli-source.drv'\ndeleting '/nix/store/8jnp8gb3g3xpj9z2ab2hhb9g7p6fkb30-source.drv'\ndeleting '/nix/store/29zgb5f0xa5hrhynz11q8yj9klk47wpc-source.drv'\ndeleting '/nix/store/kw5ay2pjnpqyhxyyi47xfxkjq2y1pnrw-source.drv'\ndeleting '/nix/store/irhji5kmc1f8bd36hnfqhc5qsinf7xjm-zsh-5.9.2.tar.xz.drv'\ndeleting '/nix/store/ysskybdngwmdikzjvzc84xzvf4ckvsgq-qualification-failing-build.lock'\ndeleting '/nix/store/80v0z0vm573lmc30yjcgxwys2bf5g47s-source.drv'\ndeleting '/nix/store/9b3wwpxx7f4gndl3kbbxkf450h5fk2pj-setuptools-rust-hook.sh.drv'\ndeleting '/nix/store/qaa6lwj055517vz0yha4bskq07k4r8ri-setuptools-rust-hook.sh'\ndeleting '/nix/store/x00nzsz7jcc8cq3hsfa1j17lgdpk31rx-python3.14-hatch-fancy-pypi-readme-25.1.0.drv'\ndeleting '/nix/store/9fpqwnbqv3ykksc62mbdhhzmv7q9m1rn-hatch_fancy_pypi_readme-25.1.0.tar.gz.drv'\ndeleting '/nix/store/p9ghy388g5608q2lcsc652ng2czfs6v2-__fish_build_paths_suffix.fish.drv'\ndeleting '/nix/store/wkrnm1ml452j95kx76rxln4p6pv0y62n-source.drv'\ndeleting '/nix/store/lnkbjkam7zjrmyiqdg2nh174w6js58yq-source.drv'\ndeleting '/nix/store/ynjsq3mppksxhhahc3m8nspxgsmqyjki-source.drv'\ndeleting unused links...\nnote: hard linking is currently saving -4.0 KiB\n",
+			"detail": ""
+		},
+		{
+			"name": "removal-no-nixrs-generation",
+			"status": "pass",
+			"command": "! ls -d /nix/var/nix/profiles/system-*-link | grep -v '^/nix/var/nix/profiles/system-1-link$' && test $(readlink -f $(command -v nix-instantiate)) = $(readlink -f /nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2/bin/nix-instantiate) && ! nix-store --query --requisites /run/current-system/sw | grep -Fx /nix/store/c52f14n0i3gpy46wpjdmxhl707wkrqi1-nixrs-replacement-provisional-0.1.1",
+			"user": "root",
+			"exit_status": 0,
+			"expected_status": 0,
+			"stdout": "",
+			"stderr": "",
+			"detail": ""
+		},
+		{
+			"name": "removal-verify-store",
+			"status": "pass",
+			"command": "nix-store --verify --check-contents",
+			"user": "root",
+			"exit_status": 0,
+			"expected_status": 0,
+			"stdout": "",
+			"stderr": "reading the Nix store...\nchecking path existence...\nchecking link hashes...\nchecking store hashes...\n",
+			"detail": ""
+		}
+	]
+}

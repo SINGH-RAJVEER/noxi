@@ -206,8 +206,10 @@ pub struct StdIO;
 #[cfg(feature = "impure")]
 impl EvalIO for StdIO {
 	fn path_exists(&self, path: &Path) -> io::Result<bool> {
-		// In general, an IO error indicates the path doesn't exist
-		Ok(path.try_exists().unwrap_or(false))
+		// CppNix resolves ancestor symlinks but uses lstat for the final
+		// component. A dangling symlink therefore exists. A trailing slash
+		// or `/.` is kept in the syscall path and requires a directory.
+		Ok(std::fs::symlink_metadata(path).is_ok())
 	}
 
 	fn canonicalize(&self, path: &Path) -> io::Result<PathBuf> {

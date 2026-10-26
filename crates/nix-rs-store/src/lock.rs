@@ -77,6 +77,22 @@ impl PathLocks {
 	/// Lock every path, in sorted order so that concurrent lockers cannot
 	/// deadlock. Waits for each lock.
 	pub fn lock(paths: impl IntoIterator<Item = PathBuf>) -> io::Result<Self> {
+		Self::lock_inner(paths, None)
+	}
+
+	/// Like `lock`, but allow a build request to stop while another client
+	/// owns a path. Previously acquired locks are released on cancellation.
+	pub fn lock_cancellable(
+		paths: impl IntoIterator<Item = PathBuf>,
+		cancelled: &dyn Fn() -> bool,
+	) -> io::Result<Self> {
+		Self::lock_inner(paths, Some(cancelled))
+	}
+
+	fn lock_inner(
+		paths: impl IntoIterator<Item = PathBuf>,
+		cancelled: Option<&dyn Fn() -> bool>,
+	) -> io::Result<Self> {
 		let mut paths: Vec<PathBuf> = paths.into_iter().collect();
 		paths.sort();
 		paths.dedup();
@@ -87,7 +103,22 @@ impl PathLocks {
 			let lock_path = PathBuf::from(lock_path);
 			loop {
 				let file = open_lock_file(&lock_path, true)?.expect("created lock file");
-				lock_file(&file, LockType::Write, true)?;
+				if let Some(cancelled) = cancelled {
+					loop {
+						if cancelled() {
+							return Err(io::Error::new(
+								io::ErrorKind::Interrupted,
+								"build cancelled",
+							));
+						}
+						if lock_file(&file, LockType::Write, false)? {
+							break;
+						}
+						std::thread::sleep(std::time::Duration::from_millis(50));
+					}
+				} else {
+					lock_file(&file, LockType::Write, true)?;
+				}
 				// A non-empty lock file was deleted by its last holder after
 				// we opened it; another process may already hold a new one.
 				if file.metadata()?.len() == 0 {

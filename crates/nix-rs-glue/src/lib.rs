@@ -4,7 +4,7 @@
 //! [`EvaluatorStore`] computes paths without writing; explicitly diverted
 //! writable stores also register text, sources and derivations. A configured
 //! owner can build requested output contexts during writable evaluation.
-//! Fetching remains unavailable. Derived from
+//! Local and URL fetching is implemented by [`fetch`]. Derived from
 //! Snix's `glue` and `build-glue` crates; see `PROVENANCE.md` in
 //! `crates/nix-rs/`.
 
@@ -15,8 +15,10 @@ use nix_rs_eval::{EvalIO, EvaluationBuilder};
 
 mod derivation;
 pub mod errors;
+pub mod fetch;
 mod import;
 pub mod known_paths;
+mod mount;
 pub mod nar;
 pub mod store;
 
@@ -38,18 +40,20 @@ pub fn configure<'co, 'ro, 'env>(
 	// which `flakes` implies.
 	let fetch_tree = builder.experimental_feature_enabled("fetch-tree");
 	let flakes = builder.experimental_feature_enabled("flakes");
+	store.fetch_config.borrow_mut().settings.flakes = flakes;
 	builder
 		// CppNix looks up `<nix/...>` in its built-in files after the search path.
 		.corepkgs_dir(Some(store::COREPKGS_DIR.into()))
 		.add_builtins(derivation::derivation_builtins::builtins(Rc::clone(&store)))
-		.add_builtins(import::import_builtins::builtins(store))
-		.add_builtins(context_builtins::builtins())
-		.add_builtins(flake_builtins::builtins(flakes))
+		.add_builtins(import::import_builtins::builtins(Rc::clone(&store)))
 		.add_builtins(
-			unsupported_builtins::builtins()
+			fetch::builtins::fetch_builtins::builtins(store)
 				.into_iter()
 				.filter(move |(name, _)| fetch_tree || *name != "fetchTree"),
 		)
+		.add_builtins(context_builtins::builtins())
+		.add_builtins(flake_builtins::builtins(flakes))
+		.add_builtins(unsupported_builtins::builtins())
 		.add_src_builtin("derivation", include_str!("derivation.nix"))
 }
 
@@ -61,34 +65,9 @@ mod unsupported_builtins {
 	use nix_rs_eval::generators::GenCo;
 	use nix_rs_eval::{ErrorKind, Value};
 
-	#[builtin("fetchurl")]
-	async fn builtin_fetchurl(_co: GenCo, #[lazy] _args: Value) -> Result<Value, ErrorKind> {
-		Err(ErrorKind::NotImplemented("builtins.fetchurl"))
-	}
-
-	#[builtin("fetchTarball")]
-	async fn builtin_fetch_tarball(_co: GenCo, #[lazy] _args: Value) -> Result<Value, ErrorKind> {
-		Err(ErrorKind::NotImplemented("builtins.fetchTarball"))
-	}
-
-	#[builtin("fetchGit")]
-	async fn builtin_fetch_git(_co: GenCo, #[lazy] _args: Value) -> Result<Value, ErrorKind> {
-		Err(ErrorKind::NotImplemented("builtins.fetchGit"))
-	}
-
 	#[builtin("fetchMercurial")]
 	async fn builtin_fetch_mercurial(_co: GenCo, #[lazy] _args: Value) -> Result<Value, ErrorKind> {
 		Err(ErrorKind::NotImplemented("builtins.fetchMercurial"))
-	}
-
-	#[builtin("fetchTree")]
-	async fn builtin_fetch_tree(_co: GenCo, #[lazy] _args: Value) -> Result<Value, ErrorKind> {
-		Err(ErrorKind::NotImplemented("builtins.fetchTree"))
-	}
-
-	#[builtin("getFlake")]
-	async fn builtin_get_flake(_co: GenCo, #[lazy] _args: Value) -> Result<Value, ErrorKind> {
-		Err(ErrorKind::NotImplemented("builtins.getFlake"))
 	}
 }
 
