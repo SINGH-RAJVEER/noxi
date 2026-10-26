@@ -785,7 +785,7 @@ mod pure_builtins {
 	}
 
 	#[builtin("hasAttr")]
-	async fn builtin_has_attr(co: GenCo, key: Value, set: Value) -> Result<Value, ErrorKind> {
+	fn builtin_has_attr(key: Value, set: Value) -> Result<Value, ErrorKind> {
 		let k = key.to_str()?;
 		let xs = set.to_attrs()?;
 
@@ -1012,7 +1012,7 @@ mod pure_builtins {
 	}
 
 	#[builtin("head")]
-	async fn builtin_head(co: GenCo, list: Value) -> Result<Value, ErrorKind> {
+	fn builtin_head(list: Value) -> Result<Value, ErrorKind> {
 		if list.is_catchable() {
 			return Ok(list);
 		}
@@ -1042,7 +1042,7 @@ mod pure_builtins {
 	}
 
 	#[builtin("isAttrs")]
-	async fn builtin_is_attrs(co: GenCo, value: Value) -> Result<Value, ErrorKind> {
+	fn builtin_is_attrs(value: Value) -> Result<Value, ErrorKind> {
 		// TODO(edef): make this beautiful
 		if value.is_catchable() {
 			return Ok(value);
@@ -1052,7 +1052,7 @@ mod pure_builtins {
 	}
 
 	#[builtin("isBool")]
-	async fn builtin_is_bool(co: GenCo, value: Value) -> Result<Value, ErrorKind> {
+	fn builtin_is_bool(value: Value) -> Result<Value, ErrorKind> {
 		if value.is_catchable() {
 			return Ok(value);
 		}
@@ -1061,7 +1061,7 @@ mod pure_builtins {
 	}
 
 	#[builtin("isFloat")]
-	async fn builtin_is_float(co: GenCo, value: Value) -> Result<Value, ErrorKind> {
+	fn builtin_is_float(value: Value) -> Result<Value, ErrorKind> {
 		if value.is_catchable() {
 			return Ok(value);
 		}
@@ -1070,7 +1070,7 @@ mod pure_builtins {
 	}
 
 	#[builtin("isFunction")]
-	async fn builtin_is_function(co: GenCo, value: Value) -> Result<Value, ErrorKind> {
+	fn builtin_is_function(value: Value) -> Result<Value, ErrorKind> {
 		if value.is_catchable() {
 			return Ok(value);
 		}
@@ -1082,7 +1082,7 @@ mod pure_builtins {
 	}
 
 	#[builtin("isInt")]
-	async fn builtin_is_int(co: GenCo, value: Value) -> Result<Value, ErrorKind> {
+	fn builtin_is_int(value: Value) -> Result<Value, ErrorKind> {
 		if value.is_catchable() {
 			return Ok(value);
 		}
@@ -1091,7 +1091,7 @@ mod pure_builtins {
 	}
 
 	#[builtin("isList")]
-	async fn builtin_is_list(co: GenCo, value: Value) -> Result<Value, ErrorKind> {
+	fn builtin_is_list(value: Value) -> Result<Value, ErrorKind> {
 		if value.is_catchable() {
 			return Ok(value);
 		}
@@ -1100,7 +1100,7 @@ mod pure_builtins {
 	}
 
 	#[builtin("isNull")]
-	async fn builtin_is_null(co: GenCo, value: Value) -> Result<Value, ErrorKind> {
+	fn builtin_is_null(value: Value) -> Result<Value, ErrorKind> {
 		if value.is_catchable() {
 			return Ok(value);
 		}
@@ -1109,7 +1109,7 @@ mod pure_builtins {
 	}
 
 	#[builtin("isPath")]
-	async fn builtin_is_path(co: GenCo, value: Value) -> Result<Value, ErrorKind> {
+	fn builtin_is_path(value: Value) -> Result<Value, ErrorKind> {
 		if value.is_catchable() {
 			return Ok(value);
 		}
@@ -1118,7 +1118,7 @@ mod pure_builtins {
 	}
 
 	#[builtin("isString")]
-	async fn builtin_is_string(co: GenCo, value: Value) -> Result<Value, ErrorKind> {
+	fn builtin_is_string(value: Value) -> Result<Value, ErrorKind> {
 		if value.is_catchable() {
 			return Ok(value);
 		}
@@ -1127,7 +1127,7 @@ mod pure_builtins {
 	}
 
 	#[builtin("length")]
-	async fn builtin_length(co: GenCo, list: Value) -> Result<Value, ErrorKind> {
+	fn builtin_length(list: Value) -> Result<Value, ErrorKind> {
 		if list.is_catchable() {
 			return Ok(list);
 		}
@@ -1621,7 +1621,7 @@ mod pure_builtins {
 	}
 
 	#[builtin("tail")]
-	async fn builtin_tail(co: GenCo, list: Value) -> Result<Value, ErrorKind> {
+	fn builtin_tail(list: Value) -> Result<Value, ErrorKind> {
 		if list.is_catchable() {
 			return Ok(list);
 		}
@@ -1781,7 +1781,7 @@ mod pure_builtins {
 	}
 
 	#[builtin("typeOf")]
-	async fn builtin_type_of(co: GenCo, x: Value) -> Result<Value, ErrorKind> {
+	fn builtin_type_of(x: Value) -> Result<Value, ErrorKind> {
 		if x.is_catchable() {
 			return Ok(x);
 		}

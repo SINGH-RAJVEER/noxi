@@ -3,6 +3,7 @@
 //!
 //! Builtins are directly backed by Rust code operating on Nix values.
 
+use crate::errors::ErrorKind;
 use crate::vm::generators::Generator;
 
 use super::Value;
@@ -30,9 +31,16 @@ pub struct BuiltinRepr {
 	arg_count: usize,
 
 	func: Rc<dyn BuiltinGen>,
+	synchronous: Option<SynchronousBuiltin>,
 
 	/// Partially applied function arguments.
 	partials: Vec<Value>,
+}
+
+#[derive(Clone)]
+struct SynchronousBuiltin {
+	strict: &'static [bool],
+	func: Rc<dyn Fn(Vec<Value>) -> Result<Value, ErrorKind>>,
 }
 
 pub enum BuiltinResult {
@@ -42,6 +50,9 @@ pub enum BuiltinResult {
 
 	/// Builtin was called and constructed a generator that the VM must run.
 	Called(&'static str, Generator),
+
+	/// A builtin whose body and arguments do not need to suspend.
+	Synchronous(Result<Value, ErrorKind>),
 }
 
 /// Represents a single built-in function which directly executes Rust
@@ -77,9 +88,34 @@ impl Builtin {
 			documentation,
 			arg_count,
 			func: Rc::new(func),
+			synchronous: None,
 			partials: vec![],
 		}
 		.into()
+	}
+
+	/// Register a synchronous body alongside its ordinary forcing generator.
+	/// The macro supplies the same argument order and catchable propagation to
+	/// both bodies. Unforced strict arguments always use the generator.
+	pub fn new_with_sync<F, S>(
+		name: &'static str,
+		documentation: Option<&'static str>,
+		arg_count: usize,
+		func: F,
+		strict: &'static [bool],
+		synchronous: S,
+	) -> Self
+	where
+		F: BuiltinGen + 'static,
+		S: Fn(Vec<Value>) -> Result<Value, ErrorKind> + 'static,
+	{
+		assert_eq!(strict.len(), arg_count);
+		let mut builtin = Self::new(name, documentation, arg_count, func);
+		Rc::get_mut(&mut builtin.0).unwrap().synchronous = Some(SynchronousBuiltin {
+			strict,
+			func: Rc::new(synchronous),
+		});
+		builtin
 	}
 
 	pub fn name(&self) -> &'static str {
@@ -127,7 +163,24 @@ impl Builtin {
 				None => self.0.partials.clone(),
 			};
 			args.push(arg);
-			BuiltinResult::Called(self.0.name, (self.0.func)(args))
+			if let Some(sync) = &self.0.synchronous
+				&& args.iter().zip(sync.strict).all(|(arg, strict)| {
+					!strict || !matches!(arg, Value::Thunk(thunk) if !thunk.is_forced())
+				}) {
+				for (arg, strict) in args.iter_mut().zip(sync.strict) {
+					if *strict && matches!(arg, Value::Thunk(_)) {
+						let Value::Thunk(thunk) = std::mem::replace(arg, Value::Null) else {
+							unreachable!();
+						};
+						*arg = thunk
+							.force_if_evaluated()
+							.expect("checked memoized argument");
+					}
+				}
+				BuiltinResult::Synchronous((sync.func)(args))
+			} else {
+				BuiltinResult::Called(self.0.name, (self.0.func)(args))
+			}
 		} else {
 			self.apply_arg(arg);
 			BuiltinResult::Partial(self)
@@ -155,5 +208,26 @@ impl Display for Builtin {
 impl PartialEq for Builtin {
 	fn eq(&self, other: &Self) -> bool {
 		self.0.name == other.0.name
+	}
+}
+
+#[cfg(test)]
+mod tests {
+	use super::*;
+
+	#[test]
+	fn ready_arguments_skip_generator_construction() {
+		let builtin = Builtin::new_with_sync(
+			"identity",
+			None,
+			1,
+			|_| panic!("ready argument constructed a generator"),
+			&[true],
+			|mut values| Ok(values.pop().unwrap()),
+		);
+		let BuiltinResult::Synchronous(Ok(Value::Integer(value))) = builtin.apply(42.into()) else {
+			panic!("ready argument did not use synchronous builtin");
+		};
+		assert_eq!(value, 42);
 	}
 }
