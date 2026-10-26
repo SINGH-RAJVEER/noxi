@@ -149,6 +149,13 @@ pub fn upgrade_schema(conn: &Connection, dry_run: bool, ca_derivations: bool) ->
 			continue;
 		}
 		tracing::debug!("executing Nix database schema migration '{name}'...");
+		// SQLite retains the SQL text. Match the reference's four-space
+		// schema indentation while keeping the source tab-indented.
+		let statement = if *needs_ca {
+			statement.replace('\t', "    ")
+		} else {
+			(*statement).to_owned()
+		};
 		let tx = conn.unchecked_transaction()?;
 		tx.execute_batch(&format!(
 			"{statement};\ninsert or ignore into SchemaMigrations values('{name}')"
