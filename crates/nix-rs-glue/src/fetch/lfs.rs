@@ -151,6 +151,9 @@ pub(super) fn smudge(
 				let json: serde_json::Value =
 					serde_json::from_slice(&response(store, &request)?.body)
 						.map_err(|e| Error::new(e.to_string()))?;
+				if json.get("objects").is_none() {
+					return Err(Error::new("response does not contain 'objects'"));
+				}
 				let object = &json["objects"][0];
 				if object["oid"].as_str() != Some(oid) || object["size"].as_u64() != Some(size) {
 					return Err(Error::new(format!(

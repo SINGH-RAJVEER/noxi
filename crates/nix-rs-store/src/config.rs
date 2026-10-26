@@ -93,6 +93,9 @@ impl LocalStoreConfig {
 				.map(str::to_owned)
 				.collect();
 		}
+		if settings.get("experimental-features").is_some() {
+			self.ca_derivations = settings.experimental_features().contains("ca-derivations");
+		}
 	}
 
 	/// The settings of the system store. `NIX_STATE_DIR` and `NIX_LOG_DIR`

@@ -355,14 +355,12 @@ fn io_message(e: &io::Error) -> String {
 /// `BasicClientConnection::handshake` and `postHandshake`: the negotiated
 /// features.
 fn handshake(conn: &mut Connection) -> Result<BTreeSet<String>> {
-	conn.to
-		.u64(WORKER_MAGIC_1)
-		.u64(PROTOCOL_VERSION.min(version(1, 38)));
+	conn.to.u64(WORKER_MAGIC_1).u64(PROTOCOL_VERSION);
 	conn.to.flush()?;
 	if conn.from.read_u64()? != WORKER_MAGIC_2 {
 		return Err(Error::Nix("nix-daemon protocol mismatch from".into()));
 	}
-	let daemon_version = conn.from.read_u64()?;
+	let daemon_version = crate::wire::from_wire(conn.from.read_u64()?);
 	if daemon_version >> 8 != 1 {
 		return Err(Error::Nix(
 			"Nix daemon protocol version not supported".into(),
@@ -371,7 +369,7 @@ fn handshake(conn: &mut Connection) -> Result<BTreeSet<String>> {
 	if daemon_version < MINIMUM_PROTOCOL_VERSION {
 		return Err(Error::Nix("the Nix daemon version is too old".into()));
 	}
-	conn.version = daemon_version.min(version(1, 38));
+	conn.version = daemon_version.min(PROTOCOL_VERSION);
 	let mut features = BTreeSet::new();
 	if conn.version >= version(1, 38) {
 		conn.to.strings(CLIENT_FEATURES.iter().copied());

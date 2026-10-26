@@ -1,7 +1,8 @@
 use std::process::ExitCode;
 
 use nix_rs_commands::{
-	cli, collect_garbage, legacy_environment, nix, nix_build, nix_env, nix_shell, nix_store,
+	cli, collect_garbage, instantiate, legacy_environment, nix, nix_build, nix_env, nix_shell,
+	nix_store,
 };
 
 fn main() -> ExitCode {
@@ -18,6 +19,12 @@ fn main() -> ExitCode {
 	let name = name
 		.rsplit_once('.')
 		.map_or(name.as_str(), |(stem, _)| stem);
+	// `nix __build-remote` runs the build hook, `build-remote`.
+	let name = if std::env::args().nth(1).as_deref() == Some("__build-remote") {
+		"build-remote"
+	} else {
+		name
+	};
 	match name {
 		"nix-hash" => cli::main("nix-hash", nix::hash::legacy),
 		"nix-build" => cli::main("nix-build", nix_build::main),
@@ -25,7 +32,13 @@ fn main() -> ExitCode {
 		"nix-env" => cli::main("nix-env", nix_env::main),
 		"nix-collect-garbage" => cli::main("nix-collect-garbage", collect_garbage::main),
 		"nix-shell" => cli::main("nix-shell", nix_shell::main),
+		"nix-instantiate" => cli::main("nix-instantiate", instantiate::main),
 		"nix-copy-closure" => cli::main("nix-copy-closure", legacy_environment::copy_closure),
+		// The other legacy commands the reference registers.
+		"nix-channel" | "nix-prefetch-url" | "nix-daemon" | "build-remote" => {
+			cli::print_error(&format!("{name} is not supported by nix-rs yet"));
+			ExitCode::FAILURE
+		}
 		_ => cli::main("nix", nix::main),
 	}
 }

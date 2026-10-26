@@ -1,6 +1,7 @@
 //! New-style `nix` commands. Unsupported library operations fail explicitly.
 mod args;
 mod command_store;
+mod config;
 mod develop;
 pub mod execution;
 mod expression;
@@ -314,6 +315,7 @@ pub fn main(mut settings: Settings, args: Vec<String>) -> Result<ExitCode, Failu
 		return Err(requires_subcommand(level.command.path));
 	}
 	let supported: &[&str] = match level.command.path {
+		"config show" => &["json"],
 		"develop" => &[
 			"arg",
 			"argstr",
@@ -435,6 +437,26 @@ pub fn main(mut settings: Settings, args: Vec<String>) -> Result<ExitCode, Failu
 	};
 	if parsed.command.starts_with("hash ") {
 		return hash::run(parsed);
+	}
+	if parsed.command == "config show" {
+		return config::show(parsed);
+	}
+	// With build logs, CppNix's `bar` formats (the default) print each
+	// build log line after `NAME> `; the shared build backend writes raw
+	// output, which only matches the `raw-with-logs` format.
+	let bar = parsed
+		.value("log-format")
+		.is_none_or(|format| format.starts_with("bar"));
+	if bar
+		&& nix_compat::log::print_build_logs()
+		&& matches!(
+			parsed.command,
+			"build" | "develop" | "print-dev-env" | "env shell" | "run" | "eval"
+		) {
+		return Err(unsupported(&format!(
+			"{} with build logs in the bar log format (use --log-format raw-with-logs)",
+			parsed.command
+		)));
 	}
 	ensure_diverted_root(&parsed)?;
 	match parsed.command {

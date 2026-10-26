@@ -2,9 +2,9 @@
 //! clients talk to over `nix-daemon`'s Unix socket with the worker
 //! protocol (`src/libstore/daemon.cc`).
 //!
-//! This is a preview library: it implements the handshake, option
-//! handling and the read-only and root operations, and is started by tests
-//! rather than installed as `nix-daemon`.
+//! The executable supports Unix listeners, systemd socket activation and
+//! stdio workers. Protocol and system qualification remain partial; see
+//! `docs/verification.md` for the tested operations and remaining gates.
 
 pub mod client;
 pub mod connection;

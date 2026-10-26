@@ -1,0 +1,17 @@
+# Garbage collection treats every store path a process on the host has open
+# or mapped as a runtime root, and builds in diverted stores see their store
+# at the same `/nix/store` paths. A test that lists roots or collects garbage
+# while another one builds with the shared busybox therefore sees extra
+# `/proc/PID/...` roots, so these tests run with no other test alongside.
+[[profile.default.overrides]]
+filter = """
+binary(reference_gc)
+| binary(reference_collect_garbage)
+| test(garbage_collection_through_the_daemon_matches_the_reference)
+| test(indirect_roots_through_the_daemon_match_the_reference)
+| test(untrusted_clients_get_the_reference_warnings_and_censored_roots)
+| test(garbage_collection_works_through_both_daemons)
+| test(store_maintenance_and_ping_alias)
+| test(realises_with_roots_and_queries_like_cppnix)
+"""
+threads-required = "num-test-threads"

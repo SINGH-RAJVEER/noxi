@@ -450,6 +450,30 @@ impl LocalStore {
 		Ok(id)
 	}
 
+	/// The registered static output map, extended by known realisations when
+	/// `ca-derivations` is enabled, as `queryPartialDerivationOutputMap` does.
+	pub fn query_partial_derivation_output_map(
+		&self,
+		drv: &StorePath,
+	) -> Result<BTreeMap<String, Option<StorePath>>> {
+		let mut outputs: BTreeMap<_, _> = self
+			.query_derivation_outputs(drv)?
+			.into_iter()
+			.map(|(name, path)| (name, Some(path)))
+			.collect();
+		if self.config.ca_derivations {
+			let derivation = self.read_derivation(drv)?;
+			for name in derivation.outputs().names() {
+				if let Some(realisation) = self.query_realisation(drv, &name.to_string())? {
+					outputs.insert(name.to_string(), Some(realisation.out_path));
+				} else {
+					outputs.entry(name.to_string()).or_insert(None);
+				}
+			}
+		}
+		Ok(outputs)
+	}
+
 	/// Read the derivation at `drv_path` from disk, check that its output
 	/// paths are the ones its inputs determine, and return the outputs with
 	/// known paths.

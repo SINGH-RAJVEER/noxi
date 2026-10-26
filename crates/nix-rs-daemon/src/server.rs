@@ -4,8 +4,10 @@
 //! store handle end with its connection.
 
 use std::ffi::CStr;
-use std::os::fd::AsRawFd;
+use std::os::fd::{AsRawFd, FromRawFd};
+use std::os::unix::fs::PermissionsExt;
 use std::os::unix::net::{UnixListener, UnixStream};
+use std::path::Path;
 
 use nix_rs_store::LocalStore;
 
@@ -159,19 +161,106 @@ pub fn handle_connection(
 	process_connection(read, stream, &store, settings, trust)
 }
 
+/// Socket activation takes ownership of the matching descriptors starting at 3.
+/// A present LISTEN_FDS requires LISTEN_PID to identify this process, as the
+/// reference's `serveUnixSocket` requires.
+pub fn listeners(socket: &Path) -> Result<Vec<UnixListener>> {
+	if let Some(count) = std::env::var_os("LISTEN_FDS") {
+		if std::env::var("LISTEN_PID").ok().as_deref()
+			!= Some(std::process::id().to_string().as_str())
+		{
+			return Err(Error::Nix(
+				"unexpected systemd environment variables".into(),
+			));
+		}
+		let count: i32 = count
+			.to_str()
+			.and_then(|n| n.parse().ok())
+			.filter(|n| *n >= 0 && *n <= i32::MAX - 3)
+			.ok_or_else(|| Error::Nix("invalid LISTEN_FDS".into()))?;
+		let names = std::env::var("LISTEN_FDNAMES").unwrap_or_default();
+		let names: Vec<_> = names.split(':').filter(|s| !s.is_empty()).collect();
+		let mut listeners = Vec::new();
+		for i in 0..count {
+			if names
+				.get(i as usize)
+				.is_some_and(|name| *name != "nix-daemon.socket")
+			{
+				continue;
+			}
+			let fd = 3 + i;
+			if unsafe { libc::fcntl(fd, libc::F_SETFD, libc::FD_CLOEXEC) } == -1 {
+				return Err(std::io::Error::last_os_error().into());
+			}
+			// SAFETY: fcntl confirmed an open descriptor; the activation contract
+			// transfers ownership of the matching listening socket to us.
+			let listener = unsafe { UnixListener::from_raw_fd(fd) };
+			listener.local_addr()?;
+			listeners.push(listener);
+		}
+		return Ok(listeners);
+	}
+	if !socket.is_absolute() {
+		return Err(Error::Nix("daemon socket must be an absolute path".into()));
+	}
+	if let Some(parent) = socket.parent() {
+		std::fs::create_dir_all(parent)?;
+	}
+	// Replace stale socket files on restart, but never remove a regular file.
+	if let Ok(metadata) = std::fs::symlink_metadata(socket) {
+		use std::os::unix::fs::FileTypeExt;
+		if metadata.file_type().is_socket() {
+			std::fs::remove_file(socket)?;
+		}
+	}
+	let listener = UnixListener::bind(socket)?;
+	std::fs::set_permissions(socket, std::fs::Permissions::from_mode(0o666))?;
+	Ok(vec![listener])
+}
+
 /// Accept connections on `listener` forever, forking a child for each.
 pub fn serve(listener: UnixListener, settings: &DaemonSettings) -> Result<()> {
+	serve_listeners(vec![listener], settings)
+}
+
+/// Serve all descriptors supplied by the service manager.
+pub fn serve_listeners(listeners: Vec<UnixListener>, settings: &DaemonSettings) -> Result<()> {
+	let mut fds: Vec<libc::pollfd> = listeners
+		.iter()
+		.map(|listener| libc::pollfd {
+			fd: listener.as_raw_fd(),
+			events: libc::POLLIN,
+			revents: 0,
+		})
+		.collect();
 	loop {
 		// Reap finished children so they don't become zombies.
 		// SAFETY: waiting for our own children without blocking.
 		while unsafe { libc::waitpid(-1, std::ptr::null_mut(), libc::WNOHANG) } > 0 {}
-		let (stream, _) = match listener.accept() {
+		// A bounded poll also reaps workers when no new clients arrive.
+		let ready = unsafe { libc::poll(fds.as_mut_ptr(), fds.len() as libc::nfds_t, 1000) };
+		if ready < 0 {
+			let error = std::io::Error::last_os_error();
+			if error.kind() == std::io::ErrorKind::Interrupted {
+				continue;
+			}
+			return Err(error.into());
+		}
+		let Some(index) = fds.iter().position(|fd| fd.revents != 0) else {
+			continue;
+		};
+		let (stream, _) = match listeners[index].accept() {
 			Ok(conn) => conn,
 			Err(e) if e.kind() == std::io::ErrorKind::Interrupted => continue,
 			Err(e) => return Err(e.into()),
 		};
 		let peer = peer_info(&stream)?;
-		let (trust, user) = match auth_peer(&peer, settings) {
+		let (trust, user) = match settings
+			.force_trust
+			.map(|trust| (trust, "<unknown>".into()))
+			.map(Ok)
+			.unwrap_or_else(|| auth_peer(&peer, settings))
+		{
 			Ok(auth) => auth,
 			Err(e) => {
 				tracing::error!("error processing connection: {e}");
@@ -193,7 +282,13 @@ pub fn serve(listener: UnixListener, settings: &DaemonSettings) -> Result<()> {
 			return Err(std::io::Error::last_os_error().into());
 		}
 		if pid == 0 {
-			drop(listener);
+			drop(listeners);
+			// Each connection is an independent daemon worker, as in daemonLoop.
+			if unsafe { libc::setsid() } == -1 {
+				unsafe {
+					libc::_exit(1);
+				}
+			}
 			let code = match handle_connection(stream, settings, trust) {
 				Ok(()) => 0,
 				Err(e) => {

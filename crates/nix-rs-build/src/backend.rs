@@ -277,7 +277,7 @@ impl Store for LocalBackend {
 					stderr.write_all(data)
 				}
 				BuildEvent::Started { .. } | BuildEvent::Output(_) => Ok(()),
-				BuildEvent::Finished { .. } => Ok(()),
+				BuildEvent::Finished { .. } | BuildEvent::PathChecked { .. } => Ok(()),
 			};
 		};
 		if self.settings.max_build_jobs > 1 || self.settings.keep_going {

@@ -51,6 +51,7 @@ struct Goal {
 }
 
 enum Message {
+	PathChecked(StorePath, StorePath, bool),
 	Started(StorePath),
 	Output(StorePath, Vec<u8>),
 	Finished(StorePath, Option<BuildError>),
@@ -205,7 +206,8 @@ impl LocalBuilder<'_> {
 					let handle = scope.spawn(move || {
 						let builder = LocalBuilder::new(self.store, self.settings)
 							.with_substituters(self.substituters)
-							.with_cancellation(stop);
+							.with_cancellation(stop)
+							.with_repair(self.repair);
 						let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
 							let mut current = worker_path.clone();
 							builder.realise_inner(
@@ -215,6 +217,13 @@ impl LocalBuilder<'_> {
 								&mut Vec::new(),
 								&mut |event| {
 									let message = match event {
+										BuildEvent::PathChecked { path, valid } => {
+											Message::PathChecked(
+												worker_path.clone(),
+												path.clone(),
+												valid,
+											)
+										}
 										BuildEvent::Started { drv_path } => {
 											current = drv_path.clone();
 											Message::Started(drv_path.clone())
@@ -250,6 +259,9 @@ impl LocalBuilder<'_> {
 					break;
 				}
 				match rx.recv_timeout(Duration::from_millis(50)) {
+					Ok(Message::PathChecked(owner, path, valid)) => {
+						events(&owner, BuildEvent::PathChecked { path: &path, valid })
+					}
 					Ok(Message::Started(path)) => {
 						events(&path, BuildEvent::Started { drv_path: &path })
 					}

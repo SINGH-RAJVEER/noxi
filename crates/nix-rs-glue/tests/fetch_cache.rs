@@ -322,3 +322,141 @@ fn file_cache_revalidates_etags_and_reopens_offline() {
 	}
 	assert_eq!(client.calls.get(), 2);
 }
+
+#[test]
+fn remote_relative_submodules_match_reference_and_reopen_offline() {
+	let fixture = tempfile::tempdir().unwrap();
+	let child = fixture.path().join("child");
+	let parent = fixture.path().join("parent");
+	let git = |path: &Path, args: &[&str]| -> String {
+		let output = Command::new("git")
+			.arg("-C")
+			.arg(path)
+			.args(args)
+			.env("GIT_AUTHOR_DATE", "2020-01-01T00:00:00Z")
+			.env("GIT_COMMITTER_DATE", "2020-01-01T00:00:00Z")
+			.output()
+			.unwrap();
+		assert!(
+			output.status.success(),
+			"{}",
+			String::from_utf8_lossy(&output.stderr)
+		);
+		String::from_utf8(output.stdout).unwrap().trim().into()
+	};
+	for repo in [&child, &parent] {
+		fs::create_dir(repo).unwrap();
+		git(repo, &["init", "--quiet", "-b", "main"]);
+		git(repo, &["config", "user.name", "Fetcher test"]);
+		git(repo, &["config", "user.email", "fetcher@example.invalid"]);
+		fs::write(repo.join("file"), "committed source\n").unwrap();
+		git(repo, &["add", "."]);
+		git(repo, &["commit", "--quiet", "-m", "initial"]);
+	}
+	git(
+		&parent,
+		&[
+			"-c",
+			"protocol.file.allow=always",
+			"submodule",
+			"add",
+			"../child",
+			"nested",
+		],
+	);
+	git(
+		&parent,
+		&[
+			"config",
+			"--file",
+			".gitmodules",
+			"submodule.nested.url",
+			"../child.git",
+		],
+	);
+	git(&parent, &["add", "."]);
+	git(&parent, &["commit", "--quiet", "-m", "relative submodule"]);
+	let rev = git(&parent, &["rev-parse", "HEAD"]);
+	for repo in [&child, &parent] {
+		let bare = fixture.path().join(format!(
+			"{}.git",
+			repo.file_name().unwrap().to_str().unwrap()
+		));
+		let output = Command::new("git")
+			.args(["clone", "--quiet", "--bare"])
+			.arg(repo)
+			.arg(&bare)
+			.output()
+			.unwrap();
+		assert!(output.status.success());
+		git(&bare, &["update-server-info"]);
+	}
+	let server = GitServer::start(fixture.path());
+	let expression = format!(
+		"builtins.toJSON (let tree = builtins.fetchTree {{ type = \"git\"; url = {}; rev = \"{rev}\"; submodules = true; }}; in {{ attributes = builtins.map (key: {{ inherit key; value = tree.${{key}}; }}) (builtins.attrNames tree); content = builtins.readFile (tree.outPath + \"/nested/file\"); }})",
+		serde_json::json!(format!("{}/parent.git", server.url))
+	);
+	let reference_cache = tempfile::tempdir().unwrap();
+	let candidate_cache = tempfile::tempdir().unwrap();
+	let expected = reference(reference_cache.path(), &expression);
+	assert_eq!(
+		candidate(candidate_cache.path(), &expression, false),
+		expected
+	);
+	drop(server);
+	assert_eq!(
+		candidate(candidate_cache.path(), &expression, true),
+		expected
+	);
+}
+
+struct GitServer {
+	url: String,
+	child: std::process::Child,
+}
+impl GitServer {
+	fn start(root: &Path) -> Self {
+		let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+		let port = listener.local_addr().unwrap().port();
+		drop(listener);
+		let mut child = Command::new("git")
+			.args([
+				"daemon",
+				"--reuseaddr",
+				"--export-all",
+				"--listen=127.0.0.1",
+				&format!("--port={port}"),
+				&format!("--base-path={}", root.display()),
+			])
+			.arg(root)
+			.stdout(std::process::Stdio::null())
+			.stderr(std::process::Stdio::piped())
+			.spawn()
+			.unwrap();
+		let deadline = std::time::Instant::now() + std::time::Duration::from_secs(5);
+		loop {
+			if std::net::TcpStream::connect(("127.0.0.1", port)).is_ok() {
+				break;
+			}
+			assert!(
+				child.try_wait().unwrap().is_none(),
+				"Git fixture exited before listening"
+			);
+			assert!(
+				std::time::Instant::now() < deadline,
+				"Git fixture did not listen"
+			);
+			std::thread::sleep(std::time::Duration::from_millis(10));
+		}
+		Self {
+			url: format!("git://127.0.0.1:{port}"),
+			child,
+		}
+	}
+}
+impl Drop for GitServer {
+	fn drop(&mut self) {
+		let _ = self.child.kill();
+		let _ = self.child.wait();
+	}
+}

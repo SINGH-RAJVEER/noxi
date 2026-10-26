@@ -937,3 +937,21 @@ pub fn print_evaluation_error(error: &nix_rs_eval::Error, settings: &Settings) {
 		);
 	}
 }
+
+/// Run `nix-instantiate` with the arguments after the program name.
+pub fn main(settings: Settings, args: Vec<String>) -> Result<ExitCode, crate::cli::Failure> {
+	// Like CppNix, `--version` prints as soon as it is read.
+	let mut options = parse_args_with(args, settings, |flag, _| {
+		(flag == "--version").then(|| {
+			println!("nix-instantiate (Nix) 2.35.2");
+			std::process::exit(0)
+		})
+	})
+	.map_err(crate::cli::Failure::Usage)?;
+	crate::cli::print_setting_warnings(&mut options.settings);
+	if options.find_file {
+		return Ok(find_files(&options));
+	}
+	let cwd = std::env::current_dir()?;
+	Ok(run(&options, &cwd, &mut io::stdout().lock()))
+}

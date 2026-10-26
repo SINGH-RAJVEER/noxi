@@ -691,6 +691,31 @@ where
 
 				Op::Call => {
 					let callable = self.stack_pop();
+					if let Value::Builtin(builtin) = callable {
+						let builtin_name = builtin.name();
+						match self.apply_builtin(builtin) {
+							BuiltinResult::Partial(partial) => {
+								self.stack.push(Value::Builtin(partial))
+							}
+							BuiltinResult::Synchronous(Ok(value)) if !value.is_catchable() => {
+								self.stack.push(value)
+							}
+							result => {
+								let call_span = frame.current_span();
+								// Suspensions and errors retain the caller frame, including
+								// its original span for the ordinary trace construction.
+								self.push_bytecode_frame(span, frame);
+								self.finish_builtin(
+									call_span,
+									Some(call_span),
+									builtin_name,
+									result,
+								)?;
+								return Ok(true);
+							}
+						}
+						continue;
+					}
 					self.call_value(frame.current_span(), Some((span, frame)), callable)?;
 
 					// exit this loop and let the outer loop enter the new call
@@ -1452,9 +1477,23 @@ where
 		builtin: Builtin,
 	) -> EvalResult<()> {
 		let builtin_name = builtin.name();
-		self.observer.observe_enter_builtin(builtin_name);
+		let result = self.apply_builtin(builtin);
+		self.finish_builtin(span, call_site, builtin_name, result)
+	}
 
-		match builtin.apply(self.stack_pop()) {
+	fn apply_builtin(&mut self, builtin: Builtin) -> BuiltinResult {
+		self.observer.observe_enter_builtin(builtin.name());
+		builtin.apply(self.stack_pop())
+	}
+
+	fn finish_builtin(
+		&mut self,
+		span: Span,
+		call_site: Option<Span>,
+		builtin_name: &'static str,
+		result: BuiltinResult,
+	) -> EvalResult<()> {
+		match result {
 			// Partially applied builtin is just pushed back on the stack.
 			BuiltinResult::Partial(partial) => self.stack.push(Value::Builtin(partial)),
 			BuiltinResult::Synchronous(result) => {

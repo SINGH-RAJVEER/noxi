@@ -156,6 +156,41 @@ in derivation {{
 				),
 			)
 			.unwrap();
+			fs::write(
+				fixture.engine(engine).join("work/logs.nix"),
+				format!(
+					r#"{{ name }}: let bb = builtins.storePath {busybox}; in derivation {{
+	inherit name;
+	system = "x86_64-linux";
+	builder = "${{bb}}/bin/sh";
+	args = [ "-c" "echo to-stdout; echo to-stderr >&2; echo > $out" ];
+}}
+"#,
+					busybox = busybox.display()
+				),
+			)
+			.unwrap();
+			fs::write(
+				fixture.engine(engine).join("work/structured.nix"),
+				format!(
+					r#"let bash = builtins.storePath {bash}; in derivation {{
+	name = "structured";
+	system = "x86_64-linux";
+	builder = "${{bash}}/bin/bash";
+	args = [ "-c" "echo > $out" ];
+	__structuredAttrs = true;
+	outputs = [ "out" "doc" ];
+	foo = "bar";
+	num = 3;
+	list = [ "a" "b" ];
+	attrs = {{ x = "y"; }};
+	outputChecks.out.allowedReferences = [ ];
+}}
+"#,
+					bash = bash.display()
+				),
+			)
+			.unwrap();
 		}
 		fixture
 	}
@@ -339,4 +374,70 @@ fn shell_and_run_print_the_summary_of_fresh_builds() {
 			eprintln!("execution unavailable: the store's mount namespace was refused");
 		}
 	}
+}
+
+/// The environment derivation re-serialises `__json`, so its path checks
+/// the structured attributes byte for byte.
+#[test]
+fn structured_attributes_reach_the_environment() {
+	let f = Fixture::new();
+	f.same(&["print-dev-env", "--impure", "--file", "structured.nix"]);
+	f.same(&[
+		"print-dev-env",
+		"--impure",
+		"--file",
+		"structured.nix",
+		"--json",
+	]);
+	let (status, _, stderr) = f.same(&[
+		"develop",
+		"--impure",
+		"--file",
+		"structured.nix",
+		"-c",
+		"bash",
+		"-c",
+		"cat $NIX_ATTRS_JSON_FILE; declare -p outputs",
+	]);
+	if status == Some(1) && stderr.contains("Operation not permitted") {
+		eprintln!("execution unavailable: the store's mount namespace was refused");
+	}
+}
+
+/// Build logs are hidden by default and raw with `raw-with-logs`; the
+/// reference's `bar` formats prefix each line, which fails explicitly.
+#[test]
+fn build_logs_follow_the_log_format() {
+	let f = Fixture::new();
+	let build = |name: &str| {
+		vec![
+			"build",
+			"--impure",
+			"--file",
+			"logs.nix",
+			"--argstr",
+			"name",
+			name,
+			"--no-link",
+		]
+		.into_iter()
+		.map(str::to_owned)
+		.collect::<Vec<_>>()
+	};
+	let args = build("quiet");
+	f.same(&args.iter().map(String::as_str).collect::<Vec<_>>());
+	let mut args = build("raw");
+	args.extend(["--log-format".into(), "raw-with-logs".into()]);
+	f.same(&args.iter().map(String::as_str).collect::<Vec<_>>());
+	let mut args = build("bar");
+	args.push("-L".into());
+	let (status, _, stderr) = f.run(
+		"nix-rs",
+		&args.iter().map(String::as_str).collect::<Vec<_>>(),
+	);
+	assert_eq!(status, Some(1));
+	assert!(
+		stderr.contains("is not supported by nix-rs yet"),
+		"{stderr}"
+	);
 }

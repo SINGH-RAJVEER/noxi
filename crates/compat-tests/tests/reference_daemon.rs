@@ -209,6 +209,16 @@ impl Env {
 	/// `args`, `{daemon}` is replaced by the daemon's name and `{store}` by
 	/// its store URL.
 	fn compare_with_input(&self, program: &str, args: &[&str], stdin: Option<&[u8]>) -> Output {
+		self.compare_filtered(program, args, stdin, None)
+	}
+
+	fn compare_filtered(
+		&self,
+		program: &str,
+		args: &[&str],
+		stdin: Option<&[u8]>,
+		root: Option<&str>,
+	) -> Output {
 		let mut outputs = Vec::new();
 		for daemon in ["reference", "nix-rs"] {
 			let url = self.store_url(daemon);
@@ -229,7 +239,17 @@ impl Env {
 				input.write_all(stdin).unwrap();
 			}
 			drop(input);
-			outputs.push(child.wait_with_output().unwrap());
+			let mut output = child.wait_with_output().unwrap();
+			if let Some(root) = root {
+				output.stdout = String::from_utf8(output.stdout)
+					.unwrap()
+					.lines()
+					.filter(|line| line.ends_with(&format!(" -> {root}")))
+					.map(|line| format!("{line}\n"))
+					.collect::<String>()
+					.into_bytes();
+			}
+			outputs.push(output);
 		}
 		let normalise = |bytes: &[u8], name: &str| {
 			let text = String::from_utf8_lossy(bytes)
@@ -414,7 +434,35 @@ fn untrusted_clients_get_the_reference_warnings_and_censored_roots() {
 		"{}",
 		String::from_utf8_lossy(&output.stderr)
 	);
-	env.compare("nix-store", &["--gc", "--print-roots"]);
+	// Runtime roots scan the shared /proc. Other tests can start or stop the
+	// same BusyBox between our sequential daemon queries. Pin a unique path
+	// with temporary roots owned by this test, and compare only its roots.
+	let input = env.dir.path().join(format!(
+		"censored-{}",
+		env.dir.path().file_name().unwrap().to_string_lossy()
+	));
+	fs::write(&input, b"root owned by this test\n").unwrap();
+	let added = env.compare("nix-store", &["--add", input.to_str().unwrap()]);
+	assert!(added.status.success());
+	let path = String::from_utf8(added.stdout).unwrap().trim().to_owned();
+	let store_path =
+		nix_compat::store_path::StorePath::from_absolute_path(path.as_bytes()).unwrap();
+	let stores: Vec<_> = ["reference", "nix-rs"]
+		.iter()
+		.map(|name| {
+			let store =
+				nix_rs_store::LocalStore::open(LocalStoreConfig::with_root(&env.root(name)))
+					.unwrap();
+			store.add_temp_root(&store_path).unwrap();
+			store
+		})
+		.collect();
+	let roots = env.compare_filtered("nix-store", &["--gc", "--print-roots"], None, Some(&path));
+	assert_eq!(
+		String::from_utf8(roots.stdout).unwrap(),
+		format!("\"{{censored}}\" -> {path}\n")
+	);
+	drop(stores);
 }
 
 fn write_expr(env: &Env, name: &str, script: &str) -> String {
