@@ -697,7 +697,9 @@ where
 							BuiltinResult::Partial(partial) => {
 								self.stack.push(Value::Builtin(partial))
 							}
-							BuiltinResult::Synchronous(Ok(value)) if !value.is_catchable() => {
+							BuiltinResult::Synchronous(Ok(value))
+								if !matches!(value, Value::Catchable(_)) =>
+							{
 								self.stack.push(value)
 							}
 							result => {
