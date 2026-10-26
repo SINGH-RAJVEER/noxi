@@ -52,6 +52,7 @@ fn busybox() -> String {
 struct Env {
 	dir: tempfile::TempDir,
 	busybox: String,
+	ca: bool,
 }
 
 impl Env {
@@ -62,6 +63,7 @@ impl Env {
 		let env = Env {
 			dir,
 			busybox: busybox(),
+			ca: false,
 		};
 		for store in ["reference", "nix-rs"] {
 			let to = format!("local?root={}", env.root(store).display());
@@ -70,6 +72,12 @@ impl Env {
 				&["copy", "--no-check-sigs", "--to", &to, &env.busybox],
 			);
 		}
+		env
+	}
+
+	fn new_ca() -> Self {
+		let mut env = Self::new();
+		env.ca = true;
 		env
 	}
 
@@ -86,7 +94,7 @@ impl Env {
 			.env(
 				"NIX_CONFIG",
 				format!(
-					"experimental-features = nix-command\nbuild-users-group =\nsubstituters =\nsandbox = true\nsandbox-fallback = false\nsandbox-paths =\ncores = 1\nsystem-features = {SYSTEM_FEATURES}\n"
+					"experimental-features = nix-command {}\nbuild-users-group =\nsubstituters =\nsandbox = true\nsandbox-fallback = false\nsandbox-paths =\ncores = 1\nsystem-features = {SYSTEM_FEATURES}\n", if self.ca { "ca-derivations" } else { "" }
 				),
 			)
 			.env("PATH", "/run/current-system/sw/bin:/usr/bin:/bin")
@@ -153,6 +161,7 @@ impl Env {
 	) -> nix_rs_build::Result<std::collections::BTreeMap<String, StorePath>> {
 		let mut config = LocalStoreConfig::with_root(&self.root("nix-rs"));
 		config.require_sigs = false;
+		config.ca_derivations = self.ca;
 		let store = LocalStore::open(config).unwrap();
 		let mut settings = BuildSettings {
 			sandbox_paths: Vec::new(),
@@ -882,4 +891,202 @@ fn only_used_input_outputs_are_realised() {
 		);
 		assert!(!output.status.success(), "{store} rebuilt {dev}");
 	}
+}
+
+/// The table uses a derivation basename and output name, as CppNix 2.35.2
+/// does, rather than the older hash-modulo realisation key.
+fn realisation_rows(root: &Path) -> Vec<(String, String, String, String)> {
+	let db = rusqlite::Connection::open(root.join("nix/var/nix/db/db.sqlite")).unwrap();
+	db.prepare("select drvPath, outputName, outputPath, ifnull(signatures, '') from BuildTraceV3 order by drvPath, outputName")
+		.unwrap().query_map([], |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?))).unwrap().collect::<Result<_, _>>().unwrap()
+}
+
+#[test]
+fn ca_floating_outputs_and_realisations_match_the_reference() {
+	for mode in ["recursive", "flat"] {
+		let env = Env::new_ca();
+		let drv = env.instantiate(&format!(
+			r#"derivation {{
+			name = "floating-{mode}";
+			system = "x86_64-linux";
+			builder = "${{builtins.storePath @busybox@}}/bin/sh";
+			args = [ "-c" "echo floating > $out; echo ca-log" ];
+			__contentAddressed = true;
+			outputHashMode = "{mode}";
+			outputHashAlgo = "sha256";
+		}}"#
+		));
+		let outputs = env.build_both(&drv);
+		assert_eq!(env.read("nix-rs", &outputs[0]), b"floating\n");
+		assert_eq!(
+			realisation_rows(&env.root("nix-rs")),
+			realisation_rows(&env.root("reference"))
+		);
+		// Reopening and realising again must use the persisted mapping.
+		let again = env.nix_rs_realise(&drv).unwrap();
+		assert_eq!(again["out"], outputs[0]);
+		let result = env.reference(
+			"nix-store",
+			&[
+				"--store",
+				env.root("nix-rs").to_str().unwrap(),
+				"--realise",
+				&drv.to_absolute_path(),
+			],
+		);
+		assert!(
+			result.status.success(),
+			"{}",
+			String::from_utf8_lossy(&result.stderr)
+		);
+		assert!(!String::from_utf8_lossy(&result.stderr).contains("building"));
+	}
+}
+
+#[test]
+fn ca_self_and_other_output_references_match_the_reference() {
+	let env = Env::new_ca();
+	let drv = env.instantiate(
+		r#"derivation {
+		name = "floating-refs";
+		system = "x86_64-linux";
+		builder = "${builtins.storePath @busybox@}/bin/sh";
+		args = [ "-c" "echo $out > $out; echo $out > $dev; echo refs-log" ];
+		outputs = [ "out" "dev" ];
+		__contentAddressed = true;
+		outputHashMode = "recursive";
+		outputHashAlgo = "sha256";
+	}"#,
+	);
+	let outputs = env.build_both(&drv);
+	for output in &outputs {
+		assert_eq!(env.read("nix-rs", output), env.read("reference", output));
+	}
+	assert_eq!(
+		realisation_rows(&env.root("nix-rs")),
+		realisation_rows(&env.root("reference"))
+	);
+	// Rebuild just the missing output with the other output still valid.
+	let mut config = LocalStoreConfig::with_root(&env.root("nix-rs"));
+	config.ca_derivations = true;
+	let store = LocalStore::open(config).unwrap();
+	let dev = store
+		.query_realisation(&drv, "dev")
+		.unwrap()
+		.unwrap()
+		.out_path;
+	store.invalidate_path_checked(&dev).unwrap();
+	nix_rs_store::delete_path(&store.real_path(&dev)).unwrap();
+	drop(store);
+	env.nix_rs_realise(&drv).unwrap();
+	env.verify("nix-rs");
+	// A self-referencing CA output must also pass nix-rs's NAR import check.
+	let mut config = LocalStoreConfig::with_root(&env.root("import"));
+	config.require_sigs = false;
+	config.ca_derivations = true;
+	let target = LocalStore::open(config).unwrap();
+	let mut config = LocalStoreConfig::with_root(&env.root("nix-rs"));
+	config.ca_derivations = true;
+	let source = LocalStore::open(config).unwrap();
+	let mut pending = outputs.clone();
+	pending.sort_by_key(|p| {
+		source
+			.query_path_info(p)
+			.unwrap()
+			.unwrap()
+			.references
+			.iter()
+			.filter(|r| *r != p)
+			.count()
+	});
+	for path in pending {
+		let info = source.query_path_info(&path).unwrap().unwrap();
+		let mut nar = Vec::new();
+		nix_rs_store::nar::dump_path(&mut nar, &source.real_path(&path)).unwrap();
+		target
+			.add_to_store(&info, &mut &nar[..], false, false)
+			.unwrap();
+	}
+	drop(target);
+	env.verify("import");
+}
+
+#[test]
+fn ca_input_resolution_matches_the_reference() {
+	for ca_parent in [false, true] {
+		let env = Env::new_ca();
+		let drv = env.instantiate(&format!(r#"let
+			bb = builtins.storePath @busybox@;
+			input = derivation {{ name = "ca-input"; system = "x86_64-linux"; builder = "${{bb}}/bin/sh"; args = [ "-c" "echo input > $out" ]; __contentAddressed = true; outputHashAlgo = "sha256"; outputHashMode = "recursive"; }};
+		in derivation {{
+			name = "ca-parent"; system = "x86_64-linux"; builder = "${{bb}}/bin/sh";
+			args = [ "-c" "echo $input > $out" ]; inherit input;
+			{extra}
+		}}"#, extra = if ca_parent { "__contentAddressed = true; outputHashAlgo = \"sha256\"; outputHashMode = \"recursive\";" } else { "" }));
+		let outputs = env.build_both(&drv);
+		assert_eq!(
+			env.read("nix-rs", &outputs[0]),
+			env.read("reference", &outputs[0])
+		);
+		assert_eq!(
+			realisation_rows(&env.root("nix-rs")),
+			realisation_rows(&env.root("reference"))
+		);
+	}
+}
+
+#[test]
+fn ca_fixed_outputs_record_reference_realisations() {
+	let env = Env::new_ca();
+	let drv = env.instantiate(
+		r#"derivation {
+		name = "ca-fixed"; system = "x86_64-linux";
+		builder = "${builtins.storePath @busybox@}/bin/sh";
+		args = [ "-c" "echo -n fixed > $out" ];
+		outputHash = builtins.hashString "sha256" "fixed";
+		outputHashAlgo = "sha256";
+	}"#,
+	);
+	env.build_both(&drv);
+	assert_eq!(
+		realisation_rows(&env.root("nix-rs")),
+		realisation_rows(&env.root("reference"))
+	);
+}
+
+#[test]
+fn ca_builds_require_the_experimental_feature() {
+	let env = Env::new_ca();
+	let drv = env.instantiate(
+		r#"derivation {
+		name = "ca-disabled"; system = "x86_64-linux";
+		builder = "${builtins.storePath @busybox@}/bin/sh";
+		args = [ "-c" "echo disabled > $out" ];
+		__contentAddressed = true; outputHashAlgo = "sha256";
+	}"#,
+	);
+	let result = env.reference(
+		"nix-store",
+		&[
+			"--experimental-features",
+			"nix-command",
+			"--store",
+			env.root("reference").to_str().unwrap(),
+			"--realise",
+			&drv.to_absolute_path(),
+		],
+	);
+	assert!(!result.status.success());
+	let store = LocalStore::open(LocalStoreConfig::with_root(&env.root("nix-rs"))).unwrap();
+	let error = LocalBuilder::new(&store, &BuildSettings::default())
+		.realise(&drv, &mut |_| {})
+		.unwrap_err()
+		.to_string();
+	assert_eq!(
+		error,
+		String::from_utf8_lossy(&result.stderr)
+			.trim()
+			.strip_prefix("error: ")
+			.unwrap()
+	);
 }
