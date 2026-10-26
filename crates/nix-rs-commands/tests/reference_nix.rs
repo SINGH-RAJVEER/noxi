@@ -655,18 +655,11 @@ fn legacy_environment_entrypoints_and_explicit_limits() {
 		assert_eq!(actual.stdout, expected.stdout);
 		assert_eq!(actual.stderr, expected.stderr);
 	}
-	for (program, args, message) in [
-		(
-			"nix-shell",
-			vec!["--expr", "{}", "--run", "true"],
-			"build-environment capture",
-		),
-		(
-			"nix-copy-closure",
-			vec!["--to", "localhost"],
-			"local mode is not supported",
-		),
-	] {
+	for (program, args, message) in [(
+		"nix-copy-closure",
+		vec!["--to", "localhost"],
+		"local mode is not supported",
+	)] {
 		let actual = run(false, program, &args);
 		assert_eq!(actual.status.code(), Some(1));
 		assert!(actual.stdout.is_empty());

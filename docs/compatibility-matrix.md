@@ -49,6 +49,7 @@ Modern CLI inventory and the initial section 6 gaps are recorded in [verificatio
 | `derivation show`, `log` | Version-4 derivation JSON, recursive selection, plain/bzip2 local logs | All derivation kinds, remote logs, remaining flags |
 | `copy` | Signed uncompressed file-cache exports and file-cache imports; metadata/NAR byte comparisons | Unsigned/compressed exports, other transports, profiles/links, recovery |
 | `shell`, `run` | Non-flake packages, PATH, environment changes and child statuses in diverted stores | Full app validation, signals, foreign-system execution, flakes |
-| `develop`, `nix-shell`, `nix-copy-closure` | Entry points, explicit library-limit errors; legacy version/missing-host comparisons | Build-environment capture, shell hooks, local copy-closure transport |
+| `nix-shell` | Expressions, files, directories and derivations; input builds, `--pure`, `--keep`, `--exclude`, `--arg`, `passAsFile`, rc file, exit statuses, argument errors | Shebang scripts, `--check`, `--repair`, structured `exportReferencesGraph`, CA inputs, interactive use, evaluator error format |
+| `develop`, `nix-copy-closure` | Entry points, explicit errors; legacy version/missing-host comparisons | Build-environment capture; `nix-copy-closure` needs the serve protocol over SSH |
 
 Modern CLI validation on 2026-10-25: twelve focused test groups passed, followed by the complete `just ci` check with 2,743 passing nextest tests, five existing skips and passing doctests. The rows describe the compared subset, not complete command-family qualification.

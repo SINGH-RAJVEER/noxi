@@ -202,7 +202,7 @@ impl Write for Digester {
 }
 
 /// The C library's message for an I/O error, without Rust's suffix.
-fn strerror(error: &io::Error) -> String {
+pub(crate) fn strerror(error: &io::Error) -> String {
 	match error.raw_os_error() {
 		// SAFETY: strerror returns a valid C string for any error number.
 		Some(code) => unsafe { std::ffi::CStr::from_ptr(libc::strerror(code)) }
