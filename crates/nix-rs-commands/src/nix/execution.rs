@@ -23,6 +23,10 @@ pub(super) fn shell(mut parsed: Parsed) -> Result<ExitCode, Failure> {
 		Ok(value) => value,
 		Err(code) => return Ok(code),
 	};
+	if parsed.settings.get_bool("print-missing", true) {
+		let missing = targets.store.query_missing(&targets.paths)?;
+		crate::paths::print_missing(targets.store.as_ref(), &missing)?;
+	}
 	targets.store.build_paths(&targets.paths)?;
 	let mut bins = Vec::new();
 	let mut seen = BTreeSet::new();
@@ -51,7 +55,12 @@ pub(super) fn shell(mut parsed: Parsed) -> Result<ExitCode, Failure> {
 					);
 				}
 			}
-			Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+			// `pathExists` also treats a file output, ENOTDIR, as absent.
+			Err(error)
+				if matches!(
+					error.kind(),
+					std::io::ErrorKind::NotFound | std::io::ErrorKind::NotADirectory
+				) => {}
 			Err(error) => return Err(error.into()),
 		}
 	}
@@ -138,6 +147,10 @@ pub(super) fn run(mut parsed: Parsed) -> Result<ExitCode, Failure> {
 			})
 		})
 		.collect::<Result<Vec<_>, Failure>>()?;
+	// `AppInstallable::resolve` builds the context as `Installable::build` does.
+	if parsed.settings.get_bool("print-missing", true) {
+		crate::paths::print_missing(store.as_ref(), &store.query_missing(&paths)?)?;
+	}
 	store.build_paths(&paths)?;
 	let program = std::str::from_utf8(program.as_bytes())
 		.map_err(|e| e.to_string())?

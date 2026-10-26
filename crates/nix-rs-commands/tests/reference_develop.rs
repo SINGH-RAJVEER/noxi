@@ -142,6 +142,20 @@ in derivation {{
 				),
 			)
 			.unwrap();
+			fs::write(
+				fixture.engine(engine).join("work/pkg.nix"),
+				format!(
+					r#"let bb = builtins.storePath {busybox}; in derivation {{
+	name = "hello";
+	system = "x86_64-linux";
+	builder = "${{bb}}/bin/sh";
+	args = [ "-c" "${{bb}}/bin/mkdir -p $out/bin; printf '#!${{bb}}/bin/sh\necho hello \"$@\"\nexit 5\n' > $out/bin/hello; ${{bb}}/bin/chmod +x $out/bin/hello" ];
+}}
+"#,
+					busybox = busybox.display()
+				),
+			)
+			.unwrap();
 		}
 		fixture
 	}
@@ -304,4 +318,25 @@ fn unsupported_develop_options_fail_explicitly() {
 		stderr.contains("is not supported by nix-rs yet"),
 		"{stderr}"
 	);
+}
+
+#[test]
+fn shell_and_run_print_the_summary_of_fresh_builds() {
+	let f = Fixture::new();
+	for args in [
+		vec![
+			"shell",
+			"--impure",
+			"--expr",
+			"(import ./dev.nix).dep",
+			"--command",
+			"true",
+		],
+		vec!["run", "--impure", "--file", "pkg.nix", "", "a", "b"],
+	] {
+		let (status, _, stderr) = f.same(&args);
+		if status == Some(1) && stderr.contains("Operation not permitted") {
+			eprintln!("execution unavailable: the store's mount namespace was refused");
+		}
+	}
 }

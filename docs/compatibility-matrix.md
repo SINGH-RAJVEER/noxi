@@ -51,7 +51,7 @@ Modern CLI inventory and the initial section 6 gaps are recorded in [verificatio
 | `store` | Local add, ls, cat, dump, verify, info/ping and selected maintenance | Remote accessors, all-store selection and advanced policies |
 | `derivation show`, `log` | Version-4 derivation JSON, recursive selection, plain/bzip2 local logs | All derivation kinds, remote logs, remaining flags |
 | `copy` | Signed uncompressed file-cache exports and file-cache imports; metadata/NAR byte comparisons | Unsigned/compressed exports, other transports, profiles/links, recovery |
-| `shell`, `run` | Non-flake packages, PATH, environment changes and child statuses in diverted stores | Full app validation, signals, foreign-system execution, flakes |
+| `shell`, `run` | Non-flake packages, fresh-build summary, PATH, environment changes and child statuses in diverted stores | Full app validation, signals, foreign-system execution, flakes |
 | `nix-shell` | Expressions, files, directories and derivations; input builds, `--pure`, `--keep`, `--exclude`, `--arg`, `passAsFile`, rc file, exit statuses, argument errors | Shebang scripts, `--check`, `--repair`, structured `exportReferencesGraph`, CA inputs, interactive use, evaluator error format |
 | `develop`, `print-dev-env` | Expression and store-path installables: environment derivation and its path, rc script, `--json`, `--command`, phases, environment flags, exit status, non-bash builder error | Flakes (including the `nixpkgs#bashInteractive` shell with `flakes` enabled), `--profile`, `--redirect`, interactive use |
 | `nix-copy-closure` | Entry point, explicit error; version and missing-host comparisons | The serve protocol over SSH, which the reference uses even for `localhost` |
