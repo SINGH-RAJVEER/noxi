@@ -105,6 +105,7 @@ let
 			machines.upgrade
 			machines.home.activation
 			machines.home.config
+			machines.home.configuration.config.news.json.output
 			source
 			nixpkgs
 			home-manager

@@ -333,7 +333,7 @@ def removal() -> None:
 	run(
 		"removal-no-nixrs-generation",
 		f"! ls -d {PROFILE}-*-link | grep -v '^{PROFILE}-1-link$'"
-		f" && test $(readlink -f $(command -v nix-instantiate)) = {expected['reference']}/bin/nix-instantiate"
+		f" && test $(readlink -f $(command -v nix-instantiate)) = $(readlink -f {expected['reference']}/bin/nix-instantiate)"
 		f" && ! nix-store --query --requisites /run/current-system/sw | grep -Fx {expected['candidate']}",
 	)
 	run("removal-verify-store", "nix-store --verify --check-contents")
