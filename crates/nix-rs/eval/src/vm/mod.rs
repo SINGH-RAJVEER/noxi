@@ -1168,13 +1168,11 @@ where
 	///
 	/// Due to this, once control flow exits this function, the generator will
 	/// automatically be run by the VM.
-	fn call_builtin(&mut self, span: Span, mut builtin: Builtin) -> EvalResult<()> {
+	fn call_builtin(&mut self, span: Span, builtin: Builtin) -> EvalResult<()> {
 		let builtin_name = builtin.name();
 		self.observer.observe_enter_builtin(builtin_name);
 
-		builtin.apply_arg(self.stack_pop());
-
-		match builtin.call() {
+		match builtin.apply(self.stack_pop()) {
 			// Partially applied builtin is just pushed back on the stack.
 			BuiltinResult::Partial(partial) => self.stack.push(Value::Builtin(partial)),
 

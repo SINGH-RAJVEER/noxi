@@ -57,11 +57,11 @@ pub enum BuiltinResult {
 /// "capture" the partially applied arguments, and are treated
 /// specially when printing their representation etc.
 #[derive(Clone)]
-pub struct Builtin(Box<BuiltinRepr>);
+pub struct Builtin(Rc<BuiltinRepr>);
 
 impl From<BuiltinRepr> for Builtin {
 	fn from(value: BuiltinRepr) -> Self {
-		Builtin(Box::new(value))
+		Builtin(Rc::new(value))
 	}
 }
 
@@ -99,7 +99,7 @@ impl Builtin {
 	/// After this, [`Builtin::call`] *must* be called, otherwise it may leave
 	/// the builtin in an incorrect state.
 	pub fn apply_arg(&mut self, arg: Value) {
-		self.0.partials.push(arg);
+		Rc::make_mut(&mut self.0).partials.push(arg);
 
 		debug_assert!(
 			self.0.partials.len() <= self.0.arg_count,
@@ -111,8 +111,25 @@ impl Builtin {
 	/// applied or return the builtin if it is partially applied.
 	pub fn call(self) -> BuiltinResult {
 		if self.0.partials.len() == self.0.arg_count {
-			BuiltinResult::Called(self.0.name, (self.0.func)(self.0.partials))
+			let repr = Rc::unwrap_or_clone(self.0);
+			BuiltinResult::Called(repr.name, (repr.func)(repr.partials))
 		} else {
+			BuiltinResult::Partial(self)
+		}
+	}
+
+	/// Apply and call without copying shared metadata on the final argument.
+	/// Cloned partial applications retain independent argument vectors.
+	pub(crate) fn apply(mut self, arg: Value) -> BuiltinResult {
+		if self.0.partials.len() + 1 == self.0.arg_count {
+			let mut args = match Rc::get_mut(&mut self.0) {
+				Some(repr) => std::mem::take(&mut repr.partials),
+				None => self.0.partials.clone(),
+			};
+			args.push(arg);
+			BuiltinResult::Called(self.0.name, (self.0.func)(args))
+		} else {
+			self.apply_arg(arg);
 			BuiltinResult::Partial(self)
 		}
 	}
