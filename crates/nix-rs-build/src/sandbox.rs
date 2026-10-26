@@ -10,6 +10,7 @@ use std::os::fd::{AsRawFd, FromRawFd, OwnedFd, RawFd};
 use std::os::unix::ffi::OsStrExt;
 use std::os::unix::fs::{DirBuilderExt, PermissionsExt};
 use std::path::{Path, PathBuf};
+use std::sync::Mutex;
 use std::time::{Duration, Instant};
 
 use crate::error::{BuildError, FailureStatus, Result};
@@ -148,6 +149,11 @@ pub fn run_cancellable(
 	log: &mut dyn FnMut(&[u8]),
 	cancelled: &dyn Fn() -> bool,
 ) -> Result<ExitStatus> {
+	// A sibling fork must not inherit this attempt's PID-pipe writer.
+	// CLOEXEC alone is insufficient: parents wait for EOF before allowing
+	// the builders to exec. Serialize that handshake, not the builds.
+	static STARTUP: Mutex<()> = Mutex::new(());
+	let startup = STARTUP.lock().unwrap_or_else(|error| error.into_inner());
 	if cancelled() {
 		return Err(BuildError::Cancelled);
 	}
@@ -269,6 +275,7 @@ pub fn run_cancellable(
 	}
 
 	// Forward the builder's output until it closes the terminal.
+	drop(startup);
 	let start = Instant::now();
 	let mut last_output = Instant::now();
 	let mut timed_out = None;
