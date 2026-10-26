@@ -330,7 +330,7 @@ pub fn builtins(args: TokenStream, item: TokenStream) -> TokenStream {
 					.collect();
 				let block = &sync.block;
 				*sync.block = parse_quote! {{ #(#checks)* #block }};
-				for arg in &builtin_arguments {
+				for arg in builtin_arguments.iter().rev() {
 					let block = &sync.block;
 					let ty = &arg.ty;
 					let ident = &arg.name;
@@ -345,6 +345,8 @@ pub fn builtins(args: TokenStream, item: TokenStream) -> TokenStream {
 						#block
 					}};
 				}
+				let block = &sync.block;
+				*sync.block = parse_quote! {{ values.reverse(); #block }};
 				synchronous_functions.push(Item::Fn(sync));
 			}
 
@@ -479,6 +481,9 @@ pub fn builtins(args: TokenStream, item: TokenStream) -> TokenStream {
 /// CppNix's checks of builtin arguments: the type each primop forces an
 /// argument to before using it, and the trace frame of its type error.
 const ARGUMENT_CHECKS: &[(&str, usize, &str, &str)] = &[
+	("compareVersions", 0, "String", "while evaluating the first argument passed to builtins.compareVersions"),
+	("compareVersions", 1, "String", "while evaluating the second argument passed to builtins.compareVersions"),
+
 	(
 		"attrNames",
 		0,

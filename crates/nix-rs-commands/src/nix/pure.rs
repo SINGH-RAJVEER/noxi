@@ -73,6 +73,7 @@ pub(crate) fn evaluate<'co, 'ro, 'env>(
 	mode: EvalMode,
 	max_depth: usize,
 	driver: &str,
+	fragments: Vec<nix_rs_eval::SourceFragment>,
 	cwd: &Path,
 ) -> EvaluationResult {
 	let template = builder.add_builtins(blocked::builtins()).build();
@@ -110,5 +111,6 @@ pub(crate) fn evaluate<'co, 'ro, 'env>(
 		.pure_eval(true)
 		.build()
 		.hide_root_source()
+		.with_source_fragments(fragments)
 		.evaluate_in_dir(driver, cwd.to_path_buf())
 }

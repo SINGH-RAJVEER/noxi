@@ -20,6 +20,7 @@ pub struct SourceCode(
 	Rc<RefCell<CodeMap>>,
 	Rc<RefCell<Vec<Span>>>,
 	Option<Rc<SourceCheck>>,
+	Rc<RefCell<Vec<(Span, Span)>>>,
 );
 
 type SourceCheck = dyn Fn(&rnix::ast::Expr, &codemap::File) -> Result<(), crate::ErrorKind>;
@@ -94,8 +95,27 @@ impl SourceCode {
 		self.1.borrow_mut().push(file.span);
 	}
 
+	/// Map a fragment of generated code back to the original input.
+	pub(crate) fn map_fragment(&self, generated: Span, original: Span) {
+		self.3.borrow_mut().push((generated, original));
+	}
+
+	/// Resolve a generated-code span to its original input, when present.
+	pub(crate) fn original_span(&self, span: Span) -> Span {
+		self.3
+			.borrow()
+			.iter()
+			.find_map(|(generated, original)| {
+				(generated.low() <= span.low() && span.high() <= generated.high()).then(|| {
+					original.subspan(span.low() - generated.low(), span.high() - generated.low())
+				})
+			})
+			.unwrap_or(span)
+	}
+
 	/// Whether `span` is in a file marked with [`hide_file`](Self::hide_file).
 	pub fn is_hidden(&self, span: Span) -> bool {
+		let span = self.original_span(span);
 		self.1
 			.borrow()
 			.iter()
@@ -110,6 +130,7 @@ impl Default for SourceCode {
 			Rc::new(RefCell::new(CodeMap::new())),
 			Rc::new(RefCell::new(vec![])),
 			None,
+			Rc::new(RefCell::new(vec![])),
 		)
 	}
 }

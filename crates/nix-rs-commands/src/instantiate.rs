@@ -22,7 +22,7 @@ use std::rc::Rc;
 use nix_compat::nixcpp::settings::Settings;
 use nix_compat::store_path::StorePath;
 use nix_rs_eval::builtin_macros::builtins;
-use nix_rs_eval::{Ambiguous, EvalMode, Evaluation, Value};
+use nix_rs_eval::{Ambiguous, EvalMode, Evaluation, SourceFragment, Value};
 use nix_rs_store::Store;
 use rustc_hash::FxHashMap;
 use smol_str::SmolStr;
@@ -343,12 +343,14 @@ fn root_expression(
 	input: &str,
 	cwd: &Path,
 	lints: &crate::instantiate_lints::Lints,
+	sources: &mut Vec<(String, String)>,
 ) -> io::Result<String> {
 	if options.from_args {
 		lints
 			.preflight(input, "«string»", true)
 			.map_err(|error| io::Error::other(error.to_string()))?;
-		return Ok(format!("({input}\n)"));
+		sources.push(("«string»".into(), input.to_owned()));
+		return Ok(format!("@@nixrs-input-{}@@", sources.len() - 1));
 	}
 	if input == "-" {
 		let mut expr = String::new();
@@ -356,7 +358,8 @@ fn root_expression(
 		lints
 			.preflight(&expr, "«stdin»", true)
 			.map_err(|error| io::Error::other(error.to_string()))?;
-		return Ok(format!("({expr}\n)"));
+		sources.push(("«stdin»".into(), expr));
+		return Ok(format!("@@nixrs-input-{}@@", sources.len() - 1));
 	}
 	if is_lookup_path(input) {
 		return Ok(format!("(import {input})"));
@@ -381,7 +384,8 @@ fn driver_expression(
 	options: &Options,
 	cwd: &Path,
 	lints: &crate::instantiate_lints::Lints,
-) -> io::Result<String> {
+) -> io::Result<(String, Vec<SourceFragment>)> {
+	let mut sources = vec![];
 	let mut driver = String::from("let\n__nixrs_autoArgs = {\n");
 	for (name, arg) in &options.auto_args {
 		let value = match arg {
@@ -389,7 +393,10 @@ fn driver_expression(
 				lints
 					.preflight(expr, "«string»", true)
 					.map_err(|error| io::Error::other(error.to_string()))?;
-				format!("({expr}\n)")
+				{
+					sources.push(("«string»".into(), expr.clone()));
+					format!("@@nixrs-input-{}@@", sources.len() - 1)
+				}
 			}
 			AutoArg::Str(s) => nix_string(s),
 		};
@@ -449,7 +456,7 @@ in __nixrs_forceEach [\n",
 	};
 
 	for input in inputs {
-		let root = root_expression(options, input, cwd, lints)?;
+		let root = root_expression(options, input, cwd, lints, &mut sources)?;
 		for attr_path in &attr_paths {
 			let parts = parse_attr_path(attr_path)
 				.map_err(|message| io::Error::new(io::ErrorKind::InvalidInput, message))?;
@@ -470,7 +477,28 @@ in __nixrs_forceEach [\n",
 		}
 	}
 	driver.push(']');
-	Ok(driver)
+	let mut code = String::new();
+	let mut fragments = vec![];
+	let mut remaining = driver.as_str();
+	while let Some(start) = remaining.find("@@nixrs-input-") {
+		code.push_str(&remaining[..start]);
+		remaining = &remaining[start + "@@nixrs-input-".len()..];
+		let end = remaining.find("@@").expect("generated input marker");
+		let index: usize = remaining[..end].parse().expect("generated input index");
+		let (name, input) = &sources[index];
+		code.push('(');
+		let start = code.len();
+		code.push_str(input);
+		fragments.push(SourceFragment {
+			range: start..code.len(),
+			name: name.clone(),
+			code: input.clone(),
+		});
+		code.push_str("\n)");
+		remaining = &remaining[end + 2..];
+	}
+	code.push_str(remaining);
+	Ok((code, fragments))
 }
 
 #[builtins]
@@ -527,7 +555,7 @@ pub fn evaluate(options: &Options, cwd: &Path) -> Result<Evaluated, ExitCode> {
 		ExitCode::FAILURE
 	};
 	let lints = crate::instantiate_lints::Lints::new(&options.settings);
-	let driver = driver_expression(options, cwd, &lints).map_err(|error| {
+	let (driver, fragments) = driver_expression(options, cwd, &lints).map_err(|error| {
 		if lints.failed.get() {
 			ExitCode::FAILURE
 		} else {
@@ -642,12 +670,14 @@ pub fn evaluate(options: &Options, cwd: &Path) -> Result<Evaluated, ExitCode> {
 			mode,
 			options.settings.get_int("max-call-depth", 10000).max(0) as usize,
 			&driver,
+			fragments,
 			cwd,
 		)
 	} else {
 		builder
 			.build()
 			.hide_root_source()
+			.with_source_fragments(fragments)
 			.evaluate_in_dir(&driver, cwd.to_path_buf())
 	};
 

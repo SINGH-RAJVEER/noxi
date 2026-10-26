@@ -1583,7 +1583,7 @@ impl Compiler<'_, '_> {
 
 	pub fn compile_cur_pos(&mut self, node: &ast::CurPos) {
 		let value = match self.file.name() {
-			crate::REPL_LOCATION => Value::Null,
+			crate::REPL_LOCATION | "<stdin>" | "<string>" => Value::Null,
 			_ => {
 				let span = self.span_for(node);
 				let pos = self.file.find_line_col(span.low());

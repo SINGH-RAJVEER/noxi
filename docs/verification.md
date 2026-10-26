@@ -99,6 +99,8 @@ Evaluation errors are rendered by `nix_rs_eval::diagnostics`, a port of CppNix's
 
 The diagnostics/integration merge preserves the parse printer, lint callbacks and synchronous builtin path. Assertion conditions use the same `Expr::show` printer as `--parse`; equality assertions report the first difference with comparison frames. Attribute selections record the selected definition and path, computed attribute names report their own positions, and coercion errors print the rejected value. All 43 newly passing failure fixtures were also compared directly with `target/nix-reference/bin/nix-instantiate` for stdout, stderr and exit status. `ready_and_deferred_builtin_diagnostics_match_the_reference` checks both builtin execution paths with and without `--show-trace`.
 
+On 2026-10-26, the combined diagnostics/integration state passed `CARGO_BUILD_JOBS=4 NEXTEST_TEST_THREADS=4 devenv shell -- just ci`: formatting, snapshot verification, all-feature workspace checking, all 2,830 tests with nine optional tests skipped, and doctests. The full language and replacement gates remain open.
+
 In a debug build, 310 cases pass. The other outcomes are:
 
 | Outcome | Cases | Main causes |

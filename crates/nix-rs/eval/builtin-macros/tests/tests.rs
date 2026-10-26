@@ -86,7 +86,7 @@ fn synchronous_arguments_and_generator_fallback() {
 			3,
 		),
 		(
-			r#"if (builtins.tryEval (builtins.pair (abort "left") (throw "right"))).success then 0 else 1"#,
+			r#"if (builtins.tryEval (builtins.pair (throw "left") (abort "right"))).success then 0 else 1"#,
 			1,
 		),
 	] {
