@@ -1550,6 +1550,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "nix-rs-flake"
+version = "0.1.0"
+dependencies = [
+ "bstr",
+ "data-encoding",
+ "nix-rs-build",
+ "nix-rs-compat",
+ "nix-rs-eval",
+ "nix-rs-flakeref",
+ "nix-rs-glue",
+ "nix-rs-store",
+ "serde_json",
+ "sha2",
+ "tempfile",
+]
+
+[[package]]
 name = "nix-rs-flakeref"
 version = "0.1.0"
 dependencies = [

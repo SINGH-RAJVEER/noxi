@@ -35,12 +35,18 @@ pub struct LockOptions {
 /// A resolved graph and the source trees already fetched while resolving it.
 pub struct LockedFlake {
 	pub lock_file: LockFile,
+	pub original_ref: FlakeRef,
+	pub resolved_ref: FlakeRef,
 	pub locked_ref: FlakeRef,
 	pub out_path: PathBuf,
+	pub description: Option<String>,
 	sources: HashMap<NodeId, (Value, String)>,
 }
 
 impl LockedFlake {
+	pub fn source_info(&self) -> &Value {
+		&self.sources[&ROOT].0
+	}
 	/// Write CppNix's version-7 bytes, including the final newline, atomically.
 	pub fn write_lock_file(&self, path: &Path) -> std::io::Result<()> {
 		let contents = self.lock_file.render().map_err(std::io::Error::other)? + "\n";
@@ -279,13 +285,25 @@ fn read_lock(store: &EvaluatorStore, base: &Path) -> Result<LockFile, ErrorKind>
 	}
 }
 
-fn fetch_source(
+/// A mounted source and the references before and after locking it.
+pub struct FetchedSource {
+	pub resolved_ref: FlakeRef,
+	/// Fetcher attributes before mounting computes and attaches the NAR hash.
+	pub fetched_ref: FlakeRef,
+	pub locked_ref: FlakeRef,
+	/// Logical flake directory, including `dir` when supplied.
+	pub out_path: PathBuf,
+	pub source_info: Value,
+}
+
+pub fn fetch_source(
 	store: &EvaluatorStore,
 	original: &FlakeRef,
 	registries: UseRegistries,
-) -> Result<(FlakeRef, PathBuf, Value), ErrorKind> {
-	let (mount, _, mut input, extra) =
+) -> Result<FetchedSource, ErrorKind> {
+	let (mount, resolved, mut input, extra) =
 		super::get_cached(store, &original.input, registries).map_err(error)?;
+	let fetched = input.clone();
 	let path = super::mount_input(store, &mut input, &original.input, &mount).map_err(error)?;
 	let subdir = if original.subdir.is_empty() {
 		nix_rs_flakeref::input::maybe_get_str_attr(&extra, "dir")
@@ -296,7 +314,13 @@ fn fetch_source(
 	};
 	let logical = PathBuf::from(path.to_absolute_path()).join(&subdir);
 	let attrs = tree_attrs(&path, &input, false)?;
-	Ok((FlakeRef::new(input, subdir), logical, attrs))
+	Ok(FetchedSource {
+		resolved_ref: FlakeRef::new(resolved, &subdir),
+		fetched_ref: FlakeRef::new(fetched, &subdir),
+		locked_ref: FlakeRef::new(input, subdir),
+		out_path: logical,
+		source_info: attrs,
+	})
 }
 
 async fn fetch_flake_source(
@@ -304,8 +328,9 @@ async fn fetch_flake_source(
 	co: &GenCo,
 	original: &FlakeRef,
 	registries: UseRegistries,
-) -> Result<(FlakeRef, PathBuf, Value), ErrorKind> {
-	let (locked, base, info) = fetch_source(store, original, registries)?;
+) -> Result<FetchedSource, ErrorKind> {
+	let source = fetch_source(store, original, registries)?;
+	let (locked, base) = (&source.locked_ref, &source.out_path);
 	let import = generators::request_builtin(co, "import").await;
 	let value =
 		generators::request_call_with(co, import, [Value::Path(Box::new(base.join("flake.nix")))])
@@ -313,12 +338,12 @@ async fn fetch_flake_source(
 	let value = generators::request_force(co, value).await;
 	let attrs = value.to_attrs()?;
 	let Some(inputs) = attrs.select("inputs") else {
-		return Ok((locked, base, info));
+		return Ok(source);
 	};
 	let inputs = generators::request_force(co, inputs.clone()).await;
 	let inputs = inputs.to_attrs()?;
 	let Some(self_attrs) = inputs.select("self") else {
-		return Ok((locked, base, info));
+		return Ok(source);
 	};
 	let self_attrs = generators::request_force(co, self_attrs.clone()).await;
 	let self_attrs = self_attrs.to_attrs()?;
@@ -336,11 +361,15 @@ async fn fetch_flake_source(
 			.attrs
 			.insert(key.into(), Attr::Bool(value.as_bool()?));
 	}
-	if updated == locked {
-		return Ok((locked, base, info));
+	if updated == *locked {
+		return Ok(source);
 	}
 	updated.input.attrs.remove("narHash");
-	fetch_source(store, &updated, UseRegistries::No)
+	let updated = fetch_source(store, &updated, UseRegistries::No)?;
+	Ok(FetchedSource {
+		resolved_ref: source.resolved_ref,
+		..updated
+	})
 }
 
 struct Resolver<'a> {
@@ -541,12 +570,12 @@ impl Resolver<'_> {
 					} else {
 						UseRegistries::No
 					};
-					let (locked, base, source) = if spec.is_flake {
+					let source = if spec.is_flake {
 						fetch_flake_source(self.store, self.co, &reference, registries).await?
 					} else {
 						fetch_source(self.store, &reference, registries)?
 					};
-					(locked, base, Some(source))
+					(source.locked_ref, source.out_path, Some(source.source_info))
 				};
 				let child = self.lock.add_node(Node {
 					inputs: BTreeMap::new(),
@@ -590,14 +619,8 @@ impl Resolver<'_> {
 	}
 }
 
-/// Resolve a flake graph without writing a lock file. Callers decide whether to
-/// persist it with `write_lock_file`; `builtins.getFlake` never writes one.
-pub async fn lock_flake(
-	store: &EvaluatorStore,
-	co: &GenCo,
-	reference: &str,
-	options: &LockOptions,
-) -> Result<LockedFlake, ErrorKind> {
+/// Parse a reference using the caller's fetch settings and working directory.
+pub fn parse_reference(store: &EvaluatorStore, reference: &str) -> Result<FlakeRef, ErrorKind> {
 	let settings = store.fetch_settings();
 	let cwd = store.fetch_config.borrow().cwd.clone();
 	let cwd = if cwd.as_os_str().is_empty() {
@@ -605,7 +628,7 @@ pub async fn lock_flake(
 	} else {
 		cwd
 	};
-	let original = parse_flake_ref(
+	parse_flake_ref(
 		&settings,
 		reference,
 		ParseOptions {
@@ -613,13 +636,24 @@ pub async fn lock_flake(
 			..ParseOptions::default()
 		},
 	)
-	.map_err(error)?;
+	.map_err(error)
+}
+
+/// Resolve without writing; `builtins.getFlake` never writes a lock file.
+pub async fn lock_flake(
+	store: &EvaluatorStore,
+	co: &GenCo,
+	reference: &str,
+	options: &LockOptions,
+) -> Result<LockedFlake, ErrorKind> {
+	let settings = store.fetch_settings();
+	let original = parse_reference(store, reference)?;
 	if store.pure_eval() && !original.input.is_locked(&settings) {
 		return Err(error(format!(
 			"cannot call 'getFlake' on unlocked flake reference '{reference}', at (none) (use --impure to override)"
 		)));
 	}
-	let (locked_ref, out_path, source) = fetch_flake_source(
+	let source = fetch_flake_source(
 		store,
 		co,
 		&original,
@@ -630,6 +664,25 @@ pub async fn lock_flake(
 		},
 	)
 	.await?;
+	let FetchedSource {
+		resolved_ref,
+		locked_ref,
+		out_path,
+		source_info: source,
+		..
+	} = source;
+	let import = generators::request_builtin(co, "import").await;
+	let flake = generators::request_call_with(
+		co,
+		import,
+		[Value::Path(Box::new(out_path.join("flake.nix")))],
+	)
+	.await;
+	let flake = generators::request_force(co, flake).await;
+	let description = match flake.to_attrs()?.select("description") {
+		Some(value) => Some(string(co, value.clone()).await?),
+		None => None,
+	};
 	let inputs = read_inputs(store, co, &out_path, &[]).await?;
 	let old = read_lock(store, &out_path)?;
 	let mut resolver = Resolver {
@@ -638,7 +691,7 @@ pub async fn lock_flake(
 		options,
 		lock: LockFile::default(),
 		sources: [(ROOT, (source, locked_ref.subdir.clone()))].into(),
-		parents: vec![original],
+		parents: vec![original.clone()],
 	};
 	resolver
 		.compute(
@@ -654,8 +707,11 @@ pub async fn lock_flake(
 	resolver.lock.check().map_err(error)?;
 	Ok(LockedFlake {
 		lock_file: resolver.lock,
+		original_ref: original,
+		resolved_ref,
 		locked_ref,
 		out_path,
+		description,
 		sources: resolver.sources,
 	})
 }

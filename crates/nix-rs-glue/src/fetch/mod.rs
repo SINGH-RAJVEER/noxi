@@ -46,6 +46,7 @@ pub struct FetchConfig {
 /// A fetched input, as CppNix's input cache keeps it.
 #[derive(Clone, Debug)]
 pub(crate) struct CachedInput {
+	pub resolved: Input,
 	pub locked: Input,
 	pub mount: Mount,
 	pub extra_attrs: nix_rs_flakeref::input::Attrs,
@@ -66,7 +67,7 @@ impl EvaluatorStore {
 		*self.fetch_config.borrow_mut() = config;
 	}
 
-	pub(crate) fn fetch_settings(&self) -> FetchSettings {
+	pub fn fetch_settings(&self) -> FetchSettings {
 		self.fetch_config.borrow().settings.clone()
 	}
 
@@ -157,13 +158,13 @@ pub(crate) fn get_cached(
 			.find(|(key, _)| key == input)
 			.map(|(_, cached)| cached.clone())
 	};
-	let mut resolved = original.clone();
 	let fetched = match lookup(original) {
 		Some(fetched) => fetched,
 		None => {
 			let fetched = if original.is_direct() {
 				let (mount, locked) = get_accessor(store, original)?;
 				CachedInput {
+					resolved: original.clone(),
 					locked,
 					mount,
 					extra_attrs: Default::default(),
@@ -172,18 +173,21 @@ pub(crate) fn get_cached(
 				let registries = store.registries()?;
 				let (res, extra_attrs) =
 					lookup_in_registries(&registries, original, use_registries)?;
-				resolved = res;
-				let fetched = match lookup(&resolved) {
+				let resolved = res;
+				let mut fetched = match lookup(&resolved) {
 					Some(fetched) => fetched,
 					None => {
 						let (mount, locked) = get_accessor(store, &resolved)?;
 						CachedInput {
+							resolved: resolved.clone(),
 							locked,
 							mount,
-							extra_attrs,
+							extra_attrs: Default::default(),
 						}
 					}
 				};
+				fetched.resolved = resolved.clone();
+				fetched.extra_attrs = extra_attrs;
 				store
 					.fetch_state
 					.borrow_mut()
@@ -204,7 +208,12 @@ pub(crate) fn get_cached(
 			fetched
 		}
 	};
-	Ok((fetched.mount, resolved, fetched.locked, fetched.extra_attrs))
+	Ok((
+		fetched.mount,
+		fetched.resolved,
+		fetched.locked,
+		fetched.extra_attrs,
+	))
 }
 
 /// `Input::getAccessor`: fetch, mark the result final and check it

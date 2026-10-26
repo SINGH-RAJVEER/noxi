@@ -534,7 +534,9 @@ pub(crate) fn get_accessor(
 		)?;
 		result.attrs.insert("rev".into(), commit.clone().into());
 		if result.get_ref()?.is_none() {
-			result.attrs.insert("ref".into(), "HEAD".into());
+			let default_ref = text(&repo, &["symbolic-ref", "--quiet", "HEAD"])
+				.unwrap_or_else(|_| "master".into());
+			result.attrs.insert("ref".into(), default_ref.into());
 		}
 		let keep = Rc::new(tempfile::tempdir()?);
 		export(&repo, &commit, keep.path(), false, export_ignore)?;

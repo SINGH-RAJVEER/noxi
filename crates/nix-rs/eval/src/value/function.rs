@@ -75,6 +75,10 @@ pub struct Lambda {
 }
 
 impl Lambda {
+	/// The parameter of a plain lambda; attribute-pattern lambdas return `None`.
+	pub fn parameter_name(&self) -> Option<&str> {
+		self.formals.is_none().then_some(self.param_name.as_str())
+	}
 	pub fn chunk(&mut self) -> &mut Chunk {
 		&mut self.chunk
 	}
