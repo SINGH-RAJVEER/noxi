@@ -31,7 +31,11 @@ let
 	upgrade = pkgs.symlinkJoin {
 		name = "nixrs-replacement-upgrade-fixture";
 		paths = [ candidate ];
-		postBuild = ''echo upgrade > "$out/share/nix-rs/qualification-upgrade"'';
+		postBuild = ''
+			echo upgrade > "$out/share/nix-rs/qualification-upgrade"
+			rm "$out/lib/systemd/system/nix-daemon.service"
+			sed "s|${candidate}|$out|g" ${candidate}/lib/systemd/system/nix-daemon.service > "$out/lib/systemd/system/nix-daemon.service"
+		'';
 	};
 	homeManagerPackage = pkgs.callPackage (home-manager + "/home-manager") { path = home-manager; };
 	homeConfiguration = import (home-manager + "/home-manager/home-manager.nix") {

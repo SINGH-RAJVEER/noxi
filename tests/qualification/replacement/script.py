@@ -281,11 +281,13 @@ def home_manager() -> None:
 
 def lifecycle() -> None:
 	"""TODO section 8: upgrade, failed upgrade, rollback; removal follows."""
-	if rebuild("upgrade", "switch", "upgrade"):
-		verify("upgrade-generation", *is_generation("upgrade"))
-	else:
+	rebuild("upgrade", "switch", "upgrade")
+	verify("upgrade-generation", *is_generation("upgrade"))
+	if current() != generation("upgrade")["out"]:
 		components("upgrade", "upgrade", "switch")
-	run("upgrade-package-selected", "cat /run/current-system/sw/share/nix-rs/qualification-upgrade", check=equals("upgrade"))
+	run("upgrade-package-selected",
+		f"systemctl cat nix-daemon.service | grep -F 'ExecStart=@{expected['upgrade']}/bin/nix-daemon nix-daemon --daemon'"
+		f" && cat {expected['upgrade']}/share/nix-rs/qualification-upgrade", check=equals("upgrade"))
 	before, before_profile = current(), profile()
 	run(
 		"failed-upgrade",
@@ -305,7 +307,7 @@ def lifecycle() -> None:
 	run(
 		"failed-build",
 		FAILED_BUILD,
-		expected_status=1,
+		expected_status=100,
 	)
 	verify(
 		"failed-build-reports-log",
@@ -359,7 +361,7 @@ run(
 	check=equals(generation("two")["out"]),
 )
 if MODE == "lifecycle":
-	run("control-cppnix-failed-build", FAILED_BUILD, expected_status=1)
+	run("control-cppnix-failed-build", FAILED_BUILD, expected_status=100)
 	verify("control-cppnix-failed-build-log", "deliberate build failure" in steps[-1].get("stderr", ""),
 		"the control builder must start and print its deliberate failure")
 	run("control-cppnix-failed-upgrade", f"nixos-rebuild build --file {SYSTEM} --attr broken --no-reexec", expected_status=1)
