@@ -9,7 +9,7 @@
 let
 	lib = pkgs.lib;
 	rustPkgs = pkgs.extend (import rust-overlay);
-	toolchain = rustPkgs.rust-bin.nightly."2026-09-20".minimal;
+	toolchain = rustPkgs.rust-bin.selectLatestNightlyWith (t: t.minimal);
 	rustPlatform = pkgs.makeRustPlatform {
 		cargo = toolchain;
 		rustc = toolchain;

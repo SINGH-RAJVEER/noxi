@@ -5,9 +5,9 @@ let
 		inherit (rustOverlayLock) type owner repo rev narHash;
 	});
 	rustPkgs = pkgs.extend rustOverlay;
-	rustToolchain = rustPkgs.rust-bin.nightly."2026-09-20".minimal.override {
+	rustToolchain = rustPkgs.rust-bin.selectLatestNightlyWith (t: t.minimal.override {
 		extensions = [ "clippy" "rust-analyzer" "rustfmt" ];
-	};
+	});
 in
 {
 	dotenv.disableHint = true;
