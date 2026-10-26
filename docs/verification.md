@@ -570,7 +570,7 @@ The daemon journal records `error: unrecognised flag '--daemon'`. Its repeated e
 - `upgrade` (exit 4): `warning: the following units failed: home-manager-qualification.service, nix-daemon.service, nix-daemon.socket`
 - `rollback` (exit 4): `warning: the following units failed: home-manager-qualification.service, nix-daemon.service, nix-daemon.socket`
 
-## Prioritized engine gaps blocking replacement
+#### Engine blockers at 8dbc158
 
 1. Implement the CppNix daemon invocation and then qualify its default-store/socket path. The packaged unit runs `nix-daemon --daemon`; the candidate exits 1 with `error: unrecognised flag '--daemon'`. There is no running candidate daemon, and the socket reaches its start limit. This blocks clean NixOS installation, test/switch/upgrade/rollback activation and unprivileged Home Manager store operations. The worker protocol and store behavior beyond this startup failure remain unqualified; these reports do not identify a separate protocol defect.
 2. Implement the modern `nix` CLI required by flake workflows. `nix --version`, NixOS flake build, and Home Manager flake build/switch exit 127 with `nix-rs qualification gap: nix is not implemented`. The NixOS invocation requires `--extra-experimental-features 'nix-command flakes' build --print-out-paths` and a flake attribute. The fixture also exercises `--no-link` and `--no-write-lock-file` in its CppNix controls. The VM module currently disables `nix config show` configuration validation; that accommodation must be removed and the validating command qualified once implemented.

@@ -93,8 +93,8 @@ This needs a decision, and it was not changed in this audit:
 
 Current gaps for release artifacts:
 
-- The flake's `nixrs-preview` package does not install `THIRD_PARTY.md`, `LICENSE`, or source revisions. Nothing installs them into the artifact yet, and no binary release exists yet (see the "Publish binaries" item in TODO section 8).
-- `nix-rs-commands` and `nix-rs-daemon` are built by `just` but not packaged. Their closures are larger, and they need their own generated notice, for example `cargo about generate -m crates/nix-rs-commands/Cargo.toml`, before they ship.
+- The flake installs the available `THIRD_PARTY.md`, workspace licenses and provenance records under `share/doc/nix-rs`. A root `LICENSE` is still absent. No qualified binary release exists yet (see the "Publish binaries" item in TODO section 8).
+- `nix-rs-commands` and `nix-rs-daemon` are included in the provisional VM replacement package. Their larger closures need their own generated notice, for example `cargo about generate -m crates/nix-rs-commands/Cargo.toml`, before a qualified release.
 
 ## Open items
 
