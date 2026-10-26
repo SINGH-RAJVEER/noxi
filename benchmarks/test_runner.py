@@ -9,12 +9,22 @@ import tempfile
 import time
 import unittest
 
-from fixtures import Operation, environment, make_tree, remove_tree, tree_digest
+from fixtures import QUALIFICATION_DRVS, Operation, environment, make_tree, remove_tree, tree_digest
 from process import Cgroup, build_launcher, run_process
 from run import ROOT, paired_summary, verify
 
 
 class OracleTests(unittest.TestCase):
+	def test_module_fixture_matches_path_qualification(self):
+		qualification = (ROOT / "crates/nix-rs-commands/tests/instantiate.rs").read_text()
+		expression = qualification.split('const QUALIFICATION_SYSTEM: &str = r#"', 1)[1].split('"#;', 1)[0]
+		fixture = (ROOT / "benchmarks/eval-08.nix").read_text()
+		# Ignore indentation and the benchmark's introductory comment only.
+		fixture = "\n".join(line for line in fixture.splitlines() if not line.startswith("#"))
+		self.assertEqual(expression.split(), fixture.split())
+		for path in QUALIFICATION_DRVS:
+			self.assertIn(path, qualification)
+
 	def result(self, root, stdout=b"42", stderr=b"", exit_code=0):
 		(root / "stdout").write_bytes(stdout)
 		(root / "stderr").write_bytes(stderr)
@@ -54,6 +64,15 @@ class OracleTests(unittest.TestCase):
 		self.assertEqual(summary["reference"]["successful_pairs"], 1)
 		self.assertEqual(summary["reference"]["paired_geometric_speedup"], 2)
 		self.assertTrue(summary["reference"]["exploratory"])
+
+	def test_named_baselines_are_summarized_independently(self):
+		rows = [{"pair_id": "a", "role": role, "elapsed_s": seconds,
+			"correctness": {"status": "passed"}} for role, seconds in
+			[("reference", 1), ("original", 6), ("baseline", 4), ("candidate", 2)]]
+		summary = paired_summary(rows, 1, bootstrap=100)
+		self.assertEqual(set(summary), {"reference", "original", "baseline"})
+		self.assertAlmostEqual(summary["original"]["paired_geometric_speedup"], 3)
+		self.assertEqual(summary["baseline"]["paired_geometric_speedup"], 2)
 
 	def test_failure_cannot_leave_an_absent_output_registered(self):
 		with tempfile.TemporaryDirectory() as temp:

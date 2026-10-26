@@ -527,19 +527,17 @@ where
 							((upvalues.len() > 0) || (upvalues.with_stack_len() > 0)),
 							"OpThunkClosure should not be called for plain lambdas",
 						);
-						Thunk::new_closure(blueprint)
+						Thunk::new_closure_with_upvalues(blueprint, upvalues)
 					} else {
-						Thunk::new_suspended(blueprint, frame.current_span())
+						Thunk::new_suspended_with_upvalues(
+							blueprint,
+							frame.current_span(),
+							upvalues,
+						)
 					};
 
-					self.stack.push(Value::Thunk(thunk.clone()));
-
-					// From this point on we internally mutate the
-					// upvalues. The closure (if `is_closure`) is
-					// already in its stack slot, which means that it
-					// can capture itself as an upvalue for
-					// self-recursion.
-					*thunk.upvalues_mut() = upvalues;
+					// Recursive captures remain deferred until Op::Finalise.
+					self.stack.push(Value::Thunk(thunk));
 				}
 
 				Op::Force => {
@@ -547,6 +545,13 @@ where
 						let thunk = match self.stack_pop() {
 							Value::Thunk(t) => t,
 							_ => unreachable!(),
+						};
+						let thunk = match thunk.force_if_evaluated() {
+							Ok(value) => {
+								self.stack.push(value);
+								continue;
+							}
+							Err(thunk) => thunk,
 						};
 
 						let gen_span = frame.current_span();
@@ -1163,15 +1168,16 @@ where
 	///
 	/// Due to this, once control flow exits this function, the generator will
 	/// automatically be run by the VM.
-	fn call_builtin(&mut self, span: Span, mut builtin: Builtin) -> EvalResult<()> {
+	fn call_builtin(&mut self, span: Span, builtin: Builtin) -> EvalResult<()> {
 		let builtin_name = builtin.name();
 		self.observer.observe_enter_builtin(builtin_name);
 
-		builtin.apply_arg(self.stack_pop());
-
-		match builtin.call() {
+		match builtin.apply(self.stack_pop()) {
 			// Partially applied builtin is just pushed back on the stack.
 			BuiltinResult::Partial(partial) => self.stack.push(Value::Builtin(partial)),
+			BuiltinResult::Synchronous(result) => {
+				self.stack.push(result.with_span(span, self)?);
+			}
 
 			// Builtin is fully applied and the generator needs to be run by the VM.
 			BuiltinResult::Called(name, generator) => self.frames.push(Frame::Generator {
@@ -1277,7 +1283,7 @@ where
 		let count = data.count();
 		let capture_with = data.captures_with();
 
-		let mut static_upvalues = vec![];
+		let mut static_upvalues = Vec::with_capacity(count);
 
 		let with_stack = if capture_with {
 			// Start the captured with_stack off of the

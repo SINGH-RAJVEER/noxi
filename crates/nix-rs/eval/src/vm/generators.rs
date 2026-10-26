@@ -39,6 +39,8 @@ pub(crate) enum GeneratorState {
 ///
 /// Responses are returned to generators via the [`VMResponse`] type.
 pub enum VMRequest {
+	/// Look up a builtin in this evaluation, preserving its compiler globals.
+	Builtin(&'static str),
 	/// Request that the VM forces this value. This message is first sent to the
 	/// VM with the unforced value, then returned to the generator with the
 	/// forced result.
@@ -186,6 +188,7 @@ impl Display for VMRequest {
 				if *import_paths { "" } else { "non_" },
 				v.type_of()
 			),
+			VMRequest::Builtin(name) => write!(f, "builtin({name})"),
 			VMRequest::Call(v) => write!(f, "call({v})"),
 			VMRequest::EnterLambda { lambda, .. } => {
 				write!(f, "enter_lambda({:p})", *lambda)
@@ -460,6 +463,18 @@ where
 							message = VMResponse::Empty;
 						}
 
+						VMRequest::Builtin(name) => {
+							let attrs = self.globals["builtins"]
+								.to_attrs()
+								.expect("builtins is an attribute set");
+							message = VMResponse::Value(
+								attrs
+									.select_required(name.as_bytes())
+									.with_span(span, self)?
+									.clone(),
+							);
+						}
+
 						VMRequest::ImportCacheLookup(path) => {
 							if let Some(cached) = self.import_cache.get(&path) {
 								message = VMResponse::Value(cached.clone());
@@ -705,8 +720,12 @@ pub async fn request_stack_pop(co: &GenCo) -> Value {
 
 /// Force any value and return the evaluated result from the VM.
 pub async fn request_force(co: &GenCo, val: Value) -> Value {
-	if let Value::Thunk(_) = val {
-		match co.yield_(VMRequest::ForceValue(val)).await {
+	if let Value::Thunk(thunk) = val {
+		let thunk = match thunk.force_if_evaluated() {
+			Ok(value) => return value,
+			Err(thunk) => thunk,
+		};
+		match co.yield_(VMRequest::ForceValue(Value::Thunk(thunk))).await {
 			VMResponse::Value(value) => value,
 			msg => panic!("nix-rs bug: VM responded with incorrect generator message: {msg}"),
 		}
@@ -715,10 +734,23 @@ pub async fn request_force(co: &GenCo, val: Value) -> Value {
 	}
 }
 
+/// Return a builtin from the active evaluation. Store-aware builtins use this
+/// to import Nix helpers with the caller's globals and import cache.
+pub async fn request_builtin(co: &GenCo, name: &'static str) -> Value {
+	match co.yield_(VMRequest::Builtin(name)).await {
+		VMResponse::Value(value) => value,
+		msg => panic!("nix-rs bug: VM responded with incorrect generator message: {msg}"),
+	}
+}
+
 /// Force a value
 pub(crate) async fn request_try_force(co: &GenCo, val: Value) -> Value {
-	if let Value::Thunk(_) = val {
-		match co.yield_(VMRequest::TryForce(val)).await {
+	if let Value::Thunk(thunk) = val {
+		let thunk = match thunk.force_if_evaluated() {
+			Ok(value) => return value,
+			Err(thunk) => thunk,
+		};
+		match co.yield_(VMRequest::TryForce(Value::Thunk(thunk))).await {
 			VMResponse::Value(value) => value,
 			msg => panic!("nix-rs bug: VM responded with incorrect generator message: {msg}"),
 		}

@@ -10,6 +10,22 @@ repository = "https://github.com/SINGH-RAJVEER/nix-rs"
 # Named like the CppNix commands they replace, so they are not installed by
 # the preview flake package and never shadow a system Nix.
 [[bin]]
+name = "nix"
+path = "src/bin/nix.rs"
+
+[[bin]]
+name = "nix-hash"
+path = "src/bin/nix-hash.rs"
+
+[[bin]]
+name = "nix-shell"
+path = "src/bin/nix-shell.rs"
+
+[[bin]]
+name = "nix-copy-closure"
+path = "src/bin/nix-copy-closure.rs"
+
+[[bin]]
 name = "nix-instantiate"
 path = "src/bin/nix-instantiate.rs"
 
@@ -30,6 +46,7 @@ name = "nix-env"
 path = "src/bin/nix-env.rs"
 
 [dependencies]
+bytes.workspace = true
 nix-compat = { package = "nix-rs-compat", path = "../nix-rs/nix-compat", version = "0.1.2" }
 nix-rs-eval = { path = "../nix-rs/eval", version = "0.2.2", default-features = false, features = ["impure"] }
 nix-rs-build = { path = "../nix-rs-build", version = "0.1.0" }
@@ -41,6 +58,7 @@ libc.workspace = true
 rustc-hash.workspace = true
 smol_str.workspace = true
 tempfile.workspace = true
+serde_json.workspace = true
 
 [dev-dependencies]
 tempfile.workspace = true

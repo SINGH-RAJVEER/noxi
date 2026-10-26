@@ -1,0 +1,27 @@
+# cargo-about configuration for THIRD_PARTY.md.
+#
+# Regenerate with `just third-party` (see docs/licensing.md). Every license that
+# can appear in the nixrs preview dependency graph must be listed here, so an
+# unexpected license fails generation instead of slipping into a release notice.
+
+accepted = [
+	"Apache-2.0",
+	"Apache-2.0 WITH LLVM-exception",
+	"BSD-2-Clause",
+	"BSD-3-Clause",
+	"bzip2-1.0.6",
+	"CC0-1.0",
+	"CDLA-Permissive-2.0",
+	"GPL-3.0-only",
+	"ISC",
+	"MIT",
+	"MIT-0",
+	"Unicode-3.0",
+	"Unlicense",
+	"Zlib",
+	"0BSD",
+]
+
+targets = ["x86_64-unknown-linux-gnu"]
+ignore-dev-dependencies = true
+ignore-build-dependencies = true

@@ -16,6 +16,263 @@ fn reference_instantiate() -> std::path::PathBuf {
 		.join("nix-instantiate")
 }
 
+#[test]
+fn parse_output_matches_the_reference() {
+	let dir = tempfile::tempdir().unwrap();
+	let reference = reference_instantiate();
+	let candidate = Path::new(env!("CARGO_BIN_EXE_nix-instantiate"));
+	for expression in [
+		"{ z.b = 1; z.a = 2; z = { c = 3; }; a = rec { inherit (builtins) map; }; }",
+		"let b = 2; c = {}; in { f = 3; inherit (c) e d; inherit b; a = 1; }",
+		"args@{ z ? 1, a, ... }: assert a; with args; if a then z else null",
+		"[ (1 + 2 + 3) (1 - 2) (2 * 3) (4 / 2) (-1) (!true) (1 < 2) (1 <= 2) (2 > 1) (2 >= 1) ]",
+		"[ (true && false) (true || false) (true -> false) (1 == 2) (1 != 2) ([] ++ []) ({} // {}) ]",
+		"[ (builtins.map (x: x) []) ({} ? a.b) ({}.a.b or 1) <nix/a> __curPos ]",
+		"[ \"a${1}b\" \"${1}\" ''\n  foo\n  bar\n'' http://example.com ]",
+		"[ ./foo/../bar /foo/../bar ~/foo ./foo/${\"bar\"}/baz ]",
+		"{ \"a b\" = 1; ${\"static\"} = 2; ${1 + 2} = 3; \"${\"dynamic\"}\" = 4; }",
+		"let { body = 1; x = 2; }",
+		"[ 0.0 1.23456789 1.0e6 0.0000001 ]",
+		"[ ((1 - 2) 3) ((2 * 3) 4) ((4 / 2) 1) ((1 < 2) 3) ((1 > 2) 3) ((-1) 2) (<nix/a> 1) ]",
+	] {
+		let run = |program: &Path| {
+			Command::new(program)
+				.env_clear()
+				.env("HOME", dir.path())
+				.env("NIX_CONF_DIR", dir.path())
+				.env("NIX_USER_CONF_FILES", "")
+				.env("NIX_CONFIG", "")
+				.current_dir(dir.path())
+				.args(["--parse", "--expr", expression])
+				.output()
+				.unwrap()
+		};
+		let expected = run(&reference);
+		let actual = run(candidate);
+		assert!(
+			expected.status.success(),
+			"reference {expression}: {expected:?}"
+		);
+		assert_eq!(
+			actual.status.code(),
+			expected.status.code(),
+			"{expression}: {actual:?}"
+		);
+		assert_eq!(actual.stdout, expected.stdout, "{expression}");
+		assert_eq!(actual.stderr, expected.stderr, "{expression}");
+	}
+}
+
+#[test]
+fn parse_files_and_stdin_match_the_reference() {
+	use std::io::Write;
+	use std::process::Stdio;
+	let dir = tempfile::tempdir().unwrap();
+	fs::create_dir(dir.path().join("subdir")).unwrap();
+	fs::write(dir.path().join("subdir/default.nix"), "{ path = ./file; }").unwrap();
+	symlink("subdir/default.nix", dir.path().join("link.nix")).unwrap();
+	let reference = reference_instantiate();
+	for (args, input) in [
+		(vec!["--parse", "subdir"], ""),
+		(vec!["--parse", "link.nix"], ""),
+		(vec!["--parse", "-I", "example=./subdir", "<example>"], ""),
+		(vec!["--parse", "-"], "{ path = ./file; }"),
+		(
+			vec!["--parse", "--lint-absolute-path-literals", "warn", "-"],
+			"/tmp/foo\n",
+		),
+	] {
+		let run = |program: &Path| {
+			let mut child = Command::new(program)
+				.env_clear()
+				.env("HOME", dir.path())
+				.env("NIX_CONF_DIR", dir.path())
+				.env("NIX_USER_CONF_FILES", "")
+				.env("NIX_CONFIG", "")
+				.env("NIX_PATH", "")
+				.current_dir(dir.path())
+				.args(&args)
+				.stdin(Stdio::piped())
+				.stdout(Stdio::piped())
+				.stderr(Stdio::piped())
+				.spawn()
+				.unwrap();
+			child
+				.stdin
+				.take()
+				.unwrap()
+				.write_all(input.as_bytes())
+				.unwrap();
+			child.wait_with_output().unwrap()
+		};
+		let expected = run(&reference);
+		let actual = run(Path::new(env!("CARGO_BIN_EXE_nix-instantiate")));
+		assert!(
+			expected.status.success(),
+			"reference {args:?}: {expected:?}"
+		);
+		assert_eq!(
+			actual.status.code(),
+			expected.status.code(),
+			"{args:?}: {actual:?}"
+		);
+		assert_eq!(actual.stdout, expected.stdout, "{args:?}");
+		assert_eq!(
+			String::from_utf8_lossy(&actual.stderr),
+			String::from_utf8_lossy(&expected.stderr),
+			"{args:?}"
+		);
+	}
+}
+
+#[test]
+fn parser_lints_match_the_reference() {
+	let dir = tempfile::tempdir().unwrap();
+	let reference = reference_instantiate();
+	let candidate = Path::new(env!("CARGO_BIN_EXE_nix-instantiate"));
+	fs::write(
+		dir.path().join("child.nix"),
+		"[ /tmp/foo foo/bar http://example.com ]\n",
+	)
+	.unwrap();
+	for expression in [
+		"/tmp/foo",
+		"builtins.isPath ~/foo",
+		"[ foo/bar ./foo ../foo ]",
+		"http://example.com",
+		"[ \"http://example.com\" ./foo/${\"bar\"} ]",
+		"let or = 1; in [ (x: x) or ]",
+		"let or = 1; f = x: x; in [ (f or) (f (f or)) ]",
+		"import ./child.nix",
+	] {
+		for severity in ["ignore", "warn", "fatal"] {
+			let flags = [
+				"--impure",
+				"--lint-absolute-path-literals",
+				severity,
+				"--lint-short-path-literals",
+				severity,
+				"--lint-url-literals",
+				severity,
+			];
+			// Imported fatal errors also acquire evaluation trace frames, owned by the diagnostic work.
+			if expression.starts_with("import") && severity == "fatal" {
+				continue;
+			}
+			let expected = message_evaluation(&reference, dir.path(), expression, "", &flags, "");
+			let actual = message_evaluation(candidate, dir.path(), expression, "", &flags, "");
+			assert_eq!(
+				actual.status.code(),
+				expected.status.code(),
+				"{expression}, {severity}: {actual:?}"
+			);
+			assert_eq!(actual.stdout, expected.stdout, "{expression}, {severity}");
+			assert_eq!(
+				String::from_utf8_lossy(&actual.stderr),
+				String::from_utf8_lossy(&expected.stderr),
+				"{expression}, {severity}"
+			);
+		}
+	}
+	for flags in [
+		vec!["--quiet", "--lint-absolute-path-literals", "warn"],
+		vec!["--pure-eval", "--impure"],
+	] {
+		let expression = if flags[0] == "--quiet" {
+			"/tmp/foo"
+		} else {
+			"builtins.isPath ~/foo"
+		};
+		let expected = message_evaluation(&reference, dir.path(), expression, "", &flags, "");
+		let actual = message_evaluation(candidate, dir.path(), expression, "", &flags, "");
+		assert_eq!(actual.status.code(), expected.status.code());
+		assert_eq!(actual.stdout, expected.stdout);
+		assert_eq!(actual.stderr, expected.stderr);
+	}
+}
+
+#[test]
+fn remaining_language_outputs_match_the_reference() {
+	let dir = tempfile::tempdir().unwrap();
+	let reference = reference_instantiate();
+	let candidate = Path::new(env!("CARGO_BIN_EXE_nix-instantiate"));
+	fs::write(dir.path().join("data"), "data").unwrap();
+	symlink("missing", dir.path().join("broken")).unwrap();
+	symlink("data", dir.path().join("link")).unwrap();
+	symlink(".", dir.path().join("directory-link")).unwrap();
+	fs::write(
+		dir.path().join("positions.nix"),
+		r#"
+let
+	a = 1;
+	b = 2;
+	s = { inherit a; z = 3; inherit ({ inherit b; }) b; };
+	name = "n";
+	value = 2;
+	pair = { inherit name value; };
+in [
+	(map (n: builtins.unsafeGetAttrPos n s) [ "a" "b" "z" ])
+	(map (n: builtins.unsafeGetAttrPos n pair) [ "name" "value" ])
+]
+"#,
+	)
+	.unwrap();
+	for expression in [
+		"import ./positions.nix",
+		"map builtins.pathExists [ ./data ./broken ./link ./directory-link (toString ./data + \"/\") (toString ./data + \"/.\") (toString ./broken + \"/\") (toString ./directory-link + \"/.\") ]",
+		"(builtins.derivationStrict { name = \"legacy\"; system = \"x86_64-linux\"; builder = \"/dontcare\"; __structuredAttrs = true; allowedReferences = []; disallowedReferences = []; allowedRequisites = []; disallowedRequisites = []; maxSize = 1234; maxClosureSize = 12345; }).out",
+		"builtins.match \"(.*)\" \"a\\nb\"",
+		"builtins.match \"a|ab\" \"abc\"",
+		"builtins.match \"a|ab\" \"ab\"",
+		"builtins.match \"(a|aa)(a?)\" \"aa\"",
+		"builtins.match \"(a)?b\" \"b\"",
+		"builtins.match \"(a+?)(a*)\" \"aaa\"",
+		"builtins.match \"(a*?)(a*)\" \"aaa\"",
+		"builtins.match \"[[:alpha:]]+\" \"é\"",
+		"map builtins.stringLength (builtins.match \"(.)(.)\" \"é\")",
+		"builtins.match ''[\\n]'' \"n\"",
+		"builtins.match \"[a&&b]\" \"a\"",
+		"builtins.match \"[[]\" \"[\"",
+		"builtins.match \"[[.a.]]\" \"a\"",
+		"builtins.match \"[[=a=]]\" \"a\"",
+		"builtins.match \"[[:d:]][[:w:]][[:s:]]\" \"1a \"",
+		"builtins.match \"[[.tab.]]\" \"\\t\"",
+	] {
+		let expected = message_evaluation(&reference, dir.path(), expression, "", &[], "");
+		let actual = message_evaluation(candidate, dir.path(), expression, "", &[], "");
+		assert!(
+			expected.status.success(),
+			"reference {expression}: {expected:?}"
+		);
+		assert_eq!(
+			actual.status.code(),
+			expected.status.code(),
+			"{expression}: {actual:?}"
+		);
+		assert_eq!(
+			String::from_utf8_lossy(&actual.stdout),
+			String::from_utf8_lossy(&expected.stdout),
+			"{expression}"
+		);
+		assert_eq!(
+			String::from_utf8_lossy(&actual.stderr),
+			String::from_utf8_lossy(&expected.stderr),
+			"{expression}"
+		);
+	}
+	for pattern in [r"\d+", "(?:a)", "a{,2}", "[[:word:]]"] {
+		let expression = format!(
+			"builtins.match {} \"123\"",
+			nix_rs_commands::instantiate::nix_string_literal(pattern)
+		);
+		let expected = message_evaluation(&reference, dir.path(), &expression, "", &[], "");
+		let actual = message_evaluation(candidate, dir.path(), &expression, "", &[], "");
+		assert_eq!(expected.status.code(), Some(1), "{pattern}");
+		assert_eq!(actual.status.code(), expected.status.code(), "{pattern}");
+		assert!(actual.stdout.is_empty());
+	}
+}
+
 /// Read-only, isolated evaluation with either engine, including the
 /// configuration and environment that control warning behavior.
 fn message_evaluation(

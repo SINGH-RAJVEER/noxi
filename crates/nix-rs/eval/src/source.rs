@@ -15,10 +15,38 @@ use codemap::{CodeMap, Span};
 
 /// Tracks all source code in a nix-rs evaluation for accurate error
 /// reporting.
-#[derive(Clone, Debug)]
-pub struct SourceCode(Rc<RefCell<CodeMap>>);
+#[derive(Clone)]
+pub struct SourceCode(Rc<RefCell<CodeMap>>, Option<Rc<SourceCheck>>);
+
+type SourceCheck = dyn Fn(&rnix::ast::Expr, &codemap::File) -> Result<(), crate::ErrorKind>;
+
+impl std::fmt::Debug for SourceCode {
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		f.debug_tuple("SourceCode").field(&self.0).finish()
+	}
+}
 
 impl SourceCode {
+	/// Validate each parsed source before compilation, including imported files.
+	/// The callback belongs to this source map, so independent evaluations do not share policy.
+	pub fn with_source_check(
+		mut self,
+		check: impl Fn(&rnix::ast::Expr, &codemap::File) -> Result<(), crate::ErrorKind> + 'static,
+	) -> Self {
+		self.1 = Some(Rc::new(check));
+		self
+	}
+
+	pub(crate) fn check(
+		&self,
+		expr: &rnix::ast::Expr,
+		file: &codemap::File,
+	) -> crate::EvalResult<()> {
+		if let Some(check) = &self.1 {
+			check(expr, file).map_err(|kind| crate::Error::new(kind, file.span, self.clone()))?;
+		}
+		Ok(())
+	}
 	/// Access a read-only reference to the codemap.
 	pub fn codemap(&self) -> Ref<'_, CodeMap> {
 		self.0.borrow()
@@ -60,6 +88,6 @@ impl SourceCode {
 impl Default for SourceCode {
 	/// Create a new SourceCode instance.
 	fn default() -> Self {
-		Self(Rc::new(RefCell::new(CodeMap::new())))
+		Self(Rc::new(RefCell::new(CodeMap::new())), None)
 	}
 }
