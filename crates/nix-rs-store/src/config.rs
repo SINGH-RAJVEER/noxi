@@ -30,6 +30,9 @@ pub struct LocalStoreConfig {
 	pub require_sigs: bool,
 	/// The `trusted-public-keys` setting, as `name:base64` strings.
 	pub trusted_public_keys: Vec<String>,
+	/// Whether the `ca-derivations` experimental feature is enabled, which
+	/// adds the realisation tables and lets builds record realisations.
+	pub ca_derivations: bool,
 }
 
 impl LocalStoreConfig {
@@ -82,6 +85,7 @@ impl LocalStoreConfig {
 		self.fsync_metadata = settings.get_bool("fsync-metadata", self.fsync_metadata);
 		self.use_sqlite_wal = settings.get_bool("use-sqlite-wal", self.use_sqlite_wal);
 		self.require_sigs = settings.get_bool("require-sigs", self.require_sigs);
+		self.ca_derivations = settings.experimental_features().contains("ca-derivations");
 		if settings.get("trusted-public-keys").is_some() {
 			self.trusted_public_keys = settings
 				.get_list("trusted-public-keys", &[])
@@ -128,6 +132,7 @@ impl LocalStoreConfig {
 			trusted_public_keys: vec![
 				"cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY=".to_owned(),
 			],
+			ca_derivations: false,
 		}
 	}
 

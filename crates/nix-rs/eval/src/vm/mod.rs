@@ -9,6 +9,7 @@
 //! then triggering its execution and waiting for the VM to return or
 //! yield an error.
 
+mod assertions;
 pub mod generators;
 mod macros;
 
@@ -28,7 +29,7 @@ use crate::{
 	chunk::Chunk,
 	cmp_op,
 	compiler::GlobalsMap,
-	errors::{CatchableErrorKind, CatchableTrace, Error, ErrorKind, EvalResult, Trace},
+	errors::{AddContext, CatchableErrorKind, CatchableTrace, Error, ErrorKind, EvalResult, Trace},
 	io::EvalIO,
 	lifted_pop,
 	nix_search_path::NixSearchPath,
@@ -51,6 +52,11 @@ use self::generators::{VMRequest, VMResponse};
 /// of `WithSpan` (defined below) more ergonomic at call sites.
 trait GetSpan {
 	fn get_span(self) -> Span;
+
+	/// The trace of the running frame, if this is it.
+	fn frame_trace(&self) -> Option<FrameTrace> {
+		None
+	}
 }
 
 impl<IO> GetSpan for &VM<'_, IO> {
@@ -62,6 +68,21 @@ impl<IO> GetSpan for &VM<'_, IO> {
 impl GetSpan for &BytecodeFrame {
 	fn get_span(self) -> Span {
 		self.current_span()
+	}
+
+	fn frame_trace(&self) -> Option<FrameTrace> {
+		Some(self.trace.clone())
+	}
+}
+
+/// A span in the running frame, which supplies its trace.
+impl GetSpan for (Span, &BytecodeFrame) {
+	fn get_span(self) -> Span {
+		self.0
+	}
+
+	fn frame_trace(&self) -> Option<FrameTrace> {
+		Some(self.1.trace.clone())
 	}
 }
 
@@ -92,8 +113,9 @@ impl<T, S: GetSpan, IO> WithSpan<T, S, IO> for Result<T, ErrorKind> {
 		match self {
 			Ok(something) => Ok(something),
 			Err(kind) => {
+				let running = top_span.frame_trace();
 				let mut error = Error::new(kind, top_span.get_span(), vm.source.clone());
-				let traces = vm.traces(Some(&error.kind));
+				let traces = vm.traces(Some(&error.kind), running.as_ref());
 
 				// Wrap the top-level error in chaining errors for each element
 				// of the frame stack. Recursion can leave many thousands of
@@ -198,6 +220,18 @@ impl BytecodeFrame {
 		Err(kind).with_span(self, vm)
 	}
 
+	/// Record the attribute a selection found, for CppNix's trace frame of
+	/// the selection.
+	fn record_selection(&mut self, attrs: NixAttrs, key: NixString) {
+		if let Some(path) = &self.lambda.select_path {
+			self.trace = FrameTrace::Select {
+				path: path.clone(),
+				attrs,
+				key,
+			};
+		}
+	}
+
 	/// Returns the current span. This is potentially expensive and should only
 	/// be used when actually constructing an error or warning.
 	pub fn current_span(&self) -> Span {
@@ -273,6 +307,21 @@ pub(crate) enum FrameTrace {
 	/// Frames a generator maintains as it runs, such as the path of the
 	/// element a deep force is forcing.
 	Dynamic(Rc<std::cell::RefCell<Vec<Trace>>>),
+
+	/// The thunk of an attribute selection that found an attribute: `while
+	/// evaluating the attribute 'PATH'` at that attribute's definition.
+	Select {
+		path: Rc<str>,
+		attrs: NixAttrs,
+		key: NixString,
+	},
+
+	/// A fixed frame without a position, such as the context of a string
+	/// coercion a builtin requested.
+	Context(&'static str),
+
+	/// A fixed frame, such as the condition of an assertion being compared.
+	Frame(Trace),
 }
 
 impl Frame {
@@ -574,19 +623,17 @@ where
 							((upvalues.len() > 0) || (upvalues.with_stack_len() > 0)),
 							"OpThunkClosure should not be called for plain lambdas",
 						);
-						Thunk::new_closure(blueprint)
+						Thunk::new_closure_with_upvalues(blueprint, upvalues)
 					} else {
-						Thunk::new_suspended(blueprint, frame.current_span())
+						Thunk::new_suspended_with_upvalues(
+							blueprint,
+							frame.current_span(),
+							upvalues,
+						)
 					};
 
-					self.stack.push(Value::Thunk(thunk.clone()));
-
-					// From this point on we internally mutate the
-					// upvalues. The closure (if `is_closure`) is
-					// already in its stack slot, which means that it
-					// can capture itself as an upvalue for
-					// self-recursion.
-					*thunk.upvalues_mut() = upvalues;
+					// Recursive captures remain deferred until Op::Finalise.
+					self.stack.push(Value::Thunk(thunk));
 				}
 
 				Op::Force => {
@@ -594,6 +641,13 @@ where
 						let thunk = match self.stack_pop() {
 							Value::Thunk(t) => t,
 							_ => unreachable!(),
+						};
+						let thunk = match thunk.force_if_evaluated() {
+							Ok(value) => {
+								self.stack.push(value);
+								continue;
+							}
+							Err(thunk) => thunk,
 						};
 
 						let gen_span = frame.current_span();
@@ -686,19 +740,28 @@ where
 
 				Op::AttrsSelect => lifted_pop! {
 					self(key, attrs) => {
-						let key = key.to_str().with_span(&frame, self)?;
+						let key = attribute_name(key, frame.current_span()).with_span(&frame, self)?;
 						let attrs = attrs.to_attrs().with_span(&frame, self)?;
 
 						match attrs.select(&key) {
-							Some(value) => self.stack.push(value.clone()),
+							Some(value) => {
+								self.stack.push(value.clone());
+								frame.record_selection(attrs, key);
+							}
 
 							None => {
-								return frame.error(
-									self,
-									ErrorKind::AttributeNotFound {
-										name: key.to_str_lossy().into_owned()
-									},
+								let name = key.to_str_lossy().into_owned();
+								let suggestions = crate::diagnostics::best_matches(
+									attrs.keys().map(|key| key.to_str().unwrap_or_default()),
+									&name,
 								);
+								// CppNix reports the start of the selection.
+								let span = frame.lambda.select_span.unwrap_or_else(|| frame.current_span());
+								return Err(ErrorKind::Positioned(Box::new(ErrorKind::AttributeNotFound {
+									name,
+									suggestions,
+								})))
+								.with_span((span, &frame), self);
 							}
 						}
 					}
@@ -746,10 +809,15 @@ where
 				}
 
 				Op::AttrsTrySelect => {
-					let key = self.stack_pop().to_str().with_span(&frame, self)?;
+					let key = attribute_name(self.stack_pop(), frame.current_span())
+						.with_span(&frame, self)?;
 					let value = match self.stack_pop() {
 						Value::Attrs(attrs) => match attrs.select(&key) {
-							Some(value) => value.clone(),
+							Some(value) => {
+								let value = value.clone();
+								frame.record_selection(attrs, key);
+								value
+							}
 							None => Value::AttrNotFound,
 						},
 
@@ -1067,8 +1135,39 @@ where
 				}
 
 				Op::AssertFail => {
-					self.stack
-						.push(Value::from(CatchableErrorKind::AssertionFailed));
+					let text = self
+						.stack_pop()
+						.to_contextful_str()
+						.map(|s| bstr::ByteSlice::to_str_lossy(s.as_bytes()).into_owned())
+						.unwrap_or_default();
+					let failed = Value::from(CatchableErrorKind::AssertionFailed);
+					let failed = self.trace_catchable_in(
+						failed,
+						Some(&frame.trace),
+						Some(frame.current_span()),
+						Some(format!("assertion '{text}' failed")),
+					);
+					self.stack.push(failed);
+				}
+
+				Op::AssertEqFail => {
+					let text = self
+						.stack_pop()
+						.to_contextful_str()
+						.map(|s| bstr::ByteSlice::to_str_lossy(s.as_bytes()).into_owned())
+						.unwrap_or_default();
+					let rhs = self.stack_pop();
+					let lhs = self.stack_pop();
+					let gen_span = frame.current_span();
+					self.push_bytecode_frame(span, frame);
+					let hint = format!("while evaluating the condition of the assertion '{text}'");
+					self.enqueue_generator("assert_eq", gen_span, |co| {
+						assertions::assert_eq_failed(co, lhs, rhs, text)
+					});
+					if let Some(Frame::Generator { trace, .. }) = self.frames.last_mut() {
+						*trace = FrameTrace::Frame(Trace::new(Some(gen_span), hint));
+					}
+					return Ok(false);
 				}
 
 				// Encountering an invalid opcode is a critical error in the
@@ -1113,8 +1212,11 @@ impl<IO> VM<'_, IO> {
 	/// The CppNix trace of the running evaluation, outermost first: the
 	/// frames on the stack, then the running frame unless it was already
 	/// pushed back. `error` is the error being raised, if any.
-	fn traces(&self, error: Option<&ErrorKind>) -> Vec<Trace> {
-		let current = (self.frames.len() <= self.current.0).then_some(&self.current.1);
+	/// `running` is the running frame's trace if the error has it at hand,
+	/// which is newer than the copy taken when the frame was entered.
+	fn traces(&self, error: Option<&ErrorKind>, running: Option<&FrameTrace>) -> Vec<Trace> {
+		let current =
+			(self.frames.len() <= self.current.0).then(|| running.unwrap_or(&self.current.1));
 		let frames: Vec<&FrameTrace> = self
 			.frames
 			.iter()
@@ -1130,6 +1232,18 @@ impl<IO> VM<'_, IO> {
 			match frame {
 				FrameTrace::None => {}
 				FrameTrace::Dynamic(frames) => traces.extend(frames.borrow().iter().cloned()),
+				FrameTrace::Context(hint) => traces.push(Trace::new(None, *hint)),
+				FrameTrace::Frame(trace) => traces.push(trace.clone()),
+				FrameTrace::Select { path, attrs, key } => {
+					if let Some(span) = attrs.get_attr_pos(key)
+						&& !hidden(&span)
+					{
+						traces.push(Trace::new(
+							Some(span),
+							format!("while evaluating the attribute '{path}'"),
+						));
+					}
+				}
 				FrameTrace::Builtin { name, call_site } => {
 					if !call_site.as_ref().is_some_and(hidden) {
 						traces.push(Trace::new(
@@ -1178,20 +1292,48 @@ where
 		span: Option<Span>,
 		message: Option<String>,
 	) -> Value {
+		self.trace_catchable_in(value, None, span, message)
+	}
+
+	/// [`trace_catchable`](Self::trace_catchable) with the running frame's
+	/// trace, if it is at hand. A catchable error that carries only the
+	/// frames of the generator that raised it gets the others prepended.
+	fn trace_catchable_in(
+		&self,
+		value: Value,
+		running: Option<&FrameTrace>,
+		span: Option<Span>,
+		message: Option<String>,
+	) -> Value {
+		if !self.try_eval_frames.is_empty() {
+			return value;
+		}
 		match value {
-			Value::Catchable(kind)
-				if self.try_eval_frames.is_empty()
-					&& !matches!(*kind, CatchableErrorKind::Traced { .. }) =>
-			{
-				Value::Catchable(Box::new(CatchableErrorKind::Traced {
-					kind,
+			Value::Catchable(kind) => match *kind {
+				CatchableErrorKind::Traced { kind, info } if info.relative => {
+					let mut traces = self.traces(None, running);
+					traces.extend(info.traces.iter().cloned());
+					Value::Catchable(Box::new(CatchableErrorKind::Traced {
+						kind,
+						info: Rc::new(CatchableTrace {
+							traces,
+							span: info.span,
+							message: info.message.clone(),
+							relative: false,
+						}),
+					}))
+				}
+				kind @ CatchableErrorKind::Traced { .. } => Value::Catchable(Box::new(kind)),
+				kind => Value::Catchable(Box::new(CatchableErrorKind::Traced {
+					kind: Box::new(kind),
 					info: Rc::new(CatchableTrace {
-						traces: self.traces(None),
+						traces: self.traces(None, running),
 						span,
 						message,
+						relative: false,
 					}),
-				}))
-			}
+				})),
+			},
 			value => value,
 		}
 	}
@@ -1307,16 +1449,33 @@ where
 		&mut self,
 		span: Span,
 		call_site: Option<Span>,
-		mut builtin: Builtin,
+		builtin: Builtin,
 	) -> EvalResult<()> {
 		let builtin_name = builtin.name();
 		self.observer.observe_enter_builtin(builtin_name);
 
-		builtin.apply_arg(self.stack_pop());
-
-		match builtin.call() {
+		match builtin.apply(self.stack_pop()) {
 			// Partially applied builtin is just pushed back on the stack.
 			BuiltinResult::Partial(partial) => self.stack.push(Value::Builtin(partial)),
+			BuiltinResult::Synchronous(result) => {
+				// A ready builtin has no generator frame, but its failures
+				// must carry the same trace as the asynchronous path.
+				let previous = std::mem::replace(
+					&mut self.current,
+					(
+						self.frames.len(),
+						FrameTrace::Builtin {
+							name: builtin_name,
+							call_site,
+						},
+					),
+				);
+				let result = result
+					.with_span(span, self)
+					.map(|value| self.trace_catchable(value, None, None));
+				self.current = previous;
+				self.stack.push(result?);
+			}
 
 			// Builtin is fully applied and the generator needs to be run by the VM.
 			BuiltinResult::Called(name, generator) => self.frames.push(Frame::Generator {
@@ -1432,7 +1591,7 @@ where
 		let count = data.count();
 		let capture_with = data.captures_with();
 
-		let mut static_upvalues = vec![];
+		let mut static_upvalues = Vec::with_capacity(count);
 
 		let with_stack = if capture_with {
 			// Start the captured with_stack off of the
@@ -1715,4 +1874,23 @@ where
 	});
 
 	vm.execute()
+}
+
+/// CppNix's `getName` for a computed attribute name: it must be a string,
+/// and a failure is reported at the name.
+fn attribute_name(key: Value, span: Span) -> Result<NixString, ErrorKind> {
+	match key {
+		Value::String(name) => Ok(name),
+		Value::Thunk(ref thunk) if thunk.is_evaluated() => {
+			attribute_name(thunk.value().clone(), span)
+		}
+		key => Err(ErrorKind::Positioned(Box::new(
+			ErrorKind::TypeError {
+				expected: "string",
+				actual: key.type_of(),
+				value: Some(Box::new(key.clone())),
+			}
+			.trace(Some(span), "while evaluating an attribute name"),
+		))),
+	}
 }

@@ -82,12 +82,13 @@ run_nix --extra-experimental-features nix-command config show --json |
 
 run_nix __dump-xp-features | jq -S 'keys' >"${out_dir}/experimental-features.json"
 
-# The new-style command tree with each command's flags and gating feature. The
+# The new-style command tree with each command's flags, positional arguments and
+# gating feature; an arity of null means any number of values. The
 # legacy commands parse their own arguments and are not in this dump.
 run_nix __dump-cli | jq -S '
 	def flags: (.flags // {}) | with_entries(.value |= {
 		shortName: (.shortName // null),
-		arity: (.arity // 0),
+		arity: (.arity // null),
 		experimentalFeature: (.["experimental-feature"] // null)
 	});
 	def walk_commands($prefix):
@@ -95,7 +96,8 @@ run_nix __dump-cli | jq -S '
 		(($prefix + [.key]) as $path |
 			{key: ($path | join(" ")), value: {
 				experimentalFeature: (.value.category["experimental-feature"] // .value["experimental-feature"] // null),
-				flags: (.value | flags)
+				flags: (.value | flags),
+				args: [(.value.args // [])[] | {label, optional, arity: (.arity // null)}]
 			}},
 			(.value | walk_commands($path)));
 	{

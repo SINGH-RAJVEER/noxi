@@ -76,9 +76,20 @@ pub struct Lambda {
 	/// Where the function starts, CppNix's `ExprLambda::pos`; `None` for
 	/// thunks.
 	pub(crate) span: Option<codemap::Span>,
+
+	/// For the thunk of an attribute selection, the selected path as CppNix
+	/// shows it in `while evaluating the attribute 'PATH'`.
+	pub(crate) select_path: Option<Rc<str>>,
+
+	/// Where that selection starts, CppNix's position for its errors.
+	pub(crate) select_span: Option<Span>,
 }
 
 impl Lambda {
+	/// The parameter of a plain lambda; attribute-pattern lambdas return `None`.
+	pub fn parameter_name(&self) -> Option<&str> {
+		self.formals.is_none().then_some(self.param_name.as_str())
+	}
 	pub fn chunk(&mut self) -> &mut Chunk {
 		&mut self.chunk
 	}

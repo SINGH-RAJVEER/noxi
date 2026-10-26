@@ -885,12 +885,21 @@ impl Compiler<'_, '_> {
 		false
 	}
 
+	/// Record the path the selection compiled into the current thunk shows
+	/// in CppNix's `while evaluating the attribute 'PATH'` frame.
+	fn trace_select(&mut self, node: &ast::Select, path: &ast::Attrpath) {
+		let span = self.span_for(node);
+		self.context_mut().lambda.select_span = Some(span);
+		let text = crate::show_ast::show_attrpath(path, &self.root_dir);
+		self.context_mut().lambda.select_path = Some(text.into());
+	}
+
 	fn compile_select(&mut self, slot: LocalIdx, node: &ast::Select) {
 		let set = node.expr().unwrap();
 		let path = node.attrpath().unwrap();
 
 		if node.or_token().is_some() {
-			return self.compile_select_or(slot, set, path, node.default_expr().unwrap());
+			return self.compile_select_or(slot, node, set, path, node.default_expr().unwrap());
 		}
 
 		// Push the set onto the stack
@@ -899,6 +908,7 @@ impl Compiler<'_, '_> {
 			return;
 		}
 
+		self.trace_select(node, &path);
 		// Compile each key fragment and emit access instructions.
 		//
 		// TODO: multi-select instruction to avoid re-pushing attrs on
@@ -908,8 +918,18 @@ impl Compiler<'_, '_> {
 			self.emit_force(&set);
 
 			self.compile_attr(slot, &fragment);
-			self.push_op(Op::AttrsSelect, &fragment);
+			// A computed name's errors are reported at its expression.
+			match &fragment {
+				ast::Attr::Dynamic(dynamic) => {
+					self.push_op(Op::AttrsSelect, &dynamic.expr().unwrap())
+				}
+				_ => self.push_op(Op::AttrsSelect, &fragment),
+			};
 		}
+
+		// CppNix forces the selected value as part of the selection, where
+		// its errors are traced to the attribute.
+		self.emit_force(&path);
 	}
 
 	/// Compile an `or` expression into a chunk of conditional jumps.
@@ -944,6 +964,7 @@ impl Compiler<'_, '_> {
 	fn compile_select_or(
 		&mut self,
 		slot: LocalIdx,
+		node: &ast::Select,
 		set: ast::Expr,
 		path: ast::Attrpath,
 		default: ast::Expr,
@@ -954,6 +975,7 @@ impl Compiler<'_, '_> {
 		}
 
 		let mut jumps = vec![];
+		self.trace_select(node, &path);
 
 		for fragment in path.attrs() {
 			self.emit_force(&fragment);
@@ -974,6 +996,7 @@ impl Compiler<'_, '_> {
 		// jump to point *beyond* it.
 		self.compile(slot, default);
 		self.patch_jump(final_jump);
+		self.emit_force(&path);
 	}
 
 	/// Compile `assert` expressions using jumping instructions in the VM.
@@ -1007,7 +1030,25 @@ impl Compiler<'_, '_> {
 
 		self.patch_jump(then_idx);
 		self.push_op(Op::Pop, node);
-		self.push_op(Op::AssertFail, &node.condition().unwrap());
+		// As CppNix does, a failed equality is compared again to report the
+		// difference, and other failures show the condition.
+		let mut condition = node.condition().unwrap();
+		while let ast::Expr::Paren(paren) = &condition {
+			condition = paren.expr().unwrap();
+		}
+		let text = crate::show_expr(&condition, &self.root_dir);
+		match &condition {
+			ast::Expr::BinOp(op) if op.operator() == Some(ast::BinOpKind::Equal) => {
+				self.compile(slot, op.lhs().unwrap());
+				self.compile(slot, op.rhs().unwrap());
+				self.emit_constant(Value::String(text.into()), node);
+				self.push_op(Op::AssertEqFail, node);
+			}
+			_ => {
+				self.emit_constant(Value::String(text.into()), node);
+				self.push_op(Op::AssertFail, node);
+			}
+		}
 
 		self.patch_jump(else_idx);
 		self.patch_jump(throw_idx);
@@ -1157,7 +1198,13 @@ impl Compiler<'_, '_> {
 
 		for entry in pattern.pat_entries() {
 			let ident = entry.ident().unwrap();
-			let idx = self.declare_local(&ident, ident.to_string());
+			// CppNix reports a formal that repeats the `@` binding at the
+			// function.
+			let idx = if pat_bind_name.as_deref() == Some(ident.to_string().as_str()) {
+				self.declare_local(pattern, ident.to_string())
+			} else {
+				self.declare_local(&ident, ident.to_string())
+			};
 
 			argument_spans.insert(ident.clone().into(), self.span_for(&ident));
 			arguments.insert(ident.into(), entry.default().is_some());
@@ -1463,7 +1510,12 @@ impl Compiler<'_, '_> {
 			ast::Expr::IfElse(if_else) => self.compile_if_else(slot, if_else, true),
 			ast::Expr::Assert(assert) => self.compile_assert(slot, assert, true),
 			ast::Expr::LetIn(let_in) => self.compile_let_in(slot, let_in, true),
-			_ => self.compile(slot, expr),
+			// Other expressions are thunks, forced here so that they too run
+			// while the frame is active, as in CppNix's `callFunction`.
+			_ => {
+				self.compile(slot, expr.clone());
+				self.emit_force(&expr);
+			}
 		}
 	}
 
@@ -1606,12 +1658,12 @@ impl Compiler<'_, '_> {
 		}
 
 		let span = self.span_for(node);
-		let (idx, shadowed) = self.scope_mut().declare_local(name, span);
+		let (idx, shadowed) = self.scope_mut().declare_local(name.clone(), span);
 
 		if let Some(shadow_idx) = shadowed {
 			let other = &self.scope()[shadow_idx];
 			if other.depth == depth {
-				self.emit_error(node, ErrorKind::VariableAlreadyDefined(other.span));
+				self.emit_error(node, ErrorKind::VariableAlreadyDefined(other.span, name));
 			}
 		}
 
@@ -1692,7 +1744,7 @@ impl Compiler<'_, '_> {
 /// The parts of a string literal with escapes interpreted. In a `"` string,
 /// CppNix's `unescapeStr` reads an unescaped carriage return, alone or
 /// followed by a line feed, as a line feed; `rnix` keeps it.
-fn normalized_str_parts(node: &ast::Str) -> Vec<ast::InterpolPart<String>> {
+pub(crate) fn normalized_str_parts(node: &ast::Str) -> Vec<ast::InterpolPart<String>> {
 	let mut parts = node.normalized_parts();
 	let multiline = rowan::ast::AstNode::syntax(node)
 		.first_token()
@@ -1943,6 +1995,7 @@ pub fn compile(
 	file: &codemap::File,
 	observer: OptionalCompilerObserver<'_>,
 ) -> EvalResult<CompilationOutput> {
+	source.check(expr, file)?;
 	let mut c = Compiler::new(location, globals.clone(), env, source, file, observer)?;
 
 	let root_span = c.span_for(expr);

@@ -29,6 +29,15 @@ test-core:
 test-fixtures:
 	cargo nextest run -p nixrs-compat-tests --tests
 
+# Check every shipped dependency license against the accepted set in deny.toml.
+licenses:
+	cargo deny check licenses
+
+# Regenerate THIRD_PARTY.md for the nixrs preview binary from the locked dependency graph, then append the LGPL-2.1 text of the bundled CppNix helper, which cargo-about does not see.
+third-party:
+	cargo about generate --locked --offline --fail -m crates/nix-rs-cli/Cargo.toml -c about.toml third-party.hbs -o THIRD_PARTY.md
+	{ printf '\n## GNU Lesser General Public License 2.1 (bundled CppNix helper)\n\nThe CppNix helper `imported-drv-to-derivation.nix` is licensed LGPL-2.1-or-later; the text below is the LGPL-2.1 from its reference copy.\n\n~~~text\n'; cat crates/nix-rs/eval/COPYING; printf '~~~\n'; } >> THIRD_PARTY.md
+
 # Compare the preview evaluator with an explicitly selected CppNix executable.
 eval-compare reference report="/tmp/nix-rs-eval-comparison.json":
 	cargo build -p nix-rs-cli --bin nixrs
@@ -122,3 +131,28 @@ ci: fmt-check nix-snapshot-verify check test
 
 # Run the complete development check and then the VM test, which boots a machine.
 ci-vm: ci vm-test
+
+# Build the provisional replacement package (all engine executables, the reference's names, daemon units) and check its layout.
+replacement-package:
+	mkdir -p target/qualification
+	nix build --out-link target/qualification/replacement .#checks.x86_64-linux.replacement
+	nix build --no-link .#checks.x86_64-linux.replacement-layout
+
+# Boot a disposable CppNix VM, swap it to nix-rs, run one scenario (nixos, home-manager or lifecycle), return to CppNix, and keep every step's result in target/qualification/MODE-report. A report build is not a gate pass.
+qualification-report mode:
+	mkdir -p target/qualification
+	nix build --out-link "target/qualification/{{mode}}-report" --print-build-logs ".#qualification-{{mode}}-report"
+	cat "target/qualification/{{mode}}-report/steps.txt"
+
+# Strict gate: fails unless every step of the scenario passed.
+qualification-gate mode: (qualification-report mode)
+	nix build --no-link --print-build-logs ".#checks.x86_64-linux.qualification-{{mode}}"
+
+# nixos-rebuild build, dry-activate, test, switch and boot with nix-rs, a reboot, a second change, a rollback and the return to CppNix (TODO section 7).
+qualification-nixos: (qualification-gate "nixos")
+
+# Standalone Home Manager build and switch in classic and flake mode, and Home Manager as a NixOS module, with nix-rs (TODO section 7).
+qualification-home-manager: (qualification-gate "home-manager")
+
+# Install, upgrade, failed upgrade, rollback and removal of nix-rs as the system's Nix (TODO section 8).
+qualification-lifecycle: (qualification-gate "lifecycle")

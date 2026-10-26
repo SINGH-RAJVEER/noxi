@@ -31,6 +31,7 @@ use crate::errors::{CatchableErrorKind, ErrorKind, Trace};
 use crate::opcode::StackIdx;
 use crate::vm::generators::{self, GenCo};
 pub use attrs::NixAttrs;
+pub(crate) use attrs::cppnix_attribute_order;
 pub use builtin::{Builtin, BuiltinResult};
 pub(crate) use function::Formals;
 pub use function::{Closure, Lambda};
@@ -314,7 +315,13 @@ impl Value {
 
 				Value::Attrs(attrs) => {
 					let positions = attrs.clone();
-					for (name, val) in attrs.into_iter_sorted().rev() {
+					// In CppNix's order, which decides the attribute an error
+					// is reported for.
+					let mut entries: Vec<_> = attrs.into_iter_sorted().collect();
+					entries.sort_by(|(a, _), (b, _)| {
+						attrs::cppnix_attribute_order(a.as_bytes(), b.as_bytes())
+					});
+					for (name, val) in entries.into_iter().rev() {
 						let frame = Trace::new(
 							positions.get_attr_pos(&name),
 							format!(
@@ -451,7 +458,11 @@ impl Value {
 					} else if let Some(out_path) = attrs.select("outPath") {
 						worklist.push(Item::Value(out_path.clone()));
 					} else {
-						return Err(ErrorKind::NotCoercibleToString { from: "set", kind });
+						return Err(ErrorKind::NotCoercibleToString {
+							from: "set",
+							kind,
+							value: Some(Box::new(Value::Attrs(attrs.clone()))),
+						});
 					}
 				}
 
@@ -496,6 +507,7 @@ impl Value {
 					return Err(ErrorKind::NotCoercibleToString {
 						from: val.0.type_of(),
 						kind,
+						value: Some(Box::new(val.0.clone())),
 					});
 				}
 
@@ -958,7 +970,7 @@ impl Display for Value {
 
 /// Emulates the C++-Nix style formatting of floats, which diverges
 /// significantly from Rust's native float formatting.
-fn total_fmt_float<F: std::fmt::Write>(num: f64, mut f: F) -> std::fmt::Result {
+pub(crate) fn total_fmt_float<F: std::fmt::Write>(num: f64, mut f: F) -> std::fmt::Result {
 	let mut buf = [b'0'; lexical_core::BUFFER_SIZE];
 	let mut s = lexical_core::write_with_options::<f64, { CXX_LITERAL }>(
 		num,

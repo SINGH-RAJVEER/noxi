@@ -21,6 +21,9 @@ pub enum FailureStatus {
 
 #[derive(Debug, thiserror::Error)]
 pub enum BuildError {
+	#[error("build cancelled")]
+	Cancelled,
+
 	#[error(transparent)]
 	Store(#[from] nix_rs_store::Error),
 

@@ -1,6 +1,13 @@
 {
   "commands": {
     "nix build": {
+      "args": [
+        {
+          "arity": null,
+          "label": "installables",
+          "optional": false
+        }
+      ],
       "experimentalFeature": "nix-command",
       "flags": {
         "arg": {
@@ -166,6 +173,13 @@
       }
     },
     "nix bundle": {
+      "args": [
+        {
+          "arity": 1,
+          "label": "installable",
+          "optional": true
+        }
+      ],
       "experimentalFeature": "nix-command",
       "flags": {
         "arg": {
@@ -291,14 +305,29 @@
       }
     },
     "nix config": {
+      "args": [
+        {
+          "arity": 1,
+          "label": "subcommand",
+          "optional": true
+        }
+      ],
       "experimentalFeature": "nix-command",
       "flags": {}
     },
     "nix config check": {
+      "args": [],
       "experimentalFeature": null,
       "flags": {}
     },
     "nix config show": {
+      "args": [
+        {
+          "arity": 1,
+          "label": "name",
+          "optional": true
+        }
+      ],
       "experimentalFeature": "nix-command",
       "flags": {
         "json": {
@@ -319,6 +348,13 @@
       }
     },
     "nix copy": {
+      "args": [
+        {
+          "arity": null,
+          "label": "installables",
+          "optional": false
+        }
+      ],
       "experimentalFeature": "nix-command",
       "flags": {
         "all": {
@@ -484,6 +520,7 @@
       }
     },
     "nix daemon": {
+      "args": [],
       "experimentalFeature": "nix-command",
       "flags": {
         "default-trust": {
@@ -519,10 +556,18 @@
       }
     },
     "nix derivation": {
+      "args": [
+        {
+          "arity": 1,
+          "label": "subcommand",
+          "optional": true
+        }
+      ],
       "experimentalFeature": "nix-command",
       "flags": {}
     },
     "nix derivation add": {
+      "args": [],
       "experimentalFeature": "nix-command",
       "flags": {
         "dry-run": {
@@ -533,6 +578,13 @@
       }
     },
     "nix derivation show": {
+      "args": [
+        {
+          "arity": null,
+          "label": "installables",
+          "optional": false
+        }
+      ],
       "experimentalFeature": "nix-command",
       "flags": {
         "arg": {
@@ -668,6 +720,13 @@
       }
     },
     "nix develop": {
+      "args": [
+        {
+          "arity": 1,
+          "label": "installable",
+          "optional": true
+        }
+      ],
       "experimentalFeature": "nix-command",
       "flags": {
         "arg": {
@@ -701,7 +760,7 @@
           "shortName": null
         },
         "command": {
-          "arity": 0,
+          "arity": null,
           "experimentalFeature": null,
           "shortName": "c"
         },
@@ -853,6 +912,13 @@
       }
     },
     "nix edit": {
+      "args": [
+        {
+          "arity": 1,
+          "label": "installable",
+          "optional": true
+        }
+      ],
       "experimentalFeature": "nix-command",
       "flags": {
         "arg": {
@@ -968,10 +1034,24 @@
       }
     },
     "nix env": {
+      "args": [
+        {
+          "arity": 1,
+          "label": "subcommand",
+          "optional": true
+        }
+      ],
       "experimentalFeature": "nix-command",
       "flags": {}
     },
     "nix env shell": {
+      "args": [
+        {
+          "arity": null,
+          "label": "installables",
+          "optional": false
+        }
+      ],
       "experimentalFeature": "nix-command",
       "flags": {
         "arg": {
@@ -995,7 +1075,7 @@
           "shortName": null
         },
         "command": {
-          "arity": 0,
+          "arity": null,
           "experimentalFeature": null,
           "shortName": "c"
         },
@@ -1117,6 +1197,13 @@
       }
     },
     "nix eval": {
+      "args": [
+        {
+          "arity": 1,
+          "label": "installable",
+          "optional": true
+        }
+      ],
       "experimentalFeature": "nix-command",
       "flags": {
         "apply": {
@@ -1267,10 +1354,24 @@
       }
     },
     "nix flake": {
+      "args": [
+        {
+          "arity": 1,
+          "label": "subcommand",
+          "optional": true
+        }
+      ],
       "experimentalFeature": "nix-command",
       "flags": {}
     },
     "nix flake archive": {
+      "args": [
+        {
+          "arity": 1,
+          "label": "flake-url",
+          "optional": true
+        }
+      ],
       "experimentalFeature": "nix-command",
       "flags": {
         "arg": {
@@ -1406,6 +1507,13 @@
       }
     },
     "nix flake check": {
+      "args": [
+        {
+          "arity": 1,
+          "label": "flake-url",
+          "optional": true
+        }
+      ],
       "experimentalFeature": "nix-command",
       "flags": {
         "all-systems": {
@@ -1531,6 +1639,13 @@
       }
     },
     "nix flake clone": {
+      "args": [
+        {
+          "arity": 1,
+          "label": "flake-url",
+          "optional": true
+        }
+      ],
       "experimentalFeature": "nix-command",
       "flags": {
         "arg": {
@@ -1641,6 +1756,13 @@
       }
     },
     "nix flake info": {
+      "args": [
+        {
+          "arity": 1,
+          "label": "flake-url",
+          "optional": true
+        }
+      ],
       "experimentalFeature": "nix-command",
       "flags": {
         "arg": {
@@ -1761,6 +1883,7 @@
       }
     },
     "nix flake init": {
+      "args": [],
       "experimentalFeature": "nix-command",
       "flags": {
         "arg": {
@@ -1821,6 +1944,13 @@
       }
     },
     "nix flake lock": {
+      "args": [
+        {
+          "arity": 1,
+          "label": "flake-url",
+          "optional": true
+        }
+      ],
       "experimentalFeature": "nix-command",
       "flags": {
         "arg": {
@@ -1921,6 +2051,13 @@
       }
     },
     "nix flake metadata": {
+      "args": [
+        {
+          "arity": 1,
+          "label": "flake-url",
+          "optional": true
+        }
+      ],
       "experimentalFeature": "nix-command",
       "flags": {
         "arg": {
@@ -2041,6 +2178,13 @@
       }
     },
     "nix flake new": {
+      "args": [
+        {
+          "arity": 1,
+          "label": "dest-dir",
+          "optional": false
+        }
+      ],
       "experimentalFeature": "nix-command",
       "flags": {
         "arg": {
@@ -2101,6 +2245,13 @@
       }
     },
     "nix flake prefetch": {
+      "args": [
+        {
+          "arity": 1,
+          "label": "flake-url",
+          "optional": true
+        }
+      ],
       "experimentalFeature": "nix-command",
       "flags": {
         "arg": {
@@ -2226,6 +2377,13 @@
       }
     },
     "nix flake prefetch-inputs": {
+      "args": [
+        {
+          "arity": 1,
+          "label": "flake-url",
+          "optional": true
+        }
+      ],
       "experimentalFeature": "nix-command",
       "flags": {
         "arg": {
@@ -2331,6 +2489,13 @@
       }
     },
     "nix flake show": {
+      "args": [
+        {
+          "arity": 1,
+          "label": "flake-url",
+          "optional": true
+        }
+      ],
       "experimentalFeature": "nix-command",
       "flags": {
         "all-systems": {
@@ -2461,6 +2626,13 @@
       }
     },
     "nix flake update": {
+      "args": [
+        {
+          "arity": null,
+          "label": "inputs",
+          "optional": true
+        }
+      ],
       "experimentalFeature": "nix-command",
       "flags": {
         "arg": {
@@ -2561,6 +2733,13 @@
       }
     },
     "nix fmt": {
+      "args": [
+        {
+          "arity": null,
+          "label": "args",
+          "optional": false
+        }
+      ],
       "experimentalFeature": "nix-command",
       "flags": {
         "arg": {
@@ -2691,10 +2870,18 @@
       }
     },
     "nix formatter": {
+      "args": [
+        {
+          "arity": 1,
+          "label": "subcommand",
+          "optional": true
+        }
+      ],
       "experimentalFeature": "nix-command",
       "flags": {}
     },
     "nix formatter build": {
+      "args": [],
       "experimentalFeature": "nix-command",
       "flags": {
         "arg": {
@@ -2820,6 +3007,13 @@
       }
     },
     "nix formatter run": {
+      "args": [
+        {
+          "arity": null,
+          "label": "args",
+          "optional": false
+        }
+      ],
       "experimentalFeature": "nix-command",
       "flags": {
         "arg": {
@@ -2950,10 +3144,24 @@
       }
     },
     "nix hash": {
+      "args": [
+        {
+          "arity": 1,
+          "label": "subcommand",
+          "optional": true
+        }
+      ],
       "experimentalFeature": "nix-command",
       "flags": {}
     },
     "nix hash convert": {
+      "args": [
+        {
+          "arity": null,
+          "label": "hashes",
+          "optional": false
+        }
+      ],
       "experimentalFeature": "nix-command",
       "flags": {
         "from": {
@@ -2974,6 +3182,13 @@
       }
     },
     "nix hash file": {
+      "args": [
+        {
+          "arity": null,
+          "label": "paths",
+          "optional": false
+        }
+      ],
       "experimentalFeature": "nix-command",
       "flags": {
         "base16": {
@@ -3004,6 +3219,13 @@
       }
     },
     "nix hash path": {
+      "args": [
+        {
+          "arity": null,
+          "label": "paths",
+          "optional": false
+        }
+      ],
       "experimentalFeature": "nix-command",
       "flags": {
         "algo": {
@@ -3049,6 +3271,13 @@
       }
     },
     "nix hash to-base16": {
+      "args": [
+        {
+          "arity": null,
+          "label": "strings",
+          "optional": false
+        }
+      ],
       "experimentalFeature": "nix-command",
       "flags": {
         "type": {
@@ -3059,6 +3288,13 @@
       }
     },
     "nix hash to-base32": {
+      "args": [
+        {
+          "arity": null,
+          "label": "strings",
+          "optional": false
+        }
+      ],
       "experimentalFeature": "nix-command",
       "flags": {
         "type": {
@@ -3069,6 +3305,13 @@
       }
     },
     "nix hash to-base64": {
+      "args": [
+        {
+          "arity": null,
+          "label": "strings",
+          "optional": false
+        }
+      ],
       "experimentalFeature": "nix-command",
       "flags": {
         "type": {
@@ -3079,6 +3322,13 @@
       }
     },
     "nix hash to-sri": {
+      "args": [
+        {
+          "arity": null,
+          "label": "strings",
+          "optional": false
+        }
+      ],
       "experimentalFeature": "nix-command",
       "flags": {
         "type": {
@@ -3089,22 +3339,39 @@
       }
     },
     "nix help": {
+      "args": [
+        {
+          "arity": null,
+          "label": "subcommand",
+          "optional": false
+        }
+      ],
       "experimentalFeature": "nix-command",
       "flags": {}
     },
     "nix help-stores": {
+      "args": [],
       "experimentalFeature": "nix-command",
       "flags": {}
     },
     "nix key": {
+      "args": [
+        {
+          "arity": 1,
+          "label": "subcommand",
+          "optional": true
+        }
+      ],
       "experimentalFeature": "nix-command",
       "flags": {}
     },
     "nix key convert-secret-to-public": {
+      "args": [],
       "experimentalFeature": "nix-command",
       "flags": {}
     },
     "nix key generate-secret": {
+      "args": [],
       "experimentalFeature": "nix-command",
       "flags": {
         "key-name": {
@@ -3115,6 +3382,13 @@
       }
     },
     "nix log": {
+      "args": [
+        {
+          "arity": 1,
+          "label": "installable",
+          "optional": true
+        }
+      ],
       "experimentalFeature": "nix-command",
       "flags": {
         "arg": {
@@ -3230,18 +3504,56 @@
       }
     },
     "nix nar": {
+      "args": [
+        {
+          "arity": 1,
+          "label": "subcommand",
+          "optional": true
+        }
+      ],
       "experimentalFeature": "nix-command",
       "flags": {}
     },
     "nix nar cat": {
+      "args": [
+        {
+          "arity": 1,
+          "label": "nar",
+          "optional": false
+        },
+        {
+          "arity": 1,
+          "label": "path",
+          "optional": false
+        }
+      ],
       "experimentalFeature": "nix-command",
       "flags": {}
     },
     "nix nar dump-path": {
+      "args": [
+        {
+          "arity": 1,
+          "label": "path",
+          "optional": false
+        }
+      ],
       "experimentalFeature": "nix-command",
       "flags": {}
     },
     "nix nar ls": {
+      "args": [
+        {
+          "arity": 1,
+          "label": "nar",
+          "optional": false
+        },
+        {
+          "arity": 1,
+          "label": "path",
+          "optional": false
+        }
+      ],
       "experimentalFeature": "nix-command",
       "flags": {
         "directory": {
@@ -3277,10 +3589,24 @@
       }
     },
     "nix nar pack": {
+      "args": [
+        {
+          "arity": 1,
+          "label": "path",
+          "optional": false
+        }
+      ],
       "experimentalFeature": "nix-command",
       "flags": {}
     },
     "nix path-info": {
+      "args": [
+        {
+          "arity": null,
+          "label": "installables",
+          "optional": false
+        }
+      ],
       "experimentalFeature": "nix-command",
       "flags": {
         "all": {
@@ -3456,6 +3782,13 @@
       }
     },
     "nix print-dev-env": {
+      "args": [
+        {
+          "arity": 1,
+          "label": "installable",
+          "optional": true
+        }
+      ],
       "experimentalFeature": "nix-command",
       "flags": {
         "arg": {
@@ -3596,10 +3929,24 @@
       }
     },
     "nix profile": {
+      "args": [
+        {
+          "arity": 1,
+          "label": "subcommand",
+          "optional": true
+        }
+      ],
       "experimentalFeature": "nix-command",
       "flags": {}
     },
     "nix profile add": {
+      "args": [
+        {
+          "arity": null,
+          "label": "installables",
+          "optional": false
+        }
+      ],
       "experimentalFeature": "nix-command",
       "flags": {
         "arg": {
@@ -3730,6 +4077,7 @@
       }
     },
     "nix profile diff-closures": {
+      "args": [],
       "experimentalFeature": "nix-command",
       "flags": {
         "profile": {
@@ -3740,6 +4088,7 @@
       }
     },
     "nix profile history": {
+      "args": [],
       "experimentalFeature": "nix-command",
       "flags": {
         "arg": {
@@ -3800,6 +4149,7 @@
       }
     },
     "nix profile list": {
+      "args": [],
       "experimentalFeature": "nix-command",
       "flags": {
         "arg": {
@@ -3875,6 +4225,13 @@
       }
     },
     "nix profile remove": {
+      "args": [
+        {
+          "arity": null,
+          "label": "elements",
+          "optional": true
+        }
+      ],
       "experimentalFeature": "nix-command",
       "flags": {
         "all": {
@@ -3945,6 +4302,7 @@
       }
     },
     "nix profile rollback": {
+      "args": [],
       "experimentalFeature": "nix-command",
       "flags": {
         "dry-run": {
@@ -3965,6 +4323,13 @@
       }
     },
     "nix profile upgrade": {
+      "args": [
+        {
+          "arity": null,
+          "label": "elements",
+          "optional": true
+        }
+      ],
       "experimentalFeature": "nix-command",
       "flags": {
         "all": {
@@ -4100,6 +4465,7 @@
       }
     },
     "nix profile wipe-history": {
+      "args": [],
       "experimentalFeature": "nix-command",
       "flags": {
         "dry-run": {
@@ -4120,10 +4486,29 @@
       }
     },
     "nix registry": {
+      "args": [
+        {
+          "arity": 1,
+          "label": "subcommand",
+          "optional": true
+        }
+      ],
       "experimentalFeature": "nix-command",
       "flags": {}
     },
     "nix registry add": {
+      "args": [
+        {
+          "arity": 1,
+          "label": "from-url",
+          "optional": false
+        },
+        {
+          "arity": 1,
+          "label": "to-url",
+          "optional": false
+        }
+      ],
       "experimentalFeature": "nix-command",
       "flags": {
         "arg": {
@@ -4179,10 +4564,23 @@
       }
     },
     "nix registry list": {
+      "args": [],
       "experimentalFeature": "nix-command",
       "flags": {}
     },
     "nix registry pin": {
+      "args": [
+        {
+          "arity": 1,
+          "label": "url",
+          "optional": false
+        },
+        {
+          "arity": 1,
+          "label": "locked",
+          "optional": true
+        }
+      ],
       "experimentalFeature": "nix-command",
       "flags": {
         "arg": {
@@ -4243,6 +4641,13 @@
       }
     },
     "nix registry remove": {
+      "args": [
+        {
+          "arity": 1,
+          "label": "url",
+          "optional": false
+        }
+      ],
       "experimentalFeature": "nix-command",
       "flags": {
         "registry": {
@@ -4253,10 +4658,24 @@
       }
     },
     "nix registry resolve": {
+      "args": [
+        {
+          "arity": null,
+          "label": "flake-refs",
+          "optional": false
+        }
+      ],
       "experimentalFeature": "nix-command",
       "flags": {}
     },
     "nix repl": {
+      "args": [
+        {
+          "arity": null,
+          "label": "installables",
+          "optional": false
+        }
+      ],
       "experimentalFeature": null,
       "flags": {
         "arg": {
@@ -4377,6 +4796,18 @@
       }
     },
     "nix run": {
+      "args": [
+        {
+          "arity": 1,
+          "label": "installable",
+          "optional": true
+        },
+        {
+          "arity": null,
+          "label": "args",
+          "optional": false
+        }
+      ],
       "experimentalFeature": "nix-command",
       "flags": {
         "arg": {
@@ -4512,6 +4943,18 @@
       }
     },
     "nix search": {
+      "args": [
+        {
+          "arity": 1,
+          "label": "installable",
+          "optional": true
+        },
+        {
+          "arity": null,
+          "label": "regex",
+          "optional": false
+        }
+      ],
       "experimentalFeature": "nix-command",
       "flags": {
         "arg": {
@@ -4647,10 +5090,24 @@
       }
     },
     "nix store": {
+      "args": [
+        {
+          "arity": 1,
+          "label": "subcommand",
+          "optional": true
+        }
+      ],
       "experimentalFeature": "nix-command",
       "flags": {}
     },
     "nix store add": {
+      "args": [
+        {
+          "arity": 1,
+          "label": "path",
+          "optional": false
+        }
+      ],
       "experimentalFeature": "nix-command",
       "flags": {
         "dry-run": {
@@ -4676,6 +5133,13 @@
       }
     },
     "nix store add-file": {
+      "args": [
+        {
+          "arity": 1,
+          "label": "path",
+          "optional": false
+        }
+      ],
       "experimentalFeature": "nix-command",
       "flags": {
         "dry-run": {
@@ -4701,6 +5165,13 @@
       }
     },
     "nix store add-path": {
+      "args": [
+        {
+          "arity": 1,
+          "label": "path",
+          "optional": false
+        }
+      ],
       "experimentalFeature": "nix-command",
       "flags": {
         "dry-run": {
@@ -4726,10 +5197,24 @@
       }
     },
     "nix store build-trace": {
+      "args": [
+        {
+          "arity": 1,
+          "label": "subcommand",
+          "optional": true
+        }
+      ],
       "experimentalFeature": "nix-command",
       "flags": {}
     },
     "nix store build-trace info": {
+      "args": [
+        {
+          "arity": null,
+          "label": "installables",
+          "optional": false
+        }
+      ],
       "experimentalFeature": "nix-command",
       "flags": {
         "all": {
@@ -4880,10 +5365,24 @@
       }
     },
     "nix store cat": {
+      "args": [
+        {
+          "arity": 1,
+          "label": "path",
+          "optional": false
+        }
+      ],
       "experimentalFeature": "nix-command",
       "flags": {}
     },
     "nix store copy-log": {
+      "args": [
+        {
+          "arity": null,
+          "label": "installables",
+          "optional": false
+        }
+      ],
       "experimentalFeature": "nix-command",
       "flags": {
         "arg": {
@@ -5014,6 +5513,13 @@
       }
     },
     "nix store copy-sigs": {
+      "args": [
+        {
+          "arity": null,
+          "label": "installables",
+          "optional": false
+        }
+      ],
       "experimentalFeature": "nix-command",
       "flags": {
         "all": {
@@ -5154,6 +5660,13 @@
       }
     },
     "nix store delete": {
+      "args": [
+        {
+          "arity": null,
+          "label": "installables",
+          "optional": false
+        }
+      ],
       "experimentalFeature": "nix-command",
       "flags": {
         "all": {
@@ -5304,6 +5817,18 @@
       }
     },
     "nix store diff-closures": {
+      "args": [
+        {
+          "arity": 1,
+          "label": "before",
+          "optional": false
+        },
+        {
+          "arity": 1,
+          "label": "after",
+          "optional": false
+        }
+      ],
       "experimentalFeature": "nix-command",
       "flags": {
         "arg": {
@@ -5424,6 +5949,13 @@
       }
     },
     "nix store dump-path": {
+      "args": [
+        {
+          "arity": null,
+          "label": "installables",
+          "optional": false
+        }
+      ],
       "experimentalFeature": "nix-command",
       "flags": {
         "all": {
@@ -5559,6 +6091,7 @@
       }
     },
     "nix store gc": {
+      "args": [],
       "experimentalFeature": "nix-command",
       "flags": {
         "dry-run": {
@@ -5574,6 +6107,7 @@
       }
     },
     "nix store info": {
+      "args": [],
       "experimentalFeature": "nix-command",
       "flags": {
         "json": {
@@ -5594,6 +6128,13 @@
       }
     },
     "nix store ls": {
+      "args": [
+        {
+          "arity": 1,
+          "label": "path",
+          "optional": false
+        }
+      ],
       "experimentalFeature": "nix-command",
       "flags": {
         "directory": {
@@ -5629,6 +6170,13 @@
       }
     },
     "nix store make-content-addressed": {
+      "args": [
+        {
+          "arity": null,
+          "label": "installables",
+          "optional": false
+        }
+      ],
       "experimentalFeature": "nix-command",
       "flags": {
         "all": {
@@ -5789,14 +6337,29 @@
       }
     },
     "nix store optimise": {
+      "args": [],
       "experimentalFeature": "nix-command",
       "flags": {}
     },
     "nix store path-from-hash-part": {
+      "args": [
+        {
+          "arity": 1,
+          "label": "hash-part",
+          "optional": false
+        }
+      ],
       "experimentalFeature": "nix-command",
       "flags": {}
     },
     "nix store prefetch-file": {
+      "args": [
+        {
+          "arity": 1,
+          "label": "url",
+          "optional": false
+        }
+      ],
       "experimentalFeature": "nix-command",
       "flags": {
         "executable": {
@@ -5842,6 +6405,13 @@
       }
     },
     "nix store repair": {
+      "args": [
+        {
+          "arity": null,
+          "label": "installables",
+          "optional": false
+        }
+      ],
       "experimentalFeature": "nix-command",
       "flags": {
         "all": {
@@ -5977,10 +6547,18 @@
       }
     },
     "nix store roots-daemon": {
+      "args": [],
       "experimentalFeature": "local-overlay-store",
       "flags": {}
     },
     "nix store sign": {
+      "args": [
+        {
+          "arity": null,
+          "label": "installables",
+          "optional": false
+        }
+      ],
       "experimentalFeature": "nix-command",
       "flags": {
         "all": {
@@ -6121,6 +6699,13 @@
       }
     },
     "nix store verify": {
+      "args": [
+        {
+          "arity": null,
+          "label": "installables",
+          "optional": false
+        }
+      ],
       "experimentalFeature": "nix-command",
       "flags": {
         "all": {
@@ -6276,6 +6861,7 @@
       }
     },
     "nix upgrade-nix": {
+      "args": [],
       "experimentalFeature": null,
       "flags": {
         "dry-run": {
@@ -6296,6 +6882,18 @@
       }
     },
     "nix why-depends": {
+      "args": [
+        {
+          "arity": 1,
+          "label": "package",
+          "optional": false
+        },
+        {
+          "arity": 1,
+          "label": "dependency",
+          "optional": false
+        }
+      ],
       "experimentalFeature": "nix-command",
       "flags": {
         "all": {

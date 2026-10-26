@@ -22,7 +22,9 @@ mod io;
 mod line_endings;
 pub mod observer;
 mod opcode;
+pub mod parser_lints;
 mod pretty_ast;
+mod show_ast;
 mod source;
 mod spans;
 mod systems;
@@ -57,6 +59,7 @@ pub use crate::nix_search_path::{
 	NixSearchPath, NixSearchPathEntry, is_pseudo_url, parse_nix_path,
 };
 pub use crate::pretty_ast::pretty_print_expr;
+pub use crate::show_ast::show_expr;
 pub use crate::source::SourceCode;
 pub use crate::value::{NixContext, NixContextElement};
 pub use crate::vm::{EvalMode, generators};

@@ -5,7 +5,7 @@
 use bstr::{ByteSlice, ByteVec};
 use builtin_macros::builtins;
 use genawaiter::rc::Gen;
-use regex::Regex;
+use regex::bytes::Regex;
 use rustc_hash::FxHashMap;
 use std::cell::RefCell;
 use std::cmp::{self, Ordering};
@@ -28,6 +28,7 @@ use crate::{arithmetic_op, try_cek};
 
 use self::versions::{VersionPart, VersionPartsIter};
 
+mod extended_regex;
 mod from_data;
 pub(crate) use from_data::nul_message;
 mod hash;
@@ -249,12 +250,12 @@ impl BuiltinState {
 		})
 	}
 
-	fn get_regex(&self, pattern: &str) -> Result<Regex, regex::Error> {
+	fn get_regex(&self, pattern: &str) -> Result<Regex, ()> {
 		let mut map = self.regex_cache.borrow_mut();
 		Ok(match map.entry(pattern.to_string()) {
 			Entry::Occupied(occupied) => occupied.get().clone(),
 			Entry::Vacant(vacant) => {
-				let re = Regex::new(pattern)?;
+				let re = extended_regex::compile(pattern)?;
 				vacant.insert(re).clone()
 			}
 		})
@@ -426,7 +427,11 @@ mod pure_builtins {
 				},
 				span,
 			)
-			.await?
+			.await
+			.trace(
+				None,
+				"while evaluating the first argument passed to builtins.baseNameOf",
+			)?
 			.to_contextful_str()?;
 
 		// CppNix's `legacyBaseNameOf`: drop one trailing slash, then take
@@ -562,13 +567,16 @@ mod pure_builtins {
 				res.push_str(&separator);
 			}
 			let mut s = try_cek_to_value!(
-				generators::request_string_coerce(
+				generators::request_string_coerce_in(
 					&co,
 					val,
 					CoercionKind {
 						strong: false,
 						import_paths: true,
 					},
+					Some(
+						"while evaluating one element of the list of strings to concat passed to builtins.concatStringsSep",
+					),
 				)
 				.await
 			);
@@ -621,7 +629,11 @@ mod pure_builtins {
 				},
 				span,
 			)
-			.await?
+			.await
+			.trace(
+				None,
+				"while evaluating the first argument passed to 'builtins.dirOf'",
+			)?
 			.to_contextful_str()?;
 		let result = str
 			.rfind_char('/')
@@ -853,12 +865,20 @@ mod pure_builtins {
 			len.try_into()
 				.map_err(|_| ErrorKind::Abort(format!("can not create list of size {len}")))?,
 		);
+		if len == 0 {
+			return Ok(Value::List(out.into()));
+		}
 
 		// the best span we can get…
 		let span = generators::request_span(&co).await;
 
+		let lambda = Thunk::suspended_call_lambda(span);
 		for i in 0..len {
-			let val = Value::Thunk(Thunk::new_suspended_call(generator.clone(), i.into(), span));
+			let val = Value::Thunk(Thunk::new_suspended_call_with_lambda(
+				generator.clone(),
+				i.into(),
+				lambda.clone(),
+			));
 			out.push(val);
 		}
 
@@ -874,7 +894,9 @@ mod pure_builtins {
 			Some(x) => Ok(x.clone()),
 			None => Err(ErrorKind::AttributeNotFound {
 				name: k.to_string(),
-			}),
+				suggestions: vec![],
+			}
+			.trace(None, "in the attribute set under consideration")),
 		}
 	}
 
@@ -904,7 +926,7 @@ mod pure_builtins {
 	}
 
 	#[builtin("hasAttr")]
-	async fn builtin_has_attr(co: GenCo, key: Value, set: Value) -> Result<Value, ErrorKind> {
+	fn builtin_has_attr(key: Value, set: Value) -> Result<Value, ErrorKind> {
 		let k = key.to_str()?;
 		let xs = set.to_attrs()?;
 
@@ -1131,7 +1153,7 @@ mod pure_builtins {
 	}
 
 	#[builtin("head")]
-	async fn builtin_head(co: GenCo, list: Value) -> Result<Value, ErrorKind> {
+	fn builtin_head(list: Value) -> Result<Value, ErrorKind> {
 		if list.is_catchable() {
 			return Ok(list);
 		}
@@ -1161,7 +1183,7 @@ mod pure_builtins {
 	}
 
 	#[builtin("isAttrs")]
-	async fn builtin_is_attrs(co: GenCo, value: Value) -> Result<Value, ErrorKind> {
+	fn builtin_is_attrs(value: Value) -> Result<Value, ErrorKind> {
 		// TODO(edef): make this beautiful
 		if value.is_catchable() {
 			return Ok(value);
@@ -1171,7 +1193,7 @@ mod pure_builtins {
 	}
 
 	#[builtin("isBool")]
-	async fn builtin_is_bool(co: GenCo, value: Value) -> Result<Value, ErrorKind> {
+	fn builtin_is_bool(value: Value) -> Result<Value, ErrorKind> {
 		if value.is_catchable() {
 			return Ok(value);
 		}
@@ -1180,7 +1202,7 @@ mod pure_builtins {
 	}
 
 	#[builtin("isFloat")]
-	async fn builtin_is_float(co: GenCo, value: Value) -> Result<Value, ErrorKind> {
+	fn builtin_is_float(value: Value) -> Result<Value, ErrorKind> {
 		if value.is_catchable() {
 			return Ok(value);
 		}
@@ -1189,7 +1211,7 @@ mod pure_builtins {
 	}
 
 	#[builtin("isFunction")]
-	async fn builtin_is_function(co: GenCo, value: Value) -> Result<Value, ErrorKind> {
+	fn builtin_is_function(value: Value) -> Result<Value, ErrorKind> {
 		if value.is_catchable() {
 			return Ok(value);
 		}
@@ -1201,7 +1223,7 @@ mod pure_builtins {
 	}
 
 	#[builtin("isInt")]
-	async fn builtin_is_int(co: GenCo, value: Value) -> Result<Value, ErrorKind> {
+	fn builtin_is_int(value: Value) -> Result<Value, ErrorKind> {
 		if value.is_catchable() {
 			return Ok(value);
 		}
@@ -1210,7 +1232,7 @@ mod pure_builtins {
 	}
 
 	#[builtin("isList")]
-	async fn builtin_is_list(co: GenCo, value: Value) -> Result<Value, ErrorKind> {
+	fn builtin_is_list(value: Value) -> Result<Value, ErrorKind> {
 		if value.is_catchable() {
 			return Ok(value);
 		}
@@ -1219,7 +1241,7 @@ mod pure_builtins {
 	}
 
 	#[builtin("isNull")]
-	async fn builtin_is_null(co: GenCo, value: Value) -> Result<Value, ErrorKind> {
+	fn builtin_is_null(value: Value) -> Result<Value, ErrorKind> {
 		if value.is_catchable() {
 			return Ok(value);
 		}
@@ -1228,7 +1250,7 @@ mod pure_builtins {
 	}
 
 	#[builtin("isPath")]
-	async fn builtin_is_path(co: GenCo, value: Value) -> Result<Value, ErrorKind> {
+	fn builtin_is_path(value: Value) -> Result<Value, ErrorKind> {
 		if value.is_catchable() {
 			return Ok(value);
 		}
@@ -1237,7 +1259,7 @@ mod pure_builtins {
 	}
 
 	#[builtin("isString")]
-	async fn builtin_is_string(co: GenCo, value: Value) -> Result<Value, ErrorKind> {
+	fn builtin_is_string(value: Value) -> Result<Value, ErrorKind> {
 		if value.is_catchable() {
 			return Ok(value);
 		}
@@ -1246,7 +1268,7 @@ mod pure_builtins {
 	}
 
 	#[builtin("length")]
-	async fn builtin_length(co: GenCo, list: Value) -> Result<Value, ErrorKind> {
+	fn builtin_length(list: Value) -> Result<Value, ErrorKind> {
 		if list.is_catchable() {
 			return Ok(list);
 		}
@@ -1283,12 +1305,20 @@ mod pure_builtins {
 	async fn builtin_map(co: GenCo, #[lazy] f: Value, list_val: Value) -> Result<Value, ErrorKind> {
 		let list = list_val.to_list()?;
 		let mut out = Vec::with_capacity(list.len());
+		if list.is_empty() {
+			return Ok(Value::List(out.into()));
+		}
 
 		// the best span we can get…
 		let span = generators::request_span(&co).await;
 
+		let lambda = Thunk::suspended_call_lambda(span);
 		for val in list {
-			let result = Value::Thunk(Thunk::new_suspended_call(f.clone(), val, span));
+			let result = Value::Thunk(Thunk::new_suspended_call_with_lambda(
+				f.clone(),
+				val,
+				lambda.clone(),
+			));
 			out.push(result)
 		}
 
@@ -1303,17 +1333,25 @@ mod pure_builtins {
 	) -> Result<Value, ErrorKind> {
 		let attrs = attrs.to_attrs()?;
 		let mut out = FxHashMap::default();
+		if attrs.is_empty() {
+			return Ok(Value::attrs(out.into()));
+		}
 
 		// the best span we can get…
 		let span = generators::request_span(&co).await;
 
+		let lambda = Thunk::suspended_call_lambda(span);
 		for (key, value) in attrs.into_iter() {
-			let result = Value::Thunk(Thunk::new_suspended_call(
+			let result = Value::Thunk(Thunk::new_suspended_call_with_lambda(
 				f.clone(),
 				key.clone().into(),
-				span,
+				lambda.clone(),
 			));
-			let result = Value::Thunk(Thunk::new_suspended_call(result, value, span));
+			let result = Value::Thunk(Thunk::new_suspended_call_with_lambda(
+				result,
+				value,
+				lambda.clone(),
+			));
 
 			out.insert(key, result);
 		}
@@ -1340,10 +1378,10 @@ mod pure_builtins {
 		let re = re.to_str()?;
 		let re = re.to_str()?;
 		let re = state
-			.get_regex(&format!("^{re}$"))
+			.get_regex(re)
 			.map_err(|_| ErrorKind::InvalidRegex(re.to_string()))?;
 
-		match re.captures(s.to_str()?) {
+		match re.captures(s.as_bytes()) {
 			Some(caps) => Ok(Value::List(
 				caps.iter()
 					.skip(1)
@@ -1355,7 +1393,8 @@ mod pure_builtins {
 						// can be observed in make-initrd.nix when it comes
 						// to compressors which are matched over their full command
 						// and then a compressor name will be extracted from that.
-						grp.map(|g| Value::from(g.as_str())).unwrap_or(Value::Null)
+						grp.map(|g| Value::from(g.as_bytes()))
+							.unwrap_or(Value::Null)
 					})
 					.collect::<Vec<Value>>()
 					.into(),
@@ -1671,7 +1710,11 @@ mod pure_builtins {
 				},
 				span,
 			)
-			.await?;
+			.await
+			.trace(
+				None,
+				"while evaluating the argument passed to builtins.stringLength",
+			)?;
 
 		if s.is_catchable() {
 			return Ok(s);
@@ -1711,7 +1754,11 @@ mod pure_builtins {
 				},
 				span,
 			)
-			.await?;
+			.await
+			.trace(
+				None,
+				"while evaluating the third argument (the string) passed to builtins.substring",
+			)?;
 		if x.is_catchable() {
 			return Ok(x);
 		}
@@ -1745,7 +1792,7 @@ mod pure_builtins {
 	}
 
 	#[builtin("tail")]
-	async fn builtin_tail(co: GenCo, list: Value) -> Result<Value, ErrorKind> {
+	fn builtin_tail(list: Value) -> Result<Value, ErrorKind> {
 		if list.is_catchable() {
 			return Ok(list);
 		}
@@ -1797,6 +1844,10 @@ mod pure_builtins {
 			span,
 		)
 		.await
+		.trace(
+			None,
+			"while evaluating the first argument passed to builtins.toString",
+		)
 	}
 
 	#[builtin("toXML")]
@@ -1905,7 +1956,7 @@ mod pure_builtins {
 	}
 
 	#[builtin("typeOf")]
-	async fn builtin_type_of(co: GenCo, x: Value) -> Result<Value, ErrorKind> {
+	fn builtin_type_of(x: Value) -> Result<Value, ErrorKind> {
 		if x.is_catchable() {
 			return Ok(x);
 		}
@@ -1935,18 +1986,22 @@ mod pure_builtins {
 			}
 		}
 
+		if merged.is_empty() {
+			return Ok(Value::attrs(NixAttrs::empty()));
+		}
 		let span = generators::request_span(&co).await;
 
 		// apply the function to each element
+		let lambda = Thunk::suspended_call_lambda(span);
 		let attrs = merged.into_iter().map(|(key, vals)| {
-			let val = Value::Thunk(Thunk::new_suspended_call(
-				Value::Thunk(Thunk::new_suspended_call(
+			let val = Value::Thunk(Thunk::new_suspended_call_with_lambda(
+				Value::Thunk(Thunk::new_suspended_call_with_lambda(
 					f.clone(),
 					key.clone().into(),
-					span,
+					lambda.clone(),
 				)),
 				Value::List(NixList::construct(vals.len(), vals)),
-				span,
+				lambda.clone(),
 			));
 			(key, val)
 		});

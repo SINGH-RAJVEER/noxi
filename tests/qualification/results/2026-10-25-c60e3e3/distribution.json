@@ -1,0 +1,121 @@
+{
+	"schema": 1,
+	"mode": "distribution",
+	"candidate": "/nix/store/9smxwm90h4pm4zkwcjscxb5yv6saam3v-nixrs-replacement-provisional-0.1.1",
+	"source": "/nix/store/di9s766kicrawf41f906k87gr42sww0p-source",
+	"reference": "/nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2",
+	"nixpkgs": "/nix/store/2s013d7g7sna6rls7nk0yy8343h6mdiw-source",
+	"home_manager": "/nix/store/da7apr6rx9mpa0ljpircmwwsxnmrjb43-source",
+	"upgrade_fixture": "/nix/store/dqfncf479382kf4r39f3giqf8574vp6y-nixrs-replacement-upgrade-fixture",
+	"steps": [
+		{
+			"name": "reference-boot",
+			"command": "/nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2/bin/nix --version",
+			"exit_code": 0,
+			"expected_exit_code": 0,
+			"status": "pass",
+			"output": "nix (Nix) 2.35.2\n"
+		},
+		{
+			"name": "seed-system-profile",
+			"command": "/nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2/bin/nix-env -p /nix/var/nix/profiles/system --set /run/current-system",
+			"exit_code": 0,
+			"expected_exit_code": 0,
+			"status": "pass",
+			"output": ""
+		},
+		{
+			"name": "artifact-hashes",
+			"command": "bash -c 'sha256sum /nix/store/9smxwm90h4pm4zkwcjscxb5yv6saam3v-nixrs-replacement-provisional-0.1.1/libexec/nix-rs/*'",
+			"exit_code": 0,
+			"expected_exit_code": 0,
+			"status": "pass",
+			"output": "f495f292b38272ca4806cbdf80af1619f3ccdd6bdc2e8f89881e1d8af2eee00a  /nix/store/9smxwm90h4pm4zkwcjscxb5yv6saam3v-nixrs-replacement-provisional-0.1.1/libexec/nix-rs/nix-build\n5d307d0ac2930ef8aed24f5a36d4ab3cbe4fd88dba83c6758b847fb1bbcd79ea  /nix/store/9smxwm90h4pm4zkwcjscxb5yv6saam3v-nixrs-replacement-provisional-0.1.1/libexec/nix-rs/nix-collect-garbage\ndbf9f4c22337bc6039c9335597482e7b29880c45323f03909b78433f49df9042  /nix/store/9smxwm90h4pm4zkwcjscxb5yv6saam3v-nixrs-replacement-provisional-0.1.1/libexec/nix-rs/nix-daemon\ncda392daabe0adff2dd746fc993306c95fc7ea0d5d6a0d86bbc54f8d8b3b8d5e  /nix/store/9smxwm90h4pm4zkwcjscxb5yv6saam3v-nixrs-replacement-provisional-0.1.1/libexec/nix-rs/nix-env\n1011d183261f4f0b0d2e5e98cac606818b9d41495a7b1df9b94941fcff293b54  /nix/store/9smxwm90h4pm4zkwcjscxb5yv6saam3v-nixrs-replacement-provisional-0.1.1/libexec/nix-rs/nix-instantiate\na1a02a3d074f397d08d8d28d2ad48ba45032bad6686da28c06a133fc6ae2d34c  /nix/store/9smxwm90h4pm4zkwcjscxb5yv6saam3v-nixrs-replacement-provisional-0.1.1/libexec/nix-rs/nixrs\ndce042587dbbac4dec61ba6b08bdc33d26505253b162f19ad06673e2e84e4502  /nix/store/9smxwm90h4pm4zkwcjscxb5yv6saam3v-nixrs-replacement-provisional-0.1.1/libexec/nix-rs/nix-store\n7b86c8dd1449ebdeeb43b5d1f121ea5f103e1e8453d678070b52942a76f19005  /nix/store/9smxwm90h4pm4zkwcjscxb5yv6saam3v-nixrs-replacement-provisional-0.1.1/libexec/nix-rs/unimplemented\n"
+		},
+		{
+			"name": "install",
+			"command": "/nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2/bin/nix-env -p /root/qualification-profile --set /nix/store/9smxwm90h4pm4zkwcjscxb5yv6saam3v-nixrs-replacement-provisional-0.1.1",
+			"exit_code": 0,
+			"expected_exit_code": 0,
+			"status": "pass",
+			"output": ""
+		},
+		{
+			"name": "installed-evaluator",
+			"command": "/root/qualification-profile/bin/nix-instantiate --eval --strict --expr '1 + 2'",
+			"exit_code": 0,
+			"expected_exit_code": 0,
+			"status": "pass",
+			"output": "3\n"
+		},
+		{
+			"name": "installed-modern-cli",
+			"command": "/root/qualification-profile/bin/nix --version",
+			"exit_code": 127,
+			"expected_exit_code": 0,
+			"status": "fail",
+			"output": "nix-rs qualification gap: nix is not implemented\n"
+		},
+		{
+			"name": "upgrade",
+			"command": "/nix/store/9smxwm90h4pm4zkwcjscxb5yv6saam3v-nixrs-replacement-provisional-0.1.1/bin/nix-env -p /root/qualification-profile --set /nix/store/dqfncf479382kf4r39f3giqf8574vp6y-nixrs-replacement-upgrade-fixture",
+			"exit_code": 0,
+			"expected_exit_code": 0,
+			"status": "pass",
+			"output": ""
+		},
+		{
+			"name": "upgrade-selected",
+			"command": "test -f /root/qualification-profile/qualification-upgrade",
+			"exit_code": 0,
+			"expected_exit_code": 0,
+			"status": "pass",
+			"output": ""
+		},
+		{
+			"name": "failed-upgrade-preserves-profile",
+			"status": "pass",
+			"output": "don't know how to build these paths:\n  /nix/store/00000000000000000000000000000000-missing\nerror: path '/nix/store/00000000000000000000000000000000-missing' is required, but there is no substituter that can build it\n\nbefore=qualification-profile-2-link after=qualification-profile-2-link"
+		},
+		{
+			"name": "rollback",
+			"command": "/nix/store/9smxwm90h4pm4zkwcjscxb5yv6saam3v-nixrs-replacement-provisional-0.1.1/bin/nix-env -p /root/qualification-profile --rollback",
+			"exit_code": 0,
+			"expected_exit_code": 0,
+			"status": "pass",
+			"output": "switching profile from version 2 to 1\n"
+		},
+		{
+			"name": "rollback-selected",
+			"command": "bash -c 'test $(readlink -f /root/qualification-profile) = /nix/store/9smxwm90h4pm4zkwcjscxb5yv6saam3v-nixrs-replacement-provisional-0.1.1'",
+			"exit_code": 0,
+			"expected_exit_code": 0,
+			"status": "pass",
+			"output": ""
+		},
+		{
+			"name": "removal",
+			"command": "/nix/store/9smxwm90h4pm4zkwcjscxb5yv6saam3v-nixrs-replacement-provisional-0.1.1/bin/nix-env -p /root/qualification-profile --uninstall '.*'",
+			"exit_code": 0,
+			"expected_exit_code": 0,
+			"status": "pass",
+			"output": "warning: selector '.*' matched no installed derivations\nbuilding '/nix/store/xsk9wjy0dpp7w7d3r3bkzxzaklqdzq6q-user-environment.drv'...\n"
+		},
+		{
+			"name": "removal-empty",
+			"command": "bash -c 'test ! -e /root/qualification-profile/bin/nix-instantiate'",
+			"exit_code": 0,
+			"expected_exit_code": 0,
+			"status": "pass",
+			"output": ""
+		},
+		{
+			"name": "cppnix-store-verification",
+			"command": "/nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2/bin/nix-store --verify --check-contents",
+			"exit_code": 124,
+			"expected_exit_code": 0,
+			"status": "fail",
+			"output": "reading the Nix store...\nchecking path existence...\nchecking link hashes...\nchecking store hashes...\nerror: interrupted by the user\n"
+		}
+	]
+}

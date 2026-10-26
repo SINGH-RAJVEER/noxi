@@ -85,6 +85,27 @@ def tree_digest(root: Path) -> str:
 	return hash_.hexdigest()
 
 
+# The derivation paths the reference computed for the qualification system,
+# its VM, its Home Manager module generation and a standalone generation.
+QUALIFICATION_DRVS = [
+	"/nix/store/f7rbcys5ki5q0bvnalm75sq15cfn7n3b-nixos-system-nixrs-reference-26.11pre-git.drv",
+	"/nix/store/d111q3a19x7bfpw1hrry7dcyx60awhly-nixos-vm.drv",
+	"/nix/store/ks2l014wl7n9pm5h58y94wj03mbbmjin-home-manager-generation.drv",
+	"/nix/store/09p2niv7bmc293ji0wsdqdihgia3jbjc-home-manager-generation.drv",
+]
+
+
+@functools.cache
+def qualification_inputs() -> tuple[str, str]:
+	"""Locked Nixpkgs and Home Manager sources of the qualification flake, resolved by the host's Nix."""
+	flake = Path(__file__).resolve().parent.parent / "tests/qualification"
+	def source(name: str) -> str:
+		expr = f'(builtins.getFlake "path:{flake}").inputs.{name}.outPath'
+		return subprocess.run(["nix", "eval", "--raw", "--impure", "--expr", expr], check=True,
+			stdout=subprocess.PIPE, timeout=600).stdout.decode()
+	return source("nixpkgs"), source("home-manager")
+
+
 def evaluation(case: str, size: int) -> tuple[str, object]:
 	attrs = " ".join(f"a{i:06d} = {i};" for i in range(size))
 	if case in {"EVAL-01", "START-03"}:
@@ -170,7 +191,7 @@ class Operation:
 # Unsupported dimensions remain listed in each fixture's metadata.
 ADAPTERS = {
 	"START-01", "START-03", "START-04",
-	"EVAL-01", "EVAL-02", "EVAL-03", "EVAL-04", "EVAL-05", "EVAL-06",
+	"EVAL-01", "EVAL-02", "EVAL-03", "EVAL-04", "EVAL-05", "EVAL-06", "EVAL-08",
 	"FETCH-01", "PLAN-01", "DAG-01",
 	"CACHE-01", "CACHE-02", "CACHE-03", "CACHE-06", "CACHE-08", "CACHE-10",
 	"NAR-01", "NAR-02", "NAR-03", "NAR-04", "NAR-05",
@@ -295,6 +316,13 @@ class Fixtures:
 		root = state / "store"
 		if case == "START-01":
 			return Operation("nix-store", ["--version"], env, self.root, "version")
+		if case == "EVAL-08":
+			nixpkgs, home_manager = qualification_inputs()
+			self.metadata["qualification_inputs"] = {"nixpkgs": nixpkgs, "home-manager": home_manager}
+			file = Path(__file__).resolve().parent / "eval-08.nix"
+			self.metadata["expression_sha256"] = digest(file)
+			return Operation("nix-instantiate", ["--eval", "--strict", "--json", str(file), "--argstr", "nixpkgs", nixpkgs,
+				"--argstr", "homeManager", home_manager], env, self.root, "json", QUALIFICATION_DRVS)
 		if case.startswith("EVAL-") or case == "START-03":
 			expr, expected = evaluation(case, self.size)
 			file = self.root / f"{case}.nix"
