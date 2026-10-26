@@ -2,13 +2,15 @@
 //! `DerivationBuildingGoal`, `DerivationBuilderImpl` and
 //! `ChrootLinuxDerivationBuilder`.
 //!
-//! Input derivations are realised first, depth first. Each build runs in
+//! Input derivations finish before their dependents. Parallel requests use
+//! a bounded ready queue, while single-job requests retain depth-first
+//! realization. Each build runs in
 //! the Linux sandbox with only its input closure visible, then its outputs
 //! are canonicalised, scanned for references, checked and registered with
 //! the derivation as their deriver.
 //!
-//! Not supported yet: builds without a sandbox, `builtin:` builders,
-//! impure outputs and dynamic derivations,
+//! Not supported yet: builds without a sandbox, builtin builders other
+//! than `buildenv`, impure outputs and dynamic derivations,
 //! remote builders, and `--check` and `--repair` modes.
 
 use std::collections::{BTreeMap, BTreeSet};
@@ -16,7 +18,7 @@ use std::fs;
 use std::io;
 use std::os::unix::fs::{DirBuilderExt, MetadataExt};
 use std::path::{Path, PathBuf};
-use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 
 use bstr::{BString, ByteSlice};
 use nix_compat::derivation::{OutputHashMode, UnverifiedDerivation, lookup_fn};
@@ -39,6 +41,10 @@ use crate::refscan::scan_for_references;
 use crate::sandbox::{self, Bind, SandboxSpec};
 use crate::settings::{BuildSettings, SandboxMode};
 use crate::structured;
+
+#[path = "scheduler.rs"]
+mod scheduler;
+pub use scheduler::BuildBatch;
 
 /// `DerivationBuilderImpl::homeDir`.
 const HOME_DIR: &str = "/homeless-shelter";
@@ -67,6 +73,7 @@ pub struct LocalBuilder<'a> {
 	store: &'a LocalStore,
 	settings: &'a BuildSettings,
 	substituters: &'a [BinaryCache],
+	cancelled: Option<&'a AtomicBool>,
 }
 
 /// An output a derivation declares, with the path it must produce.
@@ -84,6 +91,7 @@ impl<'a> LocalBuilder<'a> {
 			store,
 			settings,
 			substituters: &[],
+			cancelled: None,
 		}
 	}
 
@@ -92,6 +100,33 @@ impl<'a> LocalBuilder<'a> {
 	pub fn with_substituters(mut self, caches: &'a [BinaryCache]) -> Self {
 		self.substituters = caches;
 		self
+	}
+
+	/// Cancel this request when the flag becomes true. Running sandbox
+	/// builders are killed and reaped before the request returns.
+	pub fn with_cancellation(mut self, cancelled: &'a AtomicBool) -> Self {
+		self.cancelled = Some(cancelled);
+		self
+	}
+
+	fn is_cancelled(&self) -> bool {
+		self.cancelled
+			.is_some_and(|flag| flag.load(Ordering::Relaxed))
+	}
+
+	fn check_cancelled(&self) -> Result<()> {
+		if self.is_cancelled() {
+			Err(BuildError::Cancelled)
+		} else {
+			Ok(())
+		}
+	}
+
+	fn lock_outputs(&self, paths: impl IntoIterator<Item = PathBuf>) -> Result<PathLocks> {
+		match PathLocks::lock_cancellable(paths, &|| self.is_cancelled()) {
+			Err(_) if self.is_cancelled() => Err(BuildError::Cancelled),
+			result => Ok(result?),
+		}
 	}
 
 	/// Try to substitute `path`; a failure is logged, not returned.
@@ -182,6 +217,39 @@ impl<'a> LocalBuilder<'a> {
 		wanted: Option<&BTreeSet<String>>,
 		events: &mut dyn FnMut(BuildEvent<'_>),
 	) -> Result<BTreeMap<String, StorePath>> {
+		self.check_cancelled()?;
+		if self.settings.max_build_jobs > 1 || self.settings.keep_going {
+			let mut batch = self.realise_many_with_events(
+				&[(drv_path.clone(), wanted.cloned())],
+				&mut |_, event| events(event),
+			)?;
+			if let Some(outputs) = batch.outputs.remove(drv_path) {
+				return Ok(outputs);
+			}
+			let status = batch
+				.failures
+				.values()
+				.find(|error| {
+					matches!(
+						error.status(),
+						FailureStatus::PermanentFailure
+							| FailureStatus::InputRejected
+							| FailureStatus::TimedOut
+							| FailureStatus::HashMismatch
+					)
+				})
+				.map(BuildError::status);
+			let error = batch
+				.failures
+				.remove(drv_path)
+				.unwrap_or(BuildError::Cancelled);
+			return Err(match status {
+				Some(status) if error.status() == FailureStatus::DependencyFailed => {
+					BuildError::failed(status, error.to_string())
+				}
+				_ => error,
+			});
+		}
 		let mut done = BTreeMap::new();
 		self.realise_inner(drv_path, wanted, &mut done, &mut Vec::new(), events)
 	}
@@ -194,6 +262,7 @@ impl<'a> LocalBuilder<'a> {
 		stack: &mut Vec<StorePath>,
 		events: &mut dyn FnMut(BuildEvent<'_>),
 	) -> Result<BTreeMap<String, StorePath>> {
+		self.check_cancelled()?;
 		if stack.contains(drv_path) {
 			return Err(BuildError::Other(format!(
 				"cycle detected in the input derivations of '{}'",
@@ -541,7 +610,7 @@ impl<'a> LocalBuilder<'a> {
 			.values()
 			.map(|o| self.store.real_path(&o.path))
 			.collect();
-		let mut locks = PathLocks::lock(real_outputs.clone())?;
+		let mut locks = self.lock_outputs(real_outputs.clone())?;
 		for output in outputs.values() {
 			self.store.add_temp_root(&output.path)?;
 		}
@@ -595,7 +664,6 @@ impl<'a> LocalBuilder<'a> {
 					&build,
 				)
 			});
-			build.cleanup();
 			result?;
 			locks.set_deletion(true);
 			return Ok(());
@@ -611,6 +679,7 @@ impl<'a> LocalBuilder<'a> {
 		let result = build
 			.run(drv, &env, &input_paths, outputs, events)
 			.and_then(|()| {
+				self.check_cancelled()?;
 				self.register_outputs(
 					drv_path,
 					drv_name,
@@ -620,7 +689,6 @@ impl<'a> LocalBuilder<'a> {
 					&build,
 				)
 			});
-		build.cleanup();
 		result?;
 		locks.set_deletion(true);
 		Ok(())
@@ -924,7 +992,7 @@ impl<'a> LocalBuilder<'a> {
 		// The builder already holds locks for known final paths. Re-locking
 		// one here would deadlock when only some outputs need rebuilding.
 		let held: BTreeSet<_> = outputs.values().map(|o| &o.path).collect();
-		let mut locks = PathLocks::lock(
+		let mut locks = self.lock_outputs(
 			moves
 				.iter()
 				.filter(|(_, p)| !held.contains(p))
@@ -1715,15 +1783,19 @@ impl<'b> Build<'b> {
 		let mut log_file = self.open_log_file()?;
 		let mut tail = LogTail::new(settings.log_lines);
 		let mut write_error = None;
-		let status = sandbox::run(&spec, &mut |data: &[u8]| {
-			tail.feed(data);
-			if let Some(file) = &mut log_file
-				&& let Err(e) = file.write_all(data)
-			{
-				write_error.get_or_insert(e);
-			}
-			events(BuildEvent::Output(data));
-		});
+		let status = sandbox::run_cancellable(
+			&spec,
+			&mut |data: &[u8]| {
+				tail.feed(data);
+				if let Some(file) = &mut log_file
+					&& let Err(e) = file.write_all(data)
+				{
+					write_error.get_or_insert(e);
+				}
+				events(BuildEvent::Output(data));
+			},
+			&|| self.builder.is_cancelled(),
+		);
 		tail.flush();
 		if let Some(file) = log_file {
 			file.finish()?;
@@ -1887,6 +1959,12 @@ impl<'b> Build<'b> {
 		let _ = fs::set_permissions(&self.top_tmp_dir, fs::Permissions::from_mode(0));
 		let _ = delete_path(&self.top_tmp_dir);
 		let _ = delete_path(&self.chroot_parent);
+	}
+}
+
+impl Drop for Build<'_> {
+	fn drop(&mut self) {
+		self.cleanup();
 	}
 }
 
