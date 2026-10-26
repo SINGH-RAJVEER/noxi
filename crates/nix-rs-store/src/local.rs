@@ -454,7 +454,12 @@ impl LocalStore {
 	/// paths are the ones its inputs determine, and return the outputs with
 	/// known paths.
 	fn check_derivation(&self, drv_path: &StorePath) -> Result<Vec<(String, StorePath)>> {
-		let drv = self.read_derivation(drv_path)?;
+		let build_drv = self.read_build_derivation(drv_path)?;
+		if !build_drv.floating.is_empty() {
+			// Floating outputs have no static paths to verify or cache.
+			return Ok(Vec::new());
+		}
+		let drv = build_drv.basic;
 		let name = drv_path
 			.name()
 			.strip_suffix(".drv")
@@ -495,6 +500,20 @@ impl LocalStore {
 	}
 
 	/// Parse a derivation file from the store, valid or not.
+	pub fn read_build_derivation(
+		&self,
+		drv_path: &StorePath,
+	) -> Result<crate::build_derivation::BuildDerivation> {
+		let bytes = fs::read(self.real_path(drv_path))
+			.context(|| format!("reading derivation '{}'", print(drv_path)))?;
+		crate::build_derivation::BuildDerivation::from_aterm_bytes(
+			&bytes,
+			self.config.ca_derivations,
+		)
+	}
+
+	/// Parse an ordinary derivation. Build callers that accept floating CA
+	/// outputs use `read_build_derivation` to retain their declarations.
 	pub fn read_derivation(&self, drv_path: &StorePath) -> Result<UnverifiedDerivation> {
 		let real = self.real_path(drv_path);
 		let bytes =
@@ -1136,6 +1155,27 @@ fn nix32_with_algo(hash: &NixHash) -> String {
 /// was.
 pub fn ca_hash_of(path: &Path, claimed: &CAHash) -> Result<CAHash> {
 	let algo = claimed.hash().algo();
+	if !matches!(claimed, CAHash::Text(_))
+		&& let Some(name) = path.file_name().and_then(|s| s.to_str())
+		&& let Ok(store_path) = StorePath::from_bytes(name.as_bytes())
+	{
+		let method = if matches!(claimed, CAHash::Nar(_)) {
+			FileIngestionMethod::NixArchive
+		} else {
+			FileIngestionMethod::Flat
+		};
+		let hash = crate::ca::hash_modulo(
+			path,
+			method,
+			algo,
+			nixbase32::encode(store_path.digest()).as_bytes(),
+		)?;
+		return Ok(if matches!(claimed, CAHash::Nar(_)) {
+			CAHash::Nar(hash)
+		} else {
+			CAHash::Flat(hash)
+		});
+	}
 	Ok(match claimed {
 		CAHash::Nar(_) => {
 			let mut writer = DigestWriter(NixHashDigester::new(algo));

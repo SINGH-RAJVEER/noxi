@@ -7,6 +7,8 @@
 
 pub mod api;
 pub mod binary_cache;
+pub mod build_derivation;
+pub mod ca;
 pub mod canonicalise;
 pub mod config;
 mod db;
