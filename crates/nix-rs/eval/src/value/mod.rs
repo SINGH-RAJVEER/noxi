@@ -4,6 +4,7 @@ use bstr::{BString, ByteVec};
 use codemap::Span;
 use lexical_core::format::CXX_LITERAL;
 use serde::Deserialize;
+use std::cell::RefCell;
 use std::cmp::Ordering;
 use std::fmt::Display;
 use std::io::Write;
@@ -26,7 +27,7 @@ mod string;
 mod thunk;
 
 use crate::AddContext;
-use crate::errors::{CatchableErrorKind, ErrorKind};
+use crate::errors::{CatchableErrorKind, ErrorKind, Trace};
 use crate::opcode::StackIdx;
 use crate::vm::generators::{self, GenCo};
 pub use attrs::NixAttrs;
@@ -233,8 +234,15 @@ impl Value {
 	/// their contents, too.
 	///
 	/// This is a generator function.
-	pub(super) async fn deep_force(self, co: GenCo, span: Span) -> Result<Value, ErrorKind> {
-		if let Some(v) = Self::deep_force_(self.clone(), co, span).await? {
+	/// `path` holds CppNix's `forceValueDeep` trace frames for the element
+	/// being forced, which the VM reads if forcing it fails.
+	pub(super) async fn deep_force(
+		self,
+		co: GenCo,
+		span: Span,
+		path: Rc<RefCell<Vec<Trace>>>,
+	) -> Result<Value, ErrorKind> {
+		if let Some(v) = Self::deep_force_(self.clone(), co, span, path).await? {
 			Ok(v)
 		} else {
 			Ok(self)
@@ -242,17 +250,33 @@ impl Value {
 	}
 
 	/// Returns Some(v) or None to indicate the returned value is myself
-	async fn deep_force_(myself: Value, co: GenCo, span: Span) -> Result<Option<Value>, ErrorKind> {
-		// This is a stack of values which still remain to be forced.
-		let mut vals = vec![myself];
+	async fn deep_force_(
+		myself: Value,
+		co: GenCo,
+		span: Span,
+		path: Rc<RefCell<Vec<Trace>>>,
+	) -> Result<Option<Value>, ErrorKind> {
+		// This is a stack of values which still remain to be forced, each
+		// with the trace frame for its position in the value. `None` ends
+		// an element's frame once its contents are forced.
+		let mut vals: Vec<Option<(Value, Option<Trace>)>> = vec![Some((myself, None))];
 
 		let mut thunk_set: ThunkSet = Default::default();
 
 		loop {
-			let v = if let Some(v) = vals.pop() {
-				v
-			} else {
-				return Ok(None);
+			let v = match vals.pop() {
+				None => return Ok(None),
+				Some(None) => {
+					path.borrow_mut().pop();
+					continue;
+				}
+				Some(Some((v, frame))) => {
+					if let Some(frame) = frame {
+						path.borrow_mut().push(frame);
+						vals.push(None);
+					}
+					v
+				}
 			};
 
 			// Get rid of any top-level thunks, and bail out of self-recursive
@@ -278,15 +302,27 @@ impl Value {
 				| Value::Builtin(_) => continue,
 
 				Value::List(list) => {
-					for val in list.into_iter().rev() {
-						vals.push(val);
+					for (index, val) in list.into_iter().enumerate().rev() {
+						let frame = Trace::new(
+							None,
+							format!("while evaluating list element at index {index}"),
+						);
+						vals.push(Some((val, Some(frame))));
 					}
 					continue;
 				}
 
 				Value::Attrs(attrs) => {
-					for (_, val) in attrs.into_iter_sorted().rev() {
-						vals.push(val);
+					let positions = attrs.clone();
+					for (name, val) in attrs.into_iter_sorted().rev() {
+						let frame = Trace::new(
+							positions.get_attr_pos(&name),
+							format!(
+								"while evaluating the attribute '{}'",
+								bstr::ByteSlice::to_str_lossy(name.as_bytes())
+							),
+						);
+						vals.push(Some((val, Some(frame))));
 					}
 					continue;
 				}

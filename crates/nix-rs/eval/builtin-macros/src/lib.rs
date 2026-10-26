@@ -275,7 +275,50 @@ pub fn builtins(args: TokenStream, item: TokenStream) -> TokenStream {
 			//
 			// This is done by creating a new block for each of the
 			// arguments that evaluates it, and wraps the inner block.
-			for arg in &builtin_arguments {
+			// Once every argument is forced, the arguments CppNix checks are
+			// checked in its order.
+			let checks = argument_checks(&name.value())
+				.into_iter()
+				.filter_map(|check| {
+					let arg = builtin_arguments
+						.get(check.index)
+						.filter(|arg| arg.strict && !arg.catch)?;
+					let ident = &arg.name;
+					let expected = Ident::new(check.expected, arg.span);
+					let context = check.context;
+					let run = quote_spanned! { arg.span =>
+						nix_rs_eval::builtins::check_argument(
+							&#ident,
+							nix_rs_eval::builtins::ArgumentType::#expected,
+							#context,
+						)?;
+					};
+					Some(
+						match check
+							.unless_empty
+							.and_then(|index| builtin_arguments.get(index))
+						{
+							Some(list) => {
+								let list = &list.name;
+								quote! {
+									if !matches!(&#list, Value::List(list) if list.is_empty()) {
+										#run
+									}
+								}
+							}
+							None => run,
+						},
+					)
+				});
+			let block = &f.block;
+			*f.block = parse_quote! {{
+				#(#checks)*
+				#block
+			}};
+
+			// Arguments are forced first to last, as CppNix primops usually force
+			// them, so the innermost block is the last argument's.
+			for arg in builtin_arguments.iter().rev() {
 				let block = &f.block;
 				let ty = &arg.ty;
 				let ident = &arg.name;
@@ -316,6 +359,13 @@ pub fn builtins(args: TokenStream, item: TokenStream) -> TokenStream {
 					},
 				};
 			}
+
+			// The outermost block pops the first argument.
+			let block = &f.block;
+			*f.block = parse_quote! {{
+				values.reverse();
+				#block
+			}};
 
 			let fn_name = f.sig.ident.clone();
 			let arg_count = builtin_arguments.len();
@@ -362,4 +412,548 @@ pub fn builtins(args: TokenStream, item: TokenStream) -> TokenStream {
 	}
 
 	module.into_token_stream().into()
+}
+/// CppNix's checks of builtin arguments: the type each primop forces an
+/// argument to before using it, and the trace frame of its type error.
+const ARGUMENT_CHECKS: &[(&str, usize, &str, &str)] = &[
+	(
+		"attrNames",
+		0,
+		"Attrs",
+		"while evaluating the argument passed to builtins.attrNames",
+	),
+	(
+		"attrValues",
+		0,
+		"Attrs",
+		"while evaluating the argument passed to builtins.attrValues",
+	),
+	(
+		"derivationStrict",
+		0,
+		"Attrs",
+		"while evaluating the argument passed to builtins.derivationStrict",
+	),
+	(
+		"fromTOML",
+		0,
+		"String",
+		"while evaluating the argument passed to builtins.fromTOML",
+	),
+	(
+		"getContext",
+		0,
+		"String",
+		"while evaluating the argument passed to builtins.getContext",
+	),
+	(
+		"hasContext",
+		0,
+		"String",
+		"while evaluating the argument passed to builtins.hasContext",
+	),
+	(
+		"listToAttrs",
+		0,
+		"List",
+		"while evaluating the argument passed to builtins.listToAttrs",
+	),
+	(
+		"path",
+		0,
+		"Attrs",
+		"while evaluating the argument passed to 'builtins.path'",
+	),
+	(
+		"bitAnd",
+		0,
+		"Int",
+		"while evaluating the first argument passed to builtins.bitAnd",
+	),
+	(
+		"bitOr",
+		0,
+		"Int",
+		"while evaluating the first argument passed to builtins.bitOr",
+	),
+	(
+		"bitXor",
+		0,
+		"Int",
+		"while evaluating the first argument passed to builtins.bitXor",
+	),
+	(
+		"catAttrs",
+		0,
+		"String",
+		"while evaluating the first argument passed to builtins.catAttrs",
+	),
+	(
+		"compareVersions",
+		0,
+		"String",
+		"while evaluating the first argument passed to builtins.compareVersions",
+	),
+	(
+		"concatLists",
+		0,
+		"List",
+		"while evaluating the first argument passed to builtins.concatLists",
+	),
+	(
+		"concatMap",
+		0,
+		"Function",
+		"while evaluating the first argument passed to builtins.concatMap",
+	),
+	(
+		"convertHash",
+		0,
+		"Attrs",
+		"while evaluating the first argument passed to builtins.convertHash",
+	),
+	(
+		"elemAt",
+		0,
+		"List",
+		"while evaluating the first argument passed to 'builtins.elemAt'",
+	),
+	(
+		"filter",
+		0,
+		"Function",
+		"while evaluating the first argument passed to builtins.filter",
+	),
+	(
+		"filterSource",
+		0,
+		"Function",
+		"while evaluating the first argument passed to builtins.filterSource",
+	),
+	(
+		"findFile",
+		0,
+		"List",
+		"while evaluating the first argument passed to builtins.findFile",
+	),
+	(
+		"foldl'",
+		0,
+		"Function",
+		"while evaluating the first argument passed to builtins.foldlStrict",
+	),
+	(
+		"fromJSON",
+		0,
+		"String",
+		"while evaluating the first argument passed to builtins.fromJSON",
+	),
+	(
+		"genericClosure",
+		0,
+		"Attrs",
+		"while evaluating the first argument passed to builtins.genericClosure",
+	),
+	(
+		"genList",
+		0,
+		"Function",
+		"while evaluating the first argument passed to builtins.genList",
+	),
+	(
+		"getAttr",
+		0,
+		"String",
+		"while evaluating the first argument passed to builtins.getAttr",
+	),
+	(
+		"getEnv",
+		0,
+		"String",
+		"while evaluating the first argument passed to builtins.getEnv",
+	),
+	(
+		"groupBy",
+		0,
+		"Function",
+		"while evaluating the first argument passed to builtins.groupBy",
+	),
+	(
+		"hasAttr",
+		0,
+		"String",
+		"while evaluating the first argument passed to builtins.hasAttr",
+	),
+	(
+		"hashFile",
+		0,
+		"String",
+		"while evaluating the first argument passed to builtins.hashFile",
+	),
+	(
+		"hashString",
+		0,
+		"String",
+		"while evaluating the first argument passed to builtins.hashString",
+	),
+	(
+		"head",
+		0,
+		"List",
+		"while evaluating the first argument passed to 'builtins.head'",
+	),
+	(
+		"intersectAttrs",
+		0,
+		"Attrs",
+		"while evaluating the first argument passed to builtins.intersectAttrs",
+	),
+	(
+		"length",
+		0,
+		"List",
+		"while evaluating the first argument passed to builtins.length",
+	),
+	(
+		"map",
+		0,
+		"Function",
+		"while evaluating the first argument passed to builtins.map",
+	),
+	(
+		"match",
+		0,
+		"String",
+		"while evaluating the first argument passed to builtins.match",
+	),
+	(
+		"parseDrvName",
+		0,
+		"String",
+		"while evaluating the first argument passed to builtins.parseDrvName",
+	),
+	(
+		"partition",
+		0,
+		"Function",
+		"while evaluating the first argument passed to builtins.partition",
+	),
+	(
+		"removeAttrs",
+		0,
+		"Attrs",
+		"while evaluating the first argument passed to builtins.removeAttrs",
+	),
+	(
+		"replaceStrings",
+		0,
+		"List",
+		"while evaluating the first argument passed to builtins.replaceStrings",
+	),
+	(
+		"sort",
+		0,
+		"Function",
+		"while evaluating the first argument passed to builtins.sort",
+	),
+	(
+		"split",
+		0,
+		"String",
+		"while evaluating the first argument passed to builtins.split",
+	),
+	(
+		"splitVersion",
+		0,
+		"String",
+		"while evaluating the first argument passed to builtins.splitVersion",
+	),
+	(
+		"tail",
+		0,
+		"List",
+		"while evaluating the first argument passed to 'builtins.tail'",
+	),
+	(
+		"toFile",
+		0,
+		"String",
+		"while evaluating the first argument passed to builtins.toFile",
+	),
+	(
+		"zipAttrsWith",
+		0,
+		"Function",
+		"while evaluating the first argument passed to builtins.zipAttrsWith",
+	),
+	(
+		"warn",
+		0,
+		"String",
+		"while evaluating the first argument; the message passed to builtins.warn",
+	),
+	(
+		"appendContext",
+		1,
+		"Attrs",
+		"while evaluating the second argument passed to builtins.appendContext",
+	),
+	(
+		"bitAnd",
+		1,
+		"Int",
+		"while evaluating the second argument passed to builtins.bitAnd",
+	),
+	(
+		"bitOr",
+		1,
+		"Int",
+		"while evaluating the second argument passed to builtins.bitOr",
+	),
+	(
+		"bitXor",
+		1,
+		"Int",
+		"while evaluating the second argument passed to builtins.bitXor",
+	),
+	(
+		"catAttrs",
+		1,
+		"List",
+		"while evaluating the second argument passed to builtins.catAttrs",
+	),
+	(
+		"concatMap",
+		1,
+		"List",
+		"while evaluating the second argument passed to builtins.concatMap",
+	),
+	(
+		"elem",
+		1,
+		"List",
+		"while evaluating the second argument passed to builtins.elem",
+	),
+	(
+		"elemAt",
+		1,
+		"Int",
+		"while evaluating the second argument passed to 'builtins.elemAt'",
+	),
+	(
+		"filter",
+		1,
+		"List",
+		"while evaluating the second argument passed to builtins.filter",
+	),
+	(
+		"findFile",
+		1,
+		"String",
+		"while evaluating the second argument passed to builtins.findFile",
+	),
+	(
+		"genList",
+		1,
+		"Int",
+		"while evaluating the second argument passed to builtins.genList",
+	),
+	(
+		"getAttr",
+		1,
+		"Attrs",
+		"while evaluating the second argument passed to builtins.getAttr",
+	),
+	(
+		"groupBy",
+		1,
+		"List",
+		"while evaluating the second argument passed to builtins.groupBy",
+	),
+	(
+		"hasAttr",
+		1,
+		"Attrs",
+		"while evaluating the second argument passed to builtins.hasAttr",
+	),
+	(
+		"hashString",
+		1,
+		"String",
+		"while evaluating the second argument passed to builtins.hashString",
+	),
+	(
+		"intersectAttrs",
+		1,
+		"Attrs",
+		"while evaluating the second argument passed to builtins.intersectAttrs",
+	),
+	(
+		"map",
+		1,
+		"List",
+		"while evaluating the second argument passed to builtins.map",
+	),
+	(
+		"mapAttrs",
+		1,
+		"Attrs",
+		"while evaluating the second argument passed to builtins.mapAttrs",
+	),
+	(
+		"match",
+		1,
+		"String",
+		"while evaluating the second argument passed to builtins.match",
+	),
+	(
+		"partition",
+		1,
+		"List",
+		"while evaluating the second argument passed to builtins.partition",
+	),
+	(
+		"removeAttrs",
+		1,
+		"List",
+		"while evaluating the second argument passed to builtins.removeAttrs",
+	),
+	(
+		"replaceStrings",
+		1,
+		"List",
+		"while evaluating the second argument passed to builtins.replaceStrings",
+	),
+	(
+		"sort",
+		1,
+		"List",
+		"while evaluating the second argument passed to builtins.sort",
+	),
+	(
+		"split",
+		1,
+		"String",
+		"while evaluating the second argument passed to builtins.split",
+	),
+	(
+		"toFile",
+		1,
+		"String",
+		"while evaluating the second argument passed to builtins.toFile",
+	),
+	(
+		"unsafeGetAttrPos",
+		1,
+		"Attrs",
+		"while evaluating the second argument passed to builtins.unsafeGetAttrPos",
+	),
+	(
+		"zipAttrsWith",
+		1,
+		"List",
+		"while evaluating the second argument passed to builtins.zipAttrsWith",
+	),
+	(
+		"foldl'",
+		2,
+		"List",
+		"while evaluating the third argument passed to builtins.foldlStrict",
+	),
+	(
+		"all",
+		0,
+		"Function",
+		"while evaluating the first argument passed to builtins.all",
+	),
+	(
+		"all",
+		1,
+		"List",
+		"while evaluating the second argument passed to builtins.all",
+	),
+	(
+		"any",
+		0,
+		"Function",
+		"while evaluating the first argument passed to builtins.any",
+	),
+	(
+		"any",
+		1,
+		"List",
+		"while evaluating the second argument passed to builtins.any",
+	),
+	(
+		"ceil",
+		0,
+		"Float",
+		"while evaluating the first argument passed to builtins.ceil",
+	),
+	(
+		"floor",
+		0,
+		"Float",
+		"while evaluating the first argument passed to builtins.floor",
+	),
+	(
+		"concatStringsSep",
+		0,
+		"String",
+		"while evaluating the first argument (the separator string) passed to builtins.concatStringsSep",
+	),
+	(
+		"concatStringsSep",
+		1,
+		"List",
+		"while evaluating the second argument (the list of strings to concat) passed to builtins.concatStringsSep",
+	),
+	(
+		"substring",
+		0,
+		"Int",
+		"while evaluating the first argument (the start offset) passed to builtins.substring",
+	),
+	(
+		"substring",
+		1,
+		"Int",
+		"while evaluating the second argument (the substring length) passed to builtins.substring",
+	),
+];
+
+/// A check of a builtin argument: its index, the `ArgumentType`, the trace
+/// frame, and the index of a list argument whose emptiness skips it.
+struct ArgumentCheck {
+	index: usize,
+	expected: &'static str,
+	context: &'static str,
+	unless_empty: Option<usize>,
+}
+
+/// The checks of `builtin`'s arguments, in the order CppNix makes them.
+fn argument_checks(builtin: &str) -> Vec<ArgumentCheck> {
+	let mut checks: Vec<ArgumentCheck> = ARGUMENT_CHECKS
+		.iter()
+		.filter(|(name, ..)| *name == builtin)
+		.map(|&(_, index, expected, context)| ArgumentCheck {
+			index,
+			expected,
+			context,
+			unless_empty: None,
+		})
+		.collect();
+	checks.sort_by_key(|check| check.index);
+	match builtin {
+		// The list is checked first, and the function only if it is not
+		// empty.
+		"map" | "filter" | "sort" => {
+			checks.reverse();
+			checks[1].unless_empty = Some(1);
+		}
+		// The second argument is checked first.
+		"genList" | "elemAt" => checks.reverse(),
+		_ => {}
+	}
+	checks
 }

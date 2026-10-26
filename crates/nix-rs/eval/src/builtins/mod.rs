@@ -21,7 +21,7 @@ use crate::warnings::WarningKind;
 use crate::{
 	self as nix_rs_eval,
 	builtins::hash::hash_nix_string,
-	errors::{CatchableErrorKind, ErrorKind},
+	errors::{AddContext, CatchableErrorKind, ErrorKind},
 	value::{CoercionKind, NixAttrs, NixList, NixString, PrintOptions, Thunk, Value},
 };
 use crate::{arithmetic_op, try_cek};
@@ -46,6 +46,82 @@ pub use impure::impure_builtins;
 
 // we set NIX_RS_CURRENT_SYSTEM in build.rs
 pub const CURRENT_PLATFORM: &str = env!("NIX_RS_CURRENT_SYSTEM");
+
+/// The type a CppNix primop forces an argument to, such as `forceList`.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ArgumentType {
+	/// `forceFunction`: a function, builtin or set with `__functor`.
+	Function,
+	List,
+	Attrs,
+	Int,
+	Bool,
+	/// `forceFloat`: a float or an integer.
+	Float,
+	/// `forceString`: a string, not a path.
+	String,
+}
+
+/// CppNix's checks of the operands of `builtins.add` and the other arithmetic
+/// builtins: floats if either operand is a float, otherwise integers.
+/// `first_float` is the first operand's trace frame in the float case.
+fn check_arithmetic(
+	x: &Value,
+	y: &Value,
+	first: &'static str,
+	first_float: &'static str,
+	second: &'static str,
+) -> Result<(), ErrorKind> {
+	if matches!(x, Value::Float(_)) || matches!(y, Value::Float(_)) {
+		check_argument(x, ArgumentType::Float, first_float)?;
+		check_argument(y, ArgumentType::Float, second)
+	} else {
+		check_argument(x, ArgumentType::Int, first)?;
+		check_argument(y, ArgumentType::Int, second)
+	}
+}
+
+/// Check a forced builtin argument as the CppNix primop does, failing with
+/// its type error and `context` trace frame. The builtin macro emits these
+/// checks for the arguments listed in its table of CppNix's checks.
+pub fn check_argument(
+	value: &Value,
+	expected: ArgumentType,
+	context: &'static str,
+) -> Result<(), ErrorKind> {
+	if let Value::Thunk(thunk) = value {
+		return check_argument(&thunk.value(), expected, context);
+	}
+	let ok = match (expected, value) {
+		(ArgumentType::Function, Value::Closure(_) | Value::Builtin(_)) => true,
+		(ArgumentType::Function, Value::Attrs(attrs)) => attrs.select("__functor").is_some(),
+		(ArgumentType::List, Value::List(_))
+		| (ArgumentType::Attrs, Value::Attrs(_))
+		| (ArgumentType::Int, Value::Integer(_))
+		| (ArgumentType::Bool, Value::Bool(_))
+		| (ArgumentType::Float, Value::Integer(_) | Value::Float(_))
+		| (ArgumentType::String, Value::String(_)) => true,
+		_ => false,
+	};
+	if ok {
+		return Ok(());
+	}
+	let expected = match expected {
+		ArgumentType::Function => "lambda",
+		ArgumentType::List => "list",
+		ArgumentType::Attrs => "set",
+		ArgumentType::Int => "int",
+		ArgumentType::Bool => "bool",
+		ArgumentType::Float => "float",
+		ArgumentType::String => "string",
+	};
+	Err(ErrorKind::TypeError {
+		expected,
+		actual: value.type_of(),
+		value: Some(Box::new(value.clone())),
+	}
+	.trace(None, context))
+}
 
 /// Coerce a Nix Value to a plain path, e.g. in order to access the
 /// file it points to via either `builtins.toPath` or an impure
@@ -270,6 +346,13 @@ mod pure_builtins {
 
 	#[builtin("add")]
 	async fn builtin_add(co: GenCo, x: Value, y: Value) -> Result<Value, ErrorKind> {
+		check_arithmetic(
+			&x,
+			&y,
+			"while evaluating the first argument of the addition",
+			"while evaluating the first argument of the addition",
+			"while evaluating the second argument of the addition",
+		)?;
 		arithmetic_op!(&x, &y, +)
 	}
 
@@ -279,7 +362,10 @@ mod pure_builtins {
 			let pred_result = generators::request_call_with(&co, pred.clone(), [value]).await;
 			let pred_result = try_value!(generators::request_force(&co, pred_result).await);
 
-			if !pred_result.as_bool()? {
+			if !pred_result.as_bool().trace(
+				None,
+				"while evaluating the return value of the function passed to builtins.all",
+			)? {
 				return Ok(Value::Bool(false));
 			}
 		}
@@ -293,7 +379,10 @@ mod pure_builtins {
 			let pred_result = generators::request_call_with(&co, pred.clone(), [value]).await;
 			let pred_result = try_value!(generators::request_force(&co, pred_result).await);
 
-			if pred_result.as_bool()? {
+			if pred_result.as_bool().trace(
+				None,
+				"while evaluating the return value of the function passed to builtins.any",
+			)? {
 				return Ok(Value::Bool(true));
 			}
 		}
@@ -387,7 +476,13 @@ mod pure_builtins {
 		let mut output = vec![];
 
 		for item in list.into_iter() {
-			let set = generators::request_force(&co, item).await.to_attrs()?;
+			let set = generators::request_force(&co, item)
+				.await
+				.to_attrs()
+				.trace(
+					None,
+					"while evaluating an element in the list passed as second argument to builtins.catAttrs",
+				)?;
 
 			if let Some(value) = set.select(&key) {
 				output.push(value.clone());
@@ -421,7 +516,12 @@ mod pure_builtins {
 		let mut out = Vec::new();
 
 		for value in lists.to_list()? {
-			let list = try_value!(generators::request_force(&co, value).await).to_list()?;
+			let list = try_value!(generators::request_force(&co, value).await)
+				.to_list()
+				.trace(
+					None,
+					"while evaluating a value of the list passed to builtins.concatLists",
+				)?;
 			out.extend(list);
 		}
 
@@ -435,7 +535,10 @@ mod pure_builtins {
 		for val in list {
 			let out = generators::request_call_with(&co, f.clone(), [val]).await;
 			let out = try_value!(generators::request_force(&co, out).await);
-			res.extend(out.to_list()?);
+			res.extend(out.to_list().trace(
+				None,
+				"while evaluating the return value of the function passed to builtins.concatMap",
+			)?);
 		}
 		Ok(Value::List(res.into()))
 	}
@@ -486,6 +589,22 @@ mod pure_builtins {
 
 	#[builtin("div")]
 	async fn builtin_div(co: GenCo, x: Value, y: Value) -> Result<Value, ErrorKind> {
+		// The divisor is checked first, and a zero divisor fails before the
+		// dividend is checked.
+		check_argument(
+			&y,
+			ArgumentType::Float,
+			"while evaluating the second operand of the division",
+		)?;
+		if !matches!(y, Value::Integer(0)) && !matches!(y, Value::Float(f) if f == 0.0) {
+			check_arithmetic(
+				&x,
+				&y,
+				"while evaluating the first operand of the division",
+				"while evaluating the first operand of the division",
+				"while evaluating the second operand of the division",
+			)?;
+		}
 		arithmetic_op!(&x, &y, /)
 	}
 
@@ -557,7 +676,10 @@ mod pure_builtins {
 		for value in list {
 			let result = generators::request_call_with(&co, pred.clone(), [value.clone()]).await;
 			let verdict = try_value!(generators::request_force(&co, result).await);
-			if verdict.as_bool()? {
+			if verdict.as_bool().trace(
+				None,
+				"while evaluating the return value of the filtering function passed to builtins.filter",
+			)? {
 				out.push(value);
 			}
 		}
@@ -767,7 +889,11 @@ mod pure_builtins {
 				)
 				.await
 			)
-			.to_str()?;
+			.to_str()
+			.trace(
+				None,
+				"while evaluating the return value of the grouping function passed to builtins.groupBy",
+			)?;
 
 			res.entry(key).or_default().push(val);
 		}
@@ -1240,6 +1366,14 @@ mod pure_builtins {
 
 	#[builtin("mul")]
 	async fn builtin_mul(co: GenCo, x: Value, y: Value) -> Result<Value, ErrorKind> {
+		// CppNix's message for a float product omits "argument".
+		check_arithmetic(
+			&x,
+			&y,
+			"while evaluating the first argument of the multiplication",
+			"while evaluating the first of the multiplication",
+			"while evaluating the second argument of the multiplication",
+		)?;
 		arithmetic_op!(&x, &y, *)
 	}
 
@@ -1282,7 +1416,12 @@ mod pure_builtins {
 		for elem in list {
 			let result = generators::request_call_with(&co, pred.clone(), [elem.clone()]).await;
 
-			if try_value!(generators::request_force(&co, result).await).as_bool()? {
+			if try_value!(generators::request_force(&co, result).await)
+				.as_bool()
+				.trace(
+					None,
+					"while evaluating the return value of the partition function passed to builtins.partition",
+				)? {
 				right.push(elem);
 			} else {
 				wrong.push(elem);
@@ -1543,6 +1682,13 @@ mod pure_builtins {
 
 	#[builtin("sub")]
 	async fn builtin_sub(co: GenCo, x: Value, y: Value) -> Result<Value, ErrorKind> {
+		check_arithmetic(
+			&x,
+			&y,
+			"while evaluating the first argument of the subtraction",
+			"while evaluating the first argument of the subtraction",
+			"while evaluating the second argument of the subtraction",
+		)?;
 		arithmetic_op!(&x, &y, -)
 	}
 

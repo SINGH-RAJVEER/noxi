@@ -470,6 +470,31 @@ fn message(error: &Error) -> (String, Option<Span>, Vec<String>) {
 		ErrorKind::IntegerOverflow { .. }
 		| ErrorKind::DivisionByZero
 		| ErrorKind::InfiniteRecursion { .. } => (error.kind.to_string(), at, vec![]),
+		ErrorKind::NotCallable(_, Some(value)) => (
+			format!(
+				"attempt to call something which is not a function but {}: {}",
+				show_type(value),
+				print_value(&error.source, value)
+			),
+			at,
+			vec![],
+		),
+		ErrorKind::IO {
+			path: Some(path),
+			error: io,
+		} if io.kind() == std::io::ErrorKind::NotFound => (
+			format!("path '{}' does not exist", path.display()),
+			None,
+			vec![],
+		),
+		ErrorKind::IO {
+			path: Some(path),
+			error: io,
+		} if io.kind() == std::io::ErrorKind::NotADirectory => (
+			format!("'{}' is not a directory", path.display()),
+			None,
+			vec![],
+		),
 		ErrorKind::EvalError(message) => (message.clone(), None, vec![]),
 		kind => (kind.to_string(), None, vec![]),
 	}

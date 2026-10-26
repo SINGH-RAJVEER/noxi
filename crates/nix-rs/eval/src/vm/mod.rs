@@ -269,6 +269,10 @@ pub(crate) enum FrameTrace {
 		lambda: Rc<Lambda>,
 		call_site: Option<Span>,
 	},
+
+	/// Frames a generator maintains as it runs, such as the path of the
+	/// element a deep force is forcing.
+	Dynamic(Rc<std::cell::RefCell<Vec<Trace>>>),
 }
 
 impl Frame {
@@ -1125,6 +1129,7 @@ impl<IO> VM<'_, IO> {
 		for (i, frame) in frames.iter().enumerate() {
 			match frame {
 				FrameTrace::None => {}
+				FrameTrace::Dynamic(frames) => traces.extend(frames.borrow().iter().cloned()),
 				FrameTrace::Builtin { name, call_site } => {
 					if !call_site.as_ref().is_some_and(hidden) {
 						traces.push(Trace::new(
@@ -1414,7 +1419,7 @@ where
 				Ok(())
 			}
 
-			v => Err(ErrorKind::NotCallable(v.type_of())).with_span(span, self),
+			v => Err(ErrorKind::NotCallable(v.type_of(), Some(Box::new(v)))).with_span(span, self),
 		}
 	}
 
@@ -1623,9 +1628,24 @@ pub struct RuntimeResult {
 
 // TODO(amjoseph): de-asyncify this
 /// Generator that retrieves the final value from the stack, and deep-forces it
-/// before returning.
-async fn final_deep_force(co: GenCo) -> Result<Value, ErrorKind> {
+/// before returning. When the code is the caller's own (`hidden`), as a
+/// command's list of results is, each element of a list result is forced on
+/// its own, without a trace frame for its index.
+async fn final_deep_force(co: GenCo, hidden: bool) -> Result<Value, ErrorKind> {
 	let value = generators::request_stack_pop(&co).await;
+	if hidden {
+		let value = generators::request_force(&co, value).await;
+		if let Value::List(list) = &value {
+			for element in list.iter() {
+				let element = generators::request_deep_force(&co, element.clone()).await;
+				if element.is_catchable() {
+					return Ok(element);
+				}
+			}
+			return Ok(value);
+		}
+		return Ok(generators::request_deep_force(&co, value).await);
+	}
 	Ok(generators::request_deep_force(&co, value).await)
 }
 
@@ -1674,7 +1694,12 @@ where
 	// the VM to deep-force the final value before returning it.
 	match mode {
 		EvalMode::Lazy => {}
-		EvalMode::Strict => vm.enqueue_generator("final_deep_force", root_span, final_deep_force),
+		EvalMode::Strict => {
+			let hidden = vm.source.is_hidden(root_span);
+			vm.enqueue_generator("final_deep_force", root_span, move |co| {
+				final_deep_force(co, hidden)
+			})
+		}
 	}
 
 	vm.frames.push(Frame::BytecodeFrame {

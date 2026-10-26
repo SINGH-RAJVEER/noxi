@@ -249,7 +249,7 @@ to a missing value in the attribute set(s) included via `with`."#
 
 	/// Attempt to call something that is not callable.
 	#[error("only functions and builtins can be called, but this is a '{0}'")]
-	NotCallable(&'static str),
+	NotCallable(&'static str, Option<Box<Value>>),
 
 	/// Infinite recursion encountered while forcing thunks.
 	#[error("infinite recursion encountered")]
@@ -846,7 +846,7 @@ impl Error {
 			| ErrorKind::UnknownStaticVariable(_)
 			| ErrorKind::UnknownDynamicVariable(_)
 			| ErrorKind::VariableAlreadyDefined(_)
-			| ErrorKind::NotCallable(_)
+			| ErrorKind::NotCallable(..)
 			| ErrorKind::InfiniteRecursion { .. }
 			| ErrorKind::ParseErrors(_)
 			| ErrorKind::NativeError { .. }
@@ -901,7 +901,7 @@ impl Error {
 			ErrorKind::UnknownStaticVariable(_) => "E010",
 			ErrorKind::UnknownDynamicVariable(_) => "E011",
 			ErrorKind::VariableAlreadyDefined(_) => "E012",
-			ErrorKind::NotCallable(_) => "E013",
+			ErrorKind::NotCallable(..) => "E013",
 			ErrorKind::InfiniteRecursion { .. } => "E014",
 			ErrorKind::ParseErrors(_) => "E015",
 			ErrorKind::DuplicateAttrsKey { .. } => "E016",

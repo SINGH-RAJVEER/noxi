@@ -367,9 +367,14 @@ where
 						// Generator has requested a deep-force.
 						VMRequest::DeepForceValue(value) => {
 							self.reenqueue_generator(name, span, generator);
-							self.enqueue_generator("deep_force", span, |co| {
-								value.deep_force(co, span)
+							let path = Rc::new(std::cell::RefCell::new(vec![]));
+							self.enqueue_generator("deep_force", span, {
+								let path = path.clone();
+								|co| value.deep_force(co, span, path)
 							});
+							if let Some(Frame::Generator { trace, .. }) = self.frames.last_mut() {
+								*trace = FrameTrace::Dynamic(path);
+							}
 							return Ok(false);
 						}
 
@@ -986,7 +991,10 @@ pub(crate) async fn call_functor(co: GenCo, value: Value) -> Result<Value, Error
 	let attrs = value.to_attrs()?;
 
 	match attrs.select("__functor") {
-		None => Err(ErrorKind::NotCallable("set without `__functor_` attribute")),
+		None => Err(ErrorKind::NotCallable(
+			"set without `__functor_` attribute",
+			None,
+		)),
 		Some(functor) => {
 			// The functor receives the set itself as its first argument and
 			// needs to be called with it.
