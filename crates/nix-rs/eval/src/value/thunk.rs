@@ -210,7 +210,7 @@ impl Thunk {
 		Self::new_suspended_with_upvalues(
 			lambda,
 			span,
-			Upvalues::from_raw_parts(vec![arg, callee], vec![]),
+			Upvalues::from_raw_parts(vec![arg, callee], None),
 		)
 	}
 

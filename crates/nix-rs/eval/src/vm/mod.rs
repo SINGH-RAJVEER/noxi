@@ -1739,20 +1739,25 @@ where
 
 		let mut static_upvalues = Vec::with_capacity(count);
 
-		let with_stack = if capture_with {
+		let with_stack = if !capture_with {
+			None
+		} else if self.with_stack.is_empty() {
+			// No `with` was entered since the frame's own captures, so share them.
+			frame.upvalues.shared_with_stack().cloned()
+		} else {
 			// Start the captured with_stack off of the
 			// current bytecode frame's captured with_stack, ...
-			let mut captured_with_stack = frame.upvalues.with_stack().clone();
-			// and extend it to a size that fits the current with_stack
-			captured_with_stack.reserve_exact(self.with_stack.len());
+			let captured = frame.upvalues.with_stack();
+			let mut captured_with_stack =
+				Vec::with_capacity(captured.len() + self.with_stack.len());
+			captured_with_stack.extend_from_slice(captured);
 
+			// and extend it with the current with_stack
 			for idx in &self.with_stack {
 				captured_with_stack.push(self.stack[*idx].clone());
 			}
 
-			captured_with_stack
-		} else {
-			vec![]
+			Some(captured_with_stack.into())
 		};
 
 		for _ in 0..count {

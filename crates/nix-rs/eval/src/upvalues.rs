@@ -7,7 +7,7 @@
 //! in order to resolve each free variable in the scope to a value.
 //! "Upvalue" is a term taken from Lua.
 
-use std::ops::Index;
+use std::{ops::Index, rc::Rc};
 
 use crate::{Value, opcode::UpvalueIdx};
 
@@ -67,26 +67,29 @@ pub struct Upvalues {
 	/// The upvalues of static identifiers.  Each static identifier
 	/// is assigned an integer identifier at compile time, which is
 	/// an index into this Vec.
-	static_upvalues: Vec<Value>,
+	static_upvalues: Box<[Value]>,
 
 	/// The upvalues of dynamic identifiers, if any exist.  This
 	/// consists of the value passed to each enclosing `with val;`,
-	/// from outermost to innermost.
-	with_stack: Vec<Value>,
+	/// from outermost to innermost. Thunks and closures created in the same
+	/// `with` scopes share it.
+	with_stack: Option<Rc<[Value]>>,
 }
 
 impl Upvalues {
-	pub fn with_capacity(count: usize) -> Self {
+	/// Upvalues are never added after construction, so the count only
+	/// matters to callers constructing them whole.
+	pub fn with_capacity(_count: usize) -> Self {
 		Upvalues {
-			static_upvalues: Vec::with_capacity(count),
-			with_stack: vec![],
+			static_upvalues: Box::default(),
+			with_stack: None,
 		}
 	}
 
 	/// Construct an [Upvalues] instance from the raw static and with stacks.
-	pub fn from_raw_parts(static_upvalues: Vec<Value>, with_stack: Vec<Value>) -> Self {
+	pub fn from_raw_parts(static_upvalues: Vec<Value>, with_stack: Option<Rc<[Value]>>) -> Self {
 		Self {
-			static_upvalues,
+			static_upvalues: static_upvalues.into_boxed_slice(),
 			with_stack,
 		}
 	}
@@ -99,19 +102,24 @@ impl Upvalues {
 	/// Retrieve a single value from the `with_stack`. Returns `None`
 	/// if the stack doesn't exist or the value isn't in range.
 	pub fn get_from_with_stack(&self, index: usize) -> Option<Value> {
-		self.with_stack.get(index).cloned()
+		self.with_stack().get(index).cloned()
 	}
 
-	pub fn with_stack(&self) -> &Vec<Value> {
+	pub fn with_stack(&self) -> &[Value] {
+		self.with_stack.as_deref().unwrap_or_default()
+	}
+
+	/// The `with` stack, to share with upvalues captured in the same scopes.
+	pub fn shared_with_stack(&self) -> Option<&Rc<[Value]>> {
 		self.with_stack.as_ref()
 	}
 
 	pub fn with_stack_len(&self) -> usize {
-		self.with_stack.len()
+		self.with_stack().len()
 	}
 
 	pub fn into_static_upvalues(self) -> Vec<Value> {
-		self.static_upvalues
+		self.static_upvalues.into_vec()
 	}
 
 	/// Resolve deferred upvalues from the provided stack slice,
