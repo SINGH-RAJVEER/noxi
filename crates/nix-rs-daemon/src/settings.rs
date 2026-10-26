@@ -27,6 +27,8 @@ pub struct DaemonSettings {
 	/// own release; the default reports the reference release this daemon
 	/// is compatible with, so clients that show it see a version they know.
 	pub daemon_version: String,
+	/// A command-line trust override, gated by `daemon-trust-override`.
+	pub force_trust: Option<crate::connection::Trust>,
 }
 
 impl DaemonSettings {
@@ -84,6 +86,7 @@ impl DaemonSettings {
 			gc_keep_outputs: false,
 			gc_keep_derivations: true,
 			daemon_version: "2.35.2".to_owned(),
+			force_trust: None,
 		}
 	}
 

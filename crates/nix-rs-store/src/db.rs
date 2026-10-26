@@ -13,9 +13,15 @@ pub const SCHEMA_VERSION: u32 = 10;
 /// The initial schema, copied from CppNix 2.35.2's `schema.sql`.
 const SCHEMA: &str = include_str!("schema.sql");
 
-/// Named migrations applied after the numbered schema, in order. Migrations
-/// that depend on experimental features (`20251017-ca-derivations`) are not
-/// listed.
+/// The build trace of content-addressed derivations, CppNix 2.35.2's
+/// `ca-specific-schema.sql`, applied only with `ca-derivations`.
+const CA_MIGRATION: (&str, &str) = (
+	"20251017-ca-derivations",
+	include_str!("ca-specific-schema.sql"),
+);
+
+/// Named migrations applied after the numbered schema, in order, after
+/// [`CA_MIGRATION`] when `ca-derivations` is enabled.
 const MIGRATIONS: &[(&str, &str)] = &[(
 	"20260309-drop-redundant-indexreferrer",
 	"drop index if exists IndexReferrer",
@@ -103,9 +109,10 @@ pub fn open(path: &Path, mode: OpenMode, settings: &DbSettings) -> Result<Connec
 	Ok(conn)
 }
 
-/// Apply the named migrations. With `dry_run`, only report whether any is
-/// needed. Returns whether a migration was (or would be) applied.
-pub fn upgrade_schema(conn: &Connection, dry_run: bool) -> Result<bool> {
+/// Apply the named migrations, including the build trace with
+/// `ca_derivations`. With `dry_run`, only report whether any is needed.
+/// Returns whether a migration was (or would be) applied.
+pub fn upgrade_schema(conn: &Connection, dry_run: bool, ca_derivations: bool) -> Result<bool> {
 	let mut changed = false;
 	let has_table = conn
 		.query_row(
@@ -128,7 +135,8 @@ pub fn upgrade_schema(conn: &Connection, dry_run: bool) -> Result<bool> {
 		.query_map([], |row| row.get(0))?
 		.collect::<Result<_, _>>()?;
 
-	for (name, statement) in MIGRATIONS {
+	let ca = ca_derivations.then_some(&CA_MIGRATION);
+	for (name, statement) in ca.into_iter().chain(MIGRATIONS) {
 		if applied.iter().any(|m| m == name) {
 			continue;
 		}

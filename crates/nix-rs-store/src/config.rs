@@ -30,6 +30,9 @@ pub struct LocalStoreConfig {
 	pub require_sigs: bool,
 	/// The `trusted-public-keys` setting, as `name:base64` strings.
 	pub trusted_public_keys: Vec<String>,
+	/// Whether the `ca-derivations` experimental feature is enabled, which
+	/// adds the build trace (realisations) to the database.
+	pub ca_derivations: bool,
 }
 
 impl LocalStoreConfig {
@@ -89,6 +92,9 @@ impl LocalStoreConfig {
 				.map(str::to_owned)
 				.collect();
 		}
+		if settings.get("experimental-features").is_some() {
+			self.ca_derivations = settings.experimental_features().contains("ca-derivations");
+		}
 	}
 
 	/// The settings of the system store. `NIX_STATE_DIR` and `NIX_LOG_DIR`
@@ -128,6 +134,7 @@ impl LocalStoreConfig {
 			trusted_public_keys: vec![
 				"cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY=".to_owned(),
 			],
+			ca_derivations: false,
 		}
 	}
 

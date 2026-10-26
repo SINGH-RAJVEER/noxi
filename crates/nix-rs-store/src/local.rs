@@ -241,10 +241,10 @@ impl LocalStore {
 			db::open(&db_path, mode, &settings)?
 		};
 
-		if !config.read_only && db::upgrade_schema(&conn, true)? {
+		if !config.read_only && db::upgrade_schema(&conn, true, config.ca_derivations)? {
 			let lock = global_lock.as_ref().expect("writable store holds the lock");
 			acquire_write(lock)?;
-			db::upgrade_schema(&conn, false)?;
+			db::upgrade_schema(&conn, false, config.ca_derivations)?;
 			lock_file(lock, LockType::Read, true)?;
 		}
 
@@ -439,6 +439,30 @@ impl LocalStore {
 		Ok(id)
 	}
 
+	/// The registered static output map, extended by known realisations when
+	/// `ca-derivations` is enabled, as `queryPartialDerivationOutputMap` does.
+	pub fn query_partial_derivation_output_map(
+		&self,
+		drv: &StorePath,
+	) -> Result<BTreeMap<String, Option<StorePath>>> {
+		let mut outputs: BTreeMap<_, _> = self
+			.query_derivation_outputs(drv)?
+			.into_iter()
+			.map(|(name, path)| (name, Some(path)))
+			.collect();
+		if self.config.ca_derivations {
+			let derivation = self.read_derivation(drv)?;
+			for name in derivation.outputs().names() {
+				if let Some((path, _)) = self.query_realisation(drv, &name.to_string())? {
+					outputs.insert(name.to_string(), Some(path));
+				} else {
+					outputs.entry(name.to_string()).or_insert(None);
+				}
+			}
+		}
+		Ok(outputs)
+	}
+
 	/// Read the derivation at `drv_path` from disk, check that its output
 	/// paths are the ones its inputs determine, and return the outputs with
 	/// known paths.
@@ -506,6 +530,72 @@ impl LocalStore {
 		update_path_info(&tx, &info)?;
 		tx.commit()?;
 		Ok(())
+	}
+
+	// Realisations
+
+	/// `experimentalFeatureSettings.require(Xp::CaDerivations)`.
+	fn require_ca_derivations(&self) -> Result<()> {
+		if self.config.ca_derivations {
+			return Ok(());
+		}
+		Err(Error::Other(
+			"experimental Nix feature 'ca-derivations' is disabled; add '--extra-experimental-features ca-derivations' to enable it".into(),
+		))
+	}
+
+	/// `LocalStore::registerDrvOutput` without a signature check: record
+	/// that output `output` of `drv` is `out_path`. A realisation already
+	/// recorded with the same path gains the signatures; one with another
+	/// path is an error.
+	pub fn register_drv_output(
+		&self,
+		drv: &StorePath,
+		output: &str,
+		out_path: &StorePath,
+		sigs: &BTreeSet<String>,
+	) -> Result<()> {
+		self.require_ca_derivations()?;
+		let mut db = self.db();
+		let tx = db.transaction()?;
+		let drv_name = drv.to_string();
+		match query_realisation(&tx, &drv_name, output)? {
+			Some((old_path, mut old_sigs)) if old_path == *out_path => {
+				old_sigs.extend(sigs.iter().cloned());
+				tx.execute(
+					"update BuildTraceV3 set signatures = ? where drvPath = ? and outputName = ?",
+					rusqlite::params![join_sigs(&old_sigs), drv_name, output],
+				)?;
+			}
+			Some((old_path, _)) => {
+				return Err(Error::Other(format!(
+					"Trying to register a realisation of '{drv_name}^{output}', but we already have another one locally.\nLocal:  {}\nRemote: {}",
+					print(&old_path),
+					print(out_path)
+				)));
+			}
+			None => {
+				tx.execute(
+					"insert into BuildTraceV3 (drvPath, outputName, outputPath, signatures) values (?, ?, ?, ?)",
+					rusqlite::params![drv_name, output, print(out_path), join_sigs(sigs)],
+				)?;
+			}
+		}
+		tx.commit()?;
+		Ok(())
+	}
+
+	/// `Store::queryRealisation`: the recorded path of output `output` of
+	/// `drv`, with its signatures. Without `ca-derivations` there are none.
+	pub fn query_realisation(
+		&self,
+		drv: &StorePath,
+		output: &str,
+	) -> Result<Option<(StorePath, BTreeSet<String>)>> {
+		if !self.config.ca_derivations {
+			return Ok(None);
+		}
+		query_realisation(&self.db(), &drv.to_string(), output)
 	}
 
 	/// Whether `info` lacks the signatures `require-sigs` demands.
@@ -1061,6 +1151,32 @@ pub fn ca_hash_of(path: &Path, claimed: &CAHash) -> Result<CAHash> {
 			}
 		}
 	})
+}
+
+fn join_sigs(sigs: &BTreeSet<String>) -> String {
+	sigs.iter()
+		.map(String::as_str)
+		.collect::<Vec<_>>()
+		.join(" ")
+}
+
+fn query_realisation(
+	db: &Connection,
+	drv: &str,
+	output: &str,
+) -> Result<Option<(StorePath, BTreeSet<String>)>> {
+	let row: Option<(String, String)> = db.query_row(
+		"select outputPath, coalesce(signatures, '') from BuildTraceV3 where drvPath = ? and outputName = ?",
+		params![drv, output],
+		|row| Ok((row.get(0)?, row.get(1)?)),
+	).optional()?;
+	row.map(|(path, sigs)| {
+		Ok((
+			parse_store_path(&path)?,
+			sigs.split_whitespace().map(str::to_owned).collect(),
+		))
+	})
+	.transpose()
 }
 
 fn query_id(db: &Connection, path: &StorePath) -> Result<Option<i64>> {

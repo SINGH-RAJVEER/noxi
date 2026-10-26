@@ -93,22 +93,20 @@ pub fn query_missing(
 					continue;
 				}
 				let drv = store.read_derivation(&drv_path)?;
-				if drv.outputs().is_deferred() {
-					return Err(BuildError::Other(format!(
-						"querying missing paths of '{}' needs content-addressed derivations, which nix-rs does not support yet",
-						drv_path.to_absolute_path()
-					)));
-				}
+				let output_map = store.query_partial_derivation_output_map(&drv_path)?;
+				let known_paths = output_map.values().all(Option::is_some);
 				let mut invalid = BTreeSet::new();
-				for (name, path) in drv.outputs().iter() {
+				for (name, path) in &output_map {
 					let wanted = outputs
 						.as_ref()
 						.is_none_or(|o| o.contains(&name.to_string()));
-					if wanted && !store.is_valid_path(path)? {
+					if let Some(path) = path
+						&& wanted && !store.is_valid_path(path)?
+					{
 						invalid.insert(path.clone());
 					}
 				}
-				if invalid.is_empty() {
+				if known_paths && invalid.is_empty() {
 					continue;
 				}
 				let env: BTreeMap<BString, BString> = drv
@@ -132,7 +130,10 @@ pub fn query_missing(
 					))
 				})?;
 				let mut must_build = true;
-				if use_substitutes && drv_options.substitutes_allowed(always_allow_substitutes) {
+				if known_paths
+					&& use_substitutes
+					&& drv_options.substitutes_allowed(always_allow_substitutes)
+				{
 					let found: Vec<StorePath> = invalid
 						.iter()
 						.filter(|p| substitutable(p).is_some())

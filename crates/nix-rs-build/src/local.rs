@@ -9,7 +9,8 @@
 //!
 //! Not supported yet: builds without a sandbox, `builtin:` builders,
 //! content-addressed floating, impure and deferred outputs,
-//! remote builders, and `--check` and `--repair` modes.
+//! remote builders and `--check` mode. Repair can rebuild damaged declared
+//! outputs; complete closure repair and repair substitution remain open.
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::fs;
@@ -48,6 +49,8 @@ fn print(path: &StorePath) -> String {
 /// way CppNix's build activities do.
 #[derive(Debug)]
 pub enum BuildEvent<'a> {
+	/// A repair checked a registered path's contents.
+	PathChecked { path: &'a StorePath, valid: bool },
 	/// A derivation is about to be built.
 	Started { drv_path: &'a StorePath },
 	/// Output from the builder.
@@ -64,6 +67,7 @@ pub struct LocalBuilder<'a> {
 	store: &'a LocalStore,
 	settings: &'a BuildSettings,
 	substituters: &'a [BinaryCache],
+	repair: bool,
 }
 
 /// An output a derivation declares, with the path it must produce.
@@ -79,6 +83,7 @@ impl<'a> LocalBuilder<'a> {
 			store,
 			settings,
 			substituters: &[],
+			repair: false,
 		}
 	}
 
@@ -87,6 +92,36 @@ impl<'a> LocalBuilder<'a> {
 	pub fn with_substituters(mut self, caches: &'a [BinaryCache]) -> Self {
 		self.substituters = caches;
 		self
+	}
+
+	/// Check registered contents as well as validity, and rebuild damaged outputs.
+	pub fn with_repair(mut self, repair: bool) -> Self {
+		self.repair = repair;
+		self
+	}
+
+	/// Build a supplied basic derivation, without registering its derivation file.
+	pub fn build_derivation(
+		&self,
+		drv_path: &StorePath,
+		drv: &UnverifiedDerivation,
+		events: &mut dyn FnMut(BuildEvent<'_>),
+	) -> Result<BTreeMap<String, StorePath>> {
+		let outputs = known_outputs(drv_path, drv)?;
+		self.report_checks(&outputs, events)?;
+		if !self.all_valid(&outputs)? {
+			events(BuildEvent::Started { drv_path });
+			let result = self.build(drv_path, drv, &outputs, events);
+			events(BuildEvent::Finished {
+				drv_path,
+				error: result.as_ref().err(),
+			});
+			result?;
+		}
+		Ok(outputs
+			.into_iter()
+			.map(|(name, output)| (name, output.path))
+			.collect())
 	}
 
 	/// Try to substitute `path`; a failure is logged, not returned.
@@ -237,6 +272,7 @@ impl<'a> LocalBuilder<'a> {
 
 		// Like `DerivationGoal`, substitute missing outputs before
 		// realising any inputs, which then may not be needed at all.
+		self.report_checks(&wanted_outputs, events)?;
 		if self.settings.use_substitutes
 			&& !self.substituters.is_empty()
 			&& !self.all_valid(&wanted_outputs)?
@@ -293,11 +329,40 @@ impl<'a> LocalBuilder<'a> {
 
 	fn all_valid(&self, outputs: &BTreeMap<String, KnownOutput>) -> Result<bool> {
 		for output in outputs.values() {
-			if !self.store.is_valid_path(&output.path)? {
+			if !self.path_valid(&output.path)? {
 				return Ok(false);
 			}
 		}
 		Ok(true)
+	}
+
+	fn report_checks(
+		&self,
+		outputs: &BTreeMap<String, KnownOutput>,
+		events: &mut dyn FnMut(BuildEvent<'_>),
+	) -> Result<()> {
+		if self.repair {
+			for output in outputs.values() {
+				if self.store.is_valid_path(&output.path)? {
+					events(BuildEvent::PathChecked {
+						path: &output.path,
+						valid: self.path_valid(&output.path)?,
+					});
+				}
+			}
+		}
+		Ok(())
+	}
+
+	fn path_valid(&self, path: &StorePath) -> Result<bool> {
+		let Some(info) = self.store.query_path_info(path)? else {
+			return Ok(false);
+		};
+		if !self.repair {
+			return Ok(true);
+		}
+		Ok(nar::hash_path(&self.store.real_path(path))
+			.is_ok_and(|(hash, size)| info.nar_hash == hash && info.nar_size == size))
 	}
 
 	/// `Store::computeFSClosure`.
@@ -446,7 +511,7 @@ impl<'a> LocalBuilder<'a> {
 			return Ok(());
 		}
 		for (output, real) in outputs.values().zip(&real_outputs) {
-			if !self.store.is_valid_path(&output.path)? && fs::symlink_metadata(real).is_ok() {
+			if !self.path_valid(&output.path)? && fs::symlink_metadata(real).is_ok() {
 				tracing::debug!("removing invalid path '{}'", print(&output.path));
 				delete_path(real)?;
 			}
@@ -529,7 +594,7 @@ impl<'a> LocalBuilder<'a> {
 		let mut scanned: BTreeMap<&str, (PathBuf, BTreeSet<StorePath>, fs::Metadata)> =
 			BTreeMap::new();
 		for (name, output) in outputs {
-			if self.store.is_valid_path(&output.path)? {
+			if self.path_valid(&output.path)? {
 				continue;
 			}
 			let actual = build.path_in_chroot(&output.path);
@@ -628,7 +693,7 @@ impl<'a> LocalBuilder<'a> {
 					info.references = others;
 					info.ca = Some(got.clone());
 					let real = self.store.real_path(&path);
-					if self.store.is_valid_path(&path)? {
+					if self.path_valid(&path)? {
 						delete_path(actual)?;
 					} else {
 						delete_path(&real)?;

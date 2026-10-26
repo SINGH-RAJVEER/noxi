@@ -276,7 +276,7 @@ impl Store for LocalBackend {
 					stderr.write_all(data)
 				}
 				BuildEvent::Started { .. } | BuildEvent::Output(_) => Ok(()),
-				BuildEvent::Finished { .. } => Ok(()),
+				BuildEvent::Finished { .. } | BuildEvent::PathChecked { .. } => Ok(()),
 			};
 		};
 		// CppNix's worker starts ready builds in the order of their goal keys,

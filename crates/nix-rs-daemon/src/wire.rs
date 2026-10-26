@@ -16,6 +16,18 @@ pub const fn version(major: u64, minor: u64) -> Version {
 	major << 8 | minor
 }
 
+/// `Version::Number::fromWire`: only the low 16 bits carry the major and
+/// minor numbers.
+pub const fn from_wire(n: u64) -> Version {
+	n & 0xffff
+}
+
+/// Worker content addresses accept unprefixed base16, Nix base32 or base64
+/// digests, as `ContentAddress::parse` does.
+pub fn parse_content_address(s: &str) -> Result<nix_compat::nixhash::CAHash> {
+	nix_compat::nixcpp::narinfo::parse_content_address(s).map_err(Error::Nix)
+}
+
 pub struct Reader<R> {
 	inner: R,
 }
@@ -42,8 +54,15 @@ impl<R: Read> Reader<R> {
 	pub fn read_bytes(&mut self) -> Result<Vec<u8>> {
 		let len = self.read_u64()?;
 		let len = usize::try_from(len).map_err(|_| Error::Protocol("string is too long".into()))?;
-		let mut bytes = vec![0u8; len];
-		self.inner.read_exact(&mut bytes).map_err(eof)?;
+		let mut bytes = Vec::new();
+		self.inner
+			.by_ref()
+			.take(len as u64)
+			.read_to_end(&mut bytes)
+			.map_err(eof)?;
+		if bytes.len() != len {
+			return Err(Error::EndOfFile);
+		}
 		let padding = (8 - len % 8) % 8;
 		let mut zeros = [0u8; 8];
 		self.inner.read_exact(&mut zeros[..padding]).map_err(eof)?;
@@ -79,8 +98,7 @@ impl<R: Read> Reader<R> {
 /// with an empty frame.
 pub struct FramedReader<'a, R: Read> {
 	from: &'a mut Reader<R>,
-	pending: Vec<u8>,
-	pos: usize,
+	remaining: u64,
 	eof: bool,
 }
 
@@ -88,8 +106,7 @@ impl<'a, R: Read> FramedReader<'a, R> {
 	pub fn new(from: &'a mut Reader<R>) -> Self {
 		Self {
 			from,
-			pending: Vec::new(),
-			pos: 0,
+			remaining: 0,
 			eof: false,
 		}
 	}
@@ -104,35 +121,32 @@ impl<'a, R: Read> FramedReader<'a, R> {
 
 impl<R: Read> Read for FramedReader<'_, R> {
 	fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
+		if buf.is_empty() {
+			return Ok(0);
+		}
 		if self.eof {
 			return Ok(0);
 		}
-		if self.pos >= self.pending.len() {
-			let len = self.from.read_u64().map_err(io::Error::other)? as usize;
-			if len == 0 {
+		if self.remaining == 0 {
+			self.remaining = self.from.read_u64().map_err(io::Error::other)?;
+			if self.remaining == 0 {
 				self.eof = true;
 				return Ok(0);
 			}
-			self.pending.resize(len, 0);
-			self.from.get_mut().read_exact(&mut self.pending)?;
-			self.pos = 0;
 		}
-		let n = buf.len().min(self.pending.len() - self.pos);
-		buf[..n].copy_from_slice(&self.pending[self.pos..self.pos + n]);
-		self.pos += n;
+		let n = (buf.len() as u64).min(self.remaining) as usize;
+		let n = self.from.get_mut().read(&mut buf[..n])?;
+		if n == 0 {
+			return Err(io::ErrorKind::UnexpectedEof.into());
+		}
+		self.remaining -= n as u64;
 		Ok(n)
 	}
 }
 
 /// CppNix's `parseStorePath` and its error messages.
 pub fn parse_store_path(s: &str) -> Result<StorePath> {
-	StorePath::from_absolute_path(s.as_bytes()).map_err(|e| {
-		if !s.starts_with(nix_compat::store_path::STORE_DIR_WITH_SLASH) {
-			Error::Nix(format!("path '{s}' is not in the Nix store"))
-		} else {
-			Error::Nix(format!("path '{s}' is not a valid store path: {e}"))
-		}
-	})
+	nix_compat::nixcpp::narinfo::parse_store_path(s).map_err(Error::Nix)
 }
 
 fn eof(e: io::Error) -> Error {

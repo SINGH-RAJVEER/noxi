@@ -6,7 +6,7 @@ use std::io::{self, BufReader, Read, Write};
 
 use nix_compat::log::VerbosityLevel;
 use nix_compat::nixbase32;
-use nix_compat::nixhash::{CAHash, HashAlgo, NixHash};
+use nix_compat::nixhash::{HashAlgo, NixHash};
 use nix_compat::store_path::StorePath;
 use nix_rs_build::local::{BuildEvent, LocalBuilder};
 use nix_rs_build::missing::{DerivedPath, query_missing};
@@ -20,8 +20,10 @@ use crate::wire::{FramedReader, Reader, Version, Writer, version};
 
 pub const WORKER_MAGIC_1: u64 = 0x6e697863;
 pub const WORKER_MAGIC_2: u64 = 0x6478696f;
-/// The newest protocol version, `WorkerProto::latest` in 2.35.2.
-pub const PROTOCOL_VERSION: Version = version(1, 39);
+/// The newest protocol version, `WorkerProto::latest` in 2.35.2. The
+/// header's `PROTOCOL_VERSION` macro says 1.39, but nothing reads it: the
+/// handshake sends `latest`, 1.38.
+pub const PROTOCOL_VERSION: Version = version(1, 38);
 /// `WorkerProto::minimum`.
 pub const MINIMUM_PROTOCOL_VERSION: Version = version(1, 18);
 /// `WorkerProto::latest.features`.
@@ -43,6 +45,8 @@ pub const STDERR_RESULT: u64 = 0x52534c54;
 pub const LVL_ERROR: u64 = 0;
 pub const LVL_WARN: u64 = 1;
 pub const LVL_INFO: u64 = 3;
+pub const LVL_TALKATIVE: u64 = 4;
+pub const LVL_DEBUG: u64 = 6;
 
 /// Worker operations, `WorkerProto::Op`.
 pub mod op {
@@ -73,11 +77,14 @@ pub mod op {
 	pub const QUERY_VALID_DERIVERS: u64 = 33;
 	pub const OPTIMISE_STORE: u64 = 34;
 	pub const VERIFY_STORE: u64 = 35;
+	pub const BUILD_DERIVATION: u64 = 36;
 	pub const ADD_SIGNATURES: u64 = 37;
 	pub const NAR_FROM_PATH: u64 = 38;
 	pub const ADD_TO_STORE_NAR: u64 = 39;
 	pub const QUERY_MISSING: u64 = 40;
 	pub const QUERY_DERIVATION_OUTPUT_MAP: u64 = 41;
+	pub const REGISTER_DRV_OUTPUT: u64 = 42;
+	pub const QUERY_REALISATION: u64 = 43;
 	pub const ADD_MULTIPLE_TO_STORE: u64 = 44;
 	pub const ADD_BUILD_LOG: u64 = 45;
 }
@@ -113,6 +120,7 @@ fn write_fields<W: Write>(out: &mut Writer<W>, fields: &[Field<'_>]) {
 }
 
 /// `ActivityType` and `ResultType` values.
+pub const ACT_UNKNOWN: u64 = 0;
 pub const ACT_BUILD: u64 = 105;
 pub const RES_BUILD_LOG_LINE: u64 = 101;
 
@@ -165,6 +173,12 @@ impl Logger {
 		text: &str,
 		fields: &[Field<'_>],
 	) -> Result<u64> {
+		if self.version < version(1, 20) {
+			if !text.is_empty() {
+				self.log(out, level, &format!("{text}..."))?;
+			}
+			return Ok(0);
+		}
 		self.next_activity += 1;
 		let id = (u64::from(std::process::id()) << 32) + self.next_activity;
 		let mut message = Writer::new(std::io::sink());
@@ -182,6 +196,9 @@ impl Logger {
 
 	/// `stopActivity`.
 	pub fn stop_activity<W: Write>(&mut self, out: &mut Writer<W>, id: u64) -> Result<()> {
+		if self.version < version(1, 20) {
+			return Ok(());
+		}
 		let mut message = Writer::new(std::io::sink());
 		message.u64(STDERR_STOP_ACTIVITY).u64(id);
 		self.enqueue(out, message.take())
@@ -195,10 +212,89 @@ impl Logger {
 		kind: u64,
 		fields: &[Field<'_>],
 	) -> Result<()> {
+		if self.version < version(1, 20) {
+			return Ok(());
+		}
 		let mut message = Writer::new(std::io::sink());
 		message.u64(STDERR_RESULT).u64(id).u64(kind);
 		write_fields(&mut message, fields);
 		self.enqueue(out, message.take())
+	}
+
+	fn build_event<W: Write>(
+		&mut self,
+		to: &mut Writer<W>,
+		event: BuildEvent<'_>,
+		mode: u64,
+		built: &mut bool,
+		buffers: &mut BTreeMap<StorePath, (u64, LineBuffer)>,
+	) -> Result<()> {
+		match event {
+			BuildEvent::PathChecked { path, valid } => {
+				self.log(
+					to,
+					LVL_INFO,
+					&format!("checking path '{}'...", path.to_absolute_path()),
+				)?;
+				if !valid {
+					self.log(
+						to,
+						LVL_WARN,
+						&format!(
+							"path '{}' is corrupted or missing!",
+							path.to_absolute_path()
+						),
+					)?;
+				}
+			}
+			BuildEvent::Started { drv_path } => {
+				*built = true;
+				let path = drv_path.to_absolute_path();
+				let id = self.start_activity(
+					to,
+					LVL_INFO,
+					ACT_BUILD,
+					&if mode == 1 {
+						format!("repairing outputs of '{path}'")
+					} else {
+						format!("building '{path}'")
+					},
+					&[
+						Field::Str(&path),
+						Field::Str(""),
+						Field::Int(1),
+						Field::Int(1),
+					],
+				)?;
+				buffers.insert(drv_path.clone(), (id, LineBuffer::default()));
+			}
+			BuildEvent::Output(data) => {
+				if let Some((id, buffer)) = buffers.values_mut().last() {
+					for line in buffer.feed(data) {
+						self.result(
+							to,
+							*id,
+							RES_BUILD_LOG_LINE,
+							&[Field::Str(&String::from_utf8_lossy(&line))],
+						)?;
+					}
+				}
+			}
+			BuildEvent::Finished { drv_path, .. } => {
+				if let Some((id, mut buffer)) = buffers.remove(drv_path) {
+					if let Some(line) = buffer.flush() {
+						self.result(
+							to,
+							id,
+							RES_BUILD_LOG_LINE,
+							&[Field::Str(&String::from_utf8_lossy(&line))],
+						)?;
+					}
+					self.stop_activity(to, id)?;
+				}
+			}
+		}
+		Ok(())
 	}
 
 	pub fn start_work<W: Write>(&mut self, out: &mut Writer<W>) -> Result<()> {
@@ -226,7 +322,16 @@ impl Logger {
 					.u64(0);
 			}
 			Some(message) => {
-				out.u64(STDERR_ERROR).string(message).u64(1);
+				let mut lines = message.split('\n');
+				let mut rendered = format!("error: {}", lines.next().unwrap_or_default());
+				for line in lines {
+					rendered.push('\n');
+					if !line.is_empty() {
+						rendered.push_str("       ");
+						rendered.push_str(line);
+					}
+				}
+				out.u64(STDERR_ERROR).string(&rendered).u64(1);
 			}
 		}
 	}
@@ -248,11 +353,12 @@ pub struct Connection<'a, R: Read, W: Write> {
 	pub trust: Trust,
 	pub store: &'a LocalStore,
 	pub settings: DaemonSettings,
+	queried_substitutes: BTreeSet<(String, StorePath)>,
 }
 
 /// `BasicServerConnection::handshake` and `postHandshake`, then the
 /// operation loop.
-pub fn process_connection<R: Read + Send, W: Write>(
+pub fn process_connection<R: Read + Send, W: Write + Send>(
 	read: R,
 	write: W,
 	store: &LocalStore,
@@ -266,7 +372,7 @@ pub fn process_connection<R: Read + Send, W: Write>(
 	}
 	to.u64(WORKER_MAGIC_2).u64(PROTOCOL_VERSION);
 	to.flush()?;
-	let client_version = from.read_u64()?;
+	let client_version = crate::wire::from_wire(from.read_u64()?);
 	let protocol = client_version.min(PROTOCOL_VERSION);
 	let mut features = BTreeSet::new();
 	if protocol >= version(1, 38) {
@@ -292,6 +398,7 @@ pub fn process_connection<R: Read + Send, W: Write>(
 		trust,
 		store,
 		settings: settings.clone(),
+		queried_substitutes: BTreeSet::new(),
 	};
 
 	// postHandshake.
@@ -320,10 +427,20 @@ pub fn process_connection<R: Read + Send, W: Write>(
 			Err(Error::EndOfFile) => return Ok(()),
 			Err(e) => return Err(e),
 		};
+		if op > u32::MAX as u64 {
+			conn.logger.stop_work(
+				&mut conn.to,
+				Some(&format!(
+					"serialised integer {op} is too large for type 'j'"
+				)),
+			);
+			conn.to.flush()?;
+			return Ok(());
+		}
 		match conn.perform_op(op) {
 			Ok(()) => {}
 			Err(Error::EndOfFile) => return Ok(()),
-			Err(e @ (Error::Io(_) | Error::Protocol(_))) => return Err(e),
+			Err(e @ Error::Io(_)) => return Err(e),
 			Err(e) => {
 				// If the error happened before the operation could send
 				// replies, the input is probably not fully read; report the
@@ -332,6 +449,8 @@ pub fn process_connection<R: Read + Send, W: Write>(
 				conn.logger.stop_work(&mut conn.to, Some(&message_of(&e)));
 				conn.to.flush()?;
 				if !error_allowed {
+					conn.logger.stop_work(&mut conn.to, Some(&message_of(&e)));
+					conn.to.flush()?;
 					return Err(e);
 				}
 			}
@@ -353,7 +472,7 @@ fn nar_hash_base16(info: &ValidPathInfo) -> String {
 	info.nar_hash.iter().map(|b| format!("{b:02x}")).collect()
 }
 
-impl<R: Read + Send, W: Write> Connection<'_, R, W> {
+impl<R: Read + Send, W: Write + Send> Connection<'_, R, W> {
 	fn start(&mut self) -> Result<()> {
 		self.logger.start_work(&mut self.to)
 	}
@@ -385,10 +504,34 @@ impl<R: Read + Send, W: Write> Connection<'_, R, W> {
 
 	fn perform_op(&mut self, op: u64) -> Result<()> {
 		match op {
+			op::REGISTER_DRV_OUTPUT | op::QUERY_REALISATION => {
+				self.start()?;
+				if !self.features.contains("realisation-with-path-not-hash") {
+					return Err(Error::Nix("the daemon is missing the 'realisation-with-path-not-hash' protocol feature, needed to support content-addressing derivations".into()));
+				}
+				let drv = self.from.read_store_path()?;
+				let output = self.from.read_string()?;
+				if op == op::REGISTER_DRV_OUTPUT {
+					let path = self.from.read_store_path()?;
+					let sigs = self.from.read_strings()?.into_iter().collect();
+					self.store
+						.register_drv_output(&drv, &output, &path, &sigs)?;
+					self.stop();
+				} else {
+					let info = self.store.query_realisation(&drv, &output)?;
+					self.stop();
+					self.to.bool(info.is_some());
+					if let Some((path, sigs)) = info {
+						self.to
+							.store_path(&path)
+							.strings(sigs.iter().map(String::as_str));
+					}
+				}
+			}
 			op::ADD_BUILD_LOG => {
 				let name = self.from.read_string()?;
-				let path = StorePath::from_bytes(name.as_bytes())
-					.map_err(|error| Error::Nix(error.to_string()))?;
+				let path = nix_compat::nixcpp::narinfo::parse_store_path_base(&name)
+					.map_err(Error::Nix)?;
 				self.start()?;
 				if self.trust != Trust::Trusted {
 					return Err(Error::Nix("you are not privileged to add logs".into()));
@@ -429,9 +572,7 @@ impl<R: Read + Send, W: Write> Connection<'_, R, W> {
 						paths.insert(self.from.read_store_path()?);
 						let ca = self.from.read_string()?;
 						if !ca.is_empty() {
-							CAHash::from_nix_hex_str(&ca).ok_or_else(|| {
-								Error::Nix(format!("invalid content address '{ca}'"))
-							})?;
+							crate::wire::parse_content_address(&ca)?;
 						}
 					}
 					paths
@@ -447,7 +588,26 @@ impl<R: Read + Send, W: Write> Connection<'_, R, W> {
 							{
 								continue;
 							}
-							if let Some(info) = cache.query_path_info(&path)? {
+							let activity = if self
+								.queried_substitutes
+								.insert((cache.uri().into(), path.clone()))
+							{
+								let text = path.to_absolute_path();
+								Some(self.logger.start_activity(
+									&mut self.to,
+									LVL_TALKATIVE,
+									109,
+									&format!("querying info about '{text}' on '{}'", cache.uri()),
+									&[Field::Str(&text), Field::Str(cache.uri())],
+								)?)
+							} else {
+								None
+							};
+							let info = cache.query_path_info(&path);
+							if let Some(id) = activity {
+								self.logger.stop_activity(&mut self.to, id)?;
+							}
+							if let Some(info) = info? {
 								infos.insert(path, info);
 								break;
 							}
@@ -522,16 +682,11 @@ impl<R: Read + Send, W: Write> Connection<'_, R, W> {
 			op::QUERY_DERIVATION_OUTPUT_MAP => {
 				let path = self.from.read_store_path()?;
 				self.start()?;
-				let drv = self.store.read_derivation(&path)?;
-				let outputs: BTreeMap<String, StorePath> = drv
-					.outputs()
-					.iter()
-					.map(|(name, path)| (name.to_string(), path.clone()))
-					.collect();
+				let outputs = self.store.query_partial_derivation_output_map(&path)?;
 				self.stop();
 				self.to.u64(outputs.len() as u64);
 				for (name, path) in &outputs {
-					self.to.string(name).store_path(path);
+					self.to.string(name).opt_store_path(path.as_ref());
 				}
 			}
 			op::QUERY_DERIVER => {
@@ -631,13 +786,22 @@ impl<R: Read + Send, W: Write> Connection<'_, R, W> {
 					);
 				}
 				self.start()?;
+				let act = self.logger.start_activity(
+					&mut self.to,
+					LVL_DEBUG,
+					ACT_UNKNOWN,
+					"querying info about missing paths",
+					&[],
+				)?;
 				let missing = query_missing(
 					self.store,
 					&self.settings.substituters,
 					self.settings.build.use_substitutes,
 					self.settings.build.always_allow_substitutes,
 					&targets,
-				)?;
+				);
+				self.logger.stop_activity(&mut self.to, act)?;
+				let missing = missing?;
 				self.stop();
 				self.to
 					.store_paths(missing.will_build.iter())
@@ -678,6 +842,7 @@ impl<R: Read + Send, W: Write> Connection<'_, R, W> {
 				self.stop();
 				self.to.string(&root.to_string_lossy());
 			}
+			op::BUILD_DERIVATION => self.build_derivation()?,
 			op::BUILD_PATHS | op::BUILD_PATHS_WITH_RESULTS => self.build_paths(op)?,
 			op::COLLECT_GARBAGE => self.collect_garbage()?,
 			op::ADD_TO_STORE_NAR => self.add_to_store_nar()?,
@@ -799,11 +964,21 @@ impl<R: Read + Send, W: Write> Connection<'_, R, W> {
 		let mut targets = Vec::new();
 		for _ in 0..n {
 			let s = self.from.read_string()?;
-			let path = DerivedPath::parse_legacy(&s, |p| {
+			let mut path = DerivedPath::parse_legacy(&s, |p| {
 				crate::wire::parse_store_path(p)
 					.map_err(|e| nix_rs_build::BuildError::Other(e.to_string()))
 			})
 			.map_err(|e| Error::Nix(e.to_string()))?;
+			if self.version < version(1, 30) {
+				if let DerivedPath::Opaque(drv) = &path {
+					if drv.name().ends_with(".drv") {
+						path = DerivedPath::Built {
+							drv_path: drv.clone(),
+							outputs: None,
+						};
+					}
+				}
+			}
 			targets.push((s, path));
 		}
 		Ok(targets)
@@ -812,9 +987,40 @@ impl<R: Read + Send, W: Write> Connection<'_, R, W> {
 	/// `WorkerProto::Op::AddToStore` for protocol 1.25 and later.
 	fn add_to_store(&mut self) -> Result<()> {
 		if self.version < version(1, 25) {
-			return Err(Error::Nix(
-				"AddToStore before protocol 1.25 is not supported".into(),
-			));
+			let name = self.from.read_string()?;
+			let fixed = self.from.read_bool()?;
+			let recursive = self.from.read_u64()?;
+			let mut algo = self.from.read_string()?;
+			if recursive > 1 {
+				return Err(Error::Nix(format!(
+					"unsupported FileIngestionMethod with value of {recursive}; you may need to upgrade nix-daemon"
+				)));
+			}
+			let method = if recursive != 0 || !fixed {
+				FileIngestionMethod::NixArchive
+			} else {
+				FileIngestionMethod::Flat
+			};
+			if !fixed {
+				algo = "sha256".into();
+			}
+			let algo = algo
+				.parse::<HashAlgo>()
+				.map_err(|_| Error::Nix(format!("unknown hash algorithm '{algo}'")))?;
+			let nar = read_nar(self.from.get_mut())?;
+			self.start()?;
+			let path = self.store.add_to_store_from_dump(
+				&mut &nar[..],
+				&name,
+				FileIngestionMethod::NixArchive,
+				method,
+				algo,
+				&BTreeSet::new(),
+				false,
+			)?;
+			self.stop();
+			self.to.store_path(&path);
+			return Ok(());
 		}
 		let name = self.from.read_string()?;
 		let method = self.from.read_string()?;
@@ -854,9 +1060,30 @@ impl<R: Read + Send, W: Write> Connection<'_, R, W> {
 			info.ultimate = false;
 		}
 		if self.version < version(1, 23) {
-			return Err(Error::Nix(
-				"AddToStoreNar before protocol 1.23 is not supported".into(),
-			));
+			if self.version >= version(1, 21) {
+				self.start()?;
+				let mut tunnel = TunnelReader {
+					from: &mut self.from,
+					to: &mut self.to,
+					pending: io::Cursor::new(Vec::new()),
+				};
+				let mut source = (&mut tunnel).take(info.nar_size);
+				let result = self.store.add_to_store(
+					&info,
+					&mut BufReader::with_capacity(65536, &mut source),
+					repair,
+					!dont_check_sigs,
+				);
+				io::copy(&mut source, &mut io::sink())?;
+				result?;
+			} else {
+				let nar = read_nar(self.from.get_mut())?;
+				self.start()?;
+				self.store
+					.add_to_store(&info, &mut &nar[..], repair, !dont_check_sigs)?;
+			}
+			self.stop();
+			return Ok(());
 		}
 		self.start()?;
 		let store = self.store;
@@ -905,6 +1132,67 @@ impl<R: Read + Send, W: Write> Connection<'_, R, W> {
 		Ok(())
 	}
 
+	/// Build the client's basic derivation without trusting its input-addressed paths.
+	fn build_derivation(&mut self) -> Result<()> {
+		let mut path = self.from.read_store_path()?;
+		if !path.name().ends_with(".drv") {
+			return Err(Error::Nix(format!(
+				"path '{}' is not a derivation",
+				path.to_absolute_path()
+			)));
+		}
+		let drv = read_basic_derivation(&mut self.from, &path)?;
+		let mode = self.from.read_u64()?;
+		self.start()?;
+		if !drv.outputs().is_fixed() && self.trust != Trust::Trusted {
+			return Err(Error::Nix(
+				"you are not privileged to build input-addressed derivations".into(),
+			));
+		}
+		if mode > 1 {
+			return Err(Error::Nix(
+				"nix-rs does not support checking builds yet".into(),
+			));
+		}
+		let store = self.store;
+		if self.trust != Trust::Trusted {
+			path = store.add_text_to_store(
+				path.name(),
+				&drv.to_aterm_bytes(),
+				drv.input_sources(),
+				false,
+			)?;
+		}
+		let builder = LocalBuilder::new(store, &self.settings.build).with_repair(mode == 1);
+		let start = now();
+		let mut built = false;
+		let mut io_error = None;
+		let mut buffers: BTreeMap<StorePath, (u64, LineBuffer)> = BTreeMap::new();
+		let logger = &mut self.logger;
+		let to = &mut self.to;
+		let mut events = |event: BuildEvent<'_>| {
+			if let Err(e) = logger.build_event(to, event, mode, &mut built, &mut buffers) {
+				io_error.get_or_insert(e);
+			}
+		};
+		let result = builder.build_derivation(&path, &drv, &mut events);
+		if let Some(e) = io_error {
+			return Err(e);
+		}
+		let result = result
+			.map(|paths| {
+				if built {
+					BuildOutcome::Built(paths)
+				} else {
+					BuildOutcome::AlreadyValid(paths)
+				}
+			})
+			.map_err(|e| (e.to_string(), failure_code(&e)));
+		self.stop();
+		self.write_build_result(result, start, now(), Some(0));
+		Ok(())
+	}
+
 	/// `BuildPaths` and `BuildPathsWithResults`.
 	fn build_paths(&mut self, op: u64) -> Result<()> {
 		let targets = self.read_derived_paths()?;
@@ -914,7 +1202,7 @@ impl<R: Read + Send, W: Write> Connection<'_, R, W> {
 				"repairing is not allowed because you are not in 'trusted-users'".into(),
 			));
 		}
-		if mode != 0 {
+		if mode > 1 {
 			return Err(Error::Nix(
 				"nix-rs does not support repairing or checking builds yet".into(),
 			));
@@ -922,8 +1210,9 @@ impl<R: Read + Send, W: Write> Connection<'_, R, W> {
 		self.start()?;
 		let store = self.store;
 		let settings = &self.settings;
-		let builder =
-			LocalBuilder::new(store, &settings.build).with_substituters(&settings.substituters);
+		let builder = LocalBuilder::new(store, &settings.build)
+			.with_substituters(&settings.substituters)
+			.with_repair(mode == 1);
 		let mut results = Vec::new();
 		let mut first_error = None;
 		for (text, target) in &targets {
@@ -954,54 +1243,9 @@ impl<R: Read + Send, W: Write> Connection<'_, R, W> {
 					let logger = &mut self.logger;
 					let to = &mut self.to;
 					let mut events = |event: BuildEvent<'_>| {
-						let result = (|| -> Result<()> {
-							match event {
-								BuildEvent::Started { drv_path } => {
-									built = true;
-									let path = drv_path.to_absolute_path();
-									let id = logger.start_activity(
-										to,
-										LVL_INFO,
-										ACT_BUILD,
-										&format!("building '{path}'"),
-										&[
-											Field::Str(&path),
-											Field::Str(""),
-											Field::Int(1),
-											Field::Int(1),
-										],
-									)?;
-									buffers.insert(drv_path.clone(), (id, LineBuffer::default()));
-								}
-								BuildEvent::Output(data) => {
-									if let Some((id, buffer)) = buffers.values_mut().last() {
-										for line in buffer.feed(data) {
-											logger.result(
-												to,
-												*id,
-												RES_BUILD_LOG_LINE,
-												&[Field::Str(&String::from_utf8_lossy(&line))],
-											)?;
-										}
-									}
-								}
-								BuildEvent::Finished { drv_path, .. } => {
-									if let Some((id, mut buffer)) = buffers.remove(drv_path) {
-										if let Some(line) = buffer.flush() {
-											logger.result(
-												to,
-												id,
-												RES_BUILD_LOG_LINE,
-												&[Field::Str(&String::from_utf8_lossy(&line))],
-											)?;
-										}
-										logger.stop_activity(to, id)?;
-									}
-								}
-							}
-							Ok(())
-						})();
-						if let Err(e) = result {
+						if let Err(e) =
+							logger.build_event(to, event, mode, &mut built, &mut buffers)
+						{
 							io_error.get_or_insert(e);
 						}
 					};
@@ -1048,37 +1292,50 @@ impl<R: Read + Send, W: Write> Connection<'_, R, W> {
 		self.to.u64(results.len() as u64);
 		for (text, result, start, stop) in results {
 			self.to.string(&text);
-			let (status, message, outputs, times_built) = match result {
-				Ok(BuildOutcome::Built(outputs)) => (0, String::new(), outputs, 1),
-				Ok(BuildOutcome::Substituted(outputs)) => (1, String::new(), outputs, 0),
-				Ok(BuildOutcome::AlreadyValid(outputs)) => (2, String::new(), outputs, 0),
-				Err((message, code)) => (code, message, BTreeMap::new(), 0),
-			};
-			self.to.u64(status).string(&message);
-			if self.version >= version(1, 29) {
-				self.to.u64(times_built).bool(false).u64(start).u64(stop);
-			}
-			if self.version >= version(1, 37) {
-				self.to.u64(0).u64(0);
-			}
-			if self.features.contains("realisation-with-path-not-hash") {
-				self.to.u64(outputs.len() as u64);
-				for (name, path) in &outputs {
-					self.to.string(name).store_path(path).u64(0);
-				}
-			} else if self.version >= version(1, 28) {
-				self.to.u64(outputs.len() as u64);
-				let dummy =
-					"sha256:0000000000000000000000000000000000000000000000000000000000000000";
-				for (name, path) in &outputs {
-					let id = format!("{dummy}!{name}");
-					self.to
-						.string(&id)
-						.string(&format!("{{\"id\":\"{id}\",\"outPath\":\"{}\"}}", path));
-				}
-			}
+			self.write_build_result(result, start, stop, None);
 		}
 		Ok(())
+	}
+
+	fn write_build_result(
+		&mut self,
+		result: std::result::Result<BuildOutcome, (String, u64)>,
+		start: u64,
+		stop: u64,
+		times: Option<u64>,
+	) {
+		let (status, message, outputs, times_built) = match result {
+			Ok(BuildOutcome::Built(outputs)) => (0, String::new(), outputs, 1),
+			Ok(BuildOutcome::Substituted(outputs)) => (1, String::new(), outputs, 0),
+			Ok(BuildOutcome::AlreadyValid(outputs)) => (2, String::new(), outputs, 0),
+			Err((message, code)) => (code, message, BTreeMap::new(), 0),
+		};
+		self.to.u64(status).string(&message);
+		if self.version >= version(1, 29) {
+			self.to
+				.u64(times.unwrap_or(times_built))
+				.bool(false)
+				.u64(start)
+				.u64(stop);
+		}
+		if self.version >= version(1, 37) {
+			self.to.u64(0).u64(0);
+		}
+		if self.features.contains("realisation-with-path-not-hash") {
+			self.to.u64(outputs.len() as u64);
+			for (name, path) in &outputs {
+				self.to.string(name).store_path(path).u64(0);
+			}
+		} else if self.version >= version(1, 28) {
+			self.to.u64(outputs.len() as u64);
+			let dummy = "sha256:0000000000000000000000000000000000000000000000000000000000000000";
+			for (name, path) in &outputs {
+				let id = format!("{dummy}!{name}");
+				self.to
+					.string(&id)
+					.string(&format!("{{\"id\":\"{id}\",\"outPath\":\"{}\"}}", path));
+			}
+		}
 	}
 
 	/// `queryPathInfo`, which fails for an invalid path.
@@ -1204,10 +1461,7 @@ pub(crate) fn read_path_info<R: Read>(
 	info.sigs = from.read_strings()?.into_iter().collect();
 	let ca = from.read_string()?;
 	if !ca.is_empty() {
-		info.ca = Some(
-			CAHash::from_nix_hex_str(&ca)
-				.ok_or_else(|| Error::Nix(format!("invalid content address '{ca}'")))?,
-		);
+		info.ca = Some(crate::wire::parse_content_address(&ca)?);
 	}
 	Ok(info)
 }
@@ -1239,6 +1493,189 @@ fn failure_code(e: &nix_rs_build::BuildError) -> u64 {
 		NotDeterministic => 12,
 		NoSubstituters => 14,
 	}
+}
+
+struct TunnelReader<'a, R: Read, W: Write> {
+	from: &'a mut Reader<R>,
+	to: &'a mut Writer<W>,
+	pending: io::Cursor<Vec<u8>>,
+}
+
+impl<R: Read, W: Write> Read for TunnelReader<'_, R, W> {
+	fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
+		if buf.is_empty() {
+			return Ok(0);
+		}
+		if self.pending.position() == self.pending.get_ref().len() as u64 {
+			self.to.u64(STDERR_READ).u64(32768);
+			self.to.flush().map_err(io::Error::other)?;
+			let chunk = self.from.read_bytes().map_err(io::Error::other)?;
+			if chunk.len() > 32768 {
+				return Err(io::Error::other("string is too long"));
+			}
+			if chunk.is_empty() {
+				return Err(io::ErrorKind::UnexpectedEof.into());
+			}
+			self.pending = io::Cursor::new(chunk);
+		}
+		self.pending.read(buf)
+	}
+}
+
+/// `readDerivation` for a BasicDerivation. ATerm preserves arbitrary byte strings
+/// and the parser shares output validation with stored derivations.
+fn read_basic_derivation<R: Read>(
+	from: &mut Reader<R>,
+	drv_path: &StorePath,
+) -> Result<nix_compat::derivation::UnverifiedDerivation> {
+	fn quote(s: &[u8]) -> Vec<u8> {
+		let mut out = vec![b'"'];
+		for &c in s {
+			match c {
+				b'"' | b'\\' => {
+					out.push(b'\\');
+					out.push(c);
+				}
+				b'\n' => out.extend_from_slice(b"\\n"),
+				b'\r' => out.extend_from_slice(b"\\r"),
+				b'\t' => out.extend_from_slice(b"\\t"),
+				_ => out.push(c),
+			}
+		}
+		out.push(b'"');
+		out
+	}
+	fn list(items: Vec<Vec<u8>>) -> Vec<u8> {
+		let mut out = vec![b'['];
+		for (i, item) in items.iter().enumerate() {
+			if i != 0 {
+				out.push(b',');
+			}
+			out.extend(item);
+		}
+		out.push(b']');
+		out
+	}
+	let mut outputs = Vec::new();
+	for _ in 0..from.read_u64()? {
+		let name = from.read_string()?;
+		let mut path = from.read_string()?;
+		let algo = from.read_string()?;
+		let hash = from.read_string()?;
+		if !algo.is_empty() && !hash.is_empty() && hash != "impure" {
+			// A fixed output's supplied path is syntax only. Recompute the
+			// actual path from its hash even for a trusted client.
+			crate::wire::parse_store_path(&path)?;
+			let ca = crate::wire::parse_content_address(&format!("fixed:{algo}:{hash}"))?;
+			let mut info = ValidPathInfo::new(
+				StorePath::from_bytes(
+					format!(
+						"00000000000000000000000000000000-{}{}",
+						drv_path.name().strip_suffix(".drv").unwrap(),
+						if name == "out" {
+							String::new()
+						} else {
+							format!("-{name}")
+						}
+					)
+					.as_bytes(),
+				)
+				.map_err(|e| Error::Nix(e.to_string()))?,
+				[0; 32],
+			);
+			info.ca = Some(ca);
+			path = info
+				.ca_path()
+				.ok_or_else(|| Error::Nix("invalid fixed-output path".into()))?
+				.to_absolute_path();
+		}
+		let fields = vec![
+			quote(name.as_bytes()),
+			quote(path.as_bytes()),
+			quote(algo.as_bytes()),
+			quote(hash.as_bytes()),
+		];
+		let mut tuple = list(fields);
+		tuple[0] = b'(';
+		*tuple.last_mut().unwrap() = b')';
+		outputs.push(tuple);
+	}
+	let mut sources = Vec::new();
+	for path in from.read_store_paths()? {
+		sources.push(quote(path.to_absolute_path().as_bytes()));
+	}
+	let system = quote(&from.read_bytes()?);
+	let builder = quote(&from.read_bytes()?);
+	let mut args = Vec::new();
+	for _ in 0..from.read_u64()? {
+		args.push(quote(&from.read_bytes()?));
+	}
+	let mut env = BTreeMap::new();
+	for _ in 0..from.read_u64()? {
+		let key = from.read_bytes()?;
+		env.insert(key, from.read_bytes()?);
+	}
+	let env = env
+		.into_iter()
+		.map(|(k, v)| {
+			let mut tuple = list(vec![quote(&k), quote(&v)]);
+			tuple[0] = b'(';
+			*tuple.last_mut().unwrap() = b')';
+			tuple
+		})
+		.collect();
+	let fields = vec![
+		list(outputs),
+		b"[]".to_vec(),
+		list(sources),
+		system,
+		builder,
+		list(args),
+		list(env),
+	];
+	let mut term = list(fields);
+	term[0] = b'(';
+	*term.last_mut().unwrap() = b')';
+	let mut bytes = b"Derive".to_vec();
+	bytes.extend(term);
+	nix_compat::derivation::UnverifiedDerivation::from_aterm_bytes(&bytes)
+		.map_err(|e| Error::Nix(format!("error parsing derivation: {e:?}")))
+}
+
+/// Read exactly one legacy NAR without buffering bytes of the next request.
+fn read_nar<R: Read + Send>(from: &mut R) -> Result<Vec<u8>> {
+	struct Recording<'a, R> {
+		from: &'a mut R,
+		bytes: Vec<u8>,
+	}
+	impl<R: Read> Read for Recording<'_, R> {
+		fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
+			let n = self.from.read(buf)?;
+			self.bytes.extend_from_slice(&buf[..n]);
+			Ok(n)
+		}
+	}
+	fn drain(node: nix_compat::nar::reader::Node<'_, '_>) -> io::Result<()> {
+		use nix_compat::nar::reader::Node;
+		match node {
+			Node::Symlink { .. } => Ok(()),
+			Node::File { mut reader, .. } => reader.copy(io::sink()),
+			Node::Directory(mut dir) => {
+				while let Some(entry) = dir.next()? {
+					drain(entry.node)?;
+				}
+				Ok(())
+			}
+		}
+	}
+	let mut recording = Recording {
+		from,
+		bytes: Vec::new(),
+	};
+	drain(nix_compat::nar::reader::open(
+		&mut BufReader::with_capacity(1, &mut recording),
+	)?)?;
+	Ok(recording.bytes)
 }
 
 fn now() -> u64 {
