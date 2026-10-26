@@ -632,11 +632,10 @@ where
 						);
 						Thunk::new_closure_with_upvalues(blueprint, upvalues)
 					} else {
-						Thunk::new_suspended_with_upvalues(
-							blueprint,
-							frame.current_span(),
-							upvalues,
-						)
+						let span = blueprint
+							.suspended_span
+							.unwrap_or_else(|| frame.current_span());
+						Thunk::new_suspended_with_upvalues(blueprint, span, upvalues)
 					};
 
 					// Recursive captures remain deferred until Op::Finalise.

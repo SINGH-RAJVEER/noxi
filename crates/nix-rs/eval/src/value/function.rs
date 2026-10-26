@@ -83,6 +83,10 @@ pub struct Lambda {
 
 	/// Where that selection starts, CppNix's position for its errors.
 	pub(crate) select_span: Option<Span>,
+
+	/// For the blueprint of a suspended thunk, the span its creating
+	/// instruction records, fixed when it is compiled.
+	pub(crate) suspended_span: Option<Span>,
 }
 
 impl Lambda {

@@ -1475,6 +1475,22 @@ impl Compiler<'_, '_> {
 			compiled.captures_with_stack,
 		);
 
+		// The VM creates the thunk after reading these operands, at the span
+		// the last of them maps to, so record that span instead of looking it
+		// up for every thunk. Dead code emits no instruction to take it from.
+		if is_suspended_thunk && self.dead_scope == 0 {
+			let chunk = self.chunk();
+			let span = chunk.get_span(CodeIdx(chunk.code.len() - 1));
+			match &mut chunk.constants[blueprint_idx.0] {
+				Value::Blueprint(lambda) => {
+					Rc::get_mut(lambda)
+						.expect("a new blueprint has no other references")
+						.suspended_span = Some(span)
+				}
+				_ => unreachable!("the blueprint was just pushed"),
+			}
+		}
+
 		if !is_suspended_thunk && !self.scope()[outer_slot].needs_finaliser {
 			if !self.scope()[outer_slot].must_thunk {
 				// The closure has upvalues, but is not recursive. Therefore no
