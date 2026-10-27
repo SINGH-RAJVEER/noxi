@@ -315,8 +315,11 @@ pub fn run_cancellable(
 		drop(builder);
 		return Err(BuildError::failed(FailureStatus::TimedOut, message));
 	}
-	// The builder may have closed the terminal before exiting.
+	// The builder may have closed the terminal before exiting. Its files
+	// close before it becomes a zombie, so this is the common case; wake on
+	// its pidfd rather than sleeping a fixed interval.
 	let mut builder = builder;
+	let exited = pidfd_open(builder.0.expect("builder is running"));
 	let status = loop {
 		let mut status = 0;
 		// SAFETY: the PID belongs to this builder, and status is writable.
@@ -357,9 +360,33 @@ pub fn run_cancellable(
 				),
 			));
 		}
-		std::thread::sleep(Duration::from_millis(10));
+		match &exited {
+			Some(fd) => wait_readable(fd, Duration::from_millis(100)),
+			None => std::thread::sleep(Duration::from_millis(10)),
+		}
 	};
 	Ok(ExitStatus(status))
+}
+
+/// A descriptor that becomes readable when `pid` exits, if the kernel
+/// supports pidfds.
+fn pidfd_open(pid: libc::pid_t) -> Option<OwnedFd> {
+	// SAFETY: pidfd_open takes a PID and flags and returns a new descriptor.
+	let fd = unsafe { libc::syscall(libc::SYS_pidfd_open, pid, 0) };
+	// SAFETY: a non-negative result is a descriptor owned by nobody else.
+	(fd >= 0).then(|| unsafe { OwnedFd::from_raw_fd(fd as RawFd) })
+}
+
+/// Wait until `fd` is readable or `timeout` passes.
+fn wait_readable(fd: &OwnedFd, timeout: Duration) {
+	let mut pfd = libc::pollfd {
+		fd: fd.as_raw_fd(),
+		events: libc::POLLIN,
+		revents: 0,
+	};
+	// SAFETY: one valid pollfd. Errors and interruptions only end the wait
+	// early, after which the caller checks the builder again.
+	unsafe { libc::poll(&mut pfd, 1, timeout.as_millis() as libc::c_int) };
 }
 
 /// The started builder. Dropping it before [`Builder::wait`] kills and
