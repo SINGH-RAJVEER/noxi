@@ -9,9 +9,7 @@ use bstr::BString;
 use nix_compat::cppnix_json::derivation::{Derivation as JsonDerivation, Features};
 use nix_compat::derivation::{OutputName, UnverifiedDerivation};
 use nix_compat::store_path::{StorePath, downstream_placeholder};
-use nix_rs_build::options::{
-	self, DerivationOptions, DerivedInput, DrvRef, Input, OutputChecksSpec,
-};
+use noxi_build::options::{self, DerivationOptions, DerivedInput, DrvRef, Input, OutputChecksSpec};
 use serde_json::Value;
 
 const ROOT: &str = "../../tests/nix/src/libstore-tests/data/derivation";

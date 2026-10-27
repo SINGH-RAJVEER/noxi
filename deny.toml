@@ -1,4 +1,4 @@
-# cargo-deny license policy for the nixrs preview dependency graph.
+# cargo-deny license policy for the noxi preview dependency graph.
 #
 # Run with `just licenses`. The accepted set matches about.toml, which generates
 # THIRD_PARTY.md. Licenses here are all compatible with distributing the

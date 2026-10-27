@@ -1,0 +1,66 @@
+[package]
+name = "noxi-commands"
+version = "0.0.1"
+rust-version.workspace = true
+edition = "2024"
+description = "CppNix-compatible command implementations for noxi"
+license = "GPL-3.0-only"
+repository = "https://github.com/SINGH-RAJVEER/nix-rs"
+
+# Named like the CppNix commands they replace, so they are not installed by
+# the preview flake package and never shadow a system Nix.
+[[bin]]
+name = "nix"
+path = "src/bin/nix.rs"
+
+[[bin]]
+name = "nix-hash"
+path = "src/bin/nix-hash.rs"
+
+[[bin]]
+name = "nix-shell"
+path = "src/bin/nix-shell.rs"
+
+[[bin]]
+name = "nix-copy-closure"
+path = "src/bin/nix-copy-closure.rs"
+
+[[bin]]
+name = "nix-instantiate"
+path = "src/bin/nix-instantiate.rs"
+
+[[bin]]
+name = "nix-build"
+path = "src/bin/nix-build.rs"
+
+[[bin]]
+name = "nix-store"
+path = "src/bin/nix-store.rs"
+
+[[bin]]
+name = "nix-collect-garbage"
+path = "src/bin/nix-collect-garbage.rs"
+
+[[bin]]
+name = "nix-env"
+path = "src/bin/nix-env.rs"
+
+[dependencies]
+bytes.workspace = true
+mimalloc.workspace = true
+nix-compat = { package = "noxi-compat", path = "../noxi/nix-compat", version = "0.0.1" }
+noxi-eval = { path = "../noxi/eval", version = "0.0.1", default-features = false, features = ["impure"] }
+noxi-build = { path = "../noxi-build", version = "0.0.1" }
+noxi-daemon = { path = "../noxi-daemon", version = "0.0.1" }
+noxi-glue = { path = "../noxi-glue", version = "0.0.1" }
+noxi-store = { path = "../noxi-store", version = "0.0.1" }
+regex.workspace = true
+libc.workspace = true
+rustc-hash.workspace = true
+smol_str.workspace = true
+tempfile.workspace = true
+serde_json.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true
+serde_json.workspace = true

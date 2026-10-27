@@ -1,9 +1,9 @@
 //! The local store checked against the pinned CppNix 2.35.2 reference in
-//! both directions: stores nix-rs writes must open, verify and report the
+//! both directions: stores noxi writes must open, verify and report the
 //! same metadata in the reference, and stores the reference writes must
-//! read back identically in nix-rs.
+//! read back identically in noxi.
 //!
-//! The reference executables come from `NIXRS_REFERENCE_BIN` or
+//! The reference executables come from `NOXI_REFERENCE_BIN` or
 //! `target/nix-reference/bin` (`just reference`). Every command runs
 //! against a temporary `--store ROOT` with an empty configuration directory,
 //! so neither implementation touches `/nix/store`.
@@ -16,17 +16,17 @@ use std::process::{Command, Output};
 
 use nix_compat::nixhash::{CAHash, HashAlgo, NixHash};
 use nix_compat::store_path::StorePath;
-use nix_rs_store::{FileIngestionMethod, LocalStore, LocalStoreConfig, ValidPathInfo};
+use noxi_store::{FileIngestionMethod, LocalStore, LocalStoreConfig, ValidPathInfo};
 use serde_json::Value;
 
 fn reference_bin() -> PathBuf {
-	if let Some(dir) = std::env::var_os("NIXRS_REFERENCE_BIN") {
+	if let Some(dir) = std::env::var_os("NOXI_REFERENCE_BIN") {
 		return PathBuf::from(dir);
 	}
 	let dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../target/nix-reference/bin");
 	assert!(
 		dir.join("nix-store").exists(),
-		"the CppNix reference is missing; run `just reference` or set NIXRS_REFERENCE_BIN"
+		"the CppNix reference is missing; run `just reference` or set NOXI_REFERENCE_BIN"
 	);
 	dir
 }
@@ -127,7 +127,7 @@ fn sp(abs: &str) -> StorePath {
 	StorePath::from_absolute_path(abs.trim().as_bytes()).unwrap()
 }
 
-/// Check one nix-rs path info against the reference's JSON for it.
+/// Check one noxi path info against the reference's JSON for it.
 fn assert_matches_reference(info: &ValidPathInfo, json: &Value) {
 	let path = info.path.to_absolute_path();
 	assert_eq!(
@@ -267,7 +267,7 @@ fn fresh_store_matches_the_reference_layout_and_opens_in_the_reference() {
 }
 
 #[test]
-fn nix_rs_paths_have_reference_paths_and_verify_in_the_reference() {
+fn noxi_paths_have_reference_paths_and_verify_in_the_reference() {
 	let env = Env::new();
 	let src = env.dir.path().join("src");
 	fs::create_dir(&src).unwrap();
@@ -280,7 +280,7 @@ fn nix_rs_paths_have_reference_paths_and_verify_in_the_reference() {
 
 	let store = env.open();
 	let mut nar = Vec::new();
-	nix_rs_store::nar::dump_path(&mut nar, &src).unwrap();
+	noxi_store::nar::dump_path(&mut nar, &src).unwrap();
 	let recursive = store
 		.add_to_store_from_dump(
 			&mut &nar[..],
@@ -376,7 +376,7 @@ fn nix_rs_paths_have_reference_paths_and_verify_in_the_reference() {
 }
 
 #[test]
-fn reference_paths_and_derivations_read_back_in_nix_rs() {
+fn reference_paths_and_derivations_read_back_in_noxi() {
 	let env = Env::new();
 	let file = env.dir.path().join("f");
 	fs::write(&file, "hello\n").unwrap();
@@ -413,7 +413,7 @@ fn reference_paths_and_derivations_read_back_in_nix_rs() {
 		Some(CAHash::Nar(_))
 	));
 
-	// The reference recorded the derivation's outputs; nix-rs reads them,
+	// The reference recorded the derivation's outputs; noxi reads them,
 	// and finds the derivation from each output.
 	let outputs = store.query_derivation_outputs(&drv).unwrap();
 	assert_eq!(outputs.keys().cloned().collect::<Vec<_>>(), ["dev", "out"]);
@@ -442,7 +442,7 @@ fn reference_paths_and_derivations_read_back_in_nix_rs() {
 		);
 	}
 
-	// The reference's text paths are reproduced by nix-rs, which then
+	// The reference's text paths are reproduced by noxi, which then
 	// registers the derivation's outputs itself after checking them.
 	let drv_text = fs::read(
 		env.root()
@@ -510,9 +510,9 @@ fn nar_imports_check_hashes_and_register_metadata() {
 	fs::create_dir(&source).unwrap();
 	fs::write(source.join("ref"), dep.to_absolute_path()).unwrap();
 	let mut nar = Vec::new();
-	nix_rs_store::nar::dump_path(&mut nar, &source).unwrap();
+	noxi_store::nar::dump_path(&mut nar, &source).unwrap();
 	let (nar_hash, nar_size) = {
-		let mut sink = nix_rs_store::nar::HashSink::new();
+		let mut sink = noxi_store::nar::HashSink::new();
 		std::io::Write::write_all(&mut sink, &nar).unwrap();
 		sink.finish()
 	};
@@ -620,7 +620,7 @@ fn reference_cycles_and_vanished_paths_are_handled() {
 		let content = env.dir.path().join(name);
 		fs::write(&content, name).unwrap();
 		let mut nar = Vec::new();
-		nix_rs_store::nar::dump_path(&mut nar, &content).unwrap();
+		noxi_store::nar::dump_path(&mut nar, &content).unwrap();
 		(
 			nar,
 			StorePath::from_bytes(
@@ -632,7 +632,7 @@ fn reference_cycles_and_vanished_paths_are_handled() {
 	let (nar_a, a) = make("a");
 	let (_, b) = make("bb");
 	let (nar_hash, nar_size) = {
-		let mut sink = nix_rs_store::nar::HashSink::new();
+		let mut sink = noxi_store::nar::HashSink::new();
 		std::io::Write::write_all(&mut sink, &nar_a).unwrap();
 		sink.finish()
 	};

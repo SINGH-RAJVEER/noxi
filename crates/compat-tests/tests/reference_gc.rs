@@ -4,7 +4,7 @@
 //! that refer to each other and to the test busybox, an unbuilt
 //! derivation, added sources, and roots of each kind (a direct link, an
 //! indirect `--add-root` link, and a `nix-env` profile). The store is then
-//! copied twice, and the reference collects one copy while nix-rs collects
+//! copied twice, and the reference collects one copy while noxi collects
 //! the other.
 //!
 //! The busybox is rooted directly because sandboxed builds elsewhere may map
@@ -17,8 +17,8 @@ use std::path::{Path, PathBuf};
 use std::process::{Command, Output};
 
 use nix_compat::store_path::StorePath;
-use nix_rs_store::gc::{GcAction, GcOptions};
-use nix_rs_store::{LocalStore, LocalStoreConfig};
+use noxi_store::gc::{GcAction, GcOptions};
+use noxi_store::{LocalStore, LocalStoreConfig};
 
 fn from_env_or_target(var: &str, target: &str, probe: &str) -> PathBuf {
 	if let Some(path) = std::env::var_os(var) {
@@ -41,7 +41,7 @@ struct Env {
 
 impl Env {
 	fn command(&self, program: &str, args: &[&str]) -> Command {
-		let bin = from_env_or_target("NIXRS_REFERENCE_BIN", "nix-reference/bin", "nix-store");
+		let bin = from_env_or_target("NOXI_REFERENCE_BIN", "nix-reference/bin", "nix-store");
 		let mut command = Command::new(bin.join(program));
 		command
 			.args(args)
@@ -85,7 +85,7 @@ impl Env {
 			fs::create_dir(dir.path().join(sub)).unwrap();
 		}
 		let busybox = fs::canonicalize(from_env_or_target(
-			"NIXRS_TEST_BUSYBOX",
+			"NOXI_TEST_BUSYBOX",
 			"test-busybox",
 			"bin/busybox",
 		))
@@ -273,7 +273,7 @@ fn deleted_lines(stderr: &str) -> BTreeSet<String> {
 fn roots_match_the_reference() {
 	let (env, _) = Env::new();
 	env.copy("reference");
-	env.copy("nix-rs");
+	env.copy("noxi");
 	let reference: BTreeSet<String> = env
 		.reference_ok(
 			"nix-store",
@@ -287,17 +287,17 @@ fn roots_match_the_reference() {
 		.lines()
 		.map(|l| env.normalise("reference", l))
 		.collect();
-	let store = env.open("nix-rs");
-	let mut nix_rs = BTreeSet::new();
+	let store = env.open("noxi");
+	let mut noxi = BTreeSet::new();
 	for (path, links) in store.find_roots(false, &mut |_| {}).unwrap() {
 		for link in links {
-			nix_rs.insert(env.normalise(
-				"nix-rs",
+			noxi.insert(env.normalise(
+				"noxi",
 				&format!("\"{link}\" -> {}", path.to_absolute_path()),
 			));
 		}
 	}
-	assert_eq!(nix_rs, reference);
+	assert_eq!(noxi, reference);
 	assert!(
 		reference.iter().any(|l| l.contains("links/c")),
 		"{reference:?}"
@@ -312,8 +312,8 @@ fn roots_match_the_reference() {
 fn live_and_dead_paths_match_the_reference() {
 	let (env, _) = Env::new();
 	env.copy("reference");
-	env.copy("nix-rs");
-	let store = env.open("nix-rs");
+	env.copy("noxi");
+	let store = env.open("noxi");
 	for (flag, action) in [
 		("--print-live", GcAction::ReturnLive),
 		("--print-dead", GcAction::ReturnDead),
@@ -326,11 +326,11 @@ fn live_and_dead_paths_match_the_reference() {
 			.lines()
 			.map(str::to_owned)
 			.collect();
-		let nix_rs = store
+		let noxi = store
 			.collect_garbage(&GcOptions::new(action), &mut |_| {})
 			.unwrap()
 			.paths;
-		assert_eq!(nix_rs, reference, "{flag}");
+		assert_eq!(noxi, reference, "{flag}");
 	}
 }
 
@@ -338,7 +338,7 @@ fn live_and_dead_paths_match_the_reference() {
 fn collection_deletes_what_the_reference_deletes() {
 	let (env, _) = Env::new();
 	env.copy("reference");
-	env.copy("nix-rs");
+	env.copy("noxi");
 	let output = env.reference(
 		"nix-store",
 		&["--store", &env.store_arg("reference"), "--gc"],
@@ -348,7 +348,7 @@ fn collection_deletes_what_the_reference_deletes() {
 	let reference_deleted = deleted_lines(&stderr);
 	assert!(!reference_deleted.is_empty());
 
-	let store = env.open("nix-rs");
+	let store = env.open("noxi");
 	let mut log = Vec::new();
 	let results = store
 		.collect_garbage(&GcOptions::new(GcAction::DeleteDead), &mut |l| {
@@ -358,13 +358,13 @@ fn collection_deletes_what_the_reference_deletes() {
 	drop(store);
 	assert_eq!(results.paths, reference_deleted);
 	assert_eq!(deleted_lines(&log.join("\n")), reference_deleted);
-	assert_eq!(env.valid_paths("nix-rs"), env.valid_paths("reference"));
+	assert_eq!(env.valid_paths("noxi"), env.valid_paths("reference"));
 	let freed = String::from_utf8_lossy(&output.stdout);
 	assert!(
 		freed.contains(&format!("{} store paths deleted", reference_deleted.len())),
 		"{freed}"
 	);
-	env.verify("nix-rs");
+	env.verify("noxi");
 	env.verify("reference");
 }
 
@@ -372,8 +372,8 @@ fn collection_deletes_what_the_reference_deletes() {
 fn deleting_specific_paths_matches_the_reference() {
 	let (env, graph) = Env::new();
 	env.copy("reference");
-	env.copy("nix-rs");
-	let store = env.open("nix-rs");
+	env.copy("noxi");
+	let store = env.open("noxi");
 
 	// A live path: c's output is rooted.
 	let c_out = env
@@ -406,7 +406,7 @@ fn deleting_specific_paths_matches_the_reference() {
 		.to_string();
 	assert!(
 		stderr.contains(&error),
-		"nix-rs: {error}\nreference: {stderr}"
+		"noxi: {error}\nreference: {stderr}"
 	);
 
 	// A dead path: the unbuilt derivation.
@@ -431,19 +431,19 @@ fn deleting_specific_paths_matches_the_reference() {
 		deleted_lines(&String::from_utf8_lossy(&output.stderr))
 	);
 	drop(store);
-	assert_eq!(env.valid_paths("nix-rs"), env.valid_paths("reference"));
-	env.verify("nix-rs");
+	assert_eq!(env.valid_paths("noxi"), env.valid_paths("reference"));
+	env.verify("noxi");
 }
 
-/// A temporary root added by the reference while nix-rs collects reaches
-/// nix-rs's GC socket and keeps the path.
+/// A temporary root added by the reference while noxi collects reaches
+/// noxi's GC socket and keeps the path.
 #[test]
 fn collection_honours_roots_from_the_gc_socket() {
 	let (env, _) = Env::new();
-	env.copy("nix-rs");
+	env.copy("noxi");
 	// The added extra file is garbage; keep it alive through a client that
 	// connects while the collector holds the lock.
-	let store = env.open("nix-rs");
+	let store = env.open("noxi");
 	let dead = store
 		.collect_garbage(&GcOptions::new(GcAction::ReturnDead), &mut |_| {})
 		.unwrap()
@@ -457,7 +457,7 @@ fn collection_honours_roots_from_the_gc_socket() {
 
 	// A second handle in another thread adds the root once collection has
 	// started, through the socket.
-	let root = env.root("nix-rs");
+	let root = env.root("noxi");
 	let mut options = GcOptions::new(GcAction::DeleteDead);
 	options.paths = Some(
 		dead.iter()
@@ -471,10 +471,10 @@ fn collection_honours_roots_from_the_gc_socket() {
 		move || {
 			// Wait until the collector holds the lock exclusively.
 			let file = fs::File::open(&gc_lock).unwrap();
-			while nix_rs_store::lock::lock_file(&file, nix_rs_store::lock::LockType::Read, false)
+			while noxi_store::lock::lock_file(&file, noxi_store::lock::LockType::Read, false)
 				.unwrap()
 			{
-				nix_rs_store::lock::lock_file(&file, nix_rs_store::lock::LockType::None, false)
+				noxi_store::lock::lock_file(&file, noxi_store::lock::LockType::None, false)
 					.unwrap();
 				std::thread::sleep(std::time::Duration::from_millis(1));
 			}

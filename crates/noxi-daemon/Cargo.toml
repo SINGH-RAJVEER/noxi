@@ -1,0 +1,20 @@
+[package]
+name = "noxi-daemon"
+version = "0.0.1"
+rust-version.workspace = true
+edition = "2024"
+description = "A Nix daemon for the noxi engine, speaking CppNix's worker protocol"
+license = "GPL-3.0-only"
+repository = "https://github.com/SINGH-RAJVEER/nix-rs"
+publish = ["crates-io"]
+
+[dependencies]
+libc.workspace = true
+nix-compat = { package = "noxi-compat", path = "../noxi/nix-compat", version = "0.0.1" }
+noxi-build = { path = "../noxi-build", version = "0.0.1" }
+noxi-store = { path = "../noxi-store", version = "0.0.1" }
+thiserror.workspace = true
+tracing.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true

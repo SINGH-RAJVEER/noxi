@@ -7,10 +7,10 @@
 //! schema with SQLite, the way those schemas differ from version 10: no
 //! `ca`, `ultimate` or `sigs` columns, a `FailedPaths` table, no
 //! `SchemaMigrations` table and the `IndexReferrer` index. Each state is
-//! copied; the reference opens one copy and nix-rs the other, and the
+//! copied; the reference opens one copy and noxi the other, and the
 //! resulting databases must be identical.
 //!
-//! The reference executables come from `NIXRS_REFERENCE_BIN` or
+//! The reference executables come from `NOXI_REFERENCE_BIN` or
 //! `target/nix-reference/bin` (`just reference`). Every store is a temporary
 //! `--store ROOT`.
 //!
@@ -20,16 +20,16 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output};
 
-use nix_rs_store::{LocalStore, LocalStoreConfig, Realisation};
+use noxi_store::{LocalStore, LocalStoreConfig, Realisation};
 
 fn reference_bin() -> PathBuf {
-	if let Some(dir) = std::env::var_os("NIXRS_REFERENCE_BIN") {
+	if let Some(dir) = std::env::var_os("NOXI_REFERENCE_BIN") {
 		return PathBuf::from(dir);
 	}
 	let dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../target/nix-reference/bin");
 	assert!(
 		dir.join("nix-store").exists(),
-		"the CppNix reference is missing; run `just reference` or set NIXRS_REFERENCE_BIN"
+		"the CppNix reference is missing; run `just reference` or set NOXI_REFERENCE_BIN"
 	);
 	dir
 }
@@ -98,7 +98,7 @@ impl Env {
 		config
 	}
 
-	fn open(&self, name: &str, ca_derivations: bool) -> nix_rs_store::Result<LocalStore> {
+	fn open(&self, name: &str, ca_derivations: bool) -> noxi_store::Result<LocalStore> {
 		LocalStore::open(self.config(name, ca_derivations))
 	}
 
@@ -276,7 +276,7 @@ fn fresh_stores_with_and_without_ca_derivations_match_the_reference() {
 	let env = Env::new();
 	for (features, ca) in [("", false), ("ca-derivations", true)] {
 		let reference = format!("reference-{ca}");
-		let nix_rs = format!("nix-rs-{ca}");
+		let noxi = format!("noxi-{ca}");
 		env.reference_ok(
 			features,
 			"nix",
@@ -287,10 +287,10 @@ fn fresh_stores_with_and_without_ca_derivations_match_the_reference() {
 				env.root(&reference).to_str().unwrap(),
 			],
 		);
-		drop(env.open(&nix_rs, ca).unwrap());
-		assert_eq!(env.dump(&nix_rs), env.dump(&reference), "ca = {ca}");
+		drop(env.open(&noxi, ca).unwrap());
+		assert_eq!(env.dump(&noxi), env.dump(&reference), "ca = {ca}");
 		// Each engine reopens the other's store unchanged.
-		let before = env.dump(&nix_rs);
+		let before = env.dump(&noxi);
 		env.reference_ok(
 			features,
 			"nix",
@@ -298,28 +298,28 @@ fn fresh_stores_with_and_without_ca_derivations_match_the_reference() {
 				"store",
 				"info",
 				"--store",
-				env.root(&nix_rs).to_str().unwrap(),
+				env.root(&noxi).to_str().unwrap(),
 			],
 		);
-		assert_eq!(env.dump(&nix_rs), before, "ca = {ca}");
+		assert_eq!(env.dump(&noxi), before, "ca = {ca}");
 		drop(env.open(&reference, ca).unwrap());
 		assert_eq!(env.dump(&reference), before, "ca = {ca}");
 	}
 
 	// Enabling the feature later applies the same migration in both.
 	env.copy("reference-false", "late-reference");
-	env.copy("reference-false", "late-nix-rs");
+	env.copy("reference-false", "late-noxi");
 	assert!(
 		env.reference_open("ca-derivations", "late-reference")
 			.status
 			.success()
 	);
-	drop(env.open("late-nix-rs", true).unwrap());
-	assert_eq!(env.dump("late-nix-rs"), env.dump("late-reference"));
-	assert_eq!(env.dump("late-nix-rs"), env.dump("reference-true"));
+	drop(env.open("late-noxi", true).unwrap());
+	assert_eq!(env.dump("late-noxi"), env.dump("late-reference"));
+	assert_eq!(env.dump("late-noxi"), env.dump("reference-true"));
 	// Disabling it again leaves the realisation tables alone.
-	drop(env.open("late-nix-rs", false).unwrap());
-	assert_eq!(env.dump("late-nix-rs"), env.dump("reference-true"));
+	drop(env.open("late-noxi", false).unwrap());
+	assert_eq!(env.dump("late-noxi"), env.dump("reference-true"));
 }
 
 #[test]
@@ -330,11 +330,11 @@ fn legacy_schemas_upgrade_like_the_reference() {
 		for (features, ca) in [("", false), ("ca-derivations", true)] {
 			let old = format!("old-{version}-{ca}");
 			let reference = format!("reference-{version}-{ca}");
-			let nix_rs = format!("nix-rs-{version}-{ca}");
+			let noxi = format!("noxi-{version}-{ca}");
 			env.copy("base", &old);
 			env.downgrade(&old, version);
 			env.copy(&old, &reference);
-			env.copy(&old, &nix_rs);
+			env.copy(&old, &noxi);
 
 			let output = env.reference_open(features, &reference);
 			assert!(
@@ -342,19 +342,19 @@ fn legacy_schemas_upgrade_like_the_reference() {
 				"{}",
 				String::from_utf8_lossy(&output.stderr)
 			);
-			drop(env.open(&nix_rs, ca).unwrap());
+			drop(env.open(&noxi, ca).unwrap());
 			assert_eq!(
-				env.dump(&nix_rs),
+				env.dump(&noxi),
 				env.dump(&reference),
 				"schema {version}, ca = {ca}"
 			);
 
 			// The upgraded store needs nothing more from either engine.
-			let upgraded = env.dump(&nix_rs);
-			env.reference_verify(&nix_rs);
-			assert!(env.reference_open(features, &nix_rs).status.success());
+			let upgraded = env.dump(&noxi);
+			env.reference_verify(&noxi);
+			assert!(env.reference_open(features, &noxi).status.success());
 			drop(env.open(&reference, ca).unwrap());
-			assert_eq!(env.dump(&nix_rs), upgraded);
+			assert_eq!(env.dump(&noxi), upgraded);
 			assert_eq!(env.dump(&reference), upgraded);
 		}
 	}
@@ -378,40 +378,37 @@ fn unsupported_schemas_are_refused_like_the_reference() {
 		.enumerate()
 	{
 		let reference = format!("reference-{i}");
-		let nix_rs = format!("nix-rs-{i}");
-		for name in [&reference, &nix_rs] {
+		let noxi = format!("noxi-{i}");
+		for name in [&reference, &noxi] {
 			env.copy("base", name);
 			fs::write(env.schema_file(name), schema).unwrap();
 		}
 		let expected = reference_error(&env.reference_open("", &reference));
-		let error = env.open(&nix_rs, false).unwrap_err();
+		let error = env.open(&noxi, false).unwrap_err();
 		assert_eq!(
 			error.to_string(),
 			expected.replace(
 				env.root(&reference).to_str().unwrap(),
-				env.root(&nix_rs).to_str().unwrap()
+				env.root(&noxi).to_str().unwrap()
 			),
 			"schema {schema:?}"
 		);
 		assert_eq!(
-			env.dump(&nix_rs).last(),
+			env.dump(&noxi).last(),
 			env.dump(&reference).last(),
 			"schema {schema:?}"
 		);
-		assert_eq!(
-			fs::read_to_string(env.schema_file(&nix_rs)).unwrap(),
-			schema
-		);
+		assert_eq!(fs::read_to_string(env.schema_file(&noxi)).unwrap(), schema);
 	}
 
 	// A schema of 0 is a new store; the existing database is kept.
-	for name in ["reference-zero", "nix-rs-zero"] {
+	for name in ["reference-zero", "noxi-zero"] {
 		env.copy("base", name);
 		fs::write(env.schema_file(name), "0").unwrap();
 	}
 	assert!(env.reference_open("", "reference-zero").status.success());
-	drop(env.open("nix-rs-zero", false).unwrap());
-	assert_eq!(env.dump("nix-rs-zero"), env.dump("reference-zero"));
+	drop(env.open("noxi-zero", false).unwrap());
+	assert_eq!(env.dump("noxi-zero"), env.dump("reference-zero"));
 }
 
 #[test]
@@ -432,29 +429,29 @@ fn read_only_opens_match_the_reference() {
 		&["store", "info", "--store", &read_only("reference-missing")],
 	);
 	assert_eq!(
-		open_read_only("nix-rs-missing").unwrap_err().to_string(),
+		open_read_only("noxi-missing").unwrap_err().to_string(),
 		reference_error(&output)
 	);
-	for name in ["reference-9", "nix-rs-9"] {
+	for name in ["reference-9", "noxi-9"] {
 		env.copy("base", name);
 		env.downgrade(name, 9);
 	}
-	let before = env.dump("nix-rs-9");
+	let before = env.dump("noxi-9");
 	let output = env.reference(
 		"",
 		"nix",
 		&["store", "info", "--store", &read_only("reference-9")],
 	);
 	assert_eq!(
-		open_read_only("nix-rs-9").unwrap_err().to_string(),
+		open_read_only("noxi-9").unwrap_err().to_string(),
 		reference_error(&output)
 	);
-	assert_eq!(env.dump("nix-rs-9"), before);
+	assert_eq!(env.dump("noxi-9"), before);
 	assert_eq!(env.dump("reference-9"), before);
 
 	// A current store opens, answers queries and is not written, even
 	// when a named migration would be missing.
-	for name in ["reference-ro", "nix-rs-ro"] {
+	for name in ["reference-ro", "noxi-ro"] {
 		env.copy("base", name);
 		env.db(name)
 			.execute_batch("drop table SchemaMigrations")
@@ -475,13 +472,13 @@ fn read_only_opens_match_the_reference() {
 		files.sort();
 		files
 	};
-	let before = db_files("nix-rs-ro");
+	let before = db_files("noxi-ro");
 	let paths = env.reference_ok(
 		"",
 		"nix",
 		&["path-info", "--all", "--store", &read_only("reference-ro")],
 	);
-	let store = open_read_only("nix-rs-ro").unwrap();
+	let store = open_read_only("noxi-ro").unwrap();
 	let mut ours: Vec<String> = store
 		.query_all_valid_paths()
 		.unwrap()
@@ -498,8 +495,8 @@ fn read_only_opens_match_the_reference() {
 			.is_err()
 	);
 	drop(store);
-	assert_eq!(db_files("nix-rs-ro"), before);
-	assert_eq!(env.dump("reference-ro"), env.dump("nix-rs-ro"));
+	assert_eq!(db_files("noxi-ro"), before);
+	assert_eq!(env.dump("reference-ro"), env.dump("noxi-ro"));
 }
 
 #[test]

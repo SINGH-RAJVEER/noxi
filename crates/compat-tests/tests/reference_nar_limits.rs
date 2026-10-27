@@ -2,9 +2,9 @@
 //! CppNix 2.35.2 reference.
 //!
 //! Each archive is given to the reference's `nix-store --restore` and to
-//! nix-rs's sync and async readers and `nix_rs_store::nar::restore_path`.
+//! noxi's sync and async readers and `noxi_store::nar::restore_path`.
 //! All must accept or reject it alike. The nesting limit's error message
-//! must also match; nix-rs's other reader errors carry no CppNix message.
+//! must also match; noxi's other reader errors carry no CppNix message.
 //! Dumping a tree that is nested too deep is compared with
 //! `nix-store --dump`.
 
@@ -31,7 +31,7 @@ fn from_env_or_target(var: &str, target: &str, probe: &str) -> PathBuf {
 }
 
 fn reference(dir: &Path, args: &[&str], input: &[u8]) -> Output {
-	let bin = from_env_or_target("NIXRS_REFERENCE_BIN", "nix-reference/bin", "nix-store");
+	let bin = from_env_or_target("NOXI_REFERENCE_BIN", "nix-reference/bin", "nix-store");
 	let mut child = Command::new(bin.join("nix-store"))
 		.args(args)
 		.env_clear()
@@ -161,8 +161,8 @@ async fn drain_async(node: nar::reader::r#async::Node<'_, '_>) -> io::Result<()>
 	Ok(())
 }
 
-/// The outcome of each nix-rs reader: `Ok`, or the error's message.
-fn nix_rs_outcomes(bytes: &[u8], dir: &Path) -> [Result<(), String>; 3] {
+/// The outcome of each noxi reader: `Ok`, or the error's message.
+fn noxi_outcomes(bytes: &[u8], dir: &Path) -> [Result<(), String>; 3] {
 	let sync = nar::reader::open(&mut Cursor::new(bytes)).and_then(drain_sync);
 	let runtime = tokio::runtime::Builder::new_current_thread()
 		.build()
@@ -172,7 +172,7 @@ fn nix_rs_outcomes(bytes: &[u8], dir: &Path) -> [Result<(), String>; 3] {
 		let node = nar::reader::r#async::open(&mut reader).await?;
 		drain_async(node).await
 	});
-	let restored = nix_rs_store::nar::restore_path(&dir.join("nix-rs"), &mut Cursor::new(bytes));
+	let restored = noxi_store::nar::restore_path(&dir.join("noxi"), &mut Cursor::new(bytes));
 	[sync, r#async, restored].map(|result| result.map_err(|e| e.to_string()))
 }
 
@@ -326,7 +326,7 @@ fn archives_at_the_format_limits_are_read_like_the_reference() {
 		assert_eq!(output.status.success(), *ok, "{index} {name}: {stderr}");
 		for (reader, outcome) in ["sync", "async", "restore"]
 			.iter()
-			.zip(nix_rs_outcomes(bytes, dir.path()))
+			.zip(noxi_outcomes(bytes, dir.path()))
 		{
 			assert_eq!(outcome.is_ok(), *ok, "{name}, {reader}: {outcome:?}");
 			if stderr.contains(DEPTH_ERROR) {
@@ -339,10 +339,10 @@ fn archives_at_the_format_limits_are_read_like_the_reference() {
 		if *ok {
 			// The restored trees are the same.
 			let mut reference_nar = Vec::new();
-			nix_rs_store::nar::dump_path(&mut reference_nar, &out).unwrap();
-			let mut nix_rs_nar = Vec::new();
-			nix_rs_store::nar::dump_path(&mut nix_rs_nar, &dir.path().join("nix-rs")).unwrap();
-			assert_eq!(nix_rs_nar, reference_nar, "{name}");
+			noxi_store::nar::dump_path(&mut reference_nar, &out).unwrap();
+			let mut noxi_nar = Vec::new();
+			noxi_store::nar::dump_path(&mut noxi_nar, &dir.path().join("noxi")).unwrap();
+			assert_eq!(noxi_nar, reference_nar, "{name}");
 		}
 	}
 }
@@ -362,7 +362,7 @@ fn dumping_a_tree_nested_too_deep_fails_like_the_reference() {
 		}
 		let output = reference(dir.path(), &["--dump", root.to_str().unwrap()], b"");
 		let mut nar = Vec::new();
-		let result = nix_rs_store::nar::dump_path(&mut nar, &root);
+		let result = noxi_store::nar::dump_path(&mut nar, &root);
 		let ok = depth == 63 && !leaf;
 		assert_eq!(output.status.success(), ok, "{}", root.display());
 		match result {

@@ -1,13 +1,13 @@
 //! Fetcher attribute builtins checked against the pinned reference process.
 
 use nix_compat::nixcpp::settings::Settings;
-use nix_rs_commands::instantiate;
+use noxi_commands::instantiate;
 use std::path::Path;
 use std::process::{Command, ExitCode};
 
 #[test]
 fn flake_reference_attribute_builtins_match_reference_values() {
-	let reference = std::env::var_os("NIXRS_REFERENCE_BIN")
+	let reference = std::env::var_os("NOXI_REFERENCE_BIN")
 		.map(std::path::PathBuf::from)
 		.unwrap_or_else(|| {
 			Path::new(env!("CARGO_MANIFEST_DIR")).join("../../target/nix-reference/bin")

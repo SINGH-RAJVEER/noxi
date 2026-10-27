@@ -15,7 +15,7 @@ use nix_compat::cppnix_json::derivation_hash::{Error, SingleDerivedPath};
 use nix_compat::derivation::OutputName;
 use nix_compat::nixhash::HashAlgo;
 use nix_compat::store_path::StorePath;
-use nix_rs_build::options::DerivationOptions;
+use noxi_build::options::DerivationOptions;
 use serde_json::Value;
 
 const ROOT: &str = "../../tests/nix/src/libstore-tests/data/derivation";

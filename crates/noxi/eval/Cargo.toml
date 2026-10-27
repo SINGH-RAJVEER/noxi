@@ -1,0 +1,82 @@
+[package]
+name = "noxi-eval"
+version = "0.0.1"
+edition = "2024"
+rust-version.workspace = true
+description = "Nix language parser, compiler and bytecode evaluator for noxi, derived from snix-eval"
+license = "GPL-3.0-only"
+repository = "https://github.com/SINGH-RAJVEER/nix-rs"
+
+[lib]
+name = "noxi_eval"
+
+[dependencies]
+builtin-macros = { path = "./builtin-macros", version = "0.0.1", package = "noxi-eval-builtin-macros" }
+bytes.workspace = true
+bstr = { workspace = true, features = ["serde"] }
+codemap.workspace = true
+codemap-diagnostic.workspace = true
+genawaiter.workspace = true
+hashbrown.workspace = true
+itertools.workspace = true
+noxi-hash = { path = "../../noxi-hash", version = "0.0.1" }
+lexical-core = { workspace = true, features = ["format", "parse-floats"] }
+os_str_bytes = { workspace = true, features = ["conversions"] }
+path-clean.workspace = true
+proptest = { workspace = true, features = [
+	"std",
+	"alloc",
+	"tempfile",
+], optional = true }
+regex.workspace = true
+rnix.workspace = true
+rowan.workspace = true # pinned by rnix
+serde = { workspace = true, features = ["rc", "derive"] }
+serde_json.workspace = true
+smol_str.workspace = true
+tabwriter.workspace = true
+test-strategy = { workspace = true, optional = true }
+toml = "0.6.0"
+sha2.workspace = true
+sha1.workspace = true
+md-5.workspace = true
+data-encoding.workspace = true
+rustc-hash.workspace = true
+vu128.workspace = true
+thiserror.workspace = true
+
+[dev-dependencies]
+criterion.workspace = true
+itertools.workspace = true
+mimalloc.workspace = true
+pretty_assertions = { workspace = true, features = ["unstable"] }
+rstest.workspace = true
+tempfile.workspace = true
+
+[features]
+default = ["impure", "arbitrary", "nix_tests"]
+
+# Enables running the Nix language test suite from the original C++
+# Nix implementation (at version 2.3) against noxi.
+nix_tests = []
+
+# Enables operations in the VM which depend on the ability to perform I/O
+impure = []
+
+# Enables Arbitrary impls for internal types (required to run tests)
+arbitrary = ["proptest", "test-strategy"]
+
+# Don't leak strings (enable this if you care about peak memory usage of eval)
+#
+# This is intended as a stop-gap until we have a garbage collector
+no_leak = []
+
+[[bench]]
+name = "eval"
+harness = false
+
+[package.metadata.docs.rs]
+all-features = true
+
+[package.metadata.cargo-machete]
+ignored = ["md-5"]

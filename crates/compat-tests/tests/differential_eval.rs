@@ -136,7 +136,7 @@ fn timed_out_case_is_recorded_as_a_mismatch() {
 	);
 	let output = Command::new(env!("CARGO_BIN_EXE_differential-eval"))
 		.args([&reference, &candidate, &report])
-		.env("NIXRS_DIFF_TIMEOUT_MS", "100")
+		.env("NOXI_DIFF_TIMEOUT_MS", "100")
 		.output()
 		.expect("run differential evaluator");
 	assert_eq!(output.status.code(), Some(1), "{output:?}");

@@ -112,11 +112,11 @@ fn reference_rejects_malformed_hashes() {
 /// The `nix` and `nix-hash` commands run against the pinned reference's,
 /// with stdout, stderr and the exit status compared.
 ///
-/// The reference executables come from `NIXRS_REFERENCE_BIN` or
+/// The reference executables come from `NOXI_REFERENCE_BIN` or
 /// `target/nix-reference/bin` (`just reference`). The candidate is the
-/// `nix` executable of nix-rs-commands, from `NIXRS_CANDIDATE_BIN` or next
+/// `nix` executable of noxi-commands, from `NOXI_CANDIDATE_BIN` or next
 /// in the profile directory above this test. `nextest --workspace` builds it first;
-/// with `-p nixrs-compat-tests` alone, build nix-rs-commands beforehand.
+/// with `-p noxi-compat-tests` alone, build noxi-commands beforehand.
 /// Both run with an empty environment and configuration, and each program
 /// name is passed as `argv[0]`, which selects `nix-hash`.
 mod commands {
@@ -129,19 +129,19 @@ mod commands {
 	const BLAKE3: &str = "6437b3ac38465133ffb63b75273a8db548c558465d79db03fd359c6cd5bd9d85";
 
 	fn reference_bin() -> PathBuf {
-		if let Some(path) = std::env::var_os("NIXRS_REFERENCE_BIN") {
+		if let Some(path) = std::env::var_os("NOXI_REFERENCE_BIN") {
 			return PathBuf::from(path);
 		}
 		let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../target/nix-reference/bin");
 		assert!(
 			path.join("nix").exists(),
-			"nix-reference/bin is missing; run `just reference` or set NIXRS_REFERENCE_BIN"
+			"nix-reference/bin is missing; run `just reference` or set NOXI_REFERENCE_BIN"
 		);
 		path
 	}
 
 	fn candidate() -> PathBuf {
-		if let Some(path) = std::env::var_os("NIXRS_CANDIDATE_BIN") {
+		if let Some(path) = std::env::var_os("NOXI_CANDIDATE_BIN") {
 			return PathBuf::from(path).join("nix");
 		}
 		// The test runs from below target/<profile>, where the executables are.
@@ -153,7 +153,7 @@ mod commands {
 		let path = profile.unwrap_or(exe.parent().unwrap()).join("nix");
 		assert!(
 			path.exists(),
-			"{} is missing; build nix-rs-commands first or set NIXRS_CANDIDATE_BIN",
+			"{} is missing; build noxi-commands first or set NOXI_CANDIDATE_BIN",
 			path.display()
 		);
 		path
@@ -436,7 +436,7 @@ mod commands {
 			assert_eq!(output.status.code(), Some(1), "{program}");
 			assert_eq!(
 				String::from_utf8_lossy(&output.stderr),
-				format!("error: {program} is not supported by nix-rs yet\n")
+				format!("error: {program} is not supported by noxi yet\n")
 			);
 		}
 	}

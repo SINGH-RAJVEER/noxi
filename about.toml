@@ -1,7 +1,7 @@
 # cargo-about configuration for THIRD_PARTY.md.
 #
 # Regenerate with `just third-party` (see docs/licensing.md). Every license that
-# can appear in the nixrs preview dependency graph must be listed here, so an
+# can appear in the noxi preview dependency graph must be listed here, so an
 # unexpected license fails generation instead of slipping into a release notice.
 
 accepted = [

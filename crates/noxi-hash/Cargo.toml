@@ -1,0 +1,31 @@
+[package]
+name = "noxi-hash"
+version.workspace = true
+rust-version.workspace = true
+edition = "2024"
+description = "Nix hash formats and Nix base32 encoding"
+license = "GPL-3.0-only"
+repository = "https://github.com/SINGH-RAJVEER/nix-rs"
+
+[features]
+async = ["dep:tokio", "dep:tokio-util"]
+serde = ["dep:serde", "dep:serde_with"]
+
+[dependencies]
+blake3.workspace = true
+bstr.workspace = true
+data-encoding.workspace = true
+md-5.workspace = true
+serde = { workspace = true, optional = true }
+serde_with = { workspace = true, optional = true }
+sha1.workspace = true
+sha2.workspace = true
+thiserror.workspace = true
+tokio = { workspace = true, features = ["io-util"], optional = true }
+tokio-util = { workspace = true, features = ["io"], optional = true }
+
+[dev-dependencies]
+hex-literal.workspace = true
+rstest.workspace = true
+rstest_reuse.workspace = true
+serde_json.workspace = true
