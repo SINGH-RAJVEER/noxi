@@ -6,6 +6,7 @@ use std::fs::File;
 use std::io::{self, Seek, Write};
 use std::path::Path;
 
+use aho_corasick::{AhoCorasick, MatchKind};
 use nix_compat::nixhash::{HashAlgo, NixHash, NixHashDigester};
 
 use crate::{FileIngestionMethod, Result, delete_path, nar};
@@ -14,11 +15,28 @@ use crate::{FileIngestionMethod, Result, delete_path, nar};
 /// replacements must preserve it, so NAR framing and padding stay valid.
 struct Rewriter<W> {
 	inner: W,
-	rewrites: BTreeMap<Vec<u8>, Vec<u8>>,
+	matcher: PatternSearch,
+	replacements: Vec<Vec<u8>>,
 	pending: Vec<u8>,
 	position: u64,
 	matches: Vec<u64>,
 	width: usize,
+}
+
+enum PatternSearch {
+	Single(memchr::memmem::Finder<'static>),
+	Multiple(AhoCorasick),
+}
+
+impl PatternSearch {
+	fn find(&self, bytes: &[u8]) -> Option<(usize, usize)> {
+		match self {
+			Self::Single(finder) => finder.find(bytes).map(|start| (start, 0)),
+			Self::Multiple(matcher) => matcher
+				.find(bytes)
+				.map(|found| (found.start(), found.pattern().as_usize())),
+		}
+	}
 }
 
 impl<W: Write> Rewriter<W> {
@@ -30,9 +48,22 @@ impl<W: Write> Rewriter<W> {
 					.iter()
 					.all(|(k, v)| k.len() == width && v.len() == width)
 		);
+		let matcher = if rewrites.len() == 1 {
+			PatternSearch::Single(
+				memchr::memmem::Finder::new(rewrites.keys().next().unwrap()).into_owned(),
+			)
+		} else {
+			PatternSearch::Multiple(
+				AhoCorasick::builder()
+					.match_kind(MatchKind::LeftmostFirst)
+					.build(rewrites.keys())
+					.expect("store hash rewrite patterns fit in a matcher"),
+			)
+		};
 		Self {
 			inner,
-			rewrites,
+			matcher,
+			replacements: rewrites.into_values().collect(),
 			pending: Vec::new(),
 			position: 0,
 			matches: Vec::new(),
@@ -41,19 +72,16 @@ impl<W: Write> Rewriter<W> {
 	}
 
 	fn drain(&mut self, finish: bool) -> io::Result<()> {
-		let mut consumed = 0;
+		// Retain only starts that could become a match on the next write.
+		let mut consumed = self.pending.len().saturating_sub(self.width - 1);
 		let mut unwritten = 0;
-		while consumed + self.width <= self.pending.len() {
-			let key = &self.pending[consumed..consumed + self.width];
-			if let Some(replacement) = self.rewrites.get(key) {
-				self.inner.write_all(&self.pending[unwritten..consumed])?;
-				self.inner.write_all(replacement)?;
-				self.matches.push(self.position + consumed as u64);
-				consumed += self.width;
-				unwritten = consumed;
-			} else {
-				consumed += 1;
-			}
+		while let Some((offset, pattern)) = self.matcher.find(&self.pending[unwritten..]) {
+			let start = unwritten + offset;
+			self.inner.write_all(&self.pending[unwritten..start])?;
+			self.inner.write_all(&self.replacements[pattern])?;
+			self.matches.push(self.position + start as u64);
+			unwritten = start + self.width;
+			consumed = consumed.max(unwritten);
 		}
 		if finish {
 			consumed = self.pending.len();
@@ -138,6 +166,38 @@ mod tests {
 	use super::*;
 	use sha2::{Digest, Sha256};
 	use std::fs;
+
+	#[test]
+	fn rewriting_matches_leftmost_nonoverlapping_search_at_every_chunk_size() {
+		let rewrites = BTreeMap::from([
+			(b"aaaa".to_vec(), b"1111".to_vec()),
+			(b"aaab".to_vec(), b"2222".to_vec()),
+			(b"\0abc".to_vec(), b"3333".to_vec()),
+		]);
+		let input = b"aaaaaaaabx\0abcaaabaaaaaaa";
+		let mut expected = Vec::new();
+		let mut offsets = Vec::new();
+		let mut pos = 0;
+		while pos < input.len() {
+			if let Some(value) = input.get(pos..pos + 4).and_then(|key| rewrites.get(key)) {
+				expected.extend_from_slice(value);
+				offsets.push(pos as u64);
+				pos += 4;
+			} else {
+				expected.push(input[pos]);
+				pos += 1;
+			}
+		}
+		for chunk_size in 1..=input.len() {
+			let mut writer = Rewriter::new(Vec::new(), rewrites.clone());
+			for chunk in input.chunks(chunk_size) {
+				writer.write_all(chunk).unwrap();
+			}
+			writer.drain(true).unwrap();
+			assert_eq!(writer.inner, expected, "chunk size {chunk_size}");
+			assert_eq!(writer.matches, offsets, "chunk size {chunk_size}");
+		}
+	}
 
 	#[test]
 	fn matches_across_chunks_include_positions() {
