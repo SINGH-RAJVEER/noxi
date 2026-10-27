@@ -653,11 +653,15 @@ impl LocalStore {
 				continue;
 			}
 			if !cache.trusted && self.path_info_is_untrusted(&cached.info) {
-				tracing::warn!(
-					"ignoring substitute for '{}' from '{}', as it's not signed by any of the keys in 'trusted-public-keys'",
-					print(path),
-					cache.uri
-				);
+				// No tracing subscriber prints warnings; CppNix's `warn`
+				// reaches standard error.
+				if nix_compat::log::log_enabled(nix_compat::log::VerbosityLevel::Warn) {
+					eprintln!(
+						"warning: ignoring substitute for '{}' from '{}', as it's not signed by any of the keys in 'trusted-public-keys'",
+						print(path),
+						cache.uri
+					);
+				}
 				continue;
 			}
 			for reference in &cached.info.references {
