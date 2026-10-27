@@ -140,6 +140,16 @@ impl<T, S: GetSpan, IO> WithSpan<T, S, IO> for Result<T, ErrorKind> {
 								vm.source.clone(),
 							);
 						}
+						Frame::Builtin { name, span, .. } => {
+							error = Error::new(
+								ErrorKind::NativeError {
+									err: Box::new(error),
+									gen_type: name,
+								},
+								*span,
+								vm.source.clone(),
+							);
+						}
 						Frame::Force { span, .. } => {
 							error = Error::new(
 								ErrorKind::NativeError {
@@ -256,6 +266,14 @@ impl BytecodeFrame {
 /// When a frame has been fully executed, it is removed from the VM's frame
 /// stack and expected to leave a result [`Value`] on the top of the stack.
 enum Frame {
+	/// A synchronous builtin awaiting its next strict argument.
+	Builtin {
+		name: &'static str,
+		pending: crate::value::PendingBuiltin,
+		span: Span,
+		depth: usize,
+		trace: FrameTrace,
+	},
 	/// BytecodeFrame represents the execution of nix-rs bytecode within a thunk,
 	/// function or closure.
 	BytecodeFrame {
@@ -359,6 +377,7 @@ impl Frame {
 		match self {
 			Frame::BytecodeFrame { span, .. }
 			| Frame::Generator { span, .. }
+			| Frame::Builtin { span, .. }
 			| Frame::Force { span, .. } => *span,
 		}
 	}
@@ -366,7 +385,7 @@ impl Frame {
 	fn trace(&self) -> &FrameTrace {
 		match self {
 			Frame::BytecodeFrame { bytecode_frame, .. } => &bytecode_frame.trace,
-			Frame::Generator { trace, .. } => trace,
+			Frame::Generator { trace, .. } | Frame::Builtin { trace, .. } => trace,
 			Frame::Force { .. } => NO_TRACE,
 		}
 	}
@@ -584,6 +603,51 @@ where
 			self.reasonable_span = frame.span();
 			let frame_id = self.frames.len();
 			match frame {
+				Frame::Builtin {
+					name,
+					mut pending,
+					span,
+					depth,
+					trace,
+				} => {
+					self.current = (frame_id, trace);
+					self.call_depth = depth;
+					self.observer
+						.observe_enter_generator(frame_id, name, &self.stack);
+					let value = pending.awaiting_value().then(|| self.stack_pop());
+					match pending.advance(value, span) {
+						Ok(thunk) => {
+							self.frames.push(Frame::Builtin {
+								name,
+								pending,
+								span,
+								depth,
+								trace: std::mem::take(&mut self.current.1),
+							});
+							self.enqueue_force(span, thunk);
+							self.observer
+								.observe_suspend_generator(frame_id, name, &self.stack);
+						}
+						Err(BuiltinResult::Synchronous(result)) => {
+							let value = result.with_span(span, &self)?;
+							let value = self.trace_catchable(value, None, None);
+							self.stack.push(value);
+							self.observer
+								.observe_exit_generator(frame_id, name, &self.stack);
+						}
+						Err(BuiltinResult::Called(name, generator)) => {
+							self.frames.push(Frame::Generator {
+								name,
+								generator,
+								span,
+								depth,
+								state: GeneratorState::Running,
+								trace: std::mem::take(&mut self.current.1),
+							});
+						}
+						Err(_) => unreachable!("pending builtin returned a partial application"),
+					}
+				}
 				Frame::BytecodeFrame {
 					bytecode_frame,
 					span,
@@ -798,7 +862,7 @@ where
 					let callable = self.stack_pop();
 					if let Value::Builtin(builtin) = callable {
 						let builtin_name = builtin.name();
-						match self.apply_builtin(builtin) {
+						match self.apply_builtin(builtin, || frame.current_span()) {
 							BuiltinResult::Partial(partial) => {
 								self.stack.push(Value::Builtin(partial))
 							}
@@ -1599,13 +1663,13 @@ where
 		builtin: Builtin,
 	) -> EvalResult<()> {
 		let builtin_name = builtin.name();
-		let result = self.apply_builtin(builtin);
+		let result = self.apply_builtin(builtin, || span);
 		self.finish_builtin(span, call_site, builtin_name, result)
 	}
 
-	fn apply_builtin(&mut self, builtin: Builtin) -> BuiltinResult {
+	fn apply_builtin(&mut self, builtin: Builtin, span: impl FnOnce() -> Span) -> BuiltinResult {
 		self.observer.observe_enter_builtin(builtin.name());
-		builtin.apply(self.stack_pop())
+		builtin.apply_at(self.stack_pop(), span)
 	}
 
 	fn finish_builtin(
@@ -1616,6 +1680,13 @@ where
 		result: BuiltinResult,
 	) -> EvalResult<()> {
 		match result {
+			BuiltinResult::Pending(name, pending) => self.frames.push(Frame::Builtin {
+				name,
+				pending,
+				span,
+				depth: self.call_depth,
+				trace: FrameTrace::Builtin { name, call_site },
+			}),
 			// Partially applied builtin is just pushed back on the stack.
 			BuiltinResult::Partial(partial) => self.stack.push(Value::Builtin(partial)),
 			BuiltinResult::Synchronous(result) => {

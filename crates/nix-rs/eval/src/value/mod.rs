@@ -33,6 +33,7 @@ use crate::vm::generators::{self, GenCo};
 pub(crate) use attrs::AttrPositions;
 pub use attrs::NixAttrs;
 pub(crate) use attrs::cppnix_attribute_order;
+pub(crate) use builtin::PendingBuiltin;
 pub use builtin::{Builtin, BuiltinResult};
 pub(crate) use function::Formals;
 pub use function::{Closure, Lambda};

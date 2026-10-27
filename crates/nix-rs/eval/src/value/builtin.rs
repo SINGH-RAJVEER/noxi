@@ -5,8 +5,9 @@
 
 use crate::errors::ErrorKind;
 use crate::vm::generators::Generator;
+use codemap::Span;
 
-use super::Value;
+use super::{Thunk, Value};
 
 use std::{
 	fmt::{Debug, Display},
@@ -40,7 +41,22 @@ pub struct BuiltinRepr {
 #[derive(Clone)]
 struct SynchronousBuiltin {
 	strict: &'static [bool],
-	func: Rc<dyn Fn(Vec<Value>) -> Result<Value, ErrorKind>>,
+	func: SynchronousBody,
+}
+
+#[derive(Clone)]
+enum SynchronousBody {
+	Plain(Rc<dyn Fn(Vec<Value>) -> Result<Value, ErrorKind>>),
+	Spanned(Rc<dyn Fn(Span, Vec<Value>) -> Result<Value, ErrorKind>>),
+}
+
+impl SynchronousBody {
+	fn call(&self, args: Vec<Value>, span: impl FnOnce() -> Span) -> Result<Value, ErrorKind> {
+		match self {
+			Self::Plain(func) => func(args),
+			Self::Spanned(func) => func(span(), args),
+		}
+	}
 }
 
 pub enum BuiltinResult {
@@ -53,6 +69,66 @@ pub enum BuiltinResult {
 
 	/// A builtin whose body and arguments do not need to suspend.
 	Synchronous(Result<Value, ErrorKind>),
+
+	/// A synchronous body whose strict arguments still need evaluation.
+	Pending(&'static str, PendingBuiltin),
+}
+
+/// Argument forcing for a synchronous builtin, resumed by the VM frame loop.
+pub struct PendingBuiltin {
+	builtin: Builtin,
+	args: Vec<Value>,
+	next: usize,
+}
+
+impl PendingBuiltin {
+	pub(crate) fn awaiting_value(&self) -> bool {
+		self.next != 0
+	}
+
+	/// Force strict arguments from left to right. Catchable arguments go back
+	/// through the generated wrapper, which implements `#[catch]` and stops
+	/// before forcing later arguments when the error must propagate.
+	pub(crate) fn advance(
+		&mut self,
+		value: Option<Value>,
+		span: Span,
+	) -> Result<Thunk, BuiltinResult> {
+		if let Some(value) = value {
+			self.args[self.next - 1] = value;
+			if self.args[self.next - 1].is_catchable() {
+				return Err(self.fallback());
+			}
+		}
+		let sync = self.builtin.0.synchronous.as_ref().unwrap();
+		while self.next < self.args.len() {
+			let index = self.next;
+			self.next += 1;
+			if !sync.strict[index] {
+				continue;
+			}
+			match std::mem::replace(&mut self.args[index], Value::Null) {
+				Value::Thunk(thunk) => match thunk.force_if_evaluated() {
+					Ok(value) => self.args[index] = value,
+					Err(thunk) => return Ok(thunk),
+				},
+				value => self.args[index] = value,
+			}
+			if self.args[index].is_catchable() {
+				return Err(self.fallback());
+			}
+		}
+		Err(BuiltinResult::Synchronous(
+			sync.func.call(std::mem::take(&mut self.args), || span),
+		))
+	}
+
+	fn fallback(&mut self) -> BuiltinResult {
+		BuiltinResult::Called(
+			self.builtin.name(),
+			(self.builtin.0.func)(std::mem::take(&mut self.args)),
+		)
+	}
 }
 
 /// Represents a single built-in function which directly executes Rust
@@ -96,7 +172,7 @@ impl Builtin {
 
 	/// Register a synchronous body alongside its ordinary forcing generator.
 	/// The macro supplies the same argument order and catchable propagation to
-	/// both bodies. Unforced strict arguments always use the generator.
+	/// both bodies. The VM forces strict arguments before calling the body.
 	pub fn new_with_sync<F, S>(
 		name: &'static str,
 		documentation: Option<&'static str>,
@@ -113,7 +189,30 @@ impl Builtin {
 		let mut builtin = Self::new(name, documentation, arg_count, func);
 		Rc::get_mut(&mut builtin.0).unwrap().synchronous = Some(SynchronousBuiltin {
 			strict,
-			func: Rc::new(synchronous),
+			func: SynchronousBody::Plain(Rc::new(synchronous)),
+		});
+		builtin
+	}
+
+	/// Register a synchronous body that needs the call's source position.
+	/// Builtins without a position parameter avoid looking it up.
+	pub fn new_with_sync_span<F, S>(
+		name: &'static str,
+		documentation: Option<&'static str>,
+		arg_count: usize,
+		func: F,
+		strict: &'static [bool],
+		synchronous: S,
+	) -> Self
+	where
+		F: BuiltinGen + 'static,
+		S: Fn(Span, Vec<Value>) -> Result<Value, ErrorKind> + 'static,
+	{
+		assert_eq!(strict.len(), arg_count);
+		let mut builtin = Self::new(name, documentation, arg_count, func);
+		Rc::get_mut(&mut builtin.0).unwrap().synchronous = Some(SynchronousBuiltin {
+			strict,
+			func: SynchronousBody::Spanned(Rc::new(synchronous)),
 		});
 		builtin
 	}
@@ -156,7 +255,12 @@ impl Builtin {
 
 	/// Apply and call without copying shared metadata on the final argument.
 	/// Cloned partial applications retain independent argument vectors.
-	pub(crate) fn apply(mut self, arg: Value) -> BuiltinResult {
+	#[cfg(test)]
+	pub(crate) fn apply(self, arg: Value) -> BuiltinResult {
+		self.apply_at(arg, || panic!("builtin did not request a span"))
+	}
+
+	pub(crate) fn apply_at(mut self, arg: Value, span: impl FnOnce() -> Span) -> BuiltinResult {
 		if self.0.partials.len() + 1 == self.0.arg_count {
 			let mut args = match Rc::get_mut(&mut self.0) {
 				Some(repr) => std::mem::take(&mut repr.partials),
@@ -177,7 +281,16 @@ impl Builtin {
 							.expect("checked memoized argument");
 					}
 				}
-				BuiltinResult::Synchronous((sync.func)(args))
+				BuiltinResult::Synchronous(sync.func.call(args, span))
+			} else if self.0.synchronous.is_some() {
+				BuiltinResult::Pending(
+					self.0.name,
+					PendingBuiltin {
+						builtin: self,
+						args,
+						next: 0,
+					},
+				)
 			} else {
 				BuiltinResult::Called(self.0.name, (self.0.func)(args))
 			}

@@ -991,7 +991,7 @@ pub(crate) async fn request_read_dir(co: &GenCo, path: PathBuf) -> Vec<(bytes::B
 	}
 }
 
-pub(crate) async fn request_span(co: &GenCo) -> Span {
+pub async fn request_span(co: &GenCo) -> Span {
 	match co.yield_(VMRequest::Span).await {
 		VMResponse::Span(span) => span,
 		msg => panic!("nix-rs bug: VM responded with incorrect generator message: {msg}"),

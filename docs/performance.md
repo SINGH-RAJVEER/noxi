@@ -106,6 +106,14 @@ The remaining gap is architectural. Builtins, comparisons, equality and string c
 
 Raw artifacts are in `target/performance-tip-2026-10-27/`: `bin/` holds the measured executables, `matched-5/` the runner samples and report, `summary.txt` the medians, and `differential/` the differential and instruction-count scripts. A recovery copy is at `/home/rajveer/.local/state/nix-rs-performance-tip/2026-10-27-1018a06d`.
 
+## Evaluator CPU workstream, 2026-10-27
+
+The `perf/eval-cpu` baseline reproduces EVAL-08 at 158.416 billion user-space instructions and 2,970,506 KiB median peak RSS across two invocations. Fixed-period `perf record -e cycles:u -c 10000000` collected 7,162 samples with none lost. The flat profile assigns 14.48% to bytecode dispatch, 5.47% to generator driving, 2.01% to operand decoding and 1.28% to dropping frame traces. Temporary builtin counters identify `map` and `mapAttrs` as the most frequent full builtin calls, at 421,627 and 398,652 respectively. Counter instrumentation is excluded from the measured binaries.
+
+Thirty more builtin bodies now register synchronous entry points, including `map`, `mapAttrs` and `genList`, whose generated thunks retain the original call span. An explicit VM continuation forces their strict arguments from left to right before calling the body. Catchable arguments retain the generated wrapper's propagation and `#[catch]` behavior. The combined change uses 155.148 billion instructions, a 2.06% reduction, with 2,986,918 KiB median peak RSS. Both invocations retain the required `f4e14079455b2d17` output digest. The 518 evaluator and builtin-macro tests, doctests and the full baseline differential pass, including exit status, stdout and full trace stderr.
+
+The ready-argument expansion alone saved only 0.3%; adding the forcing continuation without the span-aware mapped builtins saved 1.5%. Neither intermediate qualifies as a standalone improvement. These shared-host runs gate instruction counts and RSS; their wall times do not establish a speedup. Artifacts, flat reports and preserved executables are under `target/perf-cpu/` in the CPU worktree.
+
 ## What should become faster
 
 Measure time until an installed package actually runs, a development shell executes its first command, development services pass readiness checks, and a system generation completes activation. Download completion, derivation evaluation, and a CLI returning early are intermediate milestones.

@@ -346,7 +346,7 @@ mod pure_builtins {
 	}
 
 	#[builtin("add")]
-	async fn builtin_add(co: GenCo, x: Value, y: Value) -> Result<Value, ErrorKind> {
+	fn builtin_add(x: Value, y: Value) -> Result<Value, ErrorKind> {
 		check_arithmetic(
 			&x,
 			&y,
@@ -392,7 +392,7 @@ mod pure_builtins {
 	}
 
 	#[builtin("attrNames")]
-	async fn builtin_attr_names(co: GenCo, set: Value) -> Result<Value, ErrorKind> {
+	fn builtin_attr_names(set: Value) -> Result<Value, ErrorKind> {
 		let xs = set.to_attrs()?;
 		let mut output = Vec::with_capacity(xs.len());
 
@@ -404,7 +404,7 @@ mod pure_builtins {
 	}
 
 	#[builtin("attrValues")]
-	async fn builtin_attr_values(co: GenCo, set: Value) -> Result<Value, ErrorKind> {
+	fn builtin_attr_values(set: Value) -> Result<Value, ErrorKind> {
 		let xs = set.to_attrs()?;
 		let mut output = Vec::with_capacity(xs.len());
 
@@ -453,24 +453,23 @@ mod pure_builtins {
 	}
 
 	#[builtin("bitAnd")]
-	async fn builtin_bit_and(co: GenCo, x: Value, y: Value) -> Result<Value, ErrorKind> {
+	fn builtin_bit_and(x: Value, y: Value) -> Result<Value, ErrorKind> {
 		Ok(Value::Integer(x.as_int()? & y.as_int()?))
 	}
 
 	#[builtin("bitOr")]
-	async fn builtin_bit_or(co: GenCo, x: Value, y: Value) -> Result<Value, ErrorKind> {
+	fn builtin_bit_or(x: Value, y: Value) -> Result<Value, ErrorKind> {
 		Ok(Value::Integer(x.as_int()? | y.as_int()?))
 	}
 
 	#[builtin("bitXor")]
-	async fn builtin_bit_xor(co: GenCo, x: Value, y: Value) -> Result<Value, ErrorKind> {
+	fn builtin_bit_xor(x: Value, y: Value) -> Result<Value, ErrorKind> {
 		Ok(Value::Integer(x.as_int()? ^ y.as_int()?))
 	}
 
 	/// Without a debugger, `break` returns its argument, as CppNix's does.
 	#[builtin("break")]
-	async fn builtin_break(co: GenCo, #[lazy] value: Value) -> Result<Value, ErrorKind> {
-		let _ = co;
+	fn builtin_break(#[lazy] value: Value) -> Result<Value, ErrorKind> {
 		Ok(value)
 	}
 
@@ -498,12 +497,12 @@ mod pure_builtins {
 	}
 
 	#[builtin("ceil")]
-	async fn builtin_ceil(co: GenCo, double: Value) -> Result<Value, ErrorKind> {
+	fn builtin_ceil(double: Value) -> Result<Value, ErrorKind> {
 		round_to_int(&double, f64::ceil)
 	}
 
 	#[builtin("compareVersions")]
-	async fn builtin_compare_versions(co: GenCo, x: Value, y: Value) -> Result<Value, ErrorKind> {
+	fn builtin_compare_versions(x: Value, y: Value) -> Result<Value, ErrorKind> {
 		let s1 = x.to_str()?;
 		let s1 = VersionPartsIter::new_for_cmp((&s1).into());
 		let s2 = y.to_str()?;
@@ -596,7 +595,7 @@ mod pure_builtins {
 	}
 
 	#[builtin("div")]
-	async fn builtin_div(co: GenCo, x: Value, y: Value) -> Result<Value, ErrorKind> {
+	fn builtin_div(x: Value, y: Value) -> Result<Value, ErrorKind> {
 		// The divisor is checked first, and a zero divisor fails before the
 		// dividend is checked.
 		check_argument(
@@ -667,7 +666,7 @@ mod pure_builtins {
 	}
 
 	#[builtin("elemAt")]
-	async fn builtin_elem_at(co: GenCo, xs: Value, i: Value) -> Result<Value, ErrorKind> {
+	fn builtin_elem_at(xs: Value, i: Value) -> Result<Value, ErrorKind> {
 		let xs = xs.to_list()?;
 		let i = i.as_int()?;
 		match usize::try_from(i).ok().and_then(|index| xs.get(index)) {
@@ -699,7 +698,7 @@ mod pure_builtins {
 	}
 
 	#[builtin("floor")]
-	async fn builtin_floor(co: GenCo, double: Value) -> Result<Value, ErrorKind> {
+	fn builtin_floor(double: Value) -> Result<Value, ErrorKind> {
 		round_to_int(&double, f64::floor)
 	}
 
@@ -727,7 +726,7 @@ mod pure_builtins {
 	}
 
 	#[builtin("functionArgs")]
-	async fn builtin_function_args(co: GenCo, f: Value) -> Result<Value, ErrorKind> {
+	fn builtin_function_args(f: Value) -> Result<Value, ErrorKind> {
 		if matches!(f, Value::Builtin(_)) {
 			return Ok(Value::attrs(NixAttrs::empty()));
 		}
@@ -753,7 +752,7 @@ mod pure_builtins {
 	}
 
 	#[builtin("fromJSON")]
-	async fn builtin_from_json(co: GenCo, json: Value) -> Result<Value, ErrorKind> {
+	fn builtin_from_json(json: Value) -> Result<Value, ErrorKind> {
 		let json_str = json.to_str()?;
 		let json: serde_json::Value = serde_json::from_slice(&json_str)?;
 		from_data::json_to_value(json)
@@ -774,11 +773,7 @@ mod pure_builtins {
 	}
 
 	#[builtin("fromTOML")]
-	async fn builtin_from_toml(
-		state: Rc<BuiltinState>,
-		co: GenCo,
-		toml: Value,
-	) -> Result<Value, ErrorKind> {
+	fn builtin_from_toml(state: Rc<BuiltinState>, toml: Value) -> Result<Value, ErrorKind> {
 		let toml_str = toml.to_str()?;
 		let toml: toml::Value = toml::from_str(toml_str.to_str()?)?;
 		from_data::toml_to_value(
@@ -856,8 +851,8 @@ mod pure_builtins {
 	}
 
 	#[builtin("genList")]
-	async fn builtin_gen_list(
-		co: GenCo,
+	fn builtin_gen_list(
+		span: codemap::Span,
 		// Nix 2.3 doesn't propagate failures here
 		#[lazy] generator: Value,
 		length: Value,
@@ -872,7 +867,6 @@ mod pure_builtins {
 		}
 
 		// the best span we can get…
-		let span = generators::request_span(&co).await;
 
 		let lambda = Thunk::suspended_call_lambda(span);
 		for i in 0..len {
@@ -888,7 +882,7 @@ mod pure_builtins {
 	}
 
 	#[builtin("getAttr")]
-	async fn builtin_get_attr(co: GenCo, key: Value, set: Value) -> Result<Value, ErrorKind> {
+	fn builtin_get_attr(key: Value, set: Value) -> Result<Value, ErrorKind> {
 		let k = key.to_str()?;
 		let xs = set.to_attrs()?;
 
@@ -937,7 +931,7 @@ mod pure_builtins {
 
 	#[builtin("hasContext")]
 	#[allow(non_snake_case)]
-	async fn builtin_hasContext(co: GenCo, e: Value) -> Result<Value, ErrorKind> {
+	fn builtin_hasContext(e: Value) -> Result<Value, ErrorKind> {
 		if e.is_catchable() {
 			return Ok(e);
 		}
@@ -948,7 +942,7 @@ mod pure_builtins {
 
 	#[builtin("getContext")]
 	#[allow(non_snake_case)]
-	async fn builtin_getContext(co: GenCo, e: Value) -> Result<Value, ErrorKind> {
+	fn builtin_getContext(e: Value) -> Result<Value, ErrorKind> {
 		if e.is_catchable() {
 			return Ok(e);
 		}
@@ -1150,7 +1144,7 @@ mod pure_builtins {
 	}
 
 	#[builtin("hashString")]
-	async fn builtin_hash_string(co: GenCo, algo: Value, s: Value) -> Result<Value, ErrorKind> {
+	fn builtin_hash_string(algo: Value, s: Value) -> Result<Value, ErrorKind> {
 		hash_nix_string(algo.to_str()?, std::io::Cursor::new(s.to_str()?)).map(Value::from)
 	}
 
@@ -1169,7 +1163,7 @@ mod pure_builtins {
 	}
 
 	#[builtin("intersectAttrs")]
-	async fn builtin_intersect_attrs(co: GenCo, x: Value, y: Value) -> Result<Value, ErrorKind> {
+	fn builtin_intersect_attrs(x: Value, y: Value) -> Result<Value, ErrorKind> {
 		if x.is_catchable() {
 			return Ok(x);
 		}
@@ -1306,7 +1300,11 @@ mod pure_builtins {
 	}
 
 	#[builtin("map")]
-	async fn builtin_map(co: GenCo, #[lazy] f: Value, list_val: Value) -> Result<Value, ErrorKind> {
+	fn builtin_map(
+		span: codemap::Span,
+		#[lazy] f: Value,
+		list_val: Value,
+	) -> Result<Value, ErrorKind> {
 		let list = list_val.to_list()?;
 		let mut out = Vec::with_capacity(list.len());
 		if list.is_empty() {
@@ -1314,7 +1312,6 @@ mod pure_builtins {
 		}
 
 		// the best span we can get…
-		let span = generators::request_span(&co).await;
 
 		let lambda = Thunk::suspended_call_lambda(span);
 		for val in list {
@@ -1330,8 +1327,8 @@ mod pure_builtins {
 	}
 
 	#[builtin("mapAttrs")]
-	async fn builtin_map_attrs(
-		co: GenCo,
+	fn builtin_map_attrs(
+		span: codemap::Span,
 		#[lazy] f: Value,
 		attrs: Value,
 	) -> Result<Value, ErrorKind> {
@@ -1342,7 +1339,6 @@ mod pure_builtins {
 		}
 
 		// the best span we can get…
-		let span = generators::request_span(&co).await;
 
 		let lambda = Thunk::suspended_call_lambda(span);
 		for (key, value) in attrs.into_iter() {
@@ -1364,9 +1360,8 @@ mod pure_builtins {
 	}
 
 	#[builtin("match")]
-	async fn builtin_match(
+	fn builtin_match(
 		state: Rc<BuiltinState>,
-		co: GenCo,
 		regex: Value,
 		str: Value,
 	) -> Result<Value, ErrorKind> {
@@ -1408,7 +1403,7 @@ mod pure_builtins {
 	}
 
 	#[builtin("mul")]
-	async fn builtin_mul(co: GenCo, x: Value, y: Value) -> Result<Value, ErrorKind> {
+	fn builtin_mul(x: Value, y: Value) -> Result<Value, ErrorKind> {
 		// CppNix's message for a float product omits "argument".
 		check_arithmetic(
 			&x,
@@ -1421,7 +1416,7 @@ mod pure_builtins {
 	}
 
 	#[builtin("parseDrvName")]
-	async fn builtin_parse_drv_name(co: GenCo, s: Value) -> Result<Value, ErrorKind> {
+	fn builtin_parse_drv_name(s: Value) -> Result<Value, ErrorKind> {
 		if s.is_catchable() {
 			return Ok(s);
 		}
@@ -1480,11 +1475,7 @@ mod pure_builtins {
 	}
 
 	#[builtin("removeAttrs")]
-	async fn builtin_remove_attrs(
-		co: GenCo,
-		attrs: Value,
-		keys: Value,
-	) -> Result<Value, ErrorKind> {
+	fn builtin_remove_attrs(attrs: Value, keys: Value) -> Result<Value, ErrorKind> {
 		let attrs = attrs.to_attrs()?;
 		let keys = keys
 			.to_list()?
@@ -1587,9 +1578,8 @@ mod pure_builtins {
 	}
 
 	#[builtin("split")]
-	async fn builtin_split(
+	fn builtin_split(
 		state: Rc<BuiltinState>,
-		co: GenCo,
 		regex: Value,
 		str: Value,
 	) -> Result<Value, ErrorKind> {
@@ -1689,7 +1679,7 @@ mod pure_builtins {
 	}
 
 	#[builtin("splitVersion")]
-	async fn builtin_split_version(co: GenCo, s: Value) -> Result<Value, ErrorKind> {
+	fn builtin_split_version(s: Value) -> Result<Value, ErrorKind> {
 		if s.is_catchable() {
 			return Ok(s);
 		}
@@ -1734,7 +1724,7 @@ mod pure_builtins {
 	}
 
 	#[builtin("sub")]
-	async fn builtin_sub(co: GenCo, x: Value, y: Value) -> Result<Value, ErrorKind> {
+	fn builtin_sub(x: Value, y: Value) -> Result<Value, ErrorKind> {
 		check_arithmetic(
 			&x,
 			&y,
