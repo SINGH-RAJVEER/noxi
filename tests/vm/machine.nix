@@ -1,7 +1,7 @@
 # The machine the VM test boots: a NixOS system whose Nix is the pinned
-# CppNix reference, with the packaged nixrs installed beside it.
+# CppNix reference, with the packaged noxi installed beside it.
 {
-	nixrs,
+	noxi,
 	nixReference,
 	...
 }:
@@ -10,7 +10,7 @@
 	# daemon it starts, never the Nix that happens to be in nixpkgs.
 	nix.package = nixReference;
 
-	environment.systemPackages = [ nixrs ];
+	environment.systemPackages = [ noxi ];
 
 	# An unprivileged user, so evaluation runs the way it does on a real
 	# machine: through the daemon, with the system's nix.conf.
@@ -18,7 +18,7 @@
 
 	# A case file that lives in the store, so `--file` is also checked against
 	# a read-only store path rather than only a home directory.
-	environment.etc."nixrs-vm/case.nix".text = ''
+	environment.etc."noxi-vm/case.nix".text = ''
 		let
 			double = x: x * 2;
 		in

@@ -3,7 +3,7 @@ set -euo pipefail
 
 root_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 out_dir="${root_dir}/target/qualification"
-boot_timeout="${NIXRS_VM_BOOT_TIMEOUT:-600}"
+boot_timeout="${NOXI_VM_BOOT_TIMEOUT:-600}"
 manifest="${out_dir}/reference-base.manifest"
 
 usage() {
@@ -65,7 +65,7 @@ boot_and_power_off() {
 
 	NIX_DISK_IMAGE="${disk}" NIX_EFI_VARS="${efi}" \
 		QEMU_OPTS="-display none -serial file:${log} -monitor unix:${monitor},server,nowait" \
-		"${vm}/bin/run-nixrs-reference-vm" &
+		"${vm}/bin/run-noxi-reference-vm" &
 	qemu_pid=$!
 
 	# The console log has colour escapes between words, hence the loose patterns.
@@ -119,7 +119,7 @@ snapshot() {
 	boot_and_power_off "${vm}" "${scratch}/reference.qcow2" "${scratch}/reference-efi-vars.fd" \
 		"${out_dir}/reference-boot.log"
 
-	qemu_img="$(grep -oE '/nix/store/[^ ]+/bin/qemu-img' "${vm}/bin/run-nixrs-reference-vm" | head -n1)"
+	qemu_img="$(grep -oE '/nix/store/[^ ]+/bin/qemu-img' "${vm}/bin/run-noxi-reference-vm" | head -n1)"
 	# Write the replacement beside the old base, which stays usable until
 	# the new files and manifest are complete.
 	local base="${out_dir}/reference-base.qcow2" efi="${out_dir}/reference-efi-vars.fd"

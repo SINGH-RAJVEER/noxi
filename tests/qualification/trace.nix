@@ -79,7 +79,7 @@ let
 		};
 
 	traceTest = extra: {
-		name = "nixrs-reference-trace";
+		name = "noxi-reference-trace";
 		nodes.machine = {
 			imports = [
 				machine
@@ -93,7 +93,7 @@ let
 	# prebuilt dependencies, plus a marker file. A test's node is its
 	# configuration, which nixos-rebuild reads as `config`.
 	targetConfig = (pkgs.testers.runNixOSTest (traceTest {
-		environment.etc."nixrs-trace-generation".text = "target";
+		environment.etc."noxi-trace-generation".text = "target";
 	})).config.nodes.machine;
 in
 {

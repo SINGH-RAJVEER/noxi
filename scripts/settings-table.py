@@ -4,7 +4,7 @@
 Reads tests/reference-inventory/settings.json and
 tests/reference-inventory/experimental-features.json (written by
 `just reference-inventory`) and prints
-crates/nix-rs/nix-compat/src/nixcpp/settings_table.rs.
+crates/noxi/nix-compat/src/nixcpp/settings_table.rs.
 
 The setting type follows the JSON type of its documented default. Settings
 whose default is undocumented have their CppNix type listed in TYPES below.
@@ -16,7 +16,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 INVENTORY = ROOT / "tests" / "reference-inventory"
-OUTPUT = ROOT / "crates" / "nix-rs" / "nix-compat" / "src" / "nixcpp" / "settings_table.rs"
+OUTPUT = ROOT / "crates" / "noxi" / "nix-compat" / "src" / "nixcpp" / "settings_table.rs"
 
 # CppNix types of settings whose default the inventory records as null.
 TYPES = {

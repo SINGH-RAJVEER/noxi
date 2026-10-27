@@ -29,10 +29,10 @@ let
 	};
 	# A distinct package with the same engine binaries, for the upgrade step.
 	upgrade = pkgs.symlinkJoin {
-		name = "nixrs-replacement-upgrade-fixture";
+		name = "noxi-replacement-upgrade-fixture";
 		paths = [ candidate ];
 		postBuild = ''
-			echo upgrade > "$out/share/nix-rs/qualification-upgrade"
+			echo upgrade > "$out/share/noxi/qualification-upgrade"
 			rm "$out/lib/systemd/system/nix-daemon.service"
 			sed "s|${candidate}|$out|g" ${candidate}/lib/systemd/system/nix-daemon.service > "$out/lib/systemd/system/nix-daemon.service"
 		'';
@@ -101,7 +101,7 @@ let
 	node =
 		module:
 		(pkgs.testers.runNixOSTest {
-			name = "nixrs-qualification-generation";
+			name = "noxi-qualification-generation";
 			nodes.machine.imports = [
 				common
 				module
@@ -113,7 +113,7 @@ let
 		marker: package: module:
 		node {
 			imports = [ module ];
-			nixrs.qualification = {
+			noxi.qualification = {
 				enable = true;
 				inherit package;
 			};
@@ -130,7 +130,7 @@ in
 	generations = {
 		# CppNix switches the machine to this one.
 		one = generation "one" candidate { };
-		# nix-rs rebuilds to these.
+		# noxi rebuilds to these.
 		two = generation "two" candidate { };
 		three = generation "three" candidate { };
 		upgrade = generation "upgrade" upgrade { };
@@ -140,7 +140,7 @@ in
 			assertions = [
 				{
 					assertion = false;
-					message = "nix-rs qualification: deliberately failing upgrade";
+					message = "noxi qualification: deliberately failing upgrade";
 				}
 			];
 		};

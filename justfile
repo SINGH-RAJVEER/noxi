@@ -27,33 +27,33 @@ test-core:
 
 # Run compatibility checks against the copied CppNix fixtures.
 test-fixtures:
-	cargo nextest run -p nixrs-compat-tests --tests
+	cargo nextest run -p noxi-compat-tests --tests
 
 # Check every shipped dependency license against the accepted set in deny.toml.
 licenses:
 	cargo deny check licenses
 
-# Regenerate THIRD_PARTY.md for the nixrs preview binary from the locked dependency graph, then append the LGPL-2.1 text of the bundled CppNix helper, which cargo-about does not see.
+# Regenerate THIRD_PARTY.md for the noxi preview binary from the locked dependency graph, then append the LGPL-2.1 text of the bundled CppNix helper, which cargo-about does not see.
 third-party:
-	cargo about generate --locked --offline --fail -m crates/nix-rs-cli/Cargo.toml -c about.toml third-party.hbs -o THIRD_PARTY.md
-	{ printf '\n## GNU Lesser General Public License 2.1 (bundled CppNix helper)\n\nThe CppNix helper `imported-drv-to-derivation.nix` is licensed LGPL-2.1-or-later; the text below is the LGPL-2.1 from its reference copy.\n\n~~~text\n'; cat crates/nix-rs/eval/COPYING; printf '~~~\n'; } >> THIRD_PARTY.md
+	cargo about generate --locked --offline --fail -m crates/noxi-cli/Cargo.toml -c about.toml third-party.hbs -o THIRD_PARTY.md
+	{ printf '\n## GNU Lesser General Public License 2.1 (bundled CppNix helper)\n\nThe CppNix helper `imported-drv-to-derivation.nix` is licensed LGPL-2.1-or-later; the text below is the LGPL-2.1 from its reference copy.\n\n~~~text\n'; cat crates/noxi/eval/COPYING; printf '~~~\n'; } >> THIRD_PARTY.md
 
 # Compare the preview evaluator with an explicitly selected CppNix executable.
-eval-compare reference report="/tmp/nix-rs-eval-comparison.json":
-	cargo build -p nix-rs-cli --bin nixrs
-	cargo build -p nixrs-compat-tests --bin differential-eval
-	target/debug/differential-eval "{{reference}}" target/debug/nixrs "{{report}}"
+eval-compare reference report="/tmp/noxi-eval-comparison.json":
+	cargo build -p noxi-cli --bin noxi
+	cargo build -p noxi-compat-tests --bin differential-eval
+	target/debug/differential-eval "{{reference}}" target/debug/noxi "{{report}}"
 
 # Check nix-instantiate's Nixpkgs derivation and output paths against those recorded from the reference.
 nixpkgs-paths:
-	NIXRS_NIXPKGS="$(nix eval --raw --impure --expr '(builtins.getFlake "path:{{justfile_directory()}}").inputs.nixpkgs.outPath')" \
-		cargo nextest run -p nix-rs-commands --test instantiate --run-ignored only -E 'test(matches_reference_nixpkgs_paths)'
+	NOXI_NIXPKGS="$(nix eval --raw --impure --expr '(builtins.getFlake "path:{{justfile_directory()}}").inputs.nixpkgs.outPath')" \
+		cargo nextest run -p noxi-commands --test instantiate --run-ignored only -E 'test(matches_reference_nixpkgs_paths)'
 
 # Check the qualification NixOS system, its VM and Home Manager generations, and a standalone Home Manager generation against the derivation paths recorded from the reference.
 nixos-paths:
-	NIXRS_QUALIFICATION_NIXPKGS="$(nix eval --raw --impure --expr '(builtins.getFlake "path:{{justfile_directory()}}/tests/qualification").inputs.nixpkgs.outPath')" \
-	NIXRS_QUALIFICATION_HOME_MANAGER="$(nix eval --raw --impure --expr '(builtins.getFlake "path:{{justfile_directory()}}/tests/qualification").inputs.home-manager.outPath')" \
-		cargo nextest run -p nix-rs-commands --test instantiate --run-ignored only -E 'test(matches_reference_nixos_paths)'
+	NOXI_QUALIFICATION_NIXPKGS="$(nix eval --raw --impure --expr '(builtins.getFlake "path:{{justfile_directory()}}/tests/qualification").inputs.nixpkgs.outPath')" \
+	NOXI_QUALIFICATION_HOME_MANAGER="$(nix eval --raw --impure --expr '(builtins.getFlake "path:{{justfile_directory()}}/tests/qualification").inputs.home-manager.outPath')" \
+		cargo nextest run -p noxi-commands --test instantiate --run-ignored only -E 'test(matches_reference_nixos_paths)'
 
 # Build the pinned CppNix reference release (substituted from cache.nixos.org) at target/nix-reference, and the static busybox the build comparisons use at target/test-busybox.
 reference:
@@ -62,7 +62,7 @@ reference:
 
 # Build portable release executables before collecting timings.
 bench-build:
-	cargo build --release -p nix-rs-cli -p nix-rs-commands -p nix-rs-daemon
+	cargo build --release -p noxi-cli -p noxi-commands -p noxi-daemon
 
 # Validate benchmark oracles, process accounting, and timeout cleanup.
 bench-test:
@@ -102,7 +102,7 @@ reference-trace:
 
 # --no-link keeps the check's output out of ./result.
 
-# Boot a NixOS machine running the pinned reference and check the packaged nixrs against it.
+# Boot a NixOS machine running the pinned reference and check the packaged noxi against it.
 vm-test:
 	nix build --no-link --print-build-logs ".#checks.$(nix eval --raw --impure --expr builtins.currentSystem).vm"
 
@@ -138,7 +138,7 @@ replacement-package:
 	nix build --out-link target/qualification/replacement .#checks.x86_64-linux.replacement
 	nix build --no-link .#checks.x86_64-linux.replacement-layout
 
-# Boot a disposable CppNix VM, swap it to nix-rs, run one scenario (nixos, home-manager or lifecycle), return to CppNix, and keep every step's result in target/qualification/MODE-report. A report build is not a gate pass.
+# Boot a disposable CppNix VM, swap it to noxi, run one scenario (nixos, home-manager or lifecycle), return to CppNix, and keep every step's result in target/qualification/MODE-report. A report build is not a gate pass.
 qualification-report mode:
 	mkdir -p target/qualification
 	nix build --out-link "target/qualification/{{mode}}-report" --print-build-logs ".#qualification-{{mode}}-report"
@@ -148,11 +148,11 @@ qualification-report mode:
 qualification-gate mode: (qualification-report mode)
 	nix build --no-link --print-build-logs ".#checks.x86_64-linux.qualification-{{mode}}"
 
-# nixos-rebuild build, dry-activate, test, switch and boot with nix-rs, a reboot, a second change, a rollback and the return to CppNix (TODO section 7).
+# nixos-rebuild build, dry-activate, test, switch and boot with noxi, a reboot, a second change, a rollback and the return to CppNix (TODO section 7).
 qualification-nixos: (qualification-gate "nixos")
 
-# Standalone Home Manager build and switch in classic and flake mode, and Home Manager as a NixOS module, with nix-rs (TODO section 7).
+# Standalone Home Manager build and switch in classic and flake mode, and Home Manager as a NixOS module, with noxi (TODO section 7).
 qualification-home-manager: (qualification-gate "home-manager")
 
-# Install, upgrade, failed upgrade, rollback and removal of nix-rs as the system's Nix (TODO section 8).
+# Install, upgrade, failed upgrade, rollback and removal of noxi as the system's Nix (TODO section 8).
 qualification-lifecycle: (qualification-gate "lifecycle")
