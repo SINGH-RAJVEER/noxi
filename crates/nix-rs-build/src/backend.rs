@@ -45,7 +45,10 @@ impl LocalBackend {
 			self.substituter_uris
 				.iter()
 				.filter_map(|uri| match BinaryCache::open(uri) {
-					Ok(cache) => Some(cache),
+					Ok(cache) => Some(cache.with_narinfo_cache_ttls(
+						self.store.config().narinfo_cache_positive_ttl,
+						self.store.config().narinfo_cache_negative_ttl,
+					)),
 					Err(e) => {
 						if nix_compat::log::log_enabled(nix_compat::log::VerbosityLevel::Warn) {
 							eprintln!("warning: disabling substituter '{uri}': {e}");

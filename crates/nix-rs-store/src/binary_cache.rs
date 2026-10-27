@@ -7,11 +7,14 @@
 //! references first, and imports each NAR through
 //! [`LocalStore::add_to_store`], which checks its hash and size.
 
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 use std::fs::{self, File};
 use std::io::{self, BufRead, BufReader, BufWriter, Read, Write};
 use std::os::unix::fs::PermissionsExt;
 use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{Arc, Mutex};
+use std::time::{Duration, Instant};
 
 use data_encoding::BASE64;
 use nix_compat::narinfo::{Flags, NarInfo, Signature, SigningKey};
@@ -64,6 +67,10 @@ pub struct BinaryCache {
 	info: CacheInfo,
 	/// Whether paths from this cache need no signature (`?trusted=1`).
 	pub trusted: bool,
+	path_info_cache: Arc<Mutex<BTreeMap<StorePath, (Instant, Option<CachedPath>)>>>,
+	positive_ttl: Duration,
+	negative_ttl: Duration,
+	http10_close: Arc<AtomicBool>,
 }
 
 impl BinaryCache {
@@ -99,6 +106,10 @@ impl BinaryCache {
 				priority: 50,
 			},
 			trusted,
+			path_info_cache: Arc::default(),
+			positive_ttl: Duration::from_secs(30 * 24 * 60 * 60),
+			negative_ttl: Duration::from_secs(60 * 60),
+			http10_close: Arc::default(),
 		};
 		if let Some(text) = cache.get_file("nix-cache-info")? {
 			let text = String::from_utf8_lossy(&text).into_owned();
@@ -131,6 +142,36 @@ impl BinaryCache {
 
 	pub fn info(&self) -> &CacheInfo {
 		&self.info
+	}
+
+	/// Set the lifetime of HTTP metadata shared by this handle and its clones.
+	/// Local cache metadata remains live so uploads are immediately visible.
+	pub fn with_narinfo_cache_ttls(mut self, positive: u64, negative: u64) -> Self {
+		self.positive_ttl = Duration::from_secs(positive);
+		self.negative_ttl = Duration::from_secs(negative);
+		self
+	}
+
+	/// Fetch independent HTTP metadata with a bounded number of workers.
+	/// Callers query the results normally, preserving cache selection and errors.
+	pub fn prefetch_path_info(&self, paths: &[StorePath], jobs: usize) {
+		if !matches!(self.transport, Transport::Http(..))
+			|| self.positive_ttl.is_zero()
+			|| self.negative_ttl.is_zero()
+			|| paths.len() < 2
+			|| jobs < 2
+		{
+			return;
+		}
+		std::thread::scope(|scope| {
+			for chunk in paths.chunks(paths.len().div_ceil(jobs.min(paths.len()))) {
+				scope.spawn(move || {
+					for path in chunk {
+						let _ = self.query_path_info(path);
+					}
+				});
+			}
+		});
 	}
 
 	/// Export `path` and its reference closure to a local, uncompressed cache.
@@ -322,10 +363,34 @@ impl BinaryCache {
 			},
 			Transport::Http(base, agent) => {
 				let url = format!("{base}/{name}");
-				let response = agent
-					.get(&url)
+				let mut request = agent.get(&url);
+				if self.http10_close.load(Ordering::Relaxed) {
+					// ureq 3.4 does not close a length-delimited HTTP/1.0
+					// response unless Connection: close is explicit. Do not
+					// race the server's FIN on the next request.
+					request = request
+						.header("Connection", "close")
+						.config()
+						.max_idle_age(Duration::ZERO)
+						.build();
+				}
+				let response = request
 					.call()
 					.map_err(|e| Error::Other(format!("unable to download '{url}': {e}")))?;
+				if response.version() == ureq::http::Version::HTTP_10
+					&& !response
+						.headers()
+						.get_all("connection")
+						.iter()
+						.any(|value| {
+							value.to_str().is_ok_and(|value| {
+								value
+									.split(',')
+									.any(|token| token.trim().eq_ignore_ascii_case("keep-alive"))
+							})
+						}) {
+					self.http10_close.store(true, Ordering::Relaxed);
+				}
 				match response.status().as_u16() {
 					200..=299 => Ok(Some(Box::new(response.into_body().into_reader()))),
 					// S3 answers 403 for files that do not exist.
@@ -360,6 +425,41 @@ impl BinaryCache {
 	/// The metadata the cache records for `path`, read as the reference
 	/// reads it, with its errors for malformed files.
 	pub fn query_path_info(&self, path: &StorePath) -> Result<Option<CachedPath>> {
+		if !matches!(self.transport, Transport::Http(..)) {
+			return self.query_path_info_uncached(path);
+		}
+		{
+			let mut cache = self.path_info_cache.lock().unwrap();
+			if let Some((when, value)) = cache.get(path) {
+				let ttl = if value.is_some() {
+					self.positive_ttl
+				} else {
+					self.negative_ttl
+				};
+				if when.elapsed() < ttl {
+					return Ok(value.clone());
+				}
+				cache.remove(path);
+			}
+		}
+		// Download outside the mutex so independent requests can overlap.
+		// Transport and parse errors are retried by the next caller.
+		let result = self.query_path_info_uncached(path)?;
+		let ttl = if result.is_some() {
+			self.positive_ttl
+		} else {
+			self.negative_ttl
+		};
+		if !ttl.is_zero() {
+			self.path_info_cache
+				.lock()
+				.unwrap()
+				.insert(path.clone(), (Instant::now(), result.clone()));
+		}
+		Ok(result)
+	}
+
+	fn query_path_info_uncached(&self, path: &StorePath) -> Result<Option<CachedPath>> {
 		let name = format!("{}.narinfo", nix_compat::nixbase32::encode(path.digest()));
 		let Some(bytes) = self.get_file(&name)? else {
 			return Ok(None);
@@ -600,5 +700,102 @@ impl LocalStore {
 			"path '{}' is required, but there is no substituter that can build it",
 			print(path)
 		)))
+	}
+}
+
+#[cfg(test)]
+mod tests {
+	use super::*;
+	use std::net::TcpListener;
+	use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
+
+	#[test]
+	fn http_metadata_is_shared_expires_and_can_be_disabled() {
+		check_metadata_cache("HTTP/1.1");
+		check_metadata_cache("HTTP/1.0");
+	}
+
+	fn check_metadata_cache(protocol: &str) {
+		let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+		listener.set_nonblocking(true).unwrap();
+		let uri = format!("http://{}", listener.local_addr().unwrap());
+		let requests = AtomicUsize::new(0);
+		let stopped = AtomicBool::new(false);
+		std::thread::scope(|scope| {
+			scope.spawn(|| {
+				while !stopped.load(Ordering::Relaxed) {
+					let (stream, _) = match listener.accept() {
+						Ok(connection) => connection,
+						Err(error) if error.kind() == io::ErrorKind::WouldBlock => {
+							std::thread::sleep(Duration::from_millis(1));
+							continue;
+						}
+						Err(error) => panic!("{error}"),
+					};
+					stream.set_read_timeout(Some(Duration::from_secs(5))).unwrap();
+					let mut reader = BufReader::new(stream);
+					let mut request = String::new();
+					reader.read_line(&mut request).unwrap();
+					loop {
+						let mut line = String::new();
+						reader.read_line(&mut line).unwrap();
+						if line == "\r\n" || line.is_empty() { break; }
+					}
+					requests.fetch_add(1, Ordering::Relaxed);
+					let (status, body) = if request.contains("nix-cache-info") {
+						("200 OK", "StoreDir: /nix/store\n")
+					} else if request.contains("/nar/test.nar ") {
+						("200 OK", "archive bytes")
+					} else if request.contains("/00000000000000000000000000000000.narinfo") {
+						("200 OK", "StorePath: /nix/store/00000000000000000000000000000000-test\nURL: nar/test.nar\nCompression: none\nNarHash: sha256:0000000000000000000000000000000000000000000000000000\nNarSize: 1\nReferences: \n")
+					} else {
+						("404 Not Found", "missing")
+					};
+					let connection = if protocol == "HTTP/1.1" { "Connection: close\r\n" } else { "" };
+					write!(reader.get_mut(), "{protocol} {status}\r\nContent-Length: {}\r\n{connection}\r\n{body}", body.len()).unwrap();
+				}
+			});
+			// Stop the server even if an assertion unwinds the client.
+			struct Stop<'a>(&'a AtomicBool);
+			impl Drop for Stop<'_> {
+				fn drop(&mut self) {
+					self.0.store(true, Ordering::Relaxed);
+				}
+			}
+			let _stop = Stop(&stopped);
+			let cache = BinaryCache::open(&uri).unwrap();
+			assert_eq!(
+				cache.http10_close.load(Ordering::Relaxed),
+				protocol == "HTTP/1.0"
+			);
+			let path = StorePath::from_bytes(b"00000000000000000000000000000000-test").unwrap();
+			let absent = StorePath::from_bytes(b"11111111111111111111111111111111-test").unwrap();
+			assert!(cache.query_path_info(&path).unwrap().is_some());
+			assert!(cache.clone().query_path_info(&path).unwrap().is_some());
+			assert!(cache.query_path_info(&absent).unwrap().is_none());
+			assert!(cache.clone().query_path_info(&absent).unwrap().is_none());
+			assert_eq!(requests.load(Ordering::Relaxed), 3);
+			for (when, _) in cache.path_info_cache.lock().unwrap().values_mut() {
+				*when -= Duration::from_secs(31 * 24 * 60 * 60);
+			}
+			assert!(cache.query_path_info(&path).unwrap().is_some());
+			assert!(cache.query_path_info(&absent).unwrap().is_none());
+			assert_eq!(requests.load(Ordering::Relaxed), 5);
+			let uncached = cache.with_narinfo_cache_ttls(0, 0);
+			for _ in 0..2 {
+				assert!(uncached.query_path_info(&path).unwrap().is_some());
+				assert!(uncached.query_path_info(&absent).unwrap().is_none());
+			}
+			assert_eq!(requests.load(Ordering::Relaxed), 9);
+			let cached = uncached.query_path_info(&path).unwrap().unwrap();
+			let mut bytes = Vec::new();
+			uncached
+				.nar(&cached)
+				.unwrap()
+				.read_to_end(&mut bytes)
+				.unwrap();
+			assert_eq!(bytes, b"archive bytes");
+			assert_eq!(requests.load(Ordering::Relaxed), 11);
+		});
 	}
 }
