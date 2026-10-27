@@ -12,6 +12,7 @@
 mod assertions;
 pub mod generators;
 mod macros;
+pub(crate) mod native;
 
 use bstr::{BString, ByteSlice, ByteVec};
 use codemap::Span;
@@ -1046,6 +1047,10 @@ where
 
 				Op::Equal => lifted_pop! {
 					self(b, a) => {
+						if let Some(equal) = native::equal(&a, &b, PointerEquality::ForbidAll) {
+							self.stack.push(Value::Bool(equal));
+							continue;
+						}
 						let gen_span = frame.current_span();
 						self.push_bytecode_frame(span, frame);
 						self.enqueue_generator("nix_eq", gen_span, |co| {
@@ -1182,6 +1187,10 @@ where
 					frame.ip.0 += 1;
 
 					let value = self.stack_pop();
+					if let Some(value) = native::coerce(&value, kind) {
+						self.stack.push(value);
+						continue;
+					}
 					let gen_span = frame.current_span();
 					self.push_bytecode_frame(span, frame);
 
@@ -1221,6 +1230,10 @@ where
 
 				Op::Add => lifted_pop! {
 					self(b, a) => {
+						if let Some(value) = native::add(&a, &b) {
+							self.stack.push(value);
+							continue;
+						}
 						let gen_span = frame.current_span();
 						self.push_bytecode_frame(span, frame);
 

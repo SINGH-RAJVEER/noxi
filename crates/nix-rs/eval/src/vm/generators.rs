@@ -416,6 +416,10 @@ where
 
 						VMRequest::NixEquality(values, ptr_eq) => {
 							let values = *values;
+							if let Some(equal) = native::equal(&values.0, &values.1, ptr_eq) {
+								message = VMResponse::Value(Value::Bool(equal));
+								continue;
+							}
 							self.reenqueue_generator(name, span, generator);
 							self.enqueue_generator("nix_eq", span, |co| {
 								values.0.nix_eq_owned_genco(values.1, co, ptr_eq, span)
@@ -424,6 +428,10 @@ where
 						}
 
 						VMRequest::StringCoerce(val, kind, context) => {
+							if let Some(value) = native::coerce(&val, kind) {
+								message = VMResponse::Value(value);
+								continue;
+							}
 							self.reenqueue_generator(name, span, generator);
 							self.enqueue_generator("coerce_to_string", span, |co| {
 								val.coerce_to_string(co, kind, span)

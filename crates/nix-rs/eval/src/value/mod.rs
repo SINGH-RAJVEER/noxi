@@ -369,6 +369,9 @@ impl Value {
 		kind: CoercionKind,
 		span: Span,
 	) -> Result<Value, ErrorKind> {
+		if let Some(value) = crate::vm::native::coerce(&self, kind) {
+			return Ok(value);
+		}
 		enum Item {
 			Value(Value),
 			WithSeparator(Value),
@@ -553,6 +556,9 @@ impl Value {
 		ptr_eq: PointerEquality,
 		span: Span,
 	) -> Result<Value, ErrorKind> {
+		if let Some(equal) = crate::vm::native::equal(&self, &other, ptr_eq) {
+			return Ok(Value::Bool(equal));
+		}
 		// this is a stack of ((v1,v2),peq) triples to be compared;
 		// after each triple is popped off of the stack, v1 is
 		// compared to v2 using peq-mode PointerEquality
@@ -825,6 +831,9 @@ impl Value {
 		co: &GenCo,
 		span: Span,
 	) -> Result<Result<Ordering, CatchableErrorKind>, ErrorKind> {
+		if let Some(ordering) = crate::vm::native::compare(&myself, &other) {
+			return Ok(Ok(ordering));
+		}
 		// this is a stack of ((v1,v2),peq) triples to be compared;
 		// after each triple is popped off of the stack, v1 is
 		// compared to v2 using peq-mode PointerEquality
