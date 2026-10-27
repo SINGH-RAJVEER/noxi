@@ -222,7 +222,14 @@ impl BytecodeFrame {
 
 	/// Read a varint-encoded operand and return it. The frame pointer is
 	/// incremented internally.
+	#[inline]
 	fn read_uvarint(&mut self) -> u64 {
+		// Most operands fit in vu128's single-byte representation.
+		let first = self.chunk().code[self.ip.0];
+		if first < 0x80 {
+			self.ip.0 += 1;
+			return first.into();
+		}
 		let (arg, size) = self.chunk().read_uvarint(self.ip.0);
 		self.ip += size;
 		arg
@@ -653,13 +660,9 @@ where
 					bytecode_frame,
 					span,
 				} => {
-					// The frame keeps its own trace, which it may update as it runs.
-					// Most frames are thunks without one, so skip the clone for those.
-					let trace = match &bytecode_frame.trace {
-						FrameTrace::None => FrameTrace::None,
-						trace => trace.clone(),
-					};
-					self.current = (frame_id, trace);
+					// Bytecode errors borrow the running frame's trace. Suspensions
+					// put the frame itself back on the stack.
+					self.current = (frame_id, FrameTrace::None);
 					self.call_depth = bytecode_frame.depth;
 					self.observer
 						.observe_enter_bytecode_frame(0, &bytecode_frame.lambda, frame_id);
@@ -937,7 +940,7 @@ where
 
 				Op::AttrsSelect => lifted_pop! {
 					self(key, attrs) => {
-						let key = attribute_name(key, frame.current_span()).with_span(&frame, self)?;
+						let key = attribute_name(key, || frame.current_span()).with_span(&frame, self)?;
 						let attrs = attrs.to_attrs().with_span(&frame, self)?;
 
 						match attrs.select(&key) {
@@ -1006,7 +1009,7 @@ where
 				}
 
 				Op::AttrsTrySelect => {
-					let key = attribute_name(self.stack_pop(), frame.current_span())
+					let key = attribute_name(self.stack_pop(), || frame.current_span())
 						.with_span(&frame, self)?;
 					let value = match self.stack_pop() {
 						Value::Attrs(attrs) => match attrs.select(&key) {
@@ -1739,6 +1742,18 @@ where
 		Ok(())
 	}
 
+	fn call_error<T>(
+		&self,
+		span: Span,
+		parent: Option<&(Span, BytecodeFrame)>,
+		kind: ErrorKind,
+	) -> EvalResult<T> {
+		match parent {
+			Some((_, frame)) => Err(kind).with_span((span, frame), self),
+			None => Err(kind).with_span(span, self),
+		}
+	}
+
 	fn call_value(
 		&mut self,
 		span: Span,
@@ -1771,10 +1786,11 @@ where
 				// Like CppNix, count nested calls, tail calls included, so
 				// unbounded recursion fails instead of running forever.
 				if self.call_depth > self.max_call_depth {
-					return Err(ErrorKind::EvalError(
-						"stack overflow; max-call-depth exceeded".into(),
-					))
-					.with_span(span, self);
+					return self.call_error(
+						span,
+						parent.as_ref(),
+						ErrorKind::EvalError("stack overflow; max-call-depth exceeded".into()),
+					);
 				}
 
 				// Reenqueue the parent frame, which resumes after the call.
@@ -1823,7 +1839,11 @@ where
 				Ok(())
 			}
 
-			v => Err(ErrorKind::NotCallable(v.type_of(), Some(Box::new(v)))).with_span(span, self),
+			v => self.call_error(
+				span,
+				parent.as_ref(),
+				ErrorKind::NotCallable(v.type_of(), Some(Box::new(v))),
+			),
 		}
 	}
 
@@ -2128,7 +2148,7 @@ where
 
 /// CppNix's `getName` for a computed attribute name: it must be a string,
 /// and a failure is reported at the name.
-fn attribute_name(key: Value, span: Span) -> Result<NixString, ErrorKind> {
+fn attribute_name(key: Value, span: impl FnOnce() -> Span) -> Result<NixString, ErrorKind> {
 	match key {
 		Value::String(name) => Ok(name),
 		Value::Thunk(ref thunk) if thunk.is_evaluated() => {
@@ -2140,7 +2160,7 @@ fn attribute_name(key: Value, span: Span) -> Result<NixString, ErrorKind> {
 				actual: key.type_of(),
 				value: Some(Box::new(key.clone())),
 			}
-			.trace(Some(span), "while evaluating an attribute name"),
+			.trace(Some(span()), "while evaluating an attribute name"),
 		))),
 	}
 }

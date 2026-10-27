@@ -114,6 +114,10 @@ Thirty more builtin bodies now register synchronous entry points, including `map
 
 Evaluated scalar equality and comparison, numeric/string addition, path/string concatenation and scalar string coercion now run directly without generator frames. Equality and comparison also avoid allocating their work vectors for scalar arguments inside builtin calls. Suspended values, aggregate comparisons, imports and failures retain the original generator paths. This step uses 149.092 billion instructions, 3.90% below the synchronous-builtin revision and 5.89% below the original baseline, with 2,935,974 KiB median peak RSS. Both EVAL-08 digests, all 518 tests, doctests and the full baseline differential pass.
 
+Bytecode frames now lend their trace to error construction instead of cloning it on entry. Attribute-name span lookup is deferred until a type error, and single-byte vu128 operands bypass the general decoder. This step uses 141.545 billion instructions, another 5.06% reduction and 10.65% below baseline, with 2,947,432 KiB median peak RSS. Both digests, the 518 tests, doctests and the full differential pass. A separate CppNix invocation uses 41.005 billion instructions and 1,002,056 KiB peak RSS, so the instruction gap is still 3.45 times at this stage.
+
+Five-pair instruction profiles of START-03 and EVAL-01 through EVAL-06 pass all reference oracles for the baseline and first two revisions. At size 64, the synchronous revision's small-case instruction changes range from a 0.10% reduction to a 0.24% increase. The evaluated-operation revision reduces EVAL-04 and EVAL-06 by about 1.8%; its largest small-case increase is 0.17%. These startup-scale changes are recorded rather than rounded into a blanket no-regression claim.
+
 The ready-argument expansion alone saved only 0.3%; adding the forcing continuation without the span-aware mapped builtins saved 1.5%. Neither intermediate qualifies as a standalone improvement. These shared-host runs gate instruction counts and RSS; their wall times do not establish a speedup. Artifacts, flat reports and preserved executables are under `target/perf-cpu/` in the CPU worktree.
 
 ## What should become faster
