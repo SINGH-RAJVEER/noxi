@@ -35,7 +35,7 @@ use crate::{
 	nix_search_path::NixSearchPath,
 	observer::{OptionalRuntimeObserver, RuntimeObserver},
 	opcode::{CodeIdx, Op, Position, UpvalueIdx},
-	upvalues::{UpvalueData, Upvalues},
+	upvalues::{FrameUpvalues, UpvalueData, Upvalues},
 	value::{
 		Builtin, BuiltinResult, Closure, CoercionKind, Lambda, NixAttrs, NixContext, NixList,
 		PointerEquality, Thunk, Value, canon_path,
@@ -169,7 +169,7 @@ struct BytecodeFrame {
 
 	/// Optional captured upvalues of this frame (if a thunk or
 	/// closure if being evaluated).
-	upvalues: Rc<Upvalues>,
+	upvalues: FrameUpvalues,
 
 	/// Instruction pointer to the instruction currently being
 	/// executed.
@@ -558,7 +558,7 @@ where
 					BytecodeFrame {
 						trace: FrameTrace::None,
 						lambda,
-						upvalues,
+						upvalues: upvalues.into(),
 						ip: CodeIdx(0),
 						stack_offset: self.stack.len(),
 						depth: self.call_depth,
@@ -1707,7 +1707,7 @@ where
 							call_site,
 						},
 						lambda,
-						upvalues: closure.upvalues(),
+						upvalues: closure.upvalues().into(),
 						ip: CodeIdx(0),
 						stack_offset,
 						depth: self.call_depth + 1,
@@ -2032,7 +2032,7 @@ where
 		bytecode_frame: BytecodeFrame {
 			trace: FrameTrace::None,
 			lambda,
-			upvalues: Rc::new(Upvalues::with_capacity(0)),
+			upvalues: Upvalues::with_capacity(0).into(),
 			ip: CodeIdx(0),
 			stack_offset: 0,
 			depth: 0,

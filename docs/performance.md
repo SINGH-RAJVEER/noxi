@@ -122,6 +122,18 @@ Unconditionally constructing function literals as closures was also rejected. It
 
 Raw counting-allocator source, its patch and executable, baseline measurements, rejected patches, test logs, and differential outputs are retained under `target/perf-memory/` in the `perf/eval-memory` worktree. The baseline differential is `target/diff-baseline/`.
 
+## Evaluator capture ownership experiments, 2026-10-28
+
+Suspended thunks now own their captures directly and move them into an owning VM frame on forcing. Function calls retain shared `Rc<Upvalues>` captures. This removes the separate capture-header allocation for suspended thunks without adding one when forcing them. In three EVAL-08 runs, median instructions fell from the compiler commit's 152.920 to 151.811 billion, and median RSS fell from 2,983,400 to 2,851,272 KiB: 0.7% fewer instructions and 129 MiB less RSS. Against the original `3012fb5` baseline, the branch saves 4.2% of instructions and 4.5% of RSS. All three runs produced digest `f4e14079455b2d17`; the full pinned-fixture differential was byte-identical, 520 evaluator tests and the doctest passed, and `just nixos-paths` and `just nixpkgs-paths` passed. All 90 timed EVAL-01 through EVAL-06 samples matched their oracles; smaller-case instruction changes versus the compiler commit span -1.94% to +0.06%. Artifacts are `target/perf-memory/owned-frame*`.
+
+The measured branch tip still uses 3.70 times the pinned CppNix instruction count and 2.80 times its RSS. The 1 GiB memory target remains open; reclaiming unreachable value cycles is the next substantial opportunity. The earlier live-heap measurement found most requested bytes still allocated at command return, and reference counting alone cannot reclaim those cycles.
+
+Storing captures inside suspended thunk cells and allocating `Rc<Upvalues>` only on forcing reduced median EVAL-08 RSS from 2,983,400 to 2,855,796 KiB, about 125 MiB. It raised instructions from 152.920 to 154.376 billion, however, and regressed EVAL-04 by 1.45% and EVAL-06 by 0.98%. This version was rejected despite passing the exact differential, 520 evaluator tests, the doctest and both path checks. Its patch, binary and measurements are under `target/perf-memory/inline-upvalues*`.
+
+The baseline already avoids suspended wrappers for constants and known local references, and moves a forced thunk's captures into its executing frame. A regression test now checks that the thunk cell does not keep those captures alive after the frame releases them. Ordinary imports cache their compiled result, and imported ASTs are dropped after compilation; `scopedImport` deliberately compiles each scope separately. Evaluation results can contain values reused in later evaluations, so an arena freed when the VM returns would invalidate those values. An arena design needs owners that outlive the VM or a collector.
+
+After the main checkout's rename, differential scripts read pinned fixture copies. The refreshed reference directory is `target/diff-pinned-baseline/`; earlier `target/diff-baseline/` results contain different absolute source paths. Both contain 2,376 exit/stdout/stderr files.
+
 ## What should become faster
 
 Measure time until an installed package actually runs, a development shell executes its first command, development services pass readiness checks, and a system generation completes activation. Download completion, derivation evaluation, and a CLI returning early are intermediate milestones.
