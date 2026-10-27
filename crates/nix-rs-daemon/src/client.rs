@@ -8,7 +8,7 @@
 
 use std::cell::RefCell;
 use std::collections::{BTreeMap, BTreeSet};
-use std::io::{self, Read, Write};
+use std::io::{self, BufReader, Read, Write};
 use std::os::unix::net::UnixStream;
 use std::path::{Path, PathBuf};
 
@@ -74,7 +74,8 @@ impl Default for ClientOptions {
 }
 
 struct Connection {
-	from: Reader<UnixStream>,
+	/// Buffered, so a reply costs a few reads rather than one per field.
+	from: Reader<BufReader<UnixStream>>,
 	to: Writer<UnixStream>,
 	version: Version,
 	features: BTreeSet<String>,
@@ -258,7 +259,7 @@ impl DaemonStore {
 		})?;
 		let read = stream.try_clone().map_err(|e| store_error(e.into()))?;
 		let mut conn = Connection {
-			from: Reader::new(read),
+			from: Reader::new(BufReader::new(read)),
 			to: Writer::new(stream),
 			version: PROTOCOL_VERSION,
 			features: BTreeSet::new(),
@@ -676,7 +677,7 @@ mod tests {
 		}
 		let store = DaemonStore::new(Path::new("unused.sock"), None, &ClientOptions::default());
 		*store.conn.borrow_mut() = Some(Connection {
-			from: Reader::new(client.try_clone().unwrap()),
+			from: Reader::new(BufReader::new(client.try_clone().unwrap())),
 			to: Writer::new(client),
 			version: version(1, 38),
 			features: features

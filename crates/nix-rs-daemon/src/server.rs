@@ -157,7 +157,8 @@ pub fn handle_connection(
 	trust: Trust,
 ) -> Result<()> {
 	let store = LocalStore::open(settings.store.clone())?;
-	let read = stream.try_clone()?;
+	// Buffered, so a request costs a few reads rather than one per field.
+	let read = std::io::BufReader::new(stream.try_clone()?);
 	process_connection(read, stream, &store, settings, trust)
 }
 
