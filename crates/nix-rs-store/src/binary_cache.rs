@@ -7,11 +7,13 @@
 //! references first, and imports each NAR through
 //! [`LocalStore::add_to_store`], which checks its hash and size.
 
-use std::collections::BTreeSet;
+use std::collections::{BTreeSet, HashMap};
 use std::fs::{self, File};
 use std::io::{self, BufRead, BufReader, BufWriter, Read, Write};
 use std::os::unix::fs::PermissionsExt;
 use std::path::{Path, PathBuf};
+use std::sync::{Arc, Mutex};
+use std::time::{Duration, Instant};
 
 use data_encoding::BASE64;
 use nix_compat::narinfo::{Flags, NarInfo, Signature, SigningKey};
@@ -64,7 +66,23 @@ pub struct BinaryCache {
 	info: CacheInfo,
 	/// Whether paths from this cache need no signature (`?trusted=1`).
 	pub trusted: bool,
+	/// Narinfo lookups already answered, shared by clones, as CppNix's
+	/// `pathInfoCache` is shared by users of one store.
+	narinfos: Arc<Mutex<HashMap<StorePath, Narinfo>>>,
 }
+
+/// A remembered narinfo lookup.
+#[derive(Clone, Debug)]
+enum Narinfo {
+	Present(CachedPath),
+	/// The cache had no narinfo at this time.
+	Missing(Instant),
+}
+
+/// How long a missing narinfo is remembered, CppNix's default
+/// `narinfo-cache-negative-ttl`. Present ones are remembered for the
+/// process, as within the default 30-day positive TTL.
+const NEGATIVE_TTL: Duration = Duration::from_secs(3600);
 
 impl BinaryCache {
 	/// Open the cache at a URL, checking that it is for `/nix/store`
@@ -99,6 +117,7 @@ impl BinaryCache {
 				priority: 50,
 			},
 			trusted,
+			narinfos: Arc::default(),
 		};
 		if let Some(text) = cache.get_file("nix-cache-info")? {
 			let text = String::from_utf8_lossy(&text).into_owned();
@@ -304,6 +323,10 @@ impl BinaryCache {
 		narinfo.signatures.dedup();
 		persist_atomic(temporary, &local_cache_path(dir, &url)?)?;
 		write_atomic(&metadata_path, narinfo.to_string().as_bytes())?;
+		self.narinfos
+			.lock()
+			.unwrap_or_else(|e| e.into_inner())
+			.remove(path);
 		visiting.remove(path);
 		done.insert(path.clone());
 		Ok(())
@@ -358,8 +381,25 @@ impl BinaryCache {
 	}
 
 	/// The metadata the cache records for `path`, read as the reference
-	/// reads it, with its errors for malformed files.
+	/// reads it, with its errors for malformed files. Answers are
+	/// remembered; errors are not.
 	pub fn query_path_info(&self, path: &StorePath) -> Result<Option<CachedPath>> {
+		let narinfos = || self.narinfos.lock().unwrap_or_else(|e| e.into_inner());
+		match narinfos().get(path) {
+			Some(Narinfo::Present(cached)) => return Ok(Some(cached.clone())),
+			Some(Narinfo::Missing(at)) if at.elapsed() < NEGATIVE_TTL => return Ok(None),
+			_ => {}
+		}
+		let cached = self.fetch_path_info(path)?;
+		let entry = match &cached {
+			Some(cached) => Narinfo::Present(cached.clone()),
+			None => Narinfo::Missing(Instant::now()),
+		};
+		narinfos().insert(path.clone(), entry);
+		Ok(cached)
+	}
+
+	fn fetch_path_info(&self, path: &StorePath) -> Result<Option<CachedPath>> {
 		let name = format!("{}.narinfo", nix_compat::nixbase32::encode(path.digest()));
 		let Some(bytes) = self.get_file(&name)? else {
 			return Ok(None);
