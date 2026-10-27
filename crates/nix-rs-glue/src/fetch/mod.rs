@@ -59,6 +59,9 @@ pub struct FetchState {
 	cache: Vec<(Input, CachedInput)>,
 	/// Store paths of trees already hashed, by physical root and name.
 	hashed: Vec<(PathBuf, String, StorePath, NixHash)>,
+	/// Git tree hashes of trees exported from the tarball cache, by physical
+	/// root, so hashing one records its `treeHashToNarHash` entry.
+	tree_hashes: Vec<(PathBuf, String)>,
 }
 
 impl EvaluatorStore {
@@ -85,6 +88,13 @@ impl EvaluatorStore {
 
 	pub(crate) fn fetch_cache(&self) -> Result<nix_rs_flakeref::cache::Cache> {
 		nix_rs_flakeref::cache::Cache::open(&self.fetch_cache_dir())
+	}
+
+	pub(crate) fn record_tree_hash(&self, root: &Path, tree_hash: String) {
+		self.fetch_state
+			.borrow_mut()
+			.tree_hashes
+			.push((root.to_owned(), tree_hash));
 	}
 
 	pub(crate) fn http_request(&self, request: &http::Request) -> Result<http::Response> {
@@ -383,6 +393,22 @@ pub(crate) fn add_tree(
 	let (path, hash) = store
 		.add_tree(name, mount)
 		.map_err(|e| Error::new(e.to_string()))?;
+	let tree_hash = store
+		.fetch_state
+		.borrow()
+		.tree_hashes
+		.iter()
+		.find(|(root, _)| *root == mount.root)
+		.map(|(_, tree_hash)| tree_hash.clone());
+	if let Some(tree_hash) = tree_hash
+		&& mount.filter.is_none()
+	{
+		store.fetch_cache()?.upsert(
+			"treeHashToNarHash",
+			&[("treeHash".into(), tree_hash.into())].into(),
+			&[("narHash".into(), hash.to_sri_string().into())].into(),
+		)?;
+	}
 	store.fetch_state.borrow_mut().hashed.push((
 		mount.root.clone(),
 		name.to_owned(),
