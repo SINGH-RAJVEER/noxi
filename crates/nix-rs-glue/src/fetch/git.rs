@@ -315,6 +315,15 @@ fn read_blobs(repo: &Path, blobs: &[(String, bool, bool, PathBuf)]) -> Result<()
 	Ok(())
 }
 
+/// CppNix's accessor fingerprint for `rev` without submodules or LFS.
+fn fingerprint(rev: &str, export_ignore: bool) -> String {
+	if export_ignore {
+		format!("{rev};e")
+	} else {
+		rev.to_owned()
+	}
+}
+
 /// The commit time of `rev`, through CppNix's `gitLastModified` cache.
 fn last_modified(store: &EvaluatorStore, repo: &Path, rev: &str) -> Result<u64> {
 	let cache = store.fetch_cache()?;
@@ -585,43 +594,64 @@ pub(crate) fn get_accessor(
 			}
 		}
 		rev = head;
-		// Materialise only visible files so directory listings and hashing agree, including empty gitlinks.
-		let keep = Rc::new(tempfile::tempdir()?);
-		for rel in &visible {
-			if rel.ancestors().any(|p| ignored.contains(p)) {
-				continue;
+		// CppNix fingerprints a clean working tree by its HEAD revision.
+		let gitlinks = stage.split(|b| *b == 0).any(|e| e.starts_with(b"160000 "));
+		let source = match &rev {
+			Some(head) if !dirty && !gitlinks && !boolean(input, "lfs")? => {
+				Some(super::source_hash_entry(fingerprint(head, export_ignore)))
 			}
-			let from = repo.join(rel);
-			let Ok(metadata) = fs::symlink_metadata(&from) else {
-				continue;
-			};
-			let to = keep.path().join(rel);
-			fs::create_dir_all(to.parent().unwrap())?;
-			if metadata.file_type().is_symlink() {
-				symlink(fs::read_link(from)?, to)?;
-			} else if metadata.is_file() {
-				fs::copy(from, to)?;
-			}
-		}
-		for entry in stage
-			.split(|b| *b == 0)
-			.filter(|e| submodules && e.starts_with(b"160000 "))
-		{
-			let tab = entry.iter().position(|b| *b == b'\t').unwrap();
-			fs::create_dir_all(
-				keep.path()
-					.join(std::ffi::OsStr::from_bytes(&entry[tab + 1..])),
-			)?;
-		}
-		mount = Mount {
-			root: keep.path().to_owned(),
-			filter: Some(Rc::new(TreeFilter {
-				tracked,
-				ignored,
-				repo: repo.clone(),
-			})),
-			keep: Some(keep),
+			_ => None,
 		};
+		let stored = match &source {
+			Some(entry) => {
+				super::stored_source(store, &store.fetch_cache()?, entry, &input.get_name())?
+			}
+			None => None,
+		};
+		if let Some(stored) = stored {
+			mount = stored;
+		} else {
+			// Materialise only visible files so directory listings and hashing agree, including empty gitlinks.
+			let keep = Rc::new(tempfile::tempdir()?);
+			for rel in &visible {
+				if rel.ancestors().any(|p| ignored.contains(p)) {
+					continue;
+				}
+				let from = repo.join(rel);
+				let Ok(metadata) = fs::symlink_metadata(&from) else {
+					continue;
+				};
+				let to = keep.path().join(rel);
+				fs::create_dir_all(to.parent().unwrap())?;
+				if metadata.file_type().is_symlink() {
+					symlink(fs::read_link(from)?, to)?;
+				} else if metadata.is_file() {
+					fs::copy(from, to)?;
+				}
+			}
+			for entry in stage
+				.split(|b| *b == 0)
+				.filter(|e| submodules && e.starts_with(b"160000 "))
+			{
+				let tab = entry.iter().position(|b| *b == b'\t').unwrap();
+				fs::create_dir_all(
+					keep.path()
+						.join(std::ffi::OsStr::from_bytes(&entry[tab + 1..])),
+				)?;
+			}
+			mount = Mount {
+				root: keep.path().to_owned(),
+				filter: Some(Rc::new(TreeFilter {
+					tracked,
+					ignored,
+					repo: repo.clone(),
+				})),
+				keep: Some(keep),
+			};
+			if let Some(entry) = source {
+				store.record_nar_hash(&mount.root, entry);
+			}
+		}
 	} else {
 		let requested = input
 			.get_rev()?
@@ -639,15 +669,9 @@ pub(crate) fn get_accessor(
 			result.attrs.insert("ref".into(), default_ref.into());
 		}
 		let lfs = boolean(input, "lfs")?;
-		// CppNix's fingerprint of a revision, less the submodule and LFS
-		// flags, whose exports this cache leaves to the full path below.
-		let source = (!submodules && !lfs).then(|| {
-			super::source_hash_entry(if export_ignore {
-				format!("{commit};e")
-			} else {
-				commit.clone()
-			})
-		});
+		// Exports with submodules or LFS content always take the full path below.
+		let source = (!submodules && !lfs)
+			.then(|| super::source_hash_entry(fingerprint(&commit, export_ignore)));
 		let stored = match &source {
 			Some(entry) => {
 				super::stored_source(store, &store.fetch_cache()?, entry, &input.get_name())?
