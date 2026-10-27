@@ -7,7 +7,7 @@
 //! `...` appended, and build log lines as they are.
 
 use std::cell::RefCell;
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::io::{self, BufReader, Read, Write};
 use std::os::unix::net::UnixStream;
 use std::path::{Path, PathBuf};
@@ -83,6 +83,9 @@ struct Connection {
 	print_build_logs: bool,
 }
 
+/// How many path infos a [`DaemonStore`] remembers.
+const PATH_INFO_CACHE_SIZE: usize = 65536;
+
 /// A store whose owner is a daemon.
 pub struct DaemonStore {
 	socket: PathBuf,
@@ -92,6 +95,9 @@ pub struct DaemonStore {
 	/// The connection, opened by the first operation as CppNix's
 	/// connection pool does.
 	conn: RefCell<Option<Connection>>,
+	/// Path infos the daemon has returned, as CppNix's `pathInfoCache`.
+	/// Garbage collection clears it.
+	path_infos: RefCell<HashMap<StorePath, ValidPathInfo>>,
 	/// Where this process sees the store's files.
 	real_store_dir: PathBuf,
 }
@@ -244,6 +250,7 @@ impl DaemonStore {
 			uri,
 			options: options.clone(),
 			conn: RefCell::new(None),
+			path_infos: RefCell::default(),
 			real_store_dir,
 		}
 	}
@@ -464,6 +471,7 @@ impl Store for DaemonStore {
 		options: &GcOptions,
 		_log: &mut dyn FnMut(&str),
 	) -> nix_rs_store::Result<GcResults> {
+		self.path_infos.borrow_mut().clear();
 		self.with_conn(|conn| {
 			let specific = conn.features.contains("delete-dead-specific-referrers");
 			if !specific && options.paths.is_some() {
@@ -507,16 +515,31 @@ impl Store for DaemonStore {
 	}
 
 	fn is_valid_path(&self, path: &StorePath) -> nix_rs_store::Result<bool> {
+		if self.path_infos.borrow().contains_key(path) {
+			return Ok(true);
+		}
 		self.path_op(op::IS_VALID_PATH, path, |conn| conn.from.read_bool())
 	}
 
 	fn query_path_info(&self, path: &StorePath) -> nix_rs_store::Result<Option<ValidPathInfo>> {
-		self.path_op(op::QUERY_PATH_INFO, path, |conn| {
+		if let Some(info) = self.path_infos.borrow().get(path) {
+			return Ok(Some(info.clone()));
+		}
+		let info = self.path_op(op::QUERY_PATH_INFO, path, |conn| {
 			if !conn.from.read_bool()? {
 				return Ok(None);
 			}
 			read_path_info(&mut conn.from, path.clone()).map(Some)
-		})
+		})?;
+		if let Some(info) = &info {
+			let mut infos = self.path_infos.borrow_mut();
+			// CppNix's default `path-info-cache-size` bounds the cache.
+			if infos.len() >= PATH_INFO_CACHE_SIZE {
+				infos.clear();
+			}
+			infos.insert(path.clone(), info.clone());
+		}
+		Ok(info)
 	}
 
 	fn query_referrers(&self, path: &StorePath) -> nix_rs_store::Result<BTreeSet<StorePath>> {
