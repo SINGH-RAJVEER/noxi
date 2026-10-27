@@ -37,45 +37,74 @@ pub(super) struct TreeCache {
 impl TreeCache {
 	pub fn open(directory: &Path) -> Result<Self> {
 		let repo = directory.join("tarball-cache-v2");
-		fs::create_dir_all(&repo)?;
-		git(&repo, &["init", "--quiet", "--bare"], &[])?;
+		if !repo.join("HEAD").is_file() || !repo.join("objects").is_dir() {
+			fs::create_dir_all(&repo)?;
+			git(&repo, &["init", "--quiet", "--bare"], &[])?;
+		}
 		Ok(Self { repo })
 	}
 
-	fn write_tree(&self, path: &Path) -> Result<String> {
-		let mut entries = Vec::new();
-		let mut names = fs::read_dir(path)?
-			.map(|e| e.map(|e| e.path()))
-			.collect::<std::io::Result<Vec<_>>>()?;
-		names.sort();
-		for path in names {
-			let meta = fs::symlink_metadata(&path)?;
-			let (mode, kind, hash) = if meta.is_dir() {
-				("040000", "tree", self.write_tree(&path)?)
-			} else {
-				let bytes = if meta.file_type().is_symlink() {
-					fs::read_link(&path)?.as_os_str().as_bytes().to_vec()
-				} else {
-					fs::read(&path)?
-				};
-				let hash = git(&self.repo, &["hash-object", "-w", "--stdin"], &bytes)?;
-				(
-					if meta.file_type().is_symlink() {
-						"120000"
-					} else if meta.permissions().mode() & 0o100 != 0 {
-						"100755"
-					} else {
-						"100644"
-					},
-					"blob",
-					hash,
-				)
-			};
-			entries.extend_from_slice(format!("{mode} {kind} {hash}\t").as_bytes());
-			entries.extend_from_slice(path.file_name().unwrap().as_bytes());
-			entries.push(0);
+	/// Write a loose object as `git hash-object -w` and `git mktree` do,
+	/// without a process per object, and return its hexadecimal SHA-1.
+	fn write_object(&self, kind: &str, content: &[u8]) -> Result<[u8; 20]> {
+		use sha1::{Digest, Sha1};
+		let header = format!("{kind} {}\0", content.len());
+		let mut hasher = Sha1::new();
+		hasher.update(header.as_bytes());
+		hasher.update(content);
+		let hash: [u8; 20] = hasher.finalize().into();
+		let hex = data_encoding::HEXLOWER.encode(&hash);
+		let directory = self.repo.join("objects").join(&hex[..2]);
+		let path = directory.join(&hex[2..]);
+		if path.exists() {
+			return Ok(hash);
 		}
-		git(&self.repo, &["mktree", "-z"], &entries)
+		fs::create_dir_all(&directory)?;
+		let mut file = tempfile::NamedTempFile::new_in(&directory)?;
+		let mut encoder = flate2::write::ZlibEncoder::new(&mut file, flate2::Compression::fast());
+		encoder.write_all(header.as_bytes())?;
+		encoder.write_all(content)?;
+		encoder.finish()?;
+		file.persist(&path).map_err(|e| e.error)?;
+		Ok(hash)
+	}
+
+	fn write_tree(&self, path: &Path) -> Result<[u8; 20]> {
+		let mut entries = Vec::new();
+		for entry in fs::read_dir(path)? {
+			let path = entry?.path();
+			let meta = fs::symlink_metadata(&path)?;
+			let (mode, hash) = if meta.is_dir() {
+				("40000", self.write_tree(&path)?)
+			} else if meta.file_type().is_symlink() {
+				let target = fs::read_link(&path)?;
+				(
+					"120000",
+					self.write_object("blob", target.as_os_str().as_bytes())?,
+				)
+			} else if meta.permissions().mode() & 0o100 != 0 {
+				("100755", self.write_object("blob", &fs::read(&path)?)?)
+			} else {
+				("100644", self.write_object("blob", &fs::read(&path)?)?)
+			};
+			// Git orders entries by name, comparing directories as if they ended in '/'.
+			let mut key = path.file_name().unwrap().as_bytes().to_vec();
+			let name = key.len();
+			if meta.is_dir() {
+				key.push(b'/');
+			}
+			entries.push((key, name, mode, hash));
+		}
+		entries.sort_unstable_by(|a, b| a.0.cmp(&b.0));
+		let mut tree = Vec::new();
+		for (key, name, mode, hash) in entries {
+			tree.extend_from_slice(mode.as_bytes());
+			tree.push(b' ');
+			tree.extend_from_slice(&key[..name]);
+			tree.push(0);
+			tree.extend_from_slice(&hash);
+		}
+		self.write_object("tree", &tree)
 	}
 
 	pub fn insert(&self, path: &Path) -> Result<String> {
@@ -85,7 +114,7 @@ impl TreeCache {
 			.write(true)
 			.open(self.repo.join("nixrs-write.lock"))?;
 		lock.lock()?;
-		let hash = self.write_tree(path)?;
+		let hash = data_encoding::HEXLOWER.encode(&self.write_tree(path)?);
 		let prefix = self.repo.join("objects/pack/pack");
 		git(
 			&self.repo,
@@ -119,5 +148,45 @@ impl TreeCache {
 			filter: None,
 			keep: Some(keep),
 		}))
+	}
+}
+
+#[cfg(test)]
+mod tests {
+	use super::*;
+
+	#[test]
+	fn tree_hashes_match_git() {
+		let source = tempfile::tempdir().unwrap();
+		let root = source.path();
+		for dir in ["b", "b/c", "x-y"] {
+			fs::create_dir(root.join(dir)).unwrap();
+		}
+		for file in ["b.c", "b-c", "b/c/d", "b0", "x-y/z", "x"] {
+			fs::write(root.join(file), file).unwrap();
+		}
+		fs::set_permissions(root.join("b0"), fs::Permissions::from_mode(0o755)).unwrap();
+		std::os::unix::fs::symlink("b/c", root.join("link")).unwrap();
+		let cache = tempfile::tempdir().unwrap();
+		let trees = TreeCache::open(cache.path()).unwrap();
+		let hash = trees.insert(root).unwrap();
+		git(root, &["init", "--quiet"], &[]).unwrap();
+		git(root, &["add", "-A", "--", ".", ":!.git"], &[]).unwrap();
+		assert_eq!(hash, git(root, &["write-tree"], &[]).unwrap());
+		let mount = trees.get(&hash).unwrap().unwrap();
+		assert_eq!(fs::read(mount.root.join("b/c/d")).unwrap(), b"b/c/d");
+		assert_eq!(
+			fs::read_link(mount.root.join("link")).unwrap(),
+			Path::new("b/c")
+		);
+		let mode = fs::metadata(mount.root.join("b0"))
+			.unwrap()
+			.permissions()
+			.mode();
+		assert_eq!(mode & 0o111, 0o111);
+		assert!(fs::read_dir(trees.repo.join("objects")).unwrap().all(|e| {
+			let name = e.unwrap().file_name();
+			name == "pack" || name == "info"
+		}));
 	}
 }

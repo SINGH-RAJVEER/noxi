@@ -48,8 +48,21 @@ pub fn topo_sort(
 	store: &dyn Store,
 	paths: &BTreeSet<StorePath>,
 ) -> Result<Vec<StorePath>, Failure> {
+	topo_sort_by(paths, |path| {
+		Ok(store
+			.query_path_info(path)?
+			.map(|info| info.references)
+			.unwrap_or_default())
+	})
+}
+
+/// [`topo_sort`] with the references of each path from `references`.
+pub fn topo_sort_by(
+	paths: &BTreeSet<StorePath>,
+	mut references: impl FnMut(&StorePath) -> Result<BTreeSet<StorePath>, Failure>,
+) -> Result<Vec<StorePath>, Failure> {
 	fn visit(
-		store: &dyn Store,
+		references: &mut dyn FnMut(&StorePath) -> Result<BTreeSet<StorePath>, Failure>,
 		items: &BTreeSet<StorePath>,
 		path: &StorePath,
 		parent: Option<&StorePath>,
@@ -68,14 +81,10 @@ pub fn topo_sort(
 			return Ok(());
 		}
 		parents.insert(path.clone());
-		let references = store
-			.query_path_info(path)?
-			.map(|info| info.references)
-			.unwrap_or_default();
-		for reference in &references {
+		for reference in &references(path)? {
 			if reference != path && items.contains(reference) {
 				visit(
-					store,
+					references,
 					items,
 					reference,
 					Some(path),
@@ -95,7 +104,7 @@ pub fn topo_sort(
 	let mut parents = BTreeSet::new();
 	for path in paths {
 		visit(
-			store,
+			&mut references,
 			paths,
 			path,
 			None,
