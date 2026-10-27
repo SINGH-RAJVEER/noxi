@@ -315,6 +315,40 @@ fn read_blobs(repo: &Path, blobs: &[(String, bool, bool, PathBuf)]) -> Result<()
 	Ok(())
 }
 
+/// The commit time of `rev`, through CppNix's `gitLastModified` cache.
+fn last_modified(store: &EvaluatorStore, repo: &Path, rev: &str) -> Result<u64> {
+	let cache = store.fetch_cache()?;
+	let key = [("rev".into(), rev.into())].into();
+	if let Some(value) = cache.lookup("gitLastModified", &key)?
+		&& let Some(modified) = nix_rs_flakeref::input::maybe_get_int_attr(&value, "lastModified")?
+	{
+		return Ok(modified);
+	}
+	let modified = text(repo, &["show", "-s", "--format=%ct", rev])?
+		.parse::<u64>()
+		.map_err(|e| Error::new(e.to_string()))?;
+	cache.upsert(
+		"gitLastModified",
+		&key,
+		&[("lastModified".into(), Attr::Int(modified))].into(),
+	)?;
+	Ok(modified)
+}
+
+/// Whether Git attributes could change an archive of `rev`: a
+/// `.gitattributes` file in its tree or the repository's `info/attributes`.
+fn has_attributes(repo: &Path, rev: &str) -> Result<bool> {
+	let names = run(repo, &["ls-tree", "-rz", "--name-only", "--full-tree", rev])?;
+	if names
+		.split(|b| *b == 0)
+		.any(|name| name.rsplit(|b| *b == b'/').next() == Some(b".gitattributes"))
+	{
+		return Ok(true);
+	}
+	let info = text(repo, &["rev-parse", "--git-path", "info/attributes"])?;
+	Ok(fs::metadata(repo.join(info)).is_ok_and(|m| m.len() > 0))
+}
+
 fn copy_tree(source: &Path, destination: &Path) -> Result<()> {
 	fs::create_dir_all(destination)?;
 	for entry in fs::read_dir(source)? {
@@ -604,25 +638,50 @@ pub(crate) fn get_accessor(
 				.unwrap_or_else(|_| "master".into());
 			result.attrs.insert("ref".into(), default_ref.into());
 		}
-		let keep = Rc::new(tempfile::tempdir()?);
-		export(&repo, &commit, keep.path(), false, export_ignore)?;
-		if submodules {
-			export_submodules(store, settings, input, &repo, &commit, keep.path())?;
-		}
-		if boolean(input, "lfs")? {
-			super::lfs::smudge(store, &repo, &commit, keep.path())?;
-		}
-		mount = Mount {
-			root: keep.path().to_owned(),
-			filter: None,
-			keep: Some(keep),
+		let lfs = boolean(input, "lfs")?;
+		// CppNix's fingerprint of a revision, less the submodule and LFS
+		// flags, whose exports this cache leaves to the full path below.
+		let source = (!submodules && !lfs).then(|| {
+			super::source_hash_entry(if export_ignore {
+				format!("{commit};e")
+			} else {
+				commit.clone()
+			})
+		});
+		let stored = match &source {
+			Some(entry) => {
+				super::stored_source(store, &store.fetch_cache()?, entry, &input.get_name())?
+			}
+			None => None,
 		};
+		if let Some(stored) = stored {
+			mount = stored;
+		} else {
+			let keep = Rc::new(tempfile::tempdir()?);
+			export(&repo, &commit, keep.path(), false, export_ignore)?;
+			if submodules {
+				export_submodules(store, settings, input, &repo, &commit, keep.path())?;
+			}
+			if lfs {
+				super::lfs::smudge(store, &repo, &commit, keep.path())?;
+			}
+			mount = Mount {
+				root: keep.path().to_owned(),
+				filter: None,
+				keep: Some(keep),
+			};
+			// `git archive` applies attributes other than export-ignore too, so
+			// share an export-ignore hash only when no attributes can apply.
+			if let Some(entry) = source
+				&& (!export_ignore || !has_attributes(&repo, &commit)?)
+			{
+				store.record_nar_hash(&mount.root, entry);
+			}
+		}
 		rev = Some(commit);
 	}
 	let modified = match &rev {
-		Some(rev) => text(&repo, &["show", "-s", "--format=%ct", rev])?
-			.parse::<u64>()
-			.map_err(|e| Error::new(e.to_string()))?,
+		Some(rev) => last_modified(store, &repo, rev)?,
 		None => 0,
 	};
 	if worktree {

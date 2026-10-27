@@ -3,7 +3,6 @@ use std::io::{Cursor, Read};
 use std::path::PathBuf;
 use std::rc::Rc;
 
-use nix_compat::nixhash::NixHash;
 use nix_compat::store_path::StorePath;
 use nix_rs_flakeref::error::{Error, Result};
 use nix_rs_flakeref::input::{Attr, Attrs, Input, get_str_attr};
@@ -217,43 +216,6 @@ pub(crate) fn get_tarball_accessor(
 	Ok((mount, result))
 }
 
-/// The store copy of a cached tree, found through the NAR hash that
-/// CppNix's `treeHashToNarHash` cache records for its Git tree hash, so a
-/// warm fetch neither exports nor hashes the tree again.
-fn stored_tree(
-	store: &EvaluatorStore,
-	cache: &nix_rs_flakeref::cache::Cache,
-	tree_hash: &str,
-	name: &str,
-) -> Result<Option<Mount>> {
-	let key: Attrs = [("treeHash".into(), tree_hash.into())].into();
-	let Some(value) = cache.lookup("treeHashToNarHash", &key)? else {
-		return Ok(None);
-	};
-	let Ok(hash) = NixHash::from_sri(&get_str_attr(&value, "narHash")?) else {
-		return Ok(None);
-	};
-	let Ok(path) =
-		nix_compat::store_path::build_ca_path(name, true, &hash, std::iter::empty(), false)
-	else {
-		return Ok(None);
-	};
-	let path = path.to_owned();
-	if store.store().is_none() {
-		return Ok(None);
-	}
-	let Some(physical) = store.valid_store_path(&path) else {
-		return Ok(None);
-	};
-	// The path is already valid, so mounting it needs no import.
-	store
-		.fetch_state
-		.borrow_mut()
-		.hashed
-		.push((physical.clone(), name.to_owned(), path, hash));
-	Ok(Some(Mount::new(physical)))
-}
-
 pub(super) fn download_tarball(
 	store: &EvaluatorStore,
 	url: &str,
@@ -268,7 +230,8 @@ pub(super) fn download_tarball(
 		.is_some_and(|entry| store.fetch_config.borrow().offline || !entry.expired);
 	if fresh {
 		let value = &cached.as_ref().unwrap().value;
-		if let Some(mount) = stored_tree(store, &cache, &get_str_attr(value, "treeHash")?, name)? {
+		let tree = super::tree_hash_entry(get_str_attr(value, "treeHash")?);
+		if let Some(mount) = super::stored_source(store, &cache, &tree, name)? {
 			return Ok((
 				mount,
 				nix_rs_flakeref::input::maybe_get_int_attr(value, "lastModified")?.unwrap_or(0),
@@ -281,7 +244,7 @@ pub(super) fn download_tarball(
 			let tree_hash = get_str_attr(&entry.value, "treeHash")?;
 			let mount = trees.get(&tree_hash)?;
 			if let Some(mount) = &mount {
-				store.record_tree_hash(&mount.root, tree_hash);
+				store.record_nar_hash(&mount.root, super::tree_hash_entry(tree_hash));
 			}
 			mount
 		}
@@ -315,7 +278,7 @@ pub(super) fn download_tarball(
 	}
 	let (mount, modified) = unpack(response.body)?;
 	let tree_hash = trees.insert(&mount.root)?;
-	store.record_tree_hash(&mount.root, tree_hash.clone());
+	store.record_nar_hash(&mount.root, super::tree_hash_entry(tree_hash.clone()));
 	let value: Attrs = [
 		("treeHash".into(), tree_hash.into()),
 		("lastModified".into(), modified.into()),
