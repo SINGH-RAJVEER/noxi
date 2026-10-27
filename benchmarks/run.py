@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Paired CppNix/nix-rs benchmarks with verified outputs and owned stores."""
+"""Paired CppNix/noxi benchmarks with verified outputs and owned stores."""
 
 from __future__ import annotations
 
@@ -49,7 +49,7 @@ def source_identity(root: Path = ROOT) -> dict:
 
 def artifact(directory: Path, role: str, work: Path, timeout: float) -> dict:
 	result = {"role": role, "bin_directory": str(directory), "executables": {}}
-	for program in ["nix-store", "nix-instantiate", "nix-env", "nix-build", "nix-daemon", "nixrs", "nix"]:
+	for program in ["nix-store", "nix-instantiate", "nix-env", "nix-build", "nix-daemon", "noxi", "nix"]:
 		path = absolute_program(directory / program)
 		if not path.is_file():
 			continue
@@ -219,7 +219,7 @@ def catalog() -> list[dict]:
 
 def variants(case: str) -> list[str]:
 	if case == "RPC-01":
-		return ["cppnix-server", "nixrs-server"]
+		return ["cppnix-server", "noxi-server"]
 	if case == "CACHE-08":
 		return ["none", "xz", "zstd", "gzip", "bzip2", "br"]
 	if case == "CACHE-10":
@@ -230,7 +230,7 @@ def variants(case: str) -> list[str]:
 def execute_case(args, case: str, variant: str, engines: dict, artifacts: dict, launcher: Path,
 		work: Path, output: Path, samples_stream) -> tuple[dict, list[dict]]:
 	fixture = Fixtures(work / f"{case}-{variant}", engines["reference"], args.busybox, args.size, args.seed, args.timeout, case)
-	fixture.server_bins = {"cppnix-server": engines["reference"], "nixrs-server": engines["candidate"]}
+	fixture.server_bins = {"cppnix-server": engines["reference"], "noxi-server": engines["candidate"]}
 	coverage = {"case_id": case, "variant_id": variant, "status": "running", "adapter_scope": "offline subset; selected size, cold CLI, uncontrolled OS page cache"}
 	records = []
 	expected = None
@@ -355,7 +355,7 @@ def main() -> int:
 			parser().error(f"duplicate comparison engine: {name}")
 		engines[name] = Path(directory).absolute()
 	coverage, summaries = [], {}
-	with tempfile.TemporaryDirectory(prefix="nixrs-benchmark-") as temp:
+	with tempfile.TemporaryDirectory(prefix="noxi-benchmark-") as temp:
 		work = Path(temp)
 		artifacts = {role: artifact(path, role, work, args.timeout) for role, path in engines.items()}
 		ref_version = artifacts["reference"]["executables"].get("nix-store", {})

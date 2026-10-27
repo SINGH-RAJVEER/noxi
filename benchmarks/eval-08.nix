@@ -1,5 +1,5 @@
 # The qualification system of matches_reference_nixos_paths in
-# crates/nix-rs-commands/tests/instantiate.rs (QUALIFICATION_SYSTEM); keep both equal.
+# crates/noxi-commands/tests/instantiate.rs (QUALIFICATION_SYSTEM); keep both equal.
 { nixpkgs, homeManager }:
 let
 	system = import "${nixpkgs}/nixos/lib/eval-config.nix" {
@@ -9,7 +9,7 @@ let
 			(import "${homeManager}/nixos")
 			({ ... }: {
 				system.stateVersion = "26.05";
-				networking.hostName = "nixrs-reference";
+				networking.hostName = "noxi-reference";
 				boot.kernelParams = [ "console=ttyS0" ];
 				boot.loader.grub.efiSupport = true;
 				boot.loader.grub.efiInstallAsRemovable = true;

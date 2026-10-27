@@ -50,7 +50,7 @@ class Cgroup:
 						break
 		if parent is None:
 			raise RuntimeError("no delegated cgroup v2 with cpu, memory, and io controllers; run in a delegated systemd scope")
-		self.path = parent / f"nixrs-bench-{os.getpid()}-{uuid.uuid4().hex}"
+		self.path = parent / f"noxi-bench-{os.getpid()}-{uuid.uuid4().hex}"
 		self.path.mkdir()
 		try:
 			for required in ["cgroup.kill", "cpu.stat", "memory.peak", "io.stat"]:
