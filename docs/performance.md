@@ -106,6 +106,16 @@ The remaining gap is architectural. Builtins, comparisons, equality and string c
 
 Raw artifacts are in `target/performance-tip-2026-10-27/`: `bin/` holds the measured executables, `matched-5/` the runner samples and report, `summary.txt` the medians, and `differential/` the differential and instruction-count scripts. A recovery copy is at `/home/rajveer/.local/state/nix-rs-performance-tip/2026-10-27-1018a06d`.
 
+## Store substitution costs, 2026-10-27
+
+The store workstream starts at `3012fb5`. Its release binaries, source identities, profiles and comparison runs are retained under `target/store-perf/` and `target/benchmarks/store-*` in the implementation worktree. These five-pair runs are exploratory measurements on a shared host. Instruction counts decide whether to retain a change; wall times describe these particular loopback fixtures.
+
+The apparent fixed HTTP transfer cost was predominantly content-address verification. A `strace -f -tt -T` capture starts the first HTTP request about 19 ms after exec. The flat user-cycle profile assigns 58.1% to `Rewriter::drain`, 31.6% to its byte comparisons and 9.3% to SHA-256. The old rewriter searches for a store hash with a map lookup at every byte offset. Substring search for one pattern and Aho–Corasick for multiple equal-length patterns preserve leftmost nonoverlapping matches, absolute offsets and matches spanning writes. The test compares every chunk size against the original search rule.
+
+On CACHE-01, the change reduces user instructions from 2,654,304,287 to 206,315,211, a 92.2% reduction. Peak RSS measured with `/run/current-system/sw/bin/time -f %M` changes from 14,340 to 14,252 KiB. The matched five-pair run reduces the preserved baseline's median from 615 ms to 226 ms; CppNix takes 158 ms. Correctness passes for CACHE-01, all six CACHE-08 formats, both CACHE-10 transports and NAR-05. The store/build tests and doctests pass, as do all 70 command tests, with two optional skips.
+
+HTTP startup, certificate loading and an async runtime are not responsible for the dominant CPU cost in this fixture. A separate request cost remains: repeated narinfo responses incur roughly 41 ms waits between headers and body. Planning and realization issue three metadata requests for a single path, compared with one in CppNix. Decompression already streams into NAR restore; it does not buffer a complete downloaded NAR.
+
 ## What should become faster
 
 Measure time until an installed package actually runs, a development shell executes its first command, development services pass readiness checks, and a system generation completes activation. Download completion, derivation evaluation, and a CLI returning early are intermediate milestones.

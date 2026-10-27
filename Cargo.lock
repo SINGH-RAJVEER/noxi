@@ -1638,6 +1638,7 @@ dependencies = [
 name = "nix-rs-store"
 version = "0.1.0"
 dependencies = [
+ "aho-corasick",
  "brotli-decompressor",
  "bzip2",
  "data-encoding",
@@ -1645,6 +1646,7 @@ dependencies = [
  "flate2",
  "libc",
  "lzma-rust2",
+ "memchr",
  "nix-rs-compat",
  "path-clean",
  "rusqlite",
