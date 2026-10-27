@@ -54,11 +54,7 @@ pub fn query_missing(
 	let mut visited = BTreeSet::new();
 	let mut todo: Vec<DerivedPath> = targets.to_vec();
 	let prefetch_enabled = use_substitutes
-		&& store
-			.config()
-			.max_substitution_jobs
-			.min(store.config().http_connections)
-			> 1
+		&& store.config().substitution_jobs() > 1
 		&& store.config().narinfo_cache_positive_ttl != 0
 		&& store.config().narinfo_cache_negative_ttl != 0
 		&& substituters.first().is_some_and(|cache| {
@@ -70,13 +66,7 @@ pub fn query_missing(
 				.into_iter()
 				.filter(|path| !store.is_valid_path(path).unwrap_or(true))
 				.collect();
-			cache.prefetch_path_info(
-				&paths,
-				store
-					.config()
-					.max_substitution_jobs
-					.min(store.config().http_connections),
-			);
+			cache.prefetch_path_info(&paths, store.config().substitution_jobs());
 		}
 	};
 	if prefetch_enabled {
