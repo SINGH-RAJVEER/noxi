@@ -730,15 +730,17 @@ impl LocalStore {
 		let (temp_dir, _temp_lock) = self.create_temp_dir_in_store()?;
 		let _cleanup = RemoveOnDrop(temp_dir.clone());
 		let temp_path = temp_dir.join("x");
-		match dump_method {
+		let captured_nar = match dump_method {
 			FileIngestionMethod::NixArchive => {
-				let mut reader = io::BufReader::new(source);
+				let mut reader = HashingReader::new(io::BufReader::new(source));
 				nar::restore_path(&temp_path, &mut reader)?;
+				Some(reader.finish())
 			}
 			FileIngestionMethod::Flat | FileIngestionMethod::Text => {
 				nar::restore_flat(&temp_path, source)?;
+				None
 			}
-		}
+		};
 
 		let digest = match hash_method {
 			FileIngestionMethod::Flat | FileIngestionMethod::Text => {
@@ -755,9 +757,13 @@ impl LocalStore {
 				digester.finalize()
 			}
 			FileIngestionMethod::NixArchive => {
-				let mut writer = DigestWriter(NixHashDigester::new(hash_algo));
-				nar::dump_path(&mut writer, &temp_path)?;
-				writer.0.finalize()
+				if let Some((hash, _)) = captured_nar.filter(|_| hash_algo == HashAlgo::Sha256) {
+					NixHash::Sha256(hash)
+				} else {
+					let mut writer = DigestWriter(NixHashDigester::new(hash_algo));
+					nar::dump_path(&mut writer, &temp_path)?;
+					writer.0.finalize()
+				}
 			}
 		};
 		let ca = match hash_method {
@@ -791,7 +797,10 @@ impl LocalStore {
 				delete_path(&real)?;
 				fs::rename(&temp_path, &real)
 					.context(|| format!("moving into '{}'", real.display()))?;
-				let (nar_hash, nar_size) = nar::hash_path(&real)?;
+				let (nar_hash, nar_size) = match captured_nar {
+					Some(hash_and_size) => hash_and_size,
+					None => nar::hash_path(&real)?,
+				};
 				canonicalise_path_metadata(&real, None)?;
 				info.nar_hash = nar_hash;
 				info.nar_size = nar_size;
@@ -1533,4 +1542,49 @@ fn make_store_writable(real_store_dir: &Path) -> Result<()> {
 		}
 	}
 	Ok(())
+}
+
+#[cfg(test)]
+mod import_tests {
+	use super::*;
+
+	#[test]
+	fn archive_import_hashes_one_nar_and_preserves_other_hash_algorithms() {
+		let dir = tempfile::tempdir().unwrap();
+		let source = dir.path().join("source");
+		fs::create_dir(&source).unwrap();
+		fs::write(source.join("file"), vec![b'x'; 65536]).unwrap();
+		std::os::unix::fs::symlink("file", source.join("link")).unwrap();
+		let mut archive = Vec::new();
+		nar::dump_path(&mut archive, &source).unwrap();
+		let (expected_nar_hash, expected_nar_size) = nar::hash_path(&source).unwrap();
+		let root = dir.path().join("store-root");
+		let store = LocalStore::open(LocalStoreConfig::with_root(&root)).unwrap();
+		for algorithm in [HashAlgo::Sha256, HashAlgo::Sha512] {
+			let mut expected = NixHashDigester::new(algorithm);
+			expected.update(&archive);
+			let mut input = archive.clone();
+			input.extend_from_slice(b"not part of the NAR");
+			let path = store
+				.add_to_store_from_dump(
+					&mut io::Cursor::new(input),
+					"source",
+					FileIngestionMethod::NixArchive,
+					FileIngestionMethod::NixArchive,
+					algorithm,
+					&BTreeSet::new(),
+					false,
+				)
+				.unwrap();
+			let info = store.query_path_info(&path).unwrap().unwrap();
+			assert_eq!(info.ca, Some(CAHash::Nar(expected.finalize())));
+			assert_eq!(
+				(info.nar_hash, info.nar_size),
+				(expected_nar_hash, expected_nar_size)
+			);
+			let mut actual = Vec::new();
+			store.nar_from_path(&path, &mut actual).unwrap();
+			assert_eq!(actual, archive);
+		}
+	}
 }
