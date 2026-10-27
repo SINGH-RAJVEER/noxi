@@ -7,7 +7,10 @@
 //! in order to resolve each free variable in the scope to a value.
 //! "Upvalue" is a term taken from Lua.
 
-use std::{ops::Index, rc::Rc};
+use std::{
+	ops::{Deref, Index},
+	rc::Rc,
+};
 
 use crate::{Value, opcode::UpvalueIdx};
 
@@ -74,6 +77,37 @@ pub struct Upvalues {
 	/// from outermost to innermost. Thunks and closures created in the same
 	/// `with` scopes share it.
 	with_stack: Option<Rc<[Value]>>,
+}
+
+/// A thunk transfers its captures to the frame that evaluates it. Closures
+/// keep sharing their captures across calls.
+#[derive(Debug)]
+pub enum FrameUpvalues {
+	Owned(Upvalues),
+	Shared(Rc<Upvalues>),
+}
+
+impl From<Upvalues> for FrameUpvalues {
+	fn from(upvalues: Upvalues) -> Self {
+		Self::Owned(upvalues)
+	}
+}
+
+impl From<Rc<Upvalues>> for FrameUpvalues {
+	fn from(upvalues: Rc<Upvalues>) -> Self {
+		Self::Shared(upvalues)
+	}
+}
+
+impl Deref for FrameUpvalues {
+	type Target = Upvalues;
+
+	fn deref(&self) -> &Self::Target {
+		match self {
+			Self::Owned(upvalues) => upvalues,
+			Self::Shared(upvalues) => upvalues,
+		}
+	}
 }
 
 impl Upvalues {

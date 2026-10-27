@@ -57,7 +57,10 @@ pub(super) enum ThunkRepr {
 	/// execution.
 	Suspended {
 		lambda: Rc<Lambda>,
-		upvalues: Rc<Upvalues>,
+		// Captures have one owner until forcing enters bytecode. Store them
+		// here, without a separate reference-counted allocation for thunks
+		// that remain suspended.
+		upvalues: Upvalues,
 		span: Span,
 	},
 
@@ -158,7 +161,7 @@ impl Thunk {
 		upvalues: Upvalues,
 	) -> Self {
 		Thunk(Rc::new(RefCell::new(ThunkRepr::Suspended {
-			upvalues: Rc::new(upvalues),
+			upvalues,
 			lambda,
 			span,
 		})))
@@ -345,7 +348,7 @@ impl Thunk {
 	pub(crate) fn begin_direct_force(
 		&self,
 		forced_at: Span,
-	) -> Option<(Rc<Lambda>, Rc<Upvalues>, Span)> {
+	) -> Option<(Rc<Lambda>, Upvalues, Span)> {
 		if !matches!(*self.0.borrow(), ThunkRepr::Suspended { .. }) {
 			return None;
 		}
@@ -433,7 +436,7 @@ impl Thunk {
 
 	pub fn upvalues(&self) -> Ref<'_, Upvalues> {
 		Ref::map(self.0.borrow(), |thunk| match thunk {
-			ThunkRepr::Suspended { upvalues, .. } => upvalues.as_ref(),
+			ThunkRepr::Suspended { upvalues, .. } => upvalues,
 			ThunkRepr::Evaluated(Value::Closure(c)) => &c.upvalues,
 			_ => panic!("upvalues() on non-suspended thunk"),
 		})
@@ -441,7 +444,7 @@ impl Thunk {
 
 	pub fn upvalues_mut(&self) -> RefMut<'_, Upvalues> {
 		RefMut::map(self.0.borrow_mut(), |thunk| match thunk {
-			ThunkRepr::Suspended { upvalues, .. } => Rc::get_mut(upvalues).unwrap(),
+			ThunkRepr::Suspended { upvalues, .. } => upvalues,
 			ThunkRepr::Evaluated(Value::Closure(c)) => {
 				Rc::get_mut(&mut Rc::get_mut(c).unwrap().upvalues).expect(
 					"upvalues_mut() was called on a thunk which already had multiple references to it",
@@ -514,6 +517,35 @@ impl ThunkSet {
 #[cfg(test)]
 mod tests {
 	use super::*;
+
+	#[test]
+	fn forcing_moves_captures_out_of_the_thunk_cell() {
+		let captured = Rc::new(());
+		let weak = Rc::downgrade(&captured);
+		let captured = Thunk::new_suspended_native(Box::new(move || {
+			let _keep_alive = &captured;
+			Ok(Value::Null)
+		}));
+		let span = crate::test_utils::dummy_span();
+		let mut lambda = Lambda::default();
+		lambda.upvalue_count = 1;
+		lambda.chunk.push_op(Op::Return, span);
+		let thunk = Thunk::new_suspended_with_upvalues(
+			Rc::new(lambda),
+			span,
+			Upvalues::from_raw_parts(vec![Value::Thunk(captured)], None),
+		);
+		let alias = thunk.clone();
+		let (_, captures, _) = thunk.begin_direct_force(span).unwrap();
+		assert!(weak.upgrade().is_some());
+		drop(captures);
+		assert!(weak.upgrade().is_none());
+		assert!(matches!(
+			thunk.finish_direct_force(Value::Integer(42)),
+			Some(Value::Integer(42))
+		));
+		assert_eq!(alias.value().as_int().unwrap(), 42);
+	}
 
 	#[test]
 	fn unique_native_thunk_completes_without_yielding() {
