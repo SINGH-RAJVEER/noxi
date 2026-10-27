@@ -1,17 +1,17 @@
-# Third-party notices for nixrs
+# Third-party notices for noxi
 
-This file accompanies the `nixrs` preview binary built from `crates/nix-rs-cli`. It lists the upstream projects whose code is compiled into that binary, their revisions, and the full text of every license in the binary's dependency graph. Regenerate it with `just third-party` whenever `Cargo.lock` or a bundled source changes; the policy and the review of each license are in [docs/licensing.md](docs/licensing.md).
+This file accompanies the `noxi` preview binary built from `crates/noxi-cli`. It lists the upstream projects whose code is compiled into that binary, their revisions, and the full text of every license in the binary's dependency graph. Regenerate it with `just third-party` whenever `Cargo.lock` or a bundled source changes; the policy and the review of each license are in [docs/licensing.md](docs/licensing.md).
 
-The binary is distributed under GPL-3.0-only. It links crates licensed GPL-3.0-only, so the combined work carries those terms even though `nix-rs-cli` declares Apache-2.0 in its own manifest. See [docs/licensing.md](docs/licensing.md#conflicts) for the open decision.
+The binary is distributed under GPL-3.0-only. It links crates licensed GPL-3.0-only, so the combined work carries those terms even though `noxi-cli` declares Apache-2.0 in its own manifest. See [docs/licensing.md](docs/licensing.md#conflicts) for the open decision.
 
 ## Bundled upstream sources
 
 | Upstream | Revision | License | Where it is compiled in |
 |---|---|---|---|
-| Snix, https://git.snix.dev/snix/snix | `22ca63bdb71c221001526304eca934385fb47c26` (2026-09-24) | GPL-3.0-only | `nix-rs-eval`, `nix-rs-eval-builtin-macros`, `nix-rs-hash`, and the other crates listed under `crates/nix-rs/PROVENANCE.md` |
-| CppNix 2.35.2, https://github.com/NixOS/nix | `2c73b59da29606068c0c98db015dd3a66955525d` (tag `2.35.2`) | LGPL-2.1-or-later | `crates/nix-rs/eval/src/compiler/imported-drv-to-derivation.nix`, embedded by `nix-rs-eval` |
+| Snix, https://git.snix.dev/snix/snix | `22ca63bdb71c221001526304eca934385fb47c26` (2026-09-24) | GPL-3.0-only | `noxi-eval`, `noxi-eval-builtin-macros`, `noxi-hash`, and the other crates listed under `crates/noxi/PROVENANCE.md` |
+| CppNix 2.35.2, https://github.com/NixOS/nix | `2c73b59da29606068c0c98db015dd3a66955525d` (tag `2.35.2`) | LGPL-2.1-or-later | `crates/noxi/eval/src/compiler/imported-drv-to-derivation.nix`, embedded by `noxi-eval` |
 
-Only the CppNix helper listed above is compiled into the `nixrs` binary from non-Cargo sources. The CppNix `fetchurl.nix` and `schema.sql` copies, the copied CppNix test suite in `tests/nix/`, and the Nix 2.3.16 language cases in `crates/nix-rs/eval/src/tests/` are not part of that binary. Their notices are in the owning crate's `COPYING` or `LICENSE` file and in [docs/licensing.md](docs/licensing.md#copied-tests).
+Only the CppNix helper listed above is compiled into the `noxi` binary from non-Cargo sources. The CppNix `fetchurl.nix` and `schema.sql` copies, the copied CppNix test suite in `tests/nix/`, and the Nix 2.3.16 language cases in `crates/noxi/eval/src/tests/` are not part of that binary. Their notices are in the owning crate's `COPYING` or `LICENSE` file and in [docs/licensing.md](docs/licensing.md#copied-tests).
 
 Each bundled file keeps its original authors' notices. Project ownership of the workspace does not change the authorship of those files.
 

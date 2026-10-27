@@ -1,14 +1,14 @@
-# nix-rs specifications
+# noxi specifications
 
 The [root plan](PLAN.md) states the sole product direction: qualify the drop-in package manager first, then build the OS on it. The [MVP todo](TODO.md) tracks the work and release evidence. The documents in [docs/](docs/) define what the replacement engine and later OS must do and how their claims are verified. They are design specifications, not statements that the current workspace already implements the behavior.
 
 ## Try the preview
 
-The `nixrs` preview evaluates pure expressions and does not touch the store or replace `nix`. [Distribution](docs/distribution.md) lists what it can and cannot do.
+The `noxi` preview evaluates pure expressions and does not touch the store or replace `nix`. [Distribution](docs/distribution.md) lists what it can and cannot do.
 
 ```sh
-cargo install nix-rs-cli
-nixrs eval --expr '1 + 2'
+cargo install --path crates/noxi-cli --locked
+noxi eval --expr '1 + 2'
 ```
 
 From a checkout, `nix run . -- eval --expr '1 + 2'` builds and runs the same command through the flake, `just` lists the development recipes, `just ci` runs the full local check, and `just eval-compare-reference` compares the preview with the pinned CppNix 2.35.2 reference. [Development](docs/development.md) describes each one.
@@ -38,4 +38,4 @@ From a checkout, `nix run . -- eval --expr '1 + 2'` builds and runs the same com
 | [Development environment](docs/development.md) | Pinned Rust shell and local check commands |
 | [Flake and crate distribution](docs/distribution.md) | Installable preview, replacement milestones, and NixOS and Home Manager gates |
 
-Use [CONTEXT.md](CONTEXT.md) for project vocabulary. The copied CppNix tests remain in [tests/nix/](tests/nix/) with provenance in [verification](docs/verification.md#test-snapshot). The imported Rust crates live in `crates/nix-rs/`, and their extracted hash and flake reference code lives in `crates/nix-rs-hash/` and `crates/nix-rs-flakeref/`, with the upstream revision in `crates/nix-rs/PROVENANCE.md`; their current presence is not a compatibility result. `crates/compat-tests/` contains initial fixture checks and records known gaps. [CHANGELOG.md](CHANGELOG.md) records each crate's changes by version.
+Use [CONTEXT.md](CONTEXT.md) for project vocabulary. The copied CppNix tests remain in [tests/nix/](tests/nix/) with provenance in [verification](docs/verification.md#test-snapshot). The imported Rust crates live in `crates/noxi/`, and their extracted hash and flake reference code lives in `crates/noxi-hash/` and `crates/noxi-flakeref/`, with the upstream revision in `crates/noxi/PROVENANCE.md`; their current presence is not a compatibility result. `crates/compat-tests/` contains initial fixture checks and records known gaps. [CHANGELOG.md](CHANGELOG.md) records each crate's changes by version.

@@ -2,7 +2,7 @@
 
 ## Status and product goal
 
-nix-rs OS must be designed for distributed computing, including large fleets of identical machines and fleets that mix architectures, hardware, sites, and workloads. A fleet is a first-class configuration target, not a collection of hosts maintained by copied shell scripts. Users must be able to describe machines once, assign reusable roles, declare their relationships, and review how the OS will reach the desired state.
+noxi OS must be designed for distributed computing, including large fleets of identical machines and fleets that mix architectures, hardware, sites, and workloads. A fleet is a first-class configuration target, not a collection of hosts maintained by copied shell scripts. Users must be able to describe machines once, assign reusable roles, declare their relationships, and review how the OS will reach the desired state.
 
 The goal is to make routine distributed operation require little manual coordination. Adding workers, balancing traffic, replacing a failed member, and rolling out an OS update should use the same configuration-first workflow. The OS must expose the resource limits and failure conditions that prevent convergence. It cannot manufacture physical capacity, make a network partition disappear, or promise uninterrupted writes without a working quorum.
 
@@ -50,7 +50,7 @@ Fleet support must add depth to the existing [product architecture](product.md#r
 | Machine executor | Accept a reviewed step bound to machine identity, closure, and operation identifier | Local authorization, activation serialization, durable step results, reboot and reconnect verification |
 | Provisioning adapter | Resolve a bounded capacity request to admitted machines or a specific capacity failure | Infrastructure-specific creation, enrollment, readiness, removal, and quota handling |
 
-NixBox coordinates plans and exposes inspection, preview, apply, observation, cancellation, and resume through one versioned operation interface. The nix-rs engine evaluates and realizes ordinary NixOS closures. NixOS activation applies each closure. Kubernetes schedules Pods; the fleet planner does not become another Pod scheduler. A remote Nix builder builds derivations and is not implicitly a Kubernetes worker.
+NixBox coordinates plans and exposes inspection, preview, apply, observation, cancellation, and resume through one versioned operation interface. The noxi engine evaluates and realizes ordinary NixOS closures. NixOS activation applies each closure. Kubernetes schedules Pods; the fleet planner does not become another Pod scheduler. A remote Nix builder builds derivations and is not implicitly a Kubernetes worker.
 
 Topology adapters may call pinned upstream tools such as kubeadm through typed execution steps. Their interfaces must define authority, retry behavior, durable state, and health checks. The result cannot be inferred solely from command exit status or human-readable output. There is no generic "run this shell command as root on every machine" substitute for these contracts.
 
@@ -341,7 +341,7 @@ The OS does not make several machines share one kernel, one transparent memory s
 
 ## Acceptance cases and release evidence
 
-Fleet qualification is separate from the CppNix [compatibility matrix](compatibility-matrix.md) and the [single-machine OS gates](verification.md#release-gates). Record exact nix-rs OS artifacts, locked inputs, Kubernetes/K3s/etcd and service versions, architectures, provisioning and network adapters, topology, machine count, workload, test commands, and results. All behavior specified here is currently unrun.
+Fleet qualification is separate from the CppNix [compatibility matrix](compatibility-matrix.md) and the [single-machine OS gates](verification.md#release-gates). Record exact noxi OS artifacts, locked inputs, Kubernetes/K3s/etcd and service versions, architectures, provisioning and network adapters, topology, machine count, workload, test commands, and results. All behavior specified here is currently unrun.
 
 Required acceptance cases include:
 

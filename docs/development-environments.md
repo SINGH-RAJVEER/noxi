@@ -2,13 +2,13 @@
 
 ## Decision and status
 
-The requirement for nix-rs to be a 100% drop-in replacement for the supported CppNix reference remains unchanged. Every applicable behavior must pass the complete [compatibility gate](compatibility.md) before that claim is made. Standard flakes must retain full support for project inputs, outputs, and development shells. Existing flake projects must work without conversion to another manifest or lock format, including their reference commands, options, output selection, shell hooks, and environment effects.
+The requirement for noxi to be a 100% drop-in replacement for the supported CppNix reference remains unchanged. Every applicable behavior must pass the complete [compatibility gate](compatibility.md) before that claim is made. Standard flakes must retain full support for project inputs, outputs, and development shells. Existing flake projects must work without conversion to another manifest or lock format, including their reference commands, options, output selection, shell hooks, and environment effects.
 
-The dedicated way to define and run development environments is a built-in devenv equivalent on the native `nixrs env` interface. It defines tools, shells, tasks, and supervised servers directly, or consumes inputs from an existing flake. Flakes may also export native environment definitions for that interface. Optional native project manifests add a Lua-first way to declare inputs and outputs; they are not required to use flakes or the dedicated environment interface. These routes share the evaluator, input resolver, store, build engine, and environment supervisor. Normal operation must not require an installed `devenv` executable, an external process manager, or a subprocess invoking CppNix.
+The dedicated way to define and run development environments is a built-in devenv equivalent on the native `noxi env` interface. It defines tools, shells, tasks, and supervised servers directly, or consumes inputs from an existing flake. Flakes may also export native environment definitions for that interface. Optional native project manifests add a Lua-first way to declare inputs and outputs; they are not required to use flakes or the dedicated environment interface. These routes share the evaluator, input resolver, store, build engine, and environment supervisor. Normal operation must not require an installed `devenv` executable, an external process manager, or a subprocess invoking CppNix.
 
-This is specified, not implemented. The current `nixrs` preview only evaluates pure Nix expressions. The repository's existing `devenv.nix` remains its development tooling until the native implementation is qualified. This capability follows the package-manager MVP and depends on qualified input resolution, flake evaluation, store realization, and the planned Lua bridge. It can ship on supported existing systems without requiring the later OS installer or fleet capability.
+This is specified, not implemented. The current `noxi` preview only evaluates pure Nix expressions. The repository's existing `devenv.nix` remains its development tooling until the native implementation is qualified. This capability follows the package-manager MVP and depends on qualified input resolution, flake evaluation, store realization, and the planned Lua bridge. It can ship on supported existing systems without requiring the later OS installer or fleet capability.
 
-The design follows the useful separation in the upstream tools. Flakes declare inputs and outputs with a dependency lock graph. Devenv describes tools and shell settings, then explicitly starts supervised processes with readiness and dependency rules. The contracts below are nix-rs requirements, not a promise of compatibility with every devenv option or command. [Nix 2.35 flake reference](https://nix.dev/manual/nix/2.35/command-ref/new-cli/nix3-flake.html), [Devenv environment basics](https://devenv.sh/basics/), [Devenv processes](https://devenv.sh/processes/)
+The design follows the useful separation in the upstream tools. Flakes declare inputs and outputs with a dependency lock graph. Devenv describes tools and shell settings, then explicitly starts supervised processes with readiness and dependency rules. The contracts below are noxi requirements, not a promise of compatibility with every devenv option or command. [Nix 2.35 flake reference](https://nix.dev/manual/nix/2.35/command-ref/new-cli/nix3-flake.html), [Devenv environment basics](https://devenv.sh/basics/), [Devenv processes](https://devenv.sh/processes/)
 
 ## Environment entries and shared inputs
 
@@ -25,7 +25,7 @@ The dedicated entry either declares its own `inputs`, or names an `inputSource`,
 
 Native environment commands accept an explicit environment file, flake, or native project selector. Otherwise they search the current directory and its ancestors for the nearest boundary containing a dedicated environment entry or project manifest. At that boundary a dedicated entry is the preferred environment definition; a flake beside it is a possible declared input source and does not create an ambiguity by its mere presence. Both Lua and Nix dedicated entries require explicit selection when they coexist. Without a dedicated entry, native commands select the flake or native project, diagnosing multiple manifest candidates. An invalid nearer entry is an error, not permission to fall through to a parent's environment. Shell entry defaults to the selected system's `default` environment or development shell; unsupported systems and missing names are errors, with no architecture fallback. Compatibility-command discovery remains exactly the reference behavior.
 
-An ordinary `flake.nix` is a supported environment route without a dedicated file or native project manifest. Its ordinary `devShells` continue to work through reference commands such as `nix develop`, with unchanged semantics. It may also export `environments.<system>.<name>` using the native environment schema, inline or by importing the same modules a dedicated entry uses. If it exports only `devShells`, `nixrs env shell` can enter the selected development shell under qualified Nix semantics, but cannot infer a managed server graph from arbitrary shell hooks. Managed server operations require a dedicated declaration or explicit native environment output. Existing hooks still retain their reference behavior, including any user-written process startup; they do not become supervised processes implicitly.
+An ordinary `flake.nix` is a supported environment route without a dedicated file or native project manifest. Its ordinary `devShells` continue to work through reference commands such as `nix develop`, with unchanged semantics. It may also export `environments.<system>.<name>` using the native environment schema, inline or by importing the same modules a dedicated entry uses. If it exports only `devShells`, `noxi env shell` can enter the selected development shell under qualified Nix semantics, but cannot infer a managed server graph from arbitrary shell hooks. Managed server operations require a dedicated declaration or explicit native environment output. Existing hooks still retain their reference behavior, including any user-written process startup; they do not become supervised processes implicitly.
 
 The dedicated interface's frozen-input and explicit-server-start defaults apply to its new native commands. They do not replace the reference lock-update rules or shell behavior of compatibility commands. Native files do not change `nix flake`, `nix develop`, `nix-shell`, `flake.nix`, or `flake.lock` semantics. Qualification must cover these commands with dedicated environment files present, not merely show that native environment commands work.
 
@@ -99,7 +99,7 @@ File watching is opt-in, debounced, and declares watched paths, extensions, and 
 
 Session identity includes the user, canonical workspace root, selected environment entry or project manifest, system, and environment name. Separate Jujutsu workspaces or checkouts have distinct identities even when they share a repository and lock. The first implementation permits one supervisor per identity. An explicit `up` against the same frozen plan can reuse that session; it reports already-running processes and starts only requested missing branches. A different configuration revision requires an explicit restart and cannot silently replace the active plan. Status, logs, attach, and down use the recorded session identity and work even when current source no longer evaluates.
 
-The default persistent state is under `.nixrs/state/<project-id>/<system>/<environment>/` in the workspace, with access restricted to the owning user. The project ID distinguishes the canonical workspace and selected entry, so different declarations do not accidentally share a database. An explicitly configured external state directory is also allowed. The control socket lives in a user-private runtime directory. Runtime records contain a session ID, plan digest, supervisor identity, and verified process identities. Control clients authenticate the owning user. A stale PID or reused socket path is not authority to kill an unrelated process; cleanup verifies ownership and process start identity first. Recovery reports survivors it cannot verify as unknown rather than healthy or stopped.
+The default persistent state is under `.noxi/state/<project-id>/<system>/<environment>/` in the workspace, with access restricted to the owning user. The project ID distinguishes the canonical workspace and selected entry, so different declarations do not accidentally share a database. An explicitly configured external state directory is also allowed. The control socket lives in a user-private runtime directory. Runtime records contain a session ID, plan digest, supervisor identity, and verified process identities. Control clients authenticate the owning user. A stale PID or reused socket path is not authority to kill an unrelated process; cleanup verifies ownership and process start identity first. Recovery reports survivors it cannot verify as unknown rather than healthy or stopped.
 
 Ports declare a name, protocol, address, and either a fixed value or explicit allocation range. Servers bind to loopback by default. Conflicting fixed ports fail before startup where detectable; a bind race remains a startup failure. Automatic allocation records and injects the chosen value through declared runtime variables, and all dependents use that same value. It never silently changes a requested fixed port or claims that a preflight check reserves a socket. Non-loopback listeners and privileged capabilities must be explicit and shown in the plan; the first release does not elevate privileges automatically.
 
@@ -117,25 +117,25 @@ The command spelling is provisional. All commands accept explicit project, envir
 
 | Command | Contract |
 |---|---|
-| `nixrs env init` | Create a dedicated Lua environment entry and modules, with standalone inputs or an explicitly selected existing input source; refuse to overwrite declarations |
-| `nixrs env lock` / `nixrs env update [input...]` | Explicitly create or update the dedicated entry's selected input lock and report the authority and diff |
-| `nixrs project init` | Optionally create a native Lua project and environment template; refuse to overwrite existing declarations |
-| `nixrs project show` | List inputs and outputs, lock revision, and supported target systems without running environment commands |
-| `nixrs project lock` / `nixrs project update [input...]` | Explicitly create or update the selected input lock and report the diff |
-| `nixrs project build <output>` / `nixrs project run <app>` | Realize a selected package or run a declared application through the shared engine, using frozen inputs |
-| `nixrs project check` | Validate manifests and declared checks; run declared build checks without starting local server sessions |
-| `nixrs env list` / `nixrs env show` | List environments or inspect tools, variables, tasks, processes, dependencies, state paths, and secret requirements |
-| `nixrs env plan` | Resolve frozen inputs and validate the environment graph; report realizations and intended runtime effects |
-| `nixrs env prepare` | Realize the environment closure without running hooks, tasks, or servers |
-| `nixrs env shell` | Enter the selected shell with tools, variables, and its declared interactive hooks |
-| `nixrs env run -- <command> [args...]` | Run one foreground command in the environment and propagate its exit status |
-| `nixrs env task <name>` | Execute the named task and its prerequisites; declare any required process startup in the plan |
-| `nixrs env up [process...]` | Start and supervise the selected graph; `--detach` leaves a managed background session |
-| `nixrs env status` / `nixrs env logs [process]` | Inspect recorded state and attributed logs; follow mode is explicit |
-| `nixrs env attach` | Observe a live session without starting or stopping its processes |
-| `nixrs env restart [process...]` / `nixrs env down` | Explicit runtime controls bound to the recorded session |
-| `nixrs env export` | Export supported shell variables and tool paths without executing hooks or starting processes |
-| `nixrs env clean --state` | Delete explicitly acknowledged, stopped, environment-owned mutable state |
+| `noxi env init` | Create a dedicated Lua environment entry and modules, with standalone inputs or an explicitly selected existing input source; refuse to overwrite declarations |
+| `noxi env lock` / `noxi env update [input...]` | Explicitly create or update the dedicated entry's selected input lock and report the authority and diff |
+| `noxi project init` | Optionally create a native Lua project and environment template; refuse to overwrite existing declarations |
+| `noxi project show` | List inputs and outputs, lock revision, and supported target systems without running environment commands |
+| `noxi project lock` / `noxi project update [input...]` | Explicitly create or update the selected input lock and report the diff |
+| `noxi project build <output>` / `noxi project run <app>` | Realize a selected package or run a declared application through the shared engine, using frozen inputs |
+| `noxi project check` | Validate manifests and declared checks; run declared build checks without starting local server sessions |
+| `noxi env list` / `noxi env show` | List environments or inspect tools, variables, tasks, processes, dependencies, state paths, and secret requirements |
+| `noxi env plan` | Resolve frozen inputs and validate the environment graph; report realizations and intended runtime effects |
+| `noxi env prepare` | Realize the environment closure without running hooks, tasks, or servers |
+| `noxi env shell` | Enter the selected shell with tools, variables, and its declared interactive hooks |
+| `noxi env run -- <command> [args...]` | Run one foreground command in the environment and propagate its exit status |
+| `noxi env task <name>` | Execute the named task and its prerequisites; declare any required process startup in the plan |
+| `noxi env up [process...]` | Start and supervise the selected graph; `--detach` leaves a managed background session |
+| `noxi env status` / `noxi env logs [process]` | Inspect recorded state and attributed logs; follow mode is explicit |
+| `noxi env attach` | Observe a live session without starting or stopping its processes |
+| `noxi env restart [process...]` / `noxi env down` | Explicit runtime controls bound to the recorded session |
+| `noxi env export` | Export supported shell variables and tool paths without executing hooks or starting processes |
+| `noxi env clean --state` | Delete explicitly acknowledged, stopped, environment-owned mutable state |
 
 Pure inspection and planning may fetch declared verified inputs or cache metadata when needed, but do not realize the tool closure, execute hooks, or mutate source or lock files. `project check` and `env prepare` may build derivations. Build checks execute in the qualified build sandbox; runtime integration checks use explicit tasks and sessions in disposable workspaces. Keep these effects visible in command help and structured results.
 
@@ -198,7 +198,7 @@ A standard `flake.nix` can also expose the shared environment module directly an
 }
 ```
 
-`nix develop` selects the ordinary development shell under reference semantics. Explicit native `nixrs env up` can select the exported environment graph. The custom output does not add server-management behavior to compatibility commands, and reference diagnostics for additional output names remain reference behavior.
+`nix develop` selects the ordinary development shell under reference semantics. Explicit native `noxi env up` can select the exported environment graph. The custom output does not add server-management behavior to compatibility commands, and reference diagnostics for additional output names remain reference behavior.
 
 An optional `project.lua` can export the same definition:
 
@@ -299,7 +299,7 @@ The shared `shell.nix` environment module:
 
 Both language versions use the same locked Nixpkgs revision. The moving input URL does not permit runtime commands to update it.
 
-The dedicated workflow is `nixrs env init`, `nixrs env lock`, `nixrs env plan`, `nixrs env shell`, and an explicit `nixrs env up`. Existing flake users can continue their ordinary flake workflow and select its shells or exported native environments without creating a native project manifest. A test environment may select another tool closure and process graph from the same input authority. `nixrs env down` stops the selected session and preserves its data.
+The dedicated workflow is `noxi env init`, `noxi env lock`, `noxi env plan`, `noxi env shell`, and an explicit `noxi env up`. Existing flake users can continue their ordinary flake workflow and select its shells or exported native environments without creating a native project manifest. A test environment may select another tool closure and process graph from the same input authority. `noxi env down` stops the selected session and preserves its data.
 
 ## Acceptance cases and release evidence
 
@@ -322,7 +322,7 @@ The dedicated workflow is `nixrs env init`, `nixrs env lock`, `nixrs env plan`, 
 | Ports and workspace isolation | Fixed-port conflicts and bind races fail honestly; allocated values reach dependents; separate Jujutsu workspaces do not share sessions, sockets, or default data paths |
 | PostgreSQL data lifecycle | Fresh initialization, existing compatible data, incompatible version, interrupted setup, preserved data on down, and guarded cleanup have inspectable outcomes |
 | Secrets and runtime inputs | Missing secrets block affected commands; dotenv is never executed; generated artifacts and structured output contain no secret values; runtime-only inputs are labeled |
-| Store lifecycle | Realize through nix-rs, retain active closures through GC, release session roots after shutdown, and recover failed preparation without leaked roots |
+| Store lifecycle | Realize through noxi, retain active closures through GC, release session roots after shutdown, and recover failed preparation without leaked roots |
 | Logs and client parity | Attributed child output, versioned JSON, observed health, partial failures, reconnect, and any shipped TUI/GUI controls agree with the headless operation result |
 
 Run runtime acceptance cases in disposable workspaces, private state directories, and isolated stores on the initial x86_64-linux target. Record engine and environment-schema versions, source and lock revisions, target system, service versions, exact commands, and actual resulting state. Nix/flake behavior uses the pinned reference oracle; native environment behavior uses this specification. A devenv comparison may inform migration tests but does not establish a devenv compatibility claim.

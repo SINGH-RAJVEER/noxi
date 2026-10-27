@@ -4,7 +4,7 @@
 
 Users must be able to add, update, or remove an application in a selected scope without building or activating a complete NixOS system generation. The planner evaluates an independent application declaration and realizes its package closure and profile. It reuses existing store paths and trusted cache substitutes; local builds cover missing dependencies and the affected profile output. A scoped build can still build dependencies, including shared libraries.
 
-This is a planned native extension after the package-manager MVP. Reference-compatible profiles, builds, shells, and NixOS activation remain in the unchanged compatibility gate. It uses the nix-rs engine and NixBox's shared operations and is not implemented support.
+This is a planned native extension after the package-manager MVP. Reference-compatible profiles, builds, shells, and NixOS activation remain in the unchanged compatibility gate. It uses the noxi engine and NixBox's shared operations and is not implemented support.
 
 ## Scopes
 
@@ -32,7 +32,7 @@ Ordinary NixOS rebuilds reuse unchanged store paths. This feature avoids constru
 
 1. Record scope, owner, source and lock revisions, active profile generation, and package identity. Serialize mutations of that profile and check target authority.
 2. Stage and evaluate the candidate application profile. Preview eligibility, file diff, package and dependency changes, reused paths, downloads, builds, collisions, and expected profile generation. Keep unrelated packages pinned unless an input update was requested.
-3. Realize only the candidate profile closure through nix-rs. Failed evaluation or builds leave the active profile and committed declaration unchanged. Root the candidate while the operation is pending.
+3. Realize only the candidate profile closure through noxi. Failed evaluation or builds leave the active profile and committed declaration unchanged. Root the candidate while the operation is pending.
 4. Recheck source, lock, and active profile revisions. Journal the owned source replacement, reevaluate the saved declaration, and verify it produces the built profile. Reject stale or mismatched results before switching.
 5. Switch the profile generation and refresh supported application discovery. Application-only apply must not invoke `switch-to-configuration`, change the system profile or bootloader, or restart unrelated services.
 6. Report saved declaration, built closure, active application generation, and discovery refresh failures separately. Record the unchanged running OS generation and boot default. Recover interrupted operations without erasing external edits.

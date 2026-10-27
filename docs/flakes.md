@@ -1,6 +1,6 @@
 # Flake operation library
 
-`nix-rs-flake` provides operations for the `nix` command owner. It adds no executable or command-line parser. Its evaluator operations run inside an existing evaluator generator and take that generator's `GenCo`; the caller owns the evaluator, feature settings, fetch configuration and store. Use `nix_rs_glue::configure` with `flakes` enabled before evaluating. The `operations.rs` integration tests show a builtin callback that invokes each operation.
+`noxi-flake` provides operations for the `nix` command owner. It adds no executable or command-line parser. Its evaluator operations run inside an existing evaluator generator and take that generator's `GenCo`; the caller owns the evaluator, feature settings, fetch configuration and store. Use `noxi_glue::configure` with `flakes` enabled before evaluating. The `operations.rs` integration tests show a builtin callback that invokes each operation.
 
 | Entry point | Result and effects |
 |---|---|

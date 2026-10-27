@@ -4,6 +4,10 @@ Changes to each crate in this workspace, grouped by crate and version, newest fi
 
 Changes that have not reached a version yet go under an `Unreleased` heading for that crate.
 
+## noxi 0.0.1 - 2026-10-31, publication in progress
+
+The workspace is being published under the `noxi-` names. `noxi-hash`, `noxi-eval-builtin-macros`, `noxi-compat-derive`, `noxi-flakeref`, `noxi-compat`, `noxi-eval`, and `noxi-store` are published. crates.io rate-limited the remaining uploads. Historical `nix-rs-` entries below describe the previous package names.
+
 | Crate | Current version | crates.io | License |
 |---|---|---|---|
 | [`nix-rs-cli`](#nix-rs-cli) | 0.1.1 | [published](https://crates.io/crates/nix-rs-cli/0.1.1) | Apache-2.0 |
