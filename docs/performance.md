@@ -106,6 +106,22 @@ The remaining gap is architectural. Builtins, comparisons, equality and string c
 
 Raw artifacts are in `target/performance-tip-2026-10-27/`: `bin/` holds the measured executables, `matched-5/` the runner samples and report, `summary.txt` the medians, and `differential/` the differential and instruction-count scripts. A recovery copy is at `/home/rajveer/.local/state/nix-rs-performance-tip/2026-10-27-1018a06d`.
 
+## Evaluator memory representation, 2026-10-27
+
+A fresh three-run EVAL-08 baseline at `3012fb5` used a median 158.445 billion user-space instructions and 2,985,744 KiB peak RSS. Every run produced digest `f4e14079455b2d17`. Measurements use the orchestration script's isolated dummy-store environment and the shared heavy-job lock; wall time is not a decision metric on this shared host.
+
+A separate temporary counting allocator around mimalloc measured 2,664,149,140 bytes of peak requested live allocations. It snapshots live size bins whenever the high-water mark crosses another 4 MiB. The last snapshot was 2,663,383,131 bytes: the 56-byte bin containing thunk cells held 9,140,997 allocations and 488.2 MiB; the 48-byte bin containing upvalue headers held 7,258,050 allocations and 332.2 MiB; the 248-byte bin containing lambdas held 1,007,698 allocations and 238.3 MiB. Reported bins of at least 1 KiB accounted for another 606.5 MiB. These are allocation-size bins, not allocation-stack attribution. Layout checks confirmed a 16-byte `Value`, 32-byte `ThunkRepr`, 32-byte `Upvalues`, and 232-byte `Lambda`, before reference-count headers and the thunk's borrow flag. The instrumented executable matched the output digest but is excluded from instruction and RSS comparisons. At command return, 2,629,335,153 requested bytes remained live, so retention also needs attention.
+
+The compiler now constructs a function literal's closure directly in positions where it immediately forces the literal: a call's callee and a function's returned expression. Recursive closures retain the ordinary force operation and finalisation. Lazy positions keep the suspended wrapper, preserving unforced function previews. Three EVAL-08 runs reduced median instructions from 158.445 to 152.920 billion, a 3.5% saving. Median RSS was effectively unchanged at 2,983,400 KiB. All output/error/trace differential files matched the baseline byte-for-byte, all 519 evaluator tests and the doctest passed, and all 90 timed EVAL-01 through EVAL-06 samples matched their oracles. Smaller-workload instruction medians did not regress; EVAL-04 saved 6.7% at size 1,024. These are instruction and memory diagnostics, not a wall-time qualification.
+
+A fresh three-run pinned CppNix comparison produced the same digest with median 41.011 billion instructions and 1,018,852 KiB peak RSS. After the compiler change nix-rs still uses 3.73 times the instructions and 2.93 times the RSS, so the memory target remains open.
+
+One representation experiment was rejected. Moving suspension spans into shared bytecode and retaining that bytecode in blackholes reduced the thunk allocation request from 56 to 48 bytes. The full output/error/trace differential, 518 evaluator tests and the doctest passed, but median EVAL-08 instructions rose to 163.036 billion, 2.9% above baseline, while RSS barely changed at 2,973,444 KiB. The production thunk representation remains unchanged.
+
+Unconditionally constructing function literals as closures was also rejected. It saved 5.2% of EVAL-08 instructions, from 158.445 to 150.253 billion, and reduced median RSS to 2,961,572 KiB, but changed unforced functions in error previews from `«thunk»` to a lambda with its name and position. Function construction can bypass a wrapper only where the compiler already forces that literal.
+
+Raw counting-allocator source, its patch and executable, baseline measurements, rejected patches, test logs, and differential outputs are retained under `target/perf-memory/` in the `perf/eval-memory` worktree. The baseline differential is `target/diff-baseline/`.
+
 ## What should become faster
 
 Measure time until an installed package actually runs, a development shell executes its first command, development services pass readiness checks, and a system generation completes activation. Download completion, derivation evaluation, and a CLI returning early are intermediate milestones.

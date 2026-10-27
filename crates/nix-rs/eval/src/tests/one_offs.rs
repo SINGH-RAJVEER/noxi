@@ -2,6 +2,31 @@ use crate::*;
 use pretty_assertions::assert_matches;
 
 #[rstest::rstest]
+#[case("{ f = x: x; }")]
+#[case("let f = x: x; in { inherit f; }")]
+#[case("{ f = (x: x); }")]
+fn lazy_function_literals_keep_unforced_previews(#[case] expression: &str) {
+	let evaluation = Evaluation::builder_pure().build();
+	let source = evaluation.source_map();
+	let result = evaluation.evaluate(expression, None);
+	assert!(result.errors.is_empty(), "{:?}", result.errors);
+	assert_eq!(
+		ValuePrinter::print(&source, PrintOptions::ERROR, &result.value.unwrap()),
+		"{ f = «thunk»; }".as_bytes()
+	);
+}
+
+#[test]
+fn returned_function_literals_keep_recursive_captures() {
+	let result = Evaluation::builder_pure().build().evaluate(
+		"let f = x: y: if y == 0 then x else f x (y - 1); in f 42 3",
+		None,
+	);
+	assert!(result.errors.is_empty(), "{:?}", result.errors);
+	assert_eq!(result.value.unwrap().as_int().unwrap(), 42);
+}
+
+#[rstest::rstest]
 #[case(0)]
 #[case(1)]
 #[case(2)]
