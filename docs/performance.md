@@ -120,6 +120,14 @@ Five-pair instruction profiles of START-03 and EVAL-01 through EVAL-06 pass all 
 
 The ready-argument expansion alone saved only 0.3%; adding the forcing continuation without the span-aware mapped builtins saved 1.5%. Neither intermediate qualifies as a standalone improvement. These shared-host runs gate instruction counts and RSS; their wall times do not establish a speedup. Artifacts, flat reports and preserved executables are under `target/perf-cpu/` in the CPU worktree.
 
+### Pinned fixture recheck, 2026-10-28
+
+The shared orchestration scripts now read immutable fixture copies under `target/perf-orchestration/fixtures`. Two more invocations of the committed bytecode-frame revision use 141.454 billion median instructions and 2,933,192 KiB median peak RSS. A fresh baseline invocation uses 158.459 billion instructions and 2,967,524 KiB RSS; CppNix uses 41.010 billion instructions and 1,012,516 KiB RSS. All four evaluations retain `f4e14079455b2d17`. The prescribed `tip-bin` reference and the preserved baseline executable have identical SHA-256 hashes, and their pinned-fixture differential outputs match byte-for-byte. An earlier invocation against a temporarily renamed qualification hostname is excluded from these comparisons.
+
+An experiment consuming list and attribute operands instead of cloning their `Rc` owners uses 139.591 billion median instructions, only 1.32% below the committed revision, and 2,944,516 KiB median peak RSS. It fails the 2% instruction gate without a memory improvement and has been removed. Its patch and executable remain in `target/perf-cpu/` for inspection.
+
+The final small-case matrix contains five samples for each of six executables on START-03 and EVAL-01 through EVAL-06 at size 64. All 252 preflight and sample oracles pass. Relative to baseline, the committed revision reduces median instructions by 3.17% on EVAL-04 and 2.50% on EVAL-06; its largest increase is 0.074% on EVAL-01. The ownership experiment changes these small cases by less than 0.09% relative to the committed revision. These instruction profiles include the original commands in `final-small/samples.jsonl`; their wrapper-inclusive wall times are not speedup evidence.
+
 ## What should become faster
 
 Measure time until an installed package actually runs, a development shell executes its first command, development services pass readiness checks, and a system generation completes activation. Download completion, derivation evaluation, and a CLI returning early are intermediate milestones.
