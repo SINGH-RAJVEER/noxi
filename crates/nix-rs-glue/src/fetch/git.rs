@@ -211,6 +211,7 @@ pub(super) fn export(
 		return Ok(());
 	}
 	let entries = run(repo, &["ls-tree", "-rtz", "--full-tree", rev])?;
+	let mut blobs = Vec::new();
 	for entry in entries.split(|b| *b == 0).filter(|e| !e.is_empty()) {
 		let tab = entry
 			.iter()
@@ -234,17 +235,82 @@ pub(super) fn export(
 				export(&repo.join(relative), object, &path, true, false)?;
 			}
 		} else {
-			let bytes = run(repo, &["cat-file", "blob", object])?;
-			if mode == "120000" {
-				symlink(std::ffi::OsStr::from_bytes(&bytes), &path)?;
-			} else {
-				fs::write(&path, bytes)?;
-				fs::set_permissions(
-					path,
-					fs::Permissions::from_mode(if mode == "100755" { 0o755 } else { 0o644 }),
-				)?;
-			}
+			blobs.push((object.to_owned(), mode == "120000", mode == "100755", path));
 		}
+	}
+	read_blobs(repo, &blobs)
+}
+
+/// Write each `(object, symlink, executable, path)` blob from one
+/// `git cat-file --batch`, instead of a process per file.
+fn read_blobs(repo: &Path, blobs: &[(String, bool, bool, PathBuf)]) -> Result<()> {
+	use std::io::{BufRead, BufReader, Read, Write};
+	use std::process::Stdio;
+	if blobs.is_empty() {
+		return Ok(());
+	}
+	let mut child = Command::new("git")
+		.arg("-C")
+		.arg(repo)
+		.args(["cat-file", "--batch"])
+		.env("GIT_TERMINAL_PROMPT", "0")
+		.stdin(Stdio::piped())
+		.stdout(Stdio::piped())
+		.stderr(Stdio::piped())
+		.spawn()?;
+	let mut stdin = child.stdin.take().unwrap();
+	let objects: Vec<String> = blobs.iter().map(|b| b.0.clone()).collect();
+	// Feed concurrently with reading stdout so large trees cannot fill both pipes.
+	let writer = std::thread::spawn(move || -> std::io::Result<()> {
+		let mut input = Vec::with_capacity(objects.len() * 41);
+		for object in objects {
+			input.extend_from_slice(object.as_bytes());
+			input.push(b'\n');
+		}
+		stdin.write_all(&input)
+	});
+	let mut stdout = BufReader::with_capacity(1 << 16, child.stdout.take().unwrap());
+	let mut result = Ok(());
+	let mut header = String::new();
+	let mut bytes = Vec::new();
+	for (object, link, executable, path) in blobs {
+		header.clear();
+		stdout.read_line(&mut header)?;
+		let size = match header.trim_end().split(' ').collect::<Vec<_>>()[..] {
+			[_, "blob", size] => size.parse::<usize>().ok(),
+			_ => None,
+		};
+		let Some(size) = size else {
+			result = Err(Error::new(format!(
+				"cannot read Git blob {object}: {}",
+				header.trim_end()
+			)));
+			break;
+		};
+		bytes.resize(size + 1, 0);
+		stdout.read_exact(&mut bytes)?;
+		bytes.pop();
+		if *link {
+			symlink(std::ffi::OsStr::from_bytes(&bytes), path)?;
+		} else {
+			fs::write(path, &bytes)?;
+			fs::set_permissions(
+				path,
+				fs::Permissions::from_mode(if *executable { 0o755 } else { 0o644 }),
+			)?;
+		}
+	}
+	drop(stdout);
+	let output = child.wait_with_output()?;
+	writer
+		.join()
+		.map_err(|_| Error::new("Git object writer panicked"))?
+		.or_else(|e| if result.is_err() { Ok(()) } else { Err(e) })?;
+	result?;
+	if !output.status.success() {
+		return Err(Error::new(
+			String::from_utf8_lossy(&output.stderr).trim().to_owned(),
+		));
 	}
 	Ok(())
 }

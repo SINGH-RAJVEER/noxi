@@ -53,6 +53,33 @@ pub fn query_missing(
 	let mut res = Missing::default();
 	let mut visited = BTreeSet::new();
 	let mut todo: Vec<DerivedPath> = targets.to_vec();
+	let prefetch_enabled = use_substitutes
+		&& store.config().substitution_jobs() > 1
+		&& store.config().narinfo_cache_positive_ttl != 0
+		&& store.config().narinfo_cache_negative_ttl != 0
+		&& substituters.first().is_some_and(|cache| {
+			cache.uri().starts_with("http://") || cache.uri().starts_with("https://")
+		});
+	let prefetch = |paths: Vec<StorePath>| {
+		if use_substitutes && let Some(cache) = substituters.first() {
+			let paths: Vec<_> = paths
+				.into_iter()
+				.filter(|path| !store.is_valid_path(path).unwrap_or(true))
+				.collect();
+			cache.prefetch_path_info(&paths, store.config().substitution_jobs());
+		}
+	};
+	if prefetch_enabled {
+		prefetch(
+			targets
+				.iter()
+				.filter_map(|target| match target {
+					DerivedPath::Opaque(path) => Some(path.clone()),
+					_ => None,
+				})
+				.collect(),
+		);
+	}
 	let substitutable = |path: &StorePath| -> Option<(u64, u64, BTreeSet<StorePath>)> {
 		if !use_substitutes {
 			return None;
@@ -80,6 +107,17 @@ pub fn query_missing(
 						res.unknown.insert(path);
 					}
 					Some((download, nar, references)) => {
+						if prefetch_enabled {
+							prefetch(
+								references
+									.iter()
+									.filter(|path| {
+										!visited.contains(&DerivedPath::Opaque((*path).clone()))
+									})
+									.cloned()
+									.collect(),
+							);
+						}
 						res.will_substitute.insert(path);
 						res.download_size += download;
 						res.nar_size += nar;

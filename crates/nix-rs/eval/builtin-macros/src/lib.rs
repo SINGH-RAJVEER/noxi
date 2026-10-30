@@ -119,6 +119,8 @@ fn parse_module_args(args: TokenStream) -> Option<Type> {
 /// literal for the name of the builtin.
 /// A non-async builtin omits `GenCo` and registers a synchronous body as well
 /// as a generator fallback for forcing its strict arguments.
+/// A `span` parameter after the optional state parameter receives the call's
+/// source position on both paths.
 ///
 /// # Examples
 /// ```ignore
@@ -202,6 +204,16 @@ pub fn builtins(args: TokenStream, item: TokenStream) -> TokenStream {
 			let mut rewritten_args = std::mem::take(&mut f.sig.inputs)
 				.into_iter()
 				.collect::<Vec<_>>();
+			let span_arg = if synchronous
+				&& matches!(
+					rewritten_args.get(usize::from(captures_state)),
+					Some(FnArg::Typed(PatType { pat, .. }))
+						if matches!(pat.as_ref(), Pat::Ident(PatIdent { ident, .. }) if ident == "span")
+				) {
+				Some(rewritten_args.remove(usize::from(captures_state)))
+			} else {
+				None
+			};
 			if synchronous {
 				rewritten_args.insert(
 					usize::from(captures_state),
@@ -328,6 +340,11 @@ pub fn builtins(args: TokenStream, item: TokenStream) -> TokenStream {
 					.enumerate()
 					.filter_map(|(idx, arg)| (idx != usize::from(captures_state)).then_some(arg))
 					.collect();
+				if let Some(span_arg) = &span_arg {
+					sync.sig
+						.inputs
+						.insert(usize::from(captures_state), span_arg.clone());
+				}
 				let block = &sync.block;
 				*sync.block = parse_quote! {{ #(#checks)* #block }};
 				for arg in builtin_arguments.iter().rev() {
@@ -348,6 +365,13 @@ pub fn builtins(args: TokenStream, item: TokenStream) -> TokenStream {
 				let block = &sync.block;
 				*sync.block = parse_quote! {{ values.reverse(); #block }};
 				synchronous_functions.push(Item::Fn(sync));
+			}
+			if span_arg.is_some() {
+				let block = &f.block;
+				*f.block = parse_quote! {{
+					let span = nix_rs_eval::generators::request_span(&co).await;
+					#block
+				}};
 			}
 
 			// Rewrite the body of the function to do said argument forcing.
@@ -424,7 +448,9 @@ pub fn builtins(args: TokenStream, item: TokenStream) -> TokenStream {
 				.iter()
 				.map(|arg| arg.strict)
 				.collect::<Vec<_>>();
-			let constructor = if synchronous {
+			let constructor = if span_arg.is_some() {
+				quote!(nix_rs_eval::Builtin::new_with_sync_span)
+			} else if synchronous {
 				quote!(nix_rs_eval::Builtin::new_with_sync)
 			} else {
 				quote!(nix_rs_eval::Builtin::new)
@@ -432,9 +458,13 @@ pub fn builtins(args: TokenStream, item: TokenStream) -> TokenStream {
 
 			if captures_state {
 				let sync_state = synchronous.then(|| quote!(let sync_state = state.clone();));
-				let sync_args = synchronous.then(
-					|| quote!(, &[#(#strict),*], move |values| #sync_name(sync_state.clone(), values)),
-				);
+				let sync_args = synchronous.then(|| {
+					if span_arg.is_some() {
+						quote!(, &[#(#strict),*], move |span, values| #sync_name(sync_state.clone(), span, values))
+					} else {
+						quote!(, &[#(#strict),*], move |values| #sync_name(sync_state.clone(), values))
+					}
+				});
 				builtins.push(quote_spanned! { builtin_attr.span() => {
 					let inner_state = state.clone();
 					#sync_state

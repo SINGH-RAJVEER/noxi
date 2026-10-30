@@ -1371,7 +1371,7 @@ impl Compiler<'_, '_> {
 		}
 		self.compile_tail(slot, node.body().unwrap());
 		if let Some((formals, throw_idx)) = formals {
-			self.context_mut().lambda.formals = Some(formals);
+			self.context_mut().lambda.formals = Some(Box::new(formals));
 			// For formals, there's no single parameter name, use empty string
 			self.context_mut().lambda.param_name = String::new();
 			Some(throw_idx)
@@ -1431,6 +1431,7 @@ impl Compiler<'_, '_> {
 			.lambda
 			.chunk
 			.push_op(Op::Return, self.span_for(node));
+		compiled.lambda.chunk.shrink_to_fit();
 
 		let lambda = Rc::new(compiled.lambda);
 		if is_suspended_thunk {
@@ -1528,11 +1529,25 @@ impl Compiler<'_, '_> {
 			ast::Expr::LetIn(let_in) => self.compile_let_in(slot, let_in, true),
 			// Other expressions are thunks, forced here so that they too run
 			// while the frame is active, as in CppNix's `callFunction`.
-			_ => {
-				self.compile(slot, expr.clone());
-				self.emit_force(&expr);
-			}
+			_ => self.compile_forced(slot, expr),
 		}
+	}
+
+	/// A literal function in a strict position needs only its closure. Keep
+	/// wrappers in lazy positions: diagnostics distinguish an unforced function
+	/// from a closure, even though constructing the closure cannot fail.
+	fn compile_forced(&mut self, slot: LocalIdx, expr: ast::Expr) {
+		let mut inner = expr.clone();
+		while let ast::Expr::Paren(ref paren) = inner {
+			inner = paren.expr().unwrap();
+		}
+		if let ast::Expr::Lambda(lambda) = inner {
+			self.compile_lambda_or_thunk(false, slot, &lambda, |c, s| c.compile_lambda(s, &lambda));
+		} else {
+			self.compile(slot, expr.clone());
+		}
+		// Recursive closures can still be carried by an evaluated thunk.
+		self.emit_force(&expr);
 	}
 
 	/// Compile the body of a conditional, assertion or `let`, in tail
@@ -1551,8 +1566,7 @@ impl Compiler<'_, '_> {
 		// call instruction. This way, the stack is perfectly laid out
 		// to enter the function call straight away.
 		self.compile(slot, node.argument().unwrap());
-		self.compile(slot, node.lambda().unwrap());
-		self.emit_force(&node.lambda().unwrap());
+		self.compile_forced(slot, node.lambda().unwrap());
 		self.push_op(Op::Call, node);
 	}
 

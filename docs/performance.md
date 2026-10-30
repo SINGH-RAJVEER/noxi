@@ -1,6 +1,6 @@
 # Performance architecture and optimization plan
 
-Status: evaluator measurements updated 2026-10-26; the current-main diagnosis below is exploratory. The [runner](../benchmarks/README.md) supports 39 subsets of the 154 catalog scenarios. O06 bounds immutable source capture with an 8 MiB spool threshold; O09 indexes dependency edges while retaining serial realization and ready ordering. EVAL-08 now covers the qualification NixOS and Home Manager derivation paths. The remaining hypotheses and unimplemented parts of those hypotheses remain proposed work. The [benchmark specification](performance-benchmarks.md), [scenario catalog](../benchmarks/catalog.tsv), and [CppNix research](performance-research.md) define the evidence required before advertising an optimization.
+Status: evaluator measurements updated 2026-10-27; the current-main diagnosis and the evaluator cost reductions below are exploratory five-pair runs. The [runner](../benchmarks/README.md) supports 39 subsets of the 154 catalog scenarios. O06 bounds immutable source capture with an 8 MiB spool threshold; O09 indexes dependency edges while retaining serial realization and ready ordering. EVAL-08 now covers the qualification NixOS and Home Manager derivation paths. The remaining hypotheses and unimplemented parts of those hypotheses remain proposed work. The [benchmark specification](performance-benchmarks.md), [scenario catalog](../benchmarks/catalog.tsv), and [CppNix research](performance-research.md) define the evidence required before advertising an optimization.
 
 ## Qualification evaluator measurements, 2026-10-25
 
@@ -71,6 +71,124 @@ Recent diagnostics add measurable work on successful evaluation too. `FrameTrace
 The next experiments should measure compact frame/continuation state and additional synchronous forcing paths, allocation count and retained bytes by object class, and trace bookkeeping separated from error materialization. Attribute-map sharing and compact capture storage are candidates after that attribution. Swapping an allocator or removing the measured libc allocation/free time alone cannot close this gap: eliminating that 18.99% symbol bucket entirely would yield only about 1.23 times the speed. New optimizations still require per-change comparison with both preserved nix-rs and pinned CppNix, exact diagnostics, and unchanged `just nixos-paths` and `just nixpkgs-paths` results.
 
 Raw diagnostic artifacts are in `target/performance-diagnosis-2026-10-26/`: `matched-5/` contains samples, manifests, environments, correctness results and hardware; `main/` preserves the executable and source identity; `host-state.jsonl` records the quiet-window/pressure checks; `profiles/` contains the three perf captures, symbol reports, summarized groups and reference allocation statistics. `diagnostic-summary.json` records the measured medians. No evaluator implementation was changed for this diagnosis. A recovery copy of these artifacts is preserved at `/home/rajveer/.local/state/nix-rs-performance-diagnosis/2026-10-26-a7548847`.
+
+## Evaluator cost reductions, 2026-10-27
+
+The changes below address the mechanisms the diagnosis named. Each is its own commit, checked against its predecessor by user-space instruction counts (`perf stat -e instructions:u`), which stayed stable while wall time varied with unrelated host load. Every candidate also ran a differential against the merged-main artifact. That differential covers 362 language fixtures and 34 extra expressions (errors, catchable errors, `tryEval`, assertions, infinite recursion, `with`, selection and deep-force traces), each with and without `--show-trace`, and compares exit status, stdout and stderr. All outputs were identical for every kept change. The workspace tests, doctests, `just nixos-paths` and `just nixpkgs-paths` pass at the final revision.
+
+| Change | EVAL-08 effect |
+| --- | --- |
+| Move a generator's trace into the running frame instead of cloning it per transition; skip the clone for trace-less bytecode frames | with the next change, 5.4% fewer instructions |
+| Record each suspended thunk's span at compile time instead of a binary search per thunk | included above |
+| Force a plain suspended bytecode thunk by entering its code directly under a `Force` frame, which stands in for the `force` generator one for one: same frame indices, spans, error chains, traces and blackhole | 17.9% fewer instructions |
+| Allocate with mimalloc in `nixrs` and the `nix-rs-commands` executables | 8.2% fewer instructions, 5% lower peak RSS |
+| Box lambda formals and release chunk spare capacity; a lambda allocation drops from 320 to 240 bytes | peak live heap about 140 MiB lower |
+| Store static upvalues as a boxed slice and share captured `with` stacks; `Rc<Upvalues>` drops from 64 to 48 bytes | peak live heap about 130 MiB lower |
+| Fat LTO with one codegen unit for release builds | 4.7% fewer instructions |
+| Test for a catchable error inline before tracing a result | 0.6% fewer instructions |
+| Share the attribute-position map of sets built from one literal when their positions match, and stop deep-copying it with the set | about 110 MiB lower peak RSS, 1% fewer instructions |
+
+Together the user-space instruction count fell from 231.4 to 158.2 billion. Rebuilding the merged-main baseline and the pre-mimalloc revision with the newer nightly gave the same instruction counts, so the toolchain update in the same period does not account for these differences.
+
+A five-pair matched run with the repository runner then compared the final revision `1018a06d` with the preserved round-one release and pinned CppNix 2.35.2, using the same affinity, inputs, dummy store and oracle as the diagnosis. The host was not quiet; the CPU times below are less affected by that than wall times. All fifteen timed invocations matched the oracle.
+
+| Engine | Median wall s | Median process-tree CPU s | Median peak target RSS MiB |
+| --- | ---: | ---: | ---: |
+| CppNix 2.35.2 | 3.318 | 5.117 | 994.1 |
+| Preserved round-one nix-rs | 20.246 | 20.082 | 3,240.5 |
+| Final revision, `1018a06d` | 15.170 | 15.088 | 2,937.3 |
+
+The final revision is 1.35 times as fast as round one (95% interval 1.31-1.39), which reverses the merged tree's 14% regression, and uses 9% less peak RSS. It still takes 4.57 times CppNix's elapsed time and 2.95 times its peak RSS.
+
+Three experiments were rejected. The `no_leak` feature raised peak RSS to 3.98 GB because it also disables string interning, and it ran more instructions, so leaked context-free strings are not the memory problem. Sharing captured `with` stacks alone gained under 1%; it was kept only as part of the compact upvalue representation. A synchronous fast path for `==` between evaluated scalars saved 1.2% of instructions, below the 2% bar for this round.
+
+The remaining gap is architectural. Builtins, comparisons, equality and string coercion still run as boxed generators. A thunk cell takes 56 bytes, and about 9 million are live at peak, against CppNix's 16-byte values. `//` copies its maps, as CppNix also does. `Rc` cannot collect reference cycles without a collector. A live-size histogram at peak attributes about 480 MiB to thunk cells, 330 MiB to upvalues, 230 MiB to lambdas and 590 MiB to allocations of a kilobyte or more, which include source text and attribute tables. These need representation changes, not further local fixes.
+
+Raw artifacts are in `target/performance-tip-2026-10-27/`: `bin/` holds the measured executables, `matched-5/` the runner samples and report, `summary.txt` the medians, and `differential/` the differential and instruction-count scripts. A recovery copy is at `/home/rajveer/.local/state/nix-rs-performance-tip/2026-10-27-1018a06d`.
+
+## Evaluator CPU workstream, 2026-10-27
+
+The `perf/eval-cpu` baseline reproduces EVAL-08 at 158.416 billion user-space instructions and 2,970,506 KiB median peak RSS across two invocations. Fixed-period `perf record -e cycles:u -c 10000000` collected 7,162 samples with none lost. The flat profile assigns 14.48% to bytecode dispatch, 5.47% to generator driving, 2.01% to operand decoding and 1.28% to dropping frame traces. Temporary builtin counters identify `map` and `mapAttrs` as the most frequent full builtin calls, at 421,627 and 398,652 respectively. Counter instrumentation is excluded from the measured binaries.
+
+Thirty more builtin bodies now register synchronous entry points, including `map`, `mapAttrs` and `genList`, whose generated thunks retain the original call span. An explicit VM continuation forces their strict arguments from left to right before calling the body. Catchable arguments retain the generated wrapper's propagation and `#[catch]` behavior. The combined change uses 155.148 billion instructions, a 2.06% reduction, with 2,986,918 KiB median peak RSS. Both invocations retain the required `f4e14079455b2d17` output digest. The 518 evaluator and builtin-macro tests, doctests and the full baseline differential pass, including exit status, stdout and full trace stderr.
+
+Evaluated scalar equality and comparison, numeric/string addition, path/string concatenation and scalar string coercion now run directly without generator frames. Equality and comparison also avoid allocating their work vectors for scalar arguments inside builtin calls. Suspended values, aggregate comparisons, imports and failures retain the original generator paths. This step uses 149.092 billion instructions, 3.90% below the synchronous-builtin revision and 5.89% below the original baseline, with 2,935,974 KiB median peak RSS. Both EVAL-08 digests, all 518 tests, doctests and the full baseline differential pass.
+
+Bytecode frames now lend their trace to error construction instead of cloning it on entry. Attribute-name span lookup is deferred until a type error, and single-byte vu128 operands bypass the general decoder. This step uses 141.545 billion instructions, another 5.06% reduction and 10.65% below baseline, with 2,947,432 KiB median peak RSS. Both digests, the 518 tests, doctests and the full differential pass. A separate CppNix invocation uses 41.005 billion instructions and 1,002,056 KiB peak RSS, so the instruction gap is still 3.45 times at this stage.
+
+Five-pair instruction profiles of START-03 and EVAL-01 through EVAL-06 pass all reference oracles for the baseline and first two revisions. At size 64, the synchronous revision's small-case instruction changes range from a 0.10% reduction to a 0.24% increase. The evaluated-operation revision reduces EVAL-04 and EVAL-06 by about 1.8%; its largest small-case increase is 0.17%. These startup-scale changes are recorded rather than rounded into a blanket no-regression claim.
+
+The ready-argument expansion alone saved only 0.3%; adding the forcing continuation without the span-aware mapped builtins saved 1.5%. Neither intermediate qualifies as a standalone improvement. These shared-host runs gate instruction counts and RSS; their wall times do not establish a speedup. Artifacts, flat reports and preserved executables are under `target/perf-cpu/` in the CPU worktree.
+## Evaluator memory representation, 2026-10-27
+
+A fresh three-run EVAL-08 baseline at `3012fb5` used a median 158.445 billion user-space instructions and 2,985,744 KiB peak RSS. Every run produced digest `f4e14079455b2d17`. Measurements use the orchestration script's isolated dummy-store environment and the shared heavy-job lock; wall time is not a decision metric on this shared host.
+
+A separate temporary counting allocator around mimalloc measured 2,664,149,140 bytes of peak requested live allocations. It snapshots live size bins whenever the high-water mark crosses another 4 MiB. The last snapshot was 2,663,383,131 bytes: the 56-byte bin containing thunk cells held 9,140,997 allocations and 488.2 MiB; the 48-byte bin containing upvalue headers held 7,258,050 allocations and 332.2 MiB; the 248-byte bin containing lambdas held 1,007,698 allocations and 238.3 MiB. Reported bins of at least 1 KiB accounted for another 606.5 MiB. These are allocation-size bins, not allocation-stack attribution. Layout checks confirmed a 16-byte `Value`, 32-byte `ThunkRepr`, 32-byte `Upvalues`, and 232-byte `Lambda`, before reference-count headers and the thunk's borrow flag. The instrumented executable matched the output digest but is excluded from instruction and RSS comparisons. At command return, 2,629,335,153 requested bytes remained live, so retention also needs attention.
+
+The compiler now constructs a function literal's closure directly in positions where it immediately forces the literal: a call's callee and a function's returned expression. Recursive closures retain the ordinary force operation and finalisation. Lazy positions keep the suspended wrapper, preserving unforced function previews. Three EVAL-08 runs reduced median instructions from 158.445 to 152.920 billion, a 3.5% saving. Median RSS was effectively unchanged at 2,983,400 KiB. All output/error/trace differential files matched the baseline byte-for-byte, all 519 evaluator tests and the doctest passed, and all 90 timed EVAL-01 through EVAL-06 samples matched their oracles. Smaller-workload instruction medians did not regress; EVAL-04 saved 6.7% at size 1,024. These are instruction and memory diagnostics, not a wall-time qualification.
+
+A fresh three-run pinned CppNix comparison produced the same digest with median 41.011 billion instructions and 1,018,852 KiB peak RSS. After the compiler change nix-rs still uses 3.73 times the instructions and 2.93 times the RSS, so the memory target remains open.
+
+One representation experiment was rejected. Moving suspension spans into shared bytecode and retaining that bytecode in blackholes reduced the thunk allocation request from 56 to 48 bytes. The full output/error/trace differential, 518 evaluator tests and the doctest passed, but median EVAL-08 instructions rose to 163.036 billion, 2.9% above baseline, while RSS barely changed at 2,973,444 KiB. The production thunk representation remains unchanged.
+
+Unconditionally constructing function literals as closures was also rejected. It saved 5.2% of EVAL-08 instructions, from 158.445 to 150.253 billion, and reduced median RSS to 2,961,572 KiB, but changed unforced functions in error previews from `«thunk»` to a lambda with its name and position. Function construction can bypass a wrapper only where the compiler already forces that literal.
+
+Raw counting-allocator source, its patch and executable, baseline measurements, rejected patches, test logs, and differential outputs are retained under `target/perf-memory/` in the `perf/eval-memory` worktree. The baseline differential is `target/diff-baseline/`.
+## Store substitution costs, 2026-10-27
+
+The store workstream starts at `3012fb5`. Its release binaries, source identities, profiles and comparison runs are retained under `target/store-perf/` and `target/benchmarks/store-*` in the implementation worktree. These five-pair runs are exploratory measurements on a shared host. Instruction counts decide whether to retain a change; wall times describe these particular loopback fixtures.
+
+The apparent fixed HTTP transfer cost was predominantly content-address verification. A `strace -f -tt -T` capture starts the first HTTP request about 19 ms after exec. The flat user-cycle profile assigns 58.1% to `Rewriter::drain`, 31.6% to its byte comparisons and 9.3% to SHA-256. The old rewriter searches for a store hash with a map lookup at every byte offset. Substring search for one pattern and Aho–Corasick for multiple equal-length patterns preserve leftmost nonoverlapping matches, absolute offsets and matches spanning writes. The test compares every chunk size against the original search rule.
+
+On CACHE-01, the change reduces user instructions from 2,654,304,287 to 206,315,211, a 92.2% reduction. Peak RSS measured with `/run/current-system/sw/bin/time -f %M` changes from 14,340 to 14,252 KiB. The matched five-pair run reduces the preserved baseline's median from 615 ms to 226 ms; CppNix takes 158 ms. Correctness passes for CACHE-01, all six CACHE-08 formats, both CACHE-10 transports and NAR-05. The store/build tests and doctests pass, as do all 70 command tests, with two optional skips.
+
+HTTP startup, certificate loading and an async runtime are not responsible for the dominant CPU cost in this fixture. A separate request cost remains: repeated narinfo responses incur roughly 41 ms waits between headers and body. Planning and realization issue three metadata requests for a single path, compared with one in CppNix. Decompression already streams into NAR restore; it does not buffer a complete downloaded NAR.
+
+HTTP narinfo lookups now share positive and negative results between cache handles, with the configured TTLs; transport and parse errors remain retryable. Planning prefetches independent HTTP metadata within the substitution-job and HTTP-connection limits. File caches retain live metadata reads and skip prefetch. CACHE-02 narinfo requests fall from 96 to 32, and user instructions fall from 16,114,445 to 14,627,423, a 9.2% reduction. Its separate direct probes take 4.05 s before and 1.20 s after. Parallel workers raise peak RSS from 14,052 to 58,372 KiB; the matched CppNix run uses about 77 MiB. This is a concurrency cost, not a memory reduction over the previous serial implementation.
+
+The HTTP connection limit follows CppNix's zero convention: `http-connections = 0` removes that limit, while `max-substitution-jobs` still bounds work and is clamped to at least one. The configuration test covers both direct settings and parsed configuration.
+
+The `store-metadata` five-pair run passes all cache correctness checks. Candidate versus CppNix medians are 2,752 versus 4,435 ms for CACHE-03, 1,455 versus 2,747 ms for CACHE-06, and 1,170 versus 1,668 ms for CACHE-10/http. CACHE-10/file remains faster than CppNix, 15 versus 39 ms. CACHE-08 is near parity for none and XZ, and faster for the other four formats in this run. The host was busy, especially during CACHE-01 and CACHE-02; the retained instruction-count improvement is more reliable than their elapsed ratios.
+
+An HTTP/1.0 correctness failure was reproduced independently: repeated fresh commands sometimes fetch narinfo but fail before requesting the NAR. The pinned ureq protocol code does not treat a length-delimited HTTP/1.0 response as implicitly closing the connection. After detecting such a response without explicit keep-alive, subsequent requests avoid the stale pooled connection and request explicit closure. HTTP/1.1 pooling remains enabled. Six fresh substitutions on each protocol pass, and the metadata test covers clone sharing, expiry, disabled caching and reading the NAR body on both protocols. All 70 command tests and 19 substitution/store-concurrency compatibility tests pass, with their optional skips.
+
+NAR import now hashes the validated archive while restoring it, then reuses its SHA-256 and length for content addressing and registration. Other requested hash algorithms retain their separate digest pass. This removes two filesystem serialization/hash passes for SHA-256 archive imports without changing source capture or evaluator code. NAR-05 user instructions fall from 269,589,939 to 181,709,575, a 32.6% reduction; peak RSS changes from 39,152 to 38,696 KiB. The archive test checks SHA-256, SHA-512, symlinks and bytes following the archive. Store/build tests (23 passed, one optional skip), 20 compatibility tests, 70 command tests, doctests and both NixOS/Nixpkgs path checks pass.
+
+An additional experiment processed incoming rewrite buffers directly instead of copying each chunk into the pending buffer. CACHE-01 instructions changed from 206,213,656 to 206,018,157, only 0.1%, with no clear memory benefit. It was rejected under the 2% instruction gate. The retained substring-search implementation still buffers chunks; its much larger search improvement is independent of this experiment.
+
+### Immutable import captures, 2026-10-30
+
+The local import path now carries the source capture's SHA-256 into registration instead of hashing the same snapshot again during restore. Capture owns its bytes privately and exposes no mutation after hashing. The NAR parser still validates the archive, and the digest is reused only when its consumed length matches the capture; trailing bytes use the restored tree's digest. Ordinary reader imports and remote imports retain their independent verification. The CLI's `LocalBackend` forwards the capture explicitly; the initial experiment omitted that forwarding and saved no instructions on the actual CLI, so it was corrected before retention.
+
+The existing 8 MiB limit is a spill threshold. Small captures stay in memory; the 32 MiB NAR-05 fixture spills to a private temporary file. Source replacement after capture and rejection of a wrong expected hash retain their previous behavior.
+
+The unlocked release probes reduce NAR-05 user instructions from 181,713,611 to 95,280,270, a 47.6% reduction on top of the restore-hash change. Peak RSS is essentially unchanged, 38,932 versus 38,720 KiB; the matched CppNix probe uses 128,180 KiB. In `target/benchmarks/store-capture-gate`, five paired samples give preserved-baseline, candidate and CppNix medians of 130.9, 82.3 and 108.0 ms, respectively, with a paired 1.31x ratio against CppNix. These shared-host timings are exploratory.
+
+All 56 store/build/glue tests, 70 command tests, 20 store/substitution compatibility tests and affected doctests pass. One command test produced a harness leak warning during the full run and passed cleanly on its own. All 792 language differential evaluations match the preserved orchestrator tip. Six fresh 32 MiB substitutions on each of HTTP/1.0 and HTTP/1.1 pass at this release, each with one narinfo GET and one NAR GET. The HTTP/1.0 fix remains in the earlier cache-metadata commit; no TCP delayed-ACK changes are included here.
+
+### Branch-tip comparison, 2026-10-30
+
+The code at `70d32c3` passes all 36 selected benchmark variants in `target/benchmarks/store-branch-tip`. The preserved binaries and matching source identity are in `target/store-perf/tip-release`. Measurements run unlocked under the revised brief. These five-pair shared-host results are exploratory; the orchestrator's quiet-host run remains the wall-clock qualification. Times below are medians; the ratio is the paired geometric mean of CppNix time divided by candidate time, so it can differ from the ratio of the two medians.
+
+| Case | Before ms | Tip ms | CppNix ms | CppNix / tip | 95% interval |
+| --- | ---: | ---: | ---: | ---: | --- |
+| CACHE-01 | 618.8 | 135.1 | 171.8 | 1.212x | 1.054 to 1.394 |
+| CACHE-02 | 4082.4 | 220.4 | 1742.0 | 8.062x | 7.521 to 8.986 |
+| CACHE-03 | 8455.9 | 4078.6 | 5655.6 | 1.280x | 0.734 to 1.905 |
+| CACHE-06 | 4116.8 | 1478.9 | 2754.1 | 1.953x | 1.792 to 2.201 |
+| CACHE-08/br | 761.0 | 140.4 | 164.8 | 1.090x | 0.958 to 1.243 |
+| CACHE-08/bzip2 | 1919.4 | 2158.0 | 2333.4 | 1.085x | 0.868 to 1.326 |
+| CACHE-08/gzip | 3138.7 | 2545.9 | 3107.3 | 1.036x | 0.365 to 2.355 |
+| CACHE-08/none | 478.9 | 154.6 | 185.0 | 1.430x | 1.010 to 2.440 |
+| CACHE-08/xz | 720.1 | 345.7 | 250.9 | 0.732x | 0.514 to 1.142 |
+| CACHE-08/zstd | 860.0 | 258.9 | 264.9 | 2.107x | 0.990 to 4.611 |
+| CACHE-10/file | 16.4 | 17.1 | 36.6 | 2.196x | 2.139 to 2.258 |
+| CACHE-10/http | 4095.8 | 1208.2 | 1639.8 | 1.368x | 1.336 to 1.405 |
+| NAR-05 | 151.6 | 84.9 | 86.9 | 1.181x | 1.051 to 1.310 |
+
+The selected START, DB, GC, BUILD, RPC, PROFILE, FETCH, PLAN, NAR-01..04 and CACHE-10/file cases retain point estimates above CppNix in this run. NAR-03 user instructions remain effectively unchanged, 5,566,257 before versus 5,572,230 after. XZ remains below parity in the point estimate, with a wide interval spanning parity. Its flat profile assigns 63.0% of user cycles to the XZ reader and 31.9% to SHA-256; the decoder's byte-at-a-time CRC64 loop is the next CPU target. Streaming decompression already feeds restore directly. TCP delayed-ACK work belongs to the daemon/build workstream and is not included in this branch.
+
+The final NixOS path gate passes in 106.4 s. The Nixpkgs path gate passes in 22.4 s after resolving the same pinned input through the Git-filtered worktree. The original `just nixpkgs-paths` input lookup traversed generated `target/debug` files and was stopped when the filesystem filled; the fallback runs the identical `matches_reference_nixpkgs_paths` test with the Git-resolved `NIXRS_NIXPKGS`. No reference expectations were changed. After measurements, 53 byte-identical raw benchmark outputs were hard-linked, preserving every artifact path and byte while freeing 1.66 GiB.
 
 ## What should become faster
 

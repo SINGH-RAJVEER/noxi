@@ -175,12 +175,16 @@ fn show_node<'a>(
 				&& matches!(
 					first,
 					"defaultPackage"
-						| "devShell" | "formatter"
+						| "devShell"
+						| "formatter"
 						| "nixosConfigurations"
-						| "nixosModules" | "defaultApp"
-						| "templates" | "overlays"
-				) || (depth == 1 || depth == 2)
-			&& matches!(first, "checks" | "packages" | "devShells" | "apps")
+						| "nixosModules"
+						| "defaultApp"
+						| "templates"
+						| "overlays"
+				)
+			|| (depth == 1 || depth == 2)
+				&& matches!(first, "checks" | "packages" | "devShells" | "apps")
 			|| first == "hydraJobs"
 			|| legacy && depth <= 2;
 		if recurse {
@@ -422,8 +426,10 @@ pub async fn check(
 					let leaves = if matches!(
 						name,
 						"defaultPackage"
-							| "devShell" | "formatter"
-							| "defaultApp" | "defaultBundler"
+							| "devShell"
+							| "formatter"
+							| "defaultApp"
+							| "defaultBundler"
 					) {
 						vec![(prefix, output.clone())]
 					} else {

@@ -65,6 +65,10 @@ macro_rules! cmp_op {
 	( $vm:ident, $frame:ident, $span:ident, $op:tt ) => {{
 		lifted_pop! {
 			$vm(b, a) => {
+				if let Some(ordering) = $crate::vm::native::compare(&a, &b) {
+					$vm.stack.push(Value::Bool(cmp_op!(@order $op ordering)));
+					continue;
+				}
 				async fn compare(a: Value, b: Value, co: GenCo) -> Result<Value, ErrorKind> {
 					let a = generators::request_force(&co, a).await;
 					let b = generators::request_force(&co, b).await;

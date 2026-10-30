@@ -11,7 +11,7 @@ use nix_compat::nixhash::HashAlgo;
 use nix_compat::store_path::StorePath;
 
 use crate::gc::{GcOptions, GcResults, Roots};
-use crate::{Error, FileIngestionMethod, LocalStore, Result, ValidPathInfo};
+use crate::{CapturedSource, Error, FileIngestionMethod, LocalStore, Result, ValidPathInfo};
 
 /// A path to realise: a store path, or outputs of a derivation.
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
@@ -74,6 +74,25 @@ pub trait Store {
 		hash_algo: HashAlgo,
 		references: &BTreeSet<StorePath>,
 	) -> Result<StorePath>;
+
+	/// Import an owned snapshot hashed during capture. Remote stores retain their
+	/// ordinary independently verified import protocol.
+	fn add_to_store_from_capture(
+		&self,
+		mut source: CapturedSource,
+		name: &str,
+		method: FileIngestionMethod,
+		references: &BTreeSet<StorePath>,
+	) -> Result<StorePath> {
+		self.add_to_store_from_dump(
+			source.reader()?,
+			name,
+			method,
+			method,
+			HashAlgo::Sha256,
+			references,
+		)
+	}
 
 	/// Keep `path` alive until this process exits.
 	fn add_temp_root(&self, path: &StorePath) -> Result<()>;
@@ -217,6 +236,16 @@ impl Store for LocalStore {
 			references,
 			false,
 		)
+	}
+
+	fn add_to_store_from_capture(
+		&self,
+		source: CapturedSource,
+		name: &str,
+		method: FileIngestionMethod,
+		references: &BTreeSet<StorePath>,
+	) -> Result<StorePath> {
+		LocalStore::add_to_store_from_capture(self, source, name, method, references)
 	}
 
 	fn add_temp_root(&self, path: &StorePath) -> Result<()> {

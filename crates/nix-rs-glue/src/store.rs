@@ -5,7 +5,7 @@
 use std::cell::{RefCell, RefMut};
 use std::collections::{BTreeMap, BTreeSet};
 use std::ffi::{OsStr, OsString};
-use std::io::{self, Seek, Write};
+use std::io;
 use std::os::unix::ffi::{OsStrExt, OsStringExt};
 use std::path::{Path, PathBuf};
 use std::rc::Rc;
@@ -17,9 +17,11 @@ use nix_compat::store_path::{self, STORE_DIR, StorePath};
 use nix_rs_eval::{
 	EvalIO, FileType, NixAttrs, NixContext, NixContextElement, NixString, StdIO, Value,
 };
-use nix_rs_store::{DerivedPath, FileIngestionMethod, LocalStore, LocalStoreConfig, Store};
+use nix_rs_store::{
+	CapturedSource, DerivedPath, FileIngestionMethod, LocalStore, LocalStoreConfig, SourceCapture,
+	Store,
+};
 use sha2::{Digest, Sha256};
-use tempfile::SpooledTempFile;
 
 use crate::errors::ImportError;
 use crate::known_paths::KnownPaths;
@@ -57,7 +59,7 @@ impl std::fmt::Debug for EvaluatorStore {
 /// A source captured once, before any store registration.
 pub(crate) struct CapturedImport {
 	name: String,
-	bytes: SpooledTempFile,
+	bytes: CapturedSource,
 	recursive: bool,
 	hash: NixHash,
 	path: StorePath,
@@ -65,23 +67,6 @@ pub(crate) struct CapturedImport {
 
 /// Bound the resident capture while preserving exactly the bytes that were hashed.
 const IMPORT_MEMORY_LIMIT: usize = 8 * 1024 * 1024;
-
-struct ImportCapture {
-	bytes: SpooledTempFile,
-	hash: Sha256,
-}
-
-impl Write for ImportCapture {
-	fn write(&mut self, bytes: &[u8]) -> io::Result<usize> {
-		let count = self.bytes.write(bytes)?;
-		self.hash.update(&bytes[..count]);
-		Ok(count)
-	}
-
-	fn flush(&mut self) -> io::Result<()> {
-		self.bytes.flush()
-	}
-}
 
 /// Compatibility name for the default, read-only evaluator store.
 pub type ReadOnlyStore = EvaluatorStore;
@@ -339,22 +324,17 @@ impl EvaluatorStore {
 			None
 		};
 		if let Some(store) = &self.store {
-			let mut capture = ImportCapture {
-				bytes: tempfile::spooled_tempfile(IMPORT_MEMORY_LIMIT),
-				hash: Sha256::new(),
-			};
+			let mut capture = SourceCapture::new(IMPORT_MEMORY_LIMIT);
 			nar::dump_path(&mut capture, &mount.root, filter)?;
-			let hash = NixHash::Sha256(capture.hash.finalize().into());
+			let captured = capture.finish()?;
+			let hash = NixHash::Sha256(captured.sha256());
 			let path = ca_path(name, true, &hash, &mount.root)?;
 			if !store.is_valid_path(&path).map_err(io::Error::other)? {
-				capture.bytes.rewind()?;
 				store
-					.add_to_store_from_dump(
-						&mut capture.bytes,
+					.add_to_store_from_capture(
+						captured,
 						name,
 						FileIngestionMethod::NixArchive,
-						FileIngestionMethod::NixArchive,
-						HashAlgo::Sha256,
 						&BTreeSet::new(),
 					)
 					.map_err(io::Error::other)?;
@@ -478,21 +458,18 @@ impl EvaluatorStore {
 		filter: Option<&mut Filter<'_>>,
 	) -> io::Result<CapturedImport> {
 		let physical = self.physical_path(path);
-		let mut capture = ImportCapture {
-			bytes: tempfile::spooled_tempfile(IMPORT_MEMORY_LIMIT),
-			hash: Sha256::new(),
-		};
+		let mut capture = SourceCapture::new(IMPORT_MEMORY_LIMIT);
 		if recursive {
 			self.dump_filtered(&mut capture, &physical, filter)?;
 		} else {
 			io::copy(&mut std::fs::File::open(physical)?, &mut capture)?;
 		};
-		let hash = NixHash::Sha256(capture.hash.finalize().into());
-		capture.bytes.rewind()?;
+		let bytes = capture.finish()?;
+		let hash = NixHash::Sha256(bytes.sha256());
 		let store_path = ca_path(name, recursive, &hash, path)?;
 		Ok(CapturedImport {
 			name: name.to_owned(),
-			bytes: capture.bytes,
+			bytes,
 			recursive,
 			hash,
 			path: store_path,
@@ -501,7 +478,7 @@ impl EvaluatorStore {
 
 	pub(crate) fn import_captured(
 		&self,
-		mut captured: CapturedImport,
+		captured: CapturedImport,
 		expected: Option<&NixHash>,
 	) -> io::Result<StorePath> {
 		// Both hashing and ingestion use these bytes. No source filesystem
@@ -518,14 +495,7 @@ impl EvaluatorStore {
 				FileIngestionMethod::Flat
 			};
 			return store
-				.add_to_store_from_dump(
-					&mut captured.bytes,
-					&captured.name,
-					method,
-					method,
-					HashAlgo::Sha256,
-					&BTreeSet::new(),
-				)
+				.add_to_store_from_capture(captured.bytes, &captured.name, method, &BTreeSet::new())
 				.map_err(io::Error::other);
 		}
 		Ok(captured.path)

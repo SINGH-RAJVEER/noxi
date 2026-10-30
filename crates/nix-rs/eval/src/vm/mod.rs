@@ -12,6 +12,7 @@
 mod assertions;
 pub mod generators;
 mod macros;
+pub(crate) mod native;
 
 use bstr::{BString, ByteSlice, ByteVec};
 use codemap::Span;
@@ -140,6 +141,26 @@ impl<T, S: GetSpan, IO> WithSpan<T, S, IO> for Result<T, ErrorKind> {
 								vm.source.clone(),
 							);
 						}
+						Frame::Builtin { name, span, .. } => {
+							error = Error::new(
+								ErrorKind::NativeError {
+									err: Box::new(error),
+									gen_type: name,
+								},
+								*span,
+								vm.source.clone(),
+							);
+						}
+						Frame::Force { span, .. } => {
+							error = Error::new(
+								ErrorKind::NativeError {
+									err: Box::new(error),
+									gen_type: "force",
+								},
+								*span,
+								vm.source.clone(),
+							);
+						}
 					}
 				}
 
@@ -201,7 +222,14 @@ impl BytecodeFrame {
 
 	/// Read a varint-encoded operand and return it. The frame pointer is
 	/// incremented internally.
+	#[inline]
 	fn read_uvarint(&mut self) -> u64 {
+		// Most operands fit in vu128's single-byte representation.
+		let first = self.chunk().code[self.ip.0];
+		if first < 0x80 {
+			self.ip.0 += 1;
+			return first.into();
+		}
 		let (arg, size) = self.chunk().read_uvarint(self.ip.0);
 		self.ip += size;
 		arg
@@ -246,6 +274,14 @@ impl BytecodeFrame {
 /// When a frame has been fully executed, it is removed from the VM's frame
 /// stack and expected to leave a result [`Value`] on the top of the stack.
 enum Frame {
+	/// A synchronous builtin awaiting its next strict argument.
+	Builtin {
+		name: &'static str,
+		pending: crate::value::PendingBuiltin,
+		span: Span,
+		depth: usize,
+		trace: FrameTrace,
+	},
 	/// BytecodeFrame represents the execution of nix-rs bytecode within a thunk,
 	/// function or closure.
 	BytecodeFrame {
@@ -280,6 +316,23 @@ enum Frame {
 
 		/// The CppNix trace frames this frame contributes to errors.
 		trace: FrameTrace,
+	},
+
+	/// The `force` generator of a suspended thunk, whose code the VM entered
+	/// directly instead. It runs once that code returns, storing the result
+	/// and leaving it on the stack as the generator would.
+	Force {
+		/// The thunk being forced, a blackhole until it is updated.
+		thunk: Thunk,
+
+		/// Where the thunk was suspended, the span its generator would have.
+		span: Span,
+
+		/// Where the thunk was forced.
+		forced_at: Span,
+
+		/// The function calls active when this frame runs.
+		depth: usize,
 	},
 }
 
@@ -324,17 +377,24 @@ pub(crate) enum FrameTrace {
 	Frame(Trace),
 }
 
+/// The trace of frames that contribute none.
+const NO_TRACE: &FrameTrace = &FrameTrace::None;
+
 impl Frame {
 	pub fn span(&self) -> Span {
 		match self {
-			Frame::BytecodeFrame { span, .. } | Frame::Generator { span, .. } => *span,
+			Frame::BytecodeFrame { span, .. }
+			| Frame::Generator { span, .. }
+			| Frame::Builtin { span, .. }
+			| Frame::Force { span, .. } => *span,
 		}
 	}
 
 	fn trace(&self) -> &FrameTrace {
 		match self {
 			Frame::BytecodeFrame { bytecode_frame, .. } => &bytecode_frame.trace,
-			Frame::Generator { trace, .. } => trace,
+			Frame::Generator { trace, .. } | Frame::Builtin { trace, .. } => trace,
+			Frame::Force { .. } => NO_TRACE,
 		}
 	}
 }
@@ -508,6 +568,42 @@ where
 		})
 	}
 
+	/// Force a thunk as a `force` generator at `span` would. The code of a
+	/// suspended thunk is entered directly, under a [`Frame::Force`] that
+	/// stands in for the generator: the same frames, spans and blackhole.
+	fn enqueue_force(&mut self, span: Span, thunk: Thunk) {
+		match thunk.begin_direct_force(span) {
+			Some((lambda, upvalues, suspended_at)) => {
+				self.frames.push(Frame::Force {
+					thunk,
+					span: suspended_at,
+					forced_at: span,
+					depth: self.call_depth,
+				});
+				self.push_bytecode_frame(
+					suspended_at,
+					BytecodeFrame {
+						trace: FrameTrace::None,
+						lambda,
+						upvalues,
+						ip: CodeIdx(0),
+						stack_offset: self.stack.len(),
+						depth: self.call_depth,
+					},
+				);
+			}
+			None => self.enqueue_generator("force", span, |co| Thunk::force(thunk, co, span)),
+		}
+	}
+
+	/// Force a value as a `force` generator at `span` would.
+	fn enqueue_force_value(&mut self, span: Span, value: Value) {
+		match value {
+			Value::Thunk(thunk) => self.enqueue_force(span, thunk),
+			value => self.enqueue_generator("force", span, |co| value.force_owned_genco(co, span)),
+		}
+	}
+
 	/// Run the VM's primary (outer) execution loop, continuing execution based
 	/// on the current frame at the top of the frame stack.
 	fn execute(mut self) -> EvalResult<RuntimeResult> {
@@ -515,17 +611,58 @@ where
 			self.reasonable_span = frame.span();
 			let frame_id = self.frames.len();
 			match frame {
+				Frame::Builtin {
+					name,
+					mut pending,
+					span,
+					depth,
+					trace,
+				} => {
+					self.current = (frame_id, trace);
+					self.call_depth = depth;
+					self.observer
+						.observe_enter_generator(frame_id, name, &self.stack);
+					let value = pending.awaiting_value().then(|| self.stack_pop());
+					match pending.advance(value, span) {
+						Ok(thunk) => {
+							self.frames.push(Frame::Builtin {
+								name,
+								pending,
+								span,
+								depth,
+								trace: std::mem::take(&mut self.current.1),
+							});
+							self.enqueue_force(span, thunk);
+							self.observer
+								.observe_suspend_generator(frame_id, name, &self.stack);
+						}
+						Err(BuiltinResult::Synchronous(result)) => {
+							let value = result.with_span(span, &self)?;
+							let value = self.trace_catchable(value, None, None);
+							self.stack.push(value);
+							self.observer
+								.observe_exit_generator(frame_id, name, &self.stack);
+						}
+						Err(BuiltinResult::Called(name, generator)) => {
+							self.frames.push(Frame::Generator {
+								name,
+								generator,
+								span,
+								depth,
+								state: GeneratorState::Running,
+								trace: std::mem::take(&mut self.current.1),
+							});
+						}
+						Err(_) => unreachable!("pending builtin returned a partial application"),
+					}
+				}
 				Frame::BytecodeFrame {
 					bytecode_frame,
 					span,
 				} => {
-					// The frame keeps its own trace, which it may update as it runs.
-					// Most frames are thunks without one, so skip the clone for those.
-					let trace = match &bytecode_frame.trace {
-						FrameTrace::None => FrameTrace::None,
-						trace => trace.clone(),
-					};
-					self.current = (frame_id, trace);
+					// Bytecode errors borrow the running frame's trace. Suspensions
+					// put the frame itself back on the stack.
+					self.current = (frame_id, FrameTrace::None);
 					self.call_depth = bytecode_frame.depth;
 					self.observer
 						.observe_enter_bytecode_frame(0, &bytecode_frame.lambda, frame_id);
@@ -572,6 +709,38 @@ where
 
 						Err(err) => return Err(err),
 					};
+				}
+
+				// The code of a directly forced thunk has returned its value.
+				Frame::Force {
+					thunk,
+					span,
+					forced_at,
+					depth,
+				} => {
+					self.current = (frame_id, FrameTrace::None);
+					self.call_depth = depth;
+					self.observer
+						.observe_enter_generator(frame_id, "force", &self.stack);
+
+					let value = self.stack_pop();
+					match thunk.finish_direct_force(value) {
+						Some(value) => {
+							let value = self.trace_catchable(value, None, None);
+							self.stack.push(value);
+							self.observer
+								.observe_exit_generator(frame_id, "force", &self.stack);
+						}
+
+						// The value is another thunk, which the generator forces.
+						None => {
+							self.enqueue_generator("force", span, |co| {
+								Thunk::force(thunk, co, forced_at)
+							});
+							self.observer
+								.observe_suspend_generator(frame_id, "force", &self.stack);
+						}
+					}
 				}
 			}
 		}
@@ -659,9 +828,7 @@ where
 						let gen_span = frame.current_span();
 
 						self.push_bytecode_frame(span, frame);
-						self.enqueue_generator("force", gen_span, |co| {
-							Thunk::force(thunk, co, gen_span)
-						});
+						self.enqueue_force(gen_span, thunk);
 
 						return Ok(false);
 					}
@@ -699,7 +866,7 @@ where
 					let callable = self.stack_pop();
 					if let Value::Builtin(builtin) = callable {
 						let builtin_name = builtin.name();
-						match self.apply_builtin(builtin) {
+						match self.apply_builtin(builtin, || frame.current_span()) {
 							BuiltinResult::Partial(partial) => {
 								self.stack.push(Value::Builtin(partial))
 							}
@@ -773,7 +940,7 @@ where
 
 				Op::AttrsSelect => lifted_pop! {
 					self(key, attrs) => {
-						let key = attribute_name(key, frame.current_span()).with_span(&frame, self)?;
+						let key = attribute_name(key, || frame.current_span()).with_span(&frame, self)?;
 						let attrs = attrs.to_attrs().with_span(&frame, self)?;
 
 						match attrs.select(&key) {
@@ -842,7 +1009,7 @@ where
 				}
 
 				Op::AttrsTrySelect => {
-					let key = attribute_name(self.stack_pop(), frame.current_span())
+					let key = attribute_name(self.stack_pop(), || frame.current_span())
 						.with_span(&frame, self)?;
 					let value = match self.stack_pop() {
 						Value::Attrs(attrs) => match attrs.select(&key) {
@@ -883,6 +1050,10 @@ where
 
 				Op::Equal => lifted_pop! {
 					self(b, a) => {
+						if let Some(equal) = native::equal(&a, &b, PointerEquality::ForbidAll) {
+							self.stack.push(Value::Bool(equal));
+							continue;
+						}
 						let gen_span = frame.current_span();
 						self.push_bytecode_frame(span, frame);
 						self.enqueue_generator("nix_eq", gen_span, |co| {
@@ -1019,6 +1190,10 @@ where
 					frame.ip.0 += 1;
 
 					let value = self.stack_pop();
+					if let Some(value) = native::coerce(&value, kind) {
+						self.stack.push(value);
+						continue;
+					}
 					let gen_span = frame.current_span();
 					self.push_bytecode_frame(span, frame);
 
@@ -1058,6 +1233,10 @@ where
 
 				Op::Add => lifted_pop! {
 					self(b, a) => {
+						if let Some(value) = native::add(&a, &b) {
+							self.stack.push(value);
+							continue;
+						}
 						let gen_span = frame.current_span();
 						self.push_bytecode_frame(span, frame);
 
@@ -1227,10 +1406,11 @@ where
 	}
 
 	fn run_attrset(&mut self, count: usize, frame: &BytecodeFrame) -> EvalResult<()> {
-		let attrs = NixAttrs::construct(
+		let attrs = NixAttrs::construct_with_positions(
 			count,
 			self.stack.split_off(self.stack.len() - count * 2),
 			&frame.chunk().attrsets_pos_spans,
+			Some(&frame.chunk().attrset_positions),
 		)
 		.with_span(frame, self)?
 		.map(Value::attrs)
@@ -1319,6 +1499,7 @@ where
 {
 	/// Record where a catchable error produced by the running frame was
 	/// raised, unless `builtins.tryEval` will discard it.
+	#[inline]
 	pub(crate) fn trace_catchable(
 		&self,
 		value: Value,
@@ -1331,6 +1512,7 @@ where
 	/// [`trace_catchable`](Self::trace_catchable) with the running frame's
 	/// trace, if it is at hand. A catchable error that carries only the
 	/// frames of the generator that raised it gets the others prepended.
+	#[inline]
 	fn trace_catchable_in(
 		&self,
 		value: Value,
@@ -1338,9 +1520,21 @@ where
 		span: Option<Span>,
 		message: Option<String>,
 	) -> Value {
-		if !self.try_eval_frames.is_empty() {
+		// Nearly every value a frame produces is not an error.
+		if !matches!(value, Value::Catchable(_)) || !self.try_eval_frames.is_empty() {
 			return value;
 		}
+		self.trace_catchable_error(value, running, span, message)
+	}
+
+	#[cold]
+	fn trace_catchable_error(
+		&self,
+		value: Value,
+		running: Option<&FrameTrace>,
+		span: Option<Span>,
+		message: Option<String>,
+	) -> Value {
 		match value {
 			Value::Catchable(kind) => match *kind {
 				CatchableErrorKind::Traced { kind, info } if info.relative => {
@@ -1485,13 +1679,13 @@ where
 		builtin: Builtin,
 	) -> EvalResult<()> {
 		let builtin_name = builtin.name();
-		let result = self.apply_builtin(builtin);
+		let result = self.apply_builtin(builtin, || span);
 		self.finish_builtin(span, call_site, builtin_name, result)
 	}
 
-	fn apply_builtin(&mut self, builtin: Builtin) -> BuiltinResult {
+	fn apply_builtin(&mut self, builtin: Builtin, span: impl FnOnce() -> Span) -> BuiltinResult {
 		self.observer.observe_enter_builtin(builtin.name());
-		builtin.apply(self.stack_pop())
+		builtin.apply_at(self.stack_pop(), span)
 	}
 
 	fn finish_builtin(
@@ -1502,6 +1696,13 @@ where
 		result: BuiltinResult,
 	) -> EvalResult<()> {
 		match result {
+			BuiltinResult::Pending(name, pending) => self.frames.push(Frame::Builtin {
+				name,
+				pending,
+				span,
+				depth: self.call_depth,
+				trace: FrameTrace::Builtin { name, call_site },
+			}),
 			// Partially applied builtin is just pushed back on the stack.
 			BuiltinResult::Partial(partial) => self.stack.push(Value::Builtin(partial)),
 			BuiltinResult::Synchronous(result) => {
@@ -1541,6 +1742,18 @@ where
 		Ok(())
 	}
 
+	fn call_error<T>(
+		&self,
+		span: Span,
+		parent: Option<&(Span, BytecodeFrame)>,
+		kind: ErrorKind,
+	) -> EvalResult<T> {
+		match parent {
+			Some((_, frame)) => Err(kind).with_span((span, frame), self),
+			None => Err(kind).with_span(span, self),
+		}
+	}
+
 	fn call_value(
 		&mut self,
 		span: Span,
@@ -1573,10 +1786,11 @@ where
 				// Like CppNix, count nested calls, tail calls included, so
 				// unbounded recursion fails instead of running forever.
 				if self.call_depth > self.max_call_depth {
-					return Err(ErrorKind::EvalError(
-						"stack overflow; max-call-depth exceeded".into(),
-					))
-					.with_span(span, self);
+					return self.call_error(
+						span,
+						parent.as_ref(),
+						ErrorKind::EvalError("stack overflow; max-call-depth exceeded".into()),
+					);
 				}
 
 				// Reenqueue the parent frame, which resumes after the call.
@@ -1625,7 +1839,11 @@ where
 				Ok(())
 			}
 
-			v => Err(ErrorKind::NotCallable(v.type_of(), Some(Box::new(v)))).with_span(span, self),
+			v => self.call_error(
+				span,
+				parent.as_ref(),
+				ErrorKind::NotCallable(v.type_of(), Some(Box::new(v))),
+			),
 		}
 	}
 
@@ -1640,20 +1858,25 @@ where
 
 		let mut static_upvalues = Vec::with_capacity(count);
 
-		let with_stack = if capture_with {
+		let with_stack = if !capture_with {
+			None
+		} else if self.with_stack.is_empty() {
+			// No `with` was entered since the frame's own captures, so share them.
+			frame.upvalues.shared_with_stack().cloned()
+		} else {
 			// Start the captured with_stack off of the
 			// current bytecode frame's captured with_stack, ...
-			let mut captured_with_stack = frame.upvalues.with_stack().clone();
-			// and extend it to a size that fits the current with_stack
-			captured_with_stack.reserve_exact(self.with_stack.len());
+			let captured = frame.upvalues.with_stack();
+			let mut captured_with_stack =
+				Vec::with_capacity(captured.len() + self.with_stack.len());
+			captured_with_stack.extend_from_slice(captured);
 
+			// and extend it with the current with_stack
 			for idx in &self.with_stack {
 				captured_with_stack.push(self.stack[*idx].clone());
 			}
 
-			captured_with_stack
-		} else {
-			vec![]
+			Some(captured_with_stack.into())
 		};
 
 		for _ in 0..count {
@@ -1925,7 +2148,7 @@ where
 
 /// CppNix's `getName` for a computed attribute name: it must be a string,
 /// and a failure is reported at the name.
-fn attribute_name(key: Value, span: Span) -> Result<NixString, ErrorKind> {
+fn attribute_name(key: Value, span: impl FnOnce() -> Span) -> Result<NixString, ErrorKind> {
 	match key {
 		Value::String(name) => Ok(name),
 		Value::Thunk(ref thunk) if thunk.is_evaluated() => {
@@ -1937,7 +2160,7 @@ fn attribute_name(key: Value, span: Span) -> Result<NixString, ErrorKind> {
 				actual: key.type_of(),
 				value: Some(Box::new(key.clone())),
 			}
-			.trace(Some(span), "while evaluating an attribute name"),
+			.trace(Some(span()), "while evaluating an attribute name"),
 		))),
 	}
 }

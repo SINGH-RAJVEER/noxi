@@ -30,8 +30,10 @@ use crate::AddContext;
 use crate::errors::{CatchableErrorKind, ErrorKind, Trace};
 use crate::opcode::StackIdx;
 use crate::vm::generators::{self, GenCo};
+pub(crate) use attrs::AttrPositions;
 pub use attrs::NixAttrs;
 pub(crate) use attrs::cppnix_attribute_order;
+pub(crate) use builtin::PendingBuiltin;
 pub use builtin::{Builtin, BuiltinResult};
 pub(crate) use function::Formals;
 pub use function::{Closure, Lambda};
@@ -367,6 +369,9 @@ impl Value {
 		kind: CoercionKind,
 		span: Span,
 	) -> Result<Value, ErrorKind> {
+		if let Some(value) = crate::vm::native::coerce(&self, kind) {
+			return Ok(value);
+		}
 		enum Item {
 			Value(Value),
 			WithSeparator(Value),
@@ -551,6 +556,9 @@ impl Value {
 		ptr_eq: PointerEquality,
 		span: Span,
 	) -> Result<Value, ErrorKind> {
+		if let Some(equal) = crate::vm::native::equal(&self, &other, ptr_eq) {
+			return Ok(Value::Bool(equal));
+		}
 		// this is a stack of ((v1,v2),peq) triples to be compared;
 		// after each triple is popped off of the stack, v1 is
 		// compared to v2 using peq-mode PointerEquality
@@ -641,7 +649,8 @@ impl Value {
 							let s2 = s2.to_str();
 
 							if let (Ok(s1), Ok(s2)) = (s1, s2)
-								&& s1 == "derivation" && s2 == "derivation"
+								&& s1 == "derivation"
+								&& s2 == "derivation"
 							{
 								// TODO(tazjin): are the outPaths really required,
 								// or should it fall through?
@@ -822,6 +831,9 @@ impl Value {
 		co: &GenCo,
 		span: Span,
 	) -> Result<Result<Ordering, CatchableErrorKind>, ErrorKind> {
+		if let Some(ordering) = crate::vm::native::compare(&myself, &other) {
+			return Ok(Ok(ordering));
+		}
 		// this is a stack of ((v1,v2),peq) triples to be compared;
 		// after each triple is popped off of the stack, v1 is
 		// compared to v2 using peq-mode PointerEquality

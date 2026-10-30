@@ -40,7 +40,8 @@ fn materializes_text_sources_and_derivations_with_references() {
 		fs::metadata(local.real_path(&copied))
 			.unwrap()
 			.permissions()
-			.mode() & 0o100,
+			.mode()
+			& 0o100,
 		0
 	);
 	let link = path(evaluate(&store, source.path(), r#""${./link}""#));

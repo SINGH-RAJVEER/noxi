@@ -365,9 +365,7 @@ where
 						// back to the outer VM loop.
 						VMRequest::ForceValue(value) => {
 							self.reenqueue_generator(name, span, generator);
-							self.enqueue_generator("force", span, |co| {
-								value.force_owned_genco(co, span)
-							});
+							self.enqueue_force_value(span, value);
 							return Ok(false);
 						}
 
@@ -392,9 +390,7 @@ where
 							self.reenqueue_generator(name, span, generator);
 
 							let value = self.stack[self.with_stack[idx]].clone();
-							self.enqueue_generator("force", span, |co| {
-								value.force_owned_genco(co, span)
-							});
+							self.enqueue_force_value(span, value);
 
 							return Ok(false);
 						}
@@ -413,15 +409,17 @@ where
 								.upvalues
 								.get_from_with_stack(idx)
 								.expect("nix-rs bug: upvalue not found on stack");
-							self.enqueue_generator("force", span, |co| {
-								value.force_owned_genco(co, span)
-							});
+							self.enqueue_force_value(span, value);
 
 							return Ok(false);
 						}
 
 						VMRequest::NixEquality(values, ptr_eq) => {
 							let values = *values;
+							if let Some(equal) = native::equal(&values.0, &values.1, ptr_eq) {
+								message = VMResponse::Value(Value::Bool(equal));
+								continue;
+							}
 							self.reenqueue_generator(name, span, generator);
 							self.enqueue_generator("nix_eq", span, |co| {
 								values.0.nix_eq_owned_genco(values.1, co, ptr_eq, span)
@@ -430,6 +428,10 @@ where
 						}
 
 						VMRequest::StringCoerce(val, kind, context) => {
+							if let Some(value) = native::coerce(&val, kind) {
+								message = VMResponse::Value(value);
+								continue;
+							}
 							self.reenqueue_generator(name, span, generator);
 							self.enqueue_generator("coerce_to_string", span, |co| {
 								val.coerce_to_string(co, kind, span)
@@ -997,7 +999,7 @@ pub(crate) async fn request_read_dir(co: &GenCo, path: PathBuf) -> Vec<(bytes::B
 	}
 }
 
-pub(crate) async fn request_span(co: &GenCo) -> Span {
+pub async fn request_span(co: &GenCo) -> Span {
 	match co.yield_(VMRequest::Span).await {
 		VMResponse::Span(span) => span,
 		msg => panic!("nix-rs bug: VM responded with incorrect generator message: {msg}"),

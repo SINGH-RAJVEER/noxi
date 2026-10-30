@@ -6,6 +6,7 @@
 //! Due to this, construction and management of attribute sets has
 //! some peculiarities that are encapsulated within this module.
 use std::borrow::Borrow;
+use std::cell::OnceCell;
 use std::collections::{BTreeMap, hash_map};
 use std::iter::FromIterator;
 use std::rc::Rc;
@@ -25,6 +26,10 @@ use super::thunk::ThunkSet;
 use crate::CatchableErrorKind;
 use crate::errors::ErrorKind;
 
+/// The positions of an attribute set's attributes, shared by the sets
+/// constructed from one literal with the same attributes.
+pub(crate) type AttrPositions = Rc<FxHashMap<NixString, Span>>;
+
 static NAME: LazyLock<NixString> = LazyLock::new(|| "name".into());
 static VALUE: LazyLock<NixString> = LazyLock::new(|| "value".into());
 
@@ -40,7 +45,7 @@ pub(super) enum AttrsRep {
 		attrs: FxHashMap<NixString, Value>,
 
 		#[serde(skip)]
-		pos: Option<Box<FxHashMap<NixString, Span>>>,
+		pos: Option<AttrPositions>,
 	},
 
 	/// Warning: this represents a **two**-attribute attrset, with
@@ -444,8 +449,19 @@ impl NixAttrs {
 	/// logic about attribute set optimisations inside of this module.
 	pub fn construct(
 		count: usize,
+		stack_slice: Vec<Value>,
+		spans: &[Span],
+	) -> Result<Result<Self, CatchableErrorKind>, ErrorKind> {
+		Self::construct_with_positions(count, stack_slice, spans, None)
+	}
+
+	/// [`construct`](Self::construct) a set from a literal, sharing the
+	/// positions in `cache` with earlier sets from it that had the same.
+	pub(crate) fn construct_with_positions(
+		count: usize,
 		mut stack_slice: Vec<Value>,
 		spans: &[Span],
+		cache: Option<&OnceCell<AttrPositions>>,
 	) -> Result<Result<Self, CatchableErrorKind>, ErrorKind> {
 		debug_assert!(
 			stack_slice.len() == count * 2,
@@ -478,8 +494,7 @@ impl NixAttrs {
 		}
 
 		let mut attrs_map = FxHashMap::with_capacity_and_hasher(count, rustc_hash::FxBuildHasher);
-		let mut attrs_pos =
-			FxHashMap::with_capacity_and_hasher(spans.len(), rustc_hash::FxBuildHasher);
+		let mut attrs_pos = Vec::with_capacity(spans.len());
 		let mut spans = spans.iter().rev().copied();
 
 		for _ in 0..count {
@@ -503,13 +518,26 @@ impl NixAttrs {
 			}
 		}
 
+		let pos = if attrs_pos.is_empty() {
+			None
+		} else if let Some(cached) = cache.and_then(OnceCell::get)
+			&& cached.len() == attrs_pos.len()
+			&& attrs_pos
+				.iter()
+				.all(|(key, span)| cached.get(key) == Some(span))
+		{
+			Some(cached.clone())
+		} else {
+			let pos: AttrPositions = Rc::new(attrs_pos.into_iter().collect());
+			if let Some(cache) = cache {
+				let _ = cache.set(pos.clone());
+			}
+			Some(pos)
+		};
+
 		Ok(Ok(AttrsRep::Map {
 			attrs: attrs_map,
-			pos: if attrs_pos.is_empty() {
-				None
-			} else {
-				Some(Box::new(attrs_pos))
-			},
+			pos,
 		}
 		.into()))
 	}
@@ -612,7 +640,7 @@ impl NixAttrs {
 		}
 		AttrsRep::Map {
 			attrs,
-			pos: (!pos.is_empty()).then(|| Box::new(pos)),
+			pos: (!pos.is_empty()).then(|| Rc::new(pos)),
 		}
 		.into()
 	}
@@ -681,7 +709,7 @@ fn set_attr(
 	map: &mut FxHashMap<NixString, Value>,
 	key: NixString,
 	value: Value,
-	pos: &mut FxHashMap<NixString, Span>,
+	pos: &mut Vec<(NixString, Span)>,
 	span: Option<Span>,
 ) -> Result<(), ErrorKind> {
 	match map.entry(key) {
@@ -691,7 +719,7 @@ fn set_attr(
 
 		hash_map::Entry::Vacant(entry) => {
 			if let Some(span) = span {
-				pos.insert(entry.key().clone(), span);
+				pos.push((entry.key().clone(), span));
 			}
 			entry.insert(value);
 			Ok(())

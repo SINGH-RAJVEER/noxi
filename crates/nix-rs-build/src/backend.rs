@@ -45,7 +45,10 @@ impl LocalBackend {
 			self.substituter_uris
 				.iter()
 				.filter_map(|uri| match BinaryCache::open(uri) {
-					Ok(cache) => Some(cache),
+					Ok(cache) => Some(cache.with_narinfo_cache_ttls(
+						self.store.config().narinfo_cache_positive_ttl,
+						self.store.config().narinfo_cache_negative_ttl,
+					)),
 					Err(e) => {
 						if nix_compat::log::log_enabled(nix_compat::log::VerbosityLevel::Warn) {
 							eprintln!("warning: disabling substituter '{uri}': {e}");
@@ -225,6 +228,17 @@ impl Store for LocalBackend {
 			references,
 			false,
 		)
+	}
+
+	fn add_to_store_from_capture(
+		&self,
+		source: nix_rs_store::CapturedSource,
+		name: &str,
+		method: FileIngestionMethod,
+		references: &BTreeSet<StorePath>,
+	) -> Result<StorePath> {
+		self.store
+			.add_to_store_from_capture(source, name, method, references)
 	}
 
 	fn add_temp_root(&self, path: &StorePath) -> Result<()> {

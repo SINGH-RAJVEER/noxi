@@ -18,3 +18,8 @@ pub mod nix_store;
 pub mod paths;
 pub mod store;
 pub mod user_env;
+
+// Evaluation allocates and frees millions of small values, which mimalloc
+// serves faster than the system allocator.
+#[global_allocator]
+static GLOBAL: mimalloc::MiMalloc = mimalloc::MiMalloc;

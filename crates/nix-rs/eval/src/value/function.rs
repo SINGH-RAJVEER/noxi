@@ -67,7 +67,7 @@ pub struct Lambda {
 	/// over, and which need to be initialised at
 	/// runtime.
 	pub(crate) upvalue_count: usize,
-	pub(crate) formals: Option<Formals>,
+	pub(crate) formals: Option<Box<Formals>>,
 
 	/// Parameter name for simple functions (e.g., `name: ...`).
 	/// Used by builtins.toXML to generate proper parameter names.

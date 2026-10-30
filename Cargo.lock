@@ -1413,6 +1413,7 @@ dependencies = [
 name = "nix-rs-cli"
 version = "0.1.1"
 dependencies = [
+ "mimalloc",
  "nix-rs-eval",
  "tempfile",
 ]
@@ -1423,6 +1424,7 @@ version = "0.1.2"
 dependencies = [
  "bytes",
  "libc",
+ "mimalloc",
  "nix-rs-build",
  "nix-rs-compat",
  "nix-rs-daemon",
@@ -1594,6 +1596,7 @@ dependencies = [
  "nix-rs-flakeref",
  "nix-rs-store",
  "serde_json",
+ "sha1",
  "sha2",
  "tar",
  "tempfile",
@@ -1636,6 +1639,7 @@ dependencies = [
 name = "nix-rs-store"
 version = "0.1.0"
 dependencies = [
+ "aho-corasick",
  "brotli-decompressor",
  "bzip2",
  "data-encoding",
@@ -1643,6 +1647,7 @@ dependencies = [
  "flate2",
  "libc",
  "lzma-rust2",
+ "memchr",
  "nix-rs-compat",
  "path-clean",
  "rusqlite",

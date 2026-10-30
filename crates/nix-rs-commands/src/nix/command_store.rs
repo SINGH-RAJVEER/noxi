@@ -1,5 +1,5 @@
 //! Store inspection and maintenance through existing Rust store APIs.
-use std::collections::BTreeSet;
+use std::collections::{BTreeSet, HashMap};
 use std::fs;
 use std::io::{self, IsTerminal};
 use std::os::unix::fs::PermissionsExt;
@@ -25,6 +25,95 @@ fn info(store: &dyn Store, path: &StorePath) -> Result<ValidPathInfo, Failure> {
 	store
 		.query_path_info(path)?
 		.ok_or_else(|| Failure::Error(format!("path '{}' is not valid", path.to_absolute_path())))
+}
+
+/// Path infos read once per command, as CppNix's path info cache keeps
+/// them, so closures do not query the database again for shared members.
+struct InfoGraph<'a> {
+	store: &'a dyn Store,
+	index: HashMap<StorePath, usize>,
+	nodes: Vec<InfoNode>,
+	epoch: u32,
+}
+
+struct InfoNode {
+	path: StorePath,
+	info: Option<Option<ValidPathInfo>>,
+	references: Vec<usize>,
+	mark: u32,
+}
+
+impl<'a> InfoGraph<'a> {
+	fn new(store: &'a dyn Store) -> Self {
+		Self {
+			store,
+			index: HashMap::new(),
+			nodes: Vec::new(),
+			epoch: 0,
+		}
+	}
+
+	fn node(&mut self, path: &StorePath) -> usize {
+		if let Some(&node) = self.index.get(path) {
+			return node;
+		}
+		self.nodes.push(InfoNode {
+			path: path.clone(),
+			info: None,
+			references: Vec::new(),
+			mark: 0,
+		});
+		self.index.insert(path.clone(), self.nodes.len() - 1);
+		self.nodes.len() - 1
+	}
+
+	fn load(&mut self, node: usize) -> Result<Option<&ValidPathInfo>, Failure> {
+		if self.nodes[node].info.is_none() {
+			let info = self.store.query_path_info(&self.nodes[node].path)?;
+			let references = info
+				.iter()
+				.flat_map(|info| &info.references)
+				.map(|r| r.clone())
+				.collect::<Vec<_>>();
+			let references = references.iter().map(|r| self.node(r)).collect();
+			self.nodes[node].references = references;
+			self.nodes[node].info = Some(info);
+		}
+		Ok(self.nodes[node].info.as_ref().unwrap().as_ref())
+	}
+
+	fn query(&mut self, path: &StorePath) -> Result<Option<ValidPathInfo>, Failure> {
+		let node = self.node(path);
+		Ok(self.load(node)?.cloned())
+	}
+
+	/// The total NAR size of the closure of `path`.
+	fn closure_size(&mut self, path: &StorePath) -> Result<u64, Failure> {
+		self.epoch += 1;
+		let mut size = 0;
+		let mut pending = vec![self.node(path)];
+		while let Some(node) = pending.pop() {
+			if self.nodes[node].mark == self.epoch {
+				continue;
+			}
+			self.nodes[node].mark = self.epoch;
+			let Some(info) = self.load(node)? else {
+				return Err(nix_rs_store::Error::InvalidPath(
+					self.nodes[node].path.to_absolute_path(),
+				)
+				.into());
+			};
+			size += info.nar_size;
+			let epoch = self.epoch;
+			pending.extend(
+				self.nodes[node]
+					.references
+					.iter()
+					.filter(|&&r| self.nodes[r].mark != epoch),
+			);
+		}
+		Ok(size)
+	}
 }
 fn paths(parsed: &Parsed, store: &dyn Store) -> Result<BTreeSet<StorePath>, Failure> {
 	if parsed.operands.is_empty() {
@@ -61,12 +150,7 @@ pub fn path_info(parsed: Parsed) -> Result<ExitCode, Failure> {
 	let opened = open(&parsed)?;
 	let store = opened.store.as_ref();
 	let paths = paths(&parsed, store)?;
-	let closure_size = |path: &StorePath| -> Result<u64, Failure> {
-		let closure = store.compute_closure(&BTreeSet::from([path.clone()]))?;
-		closure
-			.iter()
-			.try_fold(0, |sum, p| Ok(sum + info(store, p)?.nar_size))
-	};
+	let mut graph = InfoGraph::new(store);
 	let format = match parsed.value("json-format") {
 		None | Some("1") => PathInfoFormat::V1,
 		Some("2") => PathInfoFormat::V2,
@@ -90,7 +174,7 @@ pub fn path_info(parsed: Parsed) -> Result<ExitCode, Failure> {
 			} else {
 				path.to_string()
 			};
-			let Some(info) = store.query_path_info(path)? else {
+			let Some(info) = graph.query(path)? else {
 				objects.insert(key, Value::Null);
 				continue;
 			};
@@ -113,7 +197,7 @@ pub fn path_info(parsed: Parsed) -> Result<ExitCode, Failure> {
 			.to_json(true, format);
 			value["storeDir"] = json!("/nix/store");
 			if parsed.has("closure-size") {
-				value["closureSize"] = json!(closure_size(path)?);
+				value["closureSize"] = json!(graph.closure_size(path)?);
 			}
 			objects.insert(key, value);
 		}
@@ -129,8 +213,17 @@ pub fn path_info(parsed: Parsed) -> Result<ExitCode, Failure> {
 			.map(|p| p.to_absolute_path().len())
 			.max()
 			.unwrap_or(0);
-		for path in &paths {
-			let info = info(store, path)?;
+		// CppNix lists store paths after the paths they refer to.
+		let sorted = crate::paths::topo_sort_by(&paths, |path| {
+			Ok(graph
+				.query(path)?
+				.map(|info| info.references)
+				.unwrap_or_default())
+		})?;
+		for path in sorted.iter().rev() {
+			let info = graph.query(path)?.ok_or_else(|| {
+				Failure::Error(format!("path '{}' is not valid", path.to_absolute_path()))
+			})?;
 			let path = path.to_absolute_path();
 			let padded = parsed.has("size") || parsed.has("closure-size") || parsed.has("sigs");
 			let mut line = if padded {
@@ -143,7 +236,7 @@ pub fn path_info(parsed: Parsed) -> Result<ExitCode, Failure> {
 					let size = if enabled == "size" {
 						info.nar_size
 					} else {
-						closure_size(&info.path)?
+						graph.closure_size(&info.path)?
 					};
 					line.push_str(&if parsed.has("human-readable") {
 						format!("\t{}", render_size(size as i64, true))

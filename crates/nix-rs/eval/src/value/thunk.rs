@@ -210,7 +210,7 @@ impl Thunk {
 		Self::new_suspended_with_upvalues(
 			lambda,
 			span,
-			Upvalues::from_raw_parts(vec![arg, callee], vec![]),
+			Upvalues::from_raw_parts(vec![arg, callee], None),
 		)
 	}
 
@@ -337,6 +337,41 @@ impl Thunk {
 			}
 			return Ok(value);
 		}
+	}
+
+	/// Begin forcing a suspended bytecode thunk as [`Thunk::force`] would,
+	/// returning the code the VM enters for it. Other states return `None`
+	/// and keep needing the generator.
+	pub(crate) fn begin_direct_force(
+		&self,
+		forced_at: Span,
+	) -> Option<(Rc<Lambda>, Rc<Upvalues>, Span)> {
+		if !matches!(*self.0.borrow(), ThunkRepr::Suspended { .. }) {
+			return None;
+		}
+		match self.0.replace(self.prepare_blackhole(forced_at)) {
+			ThunkRepr::Suspended {
+				lambda,
+				upvalues,
+				span,
+			} => Some((lambda, upvalues, span)),
+			_ => unreachable!("the thunk was just checked to be suspended"),
+		}
+	}
+
+	/// Store the result of code entered by [`Thunk::begin_direct_force`],
+	/// as [`Thunk::force`] does. For a result that is itself a thunk, this
+	/// thunk is left pointing to it and `None` returned: it still needs
+	/// the generator to finish forcing.
+	pub(crate) fn finish_direct_force(&self, value: Value) -> Option<Value> {
+		if matches!(value, Value::Thunk(_)) {
+			self.0.replace(ThunkRepr::Evaluated(value));
+			return None;
+		}
+		if Rc::strong_count(&self.0) > 1 {
+			self.0.replace(ThunkRepr::Evaluated(value.clone()));
+		}
+		Some(value)
 	}
 
 	pub fn finalise(&self, stack: &[Value]) {

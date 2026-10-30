@@ -30,6 +30,12 @@ pub struct LocalStoreConfig {
 	pub require_sigs: bool,
 	/// The `trusted-public-keys` setting, as `name:base64` strings.
 	pub trusted_public_keys: Vec<String>,
+	/// Positive and negative HTTP narinfo lifetimes, in seconds.
+	pub narinfo_cache_positive_ttl: u64,
+	pub narinfo_cache_negative_ttl: u64,
+	/// Bounds for metadata prefetch and substitution downloads.
+	pub max_substitution_jobs: usize,
+	pub http_connections: usize,
 	/// Whether the `ca-derivations` experimental feature is enabled, which
 	/// adds the realisation tables and lets builds record realisations.
 	pub ca_derivations: bool,
@@ -85,6 +91,24 @@ impl LocalStoreConfig {
 		self.fsync_metadata = settings.get_bool("fsync-metadata", self.fsync_metadata);
 		self.use_sqlite_wal = settings.get_bool("use-sqlite-wal", self.use_sqlite_wal);
 		self.require_sigs = settings.get_bool("require-sigs", self.require_sigs);
+		self.narinfo_cache_positive_ttl = settings
+			.get_int(
+				"narinfo-cache-positive-ttl",
+				self.narinfo_cache_positive_ttl as i64,
+			)
+			.max(0) as u64;
+		self.narinfo_cache_negative_ttl = settings
+			.get_int(
+				"narinfo-cache-negative-ttl",
+				self.narinfo_cache_negative_ttl as i64,
+			)
+			.max(0) as u64;
+		self.max_substitution_jobs = settings
+			.get_int("max-substitution-jobs", self.max_substitution_jobs as i64)
+			.max(1) as usize;
+		self.http_connections = settings
+			.get_int("http-connections", self.http_connections as i64)
+			.max(0) as usize;
 		self.ca_derivations = settings.experimental_features().contains("ca-derivations");
 		if settings.get("trusted-public-keys").is_some() {
 			self.trusted_public_keys = settings
@@ -136,10 +160,47 @@ impl LocalStoreConfig {
 				"cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY=".to_owned(),
 			],
 			ca_derivations: false,
+			narinfo_cache_positive_ttl: 30 * 24 * 60 * 60,
+			narinfo_cache_negative_ttl: 60 * 60,
+			max_substitution_jobs: 16,
+			http_connections: 25,
 		}
 	}
 
 	pub fn db_dir(&self) -> PathBuf {
 		self.state_dir.join("db")
+	}
+
+	/// Effective metadata concurrency; zero HTTP connections means no limit.
+	pub fn substitution_jobs(&self) -> usize {
+		let jobs = self.max_substitution_jobs.max(1);
+		if self.http_connections == 0 {
+			jobs
+		} else {
+			jobs.min(self.http_connections)
+		}
+	}
+}
+
+#[cfg(test)]
+mod tests {
+	use super::*;
+
+	#[test]
+	fn substitution_limits_honor_unlimited_http_and_at_least_one_job() {
+		let mut config = LocalStoreConfig::with_root(Path::new("/tmp/unused-store-config"));
+		assert_eq!(config.substitution_jobs(), 16);
+		config.http_connections = 2;
+		assert_eq!(config.substitution_jobs(), 2);
+		config.http_connections = 0;
+		assert_eq!(config.substitution_jobs(), 16);
+		config.max_substitution_jobs = 0;
+		assert_eq!(config.substitution_jobs(), 1);
+		let mut settings = nix_compat::nixcpp::settings::Settings::default();
+		settings.set("http-connections", "0").unwrap();
+		settings.set("max-substitution-jobs", "8").unwrap();
+		config.apply_config(&settings);
+		assert_eq!(config.http_connections, 0);
+		assert_eq!(config.substitution_jobs(), 8);
 	}
 }
