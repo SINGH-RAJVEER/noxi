@@ -252,6 +252,8 @@ fn realises_with_roots_and_queries_like_cppnix() {
 		vec!["-q", "--requisites", "result"],
 		vec!["-q", "--referrers", "result"],
 		vec!["-q", "--referrers-closure", &drv],
+		vec!["-q", "--tree", &drv],
+		vec!["-q", "--tree", "result", &drv],
 		vec!["-q", "--deriver", "result"],
 		vec!["-q", "-d", "result-dev"],
 		vec!["-q", "--valid-derivers", "result"],

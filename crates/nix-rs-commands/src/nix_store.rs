@@ -4,7 +4,7 @@
 //! `--ignore-unknown`) and `--query` with `--outputs`, `--requisites`
 //! (`--include-outputs`), `--references`, `--referrers`,
 //! `--referrers-closure`, `--deriver`, `--valid-derivers`, `--binding`,
-//! `--hash` and `--size`, plus `--use-output` and `--force-realise`.
+//! `--hash`, `--size` and `--tree`, plus `--use-output` and `--force-realise`.
 //! Maintenance: `--gc` with live/dead/root listings and `--max-freed`,
 //! `--delete`, `--query --roots`, and `--optimise`/`--optimize`, locally
 //! or through the owning daemon.
@@ -334,6 +334,52 @@ impl NixStore<'_> {
 		crate::paths::follow_links_to_store_path(&self.cwd, arg)
 	}
 
+	/// CppNix's `printTree`: each reference below its referrer, dependencies
+	/// first, with paths already printed marked `[...]`. References are read
+	/// once into `references`, since sorting each level queries them again.
+	fn print_tree(
+		&self,
+		path: &StorePath,
+		first_pad: &str,
+		tail_pad: &str,
+		done: &mut BTreeSet<StorePath>,
+		references: &mut BTreeMap<StorePath, BTreeSet<StorePath>>,
+		out: &mut dyn Write,
+	) -> Result<(), Failure> {
+		if !done.insert(path.clone()) {
+			writeln!(out, "{first_pad}{} [...]", print(path))?;
+			return Ok(());
+		}
+		writeln!(out, "{first_pad}{}", print(path))?;
+		let mut lookup = |path: &StorePath| -> Result<BTreeSet<StorePath>, Failure> {
+			if let Some(references) = references.get(path) {
+				return Ok(references.clone());
+			}
+			let found = self.info(path)?.references;
+			references.insert(path.clone(), found.clone());
+			Ok(found)
+		};
+		let children = lookup(path)?;
+		let sorted = crate::paths::topo_sort_by(&children, |path| {
+			Ok(match lookup(path) {
+				Ok(references) => references,
+				Err(_) => BTreeSet::new(),
+			})
+		})?;
+		for (n, child) in sorted.iter().rev().enumerate() {
+			let last = n + 1 == sorted.len();
+			self.print_tree(
+				child,
+				&format!("{tail_pad}{}", if last { "└───" } else { "├───" }),
+				&format!("{tail_pad}{}", if last { "    " } else { "│   " }),
+				done,
+				references,
+				out,
+			)?;
+		}
+		Ok(())
+	}
+
 	fn gc_warning(&self) {
 		if self.gc_warning
 			&& !self.warned.replace(true)
@@ -533,6 +579,7 @@ impl NixStore<'_> {
 			Hash,
 			Size,
 			Roots,
+			Tree,
 		}
 		let mut query = None;
 		let mut use_output = false;
@@ -561,7 +608,8 @@ impl NixStore<'_> {
 				"--hash" => query = Some(Query::Hash),
 				"--size" => query = Some(Query::Size),
 				"--roots" => query = Some(Query::Roots),
-				"--tree" | "--graph" | "--graphml" | "--resolve" => {
+				"--tree" => query = Some(Query::Tree),
+				"--graph" | "--graphml" | "--resolve" => {
 					return Err(Failure::Error(format!(
 						"nix-store --query {flag} is not supported by nix-rs yet"
 					)));
@@ -613,6 +661,14 @@ impl NixStore<'_> {
 					}
 				}
 				print_sorted(paths, out)?;
+			}
+			Query::Tree => {
+				let mut references = BTreeMap::new();
+				let mut done = BTreeSet::new();
+				for arg in &args {
+					let path = self.follow_links(arg)?;
+					self.print_tree(&path, "", "", &mut done, &mut references, out)?;
+				}
 			}
 			Query::Roots => {
 				let mut referrers = BTreeSet::new();

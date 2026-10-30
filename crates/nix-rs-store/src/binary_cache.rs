@@ -87,11 +87,12 @@ impl BinaryCache {
 		let transport = if let Some(path) = base.strip_prefix("file://") {
 			Transport::File(PathBuf::from(path))
 		} else if base.starts_with("http://") || base.starts_with("https://") {
-			let agent = ureq::Agent::config_builder()
-				.http_status_as_error(false)
-				.user_agent(concat!("nix-rs/", env!("CARGO_PKG_VERSION")))
-				.build()
-				.into();
+			let agent = crate::quick_ack::agent(
+				ureq::Agent::config_builder()
+					.http_status_as_error(false)
+					.user_agent(concat!("nix-rs/", env!("CARGO_PKG_VERSION")))
+					.build(),
+			);
 			Transport::Http(base.trim_end_matches('/').to_owned(), agent)
 		} else {
 			return Err(Error::Other(format!(

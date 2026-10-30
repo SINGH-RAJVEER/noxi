@@ -59,6 +59,9 @@ pub struct FetchState {
 	cache: Vec<(Input, CachedInput)>,
 	/// Store paths of trees already hashed, by physical root and name.
 	hashed: Vec<(PathBuf, String, StorePath, NixHash)>,
+	/// Fetcher cache entries to fill with the NAR hash of a tree once it is
+	/// hashed, by physical root.
+	nar_hash_entries: Vec<(PathBuf, NarHashEntry)>,
 }
 
 impl EvaluatorStore {
@@ -85,6 +88,14 @@ impl EvaluatorStore {
 
 	pub(crate) fn fetch_cache(&self) -> Result<nix_rs_flakeref::cache::Cache> {
 		nix_rs_flakeref::cache::Cache::open(&self.fetch_cache_dir())
+	}
+
+	/// Record `entry` with the NAR hash of the tree at `root` once it is hashed.
+	pub(crate) fn record_nar_hash(&self, root: &Path, entry: NarHashEntry) {
+		self.fetch_state
+			.borrow_mut()
+			.nar_hash_entries
+			.push((root.to_owned(), entry));
 	}
 
 	pub(crate) fn http_request(&self, request: &http::Request) -> Result<http::Response> {
@@ -383,6 +394,20 @@ pub(crate) fn add_tree(
 	let (path, hash) = store
 		.add_tree(name, mount)
 		.map_err(|e| Error::new(e.to_string()))?;
+	let entries: Vec<_> = store
+		.fetch_state
+		.borrow()
+		.nar_hash_entries
+		.iter()
+		.filter(|(root, _)| *root == mount.root)
+		.map(|(_, entry)| entry.clone())
+		.collect();
+	for entry in entries {
+		let value = [(entry.field.into(), hash.to_sri_string().into())].into();
+		store
+			.fetch_cache()?
+			.upsert(entry.domain, &entry.key, &value)?;
+	}
 	store.fetch_state.borrow_mut().hashed.push((
 		mount.root.clone(),
 		name.to_owned(),
@@ -390,4 +415,74 @@ pub(crate) fn add_tree(
 		hash.clone(),
 	));
 	Ok((path, hash))
+}
+
+/// A fetcher cache entry whose value is a tree's NAR hash, as CppNix
+/// records `treeHashToNarHash` and `sourcePathToHash`.
+#[derive(Clone, Debug)]
+pub(crate) struct NarHashEntry {
+	domain: &'static str,
+	key: nix_rs_flakeref::input::Attrs,
+	field: &'static str,
+}
+
+/// The NAR hash of the tarball cache tree `tree_hash`.
+pub(crate) fn tree_hash_entry(tree_hash: String) -> NarHashEntry {
+	NarHashEntry {
+		domain: "treeHashToNarHash",
+		key: [("treeHash".into(), tree_hash.into())].into(),
+		field: "narHash",
+	}
+}
+
+/// The NAR hash of the whole tree a source accessor with `fingerprint`
+/// serves, as CppNix's `fetchToStore` caches it.
+pub(crate) fn source_hash_entry(fingerprint: String) -> NarHashEntry {
+	NarHashEntry {
+		domain: "sourcePathToHash",
+		key: [
+			("fingerprint".into(), fingerprint.into()),
+			("method".into(), "nar".into()),
+			("path".into(), "/".into()),
+		]
+		.into(),
+		field: "hash",
+	}
+}
+
+/// The valid store copy of the tree `entry` records the NAR hash of, so
+/// a warm fetch neither exports nor hashes the tree again.
+pub(crate) fn stored_source(
+	store: &EvaluatorStore,
+	cache: &nix_rs_flakeref::cache::Cache,
+	entry: &NarHashEntry,
+	name: &str,
+) -> Result<Option<Mount>> {
+	if store.store().is_none() {
+		return Ok(None);
+	}
+	let Some(value) = cache.lookup(entry.domain, &entry.key)? else {
+		return Ok(None);
+	};
+	let Some(Ok(hash)) = nix_rs_flakeref::input::maybe_get_str_attr(&value, entry.field)?
+		.map(|hash| NixHash::from_sri(&hash))
+	else {
+		return Ok(None);
+	};
+	let Ok(path) =
+		nix_compat::store_path::build_ca_path(name, true, &hash, std::iter::empty(), false)
+	else {
+		return Ok(None);
+	};
+	let path = path.to_owned();
+	let Some(physical) = store.valid_store_path(&path) else {
+		return Ok(None);
+	};
+	// The path is already valid, so mounting it needs no import.
+	store
+		.fetch_state
+		.borrow_mut()
+		.hashed
+		.push((physical.clone(), name.to_owned(), path, hash));
+	Ok(Some(Mount::new(physical)))
 }

@@ -315,6 +315,49 @@ fn read_blobs(repo: &Path, blobs: &[(String, bool, bool, PathBuf)]) -> Result<()
 	Ok(())
 }
 
+/// CppNix's accessor fingerprint for `rev` without submodules or LFS.
+fn fingerprint(rev: &str, export_ignore: bool) -> String {
+	if export_ignore {
+		format!("{rev};e")
+	} else {
+		rev.to_owned()
+	}
+}
+
+/// The commit time of `rev`, through CppNix's `gitLastModified` cache.
+fn last_modified(store: &EvaluatorStore, repo: &Path, rev: &str) -> Result<u64> {
+	let cache = store.fetch_cache()?;
+	let key = [("rev".into(), rev.into())].into();
+	if let Some(value) = cache.lookup("gitLastModified", &key)?
+		&& let Some(modified) = nix_rs_flakeref::input::maybe_get_int_attr(&value, "lastModified")?
+	{
+		return Ok(modified);
+	}
+	let modified = text(repo, &["show", "-s", "--format=%ct", rev])?
+		.parse::<u64>()
+		.map_err(|e| Error::new(e.to_string()))?;
+	cache.upsert(
+		"gitLastModified",
+		&key,
+		&[("lastModified".into(), Attr::Int(modified))].into(),
+	)?;
+	Ok(modified)
+}
+
+/// Whether Git attributes could change an archive of `rev`: a
+/// `.gitattributes` file in its tree or the repository's `info/attributes`.
+fn has_attributes(repo: &Path, rev: &str) -> Result<bool> {
+	let names = run(repo, &["ls-tree", "-rz", "--name-only", "--full-tree", rev])?;
+	if names
+		.split(|b| *b == 0)
+		.any(|name| name.rsplit(|b| *b == b'/').next() == Some(b".gitattributes"))
+	{
+		return Ok(true);
+	}
+	let info = text(repo, &["rev-parse", "--git-path", "info/attributes"])?;
+	Ok(fs::metadata(repo.join(info)).is_ok_and(|m| m.len() > 0))
+}
+
 fn copy_tree(source: &Path, destination: &Path) -> Result<()> {
 	fs::create_dir_all(destination)?;
 	for entry in fs::read_dir(source)? {
@@ -551,43 +594,64 @@ pub(crate) fn get_accessor(
 			}
 		}
 		rev = head;
-		// Materialise only visible files so directory listings and hashing agree, including empty gitlinks.
-		let keep = Rc::new(tempfile::tempdir()?);
-		for rel in &visible {
-			if rel.ancestors().any(|p| ignored.contains(p)) {
-				continue;
+		// CppNix fingerprints a clean working tree by its HEAD revision.
+		let gitlinks = stage.split(|b| *b == 0).any(|e| e.starts_with(b"160000 "));
+		let source = match &rev {
+			Some(head) if !dirty && !gitlinks && !boolean(input, "lfs")? => {
+				Some(super::source_hash_entry(fingerprint(head, export_ignore)))
 			}
-			let from = repo.join(rel);
-			let Ok(metadata) = fs::symlink_metadata(&from) else {
-				continue;
-			};
-			let to = keep.path().join(rel);
-			fs::create_dir_all(to.parent().unwrap())?;
-			if metadata.file_type().is_symlink() {
-				symlink(fs::read_link(from)?, to)?;
-			} else if metadata.is_file() {
-				fs::copy(from, to)?;
-			}
-		}
-		for entry in stage
-			.split(|b| *b == 0)
-			.filter(|e| submodules && e.starts_with(b"160000 "))
-		{
-			let tab = entry.iter().position(|b| *b == b'\t').unwrap();
-			fs::create_dir_all(
-				keep.path()
-					.join(std::ffi::OsStr::from_bytes(&entry[tab + 1..])),
-			)?;
-		}
-		mount = Mount {
-			root: keep.path().to_owned(),
-			filter: Some(Rc::new(TreeFilter {
-				tracked,
-				ignored,
-				repo: repo.clone(),
-			})),
-			keep: Some(keep),
+			_ => None,
 		};
+		let stored = match &source {
+			Some(entry) => {
+				super::stored_source(store, &store.fetch_cache()?, entry, &input.get_name())?
+			}
+			None => None,
+		};
+		if let Some(stored) = stored {
+			mount = stored;
+		} else {
+			// Materialise only visible files so directory listings and hashing agree, including empty gitlinks.
+			let keep = Rc::new(tempfile::tempdir()?);
+			for rel in &visible {
+				if rel.ancestors().any(|p| ignored.contains(p)) {
+					continue;
+				}
+				let from = repo.join(rel);
+				let Ok(metadata) = fs::symlink_metadata(&from) else {
+					continue;
+				};
+				let to = keep.path().join(rel);
+				fs::create_dir_all(to.parent().unwrap())?;
+				if metadata.file_type().is_symlink() {
+					symlink(fs::read_link(from)?, to)?;
+				} else if metadata.is_file() {
+					fs::copy(from, to)?;
+				}
+			}
+			for entry in stage
+				.split(|b| *b == 0)
+				.filter(|e| submodules && e.starts_with(b"160000 "))
+			{
+				let tab = entry.iter().position(|b| *b == b'\t').unwrap();
+				fs::create_dir_all(
+					keep.path()
+						.join(std::ffi::OsStr::from_bytes(&entry[tab + 1..])),
+				)?;
+			}
+			mount = Mount {
+				root: keep.path().to_owned(),
+				filter: Some(Rc::new(TreeFilter {
+					tracked,
+					ignored,
+					repo: repo.clone(),
+				})),
+				keep: Some(keep),
+			};
+			if let Some(entry) = source {
+				store.record_nar_hash(&mount.root, entry);
+			}
+		}
 	} else {
 		let requested = input
 			.get_rev()?
@@ -604,25 +668,44 @@ pub(crate) fn get_accessor(
 				.unwrap_or_else(|_| "master".into());
 			result.attrs.insert("ref".into(), default_ref.into());
 		}
-		let keep = Rc::new(tempfile::tempdir()?);
-		export(&repo, &commit, keep.path(), false, export_ignore)?;
-		if submodules {
-			export_submodules(store, settings, input, &repo, &commit, keep.path())?;
-		}
-		if boolean(input, "lfs")? {
-			super::lfs::smudge(store, &repo, &commit, keep.path())?;
-		}
-		mount = Mount {
-			root: keep.path().to_owned(),
-			filter: None,
-			keep: Some(keep),
+		let lfs = boolean(input, "lfs")?;
+		// Exports with submodules or LFS content always take the full path below.
+		let source = (!submodules && !lfs)
+			.then(|| super::source_hash_entry(fingerprint(&commit, export_ignore)));
+		let stored = match &source {
+			Some(entry) => {
+				super::stored_source(store, &store.fetch_cache()?, entry, &input.get_name())?
+			}
+			None => None,
 		};
+		if let Some(stored) = stored {
+			mount = stored;
+		} else {
+			let keep = Rc::new(tempfile::tempdir()?);
+			export(&repo, &commit, keep.path(), false, export_ignore)?;
+			if submodules {
+				export_submodules(store, settings, input, &repo, &commit, keep.path())?;
+			}
+			if lfs {
+				super::lfs::smudge(store, &repo, &commit, keep.path())?;
+			}
+			mount = Mount {
+				root: keep.path().to_owned(),
+				filter: None,
+				keep: Some(keep),
+			};
+			// `git archive` applies attributes other than export-ignore too, so
+			// share an export-ignore hash only when no attributes can apply.
+			if let Some(entry) = source
+				&& (!export_ignore || !has_attributes(&repo, &commit)?)
+			{
+				store.record_nar_hash(&mount.root, entry);
+			}
+		}
 		rev = Some(commit);
 	}
 	let modified = match &rev {
-		Some(rev) => text(&repo, &["show", "-s", "--format=%ct", rev])?
-			.parse::<u64>()
-			.map_err(|e| Error::new(e.to_string()))?,
+		Some(rev) => last_modified(store, &repo, rev)?,
 		None => 0,
 	};
 	if worktree {

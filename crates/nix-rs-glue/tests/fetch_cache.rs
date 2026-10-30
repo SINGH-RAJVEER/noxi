@@ -98,6 +98,7 @@ fn tarball_cache_is_shared_bidirectionally_with_cppnix() {
 		"builtins.readFile ((builtins.fetchTarball {}) + \"/file\")",
 		serde_json::json!(format!("file://{}", archive_path.display()))
 	);
+	let mut nar_hashes = Vec::new();
 	for candidate_first in [true, false] {
 		let cache = tempfile::tempdir().unwrap();
 		archive(&archive_path, b"first");
@@ -107,6 +108,15 @@ fn tarball_cache_is_shared_bidirectionally_with_cppnix() {
 			reference(cache.path(), &expression)
 		};
 		assert_eq!(first, "first");
+		let db = nix_rs_flakeref::cache::Cache::open(cache.path()).unwrap();
+		let key = [(
+			"url".into(),
+			format!("file://{}", archive_path.display()).into(),
+		)]
+		.into();
+		let tree_hash = db.lookup("tarball", &key).unwrap().unwrap()["treeHash"].clone();
+		let tree_key = [("treeHash".into(), tree_hash)].into();
+		nar_hashes.push(db.lookup("treeHashToNarHash", &tree_key).unwrap().unwrap());
 		archive(&archive_path, b"changed");
 		let second = if candidate_first {
 			reference(cache.path(), &expression)
@@ -114,12 +124,6 @@ fn tarball_cache_is_shared_bidirectionally_with_cppnix() {
 			candidate(cache.path(), &expression, true)
 		};
 		assert_eq!(second, "first");
-		let db = nix_rs_flakeref::cache::Cache::open(cache.path()).unwrap();
-		let key = [(
-			"url".into(),
-			format!("file://{}", archive_path.display()).into(),
-		)]
-		.into();
 		assert!(
 			db.lookup("tarball", &key)
 				.unwrap()
@@ -127,6 +131,8 @@ fn tarball_cache_is_shared_bidirectionally_with_cppnix() {
 				.contains_key("treeHash")
 		);
 	}
+	// Each engine records the first tree's NAR hash for the other to reuse.
+	assert_eq!(nar_hashes[0], nar_hashes[1]);
 }
 
 struct FileServer {

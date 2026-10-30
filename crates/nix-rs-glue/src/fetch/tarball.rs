@@ -207,7 +207,7 @@ pub(crate) fn get_tarball_accessor(
 	input: &Input,
 ) -> Result<(Mount, Input)> {
 	let url = get_str_attr(&input.attrs, "url")?;
-	let (mount, last_modified) = download_tarball(store, &url, &[])?;
+	let (mount, last_modified) = download_tarball(store, &url, &[], &input.get_name())?;
 	let mut result = input.clone();
 	result
 		.attrs
@@ -220,17 +220,38 @@ pub(super) fn download_tarball(
 	store: &EvaluatorStore,
 	url: &str,
 	headers: &[(String, String)],
+	name: &str,
 ) -> Result<(Mount, u64)> {
 	let cache = store.fetch_cache()?;
-	let trees = super::cache::TreeCache::open(&store.fetch_cache_dir())?;
 	let key: Attrs = [("url".into(), url.into())].into();
 	let cached = cache.lookup_expired("tarball", &key, store.fetch_settings().tarball_ttl)?;
+	let fresh = cached
+		.as_ref()
+		.is_some_and(|entry| store.fetch_config.borrow().offline || !entry.expired);
+	if fresh {
+		let value = &cached.as_ref().unwrap().value;
+		let tree = super::tree_hash_entry(get_str_attr(value, "treeHash")?);
+		if let Some(mount) = super::stored_source(store, &cache, &tree, name)? {
+			return Ok((
+				mount,
+				nix_rs_flakeref::input::maybe_get_int_attr(value, "lastModified")?.unwrap_or(0),
+			));
+		}
+	}
+	let trees = super::cache::TreeCache::open(&store.fetch_cache_dir())?;
 	let mount = match &cached {
-		Some(entry) => trees.get(&get_str_attr(&entry.value, "treeHash")?)?,
+		Some(entry) => {
+			let tree_hash = get_str_attr(&entry.value, "treeHash")?;
+			let mount = trees.get(&tree_hash)?;
+			if let Some(mount) = &mount {
+				store.record_nar_hash(&mount.root, super::tree_hash_entry(tree_hash));
+			}
+			mount
+		}
 		None => None,
 	};
 	if let Some(mount) = &mount
-		&& (store.fetch_config.borrow().offline || !cached.as_ref().unwrap().expired)
+		&& fresh
 	{
 		return Ok((
 			mount.clone(),
@@ -257,6 +278,7 @@ pub(super) fn download_tarball(
 	}
 	let (mount, modified) = unpack(response.body)?;
 	let tree_hash = trees.insert(&mount.root)?;
+	store.record_nar_hash(&mount.root, super::tree_hash_entry(tree_hash.clone()));
 	let value: Attrs = [
 		("treeHash".into(), tree_hash.into()),
 		("lastModified".into(), modified.into()),

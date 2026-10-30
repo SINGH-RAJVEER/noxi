@@ -404,6 +404,9 @@ fn local_cache_rejects_unsafe_nar_locations_like_reference() {
 		let mut narinfo = NarInfo::parse(&original).unwrap();
 		narinfo.url = location;
 		fs::write(dir.join(&name), narinfo.to_string()).unwrap();
+		// A cache handle remembers narinfos, so open one per rewrite as each
+		// reference run does.
+		let cache = BinaryCache::open(&url).unwrap();
 		let cached = cache.query_path_info(&env.out).unwrap().unwrap();
 		let error = match cache.nar(&cached) {
 			Ok(_) => panic!("accepted unsafe local cache location: {location}"),

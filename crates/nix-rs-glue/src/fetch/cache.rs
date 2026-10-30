@@ -30,6 +30,121 @@ pub(super) fn git(repo: &Path, args: &[&str], input: &[u8]) -> Result<String> {
 	Ok(String::from_utf8_lossy(&output.stdout).trim().to_owned())
 }
 
+/// Objects streamed into one undeltified version 2 pack with its version 2
+/// index, as `git pack-objects` would write them, without loose objects.
+struct PackWriter {
+	file: std::io::BufWriter<tempfile::NamedTempFile>,
+	offset: u64,
+	/// Object name, CRC-32 of its packed bytes and pack offset.
+	entries: Vec<([u8; 20], u32, u64)>,
+	written: std::collections::HashSet<[u8; 20]>,
+}
+
+impl PackWriter {
+	fn new(directory: &Path) -> Result<Self> {
+		let mut file = std::io::BufWriter::new(tempfile::NamedTempFile::new_in(directory)?);
+		// The object count is filled in by `finish`.
+		file.write_all(b"PACK\0\0\0\x02\0\0\0\0")?;
+		Ok(Self {
+			file,
+			offset: 12,
+			entries: Vec::new(),
+			written: Default::default(),
+		})
+	}
+
+	/// Add a blob or tree and return its object name.
+	fn add(&mut self, kind: &str, content: &[u8]) -> Result<[u8; 20]> {
+		use sha1::{Digest, Sha1};
+		let mut hasher = Sha1::new();
+		hasher.update(format!("{kind} {}\0", content.len()).as_bytes());
+		hasher.update(content);
+		let hash: [u8; 20] = hasher.finalize().into();
+		if !self.written.insert(hash) {
+			return Ok(hash);
+		}
+		let kind: u8 = if kind == "tree" { 2 } else { 3 };
+		let mut size = content.len() as u64;
+		let mut packed = vec![(kind << 4) | (size & 0x0f) as u8];
+		size >>= 4;
+		while size > 0 {
+			*packed.last_mut().unwrap() |= 0x80;
+			packed.push((size & 0x7f) as u8);
+			size >>= 7;
+		}
+		let mut encoder = flate2::write::ZlibEncoder::new(packed, flate2::Compression::fast());
+		encoder.write_all(content)?;
+		let packed = encoder.finish()?;
+		let mut crc = flate2::Crc::new();
+		crc.update(&packed);
+		self.file.write_all(&packed)?;
+		self.entries.push((hash, crc.sum(), self.offset));
+		self.offset += packed.len() as u64;
+		Ok(hash)
+	}
+
+	/// Complete the pack and its index under `directory`.
+	fn finish(self, directory: &Path) -> Result<()> {
+		use sha1::{Digest, Sha1};
+		use std::io::{Read, Seek, SeekFrom};
+		let mut file = self.file.into_inner().map_err(|e| e.into_error())?;
+		let count = u32::try_from(self.entries.len()).map_err(|e| Error::new(e.to_string()))?;
+		file.seek(SeekFrom::Start(8))?;
+		file.write_all(&count.to_be_bytes())?;
+		file.seek(SeekFrom::Start(0))?;
+		let mut hasher = Sha1::new();
+		let mut buffer = vec![0; 1 << 16];
+		loop {
+			let read = file.read(&mut buffer)?;
+			if read == 0 {
+				break;
+			}
+			hasher.update(&buffer[..read]);
+		}
+		let checksum: [u8; 20] = hasher.finalize().into();
+		file.write_all(&checksum)?;
+		let mut entries = self.entries;
+		entries.sort_unstable_by(|a, b| a.0.cmp(&b.0));
+		let mut index = b"\xfftOc\0\0\0\x02".to_vec();
+		for byte in 0..=255u8 {
+			let below = entries.partition_point(|e| e.0[0] <= byte) as u32;
+			index.extend_from_slice(&below.to_be_bytes());
+		}
+		for entry in &entries {
+			index.extend_from_slice(&entry.0);
+		}
+		for entry in &entries {
+			index.extend_from_slice(&entry.1.to_be_bytes());
+		}
+		let mut large = Vec::new();
+		for entry in &entries {
+			let offset = if entry.2 < 0x8000_0000 {
+				entry.2 as u32
+			} else {
+				large.push(entry.2);
+				0x8000_0000 | (large.len() as u32 - 1)
+			};
+			index.extend_from_slice(&offset.to_be_bytes());
+		}
+		for offset in large {
+			index.extend_from_slice(&offset.to_be_bytes());
+		}
+		index.extend_from_slice(&checksum);
+		let index_checksum: [u8; 20] = Sha1::digest(&index).into();
+		index.extend_from_slice(&index_checksum);
+		let name = format!("pack-{}", data_encoding::HEXLOWER.encode(&checksum));
+		file.persist(directory.join(format!("{name}.pack")))
+			.map_err(|e| e.error)?;
+		// The index makes the pack visible, so it is written last.
+		let mut index_file = tempfile::NamedTempFile::new_in(directory)?;
+		index_file.write_all(&index)?;
+		index_file
+			.persist(directory.join(format!("{name}.idx")))
+			.map_err(|e| e.error)?;
+		Ok(())
+	}
+}
+
 pub(super) struct TreeCache {
 	repo: PathBuf,
 }
@@ -44,48 +159,20 @@ impl TreeCache {
 		Ok(Self { repo })
 	}
 
-	/// Write a loose object as `git hash-object -w` and `git mktree` do,
-	/// without a process per object, and return its hexadecimal SHA-1.
-	fn write_object(&self, kind: &str, content: &[u8]) -> Result<[u8; 20]> {
-		use sha1::{Digest, Sha1};
-		let header = format!("{kind} {}\0", content.len());
-		let mut hasher = Sha1::new();
-		hasher.update(header.as_bytes());
-		hasher.update(content);
-		let hash: [u8; 20] = hasher.finalize().into();
-		let hex = data_encoding::HEXLOWER.encode(&hash);
-		let directory = self.repo.join("objects").join(&hex[..2]);
-		let path = directory.join(&hex[2..]);
-		if path.exists() {
-			return Ok(hash);
-		}
-		fs::create_dir_all(&directory)?;
-		let mut file = tempfile::NamedTempFile::new_in(&directory)?;
-		let mut encoder = flate2::write::ZlibEncoder::new(&mut file, flate2::Compression::fast());
-		encoder.write_all(header.as_bytes())?;
-		encoder.write_all(content)?;
-		encoder.finish()?;
-		file.persist(&path).map_err(|e| e.error)?;
-		Ok(hash)
-	}
-
-	fn write_tree(&self, path: &Path) -> Result<[u8; 20]> {
+	fn write_tree(pack: &mut PackWriter, path: &Path) -> Result<[u8; 20]> {
 		let mut entries = Vec::new();
 		for entry in fs::read_dir(path)? {
 			let path = entry?.path();
 			let meta = fs::symlink_metadata(&path)?;
 			let (mode, hash) = if meta.is_dir() {
-				("40000", self.write_tree(&path)?)
+				("40000", Self::write_tree(pack, &path)?)
 			} else if meta.file_type().is_symlink() {
 				let target = fs::read_link(&path)?;
-				(
-					"120000",
-					self.write_object("blob", target.as_os_str().as_bytes())?,
-				)
+				("120000", pack.add("blob", target.as_os_str().as_bytes())?)
 			} else if meta.permissions().mode() & 0o100 != 0 {
-				("100755", self.write_object("blob", &fs::read(&path)?)?)
+				("100755", pack.add("blob", &fs::read(&path)?)?)
 			} else {
-				("100644", self.write_object("blob", &fs::read(&path)?)?)
+				("100644", pack.add("blob", &fs::read(&path)?)?)
 			};
 			// Git orders entries by name, comparing directories as if they ended in '/'.
 			let mut key = path.file_name().unwrap().as_bytes().to_vec();
@@ -104,9 +191,11 @@ impl TreeCache {
 			tree.push(0);
 			tree.extend_from_slice(&hash);
 		}
-		self.write_object("tree", &tree)
+		pack.add("tree", &tree)
 	}
 
+	/// Pack the tree at `path` into the cache, without a process per
+	/// object or loose objects, and return its hexadecimal tree hash.
 	pub fn insert(&self, path: &Path) -> Result<String> {
 		let lock = fs::OpenOptions::new()
 			.create(true)
@@ -114,21 +203,12 @@ impl TreeCache {
 			.write(true)
 			.open(self.repo.join("nixrs-write.lock"))?;
 		lock.lock()?;
-		let hash = data_encoding::HEXLOWER.encode(&self.write_tree(path)?);
-		let prefix = self.repo.join("objects/pack/pack");
-		git(
-			&self.repo,
-			&[
-				"pack-objects",
-				"--revs",
-				prefix
-					.to_str()
-					.ok_or_else(|| Error::new("non-UTF-8 cache path"))?,
-			],
-			format!("{hash}\n").as_bytes(),
-		)?;
-		git(&self.repo, &["prune-packed"], &[])?;
-		Ok(hash)
+		let directory = self.repo.join("objects/pack");
+		fs::create_dir_all(&directory)?;
+		let mut pack = PackWriter::new(&directory)?;
+		let hash = Self::write_tree(&mut pack, path)?;
+		pack.finish(&directory)?;
+		Ok(data_encoding::HEXLOWER.encode(&hash))
 	}
 
 	pub fn get(&self, hash: &str) -> Result<Option<Mount>> {
@@ -167,6 +247,8 @@ mod tests {
 		}
 		fs::set_permissions(root.join("b0"), fs::Permissions::from_mode(0o755)).unwrap();
 		std::os::unix::fs::symlink("b/c", root.join("link")).unwrap();
+		let large: Vec<u8> = (0..100_000u32).map(|i| (i % 251) as u8).collect();
+		fs::write(root.join("large"), &large).unwrap();
 		let cache = tempfile::tempdir().unwrap();
 		let trees = TreeCache::open(cache.path()).unwrap();
 		let hash = trees.insert(root).unwrap();
@@ -175,6 +257,7 @@ mod tests {
 		assert_eq!(hash, git(root, &["write-tree"], &[]).unwrap());
 		let mount = trees.get(&hash).unwrap().unwrap();
 		assert_eq!(fs::read(mount.root.join("b/c/d")).unwrap(), b"b/c/d");
+		assert_eq!(fs::read(mount.root.join("large")).unwrap(), large);
 		assert_eq!(
 			fs::read_link(mount.root.join("link")).unwrap(),
 			Path::new("b/c")
@@ -188,5 +271,11 @@ mod tests {
 			let name = e.unwrap().file_name();
 			name == "pack" || name == "info"
 		}));
+		for entry in fs::read_dir(trees.repo.join("objects/pack")).unwrap() {
+			let path = entry.unwrap().path();
+			if path.extension().is_some_and(|e| e == "idx") {
+				git(&trees.repo, &["verify-pack", path.to_str().unwrap()], &[]).unwrap();
+			}
+		}
 	}
 }

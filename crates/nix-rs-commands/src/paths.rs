@@ -1,6 +1,6 @@
 //! Store path listings shared by the legacy commands.
 
-use std::collections::BTreeSet;
+use std::collections::{BTreeSet, HashSet};
 use std::path::Path;
 
 use nix_compat::store_path::{STORE_DIR, StorePath};
@@ -63,11 +63,11 @@ pub fn topo_sort_by(
 ) -> Result<Vec<StorePath>, Failure> {
 	fn visit(
 		references: &mut dyn FnMut(&StorePath) -> Result<BTreeSet<StorePath>, Failure>,
-		items: &BTreeSet<StorePath>,
+		items: &HashSet<&StorePath>,
 		path: &StorePath,
 		parent: Option<&StorePath>,
-		visited: &mut BTreeSet<StorePath>,
-		parents: &mut BTreeSet<StorePath>,
+		visited: &mut HashSet<StorePath>,
+		parents: &mut HashSet<StorePath>,
 		sorted: &mut Vec<StorePath>,
 	) -> Result<(), Failure> {
 		if parents.contains(path) {
@@ -99,13 +99,15 @@ pub fn topo_sort_by(
 		Ok(())
 	}
 
+	// Membership only; iteration order comes from the sorted sets.
+	let items: HashSet<&StorePath> = paths.iter().collect();
 	let mut sorted = Vec::new();
-	let mut visited = BTreeSet::new();
-	let mut parents = BTreeSet::new();
+	let mut visited = HashSet::new();
+	let mut parents = HashSet::new();
 	for path in paths {
 		visit(
 			&mut references,
-			paths,
+			&items,
 			path,
 			None,
 			&mut visited,
