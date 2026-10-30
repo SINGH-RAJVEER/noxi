@@ -251,7 +251,7 @@ impl BytecodeFrame {
 	/// Record the attribute a selection found, for CppNix's trace frame of
 	/// the selection.
 	fn record_selection(&mut self, attrs: NixAttrs, key: NixString) {
-		if let Some(path) = &self.lambda.select_path {
+		if let Some(path) = self.lambda.selection_path() {
 			self.trace = FrameTrace::Select {
 				path: path.clone(),
 				attrs,
@@ -956,7 +956,7 @@ where
 									&name,
 								);
 								// CppNix reports the start of the selection.
-								let span = frame.lambda.select_span.unwrap_or_else(|| frame.current_span());
+								let span = frame.lambda.selection_span().unwrap_or_else(|| frame.current_span());
 								return Err(ErrorKind::Positioned(Box::new(ErrorKind::AttributeNotFound {
 									name,
 									suggestions,

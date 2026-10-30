@@ -933,7 +933,8 @@ impl Compiler<'_, '_> {
 		// (OpAttrs consumes all of these locals).
 		self.scope_mut().end_scope(g);
 
-		self.context_mut().lambda.select_path = Some("body".into());
+		let span = self.context().lambda.selection_span();
+		self.context_mut().lambda.set_selection("body".into(), span);
 		self.emit_constant("body".into(), node);
 		self.push_op(Op::AttrsSelect, node);
 		self.emit_force(node);
