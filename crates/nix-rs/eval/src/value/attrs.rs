@@ -7,15 +7,15 @@
 //! some peculiarities that are encapsulated within this module.
 use std::borrow::Borrow;
 use std::cell::OnceCell;
-use std::collections::{BTreeMap, hash_map};
+use std::collections::BTreeMap;
+use std::hash::BuildHasher as _;
 use std::iter::FromIterator;
 use std::rc::Rc;
 use std::sync::LazyLock;
 
 use bstr::{BStr, ByteSlice};
 use codemap::Span;
-use itertools::Itertools as _;
-use rustc_hash::FxHashMap;
+use rustc_hash::{FxHashMap, FxHashSet};
 use serde::Deserialize;
 use serde::de::{Deserializer, Error, Visitor};
 
@@ -26,9 +26,102 @@ use super::thunk::ThunkSet;
 use crate::CatchableErrorKind;
 use crate::errors::ErrorKind;
 
-/// The positions of an attribute set's attributes, shared by the sets
-/// constructed from one literal with the same attributes.
-pub(crate) type AttrPositions = Rc<FxHashMap<NixString, Span>>;
+/// Positions and validated key layouts shared by sets from one literal.
+pub(crate) type AttrPositions = Rc<LiteralAttrs>;
+
+#[derive(Debug)]
+pub(crate) struct LiteralAttrs {
+	positions: FxHashMap<NixString, Span>,
+	layout: Option<Box<LiteralLayout>>,
+}
+
+#[derive(Debug)]
+struct LiteralLayout {
+	bindings: Box<[(NixString, usize)]>,
+	spans: Box<[Span]>,
+	index: OnceCell<Rc<hashbrown::HashTable<u32>>>,
+}
+
+fn binding_index<T>(bindings: &[(NixString, T)]) -> Rc<hashbrown::HashTable<u32>> {
+	let mut index = hashbrown::HashTable::with_capacity(bindings.len());
+	for (offset, (name, _)) in bindings.iter().enumerate() {
+		index.insert_unique(
+			rustc_hash::FxBuildHasher.hash_one(name.as_bstr()),
+			offset as u32,
+			|offset| rustc_hash::FxBuildHasher.hash_one(bindings[*offset as usize].0.as_bstr()),
+		);
+	}
+	Rc::new(index)
+}
+
+fn sort_bindings(attrs: &mut Vec<(NixString, Value)>) {
+	// Stable ordering retains the first key and the last value for duplicates,
+	// matching collection into a hash map, including string contexts on keys.
+	attrs.sort_by(|(a, _), (b, _)| a.cmp(b));
+	attrs.dedup_by(|(a, value), (b, previous)| {
+		if a == b {
+			std::mem::swap(value, previous);
+			true
+		} else {
+			false
+		}
+	});
+}
+
+fn merge_bindings(
+	out: &mut Vec<(NixString, Value)>,
+	mut left: &[(NixString, Value)],
+	mut right: &[(NixString, Value)],
+) {
+	if left.len() > right.len().saturating_mul(8) {
+		// A few overrides must not compare against every key of a large set.
+		for entry in right {
+			let split = left.partition_point(|(key, _)| key < &entry.0);
+			out.extend_from_slice(&left[..split]);
+			left = &left[split..];
+			if left.first().is_some_and(|(key, _)| key == &entry.0) {
+				left = &left[1..];
+			}
+			out.push(entry.clone());
+		}
+		out.extend_from_slice(left);
+		return;
+	}
+	if right.len() > left.len().saturating_mul(8) {
+		for entry in left {
+			let split = right.partition_point(|(key, _)| key < &entry.0);
+			out.extend_from_slice(&right[..split]);
+			right = &right[split..];
+			if right.first().is_some_and(|(key, _)| key == &entry.0) {
+				out.push(right[0].clone());
+				right = &right[1..];
+			} else {
+				out.push(entry.clone());
+			}
+		}
+		out.extend_from_slice(right);
+		return;
+	}
+	while let (Some(a), Some(b)) = (left.first(), right.first()) {
+		match a.0.cmp(&b.0) {
+			std::cmp::Ordering::Less => {
+				out.push(a.clone());
+				left = &left[1..];
+			}
+			std::cmp::Ordering::Greater => {
+				out.push(b.clone());
+				right = &right[1..];
+			}
+			std::cmp::Ordering::Equal => {
+				out.push(b.clone());
+				left = &left[1..];
+				right = &right[1..];
+			}
+		}
+	}
+	out.extend_from_slice(left);
+	out.extend_from_slice(right);
+}
 
 static NAME: LazyLock<NixString> = LazyLock::new(|| "name".into());
 static VALUE: LazyLock<NixString> = LazyLock::new(|| "value".into());
@@ -42,7 +135,11 @@ pub(super) enum AttrsRep {
 	Empty,
 
 	Map {
-		attrs: FxHashMap<NixString, Value>,
+		/// Unique bindings in lexical order; lookup tables store only 32-bit offsets.
+		attrs: Box<[(NixString, Value)]>,
+
+		#[serde(skip)]
+		index: OnceCell<Rc<hashbrown::HashTable<u32>>>,
 
 		#[serde(skip)]
 		pos: Option<AttrPositions>,
@@ -65,7 +162,38 @@ impl AttrsRep {
 				_ => None,
 			},
 
-			AttrsRep::Map { attrs, .. } => attrs.get(key),
+			AttrsRep::Map { attrs, index, pos } => {
+				if attrs.len() < 4 {
+					return attrs
+						.iter()
+						.find(|(name, _)| name.as_bstr() == key)
+						.map(|(_, value)| value);
+				}
+				if u32::try_from(attrs.len()).is_err() {
+					return attrs
+						.binary_search_by(|(name, _)| name.as_bstr().cmp(key))
+						.ok()
+						.map(|index| &attrs[index].1);
+				}
+				let index = index.get_or_init(|| {
+					// Cached positions cover every name in a literal layout. Equal
+					// lengths therefore identify the same sorted binding offsets.
+					if let Some(layout) = pos.as_ref().and_then(|pos| pos.layout.as_ref())
+						&& layout.bindings.len() == attrs.len()
+					{
+						return layout
+							.index
+							.get_or_init(|| binding_index(&layout.bindings))
+							.clone();
+					}
+					binding_index(attrs)
+				});
+				index
+					.find(rustc_hash::FxBuildHasher.hash_one(key), |offset| {
+						attrs[*offset as usize].0.as_bstr() == key
+					})
+					.map(|offset| &attrs[*offset as usize].1)
+			}
 		}
 	}
 
@@ -73,7 +201,7 @@ impl AttrsRep {
 		match self {
 			AttrsRep::Empty => false,
 			AttrsRep::KV { .. } => key == "name" || key == "value",
-			AttrsRep::Map { attrs, .. } => attrs.contains_key(key),
+			AttrsRep::Map { .. } => self.select(key).is_some(),
 		}
 	}
 }
@@ -131,34 +259,26 @@ where
 	where
 		T: IntoIterator<Item = (K, V)>,
 	{
-		AttrsRep::Map {
-			attrs: iter
-				.into_iter()
-				.map(|(k, v)| (k.into(), v.into()))
-				.collect(),
-			pos: None,
-		}
-		.into()
+		let mut attrs: Vec<(NixString, Value)> = iter
+			.into_iter()
+			.map(|(k, v)| (k.into(), v.into()))
+			.collect();
+		sort_bindings(&mut attrs);
+		NixAttrs::from_sorted(attrs, None)
 	}
 }
 
 impl From<BTreeMap<NixString, Value>> for NixAttrs {
 	fn from(map: BTreeMap<NixString, Value>) -> Self {
-		AttrsRep::Map {
-			attrs: map.into_iter().collect(),
-			pos: None,
-		}
-		.into()
+		Self::from_sorted(map.into_iter().collect(), None)
 	}
 }
 
 impl From<FxHashMap<NixString, Value>> for NixAttrs {
 	fn from(map: FxHashMap<NixString, Value>) -> Self {
-		AttrsRep::Map {
-			attrs: map,
-			pos: None,
-		}
-		.into()
+		let mut attrs: Vec<_> = map.into_iter().collect();
+		attrs.sort_unstable_by(|(a, _), (b, _)| a.cmp(b));
+		Self::from_sorted(attrs, None)
 	}
 }
 
@@ -249,73 +369,34 @@ impl NixAttrs {
 	/// Return an attribute set containing the merge of the two
 	/// provided sets. Keys from the `other` set have precedence.
 	pub fn update(self, other: Self) -> Self {
-		// Short-circuit on some optimal cases:
-		match (self.0.as_ref(), other.0.as_ref()) {
-			(AttrsRep::Empty, AttrsRep::Empty) => return self,
-			(AttrsRep::Empty, _) => return other,
-			(_, AttrsRep::Empty) => return self,
-			(AttrsRep::KV { .. }, AttrsRep::KV { .. }) => return other,
-
-			// Explicitly handle all branches instead of falling
-			// through, to ensure that we get at least some compiler
-			// errors if variants are modified.
-			(AttrsRep::Map { .. }, AttrsRep::Map { .. })
-			| (AttrsRep::Map { .. }, AttrsRep::KV { .. })
-			| (AttrsRep::KV { .. }, AttrsRep::Map { .. }) => {}
-		};
-
-		// Slightly more advanced, but still optimised updates
-		match (
-			Rc::unwrap_or_clone(self.into_rep()),
-			Rc::unwrap_or_clone(other.into_rep()),
-		) {
-			(AttrsRep::Map { mut attrs, .. }, AttrsRep::KV { name, value }) => {
-				attrs.insert(NAME.clone(), name);
-				attrs.insert(VALUE.clone(), value);
-				AttrsRep::Map { attrs, pos: None }.into()
-			}
-
-			(AttrsRep::KV { name, value }, AttrsRep::Map { mut attrs, .. }) => {
-				match attrs.entry(NAME.clone()) {
-					hash_map::Entry::Vacant(e) => {
-						e.insert(name);
-					}
-
-					hash_map::Entry::Occupied(_) => { /* name from `m` has precedence */ }
-				};
-
-				match attrs.entry(VALUE.clone()) {
-					hash_map::Entry::Vacant(e) => {
-						e.insert(value);
-					}
-
-					hash_map::Entry::Occupied(_) => { /* value from `m` has precedence */ }
-				};
-
-				AttrsRep::Map { attrs, pos: None }.into()
-			}
-
-			// Plain merge of maps.
-			(AttrsRep::Map { attrs: mut m1, .. }, AttrsRep::Map { attrs: mut m2, .. }) => {
-				let map = if m1.len() >= m2.len() {
-					m1.extend(m2);
-					m1
-				} else {
-					for (key, val) in m1.into_iter() {
-						m2.entry(key).or_insert(val);
-					}
-					m2
-				};
-				AttrsRep::Map {
-					attrs: map,
-					pos: None,
-				}
-				.into()
-			}
-
-			// Cases handled above by the borrowing match:
-			_ => unreachable!(),
+		if matches!(self.0.as_ref(), AttrsRep::Empty) {
+			return other;
 		}
+		if matches!(other.0.as_ref(), AttrsRep::Empty) {
+			return self;
+		}
+		if matches!(
+			(self.0.as_ref(), other.0.as_ref()),
+			(AttrsRep::KV { .. }, AttrsRep::KV { .. })
+		) {
+			return other;
+		}
+		let mut attrs = Vec::with_capacity(self.len() + other.len());
+		match (self.0.as_ref(), other.0.as_ref()) {
+			(AttrsRep::Map { attrs: left, .. }, AttrsRep::Map { attrs: right, .. }) => {
+				merge_bindings(&mut attrs, left, right);
+			}
+			(AttrsRep::Map { attrs: left, .. }, AttrsRep::KV { name, value }) => {
+				let right = [(NAME.clone(), name.clone()), (VALUE.clone(), value.clone())];
+				merge_bindings(&mut attrs, left, &right);
+			}
+			(AttrsRep::KV { name, value }, AttrsRep::Map { attrs: right, .. }) => {
+				let left = [(NAME.clone(), name.clone()), (VALUE.clone(), value.clone())];
+				merge_bindings(&mut attrs, &left, right);
+			}
+			_ => unreachable!("empty and KV updates handled above"),
+		}
+		Self::from_sorted(attrs, None)
 	}
 
 	/// Return the number of key-value entries in an attrset.
@@ -381,68 +462,26 @@ impl NixAttrs {
 	/// Same as iter(), but marks call sites which rely on the
 	/// iteration being lexicographic.
 	pub fn iter_sorted(&self) -> Iter<KeyValue<'_>> {
-		Iter(match self.0.as_ref() {
-			AttrsRep::Empty => KeyValue::Empty,
-			AttrsRep::Map { attrs, .. } => {
-				let sorted = attrs.iter().sorted_by_key(|x| x.0);
-				KeyValue::Sorted(sorted)
-			}
-			AttrsRep::KV { name, value } => KeyValue::KV {
-				name,
-				value,
-				at: IterKV::default(),
-			},
-		})
+		self.iter()
 	}
 
-	/// Same as [IntoIterator::into_iter], but marks call sites which rely on the
-	/// iteration being lexicographic.
+	/// Same as [IntoIterator::into_iter], marking lexicographic iteration.
 	pub fn into_iter_sorted(self) -> OwnedAttrsIterator {
-		let iter = match Rc::<AttrsRep>::try_unwrap(self.into_rep()) {
-			Ok(attrs) => match attrs {
-				AttrsRep::Empty => IntoIterRepr::Empty,
-				AttrsRep::Map { attrs, .. } => {
-					IntoIterRepr::Finite(attrs.into_iter().sorted_by(|(a, _), (b, _)| a.cmp(b)))
-				}
-				AttrsRep::KV { name, value } => IntoIterRepr::Finite(
-					vec![(NAME.clone(), name), (VALUE.clone(), value)].into_iter(),
-				),
-			},
-			Err(rc) => match rc.as_ref() {
-				AttrsRep::Empty => IntoIterRepr::Empty,
-				AttrsRep::Map { attrs, .. } => IntoIterRepr::Finite(
-					attrs
-						.iter()
-						.map(|(k, v)| (k.clone(), v.clone()))
-						.sorted_by(|(a, _), (b, _)| a.cmp(b)),
-				),
-				AttrsRep::KV { name, value } => IntoIterRepr::Finite(
-					vec![(NAME.clone(), name.clone()), (VALUE.clone(), value.clone())].into_iter(),
-				),
-			},
-		};
-		OwnedAttrsIterator(iter)
+		self.into_iter()
 	}
 
-	/// Construct an iterator over all the keys of the attribute set
+	/// Construct an iterator over all keys in the attribute set.
 	pub fn keys(&self) -> Keys<'_> {
 		Keys(match self.0.as_ref() {
 			AttrsRep::Empty => KeysInner::Empty,
 			AttrsRep::KV { .. } => KeysInner::KV(IterKV::default()),
-
-			// TODO(tazjin): only sort when required, not always.
-			AttrsRep::Map { attrs, .. } => KeysInner::Map(attrs.keys()),
+			AttrsRep::Map { attrs, .. } => KeysInner::Map(attrs.iter()),
 		})
 	}
 
-	/// Same as [Self::keys], but marks call sites which rely on the
-	/// iteration being lexicographic.
+	/// Same as [Self::keys], marking lexicographic iteration.
 	pub fn keys_sorted(&self) -> Keys<'_> {
-		Keys(match self.0.as_ref() {
-			AttrsRep::Map { attrs, .. } => KeysInner::Sorted(attrs.keys().sorted()),
-			AttrsRep::Empty => KeysInner::Empty,
-			AttrsRep::KV { .. } => KeysInner::KV(IterKV::default()),
-		})
+		self.keys()
 	}
 
 	/// Implement construction logic of an attribute set, to encapsulate
@@ -493,17 +532,52 @@ impl NixAttrs {
 			return Ok(Ok(kv));
 		}
 
-		let mut attrs_map = FxHashMap::with_capacity_and_hasher(count, rustc_hash::FxBuildHasher);
+		if let Some(cached) = cache.and_then(OnceCell::get)
+			&& let Some(layout) = &cached.layout
+			&& layout.bindings.len() == count
+			&& layout.spans.as_ref() == spans
+			&& layout.bindings.iter().all(
+				|(key, offset)| matches!(&stack_slice[offset * 2], Value::String(name) if name == key),
+			) {
+			// This exact key layout already passed duplicate/name validation.
+			// Its cached permutation constructs the sorted bindings directly.
+			let attrs = layout
+				.bindings
+				.iter()
+				.map(|(_, offset)| {
+					let Value::String(key) =
+						std::mem::replace(&mut stack_slice[offset * 2], Value::Null)
+					else {
+						unreachable!("validated literal key");
+					};
+					let value = std::mem::replace(&mut stack_slice[offset * 2 + 1], Value::Null);
+					(key, value)
+				})
+				.collect();
+			return Ok(Ok(Self::from_sorted(attrs, Some(cached.clone()))));
+		}
+
+		let cache_layout = spans.len() == count && cache.is_some_and(|cache| cache.get().is_none());
+		let mut layout_keys = cache_layout.then(|| Vec::with_capacity(count));
+		let layout_spans = cache_layout.then(|| spans.to_vec().into_boxed_slice());
+		let mut attrs_map = Vec::with_capacity(count);
+		let mut seen = (count > 8)
+			.then(|| FxHashSet::with_capacity_and_hasher(count, rustc_hash::FxBuildHasher));
 		let mut attrs_pos = Vec::with_capacity(spans.len());
 		let mut spans = spans.iter().rev().copied();
 
-		for _ in 0..count {
+		for offset in (0..count).rev() {
 			let value = stack_slice.pop().unwrap();
 			let key = stack_slice.pop().unwrap();
 			let span = spans.next();
 
 			match key {
-				Value::String(ks) => set_attr(&mut attrs_map, ks, value, &mut attrs_pos, span)?,
+				Value::String(ks) => {
+					if let Some(keys) = &mut layout_keys {
+						keys.push((ks.clone(), offset));
+					}
+					set_attr(&mut attrs_map, &mut seen, ks, value, &mut attrs_pos, span)?
+				}
 
 				Value::Null => {
 					// This is in fact valid, but leads to the value
@@ -521,25 +595,35 @@ impl NixAttrs {
 		let pos = if attrs_pos.is_empty() {
 			None
 		} else if let Some(cached) = cache.and_then(OnceCell::get)
-			&& cached.len() == attrs_pos.len()
+			&& cached.positions.len() == attrs_pos.len()
 			&& attrs_pos
 				.iter()
-				.all(|(key, span)| cached.get(key) == Some(span))
+				.all(|(key, span)| cached.positions.get(key) == Some(span))
 		{
 			Some(cached.clone())
 		} else {
-			let pos: AttrPositions = Rc::new(attrs_pos.into_iter().collect());
+			let layout = layout_keys
+				.filter(|keys| keys.len() == count)
+				.map(|mut keys| {
+					keys.sort_unstable_by(|(a, _), (b, _)| a.cmp(b));
+					Box::new(LiteralLayout {
+						bindings: keys.into_boxed_slice(),
+						spans: layout_spans.expect("cached literal spans"),
+						index: OnceCell::new(),
+					})
+				});
+			let pos: AttrPositions = Rc::new(LiteralAttrs {
+				positions: attrs_pos.into_iter().collect(),
+				layout,
+			});
 			if let Some(cache) = cache {
 				let _ = cache.set(pos.clone());
 			}
 			Some(pos)
 		};
 
-		Ok(Ok(AttrsRep::Map {
-			attrs: attrs_map,
-			pos,
-		}
-		.into()))
+		attrs_map.sort_unstable_by(|(a, _), (b, _)| a.cmp(b));
+		Ok(Ok(Self::from_sorted(attrs_map, pos)))
 	}
 
 	/// Construct an optimized "KV"-style attribute set given the value for the
@@ -551,68 +635,25 @@ impl NixAttrs {
 	/// Calculate the intersection of the attribute sets.
 	/// The right side value is used when the keys match.
 	pub(crate) fn intersect(&self, other: &Self) -> NixAttrs {
-		match (self.0.as_ref(), other.0.as_ref()) {
-			(AttrsRep::Empty, _) | (_, AttrsRep::Empty) => AttrsRep::Empty.into(),
-			(AttrsRep::Map { attrs: lhs, .. }, AttrsRep::Map { attrs: rhs, .. }) => {
-				let mut out = FxHashMap::with_capacity_and_hasher(
-					std::cmp::min(lhs.len(), rhs.len()),
-					rustc_hash::FxBuildHasher,
-				);
-				if lhs.len() < rhs.len() {
-					for key in lhs.keys() {
-						if let Some(val) = rhs.get(key) {
-							out.insert(key.clone(), val.clone());
-						}
-					}
-				} else {
-					for (key, val) in rhs.iter() {
-						if lhs.contains_key(key) {
-							out.insert(key.clone(), val.clone());
-						}
-					}
-				};
-				AttrsRep::Map {
-					attrs: out,
-					pos: None,
-				}
-				.into()
-			}
-			(AttrsRep::Map { attrs, .. }, AttrsRep::KV { name, value }) => {
-				let mut out = FxHashMap::with_capacity_and_hasher(2, rustc_hash::FxBuildHasher);
-				if attrs.contains_key(NAME.as_bstr()) {
-					out.insert(NAME.clone(), name.clone());
-				}
-				if attrs.contains_key(VALUE.as_bstr()) {
-					out.insert(VALUE.clone(), value.clone());
-				}
-
-				if out.is_empty() {
-					NixAttrs::empty()
-				} else {
-					out.into()
-				}
-			}
-			(AttrsRep::KV { .. }, AttrsRep::Map { attrs, .. }) => {
-				let mut out = FxHashMap::with_capacity_and_hasher(2, rustc_hash::FxBuildHasher);
-				if let Some(name) = attrs.get(NAME.as_bstr()) {
-					out.insert(NAME.clone(), name.clone());
-				}
-				if let Some(value) = attrs.get(VALUE.as_bstr()) {
-					out.insert(VALUE.clone(), value.clone());
-				}
-
-				if out.is_empty() {
-					NixAttrs::empty()
-				} else {
-					AttrsRep::Map {
-						attrs: out,
-						pos: None,
-					}
-					.into()
-				}
-			}
-			(AttrsRep::KV { .. }, AttrsRep::KV { .. }) => other.clone(),
+		if matches!(self.0.as_ref(), AttrsRep::Empty) || matches!(other.0.as_ref(), AttrsRep::Empty)
+		{
+			return Self::empty();
 		}
+		let mut attrs = Vec::with_capacity(self.len().min(other.len()));
+		if self.len() < other.len() {
+			for key in self.keys() {
+				if let Some(value) = other.select(key) {
+					attrs.push((key.clone(), value.clone()));
+				}
+			}
+		} else {
+			for (key, value) in other {
+				if self.contains(key.as_bstr()) {
+					attrs.push((key.clone(), value.clone()));
+				}
+			}
+		}
+		Self::from_sorted(attrs, None)
 	}
 
 	/// Returns whether this attr set is a derivation.
@@ -627,20 +668,44 @@ impl NixAttrs {
 	pub(crate) fn from_iter_with_pos(
 		iter: impl IntoIterator<Item = (NixString, Value, Option<Span>)>,
 	) -> NixAttrs {
-		let mut attrs = FxHashMap::default();
+		let iter = iter.into_iter();
+		let mut attrs = Vec::with_capacity(iter.size_hint().0);
 		let mut pos = FxHashMap::default();
 		for (key, value, span) in iter {
 			if let Some(span) = span {
 				pos.insert(key.clone(), span);
 			}
-			attrs.insert(key, value);
+			attrs.push((key, value));
 		}
 		if attrs.is_empty() {
 			return AttrsRep::Empty.into();
 		}
-		AttrsRep::Map {
+		sort_bindings(&mut attrs);
+		Self::from_sorted(
 			attrs,
-			pos: (!pos.is_empty()).then(|| Rc::new(pos)),
+			(!pos.is_empty()).then(|| {
+				Rc::new(LiteralAttrs {
+					positions: pos,
+					layout: None,
+				})
+			}),
+		)
+	}
+
+	/// Build a compact set from unique bindings already in lexical order.
+	fn from_sorted(attrs: Vec<(NixString, Value)>, pos: Option<AttrPositions>) -> Self {
+		let index = pos
+			.as_ref()
+			.and_then(|pos| pos.layout.as_ref())
+			.filter(|layout| layout.bindings.len() == attrs.len())
+			.and_then(|layout| layout.index.get())
+			.cloned()
+			.map(OnceCell::from)
+			.unwrap_or_default();
+		AttrsRep::Map {
+			attrs: attrs.into_boxed_slice(),
+			index,
+			pos,
 		}
 		.into()
 	}
@@ -650,7 +715,7 @@ impl NixAttrs {
 		K: Borrow<BStr> + ?Sized,
 	{
 		match self.0.as_ref() {
-			AttrsRep::Map { pos, .. } => pos.as_ref()?.get(key.borrow()).copied(),
+			AttrsRep::Map { pos, .. } => pos.as_ref()?.positions.get(key.borrow()).copied(),
 			_ => None,
 		}
 	}
@@ -666,7 +731,9 @@ impl IntoIterator for NixAttrs {
 			AttrsRep::KV { name, value } => OwnedAttrsIterator(IntoIterRepr::Finite(
 				vec![(NAME.clone(), name), (VALUE.clone(), value)].into_iter(),
 			)),
-			AttrsRep::Map { attrs, .. } => OwnedAttrsIterator(IntoIterRepr::Map(attrs.into_iter())),
+			AttrsRep::Map { attrs, .. } => {
+				OwnedAttrsIterator(IntoIterRepr::Finite(attrs.into_vec().into_iter()))
+			}
 		}
 	}
 }
@@ -706,25 +773,27 @@ fn attempt_optimise_kv(slice: &mut [Value]) -> Option<NixAttrs> {
 /// Set an attribute on an in-construction attribute set, while
 /// checking against duplicate keys.
 fn set_attr(
-	map: &mut FxHashMap<NixString, Value>,
+	attrs: &mut Vec<(NixString, Value)>,
+	seen: &mut Option<FxHashSet<NixString>>,
 	key: NixString,
 	value: Value,
 	pos: &mut Vec<(NixString, Span)>,
 	span: Option<Span>,
 ) -> Result<(), ErrorKind> {
-	match map.entry(key) {
-		hash_map::Entry::Occupied(entry) => Err(ErrorKind::DuplicateAttrsKey {
-			key: entry.key().to_string(),
-		}),
-
-		hash_map::Entry::Vacant(entry) => {
-			if let Some(span) = span {
-				pos.push((entry.key().clone(), span));
-			}
-			entry.insert(value);
-			Ok(())
-		}
+	let duplicate = match seen {
+		Some(seen) => !seen.insert(key.clone()),
+		None => attrs.iter().any(|(name, _)| *name == key),
+	};
+	if duplicate {
+		return Err(ErrorKind::DuplicateAttrsKey {
+			key: key.to_string(),
+		});
 	}
+	if let Some(span) = span {
+		pos.push((key.clone(), span));
+	}
+	attrs.push((key, value));
+	Ok(())
 }
 
 /// Internal helper type to track the iteration status of an iterator
@@ -758,9 +827,7 @@ pub enum KeyValue<'a> {
 		at: IterKV,
 	},
 
-	Map(hash_map::Iter<'a, NixString, Value>),
-
-	Sorted(std::vec::IntoIter<(&'a NixString, &'a Value)>),
+	Map(std::slice::Iter<'a, (NixString, Value)>),
 }
 
 /// Iterator over a Nix attribute set.
@@ -772,9 +839,14 @@ pub struct Iter<T>(T);
 impl<'a> Iterator for Iter<KeyValue<'a>> {
 	type Item = (&'a NixString, &'a Value);
 
+	fn size_hint(&self) -> (usize, Option<usize>) {
+		let len = self.len();
+		(len, Some(len))
+	}
+
 	fn next(&mut self) -> Option<Self::Item> {
 		match &mut self.0 {
-			KeyValue::Map(inner) => inner.next(),
+			KeyValue::Map(inner) => inner.next().map(|(key, value)| (key, value)),
 			KeyValue::Empty => None,
 			KeyValue::KV { name, value, at } => match at {
 				IterKV::Name => {
@@ -789,7 +861,6 @@ impl<'a> Iterator for Iter<KeyValue<'a>> {
 
 				IterKV::Done => None,
 			},
-			KeyValue::Sorted(inner) => inner.next(),
 		}
 	}
 }
@@ -798,9 +869,12 @@ impl ExactSizeIterator for Iter<KeyValue<'_>> {
 	fn len(&self) -> usize {
 		match &self.0 {
 			KeyValue::Empty => 0,
-			KeyValue::KV { .. } => 2,
+			KeyValue::KV { at, .. } => match at {
+				IterKV::Name => 2,
+				IterKV::Value => 1,
+				IterKV::Done => 0,
+			},
 			KeyValue::Map(inner) => inner.len(),
-			KeyValue::Sorted(inner) => inner.len(),
 		}
 	}
 }
@@ -808,14 +882,18 @@ impl ExactSizeIterator for Iter<KeyValue<'_>> {
 enum KeysInner<'a> {
 	Empty,
 	KV(IterKV),
-	Map(hash_map::Keys<'a, NixString, Value>),
-	Sorted(std::vec::IntoIter<&'a NixString>),
+	Map(std::slice::Iter<'a, (NixString, Value)>),
 }
 
 pub struct Keys<'a>(KeysInner<'a>);
 
 impl<'a> Iterator for Keys<'a> {
 	type Item = &'a NixString;
+
+	fn size_hint(&self) -> (usize, Option<usize>) {
+		let len = self.len();
+		(len, Some(len))
+	}
 
 	fn next(&mut self) -> Option<Self::Item> {
 		match &mut self.0 {
@@ -829,8 +907,7 @@ impl<'a> Iterator for Keys<'a> {
 				Some(&VALUE)
 			}
 			KeysInner::KV(IterKV::Done) => None,
-			KeysInner::Map(m) => m.next(),
-			KeysInner::Sorted(v) => v.next(),
+			KeysInner::Map(m) => m.next().map(|(key, _)| key),
 		}
 	}
 }
@@ -849,9 +926,12 @@ impl ExactSizeIterator for Keys<'_> {
 	fn len(&self) -> usize {
 		match &self.0 {
 			KeysInner::Empty => 0,
-			KeysInner::KV(_) => 2,
+			KeysInner::KV(at) => match at {
+				IterKV::Name => 2,
+				IterKV::Value => 1,
+				IterKV::Done => 0,
+			},
 			KeysInner::Map(m) => m.len(),
-			KeysInner::Sorted(v) => v.len(),
 		}
 	}
 }
@@ -860,7 +940,6 @@ impl ExactSizeIterator for Keys<'_> {
 pub enum IntoIterRepr {
 	Empty,
 	Finite(std::vec::IntoIter<(NixString, Value)>),
-	Map(hash_map::IntoIter<NixString, Value>),
 }
 
 /// Wrapper type which hides the internal implementation details from
@@ -871,11 +950,15 @@ pub struct OwnedAttrsIterator(IntoIterRepr);
 impl Iterator for OwnedAttrsIterator {
 	type Item = (NixString, Value);
 
+	fn size_hint(&self) -> (usize, Option<usize>) {
+		let len = self.len();
+		(len, Some(len))
+	}
+
 	fn next(&mut self) -> Option<Self::Item> {
 		match &mut self.0 {
 			IntoIterRepr::Empty => None,
 			IntoIterRepr::Finite(inner) => inner.next(),
-			IntoIterRepr::Map(m) => m.next(),
 		}
 	}
 }
@@ -885,7 +968,6 @@ impl ExactSizeIterator for OwnedAttrsIterator {
 		match &self.0 {
 			IntoIterRepr::Empty => 0,
 			IntoIterRepr::Finite(inner) => inner.len(),
-			IntoIterRepr::Map(inner) => inner.len(),
 		}
 	}
 }
@@ -895,8 +977,6 @@ impl DoubleEndedIterator for OwnedAttrsIterator {
 		match &mut self.0 {
 			IntoIterRepr::Empty => None,
 			IntoIterRepr::Finite(inner) => inner.next_back(),
-			// hashmaps have arbitary iteration order, so reversing it would not make a difference
-			IntoIterRepr::Map(inner) => inner.next(),
 		}
 	}
 }
