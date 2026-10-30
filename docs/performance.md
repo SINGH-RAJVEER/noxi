@@ -211,6 +211,16 @@ The selected START, DB, GC, BUILD, RPC, PROFILE, FETCH, PLAN, NAR-01..04 and CAC
 
 The final NixOS path gate passes in 106.4 s. The Nixpkgs path gate passes in 22.4 s after resolving the same pinned input through the Git-filtered worktree. The original `just nixpkgs-paths` input lookup traversed generated `target/debug` files and was stopped when the filesystem filled; the fallback runs the identical `matches_reference_nixpkgs_paths` test with the Git-resolved `NIXRS_NIXPKGS`. No reference expectations were changed. After measurements, 53 byte-identical raw benchmark outputs were hard-linked, preserving every artifact path and byte while freeing 1.66 GiB.
 
+## Consolidated evaluator comparison, 2026-11-01
+
+Three matched samples compared the consolidated release binary with the `59b7dd58` evaluator baseline and pinned CppNix 2.35.2 on EVAL-08, `hello.drvPath`, a six-path Nixpkgs projection, and a package-name projection. Exit status, standard output, and standard error matched across engines for every completed invocation; the JSON outputs parsed successfully. The EVAL-08 output digest was `f4e14079455b2d17`.
+
+Median EVAL-08 user-space instructions were 133,898,214,382 for the baseline, 133,938,062,287 for the consolidated binary, and 41,150,156,443 for CppNix. Median peak RSS was 2,884,216 KiB, 2,884,392 KiB, and 1,018,352 KiB respectively. On the other three workloads, the consolidated binary's median instruction counts were within 0.3% of the baseline. These measurements check the integration against its baseline; they do not establish that nix-rs is faster or uses less memory than CppNix.
+
+The raw counters, outputs, binary hashes, and host-pressure records are retained in `target/consolidation-evidence/2026-11-01-measure` and `target/consolidation-evidence/2026-11-01-quiet.jsonl`. Earlier attempts were aborted when memory pressure exceeded the guard and are not included in these samples.
+
+The separate combined evaluator experiment used a median 2,868,971,683 instructions for `hello` against 2,665,228,607 for the consolidated binary over three completed samples, an increase of 7.6%. Its wider comparison stopped when memory pressure exceeded the guard, so it remains unqualified and is not included in the consolidated binary. Its partial counters and pressure record are retained under `target/consolidation-evidence/2026-11-01-experiment` and `target/consolidation-evidence/2026-11-01-experiment-quiet.jsonl`.
+
 ## What should become faster
 
 Measure time until an installed package actually runs, a development shell executes its first command, development services pass readiness checks, and a system generation completes activation. Download completion, derivation evaluation, and a CLI returning early are intermediate milestones.
