@@ -980,16 +980,6 @@ impl EvalIO for StoreIO {
 	}
 
 	fn import_path(&self, path: &Path) -> io::Result<PathBuf> {
-		if self.store.real_store_dir.is_some()
-			&& let Ok((store_path, _)) = StorePath::from_absolute_path_full(path)
-		{
-			if let Some(store) = &self.store.store {
-				if !store.is_valid_path(&store_path).map_err(io::Error::other)? {
-					return Err(io::Error::other("cannot import an invalid store path"));
-				}
-			}
-			return Ok(path.to_owned());
-		}
 		let name = import_name(path)?;
 		if let Some(Corepkg::File(contents)) = corepkg(path) {
 			if let Some(store) = &self.store.store {
