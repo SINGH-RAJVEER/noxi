@@ -124,7 +124,7 @@ def evaluation(case: str, size: int) -> tuple[str, object]:
 
 
 class CacheServer:
-	def __init__(self, directory: Path):
+	def __init__(self, directory: Path, protocol: str = "HTTP/1.1"):
 		self.lock = threading.Lock()
 		self.requests = []
 		self.body_bytes = 0
@@ -132,7 +132,7 @@ class CacheServer:
 		self.fault: str | None = None
 		owner = self
 		class Handler(http.server.SimpleHTTPRequestHandler):
-			protocol_version = "HTTP/1.1"
+			protocol_version = protocol
 			def copyfile(self, source, output):
 				while data := source.read(65536):
 					output.write(data)
@@ -202,9 +202,11 @@ ADAPTERS = {
 
 
 class Fixtures:
-	def __init__(self, root: Path, reference: Path, busybox: Path | None, size: int, seed: int, timeout: float, case: str):
+	def __init__(self, root: Path, reference: Path, busybox: Path | None, size: int, seed: int, timeout: float, case: str,
+			http_protocol: str = "HTTP/1.1"):
 		self.root, self.reference, self.size, self.seed, self.timeout = root, reference, size, seed, timeout
 		self.case = case
+		self.http_protocol = http_protocol
 		self.busybox = busybox.resolve() if busybox else None
 		self.home = root / "fixture-home"
 		self.env = environment(self.home)
@@ -302,9 +304,9 @@ class Fixtures:
 		cache = self.root / "cache"
 		self.ref("nix", ["copy", "--store", self.store_uri(self.seed_store), "--to", f"file://{cache}?compression={compression}&secret-key={secret_path}", self.paths[-1]])
 		secret_path.unlink()
-		self.cache_server = CacheServer(cache)
+		self.cache_server = CacheServer(cache, self.http_protocol)
 		self.metadata["cache"] = {"compression": compression, "public_key": self.public_key,
-			"fixture_server": "Python ThreadingHTTPServer HTTP/1.1 on loopback", "server_resources": "not included in client cgroup", "seed_paths": self.paths}
+			"fixture_server": f"Python ThreadingHTTPServer {self.http_protocol} on loopback", "server_resources": "not included in client cgroup", "seed_paths": self.paths}
 
 	def clone(self, target: Path):
 		self.ensure_store()

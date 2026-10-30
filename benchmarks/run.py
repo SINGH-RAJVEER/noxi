@@ -79,7 +79,7 @@ def normalize(data: bytes, state: Path, fixture: Fixtures) -> bytes:
 	return data.replace(str(state).encode(), b"STATE").replace(str(fixture.root).encode(), b"FIXTURE")
 
 
-def verify(result: dict, operation: Operation, fixture: Fixtures, state: Path, version: str) -> dict:
+def verify(result: dict, operation: Operation, fixture: Fixtures, state: Path, version: str, exact_output: bool = False) -> dict:
 	stdout = Path(result["stdout_path"]).read_bytes()
 	stderr = Path(result["stderr_path"]).read_bytes()
 	actual = {"stdout": normalize(stdout, state, fixture).hex(), "stderr": normalize(stderr, state, fixture).hex(),
@@ -154,6 +154,10 @@ def verify(result: dict, operation: Operation, fixture: Fixtures, state: Path, v
 			actual = {"target": operation.expected["target"], "exit_code": result["exit_code"]}
 	except (ValueError, OSError, RuntimeError, sqlite3.Error, subprocess.SubprocessError) as error:
 		return {"status": "mismatch", "reason": str(error), "actual": actual}
+	if exact_output:
+		# Preserve raw bytes even when an artifact/JSON oracle discards diagnostics
+		# or accepts multiple serializations. Do not normalize physical paths here.
+		actual["exact_output"] = {"stdout": stdout.hex(), "stderr": stderr.hex(), "exit_code": result["exit_code"]}
 	return {"status": "passed", "oracle": operation.oracle, "actual": actual,
 		"digest": hashlib.sha256(json.dumps(actual, sort_keys=True).encode()).hexdigest()}
 
@@ -229,7 +233,8 @@ def variants(case: str) -> list[str]:
 
 def execute_case(args, case: str, variant: str, engines: dict, artifacts: dict, launcher: Path,
 		work: Path, output: Path, samples_stream) -> tuple[dict, list[dict]]:
-	fixture = Fixtures(work / f"{case}-{variant}", engines["reference"], args.busybox, args.size, args.seed, args.timeout, case)
+	fixture = Fixtures(work / f"{case}-{variant}", engines["reference"], args.busybox, args.size, args.seed, args.timeout, case,
+		http_protocol=args.http_protocol)
 	fixture.server_bins = {"cppnix-server": engines["reference"], "nixrs-server": engines["candidate"]}
 	coverage = {"case_id": case, "variant_id": variant, "status": "running", "adapter_scope": "offline subset; selected size, cold CLI, uncontrolled OS page cache"}
 	records = []
@@ -246,6 +251,8 @@ def execute_case(args, case: str, variant: str, engines: dict, artifacts: dict, 
 					operation = None
 					try:
 						operation = fixture.prepare(case, state, engines[role], launcher, variant)
+						if args.exact_output:
+							operation.args.insert(0, "--quiet")
 						path = absolute_program(engines[role] / operation.program)
 						if not path.is_file():
 							raise FileNotFoundError(f"{role} is missing {operation.program}")
@@ -261,7 +268,7 @@ def execute_case(args, case: str, variant: str, engines: dict, artifacts: dict, 
 						if fixture.cache_server:
 							result["counters"] = fixture.cache_server.counters()
 						result["correctness"] = verify(result, operation, fixture, state,
-							artifacts[role]["executables"][operation.program]["version_stdout"])
+							artifacts[role]["executables"][operation.program]["version_stdout"], exact_output=args.exact_output)
 						if result["correctness"]["status"] == "passed":
 							if expected is None:
 								expected = result["correctness"]["actual"]
@@ -314,6 +321,10 @@ def parser() -> argparse.ArgumentParser:
 	result.add_argument("--size", type=int, default=32, help="scale point; large-tree cases interpret this as MiB")
 	result.add_argument("--seed", type=int, default=1729)
 	result.add_argument("--timeout", type=float, default=60)
+	result.add_argument("--http-protocol", choices=["HTTP/1.0", "HTTP/1.1"], default="HTTP/1.1",
+		help="loopback cache response protocol; HTTP/1.0 closes without an explicit Connection header")
+	result.add_argument("--exact-output", action="store_true",
+		help="add --quiet and compare raw stdout, stderr and exit status in addition to the artifact oracle")
 	result.add_argument("--output", type=Path)
 	result.add_argument("--list", action="store_true")
 	result.add_argument("--record-source", type=Path, help="write source identity beside a preserved baseline artifact")

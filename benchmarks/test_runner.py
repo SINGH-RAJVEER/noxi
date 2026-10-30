@@ -1,5 +1,6 @@
 """Validity and process-lifecycle checks for the differential timing runner."""
 
+import http.client
 import json
 import os
 import sqlite3
@@ -9,7 +10,7 @@ import tempfile
 import time
 import unittest
 
-from fixtures import QUALIFICATION_DRVS, Operation, environment, make_tree, remove_tree, tree_digest
+from fixtures import CacheServer, QUALIFICATION_DRVS, Operation, environment, make_tree, remove_tree, tree_digest
 from process import Cgroup, build_launcher, run_process
 from run import ROOT, paired_summary, verify
 
@@ -53,6 +54,43 @@ class OracleTests(unittest.TestCase):
 			result = self.result(root)
 			result["unexpected_survivors"] = True
 			self.assertEqual(verify(result, op, fixture, root, "")["status"], "invalid_sample")
+
+	def test_exact_output_retains_json_bytes_and_diagnostics(self):
+		with tempfile.TemporaryDirectory() as temp:
+			root = Path(temp)
+			fixture = type("Fixture", (), {"root": root})()
+			op = Operation("nix-instantiate", [], {}, root, "json", {"value": 42})
+			def check(stdout):
+				return verify(self.result(root, stdout), op, fixture, root, "", exact_output=True)["actual"]
+			self.assertNotEqual(check(b'{"value":42}'), check(b'{ "value": 42 }\n'))
+			# The failure oracle used to discard diagnostics entirely.
+			op = Operation("nix-store", [], {}, root, "failure", expected_exit=1, root=root, paths=[])
+			first = verify(self.result(root, b"", b"signature rejected", 1), op, fixture, root, "", exact_output=True)
+			second = verify(self.result(root, b"", b"signature rejected differently", 1), op, fixture, root, "", exact_output=True)
+			self.assertEqual(first["status"], "passed")
+			self.assertEqual(second["status"], "passed")
+			self.assertNotEqual(first["actual"], second["actual"])
+
+	def test_cache_server_protocol_controls_connection_lifetime(self):
+		with tempfile.TemporaryDirectory() as temp:
+			root = Path(temp)
+			(root / "body").write_bytes(b"archive bytes")
+			for protocol, version, closes in [("HTTP/1.0", 10, True), ("HTTP/1.1", 11, False)]:
+				with self.subTest(protocol=protocol):
+					server = CacheServer(root, protocol)
+					connection = http.client.HTTPConnection("127.0.0.1", server.server.server_port, timeout=2)
+					try:
+						for _ in range(2):
+							connection.request("GET", "/body")
+							response = connection.getresponse()
+							self.assertEqual(response.version, version)
+							self.assertEqual(response.will_close, closes)
+							self.assertIsNone(response.getheader("Connection"))
+							self.assertEqual(response.read(), b"archive bytes")
+						self.assertEqual(server.counters()["request_paths"], ["/body", "/body"])
+					finally:
+						connection.close()
+						server.close()
 
 	def test_summary_requires_both_successful_sides(self):
 		rows = [{"pair_id": "a", "role": "reference", "elapsed_s": 2, "correctness": {"status": "passed"}},
