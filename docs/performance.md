@@ -138,6 +138,30 @@ The unlocked release probes reduce NAR-05 user instructions from 181,713,611 to 
 
 All 56 store/build/glue tests, 70 command tests, 20 store/substitution compatibility tests and affected doctests pass. One command test produced a harness leak warning during the full run and passed cleanly on its own. All 792 language differential evaluations match the preserved orchestrator tip. Six fresh 32 MiB substitutions on each of HTTP/1.0 and HTTP/1.1 pass at this release, each with one narinfo GET and one NAR GET. The HTTP/1.0 fix remains in the earlier cache-metadata commit; no TCP delayed-ACK changes are included here.
 
+### Branch-tip comparison, 2026-10-30
+
+The code at `70d32c3` passes all 36 selected benchmark variants in `target/benchmarks/store-branch-tip`. The preserved binaries and matching source identity are in `target/store-perf/tip-release`. Measurements run unlocked under the revised brief. These five-pair shared-host results are exploratory; the orchestrator's quiet-host run remains the wall-clock qualification. Times below are medians; the ratio is the paired geometric mean of CppNix time divided by candidate time, so it can differ from the ratio of the two medians.
+
+| Case | Before ms | Tip ms | CppNix ms | CppNix / tip | 95% interval |
+| --- | ---: | ---: | ---: | ---: | --- |
+| CACHE-01 | 618.8 | 135.1 | 171.8 | 1.212x | 1.054 to 1.394 |
+| CACHE-02 | 4082.4 | 220.4 | 1742.0 | 8.062x | 7.521 to 8.986 |
+| CACHE-03 | 8455.9 | 4078.6 | 5655.6 | 1.280x | 0.734 to 1.905 |
+| CACHE-06 | 4116.8 | 1478.9 | 2754.1 | 1.953x | 1.792 to 2.201 |
+| CACHE-08/br | 761.0 | 140.4 | 164.8 | 1.090x | 0.958 to 1.243 |
+| CACHE-08/bzip2 | 1919.4 | 2158.0 | 2333.4 | 1.085x | 0.868 to 1.326 |
+| CACHE-08/gzip | 3138.7 | 2545.9 | 3107.3 | 1.036x | 0.365 to 2.355 |
+| CACHE-08/none | 478.9 | 154.6 | 185.0 | 1.430x | 1.010 to 2.440 |
+| CACHE-08/xz | 720.1 | 345.7 | 250.9 | 0.732x | 0.514 to 1.142 |
+| CACHE-08/zstd | 860.0 | 258.9 | 264.9 | 2.107x | 0.990 to 4.611 |
+| CACHE-10/file | 16.4 | 17.1 | 36.6 | 2.196x | 2.139 to 2.258 |
+| CACHE-10/http | 4095.8 | 1208.2 | 1639.8 | 1.368x | 1.336 to 1.405 |
+| NAR-05 | 151.6 | 84.9 | 86.9 | 1.181x | 1.051 to 1.310 |
+
+The selected START, DB, GC, BUILD, RPC, PROFILE, FETCH, PLAN, NAR-01..04 and CACHE-10/file cases retain point estimates above CppNix in this run. NAR-03 user instructions remain effectively unchanged, 5,566,257 before versus 5,572,230 after. XZ remains below parity in the point estimate, with a wide interval spanning parity. Its flat profile assigns 63.0% of user cycles to the XZ reader and 31.9% to SHA-256; the decoder's byte-at-a-time CRC64 loop is the next CPU target. Streaming decompression already feeds restore directly. TCP delayed-ACK work belongs to the daemon/build workstream and is not included in this branch.
+
+The final NixOS path gate passes in 106.4 s. The Nixpkgs path gate passes in 22.4 s after resolving the same pinned input through the Git-filtered worktree. The original `just nixpkgs-paths` input lookup traversed generated `target/debug` files and was stopped when the filesystem filled; the fallback runs the identical `matches_reference_nixpkgs_paths` test with the Git-resolved `NIXRS_NIXPKGS`. No reference expectations were changed. After measurements, 53 byte-identical raw benchmark outputs were hard-linked, preserving every artifact path and byte while freeing 1.66 GiB.
+
 ## What should become faster
 
 Measure time until an installed package actually runs, a development shell executes its first command, development services pass readiness checks, and a system generation completes activation. Download completion, derivation evaluation, and a CLI returning early are intermediate milestones.
