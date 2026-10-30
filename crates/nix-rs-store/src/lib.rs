@@ -21,6 +21,7 @@ pub mod nar;
 pub mod optimise;
 pub mod path_info;
 pub mod profiles;
+mod quick_ack;
 
 pub use api::{DerivedPath, Missing, Store};
 pub use config::LocalStoreConfig;
