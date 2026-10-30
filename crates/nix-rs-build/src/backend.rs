@@ -230,6 +230,17 @@ impl Store for LocalBackend {
 		)
 	}
 
+	fn add_to_store_from_capture(
+		&self,
+		source: nix_rs_store::CapturedSource,
+		name: &str,
+		method: FileIngestionMethod,
+		references: &BTreeSet<StorePath>,
+	) -> Result<StorePath> {
+		self.store
+			.add_to_store_from_capture(source, name, method, references)
+	}
+
 	fn add_temp_root(&self, path: &StorePath) -> Result<()> {
 		self.store.add_temp_root(path)
 	}

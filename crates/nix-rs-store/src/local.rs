@@ -727,10 +727,66 @@ impl LocalStore {
 		references: &BTreeSet<StorePath>,
 		repair: bool,
 	) -> Result<StorePath> {
+		self.import_dump(
+			source,
+			name,
+			dump_method,
+			hash_method,
+			hash_algo,
+			references,
+			repair,
+			None,
+		)
+	}
+
+	/// Import an immutable capture without hashing its bytes again. The archive
+	/// parser still validates the complete NAR before registration.
+	pub fn add_to_store_from_capture(
+		&self,
+		mut source: crate::CapturedSource,
+		name: &str,
+		method: FileIngestionMethod,
+		references: &BTreeSet<StorePath>,
+	) -> Result<StorePath> {
+		let hash = source.hash_and_size();
+		self.import_dump(
+			source.reader()?,
+			name,
+			method,
+			method,
+			HashAlgo::Sha256,
+			references,
+			false,
+			Some(hash),
+		)
+	}
+
+	#[allow(clippy::too_many_arguments)]
+	fn import_dump(
+		&self,
+		source: &mut (dyn Read + Send),
+		name: &str,
+		dump_method: FileIngestionMethod,
+		hash_method: FileIngestionMethod,
+		hash_algo: HashAlgo,
+		references: &BTreeSet<StorePath>,
+		repair: bool,
+		captured: Option<([u8; 32], u64)>,
+	) -> Result<StorePath> {
 		let (temp_dir, _temp_lock) = self.create_temp_dir_in_store()?;
 		let _cleanup = RemoveOnDrop(temp_dir.clone());
 		let temp_path = temp_dir.join("x");
 		let captured_nar = match dump_method {
+			FileIngestionMethod::NixArchive if captured.is_some() => {
+				let mut reader = io::BufReader::new(source).take(u64::MAX);
+				nar::restore_path(&temp_path, &mut reader)?;
+				let consumed = u64::MAX - reader.limit();
+				match captured {
+					Some((hash, size)) if size == consumed => Some((hash, size)),
+					// Bytes after the archive are not part of its content address.
+					_ => Some(nar::hash_path(&temp_path)?),
+				}
+			}
 			FileIngestionMethod::NixArchive => {
 				let mut reader = HashingReader::new(io::BufReader::new(source));
 				nar::restore_path(&temp_path, &mut reader)?;
@@ -1547,6 +1603,53 @@ fn make_store_writable(real_store_dir: &Path) -> Result<()> {
 #[cfg(test)]
 mod import_tests {
 	use super::*;
+	use crate::SourceCapture;
+
+	#[test]
+	fn captured_archive_import_preserves_validation_and_ignores_trailing_bytes() {
+		let dir = tempfile::tempdir().unwrap();
+		let source = dir.path().join("source");
+		fs::write(&source, vec![b'x'; 65536]).unwrap();
+		let mut archive = Vec::new();
+		nar::dump_path(&mut archive, &source).unwrap();
+		let expected = nar::hash_path(&source).unwrap();
+		let store =
+			LocalStore::open(LocalStoreConfig::with_root(&dir.path().join("store-root"))).unwrap();
+		for memory_limit in [0, 8 * 1024 * 1024] {
+			for trailing in [false, true] {
+				let mut capture = SourceCapture::new(memory_limit);
+				capture.write_all(&archive).unwrap();
+				if trailing {
+					capture.write_all(b"not part of the NAR").unwrap();
+				}
+				let captured = capture.finish().unwrap();
+				assert_eq!(captured.is_rolled(), memory_limit == 0);
+				let path = store
+					.add_to_store_from_capture(
+						captured,
+						"source",
+						FileIngestionMethod::NixArchive,
+						&BTreeSet::new(),
+					)
+					.unwrap();
+				let info = store.query_path_info(&path).unwrap().unwrap();
+				assert_eq!((info.nar_hash, info.nar_size), expected);
+				assert_eq!(info.ca, Some(CAHash::Nar(NixHash::Sha256(expected.0))));
+			}
+		}
+		let mut capture = SourceCapture::new(0);
+		capture.write_all(&archive[..archive.len() - 1]).unwrap();
+		assert!(
+			store
+				.add_to_store_from_capture(
+					capture.finish().unwrap(),
+					"truncated",
+					FileIngestionMethod::NixArchive,
+					&BTreeSet::new(),
+				)
+				.is_err()
+		);
+	}
 
 	#[test]
 	fn archive_import_hashes_one_nar_and_preserves_other_hash_algorithms() {

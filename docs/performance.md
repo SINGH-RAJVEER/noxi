@@ -128,6 +128,16 @@ NAR import now hashes the validated archive while restoring it, then reuses its 
 
 An additional experiment processed incoming rewrite buffers directly instead of copying each chunk into the pending buffer. CACHE-01 instructions changed from 206,213,656 to 206,018,157, only 0.1%, with no clear memory benefit. It was rejected under the 2% instruction gate. The retained substring-search implementation still buffers chunks; its much larger search improvement is independent of this experiment.
 
+### Immutable import captures, 2026-10-30
+
+The local import path now carries the source capture's SHA-256 into registration instead of hashing the same snapshot again during restore. Capture owns its bytes privately and exposes no mutation after hashing. The NAR parser still validates the archive, and the digest is reused only when its consumed length matches the capture; trailing bytes use the restored tree's digest. Ordinary reader imports and remote imports retain their independent verification. The CLI's `LocalBackend` forwards the capture explicitly; the initial experiment omitted that forwarding and saved no instructions on the actual CLI, so it was corrected before retention.
+
+The existing 8 MiB limit is a spill threshold. Small captures stay in memory; the 32 MiB NAR-05 fixture spills to a private temporary file. Source replacement after capture and rejection of a wrong expected hash retain their previous behavior.
+
+The unlocked release probes reduce NAR-05 user instructions from 181,713,611 to 95,280,270, a 47.6% reduction on top of the restore-hash change. Peak RSS is essentially unchanged, 38,932 versus 38,720 KiB; the matched CppNix probe uses 128,180 KiB. In `target/benchmarks/store-capture-gate`, five paired samples give preserved-baseline, candidate and CppNix medians of 130.9, 82.3 and 108.0 ms, respectively, with a paired 1.31x ratio against CppNix. These shared-host timings are exploratory.
+
+All 56 store/build/glue tests, 70 command tests, 20 store/substitution compatibility tests and affected doctests pass. One command test produced a harness leak warning during the full run and passed cleanly on its own. All 792 language differential evaluations match the preserved orchestrator tip. Six fresh 32 MiB substitutions on each of HTTP/1.0 and HTTP/1.1 pass at this release, each with one narinfo GET and one NAR GET. The HTTP/1.0 fix remains in the earlier cache-metadata commit; no TCP delayed-ACK changes are included here.
+
 ## What should become faster
 
 Measure time until an installed package actually runs, a development shell executes its first command, development services pass readiness checks, and a system generation completes activation. Download completion, derivation evaluation, and a CLI returning early are intermediate milestones.
