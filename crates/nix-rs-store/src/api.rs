@@ -3,10 +3,11 @@
 //! `Store`, `LocalFSStore` and `GcStore` interfaces provide these.
 
 use std::collections::{BTreeMap, BTreeSet};
-use std::io::Read;
+use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
 
 use nix_compat::derivation::UnverifiedDerivation;
+use nix_compat::log::VerbosityLevel;
 use nix_compat::nixhash::HashAlgo;
 use nix_compat::store_path::StorePath;
 
@@ -127,6 +128,44 @@ pub trait Store {
 		))
 	}
 
+	/// Check the store's paths and metadata through their owner,
+	/// `Store::verifyStore`. Whether errors remain.
+	fn verify_store(
+		&self,
+		_check_contents: bool,
+		_repair: bool,
+		_log: &mut dyn FnMut(VerbosityLevel, &str),
+	) -> Result<bool> {
+		Err(Error::Other(
+			"store does not support verification".to_owned(),
+		))
+	}
+
+	/// The paths of `paths` that are valid, `Store::queryValidPaths`.
+	fn query_valid_paths(&self, paths: &BTreeSet<StorePath>) -> Result<BTreeSet<StorePath>> {
+		let mut valid = BTreeSet::new();
+		for path in paths {
+			if self.is_valid_path(path)? {
+				valid.insert(path.clone());
+			}
+		}
+		Ok(valid)
+	}
+
+	/// Import `paths` in order, `Store::addMultipleToStore`. `nar` writes
+	/// each path's NAR.
+	fn add_multiple_to_store(
+		&self,
+		_paths: &[ValidPathInfo],
+		_nar: &mut dyn FnMut(&StorePath, &mut dyn Write) -> Result<()>,
+		_repair: bool,
+		_check_sigs: bool,
+	) -> Result<()> {
+		Err(Error::Other(
+			"store does not support importing paths".to_owned(),
+		))
+	}
+
 	/// Realise the paths, building or substituting as needed.
 	fn build_paths(&self, paths: &[DerivedPath]) -> Result<()>;
 
@@ -162,6 +201,24 @@ pub trait Store {
 /// A local store without a builder only realises paths that are already
 /// valid.
 impl Store for LocalStore {
+	fn verify_store(
+		&self,
+		check_contents: bool,
+		repair: bool,
+		log: &mut dyn FnMut(VerbosityLevel, &str),
+	) -> Result<bool> {
+		if repair {
+			return Err(Error::Other(
+				"nix-rs does not support repairing paths yet".to_owned(),
+			));
+		}
+		LocalStore::verify_store(self, check_contents, log)
+	}
+
+	fn query_valid_paths(&self, paths: &BTreeSet<StorePath>) -> Result<BTreeSet<StorePath>> {
+		LocalStore::query_valid_paths(self, paths)
+	}
+
 	fn optimise_store(&self, log: &mut dyn FnMut(&str)) -> Result<()> {
 		let stats = self.optimise()?;
 		log(&format!(

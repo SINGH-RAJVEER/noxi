@@ -1,4 +1,4 @@
-//! Local `nix-store` queries, realization, verification and maintenance.
+//! Local `nix-store` queries, realization and maintenance.
 
 use std::collections::BTreeSet;
 use std::io::Write;
@@ -20,7 +20,6 @@ pub struct Options {
 	pub operation: String,
 	pub query: String,
 	pub paths: Vec<String>,
-	pub check_contents: bool,
 	pub settings: Settings,
 }
 
@@ -32,7 +31,6 @@ pub fn parse_args(
 	let mut operation = String::new();
 	let mut query = String::new();
 	let mut paths = Vec::new();
-	let mut check_contents = false;
 	let mut args = crate::cli::ArgStream::new(args);
 	while let Some(arg) = args.next_arg() {
 		if let Some(result) = crate::cli::apply_common_flag(&arg, &mut args, &mut settings) {
@@ -61,9 +59,7 @@ pub fn parse_args(
 			"--gc" => operation = "gc".into(),
 			"--delete" => operation = "delete".into(),
 			"--dump" => operation = "dump".into(),
-			"--verify" => operation = "verify".into(),
 			"--optimise" => operation = "optimise".into(),
-			"--check-contents" => check_contents = true,
 			"--hash" | "--size" | "--references" | "--referrers" | "--deriver" | "--outputs"
 			| "--requisites" | "-R" | "--print-live" | "--print-dead" | "--print-roots" => query = arg,
 			"--" => paths.extend(args.by_ref()),
@@ -82,7 +78,6 @@ pub fn parse_args(
 		operation,
 		query,
 		paths,
-		check_contents,
 		settings,
 	})
 }
@@ -213,18 +208,6 @@ fn execute(
 				nix_rs_store::gc::render_size(stats.bytes_freed as i64, false),
 				stats.files_linked
 			)?;
-		}
-		"verify" => {
-			let mut messages = Vec::new();
-			let errors = store.verify_store(options.check_contents, &mut |_, message| {
-				messages.push(message.to_owned())
-			})?;
-			for message in messages {
-				writeln!(stderr, "{message}")?;
-			}
-			if errors {
-				return Err("store verification failed".into());
-			}
 		}
 		"gc" | "delete" => {
 			if options.query == "--print-roots" {

@@ -13,6 +13,7 @@ use std::os::unix::net::UnixStream;
 use std::path::{Path, PathBuf};
 
 use nix_compat::derivation::UnverifiedDerivation;
+use nix_compat::log::VerbosityLevel;
 use nix_compat::nixhash::HashAlgo;
 use nix_compat::store_path::{STORE_DIR, StorePath};
 use nix_rs_store::gc::{GcAction, GcOptions, GcResults, Roots, replace_symlink};
@@ -351,6 +352,72 @@ impl DaemonStore {
 	}
 }
 
+/// `FramedSink`: data as length-prefixed frames, then an empty frame.
+struct FramedSink<'a> {
+	to: &'a mut Writer<UnixStream>,
+	buf: Vec<u8>,
+}
+
+impl<'a> FramedSink<'a> {
+	const FRAME: usize = 65536;
+
+	fn new(to: &'a mut Writer<UnixStream>) -> Self {
+		Self {
+			to,
+			buf: Vec::with_capacity(Self::FRAME),
+		}
+	}
+
+	fn send(&mut self) -> Result<()> {
+		if !self.buf.is_empty() {
+			self.to.u64(self.buf.len() as u64).raw(&self.buf);
+			self.to.flush()?;
+			self.buf.clear();
+		}
+		Ok(())
+	}
+
+	fn finish(mut self) -> Result<()> {
+		self.send()?;
+		self.to.u64(0);
+		self.to.flush()
+	}
+}
+
+impl Write for FramedSink<'_> {
+	fn write(&mut self, data: &[u8]) -> io::Result<usize> {
+		let n = data.len().min(Self::FRAME - self.buf.len());
+		self.buf.extend_from_slice(&data[..n]);
+		if self.buf.len() == Self::FRAME {
+			self.send().map_err(io::Error::other)?;
+		}
+		Ok(n)
+	}
+
+	fn flush(&mut self) -> io::Result<()> {
+		Ok(())
+	}
+}
+
+/// `WorkerProto::Serialise<UnkeyedValidPathInfo>::write`.
+fn write_path_info<W: Write>(to: &mut Writer<W>, info: &ValidPathInfo) {
+	let hash: String = info.nar_hash.iter().map(|b| format!("{b:02x}")).collect();
+	to.opt_store_path(info.deriver.as_ref())
+		.string(&hash)
+		.store_paths(info.references.iter())
+		.u64(info.registration_time as u64)
+		.u64(info.nar_size)
+		.bool(info.ultimate)
+		.strings(info.sigs.iter().map(String::as_str))
+		.string(
+			&info
+				.ca
+				.as_ref()
+				.map(|ca| ca.to_string())
+				.unwrap_or_default(),
+		);
+}
+
 fn io_message(e: &io::Error) -> String {
 	// `SysError` appends `strerror`, without Rust's error code suffix.
 	let text = e.to_string();
@@ -648,6 +715,69 @@ impl Store for DaemonStore {
 			conn.from.read_u64().map(drop)
 		})?;
 		Ok(gc_root.to_owned())
+	}
+
+	fn verify_store(
+		&self,
+		check_contents: bool,
+		repair: bool,
+		_log: &mut dyn FnMut(VerbosityLevel, &str),
+	) -> nix_rs_store::Result<bool> {
+		self.with_conn(|conn| {
+			conn.to
+				.u64(op::VERIFY_STORE)
+				.bool(check_contents)
+				.bool(repair);
+			conn.process_stderr()?;
+			conn.from.read_bool()
+		})
+	}
+
+	fn query_valid_paths(
+		&self,
+		paths: &BTreeSet<StorePath>,
+	) -> nix_rs_store::Result<BTreeSet<StorePath>> {
+		self.with_conn(|conn| {
+			conn.to.u64(op::QUERY_VALID_PATHS).store_paths(paths.iter());
+			if conn.version >= version(1, 27) {
+				conn.to.bool(false);
+			}
+			conn.process_stderr()?;
+			conn.from.read_store_paths()
+		})
+	}
+
+	fn add_multiple_to_store(
+		&self,
+		paths: &[ValidPathInfo],
+		nar: &mut dyn FnMut(&StorePath, &mut dyn Write) -> nix_rs_store::Result<()>,
+		repair: bool,
+		check_sigs: bool,
+	) -> nix_rs_store::Result<()> {
+		self.with_conn(|conn| {
+			if conn.version < version(1, 32) {
+				return Err(Error::Nix(
+					"the daemon is too old to add multiple paths".into(),
+				));
+			}
+			conn.to
+				.u64(op::ADD_MULTIPLE_TO_STORE)
+				.bool(repair)
+				.bool(!check_sigs);
+			conn.to.flush()?;
+			let mut sink = FramedSink::new(&mut conn.to);
+			let mut header = Writer::new(Vec::new());
+			header.u64(paths.len() as u64);
+			sink.write_all(&header.take())?;
+			for info in paths {
+				header.store_path(&info.path);
+				write_path_info(&mut header, info);
+				sink.write_all(&header.take())?;
+				nar(&info.path, &mut sink).map_err(Error::Store)?;
+			}
+			sink.finish()?;
+			conn.process_stderr()
+		})
 	}
 
 	fn build_paths(&self, paths: &[DerivedPath]) -> nix_rs_store::Result<()> {

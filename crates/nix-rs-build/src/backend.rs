@@ -152,6 +152,19 @@ fn order_builds(
 }
 
 impl Store for LocalBackend {
+	fn verify_store(
+		&self,
+		check_contents: bool,
+		repair: bool,
+		log: &mut dyn FnMut(nix_compat::log::VerbosityLevel, &str),
+	) -> Result<bool> {
+		Store::verify_store(&self.store, check_contents, repair, log)
+	}
+
+	fn query_valid_paths(&self, paths: &BTreeSet<StorePath>) -> Result<BTreeSet<StorePath>> {
+		Store::query_valid_paths(&self.store, paths)
+	}
+
 	fn optimise_store(&self, log: &mut dyn FnMut(&str)) -> Result<()> {
 		Store::optimise_store(&self.store, log)
 	}

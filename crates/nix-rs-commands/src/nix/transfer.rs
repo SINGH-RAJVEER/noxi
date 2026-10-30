@@ -1,4 +1,4 @@
-//! Copy operations provided by the existing signed local-cache API.
+//! Copies between stores, and to and from local binary caches.
 use super::{Parsed, expression, unsupported};
 use crate::cli::Failure;
 use nix_compat::narinfo::parse_keypair;
@@ -10,6 +10,12 @@ use std::process::ExitCode;
 
 pub fn copy(mut parsed: Parsed) -> Result<ExitCode, Failure> {
 	parsed.unsupported(&["out-link", "profile", "substitute-on-destination"])?;
+	let from = parsed.value("from").map(str::to_owned);
+	let to = parsed.value("to").map(str::to_owned);
+	let is_store = |uri: &Option<String>| uri.as_deref().is_none_or(|u| !u.starts_with("file://"));
+	if (from.is_some() || to.is_some()) && is_store(&from) && is_store(&to) {
+		return copy_between_stores(&parsed, from, to);
+	}
 	if let Some(uri) = parsed.value("from").map(str::to_owned) {
 		if !uri.starts_with("file://")
 			|| parsed.has("to")
@@ -147,6 +153,74 @@ pub fn copy(mut parsed: Parsed) -> Result<ExitCode, Failure> {
 		));
 		destination.upload_closure(&source, &path, &keys)?;
 	}
+	Ok(ExitCode::SUCCESS)
+}
+
+/// `copyPaths` from a local store into another store: the closure's
+/// paths the destination lacks, dependencies first, in one stream.
+fn copy_between_stores(
+	parsed: &Parsed,
+	from: Option<String>,
+	to: Option<String>,
+) -> Result<ExitCode, Failure> {
+	if parsed.has("expr") || parsed.has("file") {
+		return Err(unsupported("copy of expressions between stores"));
+	}
+	if parsed.operands.is_empty() {
+		return Err(unsupported("copy of implicit flake installables"));
+	}
+	let default = crate::store::store_uri(parsed.value("store"), &parsed.settings);
+	let source_uri = from.unwrap_or_else(|| default.clone());
+	let destination_uri = to.unwrap_or(default);
+	let (source, _) = crate::store::open_local(&source_uri, &parsed.settings)?
+		.ok_or_else(|| unsupported("copy from this store"))?;
+	let destination = crate::store::open(&destination_uri, &parsed.settings)?
+		.ok_or_else(|| unsupported("copy into this store"))?;
+	let roots = parsed
+		.operands
+		.iter()
+		.map(|path| {
+			nix_compat::store_path::StorePath::from_absolute_path(path.as_bytes())
+				.map_err(|_| unsupported("copy of installables other than store paths"))
+		})
+		.collect::<Result<BTreeSet<_>, _>>()?;
+	let closure = source.compute_closure(&roots)?;
+	for path in &closure {
+		source.add_temp_root(path)?;
+	}
+	let valid = destination.store.query_valid_paths(&closure)?;
+	let missing: BTreeSet<_> = closure.difference(&valid).cloned().collect();
+	if missing.is_empty() {
+		return Ok(ExitCode::SUCCESS);
+	}
+	log(&format!("copying {} paths...", missing.len()));
+	let mut infos = Vec::new();
+	for path in crate::paths::topo_sort(&source, &missing)?
+		.into_iter()
+		.rev()
+	{
+		infos.push(
+			source
+				.query_path_info(&path)?
+				.ok_or_else(|| nix_rs_store::Error::InvalidPath(path.to_absolute_path()))?,
+		);
+	}
+	let shown = destination_uri
+		.split('?')
+		.next()
+		.unwrap_or(&destination_uri);
+	destination.store.add_multiple_to_store(
+		&infos,
+		&mut |path, sink| {
+			log(&format!(
+				"copying path '{}' to '{shown}'...",
+				path.to_absolute_path()
+			));
+			source.nar_from_path(path, sink)
+		},
+		false,
+		!parsed.has("no-check-sigs"),
+	)?;
 	Ok(ExitCode::SUCCESS)
 }
 

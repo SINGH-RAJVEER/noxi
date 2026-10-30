@@ -35,6 +35,7 @@ enum Operation {
 	Gc,
 	Delete,
 	Optimise,
+	Verify,
 }
 
 /// State of one `nix-store` invocation.
@@ -53,7 +54,7 @@ pub fn main(mut settings: Settings, args: Vec<String>) -> Result<ExitCode, Failu
 	if args
 		.iter()
 		.take_while(|arg| arg.as_str() != "--")
-		.any(|arg| matches!(arg.as_str(), "--dump" | "--verify"))
+		.any(|arg| arg == "--dump")
 	{
 		let args = args.into_iter().map(|arg| {
 			if arg == "--optimize" {
@@ -97,6 +98,7 @@ pub fn main(mut settings: Settings, args: Vec<String>) -> Result<ExitCode, Failu
 			"--gc" => op = Some(Operation::Gc),
 			"--delete" => op = Some(Operation::Delete),
 			"--optimise" | "--optimize" => op = Some(Operation::Optimise),
+			"--verify" => op = Some(Operation::Verify),
 			"--add"
 			| "-A"
 			| "--add-fixed"
@@ -113,7 +115,6 @@ pub fn main(mut settings: Settings, args: Vec<String>) -> Result<ExitCode, Failu
 			| "--export"
 			| "--import"
 			| "--init"
-			| "--verify"
 			| "--verify-path"
 			| "--repair-path"
 			| "--serve"
@@ -195,6 +196,33 @@ pub fn main(mut settings: Settings, args: Vec<String>) -> Result<ExitCode, Failu
 					eprintln!("{message}");
 				}
 			})?;
+		}
+		Operation::Verify => {
+			if !op_args.is_empty() {
+				return Err(Failure::Usage("no arguments expected".into()));
+			}
+			let (mut check_contents, mut repair) = (false, false);
+			for flag in &op_flags {
+				match flag.as_str() {
+					"--check-contents" => check_contents = true,
+					"--repair" => repair = true,
+					_ => return Err(Failure::Usage(format!("unknown flag '{flag}'"))),
+				}
+			}
+			let errors =
+				command
+					.store
+					.verify_store(check_contents, repair, &mut |level, message| {
+						if nix_compat::log::log_enabled(level) {
+							eprintln!("{message}");
+						}
+					})?;
+			if errors {
+				if nix_compat::log::log_enabled(nix_compat::log::VerbosityLevel::Warn) {
+					eprintln!("warning: not all store errors were fixed");
+				}
+				return Ok(ExitCode::FAILURE);
+			}
 		}
 	}
 	Ok(ExitCode::SUCCESS)

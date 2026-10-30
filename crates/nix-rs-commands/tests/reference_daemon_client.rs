@@ -48,6 +48,7 @@ fn nix_rs_bin(program: &str) -> &'static str {
 		"nix-instantiate" => env!("CARGO_BIN_EXE_nix-instantiate"),
 		"nix-store" => env!("CARGO_BIN_EXE_nix-store"),
 		"nix-collect-garbage" => env!("CARGO_BIN_EXE_nix-collect-garbage"),
+		"nix" => env!("CARGO_BIN_EXE_nix"),
 		_ => unreachable!(),
 	}
 }
@@ -232,6 +233,7 @@ impl Env {
 			result = result.replace(&path, &target);
 		}
 		result
+			.replace(&self.socket(engine).display().to_string(), "SOCKET")
 			.replace(&self.root(engine).display().to_string(), "ROOT")
 			.replace(&work.display().to_string(), "WORK")
 			.replace(&executable.display().to_string(), program)
@@ -467,4 +469,73 @@ fn imports_and_realizes_through_both_daemons() {
 		assert!(actual.ends_with("exit Some(1)"), "{engine}: {actual}");
 		assert!(actual.contains("daemon-failed-ifd"));
 	}
+}
+
+#[test]
+fn verification_and_copies_work_through_both_daemons() {
+	use std::os::unix::fs::PermissionsExt;
+	let env = Env::new();
+	// A local store with two paths no daemon has, one referring to the other.
+	let source = env.dir.path().join("copy-source");
+	let source_uri = format!("local?root={}", source.display());
+	let output = env
+		.command(reference_bin().join("nix-instantiate"))
+		.args([
+			"--store",
+			&source_uri,
+			"--eval",
+			"--strict",
+			"--read-write-mode",
+		])
+		.args([
+			"--expr",
+			r#"builtins.toFile "copied" "${builtins.toFile "copied-dep" "x"}""#,
+		])
+		.output()
+		.unwrap();
+	assert!(output.status.success());
+	let copied = String::from_utf8(output.stdout).unwrap();
+	let copied = copied.trim().trim_matches('"').to_owned();
+	let cases: Vec<(&str, Vec<&str>)> = vec![
+		("nix-store", vec!["--verify"]),
+		("nix-store", vec!["--verify", "--check-contents"]),
+		("nix-store", vec!["--verify", "--quiet"]),
+		("nix-store", vec!["--verify", "unexpected"]),
+		("nix-store", vec!["--verify", "--unknown"]),
+		(
+			"nix",
+			vec!["copy", "--no-check-sigs", "--from", &source_uri, &copied],
+		),
+		(
+			"nix",
+			vec!["copy", "--no-check-sigs", "--from", &source_uri, &copied],
+		),
+		("nix-store", vec!["--query", "--requisites", &copied]),
+	];
+	let compare = |program: &str, args: &[&str]| {
+		let expected = env.run("reference", program, args);
+		for engine in ["nix-rs", "pair"] {
+			assert_eq!(
+				env.run(engine, program, args),
+				expected,
+				"{program} {args:?} through {engine}"
+			);
+		}
+	};
+	for (program, args) in &cases {
+		compare(program, args);
+	}
+	// Remove the copied dependency behind every daemon's back.
+	let dependency = fs::read_dir(source.join("nix/store"))
+		.unwrap()
+		.map(|entry| entry.unwrap().file_name().to_string_lossy().into_owned())
+		.find(|name| name.ends_with("-copied-dep"))
+		.unwrap();
+	for engine in ["reference", "nix-rs", "pair"] {
+		let store = env.root(engine).join("nix/store");
+		fs::set_permissions(&store, fs::Permissions::from_mode(0o755)).unwrap();
+		fs::remove_file(store.join(&dependency)).unwrap();
+	}
+	compare("nix-store", &["--verify"]);
+	compare("nix-store", &["--verify", "--check-contents"]);
 }
