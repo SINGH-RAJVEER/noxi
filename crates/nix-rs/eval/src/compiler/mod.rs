@@ -889,9 +889,10 @@ impl Compiler<'_, '_> {
 	/// in CppNix's `while evaluating the attribute 'PATH'` frame.
 	fn trace_select(&mut self, node: &ast::Select, path: &ast::Attrpath) {
 		let span = self.span_for(node);
-		self.context_mut().lambda.select_span = Some(span);
 		let text = crate::show_ast::show_attrpath(path, &self.root_dir);
-		self.context_mut().lambda.select_path = Some(text.into());
+		self.context_mut()
+			.lambda
+			.set_selection(text.into(), Some(span));
 	}
 
 	fn compile_select(&mut self, slot: LocalIdx, node: &ast::Select) {

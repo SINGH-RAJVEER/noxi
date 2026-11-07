@@ -81,6 +81,12 @@ pub enum VMRequest {
 	/// prepared on the stack. Value must already be forced.
 	Call(Value),
 
+	/// Call an evaluated function with one argument in a single request.
+	CallWith {
+		callable: Value,
+		argument: Value,
+	},
+
 	/// Request a bytecode frame entering the given lambda immediately. This can be
 	/// used to force thunks.
 	EnterLambda {
@@ -192,6 +198,7 @@ impl Display for VMRequest {
 			),
 			VMRequest::Builtin(name) => write!(f, "builtin({name})"),
 			VMRequest::Call(v) => write!(f, "call({v})"),
+			VMRequest::CallWith { callable, .. } => write!(f, "call_with({callable})"),
 			VMRequest::EnterLambda { lambda, .. } => {
 				write!(f, "enter_lambda({:p})", *lambda)
 			}
@@ -445,6 +452,13 @@ where
 						}
 
 						VMRequest::Call(callable) => {
+							self.reenqueue_generator(name, span, generator);
+							self.call_value(span, None, callable)?;
+							return Ok(false);
+						}
+
+						VMRequest::CallWith { callable, argument } => {
+							self.stack.push(argument);
 							self.reenqueue_generator(name, span, generator);
 							self.call_value(span, None, callable)?;
 							return Ok(false);
@@ -790,24 +804,28 @@ pub async fn request_call(co: &GenCo, val: Value) -> Value {
 }
 
 /// Helper function to call the given value with the provided list of arguments.
-/// This uses the StackPush and Call messages under the hood.
+/// Each curried application submits its argument and function together.
 pub async fn request_call_with<I>(co: &GenCo, mut callable: Value, args: I) -> Value
 where
 	I: IntoIterator<Item = Value>,
-	I::IntoIter: DoubleEndedIterator,
 {
 	let mut num_args = 0_usize;
-	for arg in args.into_iter().rev() {
+	for argument in args {
 		num_args += 1;
-		request_stack_push(co, arg).await;
+		let forced = request_force(co, callable).await;
+		callable = match co
+			.yield_(VMRequest::CallWith {
+				callable: forced,
+				argument,
+			})
+			.await
+		{
+			VMResponse::Value(value) => value,
+			msg => panic!("nix-rs bug: VM responded with incorrect generator message: {msg}"),
+		};
 	}
 
 	debug_assert!(num_args > 0, "call_with called with an empty list of args");
-
-	while num_args > 0 {
-		callable = request_call(co, callable).await;
-		num_args -= 1;
-	}
 
 	callable
 }

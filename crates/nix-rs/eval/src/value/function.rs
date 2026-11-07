@@ -79,17 +79,33 @@ pub struct Lambda {
 
 	/// For the thunk of an attribute selection, the selected path as CppNix
 	/// shows it in `while evaluating the attribute 'PATH'`.
-	pub(crate) select_path: Option<Rc<str>>,
-
-	/// Where that selection starts, CppNix's position for its errors.
-	pub(crate) select_span: Option<Span>,
+	/// Allocate its diagnostic data only for selection thunks.
+	selection: Option<Box<Selection>>,
 
 	/// For the blueprint of a suspended thunk, the span its creating
 	/// instruction records, fixed when it is compiled.
 	pub(crate) suspended_span: Option<Span>,
 }
 
+#[derive(Debug)]
+struct Selection {
+	path: Rc<str>,
+	span: Option<Span>,
+}
+
 impl Lambda {
+	pub(crate) fn set_selection(&mut self, path: Rc<str>, span: Option<Span>) {
+		self.selection = Some(Box::new(Selection { path, span }));
+	}
+
+	pub(crate) fn selection_path(&self) -> Option<&Rc<str>> {
+		self.selection.as_ref().map(|selection| &selection.path)
+	}
+
+	pub(crate) fn selection_span(&self) -> Option<Span> {
+		self.selection.as_ref().and_then(|selection| selection.span)
+	}
+
 	/// The parameter of a plain lambda; attribute-pattern lambdas return `None`.
 	pub fn parameter_name(&self) -> Option<&str> {
 		self.formals.is_none().then_some(self.param_name.as_str())
