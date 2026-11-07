@@ -1,11 +1,12 @@
 //! Store path listings shared by the legacy commands.
 
-use std::collections::{BTreeSet, HashSet};
+use std::collections::BTreeSet;
 use std::path::Path;
 
 use nix_compat::store_path::{STORE_DIR, StorePath};
 use nix_rs_store::gc::render_size;
 use nix_rs_store::{Missing, Store};
+use rustc_hash::FxHashSet;
 
 use crate::cli::Failure;
 
@@ -63,11 +64,11 @@ pub fn topo_sort_by(
 ) -> Result<Vec<StorePath>, Failure> {
 	fn visit(
 		references: &mut dyn FnMut(&StorePath) -> Result<BTreeSet<StorePath>, Failure>,
-		items: &HashSet<&StorePath>,
+		items: &FxHashSet<&StorePath>,
 		path: &StorePath,
 		parent: Option<&StorePath>,
-		visited: &mut HashSet<StorePath>,
-		parents: &mut HashSet<StorePath>,
+		visited: &mut FxHashSet<StorePath>,
+		parents: &mut FxHashSet<StorePath>,
 		sorted: &mut Vec<StorePath>,
 	) -> Result<(), Failure> {
 		if parents.contains(path) {
@@ -100,10 +101,10 @@ pub fn topo_sort_by(
 	}
 
 	// Membership only; iteration order comes from the sorted sets.
-	let items: HashSet<&StorePath> = paths.iter().collect();
+	let items: FxHashSet<&StorePath> = paths.iter().collect();
 	let mut sorted = Vec::new();
-	let mut visited = HashSet::new();
-	let mut parents = HashSet::new();
+	let mut visited = FxHashSet::default();
+	let mut parents = FxHashSet::default();
 	for path in paths {
 		visit(
 			&mut references,
