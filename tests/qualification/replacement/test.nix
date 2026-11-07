@@ -1,7 +1,7 @@
 # Replacement qualification VMs (TODO sections 7 and 8).
 #
 # Each mode boots the same CppNix-managed machine from its own disposable
-# disk, swaps it to nix-rs, runs the mode's scenario, returns to CppNix and
+# disk, swaps it to noxi, runs the mode's scenario, returns to CppNix and
 # verifies the store. The report derivations record every passing, failing and
 # blocked step and succeed whenever the scenario ran; the strict checks fail
 # unless every step passed. See docs/verification.md.
@@ -121,14 +121,14 @@ let
 	report =
 		mode:
 		pkgs.testers.runNixOSTest {
-			name = "nixrs-qualification-${mode}";
+			name = "noxi-qualification-${mode}";
 			nodes.machine = base;
 			testScript = "MODE = ${builtins.toJSON mode}\n" + builtins.readFile ./script.py;
 		};
 	reports = lib.genAttrs modes report;
 	strict =
 		mode:
-		pkgs.runCommand "nixrs-qualification-${mode}-gate" { nativeBuildInputs = [ pkgs.jq ]; } ''
+		pkgs.runCommand "noxi-qualification-${mode}-gate" { nativeBuildInputs = [ pkgs.jq ]; } ''
 			report=${reports.${mode}}/report.json
 			jq -r '.steps[] | "\(.status)\t\(.name)"' "$report"
 			jq -e '.schema == 2 and (.steps | length > 0) and all(.steps[]; .status == "pass")' "$report" > /dev/null

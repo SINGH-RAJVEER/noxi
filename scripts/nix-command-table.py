@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""Write nix-rs-commands' table of `nix` commands from the reference inventory.
+"""Write noxi-commands' table of `nix` commands from the reference inventory.
 
 Reads tests/reference-inventory/cli.json (written by `just reference-inventory`)
-and prints crates/nix-rs-commands/src/nix/table.rs: the global flags, and for
+and prints crates/noxi-commands/src/nix/table.rs: the global flags, and for
 each command its gating experimental feature, flags and positional arguments.
 
 The dump leaves out flag aliases, which CppNix registers under both names, and
@@ -15,7 +15,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 INVENTORY = ROOT / "tests" / "reference-inventory" / "cli.json"
-OUTPUT = ROOT / "crates" / "nix-rs-commands" / "src" / "nix" / "table.rs"
+OUTPUT = ROOT / "crates" / "noxi-commands" / "src" / "nix" / "table.rs"
 
 # Flag name -> its aliases, wherever the flag is defined.
 ALIASES = {

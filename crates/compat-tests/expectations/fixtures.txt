@@ -9,9 +9,9 @@
 #   table:<test>  The named test in crates/compat-tests/tests lists each file itself
 #                 with its expected outcome (pass, known gap, or reference anomaly).
 #   pass:<test>   The named test reads the file and passes.
-#   gap           A nix-rs test reads the file and records a known failure.
+#   gap           A noxi test reads the file and records a known failure.
 #   anomaly       The reference's own behavior for this file is anomalous; see the note.
-#   unrun         No nix-rs test reads the file yet.
+#   unrun         No noxi test reads the file yet.
 #   ignore        Not a fixture: placeholders and generator scripts.
 
 # Placeholders and generator scripts
@@ -94,7 +94,7 @@ table:upstream_fetcher_public_key src/libfetchers-tests/data/public-key/*
 
 # Functional and system tests
 table:upstream_lang tests/functional/lang/**/*
-unrun tests/functional/**/* # shell tests; they need a nix-rs runner (TODO section 1)
+unrun tests/functional/**/* # shell tests; they need a noxi runner (TODO section 1)
 unrun tests/nixos/**/* # NixOS VM tests
 unrun tests/installer/**/*
 unrun tests/filetransfer-retry-backoff/**/*

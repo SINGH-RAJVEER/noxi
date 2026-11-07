@@ -1,18 +1,18 @@
-//! A copied CppNix store used by nix-rs and returned to CppNix.
+//! A copied CppNix store used by noxi and returned to CppNix.
 //!
 //! The pinned 2.35.2 reference builds a store with built outputs, unbuilt
 //! derivations, an indirect root, a profile, signatures and unrooted
-//! garbage. The store is copied, and nix-rs uses the copy: it reads every
+//! garbage. The store is copied, and noxi uses the copy: it reads every
 //! path's metadata, collects garbage, imports NARs and text, builds a
 //! derivation the reference instantiated, adds signatures and verifies the
 //! store. The reference then takes the copy back: `nix-store --verify
 //! --check-contents` must find nothing to repair, the metadata of every path
-//! nix-rs did not change must be what the reference wrote, and the
+//! noxi did not change must be what the reference wrote, and the
 //! reference must be able to keep building, adding and collecting garbage.
 //!
-//! The reference executables come from `NIXRS_REFERENCE_BIN` or
+//! The reference executables come from `NOXI_REFERENCE_BIN` or
 //! `target/nix-reference/bin`, and the busybox builder from
-//! `NIXRS_TEST_BUSYBOX` or `target/test-busybox` (`just reference`).
+//! `NOXI_TEST_BUSYBOX` or `target/test-busybox` (`just reference`).
 
 use std::collections::BTreeSet;
 use std::fs;
@@ -21,10 +21,10 @@ use std::process::{Command, Output};
 
 use nix_compat::nixhash::{HashAlgo, NixHash};
 use nix_compat::store_path::StorePath;
-use nix_rs_build::local::LocalBuilder;
-use nix_rs_build::settings::BuildSettings;
-use nix_rs_store::gc::{GcAction, GcOptions};
-use nix_rs_store::{FileIngestionMethod, LocalStore, LocalStoreConfig, ValidPathInfo};
+use noxi_build::local::LocalBuilder;
+use noxi_build::settings::BuildSettings;
+use noxi_store::gc::{GcAction, GcOptions};
+use noxi_store::{FileIngestionMethod, LocalStore, LocalStoreConfig, ValidPathInfo};
 use serde_json::{Map, Value};
 
 const SYSTEM_FEATURES: &str = "benchmark big-parallel kvm nixos-test uid-range";
@@ -44,11 +44,11 @@ fn from_env_or_target(var: &str, target: &str, probe: &str) -> PathBuf {
 }
 
 fn reference_bin() -> PathBuf {
-	from_env_or_target("NIXRS_REFERENCE_BIN", "nix-reference/bin", "nix-store")
+	from_env_or_target("NOXI_REFERENCE_BIN", "nix-reference/bin", "nix-store")
 }
 
 fn busybox() -> String {
-	let path = from_env_or_target("NIXRS_TEST_BUSYBOX", "test-busybox", "bin/busybox");
+	let path = from_env_or_target("NOXI_TEST_BUSYBOX", "test-busybox", "bin/busybox");
 	fs::canonicalize(path)
 		.unwrap()
 		.to_string_lossy()
@@ -203,7 +203,7 @@ fn sp(abs: &str) -> StorePath {
 	StorePath::from_absolute_path(abs.trim().as_bytes()).unwrap()
 }
 
-/// nix-rs's view of a path must be the reference's JSON for it.
+/// noxi's view of a path must be the reference's JSON for it.
 fn assert_matches(info: &ValidPathInfo, json: &Value) {
 	let path = info.path.to_absolute_path();
 	assert_eq!(
@@ -383,7 +383,7 @@ fn copied_reference_store_returns_to_the_reference_intact() {
 	let before = env.path_infos("copy");
 	let schema = env.schema("copy");
 
-	// nix-rs reads every path as the reference wrote it.
+	// noxi reads every path as the reference wrote it.
 	let store = env.open("copy");
 	let valid = store.query_all_valid_paths().unwrap();
 	assert_eq!(
@@ -409,14 +409,14 @@ fn copied_reference_store_returns_to_the_reference_intact() {
 	// It adds paths that refer to reference-made ones, and builds a
 	// derivation the reference instantiated on top of a reference output.
 	let mut nar = Vec::new();
-	let src = env.dir.path().join("nix-rs-src");
+	let src = env.dir.path().join("noxi-src");
 	fs::create_dir(&src).unwrap();
-	fs::write(src.join("file"), "from nix-rs\n").unwrap();
-	nix_rs_store::nar::dump_path(&mut nar, &src).unwrap();
+	fs::write(src.join("file"), "from noxi\n").unwrap();
+	noxi_store::nar::dump_path(&mut nar, &src).unwrap();
 	let imported = store
 		.add_to_store_from_dump(
 			&mut &nar[..],
-			"nix-rs-src",
+			"noxi-src",
 			FileIngestionMethod::NixArchive,
 			FileIngestionMethod::NixArchive,
 			HashAlgo::Sha256,
@@ -426,7 +426,7 @@ fn copied_reference_store_returns_to_the_reference_intact() {
 		.unwrap();
 	let text = store
 		.add_text_to_store(
-			"nix-rs-text",
+			"noxi-text",
 			format!("{app_out}\n").as_bytes(),
 			&BTreeSet::from([sp(&app_out)]),
 			false,
@@ -446,7 +446,7 @@ fn copied_reference_store_returns_to_the_reference_intact() {
 	store
 		.add_signatures(
 			&sp(&profiled_out),
-			&BTreeSet::from(["nix-rs-1:c2lnbmF0dXJl".to_owned()]),
+			&BTreeSet::from(["noxi-1:c2lnbmF0dXJl".to_owned()]),
 		)
 		.unwrap();
 	let mut log = Vec::new();
@@ -468,7 +468,7 @@ fn copied_reference_store_returns_to_the_reference_intact() {
 		} else if *path == profiled_out {
 			let mut expected = info.clone();
 			let sigs = expected["signatures"].as_array_mut().unwrap();
-			sigs.push(Value::String("nix-rs-1:c2lnbmF0dXJl".to_owned()));
+			sigs.push(Value::String("noxi-1:c2lnbmF0dXJl".to_owned()));
 			assert_eq!(after[path], expected, "{path}");
 		} else {
 			assert_eq!(after[path], *info, "{path}");
@@ -501,7 +501,7 @@ fn copied_reference_store_returns_to_the_reference_intact() {
 	);
 
 	// The reference keeps writing to it: a new build, an addition, and a
-	// collection that frees nix-rs's unrooted paths.
+	// collection that frees noxi's unrooted paths.
 	let copy = env.store("copy");
 	let more = env.write_expr("more.nix", r#"{ more = mk "more" "echo more > $out"; }"#);
 	let more_drv = env.instantiate("copy", &more, "more");

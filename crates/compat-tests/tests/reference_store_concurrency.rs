@@ -1,17 +1,17 @@
 //! Interrupted writes and concurrent clients of one local store, with the
 //! pinned CppNix 2.35.2 reference as the other client.
 //!
-//! - NAR imports killed part way, by nix-rs and by the reference, leave an
+//! - NAR imports killed part way, by noxi and by the reference, leave an
 //!   unregistered partial path that the other engine replaces.
 //! - Truncated and corrupt NARs register nothing.
-//! - nix-rs threads and processes and reference processes importing the
+//! - noxi threads and processes and reference processes importing the
 //!   same NAR and adding different paths at the same time all succeed, and
 //!   the store verifies in the reference.
 //! - Each engine waits for the other's lock on a path being written.
 //!
-//! nix-rs processes are this test binary run again with
-//! `--ignored --exact child_process`; the variables `NIXRS_CHILD_*` say what
-//! the child does. The reference executables come from `NIXRS_REFERENCE_BIN`
+//! noxi processes are this test binary run again with
+//! `--ignored --exact child_process`; the variables `NOXI_CHILD_*` say what
+//! the child does. The reference executables come from `NOXI_REFERENCE_BIN`
 //! or `target/nix-reference/bin` (`just reference`).
 
 use std::collections::BTreeSet;
@@ -22,18 +22,18 @@ use std::process::{Child, Command, Output, Stdio};
 use std::time::{Duration, Instant};
 
 use nix_compat::store_path::StorePath;
-use nix_rs_store::lock::PathLocks;
-use nix_rs_store::{LocalStore, LocalStoreConfig, ValidPathInfo};
+use noxi_store::lock::PathLocks;
+use noxi_store::{LocalStore, LocalStoreConfig, ValidPathInfo};
 use sha2::{Digest, Sha256};
 
 fn reference_bin() -> PathBuf {
-	if let Some(dir) = std::env::var_os("NIXRS_REFERENCE_BIN") {
+	if let Some(dir) = std::env::var_os("NOXI_REFERENCE_BIN") {
 		return PathBuf::from(dir);
 	}
 	let dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../target/nix-reference/bin");
 	assert!(
 		dir.join("nix-store").exists(),
-		"the CppNix reference is missing; run `just reference` or set NIXRS_REFERENCE_BIN"
+		"the CppNix reference is missing; run `just reference` or set NOXI_REFERENCE_BIN"
 	);
 	dir
 }
@@ -199,15 +199,15 @@ impl Env {
 			.unwrap()
 	}
 
-	/// A nix-rs process importing `nar` into `store` from its stdin.
-	fn nix_rs_import(&self, store: &str, nar: &Nar) -> Child {
+	/// A noxi process importing `nar` into `store` from its stdin.
+	fn noxi_import(&self, store: &str, nar: &Nar) -> Child {
 		Command::new(std::env::current_exe().unwrap())
 			.args(["--ignored", "--exact", "child_process", "--nocapture"])
-			.env("NIXRS_CHILD_STORE", self.root(store))
-			.env("NIXRS_CHILD_PATH", nar.path.to_absolute_path())
-			.env("NIXRS_CHILD_NAR_SIZE", nar.bytes.len().to_string())
+			.env("NOXI_CHILD_STORE", self.root(store))
+			.env("NOXI_CHILD_PATH", nar.path.to_absolute_path())
+			.env("NOXI_CHILD_NAR_SIZE", nar.bytes.len().to_string())
 			.env(
-				"NIXRS_CHILD_NAR_SHA256",
+				"NOXI_CHILD_NAR_SHA256",
 				data_encoding::HEXLOWER.encode(&Sha256::digest(&nar.bytes)),
 			)
 			.stdin(Stdio::piped())
@@ -379,18 +379,18 @@ fn kill_part_way(mut child: Child, input: &[u8], real: &Path) {
 	drop(stdin);
 }
 
-/// The entry point of nix-rs child processes.
+/// The entry point of noxi child processes.
 #[test]
 #[ignore = "run as a child process by the other tests"]
 fn child_process() {
-	let root = PathBuf::from(std::env::var_os("NIXRS_CHILD_STORE").unwrap());
-	let path = std::env::var("NIXRS_CHILD_PATH").unwrap();
-	let size: u64 = std::env::var("NIXRS_CHILD_NAR_SIZE")
+	let root = PathBuf::from(std::env::var_os("NOXI_CHILD_STORE").unwrap());
+	let path = std::env::var("NOXI_CHILD_PATH").unwrap();
+	let size: u64 = std::env::var("NOXI_CHILD_NAR_SIZE")
 		.unwrap()
 		.parse()
 		.unwrap();
 	let digest = data_encoding::HEXLOWER
-		.decode(std::env::var("NIXRS_CHILD_NAR_SHA256").unwrap().as_bytes())
+		.decode(std::env::var("NOXI_CHILD_NAR_SHA256").unwrap().as_bytes())
 		.unwrap();
 	let mut info = ValidPathInfo::new(
 		StorePath::from_absolute_path(path.as_bytes()).unwrap(),
@@ -398,7 +398,7 @@ fn child_process() {
 	);
 	info.nar_size = size;
 	let store = open(&root);
-	if std::env::var_os("NIXRS_CHILD_REGISTER").is_some() {
+	if std::env::var_os("NOXI_CHILD_REGISTER").is_some() {
 		let drv = StorePath::from_bytes(b"00000000000000000000000000000000-blocked.drv").unwrap();
 		store
 			.register_valid_paths(&[info, ValidPathInfo::new(drv, [0; 32])])
@@ -452,10 +452,10 @@ fn killed_imports_are_replaced_by_either_engine() {
 		info.remove("ca");
 	}
 
-	// A killed nix-rs import, finished by the reference.
+	// A killed noxi import, finished by the reference.
 	env.init("a");
 	let real = env.real("a", &nar.path);
-	kill_part_way(env.nix_rs_import("a", &nar), &nar.bytes, &real);
+	kill_part_way(env.noxi_import("a", &nar), &nar.bytes, &real);
 	assert!(!env.is_valid("a", &nar.path));
 	assert!(tree_size(&real) < tree_size(&env.root("big")));
 	let mut child = env.reference_import("a");
@@ -469,7 +469,7 @@ fn killed_imports_are_replaced_by_either_engine() {
 	assert_eq!(path_info("a"), expected);
 	env.verify("a");
 
-	// A killed reference import, finished by nix-rs in another process.
+	// A killed reference import, finished by noxi in another process.
 	env.init("b");
 	let real = env.real("b", &nar.path);
 	let cache = StallingCache::new(&nar);
@@ -479,7 +479,7 @@ fn killed_imports_are_replaced_by_either_engine() {
 	child.wait().unwrap();
 	cache.set(Gate::Abort);
 	assert!(!env.is_valid("b", &nar.path));
-	let mut child = env.nix_rs_import("b", &nar);
+	let mut child = env.noxi_import("b", &nar);
 	child.stdin.take().unwrap().write_all(&nar.bytes).unwrap();
 	let output = child.wait_with_output().unwrap();
 	assert!(
@@ -490,12 +490,12 @@ fn killed_imports_are_replaced_by_either_engine() {
 	assert_eq!(path_info("b"), expected);
 	env.verify("b");
 
-	// A killed nix-rs import, finished by nix-rs; the dead process's lock
+	// A killed noxi import, finished by noxi; the dead process's lock
 	// file and temporary roots are left behind and must not get in the way
 	// of either engine's garbage collector.
 	env.init("c");
 	let real = env.real("c", &nar.path);
-	kill_part_way(env.nix_rs_import("c", &nar), &nar.bytes, &real);
+	kill_part_way(env.noxi_import("c", &nar), &nar.bytes, &real);
 	assert!(!env.is_valid("c", &nar.path));
 	let store = open(&env.root("c"));
 	store
@@ -516,7 +516,7 @@ fn killed_registration_rolls_back_the_whole_batch() {
 	let (nar, export) = env.big_path("registration");
 	env.init("store");
 	let real = env.real("store", &nar.path);
-	nix_rs_store::nar::restore_path(&real, &mut &nar.bytes[..]).unwrap();
+	noxi_store::nar::restore_path(&real, &mut &nar.bytes[..]).unwrap();
 	let fifo = env.root("store/nix/store/00000000000000000000000000000000-blocked.drv");
 	assert!(
 		Command::new("mkfifo")
@@ -534,14 +534,14 @@ fn killed_registration_rolls_back_the_whole_batch() {
 		.unwrap();
 	let mut child = Command::new(std::env::current_exe().unwrap())
 		.args(["--ignored", "--exact", "child_process", "--nocapture"])
-		.env("NIXRS_CHILD_STORE", env.root("store"))
-		.env("NIXRS_CHILD_PATH", nar.path.to_absolute_path())
-		.env("NIXRS_CHILD_NAR_SIZE", nar.bytes.len().to_string())
+		.env("NOXI_CHILD_STORE", env.root("store"))
+		.env("NOXI_CHILD_PATH", nar.path.to_absolute_path())
+		.env("NOXI_CHILD_NAR_SIZE", nar.bytes.len().to_string())
 		.env(
-			"NIXRS_CHILD_NAR_SHA256",
+			"NOXI_CHILD_NAR_SHA256",
 			data_encoding::HEXLOWER.encode(&Sha256::digest(&nar.bytes)),
 		)
-		.env("NIXRS_CHILD_REGISTER", "1")
+		.env("NOXI_CHILD_REGISTER", "1")
 		.stdout(Stdio::null())
 		.spawn()
 		.unwrap();
@@ -633,7 +633,7 @@ fn concurrent_clients_register_shared_and_distinct_paths() {
 		.collect();
 	let mut reference_imports = Vec::new();
 	let mut reference_adds = Vec::new();
-	let mut nix_rs_processes = Vec::new();
+	let mut noxi_processes = Vec::new();
 	for file in &files {
 		reference_imports.push(env.reference_import("store"));
 		reference_adds.push(
@@ -651,7 +651,7 @@ fn concurrent_clients_register_shared_and_distinct_paths() {
 			.spawn()
 			.unwrap(),
 		);
-		nix_rs_processes.push(env.nix_rs_import("store", &nar));
+		noxi_processes.push(env.noxi_import("store", &nar));
 	}
 	let texts: Vec<StorePath> = std::thread::scope(|scope| {
 		let threads: Vec<_> = (0..rounds)
@@ -681,14 +681,14 @@ fn concurrent_clients_register_shared_and_distinct_paths() {
 			let export = &export;
 			scope.spawn(move || stdin.write_all(export).unwrap());
 		}
-		for child in nix_rs_processes.iter_mut() {
+		for child in noxi_processes.iter_mut() {
 			let mut stdin = child.stdin.take().unwrap();
 			let bytes = &nar.bytes;
 			scope.spawn(move || stdin.write_all(bytes).unwrap());
 		}
 		threads.into_iter().map(|t| t.join().unwrap()).collect()
 	});
-	for child in reference_imports.into_iter().chain(nix_rs_processes) {
+	for child in reference_imports.into_iter().chain(noxi_processes) {
 		let output = child.wait_with_output().unwrap();
 		assert!(
 			output.status.success(),
@@ -739,7 +739,7 @@ fn path_locks_exclude_the_other_engine() {
 	let (nar, _) = env.big_path("big");
 	env.init("store");
 
-	// The reference waits while nix-rs holds the lock on a path.
+	// The reference waits while noxi holds the lock on a path.
 	let file = env.dir.path().join("locked");
 	fs::write(&file, "locked\n").unwrap();
 	let expected = env
@@ -781,7 +781,7 @@ fn path_locks_exclude_the_other_engine() {
 	assert!(output.status.success());
 	assert_eq!(String::from_utf8(output.stdout).unwrap().trim(), expected);
 
-	// nix-rs waits while the reference holds the lock during a streamed
+	// noxi waits while the reference holds the lock during a streamed
 	// substitution, then finds the path valid and consumes its NAR.
 	let cache = StallingCache::new(&nar);
 	let mut child = cache.reference_copy(&env, "store", &nar);
@@ -800,7 +800,7 @@ fn path_locks_exclude_the_other_engine() {
 	};
 	assert!(
 		done_rx.recv_timeout(Duration::from_secs(1)).is_err(),
-		"nix-rs did not wait for the reference's lock"
+		"noxi did not wait for the reference's lock"
 	);
 	cache.set(Gate::Release);
 	let mut stderr = String::new();

@@ -1,13 +1,13 @@
 //! Derivation builds checked against the pinned CppNix 2.35.2 reference.
 //!
 //! The reference writes each derivation into two temporary `--store ROOT`
-//! stores. It builds the derivation in the first; `nix-rs-build` builds it
+//! stores. It builds the derivation in the first; `noxi-build` builds it
 //! in the second. The outputs, their registered metadata, and the
-//! reference's verification of the store nix-rs wrote must match.
+//! reference's verification of the store noxi wrote must match.
 //!
-//! The reference executables come from `NIXRS_REFERENCE_BIN` or
+//! The reference executables come from `NOXI_REFERENCE_BIN` or
 //! `target/nix-reference/bin`, and the statically linked busybox used as
-//! the builder from `NIXRS_TEST_BUSYBOX` or `target/test-busybox`
+//! the builder from `NOXI_TEST_BUSYBOX` or `target/test-busybox`
 //! (`just reference` creates both).
 
 use std::fs;
@@ -15,10 +15,10 @@ use std::path::{Path, PathBuf};
 use std::process::{Command, Output};
 
 use nix_compat::store_path::StorePath;
-use nix_rs_build::FailureStatus;
-use nix_rs_build::local::LocalBuilder;
-use nix_rs_build::settings::BuildSettings;
-use nix_rs_store::{LocalStore, LocalStoreConfig};
+use noxi_build::FailureStatus;
+use noxi_build::local::LocalBuilder;
+use noxi_build::settings::BuildSettings;
+use noxi_store::{LocalStore, LocalStoreConfig};
 use serde_json::Value;
 
 const SYSTEM_FEATURES: &str = "benchmark big-parallel kvm nixos-test uid-range";
@@ -38,11 +38,11 @@ fn from_env_or_target(var: &str, target: &str, probe: &str) -> PathBuf {
 }
 
 fn reference_bin() -> PathBuf {
-	from_env_or_target("NIXRS_REFERENCE_BIN", "nix-reference/bin", "nix-store")
+	from_env_or_target("NOXI_REFERENCE_BIN", "nix-reference/bin", "nix-store")
 }
 
 fn busybox() -> String {
-	let path = from_env_or_target("NIXRS_TEST_BUSYBOX", "test-busybox", "bin/busybox");
+	let path = from_env_or_target("NOXI_TEST_BUSYBOX", "test-busybox", "bin/busybox");
 	fs::canonicalize(path)
 		.unwrap()
 		.to_string_lossy()
@@ -65,7 +65,7 @@ impl Env {
 			busybox: busybox(),
 			ca: false,
 		};
-		for store in ["reference", "nix-rs"] {
+		for store in ["reference", "noxi"] {
 			let to = format!("local?root={}", env.root(store).display());
 			env.reference_ok(
 				"nix",
@@ -101,7 +101,7 @@ impl Env {
 		)
 		.unwrap();
 		let mut path = None;
-		for name in ["reference", "nix-rs"] {
+		for name in ["reference", "noxi"] {
 			let added = env.reference_ok(
 				"nix-store",
 				&[
@@ -162,7 +162,7 @@ impl Env {
 		let file = self.dir.path().join("expr.nix");
 		fs::write(&file, expr.replace("@busybox@", &self.busybox)).unwrap();
 		let mut drv = None;
-		for store in ["reference", "nix-rs"] {
+		for store in ["reference", "noxi"] {
 			let root = self.root(store);
 			let out = self.reference_ok(
 				"nix-instantiate",
@@ -191,19 +191,19 @@ impl Env {
 		)
 	}
 
-	fn nix_rs_realise(
+	fn noxi_realise(
 		&self,
 		drv: &StorePath,
-	) -> nix_rs_build::Result<std::collections::BTreeMap<String, StorePath>> {
-		self.nix_rs_realise_with(drv, |_| {})
+	) -> noxi_build::Result<std::collections::BTreeMap<String, StorePath>> {
+		self.noxi_realise_with(drv, |_| {})
 	}
 
-	fn nix_rs_realise_with(
+	fn noxi_realise_with(
 		&self,
 		drv: &StorePath,
 		configure: impl FnOnce(&mut BuildSettings),
-	) -> nix_rs_build::Result<std::collections::BTreeMap<String, StorePath>> {
-		let mut config = LocalStoreConfig::with_root(&self.root("nix-rs"));
+	) -> noxi_build::Result<std::collections::BTreeMap<String, StorePath>> {
+		let mut config = LocalStoreConfig::with_root(&self.root("noxi"));
 		config.require_sigs = false;
 		config.ca_derivations = self.ca;
 		let store = LocalStore::open(config).unwrap();
@@ -304,20 +304,20 @@ impl Env {
 			.lines()
 			.map(|l| StorePath::from_absolute_path(l.as_bytes()).unwrap())
 			.collect();
-		let nix_rs = self
-			.nix_rs_realise_with(drv, configure)
-			.unwrap_or_else(|e| panic!("nix-rs failed: {e}"));
-		let mut nix_rs: Vec<StorePath> = nix_rs.into_values().collect();
-		nix_rs.sort();
+		let noxi = self
+			.noxi_realise_with(drv, configure)
+			.unwrap_or_else(|e| panic!("noxi failed: {e}"));
+		let mut noxi: Vec<StorePath> = noxi.into_values().collect();
+		noxi.sort();
 		let mut sorted = reference.clone();
 		sorted.sort();
-		assert_eq!(nix_rs, sorted);
+		assert_eq!(noxi, sorted);
 		let paths: Vec<&StorePath> = reference.iter().collect();
 		assert_eq!(
-			self.path_info("nix-rs", &paths),
+			self.path_info("noxi", &paths),
 			self.path_info("reference", &paths)
 		);
-		self.verify("nix-rs");
+		self.verify("noxi");
 		reference
 	}
 }
@@ -334,7 +334,7 @@ fn simple_derivation_matches_the_reference() {
 		}"#,
 	);
 	let outputs = env.build_both(&drv);
-	assert_eq!(env.read("nix-rs", &outputs[0]), b"hello\n");
+	assert_eq!(env.read("noxi", &outputs[0]), b"hello\n");
 }
 
 #[test]
@@ -364,10 +364,10 @@ fn rust_build_command_matches_reference_output(output: &str) {
 	for (name, value) in [("substituters", ""), ("sandbox-paths", ""), ("cores", "1")] {
 		settings.set(name, value).unwrap();
 	}
-	let mut options = nix_rs_commands::build::parse_args(
+	let mut options = noxi_commands::build::parse_args(
 		[
 			"--store".to_owned(),
-			format!("local?root={}", env.root("nix-rs").display()),
+			format!("local?root={}", env.root("noxi").display()),
 			"--no-out-link".to_owned(),
 			"--expr".to_owned(),
 			expression,
@@ -379,7 +379,7 @@ fn rust_build_command_matches_reference_output(output: &str) {
 	let mut stdout = Vec::new();
 	let mut stderr = Vec::new();
 	assert_eq!(
-		nix_rs_commands::build::run(&options, env.dir.path(), &mut stdout, &mut stderr),
+		noxi_commands::build::run(&options, env.dir.path(), &mut stdout, &mut stderr),
 		std::process::ExitCode::SUCCESS,
 		"{}",
 		String::from_utf8_lossy(&stderr)
@@ -394,7 +394,7 @@ fn rust_build_command_matches_reference_output(output: &str) {
 			"nix-store",
 			&[
 				"--store",
-				env.root("nix-rs").to_str().unwrap(),
+				env.root("noxi").to_str().unwrap(),
 				"--gc",
 				"--print-live"
 			]
@@ -405,11 +405,11 @@ fn rust_build_command_matches_reference_output(output: &str) {
 	let path = StorePath::from_absolute_path(reference.trim().as_bytes()).unwrap();
 	assert_eq!(
 		env.read_tree("reference", &path),
-		env.read_tree("nix-rs", &path)
+		env.read_tree("noxi", &path)
 	);
 	assert_eq!(
 		env.path_info("reference", &[&path]),
-		env.path_info("nix-rs", &[&path])
+		env.path_info("noxi", &[&path])
 	);
 	for query in [
 		"--hash",
@@ -429,10 +429,10 @@ fn rust_build_command_matches_reference_output(output: &str) {
 				reference.trim(),
 			],
 		);
-		let options = nix_rs_commands::maintenance::parse_args(
+		let options = noxi_commands::maintenance::parse_args(
 			[
 				"--store".to_owned(),
-				format!("local?root={}", env.root("nix-rs").display()),
+				format!("local?root={}", env.root("noxi").display()),
 				"--query".to_owned(),
 				query.to_owned(),
 				reference.trim().to_owned(),
@@ -443,14 +443,14 @@ fn rust_build_command_matches_reference_output(output: &str) {
 		let mut actual = Vec::new();
 		let mut stderr = Vec::new();
 		assert_eq!(
-			nix_rs_commands::maintenance::run(&options, &mut actual, &mut stderr),
+			noxi_commands::maintenance::run(&options, &mut actual, &mut stderr),
 			std::process::ExitCode::SUCCESS,
 			"{query}: {}",
 			String::from_utf8_lossy(&stderr)
 		);
 		assert_eq!(String::from_utf8(actual).unwrap(), expected, "{query}");
 	}
-	env.verify("nix-rs");
+	env.verify("noxi");
 }
 
 /// The builder records what it can observe of its sandbox: environment,
@@ -476,7 +476,7 @@ fn sandbox_environment_matches_the_reference() {
 		}"#,
 	);
 	let outputs = env.build_both(&drv);
-	let probe = env.read("nix-rs", &outputs[0]);
+	let probe = env.read("noxi", &outputs[0]);
 	assert_eq!(
 		probe,
 		env.read("reference", &outputs[0]),
@@ -585,7 +585,7 @@ fn fixed_output_hash_mismatch_fails_like_the_reference() {
 	let reference = env.reference_realise(&drv);
 	assert!(!reference.status.success());
 	let stderr = String::from_utf8_lossy(&reference.stderr);
-	let error = env.nix_rs_realise(&drv).unwrap_err();
+	let error = env.noxi_realise(&drv).unwrap_err();
 	assert_eq!(error.status(), FailureStatus::HashMismatch);
 	for line in error.to_string().lines() {
 		assert!(
@@ -604,10 +604,10 @@ fn fixed_output_hash_mismatch_fails_like_the_reference() {
 		.trim()
 		.to_owned();
 	assert!(got.starts_with("sha256-"));
-	env.verify("nix-rs");
+	env.verify("noxi");
 }
 
-/// The reference reads the build log nix-rs wrote back as the one it wrote
+/// The reference reads the build log noxi wrote back as the one it wrote
 /// itself.
 #[test]
 fn build_logs_match_the_reference() {
@@ -633,8 +633,8 @@ fn build_logs_match_the_reference() {
 			],
 		)
 	};
-	assert_eq!(log("nix-rs"), log("reference"));
-	assert_eq!(log("nix-rs"), "to stdout\nto stderr\nno newline");
+	assert_eq!(log("noxi"), log("reference"));
+	assert_eq!(log("noxi"), "to stdout\nto stderr\nno newline");
 }
 
 #[test]
@@ -650,7 +650,7 @@ fn builder_failures_fail_like_the_reference() {
 	);
 	let reference = env.reference_realise(&drv);
 	assert_eq!(reference.status.code(), Some(100));
-	let error = env.nix_rs_realise(&drv).unwrap_err();
+	let error = env.noxi_realise(&drv).unwrap_err();
 	assert_eq!(error.status(), FailureStatus::PermanentFailure);
 	let stderr = String::from_utf8_lossy(&reference.stderr);
 	for line in error.to_string().lines() {
@@ -662,7 +662,7 @@ fn builder_failures_fail_like_the_reference() {
 	// `nix build` without `--print-build-logs` ends the error with the log
 	// tail instead, leaving out `@nix` messages and overwritten text.
 	let error = env
-		.nix_rs_realise_with(&drv, |s| s.show_log_tail = true)
+		.noxi_realise_with(&drv, |s| s.show_log_tail = true)
 		.unwrap_err();
 	let message = error.to_string();
 	let root = env.root("reference");
@@ -732,11 +732,11 @@ fn missing_outputs_and_reference_checks_fail_like_the_reference() {
 		assert!(!reference.status.success());
 		let stderr = String::from_utf8_lossy(&reference.stderr)
 			.replace(&env.root("reference").display().to_string(), "ROOT");
-		let error = env.nix_rs_realise(&drv).unwrap_err();
+		let error = env.noxi_realise(&drv).unwrap_err();
 		assert_eq!(error.status(), status);
 		let message = error
 			.to_string()
-			.replace(&env.root("nix-rs").display().to_string(), "ROOT");
+			.replace(&env.root("noxi").display().to_string(), "ROOT");
 		for line in message.lines() {
 			assert!(
 				stderr.contains(line.trim()),
@@ -780,22 +780,22 @@ fn structured_attributes_match_the_reference() {
 	let outputs = env.build_both(&drv);
 	for output in &outputs {
 		assert_eq!(
-			env.read_tree("nix-rs", output),
+			env.read_tree("noxi", output),
 			env.read_tree("reference", output)
 		);
 	}
 }
 
 /// A Nixpkgs package that misses the binary cache, built on top of a
-/// substituted stdenv. Set `NIXRS_NIXPKGS` to the root flake's Nixpkgs
+/// substituted stdenv. Set `NOXI_NIXPKGS` to the root flake's Nixpkgs
 /// source (`just nixpkgs-paths` shows how); it downloads from
 /// cache.nixos.org, so it only runs with `--run-ignored`.
 #[test]
-#[ignore = "needs NIXRS_NIXPKGS and cache.nixos.org"]
+#[ignore = "needs NOXI_NIXPKGS and cache.nixos.org"]
 fn nixpkgs_hello_matches_the_reference() {
 	const CACHE: &str = "https://cache.nixos.org";
 	const KEY: &str = "cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY=";
-	let nixpkgs = std::env::var("NIXRS_NIXPKGS").expect("NIXRS_NIXPKGS");
+	let nixpkgs = std::env::var("NOXI_NIXPKGS").expect("NOXI_NIXPKGS");
 	let env = Env::new();
 	// The reference's compiled-in sandbox shell, which stdenv's
 	// `#!/bin/sh` scripts need.
@@ -815,7 +815,7 @@ fn nixpkgs_hello_matches_the_reference() {
 	.to_owned();
 	let drv = env.instantiate(&format!(
 		r#"(import {nixpkgs} {{ system = "x86_64-linux"; config = {{ }}; overlays = [ ]; }}).hello.overrideAttrs (_: {{
-			NIXRS_CACHE_MISS = "1";
+			NOXI_CACHE_MISS = "1";
 		}})"#
 	));
 
@@ -850,39 +850,39 @@ fn nixpkgs_hello_matches_the_reference() {
 		.collect();
 	reference.sort();
 
-	let mut config = LocalStoreConfig::with_root(&env.root("nix-rs"));
+	let mut config = LocalStoreConfig::with_root(&env.root("noxi"));
 	config.trusted_public_keys = vec![KEY.to_owned()];
 	let store = LocalStore::open(config).unwrap();
 	let settings = BuildSettings {
 		sandbox_paths: sandbox_paths
 			.split_whitespace()
-			.map(nix_rs_build::settings::SandboxPath::parse)
+			.map(noxi_build::settings::SandboxPath::parse)
 			.collect(),
 		build_cores: 1,
 		system_features: SYSTEM_FEATURES.split(' ').map(String::from).collect(),
 		nix_command: true,
 		..BuildSettings::default()
 	};
-	let caches = [nix_rs_store::binary_cache::BinaryCache::open(CACHE).unwrap()];
+	let caches = [noxi_store::binary_cache::BinaryCache::open(CACHE).unwrap()];
 	let mut log = Vec::new();
 	let outputs = LocalBuilder::new(&store, &settings)
 		.with_substituters(&caches)
 		.realise(&drv, &mut |data| log.extend_from_slice(data))
 		.unwrap_or_else(|e| {
 			panic!(
-				"nix-rs failed: {e}\nlog tail:\n{}",
+				"noxi failed: {e}\nlog tail:\n{}",
 				String::from_utf8_lossy(&log[log.len().saturating_sub(4000)..])
 			)
 		});
-	let mut nix_rs: Vec<StorePath> = outputs.into_values().collect();
-	nix_rs.sort();
-	assert_eq!(nix_rs, reference);
+	let mut noxi: Vec<StorePath> = outputs.into_values().collect();
+	noxi.sort();
+	assert_eq!(noxi, reference);
 	let paths: Vec<&StorePath> = reference.iter().collect();
 	assert_eq!(
-		env.path_info("nix-rs", &paths),
+		env.path_info("noxi", &paths),
 		env.path_info("reference", &paths)
 	);
-	env.verify("nix-rs");
+	env.verify("noxi");
 }
 
 /// Only the outputs a derivation uses are realised: an input's deleted
@@ -927,11 +927,11 @@ fn only_used_input_outputs_are_realised() {
 		.find(|l| l.ends_with("-dep-dev"))
 		.unwrap()
 		.to_owned();
-	for store in ["reference", "nix-rs"] {
+	for store in ["reference", "noxi"] {
 		query(store, &["--delete", &top[0].to_absolute_path(), &dev]);
 	}
 	env.build_both(&drv);
-	for store in ["reference", "nix-rs"] {
+	for store in ["reference", "noxi"] {
 		let output = env.reference(
 			"nix-store",
 			&[
@@ -969,19 +969,19 @@ fn ca_floating_outputs_and_realisations_match_the_reference() {
 		}}"#
 		));
 		let outputs = env.build_both(&drv);
-		assert_eq!(env.read("nix-rs", &outputs[0]), b"floating\n");
+		assert_eq!(env.read("noxi", &outputs[0]), b"floating\n");
 		assert_eq!(
-			realisation_rows(&env.root("nix-rs")),
+			realisation_rows(&env.root("noxi")),
 			realisation_rows(&env.root("reference"))
 		);
 		// Reopening and realising again must use the persisted mapping.
-		let again = env.nix_rs_realise(&drv).unwrap();
+		let again = env.noxi_realise(&drv).unwrap();
 		assert_eq!(again["out"], outputs[0]);
 		let result = env.reference(
 			"nix-store",
 			&[
 				"--store",
-				env.root("nix-rs").to_str().unwrap(),
+				env.root("noxi").to_str().unwrap(),
 				"--realise",
 				&drv.to_absolute_path(),
 			],
@@ -1012,14 +1012,14 @@ fn ca_self_and_other_output_references_match_the_reference() {
 	);
 	let outputs = env.build_both(&drv);
 	for output in &outputs {
-		assert_eq!(env.read("nix-rs", output), env.read("reference", output));
+		assert_eq!(env.read("noxi", output), env.read("reference", output));
 	}
 	assert_eq!(
-		realisation_rows(&env.root("nix-rs")),
+		realisation_rows(&env.root("noxi")),
 		realisation_rows(&env.root("reference"))
 	);
 	// Rebuild just the missing output with the other output still valid.
-	let mut config = LocalStoreConfig::with_root(&env.root("nix-rs"));
+	let mut config = LocalStoreConfig::with_root(&env.root("noxi"));
 	config.ca_derivations = true;
 	let store = LocalStore::open(config).unwrap();
 	let dev = store
@@ -1028,16 +1028,16 @@ fn ca_self_and_other_output_references_match_the_reference() {
 		.unwrap()
 		.out_path;
 	store.invalidate_path_checked(&dev).unwrap();
-	nix_rs_store::delete_path(&store.real_path(&dev)).unwrap();
+	noxi_store::delete_path(&store.real_path(&dev)).unwrap();
 	drop(store);
-	env.nix_rs_realise(&drv).unwrap();
-	env.verify("nix-rs");
-	// A self-referencing CA output must also pass nix-rs's NAR import check.
+	env.noxi_realise(&drv).unwrap();
+	env.verify("noxi");
+	// A self-referencing CA output must also pass noxi's NAR import check.
 	let mut config = LocalStoreConfig::with_root(&env.root("import"));
 	config.require_sigs = false;
 	config.ca_derivations = true;
 	let target = LocalStore::open(config).unwrap();
-	let mut config = LocalStoreConfig::with_root(&env.root("nix-rs"));
+	let mut config = LocalStoreConfig::with_root(&env.root("noxi"));
 	config.ca_derivations = true;
 	let source = LocalStore::open(config).unwrap();
 	let mut pending = outputs.clone();
@@ -1054,7 +1054,7 @@ fn ca_self_and_other_output_references_match_the_reference() {
 	for path in pending {
 		let info = source.query_path_info(&path).unwrap().unwrap();
 		let mut nar = Vec::new();
-		nix_rs_store::nar::dump_path(&mut nar, &source.real_path(&path)).unwrap();
+		noxi_store::nar::dump_path(&mut nar, &source.real_path(&path)).unwrap();
 		target
 			.add_to_store(&info, &mut &nar[..], false, false)
 			.unwrap();
@@ -1077,11 +1077,11 @@ fn ca_input_resolution_matches_the_reference() {
 		}}"#, extra = if ca_parent { "__contentAddressed = true; outputHashAlgo = \"sha256\"; outputHashMode = \"recursive\";" } else { "" }));
 		let outputs = env.build_both_with(&drv, |settings| settings.max_build_jobs = 2);
 		assert_eq!(
-			env.read("nix-rs", &outputs[0]),
+			env.read("noxi", &outputs[0]),
 			env.read("reference", &outputs[0])
 		);
 		assert_eq!(
-			realisation_rows(&env.root("nix-rs")),
+			realisation_rows(&env.root("noxi")),
 			realisation_rows(&env.root("reference"))
 		);
 	}
@@ -1101,7 +1101,7 @@ fn ca_fixed_outputs_record_reference_realisations() {
 	);
 	env.build_both(&drv);
 	assert_eq!(
-		realisation_rows(&env.root("nix-rs")),
+		realisation_rows(&env.root("noxi")),
 		realisation_rows(&env.root("reference"))
 	);
 }
@@ -1129,7 +1129,7 @@ fn ca_builds_require_the_experimental_feature() {
 		],
 	);
 	assert!(!result.status.success());
-	let store = LocalStore::open(LocalStoreConfig::with_root(&env.root("nix-rs"))).unwrap();
+	let store = LocalStore::open(LocalStoreConfig::with_root(&env.root("noxi"))).unwrap();
 	let error = LocalBuilder::new(&store, &BuildSettings::default())
 		.realise(&drv, &mut |_| {})
 		.unwrap_err()
@@ -1157,7 +1157,7 @@ fn parallel_settings(jobs: u64, keep_going: bool) -> BuildSettings {
 }
 
 fn build_store(env: &Env) -> LocalStore {
-	let mut config = LocalStoreConfig::with_root(&env.root("nix-rs"));
+	let mut config = LocalStoreConfig::with_root(&env.root("noxi"));
 	config.require_sigs = false;
 	config.ca_derivations = env.ca;
 	LocalStore::open(config).unwrap()
@@ -1165,7 +1165,7 @@ fn build_store(env: &Env) -> LocalStore {
 
 #[test]
 fn parallel_builds_bound_jobs_share_dependencies_and_preserve_logs() {
-	use nix_rs_build::local::BuildEvent;
+	use noxi_build::local::BuildEvent;
 	use std::collections::{BTreeMap, BTreeSet};
 	for jobs in [1, 2, 3] {
 		let env = Env::new_isolated_builder();
@@ -1244,7 +1244,7 @@ fn parallel_builds_bound_jobs_share_dependencies_and_preserve_logs() {
 			.flat_map(|outputs| outputs.values())
 			.collect();
 		assert_eq!(
-			env.path_info("nix-rs", &all_outputs),
+			env.path_info("noxi", &all_outputs),
 			env.path_info("reference", &all_outputs)
 		);
 		for (path, bytes) in logs {
@@ -1259,7 +1259,7 @@ fn parallel_builds_bound_jobs_share_dependencies_and_preserve_logs() {
 					],
 				)
 			};
-			assert_eq!(log("nix-rs"), log("reference"));
+			assert_eq!(log("noxi"), log("reference"));
 			assert_eq!(bytes, log("reference").as_bytes());
 		}
 		// The public single-target API uses the same scheduler and reuses
@@ -1270,7 +1270,7 @@ fn parallel_builds_bound_jobs_share_dependencies_and_preserve_logs() {
 			})
 			.unwrap();
 		drop(store);
-		env.verify("nix-rs");
+		env.verify("noxi");
 	}
 }
 
@@ -1288,7 +1288,7 @@ fn parallel_keep_going_and_failure_propagation_match_the_reference() {
 		assert!(
 			Command::new("cp")
 				.arg("-a")
-				.arg(env.root("nix-rs"))
+				.arg(env.root("noxi"))
 				.arg(env.root("backend"))
 				.status()
 				.unwrap()
@@ -1331,25 +1331,25 @@ fn parallel_keep_going_and_failure_propagation_match_the_reference() {
 				],
 			)
 		};
-		assert_eq!(valid("nix-rs"), valid("reference"));
-		let good = valid("nix-rs").lines().any(|p| p.ends_with("-b-good"));
+		assert_eq!(valid("noxi"), valid("reference"));
+		let good = valid("noxi").lines().any(|p| p.ends_with("-b-good"));
 		assert_eq!(good, keep_going);
 		let mut config = LocalStoreConfig::with_root(&env.root("backend"));
 		config.require_sigs = false;
-		let backend = nix_rs_build::backend::LocalBackend::new(
+		let backend = noxi_build::backend::LocalBackend::new(
 			LocalStore::open(config).unwrap(),
 			settings.clone(),
 			Vec::new(),
 		);
-		let result = nix_rs_store::Store::build_paths(
+		let result = noxi_store::Store::build_paths(
 			&backend,
-			&[nix_rs_store::DerivedPath::Built {
+			&[noxi_store::DerivedPath::Built {
 				drv: drv.clone(),
 				outputs: Default::default(),
 			}],
 		);
 		match result.unwrap_err() {
-			nix_rs_store::Error::Build { exit_status, .. } => {
+			noxi_store::Error::Build { exit_status, .. } => {
 				assert_eq!(i32::from(exit_status), expected.status.code().unwrap())
 			}
 			other => panic!("unexpected backend failure: {other}"),
@@ -1372,7 +1372,7 @@ fn parallel_keep_going_and_failure_propagation_match_the_reference() {
 				.unwrap()
 		);
 		drop(store);
-		env.verify("nix-rs");
+		env.verify("noxi");
 	}
 }
 
@@ -1393,8 +1393,8 @@ fn sandbox_children() -> Vec<u32> {
 
 #[test]
 fn parallel_cancellation_reaps_builders_preserves_logs_and_allows_retry() {
-	use nix_rs_build::local::BuildEvent;
-	use nix_rs_build::settings::SandboxPath;
+	use noxi_build::local::BuildEvent;
+	use noxi_build::settings::SandboxPath;
 	use std::sync::atomic::{AtomicBool, Ordering};
 	let env = Env::new_isolated_builder();
 	let gate = env.dir.path().join("gate");
@@ -1467,7 +1467,7 @@ fn parallel_cancellation_reaps_builders_preserves_logs_and_allows_retry() {
 			"nix-store",
 			&[
 				"--store",
-				env.root("nix-rs").to_str().unwrap(),
+				env.root("noxi").to_str().unwrap(),
 				"-l",
 				&input.to_absolute_path(),
 			],
@@ -1540,7 +1540,7 @@ fn parallel_cancellation_reaps_builders_preserves_logs_and_allows_retry() {
 			],
 		)
 	};
-	assert_eq!(valid("nix-rs"), valid("reference"));
+	assert_eq!(valid("noxi"), valid("reference"));
 	for input in store
 		.read_derivation(&drv)
 		.unwrap()
@@ -1558,7 +1558,7 @@ fn parallel_cancellation_reaps_builders_preserves_logs_and_allows_retry() {
 				],
 			)
 		};
-		assert_eq!(log("nix-rs"), log("reference"));
+		assert_eq!(log("noxi"), log("reference"));
 	}
 	cancelled.store(false, Ordering::Relaxed);
 	fs::write(gate.join("release"), "").unwrap();
@@ -1590,7 +1590,7 @@ fn parallel_cancellation_reaps_builders_preserves_logs_and_allows_retry() {
 		String::from_utf8(expected.stdout).unwrap().trim()
 	);
 	drop(store);
-	env.verify("nix-rs");
+	env.verify("noxi");
 }
 
 #[test]
@@ -1622,7 +1622,7 @@ fn cancellation_interrupts_output_lock_waits_and_closed_log_builders() {
 		let (released_tx, released_rx) = mpsc::channel();
 		let real = store.real_path(&output);
 		scope.spawn(move || {
-			let locks = nix_rs_store::lock::PathLocks::lock([real]).unwrap();
+			let locks = noxi_store::lock::PathLocks::lock([real]).unwrap();
 			held_tx.send(()).unwrap();
 			let _ = release_rx.recv_timeout(std::time::Duration::from_secs(5));
 			let _ = released_tx.send(());
@@ -1637,7 +1637,7 @@ fn cancellation_interrupts_output_lock_waits_and_closed_log_builders() {
 		let result = LocalBuilder::new(&store, &settings)
 			.with_cancellation(&cancelled)
 			.realise(&drv, &mut |_| {});
-		assert!(matches!(result, Err(nix_rs_build::BuildError::Cancelled)));
+		assert!(matches!(result, Err(noxi_build::BuildError::Cancelled)));
 		assert!(
 			released_rx.try_recv().is_err(),
 			"build waited for the path lock instead of cancelling"
@@ -1666,10 +1666,10 @@ fn cancellation_interrupts_output_lock_waits_and_closed_log_builders() {
 					ready_tx.send(()).unwrap();
 				}
 			});
-		assert!(matches!(result, Err(nix_rs_build::BuildError::Cancelled)));
+		assert!(matches!(result, Err(noxi_build::BuildError::Cancelled)));
 	});
 	assert!(!store.is_valid_path(&output).unwrap());
 	assert!(sandbox_children().is_empty());
 	drop(store);
-	env.verify("nix-rs");
+	env.verify("noxi");
 }

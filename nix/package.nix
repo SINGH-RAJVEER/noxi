@@ -1,4 +1,4 @@
-# The nixrs preview, or with `replacement`, the provisional engine package
+# The noxi preview, or with `replacement`, the provisional engine package
 # laid out like CppNix's: commands in bin, daemon units and tmpfiles rules in
 # lib. It is unqualified and used only in disposable qualification VMs.
 #
@@ -14,11 +14,11 @@ let
 		cargo = toolchain;
 		rustc = toolchain;
 	};
-	members = [ "nix-rs-cli" ] ++ lib.optionals replacement [ "nix-rs-commands" "nix-rs-daemon" ];
+	members = [ "noxi-cli" ] ++ lib.optionals replacement [ "noxi-commands" "noxi-daemon" ];
 	flags = lib.concatMap (member: [ "-p" member ]) members;
-	# The executables CppNix 2.35.2 installs that nix-rs does not implement.
+	# The executables CppNix 2.35.2 installs that noxi does not implement.
 	unimplemented = [ "nix-channel" "nix-prefetch-url" ];
-	implemented = [ "nixrs" "nix" "nix-build" "nix-instantiate" "nix-store" "nix-env" "nix-collect-garbage" "nix-daemon" "nix-shell" "nix-copy-closure" "nix-hash" ];
+	implemented = [ "noxi" "nix" "nix-build" "nix-instantiate" "nix-store" "nix-env" "nix-collect-garbage" "nix-daemon" "nix-shell" "nix-copy-closure" "nix-hash" ];
 	notices = lib.fileset.toSource {
 		root = ../.;
 		fileset = lib.fileset.unions (
@@ -27,7 +27,7 @@ let
 		);
 	};
 	binaryPackage = rustPlatform.buildRustPackage {
-		pname = if replacement then "nixrs-replacement-provisional" else "nixrs-preview";
+		pname = if replacement then "noxi-replacement-provisional" else "noxi-preview";
 		version = "0.1.1";
 		src = lib.fileset.toSource {
 			root = ../.;
@@ -38,47 +38,47 @@ let
 		cargoTestFlags = flags;
 		cargoInstallFlags = flags;
 		postInstall = ''
-			mkdir -p "$out/share/doc/nix-rs"
-			cp -r ${notices}/. "$out/share/doc/nix-rs/"
+			mkdir -p "$out/share/doc/noxi"
+			cp -r ${notices}/. "$out/share/doc/noxi/"
 		'';
 		# CppNix's package compiles in a static busybox as the sandbox's
-		# /bin/sh; nix-rs reads the same setting at build time.
+		# /bin/sh; noxi reads the same setting at build time.
 		env = lib.optionalAttrs replacement {
-			NIXRS_SANDBOX_SHELL = "${pkgs.busybox-sandbox-shell}/bin/busybox";
+			NOXI_SANDBOX_SHELL = "${pkgs.busybox-sandbox-shell}/bin/busybox";
 		};
 		# The engine crates' tests need the reference executables and fixture
 		# stores; they run in the development shell, not the package build.
 		doCheck = !replacement;
 		meta = {
-			description = if replacement then "Unqualified nix-rs replacement layout for disposable VMs" else "nix-rs preview evaluator";
+			description = if replacement then "Unqualified noxi replacement layout for disposable VMs" else "noxi preview evaluator";
 			platforms = [ "x86_64-linux" ];
 			license = lib.licenses.gpl3Only;
-			mainProgram = "nixrs";
+			mainProgram = "noxi";
 		};
 	};
 in
-if !replacement then binaryPackage else pkgs.runCommand "nixrs-replacement-provisional-${binaryPackage.version}" {
+if !replacement then binaryPackage else pkgs.runCommand "noxi-replacement-provisional-${binaryPackage.version}" {
 	inherit (binaryPackage) pname version meta;
 	passthru = { inherit binaryPackage implemented unimplemented; };
 } ''
-	mkdir -p "$out/bin" "$out/libexec/nix-rs" "$out/share/nix-rs" "$out/lib/systemd/system" "$out/lib/tmpfiles.d"
+	mkdir -p "$out/bin" "$out/libexec/noxi" "$out/share/noxi" "$out/lib/systemd/system" "$out/lib/tmpfiles.d"
 	cp -r ${binaryPackage}/share/doc "$out/share/"
 	for command in ${lib.escapeShellArgs implemented}; do
-		cp ${binaryPackage}/bin/"$command" "$out/libexec/nix-rs/$command"
-		ln -s "../libexec/nix-rs/$command" "$out/bin/$command"
+		cp ${binaryPackage}/bin/"$command" "$out/libexec/noxi/$command"
+		ln -s "../libexec/noxi/$command" "$out/bin/$command"
 	done
 	# Reserve the reference layout without delegating to CppNix. These entry
 	# points fail until their engine implementations exist.
-	cat > "$out/libexec/nix-rs/unimplemented" <<-'EOF'
+	cat > "$out/libexec/noxi/unimplemented" <<-'EOF'
 	#!${pkgs.runtimeShell}
-	printf 'nix-rs qualification gap: %s is not implemented\n' "''${0##*/}" >&2
+	printf 'noxi qualification gap: %s is not implemented\n' "''${0##*/}" >&2
 	exit 127
 	EOF
-	chmod +x "$out/libexec/nix-rs/unimplemented"
+	chmod +x "$out/libexec/noxi/unimplemented"
 	for command in ${lib.escapeShellArgs unimplemented}; do
-		ln -s ../libexec/nix-rs/unimplemented "$out/bin/$command"
+		ln -s ../libexec/noxi/unimplemented "$out/bin/$command"
 	done
-	echo ${lib.escapeShellArgs unimplemented} > "$out/share/nix-rs/unimplemented-commands"
+	echo ${lib.escapeShellArgs unimplemented} > "$out/share/noxi/unimplemented-commands"
 
 	# The units and tmpfiles rules CppNix 2.35.2 installs, pointing at this
 	# package. The NixOS daemon module takes them through systemd.packages.

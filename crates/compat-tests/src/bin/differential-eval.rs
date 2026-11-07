@@ -154,17 +154,17 @@ fn execute() -> Result<bool, String> {
 	let (Some(reference), Some(candidate), Some(report), None) =
 		(args.next(), args.next(), args.next(), args.next())
 	else {
-		return Err("usage: differential-eval REFERENCE_NIX_INSTANTIATE NIXRS REPORT.json".into());
+		return Err("usage: differential-eval REFERENCE_NIX_INSTANTIATE NOXI REPORT.json".into());
 	};
 	let reference = absolute_program(&reference)?;
 	let candidate = absolute_program(&candidate)?;
 	let reference = Path::new(&reference);
 	let candidate = Path::new(&candidate);
-	let timeout = match env::var("NIXRS_DIFF_TIMEOUT_MS") {
+	let timeout = match env::var("NOXI_DIFF_TIMEOUT_MS") {
 		Ok(value) => Duration::from_millis(
 			value
 				.parse::<u64>()
-				.map_err(|error| format!("NIXRS_DIFF_TIMEOUT_MS: {error}"))?,
+				.map_err(|error| format!("NOXI_DIFF_TIMEOUT_MS: {error}"))?,
 		),
 		Err(_) => DEFAULT_TIMEOUT,
 	};

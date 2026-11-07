@@ -31,7 +31,7 @@ enum Expect {
 	/// Decodes and encodes back to the same bytes.
 	RoundTrip,
 	/// CppNix accepts this only with the named experimental feature, so under
-	/// default settings both reject it. nix-rs does not implement the feature
+	/// default settings both reject it. noxi does not implement the feature
 	/// yet, which is a gap for matrix rows that enable it.
 	Experimental(&'static str),
 }

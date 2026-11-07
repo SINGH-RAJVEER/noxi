@@ -1,14 +1,14 @@
-# nix-rs OS language
+# noxi OS language
 
 The terms below name the product concepts used by the plan and specifications.
 
 ## Language
 
-**nix-rs OS**:
-The NixOS-derived operating system delivered by this project. It uses nix-rs to evaluate, build, and maintain the installed system.
+**noxi OS**:
+The NixOS-derived operating system delivered by this project. It uses noxi to evaluate, build, and maintain the installed system.
 _Avoid_: GUI distribution, manager package
 
-**nix-rs engine**:
+**noxi engine**:
 The Rust package manager that implements the supported Nix behavior used by the OS and its tools.
 _Avoid_: frontend, OS
 
@@ -25,11 +25,11 @@ A built NixOS system closure that can be selected for activation or boot and ret
 _Avoid_: package version
 
 **extension**:
-A new nix-rs behavior that requires an explicit command, setting, or negotiated protocol capability and preserves reference behavior by default. A native surface's own defaults, such as Lua configuration, belong to the extension the user selects by using that surface.
+A new noxi behavior that requires an explicit command, setting, or negotiated protocol capability and preserves reference behavior by default. A native surface's own defaults, such as Lua configuration, belong to the extension the user selects by using that surface.
 _Avoid_: changed default
 
 **native surface**:
-A nix-rs entry point with no CppNix counterpart: the `nixrs` command, the OS installer, and the NixBox CLI, TUI, and GUI. Compatibility commands are not native surfaces.
+A noxi entry point with no CppNix counterpart: the `noxi` command, the OS installer, and the NixBox CLI, TUI, and GUI. Compatibility commands are not native surfaces.
 _Avoid_: new CLI (when a compatibility command is meant)
 
 **Lua configuration**:
@@ -57,7 +57,7 @@ A finite command declared in a development environment, such as initialization, 
 _Avoid_: development server when a finite command is meant
 
 **fleet**:
-A set of nix-rs OS machines managed from a common authoritative configuration, with stable machine identities and explicit administrative ownership. A fleet may contain several independent clusters and machines outside any cluster.
+A set of noxi OS machines managed from a common authoritative configuration, with stable machine identities and explicit administrative ownership. A fleet may contain several independent clusters and machines outside any cluster.
 _Avoid_: cluster when the whole managed machine set is meant
 
 **fleet revision**:

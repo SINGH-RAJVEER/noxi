@@ -10,9 +10,9 @@ Rust is an implementation choice, not a guarantee of good diagnostics. The stand
 
 ## Two CLI contracts
 
-The OS-native command, provisionally `nixrs`, uses the diagnostic behavior in this document for all operations: evaluation, builds, fetches, cache substitution, store maintenance, system rebuilds, activation, and rollback. The TUI and GUI consume the same event stream and diagnostic objects.
+The OS-native command, provisionally `noxi`, uses the diagnostic behavior in this document for all operations: evaluation, builds, fetches, cache substitution, store maintenance, system rebuilds, activation, and rollback. The TUI and GUI consume the same event stream and diagnostic objects.
 
-Compatibility commands such as `nix`, `nix-build`, and `nixos-rebuild` must retain their declared reference output, exit status, and log-format behavior under the [drop-in contract](compatibility.md). They may offer the improved renderer through an explicit new flag or setting. The distribution may advertise `nixrs system switch` as its preferred interactive rebuild command, but cannot silently change the output of a compatibility command and still claim byte-for-byte CLI parity. This distinction resolves the tension between better logs and 100% backwards compatibility.
+Compatibility commands such as `nix`, `nix-build`, and `nixos-rebuild` must retain their declared reference output, exit status, and log-format behavior under the [drop-in contract](compatibility.md). They may offer the improved renderer through an explicit new flag or setting. The distribution may advertise `noxi system switch` as its preferred interactive rebuild command, but cannot silently change the output of a compatibility command and still claim byte-for-byte CLI parity. This distinction resolves the tension between better logs and 100% backwards compatibility.
 
 ## Rebuild phases and visible progress
 
@@ -76,7 +76,7 @@ error[NR-EVAL-OPTION]: unknown option services.openssh.enabel
 
 running generation: 118 (unchanged)
 boot default:       118 (unchanged)
-full log:           nixrs logs <operation-id>
+full log:           noxi logs <operation-id>
 ```
 
 The same shape applies to a [Lua configuration](lua-configuration.md): the location is the `.lua` file, line, and column. This is a target for diagnostic structure, not a claim that the current evaluator can produce it. A build failure should use the same shape but name the derivation and failing builder step. An activation failure must state whether the boot default moved and which services changed before the failure. Never replace that information with an opaque traceback or a thousand lines of dependency output.

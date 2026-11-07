@@ -88,8 +88,8 @@ def tree_digest(root: Path) -> str:
 # The derivation paths the reference computed for the qualification system,
 # its VM, its Home Manager module generation and a standalone generation.
 QUALIFICATION_DRVS = [
-	"/nix/store/f7rbcys5ki5q0bvnalm75sq15cfn7n3b-nixos-system-nixrs-reference-26.11pre-git.drv",
-	"/nix/store/d111q3a19x7bfpw1hrry7dcyx60awhly-nixos-vm.drv",
+	"/nix/store/808611y34fmaz5xg8y68p2plqqv9bg25-nixos-system-noxi-reference-26.11pre-git.drv",
+	"/nix/store/3clrni1rbh30nnqzrnib13gq2v54yhzk-nixos-vm.drv",
 	"/nix/store/ks2l014wl7n9pm5h58y94wj03mbbmjin-home-manager-generation.drv",
 	"/nix/store/09p2niv7bmc293ji0wsdqdihgia3jbjc-home-manager-generation.drv",
 ]
@@ -333,7 +333,7 @@ class Fixtures:
 		if case in {"NAR-01", "NAR-02", "NAR-03", "NAR-04"}:
 			root.mkdir()
 			path = self.ref("nix-store", ["--store", self.store_uri(root), "--add", str(self.tree)]).decode().strip()
-			# CppNix dumps a physical filesystem path; nix-rs maps a logical store path.
+			# CppNix dumps a physical filesystem path; noxi maps a logical store path.
 			dump_path = str(root / path.lstrip("/")) if engine == self.reference else path
 			return Operation("nix-store", ["--store", self.store_uri(root), "--dump", dump_path], env, self.root)
 		if case in {"FETCH-01", "NAR-05"}:

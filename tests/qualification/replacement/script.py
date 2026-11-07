@@ -131,7 +131,7 @@ def rebuild(label: str, action: str, name: str | None, extra: str = "--no-reexec
 
 
 def components(label: str, name: str, activation: str) -> bool:
-	"""nixos-rebuild's own steps, run one at a time with nix-rs."""
+	"""nixos-rebuild's own steps, run one at a time with noxi."""
 	out = generation(name)["out"]
 	ok = instantiate(f"component-{label}-instantiate", name)
 	ok = run(f"component-{label}-realise", f"nix-store --realise {generation(name)['drv']}", check=equals(out)) and ok
@@ -154,8 +154,8 @@ def reboot(label: str, name: str) -> bool:
 	)
 
 
-def swap_to_nixrs(label: str) -> bool:
-	"""CppNix rebuilds the machine into generation `one`, which uses nix-rs."""
+def swap_to_noxi(label: str) -> bool:
+	"""CppNix rebuilds the machine into generation `one`, which uses noxi."""
 	instantiate("control-cppnix-instantiate-one", "one")
 	run(
 		"control-cppnix-rebuild-build-one",
@@ -171,16 +171,16 @@ def swap_to_nixrs(label: str) -> bool:
 		"readlink -f $(command -v nix-instantiate)",
 		check=lambda out: (out.strip().startswith(expected["candidate"]), out.strip()),
 	)
-	run("nixrs-version", "nix-instantiate --version")
-	run("nixrs-modern-cli", "nix --version")
-	run("nixrs-config-show", "nix config show --json")
-	daemons("nixrs", expected["candidate"])
+	run("noxi-version", "nix-instantiate --version")
+	run("noxi-modern-cli", "nix --version")
+	run("noxi-config-show", "nix config show --json")
+	daemons("noxi", expected["candidate"])
 	return selected
 
 
 def return_to_cppnix(label: str) -> None:
 	"""The documented return: switch the system profile back to the CppNix
-	generation, with nix-rs's nix-env, else with CppNix's from that generation."""
+	generation, with noxi's nix-env, else with CppNix's from that generation."""
 	ok = run(f"{label}-switch-generation", f"nix-env -p {PROFILE} --switch-generation 1")
 	if not ok:
 		run(f"recovery-{label}-switch-generation", f"{BASE}/sw/bin/nix-env -p {PROFILE} --switch-generation 1")
@@ -195,8 +195,8 @@ def return_to_cppnix(label: str) -> None:
 	run(f"{label}-version", "nix-instantiate --version", check=equals("nix-instantiate (Nix) 2.35.2"))
 	daemons("cppnix", reference)
 	run(f"{label}-list-generations", f"nix-env -p {PROFILE} --list-generations")
-	# CppNix reads and reuses the store nix-rs wrote: verification, then a
-	# rebuild of a nix-rs generation that has nothing to build.
+	# CppNix reads and reuses the store noxi wrote: verification, then a
+	# rebuild of a noxi generation that has nothing to build.
 	run(f"{label}-verify-store", "nix-store --verify --check-contents")
 	run(
 		f"{label}-reuses-store",
@@ -207,8 +207,8 @@ def return_to_cppnix(label: str) -> None:
 
 def nixos() -> None:
 	"""TODO section 7: rebuild, reboot, a second change and rollback."""
-	instantiate("nixrs-instantiate-two", "two")
-	run("nixrs-find-file", "nix-instantiate --find-file nixpkgs")
+	instantiate("noxi-instantiate-two", "two")
+	run("noxi-find-file", "nix-instantiate --find-file nixpkgs")
 	# nixos-rebuild's default re-execution first builds the target's own
 	# nixos-rebuild; the actions below skip it so each is measured alone.
 	rebuild("rebuild-build-reexec", "build", "two", extra="")
@@ -243,7 +243,7 @@ def nixos() -> None:
 		reboot("reboot-into-two", "two")
 		run("reboot-generation-marker", "cat /etc/qualification-generation", check=equals("two"))
 	else:
-		blocked("reboot-into-two", "no nix-rs-built generation is in the system profile")
+		blocked("reboot-into-two", "no noxi-built generation is in the system profile")
 
 	rebuild("second-change-switch", "switch", "three")
 	verify("second-change-generation", *is_generation("three"))
@@ -288,7 +288,7 @@ def lifecycle() -> None:
 		components("upgrade", "upgrade", "switch")
 	run("upgrade-package-selected",
 		f"systemctl cat nix-daemon.service | grep -F 'ExecStart=@{expected['upgrade']}/bin/nix-daemon nix-daemon --daemon'"
-		f" && cat {expected['upgrade']}/share/nix-rs/qualification-upgrade", check=equals("upgrade"))
+		f" && cat {expected['upgrade']}/share/noxi/qualification-upgrade", check=equals("upgrade"))
 	before, before_profile = current(), profile()
 	run(
 		"failed-upgrade",
@@ -327,14 +327,14 @@ def lifecycle() -> None:
 
 
 def removal() -> None:
-	"""After the return to CppNix, remove every nix-rs generation."""
+	"""After the return to CppNix, remove every noxi generation."""
 	run("removal-delete-generations", f"nix-env -p {PROFILE} --delete-generations old")
 	run("removal-refresh-boot-menu", f"{BASE}/bin/switch-to-configuration boot")
 	for name in expected["generations"]:
 		run(f"removal-no-{name}-boot-entry", f"! grep -F {generation(name)['out']} /boot/grub/grub.cfg")
 	run("removal-collect-garbage", "nix-collect-garbage")
 	run(
-		"removal-no-nixrs-generation",
+		"removal-no-noxi-generation",
 		f"! ls -d {PROFILE}-*-link | grep -v '^{PROFILE}-1-link$'"
 		f" && test $(readlink -f $(command -v nix-instantiate)) = $(readlink -f {expected['reference']}/bin/nix-instantiate)"
 		f" && ! nix-store --query --requisites /run/current-system/sw | grep -Fx {expected['candidate']}",
@@ -355,7 +355,7 @@ run("reference-boot", "nix-instantiate --version", check=equals("nix-instantiate
 # system as generation 1, the one the return switches back to.
 run("seed-system-profile", f"nix-env -p {PROFILE} --set /run/current-system")
 BASE = current()
-run("candidate-artifacts", f"sha256sum {expected['candidate']}/libexec/nix-rs/*")
+run("candidate-artifacts", f"sha256sum {expected['candidate']}/libexec/noxi/*")
 run(
 	"control-cppnix-flake-build",
 	f"nix build --no-link --no-write-lock-file --print-out-paths {FLAKE}#nixosConfigurations.two.config.system.build.toplevel",
@@ -386,11 +386,11 @@ if MODE == "home-manager":
 		check=equals(expected["home"]["out"]),
 	)
 
-swap = swap_to_nixrs("lifecycle-install" if MODE == "lifecycle" else "swap-to-nixrs")
+swap = swap_to_noxi("lifecycle-install" if MODE == "lifecycle" else "swap-to-noxi")
 if swap:
 	{"nixos": nixos, "home-manager": home_manager, "lifecycle": lifecycle}[MODE]()
 else:
-	blocked(f"{MODE}-scenario", "CppNix could not switch the machine to the nix-rs generation")
+	blocked(f"{MODE}-scenario", "CppNix could not switch the machine to the noxi generation")
 return_to_cppnix("return-to-cppnix")
 if MODE == "lifecycle":
 	removal()

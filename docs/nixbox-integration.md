@@ -1,10 +1,10 @@
 # NixBox integration specification
 
-## Role in nix-rs OS
+## Role in noxi OS
 
-NixBox becomes the operation and planning layer for package and option management in the OS. The OS-native CLI, TUI, and GPUI-based NixBox GUI submit typed requests to it. NixBox resolves those requests against the target's locked inputs, asks the nix-rs engine to evaluate and realize the resulting build graph, and coordinates the system generation workflow. It must do substantially more than insert text into a `.nix` file or spawn `nixos-rebuild`. Legacy compatibility commands retain their direct engine semantics.
+NixBox becomes the operation and planning layer for package and option management in the OS. The OS-native CLI, TUI, and GPUI-based NixBox GUI submit typed requests to it. NixBox resolves those requests against the target's locked inputs, asks the noxi engine to evaluate and realize the resulting build graph, and coordinates the system generation workflow. It must do substantially more than insert text into a `.nix` file or spawn `nixos-rebuild`. Legacy compatibility commands retain their direct engine semantics.
 
-The nix-rs engine owns Nix semantics, the store, builds, substitution, daemon protocols, and compatibility. NixBox owns user intent, target selection, candidate plans, configuration provenance, preview, operation state, and presentation. NixOS's generated activation program remains responsible for applying a built system generation. There is one writer per store and one active generation-mutation owner per machine.
+The noxi engine owns Nix semantics, the store, builds, substitution, daemon protocols, and compatibility. NixBox owns user intent, target selection, candidate plans, configuration provenance, preview, operation state, and presentation. NixOS's generated activation program remains responsible for applying a built system generation. There is one writer per store and one active generation-mutation owner per machine.
 
 ## Current code and intended change
 
@@ -16,7 +16,7 @@ Today, `nixbox-nix::manifest` writes managed Nix files, `nixbox-nix::build` laun
 |---|---|
 | `nixbox-core` | Typed package and system-option requests; target scope; candidate plan and operation state; idempotency and recovery identifiers |
 | `nixbox-config` | Locate the selected configuration and lock; track source revisions and application-owned declarations; keep UI preferences separate from OS configuration |
-| `nixbox-nix` | Query the exact locked package universe; resolve a selected attribute or flake output with the nix-rs evaluator; inspect effective module values and definitions; compare derivation graphs; request realization through the engine interface |
+| `nixbox-nix` | Query the exact locked package universe; resolve a selected attribute or flake output with the noxi evaluator; inspect effective module values and definitions; compare derivation graphs; request realization through the engine interface |
 | `nixbox-cmd`, `nixbox-cli`, `nixbox-tui`, and planned `nixbox-gui` | Render the same plans, structured progress, diagnostics, and final state; do not duplicate store or rebuild logic. `nixbox-gui` uses GPUI for its desktop interface. |
 
 Do not turn NixBox into a second Nix implementation or a second root daemon. The shared engine interface must return typed evaluation results, derivation identities, dependency and closure changes, build events, and structured failures. NixBox must not infer these from regexes over CLI output. A temporary subprocess adapter may help migration during development, but it is not the final OS architecture or evidence of full compatibility.
@@ -27,8 +27,8 @@ For `Install { package = "ripgrep", scope = NixOS }`, NixBox must:
 
 1. Read the target configuration and immutable `flake.lock` revision. Search and resolve `ripgrep` in that exact package universe for the target system. A moving channel label is not enough to identify the candidate.
 2. Construct a typed desired-state change. Determine whether the package is already provided by an application-owned definition, another module, a user profile, or a flake output. Report those sources instead of guessing from a package name.
-3. Ask the nix-rs evaluator to compute the candidate NixOS module result and `system.build.toplevel`. Report the exact resulting derivation, affected closure, expected download/build work, and any option conflict.
-4. Request needed store paths or builds through the nix-rs engine and stream structured events. At this stage a cache or store may change, but the active OS generation does not.
+3. Ask the noxi evaluator to compute the candidate NixOS module result and `system.build.toplevel`. Report the exact resulting derivation, affected closure, expected download/build work, and any option conflict.
+4. Request needed store paths or builds through the noxi engine and stream structured events. At this stage a cache or store may change, but the active OS generation does not.
 5. Persist the successful desired-state change as configuration source, re-evaluate the saved source, and verify it produces the built closure before activation.
 6. Invoke the selected generation action through the system manager and report source, build, running generation, and boot default separately.
 

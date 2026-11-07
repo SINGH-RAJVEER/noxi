@@ -1,8 +1,8 @@
-//! Worker-protocol exchanges with the nix-rs daemon checked byte for byte
+//! Worker-protocol exchanges with the noxi daemon checked byte for byte
 //! against the pinned CppNix 2.35.2 `nix-daemon`.
 //!
 //! The reference builds a small store, which is copied twice. The reference
-//! daemon serves one copy and the nix-rs daemon, started in this process,
+//! daemon serves one copy and the noxi daemon, started in this process,
 //! serves the other. A scripted client in this file then speaks the worker
 //! protocol to each socket directly, at every protocol version the
 //! reference accepts, and records every value either daemon sends. The two
@@ -16,9 +16,9 @@ use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Output};
 use std::time::{Duration, Instant};
 
-use nix_rs_daemon::DaemonSettings;
-use nix_rs_daemon::server::serve;
-use nix_rs_store::LocalStoreConfig;
+use noxi_daemon::DaemonSettings;
+use noxi_daemon::server::serve;
+use noxi_store::LocalStoreConfig;
 
 fn from_env_or_target(var: &str, target: &str, probe: &str) -> PathBuf {
 	if let Some(path) = std::env::var_os(var) {
@@ -57,7 +57,7 @@ const NEWEST: u64 = 38;
 
 /// `actRealise`, `actCopyPaths` and `actBuilds`, which CppNix's `Worker` opens
 /// for its lifetime and reports its goal counts on, and the progress and
-/// expected-size results it sends. nix-rs has no goal scheduler that
+/// expected-size results it sends. noxi has no goal scheduler that
 /// counts the same way yet, so they are left out of the comparison.
 const WORKER_ACTIVITIES: [u64; 3] = [102, 103, 104];
 const PROGRESS_RESULTS: [u64; 2] = [105, 106];
@@ -67,7 +67,7 @@ const fn version(minor: u64) -> u64 {
 }
 
 /// The daemons a test compares.
-const DAEMONS: [&str; 2] = ["reference", "nix-rs"];
+const DAEMONS: [&str; 2] = ["reference", "noxi"];
 
 /// One value a daemon sent, as the transcript records it.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -245,7 +245,7 @@ impl Wire {
 	}
 
 	fn normalise(&self, s: &str) -> String {
-		// CppNix highlights the values in its messages (`HintFmt`); nix-rs
+		// CppNix highlights the values in its messages (`HintFmt`); noxi
 		// does not yet, anywhere, so colour is compared without. Clients
 		// that are not writing to a terminal remove it themselves.
 		let mut s = strip_colour(s);
@@ -483,7 +483,7 @@ struct Options {
 
 impl Env {
 	fn command(&self, program: &str, args: &[&str]) -> Command {
-		let bin = from_env_or_target("NIXRS_REFERENCE_BIN", "nix-reference/bin", "nix-store");
+		let bin = from_env_or_target("NOXI_REFERENCE_BIN", "nix-reference/bin", "nix-store");
 		let mut command = Command::new(bin.join(program));
 		command
 			.args(args)
@@ -529,7 +529,7 @@ impl Env {
 			fs::create_dir(dir.path().join(sub)).unwrap();
 		}
 		let busybox = fs::canonicalize(from_env_or_target(
-			"NIXRS_TEST_BUSYBOX",
+			"NOXI_TEST_BUSYBOX",
 			"test-busybox",
 			"bin/busybox",
 		))
@@ -636,8 +636,8 @@ impl Env {
 			.unwrap();
 		env.reference_daemon = Some(reference);
 
-		let listener = UnixListener::bind(env.socket("nix-rs")).unwrap();
-		let mut settings = DaemonSettings::new(LocalStoreConfig::with_root(&env.root("nix-rs")));
+		let listener = UnixListener::bind(env.socket("noxi")).unwrap();
+		let mut settings = DaemonSettings::new(LocalStoreConfig::with_root(&env.root("noxi")));
 		settings.build.sandbox_paths = Vec::new();
 		settings.build.build_cores = 1;
 		settings.build.nix_command = true;
@@ -645,7 +645,7 @@ impl Env {
 		if env.root("cache").exists() {
 			settings
 				.substituters
-				.push(nix_rs_store::binary_cache::BinaryCache::open(&cache_uri).unwrap());
+				.push(noxi_store::binary_cache::BinaryCache::open(&cache_uri).unwrap());
 		}
 		if options.trusted {
 			settings.trusted_users.push(user);
@@ -698,30 +698,30 @@ impl Env {
 			script(&mut wire);
 			logs.push(wire.log);
 		}
-		let nix_rs = logs.pop().unwrap();
+		let noxi = logs.pop().unwrap();
 		let reference = logs.pop().unwrap();
-		// While debugging, `NIXRS_WIRE_DUMP=DIR` keeps both transcripts.
-		if let Some(dir) = std::env::var_os("NIXRS_WIRE_DUMP") {
+		// While debugging, `NOXI_WIRE_DUMP=DIR` keeps both transcripts.
+		if let Some(dir) = std::env::var_os("NOXI_WIRE_DUMP") {
 			let dir = PathBuf::from(dir);
-			for (name, log) in [("reference", &reference), ("nix-rs", &nix_rs)] {
+			for (name, log) in [("reference", &reference), ("noxi", &noxi)] {
 				let text: String = log.iter().map(|t| format!("{t:?}\n")).collect();
 				fs::write(dir.join(format!("{what}.{name}.txt")), text).unwrap();
 			}
 		}
-		if nix_rs != reference {
-			let first = nix_rs
+		if noxi != reference {
+			let first = noxi
 				.iter()
 				.zip(&reference)
 				.position(|(a, b)| a != b)
-				.unwrap_or(nix_rs.len().min(reference.len()));
+				.unwrap_or(noxi.len().min(reference.len()));
 			let context = |log: &[Tok]| {
 				let start = first.saturating_sub(12);
 				format!("{:#?}", &log[start..log.len().min(first + 12)])
 			};
 			panic!(
-				"{what}: transcripts differ at token {first}\nreference:\n{}\nnix-rs:\n{}",
+				"{what}: transcripts differ at token {first}\nreference:\n{}\nnoxi:\n{}",
 				context(&reference),
-				context(&nix_rs)
+				context(&noxi)
 			);
 		}
 		reference
@@ -1464,7 +1464,7 @@ fn copied_realisation_fixtures_persist_merge_and_conflict() {
 	let dir = Path::new(env!("CARGO_MANIFEST_DIR"))
 		.join("../../tests/nix/src/libstore-tests/data/worker-protocol");
 	let realisation = fs::read(dir.join("realisation-realisation-with-path-not-hash.bin")).unwrap();
-	let mut r = nix_rs_daemon::wire::Reader::new(&realisation[..]);
+	let mut r = noxi_daemon::wire::Reader::new(&realisation[..]);
 	let drv = r.read_string().unwrap();
 	let output = r.read_string().unwrap();
 	let path = r.read_string().unwrap();
@@ -1848,9 +1848,9 @@ fn realisations_need_the_protocol_feature() {
 	});
 }
 /// The protocol minor versions to check: all of them, or those listed in
-/// `NIXRS_WIRE_VERSIONS` (such as `38` or `18,26`) while debugging.
+/// `NOXI_WIRE_VERSIONS` (such as `38` or `18,26`) while debugging.
 fn versions() -> Vec<u64> {
-	match std::env::var("NIXRS_WIRE_VERSIONS") {
+	match std::env::var("NOXI_WIRE_VERSIONS") {
 		Ok(list) => list.split(',').map(|v| v.trim().parse().unwrap()).collect(),
 		Err(_) => (OLDEST..=NEWEST).collect(),
 	}

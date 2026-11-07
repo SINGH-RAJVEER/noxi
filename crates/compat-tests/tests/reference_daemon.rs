@@ -1,7 +1,7 @@
-//! The nix-rs daemon checked against the pinned CppNix 2.35.2 reference.
+//! The noxi daemon checked against the pinned CppNix 2.35.2 reference.
 //!
 //! The reference builds a small store, which is copied twice. The reference
-//! `nix-daemon` serves one copy and the nix-rs daemon, started in this
+//! `nix-daemon` serves one copy and the noxi daemon, started in this
 //! process, serves the other. Unchanged reference clients then run the same
 //! commands against each socket, and their exit status, standard output and
 //! standard error must match.
@@ -14,9 +14,9 @@ use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Output};
 use std::time::{Duration, Instant};
 
-use nix_rs_daemon::DaemonSettings;
-use nix_rs_daemon::server::serve;
-use nix_rs_store::LocalStoreConfig;
+use noxi_daemon::DaemonSettings;
+use noxi_daemon::server::serve;
+use noxi_store::LocalStoreConfig;
 
 fn from_env_or_target(var: &str, target: &str, probe: &str) -> PathBuf {
 	if let Some(path) = std::env::var_os(var) {
@@ -53,7 +53,7 @@ impl Drop for Env {
 
 impl Env {
 	fn command(&self, program: &str, args: &[&str]) -> Command {
-		let bin = from_env_or_target("NIXRS_REFERENCE_BIN", "nix-reference/bin", "nix-store");
+		let bin = from_env_or_target("NOXI_REFERENCE_BIN", "nix-reference/bin", "nix-store");
 		let mut command = Command::new(bin.join(program));
 		command
 			.args(args)
@@ -104,7 +104,7 @@ impl Env {
 			fs::create_dir(dir.path().join(sub)).unwrap();
 		}
 		let busybox = fs::canonicalize(from_env_or_target(
-			"NIXRS_TEST_BUSYBOX",
+			"NOXI_TEST_BUSYBOX",
 			"test-busybox",
 			"bin/busybox",
 		))
@@ -149,7 +149,7 @@ impl Env {
 			.run_ok("nix-store", &["--store", &src, "--realise", &env.drv])
 			.trim()
 			.to_owned();
-		for copy in ["reference", "nix-rs"] {
+		for copy in ["reference", "noxi"] {
 			let status = Command::new("cp")
 				.args(["-a", &src, env.root(copy).to_str().unwrap()])
 				.status()
@@ -177,8 +177,8 @@ impl Env {
 			.unwrap();
 		env.reference_daemon = Some(reference);
 
-		let listener = UnixListener::bind(env.root("nix-rs.sock")).unwrap();
-		let mut settings = DaemonSettings::new(LocalStoreConfig::with_root(&env.root("nix-rs")));
+		let listener = UnixListener::bind(env.root("noxi.sock")).unwrap();
+		let mut settings = DaemonSettings::new(LocalStoreConfig::with_root(&env.root("noxi")));
 		settings.build.sandbox_paths = Vec::new();
 		settings.build.build_cores = 1;
 		// The reference daemon runs with `nix-command` enabled.
@@ -200,7 +200,7 @@ impl Env {
 	}
 
 	/// Run a client against both daemons and check they behave the same.
-	/// Returns the output of the run against nix-rs.
+	/// Returns the output of the run against noxi.
 	fn compare(&self, program: &str, args: &[&str]) -> Output {
 		self.compare_with_input(program, args, None)
 	}
@@ -220,7 +220,7 @@ impl Env {
 		root: Option<&str>,
 	) -> Output {
 		let mut outputs = Vec::new();
-		for daemon in ["reference", "nix-rs"] {
+		for daemon in ["reference", "noxi"] {
 			let url = self.store_url(daemon);
 			let args: Vec<String> = args
 				.iter()
@@ -269,30 +269,30 @@ impl Env {
 				.collect::<Vec<_>>()
 				.join("\n")
 		};
-		let (reference, nix_rs) = (&outputs[0], &outputs[1]);
+		let (reference, noxi) = (&outputs[0], &outputs[1]);
 		let times = |output: &Output| registration_times(&String::from_utf8_lossy(&output.stdout));
-		let (reference_times, nix_rs_times) = (times(reference), times(nix_rs));
-		assert_eq!(nix_rs_times.len(), reference_times.len());
-		for (a, b) in nix_rs_times.iter().zip(&reference_times) {
+		let (reference_times, noxi_times) = (times(reference), times(noxi));
+		assert_eq!(noxi_times.len(), reference_times.len());
+		for (a, b) in noxi_times.iter().zip(&reference_times) {
 			assert!(
 				*a != 0 && a.abs_diff(*b) <= 2,
 				"{program} {args:?}: registration time {a}, reference {b}"
 			);
 		}
 		assert_eq!(
-			nix_rs.status.code(),
+			noxi.status.code(),
 			reference.status.code(),
-			"{program} {args:?}: exit status\nreference stderr:\n{}\nnix-rs stderr:\n{}",
+			"{program} {args:?}: exit status\nreference stderr:\n{}\nnoxi stderr:\n{}",
 			String::from_utf8_lossy(&reference.stderr),
-			String::from_utf8_lossy(&nix_rs.stderr)
+			String::from_utf8_lossy(&noxi.stderr)
 		);
 		assert_eq!(
-			normalise(&nix_rs.stdout, "nix-rs"),
+			normalise(&noxi.stdout, "noxi"),
 			normalise(&reference.stdout, "reference"),
 			"{program} {args:?}: stdout"
 		);
 		assert_eq!(
-			normalise(&nix_rs.stderr, "nix-rs"),
+			normalise(&noxi.stderr, "noxi"),
 			normalise(&reference.stderr, "reference"),
 			"{program} {args:?}: stderr"
 		);
@@ -324,7 +324,7 @@ fn client_build_cores_are_applied_without_leaking_between_connections() {
 		);
 		assert!(output.status.success());
 		let path = String::from_utf8(output.stdout).unwrap();
-		let physical = env.root("nix-rs").join(path.trim().trim_start_matches('/'));
+		let physical = env.root("noxi").join(path.trim().trim_start_matches('/'));
 		assert_eq!(fs::read_to_string(physical).unwrap(), format!("{cores}\n"));
 	}
 }
@@ -333,7 +333,7 @@ fn client_build_cores_are_applied_without_leaking_between_connections() {
 fn store_optimisation_through_daemon_matches_reference() {
 	let env = Env::new();
 	env.compare("nix-store", &["--store", "{store}", "--optimise"]);
-	for daemon in ["reference", "nix-rs"] {
+	for daemon in ["reference", "noxi"] {
 		let links = env.root(daemon).join("nix/store/.links");
 		assert!(fs::read_dir(links).unwrap().next().is_some());
 	}
@@ -342,7 +342,7 @@ fn store_optimisation_through_daemon_matches_reference() {
 #[test]
 fn build_log_upload_through_daemon_matches_reference() {
 	let env = Env::with_trust(true);
-	for daemon in ["reference", "nix-rs"] {
+	for daemon in ["reference", "noxi"] {
 		let logs = env.root(daemon).join("nix/var/log/nix/drvs");
 		if logs.exists() {
 			fs::remove_dir_all(logs).unwrap();
@@ -447,12 +447,11 @@ fn untrusted_clients_get_the_reference_warnings_and_censored_roots() {
 	let path = String::from_utf8(added.stdout).unwrap().trim().to_owned();
 	let store_path =
 		nix_compat::store_path::StorePath::from_absolute_path(path.as_bytes()).unwrap();
-	let stores: Vec<_> = ["reference", "nix-rs"]
+	let stores: Vec<_> = ["reference", "noxi"]
 		.iter()
 		.map(|name| {
 			let store =
-				nix_rs_store::LocalStore::open(LocalStoreConfig::with_root(&env.root(name)))
-					.unwrap();
+				noxi_store::LocalStore::open(LocalStoreConfig::with_root(&env.root(name))).unwrap();
 			store.add_temp_root(&store_path).unwrap();
 			store
 		})
@@ -694,7 +693,7 @@ fn verification_through_the_daemon_matches_the_reference() {
 		.unwrap()
 		.trim()
 		.to_owned();
-	for daemon in ["reference", "nix-rs"] {
+	for daemon in ["reference", "noxi"] {
 		let root = env.root(daemon);
 		let real = |path: &str| root.join(path.trim_start_matches('/'));
 		let store_dir = real("nix/store");

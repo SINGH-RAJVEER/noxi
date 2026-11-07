@@ -1,0 +1,23 @@
+[package]
+name = "noxi-compat-derive"
+version = "0.0.1"
+edition = "2024"
+rust-version.workspace = true
+description = "Procedural macros for noxi Nix protocol serialization, derived from Snix"
+license = "GPL-3.0-only"
+repository = "https://github.com/SINGH-RAJVEER/nix-rs"
+
+[lib]
+name = "nix_compat_derive"
+proc-macro = true
+
+[dependencies]
+proc-macro2 = { workspace = true, features = ["proc-macro"] }
+quote = { workspace = true, features = ["proc-macro"] }
+syn = { version = "2.0.76", features = ["full", "extra-traits"] }
+
+[dev-dependencies.nix-compat]
+package = "noxi-compat"
+path = "../nix-compat"
+default-features = false
+features = ["async", "wire", "test"]

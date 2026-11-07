@@ -4,7 +4,7 @@ Status: evaluator qualification adapter added 2026-10-25. The [runner](../benchm
 
 ## Questions every result must answer
 
-- Does nix-rs perform the same work and produce the same usable package, shell, profile, or activated generation as the pinned reference?
+- Does noxi perform the same work and produce the same usable package, shell, profile, or activated generation as the pinned reference?
 - Which phase limits completion, and which optimization removes work or shortens the dependency path?
 - How do cold setup, repeated setup, changed configuration, failures, concurrent users, and low-resource machines behave?
 - Does saved startup time move to first package execution, page faults, lazy download, shell hooks, or service readiness?
@@ -16,11 +16,11 @@ Use the project-pinned CppNix 2.35.2 release at `2c73b59da29606068c0c98db015dd3a
 
 Build candidate binaries with the normal portable release profile and recorded feature set. The existing `release-with-debug` profile can support profiling; record any difference from distributed release settings. Do not time Cargo/Nix builds of the benchmarking tools or their package-manager artifacts inside installation scenarios. Record the packaging expression, source revision, dirty tree digest, Cargo lock digest, compiler, build flags, linked libraries, allocator, binary digests, executable paths, and versions for both engines. A JJ change ID alone is insufficient to identify a mutable working copy.
 
-Each optimization needs two comparisons: candidate versus its pre-change nix-rs baseline, and candidate versus pinned CppNix. Keep raw values even where a case has no comparable reference command. Use a separate named lane for a newer CppNix release or custom source build; never mix it into the pinned report. Optional native CPU flags or PGO have their own lanes and held-out workloads.
+Each optimization needs two comparisons: candidate versus its pre-change noxi baseline, and candidate versus pinned CppNix. Keep raw values even where a case has no comparable reference command. Use a separate named lane for a newer CppNix release or custom source build; never mix it into the pinned report. Optional native CPU flags or PGO have their own lanes and held-out workloads.
 
 The runner accepts additional preserved artifacts with repeatable `--comparison-bin NAME=DIR`. This puts every optimization stage into the same shuffled, correctness-gated block, so adjacent changes and the cumulative change can be compared under the same host conditions. On heterogeneous CPUs, set the affinity of the entire runner, for example `devenv shell -- taskset -c 0-3,12-15 just bench ...`, and retain its recorded affinity as a distinct resource lane. Never pin just the candidate. The [qualification evaluator measurements](performance.md#qualification-evaluator-measurements-2026-10-25) use this protocol for EVAL-08.
 
-No benchmark may hide a helper engine. If nix-rs uses CppNix to prepare a derivation outside timing, call the case a realization benchmark. For an end-to-end install, its own timed evaluation/input/store work must produce the result. Record builder/helper executable identities, every store client/server pairing, and time attributable to each engine.
+No benchmark may hide a helper engine. If noxi uses CppNix to prepare a derivation outside timing, call the case a realization benchmark. For an end-to-end install, its own timed evaluation/input/store work must produce the result. Record builder/helper executable identities, every store client/server pairing, and time attributable to each engine.
 
 ## Family contracts
 
@@ -37,7 +37,7 @@ All families collect elapsed time, process-tree user/system CPU, peak and steady
 | DB | Seeded compatible SQLite stores containing known paths, references, outputs, signatures, and roots; query, closure walk, registration, contention, and mixed-engine readers/writers. | Same graph/metadata, schema and reference invariants, transaction rollback, and successful CppNix inspection. Hash/normalize DB logical records rather than raw SQLite file bytes. |
 | DAG | Static and dynamically discovered dependencies with fixed-duration/synthetic work, shared outputs, simultaneous clients, cancellation, and different resource limits. | Same requested outputs and legal dependency/failure behavior; one publication per deduplicated output; no root, settings, fairness, or policy leakage. Compare critical path with total work. |
 | BUILD | Static BusyBox builders for no-op/CPU/I/O/output/refscan/log tests, then locked real source builds, sandbox planning, check/repair, and fixed-output failures. | Same derivations/outputs/NAR metadata and status, logs where required, sandbox behavior, and reference checks. Synthetic builder durations are not claims about real compiler acceleration. |
-| RPC | All four CppNix/nix-rs client/server pairings on isolated sockets, repeated/bulk operations, connection startup/reuse, import framing, slow clients, and credentials. | Protocol/version behavior, responses, logs, trust/settings, frame boundaries, and clean reconnects. Time client-visible completion and account for all server processes. |
+| RPC | All four CppNix/noxi client/server pairings on isolated sockets, repeated/bulk operations, connection startup/reuse, import framing, slow clients, and credentials. | Protocol/version behavior, responses, logs, trust/settings, frame boundaries, and clean reconnects. Time client-visible completion and account for all server processes. |
 | PROFILE | Fixed package/output sets with duplicate names, priorities, collisions, large file manifests, install/upgrade/remove/rollback, and concurrent generations. | Same user environment tree, manifest, generation links, collision behavior, roots, executable selection, and rollback. Include user-environment builder work where reference requires it. |
 | ENV | Locked language-tool devShells, `nix shell`, `nix develop`, `nix run`, legacy `nix-shell`, dirty input changes, shell hooks, and native service environments. | First child command sees required tools/environment and exact hook effects. Native service workflows additionally require equivalent dependencies/readiness and clean teardown. |
 | SYS | Pinned minimal/workstation/server NixOS configurations and standalone/integrated Home Manager; evaluate/build/switch/test/boot/dry-activate/rollback in disposable VMs. | Same target generation and effects for the mode; activated services healthy, user environment usable, and booted generation verified when boot is the measured milestone. No host activation. |
@@ -121,7 +121,7 @@ Use pairwise dimension coverage for ordinary suites and explicit combinations fo
 
 ## Statistical and acceptance rules
 
-For a benchmark pair, `speedup = CppNix elapsed / nix-rs elapsed`; values above 1 favor nix-rs. Candidate change ratios use the same formula with pre-change nix-rs as the numerator. Pair samples under matched conditions. Publish absolute medians, paired log-ratio estimates and 95% bootstrap confidence intervals, dispersion, sample counts, CPU/memory/bytes, and raw samples. Do not average speedup ratios arithmetically across unrelated cases.
+For a benchmark pair, `speedup = CppNix elapsed / noxi elapsed`; values above 1 favor noxi. Candidate change ratios use the same formula with pre-change noxi as the numerator. Pair samples under matched conditions. Publish absolute medians, paired log-ratio estimates and 95% bootstrap confidence intervals, dispersion, sample counts, CPU/memory/bytes, and raw samples. Do not average speedup ratios arithmetically across unrelated cases.
 
 Default planned collection is 30 paired samples for short offline cases and at least 10 paired samples for expensive build/VM cases. Ten expensive samples are exploratory and do not support tail-latency claims. For p95 under contention, collect at least 200 completed operations across multiple fresh runs, report uncertainty, and keep errors/timeouts separate. Autocorrelated requests are resampled by run/block, not falsely treated as independent. Continue collection only under a predeclared uncertainty/sample budget, not until a desired significant result appears.
 
@@ -142,7 +142,7 @@ An optimization can be accepted only when its primary workflow improves by its d
 | Rollback | Selected prior generation restored and healthy under the declared mode; no claim that application data was reverted. |
 | Recovery | Failure injected, operation restarted/retried, and the same requested usable result verified, including cleanup and root consistency. |
 
-For native `nixrs env`, compare a CppNix-backed workflow with identical locked packages, tasks, hooks, and an explicit pinned unprivileged supervisor implementing the same dependency/readiness work. Fix its launcher and include its runtime cost. Also compare realization and shell entry with equivalent standard CppNix commands separately. A minimal `nix develop` invocation is not an equivalent baseline for a ready multi-service stack. The reference driver/supervisor contract is a prerequisite before native rows are executable.
+For native `noxi env`, compare a CppNix-backed workflow with identical locked packages, tasks, hooks, and an explicit pinned unprivileged supervisor implementing the same dependency/readiness work. Fix its launcher and include its runtime cost. Also compare realization and shell entry with equivalent standard CppNix commands separately. A minimal `nix develop` invocation is not an equivalent baseline for a ready multi-service stack. The reference driver/supervisor contract is a prerequisite before native rows are executable.
 
 ## Result record and artifact layout
 
@@ -177,9 +177,9 @@ The initial runner produces reports with blocked coverage and counters. The cata
 
 These are synthetic component results from the `performance-plan` workspace on 2026-10-11, on an AMD Ryzen AI 9 HX 370 with 24 available CPUs. The host was shared, affinity/frequency were uncontrolled, page cache was not reset, and build settings used one job and one core. They establish local mechanism evidence, not release qualification or an end-to-end install/system-setup speed claim.
 
-`target/benchmarks/optimizations-64-v3/` contains 30 matched blocks per case across CppNix 2.35.2, preserved pre-change nix-rs, and the candidate. All 540 timed commands passed their oracles. The runner records exact artifacts, hardware, raw samples, output logs, resource/counter medians and bootstrap intervals. Candidate source digest was `6bd7b0b212c5bf0848a48eaaa7a59c4e613033974abadbdb5134503b8ac2693a`; pre-change source digest was `978ed6a21422577904ec68363403dec8a125cb390a429f4c8769bd01349d6940`.
+`target/benchmarks/optimizations-64-v3/` contains 30 matched blocks per case across CppNix 2.35.2, preserved pre-change noxi, and the candidate. All 540 timed commands passed their oracles. The runner records exact artifacts, hardware, raw samples, output logs, resource/counter medians and bootstrap intervals. Candidate source digest was `6bd7b0b212c5bf0848a48eaaa7a59c4e613033974abadbdb5134503b8ac2693a`; pre-change source digest was `978ed6a21422577904ec68363403dec8a125cb390a429f4c8769bd01349d6940`.
 
-| Component at scale 64 | CppNix median ms | Pre-change nix-rs median ms | Candidate median ms |
+| Component at scale 64 | CppNix median ms | Pre-change noxi median ms | Candidate median ms |
 | --- | --- | --- | --- |
 | Version dispatch | 18.652 | 1.321 | 1.295 |
 | Forced generated list sort/fold | 19.719 | 2.965 | 3.005 |

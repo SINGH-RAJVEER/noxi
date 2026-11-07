@@ -1,6 +1,6 @@
 # Benchmarks against CppNix
 
-The runner compares identified release binaries against CppNix 2.35.2 and an optional pre-change nix-rs binary. It has 39 offline adapters covering subsets of the [154 catalog scenarios](catalog.tsv). The [benchmark specification](../docs/performance-benchmarks.md) defines the full contracts and remaining dimensions. The [architecture plan](../docs/performance.md) maps 32 optimization hypotheses to experiments; the [research appendix](../docs/performance-research.md) records CppNix prior art.
+The runner compares identified release binaries against CppNix 2.35.2 and an optional pre-change noxi binary. It has 39 offline adapters covering subsets of the [154 catalog scenarios](catalog.tsv). The [benchmark specification](../docs/performance-benchmarks.md) defines the full contracts and remaining dimensions. The [architecture plan](../docs/performance.md) maps 32 optimization hypotheses to experiments; the [research appendix](../docs/performance-research.md) records CppNix prior art.
 
 Run everything through `devenv shell`. The Python tools use uv and the standard library. Linux cgroup v2 delegation with `cpu`, `memory`, `io`, `memory.peak`, and `cgroup.kill` is required. The runner finds an already delegated parent, creates its own child groups, and refuses resource-qualified timings if accounting is unavailable.
 
@@ -19,7 +19,7 @@ To preserve a baseline, run these commands before changing Rust source. Keep its
 ```sh
 devenv shell -- just bench-build
 devenv shell -- mkdir -p target/benchmarks/baseline/bin
-devenv shell -- bash -c 'cp --reflink=auto target/release/{nixrs,nix-instantiate,nix-store,nix-build,nix-env,nix-collect-garbage,nix-daemon} target/benchmarks/baseline/bin'
+devenv shell -- bash -c 'cp --reflink=auto target/release/{noxi,nix-instantiate,nix-store,nix-build,nix-env,nix-collect-garbage,nix-daemon} target/benchmarks/baseline/bin'
 devenv shell -- uv run --no-project --no-config python benchmarks/run.py --record-source target/benchmarks/baseline/source.json
 ```
 
@@ -63,4 +63,4 @@ The runner defaults to 30 paired samples and reports medians, paired geometric s
 
 The TSV columns are `id`, `family`, `scenario`, `sizes`, `states`, `metrics`, `oracle`, `optimizations`, `suite`, `requires`, `comparison`, and `status`. IDs are stable. Comparison lanes distinguish equivalent CppNix work, native workflows requiring an equivalent driver, and experimental storage/fleet studies. Keep unsupported work visible when extending the runner.
 
-The indexed scheduler also has a native diagnostic benchmark. Run `devenv shell -- cargo test --release -p nix-rs-build ordering_scaling -- --ignored --nocapture`. It emits 30 paired JSON samples at 256, 1,024 and 4,096 nodes for chains and wide graphs. It alternates the old scan and indexed implementations, excludes graph cloning, and checks every returned order against the old implementation. These results isolate ordering cost; they are not CppNix installation ratios.
+The indexed scheduler also has a native diagnostic benchmark. Run `devenv shell -- cargo test --release -p noxi-build ordering_scaling -- --ignored --nocapture`. It emits 30 paired JSON samples at 256, 1,024 and 4,096 nodes for chains and wide graphs. It alternates the old scan and indexed implementations, excludes graph cloning, and checks every returned order against the old implementation. These results isolate ordering cost; they are not CppNix installation ratios.

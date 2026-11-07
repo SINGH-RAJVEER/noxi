@@ -17,7 +17,7 @@ from run import ROOT, paired_summary, verify
 
 class OracleTests(unittest.TestCase):
 	def test_module_fixture_matches_path_qualification(self):
-		qualification = (ROOT / "crates/nix-rs-commands/tests/instantiate.rs").read_text()
+		qualification = (ROOT / "crates/noxi-commands/tests/instantiate.rs").read_text()
 		expression = qualification.split('const QUALIFICATION_SYSTEM: &str = r#"', 1)[1].split('"#;', 1)[0]
 		fixture = (ROOT / "benchmarks/eval-08.nix").read_text()
 		# Ignore indentation and the benchmark's introductory comment only.

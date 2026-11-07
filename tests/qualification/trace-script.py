@@ -6,7 +6,7 @@ import json
 import re
 from dataclasses import asdict, dataclass, field
 
-MARKER = "nixrs-trace-phase"
+MARKER = "noxi-trace-phase"
 # A Nix executable from any package, the reference or not.
 NIX_EXE = re.compile(r"^/nix/store/[a-z0-9]{32}-(?:nix|lix)-[0-9][^/]*/(?:bin|libexec)/")
 STORE_HASH = re.compile(r"/nix/store/[a-z0-9]{32}-")
@@ -55,7 +55,7 @@ run("setup", "nix-env -p /nix/var/nix/profiles/system --set /run/current-system"
 # /etc/qual is a symlink, which a `path:` flake reference must not be.
 FLAKE = '--flake "path:$(readlink -f /etc/qual)#trace-target"'
 run("rebuild-switch", f"nixos-rebuild switch {FLAKE}")
-switched = machine.execute("test -e /etc/nixrs-trace-generation")[0] == 0
+switched = machine.execute("test -e /etc/noxi-trace-generation")[0] == 0
 run("home-manager-restart", "systemctl restart home-manager-qualification.service")
 run("nix-gc-service", "systemctl start --wait nix-gc.service")
 # The guest's store overlays the host's, so a full optimisation would run for

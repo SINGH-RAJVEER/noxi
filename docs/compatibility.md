@@ -38,7 +38,7 @@ Two starting states are qualified separately, because the reference treats them 
 - `db/schema` containing `10`.
 - A WAL-mode SQLite database with the `ValidPaths`, `Refs`, `DerivationOutputs` and `SchemaMigrations` tables, the `IndexReference` and `IndexDerivationOutputs` indexes, the `DeleteSelfRefs` trigger, and the migration `20260309-drop-redundant-indexreferrer` already recorded.
 
-With `ca-derivations` enabled, 2.35.2 also applies `20251017-ca-derivations`. nix-rs must create the same layout, schema text, and recorded migrations, so that 2.35.2 can open a store nix-rs created without migrating it. It must also open a store 2.35.2 created without changing it.
+With `ca-derivations` enabled, 2.35.2 also applies `20251017-ca-derivations`. noxi must create the same layout, schema text, and recorded migrations, so that 2.35.2 can open a store noxi created without migrating it. It must also open a store 2.35.2 created without changing it.
 
 **Copy of an existing CppNix store.** 2.35.2 opens a store as follows:
 
@@ -47,15 +47,15 @@ With `ca-derivations` enabled, 2.35.2 also applies `20251017-ca-derivations`. ni
 - It creates `SchemaMigrations` if it is missing and applies each missing named migration.
 - In read-only mode it fails instead of migrating.
 
-nix-rs must accept and upgrade exactly the stores that 2.35.2 accepts and upgrades, with the same resulting schema and migration rows. It must refuse the same stores with an equivalent error. The rules for a store nix-rs has opened are:
+noxi must accept and upgrade exactly the stores that 2.35.2 accepts and upgrades, with the same resulting schema and migration rows. It must refuse the same stores with an equivalent error. The rules for a store noxi has opened are:
 
 - The recorded paths, hashes, registration times, references, derivers, signatures, CA fields, GC roots, profiles, and generation links must stay byte-identical except where the reference would change them.
-- nix-rs must never write a migration name or schema version that 2.35.2 does not know. The reference would refuse such a store, which breaks the return path.
+- noxi must never write a migration name or schema version that 2.35.2 does not know. The reference would refuse such a store, which breaks the return path.
 - Opening a store and returning to 2.35.2 must need no repair step.
 
 The qualification store is a copy of the reference VM's `/nix` taken from the reference-only snapshot below. It is never the development host's store.
 
-**Reference-only VM snapshot.** Before any nix-rs binary touches a qualification VM, boot the pinned reference VM with CppNix only, shut it down cleanly, and keep its disk image as a read-only base snapshot. Every nix-rs run uses a copy-on-write overlay of that base. Rollback tests compare the result with the base after returning to CppNix, and a failed run is discarded by deleting its overlay. [System tests](verification.md#system-tests)
+**Reference-only VM snapshot.** Before any noxi binary touches a qualification VM, boot the pinned reference VM with CppNix only, shut it down cleanly, and keep its disk image as a read-only base snapshot. Every noxi run uses a copy-on-write overlay of that base. Rollback tests compare the result with the base after returning to CppNix, and a failed run is discarded by deleting its overlay. [System tests](verification.md#system-tests)
 
 The system must not start two independent daemons writing the same store. Installation and rollback must select one owner of store mutations at a time. If a future internal store differs from CppNix storage, a migration with integrity verification and reverse operation is required before it can be called a drop-in replacement.
 

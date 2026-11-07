@@ -1,0 +1,28 @@
+error[E0277]: the trait bound `BadType: NixDeserialize` is not satisfied
+ --> tests/ui/deserialize_bad_type.rs:7:14
+  |
+7 |     version: BadType,
+  |              ^^^^^^^ unsatisfied trait bound
+  |
+help: the trait `NixDeserialize` is not implemented for `BadType`
+ --> tests/ui/deserialize_bad_type.rs:3:1
+  |
+3 | pub struct BadType;
+  | ^^^^^^^^^^^^^^^^^^
+  = help: the following other types implement trait `NixDeserialize`:
+            BTreeMap<K, V>
+            BTreeSet<T>
+            Test
+            Vec<T>
+            bool
+            bstr::bstring::BString
+            bytes::bytes::Bytes
+            std::string::String
+          and $N others
+note: required by a bound in `try_read_value`
+ --> $WORKSPACE/crates/noxi/nix-compat/src/wire/de/mod.rs
+  |
+  | pub trait NixRead: Send {
+...
+  |     fn try_read_value<V: NixDeserialize>(
+  |                          ^^^^^^^^^^^^^^ required by this bound in `NixRead::try_read_value`

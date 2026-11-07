@@ -5,7 +5,7 @@
 //! its closure into `file://` caches, signed or not and with each
 //! compression method. Narinfo files must read and print back byte for
 //! byte, and substituting from each cache into a fresh store must register
-//! the same metadata in nix-rs as in the reference.
+//! the same metadata in noxi as in the reference.
 //!
 //! The reference executables and the busybox come from the same places as
 //! in `reference_build` (`just reference`).
@@ -17,8 +17,8 @@ use std::process::{Command, Output};
 use nix_compat::narinfo::{NarInfo, parse_keypair};
 use nix_compat::nixcpp::narinfo as cppnix;
 use nix_compat::store_path::StorePath;
-use nix_rs_store::binary_cache::BinaryCache;
-use nix_rs_store::{LocalStore, LocalStoreConfig};
+use noxi_store::binary_cache::BinaryCache;
+use noxi_store::{LocalStore, LocalStoreConfig};
 use serde_json::Value;
 
 fn from_env_or_target(var: &str, target: &str, probe: &str) -> PathBuf {
@@ -50,7 +50,7 @@ impl Env {
 			fs::create_dir(dir.path().join(sub)).unwrap();
 		}
 		let busybox = fs::canonicalize(from_env_or_target(
-			"NIXRS_TEST_BUSYBOX",
+			"NOXI_TEST_BUSYBOX",
 			"test-busybox",
 			"bin/busybox",
 		))
@@ -115,7 +115,7 @@ impl Env {
 	}
 
 	fn command(&self, program: &str, args: &[&str]) -> Command {
-		let bin = from_env_or_target("NIXRS_REFERENCE_BIN", "nix-reference/bin", "nix-store");
+		let bin = from_env_or_target("NOXI_REFERENCE_BIN", "nix-reference/bin", "nix-store");
 		let mut command = Command::new(bin.join(program));
 		command
 			.args(args)
@@ -204,7 +204,7 @@ impl Env {
 		)
 	}
 
-	fn nix_rs_store(&self, store: &str) -> LocalStore {
+	fn noxi_store(&self, store: &str) -> LocalStore {
 		let mut config = LocalStoreConfig::with_root(&self.root(store));
 		config.trusted_public_keys = vec![self.public_key.clone()];
 		LocalStore::open(config).unwrap()
@@ -255,7 +255,7 @@ fn signed_local_upload_matches_reference_and_round_trips() {
 	use std::io::Read;
 
 	let env = Env::new();
-	let source = env.nix_rs_store("src");
+	let source = env.noxi_store("src");
 	let original = source.query_path_info(&env.out).unwrap().unwrap();
 	let (key, _) =
 		parse_keypair(fs::read_to_string(env.secret_key_file()).unwrap().trim()).unwrap();
@@ -298,7 +298,7 @@ fn signed_local_upload_matches_reference_and_round_trips() {
 		"{}",
 		String::from_utf8_lossy(&output.stderr)
 	);
-	env.nix_rs_store("rust-from-upload")
+	env.noxi_store("rust-from-upload")
 		.substitute(&[cache], &env.out)
 		.unwrap();
 	assert_eq!(
@@ -313,7 +313,7 @@ fn local_upload_preserves_signatures_across_key_rotation() {
 	let mut env = Env::new();
 	let inherited =
 		BinaryCache::open(&env.make_cache("inherited", "compression=none", true)).unwrap();
-	let source = env.nix_rs_store("src");
+	let source = env.noxi_store("src");
 	assert!(
 		source
 			.query_path_info(&env.out)
@@ -374,7 +374,7 @@ fn local_upload_preserves_signatures_across_key_rotation() {
 	let output = env.reference_substitute("wrong-key-reference", cache.uri(), &env.out);
 	assert!(!output.status.success());
 	assert!(String::from_utf8_lossy(&output.stderr).contains("not signed by any of the keys"));
-	let destination = env.nix_rs_store("wrong-key-rust");
+	let destination = env.noxi_store("wrong-key-rust");
 	assert!(destination.substitute(&[cache], &env.out).is_err());
 	assert!(!destination.is_valid_path(&env.out).unwrap());
 }
@@ -417,7 +417,7 @@ fn local_cache_rejects_unsafe_nar_locations_like_reference() {
 		let stderr = String::from_utf8_lossy(&output.stderr);
 		assert!(
 			stderr.contains(&error),
-			"nix-rs: {error}\nreference: {stderr}"
+			"noxi: {error}\nreference: {stderr}"
 		);
 	}
 }
@@ -427,7 +427,7 @@ fn local_upload_does_not_advertise_corrupt_source_or_leak_temporary_files() {
 	use std::os::unix::fs::PermissionsExt;
 
 	let env = Env::new();
-	let source = env.nix_rs_store("src");
+	let source = env.noxi_store("src");
 	let original = source.query_path_info(&env.out).unwrap().unwrap();
 	let (key, _) =
 		parse_keypair(fs::read_to_string(env.secret_key_file()).unwrap().trim()).unwrap();
@@ -472,7 +472,7 @@ fn local_upload_does_not_advertise_corrupt_source_or_leak_temporary_files() {
 #[test]
 fn local_upload_recovers_from_failed_publication_without_advertising_the_root() {
 	let env = Env::new();
-	let source = env.nix_rs_store("src");
+	let source = env.noxi_store("src");
 	let (key, _) =
 		parse_keypair(fs::read_to_string(env.secret_key_file()).unwrap().trim()).unwrap();
 	let keys = [key];
@@ -507,12 +507,12 @@ fn local_upload_recovers_from_failed_publication_without_advertising_the_root() 
 
 #[test]
 fn local_upload_roots_the_source_until_the_uploading_handle_is_dropped() {
-	use nix_rs_store::gc::{GcAction, GcOptions};
+	use noxi_store::gc::{GcAction, GcOptions};
 
 	let env = Env::new();
 	// Reference-created objects have no roots held by a Rust seeding handle.
-	let source = env.nix_rs_store("src");
-	let collector = env.nix_rs_store("src");
+	let source = env.noxi_store("src");
+	let collector = env.noxi_store("src");
 	let (key, _) =
 		parse_keypair(fs::read_to_string(env.secret_key_file()).unwrap().trim()).unwrap();
 	let cache = BinaryCache::open(&format!("file://{}", env.root("gc-upload").display())).unwrap();
@@ -538,7 +538,7 @@ fn local_upload_roots_the_source_until_the_uploading_handle_is_dropped() {
 #[test]
 fn local_upload_rejects_unprotected_sources_and_http_destinations() {
 	let env = Env::new();
-	let source = env.nix_rs_store("src");
+	let source = env.noxi_store("src");
 	let (key, _) =
 		parse_keypair(fs::read_to_string(env.secret_key_file()).unwrap().trim()).unwrap();
 	let keys = [key];
@@ -594,17 +594,17 @@ fn signed_caches_substitute_like_the_reference() {
 	] {
 		let cache = env.make_cache(name, params, true);
 		let reference = format!("reference-{name}");
-		let nix_rs = format!("nix-rs-{name}");
+		let noxi = format!("noxi-{name}");
 		let output = env.reference_substitute(&reference, &cache, &env.out);
 		assert!(
 			output.status.success(),
 			"{name}: {}",
 			String::from_utf8_lossy(&output.stderr)
 		);
-		env.nix_rs_store(&nix_rs)
+		env.noxi_store(&noxi)
 			.substitute(&[BinaryCache::open(&cache).unwrap()], &env.out)
 			.unwrap_or_else(|e| panic!("{name}: {e}"));
-		let info = env.path_info(&nix_rs);
+		let info = env.path_info(&noxi);
 		assert_eq!(info, env.path_info(&reference), "{name}");
 		let out = &info[env.out.to_absolute_path()];
 		assert_eq!(out["signatures"].as_array().unwrap().len(), 1, "{info}");
@@ -613,7 +613,7 @@ fn signed_caches_substitute_like_the_reference() {
 			"{info}"
 		);
 		assert_eq!(out["ultimate"], Value::Bool(false), "{info}");
-		env.verify(&nix_rs);
+		env.verify(&noxi);
 	}
 }
 
@@ -625,13 +625,13 @@ fn unsigned_caches_are_refused_unless_trusted() {
 	assert!(!output.status.success());
 	let stderr = String::from_utf8_lossy(&output.stderr);
 	let error = env
-		.nix_rs_store("nix-rs")
+		.noxi_store("noxi")
 		.substitute(&[BinaryCache::open(&cache).unwrap()], &env.out)
 		.unwrap_err()
 		.to_string();
 	assert!(
 		stderr.contains(&error),
-		"nix-rs: {error}\nreference: {stderr}"
+		"noxi: {error}\nreference: {stderr}"
 	);
 	assert!(stderr.contains("as it's not signed by any of the keys in 'trusted-public-keys'"));
 
@@ -642,11 +642,11 @@ fn unsigned_caches_are_refused_unless_trusted() {
 		"{}",
 		String::from_utf8_lossy(&output.stderr)
 	);
-	env.nix_rs_store("nix-rs")
+	env.noxi_store("noxi")
 		.substitute(&[BinaryCache::open(&trusted).unwrap()], &env.out)
 		.unwrap();
-	assert_eq!(env.path_info("nix-rs"), env.path_info("reference"));
-	env.verify("nix-rs");
+	assert_eq!(env.path_info("noxi"), env.path_info("reference"));
+	env.verify("noxi");
 }
 
 #[test]
@@ -674,7 +674,7 @@ fn corrupt_nars_are_rejected() {
 	assert!(!output.status.success());
 	let stderr = String::from_utf8_lossy(&output.stderr);
 	let error = env
-		.nix_rs_store("nix-rs")
+		.noxi_store("noxi")
 		.substitute(&[BinaryCache::open(&cache).unwrap()], &env.out)
 		.unwrap_err()
 		.to_string();
@@ -682,7 +682,7 @@ fn corrupt_nars_are_rejected() {
 	assert!(stderr.contains("hash mismatch importing path"), "{stderr}");
 	assert!(
 		stderr.contains(&error),
-		"nix-rs: {error}\nreference: {stderr}"
+		"noxi: {error}\nreference: {stderr}"
 	);
 }
 
@@ -818,13 +818,13 @@ fn malformed_narinfo_files_fail_like_the_reference() {
 		let stderr = String::from_utf8_lossy(&output.stderr);
 		assert!(!output.status.success(), "{name}: the reference succeeded");
 		let error = env
-			.nix_rs_store(&format!("nix-rs-{index}"))
+			.noxi_store(&format!("noxi-{index}"))
 			.substitute(&[BinaryCache::open(&cache).unwrap()], &env.out)
 			.expect_err(name)
 			.to_string();
 		assert!(
 			stderr.contains(&format!("error: {error}\n")),
-			"{name}\nnix-rs: {error}\nreference: {stderr}"
+			"{name}\nnoxi: {error}\nreference: {stderr}"
 		);
 	}
 
@@ -839,7 +839,7 @@ fn malformed_narinfo_files_fail_like_the_reference() {
 		stderr.contains("is corrupt: expecting ':' at line 1"),
 		"{stderr}"
 	);
-	env.nix_rs_store("nix-rs-fallthrough")
+	env.noxi_store("noxi-fallthrough")
 		.substitute(
 			&[
 				BinaryCache::open(&cache).unwrap(),
@@ -849,7 +849,7 @@ fn malformed_narinfo_files_fail_like_the_reference() {
 		)
 		.unwrap();
 	assert_eq!(
-		env.path_info("nix-rs-fallthrough"),
+		env.path_info("noxi-fallthrough"),
 		env.path_info("reference-fallthrough")
 	);
 
@@ -868,11 +868,11 @@ fn malformed_narinfo_files_fail_like_the_reference() {
 			"{}",
 			String::from_utf8_lossy(&output.stderr)
 		);
-		let nix_rs = format!("nix-rs-ok-{index}");
-		env.nix_rs_store(&nix_rs)
+		let noxi = format!("noxi-ok-{index}");
+		env.noxi_store(&noxi)
 			.substitute(&[BinaryCache::open(&cache).unwrap()], &env.out)
 			.unwrap();
-		assert_eq!(env.path_info(&nix_rs), env.path_info(&reference));
+		assert_eq!(env.path_info(&noxi), env.path_info(&reference));
 	}
 }
 
@@ -940,24 +940,24 @@ fn http_caches_substitute_like_the_reference() {
 		"{}",
 		String::from_utf8_lossy(&output.stderr)
 	);
-	env.nix_rs_store("nix-rs")
+	env.noxi_store("noxi")
 		.substitute(&[BinaryCache::open(&url).unwrap()], &env.out)
 		.unwrap();
-	assert_eq!(env.path_info("nix-rs"), env.path_info("reference"));
-	env.verify("nix-rs");
+	assert_eq!(env.path_info("noxi"), env.path_info("reference"));
+	env.verify("noxi");
 
 	// A path the cache does not have.
 	let missing: StorePath = "00000000000000000000000000000000-missing".parse().unwrap();
 	let output = env.reference_substitute("reference-missing", &url, &missing);
 	let stderr = String::from_utf8_lossy(&output.stderr);
 	let error = env
-		.nix_rs_store("nix-rs-missing")
+		.noxi_store("noxi-missing")
 		.substitute(&[BinaryCache::open(&url).unwrap()], &missing)
 		.unwrap_err()
 		.to_string();
 	assert!(
 		stderr.contains(&error),
-		"nix-rs: {error}\nreference: {stderr}"
+		"noxi: {error}\nreference: {stderr}"
 	);
 }
 
@@ -967,7 +967,7 @@ fn http_caches_substitute_like_the_reference() {
 #[ignore = "downloads from cache.nixos.org"]
 fn cache_nixos_org_substitutes_with_its_signing_key() {
 	let busybox = fs::canonicalize(from_env_or_target(
-		"NIXRS_TEST_BUSYBOX",
+		"NOXI_TEST_BUSYBOX",
 		"test-busybox",
 		"bin/busybox",
 	))

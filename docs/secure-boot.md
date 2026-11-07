@@ -1,6 +1,6 @@
 # OS installer boot and Secure Boot specification
 
-This specification applies to the later nix-rs OS image and installer. The repository does not yet build that image or implement either boot path. The installer must present two explicit UEFI choices: ordinary systemd-boot, or Secure Boot with Lanzaboote. Selecting systemd-boot alone must never be reported as enabling Secure Boot.
+This specification applies to the later noxi OS image and installer. The repository does not yet build that image or implement either boot path. The installer must present two explicit UEFI choices: ordinary systemd-boot, or Secure Boot with Lanzaboote. Selecting systemd-boot alone must never be reported as enabling Secure Boot.
 
 ## Verified upstream behavior
 
@@ -34,7 +34,7 @@ For the Lanzaboote path, the installer must show each operation before it runs: 
 
 Enrollment may be completed during installation when the firmware exposes a safe Setup Mode path, the signed installed boot entry has been verified, and recovery media remains available. Otherwise the installer must finish in a clearly labeled pending state and provide a first-boot enrollment flow. It must not claim Secure Boot is active merely because signing succeeded or keys were generated. The final state must be checked after reboot with firmware status, `sbctl` verification, and a boot of the installed generation. The installer must preserve a usable fallback entry until the protected boot path has passed that check.
 
-The system configuration must retain the selected boot mode across rebuilds and upgrades. Each boot-changing update must sign or install the new entry, verify it, keep a prior known-good bootable generation, and report failures without marking the switch complete. Recovery media must be able to restore the boot entry or re-enroll keys without needing a working nix-rs daemon on the installed system.
+The system configuration must retain the selected boot mode across rebuilds and upgrades. Each boot-changing update must sign or install the new entry, verify it, keep a prior known-good bootable generation, and report failures without marking the switch complete. Recovery media must be able to restore the boot entry or re-enroll keys without needing a working noxi daemon on the installed system.
 
 Changing from ordinary systemd-boot to Lanzaboote after installation, rotating keys, or returning to the ordinary path must be explicit maintenance operations. Each needs a preview of firmware and ESP changes, a verified new boot entry, a retained recovery path, and a post-reboot check before the old entry or key is removed. The first OS release may leave these transitions manual; its installer documentation must say so if it does.
 
@@ -42,4 +42,4 @@ TPM-bound disk unlocking belongs in a later, separate installer choice. If added
 
 ## Qualification before release
 
-The OS release gate needs isolated UEFI tests for both choices: initial installation, first and second boot, a new signed generation, rollback, a signing failure, an ESP with insufficient space, and recovery from a broken default entry. Secure Boot tests must additionally exercise Setup Mode, key enrollment, enforcement after reboot, rejected unsigned EFI artifacts, and key-loss recovery. Hardware validation must cover at least the documented target devices and distinguish firmware behavior from the generic installer contract. Until those tests and the underlying nix-rs rebuild/store work pass, this document remains a design target.
+The OS release gate needs isolated UEFI tests for both choices: initial installation, first and second boot, a new signed generation, rollback, a signing failure, an ESP with insufficient space, and recovery from a broken default entry. Secure Boot tests must additionally exercise Setup Mode, key enrollment, enforcement after reboot, rejected unsigned EFI artifacts, and key-loss recovery. Hardware validation must cover at least the documented target devices and distinguish firmware behavior from the generic installer contract. Until those tests and the underlying noxi rebuild/store work pass, this document remains a design target.

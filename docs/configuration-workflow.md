@@ -2,17 +2,17 @@
 
 ## Decision
 
-The system configuration, written in Lua by default or in Nix, is the source of truth for persistent system state. The CLI, TUI, and GUI submit typed requests to NixBox. NixBox resolves them through the nix-rs evaluator and store, computes the candidate system generation, and persists the accepted desired state as configuration source before activation. A persistent change is therefore a semantic engine operation with declarative persistence, not a text substitution followed by a shell command. The interface must never make a lasting runtime change first and try to reverse-engineer configuration files afterward.
+The system configuration, written in Lua by default or in Nix, is the source of truth for persistent system state. The CLI, TUI, and GUI submit typed requests to NixBox. NixBox resolves them through the noxi evaluator and store, computes the candidate system generation, and persists the accepted desired state as configuration source before activation. A persistent change is therefore a semantic engine operation with declarative persistence, not a text substitution followed by a shell command. The interface must never make a lasting runtime change first and try to reverse-engineer configuration files afterward.
 
 This matches NixOS's documented model: edit the configuration, run a rebuild, and select the resulting generation. Module definitions can merge, override, or derive values from other definitions, so observing a running system is not enough to reconstruct the expression that produced it. [NixOS configuration and generations](https://nixos.org/manual/nixos/stable/), [NixOS module definitions](https://nixos.org/manual/nixos/stable/)
 
-The approach is hybrid in the interface, not in the source of truth. A form, source editor, CLI command, and package search can all propose the same typed change. NixBox evaluates it against the exact locked inputs, drives store and build work through nix-rs, and records persistent intent in an imported module. The system still follows its committed configuration. [NixBox integration](nixbox-integration.md) defines this lower-level role.
+The approach is hybrid in the interface, not in the source of truth. A form, source editor, CLI command, and package search can all propose the same typed change. NixBox evaluates it against the exact locked inputs, drives store and build work through noxi, and records persistent intent in an imported module. The system still follows its committed configuration. [NixBox integration](nixbox-integration.md) defines this lower-level role.
 
 The planned [scoped application workflow](scoped-application-builds.md) applies the same source-first contract to independently declared application profiles. Its candidate and activation target is the selected application profile, with its own locked inputs and generations. Eligible application changes build and switch that profile without constructing a system generation. The system sequence below applies to changes in NixOS configuration; profile operations use the scoped sequence and report application generation separately from running OS and boot state.
 
 ## Ownership and round trips
 
-NixBox owns one explicitly imported module, provisionally `nixrs-managed.lua`, or `nixrs-managed.nix` when the configuration importing it is written in Nix. It renders that module deterministically from evaluated package selections and typed option values after constructing a candidate plan. It may also update a lock file in a separate, explicit input-update operation. The generated file records desired state; it does not replace package resolution, module evaluation, store realization, or activation. NixBox must not rewrite an arbitrary user module to make a toggle work.
+NixBox owns one explicitly imported module, provisionally `noxi-managed.lua`, or `noxi-managed.nix` when the configuration importing it is written in Nix. It renders that module deterministically from evaluated package selections and typed option values after constructing a candidate plan. It may also update a lock file in a separate, explicit input-update operation. The generated file records desired state; it does not replace package resolution, module evaluation, store realization, or activation. NixBox must not rewrite an arbitrary user module to make a toggle work.
 
 For every option, the interface shows the effective value, its contributing definitions and source locations when available, and whether the editor owns a writable definition. A value computed by a function, conflicting with another module, or requiring a complex expression can be inspected and edited in source. The UI must not silently insert `mkForce` or claim a change succeeded just because the generated file contains the requested value. Reevaluate and show the effective result.
 
@@ -23,7 +23,7 @@ The interface must tolerate edits made outside it. On every apply, compare the c
 The interface has distinct operations:
 
 - **Save draft** writes a proposed configuration change without building or activating it. It clearly marks the system as still running an older generation.
-- **Apply** resolves a typed request with the nix-rs engine, stages its representation in the configuration's language, validates and builds the resulting closure, saves the source change, then performs the selected activation action. The final report distinguishes source saved, closure built, running generation, and boot default.
+- **Apply** resolves a typed request with the noxi engine, stages its representation in the configuration's language, validates and builds the resulting closure, saves the source change, then performs the selected activation action. The final report distinguishes source saved, closure built, running generation, and boot default.
 - **Discard draft** removes only application-owned pending edits after checking that no one else changed them.
 - **Rollback** selects a prior system generation and, if requested, restores its recorded configuration revision. Rolling back only the running generation must not silently rewrite the source files.
 
@@ -31,7 +31,7 @@ An apply operation follows this sequence:
 
 1. Read and record the source tree, lock file, application-owned module, running generation, and boot default. Acquire an operation lock for the target machine.
 2. Resolve the typed request against the locked package universe and evaluated module definitions. Render its declarative representation in an isolated staging area that preserves relative imports and the selected inputs. Present the file diff, effective option changes, resulting derivation graph, and expected store work. Abort on evaluation errors.
-3. Realize the candidate system closure through the nix-rs store and build interfaces. Keep the committed source and running system untouched if the build fails. A previewed service effect is an estimate until activation runs.
+3. Realize the candidate system closure through the noxi store and build interfaces. Keep the committed source and running system untouched if the build fails. A previewed service effect is an estimate until activation runs.
 4. Recheck the base source and lock revision. Save the application-owned file through a journaled replacement and record the prior content. If multiple files change, recover from any interrupted write rather than assuming the filesystem made the whole group atomic.
 5. Evaluate the committed files again. Confirm that they produce the closure that was built. If the result differs because staging altered path or import behavior, stop before activation, report the mismatch, and restore the prior application-owned files when no external edit prevents it.
 6. Perform the requested activation action. Preserve the prior bootable generation. Report actual running and boot states, including partial activation or failure.
@@ -56,7 +56,7 @@ Compatibility commands may retain their existing imperative behavior, such as op
 
 ## Example
 
-A user enables OpenSSH in the GUI. The GUI submits a typed option change to NixBox. NixBox asks the nix-rs evaluator for the effective option and contributing definitions, adds a definition setting `services.openssh.enable` to true in the staged application-owned module, and computes and builds the resulting system closure through the engine. After the source revision is rechecked, the manager saves the module and switches to the new generation. The result shows the new running and boot generations and whether `sshd` started. If evaluation reports a conflict or activation fails, the UI names that phase and displays what changed. It never calls `systemctl enable sshd` and later guesses how to encode that state in configuration source.
+A user enables OpenSSH in the GUI. The GUI submits a typed option change to NixBox. NixBox asks the noxi evaluator for the effective option and contributing definitions, adds a definition setting `services.openssh.enable` to true in the staged application-owned module, and computes and builds the resulting system closure through the engine. After the source revision is rechecked, the manager saves the module and switches to the new generation. The result shows the new running and boot generations and whether `sshd` started. If evaluation reports a conflict or activation fails, the UI names that phase and displays what changed. It never calls `systemctl enable sshd` and later guesses how to encode that state in configuration source.
 
 ## Acceptance cases
 

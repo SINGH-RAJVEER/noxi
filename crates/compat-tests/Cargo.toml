@@ -1,5 +1,5 @@
 [package]
-name = "nixrs-compat-tests"
+name = "noxi-compat-tests"
 version.workspace = true
 rust-version.workspace = true
 edition = "2024"
@@ -13,12 +13,12 @@ tempfile.workspace = true
 
 [dev-dependencies]
 libc.workspace = true
-nix-rs-eval = { path = "../nix-rs/eval", default-features = false, features = ["impure"] }
-nix-rs-commands = { path = "../nix-rs-commands" }
-nix-compat = { package = "nix-rs-compat", path = "../nix-rs/nix-compat", features = ["serde", "daemon"] }
-nix-rs-store = { path = "../nix-rs-store" }
-nix-rs-build = { path = "../nix-rs-build" }
-nix-rs-daemon = { path = "../nix-rs-daemon" }
+noxi-eval = { path = "../noxi/eval", default-features = false, features = ["impure"] }
+noxi-commands = { path = "../noxi-commands" }
+nix-compat = { package = "noxi-compat", path = "../noxi/nix-compat", features = ["serde", "daemon"] }
+noxi-store = { path = "../noxi-store" }
+noxi-build = { path = "../noxi-build" }
+noxi-daemon = { path = "../noxi-daemon" }
 rusqlite = { version = "0.40.2", features = ["bundled"] }
 bstr.workspace = true
 data-encoding.workspace = true

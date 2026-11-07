@@ -20,12 +20,12 @@
 					home-manager.nixosModules.home-manager
 					({ ... }: {
 						system.stateVersion = "26.05";
-						networking.hostName = "nixrs-reference";
+						networking.hostName = "noxi-reference";
 						boot.kernelParams = [ "console=ttyS0" ];
 						boot.loader.grub.efiSupport = true;
 						boot.loader.grub.efiInstallAsRemovable = true;
 						virtualisation.memorySize = 2048;
-						# Room for rebuilding the system with nix-rs inside the VM.
+						# Room for rebuilding the system with noxi inside the VM.
 						virtualisation.diskSize = 8192;
 						virtualisation.useBootLoader = true;
 						virtualisation.useEFIBoot = true;

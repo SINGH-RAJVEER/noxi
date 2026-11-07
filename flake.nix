@@ -1,5 +1,5 @@
 {
-	description = "Preview nix-rs command and compatibility workspace";
+	description = "Preview noxi command and compatibility workspace";
 
 	inputs = {
 		nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
@@ -37,7 +37,7 @@
 			};
 			# The provisional replacement for disposable VM overlays only.
 			overlays.qualification = final: prev: {
-				nixrs-replacement = import ./nix/package.nix {
+				noxi-replacement = import ./nix/package.nix {
 					pkgs = final;
 					inherit rust-overlay;
 					replacement = true;
@@ -46,9 +46,9 @@
 			nixosModules.qualification = import ./nix/qualification-module.nix;
 			packages = forAllSystems (system: {
 				default = preview system;
-				nixrs = preview system;
+				noxi = preview system;
 				# Built against the qualification row's Nixpkgs.
-				nixrs-replacement = replacement.candidate;
+				noxi-replacement = replacement.candidate;
 				qualification-nixos-report = replacement.reports.nixos;
 				qualification-home-manager-report = replacement.reports.home-manager;
 				qualification-lifecycle-report = replacement.reports.lifecycle;
@@ -60,31 +60,31 @@
 			apps = forAllSystems (system: {
 				default = {
 					type = "app";
-					program = "${self.packages.${system}.default}/bin/nixrs";
-					meta.description = "Run the nix-rs preview command";
+					program = "${self.packages.${system}.default}/bin/noxi";
+					meta.description = "Run the noxi preview command";
 				};
 			});
 			checks = forAllSystems (system:
 				let
 					pkgs = nixpkgs.legacyPackages.${system};
-					package = self.packages.${system}.nixrs-replacement;
+					package = self.packages.${system}.noxi-replacement;
 				in
 				{
-					nixrs = self.packages.${system}.default;
+					noxi = self.packages.${system}.default;
 					replacement = package;
 					# The reference's executable names, the daemon units, and the
 					# evaluator answering from the packaged binaries.
-					replacement-layout = pkgs.runCommand "nixrs-replacement-layout" { } ''
+					replacement-layout = pkgs.runCommand "noxi-replacement-layout" { } ''
 						package=${package}
 						ls ${self.packages.${system}.nix-reference}/bin | sort > reference-commands
-						ls "$package/bin" | grep -vx nixrs | sort > replacement-commands
+						ls "$package/bin" | grep -vx noxi | sort > replacement-commands
 						diff -u reference-commands replacement-commands
 						printf '%s\n' ${pkgs.lib.escapeShellArgs package.implemented} | sort > engine-commands
 						ls ${package.binaryPackage}/bin | sort > built-commands
 						diff -u engine-commands built-commands
-						test -s "$package/share/doc/nix-rs/THIRD_PARTY.md"
-						test -s "$package/share/doc/nix-rs/crates/nix-rs/PROVENANCE.md"
-						test -s "$package/share/doc/nix-rs/crates/nix-rs/eval/COPYING"
+						test -s "$package/share/doc/noxi/THIRD_PARTY.md"
+						test -s "$package/share/doc/noxi/crates/noxi/PROVENANCE.md"
+						test -s "$package/share/doc/noxi/crates/noxi/eval/COPYING"
 						for command in ${pkgs.lib.escapeShellArgs (package.implemented ++ package.unimplemented)}; do
 							test -x "$package/bin/$command"
 						done
@@ -97,7 +97,7 @@
 						grep -qx "ExecStart=@$package/bin/nix-daemon nix-daemon --daemon" "$package/lib/systemd/system/nix-daemon.service"
 						grep -qx 'ListenStream=/nix/var/nix/daemon-socket/socket' "$package/lib/systemd/system/nix-daemon.socket"
 						test -f "$package/lib/tmpfiles.d/nix-daemon.conf"
-						"$package/bin/nixrs" eval --expr '1 + 2' | grep -x 3
+						"$package/bin/noxi" eval --expr '1 + 2' | grep -x 3
 						"$package/bin/nix" --extra-experimental-features 'nix-command flakes' --store dummy:// eval --expr '1 + 2' | grep -x 3
 						"$package/bin/nix-instantiate" --store dummy:// --eval --strict --expr '1 + 2' | grep -x 3
 						touch "$out"
@@ -110,7 +110,7 @@
 					qualification-lifecycle = replacement.checks.lifecycle;
 					# Boots a NixOS machine running the pinned reference; see tests/vm/.
 					vm = import ./tests/vm/test.nix {
-						nixrs = self.packages.${system}.default;
+						noxi = self.packages.${system}.default;
 						nixReference = self.packages.${system}.nix-reference;
 						inherit (pkgs) testers;
 					};

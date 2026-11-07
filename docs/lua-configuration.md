@@ -2,7 +2,7 @@
 
 ## Decision
 
-nix-rs accepts user configuration written in Lua as well as in the Nix language, and its native surfaces default to Lua. A Lua configuration describes the same NixOS or Home Manager modules as a Nix configuration and builds the same system. It is an [extension](compatibility.md#extensions): the compatibility commands keep the reference behavior and never read Lua files, so the drop-in claim is unaffected.
+noxi accepts user configuration written in Lua as well as in the Nix language, and its native surfaces default to Lua. A Lua configuration describes the same NixOS or Home Manager modules as a Nix configuration and builds the same system. It is an [extension](compatibility.md#extensions): the compatibility commands keep the reference behavior and never read Lua files, so the drop-in claim is unaffected.
 
 Dedicated environment declarations and optional native project manifests also default to Lua. They normalize to the same input/output and environment definitions as their native Nix equivalents, rather than to a NixOS system module. The dedicated devenv equivalent works directly or with existing flake inputs; standard `flake.nix` remains Nix and is fully supported without conversion. Their contract is in [native projects and development environments](development-environments.md). They reuse the Lua runtime and Nix value bridge specified here, with no change to the 100% drop-in gate.
 
@@ -16,7 +16,7 @@ This is specified, not implemented. The workspace has no Lua runtime, and the op
 | Home Manager configuration (`home.lua`) | Lua by default; Nix still supported |
 | Dedicated development environments and optional native project inputs/outputs | Lua by default; Nix still supported; standard flakes remain a supported route; planned schema in [development environments](development-environments.md) |
 | Native fleet inventory, shared profiles, cluster and service-topology configuration | Lua by default; Nix still supported; planned schema in [distributed computing](distributed-computing.md) |
-| Module owned by NixBox (`nixrs-managed.lua`) | Same language as the configuration that imports it |
+| Module owned by NixBox (`noxi-managed.lua`) | Same language as the configuration that imports it |
 | Nixpkgs, its library, and the NixOS and Home Manager module definitions | Nix, unchanged |
 | `flake.lock`, derivations, store paths, and every other reference format | Unchanged; native `project.lock` and standalone `environment.lock` use the reference lock graph encoding |
 | `nix.conf` and other engine settings | Unchanged; see the open questions |
@@ -27,11 +27,11 @@ Lua is a way to write user configuration, not a second package set. Packages, mo
 
 | Surface | Behavior |
 |---|---|
-| Native `nixrs` configuration and system commands | Discover, evaluate, and build Lua or Nix configurations; create new ones in Lua |
-| Native `nixrs project` and `nixrs env` commands | Prefer dedicated Lua or Nix environment entries, support existing flakes and optional native projects, and use explicit selection on ambiguity; create new native templates in Lua |
+| Native `noxi` configuration and system commands | Discover, evaluate, and build Lua or Nix configurations; create new ones in Lua |
+| Native `noxi project` and `noxi env` commands | Prefer dedicated Lua or Nix environment entries, support existing flakes and optional native projects, and use explicit selection on ambiguity; create new native templates in Lua |
 | OS installer | Generates `configuration.lua` and its hardware module in Lua |
 | NixBox operations | Write the owned module in Lua when the configuration is Lua |
-| Templates and examples shipped with nix-rs | Lua first, with a Nix equivalent where one is documented |
+| Templates and examples shipped with noxi | Lua first, with a Nix equivalent where one is documented |
 | Compatibility commands: `nix`, `nix-build`, `nix-instantiate`, `nixos-rebuild`, `home-manager`, and the other reference names | Reference behavior; `.lua` files are ordinary files and are never evaluated |
 
 A native command selects its configuration as follows. An explicit path is used as given. Otherwise the command looks for the Lua and the Nix file in the configuration directory. If only one exists, it is used. If both exist, the command stops and names both files rather than guessing which system to build; the user passes an explicit path or removes one. Existing Nix-only systems therefore keep working with native commands unchanged.
@@ -76,4 +76,4 @@ Errors in Lua sources use the [structured diagnostics](logging.md) with the `.lu
 - How string contexts and store-path dependencies are carried through Lua strings.
 - Whether Nix modules may import Lua modules, and whether flakes may declare Lua configurations as outputs.
 - Whether engine settings such as `nix.conf` may also be written in Lua.
-- Whether nix-rs provides a Nix-to-Lua converter for existing configurations, and a formatter and editor support for Lua configurations.
+- Whether noxi provides a Nix-to-Lua converter for existing configurations, and a formatter and editor support for Lua configurations.

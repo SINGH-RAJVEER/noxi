@@ -2,30 +2,30 @@
 resolver = "3"
 
 members = [
-	"crates/nix-rs/eval",
-	"crates/nix-rs/eval/builtin-macros",
-	"crates/nix-rs/nix-compat",
-	"crates/nix-rs-hash",
-	"crates/nix-rs-flakeref",
-	"crates/nix-rs-flake",
-	"crates/nix-rs-glue",
-	"crates/nix-rs-store",
-	"crates/nix-rs-build",
-	"crates/nix-rs-daemon",
-	"crates/nix-rs-commands",
-	"crates/nix-rs/nix-compat-derive",
-	"crates/nix-rs/nix-compat-derive-tests",
-	"crates/nix-rs/serde",
+	"crates/noxi/eval",
+	"crates/noxi/eval/builtin-macros",
+	"crates/noxi/nix-compat",
+	"crates/noxi-hash",
+	"crates/noxi-flakeref",
+	"crates/noxi-flake",
+	"crates/noxi-glue",
+	"crates/noxi-store",
+	"crates/noxi-build",
+	"crates/noxi-daemon",
+	"crates/noxi-commands",
+	"crates/noxi/nix-compat-derive",
+	"crates/noxi/nix-compat-derive-tests",
+	"crates/noxi/serde",
 	"crates/compat-tests",
-	"crates/nix-rs-cli",
+	"crates/noxi-cli",
 ]
 
 [workspace.package]
-version = "0.1.0"
+version = "0.0.1"
 # Minimum Supported Rust Version, inherited from the imported crates.
 rust-version = "1.95.0"
 
-# Copied from the imported workspace at the recorded revision (see crates/nix-rs/PROVENANCE.md).
+# Copied from the imported workspace at the recorded revision (see crates/noxi/PROVENANCE.md).
 # Cargo ignores entries no member uses.
 [workspace.dependencies]
 aho-corasick = "1.1.4"

@@ -1,0 +1,19 @@
+[package]
+name = "noxi-cli"
+version = "0.0.1"
+rust-version.workspace = true
+edition = "2024"
+description = "Preview command-line entry point for the noxi package manager"
+license = "Apache-2.0"
+repository = "https://github.com/SINGH-RAJVEER/nix-rs"
+
+[[bin]]
+name = "noxi"
+path = "src/main.rs"
+
+[dependencies]
+mimalloc.workspace = true
+noxi-eval = { path = "../noxi/eval", version = "0.0.1", default-features = false }
+
+[dev-dependencies]
+tempfile.workspace = true
