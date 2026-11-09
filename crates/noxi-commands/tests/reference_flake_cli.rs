@@ -215,3 +215,87 @@ fn stored_flake_fragments_select_build_installables() {
 	}
 	assert_eq!(outputs[0], outputs[1]);
 }
+
+/// A non-flake `path:` input that is already a store path, imported as a
+/// context-free string, as the qualification VM's NixOS flake imports
+/// Nixpkgs. The reference reads stored sources through the host
+/// filesystem, so it gets the physical path of the same stored tree.
+#[test]
+fn stored_path_input_imports_as_plain_string() {
+	let reference = std::env::var_os("NOXI_REFERENCE_BIN")
+		.map(PathBuf::from)
+		.unwrap_or_else(|| {
+			Path::new(env!("CARGO_MANIFEST_DIR")).join("../../target/nix-reference/bin")
+		})
+		.join("nix");
+	let fixture = tempfile::tempdir().unwrap();
+	let source = fixture.path().join("source");
+	fs::create_dir_all(&source).unwrap();
+	fs::write(source.join("default.nix"), "{ value = \"ok\"; }").unwrap();
+	let roots = [tempfile::tempdir().unwrap(), tempfile::tempdir().unwrap()];
+	let mut outputs = Vec::new();
+	for (index, (bin, root)) in [reference.as_path(), Path::new(env!("CARGO_BIN_EXE_nix"))]
+		.iter()
+		.zip(&roots)
+		.enumerate()
+	{
+		let added = run(
+			&reference,
+			root.path(),
+			&[
+				"store",
+				"add",
+				"--mode",
+				"nar",
+				"--name",
+				"source",
+				source.to_str().unwrap(),
+			],
+		);
+		assert!(
+			added.status.success(),
+			"{}",
+			String::from_utf8_lossy(&added.stderr)
+		);
+		let logical = String::from_utf8(added.stdout).unwrap().trim().to_owned();
+		let input = if index == 0 {
+			root.path()
+				.join(logical.trim_start_matches('/'))
+				.display()
+				.to_string()
+		} else {
+			logical
+		};
+		let flake = fixture.path().join(format!("flake{index}"));
+		fs::create_dir_all(&flake).unwrap();
+		fs::write(
+			flake.join("flake.nix"),
+			format!(
+				"{{ inputs.src = {{ url = \"path:{input}\"; flake = false; }}; outputs = inputs: let plain = builtins.unsafeDiscardStringContext inputs.src.outPath; in {{ value = (import plain).value; source = plain; }}; }}"
+			),
+		)
+		.unwrap();
+		let mut output = Vec::new();
+		for attr in ["value", "source"] {
+			let result = run(
+				bin,
+				root.path(),
+				&[
+					"eval",
+					"--raw",
+					"--no-write-lock-file",
+					&format!("path:{}#{attr}", flake.display()),
+				],
+			);
+			assert!(
+				result.status.success(),
+				"{}",
+				String::from_utf8_lossy(&result.stderr)
+			);
+			output.push(String::from_utf8(result.stdout).unwrap());
+		}
+		outputs.push(output);
+	}
+	assert_eq!(outputs[0][0], "ok");
+	assert_eq!(outputs[0], outputs[1]);
+}

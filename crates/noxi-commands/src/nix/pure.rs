@@ -30,6 +30,13 @@ impl PureIO {
 		}
 	}
 }
+/// The store directory itself. Like the ancestors CppNix's allow list
+/// permits for traversal, its metadata is visible in pure mode so that
+/// fetched store paths can be reached by name; its listing is not.
+fn is_store_dir(path: &Path) -> bool {
+	path.components().eq(Path::new("/nix/store").components())
+}
+
 fn unsupported() -> io::Error {
 	io::Error::other(
 		"pure filesystem evaluation is not supported by noxi yet; use --impure for expression inputs",
@@ -37,18 +44,27 @@ fn unsupported() -> io::Error {
 }
 impl EvalIO for PureIO {
 	fn path_exists(&self, path: &Path) -> io::Result<bool> {
+		if is_store_dir(path) {
+			return Ok(true);
+		}
 		self.source(path)?.path_exists(path)
 	}
 	fn open(&self, path: &Path) -> io::Result<Box<dyn io::Read>> {
 		self.source(path)?.open(path)
 	}
 	fn file_type(&self, path: &Path) -> io::Result<FileType> {
+		if is_store_dir(path) {
+			return Ok(FileType::Directory);
+		}
 		self.source(path)?.file_type(path)
 	}
 	fn read_dir(&self, path: &Path) -> io::Result<Vec<(bytes::Bytes, FileType)>> {
 		self.source(path)?.read_dir(path)
 	}
 	fn canonicalize(&self, path: &Path) -> io::Result<PathBuf> {
+		if is_store_dir(path) {
+			return Ok(path.to_owned());
+		}
 		self.source(path)?.canonicalize(path)
 	}
 	fn import_path(&self, path: &Path) -> io::Result<PathBuf> {
