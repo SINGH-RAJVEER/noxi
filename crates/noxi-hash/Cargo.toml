@@ -1,6 +1,6 @@
 [package]
 name = "noxi-hash"
-version.workspace = true
+version = "0.0.2"
 rust-version.workspace = true
 edition = "2024"
 description = "Nix hash formats and Nix base32 encoding"

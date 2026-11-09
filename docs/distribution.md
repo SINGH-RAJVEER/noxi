@@ -14,23 +14,23 @@ ARM Linux needs target-aware build settings, AArch64 sandbox syscall rules, and 
 
 ## Crates and release status
 
-The `noxi` 0.0.1 release is in progress. Only `noxi-hash`, `noxi-eval-builtin-macros`, `noxi-compat-derive`, `noxi-flakeref`, `noxi-compat`, `noxi-eval`, and `noxi-store` are published so far.
+The `noxi` 0.0.1 release published `noxi-hash`, `noxi-eval-builtin-macros`, `noxi-compat-derive`, `noxi-flakeref`, `noxi-compat`, `noxi-eval`, and `noxi-store`. Version 0.0.2 of those seven crates is the current patch release; the remaining crates are not yet published.
 
 The crates below are intended for publication on crates.io under the SINGH-RAJVEER account. Upstream owns `nix-compat` and `nix-compat-derive`. This project's format crates are published as `noxi-compat` and `noxi-compat-derive`, retaining Rust library names `nix_compat` and `nix_compat_derive`.
 
 | Crate | Version | License | Contents |
 |---|---|---|---|
-| [`noxi-eval-builtin-macros`](https://crates.io/crates/noxi-eval-builtin-macros) | 0.0.1 | GPL-3.0-only | Procedural macros for defining builtins, derived from `snix-eval-builtin-macros` |
-| [`noxi-eval`](https://crates.io/crates/noxi-eval) | 0.0.1 | GPL-3.0-only | Nix language evaluator, derived from `snix-eval` |
+| [`noxi-eval-builtin-macros`](https://crates.io/crates/noxi-eval-builtin-macros) | 0.0.2 | GPL-3.0-only | Procedural macros for defining builtins, derived from `snix-eval-builtin-macros` |
+| [`noxi-eval`](https://crates.io/crates/noxi-eval) | 0.0.2 | GPL-3.0-only | Nix language evaluator, derived from `snix-eval` |
 | [`noxi-cli`](https://crates.io/crates/noxi-cli) | 0.0.1 | Apache-2.0 | The `noxi` preview command |
-| [`noxi-hash`](https://crates.io/crates/noxi-hash) | 0.0.1 | GPL-3.0-only | Hash and Nix base32 formats |
-| [`noxi-flakeref`](https://crates.io/crates/noxi-flakeref) | 0.0.1 | GPL-3.0-only | Flake reference parser and formatter |
-| [`noxi-compat`](https://crates.io/crates/noxi-compat) | 0.0.1 | GPL-3.0-only | Nix formats and protocol values |
-| [`noxi-compat-derive`](https://crates.io/crates/noxi-compat-derive) | 0.0.1 | GPL-3.0-only | Wire derive macros |
+| [`noxi-hash`](https://crates.io/crates/noxi-hash) | 0.0.2 | GPL-3.0-only | Hash and Nix base32 formats |
+| [`noxi-flakeref`](https://crates.io/crates/noxi-flakeref) | 0.0.2 | GPL-3.0-only | Flake reference parser and formatter |
+| [`noxi-compat`](https://crates.io/crates/noxi-compat) | 0.0.2 | GPL-3.0-only | Nix formats and protocol values |
+| [`noxi-compat-derive`](https://crates.io/crates/noxi-compat-derive) | 0.0.2 | GPL-3.0-only | Wire derive macros |
 | [`noxi-serde`](https://crates.io/crates/noxi-serde) | 0.0.1 | GPL-3.0-only | Bidirectional serde bridge |
 | [`noxi-glue`](https://crates.io/crates/noxi-glue) | 0.0.1 | GPL-3.0-only | Read-only store-aware evaluation on Unix |
 | [`noxi-commands`](https://crates.io/crates/noxi-commands) | 0.0.1 | GPL-3.0-only | Partial read-only `nix-instantiate --eval` command |
-| [`noxi-store`](https://crates.io/crates/noxi-store) | 0.0.1 | GPL-3.0-only | Experimental local store and cache substitution |
+| [`noxi-store`](https://crates.io/crates/noxi-store) | 0.0.2 | GPL-3.0-only | Experimental local store and cache substitution |
 | [`noxi-build`](https://crates.io/crates/noxi-build) | 0.0.1 | GPL-3.0-only | Experimental local sandboxed derivation builder |
 | [`noxi-daemon`](https://crates.io/crates/noxi-daemon) | 0.0.1 | GPL-3.0-only | Nix worker protocol daemon |
 | [`noxi-flake`](https://crates.io/crates/noxi-flake) | 0.0.1 | GPL-3.0-only | Flake graph and operations |

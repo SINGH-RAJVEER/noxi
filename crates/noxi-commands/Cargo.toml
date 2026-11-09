@@ -49,14 +49,14 @@ path = "src/bin/nix-env.rs"
 bytes.workspace = true
 bstr.workspace = true
 mimalloc.workspace = true
-nix-compat = { package = "noxi-compat", path = "../noxi/nix-compat", version = "0.0.1" }
-noxi-eval = { path = "../noxi/eval", version = "0.0.1", default-features = false, features = ["impure"] }
+nix-compat = { package = "noxi-compat", path = "../noxi/nix-compat", version = "0.0.2" }
+noxi-eval = { path = "../noxi/eval", version = "0.0.2", default-features = false, features = ["impure"] }
 noxi-build = { path = "../noxi-build", version = "0.0.1" }
 noxi-daemon = { path = "../noxi-daemon", version = "0.0.1" }
-noxi-flakeref = { path = "../noxi-flakeref", version = "0.0.1" }
+noxi-flakeref = { path = "../noxi-flakeref", version = "0.0.2" }
 noxi-flake = { path = "../noxi-flake", version = "0.0.1" }
 noxi-glue = { path = "../noxi-glue", version = "0.0.1" }
-noxi-store = { path = "../noxi-store", version = "0.0.1" }
+noxi-store = { path = "../noxi-store", version = "0.0.2" }
 regex.workspace = true
 url.workspace = true
 libc.workspace = true

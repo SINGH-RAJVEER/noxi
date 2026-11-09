@@ -11,15 +11,15 @@ repository = "https://github.com/SINGH-RAJVEER/nix-rs"
 bstr.workspace = true
 bytes.workspace = true
 data-encoding.workspace = true
-nix-compat = { package = "noxi-compat", path = "../noxi/nix-compat", version = "0.0.1" }
-noxi-eval = { path = "../noxi/eval", version = "0.0.1", default-features = false, features = ["impure"] }
-noxi-store = { path = "../noxi-store", version = "0.0.1" }
+nix-compat = { package = "noxi-compat", path = "../noxi/nix-compat", version = "0.0.2" }
+noxi-eval = { path = "../noxi/eval", version = "0.0.2", default-features = false, features = ["impure"] }
+noxi-store = { path = "../noxi-store", version = "0.0.2" }
 serde_json.workspace = true
 sha1.workspace = true
 sha2.workspace = true
 tempfile.workspace = true
 thiserror.workspace = true
-noxi-flakeref = { path = "../noxi-flakeref", version = "0.0.1" }
+noxi-flakeref = { path = "../noxi-flakeref", version = "0.0.2" }
 tar = "0.4"
 flate2 = "1.1"
 bzip2 = "0.6"

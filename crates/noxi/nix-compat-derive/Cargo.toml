@@ -1,6 +1,6 @@
 [package]
 name = "noxi-compat-derive"
-version = "0.0.1"
+version = "0.0.2"
 edition = "2024"
 rust-version.workspace = true
 description = "Procedural macros for noxi Nix protocol serialization, derived from Snix"

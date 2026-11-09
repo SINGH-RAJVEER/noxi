@@ -13,7 +13,7 @@ path = "src/main.rs"
 
 [dependencies]
 mimalloc.workspace = true
-noxi-eval = { path = "../noxi/eval", version = "0.0.1", default-features = false }
+noxi-eval = { path = "../noxi/eval", version = "0.0.2", default-features = false }
 
 [dev-dependencies]
 tempfile.workspace = true

@@ -8,6 +8,6 @@ license = "GPL-3.0-only"
 repository = "https://github.com/SINGH-RAJVEER/nix-rs"
 
 [dependencies]
-noxi-eval = { path = "../eval", version = "0.0.1" }
+noxi-eval = { path = "../eval", version = "0.0.2" }
 serde = { workspace = true, features = ["derive"] }
 bstr = { workspace = true, features = ["serde"] }
