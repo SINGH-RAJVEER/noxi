@@ -76,3 +76,7 @@ Compared with the source reading above:
 - **Not traced:** classic-mode `nixos-rebuild` (`nix-build`, `nix-instantiate --add-root`, `nix-channel --update`), remote targets (`nix-copy-closure`, `nix copy`), `nixos-install`, the standalone `home-manager` command, `nix profile` profiles, and `nix config show`, which runs only while the system is built. These rows remain read from source.
 
 The trace records commands, not daemon traffic. Home Manager runs as an unprivileged user, so its calls reach the store through the daemon socket, while `nixos-rebuild` runs as root and opens the store directly.
+
+## Command implementation update, 2026-11-09
+
+The command crate now provides actual `nix-prefetch-url` and `nix-channel` Cargo executables. The former has fixed-output download comparisons; the latter currently implements subscription-file add/list/remove only. Channel update/rollback/generation commands still fail explicitly, so the classic NixOS channel-update caller remains unsupported. Packaging must replace the two existing placeholders and rerun its layout/VM gates. Modern flake dispatch and installable integration have bounded differential evidence recorded in [verification](verification.md#modern-flake-command-integration-2026-11-09) and [flakes](flakes.md#modern-command-integration-2026-11-09). Historical inventory captures and VM results above are unchanged.

@@ -158,7 +158,7 @@ pub(crate) fn get_file_accessor(store: &EvaluatorStore, input: &Input) -> Result
 	))
 }
 
-pub(crate) fn unpack(bytes: Vec<u8>) -> Result<(Mount, u64)> {
+pub fn unpack(bytes: Vec<u8>) -> Result<(Mount, u64)> {
 	let reader: Box<dyn Read> = if bytes.starts_with(&[0x1f, 0x8b]) {
 		Box::new(flate2::read::GzDecoder::new(Cursor::new(bytes)))
 	} else if bytes.starts_with(b"BZh") {
