@@ -166,6 +166,7 @@ Nix formats and protocols: store paths, nixbase32, hashes, NAR, ATerm derivation
 
 ### Unreleased
 
+- `Settings::forwarded` follows CppNix for settings that need an experimental feature: one given while its feature is disabled is ignored but still forwarded with its default once a later file, `NIX_CONFIG` or flag enables the feature, and none is forwarded while its feature is disabled (2026-11-09).
 - `nixcpp::settings` parses integer settings with CppNix's `K`/`M`/`G`/`T` suffixes in each setting's own C++ type and signedness, reports invalid `max-jobs` and `sandbox` values with the reference's messages, and tracks CppNix's overridden flag: settings from the system `nix.conf` are no longer forwarded to a daemon (`Settings::forwarded`) (2026-11-09).
 
 ### 0.1.2 - 2026-10-03
@@ -303,6 +304,7 @@ Serializes Rust values into Nix and deserializes Nix values into Rust types, imp
 
 ### Unreleased
 
+- Pure flake evaluation reads stored `path:` inputs by name, resolves the built-in `<nix/...>` files, answers `pathExists` with false for paths it may not access, and allows `builtins.path` and `builtins.filterSource` for paths inside fetched sources, refusing others with CppNix's message (2026-11-09).
 - Daemon clients send only overrides through `SetOptions`, so an untrusted client on NixOS no longer prints a restricted-setting warning for every system `nix.conf` entry, and a missing `local?root=` store root is created as CppNix does (2026-11-09).
 
 - Add diverted-store `nix-build` and selected `nix-store` operations. Build evaluation retains temporary roots, honors selected output names and creates optional permanent result roots; reference comparisons cover both output selections and six metadata/closure queries. (2026-10-03).
@@ -402,6 +404,7 @@ Internal trybuild tests for `nix-compat-derive`.
 
 ### Unreleased
 
+- `unix_socket::connect` and `bind` handle paths longer than `sun_path` as CppNix's `bindConnectProcHelper` does, from a child in the socket's directory; the garbage collector's roots socket and its clients use them (2026-11-09).
 - `add_perm_root` creates the directories up to a permanent root (`gc::make_root_symlink`), as Home Manager's first activation requires, and `LocalStoreConfig::diverted` creates a missing absolute root outside `/nix` (2026-11-09).
 
 - Add NAR-hash inode deduplication and streamed compressed build-log imports, plus diverted-root validation and shared local-store settings. (2026-10-03).
@@ -424,6 +427,7 @@ Internal trybuild tests for `nix-compat-derive`.
 
 ### Unreleased
 
+- The daemon socket and its clients work at paths longer than `sun_path`. A connection refused during the handshake is reported as CppNix reports it, and the store is named `daemon` only for the default socket (2026-11-09).
 - The daemon client creates the directories up to a permanent root before registering it, matching `IndirectRootStore::makeSymlink` (2026-11-09).
 
 - Add a standalone diverted-store daemon, per-connection client settings, worker version 1.39, substitutable-path query handlers, optimisation and trusted framed build-log uploads. Reference comparisons cover client build cores, optimisation and log uploads; dedicated substitution-query wire comparisons and three further operations remain open (2026-10-03).
@@ -436,6 +440,7 @@ Internal trybuild tests for `nix-compat-derive`.
 
 ### Unreleased
 
+- Under a root daemon, sandboxed builders run as a member of `build-users-group` (`nixbld` by default) locked under `STATE_DIR/userpool`, as CppNix's `SimpleUserLock` does: the sandbox user maps to it, it owns the build directory, builder files and terminal, the chroot store is owned by root and the build group, its processes are killed before and after the build, and outputs it does not own are rejected. Previously such builders ran as host root and owned their bind-mounted inputs (2026-11-09).
 - Apply shared build settings, honor substitution and fallback decisions, and reject local builds when max-jobs is zero. Execution remains sequential (2026-10-03).
 
 - `LocalBuilder::realise_with_events` reports each build's start, output and end as `BuildEvent`s (2026-10-02).
