@@ -545,6 +545,7 @@ fn pure_flake_path_imports_allow_only_fetched_sources() {
 	fs::create_dir_all(source.join("sub")).unwrap();
 	fs::write(source.join("sub/keep"), "keep\n").unwrap();
 	fs::write(source.join("sub/drop"), "drop\n").unwrap();
+	std::os::unix::fs::symlink("/etc/passwd", source.join("escape")).unwrap();
 	let roots = [tempfile::tempdir().unwrap(), tempfile::tempdir().unwrap()];
 	let mut outputs = Vec::new();
 	for (index, (bin, root)) in [reference.as_path(), Path::new(env!("CARGO_BIN_EXE_nix"))]
@@ -585,12 +586,22 @@ fn pure_flake_path_imports_allow_only_fetched_sources() {
 		fs::write(
 			flake.join("flake.nix"),
 			format!(
-				"{{ inputs.src = {{ url = \"path:{input}\"; flake = false; }}; outputs = inputs: {{ filtered = builtins.path {{ path = inputs.src + \"/sub\"; name = \"filtered\"; filter = path: type: baseNameOf path != \"drop\"; }}; source = builtins.filterSource (path: type: true) (inputs.src + \"/sub\"); own = builtins.path {{ path = ./own; }}; host = builtins.path {{ path = /etc/passwd; }}; }}; }}"
+				"{{ inputs.src = {{ url = \"path:{input}\"; flake = false; }}; outputs = inputs: {{ filtered = builtins.path {{ path = inputs.src + \"/sub\"; name = \"filtered\"; filter = path: type: baseNameOf path != \"drop\"; }}; source = builtins.filterSource (path: type: true) (inputs.src + \"/sub\"); own = builtins.path {{ path = ./own; }}; host = builtins.path {{ path = /etc/passwd; }}; link = builtins.path {{ path = inputs.src + \"/escape\"; }}; linkFiltered = builtins.filterSource (path: type: true) (inputs.src + \"/escape\"); climb = builtins.path {{ path = inputs.src + \"/sub/../../../../../../etc/passwd\"; name = \"climb\"; }}; readLink = builtins.readFile (inputs.src + \"/escape\"); readClimb = builtins.readFile (inputs.src + \"/sub/../../../../../../etc/passwd\"); }}; }}"
 			),
 		)
 		.unwrap();
 		let mut output = Vec::new();
-		for attr in ["filtered", "source", "own", "host"] {
+		for attr in [
+			"filtered",
+			"source",
+			"own",
+			"host",
+			"link",
+			"linkFiltered",
+			"climb",
+			"readLink",
+			"readClimb",
+		] {
 			let result = run(
 				bin,
 				root.path(),

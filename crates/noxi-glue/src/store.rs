@@ -412,6 +412,28 @@ impl EvaluatorStore {
 		}
 	}
 
+	/// The logical path `path` names after removing `.` and `..` lexically,
+	/// as CppNix's `canonPath` does, and then resolving symlinks through
+	/// the physical tree. An access check on the result cannot be escaped
+	/// through `..` or a link out of an allowed tree. A path that does not
+	/// exist keeps its lexical form.
+	pub fn resolved_logical_path(&self, path: &Path) -> PathBuf {
+		let mut lexical = PathBuf::new();
+		for component in path.components() {
+			match component {
+				std::path::Component::ParentDir => {
+					lexical.pop();
+				}
+				std::path::Component::CurDir => {}
+				other => lexical.push(other),
+			}
+		}
+		match std::fs::canonicalize(self.physical_path(&lexical)) {
+			Ok(physical) => self.logical_path(&physical),
+			Err(_) => lexical,
+		}
+	}
+
 	pub(crate) fn physical_path(&self, path: &Path) -> PathBuf {
 		if let Some((mount, rest)) = self.mount_of(path) {
 			return if rest.as_os_str().is_empty() {

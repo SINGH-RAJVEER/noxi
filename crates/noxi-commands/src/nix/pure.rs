@@ -19,28 +19,48 @@ impl PureIO {
 		let Some(store) = &self.store else {
 			return Err(unsupported());
 		};
-		let mounted = path
-			.strip_prefix("/nix/store")
-			.ok()
-			.and_then(|p| p.components().next())
-			.and_then(|p| {
-				nix_compat::store_path::StorePath::from_bytes(p.as_os_str().as_encoded_bytes()).ok()
-			})
-			.is_some_and(|p| store.is_fetched_source(&p));
-		if mounted
-			|| path.starts_with("/__corepkgs__")
-			|| self
-				.realised
-				.borrow()
-				.iter()
-				.any(|root| path.starts_with(root))
-		{
-			Ok(noxi_glue::StoreIO::new(store.clone()))
-		} else {
-			Err(unsupported())
+		let allowed = |path: &Path| {
+			in_fetched_source(store, path)
+				|| path.starts_with("/__corepkgs__")
+				|| self
+					.realised
+					.borrow()
+					.iter()
+					.any(|root| path.starts_with(root))
+		};
+		// Where the path really leads must be allowed too, as CppNix checks
+		// its resolved source path: neither `..` nor a symlink may leave the
+		// allowed trees.
+		if !allowed(path) {
+			return Err(unsupported());
 		}
+		if !path.starts_with("/__corepkgs__") {
+			let resolved = store.resolved_logical_path(path);
+			if !allowed(&resolved) {
+				return Err(io::Error::new(
+					io::ErrorKind::PermissionDenied,
+					format!(
+						"access to absolute path '{}' is forbidden in pure evaluation mode (use '--impure' to override)",
+						resolved.display()
+					),
+				));
+			}
+		}
+		Ok(noxi_glue::StoreIO::new(store.clone()))
 	}
 }
+
+/// Whether `path` is inside a source tree this evaluation fetched.
+fn in_fetched_source(store: &noxi_glue::EvaluatorStore, path: &Path) -> bool {
+	path.strip_prefix("/nix/store")
+		.ok()
+		.and_then(|p| p.components().next())
+		.and_then(|p| {
+			nix_compat::store_path::StorePath::from_bytes(p.as_os_str().as_encoded_bytes()).ok()
+		})
+		.is_some_and(|p| store.is_fetched_source(&p))
+}
+
 /// The store directory itself. Like the ancestors CppNix's allow list
 /// permits for traversal, its metadata is visible in pure mode so that
 /// fetched store paths can be reached by name; its listing is not.
@@ -148,13 +168,10 @@ impl Guard {
 		let Some(store) = &self.store else {
 			return false;
 		};
-		path.strip_prefix("/nix/store")
-			.ok()
-			.and_then(|p| p.components().next())
-			.and_then(|p| {
-				nix_compat::store_path::StorePath::from_bytes(p.as_os_str().as_encoded_bytes()).ok()
-			})
-			.is_some_and(|p| store.is_fetched_source(&p))
+		// Check where the path really leads, as CppNix checks its resolved
+		// source path: neither `..` nor a symlink may leave the tree.
+		in_fetched_source(store, path)
+			&& in_fetched_source(store, &store.resolved_logical_path(path))
 	}
 }
 
