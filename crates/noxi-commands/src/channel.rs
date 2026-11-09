@@ -13,28 +13,11 @@ fn channel_profile() -> Result<std::path::PathBuf, Failure> {
 	)
 }
 
-fn download(url: &str) -> Result<(Vec<u8>, String), Failure> {
-	use noxi_glue::fetch::http::{Client, Native, Request};
-	if let Some(path) = url.strip_prefix("file://") {
-		return Ok((
-			if std::path::Path::new(path).is_dir() {
-				Vec::new()
-			} else {
-				fs::read(path)?
-			},
-			url.into(),
-		));
-	}
-	let response = Native
-		.request(&Request::get(url))
-		.map_err(|e| e.to_string())?;
-	if !(200..300).contains(&response.status) {
-		return Err(Failure::Error(format!(
-			"unable to download '{url}': HTTP error {}",
-			response.status
-		)));
-	}
-	Ok((response.body, response.effective_url))
+fn download(store: &noxi_glue::EvaluatorStore, url: &str) -> Result<(Vec<u8>, String), Failure> {
+	let name = url.rsplit('/').next().unwrap_or("");
+	let (mount, effective) =
+		noxi_glue::fetch::download_file(store, url, name, &[]).map_err(|e| e.to_string())?;
+	Ok((fs::read(&mount.root)?, effective))
 }
 
 fn lifecycle(
@@ -65,6 +48,11 @@ fn lifecycle(
 	let uri = crate::store::store_uri(None, settings);
 	let opened = crate::store::open(&uri, settings)?
 		.ok_or_else(|| Failure::Error("channel update requires a writable store".into()))?;
+	let fetcher =
+		noxi_glue::EvaluatorStore::with_store(opened.store.clone(), opened.real_store_dir.clone());
+	let mut config = noxi_glue::fetch::FetchConfig::default();
+	config.settings.tarball_ttl = settings.get_int("tarball-ttl", 3600).max(0) as u64;
+	fetcher.configure_fetching(config);
 	let store = opened.store.as_ref();
 	let cwd = std::env::current_dir()?;
 	let mut elements = Vec::new();
@@ -95,23 +83,23 @@ fn lifecycle(
 			elements.push(element);
 			continue;
 		}
-		let (mut bytes, effective) = download(url)?;
+		let (mut bytes, effective) = download(&fetcher, url)?;
 		let direct = [".tar.gz", ".tar.bz2", ".tar.xz"]
 			.iter()
-			.any(|ext| effective.ends_with(ext));
-		let mut filename = effective.rsplit('/').next().unwrap_or("").to_owned();
+			.any(|ext| url.ends_with(ext));
+		let mut filename = url.rsplit('/').next().unwrap_or("").to_owned();
 		if ![".tar.gz", ".tar.bz2", ".tar.xz"]
 			.iter()
 			.any(|ext| filename.ends_with(ext))
 		{
 			let base = effective.trim_end_matches('/');
-			match download(&format!("{base}/nixexprs.tar.xz")) {
+			match download(&fetcher, &format!("{base}/nixexprs.tar.xz")) {
 				Ok((body, _)) => {
 					bytes = body;
 					filename = "nixexprs.tar.xz".into();
 				}
 				Err(_) => {
-					bytes = download(&format!("{base}/nixexprs.tar.bz2"))?.0;
+					bytes = download(&fetcher, &format!("{base}/nixexprs.tar.bz2"))?.0;
 					filename = "nixexprs.tar.bz2".into();
 				}
 			}
@@ -212,11 +200,27 @@ pub fn run(mut settings: Settings, args: Vec<String>) -> Result<ExitCode, Failur
 			flag if flag.starts_with('-') => {
 				settings
 					.apply_flag(flag, || args.next())
-					.ok_or_else(|| Failure::Usage(format!("unrecognised flag '{flag}'")))?
+					.ok_or_else(|| Failure::Usage(format!("unsupported argument '{flag}'")))?
 					.map_err(|e| e.to_string())?;
 			}
 			_ => operands.push(arg),
 		}
+	}
+	let arity_error = match operation.as_str() {
+		"" => Some("no command specified"),
+		"--add" if !(1..=2).contains(&operands.len()) => {
+			Some("'--add' requires one or two arguments")
+		}
+		"--remove" if operands.len() != 1 => Some("'--remove' requires one argument"),
+		"--list" if !operands.is_empty() => Some("'--list' expects no arguments"),
+		"--list-generations" if !operands.is_empty() => {
+			Some("'--list-generations' expects no arguments")
+		}
+		"--rollback" if operands.len() > 1 => Some("'--rollback' has at most one argument"),
+		_ => None,
+	};
+	if let Some(message) = arity_error {
+		return Err(Failure::Usage(message.into()));
 	}
 	let file = if settings.get_bool("use-xdg-base-directories", false) {
 		noxi_store::profiles::create_nix_state_dir()?.join("channels")
@@ -231,8 +235,15 @@ pub fn run(mut settings: Settings, args: Vec<String>) -> Result<ExitCode, Failur
 	let mut channels = BTreeMap::new();
 	for line in text.lines() {
 		let mut words = line.split_whitespace();
-		if let (Some(url), Some(name)) = (words.next(), words.next()) {
-			channels.insert(name.to_owned(), url.trim_end_matches('/').to_owned());
+		if line.trim_start().starts_with('#') {
+			continue;
+		}
+		if let Some(url) = words.next() {
+			let url = url.trim_end_matches('/');
+			let name = words
+				.next()
+				.unwrap_or_else(|| url.rsplit('/').next().unwrap_or(""));
+			channels.insert(name.to_owned(), url.to_owned());
 		}
 	}
 	if matches!(
@@ -256,19 +267,15 @@ pub fn run(mut settings: Settings, args: Vec<String>) -> Result<ExitCode, Failur
 				return Err(Failure::Error(format!("invalid channel URL '{url}'")));
 			}
 			let name = operands.get(1).cloned().unwrap_or_else(|| {
-				parsed
-					.path()
-					.trim_end_matches('/')
-					.rsplit('/')
-					.next()
-					.unwrap_or("")
-					.to_owned()
+				let base = url.trim_end_matches('/').rsplit('/').next().unwrap_or("");
+				let base = base.strip_suffix("-unstable").unwrap_or(base);
+				base.strip_suffix("-stable").unwrap_or(base).to_owned()
 			});
 			if name.is_empty()
 				|| !name
 					.chars()
 					.all(|c| c.is_ascii_alphanumeric() || matches!(c, '_' | '.' | '-'))
-				|| name.starts_with('.')
+				|| name.starts_with(['.', '-'])
 			{
 				return Err(Failure::Error(format!(
 					"invalid channel identifier '{name}'"

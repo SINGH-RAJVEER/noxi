@@ -37,6 +37,8 @@ pub struct LockOptions {
 /// A resolved graph and the source trees already fetched while resolving it.
 pub struct LockedFlake {
 	pub lock_file: LockFile,
+	/// Lock graph read from the root or --reference-lock-file before resolving.
+	pub original_lock_file: LockFile,
 	pub original_ref: FlakeRef,
 	pub resolved_ref: FlakeRef,
 	pub locked_ref: FlakeRef,
@@ -695,6 +697,7 @@ pub async fn lock_flake(
 	} else {
 		read_lock(store, &out_path)?
 	};
+	let original_lock_file = old.clone();
 	let mut resolver = Resolver {
 		store,
 		co,
@@ -714,9 +717,26 @@ pub async fn lock_flake(
 			Vec::new(),
 		)
 		.await?;
+	for (path, reference) in &options.override_inputs {
+		if resolver.lock.find_input(path).map_err(error)?.is_none() {
+			noxi_flakeref::warn(&format!(
+				"the flag '--override-input {} {reference}' does not match any input",
+				path.join("/")
+			));
+		}
+	}
+	for path in &options.update_inputs {
+		if resolver.lock.find_input(path).map_err(error)?.is_none() {
+			noxi_flakeref::warn(&format!(
+				"'{}' does not match any input of this flake",
+				path.join("/")
+			));
+		}
+	}
 	resolver.lock.check().map_err(error)?;
 	Ok(LockedFlake {
 		lock_file: resolver.lock,
+		original_lock_file,
 		original_ref: original,
 		resolved_ref,
 		locked_ref,

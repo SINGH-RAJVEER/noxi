@@ -219,6 +219,28 @@ impl Store for LocalBackend {
 			.add_text_to_store(name, contents, references, false)
 	}
 
+	fn add_multiple_to_store(
+		&self,
+		paths: &[noxi_store::ValidPathInfo],
+		nar: &mut dyn FnMut(&StorePath, &mut dyn std::io::Write) -> Result<()>,
+		repair: bool,
+		check_sigs: bool,
+	) -> Result<()> {
+		use std::io::Seek;
+		for info in paths {
+			let mut file = tempfile::tempfile()?;
+			nar(&info.path, &mut file)?;
+			file.rewind()?;
+			self.store.add_to_store(
+				info,
+				&mut std::io::BufReader::new(file),
+				repair,
+				check_sigs,
+			)?;
+		}
+		Ok(())
+	}
+
 	fn add_to_store_from_dump(
 		&self,
 		source: &mut (dyn Read + Send),

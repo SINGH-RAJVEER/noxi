@@ -5,7 +5,7 @@ use std::{
 	process::{Command, Output},
 };
 fn run(bin: &Path, root: &Path, args: &[&str]) -> Output {
-	Command::new(bin).env_clear().env("PATH", std::env::var_os("PATH").unwrap()).env("HOME", root).env("NIX_CONF_DIR", root).env("NIX_USER_CONF_FILES", "").env("NIX_CONFIG", "experimental-features = nix-command flakes\nsubstituters =\nflake-registry =\nwarn-dirty = false\nbuild-users-group =\n").args(["--store", &format!("local?root={}", root.display())]).args(args).output().unwrap()
+	Command::new(bin).env_clear().env("PATH", std::env::var_os("PATH").unwrap()).env("HOME", root).env("NIX_CONF_DIR", root).env("NIX_USER_CONF_FILES", "").env("GIT_AUTHOR_DATE", "2001-01-01T00:00:00Z").env("GIT_COMMITTER_DATE", "2001-01-01T00:00:00Z").env("GIT_CONFIG_GLOBAL", "/dev/null").env("GIT_CONFIG_NOSYSTEM", "1").env("NIX_CONFIG", "experimental-features = nix-command flakes\nsubstituters =\nflake-registry =\nwarn-dirty = false\nbuild-users-group =\n").args(["--store", &format!("local?root={}", root.display())]).args(args).output().unwrap()
 }
 
 #[test]
@@ -180,7 +180,7 @@ fn flake_text_metadata_prefetch_and_archive_match_reference() {
 	.unwrap();
 	let url = format!("path:{}", fixture.path().display());
 	let roots = [tempfile::tempdir().unwrap(), tempfile::tempdir().unwrap()];
-	for operation in ["metadata", "prefetch", "archive"] {
+	for operation in ["metadata", "info", "prefetch", "archive"] {
 		let args = ["flake", operation, &url];
 		let a = run(&reference, roots[0].path(), &args);
 		let b = run(Path::new(env!("CARGO_BIN_EXE_nix")), roots[1].path(), &args);
@@ -397,4 +397,431 @@ fn stored_flake_fragments_select_build_installables() {
 		outputs.push(output.stdout);
 	}
 	assert_eq!(outputs[0], outputs[1]);
+}
+
+#[test]
+fn show_text_and_json_preserve_lazy_outputs_and_omissions() {
+	let reference = PathBuf::from(std::env::var_os("NOXI_REFERENCE_BIN").unwrap()).join("nix");
+	let fixture = tempfile::tempdir().unwrap();
+	fs::write(fixture.path().join("flake.nix"), r#"{ outputs = { self }: let d = { type = "derivation"; name = "demo-1"; meta.description = "demo"; }; in {
+		packages.x86_64-linux.default = d;
+		packages.aarch64-linux.default = d;
+		packages.empty = {};
+		devShells.x86_64-linux.default = d;
+		checks.x86_64-linux.test = d;
+		legacyPackages.x86_64-linux.demo = d;
+		apps.x86_64-linux.default = { type = "app"; meta.description = "app description"; };
+		templates.default.description = "template description";
+		nixosConfigurations.host = throw "lazy";
+		nixosModules.default = throw "lazy";
+		overlays.default = throw "lazy";
+		unknown = throw "lazy";
+	}; }"#).unwrap();
+	let url = format!("path:{}", fixture.path().display());
+	let roots = [tempfile::tempdir().unwrap(), tempfile::tempdir().unwrap()];
+	for flags in [
+		vec![],
+		vec!["--all-systems"],
+		vec!["--legacy"],
+		vec!["--json"],
+		vec!["--json", "--all-systems", "--legacy"],
+		vec!["--json", "--pretty"],
+		vec!["--json", "--pretty", "--no-pretty"],
+		vec!["--quiet"],
+		vec!["--json", "--quiet"],
+	] {
+		let mut args = vec!["flake", "show", &url];
+		args.extend(flags);
+		let a = run(&reference, roots[0].path(), &args);
+		let b = run(Path::new(env!("CARGO_BIN_EXE_nix")), roots[1].path(), &args);
+		assert!(a.status.success(), "{}", String::from_utf8_lossy(&a.stderr));
+		assert!(b.status.success(), "{}", String::from_utf8_lossy(&b.stderr));
+		if args.contains(&"--pretty") {
+			assert_eq!(a.stdout, b.stdout);
+		}
+		if args.contains(&"--json") {
+			assert_eq!(
+				serde_json::from_slice::<serde_json::Value>(&a.stdout).unwrap(),
+				serde_json::from_slice::<serde_json::Value>(&b.stdout).unwrap()
+			);
+		} else {
+			assert_eq!(
+				String::from_utf8_lossy(&a.stdout),
+				String::from_utf8_lossy(&b.stdout),
+				"{args:?}"
+			);
+		}
+		assert_eq!(
+			String::from_utf8_lossy(&a.stderr),
+			String::from_utf8_lossy(&b.stderr),
+			"{args:?}"
+		);
+	}
+}
+
+#[test]
+fn lock_creation_and_refusal_diagnostics_match() {
+	let reference = PathBuf::from(std::env::var_os("NOXI_REFERENCE_BIN").unwrap()).join("nix");
+	let fixture = tempfile::tempdir().unwrap();
+	let dep = fixture.path().join("dep");
+	fs::create_dir(&dep).unwrap();
+	fs::write(dep.join("flake.nix"), "{ outputs = { self }: {}; }").unwrap();
+	let project = fixture.path().join("project");
+	fs::create_dir(&project).unwrap();
+	let url = format!("path:{}?lastModified=1", project.display());
+	let roots = [tempfile::tempdir().unwrap(), tempfile::tempdir().unwrap()];
+	for flags in [
+		vec!["--no-write-lock-file"],
+		vec!["--no-update-lock-file"],
+		vec![],
+		vec!["--json"],
+	] {
+		let mut results = Vec::new();
+		let mut locks = Vec::new();
+		for (engine, bin) in [reference.as_path(), Path::new(env!("CARGO_BIN_EXE_nix"))]
+			.iter()
+			.enumerate()
+		{
+			let lock = project.join("flake.lock");
+			let _ = fs::remove_file(&lock);
+			fs::write(
+				project.join("flake.nix"),
+				format!(
+					"{{ inputs.dep.url = \"path:{}\"; outputs = {{ self, dep }}: {{}}; }}",
+					dep.display()
+				),
+			)
+			.unwrap();
+			let mut args = vec!["flake", "metadata", &url];
+			args.extend(flags.iter().copied());
+			let result = run(bin, roots[engine].path(), &args);
+			locks.push(fs::read(&lock).ok());
+			results.push(result);
+		}
+		assert_eq!(
+			results[0].status.code(),
+			results[1].status.code(),
+			"{flags:?}"
+		);
+		assert_eq!(locks[0], locks[1]);
+		if flags.contains(&"--no-update-lock-file") {
+			assert!(!results[0].status.success());
+		} else {
+			assert!(
+				results[0].status.success(),
+				"{}",
+				String::from_utf8_lossy(&results[0].stderr)
+			);
+			assert!(
+				results[1].status.success(),
+				"{}",
+				String::from_utf8_lossy(&results[1].stderr)
+			);
+		}
+		assert_eq!(
+			String::from_utf8_lossy(&results[0].stderr),
+			String::from_utf8_lossy(&results[1].stderr),
+			"{flags:?}"
+		);
+		if flags.contains(&"--json") {
+			assert_eq!(
+				serde_json::from_slice::<serde_json::Value>(&results[0].stdout).unwrap(),
+				serde_json::from_slice::<serde_json::Value>(&results[1].stdout).unwrap()
+			);
+		} else {
+			assert_eq!(
+				String::from_utf8_lossy(&results[0].stdout),
+				String::from_utf8_lossy(&results[1].stdout)
+			);
+		}
+	}
+}
+
+#[test]
+fn archive_destination_dry_run_and_prefetch_link_match() {
+	let reference = PathBuf::from(std::env::var_os("NOXI_REFERENCE_BIN").unwrap()).join("nix");
+	let fixture = tempfile::tempdir().unwrap();
+	fs::write(
+		fixture.path().join("flake.nix"),
+		"{ outputs = { self }: {}; }",
+	)
+	.unwrap();
+	let url = format!("path:{}", fixture.path().display());
+	for operation in ["archive", "prefetch"] {
+		for dry in [false, true] {
+			if operation == "prefetch" && dry {
+				continue;
+			}
+			let roots = [tempfile::tempdir().unwrap(), tempfile::tempdir().unwrap()];
+			let mut jsons = Vec::new();
+			let mut diagnostics = Vec::new();
+			for (engine, bin) in [reference.as_path(), Path::new(env!("CARGO_BIN_EXE_nix"))]
+				.iter()
+				.enumerate()
+			{
+				let root = roots[engine].path();
+				let link = root.join("result");
+				let destination = format!("local?root={}/destination", root.display());
+				let mut args = vec!["flake", operation, &url, "--json"];
+				if operation == "archive" {
+					args.extend(["--to", &destination]);
+					if dry {
+						args.push("--dry-run");
+					}
+				} else {
+					args.extend(["--out-link", link.to_str().unwrap()]);
+				}
+				let result = run(bin, root, &args);
+				assert!(
+					result.status.success(),
+					"{args:?}: {}",
+					String::from_utf8_lossy(&result.stderr)
+				);
+				let json: serde_json::Value = serde_json::from_slice(&result.stdout).unwrap();
+				let path = json[if operation == "prefetch" {
+					"storePath"
+				} else {
+					"path"
+				}]
+				.as_str()
+				.unwrap();
+				if operation == "prefetch" {
+					assert_eq!(fs::read_link(link).unwrap().to_str().unwrap(), path);
+				} else {
+					assert_eq!(
+						root.join("destination")
+							.join(path.trim_start_matches('/'))
+							.exists(),
+						!dry
+					);
+				}
+				jsons.push(json);
+				diagnostics.push(
+					String::from_utf8(result.stderr)
+						.unwrap()
+						.replace(&destination, "DESTINATION"),
+				);
+			}
+			assert_eq!(jsons[0], jsons[1]);
+			assert_eq!(diagnostics[0], diagnostics[1]);
+		}
+	}
+}
+
+#[test]
+fn command_registry_overrides_and_inputs_from_resolve_locally() {
+	let reference = PathBuf::from(std::env::var_os("NOXI_REFERENCE_BIN").unwrap()).join("nix");
+	let fixture = tempfile::tempdir().unwrap();
+	let dep = fixture.path().join("dep");
+	fs::create_dir(&dep).unwrap();
+	fs::write(dep.join("flake.nix"), "{ outputs = { self }: {}; }").unwrap();
+	let dep_url = format!("path:{}", dep.display());
+	let provider = fixture.path().join("provider");
+	fs::create_dir(&provider).unwrap();
+	fs::write(
+		provider.join("flake.nix"),
+		format!("{{ inputs.demo.url = \"{dep_url}\"; outputs = {{ self, demo }}: {{}}; }}"),
+	)
+	.unwrap();
+	let provider_url = format!("path:{}", provider.display());
+	let root = tempfile::tempdir().unwrap();
+	let locked = run(&reference, root.path(), &["flake", "lock", &provider_url]);
+	assert!(locked.status.success());
+	let prefetch_roots = [tempfile::tempdir().unwrap(), tempfile::tempdir().unwrap()];
+	let mut fetches = Vec::new();
+	for (engine, bin) in [reference.as_path(), Path::new(env!("CARGO_BIN_EXE_nix"))]
+		.iter()
+		.enumerate()
+	{
+		let result = run(
+			bin,
+			prefetch_roots[engine].path(),
+			&["flake", "prefetch-inputs", &provider_url],
+		);
+		assert!(
+			result.status.success(),
+			"{}",
+			String::from_utf8_lossy(&result.stderr)
+		);
+		fetches.push((result.stdout, result.stderr));
+	}
+	assert_eq!(fetches[0], fetches[1]);
+	for flags in [
+		vec!["--override-flake", "demo", &dep_url],
+		vec!["--inputs-from", &provider_url],
+	] {
+		let roots = [tempfile::tempdir().unwrap(), tempfile::tempdir().unwrap()];
+		let mut outputs = Vec::new();
+		for (engine, bin) in [reference.as_path(), Path::new(env!("CARGO_BIN_EXE_nix"))]
+			.iter()
+			.enumerate()
+		{
+			let mut args = vec!["flake", "metadata", "demo", "--json"];
+			args.extend(flags.iter().copied());
+			let result = run(bin, roots[engine].path(), &args);
+			assert!(
+				result.status.success(),
+				"{args:?}: {}",
+				String::from_utf8_lossy(&result.stderr)
+			);
+			outputs.push(serde_json::from_slice::<serde_json::Value>(&result.stdout).unwrap());
+			assert!(
+				result.stderr.is_empty(),
+				"{}",
+				String::from_utf8_lossy(&result.stderr)
+			);
+		}
+		assert_eq!(outputs[0], outputs[1]);
+	}
+}
+
+#[test]
+fn git_root_lock_intent_to_add_and_commit_match_reference() {
+	let reference = PathBuf::from(std::env::var_os("NOXI_REFERENCE_BIN").unwrap()).join("nix");
+	let fixture = tempfile::tempdir().unwrap();
+	let dep = fixture.path().join("dep");
+	fs::create_dir(&dep).unwrap();
+	fs::write(dep.join("flake.nix"), "{ outputs = { self }: {}; }").unwrap();
+	let git = |repo: &Path, args: &[&str]| {
+		let result = Command::new("git")
+			.env("GIT_CONFIG_GLOBAL", "/dev/null")
+			.env("GIT_CONFIG_NOSYSTEM", "1")
+			.env("GIT_AUTHOR_DATE", "2001-01-01T00:00:00Z")
+			.env("GIT_COMMITTER_DATE", "2001-01-01T00:00:00Z")
+			.arg("-C")
+			.arg(repo)
+			.args(args)
+			.output()
+			.unwrap();
+		assert!(
+			result.status.success(),
+			"{}",
+			String::from_utf8_lossy(&result.stderr)
+		);
+		result.stdout
+	};
+	for commit in [false, true] {
+		let mut results = Vec::new();
+		for (engine, bin) in [reference.as_path(), Path::new(env!("CARGO_BIN_EXE_nix"))]
+			.iter()
+			.enumerate()
+		{
+			let repo = fixture.path().join(format!("repo-{commit}-{engine}"));
+			fs::create_dir(&repo).unwrap();
+			git(&repo, &["init", "-b", "main"]);
+			git(&repo, &["config", "user.email", "test@example.invalid"]);
+			git(&repo, &["config", "user.name", "Test"]);
+			fs::write(
+				repo.join("flake.nix"),
+				format!(
+					"{{ inputs.dep.url = \"path:{}?lastModified=1\"; outputs = {{ self, dep }}: {{}}; }}",
+					dep.display()
+				),
+			)
+			.unwrap();
+			git(&repo, &["add", "flake.nix"]);
+			git(&repo, &["commit", "-m", "initial"]);
+			let root = tempfile::tempdir().unwrap();
+			let url = format!("git+file://{}", repo.display());
+			let mut args = vec!["flake", "lock", &url];
+			if commit {
+				args.push("--commit-lock-file");
+			}
+			let result = run(bin, root.path(), &args);
+			assert!(
+				result.status.success(),
+				"{}",
+				String::from_utf8_lossy(&result.stderr)
+			);
+			results.push((
+				result.stdout,
+				String::from_utf8(result.stderr)
+					.unwrap()
+					.replace(repo.to_str().unwrap(), "REPO"),
+				fs::read(repo.join("flake.lock")).unwrap(),
+				git(&repo, &["status", "--porcelain"]),
+				git(&repo, &["log", "-1", "--format=%H%n%B"]),
+			));
+		}
+		assert_eq!(results[0], results[1], "commit {commit}");
+	}
+}
+
+#[test]
+fn selective_flake_update_keeps_other_git_lock_bytes() {
+	let reference = PathBuf::from(std::env::var_os("NOXI_REFERENCE_BIN").unwrap()).join("nix");
+	let fixture = tempfile::tempdir().unwrap();
+	let git = |repo: &Path, args: &[&str]| {
+		let out = Command::new("git")
+			.env("GIT_CONFIG_GLOBAL", "/dev/null")
+			.env("GIT_CONFIG_NOSYSTEM", "1")
+			.env("GIT_AUTHOR_DATE", "2001-01-01T00:00:00Z")
+			.env("GIT_COMMITTER_DATE", "2001-01-01T00:00:00Z")
+			.arg("-C")
+			.arg(repo)
+			.args(args)
+			.output()
+			.unwrap();
+		assert!(
+			out.status.success(),
+			"{}",
+			String::from_utf8_lossy(&out.stderr)
+		);
+	};
+	for name in ["a", "b"] {
+		let repo = fixture.path().join(name);
+		fs::create_dir(&repo).unwrap();
+		git(&repo, &["init", "-b", "main"]);
+		git(&repo, &["config", "user.email", "test@example.invalid"]);
+		git(&repo, &["config", "user.name", "Test"]);
+		fs::write(
+			repo.join("flake.nix"),
+			"{ outputs = { self }: { answer = 1; }; }",
+		)
+		.unwrap();
+		git(&repo, &["add", "."]);
+		git(&repo, &["commit", "-m", "one"]);
+	}
+	let project = fixture.path().join("project");
+	fs::create_dir(&project).unwrap();
+	fs::write(project.join("flake.nix"), format!("{{ inputs.a.url = \"git+file://{}/a\"; inputs.b.url = \"git+file://{}/b\"; outputs = {{ self, a, b }}: {{}}; }}", fixture.path().display(), fixture.path().display())).unwrap();
+	let url = format!("path:{}?lastModified=1", project.display());
+	let roots = [tempfile::tempdir().unwrap(), tempfile::tempdir().unwrap()];
+	let initial = run(&reference, roots[0].path(), &["flake", "lock", &url]);
+	assert!(initial.status.success());
+	let initial = fs::read(project.join("flake.lock")).unwrap();
+	for name in ["a", "b"] {
+		let repo = fixture.path().join(name);
+		fs::write(
+			repo.join("flake.nix"),
+			"{ outputs = { self }: { answer = 2; }; }",
+		)
+		.unwrap();
+		git(&repo, &["add", "."]);
+		git(&repo, &["commit", "-m", "two"]);
+	}
+	let mut results = Vec::new();
+	for (engine, bin) in [reference.as_path(), Path::new(env!("CARGO_BIN_EXE_nix"))]
+		.iter()
+		.enumerate()
+	{
+		fs::write(project.join("flake.lock"), &initial).unwrap();
+		let result = run(
+			bin,
+			roots[engine].path(),
+			&["flake", "update", "a", "--flake", &url],
+		);
+		assert!(
+			result.status.success(),
+			"{}",
+			String::from_utf8_lossy(&result.stderr)
+		);
+		let lock = fs::read(project.join("flake.lock")).unwrap();
+		let old: serde_json::Value = serde_json::from_slice(&initial).unwrap();
+		let new: serde_json::Value = serde_json::from_slice(&lock).unwrap();
+		assert_eq!(old["nodes"]["b"], new["nodes"]["b"]);
+		assert_ne!(old["nodes"]["a"]["locked"], new["nodes"]["a"]["locked"]);
+		results.push((result.stdout, result.stderr, lock));
+	}
+	assert_eq!(results[0], results[1]);
 }

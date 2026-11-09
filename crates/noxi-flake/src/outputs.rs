@@ -22,6 +22,10 @@ pub struct ShowOptions {
 	pub system: String,
 	pub all_systems: bool,
 	pub legacy: bool,
+	/// Text output does not force package descriptions.
+	pub text: bool,
+	/// Receives progress and warnings in evaluation order.
+	pub diagnostic: Option<fn(&str)>,
 }
 impl Default for ShowOptions {
 	fn default() -> Self {
@@ -29,6 +33,8 @@ impl Default for ShowOptions {
 			system: local_system(),
 			all_systems: false,
 			legacy: false,
+			text: false,
+			diagnostic: None,
 		}
 	}
 }
@@ -108,7 +114,11 @@ fn has_content<'a>(co: &'a GenCo, value: Value, path: Vec<String>) -> LocalFutur
 		if !content_folder(&path) {
 			return Ok(true);
 		}
-		for (name, child) in attrs(co, value).await?.iter_sorted() {
+		let fields = match attrs(co, value).await {
+			Ok(fields) => fields,
+			Err(_) => return Ok(true),
+		};
+		for (name, child) in fields.iter_sorted() {
 			let mut path = path.clone();
 			path.push(name.to_str()?.to_owned());
 			if has_content(co, child.clone(), path).await? {
@@ -118,6 +128,14 @@ fn has_content<'a>(co: &'a GenCo, value: Value, path: Vec<String>) -> LocalFutur
 		Ok(false)
 	})
 }
+fn show_warning(options: &ShowOptions, warnings: &mut Vec<String>, warning: String) {
+	if !options.text || !warning.contains(" omitted") {
+		if let Some(diagnostic) = options.diagnostic {
+			diagnostic(&format!("warning: {warning}"));
+		}
+	}
+	warnings.push(warning);
+}
 fn show_node<'a>(
 	co: &'a GenCo,
 	value: Value,
@@ -126,6 +144,9 @@ fn show_node<'a>(
 	warnings: &'a mut Vec<String>,
 ) -> LocalFuture<'a, Json> {
 	Box::pin(async move {
+		if let Some(diagnostic) = options.diagnostic {
+			diagnostic(&format!("evaluating '{}'...", path.join(".")));
+		}
 		let depth = path.len();
 		let first = path.first().map(String::as_str).unwrap_or("");
 		let system_derivation = depth == 2
@@ -134,17 +155,19 @@ fn show_node<'a>(
 		let legacy = first == "legacyPackages";
 		if system_derivation || legacy && depth > 1 {
 			if legacy && !options.legacy {
-				warnings.push(format!(
-					"{} omitted (use '--legacy' to show)",
-					path.join(".")
-				));
+				show_warning(
+					options,
+					warnings,
+					format!("{} omitted (use '--legacy' to show)", path.join(".")),
+				);
 				return Ok(json!({}));
 			}
 			if !options.all_systems && path[1] != options.system {
-				warnings.push(format!(
-					"{} omitted (use '--all-systems' to show)",
-					path.join(".")
-				));
+				show_warning(
+					options,
+					warnings,
+					format!("{} omitted (use '--all-systems' to show)", path.join(".")),
+				);
 				return Ok(json!({}));
 			}
 		}
@@ -159,11 +182,15 @@ fn show_node<'a>(
 				)
 				.await?;
 				return Ok(
-					json!({"type":"derivation","name":name,"description":description(co,&value).await?.unwrap_or_default()}),
+					json!({"type":"derivation","name":name,"description":if options.text { String::new() } else { description(co,&value).await?.unwrap_or_default() }}),
 				);
 			}
 			if system_derivation {
-				warnings.push(format!("{} is not a derivation", path.join(".")));
+				show_warning(
+					options,
+					warnings,
+					format!("{} is not a derivation", path.join(".")),
+				);
 				return Ok(json!({}));
 			}
 			if legacy && depth > 2 {

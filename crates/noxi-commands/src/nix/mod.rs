@@ -59,7 +59,23 @@ struct Handler {
 }
 impl args::Handler<Program> for Handler {
 	fn flag(&mut self, ctx: &mut Program, name: &str, values: Vec<String>) -> Result<(), Failure> {
+		match name {
+			"recreate-lock-file" => warn(
+				"'--recreate-lock-file' is deprecated and will be removed in a future version; use 'nix flake update' instead.",
+			),
+			"no-registries" => warn("'--no-registries' is deprecated; use '--no-use-registries'"),
+			"update-input" => warn(
+				"'--update-input' is a deprecated alias for 'flake update' and will be removed in a future version.",
+			),
+			_ => {}
+		}
 		hash::check_flag(&ctx.settings, self.command, name, &values)?;
+		if name == "pretty" {
+			self.flags.remove("no-pretty");
+		}
+		if name == "no-pretty" {
+			self.flags.remove("pretty");
+		}
 		if name == "no-link" {
 			self.flags.remove("out-link");
 		}
@@ -145,7 +161,11 @@ impl args::Program for Program {
 					.map_err(|e| e.to_string())?;
 			}
 			"print-build-logs" => nix_compat::log::set_print_build_logs(true),
-			"refresh" => return Err(unsupported("--refresh")),
+			"refresh" => {
+				self.settings
+					.set("tarball-ttl", "0")
+					.map_err(|e| e.to_string())?;
+			}
 			_ => apply_setting_flag(&mut self.settings, flag, values.clone())?,
 		}
 		self.flags.entry(flag.name.into()).or_default().push(values);
@@ -454,6 +474,16 @@ pub fn main(mut settings: Settings, args: Vec<String>) -> Result<ExitCode, Failu
 				&& [
 					"flake",
 					"all-systems",
+					"commit-lock-file",
+					"pretty",
+					"no-pretty",
+					"inputs-from",
+					"override-flake",
+					"no-registries",
+					"dry-run",
+					"to",
+					"no-check-sigs",
+					"out-link",
 					"legacy",
 					"no-build",
 					"json",

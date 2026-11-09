@@ -84,3 +84,13 @@ impl Client for Native {
 		})
 	}
 }
+
+/// CppNix's FileTransferError includes small bodies and HTML error responses.
+pub fn download_error(url: &str, response: &Response) -> Error {
+	let mut message = format!("unable to download '{url}': HTTP error {}", response.status);
+	if response.body.len() < 1024 || response.body.windows(6).any(|part| part == b"<html>") {
+		message.push_str("\n\nresponse body:\n\n");
+		message.push_str(String::from_utf8_lossy(&response.body).trim_end());
+	}
+	Error::new(message)
+}
