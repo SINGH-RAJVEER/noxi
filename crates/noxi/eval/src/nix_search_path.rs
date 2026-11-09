@@ -146,8 +146,23 @@ impl NixSearchPath {
 		if let Some(cached) = self.resolved.borrow().get(value) {
 			return cached.clone();
 		}
-		if is_pseudo_url(value) {
-			eprintln!("warning: Nix search path entry '{value}' cannot be downloaded, ignoring");
+		if is_pseudo_url(value) || value.starts_with("flake:") {
+			match io.resolve_lookup_path(value) {
+				Ok(Some(path)) => {
+					self.resolved
+						.borrow_mut()
+						.insert(value.into(), Some(path.clone()));
+					return Some(path);
+				}
+				Err(error) => {
+					eprintln!("warning: {error}");
+					self.resolved.borrow_mut().insert(value.into(), None);
+					return None;
+				}
+				Ok(None) => eprintln!(
+					"warning: Nix search path entry '{value}' cannot be downloaded, ignoring"
+				),
+			}
 		}
 		let path = Path::new(value);
 		let path = if path.is_absolute() {

@@ -130,6 +130,11 @@ pub trait EvalIO {
 		Ok(resolved)
 	}
 
+	/// Resolve a fetched lookup-path entry. Ordinary filesystem I/O has no fetcher.
+	fn resolve_lookup_path(&self, _value: &str) -> io::Result<Option<PathBuf>> {
+		Ok(None)
+	}
+
 	/// Realize the dependencies of a path string before filesystem access.
 	/// Store integrations build requested outputs and rewrite placeholders.
 	fn realise_path(&self, path: &NixString) -> io::Result<PathBuf> {

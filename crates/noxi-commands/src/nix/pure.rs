@@ -9,10 +9,13 @@ use std::io;
 use std::path::{Path, PathBuf};
 use std::rc::Rc;
 
-struct PureIO(Option<Rc<noxi_glue::EvaluatorStore>>);
+struct PureIO {
+	store: Option<Rc<noxi_glue::EvaluatorStore>>,
+	realised: std::cell::RefCell<Vec<PathBuf>>,
+}
 impl PureIO {
 	fn source(&self, path: &Path) -> io::Result<noxi_glue::StoreIO> {
-		let Some(store) = &self.0 else {
+		let Some(store) = &self.store else {
 			return Err(unsupported());
 		};
 		let mounted = path
@@ -23,7 +26,14 @@ impl PureIO {
 				nix_compat::store_path::StorePath::from_bytes(p.as_os_str().as_encoded_bytes()).ok()
 			})
 			.is_some_and(|p| store.is_fetched_source(&p));
-		if mounted || path.starts_with("/__corepkgs__") {
+		if mounted
+			|| path.starts_with("/__corepkgs__")
+			|| self
+				.realised
+				.borrow()
+				.iter()
+				.any(|root| path.starts_with(root))
+		{
 			Ok(noxi_glue::StoreIO::new(store.clone()))
 		} else {
 			Err(unsupported())
@@ -36,6 +46,34 @@ fn unsupported() -> io::Error {
 	)
 }
 impl EvalIO for PureIO {
+	fn resolve_lookup_path(&self, value: &str) -> io::Result<Option<PathBuf>> {
+		let store = self.store.as_ref().ok_or_else(unsupported)?;
+		noxi_glue::StoreIO::new(store.clone()).resolve_lookup_path(value)
+	}
+
+	fn resolve_import_path(&self, path: &Path) -> io::Result<PathBuf> {
+		let io = self.source(path)?;
+		let resolved = io.resolve_import_path(path)?;
+		self.source(&io.canonicalize(&resolved)?)?;
+		Ok(resolved)
+	}
+	fn read_link(&self, path: &Path) -> io::Result<PathBuf> {
+		self.source(path)?.read_link(path)
+	}
+
+	fn realise_path(&self, string: &noxi_eval::NixString) -> io::Result<PathBuf> {
+		let store = self.store.as_ref().ok_or_else(unsupported)?;
+		let io = noxi_glue::StoreIO::new(store.clone());
+		let path = io.realise_path(string)?;
+		if string
+			.iter_context()
+			.any(|context| context.iter().next().is_some())
+		{
+			self.realised.borrow_mut().push(path.clone());
+		}
+		Ok(path)
+	}
+
 	fn path_exists(&self, path: &Path) -> io::Result<bool> {
 		self.source(path)?.path_exists(path)
 	}
@@ -128,7 +166,10 @@ pub(crate) fn evaluate<'co, 'ro, 'env>(
 	Evaluation::builder_pure()
 		.with_globals(globals)
 		.with_source_map(template.source_map())
-		.io_handle(Box::new(PureIO(flake_store)) as Box<dyn EvalIO>)
+		.io_handle(Box::new(PureIO {
+			store: flake_store,
+			realised: Default::default(),
+		}) as Box<dyn EvalIO>)
 		.env(Some(env))
 		.mode(mode)
 		.max_call_depth(max_depth)

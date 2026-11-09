@@ -333,24 +333,28 @@ fn develop_runs_commands_and_phases_in_the_environment() {
 }
 
 #[test]
-fn unsupported_develop_options_fail_explicitly() {
+fn redirects_match_reference_without_building_the_redirect() {
 	let f = Fixture::new();
-	let (status, _, stderr) = f.run(
-		"noxi",
-		&[
-			"develop",
-			"--impure",
-			"--file",
-			"dev.nix",
-			"--redirect",
+	for command in ["print-dev-env", "develop"] {
+		for redirect in [
+			"dep",
 			"/nix/store/00000000000000000000000000000000-redirect",
-			"p",
-			"-c",
-			"true",
-		],
-	);
-	assert_eq!(status, Some(1));
-	assert!(stderr.contains("is not supported by noxi yet"), "{stderr}");
+		] {
+			let mut args = vec![
+				command,
+				"--impure",
+				"--file",
+				"dev.nix",
+				"--redirect",
+				redirect,
+				"p",
+			];
+			if command == "develop" {
+				args.extend(["-c", "true"]);
+			}
+			f.same(&args);
+		}
+	}
 }
 
 #[test]

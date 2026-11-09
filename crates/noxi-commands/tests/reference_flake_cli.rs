@@ -7,6 +7,189 @@ use std::{
 fn run(bin: &Path, root: &Path, args: &[&str]) -> Output {
 	Command::new(bin).env_clear().env("PATH", std::env::var_os("PATH").unwrap()).env("HOME", root).env("NIX_CONF_DIR", root).env("NIX_USER_CONF_FILES", "").env("NIX_CONFIG", "experimental-features = nix-command flakes\nsubstituters =\nflake-registry =\nwarn-dirty = false\nbuild-users-group =\n").args(["--store", &format!("local?root={}", root.display())]).args(args).output().unwrap()
 }
+
+#[test]
+fn pure_generated_text_can_be_read_without_allowing_host_files() {
+	let reference = std::env::var_os("NOXI_REFERENCE_BIN")
+		.map(PathBuf::from)
+		.unwrap_or_else(|| {
+			Path::new(env!("CARGO_MANIFEST_DIR")).join("../../target/nix-reference/bin")
+		})
+		.join("nix");
+	let roots = [tempfile::tempdir().unwrap(), tempfile::tempdir().unwrap()];
+	for expression in [
+		"builtins.readFile (builtins.toFile \"generated\" \"hello\")",
+		"import (builtins.toFile \"generated.nix\" \"42\")",
+	] {
+		let args = ["eval", "--json", "--expr", expression];
+		let a = run(&reference, roots[0].path(), &args);
+		let b = run(Path::new(env!("CARGO_BIN_EXE_nix")), roots[1].path(), &args);
+		assert!(a.status.success(), "{}", String::from_utf8_lossy(&a.stderr));
+		assert!(b.status.success(), "{}", String::from_utf8_lossy(&b.stderr));
+		assert_eq!(a.stdout, b.stdout);
+		assert_eq!(a.stderr, b.stderr);
+	}
+}
+
+#[test]
+fn pure_flake_imports_a_native_builder_output() {
+	let reference = std::env::var_os("NOXI_REFERENCE_BIN")
+		.map(PathBuf::from)
+		.unwrap_or_else(|| {
+			Path::new(env!("CARGO_MANIFEST_DIR")).join("../../target/nix-reference/bin")
+		})
+		.join("nix");
+	let fixture = tempfile::tempdir().unwrap();
+	let source = fixture.path().join("nixexprs");
+	fs::create_dir(&source).unwrap();
+	fs::write(source.join("default.nix"), "42").unwrap();
+	assert!(
+		Command::new("tar")
+			.args([
+				"-czf",
+				fixture.path().join("source.tar.gz").to_str().unwrap(),
+				"-C",
+				fixture.path().to_str().unwrap(),
+				"nixexprs"
+			])
+			.status()
+			.unwrap()
+			.success()
+	);
+	fs::write(fixture.path().join("flake.nix"), "{ outputs = { self }: let d = derivation { name = \"pure-ifd\"; builder = \"builtin:unpack-channel\"; system = \"builtin\"; channelName = \"demo\"; src = self + \"/source.tar.gz\"; }; in { answer = import (d + \"/demo\"); }; }").unwrap();
+	let url = format!("path:{}#answer", fixture.path().display());
+	let roots = [tempfile::tempdir().unwrap(), tempfile::tempdir().unwrap()];
+	let args = ["eval", "--json", &url];
+	let a = run(&reference, roots[0].path(), &args);
+	let b = run(Path::new(env!("CARGO_BIN_EXE_nix")), roots[1].path(), &args);
+	assert!(a.status.success(), "{}", String::from_utf8_lossy(&a.stderr));
+	assert!(b.status.success(), "{}", String::from_utf8_lossy(&b.stderr));
+	assert_eq!(a.stdout, b.stdout);
+	assert_eq!(a.stderr, b.stderr);
+}
+
+#[test]
+fn flake_lookup_path_imports_source_files() {
+	let reference = std::env::var_os("NOXI_REFERENCE_BIN")
+		.map(PathBuf::from)
+		.unwrap_or_else(|| {
+			Path::new(env!("CARGO_MANIFEST_DIR")).join("../../target/nix-reference/bin")
+		})
+		.join("nix");
+	let fixture = tempfile::tempdir().unwrap();
+	fs::write(
+		fixture.path().join("flake.nix"),
+		"{ outputs = { self }: {}; }",
+	)
+	.unwrap();
+	fs::write(fixture.path().join("default.nix"), "42").unwrap();
+	let entry = format!("demo=flake:path:{}", fixture.path().display());
+	let roots = [tempfile::tempdir().unwrap(), tempfile::tempdir().unwrap()];
+	let args = [
+		"eval",
+		"--impure",
+		"--json",
+		"-I",
+		&entry,
+		"--expr",
+		"import <demo>",
+	];
+	let a = run(&reference, roots[0].path(), &args);
+	let b = run(Path::new(env!("CARGO_BIN_EXE_nix")), roots[1].path(), &args);
+	assert!(a.status.success(), "{}", String::from_utf8_lossy(&a.stderr));
+	assert!(b.status.success(), "{}", String::from_utf8_lossy(&b.stderr));
+	assert_eq!(a.stdout, b.stdout);
+	assert_eq!(a.stderr, b.stderr);
+}
+
+#[test]
+fn explicit_empty_lock_files_match_reference_bytes() {
+	let reference = std::env::var_os("NOXI_REFERENCE_BIN")
+		.map(PathBuf::from)
+		.unwrap_or_else(|| {
+			Path::new(env!("CARGO_MANIFEST_DIR")).join("../../target/nix-reference/bin")
+		})
+		.join("nix");
+	let fixture = tempfile::tempdir().unwrap();
+	fs::write(
+		fixture.path().join("flake.nix"),
+		"{ outputs = { self }: {}; }",
+	)
+	.unwrap();
+	let url = format!("path:{}", fixture.path().display());
+	let roots = [tempfile::tempdir().unwrap(), tempfile::tempdir().unwrap()];
+	let mut bytes = Vec::new();
+	for (engine, bin) in [reference.as_path(), Path::new(env!("CARGO_BIN_EXE_nix"))]
+		.iter()
+		.enumerate()
+	{
+		let output = roots[engine].path().join("selected.lock");
+		let args = [
+			"flake",
+			"lock",
+			&url,
+			"--output-lock-file",
+			output.to_str().unwrap(),
+		];
+		let result = run(bin, roots[engine].path(), &args);
+		assert!(
+			result.status.success(),
+			"{}",
+			String::from_utf8_lossy(&result.stderr)
+		);
+		assert!(result.stdout.is_empty());
+		assert!(result.stderr.is_empty());
+		bytes.push(fs::read(&output).unwrap());
+		let result = run(
+			bin,
+			roots[engine].path(),
+			&[
+				"flake",
+				"metadata",
+				&url,
+				"--json",
+				"--reference-lock-file",
+				output.to_str().unwrap(),
+				"--no-update-lock-file",
+			],
+		);
+		assert!(
+			result.status.success(),
+			"{}",
+			String::from_utf8_lossy(&result.stderr)
+		);
+		assert!(result.stderr.is_empty());
+		assert!(!fixture.path().join("flake.lock").exists());
+	}
+	assert_eq!(bytes[0], bytes[1]);
+}
+
+#[test]
+fn flake_text_metadata_prefetch_and_archive_match_reference() {
+	let reference = std::env::var_os("NOXI_REFERENCE_BIN")
+		.map(PathBuf::from)
+		.unwrap_or_else(|| {
+			Path::new(env!("CARGO_MANIFEST_DIR")).join("../../target/nix-reference/bin")
+		})
+		.join("nix");
+	let fixture = tempfile::tempdir().unwrap();
+	fs::write(
+		fixture.path().join("flake.nix"),
+		"{ description = \"demo\"; outputs = { self }: {}; }",
+	)
+	.unwrap();
+	let url = format!("path:{}", fixture.path().display());
+	let roots = [tempfile::tempdir().unwrap(), tempfile::tempdir().unwrap()];
+	for operation in ["metadata", "prefetch", "archive"] {
+		let args = ["flake", operation, &url];
+		let a = run(&reference, roots[0].path(), &args);
+		let b = run(Path::new(env!("CARGO_BIN_EXE_nix")), roots[1].path(), &args);
+		assert!(a.status.success(), "{}", String::from_utf8_lossy(&a.stderr));
+		assert!(b.status.success(), "{}", String::from_utf8_lossy(&b.stderr));
+		assert_eq!(a.stdout, b.stdout, "{operation}");
+		assert_eq!(a.stderr, b.stderr, "{operation}");
+	}
+}
 #[test]
 fn modern_flake_metadata_lock_and_installable_selection() {
 	let reference = std::env::var_os("NOXI_REFERENCE_BIN")

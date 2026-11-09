@@ -702,7 +702,7 @@ pub fn evaluate(options: &Options, cwd: &Path) -> Result<Evaluated, ExitCode> {
 			&driver,
 			fragments,
 			cwd,
-			options.flake.as_ref().map(|_| evaluator_store.clone()),
+			Some(evaluator_store.clone()),
 		)
 	} else {
 		builder

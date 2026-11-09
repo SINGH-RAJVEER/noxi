@@ -8,7 +8,9 @@ mod expression;
 pub(crate) mod flakes;
 pub mod hash;
 mod inspection;
+mod profile;
 pub(crate) mod pure;
+mod registry;
 mod table;
 mod transfer;
 
@@ -317,6 +319,14 @@ pub fn main(mut settings: Settings, args: Vec<String>) -> Result<ExitCode, Failu
 	}
 	let supported: &[&str] = match level.command.path {
 		"config show" => &["json"],
+		"profile add" => &[
+			"profile", "priority", "expr", "file", "arg", "argstr", "include", "impure",
+		],
+		"profile list" => &["profile", "json"],
+		"profile remove" => &["profile", "all"],
+		"profile rollback" => &["profile", "dry-run"],
+		"profile wipe-history" => &["profile", "dry-run", "older-than"],
+		"registry add" | "registry remove" | "registry pin" => &["registry"],
 		"develop" => &[
 			"arg",
 			"argstr",
@@ -340,9 +350,10 @@ pub fn main(mut settings: Settings, args: Vec<String>) -> Result<ExitCode, Failu
 			"check",
 			"install",
 			"installcheck",
+			"redirect",
 		],
 		"print-dev-env" => &[
-			"arg", "argstr", "expr", "file", "include", "impure", "json", "profile",
+			"arg", "argstr", "expr", "file", "include", "impure", "json", "profile", "redirect",
 		],
 		"derivation show" => &[
 			"arg",
@@ -430,6 +441,8 @@ pub fn main(mut settings: Settings, args: Vec<String>) -> Result<ExitCode, Failu
 				level.command.path,
 				"eval" | "build" | "develop" | "print-dev-env" | "env shell" | "run"
 			) && [
+				"reference-lock-file",
+				"output-lock-file",
 				"no-write-lock-file",
 				"no-update-lock-file",
 				"override-input",
@@ -444,6 +457,8 @@ pub fn main(mut settings: Settings, args: Vec<String>) -> Result<ExitCode, Failu
 					"legacy",
 					"no-build",
 					"json",
+					"reference-lock-file",
+					"output-lock-file",
 					"no-write-lock-file",
 					"no-update-lock-file",
 					"override-input",
@@ -501,6 +516,8 @@ pub fn main(mut settings: Settings, args: Vec<String>) -> Result<ExitCode, Failu
 		"run" => execution::run(parsed),
 		"develop" => develop::develop(parsed),
 		"print-dev-env" => develop::print_dev_env(parsed),
+		command if command.starts_with("profile ") => profile::run(parsed),
+		command if command.starts_with("registry ") => registry::run(parsed),
 		command if command.starts_with("flake ") => flakes::run(parsed),
 		command if command.starts_with("store ") => command_store::run(parsed),
 		command => Err(unsupported(command)),

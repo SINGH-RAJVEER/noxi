@@ -7,7 +7,7 @@
 //! that derivation dumps the environment `$stdenv/setup` leaves as JSON,
 //! which becomes the rc script a shell or a command runs with. Flake
 //! installables use the shared flake adapter. Profiles retain the environment
-//! output; redirects still fail explicitly. The interactive shell is resolved
+//! output; redirects replace selected output paths in the shell script. The interactive shell is resolved
 //! through `nixpkgs#bashInteractive` when flakes are enabled.
 
 use std::collections::{BTreeMap, BTreeSet};
@@ -208,8 +208,9 @@ impl BuildEnvironment {
 	}
 }
 
-/// `Common::makeRcScript`, without redirects.
+/// `Common::makeRcScript`.
 fn make_rc_script(
+	parsed: &Parsed,
 	env: &BuildEnvironment,
 	tmp_dir: &std::path::Path,
 	outputs_dir: &std::path::Path,
@@ -250,6 +251,58 @@ fn make_rc_script(
 	} else {
 		for name in BuildEnvironment::strings(outputs) {
 			rewrites.insert(env.string(&name)?, output_dir(&name));
+		}
+	}
+	if let Some(redirects) = parsed.flags.get("redirect") {
+		for pair in redirects {
+			if (parsed.has("expr") || parsed.has("file")) && pair[0].starts_with('/') {
+				return Err(Failure::Error(format!(
+					"attribute '{}' in selection path '{}' not found",
+					pair[0], pair[0]
+				)));
+			}
+			let request = Parsed {
+				command: "build",
+				settings: parsed.settings.clone(),
+				flags: parsed
+					.flags
+					.iter()
+					.filter(|(key, _)| key.as_str() != "redirect")
+					.map(|(k, v)| (k.clone(), v.clone()))
+					.collect(),
+				sequence: Vec::new(),
+				operands: vec![pair[0].clone()],
+			};
+			let target = match expression::targets(&request)? {
+				Ok(v) => v,
+				Err(_) => {
+					return Err(Failure::Error(
+						"cannot evaluate redirect installable".into(),
+					));
+				}
+			};
+			let dir = crate::instantiate::absolute_path(
+				&std::env::current_dir()?,
+				std::path::Path::new(&pair[1]),
+			);
+			for path in &target.paths {
+				for path in expression::outputs(target.store.as_ref(), path)?.into_values() {
+					let from = path.to_absolute_path();
+					if !out.contains(&from) {
+						eprintln!(
+							"warning: '{}' (path '{}') is not used by this build environment",
+							pair[0], from
+						);
+					} else {
+						if nix_compat::log::log_enabled(nix_compat::log::VerbosityLevel::Info) {
+							eprintln!("redirecting '{}' to '\"{}\"'", from, dir.display());
+						}
+						rewrites
+							.entry(from)
+							.or_insert_with(|| dir.to_string_lossy().into_owned());
+					}
+				}
+			}
 		}
 	}
 	if let Some((attrs_json, attrs_sh)) = &env.structured {
@@ -400,7 +453,6 @@ fn derivation_environment(store: &dyn Store, drv_path: &StorePath) -> Result<Sto
 fn build_environment(
 	parsed: &Parsed,
 ) -> Result<Result<(Rc<dyn Store>, BuildEnvironment, StorePath), ExitCode>, Failure> {
-	parsed.unsupported(&["redirect"])?;
 	let target = match expression::targets(parsed)? {
 		Ok(target) => target,
 		Err(code) => return Ok(Err(code)),
@@ -462,7 +514,12 @@ pub(super) fn print_dev_env(parsed: Parsed) -> Result<ExitCode, Failure> {
 		env.to_json().to_string()
 	} else {
 		let tmp_dir = create_temp_dir("nix-dev-env")?;
-		let script = make_rc_script(&env, &tmp_dir, &std::env::current_dir()?.join("outputs"));
+		let script = make_rc_script(
+			&parsed,
+			&env,
+			&tmp_dir,
+			&std::env::current_dir()?.join("outputs"),
+		);
 		let _ = std::fs::remove_dir_all(&tmp_dir);
 		script?
 	};
@@ -493,7 +550,12 @@ pub(super) fn develop(parsed: Parsed) -> Result<ExitCode, Failure> {
 	};
 	let rc_file = create_temp_file("nix-shell")?;
 	let tmp_dir = create_temp_dir("nix-develop")?;
-	let mut script = make_rc_script(&env, &tmp_dir, &std::env::current_dir()?.join("outputs"))?;
+	let mut script = make_rc_script(
+		&parsed,
+		&env,
+		&tmp_dir,
+		&std::env::current_dir()?.join("outputs"),
+	)?;
 	if nix_compat::log::verbosity() >= nix_compat::log::VerbosityLevel::Debug as u64 {
 		script.push_str("set -x\n");
 	}

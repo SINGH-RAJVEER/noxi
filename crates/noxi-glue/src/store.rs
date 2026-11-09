@@ -669,6 +669,24 @@ impl StoreIO {
 }
 
 impl EvalIO for StoreIO {
+	fn resolve_lookup_path(&self, value: &str) -> io::Result<Option<PathBuf>> {
+		let reference = value.strip_prefix("flake:").unwrap_or(value);
+		let reference = if let Some(channel) = reference.strip_prefix("channel:") {
+			format!("https://nixos.org/channels/{channel}/nixexprs.tar.xz")
+		} else {
+			reference.to_owned()
+		};
+		let parsed = crate::fetch::flake::parse_reference(&self.store, &reference)
+			.map_err(|e| io::Error::other(e.to_string()))?;
+		let source = crate::fetch::flake::fetch_source(
+			&self.store,
+			&parsed,
+			noxi_flakeref::registry::UseRegistries::All,
+		)
+		.map_err(|e| io::Error::other(e.to_string()))?;
+		Ok(Some(source.out_path))
+	}
+
 	fn path_exists(&self, path: &Path) -> io::Result<bool> {
 		if self.store.check_visible(path).is_err() {
 			return Ok(false);
