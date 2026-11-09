@@ -752,7 +752,7 @@ CppNix's `parseInstallables` tries an argument containing `/` as a derived store
 
 #### Remaining system limits
 
-Every mode still returns to CppNix, reboots, verifies the reference daemon identity, runs `nix-store --verify --check-contents` and reuses the existing system closure. Both lifecycle package variants contain identical engine binaries, so a real release-to-release upgrade is unqualified. A fresh system closure build, multi-user build isolation, the Home Manager profile and rollback comparison against CppNix, and the flake modes remain open. No host service, configuration or live store was changed; all activation ran in disposable VMs.
+Every mode still returns to CppNix, reboots, verifies the reference daemon identity, runs `nix-store --verify --check-contents` and reuses the existing system closure. Both lifecycle package variants contain identical engine binaries, so a real release-to-release upgrade is unqualified. A fresh system closure build, multi-user build isolation, the Home Manager profile and rollback comparison against CppNix, and the flake modes remain open. One known forwarding difference remains: CppNix marks a setting overridden even when its experimental feature is disabled and the value is ignored, and then forwards that setting's current value to the daemon; noxi records nothing for such a setting and does not forward it. No host service, configuration or live store was changed; all activation ran in disposable VMs.
 
 ## Prioritized engine gaps blocking integrated replacement
 

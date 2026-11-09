@@ -164,6 +164,10 @@ Published to crates.io.
 
 Nix formats and protocols: store paths, nixbase32, hashes, NAR, ATerm derivations, narinfo, realisations, flake references, `nix.conf` and daemon wire types.
 
+### Unreleased
+
+- `nixcpp::settings` parses integer settings with CppNix's `K`/`M`/`G`/`T` suffixes in each setting's own C++ type and signedness, reports invalid `max-jobs` and `sandbox` values with the reference's messages, and tracks CppNix's overridden flag: settings from the system `nix.conf` are no longer forwarded to a daemon (`Settings::forwarded`) (2026-11-09).
+
 ### 0.1.2 - 2026-10-03
 
 #### Added
@@ -299,6 +303,8 @@ Serializes Rust values into Nix and deserializes Nix values into Rust types, imp
 
 ### Unreleased
 
+- Daemon clients send only overrides through `SetOptions`, so an untrusted client on NixOS no longer prints a restricted-setting warning for every system `nix.conf` entry, and a missing `local?root=` store root is created as CppNix does (2026-11-09).
+
 - Add diverted-store `nix-build` and selected `nix-store` operations. Build evaluation retains temporary roots, honors selected output names and creates optional permanent result roots; reference comparisons cover both output selections and six metadata/closure queries. (2026-10-03).
 
 ### 0.1.2 - 2026-10-03
@@ -396,6 +402,8 @@ Internal trybuild tests for `nix-compat-derive`.
 
 ### Unreleased
 
+- `add_perm_root` creates the directories up to a permanent root (`gc::make_root_symlink`), as Home Manager's first activation requires, and `LocalStoreConfig::diverted` creates a missing absolute root outside `/nix` (2026-11-09).
+
 - Add NAR-hash inode deduplication and streamed compressed build-log imports, plus diverted-root validation and shared local-store settings. (2026-10-03).
 
 - `BinaryCache::upload_closure` exports a path and its references to a `file://` cache as uncompressed NARs with signed narinfo files, publishing references first. NAR bytes are checked against the source's metadata before signing, existing signatures are kept when keys rotate, temporary files are not left behind, the root is advertised only after its closure, and the source holds temporary roots for the uploaded paths. HTTP destinations and read-only sources are rejected (2026-10-03).
@@ -415,6 +423,8 @@ Internal trybuild tests for `nix-compat-derive`.
 ## nix-rs-daemon
 
 ### Unreleased
+
+- The daemon client creates the directories up to a permanent root before registering it, matching `IndirectRootStore::makeSymlink` (2026-11-09).
 
 - Add a standalone diverted-store daemon, per-connection client settings, worker version 1.39, substitutable-path query handlers, optimisation and trusted framed build-log uploads. Reference comparisons cover client build cores, optimisation and log uploads; dedicated substitution-query wire comparisons and three further operations remain open (2026-10-03).
 
