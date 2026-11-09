@@ -37,6 +37,10 @@ pub struct SandboxSpec {
 	/// Whether the build is cut off from the network (not a fixed-output
 	/// derivation).
 	pub sandboxed: bool,
+	/// The host uid and gid of the build user the sandbox user maps to;
+	/// `None` maps it to the calling user, as CppNix does without build
+	/// users.
+	pub build_user: Option<(u32, u32)>,
 	pub kvm: bool,
 	pub shm_size: String,
 	pub allow_new_privileges: bool,
@@ -114,12 +118,16 @@ pub fn setup_chroot(
 	chroot_parent: &Path,
 	store_dir: &Path,
 	sandboxed: bool,
+	build_gid: Option<u32>,
 ) -> io::Result<PathBuf> {
 	noxi_store::delete_path(chroot_parent).map_err(io::Error::other)?;
 	fs::DirBuilder::new().mode(0o700).create(chroot_parent)?;
 	let root = chroot_parent.join("root");
 	fs::DirBuilder::new().mode(0o750).create(&root)?;
 	fs::set_permissions(&root, fs::Permissions::from_mode(0o750))?;
+	if let Some(gid) = build_gid {
+		std::os::unix::fs::chown(&root, Some(0), Some(gid))?;
+	}
 	let tmp = root.join("tmp");
 	fs::create_dir_all(&tmp)?;
 	fs::set_permissions(&tmp, fs::Permissions::from_mode(0o1777))?;
@@ -133,6 +141,9 @@ pub fn setup_chroot(
 	let chroot_store = root.join(store_dir.strip_prefix("/").unwrap_or(store_dir));
 	fs::create_dir_all(&chroot_store)?;
 	fs::set_permissions(&chroot_store, fs::Permissions::from_mode(0o1775))?;
+	if let Some(gid) = build_gid {
+		std::os::unix::fs::chown(&chroot_store, Some(0), Some(gid))?;
+	}
 	Ok(root)
 }
 
@@ -174,6 +185,17 @@ pub fn run_cancellable(
 	}
 	// SAFETY: ptsname_r wrote a NUL-terminated string.
 	let slave_name = unsafe { CStr::from_ptr(name.as_ptr()) }.to_owned();
+	// As CppNix does, give the build user the terminal it writes to.
+	if let Some((uid, _)) = spec.build_user {
+		// SAFETY: `slave_name` is a NUL-terminated path.
+		check(unsafe { libc::chmod(slave_name.as_ptr(), 0o600) }, || {
+			"changing mode of pseudoterminal slave".to_owned()
+		})?;
+		// SAFETY: as above.
+		check(unsafe { libc::chown(slave_name.as_ptr(), uid, 0) }, || {
+			"changing owner of pseudoterminal slave".to_owned()
+		})?;
+	}
 
 	let (sync_read, sync_write) = pipe()?;
 	let (pid_read, pid_write) = pipe()?;
@@ -219,7 +241,9 @@ pub fn run_cancellable(
 	let setup = (|| -> io::Result<()> {
 		let proc = PathBuf::from(format!("/proc/{pid}"));
 		// SAFETY: getuid and getgid cannot fail.
-		let (uid, gid) = unsafe { (libc::getuid(), libc::getgid()) };
+		let (uid, gid) = spec
+			.build_user
+			.unwrap_or_else(|| unsafe { (libc::getuid(), libc::getgid()) });
 		fs::write(proc.join("uid_map"), format!("{SANDBOX_UID} {uid} 1"))?;
 		fs::write(proc.join("setgroups"), "deny")?;
 		fs::write(proc.join("gid_map"), format!("{SANDBOX_GID} {gid} 1"))?;

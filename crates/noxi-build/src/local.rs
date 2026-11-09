@@ -41,6 +41,7 @@ use crate::refscan::scan_for_references;
 use crate::sandbox::{self, Bind, SandboxSpec};
 use crate::settings::{BuildSettings, SandboxMode};
 use crate::structured;
+use crate::user_lock::{self, BuildUser};
 
 #[path = "scheduler.rs"]
 mod scheduler;
@@ -116,6 +117,29 @@ impl<'a> LocalBuilder<'a> {
 	fn is_cancelled(&self) -> bool {
 		self.cancelled
 			.is_some_and(|flag| flag.load(Ordering::Relaxed))
+	}
+
+	/// `startBuild`'s build user: lock a free member of
+	/// `build-users-group` when running as root, waiting while all are busy.
+	fn acquire_build_user(&self, drv_path: &StorePath) -> Result<Option<BuildUser>> {
+		if !user_lock::use_build_users(&self.settings.build_users_group) {
+			return Ok(None);
+		}
+		let mut waiting = false;
+		loop {
+			if let Some(user) = user_lock::acquire(
+				&self.store.config().state_dir,
+				&self.settings.build_users_group,
+			)? {
+				return Ok(Some(user));
+			}
+			if !waiting {
+				tracing::warn!("waiting for a free build user ID for '{}'", print(drv_path));
+				waiting = true;
+			}
+			self.check_cancelled()?;
+			std::thread::sleep(std::time::Duration::from_millis(250));
+		}
 	}
 
 	fn check_cancelled(&self) -> Result<()> {
@@ -720,7 +744,15 @@ impl<'a> LocalBuilder<'a> {
 			// CppNix runs builtin builders in the builder's process, in the
 			// sandbox when there is one and in the store otherwise; their
 			// outputs are registered as any build's are.
-			let mut build = Build::start(self, drv_path, outputs, &drv_options, parsed, is_fixed)?;
+			let mut build = Build::start(
+				self,
+				drv_path,
+				outputs,
+				&drv_options,
+				parsed,
+				is_fixed,
+				None,
+			)?;
 			build.direct = !use_sandbox;
 			let result = build.run_buildenv(drv, outputs, events).and_then(|()| {
 				self.register_outputs(
@@ -743,7 +775,16 @@ impl<'a> LocalBuilder<'a> {
 			)));
 		}
 
-		let build = Build::start(self, drv_path, outputs, &drv_options, parsed, is_fixed)?;
+		let build_user = self.acquire_build_user(drv_path)?;
+		let build = Build::start(
+			self,
+			drv_path,
+			outputs,
+			&drv_options,
+			parsed,
+			is_fixed,
+			build_user,
+		)?;
 		let result = build
 			.run(drv, &env, &input_paths, outputs, events)
 			.and_then(|()| {
@@ -803,7 +844,12 @@ impl<'a> LocalBuilder<'a> {
 					),
 				)
 			})?;
-			if !metadata.file_type().is_symlink() && metadata.mode() & 0o022 != 0 {
+			if (!metadata.file_type().is_symlink() && metadata.mode() & 0o022 != 0)
+				|| build
+					.build_user
+					.as_ref()
+					.is_some_and(|u| metadata.uid() != u.uid)
+			{
 				return Err(BuildError::failed(
 					FailureStatus::OutputRejected,
 					format!(
@@ -812,7 +858,7 @@ impl<'a> LocalBuilder<'a> {
 					),
 				));
 			}
-			canonicalise_path_metadata(&actual, None)?;
+			canonicalise_path_metadata(&actual, build.uid_range())?;
 			let references = if drv_options.unsafe_discard_references.get(name) == Some(&true) {
 				BTreeSet::new()
 			} else {
@@ -962,7 +1008,12 @@ impl<'a> LocalBuilder<'a> {
 					),
 				)
 			})?;
-			if !metadata.file_type().is_symlink() && metadata.mode() & 0o022 != 0 {
+			if (!metadata.file_type().is_symlink() && metadata.mode() & 0o022 != 0)
+				|| build
+					.build_user
+					.as_ref()
+					.is_some_and(|u| metadata.uid() != u.uid)
+			{
 				return Err(BuildError::failed(
 					FailureStatus::OutputRejected,
 					format!(
@@ -971,7 +1022,7 @@ impl<'a> LocalBuilder<'a> {
 					),
 				));
 			}
-			canonicalise_path_metadata(&actual, None)?;
+			canonicalise_path_metadata(&actual, build.uid_range())?;
 			let refs = if drv_options.unsafe_discard_references.get(name) == Some(&true) {
 				BTreeSet::new()
 			} else {
@@ -1503,6 +1554,8 @@ struct Build<'b> {
 	pass_as_file: BTreeSet<String>,
 	export_references_graph: BTreeMap<String, BTreeSet<StorePath>>,
 	structured: Option<Map<String, Value>>,
+	/// The build user the builder runs as, when the daemon runs as root.
+	build_user: Option<BuildUser>,
 }
 
 impl<'b> Build<'b> {
@@ -1513,7 +1566,12 @@ impl<'b> Build<'b> {
 		drv_options: &DerivationOptions<StorePath>,
 		structured: Option<Map<String, Value>>,
 		is_fixed: bool,
+		build_user: Option<BuildUser>,
 	) -> Result<Self> {
+		// `prepareUser`: no process may still run as the build user.
+		if let Some(user) = &build_user {
+			user.kill()?;
+		}
 		let store = builder.store;
 		let build_dir = builder
 			.settings
@@ -1524,11 +1582,19 @@ impl<'b> Build<'b> {
 		let top_tmp_dir = create_temp_dir(&build_dir, "nix")?;
 		let tmp_dir = top_tmp_dir.join("build");
 		fs::DirBuilder::new().mode(0o700).create(&tmp_dir)?;
+		if let Some(user) = &build_user {
+			user.chown(&tmp_dir)?;
+		}
 
 		let mut chroot_parent = store.real_path(drv_path).into_os_string();
 		chroot_parent.push(".chroot");
 		let chroot_parent = PathBuf::from(chroot_parent);
-		let chroot_root = sandbox::setup_chroot(&chroot_parent, Path::new(STORE_DIR), !is_fixed)?;
+		let chroot_root = sandbox::setup_chroot(
+			&chroot_parent,
+			Path::new(STORE_DIR),
+			!is_fixed,
+			build_user.as_ref().map(|u| u.gid),
+		)?;
 		Ok(Self {
 			builder,
 			drv_path: drv_path.clone(),
@@ -1543,7 +1609,13 @@ impl<'b> Build<'b> {
 			pass_as_file: drv_options.pass_as_file.clone(),
 			export_references_graph: drv_options.export_references_graph.clone(),
 			structured,
+			build_user,
 		})
+	}
+
+	/// The uids an output's files may be owned by before canonicalisation.
+	fn uid_range(&self) -> Option<(u32, u32)> {
+		self.build_user.as_ref().map(|u| (u.uid, u.uid))
 	}
 
 	fn path_in_chroot(&self, path: &StorePath) -> PathBuf {
@@ -1567,6 +1639,9 @@ impl<'b> Build<'b> {
 			.create_new(true)
 			.open(self.tmp_dir.join(name))?;
 		file.write_all(contents)?;
+		if let Some(user) = &self.build_user {
+			user.chown(&self.tmp_dir.join(name))?;
+		}
 		Ok(())
 	}
 
@@ -1825,6 +1900,7 @@ impl<'b> Build<'b> {
 			store_dir: PathBuf::from(STORE_DIR),
 			binds: binds.into_values().collect(),
 			sandboxed: self.sandboxed,
+			build_user: self.build_user.as_ref().map(|u| (u.uid, u.gid)),
 			kvm: settings.system_features.contains("kvm"),
 			shm_size: settings.sandbox_shm_size.clone(),
 			allow_new_privileges: settings.allow_new_privileges,
@@ -1864,6 +1940,10 @@ impl<'b> Build<'b> {
 			},
 			&|| self.builder.is_cancelled(),
 		);
+		// `killSandbox`: nothing the builder started may outlive it.
+		if let Some(user) = &self.build_user {
+			user.kill()?;
+		}
 		tail.flush();
 		if let Some(file) = log_file {
 			file.finish()?;

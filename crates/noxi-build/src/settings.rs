@@ -83,6 +83,9 @@ pub struct BuildSettings {
 	/// `always-allow-substitutes`: substitute even derivations with
 	/// `allowSubstitutes = false`.
 	pub always_allow_substitutes: bool,
+	/// `build-users-group`: CppNix defaults it to `nixbld` when running as
+	/// root and to empty otherwise.
+	pub build_users_group: String,
 }
 
 /// The sandbox shell compiled into this build, like CppNix's
@@ -137,6 +140,12 @@ impl Default for BuildSettings {
 			nix_command: false,
 			show_log_tail: false,
 			always_allow_substitutes: false,
+			// SAFETY: getuid cannot fail.
+			build_users_group: if unsafe { libc::getuid() } == 0 {
+				"nixbld".to_owned()
+			} else {
+				String::new()
+			},
 		}
 	}
 }
@@ -188,6 +197,9 @@ impl BuildSettings {
 		}
 		if let Some(value) = settings.get("build-dir") {
 			self.build_dir = (!value.is_empty()).then(|| PathBuf::from(value));
+		}
+		if let Some(value) = settings.get("build-users-group") {
+			self.build_users_group = value.to_owned();
 		}
 		for (name, target) in [
 			("system", &mut self.system),

@@ -17,5 +17,6 @@ pub mod sandbox;
 pub mod seccomp;
 pub mod settings;
 pub mod structured;
+pub mod user_lock;
 
 pub use error::{BuildError, FailureStatus, Result};
