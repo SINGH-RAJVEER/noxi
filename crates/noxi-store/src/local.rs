@@ -1009,7 +1009,7 @@ impl LocalStore {
 		let mut socket = self.roots_socket.lock().unwrap_or_else(|e| e.into_inner());
 		if socket.is_none() {
 			let socket_path = self.config.state_dir.join("gc-socket/socket");
-			match UnixStream::connect(&socket_path) {
+			match crate::unix_socket::connect(&socket_path) {
 				Ok(stream) => *socket = Some(stream),
 				Err(e)
 					if matches!(

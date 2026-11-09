@@ -13,7 +13,6 @@ use std::collections::{BTreeMap, BTreeSet, VecDeque};
 use std::fs;
 use std::io::{self, BufRead, BufReader, Read, Write};
 use std::os::unix::fs::MetadataExt;
-use std::os::unix::net::UnixListener;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Condvar, Mutex};
 
@@ -233,7 +232,7 @@ impl RootsServer {
 			fs::create_dir_all(parent)?;
 		}
 		let _ = fs::remove_file(&path);
-		let listener = UnixListener::bind(&path)
+		let listener = crate::unix_socket::bind(&path)
 			.map_err(|e| Error::io(format!("creating socket '{}'", path.display()), e))?;
 		use std::os::unix::fs::PermissionsExt;
 		fs::set_permissions(&path, fs::Permissions::from_mode(0o666))?;

@@ -258,7 +258,7 @@ impl DaemonStore {
 
 	/// `UDSRemoteStore::openConnection` and `initConnection`.
 	fn open(&self) -> noxi_store::Result<Connection> {
-		let stream = UnixStream::connect(&self.socket).map_err(|e| {
+		let stream = noxi_store::unix_socket::connect(&self.socket).map_err(|e| {
 			noxi_store::Error::Other(format!(
 				"cannot connect to socket at '{}': {}",
 				self.socket.display(),

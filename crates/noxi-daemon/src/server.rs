@@ -214,7 +214,7 @@ pub fn listeners(socket: &Path) -> Result<Vec<UnixListener>> {
 			std::fs::remove_file(socket)?;
 		}
 	}
-	let listener = UnixListener::bind(socket)?;
+	let listener = noxi_store::unix_socket::bind(socket)?;
 	std::fs::set_permissions(socket, std::fs::Permissions::from_mode(0o666))?;
 	Ok(vec![listener])
 }

@@ -23,6 +23,7 @@ pub mod optimise;
 pub mod path_info;
 pub mod profiles;
 mod quick_ack;
+pub mod unix_socket;
 
 pub use api::{DerivedPath, Missing, Store};
 pub use capture::{CapturedSource, SourceCapture};

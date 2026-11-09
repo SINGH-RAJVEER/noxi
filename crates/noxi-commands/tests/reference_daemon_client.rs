@@ -16,7 +16,6 @@
 //! or `target/test-busybox` (`just reference` creates both).
 
 use std::fs;
-use std::os::unix::net::UnixListener;
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command};
 use std::time::{Duration, Instant};
@@ -55,6 +54,8 @@ fn noxi_bin(program: &str) -> &'static str {
 
 struct Env {
 	dir: tempfile::TempDir,
+	/// Where the stores, work directories and sockets live.
+	base: PathBuf,
 	busybox: String,
 	daemons: Vec<Child>,
 }
@@ -87,9 +88,19 @@ impl Env {
 	}
 
 	fn new() -> Self {
+		Self::new_in("")
+	}
+
+	/// An environment whose stores, work directories and sockets are in
+	/// `subdir` of its temporary directory.
+	fn new_in(subdir: &str) -> Self {
 		let dir = tempfile::tempdir().unwrap();
-		for sub in ["conf", "home", "work-reference", "work-noxi", "work-pair"] {
+		let base = dir.path().join(subdir);
+		for sub in ["conf", "home"] {
 			fs::create_dir(dir.path().join(sub)).unwrap();
+		}
+		for sub in ["work-reference", "work-noxi", "work-pair"] {
+			fs::create_dir_all(base.join(sub)).unwrap();
 		}
 		let busybox = fs::canonicalize(from_env_or_target(
 			"NOXI_TEST_BUSYBOX",
@@ -101,10 +112,11 @@ impl Env {
 		.into_owned();
 		let mut env = Env {
 			dir,
+			base,
 			busybox,
 			daemons: Vec::new(),
 		};
-		let src = env.dir.path().join("src");
+		let src = env.base.join("src");
 		let status = env
 			.command(reference_bin().join("nix"))
 			.args(["copy", "--no-check-sigs", "--to"])
@@ -124,11 +136,7 @@ impl Env {
 			env.busybox
 		);
 		for engine in ["reference", "noxi", "pair"] {
-			fs::write(
-				env.dir.path().join(format!("work-{engine}/expr.nix")),
-				&expr,
-			)
-			.unwrap();
+			fs::write(env.base.join(format!("work-{engine}/expr.nix")), &expr).unwrap();
 			let status = Command::new("cp")
 				.arg("-a")
 				.arg(&src)
@@ -137,7 +145,7 @@ impl Env {
 				.unwrap();
 			assert!(status.success());
 			if engine == "pair" {
-				let listener = UnixListener::bind(env.socket(engine)).unwrap();
+				let listener = noxi_store::unix_socket::bind(&env.socket(engine)).unwrap();
 				let mut settings = noxi_daemon::DaemonSettings::new(
 					noxi_store::LocalStoreConfig::with_root(&env.root(engine)),
 				);
@@ -170,11 +178,11 @@ impl Env {
 	}
 
 	fn root(&self, engine: &str) -> PathBuf {
-		self.dir.path().join(format!("root-{engine}"))
+		self.base.join(format!("root-{engine}"))
 	}
 
 	fn socket(&self, engine: &str) -> PathBuf {
-		self.dir.path().join(format!("{engine}.sock"))
+		self.base.join(format!("{engine}.sock"))
 	}
 
 	/// Run `program` from `engine` against that engine's daemon: the
@@ -184,7 +192,7 @@ impl Env {
 			"reference" => reference_bin().join(program),
 			_ => PathBuf::from(noxi_bin(program)),
 		};
-		let work = self.dir.path().join(format!("work-{engine}"));
+		let work = self.base.join(format!("work-{engine}"));
 		let store = format!(
 			"unix://{}?root={}",
 			self.socket(engine).display(),
@@ -295,7 +303,7 @@ fn commands_work_through_the_reference_daemon() {
 		assert_eq!(actual, expected, "{program} {args:?} with the noxi daemon");
 	}
 	for engine in ["reference", "noxi", "pair"] {
-		let work = env.dir.path().join(format!("work-{engine}"));
+		let work = env.base.join(format!("work-{engine}"));
 		assert!(fs::read_link(work.join("result-ok")).is_ok());
 		assert!(fs::read_link(work.join("profile-1-link")).is_ok());
 	}
@@ -586,4 +594,70 @@ fn verification_and_copies_work_through_both_daemons() {
 	}
 	compare("nix-store", &["--verify"]);
 	compare("nix-store", &["--verify", "--check-contents"]);
+}
+
+/// Socket and state paths longer than `sockaddr_un` allows. CppNix binds
+/// and connects them from a child in the socket's directory; the daemon
+/// socket, the garbage collector's roots socket under the state directory
+/// and the clients of both must work as with short paths, and a missing
+/// long socket must fail the same way.
+#[test]
+fn long_socket_and_state_paths_work_like_cppnix() {
+	let env = Env::new_in(&"l".repeat(100));
+	assert!(env.socket("noxi").as_os_str().len() >= 108);
+	assert!(
+		env.root("noxi")
+			.join("nix/var/nix/gc-socket/socket")
+			.as_os_str()
+			.len()
+			>= 108
+	);
+	let busybox = env.busybox.as_str();
+	let cases: Vec<(&str, Vec<&str>)> = vec![
+		("nix-store", vec!["-q", "--references", busybox]),
+		("nix-build", vec!["expr.nix", "-A", "ok", "-o", "result-ok"]),
+		(
+			"nix-store",
+			vec![
+				"--realise",
+				busybox,
+				"--add-root",
+				"{work}/gcroots/new/root",
+			],
+		),
+		("nix-store", vec!["--gc", "--print-dead"]),
+		("nix-store", vec!["--gc"]),
+		("nix-store", vec!["--gc", "--print-live"]),
+	];
+	for (program, args) in cases {
+		let expected = env.run("reference", program, &args);
+		for engine in ["noxi", "pair"] {
+			assert_eq!(
+				env.run(engine, program, &args),
+				expected,
+				"{program} {args:?} through {engine}"
+			);
+		}
+	}
+	let missing = env.base.join("missing").join("daemon.sock");
+	let outputs: Vec<_> = [
+		reference_bin().join("nix-store"),
+		PathBuf::from(noxi_bin("nix-store")),
+	]
+	.iter()
+	.map(|bin| {
+		let output = env
+			.command(bin)
+			.arg("--store")
+			.arg(format!("unix://{}", missing.display()))
+			.args(["-q", "--references", busybox])
+			.output()
+			.unwrap();
+		(
+			output.status.code(),
+			String::from_utf8_lossy(&output.stderr).into_owned(),
+		)
+	})
+	.collect();
+	assert_eq!(outputs[1], outputs[0]);
 }
