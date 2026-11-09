@@ -22,13 +22,19 @@ fn manifest(store: &dyn Store, profile: &Path) -> Result<Value, Failure> {
 				),
 				Err(e)
 					if e.kind() == std::io::ErrorKind::NotFound
-						&& store.real_path(&path).join("manifest.nix").exists() =>
+						&& fs::symlink_metadata(store.real_path(&path).join("manifest.nix"))
+							.is_ok() =>
 				{
 					let settings = nix_compat::nixcpp::settings::Settings::default();
-					let elements = crate::user_env::query_installed(
+					let manifest_path = store.real_path(&path).join("manifest.nix");
+					let target = fs::read_link(&manifest_path).unwrap_or(manifest_path.clone());
+					let target = StorePath::from_absolute_path(target.to_string_lossy().as_bytes())
+						.map(|p| store.real_path(&p))
+						.unwrap_or(target);
+					let elements = crate::user_env::query_manifest(
 						&settings,
 						&std::env::current_dir()?,
-						&store.real_path(&path),
+						&target,
 					)?
 					.map_err(|_| Failure::Error("cannot read legacy profile manifest".into()))?;
 					let mut result = serde_json::Map::new();
@@ -46,6 +52,9 @@ fn manifest(store: &dyn Store, profile: &Path) -> Result<Value, Failure> {
 						);
 					}
 					Ok(json!({"version":3,"elements":result}))
+				}
+				Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
+					Ok(json!({"version":3,"elements":{}}))
 				}
 				Err(e) => Err(e.into()),
 			};

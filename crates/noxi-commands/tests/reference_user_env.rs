@@ -93,6 +93,8 @@ run -qa -f $G/packages.nix --prebuilt-only --no-name --out-path
 run -u -f $G/packages.nix --preserve-installed
 run -i -f $G/packages.nix --force-name renamed -A tool --dry-run
 run -i --from-profile $P tool --dry-run
+run -i -f $G/packages.nix --from-profile $P -A hello1 --dry-run
+run -i -f $G/packages.nix -A --from-profile $P tool --dry-run
 run -i -f $G/packages.nix -A hello1
 run -u -f $G/packages.nix --eq hello
 run -u -f $G/packages.nix --leq hello --dry-run

@@ -317,7 +317,16 @@ pub fn query_installed(
 	if std::fs::symlink_metadata(&manifest).is_err() {
 		return Ok(Ok(Vec::new()));
 	}
-	let manifest = std::fs::canonicalize(&manifest)?;
+	query_manifest(settings, cwd, &manifest)
+}
+
+/// Read a resolved legacy manifest, including one in a diverted store.
+pub fn query_manifest(
+	settings: &nix_compat::nixcpp::settings::Settings,
+	cwd: &Path,
+	manifest: &Path,
+) -> Result<Result<Vec<Element>, ExitCode>, Failure> {
+	let manifest = std::fs::canonicalize(manifest)?;
 	let expr = format!(
 		"({READ_MANIFEST}) {}",
 		crate::instantiate::nix_string_literal(&manifest.to_string_lossy())

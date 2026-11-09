@@ -718,7 +718,23 @@ fn source_elements(
 	args: &[String],
 	newest: bool,
 ) -> Result<Result<Vec<Element>, ExitCode>, Failure> {
-	if let Some(i) = flags.iter().position(|s| s == "--from-profile") {
+	let mut source_kind = None;
+	let mut index = 0;
+	while index < flags.len() {
+		let flag = flags[index].as_str();
+		if matches!(
+			flag,
+			"--from-profile" | "--from-expression" | "-E" | "--attr" | "-A"
+		) {
+			source_kind = Some((index, flag));
+		}
+		index += if flag == "--from-profile" || flag == "--priority" {
+			2
+		} else {
+			1
+		};
+	}
+	if let Some((i, "--from-profile")) = source_kind {
 		let profile = flags
 			.get(i + 1)
 			.ok_or_else(|| Failure::Usage("'--from-profile' requires an argument".into()))?;
@@ -729,10 +745,8 @@ fn source_elements(
 			};
 		return Ok(Ok(select_elements(globals, all, args, newest)?));
 	}
-	let expression = flags
-		.iter()
-		.any(|f| matches!(f.as_str(), "--from-expression" | "-E"));
-	let attr = flags.iter().any(|f| matches!(f.as_str(), "--attr" | "-A"));
+	let expression = source_kind.is_some_and(|(_, s)| matches!(s, "--from-expression" | "-E"));
+	let attr = source_kind.is_some_and(|(_, s)| matches!(s, "--attr" | "-A"));
 	if !expression && !attr && args.first().is_some_and(|s| s.contains('/')) {
 		return Ok(Ok(args
 			.iter()

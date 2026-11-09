@@ -241,4 +241,77 @@ fn modern_profiles_match_manifest_and_output_paths() {
 			assert_eq!(manifests[0], manifests[1], "{args:?}");
 		}
 	}
+	for version in [1, 2, 3, 0] {
+		let source = fixture.path().join(format!("manifest-v{version}"));
+		fs::create_dir(&source).unwrap();
+		let manifest = if version == 0 {
+			None
+		} else {
+			Some(
+				serde_json::json!({"version":version,"elements":[{"active":false,"storePaths":[paths[0]]}]}),
+			)
+		};
+		if let Some(manifest) = manifest {
+			fs::write(source.join("manifest.json"), manifest.to_string()).unwrap();
+		} else {
+			let file = fixture.path().join("legacy-manifest.nix");
+			fs::write(
+				&file,
+				format!(
+					"[ {{ type = \"derivation\"; name = \"legacy-1\"; outPath = \"{}\"; }} ]",
+					paths[0]
+				),
+			)
+			.unwrap();
+			let mut targets = Vec::new();
+			for engine in 0..2 {
+				let out = run(
+					engine,
+					&bins[engine],
+					&["store", "add-path", file.to_str().unwrap()],
+				);
+				assert!(out.status.success());
+				targets.push(String::from_utf8(out.stdout).unwrap().trim().to_owned());
+			}
+			assert_eq!(targets[0], targets[1]);
+			std::os::unix::fs::symlink(&targets[0], source.join("manifest.nix")).unwrap();
+		}
+		for engine in 0..2 {
+			let added = run(
+				engine,
+				&bins[engine],
+				&["store", "add-path", source.to_str().unwrap()],
+			);
+			assert!(added.status.success());
+			let target = String::from_utf8(added.stdout).unwrap();
+			std::os::unix::fs::symlink(
+				target.trim(),
+				roots[engine].path().join(format!("old-{version}")),
+			)
+			.unwrap();
+		}
+		for args in [
+			vec!["profile", "list", "--json"],
+			vec!["profile", "add", clash_paths[0].as_str(), "--priority", "4"],
+			vec!["profile", "list", "--json"],
+		] {
+			let outputs: Vec<_> = (0..2)
+				.map(|engine| {
+					let profile = roots[engine].path().join(format!("old-{version}"));
+					let mut argv = args.clone();
+					argv.extend(["--profile", profile.to_str().unwrap()]);
+					run(engine, &bins[engine], &argv)
+				})
+				.collect();
+			for o in &outputs {
+				assert!(
+					o.status.success(),
+					"v{version} {args:?}: {}",
+					String::from_utf8_lossy(&o.stderr)
+				);
+			}
+			assert_eq!(outputs[0].stdout, outputs[1].stdout, "v{version} {args:?}");
+			assert_eq!(outputs[0].stderr, outputs[1].stderr, "v{version} {args:?}");
+		}
+	}
 }
