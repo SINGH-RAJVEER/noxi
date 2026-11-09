@@ -1,5 +1,6 @@
 //! Modern pure-mode adapter using the evaluator's public globals and I/O APIs.
 //! Flake source reads are limited to trees fetched by the current evaluation.
+//! Context realization also permits generated text and derivation outputs.
 //! Other filesystem operations still fail explicitly.
 use noxi_eval::{
 	EvalIO, EvalMode, Evaluation, EvaluationBuilder, EvaluationResult, FileType, GlobalsMap, Value,

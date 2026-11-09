@@ -6,8 +6,9 @@
 //! `--switch-generation`/`-G`, `--list-generations`,
 //! `--delete-generations`, `--switch-profile`/`-S` and `--version`, with
 //! `--profile`/`-p`, `--dry-run` and settings flags. Selecting
-//! derivations from Nix expressions, `--upgrade`, `--set-flag` and the
-//! other query options fail explicitly.
+//! derivations from Nix expressions, `--upgrade` and the other query
+//! options fail explicitly. `--set-flag` updates string metadata in installed
+//! environments through the same profile transaction.
 
 use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
