@@ -298,6 +298,20 @@ Optional `noxi project` manifests have their own extension qualification. They c
 - [ ] Measure representative 100-, 1,000-, and 10,000-machine tiers with stated hardware, workloads, latency/resource budgets, and failure cases. Label simulations and advertise only demonstrated support limits.
 - [ ] Publish exact fleet support combinations, per-cluster and fleet-wide limits, artifacts, security and recovery procedures, unsupported transitions, and release evidence separately from CppNix compatibility qualification.
 
+## After the package-manager MVP: additional package-manager platforms
+
+Track package-manager portability separately from the later OS hardware targets. The initial replacement gate remains x86_64-linux; preview availability on another platform does not qualify its build engine or daemon. [Distribution](docs/distribution.md#additional-platforms) records the current boundary.
+
+- [ ] Add and validate native `aarch64-linux`, `aarch64-darwin`, and `x86_64-darwin` preview builds, Cargo installation, flake package/app outputs, and platform metadata. Keep Linux-only qualification outputs separate so preview evaluation does not require Linux VM infrastructure; record evaluator comparisons and clean installation on each target.
+- [ ] Replace x86-specific build-system defaults and compatible-platform assumptions with target-aware settings; compare platform detection, `builtins.currentSystem`, derivation platform selection, and unsupported-platform errors with the pinned reference.
+- [ ] Port the Linux sandbox syscall filter to AArch64, audit syscall ABI assumptions, and test setuid/setgid and extended-attribute restrictions on native ARM. Reject unsupported sandbox architectures explicitly instead of falling through to an allow rule.
+- [ ] Qualify the ARM Linux engine on native hardware or a native guest: sandboxed builds, substitution, store maintenance, client/daemon pairings, NixOS and Home Manager activation, rollback, and return to CppNix with full store verification.
+- [ ] Separate Linux-specific build and execution code from shared engine code and implement a Darwin sandbox backend, including process cleanup, network policy, build-user handling, and an explicit policy for execution in diverted stores.
+- [ ] Implement Darwin daemon peer-credential checks and launchd service integration; test authorization, socket ownership, startup, shutdown, and handoff with exactly one store-writing daemon.
+- [ ] Implement and compare macOS NAR filename case handling and filesystem metadata behavior with CppNix, including archive round trips and existing-store reuse.
+- [ ] Qualify Darwin installation, upgrade, failed upgrade, removal, Home Manager workflows, daemon handoff, and recovery to CppNix on Intel and Apple Silicon. Pin any nix-darwin integration target separately; do not treat NixOS VM results as Darwin evidence.
+- [ ] Publish a separate compatibility row and exact artifact/input records for each supported OS/architecture. Keep compilation, preview support, and full replacement qualification distinct; extend to other architectures only with equivalent evidence.
+
 ## Longer-term work after the first OS release
 
 - [ ] Add architectures, firmware modes, filesystems, encrypted-storage layouts, and hardware targets only with explicit build, boot, rollback, and recovery qualification for each new matrix row.

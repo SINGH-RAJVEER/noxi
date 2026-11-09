@@ -6,6 +6,12 @@ The first installable artifact is the `noxi` preview command. The repository fla
 
 A NixOS user may add the preview flake package to `environment.systemPackages`, or a Home Manager user may add it to `home.packages`. Both methods install `noxi` alongside CppNix. Neither changes the daemon or the `nix` command. Host replacement remains gated on the replacement checks below. The qualification-only module is for disposable VM tests.
 
+## Additional platforms
+
+Only x86_64-linux currently has flake package outputs and a replacement qualification target. The [additional-platform checklist](../TODO.md#after-the-package-manager-mvp-additional-package-manager-platforms) tracks AArch64 Linux and Intel/Apple Silicon Darwin after the package-manager MVP, independently of later OS hardware support. Preview builds and installation can be qualified separately from the full engine.
+
+ARM Linux needs target-aware build settings, AArch64 sandbox syscall rules, and native build/store/daemon and NixOS/Home Manager recovery evidence. Darwin additionally needs a platform-specific sandbox and execution backend, daemon peer-credential handling, launchd integration, and macOS NAR filename case handling. Each target needs its own pinned compatibility row and packaged-artifact evidence before replacement installation is recommended. Adding a flake system entry or compiling the preview does not establish engine support.
+
 ## Crates and release status
 
 The `noxi` 0.0.1 release is in progress. Only `noxi-hash`, `noxi-eval-builtin-macros`, `noxi-compat-derive`, `noxi-flakeref`, `noxi-compat`, `noxi-eval`, and `noxi-store` are published so far.
