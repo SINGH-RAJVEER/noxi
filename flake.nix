@@ -100,6 +100,18 @@
 						"$package/bin/noxi" eval --expr '1 + 2' | grep -x 3
 						"$package/bin/nix" --extra-experimental-features 'nix-command flakes' --store dummy:// eval --expr '1 + 2' | grep -x 3
 						"$package/bin/nix-instantiate" --store dummy:// --eval --strict --expr '1 + 2' | grep -x 3
+						# The newly packaged commands run from the package. These smoke
+						# probes do not qualify channel updates or generations.
+						for command in nix-channel nix-prefetch-url; do
+							"$package/bin/$command" --version | grep -x "$command (Nix) 2.35.2"
+						done
+						export HOME="$PWD/home" NIX_CONF_DIR="$PWD/etc"
+						mkdir -p "$HOME" "$NIX_CONF_DIR"
+						echo hello > fetched
+						"$package/bin/nix-prefetch-url" --store "local?root=$PWD/root" "file://$PWD/fetched" 2> prefetch-err \
+							| grep -x 00xyyr3fi8l6hb839bv3f7yb86yjv7xi1cgh1xnhipym4asvb4aq
+						grep -x "path is '/nix/store/pi0hrnj8zhpb7hbxf7iyp184v2hc9zra-fetched'" prefetch-err
+						test -z "$("$package/bin/nix-channel" --list)"
 						touch "$out"
 					'';
 					# Strict replacement gates: each fails unless every step of its
