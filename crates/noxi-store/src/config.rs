@@ -43,6 +43,9 @@ pub struct LocalStoreConfig {
 
 impl LocalStoreConfig {
 	pub fn diverted(root: &Path) -> std::io::Result<LocalStoreConfig> {
+		if creatable_root(root) {
+			std::fs::create_dir_all(root)?;
+		}
 		let root = root.canonicalize()?;
 		if root == Path::new("/") || root.starts_with("/nix") || !root.is_dir() {
 			return Err(std::io::Error::other(
@@ -203,4 +206,16 @@ mod tests {
 		assert_eq!(config.http_connections, 0);
 		assert_eq!(config.substitution_jobs(), 8);
 	}
+}
+
+/// Whether a missing diverted store root may be created, as CppNix creates
+/// every store directory: only an absolute path without `..` outside `/nix`,
+/// so creation can never reach the system store before the root is checked.
+pub fn creatable_root(root: &Path) -> bool {
+	root.is_absolute()
+		&& !root.starts_with("/nix")
+		&& !root
+			.components()
+			.any(|c| matches!(c, std::path::Component::ParentDir))
+		&& std::fs::symlink_metadata(root).is_err()
 }

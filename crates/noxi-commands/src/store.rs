@@ -316,10 +316,15 @@ fn accessible(dir: &Path) -> bool {
 	unsafe { libc::access(path.as_ptr(), libc::R_OK | libc::W_OK) == 0 }
 }
 
-/// The configuration of `local?root=ROOT`. ROOT must exist, and neither it
+/// The configuration of `local?root=ROOT`, creating ROOT if missing. Neither it
 /// nor its store and state directories may lead back into `/nix`, so a
 /// diverted store never touches the system store.
 fn diverted_config(root: &Path) -> Result<LocalStoreConfig, String> {
+	// CppNix creates a missing root, as it does every store directory.
+	if noxi_store::config::creatable_root(root) {
+		std::fs::create_dir_all(root)
+			.map_err(|e| format!("creating directory '{}': {e}", root.display()))?;
+	}
 	let root = root
 		.canonicalize()
 		.map_err(|e| format!("cannot open store root '{}': {e}", root.display()))?;

@@ -756,3 +756,43 @@ fn config_show_validates_generated_nix_conf() {
 		}
 	}
 }
+
+/// CppNix creates a missing `local?root=` store root with its whole tree,
+/// as `nix-prefetch-url --store` and a daemon serving a new root rely on.
+#[test]
+fn missing_diverted_root_is_created() {
+	let reference = tempfile::tempdir().unwrap();
+	let candidate = tempfile::tempdir().unwrap();
+	let f = Fixture::new();
+	let run = |dir: &Path, program: PathBuf| {
+		let root = dir.join("missing/parent/root");
+		let output = Command::new(program)
+			.arg0("nix")
+			.args(["--extra-experimental-features", "nix-command"])
+			.arg("--store")
+			.arg(format!("local?root={}", root.display()))
+			.args(["store", "info"])
+			.env_clear()
+			.env("HOME", dir)
+			.env("NIX_CONF_DIR", dir.join("etc"))
+			.env("NIX_CONFIG", "substituters =\n")
+			.output()
+			.unwrap();
+		let mut tree: Vec<String> = ["nix", "nix/store", "nix/var/nix", "nix/var/nix/db"]
+			.iter()
+			.filter(|p| root.join(p).is_dir())
+			.map(|p| p.to_string())
+			.collect();
+		tree.sort();
+		(
+			output.status.code(),
+			String::from_utf8_lossy(&output.stdout).replace(&dir.display().to_string(), "DIR"),
+			String::from_utf8_lossy(&output.stderr).replace(&dir.display().to_string(), "DIR"),
+			tree,
+		)
+	};
+	let expected = run(reference.path(), f.reference.join("nix"));
+	let actual = run(candidate.path(), PathBuf::from(env!("CARGO_BIN_EXE_nix")));
+	assert_eq!(actual, expected);
+	assert_eq!(expected.0, Some(0));
+}
