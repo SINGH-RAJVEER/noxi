@@ -1,0 +1,91 @@
+{
+	"schema": 3,
+	"revision": "b6a0a1062b6da3aeded10847cb8ee87785bf0deb",
+	"candidate": "/nix/store/zkg76l4dbcxbfa04zw6xl92hk8spnpyp-noxi-replacement-provisional-0.1.1",
+	"note": "Integrated source: system fixes merged with 04abbfd3 (commands 510887d1/73681351, evaluator 5945ae81/b3223a8c, platform docs). Built and run with git+file://WORKTREE?rev=REVISION (flake narHash sha256-AuzV8yJEZ2sCtnGFOamNOtzgjePXvqt7/m9pdTc023A=); replacement-layout passed. Strict gates: lifecycle passes; nixos and home-manager fail only on flake installables whose store-path flake reference is rejected as a bad store path.",
+	"installed_executable_sha256": {
+		"nix": "c36378e9726276b8ddb77057b4954e6cf410e0fbfdc32ab628c3e30abb1cbd72",
+		"nix-build": "b9278e2abf6dde778ef51860b46da652c3bea7d11a545bbe17c78c52e99d8c7f",
+		"nix-channel": "12c08e6c81a2acddec086e2c66da426821d70e59bbfec5f592f8ab837f8aa945",
+		"nix-collect-garbage": "7dffdf111fc07f18d30e35be601e70b928b9eb824dbc9bbf3b683f7df19606df",
+		"nix-copy-closure": "c44e9b81cd8448134b7e9d0e90c686cdc3882a4df441bf1a6bcc81798f12ff5c",
+		"nix-daemon": "178b7c989d58e98abb2552286ea99b4985a4fd15be1c0e395f3e7c6044bc5726",
+		"nix-env": "65234e824ae93f55e47a82a0def55921f9c419e7c2d0db29aed4a2227ebb7093",
+		"nix-hash": "811bab6971f9adfd6a1663e0644162e758efc75a9cdcdb3f43034c845d17ee84",
+		"nix-instantiate": "40d4c353400b430e55cb6e40789e6a0e13c58ee415bd85494fe07e874cacac8b",
+		"nix-prefetch-url": "e1f250dc21e879f09eb708d9704178376c734d5bfb328dcb5c9fa50c9ca971b3",
+		"nix-shell": "629153b1c8757f62090d9c5f3f7c41328a7f37927c4df350dc47f3443ae09ea1",
+		"nix-store": "e528ce8a4fe3bd675104b56b3cbc4f415afefdf26b515e75a8365da923677016",
+		"noxi": "a16ef3d0b5aaeba32b901baf77fd7cf792c69bc8f47a1d3f3c6e5fbe78f9b42f"
+	},
+	"test_script_sha256": "f2586a64d28472ae6124cf43ea4d939fde02a777874778650c2af3307ded9295",
+	"qualification_flake_lock_sha256": "67a60e8569f94edd7819275fc9a21124eb93199976681a8c76a076b786135c7f",
+	"guest_command_timeout_seconds": 1800,
+	"driver_execute_timeout_seconds": 900,
+	"reports": {
+		"nixos": {
+			"file": "nixos.json",
+			"sha256": "01423ad2f34b66f36f9aea31636ef0bb799729d9ef1c7d6efd0694d1827df4fa",
+			"drv_path": "/nix/store/ixnh55p98kici0w8x569ylx50xjnb5zh-vm-test-run-noxi-qualification-nixos.drv",
+			"report_output": "/nix/store/v1g6k6qx4f3n3spz1qgzkhxfjwybyzd5-vm-test-run-noxi-qualification-nixos",
+			"report_build_exit_code": 0,
+			"strict_gate_build_exit_code": 1,
+			"counts": {
+				"pass": 56,
+				"fail": 1
+			}
+		},
+		"home-manager": {
+			"file": "home-manager.json",
+			"sha256": "62a96ba1a5c324be6f814c01a74393767dcd619365201d0a608f54948a78d1be",
+			"drv_path": "/nix/store/qfba2pqmcvkgkrnk45mwqwgvswpdfn43-vm-test-run-noxi-qualification-home-manager.drv",
+			"report_output": "/nix/store/d4cyhd3yzhc7s23k3r3jkla0wizr80sy-vm-test-run-noxi-qualification-home-manager",
+			"report_build_exit_code": 0,
+			"strict_gate_build_exit_code": 1,
+			"counts": {
+				"pass": 40,
+				"fail": 2
+			}
+		},
+		"lifecycle": {
+			"file": "lifecycle.json",
+			"sha256": "361b8792259c81e51d8cfd9dcbde40e47c15b703e56e0ac902001c96249789d4",
+			"drv_path": "/nix/store/2kj3vhn85qjcnaald709lmzn1wpyvijy-vm-test-run-noxi-qualification-lifecycle.drv",
+			"report_output": "/nix/store/2lr7nws93lnqq5wbnv2bzhrm44ca0pjn-vm-test-run-noxi-qualification-lifecycle",
+			"report_build_exit_code": 0,
+			"strict_gate_build_exit_code": 0,
+			"counts": {
+				"pass": 55
+			}
+		}
+	},
+	"clean_clone": {
+		"exit_code": 0,
+		"stayed_clean": true,
+		"builds": {
+			"replacement": {
+				"drv_path": "/nix/store/cijmqbnmlymqz8n9k5bv50v4ym7wdklz-noxi-replacement-provisional-0.1.1.drv",
+				"output": "/nix/store/zkg76l4dbcxbfa04zw6xl92hk8spnpyp-noxi-replacement-provisional-0.1.1"
+			},
+			"layout": {
+				"drv_path": "/nix/store/pxq25jgnf7fgg7b8815aqd5ssnm41g38-noxi-replacement-layout.drv",
+				"output": "/nix/store/3wdbjxixrzhhhrl5z22bbji4rnf6w1kf-noxi-replacement-layout"
+			},
+			"preview": {
+				"output": "/nix/store/nafs57aaa7f582j7qv5zcgmhzz9whai2-noxi-preview-0.1.1"
+			}
+		}
+	},
+	"reproducibility": {
+		"binary_package": {
+			"command": "nix build --rebuild --no-link .#packages.x86_64-linux.noxi-replacement.binaryPackage",
+			"exit_code": 0,
+			"drv_path": "/nix/store/g8hfnjzd1djgznn9qsn75dl897y47mp1-noxi-replacement-provisional-0.1.1.drv",
+			"output": "/nix/store/4rjinm6mcpmz97vj9xzdb2m84z42gwxr-noxi-replacement-provisional-0.1.1"
+		},
+		"replacement_package": {
+			"command": "nix build --rebuild --no-link .#noxi-replacement",
+			"exit_code": 0
+		}
+	}
+}
