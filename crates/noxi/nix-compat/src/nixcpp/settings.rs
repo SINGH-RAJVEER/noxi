@@ -148,6 +148,10 @@ struct Entry {
 pub struct Settings {
 	/// Values of the settings that were set, by canonical name.
 	values: BTreeMap<&'static str, Entry>,
+	/// Settings given while their experimental feature was disabled. CppNix
+	/// ignores the value but still marks the setting overridden, so it is
+	/// forwarded with its current value if the feature is enabled later.
+	ignored: BTreeSet<&'static str>,
 	/// Names CppNix does not know, reported by [`Settings::finish`].
 	unknown: BTreeSet<String>,
 	warnings: Vec<String>,
@@ -224,6 +228,10 @@ impl Settings {
 				"Ignoring setting '{}' because experimental feature '{feature}' is not enabled",
 				info.name
 			));
+			self.ignored.insert(info.name);
+			if let Some(entry) = self.values.get_mut(info.name) {
+				entry.overridden = true;
+			}
 			return Ok(true);
 		}
 		if info.name == "experimental-features" {
@@ -346,17 +354,38 @@ impl Settings {
 	}
 
 	/// The settings CppNix's `getSettings(res, true)` returns: those set
-	/// after the system nix.conf, which a client sends to its daemon.
+	/// after the system nix.conf whose experimental feature is enabled now,
+	/// which a client sends to its daemon. A setting that was ignored
+	/// because its feature was disabled then has its default value.
 	pub fn forwarded(&self) -> impl Iterator<Item = (&'static str, &str, bool)> {
-		self.values
+		let features = self.experimental_features();
+		let enabled = move |name: &str| {
+			SettingInfo::find(name)
+				.and_then(|info| info.experimental_feature)
+				.is_none_or(|feature| features.contains(feature))
+		};
+		let set = self
+			.values
 			.iter()
 			.filter(|(_, entry)| entry.overridden)
-			.map(|(name, entry)| (*name, entry.value.as_str(), entry.replaces_default))
+			.map(|(name, entry)| (*name, entry.value.as_str(), entry.replaces_default));
+		let ignored = self
+			.ignored
+			.iter()
+			.filter(|name| !self.values.contains_key(*name))
+			.map(|name| (*name, gated_default(name), true));
+		let mut all: Vec<_> = set
+			.chain(ignored)
+			.filter(|(name, ..)| enabled(name))
+			.collect();
+		all.sort_by_key(|(name, ..)| *name);
+		all.into_iter()
 	}
 
 	/// Clear every setting's overridden flag, as `loadConfFile` does after
 	/// the system nix.conf.
 	pub fn reset_overridden(&mut self) {
+		self.ignored.clear();
 		for entry in self.values.values_mut() {
 			entry.overridden = false;
 		}
@@ -627,6 +656,17 @@ fn parse_value(info: &SettingInfo, value: &str) -> Result<String, Error> {
 		Kind::String => value.to_owned(),
 		Kind::List | Kind::Map => value.split_whitespace().collect::<Vec<_>>().join(" "),
 	})
+}
+
+/// CppNix 2.35.2's defaults of the settings that need an experimental
+/// feature, as `to_string` prints them.
+fn gated_default(name: &str) -> &'static str {
+	match name {
+		"flake-registry" => "https://channels.nixos.org/flake-registry.json",
+		"use-registries" => "true",
+		"accept-flake-config" | "allow-dirty-locks" | "auto-allocate-uids" => "false",
+		_ => "",
+	}
 }
 
 #[cfg(test)]

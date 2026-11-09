@@ -341,6 +341,28 @@ fn system_configuration_is_not_forwarded_to_the_daemon() {
 				"kvm",
 			],
 		),
+		// Settings given before their experimental feature is enabled are
+		// ignored, yet forwarded with their default once it is.
+		(
+			"auto-allocate-uids = true\nimpure-env = A=b\n",
+			vec![
+				"-q",
+				"--references",
+				env.busybox.as_str(),
+				"--extra-experimental-features",
+				"auto-allocate-uids configurable-impure-env",
+			],
+		),
+		// Not forwarded while the feature stays disabled.
+		(
+			"auto-allocate-uids = true\n",
+			vec!["-q", "--references", env.busybox.as_str()],
+		),
+		// Forwarded with the given value when the feature is enabled first.
+		(
+			"extra-experimental-features = auto-allocate-uids\nauto-allocate-uids = true\n",
+			vec!["-q", "--references", env.busybox.as_str()],
+		),
 	] {
 		fs::write(user.join("nix.conf"), user_conf).unwrap();
 		let expected = env.run("reference", "nix-store", &args);
