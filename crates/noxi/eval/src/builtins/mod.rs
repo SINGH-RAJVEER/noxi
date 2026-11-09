@@ -539,7 +539,10 @@ mod pure_builtins {
 			let out = generators::request_call_with(&co, f.clone(), [val]).await;
 			let out = try_value!(generators::request_force(&co, out).await);
 			res.extend(out.to_list().trace(
-				None,
+				match &f {
+					Value::Closure(c) => c.lambda().span,
+					_ => None,
+				},
 				"while evaluating the return value of the function passed to builtins.concatMap",
 			)?);
 		}
@@ -588,7 +591,7 @@ mod pure_builtins {
 	}
 
 	#[builtin("deepSeq")]
-	async fn builtin_deep_seq(co: GenCo, x: Value, y: Value) -> Result<Value, ErrorKind> {
+	async fn builtin_deep_seq(co: GenCo, x: Value, #[lazy] y: Value) -> Result<Value, ErrorKind> {
 		try_value!(generators::request_deep_force(&co, x).await);
 		Ok(y)
 	}
@@ -774,7 +777,17 @@ mod pure_builtins {
 	#[builtin("fromTOML")]
 	fn builtin_from_toml(state: Rc<BuiltinState>, toml: Value) -> Result<Value, ErrorKind> {
 		let toml_str = toml.to_str()?;
-		let toml: toml::Value = toml::from_str(toml_str.to_str()?)?;
+		let input = toml_str.to_str()?;
+		let toml: toml::Value = toml::from_str(input).map_err(|error: toml::de::Error| {
+			if matches!(error.message(), "number too large to fit in target type" | "number too small to fit in target type") && let Some(range) = error.span() {
+				let before = &input[..range.start]; let line = before.bytes().filter(|b| *b == b'\n').count() + 1;
+				let text = input.lines().nth(line - 1).unwrap_or("");
+				let start = before.rfind('\n').map_or(0, |p| p + 1);
+				let token = text[range.start - start..].split(|c: char| !(c.is_ascii_digit() || c == '-' || c == '+' || c == '_')).next().unwrap_or("");
+				return ErrorKind::FromTomlError(format!("while parsing TOML: [error] toml::parse_dec_integer: too large integer: current max digits = 2^63\n --> fromTOML\n   |\n {line} | {text}\n   | {}^-- must be < 2^63\n", " ".repeat(range.start - start + token.len())));
+			}
+			error.into()
+		})?;
 		from_data::toml_to_value(
 			toml,
 			state.experimental_features.enabled("parse-toml-timestamps"),
@@ -830,6 +843,7 @@ mod pure_builtins {
 		let mut work_set: VecDeque<Value> = start_set.into_iter().collect();
 		let mut res = Vec::new();
 		let mut keys: Vec<Value> = Vec::new();
+		let mut elements: Vec<Value> = Vec::new();
 
 		while let Some(val) = work_set.pop_front() {
 			let val = try_value!(generators::request_force(&co, val).await);
@@ -848,6 +862,25 @@ mod pure_builtins {
 			let mut found = false;
 			while low < high {
 				let mid = (low + high) / 2;
+				let printed =
+					generators::request_print(&co, val.clone(), PrintOptions::ERROR).await;
+				let previous =
+					generators::request_print(&co, elements[mid].clone(), PrintOptions::ERROR)
+						.await;
+				generators::request_builtin_context(
+					&co,
+					vec![
+						crate::Trace::new(
+							None,
+							format!("while comparing element {}", printed.to_str_lossy()),
+						),
+						crate::Trace::new(
+							None,
+							format!("with element {}", previous.to_str_lossy()),
+						),
+					],
+				)
+				.await;
 				match try_cek_to_value!(
 					key.clone()
 						.nix_cmp_ordering_ref(keys[mid].clone(), &co, span)
@@ -865,6 +898,8 @@ mod pure_builtins {
 				continue;
 			}
 			keys.insert(low, key);
+			elements.insert(low, val.clone());
+			generators::request_builtin_context(&co, vec![]).await;
 
 			res.push(val.clone());
 			let op_result = generators::request_force(
@@ -924,7 +959,10 @@ mod pure_builtins {
 		}
 
 		let mut out = Vec::with_capacity(count);
-		let lambda = Thunk::suspended_call_lambda(span);
+		let lambda = Thunk::suspended_call_lambda(match &generator {
+			Value::Closure(c) => c.lambda().span.unwrap_or(span),
+			_ => span,
+		});
 		for i in 0..len {
 			let val = Value::Thunk(Thunk::new_suspended_call_with_lambda(
 				generator.clone(),
@@ -1359,7 +1397,12 @@ mod pure_builtins {
 				)
 				.await
 			)
-			.to_str()?;
+			.to_str().map_err(|error| {
+				let message = if let ErrorKind::TypeError { value: Some(value), .. } = &error { format!("expected a string but found {}: {}", crate::diagnostics::show_type(value), value) } else { error.to_string() };
+				if let Some(span) = attrs.get_attr_pos("name") {
+					ErrorKind::WithContext { context: "while evaluating the `name` attribute of an element of the list passed to builtins.listToAttrs".into(), span: Some(span), underlying: Box::new(ErrorKind::At { message, span }) }
+				} else { error }
+			})?;
 			let value = attrs
 				.select_required("value")
 				.trace(None, "in a {name=...; value=...;} pair")?
@@ -1423,9 +1466,8 @@ mod pure_builtins {
 			return Ok(Value::attrs(out.into()));
 		}
 
-		// the best span we can get…
-
-		let lambda = Thunk::suspended_call_lambda(span);
+		// mapAttrs makes this call without a source position.
+		let lambda = Thunk::suspended_call_lambda_at(span, false, true);
 		for (key, value) in attrs.into_iter() {
 			let result = Value::Thunk(Thunk::new_suspended_call_with_lambda(
 				f.clone(),
@@ -1626,7 +1668,10 @@ mod pure_builtins {
 					if cache[index].is_none() {
 						let replacement =
 							try_value!(generators::request_force(&co, to[index].clone()).await);
-						let mut replacement = replacement.to_contextful_str()?;
+						let mut replacement = replacement.to_contextful_str().trace(
+							None,
+							"while evaluating one of the replacement strings passed to builtins.replaceStrings",
+						)?;
 						if let Some(to_ctx) = replacement.take_context() {
 							context.extend(*to_ctx);
 						}
@@ -1922,6 +1967,14 @@ mod pure_builtins {
 		// FIXME: should `coerce_to_string` preserve context?
 		// it does for now.
 		let span = generators::request_span(&co).await;
+		generators::request_builtin_context(
+			&co,
+			vec![crate::Trace::new(
+				None,
+				"while evaluating the first argument passed to builtins.toString",
+			)],
+		)
+		.await;
 		x.coerce_to_string(
 			co,
 			CoercionKind {
@@ -1931,10 +1984,6 @@ mod pure_builtins {
 			span,
 		)
 		.await
-		.trace(
-			None,
-			"while evaluating the first argument passed to builtins.toString",
-		)
 	}
 
 	#[builtin("toXML")]
@@ -2018,6 +2067,14 @@ mod pure_builtins {
 			return Ok(s);
 		}
 
+		generators::request_builtin_context(
+			&co,
+			vec![noxi_eval::Trace::new(
+				None,
+				"while evaluating the first argument passed to builtins.toPath",
+			)],
+		)
+		.await;
 		let path = try_cek_to_value!(coerce_value_to_path(&co, s).await?);
 		let path: Value = crate::value::canon_path(path).into();
 		let span = generators::request_span(&co).await;
@@ -2052,17 +2109,16 @@ mod pure_builtins {
 	}
 
 	#[builtin("zipAttrsWith")]
-	async fn builtin_zip_attrs_with(
-		co: GenCo,
-		#[lazy] f: Value,
-		list: Value,
-	) -> Result<Value, ErrorKind> {
+	async fn builtin_zip_attrs_with(co: GenCo, f: Value, list: Value) -> Result<Value, ErrorKind> {
 		let mut merged: FxHashMap<NixString, Vec<Value>> = FxHashMap::default();
 
 		// For each key, merge values of the same key into one single attrset
 		for set in list.to_list()? {
 			let set = generators::request_force(&co, set).await;
-			let set = set.to_attrs()?;
+			let set = set.to_attrs().trace(
+				None,
+				"while evaluating a value of the list passed as second argument to builtins.zipAttrsWith",
+			)?;
 			for (key, val) in set {
 				match merged.entry(key) {
 					Entry::Occupied(mut occupied) => occupied.get_mut().push(val),
@@ -2079,7 +2135,14 @@ mod pure_builtins {
 		let span = generators::request_span(&co).await;
 
 		// apply the function to each element
-		let lambda = Thunk::suspended_call_lambda(span);
+		let lambda = Thunk::suspended_call_lambda_at(
+			match &f {
+				Value::Closure(c) => c.lambda().span.unwrap_or(span),
+				_ => span,
+			},
+			true,
+			false,
+		);
 		let attrs = merged.into_iter().map(|(key, vals)| {
 			let val = Value::Thunk(Thunk::new_suspended_call_with_lambda(
 				Value::Thunk(Thunk::new_suspended_call_with_lambda(

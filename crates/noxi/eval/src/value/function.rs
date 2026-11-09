@@ -85,6 +85,10 @@ pub struct Lambda {
 	/// For the blueprint of a suspended thunk, the span its creating
 	/// instruction records, fixed when it is compiled.
 	pub(crate) suspended_span: Option<Span>,
+	/// Generated applications that use the function definition as their call site.
+	pub(crate) generated_call_position: bool,
+	pub(crate) omit_call_position: bool,
+	pub(crate) synthetic_call: bool,
 }
 
 #[derive(Debug)]

@@ -8,7 +8,8 @@ use bstr::ByteSlice;
 use serde_json::{Map, Number, Value as Json};
 
 enum Work {
-	Value(Value, usize),
+	Value(Value, usize, Option<crate::errors::Trace>),
+	Exit,
 	List(usize),
 	Attrs(Vec<String>),
 }
@@ -105,11 +106,17 @@ impl Value {
 	/// Convert values in reference evaluation order, preserving contexts and
 	/// limiting depth before Rust's call stack can overflow.
 	pub async fn into_contextful_json(self, co: &GenCo) -> Result<(Json, NixContext), ErrorKind> {
-		let mut work = vec![Work::Value(self, 0)];
+		let mut work = vec![Work::Value(self, 0, None)];
 		let mut results = Results(Vec::new());
 		let mut context = NixContext::new();
+		let path = std::rc::Rc::new(std::cell::RefCell::new(Vec::new()));
+		generators::request_trace_path(co, path.clone()).await;
+		let budget = generators::request_recursion_budget(co).await;
 		while let Some(item) = work.pop() {
 			match item {
+				Work::Exit => {
+					path.borrow_mut().pop();
+				}
 				Work::List(count) => {
 					let values = results.0.split_off(results.0.len() - count);
 					results.0.push(Json::Array(values));
@@ -120,11 +127,20 @@ impl Value {
 						names.into_iter().zip(values).collect::<Map<_, _>>(),
 					));
 				}
-				Work::Value(value, depth) => {
-					if depth >= crate::max_call_depth() {
-						return Err(ErrorKind::EvalError(
-							"stack overflow; max-call-depth exceeded".into(),
-						));
+				Work::Value(value, depth, trace) => {
+					if let Some(trace) = trace {
+						path.borrow_mut().push(trace);
+						work.push(Work::Exit);
+					}
+					if depth >= budget {
+						return Err(ErrorKind::At {
+							message: "stack overflow; max-call-depth exceeded".into(),
+							span: path
+								.borrow()
+								.last()
+								.and_then(|t| t.span)
+								.unwrap_or(generators::request_span(co).await),
+						});
 					}
 					let value = generators::request_force(co, value).await;
 					let json = match value {
@@ -134,7 +150,18 @@ impl Value {
 						Value::Float(value) => serde_json::value::to_value(value)?,
 						Value::String(value) => {
 							context.mimic(&value);
-							Json::String(value.to_str()?.to_owned())
+							Json::String(match value.to_str() {
+								Ok(text) => text.to_owned(),
+								Err(_) => {
+									let bytes = value.as_bytes();
+									let error = std::str::from_utf8(bytes).unwrap_err();
+									let index = error.valid_up_to();
+									return Err(ErrorKind::EvalError(format!(
+										"JSON serialization error: [json.exception.type_error.316] invalid UTF-8 byte at index {index}: 0x{:02X}",
+										bytes[index]
+									)));
+								}
+							})
 						}
 						Value::Path(path) => {
 							let path = generators::request_path_import(co, *path)
@@ -147,12 +174,22 @@ impl Value {
 						Value::List(values) => {
 							work.push(Work::List(values.len()));
 							let values: Vec<_> = values.into_iter().collect();
-							work.extend(
-								values
-									.into_iter()
-									.rev()
-									.map(|value| Work::Value(value, depth + 1)),
-							);
+							let count = values.len();
+							work.extend(values.into_iter().rev().enumerate().map(
+								|(index, value)| {
+									Work::Value(
+										value,
+										depth + 1,
+										Some(crate::errors::Trace::new(
+											path.borrow().last().and_then(|trace| trace.span),
+											format!(
+												"while evaluating list element at index {}",
+												count - index - 1
+											),
+										)),
+									)
+								},
+							));
 							continue;
 						}
 						Value::Attrs(attrs) => {
@@ -174,26 +211,45 @@ impl Value {
 									}
 									Value::String(value) => {
 										context.mimic(&value);
-										Json::String(value.to_str()?.to_owned())
+										Json::String(match value.to_str() {
+											Ok(text) => text.to_owned(),
+											Err(_) => {
+												let bytes = value.as_bytes();
+												let error = std::str::from_utf8(bytes).unwrap_err();
+												let index = error.valid_up_to();
+												return Err(ErrorKind::EvalError(format!(
+													"JSON serialization error: [json.exception.type_error.316] invalid UTF-8 byte at index {index}: 0x{:02X}",
+													bytes[index]
+												)));
+											}
+										})
 									}
 									_ => unreachable!("string coercion returned a non-string"),
 								}
 							} else if let Some(path) = attrs.select("outPath") {
-								work.push(Work::Value(path.clone(), depth + 1));
+								work.push(Work::Value(path.clone(), depth + 1, None));
 								continue;
 							} else {
+								let positions = attrs.clone();
 								let entries: Vec<_> = attrs.into_iter_sorted().collect();
 								let names = entries
 									.iter()
 									.map(|(name, _)| name.to_str().map(str::to_owned))
 									.collect::<Result<Vec<_>, _>>()?;
 								work.push(Work::Attrs(names));
-								work.extend(
-									entries
-										.into_iter()
-										.rev()
-										.map(|(_, value)| Work::Value(value, depth + 1)),
-								);
+								work.extend(entries.into_iter().rev().map(|(name, value)| {
+									Work::Value(
+										value,
+										depth + 1,
+										Some(crate::errors::Trace::new(
+											positions.get_attr_pos(&name),
+											format!(
+												"while evaluating attribute '{}'",
+												name.to_str_lossy()
+											),
+										)),
+									)
+								}));
 								continue;
 							}
 						}

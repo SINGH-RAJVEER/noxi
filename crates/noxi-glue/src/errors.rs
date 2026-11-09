@@ -56,3 +56,22 @@ impl From<ImportError> for noxi_eval::ErrorKind {
 		noxi_eval::ErrorKind::NoxiError(Arc::from(err))
 	}
 }
+
+/// CppNix's store-name validator explanation, shared by fetching and derivations.
+pub(crate) fn invalid_store_name(name: &str) -> Option<String> {
+	if name.is_empty() {
+		return Some("name is empty".into());
+	}
+	if name.len() > 211 {
+		return Some(format!("name '{name}' is too long"));
+	}
+	if name.starts_with('.') {
+		return Some(format!("name '{name}' starts with a period"));
+	}
+	for ch in name.chars() {
+		if !(ch.is_ascii_alphanumeric() || "+-._?=".contains(ch)) {
+			return Some(format!("name '{name}' contains illegal character '{ch}'"));
+		}
+	}
+	None
+}

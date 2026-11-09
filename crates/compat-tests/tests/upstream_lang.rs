@@ -276,6 +276,8 @@ struct Run {
 	signal: Option<i32>,
 	stdout: String,
 	stderr: String,
+	stdout_bytes: Vec<u8>,
+	stderr_bytes: Vec<u8>,
 	elapsed: Duration,
 }
 
@@ -381,10 +383,12 @@ fn spawn(
 	args: &[String],
 	reference: Option<&Path>,
 ) -> io::Result<Child> {
+	use std::os::unix::process::CommandExt;
 	let mut command = Command::new(match reference {
 		Some(path) => path.to_owned(),
 		None => env::current_exe()?,
 	});
+	command.arg0("nix-instantiate");
 	command
 		.env_clear()
 		.envs(SHARED_ENV.iter().copied())
@@ -423,9 +427,13 @@ fn drain(mut pipe: impl Read + Send + 'static) -> thread::JoinHandle<Vec<u8>> {
 }
 
 /// Applies `lang.sh`'s `/pwd` substitution and any `.postprocess` script.
-fn normalize(case: &Case, text: &str, scratch: &Path) -> String {
+fn normalize_bytes(case: &Case, text: &[u8], scratch: &Path) -> Vec<u8> {
+	use bstr::ByteSlice;
 	let pwd = functional_dir();
-	let mut text = text.replace(pwd.to_str().expect("fixture path is UTF-8"), "/pwd");
+	let mut text = text.replace(
+		pwd.to_str().expect("fixture path is UTF-8").as_bytes(),
+		b"/pwd",
+	);
 	let script = case.companion(".postprocess");
 	if script.exists() {
 		let base = scratch.join(&case.name);
@@ -437,7 +445,7 @@ fn normalize(case: &Case, text: &str, scratch: &Path) -> String {
 			.status()
 			.expect("run fixture post-processing with bash");
 		assert!(status.success(), "{}.postprocess failed", case.name);
-		text = fs::read_to_string(base.with_extension("err")).expect("read post-processed output");
+		text = fs::read(base.with_extension("err")).expect("read post-processed output");
 	}
 	text
 }
@@ -475,8 +483,10 @@ fn run_command(case: &Case, scratch: &Path, reference: Option<&Path>, args: &[St
 		thread::sleep(Duration::from_millis(5));
 	};
 	let elapsed = started.elapsed();
-	let stdout = String::from_utf8_lossy(&stdout.join().expect("stdout reader")).into_owned();
-	let stderr = String::from_utf8_lossy(&stderr.join().expect("stderr reader")).into_owned();
+	let stdout_bytes = stdout.join().expect("stdout reader");
+	let stderr_bytes = stderr.join().expect("stderr reader");
+	let stdout = String::from_utf8_lossy(&stdout_bytes).into_owned();
+	let stderr = String::from_utf8_lossy(&stderr_bytes).into_owned();
 	let exit_code = status.and_then(|status| status.code());
 	let signal = status.and_then(|status| status.signal());
 
@@ -487,18 +497,23 @@ fn run_command(case: &Case, scratch: &Path, reference: Option<&Path>, args: &[St
 		(Some(_), Some(0 | 1)) => {
 			let matches = if case.kind.should_fail() {
 				// `expectStderr` merges both streams; only stderr is expected.
-				let got = normalize(case, &format!("{stdout}{stderr}"), scratch);
-				got == read_or_empty(&case.companion(".err.exp"))
+				let got = normalize_bytes(
+					case,
+					&[stdout_bytes.as_slice(), stderr_bytes.as_slice()].concat(),
+					scratch,
+				);
+				got == fs::read(case.companion(".err.exp")).unwrap_or_default()
 			} else {
 				let expected_stdout = match case.operation() {
 					Operation::EvalXml => case.companion(".exp.xml"),
 					Operation::Parse | Operation::Eval => case.companion(".exp"),
 				};
 				// XML cases compare only stdout.
-				normalize(case, &stdout, scratch) == read_or_empty(&expected_stdout)
+				normalize_bytes(case, &stdout_bytes, scratch)
+					== fs::read(&expected_stdout).unwrap_or_default()
 					&& (case.operation() == Operation::EvalXml
-						|| normalize(case, &stderr, scratch)
-							== read_or_empty(&case.companion(".err.exp")))
+						|| normalize_bytes(case, &stderr_bytes, scratch)
+							== fs::read(case.companion(".err.exp")).unwrap_or_default())
 			};
 			match (matches, case.kind.should_fail()) {
 				(true, _) => Outcome::Pass,
@@ -518,6 +533,8 @@ fn run_command(case: &Case, scratch: &Path, reference: Option<&Path>, args: &[St
 		signal,
 		stdout,
 		stderr,
+		stdout_bytes,
+		stderr_bytes,
 		elapsed,
 	}
 }
@@ -651,8 +668,8 @@ fn embedded_checks(reference: &Path) -> Vec<String> {
 		if !matches!(actual.exit_code, Some(0 | 1))
 			|| actual.exit_code != expected.exit_code
 			|| actual.signal != expected.signal
-			|| actual.stdout != expected.stdout
-			|| actual.stderr != expected.stderr
+			|| actual.stdout_bytes != expected.stdout_bytes
+			|| actual.stderr_bytes != expected.stderr_bytes
 		{
 			failures.push(format!(
 				"lang.sh {expression}: candidate ({:?}, {:?}, {:?}); reference ({:?}, {:?}, {:?})",
@@ -679,9 +696,12 @@ fn embedded_checks(reference: &Path) -> Vec<String> {
 	let actual = run_command(&case, scratch.path(), None, &args);
 	let expected = run_command(&case, scratch.path(), Some(reference), &args);
 	report.push(json!({"command": args, "candidate": {"exit_code": actual.exit_code, "signal": actual.signal, "stdout": actual.stdout, "stderr": actual.stderr}, "reference": {"exit_code": expected.exit_code, "signal": expected.signal, "stdout": expected.stdout, "stderr": expected.stderr}}));
-	if (actual.exit_code, &actual.stdout, &actual.stderr)
-		!= (expected.exit_code, &expected.stdout, &expected.stderr)
-	{
+	if (actual.exit_code, &actual.stdout_bytes, &actual.stderr_bytes)
+		!= (
+			expected.exit_code,
+			&expected.stdout_bytes,
+			&expected.stderr_bytes,
+		) {
 		failures.push(format!(
 			"lang.sh non-eval-fail-bad-drvPath: candidate {:?}; reference {:?}",
 			actual.stderr, expected.stderr
@@ -716,6 +736,8 @@ fn skipped(outcome: Outcome) -> Run {
 		signal: None,
 		stdout: String::new(),
 		stderr: String::new(),
+		stdout_bytes: vec![],
+		stderr_bytes: vec![],
 		elapsed: Duration::ZERO,
 	}
 }
@@ -842,6 +864,8 @@ fn write_report(cases: &[Case], runs: &[Run]) -> io::Result<()> {
 				"signal": run.signal,
 				"stdout": run.stdout,
 				"stderr": run.stderr,
+				"stdout_bytes": run.stdout_bytes,
+				"stderr_bytes": run.stderr_bytes,
 				"elapsed_ms": run.elapsed.as_millis(),
 			})
 		})
@@ -940,10 +964,10 @@ fn main() -> ExitCode {
 				&& candidate.outcome != Outcome::Disabled
 				&& candidate.exit_code == reference.exit_code
 				&& candidate.signal == reference.signal
-				&& normalize(case, &candidate.stdout, scratch.path())
-					== normalize(case, &reference.stdout, scratch.path())
-				&& normalize(case, &candidate.stderr, scratch.path())
-					== normalize(case, &reference.stderr, scratch.path());
+				&& normalize_bytes(case, &candidate.stdout_bytes, scratch.path())
+					== normalize_bytes(case, &reference.stdout_bytes, scratch.path())
+				&& normalize_bytes(case, &candidate.stderr_bytes, scratch.path())
+					== normalize_bytes(case, &reference.stderr_bytes, scratch.path());
 			if equal && candidate.outcome != Outcome::Disabled {
 				matched += 1;
 			}
@@ -953,7 +977,7 @@ fn main() -> ExitCode {
 					case.name
 				));
 			}
-			reference_report.push(json!({"name": case.name, "equal": equal, "reference_exit_code": reference.exit_code, "reference_signal": reference.signal, "reference_stdout": reference.stdout, "reference_stderr": reference.stderr}));
+			reference_report.push(json!({"name": case.name, "equal": equal, "reference_exit_code": reference.exit_code, "reference_signal": reference.signal, "reference_stdout": reference.stdout, "reference_stderr": reference.stderr, "reference_stdout_bytes": reference.stdout_bytes, "reference_stderr_bytes": reference.stderr_bytes}));
 		}
 		let path = Path::new(REPORT).with_file_name("upstream-lang-reference-report.json");
 		fs::write(&path, serde_json::to_vec_pretty(&reference_report).unwrap())

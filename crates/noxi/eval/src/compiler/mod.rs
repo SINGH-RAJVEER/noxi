@@ -338,8 +338,16 @@ impl Compiler<'_, '_> {
 		}
 	}
 
+	fn source_string(&self, text: &str) -> Value {
+		if self.source.has_byte_encoding(self.file) {
+			Value::from(self.source.decode_literal(self.file, text).as_slice())
+		} else {
+			Value::from(text)
+		}
+	}
+
 	fn push_attrset_pos(&mut self, span: Span) {
-		if self.file.name() != crate::REPL_LOCATION {
+		if self.file.name() != crate::REPL_LOCATION || self.source.original_span(span) != span {
 			self.chunk().attrsets_pos_spans.push(span);
 		}
 	}
@@ -584,7 +592,7 @@ impl Compiler<'_, '_> {
 				}
 
 				ast::InterpolPart::Literal(lit) => {
-					self.emit_constant(Value::from(lit.as_str()), parent_node);
+					self.emit_constant(self.source_string(lit), parent_node);
 				}
 			}
 		}
@@ -615,7 +623,20 @@ impl Compiler<'_, '_> {
 		}
 	}
 
+	fn push_context<N: ToSpan>(&mut self, hint: &str, node: &N) {
+		self.emit_constant(Value::from(hint), node);
+		self.push_op(Op::PushContext, node);
+	}
+
 	fn compile_unary_op(&mut self, slot: LocalIdx, op: &ast::UnaryOp) {
+		let invert = op.operator() == Some(ast::UnaryOpKind::Invert);
+		if invert {
+			let mut operand = op.expr().unwrap();
+			while let ast::Expr::Paren(paren) = operand {
+				operand = paren.expr().unwrap();
+			}
+			self.push_context("in the argument of the not operator", &operand);
+		}
 		self.compile(slot, op.expr().unwrap());
 		self.emit_force(op);
 
@@ -625,6 +646,9 @@ impl Compiler<'_, '_> {
 		};
 
 		self.push_op(opcode, op);
+		if invert {
+			self.push_op(Op::PopContext, op);
+		}
 	}
 
 	fn compile_binop(&mut self, slot: LocalIdx, op: &ast::BinOp) {
@@ -642,10 +666,38 @@ impl Compiler<'_, '_> {
 			// Pipe operators. Any introduction should be properly
 			// feature-flagged, due to its experimental status.
 			BinOpKind::PipeRight | BinOpKind::PipeLeft => {
-				return self.emit_error(
-					op,
-					ErrorKind::NotImplemented("pipe operators not implemented"),
+				let token = op
+					.syntax()
+					.children_with_tokens()
+					.filter_map(|x| x.into_token())
+					.find(|x| {
+						matches!(
+							x.kind(),
+							rnix::SyntaxKind::TOKEN_PIPE_RIGHT | rnix::SyntaxKind::TOKEN_PIPE_LEFT
+						)
+					})
+					.unwrap();
+				if !self.source.feature_enabled("pipe-operators") {
+					return self.emit_error(&token, ErrorKind::Positioned(Box::new(ErrorKind::EvalError("experimental Nix feature 'pipe-operators' is disabled; add '--extra-experimental-features pipe-operators' to enable it".into()))));
+				}
+				let right = op.operator() == Some(BinOpKind::PipeRight);
+				self.compile(
+					slot,
+					if right {
+						op.lhs().unwrap()
+					} else {
+						op.rhs().unwrap()
+					},
 				);
+				let function = if right {
+					op.rhs().unwrap()
+				} else {
+					op.lhs().unwrap()
+				};
+				self.compile(slot, function.clone());
+				self.emit_force(&function);
+				self.push_op(Op::Call, &token);
+				return;
 			}
 
 			_ => {}
@@ -655,6 +707,9 @@ impl Compiler<'_, '_> {
 		// remain lazy until the builtin checks them, and their call site
 		// is the operator token, including when the left argument fails.
 		let primop = match op.operator().unwrap() {
+			BinOpKind::Less | BinOpKind::LessOrEq | BinOpKind::More | BinOpKind::MoreOrEq => {
+				Some("__lessThan")
+			}
 			BinOpKind::Sub => Some("__sub"),
 			BinOpKind::Mul => Some("__mul"),
 			BinOpKind::Div => Some("__div"),
@@ -672,15 +727,45 @@ impl Compiler<'_, '_> {
 							rnix::SyntaxKind::TOKEN_SUB
 								| rnix::SyntaxKind::TOKEN_MUL
 								| rnix::SyntaxKind::TOKEN_DIV
+								| rnix::SyntaxKind::TOKEN_LESS
+								| rnix::SyntaxKind::TOKEN_LESS_OR_EQ
+								| rnix::SyntaxKind::TOKEN_MORE
+								| rnix::SyntaxKind::TOKEN_MORE_OR_EQ
 						)
 					})
 					.unwrap();
-				self.compile(slot, op.rhs().unwrap());
-				self.compile(slot, op.lhs().unwrap());
+				let inverted = matches!(
+					op.operator(),
+					Some(BinOpKind::LessOrEq | BinOpKind::MoreOrEq)
+				);
+				if inverted {
+					self.push_context("in the argument of the not operator", &token);
+				}
+				let swap = matches!(op.operator(), Some(BinOpKind::LessOrEq | BinOpKind::More));
+				self.compile(
+					slot,
+					if swap {
+						op.lhs().unwrap()
+					} else {
+						op.rhs().unwrap()
+					},
+				);
+				self.compile(
+					slot,
+					if swap {
+						op.rhs().unwrap()
+					} else {
+						op.lhs().unwrap()
+					},
+				);
 				self.emit_constant(builtin, &token);
 				self.emit_force(&token);
 				self.push_op(Op::Call, &token);
 				self.push_op(Op::Call, &token);
+				if inverted {
+					self.push_op(Op::Invert, &token);
+					self.push_op(Op::PopContext, &token);
+				}
 				return;
 			}
 		}
@@ -691,8 +776,18 @@ impl Compiler<'_, '_> {
 		self.compile(slot, op.lhs().unwrap());
 		self.emit_force(&op.lhs().unwrap());
 
+		let update = op.operator() == Some(BinOpKind::Update);
+		if update {
+			self.push_context(
+				"in the right operand of the update (//) operator",
+				&op.rhs().unwrap(),
+			);
+		}
 		self.compile(slot, op.rhs().unwrap());
 		self.emit_force(&op.rhs().unwrap());
+		if update {
+			self.push_op(Op::PopContext, op);
+		}
 
 		match op.operator().unwrap() {
 			BinOpKind::Add => self.push_op(Op::Add, &op.rhs().unwrap()),
@@ -735,6 +830,15 @@ impl Compiler<'_, '_> {
 		);
 
 		// Leave left-hand side value on the stack.
+		self.push_context(
+			"in the left operand of the AND (&&) operator",
+			&node
+				.syntax()
+				.children_with_tokens()
+				.filter_map(|x| x.into_token())
+				.find(|x| x.kind() == rnix::SyntaxKind::TOKEN_AND_AND)
+				.unwrap(),
+		);
 		self.compile(slot, node.lhs().unwrap());
 		self.emit_force(&node.lhs().unwrap());
 
@@ -742,12 +846,30 @@ impl Compiler<'_, '_> {
 		self.push_u16(0);
 		// If this value is false, jump over the right-hand side - the
 		// whole expression is false.
-		let end_idx = self.push_op(Op::JumpIfFalse, node);
+		let end_idx = self.push_op(
+			Op::JumpIfFalse,
+			&node
+				.syntax()
+				.children_with_tokens()
+				.filter_map(|x| x.into_token())
+				.find(|x| x.kind() == rnix::SyntaxKind::TOKEN_AND_AND)
+				.unwrap(),
+		);
 		self.push_u16(0);
 
 		// Otherwise, remove the previous value and leave the
 		// right-hand side on the stack. Its result is now the value
 		// of the whole expression.
+		self.push_op(Op::PopContext, node);
+		self.push_context(
+			"in the right operand of the AND (&&) operator",
+			&node
+				.syntax()
+				.children_with_tokens()
+				.filter_map(|x| x.into_token())
+				.find(|x| x.kind() == rnix::SyntaxKind::TOKEN_AND_AND)
+				.unwrap(),
+		);
 		self.push_op(Op::Pop, node);
 		self.compile(slot, node.rhs().unwrap());
 		self.emit_force(&node.rhs().unwrap());
@@ -755,6 +877,7 @@ impl Compiler<'_, '_> {
 		self.patch_jump(end_idx);
 		self.push_op(Op::AssertBool, node);
 		self.patch_jump(throw_idx);
+		self.push_op(Op::PopContext, node);
 	}
 
 	fn compile_or(&mut self, slot: LocalIdx, node: &ast::BinOp) {
@@ -1798,7 +1921,9 @@ impl Compiler<'_, '_> {
 					};
 					self.emit_error(
 						&rnix::TextRange::new(start, start),
-						ErrorKind::EvalError(crate::builtins::nul_message(text.as_bytes())),
+						ErrorKind::Positioned(Box::new(ErrorKind::EvalError(
+							crate::builtins::nul_message(text.as_bytes()),
+						))),
 					);
 					return;
 				}
@@ -1923,7 +2048,14 @@ fn compile_src_builtin(
 		panic!("{}", out);
 	}
 
-	let file = source.add_file(format!("<src-builtins/{name}.nix>"), code.to_string());
+	let file = source.add_file(
+		if name == "derivation" {
+			"«nix-internal»/derivation-internal.nix".to_owned()
+		} else {
+			format!("<src-builtins/{name}.nix>")
+		},
+		code.to_string(),
+	);
 	let weak = weak.clone();
 
 	Value::Thunk(Thunk::new_suspended_native(Box::new(move || {
@@ -2068,6 +2200,7 @@ pub fn compile(
 	observer: OptionalCompilerObserver<'_>,
 ) -> EvalResult<CompilationOutput> {
 	source.check(expr, file)?;
+	bindings::check_duplicates(expr, file, source)?;
 	let mut c = Compiler::new(location, globals.clone(), env, source, file, observer)?;
 
 	let root_span = c.span_for(expr);

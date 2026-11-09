@@ -152,3 +152,66 @@ fn flake_show_check_update_and_lock_policy() {
 		assert!(!project.path().join("flake.lock").exists());
 	}
 }
+
+#[test]
+fn stored_flake_fragments_select_build_installables() {
+	let reference = std::env::var_os("NOXI_REFERENCE_BIN")
+		.map(PathBuf::from)
+		.unwrap_or_else(|| {
+			Path::new(env!("CARGO_MANIFEST_DIR")).join("../../target/nix-reference/bin")
+		})
+		.join("nix");
+	let project = tempfile::tempdir().unwrap();
+	fs::write(project.path().join("flake.nix"), "{ outputs = { self }: { nixosConfigurations.\"two\".config.system.build.toplevel = derivation { name = \"stored-flake-test\"; system = \"x86_64-linux\"; builder = \"/bin/sh\"; args = [ \"-c\" \"echo hi > $out\" ]; }; }; }").unwrap();
+	let roots = [tempfile::tempdir().unwrap(), tempfile::tempdir().unwrap()];
+	let mut outputs = Vec::new();
+	for (bin, root) in [reference.as_path(), Path::new(env!("CARGO_BIN_EXE_nix"))]
+		.iter()
+		.zip(&roots)
+	{
+		let added = run(
+			&reference,
+			root.path(),
+			&[
+				"store",
+				"add",
+				"--mode",
+				"nar",
+				project.path().to_str().unwrap(),
+			],
+		);
+		assert!(
+			added.status.success(),
+			"{}",
+			String::from_utf8_lossy(&added.stderr)
+		);
+		// Flake source traversal in the reference uses the host filesystem,
+		// so use the physical path inside this diverted store. The VM gate
+		// exercises the corresponding logical /nix/store path.
+		let added = String::from_utf8(added.stdout).unwrap();
+		let source = root.path().join(added.trim().trim_start_matches('/'));
+		let installable = format!(
+			"{}#nixosConfigurations.\"two\".config.system.build.toplevel",
+			source.display()
+		);
+		let output = run(
+			bin,
+			root.path(),
+			&[
+				"build",
+				&installable,
+				"--dry-run",
+				"--no-link",
+				"--json",
+				"--no-write-lock-file",
+			],
+		);
+		assert!(
+			output.status.success(),
+			"{}",
+			String::from_utf8_lossy(&output.stderr)
+		);
+		outputs.push(output.stdout);
+	}
+	assert_eq!(outputs[0], outputs[1]);
+}

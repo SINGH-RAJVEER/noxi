@@ -948,10 +948,21 @@ impl LocalStore {
 				)));
 			}
 		}
-		replace_symlink(Path::new(&print(path)), gc_root)?;
+		make_root_symlink(Path::new(&print(path)), gc_root)?;
 		self.add_indirect_root(gc_root)?;
 		Ok(gc_root.to_owned())
 	}
+}
+
+/// `IndirectRootStore::makeSymlink`: create the directories up to `link`,
+/// then point it at `target` atomically. Home Manager adds roots under
+/// directories that do not exist yet.
+pub fn make_root_symlink(target: &Path, link: &Path) -> Result<()> {
+	if let Some(parent) = link.parent() {
+		fs::create_dir_all(parent)
+			.map_err(|e| Error::io(format!("creating directory \"{}\"", parent.display()), e))?;
+	}
+	replace_symlink(target, link)
 }
 
 /// CppNix's `replaceSymlink`: create `link` pointing at `target`

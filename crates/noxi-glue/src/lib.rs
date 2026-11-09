@@ -54,7 +54,11 @@ pub fn configure<'co, 'ro, 'env>(
 		.add_builtins(context_builtins::builtins())
 		.add_builtins(flake_builtins::builtins(flakes))
 		.add_builtins(unsupported_builtins::builtins())
-		.add_src_builtin("derivation", include_str!("derivation.nix"))
+		.add_src_builtin("derivation", {
+			static SOURCE: std::sync::LazyLock<String> =
+				std::sync::LazyLock::new(|| include_str!("derivation.nix").replace('\t', "  "));
+			SOURCE.as_str()
+		})
 }
 
 /// Builtins that need the network or a writable store. They exist so that

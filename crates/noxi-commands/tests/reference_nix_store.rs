@@ -231,6 +231,8 @@ fn realises_with_roots_and_queries_like_cppnix() {
 	// Realising again is a no-op that prints the same roots; without
 	// `--add-root` the output paths are printed with a warning.
 	env.same(&["-r", &drv, "--add-root", "result"]);
+	// `makeSymlink` creates the directories up to a new root.
+	env.same(&["-r", &drv, "--add-root", "gcroots/new/result"]);
 	env.same(&["-r", &drv]);
 	env.same(&["-r", &format!("{drv}!dev")]);
 	env.same(&["-r", "result"]);

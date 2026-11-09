@@ -255,6 +255,10 @@ pub enum Op {
 
 	/// Push a copy of the value at the top of the stack.
 	Dup,
+	/// Begin an error context from the string on the stack.
+	PushContext,
+	/// End the innermost error context.
+	PopContext,
 
 	/// Sentinel value to signal invalid bytecode. This MUST always be the last
 	/// value in the enum. Do not move it!

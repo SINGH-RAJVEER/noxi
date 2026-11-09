@@ -22,6 +22,9 @@ FAILED_BUILD = (
 
 steps: list[dict] = []
 expected: dict = {}
+# CppNix outputs the candidate must reproduce, recorded before the swap.
+controls: dict[str, str] = {}
+PREFETCH = "printf 'noxi qualification\\n' > /tmp/prefetch-input && nix-prefetch-url file:///tmp/prefetch-input"
 
 
 def record(name: str, status: str, **fields) -> bool:
@@ -171,9 +174,14 @@ def swap_to_noxi(label: str) -> bool:
 		"readlink -f $(command -v nix-instantiate)",
 		check=lambda out: (out.strip().startswith(expected["candidate"]), out.strip()),
 	)
-	run("noxi-version", "nix-instantiate --version")
+	run("noxi-version", "nix-instantiate --version", check=equals("nix-instantiate (Nix) 2.35.2"))
 	run("noxi-modern-cli", "nix --version")
 	run("noxi-config-show", "nix config show --json")
+	# Smoke probes for the newly packaged commands against the CppNix
+	# control. They do not qualify channel updates or generations.
+	for name, command in [("channel-list", "nix-channel --list"), ("prefetch-url", PREFETCH)]:
+		want = controls[name]
+		run(f"noxi-{name}", command, check=lambda out, want=want: (out == want, f"expected {want!r}, got {out!r}"))
 	daemons("noxi", expected["candidate"])
 	return selected
 
@@ -356,6 +364,9 @@ run("reference-boot", "nix-instantiate --version", check=equals("nix-instantiate
 run("seed-system-profile", f"nix-env -p {PROFILE} --set /run/current-system")
 BASE = current()
 run("candidate-artifacts", f"sha256sum {expected['candidate']}/libexec/noxi/*")
+for name, command in [("channel-list", "nix-channel --list"), ("prefetch-url", PREFETCH)]:
+	run(f"control-cppnix-{name}", command)
+	controls[name] = steps[-1]["stdout"]
 run(
 	"control-cppnix-flake-build",
 	f"nix build --no-link --no-write-lock-file --print-out-paths {FLAKE}#nixosConfigurations.two.config.system.build.toplevel",

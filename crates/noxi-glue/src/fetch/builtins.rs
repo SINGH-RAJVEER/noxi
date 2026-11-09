@@ -236,6 +236,25 @@ async fn fetch_tree(
 			input.display()
 		)));
 	}
+	if let Some(url) =
+		noxi_flakeref::input::maybe_get_str_attr(&input.attrs, "url").map_err(error)?
+	{
+		if let Some(path) = url.strip_prefix("file:")
+			&& !path.starts_with('/')
+		{
+			generators::request_builtin_context(
+				co,
+				vec![noxi_eval::Trace::new(
+					None,
+					format!("while fetching the input '{url}'"),
+				)],
+			)
+			.await;
+			return Err(error(format!(
+				"tarball '{url}' must use an absolute path. The 'file' scheme does not support relative paths."
+			)));
+		}
+	}
 	let (mount, _, mut locked, _) =
 		super::get_cached(store, &input, UseRegistries::No).map_err(error)?;
 	let path = super::mount_input(store, &mut locked, &input, &mount).map_err(error)?;
@@ -256,6 +275,8 @@ async fn fetch_url(
 		String::new()
 	};
 	let mut expected = None;
+	let is_attrs = matches!(&value, Value::Attrs(_));
+	let mut explicit_name = false;
 	match value {
 		Value::Attrs(attrs) => {
 			for (key, value) in attrs.iter_sorted() {
@@ -265,7 +286,10 @@ async fn fetch_url(
 				}
 				match key.to_str()? {
 					"url" => url = Some(string(co, value).await?),
-					"name" => name = string(co, value).await?,
+					"name" => {
+						explicit_name = true;
+						name = string(co, value).await?;
+					}
 					"sha256" => {
 						let hash = string(co, value).await?;
 						if !hash.is_empty() {
@@ -286,7 +310,24 @@ async fn fetch_url(
 	if name.is_empty() {
 		name = noxi_flakeref::url::base_name_of(&url).to_owned();
 	}
-	nix_compat::store_path::validate_name(name.as_bytes()).map_err(error)?;
+	if let Some(reason) = crate::errors::invalid_store_name(&name) {
+		let advice = if explicit_name {
+			format!(
+				"Please change the value for the 'name' attribute passed to '{who}', so that it can create a valid store path."
+			)
+		} else if is_attrs {
+			format!(
+				"Please add a valid 'name' attribute to the argument for '{who}', so that it can create a valid store path."
+			)
+		} else {
+			format!(
+				"Please pass an attribute set with 'url' and 'name' attributes to '{who}',  so that it can create a valid store path."
+			)
+		};
+		return Err(error(format!(
+			"invalid store path name when fetching URL '{url}': {reason}. {advice}"
+		)));
+	}
 	if store.pure_eval() && expected.is_none() {
 		return Err(error(format!(
 			"in pure evaluation mode, '{who}' requires a 'sha256' argument"
@@ -306,6 +347,25 @@ async fn fetch_url(
 		attrs.insert("narHash".into(), hash.to_sri_string().into());
 	}
 	let input = Input::from_attrs(&settings, attrs).map_err(error)?;
+	if let Some(url) =
+		noxi_flakeref::input::maybe_get_str_attr(&input.attrs, "url").map_err(error)?
+	{
+		if let Some(path) = url.strip_prefix("file:")
+			&& !path.starts_with('/')
+		{
+			generators::request_builtin_context(
+				co,
+				vec![noxi_eval::Trace::new(
+					None,
+					format!("while fetching the input '{url}'"),
+				)],
+			)
+			.await;
+			return Err(error(format!(
+				"tarball '{url}' must use an absolute path. The 'file' scheme does not support relative paths."
+			)));
+		}
+	}
 	let (mount, _, mut locked, _) =
 		super::get_cached(store, &input, UseRegistries::No).map_err(error)?;
 	let path = if unpack {

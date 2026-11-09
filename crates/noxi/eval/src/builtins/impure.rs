@@ -74,6 +74,14 @@ mod impure_builtins {
 
 	#[builtin("pathExists")]
 	async fn builtin_path_exists(co: GenCo, path: Value) -> Result<Value, ErrorKind> {
+		generators::request_builtin_context(
+			&co,
+			vec![noxi_eval::Trace::new(
+				None,
+				"while realising the context of a path",
+			)],
+		)
+		.await;
 		let path = try_cek_to_value!(realise_value_to_path(&co, path).await?);
 		Ok(generators::request_path_exists(&co, path).await)
 	}

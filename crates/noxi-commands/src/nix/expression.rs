@@ -187,11 +187,12 @@ pub fn targets(parsed: &Parsed) -> Result<Result<Targets, ExitCode>, Failure> {
 	if parsed.has("expr")
 		|| parsed.has("file")
 		|| parsed.operands.is_empty()
-		|| parsed
-			.operands
-			.iter()
-			.any(|s| !s.starts_with("/nix/store/") && !std::path::Path::new(s).is_symlink())
-	{
+		|| parsed.operands.iter().any(|s| {
+			// A fragment selects a flake output even when the source lives
+			// in the store. It is not part of a derived store path.
+			s.contains('#')
+				|| (!s.starts_with("/nix/store/") && !std::path::Path::new(s).is_symlink())
+		}) {
 		let options = options(parsed, false)?;
 		let evaluated = match instantiate::evaluate(&options, &std::env::current_dir()?) {
 			Ok(value) => value,

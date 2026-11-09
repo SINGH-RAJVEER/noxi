@@ -665,3 +665,134 @@ fn legacy_environment_entrypoints_and_explicit_limits() {
 		assert!(String::from_utf8_lossy(&actual.stderr).contains(message));
 	}
 }
+
+/// Nixpkgs' `nix.checkConfig` validates a NixOS-generated nix.conf with
+/// `nix config show --no-net --option experimental-features nix-command` and
+/// fails the system build on any `error:` or `warning:` line. Diagnostics,
+/// exit statuses and the stored values must match the reference.
+#[test]
+fn config_show_validates_generated_nix_conf() {
+	let f = Fixture::new();
+	let etc = f.dir.path().join("etc");
+	fs::create_dir_all(&etc).unwrap();
+	let run = |reference: bool, args: &[&str]| {
+		let program = if reference {
+			f.reference.join("nix")
+		} else {
+			PathBuf::from(env!("CARGO_BIN_EXE_nix"))
+		};
+		Command::new(program)
+			.arg0("nix")
+			.args(["config", "show", "--no-net"])
+			.args(["--option", "experimental-features", "nix-command"])
+			.args(args)
+			.current_dir(f.dir.path())
+			.env_clear()
+			.env("HOME", f.dir.path())
+			.env("NIX_CONF_DIR", &etc)
+			.output()
+			.unwrap()
+	};
+	let nixos = "allowed-users = *\nauto-optimise-store = false\nbuilders = \ncores = 0\n\
+		experimental-features = nix-command flakes\nflake-registry = \nmax-jobs = auto\n\
+		require-sigs = true\nsandbox = true\nsandbox-fallback = false\nsubstituters = \n\
+		system-features = nixos-test benchmark big-parallel kvm\n\
+		trusted-public-keys = cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY=\n\
+		trusted-substituters = \ntrusted-users = root @wheel\nextra-sandbox-paths = \n";
+	let units = "min-free = 1K\nmax-free = 2G\nmax-silent-time = -5\ntimeout = 1M\n\
+		max-build-log-size = 3G\ncores = 1K\nmax-call-depth = 1k\n";
+	for (contents, shown) in [
+		(
+			nixos,
+			&[
+				"cores",
+				"max-jobs",
+				"sandbox",
+				"trusted-users",
+				"system-features",
+				"require-sigs",
+			][..],
+		),
+		(
+			units,
+			&[
+				"min-free",
+				"max-free",
+				"max-silent-time",
+				"timeout",
+				"max-build-log-size",
+				"cores",
+				"max-call-depth",
+			][..],
+		),
+		("bogus-setting = 1\n", &[][..]),
+		("min-free = -3\n", &[][..]),
+		("min-free = 1P\n", &[][..]),
+		("max-free = 18446744073709551616\n", &[][..]),
+		("http-connections = -2\n", &[][..]),
+		("max-jobs = 1K\n", &[][..]),
+		("max-jobs = -3\n", &[][..]),
+		("sandbox = maybe\n", &[][..]),
+		("show-trace = 1K\n", &[][..]),
+	] {
+		fs::write(etc.join("nix.conf"), contents).unwrap();
+		let expected = run(true, &[]);
+		let actual = run(false, &[]);
+		assert_eq!(actual.status.code(), expected.status.code(), "{contents}");
+		assert_eq!(
+			String::from_utf8_lossy(&actual.stderr),
+			String::from_utf8_lossy(&expected.stderr),
+			"{contents}"
+		);
+		for name in shown {
+			let expected = run(true, &[name]);
+			let actual = run(false, &[name]);
+			assert_eq!(actual.status.code(), expected.status.code(), "{name}");
+			assert_eq!(
+				String::from_utf8_lossy(&actual.stdout),
+				String::from_utf8_lossy(&expected.stdout),
+				"{contents}{name}"
+			);
+		}
+	}
+}
+
+/// CppNix creates a missing `local?root=` store root with its whole tree,
+/// as `nix-prefetch-url --store` and a daemon serving a new root rely on.
+#[test]
+fn missing_diverted_root_is_created() {
+	let reference = tempfile::tempdir().unwrap();
+	let candidate = tempfile::tempdir().unwrap();
+	let f = Fixture::new();
+	let run = |dir: &Path, program: PathBuf| {
+		let root = dir.join("missing/parent/root");
+		let output = Command::new(program)
+			.arg0("nix")
+			.args(["--extra-experimental-features", "nix-command"])
+			.arg("--store")
+			.arg(format!("local?root={}", root.display()))
+			.args(["store", "info"])
+			.env_clear()
+			.env("HOME", dir)
+			.env("NIX_CONF_DIR", dir.join("etc"))
+			.env("NIX_CONFIG", "substituters =\n")
+			.output()
+			.unwrap();
+		let mut tree: Vec<String> = ["nix", "nix/store", "nix/var/nix", "nix/var/nix/db"]
+			.iter()
+			.filter(|p| root.join(p).is_dir())
+			.map(|p| p.to_string())
+			.collect();
+		tree.sort();
+		(
+			output.status.code(),
+			String::from_utf8_lossy(&output.stdout).replace(&dir.display().to_string(), "DIR"),
+			String::from_utf8_lossy(&output.stderr).replace(&dir.display().to_string(), "DIR"),
+			tree,
+		)
+	};
+	let expected = run(reference.path(), f.reference.join("nix"));
+	let actual = run(candidate.path(), PathBuf::from(env!("CARGO_BIN_EXE_nix")));
+	assert_eq!(actual, expected);
+	assert_eq!(expected.0, Some(0));
+}

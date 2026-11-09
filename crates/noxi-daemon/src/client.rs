@@ -16,7 +16,7 @@ use nix_compat::derivation::UnverifiedDerivation;
 use nix_compat::log::VerbosityLevel;
 use nix_compat::nixhash::HashAlgo;
 use nix_compat::store_path::{STORE_DIR, StorePath};
-use noxi_store::gc::{GcAction, GcOptions, GcResults, Roots, replace_symlink};
+use noxi_store::gc::{GcAction, GcOptions, GcResults, Roots, make_root_symlink};
 use noxi_store::{DerivedPath, FileIngestionMethod, Missing, Store, ValidPathInfo};
 
 use crate::connection::{
@@ -703,7 +703,7 @@ impl Store for DaemonStore {
 				)));
 			}
 		}
-		replace_symlink(Path::new(&path.to_absolute_path()), gc_root)?;
+		make_root_symlink(Path::new(&path.to_absolute_path()), gc_root)?;
 		self.with_conn(|conn| {
 			conn.to
 				.u64(op::ADD_INDIRECT_ROOT)

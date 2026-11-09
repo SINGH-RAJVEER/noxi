@@ -29,9 +29,8 @@ in
 		# with checkConfig off. The VM states the reference format version it
 		# targets; the executables keep their own crate versions.
 		nix.package = lib.mkForce (cfg.package // metadata // { out = cfg.package.out // metadata; });
-		# Nixpkgs validates the generated nix.conf with `nix config show` while
-		# building the system. Configuration inspection remains unqualified;
-		# the guest probes it directly with the packaged CLI.
-		nix.checkConfig = false;
+		# Nixpkgs' default `nix.checkConfig` stays on: the generated nix.conf
+		# is validated with the candidate's own `nix config show` while the
+		# system builds.
 	};
 }

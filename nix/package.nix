@@ -16,9 +16,12 @@ let
 	};
 	members = [ "noxi-cli" ] ++ lib.optionals replacement [ "noxi-commands" "noxi-daemon" ];
 	flags = lib.concatMap (member: [ "-p" member ]) members;
-	# The executables CppNix 2.35.2 installs that noxi does not implement.
-	unimplemented = [ "nix-channel" "nix-prefetch-url" ];
-	implemented = [ "noxi" "nix" "nix-build" "nix-instantiate" "nix-store" "nix-env" "nix-collect-garbage" "nix-daemon" "nix-shell" "nix-copy-closure" "nix-hash" ];
+	# The executables CppNix 2.35.2 installs that noxi does not implement,
+	# each installed as an explicit exit-127 placeholder. Every reference
+	# command now has an engine executable; partial commands fail explicitly
+	# themselves (for example `nix-channel --update`).
+	unimplemented = [ ];
+	implemented = [ "noxi" "nix" "nix-build" "nix-instantiate" "nix-store" "nix-env" "nix-collect-garbage" "nix-daemon" "nix-shell" "nix-copy-closure" "nix-hash" "nix-channel" "nix-prefetch-url" ];
 	notices = lib.fileset.toSource {
 		root = ../.;
 		fileset = lib.fileset.unions (
@@ -67,6 +70,7 @@ if !replacement then binaryPackage else pkgs.runCommand "noxi-replacement-provis
 		cp ${binaryPackage}/bin/"$command" "$out/libexec/noxi/$command"
 		ln -s "../libexec/noxi/$command" "$out/bin/$command"
 	done
+${lib.optionalString (unimplemented != [ ]) ''
 	# Reserve the reference layout without delegating to CppNix. These entry
 	# points fail until their engine implementations exist.
 	cat > "$out/libexec/noxi/unimplemented" <<-'EOF'
@@ -79,6 +83,7 @@ if !replacement then binaryPackage else pkgs.runCommand "noxi-replacement-provis
 		ln -s ../libexec/noxi/unimplemented "$out/bin/$command"
 	done
 	echo ${lib.escapeShellArgs unimplemented} > "$out/share/noxi/unimplemented-commands"
+''}
 
 	# The units and tmpfiles rules CppNix 2.35.2 installs, pointing at this
 	# package. The NixOS daemon module takes them through systemd.packages.
