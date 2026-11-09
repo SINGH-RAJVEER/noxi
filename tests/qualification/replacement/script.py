@@ -542,6 +542,44 @@ def lifecycle() -> None:
 			verify("component-rollback-generation", *is_generation("one"))
 	else:
 		blocked("rollback", "the upgrade did not reach its generation")
+	release_upgrade()
+
+
+def release_upgrade() -> None:
+	"""The previous engine release installed and writing the store, an
+	upgrade to the candidate it evaluates and builds itself, the candidate
+	reading and writing that store, and a rollback whose previous release
+	reads what the candidate wrote."""
+	previous, candidate = expected["previous"], expected["candidate"]
+	run(
+		"release-engines-differ",
+		" && ".join(
+			f"! cmp -s $(readlink -f {previous}/bin/{exe}) $(readlink -f {candidate}/bin/{exe})"
+			for exe in ["nix-daemon", "nix-store", "nix-instantiate"]
+		),
+	)
+	rebuild("release-install-previous", "switch", "previous")
+	if not verify("release-previous-generation", *is_generation("previous")):
+		blocked("release-upgrade", "the previous release is not installed")
+		return
+	daemons("release-previous", previous)
+	old = probe("release-previous-writes", "previous-release")
+	run("release-previous-verifies", "nix-store --verify --check-contents")
+	# The previous release evaluates and switches to the candidate.
+	rebuild("release-upgrade", "switch", "one")
+	verify("release-upgrade-generation", *is_generation("one"))
+	daemons("release-upgraded", candidate)
+	if old is not None:
+		run("release-candidate-reads", f"nix-store -q --hash {old} && nix-store --verify-path {old}")
+	new = probe("release-candidate-writes", "candidate-after-upgrade")
+	rebuild("release-rollback", "switch --rollback", None)
+	verify("release-rollback-generation", *is_generation("previous"))
+	daemons("release-rolled-back", previous)
+	if new is not None:
+		run(
+			"release-previous-reads",
+			f"nix-store -q --hash {new} && nix-store --verify-path {new} && nix-store --verify --check-contents",
+		)
 
 
 def removal() -> None:

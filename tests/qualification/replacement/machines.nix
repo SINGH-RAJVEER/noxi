@@ -11,6 +11,8 @@
 	nixpkgs,
 	home-manager,
 	rust-overlay,
+	# The source of the engine release before the candidate.
+	previous,
 }:
 let
 	system = "x86_64-linux";
@@ -24,6 +26,12 @@ let
 	inherit (pkgs) lib;
 
 	candidate = import ../../../nix/package.nix {
+		inherit pkgs rust-overlay;
+		replacement = true;
+	};
+	# The previous engine release, built from its own source with the same
+	# pins, for the release-to-release upgrade.
+	previousPackage = import (previous + "/nix/package.nix") {
 		inherit pkgs rust-overlay;
 		replacement = true;
 	};
@@ -185,6 +193,7 @@ in
 		pkgs
 		candidate
 		upgrade
+		previousPackage
 		common
 		freshDerivations
 		freshInputs
@@ -196,6 +205,8 @@ in
 		two = generation "two" candidate { };
 		three = generation "three" candidate { };
 		upgrade = generation "upgrade" upgrade { };
+		# The previous release, which the candidate upgrades from.
+		previous = generation "previous" previousPackage { };
 		# Built in the guest by noxi; see `fresh` above.
 		inherit fresh;
 		# A failed upgrade: evaluation stops at a failing assertion, so nothing

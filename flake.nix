@@ -12,9 +12,16 @@
 		# matrix row. A relative input shares this repository's lock, and its
 		# own inputs keep the revisions tests/qualification/flake.lock records.
 		qualification.url = "path:./tests/qualification";
+		# The engine revision before this one (origin/main), for the lifecycle
+		# mode's release-to-release upgrade. Its lock entry was computed from
+		# the local git objects of that pushed commit.
+		noxi-previous = {
+			url = "github:SINGH-RAJVEER/nix-rs/72262bcef840e937781ca0dd4d347fb8273a4985";
+			flake = false;
+		};
 	};
 
-	outputs = { self, nixpkgs, rust-overlay, nix-reference, qualification }:
+	outputs = { self, nixpkgs, rust-overlay, nix-reference, qualification, noxi-previous }:
 		let
 			systems = [ "x86_64-linux" ];
 			forAllSystems = f: nixpkgs.lib.genAttrs systems f;
@@ -23,7 +30,7 @@
 				inherit rust-overlay;
 			};
 			replacement = import ./tests/qualification/replacement/test.nix {
-				inherit self rust-overlay;
+				inherit self rust-overlay noxi-previous;
 				inherit (qualification.inputs) nixpkgs home-manager nix-reference;
 			};
 		in

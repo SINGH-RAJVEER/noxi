@@ -11,6 +11,7 @@
 	home-manager,
 	rust-overlay,
 	nix-reference,
+	noxi-previous,
 }:
 let
 	system = "x86_64-linux";
@@ -20,6 +21,7 @@ let
 		nixpkgs = plain nixpkgs;
 		home-manager = plain home-manager;
 		rust-overlay = plain rust-overlay;
+		previous = plain noxi-previous;
 	};
 	machines = import ./machines.nix sources;
 	inherit (machines) pkgs generations;
@@ -48,6 +50,7 @@ let
 				nixpkgs = "${sources.nixpkgs}";
 				home-manager = "${sources.home-manager}";
 				rust-overlay = "${sources.rust-overlay}";
+				previous = "${sources.previous}";
 			};
 		in
 		builtins.mapAttrs (name: config: { inherit config; }) machines.generations
@@ -61,6 +64,7 @@ let
 				nixpkgs = { url = "path:${sources.nixpkgs}"; flake = false; };
 				home-manager = { url = "path:${sources.home-manager}"; flake = false; };
 				rust-overlay = { url = "path:${sources.rust-overlay}"; flake = false; };
+				previous = { url = "path:${sources.previous}"; flake = false; };
 			};
 			outputs = inputs:
 				let
@@ -69,6 +73,7 @@ let
 						nixpkgs = plain inputs.nixpkgs;
 						home-manager = plain inputs.home-manager;
 						rust-overlay = plain inputs.rust-overlay;
+						previous = plain inputs.previous;
 					};
 				in {
 					nixosConfigurations = builtins.mapAttrs (name: config: { inherit config; }) machines.generations;
@@ -108,6 +113,7 @@ let
 		};
 		candidate = builtins.unsafeDiscardStringContext machines.candidate.outPath;
 		upgrade = builtins.unsafeDiscardStringContext machines.upgrade.outPath;
+		previous = plainPath machines.previousPackage;
 		inherit reference;
 	};
 
@@ -134,6 +140,8 @@ let
 			nixpkgs
 			home-manager
 			rust-overlay
+			noxi-previous
+			machines.previousPackage
 		] ++ map toplevel (builtins.attrNames built);
 	};
 

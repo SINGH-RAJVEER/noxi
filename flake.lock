@@ -345,7 +345,8 @@
 				"nix-reference": "nix-reference",
 				"nixpkgs": "nixpkgs_2",
 				"qualification": "qualification",
-				"rust-overlay": "rust-overlay"
+				"rust-overlay": "rust-overlay",
+				"noxi-previous": "noxi-previous"
 			}
 		},
 		"rust-overlay": {
@@ -365,6 +366,23 @@
 			"original": {
 				"owner": "oxalica",
 				"repo": "rust-overlay",
+				"type": "github"
+			}
+		},
+		"noxi-previous": {
+			"flake": false,
+			"locked": {
+				"lastModified": 1794041437,
+				"narHash": "sha256-uqVx6It45aZFEMAMowONxFnghsb10SGvxO/utlSpV/c=",
+				"owner": "SINGH-RAJVEER",
+				"repo": "nix-rs",
+				"rev": "72262bcef840e937781ca0dd4d347fb8273a4985",
+				"type": "github"
+			},
+			"original": {
+				"owner": "SINGH-RAJVEER",
+				"repo": "nix-rs",
+				"rev": "72262bcef840e937781ca0dd4d347fb8273a4985",
 				"type": "github"
 			}
 		}
