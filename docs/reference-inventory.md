@@ -80,3 +80,54 @@ The trace records commands, not daemon traffic. Home Manager runs as an unprivil
 ## Command implementation update, 2026-11-09
 
 The command crate now provides actual `nix-prefetch-url` and `nix-channel` Cargo executables. The former has fixed-output download comparisons; the latter currently implements subscription-file add/list/remove only. Channel update/rollback/generation commands still fail explicitly, so the classic NixOS channel-update caller remains unsupported. Packaging must replace the two existing placeholders and rerun its layout/VM gates. Modern flake dispatch and installable integration have bounded differential evidence recorded in [verification](verification.md#modern-flake-command-integration-2026-11-09) and [flakes](flakes.md#modern-command-integration-2026-11-09). Historical inventory captures and VM results above are unchanged.
+
+## Profile and nix-env implementation inventory, 2026-11-09
+
+This is the owned command inventory derived from `tests/reference-inventory/cli.json`, `legacy-options.txt`, and the pinned 2.35.2 `src/nix/profile.cc` and `src/nix/nix-env/nix-env.cc`. It does not replace the full reference contract or close the package-manager MVP. Earlier dated results above remain historical evidence.
+
+| Operation | Implemented behavior and differential evidence | Remaining qualification |
+|---|---|---|
+| `profile add` | Store paths, expression/file installables, flake source fields, explicit output selection, content-addressed manifest and generation; `reference_profile` compares source tracking and changed flake realization | v1/v2/v3 and legacy migration compare exactly; default-output metadata, all shared source flags and source kinds need expanded comparisons |
+| `profile list` | JSON and text including original/locked source and output selection; exact stdout in `reference_profile` | Pretty/no-pretty flags and legacy/v1/v2/v3 migrations compare exactly; malformed manifests need expanded comparisons |
+| `profile remove` | Name, path, case-insensitive regex and all selection; shared generation transaction | Selector warnings/errors and regex are compared; inactive elements need expanded comparisons |
+| `profile upgrade` | Re-resolves recorded mutable source, records locked URL and explicit outputs, realizes changed output, preserves priority and active state; exact output/status/manifests/generation comparisons | All locked source kinds, dry-run realization boundaries and shared lock flags need expanded comparisons |
+| `profile history`, `diff-closures` | Generation history and closure version/size differences, compared in `reference_profile` | Size thresholds, output suffixes, empty versions and clock boundaries need expanded comparisons |
+| `profile rollback`, `wipe-history` | Shared legacy generation operations; rollback accepts `--to`; prior generation tests retained | Modern `--to`, dry-run and wipe operations compare exactly; age boundaries need expanded comparisons |
+| `nix-env --install`, `--set` | Store paths, expression/file/default-source discovery, attribute/function/profile selection, auto arguments, newest version/system/priority selection, force-name, priority, preserve/remove-all and prebuilt filtering | Source-mode precedence is compared; default directory discovery, multi-output selection, malformed derivations, selector suggestions and all flag combinations need expanded comparisons |
+| `nix-env --upgrade` | `--lt`, `--leq`, `--eq`, `--always`, source/attribute selection, keep flags and priority/version choice; fixture requires an actual `expression-1` to `expression-2` upgrade | Substituter-backed prebuilt selection, equal-version rebuilds and priority ties need expanded comparisons |
+| `nix-env --query` | Installed/available sources, attribute prefix, name/system/paths/description/status/version columns, JSON/XML and metadata; exact local/daemon transcript comparisons | Lazy malformed derivations, invalid metadata and full prebuilt/substituter matrix remain open |
+| `nix-env --uninstall`, `--set-flag` | Selector operations and metadata transactions; uninstall follows the reference's bidirectional partition order so manifests/generation hashes agree | Full regular-expression dialect and malformed selectors remain open |
+| Legacy generations and profile switching | Existing `reference_nix_env` exact filesystem/output/status comparison retained | No new system/VM qualification |
+
+The only shared dispatcher change is enabling these profile flags in `crates/noxi-commands/src/nix/mod.rs`. The flake adapter still rejects `--commit-lock-file` and `--inputs-from`; those require integration with the flake owner. Shared `--eval-store`, debugger, repair and argument-from-file/stdin behavior also remains outside the evidence above. Production operations are Rust and Nix expressions evaluated by noxi, never calls to a reference executable.
+
+### Exact owned flag inventory
+
+These are command-local flags from the pinned inventory, including shared flags inherited by each command. They remain required even where the implementation or qualification above is incomplete. Global flags remain in `tests/reference-inventory/cli.json` and are not redefined here.
+
+| Modern command | Flags from `cli.json` |
+|---|---|
+| `nix profile add` | `--arg`, `--arg-from-file`, `--arg-from-stdin`, `--argstr`, `--commit-lock-file`, `--debugger`, `--eval-store`, `--expr`, `--file`, `--impure`, `--include`, `--inputs-from`, `--no-registries`, `--no-update-lock-file`, `--no-write-lock-file`, `--output-lock-file`, `--override-flake`, `--override-input`, `--priority`, `--profile`, `--recreate-lock-file`, `--reference-lock-file`, `--repair`, `--stdin`, `--update-input` |
+| `nix profile diff-closures` | `--profile` |
+| `nix profile history` | `--arg`, `--arg-from-file`, `--arg-from-stdin`, `--argstr`, `--debugger`, `--eval-store`, `--impure`, `--include`, `--override-flake`, `--profile`, `--repair` |
+| `nix profile list` | `--arg`, `--arg-from-file`, `--arg-from-stdin`, `--argstr`, `--debugger`, `--eval-store`, `--impure`, `--include`, `--json`, `--no-pretty`, `--override-flake`, `--pretty`, `--profile`, `--repair` |
+| `nix profile remove` | `--all`, `--arg`, `--arg-from-file`, `--arg-from-stdin`, `--argstr`, `--debugger`, `--eval-store`, `--impure`, `--include`, `--override-flake`, `--profile`, `--regex`, `--repair` |
+| `nix profile rollback` | `--dry-run`, `--profile`, `--to` |
+| `nix profile upgrade` | `--all`, `--arg`, `--arg-from-file`, `--arg-from-stdin`, `--argstr`, `--commit-lock-file`, `--debugger`, `--dry-run`, `--eval-store`, `--expr`, `--file`, `--impure`, `--include`, `--inputs-from`, `--no-registries`, `--no-update-lock-file`, `--no-write-lock-file`, `--output-lock-file`, `--override-flake`, `--override-input`, `--profile`, `--recreate-lock-file`, `--reference-lock-file`, `--regex`, `--repair`, `--update-input` |
+| `nix profile wipe-history` | `--dry-run`, `--older-than`, `--profile` |
+
+| Legacy operation | Flags from `legacy-options.txt` |
+|---|---|
+| `--delete-generations` | `--delete-generations` |
+| `--install` | `--attr`, `--from-expression`, `--from-profile`, `--install`, `--prebuilt-only`, `--preserve-installed`, `--priority`, `--remove-all`, `-A`, `-E`, `-P`, `-b`, `-i`, `-r` |
+| `--list-generations` | `--list-generations` |
+| `--query` | `--attr`, `--attr-path`, `--available`, `--compare-versions`, `--description`, `--drv-path`, `--installed`, `--json`, `--meta`, `--no-name`, `--out-path`, `--prebuilt-only`, `--query`, `--status`, `--system`, `--xml`, `-A`, `-P`, `-a`, `-b`, `-c`, `-q`, `-s` |
+| `--rollback` | `--rollback` |
+| `--set-flag` | `--set-flag` |
+| `--switch-generation` | `--switch-generation`, `-G` |
+| `--switch-profile` | `--switch-profile`, `-S` |
+| `--uninstall` | `--uninstall`, `-e` |
+| `--upgrade` | `--always`, `--attr`, `--eq`, `--from-expression`, `--from-profile`, `--leq`, `--lt`, `--prebuilt-only`, `--preserve-installed`, `--upgrade`, `-A`, `-E`, `-P`, `-b`, `-u` |
+| `common` | `--arg`, `--argstr`, `--dry-run`, `--file`, `--option`, `--profile`, `--system-filter`, `-f`, `-p` |
+
+Source inspection additionally includes `--set`, `--force-name`, `--version`, common evaluator argument/include flags and source-profile selection. The manual-derived upgrade inventory lists `--preserve-installed`/`-P`, but 2.35.2's upgrade parser rejects them; the differential scenario retains that rejection. The inventory is not narrowed to accepted or already-tested flags.

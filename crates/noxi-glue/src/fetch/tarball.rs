@@ -20,7 +20,7 @@ pub(crate) fn download_with_headers(
 	url: &str,
 	headers: &[(String, String)],
 ) -> Result<Vec<u8>> {
-	let mount = download_file(store, url, "source", headers)?;
+	let (mount, _) = download_file(store, url, "source", headers)?;
 	Ok(fs::read(mount.root)?)
 }
 
@@ -49,20 +49,18 @@ fn request(
 	}
 	let response = store.http_request(&request)?;
 	if response.status != 304 && !(200..300).contains(&response.status) {
-		return Err(Error::new(format!(
-			"unable to download '{url}': HTTP error {}",
-			response.status
-		)));
+		return Err(super::http::download_error(url, &response));
 	}
 	Ok(response)
 }
 
-fn download_file(
+/// Download and cache a flat file, retaining its effective redirect URL.
+pub fn download_file(
 	store: &EvaluatorStore,
 	url: &str,
 	name: &str,
 	headers: &[(String, String)],
-) -> Result<Mount> {
+) -> Result<(Mount, String)> {
 	let cache = store.fetch_cache()?;
 	let key: Attrs = [
 		("url".into(), url.into()),
@@ -85,7 +83,10 @@ fn download_file(
 	if let Some(mount) = &cached_mount
 		&& (store.fetch_config.borrow().offline || !cached.as_ref().unwrap().expired)
 	{
-		return Ok(mount.clone());
+		return Ok((
+			mount.clone(),
+			get_str_attr(&cached.as_ref().unwrap().value, "url")?,
+		));
 	}
 	let etag = cached
 		.as_ref()
@@ -95,7 +96,7 @@ fn download_file(
 		Err(e) => {
 			if let Some(mount) = cached_mount {
 				noxi_flakeref::warn(&format!("{e}; using cached version"));
-				return Ok(mount);
+				return Ok((mount, get_str_attr(&cached.as_ref().unwrap().value, "url")?));
 			} else {
 				return Err(e);
 			}
@@ -104,8 +105,8 @@ fn download_file(
 	if response.status == 304 {
 		let mount =
 			cached_mount.ok_or_else(|| Error::new("HTTP 304 without a valid cached file"))?;
-		cache.upsert("file", &key, &cached.unwrap().value)?;
-		return Ok(mount);
+		cache.upsert("file", &key, &cached.as_ref().unwrap().value)?;
+		return Ok((mount, get_str_attr(&cached.as_ref().unwrap().value, "url")?));
 	}
 	let keep = Rc::new(tempfile::tempdir()?);
 	let root = keep.path().join("file");
@@ -144,16 +145,16 @@ fn download_file(
 	cache.upsert("file", &key, &value)?;
 	if response.effective_url != url {
 		let mut key = key;
-		key.insert("url".into(), response.effective_url.into());
+		key.insert("url".into(), response.effective_url.clone().into());
 		cache.upsert("file", &key, &value)?;
 	}
-	Ok(Mount::new(physical))
+	Ok((Mount::new(physical), response.effective_url))
 }
 
 pub(crate) fn get_file_accessor(store: &EvaluatorStore, input: &Input) -> Result<(Mount, Input)> {
 	let url = get_str_attr(&input.attrs, "url")?;
 	Ok((
-		download_file(store, &url, &input.get_name(), &[])?,
+		download_file(store, &url, &input.get_name(), &[])?.0,
 		input.clone(),
 	))
 }

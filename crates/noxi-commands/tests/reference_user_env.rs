@@ -38,7 +38,7 @@ const SCENARIO: &str = r#"
 set -u
 mount -t overlay overlay -o lowerdir=/nix/store,upperdir=$G/up,workdir=$G/work /nix/store || exit 90
 export HOME=$G/home NIX_STATE_DIR=$G/state NIX_LOG_DIR=$G/log NIX_CONF_DIR=$G/etc NIX_PATH=
-export NIX_CONFIG=$'build-users-group =\nsandbox = false\nsubstituters =\n'
+export NIX_CONFIG=$'build-users-group =\nsandbox = false\nsubstituters =\nrequire-drop-supplementary-groups = false\n'
 export NIX_REMOTE=local
 if [ "$MODE" = daemon ]; then
 	# The daemon must not hold the test's output open.
@@ -64,6 +64,53 @@ run() {
 }
 run -i $a; run -q; run -i $c; run -q --out-path; run -i $b; run -q; run -i $d
 run --set-flag keep true hello; run --set-flag priority 7 tool; run --set-flag custom value; run --set-flag keep false missing; run --set-flag;
+cat > $G/packages.nix <<EOF
+{ hello1 = { type = "derivation"; name = "hello-1.0"; outPath = "$a"; system = "x86_64-linux"; meta.description = "First hello"; };
+  hello2 = { type = "derivation"; name = "hello-2.0"; outPath = "$b"; system = "x86_64-linux"; meta.description = "Second hello"; };
+  tool = { type = "derivation"; name = "tool"; outPath = "$c"; system = "x86_64-linux"; };
+}
+EOF
+cat > $G/lazy.nix <<'EOF'
+{ lazy = { type = "derivation"; name = "lazy-1"; outPath = throw "unused output"; drvPath = throw "unused derivation"; meta = throw "unused metadata"; }; }
+EOF
+run -qa -f $G/lazy.nix
+run -qa -f $G/lazy.nix --json
+run -qa -f $G/lazy.nix --xml
+run -qa -f $G/packages.nix --attr-path --description
+run -qa -f $G/packages.nix --json --out-path --meta
+run -qa -f $G/packages.nix --xml --out-path --meta
+run -qa -f $G/packages.nix --status
+run -qa -f $G/packages.nix --compare-versions
+run -q -f $G/packages.nix --compare-versions
+run -qa -f $G/packages.nix -A hello1 --description
+run -qa -f $G/packages.nix --system-filter other
+run -i -f $G/packages.nix hello --priority bad
+run -i -f $G/packages.nix hello --priority 2147483648
+run -i -f $G/packages.nix hello --priority 9 --dry-run
+run -i -f $G/packages.nix hello --preserve-installed --dry-run
+run -i -f $G/packages.nix tool --remove-all --dry-run
+run -qa -f $G/packages.nix --prebuilt-only --no-name --out-path
+run -u -f $G/packages.nix --preserve-installed
+run -i -f $G/packages.nix --force-name renamed -A tool --dry-run
+run -i --from-profile $P tool --dry-run
+run -i -f $G/packages.nix --from-profile $P -A hello1 --dry-run
+run -i -f $G/packages.nix -A --from-profile $P tool --dry-run
+run -i -f $G/packages.nix -A hello1
+run -u -f $G/packages.nix --eq hello
+run -u -f $G/packages.nix --leq hello --dry-run
+run -u -f $G/packages.nix hello
+run -q --out-path
+run -u -f $G/packages.nix --always -A hello1
+run -q --out-path
+run -i -f $G/packages.nix -E 'p: p.hello2'
+run -q --out-path
+cat > $G/function.nix <<'EOF'
+{ suffix }: { demo = derivation { name = "expression-" + suffix; system = "builtin"; builder = "builtin:buildenv"; derivations = ""; manifest = builtins.toFile "empty.nix" "[]"; }; }
+EOF
+run -i -f $G/function.nix --argstr suffix 1 -A demo
+run -u -f $G/function.nix --arg suffix '"2"' -A demo
+run -q --out-path
+run -e expression
 run -e hello; run -q; run -e nothing; run -i $a --dry-run; run -q --out-path --system --drv-path
 run --list-generations | sed -E 's/[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9:]{8}/DATE/'
 for g in $P-*-link; do
@@ -121,7 +168,21 @@ fn manages_user_environments_like_cppnix() {
 	for mode in ["local", "daemon"] {
 		let expected = run(&dir, &reference, mode);
 		assert!(expected.contains("replacing old 'hello-1.0'"), "{expected}");
+		assert!(
+			expected.contains("upgrading 'expression-1' to 'expression-2'"),
+			"{expected}"
+		);
 		let actual = run(&dir, noxi, mode);
+		if let Some(path) = std::env::var_os("NOXI_PROFILE_EVIDENCE") {
+			let path = PathBuf::from(path);
+			std::fs::create_dir_all(&path).unwrap();
+			std::fs::write(
+				path.join(format!("user-env-{mode}-reference.txt")),
+				&expected,
+			)
+			.unwrap();
+			std::fs::write(path.join(format!("user-env-{mode}-candidate.txt")), &actual).unwrap();
+		}
 		assert_eq!(actual, expected, "in {mode} mode");
 	}
 	let _ = Command::new("unshare")

@@ -102,13 +102,18 @@ pub fn run(mut settings: Settings, args: Vec<String>) -> Result<ExitCode, Failur
 			.request(&Request::get(url.as_str()))
 			.map_err(|e| e.to_string())?;
 		if !(200..300).contains(&response.status) {
-			return Err(Failure::Error(format!(
-				"unable to download '{}': HTTP error {}",
-				url, response.status
-			)));
+			return Err(Failure::Error(
+				noxi_glue::fetch::http::download_error(url.as_str(), &response).to_string(),
+			));
 		}
 		response.body
 	};
+	let temporary = tempfile::Builder::new()
+		.prefix(&format!("nix-{}-", std::process::id()))
+		.tempdir()?;
+	let downloaded = temporary.path().join("tmp");
+	fs::write(&downloaded, &bytes)?;
+	let mut mismatch_path = downloaded.clone();
 	let mut dump = tempfile::tempfile()?;
 	let method = if unpack || executable {
 		FileIngestionMethod::NixArchive
@@ -117,6 +122,7 @@ pub fn run(mut settings: Settings, args: Vec<String>) -> Result<ExitCode, Failur
 	};
 	if unpack {
 		let (mount, _) = noxi_glue::fetch::unpack_tarball(bytes).map_err(|e| e.to_string())?;
+		mismatch_path = mount.root.clone();
 		noxi_store::nar::dump_path(&mut dump, &mount.root)?;
 	} else if executable {
 		let mut file = tempfile::NamedTempFile::new()?;
@@ -146,10 +152,8 @@ pub fn run(mut settings: Settings, args: Vec<String>) -> Result<ExitCode, Failur
 		&& actual != expected
 	{
 		return Err(Failure::Error(format!(
-			"hash mismatch for '{}':\n  specified: {}\n     got:    {}",
-			url,
-			expected.to_string(HashFormat::Sri, true),
-			actual.to_string(HashFormat::Sri, true)
+			"hash mismatch for '{}'",
+			mismatch_path.display()
 		)));
 	}
 	dump.rewind()?;

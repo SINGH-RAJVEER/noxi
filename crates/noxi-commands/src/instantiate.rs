@@ -718,7 +718,12 @@ pub fn evaluate(options: &Options, cwd: &Path) -> Result<Evaluated, ExitCode> {
 		}
 		for error in &result.errors {
 			options.error_codes.borrow_mut().push(error.code());
-			print_evaluation_error(error, &options.settings);
+			// The flake adapter is command plumbing, not a Nix source call.
+			let command_error = options
+				.flake
+				.as_ref()
+				.map(|_| crate::nix::flakes::command_error(error));
+			print_evaluation_error(command_error.as_ref().unwrap_or(error), &options.settings);
 		}
 		let status = result
 			.errors

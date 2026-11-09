@@ -71,6 +71,8 @@ let
     else if meta ? outputsToInstall then builtins.listToAttrs (map (o: { name = o; value = all.${o}; }) meta.outputsToInstall)
     else all;
 in map (e: {
+  attrPath = e.__noxiAttrPath or "";
+  outputName = e.outputName or "";
   name = e.name;
   system = e.system or "unknown";
   outPath = toString e.outPath;
@@ -85,6 +87,8 @@ in map (e: {
 #[derive(Clone, Debug)]
 pub struct Element {
 	pub name: String,
+	pub attr_path: String,
+	pub output_name: String,
 	/// `querySystem`; empty for a store path given on the command line.
 	pub system: String,
 	pub out_path: StorePath,
@@ -117,6 +121,8 @@ impl Element {
 		let outputs = BTreeMap::from([("out".to_owned(), out_path.clone())]);
 		Ok(Self {
 			name,
+			attr_path: String::new(),
+			output_name: String::new(),
 			system: String::new(),
 			out_path,
 			drv_path,
@@ -126,7 +132,7 @@ impl Element {
 		})
 	}
 
-	fn meta(&self, name: &str) -> Option<Value> {
+	pub fn meta(&self, name: &str) -> Option<Value> {
 		self.meta.to_attrs().ok()?.select(name).map(forced)
 	}
 
@@ -256,7 +262,10 @@ fn string_of(value: &Value) -> Result<String, Failure> {
 }
 
 fn store_path_of(value: &Value) -> Result<StorePath, Failure> {
-	let s = string_of(value)?;
+	let s = value
+		.to_contextful_str()
+		.map_err(|e| Failure::Error(e.to_string()))?;
+	let s = String::from_utf8_lossy(s.as_bytes()).into_owned();
 	StorePath::from_absolute_path(s.as_bytes())
 		.map(|p| p.to_owned())
 		.map_err(|_| Failure::Error(format!("path '{s}' is not in the Nix store")))
@@ -308,7 +317,16 @@ pub fn query_installed(
 	if std::fs::symlink_metadata(&manifest).is_err() {
 		return Ok(Ok(Vec::new()));
 	}
-	let manifest = std::fs::canonicalize(&manifest)?;
+	query_manifest(settings, cwd, &manifest)
+}
+
+/// Read a resolved legacy manifest, including one in a diverted store.
+pub fn query_manifest(
+	settings: &nix_compat::nixcpp::settings::Settings,
+	cwd: &Path,
+	manifest: &Path,
+) -> Result<Result<Vec<Element>, ExitCode>, Failure> {
+	let manifest = std::fs::canonicalize(manifest)?;
 	let expr = format!(
 		"({READ_MANIFEST}) {}",
 		crate::instantiate::nix_string_literal(&manifest.to_string_lossy())
@@ -317,8 +335,11 @@ pub fn query_installed(
 		Ok(evaluated) => evaluated,
 		Err(code) => return Ok(Err(code)),
 	};
-	let list = evaluated
-		.results
+	read_elements(&evaluated.results)
+}
+
+fn read_elements(results: &[Value]) -> Result<Result<Vec<Element>, ExitCode>, Failure> {
+	let list = results
 		.first()
 		.and_then(|v| v.to_list().ok())
 		.ok_or_else(|| Failure::Error("the manifest is not a list".to_owned()))?;
@@ -332,6 +353,8 @@ pub fn query_installed(
 			value => Some(store_path_of(&value)?),
 		};
 		elements.push(Element {
+			attr_path: string_of(&select(&attrs, "attrPath")?)?,
+			output_name: string_of(&select(&attrs, "outputName")?)?,
 			name: string_of(&select(&attrs, "name")?)?,
 			system: string_of(&select(&attrs, "system")?)?,
 			out_path: store_path_of(&select(&attrs, "outPath")?)?,
@@ -342,6 +365,93 @@ pub fn query_installed(
 		});
 	}
 	Ok(Ok(elements))
+}
+
+/// Evaluate a source expression and retain derivation metadata for installation.
+
+pub fn query_available(
+	options: &Options,
+	cwd: &Path,
+	root: &str,
+	paths: bool,
+	drv: bool,
+	meta: bool,
+) -> Result<Result<Vec<Element>, ExitCode>, Failure> {
+	let dummy = "\"/nix/store/00000000000000000000000000000000-query-placeholder\"";
+	let mut normalize = READ_MANIFEST.replace("(import manifest)", "manifest");
+	if !paths {
+		normalize = normalize.replace(
+			"outPath = toString e.outPath;",
+			&format!("outPath = {dummy};"),
+		);
+		normalize = normalize.replace("outputs = outputsOf e;", &format!("outputs = builtins.listToAttrs (map (n: {{ name = n; value = {dummy}; }}) (e.outputs or [\"out\"]));"));
+	}
+	if !drv {
+		normalize = normalize.replace(
+			"drvPath = if e ? drvPath then toString e.drvPath else null;",
+			"drvPath = null;",
+		);
+	}
+	if !meta {
+		normalize = normalize.replace("meta = metaOf e;\n})", "meta = {};\n})");
+	}
+	normalize = normalize.replace("install = toInstall e;", "install = {};");
+	query_expression_impl(options, cwd, root, normalize)
+}
+pub fn query_expression(
+	options: &Options,
+	cwd: &Path,
+	root: &str,
+) -> Result<Result<Vec<Element>, ExitCode>, Failure> {
+	query_expression_impl(
+		options,
+		cwd,
+		root,
+		READ_MANIFEST.replace("(import manifest)", "manifest"),
+	)
+}
+
+fn query_expression_impl(
+	options: &Options,
+	cwd: &Path,
+	root: &str,
+	normalize: String,
+) -> Result<Result<Vec<Element>, ExitCode>, Failure> {
+	let collect = r#"auto: root: let
+	  walk = path: top: v:
+	    if builtins.isFunction v then walk path top (v (builtins.intersectAttrs (builtins.functionArgs v) auto))
+	    else if builtins.isAttrs v && (v.type or "") == "derivation" then [ (v // { __noxiAttrPath = path; }) ]
+	    else if builtins.isList v then builtins.concatMap (walk path true) v
+	    else if builtins.isAttrs v && (top || (v.recurseForDerivations or false)) then builtins.concatMap
+	      (n: if n == "recurseForDerivations" then [] else walk (if path == "" then n else path + "." + n) false v.${n}) (builtins.attrNames v)
+	    else [];
+	in walk "" true root"#;
+
+	let mut options = options.clone();
+	options.from_args = true;
+	options.eval = true;
+	options.strict = true;
+	let auto = options
+		.auto_args
+		.iter()
+		.map(|(name, arg)| {
+			format!(
+				"{} = {};",
+				instantiate::nix_string_literal(name),
+				match arg {
+					instantiate::AutoArg::Expr(e) => format!("({e})"),
+					instantiate::AutoArg::Str(s) => instantiate::nix_string_literal(s),
+				}
+			)
+		})
+		.collect::<Vec<_>>()
+		.join(" ");
+	options.inputs = vec![format!("({normalize}) (({collect}) {{ {auto} }} ({root}))")];
+	let evaluated = match instantiate::evaluate(&options, cwd) {
+		Ok(value) => value,
+		Err(code) => return Ok(Err(code)),
+	};
+	read_elements(&evaluated.results)
 }
 
 /// `optimisticLockProfile`: the profile's link target, to notice another

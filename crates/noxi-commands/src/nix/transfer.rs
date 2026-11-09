@@ -209,6 +209,7 @@ fn copy_between_stores(
 		.split('?')
 		.next()
 		.unwrap_or(&destination_uri);
+	let shown = if shown == "local" { "local://" } else { shown };
 	destination.store.add_multiple_to_store(
 		&infos,
 		&mut |path, sink| {

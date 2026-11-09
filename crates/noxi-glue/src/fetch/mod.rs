@@ -10,7 +10,7 @@ pub mod flake;
 pub(crate) mod git;
 pub(crate) mod github;
 pub mod http;
-pub use tarball::unpack as unpack_tarball;
+pub use tarball::{download_file, unpack as unpack_tarball};
 mod lfs;
 pub(crate) mod path;
 pub(crate) mod tarball;
@@ -80,6 +80,40 @@ impl EvaluatorStore {
 	/// Set the settings fetchers use for the rest of the evaluation.
 	pub fn configure_fetching(&self, config: FetchConfig) {
 		*self.fetch_config.borrow_mut() = config;
+	}
+
+	/// Add command-local registry overrides and invalidate only registry resolution.
+	pub fn extend_flake_overrides(&self, overrides: Vec<(String, String)>) {
+		self.fetch_config
+			.borrow_mut()
+			.override_flakes
+			.extend(overrides);
+		self.fetch_state.borrow_mut().registries = None;
+	}
+
+	/// Override a registry entry without losing fetcher attributes such as __final.
+	pub fn override_flake_input(
+		&self,
+		name: &str,
+		reference: &noxi_flakeref::flake_ref::FlakeRef,
+	) -> Result<()> {
+		let settings = self.fetch_settings();
+		let from = Input::from_attrs(
+			&settings,
+			[
+				("type".into(), "indirect".into()),
+				("id".into(), name.into()),
+			]
+			.into(),
+		)?;
+		let mut registries = self.registries()?.as_ref().clone();
+		let mut extra = noxi_flakeref::input::Attrs::new();
+		if !reference.subdir.is_empty() {
+			extra.insert("dir".into(), reference.subdir.clone().into());
+		}
+		registries[0].add(from, reference.input.clone(), extra);
+		self.fetch_state.borrow_mut().registries = Some(Rc::new(registries));
+		Ok(())
 	}
 
 	pub fn fetch_settings(&self) -> FetchSettings {

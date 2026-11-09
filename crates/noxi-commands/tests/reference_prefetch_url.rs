@@ -116,6 +116,22 @@ fn mismatch_does_not_register_download() {
 			"0000000000000000000000000000000000000000000000000000",
 		],
 	);
+	let oracle_root = tempfile::tempdir().unwrap();
+	let oracle = run(
+		&reference("nix-prefetch-url"),
+		oracle_root.path(),
+		&[
+			&format!("file://{}", source.display()),
+			"0000000000000000000000000000000000000000000000000000",
+		],
+	);
+	assert_eq!(oracle.status.code(), output.status.code());
+	assert_eq!(oracle.stdout, output.stdout);
+	let temporary_path = regex::Regex::new(r"/tmp/nix-[^/]+/tmp").unwrap();
+	assert_eq!(
+		temporary_path.replace_all(&String::from_utf8_lossy(&oracle.stderr), "TMP/tmp"),
+		temporary_path.replace_all(&String::from_utf8_lossy(&output.stderr), "TMP/tmp")
+	);
 	assert!(!output.status.success());
 	assert!(String::from_utf8_lossy(&output.stderr).contains("hash mismatch"));
 	assert!(output.stdout.is_empty());
@@ -196,4 +212,41 @@ fn http_redirects_and_expected_hash_reuse() {
 		);
 		assert_eq!(output.stdout, stdout.as_bytes());
 	}
+}
+
+#[test]
+fn http_not_found_error_matches_reference() {
+	use std::{
+		io::{Read, Write},
+		net::TcpListener,
+	};
+	let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+	let addr = listener.local_addr().unwrap();
+	let server = std::thread::spawn(move || {
+		for _ in 0..2 {
+			let (mut stream, _) = listener.accept().unwrap();
+			stream
+				.set_read_timeout(Some(std::time::Duration::from_secs(3)))
+				.unwrap();
+			let mut request = [0; 4096];
+			let _ = stream.read(&mut request).unwrap();
+			stream.write_all(b"HTTP/1.1 404 Not Found\r\nContent-Length: 8\r\nConnection: close\r\n\r\nmissing\n").unwrap();
+		}
+	});
+	let roots = [tempfile::tempdir().unwrap(), tempfile::tempdir().unwrap()];
+	let url = format!("http://{addr}/missing");
+	let a = run(&reference("nix-prefetch-url"), roots[0].path(), &[&url]);
+	let b = run(
+		Path::new(env!("CARGO_BIN_EXE_nix-prefetch-url")),
+		roots[1].path(),
+		&[&url],
+	);
+	assert_eq!(a.status.code(), Some(1));
+	assert_eq!(b.status.code(), Some(1));
+	assert_eq!(a.stdout, b.stdout);
+	assert_eq!(
+		String::from_utf8_lossy(&a.stderr),
+		String::from_utf8_lossy(&b.stderr)
+	);
+	server.join().unwrap();
 }
