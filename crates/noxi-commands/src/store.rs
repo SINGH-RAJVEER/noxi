@@ -133,7 +133,7 @@ fn client_options(settings: &Settings) -> noxi_daemon::client::ClientOptions {
 		None => 1,
 	};
 	let overrides = settings
-		.overridden()
+		.forwarded()
 		.filter(|(name, _, _)| FORWARDED_SETTINGS.contains(name))
 		.map(|(name, value, replaces_default)| {
 			let value = if replaces_default {

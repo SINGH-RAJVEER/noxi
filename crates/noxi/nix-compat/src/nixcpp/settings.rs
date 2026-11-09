@@ -138,6 +138,9 @@ struct Entry {
 	value: String,
 	/// False when only `extra-NAME` was given, which appends to the default.
 	replaces_default: bool,
+	/// CppNix's `overridden` flag: set after the system nix.conf, which
+	/// `loadConfFile` resets, and therefore sent to the daemon.
+	overridden: bool,
 }
 
 /// Settings read so far, with the warnings CppNix printed while reading them.
@@ -157,6 +160,8 @@ impl Settings {
 		let mut settings = Settings::default();
 		let conf_dir = env("NIX_CONF_DIR").unwrap_or_else(|| "/etc/nix".to_owned());
 		settings.apply_file(&Path::new(&conf_dir).join("nix.conf"))?;
+		// Only user files, NIX_CONFIG and flags are overrides for the daemon.
+		settings.reset_overridden();
 		for file in user_config_files(&env).iter().rev() {
 			settings.apply_file(Path::new(file))?;
 		}
@@ -232,17 +237,22 @@ impl Settings {
 		let entry = self.values.entry(info.name).or_insert(Entry {
 			value: String::new(),
 			replaces_default: false,
+			overridden: true,
 		});
 		if !append {
 			*entry = Entry {
 				value,
 				replaces_default: true,
+				overridden: true,
 			};
-		} else if !value.is_empty() {
-			if !entry.value.is_empty() {
-				entry.value.push(' ');
+		} else {
+			entry.overridden = true;
+			if !value.is_empty() {
+				if !entry.value.is_empty() {
+					entry.value.push(' ');
+				}
+				entry.value.push_str(&value);
 			}
-			entry.value.push_str(&value);
 		}
 		Ok(true)
 	}
@@ -333,6 +343,23 @@ impl Settings {
 		self.values
 			.iter()
 			.map(|(name, entry)| (*name, entry.value.as_str(), entry.replaces_default))
+	}
+
+	/// The settings CppNix's `getSettings(res, true)` returns: those set
+	/// after the system nix.conf, which a client sends to its daemon.
+	pub fn forwarded(&self) -> impl Iterator<Item = (&'static str, &str, bool)> {
+		self.values
+			.iter()
+			.filter(|(_, entry)| entry.overridden)
+			.map(|(name, entry)| (*name, entry.value.as_str(), entry.replaces_default))
+	}
+
+	/// Clear every setting's overridden flag, as `loadConfFile` does after
+	/// the system nix.conf.
+	pub fn reset_overridden(&mut self) {
+		for entry in self.values.values_mut() {
+			entry.overridden = false;
+		}
 	}
 
 	/// The value of a Boolean setting, or `default`.

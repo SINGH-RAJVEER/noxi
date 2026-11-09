@@ -276,6 +276,15 @@ fn commands_work_through_the_reference_daemon() {
 		("nix-store", vec!["-qR", busybox]),
 		("nix-store", vec!["--realise", missing]),
 		("nix-env", vec!["-p", "{work}/profile", "--set", busybox]),
+		(
+			"nix-store",
+			vec![
+				"--realise",
+				busybox,
+				"--add-root",
+				"{work}/gcroots/new/root",
+			],
+		),
 		("nix-store", vec!["-q", "--referrers", busybox]),
 	];
 	for (program, args) in cases {
@@ -289,6 +298,48 @@ fn commands_work_through_the_reference_daemon() {
 		let work = env.dir.path().join(format!("work-{engine}"));
 		assert!(fs::read_link(work.join("result-ok")).is_ok());
 		assert!(fs::read_link(work.join("profile-1-link")).is_ok());
+	}
+}
+
+/// CppNix clients forward only overrides: settings from user files,
+/// `NIX_CONFIG` and flags, not the system nix.conf, which `loadConfFile`
+/// resets. A NixOS system nix.conf full of restricted settings therefore
+/// produces no daemon warnings for an untrusted client, as Home Manager's
+/// standalone activation relies on.
+#[test]
+fn system_configuration_is_not_forwarded_to_the_daemon() {
+	let env = Env::new();
+	let system = "require-sigs = true\nauto-optimise-store = false\nsandbox = true\n\
+		system-features = nixos-test benchmark big-parallel kvm\n\
+		trusted-public-keys = cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY=\n\
+		trusted-substituters = \nextra-sandbox-paths = \nmax-silent-time = 1K\n";
+	fs::write(env.dir.path().join("conf/nix.conf"), system).unwrap();
+	let user = env.dir.path().join("home/.config/nix");
+	fs::create_dir_all(&user).unwrap();
+	for (user_conf, args) in [
+		("", vec!["-q", "--references", env.busybox.as_str()]),
+		(
+			"require-sigs = false\nextra-trusted-public-keys = a:b\n",
+			vec!["-q", "--references", env.busybox.as_str()],
+		),
+		(
+			"",
+			vec![
+				"-q",
+				"--references",
+				env.busybox.as_str(),
+				"--option",
+				"system-features",
+				"kvm",
+			],
+		),
+	] {
+		fs::write(user.join("nix.conf"), user_conf).unwrap();
+		let expected = env.run("reference", "nix-store", &args);
+		let actual = env.run("noxi", "nix-store", &args);
+		assert_eq!(actual, expected, "{user_conf}{args:?}");
+		let actual = env.run("pair", "nix-store", &args);
+		assert_eq!(actual, expected, "{user_conf}{args:?} with the noxi daemon");
 	}
 }
 
