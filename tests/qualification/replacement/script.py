@@ -9,6 +9,7 @@
 
 import json
 import shlex
+from typing import Any
 
 SYSTEM = "/etc/qualification/system.nix"
 FLAKE = "/etc/qualification/flake"
@@ -24,7 +25,7 @@ FAILED_BUILD = (
 steps: list[dict] = []
 expected: dict = {}
 # CppNix outputs the candidate must reproduce, recorded before the swap.
-controls: dict[str, str] = {}
+controls: dict[str, Any] = {}
 PREFETCH = "printf 'noxi qualification\\n' > /tmp/prefetch-input && nix-prefetch-url file:///tmp/prefetch-input"
 
 
