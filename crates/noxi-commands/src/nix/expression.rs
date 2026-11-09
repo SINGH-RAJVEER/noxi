@@ -23,14 +23,7 @@ pub fn options(parsed: &Parsed, eval: bool) -> Result<Options, Failure> {
 		));
 	}
 	let pure = !parsed.has("file") && parsed.settings.get_bool("pure-eval", true);
-	parsed.unsupported(&[
-		"eval-store",
-		"write-to",
-		"debugger",
-		"override-input",
-		"inputs-from",
-		"profile",
-	])?;
+	parsed.unsupported(&["eval-store", "write-to", "debugger", "inputs-from"])?;
 	let mut options = Options {
 		modern_pure: pure,
 		eval,
@@ -73,10 +66,8 @@ pub fn options(parsed: &Parsed, eval: bool) -> Result<Options, Failure> {
 			format!("import {}", nix_string_literal(&absolute.to_string_lossy()))
 		}
 	} else {
-		return Err(unsupported(&format!(
-			"{} flake installables; use --expr or --file",
-			parsed.command
-		)));
+		options.flake = Some(super::flakes::request(parsed, "outputs")?);
+		String::new()
 	};
 	let selections = if parsed.operands.is_empty() {
 		vec![String::new()]
@@ -91,6 +82,58 @@ pub fn options(parsed: &Parsed, eval: bool) -> Result<Options, Failure> {
 	}
 	options.from_args = true;
 	for selection in selections {
+		let (root, selection) = if options.flake.is_some() {
+			let (reference, attr) = selection.split_once('#').unwrap_or((
+				if selection.is_empty() {
+					"."
+				} else {
+					&selection
+				},
+				"",
+			));
+			let base = format!("(__noxi_flake {})", nix_string_literal(reference));
+			let system = parsed.settings.get("system").unwrap_or("x86_64-linux");
+			let prefixes: Vec<String> = match parsed.command {
+				"develop" | "print-dev-env" => vec![
+					format!("devShells.{system}"),
+					format!("packages.{system}"),
+					format!("legacyPackages.{system}"),
+				],
+				"run" => vec![
+					format!("apps.{system}"),
+					format!("packages.{system}"),
+					format!("legacyPackages.{system}"),
+				],
+				_ => vec![
+					format!("packages.{system}"),
+					format!("legacyPackages.{system}"),
+				],
+			};
+			let selected = if attr.is_empty() { "default" } else { attr };
+			let mut candidates: Vec<String> = prefixes
+				.iter()
+				.map(|prefix| format!("{prefix}.{selected}"))
+				.collect();
+			if !attr.is_empty() {
+				candidates.push(attr.into());
+			}
+			let mut result = format!(
+				"throw {}",
+				nix_string_literal(&format!("flake does not provide attribute '{selected}'"))
+			);
+			for candidate in candidates.into_iter().rev() {
+				let attrs = instantiate::parse_attr_path(&candidate)
+					.map_err(Failure::Usage)?
+					.iter()
+					.map(|s| nix_string_literal(s))
+					.collect::<Vec<_>>()
+					.join(".");
+				result = format!("if f ? {attrs} then f.{attrs} else ({result})");
+			}
+			(format!("let f = {base}; in {result}"), String::new())
+		} else {
+			(root.clone(), selection)
+		};
 		let mut expression = format!("({root}\n)");
 		for attr in instantiate::parse_attr_path(&selection).map_err(Failure::Usage)? {
 			expression = format!("({expression}).{}", nix_string_literal(&attr));
@@ -141,7 +184,14 @@ pub struct Targets {
 }
 
 pub fn targets(parsed: &Parsed) -> Result<Result<Targets, ExitCode>, Failure> {
-	if parsed.has("expr") || parsed.has("file") {
+	if parsed.has("expr")
+		|| parsed.has("file")
+		|| parsed.operands.is_empty()
+		|| parsed
+			.operands
+			.iter()
+			.any(|s| !s.starts_with("/nix/store/") && !std::path::Path::new(s).is_symlink())
+	{
 		let options = options(parsed, false)?;
 		let evaluated = match instantiate::evaluate(&options, &std::env::current_dir()?) {
 			Ok(value) => value,

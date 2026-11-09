@@ -342,7 +342,8 @@ fn unsupported_develop_options_fail_explicitly() {
 			"--impure",
 			"--file",
 			"dev.nix",
-			"--profile",
+			"--redirect",
+			"/nix/store/00000000000000000000000000000000-redirect",
 			"p",
 			"-c",
 			"true",
@@ -431,4 +432,99 @@ fn build_logs_follow_the_log_format() {
 	let (status, _, stderr) = f.run("noxi", &args.iter().map(String::as_str).collect::<Vec<_>>());
 	assert_eq!(status, Some(1));
 	assert!(stderr.contains("is not supported by noxi yet"), "{stderr}");
+}
+
+#[test]
+fn print_dev_env_profile_points_to_matching_environment() {
+	let f = Fixture::new();
+	f.same(&[
+		"print-dev-env",
+		"--impure",
+		"--file",
+		"dev.nix",
+		"--profile",
+		"dev-profile",
+		"--json",
+	]);
+	for link in ["dev-profile", "dev-profile-1-link"] {
+		assert_eq!(
+			fs::read_link(f.engine("reference").join("work").join(link)).unwrap(),
+			fs::read_link(f.engine("noxi").join("work").join(link)).unwrap()
+		);
+	}
+}
+#[test]
+fn flake_packages_build_shell_run_and_dev_environment() {
+	let f = Fixture::new();
+	for engine in ENGINES {
+		fs::write(f.engine(engine).join("work/flake.nix"), "{ outputs = { self }: { packages.x86_64-linux.default = import ./pkg.nix; devShells.x86_64-linux.default = import ./dev.nix; }; }").unwrap();
+	}
+	for args in [
+		vec!["build", "--no-link", "--print-out-paths"],
+		vec!["shell", "--command", "true"],
+		vec!["run", "--", "a", "b"],
+		vec!["print-dev-env", "--json"],
+		vec!["develop", "--command", "true"],
+	] {
+		let mut flags = vec![
+			"--extra-experimental-features",
+			"flakes",
+			"--option",
+			"flake-registry",
+			"",
+			args[0],
+			"--impure",
+			"--no-write-lock-file",
+		];
+		flags.extend_from_slice(&args[1..]);
+		let a = f.run("reference", &flags);
+		let b = f.run("noxi", &flags);
+		assert_eq!(a.0, b.0, "{flags:?}: {}", b.2);
+		assert_eq!(a.1, b.1, "{flags:?}: {}", b.2);
+	}
+}
+
+#[test]
+fn flake_develop_resolves_bash_in_the_selected_store() {
+	let f = Fixture::new();
+	let busybox = fs::canonicalize(from_env_or_target(
+		"NOXI_TEST_BUSYBOX",
+		"test-busybox",
+		"bin/busybox",
+	))
+	.unwrap();
+	let bash = bash_package();
+	let mut results = Vec::new();
+	for engine in ENGINES {
+		let work = f.engine(engine).join("work");
+		fs::write(work.join("flake.nix"), format!(r#"{{ outputs = {{ self }}: {{
+	devShells.x86_64-linux.default = import ./dev.nix;
+	legacyPackages.x86_64-linux.bashInteractive = let bb = builtins.storePath {busybox}; bash = builtins.storePath {bash}; in derivation {{ name = "interactive-shell"; system = "x86_64-linux"; builder = "${{bb}}/bin/sh"; args = [ "-c" "${{bb}}/bin/mkdir -p $out/bin; ${{bb}}/bin/ln -s ${{bash}}/bin/bash $out/bin/bash" ]; }};
+}}; }}"#, busybox = busybox.display(), bash = bash.display())).unwrap();
+		let registry = work.join("registry.json");
+		fs::write(&registry, serde_json::json!({"version":2,"flakes":[{"from":{"type":"indirect","id":"nixpkgs"},"to":{"type":"path","path":work}}]}).to_string()).unwrap();
+		let result = f.run(
+			engine,
+			&[
+				"--extra-experimental-features",
+				"flakes",
+				"--option",
+				"flake-registry",
+				registry.to_str().unwrap(),
+				"develop",
+				"--impure",
+				"--no-write-lock-file",
+				"--command",
+				"true",
+			],
+		);
+		results.push(result);
+		assert!(
+			fs::read_dir(f.engine(engine).join("root/nix/store"))
+				.unwrap()
+				.any(|e| e.unwrap().path().join("bin/bash").is_symlink())
+		);
+	}
+	assert_eq!(results[0].0, results[1].0, "{}", results[1].2);
+	assert_eq!(results[0].1, results[1].1);
 }

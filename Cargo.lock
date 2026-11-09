@@ -1440,6 +1440,7 @@ dependencies = [
 name = "noxi-commands"
 version = "0.0.1"
 dependencies = [
+ "bstr",
  "bytes",
  "libc",
  "mimalloc",
@@ -1447,6 +1448,7 @@ dependencies = [
  "noxi-compat",
  "noxi-daemon",
  "noxi-eval",
+ "noxi-flake",
  "noxi-glue",
  "noxi-store",
  "regex",
@@ -1454,6 +1456,7 @@ dependencies = [
  "serde_json",
  "smol_str",
  "tempfile",
+ "url",
 ]
 
 [[package]]
