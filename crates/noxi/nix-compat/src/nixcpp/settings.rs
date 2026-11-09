@@ -78,6 +78,12 @@ pub enum Error {
 		name: String,
 		value: String,
 	},
+	/// `max-jobs` that is neither `auto` nor an unsigned integer.
+	InvalidMaxJobs,
+	/// `sandbox` other than `true`, `false` or `relaxed`.
+	InvalidSandbox {
+		value: String,
+	},
 	MissingInclude {
 		file: PathBuf,
 		from: String,
@@ -107,6 +113,13 @@ impl fmt::Display for Error {
 			Error::InvalidBool { name, value } => {
 				write!(f, "Boolean setting '{name}' has invalid value '{value}'")
 			}
+			Error::InvalidMaxJobs => write!(
+				f,
+				"configuration setting 'max-jobs' should be 'auto' or an integer"
+			),
+			Error::InvalidSandbox { value } => {
+				write!(f, "option 'sandbox' has invalid value '{value}'")
+			}
 			Error::MissingInclude { file, from } => write!(
 				f,
 				"file \"{}\" included from \"{from}\" not found",
@@ -125,6 +138,9 @@ struct Entry {
 	value: String,
 	/// False when only `extra-NAME` was given, which appends to the default.
 	replaces_default: bool,
+	/// CppNix's `overridden` flag: set after the system nix.conf, which
+	/// `loadConfFile` resets, and therefore sent to the daemon.
+	overridden: bool,
 }
 
 /// Settings read so far, with the warnings CppNix printed while reading them.
@@ -144,6 +160,8 @@ impl Settings {
 		let mut settings = Settings::default();
 		let conf_dir = env("NIX_CONF_DIR").unwrap_or_else(|| "/etc/nix".to_owned());
 		settings.apply_file(&Path::new(&conf_dir).join("nix.conf"))?;
+		// Only user files, NIX_CONFIG and flags are overrides for the daemon.
+		settings.reset_overridden();
 		for file in user_config_files(&env).iter().rev() {
 			settings.apply_file(Path::new(file))?;
 		}
@@ -219,17 +237,22 @@ impl Settings {
 		let entry = self.values.entry(info.name).or_insert(Entry {
 			value: String::new(),
 			replaces_default: false,
+			overridden: true,
 		});
 		if !append {
 			*entry = Entry {
 				value,
 				replaces_default: true,
+				overridden: true,
 			};
-		} else if !value.is_empty() {
-			if !entry.value.is_empty() {
-				entry.value.push(' ');
+		} else {
+			entry.overridden = true;
+			if !value.is_empty() {
+				if !entry.value.is_empty() {
+					entry.value.push(' ');
+				}
+				entry.value.push_str(&value);
 			}
-			entry.value.push_str(&value);
 		}
 		Ok(true)
 	}
@@ -320,6 +343,23 @@ impl Settings {
 		self.values
 			.iter()
 			.map(|(name, entry)| (*name, entry.value.as_str(), entry.replaces_default))
+	}
+
+	/// The settings CppNix's `getSettings(res, true)` returns: those set
+	/// after the system nix.conf, which a client sends to its daemon.
+	pub fn forwarded(&self) -> impl Iterator<Item = (&'static str, &str, bool)> {
+		self.values
+			.iter()
+			.filter(|(_, entry)| entry.overridden)
+			.map(|(name, entry)| (*name, entry.value.as_str(), entry.replaces_default))
+	}
+
+	/// Clear every setting's overridden flag, as `loadConfFile` does after
+	/// the system nix.conf.
+	pub fn reset_overridden(&mut self) {
+		for entry in self.values.values_mut() {
+			entry.overridden = false;
+		}
 	}
 
 	/// The value of a Boolean setting, or `default`.
@@ -474,6 +514,82 @@ fn parse_config(contents: &str, path: &str, out: &mut Vec<(String, String)>) -> 
 	Ok(())
 }
 
+/// The C++ type of an integer setting in CppNix 2.35.2.
+#[derive(Clone, Copy)]
+enum IntType {
+	/// `time_t` and `off_t`.
+	I64,
+	/// `unsigned int` and `uint32_t`.
+	U32,
+	/// `uint64_t`, `size_t` and `unsigned long`.
+	U64,
+}
+
+fn int_type(name: &str) -> IntType {
+	match name {
+		"max-silent-time" | "timeout" | "gc-reserved-space" => IntType::I64,
+		"build-poll-interval"
+		| "cores"
+		| "download-speed"
+		| "eval-attrset-update-layer-rhs-threshold"
+		| "eval-profiler-frequency"
+		| "filetransfer-retry-attempts"
+		| "filetransfer-retry-delay"
+		| "filetransfer-retry-delay-rate-limited"
+		| "filetransfer-retry-max-delay"
+		| "id-count"
+		| "max-call-depth"
+		| "max-substitution-jobs"
+		| "narinfo-cache-meta-ttl"
+		| "narinfo-cache-negative-ttl"
+		| "narinfo-cache-positive-ttl"
+		| "start-id"
+		| "tarball-ttl" => IntType::U32,
+		_ => IntType::U64,
+	}
+}
+
+/// CppNix's `string2IntWithUnitPrefix`: an optional `K`, `M`, `G` or `T`
+/// suffix in either case multiplies by a power of 1024, wrapping in the
+/// setting's type. Returns the decimal value CppNix stores.
+fn integer(name: &str, value: &str) -> Option<String> {
+	let shift = match value.as_bytes().last().map(u8::to_ascii_uppercase) {
+		Some(b'K') => 10,
+		Some(b'M') => 20,
+		Some(b'G') => 30,
+		Some(b'T') => 40,
+		Some(unit) if unit.is_ascii_alphabetic() => return None,
+		_ => 0,
+	};
+	let digits = if shift == 0 {
+		value
+	} else {
+		&value[..value.len() - 1]
+	};
+	// `std::from_chars` accepts no `+` sign.
+	if digits.starts_with('+') {
+		return None;
+	}
+	let multiplier = 1u64 << shift;
+	Some(match int_type(name) {
+		IntType::I64 => digits
+			.parse::<i64>()
+			.ok()?
+			.wrapping_mul(multiplier as i64)
+			.to_string(),
+		IntType::U32 => digits
+			.parse::<u32>()
+			.ok()?
+			.wrapping_mul(multiplier as u32)
+			.to_string(),
+		IntType::U64 => digits
+			.parse::<u64>()
+			.ok()?
+			.wrapping_mul(multiplier)
+			.to_string(),
+	})
+}
+
 /// Validate `value` for `info`, returning the text to store.
 fn parse_value(info: &SettingInfo, value: &str) -> Result<String, Error> {
 	let invalid = || Error::InvalidValue {
@@ -491,22 +607,22 @@ fn parse_value(info: &SettingInfo, value: &str) -> Result<String, Error> {
 				});
 			}
 		},
-		Kind::Int => {
-			if info.name == "cores" {
-				value.parse::<u32>().map_err(|_| invalid())?;
-			} else {
-				value.parse::<i64>().map_err(|_| invalid())?;
-			}
-			value.to_owned()
-		}
+		Kind::Int => integer(info.name, value).ok_or_else(invalid)?,
 		Kind::MaxJobs if value == "auto" => value.to_owned(),
 		Kind::MaxJobs => {
-			value.parse::<u64>().map_err(|_| invalid())?;
+			// `string2Int<unsigned int>`, without a unit suffix.
+			if value.starts_with('+') || value.parse::<u32>().is_err() {
+				return Err(Error::InvalidMaxJobs);
+			}
 			value.to_owned()
 		}
 		Kind::Sandbox => match value {
 			"true" | "false" | "relaxed" => value.to_owned(),
-			_ => return Err(invalid()),
+			_ => {
+				return Err(Error::InvalidSandbox {
+					value: value.to_owned(),
+				});
+			}
 		},
 		Kind::String => value.to_owned(),
 		Kind::List | Kind::Map => value.split_whitespace().collect::<Vec<_>>().join(" "),
@@ -630,6 +746,26 @@ mod tests {
 				"Boolean setting 'show-trace' has invalid value 'maybe'",
 			),
 			("cores = -1", "setting 'cores' has invalid value '-1'"),
+			("min-free = -3", "setting 'min-free' has invalid value '-3'"),
+			("min-free = 1P", "setting 'min-free' has invalid value '1P'"),
+			("min-free = +3", "setting 'min-free' has invalid value '+3'"),
+			(
+				"max-free = 18446744073709551616",
+				"setting 'max-free' has invalid value '18446744073709551616'",
+			),
+			(
+				"http-connections = -2",
+				"setting 'http-connections' has invalid value '-2'",
+			),
+			(
+				"max-jobs = 1K",
+				"configuration setting 'max-jobs' should be 'auto' or an integer",
+			),
+			(
+				"max-jobs = -3",
+				"configuration setting 'max-jobs' should be 'auto' or an integer",
+			),
+			("sandbox = yes", "option 'sandbox' has invalid value 'yes'"),
 			(
 				"cores = 4294967296",
 				"setting 'cores' has invalid value '4294967296'",
@@ -649,6 +785,38 @@ mod tests {
 				message.replace("$ROOT", root),
 				"{contents}"
 			);
+		}
+	}
+
+	/// Values CppNix 2.35.2's `nix config show NAME` prints for each line.
+	#[test]
+	fn parses_integer_unit_suffixes_in_the_setting_type() {
+		for (contents, name, value) in [
+			("min-free = 1K", "min-free", "1024"),
+			("min-free = 1k", "min-free", "1024"),
+			("min-free = 2M", "min-free", "2097152"),
+			("min-free = 1G", "min-free", "1073741824"),
+			("min-free = 1T", "min-free", "1099511627776"),
+			(
+				"max-free = 18446744073709551615",
+				"max-free",
+				"18446744073709551615",
+			),
+			("cores = 1K", "cores", "1024"),
+			("max-call-depth = 1K", "max-call-depth", "1024"),
+			("max-silent-time = -5", "max-silent-time", "-5"),
+			("timeout = 1M", "timeout", "1048576"),
+			(
+				"max-build-log-size = 3G",
+				"max-build-log-size",
+				"3221225472",
+			),
+		] {
+			let (settings, _dir) = load(
+				&[("etc/nix.conf", contents)],
+				&[("NIX_CONF_DIR", "$ROOT/etc")],
+			);
+			assert_eq!(settings.unwrap().get(name), Some(value), "{contents}");
 		}
 	}
 
