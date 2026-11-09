@@ -53,7 +53,7 @@ use crate::vm::run_lambda;
 
 // Re-export the public interface used by other crates.
 pub use crate::compiler::{CompilationOutput, GlobalsMap, compile, prepare_globals};
-pub use crate::errors::{AddContext, CatchableErrorKind, Error, ErrorKind, EvalResult};
+pub use crate::errors::{AddContext, CatchableErrorKind, Error, ErrorKind, EvalResult, Trace};
 pub use crate::io::{DummyIO, EvalIO, FileType};
 pub use crate::nix_search_path::{
 	NixSearchPath, NixSearchPathEntry, is_pseudo_url, parse_nix_path,

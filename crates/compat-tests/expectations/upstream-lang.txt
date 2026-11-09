@@ -8,7 +8,7 @@ eval-fail-add-2 pass
 eval-fail-addDrvOutputDependencies-empty-context pass
 eval-fail-addDrvOutputDependencies-multi-elem-context pass
 eval-fail-addDrvOutputDependencies-wrong-element-kind pass
-eval-fail-addErrorContext-example error-message E001
+eval-fail-addErrorContext-example pass
 eval-fail-all-1 pass
 eval-fail-all-2 pass
 eval-fail-all-3 pass
@@ -69,29 +69,29 @@ eval-fail-deepseq pass
 eval-fail-derivation-name error-message E997
 eval-fail-derivation-structuredAttrs-stack-overflow error-message E044
 eval-fail-derivationStrict-1 pass
-eval-fail-derivationStrict-10 error-message E006
-eval-fail-derivationStrict-11 error-message E006
-eval-fail-derivationStrict-12 error-message E006
-eval-fail-derivationStrict-13 error-message E044
-eval-fail-derivationStrict-14 error-message E044
-eval-fail-derivationStrict-15 error-message E997
-eval-fail-derivationStrict-16 error-message E006
-eval-fail-derivationStrict-17 error-message E006
-eval-fail-derivationStrict-19 error-message E006
-eval-fail-derivationStrict-2 error-message E005
-eval-fail-derivationStrict-20 error-message E018
-eval-fail-derivationStrict-21 error-message E018
-eval-fail-derivationStrict-22 error-message E018
-eval-fail-derivationStrict-3 error-message E006
-eval-fail-derivationStrict-4 error-message E997
-eval-fail-derivationStrict-5 error-message E006
-eval-fail-derivationStrict-6 error-message E006
-eval-fail-derivationStrict-7 error-message E997
-eval-fail-derivationStrict-8 error-message E997
-eval-fail-derivationStrict-9 error-message E018
+eval-fail-derivationStrict-10 pass
+eval-fail-derivationStrict-11 pass
+eval-fail-derivationStrict-12 pass
+eval-fail-derivationStrict-13 pass
+eval-fail-derivationStrict-14 pass
+eval-fail-derivationStrict-15 pass
+eval-fail-derivationStrict-16 pass
+eval-fail-derivationStrict-17 pass
+eval-fail-derivationStrict-19 pass
+eval-fail-derivationStrict-2 pass
+eval-fail-derivationStrict-20 pass
+eval-fail-derivationStrict-21 pass
+eval-fail-derivationStrict-22 pass
+eval-fail-derivationStrict-3 pass
+eval-fail-derivationStrict-4 pass
+eval-fail-derivationStrict-5 pass
+eval-fail-derivationStrict-6 pass
+eval-fail-derivationStrict-7 pass
+eval-fail-derivationStrict-8 pass
+eval-fail-derivationStrict-9 pass
 eval-fail-div-1 pass
 eval-fail-div-2 pass
-eval-fail-div-3 error-message E033
+eval-fail-div-3 pass
 eval-fail-dup-dynamic-attrs error-message E016
 eval-fail-duplicate-traces pass
 eval-fail-dynamic-attrs-inherit-2 pass
@@ -137,20 +137,20 @@ eval-fail-fromTOML-underflow error-message E035
 eval-fail-fromTOML-valueWithNullByte pass
 eval-fail-functionArgs-1 pass
 eval-fail-genList-1 pass
-eval-fail-genList-2 error-message E013
+eval-fail-genList-2 pass
 eval-fail-genList-3 error-message E006
 eval-fail-genList-4 pass
-eval-fail-genericClosure-deeply-nested-element error-message E005
-eval-fail-genericClosure-element-missing-key error-message E005
-eval-fail-genericClosure-element-not-attrset error-message E006
+eval-fail-genericClosure-deeply-nested-element pass
+eval-fail-genericClosure-element-missing-key pass
+eval-fail-genericClosure-element-not-attrset pass
 eval-fail-genericClosure-keys-incompatible-types error-message E007
 eval-fail-genericClosure-keys-uncomparable error-message E007
-eval-fail-genericClosure-missing-operator error-message E005
-eval-fail-genericClosure-missing-startSet error-message E005
+eval-fail-genericClosure-missing-operator pass
+eval-fail-genericClosure-missing-startSet pass
 eval-fail-genericClosure-not-attrset pass
-eval-fail-genericClosure-operator-not-function error-message E006
-eval-fail-genericClosure-operator-not-list error-message E006
-eval-fail-genericClosure-startSet-not-list error-message E006
+eval-fail-genericClosure-operator-not-function pass
+eval-fail-genericClosure-operator-not-list pass
+eval-fail-genericClosure-startSet-not-list pass
 eval-fail-getAttr-1 pass
 eval-fail-getAttr-2 pass
 eval-fail-getAttr-3 pass
@@ -172,17 +172,17 @@ eval-fail-intersectAttrs-1 pass
 eval-fail-intersectAttrs-2 pass
 eval-fail-length-1 pass
 eval-fail-length-2 pass
-eval-fail-lessThan-1 error-message E007
-eval-fail-lessThan-2 error-message E007
+eval-fail-lessThan-1 pass
+eval-fail-lessThan-2 pass
 eval-fail-lessThan-3 error-message E007
-eval-fail-list error-message E006
+eval-fail-list pass
 eval-fail-listToAttrs-1 pass
-eval-fail-listToAttrs-2 error-message E006
-eval-fail-listToAttrs-3 error-message E005
+eval-fail-listToAttrs-2 pass
+eval-fail-listToAttrs-3 pass
 eval-fail-listToAttrs-4 error-message E006
-eval-fail-listToAttrs-5 error-message E005
+eval-fail-listToAttrs-5 pass
 eval-fail-map-1 pass
-eval-fail-map-2 error-message E013
+eval-fail-map-2 pass
 eval-fail-mapAttrs-1 pass
 eval-fail-mapAttrs-2 error-message E013
 eval-fail-mapAttrs-3 error-message E013
@@ -191,15 +191,15 @@ eval-fail-match-1 pass
 eval-fail-match-2 pass
 eval-fail-match-3 pass
 eval-fail-memoised-error-trace-not-mutated error-message E001
-eval-fail-missing-arg-import error-message E005
-eval-fail-missing-arg error-message E005
+eval-fail-missing-arg-import pass
+eval-fail-missing-arg pass
 eval-fail-mul-1 pass
 eval-fail-mul-2 pass
 eval-fail-mutual-recursion error-message E001
 eval-fail-nested-list-items error-message E018
 eval-fail-nonexist-path pass
 eval-fail-not-throws error-message E001
-eval-fail-overflowing-add error-message E043
+eval-fail-overflowing-add pass
 eval-fail-overflowing-div error-message E043
 eval-fail-overflowing-mul error-message E043
 eval-fail-overflowing-sub error-message E043
@@ -420,41 +420,41 @@ parse-fail-dup-attrs-3 error-message E016
 parse-fail-dup-attrs-4 error-message E016
 parse-fail-dup-attrs-7 error-message E016
 parse-fail-dup-formals pass
-parse-fail-eof-in-string error-message E015
-parse-fail-eof-pos error-message E015
+parse-fail-eof-in-string pass
+parse-fail-eof-pos pass
 parse-fail-mixed-nested-attrs1 error-message E016
 parse-fail-mixed-nested-attrs2 error-message E016
 parse-fail-patterns-1 pass
 parse-fail-regression-20060610 pass
-parse-fail-undef-var-2 error-message E015
+parse-fail-undef-var-2 pass
 parse-fail-undef-var pass
-parse-fail-unexpected-and error-message E015
-parse-fail-unexpected-assert error-message E015
-parse-fail-unexpected-concat error-message E015
-parse-fail-unexpected-ellipsis error-message E015
-parse-fail-unexpected-else error-message E015
-parse-fail-unexpected-eq error-message E015
-parse-fail-unexpected-float error-message E015
-parse-fail-unexpected-geq error-message E015
-parse-fail-unexpected-hpath error-message E015
-parse-fail-unexpected-if error-message E015
-parse-fail-unexpected-impl error-message E015
-parse-fail-unexpected-in error-message E015
-parse-fail-unexpected-ind-string error-message E015
-parse-fail-unexpected-inherit error-message E015
-parse-fail-unexpected-int error-message E015
-parse-fail-unexpected-leq error-message E015
-parse-fail-unexpected-let error-message E015
-parse-fail-unexpected-neq error-message E015
-parse-fail-unexpected-or error-message E015
+parse-fail-unexpected-and pass
+parse-fail-unexpected-assert pass
+parse-fail-unexpected-concat pass
+parse-fail-unexpected-ellipsis pass
+parse-fail-unexpected-else pass
+parse-fail-unexpected-eq pass
+parse-fail-unexpected-float pass
+parse-fail-unexpected-geq pass
+parse-fail-unexpected-hpath pass
+parse-fail-unexpected-if pass
+parse-fail-unexpected-impl pass
+parse-fail-unexpected-in pass
+parse-fail-unexpected-ind-string pass
+parse-fail-unexpected-inherit pass
+parse-fail-unexpected-int pass
+parse-fail-unexpected-leq pass
+parse-fail-unexpected-let pass
+parse-fail-unexpected-neq pass
+parse-fail-unexpected-or pass
 parse-fail-unexpected-path error-message E015
-parse-fail-unexpected-rec error-message E015
-parse-fail-unexpected-spath error-message E015
-parse-fail-unexpected-then error-message E015
-parse-fail-unexpected-update error-message E015
-parse-fail-unexpected-uri error-message E015
-parse-fail-unexpected-with error-message E015
-parse-fail-utf8 error-message E015
+parse-fail-unexpected-rec pass
+parse-fail-unexpected-spath pass
+parse-fail-unexpected-then pass
+parse-fail-unexpected-update pass
+parse-fail-unexpected-uri pass
+parse-fail-unexpected-with pass
+parse-fail-utf8 pass
 parse-okay-1 pass
 parse-okay-crlf pass
 parse-okay-dup-attrs-5 pass

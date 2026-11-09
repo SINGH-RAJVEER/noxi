@@ -154,15 +154,46 @@ pub(crate) mod derivation_builtins {
 		}
 
 		let input = input.to_attrs()?;
-		let name = generators::request_force(&co, input.select_required("name")?.clone()).await;
+		let name_value = input
+			.select_required("name")
+			.trace(
+				None,
+				"in the attrset passed as argument to builtins.derivationStrict",
+			)?
+			.clone();
+		generators::request_builtin_context(
+			&co,
+			vec![
+				noxi_eval::Trace::new(
+					input.get_attr_pos("name"),
+					"while evaluating the derivation attribute 'name'",
+				),
+				noxi_eval::Trace::new(
+					None,
+					"while evaluating the `name` attribute passed to builtins.derivationStrict",
+				),
+			],
+		)
+		.await;
+		let name = generators::request_force(&co, name_value).await;
 		if name.is_catchable() {
 			return Ok(name);
 		}
-		let name = name.to_str().context("determining derivation name")?;
+		let name = name.to_str()?;
 		if name.is_empty() {
 			return Err(ErrorKind::Abort("derivation has empty name".to_string()));
 		}
 		let name = name.to_str()?.to_owned();
+		let mut hint = format!("while evaluating derivation '{name}'");
+		if let Some(span) = input.get_attr_pos("name") {
+			let position = generators::request_position(&co, span).await;
+			hint.push_str(&format!(
+				"\n  whose name attribute is located at {}",
+				position.to_str_lossy()
+			));
+		}
+		let outer = noxi_eval::Trace::new(None, hint);
+		generators::request_builtin_context(&co, vec![outer.clone()]).await;
 
 		let mut drv = DerivationBuilder::default();
 		let mut input_context = NixContext::new();
@@ -182,21 +213,21 @@ pub(crate) mod derivation_builtins {
 
 		// A catchable error from any forced attribute is returned as is, so
 		// `builtins.tryEval` still sees the original `throw`.
-		let ignore_nulls = match input.select(IGNORE_NULLS) {
-			Some(b) => {
-				let b = generators::request_force(&co, b.clone()).await;
-				if b.is_catchable() {
-					return Ok(b);
-				}
-				b.as_bool()?
-			}
-			None => false,
-		};
-
 		// A sorted map, so the `__json` keys come out in CppNix's order.
 		let mut structured_attrs: Option<BTreeMap<&str, serde_json::Value>> =
 			match input.select(STRUCTURED_ATTRS) {
 				Some(b) => {
+					generators::request_builtin_context(
+						&co,
+						vec![
+							outer.clone(),
+							noxi_eval::Trace::new(
+								None,
+								"while evaluating the `__structuredAttrs` attribute passed to builtins.derivationStrict",
+							),
+						],
+					)
+					.await;
 					let b = generators::request_force(&co, b.clone()).await;
 					if b.is_catchable() {
 						return Ok(b);
@@ -206,8 +237,41 @@ pub(crate) mod derivation_builtins {
 				None => None,
 			};
 
+		let ignore_nulls = match input.select(IGNORE_NULLS) {
+			Some(b) => {
+				generators::request_builtin_context(
+					&co,
+					vec![
+						outer.clone(),
+						noxi_eval::Trace::new(
+							None,
+							"while evaluating the `__ignoreNulls` attribute passed to builtins.derivationStrict",
+						),
+					],
+				)
+				.await;
+				let b = generators::request_force(&co, b.clone()).await;
+				if b.is_catchable() {
+					return Ok(b);
+				}
+				b.as_bool()?
+			}
+			None => false,
+		};
+
 		for (arg_name, arg_value) in input.iter_sorted() {
 			let arg_name = arg_name.to_str()?;
+			generators::request_builtin_context(
+				&co,
+				vec![
+					outer.clone(),
+					noxi_eval::Trace::new(
+						input.get_attr_pos(arg_name),
+						format!("while evaluating attribute '{arg_name}' of derivation '{name}'"),
+					),
+				],
+			)
+			.await;
 			let value = generators::request_force(&co, arg_value.clone()).await;
 			if value.is_catchable() {
 				return Ok(value);
@@ -218,18 +282,44 @@ pub(crate) mod derivation_builtins {
 			}
 
 			match arg_name {
+				"__contentAddressed" | "__impure" => {
+					if value.as_bool()? {
+						return Err(ErrorKind::NotImplemented(
+							"content-addressed or impure derivation construction",
+						));
+					}
+				}
 				"args" => {
 					for arg in value.to_list()? {
-						let s = try_cek_to_value!(coerce_importing(&co, arg).await);
+						let s = try_cek_to_value!(
+							generators::request_string_coerce_in(
+								&co,
+								arg,
+								CoercionKind {
+									strong: true,
+									import_paths: true
+								},
+								Some("while evaluating an element of the argument list")
+							)
+							.await
+						);
 						input_context.mimic(&s);
 						drv.arguments.push(s.as_bytes().into())
 					}
 				}
 
 				"outputs" => {
-					let outputs = value
-						.to_list()
-						.context("looking at the `outputs` parameter of the derivation")?;
+					let outputs = if structured_attrs.is_some() {
+						value.to_list()?
+					} else {
+						let text = try_cek_to_value!(coerce_importing(&co, value).await);
+						noxi_eval::NixList::from(
+							text.to_str()?
+								.split_whitespace()
+								.map(|name| Value::from(name.to_owned()))
+								.collect::<Vec<_>>(),
+						)
+					};
 
 					output_names = Vec::with_capacity(outputs.len());
 					for output in outputs {
@@ -237,15 +327,16 @@ pub(crate) mod derivation_builtins {
 						if output_name.is_catchable() {
 							return Ok(output_name);
 						}
-						let output_name =
-							output_name.to_str().context("determining output name")?;
+						let output_name = output_name.to_str()?;
 						input_context.mimic(&output_name);
 						let output_name: OutputName = output_name
 							.to_str()?
 							.parse()
 							.map_err(|err| ErrorKind::NoxiError(Arc::new(err)))?;
 						if output_names.contains(&output_name) {
-							return Err(DerivationError::DuplicateOutput(output_name).into());
+							return Err(ErrorKind::EvalError(format!(
+								"duplicate derivation output '{output_name}'"
+							)));
 						}
 						// The result already has a `drvPath` attribute.
 						if output_name.as_str() == Some("drvPath") {
@@ -334,6 +425,16 @@ pub(crate) mod derivation_builtins {
 						}
 						None => {
 							let val_str = try_cek_to_value!(coerce_importing(&co, value).await);
+							if arg_name == "outputHashMode"
+								&& !matches!(
+									val_str.to_str()?,
+									"flat" | "recursive" | "nar" | "text" | "git"
+								) {
+								return Err(ErrorKind::EvalError(format!(
+									"invalid value '{}' for 'outputHashMode' attribute",
+									val_str.to_str()?
+								)));
+							}
 							input_context.mimic(&val_str);
 							insert_env(&mut drv, arg_name, val_str.as_bytes().into())?;
 						}
@@ -341,6 +442,8 @@ pub(crate) mod derivation_builtins {
 				}
 			}
 		}
+
+		generators::request_builtin_context(&co, vec![outer]).await;
 
 		// A non-empty `outputHash` makes this a fixed-output derivation.
 		let hash_str = try_cek_to_value!(
@@ -401,6 +504,17 @@ pub(crate) mod derivation_builtins {
 			})?;
 		let mut known_paths = state.known_paths();
 		populate_inputs(&mut drv, input_context, &known_paths, &state)?;
+
+		if drv.command.is_empty() {
+			return Err(ErrorKind::EvalError(
+				"required attribute 'builder' missing".into(),
+			));
+		}
+		if drv.system.is_empty() {
+			return Err(ErrorKind::EvalError(
+				"required attribute 'system' missing".into(),
+			));
+		}
 
 		let drv = drv
 			.build(&name, &*known_paths)

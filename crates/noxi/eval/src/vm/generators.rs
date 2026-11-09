@@ -143,6 +143,10 @@ pub enum VMRequest {
 	/// Request evaluation of `builtins.tryEval` from the VM.
 	TryForce(Value),
 
+	/// Add a lazy user context to an evaluation failure.
+	ErrorContext(Value, Value),
+	BuiltinContext(Vec<crate::errors::Trace>),
+
 	/// Request the VM for the file type of the given path.
 	ReadFileType(PathBuf),
 
@@ -152,6 +156,7 @@ pub enum VMRequest {
 	/// Request column, line and file name for the given span.
 	/// Used by builtins.unsafeGetAttrPos
 	GetSpanPos(Span),
+	Position(Span),
 
 	/// Request that the VM looks `path` up in a lookup path of `entries`.
 	FindFile(Vec<NixSearchPathEntry>, String),
@@ -225,9 +230,12 @@ impl Display for VMRequest {
 			VMRequest::PathExists(p) => write!(f, "path_exists({})", p.to_string_lossy()),
 			VMRequest::ReadDir(p) => write!(f, "read_dir({})", p.to_string_lossy()),
 			VMRequest::Span => write!(f, "span"),
+			VMRequest::BuiltinContext(_) => write!(f, "builtin_context"),
+			VMRequest::ErrorContext(_, _) => write!(f, "error_context"),
 			VMRequest::TryForce(v) => write!(f, "try_force({})", v.type_of()),
 			VMRequest::ReadFileType(p) => write!(f, "read_file_type({})", p.to_string_lossy()),
 			VMRequest::GetEnv(p) => write!(f, "get_env({})", p.to_string_lossy()),
+			VMRequest::Position(_) => write!(f, "position"),
 			VMRequest::GetSpanPos(span) => write!(f, "get_span_pos({:?})", span),
 			VMRequest::FindFile(_, path) => write!(f, "find_file({path})"),
 			VMRequest::Print(v, _) => write!(f, "print({})", v.type_of()),
@@ -340,6 +348,12 @@ where
 		mut generator: Generator,
 		initial_message: Option<VMResponse>,
 	) -> EvalResult<bool> {
+		// A tryEval suppresses capture only while its argument is active.
+		if matches!(state, GeneratorState::AwaitingValue)
+			&& self.try_eval_frames.last() == Some(&frame_id)
+		{
+			self.try_eval_frames.pop();
+		}
 		// Determine what to send to the generator based on its state.
 		let mut message = match (initial_message, state) {
 			(Some(msg), _) => msg,
@@ -370,6 +384,26 @@ where
 						// Generator has requested a force, which means that
 						// this function prepares the frame stack and yields
 						// back to the outer VM loop.
+						VMRequest::BuiltinContext(traces) => {
+							if let FrameTrace::Builtin { contexts, .. } = &mut self.current.1 {
+								*contexts = traces;
+							}
+							message = VMResponse::Empty;
+						}
+						VMRequest::ErrorContext(context, value) => {
+							self.current.1 = FrameTrace::None;
+							self.reenqueue_generator(name, span, generator);
+							self.frames.push(Frame::ErrorContext {
+								context,
+								span,
+								depth: self.call_depth,
+								stack_base: self.stack.len(),
+								outer_traces: self.traces(None, None).len(),
+							});
+							self.enqueue_force_value(span, value);
+							return Ok(false);
+						}
+
 						VMRequest::ForceValue(value) => {
 							self.reenqueue_generator(name, span, generator);
 							self.enqueue_force_value(span, value);
@@ -693,6 +727,12 @@ where
 							message = VMResponse::Env(env);
 						}
 
+						VMRequest::Position(span) => {
+							let position = crate::diagnostics::position(&self.source, span)
+								.map(|pos| pos.to_string())
+								.unwrap_or_else(|| "«none»:0".into());
+							message = VMResponse::Value(position.into());
+						}
 						VMRequest::GetSpanPos(span) => {
 							let file = self.source.get_file(span);
 							let pos = file.find_line_col(span.low());
@@ -749,6 +789,31 @@ pub async fn request_stack_pop(co: &GenCo) -> Value {
 	match co.yield_(VMRequest::StackPop).await {
 		VMResponse::Value(value) => value,
 		msg => panic!("noxi bug: VM responded with incorrect generator message: {msg}"),
+	}
+}
+
+/// Resolve a span through source-fragment mappings for diagnostic hints.
+pub async fn request_position(co: &GenCo, span: Span) -> NixString {
+	match co.yield_(VMRequest::Position(span)).await {
+		VMResponse::Value(Value::String(position)) => position,
+		_ => unreachable!("position response"),
+	}
+}
+
+/// Set the current builtin's runtime contexts before forcing attributes.
+/// The frames apply to both catchable and uncatchable evaluation errors.
+pub async fn request_builtin_context(co: &GenCo, traces: Vec<crate::errors::Trace>) {
+	match co.yield_(VMRequest::BuiltinContext(traces)).await {
+		VMResponse::Empty => {}
+		_ => unreachable!("builtin context response"),
+	}
+}
+
+/// Evaluate with a context that is coerced only when evaluation fails.
+pub async fn request_error_context(co: &GenCo, context: Value, value: Value) -> Value {
+	match co.yield_(VMRequest::ErrorContext(context, value)).await {
+		VMResponse::Value(value) => value,
+		_ => unreachable!("error context response"),
 	}
 }
 

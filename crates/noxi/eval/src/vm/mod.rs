@@ -151,6 +151,7 @@ impl<T, S: GetSpan, IO> WithSpan<T, S, IO> for Result<T, ErrorKind> {
 								vm.source.clone(),
 							);
 						}
+						Frame::ErrorContext { .. } | Frame::ContextMessage { .. } => {}
 						Frame::Force { span, .. } => {
 							error = Error::new(
 								ErrorKind::NativeError {
@@ -274,6 +275,21 @@ impl BytecodeFrame {
 /// When a frame has been fully executed, it is removed from the VM's frame
 /// stack and expected to leave a result [`Value`] on the top of the stack.
 enum Frame {
+	/// A lazy addErrorContext boundary. Errors resume at this frame, so
+	/// nested contexts use the VM stack rather than the Rust call stack.
+	ErrorContext {
+		context: Value,
+		span: Span,
+		depth: usize,
+		stack_base: usize,
+		outer_traces: usize,
+	},
+	ContextMessage {
+		result: Result<Value, Error>,
+		span: Span,
+		depth: usize,
+		outer_traces: usize,
+	},
 	/// A synchronous builtin awaiting its next strict argument.
 	Builtin {
 		name: &'static str,
@@ -348,6 +364,7 @@ pub(crate) enum FrameTrace {
 	Builtin {
 		name: &'static str,
 		call_site: Option<Span>,
+		contexts: Vec<Trace>,
 	},
 
 	/// The body of a function: `from call site` for a call in Nix code,
@@ -386,7 +403,9 @@ impl Frame {
 			Frame::BytecodeFrame { span, .. }
 			| Frame::Generator { span, .. }
 			| Frame::Builtin { span, .. }
-			| Frame::Force { span, .. } => *span,
+			| Frame::Force { span, .. }
+			| Frame::ErrorContext { span, .. }
+			| Frame::ContextMessage { span, .. } => *span,
 		}
 	}
 
@@ -394,7 +413,9 @@ impl Frame {
 		match self {
 			Frame::BytecodeFrame { bytecode_frame, .. } => &bytecode_frame.trace,
 			Frame::Generator { trace, .. } | Frame::Builtin { trace, .. } => trace,
-			Frame::Force { .. } => NO_TRACE,
+			Frame::Force { .. } | Frame::ErrorContext { .. } | Frame::ContextMessage { .. } => {
+				NO_TRACE
+			}
 		}
 	}
 }
@@ -607,154 +628,299 @@ where
 	/// Run the VM's primary (outer) execution loop, continuing execution based
 	/// on the current frame at the top of the frame stack.
 	fn execute(mut self) -> EvalResult<RuntimeResult> {
-		while let Some(frame) = self.frames.pop() {
-			self.reasonable_span = frame.span();
-			let frame_id = self.frames.len();
-			match frame {
-				Frame::Builtin {
-					name,
-					mut pending,
-					span,
-					depth,
-					trace,
-				} => {
-					self.current = (frame_id, trace);
-					self.call_depth = depth;
-					self.observer
-						.observe_enter_generator(frame_id, name, &self.stack);
-					let value = pending.awaiting_value().then(|| self.stack_pop());
-					match pending.advance(value, span) {
-						Ok(thunk) => {
-							self.frames.push(Frame::Builtin {
-								name,
-								pending,
-								span,
-								depth,
-								trace: std::mem::take(&mut self.current.1),
-							});
-							self.enqueue_force(span, thunk);
-							self.observer
-								.observe_suspend_generator(frame_id, name, &self.stack);
-						}
-						Err(BuiltinResult::Synchronous(result)) => {
-							let value = result.with_span(span, &self)?;
-							let value = self.trace_catchable(value, None, None);
-							self.stack.push(value);
-							self.observer
-								.observe_exit_generator(frame_id, name, &self.stack);
-						}
-						Err(BuiltinResult::Called(name, generator)) => {
-							self.frames.push(Frame::Generator {
-								name,
-								generator,
-								span,
-								depth,
-								state: GeneratorState::Running,
-								trace: std::mem::take(&mut self.current.1),
-							});
-						}
-						Err(_) => unreachable!("pending builtin returned a partial application"),
-					}
-				}
-				Frame::BytecodeFrame {
-					bytecode_frame,
-					span,
-				} => {
-					// Bytecode errors borrow the running frame's trace. Suspensions
-					// put the frame itself back on the stack.
-					self.current = (frame_id, FrameTrace::None);
-					self.call_depth = bytecode_frame.depth;
-					self.observer
-						.observe_enter_bytecode_frame(0, &bytecode_frame.lambda, frame_id);
-
-					match self.execute_bytecode(span, bytecode_frame) {
-						Ok(true) => {
-							self.observer
-								.observe_exit_bytecode_frame(frame_id, &self.stack);
-						}
-						Ok(false) => {
-							self.observer
-								.observe_suspend_bytecode_frame(frame_id, &self.stack);
-						}
-						Err(err) => return Err(err),
-					};
-				}
-
-				// Handle generator frames, which can request thunk forcing
-				// during their execution.
-				Frame::Generator {
-					name,
-					span,
-					state,
-					generator,
-					depth,
-					trace,
-				} => {
-					// A generator records its trace only while suspended, so the
-					// running trace takes it and re-enqueuing moves it back.
-					self.current = (frame_id, trace);
-					self.call_depth = depth;
-					self.observer
-						.observe_enter_generator(frame_id, name, &self.stack);
-
-					match self.run_generator(name, span, frame_id, state, generator, None) {
-						Ok(true) => {
-							self.observer
-								.observe_exit_generator(frame_id, name, &self.stack)
-						}
-						Ok(false) => {
-							self.observer
-								.observe_suspend_generator(frame_id, name, &self.stack)
-						}
-
-						Err(err) => return Err(err),
-					};
-				}
-
-				// The code of a directly forced thunk has returned its value.
-				Frame::Force {
-					thunk,
-					span,
-					forced_at,
-					depth,
-				} => {
-					self.current = (frame_id, FrameTrace::None);
-					self.call_depth = depth;
-					self.observer
-						.observe_enter_generator(frame_id, "force", &self.stack);
-
-					let value = self.stack_pop();
-					match thunk.finish_direct_force(value) {
-						Some(value) => {
-							let value = self.trace_catchable(value, None, None);
-							self.stack.push(value);
-							self.observer
-								.observe_exit_generator(frame_id, "force", &self.stack);
-						}
-
-						// The value is another thunk, which the generator forces.
-						None => {
-							self.enqueue_generator("force", span, |co| {
-								Thunk::force(thunk, co, forced_at)
-							});
-							self.observer
-								.observe_suspend_generator(frame_id, "force", &self.stack);
-						}
-					}
-				}
-			}
-		}
-
-		// Once no more frames are present, return the stack's top value as the
-		// result.
-		let value = self
-			.stack
-			.pop()
-			.expect("noxi bug: runtime stack empty after execution");
+		self.execute_frames()?;
+		let value = self.stack.pop().expect("runtime result");
 		Ok(RuntimeResult {
 			value,
 			warnings: self.warnings,
 		})
+	}
+
+	/// Drive evaluation and resume lazy context handlers on failure.
+	fn execute_frames(&mut self) -> EvalResult<()> {
+		while !self.frames.is_empty() {
+			let frame = self.frames.pop().expect("frame above boundary");
+			self.reasonable_span = frame.span();
+			let frame_id = self.frames.len();
+			let step = (|| -> EvalResult<()> {
+				match frame {
+					Frame::ErrorContext {
+						context,
+						span,
+						depth,
+						outer_traces,
+						..
+					} => {
+						self.call_depth = depth;
+						let value = self.stack_pop();
+						if value.is_catchable() {
+							self.enqueue_context_message(
+								context,
+								Ok(value),
+								span,
+								depth,
+								outer_traces,
+							);
+						} else {
+							self.stack.push(value);
+						}
+					}
+					Frame::ContextMessage {
+						result,
+						span,
+						depth,
+						outer_traces,
+					} => {
+						self.call_depth = depth;
+						let context = self.stack_pop();
+						if context.is_catchable() {
+							self.stack.push(context);
+							return Ok(());
+						}
+						let context = context.to_contextful_str().with_span(span, self)?;
+						let mut trace = Trace::new(None, context.to_str_lossy());
+						trace.always = true;
+						match result {
+							Err(mut error) => {
+								error
+									.traces
+									.insert(outer_traces.min(error.traces.len()), trace);
+								return Err(error);
+							}
+							Ok(Value::Catchable(kind)) => {
+								let mut info = kind
+									.trace()
+									.map(|info| CatchableTrace {
+										traces: info.traces.clone(),
+										span: info.span,
+										message: info.message.clone(),
+										relative: info.relative,
+									})
+									.unwrap_or(CatchableTrace {
+										traces: self.traces(None, None),
+										span: None,
+										message: None,
+										relative: false,
+									});
+								info.traces
+									.insert(outer_traces.min(info.traces.len()), trace);
+								self.stack.push(Value::Catchable(Box::new(
+									CatchableErrorKind::Traced {
+										kind: Box::new(kind.untraced().clone()),
+										info: Rc::new(info),
+									},
+								)));
+							}
+							_ => unreachable!("successful context boundary"),
+						}
+					}
+					Frame::Builtin {
+						name,
+						mut pending,
+						span,
+						depth,
+						trace,
+					} => {
+						self.current = (frame_id, trace);
+						self.call_depth = depth;
+						self.observer
+							.observe_enter_generator(frame_id, name, &self.stack);
+						let value = pending.awaiting_value().then(|| self.stack_pop());
+						match pending.advance(value, span) {
+							Ok(thunk) => {
+								self.frames.push(Frame::Builtin {
+									name,
+									pending,
+									span,
+									depth,
+									trace: std::mem::take(&mut self.current.1),
+								});
+								self.enqueue_force(span, thunk);
+								self.observer.observe_suspend_generator(
+									frame_id,
+									name,
+									&self.stack,
+								);
+							}
+							Err(BuiltinResult::Synchronous(result)) => {
+								let value = result.with_span(span, &self)?;
+								let value = self.trace_catchable(value, None, None);
+								self.stack.push(value);
+								self.observer
+									.observe_exit_generator(frame_id, name, &self.stack);
+							}
+							Err(BuiltinResult::Called(name, generator)) => {
+								self.frames.push(Frame::Generator {
+									name,
+									generator,
+									span,
+									depth,
+									state: GeneratorState::Running,
+									trace: std::mem::take(&mut self.current.1),
+								});
+							}
+							Err(_) => {
+								unreachable!("pending builtin returned a partial application")
+							}
+						}
+					}
+					Frame::BytecodeFrame {
+						bytecode_frame,
+						span,
+					} => {
+						// Bytecode errors borrow the running frame's trace. Suspensions
+						// put the frame itself back on the stack.
+						self.current = (frame_id, FrameTrace::None);
+						self.call_depth = bytecode_frame.depth;
+						self.observer.observe_enter_bytecode_frame(
+							0,
+							&bytecode_frame.lambda,
+							frame_id,
+						);
+
+						match self.execute_bytecode(span, bytecode_frame) {
+							Ok(true) => {
+								self.observer
+									.observe_exit_bytecode_frame(frame_id, &self.stack);
+							}
+							Ok(false) => {
+								self.observer
+									.observe_suspend_bytecode_frame(frame_id, &self.stack);
+							}
+							Err(err) => return Err(err),
+						};
+					}
+
+					// Handle generator frames, which can request thunk forcing
+					// during their execution.
+					Frame::Generator {
+						name,
+						span,
+						state,
+						generator,
+						depth,
+						trace,
+					} => {
+						// A generator records its trace only while suspended, so the
+						// running trace takes it and re-enqueuing moves it back.
+						self.current = (frame_id, trace);
+						self.call_depth = depth;
+						self.observer
+							.observe_enter_generator(frame_id, name, &self.stack);
+
+						match self.run_generator(name, span, frame_id, state, generator, None) {
+							Ok(true) => {
+								self.observer
+									.observe_exit_generator(frame_id, name, &self.stack)
+							}
+							Ok(false) => {
+								self.observer
+									.observe_suspend_generator(frame_id, name, &self.stack)
+							}
+
+							Err(err) => return Err(err),
+						};
+					}
+
+					// The code of a directly forced thunk has returned its value.
+					Frame::Force {
+						thunk,
+						span,
+						forced_at,
+						depth,
+					} => {
+						self.current = (frame_id, FrameTrace::None);
+						self.call_depth = depth;
+						self.observer
+							.observe_enter_generator(frame_id, "force", &self.stack);
+
+						let value = self.stack_pop();
+						match thunk.finish_direct_force(value) {
+							Some(value) => {
+								let value = self.trace_catchable(value, None, None);
+								self.stack.push(value);
+								self.observer.observe_exit_generator(
+									frame_id,
+									"force",
+									&self.stack,
+								);
+							}
+
+							// The value is another thunk, which the generator forces.
+							None => {
+								self.enqueue_generator("force", span, |co| {
+									Thunk::force(thunk, co, forced_at)
+								});
+								self.observer.observe_suspend_generator(
+									frame_id,
+									"force",
+									&self.stack,
+								);
+							}
+						}
+					}
+				}
+				Ok(())
+			})();
+			if let Err(error) = step {
+				let Some(index) = self
+					.frames
+					.iter()
+					.rposition(|frame| matches!(frame, Frame::ErrorContext { .. }))
+				else {
+					return Err(error);
+				};
+				self.frames.truncate(index + 1);
+				self.try_eval_frames.retain(|frame| *frame < index);
+				let Some(Frame::ErrorContext {
+					context,
+					span,
+					depth,
+					stack_base,
+					outer_traces,
+				}) = self.frames.pop()
+				else {
+					unreachable!()
+				};
+				self.stack.truncate(stack_base);
+				self.enqueue_context_message(context, Err(error), span, depth, outer_traces);
+			}
+		}
+		Ok(())
+	}
+
+	fn enqueue_context_message(
+		&mut self,
+		context: Value,
+		result: Result<Value, Error>,
+		span: Span,
+		depth: usize,
+		outer_traces: usize,
+	) {
+		self.call_depth = depth;
+		self.frames.push(Frame::ContextMessage {
+			result,
+			span,
+			depth,
+			outer_traces,
+		});
+		self.enqueue_generator("error_context_message", span, |co| async move {
+			let context = generators::request_force(&co, context).await;
+			context
+				.coerce_to_string(
+					co,
+					CoercionKind {
+						strong: false,
+						import_paths: false,
+					},
+					span,
+				)
+				.await
+				.trace(
+					None,
+					"while evaluating the error message passed to builtins.addErrorContext",
+				)
+		});
 	}
 
 	/// Run the VM's inner execution loop, processing noxi bytecode from a
@@ -1147,8 +1313,9 @@ where
 
 				Op::Concat => lifted_pop! {
 					self(rhs, lhs) => {
-						let rhs = rhs.to_list().with_span(&frame, self)?.into_inner();
-						let mut lhs = lhs.to_list().with_span(&frame, self)?.into_inner();
+						let context = "while evaluating one of the elements to concatenate";
+						let mut lhs = lhs.to_list().trace(Some(frame.current_span()), context).with_span(&frame, self)?.into_inner();
+						let rhs = rhs.to_list().trace(Some(frame.current_span()), context).with_span(&frame, self)?.into_inner();
 						lhs.extend(rhs.into_iter());
 						self.stack.push(Value::List(lhs.into()))
 					}
@@ -1217,6 +1384,17 @@ where
 					}
 
 					let args = peeked.to_attrs().with_span(&frame, self)?;
+					for (arg, has_default) in &formals.arguments {
+						if !has_default && args.select(arg).is_none() {
+							return frame.error(
+								self,
+								ErrorKind::MissingArgument {
+									arg: arg.clone(),
+									lambda: frame.lambda.clone(),
+								},
+							);
+						}
+					}
 					for arg in args.keys() {
 						if !formals.contains(arg) {
 							return frame.error(
@@ -1438,7 +1616,10 @@ impl<IO> VM<'_, IO> {
 			.collect();
 		// CppNix checks a call's arguments against the function's formals
 		// before it evaluates the body, so only `from call site` applies.
-		let formals_error = matches!(error, Some(ErrorKind::UnexpectedArgumentFormals { .. }));
+		let formals_error = matches!(
+			error,
+			Some(ErrorKind::UnexpectedArgumentFormals { .. } | ErrorKind::MissingArgument { .. })
+		);
 		let hidden = |span: &Span| self.source.is_hidden(*span);
 		let mut traces = vec![];
 		for (i, frame) in frames.iter().enumerate() {
@@ -1457,14 +1638,20 @@ impl<IO> VM<'_, IO> {
 						));
 					}
 				}
-				FrameTrace::Builtin { name, call_site } => {
+				FrameTrace::Builtin {
+					name,
+					call_site,
+					contexts,
+				} => {
 					if !call_site.as_ref().is_some_and(hidden) {
 						traces.push(Trace::new(
 							*call_site,
 							format!("while calling the '{name}' builtin"),
 						));
 					}
+					traces.extend(contexts.iter().cloned());
 				}
+
 				FrameTrace::Lambda { lambda, call_site } => {
 					if lambda.span.as_ref().is_none_or(hidden) {
 						continue;
@@ -1701,7 +1888,11 @@ where
 				pending,
 				span,
 				depth: self.call_depth,
-				trace: FrameTrace::Builtin { name, call_site },
+				trace: FrameTrace::Builtin {
+					name,
+					call_site,
+					contexts: vec![],
+				},
 			}),
 			// Partially applied builtin is just pushed back on the stack.
 			BuiltinResult::Partial(partial) => self.stack.push(Value::Builtin(partial)),
@@ -1715,6 +1906,7 @@ where
 						FrameTrace::Builtin {
 							name: builtin_name,
 							call_site,
+							contexts: vec![],
 						},
 					),
 				);
@@ -1735,6 +1927,7 @@ where
 				trace: FrameTrace::Builtin {
 					name: builtin_name,
 					call_site,
+					contexts: vec![],
 				},
 			}),
 		}

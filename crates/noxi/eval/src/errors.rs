@@ -225,6 +225,7 @@ pub enum ErrorKind {
 
 	#[error("can not compare a {lhs} with a {rhs}")]
 	Incomparable {
+		values: Box<(Value, Value)>,
 		lhs: &'static str,
 		rhs: &'static str,
 	},
@@ -372,6 +373,12 @@ to a missing value in the attribute set(s) included via `with`."#
 		formals_span: Span,
 		/// The function called, for CppNix's message.
 		lambda: Option<Rc<crate::value::Lambda>>,
+	},
+
+	#[error("function called without required argument '{arg}'")]
+	MissingArgument {
+		arg: NixString,
+		lambda: Rc<crate::value::Lambda>,
 	},
 
 	/// Invalid UTF-8 was encoutered somewhere
@@ -527,6 +534,8 @@ pub struct Trace {
 	/// CppNix adds this frame only with `--show-trace`, like its
 	/// function-call frames.
 	pub show_trace_only: bool,
+	/// User contexts print even beyond the default trace budget.
+	pub always: bool,
 }
 
 impl Trace {
@@ -535,6 +544,7 @@ impl Trace {
 			span,
 			hint: hint.into(),
 			show_trace_only: false,
+			always: false,
 		}
 	}
 }
@@ -861,6 +871,7 @@ impl Error {
 			// in them, or we don't utilise it yet.
 			ErrorKind::Abort(_)
 			| ErrorKind::AttributeNotFound { .. }
+			| ErrorKind::MissingArgument { .. }
 			| ErrorKind::IndexOutOfBounds { .. }
 			| ErrorKind::TailEmptyList
 			| ErrorKind::TypeError { .. }
@@ -920,7 +931,7 @@ impl Error {
 			ErrorKind::Abort(_) => "E002",
 			ErrorKind::CatchableError(CatchableErrorKind::AssertionFailed) => "E003",
 			ErrorKind::InvalidAttributeName { .. } => "E004",
-			ErrorKind::AttributeNotFound { .. } => "E005",
+			ErrorKind::AttributeNotFound { .. } | ErrorKind::MissingArgument { .. } => "E005",
 			ErrorKind::TypeError { .. } => "E006",
 			ErrorKind::Incomparable { .. } => "E007",
 			ErrorKind::CatchableError(CatchableErrorKind::NixPathResolution(_)) => "E008",

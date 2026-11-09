@@ -160,6 +160,7 @@ fn print_pos(out: &mut String, indent: &str, pos: Option<&Pos>) -> bool {
 }
 
 struct ResolvedTrace {
+	always: bool,
 	pos: Option<Pos>,
 	hint: String,
 }
@@ -229,6 +230,7 @@ impl ErrorInfo<'_> {
 			.iter()
 			.filter(|trace| show_trace || !trace.show_trace_only)
 			.map(|trace| ResolvedTrace {
+				always: trace.always,
 				pos: trace.span.and_then(|span| position(self.source, span)),
 				hint: trace.hint.clone(),
 			})
@@ -247,7 +249,7 @@ impl ErrorInfo<'_> {
 				if !show_trace && count > 3 {
 					truncate = true;
 				}
-				if !truncate {
+				if !truncate || trace.always {
 					if seen.contains(&trace.key()) {
 						skipped.push(trace);
 						continue;
@@ -410,10 +412,107 @@ fn message(error: &Error) -> (String, Option<Span>, Vec<String>) {
 	)
 }
 
+/// Translate parser tokens to the names used by the pinned Bison grammar.
+fn parse_message(
+	error: &Error,
+	errors: &[rnix::ParseError],
+) -> (String, Option<Span>, Vec<String>) {
+	use rnix::SyntaxKind::*;
+	let file = error.source.get_file(error.span);
+	let input = file.source();
+	let (mut offset, wanted, extra) = match errors.first() {
+		Some(rnix::ParseError::Unexpected(range)) => {
+			(u32::from(range.start()) as usize, vec![], false)
+		}
+		Some(rnix::ParseError::UnexpectedExtra(range)) => {
+			(u32::from(range.start()) as usize, vec![], true)
+		}
+		Some(rnix::ParseError::UnexpectedWanted(_, range, wanted)) => {
+			(u32::from(range.start()) as usize, wanted.to_vec(), false)
+		}
+		Some(rnix::ParseError::UnexpectedEOF | rnix::ParseError::UnexpectedEOFWanted(_)) => {
+			(input.len(), vec![], false)
+		}
+		_ => return (error.kind.to_string(), None, vec![]),
+	};
+	// The lexer can consume an unterminated string before reporting
+	// its terminal error. Bison reports its opening token in an attrpath.
+	let prefix = input[..offset].trim_end();
+	let indented_attr = input[..offset]
+		.rfind(".''")
+		.filter(|start| input[*start + 3..offset].trim().is_empty());
+	if let Some(start) = indented_attr {
+		offset = start + 1;
+	}
+	let root = rnix::Root::parse(input).syntax();
+	let unclosed_string = root
+		.descendants_with_tokens()
+		.filter_map(|node| node.into_token())
+		.fold(0isize, |depth, token| match token.kind() {
+			TOKEN_STRING_START => depth + 1,
+			TOKEN_STRING_END => depth - 1,
+			_ => depth,
+		})
+		> 0;
+	if unclosed_string && indented_attr.is_none() && input[offset..].trim().len() <= 1 {
+		offset = input.len();
+	}
+	let token = root
+		.descendants_with_tokens()
+		.filter_map(|node| node.into_token())
+		.find(|token| usize::from(token.text_range().end()) > offset);
+	let label = token
+		.as_ref()
+		.map(|token| match token.kind() {
+			TOKEN_IDENT => "identifier".into(),
+			TOKEN_INTEGER => "integer".into(),
+			TOKEN_FLOAT => "floating-point literal".into(),
+			TOKEN_PATH_HOME => "'~/…' path".into(),
+			TOKEN_PATH_ABS | TOKEN_PATH_REL => "path".into(),
+			TOKEN_PATH_SEARCH => "'<…>' path".into(),
+			TOKEN_URI => "URI".into(),
+			TOKEN_ERROR => "invalid token".into(),
+			TOKEN_STRING_START if token.text() == "''" => "start of an indented string".into(),
+			_ => format!("'{}'", token.text()),
+		})
+		.unwrap_or_else(|| "end of file".into());
+	let expecting = if offset == input.len() && unclosed_string {
+		", expecting '\"'"
+	} else if extra {
+		", expecting end of file"
+	} else if prefix.ends_with('.') || indented_attr.is_some() {
+		", expecting identifier or 'or' or '${' or '\"'"
+	} else if wanted == [TOKEN_THEN] {
+		", expecting 'then'"
+	} else if wanted.contains(&TOKEN_ASSIGN) {
+		", expecting '.' or '='"
+	} else if token
+		.as_ref()
+		.is_some_and(|token| token.kind() == TOKEN_COLON)
+		&& input[..offset].contains('{')
+	{
+		", expecting '}' or ','"
+	} else if token
+		.as_ref()
+		.is_some_and(|token| matches!(token.kind(), TOKEN_INTEGER | TOKEN_FLOAT))
+		&& wanted.contains(&TOKEN_IDENT)
+	{
+		", expecting 'inherit'"
+	} else {
+		""
+	};
+	(
+		format!("syntax error, unexpected {label}{expecting}"),
+		Some(file.span.subspan(offset as u64, offset as u64)),
+		vec![],
+	)
+}
+
 /// [`message`] by error kind, before an explicit position applies.
 fn kind_message(error: &Error) -> (String, Option<Span>, Vec<String>) {
 	let at = Some(error.span);
 	match &error.kind {
+		ErrorKind::ParseErrors(errors) => parse_message(error, errors),
 		ErrorKind::Abort(message) => (
 			format!("evaluation aborted with the following error message: '{message}'"),
 			None,
@@ -454,6 +553,35 @@ fn kind_message(error: &Error) -> (String, Option<Span>, Vec<String>) {
 			None,
 			suggestions.clone(),
 		),
+		ErrorKind::Incomparable { values, .. } => {
+			let (lhs, rhs) = &**values;
+			let left = show_type(lhs);
+			let right = show_type(rhs);
+			let values = format!(
+				"{} and {}",
+				print_value(&error.source, lhs),
+				print_value(&error.source, rhs)
+			);
+			let detail = if lhs.type_of() == rhs.type_of() {
+				format!("values of that type are incomparable (values are {values})")
+			} else {
+				format!("values are {values}")
+			};
+			(
+				format!("cannot compare {left} with {right}; {detail}"),
+				None,
+				vec![],
+			)
+		}
+		ErrorKind::MissingArgument { arg, lambda } => (
+			format!(
+				"function '{}' called without required argument '{arg}'",
+				lambda_name(lambda),
+				arg = arg.to_str_lossy()
+			),
+			lambda.span,
+			vec![],
+		),
 		ErrorKind::UnexpectedArgumentFormals {
 			arg,
 			lambda: Some(lambda),
@@ -480,9 +608,10 @@ fn kind_message(error: &Error) -> (String, Option<Span>, Vec<String>) {
 				best_matches(formals.iter().map(String::as_str), &arg),
 			)
 		}
-		ErrorKind::IntegerOverflow { .. }
-		| ErrorKind::DivisionByZero
-		| ErrorKind::InfiniteRecursion { .. } => (error.kind.to_string(), at, vec![]),
+		ErrorKind::DivisionByZero => (error.kind.to_string(), None, vec![]),
+		ErrorKind::IntegerOverflow { .. } | ErrorKind::InfiniteRecursion { .. } => {
+			(error.kind.to_string(), at, vec![])
+		}
 		ErrorKind::NotCallable(_, Some(value)) => (
 			format!(
 				"attempt to call something which is not a function but {}: {}",

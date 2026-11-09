@@ -20,9 +20,11 @@ mod scope;
 
 use codemap::Span;
 use rnix::ast::{self, AstToken, InterpolPart, PathContent};
+use rowan::ast::AstNode;
 use rustc_hash::FxHashMap;
 use scope::ScopeGuard;
 use smol_str::SmolStr;
+
 use std::collections::BTreeMap;
 use std::path::PathBuf;
 use std::rc::{Rc, Weak};
@@ -649,6 +651,40 @@ impl Compiler<'_, '_> {
 			_ => {}
 		};
 
+		// CppNix lowers these operators to primop calls. Their arguments
+		// remain lazy until the builtin checks them, and their call site
+		// is the operator token, including when the left argument fails.
+		let primop = match op.operator().unwrap() {
+			BinOpKind::Sub => Some("__sub"),
+			BinOpKind::Mul => Some("__mul"),
+			BinOpKind::Div => Some("__div"),
+			_ => None,
+		};
+		if let Some(primop) = primop {
+			if let Some(builtin) = self.globals.get(primop).cloned() {
+				let token = op
+					.syntax()
+					.children_with_tokens()
+					.filter_map(|child| child.into_token())
+					.find(|token| {
+						matches!(
+							token.kind(),
+							rnix::SyntaxKind::TOKEN_SUB
+								| rnix::SyntaxKind::TOKEN_MUL
+								| rnix::SyntaxKind::TOKEN_DIV
+						)
+					})
+					.unwrap();
+				self.compile(slot, op.rhs().unwrap());
+				self.compile(slot, op.lhs().unwrap());
+				self.emit_constant(builtin, &token);
+				self.emit_force(&token);
+				self.push_op(Op::Call, &token);
+				self.push_op(Op::Call, &token);
+				return;
+			}
+		}
+
 		// For all other operators, the two values need to be left on
 		// the stack in the correct order before pushing the
 		// instruction for the operation itself.
@@ -659,7 +695,7 @@ impl Compiler<'_, '_> {
 		self.emit_force(&op.rhs().unwrap());
 
 		match op.operator().unwrap() {
-			BinOpKind::Add => self.push_op(Op::Add, op),
+			BinOpKind::Add => self.push_op(Op::Add, &op.rhs().unwrap()),
 			BinOpKind::Sub => self.push_op(Op::Sub, op),
 			BinOpKind::Mul => self.push_op(Op::Mul, op),
 			BinOpKind::Div => self.push_op(Op::Div, op),
@@ -669,7 +705,14 @@ impl Compiler<'_, '_> {
 			BinOpKind::LessOrEq => self.push_op(Op::LessOrEq, op),
 			BinOpKind::More => self.push_op(Op::More, op),
 			BinOpKind::MoreOrEq => self.push_op(Op::MoreOrEq, op),
-			BinOpKind::Concat => self.push_op(Op::Concat, op),
+			BinOpKind::Concat => self.push_op(
+				Op::Concat,
+				&op.syntax()
+					.children_with_tokens()
+					.filter_map(|child| child.into_token())
+					.find(|token| token.kind() == rnix::SyntaxKind::TOKEN_CONCAT)
+					.unwrap(),
+			),
 			BinOpKind::NotEqual => {
 				self.push_op(Op::Equal, op);
 				self.push_op(Op::Invert, op)
@@ -1186,9 +1229,7 @@ impl Compiler<'_, '_> {
 		self.push_op(Op::AssertAttrs, pattern);
 
 		let ellipsis = pattern.ellipsis_token().is_some();
-		if !ellipsis {
-			self.push_op(Op::ValidateClosedFormals, pattern);
-		}
+		self.push_op(Op::ValidateClosedFormals, pattern);
 
 		// Similar to `let ... in ...`, we now do multiple passes over
 		// the bindings to first declare them, then populate them, and

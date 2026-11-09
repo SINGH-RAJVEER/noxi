@@ -892,6 +892,7 @@ impl Value {
 					return Err(ErrorKind::Incomparable {
 						lhs: lhs.type_of(),
 						rhs: rhs.type_of(),
+						values: Box::new((lhs, rhs)),
 					});
 				}
 			};

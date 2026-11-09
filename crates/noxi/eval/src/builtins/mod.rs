@@ -17,7 +17,6 @@ use std::path::PathBuf;
 use std::rc::Rc;
 
 use crate::vm::generators::{self, GenCo};
-use crate::warnings::WarningKind;
 use crate::{
 	self as noxi_eval,
 	builtins::hash::hash_nix_string,
@@ -787,13 +786,31 @@ mod pure_builtins {
 		// After CppNix's `prim_genericClosure`, which keeps the keys in an
 		// ordered set, so keys must be comparable.
 		let attrs = input.to_attrs()?;
-		let start_set =
-			generators::request_force(&co, attrs.select_required("startSet")?.clone()).await;
-		let start_set = try_value!(start_set).to_list()?;
+		let start_set = generators::request_force(
+			&co,
+			attrs
+				.select_required("startSet")
+				.trace(
+					None,
+					"in the attrset passed as argument to builtins.genericClosure",
+				)?
+				.clone(),
+		)
+		.await;
+		let start_set = try_value!(start_set).to_list().trace(
+			None,
+			"while evaluating the 'startSet' attribute passed as argument to builtins.genericClosure",
+		)?;
 		if start_set.is_empty() {
 			return Ok(Value::List(start_set));
 		}
-		let operator = attrs.select_required("operator")?.clone();
+		let operator = attrs
+			.select_required("operator")
+			.trace(
+				None,
+				"in the attrset passed as argument to builtins.genericClosure",
+			)?
+			.clone();
 		let operator = try_value!(generators::request_force(&co, operator).await);
 		if !matches!(operator, Value::Closure(_) | Value::Builtin(_))
 			&& !matches!(&operator, Value::Attrs(attrs) if attrs.select("__functor").is_some())
@@ -802,7 +819,11 @@ mod pure_builtins {
 				expected: "lambda",
 				actual: operator.type_of(),
 				value: Some(Box::new(operator.clone())),
-			});
+			})
+			.trace(
+				None,
+				"while evaluating the 'operator' attribute passed as argument to builtins.genericClosure",
+			);
 		}
 
 		let span = generators::request_span(&co).await;
@@ -812,7 +833,14 @@ mod pure_builtins {
 
 		while let Some(val) = work_set.pop_front() {
 			let val = try_value!(generators::request_force(&co, val).await);
-			let key = val.to_attrs()?.select_required("key")?.clone();
+			let printed = generators::request_print(&co, val.clone(), PrintOptions::ERROR).await;
+			let key = val
+				.to_attrs()
+				.and_then(|attrs| attrs.select_required("key").cloned())
+				.trace(
+					None,
+					format!("in genericClosure element {}", printed.to_str_lossy()),
+				)?;
 			let key = try_value!(generators::request_force(&co, key).await);
 
 			// Binary search for the key among the sorted keys seen so far.
@@ -844,30 +872,58 @@ mod pure_builtins {
 				generators::request_call_with(&co, operator.clone(), [val]).await,
 			)
 			.await;
-			work_set.extend(try_value!(op_result).to_list()?);
+			work_set.extend(
+				try_value!(op_result)
+					.to_list()
+					.trace(
+						None,
+						"while evaluating the return value of the `operator` passed to builtins.genericClosure",
+					)
+					.trace(
+						None,
+						format!(
+							"while calling operator on genericClosure element {}",
+							printed.to_str_lossy()
+						),
+					)?,
+			);
 		}
 
 		Ok(Value::List(NixList::from(res)))
 	}
 
 	#[builtin("genList")]
-	fn builtin_gen_list(
-		span: codemap::Span,
-		// Nix 2.3 doesn't propagate failures here
+	async fn builtin_gen_list(
+		co: GenCo,
+		// Force the function even for length zero, as CppNix 2.35.2 does.
 		#[lazy] generator: Value,
 		length: Value,
 	) -> Result<Value, ErrorKind> {
 		let len = length.as_int()?;
-		let mut out = Vec::with_capacity(
-			len.try_into()
-				.map_err(|_| ErrorKind::EvalError(format!("cannot create list of size {len}")))?,
-		);
-		if len == 0 {
-			return Ok(Value::List(out.into()));
+		let count: usize = len
+			.try_into()
+			.map_err(|_| ErrorKind::EvalError(format!("cannot create list of size {len}")))?;
+		let span = generators::request_span(&co).await;
+		generators::request_builtin_context(
+			&co,
+			vec![crate::errors::Trace::new(
+				None,
+				"while evaluating the first argument passed to builtins.genList",
+			)],
+		)
+		.await;
+		let generator = try_value!(generators::request_force(&co, generator).await);
+		if !matches!(&generator, Value::Closure(_) | Value::Builtin(_))
+			&& !matches!(&generator, Value::Attrs(attrs) if attrs.select("__functor").is_some())
+		{
+			return Err(ErrorKind::TypeError {
+				expected: "lambda",
+				actual: generator.type_of(),
+				value: Some(Box::new(generator)),
+			});
 		}
 
-		// the best span we can get…
-
+		let mut out = Vec::with_capacity(count);
 		let lambda = Thunk::suspended_call_lambda(span);
 		for i in 0..len {
 			let val = Value::Thunk(Thunk::new_suspended_call_with_lambda(
@@ -1287,12 +1343,27 @@ mod pure_builtins {
 		let list = list.to_list()?;
 		let mut map = FxHashMap::default();
 		for val in list {
-			let attrs = try_value!(generators::request_force(&co, val).await).to_attrs()?;
+			let attrs = try_value!(generators::request_force(&co, val).await)
+				.to_attrs()
+				.trace(
+					None,
+					"while evaluating an element of the list passed to builtins.listToAttrs",
+				)?;
 			let name = try_value!(
-				generators::request_force(&co, attrs.select_required("name")?.clone()).await
+				generators::request_force(
+					&co,
+					attrs
+						.select_required("name")
+						.trace(None, "in a {name=...; value=...;} pair")?
+						.clone()
+				)
+				.await
 			)
 			.to_str()?;
-			let value = attrs.select_required("value")?.clone();
+			let value = attrs
+				.select_required("value")
+				.trace(None, "in a {name=...; value=...;} pair")?
+				.clone();
 			// Map entries earlier in the list take precedence over entries later in the list
 			map.entry(name).or_insert(value);
 		}
@@ -1300,18 +1371,32 @@ mod pure_builtins {
 	}
 
 	#[builtin("map")]
-	fn builtin_map(
-		span: codemap::Span,
-		#[lazy] f: Value,
-		list_val: Value,
-	) -> Result<Value, ErrorKind> {
+	async fn builtin_map(co: GenCo, #[lazy] f: Value, list_val: Value) -> Result<Value, ErrorKind> {
 		let list = list_val.to_list()?;
 		let mut out = Vec::with_capacity(list.len());
 		if list.is_empty() {
 			return Ok(Value::List(out.into()));
 		}
 
-		// the best span we can get…
+		let span = generators::request_span(&co).await;
+		generators::request_builtin_context(
+			&co,
+			vec![crate::errors::Trace::new(
+				None,
+				"while evaluating the first argument passed to builtins.map",
+			)],
+		)
+		.await;
+		let f = try_value!(generators::request_force(&co, f).await);
+		if !matches!(&f, Value::Closure(_) | Value::Builtin(_))
+			&& !matches!(&f, Value::Attrs(attrs) if attrs.select("__functor").is_some())
+		{
+			return Err(ErrorKind::TypeError {
+				expected: "lambda",
+				actual: f.type_of(),
+				value: Some(Box::new(f)),
+			});
+		}
 
 		let lambda = Thunk::suspended_call_lambda(span);
 		for val in list {
@@ -2154,12 +2239,10 @@ mod placeholder_builtins {
 	#[builtin("addErrorContext")]
 	async fn builtin_add_error_context(
 		co: GenCo,
-		#[lazy] _context: Value,
+		#[lazy] context: Value,
 		#[lazy] val: Value,
 	) -> Result<Value, ErrorKind> {
-		generators::emit_warning_kind(&co, WarningKind::NotImplemented("builtins.addErrorContext"))
-			.await;
-		Ok(val)
+		Ok(generators::request_error_context(&co, context, val).await)
 	}
 
 	#[builtin("unsafeGetAttrPos")]

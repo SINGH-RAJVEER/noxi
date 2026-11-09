@@ -415,7 +415,7 @@ __noxi_autoCall = f:
 	else f (builtins.intersectAttrs (builtins.functionArgs f) args);
 __noxi_forceEach = results: builtins.foldl' (acc: v: builtins.seq v acc) results results;
 __noxi_isDerivation = v: builtins.isAttrs v && v ? type && v.type == \"derivation\";
-__noxi_pair = d: [ d.drvPath (d.outputName or \"\") ];
+__noxi_pair = d: let p = __noxi_drvPath d; in builtins.seq p [ p (d.outputName or \"\") ];
 __noxi_getDerivations = v:
 	let v' = __noxi_autoCall v; in
 	if __noxi_isDerivation v' then [ (__noxi_pair v') ]
@@ -465,7 +465,7 @@ in __noxi_forceEach [\n",
 				selection = format!("(__noxi_autoCall {selection})");
 			}
 			if !options.eval {
-				selection = format!("(__noxi_getDerivations {selection})");
+				selection = format!("(__noxi_forceEach (__noxi_getDerivations {selection}))");
 			} else if options.json {
 				selection = format!("(builtins.toJSON {selection})");
 			}
@@ -502,6 +502,32 @@ in __noxi_forceEach [\n",
 mod driver_builtins {
 	use noxi_eval::generators::{Gen, GenCo};
 	use noxi_eval::{ErrorKind, Value};
+
+	/// Validate the drvPath while its source position is still available.
+	#[builtin("drvPath")]
+	async fn builtin_drv_path(co: GenCo, derivation: Value) -> Result<Value, ErrorKind> {
+		use noxi_eval::{AddContext, generators};
+		let attrs = derivation.to_attrs()?;
+		let span = attrs.get_attr_pos("drvPath");
+		let path = generators::request_force(&co, attrs.select_required("drvPath")?.clone()).await;
+		if path.is_catchable() {
+			return Ok(path);
+		}
+		let string = path.to_contextful_str()?;
+		let parsed = nix_compat::store_path::StorePath::from_absolute_path(string.as_bytes())
+			.map_err(|error| ErrorKind::EvalError(error.to_string()))?;
+		if !parsed.name().ends_with(".drv") {
+			return Err(ErrorKind::EvalError(format!(
+				"store path '{}' is not a valid derivation path",
+				parsed
+			)))
+			.trace(
+				span,
+				"while evaluating the 'drvPath' attribute of a derivation",
+			);
+		}
+		Ok(path)
+	}
 
 	/// `null` for anything but a function with a pattern; otherwise whether
 	/// the pattern has an ellipsis.
