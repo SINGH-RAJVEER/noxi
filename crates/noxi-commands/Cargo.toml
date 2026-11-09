@@ -55,6 +55,7 @@ noxi-daemon = { path = "../noxi-daemon", version = "0.0.1" }
 noxi-glue = { path = "../noxi-glue", version = "0.0.1" }
 noxi-store = { path = "../noxi-store", version = "0.0.1" }
 regex.workspace = true
+url.workspace = true
 libc.workspace = true
 rustc-hash.workspace = true
 smol_str.workspace = true

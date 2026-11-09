@@ -10,6 +10,7 @@ pub mod flake;
 pub(crate) mod git;
 pub(crate) mod github;
 pub mod http;
+pub use tarball::unpack as unpack_tarball;
 mod lfs;
 pub(crate) mod path;
 pub(crate) mod tarball;
@@ -65,6 +66,17 @@ pub struct FetchState {
 }
 
 impl EvaluatorStore {
+	/// A source tree fetched and hashed by this evaluation, including sources copied into a writable store.
+	pub fn is_fetched_source(&self, path: &StorePath) -> bool {
+		self.is_mounted(path)
+			|| self
+				.fetch_state
+				.borrow()
+				.hashed
+				.iter()
+				.any(|(_, _, fetched, _)| fetched == path)
+	}
+
 	/// Set the settings fetchers use for the rest of the evaluation.
 	pub fn configure_fetching(&self, config: FetchConfig) {
 		*self.fetch_config.borrow_mut() = config;
