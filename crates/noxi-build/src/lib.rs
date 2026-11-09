@@ -19,3 +19,5 @@ pub mod settings;
 pub mod structured;
 
 pub use error::{BuildError, FailureStatus, Result};
+
+mod unpack_channel;
