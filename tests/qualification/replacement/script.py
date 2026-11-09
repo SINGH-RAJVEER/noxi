@@ -171,7 +171,7 @@ def swap_to_noxi(label: str) -> bool:
 		"readlink -f $(command -v nix-instantiate)",
 		check=lambda out: (out.strip().startswith(expected["candidate"]), out.strip()),
 	)
-	run("noxi-version", "nix-instantiate --version")
+	run("noxi-version", "nix-instantiate --version", check=equals("nix-instantiate (Nix) 2.35.2"))
 	run("noxi-modern-cli", "nix --version")
 	run("noxi-config-show", "nix config show --json")
 	daemons("noxi", expected["candidate"])

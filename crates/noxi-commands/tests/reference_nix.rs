@@ -665,3 +665,94 @@ fn legacy_environment_entrypoints_and_explicit_limits() {
 		assert!(String::from_utf8_lossy(&actual.stderr).contains(message));
 	}
 }
+
+/// Nixpkgs' `nix.checkConfig` validates a NixOS-generated nix.conf with
+/// `nix config show --no-net --option experimental-features nix-command` and
+/// fails the system build on any `error:` or `warning:` line. Diagnostics,
+/// exit statuses and the stored values must match the reference.
+#[test]
+fn config_show_validates_generated_nix_conf() {
+	let f = Fixture::new();
+	let etc = f.dir.path().join("etc");
+	fs::create_dir_all(&etc).unwrap();
+	let run = |reference: bool, args: &[&str]| {
+		let program = if reference {
+			f.reference.join("nix")
+		} else {
+			PathBuf::from(env!("CARGO_BIN_EXE_nix"))
+		};
+		Command::new(program)
+			.arg0("nix")
+			.args(["config", "show", "--no-net"])
+			.args(["--option", "experimental-features", "nix-command"])
+			.args(args)
+			.current_dir(f.dir.path())
+			.env_clear()
+			.env("HOME", f.dir.path())
+			.env("NIX_CONF_DIR", &etc)
+			.output()
+			.unwrap()
+	};
+	let nixos = "allowed-users = *\nauto-optimise-store = false\nbuilders = \ncores = 0\n\
+		experimental-features = nix-command flakes\nflake-registry = \nmax-jobs = auto\n\
+		require-sigs = true\nsandbox = true\nsandbox-fallback = false\nsubstituters = \n\
+		system-features = nixos-test benchmark big-parallel kvm\n\
+		trusted-public-keys = cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY=\n\
+		trusted-substituters = \ntrusted-users = root @wheel\nextra-sandbox-paths = \n";
+	let units = "min-free = 1K\nmax-free = 2G\nmax-silent-time = -5\ntimeout = 1M\n\
+		max-build-log-size = 3G\ncores = 1K\nmax-call-depth = 1k\n";
+	for (contents, shown) in [
+		(
+			nixos,
+			&[
+				"cores",
+				"max-jobs",
+				"sandbox",
+				"trusted-users",
+				"system-features",
+				"require-sigs",
+			][..],
+		),
+		(
+			units,
+			&[
+				"min-free",
+				"max-free",
+				"max-silent-time",
+				"timeout",
+				"max-build-log-size",
+				"cores",
+				"max-call-depth",
+			][..],
+		),
+		("bogus-setting = 1\n", &[][..]),
+		("min-free = -3\n", &[][..]),
+		("min-free = 1P\n", &[][..]),
+		("max-free = 18446744073709551616\n", &[][..]),
+		("http-connections = -2\n", &[][..]),
+		("max-jobs = 1K\n", &[][..]),
+		("max-jobs = -3\n", &[][..]),
+		("sandbox = maybe\n", &[][..]),
+		("show-trace = 1K\n", &[][..]),
+	] {
+		fs::write(etc.join("nix.conf"), contents).unwrap();
+		let expected = run(true, &[]);
+		let actual = run(false, &[]);
+		assert_eq!(actual.status.code(), expected.status.code(), "{contents}");
+		assert_eq!(
+			String::from_utf8_lossy(&actual.stderr),
+			String::from_utf8_lossy(&expected.stderr),
+			"{contents}"
+		);
+		for name in shown {
+			let expected = run(true, &[name]);
+			let actual = run(false, &[name]);
+			assert_eq!(actual.status.code(), expected.status.code(), "{name}");
+			assert_eq!(
+				String::from_utf8_lossy(&actual.stdout),
+				String::from_utf8_lossy(&expected.stdout),
+				"{contents}{name}"
+			);
+		}
+	}
+}
