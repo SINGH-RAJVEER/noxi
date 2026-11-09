@@ -304,7 +304,7 @@ Serializes Rust values into Nix and deserializes Nix values into Rust types, imp
 
 ### Unreleased
 
-- Pure flake evaluation reads stored `path:` inputs by name, resolves the built-in `<nix/...>` files, answers `pathExists` with false for paths it may not access, and allows `builtins.path` and `builtins.filterSource` for paths inside fetched sources, refusing others with CppNix's message (2026-11-09).
+- Pure flake evaluation reads stored `path:` inputs by name, resolves the built-in `<nix/...>` files, answers `pathExists` with false for paths it may not access, and allows `builtins.path` and `builtins.filterSource` for paths inside fetched sources, refusing others with CppNix's message. Every pure read and import is checked on its resolved path, so a symlink or `..` can no longer reach host files (2026-11-09).
 - Daemon clients send only overrides through `SetOptions`, so an untrusted client on NixOS no longer prints a restricted-setting warning for every system `nix.conf` entry, and a missing `local?root=` store root is created as CppNix does (2026-11-09).
 
 - Add diverted-store `nix-build` and selected `nix-store` operations. Build evaluation retains temporary roots, honors selected output names and creates optional permanent result roots; reference comparisons cover both output selections and six metadata/closure queries. (2026-10-03).
