@@ -13,6 +13,7 @@ import shlex
 SYSTEM = "/etc/qualification/system.nix"
 FLAKE = "/etc/qualification/flake"
 PROFILE = "/nix/var/nix/profiles/system"
+PROBE = "/etc/qualification/probe.nix"
 TIMEOUT = 1800
 FAILED_BUILD = (
 	"nix-build --no-out-link --expr 'let pkgs = import <nixpkgs> {}; in derivation {"
@@ -206,6 +207,12 @@ def return_to_cppnix(label: str) -> None:
 	# CppNix reads and reuses the store noxi wrote: verification, then a
 	# rebuild of a noxi generation that has nothing to build.
 	run(f"{label}-verify-store", "nix-store --verify --check-contents")
+	if MODE == "nixos":
+		# CppNix rebuilds what noxi built and must get identical outputs.
+		run(
+			f"{label}-checks-fresh-build",
+			"nix-store --realise --check $(for path in " + " ".join(expected["fresh"]["new"]) + "; do nix-store -q --deriver $path; done)",
+		)
 	run(
 		f"{label}-reuses-store",
 		f"cd /tmp && nixos-rebuild build --file {SYSTEM} --attr two --no-reexec && readlink -f result",
@@ -267,10 +274,13 @@ def nixos() -> None:
 			verify("component-rollback-generation", *is_generation("two"))
 	else:
 		blocked("rollback", "the second change did not reach generation three")
+	fresh()
 
 
 def home_manager() -> None:
 	"""Standalone Home Manager in classic and flake mode, and the NixOS module."""
+	hm_sequence("noxi")
+	hm_reset("noxi-hm-reset")
 	home = expected["home"]
 	command = f"home-manager -f {home['config']}"
 	run("standalone-build", f"{command} build && readlink -f result", user="standalone", check=equals(home["out"]))
@@ -286,6 +296,206 @@ def home_manager() -> None:
 		"systemctl restart home-manager-qualification.service && systemctl is-active home-manager-qualification.service",
 	)
 	run("module-activation-journal", "journalctl -b -u home-manager-qualification.service --no-pager -n 40")
+
+
+def fresh_absent(label: str) -> bool:
+	"""None of the fresh generation's outputs is on the disk."""
+	return run(label, " && ".join(f"! test -e {path}" for path in expected["fresh"]["new"]))
+
+
+def fresh() -> None:
+	"""A generation whose four new derivations noxi builds in the guest."""
+	fresh_absent("fresh-absent")
+	run("fresh-switch", f"nixos-rebuild switch --file {SYSTEM} --attr fresh --no-reexec")
+	now = current()
+	verify("fresh-generation", now == expected["fresh"]["out"], f"current {now}, expected {expected['fresh']['out']}")
+	run("fresh-marker", "cat /etc/qualification-generation", check=equals("fresh"))
+	# Registered by the build, with its derivation as deriver.
+	run(
+		"fresh-derivers",
+		"for path in " + " ".join(expected["fresh"]["new"]) + "; do nix-store -q --deriver $path; done",
+		check=lambda out: (
+			len(out.split()) == len(expected["fresh"]["new"]) and all(p.endswith(".drv") for p in out.split()),
+			out,
+		),
+	)
+	# The strict gate compares these with the host's CppNix build.
+	run(
+		"fresh-nar-hashes",
+		"for path in " + " ".join(expected["fresh"]["new"]) + "; do echo \"$path $(nix-store -q --hash $path)\"; done",
+	)
+
+
+def nixbld() -> tuple[str, list[str]]:
+	gid = text("getent group nixbld | cut -d: -f3")
+	uids = text("for user in $(getent group nixbld | cut -d: -f4 | tr , ' '); do id -u $user; done").split()
+	return gid, uids
+
+
+def probe(label: str, nonce: str, user: str | None = None, args: str = "") -> str | None:
+	"""Build the probe; its output path, or None."""
+	if run(label, f"nix-build --no-out-link {PROBE} --argstr nonce {nonce} {args}", user=user):
+		return last_line(steps[-1]["stdout"])
+	return None
+
+
+def isolation(label: str, out: str | None, want: dict | None) -> dict:
+	"""What the probe recorded, checked against the build-user contract and,
+	for the candidate, equal to the CppNix control's record."""
+	if out is None:
+		blocked(label, "the probe did not build")
+		return {}
+	names = ["uid_map", "gid_map", "uid", "gid", "hostname", "build-dir", "input"]
+	seen = {name: text(f"cat {out}/{name}") for name in names}
+	seen["owner"] = text(f"stat -c '%u %g %a' {out} {out}/uid")
+	input_path = text(f"cat {out}/input-path")
+	seen["input-on-host"] = text(f"stat -c %a {input_path}; test -e {input_path}/qualification-probe && echo modified || echo intact")
+	gid, uids = nixbld()
+	inside, host, count = (seen["uid_map"].split() + ["", "", ""])[:3]
+	ginside, ghost, gcount = (seen["gid_map"].split() + ["", "", ""])[:3]
+	contract = (
+		inside == "1000" and host in uids and host != "0" and count == "1"
+		and ginside == "100" and ghost == gid and gcount == "1"
+		and seen["input"] == "protected" and seen["input-on-host"] == "555\nintact"
+		and seen["owner"] == "0 0 555\n0 0 444" and seen["build-dir"] == "yes"
+	)
+	same = want is None or seen == want
+	verify(label, contract and same, json.dumps({"seen": seen, "control": want, "nixbld": [gid, uids]}))
+	return seen
+
+
+def daemon_probes(engine: str) -> None:
+	"""Build users and authorization under `engine`; the candidate's results
+	must equal the CppNix control's."""
+	control = engine != "noxi"
+	key = lambda name: f"daemon-{name}"
+
+	def compare(name: str, value) -> None:
+		if control:
+			controls[key(name)] = value
+
+	for who, user in [("root", None), ("user", "qualification")]:
+		out = probe(f"{engine}-probe-{who}", f"{engine}-{who}", user=user)
+		seen = isolation(f"{engine}-probe-{who}-isolation", out, None if control else controls.get(key(f"probe-{who}")))
+		compare(f"probe-{who}", seen)
+
+	# Two builds at once lock two different build users.
+	nix_build = f"nix-build --no-out-link {PROBE} --argstr seconds 8 --argstr nonce"
+	if run(
+		f"{engine}-probe-concurrent",
+		f"{{ {nix_build} {engine}-a > /tmp/{engine}-a; }} & {nix_build} {engine}-b > /tmp/{engine}-b && wait $! && cat /tmp/{engine}-a /tmp/{engine}-b",
+	):
+		outs = steps[-1]["stdout"].split()
+		hosts = [text(f"cut -d' ' -f2 {out}/uid_map") for out in outs]
+		_, uids = nixbld()
+		verify(f"{engine}-probe-concurrent-users", len(set(hosts)) == 2 and all(h in uids for h in hosts), f"host uids {hosts}")
+
+	# Nothing a builder starts outlives its build.
+	probe(f"{engine}-probe-leftover", f"{engine}-leftover", args="--argstr spawn 1")
+	run(f"{engine}-probe-leftover-killed", "! pgrep -f 'bin/slee[p] 1717'")
+
+	refusals = [
+		("outsider-refused", "nix-store --query --hash /run/current-system", "outsider", 1),
+		(
+			"build-user-refused",
+			"runuser -u nixbld1 -- env HOME=/var/empty nix-store --query --hash /run/current-system",
+			None,
+			1,
+		),
+		("repair-refused", f"nix-build --repair --no-out-link {PROBE} --argstr nonce repair", "qualification", 1),
+	]
+	# An unsigned path from an untrusted user: export a build, delete it,
+	# then import it as that user.
+	run(
+		f"{engine}-import-prepare",
+		f"out=$(nix-build --no-out-link {PROBE} --argstr nonce import) && nix-store --export $out > /tmp/import.nar"
+		" && nix-store --delete $out && chmod 644 /tmp/import.nar",
+	)
+	refusals.append(("unsigned-import-refused", "nix-store --import < /tmp/import.nar", "qualification", 1))
+	for name, command, user, status in refusals:
+		run(f"{engine}-{name}", command, expected_status=status, user=user)
+		got = (steps[-1]["exit_status"], steps[-1]["stderr"])
+		compare(name, got)
+		if not control:
+			want = controls.get(key(name))
+			verify(f"{engine}-{name}-matches-cppnix", got == want, json.dumps({"noxi": got, "cppnix": want}))
+
+	# A restricted setting from an untrusted user is ignored with a warning;
+	# the build stays sandboxed and runs as a build user.
+	out = probe(
+		f"{engine}-restricted-option",
+		f"{engine}-option",
+		user="qualification",
+		args="--option sandbox false --option build-users-group ''",
+	)
+	warnings = [line for line in steps[-1]["stderr"].splitlines() if line.startswith("warning:")]
+	compare("restricted-option-warnings", warnings)
+	if not control:
+		want = controls.get(key("restricted-option-warnings"))
+		verify(f"{engine}-restricted-option-warnings", warnings == want, json.dumps({"noxi": warnings, "cppnix": want}))
+	isolation(f"{engine}-restricted-option-isolation", out, None if control else controls.get(key("probe-user")))
+	run(
+		f"{engine}-store-not-writable",
+		"! test -w /nix/store && ! test -w /nix/var/nix/db && ! test -w /nix/var/nix/db/db.sqlite"
+		" && ! touch /nix/store/qualification-probe 2>/dev/null",
+		user="qualification",
+	)
+
+
+def daemon() -> None:
+	daemon_probes("noxi")
+
+
+HM_PROFILE = (
+	"for dir in ~/.local/state/nix/profiles /nix/var/nix/profiles/per-user/standalone; do"
+	" test -d $dir || continue; cd $dir; for link in home-manager*; do echo \"$link -> $(readlink $link)\"; done; done"
+)
+
+
+def hm_sequence(engine: str) -> None:
+	"""Two generations, a rollback, the generation list, removal and expiry.
+	The candidate's outputs must equal the CppNix control's for the same
+	user and configurations; dates are dropped."""
+	home, b = expected["home"], expected["home_b"]
+	sequence = [
+		("switch-a", f"home-manager -f {home['config']} switch", None),
+		("switch-b", f"home-manager -f {b['config']} switch", None),
+		("marker-b", "cat ~/qualification-marker", equals("standalone-b")),
+		("rollback", "home-manager switch --rollback", None),
+		("marker-rollback", "cat ~/qualification-marker", equals("standalone")),
+		("generations", "home-manager generations | sed -E 's/^[0-9-]+ [0-9:]+ : //'", None),
+		("profile", HM_PROFILE, None),
+		(
+			"list-generations",
+			(
+				"dir=~/.local/state/nix/profiles; test -d $dir || dir=/nix/var/nix/profiles/per-user/standalone;"
+				" nix-env --profile $dir/home-manager"
+				" --list-generations | sed -E 's/[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9:]{8}//'"
+			),
+			None,
+		),
+		("gcroot", "readlink ~/.local/state/home-manager/gcroots/current-home", None),
+		("remove-generations", "home-manager remove-generations 2 2>&1", None),
+		("expire-generations", "home-manager expire-generations now 2>&1", None),
+		("profile-after-removal", HM_PROFILE, None),
+	]
+	for name, command, check in sequence:
+		run(f"{engine}-hm-{name}", command, user="standalone", check=check)
+		got = (steps[-1]["exit_status"], steps[-1]["stdout"])
+		if engine != "noxi":
+			controls[f"hm-{name}"] = got
+		else:
+			want = controls.get(f"hm-{name}")
+			verify(f"{engine}-hm-{name}-matches-cppnix", got == want, json.dumps({"noxi": got, "cppnix": want}))
+
+
+def hm_reset(label: str) -> None:
+	"""Remove every trace of the standalone user's Home Manager state."""
+	run(
+		label,
+		"find /home/standalone -mindepth 1 -delete"
+		" && rm -rf /nix/var/nix/profiles/per-user/standalone /nix/var/nix/gcroots/per-user/standalone",
+	)
 
 
 def lifecycle() -> None:
@@ -358,6 +568,7 @@ expected = json.loads(machine.succeed("cat /etc/qualification/expected.json"))
 # these fixtures rather than referring to the base generation's /etc links.
 SYSTEM = text(f"readlink -f {SYSTEM}")
 FLAKE = text(f"readlink -f {FLAKE}")
+PROBE = text(f"readlink -f {PROBE}")
 run("reference-boot", "nix-instantiate --version", check=equals("nix-instantiate (Nix) 2.35.2"))
 # Test machines boot without a system profile. Record the booted CppNix
 # system as generation 1, the one the return switches back to.
@@ -372,6 +583,19 @@ run(
 	f"nix build --no-link --no-write-lock-file --print-out-paths {FLAKE}#nixosConfigurations.two.config.system.build.toplevel",
 	check=equals(generation("two")["out"]),
 )
+if MODE == "nixos":
+	# Everything but the four new derivations is present.
+	fresh_absent("control-cppnix-fresh-absent")
+	run(
+		"control-cppnix-fresh-plan",
+		f"nix-store --realise --dry-run $(nix-instantiate {SYSTEM} -A fresh.config.system.build.toplevel) 2>&1",
+		check=lambda out: (
+			"these 4 derivations will be built:" in out and "fetched" not in out,
+			out,
+		),
+	)
+if MODE == "daemon":
+	daemon_probes("control-cppnix")
 if MODE == "lifecycle":
 	run("control-cppnix-failed-build", FAILED_BUILD, expected_status=100)
 	verify("control-cppnix-failed-build-log", "deliberate build failure" in steps[-1].get("stderr", ""),
@@ -396,10 +620,13 @@ if MODE == "home-manager":
 		user="standalone",
 		check=equals(expected["home"]["out"]),
 	)
+	# The profile, rollback and removal sequence the candidate repeats.
+	hm_sequence("control-cppnix")
+	hm_reset("control-cppnix-hm-reset")
 
 swap = swap_to_noxi("lifecycle-install" if MODE == "lifecycle" else "swap-to-noxi")
 if swap:
-	{"nixos": nixos, "home-manager": home_manager, "lifecycle": lifecycle}[MODE]()
+	{"nixos": nixos, "home-manager": home_manager, "lifecycle": lifecycle, "daemon": daemon}[MODE]()
 else:
 	blocked(f"{MODE}-scenario", "CppNix could not switch the machine to the noxi generation")
 return_to_cppnix("return-to-cppnix")

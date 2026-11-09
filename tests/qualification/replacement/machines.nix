@@ -38,11 +38,14 @@ let
 		'';
 	};
 	homeManagerPackage = pkgs.callPackage (home-manager + "/home-manager") { path = home-manager; };
-	homeConfiguration = import (home-manager + "/home-manager/home-manager.nix") {
-		inherit pkgs;
-		confPath = "${./home.nix}";
-		confAttr = "";
-	};
+	homeConfigurationOf =
+		confPath:
+		import (home-manager + "/home-manager/home-manager.nix") {
+			inherit pkgs confPath;
+			confAttr = "";
+		};
+	homeConfiguration = homeConfigurationOf "${./home.nix}";
+	homeConfigurationB = homeConfigurationOf "${./home-b.nix}";
 
 	common =
 		{ lib, ... }:
@@ -75,6 +78,14 @@ let
 				# The guest is offline.
 				substituters = lib.mkForce [ ];
 				flake-registry = "";
+				# Authorization boundaries the daemon mode probes; root stays the
+				# only trusted user.
+				allowed-users = [
+					"root"
+					"qualification"
+					"standalone"
+				];
+				trusted-users = [ "root" ];
 			};
 			# Classic-mode lookups for Home Manager's standalone command.
 			nix.nixPath = [
@@ -90,6 +101,11 @@ let
 			home-manager.users.qualification.home.stateVersion = "26.05";
 			# Standalone Home Manager, kept apart from the module's user.
 			users.users.standalone = {
+				isNormalUser = true;
+				password = "";
+			};
+			# A user the daemon must refuse: not in allowed-users.
+			users.users.outsider = {
 				isNormalUser = true;
 				password = "";
 			};
@@ -119,6 +135,50 @@ let
 			};
 			environment.etc."qualification-generation".text = marker;
 		};
+
+	# A generation whose new derivations the guest builds itself with noxi:
+	# changing the marker yields a new etc file, etc tree, activation script
+	# and toplevel. Everything else these four derivations need, including
+	# build-only inputs such as the no-compiler stdenv and the builder
+	# scripts, is preloaded as a binary cache would provide it; the four
+	# outputs themselves never reach the disk.
+	fresh = generation "fresh" candidate { };
+	freshDerivations =
+		let
+			config = fresh;
+			activate =
+				(pkgs.writeShellApplication {
+					name = "activate";
+					text = config.system.activationScripts.script;
+					checkPhase = "";
+					bashOptions = [ ];
+				}).overrideAttrs
+					{ preferLocalBuild = true; };
+			inputsOf = drv: builtins.attrNames (builtins.getContext (builtins.toJSON drv.drvAttrs));
+		in
+		assert lib.assertMsg (builtins.elem activate.drvPath (inputsOf config.system.build.toplevel))
+			"the fresh generation's activation script no longer matches activatable-system.nix";
+		[
+			config.environment.etc."qualification-generation".source
+			config.system.build.etc
+			activate
+			config.system.build.toplevel
+		];
+	freshInputs =
+		let
+			outputs = map (drv: drv.outPath) freshDerivations;
+			attrs = builtins.toJSON (map (drv: drv.drvAttrs) freshDerivations);
+		in
+		pkgs.runCommand "noxi-qualification-fresh-inputs"
+			{
+				# Every store path the four derivations name, less their own
+				# outputs, so the closure holds their inputs only.
+				inputs = builtins.replaceStrings outputs (map (_: "") outputs) attrs;
+				passAsFile = [ "inputs" ];
+			}
+			''
+				cp "$inputsPath" "$out"
+			'';
 in
 {
 	inherit
@@ -126,6 +186,8 @@ in
 		candidate
 		upgrade
 		common
+		freshDerivations
+		freshInputs
 		;
 	generations = {
 		# CppNix switches the machine to this one.
@@ -134,6 +196,8 @@ in
 		two = generation "two" candidate { };
 		three = generation "three" candidate { };
 		upgrade = generation "upgrade" upgrade { };
+		# Built in the guest by noxi; see `fresh` above.
+		inherit fresh;
 		# A failed upgrade: evaluation stops at a failing assertion, so nothing
 		# is built or activated. Never built on the host.
 		broken = generation "broken" upgrade {
@@ -150,5 +214,11 @@ in
 		config = "${./home.nix}";
 		configuration = homeConfiguration;
 		activation = homeConfiguration.activationPackage;
+		# The second generation of the profile and rollback comparison.
+		b = {
+			config = "${./home-b.nix}";
+			configuration = homeConfigurationB;
+			activation = homeConfigurationB.activationPackage;
+		};
 	};
 }

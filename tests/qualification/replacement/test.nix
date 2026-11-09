@@ -38,6 +38,7 @@ let
 			../../../nix
 			./machines.nix
 			./home.nix
+			./home-b.nix
 		];
 	};
 	entry = pkgs.writeText "qualification-system.nix" ''
@@ -75,7 +76,15 @@ let
 				};
 		}
 	'';
-	built = lib.filterAttrs (name: _: name != "broken") generations;
+	# `broken` never builds and the guest builds `fresh` itself.
+	built = lib.filterAttrs (
+		name: _:
+		!builtins.elem name [
+			"broken"
+			"fresh"
+		]
+	) generations;
+	plainPath = drv: builtins.unsafeDiscardStringContext drv.outPath;
 	toplevel = name: generations.${name}.system.build.toplevel;
 	expected = builtins.toJSON {
 		generations = lib.mapAttrs (name: _: {
@@ -86,6 +95,16 @@ let
 			config = builtins.unsafeDiscardStringContext machines.home.config;
 			drv = builtins.unsafeDiscardStringContext machines.home.activation.drvPath;
 			out = builtins.unsafeDiscardStringContext machines.home.activation.outPath;
+		};
+		fresh = {
+			drv = builtins.unsafeDiscardStringContext (toplevel "fresh").drvPath;
+			out = plainPath (toplevel "fresh");
+			# Every output the guest must build, none of them on the disk.
+			new = map plainPath machines.freshDerivations;
+		};
+		home_b = {
+			config = builtins.unsafeDiscardStringContext machines.home.b.config;
+			out = plainPath machines.home.b.activation;
 		};
 		candidate = builtins.unsafeDiscardStringContext machines.candidate.outPath;
 		upgrade = builtins.unsafeDiscardStringContext machines.upgrade.outPath;
@@ -100,12 +119,17 @@ let
 		environment.etc."qualification/system.nix".source = entry;
 		environment.etc."qualification/flake".source = flake;
 		environment.etc."qualification/expected.json".text = expected;
+		environment.etc."qualification/probe.nix".source = ./probe.nix;
 		system.extraDependencies = [
 			machines.candidate
 			machines.upgrade
 			machines.home.activation
 			machines.home.config
 			machines.home.configuration.config.news.json.output
+			machines.home.b.activation
+			machines.home.b.config
+			machines.home.b.configuration.config.news.json.output
+			machines.freshInputs
 			source
 			nixpkgs
 			home-manager
@@ -117,6 +141,7 @@ let
 		"nixos"
 		"home-manager"
 		"lifecycle"
+		"daemon"
 	];
 	report =
 		mode:
@@ -126,12 +151,24 @@ let
 			testScript = "MODE = ${builtins.toJSON mode}\n" + builtins.readFile ./script.py;
 		};
 	reports = lib.genAttrs modes report;
+	# The NAR hash of each fresh output as the host's CppNix built it, for
+	# comparison with what noxi built in the guest.
+	freshHashes = pkgs.runCommand "noxi-qualification-fresh-hashes" { nativeBuildInputs = [ pkgs.nix ]; } ''
+		for path in ${lib.concatMapStringsSep " " (drv: "${drv}") machines.freshDerivations}; do
+			echo "$path sha256:$(nix-hash --type sha256 --base32 "$path")"
+		done > "$out"
+	'';
 	strict =
 		mode:
 		pkgs.runCommand "noxi-qualification-${mode}-gate" { nativeBuildInputs = [ pkgs.jq ]; } ''
 			report=${reports.${mode}}/report.json
 			jq -r '.steps[] | "\(.status)\t\(.name)"' "$report"
 			jq -e '.schema == 2 and (.steps | length > 0) and all(.steps[]; .status == "pass")' "$report" > /dev/null
+			${lib.optionalString (mode == "nixos") ''
+				# noxi's fresh outputs in the guest equal the host's CppNix build.
+				jq -r '.steps[] | select(.name == "fresh-nar-hashes") | .stdout' "$report" > guest
+				diff -u ${freshHashes} guest
+			''}
 			mkdir -p "$out"
 			cp "$report" "$out/report.json"
 		'';

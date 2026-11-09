@@ -138,7 +138,7 @@ replacement-package:
 	nix build --out-link target/qualification/replacement .#checks.x86_64-linux.replacement
 	nix build --no-link .#checks.x86_64-linux.replacement-layout
 
-# Boot a disposable CppNix VM, swap it to noxi, run one scenario (nixos, home-manager or lifecycle), return to CppNix, and keep every step's result in target/qualification/MODE-report. A report build is not a gate pass.
+# Boot a disposable CppNix VM, swap it to noxi, run one scenario (nixos, home-manager, lifecycle or daemon), return to CppNix, and keep every step's result in target/qualification/MODE-report. A report build is not a gate pass.
 qualification-report mode:
 	mkdir -p target/qualification
 	nix build --out-link "target/qualification/{{mode}}-report" --print-build-logs ".#qualification-{{mode}}-report"
@@ -156,3 +156,6 @@ qualification-home-manager: (qualification-gate "home-manager")
 
 # Install, upgrade, failed upgrade, rollback and removal of noxi as the system's Nix (TODO section 8).
 qualification-lifecycle: (qualification-gate "lifecycle")
+
+# Build users, concurrent and leftover builder processes, and the daemon's allowed-users, trusted-users, signature and repair boundaries, each against a CppNix control (TODO section 5).
+qualification-daemon: (qualification-gate "daemon")

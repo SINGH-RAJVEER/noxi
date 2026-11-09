@@ -52,6 +52,7 @@
 				qualification-nixos-report = replacement.reports.nixos;
 				qualification-home-manager-report = replacement.reports.home-manager;
 				qualification-lifecycle-report = replacement.reports.lifecycle;
+				qualification-daemon-report = replacement.reports.daemon;
 				nix-reference = nix-reference.packages.${system}.nix;
 				# A statically linked busybox with no references, used as the
 				# builder in the build comparison tests.
@@ -120,6 +121,7 @@
 					qualification-nixos = replacement.checks.nixos;
 					qualification-home-manager = replacement.checks.home-manager;
 					qualification-lifecycle = replacement.checks.lifecycle;
+					qualification-daemon = replacement.checks.daemon;
 					# Boots a NixOS machine running the pinned reference; see tests/vm/.
 					vm = import ./tests/vm/test.nix {
 						noxi = self.packages.${system}.default;
