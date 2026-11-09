@@ -174,7 +174,7 @@ let
 			jq -e '.schema == 2 and (.steps | length > 0) and all(.steps[]; .status == "pass")' "$report" > /dev/null
 			${lib.optionalString (mode == "nixos") ''
 				# noxi's fresh outputs in the guest equal the host's CppNix build.
-				jq -r '.steps[] | select(.name == "fresh-nar-hashes") | .stdout' "$report" > guest
+				jq -j '.steps[] | select(.name == "fresh-nar-hashes") | .stdout' "$report" > guest
 				diff -u ${freshHashes} guest
 			''}
 			mkdir -p "$out"

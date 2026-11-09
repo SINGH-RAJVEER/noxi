@@ -406,13 +406,22 @@ def daemon_probes(engine: str) -> None:
 		("repair-refused", f"nix-build --repair --no-out-link {PROBE} --argstr nonce repair", "qualification", 1),
 	]
 	# An unsigned path from an untrusted user: export a build, delete it,
-	# then import it as that user.
+	# then import it as that user. The export is preparation only, so it
+	# uses the reference client.
+	cppnix = f"{expected['reference']}/bin"
 	run(
 		f"{engine}-import-prepare",
-		f"out=$(nix-build --no-out-link {PROBE} --argstr nonce import) && nix-store --export $out > /tmp/import.nar"
-		" && nix-store --delete $out && chmod 644 /tmp/import.nar",
+		f"out=$(nix-build --no-out-link {PROBE} --argstr nonce import) && {cppnix}/nix-store --export $out > /tmp/import.nar"
+		f" && {cppnix}/nix-store --delete $out && chmod 644 /tmp/import.nar",
 	)
 	refusals.append(("unsigned-import-refused", "nix-store --import < /tmp/import.nar", "qualification", 1))
+	# The same daemon boundaries through the reference client, so the
+	# daemon's answer is compared even where the candidate's own client
+	# does not implement the operation.
+	refusals.append(
+		("daemon-repair-refused", f"{cppnix}/nix-build --repair --no-out-link {PROBE} --argstr nonce repair", "qualification", 1)
+	)
+	refusals.append(("daemon-unsigned-import-refused", f"{cppnix}/nix-store --import < /tmp/import.nar", "qualification", 1))
 	for name, command, user, status in refusals:
 		run(f"{engine}-{name}", command, expected_status=status, user=user)
 		got = (steps[-1]["exit_status"], steps[-1]["stderr"])
@@ -571,7 +580,8 @@ def release_upgrade() -> None:
 	verify("release-upgrade-generation", *is_generation("one"))
 	daemons("release-upgraded", candidate)
 	if old is not None:
-		run("release-candidate-reads", f"nix-store -q --hash {old} && nix-store --verify-path {old}")
+		run("release-candidate-reads", f"nix-store -q --hash {old} && nix-store --verify --check-contents")
+		run("release-candidate-verify-path", f"nix-store --verify-path {old}")
 	new = probe("release-candidate-writes", "candidate-after-upgrade")
 	rebuild("release-rollback", "switch --rollback", None)
 	verify("release-rollback-generation", *is_generation("previous"))
@@ -579,7 +589,8 @@ def release_upgrade() -> None:
 	if new is not None:
 		run(
 			"release-previous-reads",
-			f"nix-store -q --hash {new} && nix-store --verify-path {new} && nix-store --verify --check-contents",
+			# The previous release has no --verify-path; verify every path.
+			f"nix-store -q --hash {new} && nix-store --verify --check-contents",
 		)
 
 
