@@ -1,0 +1,75 @@
+{
+	"schema": 3,
+	"revision": "ed44affa810293f81fab10a4740b1514668c0e87",
+	"candidate": "/nix/store/j2w8wnrihz44q1kb0mi411zcwlc101q3-noxi-replacement-provisional-0.1.1",
+	"note": "System round after merging command round three (9f0aeda9). Built and run with git+file://WORKTREE?rev=REVISION; replacement-layout passed. New: guest-built fresh generation (passes; CppNix --check and host NAR hashes identical, compared outside the gate because the gate stops at the flake step first), daemon mode, Home Manager profile comparison (all match), release upgrade from 72262bce. Strict gates all fail: flake steps on pure <nix/fetchurl.nix> and pathExists; daemon on unimplemented nix-store --export/--import and nix-build --repair and the refused-connection message; lifecycle on unimplemented nix-store --verify-path.",
+	"installed_executable_sha256": {
+		"nix": "a5eb05fdfe8fdd825787ee36030291550aa0c8b01203089604542b8744359555",
+		"nix-build": "e708a3436cb53d4009913fb0b9762764c97352ff0a529a120e91235ca9f3bbd8",
+		"nix-channel": "9a0a6c044aea60e6496555f86e0fd247513f6f3e048ae3f351558feeaaa6efaf",
+		"nix-collect-garbage": "fa1fb4ad4bd384fe38f6d0efa981b4f91b174e9ae1adb53239687b506e2606fb",
+		"nix-copy-closure": "3e6798eabe63e9a5a792eb0a395317c104bbff24604a090f38345cf48dc4877c",
+		"nix-daemon": "8569cda57b28768236ccc34ff85ff7d359b790b6c10a30bdf58dfe4095887de2",
+		"nix-env": "bbe2e89e2da8789053dcb078dbb6bad5e3cc96974ee6b306acb4c6a29da512e9",
+		"nix-hash": "6aedbe48a2402cd05faebd423347e7cc83183b24ee309265fb3c084b765cc120",
+		"nix-instantiate": "8031ef17f70b9a972a0eb9975cfd43d4be119b4ed6beceb330dc45cae11a4315",
+		"nix-prefetch-url": "41dd5944a34e73b09aaa7b6c4e89c21ec561cf8655ac781d851ccd662a955f5c",
+		"nix-shell": "29fc06dcaa0d5c85ced9fa2c828367650cfb8a34cc137a8c60ae685c02b7d65b",
+		"nix-store": "041315cd4bb48eb019fa835e8008255999cfec14d70cc5a5f8ad512711b8ae4f",
+		"noxi": "174c49ecbca36ba2846d4b7061dcb23780ca59b831b905126d33803f8311b9d5"
+	},
+	"test_script_sha256": "24e8b72920223ecaefa5ec2ceb82c9ae16932279aea7190cc4375c4208be8cdf",
+	"qualification_flake_lock_sha256": "67a60e8569f94edd7819275fc9a21124eb93199976681a8c76a076b786135c7f",
+	"guest_command_timeout_seconds": 1800,
+	"driver_execute_timeout_seconds": 900,
+	"reports": {
+		"daemon": {
+			"file": "daemon.json",
+			"sha256": "51cb427f509323df7fe30c43964eee97ef36422cc8d42da2d30494f8a0e1e8a0",
+			"drv_path": "/nix/store/lgpxd11c9ai7g5wk12in5vrp6zip86gs-vm-test-run-noxi-qualification-daemon.drv",
+			"report_output": "/nix/store/vxprvngi0458s703narq5db4nfxrwhbz-vm-test-run-noxi-qualification-daemon",
+			"report_build_exit_code": 0,
+			"strict_gate_build_exit_code": 1,
+			"counts": {
+				"pass": 64,
+				"fail": 5
+			}
+		},
+		"nixos": {
+			"file": "nixos.json",
+			"sha256": "6fa5ef20c7ce58a35e1446f1135275d71f09de5b96540d56c06be0f3ed65c457",
+			"drv_path": "/nix/store/cbw5frhylip1203cczjw7mvvy2iyfgf7-vm-test-run-noxi-qualification-nixos.drv",
+			"report_output": "/nix/store/lwv5i0rn9apy26chh7x67zyngjwwilw3-vm-test-run-noxi-qualification-nixos",
+			"report_build_exit_code": 0,
+			"strict_gate_build_exit_code": 1,
+			"counts": {
+				"pass": 65,
+				"fail": 1
+			}
+		},
+		"home-manager": {
+			"file": "home-manager.json",
+			"sha256": "76ac8897a9032c547ab045a2ed38848da9f61122548587998a44caf51f7f1969",
+			"drv_path": "/nix/store/qrziyx37ynx7b0p7kqyd7wddjj61qhsf-vm-test-run-noxi-qualification-home-manager.drv",
+			"report_output": "/nix/store/2ri7dc0nvn7a70s541n5zw409mx7swpn-vm-test-run-noxi-qualification-home-manager",
+			"report_build_exit_code": 0,
+			"strict_gate_build_exit_code": 1,
+			"counts": {
+				"pass": 78,
+				"fail": 2
+			}
+		},
+		"lifecycle": {
+			"file": "lifecycle.json",
+			"sha256": "f42c73e33b92af80991912bfe18666f848614376b4bce76a23d7236a120dca73",
+			"drv_path": "/nix/store/ad9xvx0wcswnlzdp52a9fd6ldnm3m3iw-vm-test-run-noxi-qualification-lifecycle.drv",
+			"report_output": "/nix/store/fz9pin810xsx644b0x8fn8andfnxb51p-vm-test-run-noxi-qualification-lifecycle",
+			"report_build_exit_code": 0,
+			"strict_gate_build_exit_code": 1,
+			"counts": {
+				"pass": 78,
+				"fail": 2
+			}
+		}
+	}
+}
