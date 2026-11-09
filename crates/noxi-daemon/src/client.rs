@@ -237,7 +237,18 @@ impl DaemonStore {
 	/// The store served by the daemon at `socket`. The store's files are
 	/// read below `root` if given, as with `unix://SOCKET?root=ROOT`.
 	pub fn new(socket: &Path, root: Option<&Path>, options: &ClientOptions) -> Self {
-		let uri = if root.is_none() {
+		// `UDSRemoteStoreConfig::getReference`: `daemon` for the default
+		// socket, `unix://PATH` for any other.
+		let default_socket = std::env::var_os("NIX_DAEMON_SOCKET_PATH")
+			.filter(|path| !path.is_empty())
+			.map(PathBuf::from)
+			.unwrap_or_else(|| {
+				std::env::var_os("NIX_STATE_DIR")
+					.filter(|dir| !dir.is_empty())
+					.map_or_else(|| PathBuf::from("/nix/var/nix"), PathBuf::from)
+					.join("daemon-socket/socket")
+			});
+		let uri = if socket == default_socket {
 			"daemon".to_owned()
 		} else {
 			format!("unix://{}", socket.display())
@@ -275,8 +286,15 @@ impl DaemonStore {
 			print_build_logs: self.options.verbose_build,
 		};
 		let features = handshake(&mut conn).map_err(|e| {
+			// CppNix nests the cause's full message, `error: ` included; a
+			// failed read is its `FdSource`'s, which reads 32768 bytes at a
+			// time, as when a daemon refuses the user and closes.
+			let cause = match e {
+				Error::Io(e) => format!("read of 32768 bytes: {}", io_message(&e)),
+				e => e.to_string(),
+			};
 			noxi_store::Error::Other(format!(
-				"cannot open connection to remote store '{}': {e}",
+				"cannot open connection to remote store '{}': error: {cause}",
 				self.uri
 			))
 		})?;

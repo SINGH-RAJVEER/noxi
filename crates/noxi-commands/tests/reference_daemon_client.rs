@@ -683,3 +683,65 @@ fn long_socket_and_state_paths_work_like_cppnix() {
 	.collect();
 	assert_eq!(outputs[1], outputs[0]);
 }
+
+/// A daemon whose `allowed-users` excludes the client closes the
+/// connection; the client reports the failed read as CppNix does, for
+/// both daemons.
+#[test]
+fn refused_clients_fail_like_cppnix() {
+	let env = Env::new();
+	let refused = |engine: &str| env.base.join(format!("refused-{engine}.sock"));
+	let mut settings = noxi_daemon::DaemonSettings::new(noxi_store::LocalStoreConfig::with_root(
+		&env.root("pair"),
+	));
+	settings.allowed_users = vec!["root".to_owned()];
+	settings.trusted_users = Vec::new();
+	let listener = noxi_store::unix_socket::bind(&refused("noxi")).unwrap();
+	std::thread::spawn(move || noxi_daemon::server::serve(listener, &settings));
+	let mut daemon = env
+		.command(reference_bin().join("nix-daemon"))
+		.arg("--store")
+		.arg(env.root("reference"))
+		.env("NIX_DAEMON_SOCKET_PATH", refused("reference"))
+		.env(
+			"NIX_CONFIG",
+			format!("{CONFIG}allowed-users = root\ntrusted-users = root\n"),
+		)
+		.stderr(std::process::Stdio::null())
+		.spawn()
+		.unwrap();
+	let deadline = Instant::now() + Duration::from_secs(20);
+	while !refused("reference").exists() {
+		assert!(
+			Instant::now() < deadline,
+			"the reference daemon did not start"
+		);
+		std::thread::sleep(Duration::from_millis(20));
+	}
+	let mut outputs = Vec::new();
+	for daemon_engine in ["reference", "noxi"] {
+		for bin in [
+			reference_bin().join("nix-store"),
+			PathBuf::from(noxi_bin("nix-store")),
+		] {
+			let output = env
+				.command(&bin)
+				.arg("--store")
+				.arg(format!("unix://{}", refused(daemon_engine).display()))
+				.args(["-q", "--references", env.busybox.as_str()])
+				.output()
+				.unwrap();
+			outputs.push((
+				output.status.code(),
+				String::from_utf8_lossy(&output.stderr)
+					.replace(&refused(daemon_engine).display().to_string(), "SOCKET"),
+			));
+		}
+	}
+	let _ = daemon.kill();
+	let _ = daemon.wait();
+	assert_eq!(outputs[0].0, Some(1), "{outputs:?}");
+	for output in &outputs[1..] {
+		assert_eq!(output, &outputs[0]);
+	}
+}
