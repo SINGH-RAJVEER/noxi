@@ -375,8 +375,16 @@ fn write_error_codes<'a>(codes: impl Iterator<Item = &'a str>) {
 	}
 }
 
-fn spawn(case: &Case, scratch: &Path, args: &[String]) -> io::Result<Child> {
-	let mut command = Command::new(env::current_exe()?);
+fn spawn(
+	case: &Case,
+	scratch: &Path,
+	args: &[String],
+	reference: Option<&Path>,
+) -> io::Result<Child> {
+	let mut command = Command::new(match reference {
+		Some(path) => path.to_owned(),
+		None => env::current_exe()?,
+	});
 	command
 		.env_clear()
 		.envs(SHARED_ENV.iter().copied())
@@ -384,10 +392,16 @@ fn spawn(case: &Case, scratch: &Path, args: &[String]) -> io::Result<Child> {
 		.env("NIX_STATE_DIR", scratch.join("var/nix"))
 		.env("NIX_CONF_DIR", scratch.join("etc"));
 	command.env(ERROR_CODE_VAR, error_code_file(case, scratch));
+	if scratch.join("abort-on-warn-env").exists() {
+		command.env("NIX_ABORT_ON_WARN", "1");
+	}
 	if case.kind == Kind::EvalOkay {
 		command.envs(EVAL_OKAY_ENV.iter().copied());
 	}
-	command.args(args).env(CHILD_VAR, CHILD_INSTANTIATE);
+	command.args(args);
+	if reference.is_none() {
+		command.env(CHILD_VAR, CHILD_INSTANTIATE);
+	}
 	if case.operation() == Operation::Parse {
 		command.stdin(Stdio::from(fs::File::open(case.companion(".nix"))?));
 	} else {
@@ -428,7 +442,7 @@ fn normalize(case: &Case, text: &str, scratch: &Path) -> String {
 	text
 }
 
-fn run(case: &Case, scratch: &Path) -> Run {
+fn run(case: &Case, scratch: &Path, reference: Option<&Path>) -> Run {
 	if case.has(".exp-disabled") {
 		return skipped(Outcome::Disabled);
 	}
@@ -436,12 +450,17 @@ fn run(case: &Case, scratch: &Path) -> Run {
 		Operation::Parse => vec!["--parse".to_owned(), "-".to_owned()],
 		Operation::Eval | Operation::EvalXml => case.instantiate_args(),
 	};
-	if instantiate::parse_args(args.clone(), Settings::default()).is_err() {
+	run_command(case, scratch, reference, &args)
+}
+
+fn run_command(case: &Case, scratch: &Path, reference: Option<&Path>, args: &[String]) -> Run {
+	if reference.is_none() && instantiate::parse_args(args.to_vec(), Settings::default()).is_err() {
 		return skipped(Outcome::UnrunFlags);
 	}
 
 	let started = Instant::now();
-	let mut child = spawn(case, scratch, &args).expect("re-execute the test binary for a fixture");
+	let mut child =
+		spawn(case, scratch, args, reference).expect("re-execute the test binary for a fixture");
 	let stdout = drain(child.stdout.take().expect("piped stdout"));
 	let stderr = drain(child.stderr.take().expect("piped stderr"));
 	let status = loop {
@@ -503,6 +522,179 @@ fn run(case: &Case, scratch: &Path) -> Run {
 	}
 }
 
+/// The checks before the fixture loops in the pinned lang.sh. Compare full
+/// streams, including diagnostics, rather than only its grep predicates.
+fn embedded_checks(reference: &Path) -> Vec<String> {
+	let scratch = tempfile::tempdir().expect("embedded checks scratch");
+	write_test_config(scratch.path()).unwrap();
+	let mut failures = vec![];
+	let mut report = vec![];
+	for (expression, flags, abort_on_warn) in [
+		(r#"builtins.trace "Hello" 123"#, "", false),
+		(r#"builtins.addErrorContext "Hello" 123"#, "", false),
+		(
+			r#"builtins.traceVerbose "Hello" 123"#,
+			"--trace-verbose",
+			false,
+		),
+		(r#"builtins.traceVerbose "Hello" 123"#, "", false),
+		(
+			r#"builtins.addErrorContext "Hello" 123"#,
+			"--show-trace",
+			false,
+		),
+		(
+			r#"builtins.addErrorContext "Hello" (throw "Foo")"#,
+			"--show-trace",
+			false,
+		),
+		(
+			r#"builtins.addErrorContext "Hello %" (throw "Foo")"#,
+			"--show-trace",
+			false,
+		),
+		(r#"let x = builtins.trace { x = x; } true; in x"#, "", false),
+		(
+			r#"let x = { repeating = x; tracing = builtins.trace x true; }; in x.tracing"#,
+			"",
+			false,
+		),
+		(r#"builtins.warn "Hello" 123"#, "", false),
+		(
+			r#"builtins.addErrorContext "while doing ${"something"} interesting" (builtins.warn "Hello" 123)"#,
+			"",
+			false,
+		),
+		(r#"let x = builtins.warn { x = x; } true; in x"#, "", false),
+		(r#"builtins.warn "Hello" 123"#, "--abort-on-warn", false),
+		(
+			r#"builtins.addErrorContext "while doing ${"something"} interesting" (builtins.warn "Hello" 123)"#,
+			"",
+			true,
+		),
+		(
+			r#"builtins.addErrorContext (abort "unused") 123"#,
+			"",
+			false,
+		),
+		(
+			r#"builtins.addErrorContext "outer" (builtins.addErrorContext "inner" (abort "bad"))"#,
+			"--show-trace",
+			false,
+		),
+		(
+			r#"builtins.tryEval (builtins.addErrorContext "caught" (throw "bad"))"#,
+			"",
+			false,
+		),
+		(
+			r#"builtins.addErrorContext (abort "context") (abort "value")"#,
+			"--show-trace",
+			false,
+		),
+		(
+			r#"builtins.tryEval (builtins.addErrorContext (throw "context") (throw "value"))"#,
+			"",
+			false,
+		),
+		(
+			r#"builtins.addErrorContext 1 (throw "value")"#,
+			"--show-trace",
+			false,
+		),
+		(
+			r#"let f = n: if n == 0 then throw "end" else builtins.addErrorContext "frame ${toString n}" (f (n - 1)); in f 200"#,
+			"",
+			false,
+		),
+		(
+			r#"builtins.genList (throw "function") 0"#,
+			"--show-trace",
+			false,
+		),
+		(r#"builtins.mapAttrs (throw "function") {}"#, "", false),
+		(
+			r#"builtins.seq (builtins.tryEval (throw "caught")) (throw "later")"#,
+			"--show-trace",
+			false,
+		),
+		(
+			r#"builtins.addErrorContext (throw "context") (builtins.tryEval (abort "value"))"#,
+			"--show-trace",
+			false,
+		),
+	] {
+		fs::write(
+			scratch.path().join("etc/nix.conf.extra"),
+			"extra-experimental-features = flakes\n",
+		)
+		.unwrap();
+		let marker = scratch.path().join("abort-on-warn-env");
+		if abort_on_warn {
+			fs::write(&marker, "1").unwrap();
+		} else if marker.exists() {
+			fs::remove_file(marker).unwrap();
+		}
+
+		let case = Case {
+			name: "embedded".into(),
+			kind: Kind::EvalOkay,
+		};
+		let mut args: Vec<String> = ["--eval", "--expr", expression]
+			.into_iter()
+			.map(str::to_owned)
+			.collect();
+		args.extend(flags.split_whitespace().map(str::to_owned));
+		let actual = run_command(&case, scratch.path(), None, &args);
+		let expected = run_command(&case, scratch.path(), Some(reference), &args);
+		report.push(json!({"expression": expression, "flags": flags, "NIX_ABORT_ON_WARN": abort_on_warn, "candidate": {"exit_code": actual.exit_code, "signal": actual.signal, "stdout": actual.stdout, "stderr": actual.stderr}, "reference": {"exit_code": expected.exit_code, "signal": expected.signal, "stdout": expected.stdout, "stderr": expected.stderr}}));
+		if !matches!(actual.exit_code, Some(0 | 1))
+			|| actual.exit_code != expected.exit_code
+			|| actual.signal != expected.signal
+			|| actual.stdout != expected.stdout
+			|| actual.stderr != expected.stderr
+		{
+			failures.push(format!(
+				"lang.sh {expression}: candidate ({:?}, {:?}, {:?}); reference ({:?}, {:?}, {:?})",
+				actual.exit_code,
+				actual.stdout,
+				actual.stderr,
+				expected.exit_code,
+				expected.stdout,
+				expected.stderr
+			));
+		}
+	}
+	let case = Case {
+		name: "embedded-derivation".into(),
+		kind: Kind::EvalOkay,
+	};
+	let args = vec![
+		"--show-trace".to_owned(),
+		lang_dir()
+			.join("non-eval-fail-bad-drvPath.nix")
+			.to_string_lossy()
+			.into_owned(),
+	];
+	let actual = run_command(&case, scratch.path(), None, &args);
+	let expected = run_command(&case, scratch.path(), Some(reference), &args);
+	report.push(json!({"command": args, "candidate": {"exit_code": actual.exit_code, "signal": actual.signal, "stdout": actual.stdout, "stderr": actual.stderr}, "reference": {"exit_code": expected.exit_code, "signal": expected.signal, "stdout": expected.stdout, "stderr": expected.stderr}}));
+	if (actual.exit_code, &actual.stdout, &actual.stderr)
+		!= (expected.exit_code, &expected.stdout, &expected.stderr)
+	{
+		failures.push(format!(
+			"lang.sh non-eval-fail-bad-drvPath: candidate {:?}; reference {:?}",
+			actual.stderr, expected.stderr
+		));
+	}
+	fs::write(
+		Path::new(REPORT).with_file_name("upstream-lang-checks-report.json"),
+		serde_json::to_vec_pretty(&report).unwrap(),
+	)
+	.expect("embedded checks report");
+	failures
+}
+
 fn error_code_file(case: &Case, scratch: &Path) -> PathBuf {
 	scratch.join(format!("{}.codes", case.name))
 }
@@ -560,19 +752,19 @@ extra-experimental-features = flakes
 	)
 }
 
-fn run_all(cases: &[Case]) -> Vec<Run> {
+fn run_all(cases: &[Case], reference: Option<&Path>) -> Vec<Run> {
 	let scratch = tempfile::tempdir().expect("scratch directory for post-processing");
 	write_test_config(scratch.path()).expect("write the test configuration");
 	let next = AtomicUsize::new(0);
 	let results = Mutex::new(BTreeMap::new());
-	let workers = thread::available_parallelism().map_or(4, |count| count.get());
+	let workers = thread::available_parallelism().map_or(4, |count| count.get().min(4));
 	thread::scope(|scope| {
 		for _ in 0..workers {
 			scope.spawn(|| {
 				loop {
 					let index = next.fetch_add(1, Ordering::Relaxed);
 					let Some(case) = cases.get(index) else { break };
-					let result = run(case, scratch.path());
+					let result = run(case, scratch.path(), reference);
 					results.lock().unwrap().insert(index, result);
 				}
 			});
@@ -695,7 +887,33 @@ fn main() -> ExitCode {
 			return ExitCode::FAILURE;
 		}
 	};
-	let runs = run_all(&cases);
+	let runs = run_all(&cases, None);
+	let reference = Some(
+		env::var_os("NOXI_REFERENCE_INSTANTIATE")
+			.map(PathBuf::from)
+			.unwrap_or_else(|| {
+				env::var_os("NOXI_REFERENCE_BIN")
+					.map(PathBuf::from)
+					.unwrap_or_else(|| {
+						PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+							.join("../../target/nix-reference/bin")
+					})
+					.join("nix-instantiate")
+			}),
+	);
+	let reference_runs = reference.as_deref().map(|path| {
+		let version = Command::new(path)
+			.arg("--version")
+			.output()
+			.expect("CppNix 2.35.2 reference missing; run devenv shell -- just reference or set NOXI_REFERENCE_INSTANTIATE");
+		assert!(
+			version.status.success()
+				&& String::from_utf8_lossy(&version.stdout).trim()
+					== "nix-instantiate (Nix) 2.35.2",
+			"reference must be CppNix 2.35.2"
+		);
+		run_all(&cases, Some(path))
+	});
 	if let Err(error) = write_report(&cases, &runs) {
 		eprintln!("cannot write {REPORT}: {error}");
 		return ExitCode::FAILURE;
@@ -708,14 +926,54 @@ fn main() -> ExitCode {
 	println!("{} language fixtures: {totals:?}", cases.len());
 	println!("report: {REPORT}");
 
+	let mut expected = read_expectations();
+	let mut differences = reference
+		.as_deref()
+		.map(embedded_checks)
+		.unwrap_or_default();
+	if let Some(reference_runs) = &reference_runs {
+		let mut matched = 0;
+		let mut reference_report = Vec::new();
+		for ((case, candidate), reference) in cases.iter().zip(&runs).zip(reference_runs) {
+			let scratch = tempfile::tempdir().expect("comparison scratch");
+			let equal = matches!(candidate.exit_code, Some(0 | 1))
+				&& candidate.outcome != Outcome::Disabled
+				&& candidate.exit_code == reference.exit_code
+				&& candidate.signal == reference.signal
+				&& normalize(case, &candidate.stdout, scratch.path())
+					== normalize(case, &reference.stdout, scratch.path())
+				&& normalize(case, &candidate.stderr, scratch.path())
+					== normalize(case, &reference.stderr, scratch.path());
+			if equal && candidate.outcome != Outcome::Disabled {
+				matched += 1;
+			}
+			if candidate.outcome == Outcome::Pass && !equal {
+				differences.push(format!(
+					"{}: golden pass differs from live reference",
+					case.name
+				));
+			}
+			reference_report.push(json!({"name": case.name, "equal": equal, "reference_exit_code": reference.exit_code, "reference_signal": reference.signal, "reference_stdout": reference.stdout, "reference_stderr": reference.stderr}));
+		}
+		let path = Path::new(REPORT).with_file_name("upstream-lang-reference-report.json");
+		fs::write(&path, serde_json::to_vec_pretty(&reference_report).unwrap())
+			.expect("reference report");
+		println!(
+			"{matched} exact live reference matches; report: {}",
+			path.display()
+		);
+	}
+	if !differences.is_empty() {
+		for difference in &differences {
+			eprintln!("{difference}");
+		}
+		return ExitCode::FAILURE;
+	}
 	if env::var(BLESS_VAR).is_ok_and(|value| value == "1") {
 		write_expectations(&cases, &runs);
-		println!("rewrote {EXPECTATIONS}");
 		return ExitCode::SUCCESS;
 	}
 
-	let mut expected = read_expectations();
-	let mut differences = Vec::new();
 	for (case, run) in cases.iter().zip(&runs) {
 		match expected.remove(&case.name) {
 			Some(entry) if entry == run.entry() => {}
