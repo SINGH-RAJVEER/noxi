@@ -86,7 +86,12 @@ impl EvalIO for PureIO {
 		if is_store_dir(path) {
 			return Ok(true);
 		}
-		self.source(path)?.path_exists(path)
+		// CppNix's `pathExists` answers false for a path pure evaluation
+		// may not access, as Nixpkgs' overlay lookup under an empty HOME needs.
+		match self.source(path) {
+			Ok(io) => io.path_exists(path),
+			Err(_) => Ok(false),
+		}
 	}
 	fn open(&self, path: &Path) -> io::Result<Box<dyn io::Read>> {
 		self.source(path)?.open(path)
@@ -182,6 +187,8 @@ pub(crate) fn evaluate<'co, 'ro, 'env>(
 		noxi_eval::prepare_globals(declarations, Vec::new(), template.source_map(), true);
 	Evaluation::builder_pure()
 		.with_globals(globals)
+		// Built-in `<nix/...>` files resolve in pure mode as in CppNix.
+		.corepkgs_dir(Some(noxi_glue::store::COREPKGS_DIR.into()))
 		.with_source_map(template.source_map())
 		.io_handle(Box::new(PureIO {
 			store: flake_store,

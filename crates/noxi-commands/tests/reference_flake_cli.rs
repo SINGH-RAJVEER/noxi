@@ -482,3 +482,49 @@ fn stored_path_input_imports_as_plain_string() {
 	assert_eq!(outputs[0][0], "ok");
 	assert_eq!(outputs[0], outputs[1]);
 }
+
+/// What Nixpkgs and Home Manager do in a pure flake evaluation: look for
+/// overlays under an empty HOME, which `pathExists` answers false for, and
+/// use the built-in `<nix/fetchurl.nix>`.
+#[test]
+fn pure_flakes_see_forbidden_paths_as_missing_and_find_corepkgs() {
+	let reference = std::env::var_os("NOXI_REFERENCE_BIN")
+		.map(PathBuf::from)
+		.unwrap_or_else(|| {
+			Path::new(env!("CARGO_MANIFEST_DIR")).join("../../target/nix-reference/bin")
+		})
+		.join("nix");
+	let fixture = tempfile::tempdir().unwrap();
+	fs::write(
+		fixture.path().join("flake.nix"),
+		"{ outputs = { self }: { overlays = builtins.pathExists (builtins.getEnv \"HOME\" + \"/.config/nixpkgs/overlays.nix\"); etc = builtins.pathExists /etc/passwd; fetchurl = builtins.isFunction (import <nix/fetchurl.nix>); }; }",
+	)
+	.unwrap();
+	let roots = [tempfile::tempdir().unwrap(), tempfile::tempdir().unwrap()];
+	let mut outputs = Vec::new();
+	for (bin, root) in [reference.as_path(), Path::new(env!("CARGO_BIN_EXE_nix"))]
+		.iter()
+		.zip(&roots)
+	{
+		let mut output = Vec::new();
+		for attr in ["overlays", "etc", "fetchurl"] {
+			let result = run(
+				bin,
+				root.path(),
+				&[
+					"eval",
+					"--no-write-lock-file",
+					&format!("path:{}#{attr}", fixture.path().display()),
+				],
+			);
+			output.push((
+				result.status.code(),
+				String::from_utf8_lossy(&result.stdout).into_owned(),
+				String::from_utf8_lossy(&result.stderr).into_owned(),
+			));
+		}
+		outputs.push(output);
+	}
+	assert_eq!(outputs[0][2].1, "true\n");
+	assert_eq!(outputs[1], outputs[0]);
+}
