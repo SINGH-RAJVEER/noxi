@@ -648,7 +648,10 @@ pub async fn lock_flake(
 ) -> Result<LockedFlake, ErrorKind> {
 	let settings = store.fetch_settings();
 	let original = parse_reference(store, reference)?;
-	if store.pure_eval() && !original.input.is_locked(&settings) {
+	if store.pure_eval()
+		&& options.allow_unlocked != Some(true)
+		&& !original.input.is_locked(&settings)
+	{
 		return Err(error(format!(
 			"cannot call 'getFlake' on unlocked flake reference '{reference}', at (none) (use --impure to override)"
 		)));

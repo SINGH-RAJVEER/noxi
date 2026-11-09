@@ -6,8 +6,9 @@
 //! arguments, its outputs are deferred and its name gets `-env`. Building
 //! that derivation dumps the environment `$stdenv/setup` leaves as JSON,
 //! which becomes the rc script a shell or a command runs with. Flake
-//! installables, `--profile`, `--redirect`, and the `nixpkgs#bashInteractive`
-//! lookup that needs the `flakes` feature fail explicitly.
+//! installables use the shared flake adapter. Profiles retain the environment
+//! output; redirects still fail explicitly. The interactive shell is resolved
+//! through `nixpkgs#bashInteractive` when flakes are enabled.
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::process::ExitCode;
@@ -19,7 +20,7 @@ use nix_compat::store_path::StorePath;
 use noxi_store::{DerivedPath, Store};
 use serde_json::{Map, Value, json};
 
-use super::{Parsed, expression, inspection, unsupported};
+use super::{Parsed, expression, inspection};
 use crate::cli::Failure;
 
 /// The reference's script, kept byte for byte (with its spaces) so the
@@ -399,7 +400,7 @@ fn derivation_environment(store: &dyn Store, drv_path: &StorePath) -> Result<Sto
 fn build_environment(
 	parsed: &Parsed,
 ) -> Result<Result<(Rc<dyn Store>, BuildEnvironment, StorePath), ExitCode>, Failure> {
-	parsed.unsupported(&["profile", "redirect"])?;
+	parsed.unsupported(&["redirect"])?;
 	let target = match expression::targets(parsed)? {
 		Ok(target) => target,
 		Err(code) => return Ok(Err(code)),
@@ -433,6 +434,16 @@ fn build_environment(
 			derivation_environment(store.as_ref(), &drv)?
 		}
 	};
+	if let Some(profile) = parsed.value("profile") {
+		let profile = crate::instantiate::absolute_path(
+			&std::env::current_dir()?,
+			std::path::Path::new(profile),
+		);
+		let _lock = noxi_store::profiles::lock_profile(&profile)?;
+		let generation =
+			noxi_store::profiles::create_generation(store.as_ref(), &profile, &env_path)?;
+		noxi_store::profiles::switch_link(&profile, &generation)?;
+	}
 	let contents = std::fs::read(store.real_path(&env_path))?;
 	Ok(Ok((
 		store,
@@ -476,11 +487,6 @@ pub(super) fn develop(parsed: Parsed) -> Result<ExitCode, Failure> {
 			_ => {}
 		}
 	}
-	if parsed.settings.experimental_features().contains("flakes") {
-		return Err(unsupported(
-			"develop with the flakes feature enabled (the nixpkgs#bashInteractive shell lookup needs flakes)",
-		));
-	}
 	let (store, env, gc_root) = match build_environment(&parsed)? {
 		Ok(found) => found,
 		Err(code) => return Ok(code),
@@ -519,17 +525,44 @@ pub(super) fn develop(parsed: Parsed) -> Result<ExitCode, Failure> {
 			}
 		}
 	}
-	// The `nixpkgs#bashInteractive` lookup fails without `flakes` and is
-	// ignored at error level.
-	eprintln!(
-		"error (ignored): {}",
-		nix_compat::nixcpp::hash::missing_feature("flakes")
-	);
-	let shell = "bash";
+	let shell = if parsed.settings.experimental_features().contains("flakes") {
+		let mut shell_flags = BTreeMap::from([("no-write-lock-file".into(), vec![vec![]])]);
+		if let Some(uri) = parsed.value("store") {
+			shell_flags.insert("store".into(), vec![vec![uri.to_owned()]]);
+		}
+		let shell_request = Parsed {
+			command: "build",
+			settings: parsed.settings.clone(),
+			flags: shell_flags,
+			sequence: Vec::new(),
+			operands: vec!["nixpkgs#bashInteractive".into()],
+		};
+		match expression::targets(&shell_request) {
+			Ok(Ok(targets)) => {
+				targets.store.build_paths(&targets.paths)?;
+				let mut paths = Vec::new();
+				for target in &targets.paths {
+					paths
+						.extend(expression::outputs(targets.store.as_ref(), target)?.into_values());
+				}
+				paths
+					.first()
+					.map(|p| format!("{}/bin/bash", p.to_absolute_path()))
+					.unwrap_or_else(|| "bash".into())
+			}
+			_ => "bash".into(),
+		}
+	} else {
+		eprintln!(
+			"error (ignored): {}",
+			nix_compat::nixcpp::hash::missing_feature("flakes")
+		);
+		"bash".into()
+	};
 	script.push_str(&format!("SHELL=\"{shell}\"\n"));
 	std::fs::write(&rc_file, script)?;
 	let rc = rc_file.to_string_lossy().into_owned();
-	let mut child = super::execution::environment(&parsed, shell)?;
+	let mut child = super::execution::environment(&parsed, &shell)?;
 	child.env("NIX_GCROOT", gc_root.to_absolute_path());
 	child.env("SHELL", shell);
 	if phase.is_some() || !command.is_empty() {

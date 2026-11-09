@@ -93,12 +93,14 @@ pub(super) fn run(mut parsed: Parsed) -> Result<ExitCode, Failure> {
 	selection.strict = true;
 	selection.read_write_mode = true;
 	let attr = parsed.operands.first().map(String::as_str).unwrap_or("");
-	let expected = if matches!(
-		instantiate::parse_attr_path(attr)?
-			.first()
-			.map(String::as_str),
-		Some("apps" | "defaultApp")
-	) {
+	let flake = !parsed.has("expr") && !parsed.has("file");
+	let expected = if !flake
+		&& matches!(
+			instantiate::parse_attr_path(attr)?
+				.first()
+				.map(String::as_str),
+			Some("apps" | "defaultApp")
+		) {
 		"app"
 	} else {
 		"derivation"
@@ -109,6 +111,12 @@ pub(super) fn run(mut parsed: Parsed) -> Result<ExitCode, Failure> {
 	// Resolve the reference's app/derivation selection in the evaluator so
 	// meta.mainProgram and pname can remain lazy Nix values.
 	for input in &mut selection.inputs {
+		if flake {
+			*input = format!(
+				"let v = ({input}); in if v.type == \"app\" then v.program else if v.type == \"derivation\" then let n = v.meta.mainProgram or (v.pname or (builtins.parseDrvName v.name).name); in v.outPath + \"/bin/\" + n else throw {type_error}"
+			);
+			continue;
+		}
 		*input = format!(
 			"let v = ({input}); in if v.type != \"{expected}\" then throw {type_error} else if v.type == \"app\" then v.program else let n = v.meta.mainProgram or (v.pname or (builtins.parseDrvName v.name).name); in v.outPath + \"/bin/\" + n"
 		);

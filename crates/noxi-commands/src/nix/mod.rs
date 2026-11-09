@@ -5,6 +5,7 @@ mod config;
 mod develop;
 pub mod execution;
 mod expression;
+pub(crate) mod flakes;
 pub mod hash;
 mod inspection;
 pub(crate) mod pure;
@@ -331,6 +332,7 @@ pub fn main(mut settings: Settings, args: Vec<String>) -> Result<ExitCode, Failu
 			"unset-env-var",
 			"unset",
 			"set-env-var",
+			"profile",
 			"phase",
 			"unpack",
 			"configure",
@@ -339,7 +341,9 @@ pub fn main(mut settings: Settings, args: Vec<String>) -> Result<ExitCode, Failu
 			"install",
 			"installcheck",
 		],
-		"print-dev-env" => &["arg", "argstr", "expr", "file", "include", "impure", "json"],
+		"print-dev-env" => &[
+			"arg", "argstr", "expr", "file", "include", "impure", "json", "profile",
+		],
 		"derivation show" => &[
 			"arg",
 			"argstr",
@@ -420,7 +424,34 @@ pub fn main(mut settings: Settings, args: Vec<String>) -> Result<ExitCode, Failu
 		_ => &[],
 	};
 	for name in level.handler.flags.keys() {
-		if !level.command.path.starts_with("hash ") && !supported.contains(&name.as_str()) {
+		if !level.command.path.starts_with("hash ")
+			&& !supported.contains(&name.as_str())
+			&& !(matches!(
+				level.command.path,
+				"eval" | "build" | "develop" | "print-dev-env" | "env shell" | "run"
+			) && [
+				"no-write-lock-file",
+				"no-update-lock-file",
+				"override-input",
+				"update-input",
+				"recreate-lock-file",
+			]
+			.contains(&name.as_str()))
+			&& !(level.command.path.starts_with("flake ")
+				&& [
+					"flake",
+					"all-systems",
+					"legacy",
+					"no-build",
+					"json",
+					"no-write-lock-file",
+					"no-update-lock-file",
+					"override-input",
+					"update-input",
+					"recreate-lock-file",
+				]
+				.contains(&name.as_str()))
+		{
 			return Err(unsupported(&format!("{} --{name}", level.command.path)));
 		}
 	}
@@ -470,6 +501,7 @@ pub fn main(mut settings: Settings, args: Vec<String>) -> Result<ExitCode, Failu
 		"run" => execution::run(parsed),
 		"develop" => develop::develop(parsed),
 		"print-dev-env" => develop::print_dev_env(parsed),
+		command if command.starts_with("flake ") => flakes::run(parsed),
 		command if command.starts_with("store ") => command_store::run(parsed),
 		command => Err(unsupported(command)),
 	}

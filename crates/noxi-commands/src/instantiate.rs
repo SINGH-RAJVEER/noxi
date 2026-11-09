@@ -38,6 +38,7 @@ pub enum AutoArg {
 
 #[derive(Debug, Default, Clone)]
 pub struct Options {
+	pub flake: Option<crate::nix::flakes::Request>,
 	/// Apply the modern command's pure builtins and explicit filesystem limit.
 	pub modern_pure: bool,
 	pub eval: bool,
@@ -560,10 +561,6 @@ pub fn evaluate(options: &Options, cwd: &Path) -> Result<Evaluated, ExitCode> {
 		}
 	})?;
 
-	let env: FxHashMap<SmolStr, Value> = driver_builtins::builtins()
-		.into_iter()
-		.map(|(name, value)| (SmolStr::new(format!("__noxi_{name}")), value))
-		.collect();
 	let writable = !options.eval || options.read_write_mode;
 	let uri = store::store_uri(options.store.as_deref(), &options.settings);
 	let (evaluator_store, store) =
@@ -623,6 +620,17 @@ pub fn evaluate(options: &Options, cwd: &Path) -> Result<Evaluated, ExitCode> {
 		})
 		.collect();
 	evaluator_store.configure_fetching(fetch);
+	let mut env: FxHashMap<SmolStr, Value> = driver_builtins::builtins()
+		.into_iter()
+		.map(|(name, value)| (SmolStr::new(format!("__noxi_{name}")), value))
+		.collect();
+	if let Some(request) = &options.flake {
+		env.extend(
+			crate::nix::flakes::builtins(request.clone(), evaluator_store.clone())
+				.into_iter()
+				.map(|(name, value)| (SmolStr::new(format!("__noxi_{name}")), value)),
+		);
+	}
 	let mode = if !options.eval || options.strict || options.json || options.xml {
 		EvalMode::Strict
 	} else {
@@ -654,7 +662,7 @@ pub fn evaluate(options: &Options, cwd: &Path) -> Result<Evaluated, ExitCode> {
 		.max_call_depth(options.settings.get_int("max-call-depth", 10000).max(0) as usize)
 		.search_path(search_path(options))
 		.pure_eval(options.settings.get_bool("pure-eval", false));
-	let builder = noxi_glue::configure(builder, evaluator_store)
+	let builder = noxi_glue::configure(builder, evaluator_store.clone())
 		.env(Some(&env))
 		.mode(mode);
 	// The evaluator's own lints (unused bindings, legacy `let`, ...) have no
@@ -668,6 +676,7 @@ pub fn evaluate(options: &Options, cwd: &Path) -> Result<Evaluated, ExitCode> {
 			&driver,
 			fragments,
 			cwd,
+			options.flake.as_ref().map(|_| evaluator_store.clone()),
 		)
 	} else {
 		builder
