@@ -1,14 +1,8 @@
 //! `nix-env`, following CppNix 2.35.2's `src/nix/nix-env/nix-env.cc`.
 //!
-//! Supported: `--install` and `--set` with store path arguments,
-//! `--uninstall`, `--query` of the installed elements (with `--no-name`,
-//! `--out-path`, `--drv-path` and `--system`), `--rollback`,
-//! `--switch-generation`/`-G`, `--list-generations`,
-//! `--delete-generations`, `--switch-profile`/`-S` and `--version`, with
-//! `--profile`/`-p`, `--dry-run` and settings flags. Selecting
-//! derivations from Nix expressions, `--upgrade` and the other query
-//! options fail explicitly. `--set-flag` updates string metadata in installed
-//! environments through the same profile transaction.
+//! Profile transactions, expression and store-path installation sources, upgrades,
+//! and installed/available queries are implemented in Rust. Differential evidence
+//! and remaining compatibility gaps are recorded in docs/reference-inventory.md.
 
 use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
@@ -50,6 +44,12 @@ struct Globals {
 	profile: PathBuf,
 	dry_run: bool,
 	cwd: PathBuf,
+	file: Option<String>,
+	include: Vec<String>,
+	auto_args: Vec<(String, crate::instantiate::AutoArg)>,
+	system_filter: String,
+	force_name: Option<String>,
+	prebuilt_only: bool,
 }
 
 fn is_root_user() -> bool {
@@ -120,6 +120,12 @@ pub fn main(mut settings: Settings, args: Vec<String>) -> Result<ExitCode, Failu
 	let state_dir = LocalStoreConfig::system().state_dir;
 	ensure_def_expr(&settings, &state_dir);
 	let cwd = std::env::current_dir()?;
+	let mut file = None;
+	let mut include = Vec::new();
+	let mut auto_args = Vec::new();
+	let mut force_name = None;
+	let mut prebuilt_only = false;
+	let mut system_filter = "*".to_owned();
 	let mut op = None;
 	let mut op_flags = Vec::new();
 	let mut op_args = Vec::new();
@@ -160,7 +166,20 @@ pub fn main(mut settings: Settings, args: Vec<String>) -> Result<ExitCode, Failu
 			}
 			"--version" => op = Some(Operation::Version),
 			"--install" | "-i" => op = Some(Operation::Install),
-			"--force-name" => drop(value(&mut args)?),
+			"--force-name" => force_name = Some(value(&mut args)?),
+			"-I" | "--include" => include.push(value(&mut args)?),
+			"--arg" | "--argstr" => {
+				let name = value(&mut args)?;
+				let val = value(&mut args)?;
+				auto_args.push((
+					name,
+					if arg == "--arg" {
+						crate::instantiate::AutoArg::Expr(val)
+					} else {
+						crate::instantiate::AutoArg::Str(val)
+					},
+				));
+			}
 			"--uninstall" | "-e" => op = Some(Operation::Uninstall),
 			"--upgrade" | "-u" => op = Some(Operation::Upgrade),
 			"--set-flag" => op = Some(Operation::SetFlag),
@@ -169,12 +188,7 @@ pub fn main(mut settings: Settings, args: Vec<String>) -> Result<ExitCode, Failu
 			"--profile" | "-p" => {
 				profile = Some(absolute_path(&cwd, Path::new(&value(&mut args)?)))
 			}
-			"--file" | "-f" => {
-				value(&mut args)?;
-				return Err(Failure::Error(
-					"nix-env --file is not supported by noxi yet".into(),
-				));
-			}
+			"--file" | "-f" => file = Some(value(&mut args)?),
 			"--switch-profile" | "-S" => op = Some(Operation::SwitchProfile),
 			"--switch-generation" | "-G" => op = Some(Operation::SwitchGeneration),
 			"--rollback" => op = Some(Operation::Rollback),
@@ -186,8 +200,8 @@ pub fn main(mut settings: Settings, args: Vec<String>) -> Result<ExitCode, Failu
 				}
 				dry_run = true;
 			}
-			"--system-filter" => drop(value(&mut args)?),
-			"--prebuilt-only" | "-b" => {}
+			"--system-filter" => system_filter = value(&mut args)?,
+			"--prebuilt-only" | "-b" => prebuilt_only = true,
 			"--" => op_args.extend(args.by_ref()),
 			flag if !flag.is_empty() && flag.starts_with('-') => {
 				op_flags.push(arg.clone());
@@ -226,6 +240,12 @@ pub fn main(mut settings: Settings, args: Vec<String>) -> Result<ExitCode, Failu
 		profile,
 		dry_run,
 		cwd,
+		file,
+		include,
+		auto_args,
+		system_filter,
+		force_name,
+		prebuilt_only,
 	};
 	// Profile changes are reported at `lvlNotice`.
 	let mut log = |message: &str| {
@@ -280,11 +300,7 @@ pub fn main(mut settings: Settings, args: Vec<String>) -> Result<ExitCode, Failu
 		Operation::Uninstall => return op_uninstall(&globals, &op_flags, &op_args),
 		Operation::Query => return op_query(&globals, &op_flags, &op_args),
 		Operation::SetFlag => return op_set_flag(&globals, &op_flags, &op_args),
-		Operation::Upgrade => {
-			return Err(Failure::Error(
-				"nix-env --upgrade is not supported by noxi yet".into(),
-			));
-		}
+		Operation::Upgrade => return op_upgrade(&globals, &op_flags, &op_args),
 	}
 	Ok(ExitCode::SUCCESS)
 }
@@ -344,37 +360,31 @@ fn op_set_flag(globals: &Globals, flags: &[String], args: &[String]) -> Result<E
 
 /// `opSet`: make the single selected path the profile's new generation.
 fn op_set(globals: &Globals, flags: &[String], args: &[String]) -> Result<(), Failure> {
-	for flag in flags {
+	let mut iter = flags.iter();
+	while let Some(flag) = iter.next() {
 		match flag.as_str() {
-			"--from-expression" | "-E" | "--from-profile" | "--attr" | "-A" => {
-				return Err(Failure::Error(format!(
-					"nix-env --set {flag} is not supported by noxi yet"
-				)));
+			"--from-expression" | "-E" | "--attr" | "-A" => {}
+			"--from-profile" => {
+				iter.next();
 			}
 			_ => return Err(Failure::Usage(format!("unknown flag '{flag}'"))),
 		}
 	}
-	// Without a path, CppNix selects from the default Nix expression.
-	if !args.first().is_some_and(|arg| arg.contains('/')) {
-		if args.is_empty() {
+	let opened = open_store(globals)?;
+	let selected = match source_elements(globals, opened.store.as_ref(), flags, args, true)? {
+		Ok(v) => v,
+		Err(_) => {
 			return Err(Failure::Error(
-				"--set requires exactly one derivation".into(),
+				"evaluating the selected derivation failed".into(),
 			));
 		}
-		return Err(Failure::Error(
-			"nix-env selecting derivations from Nix expressions is not supported by noxi yet"
-				.into(),
-		));
-	}
-	let paths = args
-		.iter()
-		.map(|arg| follow_links_to_store_path(&globals.cwd, arg))
-		.collect::<Result<Vec<StorePath>, Failure>>()?;
-	let [path] = &paths[..] else {
+	};
+	let [element] = &selected[..] else {
 		return Err(Failure::Error(
 			"--set requires exactly one derivation".into(),
 		));
 	};
+	let path = element.drv_path.as_ref().unwrap_or(&element.out_path);
 	let uri = store::store_uri(globals.store.as_deref(), &globals.settings);
 	let Some(opened) = store::open(&uri, &globals.settings)? else {
 		return Err(Failure::Error(
@@ -491,30 +501,297 @@ fn open_store(globals: &Globals) -> Result<store::OpenStore, Failure> {
 		.ok_or_else(|| Failure::Error(format!("store '{uri}' cannot hold user environments")))
 }
 
-/// `--from-expression`, `--from-profile` and `--attr` select from Nix
-/// expressions or another profile, which noxi does not do yet.
-fn unsupported_source(op: &str, flag: &str) -> Failure {
-	Failure::Error(format!("nix-env {op} {flag} is not supported by noxi yet"))
+fn source_root(globals: &Globals) -> Result<String, Failure> {
+	let path = globals
+		.file
+		.as_ref()
+		.map(PathBuf::from)
+		.unwrap_or_else(|| nix_def_expr(&globals.settings));
+	if path.to_str() == Some("-") {
+		return Ok(std::io::read_to_string(std::io::stdin())?);
+	}
+	if crate::instantiate::is_lookup_path(&path.to_string_lossy()) {
+		return Ok(format!("import {}", path.display()));
+	}
+	let path = absolute_path(&globals.cwd, &path);
+	if path.is_dir() && !path.join("default.nix").exists() {
+		fn expressions(
+			dir: &Path,
+			seen: &mut BTreeSet<String>,
+			entries: &mut Vec<String>,
+		) -> Result<(), Failure> {
+			let mut paths = std::fs::read_dir(dir)?
+				.map(|e| e.map(|e| e.path()))
+				.collect::<Result<Vec<_>, _>>()?;
+			paths.sort();
+			for path in paths {
+				let name = path.file_name().unwrap().to_string_lossy();
+				if name == "manifest.nix" || !path.exists() {
+					continue;
+				}
+				if path.is_file() && name.ends_with(".nix")
+					|| path.is_dir() && path.join("default.nix").exists()
+				{
+					let name = name.strip_suffix(".nix").unwrap_or(&name).to_owned();
+					if !seen.insert(name.clone()) {
+						eprintln!(
+							"warning: name collision in input Nix expressions, skipping '{}'",
+							path.display()
+						);
+						continue;
+					}
+					entries.push(format!(
+						"{} = import {};",
+						crate::instantiate::nix_string_literal(&name),
+						crate::instantiate::nix_string_literal(&path.to_string_lossy())
+					));
+				} else if path.is_dir() {
+					expressions(&path, seen, entries)?;
+				}
+			}
+			Ok(())
+		}
+		let mut entries = Vec::new();
+		expressions(&path, &mut BTreeSet::new(), &mut entries)?;
+		return Ok(format!("{{ {} }}", entries.join(" ")));
+	}
+	Ok(format!(
+		"import {}",
+		crate::instantiate::nix_string_literal(&path.to_string_lossy())
+	))
 }
 
-/// `queryInstSources` for store path arguments.
-fn store_path_elements(
+fn select_elements(
+	globals: &Globals,
+	all: Vec<Element>,
+	args: &[String],
+	newest: bool,
+) -> Result<Vec<Element>, Failure> {
+	let mut result = Vec::new();
+	let selectors = if args.is_empty() {
+		vec!["*".to_owned()]
+	} else {
+		args.to_vec()
+	};
+	for selector in selectors {
+		let wanted = DrvName::new(&selector);
+		let mut matches: Vec<_> = all
+			.iter()
+			.filter(|e| wanted.matches(&DrvName::new(&e.name)))
+			.cloned()
+			.collect();
+		if matches.is_empty() && selector != "*" {
+			let suggestions: BTreeSet<_> = all
+				.iter()
+				.map(|e| DrvName::new(&e.name).name)
+				.filter(|n| n.starts_with(&wanted.name))
+				.take(3)
+				.collect();
+			let suffix = if suggestions.is_empty() {
+				String::new()
+			} else {
+				format!(
+					", maybe you meant:\n{}",
+					suggestions.into_iter().collect::<Vec<_>>().join("\n")
+				)
+			};
+			return Err(Failure::Error(format!(
+				"selector '{selector}' matches no derivations{suffix}"
+			)));
+		}
+		if newest {
+			let mut best = std::collections::BTreeMap::<String, Element>::new();
+			for e in matches {
+				let name = DrvName::new(&e.name).name;
+				let replace = best.get(&name).is_none_or(|old| {
+					let system = globals.settings.get("system").unwrap_or("x86_64-linux");
+					(e.system == system)
+						.cmp(&(old.system == system))
+						.then_with(|| priority(old).cmp(&priority(&e)))
+						.then_with(|| {
+							compare_versions(
+								&DrvName::new(&e.name).version,
+								&DrvName::new(&old.name).version,
+							)
+						})
+						.is_gt()
+				});
+				if replace {
+					best.insert(name, e);
+				}
+			}
+			matches = best.into_values().collect();
+		}
+		for e in matches {
+			if !result
+				.iter()
+				.any(|old: &Element| old.out_path == e.out_path && old.attr_path == e.attr_path)
+			{
+				result.push(e);
+			}
+		}
+	}
+	Ok(result)
+}
+
+fn priority(e: &Element) -> i64 {
+	e.meta("priority")
+		.and_then(|v| match v {
+			noxi_eval::Value::Integer(i) => Some(i),
+			noxi_eval::Value::String(s) => String::from_utf8_lossy(s.as_bytes()).parse().ok(),
+			_ => None,
+		})
+		.unwrap_or(0)
+}
+
+fn compare_versions(a: &str, b: &str) -> std::cmp::Ordering {
+	fn parts(s: &str) -> Vec<&str> {
+		let mut rest = s;
+		let mut result = Vec::new();
+		while !rest.is_empty() {
+			rest = rest.trim_start_matches(['.', '-']);
+			if rest.is_empty() {
+				break;
+			}
+			let digit = rest.as_bytes()[0].is_ascii_digit();
+			let end = rest
+				.bytes()
+				.position(|c| c == b'.' || c == b'-' || c.is_ascii_digit() != digit)
+				.unwrap_or(rest.len());
+			result.push(&rest[..end]);
+			rest = &rest[end..];
+		}
+		result
+	}
+	let a = parts(a);
+	let b = parts(b);
+	for i in 0..a.len().max(b.len()) {
+		let x = a.get(i).copied().unwrap_or("");
+		let y = b.get(i).copied().unwrap_or("");
+		let numeric = |s: &str| !s.is_empty() && s.as_bytes()[0].is_ascii_digit();
+		let cmp = if x == y {
+			std::cmp::Ordering::Equal
+		} else if x == "pre" {
+			std::cmp::Ordering::Less
+		} else if y == "pre" {
+			std::cmp::Ordering::Greater
+		} else if numeric(x) && numeric(y) {
+			let x = x.trim_start_matches('0');
+			let y = y.trim_start_matches('0');
+			x.len().cmp(&y.len()).then_with(|| x.cmp(y))
+		} else {
+			numeric(x).cmp(&numeric(y)).then_with(|| x.cmp(y))
+		};
+		if !cmp.is_eq() {
+			return cmp;
+		}
+	}
+	std::cmp::Ordering::Equal
+}
+
+fn auto_apply(globals: &Globals, expression: &str) -> String {
+	let args = globals
+		.auto_args
+		.iter()
+		.map(|(name, value)| {
+			format!(
+				"{} = {};",
+				crate::instantiate::nix_string_literal(name),
+				match value {
+					crate::instantiate::AutoArg::Expr(e) => format!("({e})"),
+					crate::instantiate::AutoArg::Str(s) =>
+						crate::instantiate::nix_string_literal(s),
+				}
+			)
+		})
+		.collect::<Vec<_>>()
+		.join(" ");
+	format!(
+		"(let v = ({expression}); in if builtins.isFunction v then v (builtins.intersectAttrs (builtins.functionArgs v) {{ {args} }}) else v)"
+	)
+}
+
+fn source_elements(
 	globals: &Globals,
 	store: &dyn noxi_store::Store,
+	flags: &[String],
 	args: &[String],
-) -> Result<Vec<Element>, Failure> {
-	if !args.first().is_some_and(|arg| arg.contains('/')) {
-		return Err(Failure::Error(
-			"nix-env selecting derivations from Nix expressions is not supported by noxi yet"
-				.into(),
-		));
+	newest: bool,
+) -> Result<Result<Vec<Element>, ExitCode>, Failure> {
+	if let Some(i) = flags.iter().position(|s| s == "--from-profile") {
+		let profile = flags
+			.get(i + 1)
+			.ok_or_else(|| Failure::Usage("'--from-profile' requires an argument".into()))?;
+		let all =
+			match user_env::query_installed(&globals.settings, &globals.cwd, Path::new(profile))? {
+				Ok(v) => v,
+				Err(c) => return Ok(Err(c)),
+			};
+		return Ok(Ok(select_elements(globals, all, args, newest)?));
 	}
-	args.iter()
-		.map(|arg| {
-			let path = follow_links_to_store_path(&globals.cwd, arg)?;
-			Element::from_store_path(store, path)
-		})
-		.collect()
+	let expression = flags
+		.iter()
+		.any(|f| matches!(f.as_str(), "--from-expression" | "-E"));
+	let attr = flags.iter().any(|f| matches!(f.as_str(), "--attr" | "-A"));
+	if !expression && !attr && args.first().is_some_and(|s| s.contains('/')) {
+		return Ok(Ok(args
+			.iter()
+			.map(|a| Element::from_store_path(store, follow_links_to_store_path(&globals.cwd, a)?))
+			.collect::<Result<_, Failure>>()?));
+	}
+	let root = source_root(globals)?;
+	let roots = if expression {
+		args.iter().map(|a| format!("({a}) ({root})")).collect()
+	} else if attr {
+		args.iter()
+			.map(|a| {
+				let mut selected = auto_apply(globals, &root);
+				for name in crate::instantiate::parse_attr_path(a).map_err(Failure::Usage)? {
+					selected = auto_apply(
+						globals,
+						&format!(
+							"({selected}).{}",
+							crate::instantiate::nix_string_literal(&name)
+						),
+					);
+				}
+				Ok(selected)
+			})
+			.collect::<Result<Vec<_>, Failure>>()?
+	} else {
+		vec![root]
+	};
+	let options = crate::instantiate::Options {
+		settings: globals.settings.clone(),
+		store: globals.store.clone(),
+		include: globals.include.clone(),
+		auto_args: globals.auto_args.clone(),
+		read_write_mode: true,
+		..Default::default()
+	};
+	let mut all = Vec::new();
+	for root in roots {
+		match user_env::query_expression(&options, &globals.cwd, &root)? {
+			Ok(v) => all.extend(v),
+			Err(c) => return Ok(Err(c)),
+		}
+	}
+	all.retain(|e| globals.system_filter == "*" || e.system == globals.system_filter);
+	if globals.prebuilt_only {
+		let mut prebuilt = Vec::new();
+		for e in all {
+			let missing = store.query_missing(&[DerivedPath::Opaque(e.out_path.clone())])?;
+			if missing.unknown.is_empty() {
+				prebuilt.push(e);
+			}
+		}
+		all = prebuilt;
+	}
+	Ok(Ok(if expression || attr {
+		all
+	} else {
+		select_elements(globals, all, args, newest)?
+	}))
 }
 
 /// `printMissing` for elements: what installing them builds or fetches.
@@ -540,21 +817,39 @@ fn op_install(globals: &Globals, flags: &[String], args: &[String]) -> Result<Ex
 	let mut preserve_installed = false;
 	let mut remove_all = false;
 	let mut priority = None;
+	let source_flags = flags;
 	let mut flags = flags.iter();
 	while let Some(flag) = flags.next() {
 		match flag.as_str() {
 			"--from-expression" | "-E" | "--from-profile" | "--attr" | "-A" => {
-				return Err(unsupported_source("--install", flag));
+				if flag == "--from-profile" {
+					flags.next();
+				}
 			}
 			"--preserve-installed" | "-P" => preserve_installed = true,
 			"--remove-all" | "-r" => remove_all = true,
-			"--priority" => priority = flags.next().and_then(|p| p.parse::<i64>().ok()),
+			"--priority" => {
+				let value = flags
+					.next()
+					.ok_or_else(|| Failure::Usage("'--priority' requires an argument".into()))?;
+				priority = Some(i64::from(value.parse::<i32>().map_err(|_| {
+					Failure::Usage("'--priority' requires an integer argument".into())
+				})?));
+			}
 			_ => return Err(Failure::Usage(format!("unknown flag '{flag}'"))),
 		}
 	}
 	let opened = open_store(globals)?;
 	let store = opened.store.as_ref();
-	let mut new = store_path_elements(globals, store, args)?;
+	let mut new = match source_elements(globals, store, source_flags, args, true)? {
+		Ok(v) => v,
+		Err(c) => return Ok(c),
+	};
+	if let Some(name) = &globals.force_name {
+		for e in &mut new {
+			e.name = name.clone();
+		}
+	}
 	if let Some(priority) = priority {
 		for element in &mut new {
 			element.set_meta("priority", noxi_eval::Value::Integer(priority));
@@ -612,6 +907,98 @@ fn op_install(globals: &Globals, flags: &[String], args: &[String]) -> Result<Ex
 	}
 }
 
+fn op_upgrade(globals: &Globals, flags: &[String], args: &[String]) -> Result<ExitCode, Failure> {
+	let mut mode = "--lt";
+	let mut iter = flags.iter();
+	while let Some(flag) = iter.next() {
+		match flag.as_str() {
+			"--lt" | "--leq" | "--eq" | "--always" => mode = flag,
+			"--attr" | "-A" | "--from-expression" | "-E" => {}
+			"--from-profile" => {
+				iter.next();
+			}
+			_ => return Err(Failure::Usage(format!("unknown flag '{flag}'"))),
+		}
+	}
+	let opened = open_store(globals)?;
+	let available = match source_elements(globals, opened.store.as_ref(), flags, args, false)? {
+		Ok(v) => v,
+		Err(c) => return Ok(c),
+	};
+	loop {
+		let token = user_env::lock_token(&globals.profile);
+		let mut installed =
+			match user_env::query_installed(&globals.settings, &globals.cwd, &globals.profile)? {
+				Ok(v) => v,
+				Err(c) => return Ok(c),
+			};
+		for old in &mut installed {
+			if old.meta_bool("keep", false) {
+				continue;
+			}
+			let name = DrvName::new(&old.name);
+			let best = available
+				.iter()
+				.filter(|new| {
+					let n = DrvName::new(&new.name);
+					let cmp = compare_versions(&name.version, &n.version);
+					name.name == n.name
+						&& priority(new) <= priority(old)
+						&& match mode {
+							"--always" => true,
+							"--eq" => cmp.is_eq(),
+							"--leq" => !cmp.is_gt(),
+							_ => cmp.is_lt(),
+						}
+				})
+				.max_by(|a, b| {
+					priority(b).cmp(&priority(a)).then_with(|| {
+						compare_versions(
+							&DrvName::new(&a.name).version,
+							&DrvName::new(&b.name).version,
+						)
+					})
+				});
+			if let Some(new) = best
+				&& old.out_path != new.out_path
+			{
+				if nix_compat::log::log_enabled(nix_compat::log::VerbosityLevel::Info) {
+					eprintln!(
+						"{} '{}' to '{}'",
+						if compare_versions(&name.version, &DrvName::new(&new.name).version).is_gt()
+						{
+							"downgrading"
+						} else {
+							"upgrading"
+						},
+						old.name,
+						new.name
+					);
+				}
+				*old = new.clone();
+			}
+		}
+		print_missing_elements(opened.store.as_ref(), &installed)?;
+		if globals.dry_run {
+			return Ok(ExitCode::SUCCESS);
+		}
+		match user_env::create_user_env(
+			opened.store.as_ref(),
+			&globals.settings,
+			globals.store.as_deref(),
+			&globals.cwd,
+			&installed,
+			&globals.profile,
+			globals.settings.get_bool("keep-env-derivations", false),
+			&token,
+		)? {
+			Ok(true) => return Ok(ExitCode::SUCCESS),
+			Ok(false) => {}
+			Err(c) => return Ok(c),
+		}
+	}
+}
+
 /// `opUninstall` and `uninstallDerivations`.
 fn op_uninstall(globals: &Globals, flags: &[String], args: &[String]) -> Result<ExitCode, Failure> {
 	no_flags(flags)?;
@@ -641,20 +1028,36 @@ fn op_uninstall(globals: &Globals, flags: &[String], args: &[String]) -> Result<
 					eprintln!("warning: selector '{selector}' matched no installed derivations");
 				}
 			}
-			// `std::partition` keeps the order of neither part; the kept
-			// elements are only written back, so their order is CppNix's
-			// only when nothing is removed before them.
-			let mut kept = Vec::new();
-			for (element, remove) in elements.into_iter().zip(removed) {
-				if remove {
-					if nix_compat::log::log_enabled(nix_compat::log::VerbosityLevel::Info) {
-						eprintln!("uninstalling '{}'", element.name);
+			// libstdc++ partitions bidirectional ranges by swapping from both ends.
+			let mut removed = removed;
+			let mut first = 0;
+			let mut last = elements.len();
+			loop {
+				while first < last && !removed[first] {
+					first += 1;
+				}
+				if first == last {
+					break;
+				}
+				loop {
+					last -= 1;
+					if first == last || !removed[last] {
+						break;
 					}
-				} else {
-					kept.push(element);
+				}
+				if first == last {
+					break;
+				}
+				elements.swap(first, last);
+				removed.swap(first, last);
+				first += 1;
+			}
+			for element in &elements[first..] {
+				if nix_compat::log::log_enabled(nix_compat::log::VerbosityLevel::Info) {
+					eprintln!("uninstalling '{}'", element.name);
 				}
 			}
-			elements = kept;
+			elements.truncate(first);
 		}
 		if globals.dry_run {
 			return Ok(ExitCode::SUCCESS);
@@ -682,28 +1085,98 @@ fn op_query(globals: &Globals, flags: &[String], args: &[String]) -> Result<Exit
 	let mut print_out_path = false;
 	let mut print_drv_path = false;
 	let mut print_system = false;
-	for flag in flags {
+	let mut available = false;
+	let mut print_attr = false;
+	let mut print_description = false;
+	let mut print_meta = false;
+	let mut print_status = false;
+	let mut compare = false;
+	let mut json_output = false;
+	let mut xml_output = false;
+	let mut attr = None;
+	let mut iter = flags.iter();
+	while let Some(flag) = iter.next() {
 		match flag.as_str() {
 			"--no-name" => print_name = false,
 			"--out-path" => print_out_path = true,
 			"--drv-path" => print_drv_path = true,
 			"--system" => print_system = true,
-			"--installed" => {}
-			"--status" | "-s" | "--description" | "--compare-versions" | "-c" | "--meta"
-			| "--available" | "-a" | "--xml" | "--json" | "--attr-path" | "-P" | "--attr"
-			| "-A" => {
-				return Err(Failure::Error(format!(
-					"nix-env --query {flag} is not supported by noxi yet"
-				)));
-			}
+			"--installed" => available = false,
+			"--available" | "-a" => available = true,
+			"--attr-path" | "-P" => print_attr = true,
+			"--description" => print_description = true,
+			"--meta" => print_meta = true,
+			"--status" | "-s" => print_status = true,
+			"--compare-versions" | "-c" => compare = true,
+			"--json" => json_output = true,
+			"--xml" => xml_output = true,
+			"--attr" | "-A" => attr = iter.next().cloned(),
 			_ => return Err(Failure::Usage(format!("unknown flag '{flag}'"))),
 		}
 	}
+	if print_attr && !available {
+		return Err(Failure::Usage(
+			"--attr-path(-P) only works with --available".into(),
+		));
+	}
+	let opened = open_store(globals)?;
 	let installed =
 		match user_env::query_installed(&globals.settings, &globals.cwd, &globals.profile)? {
-			Ok(installed) => installed,
-			Err(code) => return Ok(code),
+			Ok(v) => v,
+			Err(c) => return Ok(c),
 		};
+	let avail = if available || compare {
+		let mut source = source_root(globals)?;
+		if let Some(attr) = &attr {
+			for name in crate::instantiate::parse_attr_path(&attr).map_err(Failure::Usage)? {
+				source = format!(
+					"({source}).{}",
+					crate::instantiate::nix_string_literal(&name)
+				);
+			}
+		}
+		let options = crate::instantiate::Options {
+			settings: globals.settings.clone(),
+			store: globals.store.clone(),
+			include: globals.include.clone(),
+			auto_args: globals.auto_args.clone(),
+			..Default::default()
+		};
+		match user_env::query_available(
+			&options,
+			&globals.cwd,
+			&source,
+			print_out_path || print_status || globals.prebuilt_only,
+			print_drv_path,
+			print_meta || print_description,
+		)? {
+			Ok(mut v) => {
+				if let Some(prefix) = &attr {
+					for e in &mut v {
+						e.attr_path = if e.attr_path.is_empty() {
+							prefix.clone()
+						} else {
+							format!("{prefix}.{}", e.attr_path)
+						};
+					}
+				}
+				v
+			}
+			Err(c) => return Ok(c),
+		}
+	} else {
+		Vec::new()
+	};
+	let other = if available {
+		installed.clone()
+	} else {
+		avail.clone()
+	};
+	let installed_paths: BTreeSet<_> = installed.iter().map(|e| e.out_path.clone()).collect();
+	let mut installed = if available { avail } else { installed };
+	if available {
+		installed.retain(|e| globals.system_filter == "*" || e.system == globals.system_filter);
+	}
 	// `filterBySelector`: every selector must match something.
 	let mut elements = if args.is_empty() {
 		installed
@@ -737,12 +1210,128 @@ fn op_query(globals: &Globals, flags: &[String], args: &[String]) -> Result<Exit
 			.map(|c| c.to_ascii_uppercase())
 			.cmp(b.name.bytes().map(|c| c.to_ascii_uppercase()))
 	});
+	if json_output {
+		let mut result = serde_json::Map::new();
+		for e in &elements {
+			let name = DrvName::new(&e.name);
+			let outputs: serde_json::Map<_, _> = e
+				.outputs
+				.iter()
+				.map(|(n, p)| {
+					(
+						n.clone(),
+						if print_out_path {
+							serde_json::json!(p.to_absolute_path())
+						} else {
+							serde_json::Value::Null
+						},
+					)
+				})
+				.collect();
+			let mut value = serde_json::json!({"name":e.name,"pname":name.name,"version":name.version,"system":e.system,"outputName":e.output_name,"outputs":outputs});
+			if print_drv_path && let Some(p) = &e.drv_path {
+				value["drvPath"] = serde_json::json!(p.to_absolute_path());
+			}
+			if print_meta {
+				value["meta"] = meta_json(&e.meta);
+			}
+			result.insert(e.attr_path.clone(), value);
+		}
+		println!(
+			"{}",
+			serde_json::to_string_pretty(&result).map_err(|e| e.to_string())?
+		);
+		return Ok(ExitCode::SUCCESS);
+	}
+	if globals.prebuilt_only {
+		let mut prebuilt = Vec::new();
+		for element in elements {
+			let missing = opened
+				.store
+				.query_missing(&[DerivedPath::Opaque(element.out_path.clone())])?;
+			if !missing.unknown.contains(&element.out_path) {
+				prebuilt.push(element);
+			}
+		}
+		elements = prebuilt;
+	}
+	if xml_output {
+		println!("<?xml version='1.0' encoding='utf-8'?>\n<items>");
+	}
 	let mut table: Vec<Vec<String>> = Vec::new();
 	for element in &elements {
 		let mut columns = Vec::new();
+		let mut attrs = std::collections::BTreeMap::<String, String>::new();
+		let mut attribute = |k: &str, v: String| {
+			attrs.insert(k.into(), v);
+		};
+		if print_status {
+			let valid = opened.store.is_valid_path(&element.out_path)?;
+			let installed = installed_paths.contains(&element.out_path);
+			let subs = opened
+				.store
+				.query_missing(&[DerivedPath::Opaque(element.out_path.clone())])?
+				.will_substitute
+				.contains(&element.out_path);
+			if xml_output {
+				attribute("installed", u8::from(installed).to_string());
+				attribute("valid", u8::from(valid).to_string());
+				attribute("substitutable", u8::from(subs).to_string());
+			} else {
+				columns.push(format!(
+					"{}{}{}",
+					if installed { "I" } else { "-" },
+					if valid { "P" } else { "-" },
+					if subs { "S" } else { "-" }
+				));
+			}
+		}
+		let name = DrvName::new(&element.name);
+		if xml_output {
+			attribute("attrPath", element.attr_path.clone());
+			attribute("name", element.name.clone());
+			attribute("pname", name.name.clone());
+			attribute("version", name.version.clone());
+			attribute("outputName", element.output_name.clone());
+			if !element.system.is_empty() {
+				attribute("system", element.system.clone());
+			}
+			if print_drv_path && let Some(p) = &element.drv_path {
+				attribute("drvPath", p.to_absolute_path());
+			}
+		} else if print_attr {
+			columns.push(element.attr_path.clone());
+		}
 		if print_name {
 			columns.push(element.name.clone());
 		}
+		if compare {
+			let best = other
+				.iter()
+				.filter(|e| DrvName::new(&e.name).name == name.name)
+				.map(|e| DrvName::new(&e.name).version)
+				.max_by(|a, b| compare_versions(a, b));
+			let (ch, version) = match best {
+				None => ('-', String::new()),
+				Some(v) => (
+					match compare_versions(&name.version, &v) {
+						std::cmp::Ordering::Less => '<',
+						std::cmp::Ordering::Equal => '=',
+						std::cmp::Ordering::Greater => '>',
+					},
+					v,
+				),
+			};
+			if xml_output {
+				if ch != '-' {
+					attribute("versionDiff", ch.to_string());
+					attribute("maxComparedVersion", version);
+				}
+			} else {
+				columns.push(format!("{ch} {version}"));
+			}
+		}
+
 		if print_system {
 			columns.push(element.system.clone());
 		}
@@ -768,10 +1357,144 @@ fn op_query(globals: &Globals, flags: &[String], args: &[String]) -> Result<Exit
 			}
 			columns.push(text);
 		}
-		table.push(columns);
+		if print_description {
+			let description = element
+				.meta("description")
+				.and_then(|v| {
+					v.to_str()
+						.ok()
+						.map(|s| String::from_utf8_lossy(s.as_bytes()).into_owned())
+				})
+				.unwrap_or_default();
+			if xml_output {
+				if !description.is_empty() {
+					attrs.insert("description".into(), description);
+				}
+			} else {
+				columns.push(description);
+			}
+		}
+		if xml_output {
+			println!("  <item{}>", xml_attrs(&attrs));
+			for (name, path) in &element.outputs {
+				let mut attrs = std::collections::BTreeMap::from([("name".into(), name.clone())]);
+				if print_out_path {
+					attrs.insert("path".into(), path.to_absolute_path());
+				}
+				println!("    <output{} />", xml_attrs(&attrs));
+			}
+			if print_meta {
+				if let serde_json::Value::Object(meta) = meta_json(&element.meta) {
+					for (name, value) in meta {
+						let mut attrs = std::collections::BTreeMap::from([("name".into(), name)]);
+						match value {
+							serde_json::Value::Array(values) => {
+								attrs.insert("type".into(), "strings".into());
+								println!("    <meta{}>", xml_attrs(&attrs));
+								for v in values {
+									if let Some(v) = v.as_str() {
+										println!(
+											"      <string{} />",
+											xml_attrs(&std::collections::BTreeMap::from([(
+												"value".into(),
+												v.into()
+											)]))
+										);
+									}
+								}
+								println!("    </meta>");
+							}
+							serde_json::Value::Object(values) => {
+								attrs.insert("type".into(), "strings".into());
+								println!("    <meta{}>", xml_attrs(&attrs));
+								for (k, v) in values {
+									if let Some(v) = v.as_str() {
+										println!(
+											"      <string{} />",
+											xml_attrs(&std::collections::BTreeMap::from([
+												("type".into(), k),
+												("value".into(), v.into())
+											]))
+										);
+									}
+								}
+								println!("    </meta>");
+							}
+							value => {
+								let kind = if value.is_string() {
+									"string"
+								} else if value.is_boolean() {
+									"bool"
+								} else if value.is_i64() {
+									"int"
+								} else {
+									"float"
+								};
+								attrs.insert("type".into(), kind.into());
+								attrs.insert(
+									"value".into(),
+									value
+										.as_str()
+										.map(str::to_owned)
+										.unwrap_or_else(|| value.to_string()),
+								);
+								println!("    <meta{} />", xml_attrs(&attrs));
+							}
+						}
+					}
+				}
+			}
+			println!("  </item>");
+		} else {
+			table.push(columns);
+		}
 	}
-	print_table(&table);
+	if xml_output {
+		println!("</items>");
+	} else {
+		print_table(&table);
+	}
 	Ok(ExitCode::SUCCESS)
+}
+
+fn meta_json(value: &noxi_eval::Value) -> serde_json::Value {
+	use noxi_eval::Value;
+	match value {
+		Value::Thunk(t) => meta_json(&t.value()),
+		Value::Bool(b) => serde_json::json!(b),
+		Value::Integer(i) => serde_json::json!(i),
+		Value::Float(f) => serde_json::json!(f),
+		Value::String(s) => serde_json::json!(String::from_utf8_lossy(s.as_bytes())),
+		Value::List(l) => serde_json::Value::Array(l.iter().map(meta_json).collect()),
+		Value::Attrs(a) => serde_json::Value::Object(
+			a.iter_sorted()
+				.map(|(n, v)| {
+					(
+						String::from_utf8_lossy(n.as_bytes()).into_owned(),
+						meta_json(v),
+					)
+				})
+				.collect(),
+		),
+		_ => serde_json::Value::Null,
+	}
+}
+fn xml_attrs(attrs: &std::collections::BTreeMap<String, String>) -> String {
+	attrs
+		.iter()
+		.map(|(k, v)| {
+			format!(
+				" {k}=\"{}\"",
+				v.replace('&', "&amp;")
+					.replace('<', "&lt;")
+					.replace('>', "&gt;")
+					.replace('\"', "&quot;")
+					.replace('\n', "&#xA;")
+					.replace('\r', "&#xD;")
+					.replace('\t', "&#x9;")
+			)
+		})
+		.collect()
 }
 
 /// `printTable`: columns padded to their widest cell plus two spaces.

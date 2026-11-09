@@ -319,12 +319,14 @@ pub fn main(mut settings: Settings, args: Vec<String>) -> Result<ExitCode, Failu
 	}
 	let supported: &[&str] = match level.command.path {
 		"config show" => &["json"],
-		"profile add" => &[
-			"profile", "priority", "expr", "file", "arg", "argstr", "include", "impure",
+		"profile add" | "profile upgrade" => &[
+			"profile", "priority", "expr", "file", "arg", "argstr", "include", "impure", "all",
+			"regex", "dry-run",
 		],
-		"profile list" => &["profile", "json"],
-		"profile remove" => &["profile", "all"],
-		"profile rollback" => &["profile", "dry-run"],
+		"profile list" => &["profile", "json", "pretty", "no-pretty"],
+		"profile remove" => &["profile", "all", "regex"],
+		"profile history" | "profile diff-closures" => &["profile"],
+		"profile rollback" => &["profile", "dry-run", "to"],
 		"profile wipe-history" => &["profile", "dry-run", "older-than"],
 		"registry add" | "registry remove" | "registry pin" => &["registry"],
 		"develop" => &[
@@ -439,7 +441,14 @@ pub fn main(mut settings: Settings, args: Vec<String>) -> Result<ExitCode, Failu
 			&& !supported.contains(&name.as_str())
 			&& !(matches!(
 				level.command.path,
-				"eval" | "build" | "develop" | "print-dev-env" | "env shell" | "run"
+				"eval"
+					| "build"
+					| "develop"
+					| "print-dev-env"
+					| "env shell"
+					| "run"
+					| "profile add"
+					| "profile upgrade"
 			) && [
 				"reference-lock-file",
 				"output-lock-file",
