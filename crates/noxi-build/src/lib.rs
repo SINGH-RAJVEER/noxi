@@ -20,3 +20,5 @@ pub mod structured;
 pub mod user_lock;
 
 pub use error::{BuildError, FailureStatus, Result};
+
+mod unpack_channel;

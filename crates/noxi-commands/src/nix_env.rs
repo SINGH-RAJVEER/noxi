@@ -6,8 +6,9 @@
 //! `--switch-generation`/`-G`, `--list-generations`,
 //! `--delete-generations`, `--switch-profile`/`-S` and `--version`, with
 //! `--profile`/`-p`, `--dry-run` and settings flags. Selecting
-//! derivations from Nix expressions, `--upgrade`, `--set-flag` and the
-//! other query options fail explicitly.
+//! derivations from Nix expressions, `--upgrade` and the other query
+//! options fail explicitly. `--set-flag` updates string metadata in installed
+//! environments through the same profile transaction.
 
 use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
@@ -278,13 +279,67 @@ pub fn main(mut settings: Settings, args: Vec<String>) -> Result<ExitCode, Failu
 		Operation::Install => return op_install(&globals, &op_flags, &op_args),
 		Operation::Uninstall => return op_uninstall(&globals, &op_flags, &op_args),
 		Operation::Query => return op_query(&globals, &op_flags, &op_args),
-		Operation::Upgrade | Operation::SetFlag => {
+		Operation::SetFlag => return op_set_flag(&globals, &op_flags, &op_args),
+		Operation::Upgrade => {
 			return Err(Failure::Error(
-				"nix-env --upgrade and --set-flag are not supported by noxi yet".into(),
+				"nix-env --upgrade is not supported by noxi yet".into(),
 			));
 		}
 	}
 	Ok(ExitCode::SUCCESS)
+}
+
+fn op_set_flag(globals: &Globals, flags: &[String], args: &[String]) -> Result<ExitCode, Failure> {
+	no_flags(flags)?;
+	if args.len() < 2 {
+		return Err(Failure::Usage(
+			"not enough arguments to '--set-flag'".into(),
+		));
+	}
+	let opened = open_store(globals)?;
+	loop {
+		let token = user_env::lock_token(&globals.profile);
+		let mut elements =
+			match user_env::query_installed(&globals.settings, &globals.cwd, &globals.profile)? {
+				Ok(v) => v,
+				Err(code) => return Ok(code),
+			};
+		let selectors = args[2..].to_vec();
+		let mut hits = vec![false; selectors.len()];
+		for element in &mut elements {
+			for (i, selector) in selectors.iter().enumerate() {
+				if DrvName::new(selector).matches(&DrvName::new(&element.name)) {
+					hits[i] = true;
+					if nix_compat::log::log_enabled(nix_compat::log::VerbosityLevel::Info) {
+						eprintln!("setting flag on '{}'", element.name);
+					}
+					element.set_meta(&args[0], noxi_eval::Value::from(args[1].clone()));
+					break;
+				}
+			}
+		}
+		for (selector, hit) in selectors.iter().zip(hits) {
+			if !hit {
+				return Err(Failure::Error(format!(
+					"selector '{selector}' matches no derivations"
+				)));
+			}
+		}
+		match user_env::create_user_env(
+			opened.store.as_ref(),
+			&globals.settings,
+			globals.store.as_deref(),
+			&globals.cwd,
+			&elements,
+			&globals.profile,
+			globals.settings.get_bool("keep-env-derivations", false),
+			&token,
+		)? {
+			Ok(true) => return Ok(ExitCode::SUCCESS),
+			Ok(false) => continue,
+			Err(code) => return Ok(code),
+		}
+	}
 }
 
 /// `opSet`: make the single selected path the profile's new generation.

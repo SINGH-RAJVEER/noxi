@@ -63,6 +63,7 @@ run() {
 	echo "exit $?"
 }
 run -i $a; run -q; run -i $c; run -q --out-path; run -i $b; run -q; run -i $d
+run --set-flag keep true hello; run --set-flag priority 7 tool; run --set-flag custom value; run --set-flag keep false missing; run --set-flag;
 run -e hello; run -q; run -e nothing; run -i $a --dry-run; run -q --out-path --system --drv-path
 run --list-generations | sed -E 's/[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9:]{8}/DATE/'
 for g in $P-*-link; do

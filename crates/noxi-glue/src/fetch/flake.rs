@@ -30,6 +30,8 @@ pub struct LockOptions {
 	/// Override the evaluation mode's policy for creating unlocked entries.
 	pub allow_unlocked: Option<bool>,
 	pub recreate: bool,
+	/// Optional root lock file selected by the command.
+	pub reference_lock_file: Option<PathBuf>,
 }
 
 /// A resolved graph and the source trees already fetched while resolving it.
@@ -687,7 +689,12 @@ pub async fn lock_flake(
 		None => None,
 	};
 	let inputs = read_inputs(store, co, &out_path, &[]).await?;
-	let old = read_lock(store, &out_path)?;
+	let old = if let Some(path) = &options.reference_lock_file {
+		let text = std::fs::read_to_string(path).map_err(error)?;
+		LockFile::parse(&settings, &text, &path.to_string_lossy()).map_err(error)?
+	} else {
+		read_lock(store, &out_path)?
+	};
 	let mut resolver = Resolver {
 		store,
 		co,

@@ -124,7 +124,7 @@ impl EvaluatorStore {
 	}
 
 	/// The flag, user, system and global registries, read once.
-	pub(crate) fn registries(&self) -> Result<Rc<Vec<Registry>>> {
+	pub fn registries(&self) -> Result<Rc<Vec<Registry>>> {
 		if let Some(registries) = &self.fetch_state.borrow().registries {
 			return Ok(registries.clone());
 		}

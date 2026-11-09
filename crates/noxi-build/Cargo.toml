@@ -11,6 +11,9 @@ publish = ["crates-io"]
 [dependencies]
 bstr.workspace = true
 bzip2 = "0.6"
+tar = "0.4"
+flate2 = "1.1"
+lzma-rust2 = { version = "0.15", default-features = false, features = ["std", "xz"] }
 libc.workspace = true
 nix-compat = { package = "noxi-compat", path = "../noxi/nix-compat", version = "0.0.1", features = ["serde"] }
 noxi-store = { path = "../noxi-store", version = "0.0.1" }

@@ -664,7 +664,9 @@ impl<'a> LocalBuilder<'a> {
 		let features = drv_options.get_required_system_features(true);
 		self.check_platform(drv_path, drv, &features)?;
 		let builtin = drv.command().strip_prefix(b"builtin:");
-		if let Some(name) = builtin.filter(|name| *name != b"buildenv") {
+		if let Some(name) =
+			builtin.filter(|name| *name != b"buildenv" && *name != b"unpack-channel")
+		{
 			return Err(BuildError::Other(format!(
 				"unsupported builtin builder '{}'",
 				name.to_str_lossy()
@@ -2004,12 +2006,16 @@ impl<'b> Build<'b> {
 			}
 			events(BuildEvent::Output(data.as_bytes()));
 		};
-		let result = crate::buildenv::builtin_buildenv(
-			&env,
-			Path::new(&print(&out.path)),
-			&real,
-			&mut |warning| log(&format!("warning: {warning}")),
-		);
+		let result = if drv.command() == b"builtin:unpack-channel" {
+			crate::unpack_channel::build(&env, &real(Path::new(&print(&out.path))), &real)
+		} else {
+			crate::buildenv::builtin_buildenv(
+				&env,
+				Path::new(&print(&out.path)),
+				&real,
+				&mut |warning| log(&format!("warning: {warning}")),
+			)
+		};
 		if let Err(error) = &result {
 			log(&nix_compat::log::format_error(&error.0));
 		}
