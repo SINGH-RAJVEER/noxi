@@ -1,0 +1,75 @@
+{
+	"schema": 3,
+	"revision": "c26da9cfa0f9cad65eedc97583eaf36674b107f1",
+	"candidate": "/nix/store/irb7vrm705nh7iiva3xaj217zpnl4hbr-noxi-replacement-provisional-0.1.1",
+	"note": "After pure corepkgs/pathExists and refused-connection fixes. Daemon boundaries through the reference client match CppNix; remaining failures: noxi nix-build --repair and nix-store --import unimplemented (commands), nix-store --verify-path unimplemented (commands), and pure builtins.path in both flake flows, fixed afterwards in afb27d3d.",
+	"installed_executable_sha256": {
+		"nix": "ca854cb518e410a2c1d09f28d2bc98ac2ed01931124fb5b1bdf0f2f5e8b5b766",
+		"nix-build": "932a22aaaf5ff37aa1648f7a8d08033eafadd47603c4365027b3010d25f01939",
+		"nix-channel": "3cd73e9872b51033cfe37b96007a19bcb44954056295353f6544252df132d0bc",
+		"nix-collect-garbage": "e9bf3da421065614fa72690d92005e17b6c19b49460185d80933b4e1eb7e76ba",
+		"nix-copy-closure": "3e6798eabe63e9a5a792eb0a395317c104bbff24604a090f38345cf48dc4877c",
+		"nix-daemon": "8569cda57b28768236ccc34ff85ff7d359b790b6c10a30bdf58dfe4095887de2",
+		"nix-env": "d0b3ebf9664588c931fe87338b5861ba26dbdefd54457d680b47e62149998a80",
+		"nix-hash": "6aedbe48a2402cd05faebd423347e7cc83183b24ee309265fb3c084b765cc120",
+		"nix-instantiate": "8bc5d4ee5a402dd450dacd507f0f645c95138ee32ac8a426583bd8ddce7b79bb",
+		"nix-prefetch-url": "54ee7a88467a5f53134f96564690f856bc46de3664c69f6b0ce897c92fd8ad96",
+		"nix-shell": "66788433e408049449b30b8f9388c550f111e80970a0bf5a8938353a34c5cf38",
+		"nix-store": "bd2db29beea58312f5eec4ab4cb2b3cc3fe8bf1fc137c79628e42eeaa00aee6f",
+		"noxi": "174c49ecbca36ba2846d4b7061dcb23780ca59b831b905126d33803f8311b9d5"
+	},
+	"test_script_sha256": "deb02ae3d113c660a5f1155c6890a0ba767ab14ceb28b87f9635aef105f79905",
+	"qualification_flake_lock_sha256": "67a60e8569f94edd7819275fc9a21124eb93199976681a8c76a076b786135c7f",
+	"guest_command_timeout_seconds": 1800,
+	"driver_execute_timeout_seconds": 900,
+	"reports": {
+		"daemon": {
+			"file": "daemon.json",
+			"sha256": "e14be63e25e11b422168831f42da0a3fe2095d442d529f5ad6abe605b5ea4c40",
+			"drv_path": "/nix/store/2hqknmxm3mhrwf5gb3yrx7ajfnkg07s7-vm-test-run-noxi-qualification-daemon.drv",
+			"report_output": "/nix/store/4fw56lk8km8vbi70xbj5aiw60h29jz3k-vm-test-run-noxi-qualification-daemon",
+			"report_build_exit_code": 0,
+			"strict_gate_build_exit_code": 1,
+			"counts": {
+				"pass": 73,
+				"fail": 2
+			}
+		},
+		"nixos": {
+			"file": "nixos.json",
+			"sha256": "a05a880dcf82d5c694aa1bb3986096e7e7c52447ee27a3d40b846e4d74ba7a4e",
+			"drv_path": "/nix/store/29nms87n6lha6bl19w0mxgr93zxjibvc-vm-test-run-noxi-qualification-nixos.drv",
+			"report_output": "/nix/store/k1ryb8n6nkvrngcp9hrbmhw75zbgsqsl-vm-test-run-noxi-qualification-nixos",
+			"report_build_exit_code": 0,
+			"strict_gate_build_exit_code": 1,
+			"counts": {
+				"pass": 65,
+				"fail": 1
+			}
+		},
+		"home-manager": {
+			"file": "home-manager.json",
+			"sha256": "f24856f34a525b8493755f7e12cec265b906d5dea6838477826ada3ecae132a3",
+			"drv_path": "/nix/store/6379h13q76lysdylc5n36cw9nqdy302d-vm-test-run-noxi-qualification-home-manager.drv",
+			"report_output": "/nix/store/1f58zxrmgpfazjsnill2rdw5i8lwdaqn-vm-test-run-noxi-qualification-home-manager",
+			"report_build_exit_code": 0,
+			"strict_gate_build_exit_code": 1,
+			"counts": {
+				"pass": 78,
+				"fail": 2
+			}
+		},
+		"lifecycle": {
+			"file": "lifecycle.json",
+			"sha256": "ff1abbc2f93e0aae3e10f00613b02c1e58eb6a13a1532404eaec5dfc31512a98",
+			"drv_path": "/nix/store/5xy1as0a17vkxx1ryb55c284xq6iisab-vm-test-run-noxi-qualification-lifecycle.drv",
+			"report_output": "/nix/store/71yy3db5x4pcr06lwypqzfkwbdpcqcac-vm-test-run-noxi-qualification-lifecycle",
+			"report_build_exit_code": 0,
+			"strict_gate_build_exit_code": 1,
+			"counts": {
+				"pass": 80,
+				"fail": 1
+			}
+		}
+	}
+}
