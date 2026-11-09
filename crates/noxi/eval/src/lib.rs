@@ -126,6 +126,11 @@ where
 	/// - Copies all other configured fields to the [`Evaluation`]
 	pub fn build(self) -> Evaluation<'co, 'ro, 'env, IO> {
 		let source_map = self.source_map.unwrap_or_default();
+		source_map.set_features(if self.experimental_features.enabled("pipe-operators") {
+			vec!["pipe-operators".into()]
+		} else {
+			vec![]
+		});
 		let nix_search_path = NixSearchPath::new(
 			self.search_path
 				.iter()
@@ -347,8 +352,8 @@ impl<'co, 'ro, 'env, IO> EvaluationBuilder<'co, 'ro, 'env, IO> {
 		I: IntoIterator<Item = S>,
 		S: Into<String>,
 	{
-		self.experimental_features
-			.set(features.into_iter().map(Into::into));
+		let features: Vec<String> = features.into_iter().map(Into::into).collect();
+		self.experimental_features.set(features);
 		self
 	}
 

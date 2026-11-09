@@ -121,7 +121,10 @@ pub fn position(source: &SourceCode, span: Span) -> Option<Pos> {
 	Some(Pos {
 		origin: origin(file.name()),
 		line: index + 1,
-		column: offset - line_start + 1,
+		column: source
+			.decode_literal(&file, &file.source()[line_start..offset])
+			.len()
+			+ 1,
 		source: Some(file),
 	})
 }
@@ -179,12 +182,12 @@ fn print_trace(out: &mut String, count: &mut usize, trace: &ResolvedTrace) {
 }
 
 /// `printSkippedTracesMaybe`: up to five repeated frames print normally;
-/// more fold into one line and restart duplicate detection.
+/// more fold into one line. The reference passes its seen set by value.
 fn print_skipped<'a>(
 	out: &mut String,
 	count: &mut usize,
 	skipped: &mut Vec<&'a ResolvedTrace>,
-	seen: &mut HashSet<(Option<(&'a str, usize, usize)>, &'a str)>,
+	_seen: &mut HashSet<(Option<(&'a str, usize, usize)>, &'a str)>,
 ) {
 	if skipped.len() <= 5 {
 		for trace in skipped.iter() {
@@ -192,7 +195,7 @@ fn print_skipped<'a>(
 		}
 	} else {
 		let _ = write!(out, "\n({} duplicate frames omitted)\n", skipped.len());
-		seen.clear();
+		// The reference clears only its by-value copy of the seen set.
 	}
 	skipped.clear();
 }
@@ -281,7 +284,12 @@ impl ErrorInfo<'_> {
 		if !self.suggestions.is_empty() {
 			let _ = writeln!(out, "Did you mean {}?", show_suggestions(&self.suggestions));
 		}
-		indent(prefix, &" ".repeat(prefix.len()), out.trim_end())
+		let mut rendered = indent(prefix, &" ".repeat(prefix.len()), out.trim_end());
+		if self.message.ends_with('\n') {
+			rendered.push('\n');
+			rendered.push_str(&" ".repeat(prefix.len()));
+		}
+		rendered
 	}
 }
 
@@ -342,7 +350,13 @@ impl Error {
 	/// Render this error as CppNix prints it, with traces of function
 	/// calls only if `show_trace` is set, as `--show-trace` does.
 	pub fn cppnix_format(&self, show_trace: bool) -> String {
-		error_info(self).render(show_trace)
+		String::from_utf8_lossy(&self.cppnix_format_bytes(show_trace)).into_owned()
+	}
+
+	/// Error streams preserve non-UTF-8 source excerpts like CppNix's logger.
+	pub fn cppnix_format_bytes(&self, show_trace: bool) -> Vec<u8> {
+		self.source
+			.decode_diagnostic(&error_info(self).render(show_trace))
 	}
 }
 
@@ -437,6 +451,23 @@ fn parse_message(
 	};
 	// The lexer can consume an unterminated string before reporting
 	// its terminal error. Bison reports its opening token in an attrpath.
+	if let Some(token) = rnix::ast::Root::parse(input)
+		.syntax()
+		.descendants_with_tokens()
+		.filter_map(|x| x.into_token())
+		.find(|token| {
+			token.kind() == TOKEN_ERROR
+				&& token.text().ends_with('/')
+				&& token.text().len() > 1
+				&& !token.text().chars().any(char::is_whitespace)
+		}) {
+		let end = u32::from(token.text_range().end()) as u64;
+		return (
+			"path has a trailing slash".into(),
+			Some(file.span.subspan(end, end)),
+			vec![],
+		);
+	}
 	let prefix = input[..offset].trim_end();
 	let indented_attr = input[..offset]
 		.rfind(".''")
@@ -480,7 +511,7 @@ fn parse_message(
 		", expecting '\"'"
 	} else if extra {
 		", expecting end of file"
-	} else if prefix.ends_with('.') || indented_attr.is_some() {
+	} else if prefix.ends_with('.') || prefix.ends_with('?') || indented_attr.is_some() {
 		", expecting identifier or 'or' or '${' or '\"'"
 	} else if wanted == [TOKEN_THEN] {
 		", expecting 'then'"
@@ -513,6 +544,31 @@ fn kind_message(error: &Error) -> (String, Option<Span>, Vec<String>) {
 	let at = Some(error.span);
 	match &error.kind {
 		ErrorKind::ParseErrors(errors) => parse_message(error, errors),
+		ErrorKind::ImportParseError { errors, file, .. } => {
+			let nested = Error::new(
+				ErrorKind::ParseErrors(errors.clone()),
+				file.span,
+				error.source.clone(),
+			);
+			parse_message(&nested, errors)
+		}
+		ErrorKind::DuplicateDefinition {
+			key,
+			original,
+			duplicate,
+			dynamic,
+		} => (
+			format!(
+				"{}attribute '{}' already defined at {}",
+				if *dynamic { "dynamic " } else { "" },
+				key,
+				position(&error.source, *original)
+					.map(|p| p.to_string())
+					.unwrap_or_default()
+			),
+			Some(*duplicate),
+			vec![],
+		),
 		ErrorKind::Abort(message) => (
 			format!("evaluation aborted with the following error message: '{message}'"),
 			None,
@@ -608,17 +664,17 @@ fn kind_message(error: &Error) -> (String, Option<Span>, Vec<String>) {
 				best_matches(formals.iter().map(String::as_str), &arg),
 			)
 		}
-		ErrorKind::DivisionByZero => (error.kind.to_string(), None, vec![]),
-		ErrorKind::IntegerOverflow { .. } | ErrorKind::InfiniteRecursion { .. } => {
-			(error.kind.to_string(), at, vec![])
+		ErrorKind::IntegerOverflow { .. } | ErrorKind::DivisionByZero => {
+			(error.kind.to_string(), None, vec![])
 		}
+		ErrorKind::InfiniteRecursion { .. } => (error.kind.to_string(), at, vec![]),
 		ErrorKind::NotCallable(_, Some(value)) => (
 			format!(
 				"attempt to call something which is not a function but {}: {}",
 				show_type(value),
 				print_value(&error.source, value)
 			),
-			at,
+			None,
 			vec![],
 		),
 		ErrorKind::IO {
@@ -685,6 +741,10 @@ fn kind_message(error: &Error) -> (String, Option<Span>, Vec<String>) {
 			vec![],
 		),
 
+		ErrorKind::FromTomlError(message) if message.starts_with("while parsing TOML:") => {
+			(message.clone(), None, vec![])
+		}
+		ErrorKind::At { message, span } => (message.clone(), Some(*span), vec![]),
 		ErrorKind::EvalError(message) => (message.clone(), None, vec![]),
 		kind => (kind.to_string(), None, vec![]),
 	}
@@ -705,7 +765,7 @@ fn error_info(error: &Error) -> ErrorInfo<'_> {
 	if let ErrorKind::CatchableError(cek) = &inner.kind
 		&& let Some(info) = cek.trace()
 	{
-		traces = info.traces.clone();
+		traces = info.traces.borrow().clone();
 		span = info.span;
 		if let Some(text) = &info.message {
 			message = text.clone();

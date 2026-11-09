@@ -12,6 +12,7 @@ use std::sync::Arc;
 use bstr::ByteSlice;
 use nix_compat::nixhash::{HashAlgo, NixHash};
 use nix_compat::store_path::StorePath;
+use noxi_eval::AddContext;
 use noxi_eval::builtin_macros::builtins;
 use noxi_eval::generators::{self, GenCo};
 use noxi_eval::{
@@ -90,7 +91,10 @@ async fn filtered_entries(
 		if let Value::Catchable(cek) = keep {
 			return Ok(Err(*cek));
 		}
-		if keep.as_bool()? {
+		if keep.as_bool().trace(
+			None,
+			"while evaluating the return value of the path filter function",
+		)? {
 			included.insert(child.clone());
 			if ty == EntryType::Directory {
 				let names = read_sorted(&child)?;
@@ -114,6 +118,14 @@ async fn add_path(
 	// `addPath` follows every symlink in the path, including the last.
 	let resolved = fs::canonicalize(state.physical_path(path)).map_err(|e| io_error(path, e))?;
 
+	generators::request_builtin_context(
+		co,
+		vec![noxi_eval::Trace::new(
+			None,
+			format!("while adding path '{}'", path.display()),
+		)],
+	)
+	.await;
 	let included = match &filter {
 		Some(filter) => match filtered_entries(state, co, &resolved, filter).await? {
 			Ok(included) => Some(included),
@@ -158,8 +170,31 @@ pub(crate) mod import_builtins {
 		#[lazy] filter: Value,
 		path: Value,
 	) -> Result<Value, ErrorKind> {
+		generators::request_builtin_context(
+			&co,
+			vec![noxi_eval::Trace::new(
+				None,
+				"while evaluating the second argument (the path to filter) passed to 'builtins.filterSource'",
+			)],
+		)
+		.await;
 		let path = try_cek_to_value!(noxi_eval::builtins::realise_value_to_path(&co, path).await?);
+		generators::request_builtin_context(&co, vec![]).await;
 		let filter = generators::request_force(&co, filter).await;
+		if !filter.is_catchable()
+			&& !matches!(&filter, Value::Closure(_) | Value::Builtin(_))
+			&& !matches!(&filter, Value::Attrs(a) if a.select("__functor").is_some())
+		{
+			return Err(ErrorKind::TypeError {
+				expected: "lambda",
+				actual: filter.type_of(),
+				value: Some(Box::new(filter)),
+			})
+			.trace(
+				None,
+				"while evaluating the first argument passed to builtins.filterSource",
+			);
+		}
 		if filter.is_catchable() {
 			return Ok(filter);
 		}
@@ -290,7 +325,22 @@ pub(crate) mod import_builtins {
 		co: GenCo,
 		path: Value,
 	) -> Result<Value, ErrorKind> {
-		let path = try_cek_to_value!(noxi_eval::builtins::realise_value_to_path(&co, path).await?);
+		generators::request_builtin_context(
+			&co,
+			vec![noxi_eval::Trace::new(
+				None,
+				"while evaluating the first argument passed to 'builtins.storePath'",
+			)],
+		)
+		.await;
+		let path = try_cek_to_value!(
+			noxi_eval::builtins::realise_value_to_path(&co, path)
+				.await
+				.trace(
+					None,
+					"while evaluating the first argument passed to 'builtins.storePath'"
+				)?
+		);
 		let absolute = path.as_os_str().as_bytes();
 		let (store_path, _rest) = StorePath::from_absolute_path_full(&path).map_err(|_| {
 			ErrorKind::Abort(format!("path '{}' is not in the Nix store", path.display()))

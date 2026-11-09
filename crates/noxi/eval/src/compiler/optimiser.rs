@@ -62,8 +62,8 @@ fn optimise_bin_op(c: &mut Compiler, slot: LocalIdx, expr: ast::Expr) -> ast::Ex
 			}
 
 			// useless `true` arm in `&&` expression
-			(BinOpKind::And, LitBool::True(t), LitBool::Expr(other))
-			| (BinOpKind::And, LitBool::Expr(other), LitBool::True(t)) => {
+			(BinOpKind::And, LitBool::True(t), LitBool::Expr(_other))
+			| (BinOpKind::And, LitBool::Expr(_other), LitBool::True(t)) => {
 				c.emit_warning(
 					&t,
 					WarningKind::UselessBoolOperation(
@@ -71,7 +71,8 @@ fn optimise_bin_op(c: &mut Compiler, slot: LocalIdx, expr: ast::Expr) -> ast::Ex
 					),
 				);
 
-				return other;
+				// Folding away this operator would lose Boolean checking and its error context.
+				return expr;
 			}
 
 			// useless `||` expression (one arm is `true`), return

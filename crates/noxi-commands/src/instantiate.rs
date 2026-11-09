@@ -983,10 +983,22 @@ pub fn print_evaluation_error(error: &noxi_eval::Error, settings: &Settings) {
 	if std::env::var_os(DIAGNOSTICS_VAR).is_some_and(|value| value == "codespan") {
 		error.fancy_format_stderr();
 	} else {
-		eprintln!(
-			"{}",
-			error.cppnix_format(settings.get_bool("show-trace", false))
-		);
+		{
+			use std::io::Write;
+			let mut stderr = std::io::stderr().lock();
+			let _ = stderr
+				.write_all(&error.cppnix_format_bytes(settings.get_bool("show-trace", false)));
+			let _ = stderr.write_all(b"\n");
+		}
+		if matches!(
+			&error.innermost().kind,
+			noxi_eval::ErrorKind::UnknownHashType(_)
+		) {
+			let program = std::env::args()
+				.next()
+				.unwrap_or_else(|| "nix-instantiate".into());
+			eprintln!("Try '{program} --help' for more information.");
+		}
 	}
 }
 

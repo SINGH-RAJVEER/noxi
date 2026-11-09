@@ -396,7 +396,26 @@ impl NixAttrs {
 			}
 			_ => unreachable!("empty and KV updates handled above"),
 		}
-		Self::from_sorted(attrs, None)
+		let positions = attrs
+			.iter()
+			.filter_map(|(key, _)| {
+				let span = if other.select(key).is_some() {
+					other.get_attr_pos(key)
+				} else {
+					self.get_attr_pos(key)
+				};
+				span.map(|span| (key.clone(), span))
+			})
+			.collect::<Vec<_>>();
+		Self::from_sorted(
+			attrs,
+			(!positions.is_empty()).then(|| {
+				Rc::new(LiteralAttrs {
+					positions: positions.into_iter().collect(),
+					layout: None,
+				})
+			}),
+		)
 	}
 
 	/// Return the number of key-value entries in an attrset.
@@ -785,6 +804,27 @@ fn set_attr(
 		None => attrs.iter().any(|(name, _)| *name == key),
 	};
 	if duplicate {
+		if let (Some(original), Some(duplicate)) = (
+			pos.iter()
+				.find(|(name, _)| *name == key)
+				.map(|(_, span)| *span),
+			span,
+		) {
+			return Err(ErrorKind::DuplicateDefinition {
+				key: key.to_str_lossy().into_owned(),
+				original: if original.low() < duplicate.low() {
+					original
+				} else {
+					duplicate
+				},
+				duplicate: if original.low() < duplicate.low() {
+					duplicate
+				} else {
+					original
+				},
+				dynamic: true,
+			});
+		}
 		return Err(ErrorKind::DuplicateAttrsKey {
 			key: key.to_string(),
 		});

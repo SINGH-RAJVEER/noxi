@@ -442,7 +442,7 @@ impl Compiler<'_, '_> {
 						if kind.is_attrs() {
 							let span = self.span_for(&attr);
 							self.push_attrset_pos(span);
-							self.emit_constant(name.as_str().into(), &attr);
+							self.emit_constant(self.source_string(name.as_str()), &attr);
 							let span = self.span_for(&attr);
 							self.scope_mut().declare_phantom(span, true);
 						}
@@ -751,7 +751,7 @@ impl Compiler<'_, '_> {
 
 				KeySlot::Static { slot, name } => {
 					let span = self.scope()[slot].span;
-					self.emit_constant(name.as_str().into(), &OrEntireFile(span));
+					self.emit_constant(self.source_string(name.as_str()), &OrEntireFile(span));
 					self.scope_mut().mark_initialised(slot);
 				}
 
@@ -767,7 +767,7 @@ impl Compiler<'_, '_> {
 				self.thunk(binding.value_slot, &span, |c, s| {
 					c.compile_identifier_access(s, OVERRIDES, &span);
 					c.emit_force(&span);
-					c.emit_constant(name.as_str().into(), &span);
+					c.emit_constant(c.source_string(name.as_str()), &span);
 					c.push_op(Op::AttrsTrySelect, &span);
 					let not_found = c.push_op(Op::JumpIfNotFound, &span);
 					c.push_u16(0);
@@ -784,7 +784,7 @@ impl Compiler<'_, '_> {
 						} => {
 							c.compile_inherit_namespace(s, &namespace, shared_slot(shared));
 							c.emit_force(&namespace);
-							c.emit_constant(name.as_str().into(), &span);
+							c.emit_constant(c.source_string(name.as_str()), &span);
 							c.push_op(Op::AttrsSelect, &span);
 						}
 						Binding::Plain { expr } => c.compile(s, expr),
@@ -816,7 +816,7 @@ impl Compiler<'_, '_> {
 						c.compile_inherit_namespace(s, &namespace, shared);
 						c.emit_force(&namespace);
 
-						c.emit_constant(name.as_str().into(), &span);
+						c.emit_constant(c.source_string(name.as_str()), &span);
 						c.push_op(Op::AttrsSelect, &span);
 					})
 				}
@@ -906,7 +906,9 @@ impl Compiler<'_, '_> {
 			self.emit_constant(OVERRIDES.into(), node);
 			self.push_op(Op::AttrsSelect, node);
 			self.emit_force(node);
+			self.push_context("\0while evaluating the `__overrides` attribute", node);
 			self.push_op(Op::AssertAttrs, node);
+			self.push_op(Op::PopContext, node);
 			self.push_op(Op::AttrsUpdate, node);
 		}
 
@@ -1078,4 +1080,92 @@ fn inherit_froms_count(node: &rnix::SyntaxNode) -> usize {
 		.and_then(|from| from.parent())
 		.and_then(ast::Inherit::cast)
 		.map_or(1, |inherit| inherit.attrs().count())
+}
+
+/// Check duplicate definitions before lowering attribute paths into nested sets.
+pub(super) fn check_duplicates(
+	expr: &ast::Expr,
+	file: &codemap::File,
+	source: &SourceCode,
+) -> EvalResult<()> {
+	#[derive(Default)]
+	struct Node {
+		defined: Option<Span>,
+		children: std::collections::BTreeMap<String, Node>,
+	}
+	fn entries(
+		syntax: &rnix::SyntaxNode,
+		tree: &mut Node,
+		prefix: &str,
+		file: &codemap::File,
+		source: &SourceCode,
+	) -> EvalResult<()> {
+		for child in syntax.children() {
+			let mut bindings = vec![];
+			if let Some(entry) = ast::AttrpathValue::cast(child.clone()) {
+				bindings.push((
+					entry.attrpath().unwrap().attrs().collect::<Vec<_>>(),
+					entry.value(),
+				));
+			} else if let Some(inherit) = ast::Inherit::cast(child) {
+				bindings.extend(inherit.attrs().map(|attr| (vec![attr], None)));
+			}
+			for (attrs, value) in bindings {
+				let mut names = Vec::new();
+				for attr in &attrs {
+					if let Some(name) = expr_static_attr_str(attr) {
+						names.push(name.to_string());
+					} else {
+						break;
+					}
+				}
+				if names.len() != attrs.len() || names.is_empty() {
+					continue;
+				}
+				let pos = attrs[0].span_for(file);
+				let full = if prefix.is_empty() {
+					names.join(".")
+				} else {
+					format!("{prefix}.{}", names.join("."))
+				};
+				let mut node = &mut *tree;
+				for name in &names {
+					node = node.children.entry(name.clone()).or_default();
+				}
+				if let Some(original) = node.defined {
+					return Err(Error::new(
+						ErrorKind::DuplicateDefinition {
+							key: full,
+							original,
+							duplicate: pos,
+							dynamic: false,
+						},
+						pos,
+						source.clone(),
+					));
+				}
+				if let Some(ast::Expr::AttrSet(set)) = value {
+					entries(
+						set.syntax(),
+						node,
+						if node.children.is_empty() { "" } else { &full },
+						file,
+						source,
+					)?;
+				} else {
+					node.defined = Some(pos);
+				}
+			}
+		}
+		Ok(())
+	}
+	for syntax in expr.syntax().descendants() {
+		if matches!(
+			syntax.kind(),
+			rnix::SyntaxKind::NODE_ATTR_SET | rnix::SyntaxKind::NODE_LET_IN
+		) {
+			entries(&syntax, &mut Node::default(), "", file, source)?;
+		}
+	}
+	Ok(())
 }

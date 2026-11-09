@@ -265,6 +265,8 @@ impl Value {
 		let mut vals: Vec<Option<(Value, Option<Trace>)>> = vec![Some((myself, None))];
 
 		let mut thunk_set: ThunkSet = Default::default();
+		let mut visited_thunks = Vec::new();
+		let budget = generators::request_recursion_budget(&co).await;
 
 		loop {
 			let v = match vals.pop() {
@@ -281,6 +283,17 @@ impl Value {
 					v
 				}
 			};
+			if path.borrow().len() >= budget {
+				return Err(ErrorKind::At {
+					message: "stack overflow; max-call-depth exceeded".into(),
+					span: match &v {
+						Value::Thunk(t) => t.determining_span(),
+						_ => None,
+					}
+					.or_else(|| path.borrow().last().and_then(|t| t.span))
+					.unwrap_or(span),
+				});
+			}
 
 			// Get rid of any top-level thunks, and bail out of self-recursive
 			// thunks.
@@ -288,6 +301,7 @@ impl Value {
 				if !thunk_set.insert(t) {
 					continue;
 				}
+				visited_thunks.push(t.clone());
 				Thunk::force_(t.clone(), &co, span).await?
 			} else {
 				v
@@ -838,6 +852,7 @@ impl Value {
 		// after each triple is popped off of the stack, v1 is
 		// compared to v2 using peq-mode PointerEquality
 		let mut vals = vec![((myself, other), PointerEquality::ForbidAll)];
+		let mut in_list = false;
 
 		loop {
 			let ((mut a, mut b), ptr_eq) = if let Some(abp) = vals.pop() {
@@ -869,6 +884,7 @@ impl Value {
 					.as_encoded_bytes()
 					.cmp(p2.as_os_str().as_encoded_bytes()),
 				(Value::List(l1), Value::List(l2)) => {
+					in_list = true;
 					let max = l1.len().max(l2.len());
 					for j in 0..max {
 						let i = max - 1 - j;
@@ -889,11 +905,16 @@ impl Value {
 
 				// unsupported types
 				(lhs, rhs) => {
-					return Err(ErrorKind::Incomparable {
+					let error = ErrorKind::Incomparable {
 						lhs: lhs.type_of(),
 						rhs: rhs.type_of(),
 						values: Box::new((lhs, rhs)),
-					});
+					};
+					return if in_list {
+						Err(error).trace(None, "while comparing two list elements")
+					} else {
+						Err(error)
+					};
 				}
 			};
 			if result != Ordering::Equal {

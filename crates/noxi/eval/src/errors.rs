@@ -139,7 +139,9 @@ pub enum CatchableErrorKind {
 #[derive(Debug)]
 pub struct CatchableTrace {
 	/// Outermost first.
-	pub traces: Vec<Trace>,
+	pub traces: std::cell::RefCell<Vec<Trace>>,
+	/// Trace prefix outside the first failed thunk. Removed when reading its cached error.
+	pub memoized_prefix: std::cell::Cell<Option<usize>>,
 	/// The error's own position, if CppNix prints one.
 	pub span: Option<Span>,
 	/// The message, if it differs from the error's.
@@ -179,6 +181,11 @@ pub enum ErrorKind {
 	/// An error CppNix reports as a plain `EvalError` with this message.
 	#[error("{0}")]
 	EvalError(String),
+	#[error("{message}")]
+	At {
+		message: String,
+		span: codemap::Span,
+	},
 
 	#[error("integer overflow in {operation} {lhs} {operator} {rhs}")]
 	IntegerOverflow {
@@ -190,6 +197,14 @@ pub enum ErrorKind {
 
 	#[error("attribute key '{key}' already defined")]
 	DuplicateAttrsKey { key: String },
+	/// Both definition sites, retained before lowering nested bindings.
+	#[error("attribute '{key}' already defined")]
+	DuplicateDefinition {
+		key: String,
+		original: codemap::Span,
+		duplicate: codemap::Span,
+		dynamic: bool,
+	},
 
 	/// Attempted to specify an invalid key type (e.g. integer) in a
 	/// dynamic attribute name.
@@ -860,7 +875,9 @@ impl Error {
 	/// the underlined span of the error.
 	fn span_label(&self) -> Option<String> {
 		let label = match &self.kind {
-			ErrorKind::DuplicateAttrsKey { .. } => "in this attribute set",
+			ErrorKind::DuplicateDefinition { .. } | ErrorKind::DuplicateAttrsKey { .. } => {
+				"in this attribute set"
+			}
 			ErrorKind::InvalidAttributeName(_) => "in this attribute set",
 			ErrorKind::RelativePathResolution(_) => "in this path literal",
 			ErrorKind::UnexpectedArgumentBuiltin { .. } => "while calling this builtin",
@@ -877,6 +894,7 @@ impl Error {
 			| ErrorKind::TypeError { .. }
 			| ErrorKind::Incomparable { .. }
 			| ErrorKind::DivisionByZero
+			| ErrorKind::At { .. }
 			| ErrorKind::EvalError(_)
 			| ErrorKind::IntegerOverflow { .. }
 			| ErrorKind::DynamicKeyInScope(_)
@@ -942,7 +960,7 @@ impl Error {
 			ErrorKind::NotCallable(..) => "E013",
 			ErrorKind::InfiniteRecursion { .. } => "E014",
 			ErrorKind::ParseErrors(_) => "E015",
-			ErrorKind::DuplicateAttrsKey { .. } => "E016",
+			ErrorKind::DuplicateDefinition { .. } | ErrorKind::DuplicateAttrsKey { .. } => "E016",
 			ErrorKind::NotCoercibleToString { .. } => "E018",
 			ErrorKind::IndexOutOfBounds { .. } => "E019",
 			ErrorKind::NotAnAbsolutePath(_) => "E020",
@@ -966,7 +984,7 @@ impl Error {
 			ErrorKind::InvalidHash(_) => "E041",
 			ErrorKind::InvalidRegex(_) => "E042",
 			ErrorKind::IntegerOverflow { .. } => "E043",
-			ErrorKind::EvalError(_) => "E044",
+			ErrorKind::At { .. } | ErrorKind::EvalError(_) => "E044",
 
 			// Special error code for errors from other noxi
 			// components. We may want to introduce a code namespacing

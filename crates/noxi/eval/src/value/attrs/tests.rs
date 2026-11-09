@@ -146,7 +146,7 @@ fn cached_literals_validate_names_and_positions_before_reusing_layout() {
 	assert_eq!(second.get_attr_pos("z"), Some(spans[0]));
 	assert!(matches!(
 		make(["z", "z"], [5, 6], &spans),
-		Err(ErrorKind::DuplicateAttrsKey { .. })
+		Err(ErrorKind::DuplicateDefinition { .. })
 	));
 	let swapped = [spans[1], spans[0]];
 	let third = make(["z", "a"], [7, 8], &swapped).unwrap().unwrap();

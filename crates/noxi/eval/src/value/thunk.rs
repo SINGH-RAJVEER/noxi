@@ -185,8 +185,19 @@ impl Thunk {
 	/// Builtins producing many lazy calls can share this bytecode. Arguments
 	/// belong to each thunk's captures, so forcing one call cannot change another.
 	pub(crate) fn suspended_call_lambda(span: Span) -> Rc<Lambda> {
+		Self::suspended_call_lambda_at(span, false, false)
+	}
+
+	pub(crate) fn suspended_call_lambda_at(
+		span: Span,
+		generated_call_position: bool,
+		omit_call_position: bool,
+	) -> Rc<Lambda> {
 		let mut lambda = Lambda::default();
 		lambda.upvalue_count = 2;
+		lambda.synthetic_call = true;
+		lambda.generated_call_position = generated_call_position;
+		lambda.omit_call_position = omit_call_position;
 
 		// This is basically a recreation of compile_apply():
 		// We need to push the argument onto the stack and then the function.
@@ -246,7 +257,7 @@ impl Thunk {
 			// If the current thunk is already fully evaluated, return its evaluated
 			// value. The VM will continue running the code that landed us here.
 			if myself.is_forced() {
-				let val = myself.unwrap_or_clone();
+				let val = Self::copy_memoized_error(myself.unwrap_or_clone());
 				for other_thunk in also_update.into_iter() {
 					other_thunk.replace(ThunkRepr::Evaluated(val.clone()));
 				}
@@ -377,6 +388,38 @@ impl Thunk {
 		Some(value)
 	}
 
+	pub(crate) fn determining_span(&self) -> Option<Span> {
+		match &*self.0.borrow() {
+			ThunkRepr::Suspended { lambda, span, .. } => lambda.span.or(Some(*span)),
+			ThunkRepr::Evaluated(Value::Thunk(thunk)) => thunk.determining_span(),
+			_ => None,
+		}
+	}
+
+	fn copy_memoized_error(value: Value) -> Value {
+		match value {
+			Value::Catchable(kind) => {
+				if let crate::errors::CatchableErrorKind::Traced { info, kind: cause } = &*kind
+					&& let Some(prefix) = info.memoized_prefix.get()
+				{
+					let traces = info.traces.borrow();
+					return Value::Catchable(Box::new(crate::errors::CatchableErrorKind::Traced {
+						kind: cause.clone(),
+						info: Rc::new(crate::errors::CatchableTrace {
+							traces: traces[prefix.min(traces.len())..].to_vec().into(),
+							memoized_prefix: Default::default(),
+							span: info.span,
+							message: info.message.clone(),
+							relative: true,
+						}),
+					}));
+				}
+				Value::Catchable(kind)
+			}
+			value => value,
+		}
+	}
+
 	pub fn finalise(&self, stack: &[Value]) {
 		self.upvalues_mut().resolve_deferred_upvalues(stack);
 	}
@@ -401,7 +444,7 @@ impl Thunk {
 	/// evaluated thunk pointing to another thunk still needs normal forcing.
 	pub(crate) fn force_if_evaluated(self) -> Result<Value, Self> {
 		if self.is_forced() {
-			Ok(self.unwrap_or_clone())
+			Ok(Self::copy_memoized_error(self.unwrap_or_clone()))
 		} else {
 			Err(self)
 		}

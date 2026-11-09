@@ -135,9 +135,10 @@ pub(crate) mod derivation_builtins {
 		if input.is_catchable() {
 			return Ok(input);
 		}
-		let output_name = input
-			.to_str()
-			.context("looking at output name in builtins.placeholder")?;
+		let output_name = input.to_str().trace(
+			None,
+			"while evaluating the first argument passed to builtins.placeholder",
+		)?;
 		Ok(hash_placeholder(output_name.to_str()?).into())
 	}
 
@@ -195,6 +196,11 @@ pub(crate) mod derivation_builtins {
 		let outer = noxi_eval::Trace::new(None, hint);
 		generators::request_builtin_context(&co, vec![outer.clone()]).await;
 
+		if let Some(reason) = crate::errors::invalid_store_name(&name) {
+			return Err(ErrorKind::EvalError(format!(
+				"invalid derivation name: {reason}. Please pass a different 'name'."
+			)));
+		}
 		let mut drv = DerivationBuilder::default();
 		let mut input_context = NixContext::new();
 		// The outputs as given, in order; `out` when the attribute is absent.

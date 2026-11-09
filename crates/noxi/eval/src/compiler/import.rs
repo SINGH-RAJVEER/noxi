@@ -36,12 +36,23 @@ async fn import_impl(
 
 	let path = generators::request_resolve_import_path(&co, path, true).await;
 
-	if let Some(cached) = generators::request_import_cache_lookup(&co, path.clone()).await {
-		return Ok(cached);
+	let span = generators::request_span(&co).await;
+	if !source.is_hidden(span) {
+		generators::request_builtin_context(
+			&co,
+			vec![crate::Trace::new(
+				None,
+				format!("while evaluating the file '{}':", path.display()),
+			)],
+		)
+		.await;
 	}
-
+	if let Some(cached) = generators::request_import_cache_lookup(&co, path.clone()).await {
+		return Ok(generators::request_force(&co, cached).await);
+	}
 	let res = compile_file(&co, globals, source, path.clone(), None).await?;
 	generators::request_import_cache_put(&co, path, res.clone()).await;
+	let res = generators::request_force(&co, res).await;
 	Ok(res)
 }
 
@@ -85,11 +96,11 @@ async fn compile_file(
 	env: Option<&FxHashMap<SmolStr, Value>>,
 ) -> Result<Value, ErrorKind> {
 	let mut reader = generators::request_open_file(co, path.clone()).await;
-	// We read to a String instead of a Vec<u8> because rnix only supports
-	// string source files.
-	let mut contents = String::new();
-	reader.read_to_string(&mut contents)?;
-	compile_contents(co, globals, source, path, env, &contents).await
+	// Preserve source bytes while adapting them to rnix's UTF-8 syntax tree.
+	let mut bytes = Vec::new();
+	reader.read_to_end(&mut bytes)?;
+	let (contents, encoding) = SourceCode::encode_bytes(&bytes);
+	compile_contents(co, globals, source, path, env, &contents, encoding).await
 }
 
 async fn compile_contents(
@@ -99,12 +110,14 @@ async fn compile_contents(
 	path: PathBuf,
 	env: Option<&FxHashMap<SmolStr, Value>>,
 	contents: &str,
+	encoding: Option<u32>,
 ) -> Result<Value, ErrorKind> {
 	let contents = crate::line_endings::normalize(contents).into_owned();
 
 	let parsed = rnix::ast::Root::parse(&contents);
 	let errors = parsed.errors();
 	let file = source.add_file(path.to_string_lossy().to_string(), contents.to_owned());
+	source.set_byte_encoding(file.span, encoding);
 
 	if !errors.is_empty() {
 		return Err(ErrorKind::ImportParseError {
@@ -175,6 +188,7 @@ async fn import_derivation(
 				helper_path.clone(),
 				None,
 				include_str!("imported-drv-to-derivation.nix"),
+				None,
 			)
 			.await?;
 			generators::request_import_cache_put(co, helper_path, helper.clone()).await;

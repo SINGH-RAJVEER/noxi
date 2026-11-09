@@ -146,6 +146,8 @@ pub enum VMRequest {
 	/// Add a lazy user context to an evaluation failure.
 	ErrorContext(Value, Value),
 	BuiltinContext(Vec<crate::errors::Trace>),
+	RecursionBudget,
+	TracePath(std::rc::Rc<std::cell::RefCell<Vec<crate::errors::Trace>>>),
 
 	/// Request the VM for the file type of the given path.
 	ReadFileType(PathBuf),
@@ -231,6 +233,8 @@ impl Display for VMRequest {
 			VMRequest::ReadDir(p) => write!(f, "read_dir({})", p.to_string_lossy()),
 			VMRequest::Span => write!(f, "span"),
 			VMRequest::BuiltinContext(_) => write!(f, "builtin_context"),
+			VMRequest::RecursionBudget => write!(f, "recursion_budget"),
+			VMRequest::TracePath(_) => write!(f, "trace_path"),
 			VMRequest::ErrorContext(_, _) => write!(f, "error_context"),
 			VMRequest::TryForce(v) => write!(f, "try_force({})", v.type_of()),
 			VMRequest::ReadFileType(p) => write!(f, "read_file_type({})", p.to_string_lossy()),
@@ -384,9 +388,38 @@ where
 						// Generator has requested a force, which means that
 						// this function prepares the frame stack and yields
 						// back to the outer VM loop.
+						VMRequest::TracePath(value) => {
+							if let FrameTrace::Builtin { path, .. } = &mut self.current.1 {
+								*path = Some(value);
+							}
+							message = VMResponse::Empty;
+						}
+						VMRequest::RecursionBudget => {
+							let outer_depth: usize = self
+								.frames
+								.iter()
+								.filter_map(|frame| match frame {
+									Frame::Generator {
+										name: "deep_force",
+										trace: FrameTrace::Dynamic(path),
+										..
+									} => Some(path.borrow().len() + 1),
+									_ => None,
+								})
+								.sum();
+							message = VMResponse::Value(Value::Integer(
+								self.max_call_depth
+									.saturating_sub(self.call_depth + outer_depth + 1)
+									as i64,
+							));
+						}
 						VMRequest::BuiltinContext(traces) => {
 							if let FrameTrace::Builtin { contexts, .. } = &mut self.current.1 {
 								*contexts = traces;
+							} else {
+								self.current.1 = FrameTrace::Dynamic(std::rc::Rc::new(
+									std::cell::RefCell::new(traces),
+								));
 							}
 							message = VMResponse::Empty;
 						}
@@ -669,12 +702,27 @@ where
 						}
 
 						VMRequest::ReadDir(path) => {
+							let mut error_path = path.clone();
+							for _ in 0..40 {
+								let Ok(target) = self.io_handle.as_ref().read_link(&error_path)
+								else {
+									break;
+								};
+								error_path = if target.is_absolute() {
+									target
+								} else {
+									error_path
+										.parent()
+										.unwrap_or(std::path::Path::new("/"))
+										.join(target)
+								};
+							}
 							let dir = self
 								.io_handle
 								.as_ref()
 								.read_dir(&path)
 								.map_err(|e| ErrorKind::IO {
-									path: Some(path),
+									path: Some(error_path),
 									error: e.into(),
 								})
 								.with_span(span, self)?;
@@ -734,7 +782,13 @@ where
 							message = VMResponse::Value(position.into());
 						}
 						VMRequest::GetSpanPos(span) => {
+							let span = self.source.original_span(span);
 							let file = self.source.get_file(span);
+							if matches!(file.name(), "«string»" | "«stdin»" | "<stdin>" | "[code]")
+							{
+								message = VMResponse::GetSpanPos(Value::Null);
+								continue;
+							}
 							let pos = file.find_line_col(span.low());
 							let abs_path = std::fs::canonicalize(file.name())
 								// canonicalize might return an error if
@@ -1139,5 +1193,21 @@ pub(crate) async fn call_functor(co: GenCo, value: Value) -> Result<Value, Error
 			let primed = request_call_with(&co, functor, [value]).await;
 			Ok(request_call(&co, primed).await)
 		}
+	}
+}
+
+/// Attach an iterative traversal's active path to the running builtin.
+pub async fn request_trace_path(
+	co: &GenCo,
+	path: std::rc::Rc<std::cell::RefCell<Vec<crate::errors::Trace>>>,
+) {
+	co.yield_(VMRequest::TracePath(path)).await;
+}
+
+/// Remaining reference recursion budget for recursive value traversals.
+pub async fn request_recursion_budget(co: &GenCo) -> usize {
+	match co.yield_(VMRequest::RecursionBudget).await {
+		VMResponse::Value(Value::Integer(n)) => n as usize,
+		_ => unreachable!("recursion budget response"),
 	}
 }

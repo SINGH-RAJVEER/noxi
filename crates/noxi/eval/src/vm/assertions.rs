@@ -211,7 +211,8 @@ pub(super) async fn assert_eq_failed(
 	Ok(Value::Catchable(Box::new(CatchableErrorKind::Traced {
 		kind: Box::new(CatchableErrorKind::AssertionFailed),
 		info: Rc::new(CatchableTrace {
-			traces,
+			traces: traces.into(),
+			memoized_prefix: Default::default(),
 			span: None,
 			message: Some(message),
 			relative: true,

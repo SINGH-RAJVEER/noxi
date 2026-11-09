@@ -21,6 +21,8 @@ pub struct SourceCode(
 	Rc<RefCell<Vec<Span>>>,
 	Option<Rc<SourceCheck>>,
 	Rc<RefCell<Vec<(Span, Span)>>>,
+	Rc<RefCell<Vec<(Span, u32)>>>,
+	Rc<RefCell<std::collections::BTreeSet<String>>>,
 );
 
 type SourceCheck = dyn Fn(&rnix::ast::Expr, &codemap::File) -> Result<(), crate::ErrorKind>;
@@ -32,6 +34,119 @@ impl std::fmt::Debug for SourceCode {
 }
 
 impl SourceCode {
+	pub(crate) fn set_features(&self, features: Vec<String>) {
+		*self.5.borrow_mut() = features.into_iter().collect();
+	}
+	pub(crate) fn feature_enabled(&self, name: &str) -> bool {
+		self.5.borrow().contains(name)
+	}
+
+	/// Preserve arbitrary source bytes through rnix's UTF-8 syntax tree. Choose a
+	/// private Unicode block absent from the input, so valid source cannot collide.
+	pub(crate) fn encode_bytes(bytes: &[u8]) -> (String, Option<u32>) {
+		if let Ok(text) = std::str::from_utf8(bytes) {
+			return (text.to_owned(), None);
+		}
+		let lossy = String::from_utf8_lossy(bytes);
+		let base = (0xF0000..0xFFF00)
+			.step_by(256)
+			.find(|base| {
+				!lossy
+					.chars()
+					.any(|c| (*base..*base + 256).contains(&(c as u32)))
+			})
+			.expect("available source byte encoding");
+		let mut text = String::new();
+		let mut rest = bytes;
+		while !rest.is_empty() {
+			match std::str::from_utf8(rest) {
+				Ok(valid) => {
+					text.push_str(valid);
+					break;
+				}
+				Err(error) => {
+					let valid = error.valid_up_to();
+					text.push_str(std::str::from_utf8(&rest[..valid]).unwrap());
+					let count = error.error_len().unwrap_or(rest.len() - valid);
+					for byte in &rest[valid..valid + count] {
+						text.push(char::from_u32(base + u32::from(*byte)).unwrap());
+					}
+					rest = &rest[valid + count..];
+				}
+			}
+		}
+		(text, Some(base))
+	}
+
+	pub(crate) fn set_byte_encoding(&self, span: Span, base: Option<u32>) {
+		if let Some(base) = base {
+			self.4.borrow_mut().push((span, base));
+		}
+	}
+
+	pub(crate) fn has_byte_encoding(&self, file: &codemap::File) -> bool {
+		self.4.borrow().iter().any(|(span, _)| *span == file.span)
+	}
+
+	pub(crate) fn decode_literal(&self, file: &codemap::File, text: &str) -> Vec<u8> {
+		let base = self
+			.4
+			.borrow()
+			.iter()
+			.find(|(span, _)| *span == file.span)
+			.map(|(_, base)| *base);
+		let mut bytes = Vec::new();
+		for c in text.chars() {
+			if let Some(base) = base
+				&& (base..base + 256).contains(&(c as u32))
+			{
+				bytes.push((c as u32 - base) as u8);
+			} else {
+				let mut buffer = [0; 4];
+				bytes.extend_from_slice(c.encode_utf8(&mut buffer).as_bytes());
+			}
+		}
+		bytes
+	}
+
+	pub(crate) fn decode_diagnostic(&self, text: &str) -> Vec<u8> {
+		let encodings = self.4.borrow();
+		if encodings.is_empty() {
+			return text.as_bytes().to_vec();
+		}
+		let mut out = Vec::new();
+		let mut encoding = None;
+		for line in text.split_inclusive('\n') {
+			let source_line = line
+				.trim_start()
+				.split_once("| ")
+				.is_some_and(|(number, _)| {
+					!number.is_empty() && number.bytes().all(|b| b.is_ascii_digit())
+				});
+			if let Some(location) = line.trim_start().strip_prefix("at ") {
+				encoding = encodings.iter().find_map(|(span, base)| {
+					let file = self.get_file(*span);
+					location
+						.strip_prefix(file.name())
+						.is_some_and(|suffix| suffix.starts_with(':'))
+						.then_some(*base)
+				});
+			}
+			for c in line.chars() {
+				if source_line
+					&& let Some(base) = encoding
+					&& (base..base + 256).contains(&(c as u32))
+				{
+					out.push((c as u32 - base) as u8);
+				} else {
+					let mut buf = [0; 4];
+					out.extend_from_slice(c.encode_utf8(&mut buf).as_bytes());
+				}
+			}
+		}
+		out
+	}
+
 	/// Validate each parsed source before compilation, including imported files.
 	/// The callback belongs to this source map, so independent evaluations do not share policy.
 	pub fn with_source_check(
@@ -131,6 +246,43 @@ impl Default for SourceCode {
 			Rc::new(RefCell::new(vec![])),
 			None,
 			Rc::new(RefCell::new(vec![])),
+			Rc::new(RefCell::new(vec![])),
+			Rc::new(RefCell::new(Default::default())),
 		)
+	}
+}
+
+#[cfg(test)]
+mod tests {
+	use super::*;
+
+	#[test]
+	fn byte_source_roundtrips_without_colliding_with_private_unicode() {
+		let source = SourceCode::default();
+		let mut bytes = "\u{f00ff}\n\"".as_bytes().to_vec();
+		bytes.extend_from_slice(b"\xff\xc3_\"\n");
+		let (encoded, base) = SourceCode::encode_bytes(&bytes);
+		assert_ne!(base, Some(0xf0000));
+		let file = source.add_file("bytes.nix".into(), encoded);
+		source.set_byte_encoding(file.span, base);
+		assert_eq!(source.decode_literal(&file, file.source()), bytes);
+	}
+
+	#[test]
+	fn raw_excerpts_do_not_decode_private_unicode_from_another_file() {
+		let source = SourceCode::default();
+		let (encoded, base) = SourceCode::encode_bytes(b"\"\xff\"\n");
+		let file = source.add_file("bytes.nix".into(), encoded.clone());
+		source.set_byte_encoding(file.span, base);
+		let private = char::from_u32(base.unwrap() + 255).unwrap();
+		let diagnostic =
+			format!("at bytes.nix:1:1:\n 1| {encoded}at unicode.nix:1:1:\n 1| {private}\n");
+		let expected = [
+			b"at bytes.nix:1:1:\n 1| \"\xff\"\nat unicode.nix:1:1:\n 1| ".as_slice(),
+			private.to_string().as_bytes(),
+			b"\n",
+		]
+		.concat();
+		assert_eq!(source.decode_diagnostic(&diagnostic), expected);
 	}
 }

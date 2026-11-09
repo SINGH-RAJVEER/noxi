@@ -17,6 +17,86 @@ fn reference_instantiate() -> std::path::PathBuf {
 }
 
 #[test]
+fn diagnostic_contexts_and_failed_thunks_match_the_reference() {
+	let dir = tempfile::tempdir().unwrap();
+	let reference = reference_instantiate();
+	let candidate = Path::new(env!("CARGO_BIN_EXE_nix-instantiate"));
+	for expression in [
+		r#"builtins.deepSeq (throw "first") (throw "second")"#,
+		r#"true && (throw "right")"#,
+		r#"false && (throw "unused")"#,
+		r#"builtins.deepSeq (rec { next = [ next ]; }) 42"#,
+		r#"builtins.toJSON { a.b = [ 1 { c = throw "nested"; } ]; }"#,
+		r#"{ x.y = 1; x = { y = 2; }; }"#,
+		r#"builtins.unsafeGetAttrPos "x" ({ x = 1; } // { x = 2; })"#,
+		r#"builtins.zipAttrsWith (_: 1) [{ a = 1; }]"#,
+		r#"builtins.mapAttrs (_: _: "" + 1) { a = 1; }"#,
+		r#"let a = throw "failure"; b = builtins.addErrorContext "first" a; c = builtins.addErrorContext "second" a; in builtins.seq (builtins.tryEval b) c"#,
+		r#"builtins.fromTOML "x = 9223372036854775808""#,
+		r#"1 |> 2"#,
+	] {
+		for flags in [vec![], vec!["--show-trace"]] {
+			let expected = message_evaluation(&reference, dir.path(), expression, "", &flags, "");
+			let actual = message_evaluation(candidate, dir.path(), expression, "", &flags, "");
+			assert_eq!(
+				(actual.status.code(), actual.stdout, actual.stderr),
+				(expected.status.code(), expected.stdout, expected.stderr),
+				"{expression} {flags:?}"
+			);
+		}
+	}
+}
+
+#[test]
+fn byte_source_strings_and_pipe_features_match_the_reference() {
+	let dir = tempfile::tempdir().unwrap();
+	let reference = reference_instantiate();
+	let candidate = Path::new(env!("CARGO_BIN_EXE_nix-instantiate"));
+	fs::write(
+		dir.path().join("bytes.nix"),
+		b"builtins.toJSON \"bad: \xff\"\n",
+	)
+	.unwrap();
+	for (expression, config) in [
+		("import ./bytes.nix", ""),
+		(
+			"1 |> (x: x + 1)",
+			"extra-experimental-features = pipe-operators",
+		),
+		(
+			"(x: x + 1) <| 2",
+			"extra-experimental-features = pipe-operators",
+		),
+		(
+			"builtins.toJSON (builtins.foldl' (tail: head: { inherit head tail; }) null (builtins.genList (x: x) 100))",
+			"max-call-depth = 20",
+		),
+	] {
+		let expected = message_evaluation(
+			&reference,
+			dir.path(),
+			expression,
+			config,
+			&["--show-trace"],
+			"",
+		);
+		let actual = message_evaluation(
+			candidate,
+			dir.path(),
+			expression,
+			config,
+			&["--show-trace"],
+			"",
+		);
+		assert_eq!(
+			(actual.status.code(), actual.stdout, actual.stderr),
+			(expected.status.code(), expected.stdout, expected.stderr),
+			"{expression}"
+		);
+	}
+}
+
+#[test]
 fn ready_and_deferred_builtin_diagnostics_match_the_reference() {
 	let dir = tempfile::tempdir().unwrap();
 	let reference = reference_instantiate();

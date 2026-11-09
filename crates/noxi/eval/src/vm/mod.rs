@@ -358,6 +358,10 @@ pub(crate) enum FrameTrace {
 	/// Thunks, internal generators and the top level add nothing.
 	#[default]
 	None,
+	Scoped {
+		parent: Box<FrameTrace>,
+		context: Box<FrameTrace>,
+	},
 
 	/// A builtin applied to all its arguments: `while calling the 'NAME'
 	/// builtin`, at the call unless another builtin made it.
@@ -365,6 +369,7 @@ pub(crate) enum FrameTrace {
 		name: &'static str,
 		call_site: Option<Span>,
 		contexts: Vec<Trace>,
+		path: Option<Rc<std::cell::RefCell<Vec<Trace>>>>,
 	},
 
 	/// The body of a function: `from call site` for a call in Nix code,
@@ -688,26 +693,32 @@ where
 								return Err(error);
 							}
 							Ok(Value::Catchable(kind)) => {
-								let mut info = kind
-									.trace()
-									.map(|info| CatchableTrace {
-										traces: info.traces.clone(),
-										span: info.span,
-										message: info.message.clone(),
-										relative: info.relative,
-									})
-									.unwrap_or(CatchableTrace {
-										traces: self.traces(None, None),
-										span: None,
-										message: None,
-										relative: false,
-									});
-								info.traces
-									.insert(outer_traces.min(info.traces.len()), trace);
+								let info = match &*kind {
+									CatchableErrorKind::Traced { info, .. } if !info.relative => {
+										info.clone()
+									}
+									_ => {
+										let mut traces = self.traces(None, None);
+										if let Some(info) = kind.trace() {
+											traces.extend(info.traces.borrow().iter().cloned());
+										}
+										Rc::new(CatchableTrace {
+											traces: traces.into(),
+											memoized_prefix: Default::default(),
+											span: kind.trace().and_then(|info| info.span),
+											message: kind
+												.trace()
+												.and_then(|info| info.message.clone()),
+											relative: false,
+										})
+									}
+								};
+								let index = outer_traces.min(info.traces.borrow().len());
+								info.traces.borrow_mut().insert(index, trace);
 								self.stack.push(Value::Catchable(Box::new(
 									CatchableErrorKind::Traced {
 										kind: Box::new(kind.untraced().clone()),
-										info: Rc::new(info),
+										info,
 									},
 								)));
 							}
@@ -835,6 +846,14 @@ where
 							.observe_enter_generator(frame_id, "force", &self.stack);
 
 						let value = self.stack_pop();
+						if let Value::Catchable(kind) = &value
+							&& let Some(info) = kind.trace()
+						{
+							if info.memoized_prefix.get().is_none() {
+								info.memoized_prefix
+									.set(Some(self.traces(None, None).len()));
+							}
+						}
 						match thunk.finish_direct_force(value) {
 							Some(value) => {
 								let value = self.trace_catchable(value, None, None);
@@ -977,6 +996,30 @@ where
 					self.stack.push(Value::Thunk(thunk));
 				}
 
+				Op::PushContext => {
+					let hint = self
+						.stack_pop()
+						.to_str()
+						.expect("compiler context string")
+						.to_str_lossy()
+						.into_owned();
+					frame.trace = FrameTrace::Scoped {
+						parent: Box::new(std::mem::take(&mut frame.trace)),
+						context: Box::new(FrameTrace::Frame(Trace::new(
+							if hint.starts_with('\0') {
+								None
+							} else {
+								Some(frame.current_span())
+							},
+							hint.trim_start_matches('\0'),
+						))),
+					};
+				}
+				Op::PopContext => {
+					if let FrameTrace::Scoped { parent, .. } = std::mem::take(&mut frame.trace) {
+						frame.trace = *parent;
+					}
+				}
 				Op::Force => {
 					if let Some(Value::Thunk(_)) = self.stack.last() {
 						let thunk = match self.stack_pop() {
@@ -1043,15 +1086,11 @@ where
 							}
 							result => {
 								let call_span = frame.current_span();
+								let call_site = (!frame.lambda.synthetic_call).then_some(call_span);
 								// Suspensions and errors retain the caller frame, including
 								// its original span for the ordinary trace construction.
 								self.push_bytecode_frame(span, frame);
-								self.finish_builtin(
-									call_span,
-									Some(call_span),
-									builtin_name,
-									result,
-								)?;
+								self.finish_builtin(call_span, call_site, builtin_name, result)?;
 								return Ok(true);
 							}
 						}
@@ -1136,7 +1175,12 @@ where
 				Op::JumpIfFalse => {
 					let offset = frame.read_u16() as usize;
 					debug_assert!(offset != 0);
-					if !self.stack_peek(0).as_bool().with_span(&frame, self)? {
+					if !self
+						.stack_peek(0)
+						.as_bool()
+						.map_err(|e| ErrorKind::Positioned(Box::new(e)))
+						.with_span(&frame, self)?
+					{
 						frame.ip += offset;
 					}
 				}
@@ -1291,7 +1335,12 @@ where
 				Op::JumpIfTrue => {
 					let offset = frame.read_u16() as usize;
 					debug_assert!(offset != 0);
-					if self.stack_peek(0).as_bool().with_span(&frame, self)? {
+					if self
+						.stack_peek(0)
+						.as_bool()
+						.map_err(|e| ErrorKind::Positioned(Box::new(e)))
+						.with_span(&frame, self)?
+					{
 						frame.ip += offset;
 					}
 				}
@@ -1364,8 +1413,11 @@ where
 					let gen_span = frame.current_span();
 					self.push_bytecode_frame(span, frame);
 
-					self.enqueue_generator("coerce_to_string", gen_span, |co| {
-						value.coerce_to_string(co, kind, gen_span)
+					self.enqueue_generator("coerce_to_string", gen_span, |co| async move {
+						value
+							.coerce_to_string(co, kind, gen_span)
+							.await
+							.trace(Some(gen_span), "while evaluating a path segment")
 					});
 
 					return Ok(false);
@@ -1421,7 +1473,16 @@ where
 						// OpAdd can add not just numbers, but also string-like
 						// things, which requires more VM logic. This operation is
 						// evaluated in a generator frame.
-						self.enqueue_generator("add_values", gen_span, |co| add_values(co, a, b));
+						self.enqueue_generator("add_values", gen_span, |co| async move {
+							if matches!(&a, Value::String(_) | Value::Path(_)) && !matches!(&b, Value::String(_)) {
+								generators::request_builtin_context(&co, vec![Trace::new(Some(gen_span), "while evaluating a path segment")]).await;
+							}
+							add_values(co, a, b).await.map_err(|error| {
+								if matches!(error, ErrorKind::NotCoercibleToString { .. }) {
+									Err::<Value, _>(error).trace(Some(gen_span), "while evaluating a path segment").unwrap_err()
+								} else { error }
+							})
+						});
 						return Ok(false);
 					}
 				},
@@ -1622,12 +1683,29 @@ impl<IO> VM<'_, IO> {
 		);
 		let hidden = |span: &Span| self.source.is_hidden(*span);
 		let mut traces = vec![];
-		for (i, frame) in frames.iter().enumerate() {
+		fn flatten<'a>(frame: &'a FrameTrace, out: &mut Vec<&'a FrameTrace>) {
+			if let FrameTrace::Scoped { parent, context } = frame {
+				flatten(parent, out);
+				flatten(context, out);
+			} else {
+				out.push(frame);
+			}
+		}
+		let mut flat = vec![];
+		for frame in &frames {
+			flatten(frame, &mut flat);
+		}
+		for (i, frame) in flat.iter().enumerate() {
 			match frame {
+				FrameTrace::Scoped { .. } => unreachable!("scopes flattened"),
 				FrameTrace::None => {}
 				FrameTrace::Dynamic(frames) => traces.extend(frames.borrow().iter().cloned()),
 				FrameTrace::Context(hint) => traces.push(Trace::new(None, *hint)),
-				FrameTrace::Frame(trace) => traces.push(trace.clone()),
+				FrameTrace::Frame(trace) => {
+					if !trace.span.as_ref().is_some_and(hidden) {
+						traces.push(trace.clone());
+					}
+				}
 				FrameTrace::Select { path, attrs, key } => {
 					if let Some(span) = attrs.get_attr_pos(key)
 						&& !hidden(&span)
@@ -1642,6 +1720,7 @@ impl<IO> VM<'_, IO> {
 					name,
 					call_site,
 					contexts,
+					path,
 				} => {
 					if !call_site.as_ref().is_some_and(hidden) {
 						traces.push(Trace::new(
@@ -1650,10 +1729,19 @@ impl<IO> VM<'_, IO> {
 						));
 					}
 					traces.extend(contexts.iter().cloned());
+					if let Some(path) = path {
+						traces.extend(path.borrow().iter().cloned());
+					}
 				}
 
 				FrameTrace::Lambda { lambda, call_site } => {
-					if lambda.span.as_ref().is_none_or(hidden) {
+					if lambda.span.as_ref().is_none_or(hidden)
+						|| lambda.span.is_some_and(|span| {
+							self.source
+								.get_file(span)
+								.name()
+								.starts_with("«nix-internal»/")
+						}) {
 						continue;
 					}
 					let checking_formals = formals_error && i == frames.len() - 1;
@@ -1708,7 +1796,7 @@ where
 		message: Option<String>,
 	) -> Value {
 		// Nearly every value a frame produces is not an error.
-		if !matches!(value, Value::Catchable(_)) || !self.try_eval_frames.is_empty() {
+		if !matches!(value, Value::Catchable(_)) {
 			return value;
 		}
 		self.trace_catchable_error(value, running, span, message)
@@ -1726,11 +1814,12 @@ where
 			Value::Catchable(kind) => match *kind {
 				CatchableErrorKind::Traced { kind, info } if info.relative => {
 					let mut traces = self.traces(None, running);
-					traces.extend(info.traces.iter().cloned());
+					traces.extend(info.traces.borrow().iter().cloned());
 					Value::Catchable(Box::new(CatchableErrorKind::Traced {
 						kind,
 						info: Rc::new(CatchableTrace {
-							traces,
+							traces: traces.into(),
+							memoized_prefix: Default::default(),
 							span: info.span,
 							message: info.message.clone(),
 							relative: false,
@@ -1741,7 +1830,8 @@ where
 				kind => Value::Catchable(Box::new(CatchableErrorKind::Traced {
 					kind: Box::new(kind),
 					info: Rc::new(CatchableTrace {
-						traces: self.traces(None, running),
+						traces: self.traces(None, running).into(),
+						memoized_prefix: Default::default(),
 						span,
 						message,
 						relative: false,
@@ -1892,6 +1982,7 @@ where
 					name,
 					call_site,
 					contexts: vec![],
+					path: None,
 				},
 			}),
 			// Partially applied builtin is just pushed back on the stack.
@@ -1907,6 +1998,7 @@ where
 							name: builtin_name,
 							call_site,
 							contexts: vec![],
+							path: None,
 						},
 					),
 				);
@@ -1928,6 +2020,7 @@ where
 					name: builtin_name,
 					call_site,
 					contexts: vec![],
+					path: None,
 				},
 			}),
 		}
@@ -1967,7 +2060,10 @@ where
 
 			Value::Closure(closure) => {
 				let lambda = closure.lambda();
-				let call_site = parent.as_ref().map(|_| span);
+				let call_site = parent
+					.as_ref()
+					.filter(|(_, f)| !f.lambda.omit_call_position)
+					.map(|_| span);
 				self.observer.observe_tail_call(self.frames.len(), &lambda);
 
 				// The stack offset is always `stack.len() - arg_count`, and
@@ -1982,7 +2078,9 @@ where
 					return self.call_error(
 						span,
 						parent.as_ref(),
-						ErrorKind::EvalError("stack overflow; max-call-depth exceeded".into()),
+						ErrorKind::Positioned(Box::new(ErrorKind::EvalError(
+							"stack overflow; max-call-depth exceeded".into(),
+						))),
 					);
 				}
 
@@ -2003,7 +2101,13 @@ where
 						upvalues: closure.upvalues().into(),
 						ip: CodeIdx(0),
 						stack_offset,
-						depth: self.call_depth + 1,
+						depth: self.call_depth
+							+ usize::from(
+								closure
+									.lambda
+									.span
+									.is_some_and(|s| !self.source.is_hidden(s)),
+							),
 					},
 				);
 
@@ -2032,11 +2136,16 @@ where
 				Ok(())
 			}
 
-			v => self.call_error(
-				span,
-				parent.as_ref(),
-				ErrorKind::NotCallable(v.type_of(), Some(Box::new(v))),
-			),
+			v => self.call_error(span, parent.as_ref(), {
+				let kind = ErrorKind::NotCallable(v.type_of(), Some(Box::new(v)));
+				if parent.as_ref().is_some_and(|(_, frame)| {
+					frame.lambda.span.is_some() || frame.lambda.generated_call_position
+				}) {
+					ErrorKind::Positioned(Box::new(kind))
+				} else {
+					kind
+				}
+			}),
 		}
 	}
 
@@ -2211,7 +2320,18 @@ async fn add_values(co: GenCo, a: Value, b: Value) -> Result<Value, ErrorKind> {
 		.await
 		.map(|s2| Value::String(s1.concat(&s2)))
 		.into(),
-		(a @ Value::Integer(_), b) | (a @ Value::Float(_), b) => arithmetic_op!(&a, &b, +)?,
+		(a @ Value::Integer(_), b) | (a @ Value::Float(_), b) => {
+			if !matches!(b, Value::Integer(_) | Value::Float(_)) {
+				return Err(ErrorKind::Positioned(Box::new(ErrorKind::EvalError(
+					format!(
+						"cannot add {} to {}",
+						crate::diagnostics::show_type(&b),
+						crate::diagnostics::show_type(&a)
+					),
+				))));
+			}
+			arithmetic_op!(&a, &b, +).map_err(|e| ErrorKind::Positioned(Box::new(e)))?
+		}
 		(a, b) => {
 			let r1 = generators::request_string_coerce(
 				&co,
