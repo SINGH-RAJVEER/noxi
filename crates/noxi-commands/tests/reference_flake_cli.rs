@@ -528,3 +528,89 @@ fn pure_flakes_see_forbidden_paths_as_missing_and_find_corepkgs() {
 	assert_eq!(outputs[0][2].1, "true\n");
 	assert_eq!(outputs[1], outputs[0]);
 }
+
+/// `builtins.path` and `builtins.filterSource` in pure flakes: allowed for a
+/// stored input and the flake's own source, with a filter, as Nixpkgs'
+/// filesets and source cleaning use them, and refused for a host path.
+#[test]
+fn pure_flake_path_imports_allow_only_fetched_sources() {
+	let reference = std::env::var_os("NOXI_REFERENCE_BIN")
+		.map(PathBuf::from)
+		.unwrap_or_else(|| {
+			Path::new(env!("CARGO_MANIFEST_DIR")).join("../../target/nix-reference/bin")
+		})
+		.join("nix");
+	let fixture = tempfile::tempdir().unwrap();
+	let source = fixture.path().join("source");
+	fs::create_dir_all(source.join("sub")).unwrap();
+	fs::write(source.join("sub/keep"), "keep\n").unwrap();
+	fs::write(source.join("sub/drop"), "drop\n").unwrap();
+	let roots = [tempfile::tempdir().unwrap(), tempfile::tempdir().unwrap()];
+	let mut outputs = Vec::new();
+	for (index, (bin, root)) in [reference.as_path(), Path::new(env!("CARGO_BIN_EXE_nix"))]
+		.iter()
+		.zip(&roots)
+		.enumerate()
+	{
+		let added = run(
+			&reference,
+			root.path(),
+			&[
+				"store",
+				"add",
+				"--mode",
+				"nar",
+				"--name",
+				"source",
+				source.to_str().unwrap(),
+			],
+		);
+		assert!(
+			added.status.success(),
+			"{}",
+			String::from_utf8_lossy(&added.stderr)
+		);
+		let logical = String::from_utf8(added.stdout).unwrap().trim().to_owned();
+		let input = if index == 0 {
+			root.path()
+				.join(logical.trim_start_matches('/'))
+				.display()
+				.to_string()
+		} else {
+			logical
+		};
+		let flake = fixture.path().join(format!("flake{index}"));
+		fs::create_dir_all(flake.join("own")).unwrap();
+		fs::write(flake.join("own/file"), "own\n").unwrap();
+		fs::write(
+			flake.join("flake.nix"),
+			format!(
+				"{{ inputs.src = {{ url = \"path:{input}\"; flake = false; }}; outputs = inputs: {{ filtered = builtins.path {{ path = inputs.src + \"/sub\"; name = \"filtered\"; filter = path: type: baseNameOf path != \"drop\"; }}; source = builtins.filterSource (path: type: true) (inputs.src + \"/sub\"); own = builtins.path {{ path = ./own; }}; host = builtins.path {{ path = /etc/passwd; }}; }}; }}"
+			),
+		)
+		.unwrap();
+		let mut output = Vec::new();
+		for attr in ["filtered", "source", "own", "host"] {
+			let result = run(
+				bin,
+				root.path(),
+				&[
+					"eval",
+					"--raw",
+					"--no-write-lock-file",
+					&format!("path:{}#{attr}", flake.display()),
+				],
+			);
+			output.push((
+				result.status.code(),
+				String::from_utf8_lossy(&result.stdout).into_owned(),
+				String::from_utf8_lossy(&result.stderr)
+					.contains("forbidden in pure evaluation mode"),
+			));
+		}
+		outputs.push(output);
+	}
+	assert_eq!(outputs[0][0].0, Some(0), "{outputs:?}");
+	assert_eq!(outputs[0][3], (Some(1), String::new(), true));
+	assert_eq!(outputs[1], outputs[0]);
+}

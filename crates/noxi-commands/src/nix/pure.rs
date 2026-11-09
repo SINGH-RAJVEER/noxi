@@ -132,21 +132,75 @@ mod blocked {
 			"'builtins.storePath' is not allowed in pure evaluation mode".into(),
 		))
 	}
-	#[builtin("path")]
-	async fn builtin_path(_co: GenCo, #[lazy] _value: Value) -> Result<Value, ErrorKind> {
-		Err(ErrorKind::EvalError(
-			"pure builtins.path is not supported by noxi yet; use --impure".into(),
+}
+
+/// The impure `builtins.path` and `builtins.filterSource`, which read the
+/// host filesystem directly, admitted only for paths inside a source tree
+/// this evaluation fetched, as CppNix's pure-mode allow list admits them.
+struct Guard {
+	path: Value,
+	filter_source: Value,
+	store: Option<Rc<noxi_glue::EvaluatorStore>>,
+}
+
+impl Guard {
+	fn allows(&self, path: &Path) -> bool {
+		let Some(store) = &self.store else {
+			return false;
+		};
+		path.strip_prefix("/nix/store")
+			.ok()
+			.and_then(|p| p.components().next())
+			.and_then(|p| {
+				nix_compat::store_path::StorePath::from_bytes(p.as_os_str().as_encoded_bytes()).ok()
+			})
+			.is_some_and(|p| store.is_fetched_source(&p))
+	}
+}
+
+#[noxi_eval::builtin_macros::builtins(state = "Rc<Guard>")]
+mod guarded {
+	use super::Guard;
+	use noxi_eval::generators::{self, Gen, GenCo};
+	use noxi_eval::{ErrorKind, Value};
+	use std::rc::Rc;
+
+	fn forbidden(path: &std::path::Path) -> ErrorKind {
+		ErrorKind::EvalError(format!(
+			"access to absolute path '{}' is forbidden in pure evaluation mode (use '--impure' to override)",
+			path.display()
 		))
 	}
+
+	#[builtin("path")]
+	async fn builtin_path(state: Rc<Guard>, co: GenCo, args: Value) -> Result<Value, ErrorKind> {
+		if let Ok(attrs) = args.to_attrs()
+			&& let Some(value) = attrs.select("path")
+		{
+			let path = noxi_eval::builtins::realise_value_to_path(&co, value.clone()).await?;
+			if let Ok(path) = path
+				&& !state.allows(&path)
+			{
+				return Err(forbidden(&path));
+			}
+		}
+		Ok(generators::request_call_with(&co, state.path.clone(), [args]).await)
+	}
+
 	#[builtin("filterSource")]
 	async fn builtin_filter_source(
-		_co: GenCo,
-		#[lazy] _filter: Value,
-		#[lazy] _path: Value,
+		state: Rc<Guard>,
+		co: GenCo,
+		#[lazy] filter: Value,
+		path: Value,
 	) -> Result<Value, ErrorKind> {
-		Err(ErrorKind::EvalError(
-			"pure builtins.filterSource is not supported by noxi yet; use --impure".into(),
-		))
+		let checked = noxi_eval::builtins::realise_value_to_path(&co, path.clone()).await?;
+		if let Ok(checked) = checked
+			&& !state.allows(&checked)
+		{
+			return Err(forbidden(&checked));
+		}
+		Ok(generators::request_call_with(&co, state.filter_source.clone(), [filter, path]).await)
 	}
 }
 
@@ -170,7 +224,13 @@ pub(crate) fn evaluate<'co, 'ro, 'env>(
 		.filter(|(name, _)| {
 			!matches!(
 				name.as_bytes(),
-				b"currentSystem" | b"currentTime" | b"builtins" | b"import" | b"scopedImport"
+				b"currentSystem"
+					| b"currentTime"
+					| b"builtins"
+					| b"import"
+					| b"scopedImport"
+					| b"path"
+					| b"filterSource"
 			)
 		})
 		.map(|(name, value)| {
@@ -182,6 +242,14 @@ pub(crate) fn evaluate<'co, 'ro, 'env>(
 			);
 			(name, value.clone())
 		})
+		.chain(guarded::builtins(Rc::new(Guard {
+			path: builtins.select("path").expect("builtins.path").clone(),
+			filter_source: builtins
+				.select("filterSource")
+				.expect("builtins.filterSource")
+				.clone(),
+			store: flake_store.clone(),
+		})))
 		.collect();
 	let globals: Rc<GlobalsMap> =
 		noxi_eval::prepare_globals(declarations, Vec::new(), template.source_map(), true);
