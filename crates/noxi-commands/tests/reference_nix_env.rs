@@ -39,7 +39,8 @@ fn command(dir: &Path, program: &Path) -> Command {
 		.env("HOME", dir.join("home"))
 		.env("NIX_STATE_DIR", dir.join("state"))
 		.env("NIX_CONF_DIR", dir.join("etc"))
-		.env("TZ", "UTC");
+		.env("TZ", "UTC")
+		.env("NIX_CONFIG", "substituters =");
 	command
 }
 

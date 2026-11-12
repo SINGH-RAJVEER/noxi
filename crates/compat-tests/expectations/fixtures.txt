@@ -165,9 +165,9 @@ gap tests/functional/config.sh # main in config.sh:32: warning: you don't have I
 anomaly tests/functional/db-migration.sh # reference skip: not using the Nix daemon, skipping this test...
 pass:upstream_functional tests/functional/delete-no-keep.sh
 gap tests/functional/dependencies.sh # main in dependencies.sh:12: error: nix-store --query --graph is not supported by noxi yet
-gap tests/functional/derivation-advanced-attributes.sh # main in derivation-advanced-attributes.sh:24: error: don't know how to open Nix store with scheme '$ROOT/tmp/nix-test/main/derivation-advanced-attributes/store'
+pass:upstream_functional tests/functional/derivation-advanced-attributes.sh
 pass:upstream_functional tests/functional/derivation-json.sh
-gap tests/functional/dump-db.sh # main in dump-db.sh:12: error: nix-store --dump-db is not supported by noxi yet
+pass:upstream_functional tests/functional/dump-db.sh
 gap tests/functional/dyn-drv/build-built-drv.sh # main in build-built-drv.sh:19: error: feature not yet implemented in noxi: content-addressed or impure derivation construction
 gap tests/functional/dyn-drv/dep-built-drv-2.sh # main in dep-built-drv-2.sh:16: error: nix build with build logs in the bar log format (use --log-format raw-with-logs) is not supported by noxi yet
 gap tests/functional/dyn-drv/dep-built-drv.sh # main in dep-built-drv.sh:12: error: attribute 'outputOf' missing
@@ -180,7 +180,7 @@ gap tests/functional/eval-store.sh # main in eval-store.sh:14: error: nix build 
 gap tests/functional/eval.sh # main in eval.sh:30: error: unrecognised flag '--raw'
 gap tests/functional/experimental-features.sh # main in experimental-features.sh:36: 
 pass:upstream_functional tests/functional/export-graph.sh
-gap tests/functional/export.sh # main in export.sh:9: error: nix-store --export is not supported by noxi yet
+pass:upstream_functional tests/functional/export.sh
 gap tests/functional/external-builders.sh # main in external-builders.sh:46: error: nix build with build logs in the bar log format (use --log-format raw-with-logs) is not supported by noxi yet
 anomaly tests/functional/extra-sandbox-profile.sh # reference skip: Need Darwin, skipping this test...
 gap tests/functional/fetchClosure.sh # main in fetchClosure.sh:16: error: nix build --json for new builds (the build API does not return BuildResult metadata) is not supported by noxi yet
@@ -251,7 +251,7 @@ gap tests/functional/import-from-derivation.sh # main in import-from-derivation.
 gap tests/functional/impure-derivations.sh # main in impure-derivations.sh:16: error: feature not yet implemented in noxi: content-addressed or impure derivation construction
 gap tests/functional/impure-env.sh # : error: nix build with build logs in the bar log format (use --log-format raw-with-logs) is not supported by noxi yet
 gap tests/functional/impure-eval.sh # : error: unsupported store parameter 'store=/foo' in 'dummy://?store=/foo'
-gap tests/functional/json.sh # main in json.sh:39: error: nix eval --pretty is not supported by noxi yet
+pass:upstream_functional tests/functional/json.sh
 anomaly tests/functional/lang-gc.sh # reference skip: Too memory intensive for CI. Attempt to reduce memory usage was unsuccessful, because it made detection of the bug unreliable., skipping this test...
 pass:upstream_functional tests/functional/lang.sh
 gap tests/functional/legacy-ssh-store.sh # main in legacy-ssh-store.sh:8: error: unsupported store parameter 'remote-store=$ROOT/tmp/nix-test/main/legacy-ssh-store/other-store' in 'ssh://localhost?remote-store=$ROOT/tmp/nix-test/main/legacy-ss
@@ -296,7 +296,7 @@ gap tests/functional/pure-eval.sh # main in pure-eval.sh:21: error: attribute 'c
 gap tests/functional/read-only-store.sh # main in read-only-store.sh:26: clearing store...
 pass:upstream_functional tests/functional/readfile-context.sh
 gap tests/functional/recursive.sh # main in recursive.sh:13: error: nix build with build logs in the bar log format (use --log-format raw-with-logs) is not supported by noxi yet
-gap tests/functional/referrers.sh # main in referrers.sh:13: error: nix-store --register-validity is not supported by noxi yet
+pass:upstream_functional tests/functional/referrers.sh
 gap tests/functional/remote-store.sh # main in remote-store.sh:8: error: unsupported store parameter 'remote-store=$ROOT/tmp/nix-test/main/remote-store/other-store' in 'ssh-ng://localhost?remote-store=$ROOT/tmp/nix-test/main/remote-store/o
 gap tests/functional/repair.sh # main in repair.sh:23: error: noxi does not support repairing paths yet
 gap tests/functional/repl.sh # : error: the noxi repl does not support ':log' yet
@@ -310,7 +310,7 @@ gap tests/functional/signing.sh # main in signing.sh:5: error: nix-store --gener
 gap tests/functional/simple.sh # main in simple.sh:27: error: --readonly-mode is not supported by noxi yet
 gap tests/functional/ssh-relay.sh # main in ssh-relay.sh:16: error: unsupported store parameter 'remote-store=ssh://localhost?remote-store=ssh://localhost?remote-store=ssh://localhost' in 'ssh://localhost?remote-store=ssh://localhost?re
 gap tests/functional/store-info.sh # main in store-info.sh:38: 
-gap tests/functional/store-print-env.sh # main in store-print-env.sh:19: error: nix-store --print-env is not supported by noxi yet
+pass:upstream_functional tests/functional/store-print-env.sh
 anomaly tests/functional/structured-attrs.sh # reference fail: main in structured-attrs.sh:27: error (ignored): cannot find flake 'flake:nixpkgs' in the flake registries
 gap tests/functional/substitute-with-invalid-ca.sh # main in substitute-with-invalid-ca.sh:22: error: nix-store --add is not supported by noxi yet
 gap tests/functional/suggestions.sh # : test failed: The nix build stderr should suggest the three closest possibilities

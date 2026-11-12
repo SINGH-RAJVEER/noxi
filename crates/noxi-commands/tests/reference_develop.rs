@@ -406,8 +406,7 @@ fn structured_attributes_reach_the_environment() {
 	}
 }
 
-/// Build logs are hidden by default and raw with `raw-with-logs`; the
-/// reference's `bar` formats prefix each line, which fails explicitly.
+/// Build log formats match the reference for fresh builds.
 #[test]
 fn build_logs_follow_the_log_format() {
 	let f = Fixture::new();
@@ -433,9 +432,7 @@ fn build_logs_follow_the_log_format() {
 	f.same(&args.iter().map(String::as_str).collect::<Vec<_>>());
 	let mut args = build("bar");
 	args.push("-L".into());
-	let (status, _, stderr) = f.run("noxi", &args.iter().map(String::as_str).collect::<Vec<_>>());
-	assert_eq!(status, Some(1));
-	assert!(stderr.contains("is not supported by noxi yet"), "{stderr}");
+	f.same(&args.iter().map(String::as_str).collect::<Vec<_>>());
 }
 
 #[test]
