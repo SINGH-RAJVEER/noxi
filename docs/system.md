@@ -6,7 +6,7 @@ The distribution must publish an installer image for every supported boot mode a
 
 On supported UEFI machines, the installer offers ordinary systemd-boot and Lanzaboote Secure Boot as distinct choices. It checks firmware, EFI System Partition, signing, and recovery prerequisites before applying the selected boot policy, then records that policy in the generated configuration source. The installer must not claim Secure Boot is active until the installed system boots with enforcement enabled. [Boot and Secure Boot specification](secure-boot.md)
 
-The installed system must include noxi as the default package manager and daemon, its system management tools, a working [Lua configuration](lua-configuration.md) by default, and a recovery route. Installation is complete only after the machine boots from the installed system and can build a second system generation with noxi. A successful installer image build is insufficient.
+The installed system must include noxi as the default package manager and daemon, its system management tools, a working Nix configuration, and a recovery route. Installation is complete only after the machine boots from the installed system and can build a second system generation with noxi. A successful installer image build is insufficient.
 
 Development may use an isolated reference CppNix instance to bootstrap artifacts and compare outputs. The released installed system must perform normal evaluation, builds, substitutions, and store maintenance through noxi.
 
@@ -14,7 +14,7 @@ Development may use an isolated reference CppNix instance to bootstrap artifacts
 
 The OS flake must produce installed-system, live-installer, VM, and recovery outputs from pinned Nixpkgs and noxi inputs. Each published image records its source revision, lock revisions, target architecture, supported firmware mode, boot policy, and checksum. Building an image only proves that an artifact exists; boot and self-maintenance need separate tests.
 
-The installer writes a Lua configuration source that identifies the selected disk and boot policy without encoding secrets in the Nix store. After installation, test first boot, daemon startup, network availability where configured, the selected boot entry, and the running generation. Then build and activate a second generation using the installed noxi binaries and daemon. Inspect the resulting closure and operation trace to confirm normal maintenance did not call CppNix. A failed second rebuild must leave the installed generation bootable and report source, store, and boot state separately.
+The installer writes a Nix configuration source that identifies the selected disk and boot policy without encoding secrets in the Nix store. After installation, test first boot, daemon startup, network availability where configured, the selected boot entry, and the running generation. Then build and activate a second generation using the installed noxi binaries and daemon. Inspect the resulting closure and operation trace to confirm normal maintenance did not call CppNix. A failed second rebuild must leave the installed generation bootable and report source, store, and boot state separately.
 
 ## Fleet enrollment and role lifecycle
 

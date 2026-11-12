@@ -27,7 +27,6 @@ From a checkout, `nix run . -- eval --expr '1 + 2'` builds and runs the same com
 | [Interface behavior](docs/interfaces.md) | CLI, TUI, GUI, configuration edits, and parity |
 | [Declarative configuration workflow](docs/configuration-workflow.md) | Source of truth, staged edits, rebuild, runtime actions, and rollback |
 | [Scoped application builds](docs/scoped-application-builds.md) | Planned user, machine, and project application changes without a full system generation |
-| [Lua configuration](docs/lua-configuration.md) | Lua as the default language for user configuration on native surfaces, alongside Nix |
 | [Native projects and development environments](docs/development-environments.md) | Compatible flake environments, a dedicated devenv equivalent, optional native projects, and built-in server supervision |
 | [NixBox integration](docs/nixbox-integration.md) | Typed package operations, direct engine use, and declarative persistence |
 | [Rebuild diagnostics and logging](docs/logging.md) | Rebuild phases, event schema, error rendering, output modes, and log tests |

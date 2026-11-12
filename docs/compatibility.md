@@ -65,7 +65,7 @@ An extension is opt-in through a new command, setting, or negotiated protocol ca
 
 Examples may include richer progress events, configuration previews, and GUI-managed edits. The public compatibility commands retain their reference defaults.
 
-[Lua configuration](lua-configuration.md) is an extension of the native surfaces. They default to Lua for user configuration, but compatibility commands never evaluate `.lua` files, and the matrix rows and their evidence are unaffected by it. A new UI is not evidence of compatibility and does not excuse missing legacy behavior.
+A new UI is not evidence of compatibility and does not excuse missing legacy behavior.
 
 [Development environments](development-environments.md) follow the same rule. Standard flakes and development-shell commands remain fully supported with their reference input resolution, lock effects, output selection, hooks, exit status, and environment effects. A dedicated built-in devenv equivalent and optional native project manifests are additive native interfaces; neither requires converting an existing flake nor removes a compatibility gate. Their presence must not alter reference-command discovery or cause those commands to execute dedicated environment declarations or manage native server sessions implicitly.
 

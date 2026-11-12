@@ -1,6 +1,6 @@
 # Package-manager MVP todo
 
-This checklist tracks the first release: noxi replacing the selected CppNix release on an existing x86_64-linux NixOS system. The installed operating system, installer, TUI, GPUI NixBox GUI, Lua configuration, native projects and development environments, and opt-in behavior changes come after this gate. [PLAN.md](PLAN.md) defines the product order; [docs/compatibility.md](docs/compatibility.md), [docs/compatibility-matrix.md](docs/compatibility-matrix.md), and [docs/verification.md](docs/verification.md) define what a drop-in claim requires.
+This checklist tracks the first release: noxi replacing the selected CppNix release on an existing x86_64-linux NixOS system. The installed operating system, installer, TUI, GPUI NixBox GUI, native projects and development environments, and opt-in behavior changes come after this gate. [PLAN.md](PLAN.md) defines the product order; [docs/compatibility.md](docs/compatibility.md), [docs/compatibility-matrix.md](docs/compatibility-matrix.md), and [docs/verification.md](docs/verification.md) define what a drop-in claim requires.
 
 Sections 0 through 8 are the package-manager MVP. Ordinary flakes, `devShells`, `nix develop`, `nix shell`, `nix run`, and legacy `nix-shell` stay in that scope, including their reference lock, hook, and environment effects. The dedicated `noxi env` workflow, built-in server supervision, PostgreSQL adapter, and optional `noxi project` manifests are later extensions. Their shared engine dependencies belong in the MVP where the reference requires them; their native schemas, commands, and runtime behavior do not. [MVP scope and later gates](docs/product.md#mvp-scope-and-later-gates) records this boundary.
 
@@ -151,7 +151,7 @@ Profile/nix-env follow-up, 2026-11-09: Rust expression selection, upgrade and qu
 		- [x] Legacy `nix-shell` for expressions, files and store derivations matches the reference's builds, environment, rc file and exit statuses in `reference_nix_shell`; shebang scripts, `--check`, `--repair` and interactive use remain open ([verification](docs/verification.md#modern-command-inventory-and-qualification)).
 		- [x] `nix develop` and `nix print-dev-env` for expression and store-path installables match the reference's environment derivation, rc script, JSON, commands, phases and exit statuses in `reference_develop`; flakes, `--profile` and `--redirect` remain open.
 - [ ] Provide the C and C++ interfaces required by the §0 consumer inventory, including headers, library names, SONAMEs, symbols, link metadata, and installation paths. Rebuild source consumers and run unchanged reference-linked binaries against the replacement libraries; keep the drop-in gate open for any required incompatible consumer.
-- [ ] Verify that adjacent Lua configurations, dedicated environment entries, and optional native project manifests leave compatibility discovery, lock effects, output, and environment behavior unchanged. Compatibility commands never evaluate `.lua` files. Any shipped native command or improved diagnostic renderer must be explicitly selected; implementing it, a TUI, or a GUI is later work. Repeat affected compatibility cases when extensions ship.
+- [ ] Verify that adjacent dedicated environment entries, and optional native project manifests leave compatibility discovery, lock effects, output, and environment behavior unchanged. Any shipped native command or improved diagnostic renderer must be explicitly selected; implementing it, a TUI, or a GUI is later work. Repeat affected compatibility cases when extensions ship.
 
 ## 7. Prove NixOS and Home Manager replacement
 
@@ -185,29 +185,14 @@ Profile/nix-env follow-up, 2026-11-09: Rust expression selection, upgrade and qu
 - [ ] Run security checks for daemon authorization, sandbox escape attempts, untrusted caches, signatures, malformed inputs, and secret handling.
 - [ ] Publish binaries, source, signatures, test reports, known limits, and a safe migration and rollback procedure. Call the release a 100% drop-in replacement only after every applicable gate passes.
 
-## After the package-manager MVP: Lua configuration
-
-Native surfaces default to Lua for user configuration and still accept Nix, as specified in [Lua configuration](docs/lua-configuration.md). This work is not a drop-in gate, and it must be usable before the installer generates Lua configurations.
-
-- [ ] Choose, pin, and embed a Lua runtime; record its version and license.
-- [ ] Define how a Lua configuration maps to a NixOS or Home Manager module: imports, option definitions, module arguments, `lib` helpers such as `mkIf` and `mkForce`, and access to lazy Nix values without forcing `pkgs` or `config`.
-- [ ] Carry string contexts and store-path dependencies through Lua values so derivation inputs match the Nix equivalent.
-- [ ] Sandbox the runtime: no `io`, `os`, arbitrary `require`, clock, randomness, or network outside tracked inputs; test that each attempt fails with a diagnostic.
-- [ ] Implement native configuration discovery: explicit path, Lua only, Nix only, and a stop naming both files when both exist.
-- [ ] Report Lua syntax, runtime, and module-system errors with `.lua` locations in the structured diagnostics, including traces that cross Lua and Nix code.
-- [ ] Write pinned NixOS configurations in both Lua and Nix and require identical `system.build.toplevel` derivation paths; list any differences from options that embed the configuration source.
-- [ ] Do the same for standalone and module-based Home Manager configurations.
-- [ ] Test that compatibility commands, including `nixos-rebuild` and `home-manager`, give identical results with and without `.lua` files present, and document how a Lua-configured system is rebuilt.
-- [ ] Settle the open questions: Nix modules importing Lua, flake outputs for Lua configurations, Lua engine settings, and a Nix-to-Lua converter with formatter and editor support.
-
 ## After the package-manager MVP: development environments
 
-[Native projects and development environments](docs/development-environments.md) specifies standard flake environments and a dedicated built-in devenv equivalent, with optional native input/output manifests. The 100% drop-in gate remains unchanged; native manifest conversion is never required for flakes or dedicated environments. This extension depends on the qualified engine and shared Lua bridge; it can ship on supported existing systems before the OS installer.
+[Native projects and development environments](docs/development-environments.md) specifies standard flake environments and a dedicated built-in devenv equivalent, with optional native input/output manifests. The 100% drop-in gate remains unchanged; native manifest conversion is never required for flakes or dedicated environments. This extension depends on the qualified engine; it can ship on supported existing systems before the OS installer.
 
-- [ ] Settle dedicated environment entry names, schema versions, selector syntax, library packaging, and Lua/Nix environment helper APIs.
+- [ ] Settle dedicated environment entry names, schema versions, selector syntax, library packaging, and environment helper APIs.
 - [ ] Implement dedicated environment discovery and direct evaluation, named environments, existing flake input sources, and flake-exported environments; support selecting the MVP-qualified ordinary development shells without manifest conversion.
 - [ ] Implement native environment lock create/update with the reference graph encoding and selected input authority, frozen native inputs by default, explicit diffs, stale-source rejection, interrupted-write recovery, and offline diagnostics. Compatibility commands retain their reference lock effects.
-- [ ] Normalize equivalent dedicated and flake-exported Lua/Nix environment modules with one resolved input graph, deterministic composition, source provenance, preserved store contexts, and validated task/server graphs.
+- [ ] Normalize equivalent dedicated and flake-exported environment modules with one resolved input graph, deterministic composition, source provenance, preserved store contexts, and validated task/server graphs.
 - [ ] Realize tool closures through noxi; support shell entry, command execution, scripts, finite tasks, environment export, and correctly retained/released GC roots.
 - [ ] Implement an unprivileged built-in supervisor with dependency-aware startup, bounded readiness probes, restart limits, graceful process-group shutdown, detached sessions, partial-failure cleanup, and attributed logs.
 - [ ] Qualify session identity and private runtime records, separate Jujutsu workspace state, stale-plan rejection, authenticated controls, guardian cleanup, and recovery without killing unrelated processes.
@@ -220,7 +205,7 @@ Native surfaces default to Lua for user configuration and still accept Nix, as s
 
 Optional `noxi project` manifests have their own extension qualification. They can reuse the shared input and environment modules, but neither dedicated environments nor ordinary flakes require them. This work does not block the package-manager MVP or the first environment release.
 
-- [ ] Settle optional native manifest names, project schema versions, output selector syntax, and Lua/Nix project helper APIs.
+- [ ] Settle optional native manifest names, project schema versions, output selector syntax, and project helper APIs.
 - [ ] Qualify optional native project discovery, named outputs, lock operations, input dependencies, and target-system validation.
 - [ ] Implement `project init`, `show`, `build`, `run`, and `check` through the shared engine with frozen locked inputs and explicit lock updates. Inspection must not run tasks or servers; build checks and runtime integration tasks retain their distinct effects.
 
@@ -228,11 +213,24 @@ Optional `noxi project` manifests have their own extension qualification. They c
 
 [Scoped application builds](docs/scoped-application-builds.md) specifies independent user and machine application profiles that avoid a full system generation for eligible package changes. Project scope reuses native environments. This is an additive extension; reference-compatible profile and NixOS behavior remains in the MVP.
 
-- [ ] Define equivalent Lua/Nix application declarations, locked inputs, typed scopes, profile ownership/paths, executable precedence, and stable operation schemas.
+- [ ] Define application declarations, locked inputs, typed scopes, profile ownership/paths, executable precedence, and stable operation schemas.
 - [ ] Implement eligibility checks and previews with package provenance, dependency work, collisions, and separate plans for changes requiring system or Home Manager activation.
 - [ ] Implement scoped build-only, draft, apply, update, removal, and rollback through noxi and NixBox, with source/profile revision checks, journal recovery, and GC roots.
 - [ ] Qualify user application visibility and machine profile integration, including authority, supported desktop discovery, reboot persistence, and preservation during system rebuilds.
 - [ ] Run the scope acceptance cases with equivalent CLI/TUI/GUI results, trace proof of no system build or activation for eligible changes, compatibility checks, and measured build/apply costs.
+
+## After the package-manager MVP: uutils coreutils userland
+
+The OS uses the Rust uutils coreutils exclusively. GNU coreutils must not appear in the installed system, the build graph, or, finally, the bootstrap seed. The pinned Nixpkgs (`e94cb152`) packages `uutils-coreutils` 0.12.0 and `uutils-coreutils-noprefix`, but an overlay cannot make the replacement: `pkgs/top-level/stage.nix` applies `stdenvOverrides` after user overlays, and the final Linux stdenv stage re-inherits GNU `coreutils` from its bootstrap stage. This work belongs to the OS package set only. The MVP compatibility matrix keeps the unmodified pinned Nixpkgs.
+
+- [ ] Own a patched Nixpkgs input for the OS on top of the pinned revision. Record it in a separate OS compatibility matrix row, never in the MVP qualification pin.
+- [ ] Runtime level: make `coreutils`, `coreutils-full`, and `coreutils-prefixed` resolve to `uutils-coreutils-noprefix` in the final package set, and set `system.forbiddenDependenciesRegexes` so the installed system, installer, recovery image, Home Manager generations, and application profiles fail to build if a GNU coreutils path is in their closure.
+- [ ] Build-graph level: patch the final stdenv stages in `pkgs/stdenv/linux/default.nix` to build uutils with the stage-4 toolchain and use it as the stdenv coreutils. Add a check that walks the derivation graph of `system.build.toplevel` and fails on any GNU coreutils derivation outside the bootstrap stages.
+- [ ] Bootstrap level: rebuild the bootstrap tools through `make-bootstrap-tools.nix` with uutils, publish and pin the new seed, and update the stage assertions. The derivation-graph check then covers the whole graph with no exception.
+- [ ] Keep one inventory of GNU-only behavior that breaks Nixpkgs builders, setup hooks, configure scripts, NixOS activation, and systemd units (`stat -c`, `date -d`, `sort -V`, `cp --no-preserve`, `install`, `ls` quoting, `stdbuf`). Upstream each fix to uutils or carry it as a recorded patch.
+- [ ] Verify `switch-to-configuration`, generated activation scripts, units that reference `${pkgs.coreutils}/bin`, the noxi installer, and recovery media on uutils.
+- [ ] Stand up the OS build farm and signed binary cache. The stdenv change invalidates cache.nixos.org substitutes for nearly every package, so signing keys and the update channel block this section. Measure the full rebuild cost of each Nixpkgs re-pin.
+- [ ] Record the uutils test-suite result and GNU compatibility pass rate for each pinned uutils release, and list unfree or vendor-binary packages that fail on uutils as known gaps.
 
 ## After the package-manager MVP: OS image and boot
 
@@ -249,7 +247,7 @@ Optional `noxi project` manifests have their own extension qualification. They c
 
 - [ ] Design an installer plan that shows the selected disks, partitions, filesystems, encryption, boot path, users, network, and configuration source before any destructive write.
 - [ ] Implement guided and manual storage paths with explicit support boundaries. Test preservation of untouched disks, cancellation before writes, interrupted partitioning, and install retry.
-- [ ] Generate a Lua configuration, including the hardware module, and a lock file that the installed engine can evaluate unchanged. Keep installer-only state out of the permanent configuration unless it is needed for future rebuilds.
+- [ ] Generate a Nix configuration, including the hardware module, and a lock file that the installed engine can evaluate unchanged. Keep installer-only state out of the permanent configuration unless it is needed for future rebuilds.
 - [ ] Implement boot choice validation: firmware mode, EFI system partition, key state, signing capability, and recovery route. Do not silently downgrade a requested Secure Boot installation.
 - [ ] Configure initial users and authentication, secret handling, networking, locale, and hardware-derived settings without placing credentials in the Nix store.
 - [ ] Install and verify the bootloader, boot the installed system, confirm the active generation and daemon, and rebuild once from the installed configuration.
@@ -272,9 +270,27 @@ Optional `noxi project` manifests have their own extension qualification. They c
 - [ ] Implement typed package, option, flake, system, and store operations backed by noxi evaluation and realization, with target-lock-revision resolution and source provenance.
 - [ ] Give the OS-native CLI, TUI, and GPUI GUI one versioned operation and event interface. No client should parse human-readable build output to infer engine state.
 - [ ] Implement the structured diagnostics, progress, full-log retrieval, JSON mode, redaction, and actual final-state reporting specified in [logging](docs/logging.md).
-- [ ] Implement safe structured edits to an application-owned module in the configuration's language, Lua or Nix, with source editing for expressions the interface cannot represent and explicit Save draft, Apply, and Rollback actions.
+- [ ] Implement safe structured edits to an application-owned Nix module, with source editing for expressions the interface cannot represent and explicit Save draft, Apply, and Rollback actions.
 - [ ] Keep desktop clients unprivileged; authorize privileged actions through a narrow service that checks the reviewed plan and target.
 - [ ] Test equivalent operations through CLI, TUI, and GUI, including headless recovery, keyboard use, accessibility labels, long builds, cancellation, reconnect, and restart recovery.
+
+## After the package-manager MVP: Omarchy-derived desktop
+
+The OS default session carries the complete Omarchy front end (MIT, upstream `omacom/omarchy`) on the noxi and NixOS backend. The front end stays: Hyprland under uwsm, waybar, walker with elephant, mako, swayosd, hyprlock and hypridle, themes, menus, keybindings, terminals, Neovim, fonts, TUI and GUI applications, and webapps. Its Arch backend is replaced: pacman, yay, and the AUR by noxi, scoped application profiles, and system generations; `omarchy-update` and channels by `noxi flake update` and `noxi system switch`; limine and snapper by systemd-boot or Lanzaboote, generations, and `noxi snapshot`; mkinitcpio by the NixOS systemd initrd; the install scripts and first run by the noxi installer and Home Manager activation. `henrysipp/omarchy-nix` is unmaintained prior art for structure, not a dependency. The desktop builds against the uutils package set above.
+
+- [ ] Decide the public name and branding of the desktop, and pin one upstream Omarchy revision; `master` and `quattro` currently diverge. Record copied configuration, scripts, themes, and wallpapers in [THIRD_PARTY.md](THIRD_PARTY.md) and [licensing](docs/licensing.md).
+- [ ] Inventory every `omarchy-*` script, configuration tree, and theme at that revision and mark each one as ported, replaced by a noxi operation, or dropped.
+- [ ] Add `nixosModules.desktop` to the OS flake: Hyprland with uwsm, Hyprland and GTK portals, PipeWire and WirePlumber, SDDM or greetd autologin after LUKS unlock, Plymouth, fonts, fcitx5, Bluetooth and Wi-Fi backends, zram, firewall, power-profiles-daemon, thermald, optional Docker, and the NixBox privileged service.
+- [ ] Add `homeModules.desktop`: Hyprland, waybar, walker, mako, swayosd, hyprlock, hypridle, terminal, Neovim, starship, tmux, btop, and lazygit configuration, theme assets, and menu definitions, all under a typed `noxi.desktop` option namespace (theme, terminal, browser, applications, hardware profile).
+- [ ] Add `overlays.desktop` for packages missing at the pinned revision. Check walker and elephant, `omarchy-nvim`, `hyprland-guiutils`, `hyprland-preview-share-picker`, `wiremix`, `impala`, `bluetui`, `gpu-screen-recorder`, `satty`, and the Omarchy fonts first.
+- [ ] Keep Omarchy's split between updatable defaults and user files: ship defaults as store files and create the user override files (Hyprland bindings, monitors, input, looknfeel, autostart, hooks, menu extensions, theme overlays) once without overwriting them, sourced from the defaults.
+- [ ] Make the theme a persistent `noxi.desktop.theme` option with every theme prebuilt, applied as a user-scope switch rather than a system generation, followed by the component restarts. A live theme preview is a labeled temporary runtime action.
+- [ ] Reimplement the Omarchy menu entries for install, remove, update, theme, font, defaults, and configuration reset as NixBox operations with preview, apply, and rollback; no menu entry may run its own shell semantics. Map `omarchy-install-*` to scoped application profiles, or to the system workflow when a NixOS module is needed.
+- [ ] Declare webapps as a list that generates desktop entries in the user application profile, keep user hook directories, and emit matching noxi events such as theme-set and post-switch.
+- [ ] Replace `omarchy-hw-*` with hardware profiles built on `nixos-hardware`, and run the GPUI NixBox GUI as a Wayland client in the session with a waybar module showing pending configuration, running and boot generations, and available updates.
+- [ ] Decide whether unfree applications (1Password, Spotify, Typora, Obsidian) ship by default or as opt-in.
+- [ ] Run every ported script and Hyprland helper under uutils and record GNU-only flag failures as fixes or known gaps.
+- [ ] Qualify: a VM boots into the full session; every default Omarchy keybinding is present or listed as a gap; a theme change rolls back; a menu install creates a user profile generation without a system generation; a fresh install on each supported hardware profile (Framework, a generic Intel or AMD laptop, NVIDIA) boots into the session and builds a second generation with noxi and no CppNix in the trace.
 
 ## After the package-manager MVP: OS qualification and release
 
@@ -288,7 +304,7 @@ Optional `noxi project` manifests have their own extension qualification. They c
 
 [Distributed computing](docs/distributed-computing.md) specifies the intended fleet capability. This is not a package-manager MVP gate or implemented support. The single-machine OS contracts must allow this work without promising an atomic fleet switch.
 
-- [ ] Define the typed fleet schema and equivalent Lua/Nix representations for stable identities, inventory revisions, hardware profiles, groups, connections, cluster roles, service topologies, and ownership.
+- [ ] Define the typed fleet schema and its Nix representation for stable identities, inventory revisions, hardware profiles, groups, connections, cluster roles, service topologies, and ownership.
 - [ ] Qualify target enrollment, authenticated remote execution, scoped authorization, replay rejection, credential rotation/revocation, and disconnected-operation recovery before permitting remote mutation.
 - [ ] Implement immutable fleet plans with frozen target sets, per-machine derivations, tracked inventory inputs, dependency ordering, stale-state rejection, and saved-source verification.
 - [ ] Implement durable coordinator/executor journals, topology-transition serialization, stale-coordinator fencing, cancellation boundaries, and resume after lost acknowledgements or partial activation.
@@ -322,7 +338,7 @@ Track package-manager portability separately from the later OS hardware targets.
 ## Longer-term work after the first OS release
 
 - [ ] Add architectures, firmware modes, filesystems, encrypted-storage layouts, and hardware targets only with explicit build, boot, rollback, and recovery qualification for each new matrix row.
-- [ ] Maintain compatibility matrices for later CppNix releases and Nixpkgs/Home Manager revisions. Separate additive noxi features from reference behavior with versioned opt-in settings; native-surface defaults such as Lua configuration stay out of compatibility commands.
+- [ ] Maintain compatibility matrices for later CppNix releases and Nixpkgs/Home Manager revisions. Separate additive noxi features from reference behavior with versioned opt-in settings; native-surface defaults stay out of compatibility commands.
 - [ ] Support explicit migration between ordinary systemd-boot and Lanzaboote Secure Boot, plus signing-key rotation, only after their preview, recovery, and post-reboot verification paths are tested.
 - [ ] Treat TPM-bound disk unlocking as a separate installer feature with a stated PCR policy, recovery credential, and tested response to firmware, bootloader, and kernel updates.
 - [ ] Define a public extension API for NixBox operations and diagnostics without granting third-party interfaces unrestricted store or root access.

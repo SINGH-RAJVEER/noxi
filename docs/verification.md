@@ -180,7 +180,7 @@ Map every applicable entry in the [reference inventory](reference-inventory.md) 
 
 ### Rust-core completion work
 
-The active completion scope is the package-manager core in TODO sections 0 through 8. Lua, the installer and OS lifecycle, NixBox interfaces, and fleet execution remain outside this scope. Completion requires the pinned CppNix 2.35.2 qualification gates, not merely a passing workspace suite.
+The active completion scope is the package-manager core in TODO sections 0 through 8. The installer and OS lifecycle, NixBox interfaces, and fleet execution remain outside this scope. Completion requires the pinned CppNix 2.35.2 qualification gates, not merely a passing workspace suite.
 
 The current working tree adds writable evaluation through `EvaluatorStore::writable(root)` and single-derivation instantiation through `nix-instantiate --store 'local?root=ROOT'`. ROOT must be an existing absolute diverted directory. System roots and symlink-redirected store/state directories are rejected before opening the store. These checks are development safeguards, not an authorization boundary for untrusted concurrent users.
 
@@ -385,7 +385,7 @@ These are preview packaging and focused development checks on the nightly toolch
 
 The later [distributed-computing specification](distributed-computing.md#acceptance-cases-and-release-evidence) requires project-owned multi-machine tests, not reinterpretation of copied remote-build fixtures as fleet qualification. Record the exact OS artifacts, locked inputs, backend/service versions, architectures, network/storage/provisioning adapters, topology, machine count, workloads, failure injection, and commands. None of these fleet behaviors has current qualification evidence.
 
-Test equivalent Lua/Nix inventory and per-target closures, homogeneous build reuse, heterogeneous execution, identity-bound enrollment, kubeadm and K3s lifecycle, load-balancer traffic failover, bounded scaling, safe drain, etcd replacement and majority-loss recovery, and the first qualified primary/replica adapter's fencing and data-loss behavior. Include stale plans, conflicting coordinators, lost acknowledgements, partial activation, restart/resume, revoked credentials, and site partitions. A successful generation switch is not a passing cluster-readiness or data-recovery assertion.
+Test inventory and per-target closures, homogeneous build reuse, heterogeneous execution, identity-bound enrollment, kubeadm and K3s lifecycle, load-balancer traffic failover, bounded scaling, safe drain, etcd replacement and majority-loss recovery, and the first qualified primary/replica adapter's fencing and data-loss behavior. Include stale plans, conflicting coordinators, lost acknowledgements, partial activation, restart/resume, revoked credentials, and site partitions. A successful generation switch is not a passing cluster-readiness or data-recovery assertion.
 
 Scale qualification uses representative 100-, 1,000-, and 10,000-machine tiers as planned targets, with published latency, memory, bandwidth, convergence, and recovery budgets. Small functional tests establish correctness before scale runs. Label simulator evidence and do not use it to claim real-machine boot or traffic behavior. Advertise only the supported backend/architecture/topology combinations and fleet-size limits actually demonstrated.
 

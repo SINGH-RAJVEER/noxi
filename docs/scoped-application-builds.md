@@ -16,7 +16,7 @@ This is a planned native extension after the package-manager MVP. Reference-comp
 | NixOS configuration | `system.build.toplevel` and the requested system activation action | Existing full system-generation workflow for declarations in NixOS modules |
 
 - Default new application requests to the current user's application scope. Show the scope and target before apply; never silently change them.
-- Keep application declarations and locked inputs independent of system configuration. Default new native declarations to Lua and also accept Nix. Inputs may use the same pinned revision without evaluating the NixOS module graph.
+- Keep application declarations and locked inputs independent of system configuration. Inputs may use the same pinned revision without evaluating the NixOS module graph.
 - Machine scope needs initial OS integration for the stable profile path, executable lookup, and desktop discovery. Enabling that integration can require a system generation; subsequent eligible application changes update only the application profile. Report missing integration instead of silently rebuilding.
 - Detect duplicate packages, executable collisions, and precedence across scopes. Removal affects only the owning declaration; report when another scope still supplies the application.
 

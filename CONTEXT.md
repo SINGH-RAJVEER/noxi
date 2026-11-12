@@ -25,16 +25,12 @@ A built NixOS system closure that can be selected for activation or boot and ret
 _Avoid_: package version
 
 **extension**:
-A new noxi behavior that requires an explicit command, setting, or negotiated protocol capability and preserves reference behavior by default. A native surface's own defaults, such as Lua configuration, belong to the extension the user selects by using that surface.
+A new noxi behavior that requires an explicit command, setting, or negotiated protocol capability and preserves reference behavior by default. A native surface's own defaults belong to the extension the user selects by using that surface.
 _Avoid_: changed default
 
 **native surface**:
 A noxi entry point with no CppNix counterpart: the `noxi` command, the OS installer, and the NixBox CLI, TUI, and GUI. Compatibility commands are not native surfaces.
 _Avoid_: new CLI (when a compatibility command is meant)
-
-**Lua configuration**:
-User configuration written in Lua on native surfaces, with the same meaning as its Nix equivalent. System and Home Manager configurations describe modules; native projects and environments describe their inputs, outputs, and runtime declarations.
-_Avoid_: Lua package set, Nix replacement
 
 **project manifest**:
 A declaration of a project's inputs and named outputs, including environments alongside packages, applications, and checks. Standard flakes are supported project manifests; native manifests are an optional extension.

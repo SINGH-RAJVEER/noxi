@@ -4,9 +4,9 @@
 
 The requirement for noxi to be a 100% drop-in replacement for the supported CppNix reference remains unchanged. Every applicable behavior must pass the complete [compatibility gate](compatibility.md) before that claim is made. Standard flakes must retain full support for project inputs, outputs, and development shells. Existing flake projects must work without conversion to another manifest or lock format, including their reference commands, options, output selection, shell hooks, and environment effects.
 
-The dedicated way to define and run development environments is a built-in devenv equivalent on the native `noxi env` interface. It defines tools, shells, tasks, and supervised servers directly, or consumes inputs from an existing flake. Flakes may also export native environment definitions for that interface. Optional native project manifests add a Lua-first way to declare inputs and outputs; they are not required to use flakes or the dedicated environment interface. These routes share the evaluator, input resolver, store, build engine, and environment supervisor. Normal operation must not require an installed `devenv` executable, an external process manager, or a subprocess invoking CppNix.
+The dedicated way to define and run development environments is a built-in devenv equivalent on the native `noxi env` interface. It defines tools, shells, tasks, and supervised servers directly, or consumes inputs from an existing flake. Flakes may also export native environment definitions for that interface. Optional native project manifests add a native way to declare inputs and outputs; they are not required to use flakes or the dedicated environment interface. These routes share the evaluator, input resolver, store, build engine, and environment supervisor. Normal operation must not require an installed `devenv` executable, an external process manager, or a subprocess invoking CppNix.
 
-This is specified, not implemented. The current `noxi` preview only evaluates pure Nix expressions. The repository's existing `devenv.nix` remains its development tooling until the native implementation is qualified. This capability follows the package-manager MVP and depends on qualified input resolution, flake evaluation, store realization, and the planned Lua bridge. It can ship on supported existing systems without requiring the later OS installer or fleet capability.
+This is specified, not implemented. The current `noxi` preview only evaluates pure Nix expressions. The repository's existing `devenv.nix` remains its development tooling until the native implementation is qualified. This capability follows the package-manager MVP and depends on qualified input resolution, flake evaluation, store realization. It can ship on supported existing systems without requiring the later OS installer or fleet capability.
 
 The design follows the useful separation in the upstream tools. Flakes declare inputs and outputs with a dependency lock graph. Devenv describes tools and shell settings, then explicitly starts supervised processes with readiness and dependency rules. The contracts below are noxi requirements, not a promise of compatibility with every devenv option or command. [Nix 2.35 flake reference](https://nix.dev/manual/nix/2.35/command-ref/new-cli/nix3-flake.html), [Devenv environment basics](https://devenv.sh/basics/), [Devenv processes](https://devenv.sh/processes/)
 
@@ -15,15 +15,15 @@ The design follows the useful separation in the upstream tools. Flakes declare i
 | Declaration | Responsibility | Files and outputs |
 |---|---|---|
 | Standard flake | Preserve reference project inputs, lock relationships, and outputs, including development shells | `flake.nix`, `flake.lock`, and ordinary `devShells`; optional native `environments.<system>.<name>` outputs |
-| Dedicated development environment | Define tools, shell behavior, tasks, and servers directly, with declared inputs or an explicit existing input source | `environment.lua` by default or `environment.nix`; standalone `environment.lock` or the selected input source's lock |
-| Optional native project manifest | Add native input/output declarations without replacing standard flakes | `project.lua` or `project.nix`; `project.lock`; may export `environments.<system>.<name>` |
+| Dedicated development environment | Define tools, shell behavior, tasks, and servers directly, with declared inputs or an explicit existing input source | `environment.nix`; standalone `environment.lock` or the selected input source's lock |
+| Optional native project manifest | Add native input/output declarations without replacing standard flakes | `project.nix`; `project.lock`; may export `environments.<system>.<name>` |
 | Environment session | Run a selected environment at a recorded revision and report actual process state | Runtime metadata and control socket; never a project output or lock entry |
 
-File names and the native helper API are provisional until the first schema release. The dedicated environment entry contains a schema version, an explicit input authority, and an `environment` function for the default environment or named functions in `environments`. Each function receives resolved inputs and the selected system and returns the same normalized environment schema used by flake exports. An entry may compose tracked modules, such as `shell.lua` or `shell.nix`, rather than define everything inline. Its presence never starts a server automatically.
+File names and the native helper API are provisional until the first schema release. The dedicated environment entry contains a schema version, an explicit input authority, and an `environment` function for the default environment or named functions in `environments`. Each function receives resolved inputs and the selected system and returns the same normalized environment schema used by flake exports. An entry may compose tracked modules, such as `shell.nix`, rather than define everything inline. Its presence never starts a server automatically.
 
 The dedicated entry either declares its own `inputs`, or names an `inputSource`, such as `./flake.nix` or an optional native project manifest. These choices are mutually exclusive. Standalone inputs use `environment.lock`; a selected input source retains its existing lock and supplies the one resolved graph. Imported environment modules consume that graph and cannot introduce another lock or silently fetch another package set. Language dependency locks, such as `Cargo.lock`, `bun.lock`, or `uv.lock`, retain their own package-manager meaning and are declared as build inputs where required.
 
-Native environment commands accept an explicit environment file, flake, or native project selector. Otherwise they search the current directory and its ancestors for the nearest boundary containing a dedicated environment entry or project manifest. At that boundary a dedicated entry is the preferred environment definition; a flake beside it is a possible declared input source and does not create an ambiguity by its mere presence. Both Lua and Nix dedicated entries require explicit selection when they coexist. Without a dedicated entry, native commands select the flake or native project, diagnosing multiple manifest candidates. An invalid nearer entry is an error, not permission to fall through to a parent's environment. Shell entry defaults to the selected system's `default` environment or development shell; unsupported systems and missing names are errors, with no architecture fallback. Compatibility-command discovery remains exactly the reference behavior.
+Native environment commands accept an explicit environment file, flake, or native project selector. Otherwise they search the current directory and its ancestors for the nearest boundary containing a dedicated environment entry or project manifest. At that boundary a dedicated entry is the preferred environment definition; a flake beside it is a possible declared input source and does not create an ambiguity by its mere presence. Without a dedicated entry, native commands select the flake or native project, diagnosing multiple manifest candidates. An invalid nearer entry is an error, not permission to fall through to a parent's environment. Shell entry defaults to the selected system's `default` environment or development shell; unsupported systems and missing names are errors, with no architecture fallback. Compatibility-command discovery remains exactly the reference behavior.
 
 An ordinary `flake.nix` is a supported environment route without a dedicated file or native project manifest. Its ordinary `devShells` continue to work through reference commands such as `nix develop`, with unchanged semantics. It may also export `environments.<system>.<name>` using the native environment schema, inline or by importing the same modules a dedicated entry uses. If it exports only `devShells`, `noxi env shell` can enter the selected development shell under qualified Nix semantics, but cannot infer a managed server graph from arbitrary shell hooks. Managed server operations require a dedicated declaration or explicit native environment output. Existing hooks still retain their reference behavior, including any user-written process startup; they do not become supervised processes implicitly.
 
@@ -31,13 +31,13 @@ The dedicated interface's frozen-input and explicit-server-start defaults apply 
 
 ## Project inputs, outputs, and locking
 
-The optional versioned native project manifest contains `schemaVersion`, optional description, `inputs`, and an `outputs` function. Inputs retain the reference URL, source type, `follows`, transitive override, and `flake = false` concepts supported by the qualified resolver. The outputs function receives resolved inputs, including the project's `self` identity, and returns named values. Dedicated entries use the same input resolver without requiring this project manifest. Native helper functions must preserve lazy Nix values, string contexts, and store dependencies when Lua constructs the result. Evaluation must not eagerly enumerate Nixpkgs just to list output names.
+The optional versioned native project manifest contains `schemaVersion`, optional description, `inputs`, and an `outputs` function. Inputs retain the reference URL, source type, `follows`, transitive override, and `flake = false` concepts supported by the qualified resolver. The outputs function receives resolved inputs, including the project's `self` identity, and returns named values. Dedicated entries use the same input resolver without requiring this project manifest. Evaluation must not eagerly enumerate Nixpkgs just to list output names.
 
-Inputs may resolve ordinary flakes, source-only trees, or another native project's outputs. A native-project input declares `flake = false` and an explicit `manifest` path, such as `project.lua`, within the locked source tree. The resolver locks the tree, loads that selected manifest through the native project module, locks its transitive inputs, and passes its outputs and source metadata to the caller. The native selector is part of the tracked declaration, not an extra reference lock field. A source-only input without a selector stays a source tree; the loader must not guess an entry file. Conflicting selectors for a followed input, paths escaping the locked tree, unsupported manifest schemas, and unresolved native input cycles fail before environment realization.
+Inputs may resolve ordinary flakes, source-only trees, or another native project's outputs. A native-project input declares `flake = false` and an explicit `manifest` path, such as `project.nix`, within the locked source tree. The resolver locks the tree, loads that selected manifest through the native project module, locks its transitive inputs, and passes its outputs and source metadata to the caller. The native selector is part of the tracked declaration, not an extra reference lock field. A source-only input without a selector stays a source tree; the loader must not guess an entry file. Conflicting selectors for a followed input, paths escaping the locked tree, unsupported manifest schemas, and unresolved native input cycles fail before environment realization.
 
 Standard output names retain their qualified Nix meaning, including `packages`, `apps`, `checks`, `devShells`, modules, and supported system configurations. Native environments use the additional `environments.<system>.<name>` namespace. An environment output contains a typed definition and a realizable tool closure, not a running process or mutable database. Exporting a corresponding `devShells` output is explicit. That export carries the supported tools and shell behavior and does not promise that compatibility commands will manage native servers.
 
-Optional native projects use `project.lock` and standalone dedicated environments use `environment.lock`, both with the reference `flake.lock` dependency-graph encoding. Native schema versions, output metadata, runtime paths, and secret values must not add fields to that reference format. A selected `flake.nix` uses its ordinary `flake.lock`, including when a dedicated entry consumes its inputs. No conversion or duplicate lock is required. Coexisting independent declarations have separate selected authorities; native commands never synchronize their lock files implicitly. Conversion to a native project is optional, explicit, and preserves the original flake files. Matching lock encodings do not make a Lua manifest evaluable by CppNix.
+Optional native projects use `project.lock` and standalone dedicated environments use `environment.lock`, both with the reference `flake.lock` dependency-graph encoding. Native schema versions, output metadata, runtime paths, and secret values must not add fields to that reference format. A selected `flake.nix` uses its ordinary `flake.lock`, including when a dedicated entry consumes its inputs. No conversion or duplicate lock is required. Coexisting independent declarations have separate selected authorities; native commands never synchronize their lock files implicitly. Conversion to a native project is optional, explicit, and preserves the original flake files. Matching lock encodings do not make a native manifest a flake that CppNix evaluates.
 
 Native `env lock` and `project lock` create missing lock entries while retaining existing resolutions. Native `env update` and `project update` explicitly update named inputs or the whole graph. They report which selected authority and lock they modify, validate the resulting graph, and replace that lock atomically after checking the starting revision. Interrupted writes leave either the prior valid file or the new valid file. Invalid `follows` paths, unresolved cycles, changed source hashes, and unsupported fetchers produce source-located diagnostics. Resolution alone must never execute a project task or server.
 
@@ -47,7 +47,7 @@ The environment plan records the selected environment entry or exported output, 
 
 ## Environment schema and composition
 
-Lua and Nix declarations normalize to the same versioned environment schema. Equivalent locked inputs and declarations must produce the same tool derivations and normalized task/server graph. Lua remains pure under the [Lua configuration contract](lua-configuration.md). Network access, reading an untracked environment variable, or running an initialization command is runtime work and cannot happen during evaluation.
+Dedicated, flake-exported, and project-exported declarations normalize to the same versioned environment schema. Equivalent locked inputs and declarations must produce the same tool derivations and normalized task/server graph. Evaluation remains pure. Network access, reading an untracked environment variable, or running an initialization command is runtime work and cannot happen during evaluation.
 
 | Field | Required behavior |
 |---|---|
@@ -63,7 +63,7 @@ Lua and Nix declarations normalize to the same versioned environment schema. Equ
 | `state` | Declared mutable data directories and retention behavior, separate from the tool closure and captured source tree |
 | `secrets` | Runtime requirements identified by name and provider reference; secret values never enter evaluation or the store |
 
-Composition preserves import order for package and hook lists. Names in `env`, `scripts`, `tasks`, `processes`, and `services` must be unique unless the later importing module declares an explicit replacement of that name. A conflict names both definitions; it must not silently choose the last value. Runtime environment overrides on an individual task or process take precedence over the environment's non-secret variables. References to undefined tasks, processes, secrets, or runtime values fail during planning. The same rules apply across Lua and Nix imports.
+Composition preserves import order for package and hook lists. Names in `env`, `scripts`, `tasks`, `processes`, and `services` must be unique unless the later importing module declares an explicit replacement of that name. A conflict names both definitions; it must not silently choose the last value. Runtime environment overrides on an individual task or process take precedence over the environment's non-secret variables. References to undefined tasks, processes, secrets, or runtime values fail during planning.
 
 Commands use an argument vector by default. A command intentionally written as a shell script selects the declared shell explicitly. The plan resolves executable names against the captured tool closure and generated scripts, not an accidental host `PATH`. Working directories are relative to the project root unless an explicit runtime path is declared; a missing directory is diagnosed before launching that command. Shell entry, task execution, and process execution share the same tool closure and base variables, with documented command-specific overrides.
 
@@ -117,9 +117,9 @@ The command spelling is provisional. All commands accept explicit project, envir
 
 | Command | Contract |
 |---|---|
-| `noxi env init` | Create a dedicated Lua environment entry and modules, with standalone inputs or an explicitly selected existing input source; refuse to overwrite declarations |
+| `noxi env init` | Create a dedicated environment entry and modules, with standalone inputs or an explicitly selected existing input source; refuse to overwrite declarations |
 | `noxi env lock` / `noxi env update [input...]` | Explicitly create or update the dedicated entry's selected input lock and report the authority and diff |
-| `noxi project init` | Optionally create a native Lua project and environment template; refuse to overwrite existing declarations |
+| `noxi project init` | Optionally create a native project and environment template; refuse to overwrite existing declarations |
 | `noxi project show` | List inputs and outputs, lock revision, and supported target systems without running environment commands |
 | `noxi project lock` / `noxi project update [input...]` | Explicitly create or update the selected input lock and report the diff |
 | `noxi project build <output>` / `noxi project run <app>` | Realize a selected package or run a declared application through the shared engine, using frozen inputs |
@@ -147,24 +147,9 @@ Extend the [structured event contract](logging.md) with project identity, enviro
 
 ## Illustrative declarations
 
-These examples show the dedicated entry, ordinary flake route, and optional native project route sharing environment modules. They are design examples, not executable configuration for the current preview. Native helper names depend on the unresolved Lua/Nix bridge.
+These examples show the dedicated entry, ordinary flake route, and optional native project route sharing environment modules. They are design examples, not executable configuration for the current preview. Native helper names are provisional.
 
-The preferred standalone `environment.lua` entry needs no flake or native project manifest:
-
-```lua
-return {
-	schemaVersion = 1,
-	inputs = {
-		nixpkgs = { url = "github:NixOS/nixpkgs/nixos-unstable" },
-	},
-	environment = function(args)
-		local pkgs = args.inputs.nixpkgs.legacyPackages[args.system]
-		return args.importEnvironment("./shell.lua", { pkgs = pkgs })
-	end,
-}
-```
-
-Its native Nix counterpart, `environment.nix`, uses the same `environment.lock`:
+The preferred standalone `environment.nix` entry needs no flake or native project manifest and uses `environment.lock`:
 
 ```nix
 {
@@ -175,7 +160,7 @@ Its native Nix counterpart, `environment.nix`, uses the same `environment.lock`:
 }
 ```
 
-To use an existing flake's inputs in either dedicated entry, replace its `inputs` declaration with `inputSource = "./flake.nix"`. The input graph then comes from that flake and `flake.lock`, with no `environment.lock` copy.
+To use an existing flake's inputs in the dedicated entry, replace its `inputs` declaration with `inputSource = "./flake.nix"`. The input graph then comes from that flake and `flake.lock`, with no `environment.lock` copy.
 
 A standard `flake.nix` can also expose the shared environment module directly and retain an ordinary development shell:
 
@@ -200,59 +185,7 @@ A standard `flake.nix` can also expose the shared environment module directly an
 
 `nix develop` selects the ordinary development shell under reference semantics. Explicit native `noxi env up` can select the exported environment graph. The custom output does not add server-management behavior to compatibility commands, and reference diagnostics for additional output names remain reference behavior.
 
-An optional `project.lua` can export the same definition:
-
-```lua
-return {
-	schemaVersion = 1,
-	inputs = {
-		nixpkgs = { url = "github:NixOS/nixpkgs/nixos-unstable" },
-	},
-	outputs = function(inputs, project)
-		local system = "x86_64-linux"
-		local pkgs = inputs.nixpkgs.legacyPackages[system]
-		return {
-			packages = { [system] = { default = pkgs.hello } },
-			environments = {
-				[system] = {
-					default = project.importEnvironment("./shell.lua", { pkgs = pkgs }),
-				},
-			},
-		}
-	end,
-}
-```
-
-The shared `shell.lua` environment module:
-
-```lua
-return function(args)
-	return {
-		schemaVersion = 1,
-		packages = { args.pkgs.python3, args.pkgs.uv, args.pkgs.bun },
-		env = { APP_ENV = "development" },
-		tasks = {
-			check = { command = { "bun", "test" }, timeoutSeconds = 120 },
-		},
-		processes = {
-			web = {
-				command = { "python", "-m", "http.server", "8000", "--bind", "127.0.0.1" },
-				ports = { http = { protocol = "tcp", address = "127.0.0.1", fixed = 8000 } },
-				ready = {
-					http = { url = "http://127.0.0.1:8000/", acceptedStatus = { 200 } },
-					intervalSeconds = 1,
-					probeTimeoutSeconds = 1,
-					timeoutSeconds = 30,
-				},
-				restart = { policy = "on-failure", maxRetries = 5 },
-				shutdown = { signal = "SIGTERM", graceSeconds = 10 },
-			},
-		},
-	}
-end
-```
-
-Its optional native `project.nix` counterpart:
+An optional native `project.nix` can export the same definition:
 
 ```nix
 {
@@ -297,7 +230,7 @@ The shared `shell.nix` environment module:
 }
 ```
 
-Both language versions use the same locked Nixpkgs revision. The moving input URL does not permit runtime commands to update it.
+All three routes use the same locked Nixpkgs revision. The moving input URL does not permit runtime commands to update it.
 
 The dedicated workflow is `noxi env init`, `noxi env lock`, `noxi env plan`, `noxi env shell`, and an explicit `noxi env up`. Existing flake users can continue their ordinary flake workflow and select its shells or exported native environments without creating a native project manifest. A test environment may select another tool closure and process graph from the same input authority. `noxi env down` stops the selected session and preserves its data.
 
@@ -306,8 +239,8 @@ The dedicated workflow is `noxi env init`, `noxi env lock`, `noxi env plan`, `no
 | Case | Required evidence |
 |---|---|
 | Dedicated and flake routes | Standalone dedicated entry, dedicated entry consuming flake inputs, ordinary devShell-only flake, and flake-exported environment work without native project conversion; equivalent definitions yield the same closure and runtime graph |
-| Equivalent Lua and Nix projects | Same locked graph, package/tool derivations, normalized environment definitions, and process dependencies |
-| Entry discovery | Dedicated Lua/Nix entries, adjacent flakes, optional native manifests, explicit selectors, multiple dedicated candidates, nearest invalid entry, and unsupported systems have the specified outcomes |
+| Equivalent dedicated, flake, and project routes | Same locked graph, package/tool derivations, normalized environment definitions, and process dependencies |
+| Entry discovery | Dedicated entries, adjacent flakes, optional native manifests, explicit selectors, multiple dedicated candidates, nearest invalid entry, and unsupported systems have the specified outcomes |
 | Shared project inputs | Multiple environments and imported modules use the same resolved package graph; native input outputs and transitive locks resolve explicitly; undeclared fetches and nested input updates fail |
 | Lock lifecycle | Frozen operation never writes locks; create/update preserves unrelated inputs; stale revision, invalid follows, interrupted replacement, and offline missing sources fail correctly |
 | Ordinary flakes and compatibility | Reference flake and shell commands match options, lock effects, outputs, exit status, hooks, and environment effects with native files present; native selection uses `flake.lock` without conversion; arbitrary hooks are not inferred as managed servers |
@@ -327,12 +260,11 @@ The dedicated workflow is `noxi env init`, `noxi env lock`, `noxi env plan`, `no
 
 Run runtime acceptance cases in disposable workspaces, private state directories, and isolated stores on the initial x86_64-linux target. Record engine and environment-schema versions, source and lock revisions, target system, service versions, exact commands, and actual resulting state. Nix/flake behavior uses the pinned reference oracle; native environment behavior uses this specification. A devenv comparison may inform migration tests but does not establish a devenv compatibility claim.
 
-The first environment release requires the dedicated entry/lock workflow, the standard flake environment route, equivalent Lua/Nix environments, shell and command execution, tasks, built-in supervision, PostgreSQL, and all applicable acceptance cases above. Optional native project manifests have their own extension evidence and are never a prerequisite for standard flakes or dedicated environments. Advertise additional shells, platforms, services, and integrations only after separate qualification. The complete 100% drop-in gate remains required; this extension cannot remove, relax, or replace any reference compatibility requirement.
+The first environment release requires the dedicated entry/lock workflow, the standard flake environment route, shell and command execution, tasks, built-in supervision, PostgreSQL, and all applicable acceptance cases above. Optional native project manifests have their own extension evidence and are never a prerequisite for standard flakes or dedicated environments. Advertise additional shells, platforms, services, and integrations only after separate qualification. The complete 100% drop-in gate remains required; this extension cannot remove, relax, or replace any reference compatibility requirement.
 
 ## Decisions before implementation
 
 - Final dedicated entry and optional native manifest names, selector syntax, schema naming, and version policy.
-- Lua helper API and lazy value/module bridge, including equivalent environment imports and diagnostics. Use the shared Lua runtime decision rather than embedding a second runtime.
 - Packaging the environment library and service adapters, their pinned revision, and how a project requests a supported schema without relying on whichever library is newest.
 - Exact defaults, replacement syntax, probe semantics, native-input selector rules, and reference-preserving `devShells` export before code is written.
 - Supervisor and guardian implementation, persistent journal format, socket authentication, allocated-port protocol, log retention, and verified crash recovery on Linux.

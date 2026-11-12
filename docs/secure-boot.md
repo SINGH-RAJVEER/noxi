@@ -16,8 +16,8 @@ Lanzaboote also discusses measured boot. TPM measurements, disk encryption, and 
 
 The boot selection screen must state the result of each choice in plain language:
 
-- `systemd-boot`: install the ordinary NixOS UEFI boot manager and generation entries. Leave Secure Boot setup to a separate, later action. Generate a persistent configuration module, in Lua by default, that enables `boot.loader.systemd-boot.enable` and states an explicit EFI variable policy.
-- `Lanzaboote Secure Boot`: install the Lanzaboote module, create or import a machine-owned signing key bundle, sign the selected boot generation, and guide the user through firmware enrollment. Generate a persistent configuration module, in Lua by default, that disables the ordinary systemd-boot module and enables `boot.lanzaboote` with the selected key location.
+- `systemd-boot`: install the ordinary NixOS UEFI boot manager and generation entries. Leave Secure Boot setup to a separate, later action. Generate a persistent configuration module that enables `boot.loader.systemd-boot.enable` and states an explicit EFI variable policy.
+- `Lanzaboote Secure Boot`: install the Lanzaboote module, create or import a machine-owned signing key bundle, sign the selected boot generation, and guide the user through firmware enrollment. Generate a persistent configuration module that disables the ordinary systemd-boot module and enables `boot.lanzaboote` with the selected key location.
 
 Both choices require UEFI boot and a writable EFI System Partition. Before showing the Secure Boot choice as available, the installer must check architecture and firmware support against the pinned Lanzaboote release, whether the ESP can hold at least the required bootable generations, whether signing keys can be stored persistently, and whether a recovery boot path exists. A failed preflight must explain which requirement failed and offer the ordinary systemd-boot path. These are product requirements, not claims that Lanzaboote currently performs every preflight.
 

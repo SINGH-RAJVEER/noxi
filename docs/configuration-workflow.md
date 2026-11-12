@@ -2,7 +2,7 @@
 
 ## Decision
 
-The system configuration, written in Lua by default or in Nix, is the source of truth for persistent system state. The CLI, TUI, and GUI submit typed requests to NixBox. NixBox resolves them through the noxi evaluator and store, computes the candidate system generation, and persists the accepted desired state as configuration source before activation. A persistent change is therefore a semantic engine operation with declarative persistence, not a text substitution followed by a shell command. The interface must never make a lasting runtime change first and try to reverse-engineer configuration files afterward.
+The system configuration, written in Nix, is the source of truth for persistent system state. The CLI, TUI, and GUI submit typed requests to NixBox. NixBox resolves them through the noxi evaluator and store, computes the candidate system generation, and persists the accepted desired state as configuration source before activation. A persistent change is therefore a semantic engine operation with declarative persistence, not a text substitution followed by a shell command. The interface must never make a lasting runtime change first and try to reverse-engineer configuration files afterward.
 
 This matches NixOS's documented model: edit the configuration, run a rebuild, and select the resulting generation. Module definitions can merge, override, or derive values from other definitions, so observing a running system is not enough to reconstruct the expression that produced it. [NixOS configuration and generations](https://nixos.org/manual/nixos/stable/), [NixOS module definitions](https://nixos.org/manual/nixos/stable/)
 
@@ -12,7 +12,7 @@ The planned [scoped application workflow](scoped-application-builds.md) applies 
 
 ## Ownership and round trips
 
-NixBox owns one explicitly imported module, provisionally `noxi-managed.lua`, or `noxi-managed.nix` when the configuration importing it is written in Nix. It renders that module deterministically from evaluated package selections and typed option values after constructing a candidate plan. It may also update a lock file in a separate, explicit input-update operation. The generated file records desired state; it does not replace package resolution, module evaluation, store realization, or activation. NixBox must not rewrite an arbitrary user module to make a toggle work.
+NixBox owns one explicitly imported module, provisionally `noxi-managed.nix`. It renders that module deterministically from evaluated package selections and typed option values after constructing a candidate plan. It may also update a lock file in a separate, explicit input-update operation. The generated file records desired state; it does not replace package resolution, module evaluation, store realization, or activation. NixBox must not rewrite an arbitrary user module to make a toggle work.
 
 For every option, the interface shows the effective value, its contributing definitions and source locations when available, and whether the editor owns a writable definition. A value computed by a function, conflicting with another module, or requiring a complex expression can be inspected and edited in source. The UI must not silently insert `mkForce` or claim a change succeeded just because the generated file contains the requested value. Reevaluate and show the effective result.
 
@@ -62,4 +62,4 @@ A user enables OpenSSH in the GUI. The GUI submits a typed option change to NixB
 
 Test a normal package or option edit; an imported conflicting definition; a computed read-only value; an external source edit during preview; a failed evaluation; a failed build; an interrupted multi-file write; staging and final-source evaluation producing different closures; a failed service activation; a temporary runtime restart; and rollback of generation without source rollback. For every case, assert the source revision, built closure, running generation, boot default, and user-facing diagnostic.
 
-Fleet cases additionally cover stale inventory, selector expansion, identity replacement, shared and per-machine definition conflicts, equivalent Lua/Nix target evaluation, partial convergence, conflicting topology transitions, and resume without replaying unsafe membership or promotion actions. [Fleet acceptance cases](distributed-computing.md#acceptance-cases-and-release-evidence)
+Fleet cases additionally cover stale inventory, selector expansion, identity replacement, shared and per-machine definition conflicts, partial convergence, conflicting topology transitions, and resume without replaying unsafe membership or promotion actions. [Fleet acceptance cases](distributed-computing.md#acceptance-cases-and-release-evidence)

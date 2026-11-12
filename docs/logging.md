@@ -21,7 +21,7 @@ An OS-native rebuild has one operation ID and these ordered phases. Each phase e
 | Phase | What the user should see | Failure must identify |
 |---|---|---|
 | Resolve | Selected configuration, flake or file, lock revision, target system, and requested action | Missing input, lock conflict, unavailable source, or unsupported target |
-| Evaluate | Current configuration file, Lua or Nix, or module path when useful, evaluated system target, and option diagnostics | The exact source span or definition chain when known |
+| Evaluate | Current configuration file or module path when useful, evaluated system target, and option diagnostics | The exact source span or definition chain when known |
 | Plan | Resulting derivation and intended generation; changed packages and services when knowable | Why a plan cannot be produced; unknown changes stay marked unknown |
 | Fetch and substitute | Cache source, artifact identity, transferred bytes, and trust result | Network error, missing artifact, hash mismatch, or rejected signature |
 | Build | Active derivations, completed count, cache hits, current build step, and elapsed time | The failed derivation, builder exit status, meaningful log excerpt, and full log location |
@@ -79,7 +79,7 @@ boot default:       118 (unchanged)
 full log:           noxi logs <operation-id>
 ```
 
-The same shape applies to a [Lua configuration](lua-configuration.md): the location is the `.lua` file, line, and column. This is a target for diagnostic structure, not a claim that the current evaluator can produce it. A build failure should use the same shape but name the derivation and failing builder step. An activation failure must state whether the boot default moved and which services changed before the failure. Never replace that information with an opaque traceback or a thousand lines of dependency output.
+This is a target for diagnostic structure, not a claim that the current evaluator can produce it. A build failure should use the same shape but name the derivation and failing builder step. An activation failure must state whether the boot default moved and which services changed before the failure. Never replace that information with an opaque traceback or a thousand lines of dependency output.
 
 ## Acceptance tests
 

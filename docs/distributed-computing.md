@@ -6,7 +6,7 @@ noxi OS must be designed for distributed computing, including large fleets of id
 
 The goal is to make routine distributed operation require little manual coordination. Adding workers, balancing traffic, replacing a failed member, and rolling out an OS update should use the same configuration-first workflow. The OS must expose the resource limits and failure conditions that prevent convergence. It cannot manufacture physical capacity, make a network partition disappear, or promise uninterrupted writes without a working quorum.
 
-This is a design specification, not implemented fleet support or a claim of unlimited scale. The [package-manager-first plan](../PLAN.md) remains unchanged. The single-machine OS must establish the identity, lifecycle, and operation contracts needed by this design; remote execution and distributed-computing releases follow their own qualification gates. Existing CppNix compatibility commands do not acquire fleet behavior or read Lua configuration.
+This is a design specification, not implemented fleet support or a claim of unlimited scale. The [package-manager-first plan](../PLAN.md) remains unchanged. The single-machine OS must establish the identity, lifecycle, and operation contracts needed by this design; remote execution and distributed-computing releases follow their own qualification gates. Existing CppNix compatibility commands do not acquire fleet behavior.
 
 The intended operator experience includes:
 
@@ -33,7 +33,7 @@ The intended operator experience includes:
 
 A hostname or IP address is not a machine identity. Enrollment must bind the inventory identity to authenticated machine credentials. Replacement, address changes, and identity rotation are explicit operations. A machine presenting a different identity at a known endpoint must not receive the old machine's generation or credentials.
 
-The authoritative configuration may contain static inventory or import a recorded inventory snapshot from a provisioning system. Imported inventory must have a revision and provenance and become a tracked evaluation input. Lua and Nix evaluation must not query live DNS, cloud APIs, or etcd to decide which machines exist. Runtime discovery produces observations or a proposed inventory change; it cannot silently authorize a new target.
+The authoritative configuration may contain static inventory or import a recorded inventory snapshot from a provisioning system. Imported inventory must have a revision and provenance and become a tracked evaluation input. Evaluation must not query live DNS, cloud APIs, or etcd to decide which machines exist. Runtime discovery produces observations or a proposed inventory change; it cannot silently authorize a new target.
 
 Observed health, active membership, leases, and operation journals are separate from desired state. A runtime registry may use an explicitly owned etcd deployment, but its expiring records do not replace the fleet configuration. Missing a heartbeat does not authorize deletion of a voting member. Kubernetes etcd, application coordination, and fleet-management state have separate ownership and access policies by default. Sharing a datastore requires a separately qualified isolation and recovery contract.
 
@@ -58,7 +58,7 @@ A common plan format must preserve service-specific facts rather than reduce eve
 
 ## Configuration contract and heterogeneous machines
 
-Native fleet configuration defaults to [Lua](lua-configuration.md) and also accepts Nix. The two representations must resolve to the same inventory, relationships, transition policy, and per-machine `system.build.toplevel` derivation paths for equivalent inputs. The final schema and Lua module interface remain implementation decisions; the examples below specify the information the interface must represent.
+Native fleet configuration is written in Nix. Equivalent inputs must resolve to the same inventory, relationships, transition policy, and per-machine `system.build.toplevel` derivation paths. The final schema and module interface remain implementation decisions; the examples below specify the information the interface must represent.
 
 Configuration must support shared modules, named hardware profiles, machine groups, explicit per-machine overrides, and source provenance. Group membership and placement selectors must resolve deterministically. Unknown machine references, contradictory roles, duplicate identities, conflicting address ranges within a routing domain, unsupported backends, and unrepresentable placement requirements fail preview. Isolated clusters may reuse address ranges, but connecting their networks requires an explicit plan that resolves any overlap. An override must show which shared definition it changes.
 
@@ -72,55 +72,7 @@ Secret declarations contain references and access requirements, never token or k
 
 ## Connected-machine configuration examples
 
-These are illustrative desired-state records, not runnable Lua modules, established NixOS options, or qualified deployment recipes. Addresses use documentation ranges. Profile definitions, credential delivery, networking, and package versions would be supplied by the selected fleet inputs. The same example in Lua and Nix describes a mixed-architecture Kubernetes cluster with dedicated external etcd and a separate PostgreSQL primary/replica service.
-
-```lua
-return {
-	id = "research",
-	machines = {
-		["cp-a"] = { profile = "server-x86", zone = "a", address = "192.0.2.11" },
-		["cp-b"] = { profile = "server-x86", zone = "b", address = "192.0.2.12" },
-		["cp-c"] = { profile = "server-x86", zone = "c", address = "192.0.2.13" },
-		["kv-a"] = { profile = "server-x86", zone = "a", address = "192.0.2.21" },
-		["kv-b"] = { profile = "server-x86", zone = "b", address = "192.0.2.22" },
-		["kv-c"] = { profile = "server-x86", zone = "c", address = "192.0.2.23" },
-		["worker-x86"] = { profile = "worker-x86", zone = "a", address = "192.0.2.31" },
-		["worker-arm"] = { profile = "worker-arm", zone = "b", address = "192.0.2.32" },
-		["db-a"] = { profile = "server-x86", zone = "a", address = "192.0.2.41" },
-		["db-b"] = { profile = "server-x86", zone = "b", address = "192.0.2.42" },
-		["db-c"] = { profile = "server-x86", zone = "c", address = "192.0.2.43" },
-	},
-	profiles = {
-		["server-x86"] = { system = "x86_64-linux", role = "server" },
-		["worker-x86"] = { system = "x86_64-linux", role = "worker" },
-		["worker-arm"] = { system = "aarch64-linux", role = "worker" },
-	},
-	topologies = {
-		["k8s-state"] = {
-			kind = "quorum", adapter = "etcd",
-			voters = { "kv-a", "kv-b", "kv-c" },
-			failureDomain = "zone", ownership = "kubernetes/main",
-		},
-		analytics = {
-			kind = "primary-replica", adapter = "postgresql",
-			primary = "db-a", replicas = { "db-b", "db-c" },
-			replication = "asynchronous", promotion = "manual-fenced",
-			writeEndpoint = "analytics.example.test",
-		},
-	},
-	kubernetes = {
-		main = {
-			bootstrap = "kubeadm",
-			controlPlane = { "cp-a", "cp-b", "cp-c" },
-			workers = { "worker-x86", "worker-arm" },
-			datastore = { kind = "external-etcd", topology = "k8s-state" },
-			apiEndpoint = "api.example.test:6443",
-			podCIDR = "10.244.0.0/16", serviceCIDR = "10.96.0.0/16",
-		},
-	},
-	rollout = { workerCanaries = 1, workerBatchSize = 1, haltOnFailedHealth = true },
-}
-```
+These are illustrative desired-state records, not runnable modules, established NixOS options, or qualified deployment recipes. Addresses use documentation ranges. Profile definitions, credential delivery, networking, and package versions would be supplied by the selected fleet inputs. The example describes a mixed-architecture Kubernetes cluster with dedicated external etcd and a separate PostgreSQL primary/replica service.
 
 ```nix
 {
@@ -173,17 +125,6 @@ The planner derives peer addresses and directed connections from stable machine 
 The API endpoint needs a declared load-balancing implementation. The database endpoint needs primary-aware routing and a fencing implementation before promotion is permitted. Asynchronous replication can lose acknowledged writes during failover, so the database deployment also needs an accepted data-loss policy and backup/restore procedure. Preview must reject the abbreviated example until these requirements and qualified versions are supplied.
 
 For a new, separately identified K3s cluster, the corresponding backend record can instead describe embedded etcd:
-
-```lua
-return {
-	id = "edge",
-	bootstrap = "k3s",
-	servers = { "cp-a", "cp-b", "cp-c" },
-	agents = { "worker-x86", "worker-arm" },
-	datastore = { kind = "embedded-etcd" },
-	registrationEndpoint = "edge.example.test:6443",
-}
-```
 
 ```nix
 {
@@ -345,7 +286,7 @@ Fleet qualification is separate from the CppNix [compatibility matrix](compatibi
 
 Required acceptance cases include:
 
-- Equivalent Lua and Nix fleet records resolve identical identities, service relationships, plans, and per-target derivations. Live discovery cannot change a pure evaluation.
+- Equivalent fleet inputs resolve identical identities, service relationships, plans, and per-target derivations. Live discovery cannot change a pure evaluation.
 - A homogeneous pool reuses only identical closures; a mixed x86_64/aarch64 pool gets correct per-target closures and compatible workload images. Unsupported add-ons or hardware block preview rather than fail after rollout.
 - kubeadm HA bootstraps and recovers using both advertised datastore topologies. K3s single-server, embedded-etcd HA, and each advertised external datastore are qualified separately. Repeated bootstrap/join requests do not duplicate cluster identity or membership.
 - API and workload load balancers survive the advertised backend and balancer failures. Tests verify traffic and connection-drain behavior, not only process health.
