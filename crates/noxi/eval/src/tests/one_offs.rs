@@ -2,6 +2,48 @@ use crate::*;
 use pretty_assertions::assert_matches;
 
 #[rstest::rstest]
+#[case("let x = 21; in x + x")]
+#[case("let x = 21; f = y: x + y; in f x")]
+#[case("let x = 42; in with { y = x; }; y")]
+#[case("let s = rec { x = 42; y = x; }; in s.y")]
+#[case(
+	"let x = throw \"cached\"; in builtins.tryEval (builtins.addErrorContext \"outer\" (builtins.seq x x))"
+)]
+#[case(
+	"let x = 1; in builtins.addErrorContext \"outer\" (builtins.addErrorContext \"inner\" (abort (toString x)))"
+)]
+#[case("let x = x; in x")]
+#[case("let x = 42; in builtins.seq (builtins.addErrorContext (abort \"unused\") x) x")]
+fn immediate_force_matches_observed_execution(#[case] expression: &str) {
+	// Runtime observers keep the ordinary allocate-and-force path. Compare
+	// it with the unobserved execution, including failures and lazy contexts.
+	let mut observer = crate::observer::NoOpObserver::default();
+	let ordinary = Evaluation::builder_pure()
+		.runtime_observer(Some(&mut observer))
+		.build()
+		.evaluate(expression, None);
+	let fused = Evaluation::builder_pure()
+		.build()
+		.evaluate(expression, None);
+	assert_eq!(
+		ordinary.value.map(|value| format!("{}", Ambiguous(&value))),
+		fused.value.map(|value| format!("{}", Ambiguous(&value))),
+	);
+	assert_eq!(
+		ordinary
+			.errors
+			.iter()
+			.map(ToString::to_string)
+			.collect::<Vec<_>>(),
+		fused
+			.errors
+			.iter()
+			.map(ToString::to_string)
+			.collect::<Vec<_>>(),
+	);
+}
+
+#[rstest::rstest]
 #[case("{ f = x: x; }")]
 #[case("let f = x: x; in { inherit f; }")]
 #[case("{ f = (x: x); }")]

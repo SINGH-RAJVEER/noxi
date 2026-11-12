@@ -9,7 +9,7 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::fs::{self, File};
-use std::io::{self, BufRead, BufReader, BufWriter, Read, Write};
+use std::io::{self, BufRead, BufReader, BufWriter, Read, Seek, Write};
 use std::os::unix::fs::PermissionsExt;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -20,7 +20,7 @@ use data_encoding::BASE64;
 use nix_compat::narinfo::{Flags, NarInfo, Signature, SigningKey};
 use nix_compat::nixcpp::narinfo as cppnix;
 use nix_compat::nixhash::NixHash;
-use nix_compat::store_path::{STORE_DIR, StorePath};
+use nix_compat::store_path::{StorePath, store_dir};
 use tempfile::NamedTempFile;
 
 use crate::error::{Error, Result};
@@ -62,6 +62,7 @@ impl std::fmt::Debug for Transport {
 /// (`HttpBinaryCacheStore`).
 #[derive(Clone, Debug)]
 pub struct BinaryCache {
+	upload_compression: String,
 	uri: String,
 	transport: Transport,
 	info: CacheInfo,
@@ -79,9 +80,13 @@ impl BinaryCache {
 	pub fn open(uri: &str) -> Result<Self> {
 		let (base, query) = uri.split_once('?').unwrap_or((uri, ""));
 		let mut trusted = false;
+		let mut upload_compression = "none";
 		for param in query.split('&').filter(|p| !p.is_empty()) {
 			if let Some(value) = param.strip_prefix("trusted=") {
 				trusted = value == "1" || value == "true";
+			}
+			if let Some(value) = param.strip_prefix("compression=") {
+				upload_compression = value;
 			}
 		}
 		let transport = if let Some(path) = base.strip_prefix("file://") {
@@ -100,6 +105,7 @@ impl BinaryCache {
 			)));
 		};
 		let mut cache = Self {
+			upload_compression: upload_compression.to_owned(),
 			uri: base.trim_end_matches('/').to_owned(),
 			transport,
 			info: CacheInfo {
@@ -120,10 +126,11 @@ impl BinaryCache {
 				};
 				let value = value.trim();
 				match name {
-					"StoreDir" if value != STORE_DIR => {
+					"StoreDir" if value != store_dir() => {
 						return Err(Error::Other(format!(
-							"binary cache '{}' is for Nix stores with prefix '{value}', not '{STORE_DIR}'",
-							cache.uri
+							"binary cache '{}' is for Nix stores with prefix '{value}', not '{}'",
+							cache.uri,
+							store_dir()
 						)));
 					}
 					"WantMassQuery" => cache.info.want_mass_query = value == "1",
@@ -189,6 +196,15 @@ impl BinaryCache {
 	where
 		S: ed25519::signature::Signer<ed25519::Signature>,
 	{
+		if !matches!(
+			self.upload_compression.as_str(),
+			"none" | "gzip" | "bzip2" | "zstd"
+		) {
+			return Err(Error::Other(format!(
+				"unsupported cache upload compression '{}'",
+				self.upload_compression
+			)));
+		}
 		let Transport::File(dir) = &self.transport else {
 			return Err(Error::Other(
 				"binary cache uploads require a file:// cache".into(),
@@ -219,7 +235,10 @@ impl BinaryCache {
 		// Revalidate existing cache ownership even if it changed after open.
 		BinaryCache::open(&self.uri)?;
 		if self.get_file("nix-cache-info")?.is_none() {
-			write_atomic(&dir.join("nix-cache-info"), b"StoreDir: /nix/store\n")?;
+			write_atomic(
+				&dir.join("nix-cache-info"),
+				format!("StoreDir: {}\n", store_dir()).as_bytes(),
+			)?;
 		}
 		self.upload_path(
 			source,
@@ -280,7 +299,29 @@ impl BinaryCache {
 				print(path)
 			)));
 		}
-		let url = format!("nar/{}.nar", nix_compat::nixbase32::encode(&hash));
+		let (file_hash, file_size, suffix) = if self.upload_compression == "none" {
+			(hash, size, "")
+		} else {
+			temporary.rewind()?;
+			let mut compressed = NamedTempFile::new_in(dir.join("nar"))?;
+			compress_nar(&self.upload_compression, &mut temporary, &mut compressed)?;
+			compressed.rewind()?;
+			let mut sink = HashSink::new();
+			io::copy(&mut compressed, &mut sink)?;
+			let (hash, size) = sink.finish();
+			temporary = compressed;
+			let suffix = match self.upload_compression.as_str() {
+				"gzip" => "",
+				"bzip2" => ".bz2",
+				"zstd" => ".zst",
+				_ => unreachable!(),
+			};
+			(hash, size, suffix)
+		};
+		let url = format!(
+			"nar/{}.nar{suffix}",
+			nix_compat::nixbase32::encode(&file_hash)
+		);
 		let metadata_path = local_cache_path(
 			dir,
 			&format!("{}.narinfo", nix_compat::nixbase32::encode(path.digest())),
@@ -333,9 +374,10 @@ impl BinaryCache {
 			system: None,
 			deriver: deriver.as_ref().map(StorePath::as_ref),
 			url: &url,
-			compression: None,
-			file_hash: Some(hash),
-			file_size: Some(size),
+			compression: (self.upload_compression != "none")
+				.then_some(self.upload_compression.as_str()),
+			file_hash: Some(file_hash),
+			file_size: Some(file_size),
 		};
 		for key in signing_keys {
 			narinfo.add_signature(key);
@@ -579,6 +621,26 @@ pub struct CachedPath {
 	pub file_size: Option<u64>,
 }
 
+fn compress_nar(method: &str, reader: &mut dyn Read, writer: &mut dyn Write) -> io::Result<()> {
+	match method {
+		"gzip" => {
+			let mut encoder = flate2::write::GzEncoder::new(writer, flate2::Compression::default());
+			io::copy(reader, &mut encoder)?;
+			encoder.finish()?;
+		}
+		"bzip2" => {
+			let mut encoder = bzip2::write::BzEncoder::new(writer, bzip2::Compression::default());
+			io::copy(reader, &mut encoder)?;
+			encoder.finish()?;
+		}
+		"zstd" => {
+			zstd::stream::copy_encode(reader, writer, 0)?;
+		}
+		_ => return Err(io::Error::other("unsupported cache upload compression")),
+	}
+	Ok(())
+}
+
 /// Wrap `reader` in the decompressor for a narinfo `Compression` value.
 pub fn decompress(
 	method: Option<&str>,
@@ -587,6 +649,10 @@ pub fn decompress(
 	let reader: Box<dyn Read + Send> = match method {
 		None | Some("none") | Some("") => return Ok(reader),
 		Some("xz") => Box::new(lzma_rust2::XzReader::new(reader, true)),
+		Some("lzma") => Box::new(
+			lzma_rust2::LzmaReader::new_mem_limit(reader, u32::MAX, None)
+				.map_err(|e| Error::io("starting lzma decompression", e))?,
+		),
 		Some("bzip2") => Box::new(bzip2::bufread::MultiBzDecoder::new(reader)),
 		Some("zstd") => Box::new(
 			zstd::stream::read::Decoder::with_buffer(reader)
@@ -710,6 +776,25 @@ impl LocalStore {
 
 #[cfg(test)]
 mod tests {
+	#[test]
+	fn standalone_lzma_cache_streams_decode_and_reject_truncation() {
+		// Produced by xz --format=lzma, the standalone format accepted by
+		// CppNix's compression.cc ArchiveDecompressionSource.
+		const DATA: &[u8] = &[
+			93, 0, 0, 128, 0, 255, 255, 255, 255, 255, 255, 255, 255, 0, 55, 27, 203, 119, 46, 24,
+			29, 84, 35, 72, 116, 154, 75, 117, 195, 229, 249, 242, 172, 153, 171, 74, 213, 221, 46,
+			62, 54, 107, 127, 255, 223, 184, 0, 0,
+		];
+		let mut decoded = Vec::new();
+		super::decompress(Some("lzma"), Box::new(std::io::Cursor::new(DATA)))
+			.unwrap()
+			.read_to_end(&mut decoded)
+			.unwrap();
+		assert_eq!(decoded, b"noxi lzma cache fixture\n");
+		assert!(
+			super::decompress(Some("lzma"), Box::new(std::io::Cursor::new(&DATA[..5]))).is_err()
+		);
+	}
 	use super::*;
 	use std::net::TcpListener;
 	use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};

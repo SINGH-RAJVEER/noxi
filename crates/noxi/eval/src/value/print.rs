@@ -267,6 +267,8 @@ impl<'a> ValuePrinter<'a> {
 /// A source position as CppNix prints it: `«string»:LINE:COLUMN` for an
 /// expression given on the command line, otherwise `FILE:LINE:COLUMN`.
 pub(crate) fn position(source: &SourceCode, span: Span) -> String {
+	// Positions in a caller's source fragment name that fragment, as errors do.
+	let span = source.original_span(span);
 	let file = source.get_file(span);
 	let pos = file.find_line_col(span.low());
 	let name = match file.name() {

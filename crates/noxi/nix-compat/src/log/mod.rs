@@ -521,3 +521,15 @@ pub fn print_build_logs() -> bool {
 pub fn set_print_build_logs(print: bool) {
 	PRINT_BUILD_LOGS.store(print, std::sync::atomic::Ordering::Relaxed);
 }
+
+static PREFIX_BUILD_LOGS: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+
+/// Whether printed build log lines carry `NAME> `, as the `bar` loggers'
+/// `ProgressBar` prints them with `--print-build-logs`.
+pub fn prefix_build_logs() -> bool {
+	PREFIX_BUILD_LOGS.load(std::sync::atomic::Ordering::Relaxed)
+}
+
+pub fn set_prefix_build_logs(prefix: bool) {
+	PREFIX_BUILD_LOGS.store(prefix, std::sync::atomic::Ordering::Relaxed);
+}

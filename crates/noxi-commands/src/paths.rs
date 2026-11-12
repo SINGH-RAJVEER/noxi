@@ -3,7 +3,7 @@
 use std::collections::BTreeSet;
 use std::path::Path;
 
-use nix_compat::store_path::{STORE_DIR, StorePath};
+use nix_compat::store_path::{StorePath, store_dir};
 use noxi_store::gc::render_size;
 use noxi_store::{Missing, Store};
 use rustc_hash::FxHashSet;
@@ -19,7 +19,7 @@ fn print(path: &StorePath) -> String {
 pub fn follow_links_to_store_path(cwd: &Path, arg: &str) -> Result<StorePath, Failure> {
 	let mut path = crate::instantiate::absolute_path(cwd, Path::new(arg));
 	let mut follows = 0;
-	while !path.starts_with(STORE_DIR) || path == Path::new(STORE_DIR) {
+	while !path.starts_with(store_dir()) || path == Path::new(store_dir()) {
 		match std::fs::symlink_metadata(&path) {
 			Ok(meta) if meta.file_type().is_symlink() => {}
 			_ => break,
@@ -35,7 +35,7 @@ pub fn follow_links_to_store_path(cwd: &Path, arg: &str) -> Result<StorePath, Fa
 		path = crate::instantiate::absolute_path(&parent, &target);
 	}
 	match StorePath::from_absolute_path_full(&path) {
-		Ok((store_path, _)) if path.starts_with(STORE_DIR) => Ok(store_path),
+		Ok((store_path, _)) if path.starts_with(store_dir()) => Ok(store_path),
 		_ => Err(Failure::Error(format!(
 			"path \"{}\" is not in the Nix store",
 			path.display()

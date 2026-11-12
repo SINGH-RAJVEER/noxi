@@ -30,7 +30,6 @@ default = ["async", "hashbrown", "wire"]
 [dependencies]
 noxi-hash = { path = "../../noxi-hash", version = "0.0.3" }
 noxi-flakeref = { path = "../../noxi-flakeref", version = "0.0.3", optional = true }
-aho-corasick.workspace = true
 bitflags.workspace = true
 bstr = { workspace = true, features = ["alloc", "unicode", "serde"] }
 data-encoding.workspace = true

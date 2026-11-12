@@ -54,6 +54,7 @@ rstest.workspace = true
 tempfile.workspace = true
 
 [features]
+eval-diagnostics = []
 default = ["impure", "arbitrary", "nix_tests"]
 
 # Enables running the Nix language test suite from the original C++

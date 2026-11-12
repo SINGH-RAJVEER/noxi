@@ -23,6 +23,8 @@ mod line_endings;
 pub mod observer;
 mod opcode;
 pub mod parser_lints;
+#[cfg(feature = "eval-diagnostics")]
+pub mod perf_counters;
 mod pretty_ast;
 mod show_ast;
 mod source;
@@ -660,6 +662,8 @@ where
 		location: Option<PathBuf>,
 		base: Option<PathBuf>,
 	) -> EvaluationResult {
+		#[cfg(feature = "eval-diagnostics")]
+		let _diagnostics = crate::perf_counters::FlushGuard::from_env();
 		let mut result = EvaluationResult::default();
 		let source = self.source_map();
 

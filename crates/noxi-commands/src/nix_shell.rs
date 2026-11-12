@@ -339,7 +339,10 @@ pub fn main(settings: Settings, args: Vec<String>) -> Result<ExitCode, Failure> 
 	for name in ["NIX_BUILD_TOP", "TMPDIR", "TEMPDIR", "TMP", "TEMP"] {
 		env.insert(name.into(), tmp.clone().into());
 	}
-	env.insert("NIX_STORE".into(), "/nix/store".into());
+	env.insert(
+		"NIX_STORE".into(),
+		nix_compat::store_path::store_dir().into(),
+	);
 	env.insert(
 		"NIX_BUILD_CORES".into(),
 		noxi_build::settings::BuildSettings::from_settings(&options.settings)

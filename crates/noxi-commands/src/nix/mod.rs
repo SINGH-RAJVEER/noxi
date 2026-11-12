@@ -1,18 +1,30 @@
 //! New-style `nix` commands. Unsupported library operations fail explicitly.
+mod archive;
 mod args;
 mod command_store;
 mod config;
 mod develop;
+mod edit;
 pub mod execution;
 mod expression;
+mod flake_init;
 pub(crate) mod flakes;
+mod formatter;
 pub mod hash;
+mod help;
 mod inspection;
+mod keys;
+mod operations;
+mod prefetch;
 mod profile;
 pub(crate) mod pure;
 mod registry;
+mod repl;
+mod search;
+mod store_extra;
 mod table;
 mod transfer;
+mod upgrade;
 
 use crate::cli::{Failure, apply_common_flag, print_setting_warnings};
 use nix_compat::nixcpp::settings::Settings;
@@ -278,6 +290,264 @@ fn requires_subcommand(path: &str) -> Failure {
 	))
 }
 
+fn supported_flags(command: &str) -> &'static [&'static str] {
+	match command {
+		"config show" => &["json"],
+		"why-depends" => &[
+			"all",
+			"precise",
+			"derivation",
+			"expr",
+			"file",
+			"arg",
+			"argstr",
+			"include",
+			"impure",
+		],
+		"daemon" => &[
+			"stdio",
+			"socket-path",
+			"force-trusted",
+			"force-untrusted",
+			"default-trust",
+			"process-ops",
+		],
+		"repl" => &["expr", "file", "impure", "include", "arg", "argstr"],
+		"bundle" => &[
+			"bundler", "no-link", "out-link", "expr", "file", "impure", "arg", "argstr", "include",
+		],
+		"upgrade-nix" => &["dry-run", "profile", "nix-store-paths-url"],
+		"key generate-secret" => &["key-name"],
+		"nar ls" => &[
+			"recursive",
+			"long",
+			"directory",
+			"json",
+			"pretty",
+			"no-pretty",
+		],
+		"store prefetch-file" => &[
+			"executable",
+			"expected-hash",
+			"hash-type",
+			"json",
+			"name",
+			"pretty",
+			"no-pretty",
+			"unpack",
+		],
+		"store sign" => &["key-file", "recursive", "all", "derivation"],
+		"store copy-sigs" => &["substituter", "recursive", "all", "derivation"],
+		"store copy-log" => &["from", "to"],
+		"store make-content-addressed" => &[
+			"from",
+			"to",
+			"json",
+			"pretty",
+			"no-pretty",
+			"recursive",
+			"all",
+			"derivation",
+		],
+		"store build-trace info" => &[
+			"json",
+			"pretty",
+			"no-pretty",
+			"recursive",
+			"all",
+			"derivation",
+		],
+		"store repair" | "store dump-path" => &["recursive", "all", "derivation"],
+		"profile add" | "profile upgrade" => &[
+			"profile", "priority", "expr", "file", "arg", "argstr", "include", "impure", "all",
+			"regex", "dry-run",
+		],
+		"profile list" => &["profile", "json", "pretty", "no-pretty"],
+		"profile remove" => &["profile", "all", "regex"],
+		"profile history" | "profile diff-closures" => &["profile"],
+		"profile rollback" => &["profile", "dry-run", "to"],
+		"profile wipe-history" => &["profile", "dry-run", "older-than"],
+		"registry add" | "registry remove" | "registry pin" => &["registry"],
+		"develop" => &[
+			"arg",
+			"argstr",
+			"expr",
+			"file",
+			"include",
+			"impure",
+			"command",
+			"ignore-env",
+			"ignore-environment",
+			"keep-env-var",
+			"keep",
+			"unset-env-var",
+			"unset",
+			"set-env-var",
+			"profile",
+			"phase",
+			"unpack",
+			"configure",
+			"build",
+			"check",
+			"install",
+			"installcheck",
+			"redirect",
+		],
+		"print-dev-env" => &[
+			"arg", "argstr", "expr", "file", "include", "impure", "json", "profile", "redirect",
+		],
+		"derivation add" => &["dry-run"],
+		"derivation show" => &[
+			"arg",
+			"argstr",
+			"expr",
+			"file",
+			"include",
+			"impure",
+			"recursive",
+		],
+		"log" => &["arg", "argstr", "expr", "file", "include", "impure"],
+		"copy" => &[
+			"to",
+			"from",
+			"no-check-sigs",
+			"arg",
+			"argstr",
+			"expr",
+			"file",
+			"include",
+			"impure",
+		],
+		"env shell" | "run" => &[
+			"arg",
+			"argstr",
+			"expr",
+			"file",
+			"include",
+			"impure",
+			"command",
+			"ignore-env",
+			"ignore-environment",
+			"keep-env-var",
+			"keep",
+			"unset-env-var",
+			"unset",
+			"set-env-var",
+		],
+		"eval" => &[
+			"apply",
+			"arg",
+			"argstr",
+			"expr",
+			"file",
+			"include",
+			"impure",
+			"raw",
+			"json",
+			"pretty",
+			"no-pretty",
+			"read-only",
+		],
+		"build" => &[
+			"arg",
+			"argstr",
+			"expr",
+			"file",
+			"include",
+			"impure",
+			"json",
+			"dry-run",
+			"no-link",
+			"out-link",
+			"print-out-paths",
+		],
+		"path-info" => &[
+			"json",
+			"json-format",
+			"recursive",
+			"size",
+			"closure-size",
+			"human-readable",
+			"sigs",
+			"all",
+		],
+		"store add" | "store add-path" | "store add-file" => {
+			&["name", "mode", "hash-algo", "dry-run"]
+		}
+		"store ls" => &["recursive", "long", "directory", "json"],
+		"store delete" => &["recursive", "ignore-liveness"],
+		"store gc" => &["dry-run", "max"],
+		"store verify" => &["recursive", "no-contents", "no-trust", "sigs-needed"],
+		"store info" => &["json", "pretty", "no-pretty"],
+		"search" => &[
+			"arg",
+			"argstr",
+			"expr",
+			"file",
+			"include",
+			"impure",
+			"json",
+			"pretty",
+			"no-pretty",
+			"exclude",
+			"override-input",
+			"override-flake",
+			"inputs-from",
+			"no-registries",
+			"no-write-lock-file",
+			"no-update-lock-file",
+			"reference-lock-file",
+			"output-lock-file",
+			"recreate-lock-file",
+			"update-input",
+		],
+		"flake init" | "flake new" => &["template"],
+		"flake clone" => &["dest"],
+		"edit" => &[
+			"arg",
+			"argstr",
+			"expr",
+			"file",
+			"include",
+			"impure",
+			"override-input",
+			"override-flake",
+			"inputs-from",
+			"no-registries",
+			"no-write-lock-file",
+			"no-update-lock-file",
+			"reference-lock-file",
+			"output-lock-file",
+			"recreate-lock-file",
+			"update-input",
+		],
+		"fmt" | "formatter run" | "formatter build" => &[
+			"arg",
+			"argstr",
+			"include",
+			"impure",
+			"json",
+			"pretty",
+			"no-pretty",
+			"out-link",
+			"no-link",
+			"override-input",
+			"override-flake",
+			"inputs-from",
+			"no-registries",
+			"no-write-lock-file",
+			"no-update-lock-file",
+			"reference-lock-file",
+			"output-lock-file",
+			"recreate-lock-file",
+			"update-input",
+			"expr",
+			"file",
+		],
+		_ => &[],
+	}
+}
+
 pub fn main(mut settings: Settings, args: Vec<String>) -> Result<ExitCode, Failure> {
 	nix_compat::log::set_print_build_logs(false);
 	if std::io::IsTerminal::is_terminal(&std::io::stderr()) {
@@ -337,125 +607,7 @@ pub fn main(mut settings: Settings, args: Vec<String>) -> Result<ExitCode, Failu
 	if level.command.is_multi() {
 		return Err(requires_subcommand(level.command.path));
 	}
-	let supported: &[&str] = match level.command.path {
-		"config show" => &["json"],
-		"profile add" | "profile upgrade" => &[
-			"profile", "priority", "expr", "file", "arg", "argstr", "include", "impure", "all",
-			"regex", "dry-run",
-		],
-		"profile list" => &["profile", "json", "pretty", "no-pretty"],
-		"profile remove" => &["profile", "all", "regex"],
-		"profile history" | "profile diff-closures" => &["profile"],
-		"profile rollback" => &["profile", "dry-run", "to"],
-		"profile wipe-history" => &["profile", "dry-run", "older-than"],
-		"registry add" | "registry remove" | "registry pin" => &["registry"],
-		"develop" => &[
-			"arg",
-			"argstr",
-			"expr",
-			"file",
-			"include",
-			"impure",
-			"command",
-			"ignore-env",
-			"ignore-environment",
-			"keep-env-var",
-			"keep",
-			"unset-env-var",
-			"unset",
-			"set-env-var",
-			"profile",
-			"phase",
-			"unpack",
-			"configure",
-			"build",
-			"check",
-			"install",
-			"installcheck",
-			"redirect",
-		],
-		"print-dev-env" => &[
-			"arg", "argstr", "expr", "file", "include", "impure", "json", "profile", "redirect",
-		],
-		"derivation show" => &[
-			"arg",
-			"argstr",
-			"expr",
-			"file",
-			"include",
-			"impure",
-			"recursive",
-		],
-		"log" => &["arg", "argstr", "expr", "file", "include", "impure"],
-		"copy" => &[
-			"to",
-			"from",
-			"no-check-sigs",
-			"arg",
-			"argstr",
-			"expr",
-			"file",
-			"include",
-			"impure",
-		],
-		"env shell" | "run" => &[
-			"arg",
-			"argstr",
-			"expr",
-			"file",
-			"include",
-			"impure",
-			"command",
-			"ignore-env",
-			"ignore-environment",
-			"keep-env-var",
-			"keep",
-			"unset-env-var",
-			"unset",
-			"set-env-var",
-		],
-		"eval" => &[
-			"apply",
-			"arg",
-			"argstr",
-			"expr",
-			"file",
-			"include",
-			"impure",
-			"raw",
-			"json",
-			"read-only",
-		],
-		"build" => &[
-			"arg",
-			"argstr",
-			"expr",
-			"file",
-			"include",
-			"impure",
-			"json",
-			"dry-run",
-			"no-link",
-			"out-link",
-			"print-out-paths",
-		],
-		"path-info" => &[
-			"json",
-			"json-format",
-			"recursive",
-			"size",
-			"closure-size",
-			"human-readable",
-			"sigs",
-		],
-		"store add" | "store add-path" | "store add-file" => &["name", "mode", "hash-algo"],
-		"store ls" => &["recursive", "long", "directory", "json"],
-		"store delete" => &["recursive", "ignore-liveness"],
-		"store gc" => &["dry-run", "max"],
-		"store verify" => &["recursive", "no-contents", "no-trust", "sigs-needed"],
-		"store info" => &["json"],
-		_ => &[],
-	};
+	let supported = supported_flags(level.command.path);
 	for name in level.handler.flags.keys() {
 		if !level.command.path.starts_with("hash ")
 			&& !supported.contains(&name.as_str())
@@ -470,6 +622,7 @@ pub fn main(mut settings: Settings, args: Vec<String>) -> Result<ExitCode, Failu
 					| "profile add"
 					| "profile upgrade"
 			) && [
+				"no-registries",
 				"reference-lock-file",
 				"output-lock-file",
 				"no-write-lock-file",
@@ -527,27 +680,29 @@ pub fn main(mut settings: Settings, args: Vec<String>) -> Result<ExitCode, Failu
 		return config::show(parsed);
 	}
 	// With build logs, CppNix's `bar` formats (the default) print each
-	// build log line after `NAME> `; the shared build backend writes raw
-	// output, which only matches the `raw-with-logs` format.
+	// build log line after `NAME> `; the raw formats print it unchanged.
 	let bar = parsed
 		.value("log-format")
 		.is_none_or(|format| format.starts_with("bar"));
-	if bar
-		&& nix_compat::log::print_build_logs()
-		&& matches!(
-			parsed.command,
-			"build" | "develop" | "print-dev-env" | "env shell" | "run" | "eval"
-		) {
-		return Err(unsupported(&format!(
-			"{} with build logs in the bar log format (use --log-format raw-with-logs)",
-			parsed.command
-		)));
+	nix_compat::log::set_prefix_build_logs(bar && nix_compat::log::print_build_logs());
+	// Plain `Command`s that never open a store; `nar cat` opens its own.
+	if parsed.command.starts_with("nar ") {
+		return archive::run(parsed);
+	}
+	if parsed.command.starts_with("key ") {
+		return keys::run(parsed);
 	}
 	ensure_diverted_root(&parsed)?;
 	match parsed.command {
+		"help" | "help-stores" => help::run(parsed),
+		"why-depends" | "daemon" | "config check" | "repl" | "bundle" => operations::run(parsed),
+		"upgrade-nix" => upgrade::run(parsed),
+		command if command.starts_with("nar ") => archive::run(parsed),
+		command if command.starts_with("key ") => keys::run(parsed),
 		"eval" => expression::eval(parsed),
 		"build" => expression::build(parsed),
 		"path-info" => command_store::path_info(parsed),
+		"derivation add" => inspection::add(parsed),
 		"derivation show" => inspection::show(parsed),
 		"log" => inspection::log(parsed),
 		"copy" => transfer::copy(parsed),
@@ -555,6 +710,9 @@ pub fn main(mut settings: Settings, args: Vec<String>) -> Result<ExitCode, Failu
 		"run" => execution::run(parsed),
 		"develop" => develop::develop(parsed),
 		"print-dev-env" => develop::print_dev_env(parsed),
+		"search" => search::run(parsed),
+		"fmt" | "formatter run" | "formatter build" => formatter::run(parsed),
+		"edit" => edit::run(parsed),
 		command if command.starts_with("profile ") => profile::run(parsed),
 		command if command.starts_with("registry ") => registry::run(parsed),
 		command if command.starts_with("flake ") => flakes::run(parsed),
@@ -570,7 +728,7 @@ fn ensure_diverted_root(parsed: &Parsed) -> Result<(), Failure> {
 	let Some((scheme, query)) = uri.split_once('?') else {
 		return Ok(());
 	};
-	if !matches!(scheme, "local" | "auto") {
+	if !matches!(scheme, "local" | "local://" | "auto") {
 		return Ok(());
 	}
 	if query.split('&').any(|p| p == "read-only=true") {

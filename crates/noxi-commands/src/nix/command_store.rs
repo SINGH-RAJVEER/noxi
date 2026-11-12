@@ -16,12 +16,12 @@ use noxi_store::gc::{GcAction, GcOptions, render_size};
 use noxi_store::{FileIngestionMethod, Store, ValidPathInfo};
 use serde_json::{Value, json};
 
-fn open(parsed: &Parsed) -> Result<crate::store::OpenStore, Failure> {
+pub(super) fn open(parsed: &Parsed) -> Result<crate::store::OpenStore, Failure> {
 	let uri = crate::store::store_uri(parsed.value("store"), &parsed.settings);
 	crate::store::open(&uri, &parsed.settings)?
 		.ok_or_else(|| unsupported("operations on this store"))
 }
-fn info(store: &dyn Store, path: &StorePath) -> Result<ValidPathInfo, Failure> {
+pub(super) fn info(store: &dyn Store, path: &StorePath) -> Result<ValidPathInfo, Failure> {
 	store
 		.query_path_info(path)?
 		.ok_or_else(|| Failure::Error(format!("path '{}' is not valid", path.to_absolute_path())))
@@ -73,7 +73,7 @@ impl<'a> InfoGraph<'a> {
 			let references = info
 				.iter()
 				.flat_map(|info| &info.references)
-				.map(|r| r.clone())
+				.cloned()
 				.collect::<Vec<_>>();
 			let references = references.iter().map(|r| self.node(r)).collect();
 			self.nodes[node].references = references;
@@ -115,13 +115,23 @@ impl<'a> InfoGraph<'a> {
 		Ok(size)
 	}
 }
-fn paths(parsed: &Parsed, store: &dyn Store) -> Result<BTreeSet<StorePath>, Failure> {
+pub(super) fn paths(parsed: &Parsed, store: &dyn Store) -> Result<BTreeSet<StorePath>, Failure> {
+	if parsed.has("all") {
+		if !parsed.operands.is_empty() {
+			return Err(Failure::Usage("'--all' does not expect arguments".into()));
+		}
+		// `queryAllValidPaths`, which only the local store provides here.
+		let uri = crate::store::store_uri(parsed.value("store"), &parsed.settings);
+		let (local, _) = crate::store::open_local(&uri, &parsed.settings)?
+			.ok_or_else(|| unsupported("--all on this store"))?;
+		return Ok(local.query_all_valid_paths()?);
+	}
 	if parsed.operands.is_empty() {
 		return Err(unsupported(
 			"implicit flake installables; provide store paths",
 		));
 	}
-	parsed.unsupported(&["all", "derivation"])?;
+	parsed.unsupported(&["derivation"])?;
 	if parsed.has("expr") || parsed.has("file") {
 		return Err(unsupported("store queries with expression installables"));
 	}
@@ -135,6 +145,20 @@ fn paths(parsed: &Parsed, store: &dyn Store) -> Result<BTreeSet<StorePath>, Fail
 			)
 		})
 		.collect::<Result<BTreeSet<_>, _>>()?;
+	// Realising an invalid path without substituters prints the missing
+	// paths (`printMissing`); the command then reports the invalid path.
+	let mut unknown = Vec::new();
+	for path in &paths {
+		if !store.is_valid_path(path)? {
+			unknown.push(format!("  {}", path.to_absolute_path()));
+		}
+	}
+	if !unknown.is_empty() {
+		log("don't know how to build these paths:");
+		for line in unknown {
+			log(&line);
+		}
+	}
 	if parsed.has("recursive") {
 		paths = store.compute_closure(&paths)?;
 	}
@@ -179,7 +203,7 @@ pub fn path_info(parsed: Parsed) -> Result<ExitCode, Failure> {
 				continue;
 			};
 			let mut value = PathInfo {
-				store_dir: "/nix/store".into(),
+				store_dir: nix_compat::store_path::store_dir().into(),
 				nar_hash: NixHash::Sha256(info.nar_hash),
 				nar_size: info.nar_size,
 				references: info.references,
@@ -195,7 +219,7 @@ pub fn path_info(parsed: Parsed) -> Result<ExitCode, Failure> {
 					.map_err(|e| e.to_string())?,
 			}
 			.to_json(true, format);
-			value["storeDir"] = json!("/nix/store");
+			value["storeDir"] = json!(nix_compat::store_path::store_dir());
 			if parsed.has("closure-size") {
 				value["closureSize"] = json!(graph.closure_size(path)?);
 			}
@@ -204,7 +228,7 @@ pub fn path_info(parsed: Parsed) -> Result<ExitCode, Failure> {
 		let value = if format == PathInfoFormat::V1 {
 			Value::Object(objects)
 		} else {
-			json!({"version": if format == PathInfoFormat::V2 {2} else {3}, "storeDir":"/nix/store", "info": objects})
+			json!({"version": if format == PathInfoFormat::V2 {2} else {3}, "storeDir":nix_compat::store_path::store_dir(), "info": objects})
 		};
 		println!("{value}");
 	} else {
@@ -253,7 +277,11 @@ pub fn path_info(parsed: Parsed) -> Result<ExitCode, Failure> {
 				if let Some(ca) = info.ca {
 					sigs.push(format!("ca:{ca}"));
 				}
-				sigs.extend(info.sigs);
+				sigs.extend(
+					noxi_store::keys::sort_signatures(&info.sigs)
+						.into_iter()
+						.cloned(),
+				);
 				line.push('\t');
 				line.push_str(&sigs.join(" "));
 			}
@@ -289,12 +317,15 @@ fn accessor(store: &dyn Store, operand: &str) -> Result<(PathBuf, String), Failu
 }
 
 pub fn run(parsed: Parsed) -> Result<ExitCode, Failure> {
+	if let Some(result) = super::store_extra::run(&parsed) {
+		return result;
+	}
 	if matches!(
 		parsed.command,
 		"store ls" | "store cat" | "store dump-path" | "store verify"
 	) {
 		let uri = crate::store::store_uri(parsed.value("store"), &parsed.settings);
-		if uri != "local" && !uri.starts_with("local?") {
+		if !matches!(uri.split('?').next(), Some("local" | "local://")) {
 			return Err(unsupported(
 				"filesystem access without an explicit local store (remote accessor API unavailable)",
 			));
@@ -305,14 +336,27 @@ pub fn run(parsed: Parsed) -> Result<ExitCode, Failure> {
 	match parsed.command {
 		"store info" => {
 			let uri = crate::store::store_uri(parsed.value("store"), &parsed.settings);
-			if !(uri == "local" || uri.starts_with("local?")) {
+			if !matches!(uri.split('?').next(), Some("local" | "local://")) {
 				return Err(unsupported(
 					"store info for non-local stores (connection metadata unavailable)",
 				));
 			}
-			let url = uri.replacen("local", "local://", 1);
+			let url = if uri.starts_with("local://") {
+				uri
+			} else {
+				uri.replacen("local", "local://", 1)
+			};
 			if parsed.has("json") {
-				println!("{}", json!({"url":url,"version":"2.35.2","trusted":true}));
+				let value = json!({"url":url,"version":"2.35.2","trusted":true});
+				if parsed.has("pretty") || (!parsed.has("no-pretty") && io::stdout().is_terminal())
+				{
+					println!(
+						"{}",
+						serde_json::to_string_pretty(&value).map_err(|e| e.to_string())?
+					);
+				} else {
+					println!("{value}");
+				}
 			} else {
 				log(&format!("Store URL: {url}"));
 				log("Version: 2.35.2");
@@ -320,7 +364,6 @@ pub fn run(parsed: Parsed) -> Result<ExitCode, Failure> {
 			}
 		}
 		"store add" | "store add-path" | "store add-file" => {
-			parsed.unsupported(&["dry-run"])?;
 			let source = Path::new(&parsed.operands[0]);
 			let name = parsed.value("name").map(str::to_owned).unwrap_or_else(|| {
 				source
@@ -354,6 +397,28 @@ pub fn run(parsed: Parsed) -> Result<ExitCode, Failure> {
 			}
 			use std::io::Seek;
 			dump.rewind()?;
+			if parsed.has("dry-run") {
+				use std::io::Read;
+				let mut hash = nix_compat::nixhash::NixHashDigester::new(algo);
+				let mut bytes = [0; 65536];
+				loop {
+					let count = dump.read(&mut bytes)?;
+					if count == 0 {
+						break;
+					}
+					hash.update(&bytes[..count]);
+				}
+				let path = nix_compat::store_path::build_ca_path(
+					&name,
+					method == FileIngestionMethod::NixArchive,
+					&hash.finalize(),
+					[],
+					false,
+				)
+				.map_err(|e| e.to_string())?;
+				println!("{}", path.to_absolute_path());
+				return Ok(ExitCode::SUCCESS);
+			}
 			let path = store.add_to_store_from_dump(
 				&mut dump,
 				&name,

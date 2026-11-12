@@ -144,7 +144,7 @@ impl<'a> NarInfo<'a> {
 			match tag {
 				TAG_STOREPATH => {
 					let val = val
-						.strip_prefix("/nix/store/")
+						.strip_prefix(crate::store_path::store_dir_with_slash())
 						.ok_or(Error::InvalidStorePath(
 							ParseStorePathError::MissingStoreDir,
 						))?;

@@ -16,10 +16,55 @@ pub use utils::*;
 pub const DIGEST_SIZE: usize = 20;
 pub const ENCODED_DIGEST_SIZE: usize = nixbase32::encode_len(DIGEST_SIZE);
 
-// The store dir prefix, without trailing slash.
-// That's usually where the Nix store is mounted at.
-pub const STORE_DIR: &str = "/nix/store";
-pub const STORE_DIR_WITH_SLASH: &str = "/nix/store/";
+/// The default store directory, CppNix's build-time `NIX_STORE_DIR`.
+pub const DEFAULT_STORE_DIR: &str = "/nix/store";
+
+static STORE_DIRS: std::sync::OnceLock<(String, String)> = std::sync::OnceLock::new();
+
+/// `canonPath` without symlink resolution: an absolute path without `.`,
+/// `..`, repeated or trailing slashes.
+fn canon_path(path: &str) -> String {
+	let mut parts: Vec<&str> = Vec::new();
+	for part in path.split('/') {
+		match part {
+			"" | "." => {}
+			".." => {
+				parts.pop();
+			}
+			part => parts.push(part),
+		}
+	}
+	format!("/{}", parts.join("/"))
+}
+
+fn store_dirs() -> &'static (String, String) {
+	STORE_DIRS.get_or_init(|| {
+		let dir = ["NIX_STORE_DIR", "NIX_STORE"]
+			.into_iter()
+			.find_map(|name| std::env::var(name).ok().filter(|v| !v.is_empty()))
+			.filter(|dir| dir.starts_with('/'))
+			.map(|dir| canon_path(&dir))
+			.unwrap_or_else(|| DEFAULT_STORE_DIR.to_owned());
+		let with_slash = if dir == "/" {
+			dir.clone()
+		} else {
+			format!("{dir}/")
+		};
+		(dir, with_slash)
+	})
+}
+
+/// The logical store directory, without a trailing slash: CppNix's
+/// `settings.nixStore`, from `NIX_STORE_DIR` (or `NIX_STORE`) when set,
+/// else `/nix/store`. It is read once per process.
+pub fn store_dir() -> &'static str {
+	&store_dirs().0
+}
+
+/// [`store_dir`] followed by a slash.
+pub fn store_dir_with_slash() -> &'static str {
+	&store_dirs().1
+}
 
 /// Error returned by [`validate_name`].
 #[derive(Debug, PartialEq, Eq, Clone, thiserror::Error)]

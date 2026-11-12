@@ -294,25 +294,27 @@ fn helper_inner(args: Vec<String>) -> Result<(), String> {
 					std::io::Error::last_os_error()
 				));
 			}
-			let options = CString::new(format!("lowerdir=/nix/store:{}", args[0]))
+			let store_dir = nix_compat::store_path::store_dir();
+			let target = CString::new(store_dir).map_err(|e| e.to_string())?;
+			let options = CString::new(format!("lowerdir={store_dir}:{}", args[0]))
 				.map_err(|e| e.to_string())?;
 			if libc::mount(
 				c"overlay".as_ptr(),
-				c"/nix/store".as_ptr(),
+				target.as_ptr(),
 				c"overlay".as_ptr(),
 				libc::MS_MGC_VAL,
 				options.as_ptr().cast(),
 			) != 0
 				&& libc::mount(
 					store.as_ptr(),
-					c"/nix/store".as_ptr(),
+					target.as_ptr(),
 					std::ptr::null(),
 					libc::MS_BIND,
 					std::ptr::null(),
 				) != 0
 			{
 				return Err(format!(
-					"mounting '{}' on '/nix/store': {}",
+					"mounting '{}' on '{store_dir}': {}",
 					args[0],
 					std::io::Error::last_os_error()
 				));

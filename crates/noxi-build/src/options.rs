@@ -12,7 +12,7 @@ use std::fmt::Debug;
 use bstr::{BString, ByteSlice};
 use nix_compat::cppnix_json;
 use nix_compat::derivation::OutputName;
-use nix_compat::store_path::{STORE_DIR_WITH_SLASH, StorePath, downstream_placeholder};
+use nix_compat::store_path::{StorePath, downstream_placeholder, store_dir_with_slash};
 use serde_json::{Map, Value, json};
 
 use crate::error::{BuildError, Result};
@@ -245,7 +245,7 @@ fn trace<T>(result: Result<T>, context: impl FnOnce() -> String) -> Result<T> {
 /// CppNix's `StoreDirConfig::maybeParseStorePath`: exactly a store path,
 /// with no subpath.
 fn parse_store_path(s: &str) -> Option<StorePath> {
-	let rest = s.strip_prefix(STORE_DIR_WITH_SLASH)?;
+	let rest = s.strip_prefix(store_dir_with_slash())?;
 	if rest.contains('/') {
 		return None;
 	}
@@ -256,7 +256,7 @@ fn parse_store_path(s: &str) -> Option<StorePath> {
 /// subpath.
 fn to_store_path(s: &str) -> Result<StorePath> {
 	let rest = s
-		.strip_prefix(STORE_DIR_WITH_SLASH)
+		.strip_prefix(store_dir_with_slash())
 		.ok_or_else(|| BuildError::Other(format!("path '{s}' is not in the Nix store")))?;
 	let base = rest.split('/').next().unwrap_or(rest);
 	StorePath::from_bytes(base.as_bytes())

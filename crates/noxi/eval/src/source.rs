@@ -23,6 +23,9 @@ pub struct SourceCode(
 	Rc<RefCell<Vec<(Span, Span)>>>,
 	Rc<RefCell<Vec<(Span, u32)>>>,
 	Rc<RefCell<std::collections::BTreeSet<String>>>,
+	/// The line start offsets of each file positions were requested in, by
+	/// the file's starting position.
+	Rc<RefCell<rustc_hash::FxHashMap<codemap::Pos, Rc<[usize]>>>>,
 );
 
 type SourceCheck = dyn Fn(&rnix::ast::Expr, &codemap::File) -> Result<(), crate::ErrorKind>;
@@ -200,6 +203,21 @@ impl SourceCode {
 
 	/// Returns the reference to the file structure that a given span
 	/// is in.
+	/// The start offsets of the lines of `file`, as
+	/// [`lines`](crate::diagnostics::lines) splits them, computed once per file.
+	pub(crate) fn line_starts(&self, file: &codemap::File) -> Rc<[usize]> {
+		self.6
+			.borrow_mut()
+			.entry(file.span.low())
+			.or_insert_with(|| {
+				crate::diagnostics::lines(file.source())
+					.into_iter()
+					.map(|(start, _)| start)
+					.collect()
+			})
+			.clone()
+	}
+
 	pub fn get_file(&self, span: Span) -> Arc<codemap::File> {
 		self.codemap().look_up_span(span).file
 	}
@@ -247,6 +265,7 @@ impl Default for SourceCode {
 			None,
 			Rc::new(RefCell::new(vec![])),
 			Rc::new(RefCell::new(vec![])),
+			Rc::new(RefCell::new(Default::default())),
 			Rc::new(RefCell::new(Default::default())),
 		)
 	}

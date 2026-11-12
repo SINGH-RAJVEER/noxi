@@ -68,7 +68,10 @@ pub fn main(settings: Settings, args: Vec<String>) -> Result<ExitCode, Failure> 
 	}
 	for input in &options.inputs {
 		let path = input.split('!').next().unwrap_or(input);
-		if !options.from_args && path.starts_with("/nix/store/") && path.ends_with(".drv") {
+		if !options.from_args
+			&& path.starts_with(nix_compat::store_path::store_dir_with_slash())
+			&& path.ends_with(".drv")
+		{
 			return Err(Failure::Error(
 				"nix-build with store derivation arguments is not supported by noxi yet".to_owned(),
 			));

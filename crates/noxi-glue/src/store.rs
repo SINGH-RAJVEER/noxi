@@ -13,7 +13,7 @@ use std::rc::Rc;
 use bstr::ByteSlice;
 use nix_compat::derivation::{Derivation, UnverifiedDerivation};
 use nix_compat::nixhash::{HashAlgo, NixHash};
-use nix_compat::store_path::{self, STORE_DIR, StorePath};
+use nix_compat::store_path::{self, StorePath};
 use noxi_eval::{
 	EvalIO, FileType, NixAttrs, NixContext, NixContextElement, NixString, StdIO, Value,
 };
@@ -434,7 +434,8 @@ impl EvaluatorStore {
 		}
 	}
 
-	pub(crate) fn physical_path(&self, path: &Path) -> PathBuf {
+	/// Where a logical path is on disk: its mounted source, or the diverted store.
+	pub fn physical_path(&self, path: &Path) -> PathBuf {
 		if let Some((mount, rest)) = self.mount_of(path) {
 			return if rest.as_os_str().is_empty() {
 				mount.root
@@ -443,7 +444,7 @@ impl EvaluatorStore {
 			};
 		}
 		if let Some(real) = &self.real_store_dir
-			&& let Ok(rest) = path.strip_prefix(STORE_DIR)
+			&& let Ok(rest) = path.strip_prefix(store_path::store_dir())
 		{
 			return if rest.as_os_str().is_empty() {
 				real.clone()
@@ -467,7 +468,7 @@ impl EvaluatorStore {
 		if let Some(real) = &self.real_store_dir
 			&& let Ok(rest) = path.strip_prefix(real)
 		{
-			return Path::new(STORE_DIR).join(rest);
+			return Path::new(store_path::store_dir()).join(rest);
 		}
 		path.to_owned()
 	}
@@ -692,6 +693,12 @@ impl StoreIO {
 
 impl EvalIO for StoreIO {
 	fn resolve_lookup_path(&self, value: &str) -> io::Result<Option<PathBuf>> {
+		// `lookupPathResolve` requires the feature for `flake:` entries.
+		if value.starts_with("flake:") && !self.store.fetch_settings().flakes {
+			return Err(io::Error::other(nix_compat::nixcpp::hash::missing_feature(
+				"flakes",
+			)));
+		}
 		let reference = value.strip_prefix("flake:").unwrap_or(value);
 		let reference = if let Some(channel) = reference.strip_prefix("channel:") {
 			format!("https://nixos.org/channels/{channel}/nixexprs.tar.xz")
@@ -923,7 +930,7 @@ impl EvalIO for StoreIO {
 		{
 			for reference in info.references {
 				let absolute = reference.to_absolute_path();
-				let start = STORE_DIR.len() + 1;
+				let start = store_path::store_dir().len() + 1;
 				let hash = &absolute.as_bytes()[start..start + 32];
 				if bytes.windows(hash.len()).any(|window| window == hash) {
 					context = context.append(NixContextElement::Plain(absolute));
@@ -957,7 +964,7 @@ impl EvalIO for StoreIO {
 
 	fn read_dir(&self, path: &Path) -> io::Result<Vec<(bytes::Bytes, FileType)>> {
 		self.store.check_visible(path)?;
-		if self.store.real_store_dir.is_some() && path == Path::new(STORE_DIR) {
+		if self.store.real_store_dir.is_some() && path == Path::new(store_path::store_dir()) {
 			return Err(io::Error::other("path '/' is not a valid store path"));
 		}
 		match corepkg(path) {
@@ -1020,7 +1027,7 @@ impl EvalIO for StoreIO {
 	}
 
 	fn store_dir(&self) -> Option<String> {
-		Some(STORE_DIR.to_owned())
+		Some(store_path::store_dir().to_owned())
 	}
 
 	fn get_env(&self, key: &OsStr) -> Option<OsString> {

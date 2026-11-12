@@ -122,6 +122,12 @@ impl Upvalues {
 
 	/// Construct an [Upvalues] instance from the raw static and with stacks.
 	pub fn from_raw_parts(static_upvalues: Vec<Value>, with_stack: Option<Rc<[Value]>>) -> Self {
+		#[cfg(feature = "eval-diagnostics")]
+		crate::perf_counters::capture_created(
+			static_upvalues.len(),
+			with_stack.as_ref().map_or(0, |stack| stack.len()),
+			!static_upvalues.is_empty(),
+		);
 		Self {
 			static_upvalues: static_upvalues.into_boxed_slice(),
 			with_stack,

@@ -23,13 +23,19 @@ pub fn options(parsed: &Parsed, eval: bool) -> Result<Options, Failure> {
 		));
 	}
 	let pure = !parsed.has("file") && parsed.settings.get_bool("pure-eval", true);
+	let mut settings = parsed.settings.clone();
+	if parsed.has("no-registries") {
+		settings
+			.set("use-registries", "false")
+			.map_err(|e| e.to_string())?;
+	}
 	parsed.unsupported(&["eval-store", "write-to", "debugger", "inputs-from"])?;
 	let mut options = Options {
 		modern_pure: pure,
 		eval,
 		read_write_mode: !parsed.has("read-only"),
 		strict: true,
-		settings: parsed.settings.clone(),
+		settings,
 		store: parsed.value("store").map(str::to_owned),
 		..Options::default()
 	};
@@ -55,7 +61,9 @@ pub fn options(parsed: &Parsed, eval: bool) -> Result<Options, Failure> {
 		}
 	}
 	let root = if let Some(expression) = parsed.value("expr") {
-		expression.to_owned()
+		// The expression is its own `«string»` source, as CppNix parses it.
+		options.fragments.push(expression.to_owned());
+		format!("@@noxi-frag-{}@@", options.fragments.len() - 1)
 	} else if let Some(file) = parsed.value("file") {
 		if instantiate::is_lookup_path(file) {
 			format!("import {file}")
@@ -91,46 +99,19 @@ pub fn options(parsed: &Parsed, eval: bool) -> Result<Options, Failure> {
 				},
 				"",
 			));
-			let base = format!("(__noxi_flake {})", nix_string_literal(reference));
 			let system = parsed.settings.get("system").unwrap_or("x86_64-linux");
-			let prefixes: Vec<String> = match parsed.command {
-				"develop" | "print-dev-env" => vec![
-					format!("devShells.{system}"),
-					format!("packages.{system}"),
-					format!("legacyPackages.{system}"),
-				],
-				"run" => vec![
-					format!("apps.{system}"),
-					format!("packages.{system}"),
-					format!("legacyPackages.{system}"),
-				],
-				_ => vec![
-					format!("packages.{system}"),
-					format!("legacyPackages.{system}"),
-				],
-			};
-			let selected = if attr.is_empty() { "default" } else { attr };
-			let mut candidates: Vec<String> = prefixes
+			let candidates: Vec<String> = flake_attr_paths(parsed.command, attr, system)
 				.iter()
-				.map(|prefix| format!("{prefix}.{selected}"))
+				.map(|c| nix_string_literal(c))
 				.collect();
-			if !attr.is_empty() {
-				candidates.push(attr.into());
-			}
-			let mut result = format!(
-				"throw {}",
-				nix_string_literal(&format!("flake does not provide attribute '{selected}'"))
-			);
-			for candidate in candidates.into_iter().rev() {
-				let attrs = instantiate::parse_attr_path(&candidate)
-					.map_err(Failure::Usage)?
-					.iter()
-					.map(|s| nix_string_literal(s))
-					.collect::<Vec<_>>()
-					.join(".");
-				result = format!("if f ? {attrs} then f.{attrs} else ({result})");
-			}
-			(format!("let f = {base}; in {result}"), String::new())
+			let reference = nix_string_literal(reference);
+			(
+				format!(
+					"__noxi_flake_select (__noxi_flake {reference}) [ {} ] (__noxi_flake_label {reference})",
+					candidates.join(" ")
+				),
+				String::new(),
+			)
 		} else {
 			(root.clone(), selection)
 		};
@@ -139,6 +120,8 @@ pub fn options(parsed: &Parsed, eval: bool) -> Result<Options, Failure> {
 			expression = format!("({expression}).{}", nix_string_literal(&attr));
 		}
 		if let Some(apply) = parsed.value("apply") {
+			options.fragments.push(apply.to_owned());
+			let apply = format!("@@noxi-frag-{}@@", options.fragments.len() - 1);
 			expression = format!("({apply}\n) ({expression})");
 		}
 		if eval && parsed.has("raw") {
@@ -156,7 +139,19 @@ pub fn eval(parsed: Parsed) -> Result<ExitCode, Failure> {
 			"--raw and --json are mutually exclusive".into(),
 		));
 	}
-	let options = options(&parsed, true)?;
+	let mut options = options(&parsed, true)?;
+	let plain = !parsed.has("raw") && !parsed.has("json");
+	if plain {
+		// CppNix's `ValuePrinter` forces the value as it prints it, showing
+		// derivations by path and thrown errors as `«error: ...»`.
+		options.strict = false;
+		for input in &mut options.inputs {
+			*input = format!("__noxi_eval_print ({input}\n)");
+		}
+		if options.flake.is_none() {
+			options.flake = Some(super::flakes::Request::default());
+		}
+	}
 	let evaluated = match instantiate::evaluate(&options, &std::env::current_dir()?) {
 		Ok(value) => value,
 		Err(code) => return Ok(code),
@@ -167,10 +162,23 @@ pub fn eval(parsed: Parsed) -> Result<ExitCode, Failure> {
 			let Value::String(text) = value else {
 				return Err(Failure::Error("evaluation produced no string".into()));
 			};
-			stdout.write_all(text.as_bytes())?;
+			// `MixJSON`: pretty with `--pretty`, or on a terminal unless
+			// `--no-pretty`.
+			let pretty = parsed.has("json")
+				&& (parsed.has("pretty")
+					|| !parsed.has("no-pretty") && std::io::IsTerminal::is_terminal(&io::stdout()));
+			if pretty {
+				stdout
+					.write_all(pretty_json(&String::from_utf8_lossy(text.as_bytes())).as_bytes())?;
+			} else {
+				stdout.write_all(text.as_bytes())?;
+			}
 			if parsed.has("json") {
 				writeln!(stdout)?;
 			}
+		} else if let Value::String(text) = &value {
+			stdout.write_all(text.as_bytes())?;
+			writeln!(stdout)?;
 		} else {
 			writeln!(stdout, "{}", Ambiguous(&value))?;
 		}
@@ -191,7 +199,8 @@ pub fn targets(parsed: &Parsed) -> Result<Result<Targets, ExitCode>, Failure> {
 			// A fragment selects a flake output even when the source lives
 			// in the store. It is not part of a derived store path.
 			s.contains('#')
-				|| (!s.starts_with("/nix/store/") && !std::path::Path::new(s).is_symlink())
+				|| (!s.starts_with(nix_compat::store_path::store_dir_with_slash())
+					&& !std::path::Path::new(s).is_symlink())
 		}) {
 		let options = options(parsed, false)?;
 		let evaluated = match instantiate::evaluate(&options, &std::env::current_dir()?) {
@@ -320,4 +329,100 @@ pub fn build(parsed: Parsed) -> Result<ExitCode, Failure> {
 		}
 	}
 	Ok(ExitCode::SUCCESS)
+}
+
+/// `InstallableFlake::getActualAttrPaths` with the command's
+/// `getDefaultFlakeAttrPaths` and `getDefaultFlakeAttrPathPrefixes`.
+pub fn flake_attr_paths(command: &str, fragment: &str, system: &str) -> Vec<String> {
+	let mut defaults = Vec::new();
+	let mut prefixes = Vec::new();
+	match command {
+		"develop" | "print-dev-env" => {
+			defaults.extend([
+				format!("devShells.{system}.default"),
+				format!("devShell.{system}"),
+			]);
+			prefixes.push(format!("devShells.{system}."));
+		}
+		"run" | "bundle" => {
+			defaults.extend([
+				format!("apps.{system}.default"),
+				format!("defaultApp.{system}"),
+			]);
+			prefixes.push(format!("apps.{system}."));
+		}
+		_ => {}
+	}
+	defaults.extend([
+		format!("packages.{system}.default"),
+		format!("defaultPackage.{system}"),
+	]);
+	prefixes.extend([
+		format!("packages.{system}."),
+		format!("legacyPackages.{system}."),
+	]);
+	if fragment.is_empty() {
+		return defaults;
+	}
+	if let Some(exact) = fragment.strip_prefix('.') {
+		return vec![exact.to_owned()];
+	}
+	prefixes
+		.iter()
+		.map(|prefix| format!("{prefix}{fragment}"))
+		.chain([fragment.to_owned()])
+		.collect()
+}
+
+/// nlohmann's `dump(2)` of compact JSON text: two-space indentation, `": "`
+/// after keys, empty containers kept as `{}` and `[]`, scalars unchanged.
+pub fn pretty_json(compact: &str) -> String {
+	let mut out = String::new();
+	let mut depth = 0usize;
+	let mut chars = compact.chars().peekable();
+	let newline = |out: &mut String, depth: usize| {
+		out.push('\n');
+		out.push_str(&"  ".repeat(depth));
+	};
+	while let Some(c) = chars.next() {
+		match c {
+			'"' => {
+				out.push('"');
+				while let Some(c) = chars.next() {
+					out.push(c);
+					match c {
+						'\\' => {
+							if let Some(escaped) = chars.next() {
+								out.push(escaped);
+							}
+						}
+						'"' => break,
+						_ => {}
+					}
+				}
+			}
+			'{' | '[' => {
+				let close = if c == '{' { '}' } else { ']' };
+				out.push(c);
+				if chars.peek() == Some(&close) {
+					out.push(chars.next().unwrap_or(close));
+				} else {
+					depth += 1;
+					newline(&mut out, depth);
+				}
+			}
+			'}' | ']' => {
+				depth = depth.saturating_sub(1);
+				newline(&mut out, depth);
+				out.push(c);
+			}
+			',' => {
+				out.push(',');
+				newline(&mut out, depth);
+			}
+			':' => out.push_str(": "),
+			c => out.push(c),
+		}
+	}
+	out
 }

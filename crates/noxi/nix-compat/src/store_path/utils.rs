@@ -1,6 +1,6 @@
 use std::fmt::Display;
 
-use super::{ParseStorePathError, STORE_DIR, StorePath, StorePathRef};
+use super::{ParseStorePathError, StorePath, StorePathRef, store_dir};
 use crate::derivation::OutputName;
 use crate::nixhash::{HashAlgo, NixHash, Sha256};
 use crate::{format_sha256, nixbase32};
@@ -111,7 +111,7 @@ fn build_store_path_from_fingerprint_parts<'n>(
 	inner_digest: &Sha256,
 	name: &'n str,
 ) -> Result<StorePathRef<'n>, ParseStorePathError> {
-	let fingerprint_hash = format_sha256!("{ty}:sha256:{inner_digest:x}:{STORE_DIR}:{name}");
+	let fingerprint_hash = format_sha256!("{ty}:sha256:{inner_digest:x}:{}:{name}", store_dir());
 	// name validation happens in here.
 	StorePathRef::from_name_and_digest_fixed(name, compress_hash(&fingerprint_hash))
 }

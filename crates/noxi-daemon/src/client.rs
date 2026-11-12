@@ -15,7 +15,7 @@ use std::path::{Path, PathBuf};
 use nix_compat::derivation::UnverifiedDerivation;
 use nix_compat::log::VerbosityLevel;
 use nix_compat::nixhash::HashAlgo;
-use nix_compat::store_path::{STORE_DIR, StorePath};
+use nix_compat::store_path::{StorePath, store_dir};
 use noxi_store::gc::{GcAction, GcOptions, GcResults, Roots, make_root_symlink};
 use noxi_store::{DerivedPath, FileIngestionMethod, Missing, Store, ValidPathInfo};
 
@@ -254,8 +254,8 @@ impl DaemonStore {
 			format!("unix://{}", socket.display())
 		};
 		let real_store_dir = match root {
-			Some(root) => root.join(STORE_DIR.trim_start_matches('/')),
-			None => PathBuf::from(STORE_DIR),
+			Some(root) => root.join("nix/store"),
+			None => PathBuf::from(store_dir()),
 		};
 		Self {
 			socket: socket.to_owned(),
@@ -704,7 +704,7 @@ impl Store for DaemonStore {
 	/// `IndirectRootStore::addPermRoot`: the link is made here, and the
 	/// daemon is told about it.
 	fn add_perm_root(&self, path: &StorePath, gc_root: &Path) -> noxi_store::Result<PathBuf> {
-		if gc_root.starts_with(STORE_DIR) {
+		if gc_root.starts_with(store_dir()) {
 			return Err(noxi_store::Error::Other(format!(
 				"creating a garbage collector root (\"{}\") in the Nix store is forbidden (are you running nix-build inside the store?)",
 				gc_root.display()
@@ -713,7 +713,7 @@ impl Store for DaemonStore {
 		self.add_temp_root(path)?;
 		if let Ok(metadata) = std::fs::symlink_metadata(gc_root) {
 			let points_into_store = metadata.file_type().is_symlink()
-				&& std::fs::read_link(gc_root).is_ok_and(|t| t.starts_with(STORE_DIR));
+				&& std::fs::read_link(gc_root).is_ok_and(|t| t.starts_with(store_dir()));
 			if !points_into_store {
 				return Err(noxi_store::Error::Other(format!(
 					"cannot create symlink \"{}\"; already exists",

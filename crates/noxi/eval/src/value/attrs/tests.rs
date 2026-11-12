@@ -144,6 +144,9 @@ fn cached_literals_validate_names_and_positions_before_reusing_layout() {
 	assert_eq!(second.select("z").unwrap().as_int().unwrap(), 3);
 	assert_eq!(second.select("a").unwrap().as_int().unwrap(), 4);
 	assert_eq!(second.get_attr_pos("z"), Some(spans[0]));
+	let merged = second.update(NixAttrs::from_iter([("extra", 0)]));
+	assert_eq!(merged.get_attr_pos("z"), Some(spans[0]));
+	assert_eq!(merged.get_attr_pos("a"), Some(spans[1]));
 	assert!(matches!(
 		make(["z", "z"], [5, 6], &spans),
 		Err(ErrorKind::DuplicateDefinition { .. })
@@ -258,6 +261,64 @@ fn uneven_updates_match_right_biased_map_collection() {
 			.map(|(key, value)| (key.to_str_lossy().into_owned(), value.as_int().unwrap()))
 			.collect();
 		assert_eq!(actual, expected);
+	}
+}
+
+#[test]
+fn updates_preserve_binding_positions_across_merge_strategies() {
+	let mut source = codemap::CodeMap::new();
+	let span = source.add_file("attrs.nix".into(), "a b c d".into()).span;
+	let make = |count: usize, shift: usize| {
+		NixAttrs::from_iter_with_pos((0..count).map(|index| {
+			(
+				format!("a{:03}", index + shift).into(),
+				(index as i64).into(),
+				(index % 3 != 0).then_some(span.subspan(shift as u64, shift as u64 + 1)),
+			)
+		}))
+	};
+	let wide = make(128, 0);
+	let small = make(3, 1);
+	let equal = make(128, 1);
+	let kv = NixAttrs::from_kv(7.into(), 8.into());
+	for (left, right) in [
+		(wide.clone(), small.clone()),
+		(small, wide.clone()),
+		(wide.clone(), equal),
+		(wide.clone(), kv.clone()),
+		(kv, wide),
+	] {
+		let expected = left
+			.iter()
+			.chain(right.iter())
+			.map(|(key, _)| {
+				let side = if right.contains(key.as_bstr()) {
+					&right
+				} else {
+					&left
+				};
+				(key.clone(), side.get_attr_pos(key))
+			})
+			.collect::<BTreeMap<_, _>>();
+		let merged = left.update(right);
+		// A second merge also exercises positions already indexed by offset.
+		let chained = merged.clone().update(NixAttrs::from_iter([("extra", 9)]));
+		for (key, position) in expected {
+			assert_eq!(merged.get_attr_pos(&key), position, "{key}");
+			assert_eq!(chained.get_attr_pos(&key), position, "{key}");
+		}
+	}
+}
+
+#[test]
+fn repeated_binding_lookups_agree_before_and_after_indexing() {
+	let attrs = NixAttrs::from_iter((0..128).map(|i| (format!("a{i:03}"), i as i64)));
+	for _ in 0..3 {
+		assert_eq!(attrs.select("a000").unwrap().as_int().unwrap(), 0);
+		assert!(attrs.select("a064x").is_none());
+		assert_eq!(attrs.select("a064").unwrap().as_int().unwrap(), 64);
+		assert_eq!(attrs.select("a127").unwrap().as_int().unwrap(), 127);
+		assert!(attrs.select("a128").is_none());
 	}
 }
 

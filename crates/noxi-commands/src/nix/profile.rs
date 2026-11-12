@@ -160,7 +160,7 @@ fn build(store: &dyn Store, manifest: &Value, diagnose: bool) -> Result<StorePat
 		StorePath::from_absolute_path(path.to_string_lossy().as_bytes())
 			.map(|p| store.real_path(&p))
 			.unwrap_or_else(|_| {
-				let Some(rest) = path.strip_prefix("/nix/store").ok() else {
+				let Some(rest) = path.strip_prefix(nix_compat::store_path::store_dir()).ok() else {
 					return path.to_owned();
 				};
 				let mut parts = rest.components();
@@ -370,13 +370,17 @@ fn source_info(parsed: &Parsed, operand: &str) -> Result<Result<Value, ExitCode>
 	let mut options = expression::options(&single(parsed, operand), false)?;
 	options.eval = true;
 	let system = parsed.settings.get("system").unwrap_or("x86_64-linux");
-	let selected = if attr.is_empty() { "default" } else { attr };
-	let candidates = [
-		format!("packages.{system}.{selected}"),
-		format!("legacyPackages.{system}.{selected}"),
-		selected.to_owned(),
-	];
-	let mut selection = "throw \"flake attribute missing\"".to_owned();
+	let candidates = expression::flake_attr_paths(parsed.command, attr, system);
+	let quoted: Vec<String> = candidates
+		.iter()
+		.map(|c| crate::instantiate::nix_string_literal(c))
+		.collect();
+	// No candidate exists: the selector reports it as `getCursors` does.
+	let mut selection = format!(
+		"builtins.seq (__noxi_flake_select f [ {} ] (__noxi_flake_label {})) null",
+		quoted.join(" "),
+		crate::instantiate::nix_string_literal(reference)
+	);
 	for candidate in candidates.iter().rev() {
 		let path = crate::instantiate::parse_attr_path(candidate)
 			.map_err(Failure::Usage)?
@@ -426,15 +430,17 @@ fn add_element(
 	let (operand, output_spec) = operand
 		.split_once('^')
 		.map_or((operand, None), |(a, b)| (a, Some(b)));
-	let source =
-		if !parsed.has("expr") && !parsed.has("file") && !operand.starts_with("/nix/store/") {
-			Some(match source_info(parsed, operand)? {
-				Ok(v) => v,
-				Err(c) => return Ok(Err(c)),
-			})
-		} else {
-			None
-		};
+	let source = if !parsed.has("expr")
+		&& !parsed.has("file")
+		&& !operand.starts_with(nix_compat::store_path::store_dir_with_slash())
+	{
+		Some(match source_info(parsed, operand)? {
+			Ok(v) => v,
+			Err(c) => return Ok(Err(c)),
+		})
+	} else {
+		None
+	};
 	let locked_operand = source.as_ref().map(|source| {
 		format!(
 			"{}#{}",
@@ -450,7 +456,7 @@ fn add_element(
 	if output_spec.is_none()
 		&& !parsed.has("expr")
 		&& !parsed.has("file")
-		&& !operand.starts_with("/nix/store/")
+		&& !operand.starts_with(nix_compat::store_path::store_dir_with_slash())
 	{
 		let mut options = expression::options(&single(parsed, target_operand), false)?;
 		let root = options.inputs.first().cloned().unwrap_or_default();
@@ -504,7 +510,9 @@ fn add_element(
 		.flatten()
 		.collect::<BTreeSet<_>>();
 	let mut element = json!({"active":true,"priority":parsed.value("priority").map(|s| s.parse::<i64>().map_err(|e| Failure::Usage(e.to_string()))).transpose()?.unwrap_or(5),"storePaths":paths.iter().map(|p| p.to_absolute_path()).collect::<Vec<_>>()});
-	if !parsed.has("priority") && !operand.starts_with("/nix/store/") {
+	if !parsed.has("priority")
+		&& !operand.starts_with(nix_compat::store_path::store_dir_with_slash())
+	{
 		let mut options = expression::options(&single(parsed, target_operand), false)?;
 		let root = options.inputs.first().cloned().unwrap_or_default();
 		options.eval = true;
@@ -518,7 +526,10 @@ fn add_element(
 		}
 	}
 	let mut name = identifier(&element);
-	if !parsed.has("expr") && !parsed.has("file") && !operand.starts_with("/nix/store/") {
+	if !parsed.has("expr")
+		&& !parsed.has("file")
+		&& !operand.starts_with(nix_compat::store_path::store_dir_with_slash())
+	{
 		let source = source
 			.as_ref()
 			.expect("flake source was resolved before evaluation");

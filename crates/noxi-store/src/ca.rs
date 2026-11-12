@@ -161,6 +161,31 @@ pub fn rewrite_path(path: &Path, rewrites: &BTreeMap<Vec<u8>, Vec<u8>>) -> Resul
 	Ok(())
 }
 
+/// [`hash_modulo`] of bytes already in memory, such as a NAR.
+pub fn hash_modulo_bytes(data: &[u8], algo: HashAlgo, modulus: &[u8]) -> NixHash {
+	let mut writer = Rewriter::new(
+		DigestWriter(NixHashDigester::new(algo)),
+		BTreeMap::from([(modulus.to_vec(), vec![0; modulus.len()])]),
+	);
+	writer.write_all(data).expect("hashing does not fail");
+	writer.drain(true).expect("hashing does not fail");
+	for offset in writer.matches {
+		writer.inner.0.update(format!("|{offset}").as_bytes());
+	}
+	writer.inner.0.finalize()
+}
+
+/// `RewritingSink` over bytes in memory: every occurrence of `from` is
+/// replaced by `to`, which must have the same length.
+pub fn rewrite_bytes(data: &[u8], from: &[u8], to: &[u8]) -> Vec<u8> {
+	let mut writer = Rewriter::new(Vec::new(), BTreeMap::from([(from.to_vec(), to.to_vec())]));
+	writer
+		.write_all(data)
+		.expect("writing to memory does not fail");
+	writer.drain(true).expect("writing to memory does not fail");
+	writer.inner
+}
+
 #[cfg(test)]
 mod tests {
 	use super::*;

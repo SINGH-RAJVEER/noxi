@@ -53,6 +53,8 @@ pub fn main(
 	default_name: &'static str,
 	command: fn(Settings, Vec<String>) -> Result<ExitCode, Failure>,
 ) -> ExitCode {
+	#[cfg(feature = "eval-allocation-diagnostics")]
+	let _allocation_diagnostics = crate::allocation_diagnostics::ReportGuard::new();
 	std::thread::Builder::new()
 		.stack_size(STACK_SIZE)
 		.spawn(move || {

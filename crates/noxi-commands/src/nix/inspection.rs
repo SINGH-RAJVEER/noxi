@@ -200,3 +200,61 @@ pub(super) fn json_derivation(
 		structured_attrs,
 	})
 }
+
+/// Import the version-4 derivation JSON read from stdin.
+pub fn add(parsed: Parsed) -> Result<ExitCode, Failure> {
+	use nix_compat::cppnix_json::derivation::Features;
+	let mut input = Vec::new();
+	io::Read::read_to_end(&mut io::stdin().lock(), &mut input)?;
+	let value: serde_json::Value = serde_json::from_slice(&input).map_err(|e| {
+		unsupported(&format!(
+			"derivation add of malformed JSON (nlohmann parse diagnostics are not reproduced: {e})"
+		))
+	})?;
+	let features = parsed.settings.experimental_features();
+	let mut drv = Derivation::from_json(
+		&value,
+		Features {
+			ca_derivations: features.contains("ca-derivations"),
+			dynamic_derivations: features.contains("dynamic-derivations"),
+			impure_derivations: features.contains("impure-derivations"),
+			git_hashing: features.contains("git-hashing"),
+		},
+	)
+	.map_err(|e| e.to_string())?;
+	let opened = super::command_store::open(&parsed)?;
+	let store = opened.store.as_ref();
+	// `Derivation::parseJsonAndValidate`.
+	let read = |path: &nix_compat::store_path::StorePath| json_derivation(store, path).ok();
+	let mut warnings = Vec::new();
+	drv.fill_in_output_paths(&read, &mut warnings)
+		.map_err(|e| Failure::Error(e.to_string()))?;
+	drv.check_invariants(&read, &mut warnings).map_err(|e| {
+		Failure::Error(format!(
+			"\n\u{2026} while checking derivation from JSON with name '{}'\n\nerror: {e}",
+			drv.name
+		))
+	})?;
+	for warning in warnings {
+		if nix_compat::log::log_enabled(nix_compat::log::VerbosityLevel::Warn) {
+			eprintln!("warning: {warning}");
+		}
+	}
+	let path = drv.path().map_err(|e| Failure::Error(e.to_string()))?;
+	if !(parsed.has("dry-run") || parsed.settings.get_bool("read-only", false)) {
+		let aterm = drv
+			.unparse(false, None)
+			.map_err(|e| Failure::Error(e.to_string()))?;
+		let references: BTreeSet<_> = drv
+			.input_sources
+			.iter()
+			.chain(drv.input_derivations.keys())
+			.cloned()
+			.collect();
+		let written =
+			store.add_text_to_store(&format!("{}.drv", drv.name), aterm.as_bytes(), &references)?;
+		debug_assert_eq!(written, path);
+	}
+	println!("{}", path.to_absolute_path());
+	Ok(ExitCode::SUCCESS)
+}

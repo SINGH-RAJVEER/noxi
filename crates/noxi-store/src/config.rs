@@ -3,11 +3,12 @@
 
 use std::path::{Path, PathBuf};
 
-use nix_compat::store_path::STORE_DIR;
+use nix_compat::store_path::store_dir;
 
 /// The settings CppNix's `LocalStoreConfig` and `LocalSettings` provide.
 ///
-/// The logical store directory is always `/nix/store`; `real_store_dir` is
+/// The logical store directory is `nix_compat::store_path::store_dir()`;
+/// `real_store_dir` is
 /// where its contents live on disk, which differs for a store opened with a
 /// `root`.
 #[derive(Clone, Debug)]
@@ -125,17 +126,18 @@ impl LocalStoreConfig {
 		}
 	}
 
-	/// The settings of the system store. `NIX_STATE_DIR` and `NIX_LOG_DIR`
-	/// move the state and log directories; a store directory other than
-	/// `/nix/store` is not supported.
+	/// The settings of the system store. `NIX_STORE_DIR`, `NIX_STATE_DIR` and
+	/// `NIX_LOG_DIR` move the store, state and log directories.
 	pub fn system() -> Self {
 		let state_dir = std::env::var_os("NIX_STATE_DIR")
+			.filter(|v| !v.is_empty())
 			.map(PathBuf::from)
 			.unwrap_or_else(|| PathBuf::from("/nix/var/nix"));
 		let log_dir = std::env::var_os("NIX_LOG_DIR")
+			.filter(|v| !v.is_empty())
 			.map(PathBuf::from)
 			.unwrap_or_else(|| PathBuf::from("/nix/var/log/nix"));
-		Self::with_dirs(PathBuf::from(STORE_DIR), state_dir, log_dir)
+		Self::with_dirs(PathBuf::from(store_dir()), state_dir, log_dir)
 	}
 
 	/// The settings of `local?root=ROOT`, a store whose files all live below
@@ -143,7 +145,7 @@ impl LocalStoreConfig {
 	pub fn with_root(root: &Path) -> Self {
 		let under = |path: &str| root.join(path.trim_start_matches('/'));
 		Self::with_dirs(
-			under(STORE_DIR),
+			under("/nix/store"),
 			under("/nix/var/nix"),
 			under("/nix/var/log/nix"),
 		)

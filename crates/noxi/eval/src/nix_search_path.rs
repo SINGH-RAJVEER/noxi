@@ -141,10 +141,15 @@ impl NixSearchPath {
 	}
 
 	/// `EvalState::resolveLookupPathPath`: the directory an entry's value
-	/// names, or `None` with a warning when it does not exist.
-	fn resolve_entry(&self, io: &dyn EvalIO, value: &str) -> Option<PathBuf> {
+	/// names, or `None` with a warning when it does not exist. A `flake:`
+	/// entry that cannot be resolved is an error, as in CppNix.
+	fn resolve_entry(
+		&self,
+		io: &dyn EvalIO,
+		value: &str,
+	) -> Result<Option<PathBuf>, CatchableErrorKind> {
 		if let Some(cached) = self.resolved.borrow().get(value) {
-			return cached.clone();
+			return Ok(cached.clone());
 		}
 		if is_pseudo_url(value) || value.starts_with("flake:") {
 			match io.resolve_lookup_path(value) {
@@ -152,12 +157,17 @@ impl NixSearchPath {
 					self.resolved
 						.borrow_mut()
 						.insert(value.into(), Some(path.clone()));
-					return Some(path);
+					return Ok(Some(path));
+				}
+				Err(error) if value.starts_with("flake:") => {
+					return Err(CatchableErrorKind::NixPathResolution(
+						error.to_string().into_boxed_str(),
+					));
 				}
 				Err(error) => {
 					eprintln!("warning: {error}");
 					self.resolved.borrow_mut().insert(value.into(), None);
-					return None;
+					return Ok(None);
 				}
 				Ok(None) => eprintln!(
 					"warning: Nix search path entry '{value}' cannot be downloaded, ignoring"
@@ -180,7 +190,7 @@ impl NixSearchPath {
 		self.resolved
 			.borrow_mut()
 			.insert(value.to_owned(), resolved.clone());
-		resolved
+		Ok(resolved)
 	}
 
 	/// `EvalState::findFile`: the first entry with the file, symlinks
@@ -194,7 +204,7 @@ impl NixSearchPath {
 			let Some(suffix) = entry.suffix(path) else {
 				continue;
 			};
-			let Some(root) = self.resolve_entry(io, &entry.path) else {
+			let Some(root) = self.resolve_entry(io, &entry.path)? else {
 				continue;
 			};
 			let candidate = root.join(suffix.trim_start_matches('/')).clean();

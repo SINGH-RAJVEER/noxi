@@ -277,15 +277,20 @@ impl BytecodeFrame {
 enum Frame {
 	/// A lazy addErrorContext boundary. Errors resume at this frame, so
 	/// nested contexts use the VM stack rather than the Rust call stack.
+	///
+	/// The traces of the frames below it are counted only when a context
+	/// message is needed: those frames stay suspended, and so unchanged,
+	/// while this boundary is on the stack.
 	ErrorContext {
 		context: Value,
 		span: Span,
 		depth: usize,
 		stack_base: usize,
-		outer_traces: usize,
 	},
 	ContextMessage {
-		result: Result<Value, Error>,
+		// Errors are cold. Keeping the full Error here enlarges every hot
+		// bytecode/generator frame stored in the same enum.
+		result: Result<Value, Box<Error>>,
 		span: Span,
 		depth: usize,
 		outer_traces: usize,
@@ -339,7 +344,9 @@ enum Frame {
 	/// and leaving it on the stack as the generator would.
 	Force {
 		/// The thunk being forced, a blackhole until it is updated.
-		thunk: Thunk,
+		// None for a freshly constructed, immediately forced expression:
+		// its result has no other owner and needs no memoization cell.
+		thunk: Option<Thunk>,
 
 		/// Where the thunk was suspended, the span its generator would have.
 		span: Span,
@@ -368,7 +375,9 @@ pub(crate) enum FrameTrace {
 	Builtin {
 		name: &'static str,
 		call_site: Option<Span>,
-		contexts: Vec<Trace>,
+		// Boxed: usually absent, and a bytecode frame holds a `FrameTrace`, so
+		// its size decides whether frames move with an inline copy.
+		contexts: Option<Box<Vec<Trace>>>,
 		path: Option<Rc<std::cell::RefCell<Vec<Trace>>>>,
 	},
 
@@ -565,6 +574,19 @@ where
 		globals: Rc<GlobalsMap>,
 		reasonable_span: Span,
 	) -> Self {
+		#[cfg(feature = "eval-diagnostics")]
+		{
+			crate::perf_counters::layout("Frame", std::mem::size_of::<Frame>());
+			crate::perf_counters::layout("BytecodeFrame", std::mem::size_of::<BytecodeFrame>());
+			crate::perf_counters::layout("FrameTrace", std::mem::size_of::<FrameTrace>());
+			crate::perf_counters::layout("Value", std::mem::size_of::<Value>());
+			crate::perf_counters::layout("Error", std::mem::size_of::<Error>());
+			crate::perf_counters::layout(
+				"PendingBuiltin",
+				std::mem::size_of::<crate::value::PendingBuiltin>(),
+			);
+			crate::perf_counters::frame_transition("vm_created");
+		}
 		Self {
 			nix_search_path,
 			io_handle,
@@ -588,6 +610,8 @@ where
 
 	/// Push a bytecode frame onto the frame stack.
 	fn push_bytecode_frame(&mut self, span: Span, bytecode_frame: BytecodeFrame) {
+		#[cfg(feature = "eval-diagnostics")]
+		crate::perf_counters::frame_transition("bytecode_schedule");
 		self.frames.push(Frame::BytecodeFrame {
 			span,
 			bytecode_frame,
@@ -598,10 +622,12 @@ where
 	/// suspended thunk is entered directly, under a [`Frame::Force`] that
 	/// stands in for the generator: the same frames, spans and blackhole.
 	fn enqueue_force(&mut self, span: Span, thunk: Thunk) {
+		#[cfg(feature = "eval-diagnostics")]
+		crate::perf_counters::frame_transition("force_schedule");
 		match thunk.begin_direct_force(span) {
 			Some((lambda, upvalues, suspended_at)) => {
 				self.frames.push(Frame::Force {
-					thunk,
+					thunk: Some(thunk),
 					span: suspended_at,
 					forced_at: span,
 					depth: self.call_depth,
@@ -645,6 +671,18 @@ where
 	fn execute_frames(&mut self) -> EvalResult<()> {
 		while !self.frames.is_empty() {
 			let frame = self.frames.pop().expect("frame above boundary");
+			#[cfg(feature = "eval-diagnostics")]
+			{
+				crate::perf_counters::boundary();
+				crate::perf_counters::frame_transition(match &frame {
+					Frame::ErrorContext { .. } => "context_enter",
+					Frame::ContextMessage { .. } => "context_message_enter",
+					Frame::Builtin { .. } => "builtin_enter",
+					Frame::BytecodeFrame { .. } => "bytecode_enter",
+					Frame::Generator { .. } => "generator_enter",
+					Frame::Force { .. } => "force_finish",
+				});
+			}
 			self.reasonable_span = frame.span();
 			let frame_id = self.frames.len();
 			let step = (|| -> EvalResult<()> {
@@ -653,19 +691,12 @@ where
 						context,
 						span,
 						depth,
-						outer_traces,
 						..
 					} => {
 						self.call_depth = depth;
 						let value = self.stack_pop();
 						if value.is_catchable() {
-							self.enqueue_context_message(
-								context,
-								Ok(value),
-								span,
-								depth,
-								outer_traces,
-							);
+							self.enqueue_context_message(context, Ok(value), span, depth);
 						} else {
 							self.stack.push(value);
 						}
@@ -690,7 +721,7 @@ where
 								error
 									.traces
 									.insert(outer_traces.min(error.traces.len()), trace);
-								return Err(error);
+								return Err(*error);
 							}
 							Ok(Value::Catchable(kind)) => {
 								let info = match &*kind {
@@ -854,7 +885,14 @@ where
 									.set(Some(self.traces(None, None).len()));
 							}
 						}
-						match thunk.finish_direct_force(value) {
+						let (finished, pending) = match thunk {
+							Some(thunk) => (thunk.finish_direct_force(value), Some(thunk)),
+							None if matches!(value, Value::Thunk(_)) => {
+								(None, Some(Thunk::new_evaluated(value)))
+							}
+							None => (Some(value), None),
+						};
+						match finished {
 							Some(value) => {
 								let value = self.trace_catchable(value, None, None);
 								self.stack.push(value);
@@ -867,6 +905,7 @@ where
 
 							// The value is another thunk, which the generator forces.
 							None => {
+								let thunk = pending.expect("a pending force retains its thunk");
 								self.enqueue_generator("force", span, |co| {
 									Thunk::force(thunk, co, forced_at)
 								});
@@ -896,13 +935,12 @@ where
 					span,
 					depth,
 					stack_base,
-					outer_traces,
 				}) = self.frames.pop()
 				else {
 					unreachable!()
 				};
 				self.stack.truncate(stack_base);
-				self.enqueue_context_message(context, Err(error), span, depth, outer_traces);
+				self.enqueue_context_message(context, Err(error), span, depth);
 			}
 		}
 		Ok(())
@@ -914,11 +952,14 @@ where
 		result: Result<Value, Error>,
 		span: Span,
 		depth: usize,
-		outer_traces: usize,
 	) {
+		// The frames below the popped boundary are those it was pushed on.
+		let outer_traces = self
+			.frame_traces(self.frames.iter().map(Frame::trace), None)
+			.len();
 		self.call_depth = depth;
 		self.frames.push(Frame::ContextMessage {
-			result,
+			result: result.map_err(Box::new),
 			span,
 			depth,
 			outer_traces,
@@ -962,6 +1003,8 @@ where
 	fn execute_bytecode(&mut self, span: Span, mut frame: BytecodeFrame) -> EvalResult<bool> {
 		loop {
 			let op = frame.inc_ip();
+			#[cfg(feature = "eval-diagnostics")]
+			crate::perf_counters::opcode(frame.chunk().code[frame.ip.0 - 1]);
 			self.observer.observe_execute_op(frame.ip, &op, &self.stack);
 
 			match op {
@@ -978,6 +1021,47 @@ where
 						upvalues.len() == blueprint.upvalue_count,
 						"TODO: new upvalue count not correct",
 					);
+
+					// A new thunk immediately consumed by Force cannot escape.
+					// Enter its unchanged bytecode and captures directly, retaining
+					// the force continuation for identical error/context handling.
+					// Deferred recursive captures and observers retain the old path.
+					if op == Op::ThunkSuspended
+						&& self.observer.0.is_none()
+						&& frame.chunk().code.get(frame.ip.0) == Some(&(Op::Force as u8))
+						&& (0..upvalues.len()).all(|index| {
+							!matches!(upvalues[UpvalueIdx(index)], Value::DeferredUpvalue(_))
+						}) {
+						let suspended_at = blueprint
+							.suspended_span
+							.unwrap_or_else(|| frame.current_span());
+						frame.inc_ip();
+						#[cfg(feature = "eval-diagnostics")]
+						{
+							crate::perf_counters::opcode(Op::Force as u8);
+							crate::perf_counters::frame_transition("immediate_force_fused");
+						}
+						let forced_at = frame.current_span();
+						self.push_bytecode_frame(span, frame);
+						self.frames.push(Frame::Force {
+							thunk: None,
+							span: suspended_at,
+							forced_at,
+							depth: self.call_depth,
+						});
+						self.push_bytecode_frame(
+							suspended_at,
+							BytecodeFrame {
+								trace: FrameTrace::None,
+								lambda: blueprint,
+								upvalues: upvalues.into(),
+								ip: CodeIdx(0),
+								stack_offset: self.stack.len(),
+								depth: self.call_depth,
+							},
+						);
+						return Ok(false);
+					}
 
 					let thunk = if op == Op::ThunkClosure {
 						debug_assert!(
@@ -1045,6 +1129,23 @@ where
 
 				Op::GetUpvalue => {
 					let idx = UpvalueIdx(frame.read_uvarint() as usize);
+					// A capture forced right away reads a memoized value directly,
+					// as the following Force would, without cloning the thunk.
+					if self.observer.0.is_none()
+						&& frame.chunk().code.get(frame.ip.0) == Some(&(Op::Force as u8))
+					{
+						let value = match frame.upvalue(idx) {
+							Value::Thunk(thunk) => thunk.value_if_evaluated(),
+							value => Some(value.clone()),
+						};
+						if let Some(value) = value {
+							frame.inc_ip();
+							#[cfg(feature = "eval-diagnostics")]
+							crate::perf_counters::opcode(Op::Force as u8);
+							self.stack.push(value);
+							continue;
+						}
+					}
 					let value = frame.upvalue(idx).clone();
 					self.stack.push(value);
 				}
@@ -1669,12 +1770,16 @@ impl<IO> VM<'_, IO> {
 	fn traces(&self, error: Option<&ErrorKind>, running: Option<&FrameTrace>) -> Vec<Trace> {
 		let current =
 			(self.frames.len() <= self.current.0).then(|| running.unwrap_or(&self.current.1));
-		let frames: Vec<&FrameTrace> = self
-			.frames
-			.iter()
-			.map(Frame::trace)
-			.chain(current)
-			.collect();
+		self.frame_traces(self.frames.iter().map(Frame::trace).chain(current), error)
+	}
+
+	/// The trace entries `frames` contribute, oldest first.
+	fn frame_traces<'f>(
+		&self,
+		frames: impl Iterator<Item = &'f FrameTrace>,
+		error: Option<&ErrorKind>,
+	) -> Vec<Trace> {
+		let frames: Vec<&FrameTrace> = frames.collect();
 		// CppNix checks a call's arguments against the function's formals
 		// before it evaluates the body, so only `from call site` applies.
 		let formals_error = matches!(
@@ -1728,7 +1833,7 @@ impl<IO> VM<'_, IO> {
 							format!("while calling the '{name}' builtin"),
 						));
 					}
-					traces.extend(contexts.iter().cloned());
+					traces.extend(contexts.iter().flat_map(|c| c.iter()).cloned());
 					if let Some(path) = path {
 						traces.extend(path.borrow().iter().cloned());
 					}
@@ -1981,7 +2086,7 @@ where
 				trace: FrameTrace::Builtin {
 					name,
 					call_site,
-					contexts: vec![],
+					contexts: None,
 					path: None,
 				},
 			}),
@@ -1997,7 +2102,7 @@ where
 						FrameTrace::Builtin {
 							name: builtin_name,
 							call_site,
-							contexts: vec![],
+							contexts: None,
 							path: None,
 						},
 					),
@@ -2019,7 +2124,7 @@ where
 				trace: FrameTrace::Builtin {
 					name: builtin_name,
 					call_site,
-					contexts: vec![],
+					contexts: None,
 					path: None,
 				},
 			}),

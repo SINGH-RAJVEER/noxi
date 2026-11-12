@@ -28,6 +28,8 @@ pub struct Request {
 	pub inputs_from: Vec<String>,
 	pub registry_overrides: Vec<(String, String)>,
 	pub output_lock_file: Option<PathBuf>,
+	/// `nix search`: the patterns and output format of the search builtin.
+	pub search: Option<super::search::Request>,
 }
 pub struct State {
 	pub request: Request,
@@ -36,6 +38,87 @@ pub struct State {
 #[noxi_eval::builtin_macros::builtins(state = "Rc<State>")]
 mod operations {
 	use super::*;
+	#[builtin("search")]
+	async fn builtin_search(
+		state: Rc<State>,
+		co: GenCo,
+		root: Value,
+		candidates: Value,
+		label: Value,
+	) -> Result<Value, ErrorKind> {
+		super::super::search::builtin(state, co, root, candidates, label).await
+	}
+	#[builtin("flake_select")]
+	async fn builtin_select(
+		state: Rc<State>,
+		co: GenCo,
+		root: Value,
+		candidates: Value,
+		label: Value,
+	) -> Result<Value, ErrorKind> {
+		let _ = &state;
+		super::super::search::select_builtin(co, root, candidates, label).await
+	}
+	#[builtin("repl_print")]
+	async fn builtin_repl_print(
+		state: Rc<State>,
+		co: GenCo,
+		value: Value,
+		depth: Value,
+	) -> Result<Value, ErrorKind> {
+		let _ = &state;
+		super::super::repl::print_builtin(co, value, depth).await
+	}
+	#[builtin("eval_print")]
+	async fn builtin_eval_print(
+		state: Rc<State>,
+		co: GenCo,
+		#[lazy] value: Value,
+	) -> Result<Value, ErrorKind> {
+		let _ = &state;
+		super::super::repl::eval_print_builtin(co, value).await
+	}
+	#[builtin("repl_get")]
+	async fn builtin_repl_get(
+		state: Rc<State>,
+		co: GenCo,
+		set: Value,
+		name: Value,
+	) -> Result<Value, ErrorKind> {
+		let _ = &state;
+		super::super::repl::get_builtin(co, set, name).await
+	}
+	#[builtin("repl_type")]
+	async fn builtin_repl_type(
+		state: Rc<State>,
+		co: GenCo,
+		#[lazy] value: Value,
+	) -> Result<Value, ErrorKind> {
+		let _ = &state;
+		super::super::repl::type_builtin(co, value).await
+	}
+	#[builtin("repl_names")]
+	async fn builtin_repl_names(
+		state: Rc<State>,
+		co: GenCo,
+		value: Value,
+	) -> Result<Value, ErrorKind> {
+		let _ = &state;
+		super::super::repl::names_builtin(co, value).await
+	}
+	/// The parsed, unresolved form of a reference, as installables print it.
+	#[builtin("flake_label")]
+	async fn builtin_flake_label(
+		state: Rc<State>,
+		co: GenCo,
+		reference: Value,
+	) -> Result<Value, ErrorKind> {
+		let _ = &co;
+		let reference = reference.to_contextful_str()?.to_str()?.to_owned();
+		Ok(Value::from(
+			noxi_glue::fetch::flake::parse_reference(&state.store, &reference)?.to_string(),
+		))
+	}
 	#[builtin("flake")]
 	async fn builtin_flake(
 		state: Rc<State>,
@@ -467,6 +550,7 @@ pub(super) fn request(parsed: &Parsed, operation: &str) -> Result<Request, Failu
 			.map(str::to_owned)
 			.unwrap_or_else(|| format!("{}-linux", std::env::consts::ARCH)),
 		output_lock_file: parsed.value("output-lock-file").map(PathBuf::from),
+		search: None,
 	})
 }
 pub(super) fn run(mut parsed: Parsed) -> Result<std::process::ExitCode, Failure> {
@@ -477,6 +561,12 @@ pub(super) fn run(mut parsed: Parsed) -> Result<std::process::ExitCode, Failure>
 	} else {
 		operation
 	};
+	if matches!(operation, "init" | "new") {
+		return super::flake_init::init(parsed, operation);
+	}
+	if operation == "clone" {
+		return super::flake_init::clone(parsed);
+	}
 	if !matches!(
 		operation,
 		"lock"
@@ -784,17 +874,37 @@ fn input_path(input: &str, flag: &str) -> Result<Vec<String>, Failure> {
 /// Hide only the synthetic adapter call, retaining imported Nix source traces.
 pub(crate) fn command_error(error: &noxi_eval::Error) -> noxi_eval::Error {
 	let mut error = error.clone();
-	error
-		.traces
-		.retain(|frame| frame.hint != "while calling the 'flake' builtin");
-	error
-		.contexts
-		.retain(|frame| frame.hint != "while calling the 'flake' builtin");
+	error.traces.retain(|frame| !adapter_frame(&frame.hint));
+	error.contexts.retain(|frame| !adapter_frame(&frame.hint));
 	match &mut error.kind {
 		ErrorKind::NativeError { err, .. } | ErrorKind::BytecodeError(err) => {
 			**err = command_error(err)
 		}
+		ErrorKind::CatchableError(caught) => {
+			if let Some(trace) = caught.trace() {
+				trace
+					.traces
+					.borrow_mut()
+					.retain(|frame| !adapter_frame(&frame.hint));
+			}
+		}
 		_ => {}
 	}
 	error
+}
+
+/// The command adapters' own builtin frames, which CppNix has no counterpart for.
+fn adapter_frame(hint: &str) -> bool {
+	[
+		"while calling the 'flake' builtin",
+		"while calling the 'search' builtin",
+		"while calling the 'flake_label' builtin",
+		"while calling the 'repl_print' builtin",
+		"while calling the 'repl_get' builtin",
+		"while calling the 'eval_print' builtin",
+		"while calling the 'repl_type' builtin",
+		"while calling the 'repl_names' builtin",
+		"while calling the 'flake_select' builtin",
+	]
+	.contains(&hint)
 }

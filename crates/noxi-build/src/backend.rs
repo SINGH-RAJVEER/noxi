@@ -308,20 +308,35 @@ impl Store for LocalBackend {
 		let substituters = self.substituters();
 		let builder =
 			LocalBuilder::new(&self.store, &self.settings).with_substituters(substituters);
+		// The `bar` loggers print each completed line as `NAME> LINE`, the line
+		// assembled as `handleChildOutput` does: `\r` rewinds, `\n` ends it.
+		let mut prefixed = PrefixedLog::default();
 		let mut events = |event: BuildEvent<'_>| {
 			let mut stderr = std::io::stderr();
+			let prefix = nix_compat::log::prefix_build_logs();
 			let _ = match event {
 				// The build activity is at `lvlInfo`; its output is shown
 				// unless build logs are off.
-				BuildEvent::Started { drv_path }
-					if nix_compat::log::log_enabled(nix_compat::log::VerbosityLevel::Info) =>
-				{
-					writeln!(stderr, "building '{}'...", drv_path.to_absolute_path())
+				BuildEvent::Started { drv_path } => {
+					prefixed.start(drv_path);
+					if nix_compat::log::log_enabled(nix_compat::log::VerbosityLevel::Info) {
+						writeln!(stderr, "building '{}'...", drv_path.to_absolute_path())
+					} else {
+						Ok(())
+					}
+				}
+				BuildEvent::Output(data) if prefix => {
+					prefixed.push(data, &mut stderr);
+					Ok(())
 				}
 				BuildEvent::Output(data) if nix_compat::log::print_build_logs() => {
 					stderr.write_all(data)
 				}
-				BuildEvent::Started { .. } | BuildEvent::Output(_) => Ok(()),
+				BuildEvent::Finished { .. } if prefix => {
+					prefixed.flush(&mut stderr);
+					Ok(())
+				}
+				BuildEvent::Output(_) => Ok(()),
 				BuildEvent::Finished { .. } | BuildEvent::PathChecked { .. } => Ok(()),
 			};
 		};
@@ -602,5 +617,69 @@ mod order_tests {
 				}
 			}
 		}
+	}
+}
+
+/// Build output as CppNix's `ProgressBar` prints it with `--print-build-logs`
+/// off a terminal: each line after the derivation's name and `> `.
+#[derive(Default)]
+struct PrefixedLog {
+	name: String,
+	line: Vec<u8>,
+	pos: usize,
+}
+
+impl PrefixedLog {
+	fn start(&mut self, drv_path: &StorePath) {
+		// `DrvName(...).name`: the name without its version.
+		let full = drv_path
+			.name()
+			.strip_suffix(".drv")
+			.unwrap_or(drv_path.name());
+		let bytes = full.as_bytes();
+		let end = (0..bytes.len())
+			.find(|&i| {
+				bytes[i] == b'-' && i + 1 < bytes.len() && !bytes[i + 1].is_ascii_alphabetic()
+			})
+			.unwrap_or(bytes.len());
+		self.name = full[..end].to_owned();
+		self.line.clear();
+		self.pos = 0;
+	}
+
+	fn push(&mut self, data: &[u8], out: &mut dyn std::io::Write) {
+		for &byte in data {
+			match byte {
+				b'\n' => self.emit(out),
+				b'\r' => self.pos = 0,
+				byte => {
+					if self.pos < self.line.len() {
+						self.line[self.pos] = byte;
+					} else {
+						self.line.push(byte);
+					}
+					self.pos += 1;
+				}
+			}
+		}
+	}
+
+	/// The unterminated last line when the build ends.
+	fn flush(&mut self, out: &mut dyn std::io::Write) {
+		if !self.line.is_empty() {
+			self.emit(out);
+		}
+	}
+
+	/// `flushLine`.
+	fn emit(&mut self, out: &mut dyn std::io::Write) {
+		// The whole message is filtered, so tabs align after the prefix.
+		let mut message = format!("{}> ", self.name).into_bytes();
+		message.extend_from_slice(&self.line);
+		let mut text = nix_compat::log::filter_ansi_escapes(&message, true);
+		text.push(b'\n');
+		let _ = out.write_all(&text);
+		self.line.clear();
+		self.pos = 0;
 	}
 }

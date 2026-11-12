@@ -45,6 +45,9 @@ path = "src/bin/nix-collect-garbage.rs"
 name = "nix-env"
 path = "src/bin/nix-env.rs"
 
+[features]
+eval-allocation-diagnostics = []
+
 [dependencies]
 bytes.workspace = true
 bstr.workspace = true
@@ -58,6 +61,7 @@ noxi-flake = { path = "../noxi-flake", version = "0.0.2" }
 noxi-glue = { path = "../noxi-glue", version = "0.0.2" }
 noxi-store = { path = "../noxi-store", version = "0.0.3" }
 regex.workspace = true
+rnix.workspace = true
 url.workspace = true
 libc.workspace = true
 rustc-hash.workspace = true

@@ -200,7 +200,7 @@ fn resolve(uri: &str) -> Result<Target, String> {
 	};
 	Ok(match scheme {
 		"dummy" | "dummy://" => Target::Dummy,
-		"local" => Target::Local { root, read_only },
+		"local" | "local://" => Target::Local { root, read_only },
 		"auto" if root.is_some() => Target::Local { root, read_only },
 		"auto" => {
 			let state_dir = LocalStoreConfig::system().state_dir;
@@ -221,6 +221,20 @@ fn resolve(uri: &str) -> Result<Target, String> {
 			socket: PathBuf::from(&scheme["unix://".len()..]),
 			root,
 		},
+		// `StoreReference::parse`: a plain path is a local store rooted there.
+		_ if !scheme.contains("://")
+			&& (scheme.starts_with('/')
+				|| scheme.starts_with("../")
+				|| scheme.starts_with("./")) =>
+		{
+			Target::Local {
+				root: Some(crate::instantiate::absolute_path(
+					&std::env::current_dir().unwrap_or_default(),
+					Path::new(scheme),
+				)),
+				read_only,
+			}
+		}
 		_ => {
 			return Err(format!(
 				"don't know how to open Nix store with scheme '{scheme}'"

@@ -17,7 +17,7 @@ use std::path::{Path, PathBuf};
 use std::sync::{Arc, Condvar, Mutex};
 
 use nix_compat::nixbase32;
-use nix_compat::store_path::{STORE_DIR, STORE_DIR_WITH_SLASH, StorePath};
+use nix_compat::store_path::{StorePath, store_dir, store_dir_with_slash};
 
 use crate::error::{Error, Result};
 use crate::local::LocalStore;
@@ -87,7 +87,7 @@ const CENSORED: &str = "{censored}";
 /// CppNix's `StoreDirConfig::toStorePath`: the store path a path inside
 /// the store belongs to.
 fn to_store_path(target: &str) -> Option<StorePath> {
-	let rest = target.strip_prefix(STORE_DIR_WITH_SLASH)?;
+	let rest = target.strip_prefix(store_dir_with_slash())?;
 	let base = rest.split('/').next()?;
 	StorePath::from_bytes(base.as_bytes()).ok()
 }
@@ -189,7 +189,7 @@ fn runtime_roots() -> BTreeMap<String, BTreeSet<String>> {
 
 /// Matches of `STORE_DIR/[0-9a-z]+[0-9a-zA-Z+\-._?=]*` in `bytes`.
 fn store_paths_in(bytes: &[u8]) -> Vec<String> {
-	let prefix = format!("{STORE_DIR}/");
+	let prefix = store_dir_with_slash().to_owned();
 	let prefix = prefix.as_bytes();
 	let mut found = Vec::new();
 	let mut i = 0;
@@ -438,7 +438,7 @@ impl LocalStore {
 		} else if metadata.file_type().is_symlink() {
 			let target = fs::read_link(path)?;
 			let target_str = target.to_string_lossy().into_owned();
-			if target_str.starts_with(STORE_DIR_WITH_SLASH) {
+			if target_str.starts_with(store_dir_with_slash()) {
 				found(path, &target_str, roots)?;
 			} else {
 				// An indirect root: a link to a link into the store.
@@ -454,7 +454,7 @@ impl LocalStore {
 					}
 				} else if let Ok(target2) = fs::read_link(&target) {
 					let target2 = target2.to_string_lossy().into_owned();
-					if target2.starts_with(STORE_DIR_WITH_SLASH) {
+					if target2.starts_with(store_dir_with_slash()) {
 						found(&target, &target2, roots)?;
 					}
 				}
@@ -665,7 +665,7 @@ impl LocalStore {
 					_ => return Ok(Ok(())),
 				}
 			}
-			let path = format!("{STORE_DIR}/{base_name}");
+			let path = format!("{}{base_name}", store_dir_with_slash());
 			log(&format!("deleting '{path}'"));
 			results.paths.insert(path);
 			results.bytes_freed += delete_counting(&real)?;
@@ -930,7 +930,7 @@ impl LocalStore {
 	/// `IndirectRootStore::addPermRoot`: make `gc_root` a symlink to
 	/// `path` and register it as an indirect root. Returns the link.
 	pub fn add_perm_root(&self, path: &StorePath, gc_root: &Path) -> Result<PathBuf> {
-		if gc_root.starts_with(STORE_DIR) {
+		if gc_root.starts_with(store_dir()) {
 			return Err(Error::Other(format!(
 				"creating a garbage collector root (\"{}\") in the Nix store is forbidden (are you running nix-build inside the store?)",
 				gc_root.display()
@@ -939,7 +939,7 @@ impl LocalStore {
 		self.add_temp_root(path)?;
 		if let Ok(metadata) = fs::symlink_metadata(gc_root) {
 			let points_into_store = metadata.file_type().is_symlink()
-				&& fs::read_link(gc_root).is_ok_and(|t| t.starts_with(STORE_DIR));
+				&& fs::read_link(gc_root).is_ok_and(|t| t.starts_with(store_dir()));
 			if !points_into_store {
 				return Err(Error::Other(format!(
 					"cannot create symlink \"{}\"; already exists",
@@ -996,4 +996,13 @@ pub fn replace_symlink(target: &Path, link: &Path) -> Result<()> {
 		});
 	}
 	unreachable!()
+}
+
+/// The store paths running processes use, valid or not, as the roots
+/// daemon (`nix store roots-daemon`) reports them.
+pub fn runtime_roots_unchecked() -> BTreeSet<StorePath> {
+	runtime_roots()
+		.into_keys()
+		.filter_map(|target| to_store_path(&target))
+		.collect()
 }

@@ -136,12 +136,34 @@ impl ThunkRepr {
 pub struct Thunk(pub(super) Rc<RefCell<ThunkRepr>>);
 
 impl Thunk {
+	#[cfg(feature = "eval-diagnostics")]
+	fn record_creation(kind: &'static str) {
+		crate::perf_counters::thunk_created(kind);
+		crate::perf_counters::layout("ThunkRepr", std::mem::size_of::<ThunkRepr>());
+		crate::perf_counters::layout("Upvalues", std::mem::size_of::<Upvalues>());
+		crate::perf_counters::layout(
+			"FrameUpvalues",
+			std::mem::size_of::<crate::upvalues::FrameUpvalues>(),
+		);
+		crate::perf_counters::allocation("thunk_rc", std::mem::size_of::<RefCell<ThunkRepr>>());
+	}
+
+	/// Preserve an already computed value in a memoizable cell. A nested thunk
+	/// still follows the ordinary forcing path, including alias updates.
+	pub(crate) fn new_evaluated(value: Value) -> Self {
+		#[cfg(feature = "eval-diagnostics")]
+		Self::record_creation("evaluated");
+		Thunk(Rc::new(RefCell::new(ThunkRepr::Evaluated(value))))
+	}
+
 	pub fn new_closure(lambda: Rc<Lambda>) -> Self {
 		let upvalues = Upvalues::with_capacity(lambda.upvalue_count);
 		Self::new_closure_with_upvalues(lambda, upvalues)
 	}
 
 	pub(crate) fn new_closure_with_upvalues(lambda: Rc<Lambda>, upvalues: Upvalues) -> Self {
+		#[cfg(feature = "eval-diagnostics")]
+		Self::record_creation("closure");
 		Thunk(Rc::new(RefCell::new(ThunkRepr::Evaluated(Value::Closure(
 			Rc::new(Closure {
 				upvalues: Rc::new(upvalues),
@@ -160,6 +182,8 @@ impl Thunk {
 		span: Span,
 		upvalues: Upvalues,
 	) -> Self {
+		#[cfg(feature = "eval-diagnostics")]
+		Self::record_creation("suspended");
 		Thunk(Rc::new(RefCell::new(ThunkRepr::Suspended {
 			upvalues,
 			lambda,
@@ -168,6 +192,8 @@ impl Thunk {
 	}
 
 	pub fn new_suspended_native(native: Box<dyn Fn() -> Result<Value, ErrorKind>>) -> Self {
+		#[cfg(feature = "eval-diagnostics")]
+		Self::record_creation("native");
 		Thunk(Rc::new(RefCell::new(ThunkRepr::Native(SuspendedNative(
 			native,
 		)))))
@@ -257,6 +283,8 @@ impl Thunk {
 			// If the current thunk is already fully evaluated, return its evaluated
 			// value. The VM will continue running the code that landed us here.
 			if myself.is_forced() {
+				#[cfg(feature = "eval-diagnostics")]
+				crate::perf_counters::thunk_force(false);
 				let val = Self::copy_memoized_error(myself.unwrap_or_clone());
 				for other_thunk in also_update.into_iter() {
 					other_thunk.replace(ThunkRepr::Evaluated(val.clone()));
@@ -285,7 +313,11 @@ impl Thunk {
 				}
 
 				// Evaluate native computations without entering bytecode.
-				ThunkRepr::Native(native) => native.0()?,
+				ThunkRepr::Native(native) => {
+					#[cfg(feature = "eval-diagnostics")]
+					crate::perf_counters::thunk_force(true);
+					native.0()?
+				}
 
 				// When encountering a suspended thunk, request that the VM enters
 				// it and produces the result.
@@ -294,6 +326,8 @@ impl Thunk {
 					upvalues,
 					span,
 				} => {
+					#[cfg(feature = "eval-diagnostics")]
+					crate::perf_counters::thunk_force(true);
 					// TODO(amjoseph): use #[tailcall::mutual] here.  This can
 					// be turned into a tailcall to vm::execute_bytecode() by
 					// passing `also_update` to it.
@@ -368,7 +402,11 @@ impl Thunk {
 				lambda,
 				upvalues,
 				span,
-			} => Some((lambda, upvalues, span)),
+			} => {
+				#[cfg(feature = "eval-diagnostics")]
+				crate::perf_counters::thunk_force(true);
+				Some((lambda, upvalues, span))
+			}
 			_ => unreachable!("the thunk was just checked to be suspended"),
 		}
 	}
@@ -444,10 +482,24 @@ impl Thunk {
 	/// evaluated thunk pointing to another thunk still needs normal forcing.
 	pub(crate) fn force_if_evaluated(self) -> Result<Value, Self> {
 		if self.is_forced() {
+			#[cfg(feature = "eval-diagnostics")]
+			crate::perf_counters::thunk_force(false);
 			Ok(Self::copy_memoized_error(self.unwrap_or_clone()))
 		} else {
 			Err(self)
 		}
+	}
+
+	/// The value [`force_if_evaluated`](Self::force_if_evaluated) yields for
+	/// a memoized thunk, without taking ownership of the thunk.
+	pub(crate) fn value_if_evaluated(&self) -> Option<Value> {
+		let repr = self.0.borrow();
+		if !repr.is_forced() {
+			return None;
+		}
+		#[cfg(feature = "eval-diagnostics")]
+		crate::perf_counters::thunk_force(false);
+		Some(Self::copy_memoized_error(repr.expect_ref().clone()))
 	}
 
 	/// Returns a reference to the inner evaluated value of a thunk.
@@ -588,6 +640,89 @@ mod tests {
 			Some(Value::Integer(42))
 		));
 		assert_eq!(alias.value().as_int().unwrap(), 42);
+	}
+
+	#[test]
+	fn forcing_releases_shared_with_captures_after_last_owner() {
+		let resource = Rc::new(());
+		let weak = Rc::downgrade(&resource);
+		let captured = Thunk::new_suspended_native(Box::new(move || {
+			let _keep_alive = &resource;
+			Ok(Value::Null)
+		}));
+		let shared: Rc<[Value]> = vec![Value::Thunk(captured)].into();
+		let span = crate::test_utils::dummy_span();
+		let mut lambda = Lambda::default();
+		lambda.chunk.push_op(Op::Return, span);
+		let thunk = Thunk::new_suspended_with_upvalues(
+			Rc::new(lambda),
+			span,
+			Upvalues::from_raw_parts(vec![], Some(shared.clone())),
+		);
+		let (_, captures, _) = thunk.begin_direct_force(span).unwrap();
+		assert!(Rc::ptr_eq(captures.shared_with_stack().unwrap(), &shared));
+		drop(captures);
+		assert!(weak.upgrade().is_some());
+		drop(shared);
+		assert!(weak.upgrade().is_none());
+	}
+
+	#[test]
+	fn finalising_deferred_capture_preserves_thunk_identity() {
+		let span = crate::test_utils::dummy_span();
+		let captured = Thunk::new_suspended_native(Box::new(|| Ok(Value::Integer(42))));
+		let mut lambda = Lambda::default();
+		lambda.upvalue_count = 1;
+		lambda.chunk.push_op(Op::Return, span);
+		let thunk = Thunk::new_suspended_with_upvalues(
+			Rc::new(lambda),
+			span,
+			Upvalues::from_raw_parts(
+				vec![Value::DeferredUpvalue(crate::opcode::StackIdx(0))],
+				None,
+			),
+		);
+		thunk.finalise(&[Value::Thunk(captured.clone())]);
+		let (_, captures, _) = thunk.begin_direct_force(span).unwrap();
+		let Value::Thunk(finalised) = &captures[crate::opcode::UpvalueIdx(0)] else {
+			panic!("deferred capture was not finalised");
+		};
+		assert!(finalised.ptr_eq(&captured));
+	}
+
+	#[test]
+	fn evaluated_wrapper_preserves_nested_identity_and_memoized_failure() {
+		fn force(thunk: Thunk) -> Value {
+			let mut generator = generators::Gen::new(|co| {
+				generators::pin_generator(Thunk::force(thunk, co, crate::test_utils::dummy_span()))
+			});
+			match generator.resume_with(generators::VMResponse::Empty) {
+				genawaiter::GeneratorState::Complete(Ok(value)) => value,
+				_ => panic!("native thunk force should complete immediately"),
+			}
+		}
+
+		let calls = Rc::new(std::cell::Cell::new(0));
+		let counter = calls.clone();
+		let inner = Thunk::new_suspended_native(Box::new(move || {
+			counter.set(counter.get() + 1);
+			Ok(Value::Catchable(Box::new(
+				crate::errors::CatchableErrorKind::Throw("cached failure".into()),
+			)))
+		}));
+		let wrapper = Thunk::new_evaluated(Value::Thunk(inner.clone()));
+		{
+			let value = wrapper.value();
+			let Value::Thunk(nested) = &*value else {
+				panic!("wrapper should retain its nested thunk");
+			};
+			assert!(nested.ptr_eq(&inner));
+		}
+		assert!(!wrapper.is_forced());
+		assert!(matches!(force(wrapper.clone()), Value::Catchable(_)));
+		assert!(matches!(force(wrapper), Value::Catchable(_)));
+		assert!(matches!(force(inner), Value::Catchable(_)));
+		assert_eq!(calls.get(), 1);
 	}
 
 	#[test]

@@ -1,14 +1,14 @@
-use std::sync::LazyLock;
-
-use aho_corasick::AhoCorasick;
-
-const PATTERNS: [&str; 5] = ["\\", "\n", "\r", "\t", "\""];
-const REPLACEMENTS: [&str; 5] = ["\\\\", "\\n", "\\r", "\\t", "\\\""];
-static AC: LazyLock<AhoCorasick> = LazyLock::new(|| {
-	AhoCorasick::builder()
-		.build(PATTERNS)
-		.expect("to init aho-corasick with PATTERNS")
-});
+/// The replacement for a byte ATerm strings escape.
+fn replacement(byte: u8) -> Option<&'static [u8]> {
+	match byte {
+		b'\\' => Some(b"\\\\"),
+		b'\n' => Some(b"\\n"),
+		b'\r' => Some(b"\\r"),
+		b'\t' => Some(b"\\t"),
+		b'"' => Some(b"\\\""),
+		_ => None,
+	}
+}
 
 /// Given a byte sequence, writes it in escaped form to the passed writer.
 /// Does not add surrounding quotes.
@@ -16,10 +16,14 @@ pub fn write_escaped<P: AsRef<[u8]>>(s: P, w: &mut impl std::io::Write) -> std::
 	let s = s.as_ref();
 	let mut pos = 0;
 
-	for m in AC.find_iter(s) {
-		w.write_all(&s[pos..m.start()])?;
-		w.write_all(REPLACEMENTS[m.pattern().as_usize()].as_bytes())?;
-		pos = m.end();
+	// Every escaped sequence is one byte, so a byte scan finds them all; most
+	// strings contain none and are written in one piece.
+	for (i, &byte) in s.iter().enumerate() {
+		if let Some(replacement) = replacement(byte) {
+			w.write_all(&s[pos..i])?;
+			w.write_all(replacement)?;
+			pos = i + 1;
+		}
 	}
 
 	w.write_all(&s[pos..])

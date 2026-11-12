@@ -75,6 +75,10 @@ pub struct Options {
 	pub override_flakes: Vec<(String, String)>,
 	/// `nix-shell`: functions with an `inNixShell` argument get it as `true`.
 	pub in_nix_shell: bool,
+	/// Source fragments that inputs reference as `@@noxi-frag-N@@`. When set,
+	/// the inputs themselves are hidden driver code and only these fragments
+	/// are shown as `«string»` sources, as `nix repl` shows each line.
+	pub fragments: Vec<String>,
 }
 
 /// Parse the command line after the program name, applying settings flags
@@ -246,7 +250,13 @@ pub fn find_files(options: &Options) -> ExitCode {
 		None,
 	)
 	.with_pure_eval(options.settings.get_bool("pure-eval", false));
-	let io = Box::new(noxi_eval::StdIO) as Box<dyn noxi_eval::EvalIO>;
+	// `flake:` and URL entries are fetched through the selected store and the
+	// flake registries, as an evaluation resolves them.
+	let cwd = std::env::current_dir().unwrap_or_default();
+	let io = match evaluator_store(options, &cwd, true) {
+		Ok((store, _)) => Box::new(noxi_glue::StoreIO::new(store)) as Box<dyn noxi_eval::EvalIO>,
+		Err(_) => Box::new(noxi_eval::StdIO) as Box<dyn noxi_eval::EvalIO>,
+	};
 	let mut stdout = io::stdout().lock();
 	for input in &options.inputs {
 		match search_path.resolve(&io, input) {
@@ -344,6 +354,38 @@ fn root_expression(
 	sources: &mut Vec<(String, String)>,
 ) -> io::Result<String> {
 	if options.from_args {
+		if !options.fragments.is_empty() {
+			let mut code = String::new();
+			let mut rest = input;
+			while let Some(start) = rest.find("@@noxi-frag-") {
+				code.push_str(&rest[..start]);
+				rest = &rest[start + "@@noxi-frag-".len()..];
+				// `raw-N` splices bindings without the surrounding parentheses.
+				let raw = rest.starts_with("raw-");
+				if raw {
+					rest = &rest[4..];
+				}
+				let end = rest
+					.find("@@")
+					.ok_or_else(|| io::Error::other("fragment marker"))?;
+				let index: usize = rest[..end]
+					.parse()
+					.map_err(|_| io::Error::other("fragment marker"))?;
+				let fragment = options
+					.fragments
+					.get(index)
+					.ok_or_else(|| io::Error::other("fragment marker"))?;
+				lints
+					.preflight(fragment, "«string»", true)
+					.map_err(|error| io::Error::other(error.to_string()))?;
+				let name = if raw { "«string»\0raw" } else { "«string»" };
+				sources.push((name.into(), fragment.clone()));
+				code.push_str(&format!("@@noxi-input-{}@@", sources.len() - 1));
+				rest = &rest[end + 2..];
+			}
+			code.push_str(rest);
+			return Ok(format!("({code}\n)"));
+		}
 		lints
 			.preflight(input, "«string»", true)
 			.map_err(|error| io::Error::other(error.to_string()))?;
@@ -484,15 +526,21 @@ in __noxi_forceEach [\n",
 		let end = remaining.find("@@").expect("generated input marker");
 		let index: usize = remaining[..end].parse().expect("generated input index");
 		let (name, input) = &sources[index];
-		code.push('(');
+		let (name, raw) = match name.strip_suffix("\0raw") {
+			Some(name) => (name.to_owned(), true),
+			None => (name.clone(), false),
+		};
+		if !raw {
+			code.push('(');
+		}
 		let start = code.len();
 		code.push_str(input);
 		fragments.push(SourceFragment {
 			range: start..code.len(),
-			name: name.clone(),
+			name,
 			code: input.clone(),
 		});
-		code.push_str("\n)");
+		code.push_str(if raw { "\n" } else { "\n)" });
 		remaining = &remaining[end + 2..];
 	}
 	code.push_str(remaining);
@@ -574,6 +622,42 @@ pub struct Evaluated {
 /// is returned. Unless `options.eval`, each result is a list of
 /// `[ drvPath outputName ]` pairs, as CppNix's `getDerivations` finds them.
 pub fn evaluate(options: &Options, cwd: &Path) -> Result<Evaluated, ExitCode> {
+	// A syntax error in an expression given on the command line is reported
+	// for that expression alone, as CppNix parses it, not for the generated
+	// code around it.
+	// Fragments spliced as bindings (`raw`) are not expressions on their own.
+	let raw: Vec<String> = options
+		.inputs
+		.iter()
+		.flat_map(|input| input.split("@@noxi-frag-raw-").skip(1))
+		.filter_map(|rest| rest.split_once("@@").map(|(index, _)| index.to_owned()))
+		.collect();
+	let sources: Vec<&String> = if !options.fragments.is_empty() {
+		options
+			.fragments
+			.iter()
+			.enumerate()
+			.filter(|(index, _)| !raw.contains(&index.to_string()))
+			.map(|(_, code)| code)
+			.collect()
+	} else if options.from_args {
+		options.inputs.iter().collect()
+	} else {
+		Vec::new()
+	};
+	for code in sources {
+		if rnix::Root::parse(code).errors().is_empty() {
+			continue;
+		}
+		let result = noxi_eval::Evaluation::builder_pure()
+			.build()
+			.compile_only(code, None);
+		if let Some(error) = result.errors.first() {
+			options.error_codes.borrow_mut().push(error.code());
+			print_evaluation_error(error, &options.settings);
+			return Err(ExitCode::FAILURE);
+		}
+	}
 	let fail = |message: &dyn std::fmt::Display| {
 		eprintln!("error: {message}");
 		ExitCode::FAILURE
@@ -588,64 +672,7 @@ pub fn evaluate(options: &Options, cwd: &Path) -> Result<Evaluated, ExitCode> {
 	})?;
 
 	let writable = !options.eval || options.read_write_mode;
-	let uri = store::store_uri(options.store.as_deref(), &options.settings);
-	let (evaluator_store, store) =
-		match store::open(&uri, &options.settings).map_err(|e| fail(&e))? {
-			Some(opened) if writable => (
-				noxi_glue::EvaluatorStore::with_store(opened.store.clone(), opened.real_store_dir),
-				Some(opened.store),
-			),
-			Some(opened) => (
-				noxi_glue::EvaluatorStore::with_read_store(opened.store, opened.real_store_dir),
-				None,
-			),
-			None => (noxi_glue::ReadOnlyStore::new(), None),
-		};
-	evaluator_store.allow_import_from_derivation(
-		options
-			.settings
-			.get_bool("allow-import-from-derivation", true),
-	);
-	evaluator_store.trace_import_from_derivation(
-		options
-			.settings
-			.get_bool("trace-import-from-derivation", false),
-	);
-	let mut fetch = noxi_glue::fetch::FetchConfig {
-		pure_eval: options.settings.get_bool("pure-eval", false),
-		override_flakes: options.override_flakes.clone(),
-		cwd: cwd.to_owned(),
-		..Default::default()
-	};
-	fetch.settings.allow_dirty = options.settings.get_bool("allow-dirty", true);
-	fetch.settings.warn_dirty = options.settings.get_bool("warn-dirty", true);
-	fetch.settings.allow_dirty_locks = options.settings.get_bool("allow-dirty-locks", false);
-	fetch.settings.tarball_ttl = options.settings.get_int("tarball-ttl", 3600).max(0) as u64;
-	fetch.settings.use_registries = options.settings.get_bool("use-registries", true);
-	fetch.settings.trust_tarballs_from_git_forges = options
-		.settings
-		.get_bool("trust-tarballs-from-git-forges", true);
-	fetch.settings.flake_registry = options
-		.settings
-		.get("flake-registry")
-		.unwrap_or("https://channels.nixos.org/flake-registry.json")
-		.to_owned();
-	fetch.settings.verified_fetches = options
-		.settings
-		.experimental_features()
-		.contains("verified-fetches");
-	fetch.settings.access_tokens = options
-		.settings
-		.get("access-tokens")
-		.unwrap_or_default()
-		.split_whitespace()
-		.filter_map(|entry| {
-			entry
-				.split_once('=')
-				.map(|(host, token)| (host.to_owned(), token.to_owned()))
-		})
-		.collect();
-	evaluator_store.configure_fetching(fetch);
+	let (evaluator_store, store) = evaluator_store(options, cwd, writable).map_err(|e| fail(&e))?;
 	let mut env: FxHashMap<SmolStr, Value> = driver_builtins::builtins()
 		.into_iter()
 		.map(|(name, value)| (SmolStr::new(format!("__noxi_{name}")), value))
@@ -1000,8 +1027,8 @@ pub fn print_evaluation_error(error: &noxi_eval::Error, settings: &Settings) {
 		{
 			use std::io::Write;
 			let mut stderr = std::io::stderr().lock();
-			let _ = stderr
-				.write_all(&error.cppnix_format_bytes(settings.get_bool("show-trace", false)));
+			let formatted = error.cppnix_format_bytes(settings.get_bool("show-trace", false));
+			let _ = stderr.write_all(&physical_positions(formatted));
 			let _ = stderr.write_all(b"\n");
 		}
 		if matches!(
@@ -1014,6 +1041,34 @@ pub fn print_evaluation_error(error: &noxi_eval::Error, settings: &Settings) {
 			eprintln!("Try '{program} --help' for more information.");
 		}
 	}
+}
+
+/// The diverted store's real directory, when the evaluation's store has one.
+static REAL_STORE_DIR: std::sync::Mutex<Option<String>> = std::sync::Mutex::new(None);
+
+/// CppNix shows a source position in a diverted store at its physical path,
+/// the path its store accessor reads. The evaluator names files by their
+/// logical path, which relative path literals depend on, so the positions
+/// are rewritten here.
+fn physical_positions(formatted: Vec<u8>) -> Vec<u8> {
+	let Some(real) = REAL_STORE_DIR.lock().ok().and_then(|dir| dir.clone()) else {
+		return formatted;
+	};
+	let logical = format!("{}/", nix_compat::store_path::store_dir());
+	let mut out = Vec::with_capacity(formatted.len());
+	for line in formatted.split_inclusive(|b| *b == b'\n') {
+		let indent = line.iter().take_while(|b| **b == b' ').count();
+		let rest = &line[indent..];
+		match rest.strip_prefix(format!("at {logical}").as_bytes()) {
+			Some(tail) => {
+				out.extend_from_slice(&line[..indent]);
+				out.extend_from_slice(format!("at {real}/").as_bytes());
+				out.extend_from_slice(tail);
+			}
+			None => out.extend_from_slice(line),
+		}
+	}
+	out
 }
 
 /// Run `nix-instantiate` with the arguments after the program name.
@@ -1032,4 +1087,80 @@ pub fn main(settings: Settings, args: Vec<String>) -> Result<ExitCode, crate::cl
 	}
 	let cwd = std::env::current_dir()?;
 	Ok(run(&options, &cwd, &mut io::stdout().lock()))
+}
+
+/// The evaluator store and the store it registers paths in, with fetching
+/// configured from the settings, as an evaluation and `--find-file` use them.
+fn evaluator_store(
+	options: &Options,
+	cwd: &Path,
+	writable: bool,
+) -> Result<(Rc<noxi_glue::EvaluatorStore>, Option<Rc<dyn Store>>), String> {
+	let uri = store::store_uri(options.store.as_deref(), &options.settings);
+	let opened = store::open(&uri, &options.settings)?;
+	if let Ok(mut dir) = REAL_STORE_DIR.lock() {
+		*dir = opened
+			.as_ref()
+			.and_then(|opened| opened.real_store_dir.as_ref())
+			.filter(|dir| dir.as_path() != Path::new(nix_compat::store_path::store_dir()))
+			.map(|dir| dir.display().to_string());
+	}
+	let (evaluator_store, store) = match opened {
+		Some(opened) if writable => (
+			noxi_glue::EvaluatorStore::with_store(opened.store.clone(), opened.real_store_dir),
+			Some(opened.store),
+		),
+		Some(opened) => (
+			noxi_glue::EvaluatorStore::with_read_store(opened.store, opened.real_store_dir),
+			None,
+		),
+		None => (noxi_glue::ReadOnlyStore::new(), None),
+	};
+	evaluator_store.allow_import_from_derivation(
+		options
+			.settings
+			.get_bool("allow-import-from-derivation", true),
+	);
+	evaluator_store.trace_import_from_derivation(
+		options
+			.settings
+			.get_bool("trace-import-from-derivation", false),
+	);
+	let mut fetch = noxi_glue::fetch::FetchConfig {
+		pure_eval: options.settings.get_bool("pure-eval", false),
+		override_flakes: options.override_flakes.clone(),
+		cwd: cwd.to_owned(),
+		..Default::default()
+	};
+	fetch.settings.flakes = options.settings.experimental_features().contains("flakes");
+	fetch.settings.allow_dirty = options.settings.get_bool("allow-dirty", true);
+	fetch.settings.warn_dirty = options.settings.get_bool("warn-dirty", true);
+	fetch.settings.allow_dirty_locks = options.settings.get_bool("allow-dirty-locks", false);
+	fetch.settings.tarball_ttl = options.settings.get_int("tarball-ttl", 3600).max(0) as u64;
+	fetch.settings.use_registries = options.settings.get_bool("use-registries", true);
+	fetch.settings.trust_tarballs_from_git_forges = options
+		.settings
+		.get_bool("trust-tarballs-from-git-forges", true);
+	fetch.settings.flake_registry = options
+		.settings
+		.get("flake-registry")
+		.unwrap_or("https://channels.nixos.org/flake-registry.json")
+		.to_owned();
+	fetch.settings.verified_fetches = options
+		.settings
+		.experimental_features()
+		.contains("verified-fetches");
+	fetch.settings.access_tokens = options
+		.settings
+		.get("access-tokens")
+		.unwrap_or_default()
+		.split_whitespace()
+		.filter_map(|entry| {
+			entry
+				.split_once('=')
+				.map(|(host, token)| (host.to_owned(), token.to_owned()))
+		})
+		.collect();
+	evaluator_store.configure_fetching(fetch);
+	Ok((evaluator_store, store))
 }

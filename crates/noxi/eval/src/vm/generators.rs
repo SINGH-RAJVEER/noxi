@@ -415,7 +415,7 @@ where
 						}
 						VMRequest::BuiltinContext(traces) => {
 							if let FrameTrace::Builtin { contexts, .. } = &mut self.current.1 {
-								*contexts = traces;
+								*contexts = (!traces.is_empty()).then(|| Box::new(traces));
 							} else {
 								self.current.1 = FrameTrace::Dynamic(std::rc::Rc::new(
 									std::cell::RefCell::new(traces),
@@ -431,7 +431,6 @@ where
 								span,
 								depth: self.call_depth,
 								stack_base: self.stack.len(),
-								outer_traces: self.traces(None, None).len(),
 							});
 							self.enqueue_force_value(span, value);
 							return Ok(false);

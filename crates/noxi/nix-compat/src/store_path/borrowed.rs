@@ -4,7 +4,7 @@ use std::fmt;
 use crate::{
 	nixbase32,
 	store_path::{
-		DIGEST_SIZE, ENCODED_DIGEST_SIZE, ParseStorePathError, STORE_DIR_WITH_SLASH, StorePath,
+		DIGEST_SIZE, ENCODED_DIGEST_SIZE, ParseStorePathError, StorePath, store_dir_with_slash,
 		validate_name,
 	},
 };
@@ -79,7 +79,7 @@ impl<'a> StorePathRef<'a> {
 	/// This is equivalent to calling [StorePathRef::from_bytes], but stripping
 	/// the [STORE_DIR_WITH_SLASH] prefix before.
 	pub fn from_absolute_path(s: &'a [u8]) -> Result<Self, ParseStorePathError> {
-		match s.strip_prefix(STORE_DIR_WITH_SLASH.as_bytes()) {
+		match s.strip_prefix(store_dir_with_slash().as_bytes()) {
 			Some(s_stripped) => Self::from_bytes(s_stripped),
 			None => Err(ParseStorePathError::MissingStoreDir),
 		}
@@ -97,7 +97,7 @@ impl<'a> StorePathRef<'a> {
 		// strip [STORE_DIR_WITH_SLASH] from path
 		let p = path
 			.as_ref()
-			.strip_prefix(STORE_DIR_WITH_SLASH)
+			.strip_prefix(store_dir_with_slash())
 			.map_err(|_| ParseStorePathError::MissingStoreDir)?;
 
 		let mut components = p.components();
@@ -132,7 +132,7 @@ impl<'a> StorePathRef<'a> {
 
 		impl std::fmt::Display for WithAbsolutePath<'_> {
 			fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-				write!(f, "{STORE_DIR_WITH_SLASH}{}", self.0)
+				write!(f, "{}{}", store_dir_with_slash(), self.0)
 			}
 		}
 		WithAbsolutePath(self)
@@ -204,7 +204,7 @@ impl<'a, 'de: 'a> serde::Deserialize<'de> for StorePathRef<'a> {
 		D: serde::Deserializer<'de>,
 	{
 		let string: &'de str = serde::Deserialize::deserialize(deserializer)?;
-		let stripped: Option<&str> = string.strip_prefix(STORE_DIR_WITH_SLASH);
+		let stripped: Option<&str> = string.strip_prefix(store_dir_with_slash());
 		let stripped: &str = stripped.ok_or_else(|| {
 			serde::de::Error::invalid_value(
 				serde::de::Unexpected::Str(string),

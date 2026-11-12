@@ -30,12 +30,14 @@ use crate::store;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum Operation {
+	Init,
 	Realise,
 	Query,
 	Gc,
 	Delete,
 	Optimise,
 	Verify,
+	Other(crate::nix_store_ops::Op),
 }
 
 /// State of one `nix-store` invocation.
@@ -51,26 +53,6 @@ struct NixStore<'a> {
 
 /// Run `nix-store` with the arguments after the program name.
 pub fn main(mut settings: Settings, args: Vec<String>) -> Result<ExitCode, Failure> {
-	if args
-		.iter()
-		.take_while(|arg| arg.as_str() != "--")
-		.any(|arg| arg == "--dump")
-	{
-		let args = args.into_iter().map(|arg| {
-			if arg == "--optimize" {
-				"--optimise".into()
-			} else {
-				arg
-			}
-		});
-		let mut options = crate::maintenance::parse_args(args, settings).map_err(Failure::Usage)?;
-		print_setting_warnings(&mut options.settings);
-		return Ok(crate::maintenance::run(
-			&options,
-			&mut io::stdout().lock(),
-			&mut io::stderr().lock(),
-		));
-	}
 	let mut op = None;
 	let mut op_flags = Vec::new();
 	let mut op_args = Vec::new();
@@ -89,6 +71,7 @@ pub fn main(mut settings: Settings, args: Vec<String>) -> Result<ExitCode, Failu
 		}
 		let previous = op;
 		match arg.as_str() {
+			"--init" => op = Some(Operation::Init),
 			"--version" => {
 				println!("nix-store (Nix) 2.35.2");
 				return Ok(ExitCode::SUCCESS);
@@ -99,27 +82,10 @@ pub fn main(mut settings: Settings, args: Vec<String>) -> Result<ExitCode, Failu
 			"--delete" => op = Some(Operation::Delete),
 			"--optimise" | "--optimize" => op = Some(Operation::Optimise),
 			"--verify" => op = Some(Operation::Verify),
-			"--add"
-			| "-A"
-			| "--add-fixed"
-			| "--print-fixed-path"
-			| "--print-env"
-			| "--read-log"
-			| "-l"
-			| "--dump-db"
-			| "--load-db"
-			| "--register-validity"
-			| "--check-validity"
-			| "--dump"
-			| "--restore"
-			| "--export"
-			| "--import"
-			| "--init"
-			| "--verify-path"
-			| "--repair-path"
-			| "--serve"
-			| "--generate-binary-cache-key"
-			| "--help" => {
+			other if crate::nix_store_ops::Op::parse(other).is_some() => {
+				op = crate::nix_store_ops::Op::parse(other).map(Operation::Other);
+			}
+			"--serve" | "--help" => {
 				return Err(Failure::Error(format!(
 					"nix-store {arg} is not supported by noxi yet"
 				)));
@@ -161,7 +127,7 @@ pub fn main(mut settings: Settings, args: Vec<String>) -> Result<ExitCode, Failu
 		}
 	}
 	print_setting_warnings(&mut settings);
-	if read_stdin {
+	if read_stdin && !matches!(op, Some(Operation::Other(other)) if !other.reads_stdin_words()) {
 		for line in io::stdin().lock().lines() {
 			op_args.extend(line?.split_whitespace().map(str::to_owned));
 		}
@@ -169,6 +135,12 @@ pub fn main(mut settings: Settings, args: Vec<String>) -> Result<ExitCode, Failu
 	let op = op.ok_or_else(|| Failure::Usage("no operation specified".to_owned()))?;
 
 	let uri = store::store_uri(store_uri.as_deref(), &settings);
+	if op == Operation::Init && (!op_flags.is_empty() || !op_args.is_empty()) {
+		return Err(Failure::Usage("no arguments expected".into()));
+	}
+	if let Operation::Other(other) = op {
+		return crate::nix_store_ops::run(other, &op_flags, &op_args, &uri, &settings, &cwd);
+	}
 	let opened = store::open(&uri, &settings)?
 		.ok_or_else(|| Failure::Error(format!("store '{uri}' cannot hold store paths")))?;
 	let command = NixStore {
@@ -182,6 +154,8 @@ pub fn main(mut settings: Settings, args: Vec<String>) -> Result<ExitCode, Failu
 	};
 	let mut stdout = io::stdout().lock();
 	match op {
+		Operation::Init => {}
+		Operation::Other(_) => unreachable!("dispatched above"),
 		Operation::Realise => command.realise(&op_flags, &op_args, &mut stdout)?,
 		Operation::Query => command.query(&op_flags, op_args, &settings, &mut stdout)?,
 		Operation::Gc | Operation::Delete => {

@@ -189,8 +189,10 @@ pub async fn realise_value_to_path(
 
 #[derive(Default)]
 struct BuiltinState {
-	regex_cache: RefCell<FxHashMap<String, Regex>>,
-	split_regex_cache: RefCell<FxHashMap<String, regex::bytes::Regex>>,
+	// Shared, not cloned: a cloned `Regex` starts with an empty match cache,
+	// which every use would rebuild.
+	regex_cache: RefCell<FxHashMap<String, Rc<Regex>>>,
+	split_regex_cache: RefCell<FxHashMap<String, Rc<regex::bytes::Regex>>>,
 	/// The enabled CppNix experimental features, shared with the builder.
 	experimental_features: ExperimentalFeatures,
 	messages: EvaluationMessages,
@@ -235,7 +237,7 @@ impl ExperimentalFeatures {
 }
 
 impl BuiltinState {
-	fn get_split_regex(&self, pattern: &str) -> Result<regex::bytes::Regex, regex::Error> {
+	fn get_split_regex(&self, pattern: &str) -> Result<Rc<regex::bytes::Regex>, regex::Error> {
 		let mut map = self.split_regex_cache.borrow_mut();
 		Ok(match map.entry(pattern.to_string()) {
 			Entry::Occupied(occupied) => occupied.get().clone(),
@@ -244,18 +246,18 @@ impl BuiltinState {
 				let re = regex::bytes::RegexBuilder::new(pattern)
 					.unicode(false)
 					.build()?;
-				vacant.insert(re).clone()
+				vacant.insert(Rc::new(re)).clone()
 			}
 		})
 	}
 
-	fn get_regex(&self, pattern: &str) -> Result<Regex, ()> {
+	fn get_regex(&self, pattern: &str) -> Result<Rc<Regex>, ()> {
 		let mut map = self.regex_cache.borrow_mut();
 		Ok(match map.entry(pattern.to_string()) {
 			Entry::Occupied(occupied) => occupied.get().clone(),
 			Entry::Vacant(vacant) => {
 				let re = extended_regex::compile(pattern)?;
-				vacant.insert(re).clone()
+				vacant.insert(Rc::new(re)).clone()
 			}
 		})
 	}

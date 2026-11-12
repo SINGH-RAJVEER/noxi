@@ -112,12 +112,12 @@ pub fn position(source: &SourceCode, span: Span) -> Option<Pos> {
 		return None;
 	}
 	let offset = (span.low() - file.span.low()) as usize;
-	let lines = lines(file.source());
-	let index = match lines.partition_point(|(start, _)| *start <= offset) {
+	let lines = source.line_starts(&file);
+	let index = match lines.partition_point(|start| *start <= offset) {
 		0 => 0,
 		n => n - 1,
 	};
-	let line_start = lines.get(index).map_or(0, |(start, _)| *start);
+	let line_start = lines.get(index).copied().unwrap_or(0);
 	Some(Pos {
 		origin: origin(file.name()),
 		line: index + 1,

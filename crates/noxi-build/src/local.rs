@@ -25,7 +25,7 @@ use nix_compat::derivation::{OutputHashMode, UnverifiedDerivation, lookup_fn};
 use nix_compat::nixbase32;
 use nix_compat::nixhash::{CAHash, NixHash};
 use nix_compat::store_path::{
-	self, STORE_DIR, StorePath, downstream_placeholder, hash_placeholder,
+	self, StorePath, downstream_placeholder, hash_placeholder, store_dir,
 };
 use noxi_store::binary_cache::BinaryCache;
 use noxi_store::build_derivation::{BuildDerivation, FloatingOutput};
@@ -727,7 +727,7 @@ impl<'a> LocalBuilder<'a> {
 			}
 		}
 
-		let diverted = self.store.config().real_store_dir != Path::new(STORE_DIR);
+		let diverted = self.store.config().real_store_dir != Path::new(store_dir());
 		let use_sandbox = diverted
 			|| match self.settings.sandbox {
 				SandboxMode::Enabled => {
@@ -770,15 +770,8 @@ impl<'a> LocalBuilder<'a> {
 			locks.set_deletion(true);
 			return Ok(());
 		}
-		if !use_sandbox {
-			return Err(BuildError::Other(format!(
-				"cannot build '{}': noxi only builds in the sandbox so far",
-				print(drv_path)
-			)));
-		}
-
 		let build_user = self.acquire_build_user(drv_path)?;
-		let build = Build::start(
+		let mut build = Build::start(
 			self,
 			drv_path,
 			outputs,
@@ -787,6 +780,8 @@ impl<'a> LocalBuilder<'a> {
 			is_fixed,
 			build_user,
 		)?;
+		// Without the sandbox the builder writes its outputs in place.
+		build.direct = !use_sandbox;
 		let result = build
 			.run(drv, &env, &input_paths, outputs, events)
 			.and_then(|()| {
@@ -936,7 +931,9 @@ impl<'a> LocalBuilder<'a> {
 					info.references = others;
 					info.ca = Some(got.clone());
 					let real = self.store.real_path(&path);
-					if self.path_valid(&path)? {
+					if *actual == real {
+						// An unsandboxed build wrote the output in place.
+					} else if self.path_valid(&path)? {
 						delete_path(actual)?;
 					} else {
 						delete_path(&real)?;
@@ -1289,8 +1286,9 @@ impl LocalBuilder<'_> {
 								.unwrap_or(drv_path.name());
 							let name_part = output_path_name(drv_name, name);
 							let fingerprint = format!(
-								"rewrite:{drv_path}:name:{name}:sha256:{}:{STORE_DIR}:{name_part}",
-								"0".repeat(64)
+								"rewrite:{drv_path}:name:{name}:sha256:{}:{}:{name_part}",
+								"0".repeat(64),
+								store_dir()
 							);
 							StorePath::from_name_and_digest(
 								&name_part,
@@ -1593,7 +1591,7 @@ impl<'b> Build<'b> {
 		let chroot_parent = PathBuf::from(chroot_parent);
 		let chroot_root = sandbox::setup_chroot(
 			&chroot_parent,
-			Path::new(STORE_DIR),
+			Path::new(store_dir()),
 			!is_fixed,
 			build_user.as_ref().map(|u| u.gid),
 		)?;
@@ -1620,12 +1618,22 @@ impl<'b> Build<'b> {
 		self.build_user.as_ref().map(|u| (u.uid, u.uid))
 	}
 
+	/// The build directory as the builder sees it: `sandbox-build-dir` in
+	/// the sandbox, the temporary directory itself without one.
+	fn build_top(&self) -> PathBuf {
+		if self.direct {
+			self.tmp_dir.clone()
+		} else {
+			PathBuf::from(&self.builder.settings.sandbox_build_dir)
+		}
+	}
+
 	fn path_in_chroot(&self, path: &StorePath) -> PathBuf {
 		if self.direct {
 			return self.builder.store.real_path(path);
 		}
 		self.chroot_root
-			.join(STORE_DIR.trim_start_matches('/'))
+			.join(store_dir().trim_start_matches('/'))
 			.join(path.to_string())
 	}
 
@@ -1656,14 +1664,15 @@ impl<'b> Build<'b> {
 		rewrites: &BTreeMap<String, String>,
 	) -> Result<BTreeMap<BString, BString>> {
 		let settings = self.builder.settings;
-		let build_top = settings.sandbox_build_dir.as_str();
+		let build_top = self.build_top();
+		let build_top = build_top.to_str().unwrap_or_default();
 		let mut out: BTreeMap<BString, BString> = BTreeMap::new();
 		let mut set = |k: &str, v: &str| {
 			out.insert(k.into(), v.into());
 		};
 		set("PATH", "/path-not-set");
 		set("HOME", HOME_DIR);
-		set("NIX_STORE", STORE_DIR);
+		set("NIX_STORE", store_dir());
 		set("NIX_BUILD_CORES", &settings.effective_cores().to_string());
 
 		if let Some(attrs) = &self.structured {
@@ -1873,7 +1882,7 @@ impl<'b> Build<'b> {
 				},
 			);
 		}
-		let build_top = PathBuf::from(&settings.sandbox_build_dir);
+		let build_top = self.build_top();
 		binds.insert(
 			build_top.clone(),
 			Bind {
@@ -1899,7 +1908,8 @@ impl<'b> Build<'b> {
 
 		let spec = SandboxSpec {
 			chroot_root: self.chroot_root.clone(),
-			store_dir: PathBuf::from(STORE_DIR),
+			chroot: !self.direct,
+			store_dir: PathBuf::from(store_dir()),
 			binds: binds.into_values().collect(),
 			sandboxed: self.sandboxed,
 			build_user: self.build_user.as_ref().map(|u| (u.uid, u.gid)),
@@ -1980,10 +1990,10 @@ impl<'b> Build<'b> {
 			BuildError::Other("builtin:buildenv needs an output 'out'".to_owned())
 		})?;
 		let output_names: BTreeSet<String> = outputs.values().map(|o| o.path.to_string()).collect();
-		let chroot_store = self.chroot_root.join(STORE_DIR.trim_start_matches('/'));
+		let chroot_store = self.chroot_root.join(store_dir().trim_start_matches('/'));
 		let real_store = store.config().real_store_dir.clone();
 		let real = |path: &Path| -> PathBuf {
-			let Ok(rest) = path.strip_prefix(STORE_DIR) else {
+			let Ok(rest) = path.strip_prefix(store_dir()) else {
 				return path.to_owned();
 			};
 			let name = rest.iter().next().map(|n| n.to_string_lossy().into_owned());

@@ -15,7 +15,7 @@ use data_encoding::BASE64;
 use crate::cppnix_json::Signature;
 use crate::nixbase32;
 use crate::nixhash::{CAHash, HashAlgo, NixHash};
-use crate::store_path::{STORE_DIR, StorePath};
+use crate::store_path::{StorePath, store_dir};
 
 /// A parsed `.narinfo` file.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -316,7 +316,7 @@ pub fn parse_store_path(path: &str) -> Result<StorePath, String> {
 	}
 	let canonical = format!("/{}", components.join("/"));
 	match canonical.rsplit_once('/') {
-		Some((parent, base)) if parent == STORE_DIR => parse_store_path_base(base),
+		Some((parent, base)) if parent == store_dir() => parse_store_path_base(base),
 		_ => Err(format!("path \"{canonical}\" is not in the Nix store")),
 	}
 }

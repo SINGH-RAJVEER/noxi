@@ -16,7 +16,7 @@ use nix_compat::log::VerbosityLevel;
 use nix_compat::narinfo::VerifyingKey;
 use nix_compat::nixbase32;
 use nix_compat::nixhash::{CAHash, HashAlgo, NixHash, NixHashDigester};
-use nix_compat::store_path::{STORE_DIR, StorePath, StorePathRef};
+use nix_compat::store_path::{StorePath, StorePathRef, store_dir};
 use rusqlite::{Connection, OptionalExtension, TransactionBehavior, params};
 
 use crate::canonicalise::canonicalise_path_metadata;
@@ -356,7 +356,7 @@ impl LocalStore {
 		if hash_part.len() != 32 {
 			return Err(Error::Other("invalid hash part".to_owned()));
 		}
-		let prefix = format!("{STORE_DIR}/{hash_part}");
+		let prefix = format!("{}/{hash_part}", store_dir());
 		let db = self.db();
 		let found: Option<String> = db
 			.prepare_cached("select path from ValidPaths where path >= ? limit 1")?

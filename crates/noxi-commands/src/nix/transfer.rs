@@ -86,14 +86,22 @@ pub fn copy(mut parsed: Parsed) -> Result<ExitCode, Failure> {
 		.split('&')
 		.filter(|p| !p.is_empty())
 		.collect();
-	if !params.contains(&"compression=none") {
+	if !params.iter().any(|param| {
+		matches!(
+			*param,
+			"compression=none" | "compression=gzip" | "compression=bzip2" | "compression=zstd"
+		)
+	}) {
 		return Err(unsupported(
-			"copy to compressed file:// caches; use ?compression=none (the upload API supports uncompressed NARs)",
+			"copy without an explicit supported compression; use ?compression=none, gzip, bzip2 or zstd",
 		));
 	}
 	let mut key_files = Vec::new();
 	for param in &params {
-		if *param == "compression=none" {
+		if matches!(
+			*param,
+			"compression=none" | "compression=gzip" | "compression=bzip2" | "compression=zstd"
+		) {
 			continue;
 		}
 		if let Some(path) = param.strip_prefix("secret-key=") {

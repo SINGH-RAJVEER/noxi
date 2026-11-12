@@ -22,7 +22,7 @@ use crate::cppnix_json::{
 	BuildOutcome, BuildResult, DrvOutput, PathInfo, Realisation, Signature, UnkeyedRealisation,
 };
 use crate::nixhash::{CAHash, NixHash};
-use crate::store_path::{STORE_DIR, StorePath};
+use crate::store_path::{StorePath, store_dir};
 use crate::wire::ProtocolVersion;
 use crate::wire::de::{Error as _, NixDeserialize, NixRead};
 use crate::wire::ser::{Error as _, NixSerialize, NixWrite};
@@ -430,7 +430,7 @@ impl NixDeserialize for Serve<PathInfo> {
 		let Some(deriver) = reader.try_read_bytes().await? else {
 			return Ok(None);
 		};
-		let mut info = PathInfo::new(STORE_DIR, NixHash::Sha256([0; 32]));
+		let mut info = PathInfo::new(store_dir(), NixHash::Sha256([0; 32]));
 		if !deriver.is_empty() {
 			info.deriver = Some(parse_store_path::<R::Error>(&deriver)?);
 		}
@@ -453,7 +453,7 @@ impl NixSerialize for Serve<PathInfo> {
 	async fn serialize<W: NixWrite>(&self, writer: &mut W) -> Result<(), W::Error> {
 		write_version(writer, 0)?;
 		let info = &self.0;
-		if info.store_dir != STORE_DIR {
+		if info.store_dir != store_dir() {
 			return Err(W::Error::unsupported_data(
 				"serve codec requires /nix/store",
 			));

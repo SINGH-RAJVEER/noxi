@@ -65,7 +65,7 @@ pub fn download_file(
 	let key: Attrs = [
 		("url".into(), url.into()),
 		("name".into(), name.into()),
-		("store".into(), "/nix/store".into()),
+		("store".into(), nix_compat::store_path::store_dir().into()),
 	]
 	.into();
 	let cached = cache.lookup_expired("file", &key, store.fetch_settings().tarball_ttl)?;

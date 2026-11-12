@@ -52,7 +52,7 @@ impl PureIO {
 
 /// Whether `path` is inside a source tree this evaluation fetched.
 fn in_fetched_source(store: &noxi_glue::EvaluatorStore, path: &Path) -> bool {
-	path.strip_prefix("/nix/store")
+	path.strip_prefix(nix_compat::store_path::store_dir())
 		.ok()
 		.and_then(|p| p.components().next())
 		.and_then(|p| {
@@ -65,7 +65,8 @@ fn in_fetched_source(store: &noxi_glue::EvaluatorStore, path: &Path) -> bool {
 /// permits for traversal, its metadata is visible in pure mode so that
 /// fetched store paths can be reached by name; its listing is not.
 fn is_store_dir(path: &Path) -> bool {
-	path.components().eq(Path::new("/nix/store").components())
+	path.components()
+		.eq(Path::new(nix_compat::store_path::store_dir()).components())
 }
 
 fn unsupported() -> io::Error {
@@ -138,7 +139,7 @@ impl EvalIO for PureIO {
 		None
 	}
 	fn store_dir(&self) -> Option<String> {
-		Some("/nix/store".into())
+		Some(nix_compat::store_path::store_dir().into())
 	}
 }
 

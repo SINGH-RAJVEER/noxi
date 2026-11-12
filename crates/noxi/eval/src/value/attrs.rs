@@ -6,7 +6,7 @@
 //! Due to this, construction and management of attribute sets has
 //! some peculiarities that are encapsulated within this module.
 use std::borrow::Borrow;
-use std::cell::OnceCell;
+use std::cell::{Cell, OnceCell};
 use std::collections::BTreeMap;
 use std::hash::BuildHasher as _;
 use std::iter::FromIterator;
@@ -70,57 +70,73 @@ fn sort_bindings(attrs: &mut Vec<(NixString, Value)>) {
 
 fn merge_bindings(
 	out: &mut Vec<(NixString, Value)>,
-	mut left: &[(NixString, Value)],
-	mut right: &[(NixString, Value)],
+	left: &[(NixString, Value)],
+	right: &[(NixString, Value)],
+	// Called for every binding pushed: whether it came from `right`, and its
+	// offset there.
+	mut origin: impl FnMut(bool, usize),
 ) {
+	let (mut l, mut r) = (0, 0);
 	if left.len() > right.len().saturating_mul(8) {
 		// A few overrides must not compare against every key of a large set.
-		for entry in right {
-			let split = left.partition_point(|(key, _)| key < &entry.0);
-			out.extend_from_slice(&left[..split]);
-			left = &left[split..];
-			if left.first().is_some_and(|(key, _)| key == &entry.0) {
-				left = &left[1..];
+		for (offset, entry) in right.iter().enumerate() {
+			let split = l + left[l..].partition_point(|(key, _)| key < &entry.0);
+			out.extend_from_slice(&left[l..split]);
+			(l..split).for_each(|i| origin(false, i));
+			l = split;
+			if left.get(l).is_some_and(|(key, _)| key == &entry.0) {
+				l += 1;
 			}
 			out.push(entry.clone());
+			origin(true, offset);
 		}
-		out.extend_from_slice(left);
+		out.extend_from_slice(&left[l..]);
+		(l..left.len()).for_each(|i| origin(false, i));
 		return;
 	}
 	if right.len() > left.len().saturating_mul(8) {
-		for entry in left {
-			let split = right.partition_point(|(key, _)| key < &entry.0);
-			out.extend_from_slice(&right[..split]);
-			right = &right[split..];
-			if right.first().is_some_and(|(key, _)| key == &entry.0) {
-				out.push(right[0].clone());
-				right = &right[1..];
+		for (offset, entry) in left.iter().enumerate() {
+			let split = r + right[r..].partition_point(|(key, _)| key < &entry.0);
+			out.extend_from_slice(&right[r..split]);
+			(r..split).for_each(|i| origin(true, i));
+			r = split;
+			if right.get(r).is_some_and(|(key, _)| key == &entry.0) {
+				out.push(right[r].clone());
+				origin(true, r);
+				r += 1;
 			} else {
 				out.push(entry.clone());
+				origin(false, offset);
 			}
 		}
-		out.extend_from_slice(right);
+		out.extend_from_slice(&right[r..]);
+		(r..right.len()).for_each(|i| origin(true, i));
 		return;
 	}
-	while let (Some(a), Some(b)) = (left.first(), right.first()) {
+	while let (Some(a), Some(b)) = (left.get(l), right.get(r)) {
 		match a.0.cmp(&b.0) {
 			std::cmp::Ordering::Less => {
 				out.push(a.clone());
-				left = &left[1..];
+				origin(false, l);
+				l += 1;
 			}
 			std::cmp::Ordering::Greater => {
 				out.push(b.clone());
-				right = &right[1..];
+				origin(true, r);
+				r += 1;
 			}
 			std::cmp::Ordering::Equal => {
 				out.push(b.clone());
-				left = &left[1..];
-				right = &right[1..];
+				origin(true, r);
+				l += 1;
+				r += 1;
 			}
 		}
 	}
-	out.extend_from_slice(left);
-	out.extend_from_slice(right);
+	out.extend_from_slice(&left[l..]);
+	(l..left.len()).for_each(|i| origin(false, i));
+	out.extend_from_slice(&right[r..]);
+	(r..right.len()).for_each(|i| origin(true, i));
 }
 
 static NAME: LazyLock<NixString> = LazyLock::new(|| "name".into());
@@ -128,6 +144,17 @@ static VALUE: LazyLock<NixString> = LazyLock::new(|| "value".into());
 
 #[cfg(test)]
 mod tests;
+
+/// Where the attributes of a set were defined.
+#[derive(Clone, Debug)]
+pub(super) enum SetPositions {
+	/// By name, for sets from literals and builtins.
+	Named(AttrPositions),
+
+	/// By binding offset, for sets `//` merged: each binding keeps the
+	/// position it had in its operand, without a map built per update.
+	Indexed(Rc<[Option<Span>]>),
+}
 
 #[derive(Clone, Debug, Deserialize, Default)]
 pub(super) enum AttrsRep {
@@ -142,7 +169,10 @@ pub(super) enum AttrsRep {
 		index: OnceCell<Rc<hashbrown::HashTable<u32>>>,
 
 		#[serde(skip)]
-		pos: Option<AttrPositions>,
+		lookups: Cell<u8>,
+
+		#[serde(skip)]
+		pos: Option<SetPositions>,
 	},
 
 	/// Warning: this represents a **two**-attribute attrset, with
@@ -162,39 +192,91 @@ impl AttrsRep {
 				_ => None,
 			},
 
-			AttrsRep::Map { attrs, index, pos } => {
-				if attrs.len() < 4 {
-					return attrs
-						.iter()
-						.find(|(name, _)| name.as_bstr() == key)
-						.map(|(_, value)| value);
-				}
-				if u32::try_from(attrs.len()).is_err() {
-					return attrs
-						.binary_search_by(|(name, _)| name.as_bstr().cmp(key))
-						.ok()
-						.map(|index| &attrs[index].1);
-				}
-				let index = index.get_or_init(|| {
-					// Cached positions cover every name in a literal layout. Equal
-					// lengths therefore identify the same sorted binding offsets.
-					if let Some(layout) = pos.as_ref().and_then(|pos| pos.layout.as_ref())
-						&& layout.bindings.len() == attrs.len()
-					{
-						return layout
-							.index
-							.get_or_init(|| binding_index(&layout.bindings))
-							.clone();
-					}
-					binding_index(attrs)
-				});
-				index
-					.find(rustc_hash::FxBuildHasher.hash_one(key), |offset| {
-						attrs[*offset as usize].0.as_bstr() == key
-					})
-					.map(|offset| &attrs[*offset as usize].1)
-			}
+			AttrsRep::Map { attrs, .. } => self.offset(key).map(|offset| &attrs[offset].1),
 		}
+	}
+
+	/// The offset of `key` among the bindings of a `Map`.
+	#[inline]
+	fn offset(&self, key: &BStr) -> Option<usize> {
+		let AttrsRep::Map {
+			attrs,
+			index,
+			lookups,
+			pos,
+		} = self
+		else {
+			return None;
+		};
+		if attrs.len() < 4 {
+			return attrs.iter().position(|(name, _)| name.as_bstr() == key);
+		}
+		if u32::try_from(attrs.len()).is_err() {
+			return attrs
+				.binary_search_by(|(name, _)| name.as_bstr().cmp(key))
+				.ok();
+		}
+		// An update often produces a wide set from which just one or two
+		// bindings are selected. Binary search avoids building a full hash
+		// index in that case. Literal layouts share their indexes across
+		// instances, so preserve their immediate initialization.
+		if index.get().is_none()
+			&& !matches!(pos, Some(SetPositions::Named(pos)) if pos.layout.is_some())
+			&& lookups.get() < 4
+		{
+			lookups.set(lookups.get() + 1);
+			return attrs
+				.binary_search_by(|(name, _)| name.as_bstr().cmp(key))
+				.ok();
+		}
+		let index = index.get_or_init(|| {
+			// Cached positions cover every name in a literal layout. Equal
+			// lengths therefore identify the same sorted binding offsets.
+			if let Some(SetPositions::Named(pos)) = pos
+				&& let Some(layout) = &pos.layout
+				&& layout.bindings.len() == attrs.len()
+			{
+				return layout
+					.index
+					.get_or_init(|| binding_index(&layout.bindings))
+					.clone();
+			}
+			binding_index(attrs)
+		});
+		index
+			.find(rustc_hash::FxBuildHasher.hash_one(key), |offset| {
+				attrs[*offset as usize].0.as_bstr() == key
+			})
+			.map(|offset| *offset as usize)
+	}
+
+	/// The position of the binding at `offset`.
+	fn position_at(&self, offset: usize) -> Option<Span> {
+		match self {
+			AttrsRep::Map {
+				attrs,
+				pos: Some(SetPositions::Named(pos)),
+				..
+			} => {
+				if let Some(layout) = &pos.layout
+					&& layout.bindings.len() == attrs.len()
+				{
+					// Literal layouts retain source-order spans and a sorted
+					// permutation, so merging need not hash every binding name.
+					return Some(layout.spans[layout.bindings[offset].1]);
+				}
+				pos.positions.get(attrs[offset].0.as_bstr()).copied()
+			}
+			AttrsRep::Map {
+				pos: Some(SetPositions::Indexed(pos)),
+				..
+			} => pos[offset],
+			_ => None,
+		}
+	}
+
+	fn has_positions(&self) -> bool {
+		matches!(self, AttrsRep::Map { pos: Some(_), .. })
 	}
 
 	fn contains(&self, key: &BStr) -> bool {
@@ -381,41 +463,41 @@ impl NixAttrs {
 		) {
 			return other;
 		}
-		let mut attrs = Vec::with_capacity(self.len() + other.len());
+		let len = self.len() + other.len();
+		let mut attrs = Vec::with_capacity(len);
+		// Each binding keeps the position it has in the operand it came from.
+		let mut spans =
+			(self.0.has_positions() || other.0.has_positions()).then(|| Vec::with_capacity(len));
+		let origin = |from_right: bool, offset: usize| {
+			if let Some(spans) = &mut spans {
+				let side = if from_right { &other } else { &self };
+				spans.push(side.0.position_at(offset));
+			}
+		};
 		match (self.0.as_ref(), other.0.as_ref()) {
 			(AttrsRep::Map { attrs: left, .. }, AttrsRep::Map { attrs: right, .. }) => {
-				merge_bindings(&mut attrs, left, right);
+				merge_bindings(&mut attrs, left, right, origin);
 			}
 			(AttrsRep::Map { attrs: left, .. }, AttrsRep::KV { name, value }) => {
 				let right = [(NAME.clone(), name.clone()), (VALUE.clone(), value.clone())];
-				merge_bindings(&mut attrs, left, &right);
+				merge_bindings(&mut attrs, left, &right, origin);
 			}
 			(AttrsRep::KV { name, value }, AttrsRep::Map { attrs: right, .. }) => {
 				let left = [(NAME.clone(), name.clone()), (VALUE.clone(), value.clone())];
-				merge_bindings(&mut attrs, &left, right);
+				merge_bindings(&mut attrs, &left, right, origin);
 			}
 			_ => unreachable!("empty and KV updates handled above"),
 		}
-		let positions = attrs
-			.iter()
-			.filter_map(|(key, _)| {
-				let span = if other.select(key).is_some() {
-					other.get_attr_pos(key)
-				} else {
-					self.get_attr_pos(key)
-				};
-				span.map(|span| (key.clone(), span))
-			})
-			.collect::<Vec<_>>();
-		Self::from_sorted(
-			attrs,
-			(!positions.is_empty()).then(|| {
-				Rc::new(LiteralAttrs {
-					positions: positions.into_iter().collect(),
-					layout: None,
-				})
-			}),
-		)
+		let pos = spans
+			.filter(|spans| spans.iter().any(Option::is_some))
+			.map(|spans| SetPositions::Indexed(spans.into()));
+		AttrsRep::Map {
+			attrs: attrs.into_boxed_slice(),
+			index: OnceCell::new(),
+			lookups: Cell::new(0),
+			pos,
+		}
+		.into()
 	}
 
 	/// Return the number of key-value entries in an attrset.
@@ -724,7 +806,8 @@ impl NixAttrs {
 		AttrsRep::Map {
 			attrs: attrs.into_boxed_slice(),
 			index,
-			pos,
+			lookups: Cell::new(0),
+			pos: pos.map(SetPositions::Named),
 		}
 		.into()
 	}
@@ -734,7 +817,14 @@ impl NixAttrs {
 		K: Borrow<BStr> + ?Sized,
 	{
 		match self.0.as_ref() {
-			AttrsRep::Map { pos, .. } => pos.as_ref()?.positions.get(key.borrow()).copied(),
+			AttrsRep::Map {
+				pos: Some(SetPositions::Named(pos)),
+				..
+			} => pos.positions.get(key.borrow()).copied(),
+			rep @ AttrsRep::Map {
+				pos: Some(SetPositions::Indexed(pos)),
+				..
+			} => pos[rep.offset(key.borrow())?],
 			_ => None,
 		}
 	}

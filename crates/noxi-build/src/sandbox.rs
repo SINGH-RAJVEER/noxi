@@ -32,6 +32,10 @@ pub struct Bind {
 /// Everything the sandboxed child needs, prepared before forking.
 pub struct SandboxSpec {
 	pub chroot_root: PathBuf,
+	/// Whether the builder runs in namespaces and the chroot. Without it
+	/// (`sandbox = false`), it runs directly on the host in its own
+	/// session, in `build_dir_in_sandbox`, as CppNix's unsandboxed builds do.
+	pub chroot: bool,
 	pub store_dir: PathBuf,
 	pub binds: Vec<Bind>,
 	/// Whether the build is cut off from the network (not a fixed-output
@@ -239,6 +243,9 @@ pub fn run_cancellable(
 	let builder = Builder(Some(pid));
 	let mut sync_write = File::from(sync_write);
 	let setup = (|| -> io::Result<()> {
+		if !spec.chroot {
+			return Ok(());
+		}
 		let proc = PathBuf::from(format!("/proc/{pid}"));
 		// SAFETY: getuid and getgid cannot fail.
 		let (uid, gid) = spec
@@ -462,6 +469,8 @@ fn read_available(fd: &OwnedFd, out: &mut Vec<u8>) -> io::Result<()> {
 fn kill_and_wait(pid: libc::pid_t) {
 	// SAFETY: signalling and reaping our own child.
 	unsafe {
+		// Unsandboxed builders lead their own session and process group.
+		libc::kill(-pid, libc::SIGKILL);
 		libc::kill(pid, libc::SIGKILL);
 	}
 	let _ = wait_pid(pid);
@@ -645,6 +654,9 @@ fn helper_main(
 		if spec.sandboxed {
 			flags |= libc::CLONE_NEWNET;
 		}
+		if !spec.chroot {
+			flags = libc::CLONE_PARENT | libc::SIGCHLD;
+		}
 		// SAFETY: a raw clone without a new stack behaves like fork; the
 		// child only runs `child_main` and then exits or execs.
 		let pid = unsafe {
@@ -776,7 +788,9 @@ fn child_setup(sync_read: RawFd, spec: &SandboxSpec, plan: &ChildPlan) -> io::Re
 	// SAFETY: closing our copy of the pipe.
 	unsafe { libc::close(sync_read) };
 
-	enter_chroot(spec, plan)?;
+	if spec.chroot {
+		enter_chroot(spec, plan)?;
+	}
 
 	// SAFETY: plain process-state syscalls.
 	unsafe {
@@ -790,8 +804,13 @@ fn child_setup(sync_read: RawFd, spec: &SandboxSpec, plan: &ChildPlan) -> io::Re
 		};
 		libc::setrlimit(libc::RLIMIT_CORE, &limit);
 		libc::umask(0o022);
-		check(libc::setgid(SANDBOX_GID), || "setgid failed".to_owned())?;
-		check(libc::setuid(SANDBOX_UID), || "setuid failed".to_owned())?;
+		if spec.chroot {
+			check(libc::setgid(SANDBOX_GID), || "setgid failed".to_owned())?;
+			check(libc::setuid(SANDBOX_UID), || "setuid failed".to_owned())?;
+		} else if let Some((uid, gid)) = spec.build_user {
+			check(libc::setgid(gid), || "setgid failed".to_owned())?;
+			check(libc::setuid(uid), || "setuid failed".to_owned())?;
+		}
 		libc::write(libc::STDERR_FILENO, b"\x02\n".as_ptr().cast(), 2);
 	}
 	Ok(())
