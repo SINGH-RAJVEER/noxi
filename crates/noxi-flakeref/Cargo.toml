@@ -1,6 +1,6 @@
 [package]
 name = "noxi-flakeref"
-version = "0.0.2"
+version = "0.0.3"
 rust-version.workspace = true
 edition = "2024"
 description = "Nix flake reference parser and formatter"
@@ -8,7 +8,7 @@ license = "GPL-3.0-only"
 repository = "https://github.com/SINGH-RAJVEER/nix-rs"
 
 [dependencies]
-noxi-hash = { path = "../noxi-hash", version = "0.0.2" }
+noxi-hash = { path = "../noxi-hash", version = "0.0.3" }
 thiserror.workspace = true
 url.workspace = true
 serde_json.workspace = true

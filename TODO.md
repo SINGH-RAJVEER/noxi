@@ -257,7 +257,7 @@ Optional `noxi project` manifests have their own extension qualification. They c
 
 ## After the package-manager MVP: self-maintenance and recovery
 
-- [ ] Implement OS-native `build`, `test`, `boot`, `switch`, and `dry-activate` operations with the distinct NixOS effects specified in [system lifecycle](docs/system.md).
+- [ ] Implement OS-native `build`, `test`, `boot`, `switch`, and `dry-activate` operations with the distinct NixOS effects specified in [system lifecycle](docs/system.md). On 2026-11-12 `noxi system` implements the five actions and `rollback` natively ([system commands](docs/system-commands.md)), records every run in the [snapshot journal](docs/snapshots.md), and can update flake inputs first through `noxi flake update`; offline tests cover profile, activation and journal effects with diverted paths. VM qualification, remote targets and the structured event stream remain open.
 - [ ] Make lifecycle requests bind to a stable target identity, source revision, exact closure, and durable operation identifier so later fleet execution can reuse them without changing single-machine semantics. Remote execution remains gated on the fleet security and recovery work below.
 - [ ] Make configuration and lock revisions authoritative for persistent changes. Stage, evaluate, build, save, verify, and activate each change as specified in [the configuration workflow](docs/configuration-workflow.md).
 - [ ] Journal source edits and activation state so interrupted operations can report and recover partial outcomes without erasing unrelated edits.

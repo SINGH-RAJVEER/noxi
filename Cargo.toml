@@ -13,6 +13,7 @@ members = [
 	"crates/noxi-build",
 	"crates/noxi-daemon",
 	"crates/noxi-commands",
+	"crates/noxi-system",
 	"crates/noxi/nix-compat-derive",
 	"crates/noxi/nix-compat-derive-tests",
 	"crates/noxi/serde",
@@ -21,7 +22,7 @@ members = [
 ]
 
 [workspace.package]
-version = "0.0.1"
+version = "0.0.2"
 # Minimum Supported Rust Version, inherited from the imported crates.
 rust-version = "1.95.0"
 

@@ -4,7 +4,7 @@ The [root plan](PLAN.md) states the sole product direction: qualify the drop-in 
 
 ## Try the preview
 
-The `noxi` preview evaluates pure expressions and does not touch the store or replace `nix`. [Distribution](docs/distribution.md) lists what it can and cannot do.
+The `noxi` preview evaluates pure expressions and does not replace `nix`. It also carries the native `noxi flake update`, `noxi system` and `noxi snapshot` commands ([flakes](docs/flakes.md#native-noxi-flake-update), [system commands](docs/system-commands.md), [snapshots](docs/snapshots.md)), which drive the compatibility engine in-process and are tested offline but not yet qualified in VMs. [Distribution](docs/distribution.md) lists what it can and cannot do.
 
 ```sh
 cargo install --path crates/noxi-cli --locked
@@ -37,5 +37,7 @@ From a checkout, `nix run . -- eval --expr '1 + 2'` builds and runs the same com
 | [Licensing and third-party code](docs/licensing.md) | Imported and copied code, copied tests, dependency licenses, conflicts, and the release notice in [THIRD_PARTY.md](THIRD_PARTY.md) |
 | [Development environment](docs/development.md) | Pinned Rust shell and local check commands |
 | [Flake and crate distribution](docs/distribution.md) | Installable preview, replacement milestones, and NixOS and Home Manager gates |
+| [Native system commands](docs/system-commands.md) | `noxi system` build, test, boot, switch, dry-activate and rollback on top of the compatibility engine |
+| [System snapshots](docs/snapshots.md) | The per-rebuild journal of source, lock, closure and generation, and `noxi snapshot` rollback |
 
 Use [CONTEXT.md](CONTEXT.md) for project vocabulary. The copied CppNix tests remain in [tests/nix/](tests/nix/) with provenance in [verification](docs/verification.md#test-snapshot). The imported Rust crates live in `crates/noxi/`, and their extracted hash and flake reference code lives in `crates/noxi-hash/` and `crates/noxi-flakeref/`, with the upstream revision in `crates/noxi/PROVENANCE.md`; their current presence is not a compatibility result. `crates/compat-tests/` contains initial fixture checks and records known gaps. [CHANGELOG.md](CHANGELOG.md) records each crate's changes by version.

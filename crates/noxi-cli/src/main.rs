@@ -2,12 +2,18 @@ use std::{env, fs, path::PathBuf, process::ExitCode};
 
 use noxi_eval::{EvalMode, Evaluation};
 
-// Evaluation allocates and frees millions of small values, which mimalloc
-// serves faster than the system allocator.
-#[global_allocator]
-static GLOBAL: mimalloc::MiMalloc = mimalloc::MiMalloc;
+// The mimalloc global allocator is declared once, in `noxi-commands`, which
+// this binary links through `noxi-system`.
 
 fn main() -> ExitCode {
+	// The native system operations take their own argument vectors.
+	let mut native = env::args().skip(1);
+	match native.next().as_deref() {
+		Some("flake") => return noxi_system::flake::main(native.collect()),
+		Some("system") => return noxi_system::rebuild::main(native.collect()),
+		Some("snapshot") => return noxi_system::snapshot::main(native.collect()),
+		_ => {}
+	}
 	let mut args = env::args().skip(1);
 	match (args.next().as_deref(), args.next().as_deref(), args.next()) {
 		(Some("--version"), None, None) => {
@@ -29,7 +35,7 @@ fn main() -> ExitCode {
 		}
 		_ => {
 			eprintln!(
-				"usage: noxi eval --expr EXPRESSION\n       noxi eval --file PATH\n       noxi --version"
+				"usage: noxi eval --expr EXPRESSION\n       noxi eval --file PATH\n       noxi flake update|lock ...\n       noxi system build|test|boot|switch|dry-activate|rollback ...\n       noxi snapshot list|show|rollback ...\n       noxi --version"
 			);
 			ExitCode::from(2)
 		}

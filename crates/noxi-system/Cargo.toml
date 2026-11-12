@@ -1,0 +1,26 @@
+[package]
+name = "noxi-system"
+version = "0.0.1"
+rust-version.workspace = true
+edition = "2024"
+description = "Native noxi flake update, system rebuild and snapshot operations"
+license = "GPL-3.0-only"
+repository = "https://github.com/SINGH-RAJVEER/nix-rs"
+
+[dependencies]
+nix-compat = { package = "noxi-compat", path = "../noxi/nix-compat", version = "0.0.3" }
+noxi-commands = { path = "../noxi-commands", version = "0.0.2" }
+noxi-eval = { path = "../noxi/eval", version = "0.0.3", default-features = false, features = ["impure"] }
+noxi-flake = { path = "../noxi-flake", version = "0.0.2" }
+noxi-flakeref = { path = "../noxi-flakeref", version = "0.0.3" }
+noxi-glue = { path = "../noxi-glue", version = "0.0.2" }
+noxi-store = { path = "../noxi-store", version = "0.0.3" }
+serde_json.workspace = true
+libc.workspace = true
+serde = { workspace = true, features = ["derive"] }
+sha2.workspace = true
+thiserror.workspace = true
+tempfile.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true

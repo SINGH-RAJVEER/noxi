@@ -1,6 +1,6 @@
 [package]
 name = "noxi-compat"
-version = "0.0.2"
+version = "0.0.3"
 edition = "2024"
 rust-version.workspace = true
 description = "Nix formats and protocol codecs for noxi, derived from Snix nix-compat"
@@ -28,8 +28,8 @@ test = []
 default = ["async", "hashbrown", "wire"]
 
 [dependencies]
-noxi-hash = { path = "../../noxi-hash", version = "0.0.2" }
-noxi-flakeref = { path = "../../noxi-flakeref", version = "0.0.2", optional = true }
+noxi-hash = { path = "../../noxi-hash", version = "0.0.3" }
+noxi-flakeref = { path = "../../noxi-flakeref", version = "0.0.3", optional = true }
 aho-corasick.workspace = true
 bitflags.workspace = true
 bstr = { workspace = true, features = ["alloc", "unicode", "serde"] }
@@ -58,7 +58,7 @@ cfg_eval = { workspace = true, optional = true }
 
 [dependencies.nix-compat-derive]
 package = "noxi-compat-derive"
-version = "0.0.2"
+version = "0.0.3"
 path = "../nix-compat-derive"
 optional = true
 

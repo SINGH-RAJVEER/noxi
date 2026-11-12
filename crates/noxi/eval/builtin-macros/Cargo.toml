@@ -1,6 +1,6 @@
 [package]
 name = "noxi-eval-builtin-macros"
-version = "0.0.2"
+version = "0.0.3"
 authors = ["Griffin Smith <root@gws.fyi>"]
 edition = "2024"
 rust-version.workspace = true

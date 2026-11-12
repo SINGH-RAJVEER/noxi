@@ -57,3 +57,86 @@ The local backend now implements the existing `Store::add_multiple_to_store` int
 The loopback selective channel test requires actual success. It copies only the oracle executable closure into a private diverted store, mounts that store in a private user/mount namespace, downloads two channels, verifies no requests during a fresh cache hit, changes the archive, expires the TTL and updates one channel. Both engines must produce `demo/default.nix = 43`, `other/default.nix = 42`, identical profile output paths and identical profile NAR bytes. A namespace refusal fails the test. The fixture disables supplementary-group dropping only in its isolated reference configuration because the user namespace does not permit `setgroups`.
 
 For Opus's packaged guest qualification, reproduce this same two-channel scenario using the installed candidate executables and a separate reference home/state/cache/store. Run as a normal guest user, retain loopback request logs, compare the two installed channel contents and profile NARs, then exercise rollback and removal. Also run archive to a second private local store and verify the copied source bytes, prefetch with an explicit output link and verify its permanent root, then check a flake with a native `builtin:unpack-channel` derivation and verify the realized output. These are required successful package execution scenarios; the host comparisons do not establish their guest results. Flake `nixConfig` trust/acceptance and transfer settings must use the settings/security owner's policy before that integration is qualified.
+
+## Native noxi flake update
+
+`noxi flake update` and `noxi flake lock` are the native counterparts of `nix flake update` and `nix flake lock`. They live in `crates/noxi-system/src/flake.rs`. They do not reimplement locking: each call runs the same in-process `nix flake update|lock` implementation in `crates/noxi-commands/src/nix/flakes.rs`, so there is one lock algorithm, one atomic lock-file write and one `--commit-lock-file` path. The native command reads the lock file before and after the call and reports the difference by input.
+
+```text
+noxi flake update [INPUT...] [--flake PATH] [--commit-lock-file] [--override-input NAME REF]... [--json]
+noxi flake lock [--flake PATH] [--override-input NAME REF]... [--json]
+```
+
+`update` re-resolves the named inputs, or every input when none are named. Input names are input paths such as `nixpkgs` or `home-manager/nixpkgs`. `lock` creates or completes the lock without changing existing entries and takes no input names. `PATH` defaults to the current directory. It must be a local directory that contains `flake.nix`, and it is canonicalized before use. A directory inside a Git work tree resolves as a `git+file` flake, as it does for `nix`. `--commit-lock-file` (update only) and `--override-input` are passed through to the shared implementation unchanged. The command enables the `nix-command` and `flakes` experimental features itself, so `--extra-experimental-features` is not needed. It enables them ahead of `NIX_CONFIG`, so flake settings given there, such as `flake-registry`, take effect.
+
+### Report
+
+When the lock file bytes are unchanged, the command prints `no changes`, and the shared implementation does not rewrite the file. Otherwise it prints `created LOCKPATH` or `updated LOCKPATH`, then one line per input that was added, removed or changed, then one line listing the unchanged inputs:
+
+```text
+updated /home/me/config/flake.lock
+changed  dep  rev 1a2b3c4 -> 5d6e7f8, last modified 2001-01-01 -> 2002-02-02
+changed  a    narHash sha256-old... -> sha256-new..., last modified 2026-11-12
+added    b    narHash sha256-..., last modified 2026-11-12
+unchanged: 1 input (c)
+```
+
+An entry is identified by its short revision (7 characters), or by its NAR hash when it has no revision. `lastModified` is shown as a UTC date. A change to an input's `original` reference is shown as `source OLD -> NEW`.
+
+Inputs are compared by their path from the root node, not by node name, because node names such as `nixpkgs_2` can be renumbered between locks. The graph is walked breadth-first from `root`, and `follows` edges are resolved to their target node. A node reachable by several paths is reported once, under its first path in that order. An entry counts as changed when its `locked` or `original` attributes, or its `flake` flag, differ. Added and changed inputs are listed in the new lock's order, followed by removed inputs in the old lock's order.
+
+With `--json`, stdout carries one JSON object instead:
+
+```json
+{
+	"flake": "/home/me/config",
+	"lock": "/home/me/config/flake.lock",
+	"changes": [
+		{
+			"input": "dep",
+			"kind": "changed",
+			"old": { "url": "git+file:///src/dep?rev=...", "original": "git+file:///src/dep", "rev": "...", "narHash": "sha256-...", "lastModified": 978307200 },
+			"new": { "url": "...", "original": "...", "rev": "...", "narHash": "sha256-...", "lastModified": 1012608000 }
+		}
+	],
+	"unchanged": 1
+}
+```
+
+`kind` is `added`, `removed` or `changed`. `old` is `null` for an added input, and `new` is `null` for a removed input. `rev`, `narHash` and `lastModified` appear only when the lock entry has them.
+
+### Exit status and errors
+
+Success exits 0. A failure exits 1 with one line `error: PHASE: CAUSE` on stderr. The phases are:
+
+- `resolve`: the flake directory is missing, is not a directory, has no `flake.nix`, the existing lock file cannot be read or parsed, or settings cannot be loaded.
+- `lock`: the shared implementation failed. This covers fetching inputs, writing the lock file and committing it, because all of these happen inside that call.
+- `write`: the lock file written by the lock phase cannot be read back or parsed.
+
+A usage error, including an unknown flag, a missing flag value, an unknown subcommand, or input names given to `lock`, exits 2 with `error: MESSAGE` followed by the usage text.
+
+### Library entry points
+
+`noxi_system::flake::update(UpdateOptions) -> Result<UpdateReport, UpdateError>` runs the same operation for other callers, such as a future `noxi system switch --update`. `UpdateOptions` can carry preloaded `Settings`. `UpdateReport` holds the canonical flake directory, the lock path, whether the lock existed before and was rewritten, and the `LockDiff`. `diff_locks(old, new) -> LockDiff` compares any two version-7 lock documents and has no side effects. `run(args, out, err)` is the command with injectable output streams, and `main(args)` wraps it with stdout and stderr. Calls into the shared implementation are serialized within one process.
+
+### Tests and open work
+
+`crates/noxi-system/tests/flake.rs` runs offline in temporary directories. The store, configuration, fetcher cache and Git configuration are diverted to a private directory under the Cargo target directory. The tests cover:
+
+- an initial lock with two `path:` inputs
+- a selective update that changes one `path:` input and leaves the other unchanged
+- a full update of both inputs, then a repeat that prints `no changes` and leaves the lock bytes and mtime untouched
+- a local Git input moving between two commits, with short revisions and dates
+- the JSON shape
+- `resolve`, `lock` and usage failures
+- `follows` and renamed-node handling in `diff_locks`
+
+These limits remain:
+
+- The shared implementation still writes its own diagnostics directly to the process's stderr, so they are not captured into the native error line. These include its `warning: updating lock file` change list and, on failure, its `error:` line. A `lock` failure therefore says that the cause is reported above.
+- A write or commit failure inside the shared call is reported as `lock`, not `write`.
+- Only local flake directories are accepted. Remote flake references, `--inputs-from`, `--recreate-lock-file`, `--no-write-lock-file`, `--output-lock-file`, `--reference-lock-file` and a `--store` flag are not offered.
+- `--commit-lock-file` and `--override-input` are passed through but are not exercised by the native tests.
+- Remote inputs (GitHub, tarball and others) are only as qualified as the shared implementation, and the native tests do not cover them.
+- Flake settings in configuration files that do not themselves enable `flakes` are still ignored, as for `nix`.
+- The report is plain text. It does not yet use the structured event stream described in [logging](logging.md).

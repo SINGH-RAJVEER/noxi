@@ -52,7 +52,7 @@ Project-generated fixtures are not third-party copies, and each one names the re
 
 ### Shipped dependency graph
 
-The `noxi` preview package is built from `crates/noxi-cli` only (see `flake.nix`). Its normal, non-dev dependency closure on `x86_64-unknown-linux-gnu` has 76 entries besides the package itself:
+The `noxi` preview package is built from `crates/noxi-cli` only (see `flake.nix`). Its normal, non-dev dependency closure on `x86_64-unknown-linux-gnu` has 76 entries besides the package itself: The counts below were recorded before `noxi-cli` gained its `noxi-system` dependency on 2026-11-12; that dependency links `noxi-commands`, `noxi-store`, `noxi-flake` and their closures, including `ureq` and `webpki-roots` (`CDLA-Permissive-2.0`, already accepted in `about.toml`), so `just third-party` must be rerun and this section refreshed before the next release.
 
 - 3 workspace crates, all `GPL-3.0-only`: `noxi-eval`, `noxi-eval-builtin-macros`, `noxi-hash`.
 - 73 crates.io crates. Their license expressions are 44 `MIT OR Apache-2.0`, 9 `MIT/Apache-2.0`, 7 `MIT`, 3 `Apache-2.0 OR MIT`, 3 `Unlicense OR MIT`, and single entries for `Unlicense/MIT`, `Apache-2.0/MIT`, `Zlib`, `0BSD`, `CC0-1.0 OR MIT-0 OR Apache-2.0`, `CC0-1.0 OR Apache-2.0 OR Apache-2.0 WITH LLVM-exception`, and `(MIT OR Apache-2.0) AND Unicode-3.0`.

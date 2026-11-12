@@ -1,8 +1,9 @@
+| [`noxi-system`](https://crates.io/crates/noxi-system) | 0.0.1 | GPL-3.0-only | Native `noxi flake`, `noxi system` and `noxi snapshot` operations |
 # Flake and crate distribution path
 
 ## Current package boundary
 
-The first installable artifact is the `noxi` preview command. The repository flake exposes `packages.x86_64-linux.noxi`, `packages.x86_64-linux.default`, and an app that runs that command. `cargo install --path crates/noxi-cli --locked` installs the same binary from a checkout. It currently evaluates a pure expression with `noxi eval --expr EXPRESSION` or `noxi eval --file PATH`. The CLI deeply forces the result before printing it, matching the strict evaluator mode used by the initial differential runner. File evaluation reports the source path in diagnostics, but the pure evaluator cannot perform store-backed or impure operations. Its name deliberately differs from `nix`, and it does not own the store or daemon. It cannot replace `nix.package` or satisfy a NixOS or Home Manager rebuild. The `noxi-cli` crate is planned for crates.io publication.
+The first installable artifact is the `noxi` preview command. The repository flake exposes `packages.x86_64-linux.noxi`, `packages.x86_64-linux.default`, and an app that runs that command. `cargo install --path crates/noxi-cli --locked` installs the same binary from a checkout. It currently evaluates a pure expression with `noxi eval --expr EXPRESSION` or `noxi eval --file PATH`. The CLI deeply forces the result before printing it, matching the strict evaluator mode used by the initial differential runner. File evaluation reports the source path in diagnostics, but the pure evaluator cannot perform store-backed or impure operations. Its name deliberately differs from `nix`, and it does not own the store or daemon. It cannot replace `nix.package`. Since 2026-11-12 the same binary also offers the native `noxi flake update`, `noxi system` and `noxi snapshot` commands through the `noxi-system` crate, which links `noxi-commands` and therefore the store, build and flake crates; they run the compatibility engine in-process, use the system store the configured way, and have offline tests but no VM qualification. The `noxi-cli` crate is planned for crates.io publication.
 
 A NixOS user may add the preview flake package to `environment.systemPackages`, or a Home Manager user may add it to `home.packages`. Both methods install `noxi` alongside CppNix. Neither changes the daemon or the `nix` command. Host replacement remains gated on the replacement checks below. The qualification-only module is for disposable VM tests.
 
@@ -14,26 +15,27 @@ ARM Linux needs target-aware build settings, AArch64 sandbox syscall rules, and 
 
 ## Crates and release status
 
-The `noxi` 0.0.1 release published `noxi-hash`, `noxi-eval-builtin-macros`, `noxi-compat-derive`, `noxi-flakeref`, `noxi-compat`, `noxi-eval`, and `noxi-store`. Version 0.0.2 of those seven crates is the current patch release; the remaining crates are not yet published.
+The `noxi` 0.0.1 release published `noxi-hash`, `noxi-eval-builtin-macros`, `noxi-compat-derive`, `noxi-flakeref`, `noxi-compat`, `noxi-eval`, and `noxi-store`, and 0.0.2 was their first patch release. The 0.0.3 release of 2026-11-12 moves those seven crates to 0.0.3 and publishes every other crate in the workspace for the first time: `noxi-serde`, `noxi-glue`, `noxi-build`, `noxi-flake`, `noxi-daemon`, `noxi-commands` and `noxi-cli` at 0.0.2, and the new `noxi-system` at 0.0.1.
 
 The crates below are intended for publication on crates.io under the SINGH-RAJVEER account. Upstream owns `nix-compat` and `nix-compat-derive`. This project's format crates are published as `noxi-compat` and `noxi-compat-derive`, retaining Rust library names `nix_compat` and `nix_compat_derive`.
 
 | Crate | Version | License | Contents |
 |---|---|---|---|
-| [`noxi-eval-builtin-macros`](https://crates.io/crates/noxi-eval-builtin-macros) | 0.0.2 | GPL-3.0-only | Procedural macros for defining builtins, derived from `snix-eval-builtin-macros` |
-| [`noxi-eval`](https://crates.io/crates/noxi-eval) | 0.0.2 | GPL-3.0-only | Nix language evaluator, derived from `snix-eval` |
-| [`noxi-cli`](https://crates.io/crates/noxi-cli) | 0.0.1 | Apache-2.0 | The `noxi` preview command |
-| [`noxi-hash`](https://crates.io/crates/noxi-hash) | 0.0.2 | GPL-3.0-only | Hash and Nix base32 formats |
-| [`noxi-flakeref`](https://crates.io/crates/noxi-flakeref) | 0.0.2 | GPL-3.0-only | Flake reference parser and formatter |
-| [`noxi-compat`](https://crates.io/crates/noxi-compat) | 0.0.2 | GPL-3.0-only | Nix formats and protocol values |
-| [`noxi-compat-derive`](https://crates.io/crates/noxi-compat-derive) | 0.0.2 | GPL-3.0-only | Wire derive macros |
-| [`noxi-serde`](https://crates.io/crates/noxi-serde) | 0.0.1 | GPL-3.0-only | Bidirectional serde bridge |
-| [`noxi-glue`](https://crates.io/crates/noxi-glue) | 0.0.1 | GPL-3.0-only | Read-only store-aware evaluation on Unix |
-| [`noxi-commands`](https://crates.io/crates/noxi-commands) | 0.0.1 | GPL-3.0-only | Partial read-only `nix-instantiate --eval` command |
-| [`noxi-store`](https://crates.io/crates/noxi-store) | 0.0.2 | GPL-3.0-only | Experimental local store and cache substitution |
-| [`noxi-build`](https://crates.io/crates/noxi-build) | 0.0.1 | GPL-3.0-only | Experimental local sandboxed derivation builder |
-| [`noxi-daemon`](https://crates.io/crates/noxi-daemon) | 0.0.1 | GPL-3.0-only | Nix worker protocol daemon |
-| [`noxi-flake`](https://crates.io/crates/noxi-flake) | 0.0.1 | GPL-3.0-only | Flake graph and operations |
+| [`noxi-eval-builtin-macros`](https://crates.io/crates/noxi-eval-builtin-macros) | 0.0.3 | GPL-3.0-only | Procedural macros for defining builtins, derived from `snix-eval-builtin-macros` |
+| [`noxi-eval`](https://crates.io/crates/noxi-eval) | 0.0.3 | GPL-3.0-only | Nix language evaluator, derived from `snix-eval` |
+| [`noxi-cli`](https://crates.io/crates/noxi-cli) | 0.0.2 | Apache-2.0 | The `noxi` preview command |
+| [`noxi-hash`](https://crates.io/crates/noxi-hash) | 0.0.3 | GPL-3.0-only | Hash and Nix base32 formats |
+| [`noxi-flakeref`](https://crates.io/crates/noxi-flakeref) | 0.0.3 | GPL-3.0-only | Flake reference parser and formatter |
+| [`noxi-compat`](https://crates.io/crates/noxi-compat) | 0.0.3 | GPL-3.0-only | Nix formats and protocol values |
+| [`noxi-compat-derive`](https://crates.io/crates/noxi-compat-derive) | 0.0.3 | GPL-3.0-only | Wire derive macros |
+| [`noxi-serde`](https://crates.io/crates/noxi-serde) | 0.0.2 | GPL-3.0-only | Bidirectional serde bridge |
+| [`noxi-glue`](https://crates.io/crates/noxi-glue) | 0.0.2 | GPL-3.0-only | Read-only store-aware evaluation on Unix |
+| [`noxi-commands`](https://crates.io/crates/noxi-commands) | 0.0.2 | GPL-3.0-only | CppNix-compatible legacy and modern command implementations |
+| [`noxi-store`](https://crates.io/crates/noxi-store) | 0.0.3 | GPL-3.0-only | Experimental local store and cache substitution |
+| [`noxi-build`](https://crates.io/crates/noxi-build) | 0.0.2 | GPL-3.0-only | Experimental local sandboxed derivation builder |
+| [`noxi-daemon`](https://crates.io/crates/noxi-daemon) | 0.0.2 | GPL-3.0-only | Nix worker protocol daemon |
+| [`noxi-flake`](https://crates.io/crates/noxi-flake) | 0.0.2 | GPL-3.0-only | Flake graph and operations |
+| [`noxi-system`](https://crates.io/crates/noxi-system) | 0.0.1 | GPL-3.0-only | Native `noxi flake`, `noxi system` and `noxi snapshot` operations |
 
 Imported code retains Snix's GPL-3.0 license, with package-local text and provenance; bundled LGPL Nix material has its own notices and license text. The CLI's own source is Apache-2.0, but the `noxi` binary links `noxi-eval`, so a distributed binary must meet GPL-3.0 terms. Published versions are permanent: a version can be yanked but its source stays public. Record each release in [CHANGELOG.md](../CHANGELOG.md), bump changed crates and versioned path dependencies, package and verify the archives, then publish the selected packages in dependency order. Reuse an unchanged dependency's existing registry release rather than attempting to upload the same version again. These are preview crates: their APIs are not stable, and publication does not close the drop-in release gate.
 

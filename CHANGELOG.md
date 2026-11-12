@@ -4,6 +4,10 @@ Changes to each crate in this workspace, grouped by crate and version, newest fi
 
 Changes that have not reached a version yet go under an `Unreleased` heading for that crate.
 
+## noxi 0.0.3 - 2026-11-12
+
+Release of the whole workspace. The seven previously published crates move to 0.0.3; `noxi-serde`, `noxi-glue`, `noxi-build`, `noxi-flake`, `noxi-daemon`, `noxi-commands` and `noxi-cli` are published for the first time under the `noxi-` names at 0.0.2; the new `noxi-system` crate is published at 0.0.1. The release carries the native `noxi flake update`, `noxi system` and `noxi snapshot` commands, the profile, `nix-env`, flake and channel compatibility work since 0.0.2, and the dependency bumps that tie each crate to the versions released together. Per-crate entries remain under `Unreleased` until they are split by version.
+
 ## noxi 0.0.2 - 2026-11-10
 
 Patch release of the seven published crates: `noxi-hash`, `noxi-eval-builtin-macros`, `noxi-compat-derive`, `noxi-flakeref`, `noxi-compat`, `noxi-eval`, and `noxi-store`. It carries the evaluator diagnostics and arithmetic fixes, the store, build and profile work, flake reference and lock handling, and the pure-evaluation path guard that refuses symlink and `..` escapes from fetched sources. The per-crate entries below list each change under `Unreleased` until they are split by version.
@@ -53,9 +57,19 @@ The workspace is being published under the `noxi-` names. `noxi-hash`, `noxi-eva
 
 - Extracted flake reference parsing, formatting, and their tests from `nix-compat`. The `flakeref` feature still exposes `nix_compat::flakeref`.
 
+## noxi-system
+
+### Unreleased
+
+- New crate behind the native `noxi flake`, `noxi system` and `noxi snapshot` commands. `noxi flake update|lock` runs the shared lock algorithm in-process and reports changed, added and removed inputs; `noxi system build|test|boot|switch|dry-activate|rollback` evaluates and builds a NixOS toplevel through the in-process compatibility implementation, registers the system profile generation as `nix-env --set` does, runs `switch-to-configuration`, and reports built closure, running generation and boot default separately; `noxi snapshot list|show|diff|rollback` keeps a per-rebuild journal of source revision, lock copy, closure, generations and outcome under the state directory, and rolls back to a recorded generation with optional lock restoration. Offline integration tests use diverted profiles, activation programs and journal directories; no VM qualification yet (2026-11-12).
+
 ## nix-rs-cli
 
 The `nixrs` preview command. It evaluates pure Nix expressions and does not own a store or daemon.
+
+### Unreleased
+
+- The `noxi` binary dispatches `flake`, `system` and `snapshot` to `noxi-system` and drops its own mimalloc declaration, which `noxi-commands` now supplies through that dependency (2026-11-12).
 
 ### 0.1.1 - 2026-10-01
 

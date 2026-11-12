@@ -1,6 +1,6 @@
 [package]
 name = "nix-compat-derive-tests"
-version = "0.0.1"
+version = "0.0.2"
 edition = "2024"
 rust-version.workspace = true
 publish = false
@@ -11,11 +11,11 @@ tokio = { workspace = true, features = ["io-util", "macros", "rt"] }
 
 [dev-dependencies.nix-compat]
 package = "noxi-compat"
-version = "0.0.2"
+version = "0.0.3"
 path = "../nix-compat"
 features = ["test", "wire"]
 
 [dev-dependencies.nix-compat-derive]
 package = "noxi-compat-derive"
-version = "0.0.2"
+version = "0.0.3"
 path = "../nix-compat-derive"

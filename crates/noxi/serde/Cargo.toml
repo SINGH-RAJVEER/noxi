@@ -1,6 +1,6 @@
 [package]
 name = "noxi-serde"
-version = "0.0.1"
+version = "0.0.2"
 edition = "2024"
 rust-version.workspace = true
 description = "Serialize and deserialize Nix values with serde, derived from Snix serde"
@@ -8,6 +8,6 @@ license = "GPL-3.0-only"
 repository = "https://github.com/SINGH-RAJVEER/nix-rs"
 
 [dependencies]
-noxi-eval = { path = "../eval", version = "0.0.2" }
+noxi-eval = { path = "../eval", version = "0.0.3" }
 serde = { workspace = true, features = ["derive"] }
 bstr = { workspace = true, features = ["serde"] }
