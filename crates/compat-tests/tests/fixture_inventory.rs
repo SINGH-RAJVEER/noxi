@@ -130,6 +130,13 @@ fn fixture_files() -> Vec<String> {
 
 /// The last literal directory of a pattern, before its first wildcard.
 fn fixture_dir(pattern: &str) -> &str {
+	let pattern = if pattern.contains('*') {
+		pattern
+	} else {
+		pattern
+			.rsplit_once('/')
+			.map_or(pattern, |(parent, _)| parent)
+	};
 	pattern
 		.split('/')
 		.take_while(|segment| !segment.contains('*'))
@@ -210,7 +217,7 @@ fn claimed_tests_read_their_fixtures() {
 			continue;
 		};
 		let dir = fixture_dir(&rule.pattern);
-		if !source.contains(dir) {
+		if !source.contains(dir) && !table_lists(test, &rule.pattern) {
 			problems.push(format!("line {}: {test} never mentions {dir:?}", rule.line));
 		}
 		if !per_file {
@@ -226,7 +233,7 @@ fn claimed_tests_read_their_fixtures() {
 			});
 			if first == Some(index) && glob_matches(&pattern, &segments) {
 				let stem = file_stem(file);
-				if !source.contains(&format!("\"{stem}")) {
+				if !source.contains(&format!("\"{stem}")) && !table_lists(test, file) {
 					problems.push(format!(
 						"line {}: {test} never names {stem:?} ({file})",
 						rule.line
@@ -238,8 +245,73 @@ fn claimed_tests_read_their_fixtures() {
 	assert!(problems.is_empty(), "{}", problems.join("\n"));
 }
 
+/// Whether the test's expectation table, `expectations/<test>.txt` with
+/// dashes for underscores, has a line for the file.
+fn table_lists(test: &str, file: &str) -> bool {
+	let table = Path::new(env!("CARGO_MANIFEST_DIR"))
+		.join("expectations")
+		.join(format!("{}.txt", test.replace('_', "-")));
+	std::fs::read_to_string(table).is_ok_and(|text| {
+		text.lines()
+			.any(|line| line.split_whitespace().next() == Some(file))
+	})
+}
+
+/// Each functional test script's class here matches the class
+/// `upstream_functional` recorded from its noxi and reference outcomes, and
+/// every support file falls to that test's table entry.
+#[test]
+fn functional_scripts_match_their_recorded_class() {
+	let rules = parse_manifest();
+	let table = include_str!("../expectations/upstream-functional.txt");
+	let mut problems = Vec::new();
+	let mut scripts = 0;
+	for line in table.lines() {
+		let fields: Vec<&str> = line
+			.split(" # ")
+			.next()
+			.unwrap()
+			.split_whitespace()
+			.collect();
+		let (path, recorded) = match fields.as_slice() {
+			[path, "support"] => (*path, None),
+			[path, class, _, _] if !path.starts_with('#') => (*path, Some(*class)),
+			_ => continue,
+		};
+		let segments: Vec<&str> = path.split('/').collect();
+		let class = rules
+			.iter()
+			.find(|rule| {
+				let pattern: Vec<&str> = rule.pattern.split('/').collect();
+				glob_matches(&pattern, &segments)
+			})
+			.map(|rule| rule.class.clone());
+		let expected = match recorded {
+			None => Class::Table("upstream_functional".to_owned()),
+			Some("pass") => Class::Pass("upstream_functional".to_owned()),
+			Some("gap") => Class::Gap,
+			Some("anomaly") => Class::Anomaly,
+			Some("unrun") => Class::Unrun,
+			Some(other) => {
+				problems.push(format!("{path}: unknown class {other}"));
+				continue;
+			}
+		};
+		scripts += usize::from(recorded.is_some());
+		if class.as_ref() != Some(&expected) {
+			problems.push(format!(
+				"{path}: fixtures.txt says {class:?}, upstream-functional.txt says {expected:?}"
+			));
+		}
+	}
+	assert!(scripts > 200, "too few functional scripts: {scripts}");
+	assert!(problems.is_empty(), "{}", problems.join("\n"));
+}
+
 #[test]
 fn glob_semantics() {
+	assert_eq!(fixture_dir("tests/functional/hash-path.sh"), "functional");
+	assert_eq!(fixture_dir("tests/functional/flakes/*.sh"), "flakes");
 	let matches = |pattern: &str, path: &str| {
 		glob_matches(
 			&pattern.split('/').collect::<Vec<_>>(),

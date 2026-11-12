@@ -309,6 +309,30 @@ fn signed_local_upload_matches_reference_and_round_trips() {
 }
 
 #[test]
+fn compressed_local_uploads_are_accepted_by_the_reference() {
+	let env = Env::new();
+	let source = env.noxi_store("src");
+	let (key, _) =
+		parse_keypair(fs::read_to_string(env.secret_key_file()).unwrap().trim()).unwrap();
+	let keys = [key];
+	for method in ["gzip", "bzip2", "zstd"] {
+		let url = format!("file://{}?compression={method}", env.root(method).display());
+		let cache = BinaryCache::open(&url).unwrap();
+		cache.upload_closure(&source, &env.out, &keys).unwrap();
+		let text = cache.narinfo_text(&env.out).unwrap().unwrap();
+		assert!(text.contains(&format!("Compression: {method}\n")));
+		let destination = format!("reference-from-{method}");
+		let output = env.reference_substitute(&destination, &url, &env.out);
+		assert!(
+			output.status.success(),
+			"{}",
+			String::from_utf8_lossy(&output.stderr)
+		);
+		env.verify(&destination);
+	}
+}
+
+#[test]
 fn local_upload_preserves_signatures_across_key_rotation() {
 	let mut env = Env::new();
 	let inherited =
