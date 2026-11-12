@@ -106,6 +106,17 @@ def qualification_inputs() -> tuple[str, str]:
 	return source("nixpkgs"), source("home-manager")
 
 
+def qualification_args(nixpkgs: str, home_manager: str, output: str = "default") -> tuple[list[str], object]:
+	file = Path(__file__).resolve().parent / "eval-08.nix"
+	if output == "default":
+		return ["--eval", "--strict", "--json", str(file), "--argstr", "nixpkgs", nixpkgs,
+			"--argstr", "homeManager", home_manager], QUALIFICATION_DRVS
+	index = ["system", "vm", "module", "standalone"].index(output)
+	# Legacy nix-instantiate has no --apply. Select before strict forcing in Nix.
+	expression = f'builtins.elemAt (import {json.dumps(str(file))} {{ nixpkgs = {json.dumps(nixpkgs)}; homeManager = {json.dumps(home_manager)}; }}) {index}'
+	return ["--eval", "--strict", "--json", "--expr", expression], QUALIFICATION_DRVS[index]
+
+
 def evaluation(case: str, size: int) -> tuple[str, object]:
 	attrs = " ".join(f"a{i:06d} = {i};" for i in range(size))
 	if case in {"EVAL-01", "START-03"}:
@@ -323,8 +334,9 @@ class Fixtures:
 			self.metadata["qualification_inputs"] = {"nixpkgs": nixpkgs, "home-manager": home_manager}
 			file = Path(__file__).resolve().parent / "eval-08.nix"
 			self.metadata["expression_sha256"] = digest(file)
-			return Operation("nix-instantiate", ["--eval", "--strict", "--json", str(file), "--argstr", "nixpkgs", nixpkgs,
-				"--argstr", "homeManager", home_manager], env, self.root, "json", QUALIFICATION_DRVS)
+			args, expected = qualification_args(nixpkgs, home_manager, variant)
+			self.metadata["qualification_output"] = variant
+			return Operation("nix-instantiate", args, env, self.root, "json", expected)
 		if case.startswith("EVAL-") or case == "START-03":
 			expr, expected = evaluation(case, self.size)
 			file = self.root / f"{case}.nix"

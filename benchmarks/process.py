@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from host import snapshot as host_snapshot, delta as host_delta
+
 import hashlib
 import json
 import os
@@ -62,6 +64,7 @@ class Cgroup:
 
 	def snapshot(self) -> dict:
 		cpu = dict(line.split() for line in (self.path / "cpu.stat").read_text().splitlines())
+		memory = dict(line.split() for line in (self.path / "memory.stat").read_text().splitlines())
 		io = {key: 0 for key in ["rbytes", "wbytes", "rios", "wios"]}
 		for line in (self.path / "io.stat").read_text().splitlines():
 			for field in line.split()[1:]:
@@ -69,6 +72,7 @@ class Cgroup:
 				if key in io:
 					io[key] += int(value)
 		return {
+			**{f"memory_stat_{key}": int(value) for key, value in memory.items() if key.startswith(("pgfault", "pgmajfault", "pgscan", "pgsteal", "thp_", "compact"))},
 			"cpu_user_s": int(cpu.get("user_usec", 0)) / 1e6,
 			"cpu_system_s": int(cpu.get("system_usec", 0)) / 1e6,
 			"cpu_total_s": int(cpu.get("usage_usec", 0)) / 1e6,
@@ -115,6 +119,7 @@ def run_process(launcher: Path, argv: list[str], env: dict[str, str], cwd: Path,
 		with stdout_path.open("wb") as stdout, stderr_path.open("wb") as stderr:
 			with (stdin.open("rb") if stdin else open(os.devnull, "rb")) as input_stream:
 				before = group.snapshot()
+				host_before = host_snapshot(group.path)
 				spawn_ns = time.monotonic_ns()
 				child = subprocess.Popen([str(launcher), str(group.path), str(write_fd), str(target_metrics), "--", *argv],
 					env=env, cwd=cwd, stdin=input_stream, stdout=stdout, stderr=stderr,
@@ -150,8 +155,12 @@ def run_process(launcher: Path, argv: list[str], env: dict[str, str], cwd: Path,
 				finished_ns = time.monotonic_ns()
 				child.returncode = os.waitstatus_to_exitcode(status)
 		resources = group.snapshot()
+		target_host = host_delta(host_before, host_snapshot(group.path))
 		for key in ["cpu_user_s", "cpu_system_s", "cpu_total_s", "disk_read_bytes", "disk_write_bytes", "disk_read_ops", "disk_write_ops"]:
 			resources[key] -= before[key]
+		for key in resources:
+			if key.startswith("memory_stat_"):
+				resources[key] -= before[key]
 		resources["launcher_wait4_max_process_rss_bytes"] = usage.ru_maxrss * 1024
 		if target_metrics.exists():
 			metrics = json.loads(target_metrics.read_text())
@@ -162,7 +171,7 @@ def run_process(launcher: Path, argv: list[str], env: dict[str, str], cwd: Path,
 		resources["wait4_cpu_system_s"] = usage.ru_stime
 		remaining = group.populated()
 		return {
-			"argv": argv, "exit_code": child.returncode, "timed_out": timed_out,
+			"target_host_resources": target_host, "argv": argv, "exit_code": child.returncode, "timed_out": timed_out,
 			"launcher_pid": child.pid, "cgroup_path": str(group.path),
 			"elapsed_s": (finished_ns - (started_ns or spawn_ns)) / 1e9,
 			"spawn_before_exec_s": (started_ns - spawn_ns) / 1e9 if started_ns else None,

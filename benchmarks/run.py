@@ -21,6 +21,7 @@ import sys
 import tempfile
 import time
 
+from host import snapshot as host_snapshot, delta as host_delta, verdict as host_verdict
 from fixtures import ADAPTERS, CONFIG, Fixtures, Operation, environment, remove_tree, tree_digest
 from process import Cgroup, absolute_program, build_launcher, digest, run_process
 
@@ -67,11 +68,19 @@ def hardware() -> dict:
 			return Path(path).read_text().strip()
 		except OSError:
 			return None
-	return {"platform": platform.platform(), "kernel": platform.release(), "machine": platform.machine(),
+	return {"recorded_monotonic_s": time.monotonic(), "recorded_utc": datetime.now(timezone.utc).isoformat(),
+		**host_snapshot(), "platform": platform.platform(), "kernel": platform.release(), "machine": platform.machine(),
 		"cpu_first_processor": cpu, "affinity": sorted(os.sched_getaffinity(0)), "load_average": os.getloadavg(),
 		"meminfo": read("/proc/meminfo"), "mountinfo": read("/proc/self/mountinfo"),
 		"cpu_governor": read("/sys/devices/system/cpu/cpu0/cpufreq/scaling_governor"),
-		"cgroup_membership": read("/proc/self/cgroup")}
+		"cgroup_membership": read("/proc/self/cgroup"),
+		"pressure": {name: read(f"/proc/pressure/{name}") for name in ["cpu", "memory", "io"]},
+		"diskstats": read("/proc/diskstats"), "vmstat": read("/proc/vmstat"),
+		"perf_event_paranoid": read("/proc/sys/kernel/perf_event_paranoid"),
+		"cgroup_limits": {name: read("/sys/fs/cgroup" + line.split(":", 2)[2].strip() + "/" + name)
+			for line in Path("/proc/self/cgroup").read_text().splitlines() if line.startswith("0::")
+			for name in ["cpu.max", "cpuset.cpus.effective", "memory.max", "memory.swap.max", "io.max",
+				"cpu.stat", "memory.events", "memory.current", "cpu.pressure", "memory.pressure", "io.pressure"]}}
 
 
 def normalize(data: bytes, state: Path, fixture: Fixtures) -> bytes:
@@ -221,7 +230,9 @@ def catalog() -> list[dict]:
 		return list(csv.DictReader(stream, delimiter="\t"))
 
 
-def variants(case: str) -> list[str]:
+def variants(case: str, eval08_outputs: list[str] | None = None) -> list[str]:
+	if case == "EVAL-08" and eval08_outputs:
+		return eval08_outputs
 	if case == "RPC-01":
 		return ["cppnix-server", "noxi-server"]
 	if case == "CACHE-08":
@@ -258,8 +269,10 @@ def execute_case(args, case: str, variant: str, engines: dict, artifacts: dict, 
 							raise FileNotFoundError(f"{role} is missing {operation.program}")
 						result_dir = output / stage / f"{case}-{variant}" / f"{index:04d}-{role}"
 						utc_start = datetime.now(timezone.utc).isoformat()
+						host_before = host_snapshot()
 						result = run_process(launcher, [str(path), *operation.args], operation.env, operation.cwd,
 							result_dir, args.timeout, group=operation.group, expect_background=operation.daemon is not None)
+						result["host_resources"] = host_delta(host_before, host_snapshot())
 						result.update({"schema_version": SCHEMA_VERSION, "run_id": output.name, "case_id": case, "variant_id": variant,
 							"sample_index": index, "pair_id": f"{case}/{variant}/{stage}/{index}", "role": role, "stage": stage,
 							"order_seed": args.seed, "utc_start": utc_start,
@@ -316,6 +329,8 @@ def parser() -> argparse.ArgumentParser:
 		help="additional preserved release artifact, repeatable; every engine must pass each matched block")
 	result.add_argument("--busybox", type=Path)
 	result.add_argument("--case", action="append", default=[], help="case ID, repeatable; default is all offline adapters")
+	result.add_argument("--eval08-output", action="append", choices=["system", "vm", "module", "standalone"],
+		help="evaluate an individual EVAL-08 output; repeat for separate matched blocks; default evaluates all four together")
 	result.add_argument("--suite", choices=["pr", "nightly", "release", "research"])
 	result.add_argument("--samples", type=int, default=30)
 	result.add_argument("--size", type=int, default=32, help="scale point; large-tree cases interpret this as MiB")
@@ -325,6 +340,7 @@ def parser() -> argparse.ArgumentParser:
 		help="loopback cache response protocol; HTTP/1.0 closes without an explicit Connection header")
 	result.add_argument("--exact-output", action="store_true",
 		help="add --quiet and compare raw stdout, stderr and exit status in addition to the artifact oracle")
+	result.add_argument("--host-policy", type=Path, help="predeclared JSON host validity policy retained in metadata")
 	result.add_argument("--output", type=Path)
 	result.add_argument("--list", action="store_true")
 	result.add_argument("--record-source", type=Path, help="write source identity beside a preserved baseline artifact")
@@ -374,17 +390,19 @@ def main() -> int:
 			raise RuntimeError("reference must be the pinned CppNix 2.35.2 artifact")
 		identity = source_identity()
 		for role, directory in engines.items():
-			if role in {"reference", "candidate"}:
+			if role == "reference":
 				continue
 			baseline_identity = directory.parent / "source.json"
-			artifacts[role]["source_identity"] = json.loads(baseline_identity.read_text()) if baseline_identity.exists() else {"unverified_source": True}
+			artifacts[role]["source_identity"] = json.loads(baseline_identity.read_text()) if baseline_identity.exists() else (identity if role == "candidate" else {"unverified_source": True})
 		metadata = {"schema_version": SCHEMA_VERSION, "run_id": output.name,
-			"runner_sources": {name: digest(ROOT / "benchmarks" / name) for name in ["run.py", "fixtures.py", "process.py", "exec.c", "catalog.tsv"]},
+			"runner_sources": {name: digest(ROOT / "benchmarks" / name) for name in ["run.py", "fixtures.py", "process.py", "exec.c", "catalog.tsv", "host.py"]},
 			"collector_runtime": {"python": sys.version, "cc": subprocess.run(["cc", "--version"], capture_output=True, text=True, check=True).stdout.splitlines()[0],
 				"rustc": subprocess.run(["rustc", "--version", "--verbose"], capture_output=True, text=True, check=True).stdout},
 			"reference_revision_declared_by_project_lock": PINNED_REVISION,
 			"reference_binary_revision_not_inferred_from_version": True,
-			"artifacts": artifacts, "candidate_source_identity": identity,
+			"artifacts": artifacts, "candidate_source_identity": artifacts["candidate"].get("source_identity", identity),
+			"runner_checkout_source_identity": identity,
+			"host_validity_policy": json.loads(args.host_policy.read_text()) if args.host_policy else None,
 			"hardware": hardware(), "arguments": {k: str(v) if isinstance(v, Path) else v for k, v in vars(args).items()},
 			"launcher": {"sha256": digest(launcher), "source_sha256": digest(ROOT / "benchmarks/exec.c")},
 			"limits": ["offline adapters cover selected dimensions only", "OS page cache is uncontrolled", "elapsed time includes target exec, native wait4 metric-file write, and collector wake/reap latency", "target wait4 RSS excludes Python's inherited high-water mark; launcher RSS does not", "cgroup memory includes file cache", "local HTTP server CPU is outside client accounting", "phase traces and hardware counters are not implemented"]}
@@ -398,12 +416,16 @@ def main() -> int:
 				if case not in ADAPTERS:
 					coverage.append({"case_id": case, "status": "blocked", "reason": f"adapter not implemented; requires {row['requires']}"})
 					continue
-				for variant in variants(case):
+				for variant in variants(case, args.eval08_output):
 					print(f"{case}/{variant}", flush=True)
 					status, records = execute_case(args, case, variant, engines, artifacts, launcher, work, output, samples_stream)
 					coverage.append(status)
 					summaries[f"{case}/{variant}"] = paired_summary(records, args.seed)
 					print(f"  {status['status']}: {status.get('reason', str(len(records)) + ' samples')}", flush=True)
+		after = hardware()
+		write_json(output / "hardware-after.json", after)
+		all_samples = [json.loads(line) for line in (output / "samples.jsonl").read_text().splitlines()]
+		write_json(output / "host-validity.json", host_verdict(metadata["hardware"], after, metadata["host_validity_policy"], all_samples))
 		write_json(output / "coverage.json", coverage)
 		write_json(output / "summary.json", summaries)
 		lines = ["# Benchmark run", "", f"Run `{output.name}`. Selected scale {args.size}, {args.samples} paired samples, seed {args.seed}. Ratios above 1 favor the candidate. Runs below 30 pairs are exploratory; no p95 or general speed claim is made.", "", "| Case | Baseline | Pairs | Baseline ms | Candidate ms | Speedup | 95% interval |", "| --- | --- | --- | --- | --- | --- | --- |"]

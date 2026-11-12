@@ -10,7 +10,9 @@ import tempfile
 import time
 import unittest
 
-from fixtures import CacheServer, QUALIFICATION_DRVS, Operation, environment, make_tree, remove_tree, tree_digest
+from unittest.mock import patch
+
+from fixtures import Fixtures, CacheServer, QUALIFICATION_DRVS, Operation, environment, make_tree, remove_tree, tree_digest
 from process import Cgroup, build_launcher, run_process
 from run import ROOT, paired_summary, verify
 
@@ -25,6 +27,18 @@ class OracleTests(unittest.TestCase):
 		self.assertEqual(expression.split(), fixture.split())
 		for path in QUALIFICATION_DRVS:
 			self.assertIn(path, qualification)
+
+	def test_individual_module_outputs_keep_independent_oracles(self):
+		with tempfile.TemporaryDirectory() as temp, patch("fixtures.qualification_inputs", return_value=("/nixpkgs", "/home-manager")):
+			root = Path(temp)
+			fixture = Fixtures(root / "fixture", root, None, 32, 1729, 60, "EVAL-08")
+			for index, name in enumerate(["system", "vm", "module", "standalone"]):
+				op = fixture.prepare("EVAL-08", root / name, root, root / "launcher", name)
+				self.assertEqual(op.expected, QUALIFICATION_DRVS[index])
+				self.assertEqual(op.args[:4], ["--eval", "--strict", "--json", "--expr"])
+				self.assertNotIn("--apply", op.args)
+				self.assertTrue(op.args[-1].startswith("builtins.elemAt (import "))
+				self.assertTrue(op.args[-1].endswith(f") {index}"))
 
 	def result(self, root, stdout=b"42", stderr=b"", exit_code=0):
 		(root / "stdout").write_bytes(stdout)
