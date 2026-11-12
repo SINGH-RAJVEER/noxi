@@ -1,6 +1,98 @@
 # Performance architecture and optimization plan
 
-Status: evaluator measurements updated 2026-10-27; the current-main diagnosis and the evaluator cost reductions below are exploratory five-pair runs. The [runner](../benchmarks/README.md) supports 39 subsets of the 154 catalog scenarios. O06 bounds immutable source capture with an 8 MiB spool threshold; O09 indexes dependency edges while retaining serial realization and ready ordering. EVAL-08 now covers the qualification NixOS and Home Manager derivation paths. The remaining hypotheses and unimplemented parts of those hypotheses remain proposed work. The [benchmark specification](performance-benchmarks.md), [scenario catalog](../benchmarks/catalog.tsv), and [CppNix research](performance-research.md) define the evidence required before advertising an optimization.
+## Opt-in evaluator diagnostics, 2026-11-13
+
+The evaluator's `eval-diagnostics` Cargo feature records executed opcodes and adjacent opcode pairs, frame scheduling and entry events, thunk construction and first/cached forcing, capture-length histograms, instrumented constructor allocation events and runtime layouts. It is absent from default builds. Build the command with `--features noxi-eval/eval-diagnostics` and set `NOXI_EVAL_DIAGNOSTICS` to a JSON output path. Snapshots accumulate on the evaluation thread across VM instances until `noxi_eval::perf_counters::reset()`; each completed evaluation atomically writes the cumulative snapshot. Separate threads and processes require separate output paths. The counters intentionally alter execution cost and must not be enabled in production timing comparisons.
+
+Capture-buffer allocation counts are construction-site estimates. Instrumented thunk allocation payloads exclude reference-count headers and allocator overhead. These counters are not total allocator traffic or live-heap measurements. Derived capture clones and allocations outside the instrumented constructors are not included.
+
+The independent command feature `eval-allocation-diagnostics` wraps the same production mimalloc allocator with allocation-free atomic accounting. Set `NOXI_EVAL_ALLOCATION_DIAGNOSTICS` to report successful/failed allocations and reallocations, requested allocation/deallocation bytes, and current/peak requested live bytes from process startup through CLI return, before report serialization. Requested bytes exclude allocator metadata, fragmentation, retained pages and temporary realloc copying storage. Concurrent background threads can make the snapshot fields nontransactional. Run this allocation-only build separately from opcode diagnostics and production timings.
+
+The earlier 2026-11-13 work recorded its starting source and full dirty patch under `target/eval-20261113/{baseline,preservation}/`. New comparisons use a freshly built baseline with recorded source and executable hashes. The split EVAL-08 adapter retains the independently recorded path for each selected output; evaluating a single output is a different diagnostic workload from the four-output qualification and is reported separately.
+
+The starting EVAL-08 diagnostic execution matched the four-path oracle and counted 245,306,061 logical opcodes, 70,584,198 bytecode frame entries and 36,679,134 thunk constructor allocations. Of 40,154,978 instrumented finalized capture arrays, 28,679,243 contain one or two static values. Instrumented capture-buffer payload totals are cumulative allocation estimates, not retained memory. These measurements motivate eliminating temporary suspensions before enlarging all capture representations with inline storage. A managed heap or VM-lifetime arena is not retained: cumulative traffic does not identify the retained graph, and returned values can outlive the VM that produced them.
+
+Two production experiments are being compared independently. Boxing the rare error payload in `ContextMessage` reduces scheduler `Frame` size from 200 to 144 bytes while leaving `BytecodeFrame` at 128 bytes. The baseline workload never entered `ContextMessage`, so it adds no error-payload allocation on that execution. Three exploratory pairs do not establish a wall-time benefit for this change alone: paired speedup is 1.003x with interval [0.988, 1.012]. The immediate-force experiment targets 17,435,602 adjacent `ThunkSuspended`/`Force` executions. It enters the same bytecode and captured environment with a force continuation but no memoization cell for the unshared temporary. Deferred recursive captures and runtime observers keep the original path; a result that is another thunk reconstitutes the evaluated wrapper and uses the existing forcing path. Both experiments remain subject to final compatibility and representative performance checks.
+
+User-only DWARF sampling requires `--user-callchains` in addition to `cycles:u` on this host. Omitting it requests disallowed kernel callchains. The resulting baseline profile matched the oracle, but 623 of 625 sampled memory-copy stacks still lacked a caller. Two resolved samples lead to frame-vector movement; they do not establish that all copies have that cause. LBR branch-stack sampling is unsupported by the available PMU. Exact profiler commands, errors and reports remain under `target/eval-20261113/`.
+
+The first ten-block final lane was interrupted after memory pressure exceeded its declared host-validity threshold. Its completed and partial samples remain under `target/eval-20261113/final-eval08-10/` with `INVALID-HOST.json` and are excluded from performance qualification. An ancestor agent slice applies `memory.high` even though the leaf cgroup is uncapped. Inspecting only the leaf misses this limit. Clean pages from owned build artifacts can be advised out without modifying files or global host settings; final comparisons require a fresh quiet lane, with ancestor pressure and limits recorded, rather than selecting fast pairs from the interrupted run.
+
+Status: evaluator hotspot measurements updated 2026-11-12; representative qualification measurements below remain separately dated; the current-main diagnosis and the evaluator cost reductions below are exploratory five-pair runs. The [runner](../benchmarks/README.md) supports 39 subsets of the 154 catalog scenarios. O06 bounds immutable source capture with an 8 MiB spool threshold; O09 indexes dependency edges while retaining serial realization and ready ordering. EVAL-08 now covers the qualification NixOS and Home Manager derivation paths. The remaining hypotheses and unimplemented parts of those hypotheses remain proposed work. The [benchmark specification](performance-benchmarks.md), [scenario catalog](../benchmarks/catalog.tsv), and [CppNix research](performance-research.md) define the evidence required before advertising an optimization.
+
+## Evaluator attribute and context costs, 2026-11-12
+
+Attribute updates now carry binding positions alongside the sorted merge, preserving the right operand's position even when it is absent. Chained merges retain these positions by offset; literal layouts provide source spans through their validated sorted permutation. This avoids constructing a new position hash map and looking up each merged key in both operands. Attribute sets without shared literal layouts use binary search for their first four lookups and build a hash index only when further lookups need it. Shared literal indexes retain their immediate initialization. Successful `addErrorContext` boundaries no longer traverse and format the outer trace stack; the suspended outer frames are counted when an error actually needs a context message.
+
+The diagnostic [hotspot wrapper](../benchmarks/eval-hotspots.py) reuses the ordinary runner's independent expected JSON, reference comparison, shuffled matched blocks, isolated homes, dummy stores, process-tree accounting and bootstrap intervals. `EVAL-HOT-MERGE` performs 4,000 updates of a 256-binding literal with two subsequent selections and returns `9018000`. `EVAL-HOT-CONTEXT` returns `42` through 1,000 successful nested contexts. These cases are synthetic diagnostics outside the qualification catalog. CLI startup is included.
+
+The preserved candidate is `target/agent-perf/c3/bin/nix-instantiate`, built with `CARGO_BUILD_JOBS=4 CARGO_TARGET_DIR=target/agent-perf cargo build --profile release-with-debug -p noxi-commands --bin nix-instantiate`. This profile inherits portable release optimization, fat LTO and one codegen unit, and retains debug information. The preserved base and intermediate artifacts under `target/agent-perf/{base,c2}/bin` came from this work session; their exact source snapshots were not recorded, so their comparisons are diagnostic rather than fully qualified ablations. The runner records executable hashes. The candidate's source record is adjacent to its binary directory.
+
+Both runs use 30 matched blocks, seed 1729, and affinity `0-3,12-15` on the Ryzen AI 9 HX 370. All 120 merge and 90 context timed invocations passed their output oracles, as did their preflights. OS page cache, frequency and other host activity were uncontrolled. The merge timings below use a fresh run after profiling completed; these shared-host measurements are evidence for these specific diagnostic workloads, not a general evaluator qualification. Medians are shown below; speedups are paired geometric means with 95% bootstrap intervals.
+
+| Workload / engine | Wall ms | CPU ms | Peak RSS MiB | Candidate speedup over engine |
+| --- | ---: | ---: | ---: | --- |
+| Merge / preserved base | 46.838 | 46.290 | 98.61 | 2.090x [2.000, 2.185] |
+| Merge / before deferred indexes | 27.799 | 27.120 | 71.21 | 1.212x [1.190, 1.237] |
+| Merge / CppNix 2.35.2 | 28.372 | 28.274 | 80.41 | 1.241x [1.197, 1.293] |
+| Merge / candidate | 22.783 | 22.599 | 58.17 | n/a |
+| Context / preserved base | 41.032 | 40.049 | 23.01 | 12.208x [11.434, 12.917] |
+| Context / CppNix 2.35.2 | 15.762 | 16.053 | 49.20 | 4.793x [4.498, 5.068] |
+| Context / candidate | 3.266 | 3.327 | 21.27 | n/a |
+
+The fixed four-path EVAL-08 workload also passed all 15 timed invocations and three preflights in `target/agent-perf/final-eval08/`. This exploratory five-pair run does not establish a representative improvement: the candidate median is 19.518 s versus 21.684 s for the preserved base, but its 26.691 s and 49.503 s outliers produce a paired geometric speedup of 0.860x [0.577, 1.156]. CppNix's median is 3.789 s, leaving the candidate 5.15 times slower by median elapsed time. Median CPU times are 18.592 s candidate, 19.966 s base and 4.345 s CppNix; median peak RSS is 2,958.33 MiB, 3,059.07 MiB and 996.00 MiB respectively. Shared-host variation and the limited sample count prevent a general speed claim. Beating CppNix on representative NixOS/Home Manager evaluation remains open.
+
+Raw records, environments, executable identities and output digests are in `target/agent-perf/final-{merge-clean,context,eval08}/`. Reproduce after preserving the desired artifacts:
+
+```sh
+devenv shell -- taskset -c 0-3,12-15 uv run --no-project --no-config python benchmarks/eval-hotspots.py --reference-bin target/nix-reference/bin --candidate-bin target/agent-perf/c3/bin --baseline-bin target/agent-perf/base/bin --comparison-bin before-index=target/agent-perf/c2/bin --case EVAL-HOT-MERGE --samples 30 --size 4000 --output target/agent-perf/reproduce-merge
+devenv shell -- taskset -c 0-3,12-15 uv run --no-project --no-config python benchmarks/eval-hotspots.py --reference-bin target/nix-reference/bin --candidate-bin target/agent-perf/c3/bin --baseline-bin target/agent-perf/base/bin --case EVAL-HOT-CONTEXT --samples 30 --size 1000 --output target/agent-perf/reproduce-context
+devenv shell -- taskset -c 0-3,12-15 uv run --no-project --no-config python benchmarks/run.py --reference-bin target/nix-reference/bin --candidate-bin target/agent-perf/c3/bin --baseline-bin target/agent-perf/base/bin --case EVAL-08 --samples 5 --timeout 300 --output target/agent-perf/reproduce-eval08
+```
+
+Flat `cycles:u` profiles identified the removed work. In the preserved base's merge profile, position-map insertion accounted for 13.33%, position-map lookup for 6.92%, and lookup-index initialization for 10.30% of samples. After position changes, index initialization grew to 20.39% of a smaller total, motivating deferred indexes. In the final profile it no longer appears among the leading entries; cloning the binding slice accounts for 24.62%, and collecting binding positions for 11.65%. In the base's successful-context profile, trace construction alone accounts for 16.60%, with another 14.29% in codemap span lookup and 6.88% in formatting. These short profiles support the mechanism; they do not replace matched timings. Reports and raw profiles are under `target/agent-perf/{base,c2,final}-merge*` and `target/agent-perf/base-context*`.
+
+A separate candidate EVAL-08 profile, collected after timing with the same affinity and a fresh isolated environment, matched all four paths and recorded 8,228 samples with zero loss. Its largest entries are bytecode execution at 15.47%, libc memory movement at 8.13%, lambda execution at 7.37%, capture population at 4.33%, and value cloning at 3.45%. Attribute lookup is 1.06%. The remaining representative gap therefore needs broader VM and value-management work. Raw data and the report are `target/agent-perf/final-eval08.data` and `target/agent-perf/final-eval08-profile.txt`.
+
+Correctness validation passes 533 evaluator tests plus one doctest with `devenv shell -- env CARGO_BUILD_JOBS=4 cargo test -p noxi-eval --quiet`. Added tests cover span provenance across balanced and skewed updates, KV operands, absent right-side positions, repeated updates, literal source-order permutations, and lookups before and after index creation. Direct comparisons against the pinned reference also match exit status, stdout and stderr for lazy successful contexts, nested abort contexts under `--show-trace`, and caught throws.
+
+## Evaluator success-path diagnostics round, 2026-11-13
+
+This round removes diagnostic work that ran on successful evaluation and keeps the two experiments recorded above. All measurements use the four-path EVAL-08 expression (`benchmarks/eval-08.nix`) under the runner's isolated environment (dummy store, empty `NIX_PATH`, fresh home), affinity `0-3,12-15` on the AMD Ryzen AI 9 HX 370, and `release-with-debug` builds (portable release, fat LTO, one codegen unit, debug information) from `HEAD` `67d460f` plus the uncommitted working tree. Every run's strict JSON output had digest `31328840df22d3ff`, byte-identical to pinned CppNix 2.35.2's output for the same command.
+
+Changes are cumulative. Instruction counts are single `perf stat -e instructions:u` runs, which stay stable while wall time varies with host load. Other agents edited command and store crates between builds; the eval crate dominates this workload, but the last step's count includes their concurrent edits.
+
+| Artifact | Change | EVAL-08 user instructions | Step |
+| --- | --- | ---: | ---: |
+| `target/agent-perf/base` | starting tree | 190.28 billion | baseline |
+| `c1` | Count the outer traces of an `addErrorContext` boundary only when a context message is needed, not on every successful boundary | 173.08 billion | -9.0% |
+| `c3` | `//` carries binding positions by offset instead of building a position hash map; deferred lookup indexes (see 2026-11-12 section) | 165.29 billion | -4.5% |
+| `c4` | Box the cold `ContextMessage` error (scheduler `Frame` 200 to 144 bytes); enter a thunk constructed for an immediate `Force` directly without a memoization cell | 154.22 billion | -6.7% |
+| `c5` | Share compiled regexes through `Rc` instead of cloning them, since a cloned `regex::Regex` starts with an empty match cache; cache each file's line starts for CppNix-style positions, which `derivationStrict` requests for every derivation's `name` | 146.76 billion | -4.8% |
+
+The cumulative instruction reduction is 22.9%. A pinned CppNix invocation used about 41 billion instructions in earlier measurements, so noxi still executes about 3.6 times as many.
+
+Ten shuffled matched blocks then compared CppNix, the starting tree and `c5` (seed 1729; 30 invocations, all matching). Memory pressure (`some avg10`) stayed between 1.4% and 4.2% during the run; compilation by other agents was not running but host activity was otherwise uncontrolled. Medians:
+
+| Engine | Wall s | User CPU s | Peak RSS MiB |
+| --- | ---: | ---: | ---: |
+| CppNix 2.35.2 | 3.195 | 3.845 | 968.8 |
+| Starting tree | 18.475 | 16.925 | 3,062.1 |
+| `c5` | 15.200 | 13.765 | 2,953.2 |
+
+`c5` is 1.226 times as fast as the starting tree (paired geometric mean, 95% bootstrap interval [1.212, 1.247]) and uses 3.6% less peak RSS. It remains 4.76 times slower than CppNix ([4.71, 4.81]) and uses 3.05 times its RSS. Ten blocks are fewer than the runner's 30-pair qualification default; the interval is narrow, but this is a diagnostic lane rather than a general speed claim. The near-reference gate remains open.
+
+Validation at `c5`: 544 evaluator unit tests and the doctest (also with `eval-diagnostics`, adding five counter tests), the language runner with `NOXI_REFERENCE_BIN` (466 of 467 fixtures pass, one disabled, 466 exact live reference matches, all outcomes match the expectations file), and `just nixos-paths` all pass. `c4` passed the same suites before the last step.
+
+Profiling method: the host rejects kernel callchains, so stacks came from a gdb-driven sampler (periodic `SIGUSR1` interrupts with `thread apply all bt`) and breakpoint backtraces on hot symbols. These samples are biased toward page-fault and syscall boundaries and were used only for attribution; flat `cycles:u` profiles and instruction counts decided changes. Before the first change, 7.4% of sampled stacks were trace construction under `addErrorContext`, all from one call site.
+
+Remaining success-path diagnostic costs and candidates, not changed in this round:
+
+- `builtins.genericClosure` prints every element with `ValuePrinter`, and both compared elements at every binary-search step, before it can know whether an error occurs (about 1% of cycles in `ValuePrinter` and string literal printing). CppNix prints in its `catch` handlers, after forcing. Deferring the print needs a lazily rendered trace entry and changes noxi's output in error cases toward CppNix's, so it needs its own fixtures.
+- ATerm escaping in `nix-compat` runs an Aho-Corasick search per derivation string while hashing (about 1.1% of cycles). A scan for bytes needing escaping before the search is a candidate outside this crate's ownership.
+- The flat profile is now led by bytecode dispatch (about 16%), the frame loop (7%), memory copying (6%), capture population (5%) and value cloning (5%). These need representation changes, such as smaller frames, compact captures and fewer generator frames, rather than more success-path fixes.
+
+Artifacts: binaries in `target/agent-perf/{base,c1,c3,c4,c5}/bin`, test logs `target/agent-perf/nixos-paths-c{4,5}.log`, and the language runner reports under `target/agent-perf/tmp/`.
 
 ## Qualification evaluator measurements, 2026-10-25
 
@@ -368,3 +460,95 @@ Performance measurement starts during the MVP. Removing unnecessary work can hap
 - Extend the scheduler only after these measurements show its critical path. Keep one-job behavior as a comparison case and qualify concurrent failure propagation explicitly.
 
 The implementation backlog and benchmark acceptance rules live alongside this document. The first implementation includes the paired runner, generated offline fixtures, repaired evaluator benchmarks, and the bounded-capture/indexed-ordering portions of O06/O09. Source capture hashes as it writes and rewinds the immutable spool for ingestion; it never rereads the source after verification. Tests cover both flat and recursive captures above and below the spill threshold after source replacement. Indexed ordering matches the prior scan across generated DAGs, ready ties, empty graphs and cycles. System/environment activation, worker coordination, parallel realization, warm-cache matrices and real-workload qualification remain open.
+
+Ancestor resource snapshots also retain local memory events and memory.stat counters. Reports include per-ancestor page fault, reclaim scan/steal and CPU throttled microsecond deltas alongside cap events and PSI. These observations help attribute stalls; they do not qualify an invalid lane or establish a performance improvement.
+
+## Round-two continuation resource lane, 2026-11-13
+
+The current checkout is authoritative. The earlier `target/eval-20261113` and historical `target/agent-perf/{base,c1,c3,c4,c5}` artifacts are absent in this continuation; their documented measurements remain historical and cannot identify the current executable. Fresh preservation is under `target/eval-round2-20261113/`, including a copy of every existing JJ-tracked file, a per-file hash manifest and the complete starting dirty patch. This copy precedes further evaluator changes and preserves unrelated work without changing JJ history.
+
+The new `round2-cap-event-free-observe-psi` lane is declared before collecting samples in `policy.json`. Affinity is `0-3,12-15`. Full memory PSI is retained as an outcome rather than filtered, because allocation and reclaim can be intrinsic costs of evaluation. Any observed ancestor `memory.events` high, max, oom or oom_kill delta, missing required event accounting or CPU throttling invalidates the entire lane. Builds, tests, counters and profiling run outside production timing. Whole-run and per-process leaf-plus-ancestor snapshots retain faults, reclaim, PSI and throttle deltas. This lane is separate from the earlier strict PSI lane; no samples are pooled and slow pairs are never discarded. Absence of cap events does not prove absence of all external contention.
+
+The source audit also found an import before `from __future__ import annotations` in the process collector, which prevented Python from importing the runner. The import now follows the future directive. Host policy validation rejects unknown pressure policy names and missing configured memory-event counters on cgroups exposing the memory controller.
+
+The mechanism collector preserves the final command symlink in argv[0], so profiling the pinned multi-call `nix-instantiate` invokes the legacy evaluator rather than resolving it to the modern `nix` command. Production and mechanism builds remain separate. The initial collector validation passed 28 tests; later run records identify subsequent collector revisions.
+
+## Validated round-two fusion ablation, 2026-11-13
+
+The current evaluator is retained after a fresh portable release comparison against an otherwise identical fusion-disabled copy. Thirty shuffled matched blocks, seed 1729 and affinity `0-3,12-15`, passed the original independent four-path EVAL-08 oracle for all 93 invocations. The paired speedup is 1.033483x, 95% bootstrap interval [1.026026, 1.041798]. This qualifies the incremental fusion benefit on this host/workload. It does not re-establish historical cumulative improvements whose artifacts are absent.
+
+| Engine | Median wall s | Median target user CPU s | Median target RSS MiB | User instructions, billion | User cycles, billion |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| CppNix 2.35.2 | 3.643775 | 3.872513 | 995.195 | 41.003254 | 19.071981 |
+| Unfused frozen noxi | 17.036013 | 13.926195 | 2950.498 | 147.927574 | 70.333870 |
+| Current frozen noxi | 16.498309 | 13.438047 | 2942.424 | 141.781333 | 65.143332 |
+
+Instruction and cycle columns are medians of three separate `perf stat` mechanism runs per production binary, not paired timing samples. Counters were fully scheduled. Fusion reduces instructions by 4.155% and cycles by 7.380%. Median production target RSS falls by only 0.274%. The candidate remains 4.528 times slower than CppNix by median elapsed time and uses 2.957 times its RSS. Overall faster-than-CppNix evaluation is not demonstrated.
+
+The cap-event-free observe-PSI policy passed for combined, split and ordinary lanes, with no rejected high/max/oom/oom_kill events, CPU throttling or affinity violations. Combined whole-run full memory PSI was 3.3119%, so this run would fail a 1% strict PSI threshold. That earlier policy was not retroactively relaxed: this separate lane was declared before collection and preserves every slow pair. The target leaf records a median 566,324.5 page faults, 46.5 major faults, 1,143.5 direct-reclaim scanned pages and 1,017 direct-reclaim stolen pages for current noxi, compared with 565,139, 63.5, 1,184 and 1,092.5 for unfused noxi. These show fault/reclaim work without cap events; they do not exclude external host memory pressure or prove that all PSI is intrinsic allocation cost. Leaf and ancestor raw snapshots, finite high/max limits, CPU throttled microseconds and event deltas remain in the sample records.
+
+### Separate output and ordinary-package checks
+
+| Workload | Pairs | Unfused wall ms | Current wall ms | CppNix wall ms | Fusion speedup and 95% interval |
+| --- | ---: | ---: | ---: | ---: | --- |
+| EVAL-08/module | 5 | 6778.695 | 6775.547 | 1704.488 | 1.0138x [0.9965, 1.0338] |
+| EVAL-08/standalone | 5 | 4849.793 | 4698.808 | 1149.086 | 1.0337x [1.0142, 1.0614] |
+| EVAL-08/system | 5 | 12856.466 | 12402.682 | 2655.954 | 1.0233x [1.0092, 1.0345] |
+| EVAL-08/vm | 5 | 13138.111 | 12789.095 | 2730.540 | 1.0321x [1.0198, 1.0444] |
+| EVAL-PKG-HELLO/default | 30 | 296.040 | 291.400 | 122.709 | 1.0151x [1.0099, 1.0208] |
+| EVAL-PKG-NAMES/default | 30 | 182.754 | 182.169 | 78.267 | 1.0033x [0.9999, 1.0065] |
+| EVAL-PKG-PATHS/default | 30 | 766.880 | 753.453 | 261.979 | 1.0159x [1.0119, 1.0195] |
+
+Each split output passed its independently recorded derivation path, with 72 total invocations. Five pairs per output are exploratory and are not pooled with the combined lane. The module interval includes no change. Ordinary hello, six derivation/output paths and three package names passed 279 invocations across 30 blocks per case. The exact root `flake.lock` Nixpkgs input is fetched directly outside timing, rather than traversing the workspace with its target artifacts.
+
+### Mechanisms and allocation
+
+| Process allocation measurement | Unfused | Current |
+| --- | ---: | ---: |
+| `allocation_count` | 200,576,865 | 183,324,426 |
+| `allocation_requested_bytes` | 16,042,705,656 | 14,662,510,536 |
+| `reallocation_count` | 13,188,934 | 13,188,934 |
+| `peak_live_requested_bytes` | 2,738,705,386 | 2,738,705,386 |
+| `current_live_requested_bytes` | 2,714,468,215 | 2,714,468,215 |
+
+The allocation-only mimalloc builds report 17,252,439 fewer successful allocations (8.6014%) and 1,380,195,120 fewer requested allocation bytes. Both builds report zero allocation/reallocation failures. Peak and final requested live bytes are identical, showing a temporary traffic reduction rather than a retained-heap reduction. Bytes exclude allocator metadata, fragmentation and retained pages. Four individual outputs also passed allocation oracles; allocation and opcode builds never contribute production timing samples.
+
+Both opcode builds execute 245,306,061 logical opcodes and 70,584,198 bytecode entries. The current build records 17,435,602 immediate-force fusions and 183,163 evaluated fallback wrappers, exactly explaining the 17,252,439 avoided allocation cells. Suspended constructor counts fall from 36,679,132 to 19,243,530. Current layouts are `Value=16`, `Upvalues=32`, `FrameUpvalues=32`, `ThunkRepr=56`, `FrameTrace=48`, `BytecodeFrame=112`, `Frame=128` and `Error=184` bytes. Historical 144/128-byte scheduler/bytecode frame figures above describe earlier source, not this snapshot. Cold error boxing is preserved but was not independently wall-time ablated in this continuation.
+
+Twenty-one hardware-counter collections, ten allocation collections and two opcode collections passed their full/split output and report-schema checks. Every retained collector manifest and all six binary hashes verified. The complete split instruction/cycle and allocation reports are under `stat-{current,unfused,reference}-{system,vm,module,standalone}` and `allocation-{current,unfused}-{system,vm,module,standalone}`.
+
+### Split mechanism detail
+
+| Output | Current / unfused instructions, billion | Instruction reduction | Current / unfused cycles, billion | Allocation count reduction | Current RSS MiB | Current peak requested live MiB |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| system | 109.862 / 114.335 | 3.912% | 48.932 / 51.783 | 7.908% | 2236.223 | 1973.837 |
+| vm | 114.856 / 119.407 | 3.812% | 51.402 / 53.836 | 8.083% | 2247.035 | 1982.068 |
+| module | 64.419 / 66.417 | 3.009% | 28.013 / 28.615 | 5.725% | 1368.168 | 1187.092 |
+| standalone | 45.882 / 47.320 | 3.040% | 19.652 / 20.511 | 6.293% | 1104.324 | 927.614 |
+
+Split hardware counts are single diagnostic runs per engine/output; cycles can reflect host frequency and scheduling. RSS comes from the five-pair production split lane, while requested live bytes come from the separate allocator build. These measurements are not combined into an aggregate score.
+
+### Compatibility, identity and provenance
+
+The frozen current source passed 544 evaluator tests and one doctest; with diagnostics enabled it passed the same 544 tests, five counter tests and the doctest. The language harness passed 466 of 467 fixtures with one disabled and 466 exact live reference matches. Ten focused production cases additionally match CppNix and unfused noxi byte-for-byte in exit status, stdout and stderr: lazy contexts, nested traced errors, caught throws, recursion, recursive captures, shared list/attribute identity, function identity, returned functions and unused aborts. Collector validation passed 28 tests. No commit, push, publication or host activation was performed.
+
+The copy of 3,593 JJ-tracked files and starting dirty patch is preserved under `target/eval-round2-20261113/`. The preservation manifest hash is `aae412f006171e28e63490dfc1b57abdd3955db770d0b1c448cb8a97c7c5e95d`. The evaluator files in the final checkout are byte-identical to that preserved evaluator source. Later sibling command/store fixes are outside the frozen shared configuration; these results do not qualify a newly rebuilt final integrated command binary. Source IDs below hash the complete frozen regular-file manifests. Per-file records, compiler details, Cargo features, commands and linked libraries are adjacent to each artifact. Builds use `cargo build --locked --release -p noxi-commands --bin nix-instantiate`, two jobs, portable release fat LTO and one codegen unit.
+
+| Artifact | Source manifest SHA256 | Binary SHA256 |
+| --- | --- | --- |
+| `current-production` | `205ae6171d49baeb3473faa08a3fe3d959fccd7936bcf8e609beff446ece211a` | `0987795a6c61a0786167c8e55b67d1ab81353dc3542b5b4d7a09b35ee1fff32b` |
+| `current-allocation` | `205ae6171d49baeb3473faa08a3fe3d959fccd7936bcf8e609beff446ece211a` | `ef2162e2a7f2e917be43864d0fbbfcfaba10cf1d5dc6fa3ea615651381362429` |
+| `current-diagnostics` | `205ae6171d49baeb3473faa08a3fe3d959fccd7936bcf8e609beff446ece211a` | `b8451f3ac150011fc90cd12016a2366dc69a7dbdf04bdaf0fdd38abbc633e6a7` |
+| `unfused-production` | `6088c4b60331a448be5aca4f76a63c3ec4d3e0cf0efab714e64dc0b67097b2d5` | `233540ef177ace2ff8e4f0c5170cf0579f7b24a2d8a3c0a4fbe2780e2ba6cde8` |
+| `unfused-allocation` | `6088c4b60331a448be5aca4f76a63c3ec4d3e0cf0efab714e64dc0b67097b2d5` | `1a304cefc6e202a7bd7dfa6802e0b7d2134c2b72a0dcfccabd8225657ab35807` |
+| `unfused-diagnostics` | `6088c4b60331a448be5aca4f76a63c3ec4d3e0cf0efab714e64dc0b67097b2d5` | `8ebdbe5577ad71ef89866e98653ed9189af7596eb345cdfb97bf702ca8108e90` |
+
+CppNix is the pinned 2.35.2 artifact at declared source revision `2c73b59da29606068c0c98db015dd3a66955525d`; its measured binary SHA256 is `a1fee5522ad985bc016990d72d3769cf6b40579dd84166124fff00814a77eb79`, identical across lanes. Version alone is not used as binary identity. The qualification Nixpkgs and Home Manager source locks and original independent four-path oracle are unchanged.
+
+Rejected attempts remain preserved. `INVALID-unfused-production-cache-reuse` caught an identical cached binary before timing; explicitly refreshing source-input mtimes forced the correct independent local compilation. `split-5` failed all reference preflights because legacy `nix-instantiate` has no `--apply`; the corrected split adapter uses lazy `builtins.elemAt` in `--expr`. `ordinary-30` was stopped before any sample because root path-flake source resolution traversed target artifacts; `ordinary-locked-30` uses the exact locked fetchTree input. None of these attempts is pooled with passing lanes. Earlier invalid strict-PSI evidence referenced above is absent from this checkout and has not been reconstructed.
+
+No arena or managed-heap design is retained: cumulative allocation traffic does not establish object lifetime, and returned values can outlive a VM. Enlarging every capture with inline storage and deferring genericClosure diagnostic printing remain unmeasured designs, not implemented performance claims. The remaining gap includes about 3.46 times CppNix user instructions and a roughly threefold RSS footprint; the validated temporary-cell reduction alone does not close it.
+
+Evidence and reproduction commands are in `target/eval-round2-20261113/{build-artifact.py,remaining.py,integrity.json}`, the three timing lane directories, preserved source directories, `semantic-differential/report.json`, and test logs. Independent review is requested through the parent as a fresh follow-up; these measurements are not a review approval.
+
+Independent qualification review follow-up: the host validator now requires configured memory-event counters and CPU throttling accounting for every expected target accounting path. Missing dictionaries, paths and null counters invalidate the lane. All 29 collector tests pass, including the focused missing-target-data regression. Revalidation of the unchanged saved observations passes for combined EVAL-08 (93 invocations), ordinary workloads (279), and actual split-expression measurements (72). Original reports and manifests remain unchanged; `qualification-review-fix.json` and each lane's `host-validity-review-fix.json` record the corrected-validator verdict. The failed `split-5` preflight remains excluded even though its host observations pass. No benchmark was rerun and no samples were added or removed.

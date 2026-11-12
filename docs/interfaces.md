@@ -53,3 +53,29 @@ Provide package search tied to the selected lock revision, option inspection wit
 The GUI must display configuration revision, built generation, running generation, and boot default as separate facts. It must label a saved but unactivated change as pending. A desktop session is not required to rebuild or recover the OS: the CLI and TUI expose the same operations on headless systems and recovery media.
 
 All three clients use the event and diagnostic objects specified in [rebuild diagnostics and CLI logging](logging.md). The OS-native CLI is the reference renderer for concise errors; the compatibility commands keep their declared output behavior.
+
+## Modern compatibility commands added in November 2026
+
+The compatibility CLI now dispatches native NAR inspection/packing, signing-key conversion, local-store signatures and content-address rewriting, downloads, search, editing, formatter commands, template creation/cloning, JSON derivation import and Nix profile upgrades. These commands call the Rust evaluator, downloader, store and legacy-profile modules. `upgrade-nix` executes the selected package's `nix-env --version` only to verify that downloaded package before installing it through the native profile implementation.
+
+This is a bounded command implementation. Several store commands require an explicit local store and explicit store paths. Derivation import rejects floating/impure outputs and dynamic input trees; formatter commands require a flake formatter; store repair restores from binary caches but cannot rebuild a deriver. The exact implemented behavior, tested comparisons and open modes are recorded in [the modern command inventory](reference-inventory.md#additional-modern-command-implementations-2026-11-12). Client applications must propagate these errors and must not describe unsupported paths as successful operations.
+# Modern operation additions, 2026-11-12
+
+`nix why-depends` resolves two installables, builds the package when necessary, and prints a shortest dependency path or every reachable dependency edge with `--all`. It queries the selected store's recorded references. `--derivation` selects the derivation graph; `--precise` remains explicitly unsupported. The isolated reference comparisons cover chains, unrelated paths and identity queries, with both output modes.
+
+`nix daemon` enters the existing native worker-protocol server through the modern parser. It accepts Unix socket selection, systemd socket activation, stdio connections and feature-gated trust overrides. `--process-ops` is accepted with the local backing store, which processes operations directly; remote backing-store forwarding remains unsupported. These additions do not qualify host migration or expand the existing daemon protocol guarantees.
+
+`nix config check` inspects local-store installation paths, reports missing or multiple `nix-env` installations and profile links outside a `profiles` directory, and exits with status 2 when a check fails. Remote-store protocol and trust diagnostics remain unsupported.
+
+`nix repl` supports expression evaluation, lazy lexical bindings, `:l`/`:load`, `:p`, `:q` and help, with recovery after evaluation errors. It evaluates each expression through the native evaluator. Terminal completion, debugger commands, flake installable loading and full CppNix transcript parity remain unqualified. The copied terminal-completion fixture remains a gap; a piped-input recovery test does not exercise Tab handling.
+
+`nix bundle` applies the selected flake bundler to an application value, validates its derivation, builds its output and creates a permanent result root. The default bundler is `github:NixOS/bundlers`; `--bundler` selects a custom flake. Tests exercise rejection of non-derivation results and an isolated custom bundler. The command does not write lock files during bundler evaluation. Network bundlers and multi-output selection remain unqualified.
+
+Legacy `nix-store --init` now opens and initializes the selected store database through the existing native store API. This removes the common initialization refusal in the upstream functional runner. It does not add support for a logical store directory other than `/nix/store`; `local?root=...` remains the supported way to move the physical store.
+
+
+`nix help COMMAND` validates page lookup, but rendering existing pages and `nix help-stores` currently fail explicitly because the embedded manual is unavailable. Clients must not advertise these handlers as available help output.
+
+The command store opener accepts `local://?root=ROOT` alongside `local?root=ROOT`. Modern dispatch creates a missing diverted root for either spelling. This does not qualify other URL parameters or remote backends.
+
+File-cache uploads through `nix copy --to` accept explicit `compression=none`, `gzip`, `bzip2` and `zstd` with a signing key. Pinned-reference import and content verification cover each codec. The command still rejects unspecified or unsupported upload compression; backend defaults do not establish reference CLI parity.
