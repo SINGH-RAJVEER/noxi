@@ -1134,7 +1134,6 @@ fn evaluator_store(
 	};
 	fetch.settings.flakes = options.settings.experimental_features().contains("flakes");
 	fetch.settings.allow_dirty = options.settings.get_bool("allow-dirty", true);
-	fetch.settings.warn_dirty = options.settings.get_bool("warn-dirty", true);
 	fetch.settings.allow_dirty_locks = options.settings.get_bool("allow-dirty-locks", false);
 	fetch.settings.tarball_ttl = options.settings.get_int("tarball-ttl", 3600).max(0) as u64;
 	fetch.settings.use_registries = options.settings.get_bool("use-registries", true);

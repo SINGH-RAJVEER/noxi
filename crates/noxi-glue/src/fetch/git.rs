@@ -574,9 +574,6 @@ pub(crate) fn get_accessor(
 					repo.display()
 				)));
 			}
-			if settings.warn_dirty {
-				warn(&format!("Git tree '{}' is dirty", repo.display()));
-			}
 			if let Some(head) = &head {
 				result
 					.attrs

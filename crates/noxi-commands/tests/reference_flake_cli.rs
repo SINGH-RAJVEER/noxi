@@ -9,6 +9,27 @@ fn run(bin: &Path, root: &Path, args: &[&str]) -> Output {
 }
 
 #[test]
+fn dirty_git_tree_does_not_warn_and_can_still_be_rejected() {
+	let fixture = tempfile::tempdir().unwrap();
+	let repo = fixture.path();
+	assert!(Command::new("git").args(["init", "-q"]).current_dir(repo).status().unwrap().success());
+	fs::write(repo.join("flake.nix"), "{ outputs = { self }: { answer = 42; }; }").unwrap();
+	assert!(Command::new("git").args(["add", "flake.nix"]).current_dir(repo).status().unwrap().success());
+	assert!(Command::new("git").args(["-c", "core.hooksPath=/dev/null", "-c", "user.name=Test", "-c", "user.email=test@example.com", "commit", "-qm", "fixture"]).current_dir(repo).status().unwrap().success());
+	fs::write(repo.join("flake.nix"), "{ outputs = { self }: { answer = 43; }; }").unwrap();
+	let root = tempfile::tempdir().unwrap();
+	let url = format!("{}#answer", repo.display());
+	let bin = Path::new(env!("CARGO_BIN_EXE_nix"));
+	let result = run(bin, root.path(), &["eval", "--json", "--warn-dirty", &url]);
+	assert!(result.status.success(), "{}", String::from_utf8_lossy(&result.stderr));
+	assert_eq!(String::from_utf8_lossy(&result.stdout).trim(), "43");
+	assert!(!String::from_utf8_lossy(&result.stderr).contains("is dirty"));
+	let result = run(bin, root.path(), &["eval", "--json", "--no-allow-dirty", &url]);
+	assert!(!result.status.success());
+	assert!(String::from_utf8_lossy(&result.stderr).contains("is dirty"));
+}
+
+#[test]
 fn pure_generated_text_can_be_read_without_allowing_host_files() {
 	let reference = std::env::var_os("NOXI_REFERENCE_BIN")
 		.map(PathBuf::from)
