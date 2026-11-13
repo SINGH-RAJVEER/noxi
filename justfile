@@ -4,6 +4,22 @@ set indentation := "\t"
 default:
 	@just --list
 
+# Build and publish both x86_64-linux package variants to the project cache.
+cache-push:
+	#!/usr/bin/env bash
+	set -euo pipefail
+	paths=$(nix build --accept-flake-config --no-write-lock-file --no-link --print-out-paths .#noxi .#noxi-replacement)
+	printf '%s\n' "$paths" | cachix push noxios
+
+# Validate GitHub Actions and exercise the crate release planner without uploading.
+ci-release-check:
+	actionlint
+	uv run --no-project --no-config --no-managed-python --python python3 python -m unittest discover -s tests/ci -v
+
+# Show unpublished workspace versions and validate patch increments without uploading.
+release-plan:
+	uv run --no-project --no-config --no-managed-python --python python3 python scripts/publish-crates.py
+
 # Format the Rust workspace.
 fmt:
 	cargo fmt --all
@@ -66,15 +82,15 @@ bench-build:
 
 # Validate benchmark oracles, process accounting, and timeout cleanup.
 bench-test:
-	uv run --no-project --no-config python -m unittest discover -s benchmarks -p 'test_*.py' -v
+	uv run --no-project --no-config --no-managed-python --python python3 python -m unittest discover -s benchmarks -p 'test_*.py' -v
 
 # List catalog cases and available subset adapters.
 bench-list:
-	uv run --no-project --no-config python benchmarks/run.py --list
+	uv run --no-project --no-config --no-managed-python --python python3 python benchmarks/run.py --list
 
 # Run selected cases; builds and reference fixture preparation are outside timing.
 bench reference="target/nix-reference/bin" candidate="target/release" busybox="target/test-busybox" *args:
-	uv run --no-project --no-config python benchmarks/run.py --reference-bin "{{reference}}" --candidate-bin "{{candidate}}" --busybox "{{busybox}}" {{args}}
+	uv run --no-project --no-config --no-managed-python --python python3 python benchmarks/run.py --reference-bin "{{reference}}" --candidate-bin "{{candidate}}" --busybox "{{busybox}}" {{args}}
 
 # Compare the preview evaluator with the pinned CppNix reference release.
 eval-compare-reference report="target/eval-comparison-reference.json": reference

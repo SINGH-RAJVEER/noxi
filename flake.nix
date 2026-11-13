@@ -1,6 +1,11 @@
 {
 	description = "Preview noxi command and compatibility workspace";
 
+	nixConfig = {
+		extra-substituters = [ "https://noxios.cachix.org" ];
+		extra-trusted-public-keys = [ "noxios.cachix.org-1:sDINeeBObCrgzbHv5/VcgY/hkoNHRli9j44F+fbU9LE=" ];
+	};
+
 	inputs = {
 		nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
 		rust-overlay = {

@@ -1,0 +1,101 @@
+{
+"name": "Build cache and crate releases",
+"on": {
+"push": {},
+"pull_request": {},
+"workflow_dispatch": {}
+},
+"permissions": {
+"contents": "read"
+},
+"env": {
+"CARGO_BUILD_JOBS": "2"
+},
+"jobs": {
+"validate": {
+"runs-on": "ubuntu-24.04",
+"timeout-minutes": 30,
+"steps": [
+{
+"uses": "actions/checkout@11d5960a326750d5838078e36cf38b85af677262"
+},
+{
+"uses": "cachix/install-nix-action@d698718aa798980d17dd749f03beae0b51183399"
+},
+{
+"name": "Lint workflows and test release automation",
+"run": "nix develop --accept-flake-config --no-write-lock-file --command just ci-release-check"
+}
+]
+},
+"cache": {
+"if": "github.event_name != 'pull_request'",
+"needs": [
+"validate"
+],
+"runs-on": "ubuntu-24.04",
+"timeout-minutes": 90,
+"steps": [
+{
+"uses": "actions/checkout@11d5960a326750d5838078e36cf38b85af677262"
+},
+{
+"name": "Check cache credential",
+"env": {
+"CACHIX_AUTH_TOKEN": "${{ secrets.CACHIX_AUTH_TOKEN }}"
+},
+"run": "test -n \"$CACHIX_AUTH_TOKEN\" || { echo \"::error::Set CACHIX_AUTH_TOKEN with write access to noxios\"; exit 1; }"
+},
+{
+"uses": "cachix/install-nix-action@d698718aa798980d17dd749f03beae0b51183399"
+},
+{
+"uses": "cachix/cachix-action@38b082610b782e7e93e209c35fd730d399dee866",
+"with": {
+"name": "noxios",
+"authToken": "${{ secrets.CACHIX_AUTH_TOKEN }}",
+"skipPush": true
+}
+},
+{
+"name": "Build both package variants",
+"run": "nix build --accept-flake-config --no-write-lock-file --max-jobs 1 --cores 2 --no-link --print-out-paths .#noxi .#noxi-replacement > \"$RUNNER_TEMP/noxi-cache-paths\""
+},
+{
+"name": "Upload package closures",
+"env": {
+"CACHIX_AUTH_TOKEN": "${{ secrets.CACHIX_AUTH_TOKEN }}"
+},
+"run": "cachix push noxios < \"$RUNNER_TEMP/noxi-cache-paths\""
+}
+]
+},
+"publish": {
+"if": "github.ref == format('refs/heads/{0}', github.event.repository.default_branch) && github.event_name != 'pull_request'",
+"needs": [
+"cache"
+],
+"runs-on": "ubuntu-24.04",
+"timeout-minutes": 90,
+"concurrency": {
+"group": "crates-io-publish",
+"cancel-in-progress": false
+},
+"steps": [
+{
+"uses": "actions/checkout@11d5960a326750d5838078e36cf38b85af677262"
+},
+{
+"uses": "cachix/install-nix-action@d698718aa798980d17dd749f03beae0b51183399"
+},
+{
+"name": "Publish missing crate versions and verify registry",
+"env": {
+"CARGO_REGISTRY_TOKEN": "${{ secrets.CARGO_REGISTRY_TOKEN }}"
+},
+"run": "nix develop --accept-flake-config --no-write-lock-file --command uv run --no-project --no-config --no-managed-python --python python3 python scripts/publish-crates.py --publish"
+}
+]
+}
+}
+}

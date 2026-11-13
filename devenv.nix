@@ -11,6 +11,7 @@ let
 in
 {
 	dotenv.disableHint = true;
+	cachix.pull = [ "noxios" ];
 	packages = [
 		# Rust and native code compiled by Cargo dependencies.
 		rustToolchain
@@ -40,6 +41,8 @@ in
 		pkgs.jq
 		pkgs.ripgrep
 		pkgs.nix
+		pkgs.cachix
+		pkgs.actionlint
 		pkgs.python3
 		pkgs.uv
 		pkgs.sqlite

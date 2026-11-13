@@ -7,6 +7,40 @@ The first installable artifact is the `noxi` preview command. The repository fla
 
 A NixOS user may add the preview flake package to `environment.systemPackages`, or a Home Manager user may add it to `home.packages`. Both methods install `noxi` alongside CppNix. Neither changes the daemon or the `nix` command. Host replacement remains gated on the replacement checks below. The qualification-only module is for disposable VM tests.
 
+## Binary cache
+
+The project uses `https://noxios.cachix.org` with public signing key `noxios.cachix.org-1:sDINeeBObCrgzbHv5/VcgY/hkoNHRli9j44F+fbU9LE=`. The root flake advertises this cache through `nixConfig`; accept its settings when prompted, or pass `--accept-flake-config` to use them. The repository's `devenv.nix` also pulls from `noxios`.
+
+To configure the cache for other projects, run `cachix use noxios`, or add the following settings to your NixOS configuration and rebuild:
+
+```nix
+nix.settings = {
+	extra-substituters = [ "https://noxios.cachix.org" ];
+	extra-trusted-public-keys = [ "noxios.cachix.org-1:sDINeeBObCrgzbHv5/VcgY/hkoNHRli9j44F+fbU9LE=" ];
+};
+```
+
+Run `devenv shell -- just cache-push` to build and upload both `.#noxi` and `.#noxi-replacement` for x86_64-linux. Uploads require a Cachix token with write access to `noxios`, supplied through `CACHIX_AUTH_TOKEN` or the Cachix client's local credential configuration. Keep tokens outside the repository. The recipe stops if either package fails to build. Public downloads require no token, but the Nix daemon must trust the cache's signing key and allow its substituter.
+
+Cachix stores Nix build outputs and their runtime dependencies. It does not cache Cargo's local `target/` directory, and publishing the replacement package does not qualify it for host installation. The Nix package version follows `crates/noxi-cli/Cargo.toml`; changing that crate's version also changes the Nix output names.
+
+## Continuous integration and automatic releases
+
+`.github/workflows/publish.yml` validates the release automation on pushes and pull requests. Every push builds both x86_64-linux package variants and uploads their closures to `noxios` after validation passes. A manual workflow dispatch can retry an upload. Builds use at most two cores and one concurrent Nix derivation to limit memory use. This caches the preview and replacement package; it does not build or deploy a host's NixOS configuration.
+
+After a successful cache upload on the default branch, currently `main`, CI checks every publishable workspace crate against crates.io. Versions already present are skipped. Missing versions of existing crates must increment the highest published stable version by exactly one patch, including when that highest version was yanked. Yanked versions cannot be overwritten. New publishable crates are included at their initial version; mark internal crates `publish = false`. Non-default branches and pull requests do not publish crates.
+
+Push a version bump in the affected crate's `Cargo.toml`, update dependent crates' version requirements when they require that release, regenerate `Cargo.lock`, and update the changelog and release documentation. CI does not edit versions or create bump commits. Cargo packages and verifies the selected crates together with `--locked --all-features`, publishes them in dependency order, and the script confirms each version through the registry API. Published versions are immutable: later source changes need another patch bump. A partially completed release can be retried; already published versions are skipped. Crates.io publication is serialized and never cancels a running publication.
+
+Configure these GitHub Actions repository secrets before enabling uploads:
+
+- `CACHIX_AUTH_TOKEN`: a token with write access to the `noxios` cache. The public signing key alone cannot authorize uploads.
+- `CARGO_REGISTRY_TOKEN`: a crates.io token with publish access to every publishable workspace crate, including any newly introduced crates.
+
+The workflow fails explicitly if required credentials are missing or rejected. It needs only read access to repository contents. Dependency actions are pinned to commits. Pull requests exercise the release tests without receiving publishing secrets. The workflow uses JSON flow syntax, which is valid YAML without space indentation.
+
+Run `devenv shell -- just ci-release-check` for workflow linting and release-planner tests. Run `devenv shell -- just release-plan` for a read-only comparison with the live registry. Only the script's explicit `--publish` mode uploads crates; running a plan does not publish anything.
+
 ## Additional platforms
 
 Only x86_64-linux currently has flake package outputs and a replacement qualification target. The [additional-platform checklist](../TODO.md#after-the-package-manager-mvp-additional-package-manager-platforms) tracks AArch64 Linux and Intel/Apple Silicon Darwin after the package-manager MVP, independently of later OS hardware support. Preview builds and installation can be qualified separately from the full engine.
