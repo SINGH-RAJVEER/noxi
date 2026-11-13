@@ -1,6 +1,6 @@
 [package]
 name = "noxi-store"
-version = "0.0.3"
+version = "0.0.4"
 rust-version.workspace = true
 edition = "2024"
 description = "A local Nix store compatible with CppNix's on-disk format"
@@ -20,7 +20,7 @@ ureq = "3"
 libc.workspace = true
 memchr = "2.8"
 lzma-rust2 = { version = "0.15", default-features = false, features = ["std", "xz"] }
-nix-compat = { package = "noxi-compat", path = "../noxi/nix-compat", version = "0.0.3", features = ["serde"] }
+nix-compat = { package = "noxi-compat", path = "../noxi/nix-compat", version = "0.0.4", features = ["serde"] }
 path-clean.workspace = true
 rusqlite = { version = "0.40.2", features = ["bundled"] }
 sha2.workspace = true

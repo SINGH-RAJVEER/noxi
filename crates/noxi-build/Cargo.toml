@@ -1,6 +1,6 @@
 [package]
 name = "noxi-build"
-version.workspace = true
+version = "0.0.3"
 rust-version.workspace = true
 edition = "2024"
 description = "Derivation builds for the noxi engine, compatible with CppNix's sandbox"
@@ -15,8 +15,8 @@ tar = "0.4"
 flate2 = "1.1"
 lzma-rust2 = { version = "0.15", default-features = false, features = ["std", "xz"] }
 libc.workspace = true
-nix-compat = { package = "noxi-compat", path = "../noxi/nix-compat", version = "0.0.3", features = ["serde"] }
-noxi-store = { path = "../noxi-store", version = "0.0.3" }
+nix-compat = { package = "noxi-compat", path = "../noxi/nix-compat", version = "0.0.4", features = ["serde"] }
+noxi-store = { path = "../noxi-store", version = "0.0.4" }
 serde_json.workspace = true
 sha2.workspace = true
 thiserror.workspace = true

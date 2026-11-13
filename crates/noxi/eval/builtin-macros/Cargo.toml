@@ -24,4 +24,4 @@ proc-macro2.workspace = true
 proc-macro = true
 
 [dev-dependencies]
-noxi-eval = { path = "../" }
+noxi-eval = { version = "0.0.4", path = "../" }

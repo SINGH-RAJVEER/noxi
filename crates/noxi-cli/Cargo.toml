@@ -12,7 +12,7 @@ name = "noxi"
 path = "src/main.rs"
 
 [dependencies]
-noxi-eval = { path = "../noxi/eval", version = "0.0.3", default-features = false }
+noxi-eval = { path = "../noxi/eval", version = "0.0.4", default-features = false }
 noxi-system = { path = "../noxi-system", version = "0.0.1" }
 
 [dev-dependencies]

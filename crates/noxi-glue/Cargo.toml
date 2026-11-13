@@ -1,6 +1,6 @@
 [package]
 name = "noxi-glue"
-version = "0.0.2"
+version = "0.0.3"
 rust-version.workspace = true
 edition = "2024"
 description = "Store-aware builtins for the noxi evaluator, derived from Snix's glue crates"
@@ -11,9 +11,9 @@ repository = "https://github.com/SINGH-RAJVEER/nix-rs"
 bstr.workspace = true
 bytes.workspace = true
 data-encoding.workspace = true
-nix-compat = { package = "noxi-compat", path = "../noxi/nix-compat", version = "0.0.3" }
-noxi-eval = { path = "../noxi/eval", version = "0.0.3", default-features = false, features = ["impure"] }
-noxi-store = { path = "../noxi-store", version = "0.0.3" }
+nix-compat = { package = "noxi-compat", path = "../noxi/nix-compat", version = "0.0.4" }
+noxi-eval = { path = "../noxi/eval", version = "0.0.4", default-features = false, features = ["impure"] }
+noxi-store = { path = "../noxi-store", version = "0.0.4" }
 serde_json.workspace = true
 sha1.workspace = true
 sha2.workspace = true

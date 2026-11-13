@@ -1,6 +1,6 @@
 [package]
 name = "noxi-compat"
-version = "0.0.3"
+version = "0.0.4"
 edition = "2024"
 rust-version.workspace = true
 description = "Nix formats and protocol codecs for noxi, derived from Snix nix-compat"

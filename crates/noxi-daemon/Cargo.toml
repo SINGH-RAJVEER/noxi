@@ -1,6 +1,6 @@
 [package]
 name = "noxi-daemon"
-version = "0.0.2"
+version = "0.0.3"
 rust-version.workspace = true
 edition = "2024"
 description = "A Nix daemon for the noxi engine, speaking CppNix's worker protocol"
@@ -10,9 +10,9 @@ publish = ["crates-io"]
 
 [dependencies]
 libc.workspace = true
-nix-compat = { package = "noxi-compat", path = "../noxi/nix-compat", version = "0.0.3" }
-noxi-build = { path = "../noxi-build", version = "0.0.2" }
-noxi-store = { path = "../noxi-store", version = "0.0.3" }
+nix-compat = { package = "noxi-compat", path = "../noxi/nix-compat", version = "0.0.4" }
+noxi-build = { path = "../noxi-build", version = "0.0.3" }
+noxi-store = { path = "../noxi-store", version = "0.0.4" }
 thiserror.workspace = true
 tracing.workspace = true
 

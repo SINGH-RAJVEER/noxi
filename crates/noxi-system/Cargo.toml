@@ -8,13 +8,13 @@ license = "GPL-3.0-only"
 repository = "https://github.com/SINGH-RAJVEER/nix-rs"
 
 [dependencies]
-nix-compat = { package = "noxi-compat", path = "../noxi/nix-compat", version = "0.0.3" }
-noxi-commands = { path = "../noxi-commands", version = "0.0.2" }
-noxi-eval = { path = "../noxi/eval", version = "0.0.3", default-features = false, features = ["impure"] }
+nix-compat = { package = "noxi-compat", path = "../noxi/nix-compat", version = "0.0.4" }
+noxi-commands = { path = "../noxi-commands", version = "0.0.3" }
+noxi-eval = { path = "../noxi/eval", version = "0.0.4", default-features = false, features = ["impure"] }
 noxi-flake = { path = "../noxi-flake", version = "0.0.2" }
 noxi-flakeref = { path = "../noxi-flakeref", version = "0.0.3" }
-noxi-glue = { path = "../noxi-glue", version = "0.0.2" }
-noxi-store = { path = "../noxi-store", version = "0.0.3" }
+noxi-glue = { path = "../noxi-glue", version = "0.0.3" }
+noxi-store = { path = "../noxi-store", version = "0.0.4" }
 serde_json.workspace = true
 libc.workspace = true
 serde = { workspace = true, features = ["derive"] }

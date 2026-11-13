@@ -22,18 +22,18 @@ The crates below are intended for publication on crates.io under the SINGH-RAJVE
 | Crate | Version | License | Contents |
 |---|---|---|---|
 | [`noxi-eval-builtin-macros`](https://crates.io/crates/noxi-eval-builtin-macros) | 0.0.3 | GPL-3.0-only | Procedural macros for defining builtins, derived from `snix-eval-builtin-macros` |
-| [`noxi-eval`](https://crates.io/crates/noxi-eval) | 0.0.3 | GPL-3.0-only | Nix language evaluator, derived from `snix-eval` |
+| [`noxi-eval`](https://crates.io/crates/noxi-eval) | 0.0.4 | GPL-3.0-only | Nix language evaluator, derived from `snix-eval` |
 | [`noxi-cli`](https://crates.io/crates/noxi-cli) | 0.0.2 | Apache-2.0 | The `noxi` preview command |
 | [`noxi-hash`](https://crates.io/crates/noxi-hash) | 0.0.3 | GPL-3.0-only | Hash and Nix base32 formats |
 | [`noxi-flakeref`](https://crates.io/crates/noxi-flakeref) | 0.0.3 | GPL-3.0-only | Flake reference parser and formatter |
-| [`noxi-compat`](https://crates.io/crates/noxi-compat) | 0.0.3 | GPL-3.0-only | Nix formats and protocol values |
+| [`noxi-compat`](https://crates.io/crates/noxi-compat) | 0.0.4 | GPL-3.0-only | Nix formats and protocol values |
 | [`noxi-compat-derive`](https://crates.io/crates/noxi-compat-derive) | 0.0.3 | GPL-3.0-only | Wire derive macros |
 | [`noxi-serde`](https://crates.io/crates/noxi-serde) | 0.0.2 | GPL-3.0-only | Bidirectional serde bridge |
-| [`noxi-glue`](https://crates.io/crates/noxi-glue) | 0.0.2 | GPL-3.0-only | Read-only store-aware evaluation on Unix |
-| [`noxi-commands`](https://crates.io/crates/noxi-commands) | 0.0.2 | GPL-3.0-only | CppNix-compatible legacy and modern command implementations |
-| [`noxi-store`](https://crates.io/crates/noxi-store) | 0.0.3 | GPL-3.0-only | Experimental local store and cache substitution |
-| [`noxi-build`](https://crates.io/crates/noxi-build) | 0.0.2 | GPL-3.0-only | Experimental local sandboxed derivation builder |
-| [`noxi-daemon`](https://crates.io/crates/noxi-daemon) | 0.0.2 | GPL-3.0-only | Nix worker protocol daemon |
+| [`noxi-glue`](https://crates.io/crates/noxi-glue) | 0.0.3 | GPL-3.0-only | Read-only store-aware evaluation on Unix |
+| [`noxi-commands`](https://crates.io/crates/noxi-commands) | 0.0.3 | GPL-3.0-only | CppNix-compatible legacy and modern command implementations |
+| [`noxi-store`](https://crates.io/crates/noxi-store) | 0.0.4 | GPL-3.0-only | Experimental local store and cache substitution |
+| [`noxi-build`](https://crates.io/crates/noxi-build) | 0.0.3 | GPL-3.0-only | Experimental local sandboxed derivation builder |
+| [`noxi-daemon`](https://crates.io/crates/noxi-daemon) | 0.0.3 | GPL-3.0-only | Nix worker protocol daemon |
 | [`noxi-flake`](https://crates.io/crates/noxi-flake) | 0.0.2 | GPL-3.0-only | Flake graph and operations |
 | [`noxi-system`](https://crates.io/crates/noxi-system) | 0.0.1 | GPL-3.0-only | Native `noxi flake`, `noxi system` and `noxi snapshot` operations |
 
@@ -127,3 +127,7 @@ All three strict VM gates failed. The Rust daemon rejects `--daemon`; the missin
 The distribution fixture passed profile installation, selection of an upgrade fixture, preservation after a failed upgrade, rollback and an empty-profile removal assertion. Both generations use the same engine binaries. The removal selector matched no manifest entries, so this does not qualify a real release-to-release upgrade or manifest-based uninstall. Home Manager and distribution full-store checks reached the hash phase but timed out at 180 seconds; they remain incomplete. The [manifest and reports](../tests/qualification/results/2026-10-25-c60e3e3/manifest.json) preserve every exit status and these limits.
 
 Reproduce the milestone in an isolated checkout at `c60e3e3`, using `devenv shell -- just replacement-package` and the `qualification-nixos`, `qualification-home-manager` and `qualification-distribution` recipes. `qualification-report MODE` retains observations despite engine gaps; `qualification-gate MODE` rejects failed or blocked probes. The full replacement and publication gates remain open. No host installation procedure, release publication or push was performed.
+
+## Push-only version update, 2026-11-13
+
+This source update bumps `noxi-build` to 0.0.3, `noxi-commands` to 0.0.3, `noxi-compat` to 0.0.4, `noxi-compat-tests` to 0.0.3, `noxi-daemon` to 0.0.3, `noxi-eval` to 0.0.4, `noxi-glue` to 0.0.3, `noxi-store` to 0.0.4. The test-only `noxi-compat-tests` remains unpublished (`publish = false`); its inherited version is overridden explicitly, as is `noxi-build`, leaving the workspace version and unrelated packages unchanged. Internal dependency requirements follow the changed packages. This update is committed and pushed to main only; no crates.io publication, release tags or host activation is performed. Frozen performance artifacts retain their recorded scope: these version changes produce a new source hash and do not qualify the new source for performance.
