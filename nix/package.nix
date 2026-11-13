@@ -31,7 +31,7 @@ let
 	};
 	binaryPackage = rustPlatform.buildRustPackage {
 		pname = if replacement then "noxi-replacement-provisional" else "noxi-preview";
-		version = "0.1.1";
+		version = (builtins.fromTOML (builtins.readFile ../crates/noxi-cli/Cargo.toml)).package.version;
 		src = lib.fileset.toSource {
 			root = ../.;
 			fileset = lib.fileset.unions [ ../.cargo ../Cargo.lock ../Cargo.toml ../crates ];
