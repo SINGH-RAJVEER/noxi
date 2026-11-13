@@ -131,3 +131,12 @@ Reproduce the milestone in an isolated checkout at `c60e3e3`, using `devenv shel
 ## Push-only version update, 2026-11-13
 
 This source update bumps `noxi-build` to 0.0.3, `noxi-commands` to 0.0.3, `noxi-compat` to 0.0.4, `noxi-compat-tests` to 0.0.3, `noxi-daemon` to 0.0.3, `noxi-eval` to 0.0.4, `noxi-glue` to 0.0.3, `noxi-store` to 0.0.4. The test-only `noxi-compat-tests` remains unpublished (`publish = false`); its inherited version is overridden explicitly, as is `noxi-build`, leaving the workspace version and unrelated packages unchanged. Internal dependency requirements follow the changed packages. This update is committed and pushed to main only; no crates.io publication, release tags or host activation is performed. Frozen performance artifacts retain their recorded scope: these version changes produce a new source hash and do not qualify the new source for performance.
+
+
+## Flake output interface
+
+The root flake targets `x86_64-linux`. `nix build` and `nix run` select the preview; `nix run .#noxi` selects it explicitly. Every compatibility executable listed by the replacement package also has a named app, for example `nix run .#nix -- --version`. These apps run the provisional engine and retain the qualification limitations above.
+
+`nix develop` provides the development tools from `devenv.nix`; `devenv shell` remains the repository workflow. `nix fmt` uses Nixpkgs' Nix formatter. `overlays.default` adds the preview as `pkgs.noxi`; `overlays.qualification` and `nixosModules.qualification` retain the disposable VM replacement interface.
+
+Existing packages include the preview, replacement, pinned reference, static test builder and four qualification reports. Existing checks include both packages, executable layout, reference VM and four strict qualification gates. The NixOS and Home Manager configurations remain qualification fixtures. Evaluating these outputs does not establish that their builds or VM gates pass, and does not activate a host.

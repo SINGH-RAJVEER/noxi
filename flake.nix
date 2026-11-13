@@ -42,6 +42,18 @@
 				pkgs = qualification.inputs.nixpkgs.legacyPackages.x86_64-linux;
 				modules = [ ./tests/qualification/replacement/home.nix ];
 			};
+			overlays.default = final: prev: {
+				noxi = import ./nix/package.nix {
+					pkgs = final;
+					inherit rust-overlay;
+				};
+			};
+			devShells = forAllSystems (system: {
+				default = import ./nix/shell.nix {
+					pkgs = nixpkgs.legacyPackages.${system};
+				};
+			});
+			formatter = forAllSystems (system: nixpkgs.legacyPackages.${system}.nixfmt);
 			# The provisional replacement for disposable VM overlays only.
 			overlays.qualification = final: prev: {
 				noxi-replacement = import ./nix/package.nix {
@@ -65,13 +77,24 @@
 				# builder in the build comparison tests.
 				test-busybox = nixpkgs.legacyPackages.${system}.pkgsStatic.busybox;
 			});
-			apps = forAllSystems (system: {
-				default = {
-					type = "app";
-					program = "${self.packages.${system}.default}/bin/noxi";
-					meta.description = "Run the noxi preview command";
-				};
-			});
+			apps = forAllSystems (system:
+				let
+					previewApp = {
+						type = "app";
+						program = "${self.packages.${system}.noxi}/bin/noxi";
+						meta.description = "Run the noxi preview command";
+					};
+				in
+				{
+					default = previewApp;
+					noxi = previewApp;
+				} // nixpkgs.lib.genAttrs
+					(builtins.filter (name: name != "noxi") self.packages.${system}.noxi-replacement.implemented)
+					(name: {
+						type = "app";
+						program = "${self.packages.${system}.noxi-replacement}/bin/${name}";
+						meta.description = "Run the unqualified noxi ${name} implementation";
+					}));
 			checks = forAllSystems (system:
 				let
 					pkgs = nixpkgs.legacyPackages.${system};
