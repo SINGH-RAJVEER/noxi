@@ -1,0 +1,1725 @@
+<!doctype html>
+<html lang="en">
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<title>noxi OS</title>
+	<meta name="description" content="noxi OS is a NixOS-derived operating system built on noxi, a Rust Nix engine qualified byte for byte against CppNix 2.35.2, with one operation layer behind its CLI, TUI and NixBox GUI.">
+	<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+	<meta name="theme-color" content="#07080b">
+	<link rel="preconnect" href="https://fonts.googleapis.com">
+	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+	<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+	<style>
+		:root {
+			--bg: #07080b;
+			--bg-raise: #0c0e13;
+			--line: rgba(255, 255, 255, 0.07);
+			--line-strong: rgba(255, 255, 255, 0.14);
+			--fg: #eceef3;
+			--fg-muted: #8a90a0;
+			--fg-faint: #555b69;
+			--accent: #9db4ff;
+			--accent-2: #c7a8ff;
+			--ok: #7ee2b8;
+			--warn: #f2c879;
+			--err: #ff8a8a;
+			--glow: rgba(125, 150, 255, 0.18);
+			--serif: "Instrument Serif", ui-serif, Georgia, serif;
+			--sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+			--mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+		}
+		@media (prefers-color-scheme: light) {
+			:root:not([data-theme="dark"]) {
+				--bg: #f6f5f1;
+				--bg-raise: #ecebe5;
+				--line: rgba(10, 12, 20, 0.08);
+				--line-strong: rgba(10, 12, 20, 0.16);
+				--fg: #101219;
+				--fg-muted: #5a6070;
+				--fg-faint: #9ba0ad;
+				--accent: #3f5bd9;
+				--accent-2: #7a4fd6;
+				--ok: #138a5c;
+				--warn: #a76b00;
+				--err: #c0392b;
+				--glow: rgba(63, 91, 217, 0.12);
+			}
+		}
+		:root[data-theme="light"] {
+			--bg: #f6f5f1;
+			--bg-raise: #ecebe5;
+			--line: rgba(10, 12, 20, 0.08);
+			--line-strong: rgba(10, 12, 20, 0.16);
+			--fg: #101219;
+			--fg-muted: #5a6070;
+			--fg-faint: #9ba0ad;
+			--accent: #3f5bd9;
+			--accent-2: #7a4fd6;
+			--ok: #138a5c;
+			--warn: #a76b00;
+			--err: #c0392b;
+			--glow: rgba(63, 91, 217, 0.12);
+		}
+
+		* { box-sizing: border-box; margin: 0; padding: 0; }
+		html { scroll-behavior: smooth; }
+		body {
+			background: var(--bg);
+			color: var(--fg);
+			font-family: var(--sans);
+			font-size: 15px;
+			line-height: 1.6;
+			-webkit-font-smoothing: antialiased;
+			overflow-x: hidden;
+		}
+		a { color: inherit; text-decoration: none; }
+		::selection { background: var(--accent); color: var(--bg); }
+
+		.wrap { max-width: 1180px; margin: 0 auto; padding: 0 28px; }
+		.mono { font-family: var(--mono); }
+		.eyebrow {
+			font-family: var(--mono);
+			font-size: 11.5px;
+			letter-spacing: 0.14em;
+			text-transform: uppercase;
+			color: var(--fg-muted);
+			display: inline-flex;
+			align-items: center;
+			gap: 10px;
+		}
+		.eyebrow::before {
+			content: "";
+			width: 18px;
+			height: 1px;
+			background: var(--fg-faint);
+		}
+
+		/* Atmosphere */
+		.sky {
+			position: fixed;
+			inset: 0;
+			pointer-events: none;
+			z-index: 0;
+		}
+		.sky canvas { width: 100%; height: 100%; display: block; }
+		.halo {
+			position: absolute;
+			top: -30vh;
+			left: 50%;
+			width: 120vw;
+			height: 90vh;
+			transform: translateX(-50%);
+			background: radial-gradient(closest-side, var(--glow), transparent 70%);
+			filter: blur(10px);
+		}
+		main, header, footer { position: relative; z-index: 1; }
+
+		/* Nav */
+		header {
+			position: sticky;
+			top: 0;
+			z-index: 10;
+			backdrop-filter: blur(14px) saturate(140%);
+			-webkit-backdrop-filter: blur(14px) saturate(140%);
+			background: color-mix(in srgb, var(--bg) 72%, transparent);
+			border-bottom: 1px solid var(--line);
+		}
+		.nav {
+			height: 60px;
+			display: flex;
+			align-items: center;
+			justify-content: space-between;
+			gap: 24px;
+		}
+		.brand {
+			display: flex;
+			align-items: center;
+			gap: 10px;
+			font-family: var(--serif);
+			font-size: 26px;
+			letter-spacing: -0.01em;
+		}
+		.brand svg { width: 22px; height: 22px; }
+		.nav-links { display: flex; gap: 28px; font-size: 13.5px; color: var(--fg-muted); }
+		.nav-links a:hover { color: var(--fg); }
+		.nav-right { display: flex; align-items: center; gap: 12px; }
+		.pill {
+			font-family: var(--mono);
+			font-size: 11px;
+			padding: 4px 10px;
+			border: 1px solid var(--line-strong);
+			border-radius: 999px;
+			color: var(--fg-muted);
+			display: inline-flex;
+			align-items: center;
+			gap: 7px;
+			white-space: nowrap;
+		}
+		.dot {
+			width: 6px;
+			height: 6px;
+			border-radius: 50%;
+			background: var(--ok);
+			box-shadow: 0 0 0 0 var(--ok);
+			animation: pulse 2.4s infinite;
+		}
+		@keyframes pulse {
+			0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--ok) 60%, transparent); }
+			70% { box-shadow: 0 0 0 7px transparent; }
+			100% { box-shadow: 0 0 0 0 transparent; }
+		}
+		.btn {
+			display: inline-flex;
+			align-items: center;
+			gap: 8px;
+			height: 36px;
+			padding: 0 16px;
+			border-radius: 8px;
+			font-size: 13.5px;
+			font-weight: 500;
+			border: 1px solid var(--line-strong);
+			background: transparent;
+			color: var(--fg);
+			cursor: pointer;
+			transition: background 0.2s, border-color 0.2s, transform 0.2s;
+			font-family: var(--sans);
+		}
+		.btn:hover { border-color: var(--fg-faint); background: var(--bg-raise); }
+		.btn.primary { background: var(--fg); color: var(--bg); border-color: var(--fg); }
+		.btn.primary:hover { transform: translateY(-1px); }
+		.theme-toggle { width: 36px; padding: 0; justify-content: center; }
+
+		/* Hero */
+		.hero { padding: 110px 0 60px; }
+		.hero-grid {
+			display: grid;
+			grid-template-columns: 1.05fr 1fr;
+			gap: 64px;
+			align-items: center;
+		}
+		h1 {
+			font-family: var(--serif);
+			font-weight: 400;
+			font-size: clamp(52px, 7.2vw, 96px);
+			line-height: 0.95;
+			letter-spacing: -0.025em;
+			margin: 22px 0 26px;
+		}
+		h1 em {
+			font-style: italic;
+			background: linear-gradient(100deg, var(--accent), var(--accent-2));
+			-webkit-background-clip: text;
+			background-clip: text;
+			color: transparent;
+		}
+		.lede { font-size: 17px; color: var(--fg-muted); max-width: 470px; }
+		.cta { display: flex; gap: 12px; margin-top: 36px; flex-wrap: wrap; }
+		.install {
+			margin-top: 28px;
+			display: flex;
+			align-items: center;
+			gap: 14px;
+			font-family: var(--mono);
+			font-size: 13px;
+			color: var(--fg-muted);
+			border-top: 1px solid var(--line);
+			padding-top: 18px;
+			max-width: 470px;
+		}
+		.install code { color: var(--fg); flex: 1; overflow-x: auto; white-space: nowrap; scrollbar-width: none; }
+		.install code::-webkit-scrollbar { display: none; }
+		.install .prompt { color: var(--accent); }
+		.copy {
+			background: none;
+			border: none;
+			color: var(--fg-faint);
+			cursor: pointer;
+			font-family: var(--mono);
+			font-size: 11px;
+			letter-spacing: 0.08em;
+			text-transform: uppercase;
+		}
+		.copy:hover { color: var(--fg); }
+
+		/* Terminal */
+		.term {
+			position: relative;
+			border-radius: 14px;
+			background: color-mix(in srgb, var(--bg-raise) 85%, transparent);
+			border: 1px solid var(--line-strong);
+			box-shadow: 0 40px 120px -40px var(--glow), 0 0 0 1px var(--line) inset;
+			overflow: hidden;
+			font-family: var(--mono);
+			font-size: 13px;
+		}
+		.term-bar {
+			display: flex;
+			align-items: center;
+			justify-content: space-between;
+			padding: 12px 16px;
+			border-bottom: 1px solid var(--line);
+			color: var(--fg-faint);
+			font-size: 11.5px;
+		}
+		.lights { display: flex; gap: 7px; }
+		.lights i { width: 10px; height: 10px; border-radius: 50%; background: var(--line-strong); display: block; }
+		.term-body {
+			padding: 18px 20px 22px;
+			height: 340px;
+			overflow: hidden;
+			line-height: 1.75;
+			white-space: pre-wrap;
+			word-break: break-all;
+		}
+		.term-body .p { color: var(--accent); }
+		.term-body .c { color: var(--fg); }
+		.term-body .o { color: var(--fg-muted); }
+		.term-body .g { color: var(--ok); }
+		.term-body .y { color: var(--warn); }
+		.term-body .d { color: var(--fg-faint); }
+		.caret {
+			display: inline-block;
+			width: 8px;
+			height: 15px;
+			background: var(--fg);
+			vertical-align: -2px;
+			animation: blink 1s steps(1) infinite;
+		}
+		@keyframes blink { 50% { opacity: 0; } }
+
+		/* Ticker */
+		.ticker {
+			border-top: 1px solid var(--line);
+			border-bottom: 1px solid var(--line);
+			overflow: hidden;
+			mask-image: linear-gradient(90deg, transparent, #000 10%, #000 90%, transparent);
+			-webkit-mask-image: linear-gradient(90deg, transparent, #000 10%, #000 90%, transparent);
+		}
+		.ticker-track {
+			display: flex;
+			width: max-content;
+			animation: scroll 60s linear infinite;
+		}
+		.ticker:hover .ticker-track { animation-play-state: paused; }
+		.tick {
+			display: flex;
+			align-items: baseline;
+			gap: 10px;
+			padding: 18px 36px;
+			border-right: 1px solid var(--line);
+			white-space: nowrap;
+		}
+		.tick b { font-family: var(--serif); font-weight: 400; font-size: 28px; letter-spacing: -0.01em; }
+		.tick span { font-family: var(--mono); font-size: 11.5px; color: var(--fg-muted); text-transform: uppercase; letter-spacing: 0.08em; }
+		@keyframes scroll { to { transform: translateX(-50%); } }
+
+		/* Sections */
+		section.block { padding: 120px 0 0; }
+		.section-head {
+			display: grid;
+			grid-template-columns: 1fr 1fr;
+			gap: 48px;
+			align-items: end;
+			margin-bottom: 56px;
+		}
+		h2 {
+			font-family: var(--serif);
+			font-weight: 400;
+			font-size: clamp(38px, 4.6vw, 60px);
+			line-height: 1;
+			letter-spacing: -0.02em;
+			margin-top: 16px;
+		}
+		h2 em { font-style: italic; color: var(--fg-muted); }
+		.section-head p { color: var(--fg-muted); max-width: 460px; justify-self: end; }
+
+		/* Bento of live widgets: one hairline grid, no nested boxes */
+		.bento {
+			display: grid;
+			grid-template-columns: repeat(6, 1fr);
+			border-top: 1px solid var(--line);
+			border-left: 1px solid var(--line);
+		}
+		.cell {
+			border-right: 1px solid var(--line);
+			border-bottom: 1px solid var(--line);
+			padding: 30px;
+			position: relative;
+			min-height: 320px;
+			display: flex;
+			flex-direction: column;
+			gap: 18px;
+			overflow: hidden;
+		}
+		.cell:hover { background: color-mix(in srgb, var(--bg-raise) 50%, transparent); }
+		.span-2 { grid-column: span 2; }
+		.span-3 { grid-column: span 3; }
+		.span-4 { grid-column: span 4; }
+		.span-6 { grid-column: span 6; }
+		.cell h3 {
+			font-family: var(--sans);
+			font-weight: 500;
+			font-size: 16px;
+			letter-spacing: -0.005em;
+		}
+		.cell .sub { color: var(--fg-muted); font-size: 13.5px; max-width: 420px; }
+		.cell-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
+		.live {
+			font-family: var(--mono);
+			font-size: 10.5px;
+			letter-spacing: 0.12em;
+			text-transform: uppercase;
+			color: var(--fg-faint);
+			display: inline-flex;
+			align-items: center;
+			gap: 7px;
+			white-space: nowrap;
+		}
+
+		/* Hash widget */
+		.field {
+			display: grid;
+			grid-template-columns: 110px 1fr;
+			border-top: 1px solid var(--line);
+		}
+		.field label {
+			font-family: var(--mono);
+			font-size: 11px;
+			color: var(--fg-faint);
+			text-transform: uppercase;
+			letter-spacing: 0.08em;
+			padding: 12px 0;
+		}
+		.field input {
+			background: transparent;
+			border: none;
+			outline: none;
+			color: var(--fg);
+			font-family: var(--mono);
+			font-size: 13px;
+			padding: 12px 0;
+			min-width: 0;
+		}
+		.field input:focus { color: var(--accent); }
+		.out {
+			font-family: var(--mono);
+			font-size: 12.5px;
+			padding: 12px 0;
+			color: var(--fg-muted);
+			word-break: break-all;
+			min-width: 0;
+		}
+		.storepath { color: var(--fg); }
+		.storepath .h { color: var(--accent); }
+		.flash { animation: flash 0.5s ease; }
+		@keyframes flash { from { color: var(--accent-2); } }
+
+		/* Phases widget */
+		.phases { display: flex; flex-direction: column; gap: 0; margin-top: 4px; }
+		.phase {
+			display: grid;
+			grid-template-columns: 18px 1fr auto;
+			align-items: center;
+			gap: 12px;
+			padding: 7px 0;
+			font-size: 13.5px;
+			color: var(--fg-faint);
+			transition: color 0.3s;
+		}
+		.phase .mark {
+			width: 9px;
+			height: 9px;
+			border-radius: 50%;
+			border: 1px solid var(--fg-faint);
+			justify-self: center;
+			transition: all 0.3s;
+		}
+		.phase .t { font-family: var(--mono); font-size: 11.5px; }
+		.phase.run { color: var(--fg); }
+		.phase.run .mark { border-color: var(--accent); background: var(--accent); box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 25%, transparent); }
+		.phase.done { color: var(--fg-muted); }
+		.phase.done .mark { border-color: var(--ok); background: var(--ok); }
+		.phase.skip .mark { border-color: var(--fg-muted); background: transparent; }
+		.events {
+			margin-top: auto;
+			font-family: var(--mono);
+			font-size: 11.5px;
+			color: var(--fg-faint);
+			height: 74px;
+			overflow: hidden;
+			border-top: 1px solid var(--line);
+			padding-top: 10px;
+			line-height: 1.6;
+		}
+		.events div { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+		.events .k { color: var(--accent); }
+
+		/* Generations widget */
+		.gens { display: flex; flex-direction: column; }
+		.gen {
+			display: grid;
+			grid-template-columns: 44px 1fr auto;
+			gap: 12px;
+			align-items: center;
+			padding: 11px 0;
+			border-top: 1px solid var(--line);
+			cursor: pointer;
+			font-size: 13.5px;
+			color: var(--fg-muted);
+			background: none;
+			border-left: none;
+			border-right: none;
+			border-bottom: none;
+			text-align: left;
+			font-family: var(--sans);
+			transition: color 0.2s;
+		}
+		.gen:hover { color: var(--fg); }
+		.gen .n { font-family: var(--mono); font-size: 12px; color: var(--fg-faint); }
+		.gen .tag {
+			font-family: var(--mono);
+			font-size: 10.5px;
+			text-transform: uppercase;
+			letter-spacing: 0.08em;
+			color: var(--fg-faint);
+		}
+		.gen.current { color: var(--fg); }
+		.gen.current .n { color: var(--ok); }
+		.gen.current .tag { color: var(--ok); }
+		.gen-cmd {
+			margin-top: auto;
+			font-family: var(--mono);
+			font-size: 12px;
+			color: var(--fg-muted);
+		}
+		.gen-cmd .p { color: var(--accent); }
+
+		/* Graph widget */
+		.graph { flex: 1; min-height: 200px; position: relative; }
+		.graph canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
+		.legend { display: flex; gap: 18px; font-family: var(--mono); font-size: 11px; color: var(--fg-faint); flex-wrap: wrap; }
+		.legend i { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 7px; vertical-align: 0; }
+
+		/* Protocol widget */
+		.proto { display: grid; grid-template-columns: repeat(21, 1fr); gap: 4px; margin-top: 8px; }
+		.proto div {
+			height: 64px;
+			border-radius: 3px;
+			background: var(--line);
+			position: relative;
+			transition: background 0.4s, transform 0.4s;
+			transform-origin: bottom;
+		}
+		.proto div.on { background: linear-gradient(to top, color-mix(in srgb, var(--accent) 35%, transparent), var(--accent)); }
+		.proto div.hot { transform: scaleY(1.18); background: var(--accent-2); }
+		.proto-axis { display: flex; justify-content: space-between; font-family: var(--mono); font-size: 11px; color: var(--fg-faint); }
+		.big {
+			font-family: var(--serif);
+			font-size: 64px;
+			line-height: 1;
+			letter-spacing: -0.02em;
+		}
+		.big small { font-size: 22px; color: var(--fg-muted); margin-left: 6px; }
+
+		/* Evaluator dial */
+		.dial { display: flex; align-items: center; gap: 28px; flex: 1; }
+		.dial svg { width: 150px; height: 150px; flex: none; }
+		.dial .ring-bg { stroke: var(--line-strong); }
+		.dial .ring { stroke: url(#ringGrad); stroke-linecap: round; transition: stroke-dashoffset 1.6s cubic-bezier(.2,.8,.2,1); }
+		.dial-meta { display: flex; flex-direction: column; gap: 8px; font-size: 13px; color: var(--fg-muted); }
+		.dial-meta b { color: var(--fg); font-weight: 500; font-family: var(--mono); }
+
+		/* Matrix */
+		.matrix { border-top: 1px solid var(--line); }
+		.row {
+			display: grid;
+			grid-template-columns: 1.1fr 120px 2fr;
+			gap: 32px;
+			padding: 20px 0;
+			border-bottom: 1px solid var(--line);
+			align-items: center;
+		}
+		.row .area { font-size: 15px; }
+		.row .note { color: var(--fg-muted); font-size: 13.5px; }
+		.status {
+			font-family: var(--mono);
+			font-size: 10.5px;
+			letter-spacing: 0.1em;
+			text-transform: uppercase;
+			display: inline-flex;
+			align-items: center;
+			gap: 8px;
+		}
+		.status::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+		.status.pass { color: var(--ok); }
+		.status.part { color: var(--warn); }
+		.status.unrun { color: var(--fg-faint); }
+		.matrix-filter { display: flex; gap: 6px; margin-bottom: 18px; flex-wrap: wrap; }
+		.chip {
+			font-family: var(--mono);
+			font-size: 11px;
+			letter-spacing: 0.06em;
+			text-transform: uppercase;
+			padding: 6px 12px;
+			border-radius: 999px;
+			border: 1px solid var(--line);
+			background: none;
+			color: var(--fg-muted);
+			cursor: pointer;
+		}
+		.chip[aria-pressed="true"] { border-color: var(--fg); color: var(--fg); }
+
+		/* Status tags */
+		.tag-s {
+			font-family: var(--mono);
+			font-size: 10px;
+			letter-spacing: 0.1em;
+			text-transform: uppercase;
+			color: var(--fg-faint);
+			border: 1px solid var(--line-strong);
+			border-radius: 999px;
+			padding: 2px 8px;
+			white-space: nowrap;
+		}
+		.tag-s.preview { color: var(--ok); border-color: color-mix(in srgb, var(--ok) 40%, transparent); }
+		.tag-s.spec { color: var(--accent-2); border-color: color-mix(in srgb, var(--accent-2) 40%, transparent); }
+
+		/* System stack */
+		.system-grid {
+			display: grid;
+			grid-template-columns: 1.25fr 1fr;
+			gap: 64px;
+			align-items: start;
+		}
+		.stack { position: relative; padding-left: 34px; }
+		.stack::before {
+			content: "";
+			position: absolute;
+			left: 6px;
+			top: 26px;
+			bottom: 26px;
+			width: 1px;
+			background: var(--line-strong);
+		}
+		.stack .pulse {
+			position: absolute;
+			left: 3px;
+			width: 7px;
+			height: 7px;
+			border-radius: 50%;
+			background: var(--accent);
+			box-shadow: 0 0 12px var(--accent);
+			top: 26px;
+			animation: descend 4.5s cubic-bezier(.6,0,.4,1) infinite;
+		}
+		@keyframes descend {
+			0% { top: 26px; opacity: 0; }
+			8% { opacity: 1; }
+			90% { opacity: 1; }
+			100% { top: calc(100% - 30px); opacity: 0; }
+		}
+		.layer {
+			display: grid;
+			grid-template-columns: 1fr auto;
+			gap: 6px 16px;
+			padding: 18px 0;
+			border-top: 1px solid var(--line);
+			position: relative;
+			cursor: default;
+			transition: padding 0.3s;
+		}
+		.layer:last-child { border-bottom: 1px solid var(--line); }
+		.layer::before {
+			content: "";
+			position: absolute;
+			left: -32px;
+			top: 26px;
+			width: 7px;
+			height: 7px;
+			border-radius: 50%;
+			border: 1px solid var(--fg-faint);
+			background: var(--bg);
+			transition: all 0.3s;
+		}
+		.layer:hover::before, .layer.lit::before { background: var(--accent); border-color: var(--accent); }
+		.layer .ln { font-size: 16px; font-weight: 500; }
+		.layer .lk { font-family: var(--mono); font-size: 11px; color: var(--fg-faint); letter-spacing: 0.08em; text-transform: uppercase; }
+		.layer .ld { grid-column: 1 / -1; color: var(--fg-muted); font-size: 13.5px; max-height: 0; overflow: hidden; transition: max-height 0.4s ease; }
+		.layer:hover .ld, .layer.lit .ld { max-height: 80px; }
+		.layer .parts { grid-column: 1 / -1; display: flex; gap: 6px 18px; flex-wrap: wrap; font-family: var(--mono); font-size: 12px; color: var(--fg-muted); }
+		.caps {
+			display: grid;
+			grid-template-columns: 1fr 1fr;
+			border-top: 1px solid var(--line);
+			border-left: 1px solid var(--line);
+		}
+		.cap {
+			padding: 22px;
+			border-right: 1px solid var(--line);
+			border-bottom: 1px solid var(--line);
+			display: flex;
+			flex-direction: column;
+			gap: 8px;
+		}
+		.cap .cap-h { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+		.cap h4 { font-weight: 500; font-size: 14.5px; }
+		.cap p { color: var(--fg-muted); font-size: 13px; line-height: 1.55; }
+
+		/* Interface parity widget */
+		.ifaces { display: grid; grid-template-columns: 300px 1fr; gap: 36px; flex: 1; }
+		.req { display: flex; flex-direction: column; gap: 14px; }
+		.req .kv { display: grid; grid-template-columns: 90px 1fr; font-size: 13px; border-top: 1px solid var(--line); padding-top: 10px; }
+		.req .kv span:first-child { font-family: var(--mono); font-size: 11px; color: var(--fg-faint); text-transform: uppercase; letter-spacing: 0.08em; padding-top: 2px; }
+		.seg { display: inline-flex; border: 1px solid var(--line-strong); border-radius: 8px; padding: 3px; gap: 2px; align-self: flex-start; }
+		.seg button {
+			font-family: var(--mono);
+			font-size: 11.5px;
+			padding: 5px 14px;
+			border-radius: 6px;
+			border: none;
+			background: none;
+			color: var(--fg-muted);
+			cursor: pointer;
+		}
+		.seg button[aria-selected="true"] { background: var(--fg); color: var(--bg); }
+		.view {
+			font-family: var(--mono);
+			font-size: 12.5px;
+			line-height: 1.7;
+			min-height: 250px;
+			border-left: 1px solid var(--line);
+			padding-left: 32px;
+			white-space: pre;
+			overflow-x: auto;
+			color: var(--fg-muted);
+		}
+		.view .a { color: var(--ok); }
+		.view .b { color: var(--accent); }
+		.view .w { color: var(--fg); }
+		.view .f { color: var(--fg-faint); }
+		.view.gui { white-space: normal; font-family: var(--sans); font-size: 13.5px; display: flex; flex-direction: column; gap: 14px; }
+		.gui-title { display: flex; justify-content: space-between; align-items: center; font-weight: 500; color: var(--fg); }
+		.gui-row { display: grid; grid-template-columns: 22px 1fr auto; gap: 10px; align-items: center; padding: 8px 0; border-top: 1px solid var(--line); }
+		.gui-row .ic { width: 22px; height: 22px; border-radius: 6px; display: grid; place-items: center; font-family: var(--mono); font-size: 12px; background: color-mix(in srgb, var(--accent) 16%, transparent); color: var(--accent); }
+		.gui-row .ic.add { background: color-mix(in srgb, var(--ok) 16%, transparent); color: var(--ok); }
+		.gui-flags { display: flex; gap: 8px; flex-wrap: wrap; }
+		.gui-flags span { font-family: var(--mono); font-size: 11px; color: var(--fg-muted); }
+		.gui-flags b { font-weight: 500; color: var(--fg); }
+		.gui-actions { display: flex; gap: 8px; margin-top: 4px; }
+		.gui-actions .btn { height: 30px; font-size: 12.5px; padding: 0 12px; }
+
+		/* Fleet widget */
+		.fleet-wrap { display: grid; grid-template-columns: 1fr 260px; gap: 36px; flex: 1; }
+		.sites { display: grid; grid-template-columns: repeat(3, 1fr); gap: 28px; }
+		.site h5 { font-family: var(--mono); font-weight: 400; font-size: 11px; color: var(--fg-faint); letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 10px; }
+		.hosts { display: grid; grid-template-columns: repeat(8, 1fr); gap: 5px; }
+		.host {
+			aspect-ratio: 1;
+			border-radius: 3px;
+			background: var(--line-strong);
+			position: relative;
+			transition: background 0.4s, transform 0.3s;
+		}
+		.host.r-cp { border-radius: 50%; }
+		.host.r-edge { clip-path: polygon(50% 0, 100% 100%, 0 100%); border-radius: 0; }
+		.host.updating { background: var(--accent-2); transform: scale(0.82); }
+		.host.done { background: var(--ok); }
+		.host.drain { background: var(--warn); }
+		.fleet-stats { display: flex; flex-direction: column; gap: 0; font-size: 13px; }
+		.fleet-stats div { display: flex; justify-content: space-between; padding: 9px 0; border-top: 1px solid var(--line); color: var(--fg-muted); }
+		.fleet-stats b { font-family: var(--mono); font-weight: 400; color: var(--fg); }
+		.fleet-legend { display: flex; gap: 16px; font-family: var(--mono); font-size: 11px; color: var(--fg-faint); flex-wrap: wrap; }
+		.fleet-legend i { display: inline-block; width: 9px; height: 9px; background: var(--fg-faint); margin-right: 6px; vertical-align: -1px; }
+
+		/* Roadmap */
+		.road {
+			display: grid;
+			grid-template-columns: repeat(4, 1fr);
+			position: relative;
+		}
+		.road::before {
+			content: "";
+			position: absolute;
+			top: 7px;
+			left: 0;
+			right: 0;
+			height: 1px;
+			background: linear-gradient(90deg, var(--accent) 0 18%, var(--line-strong) 18%);
+		}
+		.stop { padding-right: 28px; position: relative; }
+		.stop .node {
+			width: 15px;
+			height: 15px;
+			border-radius: 50%;
+			background: var(--bg);
+			border: 1px solid var(--line-strong);
+			margin-bottom: 28px;
+			position: relative;
+		}
+		.stop.now .node { border-color: var(--accent); background: var(--accent); box-shadow: 0 0 0 6px color-mix(in srgb, var(--accent) 18%, transparent); }
+		.stop .k { font-family: var(--mono); font-size: 11px; color: var(--fg-faint); letter-spacing: 0.1em; text-transform: uppercase; }
+		.stop h4 { font-family: var(--serif); font-weight: 400; font-size: 30px; margin: 6px 0 10px; letter-spacing: -0.01em; }
+		.stop p { color: var(--fg-muted); font-size: 13.5px; }
+
+		/* Closing */
+		.closing { padding: 160px 0 120px; text-align: center; }
+		.closing h2 { font-size: clamp(48px, 7vw, 92px); margin: 18px auto 28px; max-width: 900px; }
+		.closing .cta { justify-content: center; }
+		footer {
+			border-top: 1px solid var(--line);
+			padding: 28px 0 40px;
+			font-size: 12.5px;
+			color: var(--fg-faint);
+		}
+		.foot { display: flex; justify-content: space-between; gap: 24px; flex-wrap: wrap; }
+		.foot a:hover { color: var(--fg); }
+
+		/* Reveal */
+		.reveal { opacity: 0; transform: translateY(18px); transition: opacity 0.9s ease, transform 0.9s ease; }
+		.reveal.in { opacity: 1; transform: none; }
+
+		@media (max-width: 960px) {
+			.hero { padding-top: 64px; }
+			.hero-grid, .section-head { grid-template-columns: 1fr; gap: 36px; }
+			.section-head p { justify-self: start; }
+			.bento { grid-template-columns: 1fr; }
+			.span-2, .span-3, .span-4, .span-6 { grid-column: span 1; }
+			.road { grid-template-columns: 1fr 1fr; row-gap: 40px; }
+			.road::before { display: none; }
+			.nav-links { display: none; }
+			.system-grid, .ifaces, .fleet-wrap { grid-template-columns: 1fr; gap: 32px; }
+			.view { border-left: none; padding-left: 0; border-top: 1px solid var(--line); padding-top: 20px; }
+		}
+		@media (max-width: 600px) {
+			.wrap { padding: 0 16px; }
+			.cell { padding: 24px 0; border-right: none; }
+			.bento { border-left: none; }
+			.row { grid-template-columns: 1fr; gap: 8px; }
+			.road { grid-template-columns: 1fr; }
+			.dial { flex-direction: column; align-items: flex-start; }
+			.field { grid-template-columns: 84px 1fr; }
+			.term-body { height: 300px; font-size: 12px; }
+			.nav-right .pill { display: none; }
+			.proto div { height: 48px; }
+			.caps { grid-template-columns: 1fr; border-left: none; }
+			.cap { padding: 20px 0; border-right: none; }
+			.sites { grid-template-columns: 1fr; gap: 18px; }
+			.hosts { grid-template-columns: repeat(12, 1fr); }
+			.view { font-size: 11.5px; }
+		}
+		@media (prefers-reduced-motion: reduce) {
+			*, *::before, *::after { animation: none !important; transition: none !important; }
+			.reveal { opacity: 1; transform: none; }
+		}
+	</style>
+</head>
+<body>
+	<div class="sky" aria-hidden="true">
+		<div class="halo"></div>
+		<canvas id="sky"></canvas>
+	</div>
+
+	<header>
+		<div class="wrap nav">
+			<a class="brand" href="#top" aria-label="noxi OS home">
+				<svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+					<path d="M12 2.5a9.5 9.5 0 1 0 9.2 11.9A7.5 7.5 0 0 1 12 2.5Z" stroke="currentColor" stroke-width="1.4"/>
+					<circle cx="17.5" cy="5.5" r="1.2" fill="currentColor"/>
+				</svg>
+				noxi <em style="font-style:italic;color:var(--fg-muted)">OS</em>
+			</a>
+			<nav class="nav-links">
+				<a href="#system">System</a>
+				<a href="#widgets">Live</a>
+				<a href="#engine">Engine</a>
+				<a href="#roadmap">Roadmap</a>
+			</nav>
+			<div class="nav-right">
+				<span class="pill"><span class="dot"></span>engine v0.0.2 preview</span>
+				<button class="btn theme-toggle" id="theme" aria-label="Toggle color theme">
+					<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><circle cx="12" cy="12" r="4.5"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
+				</button>
+				<a class="btn" href="https://github.com/SINGH-RAJVEER/nix-rs">GitHub</a>
+			</div>
+		</div>
+	</header>
+
+	<main id="top">
+		<section class="hero">
+			<div class="wrap hero-grid">
+				<div class="reveal">
+					<span class="eyebrow">A declarative operating system</span>
+					<h1>Describe the machine.<br>Build it exactly.<br><em>Return any time.</em></h1>
+					<p class="lede">noxi OS is a NixOS-derived system designed to evaluate, build, activate and roll back itself with noxi, a Rust Nix engine checked byte for byte against CppNix. One configuration drives the CLI, the TUI and the NixBox desktop app, from a single laptop to a fleet.</p>
+					<div class="cta">
+						<a class="btn primary" href="#system">Explore the system</a>
+						<a class="btn" href="#engine">See the evidence</a>
+					</div>
+					<div class="install">
+						<span class="prompt">$</span>
+						<code id="installCmd">cargo install --path crates/noxi-cli --locked</code>
+						<button class="copy" data-copy="installCmd">Copy</button>
+					</div>
+				</div>
+				<div class="term reveal" aria-label="Terminal demo">
+					<div class="term-bar">
+						<div class="lights"><i></i><i></i><i></i></div>
+						<span>root@noxi</span>
+						<span id="termClock">00:00:00</span>
+					</div>
+					<div class="term-body" id="term"></div>
+				</div>
+			</div>
+		</section>
+
+		<div class="ticker" aria-label="System facts">
+			<div class="ticker-track" id="ticker"></div>
+		</div>
+
+		<section class="block" id="system">
+			<div class="wrap">
+				<div class="section-head reveal">
+					<div>
+						<span class="eyebrow">The whole system</span>
+						<h2>One source of truth,<br><em>from boot to fleet.</em></h2>
+					</div>
+					<p>Your configuration, written in Nix, defines persistent state. Every interface proposes typed changes, NixBox plans them against locked inputs, noxi builds them, and NixOS activation applies them as a new generation you can always leave.</p>
+				</div>
+				<div class="system-grid">
+					<div class="stack reveal" id="stack">
+						<span class="pulse" aria-hidden="true"></span>
+						<div class="layer">
+							<span class="ln">Interfaces</span><span class="tag-s spec">Specified</span>
+							<div class="parts"><span>CLI</span><span>TUI</span><span>NixBox GUI on GPUI</span></div>
+							<div class="ld">Three front ends that present the same plan and apply the same validation. Presentation differs, semantics never do.</div>
+						</div>
+						<div class="layer">
+							<span class="ln">NixBox operations</span><span class="tag-s spec">Specified</span>
+							<div class="parts"><span>typed requests</span><span>candidate plans</span><span>provenance</span><span>authority</span></div>
+							<div class="ld">Resolves intent against the target's locked inputs and persists accepted changes as configuration source before activation.</div>
+						</div>
+						<div class="layer">
+							<span class="ln">noxi engine</span><span class="tag-s preview">Preview</span>
+							<div class="parts"><span>evaluator</span><span>store</span><span>builder</span><span>daemon</span><span>flakes</span></div>
+							<div class="ld">The Rust implementation of Nix semantics, qualified against CppNix 2.35.2. One writer per store.</div>
+						</div>
+						<div class="layer">
+							<span class="ln">Generations and snapshots</span><span class="tag-s preview">Preview</span>
+							<div class="parts"><span>noxi system</span><span>noxi snapshot</span><span>rollback</span></div>
+							<div class="ld">Each rebuild records source, lock, closure, actor and outcome, so a rollback restores the configuration as well as the generation.</div>
+						</div>
+						<div class="layer">
+							<span class="ln">Boot</span><span class="tag-s spec">Specified</span>
+							<div class="parts"><span>systemd-boot</span><span>Lanzaboote Secure Boot</span><span>recovery</span></div>
+							<div class="ld">Two explicit UEFI choices at install. Secure Boot is never reported active until the system boots with enforcement on.</div>
+						</div>
+					</div>
+					<div class="caps reveal">
+						<div class="cap">
+							<div class="cap-h"><h4>Configuration first</h4><span class="tag-s spec">Spec</span></div>
+							<p>Forms, source editor and package search all produce the same typed change. Nothing changes at runtime first and gets reverse-engineered later.</p>
+						</div>
+						<div class="cap">
+							<div class="cap-h"><h4>Snapshots</h4><span class="tag-s preview">Preview</span></div>
+							<p>A journal ties every generation to the source and flake lock that built it, plus who asked and what happened.</p>
+						</div>
+						<div class="cap">
+							<div class="cap-h"><h4>Scoped app builds</h4><span class="tag-s spec">Spec</span></div>
+							<p>Add or remove an app for a user, machine or project without building a whole system generation.</p>
+						</div>
+						<div class="cap">
+							<div class="cap-h"><h4>Dev environments</h4><span class="tag-s spec">Spec</span></div>
+							<p>A built-in devenv equivalent on <span class="mono">noxi env</span>: tools, shells, tasks and supervised servers. Flakes keep working unchanged.</p>
+						</div>
+						<div class="cap">
+							<div class="cap-h"><h4>Secure Boot</h4><span class="tag-s spec">Spec</span></div>
+							<p>Lanzaboote signing, key enrollment and recovery, checked before the installer writes a single block.</p>
+						</div>
+						<div class="cap">
+							<div class="cap-h"><h4>Fleets</h4><span class="tag-s spec">Spec</span></div>
+							<p>Machines, roles, clusters and service topology described once, then expanded through a reviewed change.</p>
+						</div>
+					</div>
+				</div>
+			</div>
+		</section>
+
+		<section class="block" id="widgets">
+			<div class="wrap">
+				<div class="section-head reveal">
+					<div>
+						<span class="eyebrow">Live</span>
+						<h2>Watch the system <em>think.</em></h2>
+					</div>
+					<p>Interactive sketches of how noxi OS behaves. The store path below is computed for real; the rest illustrate specified behavior.</p>
+				</div>
+				<div class="bento">
+					<div class="cell span-6 reveal">
+						<div class="cell-head">
+							<div>
+								<h3>One plan, three interfaces</h3>
+								<p class="sub">The CLI, TUI and NixBox GUI submit the same typed request and render the same evaluated plan, including what it will touch.</p>
+							</div>
+							<span class="live"><span class="dot"></span>Design preview</span>
+						</div>
+						<div class="ifaces">
+							<div class="req">
+								<div class="seg" role="tablist" aria-label="Interface">
+									<button role="tab" data-v="cli" aria-selected="true">CLI</button>
+									<button role="tab" data-v="tui" aria-selected="false">TUI</button>
+									<button role="tab" data-v="gui" aria-selected="false">GUI</button>
+								</div>
+								<div class="kv"><span>request</span><span>Add package <b>firefox</b></span></div>
+								<div class="kv"><span>scope</span><span>user, home configuration</span></div>
+								<div class="kv"><span>revision</span><span class="mono">nixpkgs e94cb15</span></div>
+								<div class="kv"><span>authority</span><span>current user, no root</span></div>
+							</div>
+							<div class="view" id="view" role="tabpanel" aria-live="polite"></div>
+						</div>
+					</div>
+
+					<div class="cell span-4 reveal">
+						<div class="cell-head">
+							<div>
+								<h3>Every package has an exact address</h3>
+								<p class="sub">Type a name and contents. This computes the store path <span class="mono">builtins.toFile</span> returns: SHA-256, the fingerprint, the 20-byte fold, and Nix's own base-32.</p>
+							</div>
+							<span class="live"><span class="dot"></span>Live</span>
+						</div>
+						<div>
+							<div class="field"><label for="hName">name</label><input id="hName" value="hello.txt" spellcheck="false" autocomplete="off"></div>
+							<div class="field"><label for="hText">contents</label><input id="hText" value="world" spellcheck="false" autocomplete="off"></div>
+							<div class="field"><label>sha256</label><div class="out" id="hHex"></div></div>
+							<div class="field"><label>nix32</label><div class="out" id="hB32"></div></div>
+							<div class="field"><label>store path</label><div class="out storepath" id="hPath"></div></div>
+						</div>
+					</div>
+
+					<div class="cell span-2 reveal">
+						<div class="cell-head">
+							<h3>Generations</h3>
+							<span class="live">Click to roll back</span>
+						</div>
+						<p class="sub">Every rebuild is a generation. Switching is a pointer move, never a rewrite.</p>
+						<div class="gens" id="gens"></div>
+						<div class="gen-cmd" id="genCmd"></div>
+					</div>
+
+					<div class="cell span-3 reveal">
+						<div class="cell-head">
+							<div>
+								<h3>Rebuilds that explain themselves</h3>
+								<p class="sub">One operation, eight ordered phases, structured events. No invented percentages, no walls of text.</p>
+							</div>
+							<span class="live"><span class="dot"></span>Streaming</span>
+						</div>
+						<div class="phases" id="phases"></div>
+						<div class="events" id="events"></div>
+					</div>
+
+					<div class="cell span-3 reveal">
+						<div class="cell-head">
+							<div>
+								<h3>Build graph</h3>
+								<p class="sub">Derivations realise in dependency order. Substitutes come from cache, the rest build in the sandbox.</p>
+							</div>
+							<span class="live" id="graphCount">0 / 0</span>
+						</div>
+						<div class="graph"><canvas id="graph"></canvas></div>
+						<div class="legend">
+							<span><i style="background:var(--ok)"></i>built</span>
+							<span><i style="background:var(--accent)"></i>substituted</span>
+							<span><i style="background:var(--accent-2)"></i>building</span>
+							<span><i style="background:var(--line-strong)"></i>pending</span>
+						</div>
+					</div>
+
+					<div class="cell span-6 reveal">
+						<div class="cell-head">
+							<div>
+								<h3>A fleet is one configuration</h3>
+								<p class="sub">Roles, sites and service relationships are declared once. Updates roll out in bounded waves that drain, switch and verify each member, and hold quorum for the control plane.</p>
+							</div>
+							<span class="live"><span class="dot"></span>Design preview</span>
+						</div>
+						<div class="fleet-wrap">
+							<div>
+								<div class="sites" id="sites"></div>
+								<div class="fleet-legend" style="margin-top:18px">
+									<span><i style="border-radius:50%"></i>control plane</span>
+									<span><i></i>worker</span>
+									<span><i style="clip-path:polygon(50% 0,100% 100%,0 100%)"></i>edge</span>
+									<span><i style="background:var(--warn)"></i>draining</span>
+									<span><i style="background:var(--accent-2)"></i>switching</span>
+									<span><i style="background:var(--ok)"></i>converged</span>
+								</div>
+							</div>
+							<div class="fleet-stats">
+								<div><span>Target generation</span><b id="fGen">fleet-12</b></div>
+								<div><span>Converged</span><b id="fDone">0 / 0</b></div>
+								<div><span>Wave</span><b id="fWave">0</b></div>
+								<div><span>Max unavailable</span><b>10%</b></div>
+								<div><span>Control plane quorum</span><b id="fQuorum" style="color:var(--ok)">3 / 3</b></div>
+							</div>
+						</div>
+					</div>
+				</div>
+			</div>
+		</section>
+
+		<section class="block" id="engine">
+			<div class="wrap">
+				<div class="section-head reveal">
+					<div>
+						<span class="eyebrow">The engine underneath</span>
+						<h2>Compatible is a <em>measurement,</em><br>not a promise.</h2>
+					</div>
+					<p>noxi OS stands on an engine that must first replace CppNix 2.35.2 on existing systems. Evaluator output, derivation bytes, NAR archives, store schemas, protocol exchanges and real NixOS rebuilds are compared on the same inputs. Failures and unrun cases stay on the page.</p>
+				</div>
+				<div class="bento" style="margin-bottom:56px">
+					<div class="cell span-3 reveal">
+						<div class="cell-head">
+							<div>
+								<h3>Evaluator</h3>
+								<p class="sub">Copied CppNix language cases that match both goldens and live CppNix 2.35.2 output.</p>
+							</div>
+						</div>
+						<div class="dial">
+							<svg viewBox="0 0 160 160" aria-hidden="true">
+								<defs>
+									<linearGradient id="ringGrad" x1="0" y1="0" x2="1" y2="1">
+										<stop offset="0" stop-color="var(--accent)"/>
+										<stop offset="1" stop-color="var(--accent-2)"/>
+									</linearGradient>
+								</defs>
+								<circle class="ring-bg" cx="80" cy="80" r="66" fill="none" stroke-width="2"/>
+								<circle class="ring" id="ring" cx="80" cy="80" r="66" fill="none" stroke-width="5" transform="rotate(-90 80 80)"/>
+								<text x="80" y="86" text-anchor="middle" fill="currentColor" style="font-family:var(--serif);font-size:38px" id="ringPct">0%</text>
+							</svg>
+							<div class="dial-meta">
+								<span><b id="evalMatch">0</b> of 467 cases match</span>
+								<span><b>73</b> diagnostic mismatches</span>
+								<span><b>1</b> disabled case</span>
+								<span><b>116</b> builtins inventoried</span>
+							</div>
+						</div>
+					</div>
+
+					<div class="cell span-3 reveal">
+						<div class="cell-head">
+							<div>
+								<h3>Worker protocol</h3>
+								<p class="sub">Normalized daemon exchanges compared at every minor version the reference accepts.</p>
+							</div>
+							<span class="live" id="protoNow">1.18</span>
+						</div>
+						<div class="big">21<small>minor versions</small></div>
+						<div>
+							<div class="proto" id="proto"></div>
+							<div class="proto-axis" style="margin-top:10px"><span>1.18</span><span>37 dispatch handlers</span><span>1.38</span></div>
+						</div>
+					</div>
+				</div>
+				<div class="matrix-filter reveal" role="group" aria-label="Filter by status">
+					<button class="chip" data-f="all" aria-pressed="true">All</button>
+					<button class="chip" data-f="pass" aria-pressed="false">Compared</button>
+					<button class="chip" data-f="part" aria-pressed="false">Partial</button>
+					<button class="chip" data-f="unrun" aria-pressed="false">Unrun</button>
+				</div>
+				<div class="matrix reveal" id="matrixRows"></div>
+			</div>
+		</section>
+
+		<section class="block" id="roadmap">
+			<div class="wrap">
+				<div class="section-head reveal">
+					<div>
+						<span class="eyebrow">Direction</span>
+						<h2>Engine first.<br><em>Then the whole system.</em></h2>
+					</div>
+					<p>An image that merely boots with noxi installed is not the goal. noxi OS is done when an installed machine can evaluate, build, activate, reboot into and roll back its own generations. New behavior stays additive throughout.</p>
+				</div>
+				<div class="road reveal">
+					<div class="stop now">
+						<div class="node"></div>
+						<span class="k">Now</span>
+						<h4>noxi engine</h4>
+						<p>A drop-in replacement for CppNix on existing systems: store, daemon, flakes and NixOS rebuilds through the declared matrix.</p>
+					</div>
+					<div class="stop">
+						<div class="node"></div>
+						<span class="k">Next</span>
+						<h4>noxi OS</h4>
+						<p>Installer, Secure Boot choice, and a system that rebuilds and maintains itself with the qualified engine.</p>
+					</div>
+					<div class="stop">
+						<div class="node"></div>
+						<span class="k">Then</span>
+						<h4>NixBox</h4>
+						<p>CLI, TUI and a GPUI desktop app on one operation layer, with scoped app builds and native dev environments.</p>
+					</div>
+					<div class="stop">
+						<div class="node"></div>
+						<span class="k">Later</span>
+						<h4>Fleets</h4>
+						<p>Homogeneous and heterogeneous machines, Kubernetes clusters and service topologies, expanded by a reviewed change.</p>
+					</div>
+				</div>
+			</div>
+		</section>
+
+		<section class="closing">
+			<div class="wrap reveal">
+				<span class="eyebrow">Start with the engine</span>
+				<h2>Your machine,<br><em>described once.</em></h2>
+				<div class="cta">
+					<a class="btn primary" href="https://github.com/SINGH-RAJVEER/nix-rs">Get the source</a>
+					<button class="btn" data-copy-text="nix run . -- eval --expr '1 + 2'">Copy nix run command</button>
+				</div>
+			</div>
+		</section>
+	</main>
+
+	<footer>
+		<div class="wrap foot">
+			<span>noxi OS, Apache-2.0. Engine reference target CppNix 2.35.2, x86_64-linux.</span>
+			<span><a href="https://github.com/SINGH-RAJVEER/nix-rs">Source</a> &nbsp;/&nbsp; <a href="#system">System</a> &nbsp;/&nbsp; <a href="#engine">Engine</a> &nbsp;/&nbsp; <a href="#roadmap">Roadmap</a></span>
+		</div>
+	</footer>
+
+	<script>
+		(() => {
+			const $ = (s, r = document) => r.querySelector(s);
+			const css = (v) => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+			const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+			/* Theme */
+			try {
+				const saved = localStorage.getItem("noxi-theme");
+				if (saved) document.documentElement.dataset.theme = saved;
+			} catch (e) {}
+			$("#theme").addEventListener("click", () => {
+				const cur = document.documentElement.dataset.theme
+					|| (matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark");
+				const next = cur === "light" ? "dark" : "light";
+				document.documentElement.dataset.theme = next;
+				try { localStorage.setItem("noxi-theme", next); } catch (e) {}
+			});
+
+			/* Copy */
+			const copy = async (text, el) => {
+				try { await navigator.clipboard.writeText(text); } catch (e) {}
+				const old = el.textContent;
+				el.textContent = "Copied";
+				setTimeout(() => (el.textContent = old), 1400);
+			};
+			document.querySelectorAll("[data-copy]").forEach((b) =>
+				b.addEventListener("click", () => copy($("#" + b.dataset.copy).textContent, b)));
+			document.querySelectorAll("[data-copy-text]").forEach((b) =>
+				b.addEventListener("click", () => copy(b.dataset.copyText, b)));
+
+			/* Reveal */
+			const io = new IntersectionObserver((es) => es.forEach((e) => {
+				if (e.isIntersecting) { e.target.classList.add("in"); io.unobserve(e.target); }
+			}), { threshold: 0.12 });
+			document.querySelectorAll(".reveal").forEach((el) => io.observe(el));
+
+			/* Starfield */
+			const sky = $("#sky");
+			const sctx = sky.getContext("2d");
+			let stars = [];
+			const sizeSky = () => {
+				const dpr = devicePixelRatio || 1;
+				sky.width = innerWidth * dpr;
+				sky.height = innerHeight * dpr;
+				sctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+				stars = Array.from({ length: Math.round(innerWidth * innerHeight / 9000) }, () => ({
+					x: Math.random() * innerWidth,
+					y: Math.random() * innerHeight,
+					r: Math.random() * 1.1 + 0.2,
+					p: Math.random() * Math.PI * 2,
+					s: Math.random() * 0.012 + 0.004,
+				}));
+			};
+			sizeSky();
+			addEventListener("resize", sizeSky);
+			const drawSky = () => {
+				sctx.clearRect(0, 0, innerWidth, innerHeight);
+				const col = css("--fg");
+				const off = scrollY * 0.05;
+				for (const s of stars) {
+					s.p += s.s;
+					sctx.globalAlpha = 0.12 + 0.35 * (0.5 + 0.5 * Math.sin(s.p));
+					sctx.fillStyle = col;
+					sctx.beginPath();
+					sctx.arc(s.x, (s.y - off + innerHeight) % innerHeight, s.r, 0, Math.PI * 2);
+					sctx.fill();
+				}
+				sctx.globalAlpha = 1;
+				if (!reduced) requestAnimationFrame(drawSky);
+			};
+			drawSky();
+
+			/* Terminal */
+			const term = $("#term");
+			const script = [
+				{ cmd: "noxi system switch --flake .#workstation", out: [["o", "resolve   flake .#workstation, lock e94cb15"], ["o", "evaluate  nixosConfigurations.workstation"], ["o", "plan      generation 45, 3 packages changed"], ["y", "fetch     214 substituted from cache"], ["o", "build     12 derivations"], ["o", "activate  4 units restarted"], ["g", "done      running 45, boot default 45"]] },
+				{ cmd: "noxi snapshot list", out: [["d", "ID  CREATED           ACTION  GEN  STATUS   SOURCE   CLOSURE"], ["o", "43  2026-11-11 09:14  switch  43   success  a91c2e0  nixos-system-workstation"], ["o", "44  2026-11-12 18:40  switch  44   success  c07d4b1  nixos-system-workstation"], ["g", "45  2026-11-13 10:02  switch  45   success  f3e8a92  nixos-system-workstation"]] },
+				{ cmd: "noxi snapshot rollback 44 --restore-lock", out: [["o", "selecting generation 44"], ["o", "restoring flake.lock from snapshot 44"], ["o", "switch-to-configuration switch"], ["g", "running 44, lock restored"]] },
+				{ cmd: "noxi flake update", out: [["o", "resolving inputs"], ["d", "  nixpkgs      e94cb15 -> locked"], ["d", "  home-manager 7b4c5ec -> locked"], ["g", "flake.lock unchanged, 2 inputs current"]] },
+				{ cmd: "nix-instantiate --eval --expr 'builtins.toFile \"hello.txt\" \"world\"'", out: [["g", "\"/nix/store/nxrv0qbxmycvfzfalacs5k5vkf9si1k6-hello.txt\""]] },
+				{ cmd: "noxi system dry-activate", out: [["o", "would restart  sshd.service, tailscaled.service"], ["o", "would start    caddy.service"], ["g", "no changes made"]] },
+			];
+			const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+			const line = (html) => {
+				const d = document.createElement("div");
+				d.innerHTML = html;
+				term.appendChild(d);
+				while (term.scrollHeight > term.clientHeight && term.children.length > 1) term.removeChild(term.firstChild);
+				return d;
+			};
+			const esc = (s) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;");
+			const runTerm = async () => {
+				for (let i = 0; ; i = (i + 1) % script.length) {
+					const step = script[i];
+					const d = line('<span class="p">$ </span><span class="c"></span><span class="caret"></span>');
+					const c = d.querySelector(".c");
+					for (const ch of step.cmd) {
+						c.textContent += ch;
+						await sleep(reduced ? 0 : 22 + Math.random() * 40);
+					}
+					d.querySelector(".caret").remove();
+					await sleep(320);
+					for (const [cls, text] of step.out) {
+						line(`<span class="${cls}">${esc(text)}</span>`);
+						await sleep(140 + Math.random() * 220);
+					}
+					line("&nbsp;");
+					await sleep(1500);
+				}
+			};
+			runTerm();
+			const clock = () => { $("#termClock").textContent = new Date().toTimeString().slice(0, 8); };
+			clock();
+			setInterval(clock, 1000);
+
+			/* Ticker */
+			const facts = [
+				["1", "configuration, every machine"],
+				["3", "interfaces, one plan"],
+				["5", "activation actions"],
+				["8", "rebuild phases"],
+				["2", "UEFI boot paths"],
+				["2.35.2", "CppNix reference"],
+				["393 / 467", "language cases matching"],
+				["1.18 to 1.38", "worker protocol"],
+				["37", "dispatch handlers"],
+				["12", "executables"],
+				["96", "nix commands"],
+				["134", "settings"],
+				["116", "builtins"],
+				["214", "functional scripts run"],
+				["126", "C API functions"],
+				["6", "cache compression methods"],
+				["64", "NAR nesting levels"],
+			];
+			const tickHtml = facts.map(([b, s]) => `<div class="tick"><b>${b}</b><span>${s}</span></div>`).join("");
+			$("#ticker").innerHTML = tickHtml + tickHtml;
+
+			/* Hash widget: builtins.toFile store path */
+			const ALPHA = "0123456789abcdfghijklmnpqrsvwxyz";
+			const nix32 = (b) => {
+				const len = Math.floor((b.length * 8 - 1) / 5) + 1;
+				let s = "";
+				for (let n = len - 1; n >= 0; n--) {
+					const bit = n * 5, i = bit >> 3, j = bit & 7;
+					const c = (b[i] >> j) | (i + 1 < b.length ? b[i + 1] << (8 - j) : 0);
+					s += ALPHA[c & 31];
+				}
+				return s;
+			};
+			const enc = new TextEncoder();
+			const sha = async (s) => new Uint8Array(await crypto.subtle.digest("SHA-256", enc.encode(s)));
+			const hex = (b) => [...b].map((x) => x.toString(16).padStart(2, "0")).join("");
+			const setFlash = (el, html) => {
+				el.innerHTML = html;
+				el.classList.remove("flash");
+				void el.offsetWidth;
+				el.classList.add("flash");
+			};
+			const hashUpdate = async () => {
+				const name = $("#hName").value || "file";
+				const text = $("#hText").value;
+				if (!crypto.subtle) { $("#hPath").textContent = "Web Crypto unavailable on this origin"; return; }
+				const h = await sha(text);
+				const fp = `text:sha256:${hex(h)}:/nix/store:${name}`;
+				const d = await sha(fp);
+				const folded = new Uint8Array(20);
+				d.forEach((x, i) => (folded[i % 20] ^= x));
+				const short = nix32(folded);
+				setFlash($("#hHex"), hex(h));
+				setFlash($("#hB32"), nix32(h));
+				setFlash($("#hPath"), `/nix/store/<span class="h">${short}</span>-${esc(name)}`);
+			};
+			$("#hName").addEventListener("input", hashUpdate);
+			$("#hText").addEventListener("input", hashUpdate);
+			hashUpdate();
+
+			/* Generations */
+			const gens = [
+				{ n: 41, label: "kernel 6.12, gnome", when: "3 days ago" },
+				{ n: 42, label: "add tailscale", when: "yesterday" },
+				{ n: 43, label: "noxi daemon swap", when: "2 hours ago" },
+				{ n: 44, label: "home-manager update", when: "just now" },
+			];
+			let current = 44;
+			const renderGens = () => {
+				$("#gens").innerHTML = gens.slice().reverse().map((g) => `
+					<button class="gen ${g.n === current ? "current" : ""}" data-n="${g.n}">
+						<span class="n">#${g.n}</span>
+						<span>${g.label}</span>
+						<span class="tag">${g.n === current ? "current" : g.when}</span>
+					</button>`).join("");
+				const latest = gens[gens.length - 1].n;
+				$("#genCmd").innerHTML = current === latest
+					? '<span class="p">$</span> noxi system switch'
+					: `<span class="p">$</span> noxi snapshot rollback ${current}`;
+				document.querySelectorAll(".gen").forEach((b) => b.addEventListener("click", () => {
+					current = +b.dataset.n;
+					renderGens();
+				}));
+			};
+			renderGens();
+
+			/* Phases */
+			const phaseDefs = [
+				["Resolve", "flake .#reference, lock e94cb15"],
+				["Evaluate", "nixosConfigurations.reference"],
+				["Plan", "generation 45, 3 packages changed"],
+				["Fetch and substitute", "cache.nixos.org, signature trusted"],
+				["Build", "derivations realised"],
+				["Prepare activation", "action switch, boot default 45"],
+				["Activate", "units restarted"],
+				["Verify and finish", "running 45, rollback to 44"],
+			];
+			$("#phases").innerHTML = phaseDefs.map(([n]) =>
+				`<div class="phase"><span class="mark"></span><span>${n}</span><span class="t"></span></div>`).join("");
+			const phaseEls = [...document.querySelectorAll(".phase")];
+			const evBox = $("#events");
+			const pushEvent = (kind, msg) => {
+				const d = document.createElement("div");
+				const t = (performance.now() / 1000).toFixed(3).padStart(8, " ");
+				d.innerHTML = `${t} <span class="k">${kind}</span> ${esc(msg)}`;
+				evBox.appendChild(d);
+				while (evBox.children.length > 4) evBox.removeChild(evBox.firstChild);
+			};
+			const runPhases = async () => {
+				for (;;) {
+					phaseEls.forEach((p) => { p.className = "phase"; p.querySelector(".t").textContent = ""; });
+					for (let i = 0; i < phaseEls.length; i++) {
+						const p = phaseEls[i];
+						const satisfied = i === 3 && Math.random() < 0.35;
+						p.classList.add("run");
+						pushEvent("start", phaseDefs[i][0].toLowerCase());
+						const dur = satisfied ? 260 : 500 + Math.random() * 1300;
+						const t0 = performance.now();
+						if (i === 4) {
+							const total = 8 + Math.floor(Math.random() * 10);
+							for (let k = 1; k <= total; k++) {
+								p.querySelector(".t").textContent = `${k} / ${total}`;
+								await sleep(dur / total);
+							}
+						} else {
+							await sleep(dur);
+						}
+						p.classList.remove("run");
+						p.classList.add(satisfied ? "skip" : "done");
+						const ms = Math.round(performance.now() - t0);
+						p.querySelector(".t").textContent = satisfied ? "satisfied" : (ms < 1000 ? `${ms} ms` : `${(ms / 1000).toFixed(1)} s`);
+						pushEvent(satisfied ? "satisfied" : "complete", phaseDefs[i][1]);
+					}
+					await sleep(3200);
+				}
+			};
+			runPhases();
+
+			/* Build graph */
+			const gcv = $("#graph");
+			const g = gcv.getContext("2d");
+			let nodes = [], edges = [], gw = 0, gh = 0;
+			const layers = [5, 7, 6, 4, 2, 1];
+			const buildGraph = () => {
+				nodes = []; edges = [];
+				let id = 0;
+				const byLayer = layers.map((count, li) => Array.from({ length: count }, (_, k) => {
+					const n = {
+						id: id++, li,
+						fx: (li + 0.5) / layers.length,
+						fy: (k + 0.5) / count + (Math.random() - 0.5) * 0.06,
+						state: 0, sub: li < 2 && Math.random() < 0.6, t: 0,
+					};
+					nodes.push(n);
+					return n;
+				}));
+				for (let li = 1; li < byLayer.length; li++) {
+					for (const n of byLayer[li]) {
+						const prev = byLayer[li - 1];
+						const deps = new Set([prev[Math.floor(Math.random() * prev.length)], prev[Math.floor(Math.random() * prev.length)]]);
+						if (li === byLayer.length - 1) prev.forEach((p) => deps.add(p));
+						deps.forEach((d) => edges.push([d, n]));
+						n.deps = [...deps];
+					}
+				}
+				byLayer[0].forEach((n) => (n.deps = []));
+			};
+			const sizeGraph = () => {
+				const r = gcv.getBoundingClientRect();
+				const dpr = devicePixelRatio || 1;
+				gw = r.width; gh = r.height;
+				gcv.width = gw * dpr; gcv.height = gh * dpr;
+				g.setTransform(dpr, 0, 0, dpr, 0, 0);
+			};
+			buildGraph();
+			sizeGraph();
+			new ResizeObserver(sizeGraph).observe(gcv);
+			const pos = (n) => [14 + n.fx * (gw - 28), 10 + n.fy * (gh - 20)];
+			const colorFor = (n) => n.state === 2 ? (n.sub ? css("--accent") : css("--ok")) : n.state === 1 ? css("--accent-2") : css("--line-strong");
+			let lastStep = 0, doneAt = 0;
+			const drawGraph = (now) => {
+				g.clearRect(0, 0, gw, gh);
+				const line = css("--line-strong");
+				for (const [a, b] of edges) {
+					const [x1, y1] = pos(a), [x2, y2] = pos(b);
+					const active = a.state === 2;
+					g.strokeStyle = active ? colorFor(a) : line;
+					g.globalAlpha = active ? 0.55 : 0.6;
+					g.lineWidth = 1;
+					g.beginPath();
+					g.moveTo(x1, y1);
+					const mx = (x1 + x2) / 2;
+					g.bezierCurveTo(mx, y1, mx, y2, x2, y2);
+					g.stroke();
+				}
+				g.globalAlpha = 1;
+				for (const n of nodes) {
+					const [x, y] = pos(n);
+					const c = colorFor(n);
+					if (n.state === 1) {
+						const pr = 7 + 4 * (0.5 + 0.5 * Math.sin(now / 160));
+						g.fillStyle = c;
+						g.globalAlpha = 0.2;
+						g.beginPath(); g.arc(x, y, pr, 0, Math.PI * 2); g.fill();
+						g.globalAlpha = 1;
+					}
+					g.fillStyle = n.state ? c : css("--bg");
+					g.strokeStyle = c;
+					g.lineWidth = 1.3;
+					g.beginPath(); g.arc(x, y, n.li === layers.length - 1 ? 6 : 4, 0, Math.PI * 2);
+					g.fill(); g.stroke();
+				}
+				if (now - lastStep > 260) {
+					lastStep = now;
+					nodes.filter((n) => n.state === 1 && now - n.t > (n.sub ? 300 : 900 + Math.random() * 600)).forEach((n) => (n.state = 2));
+					const ready = nodes.filter((n) => n.state === 0 && n.deps.every((d) => d.state === 2));
+					const running = nodes.filter((n) => n.state === 1).length;
+					ready.slice(0, Math.max(0, 3 - running)).forEach((n) => { n.state = 1; n.t = now; });
+					const built = nodes.filter((n) => n.state === 2).length;
+					$("#graphCount").textContent = `${built} / ${nodes.length}`;
+					if (built === nodes.length) {
+						if (!doneAt) doneAt = now;
+						else if (now - doneAt > 2400) { buildGraph(); doneAt = 0; }
+					}
+				}
+				requestAnimationFrame(drawGraph);
+			};
+			requestAnimationFrame(drawGraph);
+
+			/* Evaluator dial */
+			const ring = $("#ring");
+			const C = 2 * Math.PI * 66;
+			ring.style.strokeDasharray = C;
+			ring.style.strokeDashoffset = C;
+			const target = 393, total = 467;
+			const dialObs = new IntersectionObserver((es) => {
+				if (!es[0].isIntersecting) return;
+				dialObs.disconnect();
+				ring.style.strokeDashoffset = C * (1 - target / total);
+				const t0 = performance.now();
+				const step = (now) => {
+					const k = Math.min(1, (now - t0) / 1600);
+					const e = 1 - Math.pow(1 - k, 3);
+					$("#evalMatch").textContent = Math.round(target * e);
+					$("#ringPct").textContent = Math.round(target / total * 100 * e) + "%";
+					if (k < 1) requestAnimationFrame(step);
+				};
+				requestAnimationFrame(step);
+			}, { threshold: 0.4 });
+			dialObs.observe(ring);
+
+			/* Protocol sweep */
+			const proto = $("#proto");
+			for (let v = 18; v <= 38; v++) {
+				const d = document.createElement("div");
+				d.title = `1.${v}`;
+				proto.appendChild(d);
+			}
+			const bars = [...proto.children];
+			let pi = 0;
+			setInterval(() => {
+				bars.forEach((b) => b.classList.remove("hot"));
+				if (pi === 0) bars.forEach((b) => b.classList.remove("on"));
+				bars[pi].classList.add("on", "hot");
+				$("#protoNow").textContent = `1.${18 + pi} matched`;
+				pi = (pi + 1) % bars.length;
+			}, 380);
+
+			/* Matrix */
+			const rows = [
+				["Nix language and evaluator", "part", 0, "393 of 467 copied cases match goldens and live CppNix; 73 diagnostic mismatches remain."],
+				["Hash algorithms", "pass", 0, "nix hash and nix-hash compared for every algorithm and format, BLAKE3 included."],
+				["NAR archive format", "pass", 0, "Reader and writer comparisons, 22 boundary archives and the 64-level nesting limit match."],
+				["Daemon protocol", "pass", 0, "All 37 dispatch cases handled; exchanges compared at every minor 1.18 to 1.38."],
+				["Binary caches and signatures", "part", 0, "file:// and HTTP substitution with six compressions and signature checks; some uploads unrun."],
+				["Store and garbage collection", "part", 0, "Schemas 6 to 9, mixed-engine concurrent writers, corrupt NARs and SIGKILL recovery."],
+				["Build engine and sandbox", "part", 0, "Ordinary and content-addressed builds, parallelism and cancellation against the reference."],
+				["Flakes and fetchers", "part", 0, "Offline differential tests for path, Git, tarball, submodules, LFS and archives."],
+				["NixOS activation", "pass", 0, "Disposable VM rounds: build, test, switch, boot, reboot, rollback, install and return to CppNix."],
+				["NixOS and Home Manager evaluation", "part", 0, "Derivation paths match through eval-config.nix; flake entry points still unrun."],
+				["C and C++ libraries", "unrun", 0, "Consumer inventory, headers and unchanged-binary interoperability are pending."],
+				["Installed OS lifecycle", "unrun", 0, "Install, self-update, reboot and recovery on noxi OS."],
+				["NixBox TUI and GUI parity", "unrun", 0, "Shared operations, preview and apply, accessibility, headless fallback."],
+				["NixBox engine integration", "unrun", 0, "Locked-revision resolution, evaluated candidate plans, direct realization and declarative persistence."],
+				["OS-native CLI diagnostics", "unrun", 0, "Structured rebuild events, concise errors, raw-log retrieval, JSON, TTY and CI modes."],
+			];
+			const label = { pass: "Compared", part: "Partial", unrun: "Unrun" };
+			const renderMatrix = (f) => {
+				$("#matrixRows").innerHTML = rows.filter((r) => f === "all" || r[1] === f).map(([a, s, p, n]) => `
+					<div class="row">
+						<div class="area">${a}</div>
+						<div><span class="status ${s}">${label[s]}</span></div>
+						<div class="note">${n}</div>
+					</div>`).join("");
+			};
+			const mObs = new IntersectionObserver((es) => {
+				if (es[0].isIntersecting) { renderMatrix("all"); mObs.disconnect(); }
+			}, { threshold: 0.1 });
+			mObs.observe($("#matrixRows"));
+			$("#matrixRows").innerHTML = rows.map(() => '<div class="row" style="height:65px"></div>').join("");
+			/* System stack: light each layer in turn, following the pulse */
+			const layersEls = [...document.querySelectorAll(".layer")];
+			let li = 0;
+			setInterval(() => {
+				if ($("#stack").matches(":hover")) return;
+				layersEls.forEach((l, i) => l.classList.toggle("lit", i === li));
+				li = (li + 1) % layersEls.length;
+			}, 1800);
+
+			/* Interface parity */
+			const views = {
+				cli: `<span class="f"># NixBox CLI, specified interface</span>
+<span class="b">$</span> <span class="w">noxi add firefox --scope user</span>
+<span class="f">evaluating against nixpkgs e94cb15</span>
+
+<span class="w">plan</span>  home generation 18 -> 19
+  <span class="a">+ firefox</span>
+  <span class="b">~ home-manager-path</span>
+
+<span class="w">changes</span>
+  configuration   yes   home/packages.nix
+  store           yes   2 paths, 1 substituted
+  running system  no
+  boot default    no
+
+<span class="f">apply? [y/N]</span>`,
+				tui: `<span class="f">┌─ NixBox ─────────────────── user: home ─┐</span>
+<span class="f">│</span> <span class="w">Add package</span>  firefox                    <span class="f">│</span>
+<span class="f">│</span> revision     nixpkgs e94cb15            <span class="f">│</span>
+<span class="f">├─ Plan ──────────────────────────────────┤</span>
+<span class="f">│</span>  <span class="a">+ firefox</span>                              <span class="f">│</span>
+<span class="f">│</span>  <span class="b">~ home-manager-path</span>                    <span class="f">│</span>
+<span class="f">├─ Touches ───────────────────────────────┤</span>
+<span class="f">│</span>  [x] configuration   [x] store          <span class="f">│</span>
+<span class="f">│</span>  [ ] running system  [ ] boot default   <span class="f">│</span>
+<span class="f">└──────────── </span><span class="w">a</span> apply  <span class="w">p</span> preview  <span class="w">q</span> quit <span class="f">─┘</span>`,
+				gui: `<div class="gui-title"><span>Add firefox</span><span class="tag-s">home generation 19</span></div>
+<div>
+	<div class="gui-row"><span class="ic add">+</span><span>firefox</span><span class="mono" style="font-size:11px;color:var(--fg-faint)">nixpkgs e94cb15</span></div>
+	<div class="gui-row"><span class="ic">~</span><span>home-manager-path</span><span class="mono" style="font-size:11px;color:var(--fg-faint)">rebuilt</span></div>
+</div>
+<div class="gui-flags"><span><b>Configuration</b> changes</span><span>/</span><span><b>Store</b> changes</span><span>/</span><span>Running system unchanged</span><span>/</span><span>Boot default unchanged</span></div>
+<div class="gui-actions"><button class="btn primary" type="button">Apply</button><button class="btn" type="button">Preview diff</button></div>`,
+			};
+			const view = $("#view");
+			const tabs = [...document.querySelectorAll(".seg button")];
+			let vKeys = ["cli", "tui", "gui"], vi = 0, pinned = false;
+			const showView = (k) => {
+				tabs.forEach((t) => t.setAttribute("aria-selected", t.dataset.v === k));
+				view.className = "view" + (k === "gui" ? " gui" : "");
+				view.innerHTML = views[k];
+				view.classList.remove("flash");
+				void view.offsetWidth;
+				view.classList.add("flash");
+			};
+			tabs.forEach((t) => t.addEventListener("click", () => { pinned = true; showView(t.dataset.v); }));
+			showView("cli");
+			setInterval(() => {
+				if (pinned) return;
+				vi = (vi + 1) % vKeys.length;
+				showView(vKeys[vi]);
+			}, 4200);
+
+			/* Fleet rollout */
+			const siteDefs = [["fra-1", 16], ["sfo-2", 16], ["sgp-1", 16]];
+			const hosts = [];
+			$("#sites").innerHTML = siteDefs.map(([name, n], si) => {
+				let cells = "";
+				for (let k = 0; k < n; k++) {
+					const role = k === 0 && si < 3 ? "cp" : (k >= n - 3 ? "edge" : "worker");
+					cells += `<div class="host r-${role}" title="${name}-${String(k + 1).padStart(2, "0")} ${role}"></div>`;
+				}
+				return `<div class="site"><h5>${name}</h5><div class="hosts">${cells}</div></div>`;
+			}).join("");
+			document.querySelectorAll(".host").forEach((h) => hosts.push({ el: h, cp: h.classList.contains("r-cp") }));
+			let fleetGen = 12;
+			const rollout = async () => {
+				for (;;) {
+					hosts.forEach((h) => h.el.classList.remove("done", "updating", "drain"));
+					$("#fGen").textContent = `fleet-${fleetGen}`;
+					const order = [...hosts.filter((h) => !h.cp)].sort(() => Math.random() - 0.5);
+					const cps = hosts.filter((h) => h.cp);
+					const waves = [];
+					for (let i = 0; i < order.length; i += 4) waves.push(order.slice(i, i + 4));
+					cps.forEach((c) => waves.push([c]));
+					let done = 0;
+					$("#fDone").textContent = `0 / ${hosts.length}`;
+					for (let w = 0; w < waves.length; w++) {
+						$("#fWave").textContent = `${w + 1} of ${waves.length}`;
+						const wave = waves[w];
+						const cpDown = wave.some((h) => h.cp);
+						$("#fQuorum").textContent = cpDown ? "2 / 3" : "3 / 3";
+						$("#fQuorum").style.color = cpDown ? "var(--warn)" : "var(--ok)";
+						wave.forEach((h) => h.el.classList.add("drain"));
+						await sleep(reduced ? 0 : 450);
+						wave.forEach((h) => { h.el.classList.remove("drain"); h.el.classList.add("updating"); });
+						await sleep(reduced ? 0 : 650);
+						wave.forEach((h) => { h.el.classList.remove("updating"); h.el.classList.add("done"); });
+						done += wave.length;
+						$("#fDone").textContent = `${done} / ${hosts.length}`;
+					}
+					$("#fQuorum").textContent = "3 / 3";
+					$("#fQuorum").style.color = "var(--ok)";
+					await sleep(3000);
+					fleetGen++;
+				}
+			};
+			rollout();
+
+			document.querySelectorAll(".chip").forEach((c) => c.addEventListener("click", () => {
+				document.querySelectorAll(".chip").forEach((x) => x.setAttribute("aria-pressed", x === c));
+				renderMatrix(c.dataset.f);
+			}));
+		})();
+	</script>
+</body>
+</html>
