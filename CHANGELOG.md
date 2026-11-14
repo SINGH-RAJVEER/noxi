@@ -457,6 +457,8 @@ Internal trybuild tests for `nix-compat-derive`.
 
 ### Unreleased
 
+- `NOXI_DAEMON_IDLE_TIMEOUT` lets a socket-activated daemon exit with status 0 after the given number of seconds with no connection and no live worker. The service manager reactivates it for the next client. A self-bound daemon ignores the variable, and an invalid value is an error (2026-11-17).
+
 - The daemon socket and its clients work at paths longer than `sun_path`. A connection refused during the handshake is reported as CppNix reports it, and the store is named `daemon` only for the default socket (2026-11-09).
 - The daemon client creates the directories up to a permanent root before registering it, matching `IndirectRootStore::makeSymlink` (2026-11-09).
 

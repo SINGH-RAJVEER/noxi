@@ -225,7 +225,19 @@ pub fn serve(listener: UnixListener, settings: &DaemonSettings) -> Result<()> {
 }
 
 /// Serve all descriptors supplied by the service manager.
+///
+/// With `settings.idle_timeout` and socket-activated listeners, return once
+/// no connection has arrived for that long and no worker is still running.
 pub fn serve_listeners(listeners: Vec<UnixListener>, settings: &DaemonSettings) -> Result<()> {
+	let idle_timeout = match settings.idle_timeout {
+		Some(timeout) if std::env::var_os("LISTEN_FDS").is_some() => Some(timeout),
+		Some(_) => {
+			// A self-bound socket would be left with nobody to accept on it.
+			tracing::warn!("ignoring NOXI_DAEMON_IDLE_TIMEOUT: the daemon is not socket-activated");
+			None
+		}
+		None => None,
+	};
 	let mut fds: Vec<libc::pollfd> = listeners
 		.iter()
 		.map(|listener| libc::pollfd {
@@ -234,10 +246,27 @@ pub fn serve_listeners(listeners: Vec<UnixListener>, settings: &DaemonSettings) 
 			revents: 0,
 		})
 		.collect();
+	let mut workers = 0usize;
+	let mut last_activity = std::time::Instant::now();
 	loop {
 		// Reap finished children so they don't become zombies.
 		// SAFETY: waiting for our own children without blocking.
-		while unsafe { libc::waitpid(-1, std::ptr::null_mut(), libc::WNOHANG) } > 0 {}
+		while unsafe { libc::waitpid(-1, std::ptr::null_mut(), libc::WNOHANG) } > 0 {
+			workers = workers.saturating_sub(1);
+			last_activity = std::time::Instant::now();
+		}
+		// Only exit with no worker left: a service manager may stop the
+		// whole unit once the main process is gone. The socket path is
+		// deliberately left in place; the service manager keeps listening,
+		// and a client that connects after this point waits in its backlog
+		// until the next activation.
+		if let Some(timeout) = idle_timeout
+			&& workers == 0
+			&& last_activity.elapsed() >= timeout
+		{
+			tracing::info!("exiting after {}s without connections", timeout.as_secs());
+			return Ok(());
+		}
 		// A bounded poll also reaps workers when no new clients arrive.
 		let ready = unsafe { libc::poll(fds.as_mut_ptr(), fds.len() as libc::nfds_t, 1000) };
 		if ready < 0 {
@@ -255,6 +284,7 @@ pub fn serve_listeners(listeners: Vec<UnixListener>, settings: &DaemonSettings) 
 			Err(e) if e.kind() == std::io::ErrorKind::Interrupted => continue,
 			Err(e) => return Err(e.into()),
 		};
+		last_activity = std::time::Instant::now();
 		let peer = peer_info(&stream)?;
 		let (trust, user) = match settings
 			.force_trust
@@ -301,5 +331,6 @@ pub fn serve_listeners(listeners: Vec<UnixListener>, settings: &DaemonSettings) 
 			// parent's state.
 			unsafe { libc::_exit(code) };
 		}
+		workers += 1;
 	}
 }

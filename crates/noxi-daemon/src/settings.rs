@@ -1,5 +1,7 @@
 //! Daemon settings from `nix.conf`, with CppNix 2.35.2's defaults.
 
+use std::time::Duration;
+
 use noxi_build::settings::BuildSettings;
 use noxi_store::LocalStoreConfig;
 use noxi_store::binary_cache::BinaryCache;
@@ -29,6 +31,11 @@ pub struct DaemonSettings {
 	pub daemon_version: String,
 	/// A command-line trust override, gated by `daemon-trust-override`.
 	pub force_trust: Option<crate::connection::Trust>,
+	/// A noxi extension: when the listening sockets came from socket
+	/// activation, exit after this long with no connection and no live
+	/// worker, so no daemon stays resident between operations. Read from
+	/// `NOXI_DAEMON_IDLE_TIMEOUT` (seconds; unset, empty or 0 disables it).
+	pub idle_timeout: Option<Duration>,
 }
 
 impl DaemonSettings {
@@ -66,6 +73,8 @@ impl DaemonSettings {
 		result.gc_keep_outputs = settings.get_bool("keep-outputs", result.gc_keep_outputs);
 		result.gc_keep_derivations =
 			settings.get_bool("keep-derivations", result.gc_keep_derivations);
+		result.idle_timeout =
+			idle_timeout(std::env::var("NOXI_DAEMON_IDLE_TIMEOUT").ok().as_deref())?;
 		Ok(result)
 	}
 
@@ -87,6 +96,7 @@ impl DaemonSettings {
 			gc_keep_derivations: true,
 			daemon_version: "2.35.2".to_owned(),
 			force_trust: None,
+			idle_timeout: None,
 		}
 	}
 
@@ -100,5 +110,37 @@ impl DaemonSettings {
 			.map(String::as_str)
 			.chain(self.substituters.iter().map(BinaryCache::uri))
 			.any(|t| t.trim_end_matches('/') == trimmed)
+	}
+}
+
+/// Parse `NOXI_DAEMON_IDLE_TIMEOUT`: whole seconds, with unset, empty or 0
+/// meaning the daemon never exits on its own.
+fn idle_timeout(value: Option<&str>) -> noxi_store::Result<Option<Duration>> {
+	let Some(value) = value.map(str::trim).filter(|v| !v.is_empty()) else {
+		return Ok(None);
+	};
+	let seconds: u64 = value.parse().map_err(|_| {
+		noxi_store::Error::Other(format!(
+			"invalid NOXI_DAEMON_IDLE_TIMEOUT '{value}': expected a number of seconds"
+		))
+	})?;
+	Ok((seconds > 0).then(|| Duration::from_secs(seconds)))
+}
+
+#[cfg(test)]
+mod tests {
+	use super::*;
+
+	#[test]
+	fn idle_timeout_parses_seconds_and_disables_on_zero() {
+		assert_eq!(idle_timeout(None).unwrap(), None);
+		assert_eq!(idle_timeout(Some("")).unwrap(), None);
+		assert_eq!(idle_timeout(Some("0")).unwrap(), None);
+		assert_eq!(
+			idle_timeout(Some(" 30 ")).unwrap(),
+			Some(Duration::from_secs(30))
+		);
+		assert!(idle_timeout(Some("5m")).is_err());
+		assert!(idle_timeout(Some("-1")).is_err());
 	}
 }

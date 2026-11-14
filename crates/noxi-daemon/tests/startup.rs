@@ -223,50 +223,153 @@ fn wait_for_socket(socket: &Path, process: &mut Process) {
 	}
 }
 
+/// Start `nix-daemon --daemon` on a diverted store with `listener` passed as
+/// a socket-activated descriptor, as a service manager does.
+fn activated_daemon(
+	dir: &Path,
+	listener: &UnixListener,
+	named: bool,
+	idle_timeout: Option<&str>,
+) -> Process {
+	let fd = listener.as_raw_fd();
+	// The shell supplies its own PID before exec, just as a service manager does.
+	let mut cmd = command(Path::new("/bin/sh"), dir);
+	cmd.args([
+		"-c",
+		"export LISTEN_PID=$$; exec \"$@\"",
+		"socket-activation",
+	])
+	.arg(env!("CARGO_BIN_EXE_nix-daemon"))
+	.args([
+		"--daemon",
+		"--store",
+		&format!("local?root={}", dir.display()),
+	])
+	.env("LISTEN_FDS", "1");
+	if named {
+		cmd.env("LISTEN_FDNAMES", "nix-daemon.socket");
+	}
+	if let Some(timeout) = idle_timeout {
+		cmd.env("NOXI_DAEMON_IDLE_TIMEOUT", timeout);
+	}
+	// SAFETY: only descriptor syscalls run between fork and exec.
+	unsafe {
+		cmd.pre_exec(move || {
+			if libc::dup2(fd, 3) < 0 || libc::fcntl(3, libc::F_SETFD, 0) < 0 {
+				return Err(std::io::Error::last_os_error());
+			}
+			Ok(())
+		});
+	}
+	Process(cmd.spawn().unwrap())
+}
+
+fn connect(socket: &Path) -> (Reader<BufReader<UnixStream>>, Writer<UnixStream>) {
+	let stream = UnixStream::connect(socket).unwrap();
+	stream
+		.set_read_timeout(Some(Duration::from_secs(10)))
+		.unwrap();
+	(
+		Reader::new(BufReader::new(stream.try_clone().unwrap())),
+		Writer::new(stream),
+	)
+}
+
 #[test]
 fn systemd_socket_activation_serves_inherited_descriptors() {
 	for named in [false, true] {
 		let dir = tempfile::tempdir().unwrap();
 		let socket = dir.path().join("activated.sock");
 		let listener = UnixListener::bind(&socket).unwrap();
-		let fd = listener.as_raw_fd();
-		// The shell supplies its own PID before exec, just as a service manager does.
-		let mut cmd = command(Path::new("/bin/sh"), dir.path());
-		cmd.args([
-			"-c",
-			"export LISTEN_PID=$$; exec \"$@\"",
-			"socket-activation",
-		])
-		.arg(env!("CARGO_BIN_EXE_nix-daemon"))
-		.args([
-			"--daemon",
-			"--store",
-			&format!("local?root={}", dir.path().display()),
-		])
-		.env("LISTEN_FDS", "1");
-		if named {
-			cmd.env("LISTEN_FDNAMES", "nix-daemon.socket");
-		}
-		// SAFETY: only descriptor syscalls run between fork and exec.
-		unsafe {
-			cmd.pre_exec(move || {
-				if libc::dup2(fd, 3) < 0 || libc::fcntl(3, libc::F_SETFD, 0) < 0 {
-					return Err(std::io::Error::last_os_error());
-				}
-				Ok(())
-			});
-		}
-		let _process = Process(cmd.spawn().unwrap());
+		let _process = activated_daemon(dir.path(), &listener, named, None);
 		drop(listener);
-		let stream = UnixStream::connect(&socket).unwrap();
-		stream
-			.set_read_timeout(Some(Duration::from_secs(10)))
-			.unwrap();
-		let mut from = Reader::new(BufReader::new(stream.try_clone().unwrap()));
-		let mut to = Writer::new(stream);
+		let (mut from, mut to) = connect(&socket);
 		assert_eq!(handshake(&mut from, &mut to), 2);
 		let path = register_text(&mut from, &mut to);
 		assert!(dir.path().join(path.trim_start_matches('/')).exists());
 		assert!(!dir.path().join("nix/var/nix/daemon-socket/socket").exists());
 	}
+}
+
+#[test]
+fn activated_daemon_exits_when_idle_and_reactivates() {
+	let dir = tempfile::tempdir().unwrap();
+	let socket = dir.path().join("activated.sock");
+	// The test keeps the listener open, as the service manager does.
+	let listener = UnixListener::bind(&socket).unwrap();
+	let mut process = activated_daemon(dir.path(), &listener, true, Some("1"));
+	let (mut from, mut to) = connect(&socket);
+	assert_eq!(handshake(&mut from, &mut to), 2);
+	let path = register_text(&mut from, &mut to);
+	// An open connection keeps its worker, and so the daemon, alive.
+	std::thread::sleep(Duration::from_secs(3));
+	assert!(
+		process.0.try_wait().unwrap().is_none(),
+		"exited with a live worker"
+	);
+	drop((from, to));
+	let deadline = Instant::now() + Duration::from_secs(10);
+	let status = loop {
+		if let Some(status) = process.0.try_wait().unwrap() {
+			break status;
+		}
+		assert!(Instant::now() < deadline, "idle daemon did not exit");
+		std::thread::sleep(Duration::from_millis(50));
+	};
+	assert!(status.success(), "{status}");
+	// A client that connects while no daemon runs waits in the backlog and
+	// is served by the next activation, against the same store.
+	let (mut from, mut to) = connect(&socket);
+	let _process = activated_daemon(dir.path(), &listener, true, Some("1"));
+	assert_eq!(handshake(&mut from, &mut to), 2);
+	to.u64(op::IS_VALID_PATH).string(&path);
+	to.flush().unwrap();
+	assert_eq!(from.read_u64().unwrap(), STDERR_LAST);
+	assert_eq!(from.read_u64().unwrap(), 1);
+}
+
+#[test]
+fn self_bound_daemon_ignores_idle_timeout() {
+	let dir = tempfile::tempdir().unwrap();
+	let socket = dir.path().join("self-bound.sock");
+	let mut process = Process(
+		command(Path::new(env!("CARGO_BIN_EXE_nix-daemon")), dir.path())
+			.env("NIX_DAEMON_SOCKET_PATH", &socket)
+			.env("NOXI_DAEMON_IDLE_TIMEOUT", "1")
+			.args([
+				"--daemon",
+				"--store",
+				&format!("local?root={}", dir.path().display()),
+			])
+			.spawn()
+			.unwrap(),
+	);
+	wait_for_socket(&socket, &mut process);
+	std::thread::sleep(Duration::from_secs(3));
+	assert!(
+		process.0.try_wait().unwrap().is_none(),
+		"self-bound daemon exited"
+	);
+	let (mut from, mut to) = connect(&socket);
+	assert_eq!(handshake(&mut from, &mut to), 2);
+}
+
+#[test]
+fn invalid_idle_timeout_is_rejected() {
+	let dir = tempfile::tempdir().unwrap();
+	let output = command(Path::new(env!("CARGO_BIN_EXE_nix-daemon")), dir.path())
+		.env("NOXI_DAEMON_IDLE_TIMEOUT", "5m")
+		.args([
+			"--daemon",
+			"--store",
+			&format!("local?root={}", dir.path().display()),
+		])
+		.output()
+		.unwrap();
+	assert!(!output.status.success());
+	assert!(
+		String::from_utf8_lossy(&output.stderr).contains("invalid NOXI_DAEMON_IDLE_TIMEOUT"),
+		"{}",
+		String::from_utf8_lossy(&output.stderr)
+	);
 }
