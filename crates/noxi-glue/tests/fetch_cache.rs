@@ -329,6 +329,46 @@ fn file_cache_revalidates_etags_and_reopens_offline() {
 	assert_eq!(client.calls.get(), 2);
 }
 
+#[derive(Debug)]
+struct NoRevalidateClient;
+impl noxi_glue::fetch::http::Client for NoRevalidateClient {
+	fn request(
+		&self,
+		request: &noxi_glue::fetch::http::Request,
+	) -> noxi_flakeref::error::Result<noxi_glue::fetch::http::Response> {
+		let revalidating = request.headers.iter().any(|(k, _)| k == "If-None-Match");
+		Ok(noxi_glue::fetch::http::Response {
+			status: if revalidating { 304 } else { 200 },
+			headers: [("etag".into(), "version-1".into())].into(),
+			effective_url: request.url.clone(),
+			body: if revalidating { Vec::new() } else { b"fresh".to_vec() },
+		})
+	}
+}
+
+#[test]
+fn file_cache_skips_etag_when_cached_content_is_gone() {
+	let cache = tempfile::tempdir().unwrap();
+	let expression = "builtins.readFile (builtins.fetchurl \"https://example.invalid/file\")";
+	for round in 0..2 {
+		if round == 1 {
+			fs::remove_dir_all(cache.path().join("noxi-downloads")).unwrap();
+		}
+		let store = EvaluatorStore::new();
+		let mut config = FetchConfig {
+			cache_dir: Some(cache.path().to_owned()),
+			http: Some(Rc::new(NoRevalidateClient)),
+			..Default::default()
+		};
+		config.settings.tarball_ttl = 0;
+		store.configure_fetching(config);
+		let result = configure(Evaluation::builder_pure(), store)
+			.build()
+			.evaluate(expression, None);
+		assert!(result.errors.is_empty(), "{:?}", result.errors);
+	}
+}
+
 #[test]
 fn remote_relative_submodules_match_reference_and_reopen_offline() {
 	let fixture = tempfile::tempdir().unwrap();

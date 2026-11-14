@@ -115,6 +115,9 @@ async fn add_path(
 	recursive: bool,
 	expected: Option<NixHash>,
 ) -> Result<Value, ErrorKind> {
+	state
+		.check_visible(path)
+		.map_err(|error| io_error(path, error))?;
 	// `addPath` follows every symlink in the path, including the last.
 	let resolved = fs::canonicalize(state.physical_path(path)).map_err(|e| io_error(path, e))?;
 
@@ -323,8 +326,13 @@ pub(crate) mod import_builtins {
 	async fn builtin_store_path(
 		state: Rc<ReadOnlyStore>,
 		co: GenCo,
-		path: Value,
+		#[lazy] path: Value,
 	) -> Result<Value, ErrorKind> {
+		if state.pure_eval() {
+			return Err(ErrorKind::EvalError(
+				"'builtins.storePath' is not allowed in pure evaluation mode".into(),
+			));
+		}
 		generators::request_builtin_context(
 			&co,
 			vec![noxi_eval::Trace::new(

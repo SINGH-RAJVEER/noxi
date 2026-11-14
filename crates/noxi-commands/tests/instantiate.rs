@@ -17,6 +17,79 @@ fn reference_instantiate() -> std::path::PathBuf {
 }
 
 #[test]
+fn appended_string_context_validation_matches_the_reference() {
+	let dir = tempfile::tempdir().unwrap();
+	let reference = reference_instantiate();
+	let candidate = Path::new(env!("CARGO_BIN_EXE_nix-instantiate"));
+	let source = "/nix/store/00000000000000000000000000000000-source";
+	let drv = "/nix/store/00000000000000000000000000000000-test.drv";
+	let mut expressions = vec![
+		r#"builtins.appendContext 42 {}"#.to_owned(),
+		r#"builtins.appendContext 42 (throw "unused second argument")"#.to_owned(),
+		r#"builtins.appendContext (throw "first") (throw "second")"#.to_owned(),
+		r#"builtins.appendContext "x" (throw "second")"#.to_owned(),
+		r#"builtins.appendContext { __toString = _: "x"; } {}"#.to_owned(),
+		r#"builtins.appendContext "x" { "/bad" = throw "must not force invalid context"; }"#
+			.to_owned(),
+	];
+	for key in [
+		"/bad",
+		"/nix/store/bad",
+		"/nix/store/eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee-source",
+		"/nix/store/00000000000000000000000000000000-source/child",
+	] {
+		expressions.push(format!(
+			r#"builtins.appendContext "x" {{ "{key}" = {{}}; }}"#
+		));
+	}
+	for value in [
+		"{}",
+		"{ path = true; }",
+		"{ allOutputs = false; outputs = []; }",
+		"{ allOutputs = true; }",
+		"{ outputs = [ (throw \"must check derivation first\") ]; }",
+	] {
+		expressions.push(format!(
+			r#"builtins.appendContext "x" {{ "{source}" = {value}; }}"#
+		));
+	}
+	for value in [
+		"{}",
+		"{ allOutputs = true; outputs = [ \"out\" \"dev\" ]; }",
+		"{ path = true; allOutputs = true; outputs = [ \"\" \"out\" ]; }",
+		"1",
+	] {
+		expressions.push(format!(
+			r#"builtins.appendContext "x" {{ "{drv}" = {value}; }}"#
+		));
+	}
+	expressions.push(format!(
+		r#"builtins.appendContext "x" {{ "{drv}" = {{ outputs = [ (builtins.appendContext "out" {{ "{source}" = {{ path = true; }}; }}) ]; }}; }}"#
+	));
+	let expressions: Vec<_> = expressions
+		.into_iter()
+		.flat_map(|expression| {
+			[
+				expression.clone(),
+				format!("builtins.getContext ({expression})"),
+				format!("builtins.hasContext ({expression})"),
+			]
+		})
+		.collect();
+	for expression in expressions {
+		for flags in [vec![], vec!["--show-trace"]] {
+			let expected = message_evaluation(&reference, dir.path(), &expression, "", &flags, "");
+			let actual = message_evaluation(candidate, dir.path(), &expression, "", &flags, "");
+			assert_eq!(
+				(actual.status.code(), actual.stdout, actual.stderr),
+				(expected.status.code(), expected.stdout, expected.stderr),
+				"{expression} {flags:?}"
+			);
+		}
+	}
+}
+
+#[test]
 fn diagnostic_contexts_and_failed_thunks_match_the_reference() {
 	let dir = tempfile::tempdir().unwrap();
 	let reference = reference_instantiate();
@@ -1537,4 +1610,174 @@ fn reads_configuration_like_cppnix() {
 		)),
 		"{stderr}"
 	);
+}
+
+#[test]
+fn extended_regex_split_and_collation_match_the_reference() {
+	let dir = tempfile::tempdir().unwrap();
+	fs::write(dir.path().join("raw-pattern"), b"(\xff)+").unwrap();
+	fs::write(dir.path().join("raw-subject"), b"a\xff\xffb").unwrap();
+	let reference = reference_instantiate();
+	let candidate = Path::new(env!("CARGO_BIN_EXE_nix-instantiate"));
+	for expression in [
+		r#"builtins.split "(.)" "a\nb""#,
+		r#"builtins.split (builtins.readFile ./raw-pattern) (builtins.readFile ./raw-subject)"#,
+		r#"builtins.match (builtins.readFile ./raw-pattern) (builtins.substring 1 2 (builtins.readFile ./raw-subject))"#,
+		r#"builtins.split "a|ab" "zabx""#,
+		r#"builtins.split "(|a)" "a""#,
+		r#"builtins.split "^|a" "a""#,
+		r#"builtins.split "(a+?)(a*)" "aaa""#,
+		r#"builtins.split "(a|aa)(a?)" "aa""#,
+		r#"builtins.split "(a$)|(a)" "ab""#,
+		r#"builtins.split "(^a)|(a)" "ba""#,
+		r#"builtins.split "a*" "a""#,
+		r#"builtins.split "" "é""#,
+		r#"builtins.split "[[:alpha:]]+" "aéz""#,
+		r#"builtins.match "é+" "éé""#,
+		r#"builtins.split "é+" "éé""#,
+		r#"builtins.match "[é]+" "é""#,
+		r#"builtins.split "[[.zero.]]|[[=one=]]" "x01y""#,
+		r#"let s = builtins.appendContext "ab" { "/nix/store/00000000000000000000000000000000-regex".path = true; }; in map (p: if builtins.isString p then builtins.getContext p else map builtins.getContext p) (builtins.split "(b)" s)"#,
+		r#"let s = builtins.appendContext "ab" { "/nix/store/00000000000000000000000000000000-regex".path = true; }; in map builtins.getContext (builtins.split "z" s)"#,
+	] {
+		let expected = message_evaluation(&reference, dir.path(), expression, "", &[], "");
+		let actual = message_evaluation(candidate, dir.path(), expression, "", &[], "");
+		assert!(
+			expected.status.success(),
+			"reference {expression}: {expected:?}"
+		);
+		assert_eq!(
+			(actual.status.code(), actual.stdout, actual.stderr),
+			(expected.status.code(), expected.stdout, expected.stderr),
+			"{expression}"
+		);
+	}
+	// Each classic-locale collating name denotes one ASCII byte, for both
+	// collating elements and equivalence classes. NUL cannot occur in a Nix
+	// string, so test it separately as a valid non-matching expression.
+	let names = "NUL|SOH|STX|ETX|EOT|ENQ|ACK|alert|backspace|tab|newline|vertical-tab|form-feed|carriage-return|SO|SI|DLE|DC1|DC2|DC3|DC4|NAK|SYN|ETB|CAN|EM|SUB|ESC|IS4|IS3|IS2|IS1|space|exclamation-mark|quotation-mark|number-sign|dollar-sign|percent-sign|ampersand|apostrophe|left-parenthesis|right-parenthesis|asterisk|plus-sign|comma|hyphen|period|slash|zero|one|two|three|four|five|six|seven|eight|nine|colon|semicolon|less-than-sign|equals-sign|greater-than-sign|question-mark|commercial-at|A|B|C|D|E|F|G|H|I|J|K|L|M|N|O|P|Q|R|S|T|U|V|W|X|Y|Z|left-square-bracket|backslash|right-square-bracket|circumflex|underscore|grave-accent|a|b|c|d|e|f|g|h|i|j|k|l|m|n|o|p|q|r|s|t|u|v|w|x|y|z|left-curly-bracket|vertical-line|right-curly-bracket|tilde|DEL";
+	let mut checks = Vec::new();
+	for (byte, name) in names.split('|').enumerate() {
+		for delimiter in ['.', '='] {
+			let string = if byte == 0 {
+				"x".to_string()
+			} else {
+				char::from(byte as u8).to_string()
+			};
+			checks.push(format!(
+				"(builtins.match \"[[{delimiter}{name}{delimiter}]]\" {})",
+				noxi_commands::instantiate::nix_string_literal(&string)
+			));
+		}
+	}
+	let expression = format!("[ {} ]", checks.join(" "));
+	let expected = message_evaluation(&reference, dir.path(), &expression, "", &[], "");
+	let actual = message_evaluation(candidate, dir.path(), &expression, "", &[], "");
+	assert!(
+		expected.status.success(),
+		"reference collating table: {expected:?}"
+	);
+	assert_eq!(
+		(actual.status.code(), actual.stdout, actual.stderr),
+		(expected.status.code(), expected.stdout, expected.stderr)
+	);
+	for builtin in ["match", "split"] {
+		for pattern in [
+			r"\d+",
+			"(?:a)",
+			"a{,2}",
+			"[[:word:]]",
+			"[[.!.]]",
+			"[[.1.]]",
+			"[[=!=]]",
+			"[[.unknown.]]",
+		] {
+			let expression = format!(
+				"builtins.{builtin} {} \"123\"",
+				noxi_commands::instantiate::nix_string_literal(pattern)
+			);
+			let expected = message_evaluation(&reference, dir.path(), &expression, "", &[], "");
+			let actual = message_evaluation(candidate, dir.path(), &expression, "", &[], "");
+			assert_eq!(expected.status.code(), Some(1), "reference {expression}");
+			assert_eq!(
+				(actual.status.code(), actual.stdout, actual.stderr),
+				(expected.status.code(), expected.stdout, expected.stderr),
+				"{expression}"
+			);
+		}
+	}
+}
+
+#[test]
+fn legacy_pure_and_restricted_source_access_matches_the_reference() {
+	let dir = tempfile::tempdir().unwrap();
+	let allowed = dir.path().join("allowed");
+	fs::create_dir(&allowed).unwrap();
+	fs::write(allowed.join("default.nix"), "{ answer = 42; }").unwrap();
+	fs::write(allowed.join("data"), "visible").unwrap();
+	fs::write(dir.path().join("private.nix"), "123").unwrap();
+	fs::write(dir.path().join("private"), "hidden").unwrap();
+	symlink(dir.path().join("private.nix"), allowed.join("escape.nix")).unwrap();
+	let reference = reference_instantiate();
+	let candidate = Path::new(env!("CARGO_BIN_EXE_nix-instantiate"));
+	for (expression, flags) in [
+		("import ./private.nix", vec!["--restrict-eval"]),
+		(
+			"scopedImport { x = 1; } ./private.nix",
+			vec!["--restrict-eval"],
+		),
+		("builtins.readFile ./private", vec!["--restrict-eval"]),
+		("builtins.readDir ./. ", vec!["--restrict-eval"]),
+		("builtins.pathExists ./private", vec!["--restrict-eval"]),
+		("builtins.getEnv \"HOME\"", vec!["--restrict-eval"]),
+		(
+			"import ./allowed",
+			vec!["--restrict-eval", "-I", "./allowed"],
+		),
+		(
+			"import <fixture>",
+			vec!["--restrict-eval", "-I", "fixture=./allowed"],
+		),
+		(
+			"builtins.readFile ./allowed/data",
+			vec!["--restrict-eval", "-I", "./allowed"],
+		),
+		(
+			"import ./allowed/escape.nix",
+			vec!["--restrict-eval", "-I", "./allowed"],
+		),
+		(
+			"import ./allowed/../private.nix",
+			vec!["--restrict-eval", "-I", "./allowed"],
+		),
+		("import ./private.nix", vec!["--pure-eval"]),
+		(
+			"builtins.storePath (throw \"unused argument\")",
+			vec!["--pure-eval"],
+		),
+		(
+			"builtins.storePath \"/not-a-store-path\"",
+			vec!["--pure-eval"],
+		),
+		(
+			"builtins.readFile ./allowed/data",
+			vec!["--pure-eval", "-I", "./allowed"],
+		),
+		("builtins.readFile ./private", vec!["--pure-eval"]),
+		("builtins.pathExists ./private", vec!["--pure-eval"]),
+	] {
+		for trace in [false, true] {
+			let mut flags = flags.clone();
+			if trace {
+				flags.push("--show-trace");
+			}
+			let expected = message_evaluation(&reference, dir.path(), expression, "", &flags, "");
+			let actual = message_evaluation(candidate, dir.path(), expression, "", &flags, "");
+			assert_eq!(
+				(actual.status.code(), actual.stdout, actual.stderr),
+				(expected.status.code(), expected.stdout, expected.stderr),
+				"{expression} {flags:?}"
+			);
+		}
+	}
 }

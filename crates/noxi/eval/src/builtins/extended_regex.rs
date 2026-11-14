@@ -2,10 +2,11 @@
 //! Capture priority follows libstdc++'s ordered alternatives, not libc regexec.
 
 use regex::bytes::{Regex, RegexBuilder};
+use regex_automata::{Anchored, Input, MatchKind, nfa::thompson::pikevm::PikeVM, util::syntax};
 
-pub(super) fn compile(pattern: &str) -> Result<Regex, ()> {
+fn translate(pattern: &[u8]) -> Result<String, ()> {
 	let mut out = String::new();
-	let mut chars = pattern.chars().peekable();
+	let mut chars = pattern.iter().copied().map(char::from).peekable();
 	let mut groups = Vec::new();
 	let mut atom = None;
 	let mut repeated = false;
@@ -65,24 +66,16 @@ pub(super) fn compile(pattern: &str) -> Result<Regex, ()> {
 									| "xdigit" => out.push_str(&format!("[:{name}:]")),
 									_ => return Err(()),
 								}
-							} else if name.len() == 1 {
-								out.push_str(&format!(r"\x{:02x}", name.as_bytes()[0]));
 							} else {
-								let byte = match name.as_str() {
-									"NUL" => 0,
-									"tab" => b'\t',
-									"newline" => b'\n',
-									"vertical-tab" => 11,
-									"form-feed" => 12,
-									"carriage-return" => b'\r',
-									"space" => b' ',
-									_ => return Err(()),
-								};
+								let byte = collating_byte(&name).ok_or(())?;
 								out.push_str(&format!(r"\x{byte:02x}"));
 							}
 						}
 						'[' => out.push_str(r"\x5b"),
 						'-' if chars.peek() == Some(&'-') => out.push_str(r"\x2d"),
+						c if !c.is_ascii() => {
+							out.push_str(&format!(r"\x{:02x}", c as u8));
+						}
 						c => out.push(c),
 					}
 				}
@@ -144,8 +137,15 @@ pub(super) fn compile(pattern: &str) -> Result<Regex, ()> {
 				repeated = false;
 			}
 			c => {
-				out.push(c);
-				atom = Some(start);
+				if c.is_ascii() {
+					out.push(c);
+					atom = Some(start);
+				} else {
+					// Each literal is one byte, including UTF-8 and arbitrary
+					// bytes read from a file or produced by substring.
+					atom = Some(out.len());
+					out.push_str(&format!(r"\x{:02x}", c as u8));
+				}
 				repeated = false;
 			}
 		}
@@ -153,9 +153,72 @@ pub(super) fn compile(pattern: &str) -> Result<Regex, ()> {
 	if !groups.is_empty() {
 		return Err(());
 	}
+	Ok(out)
+}
+
+pub(super) fn compile(pattern: &[u8]) -> Result<Regex, ()> {
+	let out = translate(pattern)?;
 	RegexBuilder::new(&format!(r"\A(?:{out})\z"))
 		.unicode(false)
 		.dot_matches_new_line(true)
 		.build()
 		.map_err(|_| ())
+}
+
+/// libstdc++'s classic-locale symbolic names, indexed by their ASCII value.
+/// Punctuation and digits use their symbolic names, not their literal spelling.
+fn collating_byte(name: &str) -> Option<u8> {
+	const NAMES: &str = "NUL|SOH|STX|ETX|EOT|ENQ|ACK|alert|backspace|tab|newline|vertical-tab|form-feed|carriage-return|SO|SI|DLE|DC1|DC2|DC3|DC4|NAK|SYN|ETB|CAN|EM|SUB|ESC|IS4|IS3|IS2|IS1|space|exclamation-mark|quotation-mark|number-sign|dollar-sign|percent-sign|ampersand|apostrophe|left-parenthesis|right-parenthesis|asterisk|plus-sign|comma|hyphen|period|slash|zero|one|two|three|four|five|six|seven|eight|nine|colon|semicolon|less-than-sign|equals-sign|greater-than-sign|question-mark|commercial-at|A|B|C|D|E|F|G|H|I|J|K|L|M|N|O|P|Q|R|S|T|U|V|W|X|Y|Z|left-square-bracket|backslash|right-square-bracket|circumflex|underscore|grave-accent|a|b|c|d|e|f|g|h|i|j|k|l|m|n|o|p|q|r|s|t|u|v|w|x|y|z|left-curly-bracket|vertical-line|right-curly-bracket|tilde|DEL";
+	NAMES
+		.split('|')
+		.position(|candidate| candidate == name)
+		.map(|i| i as u8)
+}
+
+/// Search chooses the earliest start and longest whole match, as the
+/// reference's extended-grammar regex_iterator does. Captures at that endpoint
+/// retain the grammar's ordered-alternative priority.
+pub(super) struct SearchRegex {
+	pub search: Regex,
+	pub longest: PikeVM,
+}
+
+pub(super) fn compile_search(pattern: &[u8]) -> Result<SearchRegex, ()> {
+	let translated = translate(pattern)?;
+	let search = RegexBuilder::new(&translated)
+		.unicode(false)
+		.dot_matches_new_line(true)
+		.build()
+		.map_err(|_| ())?;
+	let longest = PikeVM::builder()
+		.configure(PikeVM::config().match_kind(MatchKind::All))
+		.thompson(regex_automata::nfa::thompson::Config::new().utf8(false))
+		.syntax(
+			syntax::Config::new()
+				.unicode(false)
+				.utf8(false)
+				.dot_matches_new_line(true),
+		)
+		.build(&translated)
+		.map_err(|_| ())?;
+	Ok(SearchRegex { search, longest })
+}
+
+impl SearchRegex {
+	pub fn captures_at(
+		&self,
+		text: &[u8],
+		start: usize,
+		cache: &mut regex_automata::nfa::thompson::pikevm::Cache,
+		captures: &mut regex_automata::util::captures::Captures,
+	) -> bool {
+		let Some(found) = self.search.find_at(text, start) else {
+			return false;
+		};
+		let input = Input::new(text)
+			.range(found.start()..)
+			.anchored(Anchored::Yes);
+		self.longest.captures(cache, input, captures);
+		captures.is_match()
+	}
 }

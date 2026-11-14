@@ -1814,6 +1814,9 @@ impl<IO> VM<'_, IO> {
 				FrameTrace::Select { path, attrs, key } => {
 					if let Some(span) = attrs.get_attr_pos(key)
 						&& !hidden(&span)
+						// The derivation helper's generated output attributes do not
+						// add selection frames in the reference evaluator.
+						&& !self.source.get_file(span).name().starts_with("«nix-internal»/")
 					{
 						traces.push(Trace::new(
 							Some(span),

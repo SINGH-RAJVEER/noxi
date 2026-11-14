@@ -677,6 +677,12 @@ fn kind_message(error: &Error) -> (String, Option<Span>, Vec<String>) {
 			None,
 			vec![],
 		),
+		ErrorKind::IO { error, .. }
+			if error.kind() == std::io::ErrorKind::PermissionDenied
+				&& error.to_string().starts_with("access to absolute path '") =>
+		{
+			(error.to_string(), None, vec![])
+		}
 		ErrorKind::IO {
 			path: Some(path),
 			error: io,

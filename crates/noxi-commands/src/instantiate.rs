@@ -989,7 +989,9 @@ pub fn run(options: &Options, cwd: &Path, stdout: &mut dyn Write) -> ExitCode {
 			Value::String(s) if options.json => stdout
 				.write_all(s.as_bytes())
 				.and_then(|()| stdout.write_all(b"\n")),
-			value => writeln!(stdout, "{}", Ambiguous(value)),
+			value => stdout
+				.write_all(&Ambiguous(value).to_bytes())
+				.and_then(|()| stdout.write_all(b"\n")),
 		};
 		if written.is_err() {
 			return ExitCode::FAILURE;
@@ -1116,6 +1118,28 @@ fn evaluator_store(
 		),
 		None => (noxi_glue::ReadOnlyStore::new(), None),
 	};
+	if !options.modern_pure
+		&& (options.settings.get_bool("pure-eval", false)
+			|| options.settings.get_bool("restrict-eval", false))
+	{
+		let roots = search_path(options)
+			.into_iter()
+			.filter_map(|entry| {
+				let entry = noxi_eval::NixSearchPathEntry::parse(&entry);
+				if entry.path.contains("://") || entry.path.starts_with("flake:") {
+					None
+				} else {
+					let path = PathBuf::from(entry.path);
+					Some(if path.is_absolute() {
+						path
+					} else {
+						cwd.join(path)
+					})
+				}
+			})
+			.collect();
+		evaluator_store.restrict_access(options.settings.get_bool("pure-eval", false), roots);
+	}
 	evaluator_store.allow_import_from_derivation(
 		options
 			.settings

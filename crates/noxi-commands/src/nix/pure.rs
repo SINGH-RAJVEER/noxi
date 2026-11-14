@@ -90,6 +90,11 @@ impl EvalIO for PureIO {
 		self.source(path)?.read_link(path)
 	}
 
+	fn ensure_context_path(&self, path: &Path) -> io::Result<()> {
+		let store = self.store.as_ref().ok_or_else(unsupported)?;
+		noxi_glue::StoreIO::new(store.clone()).ensure_context_path(path)
+	}
+
 	fn realise_path(&self, string: &noxi_eval::NixString) -> io::Result<PathBuf> {
 		let store = self.store.as_ref().ok_or_else(unsupported)?;
 		let io = noxi_glue::StoreIO::new(store.clone());

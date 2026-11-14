@@ -141,6 +141,12 @@ pub trait EvalIO {
 		Ok(path.to_path().map_err(io::Error::other)?.to_owned())
 	}
 
+	/// Ensure a dependency added by `appendContext` exists when evaluation
+	/// is writable. Read-only evaluators only validate its syntax.
+	fn ensure_context_path(&self, _path: &Path) -> io::Result<()> {
+		Ok(())
+	}
+
 	/// Read a registered store derivation as its raw import attributes:
 	/// `drvPath`, `name`, `outputs`, and each output's contextual string.
 	/// `None` leaves the path to ordinary Nix expression import.

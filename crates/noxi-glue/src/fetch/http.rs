@@ -70,12 +70,18 @@ impl Client for Native {
 			})
 			.collect();
 		let effective_url = response.get_uri().to_string();
-		let body = response
-			.into_body()
-			.with_config()
-			.limit(1024 * 1024 * 1024)
-			.read_to_vec()
-			.map_err(|e| Error::new(e.to_string()))?;
+		// 1xx, 204 and 304 responses never carry a body. ureq still wraps them in a
+		// content decoder when `Content-Encoding` is set, which fails on the empty stream.
+		let body = if matches!(status, 100..=199 | 204 | 304) {
+			Vec::new()
+		} else {
+			response
+				.into_body()
+				.with_config()
+				.limit(1024 * 1024 * 1024)
+				.read_to_vec()
+				.map_err(|e| Error::new(e.to_string()))?
+		};
 		Ok(Response {
 			status,
 			headers,

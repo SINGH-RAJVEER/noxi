@@ -128,6 +128,9 @@ pub enum VMRequest {
 	/// Realize a path string through the evaluator's store integration.
 	RealisePath(NixString),
 
+	/// Ensure an appended context dependency exists in a writable store.
+	EnsureContextPath(PathBuf),
+
 	/// Read the raw attributes of a registered derivation, if applicable.
 	ImportDerivation(PathBuf),
 
@@ -225,6 +228,7 @@ impl Display for VMRequest {
 				write!(f, "resolve_import_path({})", p.to_string_lossy())
 			}
 			VMRequest::RealisePath(p) => write!(f, "realise_path({p})"),
+			VMRequest::EnsureContextPath(p) => write!(f, "ensure_context_path({})", p.display()),
 			VMRequest::ImportDerivation(p) => {
 				write!(f, "import_derivation({})", p.to_string_lossy())
 			}
@@ -659,6 +663,18 @@ where
 							message = VMResponse::Path(realised);
 						}
 
+						VMRequest::EnsureContextPath(path) => {
+							self.io_handle
+								.as_ref()
+								.ensure_context_path(&path)
+								.map_err(|error| ErrorKind::IO {
+									path: Some(path),
+									error: error.into(),
+								})
+								.with_span(span, self)?;
+							message = VMResponse::Empty;
+						}
+
 						VMRequest::ImportDerivation(path) => {
 							let attrs = self
 								.io_handle
@@ -1081,6 +1097,13 @@ pub async fn request_realise_path(co: &GenCo, path: NixString) -> PathBuf {
 	match co.yield_(VMRequest::RealisePath(path)).await {
 		VMResponse::Path(path) => path,
 		msg => panic!("noxi bug: VM responded with incorrect generator message: {msg}"),
+	}
+}
+
+pub(crate) async fn request_ensure_context_path(co: &GenCo, path: PathBuf) {
+	match co.yield_(VMRequest::EnsureContextPath(path)).await {
+		VMResponse::Empty => (),
+		message => panic!("noxi bug: unexpected context validation response: {message}"),
 	}
 }
 

@@ -43,7 +43,20 @@ const EXPECTATIONS: &str = concat!(
 	env!("CARGO_MANIFEST_DIR"),
 	"/expectations/upstream-lang.txt"
 );
-const REPORT: &str = concat!(env!("CARGO_TARGET_TMPDIR"), "/upstream-lang-report.json");
+const LEGACY_REPORT: &str = concat!(env!("CARGO_TARGET_TMPDIR"), "/upstream-lang-report.json");
+
+fn report_path() -> PathBuf {
+	let profile = if cfg!(debug_assertions) {
+		"debug"
+	} else {
+		"release"
+	};
+	Path::new(LEGACY_REPORT)
+		.parent()
+		.unwrap()
+		.join(format!("upstream-lang-{profile}"))
+		.join("upstream-lang-report.json")
+}
 
 /// Selects child mode; its value is the operation to run on the file argument.
 const CHILD_VAR: &str = "NOXI_COMPAT_LANG_CHILD";
@@ -696,19 +709,19 @@ fn embedded_checks(reference: &Path) -> Vec<String> {
 	let actual = run_command(&case, scratch.path(), None, &args);
 	let expected = run_command(&case, scratch.path(), Some(reference), &args);
 	report.push(json!({"command": args, "candidate": {"exit_code": actual.exit_code, "signal": actual.signal, "stdout": actual.stdout, "stderr": actual.stderr}, "reference": {"exit_code": expected.exit_code, "signal": expected.signal, "stdout": expected.stdout, "stderr": expected.stderr}}));
-	if (actual.exit_code, &actual.stdout_bytes, &actual.stderr_bytes)
-		!= (
-			expected.exit_code,
-			&expected.stdout_bytes,
-			&expected.stderr_bytes,
-		) {
+	if !matches!(actual.exit_code, Some(0 | 1))
+		|| actual.exit_code != expected.exit_code
+		|| actual.signal != expected.signal
+		|| actual.stdout_bytes != expected.stdout_bytes
+		|| actual.stderr_bytes != expected.stderr_bytes
+	{
 		failures.push(format!(
 			"lang.sh non-eval-fail-bad-drvPath: candidate {:?}; reference {:?}",
 			actual.stderr, expected.stderr
 		));
 	}
 	fs::write(
-		Path::new(REPORT).with_file_name("upstream-lang-checks-report.json"),
+		report_path().with_file_name("upstream-lang-checks-report.json"),
 		serde_json::to_vec_pretty(&report).unwrap(),
 	)
 	.expect("embedded checks report");
@@ -872,7 +885,14 @@ fn write_report(cases: &[Case], runs: &[Run]) -> io::Result<()> {
 		.collect();
 	let report = json!({
 		"reference": {"snapshot": "tests/nix/tests/functional/lang", "commit": reference_commit},
-		"candidate": {"evaluator": "noxi-eval", "version": env!("CARGO_PKG_VERSION"), "io": "impure", "mode": "strict"},
+		"candidate": {
+			"evaluator": "noxi-eval",
+			"version": env!("CARGO_PKG_VERSION"),
+			"io": "impure",
+			"mode": "strict",
+			"debug_assertions": cfg!(debug_assertions),
+			"executable": env::current_exe()?,
+		},
 		"platform": format!("{}-{}", env::consts::ARCH, env::consts::OS),
 		"environment": {
 			"all": SHARED_ENV.iter().map(|(key, value)| (key.to_string(), json!(value))).collect::<serde_json::Map<_, _>>(),
@@ -884,7 +904,7 @@ fn write_report(cases: &[Case], runs: &[Run]) -> io::Result<()> {
 		"totals": totals,
 		"cases": entries,
 	});
-	let mut file = fs::File::create(REPORT)?;
+	let mut file = fs::File::create(report_path())?;
 	file.write_all(&serde_json::to_vec_pretty(&report).map_err(io::Error::other)?)
 }
 
@@ -903,6 +923,7 @@ fn main() -> ExitCode {
 		}
 		return ExitCode::SUCCESS;
 	}
+	fs::create_dir_all(report_path().parent().unwrap()).expect("profile report directory");
 
 	let cases = match discover() {
 		Ok(cases) => cases,
@@ -939,7 +960,7 @@ fn main() -> ExitCode {
 		run_all(&cases, Some(path))
 	});
 	if let Err(error) = write_report(&cases, &runs) {
-		eprintln!("cannot write {REPORT}: {error}");
+		eprintln!("cannot write {}: {error}", report_path().display());
 		return ExitCode::FAILURE;
 	}
 
@@ -948,7 +969,7 @@ fn main() -> ExitCode {
 		*totals.entry(run.outcome.name()).or_default() += 1;
 	}
 	println!("{} language fixtures: {totals:?}", cases.len());
-	println!("report: {REPORT}");
+	println!("report: {}", report_path().display());
 
 	let mut expected = read_expectations();
 	let mut differences = reference
@@ -979,13 +1000,26 @@ fn main() -> ExitCode {
 			}
 			reference_report.push(json!({"name": case.name, "equal": equal, "reference_exit_code": reference.exit_code, "reference_signal": reference.signal, "reference_stdout": reference.stdout, "reference_stderr": reference.stderr, "reference_stdout_bytes": reference.stdout_bytes, "reference_stderr_bytes": reference.stderr_bytes}));
 		}
-		let path = Path::new(REPORT).with_file_name("upstream-lang-reference-report.json");
+		let path = report_path().with_file_name("upstream-lang-reference-report.json");
 		fs::write(&path, serde_json::to_vec_pretty(&reference_report).unwrap())
 			.expect("reference report");
 		println!(
 			"{matched} exact live reference matches; report: {}",
 			path.display()
 		);
+	}
+	// Canonical reports are separate for debug and release runs. Preserve the
+	// old paths as latest-run copies for existing report consumers.
+	for name in [
+		"upstream-lang-report.json",
+		"upstream-lang-reference-report.json",
+		"upstream-lang-checks-report.json",
+	] {
+		fs::copy(
+			report_path().with_file_name(name),
+			Path::new(LEGACY_REPORT).with_file_name(name),
+		)
+		.expect("legacy report copy");
 	}
 	if !differences.is_empty() {
 		for difference in &differences {

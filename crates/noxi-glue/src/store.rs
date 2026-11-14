@@ -40,10 +40,17 @@ pub struct EvaluatorStore {
 	opener: Option<Box<dyn Fn() -> io::Result<Option<Rc<dyn Store>>>>>,
 	allow_ifd: std::cell::Cell<Option<bool>>,
 	trace_ifd: std::cell::Cell<bool>,
+	access: RefCell<Option<EvaluationAccess>>,
 	/// Fetched trees served at logical store paths, keyed by store path.
 	mounts: RefCell<BTreeMap<PathBuf, Mount>>,
 	pub(crate) fetch_config: RefCell<crate::fetch::FetchConfig>,
 	pub(crate) fetch_state: RefCell<crate::fetch::FetchState>,
+}
+
+/// Source roots visible to pure or restricted legacy evaluation.
+struct EvaluationAccess {
+	pure: bool,
+	roots: Vec<PathBuf>,
 }
 
 impl std::fmt::Debug for EvaluatorStore {
@@ -373,8 +380,54 @@ impl EvaluatorStore {
 			.map(|(logical, mount)| (logical.clone(), mount.clone()))
 	}
 
+	/// Restrict expression filesystem access to these source roots. Fetched
+	/// trees and successfully realised context paths are admitted separately.
+	pub fn restrict_access(&self, pure: bool, roots: Vec<PathBuf>) {
+		let roots = roots
+			.into_iter()
+			.map(|path| self.resolved_logical_path(&path))
+			.collect();
+		*self.access.borrow_mut() = Some(EvaluationAccess { pure, roots });
+	}
+
+	fn allow_context_path(&self, path: &Path) {
+		if let Some(access) = self.access.borrow_mut().as_mut() {
+			access.roots.push(path.to_owned());
+		}
+	}
+
+	fn check_access(&self, path: &Path) -> io::Result<()> {
+		let access = self.access.borrow();
+		let Some(access) = access.as_ref() else {
+			return Ok(());
+		};
+		let resolved = self.resolved_logical_path(path);
+		if resolved.starts_with(COREPKGS_DIR) {
+			return Ok(());
+		}
+		let mounted = |path: &Path| {
+			StorePath::from_absolute_path_full(path).is_ok_and(|(root, _)| self.is_mounted(&root))
+		};
+		if access.roots.iter().any(|root| resolved.starts_with(root)) || mounted(&resolved) {
+			return Ok(());
+		}
+		let mode = if access.pure {
+			"pure evaluation mode (use '--impure' to override)"
+		} else {
+			"restricted mode"
+		};
+		Err(io::Error::new(
+			io::ErrorKind::PermissionDenied,
+			format!(
+				"access to absolute path '{}' is forbidden in {mode}",
+				resolved.display()
+			),
+		))
+	}
+
 	/// Check that a mounted `path` is visible through its tree's filter.
 	pub(crate) fn check_visible(&self, path: &Path) -> io::Result<()> {
+		self.check_access(path)?;
 		if let Some((mount, rel)) = self.mount_of(path)
 			&& let Some(filter) = &mount.filter
 			&& !filter.allows(&rel)
@@ -775,6 +828,13 @@ impl EvalIO for StoreIO {
 			}
 		}
 		if requests.is_empty() {
+			for element in &elements {
+				if let NixContextElement::Plain(root) | NixContextElement::Derivation(root) =
+					element
+				{
+					self.store.allow_context_path(Path::new(root));
+				}
+			}
 			return Ok(path);
 		}
 		if !self.store.allow_ifd.get().unwrap_or(true) {
@@ -841,12 +901,24 @@ impl EvalIO for StoreIO {
 				let placeholder = store_path::downstream_placeholder(&drv, name.as_bytes());
 				bytes = bytes.replace(placeholder.as_bytes(), output.to_absolute_path().as_bytes());
 				store.add_temp_root(output).map_err(io::Error::other)?;
+				self.store
+					.allow_context_path(Path::new(&output.to_absolute_path()));
 			}
 		}
 		Ok(PathBuf::from(OsString::from_vec(bytes)))
 	}
 
+	fn ensure_context_path(&self, path: &Path) -> io::Result<()> {
+		if let Some(store) = &self.store.store {
+			let path = StorePath::from_absolute_path(path.as_os_str().as_bytes())
+				.map_err(io::Error::other)?;
+			store.ensure_path(&path).map_err(io::Error::other)?;
+		}
+		Ok(())
+	}
+
 	fn import_derivation(&self, path: &Path) -> io::Result<Option<Value>> {
+		self.store.check_visible(path)?;
 		let Ok(drv_path) = StorePath::from_absolute_path(path.as_os_str().as_bytes()) else {
 			return Ok(None);
 		};
@@ -997,6 +1069,7 @@ impl EvalIO for StoreIO {
 	}
 
 	fn import_path(&self, path: &Path) -> io::Result<PathBuf> {
+		self.store.check_visible(path)?;
 		let name = import_name(path)?;
 		if let Some(Corepkg::File(contents)) = corepkg(path) {
 			if let Some(store) = &self.store.store {
@@ -1031,6 +1104,10 @@ impl EvalIO for StoreIO {
 	}
 
 	fn get_env(&self, key: &OsStr) -> Option<OsString> {
-		StdIO.get_env(key)
+		if self.store.access.borrow().is_some() {
+			None
+		} else {
+			StdIO.get_env(key)
+		}
 	}
 }

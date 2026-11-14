@@ -191,8 +191,8 @@ pub async fn realise_value_to_path(
 struct BuiltinState {
 	// Shared, not cloned: a cloned `Regex` starts with an empty match cache,
 	// which every use would rebuild.
-	regex_cache: RefCell<FxHashMap<String, Rc<Regex>>>,
-	split_regex_cache: RefCell<FxHashMap<String, Rc<regex::bytes::Regex>>>,
+	regex_cache: RefCell<FxHashMap<Vec<u8>, Rc<Regex>>>,
+	split_regex_cache: RefCell<FxHashMap<Vec<u8>, Rc<extended_regex::SearchRegex>>>,
 	/// The enabled CppNix experimental features, shared with the builder.
 	experimental_features: ExperimentalFeatures,
 	messages: EvaluationMessages,
@@ -237,23 +237,20 @@ impl ExperimentalFeatures {
 }
 
 impl BuiltinState {
-	fn get_split_regex(&self, pattern: &str) -> Result<Rc<regex::bytes::Regex>, regex::Error> {
+	fn get_split_regex(&self, pattern: &[u8]) -> Result<Rc<extended_regex::SearchRegex>, ()> {
 		let mut map = self.split_regex_cache.borrow_mut();
-		Ok(match map.entry(pattern.to_string()) {
+		Ok(match map.entry(pattern.to_vec()) {
 			Entry::Occupied(occupied) => occupied.get().clone(),
 			Entry::Vacant(vacant) => {
-				// CppNix uses std::regex over char iterators, matching individual bytes.
-				let re = regex::bytes::RegexBuilder::new(pattern)
-					.unicode(false)
-					.build()?;
+				let re = extended_regex::compile_search(pattern)?;
 				vacant.insert(Rc::new(re)).clone()
 			}
 		})
 	}
 
-	fn get_regex(&self, pattern: &str) -> Result<Rc<Regex>, ()> {
+	fn get_regex(&self, pattern: &[u8]) -> Result<Rc<Regex>, ()> {
 		let mut map = self.regex_cache.borrow_mut();
-		Ok(match map.entry(pattern.to_string()) {
+		Ok(match map.entry(pattern.to_vec()) {
 			Entry::Occupied(occupied) => occupied.get().clone(),
 			Entry::Vacant(vacant) => {
 				let re = extended_regex::compile(pattern)?;
@@ -1027,7 +1024,22 @@ mod pure_builtins {
 
 	#[builtin("hasContext")]
 	#[allow(non_snake_case)]
-	fn builtin_hasContext(e: Value) -> Result<Value, ErrorKind> {
+	async fn builtin_hasContext(co: GenCo, #[lazy] e: Value) -> Result<Value, ErrorKind> {
+		generators::request_builtin_context(
+			&co,
+			vec![crate::Trace::new(
+				None,
+				"while evaluating the argument passed to builtins.hasContext",
+			)],
+		)
+		.await;
+		let e = try_value!(generators::request_force(&co, e).await);
+		generators::request_builtin_context(&co, Vec::new()).await;
+		check_argument(
+			&e,
+			ArgumentType::String,
+			"while evaluating the argument passed to builtins.hasContext",
+		)?;
 		if e.is_catchable() {
 			return Ok(e);
 		}
@@ -1038,7 +1050,22 @@ mod pure_builtins {
 
 	#[builtin("getContext")]
 	#[allow(non_snake_case)]
-	fn builtin_getContext(e: Value) -> Result<Value, ErrorKind> {
+	async fn builtin_getContext(co: GenCo, #[lazy] e: Value) -> Result<Value, ErrorKind> {
+		generators::request_builtin_context(
+			&co,
+			vec![crate::Trace::new(
+				None,
+				"while evaluating the argument passed to builtins.getContext",
+			)],
+		)
+		.await;
+		let e = try_value!(generators::request_force(&co, e).await);
+		generators::request_builtin_context(&co, Vec::new()).await;
+		check_argument(
+			&e,
+			ArgumentType::String,
+			"while evaluating the argument passed to builtins.getContext",
+		)?;
 		if e.is_catchable() {
 			return Ok(e);
 		}
@@ -1129,74 +1156,120 @@ mod pure_builtins {
 	#[allow(non_snake_case)]
 	async fn builtin_appendContext(
 		co: GenCo,
-		origin: Value,
-		added_context: Value,
+		#[lazy] origin: Value,
+		#[lazy] added_context: Value,
 	) -> Result<Value, ErrorKind> {
-		// `appendContext` is a "grow" context function.
-		// It cannot remove a context element, neither replace a piece of its contents.
-		//
-		// Growing context is always a safe operation, there's no loss of dependency tracking
-		// information.
-		//
-		// This is why this operation is not prefixed by `unsafe` and is deemed *safe*.
-		// Nonetheless, it is possible to craft nonsensical context elements referring
-		// to inexistent derivations, output paths or output names.
-		//
-		// In Nix, those nonsensical context elements are partially mitigated by checking
-		// that various parameters are indeed syntatically valid store paths in the context, i.e.
-		// starting with the same prefix as `builtins.storeDir`, or ending with `.drv`.
-		// In addition, if writing to the store is possible (evaluator not in read-only mode), Nix
-		// will realize some paths and ensures they are present in the store.
-		//
-		// In this implementation, we do none of that, no syntax checks, no realization.
-		// The next `TODO` are the checks that Nix implements.
+		generators::request_builtin_context(
+			&co,
+			vec![crate::Trace::new(
+				None,
+				"while evaluating the first argument passed to builtins.appendContext",
+			)],
+		)
+		.await;
+		let origin = try_value!(generators::request_force(&co, origin).await);
+		generators::request_builtin_context(&co, Vec::new()).await;
+		check_argument(
+			&origin,
+			ArgumentType::String,
+			"while evaluating the first argument passed to builtins.appendContext",
+		)?;
+		let added_context = try_value!(generators::request_force(&co, added_context).await);
+		check_argument(
+			&added_context,
+			ArgumentType::Attrs,
+			"while evaluating the second argument passed to builtins.appendContext",
+		)?;
+		// A context can grow without dropping dependencies, but its keys and
+		// derivation references must still be valid before they are retained.
 		let mut ctx_elements: FxHashSet<NixContextElement> = FxHashSet::default();
-		let mut origin = try_cek_to_value!(
-			generators::request_string_coerce(
-				&co,
-				origin,
-				CoercionKind {
-					strong: true,
-					import_paths: true,
-				},
-			)
-			.await
-		);
-
+		let mut origin = origin.to_contextful_str()?;
 		let added_context = added_context.to_attrs()?;
-		for (context_key, context_element) in added_context.into_iter() {
-			// Invariant checks:
-			// - TODO: context_key must be a syntactically valid store path.
+		for (context_key, context_value) in added_context.iter_sorted() {
+			let position = added_context.get_attr_pos(context_key);
+			let fail = |message: String| match position {
+				Some(span) => ErrorKind::At { message, span },
+				None => ErrorKind::EvalError(message),
+			};
+			let path =
+				nix_compat::store_path::StorePath::from_absolute_path(context_key.as_bytes())
+					.map_err(|_| {
+						fail(format!("context key '{context_key}' is not a store path"))
+					})?;
+			generators::request_ensure_context_path(&co, PathBuf::from(path.to_absolute_path()))
+				.await;
 			let context_element =
-				try_value!(generators::request_force(&co, context_element).await).to_attrs()?;
-			if let Some(path) = context_element.select("path") {
-				if try_value!(generators::request_force(&co, path.clone()).await).as_bool()? {
-					ctx_elements
-						.insert(NixContextElement::Plain(context_key.as_bstr().to_string()));
+				try_value!(generators::request_force(&co, context_value.clone()).await);
+			check_argument(
+				&context_element,
+				ArgumentType::Attrs,
+				"while evaluating the value of a string context",
+			)
+			.map_err(|error| match error {
+				ErrorKind::WithContext {
+					context,
+					underlying,
+					..
+				} => ErrorKind::WithContext {
+					context,
+					span: position,
+					underlying,
+				},
+				error => error,
+			})?;
+			let context_element = context_element.to_attrs()?;
+			if let Some(value) = context_element.select("path") {
+				let value = try_value!(generators::request_force(&co, value.clone()).await);
+				if value.as_bool()? {
+					ctx_elements.insert(NixContextElement::Plain(path.to_absolute_path()));
 				}
 			}
-			if let Some(all_outputs) = context_element.select("allOutputs") {
-				if try_value!(generators::request_force(&co, all_outputs.clone()).await)
-					.as_bool()?
-				{
-					// TODO: check if `context_key` is a derivation path.
-					// This may require realization.
-					ctx_elements.insert(NixContextElement::Derivation(
-						context_key.as_bstr().to_string(),
-					));
+			if let Some(value) = context_element.select("allOutputs") {
+				let value = try_value!(generators::request_force(&co, value.clone()).await);
+				if value.as_bool()? {
+					if !path.name().ends_with(".drv") {
+						return Err(fail(format!(
+							"tried to add all-outputs context of {context_key}, which is not a derivation, to a string"
+						)));
+					}
+					ctx_elements.insert(NixContextElement::Derivation(path.to_absolute_path()));
 				}
 			}
-			if let Some(some_outputs) = context_element.select("outputs") {
-				let some_outputs =
-					try_value!(generators::request_force(&co, some_outputs.clone()).await)
-						.to_list()?;
-				// TODO: check if `context_key` is a derivation path.
-				// This may require realization.
-				for output in some_outputs.into_iter() {
-					let output =
-						try_value!(generators::request_force(&co, output).await).to_str()?;
+			if let Some(value) = context_element.select("outputs") {
+				let values =
+					try_value!(generators::request_force(&co, value.clone()).await).to_list()?;
+				if !values.is_empty() && !path.name().ends_with(".drv") {
+					return Err(fail(format!(
+						"tried to add derivation output context of {context_key}, which is not a derivation, to a string"
+					)));
+				}
+				for output in values.into_iter() {
+					let output = try_value!(generators::request_force(&co, output).await)
+						.to_contextful_str()?;
+					if let Some(dependency) = output.context().and_then(|context| {
+						context
+							.iter()
+							.map(|element| match element {
+								NixContextElement::Plain(path) => path.clone(),
+								NixContextElement::Derivation(path) => format!("={path}"),
+								NixContextElement::Single { name, derivation } => {
+									format!("!{name}!{derivation}")
+								}
+							})
+							.min()
+					}) {
+						return Err(ErrorKind::EvalError(format!(
+							"the string '{}' is not allowed to refer to a store path (such as '{}')",
+							output.as_bstr(),
+							dependency
+						))
+						.trace(
+							context_element.get_attr_pos("outputs"),
+							"while evaluating an output name within a string context",
+						));
+					}
 					ctx_elements.insert(NixContextElement::Single {
-						derivation: context_key.as_bstr().to_string(),
+						derivation: path.to_absolute_path(),
 						name: output.as_bstr().to_string(),
 					});
 				}
@@ -1504,10 +1577,10 @@ mod pure_builtins {
 			return Ok(re);
 		}
 		let re = re.to_str()?;
-		let re = re.to_str()?;
+		let pattern = re.as_bytes();
 		let re = state
-			.get_regex(re)
-			.map_err(|_| ErrorKind::InvalidRegex(re.to_string()))?;
+			.get_regex(pattern)
+			.map_err(|_| ErrorKind::InvalidRegex(String::from_utf8_lossy(pattern).into_owned()))?;
 
 		match re.captures(s.as_bytes()) {
 			Some(caps) => Ok(Value::List(
@@ -1726,44 +1799,33 @@ mod pure_builtins {
 		let s = str.to_contextful_str()?;
 		let text = s.as_bytes();
 		let re = regex.to_str()?;
-		let re = re.to_str()?;
+		let pattern = re.as_bytes();
 		let re = state
-			.get_split_regex(re)
-			.map_err(|_| ErrorKind::InvalidRegex(re.to_string()))?;
-		let mut capture_locations = re.capture_locations();
-		let num_captures = capture_locations.len();
+			.get_split_regex(pattern)
+			.map_err(|_| ErrorKind::InvalidRegex(String::from_utf8_lossy(pattern).into_owned()))?;
+		let mut cache = re.longest.create_cache();
+		let mut captures = re.longest.create_captures();
 		let mut ret = Vec::new();
 		let mut pos = 0;
 		let mut search_pos = 0;
 
-		while let Some(thematch) = re.captures_read_at(&mut capture_locations, text, search_pos) {
-			// push the unmatched characters preceding the match
-			ret.push(Value::from(NixString::new_inherit_context_from(
-				&s,
-				&text[pos..thematch.start()],
-			)));
-
-			// Push a list with one element for each capture
-			// group in the regex, containing the characters
-			// matched by that capture group, or null if no match.
-			// We skip capture 0; it represents the whole match.
-			let v: Vec<Value> = (1..num_captures)
-				.map(|i| capture_locations.get(i))
-				.map(|o| {
-					o.map(|(start, end)| {
-						// Here, a surprising thing happens: we silently discard the original
-						// context. This is as intended, Nix does the same.
-						Value::from(&text[start..end])
-					})
-					.unwrap_or(Value::Null)
+		while re.captures_at(text, search_pos, &mut cache, &mut captures) {
+			let thematch = captures.get_match().expect("matched expression");
+			// Once a match exists the reference discards context from every
+			// returned string, including unmatched prefixes and suffixes.
+			ret.push(Value::from(&text[pos..thematch.start()]));
+			let groups: Vec<Value> = (1..captures.group_len())
+				.map(|i| {
+					captures
+						.get_group(i)
+						.map(|span| Value::from(&text[span.start..span.end]))
+						.unwrap_or(Value::Null)
 				})
 				.collect();
-			ret.push(Value::List(NixList::from(v)));
+			ret.push(Value::List(NixList::from(groups)));
 			pos = thematch.end();
 			search_pos = pos;
 			if thematch.is_empty() {
-				// CppNix's regex iterator advances after an empty match, while
-				// retaining skipped characters in the next unmatched prefix.
 				if pos == text.len() {
 					break;
 				}
@@ -1771,10 +1833,12 @@ mod pure_builtins {
 			}
 		}
 
-		// push the unmatched characters following the last match
-		// Here, a surprising thing happens: we silently discard the original
-		// context. This is as intended, Nix does the same.
-		ret.push(Value::from(&text[pos..]));
+		// With no matches CppNix returns the original input unchanged.
+		if ret.is_empty() {
+			ret.push(Value::String(s));
+		} else {
+			ret.push(Value::from(&text[pos..]));
+		}
 
 		Ok(Value::List(NixList::from(ret)))
 	}

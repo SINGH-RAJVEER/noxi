@@ -88,8 +88,10 @@ pub fn download_file(
 			get_str_attr(&cached.as_ref().unwrap().value, "url")?,
 		));
 	}
+	// Revalidate only when the cached content still exists, otherwise a 304 leaves nothing to use.
 	let etag = cached
 		.as_ref()
+		.filter(|_| cached_mount.is_some())
 		.and_then(|c| get_str_attr(&c.value, "etag").ok());
 	let response = match request(store, url, headers, etag.as_deref()) {
 		Ok(response) => response,

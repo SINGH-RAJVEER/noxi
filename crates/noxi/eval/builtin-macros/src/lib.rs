@@ -801,6 +801,12 @@ const ARGUMENT_CHECKS: &[(&str, usize, &str, &str)] = &[
 	),
 	(
 		"appendContext",
+		0,
+		"String",
+		"while evaluating the first argument passed to builtins.appendContext",
+	),
+	(
+		"appendContext",
 		1,
 		"Attrs",
 		"while evaluating the second argument passed to builtins.appendContext",

@@ -20,6 +20,7 @@ genawaiter.workspace = true
 hashbrown.workspace = true
 itertools.workspace = true
 noxi-hash = { path = "../../noxi-hash", version = "0.0.3" }
+nix-compat = { path = "../nix-compat", version = "0.0.4", package = "noxi-compat" }
 lexical-core = { workspace = true, features = ["format", "parse-floats"] }
 os_str_bytes = { workspace = true, features = ["conversions"] }
 path-clean.workspace = true
@@ -29,6 +30,7 @@ proptest = { workspace = true, features = [
 	"tempfile",
 ], optional = true }
 regex.workspace = true
+regex-automata.workspace = true
 rnix.workspace = true
 rowan.workspace = true # pinned by rnix
 serde = { workspace = true, features = ["rc", "derive"] }

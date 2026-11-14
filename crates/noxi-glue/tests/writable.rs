@@ -417,3 +417,29 @@ fn read_file_retains_only_references_that_occur_in_its_contents() {
 		values[1].to_contextful_str().unwrap()
 	);
 }
+
+#[test]
+fn appended_context_paths_are_ensured_only_in_writable_evaluation() {
+	let root = tempfile::tempdir().unwrap();
+	let writable = EvaluatorStore::writable(root.path()).unwrap();
+	let missing = r#"builtins.appendContext "text" { "/nix/store/00000000000000000000000000000000-missing" = throw "context value evaluated"; }"#;
+	let result = configure(Evaluation::builder_pure(), writable.clone())
+		.build()
+		.evaluate(missing, None);
+	assert_eq!(result.errors.len(), 1);
+	let errors = format!("{:?}", result.errors);
+	assert!(!errors.contains("context value evaluated"), "{errors}");
+	let readonly = EvaluatorStore::read_only(root.path()).unwrap();
+	let expression = r#"builtins.appendContext "text" { "/nix/store/00000000000000000000000000000000-missing" = {}; }"#;
+	assert_eq!(
+		evaluate(&readonly, root.path(), expression)
+			.to_str()
+			.unwrap(),
+		"text"
+	);
+	let expression = r#"let path = builtins.toFile "context" "text"; in builtins.getContext (builtins.appendContext "text" { ${path} = { path = true; }; }) == builtins.getContext path"#;
+	assert!(matches!(
+		evaluate(&writable, root.path(), expression),
+		Value::Bool(true)
+	));
+}

@@ -33,6 +33,7 @@ pub fn configure<'co, 'ro, 'env>(
 	store: Rc<EvaluatorStore>,
 ) -> EvaluationBuilder<'co, 'ro, 'env, Box<dyn EvalIO>> {
 	let ca_derivations = builder.experimental_feature_enabled("ca-derivations");
+	let impure_derivations = builder.experimental_feature_enabled("impure-derivations");
 	let builder = builder.enable_impure(Some(Box::new(
 		StoreIO::new(Rc::clone(&store)).with_ca_derivations(ca_derivations),
 	)));
@@ -44,7 +45,13 @@ pub fn configure<'co, 'ro, 'env>(
 	builder
 		// CppNix looks up `<nix/...>` in its built-in files after the search path.
 		.corepkgs_dir(Some(store::COREPKGS_DIR.into()))
-		.add_builtins(derivation::derivation_builtins::builtins(Rc::clone(&store)))
+		.add_builtins(derivation::derivation_builtins::builtins(Rc::new(
+			derivation::DerivationState {
+				store: Rc::clone(&store),
+				ca_derivations,
+				impure_derivations,
+			},
+		)))
 		.add_builtins(import::import_builtins::builtins(Rc::clone(&store)))
 		.add_builtins(
 			fetch::builtins::fetch_builtins::builtins(store)

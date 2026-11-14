@@ -125,7 +125,13 @@ fn populate_inputs(
 	Ok(())
 }
 
-#[builtins(state = "Rc<ReadOnlyStore>")]
+pub(crate) struct DerivationState {
+	pub store: Rc<ReadOnlyStore>,
+	pub ca_derivations: bool,
+	pub impure_derivations: bool,
+}
+
+#[builtins(state = "Rc<DerivationState>")]
 pub(crate) mod derivation_builtins {
 	use super::*;
 	use noxi_eval::generators::Gen;
@@ -146,7 +152,7 @@ pub(crate) mod derivation_builtins {
 	/// call `builtins.derivation`, which wraps this.
 	#[builtin("derivationStrict")]
 	async fn builtin_derivation_strict(
-		state: Rc<ReadOnlyStore>,
+		state: Rc<DerivationState>,
 		co: GenCo,
 		input: Value,
 	) -> Result<Value, ErrorKind> {
@@ -290,6 +296,16 @@ pub(crate) mod derivation_builtins {
 			match arg_name {
 				"__contentAddressed" | "__impure" => {
 					if value.as_bool()? {
+						let (feature, enabled) = if arg_name == "__contentAddressed" {
+							("ca-derivations", state.ca_derivations)
+						} else {
+							("impure-derivations", state.impure_derivations)
+						};
+						if !enabled {
+							return Err(ErrorKind::EvalError(format!(
+								"experimental Nix feature '{feature}' is disabled; add '--extra-experimental-features {feature}' to enable it"
+							)));
+						}
 						return Err(ErrorKind::NotImplemented(
 							"content-addressed or impure derivation construction",
 						));
@@ -503,13 +519,14 @@ pub(crate) mod derivation_builtins {
 		}
 
 		state
+			.store
 			.load_context(&input_context)
 			.map_err(|error| ErrorKind::IO {
 				path: None,
 				error: Rc::new(error),
 			})?;
-		let mut known_paths = state.known_paths();
-		populate_inputs(&mut drv, input_context, &known_paths, &state)?;
+		let mut known_paths = state.store.known_paths();
+		populate_inputs(&mut drv, input_context, &known_paths, &state.store)?;
 
 		if drv.command.is_empty() {
 			return Err(ErrorKind::EvalError(
@@ -553,6 +570,7 @@ pub(crate) mod derivation_builtins {
 		));
 
 		state
+			.store
 			.register_derivation(&drv)
 			.map_err(|error| ErrorKind::IO {
 				path: Some(drv_path.into()),

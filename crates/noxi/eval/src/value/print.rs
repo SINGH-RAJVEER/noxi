@@ -23,9 +23,18 @@ use crate::opcode::CodeIdx;
 /// Displays a value as `nix-instantiate --eval` prints it.
 pub struct Ambiguous<'a>(pub &'a Value);
 
+impl Ambiguous<'_> {
+	/// Render Nix strings and attribute names without replacing non-UTF-8 bytes.
+	pub fn to_bytes(&self) -> Vec<u8> {
+		let mut out = Vec::new();
+		print(self.0, None, &mut out, &mut Some(FxHashSet::default()));
+		out
+	}
+}
+
 impl Display for Ambiguous<'_> {
 	fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-		print(self.0, None, f, &mut Some(FxHashSet::default()))
+		f.write_str(&String::from_utf8_lossy(&self.to_bytes()))
 	}
 }
 
@@ -35,16 +44,18 @@ pub struct AmbiguousUnshared<'a>(pub &'a Value);
 
 impl Display for AmbiguousUnshared<'_> {
 	fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-		print(self.0, None, f, &mut None)
+		let mut out = Vec::new();
+		print(self.0, None, &mut out, &mut None);
+		f.write_str(&String::from_utf8_lossy(&out))
 	}
 }
 
 fn print(
 	value: &Value,
 	cell: Option<*const ()>,
-	f: &mut Formatter<'_>,
+	out: &mut Vec<u8>,
 	seen: &mut Option<FxHashSet<*const ()>>,
-) -> fmt::Result {
+) {
 	match value {
 		Value::Attrs(attrs) => {
 			if !attrs.is_empty()
@@ -52,37 +63,45 @@ fn print(
 					.as_mut()
 					.is_some_and(|seen| !seen.insert(attrs.as_ptr()))
 			{
-				return f.write_str("«repeated»");
+				out.extend_from_slice("«repeated»".as_bytes());
+				return;
 			}
-			f.write_str("{ ")?;
+			out.extend_from_slice(b"{ ");
 			for (name, value) in attrs.iter_sorted() {
-				write!(f, "{} = ", name.ident_str())?;
-				print(value, None, f, seen)?;
-				f.write_str("; ")?;
+				attribute_name(out, name.as_bytes());
+				out.extend_from_slice(b" = ");
+				print(value, None, out, seen);
+				out.extend_from_slice(b"; ");
 			}
-			f.write_str("}")
+			out.push(b'}');
 		}
 		Value::List(list) => {
 			if !list.is_empty()
 				&& let (Some(cell), Some(seen)) = (cell, seen.as_mut())
 				&& !seen.insert(cell)
 			{
-				return f.write_str("«repeated»");
+				out.extend_from_slice("«repeated»".as_bytes());
+				return;
 			}
-			f.write_str("[ ")?;
+			out.extend_from_slice(b"[ ");
 			for value in list {
-				print(value, None, f, seen)?;
-				f.write_str(" ")?;
+				print(value, None, out, seen);
+				out.push(b' ');
 			}
-			f.write_str("]")
+			out.push(b']');
 		}
 		Value::Thunk(thunk) => match &*thunk.0.borrow() {
-			ThunkRepr::Evaluated(value) => print(value, Some(thunk.as_ptr()), f, seen),
-			ThunkRepr::Blackhole { .. } => f.write_str("«potential infinite recursion»"),
-			ThunkRepr::Suspended { .. } | ThunkRepr::Native { .. } => f.write_str("<CODE>"),
+			ThunkRepr::Evaluated(value) => print(value, Some(thunk.as_ptr()), out, seen),
+			ThunkRepr::Blackhole { .. } => {
+				out.extend_from_slice("«potential infinite recursion»".as_bytes())
+			}
+			ThunkRepr::Suspended { .. } | ThunkRepr::Native { .. } => {
+				out.extend_from_slice(b"<CODE>")
+			}
 		},
-		Value::Float(num) => total_fmt_float(*num, f),
-		value => write!(f, "{value}"),
+		Value::String(string) => literal_string(out, string.as_bytes(), usize::MAX),
+		Value::Path(path) => out.extend_from_slice(path.as_os_str().as_encoded_bytes()),
+		value => out.extend_from_slice(format!("{value}").as_bytes()),
 	}
 }
 
