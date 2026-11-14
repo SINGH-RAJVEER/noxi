@@ -4,6 +4,10 @@ Changes to each crate in this workspace, grouped by crate and version, newest fi
 
 Changes that have not reached a version yet go under an `Unreleased` heading for that crate.
 
+## noxi 0.0.4 - 2026-11-14, pending publication
+
+Publishes the crates whose 0.0.3 publication failed (`noxi-compat` and `noxi-eval` and `noxi-store` at 0.0.4; `noxi-build`, `noxi-commands`, `noxi-daemon` and `noxi-glue` at 0.0.3) together with `noxi-flake` 0.0.3, `noxi-serde` 0.0.3, `noxi-system` 0.0.2, `noxi-cli` 0.0.3 and the new `noxi-events` 0.0.1. The 0.0.3 publication failed because the published `noxi-flake` 0.0.2 still required `noxi-glue` 0.0.2 and `noxi-store` 0.0.3, so verifying `noxi-commands` resolved two copies of the evaluator. `noxi-flake` now has its own version instead of the workspace version, and `noxi-serde` moves to 0.0.3 because its published 0.0.2 requires `noxi-eval` 0.0.3. The release carries the language compatibility work that matches all 466 active copied language fixtures, the rustc-style `noxi system` output, and `noxi explain`.
+
 ## noxi 0.0.3 - 2026-11-12
 
 Release of the whole workspace. The seven previously published crates move to 0.0.3; `noxi-serde`, `noxi-glue`, `noxi-build`, `noxi-flake`, `noxi-daemon`, `noxi-commands` and `noxi-cli` are published for the first time under the `noxi-` names at 0.0.2; the new `noxi-system` crate is published at 0.0.1. The release carries the native `noxi flake update`, `noxi system` and `noxi snapshot` commands, the profile, `nix-env`, flake and channel compatibility work since 0.0.2, and the dependency bumps that tie each crate to the versions released together. Per-crate entries remain under `Unreleased` until they are split by version.
@@ -62,6 +66,13 @@ The workspace is being published under the `noxi-` names. `noxi-hash`, `noxi-eva
 ### Unreleased
 
 - New crate behind the native `noxi flake`, `noxi system` and `noxi snapshot` commands. `noxi flake update|lock` runs the shared lock algorithm in-process and reports changed, added and removed inputs; `noxi system build|test|boot|switch|dry-activate|rollback` evaluates and builds a NixOS toplevel through the in-process compatibility implementation, registers the system profile generation as `nix-env --set` does, runs `switch-to-configuration`, and reports built closure, running generation and boot default separately; `noxi snapshot list|show|diff|rollback` keeps a per-rebuild journal of source revision, lock copy, closure, generations and outcome under the state directory, and rolls back to a recorded generation with optional lock restoration. Offline integration tests use diverted profiles, activation programs and journal directories; no VM qualification yet (2026-11-12).
+- `noxi system` prints cargo-style status verbs for each phase and a closing `Finished`, `Failed` or `Stopped` line with the elapsed time, and reports a failure as one rustc-style diagnostic with a stable code, notes for the phase and the resulting system state, and help. Color follows the terminal, `NO_COLOR`, `CLICOLOR_FORCE` and `TERM`. The `--json` output and the stdout report are unchanged (2026-11-14).
+
+## noxi-events
+
+### Unreleased
+
+- New crate for structured operation events and their terminal rendering: a versioned event type with an emitter, null, recording, JSON and fan-out sinks and secret redaction; whole-line splitting of each activity's output; cargo-style status lines with the rustc palette; diagnostics rendered through `annotate-snippets`; and a table of stable diagnostic codes (2026-11-14).
 
 ## nix-rs-cli
 
@@ -70,6 +81,7 @@ The `nixrs` preview command. It evaluates pure Nix expressions and does not own 
 ### Unreleased
 
 - The `noxi` binary dispatches `flake`, `system` and `snapshot` to `noxi-system` and drops its own mimalloc declaration, which `noxi-commands` now supplies through that dependency (2026-11-12).
+- `noxi explain CODE` prints the summary and explanation of a diagnostic code (2026-11-14).
 
 ### 0.1.1 - 2026-10-01
 

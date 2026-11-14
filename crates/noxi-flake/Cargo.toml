@@ -1,6 +1,6 @@
 [package]
 name = "noxi-flake"
-version.workspace = true
+version = "0.0.3"
 rust-version.workspace = true
 edition = "2024"
 description = "Flake graph and operation library for noxi"

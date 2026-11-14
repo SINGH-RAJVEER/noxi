@@ -57,7 +57,7 @@ noxi-eval = { path = "../noxi/eval", version = "0.0.4", default-features = false
 noxi-build = { path = "../noxi-build", version = "0.0.3" }
 noxi-daemon = { path = "../noxi-daemon", version = "0.0.3" }
 noxi-flakeref = { path = "../noxi-flakeref", version = "0.0.3" }
-noxi-flake = { path = "../noxi-flake", version = "0.0.2" }
+noxi-flake = { path = "../noxi-flake", version = "0.0.3" }
 noxi-glue = { path = "../noxi-glue", version = "0.0.3" }
 noxi-store = { path = "../noxi-store", version = "0.0.4" }
 regex.workspace = true
