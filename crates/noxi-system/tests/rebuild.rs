@@ -177,21 +177,23 @@ fn returns(closure: &Path) -> (impl Builder + 'static, Rc<RefCell<Vec<BuildReque
 	(builder, seen)
 }
 
-/// The order phase lines appear in standard error.
+/// The verbs of the status lines in standard error, in order.
 fn phases(err: &str) -> Vec<&str> {
 	err.lines()
-		.filter_map(|line| line.split_once(": ").map(|(phase, _)| phase))
-		.filter(|phase| {
+		.filter(|line| line.starts_with(' '))
+		.filter_map(|line| line.split_whitespace().next())
+		.filter(|verb| {
 			[
-				"resolve",
-				"update",
-				"evaluate",
-				"build",
-				"prepare activation",
-				"activate",
-				"verify",
+				"Resolved",
+				"Updated",
+				"Evaluating",
+				"Built",
+				"Skipped",
+				"Preparing",
+				"Activating",
+				"Verified",
 			]
-			.contains(phase)
+			.contains(verb)
 		})
 		.collect()
 }
@@ -221,17 +223,11 @@ fn build_links_the_result_without_activating() {
 	assert_eq!(f.log(), "");
 	assert_eq!(
 		phases(&run.err),
-		[
-			"resolve",
-			"evaluate",
-			"build",
-			"prepare activation",
-			"activate",
-			"verify"
-		]
+		["Resolved", "Evaluating", "Built", "Skipped", "Verified"]
 	);
 	assert!(
-		run.err.contains("activate: no activation occurred"),
+		run.err
+			.contains("Skipped activation; build stops after realization"),
 		"{}",
 		run.err
 	);
@@ -272,12 +268,12 @@ fn switch_creates_a_generation_and_activates_it() {
 	assert_eq!(
 		phases(&run.err),
 		[
-			"resolve",
-			"evaluate",
-			"build",
-			"prepare activation",
-			"activate",
-			"verify"
+			"Resolved",
+			"Evaluating",
+			"Built",
+			"Preparing",
+			"Activating",
+			"Verified"
 		]
 	);
 	assert!(run.out.contains(&format!(
@@ -374,20 +370,19 @@ fn failed_activation_reports_the_phase_and_the_state() {
 	let error = run
 		.err
 		.lines()
-		.find(|line| line.starts_with("error: "))
+		.find(|line| line.starts_with("error["))
 		.unwrap();
-	assert!(error.starts_with("error: activate: "), "{error}");
+	assert!(error.starts_with("error[A0003]: "), "{error}");
 	assert!(
-		error.contains("the profile now points at generation 2 (boot default changed)"),
-		"{error}"
-	);
-	assert!(
-		error.contains("the running system link is unchanged"),
-		"{error}"
+		run.err.contains(
+			"= note: the profile now points at generation 2 (boot default changed); the running system link is unchanged"
+		),
+		"{}",
+		run.err
 	);
 	assert!(
 		run.err
-			.contains("hint: inspect the activation output above")
+			.contains("= help: inspect the activation output above")
 	);
 	assert!(run.out.contains("outcome: failed in phase activate"));
 	assert!(run.out.contains("running system: unchanged"));
@@ -408,11 +403,14 @@ fn failed_build_changes_nothing() {
 	assert_eq!(run.code, ExitCode::FAILURE);
 	assert!(
 		run.err
-			.contains("error: build: builder for 'x.drv' failed; the profile and boot default are unchanged; the running system link is unchanged"),
+			.contains("error[B0001]: builder for 'x.drv' failed\n")
+			&& run.err.contains(
+				"= note: the profile and boot default are unchanged; the running system link is unchanged"
+			),
 		"{}",
 		run.err
 	);
-	assert_eq!(phases(&run.err), ["resolve", "evaluate"]);
+	assert_eq!(phases(&run.err), ["Resolved", "Evaluating"]);
 	assert_eq!(f.generations(), (vec![1], Some(1)));
 	assert_eq!(f.log(), "");
 	assert!(run.out.contains("closure: none"));
@@ -430,10 +428,7 @@ fn a_closure_without_an_activation_program_is_refused_after_begin() {
 	let (builder, _) = returns(&empty);
 	let run = f.rebuild(&["switch"], builder);
 	assert_eq!(run.code, ExitCode::FAILURE);
-	assert!(
-		run.err
-			.contains("error: prepare activation: activation program")
-	);
+	assert!(run.err.contains("error[A0002]: activation program"));
 	assert_eq!(f.generations(), (vec![1], Some(1)));
 	let record = f.journal().latest().unwrap().unwrap();
 	assert_eq!(record.outcome.status, Status::NotApplied);
@@ -467,7 +462,7 @@ fn unprivileged_runs_without_diversion_are_refused_up_front() {
 			"{}",
 			run.err
 		);
-		assert!(run.err.contains("hint: run 'noxi system"), "{}", run.err);
+		assert!(run.err.contains("= help: run 'noxi system"), "{}", run.err);
 		assert!(run.out.contains("system state: not read"), "{}", run.out);
 	}
 	assert!(!f.path("snapshots").exists());
@@ -570,7 +565,7 @@ fn rollback_selects_previous_or_named_generations() {
 	let run = f.rollback(&["--to", "9"]);
 	assert_eq!(run.code, ExitCode::FAILURE);
 	assert!(
-		run.err.contains("error: resolve: generation 9"),
+		run.err.contains("error[A0005]: generation 9"),
 		"{}",
 		run.err
 	);
@@ -589,7 +584,7 @@ fn rollback_with_one_generation_fails_clearly() {
 	let run = f.rollback(&[]);
 	assert_eq!(run.code, ExitCode::FAILURE);
 	assert!(
-		run.err.contains("error: resolve: profile \"")
+		run.err.contains("error[A0005]: profile \"")
 			&& run
 				.err
 				.contains("has no generation older than the current one (1)"),

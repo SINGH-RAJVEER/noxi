@@ -24,6 +24,9 @@ use std::process::{Command, ExitCode, Stdio};
 use nix_compat::nixcpp::settings::Settings;
 use nix_compat::store_path::StorePath;
 use noxi_commands::cli::Failure;
+use noxi_events::codes;
+use noxi_events::status::timed;
+use noxi_events::{Diagnostic, Styling, Tone, status};
 use noxi_store::{DerivedPath, profiles};
 use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
@@ -174,6 +177,9 @@ pub struct RebuildOptions {
 	/// reference has no fragment.
 	pub hostname: Option<String>,
 	pub builder: Box<dyn Builder>,
+	/// How standard error is rendered; plain unless [`main`] detects a
+	/// terminal.
+	pub styling: Styling,
 }
 
 /// Options for `noxi system rollback`.
@@ -189,6 +195,7 @@ pub struct RollbackRequest {
 	pub journal: Journal,
 	pub json: bool,
 	pub euid: u32,
+	pub styling: Styling,
 }
 
 /// A parsed command line.
@@ -311,6 +318,7 @@ pub fn parse(
 			journal,
 			json,
 			euid: effective_uid(),
+			styling: Styling::PLAIN,
 		}));
 	}
 	let source = match (flake, file, attribute) {
@@ -346,6 +354,7 @@ pub fn parse(
 		euid: effective_uid(),
 		hostname: snapshot::host_name(),
 		builder: Box::new(CompatBuilder),
+		styling: Styling::PLAIN,
 	})))
 }
 
@@ -624,11 +633,22 @@ struct Report {
 	hint: Option<String>,
 	rollback: Option<String>,
 	notes: Vec<String>,
+	/// The diagnostic code, when the phase alone does not determine it.
+	code: Option<&'static str>,
+	/// How a failure left the profile and running system, also appended
+	/// to the outcome message.
+	impact: Option<String>,
+	styling: Styling,
+	started: std::time::Instant,
 }
 
 impl Report {
-	fn new(action: Action, profile: &Path, current_system: &Path) -> Self {
+	fn new(action: Action, profile: &Path, current_system: &Path, styling: Styling) -> Self {
 		Report {
+			code: None,
+			impact: None,
+			styling,
+			started: std::time::Instant::now(),
 			action,
 			source: None,
 			lock: None,
@@ -768,8 +788,70 @@ fn label(phase: Phase) -> &'static str {
 	}
 }
 
-fn phase_line(err: &mut dyn Write, phase: Phase, text: impl AsRef<str>) {
-	let _ = writeln!(err, "{}: {}", label(phase), text.as_ref());
+/// One cargo-style status line on standard error.
+fn phase_line(err: &mut dyn Write, styling: &Styling, verb: &str, text: impl AsRef<str>) {
+	let _ = status(err, styling, verb, Tone::Progress, text.as_ref());
+}
+
+/// A one-line `warning:` or `note:` on standard error.
+fn notice(err: &mut dyn Write, styling: &Styling, warning: bool, text: &str) {
+	let (style, label) = if warning {
+		(noxi_events::style::WARNING, "warning")
+	} else {
+		(noxi_events::style::NOTE, "note")
+	};
+	let _ = writeln!(err, "{}: {text}", styling.paint(style, label));
+}
+
+/// The diagnostic code for a failure in `phase` when the run did not
+/// record a more specific one.
+fn phase_code(action: Action, phase: Phase) -> &'static str {
+	match phase {
+		Phase::Resolve if action == Action::Rollback => codes::ROLLBACK_TARGET,
+		Phase::Resolve => codes::RESOLVE_SOURCE,
+		Phase::Update => codes::UPDATE_INPUTS,
+		Phase::Evaluate => codes::EVALUATION,
+		Phase::Build => codes::BUILD,
+		Phase::PrepareActivation => codes::PREPARE_ACTIVATION,
+		Phase::Activate => codes::ACTIVATION_FAILED,
+		Phase::Verify => codes::VERIFY,
+	}
+}
+
+/// The failure as one rustc-style diagnostic: the cause as the title, the
+/// phase and the state left behind as notes, and the hint as help.
+fn failure_diagnostic(report: &Report) -> Diagnostic {
+	let message = report
+		.outcome
+		.message
+		.as_deref()
+		.unwrap_or("the operation did not complete");
+	let title = report
+		.impact
+		.as_deref()
+		.and_then(|impact| message.strip_suffix(&format!("; {impact}")))
+		.unwrap_or(message);
+	let code = report.code.or_else(|| {
+		report
+			.outcome
+			.phase
+			.map(|phase| phase_code(report.action, phase))
+	});
+	let mut diagnostic = Diagnostic::error(code, title);
+	if let Some(phase) = report.outcome.phase {
+		diagnostic = diagnostic.note(format!(
+			"`noxi system {}` stopped in the {} phase",
+			report.action,
+			label(phase)
+		));
+	}
+	if let Some(impact) = &report.impact {
+		diagnostic = diagnostic.note(impact.clone());
+	}
+	if let Some(hint) = &report.hint {
+		diagnostic = diagnostic.help(hint.clone());
+	}
+	diagnostic
 }
 
 fn sha256_hex(bytes: &[u8]) -> String {
@@ -857,21 +939,31 @@ fn rollback_hint(
 	None
 }
 
-/// Print the error block, if any, and the final report; return the exit
-/// status.
+/// Print the diagnostic, if any, the closing status line and the final
+/// report; return the exit status.
 fn conclude(report: &Report, out: &mut dyn Write, err: &mut dyn Write, json: bool) -> ExitCode {
+	let styling = &report.styling;
 	let failed = report.outcome.status != Status::Success;
+	let elapsed = report.started.elapsed();
+	let action = report.action.to_string();
 	if failed {
-		let phase = report.outcome.phase.map_or("", label);
-		let message = report
-			.outcome
-			.message
-			.as_deref()
-			.unwrap_or("the operation did not complete");
-		let _ = writeln!(err, "error: {phase}: {message}");
-		if let Some(hint) = &report.hint {
-			let _ = writeln!(err, "hint: {hint}");
-		}
+		let _ = err.write_all(failure_diagnostic(report).render(styling).as_bytes());
+		let verb = if report.outcome.status == Status::NotApplied {
+			"Stopped"
+		} else {
+			"Failed"
+		};
+		let _ = timed(err, styling, verb, Tone::Failure, &action, "after", elapsed);
+	} else {
+		let _ = timed(
+			err,
+			styling,
+			"Finished",
+			Tone::Progress,
+			&action,
+			"in",
+			elapsed,
+		);
 	}
 	let written = if json {
 		writeln!(out, "{}", report.json())
@@ -879,7 +971,11 @@ fn conclude(report: &Report, out: &mut dyn Write, err: &mut dyn Write, json: boo
 		report.write_text(out)
 	};
 	if let Err(e) = written {
-		let _ = writeln!(err, "error: verify: cannot print the final report: {e}");
+		let diagnostic = Diagnostic::error(
+			Some(codes::VERIFY),
+			format!("cannot print the final report: {e}"),
+		);
+		let _ = err.write_all(diagnostic.render(styling).as_bytes());
 		return ExitCode::FAILURE;
 	}
 	if failed {
@@ -1042,7 +1138,12 @@ fn resolve(source: &SourceChoice, hostname: Option<&str>) -> Result<Resolved, St
 /// Run one `noxi system ACTION`.
 pub fn rebuild(options: RebuildOptions, out: &mut dyn Write, err: &mut dyn Write) -> ExitCode {
 	let action = options.action;
-	let mut report = Report::new(action, &options.profile, &options.current_system);
+	let mut report = Report::new(
+		action,
+		&options.profile,
+		&options.current_system,
+		options.styling,
+	);
 	let default_profile = options.profile == Path::new(DEFAULT_PROFILE);
 	if action == Action::Rollback {
 		report.outcome = Outcome::not_applied(None, "use noxi system rollback");
@@ -1058,6 +1159,7 @@ pub fn rebuild(options: RebuildOptions, out: &mut dyn Write, err: &mut dyn Write
 	) {
 		report.outcome = Outcome::not_applied(Some(Phase::PrepareActivation), message);
 		report.hint = Some(format!("run 'noxi system {action}' as root"));
+		report.code = Some(codes::ACTIVATION_REFUSED);
 		report.snapshot_note = Some("refused before recording".to_owned());
 		return conclude(&report, out, err, options.json);
 	}
@@ -1123,7 +1225,8 @@ pub fn rebuild(options: RebuildOptions, out: &mut dyn Write, err: &mut dyn Write
 	};
 	phase_line(
 		err,
-		Phase::Resolve,
+		&options.styling,
+		"Resolved",
 		format!(
 			"{action} {} {}#{}, {lock_text}, {revision_text}",
 			resolved.kind.as_str(),
@@ -1138,7 +1241,12 @@ pub fn rebuild(options: RebuildOptions, out: &mut dyn Write, err: &mut dyn Write
 	let journal = match open_journal(&options.journal) {
 		None => {
 			report.snapshot_note = Some("--no-snapshot".to_owned());
-			let _ = writeln!(err, "note: --no-snapshot: no snapshot record is written");
+			notice(
+				err,
+				&options.styling,
+				false,
+				"--no-snapshot: no snapshot record is written",
+			);
 			None
 		}
 		Some(Ok(journal)) => Some(journal),
@@ -1168,9 +1276,13 @@ pub fn rebuild(options: RebuildOptions, out: &mut dyn Write, err: &mut dyn Write
 	if let Some(message) = &journal_error {
 		report.snapshot_note = Some("the journal could not be written".to_owned());
 		if !mutating {
-			let _ = writeln!(
+			notice(
 				err,
-				"warning: cannot write the snapshot journal: {message}; continuing without a record"
+				&options.styling,
+				true,
+				&format!(
+					"cannot write the snapshot journal: {message}; continuing without a record"
+				),
 			);
 		}
 	}
@@ -1190,6 +1302,7 @@ pub fn rebuild(options: RebuildOptions, out: &mut dyn Write, err: &mut dyn Write
 		&& let (Some(before), Some(after)) = (&report.before, &report.after)
 	{
 		let impact = impact(before, after);
+		report.impact = Some(impact.clone());
 		let message = report.outcome.message.take().unwrap_or_default();
 		report.outcome.message = Some(format!("{message}; {impact}"));
 	}
@@ -1216,7 +1329,12 @@ pub fn rebuild(options: RebuildOptions, out: &mut dyn Write, err: &mut dyn Write
 			}
 			Err(e) => {
 				report.snapshot_note = Some("the record could not be finished".to_owned());
-				let _ = writeln!(err, "warning: cannot finish the snapshot record: {e}");
+				notice(
+					err,
+					&options.styling,
+					true,
+					&format!("cannot finish the snapshot record: {e}"),
+				);
 			}
 		}
 	}
@@ -1261,14 +1379,17 @@ fn run_phases(
 				} else {
 					format!("{}: no changes", update.lock_path.display())
 				};
-				phase_line(err, Phase::Update, summary);
+				let mut summary = summary;
 				if update.rewritten {
+					// The input changes, aligned under the summary.
 					let mut text = Vec::new();
 					let _ = flake::write_report(&update, &mut text);
 					for line in String::from_utf8_lossy(&text).lines().skip(1) {
-						let _ = writeln!(err, "  {line}");
+						summary.push('\n');
+						summary.push_str(line);
 					}
 				}
+				phase_line(err, &options.styling, "Updated", summary);
 			}
 			Err(e) => {
 				report.hint = Some("fix the input reference or rebuild without --update; nothing was built or activated".to_owned());
@@ -1280,7 +1401,8 @@ fn run_phases(
 	// Evaluate and build.
 	phase_line(
 		err,
-		Phase::Evaluate,
+		&options.styling,
+		"Evaluating",
 		format!("{} of {}", resolved.attribute, resolved.source),
 	);
 	let temp = if action == Action::Build {
@@ -1290,6 +1412,7 @@ fn run_phases(
 			Ok(dir) => Some(dir),
 			Err(e) => {
 				report.hint = Some("check TMPDIR; nothing was built or activated".to_owned());
+				report.code = Some(codes::BUILD_RESULT);
 				return Outcome::failed(
 					Phase::Build,
 					format!("cannot create a temporary directory for the build result: {e}"),
@@ -1327,7 +1450,12 @@ fn run_phases(
 		}
 	};
 	report.closure = Some(closure.clone());
-	phase_line(err, Phase::Build, closure.display().to_string());
+	phase_line(
+		err,
+		&options.styling,
+		"Built",
+		closure.display().to_string(),
+	);
 
 	if action == Action::Build {
 		// An injected builder may not have created the out-link.
@@ -1337,6 +1465,7 @@ fn run_phases(
 			}
 			if let Err(e) = std::os::unix::fs::symlink(&closure, &link) {
 				report.hint = Some("remove the existing file or pass --out-link".to_owned());
+				report.code = Some(codes::BUILD_RESULT);
 				return Outcome::failed(
 					Phase::Build,
 					format!("cannot create out-link \"{}\": {e}", link.display()),
@@ -1346,14 +1475,19 @@ fn run_phases(
 		report.out_link = Some(link);
 		phase_line(
 			err,
-			Phase::PrepareActivation,
-			"skipped; build stops after realization",
+			&options.styling,
+			"Skipped",
+			"activation; build stops after realization, so no activation occurred",
 		);
-		phase_line(err, Phase::Activate, "no activation occurred");
 		report
 			.notes
 			.push("build stops after realization; no activation occurred".to_owned());
-		phase_line(err, Phase::Verify, "profile and running system untouched");
+		phase_line(
+			err,
+			&options.styling,
+			"Verified",
+			"profile and running system untouched",
+		);
 		return Outcome::success(Some(format!("built {}", closure.display())));
 	}
 
@@ -1397,7 +1531,8 @@ fn run_phases(
 		let (number, exists) = proposed_generation(&options.profile, &closure);
 		phase_line(
 			err,
-			Phase::PrepareActivation,
+			&options.styling,
+			"Preparing",
 			format!(
 				"{action}: profile {} at {current} -> generation {number}{}, running {running}",
 				options.profile.display(),
@@ -1411,7 +1546,8 @@ fn run_phases(
 	} else {
 		phase_line(
 			err,
-			Phase::PrepareActivation,
+			&options.styling,
+			"Preparing",
 			format!(
 				"{action}: profile {} stays at {current}, running {running}",
 				options.profile.display()
@@ -1422,7 +1558,8 @@ fn run_phases(
 	// Activate.
 	phase_line(
 		err,
-		Phase::Activate,
+		&options.styling,
+		"Activating",
 		format!("running {} {action}", program.display()),
 	);
 	let mut command = Command::new(&program);
@@ -1464,7 +1601,8 @@ fn run_phases(
 	let changed = |a: bool| if a { "changed" } else { "unchanged" };
 	phase_line(
 		err,
-		Phase::Verify,
+		&options.styling,
+		"Verified",
 		format!(
 			"running system {}, boot default {}",
 			changed(before.running != after.running),
@@ -1538,7 +1676,7 @@ pub fn rollback(request: RollbackRequest, out: &mut dyn Write, err: &mut dyn Wri
 	let action = Action::Rollback;
 	let profile = request.profile.clone();
 	let default_profile = profile == Path::new(DEFAULT_PROFILE);
-	let mut report = Report::new(action, &profile, &request.current_system);
+	let mut report = Report::new(action, &profile, &request.current_system, request.styling);
 	if let Some(message) = refusal(
 		action,
 		request.euid,
@@ -1547,6 +1685,7 @@ pub fn rollback(request: RollbackRequest, out: &mut dyn Write, err: &mut dyn Wri
 	) {
 		report.outcome = Outcome::not_applied(Some(Phase::PrepareActivation), message);
 		report.hint = Some("run 'noxi system rollback' as root".to_owned());
+		report.code = Some(codes::ACTIVATION_REFUSED);
 		report.snapshot_note = Some("refused before recording".to_owned());
 		return conclude(&report, out, err, request.json);
 	}
@@ -1626,7 +1765,12 @@ pub fn rollback(request: RollbackRequest, out: &mut dyn Write, err: &mut dyn Wri
 	let journal = match journal {
 		None => {
 			report.snapshot_note = Some("--no-snapshot".to_owned());
-			let _ = writeln!(err, "note: --no-snapshot: no snapshot record is written");
+			notice(
+				err,
+				&request.styling,
+				false,
+				"--no-snapshot: no snapshot record is written",
+			);
 			None
 		}
 		Some(Ok(journal)) => Some(journal),
@@ -1657,7 +1801,8 @@ pub fn rollback(request: RollbackRequest, out: &mut dyn Write, err: &mut dyn Wri
 	});
 	phase_line(
 		err,
-		Phase::Resolve,
+		&request.styling,
+		"Resolved",
 		format!(
 			"rollback profile {} from {} to generation {number} ({}){}",
 			profile.display(),
@@ -1709,6 +1854,7 @@ pub fn rollback(request: RollbackRequest, out: &mut dyn Write, err: &mut dyn Wri
 		&& let (Some(before), Some(after)) = (&report.before, &report.after)
 	{
 		let impact = impact(before, after);
+		report.impact = Some(impact.clone());
 		let message = report.outcome.message.take().unwrap_or_default();
 		report.outcome.message = Some(format!("{message}; {impact}"));
 	}
@@ -1779,7 +1925,8 @@ fn rollback_phases(
 	}
 	phase_line(
 		err,
-		Phase::PrepareActivation,
+		&request.styling,
+		"Preparing",
 		format!(
 			"switching profile {} to generation {number}",
 			request.profile.display()
@@ -1795,7 +1942,8 @@ fn rollback_phases(
 	}
 	phase_line(
 		err,
-		Phase::Activate,
+		&request.styling,
+		"Activating",
 		format!("running {} switch", program.display()),
 	);
 	let mut command = Command::new(&program);
@@ -1827,7 +1975,8 @@ fn rollback_phases(
 	let after = observe(&request.profile, &request.current_system);
 	phase_line(
 		err,
-		Phase::Verify,
+		&request.styling,
+		"Verified",
 		format!(
 			"running system {}, boot default {}",
 			if before.running != after.running {
@@ -1896,7 +2045,15 @@ pub fn main(args: Vec<String>) -> ExitCode {
 	match parse(args, &|name| std::env::var(name).ok()) {
 		// Unlocked handles: the build thread writes to standard error
 		// while this one waits for it.
-		Ok(invocation) => execute(invocation, &mut io::stdout(), &mut io::stderr()),
+		Ok(mut invocation) => {
+			let styling = Styling::for_stderr();
+			match &mut invocation {
+				Invocation::Rebuild(options) => options.styling = styling,
+				Invocation::Rollback(request) => request.styling = styling,
+				Invocation::Help => {}
+			}
+			execute(invocation, &mut io::stdout(), &mut io::stderr())
+		}
 		Err(message) => crate::usage(&format!("error: {message}\n{USAGE}")),
 	}
 }

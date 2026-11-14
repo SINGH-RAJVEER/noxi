@@ -14,6 +14,7 @@ noxi-eval = { path = "../noxi/eval", version = "0.0.4", default-features = false
 noxi-flake = { path = "../noxi-flake", version = "0.0.2" }
 noxi-flakeref = { path = "../noxi-flakeref", version = "0.0.3" }
 noxi-glue = { path = "../noxi-glue", version = "0.0.3" }
+noxi-events = { path = "../noxi-events", version = "0.0.1" }
 noxi-store = { path = "../noxi-store", version = "0.0.4" }
 serde_json.workspace = true
 libc.workspace = true

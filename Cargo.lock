@@ -1755,6 +1755,7 @@ dependencies = [
  "noxi-commands",
  "noxi-compat",
  "noxi-eval",
+ "noxi-events",
  "noxi-flake",
  "noxi-flakeref",
  "noxi-glue",

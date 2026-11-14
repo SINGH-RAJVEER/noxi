@@ -185,7 +185,7 @@ fn flake_build_with_update_realizes_the_host_toplevel_in_process() {
 		link.to_str().unwrap(),
 	]);
 	assert_eq!(code, ExitCode::SUCCESS, "{err}");
-	assert!(err.contains("update: created "), "{err}");
+	assert!(err.contains("Updated created "), "{err}");
 	let closure = assert_toplevel(root, &link);
 	let value: serde_json::Value = serde_json::from_str(&out).unwrap();
 	assert_eq!(value["closure"], closure.to_str().unwrap());

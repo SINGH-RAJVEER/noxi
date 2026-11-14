@@ -54,17 +54,33 @@ These are the exact differences:
 
 ## Phases and the final report
 
-Phase lines go to standard error, one line per phase, in the order given in [docs/logging.md](logging.md#rebuild-phases-and-visible-progress):
+Status lines go to standard error in the cargo style: a verb right-aligned to 12 columns, then what it applies to. They come in the phase order given in [docs/logging.md](logging.md#rebuild-phases-and-visible-progress):
 
-| Phase | Line |
+```text
+    Resolved switch flake /etc/nixos#nixosConfigurations."host".config.system.build.toplevel, lock /etc/nixos/flake.lock sha256 ..., revision 3f9a1c2
+     Updated /etc/nixos/flake.lock: 1 input changed, 0 unchanged
+             changed  nixpkgs  ...
+  Evaluating nixosConfigurations."host".config.system.build.toplevel of /etc/nixos
+       Built /nix/store/...-nixos-system-host-25.11
+   Preparing switch: profile /nix/var/nix/profiles/system at generation 118 -> generation 119, running /nix/store/...
+  Activating running /nix/store/.../bin/switch-to-configuration switch
+    Verified running system changed, boot default changed
+    Finished switch in 2m 14s
+```
+
+| Verb | Line |
 |---|---|
-| `resolve` | The action, the source kind, the reference and attribute, the lock path with its sha256 (or "not present yet"), and the source revision |
-| `update` | Only with `--update`. The lock path and the change counts, followed by the change report indented by two spaces. |
-| `evaluate` | The attribute and source being evaluated |
-| `build` | The realized toplevel path |
-| `prepare activation` | The profile, its current generation, the proposed generation (for `switch` and `boot`) and the running system. For `build`, this says the phase is skipped. |
-| `activate` | The activation program and action that are running. For `build`, "no activation occurred". |
-| `verify` | Whether the running system and the boot default changed |
+| `Resolved` | The action, the source kind, the reference and attribute, the lock path with its sha256 (or "not present yet"), and the source revision |
+| `Updated` | Only with `--update`. The lock path and the change counts, followed by the change report aligned under it |
+| `Evaluating` | The attribute and source being evaluated |
+| `Built` | The realized toplevel path |
+| `Preparing` | The profile, its current generation, the proposed generation (for `switch` and `boot`) and the running system |
+| `Skipped` | `build` only, in place of preparing and activating: no activation occurred |
+| `Activating` | The activation program and action that are running |
+| `Verified` | Whether the running system and the boot default changed |
+| `Finished`, `Failed`, `Stopped` | The action and its elapsed time. `Stopped` means the run ended before changing anything. |
+
+On a terminal the verbs are bold green, and red for `Failed` and `Stopped`. Color follows [the palette in docs/logging.md](logging.md#terminal-palette), and is off when standard error is not a terminal, when `NO_COLOR` is set, or when `TERM` is `dumb`. `CLICOLOR_FORCE` turns it on. `COLUMNS` overrides the detected width.
 
 The compatibility implementation's own output, such as "this derivation will be built", and the activation program's output appear between these lines. There are no percentages and no spinners. Notes such as `note: --no-snapshot ...` and warnings such as `warning: cannot write the snapshot journal ...` are separate lines.
 
@@ -99,24 +115,33 @@ After activation, the run fails in the `verify` phase if one of these checks doe
 
 ## Failures
 
-An error prints one block on standard error:
+An error prints one rustc-style diagnostic on standard error, followed by the `Failed` or `Stopped` status line:
 
+```text
+error[A0003]: "/nix/store/.../bin/switch-to-configuration switch" exit status: 4; activation may have applied part of its changes
+ |
+ = note: `noxi system switch` stopped in the activate phase
+ = note: the profile now points at generation 119 (boot default changed); the running system link is unchanged
+ = help: inspect the activation output above; `noxi system rollback` returns the profile to the previous generation
+      Failed switch after 41.20s
 ```
-error: PHASE: what failed; the profile ... (boot default changed|unchanged); the running system link is changed|unchanged
-hint: one next step
-```
 
-The state sentence is written after the profile and running-system links are read again. If `switch-to-configuration` exits non-zero after `switch` or `boot` moved the profile, the error says that the profile now points at the new generation, and whether the running-system link changed. Activation may have applied some of its changes, and the error says so. The hint names `noxi system rollback`.
+The title is the cause. The first note names the phase. The second note is the state sentence, written after the profile and running-system links are read again. If `switch-to-configuration` exits non-zero after `switch` or `boot` moved the profile, it says that the profile now points at the new generation, and whether the running-system link changed. Activation may have applied some of its changes, and the title says so. The help names `noxi system rollback`.
 
-| Phase | Typical cause |
-|---|---|
-| `resolve` | A missing flake directory or `flake.nix`, a missing file, `--update` with a non-local flake, or for rollback a missing or already current generation or a profile with only one generation |
-| `update` | The lock operation failed |
-| `evaluate` | The `--file` expression failed to evaluate, or did not produce exactly one derivation |
-| `build` | Realization failed. In flake mode, evaluation and build run as one `nix build` call, so an evaluation error there is also reported as `build`. |
-| `prepare activation` | The root check refused the run, the snapshot journal is unwritable (for `test`, `boot`, `switch`, `rollback`), the activation program is missing, or the profile could not be switched |
-| `activate` | The activation program exited non-zero or could not be started |
-| `verify` | A verification check failed, or a mutating run's snapshot record could not be finished |
+`noxi explain CODE` prints what a code means and what to do about it. The `--json` outcome message and the snapshot record keep the cause and the state sentence joined by `; `.
+
+| Code | Phase | Typical cause |
+|---|---|---|
+| `R0001` | `resolve` | A missing flake directory or `flake.nix`, a missing file, or `--update` with a non-local flake |
+| `A0005` | `resolve` | For rollback, a missing or already current generation, or a profile with only one generation |
+| `R0002` | `update` | The lock operation failed |
+| `E0001` | `evaluate` | The `--file` expression failed to evaluate, or did not produce exactly one derivation |
+| `B0001` | `build` | Realization failed. In flake mode, evaluation and build run as one `nix build` call, so an evaluation error there is also reported as `build`. |
+| `B0002` | `build` | The temporary directory or the out-link could not be created |
+| `A0001` | `prepare activation` | The root check refused the run |
+| `A0002` | `prepare activation` | The snapshot journal is unwritable (for `test`, `boot`, `switch`, `rollback`), the activation program is missing, or the profile could not be switched |
+| `A0003` | `activate` | The activation program exited non-zero or could not be started |
+| `A0004` | `verify` | A verification check failed, or a mutating run's snapshot record could not be finished |
 
 ## JSON output
 
@@ -252,5 +277,5 @@ The following are not verified, or not implemented:
 - Activation does not run under `systemd-run`.
 - The `nixos-version` sanity check is not performed.
 - In flake mode, an evaluation failure is reported as phase `build`.
-- The output is not the structured event stream of [docs/logging.md](logging.md#structured-event-contract). Phase lines are plain text, and there is no in-place terminal status area.
+- The output is not yet produced from the structured event stream of [docs/logging.md](logging.md#structured-event-contract). Status lines and diagnostics use its renderer, but there is no in-place terminal status area, no per-build lanes, and build failures are still described by the compatibility implementation's own output above the diagnostic.
 - Stale-preview rejection and serialization against competing activations, beyond the profile lock held while the generation is created, are not implemented.
