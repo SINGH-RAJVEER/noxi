@@ -63,23 +63,82 @@ Final results distinguish completed, failed, unreachable, blocked, and not-start
 
 The full log must record every relevant subprocess line with its producer and timestamp. Store it under a documented retention policy and print its location at failure. Verbose and debug modes may show raw output live, but normal mode shows only a bounded excerpt with enough context to identify the failure. A missing full log is itself an error to report.
 
-## Example diagnostic shape
+## Status lines
+
+Progress uses cargo's shape: a verb right-aligned to 12 columns, then what it applies to. Multi-line text continues aligned under the first line. Every operation ends with `Finished ACTION in TIME`, `Failed ACTION after TIME`, or `Stopped ACTION after TIME` (ended before changing anything). Durations read as `340ms`, `2.81s`, `1m 42s` or `1h 03m`, and sizes use binary units (`412.0 MiB`).
 
 ```text
-error[NR-EVAL-OPTION]: unknown option services.openssh.enabel
-  --> /etc/nixos/configuration.nix:42:3
-   |
-42 |   services.openssh.enabel = true;
-   |   ^^^^^^^^^^^^^^^^^^^^^^^
-   = evaluation stopped before any build or system change
-   = did you mean services.openssh.enable?
-
-running generation: 118 (unchanged)
-boot default:       118 (unchanged)
-full log:           noxi logs <operation-id>
+   Resolving flake /etc/nixos#host (lock 3f9a1c2)
+  Evaluating nixos-system-host-25.11 (2.8s)
+ Substituted 214 paths from cache.nixos.org (412.0 MiB in 31s)
+    Building openssl-3.4.1, nginx-1.27.3 [2/5]
+    Finished nixos-system-host-25.11 in 2m 14s
 ```
 
-This is a target for diagnostic structure, not a claim that the current evaluator can produce it. A build failure should use the same shape but name the derivation and failing builder step. An activation failure must state whether the boot default moved and which services changed before the failure. Never replace that information with an opaque traceback or a thousand lines of dependency output.
+## Terminal palette
+
+Colors follow rustc and cargo, so their meanings are already familiar. No other colors are used, and nothing sets a background.
+
+| Element | Style |
+|---|---|
+| `error` and error codes, primary underline of an error | bold bright red |
+| `warning` | bold bright yellow |
+| `note` | bold bright green |
+| `help` | bold bright cyan |
+| Gutters, `-->`, `\|`, line numbers, secondary underlines | bold bright blue |
+| Status verbs | bold green; bold red for `Failed`, `Stopped` and `Cancelled`; bold yellow for work that finished with warnings |
+| Package and artifact names | bold |
+| Store hashes, paths and timings | dim |
+| Per-build line prefixes when output cannot be redrawn | a stable color from a hash of the build name, from cyan, magenta, blue, green, bright magenta and bright cyan; never red or yellow |
+
+Color is on when the stream is a terminal. `NO_COLOR` (any non-empty value) or `TERM=dumb` turns it off, and `CLICOLOR_FORCE` (non-empty, not `0`) turns it on even when redirected. `COLUMNS` overrides the detected width, and rendering assumes at least 40 columns.
+
+## Diagnostic codes
+
+Every diagnostic has a stable code: a letter for the area and four digits. `R` is resolving and updating sources, `E` evaluation, `F` fetching, `S` substitution, `B` building, `A` activation and verification, and `D` the daemon. A published code never changes meaning, and a retired code stays reserved. `noxi explain CODE` prints the summary and explanation. The table lives in `crates/noxi-events/src/codes.rs`.
+
+## Per-build output streams
+
+Builds that run in parallel never share a stream. Every activity has an id, and all of its output is split into whole lines before it is rendered or logged. Two builds can therefore never interleave within a line. On a terminal, each running build will get its own live lane. When output cannot be redrawn, each line is prefixed with its build in that build's color, and `--group-logs` will print each build as one contiguous block when it finishes. Each build's full output is also written to its own log file under the operation's directory.
+
+## Example diagnostic shape
+
+Diagnostics are rendered by `annotate-snippets`, the renderer rustc uses.
+
+```text
+error[E0001]: undefined variable 'pkgz'
+ --> /etc/nixos/configuration.nix:3:34
+  |
+1 | { pkgs, ... }:
+  |   ---- did you mean this argument?
+2 | {
+3 |   environment.systemPackages = [ pkgz.git ];
+  |                                  ^^^^ not defined here
+  |
+  = note: evaluation stopped before any build or system change
+help: a variable with a similar name exists
+  |
+3 -   environment.systemPackages = [ pkgz.git ];
+3 +   environment.systemPackages = [ pkgs.git ];
+  |
+```
+
+A build failure names the derivation and the step it failed in, and shows an excerpt of its log with the failing lines underlined:
+
+```text
+error[B0001]: build of `openssl-3.4.1` failed in buildPhase
+    --> /nix/var/log/noxi/ops/1/builds/openssl-3.4.1.log:4411:1
+     |
+4410 | CC crypto/evp/e_aes.o
+4411 | crypto/evp/e_aes.c:812:5: error: implicit declaration of function 'foo'
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+     |
+     = note: builder exited with status 2 after 1m 42s
+     = note: required by `nginx-1.27.3` -> `nixos-system-host-25.11`
+     = help: see the full log with `noxi logs openssl-3.4.1`
+```
+
+The renderer produces both shapes today. `noxi system` reports its failures with it. Mapping evaluator errors and build failures from the engine into these shapes is still open. An activation failure must state whether the boot default moved and which services changed before the failure. Never replace that information with an opaque traceback or a thousand lines of dependency output.
 
 ## Acceptance tests
 
