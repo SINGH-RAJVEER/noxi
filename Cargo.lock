@@ -1462,6 +1462,7 @@ name = "noxi-cli"
 version = "0.0.2"
 dependencies = [
  "noxi-eval",
+ "noxi-events",
  "noxi-system",
  "tempfile",
 ]

@@ -126,3 +126,23 @@ fn rejects_unimplemented_commands() {
 	assert_eq!(output.status.code(), Some(2));
 	assert!(output.stderr.starts_with(b"usage:"));
 }
+
+#[test]
+fn explains_diagnostic_codes() {
+	let output = Command::new(env!("CARGO_BIN_EXE_noxi"))
+		.args(["explain", "b0001"])
+		.output()
+		.expect("run noxi");
+	assert!(output.status.success());
+	assert!(
+		output
+			.stdout
+			.starts_with(b"B0001: a derivation failed to build\n\n")
+	);
+	let output = Command::new(env!("CARGO_BIN_EXE_noxi"))
+		.args(["explain", "X9999"])
+		.output()
+		.expect("run noxi");
+	assert_eq!(output.status.code(), Some(1));
+	assert_eq!(output.stderr, b"error: no diagnostic code 'X9999'\n");
+}

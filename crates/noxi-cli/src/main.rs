@@ -12,6 +12,7 @@ fn main() -> ExitCode {
 		Some("flake") => return noxi_system::flake::main(native.collect()),
 		Some("system") => return noxi_system::rebuild::main(native.collect()),
 		Some("snapshot") => return noxi_system::snapshot::main(native.collect()),
+		Some("explain") => return explain(native.collect()),
 		_ => {}
 	}
 	let mut args = env::args().skip(1);
@@ -35,7 +36,7 @@ fn main() -> ExitCode {
 		}
 		_ => {
 			eprintln!(
-				"usage: noxi eval --expr EXPRESSION\n       noxi eval --file PATH\n       noxi flake update|lock ...\n       noxi system build|test|boot|switch|dry-activate|rollback ...\n       noxi snapshot list|show|rollback ...\n       noxi --version"
+				"usage: noxi eval --expr EXPRESSION\n       noxi eval --file PATH\n       noxi flake update|lock ...\n       noxi system build|test|boot|switch|dry-activate|rollback ...\n       noxi snapshot list|show|rollback ...\n       noxi explain CODE\n       noxi --version"
 			);
 			ExitCode::from(2)
 		}
@@ -61,6 +62,24 @@ fn evaluate(expression: &str, location: Option<PathBuf>) -> ExitCode {
 		}
 		None => {
 			eprintln!("error: evaluation produced no value");
+			ExitCode::FAILURE
+		}
+	}
+}
+
+/// `noxi explain CODE`: the documentation of a diagnostic code.
+fn explain(args: Vec<String>) -> ExitCode {
+	let [id] = args.as_slice() else {
+		eprintln!("usage: noxi explain CODE");
+		return ExitCode::from(2);
+	};
+	match noxi_events::codes::lookup(id) {
+		Some(code) => {
+			println!("{}: {}\n\n{}", code.id, code.summary, code.explanation);
+			ExitCode::SUCCESS
+		}
+		None => {
+			eprintln!("error: no diagnostic code '{id}'");
 			ExitCode::FAILURE
 		}
 	}
