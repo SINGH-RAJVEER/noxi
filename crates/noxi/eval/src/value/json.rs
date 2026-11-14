@@ -254,6 +254,27 @@ impl Value {
 							}
 						}
 						Value::Catchable(error) => return Err(ErrorKind::CatchableError(*error)),
+						Value::Closure(closure) => {
+							let error = ErrorKind::NotSerialisableToJson("lambda");
+							return Err(match closure.lambda.span {
+								Some(span) => ErrorKind::PositionedAt {
+									span,
+									underlying: Box::new(error),
+								},
+								None => error,
+							});
+						}
+						Value::Builtin(builtin) => {
+							return Err(ErrorKind::EvalError(format!(
+								"cannot convert the {}built-in function '{}' to JSON",
+								if builtin.has_partials() {
+									"partially applied "
+								} else {
+									""
+								},
+								builtin.name()
+							)));
+						}
 						value => return Err(ErrorKind::NotSerialisableToJson(value.type_of())),
 					};
 					results.0.push(json);

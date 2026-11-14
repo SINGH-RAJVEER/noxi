@@ -134,7 +134,7 @@ gap tests/functional/ca/build-delete.sh # : error: feature not yet implemented i
 gap tests/functional/ca/build-with-garbage-path.sh # main in build-with-garbage-path.sh:10: error: feature not yet implemented in noxi: content-addressed or impure derivation construction
 gap tests/functional/ca/build.sh # main in build.sh:5: error: feature not yet implemented in noxi: content-addressed or impure derivation construction
 pass:upstream_functional tests/functional/ca/concurrent-builds.sh
-gap tests/functional/ca/derivation-advanced-attributes.sh # source in derivation-advanced-attributes.sh:24: error: don't know how to open Nix store with scheme '$ROOT/tmp/nix-test/ca/derivation-advanced-attributes/store'
+pass:upstream_functional tests/functional/ca/derivation-advanced-attributes.sh
 gap tests/functional/ca/derivation-json.sh # main in derivation-json.sh:7: error: feature not yet implemented in noxi: content-addressed or impure derivation construction
 anomaly tests/functional/ca/duplicate-realisation-in-closure.sh # reference skip: temporarily broken because dependent realisations are removed, skipping this test...
 gap tests/functional/ca/eval-store.sh # source in eval-store.sh:14: error: nix build --eval-store is not supported by noxi yet
@@ -189,7 +189,7 @@ pass:upstream_functional tests/functional/fetchGitRefs.sh
 gap tests/functional/fetchGitShallow.sh # main in fetchGitShallow.sh:33: error: '$ROOT/tmp/nix-test/main/fetchGitShallow/shallow-clone' is a shallow Git repository, so 'revCount' is not available
 pass:upstream_functional tests/functional/fetchGitSubmodules.sh
 gap tests/functional/fetchGitVerification.sh # main in fetchGitVerification.sh:31: error: verified fetches are not implemented == *No principal matched\.* ]]
-anomaly tests/functional/fetchMercurial.sh # reference skip: Mercurial not installed, skipping this test...
+pass:upstream_functional tests/functional/fetchMercurial.sh
 pass:upstream_functional tests/functional/fetchPath.sh
 pass:upstream_functional tests/functional/fetchTree-file.sh
 gap tests/functional/fetchurl.sh # main in fetchurl.sh:10: error: unsupported builtin builder 'fetchurl'
@@ -215,7 +215,7 @@ gap tests/functional/flakes/follow-paths.sh # main in follow-paths.sh:133: fooba
 gap tests/functional/flakes/get-flake.sh # main in get-flake.sh:26: error: cannot call 'getFlake' on unlocked flake reference '$ROOT/tmp/nix-test/flakes/get-flake/store/HASH-source', at (none) (use --impure to override)
 pass:upstream_functional tests/functional/flakes/init.sh
 pass:upstream_functional tests/functional/flakes/inputs.sh
-anomaly tests/functional/flakes/mercurial.sh # reference skip: Mercurial not installed, skipping this test...
+pass:upstream_functional tests/functional/flakes/mercurial.sh
 gap tests/functional/flakes/non-flake-inputs.sh # main in non-flake-inputs.sh:80: error: nix build --commit-lock-file is not supported by noxi yet
 pass:upstream_functional tests/functional/flakes/old-lockfiles.sh
 gap tests/functional/flakes/prefetch.sh # main in prefetch.sh:6: error: failed to read entire block

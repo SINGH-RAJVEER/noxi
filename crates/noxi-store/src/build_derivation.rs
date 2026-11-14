@@ -14,6 +14,118 @@ pub struct FloatingOutput {
 	pub hash_algo: HashAlgo,
 }
 
+/// The additional content-address methods used in experimental declarations.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum ExperimentalMethod {
+	Flat,
+	NixArchive,
+	Text,
+	Git,
+}
+
+impl ExperimentalMethod {
+	pub fn parse(name: &str) -> Result<Self> {
+		match name {
+			"flat" => Ok(Self::Flat),
+			"nar" | "recursive" => Ok(Self::NixArchive),
+			"text" => Ok(Self::Text),
+			"git" => Ok(Self::Git),
+			_ => Err(invalid()),
+		}
+	}
+
+	/// CppNix StoreDirConfig::makeFixedOutputPathFromCA, with no references.
+	pub fn fixed_path(
+		self,
+		name: &str,
+		hash: &nix_compat::nixhash::NixHash,
+	) -> Result<nix_compat::store_path::StorePath> {
+		use nix_compat::{
+			nixhash::{NixHash, Sha256},
+			store_path,
+		};
+		match self {
+			Self::Text => {
+				let NixHash::Sha256(hash) = hash else {
+					return Err(Error::Other("text-hashed outputs require SHA-256".into()));
+				};
+				store_path::build_text_path_from_content_digest(name, *hash, [])
+					.map(|path| path.to_owned())
+					.map_err(|e| Error::Other(e.to_string()))
+			}
+			Self::Git => {
+				if !matches!(hash.algo(), HashAlgo::Sha1 | HashAlgo::Sha256) {
+					return Err(Error::Other(format!(
+						"Git file ingestion must use SHA-1 or SHA-256 hash, but instead using: {}",
+						hash.algo().as_str()
+					)));
+				}
+				let inner = Sha256::digest_bytes(
+					format!("fixed:out:git:{}:", hash.as_nix_lowerhex_string_fmt()).as_bytes(),
+				);
+				let fingerprint = Sha256::digest_bytes(
+					format!(
+						"output:out:sha256:{inner:x}:{}:{name}",
+						store_path::store_dir()
+					)
+					.as_bytes(),
+				);
+				store_path::StorePath::from_name_and_digest(
+					name,
+					&store_path::compress_hash::<20>(&fingerprint),
+				)
+				.map_err(|e| Error::Other(e.to_string()))
+			}
+			Self::Flat | Self::NixArchive => {
+				store_path::build_ca_path(name, self == Self::NixArchive, hash, [], false)
+					.map(|path| path.to_owned())
+					.map_err(|e| Error::Other(e.to_string()))
+			}
+		}
+	}
+
+	fn prefix(self) -> &'static str {
+		match self {
+			Self::Flat => "",
+			Self::NixArchive => "r:",
+			Self::Text => "text:",
+			Self::Git => "git:",
+		}
+	}
+}
+
+#[derive(Clone, Copy, Debug, Default)]
+pub struct OutputFeatures {
+	pub ca_derivations: bool,
+	pub impure_derivations: bool,
+	pub dynamic_derivations: bool,
+	pub git_hashing: bool,
+}
+
+fn require_feature(enabled: bool, name: &str, reason: &str) -> Result<()> {
+	if enabled {
+		Ok(())
+	} else {
+		Err(Error::Other(format!(
+			"experimental Nix feature '{name}' is disabled{reason}; add '--extra-experimental-features {name}' to enable it"
+		)))
+	}
+}
+
+/// Output declarations that can be constructed and registered before their
+/// build implementation is available. Their method and impurity are retained
+/// exactly in ATerm instead of treating them as ordinary deferred outputs.
+#[derive(Clone, Debug)]
+pub struct ExperimentalOutput {
+	pub method: ExperimentalMethod,
+	pub hash_algo: HashAlgo,
+	pub impure: bool,
+	pub fixed: Option<(
+		nix_compat::store_path::StorePath,
+		nix_compat::nixhash::NixHash,
+	)>,
+}
+
 /// `basic` retains deferred output names; `floating` supplies their hash
 /// methods. Use `to_aterm_bytes`, rather than serializing `basic`, to retain
 /// the floating output declarations.
@@ -21,6 +133,7 @@ pub struct FloatingOutput {
 pub struct BuildDerivation {
 	pub basic: UnverifiedDerivation,
 	pub floating: BTreeMap<String, FloatingOutput>,
+	pub experimental: BTreeMap<String, ExperimentalOutput>,
 }
 
 fn invalid() -> Error {
@@ -58,6 +171,16 @@ fn string(input: &mut &[u8]) -> Result<Vec<u8>> {
 
 impl BuildDerivation {
 	pub fn from_aterm_bytes(bytes: &[u8], ca_derivations: bool) -> Result<Self> {
+		Self::from_aterm_bytes_with_features(
+			bytes,
+			OutputFeatures {
+				ca_derivations,
+				..OutputFeatures::default()
+			},
+		)
+	}
+
+	pub fn from_aterm_bytes_with_features(bytes: &[u8], features: OutputFeatures) -> Result<Self> {
 		// Read just the output tuples, preserving the remainder for the
 		// shared parser. Floating methods are represented separately, never
 		// silently interpreted as input-addressed or fixed outputs.
@@ -65,6 +188,7 @@ impl BuildDerivation {
 		take(&mut rest, b"Derive([")?;
 		let mut normalised = b"Derive([".to_vec();
 		let mut floating = BTreeMap::new();
+		let mut experimental = BTreeMap::new();
 		let mut ordinary = false;
 		let mut first = true;
 		while !rest.starts_with(b"]") {
@@ -84,21 +208,66 @@ impl BuildDerivation {
 			take(&mut rest, b",")?;
 			let hash = string(&mut rest)?;
 			take(&mut rest, b")")?;
-			if path.is_empty() && !algo.is_empty() && hash.is_empty() {
-				if !ca_derivations {
-					return Err(Error::Other("experimental Nix feature 'ca-derivations' is disabled; add '--extra-experimental-features ca-derivations' to enable it".to_owned()));
-				}
+			if (!algo.is_empty() && path.is_empty() && (hash.is_empty() || hash == b"impure"))
+				|| (algo.starts_with(b"text:") || algo.starts_with(b"git:")) && !hash.is_empty()
+			{
 				let algo = std::str::from_utf8(&algo).map_err(|_| invalid())?;
 				let (method, algo) = if let Some(algo) = algo.strip_prefix("r:") {
-					(FileIngestionMethod::NixArchive, algo)
+					("nar", algo)
+				} else if let Some(algo) = algo.strip_prefix("text:") {
+					("text", algo)
+				} else if let Some(algo) = algo.strip_prefix("git:") {
+					("git", algo)
 				} else {
-					(FileIngestionMethod::Flat, algo)
+					("flat", algo)
 				};
+				if method == "git" {
+					require_feature(features.git_hashing, "git-hashing", "")?;
+				}
+				if method == "text" {
+					require_feature(
+						features.dynamic_derivations,
+						"dynamic-derivations",
+						" (text-hashed derivation output)",
+					)?;
+				}
 				let hash_algo = algo.parse().map_err(|e| Error::Other(format!("{e}")))?;
+				if hash == b"impure" {
+					require_feature(features.impure_derivations, "impure-derivations", "")?;
+				} else if hash.is_empty() {
+					require_feature(features.ca_derivations, "ca-derivations", "")?;
+				}
+				let fixed = if !path.is_empty() && !hash.is_empty() {
+					Some((
+						nix_compat::store_path::StorePath::from_absolute_path(&path)
+							.map_err(|_| invalid())?,
+						nix_compat::nixhash::NixHash::from_str(
+							std::str::from_utf8(&hash).map_err(|_| invalid())?,
+							Some(hash_algo),
+						)
+						.map_err(|_| invalid())?,
+					))
+				} else {
+					None
+				};
 				let name = String::from_utf8(name).map_err(|_| invalid())?;
-				floating
-					.entry(name)
-					.or_insert(FloatingOutput { method, hash_algo });
+				if hash == b"impure" || matches!(method, "text" | "git") {
+					experimental.entry(name).or_insert(ExperimentalOutput {
+						method: ExperimentalMethod::parse(method)?,
+						hash_algo,
+						impure: hash == b"impure",
+						fixed,
+					});
+				} else {
+					floating.entry(name).or_insert(FloatingOutput {
+						method: if method == "nar" {
+							FileIngestionMethod::NixArchive
+						} else {
+							FileIngestionMethod::Flat
+						},
+						hash_algo,
+					});
+				}
 				normalised.extend_from_slice(&start[..start.len() - algo_start.len()]);
 				normalised.extend_from_slice(b"\"\",\"\")");
 			} else {
@@ -106,7 +275,7 @@ impl BuildDerivation {
 				normalised.extend_from_slice(&start[..start.len() - rest.len()]);
 			}
 		}
-		if ordinary && !floating.is_empty() {
+		if ordinary && (!floating.is_empty() || !experimental.is_empty()) {
 			return Err(Error::Other(
 				"derivation mixes floating and other output types".to_owned(),
 			));
@@ -114,11 +283,37 @@ impl BuildDerivation {
 		normalised.extend_from_slice(rest);
 		let basic = UnverifiedDerivation::from_aterm_bytes(&normalised)
 			.map_err(|e| Error::Other(format!("error parsing derivation: {e:?}")))?;
-		Ok(Self { basic, floating })
+		Ok(Self {
+			basic,
+			floating,
+			experimental,
+		})
+	}
+
+	/// Fixed outputs hide their build provenance from input-addressed parents.
+	pub fn fixed_hash_derivation_modulo(&self) -> Option<nix_compat::derivation::DrvHashModulo> {
+		if self.experimental.is_empty() || !self.floating.is_empty() {
+			return None;
+		}
+		let mut hashes = BTreeMap::new();
+		for (name, output) in &self.experimental {
+			let (path, hash) = output.fixed.as_ref()?;
+			let payload = format!(
+				"fixed:out:{}{}:{}",
+				output.method.prefix(),
+				hash.as_nix_lowerhex_string_fmt(),
+				path.to_absolute_path()
+			);
+			hashes.insert(
+				name.parse().ok()?,
+				nix_compat::nixhash::Sha256::digest_bytes(payload.as_bytes()),
+			);
+		}
+		Some(nix_compat::derivation::DrvHashModulo::Fixed(hashes))
 	}
 
 	pub fn to_aterm_bytes(&self) -> Vec<u8> {
-		if self.floating.is_empty() {
+		if self.floating.is_empty() && self.experimental.is_empty() {
 			return self.basic.to_aterm_bytes();
 		}
 		let bytes = self.basic.to_aterm_bytes();
@@ -141,19 +336,44 @@ impl BuildDerivation {
 				string(&mut rest).unwrap();
 			}
 			take(&mut rest, b")").unwrap();
-			let spec = &self.floating[&name];
-			out.extend_from_slice(&start[..name_end]);
-			out.extend_from_slice(
-				format!(
-					",\"\",\"{}{}\",\"\")",
+			let (prefix, hash_algo, hash, path) = if let Some(spec) = self.experimental.get(&name) {
+				let prefix = spec.method.prefix();
+				let (hash, path) = if let Some((path, hash)) = &spec.fixed {
+					(
+						format!("{}", hash.as_nix_lowerhex_string_fmt())
+							.split_once(':')
+							.unwrap()
+							.1
+							.to_owned(),
+						path.to_absolute_path(),
+					)
+				} else {
+					(
+						if spec.impure {
+							"impure".into()
+						} else {
+							String::new()
+						},
+						String::new(),
+					)
+				};
+				(prefix, spec.hash_algo, hash, path)
+			} else {
+				let spec = &self.floating[&name];
+				(
 					if spec.method == FileIngestionMethod::NixArchive {
 						"r:"
 					} else {
 						""
 					},
-					spec.hash_algo.as_str()
+					spec.hash_algo,
+					String::new(),
+					String::new(),
 				)
-				.as_bytes(),
+			};
+			out.extend_from_slice(&start[..name_end]);
+			out.extend_from_slice(
+				format!(",\"{path}\",\"{prefix}{}\",\"{hash}\")", hash_algo.as_str()).as_bytes(),
 			);
 		}
 		out.extend_from_slice(rest);

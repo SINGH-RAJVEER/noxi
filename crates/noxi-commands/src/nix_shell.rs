@@ -176,7 +176,8 @@ pub fn main(settings: Settings, args: Vec<String>) -> Result<ExitCode, Failure> 
 			"--keep" => value().map(|name| {
 				keep.insert(name);
 			}),
-			"--check" | "--repair" | "--help" => {
+			"--help" => crate::cli::show_man_page_or_exit("nix-shell"),
+			"--check" | "--repair" => {
 				unsupported = Some(flag.to_owned());
 				Ok(())
 			}

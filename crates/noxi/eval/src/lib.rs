@@ -71,7 +71,7 @@ use smol_str::SmolStr;
 
 pub use crate::value::{
 	Ambiguous, AmbiguousUnshared, Builtin, CoercionKind, NixAttrs, NixList, NixString,
-	PrintOptions, Value, ValuePrinter,
+	PrintOptions, Value, ValuePrinter, canon_path,
 };
 
 pub(crate) const REPL_LOCATION: &str = "[code]";
@@ -149,6 +149,9 @@ where
 				mut builtins,
 				src_builtins,
 			}) => {
+				if self.pure_eval {
+					builtins.retain(|(name, _)| !matches!(*name, "currentSystem" | "currentTime"));
+				}
 				// Insert a storeDir builtin *iff* a store directory is present.
 				if let Some(store_dir) = self.io_handle.as_ref().store_dir() {
 					builtins.push(("storeDir", store_dir.into()));
@@ -456,9 +459,10 @@ impl EvaluationBuilder<'_, '_, '_, Box<dyn EvalIO>> {
 	pub fn enable_impure(mut self, io: Option<Box<dyn EvalIO>>) -> Self {
 		self.io_handle = io.unwrap_or_else(|| Box::new(StdIO) as Box<dyn EvalIO>);
 		self.enable_import = true;
+		let features = self.experimental_features.clone();
 		self.builtins_mut()
 			.builtins
-			.extend(builtins::impure_builtins());
+			.extend(builtins::impure_builtins_with_features(features));
 
 		// Make `NIX_PATH` resolutions work by default, unless the
 		// user already overrode this with something else.

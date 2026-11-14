@@ -53,8 +53,10 @@ pub struct Options {
 	pub read_write_mode: bool,
 	pub strict: bool,
 	pub json: bool,
-	/// `--xml`; the last of `--json` and `--xml` wins, as in CppNix.
+	/// `--xml`; the last of `--raw`, `--json` and `--xml` wins, as in CppNix.
 	pub xml: bool,
+	/// `--raw`: print the result coerced to a string, without a newline.
+	pub raw: bool,
 	/// `--no-location`: omit source positions from XML output.
 	pub no_location: bool,
 	/// Settings from the configuration files and the command line.
@@ -79,6 +81,16 @@ pub struct Options {
 	/// the inputs themselves are hidden driver code and only these fragments
 	/// are shown as `«string»` sources, as `nix repl` shows each line.
 	pub fragments: Vec<String>,
+	/// The inputs are generated driver code even without fragments, as a
+	/// modern command's `--file` installable is.
+	pub generated: bool,
+}
+
+impl Options {
+	/// Whether the inputs are driver code rather than `«string»` sources.
+	fn generated_inputs(&self) -> bool {
+		self.generated || !self.fragments.is_empty()
+	}
 }
 
 /// Parse the command line after the program name, applying settings flags
@@ -149,13 +161,20 @@ pub fn parse_args_with(
 					.map_err(|error| error.to_string())?;
 			}
 			"--strict" => options.strict = true,
+			"--raw" => {
+				options.raw = true;
+				options.json = false;
+				options.xml = false;
+			}
 			"--json" => {
 				options.json = true;
 				options.xml = false;
+				options.raw = false;
 			}
 			"--xml" => {
 				options.xml = true;
 				options.json = false;
+				options.raw = false;
 			}
 			"--no-location" => options.no_location = true,
 			"-I" | "--include" => options.include.push(value(&mut args, &arg)?),
@@ -174,7 +193,44 @@ pub fn parse_args_with(
 				} else {
 					AutoArg::Str(text)
 				};
+				// `MixEvalArgs`: the last value given for a name wins.
+				options.auto_args.retain(|(existing, _)| *existing != name);
 				options.auto_args.push((name, auto_arg));
+			}
+			"--arg-from-file" | "--arg-from-stdin" => {
+				let arity = if arg == "--arg-from-file" { 2 } else { 1 };
+				let missing = || {
+					format!(
+						"flag '{arg}' requires {arity} argument{}",
+						if arity > 1 { "s" } else { "" }
+					)
+				};
+				let name = args.next().ok_or_else(missing)?;
+				let contents = if arg == "--arg-from-file" {
+					let path = args.next().ok_or_else(missing)?;
+					let path = absolute_path(
+						&std::env::current_dir().map_err(|error| error.to_string())?,
+						Path::new(&path),
+					);
+					std::fs::read(&path).map_err(|error| {
+						format!(
+							"opening file \"{}\": {}",
+							path.display(),
+							crate::nix::hash::strerror(&error)
+						)
+					})?
+				} else {
+					let mut contents = Vec::new();
+					io::stdin()
+						.read_to_end(&mut contents)
+						.map_err(|error| error.to_string())?;
+					contents
+				};
+				options.auto_args.retain(|(existing, _)| *existing != name);
+				options.auto_args.push((
+					name,
+					AutoArg::Str(String::from_utf8_lossy(&contents).into_owned()),
+				));
 			}
 			"--" => options.inputs.extend(args.by_ref()),
 			flag if flag.starts_with('-') && flag != "-" => {
@@ -353,8 +409,18 @@ fn root_expression(
 	lints: &crate::instantiate_lints::Lints,
 	sources: &mut Vec<(String, String)>,
 ) -> io::Result<String> {
+	// `-` reads standard input, even with `--expr`.
+	if input == "-" && !options.generated_inputs() {
+		let mut expr = String::new();
+		io::stdin().read_to_string(&mut expr)?;
+		lints
+			.preflight(&expr, "«stdin»", true)
+			.map_err(|error| io::Error::other(error.to_string()))?;
+		sources.push(("«stdin»".into(), expr));
+		return Ok(format!("@@noxi-input-{}@@", sources.len() - 1));
+	}
 	if options.from_args {
-		if !options.fragments.is_empty() {
+		if options.generated_inputs() {
 			let mut code = String::new();
 			let mut rest = input;
 			while let Some(start) = rest.find("@@noxi-frag-") {
@@ -390,15 +456,6 @@ fn root_expression(
 			.preflight(input, "«string»", true)
 			.map_err(|error| io::Error::other(error.to_string()))?;
 		sources.push(("«string»".into(), input.to_owned()));
-		return Ok(format!("@@noxi-input-{}@@", sources.len() - 1));
-	}
-	if input == "-" {
-		let mut expr = String::new();
-		io::stdin().read_to_string(&mut expr)?;
-		lints
-			.preflight(&expr, "«stdin»", true)
-			.map_err(|error| io::Error::other(error.to_string()))?;
-		sources.push(("«stdin»".into(), expr));
 		return Ok(format!("@@noxi-input-{}@@", sources.len() - 1));
 	}
 	if is_lookup_path(input) {
@@ -502,7 +559,11 @@ in __noxi_forceEach [\n",
 				.map_err(|message| io::Error::new(io::ErrorKind::InvalidInput, message))?;
 			let mut selection = root.clone();
 			for part in parts {
-				selection = format!("(__noxi_select {selection} {})", nix_string(&part));
+				selection = format!(
+					"(__noxi_select_step {} {} (__noxi_autoCall {selection}))",
+					nix_string(attr_path),
+					nix_string(&part)
+				);
 			}
 			if !options.auto_args.is_empty() {
 				selection = format!("(__noxi_autoCall {selection})");
@@ -511,6 +572,8 @@ in __noxi_forceEach [\n",
 				selection = format!("(__noxi_forceEach (__noxi_getDerivations {selection}))");
 			} else if options.json {
 				selection = format!("(builtins.toJSON {selection})");
+			} else if options.raw {
+				selection = format!("(__noxi_raw_output \"nix-instantiate\" {selection})");
 			}
 			driver.push_str(&selection);
 			driver.push('\n');
@@ -578,6 +641,97 @@ mod driver_builtins {
 		Ok(path)
 	}
 
+	/// One step of CppNix's `findAlongAttrPath`: select `name` from `value`,
+	/// which the caller has auto-called, reporting failures against the
+	/// whole selection `path`.
+	#[builtin("select_step")]
+	async fn builtin_select_step(
+		co: GenCo,
+		path: Value,
+		name: Value,
+		value: Value,
+	) -> Result<Value, ErrorKind> {
+		let _ = &co;
+		let path = String::from_utf8_lossy(path.to_contextful_str()?.as_bytes()).into_owned();
+		let name = String::from_utf8_lossy(name.to_contextful_str()?.as_bytes()).into_owned();
+		let shown = noxi_eval::diagnostics::show_type(&value);
+		// `string2Int<unsigned int>`: decimal digits that fit.
+		let index = (!name.is_empty() && name.bytes().all(|b| b.is_ascii_digit()))
+			.then(|| name.parse::<u32>().ok())
+			.flatten();
+		match index {
+			None => {
+				let Value::Attrs(attrs) = value else {
+					return Err(ErrorKind::EvalError(format!(
+						"the expression selected by the selection path '{path}' should be a set but is {shown}"
+					)));
+				};
+				if name.is_empty() {
+					return Err(ErrorKind::EvalError(format!(
+						"empty attribute name in selection path '{path}'"
+					)));
+				}
+				if let Some(found) = attrs.select(name.as_str()) {
+					return Ok(found.clone());
+				}
+				let names: Vec<String> = attrs
+					.keys()
+					.map(|key| String::from_utf8_lossy(key.as_bytes()).into_owned())
+					.collect();
+				let suggestions = crate::suggestions::Suggestions::best_matches(
+					names.iter().map(String::as_str),
+					&name,
+				);
+				Err(ErrorKind::EvalError(suggestions.append_to(format!(
+					"attribute '{name}' in selection path '{path}' not found"
+				))))
+			}
+			Some(index) => {
+				let Value::List(list) = value else {
+					return Err(ErrorKind::EvalError(format!(
+						"the expression selected by the selection path '{path}' should be a list but is {shown}"
+					)));
+				};
+				list.get(index as usize).cloned().ok_or_else(|| {
+					ErrorKind::EvalError(format!(
+						"list index {index} in selection path '{path}' is out of range"
+					))
+				})
+			}
+		}
+	}
+
+	/// `coerceToString` of a command's raw output, with the command's
+	/// `while generating the ... output` frame: `"eval"` for `nix eval`,
+	/// anything else for `nix-instantiate`.
+	#[builtin("raw_output")]
+	async fn builtin_raw_output(
+		co: GenCo,
+		command: Value,
+		value: Value,
+	) -> Result<Value, ErrorKind> {
+		use noxi_eval::CoercionKind;
+		let context = if command.to_contextful_str()?.as_bytes() == b"eval" {
+			"while generating the eval command output"
+		} else {
+			"while generating the nix-instantiate output"
+		};
+		match noxi_eval::generators::request_string_coerce_in(
+			&co,
+			value,
+			CoercionKind {
+				strong: false,
+				import_paths: true,
+			},
+			Some(context),
+		)
+		.await
+		{
+			Ok(string) => Ok(Value::String(string)),
+			Err(caught) => Ok(Value::Catchable(Box::new(caught))),
+		}
+	}
+
 	/// `null` for anything but a function with a pattern; otherwise whether
 	/// the pattern has an ellipsis.
 	#[builtin("formals")]
@@ -632,7 +786,7 @@ pub fn evaluate(options: &Options, cwd: &Path) -> Result<Evaluated, ExitCode> {
 		.flat_map(|input| input.split("@@noxi-frag-raw-").skip(1))
 		.filter_map(|rest| rest.split_once("@@").map(|(index, _)| index.to_owned()))
 		.collect();
-	let sources: Vec<&String> = if !options.fragments.is_empty() {
+	let sources: Vec<&String> = if options.generated_inputs() {
 		options
 			.fragments
 			.iter()
@@ -641,7 +795,11 @@ pub fn evaluate(options: &Options, cwd: &Path) -> Result<Evaluated, ExitCode> {
 			.map(|(_, code)| code)
 			.collect()
 	} else if options.from_args {
-		options.inputs.iter().collect()
+		options
+			.inputs
+			.iter()
+			.filter(|input| *input != "-")
+			.collect()
 	} else {
 		Vec::new()
 	};
@@ -689,6 +847,9 @@ pub fn evaluate(options: &Options, cwd: &Path) -> Result<Evaluated, ExitCode> {
 	} else {
 		EvalMode::Lazy
 	};
+	crate::nix::repl::set_max_print_depth(
+		options.settings.get_int("max-call-depth", 10000).max(0) as usize
+	);
 	let builder = Evaluation::builder_pure()
 		.with_source_map(lints.source_map())
 		.experimental_features(options.settings.experimental_features())
@@ -718,6 +879,17 @@ pub fn evaluate(options: &Options, cwd: &Path) -> Result<Evaluated, ExitCode> {
 	let builder = noxi_glue::configure(builder, evaluator_store.clone())
 		.env(Some(&env))
 		.mode(mode);
+	// `EvalSettings::getCurrentSystem`: `eval-system`, else `system`.
+	let current_system = options
+		.settings
+		.get("eval-system")
+		.filter(|system| !system.is_empty())
+		.or_else(|| options.settings.get("system"))
+		.map(str::to_owned);
+	let builder = match current_system {
+		Some(system) => builder.add_builtins([("currentSystem", Value::from(system))]),
+		None => builder,
+	};
 	// The evaluator's own lints (unused bindings, legacy `let`, ...) have no
 	// CppNix equivalent, so this compatibility command does not print them.
 	let result = if options.modern_pure {
@@ -822,11 +994,11 @@ pub fn parse(options: &Options, cwd: &Path, stdout: &mut dyn Write) -> ExitCode 
 		&options.inputs
 	};
 	for input in inputs {
-		let (code, location) = if options.from_args {
-			(Ok(input.clone()), None)
-		} else if input == "-" {
+		let (code, location) = if input == "-" {
 			let mut code = String::new();
 			(io::stdin().read_to_string(&mut code).map(|_| code), None)
+		} else if options.from_args {
+			(Ok(input.clone()), None)
 		} else {
 			let mut path = if is_lookup_path(input) {
 				let lookup = noxi_eval::NixSearchPath::new(
@@ -869,7 +1041,7 @@ pub fn parse(options: &Options, cwd: &Path, stdout: &mut dyn Write) -> ExitCode 
 			.as_ref()
 			.map(|path| path.to_string_lossy().into_owned())
 			.unwrap_or_else(|| {
-				if options.from_args {
+				if options.from_args && input != "-" {
 					"«string»".to_owned()
 				} else {
 					"«stdin»".to_owned()
@@ -888,7 +1060,7 @@ pub fn parse(options: &Options, cwd: &Path, stdout: &mut dyn Write) -> ExitCode 
 			.compile_only(
 				&code,
 				Some(location.clone().unwrap_or_else(|| {
-					PathBuf::from(if options.from_args {
+					PathBuf::from(if options.from_args && input != "-" {
 						"<string>"
 					} else {
 						"<stdin>"
@@ -989,6 +1161,8 @@ pub fn run(options: &Options, cwd: &Path, stdout: &mut dyn Write) -> ExitCode {
 			Value::String(s) if options.json => stdout
 				.write_all(s.as_bytes())
 				.and_then(|()| stdout.write_all(b"\n")),
+			// CppNix prints raw output without a newline.
+			Value::String(s) if options.raw => stdout.write_all(s.as_bytes()),
 			value => stdout
 				.write_all(&Ambiguous(value).to_bytes())
 				.and_then(|()| stdout.write_all(b"\n")),
@@ -1076,11 +1250,13 @@ fn physical_positions(formatted: Vec<u8>) -> Vec<u8> {
 /// Run `nix-instantiate` with the arguments after the program name.
 pub fn main(settings: Settings, args: Vec<String>) -> Result<ExitCode, crate::cli::Failure> {
 	// Like CppNix, `--version` prints as soon as it is read.
-	let mut options = parse_args_with(args, settings, |flag, _| {
-		(flag == "--version").then(|| {
+	let mut options = parse_args_with(args, settings, |flag, _| match flag {
+		"--version" => {
 			println!("nix-instantiate (Nix) 2.35.2");
 			std::process::exit(0)
-		})
+		}
+		"--help" => crate::cli::show_man_page_or_exit("nix-instantiate"),
+		_ => None,
 	})
 	.map_err(crate::cli::Failure::Usage)?;
 	crate::cli::print_setting_warnings(&mut options.settings);
@@ -1152,6 +1328,13 @@ fn evaluator_store(
 	);
 	let mut fetch = noxi_glue::fetch::FetchConfig {
 		pure_eval: options.settings.get_bool("pure-eval", false),
+		restrict_eval: options.settings.get_bool("restrict-eval", false),
+		allowed_uris: options
+			.settings
+			.get_list("allowed-uris", &[])
+			.into_iter()
+			.map(str::to_owned)
+			.collect(),
 		override_flakes: options.override_flakes.clone(),
 		cwd: cwd.to_owned(),
 		..Default::default()

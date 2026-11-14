@@ -159,11 +159,7 @@ pub fn main(mut settings: Settings, args: Vec<String>) -> Result<ExitCode, Failu
 			continue;
 		}
 		match arg.as_str() {
-			"--help" => {
-				return Err(Failure::Error(
-					"nix-env --help is not supported by noxi yet".into(),
-				));
-			}
+			"--help" => return Err(crate::cli::show_man_page("nix-env")),
 			"--version" => op = Some(Operation::Version),
 			"--install" | "-i" => op = Some(Operation::Install),
 			"--force-name" => force_name = Some(value(&mut args)?),

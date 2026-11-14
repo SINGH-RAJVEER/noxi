@@ -12,6 +12,7 @@ pub(crate) mod github;
 pub mod http;
 pub use tarball::{download_file, unpack as unpack_tarball};
 mod lfs;
+pub(crate) mod mercurial;
 pub(crate) mod path;
 pub(crate) mod tarball;
 
@@ -37,6 +38,8 @@ use crate::store::EvaluatorStore;
 pub struct FetchConfig {
 	pub settings: FetchSettings,
 	pub pure_eval: bool,
+	pub restrict_eval: bool,
+	pub allowed_uris: Vec<String>,
 	pub override_flakes: Vec<(String, String)>,
 	pub cwd: PathBuf,
 	pub cache_dir: Option<PathBuf>,
@@ -66,6 +69,42 @@ pub struct FetchState {
 }
 
 impl EvaluatorStore {
+	/// Check the original URI before a fetcher normalizes it, as EvalState does.
+	pub(crate) fn check_fetch_uri(&self, uri: &str) -> std::io::Result<()> {
+		let config = self.fetch_config.borrow();
+		if !config.restrict_eval {
+			return Ok(());
+		}
+		for prefix in &config.allowed_uris {
+			let scheme = prefix.strip_suffix(':').is_some_and(|scheme| {
+				let mut bytes = scheme.bytes();
+				bytes.next().is_some_and(|byte| byte.is_ascii_alphabetic())
+					&& bytes.all(|byte| byte.is_ascii_alphanumeric() || b"+.-".contains(&byte))
+			});
+			if uri == prefix
+				|| (!prefix.is_empty()
+					&& uri.strip_prefix(prefix).is_some_and(|rest| {
+						!rest.is_empty()
+							&& (prefix.ends_with('/') || rest.starts_with('/') || scheme)
+					})) {
+				return Ok(());
+			}
+		}
+		if Path::new(uri).is_absolute() {
+			return self.check_uri_path(Path::new(uri));
+		}
+		if let Ok(parsed) = noxi_flakeref::url::parse_url(uri, false)
+			&& parsed.scheme == "file"
+			&& let Ok(path) = noxi_flakeref::url::url_path_to_path(&parsed.path)
+		{
+			return self.check_uri_path(&path);
+		}
+		Err(std::io::Error::new(
+			std::io::ErrorKind::PermissionDenied,
+			format!("access to URI '{uri}' is forbidden in restricted mode"),
+		))
+	}
+
 	/// A source tree fetched and hashed by this evaluation, including sources copied into a writable store.
 	pub fn is_fetched_source(&self, path: &StorePath) -> bool {
 		self.is_mounted(path)
@@ -321,10 +360,7 @@ fn get_accessor_unchecked(store: &EvaluatorStore, input: &Input) -> Result<(Moun
 			"indirect input '{}' cannot be fetched directly",
 			input.display()
 		))),
-		Scheme::Mercurial => Err(Error::new(format!(
-			"noxi does not support fetching Mercurial input '{}'",
-			input.display()
-		))),
+		Scheme::Mercurial => mercurial::get_accessor(store, input),
 	}
 }
 
@@ -404,6 +440,7 @@ pub(crate) fn mount_input(
 	mount: &Mount,
 ) -> Result<StorePath> {
 	let (path, nar_hash) = add_tree(store, &input.get_name(), mount)?;
+	store.allow_store_path(&path);
 	input
 		.attrs
 		.insert("narHash".into(), Attr::String(nar_hash.to_sri_string()));

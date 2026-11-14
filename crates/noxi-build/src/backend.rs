@@ -205,6 +205,13 @@ impl Store for LocalBackend {
 		self.store.query_derivation_outputs(drv)
 	}
 
+	fn query_partial_derivation_output_map(
+		&self,
+		drv: &StorePath,
+	) -> Result<BTreeMap<String, Option<StorePath>>> {
+		self.store.query_partial_derivation_output_map(drv)
+	}
+
 	fn read_derivation(&self, drv: &StorePath) -> Result<UnverifiedDerivation> {
 		self.store.read_derivation(drv)
 	}

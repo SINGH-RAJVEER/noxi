@@ -6,6 +6,140 @@ use bstr::ByteSlice;
 use crate::errors::ErrorKind;
 use crate::value::{NixAttrs, NixList, NixString, Value};
 
+mod json;
+pub(crate) use json::parse_json;
+
+/// Translate structured TOML parser failures to the pinned toml11 renderer.
+/// Keep the source ranges rather than depending on serde's display wording.
+pub(crate) fn toml_error(input: &str, error: toml::de::Error) -> ErrorKind {
+	let range = error.span().unwrap_or(0..0);
+	let before = &input[..range.start.min(input.len())];
+	let line = before.bytes().filter(|&b| b == b'\n').count() + 1;
+	let line_start = before.rfind('\n').map_or(0, |i| i + 1);
+	let text = input.lines().nth(line - 1).unwrap_or("");
+	let column = range.start - line_start;
+	let point = |message: &str, column: usize| {
+		ErrorKind::FromTomlError(format!(
+			"while parsing TOML: [error] {message}\n --> fromTOML\n   |\n {line} | {text}\n   | {}^-- here\n",
+			" ".repeat(column)
+		))
+	};
+	let message = error.message();
+	if message == "invalid key" {
+		return ErrorKind::FromTomlError(format!(
+			"while parsing TOML: [error] toml::parse_simple_key: invalid key: key must be \"quoted\", 'quoted-literal', or bare key.\n --> fromTOML\n   |\n {line} | {text}\n   | {}^-- expected alpha [a-zA-Z], digit [0-9], -, or _\nHint: non-ASCII scripts are allowed in toml v1.1.0, but not in v1.0.0.\n",
+			" ".repeat(column)
+		));
+	}
+
+	if message.contains("expected `.`") && message.contains("`=`") && !text.contains('=') {
+		return ErrorKind::FromTomlError(format!(
+			"while parsing TOML: [error] toml::parse_key_value_pair: invalid key value separator `=`\n --> fromTOML\n   |\n {line} | {text}\n   | {}^-- expected =\n",
+			" ".repeat(text.len())
+		));
+	}
+	if matches!(
+		message,
+		"number too large to fit in target type" | "number too small to fit in target type"
+	) {
+		let token = text[column..]
+			.split(|c: char| !(c.is_ascii_digit() || c == '-' || c == '+' || c == '_'))
+			.next()
+			.unwrap_or("");
+		return ErrorKind::FromTomlError(format!(
+			"while parsing TOML: [error] toml::parse_dec_integer: too large integer: current max digits = 2^63\n --> fromTOML\n   |\n {line} | {text}\n   | {}^-- must be < 2^63\n",
+			" ".repeat(column + token.len())
+		));
+	}
+	if message.contains("floating-point") || message.contains("float") {
+		return point(
+			"toml::parse_floating: failed to read floating point value from stream",
+			text.len(),
+		);
+	}
+	if let Some(start) = input.find("\\u")
+		&& input
+			.get(start + 2..start + 6)
+			.and_then(|code| u16::from_str_radix(code, 16).ok())
+			.is_some_and(|code| (0xd800..=0xdfff).contains(&code))
+	{
+		return ErrorKind::FromTomlError(format!(
+			"while parsing TOML: [error] toml::parse_utf8_codepoint: [0xD800, 0xDFFF] is not a valid UTF-8\n --> internal temporary\n   |\n 1 | {}\n   |  ^^^^^-- here\n",
+			&input[start..start + 6]
+		));
+	}
+	if message.starts_with("duplicate key") || message.starts_with("invalid table header") {
+		let table = text.trim_start().starts_with('[');
+		let key = text.split('=').next().unwrap_or(text).trim();
+		let root = key
+			.trim_matches(['[', ']'])
+			.split('.')
+			.next()
+			.unwrap_or(key)
+			.trim();
+		let previous = input.lines().take(line - 1).enumerate().find(|(_, old)| {
+			let old = old
+				.split('=')
+				.next()
+				.unwrap_or(old)
+				.trim()
+				.trim_matches(['[', ']']);
+			old.split('.').next().unwrap_or(old).trim() == root
+		});
+		if let Some((old_index, old)) = previous {
+			let (old_column, old_length, old_hint) = if table {
+				(0, old.trim().len(), "this table is explicitly defined")
+			} else if old.split('=').next().is_some_and(|key| key.contains('.')) {
+				(
+					0,
+					old.split('=').next().unwrap().trim().len(),
+					"but value already exists",
+				)
+			} else {
+				let column = old.find('=').map_or(0, |i| {
+					i + 1 + old[i + 1..].len() - old[i + 1..].trim_start().len()
+				});
+				(
+					column,
+					old[column..].trim_end().len().max(1),
+					"but value already exists",
+				)
+			};
+			let reason = if table {
+				"failed to insert a table, table already defined"
+			} else {
+				"failed to insert a value, value already exists"
+			};
+			return ErrorKind::FromTomlError(format!(
+				"while parsing TOML: [error] toml::insert_value: {reason}\n --> fromTOML\n   |\n {line} | {text}\n   | {}{}-- inserting this\n   | ...\n   |\n {} | {old}\n   | {}{}-- {old_hint}\n",
+				" ".repeat(column),
+				"^".repeat(key.len().max(1)),
+				old_index + 1,
+				" ".repeat(old_column),
+				"^".repeat(old_length)
+			));
+		}
+	}
+	if text.trim_end().ends_with('[') && message.contains("array") {
+		return ErrorKind::FromTomlError(format!(
+			"while parsing TOML: [error] toml::parse_array: missing closing bracket `]`\n --> fromTOML\n   |\n {line} | {text}\n   | {}--\n {} | {text}\n   | {}-- expected `]`, reached EOF\n",
+			" ".repeat(text.len()),
+			line + 1,
+			"^".repeat(text.len() + 1)
+		));
+	}
+	if text.trim_end().ends_with('=') {
+		return point("bad format: unknown value appeared", text.len());
+	}
+	if message.starts_with("expected newline") {
+		return point(
+			"toml::parse_table: newline (LF / CRLF) or EOF is expected",
+			column,
+		);
+	}
+	error.into()
+}
+
 /// CppNix's `forceNoNullByte`: Nix strings cannot hold NUL bytes.
 pub(crate) fn check_no_nul(s: &[u8]) -> Result<(), ErrorKind> {
 	if s.contains(&0) {

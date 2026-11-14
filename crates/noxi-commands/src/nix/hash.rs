@@ -303,11 +303,7 @@ pub fn legacy(mut settings: Settings, args: Vec<String>) -> Result<ExitCode, Fai
 			continue;
 		}
 		match arg.as_str() {
-			"--help" => {
-				return Err(Failure::Error(
-					"nix-hash --help is not supported by noxi yet".into(),
-				));
-			}
+			"--help" => return Err(crate::cli::show_man_page("nix-hash")),
 			"--version" => {
 				println!("nix-hash (Nix) 2.35.2");
 				return Ok(ExitCode::SUCCESS);

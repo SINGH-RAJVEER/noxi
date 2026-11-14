@@ -294,40 +294,8 @@ pub fn builtins(args: TokenStream, item: TokenStream) -> TokenStream {
 			rewritten_args.push(parse_quote_spanned!(sig_span=> mut values: Vec<Value>));
 			f.sig.inputs = rewritten_args.into_iter().collect();
 
-			let checks = argument_checks(&name.value())
-				.into_iter()
-				.filter_map(|check| {
-					let arg = builtin_arguments
-						.get(check.index)
-						.filter(|arg| arg.strict && !arg.catch)?;
-					let ident = &arg.name;
-					let expected = Ident::new(check.expected, arg.span);
-					let context = check.context;
-					let run = quote_spanned! { arg.span =>
-						noxi_eval::builtins::check_argument(
-							&#ident,
-							noxi_eval::builtins::ArgumentType::#expected,
-							#context,
-						)?;
-					};
-					Some(
-						match check
-							.unless_empty
-							.and_then(|index| builtin_arguments.get(index))
-						{
-							Some(list) => {
-								let list = &list.name;
-								quote! {
-									if !matches!(&#list, Value::List(list) if list.is_empty()) {
-										#run
-									}
-								}
-							}
-							None => run,
-						},
-					)
-				})
-				.collect::<Vec<_>>();
+			let checks = argument_checks(&name.value());
+			let ordered_checks = !checks.is_empty();
 			let sync_name = format_ident!("{}_sync", f.sig.ident);
 			if synchronous {
 				let mut sync = f.clone();
@@ -345,98 +313,21 @@ pub fn builtins(args: TokenStream, item: TokenStream) -> TokenStream {
 						.inputs
 						.insert(usize::from(captures_state), span_arg.clone());
 				}
+				let bindings = argument_bindings(&builtin_arguments, false);
+				let steps = argument_steps(&builtin_arguments, &checks, false);
 				let block = &sync.block;
-				*sync.block = parse_quote! {{ #(#checks)* #block }};
-				for arg in builtin_arguments.iter().rev() {
-					let block = &sync.block;
-					let ty = &arg.ty;
-					let ident = &arg.name;
-					let propagate = if arg.strict && !arg.catch {
-						quote!(if #ident.is_catchable() { return Ok(#ident); })
-					} else {
-						quote!()
-					};
-					*sync.block = parse_quote_spanned! { arg.span => {
-						let #ident: #ty = values.pop().expect("noxi bug: builtin called with incorrect number of arguments");
-						#propagate
-						#block
-					}};
-				}
-				let block = &sync.block;
-				*sync.block = parse_quote! {{ values.reverse(); #block }};
+				*sync.block = parse_quote! {{ values.reverse(); #(#bindings)* #(#steps)* #block }};
 				synchronous_functions.push(Item::Fn(sync));
 			}
-			if span_arg.is_some() {
-				let block = &f.block;
-				*f.block = parse_quote! {{
+			let bindings = argument_bindings(&builtin_arguments, true);
+			let steps = argument_steps(&builtin_arguments, &checks, true);
+			let span = span_arg.as_ref().map(|_| {
+				quote! {
 					let span = noxi_eval::generators::request_span(&co).await;
-					#block
-				}};
-			}
-
-			// Rewrite the body of the function to do said argument forcing.
-			//
-			// This is done by creating a new block for each of the
-			// arguments that evaluates it, and wraps the inner block.
-			// Once every argument is forced, the arguments CppNix checks are
-			// checked in its order.
-
+				}
+			});
 			let block = &f.block;
-			*f.block = parse_quote! {{
-				#(#checks)*
-				#block
-			}};
-
-			// Arguments are forced first to last, as CppNix primops usually force
-			// them, so the innermost block is the last argument's.
-			for arg in builtin_arguments.iter().rev() {
-				let block = &f.block;
-				let ty = &arg.ty;
-				let ident = &arg.name;
-
-				*f.block = match arg {
-					BuiltinArgument {
-						strict: true,
-						catch: true,
-						..
-					} => parse_quote_spanned! {
-						arg.span => {
-							let #ident: #ty = noxi_eval::generators::request_force(
-								&co, values.pop().expect("noxi bug: builtin called with incorrect number of arguments")
-							).await;
-							#block
-						}
-					},
-					BuiltinArgument {
-						strict: true,
-						catch: false,
-						..
-					} => parse_quote_spanned! {
-						arg.span => {
-							let #ident: #ty = noxi_eval::generators::request_force(
-								&co, values.pop().expect("noxi bug: builtin called with incorrect number of arguments")
-							).await;
-							if #ident.is_catchable() {
-								return Ok(#ident);
-							}
-							#block
-						}
-					},
-					BuiltinArgument { strict: false, .. } => parse_quote_spanned! {
-						arg.span => {
-							let #ident: #ty = values.pop().expect("noxi bug: builtin called with incorrect number of arguments");
-							#block
-						}
-					},
-				};
-			}
-
-			// The outermost block pops the first argument.
-			let block = &f.block;
-			*f.block = parse_quote! {{
-				values.reverse();
-				#block
-			}};
+			*f.block = parse_quote! {{ values.reverse(); #(#bindings)* #span #(#steps)* #block }};
 
 			let fn_name = f.sig.ident.clone();
 			let arg_count = builtin_arguments.len();
@@ -456,6 +347,8 @@ pub fn builtins(args: TokenStream, item: TokenStream) -> TokenStream {
 				quote!(noxi_eval::Builtin::new)
 			};
 
+			let checked_sync =
+				(synchronous && ordered_checks).then(|| quote!(.with_ordered_argument_checks()));
 			if captures_state {
 				let sync_state = synchronous.then(|| quote!(let sync_state = state.clone();));
 				let sync_args = synchronous.then(|| {
@@ -474,7 +367,7 @@ pub fn builtins(args: TokenStream, item: TokenStream) -> TokenStream {
 						#arg_count,
 						move |values| Gen::new(|co| noxi_eval::generators::pin_generator(#fn_name(inner_state.clone(), co, values)))
 						#sync_args
-					)
+					)#checked_sync
 				}});
 			} else {
 				let sync_args = synchronous.then(|| quote!(, &[#(#strict),*], #sync_name));
@@ -485,7 +378,7 @@ pub fn builtins(args: TokenStream, item: TokenStream) -> TokenStream {
 						#arg_count,
 						|values| Gen::new(|co| noxi_eval::generators::pin_generator(#fn_name(co, values)))
 						#sync_args
-					)
+					)#checked_sync
 				}});
 			}
 		}
@@ -508,19 +401,86 @@ pub fn builtins(args: TokenStream, item: TokenStream) -> TokenStream {
 
 	module.into_token_stream().into()
 }
+/// Bind all arguments before forcing any, so CppNix's check order can differ
+/// from the function's parameter order and can depend on another list's size.
+fn argument_bindings(
+	args: &[BuiltinArgument],
+	asynchronous: bool,
+) -> Vec<proc_macro2::TokenStream> {
+	args.iter().map(|arg| {
+		let ident = &arg.name;
+		let ty = &arg.ty;
+		let mutable = (asynchronous && arg.strict).then(|| quote!(mut));
+		quote_spanned! { arg.span =>
+			let #mutable #ident: #ty = values.pop().expect("noxi bug: builtin called with incorrect number of arguments");
+		}
+	}).collect()
+}
+
+/// Force and validate one argument at a time. Checking only after all strict
+/// arguments are forced can replace a fatal type error with a later throw.
+fn argument_steps(
+	args: &[BuiltinArgument],
+	checks: &[ArgumentCheck],
+	asynchronous: bool,
+) -> Vec<proc_macro2::TokenStream> {
+	let mut order = Vec::new();
+	for check in checks {
+		if !order.contains(&check.index) {
+			order.push(check.index);
+		}
+	}
+	for index in 0..args.len() {
+		if !order.contains(&index) {
+			order.push(index);
+		}
+	}
+	order.into_iter().filter_map(|index| {
+		let arg = args.get(index)?;
+		if !arg.strict { return None; }
+		let ident = &arg.name;
+		let check = checks.iter().find(|check| check.index == index).filter(|_| !arg.catch);
+		let catch = (!arg.catch).then(|| quote!(if #ident.is_catchable() { return Ok(#ident); }));
+		let hint = check.filter(|check| !matches!(check.expected, "List" | "Attrs"))
+			.map(|check| check.context);
+		let before = (asynchronous).then(|| hint.map(|hint| quote! {
+			noxi_eval::generators::request_builtin_context(&co, vec![noxi_eval::Trace::new(None, #hint)]).await;
+		}));
+		let force = asynchronous.then(|| quote! {
+			#ident = noxi_eval::generators::request_force(&co, #ident).await;
+		});
+		let after = (asynchronous && hint.is_some()).then(|| quote! {
+			noxi_eval::generators::request_builtin_context(&co, Vec::new()).await;
+		});
+		let validate = check.map(|check| {
+			let expected = Ident::new(check.expected, arg.span);
+			let context = check.context;
+			quote! { noxi_eval::builtins::check_argument(&#ident, noxi_eval::builtins::ArgumentType::#expected, #context)?; }
+		});
+		let step = quote! { #before #force #catch #after #validate };
+		Some(match check.and_then(|check| check.unless_empty).and_then(|idx| args.get(idx)) {
+			Some(list) => {
+				let list = &list.name;
+				quote! { if !matches!(&#list, noxi_eval::Value::List(list) if list.is_empty()) { #step } }
+			}
+			None => step,
+		})
+	}).collect()
+}
+
 /// CppNix's checks of builtin arguments: the type each primop forces an
 /// argument to before using it, and the trace frame of its type error.
 const ARGUMENT_CHECKS: &[(&str, usize, &str, &str)] = &[
 	(
 		"compareVersions",
 		0,
-		"String",
+		"StringNoCtx",
 		"while evaluating the first argument passed to builtins.compareVersions",
 	),
 	(
 		"compareVersions",
 		1,
-		"String",
+		"StringNoCtx",
 		"while evaluating the second argument passed to builtins.compareVersions",
 	),
 	(
@@ -544,7 +504,7 @@ const ARGUMENT_CHECKS: &[(&str, usize, &str, &str)] = &[
 	(
 		"fromTOML",
 		0,
-		"String",
+		"StringNoCtx",
 		"while evaluating the argument passed to builtins.fromTOML",
 	),
 	(
@@ -592,13 +552,13 @@ const ARGUMENT_CHECKS: &[(&str, usize, &str, &str)] = &[
 	(
 		"catAttrs",
 		0,
-		"String",
+		"StringNoCtx",
 		"while evaluating the first argument passed to builtins.catAttrs",
 	),
 	(
 		"compareVersions",
 		0,
-		"String",
+		"StringNoCtx",
 		"while evaluating the first argument passed to builtins.compareVersions",
 	),
 	(
@@ -652,7 +612,7 @@ const ARGUMENT_CHECKS: &[(&str, usize, &str, &str)] = &[
 	(
 		"fromJSON",
 		0,
-		"String",
+		"StringNoCtx",
 		"while evaluating the first argument passed to builtins.fromJSON",
 	),
 	(
@@ -670,13 +630,13 @@ const ARGUMENT_CHECKS: &[(&str, usize, &str, &str)] = &[
 	(
 		"getAttr",
 		0,
-		"String",
+		"StringNoCtx",
 		"while evaluating the first argument passed to builtins.getAttr",
 	),
 	(
 		"getEnv",
 		0,
-		"String",
+		"StringNoCtx",
 		"while evaluating the first argument passed to builtins.getEnv",
 	),
 	(
@@ -688,7 +648,7 @@ const ARGUMENT_CHECKS: &[(&str, usize, &str, &str)] = &[
 	(
 		"hasAttr",
 		0,
-		"String",
+		"StringNoCtx",
 		"while evaluating the first argument passed to builtins.hasAttr",
 	),
 	(
@@ -730,13 +690,13 @@ const ARGUMENT_CHECKS: &[(&str, usize, &str, &str)] = &[
 	(
 		"match",
 		0,
-		"String",
+		"StringNoCtx",
 		"while evaluating the first argument passed to builtins.match",
 	),
 	(
 		"parseDrvName",
 		0,
-		"String",
+		"StringNoCtx",
 		"while evaluating the first argument passed to builtins.parseDrvName",
 	),
 	(
@@ -758,6 +718,12 @@ const ARGUMENT_CHECKS: &[(&str, usize, &str, &str)] = &[
 		"while evaluating the first argument passed to builtins.replaceStrings",
 	),
 	(
+		"replaceStrings",
+		2,
+		"String",
+		"while evaluating the third argument passed to builtins.replaceStrings",
+	),
+	(
 		"sort",
 		0,
 		"Function",
@@ -766,13 +732,13 @@ const ARGUMENT_CHECKS: &[(&str, usize, &str, &str)] = &[
 	(
 		"split",
 		0,
-		"String",
+		"StringNoCtx",
 		"while evaluating the first argument passed to builtins.split",
 	),
 	(
 		"splitVersion",
 		0,
-		"String",
+		"StringNoCtx",
 		"while evaluating the first argument passed to builtins.splitVersion",
 	),
 	(
@@ -784,7 +750,7 @@ const ARGUMENT_CHECKS: &[(&str, usize, &str, &str)] = &[
 	(
 		"toFile",
 		0,
-		"String",
+		"StringNoCtx",
 		"while evaluating the first argument passed to builtins.toFile",
 	),
 	(
@@ -862,7 +828,7 @@ const ARGUMENT_CHECKS: &[(&str, usize, &str, &str)] = &[
 	(
 		"findFile",
 		1,
-		"String",
+		"StringNoCtx",
 		"while evaluating the second argument passed to builtins.findFile",
 	),
 	(
@@ -954,6 +920,12 @@ const ARGUMENT_CHECKS: &[(&str, usize, &str, &str)] = &[
 		1,
 		"String",
 		"while evaluating the second argument passed to builtins.toFile",
+	),
+	(
+		"unsafeGetAttrPos",
+		0,
+		"StringNoCtx",
+		"while evaluating the first argument passed to builtins.unsafeGetAttrPos",
 	),
 	(
 		"unsafeGetAttrPos",

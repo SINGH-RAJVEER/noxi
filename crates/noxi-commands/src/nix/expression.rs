@@ -32,6 +32,7 @@ pub fn options(parsed: &Parsed, eval: bool) -> Result<Options, Failure> {
 	parsed.unsupported(&["eval-store", "write-to", "debugger", "inputs-from"])?;
 	let mut options = Options {
 		modern_pure: pure,
+		generated: true,
 		eval,
 		read_write_mode: !parsed.has("read-only"),
 		strict: true,
@@ -46,19 +47,33 @@ pub fn options(parsed: &Parsed, eval: bool) -> Result<Options, Failure> {
 	if let Some(includes) = parsed.flags.get("include") {
 		options.include = includes.iter().map(|v| v[0].clone()).collect();
 	}
-	for (name, string) in [("arg", false), ("argstr", true)] {
-		if let Some(args) = parsed.flags.get(name) {
-			for pair in args {
-				options.auto_args.push((
-					pair[0].clone(),
-					if string {
-						AutoArg::Str(pair[1].clone())
-					} else {
-						AutoArg::Expr(pair[1].clone())
-					},
-				));
+	// `MixEvalArgs`: the last value given for a name wins.
+	for (flag, values) in &parsed.sequence {
+		let value = match flag.as_str() {
+			"arg" => AutoArg::Expr(values[1].clone()),
+			"argstr" => AutoArg::Str(values[1].clone()),
+			"arg-from-file" => {
+				let path =
+					instantiate::absolute_path(&std::env::current_dir()?, Path::new(&values[1]));
+				let contents = std::fs::read(&path).map_err(|error| {
+					Failure::Error(format!(
+						"opening file \"{}\": {}",
+						path.display(),
+						super::hash::strerror(&error)
+					))
+				})?;
+				AutoArg::Str(String::from_utf8_lossy(&contents).into_owned())
 			}
-		}
+			"arg-from-stdin" => {
+				let mut contents = Vec::new();
+				std::io::Read::read_to_end(&mut std::io::stdin(), &mut contents)?;
+				AutoArg::Str(String::from_utf8_lossy(&contents).into_owned())
+			}
+			_ => continue,
+		};
+		let name = values[0].clone();
+		options.auto_args.retain(|(existing, _)| *existing != name);
+		options.auto_args.push((name, value));
 	}
 	let root = if let Some(expression) = parsed.value("expr") {
 		// The expression is its own `«string»` source, as CppNix parses it.
@@ -116,8 +131,13 @@ pub fn options(parsed: &Parsed, eval: bool) -> Result<Options, Failure> {
 			(root.clone(), selection)
 		};
 		let mut expression = format!("({root}\n)");
+		// `findAlongAttrPath`: each step auto-calls the value it selects from.
 		for attr in instantiate::parse_attr_path(&selection).map_err(Failure::Usage)? {
-			expression = format!("({expression}).{}", nix_string_literal(&attr));
+			expression = format!(
+				"(__noxi_select_step {} {} (__noxi_autoCall {expression}))",
+				nix_string_literal(&selection),
+				nix_string_literal(&attr)
+			);
 		}
 		if let Some(apply) = parsed.value("apply") {
 			options.fragments.push(apply.to_owned());
@@ -125,7 +145,7 @@ pub fn options(parsed: &Parsed, eval: bool) -> Result<Options, Failure> {
 			expression = format!("({apply}\n) ({expression})");
 		}
 		if eval && parsed.has("raw") {
-			expression = format!("\"${{{expression}}}\"");
+			expression = format!("(__noxi_raw_output \"eval\" ({expression}\n))");
 		}
 		options.inputs.push(expression);
 	}
@@ -261,7 +281,8 @@ pub fn outputs(
 	Ok(match path {
 		DerivedPath::Opaque(path) => BTreeMap::from([(String::new(), path.clone())]),
 		DerivedPath::Built { drv, outputs } => {
-			let mut all = store.query_derivation_outputs(drv)?;
+			// Content-addressed outputs are known by their realisations.
+			let mut all = store.query_partial_derivation_output_map(drv)?;
 			if !outputs.is_empty() {
 				for name in outputs {
 					if !all.contains_key(name) {
@@ -273,7 +294,16 @@ pub fn outputs(
 				}
 				all.retain(|name, _| outputs.contains(name));
 			}
-			all
+			all.into_iter()
+				.map(|(name, path)| {
+					path.map(|path| (name.clone(), path)).ok_or_else(|| {
+						Failure::Error(format!(
+							"output '{name}' of derivation '{}' has not been built",
+							drv.to_absolute_path()
+						))
+					})
+				})
+				.collect::<Result<_, _>>()?
 		}
 	})
 }

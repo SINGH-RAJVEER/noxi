@@ -41,6 +41,40 @@ impl From<noxi_store::Error> for Failure {
 	}
 }
 
+/// CppNix's `showManPage`: replace this process with `man NAME`, searching
+/// this package's manual pages first. Returns only on failure.
+pub fn show_man_page(name: &str) -> Failure {
+	use std::os::unix::process::CommandExt;
+	let man_dir = std::env::current_exe()
+		.ok()
+		.and_then(|exe| Some(exe.parent()?.parent()?.join("share/man")))
+		.unwrap_or_default();
+	let mut manpath = man_dir.into_os_string();
+	manpath.push(":");
+	let error = std::process::Command::new("man")
+		.arg(name)
+		.env("MANPATH", manpath)
+		.exec();
+	if error.kind() == std::io::ErrorKind::NotFound {
+		return Failure::Error(format!(
+			"The 'man' command was not found, but it is needed for '{name}' and some other 'nix-*' commands' help text. Perhaps you could install the 'man' command?"
+		));
+	}
+	Failure::Error(format!(
+		"command 'man {name}' failed: {}",
+		crate::nix::hash::strerror(&error)
+	))
+}
+
+/// [`show_man_page`] from inside argument parsing, exiting as CppNix does
+/// when `man` cannot run.
+pub fn show_man_page_or_exit(name: &str) -> ! {
+	let (Failure::Usage(message) | Failure::Error(message) | Failure::Exit(_, message)) =
+		show_man_page(name);
+	print_error(&message);
+	std::process::exit(1)
+}
+
 /// Print an error as CppNix does: continuation lines line up after the
 /// `error: ` prefix.
 pub fn print_error(message: &str) {

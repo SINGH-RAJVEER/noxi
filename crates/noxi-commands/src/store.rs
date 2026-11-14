@@ -176,15 +176,50 @@ enum Target {
 	},
 }
 
+/// A store's `store` setting: the logical store directory, which this
+/// process reads once from `NIX_STORE_DIR` the first time it needs it.
+fn set_store_dir(dir: &str) -> Result<(), String> {
+	if !dir.starts_with('/') {
+		return Err(format!(
+			"store directory path \"{dir}\" is not an absolute path"
+		));
+	}
+	// SAFETY: the command runs on a single thread, so nothing reads the
+	// environment concurrently.
+	unsafe { std::env::set_var("NIX_STORE_DIR", dir) };
+	let canonical = crate::instantiate::absolute_path(Path::new("/"), Path::new(dir));
+	if Path::new(nix_compat::store_path::store_dir()) != canonical {
+		return Err(format!(
+			"cannot use store directory '{dir}': noxi already uses '{}'",
+			nix_compat::store_path::store_dir()
+		));
+	}
+	Ok(())
+}
+
 /// Resolve `uri` as CppNix's store registry does for the supported kinds.
 fn resolve(uri: &str) -> Result<Target, String> {
 	let (scheme, query) = uri.split_once('?').unwrap_or((uri, ""));
+	let dummy = matches!(scheme, "dummy" | "dummy://");
 	let mut root = None;
 	let mut read_only = false;
 	for param in query.split('&').filter(|p| !p.is_empty()) {
 		match param.split_once('=') {
 			Some(("root", value)) if !value.is_empty() => root = Some(PathBuf::from(value)),
 			Some(("read-only", value)) => read_only = value == "true",
+			Some(("store", value)) if dummy => set_store_dir(value)?,
+			// The dummy store has no other settings; CppNix warns about them.
+			Some((name, _)) if dummy => {
+				// The store is opened once; its URI may be resolved more often.
+				static WARNED: std::sync::Mutex<Vec<String>> = std::sync::Mutex::new(Vec::new());
+				let mut warned = WARNED.lock().unwrap_or_else(|e| e.into_inner());
+				if !warned.iter().any(|w| w == name) {
+					warned.push(name.to_owned());
+					if nix_compat::log::log_enabled(nix_compat::log::VerbosityLevel::Warn) {
+						eprintln!("warning: unknown setting '{name}'");
+					}
+				}
+			}
 			_ => return Err(format!("unsupported store parameter '{param}' in '{uri}'")),
 		}
 	}

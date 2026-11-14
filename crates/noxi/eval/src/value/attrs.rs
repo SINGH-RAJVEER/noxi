@@ -24,7 +24,7 @@ use super::Value;
 use super::string::NixString;
 use super::thunk::ThunkSet;
 use crate::CatchableErrorKind;
-use crate::errors::ErrorKind;
+use crate::errors::{AddContext, ErrorKind};
 
 /// Positions and validated key layouts shared by sets from one literal.
 pub(crate) type AttrPositions = Rc<LiteralAttrs>;
@@ -674,6 +674,10 @@ impl NixAttrs {
 
 			match key {
 				Value::String(ks) => {
+					if let Some(message) = ks.context_not_allowed() {
+						return Err(ErrorKind::EvalError(message)
+							.trace(span, "while evaluating the name of a dynamic attribute"));
+					}
 					if let Some(keys) = &mut layout_keys {
 						keys.push((ks.clone(), offset));
 					}
@@ -689,7 +693,22 @@ impl NixAttrs {
 
 				Value::Catchable(err) => return Ok(Err(*err)),
 
-				other => return Err(ErrorKind::InvalidAttributeName(other)),
+				// CppNix's `forceStringNoCtx` of a dynamic attribute's name.
+				other => {
+					let error = ErrorKind::TypeError {
+						expected: "string",
+						actual: other.type_of(),
+						value: Some(Box::new(other)),
+					}
+					.trace(span, "while evaluating the name of a dynamic attribute");
+					return Err(match span {
+						Some(span) => ErrorKind::PositionedAt {
+							span,
+							underlying: Box::new(error),
+						},
+						None => error,
+					});
+				}
 			}
 		}
 

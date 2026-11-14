@@ -87,6 +87,14 @@ pub enum VMRequest {
 		argument: Value,
 	},
 
+	/// Call an evaluated function at a position, with its argument given
+	/// or already prepared on the stack.
+	CallAt {
+		callable: Value,
+		argument: Option<Value>,
+		call_site: Option<Span>,
+	},
+
 	/// Request a bytecode frame entering the given lambda immediately. This can be
 	/// used to force thunks.
 	EnterLambda {
@@ -209,6 +217,7 @@ impl Display for VMRequest {
 			VMRequest::Builtin(name) => write!(f, "builtin({name})"),
 			VMRequest::Call(v) => write!(f, "call({v})"),
 			VMRequest::CallWith { callable, .. } => write!(f, "call_with({callable})"),
+			VMRequest::CallAt { callable, .. } => write!(f, "call_at({callable})"),
 			VMRequest::EnterLambda { lambda, .. } => {
 				write!(f, "enter_lambda({:p})", *lambda)
 			}
@@ -534,6 +543,20 @@ where
 							return Ok(false);
 						}
 
+						VMRequest::CallAt {
+							callable,
+							argument,
+							call_site,
+						} => {
+							if let Some(argument) = argument {
+								self.stack.push(argument);
+							}
+							self.reenqueue_generator(name, span, generator);
+							self.pending_call_site = call_site;
+							self.call_value(call_site.unwrap_or(span), None, callable)?;
+							return Ok(false);
+						}
+
 						VMRequest::EnterLambda {
 							lambda,
 							upvalues,
@@ -655,9 +678,16 @@ where
 								.io_handle
 								.as_ref()
 								.realise_path(&path)
-								.map_err(|e| ErrorKind::IO {
-									path: path.to_path().ok().map(PathBuf::from),
-									error: e.into(),
+								// CppNix's `realisePath` names the path whose context failed.
+								.map_err(|e| ErrorKind::WithContext {
+									context: format!(
+										"while realising the context of path '{}'",
+										path.to_str_lossy()
+									),
+									span: None,
+									underlying: Box::new(ErrorKind::NoxiError(
+										std::sync::Arc::new(e),
+									)),
 								})
 								.with_span(span, self)?;
 							message = VMResponse::Path(realised);
@@ -731,6 +761,7 @@ where
 										.unwrap_or(std::path::Path::new("/"))
 										.join(target)
 								};
+								error_path = crate::canon_path(error_path);
 							}
 							let dir = self
 								.io_handle
@@ -1200,21 +1231,46 @@ pub(crate) async fn request_get_env(co: &GenCo, key: OsString) -> OsString {
 /// arguments must already be prepared on the stack when a generator frame from
 /// this function is invoked.
 ///
-pub(crate) async fn call_functor(co: GenCo, value: Value) -> Result<Value, ErrorKind> {
+pub(crate) async fn call_functor(
+	co: GenCo,
+	value: Value,
+	functor_site: Option<Span>,
+) -> Result<Value, ErrorKind> {
 	let attrs = value.to_attrs()?;
 
 	match attrs.select("__functor") {
 		None => Err(ErrorKind::NotCallable(
 			"set without `__functor_` attribute",
-			None,
+			Some(Box::new(value)),
 		)),
 		Some(functor) => {
-			// The functor receives the set itself as its first argument and
-			// needs to be called with it.
+			// The functor receives the set itself as its first argument; CppNix
+			// applies it to both arguments at the `__functor` attribute.
 			let functor = request_force(&co, functor.clone()).await;
-			let primed = request_call_with(&co, functor, [value]).await;
-			Ok(request_call(&co, primed).await)
+			let primed = request_call_at(&co, functor, Some(value), functor_site).await;
+			let primed = request_force(&co, primed).await;
+			Ok(request_call_at(&co, primed, None, functor_site).await)
 		}
+	}
+}
+
+/// Call `callable` at `call_site`, with `argument` or the one already on the stack.
+async fn request_call_at(
+	co: &GenCo,
+	callable: Value,
+	argument: Option<Value>,
+	call_site: Option<Span>,
+) -> Value {
+	match co
+		.yield_(VMRequest::CallAt {
+			callable,
+			argument,
+			call_site,
+		})
+		.await
+	{
+		VMResponse::Value(value) => value,
+		msg => panic!("noxi bug: VM responded with incorrect generator message: {msg}"),
 	}
 }
 

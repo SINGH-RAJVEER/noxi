@@ -81,6 +81,8 @@ pub struct Lambda {
 	/// shows it in `while evaluating the attribute 'PATH'`.
 	/// Allocate its diagnostic data only for selection thunks.
 	selection: Option<Box<Selection>>,
+	/// The left operand of additions that can fall back to path coercion.
+	pub(crate) addition_left_spans: Option<Box<Vec<(usize, Span)>>>,
 
 	/// For the blueprint of a suspended thunk, the span its creating
 	/// instruction records, fixed when it is compiled.

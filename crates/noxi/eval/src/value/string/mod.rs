@@ -755,6 +755,30 @@ impl NixString {
 			.flat_map(|context| context.iter_single_outputs())
 	}
 
+	/// CppNix's `forceStringNoCtx` failure for a string with context: the
+	/// error names the context element its sorted context lists first.
+	pub fn context_not_allowed(&self) -> Option<String> {
+		let first = self
+			.iter_context()
+			.flat_map(|context| context.iter())
+			.map(|element| match element {
+				NixContextElement::Plain(path) => ((0, path.as_str(), ""), path.clone()),
+				NixContextElement::Derivation(drv) => {
+					((1, drv.as_str(), ""), format!("{drv} (deep)"))
+				}
+				NixContextElement::Single { name, derivation } => (
+					(2, derivation.as_str(), name.as_str()),
+					format!("{derivation}^{name}"),
+				),
+			})
+			.min_by(|a, b| a.0.cmp(&b.0))?;
+		Some(format!(
+			"the string '{}' is not allowed to refer to a store path (such as '{}')",
+			self.to_str_lossy(),
+			first.1
+		))
+	}
+
 	/// Returns whether this Nix string possess a context or not.
 	pub fn has_context(&self) -> bool {
 		self.context().is_some()

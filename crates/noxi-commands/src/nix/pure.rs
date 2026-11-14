@@ -32,22 +32,33 @@ impl PureIO {
 		// its resolved source path: neither `..` nor a symlink may leave the
 		// allowed trees.
 		if !allowed(path) {
+			// Pure evaluation sees only the store, so CppNix forbids any other
+			// path that is not an ancestor of the store directory.
+			let lexical = noxi_eval::canon_path(path.to_owned());
+			let store_dir = Path::new(nix_compat::store_path::store_dir());
+			if !lexical.starts_with(store_dir) && !store_dir.starts_with(&lexical) {
+				return Err(forbidden(&lexical));
+			}
 			return Err(unsupported());
 		}
 		if !path.starts_with("/__corepkgs__") {
 			let resolved = store.resolved_logical_path(path);
 			if !allowed(&resolved) {
-				return Err(io::Error::new(
-					io::ErrorKind::PermissionDenied,
-					format!(
-						"access to absolute path '{}' is forbidden in pure evaluation mode (use '--impure' to override)",
-						resolved.display()
-					),
-				));
+				return Err(forbidden(&resolved));
 			}
 		}
 		Ok(noxi_glue::StoreIO::new(store.clone()))
 	}
+}
+
+fn forbidden(path: &Path) -> io::Error {
+	io::Error::new(
+		io::ErrorKind::PermissionDenied,
+		format!(
+			"access to absolute path '{}' is forbidden in pure evaluation mode (use '--impure' to override)",
+			path.display()
+		),
+	)
 }
 
 /// Whether `path` is inside a source tree this evaluation fetched.

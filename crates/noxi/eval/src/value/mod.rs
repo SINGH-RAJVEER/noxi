@@ -116,6 +116,7 @@ static WRITE_FLOAT_OPTIONS: LazyLock<lexical_core::WriteFloatOptions> = LazyLock
 		.trim_floats(true)
 		.round_mode(lexical_core::write_float_options::RoundMode::Round)
 		.positive_exponent_break(Some(NonZeroI32::new(5).unwrap()))
+		.negative_exponent_break(Some(NonZeroI32::new(-4).unwrap()))
 		.max_significant_digits(Some(NonZeroUsize::new(6).unwrap()))
 		.build()
 		.unwrap()
@@ -576,28 +577,30 @@ impl Value {
 		// this is a stack of ((v1,v2),peq) triples to be compared;
 		// after each triple is popped off of the stack, v1 is
 		// compared to v2 using peq-mode PointerEquality
-		let mut vals = vec![((self, other), ptr_eq)];
+		let budget = generators::request_recursion_budget(co).await;
+		let mut vals = vec![((self, other), ptr_eq, false, 0usize)];
 
 		loop {
-			let ((a, b), ptr_eq) = if let Some(abp) = vals.pop() {
+			let ((a, b), ptr_eq, same_cell, depth) = if let Some(abp) = vals.pop() {
 				abp
 			} else {
 				// stack is empty, so comparison has succeeded
 				return Ok(Value::Bool(true));
 			};
+			if depth >= budget {
+				return Err(ErrorKind::At {
+					message: "stack overflow; max-call-depth exceeded".into(),
+					span,
+				});
+			}
+			// CppNix compares the identity of Value cells, not the identity
+			// of a closure or container returned by two different thunks.
+			let same_cell = same_cell
+				|| (ptr_eq >= PointerEquality::AllowNested
+					&& matches!((&a, &b), (Value::Thunk(a), Value::Thunk(b)) if a.ptr_eq(b)));
+			let direct_values = !matches!(&a, Value::Thunk(_)) && !matches!(&b, Value::Thunk(_));
 			let a = match a {
-				Value::Thunk(thunk) => {
-					// If both values are thunks, and thunk comparisons are allowed by
-					// pointer, do that and move on.
-					if ptr_eq == PointerEquality::AllowAll
-						&& let Value::Thunk(t1) = &b
-						&& t1.ptr_eq(&thunk)
-					{
-						continue;
-					};
-
-					Thunk::force_(thunk, co, span).await?
-				}
+				Value::Thunk(thunk) => Thunk::force_(thunk, co, span).await?,
 
 				_ => a,
 			};
@@ -606,6 +609,16 @@ impl Value {
 
 			debug_assert!(!matches!(a, Value::Thunk(_)));
 			debug_assert!(!matches!(b, Value::Thunk(_)));
+			if a.is_catchable() {
+				return Ok(a);
+			}
+			if b.is_catchable() {
+				return Ok(b);
+			}
+			// Even a shared cell must be forced before the identity shortcut.
+			if same_cell {
+				continue;
+			}
 
 			let result = match (a, b) {
 				// Trivial comparisons
@@ -624,7 +637,8 @@ impl Value {
 
 				// List comparisons
 				(Value::List(l1), Value::List(l2)) => {
-					if ptr_eq >= PointerEquality::AllowNested && l1.ptr_eq(&l2) {
+					let shared_entries = l1.ptr_eq(&l2);
+					if ptr_eq >= PointerEquality::AllowNested && direct_values && shared_entries {
 						continue;
 					}
 
@@ -632,9 +646,14 @@ impl Value {
 						return Ok(Value::Bool(false));
 					}
 
-					vals.extend(l1.into_iter().rev().zip(l2.into_iter().rev()).zip(
-						std::iter::repeat(std::cmp::max(ptr_eq, PointerEquality::AllowNested)),
-					));
+					vals.extend(l1.into_iter().rev().zip(l2.into_iter().rev()).map(|pair| {
+						(
+							pair,
+							std::cmp::max(ptr_eq, PointerEquality::AllowNested),
+							shared_entries,
+							depth + 1,
+						)
+					}));
 					continue;
 				}
 
@@ -642,7 +661,8 @@ impl Value {
 
 				// Attribute set comparisons
 				(Value::Attrs(a1), Value::Attrs(a2)) => {
-					if ptr_eq >= PointerEquality::AllowNested && a1.ptr_eq(&a2) {
+					let shared_entries = a1.ptr_eq(&a2);
+					if ptr_eq >= PointerEquality::AllowNested && direct_values && shared_entries {
 						continue;
 					}
 
@@ -714,10 +734,14 @@ impl Value {
 						vals.push((
 							(v1, v2),
 							std::cmp::max(ptr_eq, PointerEquality::AllowNested),
+							shared_entries,
+							depth + 1,
 						));
 						vals.push((
 							(k1.into(), k2.into()),
 							std::cmp::max(ptr_eq, PointerEquality::AllowNested),
+							false,
+							depth + 1,
 						));
 					}
 					continue;
@@ -726,7 +750,9 @@ impl Value {
 				(Value::Attrs(_), _) | (_, Value::Attrs(_)) => return Ok(Value::Bool(false)),
 
 				(Value::Closure(c1), Value::Closure(c2))
-					if ptr_eq >= PointerEquality::AllowNested && Rc::ptr_eq(&c1, &c2) =>
+					if ptr_eq >= PointerEquality::AllowNested
+						&& direct_values
+						&& Rc::ptr_eq(&c1, &c2) =>
 				{
 					continue;
 				}
@@ -1005,74 +1031,41 @@ impl Display for Value {
 /// Emulates the C++-Nix style formatting of floats, which diverges
 /// significantly from Rust's native float formatting.
 pub(crate) fn total_fmt_float<F: std::fmt::Write>(num: f64, mut f: F) -> std::fmt::Result {
+	// libstdc++ preserves signs for zero and NaN. The lexical formatter
+	// canonicalizes both, so handle these before formatting finite values.
+	if num.is_nan() {
+		return f.write_str(if num.is_sign_negative() {
+			"-nan"
+		} else {
+			"nan"
+		});
+	}
+	if num == 0.0 && num.is_sign_negative() {
+		return f.write_str("-0");
+	}
 	let mut buf = [b'0'; lexical_core::BUFFER_SIZE];
-	let mut s = lexical_core::write_with_options::<f64, { CXX_LITERAL }>(
+	let written = lexical_core::write_with_options::<f64, { CXX_LITERAL }>(
 		num,
 		&mut buf,
 		&WRITE_FLOAT_OPTIONS,
 	);
-
-	// apply some postprocessing on the buffer. If scientific
-	// notation is used (we see an `e`), and the next character is
-	// a digit, add the missing `+` sign.)
-	let mut new_s = Vec::with_capacity(s.len());
-
-	if s.contains(&b'e') {
-		for (i, c) in s.iter().enumerate() {
-			// encountered `e`
-			if c == &b'e' {
-				// next character is a digit (so no negative exponent)
-				if s.len() > i && s[i + 1].is_ascii_digit() {
-					// copy everything from the start up to (including) the e
-					new_s.extend_from_slice(&s[0..=i]);
-					// add the missing '+'
-					new_s.push(b'+');
-					// check for the remaining characters.
-					// If it's only one, we need to prepend a trailing zero
-					if s.len() == i + 2 {
-						new_s.push(b'0');
-					}
-					new_s.extend_from_slice(&s[i + 1..]);
-					break;
-				}
-			}
-		}
-
-		// if we modified the scientific notation, flip the reference
-		if !new_s.is_empty() {
-			s = &mut new_s
-		}
-	} else if s.contains(&b'.') {
-		// else, if this is not scientific notation, and there's a
-		// decimal point, make sure we really drop trailing zeroes.
-		// In some cases, lexical_core doesn't.
-		for (i, c) in s.iter().enumerate() {
-			// at `.``
-			if c == &b'.' {
-				// trim zeroes from the right side.
-				let frac = String::from_utf8_lossy(&s[i + 1..]);
-				let frac_no_trailing_zeroes = frac.trim_end_matches('0');
-
-				if frac.len() != frac_no_trailing_zeroes.len() {
-					// we managed to strip something, construct new_s
-					if frac_no_trailing_zeroes.is_empty() {
-						// if frac_no_trailing_zeroes is empty, the fractional part was all zeroes, so we can drop the decimal point as well
-						new_s.extend_from_slice(&s[0..=i - 1]);
-					} else {
-						// else, assemble the rest of the string
-						new_s.extend_from_slice(&s[0..=i]);
-						new_s.extend_from_slice(frac_no_trailing_zeroes.as_bytes());
-					}
-
-					// flip the reference
-					s = &mut new_s;
-					break;
-				}
-			}
-		}
+	let text = std::str::from_utf8(written).expect("float formatting is ASCII");
+	let (mantissa, exponent) = text
+		.split_once('e')
+		.map_or((text, None), |(m, e)| (m, Some(e)));
+	let mantissa = if mantissa.contains('.') {
+		mantissa.trim_end_matches('0').trim_end_matches('.')
+	} else {
+		mantissa
+	};
+	f.write_str(mantissa)?;
+	if let Some(exponent) = exponent {
+		// `defaultfloat` prints an explicit sign and at least two exponent
+		// digits, for negative as well as positive exponents.
+		let exponent: i32 = exponent.parse().expect("formatted exponent is an integer");
+		write!(f, "e{exponent:+03}")?;
 	}
-
-	write!(f, "{}", String::from_utf8_lossy(s))
+	Ok(())
 }
 
 impl TotalDisplay for Value {
@@ -1159,6 +1152,12 @@ mod tests {
 		fn format_float() {
 			let ff = [
 				(0f64, "0"),
+				(-0.0, "-0"),
+				(f64::NAN, "nan"),
+				(-f64::NAN, "-nan"),
+				(1.5 / i64::MAX as f64, "1.6263e-19"),
+				(1e-7, "1e-07"),
+				(1e-5, "1e-05"),
 				(1.0f64, "1"),
 				(-0.01, "-0.01"),
 				(5e+22, "5e+22"),

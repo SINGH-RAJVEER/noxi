@@ -5,7 +5,9 @@ use nix_compat::nixhash::{HashAlgo, NixHash};
 use nix_compat::store_path::StorePath;
 use noxi_eval::builtin_macros::builtins;
 use noxi_eval::generators::{self, GenCo};
-use noxi_eval::{CoercionKind, ErrorKind, NixAttrs, NixContextElement, NixString, Value};
+use noxi_eval::{
+	AddContext, CoercionKind, ErrorKind, NixAttrs, NixContextElement, NixString, Value,
+};
 use noxi_flakeref::input::{Attr, Attrs, Input, Scheme, git_rev};
 use noxi_flakeref::lockfile::format_last_modified_date;
 use noxi_flakeref::registry::UseRegistries;
@@ -13,7 +15,22 @@ use noxi_flakeref::registry::UseRegistries;
 use crate::store::EvaluatorStore;
 
 pub(crate) fn error(error: impl std::fmt::Display) -> ErrorKind {
-	ErrorKind::EvalError(error.to_string())
+	let message = error.to_string();
+	ErrorKind::EvalError(
+		if message.starts_with("'") && message.ends_with("doesn't have a scheme") {
+			format!("URL {message}")
+		} else {
+			message
+		},
+	)
+}
+
+pub(crate) fn fetch_error(error: noxi_flakeref::error::Error) -> ErrorKind {
+	let mut kind = ErrorKind::EvalError(error.message);
+	for trace in error.traces {
+		kind = kind.trace(None, trace);
+	}
+	kind
 }
 
 pub(crate) fn final_tree_builtin(store: &Rc<EvaluatorStore>) -> Value {
@@ -46,6 +63,34 @@ pub(crate) async fn string(co: &GenCo, value: Value) -> Result<String, ErrorKind
 	.await
 	.map_err(ErrorKind::CatchableError)?;
 	Ok(string.to_str()?.to_owned())
+}
+
+/// CppNix's forceStringNoCtx, including the force/type distinction in traces.
+pub(crate) async fn string_no_context(
+	co: &GenCo,
+	value: Value,
+	trace: noxi_eval::Trace,
+) -> Result<NixString, ErrorKind> {
+	generators::request_builtin_context(co, vec![trace.clone()]).await;
+	let value = generators::request_force(co, value).await;
+	if let Value::Catchable(kind) = value {
+		return Err(ErrorKind::CatchableError(*kind));
+	}
+	generators::request_builtin_context(co, Vec::new()).await;
+	let string = value.to_contextful_str().map_err(|error| {
+		let error = match trace.span {
+			Some(span) => ErrorKind::PositionedAt {
+				span,
+				underlying: Box::new(error),
+			},
+			None => error,
+		};
+		error.trace(trace.span, trace.hint.clone())
+	})?;
+	if let Some(message) = string.context_not_allowed() {
+		return Err(ErrorKind::EvalError(message).trace(trace.span, trace.hint));
+	}
+	Ok(string)
 }
 
 pub(crate) fn path_value(path: &StorePath) -> Value {
@@ -152,7 +197,11 @@ async fn fetch_tree(
 					value => {
 						return Err(error(format!(
 							"argument '{key}' to '{who}' is {} while a string, Boolean or integer is expected",
-							value.type_of()
+							if matches!(value, Value::Builtin(_) | Value::Closure(_)) {
+								"a function"
+							} else {
+								value.type_of()
+							}
 						)));
 					}
 				};
@@ -182,7 +231,16 @@ async fn fetch_tree(
 			Input::from_attrs(&settings, values).map_err(error)?
 		}
 		value => {
+			generators::request_builtin_context(
+				co,
+				vec![noxi_eval::Trace::new(
+					None,
+					format!("while evaluating the first argument passed to '{who}'"),
+				)],
+			)
+			.await;
 			let url = string(co, value).await?;
+			generators::request_builtin_context(co, Vec::new()).await;
 			if git {
 				Input::from_attrs(
 					&settings,
@@ -228,6 +286,15 @@ async fn fetch_tree(
 			input.display()
 		)));
 	}
+	if store.fetch_config.borrow().restrict_eval {
+		store
+			.check_fetch_uri(
+				&input
+					.to_url_string(&std::collections::BTreeMap::new())
+					.map_err(error)?,
+			)
+			.map_err(ErrorKind::from)?;
+	}
 	if final_input {
 		input.attrs.insert("__final".into(), Attr::Bool(true));
 	} else if input.is_final() {
@@ -256,7 +323,7 @@ async fn fetch_tree(
 		}
 	}
 	let (mount, _, mut locked, _) =
-		super::get_cached(store, &input, UseRegistries::No).map_err(error)?;
+		super::get_cached(store, &input, UseRegistries::No).map_err(fetch_error)?;
 	let path = super::mount_input(store, &mut locked, &input, &mount).map_err(error)?;
 	tree_attrs(&path, &locked, git)
 }
@@ -268,6 +335,19 @@ async fn fetch_url(
 	unpack: bool,
 ) -> Result<Value, ErrorKind> {
 	let who = if unpack { "fetchTarball" } else { "fetchurl" };
+	generators::request_builtin_context(
+		co,
+		vec![noxi_eval::Trace::new(
+			None,
+			"while evaluating the url we should fetch",
+		)],
+	)
+	.await;
+	let value = generators::request_force(co, value).await;
+	if value.is_catchable() {
+		return Ok(value);
+	}
+	generators::request_builtin_context(co, Vec::new()).await;
 	let mut url = None;
 	let mut name = if unpack {
 		"source".to_owned()
@@ -280,33 +360,57 @@ async fn fetch_url(
 	match value {
 		Value::Attrs(attrs) => {
 			for (key, value) in attrs.iter_sorted() {
-				let value = generators::request_force(co, value.clone()).await;
-				if value.is_catchable() {
-					return Ok(value);
-				}
-				match key.to_str()? {
-					"url" => url = Some(string(co, value).await?),
-					"name" => {
-						explicit_name = true;
-						name = string(co, value).await?;
-					}
-					"sha256" => {
-						let hash = string(co, value).await?;
-						if !hash.is_empty() {
-							expected = Some(
-								NixHash::from_str(&hash, Some(HashAlgo::Sha256)).map_err(error)?,
-							);
-						}
-					}
+				let key_name = key.to_str()?;
+				let hint = match key_name {
+					"url" => "while evaluating the url we should fetch",
+					"name" => "while evaluating the name of the content we should fetch",
+					"sha256" => "while evaluating the sha256 of the content we should fetch",
 					other => {
 						return Err(error(format!("unsupported argument '{other}' to '{who}'")));
 					}
+				};
+				let value = string_no_context(
+					co,
+					value.clone(),
+					noxi_eval::Trace::new(attrs.get_attr_pos(key), hint),
+				)
+				.await?;
+				match key_name {
+					"url" => url = Some(value.to_str()?.to_owned()),
+					"name" => {
+						explicit_name = true;
+						name = value.to_str()?.to_owned();
+					}
+					"sha256" => {
+						if !value.is_empty() {
+							expected = Some(
+								NixHash::from_str(value.to_str()?, Some(HashAlgo::Sha256))
+									.map_err(error)?,
+							);
+						}
+					}
+					_ => unreachable!(),
 				}
 			}
 		}
-		value => url = Some(string(co, value).await?),
+		value => {
+			url = Some(
+				string_no_context(
+					co,
+					value,
+					noxi_eval::Trace::new(None, "while evaluating the url we should fetch"),
+				)
+				.await?
+				.to_str()?
+				.to_owned(),
+			)
+		}
 	}
 	let url = url.ok_or_else(|| error("'url' argument required"))?;
+	if !unpack {
+		noxi_flakeref::url::parse_url(&url, false).map_err(|err| error(format!("URL {err}")))?;
+	}
+	store.check_fetch_uri(&url).map_err(ErrorKind::from)?;
 	if name.is_empty() {
 		name = noxi_flakeref::url::base_name_of(&url).to_owned();
 	}
@@ -367,7 +471,7 @@ async fn fetch_url(
 		}
 	}
 	let (mount, _, mut locked, _) =
-		super::get_cached(store, &input, UseRegistries::No).map_err(error)?;
+		super::get_cached(store, &input, UseRegistries::No).map_err(fetch_error)?;
 	let path = if unpack {
 		super::mount_input(store, &mut locked, &input, &mount).map_err(error)?
 	} else {
@@ -380,6 +484,7 @@ async fn fetch_url(
 		if store.store().is_none() {
 			store.mount(&path, mount);
 		}
+		store.allow_store_path(&path);
 		path
 	};
 	Ok(path_value(&path))
@@ -412,7 +517,7 @@ pub(crate) mod fetch_builtins {
 	async fn builtin_fetch_url(
 		state: Rc<EvaluatorStore>,
 		co: GenCo,
-		value: Value,
+		#[lazy] value: Value,
 	) -> Result<Value, ErrorKind> {
 		fetch_url(&state, &co, value, false).await
 	}
@@ -421,7 +526,7 @@ pub(crate) mod fetch_builtins {
 	async fn builtin_fetch_tarball(
 		state: Rc<EvaluatorStore>,
 		co: GenCo,
-		value: Value,
+		#[lazy] value: Value,
 	) -> Result<Value, ErrorKind> {
 		fetch_url(&state, &co, value, true).await
 	}
@@ -430,14 +535,24 @@ pub(crate) mod fetch_builtins {
 	async fn builtin_get_flake(
 		state: Rc<EvaluatorStore>,
 		co: GenCo,
-		value: Value,
+		#[lazy] value: Value,
 	) -> Result<Value, ErrorKind> {
 		if !state.fetch_settings().flakes {
 			return Err(error(
 				"experimental Nix feature 'flakes' is disabled; add '--extra-experimental-features flakes' to enable it",
 			));
 		}
-		let reference = string(&co, value).await?;
+		let reference = string_no_context(
+			&co,
+			value,
+			noxi_eval::Trace::new(
+				None,
+				"while evaluating the argument passed to builtins.getFlake",
+			),
+		)
+		.await?
+		.to_str()?
+		.to_owned();
 		let locked = super::super::flake::lock_flake(
 			&state,
 			&co,

@@ -55,7 +55,37 @@ pub trait Store {
 	/// The registered outputs of a valid derivation.
 	fn query_derivation_outputs(&self, drv: &StorePath) -> Result<BTreeMap<String, StorePath>>;
 
+	/// `queryPartialDerivationOutputMap`: the registered outputs, extended by
+	/// the known realisations of content-addressed outputs. An output
+	/// without a known path maps to `None`.
+	fn query_partial_derivation_output_map(
+		&self,
+		drv: &StorePath,
+	) -> Result<BTreeMap<String, Option<StorePath>>> {
+		Ok(self
+			.query_derivation_outputs(drv)?
+			.into_iter()
+			.map(|(name, path)| (name, Some(path)))
+			.collect())
+	}
+
 	fn read_derivation(&self, drv: &StorePath) -> Result<UnverifiedDerivation>;
+
+	/// Read output declarations for evaluation with the evaluator's feature
+	/// settings, independently of the feature set used to open the owner.
+	fn read_evaluation_derivation(
+		&self,
+		drv: &StorePath,
+		features: crate::build_derivation::OutputFeatures,
+	) -> Result<crate::build_derivation::BuildDerivation> {
+		let bytes = std::fs::read(self.real_path(drv)).map_err(|error| {
+			Error::io(
+				format!("reading derivation '{}'", drv.to_absolute_path()),
+				error,
+			)
+		})?;
+		crate::build_derivation::BuildDerivation::from_aterm_bytes_with_features(&bytes, features)
+	}
 
 	fn add_text_to_store(
 		&self,
@@ -259,6 +289,13 @@ impl Store for LocalStore {
 
 	fn query_derivation_outputs(&self, drv: &StorePath) -> Result<BTreeMap<String, StorePath>> {
 		LocalStore::query_derivation_outputs(self, drv)
+	}
+
+	fn query_partial_derivation_output_map(
+		&self,
+		drv: &StorePath,
+	) -> Result<BTreeMap<String, Option<StorePath>>> {
+		LocalStore::query_partial_derivation_output_map(self, drv)
 	}
 
 	fn read_derivation(&self, drv: &StorePath) -> Result<UnverifiedDerivation> {

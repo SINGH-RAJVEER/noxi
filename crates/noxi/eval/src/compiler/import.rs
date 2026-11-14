@@ -15,7 +15,7 @@ use std::rc::Weak;
 
 use crate::{
 	ErrorKind, SourceCode, Value,
-	builtins::realise_value_to_path,
+	builtins::realise_path_argument,
 	generators::pin_generator,
 	try_cek_to_value,
 	value::{Builtin, Thunk},
@@ -28,7 +28,7 @@ async fn import_impl(
 	source: SourceCode,
 	mut args: Vec<Value>,
 ) -> Result<Value, ErrorKind> {
-	let path = try_cek_to_value!(realise_value_to_path(&co, args.pop().unwrap()).await?);
+	let path = try_cek_to_value!(realise_path_argument(&co, args.pop().unwrap()).await?);
 
 	if let Some(value) = import_derivation(&co, globals.clone(), source.clone(), &path).await? {
 		return Ok(value);
@@ -37,6 +37,17 @@ async fn import_impl(
 	let path = generators::request_resolve_import_path(&co, path, true).await;
 
 	let span = generators::request_span(&co).await;
+	// Like CppNix, parse and binding errors have no file frame; only the
+	// evaluation of the parsed file has.
+	let cached = generators::request_import_cache_lookup(&co, path.clone()).await;
+	let res = match cached {
+		Some(cached) => cached,
+		None => {
+			let res = compile_file(&co, globals, source.clone(), path.clone(), None).await?;
+			generators::request_import_cache_put(&co, path.clone(), res.clone()).await;
+			res
+		}
+	};
 	if !source.is_hidden(span) {
 		generators::request_builtin_context(
 			&co,
@@ -47,11 +58,6 @@ async fn import_impl(
 		)
 		.await;
 	}
-	if let Some(cached) = generators::request_import_cache_lookup(&co, path.clone()).await {
-		return Ok(generators::request_force(&co, cached).await);
-	}
-	let res = compile_file(&co, globals, source, path.clone(), None).await?;
-	generators::request_import_cache_put(&co, path, res.clone()).await;
 	let res = generators::request_force(&co, res).await;
 	Ok(res)
 }
@@ -68,7 +74,7 @@ async fn scoped_import_impl(
 	let path = args.pop().unwrap();
 	// The reference realises the path before inspecting the scope. In
 	// particular, a failing path must leave scope values unevaluated.
-	let path = try_cek_to_value!(realise_value_to_path(&co, path).await?);
+	let path = try_cek_to_value!(realise_path_argument(&co, path).await?);
 	if let Some(value) = import_derivation(&co, globals.clone(), source.clone(), &path).await? {
 		return Ok(value);
 	}
@@ -76,8 +82,13 @@ async fn scoped_import_impl(
 	if scope.is_catchable() {
 		return Ok(scope);
 	}
+	// CppNix's `forceAttrs` adds its context to the type error only.
+	let scope = scope.to_attrs().map_err(|error| ErrorKind::WithContext {
+		context: "while evaluating the first argument passed to builtins.scopedImport".into(),
+		span: None,
+		underlying: Box::new(error),
+	})?;
 	let scope: FxHashMap<SmolStr, Value> = scope
-		.to_attrs()?
 		.iter()
 		.map(|(name, value)| (SmolStr::new(name.to_str_lossy()), value.clone()))
 		.collect();

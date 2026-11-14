@@ -341,7 +341,11 @@ impl noxi_glue::fetch::http::Client for NoRevalidateClient {
 			status: if revalidating { 304 } else { 200 },
 			headers: [("etag".into(), "version-1".into())].into(),
 			effective_url: request.url.clone(),
-			body: if revalidating { Vec::new() } else { b"fresh".to_vec() },
+			body: if revalidating {
+				Vec::new()
+			} else {
+				b"fresh".to_vec()
+			},
 		})
 	}
 }

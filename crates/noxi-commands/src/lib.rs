@@ -23,6 +23,7 @@ mod nix_store_ops;
 pub mod paths;
 pub mod prefetch_url;
 pub mod store;
+mod suggestions;
 pub mod user_env;
 
 // Evaluation allocates and frees millions of small values, which mimalloc

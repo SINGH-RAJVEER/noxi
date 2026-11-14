@@ -47,7 +47,8 @@ pub fn main(settings: Settings, args: Vec<String>) -> Result<ExitCode, Failure> 
 				dry_run = true;
 				Ok(())
 			}
-			"--check" | "--repair" | "--help" | "--run-env" | "--pure" | "--impure" => {
+			"--help" => crate::cli::show_man_page_or_exit("nix-build"),
+			"--check" | "--repair" | "--run-env" | "--pure" | "--impure" => {
 				unsupported = Some(flag.to_owned());
 				Ok(())
 			}

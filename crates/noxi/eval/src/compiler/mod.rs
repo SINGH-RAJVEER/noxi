@@ -629,6 +629,9 @@ impl Compiler<'_, '_> {
 	}
 
 	fn compile_unary_op(&mut self, slot: LocalIdx, op: &ast::UnaryOp) {
+		if op.operator() == Some(ast::UnaryOpKind::Negate) {
+			return self.compile_negation(slot, op);
+		}
 		let invert = op.operator() == Some(ast::UnaryOpKind::Invert);
 		if invert {
 			let mut operand = op.expr().unwrap();
@@ -649,6 +652,45 @@ impl Compiler<'_, '_> {
 		if invert {
 			self.push_op(Op::PopContext, op);
 		}
+	}
+
+	/// CppNix parses `-e` as `__sub 0 e`, a call of whatever `__sub` is in
+	/// scope at the `-` token. A literal operand of the builtin folds.
+	fn compile_negation(&mut self, slot: LocalIdx, op: &ast::UnaryOp) {
+		let token = op
+			.syntax()
+			.children_with_tokens()
+			.filter_map(|child| child.into_token())
+			.find(|token| token.kind() == rnix::SyntaxKind::TOKEN_SUB)
+			.unwrap();
+		let operand = op.expr().unwrap();
+		let shadowed = self
+			.contexts
+			.iter()
+			.any(|ctx| !matches!(ctx.scope.resolve_local("__sub"), LocalPosition::Unknown));
+		if !shadowed && let ast::Expr::Literal(literal) = &operand {
+			match literal.kind() {
+				ast::LiteralKind::Integer(i) => {
+					if let Ok(value) = i.value() {
+						self.emit_constant(Value::Integer(-value), op);
+						return;
+					}
+				}
+				ast::LiteralKind::Float(f) => {
+					if let Ok(value) = f.value() {
+						self.emit_constant(Value::Float(0.0 - value), op);
+						return;
+					}
+				}
+				ast::LiteralKind::Uri(_) => {}
+			}
+		}
+		self.compile(slot, operand);
+		self.emit_constant(Value::Integer(0), &token);
+		self.compile_identifier_access(slot, "__sub", &token);
+		self.emit_force(&token);
+		self.push_op(Op::Call, &token);
+		self.push_op(Op::Call, &token);
 	}
 
 	fn compile_binop(&mut self, slot: LocalIdx, op: &ast::BinOp) {
@@ -716,7 +758,7 @@ impl Compiler<'_, '_> {
 			_ => None,
 		};
 		if let Some(primop) = primop {
-			if let Some(builtin) = self.globals.get(primop).cloned() {
+			if self.globals.contains_key(primop) {
 				let token = op
 					.syntax()
 					.children_with_tokens()
@@ -758,7 +800,8 @@ impl Compiler<'_, '_> {
 						op.lhs().unwrap()
 					},
 				);
-				self.emit_constant(builtin, &token);
+				// A binding of the primop's name shadows the builtin, as in CppNix.
+				self.compile_identifier_access(slot, primop, &token);
 				self.emit_force(&token);
 				self.push_op(Op::Call, &token);
 				self.push_op(Op::Call, &token);
@@ -790,7 +833,16 @@ impl Compiler<'_, '_> {
 		}
 
 		match op.operator().unwrap() {
-			BinOpKind::Add => self.push_op(Op::Add, &op.rhs().unwrap()),
+			BinOpKind::Add => {
+				let code = self.push_op(Op::Add, &op.rhs().unwrap());
+				let left = self.span_for(&op.lhs().unwrap());
+				self.context_mut()
+					.lambda
+					.addition_left_spans
+					.get_or_insert_with(Default::default)
+					.push((code.0, left));
+				code
+			}
 			BinOpKind::Sub => self.push_op(Op::Sub, op),
 			BinOpKind::Mul => self.push_op(Op::Mul, op),
 			BinOpKind::Div => self.push_op(Op::Div, op),
@@ -1732,7 +1784,41 @@ impl Compiler<'_, '_> {
 		// to enter the function call straight away.
 		self.compile(slot, node.argument().unwrap());
 		self.compile_forced(slot, node.lambda().unwrap());
-		self.push_op(Op::Call, node);
+		let position = self.call_position(node);
+		self.push_op(Op::Call, &position);
+	}
+
+	/// CppNix's position of an application: applying a parenthesised call
+	/// adds an argument to that call, so `(f a) b` is positioned at `f`, and
+	/// `(x - y) b` at the operator of the `__sub` call it parses to.
+	fn call_position(&self, node: &ast::Apply) -> Span {
+		let mut function = node.lambda().unwrap();
+		while let ast::Expr::Paren(paren) = &function {
+			function = paren.expr().unwrap();
+		}
+		let operator = |syntax: &rnix::SyntaxNode, kinds: &[rnix::SyntaxKind]| {
+			syntax
+				.children_with_tokens()
+				.filter_map(|child| child.into_token())
+				.find(|token| kinds.contains(&token.kind()))
+		};
+		use rnix::SyntaxKind::*;
+		let token = match &function {
+			_ if !matches!(node.lambda(), Some(ast::Expr::Paren(_))) => None,
+			ast::Expr::Apply(inner) => return self.call_position(inner),
+			ast::Expr::BinOp(op) => operator(
+				op.syntax(),
+				&[TOKEN_SUB, TOKEN_MUL, TOKEN_DIV, TOKEN_LESS, TOKEN_MORE],
+			),
+			ast::Expr::UnaryOp(op) if op.operator() == Some(ast::UnaryOpKind::Negate) => {
+				operator(op.syntax(), &[TOKEN_SUB])
+			}
+			_ => None,
+		};
+		match token {
+			Some(token) => self.span_for(&token),
+			None => self.span_for(node),
+		}
 	}
 
 	/// Emit the data instructions that the runtime needs to correctly

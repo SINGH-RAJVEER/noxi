@@ -144,8 +144,7 @@ fn value_variant_to_xml<W: Write>(w: &mut XmlEmitter<W>, value: &Value) -> Resul
 		}
 
 		Value::Builtin(_) => {
-			w.write_open_tag("unevaluated", &[])?;
-			w.write_closing_tag("unevaluated")?;
+			w.write_self_closing_tag("unevaluated", &[])?;
 		}
 
 		Value::AttrNotFound

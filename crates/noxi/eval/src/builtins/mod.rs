@@ -5,7 +5,6 @@
 use bstr::{ByteSlice, ByteVec};
 use builtin_macros::builtins;
 use genawaiter::rc::Gen;
-use regex::bytes::Regex;
 use rustc_hash::FxHashMap;
 use std::cell::RefCell;
 use std::cmp::{self, Ordering};
@@ -43,6 +42,8 @@ mod impure;
 
 #[cfg(feature = "impure")]
 pub use impure::impure_builtins;
+#[cfg(feature = "impure")]
+pub(crate) use impure::impure_builtins_with_features;
 
 // we set NOXI_CURRENT_SYSTEM in build.rs
 pub const CURRENT_PLATFORM: &str = env!("NOXI_CURRENT_SYSTEM");
@@ -60,6 +61,8 @@ pub enum ArgumentType {
 	Float,
 	/// `forceString`: a string, not a path.
 	String,
+	/// `forceStringNoCtx`: a string without context.
+	StringNoCtx,
 }
 
 /// CppNix's checks of the operands of `builtins.add` and the other arithmetic
@@ -101,6 +104,12 @@ pub fn check_argument(
 		| (ArgumentType::Bool, Value::Bool(_))
 		| (ArgumentType::Float, Value::Integer(_) | Value::Float(_))
 		| (ArgumentType::String, Value::String(_)) => true,
+		(ArgumentType::StringNoCtx, Value::String(string)) => {
+			if let Some(message) = string.context_not_allowed() {
+				return Err(ErrorKind::EvalError(message).trace(None, context));
+			}
+			true
+		}
 		_ => false,
 	};
 	if ok {
@@ -113,7 +122,7 @@ pub fn check_argument(
 		ArgumentType::Int => "int",
 		ArgumentType::Bool => "bool",
 		ArgumentType::Float => "float",
-		ArgumentType::String => "string",
+		ArgumentType::String | ArgumentType::StringNoCtx => "string",
 	};
 	Err(ErrorKind::TypeError {
 		expected,
@@ -184,6 +193,47 @@ pub async fn realise_value_to_path(
 	if !path.is_absolute() {
 		return Err(ErrorKind::NotAnAbsolutePath(path));
 	}
+	// Coercion hints describe argument conversion. Context realisation adds
+	// its own path-specific frame after conversion has succeeded.
+	generators::request_builtin_context(co, Vec::new()).await;
+	Ok(Ok(generators::request_realise_path(co, string).await))
+}
+
+/// CppNix's `realisePath` for a builtin's path argument: the argument is
+/// forced and coerced `while realising the context of a path`.
+pub async fn realise_path_argument(
+	co: &GenCo,
+	value: Value,
+) -> Result<Result<PathBuf, CatchableErrorKind>, ErrorKind> {
+	generators::request_builtin_context(
+		co,
+		vec![crate::Trace::new(
+			None,
+			"while realising the context of a path",
+		)],
+	)
+	.await;
+	let value = generators::request_force(co, value).await;
+	if let Value::Path(path) = value {
+		generators::request_builtin_context(co, Vec::new()).await;
+		return Ok(Ok(*path));
+	}
+	let string = try_cek!(
+		generators::request_string_coerce(
+			co,
+			value,
+			CoercionKind {
+				strong: false,
+				import_paths: false
+			}
+		)
+		.await
+	);
+	let path = string.to_path()?.to_owned();
+	if !path.is_absolute() {
+		return Err(ErrorKind::NotAnAbsolutePath(path));
+	}
+	generators::request_builtin_context(co, Vec::new()).await;
 	Ok(Ok(generators::request_realise_path(co, string).await))
 }
 
@@ -191,7 +241,7 @@ pub async fn realise_value_to_path(
 struct BuiltinState {
 	// Shared, not cloned: a cloned `Regex` starts with an empty match cache,
 	// which every use would rebuild.
-	regex_cache: RefCell<FxHashMap<Vec<u8>, Rc<Regex>>>,
+	regex_cache: RefCell<FxHashMap<Vec<u8>, Rc<extended_regex::FullRegex>>>,
 	split_regex_cache: RefCell<FxHashMap<Vec<u8>, Rc<extended_regex::SearchRegex>>>,
 	/// The enabled CppNix experimental features, shared with the builder.
 	experimental_features: ExperimentalFeatures,
@@ -248,7 +298,7 @@ impl BuiltinState {
 		})
 	}
 
-	fn get_regex(&self, pattern: &[u8]) -> Result<Rc<Regex>, ()> {
+	fn get_regex(&self, pattern: &[u8]) -> Result<Rc<extended_regex::FullRegex>, ()> {
 		let mut map = self.regex_cache.borrow_mut();
 		Ok(match map.entry(pattern.to_vec()) {
 			Entry::Occupied(occupied) => occupied.get().clone(),
@@ -328,15 +378,17 @@ mod pure_builtins {
 	}
 
 	#[builtin("abort")]
-	async fn builtin_abort(co: GenCo, message: Value) -> Result<Value, ErrorKind> {
+	async fn builtin_abort(co: GenCo, #[lazy] message: Value) -> Result<Value, ErrorKind> {
+		let message = try_value!(generators::request_force(&co, message).await);
 		let message = try_cek_to_value!(
-			generators::request_string_coerce(
+			generators::request_string_coerce_in(
 				&co,
 				message,
 				CoercionKind {
 					strong: false,
 					import_paths: true,
 				},
+				Some("while evaluating the error message passed to builtins.abort"),
 			)
 			.await
 		);
@@ -467,8 +519,8 @@ mod pure_builtins {
 
 	/// Without a debugger, `break` returns its argument, as CppNix's does.
 	#[builtin("break")]
-	fn builtin_break(#[lazy] value: Value) -> Result<Value, ErrorKind> {
-		Ok(value)
+	async fn builtin_break(co: GenCo, #[lazy] value: Value) -> Result<Value, ErrorKind> {
+		Ok(generators::request_force(&co, value).await)
 	}
 
 	#[builtin("catAttrs")]
@@ -592,7 +644,7 @@ mod pure_builtins {
 	#[builtin("deepSeq")]
 	async fn builtin_deep_seq(co: GenCo, x: Value, #[lazy] y: Value) -> Result<Value, ErrorKind> {
 		try_value!(generators::request_deep_force(&co, x).await);
-		Ok(y)
+		Ok(generators::request_force(&co, y).await)
 	}
 
 	#[builtin("div")]
@@ -654,7 +706,7 @@ mod pure_builtins {
 	}
 
 	#[builtin("elem")]
-	async fn builtin_elem(co: GenCo, x: Value, xs: Value) -> Result<Value, ErrorKind> {
+	async fn builtin_elem(co: GenCo, #[lazy] x: Value, xs: Value) -> Result<Value, ErrorKind> {
 		for val in xs.to_list()? {
 			match try_cek_to_value!(
 				generators::check_equality(&co, x.clone(), val, PointerEquality::AllowAll).await?
@@ -755,8 +807,7 @@ mod pure_builtins {
 	#[builtin("fromJSON")]
 	fn builtin_from_json(json: Value) -> Result<Value, ErrorKind> {
 		let json_str = json.to_str()?;
-		let json: serde_json::Value = serde_json::from_slice(&json_str)?;
-		from_data::json_to_value(json)
+		from_data::parse_json(json_str.as_bytes())
 	}
 
 	#[builtin("toJSON")]
@@ -777,16 +828,8 @@ mod pure_builtins {
 	fn builtin_from_toml(state: Rc<BuiltinState>, toml: Value) -> Result<Value, ErrorKind> {
 		let toml_str = toml.to_str()?;
 		let input = toml_str.to_str()?;
-		let toml: toml::Value = toml::from_str(input).map_err(|error: toml::de::Error| {
-			if matches!(error.message(), "number too large to fit in target type" | "number too small to fit in target type") && let Some(range) = error.span() {
-				let before = &input[..range.start]; let line = before.bytes().filter(|b| *b == b'\n').count() + 1;
-				let text = input.lines().nth(line - 1).unwrap_or("");
-				let start = before.rfind('\n').map_or(0, |p| p + 1);
-				let token = text[range.start - start..].split(|c: char| !(c.is_ascii_digit() || c == '-' || c == '+' || c == '_')).next().unwrap_or("");
-				return ErrorKind::FromTomlError(format!("while parsing TOML: [error] toml::parse_dec_integer: too large integer: current max digits = 2^63\n --> fromTOML\n   |\n {line} | {text}\n   | {}^-- must be < 2^63\n", " ".repeat(range.start - start + token.len())));
-			}
-			error.into()
-		})?;
+		let toml: toml::Value =
+			toml::from_str(input).map_err(|error| from_data::toml_error(input, error))?;
 		from_data::toml_to_value(
 			toml,
 			state.experimental_features.enabled("parse-toml-timestamps"),
@@ -957,7 +1000,9 @@ mod pure_builtins {
 			});
 		}
 
-		let mut out = Vec::with_capacity(count);
+		let mut out = Vec::new();
+		out.try_reserve_exact(count)
+			.map_err(|_| ErrorKind::EvalError("out of memory".into()))?;
 		let lambda = Thunk::suspended_call_lambda(match &generator {
 			Value::Closure(c) => c.lambda().span.unwrap_or(span),
 			_ => span,
@@ -1152,6 +1197,48 @@ mod pure_builtins {
 		Ok(Value::attrs(NixAttrs::from_iter(elements)))
 	}
 
+	/// The context schema carries field positions. Scalar force helpers add a
+	/// trace even when forcing throws; list/set helpers trace type errors only.
+	async fn force_context_value(
+		co: &GenCo,
+		value: Value,
+		expected: ArgumentType,
+		position: Option<codemap::Span>,
+		hint: &'static str,
+	) -> Result<Value, ErrorKind> {
+		let scalar = !matches!(expected, ArgumentType::List | ArgumentType::Attrs);
+		if scalar {
+			generators::request_builtin_context(co, vec![crate::Trace::new(position, hint)]).await;
+		}
+		let value = generators::request_force(co, value).await;
+		if value.is_catchable() {
+			return Ok(value);
+		}
+		if scalar {
+			generators::request_builtin_context(co, Vec::new()).await;
+		}
+		check_argument(&value, expected, hint).map_err(|error| match error {
+			ErrorKind::WithContext {
+				context,
+				underlying,
+				..
+			} => ErrorKind::WithContext {
+				context,
+				span: position,
+				underlying: if scalar {
+					match position {
+						Some(span) => Box::new(ErrorKind::PositionedAt { span, underlying }),
+						None => underlying,
+					}
+				} else {
+					underlying
+				},
+			},
+			error => error,
+		})?;
+		Ok(value)
+	}
+
 	#[builtin("appendContext")]
 	#[allow(non_snake_case)]
 	async fn builtin_appendContext(
@@ -1194,7 +1281,10 @@ mod pure_builtins {
 			let path =
 				nix_compat::store_path::StorePath::from_absolute_path(context_key.as_bytes())
 					.map_err(|_| {
-						fail(format!("context key '{context_key}' is not a store path"))
+						fail(format!(
+							"context key '{}' is not a store path",
+							context_key.to_str_lossy()
+						))
 					})?;
 			generators::request_ensure_context_path(&co, PathBuf::from(path.to_absolute_path()))
 				.await;
@@ -1219,13 +1309,31 @@ mod pure_builtins {
 			})?;
 			let context_element = context_element.to_attrs()?;
 			if let Some(value) = context_element.select("path") {
-				let value = try_value!(generators::request_force(&co, value.clone()).await);
+				let value = try_value!(
+					force_context_value(
+						&co,
+						value.clone(),
+						ArgumentType::Bool,
+						context_element.get_attr_pos("path"),
+						"while evaluating the `path` attribute of a string context"
+					)
+					.await?
+				);
 				if value.as_bool()? {
 					ctx_elements.insert(NixContextElement::Plain(path.to_absolute_path()));
 				}
 			}
 			if let Some(value) = context_element.select("allOutputs") {
-				let value = try_value!(generators::request_force(&co, value.clone()).await);
+				let value = try_value!(
+					force_context_value(
+						&co,
+						value.clone(),
+						ArgumentType::Bool,
+						context_element.get_attr_pos("allOutputs"),
+						"while evaluating the `allOutputs` attribute of a string context"
+					)
+					.await?
+				);
 				if value.as_bool()? {
 					if !path.name().ends_with(".drv") {
 						return Err(fail(format!(
@@ -1236,16 +1344,34 @@ mod pure_builtins {
 				}
 			}
 			if let Some(value) = context_element.select("outputs") {
-				let values =
-					try_value!(generators::request_force(&co, value.clone()).await).to_list()?;
+				let values = try_value!(
+					force_context_value(
+						&co,
+						value.clone(),
+						ArgumentType::List,
+						context_element.get_attr_pos("outputs"),
+						"while evaluating the `outputs` attribute of a string context"
+					)
+					.await?
+				)
+				.to_list()?;
 				if !values.is_empty() && !path.name().ends_with(".drv") {
 					return Err(fail(format!(
 						"tried to add derivation output context of {context_key}, which is not a derivation, to a string"
 					)));
 				}
 				for output in values.into_iter() {
-					let output = try_value!(generators::request_force(&co, output).await)
-						.to_contextful_str()?;
+					let output = try_value!(
+						force_context_value(
+							&co,
+							output,
+							ArgumentType::String,
+							context_element.get_attr_pos("outputs"),
+							"while evaluating an output name within a string context"
+						)
+						.await?
+					)
+					.to_contextful_str()?;
 					if let Some(dependency) = output.context().and_then(|context| {
 						context
 							.iter()
@@ -1293,28 +1419,87 @@ mod pure_builtins {
 	) -> Result<Value, ErrorKind> {
 		let blake3 = state.experimental_features.enabled("blake3-hashes");
 		let args = args.to_attrs()?;
-		let hash = args.select_required("hash")?.clone();
-		let hash = try_value!(generators::request_force(&co, hash).await).to_str()?;
-		let algo = match args.select("hashAlgo") {
-			Some(algo) => {
-				let algo = try_value!(generators::request_force(&co, algo.clone()).await);
-				Some(crate::builtins::hash::parse_hash_algo(
-					&algo.to_str()?,
-					blake3,
-				)?)
+		// CppNix's `getAttr` and `forceStringNoCtx` of each field.
+		async fn field(
+			co: &GenCo,
+			args: &NixAttrs,
+			name: &'static str,
+		) -> Result<Option<Result<NixString, Value>>, ErrorKind> {
+			let Some(value) = args.select(name) else {
+				return Ok(None);
+			};
+			let hint = format!("while evaluating the attribute '{name}'");
+			generators::request_builtin_context(
+				co,
+				vec![crate::errors::Trace::new(None, hint.clone())],
+			)
+			.await;
+			let value = generators::request_force(co, value.clone()).await;
+			if value.is_catchable() {
+				return Ok(Some(Err(value)));
 			}
+			generators::request_builtin_context(co, Vec::new()).await;
+			if let Value::String(string) = &value
+				&& let Some(message) = string.context_not_allowed()
+			{
+				return Err(ErrorKind::EvalError(message).trace(None, hint));
+			}
+			Ok(Some(Ok(value.to_str().map_err(|e| e.trace(None, hint))?)))
+		}
+		let required = |name: &str| {
+			ErrorKind::AttributeNotFound {
+				name: name.into(),
+				suggestions: Vec::new(),
+			}
+			.trace(None, format!("while locating the attribute '{name}'"))
+		};
+		let hash = match field(&co, &args, "hash").await? {
+			Some(Ok(hash)) => hash,
+			Some(Err(catchable)) => return Ok(catchable),
+			None => return Err(required("hash")),
+		};
+		let algo = match field(&co, &args, "hashAlgo").await? {
+			Some(Ok(algo)) => Some(crate::builtins::hash::parse_hash_algo(&algo, blake3)?),
+			Some(Err(catchable)) => return Ok(catchable),
 			None => None,
 		};
-		let format = args.select_required("toHashFormat")?.clone();
-		let format = try_value!(generators::request_force(&co, format).await).to_str()?;
+		let format = match field(&co, &args, "toHashFormat").await? {
+			Some(Ok(format)) => format,
+			Some(Err(catchable)) => return Ok(catchable),
+			None => return Err(required("toHashFormat")),
+		};
 		let format = crate::builtins::hash::parse_hash_format(&format)?;
 		let hash = crate::builtins::hash::parse_any(&hash, algo, blake3)?;
 		Ok(Value::from(crate::builtins::hash::to_string(&hash, format)))
 	}
 
 	#[builtin("hashString")]
-	fn builtin_hash_string(algo: Value, s: Value) -> Result<Value, ErrorKind> {
-		hash_nix_string(algo.to_str()?, std::io::Cursor::new(s.to_str()?)).map(Value::from)
+	async fn builtin_hash_string(
+		state: Rc<BuiltinState>,
+		co: GenCo,
+		#[lazy] algo: Value,
+		#[lazy] s: Value,
+	) -> Result<Value, ErrorKind> {
+		let hint = "while evaluating the first argument passed to builtins.hashString";
+		generators::request_builtin_context(&co, vec![crate::Trace::new(None, hint)]).await;
+		let algo = try_value!(generators::request_force(&co, algo).await);
+		generators::request_builtin_context(&co, Vec::new()).await;
+		check_argument(&algo, ArgumentType::String, hint)?;
+		let algo = algo.to_contextful_str()?;
+		if algo.has_context() {
+			crate::builtins::hash::check_algorithm_context(&algo, hint)?;
+		}
+		crate::builtins::hash::parse_builtin_hash_algo(
+			algo.as_bytes(),
+			state.experimental_features.enabled("blake3-hashes"),
+		)?;
+		let hint = "while evaluating the second argument passed to builtins.hashString";
+		generators::request_builtin_context(&co, vec![crate::Trace::new(None, hint)]).await;
+		let s = try_value!(generators::request_force(&co, s).await);
+		generators::request_builtin_context(&co, Vec::new()).await;
+		check_argument(&s, ArgumentType::String, hint)?;
+		let s = s.to_contextful_str()?;
+		hash_nix_string(algo.as_bytes(), std::io::Cursor::new(s.as_bytes())).map(Value::from)
 	}
 
 	#[builtin("head")]
@@ -1516,7 +1701,12 @@ mod pure_builtins {
 			});
 		}
 
-		let lambda = Thunk::suspended_call_lambda(span);
+		// CppNix applies the function where its value is positioned: a
+		// lambda at its definition.
+		let lambda = Thunk::suspended_call_lambda(match &f {
+			Value::Closure(c) => c.lambda().span.unwrap_or(span),
+			_ => span,
+		});
 		for val in list {
 			let result = Value::Thunk(Thunk::new_suspended_call_with_lambda(
 				f.clone(),
@@ -1562,25 +1752,25 @@ mod pure_builtins {
 	}
 
 	#[builtin("match")]
-	fn builtin_match(
+	async fn builtin_match(
 		state: Rc<BuiltinState>,
+		co: GenCo,
 		regex: Value,
-		str: Value,
+		#[lazy] str: Value,
 	) -> Result<Value, ErrorKind> {
-		let s = str;
-		if s.is_catchable() {
-			return Ok(s);
-		}
-		let s = s.to_contextful_str()?;
-		let re = regex;
-		if re.is_catchable() {
-			return Ok(re);
-		}
-		let re = re.to_str()?;
+		let re = regex.to_str()?;
 		let pattern = re.as_bytes();
+		// The reference compiles the pattern before evaluating the subject,
+		// so an invalid pattern wins over a thrown or invalid subject.
 		let re = state
 			.get_regex(pattern)
-			.map_err(|_| ErrorKind::InvalidRegex(String::from_utf8_lossy(pattern).into_owned()))?;
+			.map_err(|_| ErrorKind::InvalidRegexBytes(pattern.to_vec()))?;
+		let hint = "while evaluating the second argument passed to builtins.match";
+		generators::request_builtin_context(&co, vec![crate::Trace::new(None, hint)]).await;
+		let s = try_value!(generators::request_force(&co, str).await);
+		generators::request_builtin_context(&co, Vec::new()).await;
+		check_argument(&s, ArgumentType::String, hint)?;
+		let s = s.to_contextful_str()?;
 
 		match re.captures(s.as_bytes()) {
 			Some(caps) => Ok(Value::List(
@@ -1594,7 +1784,8 @@ mod pure_builtins {
 						// can be observed in make-initrd.nix when it comes
 						// to compressors which are matched over their full command
 						// and then a compressor name will be extracted from that.
-						grp.map(|g| Value::from(g.as_bytes()))
+						grp.as_ref()
+							.map(|g| Value::from(&s.as_bytes()[g.clone()]))
 							.unwrap_or(Value::Null)
 					})
 					.collect::<Vec<Value>>()
@@ -1677,13 +1868,27 @@ mod pure_builtins {
 	}
 
 	#[builtin("removeAttrs")]
-	fn builtin_remove_attrs(attrs: Value, keys: Value) -> Result<Value, ErrorKind> {
+	async fn builtin_remove_attrs(
+		co: GenCo,
+		attrs: Value,
+		keys: Value,
+	) -> Result<Value, ErrorKind> {
 		let attrs = attrs.to_attrs()?;
-		let keys = keys
-			.to_list()?
-			.into_iter()
-			.map(|v| v.to_str())
-			.collect::<Result<FxHashSet<_>, _>>()?;
+		let hint =
+			"while evaluating the values of the second argument passed to builtins.removeAttrs";
+		let mut names = FxHashSet::default();
+		for key in keys.to_list()?.into_iter() {
+			generators::request_builtin_context(&co, vec![crate::errors::Trace::new(None, hint)])
+				.await;
+			let key = generators::request_force(&co, key).await;
+			if key.is_catchable() {
+				return Ok(key);
+			}
+			generators::request_builtin_context(&co, Vec::new()).await;
+			check_argument(&key, ArgumentType::StringNoCtx, hint)?;
+			names.insert(key.to_str()?);
+		}
+		let keys = names;
 		let res = attrs.iter().filter_map(|(k, v)| {
 			if !keys.contains(k) {
 				Some((k.clone(), v.clone()))
@@ -1699,7 +1904,7 @@ mod pure_builtins {
 		co: GenCo,
 		from: Value,
 		to: Value,
-		s: Value,
+		#[lazy] s: Value,
 	) -> Result<Value, ErrorKind> {
 		// After CppNix's `prim_replaceStrings`: the `from` strings are forced
 		// up front, a replacement only when it is first used.
@@ -1713,17 +1918,30 @@ mod pure_builtins {
 		}
 		let mut patterns = Vec::with_capacity(from.len());
 		for val in &from {
-			let val = try_value!(generators::request_force(&co, val.clone()).await);
-			patterns.push(val.to_contextful_str().trace(
-				None,
-				"while evaluating one of the strings to replace passed to builtins.replaceStrings",
-			)?);
+			let val = try_value!(
+				force_context_value(
+					&co,
+					val.clone(),
+					ArgumentType::String,
+					None,
+					"while evaluating one of the strings to replace passed to builtins.replaceStrings",
+				)
+				.await?
+			);
+			patterns.push(val.to_contextful_str()?);
 		}
 
-		let mut string = s.to_contextful_str().trace(
-			None,
-			"while evaluating the third argument passed to builtins.replaceStrings",
-		)?;
+		let s = try_value!(
+			force_context_value(
+				&co,
+				s,
+				ArgumentType::String,
+				None,
+				"while evaluating the third argument passed to builtins.replaceStrings",
+			)
+			.await?
+		);
+		let mut string = s.to_contextful_str()?;
 		let mut context = NixContext::new();
 		if let Some(string_context) = string.take_context() {
 			context.extend(*string_context);
@@ -1741,12 +1959,17 @@ mod pure_builtins {
 			match found {
 				Some(index) => {
 					if cache[index].is_none() {
-						let replacement =
-							try_value!(generators::request_force(&co, to[index].clone()).await);
-						let mut replacement = replacement.to_contextful_str().trace(
-							None,
-							"while evaluating one of the replacement strings passed to builtins.replaceStrings",
-						)?;
+						let replacement = try_value!(
+							force_context_value(
+								&co,
+								to[index].clone(),
+								ArgumentType::String,
+								None,
+								"while evaluating one of the replacement strings passed to builtins.replaceStrings",
+							)
+							.await?
+						);
+						let mut replacement = replacement.to_contextful_str()?;
 						if let Some(to_ctx) = replacement.take_context() {
 							context.extend(*to_ctx);
 						}
@@ -1783,26 +2006,25 @@ mod pure_builtins {
 	}
 
 	#[builtin("split")]
-	fn builtin_split(
+	async fn builtin_split(
 		state: Rc<BuiltinState>,
+		co: GenCo,
 		regex: Value,
-		str: Value,
+		#[lazy] str: Value,
 	) -> Result<Value, ErrorKind> {
-		if str.is_catchable() {
-			return Ok(str);
-		}
-
-		if regex.is_catchable() {
-			return Ok(regex);
-		}
-
-		let s = str.to_contextful_str()?;
-		let text = s.as_bytes();
-		let re = regex.to_str()?;
-		let pattern = re.as_bytes();
+		let pattern_string = regex.to_str()?;
+		let pattern = pattern_string.as_bytes();
 		let re = state
 			.get_split_regex(pattern)
-			.map_err(|_| ErrorKind::InvalidRegex(String::from_utf8_lossy(pattern).into_owned()))?;
+			.map_err(|_| ErrorKind::InvalidRegexBytes(pattern.to_vec()))?;
+		let hint = "while evaluating the second argument passed to builtins.split";
+		generators::request_builtin_context(&co, vec![crate::Trace::new(None, hint)]).await;
+		let s = try_value!(generators::request_force(&co, str).await);
+		generators::request_builtin_context(&co, Vec::new()).await;
+		check_argument(&s, ArgumentType::String, hint)?;
+		let s = s.to_contextful_str()?;
+		let text = s.as_bytes();
+
 		let mut cache = re.longest.create_cache();
 		let mut captures = re.longest.create_captures();
 		let mut ret = Vec::new();
@@ -1814,11 +2036,12 @@ mod pure_builtins {
 			// Once a match exists the reference discards context from every
 			// returned string, including unmatched prefixes and suffixes.
 			ret.push(Value::from(&text[pos..thematch.start()]));
-			let groups: Vec<Value> = (1..captures.group_len())
-				.map(|i| {
-					captures
-						.get_group(i)
-						.map(|span| Value::from(&text[span.start..span.end]))
+			let groups: Vec<Value> = re
+				.groups(text, &captures)
+				.into_iter()
+				.skip(1)
+				.map(|span| {
+					span.map(|span| Value::from(&text[span]))
 						.unwrap_or(Value::Null)
 				})
 				.collect();
@@ -2006,20 +2229,17 @@ mod pure_builtins {
 	}
 
 	#[builtin("throw")]
-	async fn builtin_throw(co: GenCo, message: Value) -> Result<Value, ErrorKind> {
-		// If it's already some error, let's propagate it immediately.
-		if message.is_catchable() {
-			return Ok(message);
-		}
-
+	async fn builtin_throw(co: GenCo, #[lazy] message: Value) -> Result<Value, ErrorKind> {
+		let message = try_value!(generators::request_force(&co, message).await);
 		let message = try_cek_to_value!(
-			generators::request_string_coerce(
+			generators::request_string_coerce_in(
 				&co,
 				message,
 				CoercionKind {
 					strong: false,
 					import_paths: true,
 				},
+				Some("while evaluating the error message passed to builtin.throw"),
 			)
 			.await
 		);
@@ -2028,6 +2248,7 @@ mod pure_builtins {
 
 	#[builtin("toString")]
 	async fn builtin_to_string(co: GenCo, #[lazy] x: Value) -> Result<Value, ErrorKind> {
+		let x = try_value!(generators::request_force(&co, x).await);
 		// TODO(edef): please fix me w.r.t. to catchability.
 		// coerce_to_string forces for us
 		// FIXME: should `coerce_to_string` preserve context?
@@ -2128,11 +2349,7 @@ mod pure_builtins {
 	}
 
 	#[builtin("toPath")]
-	async fn builtin_to_path(co: GenCo, s: Value) -> Result<Value, ErrorKind> {
-		if s.is_catchable() {
-			return Ok(s);
-		}
-
+	async fn builtin_to_path(co: GenCo, #[lazy] s: Value) -> Result<Value, ErrorKind> {
 		generators::request_builtin_context(
 			&co,
 			vec![noxi_eval::Trace::new(
@@ -2226,24 +2443,34 @@ mod pure_builtins {
 	}
 }
 
-/// `builtins.floor` and `builtins.ceil` after CppNix: an integer is returned
-/// unchanged, and a rounded float must lie within the integer range.
+/// CppNix checks the intermediate double, including precision loss for integer inputs.
 fn round_to_int(value: &Value, round: fn(f64) -> f64) -> Result<Value, ErrorKind> {
-	if let Value::Integer(i) = value {
-		return Ok(Value::Integer(*i));
-	}
-	let float = value.as_float()?;
+	let float = match value {
+		Value::Integer(integer) => *integer as f64,
+		_ => value.as_float()?,
+	};
 	let rounded = round(float);
-	// A power of two, so the comparison is exact.
 	let min = i64::MIN as f64;
-	if rounded >= min && rounded < -min {
-		Ok(Value::Integer(rounded as i64))
-	} else {
-		Err(ErrorKind::EvalError(format!(
-			"NixFloat argument {} is not in the range of NixInt",
-			Value::Float(float)
-		)))
+	if rounded < min || rounded >= -min || !rounded.is_finite() {
+		return Err(ErrorKind::EvalError(match value {
+			Value::Integer(integer) => format!(
+				"Due to a bug (see https://github.com/NixOS/nix/issues/12899) the NixInt argument {integer} caused undefined behavior in previous Nix versions.\n\tFuture Nix versions might implement the correct behavior."
+			),
+			_ => format!(
+				"NixFloat argument {} is not in the range of NixInt",
+				Value::Float(float)
+			),
+		}));
 	}
+	let result = rounded as i64;
+	if let Value::Integer(integer) = value {
+		if *integer != result {
+			return Err(ErrorKind::EvalError(format!(
+				"Due to a bug (see https://github.com/NixOS/nix/issues/12899) a loss of precision occurred in previous Nix versions because the NixInt argument {integer} was rounded to {result}.\n\tFuture Nix versions might implement the correct behavior."
+			)));
+		}
+	}
+	Ok(Value::Integer(result))
 }
 
 /// The set of standard pure builtins in Nix, mostly concerned with
@@ -2285,7 +2512,7 @@ pub(crate) fn pure_builtins_with_messages(
 	}));
 
 	// Pure-value builtins
-	result.push(("nixVersion", Value::from("2.18.3-compat-noxi-0.1")));
+	result.push(("nixVersion", Value::from("2.35.2")));
 	result.push(("langVersion", Value::Integer(6)));
 	result.push(("null", Value::Null));
 	result.push(("true", Value::Bool(true)));
@@ -2308,23 +2535,30 @@ mod placeholder_builtins {
 	#[builtin("unsafeDiscardStringContext")]
 	async fn builtin_unsafe_discard_string_context(
 		co: GenCo,
-		s: Value,
+		#[lazy] s: Value,
 	) -> Result<Value, ErrorKind> {
-		let span = generators::request_span(&co).await;
-		let mut v = s
-			.coerce_to_string(
-				co,
-				// It's weak because
-				// lists, integers, floats and null are not
-				// accepted as parameters.
-				CoercionKind {
-					strong: false,
-					import_paths: true,
-				},
-				span,
-			)
-			.await?
-			.to_contextful_str()?;
+		generators::request_builtin_context(
+			&co,
+			vec![crate::Trace::new(
+				None,
+				"while evaluating the argument passed to builtins.unsafeDiscardStringContext",
+			)],
+		)
+		.await;
+		let mut v = match generators::request_string_coerce(
+			&co,
+			s,
+			CoercionKind {
+				strong: false,
+				import_paths: true,
+			},
+		)
+		.await
+		{
+			Ok(value) => value,
+			Err(error) => return Ok(Value::Catchable(Box::new(error))),
+		};
+		generators::request_builtin_context(&co, Vec::new()).await;
 		v.clear_context();
 		Ok(Value::from(v))
 	}
@@ -2332,24 +2566,27 @@ mod placeholder_builtins {
 	#[builtin("unsafeDiscardOutputDependency")]
 	async fn builtin_unsafe_discard_output_dependency(
 		co: GenCo,
-		s: Value,
+		#[lazy] s: Value,
 	) -> Result<Value, ErrorKind> {
-		let span = generators::request_span(&co).await;
-		let mut v = s
-			.coerce_to_string(
-				co,
-				// It's weak because
-				// lists, integers, floats and null are not
-				// accepted as parameters.
-				CoercionKind {
-					strong: false,
-					import_paths: true,
-				},
-				span,
-			)
-			.await?
-			.to_contextful_str()?;
-
+		generators::request_builtin_context(
+			&co,
+			vec![crate::Trace::new(
+				None,
+				"while evaluating the argument passed to builtins.unsafeDiscardOutputDependency",
+			)],
+		)
+		.await;
+		let mut v = generators::request_string_coerce(
+			&co,
+			s,
+			CoercionKind {
+				strong: false,
+				import_paths: true,
+			},
+		)
+		.await
+		.map_err(ErrorKind::CatchableError)?;
+		generators::request_builtin_context(&co, Vec::new()).await;
 		// If there's any context, we will swap any ... by a path one.
 		if let Some(c) = v.take_context() {
 			let mut context = NixContext::new();

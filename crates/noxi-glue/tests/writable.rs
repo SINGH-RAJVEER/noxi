@@ -437,7 +437,7 @@ fn appended_context_paths_are_ensured_only_in_writable_evaluation() {
 			.unwrap(),
 		"text"
 	);
-	let expression = r#"let path = builtins.toFile "context" "text"; in builtins.getContext (builtins.appendContext "text" { ${path} = { path = true; }; }) == builtins.getContext path"#;
+	let expression = r#"let path = builtins.toFile "context" "text"; in builtins.getContext (builtins.appendContext "text" { ${builtins.unsafeDiscardStringContext path} = { path = true; }; }) == builtins.getContext path"#;
 	assert!(matches!(
 		evaluate(&writable, root.path(), expression),
 		Value::Bool(true)

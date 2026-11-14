@@ -486,7 +486,17 @@ pub(crate) fn get_accessor(
 		locked.attrs.insert("url".into(), url.into());
 		return Ok((mount, locked));
 	}
-	let repo = fs::canonicalize(url_path_to_path(&parsed.path)?)?;
+	let local_path = url_path_to_path(&parsed.path)?;
+	let repo = fs::canonicalize(&local_path).map_err(|error| {
+		if error.kind() == std::io::ErrorKind::NotFound {
+			Error::new(format!(
+				"Git repository \"{}\" does not exist.",
+				local_path.display()
+			))
+		} else {
+			error.into()
+		}
+	})?;
 	if boolean(input, "verifyCommit")?
 		|| input.attrs.contains_key("publicKey")
 		|| input.attrs.contains_key("publicKeys")

@@ -25,6 +25,10 @@ Run `devenv shell -- just cache-push` to build and upload both `.#noxi` and `.#n
 
 Cachix stores Nix build outputs and their runtime dependencies. It does not cache Cargo's local `target/` directory, and publishing the replacement package does not qualify it for host installation. The Nix package version follows `crates/noxi-cli/Cargo.toml`; changing that crate's version also changes the Nix output names.
 
+The shared package definition supplies `pkg-config` as a native build input and zstd and SQLite as build inputs for both package variants. SQLite must be available to the Nix linker environment when dependencies select system SQLite; otherwise the final link can fail with `unable to find library -lsqlite3`.
+
+On 2026-11-17, a Nix linker probe using the package's declared inputs reproduced `cannot find -lsqlite3` before adding SQLite and passed afterward. `devenv --offline shell -- nix build --no-link --max-jobs 1 --cores 2 --print-out-paths .#noxi` then completed successfully, including all eleven packaged CLI tests. The resulting preview executable at `/nix/store/1p7iyr3l2j09nnljfnnzb8yl8njbn432-noxi-preview-0.0.3/bin/noxi` reports its version and evaluates `1 + 1` to `2`. This validates the preview package build; no system rebuild or activation was performed by this fix.
+
 ## Continuous integration and automatic releases
 
 `.github/workflows/publish.yml` validates the release automation on pushes and pull requests. Every push builds both x86_64-linux package variants and uploads their closures to `noxios` after validation passes. A manual workflow dispatch can retry an upload. Builds use at most two cores and one concurrent Nix derivation to limit memory use. This caches the preview and replacement package; it does not build or deploy a host's NixOS configuration.

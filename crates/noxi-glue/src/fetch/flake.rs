@@ -68,6 +68,18 @@ impl LockedFlake {
 		Ok(())
 	}
 
+	/// A lock written through a local Mercurial input becomes a tracked change,
+	/// as `MercurialInputScheme::putFile` does in the pinned implementation.
+	pub fn track_mercurial_lock_file(&self, path: &Path) -> std::io::Result<()> {
+		if self.resolved_ref.input.scheme == Some(noxi_flakeref::input::Scheme::Mercurial)
+			&& let Some(root) = self.resolved_ref.input.get_source_path()
+			&& path == root.join(&self.resolved_ref.subdir).join("flake.lock")
+		{
+			super::mercurial::track_file(path).map_err(std::io::Error::other)?;
+		}
+		Ok(())
+	}
+
 	pub async fn evaluate(
 		&self,
 		store: &Rc<EvaluatorStore>,
@@ -305,8 +317,8 @@ pub fn fetch_source(
 	original: &FlakeRef,
 	registries: UseRegistries,
 ) -> Result<FetchedSource, ErrorKind> {
-	let (mount, resolved, mut input, extra) =
-		super::get_cached(store, &original.input, registries).map_err(error)?;
+	let (mount, resolved, mut input, extra) = super::get_cached(store, &original.input, registries)
+		.map_err(super::builtins::fetch_error)?;
 	let fetched = input.clone();
 	let path = super::mount_input(store, &mut input, &original.input, &mount).map_err(error)?;
 	let subdir = if original.subdir.is_empty() {

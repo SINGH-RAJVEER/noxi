@@ -173,6 +173,7 @@ impl<'a> LocalBuilder<'a> {
 		let build_drv = BuildDerivation {
 			basic: drv.clone(),
 			floating: BTreeMap::new(),
+			experimental: BTreeMap::new(),
 		};
 		let outputs = self.known_outputs(drv_path, &build_drv)?;
 		self.report_checks(&outputs, events)?;
@@ -504,7 +505,7 @@ impl<'a> LocalBuilder<'a> {
 			.name()
 			.strip_suffix(".drv")
 			.unwrap_or(drv_path.name());
-		if outputs.is_deferred() && drv.floating.is_empty() {
+		if outputs.is_deferred() && drv.floating.is_empty() && drv.experimental.is_empty() {
 			outputs = builder
 				.calculate_outputs(name, lookup_fn(|_| None))
 				.map_err(|e| BuildError::Other(e.to_string()))?;
@@ -516,6 +517,7 @@ impl<'a> LocalBuilder<'a> {
 		let resolved = BuildDerivation {
 			basic,
 			floating: drv.floating.clone(),
+			experimental: drv.experimental.clone(),
 		};
 		let path = self.store.add_text_to_store(
 			&format!("{name}.drv"),
@@ -1272,6 +1274,11 @@ impl LocalBuilder<'_> {
 		build_drv: &BuildDerivation,
 	) -> Result<BTreeMap<String, KnownOutput>> {
 		let drv = &build_drv.basic;
+		if !build_drv.experimental.is_empty() {
+			return Err(BuildError::Other(
+				"building impure, text or Git-addressed outputs is not supported".into(),
+			));
+		}
 		if !build_drv.floating.is_empty() {
 			return build_drv
 				.floating

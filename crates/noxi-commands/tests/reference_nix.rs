@@ -605,17 +605,7 @@ fn unsupported_library_operations_fail_before_building_or_exporting() {
 			.join(output.trim_start_matches('/'))
 			.exists()
 	);
-	let result = f.run(
-		false,
-		&["eval", "--raw", "--expr", "builtins.readFile /etc/passwd"],
-		"nix-command",
-	);
-	assert_eq!(result.status.code(), Some(1));
-	assert!(result.stdout.is_empty());
-	assert!(
-		String::from_utf8_lossy(&result.stderr)
-			.contains("pure filesystem evaluation is not supported")
-	);
+	f.same(&["eval", "--raw", "--expr", "builtins.readFile /etc/passwd"]);
 	// A derivation whose builder is not bash is rejected as by the reference.
 	f.same(&["develop", "--expr", expr]);
 }

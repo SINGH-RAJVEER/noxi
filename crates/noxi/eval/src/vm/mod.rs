@@ -106,6 +106,10 @@ trait WithSpan<T, S: GetSpan, IO> {
 	fn with_span(self, top_span: S, vm: &VM<IO>) -> Result<T, Error>;
 }
 
+/// CppNix's context for an argument that a function's formals reject.
+pub(crate) const LAMBDA_ARGUMENT_CONTEXT: &str =
+	"while evaluating the value passed for the lambda argument";
+
 /// The most frames of the frame stack an error records.
 const MAX_TRACE_FRAMES: usize = 1000;
 
@@ -116,7 +120,7 @@ impl<T, S: GetSpan, IO> WithSpan<T, S, IO> for Result<T, ErrorKind> {
 			Err(kind) => {
 				let running = top_span.frame_trace();
 				let mut error = Error::new(kind, top_span.get_span(), vm.source.clone());
-				let traces = vm.traces(Some(&error.kind), running.as_ref());
+				let traces = vm.traces(Some(&error), running.as_ref());
 
 				// Wrap the top-level error in chaining errors for each element
 				// of the frame stack. Recursion can leave many thousands of
@@ -386,6 +390,9 @@ pub(crate) enum FrameTrace {
 	Lambda {
 		lambda: Rc<Lambda>,
 		call_site: Option<Span>,
+		/// Whether the argument is still being checked against the
+		/// formals, where CppNix shows only `from call site`.
+		formals: bool,
 	},
 
 	/// Frames a generator maintains as it runs, such as the path of the
@@ -560,6 +567,10 @@ struct VM<'o, IO> {
 	/// The frame the outer loop is running: its index in the frame stack and
 	/// its trace, for errors raised before it is pushed back.
 	current: (usize, FrameTrace),
+
+	/// The position a generator gives the next call it requests, as CppNix
+	/// positions a functor's call at its `__functor` attribute.
+	pending_call_site: Option<Span>,
 }
 
 impl<'o, IO> VM<'o, IO>
@@ -605,6 +616,7 @@ where
 			call_depth: 0,
 			max_call_depth: crate::max_call_depth(),
 			current: (0, FrameTrace::None),
+			pending_call_site: None,
 		}
 	}
 
@@ -955,7 +967,10 @@ where
 	) {
 		// The frames below the popped boundary are those it was pushed on.
 		let outer_traces = self
-			.frame_traces(self.frames.iter().map(Frame::trace), None)
+			.frame_traces(
+				self.frames.iter().map(Frame::trace),
+				result.as_ref().err().map(|error| error.innermost()),
+			)
 			.len();
 		self.call_depth = depth;
 		self.frames.push(Frame::ContextMessage {
@@ -1247,7 +1262,10 @@ where
 				Op::AttrsSelect => lifted_pop! {
 					self(key, attrs) => {
 						let key = attribute_name(key, || frame.current_span()).with_span(&frame, self)?;
-						let attrs = attrs.to_attrs().with_span(&frame, self)?;
+						let selection = frame.lambda.selection_span().unwrap_or_else(|| frame.current_span());
+						let attrs = attrs.to_attrs()
+							.trace(Some(selection), "while selecting an attribute")
+							.with_span(&frame, self)?;
 
 						match attrs.select(&key) {
 							Some(value) => {
@@ -1397,14 +1415,26 @@ where
 					let val = self.stack_peek(0);
 					// TODO(edef): propagate this into is_attrs, since bottom values *are* values of any type
 					if !val.is_catchable() && !val.is_attrs() {
-						return frame.error(
-							self,
-							ErrorKind::TypeError {
-								expected: "set",
-								actual: val.type_of(),
-								value: Some(Box::new(val.clone())),
-							},
-						);
+						let underlying = ErrorKind::TypeError {
+							expected: "set",
+							actual: val.type_of(),
+							value: Some(Box::new(val.clone())),
+						};
+						let kind =
+							if matches!(frame.trace, FrameTrace::Lambda { formals: true, .. }) {
+								ErrorKind::WithContext {
+									context: LAMBDA_ARGUMENT_CONTEXT.into(),
+									span: frame.lambda.span,
+									underlying: Box::new(underlying),
+								}
+							} else {
+								underlying
+							};
+						return frame.error(self, kind);
+					}
+					// The argument is a set: the body's evaluation begins.
+					if let FrameTrace::Lambda { formals, .. } = &mut frame.trace {
+						*formals = false;
 					}
 				}
 
@@ -1568,14 +1598,16 @@ where
 							self.stack.push(value);
 							continue;
 						}
-						let gen_span = frame.current_span();
+						let gen_span = if !matches!(&a, Value::String(_) | Value::Path(_) | Value::Integer(_) | Value::Float(_)) {
+							frame.lambda.addition_left_spans.as_ref().and_then(|positions| positions.iter().find(|(code, _)| *code == frame.ip.0 - 1).map(|(_, span)| *span)).unwrap_or_else(|| frame.current_span())
+						} else { frame.current_span() };
 						self.push_bytecode_frame(span, frame);
 
 						// OpAdd can add not just numbers, but also string-like
 						// things, which requires more VM logic. This operation is
 						// evaluated in a generator frame.
 						self.enqueue_generator("add_values", gen_span, |co| async move {
-							if matches!(&a, Value::String(_) | Value::Path(_)) && !matches!(&b, Value::String(_)) {
+							if !matches!(&a, Value::Integer(_) | Value::Float(_)) {
 								generators::request_builtin_context(&co, vec![Trace::new(Some(gen_span), "while evaluating a path segment")]).await;
 							}
 							add_values(co, a, b).await.map_err(|error| {
@@ -1767,7 +1799,7 @@ impl<IO> VM<'_, IO> {
 	/// pushed back. `error` is the error being raised, if any.
 	/// `running` is the running frame's trace if the error has it at hand,
 	/// which is newer than the copy taken when the frame was entered.
-	fn traces(&self, error: Option<&ErrorKind>, running: Option<&FrameTrace>) -> Vec<Trace> {
+	fn traces(&self, error: Option<&Error>, running: Option<&FrameTrace>) -> Vec<Trace> {
 		let current =
 			(self.frames.len() <= self.current.0).then(|| running.unwrap_or(&self.current.1));
 		self.frame_traces(self.frames.iter().map(Frame::trace).chain(current), error)
@@ -1777,15 +1809,20 @@ impl<IO> VM<'_, IO> {
 	fn frame_traces<'f>(
 		&self,
 		frames: impl Iterator<Item = &'f FrameTrace>,
-		error: Option<&ErrorKind>,
+		error: Option<&Error>,
 	) -> Vec<Trace> {
 		let frames: Vec<&FrameTrace> = frames.collect();
 		// CppNix checks a call's arguments against the function's formals
 		// before it evaluates the body, so only `from call site` applies.
-		let formals_error = matches!(
-			error,
-			Some(ErrorKind::UnexpectedArgumentFormals { .. } | ErrorKind::MissingArgument { .. })
-		);
+		let formals_error = error.is_some_and(|error| {
+			matches!(
+				error.kind,
+				ErrorKind::UnexpectedArgumentFormals { .. } | ErrorKind::MissingArgument { .. }
+			) || error
+				.contexts
+				.first()
+				.is_some_and(|context| context.hint == LAMBDA_ARGUMENT_CONTEXT)
+		});
 		let hidden = |span: &Span| self.source.is_hidden(*span);
 		let mut traces = vec![];
 		fn flatten<'a>(frame: &'a FrameTrace, out: &mut Vec<&'a FrameTrace>) {
@@ -1830,6 +1867,11 @@ impl<IO> VM<'_, IO> {
 					contexts,
 					path,
 				} => {
+					// A catchable error evaluated under tryEval is consumed by
+					// that boundary. Its memoized trace must not retain the catcher.
+					if error.is_none() && *name == "tryEval" {
+						continue;
+					}
 					if !call_site.as_ref().is_some_and(hidden) {
 						traces.push(Trace::new(
 							*call_site,
@@ -1842,7 +1884,11 @@ impl<IO> VM<'_, IO> {
 					}
 				}
 
-				FrameTrace::Lambda { lambda, call_site } => {
+				FrameTrace::Lambda {
+					lambda,
+					call_site,
+					formals,
+				} => {
 					if lambda.span.as_ref().is_none_or(hidden)
 						|| lambda.span.is_some_and(|span| {
 							self.source
@@ -1852,7 +1898,7 @@ impl<IO> VM<'_, IO> {
 						}) {
 						continue;
 					}
-					let checking_formals = formals_error && i == frames.len() - 1;
+					let checking_formals = *formals || (formals_error && i == frames.len() - 1);
 					if let Some(call_site) = call_site.filter(|span| !hidden(span)) {
 						traces.push(Trace {
 							show_trace_only: !checking_formals,
@@ -2154,24 +2200,28 @@ where
 		parent: Option<(Span, BytecodeFrame)>,
 		callable: Value,
 	) -> EvalResult<()> {
+		let pending_call_site = self.pending_call_site.take();
 		match callable {
 			// The parent frame resumes after the call: a call in tail
 			// position of a conditional or `let` is followed by more code.
 			Value::Builtin(builtin) => {
-				let call_site = parent.is_some().then_some(span);
+				let call_site = pending_call_site.or(parent.is_some().then_some(span));
 				if let Some((parent_span, parent_frame)) = parent {
 					self.push_bytecode_frame(parent_span, parent_frame);
 				}
 				self.call_builtin(span, call_site, builtin)
 			}
-			Value::Thunk(thunk) => self.call_value(span, parent, thunk.value().clone()),
+			Value::Thunk(thunk) => {
+				self.pending_call_site = pending_call_site;
+				self.call_value(span, parent, thunk.value().clone())
+			}
 
 			Value::Closure(closure) => {
 				let lambda = closure.lambda();
-				let call_site = parent
+				let call_site = pending_call_site.or(parent
 					.as_ref()
 					.filter(|(_, f)| !f.lambda.omit_call_position)
-					.map(|_| span);
+					.map(|_| span));
 				self.observer.observe_tail_call(self.frames.len(), &lambda);
 
 				// The stack offset is always `stack.len() - arg_count`, and
@@ -2202,6 +2252,7 @@ where
 					span,
 					BytecodeFrame {
 						trace: FrameTrace::Lambda {
+							formals: lambda.formals.is_some(),
 							lambda: lambda.clone(),
 							call_site,
 						},
@@ -2223,12 +2274,23 @@ where
 			}
 
 			// Attribute sets with a __functor attribute are callable.
-			val @ Value::Attrs(_) => {
+			Value::Attrs(ref attrs) if attrs.select("__functor").is_some() => {
+				let functor_site = attrs.get_attr_pos("__functor");
+				let val = callable;
+				let call_site = pending_call_site.or(parent.is_some().then_some(span));
 				if let Some((parent_span, parent_frame)) = parent {
 					self.push_bytecode_frame(parent_span, parent_frame);
 				}
 
-				self.enqueue_generator("__functor call", span, |co| call_functor(co, val));
+				self.enqueue_generator("__functor call", span, move |co| {
+					call_functor(co, val, functor_site)
+				});
+				if let Some(Frame::Generator { trace, .. }) = self.frames.last_mut() {
+					*trace = FrameTrace::Frame(Trace::new(
+						call_site,
+						"while calling a functor (an attribute set with a '__functor' attribute)",
+					));
+				}
 				Ok(())
 			}
 
@@ -2246,9 +2308,10 @@ where
 
 			v => self.call_error(span, parent.as_ref(), {
 				let kind = ErrorKind::NotCallable(v.type_of(), Some(Box::new(v)));
-				if parent.as_ref().is_some_and(|(_, frame)| {
-					frame.lambda.span.is_some() || frame.lambda.generated_call_position
-				}) {
+				if pending_call_site.is_some()
+					|| parent.as_ref().is_some_and(|(_, frame)| {
+						!frame.lambda.synthetic_call || frame.lambda.generated_call_position
+					}) {
 					ErrorKind::Positioned(Box::new(kind))
 				} else {
 					kind
@@ -2571,7 +2634,11 @@ where
 /// and a failure is reported at the name.
 fn attribute_name(key: Value, span: impl FnOnce() -> Span) -> Result<NixString, ErrorKind> {
 	match key {
-		Value::String(name) => Ok(name),
+		Value::String(name) => match name.context_not_allowed() {
+			Some(message) => Err(ErrorKind::EvalError(message)
+				.trace(Some(span()), "while evaluating an attribute name")),
+			None => Ok(name),
+		},
 		Value::Thunk(ref thunk) if thunk.is_evaluated() => {
 			attribute_name(thunk.value().clone(), span)
 		}

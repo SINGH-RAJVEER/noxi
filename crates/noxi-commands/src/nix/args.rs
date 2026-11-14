@@ -94,6 +94,22 @@ pub fn find_flag(flags: &'static [Flag], arg: &str) -> Option<&'static Flag> {
 	}
 }
 
+/// The flag a setting alias such as `--build-cores` names. Each of a
+/// setting's flags registers its aliases, and the last registration wins:
+/// `no-NAME` for a Boolean, `relaxed-sandbox` for `sandbox`, `extra-NAME`
+/// for an appendable setting, and `NAME` otherwise.
+fn setting_alias_flag(arg: &str) -> Option<String> {
+	use nix_compat::nixcpp::settings::{Kind, SettingInfo};
+	let alias = arg.strip_prefix("--")?;
+	let info = SettingInfo::find(alias).filter(|info| info.aliases.contains(&alias))?;
+	Some(match info.kind {
+		Kind::Bool => format!("--no-{}", info.name),
+		Kind::Sandbox => format!("--relaxed-{}", info.name),
+		Kind::List | Kind::Map => format!("--extra-{}", info.name),
+		_ => format!("--{}", info.name),
+	})
+}
+
 /// The top-level aliases of `nix`: deprecated ones warn when used.
 const ALIASES: &[(&str, bool, &[&str])] = &[
 	("add-to-store", true, &["store", "add-path"]),
@@ -296,7 +312,9 @@ impl<H> Parser<H> {
 	where
 		H: Handler<P>,
 	{
-		let (flag, level) = match find_flag(GLOBAL_FLAGS, arg) {
+		let (flag, level) = match find_flag(GLOBAL_FLAGS, arg)
+			.or_else(|| find_flag(GLOBAL_FLAGS, &setting_alias_flag(arg)?))
+		{
 			Some(flag) => (flag, None),
 			None => match self
 				.levels

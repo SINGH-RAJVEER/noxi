@@ -483,6 +483,27 @@ impl LocalStore {
 			// Floating outputs have no static paths to verify or cache.
 			return Ok(Vec::new());
 		}
+		if !build_drv.experimental.is_empty() {
+			let name = drv_path
+				.name()
+				.strip_suffix(".drv")
+				.unwrap_or(drv_path.name());
+			let mut outputs = Vec::new();
+			for (output_name, output) in &build_drv.experimental {
+				let Some((path, hash)) = &output.fixed else {
+					return Ok(Vec::new());
+				};
+				let expected = output.method.fixed_path(name, hash)?;
+				if &expected != path {
+					return Err(Error::Other(format!(
+						"derivation '{}' has an incorrect path for output '{output_name}'",
+						print(drv_path)
+					)));
+				}
+				outputs.push((output_name.clone(), path.clone()));
+			}
+			return Ok(outputs);
+		}
 		let drv = build_drv.basic;
 		let name = drv_path
 			.name()
@@ -530,9 +551,14 @@ impl LocalStore {
 	) -> Result<crate::build_derivation::BuildDerivation> {
 		let bytes = fs::read(self.real_path(drv_path))
 			.context(|| format!("reading derivation '{}'", print(drv_path)))?;
-		crate::build_derivation::BuildDerivation::from_aterm_bytes(
+		crate::build_derivation::BuildDerivation::from_aterm_bytes_with_features(
 			&bytes,
-			self.config.ca_derivations,
+			crate::build_derivation::OutputFeatures {
+				ca_derivations: self.config.ca_derivations,
+				impure_derivations: self.config.impure_derivations,
+				dynamic_derivations: self.config.dynamic_derivations,
+				git_hashing: self.config.git_hashing,
+			},
 		)
 	}
 

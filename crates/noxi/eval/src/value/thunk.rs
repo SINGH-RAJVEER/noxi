@@ -552,16 +552,7 @@ impl Thunk {
 	/// Do not use this without first reading and understanding
 	/// `noxi/docs/value-pointer-equality.md`.
 	pub(crate) fn ptr_eq(&self, other: &Self) -> bool {
-		if Rc::ptr_eq(&self.0, &other.0) {
-			return true;
-		}
-		match &*self.0.borrow() {
-			ThunkRepr::Evaluated(Value::Closure(c1)) => match &*other.0.borrow() {
-				ThunkRepr::Evaluated(Value::Closure(c2)) => Rc::ptr_eq(c1, c2),
-				_ => false,
-			},
-			_ => false,
-		}
+		Rc::ptr_eq(&self.0, &other.0)
 	}
 
 	/// The identity of the thunk, for detecting repeated values.

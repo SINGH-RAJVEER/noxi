@@ -36,6 +36,7 @@ in
 		pkgs.xz
 		pkgs.curl
 		pkgs.git
+		pkgs.mercurial
 		pkgs.jujutsu
 		pkgs.just
 		pkgs.jq

@@ -85,7 +85,8 @@ pub fn main(mut settings: Settings, args: Vec<String>) -> Result<ExitCode, Failu
 			other if crate::nix_store_ops::Op::parse(other).is_some() => {
 				op = crate::nix_store_ops::Op::parse(other).map(Operation::Other);
 			}
-			"--serve" | "--help" => {
+			"--help" => return Err(crate::cli::show_man_page("nix-store")),
+			"--serve" => {
 				return Err(Failure::Error(format!(
 					"nix-store {arg} is not supported by noxi yet"
 				)));

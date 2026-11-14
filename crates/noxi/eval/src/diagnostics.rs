@@ -355,8 +355,35 @@ impl Error {
 
 	/// Error streams preserve non-UTF-8 source excerpts like CppNix's logger.
 	pub fn cppnix_format_bytes(&self, show_trace: bool) -> Vec<u8> {
-		self.source
-			.decode_diagnostic(&error_info(self).render(show_trace))
+		nix_compat::log::filter_ansi_escapes(&self.cppnix_unfiltered_bytes(show_trace), true)
+	}
+
+	fn cppnix_unfiltered_bytes(&self, show_trace: bool) -> Vec<u8> {
+		if matches!(&self.innermost().kind, ErrorKind::EvalError(message) if message == "out of memory")
+		{
+			return b"error: out of memory".to_vec();
+		}
+		let mut info = error_info(self);
+		if let ErrorKind::InvalidRegexBytes(pattern) = &self.innermost().kind {
+			let rendered = info.render(show_trace);
+			let mut combined = rendered.as_bytes().to_vec();
+			combined.extend_from_slice(b"invalid regular expression '");
+			combined.extend_from_slice(pattern);
+			combined.push(b'\'');
+			// Choose a byte encoding absent from the complete rendered error,
+			// so a valid source character cannot collide with a pattern byte.
+			let (encoded, encoding) = SourceCode::encode_bytes(&combined);
+			if let Some(base) = encoding {
+				info.message = encoded[rendered.len()..].to_owned();
+				let mut bytes = self.source.decode_diagnostic(&info.render(show_trace));
+				for byte in 0u8..=255 {
+					let marker = char::from_u32(base + u32::from(byte)).unwrap().to_string();
+					bytes = bstr::ByteSlice::replace(bytes.as_slice(), marker.as_bytes(), &[byte]);
+				}
+				return bytes;
+			}
+		}
+		self.source.decode_diagnostic(&info.render(show_trace))
 	}
 }
 
@@ -543,6 +570,9 @@ fn parse_message(
 fn kind_message(error: &Error) -> (String, Option<Span>, Vec<String>) {
 	let at = Some(error.span);
 	match &error.kind {
+		ErrorKind::NotSerialisableToJson("lambda") => {
+			("cannot convert a function to JSON".into(), at, vec![])
+		}
 		ErrorKind::ParseErrors(errors) => parse_message(error, errors),
 		ErrorKind::ImportParseError { errors, file, .. } => {
 			let nested = Error::new(
@@ -605,7 +635,10 @@ fn kind_message(error: &Error) -> (String, Option<Span>, Vec<String>) {
 			(format!("undefined variable '{name}'"), at, vec![])
 		}
 		ErrorKind::AttributeNotFound { name, suggestions } => (
-			format!("attribute '{name}' missing"),
+			format!(
+				"attribute '{}' missing",
+				crate::NixString::from(name.as_str()).ident_str()
+			),
 			None,
 			suggestions.clone(),
 		),
@@ -678,8 +711,32 @@ fn kind_message(error: &Error) -> (String, Option<Span>, Vec<String>) {
 			vec![],
 		),
 		ErrorKind::IO { error, .. }
+			if error.to_string().starts_with("experimental Nix feature '")
+				|| (error.to_string().starts_with("path '")
+					&& error.to_string().ends_with("' is not valid")) =>
+		{
+			(error.to_string(), None, vec![])
+		}
+		ErrorKind::IO { error, .. }
 			if error.kind() == std::io::ErrorKind::PermissionDenied
-				&& error.to_string().starts_with("access to absolute path '") =>
+				&& (error.to_string().starts_with("access to absolute path '")
+					|| error.to_string().starts_with("access to URI '")) =>
+		{
+			(error.to_string(), None, vec![])
+		}
+		ErrorKind::IO { error, .. }
+			if error.to_string().starts_with("path '")
+				&& error
+					.to_string()
+					.ends_with("(or its ancestor) is a symlink") =>
+		{
+			(error.to_string(), None, vec![])
+		}
+		ErrorKind::IO { error, .. }
+			if error.to_string().starts_with("the contents of the file '")
+				&& error
+					.to_string()
+					.ends_with("' cannot be represented as a Nix string") =>
 		{
 			(error.to_string(), None, vec![])
 		}
@@ -696,6 +753,14 @@ fn kind_message(error: &Error) -> (String, Option<Span>, Vec<String>) {
 			error: io,
 		} if io.kind() == std::io::ErrorKind::NotADirectory => (
 			format!("'{}' is not a directory", path.display()),
+			None,
+			vec![],
+		),
+		ErrorKind::IO {
+			path: Some(path),
+			error: io,
+		} if io.kind() == std::io::ErrorKind::IsADirectory => (
+			format!("file '{}' is not a regular file", path.display()),
 			None,
 			vec![],
 		),

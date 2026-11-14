@@ -102,7 +102,10 @@ impl LocalBuilder<'_> {
 		}
 		// Match the sequential builder's pre-input substitution policy. A
 		// cached output must not cause its otherwise unused inputs to build.
-		let needed = if drv.basic.outputs().is_deferred() && drv.floating.is_empty() {
+		let needed = if drv.basic.outputs().is_deferred()
+			&& drv.floating.is_empty()
+			&& drv.experimental.is_empty()
+		{
 			true
 		} else {
 			let outputs: BTreeMap<_, _> = self

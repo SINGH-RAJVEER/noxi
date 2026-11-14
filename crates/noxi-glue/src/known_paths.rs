@@ -17,6 +17,9 @@ pub struct KnownPaths {
 	/// Derivations by their `.drv` path, with their hash derivation modulo.
 	derivations: HashMap<StorePath, (DrvHashModulo, Derivation)>,
 	imported_derivations: HashMap<StorePath, (DrvHashModulo, UnverifiedDerivation)>,
+	/// Floating CA derivations and derivations depending on their unknown
+	/// outputs have no hash derivation modulo until they are realised.
+	deferred_derivations: HashMap<StorePath, noxi_store::build_derivation::BuildDerivation>,
 
 	/// The references of text files written by `builtins.toFile`, which
 	/// the closure of a derivation that depends on them has to include.
@@ -40,6 +43,38 @@ impl KnownPaths {
 					.get(&path.to_owned())
 					.map(|(_, drv)| drv)
 			})
+			.or_else(|| {
+				self.deferred_derivations
+					.get(&path.to_owned())
+					.map(|drv| &drv.basic)
+			})
+	}
+
+	/// Retain the actual floating declarations for later store registration;
+	/// their ordinary body also supplies closure and output-name information.
+	pub fn add_deferred_derivation(
+		&mut self,
+		path: StorePath,
+		drv: noxi_store::build_derivation::BuildDerivation,
+	) {
+		self.deferred_derivations.insert(path, drv);
+	}
+
+	/// The full declaration of a deferred derivation of this evaluation.
+	pub fn get_deferred(
+		&self,
+		path: &StorePath,
+	) -> Option<&noxi_store::build_derivation::BuildDerivation> {
+		self.deferred_derivations.get(path)
+	}
+
+	pub fn has_deferred_input(&self, path: &StorePath) -> bool {
+		self.deferred_derivations
+			.get(path)
+			.is_some_and(|drv| drv.basic.outputs().is_deferred())
+			|| self
+				.get_unverified_drv(&path.as_ref())
+				.is_some_and(|drv| drv.outputs().is_deferred())
 	}
 
 	/// Cache an existing store derivation without revalidating its output
@@ -108,6 +143,11 @@ impl HashDerivationModuloLookup for &KnownPaths {
 				self.imported_derivations
 					.get(&drv_path.to_owned())
 					.map(|(hash, _)| hash.clone())
+			})
+			.or_else(|| {
+				self.deferred_derivations
+					.get(&drv_path.to_owned())
+					.and_then(|drv| drv.fixed_hash_derivation_modulo())
 			})
 	}
 }

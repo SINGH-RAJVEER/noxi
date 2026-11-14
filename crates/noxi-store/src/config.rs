@@ -40,6 +40,10 @@ pub struct LocalStoreConfig {
 	/// Whether the `ca-derivations` experimental feature is enabled, which
 	/// adds the realisation tables and lets builds record realisations.
 	pub ca_derivations: bool,
+	/// Experimental methods accepted when parsing registered derivations.
+	pub impure_derivations: bool,
+	pub dynamic_derivations: bool,
+	pub git_hashing: bool,
 }
 
 impl LocalStoreConfig {
@@ -114,6 +118,13 @@ impl LocalStoreConfig {
 			.get_int("http-connections", self.http_connections as i64)
 			.max(0) as usize;
 		self.ca_derivations = settings.experimental_features().contains("ca-derivations");
+		self.impure_derivations = settings
+			.experimental_features()
+			.contains("impure-derivations");
+		self.dynamic_derivations = settings
+			.experimental_features()
+			.contains("dynamic-derivations");
+		self.git_hashing = settings.experimental_features().contains("git-hashing");
 		if settings.get("trusted-public-keys").is_some() {
 			self.trusted_public_keys = settings
 				.get_list("trusted-public-keys", &[])
@@ -165,6 +176,9 @@ impl LocalStoreConfig {
 				"cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY=".to_owned(),
 			],
 			ca_derivations: false,
+			impure_derivations: false,
+			dynamic_derivations: false,
+			git_hashing: false,
 			narinfo_cache_positive_ttl: 30 * 24 * 60 * 60,
 			narinfo_cache_negative_ttl: 60 * 60,
 			max_substitution_jobs: 16,

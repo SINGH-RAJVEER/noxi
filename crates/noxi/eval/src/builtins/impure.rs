@@ -5,12 +5,14 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use crate::{
 	self as noxi_eval, NixString, Value,
-	errors::ErrorKind,
+	errors::{AddContext, ErrorKind},
 	value::NixAttrs,
 	vm::generators::{self, GenCo},
 };
 
-#[builtins]
+use super::ExperimentalFeatures;
+
+#[builtins(state = "ExperimentalFeatures")]
 mod impure_builtins {
 	use std::ffi::OsStr;
 	use std::os::unix::ffi::OsStrExt;
@@ -18,7 +20,7 @@ mod impure_builtins {
 	use super::*;
 	use crate::{
 		NixSearchPathEntry,
-		builtins::{hash::hash_nix_string, realise_value_to_path},
+		builtins::{hash::hash_nix_string, realise_path_argument, realise_value_to_path},
 		try_cek_to_value,
 		value::CoercionKind,
 	};
@@ -33,7 +35,15 @@ mod impure_builtins {
 	) -> Result<Value, ErrorKind> {
 		let mut entries = Vec::new();
 		for element in search_path.to_list()?.into_iter() {
-			let element = generators::request_force(&co, element).await.to_attrs()?;
+			let element = generators::request_force(&co, element)
+				.await
+				.to_attrs()
+				.map_err(|error| {
+					error.trace(
+						None,
+						"while evaluating an element of the list passed to builtins.findFile",
+					)
+				})?;
 			let prefix = match element.select("prefix") {
 				Some(prefix) => {
 					let prefix = generators::request_force(&co, prefix.clone()).await;
@@ -66,10 +76,44 @@ mod impure_builtins {
 	}
 
 	#[builtin("hashFile")]
-	async fn builtin_hash_file(co: GenCo, algo: Value, path: Value) -> Result<Value, ErrorKind> {
+	async fn builtin_hash_file(
+		state: ExperimentalFeatures,
+		co: GenCo,
+		#[lazy] algo: Value,
+		#[lazy] path: Value,
+	) -> Result<Value, ErrorKind> {
+		let hint = "while evaluating the first argument passed to builtins.hashFile";
+		generators::request_builtin_context(&co, vec![crate::Trace::new(None, hint)]).await;
+		let algo = generators::request_force(&co, algo).await;
+		if algo.is_catchable() {
+			return Ok(algo);
+		}
+		generators::request_builtin_context(&co, Vec::new()).await;
+		crate::builtins::check_argument(&algo, crate::builtins::ArgumentType::String, hint)?;
+		let algo = algo.to_contextful_str()?;
+		if algo.has_context() {
+			crate::builtins::hash::check_algorithm_context(&algo, hint)?;
+		}
+		crate::builtins::hash::parse_builtin_hash_algo(
+			algo.as_bytes(),
+			state.enabled("blake3-hashes"),
+		)?;
+		generators::request_builtin_context(
+			&co,
+			vec![crate::Trace::new(
+				None,
+				"while realising the context of a path",
+			)],
+		)
+		.await;
+		let path = generators::request_force(&co, path).await;
+		if path.is_catchable() {
+			return Ok(path);
+		}
 		let path = try_cek_to_value!(realise_value_to_path(&co, path).await?);
+		generators::request_builtin_context(&co, Vec::new()).await;
 		let r = generators::request_open_file(&co, path).await;
-		hash_nix_string(algo.to_str()?, r).map(Value::from)
+		hash_nix_string(algo.as_bytes(), r).map(Value::from)
 	}
 
 	#[builtin("pathExists")]
@@ -87,8 +131,8 @@ mod impure_builtins {
 	}
 
 	#[builtin("readDir")]
-	async fn builtin_read_dir(co: GenCo, path: Value) -> Result<Value, ErrorKind> {
-		let path = try_cek_to_value!(realise_value_to_path(&co, path).await?);
+	async fn builtin_read_dir(co: GenCo, #[lazy] path: Value) -> Result<Value, ErrorKind> {
+		let path = try_cek_to_value!(realise_path_argument(&co, path).await?);
 		let dir = generators::request_read_dir(&co, path).await;
 		let res = dir.into_iter().map(|(name, ftype)| {
 			(
@@ -101,14 +145,14 @@ mod impure_builtins {
 	}
 
 	#[builtin("readFile")]
-	async fn builtin_read_file(co: GenCo, path: Value) -> Result<Value, ErrorKind> {
-		let path = try_cek_to_value!(realise_value_to_path(&co, path).await?);
+	async fn builtin_read_file(co: GenCo, #[lazy] path: Value) -> Result<Value, ErrorKind> {
+		let path = try_cek_to_value!(realise_path_argument(&co, path).await?);
 		Ok(generators::request_read_file(&co, path).await)
 	}
 
 	#[builtin("readFileType")]
-	async fn builtin_read_file_type(co: GenCo, path: Value) -> Result<Value, ErrorKind> {
-		let path = try_cek_to_value!(realise_value_to_path(&co, path).await?);
+	async fn builtin_read_file_type(co: GenCo, #[lazy] path: Value) -> Result<Value, ErrorKind> {
+		let path = try_cek_to_value!(realise_path_argument(&co, path).await?);
 		Ok(Value::from(
 			generators::request_read_file_type(&co, path)
 				.await
@@ -120,7 +164,13 @@ mod impure_builtins {
 /// Return all impure builtins, that is all builtins which may perform I/O
 /// outside of the VM and so cannot be used in all contexts (e.g. WASM).
 pub fn impure_builtins() -> Vec<(&'static str, Value)> {
-	let mut result = impure_builtins::builtins();
+	impure_builtins_with_features(ExperimentalFeatures::default())
+}
+
+pub(crate) fn impure_builtins_with_features(
+	features: ExperimentalFeatures,
+) -> Vec<(&'static str, Value)> {
+	let mut result = impure_builtins::builtins(features);
 
 	// currentTime pins the time at which evaluation was started
 	{

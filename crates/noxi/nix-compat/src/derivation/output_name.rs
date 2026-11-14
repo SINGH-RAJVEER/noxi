@@ -42,9 +42,6 @@ impl OutputName {
 
 fn validate(name: &[u8]) -> Result<(), ParseOutputNameError> {
 	store_path::validate_name(name)?;
-	if name == b"drv" {
-		return Err(ParseOutputNameError::ReservedNameDrv);
-	}
 	Ok(())
 }
 
@@ -178,8 +175,6 @@ mod tests {
 	#[case("invalid name")]
 	#[should_panic(expected = "InvalidName")]
 	#[case("invalid/name")]
-	#[should_panic(expected = "ReservedNameDrv")]
-	#[case("drv")]
 	#[should_panic(expected = "InvalidLength")]
 	#[case("")]
 	fn parse_fail(#[case] value: &str) {
@@ -188,6 +183,7 @@ mod tests {
 
 	#[rstest]
 	#[case("out")]
+	#[case("drv")]
 	#[case("dev")]
 	#[case("lib")]
 	#[case("bin")]

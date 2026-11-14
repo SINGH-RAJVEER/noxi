@@ -19,7 +19,7 @@ mod prefetch;
 mod profile;
 pub(crate) mod pure;
 mod registry;
-mod repl;
+pub(crate) mod repl;
 mod search;
 mod store_extra;
 mod table;
@@ -609,7 +609,11 @@ pub fn main(mut settings: Settings, args: Vec<String>) -> Result<ExitCode, Failu
 	}
 	let supported = supported_flags(level.command.path);
 	for name in level.handler.flags.keys() {
+		// Every command reading `--arg` takes the other automatic arguments.
+		let auto_arg = matches!(name.as_str(), "arg-from-file" | "arg-from-stdin")
+			&& supported.contains(&"arg");
 		if !level.command.path.starts_with("hash ")
+			&& !auto_arg
 			&& !supported.contains(&name.as_str())
 			&& !(matches!(
 				level.command.path,

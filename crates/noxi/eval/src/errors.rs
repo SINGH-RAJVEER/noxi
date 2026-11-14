@@ -437,6 +437,13 @@ to a missing value in the attribute set(s) included via `with`."#
 	#[error("{0}")]
 	Positioned(Box<ErrorKind>),
 
+	/// A builtin field check whose error originates at that field's position.
+	#[error("{underlying}")]
+	PositionedAt {
+		span: Span,
+		underlying: Box<ErrorKind>,
+	},
+
 	/// Internal variant which should disappear during error construction.
 	#[error("internal ErrorKind::WithContext variant leaked")]
 	WithContext {
@@ -467,6 +474,10 @@ to a missing value in the attribute set(s) included via `with`."#
 	/// An invalid regular expression was passed.
 	#[error("invalid regular expression '{0}'")]
 	InvalidRegex(String),
+
+	/// Preserve arbitrary bytes supplied as a regular-expression pattern.
+	#[error("invalid regular expression '{}'", String::from_utf8_lossy(.0))]
+	InvalidRegexBytes(Vec<u8>),
 }
 
 impl error::Error for Error {
@@ -580,7 +591,7 @@ pub struct Error {
 }
 
 impl Error {
-	pub fn new(mut kind: ErrorKind, span: Span, source: SourceCode) -> Self {
+	pub fn new(mut kind: ErrorKind, mut span: Span, source: SourceCode) -> Self {
 		let mut contexts = vec![];
 		let mut show_position = false;
 		let kind = loop {
@@ -594,6 +605,14 @@ impl Error {
 					kind = *underlying;
 				}
 				ErrorKind::Positioned(underlying) => {
+					show_position = true;
+					kind = *underlying;
+				}
+				ErrorKind::PositionedAt {
+					span: origin,
+					underlying,
+				} => {
+					span = origin;
 					show_position = true;
 					kind = *underlying;
 				}
@@ -923,9 +942,11 @@ impl Error {
 			| ErrorKind::NotImplemented(_)
 			| ErrorKind::WithContext { .. }
 			| ErrorKind::Positioned(_)
+			| ErrorKind::PositionedAt { .. }
 			| ErrorKind::UnknownHashType(_)
 			| ErrorKind::InvalidHash(_)
 			| ErrorKind::InvalidRegex(_)
+			| ErrorKind::InvalidRegexBytes(_)
 			| ErrorKind::CatchableError(_) => return None,
 		};
 
@@ -982,7 +1003,7 @@ impl Error {
 			ErrorKind::UnknownHashType(_) => "E039",
 			ErrorKind::UnexpectedArgumentBuiltin { .. } => "E040",
 			ErrorKind::InvalidHash(_) => "E041",
-			ErrorKind::InvalidRegex(_) => "E042",
+			ErrorKind::InvalidRegex(_) | ErrorKind::InvalidRegexBytes(_) => "E042",
 			ErrorKind::IntegerOverflow { .. } => "E043",
 			ErrorKind::At { .. } | ErrorKind::EvalError(_) => "E044",
 
@@ -1008,7 +1029,9 @@ impl Error {
 			ErrorKind::WithContext { .. } => {
 				panic!("internal ErrorKind::WithContext variant leaked")
 			}
-			ErrorKind::Positioned(_) => panic!("internal ErrorKind::Positioned variant leaked"),
+			ErrorKind::Positioned(_) | ErrorKind::PositionedAt { .. } => {
+				panic!("internal positioned error variant leaked")
+			}
 		}
 	}
 

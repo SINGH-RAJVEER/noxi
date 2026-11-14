@@ -11,11 +11,14 @@ use std::path::{Path, PathBuf};
 use std::rc::Rc;
 
 use bstr::ByteSlice;
-use nix_compat::derivation::{Derivation, UnverifiedDerivation};
+use nix_compat::derivation::{Derivation, OutputHashMode};
 use nix_compat::nixhash::{HashAlgo, NixHash};
 use nix_compat::store_path::{self, StorePath};
 use noxi_eval::{
 	EvalIO, FileType, NixAttrs, NixContext, NixContextElement, NixString, StdIO, Value,
+};
+use noxi_store::build_derivation::{
+	BuildDerivation, ExperimentalMethod, ExperimentalOutput, OutputFeatures,
 };
 use noxi_store::{
 	CapturedSource, DerivedPath, FileIngestionMethod, LocalStore, LocalStoreConfig, SourceCapture,
@@ -32,6 +35,7 @@ use crate::nar::{self, EntryType, Filter};
 #[derive(Default)]
 pub struct EvaluatorStore {
 	known_paths: RefCell<KnownPaths>,
+	output_features: std::cell::Cell<OutputFeatures>,
 	/// The store that registers text, imports and derivations; `None`
 	/// evaluates read-only, computing paths without writing them.
 	store: Option<Rc<dyn Store>>,
@@ -81,6 +85,59 @@ pub type ReadOnlyStore = EvaluatorStore;
 impl EvaluatorStore {
 	pub fn new() -> Rc<Self> {
 		Rc::new(Self::default())
+	}
+
+	pub(crate) fn set_output_features(&self, features: OutputFeatures) {
+		self.output_features.set(features);
+	}
+
+	fn read_evaluation_derivation(
+		&self,
+		store: &dyn Store,
+		path: &StorePath,
+	) -> io::Result<BuildDerivation> {
+		let mut drv = store
+			.read_evaluation_derivation(path, self.output_features.get())
+			.map_err(io::Error::other)?;
+		let drv_name = path.name().strip_suffix(".drv").unwrap_or(path.name());
+		let output_name = |name: &str| {
+			if name == "out" {
+				drv_name.to_owned()
+			} else {
+				format!("{drv_name}-{name}")
+			}
+		};
+		// CppNix ignores the tuple's path for a fixed output and computes it
+		// from its method, digest and derivation basename. The stored tuple
+		// can contain a stale path even in a reference-accepted derivation.
+		for (name, output) in &mut drv.experimental {
+			if let Some((path, hash)) = &mut output.fixed {
+				*path = output
+					.method
+					.fixed_path(&output_name(name), hash)
+					.map_err(io::Error::other)?;
+			}
+		}
+		if let Some(hash) = drv.basic.outputs().as_fixed_output_hash() {
+			let name = drv.basic.outputs().names().next().unwrap().to_string();
+			let method = match hash.mode {
+				OutputHashMode::Flat => ExperimentalMethod::Flat,
+				OutputHashMode::Recursive => ExperimentalMethod::NixArchive,
+			};
+			let path = method
+				.fixed_path(&output_name(&name), &hash.hash)
+				.map_err(io::Error::other)?;
+			drv.experimental.insert(
+				name,
+				ExperimentalOutput {
+					method,
+					hash_algo: hash.hash.algo(),
+					impure: false,
+					fixed: Some((path, hash.hash.clone())),
+				},
+			);
+		}
+		Ok(drv)
 	}
 
 	fn diverted_config(root: &Path) -> io::Result<LocalStoreConfig> {
@@ -249,8 +306,7 @@ impl EvaluatorStore {
 		let store = self
 			.access_store()?
 			.ok_or_else(|| io::Error::other("cannot read a derivation without a store"))?;
-		let mut pending: Vec<(StorePath, Option<UnverifiedDerivation>)> =
-			vec![(path.clone(), None)];
+		let mut pending: Vec<(StorePath, Option<BuildDerivation>)> = vec![(path.clone(), None)];
 		let mut active = BTreeSet::new();
 		while let Some((path, drv)) = pending.pop() {
 			if self
@@ -263,17 +319,24 @@ impl EvaluatorStore {
 			}
 			if let Some(drv) = drv {
 				active.remove(&path);
-				self.known_paths
-					.borrow_mut()
-					.add_imported_derivation(path, drv)
-					.map_err(io::Error::other)?;
+				let mut known = self.known_paths.borrow_mut();
+				if !drv.floating.is_empty()
+					|| !drv.experimental.is_empty()
+					|| drv.basic.outputs().is_deferred()
+				{
+					known.add_deferred_derivation(path, drv);
+				} else {
+					known
+						.add_imported_derivation(path, drv.basic)
+						.map_err(io::Error::other)?;
+				}
 				continue;
 			}
 			if !active.insert(path.clone()) {
 				return Err(io::Error::other("cycle in derivation dependencies"));
 			}
-			let drv = store.read_derivation(&path).map_err(io::Error::other)?;
-			let inputs: Vec<_> = drv.input_derivations().keys().cloned().collect();
+			let drv = self.read_evaluation_derivation(store.as_ref(), &path)?;
+			let inputs: Vec<_> = drv.basic.input_derivations().keys().cloned().collect();
 			pending.push((path, Some(drv)));
 			pending.extend(inputs.into_iter().rev().map(|path| (path, None)));
 		}
@@ -290,6 +353,29 @@ impl EvaluatorStore {
 				.collect();
 			let path = self.add_text(drv.drv_path().name(), &drv.to_aterm_bytes(), &references)?;
 			if &path != drv.drv_path() {
+				return Err(io::Error::other(
+					"registered derivation path differs from evaluator path",
+				));
+			}
+		}
+		Ok(())
+	}
+
+	pub(crate) fn register_build_derivation(
+		&self,
+		path: &StorePath,
+		drv: &noxi_store::build_derivation::BuildDerivation,
+	) -> io::Result<()> {
+		if self.store.is_some() {
+			let references = drv
+				.basic
+				.input_sources()
+				.iter()
+				.chain(drv.basic.input_derivations().keys())
+				.cloned()
+				.collect();
+			let actual = self.add_text(path.name(), &drv.to_aterm_bytes(), &references)?;
+			if &actual != path {
 				return Err(io::Error::other(
 					"registered derivation path differs from evaluator path",
 				));
@@ -356,6 +442,35 @@ impl EvaluatorStore {
 		Ok((path, hash))
 	}
 
+	/// Fetchers whose CppNix contract imports an archive register it even when
+	/// ordinary expression evaluation only computes derivation paths.
+	pub(crate) fn register_fetched_tree(
+		&self,
+		name: &str,
+		mount: &Mount,
+	) -> io::Result<(StorePath, NixHash)> {
+		let store = self.access_store()?.ok_or_else(|| {
+			io::Error::other("operation 'addToStoreFromDump' is not supported by store 'dummy://'")
+		})?;
+		let mut capture = SourceCapture::new(IMPORT_MEMORY_LIMIT);
+		nar::dump_path(&mut capture, &mount.root, None)?;
+		let captured = capture.finish()?;
+		let hash = NixHash::Sha256(captured.sha256());
+		let path = ca_path(name, true, &hash, &mount.root)?;
+		if !store.is_valid_path(&path).map_err(io::Error::other)? {
+			store
+				.add_to_store_from_capture(
+					captured,
+					name,
+					FileIngestionMethod::NixArchive,
+					&BTreeSet::new(),
+				)
+				.map_err(io::Error::other)?;
+		}
+		self.mount(&path, mount.clone());
+		Ok((path, hash))
+	}
+
 	/// Whether `path` is the root of, or inside, a mounted tree.
 	pub fn is_mounted(&self, path: &StorePath) -> bool {
 		self.mounts
@@ -380,54 +495,151 @@ impl EvaluatorStore {
 			.map(|(logical, mount)| (logical.clone(), mount.clone()))
 	}
 
-	/// Restrict expression filesystem access to these source roots. Fetched
-	/// trees and successfully realised context paths are admitted separately.
+	/// Restrict expression filesystem access to these search path roots, as
+	/// CppNix's `AllowListSourceAccessor` does. Each root is allowed as
+	/// written, without resolving symlinks, and a root in the store also
+	/// allows its closure. Other paths are allowed where CppNix calls
+	/// `allowPath`: fetched and imported store paths and the closures of
+	/// outputs built for import from derivation.
 	pub fn restrict_access(&self, pure: bool, roots: Vec<PathBuf>) {
-		let roots = roots
-			.into_iter()
-			.map(|path| self.resolved_logical_path(&path))
-			.collect();
-		*self.access.borrow_mut() = Some(EvaluationAccess { pure, roots });
+		let roots: Vec<PathBuf> = roots.into_iter().map(noxi_eval::canon_path).collect();
+		*self.access.borrow_mut() = Some(EvaluationAccess {
+			pure,
+			roots: roots.clone(),
+		});
+		for root in roots {
+			if let Ok((path, _)) = StorePath::from_absolute_path_full(&root) {
+				// CppNix ignores a search path entry that is not a valid path.
+				let _ = self.allow_closure(&path);
+			}
+		}
 	}
 
-	fn allow_context_path(&self, path: &Path) {
+	fn allow_prefix(&self, path: &Path) {
 		if let Some(access) = self.access.borrow_mut().as_mut() {
 			access.roots.push(path.to_owned());
 		}
 	}
 
-	fn check_access(&self, path: &Path) -> io::Result<()> {
+	/// `EvalState::allowPath`.
+	pub(crate) fn allow_store_path(&self, path: &StorePath) {
+		self.allow_prefix(Path::new(&path.to_absolute_path()));
+	}
+
+	/// `EvalState::allowClosure`: allow `path` and every path it refers to.
+	pub(crate) fn allow_closure(&self, path: &StorePath) -> io::Result<()> {
+		if self.access.borrow().is_none() {
+			return Ok(());
+		}
+		let Some(store) = self.access_store()? else {
+			self.allow_store_path(path);
+			return Ok(());
+		};
+		let closure = store
+			.compute_closure(&BTreeSet::from([path.clone()]))
+			.map_err(io::Error::other)?;
+		for path in &closure {
+			self.allow_store_path(path);
+		}
+		Ok(())
+	}
+
+	pub(crate) fn check_uri_path(&self, path: &Path) -> io::Result<()> {
+		self.check_access(&noxi_eval::canon_path(path.to_owned()), false)
+	}
+
+	/// `CanonPath::isAllowed`: `path` is inside an allowed prefix, or is an
+	/// ancestor of one, so that the allowed paths can be reached.
+	fn is_allowed(&self, access: &EvaluationAccess, path: &Path) -> bool {
+		let related = |prefix: &Path| path.starts_with(prefix) || prefix.starts_with(path);
+		path.starts_with(COREPKGS_DIR)
+			|| access.roots.iter().any(|root| related(root))
+			|| self.mounts.borrow().keys().any(|mounted| related(mounted))
+	}
+
+	/// The entries of the directory `path` that restricted evaluation may
+	/// list: CppNix shows only allowed paths and ancestors of allowed paths.
+	fn visible_entries(
+		&self,
+		path: &Path,
+		entries: Vec<(bytes::Bytes, FileType)>,
+	) -> Vec<(bytes::Bytes, FileType)> {
+		let access = self.access.borrow();
+		let Some(access) = access.as_ref() else {
+			return entries;
+		};
+		let dir = self.resolved_logical_path(path);
+		entries
+			.into_iter()
+			.filter(|(name, _)| self.is_allowed(access, &dir.join(OsStr::from_bytes(name))))
+			.collect()
+	}
+
+	fn check_access(&self, path: &Path, follow_final: bool) -> io::Result<()> {
 		let access = self.access.borrow();
 		let Some(access) = access.as_ref() else {
 			return Ok(());
 		};
-		let resolved = self.resolved_logical_path(path);
+		let allowed = |path: &Path| self.is_allowed(access, path);
+		let denied = |path: &Path| {
+			let mode = if access.pure {
+				"pure evaluation mode (use '--impure' to override)"
+			} else {
+				"restricted mode"
+			};
+			io::Error::new(
+				io::ErrorKind::PermissionDenied,
+				format!(
+					"access to absolute path '{}' is forbidden in {mode}",
+					path.display()
+				),
+			)
+		};
+		let lexical = noxi_eval::canon_path(path.to_owned());
+		if !allowed(&lexical) {
+			return Err(denied(&lexical));
+		}
+		let raw = path.as_os_str().as_bytes();
+		let resolved = if !follow_final && !raw.ends_with(b"/") && !raw.ends_with(b"/.") {
+			path.to_owned()
+		} else {
+			self.resolved_logical_path(path)
+		};
 		if resolved.starts_with(COREPKGS_DIR) {
 			return Ok(());
 		}
-		let mounted = |path: &Path| {
-			StorePath::from_absolute_path_full(path).is_ok_and(|(root, _)| self.is_mounted(&root))
-		};
-		if access.roots.iter().any(|root| resolved.starts_with(root)) || mounted(&resolved) {
+		if allowed(&resolved) {
 			return Ok(());
 		}
-		let mode = if access.pure {
-			"pure evaluation mode (use '--impure' to override)"
-		} else {
-			"restricted mode"
-		};
-		Err(io::Error::new(
-			io::ErrorKind::PermissionDenied,
-			format!(
-				"access to absolute path '{}' is forbidden in {mode}",
-				resolved.display()
-			),
-		))
+		Err(denied(&resolved))
 	}
 
 	/// Check that a mounted `path` is visible through its tree's filter.
 	pub(crate) fn check_visible(&self, path: &Path) -> io::Result<()> {
-		self.check_access(path)?;
+		self.check_visibility(path, true)
+	}
+
+	/// Metadata operations inspect the final directory entry without granting
+	/// access to the symlink's target. Ancestor symlinks still need checking.
+	fn check_visible_metadata(&self, path: &Path) -> io::Result<()> {
+		self.check_visibility(path, false)?;
+		let mut ancestor = path.parent();
+		while let Some(parent) = ancestor {
+			if std::fs::symlink_metadata(self.physical_path(parent))
+				.is_ok_and(|metadata| metadata.file_type().is_symlink())
+			{
+				return Err(io::Error::other(format!(
+					"path '{}' (or its ancestor) is a symlink",
+					parent.display()
+				)));
+			}
+			ancestor = parent.parent();
+		}
+		Ok(())
+	}
+
+	fn check_visibility(&self, path: &Path, follow_final: bool) -> io::Result<()> {
+		self.check_access(path, follow_final)?;
 		if let Some((mount, rel)) = self.mount_of(path)
 			&& let Some(filter) = &mount.filter
 			&& !filter.allows(&rel)
@@ -579,6 +791,61 @@ impl EvaluatorStore {
 
 	pub fn known_paths(&self) -> RefMut<'_, KnownPaths> {
 		self.known_paths.borrow_mut()
+	}
+
+	/// Output `output` of the derivation `drv_path`, as CppNix's
+	/// `readDerivation` declares it: `None` when there is no such output,
+	/// otherwise its statically known path, if it has one.
+	pub(crate) fn derivation_output_path(
+		&self,
+		drv_path: &StorePath,
+		output: &str,
+	) -> io::Result<Option<Option<StorePath>>> {
+		let Ok(name) = output.parse::<nix_compat::derivation::OutputName>() else {
+			return Ok(None);
+		};
+		let declared = |drv: &BuildDerivation| {
+			drv.basic.outputs().contains_key(&name).then(|| {
+				drv.experimental
+					.get(output)
+					.and_then(|output| output.fixed.as_ref())
+					.map(|(path, _)| path.clone())
+					.or_else(|| drv.basic.outputs().get(&name).cloned())
+			})
+		};
+		// A writable evaluation registers its derivations as it creates
+		// them; a read-only one finds only those already in the store.
+		if self.store.is_some() {
+			let known = self.known_paths.borrow();
+			if let Some(drv) = known.get_deferred(drv_path) {
+				return Ok(declared(drv));
+			}
+			if let Some(drv) = known.get_unverified_drv(&drv_path.as_ref()) {
+				return Ok(drv
+					.outputs()
+					.contains_key(&name)
+					.then(|| drv.outputs().get(&name).cloned()));
+			}
+		}
+		let absolute = drv_path.to_absolute_path();
+		let Some(store) = self.access_store()? else {
+			return Err(io::Error::other(format!(
+				"derivation '{absolute}' is not valid"
+			)));
+		};
+		if !store.is_valid_path(drv_path).map_err(io::Error::other)? {
+			return Err(io::Error::other(format!(
+				"path '{absolute}' is not a valid store path"
+			)));
+		}
+		if !drv_path.name().ends_with(".drv") {
+			return Err(io::Error::other(format!(
+				"error parsing derivation '{absolute}': store path '{drv_path}' is not a valid derivation path"
+			)));
+		}
+		Ok(declared(
+			&self.read_evaluation_derivation(store.as_ref(), drv_path)?,
+		))
 	}
 
 	/// The store path a recursive (NAR) copy of `path` named `name` gets.
@@ -740,6 +1007,9 @@ impl StoreIO {
 	/// Enable the reference's placeholder gate for deferred outputs.
 	pub fn with_ca_derivations(mut self, enabled: bool) -> Self {
 		self.ca_derivations = enabled;
+		let mut features = self.store.output_features.get();
+		features.ca_derivations = enabled;
+		self.store.set_output_features(features);
 		self
 	}
 }
@@ -770,8 +1040,16 @@ impl EvalIO for StoreIO {
 	}
 
 	fn path_exists(&self, path: &Path) -> io::Result<bool> {
-		if self.store.check_visible(path).is_err() {
+		if self.store.check_visibility(path, false).is_err() {
 			return Ok(false);
+		}
+		// pathExists follows ancestor symlinks, unlike readFileType's
+		// direct lstat. It still must not follow the final component.
+		if let (Some(parent), Some(name)) = (path.parent(), path.file_name()) {
+			let resolved = self.store.resolved_logical_path(parent).join(name);
+			if self.store.check_visibility(&resolved, false).is_err() {
+				return Ok(false);
+			}
 		}
 		if path.starts_with(COREPKGS_DIR) {
 			return Ok(corepkg(path).is_some());
@@ -804,10 +1082,13 @@ impl EvalIO for StoreIO {
 		if elements.is_empty() {
 			return Ok(path);
 		}
-		let store = self
-			.store
-			.access_store()?
-			.ok_or_else(|| io::Error::other("cannot realize a path context without a store"))?;
+		let store = self.store.access_store()?.ok_or_else(|| {
+			let first = match elements[0] {
+				NixContextElement::Plain(path) | NixContextElement::Derivation(path) => path,
+				NixContextElement::Single { derivation, .. } => derivation,
+			};
+			io::Error::other(format!("path '{first}' is not valid"))
+		})?;
 		let mut requests: BTreeMap<StorePath, BTreeSet<String>> = BTreeMap::new();
 		for element in &elements {
 			let raw = match element {
@@ -827,14 +1108,9 @@ impl EvalIO for StoreIO {
 				)));
 			}
 		}
+		// Like CppNix's `realiseContext`, a path context grants no access:
+		// paths are allowed where they are created or fetched.
 		if requests.is_empty() {
-			for element in &elements {
-				if let NixContextElement::Plain(root) | NixContextElement::Derivation(root) =
-					element
-				{
-					self.store.allow_context_path(Path::new(root));
-				}
-			}
 			return Ok(path);
 		}
 		if !self.store.allow_ifd.get().unwrap_or(true) {
@@ -869,12 +1145,13 @@ impl EvalIO for StoreIO {
 		if self.store.store.is_none() {
 			for (drv, names) in &requests {
 				let outputs = store
-					.query_derivation_outputs(drv)
+					.query_partial_derivation_output_map(drv)
 					.map_err(io::Error::other)?;
 				for name in names {
-					let output = outputs.get(name).ok_or_else(|| {
+					let output = outputs.get(name).cloned().flatten().ok_or_else(|| {
 						io::Error::other("cannot realize an unknown output in read-only evaluation")
 					})?;
+					let output = &output;
 					if !store.is_valid_path(output).map_err(io::Error::other)? {
 						return Err(io::Error::other(format!(
 							"cannot substitute path '{}' - no write access to the Nix store",
@@ -888,21 +1165,32 @@ impl EvalIO for StoreIO {
 		}
 		let mut bytes = path.as_os_str().as_bytes().to_vec();
 		for (drv, names) in requests {
+			// `resolveDerivedPath`: content-addressed outputs resolve through
+			// their realisations.
 			let outputs = store
-				.query_derivation_outputs(&drv)
+				.query_partial_derivation_output_map(&drv)
 				.map_err(io::Error::other)?;
 			for name in names {
-				let output = outputs.get(&name).ok_or_else(|| {
-					io::Error::other(format!(
-						"derivation '{}' does not have an output named '{name}'",
-						drv.to_absolute_path()
-					))
-				})?;
+				let output = outputs
+					.get(&name)
+					.ok_or_else(|| {
+						io::Error::other(format!(
+							"derivation '{}' does not have an output named '{name}'",
+							drv.to_absolute_path()
+						))
+					})?
+					.as_ref()
+					.ok_or_else(|| {
+						io::Error::other(format!(
+							"cannot operate on output '{name}' of the unbuilt derivation '{}'",
+							drv.to_absolute_path()
+						))
+					})?;
 				let placeholder = store_path::downstream_placeholder(&drv, name.as_bytes());
 				bytes = bytes.replace(placeholder.as_bytes(), output.to_absolute_path().as_bytes());
 				store.add_temp_root(output).map_err(io::Error::other)?;
-				self.store
-					.allow_context_path(Path::new(&output.to_absolute_path()));
+				// CppNix allows the closure of each output built for import.
+				self.store.allow_closure(output)?;
 			}
 		}
 		Ok(PathBuf::from(OsString::from_vec(bytes)))
@@ -918,7 +1206,8 @@ impl EvalIO for StoreIO {
 	}
 
 	fn import_derivation(&self, path: &Path) -> io::Result<Option<Value>> {
-		self.store.check_visible(path)?;
+		// CppNix reads an imported derivation through the store, without
+		// checking that the evaluator may access its file.
 		let Ok(drv_path) = StorePath::from_absolute_path(path.as_os_str().as_bytes()) else {
 			return Ok(None);
 		};
@@ -931,7 +1220,10 @@ impl EvalIO for StoreIO {
 		if !store.is_valid_path(&drv_path).map_err(io::Error::other)? {
 			return Ok(None);
 		}
-		let drv = store.read_derivation(&drv_path).map_err(io::Error::other)?;
+		let declaration = self
+			.store
+			.read_evaluation_derivation(store.as_ref(), &drv_path)?;
+		let drv = &declaration.basic;
 		let absolute = drv_path.to_absolute_path();
 		let mut attrs: Vec<(NixString, Value)> = vec![
 			(
@@ -963,14 +1255,18 @@ impl EvalIO for StoreIO {
 			),
 		];
 		for name in drv.outputs().names() {
-			if drv.outputs().get(name).is_none() && !self.ca_derivations {
+			let fixed = declaration
+				.experimental
+				.get(&name.to_string())
+				.and_then(|output| output.fixed.as_ref())
+				.map(|(path, _)| path);
+			let output_path = fixed.or_else(|| drv.outputs().get(name));
+			if output_path.is_none() && !self.ca_derivations {
 				return Err(io::Error::other(
 					"experimental Nix feature 'ca-derivations' is disabled; add '--extra-experimental-features ca-derivations' to enable it",
 				));
 			}
-			let output = drv
-				.outputs()
-				.get(name)
+			let output = output_path
 				.map(StorePath::to_absolute_path)
 				.unwrap_or_else(|| store_path::downstream_placeholder(&drv_path, name.as_bytes()));
 			let string = NixString::new_context_from(
@@ -1013,7 +1309,7 @@ impl EvalIO for StoreIO {
 	}
 
 	fn read_link(&self, path: &Path) -> io::Result<PathBuf> {
-		self.store.check_visible(path)?;
+		self.store.check_visible_metadata(path)?;
 		StdIO.read_link(&self.store.physical_path(path))
 	}
 
@@ -1026,7 +1322,7 @@ impl EvalIO for StoreIO {
 	}
 
 	fn file_type(&self, path: &Path) -> io::Result<FileType> {
-		self.store.check_visible(path)?;
+		self.store.check_visible_metadata(path)?;
 		match corepkg(path) {
 			Some(Corepkg::Root) => Ok(FileType::Directory),
 			Some(Corepkg::File(_)) => Ok(FileType::Regular),
@@ -1036,7 +1332,11 @@ impl EvalIO for StoreIO {
 
 	fn read_dir(&self, path: &Path) -> io::Result<Vec<(bytes::Bytes, FileType)>> {
 		self.store.check_visible(path)?;
-		if self.store.real_store_dir.is_some() && path == Path::new(store_path::store_dir()) {
+		// CppNix lists the store directory through the store's accessor,
+		// which serves only store objects.
+		if path == Path::new(store_path::store_dir())
+			&& (self.store.real_store_dir.is_some() || self.store.access_store()?.is_some())
+		{
 			return Err(io::Error::other("path '/' is not a valid store path"));
 		}
 		match corepkg(path) {
@@ -1051,6 +1351,7 @@ impl EvalIO for StoreIO {
 				.collect()),
 			_ => {
 				let entries = StdIO.read_dir(&self.store.physical_path(path))?;
+				let entries = self.store.visible_entries(path, entries);
 				match self.store.mount_of(path) {
 					Some((
 						Mount {
@@ -1083,10 +1384,12 @@ impl EvalIO for StoreIO {
 						&BTreeSet::new(),
 					)
 					.map_err(io::Error::other)?;
+				self.store.allow_store_path(&imported);
 				return Ok(PathBuf::from(imported.to_absolute_path()));
 			}
 			let digest = nar::bytes_nar_sha256(contents.as_bytes())?;
 			let imported = ca_path(name, true, &NixHash::Sha256(digest), path)?;
+			self.store.allow_store_path(&imported);
 			return Ok(PathBuf::from(imported.to_absolute_path()));
 		}
 		// CppNix resolves symlinks in the ancestors only, so a symlink
@@ -1096,6 +1399,7 @@ impl EvalIO for StoreIO {
 			None => path.to_owned(),
 		};
 		let imported = self.store.import_nar(&resolved, name, None)?;
+		self.store.allow_store_path(&imported);
 		Ok(PathBuf::from(imported.to_absolute_path()))
 	}
 

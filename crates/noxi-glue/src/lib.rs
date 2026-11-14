@@ -34,6 +34,15 @@ pub fn configure<'co, 'ro, 'env>(
 ) -> EvaluationBuilder<'co, 'ro, 'env, Box<dyn EvalIO>> {
 	let ca_derivations = builder.experimental_feature_enabled("ca-derivations");
 	let impure_derivations = builder.experimental_feature_enabled("impure-derivations");
+	let blake3_hashes = builder.experimental_feature_enabled("blake3-hashes");
+	let dynamic_derivations = builder.experimental_feature_enabled("dynamic-derivations");
+	let git_hashing = builder.experimental_feature_enabled("git-hashing");
+	store.set_output_features(noxi_store::build_derivation::OutputFeatures {
+		ca_derivations,
+		impure_derivations,
+		dynamic_derivations,
+		git_hashing,
+	});
 	let builder = builder.enable_impure(Some(Box::new(
 		StoreIO::new(Rc::clone(&store)).with_ca_derivations(ca_derivations),
 	)));
@@ -45,14 +54,23 @@ pub fn configure<'co, 'ro, 'env>(
 	builder
 		// CppNix looks up `<nix/...>` in its built-in files after the search path.
 		.corepkgs_dir(Some(store::COREPKGS_DIR.into()))
-		.add_builtins(derivation::derivation_builtins::builtins(Rc::new(
-			derivation::DerivationState {
+		.add_builtins(
+			derivation::derivation_builtins::builtins(Rc::new(derivation::DerivationState {
 				store: Rc::clone(&store),
 				ca_derivations,
 				impure_derivations,
-			},
-		)))
+				blake3_hashes,
+				dynamic_derivations,
+				git_hashing,
+			}))
+			.into_iter()
+			// `outputOf` exists only with the `dynamic-derivations` feature.
+			.filter(move |(name, _)| dynamic_derivations || *name != "outputOf"),
+		)
 		.add_builtins(import::import_builtins::builtins(Rc::clone(&store)))
+		.add_builtins(fetch::mercurial::mercurial_builtins::builtins(Rc::clone(
+			&store,
+		)))
 		.add_builtins(
 			fetch::builtins::fetch_builtins::builtins(store)
 				.into_iter()
@@ -60,26 +78,11 @@ pub fn configure<'co, 'ro, 'env>(
 		)
 		.add_builtins(context_builtins::builtins())
 		.add_builtins(flake_builtins::builtins(flakes))
-		.add_builtins(unsupported_builtins::builtins())
 		.add_src_builtin("derivation", {
 			static SOURCE: std::sync::LazyLock<String> =
 				std::sync::LazyLock::new(|| include_str!("derivation.nix").replace('\t', "  "));
 			SOURCE.as_str()
 		})
-}
-
-/// Builtins that need the network or a writable store. They exist so that
-/// files mentioning them still compile, and fail only when called.
-#[builtins]
-mod unsupported_builtins {
-	use noxi_eval::generators::Gen;
-	use noxi_eval::generators::GenCo;
-	use noxi_eval::{ErrorKind, Value};
-
-	#[builtin("fetchMercurial")]
-	async fn builtin_fetch_mercurial(_co: GenCo, #[lazy] _args: Value) -> Result<Value, ErrorKind> {
-		Err(ErrorKind::NotImplemented("builtins.fetchMercurial"))
-	}
 }
 
 #[builtins]
@@ -92,8 +95,16 @@ mod context_builtins {
 	#[builtin("addDrvOutputDependencies")]
 	async fn builtin_add_drv_output_dependencies(
 		co: GenCo,
-		value: Value,
+		#[lazy] value: Value,
 	) -> Result<Value, ErrorKind> {
+		generators::request_builtin_context(
+			&co,
+			vec![noxi_eval::Trace::new(
+				None,
+				"while evaluating the argument passed to builtins.addDrvOutputDependencies",
+			)],
+		)
+		.await;
 		let string = generators::request_string_coerce(
 			&co,
 			value,
@@ -104,6 +115,7 @@ mod context_builtins {
 		)
 		.await
 		.map_err(ErrorKind::CatchableError)?;
+		generators::request_builtin_context(&co, Vec::new()).await;
 		let context: Vec<_> = string
 			.iter_context()
 			.flat_map(|ctx| ctx.iter().cloned())
@@ -160,17 +172,33 @@ mod flake_builtins {
 	async fn builtin_parse_flake_ref(
 		state: bool,
 		co: GenCo,
-		value: Value,
+		#[lazy] value: Value,
 	) -> Result<Value, ErrorKind> {
-		let _ = co;
 		enabled(state)?;
-		let string = value.to_contextful_str()?;
-		if string.has_context() {
-			return Err(ErrorKind::EvalError(
-				"the string is not allowed to refer to a store path".into(),
-			));
-		}
-		let attrs = noxi_flakeref::attrs::parse(string.to_str()?).map_err(ErrorKind::EvalError)?;
+		let string = crate::fetch::builtins::string_no_context(
+			&co,
+			value,
+			noxi_eval::Trace::new(
+				None,
+				"while evaluating the argument passed to builtins.parseFlakeRef",
+			),
+		)
+		.await?;
+		let settings = noxi_flakeref::input::FetchSettings {
+			flakes: state,
+			..Default::default()
+		};
+		let parsed = noxi_flakeref::flake_ref::parse_flake_ref(
+			&settings,
+			string.to_str()?,
+			noxi_flakeref::flake_ref::ParseOptions {
+				allow_missing: true,
+				..Default::default()
+			},
+		)
+		.map_err(|error| ErrorKind::EvalError(error.to_string()))?;
+		let attrs = noxi_flakeref::input::attrs_to_json(&parsed.to_attrs())
+			.map_err(|error| ErrorKind::EvalError(error.to_string()))?;
 		let attrs = attrs
 			.into_iter()
 			.map(|(key, value)| {
@@ -195,7 +223,13 @@ mod flake_builtins {
 		value: Value,
 	) -> Result<Value, ErrorKind> {
 		enabled(state)?;
-		let attrs = value.to_attrs()?;
+		let attrs = value.to_attrs().map_err(|error| {
+			noxi_eval::AddContext::trace(
+				error,
+				None,
+				"while evaluating the argument passed to builtins.flakeRefToString",
+			)
+		})?;
 		let mut values = Map::new();
 		for (key, value) in attrs.iter_sorted() {
 			let value = generators::request_force(&co, value.clone()).await;
@@ -219,8 +253,28 @@ mod flake_builtins {
 			};
 			values.insert(key.to_str()?.to_owned(), json);
 		}
-		Ok(Value::from(
-			noxi_flakeref::attrs::to_string(&values).map_err(ErrorKind::EvalError)?,
-		))
+		Ok(Value::from({
+			let attrs: noxi_flakeref::input::Attrs = values
+				.into_iter()
+				.map(|(key, value)| {
+					let attr = match value {
+						Json::String(value) => noxi_flakeref::input::Attr::String(value),
+						Json::Bool(value) => noxi_flakeref::input::Attr::Bool(value),
+						Json::Number(value) => {
+							noxi_flakeref::input::Attr::Int(value.as_u64().unwrap())
+						}
+						_ => unreachable!("validated scalar attribute"),
+					};
+					(key, attr)
+				})
+				.collect();
+			let settings = noxi_flakeref::input::FetchSettings {
+				flakes: state,
+				..Default::default()
+			};
+			noxi_flakeref::flake_ref::FlakeRef::from_attrs(&settings, &attrs)
+				.and_then(|reference| reference.try_to_string())
+				.map_err(|error| ErrorKind::EvalError(error.to_string()))?
+		}))
 	}
 }

@@ -43,7 +43,7 @@ tests/functional/ca/common.sh support
 tests/functional/ca/concurrent-builds.sh pass pass pass
 tests/functional/ca/config.nix support
 tests/functional/ca/content-addressed.nix support
-tests/functional/ca/derivation-advanced-attributes.sh gap fail pass # source in derivation-advanced-attributes.sh:24: error: feature not yet implemented in noxi: content-addressed or impure derivation construction
+tests/functional/ca/derivation-advanced-attributes.sh pass pass pass
 tests/functional/ca/derivation-json.sh gap fail pass # main in derivation-json.sh:7: error: feature not yet implemented in noxi: content-addressed or impure derivation construction
 tests/functional/ca/duplicate-realisation-in-closure.sh anomaly fail skip # reference skip: temporarily broken because dependent realisations are removed, skipping this test...
 tests/functional/ca/eval-store.sh gap fail pass # source in eval-store.sh:14: error: nix build --eval-store is not supported by noxi yet
@@ -260,7 +260,7 @@ tests/functional/fetchGitRefs.sh pass pass pass
 tests/functional/fetchGitShallow.sh gap fail pass # main in fetchGitShallow.sh:33: error: '$ROOT/tmp/nix-test/main/fetchGitShallow/shallow-clone' is a shallow Git repository, so 'revCount' is not available
 tests/functional/fetchGitSubmodules.sh pass pass pass
 tests/functional/fetchGitVerification.sh gap fail pass # main in fetchGitVerification.sh:31: error: verified fetches are not implemented == *No principal matched\.* ]]
-tests/functional/fetchMercurial.sh anomaly skip skip # reference skip: Mercurial not installed, skipping this test...
+tests/functional/fetchMercurial.sh pass pass pass
 tests/functional/fetchPath.sh pass pass pass
 tests/functional/fetchTree-file.sh pass pass pass
 tests/functional/fetchurl.sh gap fail pass # main in fetchurl.sh:10: error: unsupported builtin builder 'fetchurl'
@@ -292,7 +292,7 @@ tests/functional/flakes/follow-paths.sh gap fail pass # main in follow-paths.sh:
 tests/functional/flakes/get-flake.sh gap fail pass # main in get-flake.sh:26: error: cannot call 'getFlake' on unlocked flake reference '$ROOT/tmp/nix-test/flakes/get-flake/store/HASH-source', at (none) (use --impure to override)
 tests/functional/flakes/init.sh pass pass pass
 tests/functional/flakes/inputs.sh pass pass pass
-tests/functional/flakes/mercurial.sh anomaly skip skip # reference skip: Mercurial not installed, skipping this test...
+tests/functional/flakes/mercurial.sh pass pass pass
 tests/functional/flakes/meson.build support
 tests/functional/flakes/non-flake-inputs.sh gap fail pass # main in non-flake-inputs.sh:80: error: nix build --commit-lock-file is not supported by noxi yet
 tests/functional/flakes/old-lockfiles.sh pass pass pass

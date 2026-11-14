@@ -115,12 +115,8 @@ async fn add_path(
 	recursive: bool,
 	expected: Option<NixHash>,
 ) -> Result<Value, ErrorKind> {
-	state
-		.check_visible(path)
-		.map_err(|error| io_error(path, error))?;
-	// `addPath` follows every symlink in the path, including the last.
-	let resolved = fs::canonicalize(state.physical_path(path)).map_err(|e| io_error(path, e))?;
-
+	let normalized = noxi_eval::canon_path(path.to_owned());
+	let path = normalized.as_path();
 	generators::request_builtin_context(
 		co,
 		vec![noxi_eval::Trace::new(
@@ -129,6 +125,11 @@ async fn add_path(
 		)],
 	)
 	.await;
+	state
+		.check_visible(path)
+		.map_err(|error| io_error(path, error))?;
+	// `addPath` follows every symlink in the path, including the last.
+	let resolved = fs::canonicalize(state.physical_path(path)).map_err(|e| io_error(path, e))?;
 	let included = match &filter {
 		Some(filter) => match filtered_entries(state, co, &resolved, filter).await? {
 			Ok(included) => Some(included),
@@ -149,6 +150,7 @@ async fn add_path(
 		state.import_flat(&resolved, name)
 	}
 	.map_err(|e| io_error(path, e))?;
+	state.allow_store_path(&store_path);
 
 	Ok(store_path_string(&store_path))
 }
@@ -182,8 +184,19 @@ pub(crate) mod import_builtins {
 		)
 		.await;
 		let path = try_cek_to_value!(noxi_eval::builtins::realise_value_to_path(&co, path).await?);
-		generators::request_builtin_context(&co, vec![]).await;
+		generators::request_builtin_context(
+			&co,
+			vec![noxi_eval::Trace::new(
+				None,
+				"while evaluating the first argument passed to builtins.filterSource",
+			)],
+		)
+		.await;
 		let filter = generators::request_force(&co, filter).await;
+		if filter.is_catchable() {
+			return Ok(filter);
+		}
+		generators::request_builtin_context(&co, Vec::new()).await;
 		if !filter.is_catchable()
 			&& !matches!(&filter, Value::Closure(_) | Value::Builtin(_))
 			&& !matches!(&filter, Value::Attrs(a) if a.select("__functor").is_some())
@@ -264,7 +277,7 @@ pub(crate) mod import_builtins {
 					}
 				}
 				other => {
-					return Err(ErrorKind::Abort(format!(
+					return Err(ErrorKind::EvalError(format!(
 						"unsupported argument '{other}' to 'builtins.path'"
 					)));
 				}
@@ -272,7 +285,7 @@ pub(crate) mod import_builtins {
 		}
 
 		let Some(path) = path else {
-			return Err(ErrorKind::Abort(
+			return Err(ErrorKind::EvalError(
 				"missing required 'path' attribute in the first argument to 'builtins.path'".into(),
 			));
 		};
@@ -319,6 +332,7 @@ pub(crate) mod import_builtins {
 			.add_text(&name, contents.as_bytes(), &references)
 			.map_err(|e| ErrorKind::NoxiError(Arc::new(e)))?;
 		state.known_paths().add_text(path.clone(), references);
+		state.allow_store_path(&path);
 		Ok(store_path_string(&path))
 	}
 
@@ -341,17 +355,35 @@ pub(crate) mod import_builtins {
 			)],
 		)
 		.await;
-		let path = try_cek_to_value!(
-			noxi_eval::builtins::realise_value_to_path(&co, path)
-				.await
-				.trace(
-					None,
-					"while evaluating the first argument passed to 'builtins.storePath'"
-				)?
+		let value = generators::request_force(&co, path).await;
+		let string = match generators::request_string_coerce(
+			&co,
+			value,
+			noxi_eval::CoercionKind {
+				strong: false,
+				import_paths: false,
+			},
+		)
+		.await
+		{
+			Ok(string) => string,
+			Err(catchable) => return Ok(Value::Catchable(Box::new(catchable))),
+		};
+		let mut context = noxi_eval::NixContext::new();
+		context.extend(
+			string
+				.iter_context()
+				.flat_map(|context| context.iter())
+				.cloned(),
 		);
+		generators::request_builtin_context(&co, Vec::new()).await;
+		let path = string.to_path()?.to_owned();
+		if !path.is_absolute() {
+			return Err(ErrorKind::NotAnAbsolutePath(path));
+		}
 		let absolute = path.as_os_str().as_bytes();
 		let (store_path, _rest) = StorePath::from_absolute_path_full(&path).map_err(|_| {
-			ErrorKind::Abort(format!("path '{}' is not in the Nix store", path.display()))
+			ErrorKind::EvalError(format!("path '{}' is not in the Nix store", path.display()))
 		})?;
 		// Read-only mode records the dependency without checking validity.
 		if let Some(local) = state.store() {
@@ -359,7 +391,7 @@ pub(crate) mod import_builtins {
 				.is_valid_path(&store_path)
 				.map_err(|e| ErrorKind::NoxiError(Arc::new(e)))?
 			{
-				return Err(ErrorKind::Abort(format!(
+				return Err(ErrorKind::EvalError(format!(
 					"path '{}' is not valid",
 					store_path.to_absolute_path()
 				)));
@@ -368,9 +400,9 @@ pub(crate) mod import_builtins {
 				.add_temp_root(&store_path)
 				.map_err(|e| ErrorKind::NoxiError(Arc::new(e)))?;
 		}
+		context.extend([NixContextElement::Plain(store_path.to_absolute_path())]);
 		Ok(Value::String(NixString::new_context_from(
-			NixContextElement::Plain(store_path.to_absolute_path()).into(),
-			absolute,
+			context, absolute,
 		)))
 	}
 }

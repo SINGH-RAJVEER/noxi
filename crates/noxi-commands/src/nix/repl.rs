@@ -32,6 +32,17 @@ const NORMAL: &str = "\x1b[0m";
 
 type LocalFuture<'a, T> = Pin<Box<dyn Future<Output = Result<T, ErrorKind>> + 'a>>;
 
+thread_local! {
+	/// The `max-call-depth` setting, which also bounds how deeply CppNix's
+	/// printer descends into a value.
+	static MAX_PRINT_DEPTH: std::cell::Cell<usize> = const { std::cell::Cell::new(10000) };
+}
+
+/// Bound the printer's depth by the evaluation's `max-call-depth`.
+pub(crate) fn set_max_print_depth(depth: usize) {
+	MAX_PRINT_DEPTH.with(|cell| cell.set(depth));
+}
+
 fn notice(message: &str) {
 	if nix_compat::log::log_enabled(nix_compat::log::VerbosityLevel::Notice) {
 		eprintln!("{message}");
@@ -178,6 +189,12 @@ impl Printer {
 		depth: usize,
 	) -> LocalFuture<'a, Result<(), Value>> {
 		Box::pin(async move {
+			// Infinitely deep values fail before they overflow the stack.
+			if depth > MAX_PRINT_DEPTH.with(std::cell::Cell::get) {
+				return Err(ErrorKind::EvalError(
+					"stack overflow; max-call-depth exceeded".into(),
+				));
+			}
 			let value = generators::request_force(co, value).await;
 			if let Value::Catchable(caught) = &value {
 				if depth == 0 && self.throw_top {

@@ -38,7 +38,7 @@ let
 		};
 		cargoLock.lockFile = ../Cargo.lock;
 		nativeBuildInputs = [ pkgs.pkg-config ];
-		buildInputs = [ pkgs.zstd ];
+		buildInputs = [ pkgs.zstd pkgs.sqlite ];
 		cargoBuildFlags = flags;
 		cargoTestFlags = flags;
 		cargoInstallFlags = flags;

@@ -250,6 +250,11 @@ mod operations {
 			flake
 				.write_lock_file(path)
 				.map_err(|e| ErrorKind::EvalError(e.to_string()))?;
+			if request.output_lock_file.is_none() {
+				flake
+					.track_mercurial_lock_file(path)
+					.map_err(|e| ErrorKind::EvalError(e.to_string()))?;
+			}
 			if request.output_lock_file.is_none()
 				&& flake.original_ref.input.scheme == Some(noxi_flakeref::input::Scheme::Git)
 			{

@@ -6,7 +6,7 @@ use std::rc::Rc;
 use std::sync::Arc;
 
 use bstr::{BString, ByteSlice};
-use nix_compat::derivation::{DerivationBuilder, OutputHash, OutputName, OutputsBuilder};
+use nix_compat::derivation::{DerivationBuilder, OutputHash, OutputName, Outputs, OutputsBuilder};
 use nix_compat::nixhash::{HashAlgo, NixHash};
 use nix_compat::store_path::{StorePath, hash_placeholder};
 use noxi_eval::builtin_macros::builtins;
@@ -125,10 +125,110 @@ fn populate_inputs(
 	Ok(())
 }
 
+/// CppNix's `SingleDerivedPath`: a store path, or an output of a derivation
+/// that may itself be the output of another. A nested output keeps its
+/// derivation in a string context element as CppNix prints it,
+/// `OUTPUT!DERIVATION`.
+enum DerivedPath {
+	Opaque(StorePath),
+	Built(Box<DerivedPath>, String),
+}
+
+impl DerivedPath {
+	fn from_context(element: &str) -> Result<Self, ErrorKind> {
+		match element.split_once('!') {
+			Some((output, rest)) => Ok(Self::Built(
+				Box::new(Self::from_context(rest)?),
+				output.to_owned(),
+			)),
+			None => StorePath::from_absolute_path(element.as_bytes())
+				.map(Self::Opaque)
+				.map_err(|error| ErrorKind::EvalError(error.to_string())),
+		}
+	}
+
+	fn to_context(&self) -> String {
+		match self {
+			Self::Opaque(path) => path.to_absolute_path(),
+			Self::Built(drv, output) => format!("{output}!{}", drv.to_context()),
+		}
+	}
+
+	/// `SingleDerivedPath::to_string`.
+	fn display(&self) -> String {
+		match self {
+			Self::Opaque(path) => path.to_absolute_path(),
+			Self::Built(drv, output) => format!("{}^{output}", drv.display()),
+		}
+	}
+}
+
+/// `DownstreamPlaceholder::fromSingleDerivedPathBuilt`, as a digest.
+fn output_placeholder(drv: &DerivedPath, output: &str, ca: bool) -> Result<[u8; 32], ErrorKind> {
+	use sha2::{Digest, Sha256};
+	let clear_text = match drv {
+		DerivedPath::Opaque(path) => {
+			if !ca {
+				return Err(ErrorKind::EvalError(
+					"experimental Nix feature 'ca-derivations' is disabled; add '--extra-experimental-features ca-derivations' to enable it".into(),
+				));
+			}
+			let name = path.name().strip_suffix(".drv").unwrap_or(path.name());
+			let name = if output == "out" {
+				name.to_owned()
+			} else {
+				format!("{name}-{output}")
+			};
+			format!(
+				"nix-upstream-output:{}:{name}",
+				nix_compat::nixbase32::encode(path.digest())
+			)
+		}
+		DerivedPath::Built(inner, inner_output) => {
+			let digest = output_placeholder(inner, inner_output, ca)?;
+			let compressed: [u8; 20] = nix_compat::store_path::compress_hash(&digest);
+			format!(
+				"nix-computed-output:{}:{output}",
+				nix_compat::nixbase32::encode(&compressed)
+			)
+		}
+	};
+	Ok(Sha256::digest(clear_text.as_bytes()).into())
+}
+
+/// `EvalState::mkSingleDerivedPathStringRaw`.
+fn derived_path_string(state: &DerivationState, path: &DerivedPath) -> Result<String, ErrorKind> {
+	let (drv, output) = match path {
+		DerivedPath::Opaque(path) => return Ok(path.to_absolute_path()),
+		DerivedPath::Built(drv, output) => (drv, output),
+	};
+	if let DerivedPath::Opaque(drv_path) = drv.as_ref() {
+		match state
+			.store
+			.derivation_output_path(drv_path, output)
+			.map_err(|error| ErrorKind::EvalError(error.to_string()))?
+		{
+			None => {
+				return Err(ErrorKind::EvalError(format!(
+					"derivation '{}' does not have output '{output}'",
+					drv.display()
+				)));
+			}
+			Some(Some(path)) => return Ok(path.to_absolute_path()),
+			Some(None) => {}
+		}
+	}
+	let digest = output_placeholder(drv, output, state.ca_derivations)?;
+	Ok(format!("/{}", nix_compat::nixbase32::encode(&digest)))
+}
+
 pub(crate) struct DerivationState {
 	pub store: Rc<ReadOnlyStore>,
 	pub ca_derivations: bool,
 	pub impure_derivations: bool,
+	pub blake3_hashes: bool,
+	pub dynamic_derivations: bool,
+	pub git_hashing: bool,
 }
 
 #[builtins(state = "Rc<DerivationState>")]
@@ -137,15 +237,133 @@ pub(crate) mod derivation_builtins {
 	use noxi_eval::generators::Gen;
 
 	#[builtin("placeholder")]
-	async fn builtin_placeholder(co: GenCo, input: Value) -> Result<Value, ErrorKind> {
+	async fn builtin_placeholder(co: GenCo, #[lazy] input: Value) -> Result<Value, ErrorKind> {
+		generators::request_builtin_context(
+			&co,
+			vec![noxi_eval::Trace::new(
+				None,
+				"while evaluating the first argument passed to builtins.placeholder",
+			)],
+		)
+		.await;
+		let input = generators::request_force(&co, input).await;
 		if input.is_catchable() {
 			return Ok(input);
 		}
-		let output_name = input.to_str().trace(
+		generators::request_builtin_context(&co, Vec::new()).await;
+		let output_name = input.to_contextful_str().trace(
 			None,
 			"while evaluating the first argument passed to builtins.placeholder",
 		)?;
+		if let Some(message) = output_name.context_not_allowed() {
+			return Err(ErrorKind::EvalError(message).trace(
+				None,
+				"while evaluating the first argument passed to builtins.placeholder",
+			));
+		}
 		Ok(hash_placeholder(output_name.to_str()?).into())
+	}
+
+	/// The path of an output of a derivation, or of an output of another
+	/// derivation's output, or a placeholder for it when it is not static.
+	/// Only added with the `dynamic-derivations` experimental feature.
+	#[builtin("outputOf")]
+	async fn builtin_output_of(
+		state: Rc<DerivationState>,
+		co: GenCo,
+		#[lazy] drv: Value,
+		#[lazy] output: Value,
+	) -> Result<Value, ErrorKind> {
+		const FIRST: &str = "while evaluating the first argument to builtins.outputOf";
+		const SECOND: &str = "while evaluating the second argument to builtins.outputOf";
+		let in_argument = |hint: &'static str| {
+			generators::request_builtin_context(&co, vec![noxi_eval::Trace::new(None, hint)])
+		};
+		// `EvalState::coerceToSingleDerivedPath`.
+		in_argument(FIRST).await;
+		let drv = generators::request_force(&co, drv).await;
+		if drv.is_catchable() {
+			return Ok(drv);
+		}
+		let string = drv.to_contextful_str()?;
+		let text = string.to_str()?;
+		let elements: Vec<_> = string
+			.iter_context()
+			.flat_map(|context| context.iter())
+			.collect();
+		if elements.len() != 1 {
+			return Err(ErrorKind::EvalError(format!(
+				"string '{text}' has {} entries in its context. It should only have exactly one entry",
+				elements.len()
+			)));
+		}
+		let derived = match elements[0] {
+			NixContextElement::Plain(path) => DerivedPath::from_context(path)?,
+			NixContextElement::Derivation(_) => {
+				return Err(ErrorKind::EvalError(format!(
+					"string '{text}' has a context which refers to a complete source and binary closure. This is not supported at this time"
+				)));
+			}
+			NixContextElement::Single { name, derivation } => DerivedPath::Built(
+				Box::new(DerivedPath::from_context(derivation)?),
+				name.clone(),
+			),
+		};
+		// Reading the derivation adds no argument trace.
+		generators::request_builtin_context(&co, vec![]).await;
+		let expected = derived_path_string(&state, &derived)?;
+		if text != expected {
+			let message = match &derived {
+				DerivedPath::Opaque(_) => {
+					format!("path string '{text}' has context with the different path '{expected}'")
+				}
+				DerivedPath::Built(drv, output) => format!(
+					"string '{text}' has context with the output '{output}' from derivation '{}', but the string is not the right placeholder for this derivation output. It should be '{expected}'",
+					drv.display()
+				),
+			};
+			in_argument(FIRST).await;
+			return Err(ErrorKind::EvalError(message));
+		}
+
+		in_argument(SECOND).await;
+		let output = generators::request_force(&co, output).await;
+		if output.is_catchable() {
+			return Ok(output);
+		}
+		let output = output.to_contextful_str()?;
+		if let Some(element) = output.iter_context().flat_map(|c| c.iter()).next() {
+			let shown = match element {
+				NixContextElement::Plain(path) => path.clone(),
+				NixContextElement::Derivation(path) => format!("{path} (deep)"),
+				NixContextElement::Single { name, derivation } => format!(
+					"{}^{name}",
+					DerivedPath::from_context(derivation)?.display()
+				),
+			};
+			return Err(ErrorKind::EvalError(format!(
+				"the string '{}' is not allowed to refer to a store path (such as '{shown}')",
+				output.to_str()?
+			)));
+		}
+
+		// `EvalState::mkSingleDerivedPathString`.
+		generators::request_builtin_context(&co, vec![]).await;
+		let output = output.to_str()?.to_owned();
+		let result = DerivedPath::Built(Box::new(derived), output.clone());
+		let path = derived_path_string(&state, &result)?;
+		let DerivedPath::Built(drv, _) = result else {
+			unreachable!("outputOf builds an output path")
+		};
+		Ok(NixString::new_context_from(
+			NixContextElement::Single {
+				name: output,
+				derivation: drv.to_context(),
+			}
+			.into(),
+			path,
+		)
+		.into())
 	}
 
 	/// Strictly construct a derivation from its attributes. Users normally
@@ -187,9 +405,6 @@ pub(crate) mod derivation_builtins {
 			return Ok(name);
 		}
 		let name = name.to_str()?;
-		if name.is_empty() {
-			return Err(ErrorKind::Abort("derivation has empty name".to_string()));
-		}
 		let name = name.to_str()?.to_owned();
 		let mut hint = format!("while evaluating derivation '{name}'");
 		if let Some(span) = input.get_attr_pos("name") {
@@ -211,6 +426,8 @@ pub(crate) mod derivation_builtins {
 		let mut input_context = NixContext::new();
 		// The outputs as given, in order; `out` when the attribute is absent.
 		let mut output_names = vec![OutputName::out()];
+		let mut content_addressed = false;
+		let mut impure = false;
 
 		fn insert_env(
 			drv: &mut DerivationBuilder,
@@ -306,9 +523,11 @@ pub(crate) mod derivation_builtins {
 								"experimental Nix feature '{feature}' is disabled; add '--extra-experimental-features {feature}' to enable it"
 							)));
 						}
-						return Err(ErrorKind::NotImplemented(
-							"content-addressed or impure derivation construction",
-						));
+						if arg_name == "__contentAddressed" {
+							content_addressed = true;
+						} else {
+							impure = true;
+						}
 					}
 				}
 				"args" => {
@@ -427,6 +646,23 @@ pub(crate) mod derivation_builtins {
 								}
 								Err(err) => return Err(err),
 							};
+							if arg_name == "outputHashMode" {
+								if let Some(mode) = val_json.as_str() {
+									if !matches!(
+										mode,
+										"flat" | "recursive" | "nar" | "text" | "git"
+									) {
+										return Err(ErrorKind::EvalError(format!(
+											"invalid value '{mode}' for 'outputHashMode' attribute"
+										)));
+									}
+									match mode {
+										"text" if !state.dynamic_derivations => return Err(ErrorKind::EvalError(format!("experimental Nix feature 'dynamic-derivations' is disabled (text-hashed derivation '{name}', outputHashMode = \"text\"); add '--extra-experimental-features dynamic-derivations' to enable it"))),
+										"git" if !state.git_hashing => return Err(ErrorKind::EvalError("experimental Nix feature 'git-hashing' is disabled; add '--extra-experimental-features git-hashing' to enable it".into())),
+										_ => {},
+									}
+								}
+							}
 							input_context.extend(context);
 							structured_attrs.insert(arg_name, val_json);
 							if matches!(
@@ -457,6 +693,13 @@ pub(crate) mod derivation_builtins {
 									val_str.to_str()?
 								)));
 							}
+							if arg_name == "outputHashMode" {
+								match val_str.to_str()? {
+									"text" if !state.dynamic_derivations => return Err(ErrorKind::EvalError(format!("experimental Nix feature 'dynamic-derivations' is disabled (text-hashed derivation '{name}', outputHashMode = \"text\"); add '--extra-experimental-features dynamic-derivations' to enable it"))),
+									"git" if !state.git_hashing => return Err(ErrorKind::EvalError("experimental Nix feature 'git-hashing' is disabled; add '--extra-experimental-features git-hashing' to enable it".into())),
+									_ => {},
+								}
+							}
 							input_context.mimic(&val_str);
 							insert_env(&mut drv, arg_name, val_str.as_bytes().into())?;
 						}
@@ -467,6 +710,7 @@ pub(crate) mod derivation_builtins {
 
 		generators::request_builtin_context(&co, vec![outer]).await;
 
+		let mut fixed_experimental = None;
 		// A non-empty `outputHash` makes this a fixed-output derivation.
 		let hash_str = try_cek_to_value!(
 			select_string(&co, &input, "outputHash")
@@ -492,17 +736,33 @@ pub(crate) mod derivation_builtins {
 				return Err(DerivationError::ConflictingOutputTypes.into());
 			}
 
-			let mode = hash_mode
-				.map(|s| s.parse().map_err(|err| ErrorKind::NoxiError(Arc::new(err))))
-				.transpose()?
-				.unwrap_or_default();
 			let want_algo: Option<HashAlgo> = hash_algo
 				.map(|s| s.parse())
 				.transpose()
 				.map_err(|err| ErrorKind::NoxiError(Arc::new(err)))?;
 			let hash = NixHash::from_str(&hash_str, want_algo)
 				.map_err(|err| ErrorKind::NoxiError(Arc::new(err)))?;
-			drv.outputs = OutputsBuilder::Fixed(OutputHash { mode, hash });
+			if matches!(hash_mode.as_deref(), Some("text" | "git")) {
+				use noxi_store::build_derivation::{ExperimentalMethod, ExperimentalOutput};
+				let method = ExperimentalMethod::parse(hash_mode.as_deref().unwrap())
+					.map_err(|e| ErrorKind::EvalError(e.to_string()))?;
+				let path = method
+					.fixed_path(&name, &hash)
+					.map_err(|e| ErrorKind::EvalError(e.to_string()))?;
+				fixed_experimental = Some(ExperimentalOutput {
+					method,
+					hash_algo: hash.algo(),
+					impure: false,
+					fixed: Some((path, hash)),
+				});
+			} else {
+				let mode = hash_mode
+					.map(|s| if s == "nar" { "recursive".into() } else { s })
+					.map(|s| s.parse().map_err(|err| ErrorKind::NoxiError(Arc::new(err))))
+					.transpose()?
+					.unwrap_or_default();
+				drv.outputs = OutputsBuilder::Fixed(OutputHash { mode, hash });
+			}
 		}
 
 		// CppNix overwrites an attribute named after an output with the
@@ -537,6 +797,170 @@ pub(crate) mod derivation_builtins {
 			return Err(ErrorKind::EvalError(
 				"required attribute 'system' missing".into(),
 			));
+		}
+
+		if name.ends_with(".drv") {
+			let mode = try_cek_to_value!(select_string(&co, &input, "outputHashMode").await?);
+			if mode.as_deref() != Some("text") || output_names != [OutputName::out()] {
+				return Err(ErrorKind::EvalError("derivation names are allowed to end in '.drv' only if they produce a single derivation file".into()));
+			}
+		}
+
+		// Unknown output paths need the CA placeholder feature only after
+		// all attributes and the required builder fields have been checked.
+		// Fixed outputs already know their path and need no placeholder.
+		if impure && !drv.outputs.is_fixed() && fixed_experimental.is_none() {
+			if content_addressed {
+				return Err(ErrorKind::EvalError(
+					"derivation cannot be both content-addressed and impure".into(),
+				));
+			}
+			if !state.ca_derivations {
+				return Err(ErrorKind::EvalError("experimental Nix feature 'ca-derivations' is disabled; add '--extra-experimental-features ca-derivations' to enable it".into()));
+			}
+		}
+
+		if fixed_experimental.is_some()
+			|| !drv.outputs.is_fixed()
+				&& (content_addressed
+					|| impure
+					|| drv
+						.input_derivations
+						.keys()
+						.any(|path| known_paths.has_deferred_input(path)))
+		{
+			use noxi_store::build_derivation::{
+				BuildDerivation, ExperimentalMethod, ExperimentalOutput, FloatingOutput,
+			};
+			let mut floating = BTreeMap::new();
+			let mut experimental = BTreeMap::new();
+			if let Some(output) = fixed_experimental {
+				drv.environment.insert(
+					"out".into(),
+					output.fixed.as_ref().unwrap().0.to_absolute_path().into(),
+				);
+				experimental.insert("out".to_owned(), output);
+			} else if content_addressed || impure {
+				let hash_algo =
+					try_cek_to_value!(select_string(&co, &input, "outputHashAlgo").await?)
+						.filter(|s| !s.is_empty())
+						.map(|s| {
+							if s == "blake3" && !state.blake3_hashes {
+								return Err(ErrorKind::EvalError("experimental Nix feature 'blake3-hashes' is disabled; add '--extra-experimental-features blake3-hashes' to enable it".into()));
+							}
+							s.parse::<HashAlgo>()
+								.map_err(|e| ErrorKind::EvalError(e.to_string()))
+						})
+						.transpose()?
+						.unwrap_or(HashAlgo::Sha256);
+				let mode = try_cek_to_value!(select_string(&co, &input, "outputHashMode").await?)
+					.filter(|s| !s.is_empty())
+					.unwrap_or_else(|| "nar".to_owned());
+				for output in &output_names {
+					drv.environment.insert(
+						output.as_bytes().into(),
+						hash_placeholder(output.as_str().unwrap()).into(),
+					);
+					if impure || matches!(mode.as_str(), "text" | "git") {
+						experimental.insert(
+							output.to_string(),
+							ExperimentalOutput {
+								method: ExperimentalMethod::parse(&mode)
+									.map_err(|e| ErrorKind::EvalError(e.to_string()))?,
+								hash_algo,
+								impure,
+								fixed: None,
+							},
+						);
+					} else {
+						let method = if matches!(mode.as_str(), "nar" | "recursive") {
+							noxi_store::FileIngestionMethod::NixArchive
+						} else {
+							noxi_store::FileIngestionMethod::Flat
+						};
+						floating.insert(output.to_string(), FloatingOutput { method, hash_algo });
+					}
+				}
+			} else {
+				for output in &output_names {
+					drv.environment
+						.insert(output.as_bytes().into(), BString::default());
+				}
+			}
+			let outputs = if let Some((path, _)) = experimental
+				.get("out")
+				.and_then(|output| output.fixed.as_ref())
+			{
+				Outputs::input_addressed_from_iter([(OutputName::out(), path.clone())])
+			} else {
+				Outputs::deferred_from_names(output_names.iter().cloned())
+			}
+			.map_err(|e| ErrorKind::EvalError(e.to_string()))?;
+			let basic = drv
+				.build_unverified(outputs)
+				.map_err(DerivationError::InvalidDerivation)?;
+			let drv = BuildDerivation {
+				basic,
+				floating,
+				experimental,
+			};
+			let references: std::collections::BTreeSet<_> = drv
+				.basic
+				.input_sources()
+				.iter()
+				.chain(drv.basic.input_derivations().keys())
+				.map(StorePath::as_ref)
+				.collect();
+			let path_name = format!("{name}.drv");
+			let path = nix_compat::store_path::build_text_path(
+				&path_name,
+				drv.to_aterm_bytes(),
+				references,
+			)
+			.map_err(|e| ErrorKind::EvalError(e.to_string()))?
+			.to_owned();
+			let drv_path = path.to_absolute_path();
+			let values = output_names
+				.iter()
+				.map(|output| {
+					(
+						output.to_string(),
+						Value::from(NixString::new_context_from(
+							NixContextElement::Single {
+								name: output.to_string(),
+								derivation: drv_path.clone(),
+							}
+							.into(),
+							drv.experimental
+								.get(&output.to_string())
+								.and_then(|spec| spec.fixed.as_ref())
+								.map(|(path, _)| path.to_absolute_path())
+								.unwrap_or_else(|| {
+									nix_compat::store_path::downstream_placeholder(
+										&path,
+										output.as_bytes(),
+									)
+								}),
+						)),
+					)
+				})
+				.chain(std::iter::once((
+					"drvPath".to_owned(),
+					Value::from(NixString::new_context_from(
+						NixContextElement::Derivation(drv_path.clone()).into(),
+						drv_path.clone(),
+					)),
+				)));
+			let out = Value::Attrs(NixAttrs::from_iter(values));
+			state
+				.store
+				.register_build_derivation(&path, &drv)
+				.map_err(|error| ErrorKind::IO {
+					path: Some(drv_path.into()),
+					error: Rc::new(error),
+				})?;
+			known_paths.add_deferred_derivation(path, drv);
+			return Ok(out);
 		}
 
 		let drv = drv

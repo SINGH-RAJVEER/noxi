@@ -2,7 +2,13 @@
 //! Capture priority follows libstdc++'s ordered alternatives, not libc regexec.
 
 use regex::bytes::{Regex, RegexBuilder};
-use regex_automata::{Anchored, Input, MatchKind, nfa::thompson::pikevm::PikeVM, util::syntax};
+use regex_automata::util::primitives::StateID;
+use regex_automata::{
+	Anchored, Input, MatchKind,
+	nfa::thompson::{NFA, State, pikevm::PikeVM},
+	util::syntax,
+};
+use std::ops::Range;
 
 fn translate(pattern: &[u8]) -> Result<String, ()> {
 	let mut out = String::new();
@@ -156,13 +162,153 @@ fn translate(pattern: &[u8]) -> Result<String, ()> {
 	Ok(out)
 }
 
-pub(super) fn compile(pattern: &[u8]) -> Result<Regex, ()> {
-	let out = translate(pattern)?;
-	RegexBuilder::new(&format!(r"\A(?:{out})\z"))
+/// The ordinary linear matcher handles acceptance; a capture-only NFA
+/// traversal restores the extra empty iteration retained by libstdc++.
+pub(super) struct FullRegex {
+	matcher: Regex,
+	recovery: Option<PikeVM>,
+}
+
+pub(super) fn compile(pattern: &[u8]) -> Result<FullRegex, ()> {
+	let out = format!(r"\A(?:{})\z", translate(pattern)?);
+	let matcher = RegexBuilder::new(&out)
 		.unicode(false)
 		.dot_matches_new_line(true)
 		.build()
+		.map_err(|_| ())?;
+	let recovery = if pattern.contains(&b'(') {
+		let vm = capture_vm(&out)?;
+		has_empty_capture_cycle(vm.get_nfa()).then_some(vm)
+	} else {
+		None
+	};
+	Ok(FullRegex { matcher, recovery })
+}
+
+impl FullRegex {
+	pub fn captures(&self, text: &[u8]) -> Option<Vec<Option<Range<usize>>>> {
+		let captures = self.matcher.captures(text)?;
+		if let Some(vm) = &self.recovery {
+			return recover_captures(vm.get_nfa(), text, 0, text.len());
+		}
+		Some(
+			captures
+				.iter()
+				.map(|group| group.map(|g| g.range()))
+				.collect(),
+		)
+	}
+}
+
+fn capture_vm(pattern: &str) -> Result<PikeVM, ()> {
+	PikeVM::builder()
+		.configure(PikeVM::config().match_kind(MatchKind::All))
+		.thompson(regex_automata::nfa::thompson::Config::new().utf8(false))
+		.syntax(
+			syntax::Config::new()
+				.unicode(false)
+				.utf8(false)
+				.dot_matches_new_line(true),
+		)
+		.build(pattern)
 		.map_err(|_| ())
+}
+
+fn epsilon_next(state: &State) -> Vec<StateID> {
+	match state {
+		State::Look { next, .. } | State::Capture { next, .. } => vec![*next],
+		State::Union { alternates } => alternates.to_vec(),
+		State::BinaryUnion { alt1, alt2 } => vec![*alt1, *alt2],
+		_ => Vec::new(),
+	}
+}
+
+fn has_empty_capture_cycle(nfa: &NFA) -> bool {
+	for (index, state) in nfa.states().iter().enumerate() {
+		if !matches!(state, State::Capture { .. }) {
+			continue;
+		}
+		let mut pending = epsilon_next(state);
+		let mut seen = vec![false; nfa.states().len()];
+		while let Some(next) = pending.pop() {
+			if next.as_usize() == index {
+				return true;
+			}
+			if std::mem::replace(&mut seen[next.as_usize()], true) {
+				continue;
+			}
+			pending.extend(epsilon_next(nfa.state(next)));
+		}
+	}
+	false
+}
+
+/// libstdc++ allows two visits at the same input position, specifically to
+/// retain captures from the last empty iteration. Thompson/Pike execution
+/// normally suppresses that iteration. Ordered DFS is needed only for NFAs
+/// with an epsilon cycle through a capturing group, not ordinary regexes.
+fn recover_captures(
+	nfa: &NFA,
+	text: &[u8],
+	start: usize,
+	end: usize,
+) -> Option<Vec<Option<Range<usize>>>> {
+	let mut pending = vec![(
+		nfa.start_anchored(),
+		start,
+		vec![None; nfa.group_info().slot_len()],
+		vec![0u8; nfa.states().len()],
+	)];
+	while let Some((state, pos, mut slots, mut visits)) = pending.pop() {
+		if visits[state.as_usize()] == 2 {
+			continue;
+		}
+		visits[state.as_usize()] += 1;
+		match nfa.state(state) {
+			State::Match { .. } if pos == end => {
+				return Some(
+					slots
+						.chunks_exact(2)
+						.map(|pair| match (pair[0], pair[1]) {
+							(Some(start), Some(end)) => Some(start..end),
+							_ => None,
+						})
+						.collect(),
+				);
+			}
+			State::ByteRange { trans } if pos < end && trans.matches(text, pos) => {
+				pending.push((trans.next, pos + 1, slots, vec![0; visits.len()]));
+			}
+			State::Sparse(trans) if pos < end => {
+				if let Some(next) = trans.matches(text, pos) {
+					pending.push((next, pos + 1, slots, vec![0; visits.len()]));
+				}
+			}
+			State::Dense(trans) if pos < end => {
+				if let Some(next) = trans.matches(text, pos) {
+					pending.push((next, pos + 1, slots, vec![0; visits.len()]));
+				}
+			}
+			State::Look { look, next } if nfa.look_matcher().matches(*look, text, pos) => {
+				pending.push((*next, pos, slots, visits));
+			}
+			State::Capture { next, slot, .. } => {
+				slots[slot.as_usize()] = Some(pos);
+				pending.push((*next, pos, slots, visits));
+			}
+			State::Union { alternates } => {
+				for &next in alternates.iter().rev() {
+					pending.push((next, pos, slots.clone(), visits.clone()));
+				}
+			}
+			State::BinaryUnion { alt1, alt2 } => {
+				pending.push((*alt2, pos, slots.clone(), visits.clone()));
+				pending.push((*alt1, pos, slots, visits));
+			}
+			_ => {}
+		}
+	}
+	None
 }
 
 /// libstdc++'s classic-locale symbolic names, indexed by their ASCII value.
@@ -181,6 +327,7 @@ fn collating_byte(name: &str) -> Option<u8> {
 pub(super) struct SearchRegex {
 	pub search: Regex,
 	pub longest: PikeVM,
+	recover_empty_captures: bool,
 }
 
 pub(super) fn compile_search(pattern: &[u8]) -> Result<SearchRegex, ()> {
@@ -190,21 +337,34 @@ pub(super) fn compile_search(pattern: &[u8]) -> Result<SearchRegex, ()> {
 		.dot_matches_new_line(true)
 		.build()
 		.map_err(|_| ())?;
-	let longest = PikeVM::builder()
-		.configure(PikeVM::config().match_kind(MatchKind::All))
-		.thompson(regex_automata::nfa::thompson::Config::new().utf8(false))
-		.syntax(
-			syntax::Config::new()
-				.unicode(false)
-				.utf8(false)
-				.dot_matches_new_line(true),
-		)
-		.build(&translated)
-		.map_err(|_| ())?;
-	Ok(SearchRegex { search, longest })
+	let longest = capture_vm(&translated)?;
+	let recover_empty_captures = has_empty_capture_cycle(longest.get_nfa());
+	Ok(SearchRegex {
+		search,
+		longest,
+		recover_empty_captures,
+	})
 }
 
 impl SearchRegex {
+	pub fn groups(
+		&self,
+		text: &[u8],
+		captures: &regex_automata::util::captures::Captures,
+	) -> Vec<Option<Range<usize>>> {
+		let matched = captures.get_match().expect("matched regex");
+		if self.recover_empty_captures {
+			if let Some(groups) =
+				recover_captures(self.longest.get_nfa(), text, matched.start(), matched.end())
+			{
+				return groups;
+			}
+		}
+		(0..captures.group_len())
+			.map(|i| captures.get_group(i).map(|span| span.start..span.end))
+			.collect()
+	}
+
 	pub fn captures_at(
 		&self,
 		text: &[u8],

@@ -8,6 +8,30 @@ use noxi_hash::nixhash::{HashAlgo, NixHash};
 
 use crate::ErrorKind;
 
+pub(crate) fn check_algorithm_context(
+	name: &crate::NixString,
+	hint: &'static str,
+) -> Result<(), ErrorKind> {
+	use crate::{AddContext, NixContextElement};
+	if let Some(dependency) = name
+		.iter_context()
+		.flat_map(|context| context.iter())
+		.map(|element| match element {
+			NixContextElement::Plain(path) => path.clone(),
+			NixContextElement::Derivation(path) => format!("={path}"),
+			NixContextElement::Single { name, derivation } => format!("!{name}!{derivation}"),
+		})
+		.min()
+	{
+		return Err(ErrorKind::EvalError(format!(
+			"the string '{}' is not allowed to refer to a store path (such as '{dependency}')",
+			name.as_bstr()
+		))
+		.trace(None, hint));
+	}
+	Ok(())
+}
+
 /// Reads through all data from the passed reader, and returns the resulting [Digest].
 /// The exact hash function used is left generic over all [Digest].
 fn hash<D: Digest + std::io::Write>(mut r: impl std::io::Read) -> Result<Output<D>, ErrorKind> {
@@ -18,12 +42,20 @@ fn hash<D: Digest + std::io::Write>(mut r: impl std::io::Read) -> Result<Output<
 
 /// For a given algo "string" and reader for data, calculate the digest
 /// and return it as a hexlower encoded [String].
-pub fn hash_nix_string(algo: impl AsRef<[u8]>, s: impl std::io::Read) -> Result<String, ErrorKind> {
+pub fn hash_nix_string(
+	algo: impl AsRef<[u8]>,
+	mut s: impl std::io::Read,
+) -> Result<String, ErrorKind> {
 	match algo.as_ref() {
 		b"md5" => Ok(HEXLOWER.encode(hash::<Md5>(s)?.as_bstr())),
 		b"sha1" => Ok(HEXLOWER.encode(hash::<Sha1>(s)?.as_bstr())),
 		b"sha256" => Ok(HEXLOWER.encode(hash::<Sha256>(s)?.as_bstr())),
 		b"sha512" => Ok(HEXLOWER.encode(hash::<Sha512>(s)?.as_bstr())),
+		b"blake3" => {
+			let mut hasher = noxi_hash::nixhash::NixHashDigester::new(HashAlgo::Blake3);
+			std::io::copy(&mut s, &mut hasher)?;
+			Ok(HEXLOWER.encode(hasher.finalize().digest_as_bytes()))
+		}
 		_ => Err(ErrorKind::UnknownHashType(
 			algo.as_ref().as_bstr().to_string(),
 		)),
@@ -79,6 +111,14 @@ fn blake3_disabled() -> ErrorKind {
 		"experimental Nix feature 'blake3-hashes' is disabled; add '--extra-experimental-features blake3-hashes' to enable it"
 			.into(),
 	)
+}
+
+/// Legacy hash builtins classify an unknown algorithm as a usage error.
+pub(crate) fn parse_builtin_hash_algo(name: &[u8], blake3: bool) -> Result<HashAlgo, ErrorKind> {
+	if !matches!(name, b"md5" | b"sha1" | b"sha256" | b"sha512" | b"blake3") {
+		return Err(ErrorKind::UnknownHashType(name.as_bstr().to_string()));
+	}
+	parse_hash_algo(name, blake3)
 }
 
 /// CppNix's `Hash::parseAny`: an SRI hash, an `algo:digest` hash, or a bare

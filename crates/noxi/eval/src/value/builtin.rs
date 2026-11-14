@@ -33,6 +33,7 @@ pub struct BuiltinRepr {
 
 	func: Rc<dyn BuiltinGen>,
 	synchronous: Option<SynchronousBuiltin>,
+	ordered_argument_checks: bool,
 
 	/// Partially applied function arguments.
 	partials: Vec<Value>,
@@ -165,6 +166,7 @@ impl Builtin {
 			arg_count,
 			func: Rc::new(func),
 			synchronous: None,
+			ordered_argument_checks: false,
 			partials: vec![],
 		}
 		.into()
@@ -230,6 +232,13 @@ impl Builtin {
 		self.0.documentation
 	}
 
+	/// Checked builtins must validate each argument before forcing the next.
+	/// Ready values can still use their synchronous body without suspension.
+	pub fn with_ordered_argument_checks(mut self) -> Self {
+		Rc::make_mut(&mut self.0).ordered_argument_checks = true;
+		self
+	}
+
 	/// Apply an additional argument to the builtin.
 	/// After this, [`Builtin::call`] *must* be called, otherwise it may leave
 	/// the builtin in an incorrect state.
@@ -281,7 +290,19 @@ impl Builtin {
 							.expect("checked memoized argument");
 					}
 				}
-				BuiltinResult::Synchronous(sync.func.call(args, span))
+				if self.0.ordered_argument_checks
+					&& args
+						.iter()
+						.zip(sync.strict)
+						.any(|(arg, strict)| *strict && arg.is_catchable())
+				{
+					// A cached throw still needs the scalar force helper's trace.
+					BuiltinResult::Called(self.0.name, (self.0.func)(args))
+				} else {
+					BuiltinResult::Synchronous(sync.func.call(args, span))
+				}
+			} else if self.0.ordered_argument_checks {
+				BuiltinResult::Called(self.0.name, (self.0.func)(args))
 			} else if self.0.synchronous.is_some() {
 				BuiltinResult::Pending(
 					self.0.name,
