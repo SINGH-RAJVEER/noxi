@@ -19,6 +19,7 @@ members = [
 	"crates/noxi/serde",
 	"crates/compat-tests",
 	"crates/noxi-cli",
+	"crates/noxi-events",
 ]
 
 [workspace.package]
@@ -30,6 +31,8 @@ rust-version = "1.95.0"
 # Cargo ignores entries no member uses.
 [workspace.dependencies]
 aho-corasick = "1.1.4"
+annotate-snippets = "0.12.16"
+anstyle = "1.0.14"
 anyhow = "1.0.86"
 async-compression = "0.4.42"
 async-process = "2.2.4"
