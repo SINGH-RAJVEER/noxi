@@ -37,6 +37,8 @@ let
 			fileset = lib.fileset.unions [ ../.cargo ../Cargo.lock ../Cargo.toml ../crates ];
 		};
 		cargoLock.lockFile = ../Cargo.lock;
+		nativeBuildInputs = [ pkgs.pkg-config ];
+		buildInputs = [ pkgs.zstd ];
 		cargoBuildFlags = flags;
 		cargoTestFlags = flags;
 		cargoInstallFlags = flags;
