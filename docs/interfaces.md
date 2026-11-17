@@ -95,8 +95,23 @@ The store then lives in `DATA_DIR/root`, where `DATA_DIR` is `NIX_DATA_HOME`, el
 - the notice on first and later use;
 - evaluation and derivation instantiation into the chroot store;
 - the files created, under `XDG_DATA_HOME` and `NIX_DATA_HOME` as well as the default location;
-- the absence of the fallback when `NIX_STATE_DIR` is set.
+- the absence of the fallback when `NIX_STATE_DIR` is set;
+- a sandboxed `nix-build` into the chroot store, and `nix shell` running its output. Here the build sandbox makes its own user namespace inside the outer one.
 
-The reference's `nix-store --verify --check-contents` then accepts the store noxi wrote. Building into the chroot store and running programs from it on a host without `/nix` are not qualified yet. The latter needs the chroot of bind mounts that CppNix's `chrootHelper` builds.
+The reference's `nix-store --verify --check-contents` then accepts the store noxi wrote.
+
+`nix shell`, `nix run`, `nix develop` and `nix fmt` run programs from a store whose physical and logical directories differ through a single-threaded helper. The helper makes a private user and mount namespace and mounts the physical store on the logical store directory. When the logical directory does not exist, as `/nix/store` does not on a host without `/nix`, the helper follows CppNix's `chrootHelper` instead:
+
+1. It creates a temporary directory holding the physical store at the logical path.
+2. It bind-mounts each top-level directory of `/` into it and copies the top-level symlinks.
+3. It chroots there and returns to the working directory.
+
+As in CppNix, the temporary directory stays in place afterwards. The same test file checks this with a logical store directory that no user can create, against a `local?root=` store. A sandboxed build and `nix shell` must give the reference's output and exit status, from the original working directory.
+
+noxi does not set the derivation's process personality for `nix develop`, as CppNix does for a different `system`. Otherwise these tests found three differences from the reference, all outside the chroot store work:
+
+- noxi prints `building '...'` before refusing a `uid-range` derivation for lack of `auto-allocate-uids`.
+- It warns that it is disabling cache.nixos.org when the store directory is not `/nix/store`.
+- It gives a different error for `nix run` on a bare store path.
 
 File-cache uploads through `nix copy --to` accept explicit `compression=none`, `gzip`, `bzip2` and `zstd` with a signing key. Pinned-reference import and content verification cover each codec. The command still rejects unspecified or unsupported upload compression; backend defaults do not establish reference CLI parity.

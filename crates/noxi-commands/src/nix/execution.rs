@@ -250,6 +250,91 @@ pub(super) fn exec_store(parsed: &Parsed, mut child: Command) -> Result<ExitCode
 	)))
 }
 
+/// `chrootHelper`'s path for a missing logical store directory: make a
+/// temporary root holding `real_store` at `store_dir`, bind the host's
+/// top-level directories into it and copy its top-level symlinks, then
+/// chroot there and return to the current directory. Must run in a private
+/// mount namespace.
+#[cfg(target_os = "linux")]
+fn chroot_with_store(real_store: &str, store_dir: &str) -> Result<(), String> {
+	use std::os::unix::ffi::OsStrExt;
+	use std::os::unix::fs::DirBuilderExt;
+	use std::path::Path;
+	let c_path = |path: &Path| CString::new(path.as_os_str().as_bytes()).map_err(|e| e.to_string());
+	let bind = |src: &Path, dst: &Path, flags: libc::c_ulong| -> Result<(), String> {
+		let (src_c, dst_c) = (c_path(src)?, c_path(dst)?);
+		// SAFETY: both paths are NUL-terminated and outlive the call.
+		if unsafe {
+			libc::mount(
+				src_c.as_ptr(),
+				dst_c.as_ptr(),
+				c"".as_ptr(),
+				flags,
+				std::ptr::null(),
+			)
+		} != 0
+		{
+			return Err(format!(
+				"mounting \"{}\" on \"{}\": {}",
+				src.display(),
+				dst.display(),
+				std::io::Error::last_os_error()
+			));
+		}
+		Ok(())
+	};
+	let template = std::env::temp_dir().join("nix-XXXXXX");
+	let mut template = c_path(&template)?.into_bytes_with_nul();
+	// SAFETY: `template` is a writable NUL-terminated mkdtemp template.
+	if unsafe { libc::mkdtemp(template.as_mut_ptr().cast()) }.is_null() {
+		return Err(format!(
+			"creating a temporary directory: {}",
+			std::io::Error::last_os_error()
+		));
+	}
+	template.pop();
+	let root = std::path::PathBuf::from(std::ffi::OsStr::from_bytes(&template));
+	let store_mount = root.join(store_dir.trim_start_matches('/'));
+	fs::create_dir_all(&store_mount)
+		.map_err(|e| format!("creating directory \"{}\": {e}", store_mount.display()))?;
+	bind(Path::new(real_store), &store_mount, libc::MS_BIND)?;
+	for entry in fs::read_dir("/").map_err(|e| format!("reading \"/\": {e}"))? {
+		let entry = entry.map_err(|e| format!("reading \"/\": {e}"))?;
+		let src = entry.path();
+		let dst = root.join(entry.file_name());
+		if fs::symlink_metadata(&dst).is_ok() {
+			continue;
+		}
+		let file_type = entry
+			.file_type()
+			.map_err(|e| format!("reading \"{}\": {e}", src.display()))?;
+		if file_type.is_dir() {
+			fs::DirBuilder::new()
+				.mode(0o700)
+				.create(&dst)
+				.map_err(|e| format!("creating directory \"{}\": {e}", dst.display()))?;
+			bind(&src, &dst, libc::MS_BIND | libc::MS_REC)?;
+		} else if file_type.is_symlink() {
+			let target = fs::read_link(&src)
+				.map_err(|e| format!("reading link \"{}\": {e}", src.display()))?;
+			std::os::unix::fs::symlink(target, &dst)
+				.map_err(|e| format!("creating symlink \"{}\": {e}", dst.display()))?;
+		}
+	}
+	let cwd = std::env::current_dir().map_err(|e| format!("getting current directory: {e}"))?;
+	let root_c = c_path(&root)?;
+	// SAFETY: `root_c` is a NUL-terminated path.
+	if unsafe { libc::chroot(root_c.as_ptr()) } != 0 {
+		return Err(format!(
+			"chrooting into \"{}\": {}",
+			root.display(),
+			std::io::Error::last_os_error()
+		));
+	}
+	std::env::set_current_dir(&cwd)
+		.map_err(|e| format!("chdir to '{}' in chroot: {e}", cwd.display()))
+}
+
 /// Called before the normal CLI creates its evaluation thread.
 pub fn helper(args: Vec<String>) -> ExitCode {
 	let result = helper_inner(args);
@@ -298,7 +383,11 @@ fn helper_inner(args: Vec<String>) -> Result<(), String> {
 			let target = CString::new(store_dir).map_err(|e| e.to_string())?;
 			let options = CString::new(format!("lowerdir={store_dir}:{}", args[0]))
 				.map_err(|e| e.to_string())?;
-			if libc::mount(
+			if fs::symlink_metadata(store_dir).is_err() {
+				// With no mount point, as on a host without /nix, run in a
+				// chroot holding the store and the children of /.
+				chroot_with_store(&args[0], store_dir)?;
+			} else if libc::mount(
 				c"overlay".as_ptr(),
 				target.as_ptr(),
 				c"overlay".as_ptr(),
