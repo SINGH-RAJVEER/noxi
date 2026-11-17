@@ -63,6 +63,16 @@ impl NixList {
 		Rc::ptr_eq(&self.0, &other.0)
 	}
 
+	#[cfg(feature = "eval-cycle-collection")]
+	pub(super) fn is_uniquely_owned(&self) -> bool {
+		Rc::strong_count(&self.0) == 1
+	}
+
+	#[cfg(feature = "eval-diagnostics")]
+	pub(super) fn shared_storage(&self) -> &Rc<Vec<Value>> {
+		&self.0
+	}
+
 	pub fn into_inner(self) -> Vec<Value> {
 		Rc::try_unwrap(self.0).unwrap_or_else(|rc| (*rc).clone())
 	}

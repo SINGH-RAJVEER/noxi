@@ -37,6 +37,13 @@ use crate::{
 use super::{Lambda, TotalDisplay};
 use codemap::Span;
 
+#[cfg(feature = "eval-diagnostics")]
+mod census;
+#[cfg(feature = "eval-cycle-collection")]
+mod cycles;
+#[cfg(feature = "eval-diagnostics")]
+mod retention;
+
 /// Internal representation of a suspended native thunk.
 pub(super) struct SuspendedNative(Box<dyn Fn() -> Result<Value, ErrorKind>>);
 
@@ -135,9 +142,42 @@ impl ThunkRepr {
 #[derive(Clone, Debug)]
 pub struct Thunk(pub(super) Rc<RefCell<ThunkRepr>>);
 
+#[cfg(feature = "eval-diagnostics")]
+struct RetentionSamples {
+	rng: u32,
+	sample_mask: u32,
+	sample_limit: usize,
+	entries: Vec<(&'static str, std::rc::Weak<RefCell<ThunkRepr>>)>,
+	truncated: bool,
+}
+
+#[cfg(feature = "eval-diagnostics")]
+thread_local! {
+	static RETENTION_SAMPLES: RefCell<RetentionSamples> = {
+		let (sample_mask, sample_limit) = if std::env::var_os("NOXI_EVAL_OWNERSHIP_CENSUS_ALL")
+			.is_some_and(|setting| setting == "1")
+		{
+			(0, 22_000_000)
+		} else if std::env::var_os("NOXI_EVAL_OWNERSHIP_CENSUS_DENSE")
+			.is_some_and(|setting| setting == "1")
+		{
+			(63, 524_288)
+		} else {
+			(1023, 65_536)
+		};
+		RefCell::new(RetentionSamples {
+			rng: 0x2395_1aa9,
+			sample_mask,
+			sample_limit,
+			entries: Vec::new(),
+			truncated: false,
+		})
+	};
+}
+
 impl Thunk {
 	#[cfg(feature = "eval-diagnostics")]
-	fn record_creation(kind: &'static str) {
+	fn record_creation(&self, kind: &'static str) {
 		crate::perf_counters::thunk_created(kind);
 		crate::perf_counters::layout("ThunkRepr", std::mem::size_of::<ThunkRepr>());
 		crate::perf_counters::layout("Upvalues", std::mem::size_of::<Upvalues>());
@@ -146,14 +186,102 @@ impl Thunk {
 			std::mem::size_of::<crate::upvalues::FrameUpvalues>(),
 		);
 		crate::perf_counters::allocation("thunk_rc", std::mem::size_of::<RefCell<ThunkRepr>>());
+		RETENTION_SAMPLES.with_borrow_mut(|samples| {
+			// A deterministic xorshift avoids sampling a fixed phase of repeated allocations.
+			samples.rng ^= samples.rng << 13;
+			samples.rng ^= samples.rng >> 17;
+			samples.rng ^= samples.rng << 5;
+			if samples.rng & samples.sample_mask == 0 {
+				if samples.entries.len() < samples.sample_limit {
+					samples.entries.push((kind, Rc::downgrade(&self.0)));
+				} else {
+					samples.truncated = true;
+				}
+			}
+		});
+	}
+
+	#[cfg(feature = "eval-diagnostics")]
+	pub(crate) fn reset_retention_samples() {
+		RETENTION_SAMPLES.with_borrow_mut(|samples| {
+			samples.entries.clear();
+			samples.truncated = false;
+			samples.rng = 0x2395_1aa9;
+		});
+	}
+
+	#[cfg(feature = "eval-diagnostics")]
+	pub(crate) fn retention_snapshot() -> (
+		std::collections::BTreeMap<&'static str, crate::perf_counters::ThunkRetention>,
+		bool,
+	) {
+		RETENTION_SAMPLES.with_borrow(|samples| {
+			let mut counts: std::collections::BTreeMap<
+				&'static str,
+				crate::perf_counters::ThunkRetention,
+			> = Default::default();
+			let total_live = samples
+				.entries
+				.iter()
+				.filter(|(_, weak)| weak.strong_count() != 0)
+				.count();
+			let stride = total_live.div_ceil(512).max(1);
+			let mut live_index = 0;
+			for (kind, weak) in &samples.entries {
+				let count = counts.entry(*kind).or_default();
+				count.sampled += 1;
+				let Some(cell) = weak.upgrade() else { continue };
+				count.live += 1;
+				let state = match cell.try_borrow().as_deref() {
+					Ok(ThunkRepr::Suspended { .. }) => "suspended",
+					Ok(ThunkRepr::Evaluated(_)) => "evaluated",
+					Ok(ThunkRepr::Blackhole { .. }) => "blackhole",
+					Ok(ThunkRepr::Native(_)) => "native",
+					Err(_) => "borrowed",
+				};
+				*count.live_by_state.entry(state).or_default() += 1;
+				if live_index % stride == 0 {
+					count.cycle_probes += 1;
+					let probe = retention::probe(&cell);
+					count.cycle_probes_exhausted += u64::from(probe.exhausted);
+					if let Some(edges) = probe.witness {
+						*count.cycle_witnesses.entry(edges).or_default() += 1;
+					}
+				}
+				live_index += 1;
+			}
+			(counts, samples.truncated)
+		})
+	}
+
+	/// Classify everything reachable from the surviving samples by ownership,
+	/// when `NOXI_EVAL_OWNERSHIP_CENSUS` requests it. Read-only.
+	#[cfg(feature = "eval-diagnostics")]
+	pub(crate) fn ownership_census() -> Option<serde_json::Value> {
+		let limits = census::Limits::from_env()?;
+		let (roots, sample_rate_inverse) = RETENTION_SAMPLES.with_borrow(|samples| {
+			let roots = samples
+				.entries
+				.iter()
+				.filter_map(|(kind, weak)| Some((*kind, weak.upgrade()?)))
+				.collect();
+			(roots, u64::from(samples.sample_mask) + 1)
+		});
+		serde_json::to_value(census::run(roots, limits, sample_rate_inverse)).ok()
+	}
+
+	#[inline]
+	fn from_repr(repr: ThunkRepr, _kind: &'static str) -> Self {
+		let thunk = Self(Rc::new(RefCell::new(repr)));
+		#[cfg(feature = "eval-diagnostics")]
+		thunk.record_creation(_kind);
+		thunk
 	}
 
 	/// Preserve an already computed value in a memoizable cell. A nested thunk
 	/// still follows the ordinary forcing path, including alias updates.
 	pub(crate) fn new_evaluated(value: Value) -> Self {
-		#[cfg(feature = "eval-diagnostics")]
-		Self::record_creation("evaluated");
-		Thunk(Rc::new(RefCell::new(ThunkRepr::Evaluated(value))))
+		Self::from_repr(ThunkRepr::Evaluated(value), "evaluated")
 	}
 
 	pub fn new_closure(lambda: Rc<Lambda>) -> Self {
@@ -162,14 +290,13 @@ impl Thunk {
 	}
 
 	pub(crate) fn new_closure_with_upvalues(lambda: Rc<Lambda>, upvalues: Upvalues) -> Self {
-		#[cfg(feature = "eval-diagnostics")]
-		Self::record_creation("closure");
-		Thunk(Rc::new(RefCell::new(ThunkRepr::Evaluated(Value::Closure(
-			Rc::new(Closure {
+		Self::from_repr(
+			ThunkRepr::Evaluated(Value::Closure(Rc::new(Closure {
 				upvalues: Rc::new(upvalues),
 				lambda,
-			}),
-		)))))
+			}))),
+			"closure",
+		)
 	}
 
 	pub fn new_suspended(lambda: Rc<Lambda>, span: Span) -> Self {
@@ -182,21 +309,18 @@ impl Thunk {
 		span: Span,
 		upvalues: Upvalues,
 	) -> Self {
-		#[cfg(feature = "eval-diagnostics")]
-		Self::record_creation("suspended");
-		Thunk(Rc::new(RefCell::new(ThunkRepr::Suspended {
-			upvalues,
-			lambda,
-			span,
-		})))
+		Self::from_repr(
+			ThunkRepr::Suspended {
+				upvalues,
+				lambda,
+				span,
+			},
+			"suspended",
+		)
 	}
 
 	pub fn new_suspended_native(native: Box<dyn Fn() -> Result<Value, ErrorKind>>) -> Self {
-		#[cfg(feature = "eval-diagnostics")]
-		Self::record_creation("native");
-		Thunk(Rc::new(RefCell::new(ThunkRepr::Native(SuspendedNative(
-			native,
-		)))))
+		Self::from_repr(ThunkRepr::Native(SuspendedNative(native)), "native")
 	}
 
 	/// Helper function to create a [`Thunk`] that calls a function given as the
@@ -459,7 +583,25 @@ impl Thunk {
 	}
 
 	pub fn finalise(&self, stack: &[Value]) {
-		self.upvalues_mut().resolve_deferred_upvalues(stack);
+		let mut upvalues = self.upvalues_mut();
+		#[cfg(feature = "eval-cycle-collection")]
+		let candidate = (0..upvalues.len()).any(|i| {
+			matches!(
+				&upvalues[crate::opcode::UpvalueIdx(i)],
+				Value::DeferredUpvalue(index) if stack[index.0].is_thunk()
+			)
+		});
+		upvalues.resolve_deferred_upvalues(stack);
+		#[cfg(feature = "eval-cycle-collection")]
+		if candidate {
+			cycles::register(self);
+		}
+	}
+
+	/// Try a bounded number of deferred candidates at a VM scheduler boundary.
+	#[cfg(feature = "eval-cycle-collection")]
+	pub(crate) fn collect_cycles() {
+		cycles::collect();
 	}
 
 	pub fn is_evaluated(&self) -> bool {

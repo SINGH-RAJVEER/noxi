@@ -126,6 +126,20 @@ class OracleTests(unittest.TestCase):
 		self.assertAlmostEqual(summary["original"]["paired_geometric_speedup"], 3)
 		self.assertEqual(summary["baseline"]["paired_geometric_speedup"], 2)
 
+	def test_peak_rss_ratio_uses_same_complete_pairs_as_elapsed_time(self):
+		rss = "target_wait4_max_process_rss_bytes"
+		rows = [{"pair_id": pair, "role": role, "elapsed_s": 1,
+			"resources": {rss: size}, "correctness": {"status": "passed"}}
+			for pair, role, size in [("a", "reference", 64), ("a", "candidate", 32),
+				("b", "reference", 32), ("b", "candidate", 16)]]
+		result = paired_summary(rows, 1, bootstrap=100)["reference"]
+		self.assertEqual(result["paired_peak_rss_ratio"], 2)
+		self.assertEqual(result["peak_rss_ratio_ci95"], [2, 2])
+		rows[-1]["resources"].clear()
+		result = paired_summary(rows, 1, bootstrap=100)["reference"]
+		self.assertEqual(result["successful_pairs"], 2)
+		self.assertNotIn("paired_peak_rss_ratio", result)
+
 	def test_failure_cannot_leave_an_absent_output_registered(self):
 		with tempfile.TemporaryDirectory() as temp:
 			root = Path(temp)

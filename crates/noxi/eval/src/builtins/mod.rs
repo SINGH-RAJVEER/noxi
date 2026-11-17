@@ -651,8 +651,7 @@ mod pure_builtins {
 				context.extend(*other_context);
 			}
 		}
-		// FIXME: pass immediately the string res.
-		Ok(NixString::new_context_from(context, res).into())
+		Ok(NixString::from_bytes_with_context(context, res.as_ref()).into())
 	}
 
 	#[builtin("deepSeq")]

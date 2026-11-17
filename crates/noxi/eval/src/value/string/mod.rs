@@ -17,6 +17,7 @@ use std::hash::{Hash, Hasher};
 use std::ops::Deref;
 use std::ptr::{self, NonNull};
 use std::slice;
+use std::sync::atomic::{AtomicUsize, Ordering};
 
 use serde::Deserialize;
 use serde::de::{Deserializer, Visitor};
@@ -40,10 +41,45 @@ struct NixStringInner {
 	/// 8
 	/// ```
 	context: Option<Box<NixContext>>,
-	/// The length of the data, stored *inline in the allocation*
+	/// The length of the data, stored *inline in the allocation*. The top bit is
+	/// [`COUNTED_FLAG`]: when set, the allocation is preceded by an [`AtomicUsize`]
+	/// reference count (see [`NixStringInner::refcount`]) and is reclaimed once the last
+	/// owner drops. When clear, the allocation follows the historical ownership rules:
+	/// context-free strings are shared by pointer and never freed.
 	length: usize,
 	/// The actual data for the string itself. Will always be `length` bytes long
 	data: [u8],
+}
+
+/// Length-word flag marking a reference-counted allocation. Allocation sizes never
+/// exceed `isize::MAX`, so the top bit of a real length is always clear.
+const COUNTED_FLAG: usize = 1 << (usize::BITS - 1);
+
+/// Process-wide opt-in for reclaiming context-free string storage.
+///
+/// Read once from `NOXI_RECLAIM_STRINGS=1`. The decision only affects *new*
+/// allocations: every allocation records its own ownership mode in its length word,
+/// so strings created under either mode stay valid regardless of when the setting
+/// was first read. Interned strings are never counted and stay immortal.
+#[cfg(not(feature = "no_leak"))]
+fn string_reclaim_enabled() -> bool {
+	// 0: unread, 1: disabled, 2: enabled
+	static MODE: std::sync::atomic::AtomicU8 = std::sync::atomic::AtomicU8::new(0);
+	match MODE.load(Ordering::Relaxed) {
+		1 => false,
+		2 => true,
+		_ => {
+			let enabled = std::env::var_os("NOXI_RECLAIM_STRINGS").is_some_and(|v| v == "1");
+			MODE.store(if enabled { 2 } else { 1 }, Ordering::Relaxed);
+			enabled
+		}
+	}
+}
+
+/// With `no_leak`, every string is uniquely owned already.
+#[cfg(feature = "no_leak")]
+fn string_reclaim_enabled() -> bool {
+	false
 }
 
 #[allow(clippy::zst_offset)]
@@ -79,13 +115,25 @@ impl NixStringInner {
 			let (_, len_offset) = layout.extend(Layout::new::<usize>()).unwrap();
 			// SAFETY: Layouts are linear, so even though we haven't involved data at all yet, we know
 			// the len_offset is a valid offset into the second field of the allocation
-			let len = *(this.as_ptr().add(len_offset) as *const usize);
+			let len = *(this.as_ptr().add(len_offset) as *const usize) & !COUNTED_FLAG;
 			Self::layout(len)
 		}
 	}
 
+	/// Layout of a counted allocation: an [`AtomicUsize`] reference count followed by
+	/// the regular string layout. Returns the combined layout and the offset of the
+	/// string pointer (the context field) from the start of the allocation.
+	fn counted_layout(len: usize) -> (Layout, usize) {
+		Layout::new::<AtomicUsize>()
+			.extend(Self::layout(len).0)
+			.unwrap()
+	}
+
 	/// Allocate an *uninitialized* nix string with the given length. Writes the length to the
 	/// length value in the pointer, but leaves both context and data uninitialized
+	///
+	/// When `counted` is true, the allocation is prefixed by a reference count
+	/// initialized to one, and the length word carries [`COUNTED_FLAG`].
 	///
 	/// This function is safe to call (as constructing pointers of any sort of validity is always
 	/// safe in Rust) but it is unsafe to use the resulting pointer to do anything other than
@@ -95,23 +143,66 @@ impl NixStringInner {
 	/// 3. Write the data
 	///
 	/// until the string is fully initialized
-	fn alloc(len: usize) -> NonNull<c_void> {
+	fn alloc(len: usize, counted: bool) -> NonNull<c_void> {
+		assert!(len & COUNTED_FLAG == 0, "string length overflow");
 		let (layout, len_offset, _data_offset) = Self::layout(len);
 		debug_assert_ne!(layout.size(), 0);
+		let (alloc_layout, prefix) = if counted {
+			Self::counted_layout(len)
+		} else {
+			(layout, 0)
+		};
 		unsafe {
 			// SAFETY: Layout has non-zero size, since the layout of the context and the
 			// layout of the len both have non-zero size
-			let ptr = alloc(layout);
-
-			if let Some(this) = NonNull::new(ptr as *mut _) {
-				// SAFETY: We've allocated with a layout that causes the len_offset to be in-bounds
-				// and writeable, and if the allocation succeeded it won't wrap
-				((this.as_ptr() as *mut u8).add(len_offset) as *mut usize).write(len);
-				debug_assert_eq!(Self::len(this), len);
-				this
-			} else {
-				handle_alloc_error(layout);
+			let base = alloc(alloc_layout);
+			if base.is_null() {
+				handle_alloc_error(alloc_layout);
 			}
+			if counted {
+				// SAFETY: the counted layout starts with an aligned AtomicUsize
+				(base as *mut AtomicUsize).write(AtomicUsize::new(1));
+			}
+			// SAFETY: `prefix` is in bounds of the allocation and the result is non-null
+			let this = NonNull::new_unchecked(base.add(prefix) as *mut c_void);
+			// SAFETY: We've allocated with a layout that causes the len_offset to be in-bounds
+			// and writeable, and if the allocation succeeded it won't wrap
+			((this.as_ptr() as *mut u8).add(len_offset) as *mut usize).write(if counted {
+				len | COUNTED_FLAG
+			} else {
+				len
+			});
+			debug_assert_eq!(Self::len(this), len);
+			debug_assert_eq!(Self::is_counted(this), counted);
+			this
+		}
+	}
+
+	/// Whether the allocation at the given pointer is reference counted.
+	///
+	/// # Safety
+	///
+	/// This function must only be called with a pointer that has been properly initialized with
+	/// [`Self::alloc`]
+	unsafe fn is_counted(this: NonNull<c_void>) -> bool {
+		unsafe {
+			let (_, len_offset, _) = Self::layout(0);
+			*(this.as_ptr().add(len_offset) as *const usize) & COUNTED_FLAG != 0
+		}
+	}
+
+	/// The reference count of a counted allocation.
+	///
+	/// # Safety
+	///
+	/// `this` must be a live allocation from [`Self::alloc`] with `counted == true`.
+	unsafe fn refcount<'a>(this: NonNull<c_void>) -> &'a AtomicUsize {
+		unsafe {
+			debug_assert!(Self::is_counted(this));
+			let (_, prefix) = Self::counted_layout(0);
+			// SAFETY: counted allocations place an initialized AtomicUsize `prefix` bytes
+			// before the string pointer, and it lives as long as the allocation
+			&*((this.as_ptr() as *const u8).sub(prefix) as *const AtomicUsize)
 		}
 	}
 
@@ -123,9 +214,17 @@ impl NixStringInner {
 	/// [`Self::alloc`]
 	unsafe fn dealloc(this: NonNull<c_void>) {
 		unsafe {
-			let (layout, _, _) = Self::layout_of(this);
-			// SAFETY: okay because of the safety guarantees of this method
-			dealloc(this.as_ptr() as *mut u8, layout)
+			let len = Self::len(this);
+			Self::context_ptr(this).drop_in_place();
+			if Self::is_counted(this) {
+				let (layout, prefix) = Self::counted_layout(len);
+				// SAFETY: counted allocations start `prefix` bytes before the string pointer
+				dealloc((this.as_ptr() as *mut u8).sub(prefix), layout)
+			} else {
+				let (layout, _, _) = Self::layout(len);
+				// SAFETY: okay because of the safety guarantees of this method
+				dealloc(this.as_ptr() as *mut u8, layout)
+			}
 		}
 	}
 
@@ -141,7 +240,7 @@ impl NixStringInner {
 			// SAFETY: As long as the safety guarantees of this method are upheld, we've allocated with
 			// a layout that causes the len_offset to be in-bounds and writeable, and if the allocation
 			// succeeded it won't wrap
-			*(this.as_ptr().add(len_offset) as *const usize)
+			*(this.as_ptr().add(len_offset) as *const usize) & !COUNTED_FLAG
 		}
 	}
 
@@ -244,17 +343,16 @@ impl NixStringInner {
 	/// [`Self::alloc`], and where the context has been properly initialized (by writing to the
 	/// pointer returned from [`Self::context_ptr`]), and the data array has been properly
 	/// initialized (by writing to the pointer returned from [`Self::data_ptr`]).
+	///
+	/// The copy keeps the source's ownership mode; a counted copy starts with a reference
+	/// count of one.
 	unsafe fn clone(this: NonNull<c_void>) -> NonNull<c_void> {
 		unsafe {
-			let (layout, _, _) = Self::layout_of(this);
-			let ptr = alloc(layout);
-			if let Some(new) = NonNull::new(ptr as *mut _) {
-				ptr::copy_nonoverlapping(this.as_ptr(), new.as_ptr(), layout.size());
-				Self::context_ptr(new).write(Self::context_ref(this).clone());
-				new
-			} else {
-				handle_alloc_error(layout);
-			}
+			let len = Self::len(this);
+			let new = Self::alloc(len, Self::is_counted(this));
+			Self::context_ptr(new).write(Self::context_ref(this).clone());
+			ptr::copy_nonoverlapping(Self::data_ptr(this), Self::data_ptr(new), len);
+			new
 		}
 	}
 }
@@ -285,8 +383,12 @@ impl InternerInner {
 			return NixString(*s);
 		}
 
-		let string = NixString::new_inner(contents, None);
-		self.map.insert_unique(hashed, string.0, |val| hash(val));
+		// Interned strings are never counted: they stay immortal and shared by pointer.
+		let string = NixString::new_allocation(contents, None, false);
+		self.map.insert_unique(hashed, string.0, |entry| {
+			// SAFETY: Table entries point to initialized, permanently allocated strings.
+			hash(unsafe { NixStringInner::data_slice(*entry) })
+		});
 		#[cfg(feature = "no_leak")]
 		self.interned_strings.insert(string.0);
 		string
@@ -332,7 +434,20 @@ unsafe impl Sync for NixString {}
 impl Drop for NixString {
 	#[cfg(not(feature = "no_leak"))]
 	fn drop(&mut self) {
-		if self.has_context() {
+		// SAFETY: every NixString points at a fully initialized allocation
+		if unsafe { NixStringInner::is_counted(self.0) } {
+			// Counted strings are reclaimed by the last owner, as in `Arc`. Strings with
+			// context are counted too but always uniquely owned (see `Clone`).
+			// SAFETY: counted allocations carry a live reference count
+			if unsafe { NixStringInner::refcount(self.0) }.fetch_sub(1, Ordering::Release) != 1 {
+				return;
+			}
+			std::sync::atomic::fence(Ordering::Acquire);
+			// SAFETY: this was the last owner of the allocation
+			unsafe {
+				NixStringInner::dealloc(self.0);
+			}
+		} else if self.has_context() {
 			// SAFETY: There's no way to construct a NixString that doesn't leave the allocation correct
 			// according to the rules of dealloc
 			unsafe {
@@ -361,11 +476,19 @@ impl Clone for NixString {
 			// SAFETY: There's no way to construct a NixString that doesn't leave the allocation correct
 			// according to the rules of clone
 			unsafe { Self(NixStringInner::clone(self.0)) }
+		} else if unsafe { NixStringInner::is_counted(self.0) } {
+			// SAFETY: counted allocations carry a live reference count, and this owner
+			// keeps it alive for the duration of the increment
+			let old = unsafe { NixStringInner::refcount(self.0) }.fetch_add(1, Ordering::Relaxed);
+			if old > isize::MAX as usize {
+				std::process::abort();
+			}
+			Self(self.0)
 		} else {
 			// SAFETY:
 			//
-			// - NixStrings are never mutated
-			// - NixStrings are never freed
+			// - Context-free NixStrings are never mutated while shared
+			// - Uncounted context-free NixStrings are never freed
 			Self(self.0)
 		}
 	}
@@ -593,6 +716,23 @@ impl NixString {
 	}
 
 	fn new_inner(contents: &[u8], context: Option<Box<NixContext>>) -> Self {
+		Self::new_allocation(contents, context, string_reclaim_enabled())
+	}
+
+	/// Allocate a string with an explicit ownership mode. `counted` allocations are
+	/// reference counted and reclaimed; uncounted ones keep the historical behaviour.
+	fn new_allocation(contents: &[u8], context: Option<Box<NixContext>>, counted: bool) -> Self {
+		#[cfg(all(feature = "eval-diagnostics", not(feature = "no_leak")))]
+		if context.is_none() {
+			crate::perf_counters::allocation(
+				"string_allocated_without_context",
+				if counted {
+					NixStringInner::counted_layout(contents.len()).0.size()
+				} else {
+					NixStringInner::layout(contents.len()).0.size()
+				},
+			);
+		}
 		// SAFETY: We're always fully initializing a NixString here:
 		//
 		// 1. NixStringInner::alloc sets up the len for us
@@ -603,7 +743,7 @@ impl NixString {
 		//
 		// Only *then* can we construct a NixString
 		unsafe {
-			let inner = NixStringInner::alloc(contents.len());
+			let inner = NixStringInner::alloc(contents.len(), counted);
 			NixStringInner::context_ptr(inner).write(context);
 			NixStringInner::data_ptr(inner)
 				.copy_from_nonoverlapping(contents.as_ptr(), contents.len());
@@ -625,8 +765,13 @@ impl NixString {
 	where
 		NixString: From<T>,
 	{
+		Self::from_bytes_with_context(context, Self::from(contents).as_bytes())
+	}
+
+	/// Construct a string from bytes with the supplied dependency context.
+	pub(crate) fn from_bytes_with_context(context: NixContext, contents: &[u8]) -> Self {
 		Self::new(
-			Self::from(contents).as_ref(),
+			contents,
 			if context.is_empty() {
 				None
 			} else {
@@ -690,7 +835,7 @@ impl NixString {
 				acc_ctx.extend(new_ctx.iter().cloned());
 				acc_ctx
 			});
-		Self::new_context_from(context, s)
+		Self::from_bytes_with_context(context, &s)
 	}
 
 	pub(crate) fn context(&self) -> Option<&NixContext> {
@@ -709,7 +854,32 @@ impl NixString {
 		context
 	}
 
+	/// Whether this handle is the only owner of its allocation.
+	fn is_unique(&self) -> bool {
+		// SAFETY: every NixString points at a fully initialized allocation, and counted
+		// allocations carry a live reference count
+		unsafe {
+			NixStringInner::is_counted(self.0)
+				&& NixStringInner::refcount(self.0).load(Ordering::Acquire) == 1
+		}
+	}
+
+	/// Mutable access to the context slot.
+	///
+	/// With string reclamation enabled, a context-free string that shares its allocation
+	/// (a counted string with other owners, or an interned string) is first replaced by a
+	/// uniquely owned copy, so writing a context never becomes visible through aliases or
+	/// the interner. Strings with context are always uniquely owned already.
 	pub(crate) fn context_mut(&mut self) -> &mut Option<Box<NixContext>> {
+		if string_reclaim_enabled() && !self.has_context() && !self.is_unique() {
+			*self = Self::new_allocation(self.as_bytes(), None, true);
+		}
+		self.context_slot_mut()
+	}
+
+	/// Mutable access to the context slot without copy-on-write. Callers may only
+	/// remove a context through it, never install one.
+	fn context_slot_mut(&mut self) -> &mut Option<Box<NixContext>> {
 		// SAFETY: There's no way to construct an uninitialized or invalid NixString (see the SAFETY
 		// comment in `new`).
 		//
@@ -787,7 +957,22 @@ impl NixString {
 	/// This clears the context of the string, returning
 	/// the removed dependency tracking information.
 	pub fn take_context(&mut self) -> Option<Box<NixContext>> {
-		self.context_mut().take()
+		// Removing a context never needs a private copy: a string with context is
+		// uniquely owned. A context-free allocation may be shared across threads, so
+		// its slot is never written, not even with `None`.
+		let context = if self.has_context() {
+			self.context_slot_mut().take()
+		} else {
+			None
+		};
+		#[cfg(all(feature = "eval-diagnostics", not(feature = "no_leak")))]
+		if context.is_some() {
+			crate::perf_counters::allocation(
+				"string_cleared_context",
+				NixStringInner::layout(self.len()).0.size(),
+			);
+		}
+		context
 	}
 
 	/// This clears the context of that string, losing
@@ -892,6 +1077,77 @@ mod tests {
 	#[test]
 	fn size() {
 		assert_eq!(std::mem::size_of::<NixString>(), 8);
+	}
+
+	#[cfg(not(feature = "no_leak"))]
+	#[test]
+	fn interning_preserves_entries_across_table_growth() {
+		let mut interner = InternerInner::default();
+		let strings: Vec<_> = (0..128)
+			.map(|i| {
+				let bytes = format!("symbol-{i}");
+				let interned = interner.intern(bytes.as_bytes());
+				(bytes, interned)
+			})
+			.collect();
+
+		for (bytes, original) in strings {
+			assert_eq!(interner.intern(bytes.as_bytes()).0, original.0, "{bytes}");
+		}
+	}
+
+	#[cfg(not(feature = "no_leak"))]
+	fn refcount(s: &NixString) -> usize {
+		unsafe { NixStringInner::refcount(s.0) }.load(Ordering::Relaxed)
+	}
+
+	#[cfg(not(feature = "no_leak"))]
+	fn plain_context() -> Box<NixContext> {
+		Box::new(NixContextElement::Plain("/nix/store/x".into()).into())
+	}
+
+	#[cfg(not(feature = "no_leak"))]
+	#[test]
+	fn counted_strings_share_and_release_storage() {
+		let bytes = b"a string longer than the interning threshold";
+		let s = NixString::new_allocation(bytes, None, true);
+		assert_eq!(refcount(&s), 1);
+		let alias = s.clone();
+		assert_eq!(alias.0, s.0);
+		assert_eq!(refcount(&s), 2);
+		drop(alias);
+		assert_eq!(refcount(&s), 1);
+		assert_eq!(s.as_bytes(), bytes);
+	}
+
+	#[cfg(not(feature = "no_leak"))]
+	#[test]
+	fn interned_strings_are_never_counted() {
+		let mut interner = InternerInner::default();
+		let s = interner.intern(b"short");
+		assert!(!unsafe { NixStringInner::is_counted(s.0) });
+		assert_eq!(s.clone().0, s.0);
+	}
+
+	#[cfg(not(feature = "no_leak"))]
+	#[test]
+	fn counted_context_strings_clone_deeply() {
+		let s = NixString::new_allocation(b"with context", Some(plain_context()), true);
+		let copy = s.clone();
+		assert_ne!(copy.0, s.0);
+		assert_eq!(refcount(&copy), 1);
+		assert!(copy.has_context());
+		assert_eq!(copy, s);
+	}
+
+	#[cfg(not(feature = "no_leak"))]
+	#[test]
+	fn counted_strings_stay_reclaimable_after_losing_context() {
+		let mut s = NixString::new_allocation(b"with context", Some(plain_context()), true);
+		assert!(s.take_context().is_some());
+		let alias = s.clone();
+		assert_eq!(alias.0, s.0);
+		assert_eq!(refcount(&s), 2);
 	}
 
 	#[proptest]

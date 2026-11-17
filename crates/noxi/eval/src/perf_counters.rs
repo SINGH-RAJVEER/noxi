@@ -12,6 +12,8 @@ use std::sync::atomic::{AtomicU64, Ordering};
 
 use serde::Serialize;
 
+use crate::value::Thunk;
+
 const MAX_LABELS: usize = 64;
 const CAPTURE_BUCKETS: usize = 65;
 
@@ -19,6 +21,17 @@ const CAPTURE_BUCKETS: usize = 65;
 pub struct Allocation {
 	pub events: u64,
 	pub payload_bytes: u64,
+}
+
+#[derive(Clone, Debug, Default, Serialize)]
+pub struct ThunkRetention {
+	pub sampled: u64,
+	pub live: u64,
+	pub live_by_state: BTreeMap<&'static str, u64>,
+	pub cycle_probes: u64,
+	pub cycle_probes_exhausted: u64,
+	/// Edge families on one observed closed path. See the evaluator performance notes.
+	pub cycle_witnesses: BTreeMap<u8, u64>,
 }
 
 #[derive(Clone, Debug, Serialize)]
@@ -34,6 +47,13 @@ pub struct Snapshot {
 	pub thunk_creations: BTreeMap<&'static str, u64>,
 	pub thunk_first_forces: u64,
 	pub thunk_cached_forces: u64,
+	/// Weak samples, observed when the diagnostic report is written.
+	pub thunk_retention: BTreeMap<&'static str, ThunkRetention>,
+	pub thunk_retention_truncated: bool,
+	/// Read-only ownership census from the retention samples, present only when
+	/// `NOXI_EVAL_OWNERSHIP_CENSUS` is set. See the evaluator performance notes.
+	#[serde(skip_serializing_if = "Option::is_none")]
+	pub ownership_census: Option<serde_json::Value>,
 	/// Finalized capture sets only, excluding clones and empty placeholders.
 	/// Exact lengths 0..63; bucket 64 includes every length >= 64.
 	pub static_capture_histogram: Vec<u64>,
@@ -57,6 +77,9 @@ impl Default for Snapshot {
 			thunk_creations: BTreeMap::new(),
 			thunk_first_forces: 0,
 			thunk_cached_forces: 0,
+			thunk_retention: BTreeMap::new(),
+			thunk_retention_truncated: false,
+			ownership_census: None,
 			static_capture_histogram: vec![0; CAPTURE_BUCKETS],
 			with_capture_histogram: vec![0; CAPTURE_BUCKETS],
 			capture_static_buffer_estimated_events: 0,
@@ -80,10 +103,13 @@ thread_local! {
 /// Begin an independent measurement on this thread. Existing VMs are unaffected.
 pub fn reset() {
 	COUNTERS.with(|c| *c.borrow_mut() = Counters::default());
+	Thunk::reset_retention_samples();
 }
 
 pub fn snapshot() -> Snapshot {
 	let mut snapshot = COUNTERS.with(|c| c.borrow().data.clone());
+	(snapshot.thunk_retention, snapshot.thunk_retention_truncated) = Thunk::retention_snapshot();
+	snapshot.ownership_census = Thunk::ownership_census();
 	snapshot.opcode_names = snapshot
 		.opcodes
 		.keys()

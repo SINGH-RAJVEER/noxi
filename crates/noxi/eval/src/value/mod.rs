@@ -542,7 +542,10 @@ impl Value {
 				}
 			}
 		}
-		Ok(Value::String(NixString::new_context_from(out_context, out)))
+		Ok(Value::String(NixString::from_bytes_with_context(
+			out_context,
+			out.as_ref(),
+		)))
 	}
 
 	pub(crate) async fn nix_eq_owned_genco(

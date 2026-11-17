@@ -194,6 +194,12 @@ def closure_records(fixture: Fixtures, root: Path, paths: list[str]) -> dict:
 	return values
 
 
+def paired_ratio(logs: list[float], seed: int, bootstrap: int) -> tuple[float, list[float]]:
+	rng = random.Random(seed)
+	estimates = sorted(math.exp(statistics.mean(rng.choices(logs, k=len(logs)))) for _ in range(bootstrap))
+	return math.exp(statistics.mean(logs)), [estimates[int(bootstrap * 0.025)], estimates[int(bootstrap * 0.975)]]
+
+
 def paired_summary(records: list[dict], seed: int, bootstrap: int = 2000) -> dict:
 	groups = defaultdict(dict)
 	for sample in records:
@@ -205,14 +211,19 @@ def paired_summary(records: list[dict], seed: int, bootstrap: int = 2000) -> dic
 		if not pairs:
 			continue
 		logs = [math.log(a["elapsed_s"] / b["elapsed_s"]) for a, b in pairs]
-		rng = random.Random(seed)
-		estimates = sorted(math.exp(statistics.mean(rng.choices(logs, k=len(logs)))) for _ in range(bootstrap))
-		result[baseline] = {"successful_pairs": len(pairs), "paired_geometric_speedup": math.exp(statistics.mean(logs)),
-			"speedup_ci95": [estimates[int(bootstrap * 0.025)], estimates[int(bootstrap * 0.975)]],
+		speedup, speedup_ci95 = paired_ratio(logs, seed, bootstrap)
+		result[baseline] = {"successful_pairs": len(pairs), "paired_geometric_speedup": speedup,
+			"speedup_ci95": speedup_ci95,
 			"baseline_median_s": statistics.median(a["elapsed_s"] for a, _ in pairs),
 			"candidate_median_s": statistics.median(b["elapsed_s"] for _, b in pairs),
 			"absolute_median_saved_s": statistics.median(a["elapsed_s"] - b["elapsed_s"] for a, b in pairs),
 			"exploratory": len(pairs) < 30, "p95": None}
+		rss = "target_wait4_max_process_rss_bytes"
+		rss_pairs = [(a.get("resources", {}).get(rss), b.get("resources", {}).get(rss)) for a, b in pairs]
+		# Keep the RSS comparison on the same successful matched pairs as time.
+		if all(type(a) is int and type(b) is int and a > 0 and b > 0 for a, b in rss_pairs):
+			ratio, interval = paired_ratio([math.log(a / b) for a, b in rss_pairs], seed, bootstrap)
+			result[baseline].update(paired_peak_rss_ratio=ratio, peak_rss_ratio_ci95=interval)
 		for side, position in [("baseline", 0), ("candidate", 1)]:
 			resources = [pair[position].get("resources", {}) for pair in pairs]
 			keys = set.intersection(*(set(row) for row in resources))
@@ -262,6 +273,8 @@ def execute_case(args, case: str, variant: str, engines: dict, artifacts: dict, 
 					operation = None
 					try:
 						operation = fixture.prepare(case, state, engines[role], launcher, variant)
+						if role in args.reclaim_strings_role or (role == "candidate" and args.reclaim_strings):
+							operation.env["NOXI_RECLAIM_STRINGS"] = "1"
 						if args.exact_output:
 							operation.args.insert(0, "--quiet")
 						path = absolute_program(engines[role] / operation.program)
@@ -340,6 +353,10 @@ def parser() -> argparse.ArgumentParser:
 		help="loopback cache response protocol; HTTP/1.0 closes without an explicit Connection header")
 	result.add_argument("--exact-output", action="store_true",
 		help="add --quiet and compare raw stdout, stderr and exit status in addition to the artifact oracle")
+	result.add_argument("--reclaim-strings", action="store_true",
+		help="enable experimental string reclamation in candidate commands only")
+	result.add_argument("--reclaim-strings-role", action="append", default=[], metavar="ROLE",
+		help="also enable string reclamation for the specified noxi benchmark role (repeatable)")
 	result.add_argument("--host-policy", type=Path, help="predeclared JSON host validity policy retained in metadata")
 	result.add_argument("--output", type=Path)
 	result.add_argument("--list", action="store_true")
@@ -365,12 +382,6 @@ def main() -> int:
 	if set(args.case) - known:
 		parser().error(f"unknown cases: {sorted(set(args.case) - known)}")
 	selected = set(args.case) if args.case else {row["id"] for row in rows if not args.suite or row["suite"] == args.suite}
-	output = (args.output or ROOT / "target/benchmarks" / datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S.%fZ")).absolute()
-	output.mkdir(parents=True, exist_ok=False)
-	launcher = build_launcher(ROOT)
-	# Fail before promising resource-qualified timings if delegation is absent.
-	with Cgroup():
-		pass
 	engines = {"reference": args.reference_bin.absolute(), "candidate": args.candidate_bin.absolute()}
 	if args.baseline_bin:
 		engines["baseline"] = args.baseline_bin.absolute()
@@ -381,6 +392,15 @@ def main() -> int:
 		if name in engines:
 			parser().error(f"duplicate comparison engine: {name}")
 		engines[name] = Path(directory).absolute()
+	invalid_roles = set(args.reclaim_strings_role) - (engines.keys() - {"reference"})
+	if invalid_roles:
+		parser().error(f"--reclaim-strings-role requires configured noxi roles: {sorted(invalid_roles)}")
+	output = (args.output or ROOT / "target/benchmarks" / datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S.%fZ")).absolute()
+	output.mkdir(parents=True, exist_ok=False)
+	launcher = build_launcher(ROOT)
+	# Fail before promising resource-qualified timings if delegation is absent.
+	with Cgroup():
+		pass
 	coverage, summaries = [], {}
 	with tempfile.TemporaryDirectory(prefix="noxi-benchmark-") as temp:
 		work = Path(temp)

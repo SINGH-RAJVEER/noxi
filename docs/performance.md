@@ -549,6 +549,127 @@ Rejected attempts remain preserved. `INVALID-unfused-production-cache-reuse` cau
 
 No arena or managed-heap design is retained: cumulative allocation traffic does not establish object lifetime, and returned values can outlive a VM. Enlarging every capture with inline storage and deferring genericClosure diagnostic printing remain unmeasured designs, not implemented performance claims. The remaining gap includes about 3.46 times CppNix user instructions and a roughly threefold RSS footprint; the validated temporary-cell reduction alone does not close it.
 
+## Attribute selection and allocation follow-up, 2026-11-18
+
+Two evaluator changes were tested together. The VM moved owned attribute sets and lists off the stack and deferred diagnostic span lookup until a type conversion failed. This let list concatenation reuse uniquely owned buffers. Attribute sets took their backing reference directly on consumption and final destruction, removing the empty placeholder allocation while preserving iterative destruction.
+
+The evaluator tests passed. Exact stdout, stderr, and independent output checks passed for three matched rounds per workload with release builds and pinned CppNix 2.35.2. Each cell shows median elapsed time and peak evaluator process RSS.
+
+| Workload | CppNix | Frozen noxi | Patched noxi |
+| --- | --- | --- | --- |
+| EVAL-08, NixOS and Home Manager | 3.316 s / 993 MiB | 15.672 s / 2,952 MiB | 16.131 s / 2,952 MiB |
+| EVAL-PKG-PATHS, six locked Nixpkgs paths | 0.263 s / 165 MiB | 0.776 s / 373 MiB | 0.764 s / 373 MiB |
+
+The NixOS median rose 2.9% and peak RSS changed by less than 1 MiB. The package projection's paired timing interval includes parity with frozen noxi. These are exploratory shared-host runs without a predeclared host policy. They do not attribute the NixOS slowdown to either change individually. The evaluator changes were reverted. The patch and binary are under `target/perf-attrs-20261118`. The matched reports are under `target/benchmarks/20261117T230208.625077Z` and `target/benchmarks/20261117T230429.393055Z`.
+
+### Forced loads and capture layout trial
+
+The next trial combined two changes. The VM handled an immediately following force during a local or captured value load without a separate dispatch. Captures stored the shared dynamic `with` stack as one pointer, reusing a snapshot's existing vector allocation. The evaluator passed 545 tests and one doctest. Three matched rounds on each workload passed exact output and independent path checks.
+
+| Workload | CppNix 2.35.2 | Frozen noxi | Trial noxi |
+| --- | --- | --- | --- |
+| EVAL-08, NixOS and Home Manager | 3.465 s / 994 MiB | 18.335 s / 2,931 MiB | 18.091 s / 2,850 MiB |
+| EVAL-PKG-PATHS, six locked Nixpkgs paths | 0.292 s / 165 MiB | 1.058 s / 340 MiB | 1.083 s / 330 MiB |
+
+Peak evaluator RSS fell 80 MiB on EVAL-08 and 10 MiB on the Nixpkgs projection. Both paired timing intervals include parity with frozen noxi. These shared-host results do not isolate the contribution of either change. The trial patch, binaries, flat baseline profile and raw reports are under `target/perf-continuation`.
+
+### String interner growth
+
+The interner now rehashes stored entries by string contents, matching insertion and lookup. Previously growth rehashed entries by their pointer addresses and could allocate a second backing block for an existing string. The regression test reproduces the duplicate allocation after growth and passes with the fix. All 546 evaluator tests and the doctest pass.
+
+| Workload | CppNix 2.35.2 | Frozen noxi | Interner fix |
+| --- | --- | --- | --- |
+| EVAL-08, NixOS and Home Manager | 3.412 s / 993 MiB | 17.805 s / 2,931 MiB | 17.916 s / 2,928 MiB |
+| EVAL-PKG-PATHS, six locked Nixpkgs paths | 0.293 s / 164 MiB | 1.134 s / 340 MiB | 1.142 s / 339 MiB |
+
+These three exact-output rounds per workload isolate the interner fix from the earlier VM and capture changes. Peak RSS falls by 3.5 MiB on EVAL-08 and less than 1 MiB on the package projection. The small RSS change accounts for little of the gap to CppNix, and elapsed time did not improve in this run. Reports and build artifacts are under `target/perf-continuation`.
+
+### Retention after VM teardown
+
+The opt-in `eval-diagnostics` report samples approximately one thunk in 1,024 by construction kind with weak references, capped at 65,536 samples per thread. A weak reference keeps its allocation header available for observation but does not keep the thunk payload alive. A snapshot counts samples with a surviving strong reference. A surviving sample can still belong to a live returned value on workloads that return a lazy graph.
+
+The oracle-checked EVAL-08 diagnostic snapshot was taken after the VM dropped its roots. Of 18,619 thunks sampled at suspended construction, 8,811 still had strong references (47.3%). None of the 171 sampled thunks constructed in the evaluated state survived. Sampling did not hit its cap. The counter records construction kind, so the surviving suspended constructions may have since been forced. The snapshot indicates substantial retention beyond VM-owned roots, but does not identify which edges retain those thunks.
+
+A second oracle-checked run reproduced the same survivor count and distinguished their current states. Of the 8,811 survivors, 6,082 were still suspended and 2,729 had been evaluated. The bounded, non-forcing scan found a closed path back to the sampled thunk in 13 of 490 probes. Eleven witnesses passed through an attribute set, ten through a list, three through closure captures, and one through a dynamic `with` capture. A witness can involve multiple edge families. The scan reached its depth or visit limit in 393 probes, so these counts establish that the direct-edge collector misses some cycles, without estimating the prevalence of each family. The report is under `target/perf-continuation/retention-edges-eval08`.
+
+The witness mask uses bit values 1 for static captures, 2 for dynamic captures, 4 for memoized payloads, 8 for attributes, 16 for lists, and 32 for closures. The scan reports one witnessed path per probe.
+
+The first whole-graph census with string reclamation enabled passed the EVAL-08 oracle and classified 10,177,029 nodes and 28,723,218 edges with no count mismatches or graph truncation. It proved 255,114 reached thunks collectible, including 255,046 outside the bounded trial's reach. Only 330 of the 8,811 survivor roots were proved collectible. The remaining roots were either externally rooted or reachable from a node with unexplained owners. A forward scan cannot tell whether the missing owners are themselves part of an unreachable cycle. The largest proved collectible component contained 141,301 thunks. The census itself is diagnostic and excluded from timing and memory comparisons.
+
+`eval-profile.py --mode diagnostics --ownership-census --ownership-census-dense` tests sampling coverage by increasing the creation sample rate from one in 1,024 to one in 64. The recorded retention cap and census truncation fields indicate whether the resulting graph or sample set reached a configured limit.
+
+The denser run passed the EVAL-08 oracle without truncation or count mismatches. It reached 10,408,533 nodes and proved 400,234 thunks collectible, including 398,402 outside the bounded trial's reach. It proved 7,281 of 141,487 sampled survivors collectible, up from 330 of 8,811 at the lower sampling rate. More seeds increased the proven collectible set, but many retained thunks still have unexplained owners. The report is under `target/perf-continuation/dense-census-eval08`.
+
+The next speed experiment inlines the hot capture read and keeps diagnostic construction for a missing stack slot out of that path. It uses the same bytecode, stack bounds check, and error metadata. This targets the out-of-line capture reader identified in the flat cycle profile. The production comparison keeps string reclamation disabled on both noxi builds to isolate the capture change.
+
+Three exact-output EVAL-08 rounds reduced median elapsed time from 17.197 s to 16.866 s, with a paired speed ratio interval of 1.009–1.022. Peak RSS stayed at about 2,568 MiB. The locked package projection's timing and peak RSS intervals both include parity. Reports are under `target/perf-continuation/capture-decode-eval08` and `target/perf-continuation/capture-decode-packages`.
+
+With capture inlining present in both noxi builds, turning on reclamation reduced EVAL-08 peak RSS from 2,568 MiB to 2,308 MiB in three exact-output rounds. Its paired elapsed-time interval includes parity. The package projection had no clear difference in either metric. The reclamation-enabled artifact is the control for the next collector and call-path trials. Raw results are under `target/perf-continuation/capture-plus-reclaim-eval08` and `target/perf-continuation/capture-plus-reclaim-packages`.
+
+The ownership census also supports `--ownership-census-all` to retain a weak sample for each thunk allocation, with a hard limit of 22 million records. This diagnostic mode distinguishes missing thunk seeds from unmodeled ownership. Its own memory use is excluded from production measurements.
+
+The all-thunk EVAL-08 census passed the four-path oracle with no truncation or count mismatches. It proved 3,770,812 of 9,102,001 surviving thunks originally constructed suspended collectible. Of those, 3,707,804 fell outside the bounded trial. The largest component alone contained 3,555,974 thunks. Compared with the dense census, recording every allocation exposed a substantially larger collectable component by bringing more owners into the graph. The post-VM census does not establish when those nodes became collectible, and its estimated working memory was 958 MiB. A production collector needs to account for its own memory and CPU costs. The report is under `target/perf-continuation/full-census-eval08`.
+
+The same census on the locked package projection proved 874,024 of 941,573 surviving thunks originally constructed suspended collectible after VM teardown. One component contained 872,337 thunks. The run passed the six-path oracle with zero count mismatches or truncation. The report is under `target/perf-continuation/full-census-packages`.
+
+`eval-profile.py --workload EVAL-PKG-PATHS` reuses the locked package adapter and its six-path oracle. The flat profiles passed that oracle with zero lost samples. On noxi, bytecode execution accounted for 10.42% of samples, lambda execution 4.43%, and capture population 3.38%. Copying attribute bindings and initializing an attribute lookup index accounted for 3.25% and 2.48% respectively. The profiles are under `target/perf-continuation/capture-decode-package-flat` and `target/perf-continuation/cppnix-package-flat`.
+
+The small-attribute-set trial used binary search for sets with four through fifteen bindings, avoiding a separate hash index for those sets. Sets with fewer than four bindings still used linear search. The release comparison enabled string reclamation on both noxi builds to isolate this lookup change.
+
+The trial was rejected. Three exact-output rounds against the capture-inlining control gave a paired speed ratio of 0.993 (0.984 to 1.001) on EVAL-08 and 0.972 (0.953 to 0.983) on the package projection. The production lookup is unchanged. Reports are under `target/perf-continuation/small-attrs-eval08` and `target/perf-continuation/small-attrs-packages`.
+
+Setting `NOXI_EVAL_OWNERSHIP_CENSUS=1` alongside `NOXI_EVAL_DIAGNOSTICS` adds a read-only `ownership_census` object to the report. Starting from every surviving sample, it records each reachable thunk cell, attribute set, list, closure, shared capture set and `with` stack as a node, together with its strong count and the references found inside the explored graph. Unexplained references come from owners the census cannot traverse, such as the VM, evaluator caches, builtin partial applications, native thunks and lambdas. Those nodes and everything they reach are live. The rest are owned only by one another and are reported as collectible, by type, sharing, connecting edge kinds and component size, including how many collectible thunks lie in components beyond the bounded trial: more than 32 thunks, more than 256 internal references, or a shared container. Opaque owners and limits can only make a node look live, so the counts are lower bounds. The census defaults to 28,000,000 nodes and 112,000,000 edges, adjustable with `NOXI_EVAL_OWNERSHIP_CENSUS_MAX_NODES` and `NOXI_EVAL_OWNERSHIP_CENSUS_MAX_EDGES`. It reports its own memory as `estimated_peak_bytes` and its running time as `explore_ms` and `analyze_ms`. It does not force, mutate or release values, and its runtime and memory are excluded from production timings.
+
+The same run counted 332,878,208 requested backing bytes for strings allocated without context and another 12,128,140 bytes for strings that lost their context. These paths deliberately retain backing allocations under the default string policy. The combined 329 MiB excludes allocator overhead and captures only the instrumented evaluator thread. The separate report is under `target/perf-continuation/retention-eval08`; its runtime is excluded from production timings.
+
+### Inline captures and direct string construction
+
+The evaluator stores a single static capture inline. The VM constructs that case without allocating a vector. Capture sets with a dynamic `with` stack keep sharing that stack. Interpolation, coercion, and concatenation construct their final string from bytes directly, eliminating the temporary context-free string they previously constructed first.
+
+| Workload | CppNix 2.35.2 | Interner fix | Inline captures and direct strings |
+| --- | --- | --- | --- |
+| EVAL-08, NixOS and Home Manager | 3.590 s / 988 MiB | 17.200 s / 2,927 MiB | 17.443 s / 2,644 MiB |
+| EVAL-PKG-PATHS, six locked Nixpkgs paths | 0.316 s / 164 MiB | 1.094 s / 331 MiB | 1.050 s / 305 MiB |
+
+Three exact-output rounds per workload reduced peak evaluator RSS by 283 MiB on EVAL-08 and 26 MiB on the package projection. The paired EVAL-08 timing interval includes parity. These runs measure the two changes together. Raw comparisons are under `target/perf-continuation/inline-eval08` and `target/perf-continuation/inline-packages`.
+
+### Bounded cycle-collection experiment
+
+The opt-in `eval-cycle-collection` feature checks a bounded queue of weak candidates at VM frame boundaries. It traces direct thunk and uniquely owned closure capture edges, subtracts observed internal owners from the reference counts, and preserves every node reachable from an external owner. The trial leaves shared containers and native captures conservatively rooted by their uncounted owners. Focused tests cover self and mutual cycles, duplicate edges, a live external alias, an opaque native capture, a borrow conflict, and a recursive closure invoked in a second VM.
+
+Three exact-output rounds against the same build without the collector reduced EVAL-08 peak RSS from 2,643 MiB to 2,625 MiB, with a timing interval spanning parity. Peak RSS on the six-package projection moved from 319 MiB to 320 MiB, also with a timing interval spanning parity. The collector remains opt-in. The direct-edge trial reaches too little of the retained graph to close the gap. Reports are under `target/perf-continuation/cycle-eval08` and `target/perf-continuation/cycle-packages`.
+
+The next trial followed nested attribute sets, lists, and dynamic captures only when their backing allocation had one owner. A shared-container regression test verifies that the collector preserves the cycle while an external owner exists. Against the later string-context baseline, the expanded collector saved 13 MiB of peak RSS on EVAL-08 and 2 MiB on the package projection. EVAL-08 median time increased from 17.146 s to 18.195 s. All three rounds on each workload passed exact output checks. The collector remains experimental. Reports are under `target/perf-continuation/owned-edges-eval08` and `target/perf-continuation/owned-edges-packages`.
+
+### Destroying string contexts
+
+String teardown now drops its boxed dependency context before freeing the raw backing block. The production build has the experimental collector off. Compared with the previous production build, EVAL-08 peak RSS fell from 2,645 MiB to 2,568 MiB and the package projection fell from 323 MiB to 315 MiB. Both paired timing intervals include parity. The patched evaluator passed 546 tests and the doctest, and all three rounds on each workload passed the independent path and exact-output checks.
+
+In these rounds CppNix 2.35.2 used 993 MiB and 3.445 s on EVAL-08, while noxi used 2,568 MiB and 17.907 s. On the package projection CppNix used 164 MiB and 0.292 s, while noxi used 315 MiB and 0.924 s. Reports are under `target/perf-continuation/context-drop-eval08` and `target/perf-continuation/context-drop-packages`.
+
+### Uninterned string reclamation and VM dispatch trial
+
+`NOXI_RECLAIM_STRINGS=1` opts into reference counting for uninterned string allocations. Short interned strings remain permanent and the existing `no_leak` feature keeps its own behavior. The recorded string layout distinguishes counted allocations, whose header has a reference count, from allocations using the original ownership policy. Benchmark runs with `--reclaim-strings` pass this setting only to the candidate, allowing the same binary to serve as the disabled control.
+
+To compare evaluator changes with reclamation enabled in both noxi builds, add `--reclaim-strings-role baseline`. The option may also name a configured comparison role, and the runner rejects the CppNix reference role. The recorded process environment includes the setting for each enabled role.
+
+The candidate binary also includes VM instruction fusions that run without a runtime observer and defers formatting scoped error hints until trace construction. Comparing reclamation on and off in that binary isolates the runtime setting. Comparing either mode with the previous production binary also includes the VM changes and the cost of adding the string ownership check to default builds.
+
+| Workload | CppNix 2.35.2 | Previous noxi | Reclamation disabled | Reclamation enabled |
+| --- | --- | --- | --- | --- |
+| EVAL-08 | 3.555 s / 987 MiB | 16.571 s / 2,568 MiB | 17.751 s / 2,568 MiB | 17.017 s / 2,308 MiB |
+| EVAL-PKG-PATHS | 0.314 s / 164 MiB | 1.031 s / 299 MiB | 1.078 s / 296 MiB | 1.022 s / 300 MiB |
+
+All three rounds on each workload passed exact output and independent path checks. Reclamation reduced EVAL-08 peak RSS by 260 MiB against the same binary with reclamation disabled. The enabled build still took longer than previous noxi on EVAL-08. The package projection's peak RSS increased by about 5 MiB with reclamation enabled against the same binary with reclamation disabled. Reports are under `target/perf-continuation/reclaim-strings-eval08` and `target/perf-continuation/reclaim-strings-packages`. These exploratory results leave both workloads above CppNix on both metrics.
+
+The fused evaluator passed 561 evaluator tests, five diagnostic tests, and one doctest with diagnostics and cycle collection compiled in. A separate EVAL-08 diagnostic build passed the four-path oracle and recorded identical logical opcode and opcode-pair maps to the pre-fusion build. This validates counting and the observed output. The temporary patch is preserved at `target/perf-continuation/fused-diag/vm-fusions.patch`, while the next comparison builds reclamation without it.
+
+The benchmark summary reports `paired_peak_rss_ratio` and `peak_rss_ratio_ci95` when every successful elapsed-time pair also reports positive target process RSS. Ratios above one favor the candidate. An incomplete RSS metric leaves both RSS ratio fields absent, so the timing cohort cannot silently be replaced by a smaller memory cohort.
+
+Removing the new fusions and enabling reclamation recovered parity with the previous noxi build on EVAL-08 while reducing its peak RSS from 2,561 MiB to 2,307 MiB. Median elapsed times were 16.222 s and 16.264 s respectively. The 95% paired time ratio interval was 0.991–1.018, and the peak RSS ratio interval was 1.110–1.115. The locked package projection showed no clear change in either metric from the previous noxi build. CppNix remained ahead on both metrics on both workloads. Each workload had three exact-output rounds. The new RSS statistic can be recomputed from the raw sample files in `target/perf-continuation/reclaim-only-eval08` and `target/perf-continuation/reclaim-only-packages` without modifying the original reports.
+
+Separate flat user-cycle profiles of the reclamation-only binary and CppNix 2.35.2 passed the same EVAL-08 oracle with zero dropped samples. The noxi profile assigned 18.08% of samples to bytecode execution, 9.54% to lambda execution, and 6.43% to capture population and its closure. The profiles are under `target/perf-continuation/reclaim-only-latest-flat` and `target/perf-continuation/cppnix-latest-flat`. The collector accepts `--reclaim-strings` to set the mode explicitly in the profiled process and record it in metadata.
+
 Evidence and reproduction commands are in `target/eval-round2-20261113/{build-artifact.py,remaining.py,integrity.json}`, the three timing lane directories, preserved source directories, `semantic-differential/report.json`, and test logs. Independent review is requested through the parent as a fresh follow-up; these measurements are not a review approval.
 
 Independent qualification review follow-up: the host validator now requires configured memory-event counters and CPU throttling accounting for every expected target accounting path. Missing dictionaries, paths and null counters invalidate the lane. All 29 collector tests pass, including the focused missing-target-data regression. Revalidation of the unchanged saved observations passes for combined EVAL-08 (93 invocations), ordinary workloads (279), and actual split-expression measurements (72). Original reports and manifests remain unchanged; `qualification-review-fix.json` and each lane's `host-validity-review-fix.json` record the corrected-validator verdict. The failed `split-5` preflight remains excluded even though its host observations pass. No benchmark was rerun and no samples were added or removed.

@@ -10,6 +10,7 @@
 use std::{
 	ops::{Deref, Index},
 	rc::Rc,
+	slice,
 };
 
 use crate::{Value, opcode::UpvalueIdx};
@@ -66,17 +67,23 @@ impl UpvalueData {
 /// - Dynamic identifiers, which are not bound in any enclosing
 ///   scope
 #[derive(Clone, Debug)]
-pub struct Upvalues {
-	/// The upvalues of static identifiers.  Each static identifier
-	/// is assigned an integer identifier at compile time, which is
-	/// an index into this Vec.
-	static_upvalues: Box<[Value]>,
+pub struct Upvalues(Captures);
 
+#[derive(Clone, Debug)]
+enum Captures {
+	Single(Value),
+	Static(Box<[Value]>),
+	Dynamic(Box<DynamicCaptures>),
+}
+
+#[derive(Clone, Debug)]
+struct DynamicCaptures {
+	static_upvalues: Box<[Value]>,
 	/// The upvalues of dynamic identifiers, if any exist.  This
 	/// consists of the value passed to each enclosing `with val;`,
 	/// from outermost to innermost. Thunks and closures created in the same
 	/// `with` scopes share it.
-	with_stack: Option<Rc<[Value]>>,
+	with_stack: Rc<[Value]>,
 }
 
 /// A thunk transfers its captures to the frame that evaluates it. Closures
@@ -114,29 +121,50 @@ impl Upvalues {
 	/// Upvalues are never added after construction, so the count only
 	/// matters to callers constructing them whole.
 	pub fn with_capacity(_count: usize) -> Self {
-		Upvalues {
-			static_upvalues: Box::default(),
-			with_stack: None,
-		}
+		Self(Captures::Static(Box::default()))
+	}
+
+	pub(crate) fn from_single(value: Value) -> Self {
+		#[cfg(feature = "eval-diagnostics")]
+		crate::perf_counters::capture_created(1, 0, false);
+		Self(Captures::Single(value))
 	}
 
 	/// Construct an [Upvalues] instance from the raw static and with stacks.
-	pub fn from_raw_parts(static_upvalues: Vec<Value>, with_stack: Option<Rc<[Value]>>) -> Self {
+	pub fn from_raw_parts(
+		mut static_upvalues: Vec<Value>,
+		with_stack: Option<Rc<[Value]>>,
+	) -> Self {
+		if static_upvalues.len() == 1 && with_stack.is_none() {
+			return Self::from_single(static_upvalues.pop().expect("one static capture"));
+		}
 		#[cfg(feature = "eval-diagnostics")]
 		crate::perf_counters::capture_created(
 			static_upvalues.len(),
 			with_stack.as_ref().map_or(0, |stack| stack.len()),
 			!static_upvalues.is_empty(),
 		);
-		Self {
-			static_upvalues: static_upvalues.into_boxed_slice(),
-			with_stack,
-		}
+		let static_upvalues = static_upvalues.into_boxed_slice();
+		Self(match with_stack {
+			Some(with_stack) => Captures::Dynamic(Box::new(DynamicCaptures {
+				static_upvalues,
+				with_stack,
+			})),
+			None => Captures::Static(static_upvalues),
+		})
 	}
 
 	/// Get the number of static upvalues
 	pub fn len(&self) -> usize {
-		self.static_upvalues.len()
+		self.static_upvalues().len()
+	}
+
+	fn static_upvalues(&self) -> &[Value] {
+		match &self.0 {
+			Captures::Single(value) => slice::from_ref(value),
+			Captures::Static(values) => values,
+			Captures::Dynamic(captures) => &captures.static_upvalues,
+		}
 	}
 
 	/// Retrieve a single value from the `with_stack`. Returns `None`
@@ -146,12 +174,15 @@ impl Upvalues {
 	}
 
 	pub fn with_stack(&self) -> &[Value] {
-		self.with_stack.as_deref().unwrap_or_default()
+		self.shared_with_stack().map(Rc::as_ref).unwrap_or_default()
 	}
 
 	/// The `with` stack, to share with upvalues captured in the same scopes.
 	pub fn shared_with_stack(&self) -> Option<&Rc<[Value]>> {
-		self.with_stack.as_ref()
+		match &self.0 {
+			Captures::Dynamic(captures) => Some(&captures.with_stack),
+			_ => None,
+		}
 	}
 
 	pub fn with_stack_len(&self) -> usize {
@@ -159,13 +190,22 @@ impl Upvalues {
 	}
 
 	pub fn into_static_upvalues(self) -> Vec<Value> {
-		self.static_upvalues.into_vec()
+		match self.0 {
+			Captures::Single(value) => vec![value],
+			Captures::Static(values) => values.into_vec(),
+			Captures::Dynamic(captures) => captures.static_upvalues.into_vec(),
+		}
 	}
 
 	/// Resolve deferred upvalues from the provided stack slice,
 	/// mutating them in the internal upvalue slots.
 	pub fn resolve_deferred_upvalues(&mut self, stack: &[Value]) {
-		for upvalue in self.static_upvalues.iter_mut() {
+		let upvalues: &mut [Value] = match &mut self.0 {
+			Captures::Single(value) => slice::from_mut(value),
+			Captures::Static(values) => values,
+			Captures::Dynamic(captures) => &mut captures.static_upvalues,
+		};
+		for upvalue in upvalues {
 			if let Value::DeferredUpvalue(update_from_idx) = upvalue {
 				*upvalue = stack[update_from_idx.0].clone();
 			}
@@ -177,7 +217,7 @@ impl Index<UpvalueIdx> for Upvalues {
 	type Output = Value;
 
 	fn index(&self, index: UpvalueIdx) -> &Self::Output {
-		&self.static_upvalues[index.0]
+		&self.static_upvalues()[index.0]
 	}
 }
 

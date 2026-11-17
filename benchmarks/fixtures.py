@@ -345,8 +345,9 @@ class Fixtures:
 		if case in {"NAR-01", "NAR-02", "NAR-03", "NAR-04"}:
 			root.mkdir()
 			path = self.ref("nix-store", ["--store", self.store_uri(root), "--add", str(self.tree)]).decode().strip()
-			# CppNix dumps a physical filesystem path; noxi maps a logical store path.
-			dump_path = str(root / path.lstrip("/")) if engine == self.reference else path
+			# Both engines dump the physical filesystem path of a diverted store,
+			# as CppNix does; the logical store path does not exist on the host.
+			dump_path = str(root / path.lstrip("/"))
 			return Operation("nix-store", ["--store", self.store_uri(root), "--dump", dump_path], env, self.root)
 		if case in {"FETCH-01", "NAR-05"}:
 			root.mkdir()

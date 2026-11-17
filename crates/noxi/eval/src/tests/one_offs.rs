@@ -14,7 +14,11 @@ use pretty_assertions::assert_matches;
 )]
 #[case("let x = x; in x")]
 #[case("let x = 42; in builtins.seq (builtins.addErrorContext (abort \"unused\") x) x")]
-fn immediate_force_matches_observed_execution(#[case] expression: &str) {
+#[case("let a = { b = 42; }; in a.b")]
+#[case("let a = { }; in a.b or 42")]
+#[case("if false then throw \"unused\" else let x = 42; in x")]
+#[case("let a = { }; in a.missing")]
+fn optimized_execution_matches_observed_execution(#[case] expression: &str) {
 	// Runtime observers keep the ordinary allocate-and-force path. Compare
 	// it with the unobserved execution, including failures and lazy contexts.
 	let mut observer = crate::observer::NoOpObserver::default();
@@ -66,6 +70,23 @@ fn returned_function_literals_keep_recursive_captures() {
 	);
 	assert!(result.errors.is_empty(), "{:?}", result.errors);
 	assert_eq!(result.value.unwrap().as_int().unwrap(), 42);
+}
+
+#[cfg(feature = "eval-cycle-collection")]
+#[test]
+fn recursive_closure_remains_callable_after_vm_teardown() {
+	let first = Evaluation::builder_pure().build();
+	let source = first.source_map();
+	let result = first.evaluate("let f = n: if n == 0 then 42 else f (n - 1); in f", None);
+	assert!(result.errors.is_empty(), "{:?}", result.errors);
+	let env = rustc_hash::FxHashMap::from_iter([("f".into(), result.value.unwrap())]);
+	let second = Evaluation::builder_pure()
+		.with_source_map(source)
+		.env(Some(&env))
+		.build()
+		.evaluate("f 512", None);
+	assert!(second.errors.is_empty(), "{:?}", second.errors);
+	assert_eq!(second.value.unwrap().as_int().unwrap(), 42);
 }
 
 #[rstest::rstest]

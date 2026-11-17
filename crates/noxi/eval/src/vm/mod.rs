@@ -681,7 +681,17 @@ where
 
 	/// Drive evaluation and resume lazy context handlers on failure.
 	fn execute_frames(&mut self) -> EvalResult<()> {
+		#[cfg(feature = "eval-cycle-collection")]
+		let mut frames_until_collection = 1024;
 		while !self.frames.is_empty() {
+			#[cfg(feature = "eval-cycle-collection")]
+			{
+				frames_until_collection -= 1;
+				if frames_until_collection == 0 {
+					Thunk::collect_cycles();
+					frames_until_collection = 1024;
+				}
+			}
 			let frame = self.frames.pop().expect("frame above boundary");
 			#[cfg(feature = "eval-diagnostics")]
 			{
@@ -2046,7 +2056,10 @@ where
 		}
 
 		self.stack
-			.push(Value::String(NixString::new_context_from(context, out)));
+			.push(Value::String(NixString::from_bytes_with_context(
+				context,
+				out.as_ref(),
+			)));
 		Ok(())
 	}
 
@@ -2329,8 +2342,6 @@ where
 		let count = data.count();
 		let capture_with = data.captures_with();
 
-		let mut static_upvalues = Vec::with_capacity(count);
-
 		let with_stack = if !capture_with {
 			None
 		} else if self.with_stack.is_empty() {
@@ -2352,41 +2363,54 @@ where
 			Some(captured_with_stack.into())
 		};
 
+		if count == 1 && with_stack.is_none() {
+			return self.read_capture(frame).map(Upvalues::from_single);
+		}
+		let mut static_upvalues = Vec::with_capacity(count);
 		for _ in 0..count {
-			let pos = Position(frame.read_uvarint());
-
-			if let Some(stack_idx) = pos.runtime_stack_index() {
-				let idx = frame.stack_offset + stack_idx.0;
-
-				let val = match self.stack.get(idx) {
-					Some(val) => val.clone(),
-					None => {
-						// TODO: maybe panic here?
-						return frame.error(
-							self,
-							ErrorKind::NoxiBug {
-								msg: "upvalue to be captured was missing on stack",
-								metadata: Some(Rc::new(json!({
-									"ip": format!("{:#x}", frame.ip.0 - 1),
-									"stack_idx(relative)": stack_idx.0,
-									"stack_idx(absolute)": idx,
-								}))),
-							},
-						);
-					}
-				};
-
-				static_upvalues.push(val);
-			} else if let Some(idx) = pos.runtime_deferred_local() {
-				static_upvalues.push(Value::DeferredUpvalue(idx));
-			} else if let Some(idx) = pos.runtime_upvalue_index() {
-				static_upvalues.push(frame.upvalue(idx).clone());
-			} else {
-				panic!("noxi bug: invalid capture position emitted")
-			}
+			static_upvalues.push(self.read_capture(frame)?);
 		}
 
 		Ok(Upvalues::from_raw_parts(static_upvalues, with_stack))
+	}
+	#[inline(always)]
+	fn read_capture(&self, frame: &mut BytecodeFrame) -> EvalResult<Value> {
+		let pos = Position(frame.read_uvarint());
+		if let Some(stack_idx) = pos.runtime_stack_index() {
+			let idx = frame.stack_offset + stack_idx.0;
+			return match self.stack.get(idx) {
+				Some(value) => Ok(value.clone()),
+				None => self.missing_capture(frame, stack_idx.0, idx),
+			};
+		}
+		if let Some(idx) = pos.runtime_deferred_local() {
+			return Ok(Value::DeferredUpvalue(idx));
+		}
+		if let Some(idx) = pos.runtime_upvalue_index() {
+			return Ok(frame.upvalue(idx).clone());
+		}
+		panic!("noxi bug: invalid capture position emitted");
+	}
+
+	#[cold]
+	#[inline(never)]
+	fn missing_capture(
+		&self,
+		frame: &BytecodeFrame,
+		relative: usize,
+		absolute: usize,
+	) -> EvalResult<Value> {
+		frame.error(
+			self,
+			ErrorKind::NoxiBug {
+				msg: "upvalue to be captured was missing on stack",
+				metadata: Some(Rc::new(json!({
+					"ip": format!("{:#x}", frame.ip.0 - 1),
+					"stack_idx(relative)": relative,
+					"stack_idx(absolute)": absolute,
+				}))),
+			},
+		)
 	}
 }
 
