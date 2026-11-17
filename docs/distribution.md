@@ -58,19 +58,19 @@ The crates below are intended for publication on crates.io under the SINGH-RAJVE
 |---|---|---|---|
 | [`noxi-eval-builtin-macros`](https://crates.io/crates/noxi-eval-builtin-macros) | 0.0.3 | GPL-3.0-only | Procedural macros for defining builtins, derived from `snix-eval-builtin-macros` |
 | [`noxi-eval`](https://crates.io/crates/noxi-eval) | 0.0.4 | GPL-3.0-only | Nix language evaluator, derived from `snix-eval` |
-| [`noxi-cli`](https://crates.io/crates/noxi-cli) | 0.0.3 | Apache-2.0 | The `noxi` preview command |
+| [`noxi-cli`](https://crates.io/crates/noxi-cli) | 0.0.4 | Apache-2.0 | The `noxi` preview command |
 | [`noxi-hash`](https://crates.io/crates/noxi-hash) | 0.0.3 | GPL-3.0-only | Hash and Nix base32 formats |
 | [`noxi-flakeref`](https://crates.io/crates/noxi-flakeref) | 0.0.3 | GPL-3.0-only | Flake reference parser and formatter |
 | [`noxi-compat`](https://crates.io/crates/noxi-compat) | 0.0.4 | GPL-3.0-only | Nix formats and protocol values |
 | [`noxi-compat-derive`](https://crates.io/crates/noxi-compat-derive) | 0.0.3 | GPL-3.0-only | Wire derive macros |
 | [`noxi-serde`](https://crates.io/crates/noxi-serde) | 0.0.3 | GPL-3.0-only | Bidirectional serde bridge |
 | [`noxi-glue`](https://crates.io/crates/noxi-glue) | 0.0.3 | GPL-3.0-only | Read-only store-aware evaluation on Unix |
-| [`noxi-commands`](https://crates.io/crates/noxi-commands) | 0.0.3 | GPL-3.0-only | CppNix-compatible legacy and modern command implementations |
+| [`noxi-commands`](https://crates.io/crates/noxi-commands) | 0.0.4 | GPL-3.0-only | CppNix-compatible legacy and modern command implementations |
 | [`noxi-store`](https://crates.io/crates/noxi-store) | 0.0.4 | GPL-3.0-only | Experimental local store and cache substitution |
 | [`noxi-build`](https://crates.io/crates/noxi-build) | 0.0.3 | GPL-3.0-only | Experimental local sandboxed derivation builder |
-| [`noxi-daemon`](https://crates.io/crates/noxi-daemon) | 0.0.3 | GPL-3.0-only | Nix worker protocol daemon |
+| [`noxi-daemon`](https://crates.io/crates/noxi-daemon) | 0.0.4 | GPL-3.0-only | Nix worker protocol daemon |
 | [`noxi-flake`](https://crates.io/crates/noxi-flake) | 0.0.3 | GPL-3.0-only | Flake graph and operations |
-| [`noxi-system`](https://crates.io/crates/noxi-system) | 0.0.2 | GPL-3.0-only | Native `noxi flake`, `noxi system` and `noxi snapshot` operations |
+| [`noxi-system`](https://crates.io/crates/noxi-system) | 0.0.3 | GPL-3.0-only | Native `noxi flake`, `noxi system` and `noxi snapshot` operations |
 | [`noxi-events`](https://crates.io/crates/noxi-events) | 0.0.1 | GPL-3.0-only | Structured operation events and rustc-style terminal rendering |
 
 Imported code retains Snix's GPL-3.0 license, with package-local text and provenance; bundled LGPL Nix material has its own notices and license text. The CLI's own source is Apache-2.0, but the `noxi` binary links `noxi-eval`, so a distributed binary must meet GPL-3.0 terms. Published versions are permanent: a version can be yanked but its source stays public. Record each release in [CHANGELOG.md](../CHANGELOG.md), bump changed crates and versioned path dependencies, package and verify the archives, then publish the selected packages in dependency order. Reuse an unchanged dependency's existing registry release rather than attempting to upload the same version again. These are preview crates: their APIs are not stable, and publication does not close the drop-in release gate.
@@ -171,6 +171,16 @@ This source update bumps `noxi-build` to 0.0.3, `noxi-commands` to 0.0.3, `noxi-
 ## Version update, 2026-11-14
 
 The CI publication of 0.0.3 on 2026-11-13 failed while verifying `noxi-commands`: the release plan skipped `noxi-flake` because 0.0.2 was already on crates.io, but that published version still required `noxi-glue` 0.0.2 and `noxi-store` 0.0.3, so verification resolved two copies of `noxi-eval`. A crate whose internal dependency requirements change needs a version bump even when its own source does not. This update bumps `noxi-flake` to 0.0.3 with its own version instead of the workspace version, `noxi-serde` to 0.0.3 (its published 0.0.2 requires `noxi-eval` 0.0.3), `noxi-system` to 0.0.2 and `noxi-cli` to 0.0.3, and adds `noxi-events` at 0.0.1. The release plan then lists twelve crates: these five and the seven left unpublished by the failed run.
+
+## Version update, 2026-11-17
+
+This update releases three changes:
+
+- an idle exit for a socket-activated daemon;
+- the `auto` store's fallback to a per-user chroot store;
+- the store execution helper's chroot for a missing store directory.
+
+It bumps `noxi-daemon` and `noxi-commands` to 0.0.4, which carry those changes. Their 0.0.x requirements are exact, so `noxi-system` moves to 0.0.3 and `noxi-cli` to 0.0.4 to require the new versions. The unpublished `noxi-compat-tests` requirements follow. Every other crate keeps its published version.
 
 
 ## Flake output interface

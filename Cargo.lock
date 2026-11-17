@@ -1459,7 +1459,7 @@ dependencies = [
 
 [[package]]
 name = "noxi-cli"
-version = "0.0.3"
+version = "0.0.4"
 dependencies = [
  "noxi-eval",
  "noxi-events",
@@ -1469,7 +1469,7 @@ dependencies = [
 
 [[package]]
 name = "noxi-commands"
-version = "0.0.3"
+version = "0.0.4"
 dependencies = [
  "bstr",
  "bytes",
@@ -1565,7 +1565,7 @@ dependencies = [
 
 [[package]]
 name = "noxi-daemon"
-version = "0.0.3"
+version = "0.0.4"
 dependencies = [
  "libc",
  "noxi-build",
@@ -1750,7 +1750,7 @@ dependencies = [
 
 [[package]]
 name = "noxi-system"
-version = "0.0.2"
+version = "0.0.3"
 dependencies = [
  "libc",
  "noxi-commands",

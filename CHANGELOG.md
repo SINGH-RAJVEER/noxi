@@ -4,6 +4,10 @@ Changes to each crate in this workspace, grouped by crate and version, newest fi
 
 Changes that have not reached a version yet go under an `Unreleased` heading for that crate.
 
+## noxi 0.0.5 - 2026-11-17, pending publication
+
+Publishes `noxi-daemon` 0.0.4 with `NOXI_DAEMON_IDLE_TIMEOUT`, which lets a socket-activated daemon exit when idle. It also publishes `noxi-commands` 0.0.4 with two changes: the `auto` store falls back to a per-user chroot store, and the store execution helper runs programs in a chroot when the store directory is missing. Together they let a user without root use noxi on a host without `/nix`, with no daemon. `noxi-system` 0.0.3 and `noxi-cli` 0.0.4 follow because their exact requirements on these crates change.
+
 ## noxi 0.0.4 - 2026-11-14, pending publication
 
 Publishes the crates whose 0.0.3 publication failed (`noxi-compat` and `noxi-eval` and `noxi-store` at 0.0.4; `noxi-build`, `noxi-commands`, `noxi-daemon` and `noxi-glue` at 0.0.3) together with `noxi-flake` 0.0.3, `noxi-serde` 0.0.3, `noxi-system` 0.0.2, `noxi-cli` 0.0.3 and the new `noxi-events` 0.0.1. The 0.0.3 publication failed because the published `noxi-flake` 0.0.2 still required `noxi-glue` 0.0.2 and `noxi-store` 0.0.3, so verifying `noxi-commands` resolved two copies of the evaluator. `noxi-flake` now has its own version instead of the workspace version, and `noxi-serde` moves to 0.0.3 because its published 0.0.2 requires `noxi-eval` 0.0.3. The release carries the language compatibility work that matches all 466 active copied language fixtures, the rustc-style `noxi system` output, and `noxi explain`.
