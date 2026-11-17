@@ -126,7 +126,16 @@ mod impure_builtins {
 			)],
 		)
 		.await;
-		let path = try_cek_to_value!(realise_value_to_path(&co, path).await?);
+		// CppNix decides from the string itself that a trailing `/` or `/.`
+		// requires a directory, since canonicalizing drops it. The slash is
+		// put back on the canonical path, where lstat follows the final
+		// symlink and fails on a non-directory.
+		let must_be_dir = matches!(&path, Value::String(s)
+			if s.as_bytes().ends_with(b"/") || s.as_bytes().ends_with(b"/."));
+		let mut path = try_cek_to_value!(realise_value_to_path(&co, path).await?);
+		if must_be_dir && !path.as_os_str().as_encoded_bytes().ends_with(b"/") {
+			path.as_mut_os_string().push("/");
+		}
 		Ok(generators::request_path_exists(&co, path).await)
 	}
 
@@ -192,7 +201,7 @@ mod tests {
 	use std::ffi::OsStr;
 	use std::os::unix::ffi::OsStrExt;
 
-	use crate::{Evaluation, NixString};
+	use crate::{EvalMode, Evaluation, NixString};
 
 	#[test]
 	fn read_dir_preserves_non_utf8_filename() {
@@ -215,5 +224,40 @@ mod tests {
 		let (key, file_type) = attrs.iter().next().unwrap();
 		assert_eq!(&key[..], filename);
 		assert_eq!(file_type.to_str().unwrap(), NixString::from("regular"));
+	}
+
+	/// Crane's `mkDummySrc` reads `"<crate>/Cargo.toml" + "/../."`: a string
+	/// path is canonicalized lexically before access, as in CppNix, while
+	/// pathExists still requires a directory for a trailing `/` or `/.`.
+	#[test]
+	fn string_paths_are_canonicalized_lexically() {
+		let dir = tempfile::tempdir().unwrap();
+		std::fs::create_dir(dir.path().join("src")).unwrap();
+		std::fs::write(dir.path().join("Cargo.toml"), b"toml").unwrap();
+		let root = dir.path().display();
+		let expression = format!(
+			r#"let toml = "{root}/Cargo.toml"; in [
+				(builtins.attrNames (builtins.readDir (toml + "/../.")))
+				(builtins.readFile (toml + "/"))
+				(builtins.readFileType "{root}/missing/../src")
+				(map builtins.pathExists [
+					(toml + "/../src") "{root}/missing/.." toml (toml + "/") (toml + "/.")
+					(toml + "/../")
+				])
+			]"#
+		);
+		let result = Evaluation::builder_impure()
+			.mode(EvalMode::Strict)
+			.build()
+			.evaluate(&expression, None);
+		assert!(
+			result.errors.is_empty(),
+			"evaluation failed: {:?}",
+			result.errors
+		);
+		assert_eq!(
+			result.value.unwrap().to_string(),
+			r#"[ [ "Cargo.toml" "src" ] "toml" "directory" [ true true true false false true ] ]"#
+		);
 	}
 }

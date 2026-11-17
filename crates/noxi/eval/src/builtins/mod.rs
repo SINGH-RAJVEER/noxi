@@ -193,10 +193,23 @@ pub async fn realise_value_to_path(
 	if !path.is_absolute() {
 		return Err(ErrorKind::NotAnAbsolutePath(path));
 	}
+	let string = canonical_path_string(string, path);
 	// Coercion hints describe argument conversion. Context realisation adds
 	// its own path-specific frame after conversion has succeeded.
 	generators::request_builtin_context(co, Vec::new()).await;
 	Ok(Ok(generators::request_realise_path(co, string).await))
+}
+
+/// CppNix's `coerceToPath` canonicalizes a string lexically before any file
+/// access, so `"/a/file/../b"` names `/a/b` even when `file` is not a
+/// directory, and a trailing slash is dropped. The string context is kept
+/// for realisation.
+fn canonical_path_string(string: NixString, path: PathBuf) -> NixString {
+	let canonical = crate::value::canon_path(path);
+	if canonical.as_os_str().as_encoded_bytes() == string.as_bytes() {
+		return string;
+	}
+	NixString::new_inherit_context_from(&string, canonical.as_os_str().as_encoded_bytes())
 }
 
 /// CppNix's `realisePath` for a builtin's path argument: the argument is
@@ -233,6 +246,7 @@ pub async fn realise_path_argument(
 	if !path.is_absolute() {
 		return Err(ErrorKind::NotAnAbsolutePath(path));
 	}
+	let string = canonical_path_string(string, path);
 	generators::request_builtin_context(co, Vec::new()).await;
 	Ok(Ok(generators::request_realise_path(co, string).await))
 }

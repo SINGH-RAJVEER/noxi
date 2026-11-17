@@ -77,6 +77,10 @@ async fn filtered_entries(
 			continue;
 		};
 		let child = dir.join(name);
+		// An entry the allow list hides is not listed, so the filter never sees it.
+		if !state.walk_visible(&child) {
+			continue;
+		}
 		let ty = entry_type(&child)?;
 		let keep = generators::request_call_with(
 			co,
@@ -138,7 +142,9 @@ async fn add_path(
 		None => None,
 	};
 
-	let mut keep = |p: &Path, _| Ok(included.as_ref().is_none_or(|set| set.contains(p)));
+	let mut keep = |p: &Path, _| {
+		Ok(included.as_ref().is_none_or(|set| set.contains(p)) && state.walk_visible(p))
+	};
 	let store_path = if expected.is_some() {
 		let captured = state
 			.capture_import(&resolved, name, recursive, Some(&mut keep))

@@ -694,6 +694,228 @@ fn pure_flake_path_imports_allow_only_fetched_sources() {
 	assert_eq!(outputs[1], outputs[0]);
 }
 
+/// A pure flake reads a path its evaluation copied to the store, through
+/// a string with context or a context-free path value, as Nixpkgs reads
+/// `/${./11}/patches/...`, because CppNix's `copyPathToStore` allows it.
+/// A store path the evaluation neither fetched, copied nor built stays
+/// forbidden, and so does the derivation it wrote, whose context alone
+/// grants nothing.
+#[test]
+fn pure_flake_reads_copied_paths_but_no_other_store_path() {
+	let reference = std::env::var_os("NOXI_REFERENCE_BIN")
+		.map(PathBuf::from)
+		.unwrap_or_else(|| {
+			Path::new(env!("CARGO_MANIFEST_DIR")).join("../../target/nix-reference/bin")
+		})
+		.join("nix");
+	let fixture = tempfile::tempdir().unwrap();
+	let flake = fixture.path().join("flake");
+	fs::create_dir_all(flake.join("dir")).unwrap();
+	fs::write(flake.join("dir/file"), "copied\n").unwrap();
+	fs::write(fixture.path().join("other"), "other\n").unwrap();
+	let roots = [tempfile::tempdir().unwrap(), tempfile::tempdir().unwrap()];
+	let mut outputs = Vec::new();
+	for (bin, root) in [reference.as_path(), Path::new(env!("CARGO_BIN_EXE_nix"))]
+		.iter()
+		.zip(&roots)
+	{
+		let added = run(
+			&reference,
+			root.path(),
+			&[
+				"store",
+				"add",
+				"--mode",
+				"nar",
+				"--name",
+				"other",
+				fixture.path().join("other").to_str().unwrap(),
+			],
+		);
+		assert!(
+			added.status.success(),
+			"{}",
+			String::from_utf8_lossy(&added.stderr)
+		);
+		let other = String::from_utf8(added.stdout).unwrap().trim().to_owned();
+		fs::write(
+			flake.join("flake.nix"),
+			format!(
+				"{{ outputs = {{ self }}: {{ string = builtins.readFile \"${{./dir}}/file\"; path = builtins.readFile /${{./dir}}/file; other = builtins.readFile \"{other}\"; drv = builtins.readFile (derivation {{ name = \"drv\"; builder = \"/bin/sh\"; system = \"x86_64-linux\"; }}).drvPath; }}; }}"
+			),
+		)
+		.unwrap();
+		let mut output = Vec::new();
+		for attr in ["string", "path", "other", "drv"] {
+			let result = run(
+				bin,
+				root.path(),
+				&[
+					"eval",
+					"--raw",
+					"--no-write-lock-file",
+					&format!("path:{}#{attr}", flake.display()),
+				],
+			);
+			// Positions name the flake's physical copy in each root.
+			output.push((
+				result.status.code(),
+				String::from_utf8_lossy(&result.stdout).into_owned(),
+				String::from_utf8_lossy(&result.stderr)
+					.replace(root.path().to_str().unwrap(), "<root>"),
+			));
+		}
+		outputs.push(output);
+	}
+	for allowed in &outputs[0][..2] {
+		assert_eq!((allowed.0, allowed.1.as_str()), (Some(0), "copied\n"));
+	}
+	for denied in &outputs[0][2..] {
+		assert_eq!(denied.0, Some(1));
+		assert!(
+			denied
+				.2
+				.contains("is forbidden in pure evaluation mode (use '--impure' to override)"),
+			"{}",
+			denied.2
+		);
+	}
+	assert_eq!(outputs[1], outputs[0]);
+}
+
+/// Pure `pathExists` and `readFileType` lstat a flake symlink whose target
+/// is outside the allow list, as CppNix does, while reading through the
+/// symlink stays forbidden.
+#[test]
+fn pure_flake_inspects_a_symlink_without_reading_its_target() {
+	let reference = std::env::var_os("NOXI_REFERENCE_BIN")
+		.map(PathBuf::from)
+		.unwrap_or_else(|| {
+			Path::new(env!("CARGO_MANIFEST_DIR")).join("../../target/nix-reference/bin")
+		})
+		.join("nix");
+	let fixture = tempfile::tempdir().unwrap();
+	let flake = fixture.path().join("flake");
+	fs::create_dir_all(&flake).unwrap();
+	std::os::unix::fs::symlink("/etc/passwd", flake.join("link")).unwrap();
+	fs::write(
+		flake.join("flake.nix"),
+		"{ outputs = { self }: { exists = builtins.pathExists ./link; type = builtins.readFileType ./link; read = builtins.readFile ./link; }; }",
+	)
+	.unwrap();
+	let roots = [tempfile::tempdir().unwrap(), tempfile::tempdir().unwrap()];
+	let mut outputs = Vec::new();
+	for (bin, root) in [reference.as_path(), Path::new(env!("CARGO_BIN_EXE_nix"))]
+		.iter()
+		.zip(&roots)
+	{
+		let mut output = Vec::new();
+		for attr in ["exists", "type", "read"] {
+			let result = run(
+				bin,
+				root.path(),
+				&[
+					"eval",
+					"--json",
+					"--no-write-lock-file",
+					&format!("path:{}#{attr}", flake.display()),
+				],
+			);
+			output.push((
+				result.status.code(),
+				String::from_utf8_lossy(&result.stdout).into_owned(),
+				String::from_utf8_lossy(&result.stderr)
+					.replace(root.path().to_str().unwrap(), "<root>"),
+			));
+		}
+		outputs.push(output);
+	}
+	assert_eq!(
+		(outputs[0][0].0, outputs[0][0].1.as_str()),
+		(Some(0), "true\n")
+	);
+	assert_eq!(
+		(outputs[0][1].0, outputs[0][1].1.as_str()),
+		(Some(0), "\"symlink\"\n")
+	);
+	assert_eq!(outputs[0][2].0, Some(1));
+	assert!(
+		outputs[0][2]
+			.2
+			.contains("access to absolute path '/etc/passwd' is forbidden in pure evaluation mode"),
+		"{}",
+		outputs[0][2].2
+	);
+	assert_eq!(outputs[1], outputs[0]);
+}
+
+/// The pure root serves only the store, as in CppNix: `/` is an empty
+/// directory, `/nix` does not exist, and copying `/` yields an empty tree
+/// instead of walking the host filesystem.
+#[test]
+fn pure_flake_root_serves_only_the_store() {
+	let reference = std::env::var_os("NOXI_REFERENCE_BIN")
+		.map(PathBuf::from)
+		.unwrap_or_else(|| {
+			Path::new(env!("CARGO_MANIFEST_DIR")).join("../../target/nix-reference/bin")
+		})
+		.join("nix");
+	let fixture = tempfile::tempdir().unwrap();
+	let flake = fixture.path().join("flake");
+	fs::create_dir_all(&flake).unwrap();
+	fs::write(
+		flake.join("flake.nix"),
+		"{ outputs = { self }: { root = builtins.readDir /.; exists = builtins.pathExists /nix; type = builtins.readFileType /nix; copy = builtins.path { path = /nix; name = \"nix\"; }; empty = builtins.path { path = /.; name = \"root\"; }; }; }",
+	)
+	.unwrap();
+	let roots = [tempfile::tempdir().unwrap(), tempfile::tempdir().unwrap()];
+	let mut outputs = Vec::new();
+	for (bin, root) in [reference.as_path(), Path::new(env!("CARGO_BIN_EXE_nix"))]
+		.iter()
+		.zip(&roots)
+	{
+		let mut output = Vec::new();
+		for attr in ["root", "exists", "type", "copy", "empty"] {
+			let result = run(
+				bin,
+				root.path(),
+				&[
+					"eval",
+					"--json",
+					"--read-only",
+					"--no-write-lock-file",
+					&format!("path:{}#{attr}", flake.display()),
+				],
+			);
+			output.push((
+				result.status.code(),
+				String::from_utf8_lossy(&result.stdout).into_owned(),
+				String::from_utf8_lossy(&result.stderr)
+					.replace(root.path().to_str().unwrap(), "<root>"),
+			));
+		}
+		outputs.push(output);
+	}
+	assert_eq!(
+		(outputs[0][0].0, outputs[0][0].1.as_str()),
+		(Some(0), "{}\n")
+	);
+	assert_eq!(
+		(outputs[0][1].0, outputs[0][1].1.as_str()),
+		(Some(0), "false\n")
+	);
+	for missing in &outputs[0][2..4] {
+		assert_eq!(missing.0, Some(1));
+		assert!(
+			missing.2.contains("path '/nix' does not exist"),
+			"{}",
+			missing.2
+		);
+	}
+	assert_eq!(outputs[0][4].0, Some(0));
+	assert_eq!(outputs[1], outputs[0]);
+}
+
 #[test]
 fn show_text_and_json_preserve_lazy_outputs_and_omissions() {
 	let reference = PathBuf::from(std::env::var_os("NOXI_REFERENCE_BIN").unwrap()).join("nix");

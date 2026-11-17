@@ -901,7 +901,7 @@ pub fn evaluate(options: &Options, cwd: &Path) -> Result<Evaluated, ExitCode> {
 			&driver,
 			fragments,
 			cwd,
-			Some(evaluator_store.clone()),
+			evaluator_store.clone(),
 		)
 	} else {
 		builder
@@ -1294,9 +1294,13 @@ fn evaluator_store(
 		),
 		None => (noxi_glue::ReadOnlyStore::new(), None),
 	};
-	if !options.modern_pure
-		&& (options.settings.get_bool("pure-eval", false)
-			|| options.settings.get_bool("restrict-eval", false))
+	// Pure and restricted evaluation see only the paths CppNix's `allowPath`
+	// admits. Modern pure evaluation has no search path, so it starts with
+	// none and admits what the evaluation fetches, copies, writes or builds.
+	if options.modern_pure {
+		evaluator_store.restrict_access(true, Vec::new());
+	} else if options.settings.get_bool("pure-eval", false)
+		|| options.settings.get_bool("restrict-eval", false)
 	{
 		let roots = search_path(options)
 			.into_iter()

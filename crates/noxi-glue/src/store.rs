@@ -51,10 +51,12 @@ pub struct EvaluatorStore {
 	pub(crate) fetch_state: RefCell<crate::fetch::FetchState>,
 }
 
-/// Source roots visible to pure or restricted legacy evaluation.
+/// Source roots visible to pure or restricted evaluation.
 struct EvaluationAccess {
 	pure: bool,
-	roots: Vec<PathBuf>,
+	/// The allowed prefixes, ordered like CppNix's `std::set<CanonPath>` so
+	/// that a lookup stays logarithmic as every copied path is added.
+	roots: BTreeSet<PathBuf>,
 }
 
 impl std::fmt::Debug for EvaluatorStore {
@@ -502,7 +504,7 @@ impl EvaluatorStore {
 	/// `allowPath`: fetched and imported store paths and the closures of
 	/// outputs built for import from derivation.
 	pub fn restrict_access(&self, pure: bool, roots: Vec<PathBuf>) {
-		let roots: Vec<PathBuf> = roots.into_iter().map(noxi_eval::canon_path).collect();
+		let roots: BTreeSet<PathBuf> = roots.into_iter().map(noxi_eval::canon_path).collect();
 		*self.access.borrow_mut() = Some(EvaluationAccess {
 			pure,
 			roots: roots.clone(),
@@ -517,8 +519,26 @@ impl EvaluatorStore {
 
 	fn allow_prefix(&self, path: &Path) {
 		if let Some(access) = self.access.borrow_mut().as_mut() {
-			access.roots.push(path.to_owned());
+			access.roots.insert(path.to_owned());
 		}
+	}
+
+	/// Check that evaluation may access `path` and where it really leads,
+	/// through the allow list `restrict_access` started. Metadata operations
+	/// pass `follow_final: false`, as CppNix's lstat does not resolve the
+	/// final symlink. Without a list every path is refused, so an evaluator
+	/// that relies on the list fails closed.
+	pub fn check_restricted_access(&self, path: &Path, follow_final: bool) -> io::Result<()> {
+		if self.access.borrow().is_none() {
+			return Err(io::Error::new(
+				io::ErrorKind::PermissionDenied,
+				format!(
+					"access to absolute path '{}' is not restricted by an allow list",
+					path.display()
+				),
+			));
+		}
+		self.check_access(path, follow_final)
 	}
 
 	/// `EvalState::allowPath`.
@@ -551,10 +571,26 @@ impl EvaluatorStore {
 	/// `CanonPath::isAllowed`: `path` is inside an allowed prefix, or is an
 	/// ancestor of one, so that the allowed paths can be reached.
 	fn is_allowed(&self, access: &EvaluationAccess, path: &Path) -> bool {
-		let related = |prefix: &Path| path.starts_with(prefix) || prefix.starts_with(path);
+		if access.pure && hidden_by_pure_root(path) {
+			return false;
+		}
+		let mounts = self.mounts.borrow();
+		// Paths order by component, so the descendants of `path` follow it
+		// directly: the first prefix at or after it is one if any is.
+		let from = (std::ops::Bound::Included(path), std::ops::Bound::Unbounded);
 		path.starts_with(COREPKGS_DIR)
-			|| access.roots.iter().any(|root| related(root))
-			|| self.mounts.borrow().keys().any(|mounted| related(mounted))
+			|| path
+				.ancestors()
+				.any(|prefix| access.roots.contains(prefix) || mounts.contains_key(prefix))
+			|| access
+				.roots
+				.range::<Path, _>(from)
+				.next()
+				.is_some_and(|root| root.starts_with(path))
+			|| mounts
+				.range::<Path, _>(from)
+				.next()
+				.is_some_and(|(mounted, _)| mounted.starts_with(path))
 	}
 
 	/// The entries of the directory `path` that restricted evaluation may
@@ -582,6 +618,12 @@ impl EvaluatorStore {
 		};
 		let allowed = |path: &Path| self.is_allowed(access, path);
 		let denied = |path: &Path| {
+			if access.pure && hidden_by_pure_root(path) {
+				return io::Error::new(
+					io::ErrorKind::NotFound,
+					format!("path '{}' does not exist", path.display()),
+				);
+			}
 			let mode = if access.pure {
 				"pure evaluation mode (use '--impure' to override)"
 			} else {
@@ -612,6 +654,21 @@ impl EvaluatorStore {
 			return Ok(());
 		}
 		Err(denied(&resolved))
+	}
+
+	/// Whether a directory walk that copies or filters a tree may include the
+	/// entry at `physical`. CppNix's allow-list accessor lists only allowed
+	/// paths and their ancestors, so a walk never leaves the allowed trees.
+	pub(crate) fn walk_visible(&self, physical: &Path) -> bool {
+		match self.access.borrow().as_ref() {
+			Some(access) => self.is_allowed(access, &self.logical_path(physical)),
+			None => true,
+		}
+	}
+
+	/// Whether evaluation access is restricted by an allow list.
+	pub(crate) fn is_restricted(&self) -> bool {
+		self.access.borrow().is_some()
 	}
 
 	/// Check that a mounted `path` is visible through its tree's filter.
@@ -877,6 +934,16 @@ impl EvaluatorStore {
 	}
 }
 
+/// In pure mode CppNix's root accessor serves only the store, mounted at the
+/// store directory: `/` is an empty directory and the store directory's
+/// other ancestors, such as `/nix`, do not exist.
+fn hidden_by_pure_root(path: &Path) -> bool {
+	let store_dir = Path::new(store_path::store_dir());
+	path.parent().is_some()
+		&& store_dir.starts_with(path)
+		&& !path.components().eq(store_dir.components())
+}
+
 pub(crate) fn ca_path(
 	name: &str,
 	recursive: bool,
@@ -891,6 +958,74 @@ pub(crate) fn ca_path(
 #[cfg(test)]
 mod tests {
 	use super::*;
+
+	/// `CanonPath::isAllowed`: an allowed prefix admits itself, what is
+	/// inside it and its ancestors, but not a sibling that shares its name
+	/// as a string prefix. A copied store path joins the list.
+	#[test]
+	fn allow_list_admits_prefixes_their_contents_and_ancestors() {
+		let store = EvaluatorStore::new();
+		assert!(store.check_restricted_access(Path::new("/"), true).is_err());
+		store.restrict_access(true, vec!["/noxi-access/a/b".into()]);
+		let copied = StorePath::from_bytes(b"00000000000000000000000000000000-copied").unwrap();
+		store.allow_store_path(&copied);
+		let copied = copied.to_absolute_path();
+		for allowed in [
+			"/",
+			"/noxi-access",
+			"/noxi-access/a",
+			"/noxi-access/a/b",
+			"/noxi-access/a/b/c/d",
+			"/noxi-access/a/b/c/../d",
+			store_path::store_dir(),
+			&copied,
+			&format!("{copied}/patches/fix.patch"),
+		] {
+			assert!(
+				store
+					.check_restricted_access(Path::new(allowed), true)
+					.is_ok(),
+				"{allowed}"
+			);
+		}
+		for denied in [
+			"/noxi-access/a/b.c",
+			"/noxi-access/a/bc",
+			"/noxi-access/a/c",
+			"/noxi-access/a/b/../c",
+			&format!("{copied}-other"),
+			&format!(
+				"{}/11111111111111111111111111111111-other",
+				store_path::store_dir()
+			),
+		] {
+			let error = store
+				.check_restricted_access(Path::new(denied), true)
+				.unwrap_err();
+			assert!(
+				error
+					.to_string()
+					.ends_with("is forbidden in pure evaluation mode (use '--impure' to override)"),
+				"{denied}: {error}"
+			);
+		}
+		// The pure root serves only the store: `/` stays an empty directory
+		// and the store directory's other ancestors do not exist.
+		let store_dir = Path::new(store_path::store_dir());
+		for ancestor in store_dir.ancestors().skip(1) {
+			let result = store.check_restricted_access(ancestor, false);
+			if ancestor.parent().is_none() {
+				assert!(result.is_ok(), "{}", ancestor.display());
+			} else {
+				assert_eq!(
+					result.unwrap_err().kind(),
+					io::ErrorKind::NotFound,
+					"{}",
+					ancestor.display()
+				);
+			}
+		}
+	}
 
 	#[test]
 	fn expected_hash_is_checked_against_captured_bytes_before_registration() {
@@ -1398,7 +1533,14 @@ impl EvalIO for StoreIO {
 			Some(parent) => self.store.physical_path(parent).canonicalize()?.join(name),
 			None => path.to_owned(),
 		};
-		let imported = self.store.import_nar(&resolved, name, None)?;
+		// Under an allow list the copy holds only what the evaluation may see.
+		let mut visible = |p: &Path, _| Ok(self.store.walk_visible(p));
+		let filter: Option<&mut Filter<'_>> = if self.store.is_restricted() {
+			Some(&mut visible)
+		} else {
+			None
+		};
+		let imported = self.store.import_nar(&resolved, name, filter)?;
 		self.store.allow_store_path(&imported);
 		Ok(PathBuf::from(imported.to_absolute_path()))
 	}
