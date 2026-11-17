@@ -334,6 +334,8 @@ Serializes Rust values into Nix and deserializes Nix values into Rust types, imp
 
 ### Unreleased
 
+- The `auto` store falls back to a per-user chroot store in `DATA_DIR/root` on Linux when `/nix/var/nix` and the daemon socket are missing and the user is not root, as CppNix's `resolveStoreConfig` does, with the same notice (2026-11-17).
+
 - Pure flake evaluation reads stored `path:` inputs by name, resolves the built-in `<nix/...>` files, answers `pathExists` with false for paths it may not access, and allows `builtins.path` and `builtins.filterSource` for paths inside fetched sources, refusing others with CppNix's message. Every pure read and import is checked on its resolved path, so a symlink or `..` can no longer reach host files (2026-11-09).
 - Daemon clients send only overrides through `SetOptions`, so an untrusted client on NixOS no longer prints a restricted-setting warning for every system `nix.conf` entry, and a missing `local?root=` store root is created as CppNix does (2026-11-09).
 

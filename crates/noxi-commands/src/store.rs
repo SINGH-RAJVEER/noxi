@@ -204,12 +204,17 @@ fn resolve(uri: &str) -> Result<Target, String> {
 		"auto" if root.is_some() => Target::Local { root, read_only },
 		"auto" => {
 			let state_dir = LocalStoreConfig::system().state_dir;
-			if accessible(&state_dir) || !daemon_socket().exists() {
+			if accessible(&state_dir) {
 				Target::Local { root, read_only }
-			} else {
+			} else if daemon_socket().exists() {
 				Target::Daemon {
 					socket: daemon_socket(),
 					root,
+				}
+			} else {
+				Target::Local {
+					root: chroot_store_fallback(&state_dir, query.is_empty()),
+					read_only,
 				}
 			}
 		}
@@ -328,6 +333,56 @@ fn accessible(dir: &Path) -> bool {
 	};
 	// SAFETY: `path` is a valid NUL-terminated string.
 	unsafe { libc::access(path.as_ptr(), libc::R_OK | libc::W_OK) == 0 }
+}
+
+/// `resolveStoreConfig`'s Linux fallback for `auto`: when the state
+/// directory does not exist, no daemon socket does either, the URI has no
+/// parameters, the user is not root and neither `NIX_STORE_DIR` nor
+/// `NIX_STATE_DIR` is set, use `DATA_DIR/root` as a chroot store. Paths keep
+/// their `/nix/store` names, so binary caches still apply, and no daemon or
+/// privilege is involved. A root that cannot be created falls back to the
+/// system store, as in CppNix.
+fn chroot_store_fallback(state_dir: &Path, no_params: bool) -> Option<PathBuf> {
+	if !cfg!(target_os = "linux")
+		|| !no_params
+		|| std::fs::symlink_metadata(state_dir).is_ok()
+		// SAFETY: getuid cannot fail.
+		|| unsafe { libc::getuid() } == 0
+		|| std::env::var_os("NIX_STORE_DIR").is_some()
+		|| std::env::var_os("NIX_STATE_DIR").is_some()
+	{
+		return None;
+	}
+	let root = data_dir().join("root");
+	let level = if std::fs::symlink_metadata(&root).is_ok() {
+		nix_compat::log::VerbosityLevel::Debug
+	} else {
+		std::fs::create_dir_all(&root).ok()?;
+		nix_compat::log::VerbosityLevel::Warn
+	};
+	if nix_compat::log::log_enabled(level) {
+		eprintln!(
+			"\"{}\" does not exist, so Nix will use \"{}\" as a chroot store",
+			state_dir.display(),
+			root.display()
+		);
+	}
+	Some(root)
+}
+
+/// `getDataDir`: `NIX_DATA_HOME`, else `XDG_DATA_HOME/nix`, else
+/// `~/.local/share/nix`.
+fn data_dir() -> PathBuf {
+	let env = |name| {
+		std::env::var_os(name)
+			.filter(|value| !value.is_empty())
+			.map(PathBuf::from)
+	};
+	env("NIX_DATA_HOME").unwrap_or_else(|| {
+		env("XDG_DATA_HOME")
+			.unwrap_or_else(|| noxi_store::profiles::home_dir().join(".local/share"))
+			.join("nix")
+	})
 }
 
 /// The configuration of `local?root=ROOT`, creating ROOT if missing. Neither it

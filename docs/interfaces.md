@@ -80,4 +80,23 @@ Legacy `nix-store --init` now opens and initializes the selected store database 
 
 The command store opener accepts `local://?root=ROOT` alongside `local?root=ROOT`. Modern dispatch creates a missing diverted root for either spelling. This does not qualify other URL parameters or remote backends.
 
+On Linux the `auto` store falls back to a per-user chroot store, as CppNix 2.35.2's `resolveStoreConfig` does. This happens when all of the following hold:
+
+- the state directory does not exist;
+- there is no daemon socket;
+- the URI has no parameters;
+- the user is not root;
+- neither `NIX_STORE_DIR` nor `NIX_STATE_DIR` is set.
+
+The store then lives in `DATA_DIR/root`, where `DATA_DIR` is `NIX_DATA_HOME`, else `XDG_DATA_HOME/nix`, else `~/.local/share/nix`. Store paths keep their `/nix/store` names, so binary-cache substitutes still apply, and a user without root can use noxi on a host without `/nix`, with no daemon. The first use creates the root and prints CppNix's `"/nix/var/nix" does not exist, so Nix will use "..." as a chroot store` notice. Later uses print it only at debug verbosity. A root that cannot be created falls back to the system store.
+
+`crates/noxi-commands/tests/reference_chroot_store.rs` hides `/nix/var` behind a tmpfs in an unprivileged user and mount namespace, then runs both engines as a non-root user through a nested user namespace. It compares:
+
+- the notice on first and later use;
+- evaluation and derivation instantiation into the chroot store;
+- the files created, under `XDG_DATA_HOME` and `NIX_DATA_HOME` as well as the default location;
+- the absence of the fallback when `NIX_STATE_DIR` is set.
+
+The reference's `nix-store --verify --check-contents` then accepts the store noxi wrote. Building into the chroot store and running programs from it on a host without `/nix` are not qualified yet. The latter needs the chroot of bind mounts that CppNix's `chrootHelper` builds.
+
 File-cache uploads through `nix copy --to` accept explicit `compression=none`, `gzip`, `bzip2` and `zstd` with a signing key. Pinned-reference import and content verification cover each codec. The command still rejects unspecified or unsupported upload compression; backend defaults do not establish reference CLI parity.
