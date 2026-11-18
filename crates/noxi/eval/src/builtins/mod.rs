@@ -1656,7 +1656,7 @@ mod pure_builtins {
 	#[builtin("listToAttrs")]
 	async fn builtin_list_to_attrs(co: GenCo, list: Value) -> Result<Value, ErrorKind> {
 		let list = list.to_list()?;
-		let mut map = FxHashMap::default();
+		let mut bindings = Vec::with_capacity(list.len());
 		for val in list {
 			let attrs = try_value!(generators::request_force(&co, val).await)
 				.to_attrs()
@@ -1684,10 +1684,10 @@ mod pure_builtins {
 				.select_required("value")
 				.trace(None, "in a {name=...; value=...;} pair")?
 				.clone();
-			// Map entries earlier in the list take precedence over entries later in the list
-			map.entry(name).or_insert(value);
+			bindings.push((name, value));
 		}
-		Ok(Value::attrs(NixAttrs::from(map)))
+		// Entries earlier in the list take precedence over later entries.
+		Ok(Value::attrs(NixAttrs::from_first_bindings(bindings)))
 	}
 
 	#[builtin("map")]
@@ -1743,29 +1743,20 @@ mod pure_builtins {
 		attrs: Value,
 	) -> Result<Value, ErrorKind> {
 		let attrs = attrs.to_attrs()?;
-		let mut out = FxHashMap::default();
-		if attrs.is_empty() {
-			return Ok(Value::attrs(out.into()));
-		}
-
 		// mapAttrs makes this call without a source position.
 		let lambda = Thunk::suspended_call_lambda_at(span, false, true);
-		for (key, value) in attrs.into_iter() {
+		Ok(Value::attrs(attrs.map_values(|key, value| {
 			let result = Value::Thunk(Thunk::new_suspended_call_with_lambda(
 				f.clone(),
 				key.clone().into(),
 				lambda.clone(),
 			));
-			let result = Value::Thunk(Thunk::new_suspended_call_with_lambda(
+			Value::Thunk(Thunk::new_suspended_call_with_lambda(
 				result,
-				value,
+				value.clone(),
 				lambda.clone(),
-			));
-
-			out.insert(key, result);
-		}
-
-		Ok(Value::attrs(out.into()))
+			))
+		})))
 	}
 
 	#[builtin("match")]
@@ -1905,15 +1896,7 @@ mod pure_builtins {
 			check_argument(&key, ArgumentType::StringNoCtx, hint)?;
 			names.insert(key.to_str()?);
 		}
-		let keys = names;
-		let res = attrs.iter().filter_map(|(k, v)| {
-			if !keys.contains(k) {
-				Some((k.clone(), v.clone()))
-			} else {
-				None
-			}
-		});
-		Ok(Value::attrs(NixAttrs::from_iter(res)))
+		Ok(Value::attrs(attrs.filter_names(|key| !names.contains(key))))
 	}
 
 	#[builtin("replaceStrings")]

@@ -379,6 +379,11 @@ impl Graph {
 						self.value(value);
 					}
 				}
+				AttrsRep::Layered { base, top, .. } => {
+					for attrs in [base, top] {
+						self.link(&attrs.0, || ATTRS, || Pending::Attrs(Rc::clone(&attrs.0)));
+					}
+				}
 			},
 			Pending::List(list) => {
 				for value in list.iter() {

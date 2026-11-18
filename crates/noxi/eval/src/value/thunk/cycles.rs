@@ -9,6 +9,7 @@ use std::{
 use crate::opcode::UpvalueIdx;
 
 use super::{Thunk, ThunkRepr, Upvalues, Value};
+use crate::value::NixAttrs;
 
 const MAX_CANDIDATES: usize = 4096;
 const TRIALS_PER_PASS: usize = 4;
@@ -123,11 +124,7 @@ fn walk_value(
 	// outside the trial could keep every value in a shared container alive.
 	match value {
 		Value::Thunk(thunk) => visit(thunk)?,
-		Value::Attrs(attrs) if Rc::strong_count(&attrs.0) == 1 => {
-			for (_, value) in attrs.iter() {
-				walk_value(value, slots, visit)?;
-			}
-		}
+		Value::Attrs(attrs) => walk_attrs(attrs, slots, visit)?,
 		Value::List(list) if list.is_uniquely_owned() => {
 			for value in list {
 				walk_value(value, slots, visit)?;
@@ -139,6 +136,26 @@ fn walk_value(
 			walk_captures(&closure.upvalues, slots, visit)?;
 		}
 		_ => {}
+	}
+	Ok(())
+}
+
+/// The values a uniquely owned set holds. A layered set holds its layers,
+/// which are owned, and so walked, separately.
+fn walk_attrs(
+	attrs: &NixAttrs,
+	slots: &mut usize,
+	visit: &mut impl FnMut(&Thunk) -> Result<(), TrialAbort>,
+) -> Result<(), TrialAbort> {
+	if Rc::strong_count(&attrs.0) != 1 {
+		return Ok(());
+	}
+	if let Some((base, top)) = attrs.layers() {
+		walk_attrs(base, slots, visit)?;
+		return walk_attrs(top, slots, visit);
+	}
+	for (_, value) in attrs.iter() {
+		walk_value(value, slots, visit)?;
 	}
 	Ok(())
 }

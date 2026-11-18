@@ -10,6 +10,7 @@ use std::cell::{Cell, OnceCell};
 use std::collections::BTreeMap;
 use std::hash::BuildHasher as _;
 use std::iter::FromIterator;
+use std::ops::Range;
 use std::rc::Rc;
 use std::sync::LazyLock;
 
@@ -72,9 +73,9 @@ fn merge_bindings(
 	out: &mut Vec<(NixString, Value)>,
 	left: &[(NixString, Value)],
 	right: &[(NixString, Value)],
-	// Called for every binding pushed: whether it came from `right`, and its
-	// offset there.
-	mut origin: impl FnMut(bool, usize),
+	// Called for every run of bindings pushed: whether it came from `right`,
+	// and its offsets there.
+	mut origin: impl FnMut(bool, Range<usize>),
 ) {
 	let (mut l, mut r) = (0, 0);
 	if left.len() > right.len().saturating_mul(8) {
@@ -82,61 +83,69 @@ fn merge_bindings(
 		for (offset, entry) in right.iter().enumerate() {
 			let split = l + left[l..].partition_point(|(key, _)| key < &entry.0);
 			out.extend_from_slice(&left[l..split]);
-			(l..split).for_each(|i| origin(false, i));
+			origin(false, l..split);
 			l = split;
 			if left.get(l).is_some_and(|(key, _)| key == &entry.0) {
 				l += 1;
 			}
 			out.push(entry.clone());
-			origin(true, offset);
+			origin(true, offset..offset + 1);
 		}
 		out.extend_from_slice(&left[l..]);
-		(l..left.len()).for_each(|i| origin(false, i));
+		origin(false, l..left.len());
 		return;
 	}
 	if right.len() > left.len().saturating_mul(8) {
 		for (offset, entry) in left.iter().enumerate() {
 			let split = r + right[r..].partition_point(|(key, _)| key < &entry.0);
 			out.extend_from_slice(&right[r..split]);
-			(r..split).for_each(|i| origin(true, i));
+			origin(true, r..split);
 			r = split;
 			if right.get(r).is_some_and(|(key, _)| key == &entry.0) {
 				out.push(right[r].clone());
-				origin(true, r);
+				origin(true, r..r + 1);
 				r += 1;
 			} else {
 				out.push(entry.clone());
-				origin(false, offset);
+				origin(false, offset..offset + 1);
 			}
 		}
 		out.extend_from_slice(&right[r..]);
-		(r..right.len()).for_each(|i| origin(true, i));
+		origin(true, r..right.len());
 		return;
 	}
 	while let (Some(a), Some(b)) = (left.get(l), right.get(r)) {
 		match a.0.cmp(&b.0) {
 			std::cmp::Ordering::Less => {
-				out.push(a.clone());
-				origin(false, l);
+				let start = l;
 				l += 1;
+				while left.get(l).is_some_and(|(key, _)| key < &b.0) {
+					l += 1;
+				}
+				out.extend_from_slice(&left[start..l]);
+				origin(false, start..l);
 			}
 			std::cmp::Ordering::Greater => {
-				out.push(b.clone());
-				origin(true, r);
+				let start = r;
 				r += 1;
+				while right.get(r).is_some_and(|(key, _)| key < &a.0) {
+					r += 1;
+				}
+				out.extend_from_slice(&right[start..r]);
+				origin(true, start..r);
 			}
 			std::cmp::Ordering::Equal => {
 				out.push(b.clone());
-				origin(true, r);
+				origin(true, r..r + 1);
 				l += 1;
 				r += 1;
 			}
 		}
 	}
 	out.extend_from_slice(&left[l..]);
-	(l..left.len()).for_each(|i| origin(false, i));
+	origin(false, l..left.len());
 	out.extend_from_slice(&right[r..]);
-	(r..right.len()).for_each(|i| origin(true, i));
+	origin(true, r..right.len());
 }
 
 static NAME: LazyLock<NixString> = LazyLock::new(|| "name".into());
@@ -179,6 +188,22 @@ pub(super) enum AttrsRep {
 	/// attribute names "name" and "value", like `{name="foo";
 	/// value="bar";}`, *not* `{foo="bar";}`!
 	KV { name: Value, value: Value },
+
+	/// A wide `Map` set updated by a much smaller `Map` set, without copying
+	/// the wide set's bindings: `top` takes precedence over `base`. Both are
+	/// flat, and `top` has under a quarter as many bindings as `base`.
+	Layered {
+		base: NixAttrs,
+		top: NixAttrs,
+		/// The number of distinct names in both, counted on first use;
+		/// `usize::MAX` until then.
+		len: Cell<usize>,
+	},
+}
+
+/// Whether `right` may be layered over `left` without copying `left`.
+fn layers_over(left: usize, right: usize) -> bool {
+	left > right.saturating_mul(4)
 }
 
 impl AttrsRep {
@@ -193,6 +218,36 @@ impl AttrsRep {
 			},
 
 			AttrsRep::Map { attrs, .. } => self.offset(key).map(|offset| &attrs[offset].1),
+
+			AttrsRep::Layered { base, top, .. } => top.0.select(key).or_else(|| base.0.select(key)),
+		}
+	}
+
+	/// The number of distinct names in a `Layered` set.
+	fn layered_len(&self) -> usize {
+		let AttrsRep::Layered { base, top, len } = self else {
+			return 0;
+		};
+		if len.get() == usize::MAX {
+			let bindings = base.0.bindings();
+			let (mut start, mut shared) = (0, 0);
+			for (key, _) in top.0.bindings() {
+				start += bindings[start..].partition_point(|(name, _)| name < key);
+				if bindings.get(start).is_some_and(|(name, _)| name == key) {
+					shared += 1;
+					start += 1;
+				}
+			}
+			len.set(bindings.len() + top.len() - shared);
+		}
+		len.get()
+	}
+
+	/// The bindings of a flat `Map`, in order.
+	fn bindings(&self) -> &[(NixString, Value)] {
+		match self {
+			AttrsRep::Map { attrs, .. } => attrs,
+			_ => &[],
 		}
 	}
 
@@ -275,6 +330,20 @@ impl AttrsRep {
 		}
 	}
 
+	/// Append the positions of the bindings at `offsets`.
+	fn extend_positions(&self, offsets: Range<usize>, out: &mut Vec<Option<Span>>) {
+		match self {
+			AttrsRep::Map {
+				pos: Some(SetPositions::Indexed(pos)),
+				..
+			} => out.extend_from_slice(&pos[offsets]),
+			AttrsRep::Map { pos: Some(_), .. } => {
+				out.extend(offsets.map(|offset| self.position_at(offset)))
+			}
+			_ => out.resize(out.len() + offsets.len(), None),
+		}
+	}
+
 	fn has_positions(&self) -> bool {
 		matches!(self, AttrsRep::Map { pos: Some(_), .. })
 	}
@@ -283,7 +352,7 @@ impl AttrsRep {
 		match self {
 			AttrsRep::Empty => false,
 			AttrsRep::KV { .. } => key == "name" || key == "value",
-			AttrsRep::Map { .. } => self.select(key).is_some(),
+			AttrsRep::Map { .. } | AttrsRep::Layered { .. } => self.select(key).is_some(),
 		}
 	}
 }
@@ -463,15 +532,66 @@ impl NixAttrs {
 		) {
 			return other;
 		}
+		match (self.0.as_ref(), other.0.as_ref()) {
+			(AttrsRep::Map { attrs: left, .. }, AttrsRep::Map { attrs: right, .. })
+				if !right.is_empty() && layers_over(left.len(), right.len()) =>
+			{
+				return Self::layered(self, other);
+			}
+			(AttrsRep::Layered { base, top, .. }, AttrsRep::Map { .. } | AttrsRep::KV { .. }) => {
+				// Layers stay one deep: the new top merges the old one with
+				// `other`, while it stays small enough.
+				let base = base.clone();
+				let top = top.clone().update_flat(other);
+				if layers_over(base.len(), top.len()) {
+					return Self::layered(base, top);
+				}
+				return base.update_flat(top);
+			}
+			(_, AttrsRep::Layered { .. }) => return self.update(other.flatten()),
+			_ => {}
+		}
+		self.update_flat(other)
+	}
+
+	/// Layer `top` over the flat, much wider `base`.
+	fn layered(base: NixAttrs, top: NixAttrs) -> NixAttrs {
+		AttrsRep::Layered {
+			base,
+			top,
+			len: Cell::new(usize::MAX),
+		}
+		.into()
+	}
+
+	/// The base and top of a layered set, which own its bindings.
+	#[cfg(feature = "eval-cycle-collection")]
+	pub(crate) fn layers(&self) -> Option<(&NixAttrs, &NixAttrs)> {
+		match self.0.as_ref() {
+			AttrsRep::Layered { base, top, .. } => Some((base, top)),
+			_ => None,
+		}
+	}
+
+	/// This set with any layers merged into one flat set.
+	fn flatten(self) -> NixAttrs {
+		match self.0.as_ref() {
+			AttrsRep::Layered { base, top, .. } => base.clone().update_flat(top.clone()),
+			_ => self,
+		}
+	}
+
+	/// Merge two sets that are not layered into one flat set.
+	fn update_flat(self, other: Self) -> Self {
 		let len = self.len() + other.len();
 		let mut attrs = Vec::with_capacity(len);
 		// Each binding keeps the position it has in the operand it came from.
 		let mut spans =
 			(self.0.has_positions() || other.0.has_positions()).then(|| Vec::with_capacity(len));
-		let origin = |from_right: bool, offset: usize| {
+		let origin = |from_right: bool, offsets: Range<usize>| {
 			if let Some(spans) = &mut spans {
 				let side = if from_right { &other } else { &self };
-				spans.push(side.0.position_at(offset));
+				side.0.extend_positions(offsets, spans);
 			}
 		};
 		match (self.0.as_ref(), other.0.as_ref()) {
@@ -506,6 +626,7 @@ impl NixAttrs {
 			AttrsRep::Map { attrs, .. } => attrs.len(),
 			AttrsRep::Empty => 0,
 			AttrsRep::KV { .. } => 2,
+			AttrsRep::Layered { .. } => self.0.layered_len(),
 		}
 	}
 
@@ -513,7 +634,7 @@ impl NixAttrs {
 		match self.0.as_ref() {
 			AttrsRep::Map { attrs, .. } => attrs.is_empty(),
 			AttrsRep::Empty => true,
-			AttrsRep::KV { .. } => false,
+			AttrsRep::KV { .. } | AttrsRep::Layered { .. } => false,
 		}
 	}
 
@@ -557,6 +678,12 @@ impl NixAttrs {
 				value,
 				at: IterKV::default(),
 			},
+
+			rep @ AttrsRep::Layered { base, top, .. } => KeyValue::Layered {
+				base: base.0.bindings().iter(),
+				top: top.0.bindings().iter(),
+				remaining: rep.layered_len(),
+			},
 		})
 	}
 
@@ -577,6 +704,7 @@ impl NixAttrs {
 			AttrsRep::Empty => KeysInner::Empty,
 			AttrsRep::KV { .. } => KeysInner::KV(IterKV::default()),
 			AttrsRep::Map { attrs, .. } => KeysInner::Map(attrs.iter()),
+			AttrsRep::Layered { .. } => KeysInner::Layered(self.iter()),
 		})
 	}
 
@@ -812,6 +940,46 @@ impl NixAttrs {
 		)
 	}
 
+	/// The names of this set, in order, each bound to `f` of its name and
+	/// value. The result shares this set's lookup index; it has no positions.
+	pub(crate) fn map_values(&self, mut f: impl FnMut(&NixString, &Value) -> Value) -> NixAttrs {
+		let attrs: Vec<_> = self
+			.iter()
+			.map(|(key, value)| (key.clone(), f(key, value)))
+			.collect();
+		let index = match self.0.as_ref() {
+			AttrsRep::Map { index, .. } => index.clone(),
+			_ => OnceCell::new(),
+		};
+		AttrsRep::Map {
+			attrs: attrs.into_boxed_slice(),
+			index,
+			lookups: Cell::new(0),
+			pos: None,
+		}
+		.into()
+	}
+
+	/// The bindings of this set whose names satisfy `keep`, without positions.
+	pub(crate) fn filter_names(&self, mut keep: impl FnMut(&NixString) -> bool) -> NixAttrs {
+		let attrs = self
+			.iter()
+			.filter(|(key, _)| keep(key))
+			.map(|(key, value)| (key.clone(), value.clone()))
+			.collect();
+		Self::from_sorted(attrs, None)
+	}
+
+	/// A set of `bindings` in any order where the first binding of a name
+	/// takes precedence, as in `builtins.listToAttrs`.
+	pub(crate) fn from_first_bindings(mut bindings: Vec<(NixString, Value)>) -> NixAttrs {
+		// Stable sorting keeps duplicates in list order; lists built from
+		// existing sets are often sorted already, which this detects.
+		bindings.sort_by(|(a, _), (b, _)| a.cmp(b));
+		bindings.dedup_by(|(a, _), (b, _)| a == b);
+		Self::from_sorted(bindings, None)
+	}
+
 	/// Build a compact set from unique bindings already in lexical order.
 	fn from_sorted(attrs: Vec<(NixString, Value)>, pos: Option<AttrPositions>) -> Self {
 		let index = pos
@@ -844,6 +1012,14 @@ impl NixAttrs {
 				pos: Some(SetPositions::Indexed(pos)),
 				..
 			} => pos[rep.offset(key.borrow())?],
+			// A name in `top` has its position there, even when it has none.
+			AttrsRep::Layered { base, top, .. } => {
+				if top.contains(key.borrow()) {
+					top.get_attr_pos(key)
+				} else {
+					base.get_attr_pos(key)
+				}
+			}
 			_ => None,
 		}
 	}
@@ -861,6 +1037,13 @@ impl IntoIterator for NixAttrs {
 			)),
 			AttrsRep::Map { attrs, .. } => {
 				OwnedAttrsIterator(IntoIterRepr::Finite(attrs.into_vec().into_iter()))
+			}
+			rep @ AttrsRep::Layered { .. } => {
+				let attrs: Vec<_> = NixAttrs::from(rep)
+					.iter()
+					.map(|(key, value)| (key.clone(), value.clone()))
+					.collect();
+				OwnedAttrsIterator(IntoIterRepr::Finite(attrs.into_iter()))
 			}
 		}
 	}
@@ -977,6 +1160,14 @@ pub enum KeyValue<'a> {
 	},
 
 	Map(std::slice::Iter<'a, (NixString, Value)>),
+
+	/// The bindings of `base` and `top` merged by name, `top` taking
+	/// precedence.
+	Layered {
+		base: std::slice::Iter<'a, (NixString, Value)>,
+		top: std::slice::Iter<'a, (NixString, Value)>,
+		remaining: usize,
+	},
 }
 
 /// Iterator over a Nix attribute set.
@@ -1010,6 +1201,28 @@ impl<'a> Iterator for Iter<KeyValue<'a>> {
 
 				IterKV::Done => None,
 			},
+			KeyValue::Layered {
+				base,
+				top,
+				remaining,
+			} => {
+				let next = match (base.as_slice().first(), top.as_slice().first()) {
+					(Some(low), Some(high)) => match low.0.cmp(&high.0) {
+						std::cmp::Ordering::Less => base.next(),
+						std::cmp::Ordering::Greater => top.next(),
+						std::cmp::Ordering::Equal => {
+							base.next();
+							top.next()
+						}
+					},
+					(Some(_), None) => base.next(),
+					(None, _) => top.next(),
+				};
+				if next.is_some() {
+					*remaining -= 1;
+				}
+				next.map(|(key, value)| (key, value))
+			}
 		}
 	}
 }
@@ -1024,6 +1237,7 @@ impl ExactSizeIterator for Iter<KeyValue<'_>> {
 				IterKV::Done => 0,
 			},
 			KeyValue::Map(inner) => inner.len(),
+			KeyValue::Layered { remaining, .. } => *remaining,
 		}
 	}
 }
@@ -1032,6 +1246,7 @@ enum KeysInner<'a> {
 	Empty,
 	KV(IterKV),
 	Map(std::slice::Iter<'a, (NixString, Value)>),
+	Layered(Iter<KeyValue<'a>>),
 }
 
 pub struct Keys<'a>(KeysInner<'a>);
@@ -1057,6 +1272,7 @@ impl<'a> Iterator for Keys<'a> {
 			}
 			KeysInner::KV(IterKV::Done) => None,
 			KeysInner::Map(m) => m.next().map(|(key, _)| key),
+			KeysInner::Layered(m) => m.next().map(|(key, _)| key),
 		}
 	}
 }
@@ -1081,6 +1297,7 @@ impl ExactSizeIterator for Keys<'_> {
 				IterKV::Done => 0,
 			},
 			KeysInner::Map(m) => m.len(),
+			KeysInner::Layered(m) => m.len(),
 		}
 	}
 }

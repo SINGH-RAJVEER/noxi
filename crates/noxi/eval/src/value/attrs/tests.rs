@@ -380,3 +380,51 @@ fn attribute_iterators_track_remaining_length() {
 		}
 	}
 }
+
+#[test]
+fn layered_updates_match_flat_merges() {
+	let entries = |names: &[usize], value: i64| {
+		NixAttrs::from_iter(names.iter().map(|name| (format!("a{name:03}"), value)))
+	};
+	let wide = entries(&(0..100).collect::<Vec<_>>(), 0);
+	let layers = [
+		entries(&[0, 50, 150], 1),
+		entries(&[50, 99, 200], 2),
+		NixAttrs::from_kv(3.into(), 4.into()),
+		entries(&(100..130).collect::<Vec<_>>(), 5),
+	];
+	let (mut layered, mut flat) = (wide.clone(), wide);
+	for layer in layers {
+		layered = layered.update(layer.clone());
+		flat = flat.update_flat(layer);
+		let actual: Vec<_> = layered
+			.iter()
+			.map(|(k, v)| (k.clone(), v.as_int().unwrap()))
+			.collect();
+		let expected: Vec<_> = flat
+			.iter()
+			.map(|(k, v)| (k.clone(), v.as_int().unwrap()))
+			.collect();
+		assert_eq!(actual, expected);
+		assert_eq!(layered.len(), flat.len());
+		assert_eq!(layered.keys().len(), flat.len());
+		assert!(layered.keys().eq(flat.keys()));
+		for (key, value) in &expected {
+			assert_eq!(layered.select(key).unwrap().as_int().unwrap(), *value);
+		}
+		assert!(layered.select("missing").is_none());
+		let owned: Vec<_> = layered.clone().into_iter().map(|(k, _)| k).collect();
+		assert!(owned.iter().eq(flat.keys()));
+	}
+	assert!(matches!(
+		entries(&(0..100).collect::<Vec<_>>(), 0)
+			.update(entries(&[1], 1))
+			.0
+			.as_ref(),
+		AttrsRep::Layered { .. }
+	));
+	// A layered right operand is flattened before merging.
+	let both = entries(&[0, 1], 7).update(layered.clone());
+	assert_eq!(both.len(), layered.len());
+	assert_eq!(both.select("a000").unwrap().as_int().unwrap(), 1);
+}
