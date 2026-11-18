@@ -1,7 +1,8 @@
 //! Fetchers for `builtins.fetchTree`, `fetchGit`, `fetchTarball`,
 //! `fetchurl` and flake inputs, following CppNix 2.35.2's
 //! `src/libfetchers`. A fetch yields a [`Mount`] (a local tree, optionally
-//! filtered) and the locked input; [`mount_input`] hashes the tree and
+//! filtered) and the locked input; [`mount_input`] hashes the tree, unless
+//! a locked NAR hash names a valid store path serving it, and
 //! serves it at its store path, copying it only into a writable store.
 
 pub(crate) mod builtins;
@@ -439,7 +440,7 @@ pub(crate) fn mount_input(
 	original: &Input,
 	mount: &Mount,
 ) -> Result<StorePath> {
-	let (path, nar_hash) = add_tree(store, &input.get_name(), mount)?;
+	let (path, nar_hash) = add_tree(store, input, mount)?;
 	store.allow_store_path(&path);
 	input
 		.attrs
@@ -459,24 +460,25 @@ pub(crate) fn mount_input(
 }
 
 /// Hash `mount` as a NAR and make it available at the resulting store
-/// path: copied into a writable store, or served from its root.
-pub(crate) fn add_tree(
-	store: &EvaluatorStore,
-	name: &str,
-	mount: &Mount,
-) -> Result<(StorePath, NixHash)> {
+/// path: copied into a writable store, or served from its root. A locked
+/// input already valid in the store keeps its NAR hash unhashed.
+fn add_tree(store: &EvaluatorStore, input: &Input, mount: &Mount) -> Result<(StorePath, NixHash)> {
+	let name = input.get_name();
 	if let Some((_, _, path, hash)) = store
 		.fetch_state
 		.borrow()
 		.hashed
 		.iter()
-		.find(|(root, n, ..)| *root == mount.root && n == name)
+		.find(|(root, n, ..)| *root == mount.root && *n == name)
 	{
 		return Ok((path.clone(), hash.clone()));
 	}
-	let (path, hash) = store
-		.add_tree(name, mount)
-		.map_err(|e| Error::new(e.to_string()))?;
+	let (path, hash) = match locked_store_tree(store, input, mount)? {
+		Some(known) => known,
+		None => store
+			.add_tree(&name, mount)
+			.map_err(|e| Error::new(e.to_string()))?,
+	};
 	let entries: Vec<_> = store
 		.fetch_state
 		.borrow()
@@ -493,11 +495,43 @@ pub(crate) fn add_tree(
 	}
 	store.fetch_state.borrow_mut().hashed.push((
 		mount.root.clone(),
-		name.to_owned(),
+		name,
 		path.clone(),
 		hash.clone(),
 	));
 	Ok((path, hash))
+}
+
+/// The store path and NAR hash of a final input whose locked NAR hash names
+/// a valid store path that `mount` serves unfiltered. The store vouches for
+/// that path's contents, so, as in CppNix's `Input::fetchToStore`, the tree
+/// is not dumped and hashed again.
+fn locked_store_tree(
+	store: &EvaluatorStore,
+	input: &Input,
+	mount: &Mount,
+) -> Result<Option<(StorePath, NixHash)>> {
+	if mount.filter.is_some() || !input.is_final() {
+		return Ok(None);
+	}
+	let Some(hash) = input.get_nar_hash()? else {
+		return Ok(None);
+	};
+	let name = input.get_name();
+	let Ok(path) =
+		nix_compat::store_path::build_ca_path(&name, true, &hash, std::iter::empty(), false)
+	else {
+		return Ok(None);
+	};
+	let path = path.to_owned();
+	if store.valid_store_path(&path).as_deref() != Some(mount.root.as_path()) {
+		return Ok(None);
+	}
+	// A read-only evaluation serves hashed trees from their mounts.
+	if store.store().is_none() {
+		store.mount(&path, mount.clone());
+	}
+	Ok(Some((path, hash)))
 }
 
 /// A fetcher cache entry whose value is a tree's NAR hash, as CppNix

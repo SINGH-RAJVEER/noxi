@@ -700,3 +700,56 @@ Paired exact-output timing compared the final build with the base binary and Cpp
 | EVAL-PKG-PATHS | 0.995 s / 304 MiB | 0.962 s / 300 MiB | 0.316 s / 165 MiB | 1.026 (1.009 to 1.043) | 1.010 (1.007 to 1.011) |
 
 The evaluator passed 554 tests and the doctest, and the upstream language suite passed 466 of 466 fixtures with exact live reference matches. The language boundary tests also passed. Builds, patches, stat runs, profiles, diagnostics counters and paired reports are under `target/perf-vm-1` in the lane worktree. Each `bin-*` directory holds the patch it was built from.
+## Real flake system evaluation, 2026-11-18
+
+This lane measured the user's NixOS flake (`nix eval --raw --no-write-lock-file --option eval-cache false path:~/.config/nixos#nixosConfigurations.nixos.config.system.build.toplevel.drvPath`) with frozen noxi 075a5e7 and host CppNix 2.35.6. Every run held the heavy lock. The host also ran other lanes, so single-run numbers carry noise. Both evaluators return `/nix/store/h9j8xmn9dbsxfzx0csfxmak30n6dabpj-nixos-system-nixos-26.11.20261113.d5cc683.drv`.
+
+### Phase split
+
+The evaluation boundary is the first 100 ms sample with more than 200 MiB RSS. Cold runs evicted the input trees' file pages with `posix_fadvise(DONTNEED)` before each run. Warm runs read them first. Each noxi cell is the median of three runs. The CppNix column is one run.
+
+| Phase | noxi warm | noxi cold | Candidate warm | Candidate cold | CppNix |
+| --- | --- | --- | --- | --- | --- |
+| Lock, fetch and input hashing | 2.62 s | 11.68 s | 1.41 s | 2.72 s | about 1 s |
+| Evaluation and derivation writing | 40.0 s | 42.0 s | 40.5 s | 43.1 s | about 11.6 s |
+| Total elapsed | 42.59 s | 53.67 s | 41.88 s | 45.81 s | 12.62 s (one run) |
+| Process CPU (task-clock) | 36.22 s | 41.00 s | 35.88 s | 38.95 s | 13.18 s |
+| System CPU | 6.92 s | 8.99 s | 6.56 s | 8.73 s | 1.2 s |
+| Minor page faults | 1.37 M | 1.40 M | 1.37 M | 1.39 M | 0.44 M |
+| Peak RSS | 5,329 MiB | 5,337 MiB | 5,332 MiB | 5,329 MiB | 1,694 MiB |
+| `write` bytes (`wchar`) | 427 MiB | 427 MiB | 80 MiB | 80 MiB | 106 MiB |
+| `write` system calls (`syscw`) | 1,066,247 | 1,066,247 | 47,544 | 47,544 | about 132,000 |
+| Bytes sent to the daemon | 328 MiB | 328 MiB | not traced | not traced | 105 MiB |
+
+The `write` rows are not comparable across the two implementations. CppNix sends its daemon requests with `write`, so its 106 MiB is mostly daemon traffic. noxi sends them with `sendto`, which these counters omit. For noxi the `write` rows are the spill file, and its daemon traffic is the separate row, taken from one traced run of each implementation. The trial does not touch the daemon path.
+
+Parse time could not be separated from evaluation without the diagnostics build. Before evaluation starts, noxi's RSS stays under 112 MiB. All of the peak therefore belongs to evaluation.
+
+### Causes
+
+Locked inputs were hashed again on every evaluation. `get_accessor_unchecked` already resolves a final input with a NAR hash to its valid store path, as CppNix does. `mount_input` then dumped that whole store path as a NAR into a `SourceCapture` to recompute the hash. Above 8 MiB the capture spills to an unbuffered `O_TMPFILE` in `/tmp`, on the root filesystem. For nixpkgs alone that meant reading 94,708 files. A traced run made 1,064,694 `write` calls to the spill file. CppNix reads about 64 MiB of nixpkgs, only the files evaluation needs. Cold, the dump of the nixpkgs tree takes about 11 s. Warm, it takes 0.5–1.6 s.
+
+Derivation registration sends a full `AddToStore` request to the daemon for every derivation. A traced noxi run sent 59,241 of them, 328 MiB, each a synchronous round trip. CppNix sent 58,736 `IsValidPath` and 58,722 `AddTempRoot` requests, 4,360 `AddToStore` requests, and 105 MiB in total. The noxi daemon worker used 3.3–4.9 s of CPU against 1.3 s for CppNix.
+
+Most system time comes from first-touch page faults. Minor faults match peak RSS divided by 4 KiB. `mmap` and `madvise` calls number only in the hundreds. Running the base binary with `MIMALLOC_ALLOW_LARGE_OS_PAGES=1` left faults unchanged (1,411,937), and `AnonHugePages` stayed at 0 kB. Transparent huge pages are in `madvise` mode on this host.
+
+CppNix statistics put this workload at 1.46 times the thunks of EVAL-08 and 1.90 times its collected bytes. It has 5.1 times the `derivationStrict` calls (57,551 against 11,372) and 2.7 times the `pkgs/top-level/stage.nix` instantiations (92 against 34). noxi's peak RSS grows by roughly the same factor as CppNix's from EVAL-08 to this flake. Most of the extra RSS therefore scales with the amount of evaluation. One store-side suspect is that `KnownPaths` keeps every unique derivation for the whole evaluation. That would grow with the derivation count, but it is an unmeasured estimate of 150–250 MiB. Only one nixpkgs revision is evaluated.
+
+### Locked input trial
+
+The trial skips the dump when an input is final, carries a NAR hash, is unfiltered, and its content-addressed store path is valid and is the mount's physical root. It keeps the per-evaluation hash cache and the fetcher cache entries. A read-only evaluation still mounts the tree. On the real flake the trial cut pre-evaluation time by 8.96 s cold and 1.21 s warm. Median elapsed time fell by 7.86 s cold (paired deltas −12.78, −3.04 and −5.74 s). Warm, it fell by 0.71 s, and those paired deltas (−1.69, −0.99 and +0.76 s) include zero. Bytes written fell by 347 MiB and write calls by 1.02 million. Peak RSS did not change.
+
+| Workload | Frozen noxi | Trial noxi |
+| --- | --- | --- |
+| EVAL-08, instructions / peak RSS / elapsed | 150.463 G / 2,566.7 MiB / 18.58 s | 150.610 G / 2,566.7 MiB / 18.29 s |
+| EVAL-PKG-PATHS, instructions / peak RSS / elapsed | 8.201 G / 296.8 MiB / 1.25 s | 8.197 G / 296.9 MiB / 1.19 s |
+
+All six gate runs per workload passed the oracle with identical stdout. Instruction and RSS changes stay within 0.1%. Neither workload fetches flake inputs, so a neutral result is expected. Three paired exact-output rounds against frozen noxi agree. EVAL-08 had a speedup of 1.000 (95% interval 0.991–1.015) and a peak RSS ratio of 0.9999 (0.9991–1.0009). EVAL-PKG-PATHS had 0.993 (0.953–1.015) and 0.9997 (0.9985–1.0006). Those reports are under `target/perf-real-1/confirm`. A stack-traced candidate run spilled to a temporary file only three times. Each spill came from `capture_import` through `import::add_path`, a path import. No input tree is dumped any more. The evaluator tests pass: 554 plus one doctest. Three `noxi-glue` integration tests fail identically with and without the change. They are `explicit_cli_overrides_are_sticky_and_match_reference_lock_bytes`, `github_gitlab_and_sourcehut_apis_lock_offline_with_reference_attributes` and `lfs_batch_and_offline_cache_match_reference`. The change is kept uncommitted. The patch, binaries and gate reports are under `target/perf-real-1`.
+
+### Remaining fixes, ranked
+
+1. Check derivation validity before writing. In `register_derivation` and `register_build_derivation`, send `IsValidPath` and `AddTempRoot`, and skip `AddToStore` when the path is valid, as CppNix does. That removes about 55,000 `AddToStore` requests and about 220 MiB of socket traffic. The elapsed gain is estimated at 1–3 s.
+2. Lower evaluator RSS. This is evaluator work for other lanes. It accounts for about 3.6 GiB above CppNix, and each GiB costs about 262,000 page faults. Eval-phase system time is 6.5–7 s against about 1 s for CppNix.
+3. Back the allocator with transparent huge pages. This is allocator work for other lanes. The environment knob had no effect, so it needs a build-level arena or `madvise` change. The saving is estimated at up to about 5 s of system time.
+4. Retain less derivation data. `KnownPaths` could keep each derivation's hash modulo and outputs and reread the store on demand. The saving is estimated at 150–250 MiB.
+5. Buffer spilled captures. Path imports through `capture_import` still spill unbuffered, three times per evaluation with the trial applied. They should be wrapped in a buffer. The trial's whole `write` volume of 80 MiB and 47,544 calls bounds their cost. The saving is estimated at under 1 s warm.
