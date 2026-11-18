@@ -900,39 +900,38 @@ mod pure_builtins {
 		let mut keys: Vec<Value> = Vec::new();
 		let mut elements: Vec<Value> = Vec::new();
 
+		// Like CppNix, which adds these frames as an error passes, elements
+		// are printed for a trace only when an error needs them.
 		while let Some(val) = work_set.pop_front() {
 			let val = try_value!(generators::request_force(&co, val).await);
-			let printed = generators::request_print(&co, val.clone(), PrintOptions::ERROR).await;
-			let key = val
+			let key = match val
 				.to_attrs()
 				.and_then(|attrs| attrs.select_required("key").cloned())
-				.trace(
-					None,
-					format!("in genericClosure element {}", printed.to_str_lossy()),
-				)?;
+			{
+				Ok(key) => key,
+				Err(error) => {
+					let printed =
+						generators::request_print(&co, val.clone(), PrintOptions::ERROR).await;
+					return Err(error).trace(
+						None,
+						format!("in genericClosure element {}", printed.to_str_lossy()),
+					);
+				}
+			};
 			let key = try_value!(generators::request_force(&co, key).await);
 
 			// Binary search for the key among the sorted keys seen so far.
+			// The comparison frames apply only while the keys are compared.
 			let (mut low, mut high) = (0, keys.len());
+			let compared = low < high;
 			let mut found = false;
 			while low < high {
 				let mid = (low + high) / 2;
-				let printed =
-					generators::request_print(&co, val.clone(), PrintOptions::ERROR).await;
-				let previous =
-					generators::request_print(&co, elements[mid].clone(), PrintOptions::ERROR)
-						.await;
-				generators::request_builtin_context(
+				generators::request_builtin_context_printed(
 					&co,
 					vec![
-						crate::Trace::new(
-							None,
-							format!("while comparing element {}", printed.to_str_lossy()),
-						),
-						crate::Trace::new(
-							None,
-							format!("with element {}", previous.to_str_lossy()),
-						),
+						("while comparing element ", val.clone()),
+						("with element ", elements[mid].clone()),
 					],
 				)
 				.await;
@@ -949,34 +948,39 @@ mod pure_builtins {
 					}
 				}
 			}
+			if compared {
+				generators::request_builtin_context(&co, vec![]).await;
+			}
 			if found {
 				continue;
 			}
 			keys.insert(low, key);
 			elements.insert(low, val.clone());
-			generators::request_builtin_context(&co, vec![]).await;
 
 			res.push(val.clone());
 			let op_result = generators::request_force(
 				&co,
-				generators::request_call_with(&co, operator.clone(), [val]).await,
+				generators::request_call_with(&co, operator.clone(), [val.clone()]).await,
 			)
 			.await;
-			work_set.extend(
-				try_value!(op_result)
-					.to_list()
-					.trace(
-						None,
-						"while evaluating the return value of the `operator` passed to builtins.genericClosure",
-					)
-					.trace(
-						None,
-						format!(
-							"while calling operator on genericClosure element {}",
-							printed.to_str_lossy()
-						),
-					)?,
-			);
+			match try_value!(op_result).to_list() {
+				Ok(list) => work_set.extend(list),
+				Err(error) => {
+					let printed = generators::request_print(&co, val, PrintOptions::ERROR).await;
+					return Err(error)
+						.trace(
+							None,
+							"while evaluating the return value of the `operator` passed to builtins.genericClosure",
+						)
+						.trace(
+							None,
+							format!(
+								"while calling operator on genericClosure element {}",
+								printed.to_str_lossy()
+							),
+						);
+				}
+			}
 		}
 
 		Ok(Value::List(NixList::from(res)))

@@ -673,3 +673,30 @@ Separate flat user-cycle profiles of the reclamation-only binary and CppNix 2.35
 Evidence and reproduction commands are in `target/eval-round2-20261113/{build-artifact.py,remaining.py,integrity.json}`, the three timing lane directories, preserved source directories, `semantic-differential/report.json`, and test logs. Independent review is requested through the parent as a fresh follow-up; these measurements are not a review approval.
 
 Independent qualification review follow-up: the host validator now requires configured memory-event counters and CPU throttling accounting for every expected target accounting path. Missing dictionaries, paths and null counters invalidate the lane. All 29 collector tests pass, including the focused missing-target-data regression. Revalidation of the unchanged saved observations passes for combined EVAL-08 (93 invocations), ordinary workloads (279), and actual split-expression measurements (72). Original reports and manifests remain unchanged; `qualification-review-fix.json` and each lane's `host-validity-review-fix.json` record the corrected-validator verdict. The failed `split-5` preflight remains excluded even though its host observations pass. No benchmark was rerun and no samples were added or removed.
+
+## Evaluator scheduling and trace materialization, 2026-11-18
+
+This round starts from `075a5e7`, with frozen base binaries under `target/perf-lanes/base`. Each step was measured with three `eval-profile.py --mode stat` runs per workload under the shared heavy-job lock. Every run passed its oracle. The table gives median user-space instructions and peak RSS. The steps are cumulative.
+
+| Step | EVAL-08 instructions, billion | EVAL-08 peak RSS MiB | EVAL-PKG-PATHS instructions, billion | EVAL-PKG-PATHS peak RSS MiB |
+| --- | ---: | ---: | ---: | ---: |
+| Base `075a5e7` | 150.450 | 2,567 | 8.198 | 306 |
+| Direct frame transitions | 149.547 (-0.60%) | 2,565 | 8.176 (-0.27%) | 309 |
+| Child frames entered without a push | 145.562 (-3.25%) | 2,567 | 8.070 (-1.56%) | 312 |
+| Deferred `genericClosure` printing | 135.340 (-10.04%) | 2,355 | 7.999 (-2.43%), two runs | 298 |
+| Immediate force finished in place | 133.913 (-10.99%) | 2,355 | 7.965 (-2.84%) | 300 |
+
+Direct frame transitions keep calls, forces and returns inside the bytecode loop when the next frame is bytecode, or a `Frame::Force` to finish on the way. Each transition does what one outer-loop iteration does: cycle-collection tick, pop, `reasonable_span`, `current` and `call_depth`. The transitions alone saved only 0.6% of instructions. The outer loop's high cycle share did not correspond to instruction count. The next step builds a closure call's frame, a forced suspended thunk's frame and an immediately forced expression's frame, then enters it without pushing and popping the 120-byte `Frame`. The span of a fused immediate force is looked up from the suspended parent frame only when the result is itself a thunk. A trace-less running frame no longer drops its previous trace through out-of-line drop glue. Runs with an observer keep every outer-loop transition. An EVAL-08 diagnostics build counted 10,889,359 `bytecode_enter` and 59,931,412 `bytecode_enter_direct`, which total the 70,820,771 bytecode entries counted earlier. Its 27,241,618 `force_finish_direct` equal the earlier `force_finish`. The opcode and thunk counters were unchanged.
+
+An instruction-sampled profile then showed `genericClosure` printing elements for trace frames on every iteration and binary-search step, whether or not an error occurred. Those prints accounted for about 7% of EVAL-08 instructions. Under the default string policy they also retained about 210 MiB of strings. CppNix adds these frames as an error passes, so its trace shows an element in its state at the time of the error. The builtin now stores the comparison frames as values in its trace, `BuiltinContexts::Printed`, and the VM prints them when a trace is materialized. The element and operator frames are printed only in their error branches. The comparison frames are cleared after each binary search, including when the key was already present. Previously they persisted into the next element's errors. Earlier noxi printed `«thunk»` where CppNix 2.35.2 prints the value the comparison or operator call had forced. The new `generic_closure_prints_elements_when_an_error_passes` test in `noxi-commands/tests/language_boundaries.rs` compares those cases byte for byte with CppNix. One divergence remains from before: when forcing an element throws, CppNix adds `in genericClosure element «thunk»` and noxi does not.
+
+When the forced value is neither a thunk nor catchable, finishing a fused immediate force would only pop and push back the value. That frame is now dropped in place.
+
+Paired exact-output timing compared the final build with the base binary and CppNix 2.35.2. EVAL-08 used three pairs and EVAL-PKG-PATHS used ten. Ratios above one favor the candidate. Both runs are exploratory.
+
+| Workload | Base | Candidate | CppNix | Speedup vs base, 95% interval | Peak RSS ratio vs base, 95% interval |
+| --- | --- | --- | --- | --- | --- |
+| EVAL-08 | 17.466 s / 2,567 MiB | 16.052 s / 2,356 MiB | 3.404 s / 991 MiB | 1.077 (1.060 to 1.090) | 1.090 (1.089 to 1.090) |
+| EVAL-PKG-PATHS | 0.995 s / 304 MiB | 0.962 s / 300 MiB | 0.316 s / 165 MiB | 1.026 (1.009 to 1.043) | 1.010 (1.007 to 1.011) |
+
+The evaluator passed 554 tests and the doctest, and the upstream language suite passed 466 of 466 fixtures with exact live reference matches. The language boundary tests also passed. Builds, patches, stat runs, profiles, diagnostics counters and paired reports are under `target/perf-vm-1` in the lane worktree. Each `bin-*` directory holds the patch it was built from.

@@ -39,7 +39,7 @@ use crate::{
 	upvalues::{FrameUpvalues, UpvalueData, Upvalues},
 	value::{
 		Builtin, BuiltinResult, Closure, CoercionKind, Lambda, NixAttrs, NixContext, NixList,
-		PointerEquality, Thunk, Value, canon_path,
+		PointerEquality, PrintOptions, Thunk, Value, ValuePrinter, canon_path,
 	},
 	vm::generators::GenCo,
 	warnings::{EvalWarning, WarningKind},
@@ -355,8 +355,11 @@ enum Frame {
 		/// Where the thunk was suspended, the span its generator would have.
 		span: Span,
 
-		/// Where the thunk was forced.
-		forced_at: Span,
+		/// Where the thunk was forced. `None` for an immediately forced
+		/// expression: the `Force` operation of the bytecode frame directly
+		/// below, which stays suspended there, and whose span is looked up
+		/// only when needed.
+		forced_at: Option<Span>,
 
 		/// The function calls active when this frame runs.
 		depth: usize,
@@ -381,7 +384,7 @@ pub(crate) enum FrameTrace {
 		call_site: Option<Span>,
 		// Boxed: usually absent, and a bytecode frame holds a `FrameTrace`, so
 		// its size decides whether frames move with an inline copy.
-		contexts: Option<Box<Vec<Trace>>>,
+		contexts: Option<Box<BuiltinContexts>>,
 		path: Option<Rc<std::cell::RefCell<Vec<Trace>>>>,
 	},
 
@@ -413,6 +416,19 @@ pub(crate) enum FrameTrace {
 
 	/// A fixed frame, such as the condition of an assertion being compared.
 	Frame(Trace),
+}
+
+/// The runtime contexts a running builtin sets for the values it forces.
+#[derive(Clone, Debug)]
+pub(crate) enum BuiltinContexts {
+	/// Frames given in full.
+	Traces(Vec<Trace>),
+
+	/// Frames without a position, each a prefix followed by a value as
+	/// CppNix's `ValuePrinter` prints it with the error options. Like
+	/// CppNix, which adds such frames as an error passes, the value is
+	/// printed only when a trace needs the frame.
+	Printed(Vec<(&'static str, Value)>),
 }
 
 /// The trace of frames that contribute none.
@@ -571,6 +587,16 @@ struct VM<'o, IO> {
 	/// The position a generator gives the next call it requests, as CppNix
 	/// positions a functor's call at its `__functor` attribute.
 	pending_call_site: Option<Span>,
+
+	/// Whether the bytecode loop enters the next bytecode frame itself, with
+	/// the outer loop's bookkeeping, instead of returning to the outer loop
+	/// for calls, forces and returns. Off while an observer is attached, so
+	/// that it sees every transition.
+	direct_frames: bool,
+
+	/// Scheduler boundaries left before the next bounded cycle trial.
+	#[cfg(feature = "eval-cycle-collection")]
+	frames_until_collection: u32,
 }
 
 impl<'o, IO> VM<'o, IO>
@@ -598,7 +624,12 @@ where
 			);
 			crate::perf_counters::frame_transition("vm_created");
 		}
+		// Observers see every outer-loop transition.
+		let direct_frames = observer.0.is_none();
 		Self {
+			direct_frames,
+			#[cfg(feature = "eval-cycle-collection")]
+			frames_until_collection: 1024,
 			nix_search_path,
 			io_handle,
 			observer,
@@ -634,6 +665,17 @@ where
 	/// suspended thunk is entered directly, under a [`Frame::Force`] that
 	/// stands in for the generator: the same frames, spans and blackhole.
 	fn enqueue_force(&mut self, span: Span, thunk: Thunk) {
+		if let Some((suspended_at, frame)) = self.begin_force(span, thunk) {
+			self.push_bytecode_frame(suspended_at, frame);
+		}
+	}
+
+	/// Begin forcing a thunk as [`VM::enqueue_force`] does, but return the
+	/// bytecode frame of a suspended thunk instead of pushing it, for a
+	/// caller that enters it at once. Other thunks are left to the `force`
+	/// generator, which is pushed.
+	#[inline]
+	fn begin_force(&mut self, span: Span, thunk: Thunk) -> Option<(Span, BytecodeFrame)> {
 		#[cfg(feature = "eval-diagnostics")]
 		crate::perf_counters::frame_transition("force_schedule");
 		match thunk.begin_direct_force(span) {
@@ -641,10 +683,10 @@ where
 				self.frames.push(Frame::Force {
 					thunk: Some(thunk),
 					span: suspended_at,
-					forced_at: span,
+					forced_at: Some(span),
 					depth: self.call_depth,
 				});
-				self.push_bytecode_frame(
+				Some((
 					suspended_at,
 					BytecodeFrame {
 						trace: FrameTrace::None,
@@ -654,10 +696,41 @@ where
 						stack_offset: self.stack.len(),
 						depth: self.call_depth,
 					},
-				);
+				))
 			}
-			None => self.enqueue_generator("force", span, |co| Thunk::force(thunk, co, span)),
+			None => {
+				self.enqueue_generator("force", span, |co| Thunk::force(thunk, co, span));
+				None
+			}
 		}
+	}
+
+	/// Mark frame `id` as running, with no trace of its own at hand. The
+	/// previous trace is usually already empty, so the check spares the
+	/// out-of-line drop of every assignment.
+	#[inline(always)]
+	fn set_current_untraced(&mut self, id: usize) {
+		self.current.0 = id;
+		if !matches!(self.current.1, FrameTrace::None) {
+			self.current.1 = FrameTrace::None;
+		}
+	}
+
+	/// Enter a bytecode frame the running bytecode loop just built, with the
+	/// bookkeeping the outer loop performs when it pops a pushed frame: the
+	/// frame would have been pushed and popped straight back.
+	#[inline(always)]
+	fn enter_built_frame(&mut self, span: Span, frame: &BytecodeFrame) {
+		#[cfg(feature = "eval-diagnostics")]
+		{
+			crate::perf_counters::frame_transition("bytecode_schedule");
+			crate::perf_counters::boundary();
+			crate::perf_counters::frame_transition("bytecode_enter_direct");
+		}
+		self.scheduler_tick();
+		self.reasonable_span = span;
+		self.set_current_untraced(self.frames.len());
+		self.call_depth = frame.depth;
 	}
 
 	/// Force a value as a `force` generator at `span` would.
@@ -679,19 +752,153 @@ where
 		})
 	}
 
+	/// Count a scheduler boundary, before the next frame is popped.
+	#[inline(always)]
+	fn scheduler_tick(&mut self) {
+		#[cfg(feature = "eval-cycle-collection")]
+		{
+			self.frames_until_collection -= 1;
+			if self.frames_until_collection == 0 {
+				Thunk::collect_cycles();
+				self.frames_until_collection = 1024;
+			}
+		}
+	}
+
+	/// Take the next frame as the outer loop would, when it is bytecode the
+	/// running bytecode loop can continue with. `Frame::Force` frames on the
+	/// way are finished by the same code the outer loop runs.
+	///
+	/// The caller has already pushed back or dropped its own frame, so the
+	/// frame stack, `current`, `call_depth` and `reasonable_span` match what
+	/// the outer loop leaves for the entered frame.
+	#[inline]
+	fn take_direct_frame(&mut self) -> Option<(Span, BytecodeFrame)> {
+		loop {
+			match self.frames.last() {
+				Some(Frame::BytecodeFrame { .. }) => {
+					self.scheduler_tick();
+					let Some(Frame::BytecodeFrame {
+						span,
+						bytecode_frame,
+					}) = self.frames.pop()
+					else {
+						unreachable!()
+					};
+					#[cfg(feature = "eval-diagnostics")]
+					{
+						crate::perf_counters::boundary();
+						crate::perf_counters::frame_transition("bytecode_enter_direct");
+					}
+					self.reasonable_span = span;
+					self.set_current_untraced(self.frames.len());
+					self.call_depth = bytecode_frame.depth;
+					return Some((span, bytecode_frame));
+				}
+				// An immediately forced expression that produced an ordinary
+				// value: finishing it would only pop and push back that value,
+				// and the next frame taken sets `current` and `call_depth` anew.
+				Some(&Frame::Force {
+					thunk: None, span, ..
+				}) if self.observer.0.is_none()
+					&& !matches!(
+						self.stack.last(),
+						Some(Value::Thunk(_) | Value::Catchable(_)) | None
+					) =>
+				{
+					self.scheduler_tick();
+					#[cfg(feature = "eval-diagnostics")]
+					{
+						crate::perf_counters::boundary();
+						crate::perf_counters::frame_transition("force_finish_direct");
+					}
+					self.reasonable_span = span;
+					self.frames.truncate(self.frames.len() - 1);
+				}
+				Some(Frame::Force { .. }) => {
+					self.scheduler_tick();
+					let Some(Frame::Force {
+						thunk,
+						span,
+						forced_at,
+						depth,
+					}) = self.frames.pop()
+					else {
+						unreachable!()
+					};
+					#[cfg(feature = "eval-diagnostics")]
+					{
+						crate::perf_counters::boundary();
+						crate::perf_counters::frame_transition("force_finish_direct");
+					}
+					self.reasonable_span = span;
+					let frame_id = self.frames.len();
+					self.finish_force(frame_id, thunk, span, forced_at, depth);
+				}
+				_ => return None,
+			}
+		}
+	}
+
+	/// Finish a `Frame::Force`: the directly entered thunk code has left its
+	/// value on the stack. Kept out of line so the bytecode loop's direct
+	/// transitions stay small.
+	#[inline(never)]
+	fn finish_force(
+		&mut self,
+		frame_id: usize,
+		thunk: Option<Thunk>,
+		span: Span,
+		forced_at: Option<Span>,
+		depth: usize,
+	) {
+		self.set_current_untraced(frame_id);
+		self.call_depth = depth;
+		self.observer
+			.observe_enter_generator(frame_id, "force", &self.stack);
+
+		let value = self.stack_pop();
+		if let Value::Catchable(kind) = &value
+			&& let Some(info) = kind.trace()
+		{
+			if info.memoized_prefix.get().is_none() {
+				info.memoized_prefix
+					.set(Some(self.traces(None, None).len()));
+			}
+		}
+		let (finished, pending) = match thunk {
+			Some(thunk) => (thunk.finish_direct_force(value), Some(thunk)),
+			None if matches!(value, Value::Thunk(_)) => (None, Some(Thunk::new_evaluated(value))),
+			None => (Some(value), None),
+		};
+		match finished {
+			Some(value) => {
+				let value = self.trace_catchable(value, None, None);
+				self.stack.push(value);
+				self.observer
+					.observe_exit_generator(frame_id, "force", &self.stack);
+			}
+
+			// The value is another thunk, which the generator forces.
+			None => {
+				let thunk = pending.expect("a pending force retains its thunk");
+				let forced_at = forced_at.unwrap_or_else(|| match self.frames.last() {
+					Some(Frame::BytecodeFrame { bytecode_frame, .. }) => {
+						bytecode_frame.current_span()
+					}
+					_ => unreachable!("an immediate force lies above its bytecode frame"),
+				});
+				self.enqueue_generator("force", span, |co| Thunk::force(thunk, co, forced_at));
+				self.observer
+					.observe_suspend_generator(frame_id, "force", &self.stack);
+			}
+		}
+	}
+
 	/// Drive evaluation and resume lazy context handlers on failure.
 	fn execute_frames(&mut self) -> EvalResult<()> {
-		#[cfg(feature = "eval-cycle-collection")]
-		let mut frames_until_collection = 1024;
 		while !self.frames.is_empty() {
-			#[cfg(feature = "eval-cycle-collection")]
-			{
-				frames_until_collection -= 1;
-				if frames_until_collection == 0 {
-					Thunk::collect_cycles();
-					frames_until_collection = 1024;
-				}
-			}
+			self.scheduler_tick();
 			let frame = self.frames.pop().expect("frame above boundary");
 			#[cfg(feature = "eval-diagnostics")]
 			{
@@ -834,7 +1041,7 @@ where
 					} => {
 						// Bytecode errors borrow the running frame's trace. Suspensions
 						// put the frame itself back on the stack.
-						self.current = (frame_id, FrameTrace::None);
+						self.set_current_untraced(frame_id);
 						self.call_depth = bytecode_frame.depth;
 						self.observer.observe_enter_bytecode_frame(
 							0,
@@ -893,51 +1100,7 @@ where
 						forced_at,
 						depth,
 					} => {
-						self.current = (frame_id, FrameTrace::None);
-						self.call_depth = depth;
-						self.observer
-							.observe_enter_generator(frame_id, "force", &self.stack);
-
-						let value = self.stack_pop();
-						if let Value::Catchable(kind) = &value
-							&& let Some(info) = kind.trace()
-						{
-							if info.memoized_prefix.get().is_none() {
-								info.memoized_prefix
-									.set(Some(self.traces(None, None).len()));
-							}
-						}
-						let (finished, pending) = match thunk {
-							Some(thunk) => (thunk.finish_direct_force(value), Some(thunk)),
-							None if matches!(value, Value::Thunk(_)) => {
-								(None, Some(Thunk::new_evaluated(value)))
-							}
-							None => (Some(value), None),
-						};
-						match finished {
-							Some(value) => {
-								let value = self.trace_catchable(value, None, None);
-								self.stack.push(value);
-								self.observer.observe_exit_generator(
-									frame_id,
-									"force",
-									&self.stack,
-								);
-							}
-
-							// The value is another thunk, which the generator forces.
-							None => {
-								let thunk = pending.expect("a pending force retains its thunk");
-								self.enqueue_generator("force", span, |co| {
-									Thunk::force(thunk, co, forced_at)
-								});
-								self.observer.observe_suspend_generator(
-									frame_id,
-									"force",
-									&self.stack,
-								);
-							}
-						}
+						self.finish_force(frame_id, thunk, span, forced_at, depth);
 					}
 				}
 				Ok(())
@@ -1025,7 +1188,7 @@ where
 	///
 	/// The return value indicates whether the bytecode has been executed to
 	/// completion, or whether it has been suspended in favour of a generator.
-	fn execute_bytecode(&mut self, span: Span, mut frame: BytecodeFrame) -> EvalResult<bool> {
+	fn execute_bytecode(&mut self, mut span: Span, mut frame: BytecodeFrame) -> EvalResult<bool> {
 		loop {
 			let op = frame.inc_ip();
 			#[cfg(feature = "eval-diagnostics")]
@@ -1066,25 +1229,30 @@ where
 							crate::perf_counters::opcode(Op::Force as u8);
 							crate::perf_counters::frame_transition("immediate_force_fused");
 						}
-						let forced_at = frame.current_span();
 						self.push_bytecode_frame(span, frame);
+						// The span of the Force operation is looked up from the frame
+						// below only if the forced value is itself a thunk.
 						self.frames.push(Frame::Force {
 							thunk: None,
 							span: suspended_at,
-							forced_at,
+							forced_at: None,
 							depth: self.call_depth,
 						});
-						self.push_bytecode_frame(
-							suspended_at,
-							BytecodeFrame {
-								trace: FrameTrace::None,
-								lambda: blueprint,
-								upvalues: upvalues.into(),
-								ip: CodeIdx(0),
-								stack_offset: self.stack.len(),
-								depth: self.call_depth,
-							},
-						);
+						let child = BytecodeFrame {
+							trace: FrameTrace::None,
+							lambda: blueprint,
+							upvalues: upvalues.into(),
+							ip: CodeIdx(0),
+							stack_offset: self.stack.len(),
+							depth: self.call_depth,
+						};
+						if self.direct_frames {
+							self.enter_built_frame(suspended_at, &child);
+							span = suspended_at;
+							frame = child;
+							continue;
+						}
+						self.push_bytecode_frame(suspended_at, child);
 						return Ok(false);
 					}
 
@@ -1146,8 +1314,15 @@ where
 						let gen_span = frame.current_span();
 
 						self.push_bytecode_frame(span, frame);
-						self.enqueue_force(gen_span, thunk);
-
+						if let Some((child_span, child)) = self.begin_force(gen_span, thunk) {
+							if self.direct_frames {
+								self.enter_built_frame(child_span, &child);
+								span = child_span;
+								frame = child;
+								continue;
+							}
+							self.push_bytecode_frame(child_span, child);
+						}
 						return Ok(false);
 					}
 				}
@@ -1180,6 +1355,15 @@ where
 					// TODO(amjoseph): I think this should assert `==` rather
 					// than `<=` but it fails with the stricter condition.
 					debug_assert!(self.stack.len() - 1 <= frame.stack_offset);
+					if self.direct_frames {
+						// The outer loop drops the frame before it takes the next one.
+						drop(frame);
+						if let Some((next_span, next)) = self.take_direct_frame() {
+							span = next_span;
+							frame = next;
+							continue;
+						}
+					}
 					return Ok(true);
 				}
 
@@ -1222,9 +1406,35 @@ where
 						}
 						continue;
 					}
-					self.call_value(frame.current_span(), Some((span, frame)), callable)?;
+					let call_span = frame.current_span();
+					let callable = match callable {
+						// Enter the closure's frame at once, as the outer loop would
+						// after `call_value` pushed it.
+						Value::Closure(closure) if self.direct_frames => {
+							let pending_call_site = self.pending_call_site.take();
+							let child = self.closure_frame(
+								call_span,
+								Some((span, frame)),
+								closure,
+								pending_call_site,
+							)?;
+							self.enter_built_frame(call_span, &child);
+							span = call_span;
+							frame = child;
+							continue;
+						}
+						callable => callable,
+					};
+					self.call_value(call_span, Some((span, frame)), callable)?;
 
-					// exit this loop and let the outer loop enter the new call
+					// Enter the new call, or resume this frame, as the outer loop would.
+					if self.direct_frames
+						&& let Some((next_span, next)) = self.take_direct_frame()
+					{
+						span = next_span;
+						frame = next;
+						continue;
+					}
 					return Ok(true);
 				}
 
@@ -1815,6 +2025,15 @@ impl<IO> VM<'_, IO> {
 		self.frame_traces(self.frames.iter().map(Frame::trace).chain(current), error)
 	}
 
+	/// A context frame of [`BuiltinContexts::Printed`], printed now.
+	fn printed_context(&self, prefix: &str, value: &Value) -> Trace {
+		let printed = ValuePrinter::print(&self.source, PrintOptions::ERROR, value);
+		Trace::new(
+			None,
+			format!("{prefix}{}", String::from_utf8_lossy(&printed)),
+		)
+	}
+
 	/// The trace entries `frames` contribute, oldest first.
 	fn frame_traces<'f>(
 		&self,
@@ -1888,7 +2107,17 @@ impl<IO> VM<'_, IO> {
 							format!("while calling the '{name}' builtin"),
 						));
 					}
-					traces.extend(contexts.iter().flat_map(|c| c.iter()).cloned());
+					match contexts.as_deref() {
+						None => {}
+						Some(BuiltinContexts::Traces(contexts)) => {
+							traces.extend(contexts.iter().cloned())
+						}
+						Some(BuiltinContexts::Printed(contexts)) => traces.extend(
+							contexts
+								.iter()
+								.map(|(prefix, value)| self.printed_context(prefix, value)),
+						),
+					}
 					if let Some(path) = path {
 						traces.extend(path.borrow().iter().cloned());
 					}
@@ -2207,6 +2436,68 @@ where
 		}
 	}
 
+	/// Call a closure as [`VM::call_value`] does: push the parent frame back,
+	/// then return the closure's frame, which runs at `span`, instead of
+	/// pushing it.
+	#[inline]
+	fn closure_frame(
+		&mut self,
+		span: Span,
+		parent: Option<(Span, BytecodeFrame)>,
+		closure: Rc<Closure>,
+		pending_call_site: Option<Span>,
+	) -> EvalResult<BytecodeFrame> {
+		let lambda = closure.lambda();
+		let call_site = pending_call_site.or(parent
+			.as_ref()
+			.filter(|(_, f)| !f.lambda.omit_call_position)
+			.map(|_| span));
+		self.observer.observe_tail_call(self.frames.len(), &lambda);
+
+		// The stack offset is always `stack.len() - arg_count`, and
+		// since this branch handles native Nix functions (which always
+		// take only a single argument and are curried), the offset is
+		// `stack_len - 1`.
+		let stack_offset = self.stack.len() - 1;
+
+		// Like CppNix, count nested calls, tail calls included, so
+		// unbounded recursion fails instead of running forever.
+		if self.call_depth > self.max_call_depth {
+			return self.call_error(
+				span,
+				parent.as_ref(),
+				ErrorKind::Positioned(Box::new(ErrorKind::EvalError(
+					"stack overflow; max-call-depth exceeded".into(),
+				))),
+			);
+		}
+
+		// Reenqueue the parent frame, which resumes after the call.
+		// Keeping it also leads to more useful error traces.
+		if let Some((parent_span, parent_frame)) = parent {
+			self.push_bytecode_frame(parent_span, parent_frame);
+		}
+
+		Ok(BytecodeFrame {
+			trace: FrameTrace::Lambda {
+				formals: lambda.formals.is_some(),
+				lambda: lambda.clone(),
+				call_site,
+			},
+			lambda,
+			upvalues: closure.upvalues().into(),
+			ip: CodeIdx(0),
+			stack_offset,
+			depth: self.call_depth
+				+ usize::from(
+					closure
+						.lambda
+						.span
+						.is_some_and(|s| !self.source.is_hidden(s)),
+				),
+		})
+	}
+
 	fn call_value(
 		&mut self,
 		span: Span,
@@ -2230,59 +2521,8 @@ where
 			}
 
 			Value::Closure(closure) => {
-				let lambda = closure.lambda();
-				let call_site = pending_call_site.or(parent
-					.as_ref()
-					.filter(|(_, f)| !f.lambda.omit_call_position)
-					.map(|_| span));
-				self.observer.observe_tail_call(self.frames.len(), &lambda);
-
-				// The stack offset is always `stack.len() - arg_count`, and
-				// since this branch handles native Nix functions (which always
-				// take only a single argument and are curried), the offset is
-				// `stack_len - 1`.
-				let stack_offset = self.stack.len() - 1;
-
-				// Like CppNix, count nested calls, tail calls included, so
-				// unbounded recursion fails instead of running forever.
-				if self.call_depth > self.max_call_depth {
-					return self.call_error(
-						span,
-						parent.as_ref(),
-						ErrorKind::Positioned(Box::new(ErrorKind::EvalError(
-							"stack overflow; max-call-depth exceeded".into(),
-						))),
-					);
-				}
-
-				// Reenqueue the parent frame, which resumes after the call.
-				// Keeping it also leads to more useful error traces.
-				if let Some((parent_span, parent_frame)) = parent {
-					self.push_bytecode_frame(parent_span, parent_frame);
-				}
-
-				self.push_bytecode_frame(
-					span,
-					BytecodeFrame {
-						trace: FrameTrace::Lambda {
-							formals: lambda.formals.is_some(),
-							lambda: lambda.clone(),
-							call_site,
-						},
-						lambda,
-						upvalues: closure.upvalues().into(),
-						ip: CodeIdx(0),
-						stack_offset,
-						depth: self.call_depth
-							+ usize::from(
-								closure
-									.lambda
-									.span
-									.is_some_and(|s| !self.source.is_hidden(s)),
-							),
-					},
-				);
-
+				let frame = self.closure_frame(span, parent, closure, pending_call_site)?;
+				self.push_bytecode_frame(span, frame);
 				Ok(())
 			}
 

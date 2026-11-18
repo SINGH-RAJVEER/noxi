@@ -157,6 +157,9 @@ pub enum VMRequest {
 	/// Add a lazy user context to an evaluation failure.
 	ErrorContext(Value, Value),
 	BuiltinContext(Vec<crate::errors::Trace>),
+	/// Set builtin contexts whose values are printed only when a trace
+	/// needs them.
+	BuiltinContextPrinted(Vec<(&'static str, Value)>),
 	RecursionBudget,
 	TracePath(std::rc::Rc<std::cell::RefCell<Vec<crate::errors::Trace>>>),
 
@@ -246,6 +249,7 @@ impl Display for VMRequest {
 			VMRequest::ReadDir(p) => write!(f, "read_dir({})", p.to_string_lossy()),
 			VMRequest::Span => write!(f, "span"),
 			VMRequest::BuiltinContext(_) => write!(f, "builtin_context"),
+			VMRequest::BuiltinContextPrinted(_) => write!(f, "builtin_context_printed"),
 			VMRequest::RecursionBudget => write!(f, "recursion_budget"),
 			VMRequest::TracePath(_) => write!(f, "trace_path"),
 			VMRequest::ErrorContext(_, _) => write!(f, "error_context"),
@@ -428,8 +432,24 @@ where
 						}
 						VMRequest::BuiltinContext(traces) => {
 							if let FrameTrace::Builtin { contexts, .. } = &mut self.current.1 {
-								*contexts = (!traces.is_empty()).then(|| Box::new(traces));
+								*contexts = (!traces.is_empty())
+									.then(|| Box::new(BuiltinContexts::Traces(traces)));
 							} else {
+								self.current.1 = FrameTrace::Dynamic(std::rc::Rc::new(
+									std::cell::RefCell::new(traces),
+								));
+							}
+							message = VMResponse::Empty;
+						}
+						VMRequest::BuiltinContextPrinted(values) => {
+							if let FrameTrace::Builtin { contexts, .. } = &mut self.current.1 {
+								*contexts = (!values.is_empty())
+									.then(|| Box::new(BuiltinContexts::Printed(values)));
+							} else {
+								let traces = values
+									.iter()
+									.map(|(prefix, value)| self.printed_context(prefix, value))
+									.collect();
 								self.current.1 = FrameTrace::Dynamic(std::rc::Rc::new(
 									std::cell::RefCell::new(traces),
 								));
@@ -904,6 +924,15 @@ pub async fn request_position(co: &GenCo, span: Span) -> NixString {
 /// The frames apply to both catchable and uncatchable evaluation errors.
 pub async fn request_builtin_context(co: &GenCo, traces: Vec<crate::errors::Trace>) {
 	match co.yield_(VMRequest::BuiltinContext(traces)).await {
+		VMResponse::Empty => {}
+		_ => unreachable!("builtin context response"),
+	}
+}
+
+/// Set the current builtin's runtime contexts: each a prefix and a value
+/// printed as CppNix's `ValuePrinter` does when a trace needs it.
+pub async fn request_builtin_context_printed(co: &GenCo, values: Vec<(&'static str, Value)>) {
+	match co.yield_(VMRequest::BuiltinContextPrinted(values)).await {
 		VMResponse::Empty => {}
 		_ => unreachable!("builtin context response"),
 	}

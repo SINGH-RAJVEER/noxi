@@ -79,3 +79,34 @@ fn nested_byte_strings_and_attribute_names_print_without_replacement() {
 		);
 	}
 }
+
+#[test]
+fn generic_closure_prints_elements_when_an_error_passes() {
+	let reference = std::env::var_os("NOXI_REFERENCE_BIN")
+		.map(PathBuf::from)
+		.unwrap_or_else(|| {
+			Path::new(env!("CARGO_MANIFEST_DIR")).join("../../target/nix-reference/bin")
+		})
+		.join("nix-instantiate");
+	let candidate = Path::new(env!("CARGO_BIN_EXE_nix-instantiate"));
+	let home = tempfile::tempdir().unwrap();
+	// Comparing the keys and calling the operator force parts of the
+	// elements before the error, and a duplicate key leaves no comparison
+	// frame behind for the next element.
+	for expression in [
+		r#"let x = "a" + ""; y = 1 + 1; in builtins.genericClosure { startSet = [ { key = [ 1 y ]; other = y; } { key = [ 1 x ]; other = x; } ]; operator = e: [ ]; }"#,
+		r#"let x = "a" + ""; in builtins.genericClosure { startSet = [ { key = 1; v = x; } ]; operator = e: builtins.seq e.v "not a list"; }"#,
+		r#"let x = "a" + ""; in builtins.genericClosure { startSet = [ { key = 1; v = x; } { key = 1; v = x; } (builtins.seq x "bad") ]; operator = e: [ ]; }"#,
+		r#"let x = "a" + ""; in builtins.genericClosure { startSet = [ { key = 1; v = x; } { key = x; v = x; } ]; operator = e: [ ]; }"#,
+	] {
+		for trace in [false, true] {
+			let expected = evaluate(&reference, home.path(), expression, trace);
+			let actual = evaluate(candidate, home.path(), expression, trace);
+			assert_eq!(
+				(actual.status.code(), actual.stdout, actual.stderr),
+				(expected.status.code(), expected.stdout, expected.stderr),
+				"{expression}, trace={trace}"
+			);
+		}
+	}
+}
