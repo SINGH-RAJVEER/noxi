@@ -815,3 +815,47 @@ These representations only save memory together with a thunk cell of 40 bytes. T
 ### Rejected: whole-graph cycle collection
 
 The trial-deletion collector from `target/perf-lanes/inputs/graph-gc.patch` in the main checkout was built from `075a5e7` with `--features noxi-eval/eval-cycle-collection` after a one-line borrow fix in its table growth. It passed 566 evaluator tests, also with `NOXI_EVAL_CYCLE_COLLECTION=stress` and an interval of 16. In one traced EVAL-08 run with reclamation, the oracle passed. Four collections walked 2.8 to 9.8 million nodes each, released 762,572 thunks in total and spent 6.6 s marking and scanning. The table grew to at most 138 MB. There were no survivors or aborted collections. The run used 167.389 billion instructions (+11.4%) and 2,297 MiB, 10 MiB less than the control. Most of the graph the census found collectible after VM teardown is still live at these safe points. The collector was not adopted. The patch and trace are `target/perf-mem/bins/GC/patch.diff` and `target/perf-mem/gc-trace.jsonl`.
+
+## Derivation registration traffic, 2026-11-18
+
+This lane applies the first remaining fix from the real flake section above. The base is a release build of ab557d5. The workload is the same flake command, run warm, with every run under the heavy lock.
+
+### Change
+
+`register_derivation` and `register_build_derivation` now share `write_derivation` in `crates/noxi-glue/src/store.rs`. It follows CppNix's `writeDerivation`. It sends `AddTempRoot`, then `IsValidPath`, and serializes and sends the derivation only when the path is not valid. A trace of CppNix shows the same order. Taking the root before the check means a collection cannot delete a reused derivation during the evaluation. The evaluator store also remembers the derivations it has registered. Each one already holds a temporary root for the life of the process, so a repeat registration sends no request. Read-only evaluation still makes no store request. A traced CppNix `nix eval --read-only` sends none either. Evaluation has no repair mode, since `nix eval` rejects `--repair`.
+
+### Results
+
+On two small derivations against the system daemon, the candidate sends exactly CppNix's requests. New derivations cost two each of `AddTempRoot`, `IsValidPath` and `AddToStore`, 1,701 bytes. Already valid ones cost two each of `AddTempRoot` and `IsValidPath`, 648 bytes. The base sent two `AddToStore` requests either way. Derivations written into fresh `local?root=` stores by the base and the candidate compare byte-identical.
+
+A second trial, kept as `target/perf-real-2/trial-no-dedupe.patch`, drops the set of registered derivations. Every registration then sends `AddTempRoot` and `IsValidPath`, as CppNix does.
+
+| Real flake, warm | Base | Candidate | Trial without the set |
+| --- | --- | --- | --- |
+| Elapsed, runs | 38.83, 37.36, 36.51, 40.43, 36.26, 36.06 s | 33.30, 33.25, 34.18, 33.81, 33.25, 33.96 s | 35.68, 38.49, 32.92 s |
+| Elapsed, median | 36.94 s | 33.56 s | 35.68 s |
+| User CPU, median | 26.09 s | 24.20 s | 24.63 s |
+| System CPU, median | 7.07 s | 7.28 s | 6.78 s |
+| Peak RSS, median | 5,139 MiB | 5,141 MiB | 5,132 MiB |
+
+The runs alternated base and candidate in rounds one to three, and base, trial and candidate in rounds four to six. The six paired candidate deltas are −5.53, −4.11, −2.33, −6.62, −3.01 and −2.10 s, a median of −3.56 s. The trial's paired deltas are −4.75, +2.23 and −3.14 s, so its gain is noisier and its interval includes zero. All 16 runs, including a warm-up and two traced runs, return `/nix/store/h9j8xmn9dbsxfzx0csfxmak30n6dabpj-nixos-system-nixos-26.11.20261113.d5cc683.drv`. Candidate user CPU fell 1.89 s and system CPU rose 0.21 s, so process CPU fell about 1.7 s. The rest of the gain is time spent waiting on daemon round trips.
+
+| Daemon requests | Base (earlier trace) | Candidate | Trial without the set | CppNix (earlier trace) |
+| --- | --- | --- | --- | --- |
+| `AddToStore` | 59,241 | 1,391 | 1,391 | 4,360 |
+| `IsValidPath` | not counted | 12,977 | 52,441 | 58,736 |
+| `AddTempRoot` | not counted | 12,898 | 52,362 | 58,722 |
+| Bytes sent | 328 MiB | 70.0 MiB | 76.8 MiB | 105 MiB |
+
+The flake registers about 52,000 derivations, but only about 12,900 distinct paths. The set skips the repeats. The base column comes from the earlier lane's trace of 075a5e7, which differs from ab557d5 only in fetching. The base runs had already written every derivation, so the remaining `AddToStore` requests should be path imports and text files. The trace records only opcodes, so this is not confirmed.
+
+The set assumes that a temporary root lasts for the whole evaluation. Through the daemon, a root lasts only as long as the connection. `DaemonStore::with_conn` drops the connection after a transport error and opens a new one on the next request. Every traced run made exactly one connection. After a reconnect, the roots taken on the old connection are gone in the base, the trial and CppNix alike. Only a repeat registration would take such a root again, and the set skips that.
+
+| Workload, single stat run | Base | Candidate |
+| --- | --- | --- |
+| EVAL-08, instructions / peak RSS / elapsed | 133.901 G / 2,351.0 MiB / 17.49 s | 133.927 G / 2,354.9 MiB / 16.91 s |
+| EVAL-PKG-PATHS, instructions / peak RSS / elapsed | 7.9605 G / 295.7 MiB / 1.22 s | 7.9606 G / 292.4 MiB / 1.14 s |
+
+Both oracles pass. Instructions change by under 0.02% and peak RSS by under 0.2% on EVAL-08. Both workloads use a dummy store, so no derivation is registered there.
+
+`cargo test -p noxi-glue` passes 33 tests. The same three tests fail as in the earlier lane: `explicit_cli_overrides_are_sticky_and_match_reference_lock_bytes`, `github_gitlab_and_sourcehut_apis_lock_offline_with_reference_attributes` and `lfs_batch_and_offline_cache_match_reference`. The `noxi-commands` targets `generated_derivation_import` (3), `reference_flake_cli` (21) and `reference_flakes` (1) pass, with ignored tests included. `instantiate` passes 26 of 27. `appended_string_context_validation_matches_the_reference` fails the same way on the base. noxi prints the context key `/bad` where the reference prints `"/bad"`. The change is kept uncommitted. Binaries, traces and the opcode counter are under `target/perf-real-2`.

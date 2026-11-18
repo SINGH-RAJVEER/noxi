@@ -3,7 +3,7 @@
 //! store, while retaining CppNix 2.35.2's logical `/nix/store` paths.
 
 use std::cell::{RefCell, RefMut};
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::{BTreeMap, BTreeSet, HashSet};
 use std::ffi::{OsStr, OsString};
 use std::io;
 use std::os::unix::ffi::{OsStrExt, OsStringExt};
@@ -39,6 +39,9 @@ pub struct EvaluatorStore {
 	/// The store that registers text, imports and derivations; `None`
 	/// evaluates read-only, computing paths without writing them.
 	store: Option<Rc<dyn Store>>,
+	/// Derivations this evaluation registered. Each holds a temporary root
+	/// for the life of the process, so a repeat needs no store request.
+	registered_derivations: RefCell<HashSet<StorePath>>,
 	real_store_dir: Option<PathBuf>,
 	read_access: RefCell<Option<Rc<dyn Store>>>,
 	opener: Option<Box<dyn Fn() -> io::Result<Option<Rc<dyn Store>>>>>,
@@ -346,21 +349,17 @@ impl EvaluatorStore {
 	}
 
 	pub(crate) fn register_derivation(&self, drv: &Derivation) -> io::Result<()> {
-		if self.store.is_some() {
-			let references = drv
-				.input_sources()
-				.iter()
-				.chain(drv.input_derivations().keys())
-				.cloned()
-				.collect();
-			let path = self.add_text(drv.drv_path().name(), &drv.to_aterm_bytes(), &references)?;
-			if &path != drv.drv_path() {
-				return Err(io::Error::other(
-					"registered derivation path differs from evaluator path",
-				));
-			}
-		}
-		Ok(())
+		self.write_derivation(
+			drv.drv_path(),
+			|| drv.to_aterm_bytes(),
+			|| {
+				drv.input_sources()
+					.iter()
+					.chain(drv.input_derivations().keys())
+					.cloned()
+					.collect()
+			},
+		)
 	}
 
 	pub(crate) fn register_build_derivation(
@@ -368,21 +367,50 @@ impl EvaluatorStore {
 		path: &StorePath,
 		drv: &noxi_store::build_derivation::BuildDerivation,
 	) -> io::Result<()> {
-		if self.store.is_some() {
-			let references = drv
-				.basic
-				.input_sources()
-				.iter()
-				.chain(drv.basic.input_derivations().keys())
-				.cloned()
-				.collect();
-			let actual = self.add_text(path.name(), &drv.to_aterm_bytes(), &references)?;
+		self.write_derivation(
+			path,
+			|| drv.to_aterm_bytes(),
+			|| {
+				drv.basic
+					.input_sources()
+					.iter()
+					.chain(drv.basic.input_derivations().keys())
+					.cloned()
+					.collect()
+			},
+		)
+	}
+
+	/// CppNix's `writeDerivation`: a derivation whose path is already valid
+	/// is kept alive with a temporary root instead of being sent again.
+	/// The root is taken before the validity check, so a collection cannot
+	/// delete the path between the check and the end of the evaluation.
+	fn write_derivation(
+		&self,
+		path: &StorePath,
+		contents: impl FnOnce() -> Vec<u8>,
+		references: impl FnOnce() -> BTreeSet<StorePath>,
+	) -> io::Result<()> {
+		let Some(store) = &self.store else {
+			return Ok(());
+		};
+		if self.registered_derivations.borrow().contains(path) {
+			return Ok(());
+		}
+		store.add_temp_root(path).map_err(io::Error::other)?;
+		if !store.is_valid_path(path).map_err(io::Error::other)? {
+			let actual = store
+				.add_text_to_store(path.name(), &contents(), &references())
+				.map_err(io::Error::other)?;
 			if &actual != path {
 				return Err(io::Error::other(
 					"registered derivation path differs from evaluator path",
 				));
 			}
 		}
+		self.registered_derivations
+			.borrow_mut()
+			.insert(path.clone());
 		Ok(())
 	}
 
