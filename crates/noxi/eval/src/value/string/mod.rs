@@ -55,9 +55,11 @@ struct NixStringInner {
 /// exceed `isize::MAX`, so the top bit of a real length is always clear.
 const COUNTED_FLAG: usize = 1 << (usize::BITS - 1);
 
-/// Process-wide opt-in for reclaiming context-free string storage.
+/// Process-wide setting for reclaiming context-free string storage.
 ///
-/// Read once from `NOXI_RECLAIM_STRINGS=1`. The decision only affects *new*
+/// Enabled unless `NOXI_RECLAIM_STRINGS=0` restores the original policy, which
+/// shares uninterned context-free strings by pointer and never frees them.
+/// Read once. The decision only affects *new*
 /// allocations: every allocation records its own ownership mode in its length word,
 /// so strings created under either mode stay valid regardless of when the setting
 /// was first read. Interned strings are never counted and stay immortal.
@@ -69,7 +71,7 @@ fn string_reclaim_enabled() -> bool {
 		1 => false,
 		2 => true,
 		_ => {
-			let enabled = std::env::var_os("NOXI_RECLAIM_STRINGS").is_some_and(|v| v == "1");
+			let enabled = std::env::var_os("NOXI_RECLAIM_STRINGS").is_none_or(|v| v != "0");
 			MODE.store(if enabled { 2 } else { 1 }, Ordering::Relaxed);
 			enabled
 		}

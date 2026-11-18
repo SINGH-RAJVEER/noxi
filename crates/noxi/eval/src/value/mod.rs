@@ -36,6 +36,7 @@ pub(crate) use attrs::cppnix_attribute_order;
 pub(crate) use builtin::PendingBuiltin;
 pub use builtin::{Builtin, BuiltinResult};
 pub(crate) use function::Formals;
+pub(crate) use function::LambdaName;
 pub use function::{Closure, Lambda};
 pub use list::NixList;
 pub use path::canon_path;

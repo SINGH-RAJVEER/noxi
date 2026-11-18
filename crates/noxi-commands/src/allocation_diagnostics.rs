@@ -36,6 +36,100 @@ static ACCOUNTING: Accounting = Accounting {
 	peak_live_bytes: AtomicU64::new(0),
 };
 
+/// Exact bins for requested sizes up to this bound, power-of-two bins above.
+const EXACT_BIN_LIMIT: usize = 1024;
+const BIN_COUNT: usize = EXACT_BIN_LIMIT + 1 + 64;
+/// The live size bins are copied whenever live bytes pass the previous
+/// snapshot's level by this step, so the copy is within one step of the peak.
+const SNAPSHOT_STEP: u64 = 4 << 20;
+
+struct Bins {
+	live_count: [AtomicU64; BIN_COUNT],
+	live_bytes: [AtomicU64; BIN_COUNT],
+	peak_count: [AtomicU64; BIN_COUNT],
+	peak_bytes: [AtomicU64; BIN_COUNT],
+	peak_level: AtomicU64,
+	next_snapshot: AtomicU64,
+}
+
+static BINS: Bins = Bins {
+	live_count: [const { AtomicU64::new(0) }; BIN_COUNT],
+	live_bytes: [const { AtomicU64::new(0) }; BIN_COUNT],
+	peak_count: [const { AtomicU64::new(0) }; BIN_COUNT],
+	peak_bytes: [const { AtomicU64::new(0) }; BIN_COUNT],
+	peak_level: AtomicU64::new(0),
+	next_snapshot: AtomicU64::new(SNAPSHOT_STEP),
+};
+
+fn bin(size: usize) -> usize {
+	if size <= EXACT_BIN_LIMIT {
+		size
+	} else {
+		EXACT_BIN_LIMIT + 1 + (usize::BITS - 1 - size.leading_zeros()) as usize
+	}
+}
+
+fn bin_label(index: usize) -> u64 {
+	if index <= EXACT_BIN_LIMIT {
+		index as u64
+	} else {
+		1 << (index - EXACT_BIN_LIMIT - 1)
+	}
+}
+
+impl Bins {
+	fn add(&self, size: usize) {
+		let index = bin(size);
+		self.live_count[index].fetch_add(1, Relaxed);
+		self.live_bytes[index].fetch_add(size as u64, Relaxed);
+	}
+
+	fn remove(&self, size: usize) {
+		let index = bin(size);
+		self.live_count[index].fetch_sub(1, Relaxed);
+		self.live_bytes[index].fetch_sub(size as u64, Relaxed);
+	}
+
+	/// Copy the live bins when live bytes reach the next snapshot level.
+	fn observe(&self, live: u64) {
+		if live < self.next_snapshot.load(Relaxed) {
+			return;
+		}
+		self.next_snapshot.store(live + SNAPSHOT_STEP, Relaxed);
+		self.peak_level.store(live, Relaxed);
+		for index in 0..BIN_COUNT {
+			self.peak_count[index].store(self.live_count[index].load(Relaxed), Relaxed);
+			self.peak_bytes[index].store(self.live_bytes[index].load(Relaxed), Relaxed);
+		}
+	}
+
+	/// Nonempty bins, largest byte total first. Bins above the exact limit
+	/// are labelled by their power-of-two lower bound.
+	fn report(
+		&self,
+		counts: &[AtomicU64; BIN_COUNT],
+		bytes: &[AtomicU64; BIN_COUNT],
+	) -> serde_json::Value {
+		let mut rows: Vec<_> = (0..BIN_COUNT)
+			.map(|index| {
+				(
+					bin_label(index),
+					index <= EXACT_BIN_LIMIT,
+					counts[index].load(Relaxed),
+					bytes[index].load(Relaxed),
+				)
+			})
+			.filter(|(_, _, count, _)| *count != 0)
+			.collect();
+		rows.sort_by(|left, right| right.3.cmp(&left.3));
+		rows.into_iter()
+			.map(|(size, exact, count, bytes)| {
+				serde_json::json!({"size": size, "exact": exact, "count": count, "bytes": bytes})
+			})
+			.collect()
+	}
+}
+
 impl Accounting {
 	fn grow(&self, bytes: u64) {
 		let live = self
@@ -43,6 +137,7 @@ impl Accounting {
 			.fetch_add(bytes, Relaxed)
 			.wrapping_add(bytes);
 		self.peak_live_bytes.fetch_max(live, Relaxed);
+		BINS.observe(live);
 	}
 
 	fn allocated(&self, bytes: usize, succeeded: bool) {
@@ -52,10 +147,12 @@ impl Accounting {
 		}
 		self.allocations.fetch_add(1, Relaxed);
 		self.allocation_bytes.fetch_add(bytes as u64, Relaxed);
+		BINS.add(bytes);
 		self.grow(bytes as u64);
 	}
 
 	fn deallocated(&self, bytes: usize) {
+		BINS.remove(bytes);
 		self.deallocations.fetch_add(1, Relaxed);
 		self.deallocation_bytes.fetch_add(bytes as u64, Relaxed);
 		self.live_bytes.fetch_sub(bytes as u64, Relaxed);
@@ -67,6 +164,8 @@ impl Accounting {
 			return;
 		}
 		self.reallocations.fetch_add(1, Relaxed);
+		BINS.remove(old);
+		BINS.add(new);
 		self.reallocation_old_bytes.fetch_add(old as u64, Relaxed);
 		self.reallocation_new_bytes.fetch_add(new as u64, Relaxed);
 		if new >= old {
@@ -166,6 +265,9 @@ impl Drop for ReportGuard {
 			"deallocation_requested_bytes": deallocation_bytes,
 			"current_live_requested_bytes": live_bytes,
 			"peak_live_requested_bytes": peak_live_bytes,
+			"peak_snapshot_live_requested_bytes": BINS.peak_level.load(Relaxed),
+			"peak_snapshot_bins": BINS.report(&BINS.peak_count, &BINS.peak_bytes),
+			"final_live_bins": BINS.report(&BINS.live_count, &BINS.live_bytes),
 		});
 		let result = std::fs::File::create(path)
 			.and_then(|file| serde_json::to_writer(file, &report).map_err(std::io::Error::other));

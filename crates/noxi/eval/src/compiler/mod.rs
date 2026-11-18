@@ -36,7 +36,7 @@ use crate::observer::{CompilerObserver, OptionalCompilerObserver};
 use crate::opcode::{CodeIdx, Op, Position, UpvalueIdx};
 use crate::spans::ToSpan;
 use crate::upvalues::UpvalueData;
-use crate::value::{Closure, Formals, Lambda, NixAttrs, NixList, Thunk, Value};
+use crate::value::{Closure, Formals, Lambda, LambdaName, NixAttrs, NixList, Thunk, Value};
 use crate::warnings::{EvalWarning, WarningKind};
 use crate::{CoercionKind, NixString};
 
@@ -348,7 +348,7 @@ impl Compiler<'_, '_> {
 
 	fn push_attrset_pos(&mut self, span: Span) {
 		if self.file.name() != crate::REPL_LOCATION || self.source.original_span(span) != span {
-			self.chunk().attrsets_pos_spans.push(span);
+			self.chunk().push_attrsets_pos_span(span);
 		}
 	}
 }
@@ -406,7 +406,7 @@ impl Compiler<'_, '_> {
 			// A function bound directly to a name takes that name, as in
 			// CppNix.
 			ast::Expr::Lambda(lambda) => self.thunk(slot, lambda, move |c, s| {
-				if let Some(name) = c.context().lambda.name.clone() {
+				if let Some(name) = c.context().lambda.name.as_deref().map(SmolStr::new) {
 					c.scope_mut().name_phantom(s, name);
 				}
 				c.compile_lambda_or_thunk(false, s, lambda, |c, s| c.compile_lambda(s, lambda))
@@ -838,9 +838,7 @@ impl Compiler<'_, '_> {
 				let left = self.span_for(&op.lhs().unwrap());
 				self.context_mut()
 					.lambda
-					.addition_left_spans
-					.get_or_insert_with(Default::default)
-					.push((code.0, left));
+					.push_addition_left_span(code.0, left);
 				code
 			}
 			BinOpKind::Sub => self.push_op(Op::Sub, op),
@@ -1575,7 +1573,7 @@ impl Compiler<'_, '_> {
 				self.scope_mut().mark_initialised(idx);
 
 				// Store the parameter name for toXML
-				self.context_mut().lambda.param_name = name;
+				self.context_mut().lambda.param_name = Some(LambdaName::new(&name));
 
 				None
 			}
@@ -1583,14 +1581,14 @@ impl Compiler<'_, '_> {
 
 		// A function directly returning a function passes its name on, as
 		// CppNix's `ExprLambda::setName` does.
-		if let Some(name) = self.context().lambda.name.clone() {
+		if let Some(name) = self.context().lambda.name.as_deref().map(SmolStr::new) {
 			self.scope_mut().name_phantom(slot, name);
 		}
 		self.compile_tail(slot, node.body().unwrap());
 		if let Some((formals, throw_idx)) = formals {
 			self.context_mut().lambda.formals = Some(Box::new(formals));
 			// For formals, there's no single parameter name, use empty string
-			self.context_mut().lambda.param_name = String::new();
+			self.context_mut().lambda.param_name = None;
 			Some(throw_idx)
 		} else {
 			self.context_mut().lambda.formals = None;
@@ -1625,7 +1623,7 @@ impl Compiler<'_, '_> {
 
 		// Set the (optional) name of the current slot on the lambda that is
 		// being compiled.
-		self.context_mut().lambda.name = name;
+		self.context_mut().lambda.name = name.as_deref().map(LambdaName::new);
 
 		let span = self.span_for(node);
 		let slot = self.scope_mut().declare_phantom(span, false);

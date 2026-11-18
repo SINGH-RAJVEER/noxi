@@ -285,7 +285,7 @@ impl Thunk {
 	}
 
 	pub fn new_closure(lambda: Rc<Lambda>) -> Self {
-		let upvalues = Upvalues::with_capacity(lambda.upvalue_count);
+		let upvalues = Upvalues::with_capacity(lambda.upvalue_count as usize);
 		Self::new_closure_with_upvalues(lambda, upvalues)
 	}
 
@@ -300,7 +300,7 @@ impl Thunk {
 	}
 
 	pub fn new_suspended(lambda: Rc<Lambda>, span: Span) -> Self {
-		let upvalues = Upvalues::with_capacity(lambda.upvalue_count);
+		let upvalues = Upvalues::with_capacity(lambda.upvalue_count as usize);
 		Self::new_suspended_with_upvalues(lambda, span, upvalues)
 	}
 

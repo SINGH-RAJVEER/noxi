@@ -136,7 +136,10 @@ fn value_variant_to_xml<W: Write>(w: &mut XmlEmitter<W>, value: &Value) -> Resul
 				}
 				None => {
 					// Use the stored parameter name
-					w.write_self_closing_tag("varpat", &[("name", &c.lambda.param_name)])?;
+					w.write_self_closing_tag(
+						"varpat",
+						&[("name", c.lambda.param_name.as_deref().unwrap_or_default())],
+					)?;
 				}
 			}
 

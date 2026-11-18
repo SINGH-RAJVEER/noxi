@@ -1206,7 +1206,7 @@ where
 
 					let upvalues = self.populate_upvalues(&mut frame)?;
 					debug_assert!(
-						upvalues.len() == blueprint.upvalue_count,
+						upvalues.len() == blueprint.upvalue_count as usize,
 						"TODO: new upvalue count not correct",
 					);
 
@@ -1463,7 +1463,7 @@ where
 					let upvalues = self.populate_upvalues(&mut frame)?;
 					let upvalue_count = upvalues.len();
 					debug_assert!(
-						upvalue_count == blueprint.upvalue_count,
+						upvalue_count == blueprint.upvalue_count as usize,
 						"TODO: new upvalue count not correct in closure",
 					);
 
@@ -1819,7 +1819,7 @@ where
 							continue;
 						}
 						let gen_span = if !matches!(&a, Value::String(_) | Value::Path(_) | Value::Integer(_) | Value::Float(_)) {
-							frame.lambda.addition_left_spans.as_ref().and_then(|positions| positions.iter().find(|(code, _)| *code == frame.ip.0 - 1).map(|(_, span)| *span)).unwrap_or_else(|| frame.current_span())
+							frame.lambda.addition_left_spans().and_then(|positions| positions.iter().find(|(code, _)| *code == frame.ip.0 - 1).map(|(_, span)| *span)).unwrap_or_else(|| frame.current_span())
 						} else { frame.current_span() };
 						self.push_bytecode_frame(span, frame);
 
@@ -2001,7 +2001,7 @@ where
 		let attrs = NixAttrs::construct_with_positions(
 			count,
 			self.stack.split_off(self.stack.len() - count * 2),
-			&frame.chunk().attrsets_pos_spans,
+			frame.chunk().attrsets_pos_spans(),
 			Some(&frame.chunk().attrset_positions),
 		)
 		.with_span(frame, self)?

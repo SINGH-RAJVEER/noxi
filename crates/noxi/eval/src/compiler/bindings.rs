@@ -1065,7 +1065,7 @@ impl Compiler<'_, '_> {
 
 		self.contexts[ctx_idx].scope.upvalues.push(Upvalue { kind });
 
-		let idx = UpvalueIdx(self.contexts[ctx_idx].lambda.upvalue_count);
+		let idx = UpvalueIdx(self.contexts[ctx_idx].lambda.upvalue_count as usize);
 		self.contexts[ctx_idx].lambda.upvalue_count += 1;
 		idx
 	}

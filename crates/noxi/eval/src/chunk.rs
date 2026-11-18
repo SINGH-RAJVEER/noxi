@@ -40,7 +40,13 @@ pub struct Chunk {
 	///
 	/// This assumption is based on how AttrSets compiled now. Each
 	/// AttrSet emits its own thunk and each thunk creates its own Chunk.
-	pub attrsets_pos_spans: Vec<codemap::Span>,
+	/// Most chunks construct no attribute set, so the spans are boxed to keep
+	/// the empty case to one word.
+	#[allow(
+		clippy::box_collection,
+		reason = "a boxed vector keeps the field one word"
+	)]
+	attrsets_pos_spans: Option<Box<Vec<codemap::Span>>>,
 
 	/// The positions of the attributes of the first set constructed from that
 	/// AttrSet, for later sets with the same attributes to share.
@@ -50,15 +56,16 @@ pub struct Chunk {
 
 	/// Index of the last operation (i.e. not data) written to the code vector.
 	/// Some operations (e.g. jump patching) need to know this.
-	last_op: usize,
+	last_op: u32,
 }
 
 impl Chunk {
 	pub fn push_op(&mut self, op: Op, span: codemap::Span) -> usize {
-		self.last_op = self.code.len();
+		let last_op = self.code.len();
+		self.last_op = u32::try_from(last_op).expect("chunk code exceeds 4 GiB");
 		self.code.push(op as u8);
-		self.push_span(span, self.last_op);
-		self.last_op
+		self.push_span(span, last_op);
+		last_op
 	}
 
 	pub fn push_uvarint(&mut self, data: u64) {
@@ -120,7 +127,8 @@ impl Chunk {
 			return None;
 		}
 
-		Some((self.code[self.last_op].into(), self.last_op))
+		let last_op = self.last_op as usize;
+		Some((self.code[last_op].into(), last_op))
 	}
 
 	/// Release the spare capacity of a finished chunk, which stays alive as
@@ -128,8 +136,21 @@ impl Chunk {
 	pub fn shrink_to_fit(&mut self) {
 		self.code.shrink_to_fit();
 		self.constants.shrink_to_fit();
-		self.attrsets_pos_spans.shrink_to_fit();
+		if let Some(spans) = &mut self.attrsets_pos_spans {
+			spans.shrink_to_fit();
+		}
 		self.spans.shrink_to_fit();
+	}
+
+	/// Spans of the keys of this chunk's attribute set literal, if any.
+	pub fn attrsets_pos_spans(&self) -> &[codemap::Span] {
+		self.attrsets_pos_spans
+			.as_deref()
+			.map_or(&[], Vec::as_slice)
+	}
+
+	pub fn push_attrsets_pos_span(&mut self, span: codemap::Span) {
+		self.attrsets_pos_spans.get_or_insert_default().push(span);
 	}
 
 	pub fn push_constant(&mut self, data: Value) -> ConstantIdx {
@@ -292,7 +313,7 @@ impl Chunk {
 
 		let mut idx = 0;
 		let mut count = 0;
-		while idx <= self.last_op {
+		while idx <= self.last_op as usize {
 			let op: Op = self.code[idx].into();
 			let op_len = match op.arg_type() {
 				OpArg::None => 1,
