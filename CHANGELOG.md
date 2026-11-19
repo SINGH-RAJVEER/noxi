@@ -306,6 +306,7 @@ Serializes Rust values into Nix and deserializes Nix values into Rust types, imp
 
 ### Unreleased
 
+- A flake `path:` input under the store directory that a diverted store (`--store /mnt`) lacks is read from the host's store, as CppNix's `PathInputScheme` reads it, rather than from inside the diverted store. `nixos-install --flake` relies on this for inputs locked to the installer's store (2026-11-21).
 - Add `addDrvOutputDependencies`, `parseFlakeRef` and `flakeRefToString` store-aware builtins, and configure writable evaluator stores through shared settings. (2026-10-03).
 
 ### 0.1.2 - 2026-10-03
