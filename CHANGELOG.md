@@ -4,6 +4,12 @@ Changes to each crate in this workspace, grouped by crate and version, newest fi
 
 Changes that have not reached a version yet go under an `Unreleased` heading for that crate.
 
+## noxi 0.0.6 - 2026-11-19, pending publication
+
+Publishes the evaluator performance and pure flake evaluation work. `noxi system build` now evaluates a NixOS flake in pure mode, using the evaluator store's allow list as CppNix's `allowPath` does and canonicalizing string paths before access. The evaluator enters bytecode frames directly, prints `genericClosure` trace text only when an error needs it, layers small `//` updates over large sets, skips builtin error contexts for evaluated arguments, reclaims uninterned strings by default (`NOXI_RECLAIM_STRINGS=0` restores the old policy), and stores thunks in a 40-byte cell. Locked flake inputs whose store path is already valid are no longer rehashed, derivations already in the store are not written again, and mimalloc no longer requests transparent huge pages. Evaluating a real NixOS configuration fell from 48.2 s and 5.21 GiB to 25.7 s and 3.67 GiB; CppNix 2.35.6 takes 10.1 s and 1.66 GiB.
+
+It publishes `noxi-compat`, `noxi-store`, `noxi-eval`, `noxi-commands`, `noxi-daemon` and `noxi-cli` at 0.0.5, and `noxi-eval-builtin-macros`, `noxi-build`, `noxi-glue`, `noxi-flake`, `noxi-serde` and `noxi-system` at 0.0.4. `noxi-daemon`, `noxi-flake`, `noxi-serde`, `noxi-system` and `noxi-cli` have no source changes of their own and move because their exact requirements change.
+
 ## noxi 0.0.5 - 2026-11-17, pending publication
 
 Publishes `noxi-daemon` 0.0.4 with `NOXI_DAEMON_IDLE_TIMEOUT`, which lets a socket-activated daemon exit when idle. It also publishes `noxi-commands` 0.0.4 with two changes: the `auto` store falls back to a per-user chroot store, and the store execution helper runs programs in a chroot when the store directory is missing. Together they let a user without root use noxi on a host without `/nix`, with no daemon. `noxi-system` 0.0.3 and `noxi-cli` 0.0.4 follow because their exact requirements on these crates change.

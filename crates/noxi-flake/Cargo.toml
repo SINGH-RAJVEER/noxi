@@ -1,6 +1,6 @@
 [package]
 name = "noxi-flake"
-version = "0.0.3"
+version = "0.0.4"
 rust-version.workspace = true
 edition = "2024"
 description = "Flake graph and operation library for noxi"
@@ -9,15 +9,15 @@ repository = "https://github.com/SINGH-RAJVEER/nix-rs"
 
 [dependencies]
 bstr.workspace = true
-nix-compat = { package = "noxi-compat", path = "../noxi/nix-compat", version = "0.0.4" }
-noxi-eval = { path = "../noxi/eval", version = "0.0.4", default-features = false, features = ["impure"] }
+nix-compat = { package = "noxi-compat", path = "../noxi/nix-compat", version = "0.0.5" }
+noxi-eval = { path = "../noxi/eval", version = "0.0.5", default-features = false, features = ["impure"] }
 noxi-flakeref = { path = "../noxi-flakeref", version = "0.0.3" }
-noxi-glue = { path = "../noxi-glue", version = "0.0.3" }
-noxi-store = { path = "../noxi-store", version = "0.0.4" }
+noxi-glue = { path = "../noxi-glue", version = "0.0.4" }
+noxi-store = { path = "../noxi-store", version = "0.0.5" }
 serde_json.workspace = true
 sha2.workspace = true
 data-encoding.workspace = true
 
 [dev-dependencies]
 tempfile.workspace = true
-noxi-build = { path = "../noxi-build", version = "0.0.3" }
+noxi-build = { path = "../noxi-build", version = "0.0.4" }

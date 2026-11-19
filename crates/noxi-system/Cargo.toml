@@ -1,6 +1,6 @@
 [package]
 name = "noxi-system"
-version = "0.0.3"
+version = "0.0.4"
 rust-version.workspace = true
 edition = "2024"
 description = "Native noxi flake update, system rebuild and snapshot operations"
@@ -8,14 +8,14 @@ license = "GPL-3.0-only"
 repository = "https://github.com/SINGH-RAJVEER/nix-rs"
 
 [dependencies]
-nix-compat = { package = "noxi-compat", path = "../noxi/nix-compat", version = "0.0.4" }
-noxi-commands = { path = "../noxi-commands", version = "0.0.4" }
-noxi-eval = { path = "../noxi/eval", version = "0.0.4", default-features = false, features = ["impure"] }
-noxi-flake = { path = "../noxi-flake", version = "0.0.3" }
+nix-compat = { package = "noxi-compat", path = "../noxi/nix-compat", version = "0.0.5" }
+noxi-commands = { path = "../noxi-commands", version = "0.0.5" }
+noxi-eval = { path = "../noxi/eval", version = "0.0.5", default-features = false, features = ["impure"] }
+noxi-flake = { path = "../noxi-flake", version = "0.0.4" }
 noxi-flakeref = { path = "../noxi-flakeref", version = "0.0.3" }
-noxi-glue = { path = "../noxi-glue", version = "0.0.3" }
+noxi-glue = { path = "../noxi-glue", version = "0.0.4" }
 noxi-events = { path = "../noxi-events", version = "0.0.1" }
-noxi-store = { path = "../noxi-store", version = "0.0.4" }
+noxi-store = { path = "../noxi-store", version = "0.0.5" }
 serde_json.workspace = true
 libc.workspace = true
 serde = { workspace = true, features = ["derive"] }

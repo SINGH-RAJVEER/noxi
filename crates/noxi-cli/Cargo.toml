@@ -1,6 +1,6 @@
 [package]
 name = "noxi-cli"
-version = "0.0.4"
+version = "0.0.5"
 rust-version.workspace = true
 edition = "2024"
 description = "Preview command-line entry point for the noxi package manager"
@@ -12,9 +12,9 @@ name = "noxi"
 path = "src/main.rs"
 
 [dependencies]
-noxi-eval = { path = "../noxi/eval", version = "0.0.4", default-features = false }
+noxi-eval = { path = "../noxi/eval", version = "0.0.5", default-features = false }
 noxi-events = { path = "../noxi-events", version = "0.0.1" }
-noxi-system = { path = "../noxi-system", version = "0.0.3" }
+noxi-system = { path = "../noxi-system", version = "0.0.4" }
 
 [dev-dependencies]
 tempfile.workspace = true

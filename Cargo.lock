@@ -1440,7 +1440,7 @@ dependencies = [
 
 [[package]]
 name = "noxi-build"
-version = "0.0.3"
+version = "0.0.4"
 dependencies = [
  "bstr",
  "bzip2",
@@ -1459,7 +1459,7 @@ dependencies = [
 
 [[package]]
 name = "noxi-cli"
-version = "0.0.4"
+version = "0.0.5"
 dependencies = [
  "noxi-eval",
  "noxi-events",
@@ -1469,7 +1469,7 @@ dependencies = [
 
 [[package]]
 name = "noxi-commands"
-version = "0.0.4"
+version = "0.0.5"
 dependencies = [
  "bstr",
  "bytes",
@@ -1494,7 +1494,7 @@ dependencies = [
 
 [[package]]
 name = "noxi-compat"
-version = "0.0.4"
+version = "0.0.5"
 dependencies = [
  "bitflags 2.13.1",
  "bstr",
@@ -1565,7 +1565,7 @@ dependencies = [
 
 [[package]]
 name = "noxi-daemon"
-version = "0.0.4"
+version = "0.0.5"
 dependencies = [
  "libc",
  "noxi-build",
@@ -1578,7 +1578,7 @@ dependencies = [
 
 [[package]]
 name = "noxi-eval"
-version = "0.0.4"
+version = "0.0.5"
 dependencies = [
  "bstr",
  "bytes",
@@ -1620,7 +1620,7 @@ dependencies = [
 
 [[package]]
 name = "noxi-eval-builtin-macros"
-version = "0.0.3"
+version = "0.0.4"
 dependencies = [
  "noxi-eval",
  "proc-macro2",
@@ -1642,7 +1642,7 @@ dependencies = [
 
 [[package]]
 name = "noxi-flake"
-version = "0.0.3"
+version = "0.0.4"
 dependencies = [
  "bstr",
  "data-encoding",
@@ -1671,7 +1671,7 @@ dependencies = [
 
 [[package]]
 name = "noxi-glue"
-version = "0.0.3"
+version = "0.0.4"
 dependencies = [
  "bstr",
  "bytes",
@@ -1716,7 +1716,7 @@ dependencies = [
 
 [[package]]
 name = "noxi-serde"
-version = "0.0.3"
+version = "0.0.4"
 dependencies = [
  "bstr",
  "noxi-eval",
@@ -1725,7 +1725,7 @@ dependencies = [
 
 [[package]]
 name = "noxi-store"
-version = "0.0.4"
+version = "0.0.5"
 dependencies = [
  "aho-corasick",
  "brotli-decompressor",
@@ -1750,7 +1750,7 @@ dependencies = [
 
 [[package]]
 name = "noxi-system"
-version = "0.0.3"
+version = "0.0.4"
 dependencies = [
  "libc",
  "noxi-commands",

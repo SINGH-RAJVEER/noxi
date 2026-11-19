@@ -60,21 +60,21 @@ The crates below are intended for publication on crates.io under the SINGH-RAJVE
 
 | Crate | Version | License | Contents |
 |---|---|---|---|
-| [`noxi-eval-builtin-macros`](https://crates.io/crates/noxi-eval-builtin-macros) | 0.0.3 | GPL-3.0-only | Procedural macros for defining builtins, derived from `snix-eval-builtin-macros` |
-| [`noxi-eval`](https://crates.io/crates/noxi-eval) | 0.0.4 | GPL-3.0-only | Nix language evaluator, derived from `snix-eval` |
-| [`noxi-cli`](https://crates.io/crates/noxi-cli) | 0.0.4 | Apache-2.0 | The `noxi` preview command |
+| [`noxi-eval-builtin-macros`](https://crates.io/crates/noxi-eval-builtin-macros) | 0.0.4 | GPL-3.0-only | Procedural macros for defining builtins, derived from `snix-eval-builtin-macros` |
+| [`noxi-eval`](https://crates.io/crates/noxi-eval) | 0.0.5 | GPL-3.0-only | Nix language evaluator, derived from `snix-eval` |
+| [`noxi-cli`](https://crates.io/crates/noxi-cli) | 0.0.5 | Apache-2.0 | The `noxi` preview command |
 | [`noxi-hash`](https://crates.io/crates/noxi-hash) | 0.0.3 | GPL-3.0-only | Hash and Nix base32 formats |
 | [`noxi-flakeref`](https://crates.io/crates/noxi-flakeref) | 0.0.3 | GPL-3.0-only | Flake reference parser and formatter |
-| [`noxi-compat`](https://crates.io/crates/noxi-compat) | 0.0.4 | GPL-3.0-only | Nix formats and protocol values |
+| [`noxi-compat`](https://crates.io/crates/noxi-compat) | 0.0.5 | GPL-3.0-only | Nix formats and protocol values |
 | [`noxi-compat-derive`](https://crates.io/crates/noxi-compat-derive) | 0.0.3 | GPL-3.0-only | Wire derive macros |
-| [`noxi-serde`](https://crates.io/crates/noxi-serde) | 0.0.3 | GPL-3.0-only | Bidirectional serde bridge |
-| [`noxi-glue`](https://crates.io/crates/noxi-glue) | 0.0.3 | GPL-3.0-only | Read-only store-aware evaluation on Unix |
-| [`noxi-commands`](https://crates.io/crates/noxi-commands) | 0.0.4 | GPL-3.0-only | CppNix-compatible legacy and modern command implementations |
-| [`noxi-store`](https://crates.io/crates/noxi-store) | 0.0.4 | GPL-3.0-only | Experimental local store and cache substitution |
-| [`noxi-build`](https://crates.io/crates/noxi-build) | 0.0.3 | GPL-3.0-only | Experimental local sandboxed derivation builder |
-| [`noxi-daemon`](https://crates.io/crates/noxi-daemon) | 0.0.4 | GPL-3.0-only | Nix worker protocol daemon |
-| [`noxi-flake`](https://crates.io/crates/noxi-flake) | 0.0.3 | GPL-3.0-only | Flake graph and operations |
-| [`noxi-system`](https://crates.io/crates/noxi-system) | 0.0.3 | GPL-3.0-only | Native `noxi flake`, `noxi system` and `noxi snapshot` operations |
+| [`noxi-serde`](https://crates.io/crates/noxi-serde) | 0.0.4 | GPL-3.0-only | Bidirectional serde bridge |
+| [`noxi-glue`](https://crates.io/crates/noxi-glue) | 0.0.4 | GPL-3.0-only | Read-only store-aware evaluation on Unix |
+| [`noxi-commands`](https://crates.io/crates/noxi-commands) | 0.0.5 | GPL-3.0-only | CppNix-compatible legacy and modern command implementations |
+| [`noxi-store`](https://crates.io/crates/noxi-store) | 0.0.5 | GPL-3.0-only | Experimental local store and cache substitution |
+| [`noxi-build`](https://crates.io/crates/noxi-build) | 0.0.4 | GPL-3.0-only | Experimental local sandboxed derivation builder |
+| [`noxi-daemon`](https://crates.io/crates/noxi-daemon) | 0.0.5 | GPL-3.0-only | Nix worker protocol daemon |
+| [`noxi-flake`](https://crates.io/crates/noxi-flake) | 0.0.4 | GPL-3.0-only | Flake graph and operations |
+| [`noxi-system`](https://crates.io/crates/noxi-system) | 0.0.4 | GPL-3.0-only | Native `noxi flake`, `noxi system` and `noxi snapshot` operations |
 | [`noxi-events`](https://crates.io/crates/noxi-events) | 0.0.1 | GPL-3.0-only | Structured operation events and rustc-style terminal rendering |
 
 Imported code retains Snix's GPL-3.0 license, with package-local text and provenance; bundled LGPL Nix material has its own notices and license text. The CLI's own source is Apache-2.0, but the `noxi` binary links `noxi-eval`, so a distributed binary must meet GPL-3.0 terms. Published versions are permanent: a version can be yanked but its source stays public. Record each release in [CHANGELOG.md](../CHANGELOG.md), bump changed crates and versioned path dependencies, package and verify the archives, then publish the selected packages in dependency order. Reuse an unchanged dependency's existing registry release rather than attempting to upload the same version again. These are preview crates: their APIs are not stable, and publication does not close the drop-in release gate.
@@ -185,6 +185,12 @@ This update releases three changes:
 - the store execution helper's chroot for a missing store directory.
 
 It bumps `noxi-daemon` and `noxi-commands` to 0.0.4, which carry those changes. Their 0.0.x requirements are exact, so `noxi-system` moves to 0.0.3 and `noxi-cli` to 0.0.4 to require the new versions. The unpublished `noxi-compat-tests` requirements follow. Every other crate keeps its published version.
+
+## Version update, 2026-11-19
+
+This update releases pure flake evaluation of NixOS systems and the evaluator, fetch, store and allocator performance work recorded in [performance.md](performance.md). Source changes since the published versions touch `noxi-compat`, `noxi-store`, `noxi-build`, `noxi-eval`, `noxi-eval-builtin-macros`, `noxi-glue` and `noxi-commands`, which each move up one patch version: `noxi-compat`, `noxi-store`, `noxi-eval` and `noxi-commands` to 0.0.5, and `noxi-build`, `noxi-eval-builtin-macros` and `noxi-glue` to 0.0.4. Their 0.0.x requirements are exact, so `noxi-daemon` and `noxi-cli` move to 0.0.5 and `noxi-flake`, `noxi-serde` and `noxi-system` to 0.0.4 to require the new versions. `noxi-compat-derive` keeps 0.0.3, since only its test dependency changes, and `noxi-hash`, `noxi-flakeref` and `noxi-events` keep their published versions.
+
+`noxi-eval-builtin-macros` tests against `noxi-eval`, which depends on it. That test dependency must stay path-only: Cargo packages the macros first and strips a path-only dev-dependency, while a versioned one must already resolve on crates.io, which fails whenever both crates move in the same release.
 
 
 ## Flake output interface

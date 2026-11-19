@@ -1,6 +1,6 @@
 [package]
 name = "noxi-eval"
-version = "0.0.4"
+version = "0.0.5"
 edition = "2024"
 rust-version.workspace = true
 description = "Nix language parser, compiler and bytecode evaluator for noxi, derived from snix-eval"
@@ -11,7 +11,7 @@ repository = "https://github.com/SINGH-RAJVEER/nix-rs"
 name = "noxi_eval"
 
 [dependencies]
-builtin-macros = { path = "./builtin-macros", version = "0.0.3", package = "noxi-eval-builtin-macros" }
+builtin-macros = { path = "./builtin-macros", version = "0.0.4", package = "noxi-eval-builtin-macros" }
 bytes.workspace = true
 bstr = { workspace = true, features = ["serde"] }
 codemap.workspace = true
@@ -20,7 +20,7 @@ genawaiter.workspace = true
 hashbrown.workspace = true
 itertools.workspace = true
 noxi-hash = { path = "../../noxi-hash", version = "0.0.3" }
-nix-compat = { path = "../nix-compat", version = "0.0.4", package = "noxi-compat" }
+nix-compat = { path = "../nix-compat", version = "0.0.5", package = "noxi-compat" }
 lexical-core = { workspace = true, features = ["format", "parse-floats"] }
 os_str_bytes = { workspace = true, features = ["conversions"] }
 path-clean.workspace = true

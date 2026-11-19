@@ -1,6 +1,6 @@
 [package]
 name = "noxi-commands"
-version = "0.0.4"
+version = "0.0.5"
 rust-version.workspace = true
 edition = "2024"
 description = "CppNix-compatible command implementations for noxi"
@@ -55,14 +55,14 @@ bstr.workspace = true
 # THP defrag mode is `madvise`, every first touch of a 2 MiB region then stalls in
 # direct compaction, which fails on fragmented memory and still faults 4 KiB pages.
 mimalloc = { workspace = true, features = ["no_thp"] }
-nix-compat = { package = "noxi-compat", path = "../noxi/nix-compat", version = "0.0.4" }
-noxi-eval = { path = "../noxi/eval", version = "0.0.4", default-features = false, features = ["impure"] }
-noxi-build = { path = "../noxi-build", version = "0.0.3" }
-noxi-daemon = { path = "../noxi-daemon", version = "0.0.4" }
+nix-compat = { package = "noxi-compat", path = "../noxi/nix-compat", version = "0.0.5" }
+noxi-eval = { path = "../noxi/eval", version = "0.0.5", default-features = false, features = ["impure"] }
+noxi-build = { path = "../noxi-build", version = "0.0.4" }
+noxi-daemon = { path = "../noxi-daemon", version = "0.0.5" }
 noxi-flakeref = { path = "../noxi-flakeref", version = "0.0.3" }
-noxi-flake = { path = "../noxi-flake", version = "0.0.3" }
-noxi-glue = { path = "../noxi-glue", version = "0.0.3" }
-noxi-store = { path = "../noxi-store", version = "0.0.4" }
+noxi-flake = { path = "../noxi-flake", version = "0.0.4" }
+noxi-glue = { path = "../noxi-glue", version = "0.0.4" }
+noxi-store = { path = "../noxi-store", version = "0.0.5" }
 regex.workspace = true
 rnix.workspace = true
 url.workspace = true

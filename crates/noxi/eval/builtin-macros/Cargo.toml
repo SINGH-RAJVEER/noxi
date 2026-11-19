@@ -1,6 +1,6 @@
 [package]
 name = "noxi-eval-builtin-macros"
-version = "0.0.3"
+version = "0.0.4"
 authors = ["Griffin Smith <root@gws.fyi>"]
 edition = "2024"
 rust-version.workspace = true
@@ -24,4 +24,4 @@ proc-macro2.workspace = true
 proc-macro = true
 
 [dev-dependencies]
-noxi-eval = { version = "0.0.4", path = "../" }
+noxi-eval = { path = "../" }
