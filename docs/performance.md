@@ -902,3 +902,61 @@ All three binaries ran about twice as long as in earlier rounds and as in this r
 The kept source, rebuilt after formatting, measured 123,948.0 million EVAL-08 instructions in one run with its oracle passing.
 
 Builds, patches, stat runs, profiles, diagnostics counters, the differential and paired reports are under `target/perf-vm-2` in the lane worktree. Each candidate directory holds the patch it was built from.
+
+## Allocator page faults and transparent huge pages, 2026-11-19
+
+This lane looks at kernel time spent on first-touch page faults. The base is a release build of f858f14, at `target/perf-alloc-1/base/bin`. Every run held the heavy lock. The host runs THP `enabled=madvise` and `defrag=madvise`. Every mTHP size except 2 MiB, which inherits, is `never`. The hugetlb pool is empty.
+
+### Why `MIMALLOC_ALLOW_LARGE_OS_PAGES=1` did nothing
+
+mimalloc 3.3.2 (libmimalloc-sys 0.1.49) already calls `madvise(MADV_HUGEPAGE)` on each 1 GiB arena it reserves, because `allow_thp` defaults to 1. A trace of base EVAL-08 shows three such calls. `allow_large_os_pages` only adds a first try with `MAP_HUGETLB`, which fails with ENOMEM and falls back to the same mmap and madvise. The options mimalloc printed with `MIMALLOC_VERBOSE=1` confirm this.
+
+Each first touch of a 2 MiB region in an madvised arena tries a huge page. Under `defrag=madvise` that try does direct compaction. Physical memory on this host was fragmented for most of the day. One base EVAL-08 run caused 1,585 compaction stalls, 1,583 of them failed, 165 M pages were scanned for migration and 990 THP faults fell back. AnonHugePages peaked at 4 MiB, or 124 MiB with the env var. The process then faulted 4 KiB pages anyway. Syscalls account for about 0.1 s (`strace -c`), so nearly all of the 1.8 to 2.8 s of system time went to faults costing 5 to 9 µs each.
+
+A microbenchmark, `target/perf-alloc-1/spike/fault-bench.c`, faulted 2 GiB in a loop. Plain 4 KiB faults cost 0.30 to 0.34 s of system time, or 0.6 µs each. `MADV_POPULATE_WRITE` cost 0.25 to 0.28 s. With `MADV_HUGEPAGE` on the same fragmented host, it cost 1.43 to 2.31 s.
+
+### Change
+
+`crates/noxi-commands/Cargo.toml` enables mimalloc's `no_thp` feature. It compiles out only the `madvise(MADV_HUGEPAGE)` call; `allow_thp` stays 1. This matters: `MIMALLOC_ALLOW_THP=0` would also call `prctl(PR_SET_THP_DISABLE)`, which spawned builders inherit across exec. A trace of the candidate shows no `MADV_HUGEPAGE`, no prctl and 0 compaction stalls. Instructions:u change by +0.01% on EVAL-08 and 0% on EVAL-PKG-PATHS.
+
+### Results
+
+The outcome depends on fragmentation, so each row is labelled by the base run's minor faults. About 500 K on EVAL-08, or about 1 M on the flake, means THP failing ("fragmented"). About 8 K or 25 K means THP working. In between is mixed. Medians are shown.
+
+| Workload, regime | Base elapsed / user / sys / faults / peak RSS | Candidate elapsed / user / sys / faults / peak RSS |
+| --- | --- | --- |
+| EVAL-08, fragmented, wait4, 3 pairs | 15.54 s / 13.57 s / 1.91 s / 499 K / 2,013.5 MiB | 14.00 s / 13.34 s / 0.60 s / 524 K / 2,009.3 MiB |
+| EVAL-08, fragmented, stat, 3 pairs | 16.62 s / 131.234 G instructions / 2.82 s sys / 2,012.3 MiB | 14.04 s / 131.251 G instructions / 0.57 s sys / 2,009.8 MiB |
+| EVAL-08, THP working, wait4, 3 pairs | 13.05 s / 12.78 s / 0.20 s / 8.5 K / 2,069.9 MiB | 13.46 s / 12.86 s / 0.52 s / 543 K / 2,009.1 MiB |
+| EVAL-PKG-PATHS, fragmented, wait4, 3 pairs | 0.963 s / 0.724 s / 0.233 s / 28.0 K / 257.4 MiB | 0.824 s / 0.718 s / 0.101 s / 59.4 K / 240.2 MiB |
+| EVAL-PKG-PATHS, fragmented, stat, 3 pairs | 0.894 s / 7.377 G instructions / 257.8 MiB | 0.823 s / 7.377 G instructions / 240.6 MiB |
+| EVAL-PKG-PATHS, THP working, paired run, 3 pairs | 0.692 s / 0.666 s / 0.026 s / 274.2 MiB | 0.762 s / 0.685 s / 0.066 s / 242.1 MiB |
+| User flake, fragmented, 3 pairs | 58.83 s / 49.17 s / 7.84 s / 1,040 K / 4,036.6 MiB | 53.57 s / 49.49 s / 2.54 s / 1,075 K / 4,034.8 MiB |
+| `nix-instantiate --eval -E 1`, 20 pairs | 6 ms / 282 faults / 17.3 MiB | 6 ms / 401 faults / 17.2 MiB |
+
+The paired `run.py` EVAL-08 run, with a fragmented base at 3.59 s sys, gives a candidate speedup of 1.099, interval 1.091 to 1.105. Absolute times were about twice the others because another lane was compiling. The paired `eval-packages.py` run came after a host restart had defragmented memory. It gives 0.895, interval 0.818 to 0.980, against the base, and both pass all 9 samples.
+
+The user's flake, after the restart, gave six more pairs. All return `/nix/store/h9j8xmn9dbsxfzx0csfxmak30n6dabpj-nixos-system-nixos-26.11.20261113.d5cc683.drv`. Each delta is candidate minus base, as elapsed / user+sys CPU, labelled by base faults:
+
+| Base faults | Delta elapsed | Delta CPU |
+| --- | --- | --- |
+| 25 K | −1.76 s | +2.68 s |
+| 286 K | −2.24 s | −1.68 s |
+| 316 K, candidate first | +6.46 s | +6.07 s |
+| 200 K | +0.72 s | +0.76 s |
+
+The 316 K pair had 29.5 s of candidate user CPU against about 23.3 s in every other recent run, which looks like host noise. These pairs are inconclusive. Whenever THP works even partly, the base matches or beats the candidate on CPU.
+
+On EVAL-08 the candidate is stable: 13.4 to 14.1 s with about 0.55 s sys in both regimes. The base ranges from 12.9 to 16.6 s, plus one 88.7 s wall-clock stall on 18.6 s of CPU. The candidate never raises peak RSS. Base THP backing costs 3% more RSS on EVAL-08 and 13% on EVAL-PKG-PATHS. The candidate does not reduce fault counts; each fault becomes cheaper because the failed compaction is gone.
+
+### Decision
+
+The change is a conditional keep, left uncommitted with its patch at `target/perf-alloc-1/cand/no_thp.patch`. It meets the bar on a fragmented host, which was this host's state for most of the day and returned within two flake runs of a restart. It fails the 1% elapsed bar while THP succeeds: EVAL-08 is 3% slower and EVAL-PKG-PATHS is 0.895x.
+
+Rejected spikes:
+- `MIMALLOC_ALLOW_LARGE_OS_PAGES=1`: no-op, as explained above.
+- `MIMALLOC_ALLOW_THP=0`: matches the candidate's timing (EVAL-08 sys 2.6 s to 0.61 s, elapsed 16.4 s to 14.2 s) but sets `PR_SET_THP_DISABLE` for the process and every child.
+
+Not built: `MADV_POPULATE_WRITE` batching through `mi_manage_memory` commit callbacks. At 0.6 µs a fault it would save about 0.1 s. Also not built: a runtime probe that stops madvising new arenas once faults stop being backed by huge pages.
+
+`cargo test -p noxi-eval -j 4` passes, 556 tests. Binaries, traces and logs are under `target/perf-alloc-1`.
