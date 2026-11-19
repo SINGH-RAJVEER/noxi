@@ -470,6 +470,9 @@ Internal trybuild tests for `nix-compat-derive`.
 
 ### Unreleased
 
+- The daemon asks its substituters in priority order, as CppNix does (2026-11-21).
+- A substituter that cannot be opened, such as `cache.nixos.org` on an offline machine, is reported and skipped, as in CppNix. Previously the daemon exited at startup, or refused a client's options, so an offline NixOS boot crash-looped `nix-daemon.service` until systemd's start limit. Untrusted clients may still name a configured substituter that could not be opened (2026-11-20).
+
 - `NOXI_DAEMON_IDLE_TIMEOUT` lets a socket-activated daemon exit with status 0 after the given number of seconds with no connection and no live worker. The service manager reactivates it for the next client. A self-bound daemon ignores the variable, and an invalid value is an error (2026-11-17).
 
 - The daemon socket and its clients work at paths longer than `sun_path`. A connection refused during the handshake is reported as CppNix reports it, and the store is named `daemon` only for the default socket (2026-11-09).

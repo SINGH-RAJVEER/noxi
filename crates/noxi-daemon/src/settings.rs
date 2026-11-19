@@ -13,7 +13,7 @@ pub struct DaemonSettings {
 	pub build: BuildSettings,
 	/// `substituters`.
 	pub substituters: Vec<BinaryCache>,
-	/// `trusted-substituters`, as URLs.
+	/// `trusted-substituters` and the configured `substituters`, as URLs.
 	pub trusted_substituters: Vec<String>,
 	/// `trusted-users`: names, `@group`, or `*`.
 	pub trusted_users: Vec<String>,
@@ -46,14 +46,14 @@ impl DaemonSettings {
 		store.apply_config(settings);
 		let mut result = Self::new(store);
 		result.build.apply_config(settings);
-		result.substituters = settings
-			.get_list("substituters", &["https://cache.nixos.org/"])
-			.into_iter()
-			.map(BinaryCache::open)
-			.collect::<noxi_store::Result<Vec<_>>>()?;
+		let substituters = settings.get_list("substituters", &["https://cache.nixos.org/"]);
+		result.substituters = open_substituters(substituters.iter().copied());
+		// Untrusted clients may name a configured substituter even when it
+		// could not be opened, as CppNix compares against the setting.
 		result.trusted_substituters = settings
 			.get_list("trusted-substituters", &[])
 			.into_iter()
+			.chain(substituters)
 			.map(str::to_owned)
 			.collect();
 		result.trusted_users = settings
@@ -113,6 +113,27 @@ impl DaemonSettings {
 	}
 }
 
+/// Open the substituters that can be opened. Like CppNix, a substituter that
+/// cannot be opened, such as an unreachable cache on an offline machine, is
+/// reported and skipped rather than failing the daemon or the connection.
+/// The rest are sorted by priority, as `getDefaultSubstituters` sorts them.
+pub(crate) fn open_substituters<'a>(uris: impl IntoIterator<Item = &'a str>) -> Vec<BinaryCache> {
+	let mut caches: Vec<BinaryCache> = uris
+		.into_iter()
+		.filter_map(|uri| match BinaryCache::open(uri) {
+			Ok(cache) => Some(cache),
+			Err(e) => {
+				if nix_compat::log::log_enabled(nix_compat::log::VerbosityLevel::Warn) {
+					eprintln!("warning: disabling substituter '{uri}': {e}");
+				}
+				None
+			}
+		})
+		.collect();
+	caches.sort_by_key(|cache| cache.info().priority);
+	caches
+}
+
 /// Parse `NOXI_DAEMON_IDLE_TIMEOUT`: whole seconds, with unset, empty or 0
 /// meaning the daemon never exits on its own.
 fn idle_timeout(value: Option<&str>) -> noxi_store::Result<Option<Duration>> {
@@ -142,5 +163,40 @@ mod tests {
 		);
 		assert!(idle_timeout(Some("5m")).is_err());
 		assert!(idle_timeout(Some("-1")).is_err());
+	}
+
+	#[test]
+	fn substituters_that_cannot_be_opened_are_skipped() {
+		let dir =
+			std::env::temp_dir().join(format!("noxi-daemon-substituters-{}", std::process::id()));
+		let local = format!("file://{}", dir.display());
+		let opened = open_substituters(["unknown://cache", local.as_str()]);
+		assert_eq!(
+			opened.iter().map(BinaryCache::uri).collect::<Vec<_>>(),
+			[local.as_str()]
+		);
+		let _ = std::fs::remove_dir_all(dir);
+	}
+
+	#[test]
+	fn substituters_are_ordered_by_priority() {
+		let dir = tempfile::tempdir().unwrap();
+		let cache = |name: &str, priority: u32| {
+			let path = dir.path().join(name);
+			std::fs::create_dir(&path).unwrap();
+			std::fs::write(
+				path.join("nix-cache-info"),
+				format!("StoreDir: /nix/store\nPriority: {priority}\n"),
+			)
+			.unwrap();
+			format!("file://{}", path.display())
+		};
+		let (slow, fast, also_fast) = (cache("slow", 40), cache("fast", 10), cache("also", 10));
+		let opened = open_substituters([slow.as_str(), fast.as_str(), also_fast.as_str()]);
+		// Equal priorities keep their configured order.
+		assert_eq!(
+			opened.iter().map(BinaryCache::uri).collect::<Vec<_>>(),
+			[fast.as_str(), also_fast.as_str(), slow.as_str()]
+		);
 	}
 }
