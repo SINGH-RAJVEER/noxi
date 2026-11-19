@@ -263,11 +263,113 @@ The tests cover:
 
 `crates/noxi-system/tests/rebuild_e2e.rs` builds for real through `CompatBuilder`, in a diverted `local?root=` store with no substituters. The toplevel is a `builtin:buildenv` derivation linking a directory that contains `bin/switch-to-configuration`. One test uses `--file` with `--attr`. The other uses `--flake PATH#host` with `--update` of a `path:` input, and checks that the snapshot kept the lock written by the update. The `builtin:buildenv` builder is used because a `/bin/sh` builder cannot run in a diverted store without the shell's closure in that store.
 
+## Replacements for the nixos-* tools
+
+noxios keeps the `nixos-*` tools as compatibility commands. These `noxi` commands replace them:
+
+```
+noxi system version [--hash | --revision | --configuration-revision | --kernel-version | --specialisations | --label | --json]
+noxi system enter [--root ROOT] [--system SYSTEM] [--command COMMAND | -c COMMAND] [--silent] [-- PROGRAM ARGS...]
+noxi system option [-r | --recursive] [--flake REF[#HOST] | --file PATH [--attr ATTR] | --no-flake] [-I PATH] [--show-trace] [OPTION.PATH]
+noxi system init [--root ROOT] [--dir DIR] [--flake] [--force] [--no-filesystems] [--show-hardware-config] [--kernel lts|latest]
+noxi install [--root ROOT] [--flake FLAKE#NAME | --file FILE [--attr ATTR] | --system PATH] [--channel PATH] [--no-channel-copy] [--no-root-passwd] [--no-bootloader] [--option NAME VALUE] [-j N] [--cores N] [-I PATH] [--substituters URIS] [--show-trace] [--impure] [--keep-going] [-v]
+```
+
+Unless a section below says otherwise, these hold for every one of them:
+
+- Usage errors exit with status 2. The upstream scripts exit with 1.
+- Failures are rustc-style `error:` diagnostics, not the scripts' `$0: ...` lines. The exit status is the same.
+
+### noxi system version
+
+This is `nixos-version` (`crates/noxi-system/src/version.rs`). Upstream substitutes the values of one generation into a script when the system is built. noxi reads them from the running system instead:
+
+- the version and code name from `/etc/os-release`
+- the label from `/run/current-system/nixos-version`
+- the specialisations from `/run/current-system/specialisation`
+- the Nixpkgs and configuration revisions and the kernel version from the JSON document that the system's own `nixos-version` embeds. The kernel version falls back to the name of the kernel module directory.
+
+On this NixOS host, every flag prints what `nixos-version` prints, with two exceptions:
+
+- `--json` adds `label`, `distroId` and `codeName`.
+- `--label` exists only in noxi.
+
+### noxi system enter
+
+This is `nixos-enter` (`crates/noxi-system/src/enter.rs`). It runs the script's steps with system calls instead of util-linux:
+
+- It creates a private mount and UTS namespace. Without root, it also creates a user namespace.
+- It binds `/dev`, `/sys`, `/proc` and `resolv.conf` into the root.
+- It runs the system's activation script and `systemd-tmpfiles`.
+- It runs the shell, the command, or the program inside the chroot.
+
+A root without `etc/NIXOS` exits with status 126. `noxi install` uses this command for the boot loader and the root password. The install test runs it on a real installed root.
+
+### noxi system option
+
+This is `nixos-option` (`crates/noxi-system/src/option.rs`). It evaluates upstream's `nixos-option.nix`, vendored as `option.nix`, with the in-process `nix-instantiate`. It chooses the configuration in upstream's order. On a probe configuration, its output for a leaf option and for an attribute set was identical to `nixos-option`'s. Its tests evaluate real Nixpkgs modules when `NOXI_NIXPKGS` names a Nixpkgs source.
+
+### noxi system init
+
+This is `nixos-generate-config` (`crates/noxi-system/src/init.rs`). It ports the hardware detection of `nixos-generate-config.pl` probe for probe, and it writes the same templates. On this host, `--show-hardware-config` differs from `nixos-generate-config`'s only in the header, which names `noxi system init`. With `--flake`, it pins `nixpkgs` to the running system's revision.
+
+Gap: the generated `configuration.nix` and `flake.nix` are stock NixOS. They do not import the noxios modules. A system installed from them uses CppNix. Until `init` writes a noxios flake, use one like [`nix/noxios/install-test/flake.nix`](../nix/noxios/install-test/flake.nix), which adds the modules from the `noxi` input.
+
+### noxi install
+
+This is `nixos-install` (`crates/noxi-system/src/install.rs`). It follows nixpkgs' `nixos-install.sh` step by step. It runs `nix build`, `nix-build` and `nix-env` in-process, and it runs `noxi system enter` as a child process where the script runs `nixos-enter`:
+
+1. Check the root and choose the configuration:
+   - The root must exist, and every directory up to it must be readable and searchable by others.
+   - The configuration is `--flake`, `--file`/`--attr` or `--system`. Without one, noxi searches as the script does: `system.nix` or `default.nix` upwards from the current directory, then `/etc/nixos/system.nix` and `/etc/nixos/default.nix`, then `$NIXOS_CONFIG` and `ROOT/etc/nixos/configuration.nix`.
+   - Then print the plan. It names the source, the target store, the substituter, the system profile, the channel, the boot loader, and the root password step.
+2. Create a temporary directory in the root and point `TMPDIR` at it.
+3. Copy the running system's root `nixos` channel into the root's channels profile, unless the system is a flake or `--no-channel-copy` is given.
+4. Build the system with `--store ROOT --extra-substituters "auto?trusted=1"`. Every path the running system's store already holds is copied, not rebuilt.
+5. Set `ROOT/nix/var/nix/profiles/system` to the system, as `nix-env --set` does, and create `ROOT/etc/NIXOS`.
+6. Install the boot loader. noxi links `ROOT/etc/mtab` to `/proc/mounts`, then runs the script's own snippet through `noxi system enter` with `NIXOS_INSTALL_BOOTLOADER=1`. That snippet runs `switch-to-configuration boot`.
+7. Run `passwd` inside the root when standard input is a terminal.
+
+Partitioning and file systems are the caller's responsibility, as with `nixos-install`.
+
+These are the differences from the script:
+
+- noxi does not copy the channel for a flake system. The script copies it anyway, but a flake system does not read it.
+- noxi does not resolve a flake to its locked URL with `nix flake metadata` before building. The build locks the reference in the same way.
+
+#### The running system's store as a substituter
+
+`auto?trusted=1` is a local store used as a substituter. noxi-store serves it as CppNix does:
+
+- The store is opened read-write when its state directory is accessible, as CppNix opens `auto`. Otherwise it is opened read-only.
+- Its priority is 0, so it is tried before binary caches, and it does not support mass queries.
+- Copied paths lose `ultimate` trust.
+- Unsigned input-addressed paths need `?trusted=1`.
+
+On this host, `nix-store --store local?root=DIR -r PATH --option substituters 'auto?trusted=1'` copied the same 7 paths, with the same NAR hashes, as the CppNix reference.
+
+A flake `path:` input under `/nix/store` that the target store lacks is read from the host's store, as CppNix's `PathInputScheme` reads it. Before this change, noxi looked for it inside the chroot store.
+
+#### Verification
+
+- Unit tests cover the flags, the configuration search, the permission check, the plan and the channel lookup.
+- A non-root host install into a scratch root built nothing and set `system-1-link`:
+  - `--flake` with a `path:` Nixpkgs input copied 5 paths from `auto?trusted=1`.
+  - `--system` with `--channel` set the system and channels profiles.
+- `checks.x86_64-linux.noxios-install` installs from the ISO in a VM ([system.md](system.md#install-test)).
+
+#### Gaps
+
+- Only GRUB on BIOS is tested. UEFI and systemd-boot are not.
+- For a configuration like the test's, an offline install needs `--option always-allow-substitutes true`, or the build inputs of every `allowSubstitutes = false` derivation of the system in the image's store. The toplevel, `system-path`, `system-units` and the `/etc` entries are such derivations. This is the same for nixos-install.
+- Substitution prints no `copying path ... from 'auto'` line per path, as CppNix does. This holds for every substituter.
+- `auto` as a substituter reads the local store directly. For a caller without write access to the state directory, CppNix would use the daemon; noxi opens the database read-only and does not see paths registered since the last checkpoint.
+
 ## Not yet qualified
 
 The following are not verified, or not implemented:
 
-- No VM qualification. No test has activated a real NixOS toplevel, switched a real system profile, or run a real `switch-to-configuration`. Every activation in the tests is a fixture script.
+- VM coverage is one path. The install test ([system.md](system.md#install-test)) runs `noxi system switch --flake` in an installed noxios VM: it builds the generation, sets the real system profile, runs the real `switch-to-configuration`, and boots the result. The other actions, rollback and the offline tests' fixture activations are not qualified in a VM.
 - `CompatBuilder::register_generation` through a real store (`create_generation` with a garbage-collector root) is not exercised by tests. The tests use the plain-link path.
 - `test`, `boot`, `switch`, and `rollback` were never run against the real `/nix/var/nix/profiles/system` or `/run/current-system`.
 - With a diverted `local?root=` store, the closure path names the logical `/nix/store` location. Activation of such a closure therefore needs `NOXI_ACTIVATION_PROGRAM`.
