@@ -38,11 +38,15 @@ impl LocalBackend {
 		}
 	}
 
-	/// The substituters that could be opened. Like CppNix, a substituter
-	/// that cannot be opened is reported and skipped.
+	/// The substituters that could be opened, in priority order. Like
+	/// CppNix, a substituter that cannot be opened is reported and skipped,
+	/// and `getDefaultSubstituters` sorts the rest by priority, keeping the
+	/// configured order among equal priorities, so `auto?trusted=1`
+	/// (priority 0) is asked before cache.nixos.org (40).
 	fn substituters(&self) -> &[BinaryCache] {
 		self.substituters.get_or_init(|| {
-			self.substituter_uris
+			let mut caches: Vec<BinaryCache> = self
+				.substituter_uris
 				.iter()
 				.filter_map(|uri| match BinaryCache::open(uri) {
 					Ok(cache) => Some(cache.with_narinfo_cache_ttls(
@@ -56,7 +60,9 @@ impl LocalBackend {
 						None
 					}
 				})
-				.collect()
+				.collect();
+			caches.sort_by_key(|cache| cache.info().priority);
+			caches
 		})
 	}
 }

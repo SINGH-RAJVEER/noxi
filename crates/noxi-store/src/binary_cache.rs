@@ -2,7 +2,9 @@
 //! CppNix 2.35.2's `BinaryCacheStore`, `LocalBinaryCacheStore` and
 //! `PathSubstitutionGoal`.
 //!
-//! `file://`, `http://` and `https://` caches are read. Substitution checks signatures
+//! `file://`, `http://` and `https://` caches are read, and a local store
+//! (`auto`, `local`) serves its paths as a substituter as CppNix's
+//! `LocalStore` does. Substitution checks signatures
 //! against the store's trusted keys before downloading, substitutes
 //! references first, and imports each NAR through
 //! [`LocalStore::add_to_store`], which checks its hash and size.
@@ -47,6 +49,13 @@ enum Transport {
 	File(PathBuf),
 	/// An HTTP(S) server; the URL has no trailing slash.
 	Http(String, ureq::Agent),
+	/// A local store, `auto`, `local` or `local?root=DIR`, as a
+	/// substituter. CppNix opens any store as a substituter; nixos-install
+	/// relies on that with `auto?trusted=1` to copy paths from the
+	/// installer's store into the target. Paths are read from disk and
+	/// serialised as NARs; a daemon store as a substituter is not
+	/// supported.
+	Store(Arc<LocalStore>),
 }
 
 impl std::fmt::Debug for Transport {
@@ -54,6 +63,9 @@ impl std::fmt::Debug for Transport {
 		match self {
 			Transport::File(dir) => write!(f, "File({})", dir.display()),
 			Transport::Http(url, _) => write!(f, "Http({url})"),
+			Transport::Store(store) => {
+				write!(f, "Store({})", store.config().real_store_dir.display())
+			}
 		}
 	}
 }
@@ -81,12 +93,25 @@ impl BinaryCache {
 		let (base, query) = uri.split_once('?').unwrap_or((uri, ""));
 		let mut trusted = false;
 		let mut upload_compression = "none";
+		let mut root = None;
+		// `priority` and `want-mass-query` are settings of every store.
+		// Set in the URI they win over `nix-cache-info`, which CppNix
+		// applies with `setDefault`.
+		let mut priority = None;
+		let mut want_mass_query = None;
 		for param in query.split('&').filter(|p| !p.is_empty()) {
-			if let Some(value) = param.strip_prefix("trusted=") {
-				trusted = value == "1" || value == "true";
-			}
-			if let Some(value) = param.strip_prefix("compression=") {
-				upload_compression = value;
+			let (name, value) = param.split_once('=').unwrap_or((param, ""));
+			match name {
+				"trusted" => trusted = value == "1" || value == "true",
+				"compression" => upload_compression = value,
+				"root" => root = Some(value),
+				"priority" => {
+					priority = Some(value.parse::<u32>().map_err(|_| {
+						Error::Other(format!("setting 'priority' has invalid value '{value}'"))
+					})?)
+				}
+				"want-mass-query" => want_mass_query = Some(value == "1" || value == "true"),
+				_ => {}
 			}
 		}
 		let transport = if let Some(path) = base.strip_prefix("file://") {
@@ -99,18 +124,24 @@ impl BinaryCache {
 					.build(),
 			);
 			Transport::Http(base.trim_end_matches('/').to_owned(), agent)
+		} else if base == "auto" || base == "local" {
+			Transport::Store(Arc::new(open_source_store(root)?))
 		} else {
 			return Err(Error::Other(format!(
 				"don't know how to open binary cache '{uri}'"
 			)));
 		};
+		let is_store = matches!(transport, Transport::Store(_));
 		let mut cache = Self {
 			upload_compression: upload_compression.to_owned(),
 			uri: base.trim_end_matches('/').to_owned(),
 			transport,
 			info: CacheInfo {
-				want_mass_query: false,
-				priority: 50,
+				// A store keeps `StoreConfig`'s defaults: no mass
+				// queries and priority 0, so it is tried before any
+				// binary cache.
+				want_mass_query: want_mass_query.unwrap_or(false),
+				priority: priority.unwrap_or(if is_store { 0 } else { 50 }),
 			},
 			trusted,
 			path_info_cache: Arc::default(),
@@ -133,8 +164,10 @@ impl BinaryCache {
 							store_dir()
 						)));
 					}
-					"WantMassQuery" => cache.info.want_mass_query = value == "1",
-					"Priority" => {
+					"WantMassQuery" if want_mass_query.is_none() => {
+						cache.info.want_mass_query = value == "1"
+					}
+					"Priority" if priority.is_none() => {
 						cache.info.priority = value.parse().unwrap_or(cache.info.priority)
 					}
 					_ => {}
@@ -404,6 +437,8 @@ impl BinaryCache {
 					e,
 				)),
 			},
+			// A store has no cache files such as `nix-cache-info`.
+			Transport::Store(_) => Ok(None),
 			Transport::Http(base, agent) => {
 				let url = format!("{base}/{name}");
 				let mut request = agent.get(&url);
@@ -503,6 +538,19 @@ impl BinaryCache {
 	}
 
 	fn query_path_info_uncached(&self, path: &StorePath) -> Result<Option<CachedPath>> {
+		if let Transport::Store(store) = &self.transport {
+			return Ok(store.query_path_info(path)?.map(|mut info| {
+				// A copy is never ultimately trusted (`copyStorePath`);
+				// signatures, deriver and content address are kept.
+				info.ultimate = false;
+				CachedPath {
+					url: store.real_path(path).to_string_lossy().into_owned(),
+					info,
+					compression: None,
+					file_size: None,
+				}
+			}));
+		}
 		let name = format!("{}.narinfo", nix_compat::nixbase32::encode(path.digest()));
 		let Some(bytes) = self.get_file(&name)? else {
 			return Ok(None);
@@ -535,6 +583,36 @@ impl BinaryCache {
 
 	/// The decompressed NAR of a cached path.
 	pub fn nar(&self, cached: &CachedPath) -> Result<Box<dyn BufRead + Send>> {
+		if let Transport::Store(_) = &self.transport {
+			// The NAR is serialised on a thread into a pipe. A failure to
+			// read the source is returned by the reader at the end of the
+			// stream, so the importer reports it rather than a truncated
+			// NAR.
+			let (reader, writer) =
+				io::pipe().map_err(|e| Error::io("creating a pipe".to_owned(), e))?;
+			let failure = Arc::new(Mutex::new(None));
+			let path = PathBuf::from(&cached.url);
+			let slot = Arc::clone(&failure);
+			std::thread::spawn(move || {
+				let mut writer = BufWriter::new(writer);
+				let result =
+					crate::nar::dump_path(&mut writer, &path).and_then(|()| writer.flush());
+				// A closed pipe means the importer stopped reading and
+				// reports its own error.
+				if let Err(e) = result
+					&& e.kind() != io::ErrorKind::BrokenPipe
+				{
+					*slot.lock().unwrap_or_else(|e| e.into_inner()) = Some(format!(
+						"reading '{}' for substitution: {e}",
+						path.display()
+					));
+				}
+			});
+			return Ok(Box::new(BufReader::new(DumpReader {
+				pipe: reader,
+				failure,
+			})));
+		}
 		let file = self.open_file(&cached.url)?.ok_or_else(|| {
 			Error::Other(format!(
 				"file '{}' does not exist in binary cache '{}'",
@@ -545,6 +623,51 @@ impl BinaryCache {
 			cached.compression.as_deref(),
 			Box::new(BufReader::new(file)),
 		)
+	}
+}
+
+/// Open `local` or `auto` (optionally `?root=DIR`) as a substituter.
+///
+/// CppNix resolves `auto` to the local store when its state directory is
+/// readable and writable, and opens it read-write, so a live store's
+/// write-ahead log is read. noxi does the same. For a caller without that
+/// access CppNix would use the daemon; noxi reads the database instead
+/// in read-only (`immutable`) mode, which does not see paths registered
+/// since the last checkpoint.
+fn open_source_store(root: Option<&str>) -> Result<LocalStore> {
+	let mut config = match root {
+		Some(root) => crate::LocalStoreConfig::with_root(Path::new(root)),
+		None => crate::LocalStoreConfig::system(),
+	};
+	let state = std::ffi::CString::new(config.state_dir.as_os_str().as_encoded_bytes())
+		.map_err(|_| Error::Other("store state directory contains a NUL byte".into()))?;
+	// SAFETY: `state` is a valid NUL-terminated string.
+	let accessible = unsafe { libc::access(state.as_ptr(), libc::R_OK | libc::W_OK) } == 0;
+	config.read_only = !accessible;
+	LocalStore::open(config)
+}
+
+/// The read end of a NAR serialised from a store path on another thread,
+/// returning the serialiser's error, if any, once the pipe is drained.
+struct DumpReader {
+	pipe: io::PipeReader,
+	failure: Arc<Mutex<Option<String>>>,
+}
+
+impl Read for DumpReader {
+	fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
+		let count = self.pipe.read(buf)?;
+		if count == 0
+			&& !buf.is_empty()
+			&& let Some(message) = self
+				.failure
+				.lock()
+				.unwrap_or_else(|e| e.into_inner())
+				.take()
+		{
+			return Err(io::Error::other(message));
+		}
+		Ok(count)
 	}
 }
 
@@ -887,5 +1010,142 @@ mod tests {
 			assert_eq!(bytes, b"archive bytes");
 			assert_eq!(requests.load(Ordering::Relaxed), 11);
 		});
+	}
+
+	/// Register an input-addressed path holding a file with `contents`.
+	/// Such a path has no content address, so only a signature or
+	/// `?trusted=1` lets it be substituted.
+	fn add_input_addressed(
+		store: &LocalStore,
+		scratch: &Path,
+		name: &str,
+		contents: &[u8],
+		references: BTreeSet<StorePath>,
+	) -> StorePath {
+		let path = StorePath::from_bytes(name.as_bytes()).unwrap();
+		let file = scratch.join(name);
+		fs::write(&file, contents).unwrap();
+		let mut nar = Vec::new();
+		crate::nar::dump_path(&mut nar, &file).unwrap();
+		let mut sink = HashSink::new();
+		sink.write_all(&nar).unwrap();
+		let (hash, size) = sink.finish();
+		let mut info = ValidPathInfo::new(path.clone(), hash);
+		info.nar_size = size;
+		info.references = references;
+		info.ultimate = true;
+		store
+			.add_to_store(&info, &mut &nar[..], false, false)
+			.unwrap();
+		path
+	}
+
+	fn local_store(root: &Path) -> LocalStore {
+		LocalStore::open(crate::LocalStoreConfig::with_root(root)).unwrap()
+	}
+
+	#[test]
+	fn local_store_substituter_copies_a_closure_when_trusted() {
+		let dir = tempfile::tempdir().unwrap();
+		let source = local_store(&dir.path().join("source"));
+		let dep = add_input_addressed(
+			&source,
+			dir.path(),
+			"00000000000000000000000000000001-dep",
+			b"dep",
+			BTreeSet::new(),
+		);
+		let top = add_input_addressed(
+			&source,
+			dir.path(),
+			"00000000000000000000000000000002-top",
+			b"top",
+			[dep.clone()].into(),
+		);
+		let uri = format!(
+			"local?root={}&trusted=1",
+			dir.path().join("source").display()
+		);
+		let cache = BinaryCache::open(&uri).unwrap();
+		// `StoreConfig`'s defaults: tried first, no mass queries.
+		assert_eq!(
+			cache.info(),
+			&CacheInfo {
+				want_mass_query: false,
+				priority: 0
+			}
+		);
+		let target = local_store(&dir.path().join("target"));
+		target.substitute(&[cache], &top).unwrap();
+		for path in [&dep, &top] {
+			let copied = target.query_path_info(path).unwrap().unwrap();
+			let original = source.query_path_info(path).unwrap().unwrap();
+			assert_eq!(copied.nar_hash, original.nar_hash);
+			assert_eq!(copied.references, original.references);
+			// `copyStorePath` never copies ultimate trust.
+			assert!(!copied.ultimate);
+			assert_eq!(
+				fs::read(target.real_path(path)).unwrap(),
+				fs::read(source.real_path(path)).unwrap()
+			);
+		}
+	}
+
+	#[test]
+	fn local_store_substituter_needs_trust_for_unsigned_paths() {
+		let dir = tempfile::tempdir().unwrap();
+		let source = local_store(&dir.path().join("source"));
+		let path = add_input_addressed(
+			&source,
+			dir.path(),
+			"00000000000000000000000000000003-unsigned",
+			b"unsigned",
+			BTreeSet::new(),
+		);
+		let uri = format!("local?root={}", dir.path().join("source").display());
+		let cache = BinaryCache::open(&uri).unwrap();
+		let target = local_store(&dir.path().join("target"));
+		assert!(target.substitute(&[cache], &path).is_err());
+		assert!(!target.is_valid_path(&path).unwrap());
+	}
+
+	#[test]
+	fn local_store_substituter_settings_and_read_errors() {
+		let dir = tempfile::tempdir().unwrap();
+		let source = local_store(&dir.path().join("source"));
+		let path = add_input_addressed(
+			&source,
+			dir.path(),
+			"00000000000000000000000000000004-gone",
+			b"gone",
+			BTreeSet::new(),
+		);
+		let uri = format!(
+			"local?root={}&priority=7&want-mass-query=true",
+			dir.path().join("source").display()
+		);
+		let cache = BinaryCache::open(&uri).unwrap();
+		assert_eq!(
+			cache.info(),
+			&CacheInfo {
+				want_mass_query: true,
+				priority: 7
+			}
+		);
+		// A path whose files vanished reports the read failure, not a
+		// truncated NAR.
+		let cached = cache.query_path_info(&path).unwrap().unwrap();
+		let real = source.real_path(&path);
+		let mut perms = fs::metadata(real.parent().unwrap()).unwrap().permissions();
+		perms.set_mode(0o755);
+		fs::set_permissions(real.parent().unwrap(), perms).unwrap();
+		fs::remove_file(&real).unwrap();
+		let error = cache
+			.nar(&cached)
+			.unwrap()
+			.read_to_end(&mut Vec::new())
+			.unwrap_err()
+			.to_string();
+		assert!(error.contains("for substitution"), "{error}");
 	}
 }

@@ -449,6 +449,8 @@ Internal trybuild tests for `nix-compat-derive`.
 
 ### Unreleased
 
+- A local store (`auto`, `local` or `local?root=DIR`) works as a substituter, as in CppNix, so `nixos-install`'s `--extra-substituters "auto?trusted=1"` copies paths from the running system's store into the target instead of rebuilding them. The store is opened read-write when its state directory is accessible, as CppNix's `auto` is, and read-only otherwise. Its priority is 0 and it wants no mass queries, copied paths lose `ultimate` as in `copyStorePath`, and unsigned input-addressed paths need `?trusted=1`. The `priority` and `want-mass-query` URI parameters now override a binary cache's `nix-cache-info` (2026-11-21).
+
 - `unix_socket::connect` and `bind` handle paths longer than `sun_path` as CppNix's `bindConnectProcHelper` does, from a child in the socket's directory; the garbage collector's roots socket and its clients use them (2026-11-09).
 - `add_perm_root` creates the directories up to a permanent root (`gc::make_root_symlink`), as Home Manager's first activation requires, and `LocalStoreConfig::diverted` creates a missing absolute root outside `/nix` (2026-11-09).
 
@@ -490,6 +492,7 @@ Internal trybuild tests for `nix-compat-derive`.
 
 ### Unreleased
 
+- Substituters are asked in priority order, as CppNix's `getDefaultSubstituters` sorts them, keeping the configured order among equal priorities. They used to be asked in configured order, so `--extra-substituters "auto?trusted=1"` (priority 0) came after cache.nixos.org (40), and an install fetched paths from the network that the running system already had (2026-11-21).
 - Under a root daemon, sandboxed builders run as a member of `build-users-group` (`nixbld` by default) locked under `STATE_DIR/userpool`, as CppNix's `SimpleUserLock` does: the sandbox user maps to it, it owns the build directory, builder files and terminal, the chroot store is owned by root and the build group, its processes are killed before and after the build, and outputs it does not own are rejected. Previously such builders ran as host root and owned their bind-mounted inputs (2026-11-09).
 - Apply shared build settings, honor substitution and fallback decisions, and reject local builds when max-jobs is zero. Execution remains sequential (2026-10-03).
 
