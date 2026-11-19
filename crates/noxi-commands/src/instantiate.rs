@@ -11,7 +11,8 @@
 //! annotated source renderer instead. Single derivation selections can be instantiated
 //! with an explicit `--store local?root=ROOT`. The selected owner opens
 //! before evaluation. Read-only evaluation does not register computed paths;
-//! `--read-write-mode` also allows IFD builds through that owner.
+//! `--read-write-mode` also allows IFD builds through that owner, and
+//! `--dry-run` makes instantiation read-only too.
 
 use std::fmt::Write as _;
 use std::io::{self, IsTerminal, Read, Write};
@@ -51,6 +52,9 @@ pub struct Options {
 	pub gc_warning: bool,
 	/// Permit writes during `--eval`; normal instantiation writes by default.
 	pub read_write_mode: bool,
+	/// `nix-instantiate --dry-run`: CppNix's `readOnlyMode`, so derivation
+	/// paths are computed without writing them, even with `--read-write-mode`.
+	pub dry_run: bool,
 	pub strict: bool,
 	pub json: bool,
 	/// `--xml`; the last of `--raw`, `--json` and `--xml` wins, as in CppNix.
@@ -829,7 +833,7 @@ pub fn evaluate(options: &Options, cwd: &Path) -> Result<Evaluated, ExitCode> {
 		}
 	})?;
 
-	let writable = !options.eval || options.read_write_mode;
+	let writable = !options.dry_run && (!options.eval || options.read_write_mode);
 	let (evaluator_store, store) = evaluator_store(options, cwd, writable).map_err(|e| fail(&e))?;
 	let mut env: FxHashMap<SmolStr, Value> = driver_builtins::builtins()
 		.into_iter()
@@ -1250,15 +1254,21 @@ fn physical_positions(formatted: Vec<u8>) -> Vec<u8> {
 /// Run `nix-instantiate` with the arguments after the program name.
 pub fn main(settings: Settings, args: Vec<String>) -> Result<ExitCode, crate::cli::Failure> {
 	// Like CppNix, `--version` prints as soon as it is read.
+	let mut dry_run = false;
 	let mut options = parse_args_with(args, settings, |flag, _| match flag {
 		"--version" => {
 			println!("nix-instantiate (Nix) 2.35.2");
 			std::process::exit(0)
 		}
 		"--help" => crate::cli::show_man_page_or_exit("nix-instantiate"),
+		"--dry-run" => {
+			dry_run = true;
+			Some(Ok(()))
+		}
 		_ => None,
 	})
 	.map_err(crate::cli::Failure::Usage)?;
+	options.dry_run = dry_run;
 	crate::cli::print_setting_warnings(&mut options.settings);
 	if options.find_file {
 		return Ok(find_files(&options));

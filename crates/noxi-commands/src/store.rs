@@ -283,6 +283,14 @@ fn resolve(uri: &str) -> Result<Target, String> {
 	})
 }
 
+/// Whether `uri` resolves to a local store this process opens itself, whose
+/// paths it can read straight from disk. `auto` does when the state
+/// directory is writable, as for root on NixOS, and in the chroot store
+/// fallback; CppNix then reads paths through `LocalStore`'s accessor.
+pub fn resolves_to_local(uri: &str) -> Result<bool, String> {
+	Ok(matches!(resolve(uri)?, Target::Local { .. }))
+}
+
 /// Open the store named by `uri`. `dummy://` and other stores that cannot
 /// hold paths yield `None`.
 pub fn open(uri: &str, settings: &Settings) -> Result<Option<OpenStore>, String> {

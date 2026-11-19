@@ -344,6 +344,8 @@ Serializes Rust values into Nix and deserializes Nix values into Rust types, imp
 
 ### Unreleased
 
+- `nix store verify`, `nix store ls`, `nix store cat` and `nix store dump-path` read paths from disk whenever the store URI resolves to a local store, so the default `auto` store works for root on NixOS as in CppNix. They used to require an explicit `--store local` (2026-11-20).
+- `nix-instantiate --dry-run` computes derivation paths without writing them, as CppNix's read-only mode does, even with `--read-write-mode`. It used to be rejected as an unrecognised flag (2026-11-20).
 - The store execution helper behind `nix shell`, `nix run`, `nix develop` and `nix fmt` runs programs in a temporary root of bind mounts when the logical store directory does not exist, as CppNix's `chrootHelper` does. A per-user store therefore works on a host without `/nix`. Sandboxed builds into the per-user chroot store are compared with the reference (2026-11-17).
 - The `auto` store falls back to a per-user chroot store in `DATA_DIR/root` on Linux when `/nix/var/nix` and the daemon socket are missing and the user is not root, as CppNix's `resolveStoreConfig` does, with the same notice (2026-11-17).
 
