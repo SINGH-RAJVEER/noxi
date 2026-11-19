@@ -69,7 +69,13 @@ impl UpvalueData {
 #[derive(Clone, Debug)]
 pub struct Upvalues(Captures);
 
+/// An explicit tag at offset 0 leaves its spare values as the first byte of
+/// `Upvalues`. A suspended thunk state, which holds `Upvalues`, then stores
+/// its own variant there and fits its other variants after it in 32 bytes.
+/// Without it the compiler encodes this tag in that of the `Value` in
+/// `Single`, at offset 8, and the thunk state takes 40 bytes.
 #[derive(Clone, Debug)]
+#[repr(u8)]
 enum Captures {
 	Single(Value),
 	Static(Box<[Value]>),

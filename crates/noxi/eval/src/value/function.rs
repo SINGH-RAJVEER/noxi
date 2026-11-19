@@ -80,7 +80,8 @@ pub struct Lambda {
 	extra: Option<Box<LambdaExtra>>,
 
 	/// For the blueprint of a suspended thunk, the span its creating
-	/// instruction records, fixed when it is compiled.
+	/// instruction records, fixed when it is compiled. Every thunk of a lambda
+	/// is suspended at this span: see [`Lambda::thunk_span`].
 	pub(crate) suspended_span: Option<Span>,
 	/// Generated applications that use the function definition as their call site.
 	pub(crate) generated_call_position: bool,
@@ -145,6 +146,15 @@ struct LambdaExtra {
 }
 
 impl Lambda {
+	/// The span at which thunks of this lambda are suspended. Thunks do not
+	/// store it themselves, which keeps their state to 32 bytes. Lambdas built
+	/// without one, such as in tests, use the span of their first instruction.
+	#[inline]
+	pub(crate) fn thunk_span(&self) -> Span {
+		self.suspended_span
+			.unwrap_or_else(|| self.chunk.first_span())
+	}
+
 	fn extra_mut(&mut self) -> &mut LambdaExtra {
 		self.extra.get_or_insert_with(Default::default)
 	}

@@ -16,7 +16,6 @@
 //! strong reference per discovered but unexpanded node and corrects for it.
 
 use std::{
-	cell::RefCell,
 	collections::{BTreeMap, VecDeque},
 	mem::size_of,
 	rc::Rc,
@@ -31,9 +30,9 @@ use crate::{
 	value::{Closure, attrs::AttrsRep},
 };
 
-use super::{ThunkRepr, Upvalues, Value};
+use super::{RcCell, ThunkRepr, Upvalues, Value};
 
-type Cell = RefCell<ThunkRepr>;
+type Cell = RcCell<ThunkRepr>;
 
 /// Thunk node budget of the bounded trial in `cycles.rs`.
 const TRIAL_THUNK_LIMIT: u64 = 32;
@@ -185,7 +184,7 @@ pub(super) struct Report {
 /// A discovered node awaiting expansion. The clone keeps it alive while the
 /// census runs and is excluded from the recorded strong count.
 enum Pending {
-	Thunk(Rc<Cell>),
+	Thunk(Cell),
 	Attrs(Rc<AttrsRep>),
 	List(Rc<Vec<Value>>),
 	Closure(Rc<Closure>),
@@ -208,8 +207,35 @@ struct Graph {
 	opaque: BTreeMap<&'static str, u64>,
 }
 
-fn key<T: ?Sized>(rc: &Rc<T>) -> usize {
-	Rc::as_ptr(rc).cast::<()>() as usize
+/// A reference-counted node: thunk cells and `Rc`s.
+trait Counted {
+	/// The node identity.
+	fn key(&self) -> usize;
+	fn strong_count(&self) -> usize;
+}
+
+impl<T: ?Sized> Counted for Rc<T> {
+	fn key(&self) -> usize {
+		Rc::as_ptr(self).cast::<()>() as usize
+	}
+
+	fn strong_count(&self) -> usize {
+		Rc::strong_count(self)
+	}
+}
+
+impl Counted for Cell {
+	fn key(&self) -> usize {
+		RcCell::as_ptr(self).cast::<()>() as usize
+	}
+
+	fn strong_count(&self) -> usize {
+		RcCell::strong_count(self)
+	}
+}
+
+fn key(rc: &impl Counted) -> usize {
+	rc.key()
 }
 
 fn thunk_kind(cell: &Cell) -> u8 {
@@ -288,9 +314,9 @@ impl Graph {
 	}
 
 	/// Record one strong reference held by the node being expanded.
-	fn link<T: ?Sized>(
+	fn link(
 		&mut self,
-		rc: &Rc<T>,
+		rc: &impl Counted,
 		kind: impl FnOnce() -> u8,
 		pending: impl FnOnce() -> Pending,
 	) {
@@ -304,7 +330,7 @@ impl Graph {
 			Some(&id) => id,
 			None => {
 				// Read the count before the census clones the reference.
-				let strong = Rc::strong_count(rc);
+				let strong = rc.strong_count();
 				match self.add(key, strong, kind(), pending()) {
 					Some(id) => id,
 					None => return,
@@ -321,7 +347,7 @@ impl Graph {
 			Value::Thunk(thunk) => self.link(
 				&thunk.0,
 				|| thunk_kind(&thunk.0),
-				|| Pending::Thunk(Rc::clone(&thunk.0)),
+				|| Pending::Thunk(thunk.0.clone()),
 			),
 			Value::Attrs(attrs) => {
 				self.link(&attrs.0, || ATTRS, || Pending::Attrs(Rc::clone(&attrs.0)))
@@ -448,7 +474,7 @@ fn find(parent: &mut [u32], mut node: u32) -> u32 {
 
 /// Explore everything reachable from `roots`, within `limits`, and classify it.
 pub(super) fn run(
-	roots: Vec<(&'static str, Rc<Cell>)>,
+	roots: Vec<(&'static str, Cell)>,
 	limits: Limits,
 	sample_rate_inverse: u64,
 ) -> Report {
@@ -461,7 +487,7 @@ pub(super) fn run(
 			continue;
 		}
 		// Exclude the upgraded sample reference held by this function.
-		let strong = Rc::strong_count(&cell) - 1;
+		let strong = RcCell::strong_count(&cell) - 1;
 		let kind = thunk_kind(&cell);
 		if let Some(id) = graph.add(key, strong, kind, Pending::Thunk(cell)) {
 			root_ids.push((label, id));
@@ -674,7 +700,7 @@ fn analyze(graph: Graph, root_ids: &[(&'static str, u32)], sample_rate_inverse: 
 
 #[cfg(test)]
 mod tests {
-	use std::rc::Weak;
+	use super::super::cell::Weak;
 
 	use super::*;
 	use crate::{
@@ -702,12 +728,12 @@ mod tests {
 		);
 	}
 
-	fn census(root: &Weak<Cell>, limits: Limits) -> Report {
+	fn census(root: &Weak<ThunkRepr>, limits: Limits) -> Report {
 		run(vec![("test", root.upgrade().unwrap())], limits, 1024)
 	}
 
 	/// Break the test cycle so the test does not leak it.
-	fn release(root: &Weak<Cell>) {
+	fn release(root: &Weak<ThunkRepr>) {
 		if let Some(cell) = root.upgrade() {
 			*cell.borrow_mut() = ThunkRepr::Evaluated(Value::Null);
 		}
@@ -719,7 +745,7 @@ mod tests {
 		let b = thunk();
 		capture(&a, &[&b]);
 		capture(&b, &[&a]);
-		let a_weak = Rc::downgrade(&a.0);
+		let a_weak = RcCell::downgrade(&a.0);
 		drop(a);
 		assert_eq!(census(&a_weak, LIMITS).roots["test"].collectible, 0);
 
@@ -748,7 +774,7 @@ mod tests {
 				.collect(),
 		);
 		*root.0.borrow_mut() = ThunkRepr::Evaluated(attrs);
-		let weak = Rc::downgrade(&root.0);
+		let weak = RcCell::downgrade(&root.0);
 		drop(root);
 		assert_eq!(census(&weak, LIMITS).roots["test"].collectible, 0);
 
@@ -776,7 +802,7 @@ mod tests {
 		let b = thunk();
 		capture(&a, &[&b]);
 		capture(&b, &[&a]);
-		let a_weak = Rc::downgrade(&a.0);
+		let a_weak = RcCell::downgrade(&a.0);
 		drop((a, b));
 		let report = census(
 			&a_weak,

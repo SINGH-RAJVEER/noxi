@@ -960,3 +960,36 @@ Rejected spikes:
 Not built: `MADV_POPULATE_WRITE` batching through `mi_manage_memory` commit callbacks. At 0.6 µs a fault it would save about 0.1 s. Also not built: a runtime probe that stops madvising new arenas once faults stop being backed by huge pages.
 
 `cargo test -p noxi-eval -j 4` passes, 556 tests. Binaries, traces and logs are under `target/perf-alloc-1`.
+## Thunk cell size, 2026-11-19
+
+This lane follows the custom thunk cell plan from the heap footprint section above. The base is a self-built release `nix-instantiate` of a8c9fdc. On that base `ThunkRepr` was 40 bytes: a suspended thunk held its lambda, 24 bytes of captures and its span. `Rc<RefCell<ThunkRepr>>` therefore requested 64 bytes, with a strong count, a weak count and a borrow flag ahead of the state.
+
+### Change
+
+`value/thunk/cell.rs` adds `RcCell<T>`, a reference-counted cell with one header word: a 32-bit strong count and a 32-bit borrow state. The weak count exists only in builds with `eval-diagnostics` or `eval-cycle-collection`, the only ones that hold weak references to thunks. Release builds therefore use 8 bytes of header, and a thunk with a 32-byte state requests 40 bytes, which mimalloc places in a 48-byte block. The cell checks borrows exactly as `RefCell` does and panics with the same messages. `Ref::map` and `RefMut::map` behave the same, and `Debug` prints `RefCell { value: .. }` as before. Count overflows abort as in `Rc`. Unit tests cover nested and conflicting borrows, panicking projections, a value whose drop borrows the cell again after `replace`, a panicking drop, `try_unwrap` with outstanding weak handles, and weak upgrades that fail during the value's drop.
+
+`ThunkRepr` becomes 32 bytes without trial D's 16-byte captures, which cost 0.8% of instructions:
+
+- A suspended thunk no longer stores its span. It reads it from its lambda through `Lambda::thunk_span`, which falls back to the first span of the chunk. VM blueprints already recorded the span in `Lambda::suspended_span`. This change also records it for constant thunks without captures in the compiler, for imports and derivation builtins through `Thunk::new_suspended`, and for the shared lazy-call lambdas of builtins, whose span is the first span of their chunk. `Thunk::new_suspended` sets the span on a lambda it owns alone. A shared lambda must already record it: debug builds assert this, and release builds keep the lambda's span. No current caller passes a shared lambda.
+- The `Debug` form of a thunk keeps its `RefCell { value: .. }` wrapper. The suspended state no longer shows a `span` field, and the blackhole shows `origin`.
+- A blackhole stores its forcing span and one optional pair of origin spans instead of two independent optional spans.
+- `Captures` in `upvalues.rs` is `#[repr(u8)]`. Without it, rustc encodes the capture tag in the `Value` tag of the single-capture variant at offset 8, and the blackhole cannot be placed around that niche, so `ThunkRepr` stays 40 bytes. With an explicit tag at offset 0, the other states fit after it.
+
+A compile-time assertion keeps `ThunkRepr` at 32 bytes and the release cell header at one word.
+
+### Results
+
+Three `eval-profile.py --mode stat` runs per binary gave the following medians. All oracles passed.
+
+| Workload | Base | Thunk cell | Change |
+| --- | --- | --- | --- |
+| EVAL-08 instructions:u | 123.952 G | 123.702 G | -0.20% |
+| EVAL-08 peak RSS | 2,071.5 MiB | 1,928.5 MiB | -6.9% |
+| EVAL-PKG-PATHS instructions:u | 7.206 G | 7.210 G | +0.06% |
+| EVAL-PKG-PATHS peak RSS | 272.8 MiB | 255.0 MiB | -6.5% |
+
+The EVAL-08 saving of 143 MiB matches the 144 MiB expected from about 9.4 million live cells moving from 64- to 48-byte blocks. The first two candidate stat runs overlapped debug test builds of this lane. Their elapsed times of 63 and 35 s reflect that contention, and their instruction counts and RSS match the third, quiet run.
+
+Ten exact-output paired rounds on EVAL-08 gave medians of 12.168 s against 12.332 s, a speed ratio of 1.001 (0.983 to 1.019), and a median peak RSS of 1,926.0 MiB against 2,070.3 MiB. An earlier three-round set, run while page reclaim was active on the host, gave 0.919 (0.775 to 1.111). Ten rounds on the package projection gave 1.074 s against 1.132 s, a speed ratio of 1.028 (0.940 to 1.119), and peak RSS from 267.0 MiB to 252.6 MiB. Every sample passed its exact-output check. CppNix 2.35.2 took 3.154 s on EVAL-08 and 0.420 s on the package projection.
+
+`cargo test -p noxi-eval` passes 564 tests. With `eval-diagnostics,eval-cycle-collection` it passes 577. `upstream_lang` passes. The `noxi-commands` targets `language_boundaries`, `generated_boundaries`, `generated_forcing` and `instantiate` pass 34 of 35, and `appended_string_context_validation_matches_the_reference` fails as on main. Miri was not run, because no local toolchain includes it. The change is kept uncommitted. Binaries, stat runs, paired reports and the patch are under `target/perf-mem-2` in the lane worktree.

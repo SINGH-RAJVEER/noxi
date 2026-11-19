@@ -1,12 +1,10 @@
 //! Bounded, non-forcing search for closed paths through surviving thunk roots.
 
-use std::{cell::RefCell, rc::Rc};
-
 use rustc_hash::FxHashSet;
 
 use crate::opcode::UpvalueIdx;
 
-use super::{ThunkRepr, Upvalues, Value};
+use super::{RcCell, ThunkRepr, Upvalues, Value};
 
 const STATIC: u8 = 1;
 const DYNAMIC: u8 = 2;
@@ -17,7 +15,7 @@ const CLOSURE: u8 = 32;
 const MAX_DEPTH: usize = 32;
 const MAX_VISITS: usize = 1024;
 
-type Cell = RefCell<ThunkRepr>;
+type Cell = RcCell<ThunkRepr>;
 
 pub(super) struct Probe {
 	pub witness: Option<u8>,
@@ -25,15 +23,15 @@ pub(super) struct Probe {
 }
 
 struct Search {
-	root: *const Cell,
-	seen: FxHashSet<*const Cell>,
+	root: *const ThunkRepr,
+	seen: FxHashSet<*const ThunkRepr>,
 	visits: usize,
 	exhausted: bool,
 }
 
-pub(super) fn probe(root: &Rc<Cell>) -> Probe {
+pub(super) fn probe(root: &Cell) -> Probe {
 	let mut search = Search {
-		root: Rc::as_ptr(root),
+		root: RcCell::as_ptr(root),
 		seen: FxHashSet::default(),
 		visits: 0,
 		exhausted: false,
@@ -55,8 +53,8 @@ impl Search {
 		true
 	}
 
-	fn cell(&mut self, cell: &Rc<Cell>, edges: u8, depth: usize) -> Option<u8> {
-		let ptr = Rc::as_ptr(cell);
+	fn cell(&mut self, cell: &Cell, edges: u8, depth: usize) -> Option<u8> {
+		let ptr = RcCell::as_ptr(cell);
 		if depth != 0 && ptr == self.root {
 			return Some(edges);
 		}

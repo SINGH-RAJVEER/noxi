@@ -1275,10 +1275,10 @@ where
 						);
 						Thunk::new_closure_with_upvalues(blueprint, upvalues)
 					} else {
-						let span = blueprint
-							.suspended_span
-							.unwrap_or_else(|| frame.current_span());
-						Thunk::new_suspended_with_upvalues(blueprint, span, upvalues)
+						// The compiler records the span of every blueprint it emits an
+						// instruction for, and the thunk takes it from there.
+						debug_assert!(blueprint.suspended_span.is_some());
+						Thunk::new_suspended_with_upvalues(blueprint, upvalues)
 					};
 
 					// Recursive captures remain deferred until Op::Finalise.

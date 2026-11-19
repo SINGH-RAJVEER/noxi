@@ -1,14 +1,10 @@
 //! Bounded trial deletion for cycles composed of direct thunk references.
 
-use std::{
-	cell::RefCell,
-	collections::VecDeque,
-	rc::{Rc, Weak},
-};
+use std::{cell::RefCell, collections::VecDeque, rc::Rc};
 
 use crate::opcode::UpvalueIdx;
 
-use super::{Thunk, ThunkRepr, Upvalues, Value};
+use super::{RcCell, Thunk, ThunkRepr, Upvalues, Value, cell::Weak};
 use crate::value::NixAttrs;
 
 const MAX_CANDIDATES: usize = 4096;
@@ -18,10 +14,10 @@ const MAX_NODES: usize = 32;
 const MAX_EDGES: usize = 128;
 const MAX_SLOTS: usize = 256;
 
-type Cell = RefCell<ThunkRepr>;
+type Cell = RcCell<ThunkRepr>;
 
 struct Candidate {
-	thunk: Weak<Cell>,
+	thunk: Weak<ThunkRepr>,
 	attempts: usize,
 }
 
@@ -40,7 +36,7 @@ fn enqueue(candidate: Candidate) {
 
 pub(super) fn register(thunk: &Thunk) {
 	enqueue(Candidate {
-		thunk: Rc::downgrade(&thunk.0),
+		thunk: RcCell::downgrade(&thunk.0),
 		attempts: 0,
 	});
 }
@@ -69,13 +65,13 @@ pub(super) fn collect() {
 }
 
 struct Node {
-	cell: Rc<Cell>,
+	cell: Cell,
 	incoming: usize,
 	keep: bool,
 }
 
 impl Node {
-	fn new(cell: Rc<Cell>) -> Self {
+	fn new(cell: Cell) -> Self {
 		Self {
 			cell,
 			incoming: 0,
@@ -191,7 +187,7 @@ fn walk_edges(
 	}
 }
 
-fn trial(root: Rc<Cell>) -> Result<usize, TrialAbort> {
+fn trial(root: Cell) -> Result<usize, TrialAbort> {
 	let mut nodes = vec![Node::new(root)];
 	let mut edges = Vec::<(usize, usize)>::new();
 	let mut slots = 0;
@@ -200,19 +196,22 @@ fn trial(root: Rc<Cell>) -> Result<usize, TrialAbort> {
 	while from < nodes.len() {
 		// This temporary keeps the borrow independent of the vector, and
 		// drops before strong references are counted below.
-		let cell = Rc::clone(&nodes[from].cell);
+		let cell = nodes[from].cell.clone();
 		let repr = cell.try_borrow().map_err(|_| TrialAbort::Borrow)?;
 		walk_edges(&repr, &mut slots, |to| {
 			if edges.len() == MAX_EDGES {
 				return Err(TrialAbort::Budget);
 			}
-			let to = match nodes.iter().position(|node| Rc::ptr_eq(&node.cell, &to.0)) {
+			let to = match nodes
+				.iter()
+				.position(|node| RcCell::ptr_eq(&node.cell, &to.0))
+			{
 				Some(index) => index,
 				None => {
 					if nodes.len() == MAX_NODES {
 						return Err(TrialAbort::Budget);
 					}
-					nodes.push(Node::new(Rc::clone(&to.0)));
+					nodes.push(Node::new(to.0.clone()));
 					nodes.len() - 1
 				}
 			};
@@ -227,7 +226,7 @@ fn trial(root: Rc<Cell>) -> Result<usize, TrialAbort> {
 		// Every represented slot contributes one strong reference, and the
 		// trial holds exactly one more. Unknown or shared edges contribute
 		// excess references and therefore keep their targets alive.
-		let external = Rc::strong_count(&node.cell)
+		let external = RcCell::strong_count(&node.cell)
 			.checked_sub(node.incoming + 1)
 			.ok_or(TrialAbort::Count)?;
 		node.keep = external != 0
@@ -291,7 +290,7 @@ mod tests {
 	fn collects_self_cycle_with_duplicate_edges() {
 		let a = thunk();
 		capture(&a, &[&a, &a]);
-		let weak = Rc::downgrade(&a.0);
+		let weak = RcCell::downgrade(&a.0);
 		drop(a);
 		assert_eq!(trial(weak.upgrade().unwrap()), Ok(1));
 		assert_eq!(weak.strong_count(), 0);
@@ -303,8 +302,8 @@ mod tests {
 		let b = thunk();
 		capture(&a, &[&b]);
 		capture(&b, &[&a]);
-		let a_weak = Rc::downgrade(&a.0);
-		let b_weak = Rc::downgrade(&b.0);
+		let a_weak = RcCell::downgrade(&a.0);
+		let b_weak = RcCell::downgrade(&b.0);
 		drop(a);
 		assert_eq!(trial(a_weak.upgrade().unwrap()), Ok(0));
 		assert!(b.is_suspended());
@@ -320,7 +319,7 @@ mod tests {
 		let list = Value::List(vec![Value::Thunk(root.clone())].into());
 		let attrs = Value::Attrs([("list", list.clone())].into_iter().collect());
 		*root.0.borrow_mut() = ThunkRepr::Evaluated(attrs);
-		let weak = Rc::downgrade(&root.0);
+		let weak = RcCell::downgrade(&root.0);
 		drop(root);
 
 		assert_eq!(trial(weak.upgrade().unwrap()), Ok(0));
@@ -333,7 +332,7 @@ mod tests {
 	fn opaque_native_capture_keeps_referenced_cycle_alive() {
 		let a = thunk();
 		capture(&a, &[&a]);
-		let weak = Rc::downgrade(&a.0);
+		let weak = RcCell::downgrade(&a.0);
 		let native = Thunk::new_suspended_native(Box::new(move || Ok(Value::Thunk(a.clone()))));
 		assert_eq!(trial(weak.upgrade().unwrap()), Ok(0));
 		drop(native);
@@ -347,8 +346,8 @@ mod tests {
 		let b = thunk();
 		capture(&a, &[&b]);
 		capture(&b, &[&a]);
-		let a_weak = Rc::downgrade(&a.0);
-		let b_weak = Rc::downgrade(&b.0);
+		let a_weak = RcCell::downgrade(&a.0);
+		let b_weak = RcCell::downgrade(&b.0);
 		let guard = b.0.borrow_mut();
 		drop(a);
 		assert_eq!(trial(a_weak.upgrade().unwrap()), Err(TrialAbort::Borrow));

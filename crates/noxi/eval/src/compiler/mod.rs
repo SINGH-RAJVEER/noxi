@@ -1648,6 +1648,14 @@ impl Compiler<'_, '_> {
 			.push_op(Op::Return, self.span_for(node));
 		compiled.lambda.chunk.shrink_to_fit();
 
+		// A thunk without captures becomes a constant suspended at the span of
+		// its expression. Record it before observers can share the lambda; the
+		// blueprint of a thunk with captures records its span below.
+		let no_captures = compiled.lambda.upvalue_count == 0 && !compiled.captures_with_stack;
+		if is_suspended_thunk && no_captures {
+			compiled.lambda.suspended_span = Some(span);
+		}
+
 		let lambda = Rc::new(compiled.lambda);
 		if is_suspended_thunk {
 			self.observer.observe_compiled_thunk(&lambda);
@@ -1656,7 +1664,7 @@ impl Compiler<'_, '_> {
 		}
 
 		// If no upvalues are captured, emit directly and move on.
-		if lambda.upvalue_count == 0 && !compiled.captures_with_stack {
+		if no_captures {
 			self.emit_constant(
 				if is_suspended_thunk {
 					Value::Thunk(Thunk::new_suspended(lambda, span))

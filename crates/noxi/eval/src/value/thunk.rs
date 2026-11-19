@@ -19,11 +19,7 @@
 //! memoisable slot.
 
 use rustc_hash::FxHashSet;
-use std::{
-	cell::{Ref, RefCell, RefMut},
-	fmt::Debug,
-	rc::Rc,
-};
+use std::{fmt::Debug, rc::Rc};
 
 use crate::{
 	Value,
@@ -35,8 +31,10 @@ use crate::{
 };
 
 use super::{Lambda, TotalDisplay};
+use cell::{RcCell, Ref, RefMut};
 use codemap::Span;
 
+mod cell;
 #[cfg(feature = "eval-diagnostics")]
 mod census;
 #[cfg(feature = "eval-cycle-collection")]
@@ -62,13 +60,13 @@ impl Debug for SuspendedNative {
 pub(super) enum ThunkRepr {
 	/// Thunk is closed over some values, suspended and awaiting
 	/// execution.
+	/// The thunk was suspended at [`Lambda::thunk_span`].
 	Suspended {
 		lambda: Rc<Lambda>,
 		// Captures have one owner until forcing enters bytecode. Store them
 		// here, without a separate reference-counted allocation for thunks
 		// that remain suspended.
 		upvalues: Upvalues,
-		span: Span,
 	},
 
 	/// Thunk is a suspended native computation.
@@ -80,12 +78,9 @@ pub(super) enum ThunkRepr {
 		/// Span at which the thunk was first forced.
 		forced_at: Span,
 
-		/// Span at which the thunk was originally suspended.
-		suspended_at: Option<Span>,
-
-		/// Span of the first instruction of the actual code inside
-		/// the thunk.
-		content_span: Option<Span>,
+		/// For a thunk of bytecode, the span at which it was suspended and
+		/// the span of the first instruction of its code.
+		origin: Option<[Span; 2]>,
 	},
 
 	// TODO(amjoseph): consider changing `Value` to `Rc<Value>` to avoid
@@ -93,6 +88,10 @@ pub(super) enum ThunkRepr {
 	/// Fully evaluated thunk.
 	Evaluated(Value),
 }
+
+// With the one-word header of its cell this is a 40-byte allocation, which
+// takes a 48-byte allocator block; a 48-byte allocation would take 64.
+const _: () = assert!(std::mem::size_of::<ThunkRepr>() == 32);
 
 impl ThunkRepr {
 	fn debug_repr(&self) -> String {
@@ -140,20 +139,20 @@ impl ThunkRepr {
 /// Every reference cycle involving `Value`s will contain at least
 /// one `Thunk`.
 #[derive(Clone, Debug)]
-pub struct Thunk(pub(super) Rc<RefCell<ThunkRepr>>);
+pub struct Thunk(pub(super) RcCell<ThunkRepr>);
 
 #[cfg(feature = "eval-diagnostics")]
 struct RetentionSamples {
 	rng: u32,
 	sample_mask: u32,
 	sample_limit: usize,
-	entries: Vec<(&'static str, std::rc::Weak<RefCell<ThunkRepr>>)>,
+	entries: Vec<(&'static str, cell::Weak<ThunkRepr>)>,
 	truncated: bool,
 }
 
 #[cfg(feature = "eval-diagnostics")]
 thread_local! {
-	static RETENTION_SAMPLES: RefCell<RetentionSamples> = {
+	static RETENTION_SAMPLES: std::cell::RefCell<RetentionSamples> = {
 		let (sample_mask, sample_limit) = if std::env::var_os("NOXI_EVAL_OWNERSHIP_CENSUS_ALL")
 			.is_some_and(|setting| setting == "1")
 		{
@@ -165,7 +164,7 @@ thread_local! {
 		} else {
 			(1023, 65_536)
 		};
-		RefCell::new(RetentionSamples {
+		std::cell::RefCell::new(RetentionSamples {
 			rng: 0x2395_1aa9,
 			sample_mask,
 			sample_limit,
@@ -185,7 +184,7 @@ impl Thunk {
 			"FrameUpvalues",
 			std::mem::size_of::<crate::upvalues::FrameUpvalues>(),
 		);
-		crate::perf_counters::allocation("thunk_rc", std::mem::size_of::<RefCell<ThunkRepr>>());
+		crate::perf_counters::allocation("thunk_rc", cell::allocation_size::<ThunkRepr>());
 		RETENTION_SAMPLES.with_borrow_mut(|samples| {
 			// A deterministic xorshift avoids sampling a fixed phase of repeated allocations.
 			samples.rng ^= samples.rng << 13;
@@ -193,7 +192,7 @@ impl Thunk {
 			samples.rng ^= samples.rng << 5;
 			if samples.rng & samples.sample_mask == 0 {
 				if samples.entries.len() < samples.sample_limit {
-					samples.entries.push((kind, Rc::downgrade(&self.0)));
+					samples.entries.push((kind, RcCell::downgrade(&self.0)));
 				} else {
 					samples.truncated = true;
 				}
@@ -272,7 +271,7 @@ impl Thunk {
 
 	#[inline]
 	fn from_repr(repr: ThunkRepr, _kind: &'static str) -> Self {
-		let thunk = Self(Rc::new(RefCell::new(repr)));
+		let thunk = Self(RcCell::new(repr));
 		#[cfg(feature = "eval-diagnostics")]
 		thunk.record_creation(_kind);
 		thunk
@@ -299,24 +298,27 @@ impl Thunk {
 		)
 	}
 
-	pub fn new_suspended(lambda: Rc<Lambda>, span: Span) -> Self {
+	/// A thunk of `lambda` suspended at `span`. Thunks take this span from
+	/// their lambda, so it is recorded there; a lambda that already has other
+	/// owners must already record it.
+	pub fn new_suspended(mut lambda: Rc<Lambda>, span: Span) -> Self {
+		if lambda.suspended_span != Some(span) {
+			let lambda = Rc::get_mut(&mut lambda);
+			debug_assert!(
+				lambda.is_some(),
+				"a shared lambda must already record the span of its thunks"
+			);
+			if let Some(lambda) = lambda {
+				lambda.suspended_span = Some(span);
+			}
+		}
 		let upvalues = Upvalues::with_capacity(lambda.upvalue_count as usize);
-		Self::new_suspended_with_upvalues(lambda, span, upvalues)
+		Self::new_suspended_with_upvalues(lambda, upvalues)
 	}
 
-	pub(crate) fn new_suspended_with_upvalues(
-		lambda: Rc<Lambda>,
-		span: Span,
-		upvalues: Upvalues,
-	) -> Self {
-		Self::from_repr(
-			ThunkRepr::Suspended {
-				upvalues,
-				lambda,
-				span,
-			},
-			"suspended",
-		)
+	/// A thunk of `lambda` suspended at [`Lambda::thunk_span`].
+	pub(crate) fn new_suspended_with_upvalues(lambda: Rc<Lambda>, upvalues: Upvalues) -> Self {
+		Self::from_repr(ThunkRepr::Suspended { upvalues, lambda }, "suspended")
 	}
 
 	pub fn new_suspended_native(native: Box<dyn Fn() -> Result<Value, ErrorKind>>) -> Self {
@@ -346,6 +348,8 @@ impl Thunk {
 		let mut lambda = Lambda::default();
 		lambda.upvalue_count = 2;
 		lambda.synthetic_call = true;
+		// The first span of the chunk, as every thunk of this lambda records.
+		lambda.suspended_span = Some(span);
 		lambda.generated_call_position = generated_call_position;
 		lambda.omit_call_position = omit_call_position;
 
@@ -370,26 +374,19 @@ impl Thunk {
 		arg: Value,
 		lambda: Rc<Lambda>,
 	) -> Self {
-		let span = lambda.chunk.first_span();
-		Self::new_suspended_with_upvalues(
-			lambda,
-			span,
-			Upvalues::from_raw_parts(vec![arg, callee], None),
-		)
+		Self::new_suspended_with_upvalues(lambda, Upvalues::from_raw_parts(vec![arg, callee], None))
 	}
 
 	fn prepare_blackhole(&self, forced_at: Span) -> ThunkRepr {
 		match &*self.0.borrow() {
-			ThunkRepr::Suspended { span, lambda, .. } => ThunkRepr::Blackhole {
+			ThunkRepr::Suspended { lambda, .. } => ThunkRepr::Blackhole {
 				forced_at,
-				suspended_at: Some(*span),
-				content_span: Some(lambda.chunk.first_span()),
+				origin: Some([lambda.thunk_span(), lambda.chunk.first_span()]),
 			},
 
 			_ => ThunkRepr::Blackhole {
 				forced_at,
-				suspended_at: None,
-				content_span: None,
+				origin: None,
 			},
 		}
 	}
@@ -401,7 +398,7 @@ impl Thunk {
 		// This vector of "thunks which point to the thunk-being-forced", to
 		// be updated along with it, is necessary in order to write this
 		// function in iterative (and later, mutual-tail-call) form.
-		let mut also_update: Vec<Rc<RefCell<ThunkRepr>>> = vec![];
+		let mut also_update: Vec<RcCell<ThunkRepr>> = vec![];
 
 		loop {
 			// If the current thunk is already fully evaluated, return its evaluated
@@ -424,15 +421,11 @@ impl Thunk {
 			let value = match inner {
 				// If there was already a blackhole in the thunk, this is an
 				// evaluation cycle.
-				ThunkRepr::Blackhole {
-					forced_at,
-					suspended_at,
-					content_span,
-				} => {
+				ThunkRepr::Blackhole { forced_at, origin } => {
 					return Err(ErrorKind::InfiniteRecursion {
 						first_force: forced_at,
-						suspended_at,
-						content_span,
+						suspended_at: origin.map(|[suspended_at, _]| suspended_at),
+						content_span: origin.map(|[_, content_span]| content_span),
 					});
 				}
 
@@ -445,26 +438,23 @@ impl Thunk {
 
 				// When encountering a suspended thunk, request that the VM enters
 				// it and produces the result.
-				ThunkRepr::Suspended {
-					lambda,
-					upvalues,
-					span,
-				} => {
+				ThunkRepr::Suspended { lambda, upvalues } => {
 					#[cfg(feature = "eval-diagnostics")]
 					crate::perf_counters::thunk_force(true);
 					// TODO(amjoseph): use #[tailcall::mutual] here.  This can
 					// be turned into a tailcall to vm::execute_bytecode() by
 					// passing `also_update` to it.
+					let span = lambda.thunk_span();
 					generators::request_enter_lambda(co, lambda, upvalues, span).await
 				}
 
 				// nested thunks -- try to flatten before forcing
 				ThunkRepr::Evaluated(Value::Thunk(inner_thunk)) => {
-					match Rc::try_unwrap(inner_thunk.0) {
-						Ok(refcell) => {
+					match RcCell::try_unwrap(inner_thunk.0) {
+						Ok(repr) => {
 							// we are the only reference to the inner thunk,
 							// so steal it
-							myself.0.replace(refcell.into_inner());
+							myself.0.replace(repr);
 							continue;
 						}
 						Err(rc) => {
@@ -501,7 +491,7 @@ impl Thunk {
 			// Return the completed value directly. Shared thunks and aliases still
 			// memoize it, while a uniquely owned thunk can simply be dropped. This
 			// avoids storing, testing and borrowing the result again on another lap.
-			if Rc::strong_count(&myself.0) > 1 {
+			if RcCell::strong_count(&myself.0) > 1 {
 				myself.0.replace(ThunkRepr::Evaluated(value.clone()));
 			}
 			for other_thunk in also_update {
@@ -522,13 +512,10 @@ impl Thunk {
 			return None;
 		}
 		match self.0.replace(self.prepare_blackhole(forced_at)) {
-			ThunkRepr::Suspended {
-				lambda,
-				upvalues,
-				span,
-			} => {
+			ThunkRepr::Suspended { lambda, upvalues } => {
 				#[cfg(feature = "eval-diagnostics")]
 				crate::perf_counters::thunk_force(true);
+				let span = lambda.thunk_span();
 				Some((lambda, upvalues, span))
 			}
 			_ => unreachable!("the thunk was just checked to be suspended"),
@@ -544,7 +531,7 @@ impl Thunk {
 			self.0.replace(ThunkRepr::Evaluated(value));
 			return None;
 		}
-		if Rc::strong_count(&self.0) > 1 {
+		if RcCell::strong_count(&self.0) > 1 {
 			self.0.replace(ThunkRepr::Evaluated(value.clone()));
 		}
 		Some(value)
@@ -552,7 +539,9 @@ impl Thunk {
 
 	pub(crate) fn determining_span(&self) -> Option<Span> {
 		match &*self.0.borrow() {
-			ThunkRepr::Suspended { lambda, span, .. } => lambda.span.or(Some(*span)),
+			ThunkRepr::Suspended { lambda, .. } => {
+				lambda.span.or_else(|| Some(lambda.thunk_span()))
+			}
 			ThunkRepr::Evaluated(Value::Thunk(thunk)) => thunk.determining_span(),
 			_ => None,
 		}
@@ -665,8 +654,8 @@ impl Thunk {
 	/// to call this on a thunk that has not been forced, or is not
 	/// otherwise known to be fully evaluated.
 	fn unwrap_or_clone(self) -> Value {
-		match Rc::try_unwrap(self.0) {
-			Ok(refcell) => refcell.into_inner().expect(),
+		match RcCell::try_unwrap(self.0) {
+			Ok(repr) => repr.expect(),
 			Err(rc) => Ref::map(rc.borrow(), |thunkrepr| thunkrepr.expect_ref()).clone(),
 		}
 	}
@@ -694,12 +683,12 @@ impl Thunk {
 	/// Do not use this without first reading and understanding
 	/// `noxi/docs/value-pointer-equality.md`.
 	pub(crate) fn ptr_eq(&self, other: &Self) -> bool {
-		Rc::ptr_eq(&self.0, &other.0)
+		RcCell::ptr_eq(&self.0, &other.0)
 	}
 
 	/// The identity of the thunk, for detecting repeated values.
 	pub(super) fn as_ptr(&self) -> *const () {
-		Rc::as_ptr(&self.0).cast()
+		RcCell::as_ptr(&self.0).cast()
 	}
 
 	/// Helper function to format thunks in observer output.
@@ -737,7 +726,7 @@ impl ThunkSet {
 	/// Check whether the given thunk has already been seen. Will mark the thunk
 	/// as seen otherwise.
 	pub fn insert(&mut self, thunk: &Thunk) -> bool {
-		let ptr: *const ThunkRepr = thunk.0.as_ptr();
+		let ptr: *const ThunkRepr = RcCell::as_ptr(&thunk.0);
 		self.0.insert(ptr)
 	}
 }
@@ -760,7 +749,6 @@ mod tests {
 		lambda.chunk.push_op(Op::Return, span);
 		let thunk = Thunk::new_suspended_with_upvalues(
 			Rc::new(lambda),
-			span,
 			Upvalues::from_raw_parts(vec![Value::Thunk(captured)], None),
 		);
 		let alias = thunk.clone();
@@ -789,7 +777,6 @@ mod tests {
 		lambda.chunk.push_op(Op::Return, span);
 		let thunk = Thunk::new_suspended_with_upvalues(
 			Rc::new(lambda),
-			span,
 			Upvalues::from_raw_parts(vec![], Some(shared.clone())),
 		);
 		let (_, captures, _) = thunk.begin_direct_force(span).unwrap();
@@ -809,7 +796,6 @@ mod tests {
 		lambda.chunk.push_op(Op::Return, span);
 		let thunk = Thunk::new_suspended_with_upvalues(
 			Rc::new(lambda),
-			span,
 			Upvalues::from_raw_parts(
 				vec![Value::DeferredUpvalue(crate::opcode::StackIdx(0))],
 				None,
