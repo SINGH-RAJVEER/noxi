@@ -36,7 +36,7 @@ use crate::{
 	nix_search_path::NixSearchPath,
 	observer::{OptionalRuntimeObserver, RuntimeObserver},
 	opcode::{CodeIdx, Op, Position, UpvalueIdx},
-	upvalues::{FrameUpvalues, UpvalueData, Upvalues},
+	upvalues::{CapturePool, FrameUpvalues, UpvalueData, Upvalues},
 	value::{
 		Builtin, BuiltinResult, Closure, CoercionKind, Lambda, NixAttrs, NixContext, NixList,
 		PointerEquality, PrintOptions, Thunk, Value, ValuePrinter, canon_path,
@@ -424,6 +424,9 @@ pub(crate) enum BuiltinContexts {
 	/// Frames given in full.
 	Traces(Vec<Trace>),
 
+	/// One frame, its hint built only when a trace needs it.
+	Static(Option<Span>, &'static str),
+
 	/// Frames without a position, each a prefix followed by a value as
 	/// CppNix's `ValuePrinter` prints it with the error options. Like
 	/// CppNix, which adds such frames as an error passes, the value is
@@ -580,6 +583,13 @@ struct VM<'o, IO> {
 	/// already active fails.
 	max_call_depth: usize,
 
+	/// The number of `deep_force` generators in existence. Recursion budget
+	/// requests scan the frame stack for their paths only while it is not zero.
+	deep_forces: Rc<std::cell::Cell<usize>>,
+
+	/// Static capture buffers of returned frames, reused for new captures.
+	capture_pool: CapturePool,
+
 	/// The frame the outer loop is running: its index in the frame stack and
 	/// its trace, for errors raised before it is pushed back.
 	current: (usize, FrameTrace),
@@ -646,6 +656,8 @@ where
 			try_eval_frames: vec![],
 			call_depth: 0,
 			max_call_depth: crate::max_call_depth(),
+			deep_forces: Default::default(),
+			capture_pool: Default::default(),
 			current: (0, FrameTrace::None),
 			pending_call_site: None,
 		}
@@ -1204,7 +1216,8 @@ where
 						_ => panic!("compiler bug: non-blueprint in blueprint slot"),
 					};
 
-					let upvalues = self.populate_upvalues(&mut frame)?;
+					let mut deferred = false;
+					let upvalues = self.populate_upvalues(&mut frame, &mut deferred)?;
 					debug_assert!(
 						upvalues.len() == blueprint.upvalue_count as usize,
 						"TODO: new upvalue count not correct",
@@ -1217,9 +1230,8 @@ where
 					if op == Op::ThunkSuspended
 						&& self.observer.0.is_none()
 						&& frame.chunk().code.get(frame.ip.0) == Some(&(Op::Force as u8))
-						&& (0..upvalues.len()).all(|index| {
-							!matches!(upvalues[UpvalueIdx(index)], Value::DeferredUpvalue(_))
-						}) {
+						&& !deferred
+					{
 						let suspended_at = blueprint
 							.suspended_span
 							.unwrap_or_else(|| frame.current_span());
@@ -1357,7 +1369,7 @@ where
 					debug_assert!(self.stack.len() - 1 <= frame.stack_offset);
 					if self.direct_frames {
 						// The outer loop drops the frame before it takes the next one.
-						drop(frame);
+						self.recycle_captures(frame);
 						if let Some((next_span, next)) = self.take_direct_frame() {
 							span = next_span;
 							frame = next;
@@ -1460,7 +1472,7 @@ where
 						_ => panic!("compiler bug: non-blueprint in blueprint slot"),
 					};
 
-					let upvalues = self.populate_upvalues(&mut frame)?;
+					let upvalues = self.populate_upvalues(&mut frame, &mut false)?;
 					let upvalue_count = upvalues.len();
 					debug_assert!(
 						upvalue_count == blueprint.upvalue_count as usize,
@@ -2112,6 +2124,9 @@ impl<IO> VM<'_, IO> {
 						Some(BuiltinContexts::Traces(contexts)) => {
 							traces.extend(contexts.iter().cloned())
 						}
+						Some(BuiltinContexts::Static(position, hint)) => {
+							traces.push(Trace::new(*position, *hint))
+						}
 						Some(BuiltinContexts::Printed(contexts)) => traces.extend(
 							contexts
 								.iter()
@@ -2573,11 +2588,25 @@ where
 		}
 	}
 
+	/// Drop a returned frame, keeping the buffer of captures it owned.
+	#[inline(always)]
+	fn recycle_captures(&mut self, frame: BytecodeFrame) {
+		if let FrameUpvalues::Owned(upvalues) = frame.upvalues {
+			self.capture_pool.give(upvalues);
+		}
+	}
+
 	/// Populate the upvalue fields of a thunk or closure under construction.
 	///
 	/// See the closely tied function `emit_upvalue_data` in the compiler
 	/// implementation for details on the argument processing.
-	fn populate_upvalues(&self, frame: &mut BytecodeFrame) -> EvalResult<Upvalues> {
+	/// Sets `deferred` if a capture is a recursive one that `Op::Finalise`
+	/// resolves later.
+	fn populate_upvalues(
+		&mut self,
+		frame: &mut BytecodeFrame,
+		deferred: &mut bool,
+	) -> EvalResult<Upvalues> {
 		let data = UpvalueData::from_raw(frame.read_uvarint());
 		let count = data.count();
 		let capture_with = data.captures_with();
@@ -2604,42 +2633,58 @@ where
 		};
 
 		if count == 1 && with_stack.is_none() {
-			return self.read_capture(frame).map(Upvalues::from_single);
+			return match self.read_capture(frame, deferred) {
+				Ok(value) => Ok(Upvalues::from_single(value)),
+				Err(relative) => self.missing_capture(frame, relative),
+			};
+		}
+		if with_stack.is_none()
+			&& let Some(mut values) = self.capture_pool.take(count)
+		{
+			for slot in values.iter_mut() {
+				match self.read_capture(frame, deferred) {
+					Ok(value) => *slot = value,
+					Err(relative) => return self.missing_capture(frame, relative),
+				}
+			}
+			return Ok(Upvalues::from_static(values));
 		}
 		let mut static_upvalues = Vec::with_capacity(count);
 		for _ in 0..count {
-			static_upvalues.push(self.read_capture(frame)?);
+			match self.read_capture(frame, deferred) {
+				Ok(value) => static_upvalues.push(value),
+				Err(relative) => return self.missing_capture(frame, relative),
+			}
 		}
 
 		Ok(Upvalues::from_raw_parts(static_upvalues, with_stack))
 	}
+
+	/// Read one capture: its value, or the frame-relative stack slot it names
+	/// when that slot is missing. Unlike an `EvalResult`, the result fits in
+	/// two registers, so the capture loop does not move it through memory.
 	#[inline(always)]
-	fn read_capture(&self, frame: &mut BytecodeFrame) -> EvalResult<Value> {
+	fn read_capture(&self, frame: &mut BytecodeFrame, deferred: &mut bool) -> Result<Value, usize> {
 		let pos = Position(frame.read_uvarint());
 		if let Some(stack_idx) = pos.runtime_stack_index() {
-			let idx = frame.stack_offset + stack_idx.0;
-			return match self.stack.get(idx) {
-				Some(value) => Ok(value.clone()),
-				None => self.missing_capture(frame, stack_idx.0, idx),
+			return match self.stack.get(frame.stack_offset + stack_idx.0) {
+				Some(value) => Ok(clone_capture(value)),
+				None => Err(stack_idx.0),
 			};
 		}
 		if let Some(idx) = pos.runtime_deferred_local() {
+			*deferred = true;
 			return Ok(Value::DeferredUpvalue(idx));
 		}
 		if let Some(idx) = pos.runtime_upvalue_index() {
-			return Ok(frame.upvalue(idx).clone());
+			return Ok(clone_capture(frame.upvalue(idx)));
 		}
 		panic!("noxi bug: invalid capture position emitted");
 	}
 
 	#[cold]
 	#[inline(never)]
-	fn missing_capture(
-		&self,
-		frame: &BytecodeFrame,
-		relative: usize,
-		absolute: usize,
-	) -> EvalResult<Value> {
+	fn missing_capture<T>(&self, frame: &BytecodeFrame, relative: usize) -> EvalResult<T> {
 		frame.error(
 			self,
 			ErrorKind::NoxiBug {
@@ -2647,10 +2692,22 @@ where
 				metadata: Some(Rc::new(json!({
 					"ip": format!("{:#x}", frame.ip.0 - 1),
 					"stack_idx(relative)": relative,
-					"stack_idx(absolute)": absolute,
+					"stack_idx(absolute)": frame.stack_offset + relative,
 				}))),
 			},
 		)
+	}
+}
+
+const _: () = assert!(std::mem::size_of::<Result<Value, usize>>() == 16);
+
+/// Clone a captured value. Most captures are thunks, cloned here inline
+/// instead of through `Value`'s out-of-line clone.
+#[inline(always)]
+fn clone_capture(value: &Value) -> Value {
+	match value {
+		Value::Thunk(thunk) => Value::Thunk(thunk.clone()),
+		value => value.clone(),
 	}
 }
 

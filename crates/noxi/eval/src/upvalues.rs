@@ -117,7 +117,51 @@ impl Deref for FrameUpvalues {
 	}
 }
 
+/// The capture counts whose buffers [`CapturePool`] keeps: two up to and
+/// including `POOLED_COUNTS + 1`.
+const POOLED_COUNTS: usize = 8;
+
+/// The buffers kept for each capture count.
+const POOL_DEPTH: usize = 32;
+
+/// Static capture buffers of frames that have returned, kept for the next
+/// captures of the same count. Most captures belong to a thunk forced soon
+/// after it is built, so a buffer is usually reused before the pool fills.
+#[derive(Default)]
+pub(crate) struct CapturePool {
+	free: [Vec<Box<[Value]>>; POOLED_COUNTS],
+}
+
+impl CapturePool {
+	/// A buffer of `count` captures, each `Value::Null`, if one is kept.
+	#[inline]
+	pub(crate) fn take(&mut self, count: usize) -> Option<Box<[Value]>> {
+		self.free.get_mut(count.wrapping_sub(2))?.pop()
+	}
+
+	/// Keep the static capture buffer of `upvalues`, owned by a frame that
+	/// has returned, unless the pool for its count is full.
+	#[inline]
+	pub(crate) fn give(&mut self, upvalues: Upvalues) {
+		if let Captures::Static(mut values) = upvalues.0
+			&& let Some(free) = self.free.get_mut(values.len().wrapping_sub(2))
+			&& free.len() < POOL_DEPTH
+		{
+			values.fill(Value::Null);
+			free.push(values);
+		}
+	}
+}
+
 impl Upvalues {
+	/// Captures held in a buffer from [`CapturePool::take`], each slot filled.
+	#[inline]
+	pub(crate) fn from_static(values: Box<[Value]>) -> Self {
+		#[cfg(feature = "eval-diagnostics")]
+		crate::perf_counters::capture_created(values.len(), 0, false);
+		Self(Captures::Static(values))
+	}
+
 	/// Upvalues are never added after construction, so the count only
 	/// matters to callers constructing them whole.
 	pub fn with_capacity(_count: usize) -> Self {

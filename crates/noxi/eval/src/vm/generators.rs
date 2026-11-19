@@ -31,6 +31,11 @@ pub(crate) enum GeneratorState {
 
 	/// Generator is awaiting the result of a forced value.
 	AwaitingValue,
+
+	/// Generator is awaiting the result of an argument forced under a
+	/// builtin context frame, which is cleared once the value arrives unless
+	/// it is catchable.
+	AwaitingValueInContext,
 }
 
 /// Messages that can be sent from generators *to* the VM. In most
@@ -157,6 +162,10 @@ pub enum VMRequest {
 	/// Add a lazy user context to an evaluation failure.
 	ErrorContext(Value, Value),
 	BuiltinContext(Vec<crate::errors::Trace>),
+	/// Force a value under one builtin context frame, as a
+	/// `BuiltinContext` request before a `ForceValue` and an empty one after
+	/// it would. The frame stays if the value is catchable.
+	ForceInContext(Value, Option<Span>, &'static str),
 	/// Set builtin contexts whose values are printed only when a trace
 	/// needs them.
 	BuiltinContextPrinted(Vec<(&'static str, Value)>),
@@ -249,6 +258,7 @@ impl Display for VMRequest {
 			VMRequest::ReadDir(p) => write!(f, "read_dir({})", p.to_string_lossy()),
 			VMRequest::Span => write!(f, "span"),
 			VMRequest::BuiltinContext(_) => write!(f, "builtin_context"),
+			VMRequest::ForceInContext(v, ..) => write!(f, "force_in_context({})", v.type_of()),
 			VMRequest::BuiltinContextPrinted(_) => write!(f, "builtin_context_printed"),
 			VMRequest::RecursionBudget => write!(f, "recursion_budget"),
 			VMRequest::TracePath(_) => write!(f, "trace_path"),
@@ -320,6 +330,23 @@ pub fn pin_generator(
 	Box::pin(f)
 }
 
+/// Counts a `deep_force` generator while it exists, so that a recursion
+/// budget request only scans the frame stack when one may be on it.
+struct DeepForceGuard(Rc<std::cell::Cell<usize>>);
+
+impl DeepForceGuard {
+	fn new(count: &Rc<std::cell::Cell<usize>>) -> Self {
+		count.set(count.get() + 1);
+		Self(count.clone())
+	}
+}
+
+impl Drop for DeepForceGuard {
+	fn drop(&mut self) {
+		self.0.set(self.0.get() - 1);
+	}
+}
+
 impl<IO> VM<'_, IO>
 where
 	IO: AsRef<dyn EvalIO> + 'static,
@@ -327,16 +354,38 @@ where
 	/// Helper function to re-enqueue the current generator while it
 	/// is awaiting a value.
 	fn reenqueue_generator(&mut self, name: &'static str, span: Span, generator: Generator) {
+		self.reenqueue_generator_in(name, span, generator, GeneratorState::AwaitingValue);
+	}
+
+	/// [`reenqueue_generator`](Self::reenqueue_generator) in the given
+	/// awaiting state.
+	fn reenqueue_generator_in(
+		&mut self,
+		name: &'static str,
+		span: Span,
+		generator: Generator,
+		state: GeneratorState,
+	) {
 		self.frames.push(Frame::Generator {
 			name,
 			generator,
 			span,
-			state: GeneratorState::AwaitingValue,
+			state,
 			depth: self.call_depth,
 			// The generator was running, so the running trace is its own; once it
 			// is back on the frame stack, `traces` no longer reads it.
 			trace: std::mem::take(&mut self.current.1),
 		});
+	}
+
+	/// Set the running builtin's context frames, or clear them with none.
+	/// Outside a builtin they replace the running trace.
+	fn set_builtin_context(&mut self, traces: Vec<crate::errors::Trace>) {
+		if let FrameTrace::Builtin { contexts, .. } = &mut self.current.1 {
+			*contexts = (!traces.is_empty()).then(|| Box::new(BuiltinContexts::Traces(traces)));
+		} else {
+			self.current.1 = FrameTrace::Dynamic(Rc::new(std::cell::RefCell::new(traces)));
+		}
 	}
 
 	/// Helper function to enqueue a new generator.
@@ -370,8 +419,10 @@ where
 		initial_message: Option<VMResponse>,
 	) -> EvalResult<bool> {
 		// A tryEval suppresses capture only while its argument is active.
-		if matches!(state, GeneratorState::AwaitingValue)
-			&& self.try_eval_frames.last() == Some(&frame_id)
+		if matches!(
+			state,
+			GeneratorState::AwaitingValue | GeneratorState::AwaitingValueInContext
+		) && self.try_eval_frames.last() == Some(&frame_id)
 		{
 			self.try_eval_frames.pop();
 		}
@@ -383,6 +434,13 @@ where
 			// If control returned here, and the generator is
 			// awaiting a value, send it the top of the stack.
 			(_, GeneratorState::AwaitingValue) => VMResponse::Value(self.stack_pop()),
+			(_, GeneratorState::AwaitingValueInContext) => {
+				let value = self.stack_pop();
+				if !value.is_catchable() {
+					self.set_builtin_context(Vec::new());
+				}
+				VMResponse::Value(value)
+			}
 		};
 
 		loop {
@@ -412,18 +470,22 @@ where
 							message = VMResponse::Empty;
 						}
 						VMRequest::RecursionBudget => {
-							let outer_depth: usize = self
-								.frames
-								.iter()
-								.filter_map(|frame| match frame {
-									Frame::Generator {
-										name: "deep_force",
-										trace: FrameTrace::Dynamic(path),
-										..
-									} => Some(path.borrow().len() + 1),
-									_ => None,
-								})
-								.sum();
+							// Without a live deep force, no frame adds to the depth.
+							let outer_depth: usize = if self.deep_forces.get() == 0 {
+								0
+							} else {
+								self.frames
+									.iter()
+									.filter_map(|frame| match frame {
+										Frame::Generator {
+											name: "deep_force",
+											trace: FrameTrace::Dynamic(path),
+											..
+										} => Some(path.borrow().len() + 1),
+										_ => None,
+									})
+									.sum()
+							};
 							message = VMResponse::Value(Value::Integer(
 								self.max_call_depth
 									.saturating_sub(self.call_depth + outer_depth + 1)
@@ -431,15 +493,25 @@ where
 							));
 						}
 						VMRequest::BuiltinContext(traces) => {
-							if let FrameTrace::Builtin { contexts, .. } = &mut self.current.1 {
-								*contexts = (!traces.is_empty())
-									.then(|| Box::new(BuiltinContexts::Traces(traces)));
-							} else {
-								self.current.1 = FrameTrace::Dynamic(std::rc::Rc::new(
-									std::cell::RefCell::new(traces),
-								));
-							}
+							self.set_builtin_context(traces);
 							message = VMResponse::Empty;
+						}
+						VMRequest::ForceInContext(value, position, hint) => {
+							if let FrameTrace::Builtin { contexts, .. } = &mut self.current.1 {
+								*contexts = Some(Box::new(BuiltinContexts::Static(position, hint)));
+							} else {
+								self.set_builtin_context(vec![crate::errors::Trace::new(
+									position, hint,
+								)]);
+							}
+							self.reenqueue_generator_in(
+								name,
+								span,
+								generator,
+								GeneratorState::AwaitingValueInContext,
+							);
+							self.enqueue_force_value(span, value);
+							return Ok(false);
 						}
 						VMRequest::BuiltinContextPrinted(values) => {
 							if let FrameTrace::Builtin { contexts, .. } = &mut self.current.1 {
@@ -479,9 +551,13 @@ where
 						VMRequest::DeepForceValue(value) => {
 							self.reenqueue_generator(name, span, generator);
 							let path = Rc::new(std::cell::RefCell::new(vec![]));
+							let live = DeepForceGuard::new(&self.deep_forces);
 							self.enqueue_generator("deep_force", span, {
 								let path = path.clone();
-								|co| value.deep_force(co, span, path)
+								|co| async move {
+									let _live = live;
+									value.deep_force(co, span, path).await
+								}
 							});
 							if let Some(Frame::Generator { trace, .. }) = self.frames.last_mut() {
 								*trace = FrameTrace::Dynamic(path);
@@ -929,6 +1005,38 @@ pub async fn request_builtin_context(co: &GenCo, traces: Vec<crate::errors::Trac
 	}
 }
 
+/// Force a builtin argument under one context frame, as
+/// [`request_builtin_context`] with that frame, then [`request_force`], then
+/// [`request_builtin_context`] with none would when the value is not
+/// catchable. A catchable value is returned with the frame still set, for the
+/// caller to return.
+///
+/// Forcing an evaluated value cannot fail, so it skips the frame, and a thunk
+/// is forced with the frame set and cleared in one round trip.
+pub async fn force_argument_in_context(
+	co: &GenCo,
+	value: Value,
+	position: Option<Span>,
+	hint: &'static str,
+) -> Value {
+	match ready_argument(value) {
+		Ok(value) => value,
+		Err(thunk @ Value::Thunk(_)) => {
+			match co
+				.yield_(VMRequest::ForceInContext(thunk, position, hint))
+				.await
+			{
+				VMResponse::Value(value) => value,
+				msg => panic!("noxi bug: VM responded with incorrect generator message: {msg}"),
+			}
+		}
+		Err(catchable) => {
+			request_builtin_context(co, vec![crate::errors::Trace::new(position, hint)]).await;
+			catchable
+		}
+	}
+}
+
 /// Set the current builtin's runtime contexts: each a prefix and a value
 /// printed as CppNix's `ValuePrinter` does when a trace needs it.
 pub async fn request_builtin_context_printed(co: &GenCo, values: Vec<(&'static str, Value)>) {
@@ -959,6 +1067,25 @@ pub async fn request_force(co: &GenCo, val: Value) -> Value {
 		}
 	} else {
 		val
+	}
+}
+
+/// The value of an argument whose force cannot fail: one already evaluated
+/// and not catchable. Otherwise the argument, with an evaluated thunk
+/// replaced by its value, for an ordinary force.
+#[inline]
+pub fn ready_argument(value: Value) -> Result<Value, Value> {
+	let value = match value {
+		Value::Thunk(thunk) => match thunk.force_if_evaluated() {
+			Ok(value) => value,
+			Err(thunk) => return Err(Value::Thunk(thunk)),
+		},
+		value => value,
+	};
+	if value.is_catchable() {
+		Err(value)
+	} else {
+		Ok(value)
 	}
 }
 
@@ -1067,6 +1194,10 @@ pub(crate) async fn check_equality(
 	b: Value,
 	ptr_eq: PointerEquality,
 ) -> Result<Result<bool, CatchableErrorKind>, ErrorKind> {
+	// The VM would answer these operands natively, without suspending.
+	if let Some(equal) = super::native::equal(&a, &b, ptr_eq) {
+		return Ok(Ok(equal));
+	}
 	match co
 		.yield_(VMRequest::NixEquality(Box::new((a, b)), ptr_eq))
 		.await

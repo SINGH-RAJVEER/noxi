@@ -922,24 +922,33 @@ mod pure_builtins {
 
 			// Binary search for the key among the sorted keys seen so far.
 			// The comparison frames apply only while the keys are compared.
+			// Keys ordered without forcing cannot fail to compare, so their
+			// frames are not set.
 			let (mut low, mut high) = (0, keys.len());
-			let compared = low < high;
+			let mut framed = false;
 			let mut found = false;
 			while low < high {
 				let mid = (low + high) / 2;
-				generators::request_builtin_context_printed(
-					&co,
-					vec![
-						("while comparing element ", val.clone()),
-						("with element ", elements[mid].clone()),
-					],
-				)
-				.await;
-				match try_cek_to_value!(
-					key.clone()
-						.nix_cmp_ordering_ref(keys[mid].clone(), &co, span)
-						.await?
-				) {
+				let ordering = match crate::vm::native::compare(&key, &keys[mid]) {
+					Some(ordering) => ordering,
+					None => {
+						framed = true;
+						generators::request_builtin_context_printed(
+							&co,
+							vec![
+								("while comparing element ", val.clone()),
+								("with element ", elements[mid].clone()),
+							],
+						)
+						.await;
+						try_cek_to_value!(
+							key.clone()
+								.nix_cmp_ordering_ref(keys[mid].clone(), &co, span)
+								.await?
+						)
+					}
+				};
+				match ordering {
 					Ordering::Less => high = mid,
 					Ordering::Greater => low = mid + 1,
 					Ordering::Equal => {
@@ -948,7 +957,7 @@ mod pure_builtins {
 					}
 				}
 			}
-			if compared {
+			if framed {
 				generators::request_builtin_context(&co, vec![]).await;
 			}
 			if found {
@@ -1224,15 +1233,13 @@ mod pure_builtins {
 		hint: &'static str,
 	) -> Result<Value, ErrorKind> {
 		let scalar = !matches!(expected, ArgumentType::List | ArgumentType::Attrs);
-		if scalar {
-			generators::request_builtin_context(co, vec![crate::Trace::new(position, hint)]).await;
-		}
-		let value = generators::request_force(co, value).await;
+		let value = if scalar {
+			generators::force_argument_in_context(co, value, position, hint).await
+		} else {
+			generators::request_force(co, value).await
+		};
 		if value.is_catchable() {
 			return Ok(value);
-		}
-		if scalar {
-			generators::request_builtin_context(co, Vec::new()).await;
 		}
 		check_argument(&value, expected, hint).map_err(|error| match error {
 			ErrorKind::WithContext {
@@ -1698,32 +1705,44 @@ mod pure_builtins {
 			return Ok(Value::List(out.into()));
 		}
 
-		let span = generators::request_span(&co).await;
-		generators::request_builtin_context(
-			&co,
-			vec![crate::errors::Trace::new(
-				None,
-				"while evaluating the first argument passed to builtins.map",
-			)],
-		)
-		.await;
-		let f = try_value!(generators::request_force(&co, f).await);
-		if !matches!(&f, Value::Closure(_) | Value::Builtin(_))
-			&& !matches!(&f, Value::Attrs(attrs) if attrs.select("__functor").is_some())
-		{
-			return Err(ErrorKind::TypeError {
-				expected: "lambda",
-				actual: f.type_of(),
-				value: Some(Box::new(f)),
-			});
-		}
-
 		// CppNix applies the function where its value is positioned: a
-		// lambda at its definition.
-		let lambda = Thunk::suspended_call_lambda(match &f {
-			Value::Closure(c) => c.lambda().span.unwrap_or(span),
-			_ => span,
-		});
+		// lambda at its definition. An evaluated lambda with a position
+		// passes the check below, so neither the call span nor the trace
+		// context would be read.
+		let (f, position) = match generators::ready_argument(f) {
+			Ok(Value::Closure(closure)) if closure.lambda().span.is_some() => {
+				let position = closure.lambda().span.expect("checked above");
+				(Value::Closure(closure), position)
+			}
+			Ok(f) | Err(f) => {
+				// The frame is cleared once `f` is forced, and set again for
+				// the type error, the only failure it could add to. A resumed
+				// builtin is back at its own span, so the span is the same
+				// after the force.
+				let hint = "while evaluating the first argument passed to builtins.map";
+				let f = try_value!(generators::force_argument_in_context(&co, f, None, hint).await);
+				if !matches!(&f, Value::Closure(_) | Value::Builtin(_))
+					&& !matches!(&f, Value::Attrs(attrs) if attrs.select("__functor").is_some())
+				{
+					generators::request_builtin_context(
+						&co,
+						vec![crate::errors::Trace::new(None, hint)],
+					)
+					.await;
+					return Err(ErrorKind::TypeError {
+						expected: "lambda",
+						actual: f.type_of(),
+						value: Some(Box::new(f)),
+					});
+				}
+				let position = match &f {
+					Value::Closure(c) if let Some(position) = c.lambda().span => position,
+					_ => generators::request_span(&co).await,
+				};
+				(f, position)
+			}
+		};
+		let lambda = Thunk::suspended_call_lambda(position);
 		for val in list {
 			let result = Value::Thunk(Thunk::new_suspended_call_with_lambda(
 				f.clone(),
@@ -1774,9 +1793,7 @@ mod pure_builtins {
 			.get_regex(pattern)
 			.map_err(|_| ErrorKind::InvalidRegexBytes(pattern.to_vec()))?;
 		let hint = "while evaluating the second argument passed to builtins.match";
-		generators::request_builtin_context(&co, vec![crate::Trace::new(None, hint)]).await;
-		let s = try_value!(generators::request_force(&co, str).await);
-		generators::request_builtin_context(&co, Vec::new()).await;
+		let s = try_value!(generators::force_argument_in_context(&co, str, None, hint).await);
 		check_argument(&s, ArgumentType::String, hint)?;
 		let s = s.to_contextful_str()?;
 
@@ -1886,13 +1903,10 @@ mod pure_builtins {
 			"while evaluating the values of the second argument passed to builtins.removeAttrs";
 		let mut names = FxHashSet::default();
 		for key in keys.to_list()?.into_iter() {
-			generators::request_builtin_context(&co, vec![crate::errors::Trace::new(None, hint)])
-				.await;
-			let key = generators::request_force(&co, key).await;
+			let key = generators::force_argument_in_context(&co, key, None, hint).await;
 			if key.is_catchable() {
 				return Ok(key);
 			}
-			generators::request_builtin_context(&co, Vec::new()).await;
 			check_argument(&key, ArgumentType::StringNoCtx, hint)?;
 			names.insert(key.to_str()?);
 		}
@@ -2018,9 +2032,7 @@ mod pure_builtins {
 			.get_split_regex(pattern)
 			.map_err(|_| ErrorKind::InvalidRegexBytes(pattern.to_vec()))?;
 		let hint = "while evaluating the second argument passed to builtins.split";
-		generators::request_builtin_context(&co, vec![crate::Trace::new(None, hint)]).await;
-		let s = try_value!(generators::request_force(&co, str).await);
-		generators::request_builtin_context(&co, Vec::new()).await;
+		let s = try_value!(generators::force_argument_in_context(&co, str, None, hint).await);
 		check_argument(&s, ArgumentType::String, hint)?;
 		let s = s.to_contextful_str()?;
 		let text = s.as_bytes();
@@ -2249,6 +2261,15 @@ mod pure_builtins {
 	#[builtin("toString")]
 	async fn builtin_to_string(co: GenCo, #[lazy] x: Value) -> Result<Value, ErrorKind> {
 		let x = try_value!(generators::request_force(&co, x).await);
+		let kind = CoercionKind {
+			strong: true,
+			import_paths: false,
+		};
+		// A value coerced without forcing cannot fail, so the span and the
+		// trace context below would not be read.
+		if let Some(value) = crate::vm::native::coerce(&x, kind) {
+			return Ok(value);
+		}
 		// TODO(edef): please fix me w.r.t. to catchability.
 		// coerce_to_string forces for us
 		// FIXME: should `coerce_to_string` preserve context?
@@ -2262,15 +2283,7 @@ mod pure_builtins {
 			)],
 		)
 		.await;
-		x.coerce_to_string(
-			co,
-			CoercionKind {
-				strong: true,
-				import_paths: false,
-			},
-			span,
-		)
-		.await
+		x.coerce_to_string(co, kind, span).await
 	}
 
 	#[builtin("toXML")]

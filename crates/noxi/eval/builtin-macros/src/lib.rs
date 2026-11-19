@@ -457,7 +457,18 @@ fn argument_steps(
 			let context = check.context;
 			quote! { noxi_eval::builtins::check_argument(&#ident, noxi_eval::builtins::ArgumentType::#expected, #context)?; }
 		});
-		let step = quote! { #before #force #catch #after #validate };
+		// Forcing an evaluated, non-catchable argument cannot fail, so its
+		// trace context would be set and cleared without being read. A thunk
+		// is forced with its context set and cleared in one request.
+		let step = if asynchronous && let Some(hint) = hint {
+			quote! {
+				#ident = noxi_eval::generators::force_argument_in_context(&co, #ident, None, #hint).await;
+				#catch
+				#validate
+			}
+		} else {
+			quote! { #before #force #catch #after #validate }
+		};
 		Some(match check.and_then(|check| check.unless_empty).and_then(|idx| args.get(idx)) {
 			Some(list) => {
 				let list = &list.name;

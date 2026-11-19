@@ -859,3 +859,46 @@ The set assumes that a temporary root lasts for the whole evaluation. Through th
 Both oracles pass. Instructions change by under 0.02% and peak RSS by under 0.2% on EVAL-08. Both workloads use a dummy store, so no derivation is registered there.
 
 `cargo test -p noxi-glue` passes 33 tests. The same three tests fail as in the earlier lane: `explicit_cli_overrides_are_sticky_and_match_reference_lock_bytes`, `github_gitlab_and_sourcehut_apis_lock_offline_with_reference_attributes` and `lfs_batch_and_offline_cache_match_reference`. The `noxi-commands` targets `generated_derivation_import` (3), `reference_flake_cli` (21) and `reference_flakes` (1) pass, with ignored tests included. `instantiate` passes 26 of 27. `appended_string_context_validation_matches_the_reference` fails the same way on the base. noxi prints the context key `/bad` where the reference prints `"/bad"`. The change is kept uncommitted. Binaries, traces and the opcode counter are under `target/perf-real-2`.
+## Generator round trips and capture buffers, 2026-11-19
+
+This round starts from `4860eab`, rebuilt in the lane worktree as the base. Each step was screened with one `eval-profile.py --mode stat` run per workload under the shared heavy-job lock; user-space instruction counts repeat within about 0.02%. Every run passed its oracle. The steps are cumulative.
+
+An instruction-sampled profile of the base ranked `populate_upvalues` (5.66% of samples), generator round trips (`run_generator`, 4.24%) and `finish_force` (1.59%) after the bytecode loop. About a fifth of `run_generator` was the recursion budget request scanning the whole frame stack for `deep_force` generators. Temporary counters in an `eval-diagnostics` build counted 15.4 million generator requests per EVAL-08 run after the first step. One avoided request saved about 290 instructions.
+
+| Step | EVAL-08 instructions, million | EVAL-PKG-PATHS instructions, million |
+| --- | ---: | ---: |
+| Base `4860eab`, median of 7 | 131,236.1 | 7,378.9 |
+| Evaluated builtin arguments skip their trace context | 130,703.4 (-0.41%) | 7,371.6 |
+| Native equality without a request, budget scan only under a deep force, register-sized capture reads | 127,433.1 (-2.90%) | 7,294.0 |
+| A thunk argument is forced with its context set and cleared in one request | 127,132.7 (-3.13%) | 7,295.0 |
+| Deferred captures flagged while read; `toString` and `map` skip unread frames | 126,922.0 (-3.29%) | 7,289.8 |
+| `removeAttrs`, `match`, `split` and positioned argument checks use the combined request | 125,462.1 (-4.40%) | 7,232.2 |
+| Returned frames give their capture buffers to a pool | 124,185.0 (-5.37%) | 7,204.1 |
+| `genericClosure` orders natively comparable keys without a context frame, median of 5 and 7 | 123,966.2 (-5.54%) | 7,203.7 (-2.37%) |
+
+A builtin's argument check used to set a context frame such as `while evaluating the first argument passed to builtins.length`, force the argument, and clear the frame, at two generator round trips and a vector, string and box per argument. Forcing an evaluated argument that is not catchable cannot fail, so `generators::ready_argument` now returns it at once. A thunk argument is forced by one `ForceInContext` request: the VM sets the frame as a `BuiltinContexts::Static` hint, built into a `Trace` only when a trace is materialized, and re-enqueues the builtin in the `AwaitingValueInContext` state, which clears the frame when the forced value arrives unless it is catchable. A catchable argument still sets the frame the old way. The builtin macros and the hand-written checks share `force_argument_in_context`. The macro change also applies to the builtins `noxi-glue` defines, without editing that crate. A forced thunk argument still allocates one box for the static frame: `FrameTrace` is 48 bytes and `Frame` 120, and an inline slot would grow both.
+
+`check_equality` answers operands the VM would compare natively without suspending, which removed 2.2 million requests per EVAL-08 run. `deep_force` generators hold a counted guard, so a recursion budget request scans the frame stack only while one exists. Capture reads return `Result<Value, usize>`, which fits in two registers, instead of an `EvalResult` moved through memory, and clone thunk captures inline. Removing only the capture read change from the third step raised EVAL-08 to 128,197.8 million instructions, so that change alone saved 1,065 million. The fused immediate force no longer walks the new captures a second time to look for deferred ones: `populate_upvalues` reports them as it reads them.
+
+Frames that return through the bytecode loop give a capture buffer they own to a pool of at most 32 buffers for each count from two to nine. `populate_upvalues` fills a pooled buffer in place instead of allocating one. This saved 1,277 million instructions on EVAL-08, where the diagnostics build counted 27.3 million capture buffers per run.
+
+A ceiling probe replaced the binary span searches of `Op::Call`'s closure path and `Op::Force` with the frame's span. It saved 629 million instructions (0.49%), so a faster span lookup was not pursued in this round; the lookup lives in `chunk.rs`. The remaining requests per EVAL-08 run are dominated by real forces (2.7 million), lambda entries (1.15 million), calls (0.87 million), recursion budget requests from `nix_eq` (0.6 million), span requests of builtins that take a span (0.6 million) and `derivationStrict` contexts in `noxi-glue`.
+
+The evaluator passed 555 tests and the doctest, and 565 tests with `eval-diagnostics` and `eval-cycle-collection`. The upstream language suite and the language boundary, generated boundary, generated forcing and instantiate tests passed, except `appended_string_context_validation_matches_the_reference`, which already fails on `4860eab`. A differential run compared exit status, stdout and stderr of the base and the final build for 72 expressions, with and without `--show-trace`, and found them byte-identical. The expressions cover thrown, aborted and mistyped thunk arguments, arguments under `tryEval` and `addErrorContext`, `map` with unevaluated and non-function arguments, `removeAttrs`, `match`, `split`, `replaceStrings`, `toString`, `elem`, `genList` and `genericClosure` with mixed and non-scalar keys. A second grid ran 24 equality and deep-force expressions at `max-call-depth` 60, half of them overflowing, and matched the base in all 48 runs.
+
+Peak RSS was measured in interleaved base and candidate runs, because the base's own peak drifted between 234.7 and 254.2 MiB on the package projection across sessions. EVAL-08 measured 2,010.8 and 2,012.0 MiB for the base and 2,016.4 and 2,016.8 MiB for the candidate. The package projection measured 249.2 to 254.2 MiB for the base and 253.7 to 254.0 MiB for the candidate. User-space cycles fell less than instructions: about 2.3% on EVAL-08 in the interleaved pairs.
+
+Paired exact-output timing compared the final build with the base binary and CppNix 2.35.2. Ratios above one favor the candidate. Both runs are exploratory.
+
+| Workload | Pairs | Base | Candidate | CppNix | Speedup vs base, 95% interval | Peak RSS ratio vs base, 95% interval |
+| --- | ---: | --- | --- | --- | --- | --- |
+| EVAL-08, first run | 3 | 30.392 s / 2,009 MiB | 29.482 s / 2,015 MiB | 6.259 s / 986 MiB | 1.028 (1.020 to 1.033) | 0.997 (0.997 to 0.999) |
+| EVAL-08, second run | 3 | 29.994 s / 2,012 MiB | 28.934 s / 2,015 MiB | 6.437 s / 975 MiB | 1.030 (1.022 to 1.037) | 0.999 (0.998 to 1.000) |
+| EVAL-PKG-PATHS | 10 | 1.565 s / 253 MiB | 1.545 s / 252 MiB | 0.538 s / 165 MiB | 1.007 (0.992 to 1.021) | 1.001 (1.000 to 1.002) |
+
+All three binaries ran about twice as long as in earlier rounds and as in this round's stat runs, CppNix included. The cause was not established: the runs recorded the `powersave` CPU governor and no cgroup throttling, and the load average fell from 1.25 to 1.05 during the second EVAL-08 run. The paired ratios compare the binaries under the same conditions. The EVAL-08 interval excludes parity in both runs; the package projection's includes it.
+
+
+The kept source, rebuilt after formatting, measured 123,948.0 million EVAL-08 instructions in one run with its oracle passing.
+
+Builds, patches, stat runs, profiles, diagnostics counters, the differential and paired reports are under `target/perf-vm-2` in the lane worktree. Each candidate directory holds the patch it was built from.
