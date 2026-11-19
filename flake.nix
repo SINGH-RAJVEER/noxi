@@ -132,6 +132,8 @@
 						done
 						grep -qx "ExecStart=@$package/bin/nix-daemon nix-daemon --daemon" "$package/lib/systemd/system/nix-daemon.service"
 						grep -qx 'ListenStream=/nix/var/nix/daemon-socket/socket' "$package/lib/systemd/system/nix-daemon.socket"
+						grep -qx 'Alias=noxi-daemon.service' "$package/lib/systemd/system/nix-daemon.service"
+						grep -qx 'Alias=noxi-daemon.socket' "$package/lib/systemd/system/nix-daemon.socket"
 						test -f "$package/lib/tmpfiles.d/nix-daemon.conf"
 						"$package/bin/noxi" eval --expr '1 + 2' | grep -x 3
 						"$package/bin/nix" --extra-experimental-features 'nix-command flakes' --store dummy:// eval --expr '1 + 2' | grep -x 3

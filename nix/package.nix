@@ -89,6 +89,17 @@ ${lib.optionalString (unimplemented != [ ]) ''
 
 	# The units and tmpfiles rules CppNix 2.35.2 installs, pointing at this
 	# package. The NixOS daemon module takes them through systemd.packages.
+	# Each unit also declares its noxi-daemon name with Alias=, which
+	# `systemctl enable` turns into the alias link on other distributions.
+	# NixOS ignores the [Install] section of systemd.packages units and links
+	# every packaged file as a unit of its own (nixos/lib/systemd-lib.nix),
+	# so a NixOS host gets the aliases from systemd.services.nix-daemon.aliases
+	# and systemd.sockets.nix-daemon.aliases, set by nix/noxios/module.nix,
+	# instead. The package deliberately ships no noxi-daemon.* symbolic
+	# links: NixOS links package units by
+	# absolute store path, outside the unit load path, so systemd would load
+	# such a link as a separate linked unit and not as an alias
+	# (systemd.unit(5), "linked unit files").
 	cat > "$out/lib/systemd/system/nix-daemon.service" <<-EOF
 	[Unit]
 	Description=Nix Daemon
@@ -107,6 +118,7 @@ ${lib.optionalString (unimplemented != [ ]) ''
 
 	[Install]
 	WantedBy=multi-user.target
+	Alias=noxi-daemon.service
 	EOF
 	cat > "$out/lib/systemd/system/nix-daemon.socket" <<-EOF
 	[Unit]
@@ -120,6 +132,7 @@ ${lib.optionalString (unimplemented != [ ]) ''
 
 	[Install]
 	WantedBy=sockets.target
+	Alias=noxi-daemon.socket
 	EOF
 	cat > "$out/lib/tmpfiles.d/nix-daemon.conf" <<-EOF
 	d /nix/var/nix/daemon-socket 0755 root root -  -
