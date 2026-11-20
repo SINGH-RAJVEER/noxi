@@ -53,6 +53,7 @@ tokio = { workspace = true, features = [
 tokio-util = { workspace = true, features = ["io"], optional = true }
 pin-project-lite = { workspace = true, optional = true }
 num_enum = "0.7.3"
+libc.workspace = true
 cfg_eval = { workspace = true, optional = true }
 
 [dependencies.nix-compat-derive]

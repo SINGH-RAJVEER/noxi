@@ -6,6 +6,8 @@ use serde::{Deserialize, Serialize};
 #[cfg(feature = "serde")]
 use tracing::warn;
 
+pub mod logger;
+
 /// Every "internal-json" log line emitted by Nix has this prefix.
 pub const AT_NIX_PREFIX: &str = "@nix ";
 
@@ -375,8 +377,14 @@ mod test {
 /// `filter_all`, tabs expand to the next multiple of eight columns, and
 /// carriage returns and bells are dropped.
 pub fn filter_ansi_escapes(s: &[u8], filter_all: bool) -> Vec<u8> {
+	filter_ansi_escapes_width(s, filter_all, usize::MAX)
+}
+
+/// [`filter_ansi_escapes`] that stops once `width` columns are filled, as
+/// the progress bar truncates its status line to the terminal width.
+pub fn filter_ansi_escapes_width(s: &[u8], filter_all: bool, width: usize) -> Vec<u8> {
 	let mut out = Vec::with_capacity(s.len());
-	let mut width = 0usize;
+	let mut columns = 0usize;
 	let mut i = 0;
 	while i < s.len() {
 		match s[i] {
@@ -418,9 +426,12 @@ pub fn filter_ansi_escapes(s: &[u8], filter_all: bool) -> Vec<u8> {
 			}
 			b'\t' => {
 				loop {
-					width += 1;
+					columns += 1;
+					if columns > width {
+						return out;
+					}
 					out.push(b' ');
-					if width % 8 == 0 {
+					if columns % 8 == 0 {
 						break;
 					}
 				}
@@ -428,8 +439,8 @@ pub fn filter_ansi_escapes(s: &[u8], filter_all: bool) -> Vec<u8> {
 			}
 			b'\r' | 0x07 => i += 1,
 			byte => {
-				// Columns only matter for tab stops: control characters take
-				// none, and other characters one.
+				// Control characters take no column, and other characters
+				// one.
 				let len = match byte {
 					0xc0..=0xdf => 2,
 					0xe0..=0xef => 3,
@@ -438,7 +449,10 @@ pub fn filter_ansi_escapes(s: &[u8], filter_all: bool) -> Vec<u8> {
 				}
 				.min(s.len() - i);
 				if byte >= 0x20 && byte != 0x7f && !(0x80..0xc0).contains(&byte) {
-					width += 1;
+					columns += 1;
+					if columns > width {
+						break;
+					}
 				}
 				out.extend_from_slice(&s[i..i + len]);
 				i += len;
@@ -522,14 +536,11 @@ pub fn set_print_build_logs(print: bool) {
 	PRINT_BUILD_LOGS.store(print, std::sync::atomic::Ordering::Relaxed);
 }
 
-static PREFIX_BUILD_LOGS: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
-
 /// Whether printed build log lines carry `NAME> `, as the `bar` loggers'
 /// `ProgressBar` prints them with `--print-build-logs`.
 pub fn prefix_build_logs() -> bool {
-	PREFIX_BUILD_LOGS.load(std::sync::atomic::Ordering::Relaxed)
-}
-
-pub fn set_prefix_build_logs(prefix: bool) {
-	PREFIX_BUILD_LOGS.store(prefix, std::sync::atomic::Ordering::Relaxed);
+	matches!(
+		logger::log_format(),
+		logger::LogFormat::Bar | logger::LogFormat::BarWithLogs
+	) && print_build_logs()
 }

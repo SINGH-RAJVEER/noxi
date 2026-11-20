@@ -384,12 +384,9 @@ impl NixStore<'_> {
 	}
 
 	fn gc_warning(&self) {
-		if self.gc_warning
-			&& !self.warned.replace(true)
-			&& nix_compat::log::log_enabled(nix_compat::log::VerbosityLevel::Warn)
-		{
-			eprintln!(
-				"warning: you did not specify '--add-root'; the result might be removed by the garbage collector"
+		if self.gc_warning && !self.warned.replace(true) {
+			nix_compat::log::logger::warn(
+				"you did not specify '--add-root'; the result might be removed by the garbage collector",
 			);
 		}
 	}

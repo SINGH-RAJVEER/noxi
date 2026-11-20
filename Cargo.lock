@@ -1507,6 +1507,7 @@ dependencies = [
  "futures",
  "hashbrown 0.17.1",
  "hex-literal",
+ "libc",
  "mimalloc",
  "mockall",
  "nom",

@@ -221,6 +221,7 @@ Nix formats and protocols: store paths, nixbase32, hashes, NAR, ATerm derivation
 - `cppnix_json::dump` reproduces nlohmann's `json::dump()`, and `Derivation::unparse` writes structured attributes with it, so `__json` floats (`1e+100`, `1.5e-07`) and the derivation paths that hash them match the reference (2026-11-20).
 - Store path names, output names and output specifications reject a first dash-separated component of `.` or `..`, as CppNix's `checkName` does (2026-11-20).
 - `cppnix_json::DrvOutput::parse` and `render` read and write the 2.35.2 `<derivation path>^<output>` form with the reference's messages; the older `realisation::DrvOutput` keeps the pre-2.35 `<hash>!<output>` form (2026-11-20).
+- `log::logger` implements CppNix's simple, `internal-json` and progress-bar loggers behind one activity API (`Activity`, `BuildLog`, `log`, `warn`, `log_error`) and the worker's progress counters (`WorkerGuard`, `worker_update`). `filter_ansi_escapes_width` truncates to a terminal width, and `prefix_build_logs` now follows the selected format (2026-11-21).
 - `Settings::forwarded` follows CppNix for settings that need an experimental feature: one given while its feature is disabled is ignored but still forwarded with its default once a later file, `NIX_CONFIG` or flag enables the feature, and none is forwarded while its feature is disabled (2026-11-09).
 - `nixcpp::settings` parses integer settings with CppNix's `K`/`M`/`G`/`T` suffixes in each setting's own C++ type and signedness, reports invalid `max-jobs` and `sandbox` values with the reference's messages, and tracks CppNix's overridden flag: settings from the system `nix.conf` are no longer forwarded to a daemon (`Settings::forwarded`) (2026-11-09).
 
@@ -362,6 +363,8 @@ Serializes Rust values into Nix and deserializes Nix values into Rust types, imp
 ### Unreleased
 
 - `nix derivation show` prints with `cppnix_json::dump`, so structured-attribute floats appear as the reference prints them (`1.5e-07`, `1e+100`). `language_boundaries` checks the `drvPath` of structured-attribute derivations with floats against the reference and against recorded paths, and `reference_nix` compares their `derivation show` output byte for byte (2026-11-21).
+- `--log-format internal-json` is implemented: builds, cached outputs, failures, dependency failures, `file://` substitutions and `nix store prefetch-file` downloads print CppNix 2.35.2's `@nix` start, stop, result and msg lines, with builder `setPhase` lines as phase results and errors with `raw_msg`. `bar` and `bar-with-logs` use a port of CppNix's progress bar: on a terminal it draws the build and copy counters and the current activity, and redirected it prints like the raw logger with `NAME> ` log lines. `-Q` selects the raw logger, `nix` starts with the bar, and `multiline` formats are rejected as 2.35.2 rejects them. `reference_log_format` compares each case with the reference (2026-11-21).
+
 - The store execution helper behind `nix shell`, `nix run`, `nix develop` and `nix fmt` runs programs in a temporary root of bind mounts when the logical store directory does not exist, as CppNix's `chrootHelper` does. A per-user store therefore works on a host without `/nix`. Sandboxed builds into the per-user chroot store are compared with the reference (2026-11-17).
 - The `auto` store falls back to a per-user chroot store in `DATA_DIR/root` on Linux when `/nix/var/nix` and the daemon socket are missing and the user is not root, as CppNix's `resolveStoreConfig` does, with the same notice (2026-11-17).
 
@@ -465,6 +468,8 @@ Internal trybuild tests for `nix-compat-derive`.
 
 ### Unreleased
 
+- Substitution from a binary cache reports CppNix's `substitute` and `copy-path` activities and the worker's substitution counts, and a cache's first narinfo query for a path reports `query-path-info` (2026-11-21).
+
 - `unix_socket::connect` and `bind` handle paths longer than `sun_path` as CppNix's `bindConnectProcHelper` does, from a child in the socket's directory; the garbage collector's roots socket and its clients use them (2026-11-09).
 - `add_perm_root` creates the directories up to a permanent root (`gc::make_root_symlink`), as Home Manager's first activation requires, and `LocalStoreConfig::diverted` creates a missing absolute root outside `/nix` (2026-11-09).
 
@@ -502,6 +507,8 @@ Internal trybuild tests for `nix-compat-derive`.
 ## nix-rs-build
 
 ### Unreleased
+
+- `LocalBackend::build_paths` runs as CppNix's worker for the loggers: `realise`, `builds` and `copy-paths` activities with the progress the goals report, one `build` activity per derivation whose output arrives as log lines, builder `@nix` messages handled as `handleJSONLogMessage` does, and intermediate failures logged through the logger. A carriage return now truncates the line it rewinds, as `BuildLog::flushLine` does (2026-11-21).
 
 - Under a root daemon, sandboxed builders run as a member of `build-users-group` (`nixbld` by default) locked under `STATE_DIR/userpool`, as CppNix's `SimpleUserLock` does: the sandbox user maps to it, it owns the build directory, builder files and terminal, the chroot store is owned by root and the build group, its processes are killed before and after the build, and outputs it does not own are rejected. Previously such builders ran as host root and owned their bind-mounted inputs (2026-11-09).
 - Apply shared build settings, honor substitution and fallback decisions, and reject local builds when max-jobs is zero. Execution remains sequential (2026-10-03).

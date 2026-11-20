@@ -71,6 +71,16 @@ pub fn prefetch_file(parsed: &Parsed) -> Result<ExitCode, Failure> {
 			return Ok(ExitCode::SUCCESS);
 		}
 	}
+	// `FileTransfer`'s activity, with progress reported before and after
+	// the transfer.
+	let transfer = nix_compat::log::logger::Activity::new(
+		nix_compat::log::VerbosityLevel::Talkative,
+		nix_compat::log::ActivityType::FileTransfer,
+		format!("downloading '{}'", operands[0]),
+		vec![operands[0].clone().into()],
+		0,
+	);
+	transfer.progress(0, 0, 0, 0);
 	let bytes = if url.scheme() == "file" {
 		let file = url
 			.to_file_path()
@@ -93,6 +103,9 @@ pub fn prefetch_file(parsed: &Parsed) -> Result<ExitCode, Failure> {
 		}
 		response.body
 	};
+	let size = bytes.len() as u64;
+	transfer.progress(size, size, 0, 0);
+	drop(transfer);
 	let temporary = tempfile::Builder::new()
 		.prefix(&format!("nix-{}-", std::process::id()))
 		.tempdir()?;
@@ -142,6 +155,13 @@ pub fn prefetch_file(parsed: &Parsed) -> Result<ExitCode, Failure> {
 		)));
 	}
 	dump.rewind()?;
+	let adding = nix_compat::log::logger::Activity::new(
+		nix_compat::log::VerbosityLevel::Chatty,
+		nix_compat::log::ActivityType::Unknown,
+		format!("adding '{}' to the store", operands[0]),
+		vec![],
+		0,
+	);
 	let path = store.store.add_to_store_from_dump(
 		&mut dump,
 		&name,
@@ -150,6 +170,7 @@ pub fn prefetch_file(parsed: &Parsed) -> Result<ExitCode, Failure> {
 		algo,
 		&BTreeSet::new(),
 	)?;
+	drop(adding);
 	let path = path.to_absolute_path();
 	print_result(parsed, &actual, &path)?;
 	Ok(ExitCode::SUCCESS)
@@ -168,12 +189,13 @@ fn print_result(parsed: &Parsed, actual: &Hash, path: &str) -> Result<(), Failur
 			println!("{value}");
 		}
 	} else {
-		if nix_compat::log::log_enabled(nix_compat::log::VerbosityLevel::Notice) {
-			eprintln!(
+		nix_compat::log::logger::log(
+			nix_compat::log::VerbosityLevel::Notice,
+			&format!(
 				"Downloaded '{}' to '{}' (hash '{}').",
 				parsed.operands[0], path, hash
-			);
-		}
+			),
+		);
 	}
 	Ok(())
 }

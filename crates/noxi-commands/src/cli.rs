@@ -76,9 +76,21 @@ pub fn show_man_page_or_exit(name: &str) -> ! {
 }
 
 /// Print an error as CppNix does: continuation lines line up after the
-/// `error: ` prefix.
+/// `error: ` prefix. The logger prints it, so `internal-json` gets a `msg`
+/// line with `raw_msg`, and the progress bar clears its status line first.
 pub fn print_error(message: &str) {
-	eprintln!("{}", nix_compat::log::format_error(message));
+	use nix_compat::log::logger::{ANSI_NORMAL, ANSI_RED, log_error};
+	let formatted = nix_compat::log::format_error(message);
+	let rendered = match formatted.strip_prefix("error: ") {
+		Some(rest) => format!("{ANSI_RED}error:{ANSI_NORMAL} {rest}"),
+		None => formatted,
+	};
+	log_error(&rendered, message);
+}
+
+/// `printError`: a message at `lvlError`, which every verbosity prints.
+pub fn print_message(message: &str) {
+	nix_compat::log::logger::log(nix_compat::log::VerbosityLevel::Error, message);
 }
 
 /// Run `command` with the settings from the configuration files and the
@@ -100,13 +112,16 @@ pub fn main(
 				Err(error) if error.is_usage() => Err(Failure::Usage(error.to_string())),
 				Err(error) => Err(Failure::Error(error.to_string())),
 			};
-			match result {
+			// `handleExceptions` stops the progress bar before it logs the
+			// error, so the error follows the cleared status line.
+			if result.is_err() {
+				nix_compat::log::logger::stop();
+			}
+			let code = match result {
 				Ok(code) => code,
 				Err(Failure::Usage(message)) => {
-					eprintln!(
-						"{}\nTry '{program} --help' for more information.",
-						nix_compat::log::format_error(&message)
-					);
+					print_error(&message);
+					print_message(&format!("Try '{program} --help' for more information."));
 					ExitCode::FAILURE
 				}
 				Err(Failure::Error(message)) => {
@@ -117,7 +132,10 @@ pub fn main(
 					print_error(&message);
 					ExitCode::from(status)
 				}
-			}
+			};
+			// The progress bar clears its line and shows the cursor.
+			nix_compat::log::logger::stop();
+			code
 		})
 		.expect("start the command thread")
 		.join()
@@ -226,7 +244,8 @@ pub fn apply_common_flag(
 	args: &mut dyn Iterator<Item = String>,
 	settings: &mut Settings,
 ) -> Option<Result<(), Failure>> {
-	use nix_compat::log::{set_print_build_logs, set_verbosity, verbosity};
+	use nix_compat::log::logger::{LogFormat, set_log_format};
+	use nix_compat::log::{set_verbosity, verbosity};
 	const COMMON: &[&str] = &[
 		"--verbose",
 		"-v",
@@ -277,24 +296,13 @@ pub fn apply_common_flag(
 			Ok(())
 		}
 		"--log-format" => {
-			match value()?.as_str() {
-				"raw" | "bar" => set_print_build_logs(false),
-				"raw-with-logs" | "bar-with-logs" => set_print_build_logs(true),
-				"internal-json" => {
-					return Err(Failure::Error(
-						"--log-format internal-json is not supported by noxi yet".into(),
-					));
-				}
-				format => {
-					return Err(Failure::Error(format!(
-						"option 'log-format' has an invalid value '{format}'"
-					)));
-				}
-			}
+			let format = LogFormat::parse(&value()?).map_err(Failure::Error)?;
+			set_log_format(format);
 			Ok(())
 		}
+		// `LegacyArgs` makes `--no-build-output` select the raw logger.
 		"--no-build-output" | "-Q" => {
-			set_print_build_logs(false);
+			set_log_format(LogFormat::Raw);
 			Ok(())
 		}
 		"--keep-failed" | "-K" => set("keep-failed", "true"),

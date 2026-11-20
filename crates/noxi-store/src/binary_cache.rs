@@ -72,6 +72,8 @@ pub struct BinaryCache {
 	positive_ttl: Duration,
 	negative_ttl: Duration,
 	http10_close: Arc<AtomicBool>,
+	/// Paths whose `query-path-info` activity was already reported.
+	announced: Arc<Mutex<BTreeSet<StorePath>>>,
 }
 
 impl BinaryCache {
@@ -117,6 +119,7 @@ impl BinaryCache {
 			positive_ttl: Duration::from_secs(30 * 24 * 60 * 60),
 			negative_ttl: Duration::from_secs(60 * 60),
 			http10_close: Arc::default(),
+			announced: Arc::default(),
 		};
 		if let Some(text) = cache.get_file("nix-cache-info")? {
 			let text = String::from_utf8_lossy(&text).into_owned();
@@ -503,6 +506,24 @@ impl BinaryCache {
 	}
 
 	fn query_path_info_uncached(&self, path: &StorePath) -> Result<Option<CachedPath>> {
+		// `queryPathInfoUncached`'s activity. CppNix keeps answers in
+		// memory, so a path is only announced the first time it is asked
+		// for.
+		let _act = self
+			.announced
+			.lock()
+			.unwrap()
+			.insert(path.clone())
+			.then(|| {
+				let shown = print(path);
+				nix_compat::log::logger::Activity::new(
+					nix_compat::log::VerbosityLevel::Talkative,
+					nix_compat::log::ActivityType::QueryPathInfo,
+					format!("querying info about '{shown}' on '{}'", self.uri),
+					vec![shown.into(), self.uri.clone().into()],
+					0,
+				)
+			});
 		let name = format!("{}.narinfo", nix_compat::nixbase32::encode(path.digest()));
 		let Some(bytes) = self.get_file(&name)? else {
 			return Ok(None);
@@ -545,6 +566,54 @@ impl BinaryCache {
 			cached.compression.as_deref(),
 			Box::new(BufReader::new(file)),
 		)
+	}
+}
+
+/// A NAR being copied, reporting the bytes read as the `copy-path`
+/// activity's progress, as `copyStorePath`'s progress sink does. Reports are
+/// made every 64 KiB and once at the end.
+struct ProgressReader<'a> {
+	inner: Box<dyn BufRead + Send>,
+	act: Option<&'a nix_compat::log::logger::Activity>,
+	total: u64,
+	reported: u64,
+	size: u64,
+}
+
+impl ProgressReader<'_> {
+	fn advance(&mut self, n: usize) {
+		self.total += n as u64;
+		if self.total - self.reported >= 65536 {
+			self.report();
+		}
+	}
+
+	fn report(&mut self) {
+		if self.total != self.reported || self.total == 0 {
+			self.reported = self.total;
+			if let Some(act) = self.act {
+				act.progress(self.total, self.size, 0, 0);
+			}
+		}
+	}
+}
+
+impl Read for ProgressReader<'_> {
+	fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
+		let n = self.inner.read(buf)?;
+		self.advance(n);
+		Ok(n)
+	}
+}
+
+impl BufRead for ProgressReader<'_> {
+	fn fill_buf(&mut self) -> io::Result<&[u8]> {
+		self.inner.fill_buf()
+	}
+
+	fn consume(&mut self, amt: usize) {
+		self.inner.consume(amt);
+		self.advance(amt);
 	}
 }
 
@@ -752,9 +821,69 @@ impl LocalStore {
 				}
 			}
 			// A failed download falls through to the next cache, as
-			// `PathSubstitutionGoal::tryToRun` does.
-			let result = cache.nar(&cached).and_then(|mut nar| {
-				self.add_to_store(&cached.info, &mut nar, false, !cache.trusted)
+			// `PathSubstitutionGoal::tryToRun` does. The substitution goal's
+			// counts and its `substitute` and `copy-path` activities are
+			// reported to the running worker.
+			use nix_compat::log::logger::{Activity, worker_update};
+			use nix_compat::log::{ActivityType, VerbosityLevel};
+			let nar_size = cached.info.nar_size;
+			let file_size = cached.file_size.unwrap_or(0);
+			worker_update(|c| {
+				c.expected_substitutions += 1;
+				c.expected_nar_size += nar_size;
+				c.expected_download_size += file_size;
+			});
+			worker_update(|c| c.running_substitutions += 1);
+			// Outside a worker, as for `nix copy`, the caller reports the
+			// copy itself, as `copyPaths` does.
+			let acts = nix_compat::log::logger::worker_active().then(|| {
+				let shown = print(path);
+				let substitute = Activity::new(
+					VerbosityLevel::Error,
+					ActivityType::Substitute,
+					"",
+					vec![shown.clone().into(), cache.uri.clone().into()],
+					0,
+				);
+				let copy = Activity::new(
+					VerbosityLevel::Info,
+					ActivityType::CopyPath,
+					format!("copying path '{shown}' from '{}'", cache.uri),
+					vec![shown.into(), cache.uri.clone().into(), "local://".into()],
+					substitute.id(),
+				);
+				(substitute, copy)
+			});
+			let result = cache.nar(&cached).and_then(|nar| {
+				let mut nar = ProgressReader {
+					inner: nar,
+					act: acts.as_ref().map(|(_, copy)| copy),
+					total: 0,
+					reported: 0,
+					size: nar_size,
+				};
+				let result = self.add_to_store(&cached.info, &mut nar, false, !cache.trusted);
+				nar.report();
+				result
+			});
+			// The copy activity stops before its parent.
+			if let Some((substitute, copy)) = acts {
+				drop(copy);
+				drop(substitute);
+			}
+			let succeeded = result.is_ok();
+			worker_update(|c| {
+				c.running_substitutions = c.running_substitutions.saturating_sub(1);
+				c.expected_substitutions = c.expected_substitutions.saturating_sub(1);
+				c.expected_nar_size = c.expected_nar_size.saturating_sub(nar_size);
+				c.expected_download_size = c.expected_download_size.saturating_sub(file_size);
+				if succeeded {
+					c.done_substitutions += 1;
+					c.done_nar_size += nar_size;
+					c.done_download_size += file_size;
+				} else {
+					c.failed_substitutions += 1;
+				}
 			});
 			match result {
 				Ok(()) => {
