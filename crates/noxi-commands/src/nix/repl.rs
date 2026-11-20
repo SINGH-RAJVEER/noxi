@@ -723,6 +723,9 @@ fn process(session: &mut Session, input: &str) -> Result<Line, Failure> {
 }
 
 pub(super) fn run(mut parsed: Parsed) -> Result<ExitCode, Failure> {
+	// The REPL owns the terminal; `repl.cc` suspends the logger while it
+	// reads input, and noxi stops it for the whole session.
+	nix_compat::log::logger::stop();
 	let expr = parsed.value("expr").map(str::to_owned);
 	let file = parsed.value("file").map(str::to_owned);
 	let mut operands = std::mem::take(&mut parsed.operands);

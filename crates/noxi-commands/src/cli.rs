@@ -51,6 +51,7 @@ pub fn show_man_page(name: &str) -> Failure {
 		.unwrap_or_default();
 	let mut manpath = man_dir.into_os_string();
 	manpath.push(":");
+	nix_compat::log::logger::stop();
 	let error = std::process::Command::new("man")
 		.arg(name)
 		.env("MANPATH", manpath)
@@ -101,7 +102,7 @@ pub fn main(
 ) -> ExitCode {
 	#[cfg(feature = "eval-allocation-diagnostics")]
 	let _allocation_diagnostics = crate::allocation_diagnostics::ReportGuard::new();
-	std::thread::Builder::new()
+	let code = std::thread::Builder::new()
 		.stack_size(STACK_SIZE)
 		.spawn(move || {
 			let program = std::env::args()
@@ -138,8 +139,10 @@ pub fn main(
 			code
 		})
 		.expect("start the command thread")
-		.join()
-		.unwrap_or(ExitCode::FAILURE)
+		.join();
+	// A panicking command leaves the bar running; restore the terminal.
+	nix_compat::log::logger::stop();
+	code.unwrap_or(ExitCode::FAILURE)
 }
 
 /// Command-line arguments read as CppNix's `Args::parseCmdline` reads

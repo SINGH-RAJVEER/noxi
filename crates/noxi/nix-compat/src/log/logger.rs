@@ -449,6 +449,29 @@ pub fn worker_change(change: impl FnOnce(&mut WorkerCounters)) {
 	}
 }
 
+/// `Logger::writeToStdout`: a line of command output. The progress bar
+/// clears its status line first and redraws it after.
+pub fn write_stdout(text: &str) {
+	let write = || {
+		let mut stdout = std::io::stdout().lock();
+		let _ = stdout.write_all(text.as_bytes());
+		let _ = stdout.write_all(b"\n");
+		let _ = stdout.flush();
+	};
+	let Some(bar) = BAR.get() else {
+		return write();
+	};
+	let mut state = bar.state.lock().unwrap();
+	if state.active {
+		state.last_output.clear();
+		write_stderr(b"\r\x1b[K");
+		write();
+		draw(&mut state);
+	} else {
+		write();
+	}
+}
+
 /// Stop the logger before the process exits: the progress bar clears its
 /// line and shows the cursor again.
 pub fn stop() {

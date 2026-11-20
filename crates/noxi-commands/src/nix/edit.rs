@@ -120,6 +120,8 @@ pub(super) fn run(parsed: Parsed) -> Result<ExitCode, Failure> {
 		return Err(Failure::Error("no editor given in EDITOR".into()));
 	}
 	let program = args.remove(0);
+	// `edit.cc` stops the logger before running the editor.
+	nix_compat::log::logger::stop();
 	let status = Command::new(&program)
 		.args(&args)
 		.arg(&path)
