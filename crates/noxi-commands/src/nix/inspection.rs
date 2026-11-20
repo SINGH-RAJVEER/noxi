@@ -50,7 +50,12 @@ pub fn show(parsed: Parsed) -> Result<ExitCode, Failure> {
 		let drv = json_derivation(target.store.as_ref(), &path)?;
 		result.insert(path.to_string(), drv.to_json());
 	}
-	println!("{}", json!({"version":4,"derivations":result}));
+	// nlohmann's `dump()`, so structured-attribute floats print as the
+	// reference prints them (`1.5e-07`).
+	println!(
+		"{}",
+		nix_compat::cppnix_json::dump(&json!({"version": 4, "derivations": result}))
+	);
 	Ok(ExitCode::SUCCESS)
 }
 

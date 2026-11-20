@@ -774,7 +774,14 @@ pub(crate) mod derivation_builtins {
 		if let Some(structured_attrs) = structured_attrs {
 			drv.environment.insert(
 				JSON_KEY.into(),
-				BString::from(serde_json::to_string(&structured_attrs)?),
+				// nlohmann's `dump()` form (`1.5e-07`, not `1.5e-7`): these bytes
+				// enter the ATerm text and so the derivation's store path.
+				BString::from(nix_compat::cppnix_json::dump(&serde_json::Value::Object(
+					structured_attrs
+						.into_iter()
+						.map(|(key, value)| (key.to_owned(), value))
+						.collect(),
+				))),
 			);
 		}
 

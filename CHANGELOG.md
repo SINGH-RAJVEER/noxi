@@ -320,6 +320,7 @@ Serializes Rust values into Nix and deserializes Nix values into Rust types, imp
 
 ### Unreleased
 
+- `derivationStrict` writes structured attributes (`__json`) with `cppnix_json::dump` instead of serde_json, so floats such as `1.5e-7` are written `1.5e-07` as by the reference and the derivation gets the reference's store path. The `noxi-compat` dependency now enables its `serde` feature (2026-11-21).
 - Add `addDrvOutputDependencies`, `parseFlakeRef` and `flakeRefToString` store-aware builtins, and configure writable evaluator stores through shared settings. (2026-10-03).
 
 ### 0.1.2 - 2026-10-03
@@ -358,6 +359,7 @@ Serializes Rust values into Nix and deserializes Nix values into Rust types, imp
 
 ### Unreleased
 
+- `nix derivation show` prints with `cppnix_json::dump`, so structured-attribute floats appear as the reference prints them (`1.5e-07`, `1e+100`). `language_boundaries` checks the `drvPath` of structured-attribute derivations with floats against the reference and against recorded paths, and `reference_nix` compares their `derivation show` output byte for byte (2026-11-21).
 - The store execution helper behind `nix shell`, `nix run`, `nix develop` and `nix fmt` runs programs in a temporary root of bind mounts when the logical store directory does not exist, as CppNix's `chrootHelper` does. A per-user store therefore works on a host without `/nix`. Sandboxed builds into the per-user chroot store are compared with the reference (2026-11-17).
 - The `auto` store falls back to a per-user chroot store in `DATA_DIR/root` on Linux when `/nix/var/nix` and the daemon socket are missing and the user is not root, as CppNix's `resolveStoreConfig` does, with the same notice (2026-11-17).
 
