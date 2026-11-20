@@ -49,10 +49,10 @@ test-fixtures:
 licenses:
 	cargo deny check licenses
 
-# Regenerate THIRD_PARTY.md for the noxi preview binary from the locked dependency graph, then append the LGPL-2.1 text of the bundled CppNix helper, which cargo-about does not see.
+# Regenerate THIRD_PARTY.md for the packaged executables from noxi-cli's locked dependency graph, which contains noxi-commands and noxi-daemon, then append the LGPL-2.1 text of the bundled CppNix files, which cargo-about does not see.
 third-party:
 	cargo about generate --locked --offline --fail -m crates/noxi-cli/Cargo.toml -c about.toml third-party.hbs -o THIRD_PARTY.md
-	{ printf '\n## GNU Lesser General Public License 2.1 (bundled CppNix helper)\n\nThe CppNix helper `imported-drv-to-derivation.nix` is licensed LGPL-2.1-or-later; the text below is the LGPL-2.1 from its reference copy.\n\n~~~text\n'; cat crates/noxi/eval/COPYING; printf '~~~\n'; } >> THIRD_PARTY.md
+	{ printf '\n## GNU Lesser General Public License 2.1 (bundled CppNix files)\n\nThe CppNix files listed under Bundled upstream sources are licensed LGPL-2.1-or-later; the text below is the LGPL-2.1 from the reference revision.\n\n~~~text\n'; cat crates/noxi/eval/COPYING; printf '~~~\n'; } >> THIRD_PARTY.md
 
 # Compare the preview evaluator with an explicitly selected CppNix executable.
 eval-compare reference report="/tmp/noxi-eval-comparison.json":

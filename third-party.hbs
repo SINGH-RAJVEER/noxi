@@ -1,30 +1,30 @@
 # Third-party notices for noxi
 
-This file accompanies the `noxi` preview binary built from `crates/noxi-cli`. It lists the upstream projects whose code is compiled into that binary, their revisions, and the full text of every license in the binary's dependency graph. Regenerate it with `just third-party` whenever `Cargo.lock` or a bundled source changes; the policy and the review of each license are in [docs/licensing.md](docs/licensing.md).
+This file accompanies the noxi executables the flake packages: `noxi` from `crates/noxi-cli`, and in the replacement package the `nix`, legacy `nix-*` and `nix-daemon` executables from `crates/noxi-commands` and `crates/noxi-daemon`. The dependency graph of `noxi-cli` contains both of those crates, so the license list below covers every packaged executable. It lists the upstream projects whose code is compiled in, their revisions, and the full text of every license in the dependency graph. Regenerate it with `just third-party` whenever `Cargo.lock` or a bundled source changes; the policy and the review of each license are in [docs/licensing.md](docs/licensing.md), and [NOTICE](NOTICE) summarizes the attribution.
 
-The binary is distributed under GPL-3.0-only. It links crates licensed GPL-3.0-only, so the combined work carries those terms even though `noxi-cli` declares Apache-2.0 in its own manifest. See [docs/licensing.md](docs/licensing.md#conflicts) for the open decision.
+The executables are distributed under GPL-3.0-only. They link crates licensed GPL-3.0-only, so the combined work carries those terms even though `noxi-cli` declares Apache-2.0 in its own manifest. See [docs/licensing.md](docs/licensing.md#conflicts) for the open decision.
 
 ## Bundled upstream sources
 
-| Upstream | Revision | License | Where it is compiled in |
+| Upstream | Revision | License | What is compiled in |
 |---|---|---|---|
-| Snix, https://git.snix.dev/snix/snix | `22ca63bdb71c221001526304eca934385fb47c26` (2026-09-24) | GPL-3.0-only | `noxi-eval`, `noxi-eval-builtin-macros`, `noxi-hash`, and the other crates listed under `crates/noxi/PROVENANCE.md` |
-| CppNix 2.35.2, https://github.com/NixOS/nix | `2c73b59da29606068c0c98db015dd3a66955525d` (tag `2.35.2`) | LGPL-2.1-or-later | `crates/noxi/eval/src/compiler/imported-drv-to-derivation.nix`, embedded by `noxi-eval` |
+| Snix, https://git.snix.dev/snix/snix | `22ca63bdb71c221001526304eca934385fb47c26` (2026-09-24) | GPL-3.0-only | `noxi-eval`, `noxi-eval-builtin-macros`, `noxi-hash`, `noxi-flakeref`, `noxi-compat` and parts of `noxi-glue`; see `crates/noxi/PROVENANCE.md` |
+| CppNix 2.35.2, https://github.com/NixOS/nix | `2c73b59da29606068c0c98db015dd3a66955525d` (tag `2.35.2`) | LGPL-2.1-or-later | `src/libexpr/imported-drv-to-derivation.nix` in `noxi-eval`; `src/libexpr/primops/derivation.nix`, `src/libexpr/fetchurl.nix` and `src/libflake/call-flake.nix` in `noxi-glue`; `src/libstore/schema.sql` and `ca-specific-schema.sql` in `noxi-store`; `src/nix/get-env.sh` and the setting descriptions in `config-settings.json` in `noxi-commands` |
 
-Only the CppNix helper listed above is compiled into the `noxi` binary from non-Cargo sources. The CppNix `fetchurl.nix` and `schema.sql` copies, the copied CppNix test suite in `tests/nix/`, and the Nix 2.3.16 language cases in `crates/noxi/eval/src/tests/` are not part of that binary. Their notices are in the owning crate's `COPYING` or `LICENSE` file and in [docs/licensing.md](docs/licensing.md#copied-tests).
+These files are embedded as text with `include_str!`. Each keeps its original authors' notices, and the owning crate's `PROVENANCE.md` and `COPYING` record it. The copied CppNix test suite in `tests/nix/` and the Nix language cases in `crates/noxi/eval/src/tests/` are not compiled into any executable; [docs/licensing.md](docs/licensing.md#copied-tests) records them.
 
-Each bundled file keeps its original authors' notices. Project ownership of the workspace does not change the authorship of those files.
+Project ownership of the workspace does not change the authorship of the bundled files.
 
 ## Summary
 
 {{#each overview}}
-- {{name}}: {{count}} crate(s)
+- {{{name}}}: {{count}} crate(s)
 {{/each}}
 
 ## License texts
 
 {{#each licenses}}
-### {{name}}
+### {{{name}}}
 
 Used by:
 {{#each used_by}}

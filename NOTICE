@@ -1,0 +1,35 @@
+noxi
+https://github.com/SINGH-RAJVEER/nix-rs
+
+The noxi executables are distributed under the GNU General Public License,
+version 3 only. Each crate's own license is in its LICENSE file; the
+noxi-cli crate declares Apache-2.0 for its own source, and the executables
+built from it link GPL-3.0-only crates.
+
+This product includes code from the following projects. Their authors keep
+their copyright, and each copied file keeps its notices.
+
+Snix, https://git.snix.dev/snix/snix
+	Revision 22ca63bdb71c221001526304eca934385fb47c26 (2026-09-24).
+	GPL-3.0-only. Compiled in: the evaluator and its builtin macros, the hash,
+	flake reference and compatibility crates, and parts of noxi-glue. The
+	noxi-compat-derive and noxi-serde crates also derive from it.
+
+CppNix (Nix), https://github.com/NixOS/nix
+	Release 2.35.2, revision 2c73b59da29606068c0c98db015dd3a66955525d.
+	LGPL-2.1-or-later. Compiled in: imported-drv-to-derivation.nix,
+	primops/derivation.nix, fetchurl.nix, call-flake.nix, schema.sql,
+	ca-specific-schema.sql, get-env.sh and the setting descriptions in
+	config-settings.json. Copied, not compiled in: the test snapshot in
+	tests/nix, whose gtest-with-params.hh is BSD-2-Clause.
+
+Nix 2.3.16, https://github.com/NixOS/nix
+	Revision 8c5b39875edb3b88f5825cc76d1cae91b3afd130 (tag 2.3.16).
+	LGPL-2.1-or-later. Most language test cases in
+	crates/noxi/eval/src/tests/nix_tests come from this tag through Snix;
+	most of the rest match later Nix releases. They are not compiled into any
+	executable.
+
+Rust dependencies are listed, with their license texts, in THIRD_PARTY.md.
+The license review and the provenance of every copied file are in
+docs/licensing.md and in each crate's PROVENANCE.md.

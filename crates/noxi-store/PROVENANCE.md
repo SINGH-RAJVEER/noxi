@@ -4,7 +4,7 @@
 
 The Rust code in this package was written for noxi; it is not copied from another Rust project. Its behavior follows [CppNix 2.35.2](https://github.com/NixOS/nix/tree/2c73b59da29606068c0c98db015dd3a66955525d), revision `2c73b59da29606068c0c98db015dd3a66955525d`, licensed LGPL-2.1-or-later. The reference sources are `src/libstore/local-store.cc`, `gc.cc` (temporary roots), `path-info.cc`, `posix-fs-canonicalise.cc`, `sqlite.cc`, `unix/pathlocks.cc`, and `derivations.cc`. Error messages reproduce the reference's wording.
 
-`src/schema.sql` is a verbatim copy of `src/libstore/schema.sql` from that revision, retaining its LGPL-2.1-or-later terms and the Nix authors' authorship. [COPYING](COPYING) reproduces the LGPL 2.1 text from that revision.
+`src/schema.sql` is a verbatim copy of `src/libstore/schema.sql` from that revision, retaining its LGPL-2.1-or-later terms and the Nix authors' authorship. `src/ca-specific-schema.sql` copies `src/libstore/ca-specific-schema.sql` from the same revision with its indentation changed to tabs. It also retains LGPL-2.1-or-later and the Nix authors' authorship. [COPYING](COPYING) reproduces the LGPL 2.1 text from that revision.
 
 The package depends on `noxi-compat` for store paths, hashes, derivations and NAR encoding, and on `rusqlite` with SQLite bundled.
 
@@ -12,4 +12,4 @@ The binary-cache implementation follows the reference's `BinaryCacheStore`, `Loc
 
 ## License
 
-The package is GPL-3.0-only; [LICENSE](LICENSE) reproduces the license text. The copied schema keeps its own LGPL-2.1-or-later notice. Local source history is at https://github.com/SINGH-RAJVEER/nix-rs under `crates/noxi-store/`.
+The package is GPL-3.0-only; [LICENSE](LICENSE) reproduces the license text. The copied schemas keep their LGPL-2.1-or-later terms. Local source history is at https://github.com/SINGH-RAJVEER/nix-rs under `crates/noxi-store/`.

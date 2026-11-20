@@ -9,3 +9,10 @@ This package bundles no imported Snix module tree or copied Nix fixture suite. I
 This preview only implements part of `nix-instantiate --eval`. It does not instantiate into a writable store, build, fetch, substitute, or provide full CppNix command behavior. Its binary name can shadow CppNix; the README documents isolated installation. No complete reference-release or system-rebuild qualification is claimed.
 
 Release `0.1.1` corrects relative-path handling for callers that supply an evaluation directory and requires evaluator `0.2.1` and glue `0.1.1`. It adds no copied source or new license scope.
+
+## Bundled CppNix files
+
+Two files in this package are copied from CppNix 2.35.2, revision `2c73b59da29606068c0c98db015dd3a66955525d`, and are compiled into the `nix` executables through `include_str!`. They keep LGPL-2.1-or-later and the Nix authors' authorship; [COPYING](COPYING) reproduces the LGPL 2.1 text from that revision.
+
+- `src/nix/get-env.sh` is a byte-for-byte copy of `src/nix/get-env.sh`. It carries no notice of its own because `nix develop` adds its exact text to the store, and any change would change the resulting store paths.
+- `src/nix/config-settings.json` holds the setting names, aliases, defaults and descriptions that the reference's `GlobalConfig::toJSON` prints. The descriptions are CppNix documentation text.

@@ -1,8 +1,9 @@
 //! Configuration inspection, following CppNix 2.35.2's config.cc.
 //!
 //! config-settings.json contains the setting metadata from that release's
-//! GlobalConfig::toJSON (GPL-3.0-only). Machine-dependent defaults and
-//! constructor assignments are supplied here, before configuration overrides.
+//! GlobalConfig::toJSON (LGPL-2.1-or-later; see PROVENANCE.md).
+//! Machine-dependent defaults and constructor assignments are supplied here,
+//! before configuration overrides.
 use std::collections::BTreeSet;
 use std::path::Path;
 use std::process::ExitCode;

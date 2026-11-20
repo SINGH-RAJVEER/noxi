@@ -4,6 +4,12 @@ Changes to each crate in this workspace, grouped by crate and version, newest fi
 
 Changes that have not reached a version yet go under an `Unreleased` heading for that crate.
 
+## Repository - Unreleased
+
+- The reference inventory records the C and C++ library consumers on the pinned Nixpkgs: which packages link the 2.35.2 libraries, which link their own older Nix, which load into the `nix` process, and which only run the commands, with the libraries' pkg-config names, SONAMEs, headers and exported symbols. `scripts/library-consumers.nix` reproduces the input listing from the qualification lock.
+- The license audit covers the files embedded since 2026-10-23 (`call-flake.nix`, `ca-specific-schema.sql`, `get-env.sh`, `config-settings.json`) and the Nix 2.3.16 test commit. A root `NOTICE` records each upstream project's revision and license, and `THIRD_PARTY.md` is regenerated from `noxi-cli`'s current closure, which contains every packaged executable. The flake package installs `NOTICE`, and its check tests for it.
+- `noxi-flake` gains a `LICENSE` and a `PROVENANCE.md`; `noxi-daemon` and `noxi-eval-builtin-macros` gain a `PROVENANCE.md`; `noxi-commands` gains the LGPL `COPYING` for its copied CppNix files, and its `config.rs` no longer calls the CppNix setting metadata GPL-3.0-only. The two private test crates declare `GPL-3.0-only`.
+
 ## noxi 0.0.6 - 2026-11-19, pending publication
 
 Publishes the evaluator performance and pure flake evaluation work. `noxi system build` now evaluates a NixOS flake in pure mode, using the evaluator store's allow list as CppNix's `allowPath` does and canonicalizing string paths before access. The evaluator enters bytecode frames directly, prints `genericClosure` trace text only when an error needs it, layers small `//` updates over large sets, skips builtin error contexts for evaluated arguments, reclaims uninterned strings by default (`NOXI_RECLAIM_STRINGS=0` restores the old policy), and stores thunks in a 40-byte cell. Locked flake inputs whose store path is already valid are no longer rehashed, derivations already in the store are not written again, and mimalloc no longer requests transparent huge pages. Evaluating a real NixOS configuration fell from 48.2 s and 5.21 GiB to 25.7 s and 3.67 GiB; CppNix 2.35.6 takes 10.1 s and 1.66 GiB.

@@ -4,6 +4,7 @@ version = "0.0.3"
 rust-version.workspace = true
 edition = "2024"
 publish = false
+license = "GPL-3.0-only"
 description = "Differential tests that check vendored and first-party crates against the upstream CppNix fixtures in tests/nix"
 
 [dependencies]
