@@ -129,6 +129,7 @@ Nix language parser, compiler and bytecode VM with the pure builtins, imported f
 
 ### Unreleased
 
+- `builtins.appendContext` prints a context key that is not a store path as CppNix prints the symbol, quoted unless it is a plain identifier (`context key '"/bad"' is not a store path`) (2026-11-21).
 - Avoid recursive JSON conversion, serialization and release, and release long attribute-set chains iteratively. The two recorded deep-value crashes now return controlled errors (2026-10-03).
 
 ### 0.2.2 - 2026-10-03
@@ -321,6 +322,7 @@ Serializes Rust values into Nix and deserializes Nix values into Rust types, imp
 ### Unreleased
 
 - `derivationStrict` writes structured attributes (`__json`) with `cppnix_json::dump` instead of serde_json, so floats such as `1.5e-7` are written `1.5e-07` as by the reference and the derivation gets the reference's store path. The `noxi-compat` dependency now enables its `serde` feature (2026-11-21).
+- `builtins.getFlake`, `builtins.fetchurl` and `builtins.fetchTarball` force their argument before adding their "while evaluating" context, as CppNix does, so an error thrown by the argument no longer shows that frame; `generated_fetcher_validation` matches the reference again (2026-11-21).
 - Add `addDrvOutputDependencies`, `parseFlakeRef` and `flakeRefToString` store-aware builtins, and configure writable evaluator stores through shared settings. (2026-10-03).
 
 ### 0.1.2 - 2026-10-03

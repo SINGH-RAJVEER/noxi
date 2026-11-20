@@ -321,7 +321,7 @@ fn literal_string(out: &mut Vec<u8>, s: &[u8], max_length: usize) {
 }
 
 /// `printAttributeName`: unquoted when the name is a variable name.
-fn attribute_name(out: &mut Vec<u8>, name: &[u8]) {
+pub(crate) fn attribute_name(out: &mut Vec<u8>, name: &[u8]) {
 	const KEYWORDS: &[&[u8]] = &[
 		b"if", b"then", b"else", b"assert", b"with", b"let", b"in", b"rec", b"inherit",
 	];
