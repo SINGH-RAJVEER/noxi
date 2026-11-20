@@ -103,6 +103,17 @@ mod tests {
 	#[rstest]
 	#[should_panic]
 	#[case("out,bin{n")]
+	// CppNix's `OutputsSpec::parse` checks each name with `checkName`.
+	#[should_panic]
+	#[case::dot(".")]
+	#[should_panic]
+	#[case::dot_dot("out,..")]
+	#[should_panic]
+	#[case::dot_dash(".-dev")]
+	#[should_panic]
+	#[case::trailing_comma("out,")]
+	#[should_panic]
+	#[case::empty("")]
 	#[should_panic]
 	#[case::too_long(
 		"test-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"

@@ -255,6 +255,18 @@ pub fn validate_name(s: &[u8]) -> Result<&str, ParseStorePathNameError> {
 		return Err(ParseStorePathNameError::Length);
 	}
 
+	// CppNix 2.35.2 `checkName`: the first dash-separated component must not
+	// be `.` or `..`, so `.`, `..`, `.-x` and `..-x` are rejected while
+	// `...`, `.gitignore` and `...-` are accepted.
+	if s[0] == b'.' {
+		match &s[1..] {
+			[] | [b'-', ..] | [b'.'] | [b'.', b'-', ..] => {
+				return Err(ParseStorePathNameError::Name);
+			}
+			_ => {}
+		}
+	}
+
 	let mut valid = true;
 	for &c in s {
 		valid = valid && NAME_CHARS[c as usize];
@@ -584,5 +596,58 @@ mod tests {
 		paths.sort();
 
 		assert_eq!(paths, by_string);
+	}
+
+	/// CppNix 2.35.2 `libstore-tests/path.cc`: `TEST_DONT_PARSE` and
+	/// `TEST_DO_PARSE` names after `/nix/store/<HASH_PART>-`.
+	#[rstest]
+	#[case::empty("", false)]
+	#[case::garbage("&*()", false)]
+	#[case::double_star("**", false)]
+	#[case::star_first("*,foo", false)]
+	#[case::star_second("foo,*", false)]
+	#[case::bang("foo!o", false)]
+	#[case::dot(".", false)]
+	#[case::dot_dot("..", false)]
+	#[case::dot_dot_dash("..-1", false)]
+	#[case::dot_dash(".-1", false)]
+	#[case::dot_dot_dash_a("..-a", false)]
+	#[case::dot_dash_a(".-a", false)]
+	#[case::numbers("02345", true)]
+	#[case::lower_case("foo", true)]
+	#[case::upper_case("FOO", true)]
+	#[case::plus("foo+bar", true)]
+	#[case::dash("foo-dev", true)]
+	#[case::underscore("foo_bar", true)]
+	#[case::period("foo.txt", true)]
+	#[case::question_mark("foo?why", true)]
+	#[case::equals_sign("foo=foo", true)]
+	#[case::dotfile(".gitignore", true)]
+	#[case::triple_dot_a("...a", true)]
+	#[case::triple_dot_1("...1", true)]
+	#[case::triple_dot_dash("...-", true)]
+	#[case::triple_dot("...", true)]
+	fn cppnix_path_names(#[case] name: &str, #[case] valid: bool) {
+		let path = format!("/nix/store/g1w7hy3qg1w7hy3qg1w7hy3qg1w7hy3q-{name}");
+		let parsed = StorePath::from_absolute_path(path.as_bytes());
+		assert_eq!(parsed.is_ok(), valid, "{path}: {parsed:?}");
+		if let Ok(parsed) = parsed {
+			assert_eq!(parsed.to_absolute_path(), path);
+		}
+	}
+
+	/// CppNix 2.35.2 `mustBeDashAfterHashPart`, and the base-32 alphabet
+	/// check that rejects `e`, `o`, `u` and `t` in the hash part.
+	#[rstest]
+	#[case("575s52sh487i0ylmbs9pvi606ljdszr0_name", false)]
+	#[case("575s52sh487i0ylmbs9pvi606ljdszr0\0name", false)]
+	#[case("575s52sh487i0ylmbs9pvi606ljdszr0-name", true)]
+	#[case("575s52sh487i0ylmbs9pvi606ljdszre-name", false)]
+	#[case("575s52sh487i0ylmbs9pvi606ljdszro-name", false)]
+	#[case("575s52sh487i0ylmbs9pvi606ljdszru-name", false)]
+	#[case("575s52sh487i0ylmbs9pvi606ljdszrt-name", false)]
+	#[case("575s52sh487i0ylmbs9pvi606ljdszrA-name", false)]
+	fn cppnix_hash_part(#[case] base_name: &str, #[case] valid: bool) {
+		assert_eq!(StorePath::from_bytes(base_name.as_bytes()).is_ok(), valid, "{base_name:?}");
 	}
 }
