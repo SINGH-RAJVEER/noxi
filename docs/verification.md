@@ -1135,3 +1135,41 @@ The starting patch, path list, hashes and validation logs are retained under ign
 The pending evaluator, CLI, store, fetcher and SQLite packaging changes were integrated onto local main `6e9e292a`, preserving its daemon, chroot-store and version-update commits. The add/add conflict in `reference_chroot_store.rs` retained main's newer four-test version, which includes both pending test cases. The original patch, workspace/bookmark inventory and file hashes are saved under ignored `target/integration-20261117-merge-all/`; every other pending file was preserved byte for byte except the distribution document, which also retained main's newer release information.
 
 Formatting, `cargo check --workspace --all-features --tests --locked --offline` and all four tests in `reference_chroot_store` passed after integration. This consolidation does not close the previously recorded builtin diagnostic gaps or claim a final full-workspace qualification. Only the default JJ workspace and main bookmark were present at cleanup; there were no auxiliary workspace directories or bookmarks to delete. No remote push, publication or system activation was part of this consolidation.
+
+## Format exactness, 2026-11-20
+
+This round covers store path, content-address, derivation, output-specification and realisation formats against CppNix 2.35.2. It records which formats are compared byte for byte, which fields are deliberately excluded from comparison, and the differences that remain.
+
+### Byte-exact formats and their checks
+
+| Format | Exactness checked | Evidence |
+|---|---|---|
+| ATerm derivations, default features | Parse and write back every copied fixture CppNix accepts; the full model and `UnverifiedDerivation` write identical bytes | `upstream_derivations` |
+| ATerm derivations, `ca-derivations`, `impure-derivations`, `dynamic-derivations`, `git-hashing` | `cppnix_json::derivation::Derivation::from_aterm` round-trips the four `ca/` fixtures and `dyn-dep-derivation.drv` with the feature enabled and fails with the reference's feature message without it. Twelve derivations written by the reference's `nix derivation add` (floating NAR, flat, text and Git outputs, impure, fixed text/flat/NAR, input-addressed, deferred, a dynamic input, structured attributes with floats and non-ASCII text, string escapes) must match `unparse` byte for byte, give the same store path, and parse back to the `nix derivation show` JSON | `upstream_derivations`, `reference_derivation_aterm` |
+| ATerm parse errors and quirks | 29 raw ATerm files added with `nix-store --add`, which makes the reference parse them: acceptance, the error message (including the `error parsing derivation '<path>':` wrapping of format errors), optional list separators, duplicate outputs and environment entries, trailing bytes, lexical canonicalisation of store paths, fixed-output hashes in nix32, base-64 and upper-case hex, and the feature gate the reference reports with only `nix-command` | `reference_derivation_aterm` |
+| Structured attributes (`__json`) | Written as nlohmann's `dump()` writes them (`1e+100`, `1.5e-07`, `-0.0`, `1.0`, keys in byte order); values recorded from `nix eval --json` and from a reference-written derivation | `cppnix_json::tests::dump_matches_nlohmann_numbers`, `reference_derivation_aterm` |
+| Store path names and base names | The `path.cc` accept/reject table, `mustBeDashAfterHashPart`, illegal base-32 characters, and the reference's `parseStorePath` messages for the derivation parser | `store_path::tests::cppnix_path_names`, `cppnix_hash_part`, `reference_derivation_aterm` |
+| Output specifications | `checkName` applies to each name, so `.`, `..`, `.-x`, empty names and trailing commas are rejected | `derived_path::output_spec::tests::parse_fail` |
+| Realisation keys | `cppnix_json::DrvOutput::parse` and `render` use the 2.35.2 `<derivation path>^<output>` form and messages | `cppnix_json::tests::drv_output_string_form` |
+| Content-address strings | `fixed:`/`text:` strings parse with any digest encoding whose length fits the algorithm and print in nix32 | `noxi-hash` `ca_hash::tests`, `upstream_hashes` |
+| NAR | Unchanged: the four reference dumps and 22 boundary archives | `reference_nars`, `reference_nar_limits` |
+| Narinfo, path-info, realisation and build-result JSON | Unchanged: copied fixtures byte for byte and uncompressed narinfo written by the reference | `upstream_path_info_json`, `upstream_realisation_json`, `reference_substitute` |
+
+### Intentionally excluded from byte comparison
+
+These differ between runs of the same engine, or depend on a library the format does not specify, so the tests mask or skip them rather than compare them:
+
+- `registrationTime` in `nix path-info --json`: the time the path was registered. `reference_substitute` and `reference_build` remove it before comparing; `reference_store` and `reference_store_round_trip` compare it only against the value the same store recorded.
+- `ultimate` follows how a path entered the store (built locally or substituted), so tests compare it against the expected origin rather than across engines.
+- Compressed NAR bytes, and with them the narinfo `URL`, `FileHash` and `FileSize` of compressed uploads: they depend on the compressor library, its version and level. `reference_substitute` checks that the reference accepts noxi's gzip, bzip2 and zstd uploads instead of comparing bytes; uncompressed narinfo is compared byte for byte.
+- Build-result `startTime`, `stopTime` and `timesBuilt` are wall-clock and history values; the copied fixtures fix them and live builds do not compare them.
+- The text of nlohmann JSON parse errors. An invalid `__json` attribute fails in both engines with the same `cannot process __json attribute: ` prefix, but noxi reports serde_json's description of the error.
+
+### Remaining differences
+
+- Floating-point digits: nlohmann takes digits from Grisu2, which can emit a longer round-trip form than the shortest one Rust prints; such values would differ in `__json` and in the derivation path. No recorded case triggers this.
+- Git-hashed fixed outputs (`git:` with a hash) and text-hashed fixed outputs other than SHA-256 parse in CppNix with their features enabled, but `CAHash` cannot hold them; `from_aterm` reports them as unsupported.
+- Non-UTF-8 strings in a derivation are accepted by CppNix; the JSON-based full model holds text only and reports them as unsupported. `UnverifiedDerivation` still reads them for the default-feature formats.
+- `realisation::DrvOutput` still prints and parses the pre-2.35 `<hash>!<output>` form; 2.35.2 keys realisations by derivation path, which `cppnix_json::DrvOutput` implements.
+- Nested derived paths (`drv^out^bin`) need `dynamic-derivations` in CppNix, which reports a feature error; `DerivedPath` rejects them as an invalid store path name. Under the qualified `nix-command flakes` profile both reject the input, with different messages.
+- `noxi-store`'s `BuildDerivation` still reads floating and experimental outputs with its own pre-parser rather than `from_aterm`, and noxi-commands prints `nix derivation show` JSON with serde_json rather than `cppnix_json::dump`, so their float formatting is not yet covered by this evidence.

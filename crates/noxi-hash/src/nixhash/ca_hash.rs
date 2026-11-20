@@ -46,24 +46,27 @@ impl CAHash {
 	/// - `fixed:r:$algo:$nixbase32digest`
 	/// - `fixed:$algo:$nixbase32digest`
 	///
-	/// These formats are used in NARInfo, for example.
+	/// These formats are used in NARInfo, for example. As in CppNix's
+	/// `ContentAddress::parse`, the digest may also be base-16 or base-64,
+	/// chosen by its length (`Hash::parseNonSRIUnprefixed`).
 	pub fn from_nix_hex_str(s: &str) -> Option<Self> {
 		let (tag, s) = s.split_once(':')?;
 
-		match tag {
-			"text" => {
-				let digest = s.strip_prefix("sha256:")?;
-				let digest = nixbase32::decode_fixed(digest).ok()?;
-				Some(CAHash::Text(digest))
-			}
-			"fixed" => {
-				if let Some(s) = s.strip_prefix("r:") {
-					NixHash::from_nix_nixbase32(s).map(CAHash::Nar)
-				} else {
-					NixHash::from_nix_nixbase32(s).map(CAHash::Flat)
-				}
-			}
-			_ => None,
+		let (mode, rest) = match tag {
+			"text" => (HashMode::Text, s),
+			"fixed" => match s.strip_prefix("r:") {
+				Some(rest) => (HashMode::Nar, rest),
+				None => (HashMode::Flat, s),
+			},
+			_ => return None,
+		};
+		let (algo, digest) = rest.split_once(':')?;
+		let hash = super::decode_digest(digest.as_bytes(), algo.parse().ok()?).ok()?;
+		match (mode, hash) {
+			(HashMode::Text, NixHash::Sha256(digest)) => Some(CAHash::Text(digest)),
+			(HashMode::Text, _) => None,
+			(HashMode::Flat, hash) => Some(CAHash::Flat(hash)),
+			(HashMode::Nar, hash) => Some(CAHash::Nar(hash)),
 		}
 	}
 }
@@ -91,5 +94,53 @@ impl std::fmt::Display for CAHash {
 		};
 
 		write!(f, "{}:{}", algo, nixbase32::encode(hash))
+	}
+}
+
+#[cfg(test)]
+mod tests {
+	use super::CAHash;
+	use crate::nixhash::NixHash;
+	use hex_literal::hex;
+
+	const ABC: [u8; 32] = hex!("ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad");
+
+	/// CppNix 2.35.2 `ContentAddress::parse` reads the digest in any encoding
+	/// whose length fits the algorithm, and `render` writes nix32.
+	#[test]
+	fn parses_every_digest_encoding_and_renders_nix32() {
+		let nar = CAHash::Nar(NixHash::Sha256(ABC));
+		for digest in [
+			"1b8m03r63zqhnjf7l5wnldhh7c134ap5vpj0850ymkq1iyzicy5s",
+			"ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad",
+			"BA7816BF8F01CFEA414140DE5DAE2223B00361A396177A9CB410FF61F20015AD",
+			"ungWv48Bz+pBQUDeXa4iI7ADYaOWF3qctBD/YfIAFa0=",
+		] {
+			assert_eq!(
+				CAHash::from_nix_hex_str(&format!("fixed:r:sha256:{digest}")),
+				Some(nar.clone()),
+				"{digest}"
+			);
+		}
+		assert_eq!(
+			nar.to_string(),
+			"fixed:r:sha256:1b8m03r63zqhnjf7l5wnldhh7c134ap5vpj0850ymkq1iyzicy5s"
+		);
+		assert_eq!(
+			CAHash::from_nix_hex_str(
+				"text:sha256:ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"
+			),
+			Some(CAHash::Text(ABC))
+		);
+		for invalid in [
+			"fixed:sha256:abc",
+			"fixed:sha3:abc",
+			"narwhal:sha256:1b8m03r63zqhnjf7l5wnldhh7c134ap5vpj0850ymkq1iyzicy5s",
+			"fixed:git:sha1:a9993e364706816aba3e25717850c26c9cd0d89d",
+			"text:sha1:a9993e364706816aba3e25717850c26c9cd0d89d",
+			"fixed:r:sha256",
+		] {
+			assert_eq!(CAHash::from_nix_hex_str(invalid), None, "{invalid}");
+		}
 	}
 }

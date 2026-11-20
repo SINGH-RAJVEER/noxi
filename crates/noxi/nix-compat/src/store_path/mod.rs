@@ -648,6 +648,10 @@ mod tests {
 	#[case("575s52sh487i0ylmbs9pvi606ljdszrt-name", false)]
 	#[case("575s52sh487i0ylmbs9pvi606ljdszrA-name", false)]
 	fn cppnix_hash_part(#[case] base_name: &str, #[case] valid: bool) {
-		assert_eq!(StorePath::from_bytes(base_name.as_bytes()).is_ok(), valid, "{base_name:?}");
+		assert_eq!(
+			StorePath::from_bytes(base_name.as_bytes()).is_ok(),
+			valid,
+			"{base_name:?}"
+		);
 	}
 }

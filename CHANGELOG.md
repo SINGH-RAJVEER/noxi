@@ -55,6 +55,10 @@ The workspace is being published under the `noxi-` names. `noxi-hash`, `noxi-eva
 
 ## nix-rs-hash
 
+### Unreleased
+
+- `CAHash::from_nix_hex_str` accepts base-16 and base-64 digests as well as nix32, chosen by length as CppNix's `ContentAddress::parse` does (2026-11-20).
+
 ### 0.1.0 - 2026-10-01
 
 - Extracted Nix hash values, digest helpers, Nix base32 encoding, and their tests from `nix-compat`. `nix-compat` reexports the previous paths.
@@ -212,6 +216,10 @@ Nix formats and protocols: store paths, nixbase32, hashes, NAR, ATerm derivation
 
 ### Unreleased
 
+- `cppnix_json::derivation::Derivation::from_aterm` ports CppNix 2.35.2's `parseDerivation` to the full derivation model: floating, impure and text-hashed outputs and the `DrvWithVersion("xp-dyn-drv", ...)` form with nested dynamic inputs parse behind the experimental features the reference requires, with its error messages, its optional list separators, its first-output-wins and last-entry-wins duplicate rules, lexical store path canonicalisation and fixed-output hashes in any encoding. `cppnix_json::derivation_aterm::parse_store_path` is `parseStorePath` with the reference's messages (2026-11-20).
+- `cppnix_json::dump` reproduces nlohmann's `json::dump()`, and `Derivation::unparse` writes structured attributes with it, so `__json` floats (`1e+100`, `1.5e-07`) and the derivation paths that hash them match the reference (2026-11-20).
+- Store path names, output names and output specifications reject a first dash-separated component of `.` or `..`, as CppNix's `checkName` does (2026-11-20).
+- `cppnix_json::DrvOutput::parse` and `render` read and write the 2.35.2 `<derivation path>^<output>` form with the reference's messages; the older `realisation::DrvOutput` keeps the pre-2.35 `<hash>!<output>` form (2026-11-20).
 - `Settings::forwarded` follows CppNix for settings that need an experimental feature: one given while its feature is disabled is ignored but still forwarded with its default once a later file, `NIX_CONFIG` or flag enables the feature, and none is forwarded while its feature is disabled (2026-11-09).
 - `nixcpp::settings` parses integer settings with CppNix's `K`/`M`/`G`/`T` suffixes in each setting's own C++ type and signedness, reports invalid `max-jobs` and `sandbox` values with the reference's messages, and tracks CppNix's overridden flag: settings from the system `nix.conf` are no longer forwarded to a daemon (`Settings::forwarded`) (2026-11-09).
 

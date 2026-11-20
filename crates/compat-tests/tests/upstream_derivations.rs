@@ -8,6 +8,7 @@
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
+use nix_compat::cppnix_json::derivation::{Derivation as FullDerivation, Features};
 use nix_compat::derivation::{Derivation, UnverifiedDerivation, lookup_fn};
 
 const FIXTURE_DIR: &str = "../../tests/nix/src/libstore-tests/data/derivation";
@@ -20,8 +21,9 @@ enum Expect {
 	/// sorts it, as CppNix does, and that canonical form round-trips.
 	Canonicalises,
 	/// CppNix only parses this with the named experimental feature enabled, so
-	/// under default settings both reject it. `nix-compat` has no support for
-	/// the feature yet, which is a gap for matrix rows that enable it.
+	/// under default settings both reject it. `UnverifiedDerivation` cannot hold
+	/// it; `cppnix_json::derivation::Derivation::from_aterm` reads it when the
+	/// feature is enabled and round-trips it byte for byte.
 	Experimental(&'static str),
 	/// Invalid input that CppNix also rejects while parsing.
 	Reject,
@@ -150,4 +152,64 @@ fn zero_output_derivation_fails_verification() {
 		format!("{err:?}").contains("NoOutputs"),
 		"unexpected error: {err:?}"
 	);
+}
+
+const ALL_FEATURES: Features = Features {
+	ca_derivations: true,
+	dynamic_derivations: true,
+	impure_derivations: true,
+	git_hashing: true,
+};
+
+/// The full derivation model reads every fixture CppNix accepts, including
+/// the experimental ones once their feature is enabled, and writes the
+/// same bytes `UnverifiedDerivation` does wherever both can read the file.
+#[test]
+fn full_model_matches_fixtures_and_basic_parser() {
+	let root = fixture_root();
+	let mut mismatches = BTreeMap::new();
+	for (name, expect) in EXPECTATIONS {
+		let bytes = std::fs::read(root.join(name)).expect("fixture must be readable");
+		let drv_name = Path::new(name)
+			.file_stem()
+			.unwrap()
+			.to_string_lossy()
+			.into_owned();
+		let full = FullDerivation::from_aterm(&bytes, &drv_name, ALL_FEATURES);
+		let problem = match (expect, &full) {
+			(Reject, Ok(_)) => Some("accepted input CppNix rejects".to_owned()),
+			(Reject, Err(_)) => None,
+			(_, Err(e)) => Some(format!("failed to parse: {e}")),
+			(Experimental(feature), Ok(drv)) => {
+				let default = FullDerivation::from_aterm(&bytes, &drv_name, Features::default());
+				if drv.unparse(false, None).unwrap().as_bytes() != bytes {
+					Some("does not round-trip".to_owned())
+				} else if !default
+					.as_ref()
+					.is_err_and(|e| e.to_string().contains(&format!("'{feature}' is disabled")))
+				{
+					Some(format!("default features: {default:?}"))
+				} else {
+					None
+				}
+			}
+			(RoundTrip | Canonicalises, Ok(drv)) => {
+				let basic = UnverifiedDerivation::from_aterm_bytes(&bytes)
+					.expect("basic parser")
+					.to_aterm_bytes();
+				let ours = drv.unparse(false, None).unwrap();
+				if ours.as_bytes() != basic {
+					Some("unparse differs from UnverifiedDerivation".to_owned())
+				} else if *expect == RoundTrip && ours.as_bytes() != bytes {
+					Some("does not round-trip".to_owned())
+				} else {
+					None
+				}
+			}
+		};
+		if let Some(problem) = problem {
+			mismatches.insert(*name, problem);
+		}
+	}
+	assert!(mismatches.is_empty(), "{mismatches:#?}");
 }

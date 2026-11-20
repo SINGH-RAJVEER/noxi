@@ -328,10 +328,9 @@ pub fn parse_store_path(path: &str) -> Result<StorePath, AtermError> {
 			"'{base}' can't name a store path because the hash part is not followed by a '-'"
 		)));
 	}
-	if let Some(c) = base[..HASH_LEN]
-		.chars()
-		.find(|&c| matches!(c, 'e' | 'o' | 'u' | 't') || !(c.is_ascii_digit() || c.is_ascii_lowercase()))
-	{
+	if let Some(c) = base[..HASH_LEN].chars().find(|&c| {
+		matches!(c, 'e' | 'o' | 'u' | 't') || !(c.is_ascii_digit() || c.is_ascii_lowercase())
+	}) {
 		return Err(AtermError::Other(format!(
 			"store path '{base}' contains illegal base-32 character '{c}'"
 		)));
@@ -375,7 +374,8 @@ fn parse_hash(s: &str, algo: HashAlgo) -> Result<NixHash, AtermError> {
 			"hash '{s}' has wrong length for hash algorithm '{algo}'"
 		)));
 	};
-	let digest = digest.ok_or_else(|| AtermError::Other(format!("invalid {encoding} hash '{s}'")))?;
+	let digest =
+		digest.ok_or_else(|| AtermError::Other(format!("invalid {encoding} hash '{s}'")))?;
 	NixHash::from_algo_and_digest(algo, &digest).map_err(|e| AtermError::Other(e.to_string()))
 }
 
@@ -415,7 +415,11 @@ fn parse_output(
 	let hash_algo = parse_hash_algo(algo, features)?;
 
 	if hash == "impure" {
-		require(features.derivation.impure_derivations, IMPURE_DERIVATIONS, "")?;
+		require(
+			features.derivation.impure_derivations,
+			IMPURE_DERIVATIONS,
+			"",
+		)?;
 		if !path.is_empty() {
 			return Err(format_error(
 				"impure derivation output should not specify output path",
@@ -655,7 +659,10 @@ mod tests {
 			("", "empty path is not a valid store path"),
 			("/tmp/x", "path \"/tmp/x\" is not in the Nix store"),
 			("/nix/store", "path \"/nix/store\" is not in the Nix store"),
-			("/nix/store/abc", "'abc' is too short to be a valid store path"),
+			(
+				"/nix/store/abc",
+				"'abc' is too short to be a valid store path",
+			),
 			(
 				"/nix/store/g1w7hy3qg1w7hy3qg1w7hy3qg1w7hy3q_foo",
 				"'g1w7hy3qg1w7hy3qg1w7hy3qg1w7hy3q_foo' can't name a store path because the hash part is not followed by a '-'",
@@ -674,10 +681,7 @@ mod tests {
 			),
 		];
 		for (path, message) in cases {
-			assert_eq!(
-				parse_store_path(path).expect_err(path).to_string(),
-				message
-			);
+			assert_eq!(parse_store_path(path).expect_err(path).to_string(), message);
 		}
 		assert_eq!(
 			parse_store_path("/nix//store/./g1w7hy3qg1w7hy3qg1w7hy3qg1w7hy3q-foo/")
@@ -730,7 +734,10 @@ mod tests {
 		let unknown = r#"DrvWithVersion("v2",[],[],[],"s","b",[],[])"#;
 		let err = parse(unknown, ALL).unwrap_err();
 		assert!(err.is_format_error());
-		assert_eq!(err.to_string(), "Unknown derivation ATerm format version 'v2'");
+		assert_eq!(
+			err.to_string(),
+			"Unknown derivation ATerm format version 'v2'"
+		);
 	}
 
 	#[test]

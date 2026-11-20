@@ -742,6 +742,25 @@ impl DrvOutput {
 			output_name: as_str(field(object, "outputName")?, "output name string")?.to_owned(),
 		})
 	}
+
+	/// `DrvOutput::parse`: `<absolute derivation path>^<output name>`, split
+	/// at the last `^`. The output name is not validated, as in CppNix.
+	pub fn parse(s: &str) -> Result<Self, derivation_aterm::AtermError> {
+		let (path, output) = s.rsplit_once('^').ok_or_else(|| {
+			derivation_aterm::AtermError::Other(format!(
+				"Invalid derivation output id '{s}': missing '^'"
+			))
+		})?;
+		Ok(Self {
+			drv_path: derivation_aterm::parse_store_path(path)?,
+			output_name: output.to_owned(),
+		})
+	}
+
+	/// `DrvOutput::render`.
+	pub fn render(&self) -> String {
+		format!("{}^{}", self.drv_path.to_absolute_path(), self.output_name)
+	}
 }
 
 /// CppNix's `UnkeyedRealisation`: the output path a derivation output
@@ -1059,6 +1078,25 @@ mod tests {
 		assert_eq!(
 			dump(&value),
 			"{\"a\":{\"x\":{},\"y\":[]},\"b\":[true,null,-42,12345678901234567],\"t\":\"caf\u{e9} \\\"q\\\" \\\\ \\n\\u001f\u{7f}\"}"
+		);
+	}
+
+	/// CppNix 2.35.2 `DrvOutput::parse` and `render`.
+	#[test]
+	fn drv_output_string_form() {
+		let text = "/nix/store/g1w7hy3qg1w7hy3qg1w7hy3qg1w7hy3q-x.drv^out";
+		let parsed = DrvOutput::parse(text).unwrap();
+		assert_eq!(parsed.output_name, "out");
+		assert_eq!(parsed.render(), text);
+		assert_eq!(
+			DrvOutput::parse("/nix/store/g1w7hy3qg1w7hy3qg1w7hy3qg1w7hy3q-x.drv^a^b")
+				.unwrap_err()
+				.to_string(),
+			"path 'g1w7hy3qg1w7hy3qg1w7hy3qg1w7hy3q-x.drv^a' is not a valid store path: name 'x.drv^a' contains illegal character '^'"
+		);
+		assert_eq!(
+			DrvOutput::parse("sha256:abc!out").unwrap_err().to_string(),
+			"Invalid derivation output id 'sha256:abc!out': missing '^'"
 		);
 	}
 }

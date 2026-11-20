@@ -1,0 +1,828 @@
+{
+	"reference_release": "2.35.2",
+	"source_revision": "2c73b59da29606068c0c98db015dd3a66955525d",
+	"source_revision_evidence": "flake.lock nodes.nix-reference.locked.rev",
+	"platform": "x86_64-linux",
+	"version_output": "nix (Nix) 2.35.2",
+	"generation_command": "python3 crates/compat-tests/fixtures/derivation-reference/generate.py --reference <nix-2.35.2>/bin",
+	"store": "local?root=<temporary directory>, logical store directory /nix/store",
+	"features": {
+		"all": "nix-command ca-derivations dynamic-derivations impure-derivations git-hashing",
+		"default": "nix-command"
+	},
+	"json_cases": [
+		{
+			"name": "floating-nar-escapes",
+			"input": {
+				"name": "floating",
+				"version": 4,
+				"outputs": {
+					"out": {
+						"method": "nar",
+						"hashAlgo": "sha256"
+					},
+					"dev": {
+						"method": "nar",
+						"hashAlgo": "sha256"
+					}
+				},
+				"system": "x86_64-linux",
+				"builder": "/bin/sh",
+				"args": [
+					"-c",
+					"true"
+				],
+				"env": {
+					"out": "",
+					"dev": "",
+					"q": "a\"b\\c\nd\te\rf",
+					"u": "café ✓"
+				},
+				"inputs": {
+					"srcs": [],
+					"drvs": {}
+				}
+			},
+			"add": {
+				"exit_code": 0,
+				"stdout": "/nix/store/pvby2j84dvg3jmgdd2j72ah5xwd8bqhb-floating.drv\n",
+				"stderr": ""
+			},
+			"aterm": "Derive([(\"dev\",\"\",\"r:sha256\",\"\"),(\"out\",\"\",\"r:sha256\",\"\")],[],[],\"x86_64-linux\",\"/bin/sh\",[\"-c\",\"true\"],[(\"dev\",\"\"),(\"out\",\"\"),(\"q\",\"a\\\"b\\\\c\\nd\\te\\rf\"),(\"u\",\"café ✓\")])",
+			"show": {
+				"exit_code": 0,
+				"stdout": "{\"derivations\":{\"pvby2j84dvg3jmgdd2j72ah5xwd8bqhb-floating.drv\":{\"args\":[\"-c\",\"true\"],\"builder\":\"/bin/sh\",\"env\":{\"dev\":\"\",\"out\":\"\",\"q\":\"a\\\"b\\\\c\\nd\\te\\rf\",\"u\":\"café ✓\"},\"inputs\":{\"drvs\":{},\"srcs\":[]},\"name\":\"floating\",\"outputs\":{\"dev\":{\"hashAlgo\":\"sha256\",\"method\":\"nar\"},\"out\":{\"hashAlgo\":\"sha256\",\"method\":\"nar\"}},\"system\":\"x86_64-linux\",\"version\":4}},\"version\":4}\n",
+				"stderr": ""
+			}
+		},
+		{
+			"name": "floating-flat-sha512",
+			"input": {
+				"name": "floating-flat",
+				"version": 4,
+				"outputs": {
+					"out": {
+						"method": "flat",
+						"hashAlgo": "sha512"
+					}
+				},
+				"system": "x86_64-linux",
+				"builder": "/bin/sh",
+				"args": [
+					"-c",
+					"true"
+				],
+				"env": {
+					"out": ""
+				},
+				"inputs": {
+					"srcs": [],
+					"drvs": {}
+				}
+			},
+			"add": {
+				"exit_code": 0,
+				"stdout": "/nix/store/k3w2ncji15g7cfyjy4g9c66qa8xr4lsi-floating-flat.drv\n",
+				"stderr": ""
+			},
+			"aterm": "Derive([(\"out\",\"\",\"sha512\",\"\")],[],[],\"x86_64-linux\",\"/bin/sh\",[\"-c\",\"true\"],[(\"out\",\"\")])",
+			"show": {
+				"exit_code": 0,
+				"stdout": "{\"derivations\":{\"k3w2ncji15g7cfyjy4g9c66qa8xr4lsi-floating-flat.drv\":{\"args\":[\"-c\",\"true\"],\"builder\":\"/bin/sh\",\"env\":{\"out\":\"\"},\"inputs\":{\"drvs\":{},\"srcs\":[]},\"name\":\"floating-flat\",\"outputs\":{\"out\":{\"hashAlgo\":\"sha512\",\"method\":\"flat\"}},\"system\":\"x86_64-linux\",\"version\":4}},\"version\":4}\n",
+				"stderr": ""
+			}
+		},
+		{
+			"name": "floating-text",
+			"input": {
+				"name": "producer.drv",
+				"version": 4,
+				"outputs": {
+					"out": {
+						"method": "text",
+						"hashAlgo": "sha256"
+					}
+				},
+				"system": "x86_64-linux",
+				"builder": "/bin/sh",
+				"args": [
+					"-c",
+					"true"
+				],
+				"env": {
+					"out": ""
+				},
+				"inputs": {
+					"srcs": [],
+					"drvs": {}
+				}
+			},
+			"add": {
+				"exit_code": 0,
+				"stdout": "/nix/store/c343y750p2fvf62w4imnjk09nidr10x8-producer.drv.drv\n",
+				"stderr": ""
+			},
+			"aterm": "Derive([(\"out\",\"\",\"text:sha256\",\"\")],[],[],\"x86_64-linux\",\"/bin/sh\",[\"-c\",\"true\"],[(\"out\",\"\")])",
+			"show": {
+				"exit_code": 0,
+				"stdout": "{\"derivations\":{\"c343y750p2fvf62w4imnjk09nidr10x8-producer.drv.drv\":{\"args\":[\"-c\",\"true\"],\"builder\":\"/bin/sh\",\"env\":{\"out\":\"\"},\"inputs\":{\"drvs\":{},\"srcs\":[]},\"name\":\"producer.drv\",\"outputs\":{\"out\":{\"hashAlgo\":\"sha256\",\"method\":\"text\"}},\"system\":\"x86_64-linux\",\"version\":4}},\"version\":4}\n",
+				"stderr": ""
+			}
+		},
+		{
+			"name": "floating-git",
+			"input": {
+				"name": "floating-git",
+				"version": 4,
+				"outputs": {
+					"out": {
+						"method": "git",
+						"hashAlgo": "sha1"
+					}
+				},
+				"system": "x86_64-linux",
+				"builder": "/bin/sh",
+				"args": [
+					"-c",
+					"true"
+				],
+				"env": {
+					"out": ""
+				},
+				"inputs": {
+					"srcs": [],
+					"drvs": {}
+				}
+			},
+			"add": {
+				"exit_code": 0,
+				"stdout": "/nix/store/x00i1bqbvgan22svsdiywkhpqymr8fwq-floating-git.drv\n",
+				"stderr": ""
+			},
+			"aterm": "Derive([(\"out\",\"\",\"git:sha1\",\"\")],[],[],\"x86_64-linux\",\"/bin/sh\",[\"-c\",\"true\"],[(\"out\",\"\")])",
+			"show": {
+				"exit_code": 0,
+				"stdout": "{\"derivations\":{\"x00i1bqbvgan22svsdiywkhpqymr8fwq-floating-git.drv\":{\"args\":[\"-c\",\"true\"],\"builder\":\"/bin/sh\",\"env\":{\"out\":\"\"},\"inputs\":{\"drvs\":{},\"srcs\":[]},\"name\":\"floating-git\",\"outputs\":{\"out\":{\"hashAlgo\":\"sha1\",\"method\":\"git\"}},\"system\":\"x86_64-linux\",\"version\":4}},\"version\":4}\n",
+				"stderr": ""
+			}
+		},
+		{
+			"name": "impure",
+			"input": {
+				"name": "impure",
+				"version": 4,
+				"outputs": {
+					"out": {
+						"method": "nar",
+						"hashAlgo": "sha256",
+						"impure": true
+					}
+				},
+				"system": "x86_64-linux",
+				"builder": "/bin/sh",
+				"args": [
+					"-c",
+					"true"
+				],
+				"env": {
+					"out": ""
+				},
+				"inputs": {
+					"srcs": [],
+					"drvs": {}
+				}
+			},
+			"add": {
+				"exit_code": 0,
+				"stdout": "/nix/store/1jm0qqsf18gazznrwn59h0m9108qsizs-impure.drv\n",
+				"stderr": ""
+			},
+			"aterm": "Derive([(\"out\",\"\",\"r:sha256\",\"impure\")],[],[],\"x86_64-linux\",\"/bin/sh\",[\"-c\",\"true\"],[(\"out\",\"\")])",
+			"show": {
+				"exit_code": 0,
+				"stdout": "{\"derivations\":{\"1jm0qqsf18gazznrwn59h0m9108qsizs-impure.drv\":{\"args\":[\"-c\",\"true\"],\"builder\":\"/bin/sh\",\"env\":{\"out\":\"\"},\"inputs\":{\"drvs\":{},\"srcs\":[]},\"name\":\"impure\",\"outputs\":{\"out\":{\"hashAlgo\":\"sha256\",\"impure\":true,\"method\":\"nar\"}},\"system\":\"x86_64-linux\",\"version\":4}},\"version\":4}\n",
+				"stderr": ""
+			}
+		},
+		{
+			"name": "fixed-text",
+			"input": {
+				"name": "fixed-text",
+				"version": 4,
+				"outputs": {
+					"out": {
+						"method": "text",
+						"hash": "sha256-ungWv48Bz+pBQUDeXa4iI7ADYaOWF3qctBD/YfIAFa0="
+					}
+				},
+				"system": "x86_64-linux",
+				"builder": "/bin/sh",
+				"args": [
+					"-c",
+					"true"
+				],
+				"env": {
+					"out": ""
+				},
+				"inputs": {
+					"srcs": [],
+					"drvs": {}
+				}
+			},
+			"add": {
+				"exit_code": 0,
+				"stdout": "/nix/store/nj33d246rcgv69qkk2rzb3acisacbvkw-fixed-text.drv\n",
+				"stderr": ""
+			},
+			"aterm": "Derive([(\"out\",\"/nix/store/3fyc0jfvz7gqjm8cz03vcqnxm6iar9zv-fixed-text\",\"text:sha256\",\"ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad\")],[],[],\"x86_64-linux\",\"/bin/sh\",[\"-c\",\"true\"],[(\"out\",\"/nix/store/3fyc0jfvz7gqjm8cz03vcqnxm6iar9zv-fixed-text\")])",
+			"show": {
+				"exit_code": 0,
+				"stdout": "{\"derivations\":{\"nj33d246rcgv69qkk2rzb3acisacbvkw-fixed-text.drv\":{\"args\":[\"-c\",\"true\"],\"builder\":\"/bin/sh\",\"env\":{\"out\":\"/nix/store/3fyc0jfvz7gqjm8cz03vcqnxm6iar9zv-fixed-text\"},\"inputs\":{\"drvs\":{},\"srcs\":[]},\"name\":\"fixed-text\",\"outputs\":{\"out\":{\"hash\":\"sha256-ungWv48Bz+pBQUDeXa4iI7ADYaOWF3qctBD/YfIAFa0=\",\"method\":\"text\"}},\"system\":\"x86_64-linux\",\"version\":4}},\"version\":4}\n",
+				"stderr": ""
+			}
+		},
+		{
+			"name": "fixed-flat-md5",
+			"input": {
+				"name": "fixed-flat",
+				"version": 4,
+				"outputs": {
+					"out": {
+						"method": "flat",
+						"hash": "md5-kAFQmDzST7DWlj99KOF/cg=="
+					}
+				},
+				"system": "x86_64-linux",
+				"builder": "/bin/sh",
+				"args": [
+					"-c",
+					"true"
+				],
+				"env": {
+					"out": ""
+				},
+				"inputs": {
+					"srcs": [],
+					"drvs": {}
+				}
+			},
+			"add": {
+				"exit_code": 0,
+				"stdout": "/nix/store/dr6ixsx46qqyshggbf98c43i1r4b6jmj-fixed-flat.drv\n",
+				"stderr": ""
+			},
+			"aterm": "Derive([(\"out\",\"/nix/store/r758p07bmr23lh1mhkl8dmmc6k304qd9-fixed-flat\",\"md5\",\"900150983cd24fb0d6963f7d28e17f72\")],[],[],\"x86_64-linux\",\"/bin/sh\",[\"-c\",\"true\"],[(\"out\",\"/nix/store/r758p07bmr23lh1mhkl8dmmc6k304qd9-fixed-flat\")])",
+			"show": {
+				"exit_code": 0,
+				"stdout": "{\"derivations\":{\"dr6ixsx46qqyshggbf98c43i1r4b6jmj-fixed-flat.drv\":{\"args\":[\"-c\",\"true\"],\"builder\":\"/bin/sh\",\"env\":{\"out\":\"/nix/store/r758p07bmr23lh1mhkl8dmmc6k304qd9-fixed-flat\"},\"inputs\":{\"drvs\":{},\"srcs\":[]},\"name\":\"fixed-flat\",\"outputs\":{\"out\":{\"hash\":\"md5-kAFQmDzST7DWlj99KOF/cg==\",\"method\":\"flat\"}},\"system\":\"x86_64-linux\",\"version\":4}},\"version\":4}\n",
+				"stderr": ""
+			}
+		},
+		{
+			"name": "fixed-nar-sha1",
+			"input": {
+				"name": "fixed-nar",
+				"version": 4,
+				"outputs": {
+					"out": {
+						"method": "nar",
+						"hash": "sha1-qZk+NkcGgWq6PiVxeFDCbJzQ2J0="
+					}
+				},
+				"system": "x86_64-linux",
+				"builder": "/bin/sh",
+				"args": [
+					"-c",
+					"true"
+				],
+				"env": {
+					"out": ""
+				},
+				"inputs": {
+					"srcs": [],
+					"drvs": {}
+				}
+			},
+			"add": {
+				"exit_code": 0,
+				"stdout": "/nix/store/qz9q1jfs6dcdd1yq0zr6fysdbi0i2hyh-fixed-nar.drv\n",
+				"stderr": ""
+			},
+			"aterm": "Derive([(\"out\",\"/nix/store/1sszidl5nqn9ndpw6q5bnfa7g10i8pzn-fixed-nar\",\"r:sha1\",\"a9993e364706816aba3e25717850c26c9cd0d89d\")],[],[],\"x86_64-linux\",\"/bin/sh\",[\"-c\",\"true\"],[(\"out\",\"/nix/store/1sszidl5nqn9ndpw6q5bnfa7g10i8pzn-fixed-nar\")])",
+			"show": {
+				"exit_code": 0,
+				"stdout": "{\"derivations\":{\"qz9q1jfs6dcdd1yq0zr6fysdbi0i2hyh-fixed-nar.drv\":{\"args\":[\"-c\",\"true\"],\"builder\":\"/bin/sh\",\"env\":{\"out\":\"/nix/store/1sszidl5nqn9ndpw6q5bnfa7g10i8pzn-fixed-nar\"},\"inputs\":{\"drvs\":{},\"srcs\":[]},\"name\":\"fixed-nar\",\"outputs\":{\"out\":{\"hash\":\"sha1-qZk+NkcGgWq6PiVxeFDCbJzQ2J0=\",\"method\":\"nar\"}},\"system\":\"x86_64-linux\",\"version\":4}},\"version\":4}\n",
+				"stderr": ""
+			}
+		},
+		{
+			"name": "input-addressed",
+			"input": {
+				"name": "input-addressed",
+				"version": 4,
+				"outputs": {
+					"out": {},
+					"lib": {}
+				},
+				"system": "x86_64-linux",
+				"builder": "/bin/sh",
+				"args": [
+					"-c",
+					"true"
+				],
+				"env": {
+					"out": "",
+					"lib": "",
+					"x": "1"
+				},
+				"inputs": {
+					"srcs": [],
+					"drvs": {}
+				}
+			},
+			"add": {
+				"exit_code": 0,
+				"stdout": "/nix/store/kjvmamhaspxzlil2avn8j73qxwyflhyc-input-addressed.drv\n",
+				"stderr": ""
+			},
+			"aterm": "Derive([(\"lib\",\"/nix/store/nmydq74x3yxfikq637sk2n952f993j1f-input-addressed-lib\",\"\",\"\"),(\"out\",\"/nix/store/cz7pskd62i5mv0m31093zid915qvdb1m-input-addressed\",\"\",\"\")],[],[],\"x86_64-linux\",\"/bin/sh\",[\"-c\",\"true\"],[(\"lib\",\"/nix/store/nmydq74x3yxfikq637sk2n952f993j1f-input-addressed-lib\"),(\"out\",\"/nix/store/cz7pskd62i5mv0m31093zid915qvdb1m-input-addressed\"),(\"x\",\"1\")])",
+			"show": {
+				"exit_code": 0,
+				"stdout": "{\"derivations\":{\"kjvmamhaspxzlil2avn8j73qxwyflhyc-input-addressed.drv\":{\"args\":[\"-c\",\"true\"],\"builder\":\"/bin/sh\",\"env\":{\"lib\":\"/nix/store/nmydq74x3yxfikq637sk2n952f993j1f-input-addressed-lib\",\"out\":\"/nix/store/cz7pskd62i5mv0m31093zid915qvdb1m-input-addressed\",\"x\":\"1\"},\"inputs\":{\"drvs\":{},\"srcs\":[]},\"name\":\"input-addressed\",\"outputs\":{\"lib\":{\"path\":\"nmydq74x3yxfikq637sk2n952f993j1f-input-addressed-lib\"},\"out\":{\"path\":\"cz7pskd62i5mv0m31093zid915qvdb1m-input-addressed\"}},\"system\":\"x86_64-linux\",\"version\":4}},\"version\":4}\n",
+				"stderr": ""
+			}
+		},
+		{
+			"name": "fixed-structured",
+			"input": {
+				"name": "fixed-structured",
+				"version": 4,
+				"outputs": {
+					"out": {
+						"method": "flat",
+						"hash": "md5-kAFQmDzST7DWlj99KOF/cg=="
+					}
+				},
+				"system": "x86_64-linux",
+				"builder": "/bin/sh",
+				"args": [
+					"-c",
+					"true"
+				],
+				"env": {},
+				"inputs": {
+					"srcs": [],
+					"drvs": {}
+				},
+				"structuredAttrs": {
+					"float": 0.1,
+					"big": 1e+100,
+					"small": 1.5e-07,
+					"negzero": -0.0,
+					"int": 12345678901234567,
+					"neg": -42,
+					"text": "café ✓ \"q\" \\ \n",
+					"list": [
+						true,
+						false,
+						null,
+						1.0,
+						2.5
+					],
+					"nested": {
+						"b": 1,
+						"a": {
+							"y": [],
+							"x": {}
+						}
+					}
+				}
+			},
+			"add": {
+				"exit_code": 0,
+				"stdout": "/nix/store/h208fyjz7vchfllg4svz6vngadya7x0g-fixed-structured.drv\n",
+				"stderr": ""
+			},
+			"aterm": "Derive([(\"out\",\"/nix/store/mf1ybilpbyaxaycp1czvgvg3616ab5k0-fixed-structured\",\"md5\",\"900150983cd24fb0d6963f7d28e17f72\")],[],[],\"x86_64-linux\",\"/bin/sh\",[\"-c\",\"true\"],[(\"__json\",\"{\\\"big\\\":1e+100,\\\"float\\\":0.1,\\\"int\\\":12345678901234567,\\\"list\\\":[true,false,null,1.0,2.5],\\\"neg\\\":-42,\\\"negzero\\\":-0.0,\\\"nested\\\":{\\\"a\\\":{\\\"x\\\":{},\\\"y\\\":[]},\\\"b\\\":1},\\\"small\\\":1.5e-07,\\\"text\\\":\\\"café ✓ \\\\\\\"q\\\\\\\" \\\\\\\\ \\\\n\\\"}\"),(\"out\",\"/nix/store/mf1ybilpbyaxaycp1czvgvg3616ab5k0-fixed-structured\")])",
+			"show": {
+				"exit_code": 0,
+				"stdout": "{\"derivations\":{\"h208fyjz7vchfllg4svz6vngadya7x0g-fixed-structured.drv\":{\"args\":[\"-c\",\"true\"],\"builder\":\"/bin/sh\",\"env\":{\"out\":\"/nix/store/mf1ybilpbyaxaycp1czvgvg3616ab5k0-fixed-structured\"},\"inputs\":{\"drvs\":{},\"srcs\":[]},\"name\":\"fixed-structured\",\"outputs\":{\"out\":{\"hash\":\"md5-kAFQmDzST7DWlj99KOF/cg==\",\"method\":\"flat\"}},\"structuredAttrs\":{\"big\":1e+100,\"float\":0.1,\"int\":12345678901234567,\"list\":[true,false,null,1.0,2.5],\"neg\":-42,\"negzero\":-0.0,\"nested\":{\"a\":{\"x\":{},\"y\":[]},\"b\":1},\"small\":1.5e-07,\"text\":\"café ✓ \\\"q\\\" \\\\ \\n\"},\"system\":\"x86_64-linux\",\"version\":4}},\"version\":4}\n",
+				"stderr": ""
+			}
+		},
+		{
+			"name": "deferred",
+			"input": {
+				"name": "deferred",
+				"version": 4,
+				"outputs": {
+					"out": {}
+				},
+				"system": "x86_64-linux",
+				"builder": "/bin/sh",
+				"args": [
+					"-c",
+					"true"
+				],
+				"env": {
+					"out": ""
+				},
+				"inputs": {
+					"srcs": [],
+					"drvs": {
+						"pvby2j84dvg3jmgdd2j72ah5xwd8bqhb-floating.drv": {
+							"outputs": [
+								"out",
+								"dev"
+							],
+							"dynamicOutputs": {}
+						}
+					}
+				}
+			},
+			"add": {
+				"exit_code": 0,
+				"stdout": "/nix/store/yjdxijcglsybmfzc75lngspzrqay0j24-deferred.drv\n",
+				"stderr": ""
+			},
+			"aterm": "Derive([(\"out\",\"\",\"\",\"\")],[(\"/nix/store/pvby2j84dvg3jmgdd2j72ah5xwd8bqhb-floating.drv\",[\"dev\",\"out\"])],[],\"x86_64-linux\",\"/bin/sh\",[\"-c\",\"true\"],[(\"out\",\"\")])",
+			"show": {
+				"exit_code": 0,
+				"stdout": "{\"derivations\":{\"yjdxijcglsybmfzc75lngspzrqay0j24-deferred.drv\":{\"args\":[\"-c\",\"true\"],\"builder\":\"/bin/sh\",\"env\":{\"out\":\"\"},\"inputs\":{\"drvs\":{\"pvby2j84dvg3jmgdd2j72ah5xwd8bqhb-floating.drv\":{\"dynamicOutputs\":{},\"outputs\":[\"dev\",\"out\"]}},\"srcs\":[]},\"name\":\"deferred\",\"outputs\":{\"out\":{}},\"system\":\"x86_64-linux\",\"version\":4}},\"version\":4}\n",
+				"stderr": ""
+			}
+		},
+		{
+			"name": "dynamic-input",
+			"input": {
+				"name": "dynamic",
+				"version": 4,
+				"outputs": {
+					"out": {
+						"method": "nar",
+						"hashAlgo": "sha256"
+					}
+				},
+				"system": "x86_64-linux",
+				"builder": "/bin/sh",
+				"args": [
+					"-c",
+					"true"
+				],
+				"env": {
+					"out": ""
+				},
+				"inputs": {
+					"srcs": [],
+					"drvs": {
+						"c343y750p2fvf62w4imnjk09nidr10x8-producer.drv.drv": {
+							"outputs": [],
+							"dynamicOutputs": {
+								"out": {
+									"outputs": [
+										"out"
+									],
+									"dynamicOutputs": {}
+								}
+							}
+						}
+					}
+				}
+			},
+			"add": {
+				"exit_code": 0,
+				"stdout": "/nix/store/6hmz5a501448w63xc387gvza9ra15v4q-dynamic.drv\n",
+				"stderr": ""
+			},
+			"aterm": "DrvWithVersion(\"xp-dyn-drv\",[(\"out\",\"\",\"r:sha256\",\"\")],[(\"/nix/store/c343y750p2fvf62w4imnjk09nidr10x8-producer.drv.drv\",([],[(\"out\",[\"out\"])]))],[],\"x86_64-linux\",\"/bin/sh\",[\"-c\",\"true\"],[(\"out\",\"\")])",
+			"show": {
+				"exit_code": 0,
+				"stdout": "{\"derivations\":{\"6hmz5a501448w63xc387gvza9ra15v4q-dynamic.drv\":{\"args\":[\"-c\",\"true\"],\"builder\":\"/bin/sh\",\"env\":{\"out\":\"\"},\"inputs\":{\"drvs\":{\"c343y750p2fvf62w4imnjk09nidr10x8-producer.drv.drv\":{\"dynamicOutputs\":{\"out\":{\"dynamicOutputs\":{},\"outputs\":[\"out\"]}},\"outputs\":[]}},\"srcs\":[]},\"name\":\"dynamic\",\"outputs\":{\"out\":{\"hashAlgo\":\"sha256\",\"method\":\"nar\"}},\"system\":\"x86_64-linux\",\"version\":4}},\"version\":4}\n",
+				"stderr": ""
+			}
+		}
+	],
+	"aterm_cases": [
+		{
+			"name": "floating-nar",
+			"aterm": "Derive([(\"out\",\"\",\"r:sha256\",\"\")],[],[],\"s\",\"b\",[],[(\"out\",\"\")])",
+			"add": {
+				"exit_code": 0,
+				"stdout": "/nix/store/hqm7xvim2nqgcpmxcrnp4g5ppznhfbw7-floating-nar.drv\n",
+				"stderr": ""
+			},
+			"show_all": {
+				"exit_code": 0,
+				"stdout": "{\"derivations\":{\"hqm7xvim2nqgcpmxcrnp4g5ppznhfbw7-floating-nar.drv\":{\"args\":[],\"builder\":\"b\",\"env\":{\"out\":\"\"},\"inputs\":{\"drvs\":{},\"srcs\":[]},\"name\":\"floating-nar\",\"outputs\":{\"out\":{\"hashAlgo\":\"sha256\",\"method\":\"nar\"}},\"system\":\"s\",\"version\":4}},\"version\":4}\n",
+				"stderr": ""
+			},
+			"show_default": {
+				"exit_code": 1,
+				"stdout": "",
+				"stderr": "error: experimental Nix feature 'ca-derivations' is disabled; add '--extra-experimental-features ca-derivations' to enable it\n"
+			}
+		},
+		{
+			"name": "quirks",
+			"aterm": "Derive([(\"out\",\"\",\"r:sha256\",\"\"),(\"out\",\"/nix/store/g1w7hy3qg1w7hy3qg1w7hy3qg1w7hy3q-x\",\"\",\"\")],[],[],\"s\",\"b\",[,\"a\"\"b\"],[(\"K\",\"1\")(\"K\",\"2\")])trailing",
+			"add": {
+				"exit_code": 0,
+				"stdout": "/nix/store/4lfsbiwhqllhr3zwqlfgl05p56csh9zl-quirks.drv\n",
+				"stderr": ""
+			},
+			"show_all": {
+				"exit_code": 0,
+				"stdout": "{\"derivations\":{\"4lfsbiwhqllhr3zwqlfgl05p56csh9zl-quirks.drv\":{\"args\":[\"a\",\"b\"],\"builder\":\"b\",\"env\":{\"K\":\"2\"},\"inputs\":{\"drvs\":{},\"srcs\":[]},\"name\":\"quirks\",\"outputs\":{\"out\":{\"hashAlgo\":\"sha256\",\"method\":\"nar\"}},\"system\":\"s\",\"version\":4}},\"version\":4}\n",
+				"stderr": ""
+			},
+			"show_default": {
+				"exit_code": 1,
+				"stdout": "",
+				"stderr": "error: experimental Nix feature 'ca-derivations' is disabled; add '--extra-experimental-features ca-derivations' to enable it\n"
+			}
+		},
+		{
+			"name": "versioned-without-dynamic",
+			"aterm": "DrvWithVersion(\"xp-dyn-drv\",[(\"out\",\"\",\"\",\"\")],[],[],\"s\",\"b\",[],[])",
+			"add": {
+				"exit_code": 0,
+				"stdout": "/nix/store/cvma5fblyjlg3jgb97wwn6835ihavqjc-versioned-without-dynamic.drv\n",
+				"stderr": "warning: derivation has incorrect deferred output, should be '/nix/store/562x0wzrlw0zg7ggfmggmgs89qd419b5-versioned-without-dynamic'.\nThis will be an error in future versions of Nix; compatibility of CA derivations will be broken.\n"
+			},
+			"show_all": {
+				"exit_code": 0,
+				"stdout": "{\"derivations\":{\"cvma5fblyjlg3jgb97wwn6835ihavqjc-versioned-without-dynamic.drv\":{\"args\":[],\"builder\":\"b\",\"env\":{},\"inputs\":{\"drvs\":{},\"srcs\":[]},\"name\":\"versioned-without-dynamic\",\"outputs\":{\"out\":{}},\"system\":\"s\",\"version\":4}},\"version\":4}\n",
+				"stderr": ""
+			},
+			"show_default": {
+				"exit_code": 1,
+				"stdout": "",
+				"stderr": "error: experimental Nix feature 'dynamic-derivations' is disabled (derivation 'versioned-without-dynamic', ATerm format version 'xp-dyn-drv'); add '--extra-experimental-features dynamic-derivations' to enable it\n"
+			}
+		},
+		{
+			"name": "unknown-version",
+			"aterm": "DrvWithVersion(\"v2\",[],[],[],\"s\",\"b\",[],[])",
+			"add": {
+				"exit_code": 1,
+				"stdout": "",
+				"stderr": "error: error parsing derivation '/nix/store/dl47w325gnggk1glk194i69yavycf7ah-unknown-version.drv': Unknown derivation ATerm format version 'v2'\n"
+			}
+		},
+		{
+			"name": "not-a-derivation",
+			"aterm": "Dx",
+			"add": {
+				"exit_code": 1,
+				"stdout": "",
+				"stderr": "error: derivation does not start with 'Derive' or 'DrvWithVersion'\n"
+			}
+		},
+		{
+			"name": "unterminated",
+			"aterm": "Derive([(\"out\",\"\",\"\",\"),",
+			"add": {
+				"exit_code": 1,
+				"stdout": "",
+				"stderr": "error: error parsing derivation '/nix/store/d05id3045r12ny324pqjk3xvjk4mli2s-unterminated.drv': unterminated string in derivation\n"
+			}
+		},
+		{
+			"name": "floating-with-path",
+			"aterm": "Derive([(\"out\",\"/nix/store/g1w7hy3qg1w7hy3qg1w7hy3qg1w7hy3q-x\",\"sha256\",\"\")],[],[],\"s\",\"b\",[],[])",
+			"add": {
+				"exit_code": 1,
+				"stdout": "",
+				"stderr": "error: error parsing derivation '/nix/store/1ig55mhwyvj7r5csipcz3wwnig4z7xfx-floating-with-path.drv': content-addressing derivation output should not specify output path\n"
+			}
+		},
+		{
+			"name": "impure-with-path",
+			"aterm": "Derive([(\"out\",\"/nix/store/g1w7hy3qg1w7hy3qg1w7hy3qg1w7hy3q-x\",\"r:sha256\",\"impure\")],[],[],\"s\",\"b\",[],[])",
+			"add": {
+				"exit_code": 1,
+				"stdout": "",
+				"stderr": "error: error parsing derivation '/nix/store/4z3hakbk9kp815fpp4plc82inryj2zj4-impure-with-path.drv': impure derivation output should not specify output path\n"
+			}
+		},
+		{
+			"name": "fixed-relative-path",
+			"aterm": "Derive([(\"out\",\"x\",\"sha256\",\"0000000000000000000000000000000000000000000000000000000000000000\")],[],[],\"s\",\"b\",[],[])",
+			"add": {
+				"exit_code": 1,
+				"stdout": "",
+				"stderr": "error: error parsing derivation '/nix/store/sm089v6mk3igjl9iymjjl5qm4b6349zj-fixed-relative-path.drv': bad path 'x' in derivation\n"
+			}
+		},
+		{
+			"name": "unknown-hash-algorithm",
+			"aterm": "Derive([(\"out\",\"\",\"r:sha3\",\"\")],[],[],\"s\",\"b\",[],[])",
+			"add": {
+				"exit_code": 1,
+				"stdout": "",
+				"stderr": "error: unknown hash algorithm 'sha3', expect 'blake3', 'md5', 'sha1', 'sha256', or 'sha512'\nTry '/nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2/bin/nix-store --help' for more information.\n"
+			}
+		},
+		{
+			"name": "fixed-wrong-length",
+			"aterm": "Derive([(\"out\",\"/x\",\"sha256\",\"abc\")],[],[],\"s\",\"b\",[],[])",
+			"add": {
+				"exit_code": 1,
+				"stdout": "",
+				"stderr": "error: hash 'abc' has wrong length for hash algorithm 'sha256'\n"
+			}
+		},
+		{
+			"name": "fixed-nix32",
+			"aterm": "Derive([(\"out\",\"/anything\",\"r:sha256\",\"1b8m03r63zqhnjf7l5wnldhh7c134ap5vpj0850ymkq1iyzicy5s\")],[],[],\"s\",\"b\",[],[])",
+			"add": {
+				"exit_code": 1,
+				"stdout": "",
+				"stderr": "error:\n       … while checking derivation '/nix/store/f7hrw1im7vaqlia9zcrg4vv94188r8qc-fixed-nix32.drv'\n\n       error: derivation has missing environment variable 'out', should be '/nix/store/kwxlhkrfcpgz7yy6fwy25wn7aym5vqkh-fixed-nix32' but is not present\n"
+			}
+		},
+		{
+			"name": "fixed-base64",
+			"aterm": "Derive([(\"out\",\"/anything\",\"sha256\",\"ungWv48Bz+pBQUDeXa4iI7ADYaOWF3qctBD/YfIAFa0=\")],[],[],\"s\",\"b\",[],[])",
+			"add": {
+				"exit_code": 1,
+				"stdout": "",
+				"stderr": "error:\n       … while checking derivation '/nix/store/7k1i4c1rbb4azagnpwxmdfzx2ya1d5hw-fixed-base64.drv'\n\n       error: derivation has missing environment variable 'out', should be '/nix/store/n8ynhgg46rvglfik00bl08qh7gfx16qm-fixed-base64' but is not present\n"
+			}
+		},
+		{
+			"name": "fixed-upper-hex",
+			"aterm": "Derive([(\"out\",\"/anything\",\"sha256\",\"BA7816BF8F01CFEA414140DE5DAE2223B00361A396177A9CB410FF61F20015AD\")],[],[],\"s\",\"b\",[],[])",
+			"add": {
+				"exit_code": 1,
+				"stdout": "",
+				"stderr": "error:\n       … while checking derivation '/nix/store/6wsx6r9wyd6aq1ncnbdl8anmni0h51ac-fixed-upper-hex.drv'\n\n       error: derivation has missing environment variable 'out', should be '/nix/store/ksy1y1cbhr5frl6hj90ahcf2k7h4qs9b-fixed-upper-hex' but is not present\n"
+			}
+		},
+		{
+			"name": "output-path-canonicalised",
+			"aterm": "Derive([(\"out\",\"/nix//store/./g1w7hy3qg1w7hy3qg1w7hy3qg1w7hy3q-x/\",\"\",\"ignored\")],[],[],\"s\",\"b\",[],[])",
+			"add": {
+				"exit_code": 1,
+				"stdout": "",
+				"stderr": "error:\n       … while checking derivation '/nix/store/z68k4zfg91h8wdhwyq77bp6immnp5lvj-output-path-canonicalised.drv'\n\n       error: derivation has incorrect output '/nix/store/g1w7hy3qg1w7hy3qg1w7hy3qg1w7hy3q-x', should be '/nix/store/f0yscj5cycd14h0mb0sg7q621aqy9gjm-output-path-canonicalised'\n"
+			}
+		},
+		{
+			"name": "source-outside-store",
+			"aterm": "Derive([(\"out\",\"\",\"\",\"\")],[],[\"/tmp/x\"],\"s\",\"b\",[],[])",
+			"add": {
+				"exit_code": 1,
+				"stdout": "",
+				"stderr": "error: path \"/tmp/x\" is not in the Nix store\n"
+			}
+		},
+		{
+			"name": "source-relative",
+			"aterm": "Derive([(\"out\",\"\",\"\",\"\")],[],[\"tmp/x\"],\"s\",\"b\",[],[])",
+			"add": {
+				"exit_code": 1,
+				"stdout": "",
+				"stderr": "error: error parsing derivation '/nix/store/f7z9agddng5irgbmlcjmsz8sy3j6kpx6-source-relative.drv': bad path 'tmp/x' in derivation\n"
+			}
+		},
+		{
+			"name": "source-bad-name",
+			"aterm": "Derive([(\"out\",\"\",\"\",\"\")],[],[\"/nix/store/g1w7hy3qg1w7hy3qg1w7hy3qg1w7hy3q-..-a\"],\"s\",\"b\",[],[])",
+			"add": {
+				"exit_code": 1,
+				"stdout": "",
+				"stderr": "error: path 'g1w7hy3qg1w7hy3qg1w7hy3qg1w7hy3q-..-a' is not a valid store path: name '..-a' is not valid: first dash-separated component must not be '..'\n"
+			}
+		},
+		{
+			"name": "source-bad-hash",
+			"aterm": "Derive([(\"out\",\"\",\"\",\"\")],[],[\"/nix/store/e1w7hy3qg1w7hy3qg1w7hy3qg1w7hy3q-x\"],\"s\",\"b\",[],[])",
+			"add": {
+				"exit_code": 1,
+				"stdout": "",
+				"stderr": "error: store path 'e1w7hy3qg1w7hy3qg1w7hy3qg1w7hy3q-x' contains illegal base-32 character 'e'\n"
+			}
+		},
+		{
+			"name": "source-short",
+			"aterm": "Derive([(\"out\",\"\",\"\",\"\")],[],[\"/nix/store/abc\"],\"s\",\"b\",[],[])",
+			"add": {
+				"exit_code": 1,
+				"stdout": "",
+				"stderr": "error: 'abc' is too short to be a valid store path\n"
+			}
+		},
+		{
+			"name": "dynamic-invalid-input-entry",
+			"aterm": "DrvWithVersion(\"xp-dyn-drv\",[(\"out\",\"\",\"r:sha256\",\"\")],[(\"/nix/store/g1w7hy3qg1w7hy3qg1w7hy3qg1w7hy3q-x.drv\",\"out\")],[],\"s\",\"b\",[],[])",
+			"add": {
+				"exit_code": 1,
+				"stdout": "",
+				"stderr": "error: error parsing derivation '/nix/store/ilp0k95yqw6bb350dm3xiyfhksava1p4-dynamic-invalid-input-entry.drv': invalid inputDrvs entry in derivation\n"
+			}
+		},
+		{
+			"name": "traditional-dynamic-input",
+			"aterm": "Derive([(\"out\",\"\",\"r:sha256\",\"\")],[(\"/nix/store/g1w7hy3qg1w7hy3qg1w7hy3qg1w7hy3q-x.drv\",([\"out\"],[]))],[],\"s\",\"b\",[],[])",
+			"add": {
+				"exit_code": 1,
+				"stdout": "",
+				"stderr": "error: error parsing derivation '/nix/store/jrwd6dia45l36g2hd1bj11q1spys2pfi-traditional-dynamic-input.drv': expected string '['\n"
+			}
+		},
+		{
+			"name": "text-floating",
+			"aterm": "Derive([(\"out\",\"\",\"text:sha256\",\"\")],[],[],\"s\",\"b\",[],[])",
+			"add": {
+				"exit_code": 0,
+				"stdout": "/nix/store/6nighky1dhzbg5gfrinsf7ckhwa74vks-text-floating.drv\n",
+				"stderr": ""
+			},
+			"show_all": {
+				"exit_code": 0,
+				"stdout": "{\"derivations\":{\"6nighky1dhzbg5gfrinsf7ckhwa74vks-text-floating.drv\":{\"args\":[],\"builder\":\"b\",\"env\":{},\"inputs\":{\"drvs\":{},\"srcs\":[]},\"name\":\"text-floating\",\"outputs\":{\"out\":{\"hashAlgo\":\"sha256\",\"method\":\"text\"}},\"system\":\"s\",\"version\":4}},\"version\":4}\n",
+				"stderr": ""
+			},
+			"show_default": {
+				"exit_code": 1,
+				"stdout": "",
+				"stderr": "error: experimental Nix feature 'dynamic-derivations' is disabled (text-hashed derivation output); add '--extra-experimental-features dynamic-derivations' to enable it\n"
+			}
+		},
+		{
+			"name": "git-floating",
+			"aterm": "Derive([(\"out\",\"\",\"git:sha1\",\"\")],[],[],\"s\",\"b\",[],[])",
+			"add": {
+				"exit_code": 0,
+				"stdout": "/nix/store/81lfxq6gbbbrlmipq30yqkv4m2l887py-git-floating.drv\n",
+				"stderr": ""
+			},
+			"show_all": {
+				"exit_code": 0,
+				"stdout": "{\"derivations\":{\"81lfxq6gbbbrlmipq30yqkv4m2l887py-git-floating.drv\":{\"args\":[],\"builder\":\"b\",\"env\":{},\"inputs\":{\"drvs\":{},\"srcs\":[]},\"name\":\"git-floating\",\"outputs\":{\"out\":{\"hashAlgo\":\"sha1\",\"method\":\"git\"}},\"system\":\"s\",\"version\":4}},\"version\":4}\n",
+				"stderr": ""
+			},
+			"show_default": {
+				"exit_code": 1,
+				"stdout": "",
+				"stderr": "error: experimental Nix feature 'git-hashing' is disabled; add '--extra-experimental-features git-hashing' to enable it\n"
+			}
+		},
+		{
+			"name": "blake3-floating",
+			"aterm": "Derive([(\"out\",\"\",\"r:blake3\",\"\")],[],[],\"s\",\"b\",[],[])",
+			"add": {
+				"exit_code": 1,
+				"stdout": "",
+				"stderr": "error: experimental Nix feature 'blake3-hashes' is disabled; add '--extra-experimental-features blake3-hashes' to enable it\n"
+			}
+		},
+		{
+			"name": "escapes",
+			"aterm": "Derive([(\"out\",\"\",\"\",\"\")],[],[],\"s\",\"b\",[\"\\a\\n\\t\\r\\\\\\\"\"],[])",
+			"add": {
+				"exit_code": 0,
+				"stdout": "/nix/store/fsgwn3qz0x1z8ggknh2brfqnylqqpp9n-escapes.drv\n",
+				"stderr": "warning: derivation has incorrect deferred output, should be '/nix/store/0k5rcwjbv35skwnwfk81vpa1p8yrkidw-escapes'.\nThis will be an error in future versions of Nix; compatibility of CA derivations will be broken.\n"
+			},
+			"show_all": {
+				"exit_code": 0,
+				"stdout": "{\"derivations\":{\"fsgwn3qz0x1z8ggknh2brfqnylqqpp9n-escapes.drv\":{\"args\":[\"a\\n\\t\\r\\\\\\\"\"],\"builder\":\"b\",\"env\":{},\"inputs\":{\"drvs\":{},\"srcs\":[]},\"name\":\"escapes\",\"outputs\":{\"out\":{}},\"system\":\"s\",\"version\":4}},\"version\":4}\n",
+				"stderr": ""
+			},
+			"show_default": {
+				"exit_code": 0,
+				"stdout": "{\"derivations\":{\"fsgwn3qz0x1z8ggknh2brfqnylqqpp9n-escapes.drv\":{\"args\":[\"a\\n\\t\\r\\\\\\\"\"],\"builder\":\"b\",\"env\":{},\"inputs\":{\"drvs\":{},\"srcs\":[]},\"name\":\"escapes\",\"outputs\":{\"out\":{}},\"system\":\"s\",\"version\":4}},\"version\":4}\n",
+				"stderr": ""
+			}
+		},
+		{
+			"name": "missing-comma",
+			"aterm": "Derive([(\"out\",\"\",\"\",\"\")][],[],\"s\",\"b\",[],[])",
+			"add": {
+				"exit_code": 1,
+				"stdout": "",
+				"stderr": "error: error parsing derivation '/nix/store/nmxmfn1y9yi7lpafxj6z09f5a477gh22-missing-comma.drv': expected string ',['\n"
+			}
+		},
+		{
+			"name": "empty-outputs",
+			"aterm": "Derive([],[],[],\"s\",\"b\",[],[])",
+			"add": {
+				"exit_code": 1,
+				"stdout": "",
+				"stderr": "error:\n       … while checking derivation '/nix/store/nxgknbz6c6k0caby116gw499d0biih9w-empty-outputs.drv'\n\n       error: must have at least one output\n"
+			}
+		},
+		{
+			"name": "structured-invalid",
+			"aterm": "Derive([(\"out\",\"\",\"\",\"\")],[],[],\"s\",\"b\",[],[(\"__json\",\"{\")])",
+			"add": {
+				"exit_code": 1,
+				"stdout": "",
+				"stderr": "error: cannot process __json attribute: [json.exception.parse_error.101] parse error at line 1, column 2: syntax error while parsing object key - unexpected end of input; expected string literal\n"
+			}
+		}
+	]
+}
