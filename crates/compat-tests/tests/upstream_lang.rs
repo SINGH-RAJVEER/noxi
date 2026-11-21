@@ -1057,6 +1057,16 @@ fn main() -> ExitCode {
 					.collect()
 			};
 			let recorded = expected.get(&case.name);
+			let flags = fs::read_to_string(case.companion(".flags")).ok();
+			let features: Vec<&str> = flags
+				.as_deref()
+				.unwrap_or_default()
+				.split_whitespace()
+				.collect::<Vec<_>>()
+				.windows(2)
+				.filter(|pair| pair[0].ends_with("experimental-features"))
+				.flat_map(|pair| pair[1].split(','))
+				.collect();
 			let (verdict, reason) = if candidate.outcome == Outcome::Disabled {
 				(Verdict::Unrun, Some("disabled upstream".to_owned()))
 			} else if equal {
@@ -1080,7 +1090,8 @@ fn main() -> ExitCode {
 					settings: json!({
 						"environment": environment(case),
 						"configuration": "common/vars.sh test configuration",
-						"experimental_features": "none beyond the case's .flags",
+						"flags": flags,
+						"experimental_features": features,
 						"store": "dummy://",
 						"inputs": {"fixture": format!("tests/functional/lang/{}.nix", case.name), "snapshot_lock": "tests/nix-snapshot.lock"},
 						"timeout_ms": TIMEOUT.as_millis() as u64,

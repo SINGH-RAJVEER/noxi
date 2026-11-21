@@ -841,9 +841,19 @@ fn run_script(
 			Some(blobs),
 		),
 		daemon_exchange: None,
-		extra: [("outcome".to_owned(), json!(outcome.name()))]
-			.into_iter()
-			.collect(),
+		extra: [
+			("outcome".to_owned(), json!(outcome.name())),
+			// The nix.conf the script's common/init.sh wrote: the settings and
+			// experimental features this engine ran with.
+			(
+				"configuration".to_owned(),
+				fs::read(test_root.join("etc/nix.conf")).map_or(Json::Null, |bytes| {
+					results::bytes_field(&bytes, Some(blobs))
+				}),
+			),
+		]
+		.into_iter()
+		.collect(),
 	};
 	let saved = Path::new(OUTPUT_DIR)
 		.join(engine.name)
@@ -857,12 +867,29 @@ fn run_script(
 		fs::create_dir(&root_path).unwrap();
 		eprintln!("kept {} for {}", kept.display(), script.path);
 	} else {
-		for entry in fs::read_dir(&root_path).unwrap().flatten() {
+		let mut failed = None;
+		for entry in fs::read_dir(&root_path).into_iter().flatten().flatten() {
 			let path = entry.path();
-			if entry.file_type().is_ok_and(|kind| kind.is_dir()) {
-				fs::remove_dir_all(&path).unwrap();
+			let removed = if entry.file_type().is_ok_and(|kind| kind.is_dir()) {
+				fs::remove_dir_all(&path)
 			} else {
-				fs::remove_file(&path).unwrap();
+				fs::remove_file(&path)
+			};
+			if let Err(error) = removed {
+				failed = Some(format!("{}: {error}", path.display()));
+			}
+		}
+		// A leftover must not reach the next engine's run at this root, and
+		// one undeletable file must not stop the sweep: move the root aside.
+		if let Some(error) = failed {
+			let stale = PathBuf::from(format!("{}-stale-{}", root_path.display(), engine.name));
+			eprintln!(
+				"cannot empty the scratch root of {} ({error}); moved it to {}",
+				script.path,
+				stale.display()
+			);
+			if fs::rename(&root_path, &stale).is_ok() {
+				let _ = fs::create_dir(&root_path);
 			}
 		}
 	}
@@ -1102,8 +1129,8 @@ fn functional_scripts_match_expectations() {
 				"TEST_NAME": script.name(),
 				"PS4": "+(${BASH_SOURCE[0]-$0}:$LINENO) ",
 			},
-			"configuration": "written by the script's common/init.sh under TEST_ROOT/etc",
-			"experimental_features": "as the script's common/init.sh and its own commands set them",
+			"configuration": "TEST_ROOT/etc/nix.conf as the script's common/init.sh wrote it; each engine's copy is its capture's configuration field",
+			"experimental_features": "set in that nix.conf and by the script's own commands",
 			"store": "diverted local store at ROOT/tmp/nix-test/SUITE/NAME/store",
 			"inputs": {"snapshot": "tests/nix", "script": script.path},
 			"network_isolated": noxi.unshare.is_some(),
@@ -1177,10 +1204,16 @@ fn functional_scripts_match_expectations() {
 		};
 		let reference_capture = reference_run.and_then(|run| run.capture.clone());
 		let differences = match (&reference_capture, &noxi_run.capture) {
-			(Some(reference), Some(noxi)) => results::differences(reference, noxi)
-				.into_iter()
-				.map(str::to_owned)
-				.collect(),
+			(Some(reference), Some(noxi)) => {
+				let mut fields: Vec<String> = results::differences(reference, noxi)
+					.into_iter()
+					.map(str::to_owned)
+					.collect();
+				if reference.extra.get("configuration") != noxi.extra.get("configuration") {
+					fields.push("configuration".to_owned());
+				}
+				fields
+			}
 			_ => Vec::new(),
 		};
 		recorder
