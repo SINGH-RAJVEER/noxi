@@ -578,7 +578,7 @@ These are normalized wire comparisons. Store roots, process/activity IDs, regist
 
 `noxi-daemon/tests/startup.rs` runs the actual executable with the NixOS-style `--daemon` invocation, its default socket location, and a configured diverted store. `--stdio`, `--force-trusted`, `--force-untrusted`, `--default-trust`, and `--process-ops` have reference comparisons, including their experimental-feature gates. Normal socket connections authorize peer credentials; trust overrides bypass peer authorization as the reference does. Every socket connection forks a worker with its own session. Systemd activation consumes matching descriptors from fd 3 using `LISTEN_FDS`, `LISTEN_PID` and optional `LISTEN_FDNAMES`, and does not bind a second socket. Executable tests cover named and unnamed activation, source registration and same-connection reuse, evaluator `builtins.toFile` registration through the socket, and restart with an existing store and stale socket. Default system-store path selection is checked without opening it. All runtime tests use diverted stores; no host daemon was started or replaced.
 
-The worker and system gates remain open. Unqualified or unsupported cases include check builds, complete closure repair and repair substitution, floating/impure/dynamic derivations, exhaustive build failure results, the progress counts of `BuildPathsWithResults` with opaque paths and of repairs, cancellation of a disconnected active builder, crash/restart recovery during a write, complete multi-user privilege boundaries, remote backing stores for stdio forwarding, and the selected NixOS/Home Manager VM replacement run. Startup and source registration tests remove the observed CLI startup blocker; they do not establish a successful NixOS rebuild or Home Manager activation.
+The worker and system gates remain open. Unqualified or unsupported cases include check builds, complete closure repair and repair substitution, floating/impure/dynamic derivations, exhaustive build failure results, the progress counts of `BuildPathsWithResults` with opaque paths and of repairs, crash/restart recovery during a write, complete multi-user privilege boundaries (see [Daemon authorization and connection lifecycle, 2026-11-21](#daemon-authorization-and-connection-lifecycle-2026-11-21)), remote backing stores for stdio forwarding, and the selected NixOS/Home Manager VM replacement run. Startup and source registration tests remove the observed CLI startup blocker; they do not establish a successful NixOS rebuild or Home Manager activation.
 
 `addDrvOutputDependencies`, `parseFlakeRef` and `flakeRefToString` now pass their upstream success fixtures. Eleven additional flake-reference expressions compare values and formatting against the pinned executable, including repeated query parameters and Boolean query syntax. This is partial reference parsing and formatting; fetchers, registries, lockfiles and exhaustive validation remain open.
 
@@ -587,6 +587,74 @@ JSON conversion, serialization and release use explicit traversal stacks; attrib
 The final all-feature development check passed 2,649 tests with four optional skips, followed by all workspace doctests. Formatting and the pinned fixture-object verification passed. The snapshot script uses a temporary Git index; in this additional Jujutsu workspace it was given the shared `GIT_DIR` and the new workspace's `GIT_WORK_TREE`. The final output-selection/root/query changes subsequently passed all 14 focused build and flake-reference tests, with one optional build test skipped. The standalone binaries compiled. No release, host-store replacement or service activation was performed.
 
 Both JSON serialization regressions also pass in the release profile, including the 20,000-level tree on a 256 KiB stack. The connected build comparison checks that its result link points to the selected output and that CppNix reports the output as live after temporary evaluator roots have been released.
+
+### Daemon authorization and connection lifecycle, 2026-11-21
+
+This round compares the daemon's authorization and connection handling with 2.35.2's `src/nix/unix/daemon.cc`, `src/libcmd/unix/unix-socket-server.cc`, `src/libstore/daemon.cc`, `local-store.cc` and `monitor-fd.hh`. All of it runs as one unprivileged user against diverted stores. Each case runs the reference and the noxi daemon on their own copies of one store, and their transcripts or outcomes must be equal.
+
+`noxi-daemon/tests/authorization.rs` starts both `nix-daemon` executables with the same `nix.conf`, so the comparison also covers how each parses the settings.
+
+- **`trusted_and_allowed_users_match_the_reference_daemon`** compares the handshake's trust value, or the refusal and its `while processing connection: user '...' is not allowed to connect to the Nix daemon` log line, for the user running the tests. It covers `trusted-users` by name, by `@group` for the primary group and for a supplementary group that lists the user, and as `*`. It also covers unknown names and groups; empty lists; `allowed-users` by name, by group, unknown and empty; a trusted user outside `allowed-users`; and `build-users-group` set to the primary group (refused) and to a supplementary group (not refused).
+- **`trust_override_flags_on_the_daemon_socket_match_the_reference`** covers `--force-trusted`, `--force-untrusted` and `--default-trust` on the socket listener rather than on stdio. A forced trust skips the peer check entirely, and `--default-trust` restores it.
+- **`daemon_socket_permissions_and_refused_clients_match_the_reference`** checks that both daemons create the socket, in directories that did not exist yet, with mode 0666. It also compares the reference `nix store info` against each daemon, for an untrusted user and for a refused one.
+
+`reference_worker_wire` adds the following sessions.
+
+- **`trusted_only_operations_from_untrusted_and_trusted_clients`** covers:
+	- `AddBuildLog`, whose refusal leaves the frames unread. They are then taken as the next request.
+	- `AddToStoreNar` of an unsigned input-addressed path with `dontCheckSigs`, which only a trusted client may skip.
+	- `ultimate`, which is cleared for an untrusted `AddToStoreNar` and for every `AddMultipleToStore`.
+	- `AddMultipleToStore` with `dontCheckSigs`.
+	- `CollectGarbage` with `ignoreLiveness`, which is refused to every client.
+	- `RegisterDrvOutput` without `ca-derivations`, which every client is refused on the feature.
+	- Untrusted repair through `VerifyStore` and `BuildPathsWithResults`.
+
+	`AddSignatures` and `RegisterDrvOutput` are not restricted in 2.35.2, and the comparison confirms an untrusted client may use them. 2.35.2 has no `ImportPaths` operation; `nix-store --import` uses the imports above.
+- **`client_setting_overrides_match_the_reference`** sends each override alone, from both an untrusted and a trusted client:
+	- `timeout`, `build-timeout`, `max-silent-time`, `build-max-silent-time`, `build-poll-interval`, `connect-timeout`
+	- empty and non-empty `builders`; `plugin-files`, `ssh-auth-sock`, `experimental-features`
+	- `sandbox`, `keep-outputs`, `extra-substituters`, `trusted-public-keys`
+	- `substituters` and `binary-caches` naming the configured cache, the cache with a trailing slash, an unconfigured cache, a mix and nothing
+
+	A further session sends several overrides at once. The reference compares setting names rather than aliases, and adds a slash only to the client's URL. noxi accepted `build-timeout`, `build-max-silent-time` and a slashed URL; it no longer does.
+- **`signature_settings_for_untrusted_imports`** imports, from an untrusted client, paths that are unsigned, signed by a listed key, signed by another key, and carry a malformed signature. It does this under `require-sigs = false` and again with `trusted-public-keys`. Malformed signatures are refused while the request is read, with the reference's errors.
+- **`truncated_requests_for_every_operation_match_the_reference`** builds one valid 1.38 request for each of the 33 operations that take arguments (the other four, `SyncWithGC`, `FindRoots`, `QueryAllValidPaths` and `OptimiseStore`, have nothing to cut). It cuts each at up to eight points, shuts down the client's writing side and compares everything up to the end of the connection. The reference reports `unexpected end-of-file`, twice if the operation had not started. Framed uploads instead take the data that arrived, log `error (ignored): unexpected end-of-file` and succeed when only the closing frame is missing.
+- **`disconnected_and_interrupted_clients_cancel_their_builds`** runs a builder that never ends. A raw client hangs up during its build, twice, so the second build shows the first released its output lock. Then the reference `nix-store --realise` is interrupted with SIGINT. On both daemons the builder process, found by a unique marker in `/proc`, goes away; no live process holds a temporary-roots file; the client exits with the same status; and the output stays invalid. The reference leaves an interrupted worker's `temproots` file behind, unlocked, so the check counts held files only.
+- **`daemon_restart_keeps_connected_clients_and_serves_new_ones`** kills each daemon's listening process while a client is connected and starts a new daemon on a fresh socket. The old worker keeps serving its client, and the new daemon serves a new one.
+- **`simultaneous_clients_with_overlapping_builds_and_imports`** runs six clients per daemon at once. They import the same content-addressed NAR, add the same text and build three derivations in rotated orders. All succeed with the same paths, and `nix-store --verify --check-contents` through the daemon then finds no errors.
+
+These comparisons drove the following fixes:
+
+- A worker now watches its connection for `POLLHUP` and cancels the running builds through `LocalBuilder::with_cancellation`.
+- A peer whose credentials cannot be read is dropped instead of stopping the daemon.
+- The log lines now match the reference's.
+- The `SetOptions` name and URL rules above.
+- Truncated requests and framed uploads are reported as the reference reports them.
+- Signatures are parsed as `NAME:BASE64`.
+
+The daemon tier ran 64 tests and the fast tier 2,122 at `72eac4f`, all passing. Their records are kept in `tests/compat-results/2026-11-21-72eac4f-daemon` and `2026-11-21-72eac4f-fast`.
+
+Several cases need separate users and are left to the [daemon VM mode](#disposable-vm-qualification-2026-11-09), which runs them as real users:
+
+- a peer with another uid, including root under the default `trusted-users = root`
+- a `nixbld` member connecting
+- refusing an outsider
+- the store and database as another user sees them
+- concurrent builds under distinct build users
+
+That mode already compares the outsider and build-user refusals, untrusted repair and unsigned-import refusals, ignored restricted options and store permissions. It does not yet cover:
+
+- `@group` matching for groups other users belong to
+- the daemon stopping after 64 worker crashes
+- `use-cgroups`
+
+Still open:
+
+- Cancelling substitutions and `EnsurePath` when a client hangs up.
+- Crash recovery during a write.
+- `BuildDerivation` from an untrusted client treats only fixed-output derivations as content-addressed. The reference also accepts floating content-addressed and impure derivations.
+- noxi does not repair through `VerifyStore`, so only the untrusted refusal is compared.
+- A daemon backed by a remote store, which `--stdio` forwards to, is not supported.
 
 ### Warning, verbose trace and scoped import
 
@@ -1121,7 +1189,7 @@ The package-manager MVP is not complete. This inventory lists every gate from TO
 | Home Manager classic and module (§7) | standalone and module steps pass; two generations, `switch --rollback`, `generations`, profile links, `--list-generations`, gcroot, `remove-generations` and `expire-generations` equal CppNix's for the same user at `ed44affa` and later | Home Manager flake configurations with other inputs | system |
 | Return to CppNix (§7) | every mode restores, reboots, verifies the reference daemon, `nix-store --verify --check-contents` and store reuse, including after a guest-built generation | recovery after a failed activation is no longer observed because activation no longer fails | system |
 | Lifecycle install/upgrade/failed upgrade/rollback/removal (§8) | install, fixture upgrade, failed upgrade and build, rollback and removal pass; a real upgrade from `72262bce` and the rollback to it pass in both store-reading directions at `c26da9cf` and `ccc2f8d9` | `nix-store --verify-path` (`release-candidate-verify-path` fails, not implemented); a previous release built from its own lock | commands, system |
-| Daemon authorization and service lifecycle (§5) | socket activation and one store-writing daemon; build users, concurrent distinct build users, leftover-process kills, outsider and build-user refusals, untrusted repair and unsigned-import refusals, ignored restricted options and store permissions equal CppNix at `c26da9cf` and `ccc2f8d9` (the last two through the reference client); long socket paths and feature-gated setting forwarding match on the host | candidate-client `nix-build --repair`, `nix-store --import` and `--export`; `auto-allocate-uids`, uid ranges; crash recovery during writes; daemon-wide cancellation | commands, system |
+| Daemon authorization and service lifecycle (§5) | socket activation and one store-writing daemon; build users, concurrent distinct build users, leftover-process kills, outsider and build-user refusals, untrusted repair and unsigned-import refusals, ignored restricted options and store permissions equal CppNix at `c26da9cf` and `ccc2f8d9` (the last two through the reference client); long socket paths and feature-gated setting forwarding match on the host; on the host at 2026-11-21, user and group matching in `trusted-users`, `allowed-users` and `build-users-group`, trust overrides on the socket, each trusted-only operation from an untrusted client, client setting overrides, truncated requests, signature settings, build cancellation on hangup and SIGINT, restart with clients connected and simultaneous clients match | candidate-client `nix-build --repair`, `nix-store --import` and `--export`; `auto-allocate-uids`, uid ranges; crash recovery during writes; substitution cancellation; multi-uid peers on one host | commands, system |
 | Sandboxed and remote builds (§4) | sandboxed builds run as locked build users like CppNix's; the VM probes compare identity, maps, input protection and output ownership | builds without the sandbox (refused explicitly), seccomp/network isolation probes, remote builders, `max-build-log-size` | system |
 | Store, caches, GC (§4) | local, daemon and round-trip comparisons listed in TODO §4 | uploads, narinfo disk cache, netrc/TLS, `--fallback`, offline behavior, concurrent maintenance, power-loss durability | system |
 | Worker protocol (§5) | all 37 dispatch cases handled; minors 1.18-1.38 compared | check builds, complete closure repair/substitution, floating/impure/dynamic derivations, exhaustive errors, scheduler activities | system |

@@ -2587,7 +2587,7 @@ fn disconnected_and_interrupted_clients_cancel_their_builds() {
 			});
 		}
 		// The reference client, interrupted as by Ctrl-C.
-		let mut client = env
+		let client = env
 			.command(
 				"nix-store",
 				&[
