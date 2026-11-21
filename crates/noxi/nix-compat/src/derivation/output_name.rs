@@ -26,7 +26,7 @@ impl OutputName {
 		Ok(Self(s.into()))
 	}
 
-	pub(super) fn from_aterm_unchecked(s: BString) -> Self {
+	pub(crate) fn from_aterm_unchecked(s: BString) -> Self {
 		Self(s)
 	}
 

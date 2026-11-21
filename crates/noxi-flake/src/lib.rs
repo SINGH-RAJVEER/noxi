@@ -179,6 +179,19 @@ pub fn prefetch(store: &EvaluatorStore, reference: &str) -> Result<Json, ErrorKi
 	let info = source.source_info.to_attrs()?;
 	let mut locked = attrs_to_json(&source.fetched_ref.to_attrs()).map_err(error)?;
 	locked.remove("__final");
+	// The tarball and file accessors attach the NAR hash themselves.
+	if matches!(
+		source.fetched_ref.input.scheme,
+		Some(noxi_flakeref::input::Scheme::Tarball | noxi_flakeref::input::Scheme::File)
+	) {
+		locked.insert(
+			"narHash".into(),
+			info.select_required("narHash")?
+				.to_contextful_str()?
+				.to_str()?
+				.into(),
+		);
+	}
 	Ok(
 		json!({"storePath":info.select_required("outPath")?.to_contextful_str()?.to_str()?, "hash":info.select_required("narHash")?.to_contextful_str()?.to_str()?, "original":attrs_to_json(&source.resolved_ref.to_attrs()).map_err(error)?, "locked":locked}),
 	)

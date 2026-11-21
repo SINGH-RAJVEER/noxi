@@ -14,6 +14,18 @@ The OS-native command, provisionally `noxi`, uses the diagnostic behavior in thi
 
 Compatibility commands such as `nix`, `nix-build`, and `nixos-rebuild` must retain their declared reference output, exit status, and log-format behavior under the [drop-in contract](compatibility.md). They may offer the improved renderer through an explicit new flag or setting. The distribution may advertise `noxi system switch` as its preferred interactive rebuild command, but cannot silently change the output of a compatibility command and still claim byte-for-byte CLI parity. This distinction resolves the tension between better logs and 100% backwards compatibility.
 
+### Compatibility log formats
+
+The compatibility commands render CppNix's logger contract, not the event schema below. `nix_compat::log::logger` ports CppNix 2.35.2's three loggers behind one activity API: producers start activities, report results (progress, expected totals, build log lines, phases) and log messages, and the selected `--log-format` renders them.
+
+- `raw` and `raw-with-logs` are CppNix's simple logger: an activity prints its text followed by `...` when the verbosity admits it, and build log lines print only with logs.
+- `internal-json` writes one `@nix` object per call, with the keys in nlohmann's sorted order, ANSI codes kept, invalid UTF-8 replaced and ids of the form `(pid << 32) + n`. Errors carry `raw_msg` and null `file`, `line` and `column`.
+- `bar` and `bar-with-logs` are a port of `progress-bar.cc`. On a terminal (standard error is a TTY, `TERM` is set and not `dumb`, and neither `NO_COLOR` nor `NOCOLOR` is set) a timer thread redraws the `[N/M built, ...]` status and the newest visible activity, truncated to the terminal width; log lines clear the status line first. Redirected, the bar prints like the raw logger, and with logs each line is `NAME> LINE`.
+- `-Q` selects `raw`, `nix` starts with `bar`, and `multiline` and `multiline-with-logs` are rejected because 2.35.2 has no such formats.
+- As in CppNix, the bar stops (clearing its line and showing the cursor) before an error is printed, before `nix run`, `nix shell`, `nix develop` and `nix fmt` execute their program, before `nix edit` runs the editor, for the whole of `nix repl`, before `nix eval` prints, before `--print-out-paths`, and when the command thread ends or panics. Other output to standard out written while the bar draws clears the status line first (`write_stdout`).
+
+The local build backend reports CppNix's worker progress: `realise`, `builds` and `copy-paths` activities, an update for each goal created, started and finished, a `build` activity per derivation whose output is split into lines as `BuildLog` splits it, and builder `@nix` `setPhase` and `msg` lines handled as `handleJSONLogMessage` does. Binary-cache substitution reports `substitute`, `copy-path` and `query-path-info` activities, and `nix store prefetch-file` reports its `file-transfer`. `reference_log_format` compares all of this with the reference; [verification](verification.md#legacy-flags-and-logging) lists the normalisations and remaining gaps.
+
 ## Rebuild phases and visible progress
 
 An OS-native rebuild has one operation ID and these ordered phases. Each phase emits start, progress, completion, or failure events. An already satisfied phase says so without pretending work occurred.

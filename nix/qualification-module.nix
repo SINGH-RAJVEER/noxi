@@ -11,6 +11,8 @@ let
 	cfg = config.noxi.qualification;
 in
 {
+	# The harness tiers, off unless noxi.qualification.harness.enable is set.
+	imports = [ ./harness-tiers.nix ];
 	options.noxi.qualification = {
 		enable = lib.mkEnableOption "the unqualified noxi engine in a disposable VM";
 		package = lib.mkOption {

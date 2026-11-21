@@ -45,14 +45,63 @@ test-core:
 test-fixtures:
 	cargo nextest run -p noxi-compat-tests --tests
 
+# Harness tiers (docs/compatibility-results.md). Each writes noxi-compat-result/1 records, the run's provenance and a summary to target/compat-results/TIER.
+compat-results := "uv run --no-project --no-config --no-managed-python --python python3 python scripts/compat-results.py"
+
+# Fast tier: format and fixture checks that need no reference executable, store or daemon.
+test-fast results="target/compat-results/fast":
+	{{compat-results}} run --tier fast --dir "{{results}}" -- cargo nextest run --workspace --all-features --profile fast --no-fail-fast
+
+# Store tier: reference comparisons in isolated diverted stores, including the functional scripts under both engines and the evaluation comparison.
+test-store results="target/compat-results/store": reference
+	cargo build -p noxi-commands --bins
+	cargo build -p noxi-cli --bin noxi
+	cargo build -p noxi-compat-tests --bin differential-eval
+	NOXI_REFERENCE_BIN="{{justfile_directory()}}/target/nix-reference/bin" NOXI_TEST_BUSYBOX="{{justfile_directory()}}/target/test-busybox" \
+		{{compat-results}} run --tier store --dir "{{results}}" -- bash -c 'status=0; cargo nextest run --workspace --all-features --profile store --no-fail-fast || status=$?; target/debug/differential-eval target/nix-reference/bin/nix-instantiate target/debug/noxi "$NOXI_RESULTS_DIR/differential-eval-report.json" || status=$?; exit $status'
+
+# Daemon tier: daemon executables, worker-protocol exchanges and client/daemon pairings.
+test-daemon results="target/compat-results/daemon": reference
+	cargo build -p noxi-commands --bins
+	NOXI_REFERENCE_BIN="{{justfile_directory()}}/target/nix-reference/bin" \
+		{{compat-results}} run --tier daemon --dir "{{results}}" -- cargo nextest run --workspace --all-features --profile daemon --no-fail-fast
+
+# System tier: boot one disposable qualification VM scenario and turn its report into records.
+test-system mode results="target/compat-results/system": (qualification-report mode)
+	{{compat-results}} qualification --dir "{{results}}" "target/qualification/{{mode}}-report"
+
+# Turn committed VM qualification reports (tests/qualification/results/*) into records.
+compat-qualification results="target/compat-results/qualification" +reports="tests/qualification/results/2026-11-09-ed44aff":
+	{{compat-results}} qualification --dir "{{results}}" {{reports}}
+
+# Print the record counts per matrix row of record directories.
+compat-summary +dirs="target/compat-results/fast":
+	{{compat-results}} summary {{dirs}}
+
+# Keep a record directory as committed evidence in tests/compat-results/NAME (refuses a dirty source tree).
+compat-keep dir name:
+	{{compat-results}} keep "{{dir}}" "{{name}}"
+
+# Regenerate docs/compatibility-evidence.md from tests/compat-results.
+compat-evidence:
+	{{compat-results}} evidence
+
+# Fail when docs/compatibility-evidence.md is stale, a matrix row is unmapped or an evidence link is broken.
+compat-evidence-check:
+	{{compat-results}} evidence --check
+
+# Archive the workspace tests for noxi-harness in a disposable VM (nix/harness-tiers.nix).
+harness-archive archive="target/compat-results/harness.tar.zst":
+	cargo nextest archive --workspace --all-features --archive-file "{{archive}}"
+
 # Check every shipped dependency license against the accepted set in deny.toml.
 licenses:
 	cargo deny check licenses
 
-# Regenerate THIRD_PARTY.md for the noxi preview binary from the locked dependency graph, then append the LGPL-2.1 text of the bundled CppNix helper, which cargo-about does not see.
+# Regenerate THIRD_PARTY.md for the packaged executables from noxi-cli's locked dependency graph, which contains noxi-commands and noxi-daemon, then append the LGPL-2.1 text of the bundled CppNix files, which cargo-about does not see.
 third-party:
 	cargo about generate --locked --offline --fail -m crates/noxi-cli/Cargo.toml -c about.toml third-party.hbs -o THIRD_PARTY.md
-	{ printf '\n## GNU Lesser General Public License 2.1 (bundled CppNix helper)\n\nThe CppNix helper `imported-drv-to-derivation.nix` is licensed LGPL-2.1-or-later; the text below is the LGPL-2.1 from its reference copy.\n\n~~~text\n'; cat crates/noxi/eval/COPYING; printf '~~~\n'; } >> THIRD_PARTY.md
+	{ printf '\n## GNU Lesser General Public License 2.1 (bundled CppNix files)\n\nThe CppNix files listed under Bundled upstream sources are licensed LGPL-2.1-or-later; the text below is the LGPL-2.1 from the reference revision.\n\n~~~text\n'; cat crates/noxi/eval/COPYING; printf '~~~\n'; } >> THIRD_PARTY.md
 
 # Compare the preview evaluator with an explicitly selected CppNix executable.
 eval-compare reference report="/tmp/noxi-eval-comparison.json":
@@ -143,7 +192,7 @@ nix-snapshot-verify mode="local":
 	bash scripts/verify-nix-snapshot.sh "{{mode}}"
 
 # Run the complete development check in the pinned devenv shell.
-ci: fmt-check nix-snapshot-verify check test
+ci: fmt-check nix-snapshot-verify compat-evidence-check check test
 
 # Run the complete development check and then the VM test, which boots a machine.
 ci-vm: ci vm-test

@@ -20,7 +20,91 @@ This page lists what CppNix 2.35.2 exposes and what the pinned NixOS and Home Ma
 
 `cli.json` does not cover the legacy commands (`nix-build`, `nix-channel`, `nix-collect-garbage`, `nix-copy-closure`, `nix-daemon`, `nix-env`, `nix-hash`, `nix-instantiate`, `nix-prefetch-url`, `nix-shell`, `nix-store`). They parse their own arguments, and CppNix has no machine-readable dump of them, so `legacy-options.txt` reads the reference manual's command pages instead. An option the parser accepts but the manual omits is missing from that file; the differential tests are the check for those. Every legacy name is a symlink to `bin/nix`, which dispatches on its executable name, so a replacement must dispatch the same way or install separate executables at the same paths.
 
-The reference also installs C++ headers and shared libraries (`nix-util`, `nix-store`, `nix-fetchers`, `nix-expr`, `nix-flake`, `nix-main`, `nix-cmd`, and their `-c` variants). The C++ interfaces have no stability promise upstream. Which consumers of either interface need support on the target system is still open. Discover consumers during §0 of the [TODO](../TODO.md), then implement and qualify their interfaces in §6. Record source-build and unchanged-binary interoperability separately; matching exported function names alone does not prove ABI compatibility.
+The reference also installs C++ headers and shared libraries (`nix-util`, `nix-store`, `nix-fetchers`, `nix-expr`, `nix-flake`, `nix-main`, `nix-cmd`, and their `-c` variants). The C++ interfaces have no stability promise upstream. [C and C++ library consumers](#c-and-c-library-consumers) lists the interface and the packages on the pinned target that link it; §6 of the [TODO](../TODO.md) implements and qualifies what they need. Record source-build and unchanged-binary interoperability separately; matching exported function names alone does not prove ABI compatibility.
+
+## C and C++ library consumers
+
+This section answers the §0 item on public C and C++ library consumers. The target is the qualification Nixpkgs, `e94cb152ed51bd6e24eb4a41f1460252beb52cd2` (`nixpkgs_2` in `tests/qualification/flake.lock`), on x86_64-linux. Its default `nix` is 2.34.8, not the 2.35.2 reference; `nixVersions.nixComponents_2_35` builds 2.35.2 as separate components. The data was collected on 2026-11-20.
+
+### Method
+
+- `nix eval --impure --json --file scripts/library-consumers.nix` evaluates the pinned Nixpkgs from its locked hash and lists, for each candidate package, the Nix and Lix derivations among its build inputs, and those reached through one non-Nix input, such as a Haskell binding. It reads the lock file directly and never evaluates the repository as a flake.
+- The candidates came from searching the pinned `pkgs/` tree for `nixComponents`, `nixVersions.`, `nix.libs` and `nix` in `buildInputs`, plus the well-known Nix tools. Packages that take `nix` only to put the CLI on `PATH` (`makeWrapper`, `wrapProgram`, systemd `path`) or to run tests were read in their `package.nix` and are listed as CLI users, not library consumers.
+- Each library consumer's source (`.src` of the pinned package) was searched for `#include <nix/...>`, `nix_api_*.h`, and the pkg-config or Meson dependency names it requests.
+- The 2.35.2 libraries, their `-dev` outputs and the `nix-eval-jobs` and `nix-unit` binaries were substituted from the pinned Nixpkgs. `readelf -d` gave the SONAMEs and `NEEDED` entries, and `nm -D` gave the exported symbols and each binary's imports from the Nix libraries.
+
+### Interface the reference installs
+
+Every library is a separate component and output. The C++ libraries need `-std=c++23` and the reference's Boost, nlohmann_json and Boehm GC headers; the C libraries need only C headers.
+
+| pkg-config name | Library and SONAME | Public `Requires` | Headers installed | Exported dynamic symbols |
+|---|---|---|---|---|
+| `nix-util` | `libnixutil.so.2.35.2` | `libarchive >= 3.1.2`, `nlohmann_json >= 3.9` | 100 under `include/nix/util/` | 1,913 |
+| `nix-store` | `libnixstore.so.2.35.2` | `nix-util`, `nlohmann_json` | 93 under `include/nix/store/` | 3,192 |
+| `nix-fetchers` | `libnixfetchers.so.2.35.2` | `nix-util`, `nix-store`, `nlohmann_json` | 11 | 495 |
+| `nix-expr` | `libnixexpr.so.2.35.2` | `nix-util`, `nix-store`, `nix-fetchers`, `nlohmann_json`, `bdw-gc` | 36 | 1,535 |
+| `nix-flake` | `libnixflake.so.2.35.2` | `nix-util`, `nix-store`, `nix-fetchers`, `nix-expr`, `nlohmann_json` | 5 | 273 |
+| `nix-main` | `libnixmain.so.2.35.2` | `nix-util`, `nix-store`, `nix-expr` | 5 | 144 |
+| `nix-cmd` | `libnixcmd.so.2.35.2` | all six above, `nlohmann_json` | 19 | 483 |
+| `nix-util-c` | `libnixutilc.so.2.35.2` | none (`nix-util` private) | `nix_api_util.h`, `nix_api_util_internal.h` | 163 |
+| `nix-store-c` | `libnixstorec.so.2.35.2` | `nix-util-c` | `nix_api_store.h`, `nix_api_store/{derivation,store_path}.h`, `nix_api_store_internal.h` | 215 |
+| `nix-fetchers-c` | `libnixfetchersc.so.2.35.2` | `nix-util-c`, `nix-store-c` | 2 | 20 |
+| `nix-expr-c` | `libnixexprc.so.2.35.2` | `nix-util-c`, `nix-store-c` | `nix_api_expr.h`, `nix_api_value.h`, `nix_api_external.h`, internal header | 510 |
+| `nix-flake-c` | `libnixflakec.so.2.35.2` | `nix-util-c`, `nix-store-c`, `nix-fetchers-c`, `nix-expr-c` | 2 | 215 |
+| `nix-main-c` | `libnixmainc.so.2.35.2` | `nix-util-c`, `nix-store-c` | `nix_api_main.h` | 3 |
+
+- The SONAME is the full version. A binary linked against 2.34.8 or 2.31.5 needs `libnixstore.so.2.34.8` or `libnixstore.so.2.31.5`, so it cannot load the 2.35.2 libraries, and a replacement would have to ship the exact SONAME of each version it claims to serve.
+- `nix-store.pc` carries the variables `storedir=/nix/store` and `localstatedir=/nix/var`, which some consumers read at build time.
+- Each C library also installs a `<name>-whole-archive.pc` and a static `lib<name>.a` for plugins that link the C API statically into the host executable.
+- The symbol counts for the C libraries include the C++ symbols they define; `tests/reference-inventory/c-api.txt` lists the 126 public C functions.
+- The reference `bin/nix` is built with `plugin-c-api` and exports 130 `nix_*` functions itself, so a plugin loaded through `plugin-files` can use the C API without linking the C libraries. It exports eight functions that `c-api.txt` does not list: `nix_context_error`, `nix_derivation_clone`, `nix_derivation_free`, `nix_derivation_to_json`, `nix_store_create_from_parts`, `nix_store_path_clone`, `nix_store_path_hash`, `nix_store_path_name`. `c-api.txt` lists three that the executable does not export: `nix_plugins_init`, which a plugin defines rather than calls, `nix_store_build_paths` and `nix_store_ensure`. `bin/nix` also needs all seven C++ libraries by SONAME.
+- The upstream 2.35.2 tree has no Perl bindings. In the pinned Nixpkgs `nixComponents_2_35.nix-perl-bindings` is `null`; `nixComponents_2_34` still builds `nix-perl` against `nix-store` 2.34.8.
+
+### Consumers by how they bind
+
+The classes decide what the replacement owes each consumer. Only class A depends on 2.35.2's ABI. Class B links its own copy of an older Nix, which stays in that package's closure whatever the system Nix is, so what it needs from the replacement is the daemon worker protocol and the store's on-disk formats. Class C runs inside the `nix` process. Class D runs the `nix` commands.
+
+**A. Links the 2.35.2 libraries**
+
+| Package (pinned version) | Libraries | Interface used | Binary evidence |
+|---|---|---|---|
+| `nix-eval-jobs` 2.35.4 | `nix-store`, `nix-fetchers`, `nix-expr`, `nix-flake`, `nix-main`, `nix-cmd` (Meson `dependency()`) | C++: `nix/expr/eval.hh`, `get-drvs.hh`, `value-to-json.hh`, `eval-gc.hh`, `nix/flake/flake.hh`, `lockfile.hh`, `nix/cmd/common-eval-args.hh`, `installable-*.hh`, `nix/store/store-api.hh`, `local-fs-store.hh`, `remote-store.hh`, `nix/main/shared.hh`, and `nix/util/*` | `NEEDED` all seven `lib*.so.2.35.2`; imports 170 mangled C++ symbols and no C API functions |
+| `nix-unit` 2.35.1 | `nix-main`, `nix-store`, `nix-expr`, `nix-cmd`, `nix-flake` | C++: `nix/expr/eval.hh`, `eval-inline.hh`, `get-drvs.hh`, `attr-path.hh`, `nix/flake/*`, `nix/cmd/installables.hh`, `installable-flake.hh`, `nix/store/*`, `nix/main/shared.hh` | `NEEDED` `libnixmain`, `libnixexpr`, `libnixstore`, `libnixutil`, `libnixcmd`, `libnixflake` at `.so.2.35.2`; imports 115 mangled C++ symbols and no C API functions |
+| `colmena` 0.5.0 | none | Runs `nix-eval-jobs` 2.35.4 as a subprocess (`NIX_EVAL_JOBS`) | Inherits `nix-eval-jobs`'s requirement |
+| `devenv` | `nix-util-c`, `nix-store-c`, `nix-fetchers-c`, `nix-expr-c`, `nix-flake-c`, `nix-main-c`, and `nix-cmd-c` | C API through the Rust `nix-bindings-*` crates (cachix/nix-bindings-rust, branch `2.35`) | Built from cachix's Nix fork at `2a2ff1045ef7361212d7eac0c062534538968de6`, not upstream 2.35.2. Upstream 2.35.2 has no `nix-cmd-c`, so devenv needs the fork's extra library |
+
+**B. Links its own older Nix**
+
+| Package (pinned version) | Nix it links | Interface used |
+|---|---|---|
+| `hydra` | 2.34.8 (`nix-util`, `nix-store`, `nix-main`), plus `nix-eval-jobs` 2.34.3 | C++ store API: `store-api.hh`, `serve-protocol*.hh`, `legacy-ssh-store.hh`, `binary-cache-store.hh`, `s3-binary-cache-store.hh`, `machines.hh`, `derivations.hh`, `build-result.hh`, `export-import.hh`; Perl bindings 2.34.8 for the web interface |
+| `nixd`, `nixf`, `nixt` 2.9.2 | 2.34.8 (`nix-main`, `nix-expr`, `nix-cmd`, `nix-flake`) | C++ evaluator API, `nix/main/plugin.hh` |
+| `nix-plugins` 16.0.1 | 2.31.5 (`nix-expr`, `nix-main`, `nix-store`, `nix-cmd`, CMake `pkg_check_modules` `>= 2.28`) | A `plugin-files` plugin; `nix/expr/primops.hh`, `eval-settings.hh`, `nix/util/config-global.hh` |
+| `nix-inspect` 0.1.2 (`nix-inspect-worker`) | 2.31 (`nix-main`, `nix-store`, `nix-expr`, `nix-cmd`, `nix-flake`) | Pre-2.28 flat include paths (`nix/eval.hh`, `nix/config.h`) |
+| `nix-scheduler-hook` 0.8.0 | 2.34.8 (`nix.libs.nix-util`, `nix-store`, `nix-main`) | `ssh-store.hh`, `local-store.hh`, `pathlocks.hh`, `nix/main/plugin.hh` |
+| `nix-heuristic-gc` 0.7.4 | 2.31.5 (`nix-store`, `nix-main`) | Python extension: `gc-store.hh`, `local-store.hh`, `realisation.hh` |
+| `nix-du` 1.2.4 | 2.34.8 (`pkg-config nix-store nix-main`) | C++ store API |
+| `attic-client` | 2.34.8 (`NIX_INCLUDE_PATH`) | Rust `cxx` bridge: `store-api.hh`, `local-store.hh`, `uds-remote-store.hh`, `nix/util/signature/local-keys.hh` |
+| `hercules-ci-cnix-store` 0.4.1.0, `hercules-ci-cnix-expr` 0.5.1.0 | 2.31.5 (`nix-store`, `nix-expr`, `nix-util`, `nix-fetchers`) | Haskell `inline-c-cpp` bindings; `cachix` 1.12.1 and `hercules-ci-agent` 0.10.8 link them |
+| `nix-serve-ng` | Lix 2.95.2 | C++ store API of Lix, not CppNix |
+
+The 2.31.5 and 2.34.8 clients speak worker protocol 1.38 (minimum 1.18) and serve protocol 2.7 to whatever daemon is running. The 2.35.2 source declares `WorkerProto::latest` as 1.38 with the `realisation-with-path-not-hash` and `delete-dead-specific-referrers` features, while its header still defines `PROTOCOL_VERSION` as 1.39, the value in `protocols.txt`.
+
+**C. Loaded into the `nix` process**
+
+CppNix loads the shared objects named by the `plugin-files` setting into every `nix` process. A C++ plugin must link the exact libraries of the host executable; `nix-plugins` 16.0.1 is built against 2.31.5 and would not load into the 2.35.2 reference either. A C API plugin resolves `nix_*` functions from the executable, as described above. No NixOS module in the pinned Nixpkgs sets `plugin-files`.
+
+**D. Uses the commands only**
+
+`nil`, `harmonia`, `nix-serve`, `nix-fast-build`, `nix-index`, `nixpkgs-review`, `nix-output-monitor`, `nix-tree`, `nix-diff`, `nvd`, `nh`, `comma`, `nurl`, `npins`, `lon`, `nix-direnv`, `nix-update`, `nix-init`, `nixos-rebuild-ng`, `nixos-option`, `system-manager`, `vulnix`, `nix-bundle`, `dydisnix`, `libnixxml` and `nix-web` link no Nix library. Those with a `nix` input use it for `PATH`, wrappers or tests (`nil`'s is a native build input for its tests; `libnixxml` and `dydisnix` use pkg-config only for `libxml2` and Disnix). `harmonia` 3.3.0 talks to the daemon socket from Rust. `nix-output-monitor` and `nix-diff` parse derivations with the Haskell `nix-derivation` library. The NixOS modules for `hydra`, `hercules-ci-agent`, `cachix-agent` and `harmonia` put `config.nix.package` on the service `PATH`, so they also depend on the commands.
+
+### What the replacement must provide
+
+- **Required for the drop-in gate:** none of these packages is in the pinned qualification closure (NixOS, Home Manager, the reference trace above), and no NixOS module loads a plugin. The closure needs the commands and the daemon, which the rest of this page inventories.
+- **Required to replace a 2.35.2 system that runs these tools:** class D needs only the commands. Class B needs worker protocol 1.38 with minimum 1.18, serve protocol 2.7, and, when one of them runs as root with the default `auto` store, the local store layout and SQLite schema 10 that its own older `libnixstore` opens directly. Class A needs either the seven C++ libraries at SONAME `*.so.2.35.2` with the C++ ABI behind the 170 and 115 symbols they import, or a policy that such tools keep bundling CppNix 2.35.2 libraries in their own closure, as class B already does. `devenv` additionally needs the C API and its fork's `nix-cmd-c`.
+- **Optional:** `plugin-files` and the executable's exported C API, for out-of-tree plugins.
+
+Until §6 settles which of these the replacement implements, class A and plugins stay unsupported, and a target that requires one of them keeps the drop-in gate open. A 2.35.2 C++ ABI cannot be produced from Rust without reimplementing the C++ classes the headers define, so supporting class A through the replacement's own code is the expensive option; keeping CppNix libraries in those tools' closures costs nothing on the target, because Nixpkgs already builds them that way.
 
 ## What NixOS calls
 

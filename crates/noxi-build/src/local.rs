@@ -325,6 +325,22 @@ impl<'a> LocalBuilder<'a> {
 		stack: &mut Vec<StorePath>,
 		events: &mut dyn FnMut(BuildEvent<'_>),
 	) -> Result<BTreeMap<String, StorePath>> {
+		self.realise_drv(drv_path, None, wanted, done, stack, events)
+	}
+
+	/// Realise `wanted` outputs of the derivation at `drv_path`. A
+	/// `resolved` derivation is not in the store yet: like CppNix's
+	/// `DerivationGoal` with `storeDerivation`, it is written only when it
+	/// has to be built.
+	fn realise_drv(
+		&self,
+		drv_path: &StorePath,
+		resolved: Option<BuildDerivation>,
+		wanted: Option<&BTreeSet<String>>,
+		done: &mut BTreeMap<StorePath, BTreeSet<String>>,
+		stack: &mut Vec<StorePath>,
+		events: &mut dyn FnMut(BuildEvent<'_>),
+	) -> Result<BTreeMap<String, StorePath>> {
 		self.check_cancelled()?;
 		if stack.contains(drv_path) {
 			return Err(BuildError::Other(format!(
@@ -332,7 +348,11 @@ impl<'a> LocalBuilder<'a> {
 				print(drv_path)
 			)));
 		}
-		let build_drv = self.store.read_build_derivation(drv_path)?;
+		let supplied = resolved.is_some();
+		let build_drv = match resolved {
+			Some(drv) => drv,
+			None => self.store.read_build_derivation(drv_path)?,
+		};
 		let drv = &build_drv.basic;
 		if let Some(wanted) = wanted
 			&& let Some(missing) = wanted.iter().find(|name| {
@@ -344,6 +364,19 @@ impl<'a> LocalBuilder<'a> {
 				"derivation '{}' does not have wanted outputs '{missing}'",
 				print(drv_path)
 			)));
+		}
+		// Outputs whose paths are unknown until they are realised are
+		// first looked up in the substituters' build traces. Repair checks
+		// their contents on the paths below instead.
+		if !self.repair && has_unknown_outputs(&build_drv) {
+			let names: BTreeSet<String> = match wanted {
+				Some(names) => names.clone(),
+				None => drv.outputs().names().map(ToString::to_string).collect(),
+			};
+			if let Some(paths) = self.substitute_unknown_outputs(drv_path, &build_drv, &names)? {
+				done.entry(drv_path.clone()).or_default().extend(names);
+				return Ok(paths);
+			}
 		}
 		// CppNix resolves deferred, floating and feature-enabled fixed
 		// derivations by replacing all input derivations with source paths.
@@ -395,7 +428,8 @@ impl<'a> LocalBuilder<'a> {
 			&& !self.all_valid(&wanted_outputs)?
 			&& self.substitutes_allowed(&drv)?
 		{
-			for output in wanted_outputs.values() {
+			// Floating outputs were looked up by their realisations.
+			for output in wanted_outputs.values().filter(|o| o.floating.is_none()) {
 				if !self.store.is_valid_path(&output.path)? {
 					self.try_substitute(&output.path)?;
 				}
@@ -430,6 +464,9 @@ impl<'a> LocalBuilder<'a> {
 							print(drv_path)
 						),
 					));
+				}
+				if supplied && !self.store.is_valid_path(drv_path)? {
+					self.write_resolved(drv_path, &build_drv)?;
 				}
 				events(BuildEvent::Started { drv_path });
 				let result = self.build(drv_path, &drv, &outputs, events);
@@ -467,68 +504,260 @@ impl<'a> LocalBuilder<'a> {
 		stack: &mut Vec<StorePath>,
 		events: &mut dyn FnMut(BuildEvent<'_>),
 	) -> Result<BTreeMap<String, StorePath>> {
-		let (mut builder, mut outputs) = drv.basic.clone().into_parts();
-		builder.environment = drv.basic.environment().clone();
-		let mut rewrites = BTreeMap::new();
-		for (input, names) in drv.basic.input_derivations() {
-			let wanted = names.iter().map(ToString::to_string).collect();
-			let paths = self.realise_inner(input, Some(&wanted), done, stack, events)?;
-			for name in names {
-				let path = paths.get(&name.to_string()).ok_or_else(|| {
-					BuildError::Other(format!(
-						"derivation '{}' has no output '{name}'",
-						print(input)
-					))
-				})?;
-				builder.input_sources.insert(path.clone());
-				rewrites.insert(downstream_placeholder(input, name.as_ref()), print(path));
-			}
-		}
-		builder.input_derivations.clear();
-		builder.command = rewrite_strings(builder.command.to_vec(), &rewrites).into();
-		builder.arguments = builder
-			.arguments
-			.into_iter()
-			.map(|s| rewrite_strings(s.to_vec(), &rewrites).into())
-			.collect();
-		builder.environment = builder
-			.environment
-			.into_iter()
-			.map(|(k, v)| {
-				(
-					rewrite_strings(k.to_vec(), &rewrites).into(),
-					rewrite_strings(v.to_vec(), &rewrites).into(),
-				)
-			})
-			.collect();
+		let (path, resolved) = resolve_derivation(drv_path, drv, |input, wanted| {
+			self.realise_inner(input, Some(wanted), done, stack, events)
+				.map(Some)
+		})?
+		.expect("realised inputs resolve");
+		// `DerivationResolutionGoal`'s activity lasts while the resolved
+		// derivation is realised.
+		let _act = nix_compat::log::logger::Activity::new(
+			nix_compat::log::VerbosityLevel::Info,
+			nix_compat::log::ActivityType::BuildWaiting,
+			format!(
+				"resolved derivation: '{}' -> '{}'",
+				print(drv_path),
+				print(&path)
+			),
+			vec![print(drv_path).into(), print(&path).into()],
+			0,
+		);
+		let resolved = (!self.store.is_valid_path(&path)?).then_some(resolved);
+		self.realise_drv(&path, resolved, None, done, stack, events)
+	}
+
+	/// `writeDerivation` for a resolved derivation about to be built.
+	fn write_resolved(&self, drv_path: &StorePath, drv: &BuildDerivation) -> Result<()> {
 		let name = drv_path
 			.name()
 			.strip_suffix(".drv")
 			.unwrap_or(drv_path.name());
-		if outputs.is_deferred() && drv.floating.is_empty() && drv.experimental.is_empty() {
-			outputs = builder
-				.calculate_outputs(name, lookup_fn(|_| None))
-				.map_err(|e| BuildError::Other(e.to_string()))?;
-		}
-		let references = builder.input_sources.clone();
-		let basic = builder
-			.build_unverified(outputs)
-			.map_err(|e| BuildError::Other(e.to_string()))?;
-		let resolved = BuildDerivation {
-			basic,
-			floating: drv.floating.clone(),
-			experimental: drv.experimental.clone(),
-		};
-		let path = self.store.add_text_to_store(
+		let written = self.store.add_text_to_store(
 			&format!("{name}.drv"),
-			&resolved.to_aterm_bytes(),
-			&references,
+			&drv.to_aterm_bytes(),
+			drv.basic.input_sources(),
 			false,
 		)?;
-		let paths = self.realise_inner(&path, None, done, stack, events)?;
-		Ok(paths)
+		if &written != drv_path {
+			return Err(BuildError::Other(format!(
+				"resolved derivation was written to '{}', not '{}'",
+				print(&written),
+				print(drv_path)
+			)));
+		}
+		Ok(())
 	}
 
+	/// `DerivationGoal::haveDerivation` for outputs with unknown paths: a
+	/// `DrvOutputSubstitutionGoal` for each wanted output without a valid
+	/// local realisation, then the output path's substitution and
+	/// `registerDrvOutput`. Returns the realised paths of the outputs if
+	/// every wanted output is now valid.
+	pub(crate) fn substitute_unknown_outputs(
+		&self,
+		drv_path: &StorePath,
+		drv: &BuildDerivation,
+		wanted: &BTreeSet<String>,
+	) -> Result<Option<BTreeMap<String, StorePath>>> {
+		if !self.store.config().ca_derivations {
+			return Ok(None);
+		}
+		let usable = self.settings.use_substitutes
+			&& !self.substituters.is_empty()
+			&& self.substitutes_allowed(&drv.basic)?;
+		for name in wanted {
+			match self.store.query_realisation(drv_path, name)? {
+				Some(real) if self.store.is_valid_path(&real.out_path)? => {}
+				Some(real) => {
+					if !usable || !self.try_substitute(&real.out_path)? {
+						return Ok(None);
+					}
+				}
+				None => {
+					if !usable || !self.try_substitute_realisation(drv_path, name)? {
+						return Ok(None);
+					}
+				}
+			}
+		}
+		let mut paths = BTreeMap::new();
+		for name in drv.basic.outputs().names() {
+			let name = name.to_string();
+			if let Some(real) = self.store.query_realisation(drv_path, &name)? {
+				paths.insert(name, real.out_path);
+			}
+		}
+		Ok(Some(paths))
+	}
+
+	/// `DrvOutputSubstitutionGoal`: find output `output` of `drv_path` in a
+	/// substituter's build trace, substitute its path and register the
+	/// realisation with the substituter's signatures, as the worker's
+	/// `registerDrvOutput` does without checking them.
+	fn try_substitute_realisation(&self, drv_path: &StorePath, output: &str) -> Result<bool> {
+		for cache in self.substituters {
+			let realisation = match cache.query_realisation(drv_path, output) {
+				Ok(Some(realisation)) => realisation,
+				Ok(None) => continue,
+				Err(error) if !self.settings.try_fallback => return Err(error.into()),
+				Err(error) => {
+					tracing::debug!(
+						"cannot query the realisation of '{}^{output}': {error}",
+						print(drv_path)
+					);
+					continue;
+				}
+			};
+			if !self.store.is_valid_path(&realisation.out_path)?
+				&& !self.try_substitute(&realisation.out_path)?
+			{
+				return Ok(false);
+			}
+			self.store
+				.register_drv_output(drv_path, output, &realisation)?;
+			return Ok(true);
+		}
+		Ok(false)
+	}
+}
+
+/// Whether some outputs of `drv` have no path until they are realised:
+/// floating content-addressed outputs, or input-addressed outputs that wait
+/// for content-addressed inputs.
+pub(crate) fn has_unknown_outputs(drv: &BuildDerivation) -> bool {
+	drv.experimental.is_empty() && (!drv.floating.is_empty() || drv.basic.outputs().is_deferred())
+}
+
+/// `Derivation::tryResolve`: replace each input derivation of `drv` with
+/// the paths of the outputs it uses, given by `input_outputs`, and rewrite
+/// their placeholders. Deferred input-addressed outputs get their paths.
+/// Returns the resolved derivation and the path `writeDerivation` would
+/// give it, without writing it, or `None` if an input output is unknown.
+pub fn resolve_derivation(
+	drv_path: &StorePath,
+	drv: &BuildDerivation,
+	mut input_outputs: impl FnMut(
+		&StorePath,
+		&BTreeSet<String>,
+	) -> Result<Option<BTreeMap<String, StorePath>>>,
+) -> Result<Option<(StorePath, BuildDerivation)>> {
+	let (mut builder, mut outputs) = drv.basic.clone().into_parts();
+	builder.environment = drv.basic.environment().clone();
+	let mut rewrites = BTreeMap::new();
+	for (input, names) in drv.basic.input_derivations() {
+		let wanted = names.iter().map(ToString::to_string).collect();
+		let Some(paths) = input_outputs(input, &wanted)? else {
+			return Ok(None);
+		};
+		for name in names {
+			let path = paths.get(&name.to_string()).ok_or_else(|| {
+				BuildError::Other(format!(
+					"derivation '{}' has no output '{name}'",
+					print(input)
+				))
+			})?;
+			builder.input_sources.insert(path.clone());
+			rewrites.insert(downstream_placeholder(input, name.as_ref()), print(path));
+		}
+	}
+	builder.input_derivations.clear();
+	builder.command = rewrite_strings(builder.command.to_vec(), &rewrites).into();
+	builder.arguments = builder
+		.arguments
+		.into_iter()
+		.map(|s| rewrite_strings(s.to_vec(), &rewrites).into())
+		.collect();
+	builder.environment = builder
+		.environment
+		.into_iter()
+		.map(|(k, v)| {
+			(
+				rewrite_strings(k.to_vec(), &rewrites).into(),
+				rewrite_strings(v.to_vec(), &rewrites).into(),
+			)
+		})
+		.collect();
+	let name = drv_path
+		.name()
+		.strip_suffix(".drv")
+		.unwrap_or(drv_path.name());
+	if outputs.is_deferred() && drv.floating.is_empty() && drv.experimental.is_empty() {
+		outputs = builder
+			.calculate_outputs(name, lookup_fn(|_| None))
+			.map_err(|e| BuildError::Other(e.to_string()))?;
+	}
+	let references = builder.input_sources.clone();
+	let basic = builder
+		.build_resolved(outputs)
+		.map_err(|e| BuildError::Other(e.to_string()))?;
+	let resolved = BuildDerivation {
+		basic,
+		floating: drv.floating.clone(),
+		experimental: drv.experimental.clone(),
+	};
+	let path = store_path::build_text_path(
+		&format!("{name}.drv"),
+		resolved.to_aterm_bytes(),
+		references.iter().map(StorePath::as_ref),
+	)
+	.map_err(|e| BuildError::Other(e.to_string()))?
+	.to_owned();
+	Ok(Some((path, resolved)))
+}
+
+/// `deepQueryPartialDerivationOutput`: the path of output `output` of
+/// `drv_path` from the store's output map or realisations, resolving the
+/// derivation through its inputs' outputs when it has no realisation of
+/// its own. Every realisation the query reads is passed to `realisation`,
+/// as `toRealisedPaths` collects them for `nix copy`.
+pub fn deep_query_output(
+	store: &LocalStore,
+	drv_path: &StorePath,
+	output: &str,
+	realisation: &mut dyn FnMut(&StorePath, &str, &Realisation),
+) -> Result<Option<StorePath>> {
+	if let Some(found) = store.query_realisation(drv_path, output)? {
+		realisation(drv_path, output, &found);
+		return Ok(Some(found.out_path));
+	}
+	if let Some(Some(path)) = store
+		.query_partial_derivation_output_map(drv_path)?
+		.remove(output)
+	{
+		return Ok(Some(path));
+	}
+	if !store.config().ca_derivations {
+		return Ok(None);
+	}
+	let drv = store.read_build_derivation(drv_path)?;
+	if drv.basic.input_derivations().is_empty() {
+		return Ok(None);
+	}
+	let resolved = resolve_derivation(drv_path, &drv, |input, wanted| {
+		let mut paths = BTreeMap::new();
+		for name in wanted {
+			match deep_query_output(store, input, name, realisation)? {
+				Some(path) => {
+					paths.insert(name.clone(), path);
+				}
+				None => return Ok(None),
+			}
+		}
+		Ok(Some(paths))
+	})?;
+	let Some((resolved_path, _)) = resolved else {
+		return Ok(None);
+	};
+	match store.query_realisation(&resolved_path, output)? {
+		Some(found) => {
+			realisation(&resolved_path, output, &found);
+			Ok(Some(found.out_path))
+		}
+		None => Ok(None),
+	}
+}
+
+impl LocalBuilder<'_> {
 	fn all_valid(&self, outputs: &BTreeMap<String, KnownOutput>) -> Result<bool> {
 		for output in outputs.values() {
 			if !self.path_valid(&output.path)? {

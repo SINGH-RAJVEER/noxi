@@ -135,6 +135,7 @@ pub fn query_missing(
 				let output_map = store.query_partial_derivation_output_map(&drv_path)?;
 				let mut invalid = BTreeSet::new();
 				let mut unknown_output = false;
+				let mut unknown_names = Vec::new();
 				for (name, path) in output_map {
 					let wanted = outputs.as_ref().is_none_or(|o| o.contains(&name));
 					if wanted {
@@ -142,7 +143,10 @@ pub fn query_missing(
 							Some(path) if !store.is_valid_path(&path)? => {
 								invalid.insert(path);
 							}
-							None => unknown_output = true,
+							None => {
+								unknown_output = true;
+								unknown_names.push(name.clone());
+							}
 							_ => {}
 						}
 					}
@@ -170,6 +174,31 @@ pub fn query_missing(
 						drv_path.to_absolute_path()
 					))
 				})?;
+				// Unknown output paths may be known to a substituter through a
+				// realisation.
+				if unknown_output
+					&& use_substitutes
+					&& store.config().ca_derivations
+					&& drv_options.substitutes_allowed(always_allow_substitutes)
+				{
+					unknown_output = false;
+					for name in &unknown_names {
+						let found = substituters.iter().find_map(|cache| {
+							cache.query_realisation(&drv_path, name).ok().flatten()
+						});
+						match found {
+							Some(realisation) => {
+								if !store.is_valid_path(&realisation.out_path)? {
+									invalid.insert(realisation.out_path);
+								}
+							}
+							None => {
+								unknown_output = true;
+								break;
+							}
+						}
+					}
+				}
 				let mut must_build = true;
 				if !unknown_output
 					&& use_substitutes

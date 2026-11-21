@@ -145,6 +145,7 @@ pub fn main(settings: Settings, args: Vec<String>) -> Result<ExitCode, Failure> 
 		Some(match flag {
 			"--version" => {
 				println!("nix-shell (Nix) 2.35.2");
+				nix_compat::log::logger::stop();
 				std::process::exit(0);
 			}
 			"--add-drv-link" | "--indirect" | "--no-out-link" | "--no-link" => Ok(()),

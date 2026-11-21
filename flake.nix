@@ -134,6 +134,9 @@
 						test -s "$package/share/doc/noxi/THIRD_PARTY.md"
 						test -s "$package/share/doc/noxi/crates/noxi/PROVENANCE.md"
 						test -s "$package/share/doc/noxi/crates/noxi/eval/COPYING"
+						test -s "$package/share/doc/noxi/NOTICE"
+						test -s "$package/share/doc/noxi/crates/noxi-commands/COPYING"
+						test -s "$package/share/doc/noxi/crates/noxi-flake/LICENSE"
 						for command in ${pkgs.lib.escapeShellArgs (package.implemented ++ package.unimplemented)}; do
 							test -x "$package/bin/$command"
 						done

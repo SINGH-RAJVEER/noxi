@@ -1305,9 +1305,13 @@ mod pure_builtins {
 			let path =
 				nix_compat::store_path::StorePath::from_absolute_path(context_key.as_bytes())
 					.map_err(|_| {
+						// CppNix prints the symbol as an attribute name, so
+						// `/bad` appears as `"/bad"`.
+						let mut name = Vec::new();
+						crate::value::print::attribute_name(&mut name, context_key.as_bytes());
 						fail(format!(
 							"context key '{}' is not a store path",
-							context_key.to_str_lossy()
+							String::from_utf8_lossy(&name)
 						))
 					})?;
 			generators::request_ensure_context_path(&co, PathBuf::from(path.to_absolute_path()))

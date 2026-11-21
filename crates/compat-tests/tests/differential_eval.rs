@@ -41,6 +41,9 @@ fn run(reference: &Path, candidate: &Path, report: &Path) -> Output {
 		.env("NIX_PATH", "unisolated-path")
 		.env("NIX_CONFIG", "unisolated-config")
 		.env("NIX_REMOTE", "ssh://unisolated-store")
+		// Mock runs must not add records to a real results directory.
+		.env_remove("NOXI_RESULTS_DIR")
+		.env_remove("NOXI_TIER")
 		.output()
 		.expect("run differential evaluator")
 }
@@ -82,6 +85,24 @@ fn matching_engines_produce_a_complete_isolated_report() {
 		assert_ne!(fields[1], "/unisolated-home");
 		assert!(Path::new(fields[1]).is_absolute());
 		assert_eq!(&fields[2..], &["", ""]);
+	}
+	let records = fs::read_to_string(dir.path().join("compat-results/differential-eval.jsonl"))
+		.expect("records beside the report");
+	let records: Vec<Value> = records
+		.lines()
+		.map(|line| serde_json::from_str(line).expect("one JSON record per line"))
+		.collect();
+	assert_eq!(records.len(), 10);
+	for record in &records {
+		assert_eq!(record["schema"], "noxi-compat-result/1");
+		assert_eq!(record["verdict"], "pass", "{record}");
+		assert_eq!(record["tier"], "store");
+		assert_eq!(record["matrix_row"], "nix-language-and-evaluator");
+		assert_eq!(record["differences"], serde_json::json!([]));
+		assert_eq!(record["engines"]["reference"]["argv"][1], "--eval");
+		assert_eq!(record["engines"]["noxi"]["exit_code"], 0);
+		assert_eq!(record["settings"]["timeout_ms"], 20000);
+		assert!(record["run"]["noxi"]["executables"]["noxi"]["sha256"].is_string());
 	}
 }
 
@@ -137,6 +158,8 @@ fn timed_out_case_is_recorded_as_a_mismatch() {
 	let output = Command::new(env!("CARGO_BIN_EXE_differential-eval"))
 		.args([&reference, &candidate, &report])
 		.env("NOXI_DIFF_TIMEOUT_MS", "100")
+		.env_remove("NOXI_RESULTS_DIR")
+		.env_remove("NOXI_TIER")
 		.output()
 		.expect("run differential evaluator");
 	assert_eq!(output.status.code(), Some(1), "{output:?}");
@@ -177,6 +200,16 @@ fn a_single_difference_fails_and_is_recorded() {
 	assert_eq!(mismatches[0]["reference"]["exit_code"], 0);
 	assert_eq!(mismatches[0]["candidate"]["exit_code"], 1);
 	assert_eq!(mismatches[0]["candidate"]["stdout"], "different\n");
+	let records =
+		fs::read_to_string(dir.path().join("compat-results/differential-eval.jsonl")).unwrap();
+	let first: Value = serde_json::from_str(records.lines().next().unwrap()).unwrap();
+	assert_eq!(first["case"], "differential-eval:integer");
+	assert_eq!(first["verdict"], "fail");
+	assert_eq!(
+		first["differences"],
+		serde_json::json!(["exit_code", "stdout"])
+	);
+	assert_eq!(first["engines"]["noxi"]["stdout"]["text"], "different\n");
 }
 
 #[test]

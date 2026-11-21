@@ -102,7 +102,15 @@ impl LocalBuilder<'_> {
 		}
 		// Match the sequential builder's pre-input substitution policy. A
 		// cached output must not cause its otherwise unused inputs to build.
-		let needed = if drv.basic.outputs().is_deferred()
+		let wanted = node.wanted.clone();
+		let needed = if !self.repair
+			&& super::has_unknown_outputs(&drv)
+			&& self
+				.substitute_unknown_outputs(path, &drv, &wanted)?
+				.is_some()
+		{
+			false
+		} else if drv.basic.outputs().is_deferred()
 			&& drv.floating.is_empty()
 			&& drv.experimental.is_empty()
 		{

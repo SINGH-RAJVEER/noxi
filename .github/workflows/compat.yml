@@ -1,0 +1,75 @@
+{
+"name": "Compatibility harness tiers",
+"on": {
+"push": {},
+"pull_request": {},
+"workflow_dispatch": {}
+},
+"permissions": {
+"contents": "read"
+},
+"env": {
+"CARGO_BUILD_JOBS": "2"
+},
+"jobs": {
+"fast": {
+"runs-on": "ubuntu-24.04",
+"timeout-minutes": 90,
+"steps": [
+{
+"uses": "actions/checkout@11d5960a326750d5838078e36cf38b85af677262"
+},
+{
+"uses": "cachix/install-nix-action@d698718aa798980d17dd749f03beae0b51183399"
+},
+{
+"name": "Check the matrix evidence page",
+"run": "nix develop --accept-flake-config --no-write-lock-file --command just compat-evidence-check"
+},
+{
+"name": "Fast tier: format and fixture checks",
+"run": "nix develop --accept-flake-config --no-write-lock-file --command just test-fast"
+},
+{
+"name": "Summarize records",
+"if": "always()",
+"run": "test -f target/compat-results/fast/summary.json && cat target/compat-results/fast/summary.json >> \"$GITHUB_STEP_SUMMARY\" || true"
+}
+]
+},
+"store": {
+"if": "github.event_name == 'workflow_dispatch'",
+"runs-on": "ubuntu-24.04",
+"timeout-minutes": 360,
+"steps": [
+{
+"uses": "actions/checkout@11d5960a326750d5838078e36cf38b85af677262"
+},
+{
+"uses": "cachix/install-nix-action@d698718aa798980d17dd749f03beae0b51183399"
+},
+{
+"name": "Store tier: reference comparisons in isolated stores",
+"run": "nix develop --accept-flake-config --no-write-lock-file --command just test-store"
+}
+]
+},
+"daemon": {
+"if": "github.event_name == 'workflow_dispatch'",
+"runs-on": "ubuntu-24.04",
+"timeout-minutes": 180,
+"steps": [
+{
+"uses": "actions/checkout@11d5960a326750d5838078e36cf38b85af677262"
+},
+{
+"uses": "cachix/install-nix-action@d698718aa798980d17dd749f03beae0b51183399"
+},
+{
+"name": "Daemon tier: worker protocol and client/daemon pairings",
+"run": "nix develop --accept-flake-config --no-write-lock-file --command just test-daemon"
+}
+]
+}
+}
+}

@@ -46,6 +46,14 @@
 //! script path) restricts the run, and `NOXI_FUNCTIONAL_JOBS` sets the
 //! number of concurrent scripts (default 8). Logs and a JSON report are
 //! written under the Cargo target temporary directory.
+//!
+//! Both engines run a script in turn at the same scratch root, so their
+//! diverted stores share one `NIX_STORE_DIR` and their store paths compare
+//! directly. Each script also gets a `noxi-compat-result/1` record in
+//! `$NOXI_RESULTS_DIR/upstream-functional.jsonl` (default: `records/` beside
+//! the report) with both engines' exit statuses, combined logs, produced
+//! paths, derivation bytes, NAR digests and `ValidPaths` rows; see
+//! `docs/compatibility-results.md`.
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::env;
@@ -61,6 +69,7 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use std::thread;
 use std::time::{Duration, Instant};
 
+use noxi_compat_tests::results::{self, Capture, Case, Recorder, Verdict};
 use serde_json::{Value as Json, json};
 use sha2::{Digest, Sha256};
 
@@ -219,6 +228,9 @@ struct Run {
 	seconds: f64,
 	detail: String,
 	log: Option<PathBuf>,
+	/// The exit status, the combined log and the script's diverted store,
+	/// for the machine-readable record; `None` when the script did not run.
+	capture: Option<Capture>,
 }
 
 struct Engine {
@@ -691,21 +703,27 @@ fn summarize(log: &str, root: &str, outcome: Outcome) -> String {
 	summary
 }
 
-fn run_script(engine: &Engine, script: &Script, timeout: Duration) -> Run {
+/// Runs `script` under `engine` in the empty directory `root_path`, then
+/// empties it again. Both engines run a script at the same `root_path`, so
+/// their diverted stores have the same `NIX_STORE_DIR` and their store
+/// paths, derivations and NARs compare byte for byte.
+fn run_script(
+	engine: &Engine,
+	script: &Script,
+	timeout: Duration,
+	root_path: &Path,
+	blobs: &Path,
+) -> Run {
 	if script.not_run().is_some() {
 		return Run {
 			outcome: Outcome::NotRun,
 			seconds: 0.0,
 			detail: String::new(),
 			log: None,
+			capture: None,
 		};
 	}
-	// Short, so that TEST_ROOT/dSocket stays under the socket path limit.
-	let root = tempfile::Builder::new()
-		.prefix("nf")
-		.tempdir_in("/tmp")
-		.unwrap();
-	let root_path = root.path().to_path_buf();
+	let root_path = root_path.to_path_buf();
 	let source = root_path.join("src");
 	let build = root_path.join("build");
 	let functional = functional_dir();
@@ -794,23 +812,93 @@ fn run_script(engine: &Engine, script: &Script, timeout: Duration) -> Run {
 	};
 	let text = String::from_utf8_lossy(&fs::read(&log_path).unwrap_or_default()).into_owned();
 	let detail = summarize(&text, &root_path.to_string_lossy(), outcome);
+	// common/test-root.sh: TEST_ROOT is TMPDIR/nix-test/SUITE/NAME.
+	let test_root = fs::canonicalize(root_path.join("tmp"))
+		.unwrap_or_else(|_| root_path.join("tmp"))
+		.join("nix-test")
+		.join(&script.suite)
+		.join(script.name());
+	make_writable(&test_root);
+	let capture = Capture {
+		argv: vec![
+			"bash".to_owned(),
+			"-x".to_owned(),
+			"-e".to_owned(),
+			"-u".to_owned(),
+			"-o".to_owned(),
+			"pipefail".to_owned(),
+			script.path.clone(),
+		],
+		exit_code: status.and_then(|status| status.code()),
+		signal: status.and_then(|status| status.signal()),
+		timed_out: status.is_none(),
+		duration: start.elapsed(),
+		stdout: fs::read(&log_path).unwrap_or_default(),
+		stderr: None,
+		store: results::store_snapshot(
+			&test_root.join("store"),
+			Some(&test_root.join("var/nix/db/db.sqlite")),
+			Some(blobs),
+		),
+		daemon_exchange: None,
+		extra: [
+			("outcome".to_owned(), json!(outcome.name())),
+			// The nix.conf the script's common/init.sh wrote: the settings and
+			// experimental features this engine ran with.
+			(
+				"configuration".to_owned(),
+				fs::read(test_root.join("etc/nix.conf")).map_or(Json::Null, |bytes| {
+					results::bytes_field(&bytes, Some(blobs))
+				}),
+			),
+		]
+		.into_iter()
+		.collect(),
+	};
 	let saved = Path::new(OUTPUT_DIR)
 		.join(engine.name)
 		.join(format!("{}.log", script.path.replace('/', "_")));
 	fs::create_dir_all(saved.parent().unwrap()).unwrap();
 	fs::write(&saved, &text).unwrap();
+	make_writable(&root_path);
 	if env::var_os(KEEP_VAR).is_some() {
-		let kept = root.keep();
+		let kept = PathBuf::from(format!("{}-{}", root_path.display(), engine.name));
+		fs::rename(&root_path, &kept).unwrap();
+		fs::create_dir(&root_path).unwrap();
 		eprintln!("kept {} for {}", kept.display(), script.path);
 	} else {
-		make_writable(&root_path);
-		drop(root);
+		let mut failed = None;
+		for entry in fs::read_dir(&root_path).into_iter().flatten().flatten() {
+			let path = entry.path();
+			let removed = if entry.file_type().is_ok_and(|kind| kind.is_dir()) {
+				fs::remove_dir_all(&path)
+			} else {
+				fs::remove_file(&path)
+			};
+			if let Err(error) = removed {
+				failed = Some(format!("{}: {error}", path.display()));
+			}
+		}
+		// A leftover must not reach the next engine's run at this root, and
+		// one undeletable file must not stop the sweep: move the root aside.
+		if let Some(error) = failed {
+			let stale = PathBuf::from(format!("{}-stale-{}", root_path.display(), engine.name));
+			eprintln!(
+				"cannot empty the scratch root of {} ({error}); moved it to {}",
+				script.path,
+				stale.display()
+			);
+			if fs::rename(&root_path, &stale).is_ok() {
+				let _ = fs::create_dir(&root_path);
+			}
+		}
 	}
 	Run {
 		outcome,
 		seconds,
 		detail,
 		log: Some(saved),
+		capture: Some(capture),
 	}
 }
 
@@ -971,13 +1059,11 @@ fn functional_scripts_match_expectations() {
 		.and_then(|value| value.parse().ok())
 		.unwrap_or(8usize)
 		.max(1);
-	let mut queue: Vec<(&Engine, &Script)> = Vec::new();
-	for script in &chosen {
-		queue.push((&noxi, script));
-		if let Some(engine) = &reference {
-			queue.push((engine, script));
-		}
-	}
+	let queue: Vec<&Script> = chosen.clone();
+	let blobs = env::var_os(results::RESULTS_DIR_VAR)
+		.map_or_else(|| Path::new(OUTPUT_DIR).join("records"), PathBuf::from)
+		.join("blobs");
+	let engines: Vec<&Engine> = reference.iter().chain([&noxi]).collect();
 	let next = AtomicUsize::new(0);
 	let results: Mutex<BTreeMap<(String, &'static str), Run>> = Mutex::new(BTreeMap::new());
 	let started = Instant::now();
@@ -986,21 +1072,29 @@ fn functional_scripts_match_expectations() {
 			scope.spawn(|| {
 				loop {
 					let index = next.fetch_add(1, Ordering::SeqCst);
-					let Some((engine, script)) = queue.get(index) else {
+					let Some(script) = queue.get(index) else {
 						break;
 					};
-					let run = run_script(engine, script, timeout);
-					eprintln!(
-						"{:>9} {:<8} {:>6.1}s {}",
-						engine.name,
-						run.outcome.name(),
-						run.seconds,
-						script.path
-					);
-					results
-						.lock()
-						.unwrap()
-						.insert((script.path.clone(), engine.name), run);
+					// Short, so that TEST_ROOT/dSocket stays under the socket
+					// path limit. Each engine runs the script here in turn.
+					let root = tempfile::Builder::new()
+						.prefix("nf")
+						.tempdir_in("/tmp")
+						.unwrap();
+					for engine in &engines {
+						let run = run_script(engine, script, timeout, root.path(), &blobs);
+						eprintln!(
+							"{:>9} {:<8} {:>6.1}s {}",
+							engine.name,
+							run.outcome.name(),
+							run.seconds,
+							script.path
+						);
+						results
+							.lock()
+							.unwrap()
+							.insert((script.path.clone(), engine.name), run);
+					}
 				}
 			});
 		}
@@ -1008,13 +1102,46 @@ fn functional_scripts_match_expectations() {
 	let results = results.into_inner().unwrap();
 	eprintln!(
 		"ran {} script runs in {:.0}s",
-		queue.len(),
+		queue.len() * engines.len(),
 		started.elapsed().as_secs_f64()
 	);
 
+	let recorder = Recorder::create(
+		"upstream-functional",
+		&Path::new(OUTPUT_DIR).join("records"),
+		"store",
+		reference.as_ref().map_or(Json::Null, executable_evidence),
+		executable_evidence(&noxi),
+	)
+	.expect("results directory");
+	let settings = |script: &Script| {
+		json!({
+			"environment": {
+				"PATH": "the engine's bin directory, then the host tool directories",
+				"tool_directories": env::split_paths(&noxi.path).skip(1).collect::<Vec<_>>(),
+				"HOME": "/homeless-shelter",
+				"TMPDIR": "ROOT/tmp, the same ROOT for both engines",
+				"NIX_STORE": "",
+				"NIX_REMOTE": "",
+				"_NIX_TEST_SOURCE_DIR": "ROOT/src",
+				"_NIX_TEST_BUILD_DIR": "ROOT/build",
+				"TEST_SUITE_NAME": script.suite,
+				"TEST_NAME": script.name(),
+				"PS4": "+(${BASH_SOURCE[0]-$0}:$LINENO) ",
+			},
+			"configuration": "TEST_ROOT/etc/nix.conf as the script's common/init.sh wrote it; each engine's copy is its capture's configuration field",
+			"experimental_features": "set in that nix.conf and by the script's own commands",
+			"store": "diverted local store at ROOT/tmp/nix-test/SUITE/NAME/store",
+			"inputs": {"snapshot": "tests/nix", "script": script.path},
+			"network_isolated": noxi.unshare.is_some(),
+			"busybox": noxi.busybox,
+			"timeout_ms": timeout.as_millis() as u64,
+		})
+	};
 	let mut report = Vec::new();
 	let mut counts: BTreeMap<String, usize> = BTreeMap::new();
 	for script in &chosen {
+		let problems_before = problems.len();
 		let noxi_run = &results[&(script.path.clone(), "noxi")];
 		let reference_run = results.get(&(script.path.clone(), "reference"));
 		let recorded = expected.get(&script.path).cloned();
@@ -1059,6 +1186,50 @@ fn functional_scripts_match_expectations() {
 				script.path, recorded.class
 			));
 		}
+		let expected_outcomes = problems.len() == problems_before;
+		let (verdict, reason) = match (class, reference_run) {
+			("unrun", _) => (Verdict::Unrun, script.not_run().map(str::to_owned)),
+			(_, None) => (
+				Verdict::Unrun,
+				Some(format!(
+					"reference not run in this invocation; recorded class {class}"
+				)),
+			),
+			("pass", _) if expected_outcomes => (Verdict::Pass, None),
+			("gap" | "anomaly", _) if expected_outcomes => (
+				Verdict::KnownDifference,
+				recorded.as_ref().map(|recorded| recorded.note.clone()),
+			),
+			_ => (Verdict::Fail, Some(problems[problems_before..].join("; "))),
+		};
+		let reference_capture = reference_run.and_then(|run| run.capture.clone());
+		let differences = match (&reference_capture, &noxi_run.capture) {
+			(Some(reference), Some(noxi)) => {
+				let mut fields: Vec<String> = results::differences(reference, noxi)
+					.into_iter()
+					.map(str::to_owned)
+					.collect();
+				if reference.extra.get("configuration") != noxi.extra.get("configuration") {
+					fields.push("configuration".to_owned());
+				}
+				fields
+			}
+			_ => Vec::new(),
+		};
+		recorder
+			.record(&Case {
+				id: script.path.clone(),
+				matrix_row: "copied-fixture-inventory".to_owned(),
+				inventory: Vec::new(),
+				settings: settings(script),
+				reference: reference_capture,
+				noxi: noxi_run.capture.clone(),
+				verdict,
+				classification: Some(class.to_owned()),
+				reason,
+				differences,
+			})
+			.expect("write record");
 		report.push(json!({
 			"script": script.path,
 			"suite": script.suite,
@@ -1103,6 +1274,7 @@ fn functional_scripts_match_expectations() {
 			"network_isolated": noxi.unshare.is_some(),
 			"timeout_seconds": timeout.as_secs(),
 			"scripts": report,
+			"records": recorder.path(),
 		}))
 		.unwrap(),
 	)

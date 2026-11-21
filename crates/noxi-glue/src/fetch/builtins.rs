@@ -335,19 +335,13 @@ async fn fetch_url(
 	unpack: bool,
 ) -> Result<Value, ErrorKind> {
 	let who = if unpack { "fetchTarball" } else { "fetchurl" };
-	generators::request_builtin_context(
-		co,
-		vec![noxi_eval::Trace::new(
-			None,
-			"while evaluating the url we should fetch",
-		)],
-	)
-	.await;
+	// CppNix forces the argument with no context of its own, so an error
+	// raised while forcing it carries no "while evaluating the url" frame;
+	// a type error in the string itself does, below.
 	let value = generators::request_force(co, value).await;
 	if value.is_catchable() {
 		return Ok(value);
 	}
-	generators::request_builtin_context(co, Vec::new()).await;
 	let mut url = None;
 	let mut name = if unpack {
 		"source".to_owned()
@@ -541,6 +535,12 @@ pub(crate) mod fetch_builtins {
 			return Err(error(
 				"experimental Nix feature 'flakes' is disabled; add '--extra-experimental-features flakes' to enable it",
 			));
+		}
+		// CppNix's `forceStringNoCtx` forces the argument before it adds this
+		// context, so an error raised while forcing carries no such frame.
+		let value = generators::request_force(&co, value).await;
+		if let Value::Catchable(kind) = value {
+			return Err(ErrorKind::CatchableError(*kind));
 		}
 		let reference = string_no_context(
 			&co,

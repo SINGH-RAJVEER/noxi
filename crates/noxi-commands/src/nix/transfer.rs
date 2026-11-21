@@ -80,62 +80,95 @@ pub fn copy(mut parsed: Parsed) -> Result<ExitCode, Failure> {
 	if !uri.starts_with("file://") {
 		return Err(unsupported("copy to stores other than file://"));
 	}
-	let params: Vec<_> = uri
-		.split_once('?')
-		.map_or("", |(_, params)| params)
-		.split('&')
-		.filter(|p| !p.is_empty())
-		.collect();
-	if !params.iter().any(|param| {
-		matches!(
-			*param,
-			"compression=none" | "compression=gzip" | "compression=bzip2" | "compression=zstd"
-		)
-	}) {
-		return Err(unsupported(
-			"copy without an explicit supported compression; use ?compression=none, gzip, bzip2 or zstd",
-		));
-	}
-	let mut key_files = Vec::new();
-	for param in &params {
-		if matches!(
-			*param,
-			"compression=none" | "compression=gzip" | "compression=bzip2" | "compression=zstd"
-		) {
-			continue;
-		}
-		if let Some(path) = param.strip_prefix("secret-key=") {
-			key_files.push(path);
-		} else if let Some(paths) = param.strip_prefix("secret-keys=") {
-			key_files.extend(paths.split(','));
+	// `LocalBinaryCacheStore`'s construction and `init`: settings and
+	// signing keys are read, then the cache's directories are made.
+	let destination = BinaryCache::open(uri).map_err(|e| {
+		let message = e.to_string();
+		if message.starts_with("option '") {
+			Failure::Usage(message)
 		} else {
-			return Err(unsupported("copy with these destination parameters"));
+			Failure::Error(message)
 		}
-	}
-	if key_files.is_empty() {
-		return Err(unsupported(
-			"copy to unsigned file:// caches (the upload API requires a signing key)",
-		));
-	}
-	let keys = key_files
+	})?;
+	let keys = destination
+		.upload_settings()
+		.secret_key_files
 		.iter()
 		.map(|path| {
-			parse_keypair(fs::read_to_string(path)?.trim())
+			let text = fs::read_to_string(path).map_err(|e| {
+				Failure::Error(format!(
+					"opening file \"{path}\": {}",
+					super::hash::strerror(&e)
+				))
+			})?;
+			parse_keypair(text.trim())
 				.map(|(key, _)| key)
-				.map_err(|e| std::io::Error::other(e.to_string()))
+				.map_err(|e| Failure::Error(e.to_string()))
 		})
 		.collect::<Result<Vec<_>, _>>()?;
+	destination.init_for_upload()?;
 	let target = match expression::targets(&parsed)? {
 		Ok(target) => target,
 		Err(code) => return Ok(code),
 	};
+	// `BuiltPathsCommand` realises derivation outputs before copying them.
+	let built: Vec<noxi_store::DerivedPath> = target
+		.paths
+		.iter()
+		.filter(|path| matches!(path, noxi_store::DerivedPath::Built { .. }))
+		.cloned()
+		.collect();
+	if !built.is_empty() {
+		let missing = target.store.query_missing(&built)?;
+		crate::paths::print_missing(target.store.as_ref(), &missing)?;
+		target.store.build_paths(&built)?;
+	}
 	let source_uri = crate::store::store_uri(parsed.value("store"), &parsed.settings);
 	let (source, _) = crate::store::open_local(&source_uri, &parsed.settings)?
 		.ok_or_else(|| unsupported("copy from this store"))?;
-	let destination = BinaryCache::open(uri)?;
 	let mut roots = BTreeSet::new();
+	// `toRealisedPaths`: the realisations of content-addressed outputs are
+	// copied with the outputs.
+	let mut realisations = std::collections::BTreeMap::new();
 	for path in target.paths {
-		roots.extend(expression::outputs(target.store.as_ref(), &path)?.into_values());
+		match &path {
+			noxi_store::DerivedPath::Built { drv, outputs } if source.config().ca_derivations => {
+				let all: BTreeSet<String> = source
+					.query_partial_derivation_output_map(drv)?
+					.into_keys()
+					.collect();
+				if let Some(name) = outputs.difference(&all).next() {
+					return Err(Failure::Error(format!(
+						"derivation '{}' does not have an output named '{name}'",
+						drv.to_absolute_path()
+					)));
+				}
+				let names = if outputs.is_empty() {
+					all
+				} else {
+					outputs.clone()
+				};
+				for name in names {
+					let mut collect =
+						|drv: &nix_compat::store_path::StorePath,
+						 name: &str,
+						 realisation: &noxi_store::Realisation| {
+							realisations
+								.insert((drv.clone(), name.to_owned()), realisation.clone());
+						};
+					let output =
+						noxi_build::local::deep_query_output(&source, drv, &name, &mut collect)
+							.map_err(|e| Failure::Error(e.to_string()))?;
+					roots.insert(output.ok_or_else(|| {
+						Failure::Error(format!(
+							"output '{name}' of derivation '{}' has not been built",
+							drv.to_absolute_path()
+						))
+					})?);
+				}
+			}
+			_ => roots.extend(expression::outputs(target.store.as_ref(), &path)?.into_values()),
+		}
 	}
 	let closure = source.compute_closure(&roots)?;
 	let mut missing = BTreeSet::new();
@@ -150,16 +183,35 @@ pub fn copy(mut parsed: Parsed) -> Result<ExitCode, Failure> {
 	if !missing.is_empty() {
 		log(&format!("copying {} paths...", missing.len()));
 	}
-	for path in crate::paths::topo_sort(&source, &missing)?
-		.into_iter()
-		.rev()
-	{
+	// `BinaryCacheStore::addMultipleToStore` starts the NAR uploads largest
+	// first, which is when each path's copy is reported, and publishes the
+	// narinfo files dependencies first.
+	let mut by_size = Vec::new();
+	for path in &missing {
+		let info = source
+			.query_path_info(path)?
+			.ok_or_else(|| noxi_store::Error::InvalidPath(path.to_absolute_path()))?;
+		by_size.push((std::cmp::Reverse(info.nar_size), path));
+	}
+	by_size.sort();
+	for (_, path) in by_size {
 		log(&format!(
 			"copying path '{}' to '{}'...",
 			path.to_absolute_path(),
 			uri.split('?').next().unwrap_or(uri)
 		));
-		destination.upload_closure(&source, &path, &keys)?;
+	}
+	for path in crate::paths::topo_sort(&source, &missing)?
+		.into_iter()
+		.rev()
+	{
+		// The cache signs with its own `secret-key` and `secret-keys`.
+		destination.upload(&source, &path, &keys[..0])?;
+	}
+	// `copyPaths` registers the realisations once their outputs are in the
+	// cache, as `build-trace-v2/<drv>/<output>.doi` files.
+	for ((drv, name), realisation) in &realisations {
+		destination.upload_realisation(drv, name, realisation)?;
 	}
 	Ok(ExitCode::SUCCESS)
 }

@@ -263,7 +263,7 @@ fn signed_local_upload_matches_reference_and_round_trips() {
 	let url = format!("file://{}", env.root("rust-upload").display());
 	let cache = BinaryCache::open(&url).unwrap();
 	cache.upload_closure(&source, &env.out, &keys).unwrap();
-	let reference_url = env.make_cache("reference-upload", "compression=none", true);
+	let reference_url = env.make_cache("reference-upload", "compression=xz", true);
 	let reference_cache = BinaryCache::open(&reference_url).unwrap();
 	assert_eq!(
 		fs::read_to_string(env.root("rust-upload/nix-cache-info")).unwrap(),
@@ -272,6 +272,11 @@ fn signed_local_upload_matches_reference_and_round_trips() {
 	for path in [&env.out, &env.busybox] {
 		let text = cache.narinfo_text(path).unwrap().unwrap();
 		assert_eq!(text, reference_cache.narinfo_text(path).unwrap().unwrap());
+		let location = NarInfo::parse(&text).unwrap().url.to_owned();
+		assert_eq!(
+			fs::read(env.root("rust-upload").join(&location)).unwrap(),
+			fs::read(env.root("reference-upload").join(&location)).unwrap()
+		);
 		let mut actual = Vec::new();
 		cache
 			.nar(&cache.query_path_info(path).unwrap().unwrap())
@@ -315,7 +320,7 @@ fn compressed_local_uploads_are_accepted_by_the_reference() {
 	let (key, _) =
 		parse_keypair(fs::read_to_string(env.secret_key_file()).unwrap().trim()).unwrap();
 	let keys = [key];
-	for method in ["gzip", "bzip2", "zstd"] {
+	for method in ["xz", "lzma", "gzip", "bzip2", "zstd"] {
 		let url = format!("file://{}?compression={method}", env.root(method).display());
 		let cache = BinaryCache::open(&url).unwrap();
 		cache.upload_closure(&source, &env.out, &keys).unwrap();
@@ -323,6 +328,107 @@ fn compressed_local_uploads_are_accepted_by_the_reference() {
 		assert!(text.contains(&format!("Compression: {method}\n")));
 		let destination = format!("reference-from-{method}");
 		let output = env.reference_substitute(&destination, &url, &env.out);
+		assert!(
+			output.status.success(),
+			"{}",
+			String::from_utf8_lossy(&output.stderr)
+		);
+		env.verify(&destination);
+	}
+}
+
+/// Every file of a cache directory, by relative path.
+fn cache_files(dir: &Path) -> std::collections::BTreeMap<String, Vec<u8>> {
+	fn walk(root: &Path, dir: &Path, files: &mut std::collections::BTreeMap<String, Vec<u8>>) {
+		for entry in fs::read_dir(dir).unwrap() {
+			let path = entry.unwrap().path();
+			let name = path.strip_prefix(root).unwrap().display().to_string();
+			if path.is_dir() {
+				files.insert(format!("{name}/"), Vec::new());
+				walk(root, &path, files);
+			} else {
+				files.insert(name, fs::read(&path).unwrap());
+			}
+		}
+	}
+	let mut files = std::collections::BTreeMap::new();
+	walk(dir, dir, &mut files);
+	files
+}
+
+#[test]
+fn uploads_write_the_reference_cache_layout_and_bytes() {
+	let env = Env::new();
+	let source = env.noxi_store("src");
+	let (key, _) =
+		parse_keypair(fs::read_to_string(env.secret_key_file()).unwrap().trim()).unwrap();
+	let keys = [key];
+	let no_keys = &keys[..0];
+	// gzip headers carry the time of compression, so only its other
+	// files and the decompressed NAR are compared.
+	for params in [
+		"",
+		"compression=none&write-nar-listing=1",
+		"compression=xz&compression-level=1",
+		"compression=xz&parallel-compression=true",
+		"compression=lzma",
+		"compression=bzip2",
+		"compression=zstd",
+		"compression=zstd&parallel-compression=false",
+		"compression=gzip",
+	] {
+		let name = format!("layout-{}", params.replace(['=', '&'], "-"));
+		let signed = format!("{params}&secret-key={}", env.secret_key_file().display());
+		let reference_dir = env.root(&format!("{name}-reference"));
+		env.reference_ok(
+			"nix",
+			&[
+				"copy",
+				"--store",
+				env.root("src").to_str().unwrap(),
+				"--to",
+				&format!("file://{}?{signed}", reference_dir.display()),
+				&env.out.to_absolute_path(),
+			],
+		);
+		let rust_dir = env.root(&format!("{name}-rust"));
+		let cache = BinaryCache::open(&format!("file://{}?{signed}", rust_dir.display())).unwrap();
+		cache.upload_closure(&source, &env.out, no_keys).unwrap();
+		let expected = cache_files(&reference_dir);
+		let actual = cache_files(&rust_dir);
+		if !params.contains("gzip") {
+			assert_eq!(
+				actual.keys().collect::<Vec<_>>(),
+				expected.keys().collect::<Vec<_>>(),
+				"{params}"
+			);
+			for (file, bytes) in &expected {
+				assert!(actual[file] == *bytes, "{params}: {file} differs");
+			}
+			continue;
+		}
+		let strip = |text: &[u8]| {
+			String::from_utf8_lossy(text)
+				.lines()
+				.filter(|l| {
+					!l.starts_with("URL:")
+						&& !l.starts_with("FileHash:")
+						&& !l.starts_with("FileSize:")
+						&& !l.starts_with("Sig:")
+				})
+				.collect::<Vec<_>>()
+				.join("\n")
+		};
+		for path in [&env.out, &env.busybox] {
+			let file = format!("{}.narinfo", nix_compat::nixbase32::encode(path.digest()));
+			assert_eq!(
+				strip(&actual[&file]),
+				strip(&expected[&file]),
+				"{params}: {file}"
+			);
+		}
+		let destination = format!("{name}-substituted");
+		let output = env.reference_substitute(&destination, cache.uri(), &env.out);
 		assert!(
 			output.status.success(),
 			"{}",
@@ -357,8 +463,11 @@ fn local_upload_preserves_signatures_across_key_rotation() {
 	let secret = env.reference_ok("nix", &["key", "generate-secret", "--key-name", "test"]);
 	fs::write(env.secret_key_file(), &secret).unwrap();
 	let (key, _) = parse_keypair(secret.trim()).unwrap();
-	let cache =
-		BinaryCache::open(&format!("file://{}", env.root("rotate-upload").display())).unwrap();
+	let cache = BinaryCache::open(&format!(
+		"file://{}?compression=none",
+		env.root("rotate-upload").display()
+	))
+	.unwrap();
 	cache.upload_closure(&source, &env.out, &[key]).unwrap();
 	let reference =
 		BinaryCache::open(&env.make_cache("reference-rotate", "compression=none", true)).unwrap();
@@ -469,7 +578,8 @@ fn local_upload_does_not_advertise_corrupt_source_or_leak_temporary_files() {
 		}
 		source.register_valid_path(&bad).unwrap();
 		let dir = env.root(&format!("bad-source-{case}"));
-		let cache = BinaryCache::open(&format!("file://{}", dir.display())).unwrap();
+		let cache =
+			BinaryCache::open(&format!("file://{}?compression=none", dir.display())).unwrap();
 		assert!(cache.upload_closure(&source, &env.out, &keys).is_err());
 		assert!(cache.narinfo_text(&env.out).unwrap().is_none());
 		assert!(cache.narinfo_text(&env.busybox).unwrap().is_some());
@@ -482,8 +592,11 @@ fn local_upload_does_not_advertise_corrupt_source_or_leak_temporary_files() {
 		}));
 	}
 	source.register_valid_path(&original).unwrap();
-	let cache =
-		BinaryCache::open(&format!("file://{}", env.root("preserve-good").display())).unwrap();
+	let cache = BinaryCache::open(&format!(
+		"file://{}?compression=none",
+		env.root("preserve-good").display()
+	))
+	.unwrap();
 	cache.upload_closure(&source, &env.out, &keys).unwrap();
 	let good = cache.narinfo_text(&env.out).unwrap();
 	let contents = source.real_path(&env.out).join("ref");
@@ -507,7 +620,7 @@ fn local_upload_recovers_from_failed_publication_without_advertising_the_root() 
 		nix_compat::nixbase32::encode(&info.nar_hash)
 	));
 	fs::create_dir_all(&blocker).unwrap();
-	let cache = BinaryCache::open(&format!("file://{}", dir.display())).unwrap();
+	let cache = BinaryCache::open(&format!("file://{}?compression=none", dir.display())).unwrap();
 	assert!(cache.upload_closure(&source, &env.out, &keys).is_err());
 	assert!(cache.narinfo_text(&env.out).unwrap().is_none());
 	assert!(cache.narinfo_text(&env.busybox).unwrap().is_some());
@@ -568,18 +681,39 @@ fn local_upload_rejects_unprotected_sources_and_http_destinations() {
 	let keys = [key];
 	let dir = env.root("rejected-upload");
 	let cache = BinaryCache::open(&format!("file://{}", dir.display())).unwrap();
-	assert!(cache.upload_closure(&source, &env.out, &keys[..0]).is_err());
 	let mut config = LocalStoreConfig::with_root(&env.root("src"));
 	config.read_only = true;
 	let readonly = LocalStore::open(config).unwrap();
 	assert!(cache.upload_closure(&readonly, &env.out, &keys).is_err());
 	assert!(!dir.exists());
-	let http = BinaryCache::open(&serve(env.root("nonexistent-http-cache"))).unwrap();
+	// An HTTP cache without `nix-cache-info` is refused when opened.
+	let missing = BinaryCache::open(&serve(env.root("nonexistent-http-cache"))).unwrap_err();
+	assert!(
+		missing
+			.to_string()
+			.ends_with("does not appear to be a binary cache")
+	);
+	fs::create_dir(env.root("empty-http-cache")).unwrap();
+	fs::write(
+		env.root("empty-http-cache/nix-cache-info"),
+		"StoreDir: /nix/store\n",
+	)
+	.unwrap();
+	let http = BinaryCache::open(&serve(env.root("empty-http-cache"))).unwrap();
 	let error = http
 		.upload_closure(&source, &env.out, &keys)
 		.unwrap_err()
 		.to_string();
 	assert!(error.contains("require a file:// cache"));
+	// Unsigned uploads are allowed, as by the reference.
+	cache.upload_closure(&source, &env.out, &keys[..0]).unwrap();
+	assert!(
+		!cache
+			.narinfo_text(&env.out)
+			.unwrap()
+			.unwrap()
+			.contains("Sig:")
+	);
 }
 
 #[test]

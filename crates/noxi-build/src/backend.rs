@@ -3,7 +3,7 @@
 
 use std::cell::OnceCell;
 use std::collections::{BTreeMap, BTreeSet};
-use std::io::{Read, Write};
+use std::io::Read;
 use std::path::{Path, PathBuf};
 
 use nix_compat::derivation::UnverifiedDerivation;
@@ -48,18 +48,35 @@ impl LocalBackend {
 			let mut caches: Vec<BinaryCache> = self
 				.substituter_uris
 				.iter()
-				.filter_map(|uri| match BinaryCache::open(uri) {
-					Ok(cache) => Some(cache.with_narinfo_cache_ttls(
-						self.store.config().narinfo_cache_positive_ttl,
-						self.store.config().narinfo_cache_negative_ttl,
-					)),
-					Err(e) => {
-						if nix_compat::log::log_enabled(nix_compat::log::VerbosityLevel::Warn) {
-							eprintln!("warning: disabling substituter '{uri}': {e}");
+				.filter_map(
+					|uri| match BinaryCache::open_with(uri, self.settings.transfer) {
+						Ok(cache) => Some(cache.with_narinfo_cache_ttls(
+							self.store.config().narinfo_cache_positive_ttl,
+							self.store.config().narinfo_cache_negative_ttl,
+						)),
+						// `getDefaultSubstituters` logs the error as a warning.
+						Err(e) => {
+							// `showErrorInfo` indents continuation lines under the prefix.
+							let message = e
+								.to_string()
+								.trim_end()
+								.split('\n')
+								.enumerate()
+								.map(|(i, line)| {
+									let line = if i == 0 {
+										line.to_owned()
+									} else {
+										format!("         {line}")
+									};
+									line.trim_end().to_owned()
+								})
+								.collect::<Vec<_>>()
+								.join("\n");
+							nix_compat::log::logger::warn(&message);
+							None
 						}
-						None
-					}
-				})
+					},
+				)
 				.collect();
 			caches.sort_by_key(|cache| cache.info().priority);
 			caches
@@ -70,10 +87,12 @@ impl LocalBackend {
 impl LocalBackend {
 	/// The derivations realising `paths` builds, each after its inputs and
 	/// otherwise in order of name and path.
-	fn build_order(&self, paths: &[DerivedPath]) -> Result<Vec<(StorePath, BTreeSet<StorePath>)>> {
-		let will_build = self.query_missing(paths)?.will_build;
+	fn build_order(
+		&self,
+		will_build: &BTreeSet<StorePath>,
+	) -> Result<Vec<(StorePath, BTreeSet<StorePath>)>> {
 		let mut inputs: BTreeMap<StorePath, BTreeSet<StorePath>> = BTreeMap::new();
-		for drv in &will_build {
+		for drv in will_build {
 			let drv_inputs = self
 				.store
 				.read_build_derivation(drv)?
@@ -94,8 +113,10 @@ impl LocalBackend {
 			"Cannot build '{}'.\nReason: 1 dependency failed.",
 			drv.to_absolute_path()
 		);
-		let derivation = self.store.read_derivation(drv)?;
+		// Floating outputs have no paths to list.
+		let derivation = self.store.read_build_derivation(drv)?;
 		let mut outputs: Vec<String> = derivation
+			.basic
 			.outputs()
 			.store_paths()
 			.map(StorePath::to_absolute_path)
@@ -218,6 +239,20 @@ impl Store for LocalBackend {
 		self.store.query_partial_derivation_output_map(drv)
 	}
 
+	fn deep_query_partial_derivation_output_map(
+		&self,
+		drv: &StorePath,
+	) -> Result<BTreeMap<String, Option<StorePath>>> {
+		let mut outputs = self.store.query_partial_derivation_output_map(drv)?;
+		for (name, path) in &mut outputs {
+			if path.is_none() {
+				*path = crate::local::deep_query_output(&self.store, drv, name, &mut |_, _, _| {})
+					.map_err(|e| Error::Other(e.to_string()))?;
+			}
+		}
+		Ok(outputs)
+	}
+
 	fn read_derivation(&self, drv: &StorePath) -> Result<UnverifiedDerivation> {
 		self.store.read_derivation(drv)
 	}
@@ -294,6 +329,29 @@ impl Store for LocalBackend {
 	}
 
 	fn query_missing(&self, paths: &[DerivedPath]) -> Result<Missing> {
+		let _act = nix_compat::log::logger::Activity::new(
+			nix_compat::log::VerbosityLevel::Debug,
+			nix_compat::log::ActivityType::Unknown,
+			"querying info about missing paths",
+			vec![],
+			0,
+		);
+		self.query_missing_quietly(paths)
+	}
+
+	/// Build output goes to standard error, as the legacy commands print it,
+	/// after a line naming each derivation as it starts.
+	fn build_paths(&self, paths: &[DerivedPath]) -> Result<()> {
+		// CppNix's `Worker` reports its build and substitution counts
+		// through these activities while it runs.
+		let _worker = nix_compat::log::logger::WorkerGuard::new();
+		self.build_paths_in_worker(paths)
+	}
+}
+
+impl LocalBackend {
+	/// `queryMissing` without its activity, for the worker's own plan.
+	fn query_missing_quietly(&self, paths: &[DerivedPath]) -> Result<Missing> {
 		let targets: Vec<missing::DerivedPath> = paths
 			.iter()
 			.map(|path| match path {
@@ -315,44 +373,82 @@ impl Store for LocalBackend {
 		.map_err(|e| Error::Other(e.to_string()))
 	}
 
-	/// Build output goes to standard error, as the legacy commands print it,
-	/// after a line naming each derivation as it starts.
-	fn build_paths(&self, paths: &[DerivedPath]) -> Result<()> {
+	/// The progress the worker reports as it creates its goals: for each
+	/// requested derivation a `DerivationTrampolineGoal` and a
+	/// `DerivationGoal`, which finishes at once if the outputs are valid,
+	/// and then a goal for each input derivation of the derivations to
+	/// build.
+	fn announce_goals(
+		&self,
+		paths: &[DerivedPath],
+		will_build: &BTreeSet<StorePath>,
+	) -> Result<()> {
+		use nix_compat::log::logger::worker_update;
+		let mut targets: Vec<&StorePath> = Vec::new();
+		for path in paths {
+			if let DerivedPath::Built { drv, .. } = path
+				&& !targets.contains(&drv)
+			{
+				targets.push(drv);
+			}
+		}
+		for _ in &targets {
+			worker_update(|_| {});
+		}
+		let mut seen: BTreeSet<StorePath> = BTreeSet::new();
+		let mut queue = std::collections::VecDeque::new();
+		for drv in &targets {
+			seen.insert((*drv).clone());
+			worker_update(|c| c.expected_builds += 1);
+			if will_build.contains(*drv) {
+				queue.push_back((*drv).clone());
+			} else {
+				worker_update(|c| c.expected_builds = c.expected_builds.saturating_sub(1));
+			}
+		}
+		while let Some(drv) = queue.pop_front() {
+			let inputs: Vec<StorePath> = self
+				.store
+				.read_build_derivation(&drv)?
+				.basic
+				.input_derivations()
+				.keys()
+				.cloned()
+				.collect();
+			for input in inputs {
+				if !seen.insert(input.clone()) {
+					continue;
+				}
+				worker_update(|_| {});
+				worker_update(|c| c.expected_builds += 1);
+				if will_build.contains(&input) {
+					queue.push_back(input);
+				} else {
+					worker_update(|c| c.expected_builds = c.expected_builds.saturating_sub(1));
+				}
+			}
+		}
+		Ok(())
+	}
+
+	fn build_paths_in_worker(&self, paths: &[DerivedPath]) -> Result<()> {
 		let substituters = self.substituters();
 		let builder =
 			LocalBuilder::new(&self.store, &self.settings).with_substituters(substituters);
-		// The `bar` loggers print each completed line as `NAME> LINE`, the line
-		// assembled as `handleChildOutput` does: `\r` rewinds, `\n` ends it.
-		let mut prefixed = PrefixedLog::default();
-		let mut events = |event: BuildEvent<'_>| {
-			let mut stderr = std::io::stderr();
-			let prefix = nix_compat::log::prefix_build_logs();
-			let _ = match event {
-				// The build activity is at `lvlInfo`; its output is shown
-				// unless build logs are off.
-				BuildEvent::Started { drv_path } => {
-					prefixed.start(drv_path);
-					if nix_compat::log::log_enabled(nix_compat::log::VerbosityLevel::Info) {
-						writeln!(stderr, "building '{}'...", drv_path.to_absolute_path())
-					} else {
-						Ok(())
-					}
-				}
-				BuildEvent::Output(data) if prefix => {
-					prefixed.push(data, &mut stderr);
-					Ok(())
-				}
-				BuildEvent::Output(data) if nix_compat::log::print_build_logs() => {
-					stderr.write_all(data)
-				}
-				BuildEvent::Finished { .. } if prefix => {
-					prefixed.flush(&mut stderr);
-					Ok(())
-				}
-				BuildEvent::Output(_) => Ok(()),
-				BuildEvent::Finished { .. } | BuildEvent::PathChecked { .. } => Ok(()),
-			};
+		let will_build = if paths
+			.iter()
+			.any(|path| matches!(path, DerivedPath::Built { .. }))
+		{
+			self.query_missing_quietly(paths)?.will_build
+		} else {
+			BTreeSet::new()
 		};
+		self.announce_goals(paths, &will_build)?;
+		// Each build is an activity whose output the logger renders: the
+		// raw logger prints its lines, `bar` prefixes them with the name,
+		// and `internal-json` sends them as results.
+		let mut logs = BuildLogs::default();
+		let mut events = |event: BuildEvent<'_>| logs.event(None, event);
 		if self.settings.max_build_jobs > 1 || self.settings.keep_going {
 			let targets: Vec<_> = paths
 				.iter()
@@ -364,8 +460,10 @@ impl Store for LocalBackend {
 					DerivedPath::Opaque(_) => None,
 				})
 				.collect();
-			let mut batch =
-				builder.realise_many_with_events(&targets, &mut |_, event| events(event))?;
+			drop(events);
+			let mut batch = builder.realise_many_with_events(&targets, &mut |owner, event| {
+				logs.event(Some(owner), event)
+			})?;
 			let exit_status = batch.exit_status();
 			let mut failed_targets = Vec::new();
 			for (path, _) in &targets {
@@ -380,7 +478,7 @@ impl Store for LocalBackend {
 			}
 			for error in batch.failures.into_values() {
 				if !matches!(error, BuildError::Cancelled) {
-					eprintln!("{}", format_error(&error.to_string()));
+					log_error(&error.to_string());
 				}
 			}
 			if failed_targets.len() == 1 {
@@ -396,7 +494,7 @@ impl Store for LocalBackend {
 					.collect();
 				quoted.sort();
 				for (_, message) in failed_targets {
-					eprintln!("{}", format_error(&message));
+					log_error(&message);
 				}
 				return Err(Error::Build {
 					exit_status,
@@ -425,7 +523,7 @@ impl Store for LocalBackend {
 				DerivedPath::Opaque(_) => None,
 			})
 			.collect();
-		let order = self.build_order(paths)?;
+		let order = self.build_order(&will_build)?;
 		let has_waiters = |drv: &StorePath| order.iter().any(|(_, inputs)| inputs.contains(drv));
 		let mut built: BTreeSet<&StorePath> = BTreeSet::new();
 		let mut failed: BTreeSet<&StorePath> = BTreeSet::new();
@@ -445,13 +543,18 @@ impl Store for LocalBackend {
 					Err(error) => return Err(error.into()),
 				}
 			} else if inputs.iter().any(|input| failed.contains(input)) {
+				// `DerivationGoal::doneFailure` for a dependency failure
+				// releases the expected build without counting a failure.
+				nix_compat::log::logger::worker_update(|c| {
+					c.expected_builds = c.expected_builds.saturating_sub(1)
+				});
 				self.dependency_failed(drv)?
 			} else {
 				continue;
 			};
 			failed.insert(drv);
 			if has_waiters(drv) {
-				eprintln!("{}", format_error(&message));
+				log_error(&message);
 			}
 			if targets.contains(drv) {
 				failure = Some(message);
@@ -479,17 +582,17 @@ impl Store for LocalBackend {
 			let mut held = None;
 			for drv in &unfinished {
 				let text = if Some(drv) == failed_target {
-					format_error(&message)
+					message.clone()
 				} else {
 					String::new()
 				};
 				match held {
 					None => held = Some(text),
-					Some(_) => eprintln!("{text}"),
+					Some(_) => log_error(&text),
 				}
 			}
 			if let Some(text) = held {
-				eprintln!("{text}");
+				log_error(&text);
 			}
 			let mut quoted: Vec<String> = unfinished
 				.iter()
@@ -510,6 +613,9 @@ impl Store for LocalBackend {
 					// CppNix throws the substitution goal's own failure.
 					self.store.substitute(substituters, path)?;
 				}
+				// A derivation built above realised all its outputs; its goal
+				// is shared, as in CppNix's worker.
+				DerivedPath::Built { drv, .. } if built.contains(drv) => {}
 				DerivedPath::Built { drv, outputs } => {
 					let wanted = (!outputs.is_empty()).then_some(outputs);
 					let result = builder.realise_with_events(drv, wanted, &mut events);
@@ -521,10 +627,20 @@ impl Store for LocalBackend {
 	}
 }
 
-/// Format an error as CppNix's `logError` does: continuation lines line up
-/// after the `error: ` prefix.
-fn format_error(message: &str) -> String {
-	nix_compat::log::format_error(message)
+/// Log an error as CppNix's `logError` does: continuation lines line up
+/// after the `error: ` prefix. An empty failure logs an empty line.
+fn log_error(message: &str) {
+	use nix_compat::log::logger::{ANSI_NORMAL, ANSI_RED, log, log_error};
+	if message.is_empty() {
+		log(nix_compat::log::VerbosityLevel::Error, "");
+		return;
+	}
+	let formatted = nix_compat::log::format_error(message);
+	let rendered = match formatted.strip_prefix("error: ") {
+		Some(rest) => format!("{ANSI_RED}error:{ANSI_NORMAL} {rest}"),
+		None => formatted,
+	};
+	log_error(&rendered, message);
 }
 
 #[cfg(test)]
@@ -633,66 +749,65 @@ mod order_tests {
 	}
 }
 
-/// Build output as CppNix's `ProgressBar` prints it with `--print-build-logs`
-/// off a terminal: each line after the derivation's name and `> `.
+/// The running builds' activities, CppNix's `started` and `BuildLog`: the
+/// activity's text names the derivation, its fields are the derivation,
+/// the machine (empty for a local build) and the round counts, and the
+/// output arrives as lines.
 #[derive(Default)]
-struct PrefixedLog {
-	name: String,
-	line: Vec<u8>,
-	pos: usize,
+struct BuildLogs {
+	logs: BTreeMap<StorePath, nix_compat::log::logger::BuildLog>,
+	/// The build whose output arrives without an owner.
+	current: Option<StorePath>,
 }
 
-impl PrefixedLog {
-	fn start(&mut self, drv_path: &StorePath) {
-		// `DrvName(...).name`: the name without its version.
-		let full = drv_path
-			.name()
-			.strip_suffix(".drv")
-			.unwrap_or(drv_path.name());
-		let bytes = full.as_bytes();
-		let end = (0..bytes.len())
-			.find(|&i| {
-				bytes[i] == b'-' && i + 1 < bytes.len() && !bytes[i + 1].is_ascii_alphabetic()
-			})
-			.unwrap_or(bytes.len());
-		self.name = full[..end].to_owned();
-		self.line.clear();
-		self.pos = 0;
-	}
-
-	fn push(&mut self, data: &[u8], out: &mut dyn std::io::Write) {
-		for &byte in data {
-			match byte {
-				b'\n' => self.emit(out),
-				b'\r' => self.pos = 0,
-				byte => {
-					if self.pos < self.line.len() {
-						self.line[self.pos] = byte;
-					} else {
-						self.line.push(byte);
-					}
-					self.pos += 1;
+impl BuildLogs {
+	fn event(&mut self, owner: Option<&StorePath>, event: BuildEvent<'_>) {
+		use nix_compat::log::logger::{Activity, BuildLog, worker_change, worker_update};
+		match event {
+			BuildEvent::Started { drv_path } => {
+				let path = drv_path.to_absolute_path();
+				let act = Activity::new(
+					nix_compat::log::VerbosityLevel::Info,
+					nix_compat::log::ActivityType::Build,
+					format!("building '{path}'"),
+					vec![path.into(), "".into(), 1u64.into(), 1u64.into()],
+					0,
+				);
+				self.logs.insert(drv_path.clone(), BuildLog::new(act));
+				self.current = Some(drv_path.clone());
+				worker_update(|c| c.running_builds += 1);
+			}
+			BuildEvent::Output(data) => {
+				let owner = owner.or(self.current.as_ref());
+				if let Some(log) = owner.and_then(|owner| self.logs.get_mut(owner)) {
+					log.push(data);
 				}
 			}
+			BuildEvent::Finished { drv_path, error } => {
+				let Some(mut log) = self.logs.remove(drv_path) else {
+					return;
+				};
+				log.flush();
+				worker_update(|c| {
+					c.running_builds = c.running_builds.saturating_sub(1);
+					match error {
+						None => c.done_builds += 1,
+						Some(error) if error.status() != crate::FailureStatus::DependencyFailed => {
+							c.failed_builds += 1
+						}
+						Some(_) => {}
+					}
+				});
+				// The activity stops after the progress update.
+				drop(log);
+				// The derivation goal finishes without reporting progress;
+				// its expected build is released when the goal is freed.
+				worker_change(|c| c.expected_builds = c.expected_builds.saturating_sub(1));
+				if self.current.as_ref() == Some(drv_path) {
+					self.current = None;
+				}
+			}
+			BuildEvent::PathChecked { .. } => {}
 		}
-	}
-
-	/// The unterminated last line when the build ends.
-	fn flush(&mut self, out: &mut dyn std::io::Write) {
-		if !self.line.is_empty() {
-			self.emit(out);
-		}
-	}
-
-	/// `flushLine`.
-	fn emit(&mut self, out: &mut dyn std::io::Write) {
-		// The whole message is filtered, so tabs align after the prefix.
-		let mut message = format!("{}> ", self.name).into_bytes();
-		message.extend_from_slice(&self.line);
-		let mut text = nix_compat::log::filter_ansi_escapes(&message, true);
-		text.push(b'\n');
-		let _ = out.write_all(&text);
-		self.line.clear();
-		self.pos = 0;
 	}
 }

@@ -248,9 +248,7 @@ impl Derivation {
 
 	/// The structured attributes as CppNix stores them in `__json`.
 	fn structured_attrs_json(&self) -> Option<String> {
-		self.structured_attrs
-			.as_ref()
-			.map(|attrs| attrs.to_string())
+		self.structured_attrs.as_ref().map(super::dump)
 	}
 
 	/// The ATerm text of the derivation, `Derivation::unparse`. With

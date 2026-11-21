@@ -63,7 +63,7 @@ fn utf8_fields_keep_the_existing_json_representation() {
 
 #[test]
 fn parses_and_round_trips_unchecked_output_names() {
-	for name in ["", "drv", "invalid/name"] {
+	for name in ["", "invalid/name"] {
 		let aterm = format!("Derive([({name:?},{OUTPUT_PATH:?},\"\",\"\")],[],[],\"\",\"\",[],[])");
 		let parsed = UnverifiedDerivation::from_aterm_bytes(aterm.as_bytes())
 			.expect("CppNix accepts the output name in ATerm");
@@ -84,7 +84,7 @@ fn parses_and_round_trips_unchecked_output_names() {
 
 #[test]
 fn parses_and_round_trips_unchecked_input_output_names() {
-	for name in ["", "drv", "invalid/name"] {
+	for name in ["", "invalid/name"] {
 		let aterm = format!(
 			"Derive([(\"out\",{OUTPUT_PATH:?},\"\",\"\")],[({INPUT_PATH:?},[{name:?}])],[],\"system\",\"builder\",[],[])"
 		);
@@ -154,4 +154,36 @@ fn round_trips_escaped_output_name() {
 		b"bad\"name"
 	);
 	assert_eq!(parsed.to_aterm_bytes(), aterm.as_bytes());
+}
+
+/// CppNix 2.35.2 accepts `drv` both as an output name and as an input
+/// derivation's output: `derivation { outputs = [ "drv" ]; ... }` evaluates
+/// to a `-drv` output path, and a dependent derivation records `["drv"]`
+/// among its inputs.
+#[test]
+fn accepts_drv_as_an_output_name() {
+	let aterm =
+		format!("Derive([(\"drv\",{OUTPUT_PATH:?},\"\",\"\")],[],[],\"system\",\"builder\",[],[])");
+	let parsed = UnverifiedDerivation::from_aterm_bytes(aterm.as_bytes()).unwrap();
+	assert_eq!(parsed.to_aterm_bytes(), aterm.as_bytes());
+	let (builder, outputs) = parsed.into_parts();
+	let calculated = builder
+		.calculate_outputs("test", lookup_fn(|_| None))
+		.expect("CppNix calculates output paths for an output named drv");
+	let (name, path) = calculated.iter().next().unwrap();
+	assert_eq!(name.as_str(), Some("drv"));
+	assert_eq!(path.name(), "test-drv");
+	builder
+		.build_unverified(outputs)
+		.expect("an output named drv is valid");
+
+	let aterm = format!(
+		"Derive([(\"out\",{OUTPUT_PATH:?},\"\",\"\")],[({INPUT_PATH:?},[\"drv\"])],[],\"system\",\"builder\",[],[])"
+	);
+	let parsed = UnverifiedDerivation::from_aterm_bytes(aterm.as_bytes()).unwrap();
+	assert_eq!(parsed.to_aterm_bytes(), aterm.as_bytes());
+	let (builder, outputs) = parsed.into_parts();
+	builder
+		.build_unverified(outputs)
+		.expect("an input output named drv is valid");
 }

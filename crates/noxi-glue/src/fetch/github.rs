@@ -161,7 +161,7 @@ pub(crate) fn get_accessor(
 	};
 	let url = archive_url(scheme, &host, &owner, &repo, &rev, !headers.is_empty());
 	let (mount, modified) =
-		super::tarball::download_tarball(store, &url, &headers, &input.get_name())?;
+		super::tarball::download_tarball(store, &url, &headers, &input.get_name(), None)?;
 	let mut result = input.clone();
 	result.attrs.remove("ref");
 	result.attrs.insert("rev".into(), rev.into());

@@ -369,3 +369,254 @@ fn compressed_command_uploads_import_with_reference() {
 		);
 	}
 }
+
+/// Every file and directory under `dir`, with file contents.
+fn tree(dir: &Path) -> Vec<(String, Option<Vec<u8>>)> {
+	let mut entries = Vec::new();
+	let mut pending = vec![dir.to_path_buf()];
+	while let Some(current) = pending.pop() {
+		for entry in fs::read_dir(&current).unwrap() {
+			let path = entry.unwrap().path();
+			let name = path.strip_prefix(dir).unwrap().display().to_string();
+			if path.is_dir() {
+				entries.push((name, None));
+				pending.push(path);
+			} else {
+				entries.push((name, Some(fs::read(&path).unwrap())));
+			}
+		}
+	}
+	entries.sort();
+	entries
+}
+
+#[test]
+fn file_cache_copies_write_the_reference_layout_and_bytes() {
+	let root = tempfile::tempdir().unwrap();
+	let file = root.path().join("payload");
+	fs::write(&file, b"cache upload\n").unwrap();
+	let tree_dir = root.path().join("tree");
+	fs::create_dir(&tree_dir).unwrap();
+	fs::write(tree_dir.join("a"), b"a\n").unwrap();
+	std::os::unix::fs::symlink("a", tree_dir.join("l")).unwrap();
+	let mut paths = Vec::new();
+	for args in [
+		["store", "add-file", file.to_str().unwrap()],
+		["store", "add", tree_dir.to_str().unwrap()],
+	] {
+		let added = run(&reference(), root.path(), &args, &[]);
+		assert!(added.status.success());
+		paths.push(String::from_utf8(added.stdout).unwrap().trim().to_owned());
+	}
+	let key = run(
+		&reference(),
+		root.path(),
+		&["key", "generate-secret", "--key-name", "cache-1"],
+		&[],
+	);
+	let key_file = root.path().join("cache-key");
+	fs::write(&key_file, &key.stdout).unwrap();
+	let cache = root.path().join("cache");
+	let key = key_file.display();
+	for params in [
+		String::new(),
+		"?compression=none".to_owned(),
+		format!("?write-nar-listing=1&secret-key={key}"),
+		format!("?compression=zstd&unknown-setting=1&secret-keys={key},{key}"),
+		"?compression=bzip2&index-debug-info=true".to_owned(),
+		"?compression=xz&compression-level=0".to_owned(),
+		"?compression=bogus".to_owned(),
+		"?secret-key=/nonexistent/key".to_owned(),
+	] {
+		let uri = format!("file://{}{params}", cache.display());
+		let mut args = vec!["copy", "--to", uri.as_str()];
+		args.extend(paths.iter().map(String::as_str));
+		let mut results = Vec::new();
+		for bin in [reference(), PathBuf::from(env!("CARGO_BIN_EXE_nix"))] {
+			let _ = fs::remove_dir_all(&cache);
+			let first = run(&bin, root.path(), &args, &[]);
+			// A second copy finds every path in the cache.
+			let again = run(&bin, root.path(), &args, &[]);
+			// The reference uploads in parallel, so the order of its
+			// per-path messages varies; the usage hint names the program.
+			let lines = |output: &Output| {
+				let mut lines: Vec<String> = String::from_utf8_lossy(&output.stderr)
+					.lines()
+					.map(|line| line.replace(bin.to_str().unwrap(), "nix"))
+					.collect();
+				lines.sort();
+				(output.status.code(), output.stdout.clone(), lines)
+			};
+			let files = cache.exists().then(|| tree(&cache));
+			results.push((lines(&first), lines(&again), files));
+		}
+		assert_eq!(results[1].0, results[0].0, "{params}");
+		assert_eq!(results[1].1, results[0].1, "{params}");
+		assert!(results[1].2 == results[0].2, "{params}: cache files differ");
+	}
+}
+
+/// Serve `status` with a short body to every connection until dropped.
+struct FailingServer {
+	port: u16,
+	stop: std::sync::Arc<std::sync::atomic::AtomicBool>,
+}
+
+impl FailingServer {
+	fn new(status: &'static str) -> Self {
+		use std::io::{BufRead, BufReader};
+		use std::sync::atomic::Ordering;
+		let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+		listener.set_nonblocking(true).unwrap();
+		let port = listener.local_addr().unwrap().port();
+		let stop = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
+		let stopped = stop.clone();
+		std::thread::spawn(move || {
+			while !stopped.load(Ordering::Relaxed) {
+				let Ok((stream, _)) = listener.accept() else {
+					std::thread::sleep(std::time::Duration::from_millis(2));
+					continue;
+				};
+				stream.set_nonblocking(false).unwrap();
+				let mut reader = BufReader::new(stream);
+				loop {
+					let mut line = String::new();
+					if reader.read_line(&mut line).unwrap_or(0) == 0 || line == "\r\n" {
+						break;
+					}
+				}
+				let _ = write!(
+					reader.get_mut(),
+					"HTTP/1.1 {status}\r\nContent-Length: 4\r\nConnection: close\r\n\r\noops"
+				);
+			}
+		});
+		FailingServer { port, stop }
+	}
+}
+
+impl Drop for FailingServer {
+	fn drop(&mut self) {
+		self.stop.store(true, std::sync::atomic::Ordering::Relaxed);
+	}
+}
+
+#[test]
+fn unreachable_http_substituters_retry_and_warn_like_reference() {
+	let fixture = tempfile::tempdir().unwrap();
+	let file = fixture.path().join("payload");
+	fs::write(&file, b"retry fixture\n").unwrap();
+	let source = tempfile::tempdir().unwrap();
+	let added = run(
+		&reference(),
+		source.path(),
+		&["store", "add-file", file.to_str().unwrap()],
+		&[],
+	);
+	let path = String::from_utf8(added.stdout).unwrap().trim().to_owned();
+	let cache = fixture.path().join("cache");
+	let uri = format!("file://{}?compression=none", cache.display());
+	assert!(
+		run(
+			&reference(),
+			source.path(),
+			&["copy", "--to", &uri, &path],
+			&[]
+		)
+		.status
+		.success()
+	);
+	// A second copy whose `nix-cache-info` sets a priority.
+	let ranked = fixture.path().join("ranked");
+	fs::create_dir(&ranked).unwrap();
+	for entry in fs::read_dir(&cache).unwrap() {
+		let entry = entry.unwrap();
+		if entry.path().is_dir() {
+			fs::create_dir(ranked.join(entry.file_name())).unwrap();
+			for file in fs::read_dir(entry.path()).unwrap() {
+				let file = file.unwrap();
+				fs::copy(
+					file.path(),
+					ranked.join(entry.file_name()).join(file.file_name()),
+				)
+				.unwrap();
+			}
+		} else {
+			fs::copy(entry.path(), ranked.join(entry.file_name())).unwrap();
+		}
+	}
+	fs::write(
+		ranked.join("nix-cache-info"),
+		"StoreDir: /nix/store\nPriority: 10\n",
+	)
+	.unwrap();
+	let ranked = format!("file://{}", ranked.display());
+	let cache = format!("file://{}", cache.display());
+	let error = FailingServer::new("500 Internal Server Error");
+	let missing = FailingServer::new("404 Not Found");
+	let refused = "http://127.0.0.1:1".to_owned();
+	let failing = format!("http://127.0.0.1:{}", error.port);
+	let empty = format!("http://127.0.0.1:{}", missing.port);
+	let normalise = |text: &[u8]| {
+		let text = String::from_utf8_lossy(text);
+		let mut out = String::new();
+		let mut rest = &*text;
+		// curl reports how long the failed connection took.
+		while let Some(at) = rest.find(" after ") {
+			out.push_str(&rest[..at + 7]);
+			rest = &rest[at + 7..];
+			let digits = rest.chars().take_while(char::is_ascii_digit).count();
+			if digits > 0 && rest[digits..].starts_with(" ms") {
+				out.push('N');
+				rest = &rest[digits..];
+			}
+		}
+		out + rest
+	};
+	for substituters in [
+		format!("{refused} {cache}"),
+		refused.clone(),
+		format!("{failing} {cache}"),
+		format!("{empty} {cache}"),
+		// Caches are tried by priority, 0 unless set, and then in order.
+		format!("{cache} {ranked}"),
+		format!("{ranked} {cache}?priority=10"),
+		format!("{cache}?priority=20 {ranked}"),
+	] {
+		let mut results = Vec::new();
+		for bin in [
+			reference().with_file_name("nix-store"),
+			PathBuf::from(env!("CARGO_BIN_EXE_nix-store")),
+		] {
+			let root = tempfile::tempdir().unwrap();
+			let output = Command::new(&bin)
+				.env_clear()
+				.env("HOME", root.path())
+				.env("NIX_CONF_DIR", root.path())
+				.env("NIX_USER_CONF_FILES", "")
+				.env("NIX_CONFIG", "build-users-group =\n")
+				.args(["--store", &format!("local?root={}", root.path().display())])
+				.args([
+					"--realise",
+					&path,
+					"--option",
+					"substituters",
+					&substituters,
+				])
+				.args(["--option", "require-sigs", "false"])
+				.args(["--option", "filetransfer-retry-jitter", "false"])
+				.args(["--option", "filetransfer-retry-attempts", "3"])
+				.output()
+				.unwrap();
+			let valid = root.path().join(path.trim_start_matches('/')).exists();
+			results.push((
+				output.status.code(),
+				String::from_utf8_lossy(&output.stdout)
+					.replace(&root.path().display().to_string(), "ROOT"),
+				normalise(&output.stderr),
+				valid,
+			));
+		}
+		assert_eq!(results[1], results[0], "{substituters}");
+	}
+}

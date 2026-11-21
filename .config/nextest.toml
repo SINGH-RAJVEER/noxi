@@ -15,3 +15,57 @@ binary(reference_gc)
 | test(realises_with_roots_and_queries_like_cppnix)
 """
 threads-required = "num-test-threads"
+
+# Harness tiers (docs/compatibility-results.md). `just test-fast`,
+# `test-store` and `test-daemon` run these profiles through
+# `scripts/compat-results.py run`, which turns each profile's JUnit report
+# into result records. The tiers partition the workspace except the
+# toolchain-sensitive `nix-compat-derive-tests` UI snapshots, which only
+# `just test` runs. The default profile's overrides above apply to every
+# profile.
+#
+# fast: format and fixture checks that need no reference executable, no
+# store on disk and no daemon.
+[profile.fast]
+default-filter = """
+package(noxi-compat) | package(noxi-hash) | package(noxi-flakeref)
+| package(noxi-serde) | package(noxi-compat-derive) | package(noxi-events)
+| (package(noxi-compat-tests) & (
+kind(lib)
+| (binary(/^upstream_/) - binary(upstream_functional) - binary(upstream_lang) - binary(upstream_filetransfer_retry))
+| binary(fixture_inventory) | binary(differential_eval) | binary(derivation_parser_extensions)
+| binary(reference_derivation_aterm) | binary(reference_nars)
+))
+"""
+junit.path = "junit.xml"
+
+# daemon: daemon executables, worker-protocol exchanges and client/daemon
+# pairings against the reference.
+[profile.daemon]
+default-filter = """
+(package(noxi-daemon) | binary(reference_daemon) | binary(reference_worker_wire)
+| binary(reference_daemon_client) | test(/daemon/))
+- package(noxi-compat) - package(noxi-hash) - package(noxi-flakeref) - package(noxi-serde)
+- package(noxi-compat-derive) - package(noxi-events) - package(nix-compat-derive-tests)
+- (package(noxi-compat-tests) & (kind(lib)
+| (binary(/^upstream_/) - binary(upstream_functional) - binary(upstream_lang) - binary(upstream_filetransfer_retry))
+| binary(fixture_inventory) | binary(differential_eval) | binary(derivation_parser_extensions)
+| binary(reference_derivation_aterm) | binary(reference_nars)))
+"""
+junit.path = "junit.xml"
+
+# store: everything else; reference-executable comparisons in isolated
+# diverted stores, builds, caches and evaluation through the commands.
+[profile.store]
+default-filter = """
+all()
+- package(noxi-compat) - package(noxi-hash) - package(noxi-flakeref) - package(noxi-serde)
+- package(noxi-compat-derive) - package(noxi-events) - package(nix-compat-derive-tests)
+- (package(noxi-compat-tests) & (kind(lib)
+| (binary(/^upstream_/) - binary(upstream_functional) - binary(upstream_lang) - binary(upstream_filetransfer_retry))
+| binary(fixture_inventory) | binary(differential_eval) | binary(derivation_parser_extensions)
+| binary(reference_derivation_aterm) | binary(reference_nars)))
+- package(noxi-daemon) - binary(reference_daemon) - binary(reference_worker_wire)
+- binary(reference_daemon_client) - test(/daemon/)
+"""
+junit.path = "junit.xml"

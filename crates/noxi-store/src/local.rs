@@ -11,7 +11,8 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex, Weak};
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use nix_compat::derivation::{DrvHashModulo, UnverifiedDerivation, lookup_fn};
+use nix_compat::derivation::outputs::OutputsError;
+use nix_compat::derivation::{DerivationError, DrvHashModulo, UnverifiedDerivation, lookup_fn};
 use nix_compat::log::VerbosityLevel;
 use nix_compat::narinfo::VerifyingKey;
 use nix_compat::nixbase32;
@@ -519,8 +520,16 @@ impl LocalStore {
 			.map(|(name, path)| (name.to_string(), path.clone()))
 			.collect();
 		drv.verify(name, lookup).map_err(|e| {
+			// `Derivation::type` rejects a derivation without outputs with
+			// this message.
+			let message = match e {
+				DerivationError::InvalidOutputs(OutputsError::NoOutputs()) => {
+					"must have at least one output".to_owned()
+				}
+				e => e.to_string(),
+			};
 			Error::Other(format!(
-				"while checking derivation '{}': {e}",
+				"while checking derivation '{}': {message}",
 				print(drv_path)
 			))
 		})?;
@@ -560,6 +569,12 @@ impl LocalStore {
 				git_hashing: self.config.git_hashing,
 			},
 		)
+		.map_err(|e| match self.reference_parse_error(drv_path, &bytes) {
+			// Malformed files fail with the reference's `FormatError`;
+			// noxi's own feature and support checks keep their messages.
+			Some((message, true)) => Error::Other(message),
+			_ => e,
+		})
 	}
 
 	/// Parse an ordinary derivation. Build callers that accept floating CA
@@ -569,10 +584,44 @@ impl LocalStore {
 		let bytes =
 			fs::read(&real).context(|| format!("reading derivation '{}'", print(drv_path)))?;
 		UnverifiedDerivation::from_aterm_bytes(&bytes).map_err(|e| {
-			Error::Other(format!(
-				"error parsing derivation '{}': {e:?}",
-				print(drv_path)
-			))
+			match self.reference_parse_error(drv_path, &bytes) {
+				Some((message, _)) => Error::Other(message),
+				// The reference reads the file, but this ordinary
+				// derivation form cannot hold it.
+				None => Error::Other(format!(
+					"derivation '{}' has floating content-addressed, impure or dynamic outputs, which this operation does not support yet ({})",
+					print(drv_path),
+					crate::build_derivation::parser_error_message(&e)
+				)),
+			}
+		})
+	}
+
+	/// The error `readDerivation` raises for the derivation file `bytes`,
+	/// with whether it is a `FormatError`, or `None` if the reference's
+	/// parser accepts the file. Format errors are wrapped in `error parsing
+	/// derivation '<path>': ` as `readDerivationCommon` does; other errors,
+	/// such as a disabled experimental feature, are raised unchanged.
+	fn reference_parse_error(&self, drv_path: &StorePath, bytes: &[u8]) -> Option<(String, bool)> {
+		let name = drv_path
+			.name()
+			.strip_suffix(".drv")
+			.unwrap_or(drv_path.name());
+		let features = nix_compat::cppnix_json::derivation::Features {
+			ca_derivations: self.config.ca_derivations,
+			dynamic_derivations: self.config.dynamic_derivations,
+			impure_derivations: self.config.impure_derivations,
+			git_hashing: self.config.git_hashing,
+		};
+		let e = nix_compat::cppnix_json::derivation::Derivation::from_aterm(bytes, name, features)
+			.err()?;
+		Some(if e.is_format_error() {
+			(
+				format!("error parsing derivation '{}': {e}", print(drv_path)),
+				true,
+			)
+		} else {
+			(e.to_string(), false)
 		})
 	}
 
@@ -1715,5 +1764,80 @@ mod import_tests {
 			store.nar_from_path(&path, &mut actual).unwrap();
 			assert_eq!(actual, archive);
 		}
+	}
+}
+
+#[cfg(test)]
+mod read_derivation_tests {
+	use super::*;
+
+	const FLOATING: &[u8] =
+		br#"Derive([("out","","r:sha256","")],[],[],"x86_64-linux","/bin/sh",[],[("out","")])"#;
+
+	fn store_with(
+		ca_derivations: bool,
+		files: &[(&str, &[u8])],
+	) -> (tempfile::TempDir, LocalStore) {
+		let dir = tempfile::tempdir().unwrap();
+		let mut config = LocalStoreConfig::with_root(&dir.path().join("root"));
+		config.ca_derivations = ca_derivations;
+		let store = LocalStore::open(config).unwrap();
+		for (name, bytes) in files {
+			fs::write(store.real_path(&path(name)), bytes).unwrap();
+		}
+		(dir, store)
+	}
+
+	fn path(name: &str) -> StorePath {
+		StorePath::from_bytes(format!("{}-{name}", "0".repeat(32)).as_bytes()).unwrap()
+	}
+
+	fn message<T>(result: Result<T>) -> String {
+		match result {
+			Ok(_) => panic!("the derivation was read"),
+			Err(e) => e.to_string(),
+		}
+	}
+
+	#[test]
+	fn malformed_files_fail_with_the_reference_format_error() {
+		let (_dir, store) = store_with(true, &[("bad.drv", b"Xerive([],[],[],\"\",\"\",[],[])")]);
+		let expected = format!(
+			"error parsing derivation '{}': expected string 'D'",
+			path("bad.drv").to_absolute_path()
+		);
+		assert_eq!(message(store.read_derivation(&path("bad.drv"))), expected);
+		assert_eq!(
+			message(store.read_build_derivation(&path("bad.drv"))),
+			expected
+		);
+	}
+
+	#[test]
+	fn floating_outputs_need_the_feature_and_the_build_reader() {
+		let (_dir, store) = store_with(false, &[("ca.drv", FLOATING)]);
+		let error = message(store.read_derivation(&path("ca.drv")));
+		assert!(
+			error.starts_with("experimental Nix feature 'ca-derivations' is disabled"),
+			"{error}"
+		);
+		let (_dir, store) = store_with(true, &[("ca.drv", FLOATING)]);
+		let error = message(store.read_derivation(&path("ca.drv")));
+		assert!(
+			error.starts_with(&format!(
+				"derivation '{}' has floating content-addressed",
+				path("ca.drv").to_absolute_path()
+			)),
+			"{error}"
+		);
+		assert!(!error.contains("FloatingContentAddressedOutput"), "{error}");
+		assert_eq!(
+			store
+				.read_build_derivation(&path("ca.drv"))
+				.unwrap()
+				.floating
+				.len(),
+			1
+		);
 	}
 }

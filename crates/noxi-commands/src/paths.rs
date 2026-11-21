@@ -120,22 +120,25 @@ pub fn topo_sort_by(
 	Ok(sorted)
 }
 
-/// CppNix's `printMissing`, on standard error at `lvlInfo`.
+/// CppNix's `printMissing`, through the logger at `lvlInfo`.
 pub fn print_missing(store: &dyn Store, missing: &Missing) -> Result<(), Failure> {
 	if !nix_compat::log::log_enabled(nix_compat::log::VerbosityLevel::Info) {
 		return Ok(());
 	}
+	let info = |message: &str| {
+		nix_compat::log::logger::log(nix_compat::log::VerbosityLevel::Info, message)
+	};
 	if !missing.will_build.is_empty() {
 		if missing.will_build.len() == 1 {
-			eprintln!("this derivation will be built:");
+			info("this derivation will be built:");
 		} else {
-			eprintln!(
+			info(&format!(
 				"these {} derivations will be built:",
 				missing.will_build.len()
-			);
+			));
 		}
 		for path in topo_sort(store, &missing.will_build)?.iter().rev() {
-			eprintln!("  {}", print(path));
+			info(&format!("  {}", print(path)));
 		}
 	}
 	if !missing.will_substitute.is_empty() {
@@ -145,23 +148,23 @@ pub fn print_missing(store: &dyn Store, missing: &Missing) -> Result<(), Failure
 			render_size(missing.nar_size as i64, false)
 		);
 		if missing.will_substitute.len() == 1 {
-			eprintln!("this path will be fetched ({sizes}):");
+			info(&format!("this path will be fetched ({sizes}):"));
 		} else {
-			eprintln!(
+			info(&format!(
 				"these {} paths will be fetched ({sizes}):",
 				missing.will_substitute.len()
-			);
+			));
 		}
 		let mut sorted: Vec<&StorePath> = missing.will_substitute.iter().collect();
 		sorted.sort_by(|a, b| (a.name(), print(a)).cmp(&(b.name(), print(b))));
 		for path in sorted {
-			eprintln!("  {}", print(path));
+			info(&format!("  {}", print(path)));
 		}
 	}
 	if !missing.unknown.is_empty() {
-		eprintln!("don't know how to build these paths:");
+		info("don't know how to build these paths:");
 		for path in &missing.unknown {
-			eprintln!("  {}", print(path));
+			info(&format!("  {}", print(path)));
 		}
 	}
 	Ok(())

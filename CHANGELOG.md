@@ -4,6 +4,14 @@ Changes to each crate in this workspace, grouped by crate and version, newest fi
 
 Changes that have not reached a version yet go under an `Unreleased` heading for that crate.
 
+## Repository - Unreleased
+
+- Differential results have a versioned machine-readable format, `noxi-compat-result/1`, documented in `docs/compatibility-results.md`. `differential-eval`, `upstream_lang` and `upstream_functional` write one record per case with the case and matrix row, tier, both command lines, shared settings, noxi and reference revisions, platform, exit statuses, stdout and stderr, structured output, and store snapshots (produced paths, derivation bytes, NAR digests, `ValidPaths` rows); `upstream_functional` now runs both engines in the same scratch root so their store paths compare. `scripts/compat-results.py` wraps the tiers, converts nextest JUnit reports and VM qualification reports into records, summarizes them, keeps result sets in `tests/compat-results/` and generates `docs/compatibility-evidence.md`, which `just compat-evidence-check` (now part of `just ci`) keeps current.
+- The tests are split into `fast`, `store`, `daemon` and `system` tiers: nextest profiles run by `just test-fast`, `test-store` and `test-daemon`, and `just test-system MODE` for a qualification VM. `.github/workflows/compat.yml` runs the fast tier on pushes and pull requests and the store and daemon tiers on manual dispatch. `nix/harness-tiers.nix`, imported by the qualification module and off by default, runs the same profiles from a nextest archive inside a disposable VM.
+- The reference inventory records the C and C++ library consumers on the pinned Nixpkgs: which packages link the 2.35.2 libraries, which link their own older Nix, which load into the `nix` process, and which only run the commands, with the libraries' pkg-config names, SONAMEs, headers and exported symbols. `scripts/library-consumers.nix` reproduces the input listing from the qualification lock.
+- The license audit covers the files embedded since 2026-10-23 (`call-flake.nix`, `ca-specific-schema.sql`, `get-env.sh`, `config-settings.json`) and the Nix 2.3.16 test commit. A root `NOTICE` records each upstream project's revision and license, and `THIRD_PARTY.md` is regenerated from `noxi-cli`'s current closure, which contains every packaged executable. The flake package installs `NOTICE`, and its check tests for it.
+- `noxi-flake` gains a `LICENSE` and a `PROVENANCE.md`; `noxi-daemon` and `noxi-eval-builtin-macros` gain a `PROVENANCE.md`; `noxi-commands` gains the LGPL `COPYING` for its copied CppNix files, and its `config.rs` no longer calls the CppNix setting metadata GPL-3.0-only. The two private test crates declare `GPL-3.0-only`.
+
 ## noxi 0.0.6 - 2026-11-19, pending publication
 
 Publishes the evaluator performance and pure flake evaluation work. `noxi system build` now evaluates a NixOS flake in pure mode, using the evaluator store's allow list as CppNix's `allowPath` does and canonicalizing string paths before access. The evaluator enters bytecode frames directly, prints `genericClosure` trace text only when an error needs it, layers small `//` updates over large sets, skips builtin error contexts for evaluated arguments, reclaims uninterned strings by default (`NOXI_RECLAIM_STRINGS=0` restores the old policy), and stores thunks in a 40-byte cell. Locked flake inputs whose store path is already valid are no longer rehashed, derivations already in the store are not written again, and mimalloc no longer requests transparent huge pages. Evaluating a real NixOS configuration fell from 48.2 s and 5.21 GiB to 25.7 s and 3.67 GiB; CppNix 2.35.6 takes 10.1 s and 1.66 GiB.
@@ -49,6 +57,10 @@ The workspace is being published under the `noxi-` names. `noxi-hash`, `noxi-eva
 
 ## nix-rs-hash
 
+### Unreleased
+
+- `CAHash::from_nix_hex_str` accepts base-16 and base-64 digests as well as nix32, chosen by length as CppNix's `ContentAddress::parse` does (2026-11-20).
+
 ### 0.1.0 - 2026-10-01
 
 - Extracted Nix hash values, digest helpers, Nix base32 encoding, and their tests from `nix-compat`. `nix-compat` reexports the previous paths.
@@ -57,6 +69,7 @@ The workspace is being published under the `noxi-` names. `noxi-hash`, `noxi-eva
 
 ### Unreleased
 
+- `SuppressWarnings` drops `warn` output on the current thread while held. The flake commands use it so that the re-resolution after a lock write does not repeat lock warnings (2026-11-21).
 - Expose fetcher-attribute parsing and formatting for evaluator builtins, with reference checks for common inputs and repeated query parameters. (2026-10-03).
 
 #### Changed
@@ -122,6 +135,7 @@ Nix language parser, compiler and bytecode VM with the pure builtins, imported f
 
 ### Unreleased
 
+- `builtins.appendContext` prints a context key that is not a store path as CppNix prints the symbol, quoted unless it is a plain identifier (`context key '"/bad"' is not a store path`) (2026-11-21).
 - Avoid recursive JSON conversion, serialization and release, and release long attribute-set chains iteratively. The two recorded deep-value crashes now return controlled errors (2026-10-03).
 
 ### 0.2.2 - 2026-10-03
@@ -209,6 +223,12 @@ Nix formats and protocols: store paths, nixbase32, hashes, NAR, ATerm derivation
 
 ### Unreleased
 
+- `DerivationBuilder::build_resolved` builds a resolved derivation as `tryResolve` does, setting output environment variables without the platform, builder and input checks of a new derivation (2026-11-21).
+- `cppnix_json::derivation::Derivation::from_aterm` ports CppNix 2.35.2's `parseDerivation` to the full derivation model: floating, impure and text-hashed outputs and the `DrvWithVersion("xp-dyn-drv", ...)` form with nested dynamic inputs parse behind the experimental features the reference requires, with its error messages, its optional list separators, its first-output-wins and last-entry-wins duplicate rules, lexical store path canonicalisation and fixed-output hashes in any encoding. `cppnix_json::derivation_aterm::parse_store_path` is `parseStorePath` with the reference's messages (2026-11-20).
+- `cppnix_json::dump` reproduces nlohmann's `json::dump()`, and `Derivation::unparse` writes structured attributes with it, so `__json` floats (`1e+100`, `1.5e-07`) and the derivation paths that hash them match the reference (2026-11-20).
+- Store path names, output names and output specifications reject a first dash-separated component of `.` or `..`, as CppNix's `checkName` does (2026-11-20).
+- `cppnix_json::DrvOutput::parse` and `render` read and write the 2.35.2 `<derivation path>^<output>` form with the reference's messages; the older `realisation::DrvOutput` keeps the pre-2.35 `<hash>!<output>` form (2026-11-20).
+- `log::logger` implements CppNix's simple, `internal-json` and progress-bar loggers behind one activity API (`Activity`, `BuildLog`, `log`, `warn`, `log_error`) and the worker's progress counters (`WorkerGuard`, `worker_update`). `filter_ansi_escapes_width` truncates to a terminal width, and `prefix_build_logs` now follows the selected format (2026-11-21).
 - `Settings::forwarded` follows CppNix for settings that need an experimental feature: one given while its feature is disabled is ignored but still forwarded with its default once a later file, `NIX_CONFIG` or flag enables the feature, and none is forwarded while its feature is disabled (2026-11-09).
 - `nixcpp::settings` parses integer settings with CppNix's `K`/`M`/`G`/`T` suffixes in each setting's own C++ type and signedness, reports invalid `max-jobs` and `sandbox` values with the reference's messages, and tracks CppNix's overridden flag: settings from the system `nix.conf` are no longer forwarded to a daemon (`Settings::forwarded`) (2026-11-09).
 
@@ -310,6 +330,10 @@ Serializes Rust values into Nix and deserializes Nix values into Rust types, imp
 ### Unreleased
 
 - A flake `path:` input under the store directory that a diverted store (`--store /mnt`) lacks is read from the host's store, as CppNix's `PathInputScheme` reads it, rather than from inside the diverted store. `nixos-install --flake` relies on this for inputs locked to the installer's store (2026-11-21).
+- Flake locking follows the reference's `computeLocks`. Kept inputs are rebuilt from the old lock without fetching, and a refetch happens only when a follows override has disappeared. Missing-override warnings cover command-line overrides, and "does not match any input" reflects the input paths actually visited. Errors gain the `while updating the lock file`/`while updating the flake input` trace frames and accessor-specific messages for a missing `flake.nix`. A missing `--reference-lock-file` reads as empty, and `allow-dirty = false` rejects one. Relative inputs resolve lexically (2026-11-21).
+- Tarballs that do not hold exactly one top-level directory keep the archive root instead of failing, an archive time of zero adds no `lastModified`, and a download prints `unpacking 'URL' into the Git cache...`. Git work-tree reads set `GIT_OPTIONAL_LOCKS=0` and no longer rewrite `.git/index` (2026-11-21).
+- `derivationStrict` writes structured attributes (`__json`) with `cppnix_json::dump` instead of serde_json, so floats such as `1.5e-7` are written `1.5e-07` as by the reference and the derivation gets the reference's store path. The `noxi-compat` dependency now enables its `serde` feature (2026-11-21).
+- `builtins.getFlake`, `builtins.fetchurl` and `builtins.fetchTarball` force their argument before adding their "while evaluating" context, as CppNix does, so an error thrown by the argument no longer shows that frame; `generated_fetcher_validation` matches the reference again (2026-11-21).
 - Add `addDrvOutputDependencies`, `parseFlakeRef` and `flakeRefToString` store-aware builtins, and configure writable evaluator stores through shared settings. (2026-10-03).
 
 ### 0.1.2 - 2026-10-03
@@ -350,6 +374,12 @@ Serializes Rust values into Nix and deserializes Nix values into Rust types, imp
 
 - `nix store verify`, `nix store ls`, `nix store cat` and `nix store dump-path` read paths from disk whenever the store URI resolves to a local store, so the default `auto` store works for root on NixOS as in CppNix. They used to require an explicit `--store local` (2026-11-20).
 - `nix-instantiate --dry-run` computes derivation paths without writing them, as CppNix's read-only mode does, even with `--read-write-mode`. It used to be rejected as an unrecognised flag (2026-11-20).
+- `nix flake lock|update|metadata` decide on writing the lock in the reference's order and under its trace frame. `nix flake lock` refuses a lock with an unlocked input, the other commands leave it unwritten and warn when `warn-dirty` is set, and an empty-diff rewrite prints `updating lock file "PATH"`. `flake prefetch` of a tarball or file reports `narHash` in `locked`. The new `reference_flake_lock` test compares 32 lock, follows, override, registry and policy cases, lock bytes included, with 2.35.2 (2026-11-21).
+- `nix copy --to file://` realises derivation outputs before copying them, as `BuiltPathsCommand` does, and uploads the realisations `toRealisedPaths` collects to `build-trace-v2/<drv>/<output>.doi`, including those of content-addressed inputs read while resolving a parent. `nix-store --realise` prints content-addressed outputs known through the resolved derivation. `reference_ca_substitute` compares both commands with 2.35.2 (2026-11-21).
+- `nix copy --to file://` accepts the default compression and unsigned caches, reports invalid `compression` values as a usage error, reads `secret-key` files before copying, and reports and uploads each missing path once instead of re-exporting its closure (2026-11-21).
+- `nix derivation show` prints with `cppnix_json::dump`, so structured-attribute floats appear as the reference prints them (`1.5e-07`, `1e+100`). `language_boundaries` checks the `drvPath` of structured-attribute derivations with floats against the reference and against recorded paths, and `reference_nix` compares their `derivation show` output byte for byte (2026-11-21).
+- `--log-format internal-json` is implemented: builds, cached outputs, failures, dependency failures, `file://` substitutions and `nix store prefetch-file` downloads print CppNix 2.35.2's `@nix` start, stop, result and msg lines, with builder `setPhase` lines as phase results and errors with `raw_msg`. `bar` and `bar-with-logs` use a port of CppNix's progress bar: on a terminal it draws the build and copy counters and the current activity, and redirected it prints like the raw logger with `NAME> ` log lines. `-Q` selects the raw logger, `nix` starts with the bar and stops it before handing the terminal to another program or printing results, and `multiline` formats are rejected as 2.35.2 rejects them. `reference_log_format` compares each case with the reference (2026-11-21).
+
 - The store execution helper behind `nix shell`, `nix run`, `nix develop` and `nix fmt` runs programs in a temporary root of bind mounts when the logical store directory does not exist, as CppNix's `chrootHelper` does. A per-user store therefore works on a host without `/nix`. Sandboxed builds into the per-user chroot store are compared with the reference (2026-11-17).
 - The `auto` store falls back to a per-user chroot store in `DATA_DIR/root` on Linux when `/nix/var/nix` and the daemon socket are missing and the user is not root, as CppNix's `resolveStoreConfig` does, with the same notice (2026-11-17).
 
@@ -399,6 +429,8 @@ Internal test crate that checks the workspace crates against the CppNix 2.35.2 f
 
 #### Added
 
+- `dummy_store_states` now passes `worker-substitution/ca-drv/store-after.json` and `issue-11928/store-after.json`: the scenarios upload the substituter's realisations to the cache and noxi's derivation goal substitutes them. `derivation_parser_extensions` expects `drv` to be accepted as an output name and as an input derivation's output, as the 2.35.2 reference evaluates `outputs = [ "drv" ]` to a `-drv` path (2026-11-21).
+- `dummy_store_states` (store tier) runs the `dummy-store.cc` and `worker-substitution.cc` scenarios against a diverted local store and noxi's substitution goal from a `file://` cache, exports the store as CppNix's store JSON and compares it with the fixtures. Nine files move from gap to pass. `dummy-store/one-derivation.json` stays a gap, and the test pins the observed failure (2026-11-21)
 - `reference_store`, with isolated fresh-store layout, path/NAR import and metadata, and bidirectional CppNix store checks. Five cases pass against the pinned 2.35.2 executables; broader store qualification remains open.
 - `reference_hash_modulo`, which verifies derivations the 2.35.2 reference wrote for CppNix issue #16307's graph (2026-09-29).
 - `derivation_parser_extensions`, which checks that non-UTF-8 fields and unchecked output names round-trip through ATerm (2026-09-29).
@@ -454,6 +486,12 @@ Internal trybuild tests for `nix-compat-derive`.
 ### Unreleased
 
 - A local store (`auto`, `local` or `local?root=DIR`) works as a substituter, as in CppNix, so `nixos-install`'s `--extra-substituters "auto?trusted=1"` copies paths from the running system's store into the target instead of rebuilding them. The store is opened read-write when its state directory is accessible, as CppNix's `auto` is, and read-only otherwise. Its priority is 0 and it wants no mass queries, copied paths lose `ultimate` as in `copyStorePath`, and unsigned input-addressed paths need `?trusted=1`. The `priority` and `want-mass-query` URI parameters now override a binary cache's `nix-cache-info` (2026-11-21).
+- `BinaryCache::query_realisation` and `upload_realisation` read and write 2.35.2's `build-trace-v2/<drv>/<output>.doi` realisations. `Store::deep_query_partial_derivation_output_map` answers `deepQueryPartialDerivationOutputMap`, falling back to the partial map. `LocalStore::read_derivation` and `read_build_derivation` report malformed files with the reference's `error parsing derivation '<path>': ...` message and disabled features with its experimental-feature error, instead of the parser's debug form (2026-11-21).
+- A local store that rejects a derivation without outputs reports "must have at least one output", the reference's message, instead of "no outputs defined" (2026-11-21)
+- A binary cache's priority defaults to 0, as `StoreConfig::priority` does in 2.35.2, rather than 50, so a cache whose `nix-cache-info` sets `Priority` is tried after caches that set none (2026-11-21).
+- HTTP cache requests follow `FileTransferSettings`: transient failures (connection errors, HTTP 408, 429 and most 5xx) are retried `filetransfer-retry-attempts` times with the reference's exponential backoff, `Retry-After` floor and optional jitter, each retry warned as `...; retrying in N ms (attempt k/n)`. Errors use curl's wording (`Could not connect to server (7) Failed to connect to HOST port PORT after N ms: ...`) and include a short response body. `connect-timeout` bounds connecting, the `retry-*` cache URL parameters override the global settings, 410 reads as a missing file, and an HTTP cache without `nix-cache-info` is refused as `does not appear to be a binary cache`. `BinaryCache::open_with` takes these settings (2026-11-21).
+- Binary cache uploads follow `BinaryCacheStoreConfig`: `xz` is the default compression, and `lzma`, `compression-level`, `parallel-compression`, `write-nar-listing`, `index-debug-info`, `secret-key`, `secret-keys`, `priority` and `want-mass-query` URL parameters are read, with the reference's `unknown setting` warning for others. xz and lzma go through the system liblzma, bzip2 uses level 9 and zstd writes 16 MiB frames with up to four workers, so xz, lzma, bzip2, zstd and uncompressed uploads are byte-identical to CppNix's. Unsigned uploads are allowed, the cache's `nar`, `build-trace-v2` and `log` directories are created as on open, an existing NAR is kept, and no lock file is left beside the narinfo. `BinaryCache::upload` publishes one path whose references are already cached (2026-11-21).
+- Substitution from a binary cache reports CppNix's `substitute` and `copy-path` activities and the worker's substitution counts, and a cache's first narinfo query for a path reports `query-path-info` (2026-11-21).
 
 - `unix_socket::connect` and `bind` handle paths longer than `sun_path` as CppNix's `bindConnectProcHelper` does, from a child in the socket's directory; the garbage collector's roots socket and its clients use them (2026-11-09).
 - `add_perm_root` creates the directories up to a permanent root (`gc::make_root_symlink`), as Home Manager's first activation requires, and `LocalStoreConfig::diverted` creates a missing absolute root outside `/nix` (2026-11-09).
@@ -497,6 +535,10 @@ Internal trybuild tests for `nix-compat-derive`.
 ### Unreleased
 
 - Substituters are asked in priority order, as CppNix's `getDefaultSubstituters` sorts them, keeping the configured order among equal priorities. They used to be asked in configured order, so `--extra-substituters "auto?trusted=1"` (priority 0) came after cache.nixos.org (40), and an install fetched paths from the network that the running system already had (2026-11-21).
+- Derivation goals substitute content-addressed outputs through realisations, as `DerivationGoal::haveDerivation` does: an output without a known path is looked up in the substituters' build traces, its path substituted and the realisation registered; otherwise the inputs are realised, the derivation is resolved with the reference's `resolved derivation` activity, and the resolved derivation is tried the same way and written only when it is built. `queryMissing` asks substituters for realisations of unknown outputs, the scheduler applies the same substitution before expanding inputs, a requested derivation built in the worker's ordered pass is not realised a second time, and a failed input no longer makes a floating parent fail to parse. `local::resolve_derivation` and `local::deep_query_output` expose `tryResolve` and `deepQueryPartialDerivationOutput` (2026-11-21).
+- A substituter that cannot be opened is reported as CppNix's `getDefaultSubstituters` reports it, as a plain warning of the error with continuation lines indented, and HTTP substituters use the configured transfer and retry settings (2026-11-21).
+- `LocalBackend::build_paths` runs as CppNix's worker for the loggers: `realise`, `builds` and `copy-paths` activities with the progress the goals report, one `build` activity per derivation whose output arrives as log lines, builder `@nix` messages handled as `handleJSONLogMessage` does, and intermediate failures logged through the logger. A carriage return now truncates the line it rewinds, as `BuildLog::flushLine` does (2026-11-21).
+
 - Under a root daemon, sandboxed builders run as a member of `build-users-group` (`nixbld` by default) locked under `STATE_DIR/userpool`, as CppNix's `SimpleUserLock` does: the sandbox user maps to it, it owns the build directory, builder files and terminal, the chroot store is owned by root and the build group, its processes are killed before and after the build, and outputs it does not own are rejected. Previously such builders ran as host root and owned their bind-mounted inputs (2026-11-09).
 - Apply shared build settings, honor substitution and fallback decisions, and reject local builds when max-jobs is zero. Execution remains sequential (2026-10-03).
 

@@ -196,9 +196,7 @@ const NIX_ONLY_FLAGS: &[&str] = &[
 ];
 
 fn warn(message: &str) {
-	if nix_compat::log::log_enabled(nix_compat::log::VerbosityLevel::Warn) {
-		eprintln!("warning: {message}");
-	}
+	nix_compat::log::logger::warn(message);
 }
 
 /// Apply one of `MixCommonArgs`' flags: the logging flags, `--max-jobs`,
@@ -549,8 +547,10 @@ fn supported_flags(command: &str) -> &'static [&'static str] {
 }
 
 pub fn main(mut settings: Settings, args: Vec<String>) -> Result<ExitCode, Failure> {
-	nix_compat::log::set_print_build_logs(false);
-	if std::io::IsTerminal::is_terminal(&std::io::stderr()) {
+	// `main.cc` selects the progress bar, without build logs, before
+	// parsing; the verbosity is `lvlNotice` when its bar is drawn.
+	nix_compat::log::logger::set_log_format(nix_compat::log::logger::LogFormat::Bar);
+	if nix_compat::log::logger::is_tty() {
 		nix_compat::log::set_verbosity(nix_compat::log::VerbosityLevel::Notice as u64);
 	}
 	if let Ok(path) = std::env::var("NIX_PATH") {
@@ -683,12 +683,6 @@ pub fn main(mut settings: Settings, args: Vec<String>) -> Result<ExitCode, Failu
 	if parsed.command == "config show" {
 		return config::show(parsed);
 	}
-	// With build logs, CppNix's `bar` formats (the default) print each
-	// build log line after `NAME> `; the raw formats print it unchanged.
-	let bar = parsed
-		.value("log-format")
-		.is_none_or(|format| format.starts_with("bar"));
-	nix_compat::log::set_prefix_build_logs(bar && nix_compat::log::print_build_logs());
 	// Plain `Command`s that never open a store; `nar cat` opens its own.
 	if parsed.command.starts_with("nar ") {
 		return archive::run(parsed);

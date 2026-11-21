@@ -176,6 +176,8 @@ pub fn eval(parsed: Parsed) -> Result<ExitCode, Failure> {
 		Ok(value) => value,
 		Err(code) => return Ok(code),
 	};
+	// `eval` stops the progress bar before printing, as `eval.cc` does.
+	nix_compat::log::logger::stop();
 	let mut stdout = io::stdout().lock();
 	for value in evaluated.results {
 		if parsed.has("raw") || parsed.has("json") {
@@ -336,7 +338,11 @@ pub fn build(parsed: Parsed) -> Result<ExitCode, Failure> {
 		});
 	}
 	if parsed.has("json") {
-		println!("{}", json!(result));
+		nix_compat::log::logger::write_stdout(&json!(result).to_string());
+	}
+	// `printOutPathsMaybe` stops the progress bar before printing.
+	if !parsed.has("dry-run") && parsed.has("print-out-paths") {
+		nix_compat::log::logger::stop();
 	}
 	for (index, path) in target.paths.iter().enumerate() {
 		let outputs = outputs(target.store.as_ref(), path)?;
@@ -354,7 +360,7 @@ pub fn build(parsed: Parsed) -> Result<ExitCode, Failure> {
 					.add_perm_root(output, &std::env::current_dir()?.join(link))?;
 			}
 			if !parsed.has("dry-run") && parsed.has("print-out-paths") {
-				println!("{}", output.to_absolute_path());
+				nix_compat::log::logger::write_stdout(&output.to_absolute_path());
 			}
 		}
 	}

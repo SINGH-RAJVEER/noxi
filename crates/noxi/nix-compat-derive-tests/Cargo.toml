@@ -4,6 +4,7 @@ version = "0.0.2"
 edition = "2024"
 rust-version.workspace = true
 publish = false
+license = "GPL-3.0-only"
 
 [dev-dependencies]
 trybuild.workspace = true

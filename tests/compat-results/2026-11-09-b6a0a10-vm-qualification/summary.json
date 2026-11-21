@@ -1,0 +1,95 @@
+{
+	"failures": [
+		{
+			"case": "qualification-home-manager:standalone-flake-build",
+			"file": "qualification.jsonl",
+			"reason": ""
+		},
+		{
+			"case": "qualification-home-manager:standalone-flake-switch",
+			"file": "qualification.jsonl",
+			"reason": ""
+		},
+		{
+			"case": "qualification-nixos:rebuild-flake-build",
+			"file": "qualification.jsonl",
+			"reason": ""
+		}
+	],
+	"rows": {
+		"nixos-activation": {
+			"fail": 3,
+			"known-difference": 0,
+			"pass": 151,
+			"unrun": 0
+		}
+	},
+	"run": null,
+	"runner_counts": {
+		"qualification-home-manager": {
+			"fail": 2,
+			"known-difference": 0,
+			"pass": 40,
+			"unrun": 0
+		},
+		"qualification-lifecycle": {
+			"fail": 0,
+			"known-difference": 0,
+			"pass": 55,
+			"unrun": 0
+		},
+		"qualification-nixos": {
+			"fail": 1,
+			"known-difference": 0,
+			"pass": 56,
+			"unrun": 0
+		}
+	},
+	"runners": {
+		"qualification-home-manager": {
+			"file": "qualification.jsonl",
+			"noxi": {
+				"dirty": null,
+				"revision": "b6a0a1062b6da3aeded10847cb8ee87785bf0deb"
+			},
+			"platform": "x86_64-linux",
+			"reference": {
+				"release": "2.35.2",
+				"revision": "2c73b59da29606068c0c98db015dd3a66955525d"
+			}
+		},
+		"qualification-lifecycle": {
+			"file": "qualification.jsonl",
+			"noxi": {
+				"dirty": null,
+				"revision": "b6a0a1062b6da3aeded10847cb8ee87785bf0deb"
+			},
+			"platform": "x86_64-linux",
+			"reference": {
+				"release": "2.35.2",
+				"revision": "2c73b59da29606068c0c98db015dd3a66955525d"
+			}
+		},
+		"qualification-nixos": {
+			"file": "qualification.jsonl",
+			"noxi": {
+				"dirty": null,
+				"revision": "b6a0a1062b6da3aeded10847cb8ee87785bf0deb"
+			},
+			"platform": "x86_64-linux",
+			"reference": {
+				"release": "2.35.2",
+				"revision": "2c73b59da29606068c0c98db015dd3a66955525d"
+			}
+		}
+	},
+	"schema": "noxi-compat-summary/1",
+	"tiers": {
+		"system": {
+			"fail": 3,
+			"known-difference": 0,
+			"pass": 151,
+			"unrun": 0
+		}
+	}
+}

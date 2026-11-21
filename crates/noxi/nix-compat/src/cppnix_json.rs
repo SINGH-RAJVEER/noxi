@@ -19,6 +19,7 @@ use crate::nixhash::{CAHash, NixHash};
 use crate::store_path::StorePath;
 
 pub mod derivation;
+pub mod derivation_aterm;
 pub mod derivation_hash;
 
 /// Experimental feature that allows nested (dynamic) derivation outputs.
@@ -105,6 +106,121 @@ fn as_object(value: &Value) -> Result<&Map<String, Value>, Error> {
 
 fn field<'a>(object: &'a Map<String, Value>, name: &'static str) -> Result<&'a Value, Error> {
 	object.get(name).ok_or(Error::MissingField(name))
+}
+
+/// nlohmann's `json::dump()` with default arguments: compact, keys in byte
+/// order, non-ASCII text unescaped, and floating-point numbers in nlohmann's
+/// `to_chars` form (`1e+100`, `1.5e-07`, `-0.0`, `1.0`). CppNix writes
+/// structured attributes (`__json`) this way, so these bytes enter the
+/// derivation's ATerm text and store path.
+///
+/// nlohmann takes its digits from Grisu2, which is round-trip exact but not
+/// always the shortest form; this uses Rust's shortest round-trip digits,
+/// which agree except in the rare cases where Grisu2 emits more digits.
+pub fn dump(value: &Value) -> String {
+	let mut out = String::new();
+	dump_into(&mut out, value);
+	out
+}
+
+fn dump_into(out: &mut String, value: &Value) {
+	match value {
+		Value::Null => out.push_str("null"),
+		Value::Bool(b) => out.push_str(if *b { "true" } else { "false" }),
+		Value::Number(n) => {
+			if let Some(i) = n.as_u64() {
+				out.push_str(&i.to_string());
+			} else if let Some(i) = n.as_i64() {
+				out.push_str(&i.to_string());
+			} else if let Some(f) = n.as_f64() {
+				dump_float(out, f);
+			} else {
+				out.push_str(&n.to_string());
+			}
+		}
+		// serde_json and nlohmann escape strings the same way: `\"`, `\\`,
+		// `\b`, `\f`, `\n`, `\r`, `\t`, other control bytes as lowercase
+		// `\u00xx`, and nothing else.
+		Value::String(s) => out.push_str(&Value::String(s.clone()).to_string()),
+		Value::Array(items) => {
+			out.push('[');
+			for (i, item) in items.iter().enumerate() {
+				if i > 0 {
+					out.push(',');
+				}
+				dump_into(out, item);
+			}
+			out.push(']');
+		}
+		Value::Object(map) => {
+			// nlohmann's `std::map` orders keys by their bytes.
+			let mut entries: Vec<_> = map.iter().collect();
+			entries.sort_by(|a, b| a.0.as_bytes().cmp(b.0.as_bytes()));
+			out.push('{');
+			for (i, (key, item)) in entries.into_iter().enumerate() {
+				if i > 0 {
+					out.push(',');
+				}
+				out.push_str(&Value::String(key.clone()).to_string());
+				out.push(':');
+				dump_into(out, item);
+			}
+			out.push('}');
+		}
+	}
+}
+
+/// nlohmann's `to_chars` and `format_buffer` with `min_exp = -4` and
+/// `max_exp = 15`.
+fn dump_float(out: &mut String, value: f64) {
+	if !value.is_finite() {
+		out.push_str("null");
+		return;
+	}
+	if value.is_sign_negative() {
+		out.push('-');
+	}
+	let value = value.abs();
+	if value == 0.0 {
+		out.push_str("0.0");
+		return;
+	}
+	// Rust's `{:e}` gives the shortest round-trip digits as `d[.ddd]e<exp>`.
+	let sci = format!("{value:e}");
+	let (mantissa, exponent) = sci.split_once('e').expect("exponent form");
+	let exponent: i32 = exponent.parse().expect("exponent");
+	let digits: String = mantissa.chars().filter(|c| *c != '.').collect();
+	let k = digits.len() as i32;
+	let n = exponent + 1;
+	const MIN_EXP: i32 = -4;
+	const MAX_EXP: i32 = 15;
+	if k <= n && n <= MAX_EXP {
+		out.push_str(&digits);
+		out.extend(std::iter::repeat_n('0', (n - k) as usize));
+		out.push_str(".0");
+	} else if 0 < n && n <= MAX_EXP {
+		out.push_str(&digits[..n as usize]);
+		out.push('.');
+		out.push_str(&digits[n as usize..]);
+	} else if MIN_EXP < n && n <= 0 {
+		out.push_str("0.");
+		out.extend(std::iter::repeat_n('0', (-n) as usize));
+		out.push_str(&digits);
+	} else {
+		out.push_str(&digits[..1]);
+		if k > 1 {
+			out.push('.');
+			out.push_str(&digits[1..]);
+		}
+		let e = n - 1;
+		out.push('e');
+		out.push(if e < 0 { '-' } else { '+' });
+		let e = e.unsigned_abs();
+		if e < 10 {
+			out.push('0');
+		}
+		out.push_str(&e.to_string());
+	}
 }
 
 /// `adl_serializer<StorePath>`: the base name, without the store directory.
@@ -626,6 +742,25 @@ impl DrvOutput {
 			output_name: as_str(field(object, "outputName")?, "output name string")?.to_owned(),
 		})
 	}
+
+	/// `DrvOutput::parse`: `<absolute derivation path>^<output name>`, split
+	/// at the last `^`. The output name is not validated, as in CppNix.
+	pub fn parse(s: &str) -> Result<Self, derivation_aterm::AtermError> {
+		let (path, output) = s.rsplit_once('^').ok_or_else(|| {
+			derivation_aterm::AtermError::Other(format!(
+				"Invalid derivation output id '{s}': missing '^'"
+			))
+		})?;
+		Ok(Self {
+			drv_path: derivation_aterm::parse_store_path(path)?,
+			output_name: output.to_owned(),
+		})
+	}
+
+	/// `DrvOutput::render`.
+	pub fn render(&self) -> String {
+		format!("{}^{}", self.drv_path.to_absolute_path(), self.output_name)
+	}
 }
 
 /// CppNix's `UnkeyedRealisation`: the output path a derivation output
@@ -906,6 +1041,62 @@ mod tests {
 		assert_eq!(
 			content_address_from_json(&json!({"method": "git", "hash": hash})),
 			Err(Error::Unsupported(GIT_HASHING))
+		);
+	}
+
+	/// Floats as CppNix 2.35.2 prints them with nlohmann's `dump()`, recorded
+	/// with `nix eval --json` and in `__json` structured attributes.
+	#[test]
+	fn dump_matches_nlohmann_numbers() {
+		let cases: &[(f64, &str)] = &[
+			(1e100, "1e+100"),
+			(1.5e-7, "1.5e-07"),
+			(0.1, "0.1"),
+			(-0.0, "-0.0"),
+			(0.0, "0.0"),
+			(1.0, "1.0"),
+			(1e15, "1e+15"),
+			(1e14, "100000000000000.0"),
+			(0.0001, "0.0001"),
+			(0.00001, "1e-05"),
+			(123.456, "123.456"),
+			(1.2345678901234568e20, "1.2345678901234568e+20"),
+			(-2.5e-300, "-2.5e-300"),
+			(1.7976931348623157e308, "1.7976931348623157e+308"),
+			(0.3, "0.3"),
+			(100.0, "100.0"),
+			(0.1 + 0.2, "0.30000000000000004"),
+		];
+		for (value, expected) in cases {
+			assert_eq!(dump(&json!(value)), *expected, "{value:e}");
+		}
+	}
+
+	#[test]
+	fn dump_orders_keys_and_escapes_like_nlohmann() {
+		let value = json!({"b": [true, null, -42, 12345678901234567u64], "a": {"y": [], "x": {}}, "t": "caf\u{e9} \"q\" \\ \n\u{1f}\u{7f}"});
+		assert_eq!(
+			dump(&value),
+			"{\"a\":{\"x\":{},\"y\":[]},\"b\":[true,null,-42,12345678901234567],\"t\":\"caf\u{e9} \\\"q\\\" \\\\ \\n\\u001f\u{7f}\"}"
+		);
+	}
+
+	/// CppNix 2.35.2 `DrvOutput::parse` and `render`.
+	#[test]
+	fn drv_output_string_form() {
+		let text = "/nix/store/g1w7hy3qg1w7hy3qg1w7hy3qg1w7hy3q-x.drv^out";
+		let parsed = DrvOutput::parse(text).unwrap();
+		assert_eq!(parsed.output_name, "out");
+		assert_eq!(parsed.render(), text);
+		assert_eq!(
+			DrvOutput::parse("/nix/store/g1w7hy3qg1w7hy3qg1w7hy3qg1w7hy3q-x.drv^a^b")
+				.unwrap_err()
+				.to_string(),
+			"path 'g1w7hy3qg1w7hy3qg1w7hy3qg1w7hy3q-x.drv^a' is not a valid store path: name 'x.drv^a' contains illegal character '^'"
+		);
+		assert_eq!(
+			DrvOutput::parse("sha256:abc!out").unwrap_err().to_string(),
+			"Invalid derivation output id 'sha256:abc!out': missing '^'"
 		);
 	}
 }

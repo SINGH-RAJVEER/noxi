@@ -21,6 +21,8 @@ fn run(repo: &Path, args: &[&str]) -> Result<Vec<u8>> {
 		.arg(repo)
 		.args(args)
 		.env("GIT_TERMINAL_PROMPT", "0")
+		// Reading a work tree must not refresh its index, which libgit2 leaves alone.
+		.env("GIT_OPTIONAL_LOCKS", "0")
 		.output()?;
 	if !output.status.success() {
 		return Err(Error::new(

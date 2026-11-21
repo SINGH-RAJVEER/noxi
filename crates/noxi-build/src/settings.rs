@@ -83,6 +83,8 @@ pub struct BuildSettings {
 	/// `always-allow-substitutes`: substitute even derivations with
 	/// `allowSubstitutes = false`.
 	pub always_allow_substitutes: bool,
+	/// `FileTransferSettings` for HTTP substituters.
+	pub transfer: noxi_store::binary_cache::TransferSettings,
 	/// `build-users-group`: CppNix defaults it to `nixbld` when running as
 	/// root and to empty otherwise.
 	pub build_users_group: String,
@@ -140,6 +142,7 @@ impl Default for BuildSettings {
 			nix_command: false,
 			show_log_tail: false,
 			always_allow_substitutes: false,
+			transfer: Default::default(),
 			// SAFETY: getuid cannot fail.
 			build_users_group: if unsafe { libc::getuid() } == 0 {
 				"nixbld".to_owned()
@@ -171,6 +174,7 @@ impl BuildSettings {
 		self.filter_syscalls = settings.get_bool("filter-syscalls", self.filter_syscalls);
 		self.always_allow_substitutes =
 			settings.get_bool("always-allow-substitutes", self.always_allow_substitutes);
+		self.transfer.apply(settings);
 		if settings.get("experimental-features").is_some() {
 			self.nix_command = settings.experimental_features().contains("nix-command");
 		}
@@ -308,6 +312,7 @@ impl BuildSettings {
 			nix_command: settings.experimental_features().contains("nix-command"),
 			always_allow_substitutes: settings
 				.get_bool("always-allow-substitutes", default.always_allow_substitutes),
+			transfer: noxi_store::binary_cache::TransferSettings::from_settings(settings),
 			..default
 		};
 		result.apply_config(settings);

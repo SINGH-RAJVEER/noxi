@@ -273,6 +273,13 @@ fn derivation_show_and_local_logs() {
 	let expected = f.same(&["derivation", "show", "--impure", "--expr", &expr]);
 	assert!(expected.status.success());
 	f.same(&["derivation", "show", "-r", "--impure", "--expr", &expr]);
+	// Structured-attribute floats print in nlohmann's form (`1.5e-07`).
+	f.same(&[
+		"derivation",
+		"show",
+		"--expr",
+		r#"derivation { name = "f"; system = "x86_64-linux"; builder = "/bin/sh"; __structuredAttrs = true; v = 1.0e100; w = 1.5e-7; x = -0.0; y = 1.0; z = { b = 0.1; a = [ 1.5e-5 ]; }; }"#,
+	]);
 	let value: serde_json::Value = serde_json::from_slice(&expected.stdout).unwrap();
 	let name = value["derivations"]
 		.as_object()

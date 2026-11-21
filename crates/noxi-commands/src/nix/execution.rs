@@ -243,6 +243,8 @@ pub(super) fn exec_store(parsed: &Parsed, mut child: Command) -> Result<ExitCode
 		}
 		child = helper;
 	}
+	// `run.cc` stops the logger before handing the terminal over.
+	nix_compat::log::logger::stop();
 	let program = child.get_program().to_string_lossy().into_owned();
 	Err(Failure::Error(format!(
 		"unable to execute '{program}': {}",
