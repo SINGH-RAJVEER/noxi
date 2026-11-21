@@ -1,0 +1,154 @@
+{
+	"failures": [
+		{
+			"case": "qualification-daemon:noxi-import-prepare",
+			"file": "qualification.jsonl",
+			"reason": ""
+		},
+		{
+			"case": "qualification-daemon:noxi-outsider-refused-matches-cppnix",
+			"file": "qualification.jsonl",
+			"reason": "{\"noxi\": [1, \"error: cannot open connection to remote store 'daemon': Connection reset by peer (os error 104)\\n\"], \"cppnix\": [1, \"error: cannot open connection to remote store 'daemon': error: read of 32768 bytes: Connection reset by peer\\n\"]}"
+		},
+		{
+			"case": "qualification-daemon:noxi-build-user-refused-matches-cppnix",
+			"file": "qualification.jsonl",
+			"reason": "{\"noxi\": [1, \"error: cannot open connection to remote store 'daemon': Connection reset by peer (os error 104)\\n\"], \"cppnix\": [1, \"error: cannot open connection to remote store 'daemon': error: read of 32768 bytes: Connection reset by peer\\n\"]}"
+		},
+		{
+			"case": "qualification-daemon:noxi-repair-refused-matches-cppnix",
+			"file": "qualification.jsonl",
+			"reason": "{\"noxi\": [1, \"error: nix-build --repair is not supported by noxi yet\\n\"], \"cppnix\": [1, \"this derivation will be built:\\n  /nix/store/6asl47brahm7c4hwfnn036lz4fd9aksi-qualification-probe-repair.drv\\nerror: repairing is not allowed because you are not in 'trusted-users'\\n\"]}"
+		},
+		{
+			"case": "qualification-daemon:noxi-unsigned-import-refused-matches-cppnix",
+			"file": "qualification.jsonl",
+			"reason": "{\"noxi\": [1, \"error: nix-store --import is not supported by noxi yet\\n\"], \"cppnix\": [1, \"error: cannot add path '/nix/store/j27fhz4mp3d5pms499bnvq2mq90gnp6w-qualification-probe-import' because it lacks a signature by a trusted key\\n\"]}"
+		},
+		{
+			"case": "qualification-home-manager:standalone-flake-build",
+			"file": "qualification.jsonl",
+			"reason": ""
+		},
+		{
+			"case": "qualification-home-manager:standalone-flake-switch",
+			"file": "qualification.jsonl",
+			"reason": ""
+		},
+		{
+			"case": "qualification-lifecycle:release-candidate-reads",
+			"file": "qualification.jsonl",
+			"reason": ""
+		},
+		{
+			"case": "qualification-lifecycle:release-previous-reads",
+			"file": "qualification.jsonl",
+			"reason": ""
+		},
+		{
+			"case": "qualification-nixos:rebuild-flake-build",
+			"file": "qualification.jsonl",
+			"reason": ""
+		}
+	],
+	"rows": {
+		"daemon-protocol": {
+			"fail": 5,
+			"known-difference": 0,
+			"pass": 64,
+			"unrun": 0
+		},
+		"nixos-activation": {
+			"fail": 5,
+			"known-difference": 0,
+			"pass": 221,
+			"unrun": 0
+		}
+	},
+	"run": null,
+	"runner_counts": {
+		"qualification-daemon": {
+			"fail": 5,
+			"known-difference": 0,
+			"pass": 64,
+			"unrun": 0
+		},
+		"qualification-home-manager": {
+			"fail": 2,
+			"known-difference": 0,
+			"pass": 78,
+			"unrun": 0
+		},
+		"qualification-lifecycle": {
+			"fail": 2,
+			"known-difference": 0,
+			"pass": 78,
+			"unrun": 0
+		},
+		"qualification-nixos": {
+			"fail": 1,
+			"known-difference": 0,
+			"pass": 65,
+			"unrun": 0
+		}
+	},
+	"runners": {
+		"qualification-daemon": {
+			"file": "qualification.jsonl",
+			"noxi": {
+				"dirty": null,
+				"revision": "ed44affa810293f81fab10a4740b1514668c0e87"
+			},
+			"platform": "x86_64-linux",
+			"reference": {
+				"release": "2.35.2",
+				"revision": "2c73b59da29606068c0c98db015dd3a66955525d"
+			}
+		},
+		"qualification-home-manager": {
+			"file": "qualification.jsonl",
+			"noxi": {
+				"dirty": null,
+				"revision": "ed44affa810293f81fab10a4740b1514668c0e87"
+			},
+			"platform": "x86_64-linux",
+			"reference": {
+				"release": "2.35.2",
+				"revision": "2c73b59da29606068c0c98db015dd3a66955525d"
+			}
+		},
+		"qualification-lifecycle": {
+			"file": "qualification.jsonl",
+			"noxi": {
+				"dirty": null,
+				"revision": "ed44affa810293f81fab10a4740b1514668c0e87"
+			},
+			"platform": "x86_64-linux",
+			"reference": {
+				"release": "2.35.2",
+				"revision": "2c73b59da29606068c0c98db015dd3a66955525d"
+			}
+		},
+		"qualification-nixos": {
+			"file": "qualification.jsonl",
+			"noxi": {
+				"dirty": null,
+				"revision": "ed44affa810293f81fab10a4740b1514668c0e87"
+			},
+			"platform": "x86_64-linux",
+			"reference": {
+				"release": "2.35.2",
+				"revision": "2c73b59da29606068c0c98db015dd3a66955525d"
+			}
+		}
+	},
+	"schema": "noxi-compat-summary/1",
+	"tiers": {
+		"system": {
+			"fail": 10,
+			"known-difference": 0,
+			"pass": 285,
+			"unrun": 0
+		}
+	}
+}

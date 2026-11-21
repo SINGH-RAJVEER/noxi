@@ -1,0 +1,131 @@
+{
+	"failures": [],
+	"rows": {
+		"copied-fixture-inventory": {
+			"fail": 0,
+			"known-difference": 2,
+			"pass": 9,
+			"unrun": 0
+		},
+		"nix-language-and-evaluator": {
+			"fail": 0,
+			"known-difference": 0,
+			"pass": 477,
+			"unrun": 1
+		}
+	},
+	"run": {
+		"command": [
+			"bash",
+			"-c",
+			"status=0; cargo nextest run --workspace --profile store --no-fail-fast -E \"binary(upstream_lang) | binary(upstream_functional)\" || status=$?; target/debug/differential-eval /nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2/bin/nix-instantiate target/debug/noxi $NOXI_RESULTS_DIR/differential-eval-report.json || status=$?; exit $status"
+		],
+		"exit_status": 0,
+		"kernel": "7.3.4",
+		"noxi": {
+			"dirty": false,
+			"revision": "37f831261421b4d1b7d458f48d5af42da9937031",
+			"source": "git"
+		},
+		"platform": "x86_64-linux",
+		"reference": {
+			"release": "2.35.2",
+			"repository": "https://github.com/NixOS/nix.git",
+			"revision": "2c73b59da29606068c0c98db015dd3a66955525d"
+		},
+		"schema": "noxi-compat-result/1",
+		"settings": {
+			"CARGO_BUILD_JOBS": "4",
+			"NOXI_FUNCTIONAL_FILTER": "functional/build-dry.sh,functional/check-refs.sh,functional/derivation-json.sh,functional/dump-db.sh,functional/export.sh,functional/gc.sh,functional/hash-path.sh,functional/simple.sh,functional/add.sh",
+			"NOXI_REFERENCE_BIN": "/nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2/bin",
+			"NOXI_TEST_BUSYBOX": "/home/rajveer/Projects/personal/noxi/target/test-busybox"
+		},
+		"started": "2026-11-21T01:45:51+00:00",
+		"tier": "store"
+	},
+	"runner_counts": {
+		"differential-eval": {
+			"fail": 0,
+			"known-difference": 0,
+			"pass": 10,
+			"unrun": 0
+		},
+		"nextest": {
+			"fail": 0,
+			"known-difference": 0,
+			"pass": 3,
+			"unrun": 0
+		},
+		"upstream-functional": {
+			"fail": 0,
+			"known-difference": 2,
+			"pass": 7,
+			"unrun": 0
+		},
+		"upstream-lang": {
+			"fail": 0,
+			"known-difference": 0,
+			"pass": 466,
+			"unrun": 1
+		}
+	},
+	"runners": {
+		"differential-eval": {
+			"file": "differential-eval.jsonl",
+			"noxi": {
+				"dirty": false,
+				"revision": "37f831261421b4d1b7d458f48d5af42da9937031"
+			},
+			"platform": "x86_64-linux",
+			"reference": {
+				"release": "2.35.2",
+				"revision": "2c73b59da29606068c0c98db015dd3a66955525d"
+			}
+		},
+		"nextest": {
+			"file": "nextest.jsonl",
+			"noxi": {
+				"dirty": false,
+				"revision": "37f831261421b4d1b7d458f48d5af42da9937031"
+			},
+			"platform": "x86_64-linux",
+			"reference": {
+				"release": "2.35.2",
+				"revision": "2c73b59da29606068c0c98db015dd3a66955525d"
+			}
+		},
+		"upstream-functional": {
+			"file": "upstream-functional.jsonl",
+			"noxi": {
+				"dirty": false,
+				"revision": "37f831261421b4d1b7d458f48d5af42da9937031"
+			},
+			"platform": "x86_64-linux",
+			"reference": {
+				"release": "2.35.2",
+				"revision": "2c73b59da29606068c0c98db015dd3a66955525d"
+			}
+		},
+		"upstream-lang": {
+			"file": "upstream-lang.jsonl",
+			"noxi": {
+				"dirty": false,
+				"revision": "37f831261421b4d1b7d458f48d5af42da9937031"
+			},
+			"platform": "x86_64-linux",
+			"reference": {
+				"release": "2.35.2",
+				"revision": "2c73b59da29606068c0c98db015dd3a66955525d"
+			}
+		}
+	},
+	"schema": "noxi-compat-summary/1",
+	"tiers": {
+		"store": {
+			"fail": 0,
+			"known-difference": 2,
+			"pass": 486,
+			"unrun": 1
+		}
+	}
+}

@@ -1,0 +1,126 @@
+{
+	"failures": [
+		{
+			"case": "nextest:noxi-compat-tests::derivation_parser_extensions:parses_and_round_trips_unchecked_output_names",
+			"file": "nextest.jsonl",
+			"reason": "thread 'parses_and_round_trips_unchecked_output_names' (1103803) panicked at crates/compat-tests/tests/derivation_parser_extensions.rs:78:14"
+		},
+		{
+			"case": "nextest:noxi-compat-tests::derivation_parser_extensions:parses_and_round_trips_unchecked_input_output_names",
+			"file": "nextest.jsonl",
+			"reason": "thread 'parses_and_round_trips_unchecked_input_output_names' (1103793) panicked at crates/compat-tests/tests/derivation_parser_extensions.rs:97:14"
+		}
+	],
+	"rows": {
+		"cli-and-configuration": {
+			"fail": 0,
+			"known-difference": 0,
+			"pass": 14,
+			"unrun": 0
+		},
+		"copied-fixture-inventory": {
+			"fail": 0,
+			"known-difference": 0,
+			"pass": 8,
+			"unrun": 0
+		},
+		"daemon-protocol": {
+			"fail": 0,
+			"known-difference": 0,
+			"pass": 20,
+			"unrun": 0
+		},
+		"derivation-and-path-formats": {
+			"fail": 2,
+			"known-difference": 0,
+			"pass": 1920,
+			"unrun": 0
+		},
+		"flakes-and-fetchers": {
+			"fail": 0,
+			"known-difference": 0,
+			"pass": 29,
+			"unrun": 0
+		},
+		"hash-algorithms": {
+			"fail": 0,
+			"known-difference": 0,
+			"pass": 97,
+			"unrun": 0
+		},
+		"nar-archive-format": {
+			"fail": 0,
+			"known-difference": 0,
+			"pass": 18,
+			"unrun": 0
+		},
+		"nix-language-and-evaluator": {
+			"fail": 0,
+			"known-difference": 0,
+			"pass": 9,
+			"unrun": 0
+		}
+	},
+	"run": {
+		"command": [
+			"cargo",
+			"nextest",
+			"run",
+			"--workspace",
+			"--all-features",
+			"--profile",
+			"fast",
+			"--no-fail-fast"
+		],
+		"exit_status": 100,
+		"kernel": "7.3.4",
+		"noxi": {
+			"dirty": false,
+			"revision": "37f831261421b4d1b7d458f48d5af42da9937031",
+			"source": "git"
+		},
+		"platform": "x86_64-linux",
+		"reference": {
+			"release": "2.35.2",
+			"repository": "https://github.com/NixOS/nix.git",
+			"revision": "2c73b59da29606068c0c98db015dd3a66955525d"
+		},
+		"schema": "noxi-compat-result/1",
+		"settings": {
+			"CARGO_BUILD_JOBS": "4"
+		},
+		"started": "2026-11-21T01:42:44+00:00",
+		"tier": "fast"
+	},
+	"runner_counts": {
+		"nextest": {
+			"fail": 2,
+			"known-difference": 0,
+			"pass": 2115,
+			"unrun": 0
+		}
+	},
+	"runners": {
+		"nextest": {
+			"file": "nextest.jsonl",
+			"noxi": {
+				"dirty": false,
+				"revision": "37f831261421b4d1b7d458f48d5af42da9937031"
+			},
+			"platform": "x86_64-linux",
+			"reference": {
+				"release": "2.35.2",
+				"revision": "2c73b59da29606068c0c98db015dd3a66955525d"
+			}
+		}
+	},
+	"schema": "noxi-compat-summary/1",
+	"tiers": {
+		"fast": {
+			"fail": 2,
+			"known-difference": 0,
+			"pass": 2115,
+			"unrun": 0
+		}
+	}
+}

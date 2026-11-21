@@ -90,3 +90,11 @@ Other runner fields, such as the functional script `outcome`, are added beside t
 ## Committed evidence
 
 `just compat-keep DIR NAME` copies a record directory to `tests/compat-results/NAME` and refuses records from a dirty source tree. `just compat-evidence` regenerates [compatibility-evidence.md](compatibility-evidence.md) from `tests/compat-results/rows.toml` and the kept summaries. `just compat-evidence-check`, part of `just ci`, fails when the page is stale, a matrix row has no entry in `rows.toml`, `rows.toml` names a row the matrix lacks, a kept summary counts an unknown row, or an evidence link is broken. A kept result set is evidence for the revision it names only.
+
+### Kept result sets, 2026-11-21
+
+- `2026-11-21-37f8312-fast`: `just test-fast` at the clean revision `37f8312`. 2,117 tests ran: 2,115 passed and 2 failed. The failures are `derivation_parser_extensions::parses_and_round_trips_unchecked_output_names` and `parses_and_round_trips_unchecked_input_output_names`: `calculate_outputs` accepts the output name `drv`, which the tests expect it to reject. They fail the same way on `mvp/integration` at `1d4eccc`, and these changes do not touch the parser.
+- `2026-11-21-37f8312-store-sample`: a sample of the store tier at the same revision against the pinned CppNix 2.35.2, not the whole tier. It covers `upstream_lang` (466 of 467 cases pass against the live reference; the upstream-disabled tail-call case is `unrun`), nine `upstream_functional` scripts under both engines (seven passes, and `add.sh` and `simple.sh` as recorded gaps), and the ten `differential-eval` cases (all pass). For the seven passing scripts, both engines' produced paths, derivation bytes, NAR digests and `ValidPaths` rows are identical; only the logs differ.
+- `2026-11-09-b6a0a10-vm-qualification` and `2026-11-09-ed44aff-vm-qualification`: the committed VM qualification reports at those revisions, converted to records. The VMs were not booted again.
+
+The other store-tier tests, the daemon tier and a new VM run have not been recorded yet.

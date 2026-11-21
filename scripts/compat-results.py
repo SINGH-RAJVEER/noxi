@@ -327,7 +327,7 @@ def evidence_markdown(rows, matrix, kept=KEPT):
 		run = summary.get("run") or {}
 		revisions = sorted({(value["noxi"]["revision"], value["noxi"]["dirty"]) for value in summary.get("runners", {}).values()})
 		described = ", ".join(f"`{revision[:12]}`" + (" (dirty)" if dirty else "") for revision, dirty in revisions if revision)
-		lines.append(f"- [`{name}`](../tests/compat-results/{name}/summary.json): tier {run.get('tier', 'mixed')}, noxi {described or 'unknown'}, runners {', '.join(sorted(summary.get('runners', {})))}")
+		lines.append(f"- [`{name}`](../tests/compat-results/{name}/summary.json): tier {run.get('tier') or ', '.join(sorted(summary.get('tiers', {}))) or 'unknown'}, noxi {described or 'unknown'}, runners {', '.join(sorted(summary.get('runners', {})))}")
 	lines += ["", "| Row | Mapped tests | Result set | pass | fail | known-difference | unrun |", "|---|---|---|---|---|---|---|"]
 	for row, area in matrix:
 		entries = rows.get(row, [])
