@@ -10,8 +10,12 @@ use std::process::{Command, ExitCode, ExitStatus, Stdio};
 use std::thread;
 use std::time::{Duration, Instant};
 
+use noxi_compat_tests::results::{self, Capture, Case, Recorder, Verdict};
 use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
+
+/// The compatibility matrix row these cases are evidence for.
+const MATRIX_ROW: &str = "nix-language-and-evaluator";
 
 const CASES: &[(&str, &str)] = &[
 	("integer", "1 + 2 * 3"),
@@ -32,6 +36,7 @@ struct Captured {
 	stdout: Vec<u8>,
 	stderr: Vec<u8>,
 	timed_out: bool,
+	duration: Duration,
 }
 
 fn run(program: &Path, args: &[&str], home: &Path, timeout: Duration) -> Result<Captured, String> {
@@ -63,9 +68,8 @@ fn run(program: &Path, args: &[&str], home: &Path, timeout: Duration) -> Result<
 		))
 		.spawn()
 		.map_err(|error| format!("cannot run {}: {error}", program.display()))?;
-	let deadline = Instant::now()
-		.checked_add(timeout)
-		.ok_or("timeout is too large")?;
+	let started = Instant::now();
+	let deadline = started.checked_add(timeout).ok_or("timeout is too large")?;
 	let (status, timed_out) = loop {
 		if let Some(status) = child.try_wait().map_err(|error| error.to_string())? {
 			break (status, false);
@@ -97,6 +101,7 @@ fn run(program: &Path, args: &[&str], home: &Path, timeout: Duration) -> Result<
 		stdout: stdout_bytes,
 		stderr: stderr_bytes,
 		timed_out,
+		duration: started.elapsed(),
 	})
 }
 
@@ -177,6 +182,22 @@ fn execute() -> Result<bool, String> {
 		return Err("cannot read reference or candidate version".into());
 	}
 
+	let environment = json!({"HOME": "isolated temporary directory", "NIX_PATH": "", "NIX_CONFIG": "", "NIX_REMOTE": "dummy://", "NIX_STORE_DIR": "/nix/store", "NIX_CONF_DIR": "temporary empty directory", "NIX_USER_CONF_FILES": "temporary nonexistent file", "XDG_CONFIG_DIRS": "temporary empty directory", "PATH": env::var("PATH").unwrap_or_default(), "LC_ALL": "C", "TZ": "UTC"});
+	// Records go beside the report unless NOXI_RESULTS_DIR names another
+	// directory.
+	let report_dir = Path::new(&report)
+		.parent()
+		.filter(|parent| !parent.as_os_str().is_empty())
+		.unwrap_or(Path::new("."));
+	let recorder = Recorder::create(
+		"differential-eval",
+		&report_dir.join("compat-results"),
+		"store",
+		json!({"nix-instantiate": results::executable(reference)}),
+		json!({"noxi": results::executable(candidate)}),
+	)
+	.map_err(|error| format!("results directory: {error}"))?;
+
 	let mut all_match = true;
 	let mut cases = Vec::with_capacity(CASES.len());
 	for (name, expression) in CASES {
@@ -201,6 +222,63 @@ fn execute() -> Result<bool, String> {
 			&& reference_output.stdout == candidate_output.stdout
 			&& reference_output.stderr == candidate_output.stderr;
 		all_match &= matches;
+		let capture = |output: &Captured, argv: &[&str]| Capture {
+			argv: argv.iter().map(|arg| (*arg).to_owned()).collect(),
+			exit_code: output.status.code(),
+			signal: output.status.signal(),
+			timed_out: output.timed_out,
+			duration: output.duration,
+			stdout: output.stdout.clone(),
+			stderr: Some(output.stderr.clone()),
+			..Capture::default()
+		};
+		let reference_capture = capture(
+			&reference_output,
+			&[
+				"nix-instantiate",
+				"--eval",
+				"--strict",
+				"--expr",
+				expression,
+			],
+		);
+		let noxi_capture = capture(&candidate_output, &["noxi", "eval", "--expr", expression]);
+		let mut differences: Vec<String> = results::differences(&reference_capture, &noxi_capture)
+			.into_iter()
+			.map(str::to_owned)
+			.collect();
+		if !matches && differences.is_empty() {
+			// Equal streams after a crash or timeout still do not match.
+			differences.push("exit_code".to_owned());
+		}
+		recorder
+			.record(&Case {
+				id: (*name).to_owned(),
+				matrix_row: MATRIX_ROW.to_owned(),
+				inventory: vec![
+					"executable:nix-instantiate".to_owned(),
+					"command:nix eval".to_owned(),
+				],
+				settings: json!({
+					"environment": environment,
+					"configuration": "",
+					"experimental_features": [],
+					"store": "dummy://",
+					"inputs": {"expression": expression},
+					"timeout_ms": timeout.as_millis() as u64,
+				}),
+				reference: Some(reference_capture),
+				noxi: Some(noxi_capture),
+				verdict: if matches {
+					Verdict::Pass
+				} else {
+					Verdict::Fail
+				},
+				classification: None,
+				reason: None,
+				differences,
+			})
+			.map_err(|error| format!("record {name}: {error}"))?;
 		cases.push(json!({
 			"name": name,
 			"expression": expression,
@@ -215,7 +293,8 @@ fn execute() -> Result<bool, String> {
 		"candidate": artifact(candidate, &candidate_version)?,
 		"reference_argv": ["--eval", "--strict", "--expr", "EXPRESSION"],
 		"candidate_argv": ["eval", "--expr", "EXPRESSION"],
-		"environment": {"HOME": "isolated temporary directory", "NIX_PATH": "", "NIX_CONFIG": "", "NIX_REMOTE": "dummy://", "NIX_STORE_DIR": "/nix/store", "NIX_CONF_DIR": "temporary empty directory", "NIX_USER_CONF_FILES": "temporary nonexistent file", "XDG_CONFIG_DIRS": "temporary empty directory", "PATH": env::var("PATH").unwrap_or_default(), "LC_ALL": "C", "TZ": "UTC"},
+		"environment": environment,
+		"records": recorder.path(),
 		"timeout_ms": timeout.as_millis(),
 		"all_match": all_match,
 		"cases": cases,

@@ -8,6 +8,8 @@ license = "GPL-3.0-only"
 description = "Differential tests that check vendored and first-party crates against the upstream CppNix fixtures in tests/nix"
 
 [dependencies]
+nix-compat = { version = "0.0.5", package = "noxi-compat", path = "../noxi/nix-compat", features = ["serde", "daemon"] }
+rusqlite = { version = "0.40.2", features = ["bundled"] }
 serde_json.workspace = true
 sha2.workspace = true
 tempfile.workspace = true
@@ -16,11 +18,9 @@ tempfile.workspace = true
 libc.workspace = true
 noxi-eval = { version = "0.0.5", path = "../noxi/eval", default-features = false, features = ["impure"] }
 noxi-commands = { version = "0.0.5", path = "../noxi-commands" }
-nix-compat = { version = "0.0.5", package = "noxi-compat", path = "../noxi/nix-compat", features = ["serde", "daemon"] }
 noxi-store = { version = "0.0.5", path = "../noxi-store" }
 noxi-build = { version = "0.0.4", path = "../noxi-build" }
 noxi-daemon = { version = "0.0.5", path = "../noxi-daemon" }
-rusqlite = { version = "0.40.2", features = ["bundled"] }
 bstr.workspace = true
 data-encoding.workspace = true
 tokio = { workspace = true, features = ["io-util", "macros", "rt"] }
