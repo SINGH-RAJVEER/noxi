@@ -1,0 +1,163 @@
+# Maps each row of docs/compatibility-matrix.md to the tests that are its
+# evidence. Keys are row ids: the row's Area, lower-cased, with every run of
+# other characters replaced by `-`. `scripts/compat-results.py evidence --check`
+# fails when a matrix row is missing here or a key names no matrix row.
+#
+# Entries name nextest binary ids: `PACKAGE` for a package's unit tests,
+# `PACKAGE::BINARY` for an integration test binary, or `BINARY_ID REGEX` to
+# claim only the tests whose names match REGEX. The most specific entry wins:
+# a test-name entry, then a binary, then a package. Differential runners name
+# their row in each record themselves. An empty list means no automated test
+# is evidence for the row yet.
+
+[rows]
+nix-language-and-evaluator = [
+	"noxi-eval",
+	"noxi-compat-tests::upstream_lang",
+	"noxi-compat-tests::differential_eval",
+	"noxi-commands::language_boundaries",
+	"noxi-commands::generated_boundaries",
+	"noxi-commands::generated_forcing",
+	"noxi-commands::generated_identity",
+	"noxi-commands::generated_regex_data",
+	"noxi-commands::generated_restricted",
+	"noxi-commands::generated_ca",
+	"noxi-commands::generated_derivation_import",
+	"noxi-cli",
+	"noxi-cli::cli",
+]
+hash-algorithms = [
+	"noxi-hash",
+	"noxi-compat-tests::upstream_hashes",
+	"noxi-compat-tests::reference_hash_formats",
+	"noxi-compat-tests::reference_hash_modulo",
+]
+fetcher-cache-formats = [
+	"noxi-glue::fetch_cache",
+]
+flakes-and-fetchers = [
+	"noxi-flakeref",
+	"noxi-glue",
+	"noxi-glue::flakes",
+	"noxi-glue::forges",
+	"noxi-glue::lfs",
+	"noxi-glue::writable",
+	"noxi-compat-tests::reference_flakeref",
+	"noxi-compat-tests::upstream_fetcher_public_key",
+	"noxi-compat-tests::upstream_filetransfer_retry",
+	"noxi-commands::generated_fetcher_validation",
+	"noxi-commands::generated_mercurial",
+	"noxi-commands::reference_fetch_ssh",
+	"noxi-commands::reference_flakes",
+	"noxi-commands::reference_registry",
+]
+flake-operation-library = [
+	"noxi-flake",
+	"noxi-flake::operations",
+	"noxi-commands::reference_flake_cli",
+	"noxi-commands::reference_flake_commands",
+]
+real-flake-output-evaluation = [
+	"noxi-glue::repository_flakes",
+]
+derivation-and-path-formats = [
+	"noxi-compat",
+	"noxi-compat-derive",
+	"noxi-serde",
+	"noxi-compat-tests::derivation_parser_extensions",
+	"noxi-compat-tests::reference_derivation_aterm",
+	"noxi-compat-tests::upstream_derivations",
+	"noxi-compat-tests::upstream_derivation_json",
+	"noxi-compat-tests::upstream_derivation_options",
+	"noxi-compat-tests::upstream_derivation_resolution",
+	"noxi-compat-tests::upstream_store_json",
+	"noxi-compat-tests::upstream_path_info_json",
+	"noxi-compat-tests::upstream_realisation_json",
+	"noxi-compat-tests::upstream_store_reference",
+	"noxi-compat-tests::upstream_machines",
+	"noxi-compat-tests::upstream_git_objects",
+	"noxi-compat-tests::upstream_file_listings",
+	"noxi-compat-tests::upstream_dummy_store",
+	"noxi-compat-tests::upstream_repl_completion",
+]
+copied-fixture-inventory = [
+	"noxi-compat-tests",
+	"noxi-compat-tests::fixture_inventory",
+	"noxi-compat-tests::upstream_functional",
+]
+nar-archive-format = [
+	"noxi-compat-tests::upstream_nars",
+	"noxi-compat-tests::reference_nars",
+	"noxi-compat-tests::reference_nar_limits",
+	"noxi-commands::reference_store_archive",
+]
+store-and-garbage-collection = [
+	"noxi-store",
+	"noxi-compat-tests::reference_store",
+	"noxi-compat-tests::reference_store_schema",
+	"noxi-compat-tests::reference_store_concurrency",
+	"noxi-compat-tests::reference_store_round_trip",
+	"noxi-compat-tests::reference_gc",
+	"noxi-commands::reference_collect_garbage",
+	"noxi-commands::reference_chroot_store",
+	"noxi-commands::reference_store_dir",
+	"noxi-commands::reference_nix_store",
+	"noxi-commands::reference_nix_store_ops",
+]
+build-engine-and-sandbox = [
+	"noxi-build",
+	"noxi-compat-tests::reference_build",
+]
+binary-caches-and-signatures = [
+	"noxi-compat-tests::reference_substitute",
+]
+daemon-protocol = [
+	"noxi-daemon",
+	"noxi-daemon::startup",
+	"noxi-compat-tests::reference_daemon",
+	"noxi-compat-tests::reference_worker_wire",
+	"noxi-compat-tests::upstream_worker_protocol",
+	"noxi-compat-tests::upstream_serve_protocol",
+	"noxi-compat-tests::upstream_shared_protocols",
+	"noxi-commands::reference_daemon_client",
+]
+cli-and-configuration = [
+	"noxi-commands",
+	"noxi-commands::instantiate",
+	"noxi-commands::reference_nix",
+	"noxi-commands::reference_modern_extra",
+	"noxi-commands::reference_operations",
+	"noxi-commands::reference_nix_env",
+	"noxi-commands::reference_nix_shell",
+	"noxi-commands::reference_develop",
+	"noxi-commands::reference_channel",
+	"noxi-commands::reference_prefetch_url",
+	"noxi-commands::reference_profile",
+	"noxi-commands::reference_user_env",
+	"noxi-events",
+]
+c-and-c-libraries = []
+nixos-and-home-manager-evaluation = [
+	"noxi-commands::instantiate matches_reference_(nixos|nixpkgs)_paths",
+]
+nixos-activation = [
+	"noxi-system",
+	"noxi-system::flake",
+	"noxi-system::rebuild",
+	"noxi-system::rebuild_e2e",
+	"noxi-system::snapshot",
+	"noxi-system::snapshot_cli",
+]
+installed-os-lifecycle = []
+tui-and-gpui-based-nixbox-gui-parity = []
+nixbox-engine-integration = []
+os-native-cli-diagnostics = []
+
+# Disposable-VM qualification reports (tests/qualification/results/*/MODE.json)
+# and the matrix row each mode is evidence for.
+[qualification]
+nixos = "nixos-activation"
+home-manager = "nixos-activation"
+lifecycle = "nixos-activation"
+daemon = "daemon-protocol"
+distribution = "installed-os-lifecycle"

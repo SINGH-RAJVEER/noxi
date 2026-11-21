@@ -1,6 +1,6 @@
 # Initial compatibility matrix
 
-This is the first qualification target and its current evidence, not a claim of compatibility. Qualify the existing-system package-manager replacement first; the installed OS and NixBox interface rows are later release gates. Add a row for each additional reference release, architecture, or feature setting. Keep failures and unrun cases visible.
+This is the first qualification target and its current evidence, not a claim of compatibility. Qualify the existing-system package-manager replacement first; the installed OS and NixBox interface rows are later release gates. Add a row for each additional reference release, architecture, or feature setting. Keep failures and unrun cases visible. Machine-readable results for each row, with the revision, platform, settings and command that produced them, are counted on the [evidence page](compatibility-evidence.md); the record format and the test tiers are in [compatibility results](compatibility-results.md).
 
 | Field | Initial target |
 |---|---|

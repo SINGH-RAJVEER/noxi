@@ -32,6 +32,7 @@ use std::time::{Duration, Instant};
 
 use nix_compat::nixcpp::settings::Settings;
 use noxi_commands::instantiate;
+use noxi_compat_tests::results::{self, Capture, Case as ResultCase, Recorder, Verdict};
 use serde_json::{Value as Json, json};
 
 const FUNCTIONAL_DIR: &str = concat!(
@@ -979,6 +980,29 @@ fn main() -> ExitCode {
 	if let Some(reference_runs) = &reference_runs {
 		let mut matched = 0;
 		let mut reference_report = Vec::new();
+		let recorder = Recorder::create(
+			"upstream-lang",
+			&report_path().with_file_name("records"),
+			"store",
+			json!({"nix-instantiate": results::executable(reference.as_deref().unwrap())}),
+			json!({"noxi-eval (in-process nix-instantiate)": results::executable(&env::current_exe().unwrap())}),
+		)
+		.expect("results directory");
+		let environment = |case: &Case| {
+			let mut all: serde_json::Map<String, Json> = SHARED_ENV
+				.iter()
+				.map(|(key, value)| (key.to_string(), json!(value)))
+				.collect();
+			all.insert("NIX_STATE_DIR".into(), json!("per-run test directory"));
+			if case.kind == Kind::EvalOkay {
+				for (key, value) in EVAL_OKAY_ENV {
+					all.insert(key.to_string(), json!(value));
+				}
+			} else {
+				all.insert("HOME".into(), json!("per-run test directory"));
+			}
+			Json::Object(all)
+		};
 		for ((case, candidate), reference) in cases.iter().zip(&runs).zip(reference_runs) {
 			let scratch = tempfile::tempdir().expect("comparison scratch");
 			let equal = matches!(candidate.exit_code, Some(0 | 1))
@@ -998,6 +1022,77 @@ fn main() -> ExitCode {
 					case.name
 				));
 			}
+			let argv = match case.operation() {
+				Operation::Parse => vec![
+					"nix-instantiate".to_owned(),
+					"--parse".to_owned(),
+					"-".to_owned(),
+				],
+				Operation::Eval | Operation::EvalXml => {
+					std::iter::once("nix-instantiate".to_owned())
+						.chain(case.instantiate_args())
+						.collect()
+				}
+			};
+			let capture = |run: &Run| Capture {
+				argv: argv.clone(),
+				exit_code: run.exit_code,
+				signal: run.signal,
+				timed_out: run.outcome == Outcome::Timeout,
+				duration: run.elapsed,
+				stdout: run.stdout_bytes.clone(),
+				stderr: Some(run.stderr_bytes.clone()),
+				extra: [("outcome".to_owned(), json!(run.outcome.name()))]
+					.into_iter()
+					.collect(),
+				..Capture::default()
+			};
+			let (reference_capture, noxi_capture) = (capture(reference), capture(candidate));
+			let differences: Vec<String> = if equal {
+				Vec::new()
+			} else {
+				results::differences(&reference_capture, &noxi_capture)
+					.into_iter()
+					.map(str::to_owned)
+					.collect()
+			};
+			let recorded = expected.get(&case.name);
+			let (verdict, reason) = if candidate.outcome == Outcome::Disabled {
+				(Verdict::Unrun, Some("disabled upstream".to_owned()))
+			} else if equal {
+				(Verdict::Pass, None)
+			} else if recorded.is_some_and(|entry| *entry == candidate.entry()) {
+				(Verdict::KnownDifference, recorded.cloned())
+			} else {
+				(
+					Verdict::Fail,
+					Some(format!(
+						"recorded {recorded:?}, observed {}",
+						candidate.entry()
+					)),
+				)
+			};
+			recorder
+				.record(&ResultCase {
+					id: case.name.clone(),
+					matrix_row: "nix-language-and-evaluator".to_owned(),
+					inventory: vec!["executable:nix-instantiate".to_owned()],
+					settings: json!({
+						"environment": environment(case),
+						"configuration": "common/vars.sh test configuration",
+						"experimental_features": "none beyond the case's .flags",
+						"store": "dummy://",
+						"inputs": {"fixture": format!("tests/functional/lang/{}.nix", case.name), "snapshot_lock": "tests/nix-snapshot.lock"},
+						"timeout_ms": TIMEOUT.as_millis() as u64,
+					}),
+					reference: Some(reference_capture),
+					noxi: Some(noxi_capture),
+					verdict,
+					classification: Some(candidate.outcome.name().to_owned()),
+					reason,
+					differences,
+				})
+				.expect("write record");
 			reference_report.push(json!({"name": case.name, "equal": equal, "reference_exit_code": reference.exit_code, "reference_signal": reference.signal, "reference_stdout": reference.stdout, "reference_stderr": reference.stderr, "reference_stdout_bytes": reference.stdout_bytes, "reference_stderr_bytes": reference.stderr_bytes}));
 		}
 		let path = report_path().with_file_name("upstream-lang-reference-report.json");
