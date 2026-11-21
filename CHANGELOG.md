@@ -469,6 +469,7 @@ Internal trybuild tests for `nix-compat-derive`.
 
 ### Unreleased
 
+- HTTP cache requests follow `FileTransferSettings`: transient failures (connection errors, HTTP 408, 429 and most 5xx) are retried `filetransfer-retry-attempts` times with the reference's exponential backoff, `Retry-After` floor and optional jitter, each retry warned as `...; retrying in N ms (attempt k/n)`. Errors use curl's wording (`Could not connect to server (7) Failed to connect to HOST port PORT after N ms: ...`) and include a short response body. `connect-timeout` bounds connecting, the `retry-*` cache URL parameters override the global settings, 410 reads as a missing file, and an HTTP cache without `nix-cache-info` is refused as `does not appear to be a binary cache`. `BinaryCache::open_with` takes these settings (2026-11-21).
 - Binary cache uploads follow `BinaryCacheStoreConfig`: `xz` is the default compression, and `lzma`, `compression-level`, `parallel-compression`, `write-nar-listing`, `index-debug-info`, `secret-key`, `secret-keys`, `priority` and `want-mass-query` URL parameters are read, with the reference's `unknown setting` warning for others. xz and lzma go through the system liblzma, bzip2 uses level 9 and zstd writes 16 MiB frames with up to four workers, so xz, lzma, bzip2, zstd and uncompressed uploads are byte-identical to CppNix's. Unsigned uploads are allowed, the cache's `nar`, `build-trace-v2` and `log` directories are created as on open, an existing NAR is kept, and no lock file is left beside the narinfo. `BinaryCache::upload` publishes one path whose references are already cached (2026-11-21).
 - Substitution from a binary cache reports CppNix's `substitute` and `copy-path` activities and the worker's substitution counts, and a cache's first narinfo query for a path reports `query-path-info` (2026-11-21).
 
@@ -510,6 +511,7 @@ Internal trybuild tests for `nix-compat-derive`.
 
 ### Unreleased
 
+- A substituter that cannot be opened is reported as CppNix's `getDefaultSubstituters` reports it, as a plain warning of the error with continuation lines indented, and HTTP substituters use the configured transfer and retry settings (2026-11-21).
 - `LocalBackend::build_paths` runs as CppNix's worker for the loggers: `realise`, `builds` and `copy-paths` activities with the progress the goals report, one `build` activity per derivation whose output arrives as log lines, builder `@nix` messages handled as `handleJSONLogMessage` does, and intermediate failures logged through the logger. A carriage return now truncates the line it rewinds, as `BuildLog::flushLine` does (2026-11-21).
 
 - Under a root daemon, sandboxed builders run as a member of `build-users-group` (`nixbld` by default) locked under `STATE_DIR/userpool`, as CppNix's `SimpleUserLock` does: the sandbox user maps to it, it owns the build directory, builder files and terminal, the chroot store is owned by root and the build group, its processes are killed before and after the build, and outputs it does not own are rejected. Previously such builders ran as host root and owned their bind-mounted inputs (2026-11-09).

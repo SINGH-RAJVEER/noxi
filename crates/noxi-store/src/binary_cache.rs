@@ -41,6 +41,97 @@ pub struct CacheInfo {
 	pub priority: u32,
 }
 
+/// `FileTransferSettings`: how HTTP cache requests connect and retry.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct TransferSettings {
+	/// `filetransfer-retry-attempts` (alias `download-attempts`).
+	pub attempts: u32,
+	/// `filetransfer-retry-delay`, in milliseconds.
+	pub delay_ms: u32,
+	/// `filetransfer-retry-delay-rate-limited`, for HTTP 429 and 503.
+	pub rate_limited_delay_ms: u32,
+	/// `filetransfer-retry-max-delay`.
+	pub max_delay_ms: u32,
+	/// `filetransfer-retry-jitter`.
+	pub jitter: bool,
+	/// `connect-timeout` in seconds; zero means no limit.
+	pub connect_timeout: u64,
+}
+
+impl Default for TransferSettings {
+	fn default() -> Self {
+		Self {
+			attempts: 5,
+			delay_ms: 100,
+			rate_limited_delay_ms: 5000,
+			max_delay_ms: 60000,
+			jitter: true,
+			connect_timeout: 15,
+		}
+	}
+}
+
+impl TransferSettings {
+	/// The settings in effect, falling back to CppNix's defaults.
+	pub fn from_settings(settings: &nix_compat::nixcpp::settings::Settings) -> Self {
+		let mut transfer = Self::default();
+		transfer.apply(settings);
+		transfer
+	}
+
+	/// Replace the fields `settings` sets.
+	pub fn apply(&mut self, settings: &nix_compat::nixcpp::settings::Settings) {
+		let number = |names: &[&str], current: u32| {
+			names
+				.iter()
+				.find_map(|name| settings.get(name))
+				.and_then(|value| value.trim().parse().ok())
+				.unwrap_or(current)
+		};
+		self.attempts = number(
+			&["filetransfer-retry-attempts", "download-attempts"],
+			self.attempts,
+		);
+		self.delay_ms = number(&["filetransfer-retry-delay"], self.delay_ms);
+		self.rate_limited_delay_ms = number(
+			&["filetransfer-retry-delay-rate-limited"],
+			self.rate_limited_delay_ms,
+		);
+		self.max_delay_ms = number(&["filetransfer-retry-max-delay"], self.max_delay_ms);
+		self.jitter = settings.get_bool("filetransfer-retry-jitter", self.jitter);
+		self.connect_timeout = settings
+			.get("connect-timeout")
+			.and_then(|value| value.trim().parse().ok())
+			.unwrap_or(self.connect_timeout);
+	}
+
+	/// `computeRetryDelayMs`: exponential backoff from `base`, at least the
+	/// server's `Retry-After`, spread over `[floor, floor + backoff]` with
+	/// jitter.
+	fn retry_delay(&self, attempt: u32, base: u32, retry_after_ms: Option<u32>) -> u32 {
+		let shift = attempt.saturating_sub(1).min(31);
+		let backoff = ((base as u64) << shift).min(self.max_delay_ms as u64) as u32;
+		let floor = retry_after_ms.unwrap_or(0);
+		if !self.jitter {
+			return floor.max(backoff);
+		}
+		let ceiling = floor.saturating_add(backoff);
+		if ceiling <= floor {
+			return floor;
+		}
+		// Jitter needs no cryptographic quality.
+		let seed = std::time::SystemTime::now()
+			.duration_since(std::time::UNIX_EPOCH)
+			.map_or(0, |d| d.as_nanos() as u64)
+			^ (std::process::id() as u64) << 32;
+		let mut x = seed | 1;
+		x ^= x << 13;
+		x ^= x >> 7;
+		x ^= x << 17;
+		floor + (x % (ceiling as u64 - floor as u64 + 1)) as u32
+	}
+}
+
 /// Where a cache's files are.
 #[derive(Clone)]
 enum Transport {
@@ -73,6 +164,7 @@ pub struct BinaryCache {
 	positive_ttl: Duration,
 	negative_ttl: Duration,
 	http10_close: Arc<AtomicBool>,
+	transfer: TransferSettings,
 	/// Paths whose `query-path-info` activity was already reported.
 	announced: Arc<Mutex<BTreeSet<StorePath>>>,
 }
@@ -81,6 +173,12 @@ impl BinaryCache {
 	/// Open the cache at a URL, checking that it is for `/nix/store`
 	/// (`BinaryCacheStore::init`).
 	pub fn open(uri: &str) -> Result<Self> {
+		Self::open_with(uri, TransferSettings::default())
+	}
+
+	/// [`BinaryCache::open`] with the connection and retry settings for an
+	/// HTTP cache's requests, including the one for `nix-cache-info`.
+	pub fn open_with(uri: &str, mut transfer: TransferSettings) -> Result<Self> {
 		let (base, query) = uri.split_once('?').unwrap_or((uri, ""));
 		let mut trusted = false;
 		let mut upload = UploadSettings::default();
@@ -119,7 +217,25 @@ impl BinaryCache {
 				// Settings every binary cache store has that do not affect
 				// what noxi reads or writes.
 				"local-nar-cache" | "path-info-cache-size" | "system-features" | "store" => {}
-				"narinfo-compression" | "ls-compression" | "log-compression" if http => {}
+				"narinfo-compression"
+				| "ls-compression"
+				| "log-compression"
+				| "tls-certificate"
+				| "tls-private-key"
+					if http => {}
+				// `HttpBinaryCacheStoreConfig`'s overrides of the transfer settings.
+				"retry-attempts" if http => {
+					transfer.attempts = value.parse().map_err(|_| invalid())?
+				}
+				"retry-delay" if http => {
+					transfer.delay_ms = value.parse().map_err(|_| invalid())?
+				}
+				"retry-delay-rate-limited" if http => {
+					transfer.rate_limited_delay_ms = value.parse().map_err(|_| invalid())?
+				}
+				"retry-max-delay" if http => {
+					transfer.max_delay_ms = value.parse().map_err(|_| invalid())?
+				}
 				_ => {
 					// `Config::warnUnknownSettings`. The handle may be opened
 					// more than once; warn once per setting.
@@ -160,9 +276,20 @@ impl BinaryCache {
 			positive_ttl: Duration::from_secs(30 * 24 * 60 * 60),
 			negative_ttl: Duration::from_secs(60 * 60),
 			http10_close: Arc::default(),
+			transfer,
 			announced: Arc::default(),
 		};
-		if let Some(text) = cache.get_file("nix-cache-info")? {
+		let cache_info = cache.get_file("nix-cache-info")?;
+		// `HttpBinaryCacheStore::init`: a cache without `nix-cache-info` gets one
+		// uploaded, which noxi does not do; the reference fails the same way
+		// when the server refuses the upload.
+		if cache_info.is_none() && http {
+			return Err(Error::Other(format!(
+				"'{}' does not appear to be a binary cache",
+				cache.uri
+			)));
+		}
+		if let Some(text) = cache_info {
 			let text = String::from_utf8_lossy(&text).into_owned();
 			for line in text.split('\n') {
 				let Some((name, value)) = line.split_once(':') else {
@@ -638,41 +765,106 @@ impl BinaryCache {
 			},
 			Transport::Http(base, agent) => {
 				let url = format!("{base}/{name}");
-				let mut request = agent.get(&url);
-				if self.http10_close.load(Ordering::Relaxed) {
-					// ureq 3.4 does not close a length-delimited HTTP/1.0
-					// response unless Connection: close is explicit. Do not
-					// race the server's FIN on the next request.
-					request = request
-						.header("Connection", "close")
+				let transfer = &self.transfer;
+				let mut attempt = 0;
+				loop {
+					let mut request = agent.get(&url);
+					if self.http10_close.load(Ordering::Relaxed) {
+						// ureq 3.4 does not close a length-delimited HTTP/1.0
+						// response unless Connection: close is explicit. Do not
+						// race the server's FIN on the next request.
+						request = request.header("Connection", "close");
+					}
+					let request = request
 						.config()
-						.max_idle_age(Duration::ZERO)
+						.max_idle_age(if self.http10_close.load(Ordering::Relaxed) {
+							Duration::ZERO
+						} else {
+							Duration::from_secs(15)
+						})
+						.timeout_connect(
+							(transfer.connect_timeout != 0)
+								.then(|| Duration::from_secs(transfer.connect_timeout)),
+						)
 						.build();
-				}
-				let response = request
-					.call()
-					.map_err(|e| Error::Other(format!("unable to download '{url}': {e}")))?;
-				if response.version() == ureq::http::Version::HTTP_10
-					&& !response
-						.headers()
-						.get_all("connection")
-						.iter()
-						.any(|value| {
-							value.to_str().is_ok_and(|value| {
-								value
-									.split(',')
-									.any(|token| token.trim().eq_ignore_ascii_case("keep-alive"))
-							})
-						}) {
-					self.http10_close.store(true, Ordering::Relaxed);
-				}
-				match response.status().as_u16() {
-					200..=299 => Ok(Some(Box::new(response.into_body().into_reader()))),
-					// S3 answers 403 for files that do not exist.
-					404 | 403 => Ok(None),
-					status => Err(Error::Other(format!(
-						"unable to download '{url}': HTTP error {status}"
-					))),
+					let started = Instant::now();
+					// `TransferItem::finish`'s classification: whether to retry,
+					// the message, and the server's `Retry-After`.
+					let (transient, message, status, retry_after) = match request.call() {
+						Err(e) => {
+							let transient = !matches!(e, ureq::Error::BadUri(_));
+							let message = curl_message(&e, base, started.elapsed());
+							(
+								transient,
+								format!("unable to download '{url}': {message}"),
+								0,
+								None,
+							)
+						}
+						Ok(response) => {
+							if response.version() == ureq::http::Version::HTTP_10
+								&& !response
+									.headers()
+									.get_all("connection")
+									.iter()
+									.any(|value| {
+										value.to_str().is_ok_and(|value| {
+											value.split(',').any(|token| {
+												token.trim().eq_ignore_ascii_case("keep-alive")
+											})
+										})
+									}) {
+								self.http10_close.store(true, Ordering::Relaxed);
+							}
+							let status = response.status().as_u16();
+							match status {
+								200..=299 => {
+									return Ok(Some(Box::new(response.into_body().into_reader())));
+								}
+								// S3 answers 403 for files that do not exist.
+								404 | 403 | 410 => return Ok(None),
+								_ => {}
+							}
+							let retry_after = response
+								.headers()
+								.get("retry-after")
+								.and_then(|value| value.to_str().ok())
+								.and_then(|value| value.trim().parse::<u32>().ok())
+								.map(|seconds| seconds.saturating_mul(1000));
+							let mut body = Vec::new();
+							let _ = response
+								.into_body()
+								.into_reader()
+								.take(1 << 20)
+								.read_to_end(&mut body);
+							let body = String::from_utf8_lossy(&body).into_owned();
+							let mut message =
+								format!("unable to download '{url}': HTTP error {status}");
+							// `FileTransferError`'s heuristic for showing the body.
+							if !body.is_empty() && (body.len() < 1024 || body.contains("<html>")) {
+								message += &format!("\n\nresponse body:\n\n{}", body.trim_end());
+							}
+							let transient = !(matches!(status, 401 | 407)
+								|| ((400..500).contains(&status) && !matches!(status, 408 | 429))
+								|| matches!(status, 501 | 505 | 511));
+							(transient, message, status, retry_after)
+						}
+					};
+					attempt += 1;
+					if !transient || attempt >= transfer.attempts {
+						return Err(Error::Other(message));
+					}
+					let base_ms = if matches!(status, 429 | 503) {
+						transfer.rate_limited_delay_ms
+					} else {
+						transfer.delay_ms
+					};
+					let delay = transfer.retry_delay(attempt, base_ms, retry_after);
+					nix_compat::log::logger::warn(&format!(
+						"{message}; retrying in {delay} ms (attempt {attempt}/{})",
+						transfer.attempts
+					));
+					std::thread::sleep(Duration::from_millis(delay as u64));
 				}
 			}
 		}
@@ -843,6 +1035,59 @@ impl BufRead for ProgressReader<'_> {
 	fn consume(&mut self, amt: usize) {
 		self.inner.consume(amt);
 		self.advance(amt);
+	}
+}
+
+/// A request failure in the words of curl's `curl_easy_strerror`, its code
+/// and its error buffer, as CppNix's file transfers report them.
+fn curl_message(error: &ureq::Error, base: &str, elapsed: Duration) -> String {
+	let authority = base
+		.split_once("://")
+		.map_or(base, |(_, rest)| rest)
+		.split('/')
+		.next()
+		.unwrap_or("");
+	let authority = authority
+		.rsplit_once('@')
+		.map_or(authority, |(_, host)| host);
+	let (host, port) = match authority.rsplit_once(':') {
+		Some((host, port)) if !port.contains(']') => (host, port.to_owned()),
+		_ => (
+			authority,
+			if base.starts_with("https://") {
+				"443"
+			} else {
+				"80"
+			}
+			.to_owned(),
+		),
+	};
+	let host = host.trim_start_matches('[').trim_end_matches(']');
+	let ms = elapsed.as_millis();
+	match error {
+		ureq::Error::HostNotFound => {
+			format!("Couldn't resolve host name (6) Could not resolve host: {host}")
+		}
+		ureq::Error::Timeout(ureq::Timeout::Connect) => format!(
+			"Timeout was reached (28) Failed to connect to {host} port {port} after {ms} ms: Timeout was reached"
+		),
+		ureq::Error::Timeout(_) => {
+			format!("Timeout was reached (28) Operation timed out after {ms} milliseconds")
+		}
+		ureq::Error::Io(e)
+			if matches!(
+				e.kind(),
+				io::ErrorKind::ConnectionRefused
+					| io::ErrorKind::HostUnreachable
+					| io::ErrorKind::NetworkUnreachable
+					| io::ErrorKind::AddrNotAvailable
+			) =>
+		{
+			format!(
+				"Could not connect to server (7) Failed to connect to {host} port {port} after {ms} ms: Could not connect to server"
+			)
+		}
+		other => other.to_string(),
 	}
 }
 

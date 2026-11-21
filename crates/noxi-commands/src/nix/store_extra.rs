@@ -516,7 +516,12 @@ fn repair(parsed: &Parsed) -> Result<ExitCode, Failure> {
 			.settings
 			.get_list("substituters", &["https://cache.nixos.org/"])
 			.iter()
-			.map(|uri| noxi_store::binary_cache::BinaryCache::open(uri))
+			.map(|uri| {
+				noxi_store::binary_cache::BinaryCache::open_with(
+					uri,
+					noxi_store::binary_cache::TransferSettings::from_settings(&parsed.settings),
+				)
+			})
 			.collect::<Result<Vec<_>, _>>()?
 	} else {
 		Vec::new()

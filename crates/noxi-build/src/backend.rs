@@ -44,18 +44,35 @@ impl LocalBackend {
 		self.substituters.get_or_init(|| {
 			self.substituter_uris
 				.iter()
-				.filter_map(|uri| match BinaryCache::open(uri) {
-					Ok(cache) => Some(cache.with_narinfo_cache_ttls(
-						self.store.config().narinfo_cache_positive_ttl,
-						self.store.config().narinfo_cache_negative_ttl,
-					)),
-					Err(e) => {
-						nix_compat::log::logger::warn(&format!(
-							"disabling substituter '{uri}': {e}"
-						));
-						None
-					}
-				})
+				.filter_map(
+					|uri| match BinaryCache::open_with(uri, self.settings.transfer) {
+						Ok(cache) => Some(cache.with_narinfo_cache_ttls(
+							self.store.config().narinfo_cache_positive_ttl,
+							self.store.config().narinfo_cache_negative_ttl,
+						)),
+						// `getDefaultSubstituters` logs the error as a warning.
+						Err(e) => {
+							// `showErrorInfo` indents continuation lines under the prefix.
+							let message = e
+								.to_string()
+								.trim_end()
+								.split('\n')
+								.enumerate()
+								.map(|(i, line)| {
+									let line = if i == 0 {
+										line.to_owned()
+									} else {
+										format!("         {line}")
+									};
+									line.trim_end().to_owned()
+								})
+								.collect::<Vec<_>>()
+								.join("\n");
+							nix_compat::log::logger::warn(&message);
+							None
+						}
+					},
+				)
 				.collect()
 		})
 	}

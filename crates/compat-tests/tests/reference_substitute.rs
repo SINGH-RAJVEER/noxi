@@ -686,7 +686,20 @@ fn local_upload_rejects_unprotected_sources_and_http_destinations() {
 	let readonly = LocalStore::open(config).unwrap();
 	assert!(cache.upload_closure(&readonly, &env.out, &keys).is_err());
 	assert!(!dir.exists());
-	let http = BinaryCache::open(&serve(env.root("nonexistent-http-cache"))).unwrap();
+	// An HTTP cache without `nix-cache-info` is refused when opened.
+	let missing = BinaryCache::open(&serve(env.root("nonexistent-http-cache"))).unwrap_err();
+	assert!(
+		missing
+			.to_string()
+			.ends_with("does not appear to be a binary cache")
+	);
+	fs::create_dir(env.root("empty-http-cache")).unwrap();
+	fs::write(
+		env.root("empty-http-cache/nix-cache-info"),
+		"StoreDir: /nix/store\n",
+	)
+	.unwrap();
+	let http = BinaryCache::open(&serve(env.root("empty-http-cache"))).unwrap();
 	let error = http
 		.upload_closure(&source, &env.out, &keys)
 		.unwrap_err()

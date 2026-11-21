@@ -165,7 +165,14 @@ fn execute(
 					.settings
 					.get_list("substituters", &["https://cache.nixos.org/"])
 					.into_iter()
-					.map(BinaryCache::open)
+					.map(|uri| {
+						BinaryCache::open_with(
+							uri,
+							noxi_store::binary_cache::TransferSettings::from_settings(
+								&options.settings,
+							),
+						)
+					})
 					.collect::<noxi_store::Result<Vec<_>>>()?
 			} else {
 				Vec::new()

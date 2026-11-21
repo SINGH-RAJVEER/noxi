@@ -455,3 +455,139 @@ fn file_cache_copies_write_the_reference_layout_and_bytes() {
 		assert!(results[1].2 == results[0].2, "{params}: cache files differ");
 	}
 }
+
+/// Serve `status` with a short body to every connection until dropped.
+struct FailingServer {
+	port: u16,
+	stop: std::sync::Arc<std::sync::atomic::AtomicBool>,
+}
+
+impl FailingServer {
+	fn new(status: &'static str) -> Self {
+		use std::io::{BufRead, BufReader};
+		use std::sync::atomic::Ordering;
+		let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+		listener.set_nonblocking(true).unwrap();
+		let port = listener.local_addr().unwrap().port();
+		let stop = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
+		let stopped = stop.clone();
+		std::thread::spawn(move || {
+			while !stopped.load(Ordering::Relaxed) {
+				let Ok((stream, _)) = listener.accept() else {
+					std::thread::sleep(std::time::Duration::from_millis(2));
+					continue;
+				};
+				stream.set_nonblocking(false).unwrap();
+				let mut reader = BufReader::new(stream);
+				loop {
+					let mut line = String::new();
+					if reader.read_line(&mut line).unwrap_or(0) == 0 || line == "\r\n" {
+						break;
+					}
+				}
+				let _ = write!(
+					reader.get_mut(),
+					"HTTP/1.1 {status}\r\nContent-Length: 4\r\nConnection: close\r\n\r\noops"
+				);
+			}
+		});
+		FailingServer { port, stop }
+	}
+}
+
+impl Drop for FailingServer {
+	fn drop(&mut self) {
+		self.stop.store(true, std::sync::atomic::Ordering::Relaxed);
+	}
+}
+
+#[test]
+fn unreachable_http_substituters_retry_and_warn_like_reference() {
+	let fixture = tempfile::tempdir().unwrap();
+	let file = fixture.path().join("payload");
+	fs::write(&file, b"retry fixture\n").unwrap();
+	let source = tempfile::tempdir().unwrap();
+	let added = run(
+		&reference(),
+		source.path(),
+		&["store", "add-file", file.to_str().unwrap()],
+		&[],
+	);
+	let path = String::from_utf8(added.stdout).unwrap().trim().to_owned();
+	let cache = fixture.path().join("cache");
+	let uri = format!("file://{}?compression=none", cache.display());
+	assert!(
+		run(
+			&reference(),
+			source.path(),
+			&["copy", "--to", &uri, &path],
+			&[]
+		)
+		.status
+		.success()
+	);
+	let cache = format!("file://{}", cache.display());
+	let error = FailingServer::new("500 Internal Server Error");
+	let missing = FailingServer::new("404 Not Found");
+	let refused = "http://127.0.0.1:1".to_owned();
+	let failing = format!("http://127.0.0.1:{}", error.port);
+	let empty = format!("http://127.0.0.1:{}", missing.port);
+	let normalise = |text: &[u8]| {
+		let text = String::from_utf8_lossy(text);
+		let mut out = String::new();
+		let mut rest = &*text;
+		// curl reports how long the failed connection took.
+		while let Some(at) = rest.find(" after ") {
+			out.push_str(&rest[..at + 7]);
+			rest = &rest[at + 7..];
+			let digits = rest.chars().take_while(char::is_ascii_digit).count();
+			if digits > 0 && rest[digits..].starts_with(" ms") {
+				out.push('N');
+				rest = &rest[digits..];
+			}
+		}
+		out + rest
+	};
+	for substituters in [
+		format!("{refused} {cache}"),
+		refused.clone(),
+		format!("{failing} {cache}"),
+		format!("{empty} {cache}"),
+	] {
+		let mut results = Vec::new();
+		for bin in [
+			reference().with_file_name("nix-store"),
+			PathBuf::from(env!("CARGO_BIN_EXE_nix-store")),
+		] {
+			let root = tempfile::tempdir().unwrap();
+			let output = Command::new(&bin)
+				.env_clear()
+				.env("HOME", root.path())
+				.env("NIX_CONF_DIR", root.path())
+				.env("NIX_USER_CONF_FILES", "")
+				.env("NIX_CONFIG", "build-users-group =\n")
+				.args(["--store", &format!("local?root={}", root.path().display())])
+				.args([
+					"--realise",
+					&path,
+					"--option",
+					"substituters",
+					&substituters,
+				])
+				.args(["--option", "require-sigs", "false"])
+				.args(["--option", "filetransfer-retry-jitter", "false"])
+				.args(["--option", "filetransfer-retry-attempts", "3"])
+				.output()
+				.unwrap();
+			let valid = root.path().join(path.trim_start_matches('/')).exists();
+			results.push((
+				output.status.code(),
+				String::from_utf8_lossy(&output.stdout)
+					.replace(&root.path().display().to_string(), "ROOT"),
+				normalise(&output.stderr),
+				valid,
+			));
+		}
+		assert_eq!(results[1], results[0], "{substituters}");
+	}
+}
