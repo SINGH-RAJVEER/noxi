@@ -778,29 +778,53 @@ impl<R: Read + Send, W: Write + Send + 'static> Connection<'_, R, W> {
 			}
 			op::QUERY_VALID_PATHS => {
 				let paths = self.from.read_store_paths()?;
-				let substitute = self.version >= version(1, 27) && self.from.read_bool()?;
+				// `readInt`, so any value up to `unsigned int` asks for it.
+				let substitute = self.version >= version(1, 27) && self.from.read_int()? != 0;
 				self.start()?;
-				if substitute
-					&& self.settings.build.use_substitutes
-					&& !self.settings.substituters.is_empty()
-				{
-					let mut missing = Vec::new();
-					for path in &paths {
-						if !self.store.is_valid_path(path)? {
-							missing.push(path);
+				if substitute {
+					// `substitutePaths`: `queryMissing` for the paths that are
+					// not derivations, with its activity, which opens the
+					// substituters if it needs them, then the paths it would
+					// substitute are realised in a worker. Failures are only
+					// warnings there and are ignored here.
+					let targets: Vec<DerivedPath> = paths
+						.iter()
+						.filter(|path| !path.name().ends_with(".drv"))
+						.map(|path| DerivedPath::Opaque(path.clone()))
+						.collect();
+					let act = logger::Activity::new(
+						VerbosityLevel::Debug,
+						ActivityType::Unknown,
+						"querying info about missing paths",
+						vec![],
+						0,
+					);
+					let missing = needs_substituters(self.store, &targets).and_then(|needed| {
+						let caches: &[noxi_store::binary_cache::BinaryCache] = if needed {
+							self.caches
+								.get_or_init(|| self.settings.open_substituters())
+						} else {
+							&[]
+						};
+						query_missing(
+							self.store,
+							caches,
+							self.settings.build.use_substitutes,
+							self.settings.build.always_allow_substitutes,
+							&targets,
+						)
+						.map_err(Error::from)
+					});
+					drop(act);
+					let missing = missing?;
+					if !missing.will_substitute.is_empty() {
+						let caches = self
+							.caches
+							.get_or_init(|| self.settings.open_substituters());
+						let _worker = logger::WorkerGuard::new();
+						for path in &missing.will_substitute {
+							let _ = self.store.substitute(caches, path);
 						}
-					}
-					// `substitutePaths` asks `queryMissing`, which opens the
-					// substituters, then realises the missing paths in a worker.
-					let caches: &[noxi_store::binary_cache::BinaryCache] = if missing.is_empty() {
-						&[]
-					} else {
-						self.caches
-							.get_or_init(|| self.settings.open_substituters())
-					};
-					let _worker = (!missing.is_empty()).then(logger::WorkerGuard::new);
-					for path in missing {
-						let _ = self.store.substitute(caches, path);
 					}
 				}
 				let valid = self.store.query_valid_paths(&paths)?;
@@ -1314,7 +1338,7 @@ impl<R: Read + Send, W: Write + Send + 'static> Connection<'_, R, W> {
 			)));
 		}
 		let drv = read_basic_derivation(&mut self.from, &path)?;
-		let mode = self.from.read_u64()?;
+		let mode = self.from.read_build_mode()?;
 		self.start()?;
 		if !drv.outputs().is_fixed() && self.trust != Trust::Trusted {
 			return Err(Error::Nix(
@@ -1373,7 +1397,7 @@ impl<R: Read + Send, W: Write + Send + 'static> Connection<'_, R, W> {
 	/// `BuildPaths` and `BuildPathsWithResults`.
 	fn build_paths(&mut self, op: u64) -> Result<()> {
 		let targets = self.read_derived_paths()?;
-		let mode = self.from.read_u64()?;
+		let mode = self.from.read_build_mode()?;
 		if mode == 1 && self.trust != Trust::Trusted {
 			return Err(Error::Nix(
 				"repairing is not allowed because you are not in 'trusted-users'".into(),
@@ -1587,19 +1611,19 @@ impl<R: Read + Send, W: Write + Send + 'static> Connection<'_, R, W> {
 
 	/// `WorkerProto::Op::SetOptions` and `ClientSettings::apply`.
 	fn set_options(&mut self) -> Result<()> {
-		let keep_failed = self.from.read_bool()?;
-		let keep_going = self.from.read_bool()?;
-		let try_fallback = self.from.read_bool()?;
-		let verbosity = self.from.read_u64()?;
-		let max_build_jobs = self.from.read_u64()?;
-		let max_silent_time = self.from.read_u64()?;
-		self.from.read_u64()?; // obsolete useBuildHook
-		let _verbose_build = self.from.read_u64()?;
-		self.from.read_u64()?; // obsolete logType
-		self.from.read_u64()?; // obsolete printBuildTrace
-		let build_cores = self.from.read_u64()?;
-		let use_substitutes = self.from.read_bool()?;
-		let n = self.from.read_u64()?;
+		let keep_failed = self.from.read_int()? != 0;
+		let keep_going = self.from.read_int()? != 0;
+		let try_fallback = self.from.read_int()? != 0;
+		let verbosity = self.from.read_int()?;
+		let max_build_jobs = self.from.read_int()?;
+		let max_silent_time = self.from.read_int()?;
+		self.from.read_int()?; // obsolete useBuildHook
+		let _verbose_build = self.from.read_int()?;
+		self.from.read_int()?; // obsolete logType
+		self.from.read_int()?; // obsolete printBuildTrace
+		let build_cores = self.from.read_int()?;
+		let use_substitutes = self.from.read_int()? != 0;
+		let n = self.from.read_int()?;
 		let mut overrides = BTreeMap::new();
 		for _ in 0..n {
 			let name = self.from.read_string()?;

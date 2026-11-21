@@ -213,7 +213,6 @@ fn trusted_and_allowed_users_match_the_reference_daemon() {
 		(format!("trusted-users = root {user}\n"), TRUSTED),
 		(format!("trusted-users = @{primary}\n"), TRUSTED),
 		("trusted-users = *\n".to_owned(), TRUSTED),
-		("trusted-users = root\n".to_owned(), UNTRUSTED),
 		("trusted-users =\n".to_owned(), UNTRUSTED),
 		(
 			"trusted-users = @noxi-no-such-group noxi-no-such-user\n".to_owned(),
@@ -251,6 +250,10 @@ fn trusted_and_allowed_users_match_the_reference_daemon() {
 			REFUSED,
 		),
 	];
+	// The VM harness may run the tests as root, whom this trusts.
+	if user != "root" {
+		cases.push(("trusted-users = root\n".to_owned(), UNTRUSTED));
+	}
 	if let Some(group) = &id.member_of {
 		cases.push((format!("trusted-users = @{group}\n"), TRUSTED));
 		cases.push((

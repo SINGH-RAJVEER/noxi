@@ -47,8 +47,35 @@ impl<R: Read> Reader<R> {
 		Ok(u64::from_le_bytes(buf))
 	}
 
+	/// `readNum<T>`: a number no larger than `max`, the largest value of the
+	/// reference's type, which errors name by its mangled name.
+	pub fn read_num(&mut self, max: u64, type_name: &str) -> Result<u64> {
+		let n = self.read_u64()?;
+		if n > max {
+			return Err(Error::Nix(format!(
+				"serialised integer {n} is too large for type '{type_name}'"
+			)));
+		}
+		Ok(n)
+	}
+
+	/// `readInt`, an `unsigned int`.
+	pub fn read_int(&mut self) -> Result<u64> {
+		self.read_num(u64::from(u32::MAX), "j")
+	}
+
+	/// A `bool` read with `>>`, which is `readNum<bool>`: 0 or 1.
 	pub fn read_bool(&mut self) -> Result<bool> {
-		Ok(self.read_u64()? != 0)
+		Ok(self.read_num(1, "b")? != 0)
+	}
+
+	/// `WorkerProto::Serialise<BuildMode>::read`: a `uint8_t` naming
+	/// normal (0), repair (1) or check (2) builds.
+	pub fn read_build_mode(&mut self) -> Result<u64> {
+		match self.read_num(u64::from(u8::MAX), "h")? {
+			mode @ 0..=2 => Ok(mode),
+			_ => Err(Error::Nix("Invalid build mode".into())),
+		}
 	}
 
 	pub fn read_bytes(&mut self) -> Result<Vec<u8>> {

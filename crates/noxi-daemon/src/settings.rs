@@ -102,17 +102,44 @@ impl DaemonSettings {
 		}
 	}
 
-	/// Whether an untrusted client may use `url` as a substituter: it is
-	/// one of `substituters` or `trusted-substituters`, or becomes one with
-	/// a trailing slash added, as `ClientSettings::apply`'s `tryTrust`
-	/// checks. A client URL with a slash the configured one lacks is not
-	/// trusted.
+	/// Whether an untrusted client may use `url` as a substituter, as
+	/// `ClientSettings::apply`'s `tryTrust` checks: parsed as a store
+	/// reference, it equals one of `substituters` or `trusted-substituters`
+	/// (scheme, authority and the parameters in any order), or does once a
+	/// slash is added to its authority. A client URL with a slash the
+	/// configured one lacks is not trusted, nor is one that does not parse.
 	pub fn trusted_substituter(&self, url: &str) -> bool {
-		let slashed = (!url.ends_with('/')).then(|| format!("{url}/"));
-		self.trusted_substituters
+		use nix_compat::nixcpp::store_reference::{StoreReference, Variant};
+		// The daemon serves from the root directory, which relative paths
+		// are resolved against.
+		let parse = |s: &str| {
+			StoreReference::parse(
+				s,
+				&Default::default(),
+				std::path::Path::new("/"),
+				&mut Vec::new(),
+			)
+			.ok()
+		};
+		let trusted: Vec<StoreReference> = self
+			.trusted_substituters
 			.iter()
 			.chain(&self.substituters)
-			.any(|t| t == url || slashed.as_deref() == Some(t.as_str()))
+			.filter_map(|s| parse(s))
+			.collect();
+		let Some(mut reference) = parse(url) else {
+			return false;
+		};
+		if trusted.contains(&reference) {
+			return true;
+		}
+		match &mut reference.variant {
+			Variant::Specified { authority, .. } if !authority.ends_with('/') => {
+				authority.push('/');
+				trusted.contains(&reference)
+			}
+			_ => false,
+		}
 	}
 
 	/// Open the substituters as the builder does, with the transfer and

@@ -476,6 +476,8 @@ struct Options {
 	require_sigs: Option<bool>,
 	/// `trusted-public-keys`, when not the default.
 	trusted_public_key: Option<&'static str>,
+	/// A `trusted-substituters` entry.
+	trusted_substituter: Option<&'static str>,
 }
 
 impl Env {
@@ -625,6 +627,9 @@ impl Env {
 		if let Some(key) = options.trusted_public_key {
 			daemon_config.push_str(&format!("trusted-public-keys = {key}\n"));
 		}
+		if let Some(url) = options.trusted_substituter {
+			daemon_config.push_str(&format!("trusted-substituters = {url}\n"));
+		}
 		let cache_uri = format!("file://{}", env.root("cache").display());
 		if env.root("cache").exists() {
 			daemon_config.push_str(&format!("substituters = {cache_uri}\n"));
@@ -641,6 +646,9 @@ impl Env {
 		}
 		if let Some(key) = options.trusted_public_key {
 			settings.store.trusted_public_keys = vec![key.to_owned()];
+		}
+		if let Some(url) = options.trusted_substituter {
+			settings.trusted_substituters.push(url.to_owned());
 		}
 		if env.root("cache").exists() {
 			settings.substituters.push(cache_uri.clone());
@@ -753,7 +761,11 @@ impl Env {
 			let dir = PathBuf::from(dir);
 			for (name, log) in [("reference", &reference), ("noxi", &noxi)] {
 				let text: String = log.iter().map(|t| format!("{t:?}\n")).collect();
-				fs::write(dir.join(format!("{what}.{name}.txt")), text).unwrap();
+				fs::write(
+					dir.join(format!("{}.{name}.txt", what.replace('/', "_"))),
+					text,
+				)
+				.unwrap();
 			}
 		}
 		if noxi != reference {
@@ -1540,6 +1552,17 @@ fn copied_realisation_fixtures_persist_merge_and_conflict() {
 				.strs(&[]);
 			assert_eq!(w.stderr(), Some(false));
 			w.query_realisation(&drv, &output).unwrap();
+			// Realisation signatures are parsed as `NAME:BASE64` too.
+			w.op(
+				"RegisterDrvOutput malformed signature",
+				op::REGISTER_DRV_OUTPUT,
+			)
+			.bytes(&drv)
+			.bytes(&output)
+			.bytes(&path)
+			.strs(&["noxi-test-1:not base64"]);
+			assert_eq!(w.stderr(), Some(false));
+			w.query_realisation(&drv, &output).unwrap();
 		});
 	}
 }
@@ -2089,6 +2112,10 @@ fn trusted_only_operations_from_untrusted_and_trusted_clients() {
 	}
 }
 
+/// A `trusted-substituters` entry with parameters, which an untrusted
+/// client may name with its parameters in any order.
+const PARAMETERISED: &str = "file:///nonexistent/noxi-trusted?priority=10&want-mass-query=true";
+
 /// `SetOptions` overrides from untrusted and trusted clients: the
 /// settings an untrusted client may still change, by name and not by
 /// alias, the substituters it may name, and the overrides every client's
@@ -2099,6 +2126,7 @@ fn client_setting_overrides_match_the_reference() {
 		let env = Env::with_setup(
 			Options {
 				trusted,
+				trusted_substituter: Some(PARAMETERISED),
 				..Options::default()
 			},
 			|env| {
@@ -2118,6 +2146,12 @@ fn client_setting_overrides_match_the_reference() {
 			other.clone(),
 			format!("{cache} {other}"),
 			String::new(),
+			PARAMETERISED.to_owned(),
+			"file:///nonexistent/noxi-trusted?want-mass-query=true&priority=10".to_owned(),
+			"file:///nonexistent/noxi-trusted/?priority=10&want-mass-query=true".to_owned(),
+			"file:///nonexistent/noxi-trusted?priority=10".to_owned(),
+			"file:///nonexistent/noxi-trusted".to_owned(),
+			format!("{cache}?priority=10"),
 		];
 		let mut overrides: Vec<(&str, &str)> = vec![
 			("timeout", "5"),
@@ -2835,4 +2869,267 @@ fn signature_settings_for_untrusted_imports() {
 			});
 		}
 	}
+}
+
+/// Well-framed requests with malformed values: strings that are not UTF-8
+/// where the reference reads bytes, booleans other than 0 and 1, build
+/// modes and GC actions out of range, and malformed signatures. Each
+/// request is followed by an `IsValidPath`, so a daemon that keeps the
+/// connection open must answer it too.
+#[test]
+fn malformed_values_match_the_reference() {
+	let env = Env::new(Options {
+		trusted: true,
+		..Options::default()
+	});
+	let out = env.out.as_str();
+	let drv = env.drv.as_str();
+	let built = format!("{drv}!out");
+	let bad_path = b"/nix/store/\xff\xfe\xfd00000000000000000000000000000-bad".to_vec();
+	let nar = nar_of(b"malformed values\n");
+	let (ca, ca_hint) = ca_path("malformed-values", &nar);
+	let bytes = fs::read(env.root("src").join(drv.trim_start_matches('/'))).unwrap();
+	let basic = nix_compat::derivation::UnverifiedDerivation::from_aterm_bytes(&bytes).unwrap();
+	let root = format!("{}/malformed-\u{0}root", env.dir.path().display());
+	type Case<'a> = (&'a str, Box<dyn Fn(&mut Wire) + 'a>);
+	let cases: Vec<Case> = vec![
+		(
+			"IsValidPath non-UTF-8",
+			Box::new(|w| {
+				w.op("IsValidPath", op::IS_VALID_PATH).bytes(&bad_path);
+			}),
+		),
+		(
+			"QueryPathFromHashPart non-UTF-8",
+			Box::new(|w| {
+				w.op("QueryPathFromHashPart", op::QUERY_PATH_FROM_HASH_PART)
+					.bytes(b"\xff\xfe");
+			}),
+		),
+		(
+			"AddTextToStore non-UTF-8 name",
+			Box::new(|w| {
+				w.op("AddTextToStore", op::ADD_TEXT_TO_STORE)
+					.bytes(b"bad-\xff")
+					.bytes("text\n")
+					.strs(&[]);
+			}),
+		),
+		(
+			"AddTextToStore binary contents",
+			Box::new(|w| {
+				w.op("AddTextToStore", op::ADD_TEXT_TO_STORE)
+					.bytes("binary")
+					.bytes(b"\0\xff\xfe\n")
+					.strs(&[]);
+			}),
+		),
+		(
+			"AddIndirectRoot NUL",
+			Box::new(|w| {
+				w.op("AddIndirectRoot", op::ADD_INDIRECT_ROOT).bytes(&root);
+			}),
+		),
+		(
+			"SetOptions non-UTF-8 override",
+			Box::new(|w| {
+				w.note("SetOptions");
+				w.u64(19);
+				for n in [0, 0, 0, 3, 1, 0, 0, 0, 0, 0, 1, 1] {
+					w.u64(n);
+				}
+				w.u64(2)
+					.bytes(b"bad-\xff")
+					.bytes("1")
+					.bytes("timeout")
+					.bytes(b"\xff");
+			}),
+		),
+		(
+			"SetOptions booleans of 2",
+			Box::new(|w| {
+				w.note("SetOptions");
+				w.u64(19);
+				for n in [2, 2, 2, 3, 1, 0, 0, 0, 0, 0, 1, 2] {
+					w.u64(n);
+				}
+				w.u64(0);
+			}),
+		),
+		(
+			"BuildPaths mode 3",
+			Box::new(|w| {
+				w.op("BuildPaths", op::BUILD_PATHS).strs(&[&built]).u64(3);
+			}),
+		),
+		(
+			"BuildPaths mode 256",
+			Box::new(|w| {
+				w.op("BuildPaths", op::BUILD_PATHS).strs(&[&built]).u64(256);
+			}),
+		),
+		(
+			"BuildPathsWithResults mode 3",
+			Box::new(|w| {
+				w.op("BuildPathsWithResults", op::BUILD_PATHS_WITH_RESULTS)
+					.strs(&[&built])
+					.u64(3);
+			}),
+		),
+		(
+			"BuildDerivation mode 3",
+			Box::new(|w| {
+				w.op("BuildDerivation", op::BUILD_DERIVATION)
+					.bytes(drv)
+					.basic_derivation(&basic)
+					.u64(3);
+			}),
+		),
+		(
+			"VerifyStore checkContents 2",
+			Box::new(|w| {
+				w.op("VerifyStore", op::VERIFY_STORE).u64(2).u64(0);
+			}),
+		),
+		(
+			"QueryValidPaths substitute 2",
+			Box::new(|w| {
+				w.op("QueryValidPaths", op::QUERY_VALID_PATHS)
+					.strs(&[out])
+					.u64(2);
+			}),
+		),
+		(
+			"CollectGarbage action 7",
+			Box::new(|w| {
+				w.op("CollectGarbage", op::COLLECT_GARBAGE)
+					.u64(7)
+					.u64(1)
+					.u64(0)
+					.u64(0)
+					.u64(0)
+					.u64(0)
+					.u64(0);
+			}),
+		),
+		(
+			"CollectGarbage whole-store indicator 2",
+			Box::new(|w| {
+				w.op("CollectGarbage", op::COLLECT_GARBAGE)
+					.u64(0)
+					.u64(2)
+					.u64(0)
+					.u64(0)
+					.u64(0)
+					.u64(0)
+					.u64(0);
+			}),
+		),
+		(
+			"AddToStoreNar flags of 2",
+			Box::new(|w| {
+				w.op("AddToStoreNar", op::ADD_TO_STORE_NAR)
+					.bytes(&ca)
+					.bytes("")
+					.bytes(hex(&sha256(&nar)))
+					.strs(&[])
+					.u64(0)
+					.u64(nar.len() as u64)
+					.u64(2)
+					.strs(&[])
+					.bytes(&ca_hint)
+					.u64(2)
+					.u64(2)
+					.framed(&nar);
+			}),
+		),
+		(
+			"AddSignatures empty name",
+			Box::new(|w| {
+				w.op("AddSignatures", op::ADD_SIGNATURES)
+					.bytes(out)
+					.strs(&[":AAAA"]);
+			}),
+		),
+		(
+			"AddSignatures empty data",
+			Box::new(|w| {
+				w.op("AddSignatures", op::ADD_SIGNATURES)
+					.bytes(out)
+					.strs(&["noxi-test-1:"]);
+			}),
+		),
+		(
+			"AddSignatures no colon",
+			Box::new(|w| {
+				w.op("AddSignatures", op::ADD_SIGNATURES)
+					.bytes(out)
+					.strs(&["noxi-test-1"]);
+			}),
+		),
+		(
+			"AddSignatures newline in data",
+			Box::new(|w| {
+				w.op("AddSignatures", op::ADD_SIGNATURES)
+					.bytes(out)
+					.strs(&["noxi-test-1:AAAA\nAAAA"]);
+			}),
+		),
+		(
+			"QueryRealisation non-UTF-8 output",
+			Box::new(|w| {
+				w.op("QueryRealisation", op::QUERY_REALISATION)
+					.bytes(drv)
+					.bytes(b"\xff");
+			}),
+		),
+		(
+			"AddBuildLog non-UTF-8 name",
+			Box::new(|w| {
+				w.op("AddBuildLog", op::ADD_BUILD_LOG)
+					.bytes(b"00000000000000000000000000000000-\xff.drv")
+					.framed(b"log\n");
+			}),
+		),
+	];
+	let mut differing = Vec::new();
+	for (what, request) in &cases {
+		let compared = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+			env.compare(&format!("malformed-{what}"), |w| {
+				assert_eq!(w.handshake(version(NEWEST), &CLIENT_FEATURES), Some(true));
+				request(w);
+				// Record whatever the operation answers, up to its end or
+				// the connection's, then the follow-up's answer.
+				w.flush();
+				w.op("IsValidPath after", op::IS_VALID_PATH).bytes(out);
+				w.flush();
+				while let Some(ok) = w.stderr() {
+					if ok {
+						break;
+					}
+				}
+			});
+		}));
+		if compared.is_err() {
+			differing.push(what.to_string());
+		}
+	}
+	// Known differences. noxi reads wire strings as UTF-8 where the
+	// reference reads bytes, so a request with bytes that are not UTF-8
+	// fails as a protocol error and closes the connection, where the
+	// reference rejects or ignores the value with its own message. A path
+	// with a NUL is cut at it by the reference's system calls and refused
+	// by noxi's.
+	assert_eq!(
+		differing,
+		[
+			"IsValidPath non-UTF-8",
+			"QueryPathFromHashPart non-UTF-8",
+			"AddTextToStore non-UTF-8 name",
+			"AddIndirectRoot NUL",
+			"SetOptions non-UTF-8 override",
+			"QueryRealisation non-UTF-8 output",
+			"AddBuildLog non-UTF-8 name",
+		]
+	);
 }
