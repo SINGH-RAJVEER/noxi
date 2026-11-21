@@ -2,9 +2,9 @@
 //! 2.35.2's `UDSRemoteStore` and `RemoteStore` clients
 //! (`remote-store.cc`, `worker-protocol-connection.cc`).
 //!
-//! Daemon log messages are printed as CppNix's simple logger prints them
-//! for the legacy commands: activities at or below the verbosity with
-//! `...` appended, and build log lines as they are.
+//! The daemon's messages, activities and results go to this process's
+//! logger (`nix_compat::log::logger`) with the daemon's activity ids, so
+//! each `--log-format` renders them as CppNix's client does.
 
 use std::cell::RefCell;
 use std::collections::{BTreeMap, BTreeSet, HashMap};
@@ -14,6 +14,7 @@ use std::path::{Path, PathBuf};
 
 use nix_compat::derivation::UnverifiedDerivation;
 use nix_compat::log::VerbosityLevel;
+use nix_compat::log::logger::LogField;
 use nix_compat::nixhash::HashAlgo;
 use nix_compat::store_path::{StorePath, store_dir};
 use noxi_store::gc::{GcAction, GcOptions, GcResults, Roots, make_root_symlink};
@@ -26,10 +27,6 @@ use crate::connection::{
 };
 use crate::error::{Error, Result};
 use crate::wire::{Reader, Version, Writer, version};
-
-/// `resBuildLogLine` and `resPostBuildLogLine`.
-const RES_BUILD_LOG_LINE: u64 = 101;
-const RES_POST_BUILD_LOG_LINE: u64 = 107;
 
 /// The features this client offers: `WorkerProto::latest.features`, and
 /// `disable-set-options`, which lets a daemon that allows it skip
@@ -80,8 +77,6 @@ struct Connection {
 	to: Writer<UnixStream>,
 	version: Version,
 	features: BTreeSet<String>,
-	verbosity: u64,
-	print_build_logs: bool,
 }
 
 /// How many path infos a [`DaemonStore`] remembers.
@@ -110,6 +105,12 @@ fn store_error(e: Error) -> noxi_store::Error {
 	}
 }
 
+/// A verbosity read as CppNix's `(Verbosity) readInt(from)`; a level past
+/// `lvlVomit` is as verbose as `lvlVomit`.
+fn verbosity_level(level: u64) -> VerbosityLevel {
+	VerbosityLevel::try_from(level).unwrap_or(VerbosityLevel::Vomit)
+}
+
 /// CppNix's `chomp`.
 fn chomp(s: &[u8]) -> &[u8] {
 	let end = s
@@ -129,49 +130,57 @@ fn stderr_is_tty() -> bool {
 		&& std::env::var_os("NOCOLOR").is_none()
 }
 
-/// The simple logger's `log`: one line on standard error, with escape
-/// sequences filtered.
-fn log_line(line: &[u8]) {
-	let mut text = nix_compat::log::filter_ansi_escapes(line, !stderr_is_tty());
-	text.push(b'\n');
-	let _ = io::stderr().write_all(&text);
-}
-
 impl Connection {
-	/// `processStderr`: print the daemon's log messages until it finishes
-	/// the operation, returning its error if it failed.
+	/// `processStderr`: hand the daemon's messages, activities and results
+	/// to this process's logger until the daemon finishes the operation,
+	/// returning its error if it failed. Activities keep the daemon's ids,
+	/// parents and types, so `internal-json` and the progress bar render
+	/// them as they render local ones.
 	fn process_stderr(&mut self) -> Result<()> {
+		use nix_compat::log::logger;
+		use nix_compat::log::{ActivityType, ResultType};
 		self.to.flush()?;
 		loop {
 			let message = self.from.read_u64()?;
 			match message {
-				STDERR_NEXT => log_line(chomp(&self.from.read_bytes()?)),
+				// `printError(chomp(s))`.
+				STDERR_NEXT => {
+					let text = self.from.read_bytes()?;
+					logger::log(
+						VerbosityLevel::Error,
+						&String::from_utf8_lossy(chomp(&text)),
+					);
+				}
 				STDERR_START_ACTIVITY => {
-					let _id = self.from.read_u64()?;
+					let id = self.from.read_u64()?;
 					let level = self.from.read_u64()?;
-					let _kind = self.from.read_u64()?;
-					let mut text = self.from.read_bytes()?;
-					self.read_fields()?;
-					let _parent = self.from.read_u64()?;
-					if level <= self.verbosity && !text.is_empty() {
-						text.extend_from_slice(b"...");
-						log_line(&text);
-					}
+					let kind = self.from.read_u64()?;
+					let text = self.from.read_bytes()?;
+					let fields = self.read_fields()?;
+					let parent = self.from.read_u64()?;
+					logger::start_activity(
+						id,
+						verbosity_level(level),
+						u8::try_from(kind)
+							.ok()
+							.and_then(|kind| ActivityType::try_from(kind).ok())
+							.unwrap_or(ActivityType::Unknown),
+						String::from_utf8_lossy(&text).into_owned(),
+						fields,
+						parent,
+					);
 				}
-				STDERR_STOP_ACTIVITY => {
-					self.from.read_u64()?;
-				}
+				STDERR_STOP_ACTIVITY => logger::stop_activity(self.from.read_u64()?),
 				STDERR_RESULT => {
-					let _id = self.from.read_u64()?;
+					let id = self.from.read_u64()?;
 					let kind = self.from.read_u64()?;
 					let fields = self.read_fields()?;
-					let line = fields.into_iter().next().unwrap_or_default();
-					match kind {
-						RES_BUILD_LOG_LINE if self.print_build_logs => log_line(&line),
-						RES_POST_BUILD_LOG_LINE if self.print_build_logs => {
-							log_line(&[b"post-build-hook: ".as_slice(), &line].concat());
-						}
-						_ => {}
+					// 2.35.2 sends no other result types.
+					if let Some(kind) = u8::try_from(kind)
+						.ok()
+						.and_then(|kind| ResultType::try_from(kind).ok())
+					{
+						logger::result(id, kind, &fields);
 					}
 				}
 				STDERR_ERROR => return Err(Error::Nix(self.read_error()?)),
@@ -190,14 +199,16 @@ impl Connection {
 		}
 	}
 
-	/// `readFields`: the string fields, with integers rendered.
-	fn read_fields(&mut self) -> Result<Vec<Vec<u8>>> {
+	/// `readFields`: integer and string fields, kept apart.
+	fn read_fields(&mut self) -> Result<Vec<LogField>> {
 		let count = self.from.read_u64()?;
 		let mut fields = Vec::new();
 		for _ in 0..count {
 			match self.from.read_u64()? {
-				0 => fields.push(self.from.read_u64()?.to_string().into_bytes()),
-				1 => fields.push(self.from.read_bytes()?),
+				0 => fields.push(LogField::Int(self.from.read_u64()?)),
+				1 => fields.push(LogField::Str(
+					String::from_utf8_lossy(&self.from.read_bytes()?).into_owned(),
+				)),
 				kind => {
 					return Err(Error::Protocol(format!(
 						"got unsupported field type {kind:x} from Nix daemon"
@@ -282,8 +293,6 @@ impl DaemonStore {
 			to: Writer::new(stream),
 			version: PROTOCOL_VERSION,
 			features: BTreeSet::new(),
-			verbosity: self.options.verbosity,
-			print_build_logs: self.options.verbose_build,
 		};
 		let features = handshake(&mut conn).map_err(|e| {
 			// CppNix nests the cause's full message, `error: ` included; a
@@ -852,8 +861,6 @@ mod tests {
 				.iter()
 				.map(|feature| (*feature).to_owned())
 				.collect(),
-			verbosity: 3,
-			print_build_logs: true,
 		});
 		(store, daemon)
 	}

@@ -174,7 +174,10 @@ mod tests {
 	fn substituters_that_cannot_be_opened_are_skipped_but_trusted() {
 		let dir = tempfile::tempdir().unwrap();
 		let local = format!("file://{}", dir.path().join("cache").display());
-		let settings = settings(dir.path(), &format!("substituters = unknown://cache {local}"));
+		let settings = settings(
+			dir.path(),
+			&format!("substituters = unknown://cache {local}"),
+		);
 		let opened = settings.open_substituters();
 		assert_eq!(
 			opened.iter().map(BinaryCache::uri).collect::<Vec<_>>(),

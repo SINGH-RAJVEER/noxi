@@ -350,6 +350,10 @@ pub fn open_local(
 	};
 	config.apply_config(settings);
 	config.read_only = read_only;
+	// CppNix names the store `local://` only when its URI has parameters.
+	config.has_params = uri
+		.split_once('?')
+		.is_some_and(|(_, query)| !query.is_empty());
 	config.require_sigs = settings.get_bool("require-sigs", config.require_sigs);
 	let default_keys: Vec<&str> = config
 		.trusted_public_keys

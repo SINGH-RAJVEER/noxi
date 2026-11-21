@@ -277,8 +277,29 @@ impl BinaryCache {
 		} else if local {
 			Transport::Store(Arc::new(open_source_store(root)?))
 		} else {
+			// `StoreReference::parse`: the scheme precedes `://`, or is the
+			// whole reference without one.
+			let scheme = base.split_once("://").map_or(base, |(scheme, _)| scheme);
+			const KNOWN: [&str; 10] = [
+				"daemon",
+				"unix",
+				"dummy",
+				"s3",
+				"ssh",
+				"ssh-ng",
+				"mounted-ssh-ng",
+				"local-overlay",
+				"file",
+				"local",
+			];
+			if KNOWN.contains(&scheme) || base.starts_with('/') || base.starts_with('.') {
+				return Err(Error::Other(format!(
+					"don't know how to open binary cache '{uri}'"
+				)));
+			}
+			// `Implementations::make` for a scheme no store registers.
 			return Err(Error::Other(format!(
-				"don't know how to open binary cache '{uri}'"
+				"don't know how to open Nix store with scheme '{scheme}'"
 			)));
 		};
 		let mut cache = Self {
@@ -1700,12 +1721,14 @@ impl LocalStore {
 				let shown = print(path);
 				// `makeCopyPathMessage` names only the other store when one
 				// of them is a `local` shorthand, the source first: a local
-				// store substituter (`auto`, `local?root=`) shows as
-				// `local://`, and the copy then names the destination.
+				// store substituter (`auto?trusted=1`, `local?root=`) has
+				// parameters, so it shows as `local://`, and the copy then names
+				// the destination as it was named.
+				let destination = self.config().human_uri();
 				let (source, text) = match cache.transport {
 					Transport::Store(_) => (
 						"local://".to_owned(),
-						format!("copying path '{shown}' to 'local://'"),
+						format!("copying path '{shown}' to '{destination}'"),
 					),
 					_ => (
 						cache.uri.clone(),
@@ -1723,7 +1746,7 @@ impl LocalStore {
 					VerbosityLevel::Info,
 					ActivityType::CopyPath,
 					text,
-					vec![shown.into(), source.into(), "local://".into()],
+					vec![shown.into(), source.into(), destination.into()],
 					substitute.id(),
 				);
 				(substitute, copy)

@@ -3,11 +3,14 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::io::{self, BufReader, Read, Write};
+use std::sync::{Arc, Mutex};
 
-use nix_compat::log::VerbosityLevel;
+use nix_compat::log::logger::{self, LogField};
+use nix_compat::log::{ActivityType, ResultType, VerbosityLevel};
 use nix_compat::nixbase32;
 use nix_compat::nixhash::{HashAlgo, NixHash};
 use nix_compat::store_path::StorePath;
+use noxi_build::backend::BuildLogs;
 use noxi_build::local::{BuildEvent, LocalBuilder};
 use noxi_build::missing::{DerivedPath, query_missing};
 use noxi_store::FileIngestionMethod;
@@ -89,70 +92,201 @@ pub mod op {
 	pub const ADD_BUILD_LOG: u64 = 45;
 }
 
-/// `TunnelLogger`: messages are queued until an operation starts work,
-/// then sent as they happen.
-pub struct Logger {
+/// The connection's output stream, shared by the replies written through
+/// [`Connection::to`] and the [`Tunnel`] that sends log messages as they
+/// happen, from whichever thread reports them.
+pub struct Shared<W>(Arc<Mutex<W>>);
+
+impl<W: Write> Write for Shared<W> {
+	fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
+		self.0.lock().unwrap_or_else(|e| e.into_inner()).write(buf)
+	}
+
+	fn write_all(&mut self, buf: &[u8]) -> io::Result<()> {
+		self.0
+			.lock()
+			.unwrap_or_else(|e| e.into_inner())
+			.write_all(buf)
+	}
+
+	fn flush(&mut self) -> io::Result<()> {
+		self.0.lock().unwrap_or_else(|e| e.into_inner()).flush()
+	}
+}
+
+struct TunnelState {
 	can_send: bool,
 	pending: Vec<Vec<u8>>,
-	pub verbosity: u64,
+}
+
+/// `TunnelLogger`: the logger of a daemon worker. Messages are queued
+/// until an operation starts work, then sent as they happen. It is
+/// installed as the process's [`logger::LogSink`] for the connection, so
+/// the activities and results the builder and the substituters report
+/// (the worker's `realise`, `builds` and `copy-paths` progress, each
+/// `build`, `substitute`, `copy-path` and `query-path-info`) reach the
+/// client with their ids, parents and types.
+pub struct Tunnel {
+	state: Mutex<TunnelState>,
+	out: Arc<Mutex<dyn Write + Send>>,
 	version: Version,
-	next_activity: u64,
 }
 
-/// A field of an activity or result, `Logger::Field`.
-pub enum Field<'a> {
-	Int(u64),
-	Str(&'a str),
-}
-
-fn write_fields<W: Write>(out: &mut Writer<W>, fields: &[Field<'_>]) {
+fn write_fields<W: Write>(out: &mut Writer<W>, fields: &[LogField]) {
 	out.u64(fields.len() as u64);
 	for field in fields {
 		match field {
-			Field::Int(n) => {
+			LogField::Int(n) => {
 				out.u64(0).u64(*n);
 			}
-			Field::Str(s) => {
+			LogField::Str(s) => {
 				out.u64(1).string(s);
 			}
 		}
 	}
 }
 
-/// `ActivityType` and `ResultType` values.
-pub const ACT_UNKNOWN: u64 = 0;
-pub const ACT_BUILD: u64 = 105;
-pub const RES_BUILD_LOG_LINE: u64 = 101;
-
-impl Logger {
-	fn new(version: Version) -> Self {
-		Self {
-			can_send: false,
-			pending: Vec::new(),
-			verbosity: 3,
-			version,
-			next_activity: 0,
-		}
-	}
-
-	fn enqueue<W: Write>(&mut self, out: &mut Writer<W>, message: Vec<u8>) -> Result<()> {
-		if self.can_send {
-			out.raw(&message);
-			out.flush()
+impl Tunnel {
+	/// `enqueueMsg`. A failed write means the client has gone; the
+	/// message is dropped and nothing more is sent.
+	fn enqueue(&self, message: Vec<u8>) -> io::Result<()> {
+		let mut state = self.state.lock().unwrap_or_else(|e| e.into_inner());
+		if state.can_send {
+			let mut out = self.out.lock().unwrap_or_else(|e| e.into_inner());
+			let result = out.write_all(&message).and_then(|()| out.flush());
+			if result.is_err() {
+				state.can_send = false;
+			}
+			result
 		} else {
-			self.pending.push(message);
+			state.pending.push(message);
 			Ok(())
 		}
 	}
 
-	/// `Logger::log`: a line at level `level`.
-	pub fn log<W: Write>(&mut self, out: &mut Writer<W>, level: u64, line: &str) -> Result<()> {
-		if level > self.verbosity {
+	fn message(build: impl FnOnce(&mut Writer<io::Sink>)) -> Vec<u8> {
+		let mut message = Writer::new(io::sink());
+		build(&mut message);
+		message.take()
+	}
+
+	/// `log`: a line at `level`, if the verbosity admits it.
+	fn log(&self, level: u64, line: &str) -> io::Result<()> {
+		if level > nix_compat::log::verbosity() {
 			return Ok(());
 		}
-		let mut message = Writer::new(std::io::sink());
-		message.u64(STDERR_NEXT).string(&format!("{line}\n"));
-		self.enqueue(out, message.take())
+		self.enqueue(Self::message(|m| {
+			m.u64(STDERR_NEXT).string(&format!("{line}\n"));
+		}))
+	}
+}
+
+impl logger::LogSink for Tunnel {
+	fn log(&self, level: VerbosityLevel, message: &str) {
+		let _ = Tunnel::log(self, level as u64, message);
+	}
+
+	fn start_activity(
+		&self,
+		id: u64,
+		level: VerbosityLevel,
+		kind: ActivityType,
+		text: &str,
+		fields: &[LogField],
+		parent: u64,
+	) {
+		if self.version < version(1, 20) {
+			if !text.is_empty() {
+				let _ = Tunnel::log(self, level as u64, &format!("{text}..."));
+			}
+			return;
+		}
+		let kind: u8 = kind.into();
+		let _ = self.enqueue(Self::message(|m| {
+			m.u64(STDERR_START_ACTIVITY)
+				.u64(id)
+				.u64(level as u64)
+				.u64(kind.into())
+				.string(text);
+			write_fields(m, fields);
+			m.u64(parent);
+		}));
+	}
+
+	fn stop_activity(&self, id: u64) {
+		if self.version < version(1, 20) {
+			return;
+		}
+		let _ = self.enqueue(Self::message(|m| {
+			m.u64(STDERR_STOP_ACTIVITY).u64(id);
+		}));
+	}
+
+	fn result(&self, id: u64, kind: ResultType, fields: &[LogField]) {
+		if self.version < version(1, 20) {
+			return;
+		}
+		let kind: u8 = kind.into();
+		let _ = self.enqueue(Self::message(|m| {
+			m.u64(STDERR_RESULT).u64(id).u64(kind.into());
+			write_fields(m, fields);
+		}));
+	}
+}
+
+/// The connection's side of its [`Tunnel`]: messages the operations send
+/// themselves, and the start and end of each operation's work.
+pub struct Logger {
+	tunnel: Arc<Tunnel>,
+}
+
+/// Removes the connection's tunnel from the process's logger when the
+/// connection ends.
+struct SinkGuard;
+
+impl Drop for SinkGuard {
+	fn drop(&mut self) {
+		logger::set_sink(None);
+	}
+}
+
+impl Logger {
+	fn new(version: Version, out: Arc<Mutex<dyn Write + Send>>) -> Self {
+		Self {
+			tunnel: Arc::new(Tunnel {
+				state: Mutex::new(TunnelState {
+					can_send: false,
+					pending: Vec::new(),
+				}),
+				out,
+				version,
+			}),
+		}
+	}
+
+	/// Whether the operation has started work, so the client reads
+	/// messages before its reply.
+	fn can_send(&self) -> bool {
+		self.tunnel
+			.state
+			.lock()
+			.unwrap_or_else(|e| e.into_inner())
+			.can_send
+	}
+
+	/// Messages sent while the operation works go straight to the stream,
+	/// so the reply buffered in `out` must not hold anything yet.
+	fn flush<W: Write>(&self, out: &mut Writer<W>) -> Result<()> {
+		if self.can_send() {
+			out.flush()?;
+		}
+		Ok(())
+	}
+
+	/// `Logger::log`: a line at level `level`.
+	pub fn log<W: Write>(&mut self, out: &mut Writer<W>, level: u64, line: &str) -> Result<()> {
+		self.flush(out)?;
+		Ok(self.tunnel.log(level, line)?)
 	}
 
 	/// `warn`.
@@ -164,155 +298,30 @@ impl Logger {
 		)
 	}
 
-	/// `startActivity`; returns the activity's ID.
-	pub fn start_activity<W: Write>(
-		&mut self,
-		out: &mut Writer<W>,
-		level: u64,
-		kind: u64,
-		text: &str,
-		fields: &[Field<'_>],
-	) -> Result<u64> {
-		if self.version < version(1, 20) {
-			if !text.is_empty() {
-				self.log(out, level, &format!("{text}..."))?;
-			}
-			return Ok(0);
-		}
-		self.next_activity += 1;
-		let id = (u64::from(std::process::id()) << 32) + self.next_activity;
-		let mut message = Writer::new(std::io::sink());
-		message
-			.u64(STDERR_START_ACTIVITY)
-			.u64(id)
-			.u64(level)
-			.u64(kind)
-			.string(text);
-		write_fields(&mut message, fields);
-		message.u64(0);
-		self.enqueue(out, message.take())?;
-		Ok(id)
-	}
-
-	/// `stopActivity`.
-	pub fn stop_activity<W: Write>(&mut self, out: &mut Writer<W>, id: u64) -> Result<()> {
-		if self.version < version(1, 20) {
-			return Ok(());
-		}
-		let mut message = Writer::new(std::io::sink());
-		message.u64(STDERR_STOP_ACTIVITY).u64(id);
-		self.enqueue(out, message.take())
-	}
-
-	/// `result`.
-	pub fn result<W: Write>(
-		&mut self,
-		out: &mut Writer<W>,
-		id: u64,
-		kind: u64,
-		fields: &[Field<'_>],
-	) -> Result<()> {
-		if self.version < version(1, 20) {
-			return Ok(());
-		}
-		let mut message = Writer::new(std::io::sink());
-		message.u64(STDERR_RESULT).u64(id).u64(kind);
-		write_fields(&mut message, fields);
-		self.enqueue(out, message.take())
-	}
-
-	fn build_event<W: Write>(
-		&mut self,
-		to: &mut Writer<W>,
-		event: BuildEvent<'_>,
-		mode: u64,
-		built: &mut bool,
-		buffers: &mut BTreeMap<StorePath, (u64, LineBuffer)>,
-	) -> Result<()> {
-		match event {
-			BuildEvent::PathChecked { path, valid } => {
-				self.log(
-					to,
-					LVL_INFO,
-					&format!("checking path '{}'...", path.to_absolute_path()),
-				)?;
-				if !valid {
-					self.log(
-						to,
-						LVL_WARN,
-						&format!(
-							"path '{}' is corrupted or missing!",
-							path.to_absolute_path()
-						),
-					)?;
-				}
-			}
-			BuildEvent::Started { drv_path } => {
-				*built = true;
-				let path = drv_path.to_absolute_path();
-				let id = self.start_activity(
-					to,
-					LVL_INFO,
-					ACT_BUILD,
-					&if mode == 1 {
-						format!("repairing outputs of '{path}'")
-					} else {
-						format!("building '{path}'")
-					},
-					&[
-						Field::Str(&path),
-						Field::Str(""),
-						Field::Int(1),
-						Field::Int(1),
-					],
-				)?;
-				buffers.insert(drv_path.clone(), (id, LineBuffer::default()));
-			}
-			BuildEvent::Output(data) => {
-				if let Some((id, buffer)) = buffers.values_mut().last() {
-					for line in buffer.feed(data) {
-						self.result(
-							to,
-							*id,
-							RES_BUILD_LOG_LINE,
-							&[Field::Str(&String::from_utf8_lossy(&line))],
-						)?;
-					}
-				}
-			}
-			BuildEvent::Finished { drv_path, .. } => {
-				if let Some((id, mut buffer)) = buffers.remove(drv_path) {
-					if let Some(line) = buffer.flush() {
-						self.result(
-							to,
-							id,
-							RES_BUILD_LOG_LINE,
-							&[Field::Str(&String::from_utf8_lossy(&line))],
-						)?;
-					}
-					self.stop_activity(to, id)?;
-				}
-			}
-		}
-		Ok(())
-	}
-
 	pub fn start_work<W: Write>(&mut self, out: &mut Writer<W>) -> Result<()> {
-		self.can_send = true;
-		for message in std::mem::take(&mut self.pending) {
-			out.raw(&message);
+		out.flush()?;
+		let mut state = self.tunnel.state.lock().unwrap_or_else(|e| e.into_inner());
+		state.can_send = true;
+		let mut stream = self.tunnel.out.lock().unwrap_or_else(|e| e.into_inner());
+		for message in std::mem::take(&mut state.pending) {
+			stream.write_all(&message)?;
 		}
-		out.flush()
+		stream.flush()?;
+		Ok(())
 	}
 
 	/// `stopWork`: `STDERR_LAST`, or the error.
 	pub fn stop_work<W: Write>(&mut self, out: &mut Writer<W>, error: Option<&str>) {
-		self.can_send = false;
+		self.tunnel
+			.state
+			.lock()
+			.unwrap_or_else(|e| e.into_inner())
+			.can_send = false;
 		match error {
 			None => {
 				out.u64(STDERR_LAST);
 			}
-			Some(message) if self.version >= version(1, 26) => {
+			Some(message) if self.tunnel.version >= version(1, 26) => {
 				out.u64(STDERR_ERROR)
 					.string("Error")
 					.u64(LVL_ERROR)
@@ -346,14 +355,13 @@ pub enum Trust {
 
 pub struct Connection<'a, R: Read, W: Write> {
 	pub from: Reader<R>,
-	pub to: Writer<W>,
+	pub to: Writer<Shared<W>>,
 	pub logger: Logger,
 	pub version: Version,
 	pub features: BTreeSet<String>,
 	pub trust: Trust,
 	pub store: &'a LocalStore,
 	pub settings: DaemonSettings,
-	queried_substitutes: BTreeSet<(String, StorePath)>,
 	/// The substituters, opened when an operation first needs them, as
 	/// CppNix's `getDefaultSubstituters` opens them once per worker.
 	caches: std::cell::OnceCell<Vec<noxi_store::binary_cache::BinaryCache>>,
@@ -361,7 +369,7 @@ pub struct Connection<'a, R: Read, W: Write> {
 
 /// `BasicServerConnection::handshake` and `postHandshake`, then the
 /// operation loop.
-pub fn process_connection<R: Read + Send, W: Write + Send>(
+pub fn process_connection<R: Read + Send, W: Write + Send + 'static>(
 	read: R,
 	write: W,
 	store: &LocalStore,
@@ -369,7 +377,8 @@ pub fn process_connection<R: Read + Send, W: Write + Send>(
 	trust: Trust,
 ) -> Result<()> {
 	let mut from = Reader::new(read);
-	let mut to = Writer::new(write);
+	let stream = Arc::new(Mutex::new(write));
+	let mut to = Writer::new(Shared(stream.clone()));
 	if from.read_u64()? != WORKER_MAGIC_1 {
 		return Err(Error::Protocol("protocol mismatch".into()));
 	}
@@ -395,15 +404,18 @@ pub fn process_connection<R: Read + Send, W: Write + Send>(
 	let mut conn = Connection {
 		from,
 		to,
-		logger: Logger::new(protocol),
+		logger: Logger::new(protocol, stream),
 		version: protocol,
 		features,
 		trust,
 		store,
 		settings: settings.clone(),
-		queried_substitutes: BTreeSet::new(),
 		caches: std::cell::OnceCell::new(),
 	};
+	// This process serves one connection, so its builds, substitutions and
+	// messages go to this client.
+	logger::set_sink(Some(conn.logger.tunnel.clone()));
+	let _sink = SinkGuard;
 
 	// postHandshake.
 	if protocol >= version(1, 14) && conn.from.read_u64()? != 0 {
@@ -449,7 +461,7 @@ pub fn process_connection<R: Read + Send, W: Write + Send>(
 				// If the error happened before the operation could send
 				// replies, the input is probably not fully read; report the
 				// error and give up on the connection, as CppNix does.
-				let error_allowed = conn.logger.can_send;
+				let error_allowed = conn.logger.can_send();
 				conn.logger.stop_work(&mut conn.to, Some(&message_of(&e)));
 				conn.to.flush()?;
 				if !error_allowed {
@@ -476,7 +488,7 @@ fn nar_hash_base16(info: &ValidPathInfo) -> String {
 	info.nar_hash.iter().map(|b| format!("{b:02x}")).collect()
 }
 
-impl<R: Read + Send, W: Write + Send> Connection<'_, R, W> {
+impl<R: Read + Send, W: Write + Send + 'static> Connection<'_, R, W> {
 	fn start(&mut self) -> Result<()> {
 		self.logger.start_work(&mut self.to)
 	}
@@ -597,31 +609,17 @@ impl<R: Read + Send, W: Write + Send> Connection<'_, R, W> {
 				let mut infos = BTreeMap::new();
 				if self.settings.build.use_substitutes {
 					for path in paths {
-						for cache in self.caches.get_or_init(|| self.settings.open_substituters()) {
+						for cache in self
+							.caches
+							.get_or_init(|| self.settings.open_substituters())
+						{
 							if op == op::QUERY_SUBSTITUTABLE_PATHS && !cache.info().want_mass_query
 							{
 								continue;
 							}
-							let activity = if self
-								.queried_substitutes
-								.insert((cache.uri().into(), path.clone()))
-							{
-								let text = path.to_absolute_path();
-								Some(self.logger.start_activity(
-									&mut self.to,
-									LVL_TALKATIVE,
-									109,
-									&format!("querying info about '{text}' on '{}'", cache.uri()),
-									&[Field::Str(&text), Field::Str(cache.uri())],
-								)?)
-							} else {
-								None
-							};
-							let info = cache.query_path_info(&path);
-							if let Some(id) = activity {
-								self.logger.stop_activity(&mut self.to, id)?;
-							}
-							if let Some(info) = info? {
+							// The cache reports its `query-path-info` activity
+							// the first time it is asked about a path.
+							if let Some(info) = cache.query_path_info(&path)? {
 								infos.insert(path, info);
 								break;
 							}
@@ -660,11 +658,23 @@ impl<R: Read + Send, W: Write + Send> Connection<'_, R, W> {
 					&& self.settings.build.use_substitutes
 					&& !self.settings.substituters.is_empty()
 				{
-					let caches = self.caches.get_or_init(|| self.settings.open_substituters());
+					let mut missing = Vec::new();
 					for path in &paths {
 						if !self.store.is_valid_path(path)? {
-							let _ = self.store.substitute(caches, path);
+							missing.push(path);
 						}
+					}
+					// `substitutePaths` asks `queryMissing`, which opens the
+					// substituters, then realises the missing paths in a worker.
+					let caches: &[noxi_store::binary_cache::BinaryCache] = if missing.is_empty() {
+						&[]
+					} else {
+						self.caches
+							.get_or_init(|| self.settings.open_substituters())
+					};
+					let _worker = (!missing.is_empty()).then(logger::WorkerGuard::new);
+					for path in missing {
+						let _ = self.store.substitute(caches, path);
 					}
 				}
 				let valid = self.store.query_valid_paths(&paths)?;
@@ -728,8 +738,11 @@ impl<R: Read + Send, W: Write + Send> Connection<'_, R, W> {
 							path.to_absolute_path()
 						)));
 					}
+					// `ensurePath` runs a worker with one substitution goal.
+					let _worker = logger::WorkerGuard::new();
 					self.store.substitute(
-						self.caches.get_or_init(|| self.settings.open_substituters()),
+						self.caches
+							.get_or_init(|| self.settings.open_substituters()),
 						&path,
 					)?;
 				}
@@ -804,21 +817,30 @@ impl<R: Read + Send, W: Write + Send> Connection<'_, R, W> {
 					);
 				}
 				self.start()?;
-				let act = self.logger.start_activity(
-					&mut self.to,
-					LVL_DEBUG,
-					ACT_UNKNOWN,
+				let act = logger::Activity::new(
+					VerbosityLevel::Debug,
+					ActivityType::Unknown,
 					"querying info about missing paths",
-					&[],
-				)?;
-				let missing = query_missing(
-					self.store,
-					self.caches.get_or_init(|| self.settings.open_substituters()),
-					self.settings.build.use_substitutes,
-					self.settings.build.always_allow_substitutes,
-					&targets,
+					vec![],
+					0,
 				);
-				self.logger.stop_activity(&mut self.to, act)?;
+				let missing = needs_substituters(self.store, &targets).and_then(|needed| {
+					let caches: &[noxi_store::binary_cache::BinaryCache] = if needed {
+						self.caches
+							.get_or_init(|| self.settings.open_substituters())
+					} else {
+						&[]
+					};
+					query_missing(
+						self.store,
+						caches,
+						self.settings.build.use_substitutes,
+						self.settings.build.always_allow_substitutes,
+						&targets,
+					)
+					.map_err(Error::from)
+				});
+				drop(act);
 				let missing = missing?;
 				self.stop();
 				self.to
@@ -1183,20 +1205,22 @@ impl<R: Read + Send, W: Write + Send> Connection<'_, R, W> {
 		}
 		let builder = LocalBuilder::new(store, &self.settings.build).with_repair(mode == 1);
 		let start = now();
+		// The worker runs one goal for the derivation; its progress and the
+		// build's activity go to the client through the tunnel.
+		let worker = logger::WorkerGuard::new();
+		// Creating the goal reports progress, then counts its expected build,
+		// which is released at once if the outputs are valid.
+		logger::worker_update(|_| {});
+		logger::worker_update(|c| c.expected_builds += 1);
 		let mut built = false;
-		let mut io_error = None;
-		let mut buffers: BTreeMap<StorePath, (u64, LineBuffer)> = BTreeMap::new();
-		let logger = &mut self.logger;
-		let to = &mut self.to;
-		let mut events = |event: BuildEvent<'_>| {
-			if let Err(e) = logger.build_event(to, event, mode, &mut built, &mut buffers) {
-				io_error.get_or_insert(e);
-			}
-		};
+		let mut logs = BuildLogs::default().repairing(mode == 1);
+		let mut events = |event: BuildEvent<'_>| build_event(&mut logs, &mut built, event);
 		let result = builder.build_derivation(&path, &drv, &mut events);
-		if let Some(e) = io_error {
-			return Err(e);
+		if result.is_ok() && !built {
+			logger::worker_update(|c| c.expected_builds = c.expected_builds.saturating_sub(1));
 		}
+		drop(logs);
+		drop(worker);
 		let result = result
 			.map(|paths| {
 				if built {
@@ -1228,10 +1252,78 @@ impl<R: Read + Send, W: Write + Send> Connection<'_, R, W> {
 		self.start()?;
 		let store = self.store;
 		let settings = &self.settings;
-		let caches = self.caches.get_or_init(|| settings.open_substituters());
+		// Nothing missing, nothing to substitute: CppNix's goals finish before
+		// they open the substituters.
+		let targets_only: Vec<DerivedPath> = targets.iter().map(|(_, t)| t.clone()).collect();
+		let caches: &[noxi_store::binary_cache::BinaryCache] =
+			if needs_substituters(store, &targets_only)? {
+				self.caches.get_or_init(|| settings.open_substituters())
+			} else {
+				&[]
+			};
+		if op == op::BUILD_PATHS && mode == 0 {
+			// `LocalStore::buildPaths`: the local commands' worker, which
+			// orders the builds and reports failed inputs and dependency
+			// failures as CppNix's does.
+			let paths: Vec<noxi_store::DerivedPath> = targets
+				.iter()
+				.map(|(_, target)| match target {
+					DerivedPath::Opaque(path) => noxi_store::DerivedPath::Opaque(path.clone()),
+					DerivedPath::Built { drv_path, outputs } => noxi_store::DerivedPath::Built {
+						drv: drv_path.clone(),
+						outputs: outputs.clone().unwrap_or_default(),
+					},
+				})
+				.collect();
+			let worker = logger::WorkerGuard::new();
+			let result = noxi_build::backend::Worker {
+				store,
+				settings: &settings.build,
+				substituters: if settings.build.use_substitutes {
+					caches
+				} else {
+					&[]
+				},
+			}
+			.build_paths_in_worker(&paths);
+			drop(worker);
+			result.map_err(|e| Error::Nix(e.to_string()))?;
+			self.stop();
+			self.to.u64(1);
+			return Ok(());
+		}
 		let builder = LocalBuilder::new(store, &settings.build)
 			.with_substituters(caches)
 			.with_repair(mode == 1);
+		// CppNix's `Worker` for the requested goals: its `realise`, `builds`
+		// and `copy-paths` activities run until the results are known, and
+		// creating the goals reports the builds expected.
+		let worker = logger::WorkerGuard::new();
+		let derivations: Vec<StorePath> = targets
+			.iter()
+			.filter_map(|(_, target)| match target {
+				DerivedPath::Built { drv_path, .. } => Some(drv_path.clone()),
+				DerivedPath::Opaque(_) => None,
+			})
+			.fold(Vec::new(), |mut drvs, drv| {
+				if !drvs.contains(&drv) {
+					drvs.push(drv);
+				}
+				drvs
+			});
+		if !derivations.is_empty() {
+			let paths: Vec<DerivedPath> = targets.iter().map(|(_, t)| t.clone()).collect();
+			let will_build = query_missing(
+				store,
+				caches,
+				settings.build.use_substitutes,
+				settings.build.always_allow_substitutes,
+				&paths,
+			)?
+			.will_build;
+			noxi_build::backend::announce_goals(store, &derivations, &will_build)?;
+		}
+		let mut logs = BuildLogs::default().repairing(mode == 1);
 		let mut results = Vec::new();
 		let mut first_error = None;
 		for (text, target) in &targets {
@@ -1257,22 +1349,10 @@ impl<R: Read + Send, W: Write + Send> Connection<'_, R, W> {
 				}
 				DerivedPath::Built { drv_path, outputs } => {
 					let mut built = false;
-					let mut io_error = None;
-					let mut buffers: BTreeMap<StorePath, (u64, LineBuffer)> = BTreeMap::new();
-					let logger = &mut self.logger;
-					let to = &mut self.to;
-					let mut events = |event: BuildEvent<'_>| {
-						if let Err(e) =
-							logger.build_event(to, event, mode, &mut built, &mut buffers)
-						{
-							io_error.get_or_insert(e);
-						}
-					};
+					let mut events =
+						|event: BuildEvent<'_>| build_event(&mut logs, &mut built, event);
 					let result =
 						builder.realise_with_events(drv_path, outputs.as_ref(), &mut events);
-					if let Some(e) = io_error {
-						return Err(e);
-					}
 					match result {
 						Ok(paths) => {
 							let wanted: BTreeMap<String, StorePath> = paths
@@ -1299,6 +1379,9 @@ impl<R: Read + Send, W: Write + Send> Connection<'_, R, W> {
 				break;
 			}
 		}
+		// The worker's activities stop before the operation ends.
+		drop(logs);
+		drop(worker);
 		if op == op::BUILD_PATHS {
 			if let Some(message) = first_error {
 				return Err(Error::Nix(message));
@@ -1386,7 +1469,9 @@ impl<R: Read + Send, W: Write + Send> Connection<'_, R, W> {
 			overrides.insert(name, value);
 		}
 		self.start()?;
-		self.logger.verbosity = verbosity;
+		// `nix::verbosity = clientSettings.verbosity`: the tunnel and the
+		// builds this worker runs log at the client's verbosity.
+		nix_compat::log::set_verbosity(verbosity);
 		self.settings.build.keep_failed = keep_failed;
 		self.settings.build.keep_going = keep_going;
 		self.settings.build.try_fallback = try_fallback;
@@ -1762,43 +1847,68 @@ fn parse_method_algo(
 	(Some(dump), Some(hash), algo.parse().ok())
 }
 
-/// Splits builder output into log lines as CppNix's `BuildLog` does: a
-/// carriage return restarts the line.
-#[derive(Default)]
-pub struct LineBuffer {
-	line: Vec<u8>,
-	pos: usize,
+/// A builder event of a daemon build: the build's activity and output go
+/// through [`BuildLogs`] as for a local build, and a repair's path checks
+/// are logged as CppNix's `LocalStore::verifyPath` logs them. `built`
+/// records that a build started.
+fn build_event(logs: &mut BuildLogs, built: &mut bool, event: BuildEvent<'_>) {
+	match event {
+		BuildEvent::PathChecked { path, valid } => {
+			logger::log(
+				VerbosityLevel::Info,
+				&format!("checking path '{}'...", path.to_absolute_path()),
+			);
+			if !valid {
+				// `Worker::pathContentsGood` reports it with `printError`.
+				logger::log(
+					VerbosityLevel::Error,
+					&format!(
+						"path '{}' is corrupted or missing!",
+						path.to_absolute_path()
+					),
+				);
+			}
+		}
+		event => {
+			if matches!(event, BuildEvent::Started { .. }) {
+				*built = true;
+			}
+			logs.event(None, event);
+		}
+	}
 }
 
-impl LineBuffer {
-	pub fn feed(&mut self, data: &[u8]) -> Vec<Vec<u8>> {
-		let mut lines = Vec::new();
-		for &c in data {
-			match c {
-				b'\r' => self.pos = 0,
-				b'\n' => {
-					self.line.truncate(self.pos);
-					lines.push(std::mem::take(&mut self.line));
-					self.pos = 0;
+/// Whether realising `targets` needs the substituters. CppNix's
+/// `queryMissing` and the worker's goals finish for valid paths and
+/// derivations whose outputs are valid before they call
+/// `getDefaultSubstituters`, so a substituter that cannot be opened is
+/// reported only when something is missing.
+fn needs_substituters(store: &LocalStore, targets: &[DerivedPath]) -> Result<bool> {
+	for target in targets {
+		match target {
+			DerivedPath::Opaque(path) => {
+				if !store.is_valid_path(path)? {
+					return Ok(true);
 				}
-				_ => {
-					if self.pos >= self.line.len() {
-						self.line.resize(self.pos + 1, 0);
+			}
+			DerivedPath::Built { drv_path, outputs } => {
+				if !store.is_valid_path(drv_path)? {
+					return Ok(true);
+				}
+				for (name, path) in store.query_partial_derivation_output_map(drv_path)? {
+					if outputs
+						.as_ref()
+						.is_some_and(|wanted| !wanted.contains(&name))
+					{
+						continue;
 					}
-					self.line[self.pos] = c;
-					self.pos += 1;
+					match path {
+						Some(path) if store.is_valid_path(&path)? => {}
+						_ => return Ok(true),
+					}
 				}
 			}
 		}
-		lines
 	}
-
-	pub fn flush(&mut self) -> Option<Vec<u8>> {
-		if self.line.is_empty() {
-			return None;
-		}
-		self.line.truncate(self.pos);
-		self.pos = 0;
-		Some(std::mem::take(&mut self.line))
-	}
+	Ok(false)
 }

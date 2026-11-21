@@ -122,6 +122,7 @@ daemon-protocol = [
 	"noxi-compat-tests::upstream_serve_protocol",
 	"noxi-compat-tests::upstream_shared_protocols",
 	"noxi-commands::reference_daemon_client",
+	"noxi-commands::reference_daemon_log_format",
 ]
 cli-and-configuration = [
 	"noxi-commands",

@@ -92,6 +92,41 @@ impl From<String> for LogField {
 static FORMAT: AtomicU8 = AtomicU8::new(LogFormat::Raw as u8);
 static NEXT_ID: AtomicU64 = AtomicU64::new(0);
 
+/// A logger that replaces the selected format: everything the producers
+/// report goes to it unrendered. A daemon worker installs CppNix's
+/// `TunnelLogger` this way, so the activities, results and messages of
+/// the builds and substitutions it runs reach its client.
+pub trait LogSink: Send + Sync {
+	/// `Logger::log`, after `printMsg`'s verbosity check.
+	fn log(&self, level: VerbosityLevel, message: &str);
+	/// `Logger::startActivity`.
+	fn start_activity(
+		&self,
+		id: u64,
+		level: VerbosityLevel,
+		kind: ActivityType,
+		text: &str,
+		fields: &[LogField],
+		parent: u64,
+	);
+	/// `Logger::stopActivity`.
+	fn stop_activity(&self, id: u64);
+	/// `Logger::result`.
+	fn result(&self, id: u64, kind: ResultType, fields: &[LogField]);
+}
+
+static SINK: std::sync::RwLock<Option<std::sync::Arc<dyn LogSink>>> = std::sync::RwLock::new(None);
+
+/// Send everything this process logs to `sink`, or back to the selected
+/// format with `None`.
+pub fn set_sink(sink: Option<std::sync::Arc<dyn LogSink>>) {
+	*SINK.write().unwrap_or_else(|e| e.into_inner()) = sink;
+}
+
+fn sink() -> Option<std::sync::Arc<dyn LogSink>> {
+	SINK.read().unwrap_or_else(|e| e.into_inner()).clone()
+}
+
 /// The selected logger.
 pub fn log_format() -> LogFormat {
 	LogFormat::from_u8(FORMAT.load(Ordering::Relaxed))
@@ -144,6 +179,9 @@ pub fn log(level: VerbosityLevel, message: &str) {
 
 /// `Logger::log`, which the callers of `printMsg` reach after filtering.
 fn log_unfiltered(level: VerbosityLevel, message: &str) {
+	if let Some(sink) = sink() {
+		return sink.log(level, message);
+	}
 	match log_format() {
 		LogFormat::InternalJson => {
 			let mut json = JsonObject::new("msg");
@@ -191,7 +229,7 @@ pub fn log_error(rendered: &str, raw: &str) {
 /// `logEI` at `level`.
 pub fn log_error_info(level: VerbosityLevel, rendered: &str, raw: &str) {
 	match log_format() {
-		LogFormat::InternalJson => {
+		LogFormat::InternalJson if sink().is_none() => {
 			if !super::log_enabled(level.clone()) {
 				return;
 			}
@@ -254,19 +292,32 @@ impl Activity {
 
 impl Drop for Activity {
 	fn drop(&mut self) {
-		match log_format() {
-			LogFormat::InternalJson => {
-				let mut json = JsonObject::new("stop");
-				json.int("id", self.id);
-				json.write();
-			}
-			LogFormat::Bar | LogFormat::BarWithLogs => bar_stop_activity(self.id),
-			LogFormat::Raw | LogFormat::RawWithLogs => {}
-		}
+		stop_activity(self.id);
 	}
 }
 
-fn start_activity(
+/// `Logger::stopActivity`: stop activity `id`, which [`Activity`] does when
+/// dropped. A daemon client calls it for the daemon's activities.
+pub fn stop_activity(id: u64) {
+	if let Some(sink) = sink() {
+		return sink.stop_activity(id);
+	}
+	match log_format() {
+		LogFormat::InternalJson => {
+			let mut json = JsonObject::new("stop");
+			json.int("id", id);
+			json.write();
+		}
+		LogFormat::Bar | LogFormat::BarWithLogs => bar_stop_activity(id),
+		LogFormat::Raw | LogFormat::RawWithLogs => {}
+	}
+}
+
+/// `Logger::startActivity` with a given id, which [`Activity::new`] calls
+/// with a fresh one. A daemon client calls it for the activities the
+/// daemon starts, keeping the daemon's ids and parents as CppNix's
+/// `processStderr` does.
+pub fn start_activity(
 	id: u64,
 	level: VerbosityLevel,
 	kind: ActivityType,
@@ -274,6 +325,9 @@ fn start_activity(
 	fields: Vec<LogField>,
 	parent: u64,
 ) {
+	if let Some(sink) = sink() {
+		return sink.start_activity(id, level, kind, &text, &fields, parent);
+	}
 	match log_format() {
 		LogFormat::InternalJson => {
 			let mut json = JsonObject::new("start");
@@ -297,7 +351,12 @@ fn start_activity(
 	}
 }
 
-fn result(id: u64, kind: ResultType, fields: &[LogField]) {
+/// `Logger::result` for activity `id`, which [`Activity::result`] calls.
+/// A daemon client calls it for the results the daemon reports.
+pub fn result(id: u64, kind: ResultType, fields: &[LogField]) {
+	if let Some(sink) = sink() {
+		return sink.result(id, kind, fields);
+	}
 	match log_format() {
 		LogFormat::InternalJson => {
 			let mut json = JsonObject::new("result");

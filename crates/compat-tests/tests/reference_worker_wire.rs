@@ -55,11 +55,13 @@ const READ_TIMEOUT: u64 = 15;
 const OLDEST: u64 = 18;
 const NEWEST: u64 = 38;
 
-/// `actRealise`, `actCopyPaths` and `actBuilds`, which CppNix's `Worker` opens
-/// for its lifetime and reports its goal counts on, and the progress and
-/// expected-size results it sends. noxi has no goal scheduler that
-/// counts the same way yet, so they are left out of the comparison.
-const WORKER_ACTIVITIES: [u64; 3] = [102, 103, 104];
+/// The progress and expected-size results of the `realise`, `builds` and
+/// `copy-paths` activities CppNix's `Worker` opens for its lifetime. Both
+/// daemons start and stop these activities alike, and their counts match
+/// for `BuildPaths` and `BuildDerivation`, but noxi does not yet count the
+/// substitution goals of `BuildPathsWithResults`'s opaque paths or a
+/// repair's goals as CppNix does, so the counts are left out of the
+/// comparison.
 const PROGRESS_RESULTS: [u64; 2] = [105, 106];
 
 const fn version(minor: u64) -> u64 {
@@ -100,8 +102,6 @@ struct Wire {
 	closed: bool,
 	/// The activity IDs seen, in order.
 	activities: Vec<u64>,
-	/// Worker activities, which are not compared.
-	hidden: Vec<u64>,
 }
 
 impl Wire {
@@ -120,7 +120,6 @@ impl Wire {
 			replacements,
 			closed: false,
 			activities: Vec::new(),
-			hidden: Vec::new(),
 		}
 	}
 
@@ -230,7 +229,7 @@ impl Wire {
 	}
 
 	fn record_activity(&mut self, id: u64) {
-		if id == 0 || self.hidden.contains(&id) {
+		if id == 0 {
 			self.log.push(Tok::Int(0));
 			return;
 		}
@@ -351,31 +350,21 @@ impl Wire {
 					self.flush();
 				}
 				STDERR_START_ACTIVITY => {
-					let mark = self.log.len();
 					let id = self.get_u64()?;
 					let level = self.get_u64()?;
 					let kind = self.get_u64()?;
-					if WORKER_ACTIVITIES.contains(&kind) {
-						self.hidden.push(id);
-					} else {
-						self.log.push(Tok::Str("START".into()));
-						self.record_activity(id);
-						self.log.push(Tok::Int(level));
-						self.log.push(Tok::Int(kind));
-					}
+					self.log.push(Tok::Str("START".into()));
+					self.record_activity(id);
+					self.log.push(Tok::Int(level));
+					self.log.push(Tok::Int(kind));
 					self.str()?;
 					self.fields()?;
 					self.activity()?;
-					if self.hidden.contains(&id) {
-						self.log.truncate(mark);
-					}
 				}
 				STDERR_STOP_ACTIVITY => {
 					let id = self.get_u64()?;
-					if !self.hidden.contains(&id) {
-						self.log.push(Tok::Str("STOP".into()));
-						self.record_activity(id);
-					}
+					self.log.push(Tok::Str("STOP".into()));
+					self.record_activity(id);
 				}
 				STDERR_RESULT => {
 					let mark = self.log.len();
@@ -385,7 +374,7 @@ impl Wire {
 					self.record_activity(id);
 					self.log.push(Tok::Int(kind));
 					self.fields()?;
-					if self.hidden.contains(&id) || PROGRESS_RESULTS.contains(&kind) {
+					if PROGRESS_RESULTS.contains(&kind) {
 						self.log.truncate(mark);
 					}
 				}
@@ -838,7 +827,6 @@ impl Wire {
 			replacements: Vec::new(),
 			closed: true,
 			activities: Vec::new(),
-			hidden: Vec::new(),
 		}
 	}
 

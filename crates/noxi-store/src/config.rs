@@ -44,6 +44,10 @@ pub struct LocalStoreConfig {
 	pub impure_derivations: bool,
 	pub dynamic_derivations: bool,
 	pub git_hashing: bool,
+	/// Whether the store was named with query parameters, as
+	/// `local?root=ROOT` is. CppNix then calls it `local://`, and `local`
+	/// otherwise ([`LocalStoreConfig::human_uri`]).
+	pub has_params: bool,
 }
 
 impl LocalStoreConfig {
@@ -155,11 +159,14 @@ impl LocalStoreConfig {
 	/// `root`.
 	pub fn with_root(root: &Path) -> Self {
 		let under = |path: &str| root.join(path.trim_start_matches('/'));
-		Self::with_dirs(
-			under("/nix/store"),
-			under("/nix/var/nix"),
-			under("/nix/var/log/nix"),
-		)
+		Self {
+			has_params: true,
+			..Self::with_dirs(
+				under("/nix/store"),
+				under("/nix/var/nix"),
+				under("/nix/var/log/nix"),
+			)
+		}
 	}
 
 	fn with_dirs(real_store_dir: PathBuf, state_dir: PathBuf, log_dir: PathBuf) -> Self {
@@ -179,11 +186,19 @@ impl LocalStoreConfig {
 			impure_derivations: false,
 			dynamic_derivations: false,
 			git_hashing: false,
+			has_params: false,
 			narinfo_cache_positive_ttl: 30 * 24 * 60 * 60,
 			narinfo_cache_negative_ttl: 60 * 60,
 			max_substitution_jobs: 16,
 			http_connections: 25,
 		}
+	}
+
+	/// `LocalStoreConfig::getReference` as `getHumanReadableURI` renders it:
+	/// `local://` for a store named with query parameters and, as a
+	/// back-compatibility kludge, `local` for one named without.
+	pub fn human_uri(&self) -> &'static str {
+		if self.has_params { "local://" } else { "local" }
 	}
 
 	pub fn db_dir(&self) -> PathBuf {

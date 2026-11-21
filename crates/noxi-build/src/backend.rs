@@ -38,6 +38,15 @@ impl LocalBackend {
 		}
 	}
 
+	/// The worker that realises paths in this store.
+	fn worker(&self) -> Worker<'_> {
+		Worker {
+			store: &self.store,
+			settings: &self.settings,
+			substituters: self.substituters(),
+		}
+	}
+
 	/// The substituters that could be opened, in priority order.
 	fn substituters(&self) -> &[BinaryCache] {
 		self.substituters.get_or_init(|| {
@@ -48,6 +57,23 @@ impl LocalBackend {
 			)
 		})
 	}
+}
+
+/// CppNix's `Worker` for one `buildPaths` call on a local store: it plans
+/// the builds with `queryMissing`, reports its goals, builds the
+/// derivations in the reference's order and substitutes the opaque paths.
+/// A failed input that another build waits on is logged at once, and a
+/// requested derivation whose input failed fails with `1 dependency
+/// failed`. The local commands use it, and the daemon's `BuildPaths` runs
+/// it with its client's settings. The caller holds the
+/// [`WorkerGuard`](nix_compat::log::logger::WorkerGuard) whose activities
+/// report the progress.
+pub struct Worker<'a> {
+	pub store: &'a LocalStore,
+	pub settings: &'a BuildSettings,
+	/// The opened substituters, in priority order; empty when substitution
+	/// is off.
+	pub substituters: &'a [BinaryCache],
 }
 
 /// `getDefaultSubstituters`: open the `substituters` with the file transfer
@@ -97,7 +123,7 @@ pub fn open_substituters<'a>(
 	caches
 }
 
-impl LocalBackend {
+impl Worker<'_> {
 	/// The derivations realising `paths` builds, each after its inputs and
 	/// otherwise in order of name and path.
 	fn build_order(
@@ -349,7 +375,7 @@ impl Store for LocalBackend {
 			vec![],
 			0,
 		);
-		self.query_missing_quietly(paths)
+		self.worker().query_missing_quietly(paths)
 	}
 
 	/// Build output goes to standard error, as the legacy commands print it,
@@ -358,11 +384,11 @@ impl Store for LocalBackend {
 		// CppNix's `Worker` reports its build and substitution counts
 		// through these activities while it runs.
 		let _worker = nix_compat::log::logger::WorkerGuard::new();
-		self.build_paths_in_worker(paths)
+		self.worker().build_paths_in_worker(paths)
 	}
 }
 
-impl LocalBackend {
+impl Worker<'_> {
 	/// `queryMissing` without its activity, for the worker's own plan.
 	fn query_missing_quietly(&self, paths: &[DerivedPath]) -> Result<Missing> {
 		let targets: Vec<missing::DerivedPath> = paths
@@ -375,9 +401,9 @@ impl LocalBackend {
 				},
 			})
 			.collect();
-		let substituters = self.substituters();
+		let substituters = self.substituters;
 		missing::query_missing(
-			&self.store,
+			self.store,
 			substituters,
 			!substituters.is_empty(),
 			self.settings.always_allow_substitutes,
@@ -386,68 +412,28 @@ impl LocalBackend {
 		.map_err(|e| Error::Other(e.to_string()))
 	}
 
-	/// The progress the worker reports as it creates its goals: for each
-	/// requested derivation a `DerivationTrampolineGoal` and a
-	/// `DerivationGoal`, which finishes at once if the outputs are valid,
-	/// and then a goal for each input derivation of the derivations to
-	/// build.
+	/// The progress the worker reports as it creates its goals; see
+	/// [`announce_goals`].
 	fn announce_goals(
 		&self,
 		paths: &[DerivedPath],
 		will_build: &BTreeSet<StorePath>,
 	) -> Result<()> {
-		use nix_compat::log::logger::worker_update;
-		let mut targets: Vec<&StorePath> = Vec::new();
+		let mut targets: Vec<StorePath> = Vec::new();
 		for path in paths {
 			if let DerivedPath::Built { drv, .. } = path
-				&& !targets.contains(&drv)
+				&& !targets.contains(drv)
 			{
-				targets.push(drv);
+				targets.push(drv.clone());
 			}
 		}
-		for _ in &targets {
-			worker_update(|_| {});
-		}
-		let mut seen: BTreeSet<StorePath> = BTreeSet::new();
-		let mut queue = std::collections::VecDeque::new();
-		for drv in &targets {
-			seen.insert((*drv).clone());
-			worker_update(|c| c.expected_builds += 1);
-			if will_build.contains(*drv) {
-				queue.push_back((*drv).clone());
-			} else {
-				worker_update(|c| c.expected_builds = c.expected_builds.saturating_sub(1));
-			}
-		}
-		while let Some(drv) = queue.pop_front() {
-			let inputs: Vec<StorePath> = self
-				.store
-				.read_build_derivation(&drv)?
-				.basic
-				.input_derivations()
-				.keys()
-				.cloned()
-				.collect();
-			for input in inputs {
-				if !seen.insert(input.clone()) {
-					continue;
-				}
-				worker_update(|_| {});
-				worker_update(|c| c.expected_builds += 1);
-				if will_build.contains(&input) {
-					queue.push_back(input);
-				} else {
-					worker_update(|c| c.expected_builds = c.expected_builds.saturating_sub(1));
-				}
-			}
-		}
-		Ok(())
+		announce_goals(self.store, &targets, will_build)
 	}
 
-	fn build_paths_in_worker(&self, paths: &[DerivedPath]) -> Result<()> {
-		let substituters = self.substituters();
-		let builder =
-			LocalBuilder::new(&self.store, &self.settings).with_substituters(substituters);
+	/// Realise `paths`, reporting the progress of the running worker.
+	pub fn build_paths_in_worker(&self, paths: &[DerivedPath]) -> Result<()> {
+		let substituters = self.substituters;
+		let builder = LocalBuilder::new(self.store, self.settings).with_substituters(substituters);
 		let will_build = if paths
 			.iter()
 			.any(|path| matches!(path, DerivedPath::Built { .. }))
@@ -762,19 +748,80 @@ mod order_tests {
 	}
 }
 
+/// The progress CppNix's worker reports as it creates its goals, for the
+/// derivations `targets` requested in order: for each a
+/// `DerivationTrampolineGoal` and a `DerivationGoal`, which finishes at
+/// once if the outputs are valid (not in `will_build`), and then a goal for
+/// each input derivation of the derivations to build. The local commands
+/// and the daemon's build operations report it alike.
+pub fn announce_goals(
+	store: &LocalStore,
+	targets: &[StorePath],
+	will_build: &BTreeSet<StorePath>,
+) -> Result<()> {
+	use nix_compat::log::logger::worker_update;
+	for _ in targets {
+		worker_update(|_| {});
+	}
+	let mut seen: BTreeSet<StorePath> = BTreeSet::new();
+	let mut queue = std::collections::VecDeque::new();
+	for drv in targets {
+		seen.insert(drv.clone());
+		worker_update(|c| c.expected_builds += 1);
+		if will_build.contains(drv) {
+			queue.push_back(drv.clone());
+		} else {
+			worker_update(|c| c.expected_builds = c.expected_builds.saturating_sub(1));
+		}
+	}
+	while let Some(drv) = queue.pop_front() {
+		let inputs: Vec<StorePath> = store
+			.read_build_derivation(&drv)?
+			.basic
+			.input_derivations()
+			.keys()
+			.cloned()
+			.collect();
+		for input in inputs {
+			if !seen.insert(input.clone()) {
+				continue;
+			}
+			worker_update(|_| {});
+			worker_update(|c| c.expected_builds += 1);
+			if will_build.contains(&input) {
+				queue.push_back(input);
+			} else {
+				worker_update(|c| c.expected_builds = c.expected_builds.saturating_sub(1));
+			}
+		}
+	}
+	Ok(())
+}
+
 /// The running builds' activities, CppNix's `started` and `BuildLog`: the
 /// activity's text names the derivation, its fields are the derivation,
 /// the machine (empty for a local build) and the round counts, and the
 /// output arrives as lines.
 #[derive(Default)]
-struct BuildLogs {
+pub struct BuildLogs {
 	logs: BTreeMap<StorePath, nix_compat::log::logger::BuildLog>,
 	/// The build whose output arrives without an owner.
 	current: Option<StorePath>,
+	/// Whether the builds repair their outputs, which their activities say.
+	repair: bool,
 }
 
 impl BuildLogs {
-	fn event(&mut self, owner: Option<&StorePath>, event: BuildEvent<'_>) {
+	/// Activities for builds that repair their outputs: `repairing outputs
+	/// of '...'`.
+	pub fn repairing(mut self, repair: bool) -> Self {
+		self.repair = repair;
+		self
+	}
+
+	/// Report a builder event; `owner` is the derivation whose build sent
+	/// it, when several build at once.
+	pub fn event(&mut self, owner: Option<&StorePath>, event: BuildEvent<'_>) {
 		use nix_compat::log::logger::{Activity, BuildLog, worker_change, worker_update};
 		match event {
 			BuildEvent::Started { drv_path } => {
@@ -782,7 +829,11 @@ impl BuildLogs {
 				let act = Activity::new(
 					nix_compat::log::VerbosityLevel::Info,
 					nix_compat::log::ActivityType::Build,
-					format!("building '{path}'"),
+					if self.repair {
+						format!("repairing outputs of '{path}'")
+					} else {
+						format!("building '{path}'")
+					},
 					vec![path.into(), "".into(), 1u64.into(), 1u64.into()],
 					0,
 				);
