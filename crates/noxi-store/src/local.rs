@@ -589,7 +589,7 @@ impl LocalStore {
 				// The reference reads the file, but this ordinary
 				// derivation form cannot hold it.
 				None => Error::Other(format!(
-					"error parsing derivation '{}': {}",
+					"derivation '{}' has floating content-addressed, impure or dynamic outputs, which this operation does not support yet ({})",
 					print(drv_path),
 					crate::build_derivation::parser_error_message(&e)
 				)),
@@ -1764,5 +1764,80 @@ mod import_tests {
 			store.nar_from_path(&path, &mut actual).unwrap();
 			assert_eq!(actual, archive);
 		}
+	}
+}
+
+#[cfg(test)]
+mod read_derivation_tests {
+	use super::*;
+
+	const FLOATING: &[u8] =
+		br#"Derive([("out","","r:sha256","")],[],[],"x86_64-linux","/bin/sh",[],[("out","")])"#;
+
+	fn store_with(
+		ca_derivations: bool,
+		files: &[(&str, &[u8])],
+	) -> (tempfile::TempDir, LocalStore) {
+		let dir = tempfile::tempdir().unwrap();
+		let mut config = LocalStoreConfig::with_root(&dir.path().join("root"));
+		config.ca_derivations = ca_derivations;
+		let store = LocalStore::open(config).unwrap();
+		for (name, bytes) in files {
+			fs::write(store.real_path(&path(name)), bytes).unwrap();
+		}
+		(dir, store)
+	}
+
+	fn path(name: &str) -> StorePath {
+		StorePath::from_bytes(format!("{}-{name}", "0".repeat(32)).as_bytes()).unwrap()
+	}
+
+	fn message<T>(result: Result<T>) -> String {
+		match result {
+			Ok(_) => panic!("the derivation was read"),
+			Err(e) => e.to_string(),
+		}
+	}
+
+	#[test]
+	fn malformed_files_fail_with_the_reference_format_error() {
+		let (_dir, store) = store_with(true, &[("bad.drv", b"Xerive([],[],[],\"\",\"\",[],[])")]);
+		let expected = format!(
+			"error parsing derivation '{}': expected string 'D'",
+			path("bad.drv").to_absolute_path()
+		);
+		assert_eq!(message(store.read_derivation(&path("bad.drv"))), expected);
+		assert_eq!(
+			message(store.read_build_derivation(&path("bad.drv"))),
+			expected
+		);
+	}
+
+	#[test]
+	fn floating_outputs_need_the_feature_and_the_build_reader() {
+		let (_dir, store) = store_with(false, &[("ca.drv", FLOATING)]);
+		let error = message(store.read_derivation(&path("ca.drv")));
+		assert!(
+			error.starts_with("experimental Nix feature 'ca-derivations' is disabled"),
+			"{error}"
+		);
+		let (_dir, store) = store_with(true, &[("ca.drv", FLOATING)]);
+		let error = message(store.read_derivation(&path("ca.drv")));
+		assert!(
+			error.starts_with(&format!(
+				"derivation '{}' has floating content-addressed",
+				path("ca.drv").to_absolute_path()
+			)),
+			"{error}"
+		);
+		assert!(!error.contains("FloatingContentAddressedOutput"), "{error}");
+		assert_eq!(
+			store
+				.read_build_derivation(&path("ca.drv"))
+				.unwrap()
+				.floating
+				.len(),
+			1
+		);
 	}
 }
