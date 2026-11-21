@@ -369,3 +369,89 @@ fn compressed_command_uploads_import_with_reference() {
 		);
 	}
 }
+
+/// Every file and directory under `dir`, with file contents.
+fn tree(dir: &Path) -> Vec<(String, Option<Vec<u8>>)> {
+	let mut entries = Vec::new();
+	let mut pending = vec![dir.to_path_buf()];
+	while let Some(current) = pending.pop() {
+		for entry in fs::read_dir(&current).unwrap() {
+			let path = entry.unwrap().path();
+			let name = path.strip_prefix(dir).unwrap().display().to_string();
+			if path.is_dir() {
+				entries.push((name, None));
+				pending.push(path);
+			} else {
+				entries.push((name, Some(fs::read(&path).unwrap())));
+			}
+		}
+	}
+	entries.sort();
+	entries
+}
+
+#[test]
+fn file_cache_copies_write_the_reference_layout_and_bytes() {
+	let root = tempfile::tempdir().unwrap();
+	let file = root.path().join("payload");
+	fs::write(&file, b"cache upload\n").unwrap();
+	let tree_dir = root.path().join("tree");
+	fs::create_dir(&tree_dir).unwrap();
+	fs::write(tree_dir.join("a"), b"a\n").unwrap();
+	std::os::unix::fs::symlink("a", tree_dir.join("l")).unwrap();
+	let mut paths = Vec::new();
+	for args in [
+		["store", "add-file", file.to_str().unwrap()],
+		["store", "add", tree_dir.to_str().unwrap()],
+	] {
+		let added = run(&reference(), root.path(), &args, &[]);
+		assert!(added.status.success());
+		paths.push(String::from_utf8(added.stdout).unwrap().trim().to_owned());
+	}
+	let key = run(
+		&reference(),
+		root.path(),
+		&["key", "generate-secret", "--key-name", "cache-1"],
+		&[],
+	);
+	let key_file = root.path().join("cache-key");
+	fs::write(&key_file, &key.stdout).unwrap();
+	let cache = root.path().join("cache");
+	let key = key_file.display();
+	for params in [
+		String::new(),
+		"?compression=none".to_owned(),
+		format!("?write-nar-listing=1&secret-key={key}"),
+		format!("?compression=zstd&unknown-setting=1&secret-keys={key},{key}"),
+		"?compression=bzip2&index-debug-info=true".to_owned(),
+		"?compression=xz&compression-level=0".to_owned(),
+		"?compression=bogus".to_owned(),
+		"?secret-key=/nonexistent/key".to_owned(),
+	] {
+		let uri = format!("file://{}{params}", cache.display());
+		let mut args = vec!["copy", "--to", uri.as_str()];
+		args.extend(paths.iter().map(String::as_str));
+		let mut results = Vec::new();
+		for bin in [reference(), PathBuf::from(env!("CARGO_BIN_EXE_nix"))] {
+			let _ = fs::remove_dir_all(&cache);
+			let first = run(&bin, root.path(), &args, &[]);
+			// A second copy finds every path in the cache.
+			let again = run(&bin, root.path(), &args, &[]);
+			// The reference uploads in parallel, so the order of its
+			// per-path messages varies; the usage hint names the program.
+			let lines = |output: &Output| {
+				let mut lines: Vec<String> = String::from_utf8_lossy(&output.stderr)
+					.lines()
+					.map(|line| line.replace(bin.to_str().unwrap(), "nix"))
+					.collect();
+				lines.sort();
+				(output.status.code(), output.stdout.clone(), lines)
+			};
+			let files = cache.exists().then(|| tree(&cache));
+			results.push((lines(&first), lines(&again), files));
+		}
+		assert_eq!(results[1].0, results[0].0, "{params}");
+		assert_eq!(results[1].1, results[0].1, "{params}");
+		assert!(results[1].2 == results[0].2, "{params}: cache files differ");
+	}
+}

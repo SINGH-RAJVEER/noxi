@@ -1740,6 +1740,7 @@ dependencies = [
  "memchr",
  "noxi-compat",
  "path-clean",
+ "pkg-config",
  "rusqlite",
  "sha2",
  "tempfile",

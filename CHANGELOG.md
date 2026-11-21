@@ -362,6 +362,7 @@ Serializes Rust values into Nix and deserializes Nix values into Rust types, imp
 
 ### Unreleased
 
+- `nix copy --to file://` accepts the default compression and unsigned caches, reports invalid `compression` values as a usage error, reads `secret-key` files before copying, and reports and uploads each missing path once instead of re-exporting its closure (2026-11-21).
 - `nix derivation show` prints with `cppnix_json::dump`, so structured-attribute floats appear as the reference prints them (`1.5e-07`, `1e+100`). `language_boundaries` checks the `drvPath` of structured-attribute derivations with floats against the reference and against recorded paths, and `reference_nix` compares their `derivation show` output byte for byte (2026-11-21).
 - `--log-format internal-json` is implemented: builds, cached outputs, failures, dependency failures, `file://` substitutions and `nix store prefetch-file` downloads print CppNix 2.35.2's `@nix` start, stop, result and msg lines, with builder `setPhase` lines as phase results and errors with `raw_msg`. `bar` and `bar-with-logs` use a port of CppNix's progress bar: on a terminal it draws the build and copy counters and the current activity, and redirected it prints like the raw logger with `NAME> ` log lines. `-Q` selects the raw logger, `nix` starts with the bar and stops it before handing the terminal to another program or printing results, and `multiline` formats are rejected as 2.35.2 rejects them. `reference_log_format` compares each case with the reference (2026-11-21).
 
@@ -468,6 +469,7 @@ Internal trybuild tests for `nix-compat-derive`.
 
 ### Unreleased
 
+- Binary cache uploads follow `BinaryCacheStoreConfig`: `xz` is the default compression, and `lzma`, `compression-level`, `parallel-compression`, `write-nar-listing`, `index-debug-info`, `secret-key`, `secret-keys`, `priority` and `want-mass-query` URL parameters are read, with the reference's `unknown setting` warning for others. xz and lzma go through the system liblzma, bzip2 uses level 9 and zstd writes 16 MiB frames with up to four workers, so xz, lzma, bzip2, zstd and uncompressed uploads are byte-identical to CppNix's. Unsigned uploads are allowed, the cache's `nar`, `build-trace-v2` and `log` directories are created as on open, an existing NAR is kept, and no lock file is left beside the narinfo. `BinaryCache::upload` publishes one path whose references are already cached (2026-11-21).
 - Substitution from a binary cache reports CppNix's `substitute` and `copy-path` activities and the worker's substitution counts, and a cache's first narinfo query for a path reports `query-path-info` (2026-11-21).
 
 - `unix_socket::connect` and `bind` handle paths longer than `sun_path` as CppNix's `bindConnectProcHelper` does, from a child in the socket's directory; the garbage collector's roots socket and its clients use them (2026-11-09).

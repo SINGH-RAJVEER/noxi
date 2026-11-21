@@ -27,6 +27,7 @@ use crate::error::{Error, Result};
 use crate::local::LocalStore;
 use crate::lock::PathLocks;
 use crate::nar::HashSink;
+use crate::nar_listing::Listing;
 use crate::path_info::ValidPathInfo;
 
 fn print(path: &StorePath) -> String {
@@ -62,7 +63,7 @@ impl std::fmt::Debug for Transport {
 /// (`HttpBinaryCacheStore`).
 #[derive(Clone, Debug)]
 pub struct BinaryCache {
-	upload_compression: String,
+	upload: UploadSettings,
 	uri: String,
 	transport: Transport,
 	info: CacheInfo,
@@ -82,13 +83,53 @@ impl BinaryCache {
 	pub fn open(uri: &str) -> Result<Self> {
 		let (base, query) = uri.split_once('?').unwrap_or((uri, ""));
 		let mut trusted = false;
-		let mut upload_compression = "none";
+		let mut upload = UploadSettings::default();
+		let mut want_mass_query = None;
+		let mut priority = None;
+		let http = base.starts_with("http://") || base.starts_with("https://");
 		for param in query.split('&').filter(|p| !p.is_empty()) {
-			if let Some(value) = param.strip_prefix("trusted=") {
-				trusted = value == "1" || value == "true";
-			}
-			if let Some(value) = param.strip_prefix("compression=") {
-				upload_compression = value;
+			let (name, value) = param.split_once('=').unwrap_or((param, ""));
+			let invalid = || Error::Other(format!("option '{name}' has invalid value '{value}'"));
+			match name {
+				"trusted" => trusted = parse_bool(value).ok_or_else(invalid)?,
+				"compression" => {
+					if !cppnix::COMPRESSION_ALGOS.contains(&value) {
+						return Err(invalid());
+					}
+					upload.compression = value.to_owned();
+				}
+				"compression-level" => {
+					upload.compression_level = value.parse().map_err(|_| invalid())?
+				}
+				"parallel-compression" => {
+					upload.parallel_compression = Some(parse_bool(value).ok_or_else(invalid)?)
+				}
+				"write-nar-listing" => {
+					upload.write_nar_listing = parse_bool(value).ok_or_else(invalid)?
+				}
+				"index-debug-info" => {
+					upload.write_debug_info = parse_bool(value).ok_or_else(invalid)?
+				}
+				"secret-key" => upload.secret_key_files.insert(0, value.to_owned()),
+				"secret-keys" => upload
+					.secret_key_files
+					.extend(value.split(',').map(str::to_owned)),
+				"want-mass-query" => want_mass_query = Some(parse_bool(value).ok_or_else(invalid)?),
+				"priority" => priority = Some(value.parse().map_err(|_| invalid())?),
+				// Settings every binary cache store has that do not affect
+				// what noxi reads or writes.
+				"local-nar-cache" | "path-info-cache-size" | "system-features" | "store" => {}
+				"narinfo-compression" | "ls-compression" | "log-compression" if http => {}
+				_ => {
+					// `Config::warnUnknownSettings`. The handle may be opened
+					// more than once; warn once per setting.
+					static WARNED: Mutex<Vec<String>> = Mutex::new(Vec::new());
+					let mut warned = WARNED.lock().unwrap_or_else(|e| e.into_inner());
+					if !warned.iter().any(|w| w == name) {
+						warned.push(name.to_owned());
+						nix_compat::log::logger::warn(&format!("unknown setting '{name}'"));
+					}
+				}
 			}
 		}
 		let transport = if let Some(path) = base.strip_prefix("file://") {
@@ -107,7 +148,7 @@ impl BinaryCache {
 			)));
 		};
 		let mut cache = Self {
-			upload_compression: upload_compression.to_owned(),
+			upload,
 			uri: base.trim_end_matches('/').to_owned(),
 			transport,
 			info: CacheInfo {
@@ -144,7 +185,45 @@ impl BinaryCache {
 				}
 			}
 		}
+		// `nix-cache-info` only sets defaults; URL parameters win.
+		if let Some(value) = want_mass_query {
+			cache.info.want_mass_query = value;
+		}
+		if let Some(value) = priority {
+			cache.info.priority = value;
+		}
 		Ok(cache)
+	}
+
+	/// The upload settings from the cache URL's parameters.
+	pub fn upload_settings(&self) -> &UploadSettings {
+		&self.upload
+	}
+
+	/// Prepare a `file://` cache for writing as `LocalBinaryCacheStore::init`
+	/// does: create its directories and, if it has none, `nix-cache-info`.
+	pub fn init_for_upload(&self) -> Result<()> {
+		let Transport::File(dir) = &self.transport else {
+			return Err(Error::Other(
+				"binary cache uploads require a file:// cache".into(),
+			));
+		};
+		let mut subdirs = vec!["nar", "build-trace-v2"];
+		if self.upload.write_debug_info {
+			subdirs.push("debuginfo");
+		}
+		subdirs.push("log");
+		for sub in subdirs {
+			fs::create_dir_all(dir.join(sub))
+				.map_err(|e| Error::io(format!("creating binary cache '{}'", self.uri), e))?;
+		}
+		if self.get_file("nix-cache-info")?.is_none() {
+			write_atomic(
+				&dir.join("nix-cache-info"),
+				format!("StoreDir: {}\n", store_dir()).as_bytes(),
+			)?;
+		}
+		Ok(())
 	}
 
 	pub fn uri(&self) -> &str {
@@ -185,10 +264,12 @@ impl BinaryCache {
 		});
 	}
 
-	/// Export `path` and its reference closure to a local, uncompressed cache.
-	/// NAR bytes must match source metadata before signing. Dependencies are
-	/// published first; a failed upload may leave completed dependencies behind.
-	/// The source must permit temporary GC roots, which remain until its last
+	/// Export `path` and its reference closure to a local cache, with the
+	/// compression, listings and signing keys of the cache URL plus
+	/// `signing_keys`. NAR bytes must match source metadata before signing.
+	/// Dependencies are published first; a failed upload may leave completed
+	/// dependencies behind. An existing narinfo keeps its signatures. The
+	/// source must permit temporary GC roots, which remain until its last
 	/// participating handle is dropped. Cache directories must be trusted.
 	pub fn upload_closure<S>(
 		&self,
@@ -199,28 +280,70 @@ impl BinaryCache {
 	where
 		S: ed25519::signature::Signer<ed25519::Signature>,
 	{
+		self.check_upload(source, signing_keys)?;
+		self.init_for_upload()?;
+		// Revalidate existing cache ownership even if it changed after open.
+		BinaryCache::open(&self.uri)?;
+		self.upload_path(
+			source,
+			path,
+			signing_keys,
+			&mut BTreeSet::new(),
+			&mut BTreeSet::new(),
+		)
+	}
+
+	/// Upload one path whose references are already in the cache, as
+	/// `BinaryCacheStore::addMultipleToStore` does for each path `nix copy`
+	/// sends. Call [`BinaryCache::init_for_upload`] first.
+	pub fn upload<S>(
+		&self,
+		source: &LocalStore,
+		path: &StorePath,
+		signing_keys: &[SigningKey<S>],
+	) -> Result<()>
+	where
+		S: ed25519::signature::Signer<ed25519::Signature>,
+	{
+		self.check_upload(source, signing_keys)?;
+		source.add_temp_root(path)?;
+		let info = source
+			.query_path_info(path)?
+			.ok_or_else(|| Error::InvalidPath(print(path)))?;
+		// `uploadNarInfo`'s check, made before anything is written.
+		for reference in &info.references {
+			if reference != path && self.narinfo_text(reference)?.is_none() {
+				return Err(Error::Other(format!(
+					"cannot add '{}' to the binary cache because the reference '{}' is not valid",
+					print(path),
+					print(reference)
+				)));
+			}
+		}
+		self.publish(source, &info, signing_keys)
+	}
+
+	fn check_upload<S>(&self, source: &LocalStore, signing_keys: &[SigningKey<S>]) -> Result<()>
+	where
+		S: ed25519::signature::Signer<ed25519::Signature>,
+	{
 		if !matches!(
-			self.upload_compression.as_str(),
-			"none" | "gzip" | "bzip2" | "zstd"
+			self.upload.compression.as_str(),
+			"none" | "xz" | "lzma" | "gzip" | "bzip2" | "zstd"
 		) {
 			return Err(Error::Other(format!(
 				"unsupported cache upload compression '{}'",
-				self.upload_compression
+				self.upload.compression
 			)));
 		}
-		let Transport::File(dir) = &self.transport else {
+		if !matches!(self.transport, Transport::File(_)) {
 			return Err(Error::Other(
 				"binary cache uploads require a file:// cache".into(),
 			));
-		};
+		}
 		if source.config().read_only {
 			return Err(Error::Other(
 				"binary cache upload requires source GC protection".into(),
-			));
-		}
-		if signing_keys.is_empty() {
-			return Err(Error::Other(
-				"binary cache upload requires a signing key".into(),
 			));
 		}
 		for key in signing_keys {
@@ -233,23 +356,7 @@ impl BinaryCache {
 				return Err(Error::Other("invalid binary cache signing key name".into()));
 			}
 		}
-		fs::create_dir_all(dir.join("nar"))
-			.map_err(|e| Error::io(format!("creating binary cache '{}'", self.uri), e))?;
-		// Revalidate existing cache ownership even if it changed after open.
-		BinaryCache::open(&self.uri)?;
-		if self.get_file("nix-cache-info")?.is_none() {
-			write_atomic(
-				&dir.join("nix-cache-info"),
-				format!("StoreDir: {}\n", store_dir()).as_bytes(),
-			)?;
-		}
-		self.upload_path(
-			source,
-			path,
-			signing_keys,
-			&mut BTreeSet::new(),
-			&mut BTreeSet::new(),
-		)
+		Ok(())
 	}
 
 	fn upload_path<S>(
@@ -281,6 +388,24 @@ impl BinaryCache {
 				self.upload_path(source, reference, signing_keys, visiting, done)?;
 			}
 		}
+		self.publish(source, &info, signing_keys)?;
+		visiting.remove(path);
+		done.insert(path.clone());
+		Ok(())
+	}
+
+	/// `BinaryCacheStore::uploadData` and `uploadNarInfo` for one path:
+	/// the optional listing and debug info index, the NAR, then the narinfo.
+	fn publish<S>(
+		&self,
+		source: &LocalStore,
+		info: &ValidPathInfo,
+		signing_keys: &[SigningKey<S>],
+	) -> Result<()>
+	where
+		S: ed25519::signature::Signer<ed25519::Signature>,
+	{
+		let path = &info.path;
 		let Transport::File(dir) = &self.transport else {
 			unreachable!()
 		};
@@ -302,35 +427,78 @@ impl BinaryCache {
 				print(path)
 			)));
 		}
-		let (file_hash, file_size, suffix) = if self.upload_compression == "none" {
-			(hash, size, "")
+		let listing = if self.upload.write_nar_listing || self.upload.write_debug_info {
+			temporary.rewind()?;
+			Some(
+				crate::nar_listing::parse_listing(&mut BufReader::new(temporary.as_file_mut()))
+					.map_err(Error::Other)?,
+			)
+		} else {
+			None
+		};
+		let started = Instant::now();
+		let compression = self.upload.compression.as_str();
+		let (file_hash, file_size) = if compression == "none" {
+			(hash, size)
 		} else {
 			temporary.rewind()?;
 			let mut compressed = NamedTempFile::new_in(dir.join("nar"))?;
-			compress_nar(&self.upload_compression, &mut temporary, &mut compressed)?;
+			{
+				let mut writer = BufWriter::new(compressed.as_file_mut());
+				compress_nar(
+					&self.upload,
+					&mut BufReader::new(temporary.as_file_mut()),
+					&mut writer,
+				)?;
+				writer.flush()?;
+			}
 			compressed.rewind()?;
 			let mut sink = HashSink::new();
-			io::copy(&mut compressed, &mut sink)?;
-			let (hash, size) = sink.finish();
+			io::copy(compressed.as_file_mut(), &mut sink)?;
 			temporary = compressed;
-			let suffix = match self.upload_compression.as_str() {
-				"gzip" => "",
-				"bzip2" => ".bz2",
-				"zstd" => ".zst",
-				_ => unreachable!(),
-			};
-			(hash, size, suffix)
+			sink.finish()
+		};
+		let suffix = match compression {
+			"xz" => ".xz",
+			"bzip2" => ".bz2",
+			"zstd" => ".zst",
+			"lzip" => ".lzip",
+			"lz4" => ".lz4",
+			"br" => ".br",
+			_ => "",
 		};
 		let url = format!(
 			"nar/{}.nar{suffix}",
 			nix_compat::nixbase32::encode(&file_hash)
 		);
-		let metadata_path = local_cache_path(
-			dir,
-			&format!("{}.narinfo", nix_compat::nixbase32::encode(path.digest())),
-		)?;
+		if nix_compat::log::log_enabled(nix_compat::log::VerbosityLevel::Talkative) {
+			eprintln!(
+				"copying path '{}' ({size} bytes, compressed {:.1}% in {} ms) to binary cache",
+				print(path),
+				(1.0 - file_size as f64 / size as f64) * 100.0,
+				started.elapsed().as_millis()
+			);
+		}
+		let hash_part = nix_compat::nixbase32::encode(path.digest());
+		if let Some(listing) = &listing {
+			if self.upload.write_nar_listing {
+				let mut json = String::from("{\"root\":");
+				listing_json(listing, &mut json);
+				json.push_str(",\"version\":1}");
+				write_atomic(
+					&local_cache_path(dir, &format!("{hash_part}.ls"))?,
+					json.as_bytes(),
+				)?;
+			}
+			if self.upload.write_debug_info {
+				self.index_debug_info(dir, listing, &url)?;
+			}
+		}
+		let metadata_path = local_cache_path(dir, &format!("{hash_part}.narinfo"))?;
 		// Serialize signature merging and publication between Rust exporters.
-		let _publication_lock = PathLocks::lock([metadata_path.clone()])?;
+		let mut publication_lock = PathLocks::lock([metadata_path.clone()])?;
+		// CppNix takes no lock, so leave no lock file in the cache.
+		publication_lock.set_deletion(true);
 		let mut signatures = info
 			.sigs
 			.iter()
@@ -366,6 +534,18 @@ impl BinaryCache {
 					.map_err(|_| Error::Other(format!("invalid deriver for '{}'", print(path))))
 			})
 			.transpose()?;
+		let keys = self
+			.upload
+			.secret_key_files
+			.iter()
+			.map(|file| {
+				let text = fs::read_to_string(file)
+					.map_err(|e| Error::io(format!("opening file \"{file}\""), e))?;
+				nix_compat::narinfo::parse_keypair(text.trim())
+					.map(|(key, _)| key)
+					.map_err(|e| Error::Other(e.to_string()))
+			})
+			.collect::<Result<Vec<_>>>()?;
 		let mut narinfo = NarInfo {
 			flags: Flags::empty(),
 			store_path: info.path.as_ref(),
@@ -377,11 +557,13 @@ impl BinaryCache {
 			system: None,
 			deriver: deriver.as_ref().map(StorePath::as_ref),
 			url: &url,
-			compression: (self.upload_compression != "none")
-				.then_some(self.upload_compression.as_str()),
+			compression: Some(compression),
 			file_hash: Some(file_hash),
 			file_size: Some(file_size),
 		};
+		for key in &keys {
+			narinfo.add_signature(key);
+		}
 		for key in signing_keys {
 			narinfo.add_signature(key);
 		}
@@ -389,10 +571,57 @@ impl BinaryCache {
 			.signatures
 			.sort_by(|a, b| a.name().cmp(b.name()).then(a.bytes().cmp(b.bytes())));
 		narinfo.signatures.dedup();
-		persist_atomic(temporary, &local_cache_path(dir, &url)?)?;
+		let nar_path = local_cache_path(dir, &url)?;
+		// `uploadData` keeps an existing NAR of the same file hash; anything
+		// but a regular file there fails publication.
+		if !nar_path.is_file() {
+			persist_atomic(temporary, &nar_path)?;
+		}
 		write_atomic(&metadata_path, narinfo.to_string().as_bytes())?;
-		visiting.remove(path);
-		done.insert(path.clone());
+		Ok(())
+	}
+
+	/// `uploadData`'s `index-debug-info`: a `debuginfo/<build-id>` link for
+	/// each `lib/debug/.build-id/xx/<38 hex>.debug` file of the NAR.
+	fn index_debug_info(&self, dir: &Path, listing: &Listing, url: &str) -> Result<()> {
+		let is_hex = |name: &[u8]| name.iter().all(|c| matches!(c, b'0'..=b'9' | b'a'..=b'f'));
+		let Some(Listing::Directory(prefixes)) =
+			listing.find(&[b"lib".as_slice(), b"debug", b".build-id"])
+		else {
+			return Ok(());
+		};
+		for (s1, entry) in prefixes {
+			let Listing::Directory(files) = entry else {
+				continue;
+			};
+			if s1.len() != 2 || !is_hex(s1) {
+				continue;
+			}
+			for (s2, file) in files {
+				let Some(stem) = s2.strip_suffix(b".debug") else {
+					continue;
+				};
+				if !matches!(file, Listing::Regular { .. }) || stem.len() != 38 || !is_hex(stem) {
+					continue;
+				}
+				let s1 = String::from_utf8_lossy(s1);
+				let s2 = String::from_utf8_lossy(s2);
+				let key = local_cache_path(dir, &format!("debuginfo/{s1}{s2}"))?;
+				if key.exists() {
+					continue;
+				}
+				let mut json = String::from("{\"archive\":");
+				json_string(format!("../{url}").as_bytes(), &mut json);
+				json.push_str(",\"member\":");
+				json_string(
+					format!("lib/debug/.build-id/{s1}/{s2}").as_bytes(),
+					&mut json,
+				);
+				json.push('}');
+				fs::create_dir_all(dir.join("debuginfo"))?;
+				write_atomic(&key, json.as_bytes())?;
+			}
+		}
 		Ok(())
 	}
 
@@ -690,22 +919,217 @@ pub struct CachedPath {
 	pub file_size: Option<u64>,
 }
 
-fn compress_nar(method: &str, reader: &mut dyn Read, writer: &mut dyn Write) -> io::Result<()> {
-	match method {
+/// The `BinaryCacheStoreConfig` settings that shape uploads, from the
+/// cache URL's parameters.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct UploadSettings {
+	/// `compression`, `xz` by default.
+	pub compression: String,
+	/// `compression-level`; `-1` selects the method's default.
+	pub compression_level: i32,
+	/// `parallel-compression`; unset means on for zstd only.
+	pub parallel_compression: Option<bool>,
+	/// `write-nar-listing`: write `HASH.ls` beside each narinfo.
+	pub write_nar_listing: bool,
+	/// `index-debug-info`: index DWARF files under `debuginfo/`.
+	pub write_debug_info: bool,
+	/// `secret-key` followed by the `secret-keys` files.
+	pub secret_key_files: Vec<String>,
+}
+
+impl Default for UploadSettings {
+	fn default() -> Self {
+		Self {
+			compression: "xz".into(),
+			compression_level: -1,
+			parallel_compression: None,
+			write_nar_listing: false,
+			write_debug_info: false,
+			secret_key_files: Vec::new(),
+		}
+	}
+}
+
+/// `BaseSetting<bool>::parse`.
+fn parse_bool(value: &str) -> Option<bool> {
+	match value {
+		"true" | "yes" | "1" => Some(true),
+		"false" | "no" | "0" => Some(false),
+		_ => None,
+	}
+}
+
+/// A string as nlohmann's `dump()` writes it.
+fn json_string(bytes: &[u8], out: &mut String) {
+	out.push('"');
+	for c in String::from_utf8_lossy(bytes).chars() {
+		match c {
+			'"' => out.push_str("\\\""),
+			'\\' => out.push_str("\\\\"),
+			'\u{8}' => out.push_str("\\b"),
+			'\u{c}' => out.push_str("\\f"),
+			'\n' => out.push_str("\\n"),
+			'\r' => out.push_str("\\r"),
+			'\t' => out.push_str("\\t"),
+			c if (c as u32) < 0x20 => out.push_str(&format!("\\u{:04x}", c as u32)),
+			c => out.push(c),
+		}
+	}
+	out.push('"');
+}
+
+/// `NarAccessor::getListing` as compact JSON with sorted keys.
+fn listing_json(listing: &Listing, out: &mut String) {
+	use std::fmt::Write as _;
+	match listing {
+		Listing::Regular {
+			executable,
+			size,
+			offset,
+		} => {
+			let _ = write!(
+				out,
+				"{{\"executable\":{executable},\"narOffset\":{offset},\"size\":{size},\"type\":\"regular\"}}"
+			);
+		}
+		Listing::Directory(entries) => {
+			out.push_str("{\"entries\":{");
+			for (i, (name, entry)) in entries.iter().enumerate() {
+				if i > 0 {
+					out.push(',');
+				}
+				json_string(name, out);
+				out.push(':');
+				listing_json(entry, out);
+			}
+			out.push_str("},\"type\":\"directory\"}");
+		}
+		Listing::Symlink(target) => {
+			out.push_str("{\"target\":");
+			json_string(target, out);
+			out.push_str(",\"type\":\"symlink\"}");
+		}
+	}
+}
+
+/// `makeCompressionSink` with the reference's encoders and settings: xz and
+/// lzma through liblzma and bzip2 at libarchive's default level 9, which
+/// reproduce its bytes, and zstd in independent 16 MiB frames.
+fn compress_nar(
+	settings: &UploadSettings,
+	reader: &mut dyn Read,
+	writer: &mut dyn Write,
+) -> io::Result<()> {
+	let level = settings.compression_level;
+	let parallel = settings
+		.parallel_compression
+		.unwrap_or(settings.compression == "zstd");
+	match settings.compression.as_str() {
+		"xz" => crate::xz::compress(crate::xz::Format::Xz, level, parallel, reader, writer)?,
+		"lzma" => crate::xz::compress(crate::xz::Format::Lzma, level, parallel, reader, writer)?,
 		"gzip" => {
-			let mut encoder = flate2::write::GzEncoder::new(writer, flate2::Compression::default());
+			// libarchive's header records the time and a Unix origin.
+			let now = std::time::SystemTime::now()
+				.duration_since(std::time::UNIX_EPOCH)
+				.map_or(0, |d| d.as_secs() as u32);
+			let level = if (0..=9).contains(&level) {
+				level as u32
+			} else {
+				6
+			};
+			let mut encoder = flate2::GzBuilder::new()
+				.mtime(now)
+				.operating_system(3)
+				.write(writer, flate2::Compression::new(level));
 			io::copy(reader, &mut encoder)?;
 			encoder.finish()?;
 		}
 		"bzip2" => {
-			let mut encoder = bzip2::write::BzEncoder::new(writer, bzip2::Compression::default());
+			let level = if (1..=9).contains(&level) {
+				level as u32
+			} else {
+				9
+			};
+			let mut encoder = bzip2::write::BzEncoder::new(writer, bzip2::Compression::new(level));
 			io::copy(reader, &mut encoder)?;
 			encoder.finish()?;
 		}
-		"zstd" => {
-			zstd::stream::copy_encode(reader, writer, 0)?;
-		}
+		"zstd" => compress_zstd(level, parallel, reader, writer)?,
 		_ => return Err(io::Error::other("unsupported cache upload compression")),
+	}
+	Ok(())
+}
+
+/// `ZstdMultiFrameCompressionSink`: each 16 MiB of input is one frame
+/// pledged at its exact size; parallel compression uses up to four workers.
+fn compress_zstd(
+	level: i32,
+	parallel: bool,
+	reader: &mut dyn Read,
+	writer: &mut dyn Write,
+) -> io::Result<()> {
+	use zstd::zstd_safe::{self, CCtx, CParameter, InBuffer, OutBuffer, ResetDirective};
+	const FRAME: usize = 16 * 1024 * 1024;
+	let error =
+		|code: usize| io::Error::other(format!("zstd error: {}", zstd_safe::get_error_name(code)));
+	let mut cctx = CCtx::create();
+	if level != -1 {
+		cctx.set_parameter(CParameter::CompressionLevel(level))
+			.map_err(error)?;
+	}
+	if parallel {
+		let cpus = std::thread::available_parallelism()
+			.map_or(1, |n| n.get())
+			.min(4);
+		if cpus > 1 {
+			// Ignored if libzstd lacks threads, as in the reference.
+			let _ = cctx.set_parameter(CParameter::NbWorkers(cpus as u32));
+		}
+	}
+	let mut output = vec![0u8; CCtx::out_size()];
+	let mut frame = Vec::new();
+	let mut emitted = false;
+	let mut eof = false;
+	while !eof {
+		frame.clear();
+		while frame.len() < FRAME {
+			let start = frame.len();
+			frame.resize((start + 65536).min(FRAME), 0);
+			let n = loop {
+				match reader.read(&mut frame[start..]) {
+					Err(e) if e.kind() == io::ErrorKind::Interrupted => continue,
+					result => break result?,
+				}
+			};
+			frame.truncate(start + n);
+			if n == 0 {
+				eof = true;
+				break;
+			}
+		}
+		if frame.is_empty() && emitted {
+			break;
+		}
+		cctx.reset(ResetDirective::SessionOnly).map_err(error)?;
+		cctx.set_pledged_src_size(Some(frame.len() as u64))
+			.map_err(error)?;
+		let mut input = InBuffer::around(&frame);
+		loop {
+			let mut out = OutBuffer::around(&mut output[..]);
+			let remaining = cctx
+				.compress_stream2(
+					&mut out,
+					&mut input,
+					zstd_safe::zstd_sys::ZSTD_EndDirective::ZSTD_e_end,
+				)
+				.map_err(error)?;
+			let n = out.pos();
+			writer.write_all(&output[..n])?;
+			if remaining == 0 {
+				break;
+			}
+		}
+		emitted = true;
 	}
 	Ok(())
 }
