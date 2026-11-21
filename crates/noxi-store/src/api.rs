@@ -69,6 +69,18 @@ pub trait Store {
 			.collect())
 	}
 
+	/// `deepQueryPartialDerivationOutputMap`: like
+	/// [`Store::query_partial_derivation_output_map`], but an output with no
+	/// realisation of its own is looked up through the derivation resolved
+	/// with its inputs' outputs. Stores that cannot resolve derivations
+	/// answer with the partial map.
+	fn deep_query_partial_derivation_output_map(
+		&self,
+		drv: &StorePath,
+	) -> Result<BTreeMap<String, Option<StorePath>>> {
+		self.query_partial_derivation_output_map(drv)
+	}
+
 	fn read_derivation(&self, drv: &StorePath) -> Result<UnverifiedDerivation>;
 
 	/// Read output declarations for evaluation with the evaluator's feature

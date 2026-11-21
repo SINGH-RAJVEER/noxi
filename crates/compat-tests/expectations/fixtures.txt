@@ -63,10 +63,10 @@ pass:upstream_serve_protocol src/libstore-tests/data/serve-protocol/handshake-to
 anomaly src/libstore-tests/data/serve-protocol/drv-output.* # stale hash-based model; absent from 2.35.2 serve-protocol.cc tests
 anomaly src/libstore-tests/data/serve-protocol/realisation.* # stale hash-based model; absent from 2.35.2 serve-protocol.cc tests
 anomaly src/libstore-tests/data/serve-protocol/realisation-with-deps.* # stale hash-based model; absent from 2.35.2 serve-protocol.cc tests
-gap src/libstore-tests/data/worker-substitution/ca-drv/store-after.json # dummy_store_states: noxi caches hold no realisations, so the goal tries to build the floating CA derivation (platform mismatch) instead of substituting its output
+pass:dummy_store_states src/libstore-tests/data/worker-substitution/ca-drv/store-after.json # destination after noxi's derivation goal substitutes the realisation from the cache's build-trace-v2 and its output
 pass:dummy_store_states src/libstore-tests/data/worker-substitution/ca-drv/store-before.json # state built with noxi's local store and exported as DummyStore JSON
 pass:dummy_store_states src/libstore-tests/data/worker-substitution/ca-drv/substituter.json # state built with noxi's local store and exported as DummyStore JSON
-gap src/libstore-tests/data/worker-substitution/issue-11928/store-after.json # dummy_store_states: the goal reads the CA-input root derivation with the ordinary parser (error parsing derivation: FloatingContentAddressedOutput); no realisation substitution
+pass:dummy_store_states src/libstore-tests/data/worker-substitution/issue-11928/store-after.json # destination after noxi's goal substitutes the input's realisation, resolves the root and substitutes the resolved realisation; the resolved derivation is not written
 pass:dummy_store_states src/libstore-tests/data/worker-substitution/issue-11928/store-before.json # state built with noxi's local store and exported as DummyStore JSON
 pass:dummy_store_states src/libstore-tests/data/worker-substitution/issue-11928/substituter.json # state built with noxi's local store and exported as DummyStore JSON
 pass:dummy_store_states src/libstore-tests/data/worker-substitution/single/substituter.json # substituter state, and the destination after noxi's substitution goal from a file:// cache

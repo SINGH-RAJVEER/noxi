@@ -111,12 +111,64 @@ pub fn copy(mut parsed: Parsed) -> Result<ExitCode, Failure> {
 		Ok(target) => target,
 		Err(code) => return Ok(code),
 	};
+	// `BuiltPathsCommand` realises derivation outputs before copying them.
+	let built: Vec<noxi_store::DerivedPath> = target
+		.paths
+		.iter()
+		.filter(|path| matches!(path, noxi_store::DerivedPath::Built { .. }))
+		.cloned()
+		.collect();
+	if !built.is_empty() {
+		let missing = target.store.query_missing(&built)?;
+		crate::paths::print_missing(target.store.as_ref(), &missing)?;
+		target.store.build_paths(&built)?;
+	}
 	let source_uri = crate::store::store_uri(parsed.value("store"), &parsed.settings);
 	let (source, _) = crate::store::open_local(&source_uri, &parsed.settings)?
 		.ok_or_else(|| unsupported("copy from this store"))?;
 	let mut roots = BTreeSet::new();
+	// `toRealisedPaths`: the realisations of content-addressed outputs are
+	// copied with the outputs.
+	let mut realisations = std::collections::BTreeMap::new();
 	for path in target.paths {
-		roots.extend(expression::outputs(target.store.as_ref(), &path)?.into_values());
+		match &path {
+			noxi_store::DerivedPath::Built { drv, outputs } if source.config().ca_derivations => {
+				let all: BTreeSet<String> = source
+					.query_partial_derivation_output_map(drv)?
+					.into_keys()
+					.collect();
+				if let Some(name) = outputs.difference(&all).next() {
+					return Err(Failure::Error(format!(
+						"derivation '{}' does not have an output named '{name}'",
+						drv.to_absolute_path()
+					)));
+				}
+				let names = if outputs.is_empty() {
+					all
+				} else {
+					outputs.clone()
+				};
+				for name in names {
+					let mut collect =
+						|drv: &nix_compat::store_path::StorePath,
+						 name: &str,
+						 realisation: &noxi_store::Realisation| {
+							realisations
+								.insert((drv.clone(), name.to_owned()), realisation.clone());
+						};
+					let output =
+						noxi_build::local::deep_query_output(&source, drv, &name, &mut collect)
+							.map_err(|e| Failure::Error(e.to_string()))?;
+					roots.insert(output.ok_or_else(|| {
+						Failure::Error(format!(
+							"output '{name}' of derivation '{}' has not been built",
+							drv.to_absolute_path()
+						))
+					})?);
+				}
+			}
+			_ => roots.extend(expression::outputs(target.store.as_ref(), &path)?.into_values()),
+		}
 	}
 	let closure = source.compute_closure(&roots)?;
 	let mut missing = BTreeSet::new();
@@ -155,6 +207,11 @@ pub fn copy(mut parsed: Parsed) -> Result<ExitCode, Failure> {
 	{
 		// The cache signs with its own `secret-key` and `secret-keys`.
 		destination.upload(&source, &path, &keys[..0])?;
+	}
+	// `copyPaths` registers the realisations once their outputs are in the
+	// cache, as `build-trace-v2/<drv>/<output>.doi` files.
+	for ((drv, name), realisation) in &realisations {
+		destination.upload_realisation(drv, name, realisation)?;
 	}
 	Ok(ExitCode::SUCCESS)
 }

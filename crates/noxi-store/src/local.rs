@@ -569,6 +569,12 @@ impl LocalStore {
 				git_hashing: self.config.git_hashing,
 			},
 		)
+		.map_err(|e| match self.reference_parse_error(drv_path, &bytes) {
+			// Malformed files fail with the reference's `FormatError`;
+			// noxi's own feature and support checks keep their messages.
+			Some((message, true)) => Error::Other(message),
+			_ => e,
+		})
 	}
 
 	/// Parse an ordinary derivation. Build callers that accept floating CA
@@ -578,10 +584,44 @@ impl LocalStore {
 		let bytes =
 			fs::read(&real).context(|| format!("reading derivation '{}'", print(drv_path)))?;
 		UnverifiedDerivation::from_aterm_bytes(&bytes).map_err(|e| {
-			Error::Other(format!(
-				"error parsing derivation '{}': {e:?}",
-				print(drv_path)
-			))
+			match self.reference_parse_error(drv_path, &bytes) {
+				Some((message, _)) => Error::Other(message),
+				// The reference reads the file, but this ordinary
+				// derivation form cannot hold it.
+				None => Error::Other(format!(
+					"error parsing derivation '{}': {}",
+					print(drv_path),
+					crate::build_derivation::parser_error_message(&e)
+				)),
+			}
+		})
+	}
+
+	/// The error `readDerivation` raises for the derivation file `bytes`,
+	/// with whether it is a `FormatError`, or `None` if the reference's
+	/// parser accepts the file. Format errors are wrapped in `error parsing
+	/// derivation '<path>': ` as `readDerivationCommon` does; other errors,
+	/// such as a disabled experimental feature, are raised unchanged.
+	fn reference_parse_error(&self, drv_path: &StorePath, bytes: &[u8]) -> Option<(String, bool)> {
+		let name = drv_path
+			.name()
+			.strip_suffix(".drv")
+			.unwrap_or(drv_path.name());
+		let features = nix_compat::cppnix_json::derivation::Features {
+			ca_derivations: self.config.ca_derivations,
+			dynamic_derivations: self.config.dynamic_derivations,
+			impure_derivations: self.config.impure_derivations,
+			git_hashing: self.config.git_hashing,
+		};
+		let e = nix_compat::cppnix_json::derivation::Derivation::from_aterm(bytes, name, features)
+			.err()?;
+		Some(if e.is_format_error() {
+			(
+				format!("error parsing derivation '{}': {e}", print(drv_path)),
+				true,
+			)
+		} else {
+			(e.to_string(), false)
 		})
 	}
 

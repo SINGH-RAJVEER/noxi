@@ -10,9 +10,9 @@
 //! noxi's `dummy://` opens no store at all. `dummy_store_states` instead
 //! performs each scenario's operations, including the substitution goals,
 //! on noxi's local store and compares the exported state with these files;
-//! the states it reproduces are passes, and the three it cannot (an
-//! output-less derivation and the two content-addressed substitutions) are
-//! gaps. Independently of any store, it is checked here, against `nix_compat`: every store
+//! the states it reproduces are passes, and the one it cannot (an
+//! output-less derivation, which a local store refuses) is a gap.
+//! Independently of any store, it is checked here, against `nix_compat`: every store
 //! object's NAR hash, NAR size and content-addressed store path are
 //! recomputed from its file tree and references, every path info, file
 //! tree, derivation and realisation decodes and re-encodes to the file's
@@ -56,10 +56,14 @@ const FIXTURES: &[(&str, &str, Class)] = &[
 	("dummy-store", "one-derivation", Class::Gap),
 	("dummy-store", "one-flat-file", Class::Pass),
 	("dummy-store", "one-realisation", Class::Pass),
-	("worker-substitution/ca-drv", "store-after", Class::Gap),
+	("worker-substitution/ca-drv", "store-after", Class::Pass),
 	("worker-substitution/ca-drv", "store-before", Class::Pass),
 	("worker-substitution/ca-drv", "substituter", Class::Pass),
-	("worker-substitution/issue-11928", "store-after", Class::Gap),
+	(
+		"worker-substitution/issue-11928",
+		"store-after",
+		Class::Pass,
+	),
 	(
 		"worker-substitution/issue-11928",
 		"store-before",

@@ -282,6 +282,30 @@ impl DerivationBuilder {
 		mut self,
 		outputs: Outputs,
 	) -> Result<UnverifiedDerivation, DerivationError> {
+		self.set_output_environment(&outputs)?;
+		self.validate()?;
+		self.build_unverified_as_parsed(outputs)
+	}
+
+	/// Like [`Self::build_unverified`], but skips [validation] of the
+	/// platform, builder, environment keys and input derivations.
+	///
+	/// This is how CppNix 2.35.2's `tryResolve` builds a resolved
+	/// derivation from an existing one: it checks nothing the parsed
+	/// derivation did not already have to satisfy.
+	///
+	/// [validation]: #validation
+	pub fn build_resolved(
+		mut self,
+		outputs: Outputs,
+	) -> Result<UnverifiedDerivation, DerivationError> {
+		self.set_output_environment(&outputs)?;
+		self.build_unverified_as_parsed(outputs)
+	}
+
+	/// Check the output names and set the environment variable of each
+	/// output to its store path.
+	fn set_output_environment(&mut self, outputs: &Outputs) -> Result<(), DerivationError> {
 		for output_name in outputs.names() {
 			output_name.validate().map_err(|_| {
 				DerivationError::InvalidOutputs(OutputsError::InvalidOutputName(
@@ -302,16 +326,7 @@ impl DerivationBuilder {
 				warn!(output.name = %output_name, "this derivation's environment shadows the output name {output_name}");
 			}
 		}
-		self.validate()?;
-
-		// Replace outputs builder if it doesn't match the provided outputs
-		if self.outputs != outputs {
-			self.outputs = outputs.clone().into_builder();
-		}
-		Ok(UnverifiedDerivation {
-			builder: self,
-			outputs,
-		})
+		Ok(())
 	}
 
 	/// Like [`Self::build_unverified`], but leaves the environment as it is and

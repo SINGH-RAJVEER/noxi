@@ -20,9 +20,11 @@
 //! goal (`LocalBackend::build_paths` with an opaque path) from a `file://`
 //! binary cache holding the substituter's objects, mirroring the trusted
 //! in-memory substituter of the C++ test. The two content-addressed
-//! scenarios need realisations substituted from a cache, which noxi's
-//! binary caches and derivation goals do not do; their `store-after`
-//! files stay gaps and the tests pin the observed failures. The
+//! scenarios also upload the substituter's realisations to the cache's
+//! `build-trace-v2` directory, as `nix copy` does, and run a derivation
+//! goal for the floating output, which substitutes the realisation and its
+//! output and, for issue 11928, resolves the root through its input's
+//! realisation first. The
 //! `one-derivation` state has a derivation without outputs, which a local
 //! store refuses in CppNix as in noxi; it stays a gap until noxi has an
 //! in-memory store. `upstream_dummy_store` separately checks that every
@@ -612,19 +614,24 @@ fn store_object_with_a_dependency_is_substituted() {
 	);
 }
 
-/// What substituting a content-addressed derivation output leaves in the
-/// destination. noxi's caches hold no realisations, so the goal cannot
-/// learn the output path and tries to build the derivation, which has no
-/// builder for this platform.
-fn substitute_floating_output(destination: &LocalBackend, drv: &StorePath) -> String {
-	let error = destination
+/// Uploads the substituter's realisation of `drv^out` to the cache, as
+/// `nix copy` writes it.
+fn upload_realisation(source: &LocalStore, drv: &StorePath, url: &str) {
+	let realisation = source.query_realisation(drv, "out").unwrap().unwrap();
+	BinaryCache::open(url)
+		.unwrap()
+		.upload_realisation(drv, "out", &realisation)
+		.unwrap();
+}
+
+/// A derivation goal for `drv^out`, as `worker.makeDerivationGoal` runs it.
+fn substitute_floating_output(destination: &LocalBackend, drv: &StorePath) {
+	destination
 		.build_paths(&[DerivedPath::Built {
 			drv: drv.clone(),
 			outputs: BTreeSet::from(["out".to_owned()]),
 		}])
-		.expect_err("noxi substitutes no realisations");
-	eprintln!("observed: {error}");
-	error.to_string()
+		.unwrap();
 }
 
 #[test]
@@ -668,31 +675,25 @@ fn floating_derivation_output() {
 		None
 	);
 	cache_of(&substituter, &[&output], &cache);
+	upload_realisation(&substituter, &drv_path, &url);
 
-	// Gap: `ca-drv/store-after.json` has the output and its realisation.
-	// noxi never asks the cache for one, so it tries to build instead.
-	let error = substitute_floating_output(&destination, &drv_path);
-	assert!(
-		error.starts_with(&format!("Cannot build '{}'.", drv_path.to_absolute_path()))
-			&& error.contains("Reason: platform mismatch"),
-		"{error}"
-	);
-	assert!(!destination.is_valid_path(&output).unwrap(), "{error}");
+	// The goal finds the realisation in the cache's build trace,
+	// substitutes the output and registers the realisation.
+	substitute_floating_output(&destination, &drv_path);
+	assert!(destination.is_valid_path(&output).unwrap());
 	assert_eq!(
 		destination
 			.store
 			.query_realisation(&drv_path, "out")
-			.unwrap(),
-		None
+			.unwrap()
+			.map(|realisation| realisation.out_path),
+		Some(output)
 	);
-	assert_ne!(
-		export(&destination.store, &root),
-		read_fixture("worker-substitution/ca-drv", "store-after")
-	);
-	assert_eq!(
-		export(&destination.store, &root),
-		read_fixture("worker-substitution/ca-drv", "store-before"),
-		"a failed goal leaves the destination unchanged: {error}"
+	assert_state(
+		&destination.store,
+		&root,
+		"worker-substitution/ca-drv",
+		"store-after",
 	);
 }
 
@@ -763,28 +764,34 @@ fn floating_derivation_output_with_a_dependency() {
 		"substituter",
 	);
 	cache_of(&substituter, &[&dep_output, &root_output], &cache);
+	upload_realisation(&substituter, &dep_drv_path, &url);
+	upload_realisation(&substituter, &resolved_path, &url);
 
-	// Gap: `issue-11928/store-after.json` has both outputs and both
-	// realisations. The goal reads the root derivation with the parser for
-	// ordinary derivations, which rejects its floating output.
-	let error = substitute_floating_output(&destination, &root_drv_path);
-	assert!(
-		error.starts_with(&format!(
-			"error parsing derivation '{}':",
-			root_drv_path.to_absolute_path()
-		)) && error.contains("FloatingContentAddressedOutput"),
-		"{error}"
-	);
-	assert!(!destination.is_valid_path(&root_output).unwrap(), "{error}");
-	assert_eq!(
+	// The cache has no realisation of the unresolved root, so the goal
+	// realises the input through its realisation, resolves the root and
+	// substitutes the resolved derivation's output.
+	substitute_floating_output(&destination, &root_drv_path);
+	let realised = |drv: &StorePath| {
 		destination
 			.store
-			.query_realisation(&resolved_path, "out")
-			.unwrap(),
-		None
-	);
-	assert_ne!(
-		export(&destination.store, &root),
-		read_fixture("worker-substitution/issue-11928", "store-after")
+			.query_realisation(drv, "out")
+			.unwrap()
+			.map(|realisation| realisation.out_path)
+	};
+	assert!(destination.is_valid_path(&root_output).unwrap());
+	assert_eq!(realised(&resolved_path), Some(root_output));
+	assert_eq!(realised(&dep_drv_path), Some(dep_output.clone()));
+	// TODO #11928 in the reference: the input's output is fetched although
+	// the root output does not refer to it.
+	assert!(destination.is_valid_path(&dep_output).unwrap());
+	// No realisation is recorded for the unresolved root, and the resolved
+	// derivation, which was never built, is not written.
+	assert_eq!(realised(&root_drv_path), None);
+	assert!(!destination.is_valid_path(&resolved_path).unwrap());
+	assert_state(
+		&destination.store,
+		&root,
+		"worker-substitution/issue-11928",
+		"store-after",
 	);
 }

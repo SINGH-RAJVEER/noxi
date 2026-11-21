@@ -75,3 +75,4 @@ serde_json.workspace = true
 [dev-dependencies]
 tempfile.workspace = true
 serde_json.workspace = true
+rusqlite = { version = "0.40.2", features = ["bundled"] }

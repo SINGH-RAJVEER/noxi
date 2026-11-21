@@ -107,8 +107,10 @@ impl LocalBackend {
 			"Cannot build '{}'.\nReason: 1 dependency failed.",
 			drv.to_absolute_path()
 		);
-		let derivation = self.store.read_derivation(drv)?;
+		// Floating outputs have no paths to list.
+		let derivation = self.store.read_build_derivation(drv)?;
 		let mut outputs: Vec<String> = derivation
+			.basic
 			.outputs()
 			.store_paths()
 			.map(StorePath::to_absolute_path)
@@ -229,6 +231,20 @@ impl Store for LocalBackend {
 		drv: &StorePath,
 	) -> Result<BTreeMap<String, Option<StorePath>>> {
 		self.store.query_partial_derivation_output_map(drv)
+	}
+
+	fn deep_query_partial_derivation_output_map(
+		&self,
+		drv: &StorePath,
+	) -> Result<BTreeMap<String, Option<StorePath>>> {
+		let mut outputs = self.store.query_partial_derivation_output_map(drv)?;
+		for (name, path) in &mut outputs {
+			if path.is_none() {
+				*path = crate::local::deep_query_output(&self.store, drv, name, &mut |_, _, _| {})
+					.map_err(|e| Error::Other(e.to_string()))?;
+			}
+		}
+		Ok(outputs)
 	}
 
 	fn read_derivation(&self, drv: &StorePath) -> Result<UnverifiedDerivation> {
@@ -591,6 +607,9 @@ impl LocalBackend {
 					// CppNix throws the substitution goal's own failure.
 					self.store.substitute(substituters, path)?;
 				}
+				// A derivation built above realised all its outputs; its goal
+				// is shared, as in CppNix's worker.
+				DerivedPath::Built { drv, .. } if built.contains(drv) => {}
 				DerivedPath::Built { drv, outputs } => {
 					let wanted = (!outputs.is_empty()).then_some(outputs);
 					let result = builder.realise_with_events(drv, wanted, &mut events);

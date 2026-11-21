@@ -418,7 +418,13 @@ impl NixStore<'_> {
 					outputs: outputs.clone(),
 				}])?;
 			}
-			let output_paths = self.store.query_derivation_outputs(path)?;
+			let mut output_paths = self.store.query_derivation_outputs(path)?;
+			// Content-addressed outputs are known by their realisations.
+			for (name, known) in self.store.deep_query_partial_derivation_output_map(path)? {
+				if let Some(known) = known {
+					output_paths.entry(name).or_insert(known);
+				}
+			}
 			let all = output_paths_or_derivation(self.store, path, output_paths)?;
 			self.root_nr.set(self.root_nr.get() + 1);
 			let wanted: BTreeSet<String> = if outputs.is_empty() {

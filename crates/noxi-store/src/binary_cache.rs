@@ -890,6 +890,78 @@ impl BinaryCache {
 			.map(|bytes| String::from_utf8_lossy(&bytes).into_owned()))
 	}
 
+	/// `BinaryCacheStore::makeRealisationPath`: the build trace entry for
+	/// output `output` of `drv_path`.
+	fn realisation_file(drv_path: &StorePath, output: &str) -> String {
+		format!("build-trace-v2/{drv_path}/{output}.doi")
+	}
+
+	/// `BinaryCacheStore::queryRealisationUncached`: the build trace entry
+	/// the cache holds for output `output` of `drv_path`, if any.
+	pub fn query_realisation(
+		&self,
+		drv_path: &StorePath,
+		output: &str,
+	) -> Result<Option<crate::local::Realisation>> {
+		let name = Self::realisation_file(drv_path, output);
+		let Some(bytes) = self.get_file(&name)? else {
+			return Ok(None);
+		};
+		let context = || {
+			format!(
+				"\n… while parsing file '{name}' as a build trace value for key '{}^{output}'",
+				drv_path.to_absolute_path()
+			)
+		};
+		let value: serde_json::Value = serde_json::from_slice(&bytes)
+			.map_err(|e| Error::Other(format!("{e}{}", context())))?;
+		let realisation = nix_compat::cppnix_json::UnkeyedRealisation::from_json(&value)
+			.map_err(|e| Error::Other(format!("{e}{}", context())))?;
+		Ok(Some(crate::local::Realisation {
+			out_path: realisation.out_path,
+			signatures: realisation
+				.signatures
+				.iter()
+				.map(|signature| {
+					format!("{}:{}", signature.key_name, BASE64.encode(&signature.sig))
+				})
+				.collect(),
+		}))
+	}
+
+	/// `BinaryCacheStore::registerDrvOutput` for a `file://` cache: write
+	/// the build trace entry as compact JSON, as `nix copy` does for the
+	/// realisations of the outputs it copies.
+	pub fn upload_realisation(
+		&self,
+		drv_path: &StorePath,
+		output: &str,
+		realisation: &crate::local::Realisation,
+	) -> Result<()> {
+		let Transport::File(dir) = &self.transport else {
+			return Err(Error::Other(
+				"binary cache uploads require a file:// cache".into(),
+			));
+		};
+		let signatures = realisation
+			.signatures
+			.iter()
+			.map(|signature| {
+				nix_compat::cppnix_json::Signature::parse(signature)
+					.map_err(|e| Error::Other(e.to_string()))
+			})
+			.collect::<Result<_>>()?;
+		let value = nix_compat::cppnix_json::UnkeyedRealisation {
+			out_path: realisation.out_path.clone(),
+			signatures,
+		}
+		.to_json();
+		let destination = local_cache_path(dir, &Self::realisation_file(drv_path, output))?;
+		fs::create_dir_all(destination.parent().expect("cache file has a parent"))
+			.map_err(|e| Error::io(format!("creating binary cache '{}'", self.uri), e))?;
+		write_atomic(&destination, value.to_string().as_bytes())
+	}
+
 	/// The metadata the cache records for `path`, read as the reference
 	/// reads it, with its errors for malformed files.
 	pub fn query_path_info(&self, path: &StorePath) -> Result<Option<CachedPath>> {

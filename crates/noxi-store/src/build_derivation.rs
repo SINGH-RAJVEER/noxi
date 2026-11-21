@@ -281,8 +281,12 @@ impl BuildDerivation {
 			));
 		}
 		normalised.extend_from_slice(rest);
-		let basic = UnverifiedDerivation::from_aterm_bytes(&normalised)
-			.map_err(|e| Error::Other(format!("error parsing derivation: {e:?}")))?;
+		let basic = UnverifiedDerivation::from_aterm_bytes(&normalised).map_err(|e| {
+			Error::Other(format!(
+				"error parsing derivation: {}",
+				parser_error_message(&e)
+			))
+		})?;
 		Ok(Self {
 			basic,
 			floating,
@@ -378,5 +382,15 @@ impl BuildDerivation {
 		}
 		out.extend_from_slice(rest);
 		out
+	}
+}
+
+/// The message of a derivation parser error, without the parser's debug
+/// form of the remaining input.
+pub(crate) fn parser_error_message(e: &nix_compat::derivation::ParserError<&[u8]>) -> String {
+	match e {
+		nix_compat::derivation::ParserError::Parser(e) => e.code.to_string(),
+		nix_compat::derivation::ParserError::Incomplete => "premature EOF".to_owned(),
+		nix_compat::derivation::ParserError::Validation(e) => e.to_string(),
 	}
 }

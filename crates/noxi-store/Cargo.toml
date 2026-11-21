@@ -23,6 +23,7 @@ lzma-rust2 = { version = "0.15", default-features = false, features = ["std", "x
 nix-compat = { package = "noxi-compat", path = "../noxi/nix-compat", version = "0.0.5", features = ["serde"] }
 path-clean.workspace = true
 rusqlite = { version = "0.40.2", features = ["bundled"] }
+serde_json.workspace = true
 sha2.workspace = true
 tempfile.workspace = true
 thiserror.workspace = true
