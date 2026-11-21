@@ -526,6 +526,31 @@ fn unreachable_http_substituters_retry_and_warn_like_reference() {
 		.status
 		.success()
 	);
+	// A second copy whose `nix-cache-info` sets a priority.
+	let ranked = fixture.path().join("ranked");
+	fs::create_dir(&ranked).unwrap();
+	for entry in fs::read_dir(&cache).unwrap() {
+		let entry = entry.unwrap();
+		if entry.path().is_dir() {
+			fs::create_dir(ranked.join(entry.file_name())).unwrap();
+			for file in fs::read_dir(entry.path()).unwrap() {
+				let file = file.unwrap();
+				fs::copy(
+					file.path(),
+					ranked.join(entry.file_name()).join(file.file_name()),
+				)
+				.unwrap();
+			}
+		} else {
+			fs::copy(entry.path(), ranked.join(entry.file_name())).unwrap();
+		}
+	}
+	fs::write(
+		ranked.join("nix-cache-info"),
+		"StoreDir: /nix/store\nPriority: 10\n",
+	)
+	.unwrap();
+	let ranked = format!("file://{}", ranked.display());
 	let cache = format!("file://{}", cache.display());
 	let error = FailingServer::new("500 Internal Server Error");
 	let missing = FailingServer::new("404 Not Found");
@@ -553,6 +578,10 @@ fn unreachable_http_substituters_retry_and_warn_like_reference() {
 		refused.clone(),
 		format!("{failing} {cache}"),
 		format!("{empty} {cache}"),
+		// Caches are tried by priority, 0 unless set, and then in order.
+		format!("{cache} {ranked}"),
+		format!("{ranked} {cache}?priority=10"),
+		format!("{cache}?priority=20 {ranked}"),
 	] {
 		let mut results = Vec::new();
 		for bin in [

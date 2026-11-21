@@ -269,7 +269,8 @@ impl BinaryCache {
 			transport,
 			info: CacheInfo {
 				want_mass_query: false,
-				priority: 50,
+				// `StoreConfig::priority` defaults to 0.
+				priority: 0,
 			},
 			trusted,
 			path_info_cache: Arc::default(),
