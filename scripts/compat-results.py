@@ -2,26 +2,26 @@
 
 Subcommands:
 
-  run --tier TIER --dir DIR -- COMMAND...
-      Record the run's provenance in DIR/run.json, run COMMAND with
-      NOXI_RESULTS_DIR=DIR and NOXI_TIER=TIER, turn nextest's JUnit report
-      for the tier's profile into DIR/nextest.jsonl, and write
-      DIR/summary.json. Exits with COMMAND's status.
-  junit --tier TIER --dir DIR JUNIT.xml
-      Only the JUnit conversion.
-  qualification --dir DIR RESULT_DIR...
-      Turn disposable-VM qualification reports
-      (tests/qualification/results/*/MODE.json) into DIR/qualification.jsonl.
-  summary DIR...
-      Write DIR/summary.json for each record directory and print the counts.
-  keep DIR NAME
-      Copy a record directory to tests/compat-results/NAME as committed
-      evidence; refuses records of a dirty source tree.
-  rows
-      List the compatibility matrix row ids.
-  evidence [--check]
-      Regenerate docs/compatibility-evidence.md from tests/compat-results,
-      or fail when it is stale, a matrix row is unmapped, or a link is broken.
+	run --tier TIER --dir DIR -- COMMAND...
+		Record the run's provenance in DIR/run.json, run COMMAND with
+		NOXI_RESULTS_DIR=DIR and NOXI_TIER=TIER, turn nextest's JUnit report
+		for the tier's profile into DIR/nextest.jsonl, and write
+		DIR/summary.json. Exits with COMMAND's status.
+	junit --tier TIER --dir DIR JUNIT.xml
+		Only the JUnit conversion.
+	qualification --dir DIR RESULT_DIR...
+		Turn disposable-VM qualification reports
+		(tests/qualification/results/*/MODE.json) into DIR/qualification.jsonl.
+	summary DIR...
+		Write DIR/summary.json for each record directory and print the counts.
+	keep DIR NAME
+		Copy a record directory to tests/compat-results/NAME as committed
+		evidence; refuses records of a dirty source tree.
+	rows
+		List the compatibility matrix row ids.
+	evidence [--check]
+		Regenerate docs/compatibility-evidence.md from tests/compat-results,
+		or fail when it is stale, a matrix row is unmapped, or a link is broken.
 
 The record format is documented in docs/compatibility-results.md.
 """

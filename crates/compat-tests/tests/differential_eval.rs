@@ -158,6 +158,8 @@ fn timed_out_case_is_recorded_as_a_mismatch() {
 	let output = Command::new(env!("CARGO_BIN_EXE_differential-eval"))
 		.args([&reference, &candidate, &report])
 		.env("NOXI_DIFF_TIMEOUT_MS", "100")
+		.env_remove("NOXI_RESULTS_DIR")
+		.env_remove("NOXI_TIER")
 		.output()
 		.expect("run differential evaluator");
 	assert_eq!(output.status.code(), Some(1), "{output:?}");

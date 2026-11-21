@@ -456,6 +456,18 @@ impl Recorder {
 	) -> io::Result<Self> {
 		let dir =
 			env::var_os(RESULTS_DIR_VAR).map_or_else(|| default_dir.to_path_buf(), PathBuf::from);
+		Self::create_in(runner, &dir, tier, reference, noxi)
+	}
+
+	/// As [`Recorder::create`], but always in `dir`.
+	pub fn create_in(
+		runner: &str,
+		dir: &Path,
+		tier: &str,
+		reference: Value,
+		noxi: Value,
+	) -> io::Result<Self> {
+		let dir = dir.to_path_buf();
 		fs::create_dir_all(&dir)?;
 		let path = dir.join(format!("{runner}.jsonl"));
 		let file = fs::File::create(&path)?;
@@ -594,7 +606,8 @@ mod tests {
 	#[test]
 	fn records_are_one_json_object_per_line() {
 		let dir = tempfile::tempdir().unwrap();
-		let recorder = Recorder::create("unit", dir.path(), "fast", json!({}), json!({})).unwrap();
+		let recorder =
+			Recorder::create_in("unit", dir.path(), "fast", json!({}), json!({})).unwrap();
 		let case = Case {
 			id: "one".into(),
 			matrix_row: "nix-language-and-evaluator".into(),
