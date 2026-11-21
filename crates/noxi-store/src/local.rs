@@ -716,6 +716,29 @@ impl LocalStore {
 		query_realisation(&self.db(), drv_path, output)
 	}
 
+	/// The build trace entry for output `output` of `drv_path`, for this
+	/// store as another store's substituter. The asking store has
+	/// `ca-derivations` enabled, so CppNix opens this one with it too and
+	/// answers from its database whatever this store's own settings say. A
+	/// database that has never had the content-addressed schema, which
+	/// CppNix would migrate to an empty table on opening, has no entry.
+	pub fn query_build_trace(
+		&self,
+		drv_path: &StorePath,
+		output: &str,
+	) -> Result<Option<Realisation>> {
+		let db = self.db();
+		let has_table: bool = db
+			.prepare_cached(
+				"select exists (select 1 from sqlite_master where type = 'table' and name = 'BuildTraceV3')",
+			)?
+			.query_row([], |row| row.get(0))?;
+		if !has_table {
+			return Ok(None);
+		}
+		query_realisation(&db, drv_path, output)
+	}
+
 	/// Whether `info` lacks the signatures `require-sigs` demands.
 	pub fn path_info_is_untrusted(&self, info: &ValidPathInfo) -> bool {
 		self.config.require_sigs && info.check_signatures(&self.public_keys) == 0

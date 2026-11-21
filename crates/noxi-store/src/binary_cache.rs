@@ -923,6 +923,11 @@ impl BinaryCache {
 		drv_path: &StorePath,
 		output: &str,
 	) -> Result<Option<crate::local::Realisation>> {
+		// A local store answers from its database, as CppNix's
+		// `LocalStore::queryRealisationUncached` does.
+		if let Transport::Store(store) = &self.transport {
+			return store.query_build_trace(drv_path, output);
+		}
 		let name = Self::realisation_file(drv_path, output);
 		let Some(bytes) = self.get_file(&name)? else {
 			return Ok(None);
@@ -1688,18 +1693,32 @@ impl LocalStore {
 			// copy itself, as `copyPaths` does.
 			let acts = nix_compat::log::logger::worker_active().then(|| {
 				let shown = print(path);
+				// `makeCopyPathMessage` names only the other store when one
+				// of them is a `local` shorthand, the source first: a local
+				// store substituter (`auto`, `local?root=`) shows as
+				// `local://`, and the copy then names the destination.
+				let (source, text) = match cache.transport {
+					Transport::Store(_) => (
+						"local://".to_owned(),
+						format!("copying path '{shown}' to 'local://'"),
+					),
+					_ => (
+						cache.uri.clone(),
+						format!("copying path '{shown}' from '{}'", cache.uri),
+					),
+				};
 				let substitute = Activity::new(
 					VerbosityLevel::Error,
 					ActivityType::Substitute,
 					"",
-					vec![shown.clone().into(), cache.uri.clone().into()],
+					vec![shown.clone().into(), source.clone().into()],
 					0,
 				);
 				let copy = Activity::new(
 					VerbosityLevel::Info,
 					ActivityType::CopyPath,
-					format!("copying path '{shown}' from '{}'", cache.uri),
-					vec![shown.into(), cache.uri.clone().into(), "local://".into()],
+					text,
+					vec![shown.into(), source.into(), "local://".into()],
 					substitute.id(),
 				);
 				(substitute, copy)

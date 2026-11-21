@@ -320,3 +320,91 @@ fn ca_outputs_copy_to_and_substitute_from_file_caches_like_the_reference() {
 	assert!(drvs.iter().all(|drv| !parent.ends_with(drv)), "{drvs:?}");
 	assert!(drvs.iter().any(|drv| input.ends_with(drv)), "{drvs:?}");
 }
+
+/// A local store as the substituter, `local?root=SRC&trusted=1`: CppNix
+/// answers the realisation queries from the source store's build trace, so
+/// the parent is substituted without building.
+#[test]
+fn ca_outputs_substitute_from_a_local_store_like_the_reference() {
+	let env = Env::new();
+	let busybox = busybox();
+	let expr = env.path("expr.nix");
+	fs::write(&expr, EXPR.replace("@busybox@", &busybox)).unwrap();
+	let copy_busybox = |store: &str| {
+		env.ok(
+			&reference("nix"),
+			&[
+				"copy",
+				"--no-check-sigs",
+				"--to",
+				&format!("local?root={store}"),
+				&busybox,
+			],
+			"",
+		);
+	};
+	let instantiate = |store: &str, attr: &str| {
+		env.ok(
+			&reference("nix-instantiate"),
+			&["--store", store, expr.to_str().unwrap(), "-A", attr],
+			"",
+		)
+		.trim()
+		.to_owned()
+	};
+	let src = env.store("src");
+	copy_busybox(&src);
+	let input = instantiate(&src, "input");
+	let parent = instantiate(&src, "parent");
+	env.ok(
+		&reference("nix-store"),
+		&["--store", &src, "--realise", &parent],
+		"",
+	);
+	let source_trace = build_trace(&env.path("src"));
+	assert_eq!(source_trace.len(), 2, "{source_trace:?}");
+
+	let substituters = format!("substituters = local?root={src}&trusted=1\n");
+	let mut stores = Vec::new();
+	for (name, bin) in [
+		("dest-reference", reference("nix-store")),
+		("dest-noxi", PathBuf::from(env!("CARGO_BIN_EXE_nix-store"))),
+	] {
+		let store = env.store(name);
+		copy_busybox(&store);
+		assert_eq!(instantiate(&store, "parent"), parent);
+		// The destination is named `local?root=`, which the copy messages
+		// show as `local://`.
+		let output = env.run(
+			&bin,
+			&[
+				"--store",
+				&format!("local?root={store}"),
+				"--realise",
+				&parent,
+			],
+			&substituters,
+		);
+		let stderr = String::from_utf8_lossy(&output.stderr).into_owned();
+		assert!(output.status.success(), "{name}:\n{stderr}");
+		assert!(!stderr.contains("building"), "{name}:\n{stderr}");
+		stores.push((
+			String::from_utf8(output.stdout).unwrap(),
+			env.path_infos(&store),
+			build_trace(&env.path(name)),
+			stderr.replace(&store, "STORE"),
+		));
+		env.verify(&store);
+	}
+	assert_eq!(stores[1].0, stores[0].0);
+	assert_eq!(stores[1].1, stores[0].1);
+	assert_eq!(stores[1].2, stores[0].2);
+	assert_eq!(stores[1].3, stores[0].3);
+	// The source store's realisations are copied as they are.
+	assert_eq!(stores[0].2, source_trace);
+	assert!(
+		stores[0].2.iter().any(|row| input.ends_with(&row.0)),
+		"{:?}",
+		stores[0].2
+	);
+}
