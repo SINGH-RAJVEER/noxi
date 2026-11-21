@@ -3,7 +3,7 @@
   "candidate": {
     "path": "/home/rajveer/.t3/worktrees/noxi/t3-3bf4b2fb-279457d8adacca48/target/debug/noxi",
     "resolved": "/home/rajveer/.t3/worktrees/noxi/t3-3bf4b2fb-279457d8adacca48/target/debug/noxi",
-    "sha256": "580c5bb287d3a7b64ef21cd66048c6761802cbadb3f52b831fffb51e8703e40f",
+    "sha256": "dfaddecbfdf0cc37aa71d6035c1a0ba64108a4b0d83472b4d1d3b33d7594f2dc",
     "version": "noxi 0.0.5 (preview)"
   },
   "candidate_argv": [

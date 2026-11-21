@@ -2,13 +2,13 @@
 	"command": [
 		"bash",
 		"-c",
-		"status=0; cargo nextest run --workspace --profile store --no-fail-fast -E \"binary(upstream_lang) | binary(upstream_functional)\" || status=$?; target/debug/differential-eval /nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2/bin/nix-instantiate target/debug/noxi $NOXI_RESULTS_DIR/differential-eval-report.json || status=$?; exit $status"
+		"status=0; cargo nextest run -p noxi-compat-tests --profile store --no-fail-fast -E \"binary(upstream_lang) | binary(upstream_functional)\" || status=$?; target/debug/differential-eval /nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2/bin/nix-instantiate target/debug/noxi $NOXI_RESULTS_DIR/differential-eval-report.json || status=$?; exit $status"
 	],
 	"exit_status": 0,
 	"kernel": "7.3.4",
 	"noxi": {
 		"dirty": false,
-		"revision": "37f831261421b4d1b7d458f48d5af42da9937031",
+		"revision": "304441f581416bdfe964cf3cf1c28ba1d4e28579",
 		"source": "git"
 	},
 	"platform": "x86_64-linux",
@@ -22,8 +22,8 @@
 		"CARGO_BUILD_JOBS": "4",
 		"NOXI_FUNCTIONAL_FILTER": "functional/build-dry.sh,functional/check-refs.sh,functional/derivation-json.sh,functional/dump-db.sh,functional/export.sh,functional/gc.sh,functional/hash-path.sh,functional/simple.sh,functional/add.sh",
 		"NOXI_REFERENCE_BIN": "/nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2/bin",
-		"NOXI_TEST_BUSYBOX": "/home/rajveer/Projects/personal/noxi/target/test-busybox"
+		"NOXI_TEST_BUSYBOX": "/home/rajveer/.t3/worktrees/noxi/t3-3bf4b2fb-279457d8adacca48/target/test-busybox"
 	},
-	"started": "2026-11-21T01:45:51+00:00",
+	"started": "2026-11-21T02:13:54+00:00",
 	"tier": "store"
 }
