@@ -615,10 +615,12 @@ This round compares the daemon's authorization and connection handling with 2.35
 	- empty and non-empty `builders`; `plugin-files`, `ssh-auth-sock`, `experimental-features`
 	- `sandbox`, `keep-outputs`, `extra-substituters`, `trusted-public-keys`
 	- `substituters` and `binary-caches` naming the configured cache, the cache with a trailing slash, an unconfigured cache, a mix and nothing
+	- a `trusted-substituters` entry with two query parameters, named as configured, with the parameters reordered, with only one of them, with none, and with a slash before the query
 
-	A further session sends several overrides at once. The reference compares setting names rather than aliases, and adds a slash only to the client's URL. noxi accepted `build-timeout`, `build-max-silent-time` and a slashed URL; it no longer does.
+	A further session sends several overrides at once. The reference compares setting names rather than aliases. It compares substituters as parsed store references, so parameters may come in any order, and adds a slash only to the authority of the client's URL. noxi accepted `build-timeout`, `build-max-silent-time` and a slashed URL, and trusted parameters only in the configured order; it no longer does.
 - **`signature_settings_for_untrusted_imports`** imports, from an untrusted client, paths that are unsigned, signed by a listed key, signed by another key, and carry a malformed signature. It does this under `require-sigs = false` and again with `trusted-public-keys`. Malformed signatures are refused while the request is read, with the reference's errors.
 - **`truncated_requests_for_every_operation_match_the_reference`** builds one valid 1.38 request for each of the 33 operations that take arguments (the other four, `SyncWithGC`, `FindRoots`, `QueryAllValidPaths` and `OptimiseStore`, have nothing to cut). It cuts each at up to eight points, shuts down the client's writing side and compares everything up to the end of the connection. The reference reports `unexpected end-of-file`, twice if the operation had not started. Framed uploads instead take the data that arrived, log `error (ignored): unexpected end-of-file` and succeed when only the closing frame is missing.
+- **`malformed_values_match_the_reference`** sends well-framed requests with malformed values and a follow-up `IsValidPath`, and compares everything up to the follow-up's answer or the end of the connection. The cases are booleans of 2 where the reference reads `readNum<bool>` (`VerifyStore`, `AddToStoreNar`) and where it reads `readInt` (`SetOptions`, `QueryValidPaths`), build modes 3 and 256, GC action 7 and whole-store indicator 2, signatures with no colon, an empty name, empty data or a newline, binary `AddTextToStore` contents, and strings that are not UTF-8 or contain a NUL. All match except seven requests with non-UTF-8 strings or a NUL, which the test pins as known differences (see the open items below).
 - **`disconnected_and_interrupted_clients_cancel_their_builds`** runs a builder that never ends. A raw client hangs up during its build, twice, so the second build shows the first released its output lock. Then the reference `nix-store --realise` is interrupted with SIGINT. On both daemons the builder process, found by a unique marker in `/proc`, goes away; no live process holds a temporary-roots file; the client exits with the same status; and the output stays invalid. The reference leaves an interrupted worker's `temproots` file behind, unlocked, so the check counts held files only.
 - **`daemon_restart_keeps_connected_clients_and_serves_new_ones`** kills each daemon's listening process while a client is connected and starts a new daemon on a fresh socket. The old worker keeps serving its client, and the new daemon serves a new one.
 - **`simultaneous_clients_with_overlapping_builds_and_imports`** runs six clients per daemon at once. They import the same content-addressed NAR, add the same text and build three derivations in rotated orders. All succeed with the same paths, and `nix-store --verify --check-contents` through the daemon then finds no errors.
@@ -631,8 +633,10 @@ These comparisons drove the following fixes:
 - The `SetOptions` name and URL rules above.
 - Truncated requests and framed uploads are reported as the reference reports them.
 - Signatures are parsed as `NAME:BASE64`.
+- Booleans read with `>>` accept only 0 and 1, `readInt` fields any `unsigned int`, and build modes other than 0, 1 and 2 are `Invalid build mode`.
+- `QueryValidPaths` with substitution runs `queryMissing` with its activity even without substituters, as `substitutePaths` does.
 
-The daemon tier ran 64 tests and the fast tier 2,122 at `72eac4f`, all passing. Their records are kept in `tests/compat-results/2026-11-21-72eac4f-daemon` and `2026-11-21-72eac4f-fast`.
+The daemon tier ran 65 tests and the fast tier 2,122 at `e9cb7a6`, all passing. Their records are kept in `tests/compat-results/2026-11-21-e9cb7a6-daemon` and `2026-11-21-e9cb7a6-fast`. The `72eac4f` records from earlier in the round are kept beside them.
 
 Several cases need separate users and are left to the [daemon VM mode](#disposable-vm-qualification-2026-11-09), which runs them as real users:
 
@@ -641,6 +645,8 @@ Several cases need separate users and are left to the [daemon VM mode](#disposab
 - refusing an outsider
 - the store and database as another user sees them
 - concurrent builds under distinct build users
+
+`authorization.rs` expects `trusted-users = root` to leave the client untrusted only when the tests do not run as root, so it also holds where the harness archive runs as root.
 
 That mode already compares the outsider and build-user refusals, untrusted repair and unsigned-import refusals, ignored restricted options and store permissions. It does not yet cover:
 
@@ -655,6 +661,7 @@ Still open:
 - `BuildDerivation` from an untrusted client treats only fixed-output derivations as content-addressed. The reference also accepts floating content-addressed and impure derivations.
 - noxi does not repair through `VerifyStore`, so only the untrusted refusal is compared.
 - A daemon backed by a remote store, which `--stdio` forwards to, is not supported.
+- noxi reads wire strings as UTF-8. A request with a string that is not UTF-8 fails as a protocol error and closes the connection, where the reference reads bytes and rejects or ignores the value with its own message. A root path with a NUL is cut at the NUL by the reference and refused by noxi.
 
 ### Warning, verbose trace and scoped import
 

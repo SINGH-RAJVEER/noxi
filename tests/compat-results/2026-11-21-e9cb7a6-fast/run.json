@@ -1,0 +1,29 @@
+{
+	"command": [
+		"cargo",
+		"nextest",
+		"run",
+		"--workspace",
+		"--all-features",
+		"--profile",
+		"fast",
+		"--no-fail-fast"
+	],
+	"exit_status": 0,
+	"kernel": "7.3.4",
+	"noxi": {
+		"dirty": false,
+		"revision": "e9cb7a66efa43e0b8dc0f170582b2d79349a1845",
+		"source": "git"
+	},
+	"platform": "x86_64-linux",
+	"reference": {
+		"release": "2.35.2",
+		"repository": "https://github.com/NixOS/nix.git",
+		"revision": "2c73b59da29606068c0c98db015dd3a66955525d"
+	},
+	"schema": "noxi-compat-result/1",
+	"settings": {},
+	"started": "2026-11-21T17:27:11+00:00",
+	"tier": "fast"
+}
