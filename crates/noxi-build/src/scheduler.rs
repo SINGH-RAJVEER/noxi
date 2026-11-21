@@ -103,7 +103,8 @@ impl LocalBuilder<'_> {
 		// Match the sequential builder's pre-input substitution policy. A
 		// cached output must not cause its otherwise unused inputs to build.
 		let wanted = node.wanted.clone();
-		let needed = if super::has_unknown_outputs(&drv)
+		let needed = if !self.repair
+			&& super::has_unknown_outputs(&drv)
 			&& self
 				.substitute_unknown_outputs(path, &drv, &wanted)?
 				.is_some()

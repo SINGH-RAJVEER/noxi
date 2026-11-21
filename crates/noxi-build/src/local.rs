@@ -366,8 +366,9 @@ impl<'a> LocalBuilder<'a> {
 			)));
 		}
 		// Outputs whose paths are unknown until they are realised are
-		// first looked up in the substituters' build traces.
-		if has_unknown_outputs(&build_drv) {
+		// first looked up in the substituters' build traces. Repair checks
+		// their contents on the paths below instead.
+		if !self.repair && has_unknown_outputs(&build_drv) {
 			let names: BTreeSet<String> = match wanted {
 				Some(names) => names.clone(),
 				None => drv.outputs().names().map(ToString::to_string).collect(),
