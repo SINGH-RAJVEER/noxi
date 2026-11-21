@@ -3,6 +3,8 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::io::{self, BufReader, Read, Write};
+use std::os::fd::{AsRawFd, FromRawFd, OwnedFd, RawFd};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 
 use nix_compat::log::logger::{self, LogField};
@@ -365,6 +367,89 @@ pub struct Connection<'a, R: Read, W: Write> {
 	/// The substituters, opened when an operation first needs them, as
 	/// CppNix's `getDefaultSubstituters` opens them once per worker.
 	caches: std::cell::OnceCell<Vec<noxi_store::binary_cache::BinaryCache>>,
+	/// Set once the client hangs up, which cancels the running builds.
+	cancelled: Arc<AtomicBool>,
+}
+
+/// `MonitorFdHup`: a thread that waits for the client's end of the
+/// connection to hang up and then sets a flag that cancels the worker's
+/// builds, as CppNix's `triggerInterrupt` interrupts them. Like the
+/// reference it waits only for `POLLHUP`, so a client that merely shuts
+/// down its writing side keeps its operation running. It never reads from
+/// the connection.
+pub struct HangupMonitor {
+	notify: Option<OwnedFd>,
+	thread: Option<std::thread::JoinHandle<()>>,
+	cancelled: Arc<AtomicBool>,
+}
+
+impl HangupMonitor {
+	pub fn new(fd: RawFd) -> io::Result<Self> {
+		let mut pipe = [0; 2];
+		// SAFETY: `pipe` has room for both descriptors.
+		if unsafe { libc::pipe2(pipe.as_mut_ptr(), libc::O_CLOEXEC) } == -1 {
+			return Err(io::Error::last_os_error());
+		}
+		// SAFETY: pipe2 returned two new descriptors that nothing else owns.
+		let (read, write) =
+			unsafe { (OwnedFd::from_raw_fd(pipe[0]), OwnedFd::from_raw_fd(pipe[1])) };
+		let cancelled = Arc::new(AtomicBool::new(false));
+		let flag = cancelled.clone();
+		let thread = std::thread::Builder::new()
+			.name("hangup-monitor".into())
+			.spawn(move || {
+				loop {
+					// POSIX always reports POLLHUP; no other event is wanted.
+					let mut fds = [
+						libc::pollfd {
+							fd,
+							events: 0,
+							revents: 0,
+						},
+						libc::pollfd {
+							fd: read.as_raw_fd(),
+							events: 0,
+							revents: 0,
+						},
+					];
+					// SAFETY: two valid pollfds.
+					if unsafe { libc::poll(fds.as_mut_ptr(), 2, -1) } == -1 {
+						let error = io::Error::last_os_error();
+						if matches!(error.raw_os_error(), Some(libc::EINTR | libc::EAGAIN)) {
+							continue;
+						}
+						return;
+					}
+					if fds[0].revents & libc::POLLHUP != 0 {
+						flag.store(true, Ordering::Relaxed);
+						return;
+					}
+					if fds[1].revents & (libc::POLLHUP | libc::POLLERR) != 0 {
+						return;
+					}
+				}
+			})?;
+		Ok(Self {
+			notify: Some(write),
+			thread: Some(thread),
+			cancelled,
+		})
+	}
+
+	/// The flag set when the client hangs up.
+	pub fn cancelled(&self) -> Arc<AtomicBool> {
+		self.cancelled.clone()
+	}
+}
+
+impl Drop for HangupMonitor {
+	fn drop(&mut self) {
+		// Closing the write side wakes the thread with POLLHUP.
+		self.notify.take();
+		if let Some(thread) = self.thread.take() {
+			let _ = thread.join();
+		}
+	}
 }
 
 /// `BasicServerConnection::handshake` and `postHandshake`, then the
@@ -375,6 +460,40 @@ pub fn process_connection<R: Read + Send, W: Write + Send + 'static>(
 	store: &LocalStore,
 	settings: &DaemonSettings,
 	trust: Trust,
+) -> Result<()> {
+	serve_connection(
+		read,
+		write,
+		store,
+		settings,
+		trust,
+		Arc::new(AtomicBool::new(false)),
+	)
+}
+
+/// [`process_connection`], cancelling the running builds when the client
+/// end of `hangup` hangs up, as `processConnection`'s `MonitorFdHup` does.
+pub fn process_monitored_connection<R: Read + Send, W: Write + Send + 'static>(
+	read: R,
+	write: W,
+	hangup: RawFd,
+	store: &LocalStore,
+	settings: &DaemonSettings,
+	trust: Trust,
+) -> Result<()> {
+	let monitor = HangupMonitor::new(hangup)?;
+	let result = serve_connection(read, write, store, settings, trust, monitor.cancelled());
+	drop(monitor);
+	result
+}
+
+fn serve_connection<R: Read + Send, W: Write + Send + 'static>(
+	read: R,
+	write: W,
+	store: &LocalStore,
+	settings: &DaemonSettings,
+	trust: Trust,
+	cancelled: Arc<AtomicBool>,
 ) -> Result<()> {
 	let mut from = Reader::new(read);
 	let stream = Arc::new(Mutex::new(write));
@@ -411,6 +530,7 @@ pub fn process_connection<R: Read + Send, W: Write + Send + 'static>(
 		store,
 		settings: settings.clone(),
 		caches: std::cell::OnceCell::new(),
+		cancelled,
 	};
 	// This process serves one connection, so its builds, substitutions and
 	// messages go to this client.
@@ -455,19 +575,25 @@ pub fn process_connection<R: Read + Send, W: Write + Send + 'static>(
 		}
 		match conn.perform_op(op) {
 			Ok(()) => {}
-			Err(Error::EndOfFile) => return Ok(()),
+			// The client hung up and the operation was interrupted; there
+			// is nobody left to tell.
+			Err(_) if conn.cancelled.load(Ordering::Relaxed) => return Ok(()),
 			Err(e @ Error::Io(_)) => return Err(e),
 			Err(e) => {
 				// If the error happened before the operation could send
 				// replies, the input is probably not fully read; report the
-				// error and give up on the connection, as CppNix does.
+				// error and give up on the connection, as CppNix does. A
+				// request cut short is reported like any other error, as
+				// `unexpected end-of-file`; only a client that hangs up
+				// between requests ends the connection quietly.
 				let error_allowed = conn.logger.can_send();
 				conn.logger.stop_work(&mut conn.to, Some(&message_of(&e)));
 				conn.to.flush()?;
 				if !error_allowed {
 					conn.logger.stop_work(&mut conn.to, Some(&message_of(&e)));
 					conn.to.flush()?;
-					return Err(e);
+					// `processConnection` returns normally after reporting it.
+					return Ok(());
 				}
 			}
 		}
@@ -529,7 +655,7 @@ impl<R: Read + Send, W: Write + Send + 'static> Connection<'_, R, W> {
 				let output = self.from.read_string()?;
 				if op == op::REGISTER_DRV_OUTPUT {
 					let path = self.from.read_store_path()?;
-					let sigs = self.from.read_strings()?.into_iter().collect();
+					let sigs = self.from.read_signatures()?.into_iter().collect();
 					self.store.register_drv_output(
 						&drv,
 						&output,
@@ -564,7 +690,7 @@ impl<R: Read + Send, W: Write + Send + 'static> Connection<'_, R, W> {
 				}
 				let mut source = FramedReader::new(&mut self.from);
 				let result = self.store.add_build_log(&path, &mut source);
-				source.drain()?;
+				drain_frames(&mut source, &mut self.logger, &mut self.to)?;
 				result?;
 				self.stop();
 				self.to.u64(1);
@@ -905,7 +1031,7 @@ impl<R: Read + Send, W: Write + Send + 'static> Connection<'_, R, W> {
 			}
 			op::ADD_SIGNATURES => {
 				let path = self.from.read_store_path()?;
-				let sigs: BTreeSet<String> = self.from.read_strings()?.into_iter().collect();
+				let sigs: BTreeSet<String> = self.from.read_signatures()?.into_iter().collect();
 				self.start()?;
 				self.store.add_signatures(&path, &sigs)?;
 				self.stop();
@@ -1079,8 +1205,14 @@ impl<R: Read + Send, W: Write + Send + 'static> Connection<'_, R, W> {
 					"content address method '{method}' is not supported"
 				))),
 			};
-			source.drain()?;
-			result
+			drain_frames(&mut source, &mut self.logger, &mut self.to)?;
+			// The reference reads a dump that ends early as a complete one and
+			// fails parsing it from memory, so the error names the in-memory
+			// string rather than the connection.
+			match result {
+				Err(_) if source.truncated() => Err(Error::Nix("end of string reached".into())),
+				result => result,
+			}
 		};
 		let path = result?;
 		let info = self.query_path_info(&path)?;
@@ -1134,7 +1266,7 @@ impl<R: Read + Send, W: Write + Send + 'static> Connection<'_, R, W> {
 			repair,
 			!dont_check_sigs,
 		);
-		framed.drain()?;
+		drain_frames(&mut framed, &mut self.logger, &mut self.to)?;
 		result?;
 		self.stop();
 		Ok(())
@@ -1166,7 +1298,7 @@ impl<R: Read + Send, W: Write + Send + 'static> Connection<'_, R, W> {
 			}
 			Ok(())
 		})();
-		framed.drain()?;
+		drain_frames(&mut framed, &mut self.logger, &mut self.to)?;
 		result?;
 		self.stop();
 		Ok(())
@@ -1203,7 +1335,10 @@ impl<R: Read + Send, W: Write + Send + 'static> Connection<'_, R, W> {
 				false,
 			)?;
 		}
-		let builder = LocalBuilder::new(store, &self.settings.build).with_repair(mode == 1);
+		let cancelled = self.cancelled.clone();
+		let builder = LocalBuilder::new(store, &self.settings.build)
+			.with_cancellation(&cancelled)
+			.with_repair(mode == 1);
 		let start = now();
 		// The worker runs one goal for the derivation; its progress and the
 		// build's activity go to the client through the tunnel.
@@ -1252,6 +1387,7 @@ impl<R: Read + Send, W: Write + Send + 'static> Connection<'_, R, W> {
 		self.start()?;
 		let store = self.store;
 		let settings = &self.settings;
+		let cancelled = self.cancelled.clone();
 		// Nothing missing, nothing to substitute: CppNix's goals finish before
 		// they open the substituters.
 		let targets_only: Vec<DerivedPath> = targets.iter().map(|(_, t)| t.clone()).collect();
@@ -1284,6 +1420,7 @@ impl<R: Read + Send, W: Write + Send + 'static> Connection<'_, R, W> {
 				} else {
 					&[]
 				},
+				cancelled: Some(&cancelled),
 			}
 			.build_paths_in_worker(&paths);
 			drop(worker);
@@ -1294,6 +1431,7 @@ impl<R: Read + Send, W: Write + Send + 'static> Connection<'_, R, W> {
 		}
 		let builder = LocalBuilder::new(store, &settings.build)
 			.with_substituters(caches)
+			.with_cancellation(&cancelled)
 			.with_repair(mode == 1);
 		// CppNix's `Worker` for the requested goals: its `realise`, `builds`
 		// and `copy-paths` activities run until the results are known, and
@@ -1482,14 +1620,11 @@ impl<R: Read + Send, W: Write + Send + 'static> Connection<'_, R, W> {
 		self.settings.build.use_substitutes = use_substitutes;
 		let mut accepted = nix_compat::nixcpp::settings::Settings::default();
 		for (name, value) in &overrides {
+			// The reference compares the names, not their aliases, so
+			// `build-timeout` and `build-max-silent-time` stay restricted.
 			let unrestricted = matches!(
 				name.as_str(),
-				"build-timeout"
-					| "timeout"
-					| "max-silent-time"
-					| "build-max-silent-time"
-					| "build-poll-interval"
-					| "connect-timeout"
+				"timeout" | "max-silent-time" | "build-poll-interval" | "connect-timeout"
 			) || (name == "builders" && value.is_empty());
 			if name == "ssh-auth-sock" || name == "experimental-features" {
 				continue;
@@ -1582,7 +1717,7 @@ pub(crate) fn read_path_info<R: Read>(
 	info.registration_time = from.read_u64()? as i64;
 	info.nar_size = from.read_u64()?;
 	info.ultimate = from.read_bool()?;
-	info.sigs = from.read_strings()?.into_iter().collect();
+	info.sigs = from.read_signatures()?.into_iter().collect();
 	let ca = from.read_string()?;
 	if !ca.is_empty() {
 		info.ca = Some(crate::wire::parse_content_address(&ca)?);
@@ -1911,4 +2046,22 @@ fn needs_substituters(store: &LocalStore, targets: &[DerivedPath]) -> Result<boo
 		}
 	}
 	Ok(false)
+}
+
+/// `~FramedSource`: read the rest of the frames. A connection that ended
+/// first is logged to the client and ignored, as
+/// `ignoreExceptionInDestructor` does.
+fn drain_frames<R: Read, W: Write>(
+	framed: &mut FramedReader<'_, R>,
+	logger: &mut Logger,
+	to: &mut Writer<W>,
+) -> Result<()> {
+	match framed.drain() {
+		Err(Error::EndOfFile) => logger.log(
+			to,
+			LVL_ERROR,
+			"\x1b[31;1merror (ignored):\x1b[0m unexpected end-of-file",
+		),
+		result => result,
+	}
 }

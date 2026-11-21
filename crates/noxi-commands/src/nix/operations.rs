@@ -4,7 +4,7 @@ use std::path::PathBuf;
 use std::process::ExitCode;
 
 use nix_compat::store_path::StorePath;
-use noxi_daemon::connection::{Trust, process_connection};
+use noxi_daemon::connection::{Trust, process_monitored_connection};
 
 use super::{Parsed, command_store, expression, unsupported};
 use crate::cli::Failure;
@@ -245,9 +245,10 @@ fn daemon(parsed: Parsed) -> Result<ExitCode, Failure> {
 		}
 	}
 	let result = if parsed.has("stdio") {
-		process_connection(
+		process_monitored_connection(
 			std::io::stdin(),
 			std::io::stdout(),
+			libc::STDIN_FILENO,
 			&store,
 			&settings,
 			settings.force_trust.unwrap_or(Trust::Trusted),
@@ -260,6 +261,8 @@ fn daemon(parsed: Parsed) -> Result<ExitCode, Failure> {
 			.unwrap_or_else(|| settings.store.state_dir.join("daemon-socket/socket"));
 		let listeners =
 			noxi_daemon::server::listeners(&socket).map_err(|e| Failure::Error(e.to_string()))?;
+		// `daemonLoop` serves from the root directory.
+		std::env::set_current_dir("/").map_err(|e| Failure::Error(e.to_string()))?;
 		noxi_daemon::server::serve_listeners(listeners, &settings)
 	};
 	result.map_err(|e| Failure::Error(e.to_string()))?;

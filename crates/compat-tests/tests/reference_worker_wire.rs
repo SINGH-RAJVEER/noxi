@@ -445,6 +445,10 @@ struct Env {
 	missing_drvs: Vec<String>,
 	reference_daemon: Option<Child>,
 	rust_daemon: Option<libc::pid_t>,
+	/// The reference daemon's `nix.conf` and the noxi daemon's settings,
+	/// kept to restart them.
+	daemon_config: String,
+	noxi_settings: Option<DaemonSettings>,
 }
 
 impl Drop for Env {
@@ -468,6 +472,10 @@ impl Drop for Env {
 struct Options {
 	trusted: bool,
 	ca_derivations: bool,
+	/// `require-sigs`, when not the default.
+	require_sigs: Option<bool>,
+	/// `trusted-public-keys`, when not the default.
+	trusted_public_key: Option<&'static str>,
 }
 
 impl Env {
@@ -534,6 +542,8 @@ impl Env {
 			missing_drvs: Vec::new(),
 			reference_daemon: None,
 			rust_daemon: None,
+			daemon_config: String::new(),
+			noxi_settings: None,
 		};
 		let src = env.root("src").to_string_lossy().into_owned();
 		env.run_ok(
@@ -609,39 +619,71 @@ impl Env {
 		if options.ca_derivations {
 			daemon_config.push_str("extra-experimental-features = ca-derivations\n");
 		}
+		if let Some(require) = options.require_sigs {
+			daemon_config.push_str(&format!("require-sigs = {require}\n"));
+		}
+		if let Some(key) = options.trusted_public_key {
+			daemon_config.push_str(&format!("trusted-public-keys = {key}\n"));
+		}
 		let cache_uri = format!("file://{}", env.root("cache").display());
 		if env.root("cache").exists() {
 			daemon_config.push_str(&format!("substituters = {cache_uri}\n"));
 		}
-		let reference = env
-			.command(
-				"nix-daemon",
-				&["--store", env.root("reference").to_str().unwrap()],
-			)
-			.env("NIX_CONFIG", daemon_config)
-			.env("NIX_DAEMON_SOCKET_PATH", env.socket("reference"))
-			.stderr(std::process::Stdio::null())
-			.spawn()
-			.unwrap();
-		env.reference_daemon = Some(reference);
+		env.daemon_config = daemon_config;
 
-		let listener = UnixListener::bind(env.socket("noxi")).unwrap();
 		let mut settings = DaemonSettings::new(LocalStoreConfig::with_root(&env.root("noxi")));
 		settings.build.sandbox_paths = Vec::new();
 		settings.build.build_cores = 1;
 		settings.build.nix_command = true;
 		settings.store.ca_derivations = options.ca_derivations;
+		if let Some(require) = options.require_sigs {
+			settings.store.require_sigs = require;
+		}
+		if let Some(key) = options.trusted_public_key {
+			settings.store.trusted_public_keys = vec![key.to_owned()];
+		}
 		if env.root("cache").exists() {
 			settings.substituters.push(cache_uri.clone());
 		}
 		if options.trusted {
 			settings.trusted_users.push(user);
 		}
+		env.noxi_settings = Some(settings);
+		env.start_daemons();
+		env
+	}
+
+	/// Start both daemons on their sockets and wait until they listen.
+	fn start_daemons(&mut self) {
+		let reference = self
+			.command(
+				"nix-daemon",
+				&["--store", self.root("reference").to_str().unwrap()],
+			)
+			.env("NIX_CONFIG", &self.daemon_config)
+			.env("NIX_DAEMON_SOCKET_PATH", self.socket("reference"))
+			.stderr(std::process::Stdio::null())
+			.spawn()
+			.unwrap();
+		self.reference_daemon = Some(reference);
+
+		let listener = UnixListener::bind(self.socket("noxi")).unwrap();
+		let settings = self.noxi_settings.clone().unwrap();
 		// Fork before creating client sockets. A server thread would inherit the
 		// test client's descriptors in every worker and prevent disconnect EOF.
 		let pid = unsafe { libc::fork() };
 		assert!(pid >= 0);
 		if pid == 0 {
+			// A restarted server is forked while clients are connected;
+			// it must not hold their sockets open either.
+			let keep = std::os::fd::AsRawFd::as_raw_fd(&listener);
+			for fd in 3..4096 {
+				if fd != keep {
+					unsafe {
+						libc::close(fd);
+					}
+				}
+			}
 			unsafe {
 				libc::setsid();
 			}
@@ -655,17 +697,36 @@ impl Env {
 			}
 		}
 		drop(listener);
-		env.rust_daemon = Some(pid);
+		self.rust_daemon = Some(pid);
 
 		let deadline = Instant::now() + Duration::from_secs(20);
-		while !env.socket("reference").exists() {
+		while !self.socket("reference").exists() {
 			assert!(
 				Instant::now() < deadline,
 				"the reference daemon did not start"
 			);
 			std::thread::sleep(Duration::from_millis(20));
 		}
-		env
+	}
+
+	/// Kill both daemons' listening processes, as a service manager stops
+	/// them, leaving the workers serving connected clients, and start them
+	/// again on fresh sockets.
+	fn restart_daemons(&mut self) {
+		if let Some(pid) = self.rust_daemon.take() {
+			unsafe {
+				libc::kill(pid, libc::SIGKILL);
+				libc::waitpid(pid, std::ptr::null_mut(), 0);
+			}
+		}
+		if let Some(mut child) = self.reference_daemon.take() {
+			let _ = child.kill();
+			let _ = child.wait();
+		}
+		for name in DAEMONS {
+			fs::remove_file(self.socket(name)).unwrap();
+		}
+		self.start_daemons();
 	}
 
 	/// A connection to daemon `name`.
@@ -1347,6 +1408,7 @@ fn permanent_root_authorization_and_deferred_output_maps() {
 			Options {
 				trusted,
 				ca_derivations,
+				..Options::default()
 			},
 			|env| {
 				let input = env.root("deferred.drv");
@@ -1859,4 +1921,918 @@ fn strip_colour(s: &str) -> String {
 	}
 	out.push_str(rest);
 	out
+}
+
+/// Read the daemon's replies after an error until it answers the follow-up
+/// `IsValidPath` or hangs up. Requests the daemon left unread are taken as
+/// the next operations, as the reference takes them.
+fn follow_up(w: &mut Wire, path: &str) {
+	w.op("IsValidPath after", op::IS_VALID_PATH).bytes(path);
+	loop {
+		match w.stderr() {
+			Some(true) => {
+				w.int();
+				return;
+			}
+			Some(false) => {}
+			None => return,
+		}
+	}
+}
+
+/// A signature in the store's format: a key name and 64 base64 bytes.
+const SIGNATURE: &str = "noxi-test-1:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==";
+
+impl Wire {
+	/// `AddToStoreNar` at 1.23 or later, for a NAR of one file.
+	fn add_to_store_nar(
+		&mut self,
+		path: &str,
+		ca: &str,
+		nar: &[u8],
+		ultimate: bool,
+		dont_check_sigs: bool,
+	) -> &mut Self {
+		self.op("AddToStoreNar", op::ADD_TO_STORE_NAR)
+			.bytes(path)
+			.bytes("")
+			.bytes(hex(&sha256(nar)))
+			.strs(&[])
+			.u64(0)
+			.u64(nar.len() as u64)
+			.u64(u64::from(ultimate))
+			.strs(&[])
+			.bytes(ca)
+			.u64(0)
+			.u64(u64::from(dont_check_sigs))
+			.framed(nar)
+	}
+
+	/// `QueryPathInfo`, recording the reply.
+	fn query_path_info(&mut self, path: &str) {
+		self.op("QueryPathInfo", op::QUERY_PATH_INFO).bytes(path);
+		if self.stderr() == Some(true) && self.int() == Some(1) {
+			self.path_info();
+		}
+	}
+}
+
+/// Each operation the reference restricts for untrusted clients, from an
+/// untrusted and a trusted client: refused operations, signature checks
+/// that only a trusted client may skip, `ultimate` dropped for untrusted
+/// imports, `ignoreLiveness` refused to everyone, and operations, such as
+/// `AddSignatures` and `RegisterDrvOutput`, that 2.35.2 does not restrict.
+#[test]
+fn trusted_only_operations_from_untrusted_and_trusted_clients() {
+	for trusted in [false, true] {
+		let env = Env::new(Options {
+			trusted,
+			..Options::default()
+		});
+		let out = env.out.as_str();
+		let log_drv = env.build_drvs[0].trim_start_matches("/nix/store/");
+		let nar = nar_of(b"trust boundary\n");
+		let unsigned = input_addressed_path("trust-unsigned");
+		let batch_unsigned = input_addressed_path("trust-batch-unsigned");
+		let (ca, ca_hint) = ca_path("trust-ultimate", &nar);
+		let session = |what: &str, script: &dyn Fn(&mut Wire)| {
+			env.compare(&format!("{what}-{trusted}"), |w| {
+				assert_eq!(w.handshake(version(NEWEST), &CLIENT_FEATURES), Some(true));
+				assert_eq!(w.set_options(3, &[]), Some(true));
+				script(w);
+				follow_up(w, out);
+			});
+		};
+		session("add-build-log", &|w| {
+			w.op("AddBuildLog", op::ADD_BUILD_LOG)
+				.bytes(log_drv)
+				.framed(b"uploaded log\n");
+			if w.stderr() == Some(true) {
+				w.int();
+			}
+		});
+		session("unsigned-nar-skipping-checks", &|w| {
+			w.add_to_store_nar(&unsigned, "", &nar, true, true);
+			w.stderr();
+			w.query_path_info(&unsigned);
+		});
+		session("content-addressed-nar-ultimate", &|w| {
+			w.add_to_store_nar(&ca, &ca_hint, &nar, true, false);
+			w.stderr();
+			w.query_path_info(&ca);
+		});
+		session("unsigned-batch-skipping-checks", &|w| {
+			let mut stream = Wire::buffer();
+			stream
+				.u64(1)
+				.bytes(&batch_unsigned)
+				.bytes("")
+				.bytes(hex(&sha256(&nar)))
+				.strs(&[])
+				.u64(0)
+				.u64(nar.len() as u64)
+				.u64(1)
+				.strs(&[])
+				.bytes("")
+				.raw(&nar);
+			w.op("AddMultipleToStore", op::ADD_MULTIPLE_TO_STORE)
+				.u64(0)
+				.u64(1)
+				.framed(&stream.buf);
+			w.stderr();
+			w.query_path_info(&batch_unsigned);
+		});
+		session("add-signatures", &|w| {
+			w.op("AddSignatures", op::ADD_SIGNATURES)
+				.bytes(out)
+				.strs(&[SIGNATURE]);
+			if w.stderr() == Some(true) {
+				w.int();
+			}
+			w.query_path_info(out);
+		});
+		session("ignore-liveness", &|w| {
+			w.op("CollectGarbage ignoring liveness", op::COLLECT_GARBAGE)
+				.u64(3)
+				.u64(0)
+				.strs(&[out])
+				.u64(0)
+				.u64(1)
+				.u64(0)
+				.u64(0)
+				.u64(0)
+				.u64(0);
+			assert_eq!(w.stderr(), Some(false));
+		});
+		session("register-without-ca-derivations", &|w| {
+			w.op("RegisterDrvOutput", op::REGISTER_DRV_OUTPUT)
+				.bytes(&env.drv)
+				.bytes("out")
+				.bytes(out)
+				.strs(&[]);
+			assert_eq!(w.stderr(), Some(false));
+		});
+		if !trusted {
+			// Trusted repairs are compared by the repair test; noxi does
+			// not repair through `VerifyStore` yet.
+			session("verify-repair", &|w| {
+				w.op("VerifyStore repair", op::VERIFY_STORE).u64(0).u64(1);
+				assert_eq!(w.stderr(), Some(false));
+			});
+			session("build-with-results-repair", &|w| {
+				w.op("BuildPathsWithResults repair", op::BUILD_PATHS_WITH_RESULTS)
+					.strs(&[&format!("{}!out", env.drv)])
+					.u64(1);
+				assert_eq!(w.stderr(), Some(false));
+			});
+		}
+	}
+}
+
+/// `SetOptions` overrides from untrusted and trusted clients: the
+/// settings an untrusted client may still change, by name and not by
+/// alias, the substituters it may name, and the overrides every client's
+/// daemon ignores or warns about.
+#[test]
+fn client_setting_overrides_match_the_reference() {
+	for trusted in [false, true] {
+		let env = Env::with_setup(
+			Options {
+				trusted,
+				..Options::default()
+			},
+			|env| {
+				fs::create_dir(env.root("cache")).unwrap();
+				fs::write(
+					env.root("cache/nix-cache-info"),
+					"StoreDir: /nix/store\nWantMassQuery: 1\nPriority: 40\n",
+				)
+				.unwrap();
+			},
+		);
+		let cache = format!("file://{}", env.root("cache").display());
+		let other = format!("file://{}", env.root("other-cache").display());
+		let substituters = [
+			cache.clone(),
+			format!("{cache}/"),
+			other.clone(),
+			format!("{cache} {other}"),
+			String::new(),
+		];
+		let mut overrides: Vec<(&str, &str)> = vec![
+			("timeout", "5"),
+			("build-timeout", "5"),
+			("max-silent-time", "5"),
+			("build-max-silent-time", "5"),
+			("build-poll-interval", "5"),
+			("connect-timeout", "5"),
+			("builders", ""),
+			("builders", "ssh://builder x86_64-linux"),
+			("plugin-files", "/nonexistent/plugin.so"),
+			("ssh-auth-sock", "/nonexistent/agent"),
+			("experimental-features", "nix-command"),
+			("experimental-features", "nix-command ca-derivations"),
+			("sandbox", "false"),
+			("keep-outputs", "true"),
+			("extra-substituters", &cache),
+			("trusted-public-keys", "a:b"),
+		];
+		for value in &substituters {
+			overrides.push(("substituters", value));
+			overrides.push(("binary-caches", value));
+		}
+		for (name, value) in overrides {
+			env.compare(&format!("override-{trusted}-{name}-{value}"), |w| {
+				assert_eq!(w.handshake(version(NEWEST), &CLIENT_FEATURES), Some(true));
+				w.set_options(3, &[(name, value)]);
+				follow_up(w, &env.out);
+			});
+		}
+		// Several overrides at once, in the order the client sends them.
+		env.compare(&format!("overrides-{trusted}"), |w| {
+			assert_eq!(w.handshake(version(NEWEST), &CLIENT_FEATURES), Some(true));
+			w.set_options(
+				3,
+				&[
+					("timeout", "5"),
+					("sandbox", "false"),
+					("substituters", &other),
+					("max-silent-time", "7"),
+				],
+			);
+			follow_up(w, &env.out);
+		});
+	}
+}
+
+/// One valid request for every operation the reference dispatches, at
+/// 1.38 with every feature.
+fn requests(env: &Env) -> Vec<(&'static str, u64, Vec<u8>)> {
+	let out = env.out.as_str();
+	let drv = env.drv.as_str();
+	let built = format!("{drv}!out");
+	let nar = nar_of(b"truncated request\n");
+	let (ca, ca_hint) = ca_path("truncated", &nar);
+	let bytes = fs::read(env.root("src").join(drv.trim_start_matches('/'))).unwrap();
+	let basic = nix_compat::derivation::UnverifiedDerivation::from_aterm_bytes(&bytes).unwrap();
+	let mut batch = Wire::buffer();
+	batch
+		.u64(1)
+		.bytes(&ca)
+		.bytes("")
+		.bytes(hex(&sha256(&nar)))
+		.strs(&[])
+		.u64(0)
+		.u64(nar.len() as u64)
+		.u64(0)
+		.strs(&[])
+		.bytes(&ca_hint)
+		.raw(&nar);
+	let root = format!("{}/truncated-root", env.dir.path().display());
+	let body = |build: &dyn Fn(&mut Wire)| {
+		let mut w = Wire::buffer();
+		w.version = version(NEWEST);
+		w.features = CLIENT_FEATURES.iter().map(|f| f.to_string()).collect();
+		build(&mut w);
+		w.buf
+	};
+	vec![
+		(
+			"IsValidPath",
+			op::IS_VALID_PATH,
+			body(&|w| {
+				w.bytes(out);
+			}),
+		),
+		(
+			"QueryReferrers",
+			op::QUERY_REFERRERS,
+			body(&|w| {
+				w.bytes(&env.busybox);
+			}),
+		),
+		(
+			"AddToStore",
+			op::ADD_TO_STORE,
+			body(&|w| {
+				w.bytes("truncated")
+					.bytes("fixed:r:sha256")
+					.strs(&[])
+					.u64(0)
+					.framed(&nar);
+			}),
+		),
+		(
+			"AddTextToStore",
+			op::ADD_TEXT_TO_STORE,
+			body(&|w| {
+				w.bytes("truncated-text").bytes("contents\n").strs(&[]);
+			}),
+		),
+		(
+			"BuildPaths",
+			op::BUILD_PATHS,
+			body(&|w| {
+				w.strs(&[&built]).u64(0);
+			}),
+		),
+		(
+			"EnsurePath",
+			op::ENSURE_PATH,
+			body(&|w| {
+				w.bytes(out);
+			}),
+		),
+		(
+			"AddTempRoot",
+			op::ADD_TEMP_ROOT,
+			body(&|w| {
+				w.bytes(out);
+			}),
+		),
+		(
+			"AddIndirectRoot",
+			op::ADD_INDIRECT_ROOT,
+			body(&|w| {
+				w.bytes(&root);
+			}),
+		),
+		(
+			"QueryDeriver",
+			op::QUERY_DERIVER,
+			body(&|w| {
+				w.bytes(out);
+			}),
+		),
+		(
+			"SetOptions",
+			19,
+			body(&|w| {
+				for n in [0, 0, 0, 3, 1, 0, 0, 0, 0, 0, 1, 1] {
+					w.u64(n);
+				}
+				w.u64(1).bytes("timeout").bytes("5");
+			}),
+		),
+		(
+			"CollectGarbage",
+			op::COLLECT_GARBAGE,
+			body(&|w| {
+				w.gc_return_live();
+			}),
+		),
+		(
+			"QuerySubstitutablePathInfo",
+			op::QUERY_SUBSTITUTABLE_PATH_INFO,
+			body(&|w| {
+				w.bytes(out);
+			}),
+		),
+		(
+			"QueryDerivationOutputs",
+			op::QUERY_DERIVATION_OUTPUTS,
+			body(&|w| {
+				w.bytes(drv);
+			}),
+		),
+		(
+			"QueryPathInfo",
+			op::QUERY_PATH_INFO,
+			body(&|w| {
+				w.bytes(out);
+			}),
+		),
+		(
+			"QueryDerivationOutputNames",
+			op::QUERY_DERIVATION_OUTPUT_NAMES,
+			body(&|w| {
+				w.bytes(drv);
+			}),
+		),
+		(
+			"QueryPathFromHashPart",
+			op::QUERY_PATH_FROM_HASH_PART,
+			body(&|w| {
+				w.bytes(hash_part(out));
+			}),
+		),
+		(
+			"QuerySubstitutablePathInfos",
+			op::QUERY_SUBSTITUTABLE_PATH_INFOS,
+			body(&|w| {
+				w.u64(1).bytes(out).bytes("");
+			}),
+		),
+		(
+			"QueryValidPaths",
+			op::QUERY_VALID_PATHS,
+			body(&|w| {
+				w.strs(&[out]).u64(0);
+			}),
+		),
+		(
+			"QuerySubstitutablePaths",
+			op::QUERY_SUBSTITUTABLE_PATHS,
+			body(&|w| {
+				w.strs(&[out]);
+			}),
+		),
+		(
+			"QueryValidDerivers",
+			op::QUERY_VALID_DERIVERS,
+			body(&|w| {
+				w.bytes(out);
+			}),
+		),
+		(
+			"VerifyStore",
+			op::VERIFY_STORE,
+			body(&|w| {
+				w.u64(0).u64(0);
+			}),
+		),
+		(
+			"BuildDerivation",
+			op::BUILD_DERIVATION,
+			body(&|w| {
+				w.bytes(drv).basic_derivation(&basic).u64(0);
+			}),
+		),
+		(
+			"AddSignatures",
+			op::ADD_SIGNATURES,
+			body(&|w| {
+				w.bytes(out).strs(&[SIGNATURE]);
+			}),
+		),
+		(
+			"NarFromPath",
+			op::NAR_FROM_PATH,
+			body(&|w| {
+				w.bytes(out);
+			}),
+		),
+		(
+			"AddToStoreNar",
+			op::ADD_TO_STORE_NAR,
+			body(&|w| {
+				w.add_to_store_nar(&ca, &ca_hint, &nar, false, false);
+				// Without the operation code `add_to_store_nar` wrote first.
+				w.buf.drain(..8);
+			}),
+		),
+		(
+			"QueryMissing",
+			op::QUERY_MISSING,
+			body(&|w| {
+				w.strs(&[&built]);
+			}),
+		),
+		(
+			"QueryDerivationOutputMap",
+			op::QUERY_DERIVATION_OUTPUT_MAP,
+			body(&|w| {
+				w.bytes(drv);
+			}),
+		),
+		(
+			"RegisterDrvOutput",
+			op::REGISTER_DRV_OUTPUT,
+			body(&|w| {
+				w.bytes(drv).bytes("out").bytes(out).strs(&[]);
+			}),
+		),
+		(
+			"QueryRealisation",
+			op::QUERY_REALISATION,
+			body(&|w| {
+				w.bytes(drv).bytes("out");
+			}),
+		),
+		(
+			"AddMultipleToStore",
+			op::ADD_MULTIPLE_TO_STORE,
+			body(&|w| {
+				w.u64(0).u64(0).framed(&batch.buf);
+			}),
+		),
+		(
+			"AddBuildLog",
+			op::ADD_BUILD_LOG,
+			body(&|w| {
+				w.bytes(drv.trim_start_matches("/nix/store/"))
+					.framed(b"log\n");
+			}),
+		),
+		(
+			"BuildPathsWithResults",
+			op::BUILD_PATHS_WITH_RESULTS,
+			body(&|w| {
+				w.strs(&[&built]).u64(0);
+			}),
+		),
+		(
+			"AddPermRoot",
+			op::ADD_PERM_ROOT,
+			body(&|w| {
+				w.bytes(out).bytes(&root);
+			}),
+		),
+	]
+}
+
+/// Every operation's request cut short at several points, after which the
+/// client stops writing but keeps reading: both daemons must report the
+/// same errors, if any, and close the connection alike.
+#[test]
+fn truncated_requests_for_every_operation_match_the_reference() {
+	use std::net::Shutdown;
+	let env = Env::new(Options {
+		trusted: true,
+		..Options::default()
+	});
+	let mut differing = Vec::new();
+	for (name, code, body) in requests(&env) {
+		let mut cuts = vec![
+			0,
+			1,
+			7,
+			8,
+			9,
+			body.len() / 2,
+			body.len() - 8,
+			body.len() - 1,
+		];
+		cuts.retain(|cut| *cut < body.len());
+		cuts.sort();
+		cuts.dedup();
+		for cut in cuts {
+			let what = format!("truncated-{name}-{cut}");
+			let compared = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+				env.compare(&what, |w| {
+					assert_eq!(w.handshake(version(NEWEST), &CLIENT_FEATURES), Some(true));
+					w.op(name, code).raw(&body[..cut]);
+					w.flush();
+					w.write.shutdown(Shutdown::Write).unwrap();
+					while w.stderr() == Some(false) {}
+				});
+			}));
+			if compared.is_err() {
+				differing.push(what);
+			}
+		}
+	}
+	assert!(
+		differing.is_empty(),
+		"differing truncations: {differing:#?}"
+	);
+}
+
+/// A unique marker for this test's builders, so they can be found in
+/// `/proc` among concurrent tests' processes.
+fn marker(env: &Env) -> String {
+	format!(
+		"noxi-cancel-{}",
+		env.dir.path().file_name().unwrap().to_string_lossy()
+	)
+}
+
+/// Whether a process whose command line contains `marker` is running.
+fn running(marker: &str) -> bool {
+	fs::read_dir("/proc").unwrap().flatten().any(|entry| {
+		fs::read(entry.path().join("cmdline")).is_ok_and(|cmdline| {
+			cmdline
+				.windows(marker.len())
+				.any(|w| w == marker.as_bytes())
+		})
+	})
+}
+
+fn wait_until(what: &str, deadline: Duration, mut condition: impl FnMut() -> bool) {
+	let start = Instant::now();
+	while !condition() {
+		assert!(start.elapsed() < deadline, "timed out waiting until {what}");
+		std::thread::sleep(Duration::from_millis(50));
+	}
+}
+
+/// The temporary-roots files in daemon `name`'s state directory that a
+/// live process still holds locked. The reference leaves a worker's file
+/// behind when it is interrupted; the collector ignores and removes files
+/// nobody holds, so only held files keep paths alive.
+fn held_temp_roots(env: &Env, name: &str) -> Vec<String> {
+	use std::os::fd::AsRawFd;
+	let Ok(dir) = fs::read_dir(env.root(name).join("nix/var/nix/temproots")) else {
+		return Vec::new();
+	};
+	dir.flatten()
+		.filter(|entry| {
+			fs::File::open(entry.path()).is_ok_and(|file| unsafe {
+				libc::flock(file.as_raw_fd(), libc::LOCK_EX | libc::LOCK_NB) != 0
+			})
+		})
+		.map(|entry| entry.file_name().to_string_lossy().into_owned())
+		.collect()
+}
+
+/// A client that hangs up during a build, or is interrupted with SIGINT,
+/// cancels it on both daemons: the builder is killed, the output stays
+/// invalid, the build's locks and the worker's temporary roots are
+/// released, and the next client can build the derivation again.
+#[test]
+fn disconnected_and_interrupted_clients_cancel_their_builds() {
+	let env = Env::with_setup(Options::default(), |env| {
+		let expr = env.root("slow.nix");
+		fs::write(
+			&expr,
+			format!(
+				r#"derivation {{ name = "slow"; system = "x86_64-linux"; builder = "${{builtins.storePath {}}}/bin/sh"; args = [ "-c" "echo started; while true; do sleep 1; done; echo {}" ]; }}"#,
+				env.busybox,
+				marker(env)
+			),
+		)
+		.unwrap();
+		let drv = env.run_ok(
+			"nix-instantiate",
+			&[
+				"--store",
+				env.root("src").to_str().unwrap(),
+				expr.to_str().unwrap(),
+			],
+		);
+		fs::write(env.root("slow-path"), drv.trim()).unwrap();
+	});
+	let drv = fs::read_to_string(env.root("slow-path")).unwrap();
+	let marker = marker(&env);
+	let started = Duration::from_secs(60);
+	let stopped = Duration::from_secs(20);
+	let mut interrupted = Vec::new();
+	for name in DAEMONS {
+		assert!(!running(&marker));
+		// Hang up twice: the second build can only start once the first
+		// released the output lock.
+		for attempt in 0..2 {
+			let mut w = env.connect(name);
+			assert_eq!(w.handshake(version(NEWEST), &CLIENT_FEATURES), Some(true));
+			w.op("BuildPaths", op::BUILD_PATHS)
+				.strs(&[&format!("{drv}!out")])
+				.u64(0)
+				.flush();
+			wait_until(&format!("{name} starts build {attempt}"), started, || {
+				running(&marker)
+			});
+			drop(w);
+			wait_until(&format!("{name} kills build {attempt}"), stopped, || {
+				!running(&marker)
+			});
+		}
+		// The reference client, interrupted as by Ctrl-C.
+		let mut client = env
+			.command(
+				"nix-store",
+				&[
+					"--store",
+					&format!(
+						"unix://{}?root={}",
+						env.socket(name).display(),
+						env.root(name).display()
+					),
+					"--realise",
+					&drv,
+				],
+			)
+			.stdout(std::process::Stdio::piped())
+			.stderr(std::process::Stdio::piped())
+			.spawn()
+			.unwrap();
+		wait_until(
+			&format!("{name} starts the client's build"),
+			started,
+			|| running(&marker),
+		);
+		unsafe {
+			libc::kill(client.id() as libc::pid_t, libc::SIGINT);
+		}
+		let output = client.wait_with_output().unwrap();
+		wait_until(&format!("{name} kills the client's build"), stopped, || {
+			!running(&marker)
+		});
+		interrupted.push(output.status.code());
+		wait_until(
+			&format!("{name} releases its temporary roots"),
+			stopped,
+			|| held_temp_roots(&env, name).is_empty(),
+		);
+	}
+	assert_eq!(interrupted[0], interrupted[1]);
+	let output_path = {
+		let bytes = fs::read(env.root("src").join(drv.trim_start_matches('/'))).unwrap();
+		let drv = nix_compat::derivation::UnverifiedDerivation::from_aterm_bytes(&bytes).unwrap();
+		let name = drv.outputs().names().next().unwrap();
+		drv.outputs().get(name).unwrap().to_absolute_path()
+	};
+	env.compare("after cancelled builds", |w| {
+		assert_eq!(w.handshake(version(NEWEST), &CLIENT_FEATURES), Some(true));
+		w.op("IsValidPath cancelled output", op::IS_VALID_PATH)
+			.bytes(&output_path);
+		assert_eq!(w.stderr(), Some(true));
+		assert_eq!(w.int(), Some(0));
+	});
+}
+
+/// Stopping the daemon's listening process leaves its workers serving the
+/// clients already connected, and a restarted daemon serves new clients
+/// beside them.
+#[test]
+fn daemon_restart_keeps_connected_clients_and_serves_new_ones() {
+	let mut env = Env::new(Options::default());
+	let mut connected: Vec<Wire> = DAEMONS
+		.iter()
+		.map(|name| {
+			let mut w = env.connect(name);
+			assert_eq!(w.handshake(version(NEWEST), &CLIENT_FEATURES), Some(true));
+			w
+		})
+		.collect();
+	env.restart_daemons();
+	let mut logs = Vec::new();
+	for (name, mut old) in DAEMONS.iter().zip(connected.drain(..)) {
+		let mut new = env.connect(name);
+		assert_eq!(new.handshake(version(NEWEST), &CLIENT_FEATURES), Some(true));
+		for w in [&mut old, &mut new] {
+			w.op("IsValidPath", op::IS_VALID_PATH).bytes(&env.out);
+			assert_eq!(w.stderr(), Some(true), "{name}");
+			assert_eq!(w.int(), Some(1));
+			w.op("AddTextToStore", op::ADD_TEXT_TO_STORE)
+				.bytes("restart")
+				.bytes("restart\n")
+				.strs(&[]);
+			assert_eq!(w.stderr(), Some(true), "{name}");
+			w.str();
+		}
+		logs.push((old.log, new.log));
+	}
+	assert_eq!(logs[0], logs[1]);
+}
+
+/// Several clients at once adding the same paths and building the same
+/// derivations get the same results from both daemons, and leave stores
+/// that verify.
+#[test]
+fn simultaneous_clients_with_overlapping_builds_and_imports() {
+	const CLIENTS: usize = 6;
+	let env = Env::new(Options::default());
+	let nar = nar_of(b"shared import\n");
+	let (ca, ca_hint) = ca_path("shared-import", &nar);
+	let targets: Vec<String> = env.build_drvs[..3]
+		.iter()
+		.map(|drv| format!("{drv}!out"))
+		.collect();
+	let mut results = Vec::new();
+	for name in DAEMONS {
+		let logs: Vec<String> = std::thread::scope(|scope| {
+			let handles: Vec<_> = (0..CLIENTS)
+				.map(|i| {
+					let (env, targets, nar, ca, ca_hint) = (&env, &targets, &nar, &ca, &ca_hint);
+					scope.spawn(move || {
+						let mut w = env.connect(name);
+						assert_eq!(w.handshake(version(NEWEST), &CLIENT_FEATURES), Some(true));
+						assert_eq!(w.set_options(0, &[]), Some(true));
+						w.add_to_store_nar(ca, ca_hint, nar, false, false);
+						assert_eq!(w.stderr(), Some(true));
+						w.op("AddTextToStore", op::ADD_TEXT_TO_STORE)
+							.bytes("shared-text")
+							.bytes("shared\n")
+							.strs(&[]);
+						assert_eq!(w.stderr(), Some(true));
+						let text = w.str().unwrap();
+						// Each client asks for the derivations in another order.
+						let mut mine: Vec<&str> = targets.iter().map(String::as_str).collect();
+						mine.rotate_left(i % targets.len());
+						w.op("BuildPaths", op::BUILD_PATHS).strs(&mine).u64(0);
+						assert_eq!(w.stderr(), Some(true), "{name} client {i}");
+						assert_eq!(w.int(), Some(1));
+						// Only the replies are compared; the build logs go to
+						// whichever client's worker ran the build.
+						text
+					})
+				})
+				.collect();
+			handles.into_iter().map(|h| h.join().unwrap()).collect()
+		});
+		assert!(logs.windows(2).all(|pair| pair[0] == pair[1]), "{logs:#?}");
+		results.push(logs[0].clone());
+		let verify = env.run(
+			"nix-store",
+			&[
+				"--store",
+				&format!(
+					"unix://{}?root={}",
+					env.socket(name).display(),
+					env.root(name).display()
+				),
+				"--verify",
+				"--check-contents",
+			],
+		);
+		let stderr = String::from_utf8_lossy(&verify.stderr);
+		assert!(
+			verify.status.success() && !stderr.contains("error"),
+			"{name}: {}",
+			String::from_utf8_lossy(&verify.stderr)
+		);
+	}
+	assert_eq!(results[0], results[1]);
+	env.compare("after simultaneous clients", |w| {
+		assert_eq!(w.handshake(version(NEWEST), &CLIENT_FEATURES), Some(true));
+		w.op("QueryValidPaths", op::QUERY_VALID_PATHS)
+			.strs(
+				&env.build_drvs[..3]
+					.iter()
+					.map(String::as_str)
+					.collect::<Vec<_>>(),
+			)
+			.u64(0);
+		assert_eq!(w.stderr(), Some(true));
+		w.strings();
+		w.query_path_info(&ca);
+	});
+}
+
+/// Signature settings for an untrusted client's imports of
+/// input-addressed paths: without `require-sigs` nothing is checked, and
+/// with `trusted-public-keys` a signature by a listed key is accepted
+/// while one by another key or a malformed one is refused.
+#[test]
+fn signature_settings_for_untrusted_imports() {
+	use noxi_store::keys::SecretKey;
+	let key = SecretKey::generate("noxi-test-1").unwrap();
+	let other = SecretKey::generate("noxi-other-1").unwrap();
+	let public: &'static str = Box::leak(key.to_public_text().into_boxed_str());
+	let nar = nar_of(b"signed import\n");
+	let sign = |key: &SecretKey, path: &str| {
+		key.sign_detached(
+			format!(
+				"1;{path};sha256:{};{};",
+				nix_compat::nixbase32::encode(&sha256(&nar)),
+				nar.len()
+			)
+			.as_bytes(),
+		)
+	};
+	for (what, options) in [
+		(
+			"unchecked",
+			Options {
+				require_sigs: Some(false),
+				..Options::default()
+			},
+		),
+		(
+			"keyed",
+			Options {
+				trusted_public_key: Some(public),
+				..Options::default()
+			},
+		),
+	] {
+		let env = Env::new(options);
+		let paths: Vec<(String, Vec<String>)> = [
+			("unsigned", None),
+			("signed", Some(&key)),
+			("foreign", Some(&other)),
+		]
+		.into_iter()
+		.map(|(name, signer)| {
+			let path = input_addressed_path(&format!("signature-{what}-{name}"));
+			let sigs = signer.map(|k| vec![sign(k, &path)]).unwrap_or_default();
+			(path, sigs)
+		})
+		.chain(std::iter::once((
+			input_addressed_path(&format!("signature-{what}-malformed")),
+			vec!["noxi-test-1:not base64".to_owned()],
+		)))
+		.collect();
+		for (path, sigs) in &paths {
+			env.compare(&format!("signatures-{what}-{}", hash_part(path)), |w| {
+				assert_eq!(w.handshake(version(NEWEST), &CLIENT_FEATURES), Some(true));
+				let sigs: Vec<&str> = sigs.iter().map(String::as_str).collect();
+				w.op("AddToStoreNar", op::ADD_TO_STORE_NAR)
+					.bytes(path)
+					.bytes("")
+					.bytes(hex(&sha256(&nar)))
+					.strs(&[])
+					.u64(0)
+					.u64(nar.len() as u64)
+					.u64(0)
+					.strs(&sigs)
+					.bytes("")
+					.u64(0)
+					.u64(1)
+					.framed(&nar);
+				w.stderr();
+				w.query_path_info(path);
+			});
+		}
+	}
 }

@@ -1,4 +1,4 @@
-use noxi_daemon::connection::{Trust, process_connection};
+use noxi_daemon::connection::{Trust, process_monitored_connection};
 use noxi_store::LocalStore;
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
@@ -72,15 +72,19 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
 	settings.force_trust = force_trust;
 	if stdio {
 		let store = LocalStore::open(settings.store.clone())?;
-		process_connection(
+		process_monitored_connection(
 			std::io::stdin(),
 			std::io::stdout(),
+			libc::STDIN_FILENO,
 			&store,
 			&settings,
 			force_trust.unwrap_or(Trust::Trusted),
 		)?;
 	} else {
-		server::serve_listeners(server::listeners(&socket)?, &settings)?;
+		let listeners = server::listeners(&socket)?;
+		// `daemonLoop` serves from the root directory.
+		std::env::set_current_dir("/")?;
+		server::serve_listeners(listeners, &settings)?;
 	}
 	Ok(())
 }

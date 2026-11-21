@@ -44,6 +44,7 @@ impl LocalBackend {
 			store: &self.store,
 			settings: &self.settings,
 			substituters: self.substituters(),
+			cancelled: None,
 		}
 	}
 
@@ -74,6 +75,9 @@ pub struct Worker<'a> {
 	/// The opened substituters, in priority order; empty when substitution
 	/// is off.
 	pub substituters: &'a [BinaryCache],
+	/// Cancels the running builds once it becomes true, as a daemon worker
+	/// does when its client hangs up.
+	pub cancelled: Option<&'a std::sync::atomic::AtomicBool>,
 }
 
 /// `getDefaultSubstituters`: open the `substituters` with the file transfer
@@ -433,7 +437,11 @@ impl Worker<'_> {
 	/// Realise `paths`, reporting the progress of the running worker.
 	pub fn build_paths_in_worker(&self, paths: &[DerivedPath]) -> Result<()> {
 		let substituters = self.substituters;
-		let builder = LocalBuilder::new(self.store, self.settings).with_substituters(substituters);
+		let mut builder =
+			LocalBuilder::new(self.store, self.settings).with_substituters(substituters);
+		if let Some(cancelled) = self.cancelled {
+			builder = builder.with_cancellation(cancelled);
+		}
 		let will_build = if paths
 			.iter()
 			.any(|path| matches!(path, DerivedPath::Built { .. }))

@@ -82,6 +82,16 @@ impl<R: Read> Reader<R> {
 		(0..n).map(|_| self.read_string()).collect()
 	}
 
+	/// `WorkerProto::Serialise<std::set<Signature>>::read`: strings that
+	/// each parse as `NAME:BASE64`.
+	pub fn read_signatures(&mut self) -> Result<Vec<String>> {
+		let sigs = self.read_strings()?;
+		for sig in &sigs {
+			parse_signature(sig)?;
+		}
+		Ok(sigs)
+	}
+
 	/// `WorkerProto::Serialise<StorePath>::read`: an absolute store path.
 	pub fn read_store_path(&mut self) -> Result<StorePath> {
 		let s = self.read_string()?;
@@ -96,10 +106,16 @@ impl<R: Read> Reader<R> {
 
 /// CppNix's `FramedSource`: data sent as length-prefixed frames ending
 /// with an empty frame.
+///
+/// When the connection ends before the empty frame, the data ends there:
+/// a reader that reads to the end, as `drainInto` does, takes what
+/// arrived, and one that needs more fails with its own error. Draining
+/// then reports the missing frames, as `~FramedSource` does.
 pub struct FramedReader<'a, R: Read> {
 	from: &'a mut Reader<R>,
 	remaining: u64,
 	eof: bool,
+	truncated: bool,
 }
 
 impl<'a, R: Read> FramedReader<'a, R> {
@@ -108,14 +124,25 @@ impl<'a, R: Read> FramedReader<'a, R> {
 			from,
 			remaining: 0,
 			eof: false,
+			truncated: false,
 		}
 	}
 
 	/// Read and discard the rest of the frames, as `~FramedSource` does.
+	/// A connection that ended before the empty frame is
+	/// [`Error::EndOfFile`], which the destructor logs and ignores.
 	pub fn drain(&mut self) -> Result<()> {
 		let mut sink = [0u8; 65536];
 		while self.read(&mut sink)? != 0 {}
+		if self.truncated {
+			return Err(Error::EndOfFile);
+		}
 		Ok(())
+	}
+
+	/// Whether the connection ended before the empty frame.
+	pub fn truncated(&self) -> bool {
+		self.truncated
 	}
 }
 
@@ -128,7 +155,15 @@ impl<R: Read> Read for FramedReader<'_, R> {
 			return Ok(0);
 		}
 		if self.remaining == 0 {
-			self.remaining = self.from.read_u64().map_err(io::Error::other)?;
+			self.remaining = match self.from.read_u64() {
+				Ok(n) => n,
+				Err(Error::EndOfFile) => {
+					self.eof = true;
+					self.truncated = true;
+					return Ok(0);
+				}
+				Err(e) => return Err(io::Error::other(e)),
+			};
 			if self.remaining == 0 {
 				self.eof = true;
 				return Ok(0);
@@ -137,7 +172,9 @@ impl<R: Read> Read for FramedReader<'_, R> {
 		let n = (buf.len() as u64).min(self.remaining) as usize;
 		let n = self.from.get_mut().read(&mut buf[..n])?;
 		if n == 0 {
-			return Err(io::ErrorKind::UnexpectedEof.into());
+			self.eof = true;
+			self.truncated = true;
+			return Ok(0);
 		}
 		self.remaining -= n as u64;
 		Ok(n)
@@ -246,6 +283,33 @@ impl<W: Write> Writer<W> {
 	pub fn inner_mut(&mut self) -> &mut W {
 		&mut self.inner
 	}
+}
+
+/// `Signature::parse`, `parseColonBase64` with `base64::decode`: a
+/// non-empty name, a colon and non-empty Base64 data, which decoding stops
+/// reading at the first `=` and skips newlines in. Only the errors matter
+/// here. The reference highlights the offending character, and its `%c`
+/// prints only the first byte of the highlighted text, the escape.
+pub fn parse_signature(s: &str) -> Result<()> {
+	let corrupt = || Error::Nix("signature is corrupt".into());
+	let colon = s.find(':').filter(|colon| *colon > 0).ok_or_else(corrupt)?;
+	let mut bits = 0usize;
+	for byte in s[colon + 1..].bytes() {
+		match byte {
+			b'=' => break,
+			b'\n' => continue,
+			b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'+' | b'/' => bits += 6,
+			_ => {
+				return Err(Error::Nix(
+					"invalid character in Base64 string: '\x1b'".into(),
+				));
+			}
+		}
+	}
+	if bits < 8 {
+		return Err(corrupt());
+	}
+	Ok(())
 }
 
 #[cfg(test)]

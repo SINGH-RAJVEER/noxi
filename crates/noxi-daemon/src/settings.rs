@@ -103,15 +103,16 @@ impl DaemonSettings {
 	}
 
 	/// Whether an untrusted client may use `url` as a substituter: it is
-	/// one of `substituters` or `trusted-substituters`, with or without a
-	/// trailing slash.
+	/// one of `substituters` or `trusted-substituters`, or becomes one with
+	/// a trailing slash added, as `ClientSettings::apply`'s `tryTrust`
+	/// checks. A client URL with a slash the configured one lacks is not
+	/// trusted.
 	pub fn trusted_substituter(&self, url: &str) -> bool {
-		let trimmed = url.trim_end_matches('/');
+		let slashed = (!url.ends_with('/')).then(|| format!("{url}/"));
 		self.trusted_substituters
 			.iter()
-			.map(String::as_str)
-			.chain(self.substituters.iter().map(String::as_str))
-			.any(|t| t.trim_end_matches('/') == trimmed)
+			.chain(&self.substituters)
+			.any(|t| t == url || slashed.as_deref() == Some(t.as_str()))
 	}
 
 	/// Open the substituters as the builder does, with the transfer and
@@ -184,7 +185,8 @@ mod tests {
 			[local.as_str()]
 		);
 		assert!(settings.trusted_substituter("unknown://cache"));
-		assert!(settings.trusted_substituter(&format!("{local}/")));
+		// The reference only adds a missing slash to the client's URL.
+		assert!(!settings.trusted_substituter(&format!("{local}/")));
 	}
 
 	#[test]

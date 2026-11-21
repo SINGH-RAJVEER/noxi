@@ -9,9 +9,11 @@ use std::os::unix::fs::PermissionsExt;
 use std::os::unix::net::{UnixListener, UnixStream};
 use std::path::Path;
 
+use nix_compat::log::VerbosityLevel;
+use nix_compat::log::logger;
 use noxi_store::LocalStore;
 
-use crate::connection::{Trust, process_connection};
+use crate::connection::{Trust, process_monitored_connection};
 use crate::error::{Error, Result};
 use crate::settings::DaemonSettings;
 
@@ -159,7 +161,8 @@ pub fn handle_connection(
 	let store = LocalStore::open(settings.store.clone())?;
 	// Buffered, so a request costs a few reads rather than one per field.
 	let read = std::io::BufReader::new(stream.try_clone()?);
-	process_connection(read, stream, &store, settings, trust)
+	let fd = stream.as_raw_fd();
+	process_monitored_connection(read, stream, fd, &store, settings, trust)
 }
 
 /// Socket activation takes ownership of the matching descriptors starting at 3.
@@ -285,27 +288,33 @@ pub fn serve_listeners(listeners: Vec<UnixListener>, settings: &DaemonSettings) 
 			Err(e) => return Err(e.into()),
 		};
 		last_activity = std::time::Instant::now();
-		let peer = peer_info(&stream)?;
-		let (trust, user) = match settings
-			.force_trust
-			.map(|trust| (trust, "<unknown>".into()))
-			.map(Ok)
-			.unwrap_or_else(|| auth_peer(&peer, settings))
-		{
+		// As in the reference, a forced trust skips the peer credentials,
+		// and a connection that cannot be authorised is dropped without
+		// stopping the daemon.
+		let authorised = match settings.force_trust {
+			Some(trust) => Ok((trust, "<unknown>".to_owned(), None)),
+			None => peer_info(&stream).and_then(|peer| {
+				auth_peer(&peer, settings).map(|(trust, user)| (trust, user, Some(peer.pid)))
+			}),
+		};
+		let (trust, user, pid) = match authorised {
 			Ok(auth) => auth,
 			Err(e) => {
-				tracing::error!("error processing connection: {e}");
+				log_error(&format!("while processing connection: {e}"));
 				continue;
 			}
 		};
-		tracing::info!(
-			"accepted connection from pid {}, user {user}{}",
-			peer.pid,
-			if trust == Trust::Trusted {
-				" (trusted)"
-			} else {
-				""
-			}
+		logger::log(
+			VerbosityLevel::Info,
+			&format!(
+				"accepted connection from pid {}, user {user}{}",
+				pid.map_or_else(|| "<unknown>".to_owned(), |pid| pid.to_string()),
+				if trust == Trust::Trusted {
+					" (trusted)"
+				} else {
+					""
+				}
+			),
 		);
 		// SAFETY: the child only handles the connection and exits.
 		let pid = unsafe { libc::fork() };
@@ -323,7 +332,7 @@ pub fn serve_listeners(listeners: Vec<UnixListener>, settings: &DaemonSettings) 
 			let code = match handle_connection(stream, settings, trust) {
 				Ok(()) => 0,
 				Err(e) => {
-					tracing::error!("unexpected Nix daemon error: {e}");
+					log_error(&format!("unexpected Nix daemon error: {e}"));
 					1
 				}
 			};
@@ -333,4 +342,9 @@ pub fn serve_listeners(listeners: Vec<UnixListener>, settings: &DaemonSettings) 
 		}
 		workers += 1;
 	}
+}
+
+/// `logError` of a message, as the reference daemon prints its errors.
+fn log_error(message: &str) {
+	logger::log_error(&nix_compat::log::format_error(message), message);
 }
