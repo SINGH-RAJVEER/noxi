@@ -849,6 +849,37 @@ fn instantiation_registers_drv_bytes_in_a_diverted_store() {
 	));
 }
 
+/// `--dry-run` is CppNix's `readOnlyMode`: instantiation prints the
+/// derivation path without writing it, even with `--read-write-mode`.
+#[test]
+fn dry_run_instantiation_writes_nothing() {
+	let root = tempfile::tempdir().unwrap();
+	let uri = format!("local?root={}", root.path().display());
+	let expr = r#"derivation { name = "a"; system = "x"; builder = "/bin/sh"; }"#;
+	for extra in [&[][..], &["--read-write-mode"][..]] {
+		let output = nix_instantiate()
+			.args(["--store", &uri, "--dry-run", "-E", expr])
+			.args(extra)
+			.output()
+			.unwrap();
+		assert!(
+			output.status.success(),
+			"{}",
+			String::from_utf8_lossy(&output.stderr)
+		);
+		assert_eq!(
+			output.stdout,
+			b"/nix/store/l9ldjc53ry43x24hvq73jx7dx0489mhj-a.drv\n"
+		);
+		assert!(
+			!root
+				.path()
+				.join("nix/store/l9ldjc53ry43x24hvq73jx7dx0489mhj-a.drv")
+				.exists()
+		);
+	}
+}
+
 #[test]
 fn evaluation_registers_paths_only_with_read_write_mode() {
 	let root = tempfile::tempdir().unwrap();

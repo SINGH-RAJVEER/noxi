@@ -58,7 +58,7 @@ pub const TOPLEVEL: &str = "config.system.build.toplevel";
 /// Experimental features enabled for flake builds.
 const FEATURES: &str = "nix-command flakes";
 /// Stack size for the evaluator thread, matching the compatibility commands.
-const STACK_SIZE: usize = 64 * 1024 * 1024;
+pub(crate) const STACK_SIZE: usize = 64 * 1024 * 1024;
 
 // Options.
 
@@ -366,7 +366,7 @@ pub fn parse(
 #[derive(Clone, Copy, Debug, Default)]
 pub struct CompatBuilder;
 
-fn load_settings(flakes: bool) -> Result<Settings, String> {
+pub(crate) fn load_settings(flakes: bool) -> Result<Settings, String> {
 	let mut settings = Settings::load(|name| {
 		let value = std::env::var(name).ok();
 		if flakes && name == "NIX_CONFIG" {
@@ -2032,6 +2032,10 @@ pub fn execute(invocation: Invocation, out: &mut dyn Write, err: &mut dyn Write)
 /// Run `noxi system ARGS` with the process environment, writing the final
 /// report to `out` and phase lines and diagnostics to `err`.
 pub fn run(args: Vec<String>, out: &mut dyn Write, err: &mut dyn Write) -> ExitCode {
+	let args = match tool(args, out, err) {
+		Ok(code) => return code,
+		Err(args) => args,
+	};
 	match parse(args, &|name| std::env::var(name).ok()) {
 		Ok(invocation) => execute(invocation, out, err),
 		Err(message) => {
@@ -2041,7 +2045,28 @@ pub fn run(args: Vec<String>, out: &mut dyn Write, err: &mut dyn Write) -> ExitC
 	}
 }
 
+/// Run the `noxi system` subcommands that replace the `nixos-*` tools, or
+/// hand `args` back when the subcommand is a rebuild action.
+fn tool(
+	args: Vec<String>,
+	out: &mut dyn Write,
+	err: &mut dyn Write,
+) -> Result<ExitCode, Vec<String>> {
+	let rest = || args[1..].to_vec();
+	match args.first().map(String::as_str) {
+		Some("version") => Ok(crate::version::main(rest(), out, err)),
+		Some("enter") => Ok(crate::enter::main(rest(), out, err)),
+		Some("option") => Ok(crate::option::main(rest(), out, err)),
+		Some("init") => Ok(crate::init::main(rest(), out, err)),
+		_ => Err(args),
+	}
+}
+
 pub fn main(args: Vec<String>) -> ExitCode {
+	let args = match tool(args, &mut io::stdout(), &mut io::stderr()) {
+		Ok(code) => return code,
+		Err(args) => args,
+	};
 	match parse(args, &|name| std::env::var(name).ok()) {
 		// Unlocked handles: the build thread writes to standard error
 		// while this one waits for it.

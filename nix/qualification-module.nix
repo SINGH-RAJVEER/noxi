@@ -9,10 +9,6 @@
 { config, lib, pkgs, ... }:
 let
 	cfg = config.noxi.qualification;
-	metadata = {
-		pname = "noxi-replacement-provisional";
-		version = "2.35.2";
-	};
 in
 {
 	options.noxi.qualification = {
@@ -25,10 +21,7 @@ in
 		};
 	};
 	config = lib.mkIf cfg.enable {
-		# `pkgs.formats.nixConf` asserts a Nix version of at least 2.2 even
-		# with checkConfig off. The VM states the reference format version it
-		# targets; the executables keep their own crate versions.
-		nix.package = lib.mkForce (cfg.package // metadata // { out = cfg.package.out // metadata; });
+		nix.package = lib.mkForce (import ./as-nix-package.nix cfg.package);
 		# Nixpkgs' default `nix.checkConfig` stays on: the generated nix.conf
 		# is validated with the candidate's own `nix config show` while the
 		# system builds.

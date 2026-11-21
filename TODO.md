@@ -245,12 +245,39 @@ The OS uses the Rust uutils coreutils exclusively. GNU coreutils must not appear
 
 - [ ] Define the first OS release matrix: architecture, UEFI firmware, installation media, supported filesystems, storage layouts, graphics and headless profiles, and the Nixpkgs baseline. Record unsupported hardware rather than implying universal support.
 - [ ] Create a NixOS flake that builds the installed system closure, live installer image, VM image, and recovery image from pinned inputs.
-- [ ] Make the installed image use noxi for evaluation, realization, substitution, daemon service, profile management, and future rebuilds. Check the runtime closure for unintended CppNix dependencies.
+	- [x] Live installer image: `packages.x86_64-linux.noxios-iso`, the stock NixOS minimal ISO of the qualification row's Nixpkgs with `nix.package` replaced by noxi through `nixosModules.noxios`. [docs/system.md](docs/system.md#noxios-installer-image)
+	- [x] Install from the ISO to a disk in a VM, reboot into the installed system, and build and switch to a second generation with noxi. On 2026-11-21 `checks.x86_64-linux.noxios-install` does this with BIOS and GRUB; UEFI is not covered ([install test](docs/system.md#install-test)).
+- [ ] Make the installed image use noxi for evaluation, realization, substitution, daemon service, profile management, and future rebuilds. Check the runtime closure for unintended CppNix dependencies. On 2026-11-21 the install test's installed system uses `nixosModules.noxios`: its `nix*` commands and daemon are noxi, noxi evaluates, builds and activates its second generation and sets its profile, and its closure has no CppNix. Substitution inside the installed system (its substituters are empty) and the absence of CppNix from future rebuilds' build graphs are not checked.
 - [ ] Preserve NixOS module semantics, generation activation, boot entries, and rollback. Keep `system.build.toplevel` and the generated activation program as qualified integration points.
 - [ ] Define a small default system profile with working networking, account creation, logs, time synchronization, and a documented initial package set; support a headless installation path.
 - [ ] Offer a conventional systemd-boot installation and a Lanzaboote Secure Boot installation on supported UEFI systems, with explicit prerequisites and distinct resulting configurations. Follow [the boot security spec](docs/secure-boot.md).
 - [ ] Build image artifacts reproducibly in CI, record input revisions, and publish checksums, signatures, and a manifest connecting each image to its source and test results.
-- [ ] Boot every advertised image in a VM, then use the installed noxi engine to build and activate a second generation after reboot.
+- [ ] Boot every advertised image in a VM, then use the installed noxi engine to build and activate a second generation after reboot. On 2026-11-21 this holds for the one image, the BIOS installer ISO, through `checks.x86_64-linux.noxios-install`; no image matrix is defined yet.
+
+## After the package-manager MVP: noxios identity
+
+Rename what people see; keep every name other software calls as a compatibility layer, so NixOS configurations, Home Manager and nixpkgs scripts keep working unchanged ([PLAN.md](PLAN.md) drop-in requirement).
+
+Branding, through NixOS's derivative-distribution options:
+- [x] `system.nixos.distroName = "noxios"`, `distroId = "noxios"` and `vendorName`, so `/etc/os-release` reads `ID=noxios` with `ID_LIKE=nixos`, and boot menu entries, `nixos-version` and the default hostname follow.
+- [x] noxios home, documentation and bug-report URLs through `system.nixos.extraOSReleaseArgs`.
+- [x] noxios getty greeting and help line (`services.getty.greetingLine`, `helpLine`).
+- [x] ISO volume label `noxios-minimal-…` (`isoImage.volumeID`).
+- [x] Drop the NixOS manual (`documentation.nixos.enable = false`), which also removes CppNix from the image's build graph.
+
+Installer profile:
+- [x] Replace nixpkgs' `profiles/installation-device.nix` (`disabledModules`) with `nix/noxios/installer.nix`: a `noxi` live user with auto-login, passwordless sudo and `trusted-users`, and noxios help text. Keep the rest of the profile's behaviour and record the upstream revision it follows.
+- [x] A noxios manual built from `docs/`: `noxios-help` and man pages in place of the NixOS manual.
+- [x] Replace the root `nixos` channel with a locked noxios flake on the image; `noxi flake update` and `noxi system switch` replace `nixos-rebuild --upgrade`. Do not rename the channel: `nixos-rebuild --upgrade` updates `nixos` by name. On 2026-11-20 the flake is in `/etc/nixos` next to the channel, which stays because NixOS's own ISO check evaluates `nix-env -iA nixos.procps` through it ([noxios installer image](docs/system.md#the-live-systems-flake)).
+- [x] Extend the boot test to check the branding, the `noxi` user and the flake.
+
+noxi-native system commands (the `nixos-*` tools stay as compatibility commands):
+- [x] `noxi install`, replacing `nixos-install`; covered by the installer section below. On 2026-11-21 it follows nixos-install.sh step by step and the install test uses it ([system commands](docs/system-commands.md#noxi-install)).
+- [x] `noxi system init`, replacing `nixos-generate-config`: hardware configuration and a flake for the detected machine. On 2026-11-21 the generated flake is stock NixOS and does not import the noxios modules yet.
+- [x] `noxi system enter`, `noxi system option` and `noxi system version`, replacing `nixos-enter`, `nixos-option` and `nixos-version`.
+- [x] `noxi-daemon.service` and `noxi-daemon.socket` as systemd aliases of the `nix-daemon` units.
+
+Kept as compatibility interfaces, not renamed: the `nix*` commands, `/nix/store` (store path hashes and cache.nixos.org substitutes depend on it), `/nix/var/nix`, `nix.conf`, `NIX_PATH`, the `nixbld` users, the `nix-daemon` unit names, the `nix.*` and `system.nixos.*` options, and `nixpkgs`. New options go under `noxios.*`.
 
 ## After the package-manager MVP: installer and first boot
 
@@ -259,7 +286,7 @@ The OS uses the Rust uutils coreutils exclusively. GNU coreutils must not appear
 - [ ] Generate a Nix configuration, including the hardware module, and a lock file that the installed engine can evaluate unchanged. Keep installer-only state out of the permanent configuration unless it is needed for future rebuilds.
 - [ ] Implement boot choice validation: firmware mode, EFI system partition, key state, signing capability, and recovery route. Do not silently downgrade a requested Secure Boot installation.
 - [ ] Configure initial users and authentication, secret handling, networking, locale, and hardware-derived settings without placing credentials in the Nix store.
-- [ ] Install and verify the bootloader, boot the installed system, confirm the active generation and daemon, and rebuild once from the installed configuration.
+- [ ] Install and verify the bootloader, boot the installed system, confirm the active generation and daemon, and rebuild once from the installed configuration. On 2026-11-21 the install test does this offline for GRUB on BIOS; UEFI, systemd-boot, Secure Boot and a networked install remain.
 - [ ] Provide a text installer or equivalent headless path and recovery media able to mount the system, inspect generations, repair boot state, and restore a known-good configuration.
 
 ## After the package-manager MVP: self-maintenance and recovery

@@ -1,0 +1,43 @@
+{
+	description = "noxios system";
+
+	# The inputs of the noxios live image's flake, so the image's flake.lock,
+	# copied next to this file, pins them to sources in its store. Use
+	# `noxi flake update` to move them forward.
+	inputs = {
+		nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
+		# noxi and its Rust toolchain overlay, imported as plain sources.
+		noxi = {
+			url = "github:SINGH-RAJVEER/nix-rs";
+			flake = false;
+		};
+		rust-overlay = {
+			url = "github:oxalica/rust-overlay";
+			flake = false;
+		};
+	};
+
+	outputs = { self, nixpkgs, noxi, rust-overlay }:
+		let
+			pkgs = import nixpkgs {
+				system = "x86_64-linux";
+				config = { };
+				overlays = [ ];
+			};
+			noxios = import "${noxi}/nix/noxios" {
+				inherit nixpkgs rust-overlay;
+				source = noxi;
+				package = import "${noxi}/nix/package.nix" {
+					inherit pkgs rust-overlay;
+					replacement = true;
+				};
+			};
+		in
+		{
+			# NOTE: '@hostname@' is the default hostname
+			# The noxios modules keep noxi as the system's package manager.
+			nixosConfigurations.@hostname@ = nixpkgs.lib.nixosSystem {
+				modules = noxios.modules ++ [ ./configuration.nix ];
+			};
+		};
+}

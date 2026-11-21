@@ -12,6 +12,13 @@ fn main() -> ExitCode {
 		Some("flake") => return noxi_system::flake::main(native.collect()),
 		Some("system") => return noxi_system::rebuild::main(native.collect()),
 		Some("snapshot") => return noxi_system::snapshot::main(native.collect()),
+		Some("install") => {
+			return noxi_system::install::main(
+				native.collect(),
+				&mut std::io::stdout(),
+				&mut std::io::stderr(),
+			);
+		}
 		Some("explain") => return explain(native.collect()),
 		_ => {}
 	}
@@ -36,7 +43,7 @@ fn main() -> ExitCode {
 		}
 		_ => {
 			eprintln!(
-				"usage: noxi eval --expr EXPRESSION\n       noxi eval --file PATH\n       noxi flake update|lock ...\n       noxi system build|test|boot|switch|dry-activate|rollback ...\n       noxi snapshot list|show|rollback ...\n       noxi explain CODE\n       noxi --version"
+				"usage: noxi eval --expr EXPRESSION\n       noxi eval --file PATH\n       noxi flake update|lock ...\n       noxi system build|test|boot|switch|dry-activate|rollback ...\n       noxi system version|enter|option|init ...\n       noxi install ...\n       noxi snapshot list|show|rollback ...\n       noxi explain CODE\n       noxi --version"
 			);
 			ExitCode::from(2)
 		}

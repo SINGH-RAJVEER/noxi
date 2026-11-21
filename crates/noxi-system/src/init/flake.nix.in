@@ -1,0 +1,11 @@
+{
+	inputs = {
+@inputs@
+	};
+	outputs = inputs@{ self, nixpkgs, ... }: {
+		# NOTE: '@hostname@' is the default hostname
+		nixosConfigurations.@hostname@ = nixpkgs.lib.nixosSystem {
+			modules = [ ./configuration.nix ];
+		};
+	};
+}

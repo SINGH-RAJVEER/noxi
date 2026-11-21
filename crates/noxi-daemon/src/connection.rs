@@ -1437,11 +1437,8 @@ impl<R: Read + Send, W: Write + Send> Connection<'_, R, W> {
 		}
 		self.settings.build.apply_config(&accepted);
 		if accepted.get("substituters").is_some() {
-			self.settings.substituters = accepted
-				.get_list("substituters", &[])
-				.into_iter()
-				.map(noxi_store::binary_cache::BinaryCache::open)
-				.collect::<noxi_store::Result<Vec<_>>>()?;
+			self.settings.substituters =
+				crate::settings::open_substituters(accepted.get_list("substituters", &[]));
 		}
 		self.stop();
 		Ok(())

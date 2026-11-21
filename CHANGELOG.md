@@ -75,6 +75,10 @@ The workspace is being published under the `noxi-` names. `noxi-hash`, `noxi-eva
 
 ### Unreleased
 
+- `noxi system version`, `noxi system enter`, `noxi system option` and `noxi system init` replace `nixos-version`, `nixos-enter`, `nixos-option` and `nixos-generate-config`. On this NixOS host their output matched the upstream tools, apart from the extra `--json` keys of `version` and the generator name in `init`'s header (2026-11-21).
+- `noxi install` replaces `nixos-install`. It prints a plan of what it writes, builds the system into the target store with the running system's store as the `auto?trusted=1` substituter, sets the system profile, copies the channel for non-flake systems, installs the boot loader through `noxi system enter`, and sets the root password on a terminal (2026-11-21).
+- On noxios, `noxi system init --flake` writes a flake whose configuration imports the noxios modules, with the live image's inputs and its `flake.lock`. A system installed from it keeps noxi as its package manager; before, the stock NixOS flake installed CppNix (2026-11-21).
+- The `noxi-daemon.service` and `noxi-daemon.socket` aliases of the nix-daemon units are set by `nixosModules.noxios`, because NixOS ignores the `Alias=` lines of packaged units (2026-11-21).
 - New crate behind the native `noxi flake`, `noxi system` and `noxi snapshot` commands. `noxi flake update|lock` runs the shared lock algorithm in-process and reports changed, added and removed inputs; `noxi system build|test|boot|switch|dry-activate|rollback` evaluates and builds a NixOS toplevel through the in-process compatibility implementation, registers the system profile generation as `nix-env --set` does, runs `switch-to-configuration`, and reports built closure, running generation and boot default separately; `noxi snapshot list|show|diff|rollback` keeps a per-rebuild journal of source revision, lock copy, closure, generations and outcome under the state directory, and rolls back to a recorded generation with optional lock restoration. Offline integration tests use diverted profiles, activation programs and journal directories; no VM qualification yet (2026-11-12).
 - `noxi system` prints cargo-style status verbs for each phase and a closing `Finished`, `Failed` or `Stopped` line with the elapsed time, and reports a failure as one rustc-style diagnostic with a stable code, notes for the phase and the resulting system state, and help. Color follows the terminal, `NO_COLOR`, `CLICOLOR_FORCE` and `TERM`. The `--json` output and the stdout report are unchanged (2026-11-14).
 
@@ -306,6 +310,7 @@ Serializes Rust values into Nix and deserializes Nix values into Rust types, imp
 
 ### Unreleased
 
+- A flake `path:` input under the store directory that a diverted store (`--store /mnt`) lacks is read from the host's store, as CppNix's `PathInputScheme` reads it, rather than from inside the diverted store. `nixos-install --flake` relies on this for inputs locked to the installer's store (2026-11-21).
 - Add `addDrvOutputDependencies`, `parseFlakeRef` and `flakeRefToString` store-aware builtins, and configure writable evaluator stores through shared settings. (2026-10-03).
 
 ### 0.1.2 - 2026-10-03
@@ -344,6 +349,8 @@ Serializes Rust values into Nix and deserializes Nix values into Rust types, imp
 
 ### Unreleased
 
+- `nix store verify`, `nix store ls`, `nix store cat` and `nix store dump-path` read paths from disk whenever the store URI resolves to a local store, so the default `auto` store works for root on NixOS as in CppNix. They used to require an explicit `--store local` (2026-11-20).
+- `nix-instantiate --dry-run` computes derivation paths without writing them, as CppNix's read-only mode does, even with `--read-write-mode`. It used to be rejected as an unrecognised flag (2026-11-20).
 - The store execution helper behind `nix shell`, `nix run`, `nix develop` and `nix fmt` runs programs in a temporary root of bind mounts when the logical store directory does not exist, as CppNix's `chrootHelper` does. A per-user store therefore works on a host without `/nix`. Sandboxed builds into the per-user chroot store are compared with the reference (2026-11-17).
 - The `auto` store falls back to a per-user chroot store in `DATA_DIR/root` on Linux when `/nix/var/nix` and the daemon socket are missing and the user is not root, as CppNix's `resolveStoreConfig` does, with the same notice (2026-11-17).
 
@@ -447,6 +454,8 @@ Internal trybuild tests for `nix-compat-derive`.
 
 ### Unreleased
 
+- A local store (`auto`, `local` or `local?root=DIR`) works as a substituter, as in CppNix, so `nixos-install`'s `--extra-substituters "auto?trusted=1"` copies paths from the running system's store into the target instead of rebuilding them. The store is opened read-write when its state directory is accessible, as CppNix's `auto` is, and read-only otherwise. Its priority is 0 and it wants no mass queries, copied paths lose `ultimate` as in `copyStorePath`, and unsigned input-addressed paths need `?trusted=1`. The `priority` and `want-mass-query` URI parameters now override a binary cache's `nix-cache-info` (2026-11-21).
+
 - `unix_socket::connect` and `bind` handle paths longer than `sun_path` as CppNix's `bindConnectProcHelper` does, from a child in the socket's directory; the garbage collector's roots socket and its clients use them (2026-11-09).
 - `add_perm_root` creates the directories up to a permanent root (`gc::make_root_symlink`), as Home Manager's first activation requires, and `LocalStoreConfig::diverted` creates a missing absolute root outside `/nix` (2026-11-09).
 
@@ -470,6 +479,9 @@ Internal trybuild tests for `nix-compat-derive`.
 
 ### Unreleased
 
+- The daemon asks its substituters in priority order, as CppNix does (2026-11-21).
+- A substituter that cannot be opened, such as `cache.nixos.org` on an offline machine, is reported and skipped, as in CppNix. Previously the daemon exited at startup, or refused a client's options, so an offline NixOS boot crash-looped `nix-daemon.service` until systemd's start limit. Untrusted clients may still name a configured substituter that could not be opened (2026-11-20).
+
 - `NOXI_DAEMON_IDLE_TIMEOUT` lets a socket-activated daemon exit with status 0 after the given number of seconds with no connection and no live worker. The service manager reactivates it for the next client. A self-bound daemon ignores the variable, and an invalid value is an error (2026-11-17).
 
 - The daemon socket and its clients work at paths longer than `sun_path`. A connection refused during the handshake is reported as CppNix reports it, and the store is named `daemon` only for the default socket (2026-11-09).
@@ -485,6 +497,7 @@ Internal trybuild tests for `nix-compat-derive`.
 
 ### Unreleased
 
+- Substituters are asked in priority order, as CppNix's `getDefaultSubstituters` sorts them, keeping the configured order among equal priorities. They used to be asked in configured order, so `--extra-substituters "auto?trusted=1"` (priority 0) came after cache.nixos.org (40), and an install fetched paths from the network that the running system already had (2026-11-21).
 - Under a root daemon, sandboxed builders run as a member of `build-users-group` (`nixbld` by default) locked under `STATE_DIR/userpool`, as CppNix's `SimpleUserLock` does: the sandbox user maps to it, it owns the build directory, builder files and terminal, the chroot store is owned by root and the build group, its processes are killed before and after the build, and outputs it does not own are rejected. Previously such builders ran as host root and owned their bind-mounted inputs (2026-11-09).
 - Apply shared build settings, honor substitution and fallback decisions, and reject local builds when max-jobs is zero. Execution remains sequential (2026-10-03).
 

@@ -325,7 +325,7 @@ pub fn run(parsed: Parsed) -> Result<ExitCode, Failure> {
 		"store ls" | "store cat" | "store dump-path" | "store verify"
 	) {
 		let uri = crate::store::store_uri(parsed.value("store"), &parsed.settings);
-		if !matches!(uri.split('?').next(), Some("local" | "local://")) {
+		if !crate::store::resolves_to_local(&uri)? {
 			return Err(unsupported(
 				"filesystem access without an explicit local store (remote accessor API unavailable)",
 			));

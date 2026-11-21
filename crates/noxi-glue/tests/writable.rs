@@ -443,3 +443,78 @@ fn appended_context_paths_are_ensured_only_in_writable_evaluation() {
 		Value::Bool(true)
 	));
 }
+
+/// A small directory of the host's store, if the host has one.
+fn small_host_store_dir() -> Option<std::path::PathBuf> {
+	fn small(path: &Path, budget: &mut usize) -> bool {
+		let Ok(entries) = fs::read_dir(path) else {
+			return false;
+		};
+		for entry in entries {
+			let Ok(entry) = entry else { return false };
+			if *budget == 0 {
+				return false;
+			}
+			*budget -= 1;
+			let Ok(kind) = entry.file_type() else {
+				return false;
+			};
+			if kind.is_dir() && !small(&entry.path(), budget) {
+				return false;
+			}
+		}
+		true
+	}
+	fs::read_dir("/nix/store")
+		.ok()?
+		.filter_map(Result::ok)
+		.take(5000)
+		.map(|entry| entry.path())
+		.find(|path| path.is_dir() && small(path, &mut 20))
+}
+
+/// A `path` input in the store directory that the diverted store lacks is
+/// read from the host's store, as CppNix's `PathInputScheme` reads
+/// `absPath` from the real file system. `nixos-install --flake` relies on
+/// it for inputs locked to the installer's store.
+#[test]
+fn path_inputs_the_diverted_store_lacks_are_read_from_the_host() {
+	let Some(host) = small_host_store_dir() else {
+		return;
+	};
+	let root = tempfile::tempdir().unwrap();
+	let cache = tempfile::tempdir().unwrap();
+	let store = EvaluatorStore::writable(root.path()).unwrap();
+	store.configure_fetching(noxi_glue::fetch::FetchConfig {
+		cwd: root.path().to_owned(),
+		cache_dir: Some(cache.path().to_owned()),
+		..noxi_glue::fetch::FetchConfig::default()
+	});
+	let expr = format!(
+		"builtins.attrNames (builtins.readDir (builtins.fetchTree {{ type = \"path\"; path = \"{}\"; }}).outPath)",
+		host.display()
+	);
+	let result = configure(
+		Evaluation::builder_pure().experimental_features(["flakes", "fetch-tree"]),
+		store,
+	)
+	.mode(EvalMode::Strict)
+	.build()
+	.evaluate_in_dir(&expr, root.path().to_owned());
+	assert!(result.errors.is_empty(), "{:?}", result.errors);
+	let mut expected: Vec<String> = fs::read_dir(&host)
+		.unwrap()
+		.map(|entry| entry.unwrap().file_name().into_string().unwrap())
+		.collect();
+	expected.sort();
+	assert_eq!(
+		result.value.unwrap().to_string(),
+		format!(
+			"[ {}]",
+			expected
+				.iter()
+				.map(|name| format!("\"{name}\" "))
+				.collect::<String>()
+		)
+	);
+}

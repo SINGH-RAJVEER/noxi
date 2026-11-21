@@ -188,3 +188,61 @@ fn store_state_log_and_conf_directories_follow_the_environment() {
 	}
 	assert_eq!(actual.len(), expected.len());
 }
+
+/// Without `--store`, `auto` opens the local store when the state directory
+/// is writable, as for root on NixOS, so the store accessor commands read
+/// paths from disk just as with an explicit `local` store.
+#[test]
+fn auto_store_reads_paths_like_an_explicit_local_store() {
+	let Some(reference) = reference_dir() else {
+		return;
+	};
+	let fixture = tempfile::tempdir().unwrap();
+	let root = fixture.path().join("diverted");
+	let payload = fixture.path().join("payload");
+	fs::write(&payload, "payload\n").unwrap();
+	let run = |bin: &Path, args: &[&str]| -> Output {
+		Command::new(bin.join("nix"))
+			.args(args)
+			.env_clear()
+			.env("HOME", root.join("home"))
+			.env("NIX_STORE_DIR", root.join("store"))
+			.env("NIX_STATE_DIR", root.join("var/nix"))
+			.env("NIX_LOG_DIR", root.join("var/log/nix"))
+			.env("NIX_CONF_DIR", fixture.path())
+			.env("NIX_REMOTE", "")
+			.output()
+			.unwrap()
+	};
+	fs::write(
+		fixture.path().join("nix.conf"),
+		"build-users-group =\nsubstituters =\nexperimental-features = nix-command\n",
+	)
+	.unwrap();
+	let session = |bin: &Path| {
+		wipe(&root);
+		let added = run(bin, &["store", "add-file", payload.to_str().unwrap()]);
+		assert!(added.status.success());
+		let path = String::from_utf8(added.stdout).unwrap().trim().to_owned();
+		[
+			vec!["store", "verify", "--no-trust", "-r", path.as_str()],
+			vec!["store", "cat", path.as_str()],
+		]
+		.iter()
+		.map(|args| {
+			let output = run(bin, args);
+			format!(
+				"{args:?}\nstatus {:?}\nstdout {}\nstderr {}",
+				output.status.code(),
+				String::from_utf8_lossy(&output.stdout),
+				String::from_utf8_lossy(&output.stderr)
+			)
+			.replace(&path, "PATH")
+		})
+		.collect::<Vec<_>>()
+	};
+	let expected = session(&reference);
+	let actual = session(&candidate_dir());
+	wipe(&root);
+	assert_eq!(actual, expected);
+}

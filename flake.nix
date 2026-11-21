@@ -38,11 +38,20 @@
 				inherit self rust-overlay noxi-previous;
 				inherit (qualification.inputs) nixpkgs home-manager nix-reference;
 			};
+			# The noxios installer image, on the qualification row's Nixpkgs.
+			noxios = import ./nix/noxios {
+				inherit (qualification.inputs) nixpkgs;
+				inherit rust-overlay;
+				source = self;
+				package = replacement.candidate;
+			};
 		in
 		{
 			# The generations the qualification VMs switch to, for flake-mode
 			# probes and inspection. Never deploy them to a host.
-			nixosConfigurations = replacement.configurations;
+			nixosConfigurations = replacement.configurations // {
+				noxios-iso = noxios.iso;
+			};
 			homeConfigurations.qualification = qualification.inputs.home-manager.lib.homeManagerConfiguration {
 				pkgs = qualification.inputs.nixpkgs.legacyPackages.x86_64-linux;
 				modules = [ ./tests/qualification/replacement/home.nix ];
@@ -68,11 +77,15 @@
 				};
 			};
 			nixosModules.qualification = import ./nix/qualification-module.nix;
+			# Replaces `nix.package` with noxi and leaves every other NixOS default.
+			nixosModules.noxios = noxios.module;
 			packages = forAllSystems (system: {
 				default = preview system;
 				noxi = preview system;
 				# Built against the qualification row's Nixpkgs.
 				noxi-replacement = replacement.candidate;
+				# The NixOS minimal installation ISO with noxi as `nix.package`.
+				noxios-iso = noxios.image;
 				qualification-nixos-report = replacement.reports.nixos;
 				qualification-home-manager-report = replacement.reports.home-manager;
 				qualification-lifecycle-report = replacement.reports.lifecycle;
@@ -132,6 +145,8 @@
 						done
 						grep -qx "ExecStart=@$package/bin/nix-daemon nix-daemon --daemon" "$package/lib/systemd/system/nix-daemon.service"
 						grep -qx 'ListenStream=/nix/var/nix/daemon-socket/socket' "$package/lib/systemd/system/nix-daemon.socket"
+						grep -qx 'Alias=noxi-daemon.service' "$package/lib/systemd/system/nix-daemon.service"
+						grep -qx 'Alias=noxi-daemon.socket' "$package/lib/systemd/system/nix-daemon.socket"
 						test -f "$package/lib/tmpfiles.d/nix-daemon.conf"
 						"$package/bin/noxi" eval --expr '1 + 2' | grep -x 3
 						"$package/bin/nix" --extra-experimental-features 'nix-command flakes' --store dummy:// eval --expr '1 + 2' | grep -x 3
@@ -157,6 +172,12 @@
 					qualification-home-manager = replacement.checks.home-manager;
 					qualification-lifecycle = replacement.checks.lifecycle;
 					qualification-daemon = replacement.checks.daemon;
+					# No CppNix in the noxios image, and a boot with noxi serving the store.
+					noxios-iso-closure = noxios.closure;
+					noxios-iso-boot = noxios.boot;
+					# Installs the image to a disk with `noxi install`, boots it and
+					# switches it to a second generation built by noxi.
+					noxios-install = noxios.install;
 					# Boots a NixOS machine running the pinned reference; see tests/vm/.
 					vm = import ./tests/vm/test.nix {
 						noxi = self.packages.${system}.default;
