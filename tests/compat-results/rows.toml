@@ -97,6 +97,7 @@ store-and-garbage-collection = [
 	"noxi-compat-tests::reference_store_schema",
 	"noxi-compat-tests::reference_store_concurrency",
 	"noxi-compat-tests::reference_store_round_trip",
+	"noxi-compat-tests::dummy_store_states",
 	"noxi-compat-tests::reference_gc",
 	"noxi-commands::reference_collect_garbage",
 	"noxi-commands::reference_chroot_store",

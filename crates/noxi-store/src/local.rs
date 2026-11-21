@@ -11,7 +11,8 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex, Weak};
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use nix_compat::derivation::{DrvHashModulo, UnverifiedDerivation, lookup_fn};
+use nix_compat::derivation::outputs::OutputsError;
+use nix_compat::derivation::{DerivationError, DrvHashModulo, UnverifiedDerivation, lookup_fn};
 use nix_compat::log::VerbosityLevel;
 use nix_compat::narinfo::VerifyingKey;
 use nix_compat::nixbase32;
@@ -519,8 +520,16 @@ impl LocalStore {
 			.map(|(name, path)| (name.to_string(), path.clone()))
 			.collect();
 		drv.verify(name, lookup).map_err(|e| {
+			// `Derivation::type` rejects a derivation without outputs with
+			// this message.
+			let message = match e {
+				DerivationError::InvalidOutputs(OutputsError::NoOutputs()) => {
+					"must have at least one output".to_owned()
+				}
+				e => e.to_string(),
+			};
 			Error::Other(format!(
-				"while checking derivation '{}': {e}",
+				"while checking derivation '{}': {message}",
 				print(drv_path)
 			))
 		})?;

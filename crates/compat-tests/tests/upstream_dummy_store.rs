@@ -7,10 +7,12 @@
 //! substituter and a destination store around substitution goals run by the
 //! build worker.
 //!
-//! noxi has neither part: `dummy://` opens no store at all, nothing reads
-//! or writes a whole store as this JSON, and noxi-build's substitution goals
-//! cannot run against an in-memory substituter. Those files are known gaps.
-//! What can be checked is checked here, against `nix_compat`: every store
+//! noxi's `dummy://` opens no store at all. `dummy_store_states` instead
+//! performs each scenario's operations, including the substitution goals,
+//! on noxi's local store and compares the exported state with these files;
+//! the states it reproduces are passes, and the three it cannot (an
+//! output-less derivation and the two content-addressed substitutions) are
+//! gaps. Independently of any store, it is checked here, against `nix_compat`: every store
 //! object's NAR hash, NAR size and content-addressed store path are
 //! recomputed from its file tree and references, every path info, file
 //! tree, derivation and realisation decodes and re-encodes to the file's
@@ -39,6 +41,8 @@ const DATA: &str = concat!(
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum Class {
+	/// `dummy_store_states` reproduces the state with noxi's store.
+	Pass,
 	/// noxi has no in-memory store or substitution goal for this state.
 	Gap,
 	/// No 2.35.2 test reads or writes the file.
@@ -48,23 +52,27 @@ enum Class {
 /// Every file in both directories, with its class. The `"stem` spellings
 /// are what `fixture_inventory` looks for.
 const FIXTURES: &[(&str, &str, Class)] = &[
-	("dummy-store", "empty", Class::Gap),
+	("dummy-store", "empty", Class::Pass),
 	("dummy-store", "one-derivation", Class::Gap),
-	("dummy-store", "one-flat-file", Class::Gap),
-	("dummy-store", "one-realisation", Class::Gap),
+	("dummy-store", "one-flat-file", Class::Pass),
+	("dummy-store", "one-realisation", Class::Pass),
 	("worker-substitution/ca-drv", "store-after", Class::Gap),
-	("worker-substitution/ca-drv", "store-before", Class::Gap),
-	("worker-substitution/ca-drv", "substituter", Class::Gap),
+	("worker-substitution/ca-drv", "store-before", Class::Pass),
+	("worker-substitution/ca-drv", "substituter", Class::Pass),
 	("worker-substitution/issue-11928", "store-after", Class::Gap),
 	(
 		"worker-substitution/issue-11928",
 		"store-before",
-		Class::Gap,
+		Class::Pass,
 	),
-	("worker-substitution/issue-11928", "substituter", Class::Gap),
-	("worker-substitution/single", "substituter", Class::Gap),
+	(
+		"worker-substitution/issue-11928",
+		"substituter",
+		Class::Pass,
+	),
+	("worker-substitution/single", "substituter", Class::Pass),
 	("worker-substitution/with-dep", "store", Class::Anomaly),
-	("worker-substitution/with-dep", "substituter", Class::Gap),
+	("worker-substitution/with-dep", "substituter", Class::Pass),
 ];
 
 fn nar_of(file: &File, node: nar::Node<'_, Vec<u8>>) {
@@ -239,6 +247,7 @@ fn every_fixture_is_listed() {
 			.find(|line| line.split_whitespace().nth(1) == Some(path.as_str()))
 			.and_then(|line| line.split_whitespace().next());
 		let expected = match class {
+			Class::Pass => "pass:dummy_store_states",
 			Class::Gap => "gap",
 			Class::Anomaly => "anomaly",
 		};

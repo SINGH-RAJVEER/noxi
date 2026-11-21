@@ -417,6 +417,7 @@ Internal test crate that checks the workspace crates against the CppNix 2.35.2 f
 
 #### Added
 
+- `dummy_store_states` (store tier) runs the `dummy-store.cc` and `worker-substitution.cc` scenarios against a diverted local store and noxi's substitution goal from a `file://` cache, exports the store as CppNix's store JSON and compares it with the fixtures. Nine files move from gap to pass. `dummy-store/one-derivation.json` and the two content-addressed `store-after` files stay gaps, and the tests pin the observed failures (2026-11-21)
 - `reference_store`, with isolated fresh-store layout, path/NAR import and metadata, and bidirectional CppNix store checks. Five cases pass against the pinned 2.35.2 executables; broader store qualification remains open.
 - `reference_hash_modulo`, which verifies derivations the 2.35.2 reference wrote for CppNix issue #16307's graph (2026-09-29).
 - `derivation_parser_extensions`, which checks that non-UTF-8 fields and unchecked output names round-trip through ATerm (2026-09-29).
@@ -471,6 +472,7 @@ Internal trybuild tests for `nix-compat-derive`.
 
 ### Unreleased
 
+- A local store that rejects a derivation without outputs reports "must have at least one output", the reference's message, instead of "no outputs defined" (2026-11-21)
 - A binary cache's priority defaults to 0, as `StoreConfig::priority` does in 2.35.2, rather than 50, so a cache whose `nix-cache-info` sets `Priority` is tried after caches that set none (2026-11-21).
 - HTTP cache requests follow `FileTransferSettings`: transient failures (connection errors, HTTP 408, 429 and most 5xx) are retried `filetransfer-retry-attempts` times with the reference's exponential backoff, `Retry-After` floor and optional jitter, each retry warned as `...; retrying in N ms (attempt k/n)`. Errors use curl's wording (`Could not connect to server (7) Failed to connect to HOST port PORT after N ms: ...`) and include a short response body. `connect-timeout` bounds connecting, the `retry-*` cache URL parameters override the global settings, 410 reads as a missing file, and an HTTP cache without `nix-cache-info` is refused as `does not appear to be a binary cache`. `BinaryCache::open_with` takes these settings (2026-11-21).
 - Binary cache uploads follow `BinaryCacheStoreConfig`: `xz` is the default compression, and `lzma`, `compression-level`, `parallel-compression`, `write-nar-listing`, `index-debug-info`, `secret-key`, `secret-keys`, `priority` and `want-mass-query` URL parameters are read, with the reference's `unknown setting` warning for others. xz and lzma go through the system liblzma, bzip2 uses level 9 and zstd writes 16 MiB frames with up to four workers, so xz, lzma, bzip2, zstd and uncompressed uploads are byte-identical to CppNix's. Unsigned uploads are allowed, the cache's `nar`, `build-trace-v2` and `log` directories are created as on open, an existing NAR is kept, and no lock file is left beside the narinfo. `BinaryCache::upload` publishes one path whose references are already cached (2026-11-21).
