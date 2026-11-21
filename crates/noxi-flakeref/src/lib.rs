@@ -15,7 +15,7 @@ pub mod lockfile;
 pub mod registry;
 pub mod url;
 
-pub use error::{Error, notice, warn};
+pub use error::{Error, SuppressWarnings, notice, warn};
 
 #[derive(Debug)]
 #[non_exhaustive]

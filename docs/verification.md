@@ -1208,3 +1208,16 @@ These differ between runs of the same engine, or depend on a library the format 
 - `realisation::DrvOutput` still prints and parses the pre-2.35 `<hash>!<output>` form; 2.35.2 keys realisations by derivation path, which `cppnix_json::DrvOutput` implements.
 - Nested derived paths (`drv^out^bin`) need `dynamic-derivations` in CppNix, which reports a feature error; `DerivedPath` rejects them as an invalid store path name. Under the qualified `nix-command flakes` profile both reject the input, with different messages.
 - `noxi-store`'s `BuildDerivation` still reads floating and experimental outputs with its own output-tuple pre-parser and keeps the rest as `UnverifiedDerivation`, rather than using `from_aterm`. It copies `__json` as raw bytes and formats no floats, so it does not affect the float evidence above. Moving it to `from_aterm` is not a contained change: the store and builder use `UnverifiedDerivation` throughout, and `from_aterm` cannot hold non-UTF-8 strings or the Git and non-SHA-256 text outputs this reader accepts.
+
+## Flake lock qualification, 2026-11-21
+
+`crates/noxi-commands/tests/reference_flake_lock.rs` compares 32 lock-graph, follows, override, registry and lock-policy cases against CppNix 2.35.2 at `/nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2`. It uses only local inputs: `path:` directories, `git+file` repositories, local tarballs and a local `flake-registry` file. It runs in isolated `local?root=` stores. Each case compares exit status, stdout, stderr with the store root replaced, and the bytes of every lock file left in the fixture. The test runs in the `store` tier and maps to the "Flakes and fetchers" matrix row. The behaviours and the remaining gaps are listed in [flakes](flakes.md#lock-computation-and-lock-policy-2026-11-21).
+
+Validation used debug builds under the shared heavy-build lock, with `NOXI_REFERENCE_BIN` set to the reference above:
+
+- `cargo nextest run -p noxi-flakeref -p noxi-flake -p noxi-glue -p noxi-commands -p noxi-system` limited to the library tests and the `reference_flake_lock`, `reference_flake_cli`, `reference_flakes`, `reference_registry`, `reference_flake_commands`, `flakes`, `operations` and `flake` test binaries: 95 passed, 3 skipped.
+- `cargo nextest run -p noxi-glue` (every test binary): 36 passed, 5 skipped.
+- `generated_boundaries`, `reference_channel`, `generated_fetcher_validation`, `reference_fetch_ssh` and `reference_flakeref`, which exercise the tarball and Git fetchers: 13 passed.
+- `cargo fmt --check` and `cargo clippy --tests` for the four touched crates report no new warnings.
+
+An exploratory shell sweep of the 70 flake-reference parse/print forms and about 90 further lock, registry, tarball and commit invocations showed no differences beyond the open items, apart from fixture-creation artefacts.

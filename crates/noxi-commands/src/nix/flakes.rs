@@ -28,6 +28,8 @@ pub struct Request {
 	pub inputs_from: Vec<String>,
 	pub registry_overrides: Vec<(String, String)>,
 	pub output_lock_file: Option<PathBuf>,
+	/// `warn-dirty`: report lock files left unwritten because of unlocked inputs.
+	pub warn_dirty: bool,
 	/// `nix search`: the patterns and output format of the search builtin.
 	pub search: Option<super::search::Request>,
 }
@@ -179,24 +181,24 @@ mod operations {
 				.original_lock_file
 				.render()
 				.map_err(|e| ErrorKind::EvalError(e.to_string()))?;
-		if changed && request.no_update && !request.no_write && local {
-			return Err(ErrorKind::EvalError(format!(
-				"flake '{}' requires lock file changes but they're not allowed due to '--no-update-lock-file'",
-				flake.original_ref
-			))
-			.context(format!(
+		// `lockFlake` decides in this order whether it may write, and reports each
+		// refusal under the lock-file trace frame.
+		let lock_error = |message: String| {
+			ErrorKind::EvalError(message).context(format!(
 				"updating the lock file of flake '{}'",
 				flake.locked_ref
-			)));
-		}
-		if changed {
+			))
+		};
+		let diff = {
 			use noxi_flakeref::lockfile::LockFile;
-			let old = &flake.original_lock_file;
-			let diff = String::from_utf8(nix_compat::log::filter_ansi_escapes(
-				LockFile::diff(old, &flake.lock_file).as_bytes(),
+			String::from_utf8(nix_compat::log::filter_ansi_escapes(
+				LockFile::diff(&flake.original_lock_file, &flake.lock_file).as_bytes(),
 				true,
 			))
-			.expect("UTF-8 lock diff");
+			.expect("UTF-8 lock diff")
+		};
+		let mut write = false;
+		if changed || request.output_lock_file.is_some() {
 			if request.no_write {
 				eprintln!(
 					"warning: not writing modified lock file of flake '{}':\n{}",
@@ -204,21 +206,41 @@ mod operations {
 					diff.trim_end()
 				);
 			} else if !local && request.output_lock_file.is_none() {
-				return Err(ErrorKind::EvalError(format!(
+				return Err(lock_error(format!(
 					"cannot write modified lock file of flake '{}' (use '--no-write-lock-file' to ignore)",
 					flake.original_ref
 				)));
-			}
-		}
-		if !request.no_write
-			&& (local || request.output_lock_file.is_some())
-			&& (changed || request.output_lock_file.is_some())
-		{
-			if request.commit_lock && request.output_lock_file.is_some() {
-				return Err(ErrorKind::EvalError(
+			} else if let Some(unlocked) = flake
+				.lock_file
+				.is_unlocked(&store.fetch_settings())
+				.map_err(|e| ErrorKind::EvalError(e.to_string()))?
+			{
+				if request.operation == "lock" {
+					return Err(lock_error(format!(
+						"Not writing lock file of flake '{}' because it has an unlocked input ('{unlocked}'). Use '--allow-dirty-locks' to allow this anyway.",
+						flake.original_ref
+					)));
+				}
+				if request.warn_dirty {
+					eprintln!(
+						"warning: not writing lock file of flake '{}' because it has an unlocked input ('{unlocked}')",
+						flake.original_ref
+					);
+				}
+			} else if request.no_update {
+				return Err(lock_error(format!(
+					"flake '{}' requires lock file changes but they're not allowed due to '--no-update-lock-file'",
+					flake.original_ref
+				)));
+			} else if request.commit_lock && request.output_lock_file.is_some() {
+				return Err(lock_error(
 					"'--commit-lock-file' and '--output-lock-file' are incompatible".into(),
 				));
+			} else {
+				write = true;
 			}
+		}
+		if write {
 			let existed = lock_path.as_ref().is_some_and(|path| path.exists());
 			let path = request
 				.output_lock_file
@@ -226,24 +248,18 @@ mod operations {
 				.or(lock_path.as_ref())
 				.expect("lock path");
 			if request.output_lock_file.is_none() {
-				use noxi_flakeref::lockfile::LockFile;
-				let old = &flake.original_lock_file;
-				let diff = String::from_utf8(nix_compat::log::filter_ansi_escapes(
-					LockFile::diff(old, &flake.lock_file).as_bytes(),
-					true,
-				))
-				.expect("UTF-8 lock diff");
-				if path.exists() {
+				let diff = diff.trim_end();
+				if !path.exists() {
 					eprintln!(
-						"warning: updating lock file \"{}\":\n{}",
-						path.display(),
-						diff.trim_end()
+						"warning: creating lock file \"{}\": \n{diff}",
+						path.display()
 					);
+				} else if diff.is_empty() {
+					eprintln!("warning: updating lock file \"{}\"", path.display());
 				} else {
 					eprintln!(
-						"warning: creating lock file \"{}\": \n{}",
-						path.display(),
-						diff.trim_end()
+						"warning: updating lock file \"{}\":\n{diff}",
+						path.display()
 					);
 				}
 			}
@@ -331,8 +347,10 @@ mod operations {
 					));
 				}
 			}
-			// Re-resolve with the same evaluator source cache, as the pinned command does.
+			// Re-resolve with the same evaluator source cache. The pinned command only
+			// re-reads the written flake, so the lock warnings are not repeated.
 			if request.output_lock_file.is_none() {
+				let _quiet = noxi_flakeref::SuppressWarnings::new();
 				flake = noxi_flake::lock(store, &co, &reference, &request.locks).await?;
 			}
 		}
@@ -555,6 +573,7 @@ pub(super) fn request(parsed: &Parsed, operation: &str) -> Result<Request, Failu
 			.map(str::to_owned)
 			.unwrap_or_else(|| format!("{}-linux", std::env::consts::ARCH)),
 		output_lock_file: parsed.value("output-lock-file").map(PathBuf::from),
+		warn_dirty: parsed.settings.get_bool("warn-dirty", true),
 		search: None,
 	})
 }

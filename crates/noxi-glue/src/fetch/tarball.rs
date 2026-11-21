@@ -187,17 +187,18 @@ pub fn unpack(bytes: Vec<u8>) -> Result<(Mount, u64)> {
 			));
 		}
 	}
+	// `dereferenceSingletonDirectory`: a single top-level directory becomes the
+	// root; any other layout keeps the archive root.
 	let entries: Vec<PathBuf> = fs::read_dir(keep.path())?
 		.map(|e| e.map(|e| e.path()))
 		.collect::<std::io::Result<_>>()?;
-	if entries.len() != 1 || !entries[0].is_dir() {
-		return Err(Error::new(
-			"tarball contains an unexpected number of top-level files",
-		));
-	}
+	let root = match entries.as_slice() {
+		[single] if fs::symlink_metadata(single)?.is_dir() => single.clone(),
+		_ => keep.path().to_owned(),
+	};
 	Ok((
 		Mount {
-			root: entries[0].clone(),
+			root,
 			filter: None,
 			keep: Some(keep),
 		},
@@ -210,12 +211,17 @@ pub(crate) fn get_tarball_accessor(
 	input: &Input,
 ) -> Result<(Mount, Input)> {
 	let url = get_str_attr(&input.attrs, "url")?;
-	let (mount, last_modified) = download_tarball(store, &url, &[], &input.get_name())?;
+	let activity = format!("unpacking '{url}' into the Git cache...");
+	let (mount, last_modified) =
+		download_tarball(store, &url, &[], &input.get_name(), Some(&activity))?;
 	let mut result = input.clone();
-	result
-		.attrs
-		.entry("lastModified".into())
-		.or_insert(Attr::Int(last_modified));
+	// CppNix records `lastModified` only when the archive has a nonzero time.
+	if last_modified != 0 {
+		result
+			.attrs
+			.entry("lastModified".into())
+			.or_insert(Attr::Int(last_modified));
+	}
 	Ok((mount, result))
 }
 
@@ -224,6 +230,8 @@ pub(super) fn download_tarball(
 	url: &str,
 	headers: &[(String, String)],
 	name: &str,
+	// Progress text the reference prints when it downloads, rather than reusing, the archive.
+	activity: Option<&str>,
 ) -> Result<(Mount, u64)> {
 	let cache = store.fetch_cache()?;
 	let key: Attrs = [("url".into(), url.into())].into();
@@ -269,6 +277,9 @@ pub(super) fn download_tarball(
 		.as_ref()
 		.filter(|_| mount.is_some())
 		.and_then(|c| get_str_attr(&c.value, "etag").ok());
+	if let Some(activity) = activity {
+		noxi_flakeref::notice(activity);
+	}
 	let response = request(store, url, headers, etag.as_deref())?;
 	if response.status == 304 {
 		let mount = mount.ok_or_else(|| Error::new("HTTP 304 without a valid cached tarball"))?;

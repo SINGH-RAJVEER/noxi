@@ -49,6 +49,7 @@ flakes-and-fetchers = [
 	"noxi-commands::generated_mercurial",
 	"noxi-commands::reference_fetch_ssh",
 	"noxi-commands::reference_flakes",
+	"noxi-commands::reference_flake_lock",
 	"noxi-commands::reference_registry",
 ]
 flake-operation-library = [

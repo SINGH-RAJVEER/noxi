@@ -10,7 +10,7 @@ use std::rc::Rc;
 
 use bstr::ByteSlice;
 use noxi_eval::generators::{self, GenCo};
-use noxi_eval::{ErrorKind, NixAttrs, Value};
+use noxi_eval::{AddContext, ErrorKind, NixAttrs, Value};
 use noxi_flakeref::flake_ref::{FlakeRef, ParseOptions, parse_flake_ref};
 use noxi_flakeref::input::{Attr, Attrs, Input};
 use noxi_flakeref::lockfile::{
@@ -246,12 +246,38 @@ fn relative_path(base: &Path, path: &Path) -> String {
 	format!("{prefix}{}", path.strip_prefix(root).unwrap().display())
 }
 
+/// Resolve `.` and `..` lexically, as `CanonPath` does for relative inputs.
+fn normalize(path: &Path) -> PathBuf {
+	use std::path::Component;
+	let mut result = PathBuf::new();
+	for component in path.components() {
+		match component {
+			Component::CurDir => {}
+			Component::ParentDir => {
+				if result.parent().is_some() {
+					result.pop();
+				}
+			}
+			other => result.push(other),
+		}
+	}
+	result
+}
+
 async fn read_inputs(
 	store: &EvaluatorStore,
 	co: &GenCo,
 	base: &Path,
 	prefix: &[String],
 ) -> Result<BTreeMap<String, InputSpec>, ErrorKind> {
+	// Report a missing flake.nix as `readFlake` does, so the caller's trace frames apply.
+	let physical = store.physical_path(&base.join("flake.nix"));
+	if std::fs::symlink_metadata(&physical).is_err() {
+		return Err(error(format!(
+			"path '{}' does not exist",
+			physical.display()
+		)));
+	}
 	let import = generators::request_builtin(co, "import").await;
 	let value =
 		generators::request_call_with(co, import, [Value::Path(Box::new(base.join("flake.nix")))])
@@ -339,6 +365,34 @@ pub fn fetch_source(
 	})
 }
 
+/// `readFlake`'s error for a source without `flake.nix`, worded by the source's accessor.
+fn require_flake_file(
+	store: &EvaluatorStore,
+	locked: &FlakeRef,
+	base: &Path,
+) -> Result<(), ErrorKind> {
+	use noxi_flakeref::input::Scheme;
+	let physical = store.physical_path(&base.join("flake.nix"));
+	if std::fs::symlink_metadata(&physical).is_ok() {
+		return Ok(());
+	}
+	let relative = Path::new(&locked.subdir).join("flake.nix");
+	let url = noxi_flakeref::input::get_str_attr(&locked.input.attrs, "url").ok();
+	Err(error(
+		match (locked.input.scheme, locked.input.get_source_path(), url) {
+			(Some(Scheme::Git), Some(repo), _) => format!(
+				"Path '{}' does not exist in Git repository \"{}\".",
+				relative.display(),
+				repo.display()
+			),
+			(Some(Scheme::Tarball | Scheme::File), _, Some(url)) => {
+				format!("path '«{url}»/{}' does not exist", relative.display())
+			}
+			_ => format!("path '{}' does not exist", physical.display()),
+		},
+	))
+}
+
 async fn fetch_flake_source(
 	store: &EvaluatorStore,
 	co: &GenCo,
@@ -347,6 +401,7 @@ async fn fetch_flake_source(
 ) -> Result<FetchedSource, ErrorKind> {
 	let source = fetch_source(store, original, registries)?;
 	let (locked, base) = (&source.locked_ref, &source.out_path);
+	require_flake_file(store, locked, base)?;
 	let import = generators::request_builtin(co, "import").await;
 	let value =
 		generators::request_call_with(co, import, [Value::Path(Box::new(base.join("flake.nix")))])
@@ -429,6 +484,7 @@ impl Resolver<'_> {
 		new_node
 	}
 
+	#[allow(clippy::too_many_arguments)]
 	fn compute<'a>(
 		&'a mut self,
 		node: NodeId,
@@ -438,8 +494,28 @@ impl Resolver<'_> {
 		old: LockFile,
 		old_node: NodeId,
 		old_prefix: InputAttrPath,
+		// Below an input kept from the old lock without fetching it.
+		trust: bool,
 	) -> LocalFuture<'a, ()> {
 		Box::pin(async move {
+			// CppNix checks one override map, holding both declared and command-line
+			// overrides, for names this flake does not declare.
+			let mut missing: BTreeSet<String> = overrides
+				.keys()
+				.filter(|name| !inputs.contains_key(*name))
+				.cloned()
+				.collect();
+			for path in self.options.override_inputs.keys() {
+				if let Some((name, parent)) = path.split_last()
+					&& *parent == *prefix
+					&& !inputs.contains_key(name)
+				{
+					missing.insert(name.clone());
+				}
+			}
+			for name in &missing {
+				noxi_flakeref::lockfile::warn_override_for_missing(&prefix, name);
+			}
 			for (name, spec) in overrides {
 				if let Some(input) = inputs.get_mut(&name) {
 					if spec.reference.is_some() || spec.follows.is_some() {
@@ -449,186 +525,288 @@ impl Resolver<'_> {
 						input.parent = spec.parent;
 					}
 					input.overrides.extend(spec.overrides);
-				} else {
-					noxi_flakeref::lockfile::warn_override_for_missing(&prefix, &name);
 				}
 			}
 			for (name, mut spec) in inputs {
-				let mut path = prefix.clone();
-				path.push(name.clone());
-				let declared = spec.reference.clone();
-				let cli_override = self.options.override_inputs.get(&path);
-				if let Some(replacement) = cli_override {
-					let cwd = self.store.fetch_config.borrow().cwd.clone();
-					spec.reference = Some(
-						parse_flake_ref(
-							&self.store.fetch_settings(),
-							replacement,
-							ParseOptions {
-								base_dir: Some(&cwd),
-								..ParseOptions::default()
-							},
-						)
-						.map_err(error)?,
-					);
-					spec.follows = None;
-					spec.base = cwd;
-					spec.parent = Vec::new();
-				}
-				if let Some(follows) = spec.follows {
-					self.lock.nodes[node]
-						.inputs
-						.insert(name, Edge::Follows(follows));
-					continue;
-				}
-				let settings = self.store.fetch_settings();
-				let original = match spec.reference {
-					Some(reference) => reference,
-					None => FlakeRef::new(
-						Input::from_attrs(
-							&settings,
-							[
-								("type".into(), "indirect".into()),
-								("id".into(), name.clone().into()),
-							]
-							.into(),
-						)
-						.map_err(error)?,
-						"",
-					),
-				};
-				let parent = original.input.is_relative().map(|_| spec.parent.clone());
-				let old_child = match old.nodes[old_node].inputs.get(&name) {
-					Some(Edge::Node(child)) => Some(*child),
-					_ => None,
-				};
-				let old_locked = old_child.and_then(|child| old.nodes[child].locked.clone());
-				let reuse = !self.options.recreate
-					&& cli_override.is_none()
-					&& !self.options.update_inputs.contains(&path)
-					&& old_locked.as_ref().is_some_and(|l| {
-						l.original_ref.canonicalize() == original.canonicalize()
-							&& l.parent_input_attr_path == parent
-					});
-				let follows_outside = old_child.is_some_and(|child| {
-					let mut pending = vec![child];
-					let mut seen = BTreeSet::new();
-					while let Some(node) = pending.pop() {
-						if !seen.insert(node) {
-							continue;
-						}
-						for edge in old.nodes[node].inputs.values() {
-							match edge {
-								Edge::Node(child) => pending.push(*child),
-								Edge::Follows(target) if !target.starts_with(&path) => return true,
-								_ => {}
+				let path_s = noxi_flakeref::lockfile::print_input_attr_path(
+					&prefix
+						.iter()
+						.cloned()
+						.chain([name.clone()])
+						.collect::<Vec<_>>(),
+				);
+				let result: Result<(), ErrorKind> = async {
+					let mut path = prefix.clone();
+					path.push(name.clone());
+					let declared = spec.reference.clone();
+					let cli_override = self.options.override_inputs.get(&path);
+					if let Some(replacement) = cli_override {
+						let cwd = self.store.fetch_config.borrow().cwd.clone();
+						spec.reference = Some(
+							parse_flake_ref(
+								&self.store.fetch_settings(),
+								replacement,
+								ParseOptions {
+									base_dir: Some(&cwd),
+									..ParseOptions::default()
+								},
+							)
+							.map_err(error)?,
+						);
+						spec.follows = None;
+						spec.base = cwd;
+						spec.parent = Vec::new();
+					}
+					if let Some(follows) = spec.follows {
+						self.lock.nodes[node]
+							.inputs
+							.insert(name, Edge::Follows(follows));
+						return Ok(());
+					}
+					let settings = self.store.fetch_settings();
+					let original = match spec.reference {
+						Some(reference) => reference,
+						None => FlakeRef::new(
+							Input::from_attrs(
+								&settings,
+								[
+									("type".into(), "indirect".into()),
+									("id".into(), name.clone().into()),
+								]
+								.into(),
+							)
+							.map_err(error)?,
+							"",
+						),
+					};
+					let parent = original.input.is_relative().map(|_| spec.parent.clone());
+					let old_child = match old.nodes[old_node].inputs.get(&name) {
+						Some(Edge::Node(child)) => Some(*child),
+						_ => None,
+					};
+					let old_locked = old_child.and_then(|child| old.nodes[child].locked.clone());
+					let reuse = !self.options.recreate
+						&& cli_override.is_none()
+						&& !self.options.update_inputs.contains(&path)
+						&& old_locked.as_ref().is_some_and(|l| {
+							l.original_ref.canonicalize() == original.canonicalize()
+								&& l.parent_input_attr_path == parent
+						});
+					let follows_outside = old_child.is_some_and(|child| {
+						let mut pending = vec![child];
+						let mut seen = BTreeSet::new();
+						while let Some(node) = pending.pop() {
+							if !seen.insert(node) {
+								continue;
+							}
+							for edge in old.nodes[node].inputs.values() {
+								match edge {
+									Edge::Node(child) => pending.push(*child),
+									Edge::Follows(target) if !target.starts_with(&path) => {
+										return true;
+									}
+									_ => {}
+								}
 							}
 						}
+						false
+					});
+					if reuse
+						&& !follows_outside
+						// A follows edge in the old lock may come from an override that is gone;
+						// CppNix then refetches the input to recompute its edges.
+						&& !old.nodes[old_child.unwrap()]
+							.inputs
+							.values()
+							.any(|edge| matches!(edge, Edge::Follows(_)))
+						&& spec.overrides.is_empty()
+						&& !self
+							.options
+							.update_inputs
+							.iter()
+							.any(|update| update.starts_with(&path))
+						&& !self
+							.options
+							.override_inputs
+							.keys()
+							.any(|update| update.starts_with(&path))
+					{
+						let child = self.copy_old(
+							&old,
+							old_child.unwrap(),
+							&old_prefix,
+							&mut HashMap::new(),
+						);
+						self.lock.nodes[node].inputs.insert(name, Edge::Node(child));
+						return Ok(());
 					}
-					false
-				});
-				if reuse
-					&& !follows_outside
-					&& spec.overrides.is_empty()
-					&& !self
+					// CppNix keeps a reused input without fetching it, recomputing its
+					// edges from the old lock ("fake inputs") so that new overrides apply.
+					// A follows edge whose override has gone forces a refetch, except below
+					// an input that was itself kept this way.
+					let must_refetch = self
 						.options
 						.update_inputs
 						.iter()
-						.any(|update| update.starts_with(&path))
-					&& !self
-						.options
-						.override_inputs
-						.keys()
-						.any(|update| update.starts_with(&path))
-				{
-					let child =
-						self.copy_old(&old, old_child.unwrap(), &old_prefix, &mut HashMap::new());
-					self.lock.nodes[node].inputs.insert(name, Edge::Node(child));
-					continue;
-				}
-				let reference = if reuse {
-					old_locked.as_ref().unwrap().locked_ref.clone()
-				} else {
-					original.clone()
-				};
-				if !reuse
-					&& !self
-						.options
-						.allow_unlocked
-						.unwrap_or(!self.store.pure_eval())
-					&& !reference.input.is_locked(&settings)
-					&& reference.input.is_relative().is_none()
-				{
-					return Err(error(format!(
-						"cannot update unlocked flake input '{}' in pure mode",
-						path.join("/")
-					)));
-				}
-				if self.parents.contains(&original) {
-					return Err(error(format!(
-						"found circular import of flake '{original}'"
-					)));
-				}
-				self.parents.push(original.clone());
-				let (locked, base, source) = if let Some(relative) = reference.input.is_relative() {
-					(
-						reference.clone(),
-						spec.base.join(relative).join(&reference.subdir),
-						None,
-					)
-				} else {
-					let registries = if settings.use_registries {
-						if cli_override.is_some() {
-							UseRegistries::All
-						} else {
-							UseRegistries::Limited
+						.any(|update| update.len() > path.len() && update.starts_with(&path));
+					if reuse && !must_refetch {
+						let old_child = old_child.unwrap();
+						let mut fake = BTreeMap::new();
+						let mut refetch = false;
+						for (child_name, edge) in &old.nodes[old_child].inputs {
+							let input = match edge {
+								Edge::Node(child) => {
+									let Some(locked) = &old.nodes[*child].locked else {
+										continue;
+									};
+									InputSpec {
+										reference: Some(locked.original_ref.clone()),
+										is_flake: locked.is_flake,
+										base: spec.base.clone(),
+										parent: path.clone(),
+										..InputSpec::default()
+									}
+								}
+								Edge::Follows(target) => {
+									let mut override_path = path.clone();
+									override_path.push(child_name.clone());
+									let overridden =
+										spec.overrides.get(child_name).is_some_and(|o| {
+											o.reference.is_some() || o.follows.is_some()
+										}) || self
+											.options
+											.override_inputs
+											.contains_key(&override_path);
+									if !trust && !overridden {
+										refetch = true;
+										break;
+									}
+									InputSpec {
+										follows: Some(
+											old_prefix.iter().chain(target).cloned().collect(),
+										),
+										..InputSpec::default()
+									}
+								}
+							};
+							fake.insert(child_name.clone(), input);
 						}
+						if !refetch {
+							let mut locked = old_locked.clone();
+							if let Some(locked) = &mut locked
+								&& let Some(parent) = &mut locked.parent_input_attr_path
+							{
+								parent.splice(0..0, old_prefix.iter().cloned());
+							}
+							let child = self.lock.add_node(Node {
+								inputs: BTreeMap::new(),
+								locked,
+							});
+							self.lock.nodes[node].inputs.insert(name, Edge::Node(child));
+							self.compute(
+								child,
+								fake,
+								spec.overrides,
+								path,
+								old.clone(),
+								old_child,
+								old_prefix.clone(),
+								true,
+							)
+							.await?;
+							return Ok(());
+						}
+					}
+					let reference = if reuse {
+						old_locked.as_ref().unwrap().locked_ref.clone()
 					} else {
-						UseRegistries::No
+						original.clone()
 					};
-					let source = if spec.is_flake {
-						fetch_flake_source(self.store, self.co, &reference, registries).await?
+					if !reuse
+						&& !self
+							.options
+							.allow_unlocked
+							.unwrap_or(!self.store.pure_eval())
+						&& !reference.input.is_locked(&settings)
+						&& reference.input.is_relative().is_none()
+					{
+						return Err(error(format!(
+							"cannot update unlocked flake input '{}' in pure mode",
+							path.join("/")
+						)));
+					}
+					if self.parents.contains(&original) {
+						return Err(error(format!(
+							"found circular import of flake '{original}'"
+						)));
+					}
+					self.parents.push(original.clone());
+					let (locked, base, source) = if let Some(relative) =
+						reference.input.is_relative()
+					{
+						(
+							reference.clone(),
+							normalize(&spec.base.join(relative).join(&reference.subdir)),
+							None,
+						)
 					} else {
-						fetch_source(self.store, &reference, registries)?
-					};
-					(source.locked_ref, source.out_path, Some(source.source_info))
-				};
-				let child = self.lock.add_node(Node {
-					inputs: BTreeMap::new(),
-					locked: Some(LockedNode {
-						locked_ref: locked.clone(),
-						original_ref: if cli_override.is_some() {
-							declared.unwrap_or(original)
+						let registries = if settings.use_registries {
+							if cli_override.is_some() {
+								UseRegistries::All
+							} else {
+								UseRegistries::Limited
+							}
 						} else {
-							original
-						},
-						is_flake: spec.is_flake,
-						parent_input_attr_path: parent,
-					}),
-				});
-				self.lock.nodes[node].inputs.insert(name, Edge::Node(child));
-				if let Some(source) = source {
-					self.sources.insert(child, (source, locked.subdir));
-				}
-				if spec.is_flake {
-					let child_inputs = read_inputs(self.store, self.co, &base, &path).await?;
-					let (child_old, child_old_node, child_old_prefix) = if reuse {
-						(old.clone(), old_child.unwrap(), old_prefix.clone())
-					} else {
-						(read_lock(self.store, &base)?, ROOT, path.clone())
+							UseRegistries::No
+						};
+						let source = if spec.is_flake {
+							fetch_flake_source(self.store, self.co, &reference, registries).await?
+						} else {
+							fetch_source(self.store, &reference, registries)?
+						};
+						(source.locked_ref, source.out_path, Some(source.source_info))
 					};
-					self.compute(
-						child,
-						child_inputs,
-						spec.overrides,
-						path,
-						child_old,
-						child_old_node,
-						child_old_prefix,
-					)
-					.await?;
+					let child = self.lock.add_node(Node {
+						inputs: BTreeMap::new(),
+						locked: Some(LockedNode {
+							locked_ref: locked.clone(),
+							original_ref: if cli_override.is_some() {
+								declared.unwrap_or(original)
+							} else {
+								original
+							},
+							is_flake: spec.is_flake,
+							parent_input_attr_path: parent,
+						}),
+					});
+					self.lock.nodes[node].inputs.insert(name, Edge::Node(child));
+					if let Some(source) = source {
+						self.sources.insert(child, (source, locked.subdir));
+					}
+					if spec.is_flake {
+						let child_inputs = read_inputs(self.store, self.co, &base, &path).await?;
+						let (child_old, child_old_node, child_old_prefix) = if reuse {
+							(old.clone(), old_child.unwrap(), old_prefix.clone())
+						} else {
+							(read_lock(self.store, &base)?, ROOT, path.clone())
+						};
+						self.compute(
+							child,
+							child_inputs,
+							spec.overrides,
+							path,
+							child_old,
+							child_old_node,
+							child_old_prefix,
+							false,
+						)
+						.await?;
+					}
+					self.parents.pop();
+					Ok(())
 				}
-				self.parents.pop();
+				.await;
+				result.map_err(|e| e.context(format!("updating the flake input '{path_s}'")))?;
 			}
 			Ok(())
 		})
@@ -703,49 +881,76 @@ pub async fn lock_flake(
 		None => None,
 	};
 	let inputs = read_inputs(store, co, &out_path, &[]).await?;
-	let old = if let Some(path) = &options.reference_lock_file {
-		let text = std::fs::read_to_string(path).map_err(error)?;
-		LockFile::parse(&settings, &text, &path.to_string_lossy()).map_err(error)?
-	} else {
-		read_lock(store, &out_path)?
-	};
-	let original_lock_file = old.clone();
-	let mut resolver = Resolver {
-		store,
-		co,
-		options,
-		lock: LockFile::default(),
-		sources: [(ROOT, (source, locked_ref.subdir.clone()))].into(),
-		parents: vec![original.clone()],
-	};
-	resolver
-		.compute(
-			ROOT,
-			inputs,
-			BTreeMap::new(),
-			Vec::new(),
-			old,
-			ROOT,
-			Vec::new(),
-		)
-		.await?;
-	for (path, reference) in &options.override_inputs {
-		if resolver.lock.find_input(path).map_err(error)?.is_none() {
-			noxi_flakeref::warn(&format!(
-				"the flag '--override-input {} {reference}' does not match any input",
-				path.join("/")
+	let (original_lock_file, resolver) = async {
+		if !settings.allow_dirty && options.reference_lock_file.is_some() {
+			return Err(error(
+				"reference lock file was provided, but the `allow-dirty` setting is set to false",
 			));
 		}
-	}
-	for path in &options.update_inputs {
-		if resolver.lock.find_input(path).map_err(error)?.is_none() {
-			noxi_flakeref::warn(&format!(
-				"'{}' does not match any input of this flake",
-				path.join("/")
-			));
+		// A missing reference lock file reads as an empty lock, as in CppNix.
+		let old = match &options.reference_lock_file {
+			Some(path) if !path.exists() => LockFile::default(),
+			Some(path) => {
+				let text = std::fs::read_to_string(path).map_err(error)?;
+				LockFile::parse(&settings, &text, &path.to_string_lossy()).map_err(error)?
+			}
+			None => read_lock(store, &out_path)?,
+		};
+		let original_lock_file = old.clone();
+		let mut resolver = Resolver {
+			store,
+			co,
+			options,
+			lock: LockFile::default(),
+			sources: [(ROOT, (source, locked_ref.subdir.clone()))].into(),
+			parents: vec![original.clone()],
+		};
+		resolver
+			.compute(
+				ROOT,
+				inputs,
+				BTreeMap::new(),
+				Vec::new(),
+				old,
+				ROOT,
+				Vec::new(),
+				false,
+			)
+			.await?;
+		// CppNix records the input paths it visits while computing locks: inputs reached
+		// through locked nodes, plus the final follows edge for overrides.
+		let used = |path: &[String], follows_last: bool| {
+			let mut node = ROOT;
+			for (i, name) in path.iter().enumerate() {
+				match resolver.lock.nodes[node].inputs.get(name) {
+					Some(Edge::Node(child)) => node = *child,
+					Some(Edge::Follows(_)) if follows_last && i + 1 == path.len() => return true,
+					_ => return false,
+				}
+			}
+			true
+		};
+		for (path, reference) in &options.override_inputs {
+			if !used(path, true) {
+				noxi_flakeref::warn(&format!(
+					"the flag '--override-input {} {reference}' does not match any input",
+					path.join("/")
+				));
+			}
 		}
+		for path in &options.update_inputs {
+			if !used(path, false) {
+				noxi_flakeref::warn(&format!(
+					"'{}' does not match any input of this flake",
+					path.join("/")
+				));
+			}
+		}
+		resolver.lock.check().map_err(error)?;
+		Ok::<_, ErrorKind>((original_lock_file, resolver))
 	}
-	resolver.lock.check().map_err(error)?;
+	.await
+	.map_err(|e| e.context(format!("updating the lock file of flake '{locked_ref}'")))?;
 	Ok(LockedFlake {
 		lock_file: resolver.lock,
 		original_lock_file,

@@ -69,6 +69,7 @@ The workspace is being published under the `noxi-` names. `noxi-hash`, `noxi-eva
 
 ### Unreleased
 
+- `SuppressWarnings` drops `warn` output on the current thread while held. The flake commands use it so that the re-resolution after a lock write does not repeat lock warnings (2026-11-21).
 - Expose fetcher-attribute parsing and formatting for evaluator builtins, with reference checks for common inputs and repeated query parameters. (2026-10-03).
 
 #### Changed
@@ -325,6 +326,8 @@ Serializes Rust values into Nix and deserializes Nix values into Rust types, imp
 
 ### Unreleased
 
+- Flake locking follows the reference's `computeLocks`. Kept inputs are rebuilt from the old lock without fetching, and a refetch happens only when a follows override has disappeared. Missing-override warnings cover command-line overrides, and "does not match any input" reflects the input paths actually visited. Errors gain the `while updating the lock file`/`while updating the flake input` trace frames and accessor-specific messages for a missing `flake.nix`. A missing `--reference-lock-file` reads as empty, and `allow-dirty = false` rejects one. Relative inputs resolve lexically (2026-11-21).
+- Tarballs that do not hold exactly one top-level directory keep the archive root instead of failing, an archive time of zero adds no `lastModified`, and a download prints `unpacking 'URL' into the Git cache...`. Git work-tree reads set `GIT_OPTIONAL_LOCKS=0` and no longer rewrite `.git/index` (2026-11-21).
 - `derivationStrict` writes structured attributes (`__json`) with `cppnix_json::dump` instead of serde_json, so floats such as `1.5e-7` are written `1.5e-07` as by the reference and the derivation gets the reference's store path. The `noxi-compat` dependency now enables its `serde` feature (2026-11-21).
 - `builtins.getFlake`, `builtins.fetchurl` and `builtins.fetchTarball` force their argument before adding their "while evaluating" context, as CppNix does, so an error thrown by the argument no longer shows that frame; `generated_fetcher_validation` matches the reference again (2026-11-21).
 - Add `addDrvOutputDependencies`, `parseFlakeRef` and `flakeRefToString` store-aware builtins, and configure writable evaluator stores through shared settings. (2026-10-03).
@@ -365,6 +368,7 @@ Serializes Rust values into Nix and deserializes Nix values into Rust types, imp
 
 ### Unreleased
 
+- `nix flake lock|update|metadata` decide on writing the lock in the reference's order and under its trace frame. `nix flake lock` refuses a lock with an unlocked input, the other commands leave it unwritten and warn when `warn-dirty` is set, and an empty-diff rewrite prints `updating lock file "PATH"`. `flake prefetch` of a tarball or file reports `narHash` in `locked`. The new `reference_flake_lock` test compares 32 lock, follows, override, registry and policy cases, lock bytes included, with 2.35.2 (2026-11-21).
 - `nix copy --to file://` realises derivation outputs before copying them, as `BuiltPathsCommand` does, and uploads the realisations `toRealisedPaths` collects to `build-trace-v2/<drv>/<output>.doi`, including those of content-addressed inputs read while resolving a parent. `nix-store --realise` prints content-addressed outputs known through the resolved derivation. `reference_ca_substitute` compares both commands with 2.35.2 (2026-11-21).
 - `nix copy --to file://` accepts the default compression and unsigned caches, reports invalid `compression` values as a usage error, reads `secret-key` files before copying, and reports and uploads each missing path once instead of re-exporting its closure (2026-11-21).
 - `nix derivation show` prints with `cppnix_json::dump`, so structured-attribute floats appear as the reference prints them (`1.5e-07`, `1e+100`). `language_boundaries` checks the `drvPath` of structured-attribute derivations with floats against the reference and against recorded paths, and `reference_nix` compares their `derivation show` output byte for byte (2026-11-21).

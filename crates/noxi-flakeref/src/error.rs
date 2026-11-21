@@ -79,8 +79,38 @@ pub fn set_warning_handler(handler: fn(&str)) {
 	let _ = WARNING_HANDLER.set(handler);
 }
 
+thread_local! {
+	static SUPPRESSED: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
+}
+
+/// Drops warnings on this thread while held, for repeated work whose warnings
+/// the reference reports only once.
+pub struct SuppressWarnings(());
+
+impl SuppressWarnings {
+	pub fn new() -> Self {
+		SUPPRESSED.with(|count| count.set(count.get() + 1));
+		SuppressWarnings(())
+	}
+}
+
+impl Default for SuppressWarnings {
+	fn default() -> Self {
+		Self::new()
+	}
+}
+
+impl Drop for SuppressWarnings {
+	fn drop(&mut self) {
+		SUPPRESSED.with(|count| count.set(count.get() - 1));
+	}
+}
+
 /// Emit a warning as CppNix's `warn` does.
 pub fn warn(message: &str) {
+	if SUPPRESSED.with(|count| count.get()) > 0 {
+		return;
+	}
 	match WARNING_HANDLER.get() {
 		Some(handler) => handler(message),
 		None => eprintln!("warning: {message}"),
