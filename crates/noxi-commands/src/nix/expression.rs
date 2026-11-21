@@ -1,12 +1,12 @@
 //! Expression installables share the legacy evaluator and store owner.
 use std::collections::{BTreeMap, BTreeSet};
 use std::io::{self, Write};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
 use nix_compat::store_path::StorePath;
 use noxi_eval::{Ambiguous, Value};
-use noxi_store::{DerivedPath, Store};
+use noxi_store::{DerivedPath, Store, profiles};
 use serde_json::json;
 
 use super::{Parsed, unsupported};
@@ -309,7 +309,7 @@ pub fn outputs(
 }
 
 pub fn build(parsed: Parsed) -> Result<ExitCode, Failure> {
-	parsed.unsupported(&["rebuild", "repair", "profile"])?;
+	parsed.unsupported(&["rebuild", "repair"])?;
 	// The shared build API exposes no BuildResult timing/resource fields.
 	// Existing outputs and dry runs have complete JSON; fresh-build --json
 	// must fail before building outputs rather than omit those fields.
@@ -317,6 +317,15 @@ pub fn build(parsed: Parsed) -> Result<ExitCode, Failure> {
 		Ok(target) => target,
 		Err(code) => return Ok(code),
 	};
+	let profile = parsed
+		.value("profile")
+		.map(|path| std::path::absolute(PathBuf::from(path)))
+		.transpose()?;
+	if profile.is_some() && target.paths.len() != 1 {
+		return Err(Failure::Error(
+			"--profile requires exactly one installable".into(),
+		));
+	}
 	let missing = target.store.query_missing(&target.paths)?;
 	if parsed.has("json") && !parsed.has("dry-run") && !missing.will_build.is_empty() {
 		return Err(unsupported(
@@ -337,6 +346,20 @@ pub fn build(parsed: Parsed) -> Result<ExitCode, Failure> {
 	}
 	if parsed.has("json") {
 		println!("{}", json!(result));
+	}
+	if let Some(profile) = profile.filter(|_| !parsed.has("dry-run")) {
+		let paths = outputs(target.store.as_ref(), &target.paths[0])?;
+		let mut paths = paths.values();
+		let output = paths
+			.next()
+			.filter(|_| paths.next().is_none())
+			.ok_or_else(|| Failure::Error("--profile requires exactly one output path".into()))?;
+		if let Some(parent) = profile.parent() {
+			std::fs::create_dir_all(parent)?;
+		}
+		let _lock = profiles::lock_profile(&profile)?;
+		let generation = profiles::create_generation(target.store.as_ref(), &profile, output)?;
+		profiles::switch_link(&profile, &generation)?;
 	}
 	for (index, path) in target.paths.iter().enumerate() {
 		let outputs = outputs(target.store.as_ref(), path)?;
