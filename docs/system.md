@@ -118,7 +118,7 @@ In the installer VM, the test:
 
 1. Boots the instrumented ISO with an empty 12 GiB virtio disk.
 2. Partitions the disk with `parted` (one MBR partition) and formats it as ext4 with a fixed UUID.
-3. Runs `noxi system init --root /mnt`.
+3. Runs `noxi system init --root /mnt`, and `noxi system init --flake` into a separate directory. It checks that the generated flake imports the noxios modules, carries the image's lock, and evaluates offline to a system whose package manager is noxi.
 4. Replaces the generated `configuration.nix` with [`install-test/`](../nix/noxios/install-test/)'s flake and configuration, keeping the generated `hardware-configuration.nix`.
 5. Copies the image's `/etc/nixos/flake.lock`, so the flake's inputs (Nixpkgs, the noxi source, rust-overlay) resolve offline from the image's store.
 6. Checks that noxi evaluates the flake offline to the same toplevel the build host evaluates with [`install-test/hardware-configuration.nix`](../nix/noxios/install-test/hardware-configuration.nix). That file stands in for the generated one. The fixed UUID makes them agree.

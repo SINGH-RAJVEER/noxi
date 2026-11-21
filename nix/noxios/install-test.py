@@ -43,6 +43,16 @@ with subtest("noxi system init generates the configuration"):
 	assert f"/dev/disk/by-uuid/{root_uuid}" in hardware, "the root file system is not in the hardware configuration"
 	installer.succeed("test -s /mnt/etc/nixos/configuration.nix")
 
+with subtest("noxi system init --flake keeps noxi as the package manager"):
+	installer.succeed("noxi system init --root /mnt --dir /tmp/init-flake --flake")
+	installer.succeed("grep -q 'noxios.modules' /tmp/init-flake/flake.nix")
+	installer.succeed("cmp /etc/nixos/flake.lock /tmp/init-flake/flake.lock")
+	identity = installer.succeed(
+		f"{nix} eval --raw /tmp/init-flake#nixosConfigurations.noxios.config "
+		"--apply 'c: \"${c.nix.package.pname} ${c.system.nixos.distroId}\"'"
+	).strip()
+	assert identity == "noxi-replacement-provisional noxios", f"the generated flake's system is {identity}"
+
 with subtest("the noxios flake evaluates offline to the preloaded system"):
 	for name in ["flake.nix", "configuration.nix", "generation-2.nix"]:
 		installer.succeed(f"install -m 0644 {files}/{name} /mnt/etc/nixos/{name}")
