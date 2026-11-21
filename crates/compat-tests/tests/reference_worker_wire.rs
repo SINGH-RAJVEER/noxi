@@ -643,9 +643,7 @@ impl Env {
 		settings.build.nix_command = true;
 		settings.store.ca_derivations = options.ca_derivations;
 		if env.root("cache").exists() {
-			settings
-				.substituters
-				.push(noxi_store::binary_cache::BinaryCache::open(&cache_uri).unwrap());
+			settings.substituters.push(cache_uri.clone());
 		}
 		if options.trusted {
 			settings.trusted_users.push(user);

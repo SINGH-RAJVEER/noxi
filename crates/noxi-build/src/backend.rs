@@ -38,50 +38,63 @@ impl LocalBackend {
 		}
 	}
 
-	/// The substituters that could be opened, in priority order. Like
-	/// CppNix, a substituter that cannot be opened is reported and skipped,
-	/// and `getDefaultSubstituters` sorts the rest by priority, keeping the
-	/// configured order among equal priorities, so `auto?trusted=1`
-	/// (priority 0) is asked before cache.nixos.org (40).
+	/// The substituters that could be opened, in priority order.
 	fn substituters(&self) -> &[BinaryCache] {
 		self.substituters.get_or_init(|| {
-			let mut caches: Vec<BinaryCache> = self
-				.substituter_uris
-				.iter()
-				.filter_map(
-					|uri| match BinaryCache::open_with(uri, self.settings.transfer) {
-						Ok(cache) => Some(cache.with_narinfo_cache_ttls(
-							self.store.config().narinfo_cache_positive_ttl,
-							self.store.config().narinfo_cache_negative_ttl,
-						)),
-						// `getDefaultSubstituters` logs the error as a warning.
-						Err(e) => {
-							// `showErrorInfo` indents continuation lines under the prefix.
-							let message = e
-								.to_string()
-								.trim_end()
-								.split('\n')
-								.enumerate()
-								.map(|(i, line)| {
-									let line = if i == 0 {
-										line.to_owned()
-									} else {
-										format!("         {line}")
-									};
-									line.trim_end().to_owned()
-								})
-								.collect::<Vec<_>>()
-								.join("\n");
-							nix_compat::log::logger::warn(&message);
-							None
-						}
-					},
-				)
-				.collect();
-			caches.sort_by_key(|cache| cache.info().priority);
-			caches
+			open_substituters(
+				self.substituter_uris.iter().map(String::as_str),
+				self.settings.transfer,
+				self.store.config(),
+			)
 		})
 	}
+}
+
+/// `getDefaultSubstituters`: open the `substituters` with the file transfer
+/// settings (`connect-timeout`, `filetransfer-retry-*`, overridden by a
+/// cache's own `retry-*` parameters) and the store's narinfo cache TTLs.
+/// Like CppNix, a substituter that cannot be opened is logged as a warning
+/// and skipped, and the rest are sorted by priority, keeping the
+/// configured order among equal priorities, so `auto?trusted=1`
+/// (priority 0) is asked before cache.nixos.org (40). The local commands
+/// and the daemon both open their substituters here.
+pub fn open_substituters<'a>(
+	uris: impl IntoIterator<Item = &'a str>,
+	transfer: noxi_store::binary_cache::TransferSettings,
+	store: &noxi_store::LocalStoreConfig,
+) -> Vec<BinaryCache> {
+	let mut caches: Vec<BinaryCache> = uris
+		.into_iter()
+		.filter_map(|uri| match BinaryCache::open_with(uri, transfer) {
+			Ok(cache) => Some(cache.with_narinfo_cache_ttls(
+				store.narinfo_cache_positive_ttl,
+				store.narinfo_cache_negative_ttl,
+			)),
+			// `getDefaultSubstituters` logs the error as a warning.
+			Err(e) => {
+				// `showErrorInfo` indents continuation lines under the prefix.
+				let message = e
+					.to_string()
+					.trim_end()
+					.split('\n')
+					.enumerate()
+					.map(|(i, line)| {
+						let line = if i == 0 {
+							line.to_owned()
+						} else {
+							format!("         {line}")
+						};
+						line.trim_end().to_owned()
+					})
+					.collect::<Vec<_>>()
+					.join("\n");
+				nix_compat::log::logger::warn(&message);
+				None
+			}
+		})
+		.collect();
+	caches.sort_by_key(|cache| cache.info().priority);
+	caches
 }
 
 impl LocalBackend {

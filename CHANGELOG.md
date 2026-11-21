@@ -517,6 +517,7 @@ Internal trybuild tests for `nix-compat-derive`.
 
 ### Unreleased
 
+- The daemon opens its substituters through `noxi_build::backend::open_substituters`, the builder's code path, so they use the configured `connect-timeout`, `filetransfer-retry-*` settings and per-cache `retry-*` parameters, and the store's narinfo cache TTLs. As CppNix's `getDefaultSubstituters` does, each connection opens them when an operation first needs them, and one that cannot be opened is logged as the reference's warning (the error, such as `warning: don't know how to open Nix store with scheme 'foo'`, instead of `warning: disabling substituter '...': ...`) and skipped. Configured substituters stay trusted for untrusted clients whether or not they open. A client's `substituters` or transfer settings reopen them. `DaemonSettings::substituters` now holds the URIs (2026-11-21).
 - The daemon asks its substituters in priority order, as CppNix does (2026-11-21).
 - A substituter that cannot be opened, such as `cache.nixos.org` on an offline machine, is reported and skipped, as in CppNix. Previously the daemon exited at startup, or refused a client's options, so an offline NixOS boot crash-looped `nix-daemon.service` until systemd's start limit. Untrusted clients may still name a configured substituter that could not be opened (2026-11-20).
 

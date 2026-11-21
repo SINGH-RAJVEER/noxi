@@ -354,6 +354,9 @@ pub struct Connection<'a, R: Read, W: Write> {
 	pub store: &'a LocalStore,
 	pub settings: DaemonSettings,
 	queried_substitutes: BTreeSet<(String, StorePath)>,
+	/// The substituters, opened when an operation first needs them, as
+	/// CppNix's `getDefaultSubstituters` opens them once per worker.
+	caches: std::cell::OnceCell<Vec<noxi_store::binary_cache::BinaryCache>>,
 }
 
 /// `BasicServerConnection::handshake` and `postHandshake`, then the
@@ -399,6 +402,7 @@ pub fn process_connection<R: Read + Send, W: Write + Send>(
 		store,
 		settings: settings.clone(),
 		queried_substitutes: BTreeSet::new(),
+		caches: std::cell::OnceCell::new(),
 	};
 
 	// postHandshake.
@@ -593,7 +597,7 @@ impl<R: Read + Send, W: Write + Send> Connection<'_, R, W> {
 				let mut infos = BTreeMap::new();
 				if self.settings.build.use_substitutes {
 					for path in paths {
-						for cache in &self.settings.substituters {
+						for cache in self.caches.get_or_init(|| self.settings.open_substituters()) {
 							if op == op::QUERY_SUBSTITUTABLE_PATHS && !cache.info().want_mass_query
 							{
 								continue;
@@ -656,9 +660,10 @@ impl<R: Read + Send, W: Write + Send> Connection<'_, R, W> {
 					&& self.settings.build.use_substitutes
 					&& !self.settings.substituters.is_empty()
 				{
+					let caches = self.caches.get_or_init(|| self.settings.open_substituters());
 					for path in &paths {
 						if !self.store.is_valid_path(path)? {
-							let _ = self.store.substitute(&self.settings.substituters, path);
+							let _ = self.store.substitute(caches, path);
 						}
 					}
 				}
@@ -723,7 +728,10 @@ impl<R: Read + Send, W: Write + Send> Connection<'_, R, W> {
 							path.to_absolute_path()
 						)));
 					}
-					self.store.substitute(&self.settings.substituters, &path)?;
+					self.store.substitute(
+						self.caches.get_or_init(|| self.settings.open_substituters()),
+						&path,
+					)?;
 				}
 				self.stop();
 				self.to.u64(1);
@@ -805,7 +813,7 @@ impl<R: Read + Send, W: Write + Send> Connection<'_, R, W> {
 				)?;
 				let missing = query_missing(
 					self.store,
-					&self.settings.substituters,
+					self.caches.get_or_init(|| self.settings.open_substituters()),
 					self.settings.build.use_substitutes,
 					self.settings.build.always_allow_substitutes,
 					&targets,
@@ -1220,8 +1228,9 @@ impl<R: Read + Send, W: Write + Send> Connection<'_, R, W> {
 		self.start()?;
 		let store = self.store;
 		let settings = &self.settings;
+		let caches = self.caches.get_or_init(|| settings.open_substituters());
 		let builder = LocalBuilder::new(store, &settings.build)
-			.with_substituters(&settings.substituters)
+			.with_substituters(caches)
 			.with_repair(mode == 1);
 		let mut results = Vec::new();
 		let mut first_error = None;
@@ -1241,7 +1250,7 @@ impl<R: Read + Send, W: Write + Send> Connection<'_, R, W> {
 						))
 					} else {
 						store
-							.substitute(&settings.substituters, path)
+							.substitute(caches, path)
 							.map(|()| BuildOutcome::Substituted(BTreeMap::new()))
 							.map_err(|e| (e.to_string(), 14))
 					}
@@ -1437,8 +1446,30 @@ impl<R: Read + Send, W: Write + Send> Connection<'_, R, W> {
 		}
 		self.settings.build.apply_config(&accepted);
 		if accepted.get("substituters").is_some() {
-			self.settings.substituters =
-				crate::settings::open_substituters(accepted.get_list("substituters", &[]));
+			self.settings.substituters = accepted
+				.get_list("substituters", &[])
+				.into_iter()
+				.map(str::to_owned)
+				.collect();
+		}
+		// The substituters open with the settings in effect when they are
+		// first used, so a change to them or to the transfer settings
+		// reopens them.
+		if [
+			"substituters",
+			"binary-caches",
+			"connect-timeout",
+			"download-attempts",
+			"filetransfer-retry-attempts",
+			"filetransfer-retry-delay",
+			"filetransfer-retry-delay-rate-limited",
+			"filetransfer-retry-max-delay",
+			"filetransfer-retry-jitter",
+		]
+		.into_iter()
+		.any(|name| accepted.get(name).is_some())
+		{
+			self.caches = std::cell::OnceCell::new();
 		}
 		self.stop();
 		Ok(())

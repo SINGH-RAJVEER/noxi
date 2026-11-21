@@ -376,6 +376,11 @@ impl BinaryCache {
 		&self.uri
 	}
 
+	/// The transfer and retry settings this cache's requests use.
+	pub fn transfer(&self) -> TransferSettings {
+		self.transfer
+	}
+
 	pub fn info(&self) -> &CacheInfo {
 		&self.info
 	}

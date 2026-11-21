@@ -11,8 +11,10 @@ pub struct DaemonSettings {
 	/// The store the daemon owns.
 	pub store: LocalStoreConfig,
 	pub build: BuildSettings,
-	/// `substituters`.
-	pub substituters: Vec<BinaryCache>,
+	/// `substituters`, as configured. Each connection opens them when it
+	/// first needs them, as CppNix's `getDefaultSubstituters` does, so one
+	/// that cannot be opened is reported to the client and skipped.
+	pub substituters: Vec<String>,
 	/// `trusted-substituters` and the configured `substituters`, as URLs.
 	pub trusted_substituters: Vec<String>,
 	/// `trusted-users`: names, `@group`, or `*`.
@@ -47,9 +49,9 @@ impl DaemonSettings {
 		let mut result = Self::new(store);
 		result.build.apply_config(settings);
 		let substituters = settings.get_list("substituters", &["https://cache.nixos.org/"]);
-		result.substituters = open_substituters(substituters.iter().copied());
+		result.substituters = substituters.iter().map(|uri| (*uri).to_owned()).collect();
 		// Untrusted clients may name a configured substituter even when it
-		// could not be opened, as CppNix compares against the setting.
+		// cannot be opened, as CppNix compares against the setting.
 		result.trusted_substituters = settings
 			.get_list("trusted-substituters", &[])
 			.into_iter()
@@ -108,30 +110,22 @@ impl DaemonSettings {
 		self.trusted_substituters
 			.iter()
 			.map(String::as_str)
-			.chain(self.substituters.iter().map(BinaryCache::uri))
+			.chain(self.substituters.iter().map(String::as_str))
 			.any(|t| t.trim_end_matches('/') == trimmed)
 	}
-}
 
-/// Open the substituters that can be opened. Like CppNix, a substituter that
-/// cannot be opened, such as an unreachable cache on an offline machine, is
-/// reported and skipped rather than failing the daemon or the connection.
-/// The rest are sorted by priority, as `getDefaultSubstituters` sorts them.
-pub(crate) fn open_substituters<'a>(uris: impl IntoIterator<Item = &'a str>) -> Vec<BinaryCache> {
-	let mut caches: Vec<BinaryCache> = uris
-		.into_iter()
-		.filter_map(|uri| match BinaryCache::open(uri) {
-			Ok(cache) => Some(cache),
-			Err(e) => {
-				if nix_compat::log::log_enabled(nix_compat::log::VerbosityLevel::Warn) {
-					eprintln!("warning: disabling substituter '{uri}': {e}");
-				}
-				None
-			}
-		})
-		.collect();
-	caches.sort_by_key(|cache| cache.info().priority);
-	caches
+	/// Open the substituters as the builder does, with the transfer and
+	/// retry settings in effect and the store's narinfo cache TTLs. One that
+	/// cannot be opened, such as an unreachable cache on an offline machine,
+	/// is logged as CppNix's warning and skipped rather than failing the
+	/// connection; the rest are sorted by priority.
+	pub fn open_substituters(&self) -> Vec<BinaryCache> {
+		noxi_build::backend::open_substituters(
+			self.substituters.iter().map(String::as_str),
+			self.build.transfer,
+			&self.store,
+		)
+	}
 }
 
 /// Parse `NOXI_DAEMON_IDLE_TIMEOUT`: whole seconds, with unset, empty or 0
@@ -165,17 +159,29 @@ mod tests {
 		assert!(idle_timeout(Some("-1")).is_err());
 	}
 
+	/// Daemon settings for a store in `dir` with `config` as `nix.conf`.
+	fn settings(dir: &std::path::Path, config: &str) -> DaemonSettings {
+		let mut settings = nix_compat::nixcpp::settings::Settings::default();
+		for line in config.lines() {
+			let (name, value) = line.split_once(" = ").unwrap();
+			settings.set(name, value).unwrap();
+		}
+		DaemonSettings::from_config(LocalStoreConfig::with_root(&dir.join("root")), &settings)
+			.unwrap()
+	}
+
 	#[test]
-	fn substituters_that_cannot_be_opened_are_skipped() {
-		let dir =
-			std::env::temp_dir().join(format!("noxi-daemon-substituters-{}", std::process::id()));
-		let local = format!("file://{}", dir.display());
-		let opened = open_substituters(["unknown://cache", local.as_str()]);
+	fn substituters_that_cannot_be_opened_are_skipped_but_trusted() {
+		let dir = tempfile::tempdir().unwrap();
+		let local = format!("file://{}", dir.path().join("cache").display());
+		let settings = settings(dir.path(), &format!("substituters = unknown://cache {local}"));
+		let opened = settings.open_substituters();
 		assert_eq!(
 			opened.iter().map(BinaryCache::uri).collect::<Vec<_>>(),
 			[local.as_str()]
 		);
-		let _ = std::fs::remove_dir_all(dir);
+		assert!(settings.trusted_substituter("unknown://cache"));
+		assert!(settings.trusted_substituter(&format!("{local}/")));
 	}
 
 	#[test]
@@ -192,11 +198,34 @@ mod tests {
 			format!("file://{}", path.display())
 		};
 		let (slow, fast, also_fast) = (cache("slow", 40), cache("fast", 10), cache("also", 10));
-		let opened = open_substituters([slow.as_str(), fast.as_str(), also_fast.as_str()]);
+		let settings = settings(
+			dir.path(),
+			&format!("substituters = {slow} {fast} {also_fast}"),
+		);
 		// Equal priorities keep their configured order.
 		assert_eq!(
-			opened.iter().map(BinaryCache::uri).collect::<Vec<_>>(),
+			settings
+				.open_substituters()
+				.iter()
+				.map(BinaryCache::uri)
+				.collect::<Vec<_>>(),
 			[fast.as_str(), also_fast.as_str(), slow.as_str()]
 		);
+	}
+
+	#[test]
+	fn substituters_use_the_configured_transfer_settings() {
+		let dir = tempfile::tempdir().unwrap();
+		let local = format!("file://{}", dir.path().join("cache").display());
+		let settings = settings(
+			dir.path(),
+			&format!(
+				"substituters = {local}\nconnect-timeout = 3\nfiletransfer-retry-attempts = 2"
+			),
+		);
+		let opened = settings.open_substituters();
+		assert_eq!(opened.len(), 1);
+		assert_eq!(opened[0].transfer().connect_timeout, 3);
+		assert_eq!(opened[0].transfer().attempts, 2);
 	}
 }
