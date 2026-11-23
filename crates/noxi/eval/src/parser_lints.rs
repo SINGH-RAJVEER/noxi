@@ -3,7 +3,10 @@
 
 use std::fmt::Write;
 
-use rnix::ast::{self, AstToken, InterpolPart};
+use rnix::{
+	SyntaxKind::*,
+	ast::{self, AstToken, InterpolPart},
+};
 use rowan::ast::AstNode;
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -89,22 +92,32 @@ impl Settings {
 	}
 
 	pub fn check(&self, expr: &ast::Expr) -> Vec<Diagnostic> {
+		if self.absolute_paths == Severity::Ignore
+			&& self.short_paths == Severity::Ignore
+			&& self.urls == Severity::Ignore
+			&& !has_or_ident(expr)
+		{
+			return Vec::new();
+		}
 		let mut out = Vec::new();
 		for node in expr.syntax().descendants() {
-			let offset = u32::from(node.text_range().start()) as usize;
-			let diagnostic = match ast::Expr::cast(node.clone()) {
-				Some(ast::Expr::PathAbs(path)) => {
-					self.path(path.parts(), self.absolute_paths, "absolute", offset)
+			let offset = || u32::from(node.text_range().start()) as usize;
+			let diagnostic = match node.kind() {
+				NODE_PATH_ABS if self.absolute_paths != Severity::Ignore => {
+					let path = ast::PathAbs::cast(node.clone()).unwrap();
+					self.path(path.parts(), self.absolute_paths, "absolute", offset())
 				}
-				Some(ast::Expr::PathHome(path)) => {
-					self.path(path.parts(), self.absolute_paths, "home", offset)
+				NODE_PATH_HOME if self.absolute_paths != Severity::Ignore => {
+					let path = ast::PathHome::cast(node.clone()).unwrap();
+					self.path(path.parts(), self.absolute_paths, "home", offset())
 				}
-				Some(ast::Expr::PathRel(path)) => {
-					self.path(path.parts(), self.short_paths, "relative", offset)
+				NODE_PATH_REL if self.short_paths != Severity::Ignore => {
+					let path = ast::PathRel::cast(node.clone()).unwrap();
+					self.path(path.parts(), self.short_paths, "relative", offset())
 				}
-				Some(ast::Expr::Literal(literal)) => match literal.kind() {
-					ast::LiteralKind::Uri(uri) if self.urls != Severity::Ignore => {
-						Some(Diagnostic {
+				NODE_LITERAL if self.urls != Severity::Ignore => {
+					match ast::Literal::cast(node.clone()).unwrap().kind() {
+						ast::LiteralKind::Uri(uri) => Some(Diagnostic {
 							severity: self.urls,
 							message: format!(
 								"URL literals are {}. Consider using a string literal \"{}\" instead (lint-url-literals)",
@@ -115,14 +128,18 @@ impl Settings {
 								},
 								uri.syntax().text()
 							),
-							offset,
+							offset: offset(),
 							excerpt: true,
-						})
+						}),
+						_ => None,
 					}
-					_ => None,
-				},
-				Some(ast::Expr::Apply(apply)) => {
-					let cursed = matches!(apply.argument(), Some(ast::Expr::Ident(ref ident)) if ident.to_string() == "or");
+				}
+				NODE_APPLY => {
+					let apply = ast::Apply::cast(node.clone()).unwrap();
+					if !matches!(apply.argument(), Some(ast::Expr::Ident(ref ident)) if is_or_ident(&ident.syntax().green()))
+					{
+						continue;
+					}
 					let consumed = node.parent().is_some_and(|parent| {
 						if ast::List::can_cast(parent.kind()) {
 							return true;
@@ -137,10 +154,10 @@ impl Settings {
 						}
 						false
 					});
-					(cursed && consumed).then(|| Diagnostic {
+					consumed.then(|| Diagnostic {
 						severity: Severity::Warn,
 						message: format!("This expression uses `or` as an identifier in a way that will change in a future Nix release.\nWrap this entire expression in parentheses to preserve its current meaning:\n    ({apply})\nGive feedback at https://github.com/NixOS/nix/pull/11121"),
-						offset,
+						offset: offset(),
 						excerpt: false,
 					})
 				}
@@ -187,4 +204,37 @@ impl Settings {
 			excerpt: true,
 		})
 	}
+}
+
+fn is_or_ident(node: &rowan::GreenNodeData) -> bool {
+	if u32::from(node.text_len()) != 2 {
+		return false;
+	}
+	let mut children = node.children();
+	if let Some(rowan::NodeOrToken::Token(token)) = children.next()
+		&& children.next().is_none()
+	{
+		return token.text() == "or";
+	}
+	false
+}
+
+fn has_or_ident(expr: &ast::Expr) -> bool {
+	let root = expr.syntax().green();
+	let mut stack = vec![root.children()];
+	while let Some(children) = stack.last_mut() {
+		match children.next() {
+			Some(rowan::NodeOrToken::Node(node)) => {
+				if node.kind().0 == NODE_IDENT as u16 && is_or_ident(node) {
+					return true;
+				}
+				stack.push(node.children());
+			}
+			Some(rowan::NodeOrToken::Token(_)) => {}
+			None => {
+				stack.pop();
+			}
+		}
+	}
+	false
 }
