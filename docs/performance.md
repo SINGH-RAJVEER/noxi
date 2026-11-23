@@ -993,3 +993,35 @@ The EVAL-08 saving of 143 MiB matches the 144 MiB expected from about 9.4 millio
 Ten exact-output paired rounds on EVAL-08 gave medians of 12.168 s against 12.332 s, a speed ratio of 1.001 (0.983 to 1.019), and a median peak RSS of 1,926.0 MiB against 2,070.3 MiB. An earlier three-round set, run while page reclaim was active on the host, gave 0.919 (0.775 to 1.111). Ten rounds on the package projection gave 1.074 s against 1.132 s, a speed ratio of 1.028 (0.940 to 1.119), and peak RSS from 267.0 MiB to 252.6 MiB. Every sample passed its exact-output check. CppNix 2.35.2 took 3.154 s on EVAL-08 and 0.420 s on the package projection.
 
 `cargo test -p noxi-eval` passes 564 tests. With `eval-diagnostics,eval-cycle-collection` it passes 577. `upstream_lang` passes. The `noxi-commands` targets `language_boundaries`, `generated_boundaries`, `generated_forcing` and `instantiate` pass 34 of 35, and `appended_string_context_validation_matches_the_reference` fails as on main. Miri was not run, because no local toolchain includes it. The change is kept uncommitted. Binaries, stat runs, paired reports and the patch are under `target/perf-mem-2` in the lane worktree.
+
+## EVAL-08 frontend, 2026-11-23
+
+This lane looked for the cost of the Home Manager outputs of EVAL-08. The base is e2f1840 and the reference is CppNix 2.35.2, both on NixOS under WSL2. The engines do the same Nix work: 8,141,456 lambda calls against 8,141,466 on the combined case, and the same files parsed once each. The base takes 3.02, 3.60 and 3.49 times the instructions of CppNix on the combined, module and standalone outputs.
+
+### Where the frontend cost is
+
+Replaying the 3,907 files the module output imports (41.3 MB) with LTO off takes 32.0 G of a 65.4 G instruction run: 12.9 G to parse, 2.0 G for lints, 4.0 G for the duplicate check and 13.0 G to lower to bytecode. `hackage-packages.nix` is 40.3% of that source. CppNix imports it in 2.61 G instructions and noxi in 10.86 G, which is 10%, 19% and 28% of the combined, module and standalone gaps. About 2% of its packages are evaluated. On the combined case the bytecode loop, captures and scheduling are a larger share (41.0% of instructions by symbol), and this lane does not change them.
+
+### Changes
+
+- `check_duplicates` no longer revisits attribute sets it already checked through their parent binding. The parent's check sees every definition of the nested set in one tree, so the first error does not change. Nodes are keyed by interned names, and dotted paths are built only for errors.
+- `parser_lints::Settings::check` returns early when the path and URL lints are ignored and a green tree scan finds no `or` identifier.
+- `compile_contents` moves the source text into the source map instead of copying it twice, and drops the parse tree once the file is compiled.
+
+### Results
+
+Three interleaved `eval-profile.py --mode stat` runs per binary gave the following medians, for the three changes together. All oracles passed.
+
+| Output | Base instructions:u | Changed | Change |
+| --- | --- | --- | --- |
+| Combined | 123.646 G | 120.947 G | -2.18% |
+| Home Manager module | 58.788 G | 56.145 G | -4.50% |
+| Home Manager standalone | 41.718 G | 40.117 G | -3.84% |
+
+Elapsed time could not be separated from noise on this host. Peak RSS fell from 987 to 967 MB on the module output and from 780 to 749 MB on the standalone output, and did not change on the combined case.
+
+Not landed:
+
+- Dropping a per-token `String` in the rnix 0.14.0 tokenizer brings the totals to -3.24%, -6.58% and -5.75%. It needs a release of rnix, because a `[patch]` section does not reach crates.io consumers.
+- Emitting function bytecode on the first call, after an eager pass that keeps the order of compile errors, is designed and not built. Lowering bounds it at 13.0 G of 65.4 G on the module output.
+- An in-frame select of one static name changed +0.05%, -0.02% and -0.17%, and was rejected.
