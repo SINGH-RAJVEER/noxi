@@ -111,7 +111,7 @@ async fn compile_file(
 	let mut bytes = Vec::new();
 	reader.read_to_end(&mut bytes)?;
 	let (contents, encoding) = SourceCode::encode_bytes(&bytes);
-	compile_contents(co, globals, source, path, env, &contents, encoding).await
+	compile_contents(co, globals, source, path, env, contents.into(), encoding).await
 }
 
 async fn compile_contents(
@@ -120,14 +120,17 @@ async fn compile_contents(
 	source: SourceCode,
 	path: PathBuf,
 	env: Option<&FxHashMap<SmolStr, Value>>,
-	contents: &str,
+	contents: std::borrow::Cow<'_, str>,
 	encoding: Option<u32>,
 ) -> Result<Value, ErrorKind> {
-	let contents = crate::line_endings::normalize(contents).into_owned();
+	let contents = match crate::line_endings::normalize(&contents) {
+		std::borrow::Cow::Borrowed(_) => contents.into_owned(),
+		std::borrow::Cow::Owned(normalized) => normalized,
+	};
 
 	let parsed = rnix::ast::Root::parse(&contents);
 	let errors = parsed.errors();
-	let file = source.add_file(path.to_string_lossy().to_string(), contents.to_owned());
+	let file = source.add_file(path.to_string_lossy().into_owned(), contents);
 	source.set_byte_encoding(file.span, encoding);
 
 	if !errors.is_empty() {
@@ -156,6 +159,7 @@ async fn compile_contents(
 		path: path.clone(),
 		errors: vec![err],
 	})?;
+	drop(parsed);
 
 	if !result.errors.is_empty() {
 		return Err(ErrorKind::ImportCompilerError {
@@ -198,7 +202,7 @@ async fn import_derivation(
 				source,
 				helper_path.clone(),
 				None,
-				include_str!("imported-drv-to-derivation.nix"),
+				include_str!("imported-drv-to-derivation.nix").into(),
 				None,
 			)
 			.await?;
