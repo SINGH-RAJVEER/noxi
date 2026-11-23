@@ -1091,51 +1091,66 @@ pub(super) fn check_duplicates(
 	#[derive(Default)]
 	struct Node {
 		defined: Option<Span>,
-		children: std::collections::BTreeMap<String, Node>,
+		children: FxHashMap<SmolStr, Node>,
+	}
+	struct Prefix<'a> {
+		parent: Option<&'a Prefix<'a>>,
+		first: &'a str,
+		rest: &'a [SmolStr],
+	}
+	impl Prefix<'_> {
+		fn append(&self, key: &mut String) {
+			if let Some(parent) = self.parent {
+				parent.append(key);
+				key.push('.');
+			}
+			key.push_str(self.first);
+			for name in self.rest {
+				key.push('.');
+				key.push_str(name);
+			}
+		}
 	}
 	fn entries(
 		syntax: &rnix::SyntaxNode,
 		tree: &mut Node,
-		prefix: &str,
+		prefix: Option<&Prefix<'_>>,
+		visited: &mut FxHashSet<rnix::TextSize>,
 		file: &codemap::File,
 		source: &SourceCode,
 	) -> EvalResult<()> {
 		for child in syntax.children() {
-			let mut bindings = vec![];
-			if let Some(entry) = ast::AttrpathValue::cast(child.clone()) {
-				bindings.push((
-					entry.attrpath().unwrap().attrs().collect::<Vec<_>>(),
-					entry.value(),
-				));
-			} else if let Some(inherit) = ast::Inherit::cast(child) {
-				bindings.extend(inherit.attrs().map(|attr| (vec![attr], None)));
-			}
-			for (attrs, value) in bindings {
-				let mut names = Vec::new();
-				for attr in &attrs {
-					if let Some(name) = expr_static_attr_str(attr) {
-						names.push(name.to_string());
-					} else {
-						break;
-					}
-				}
-				if names.len() != attrs.len() || names.is_empty() {
-					continue;
-				}
-				let pos = attrs[0].span_for(file);
-				let full = if prefix.is_empty() {
-					names.join(".")
-				} else {
-					format!("{prefix}.{}", names.join("."))
+			let mut binding = |mut attrs: &mut dyn Iterator<Item = ast::Attr>,
+			                   value: Option<ast::Expr>| {
+				let Some(first_attr) = attrs.next() else {
+					return Ok(());
 				};
-				let mut node = &mut *tree;
-				for name in &names {
+				let Some(first_name) = expr_static_attr_str(&first_attr) else {
+					return Ok(());
+				};
+				let mut rest = Vec::new();
+				for attr in &mut attrs {
+					let Some(name) = expr_static_attr_str(&attr) else {
+						return Ok(());
+					};
+					rest.push(name);
+				}
+				let mut node = tree.children.entry(first_name.clone()).or_default();
+				for name in &rest {
 					node = node.children.entry(name.clone()).or_default();
 				}
+				let pos = first_attr.span_for(file);
+				let full = Prefix {
+					parent: prefix,
+					first: &first_name,
+					rest: &rest,
+				};
 				if let Some(original) = node.defined {
+					let mut key = String::new();
+					full.append(&mut key);
 					return Err(Error::new(
 						ErrorKind::DuplicateDefinition {
-							key: full,
+							key,
 							original,
 							duplicate: pos,
 							dynamic: false,
@@ -1145,26 +1160,46 @@ pub(super) fn check_duplicates(
 					));
 				}
 				if let Some(ast::Expr::AttrSet(set)) = value {
-					entries(
-						set.syntax(),
-						node,
-						if node.children.is_empty() { "" } else { &full },
-						file,
-						source,
-					)?;
+					visited.insert(set.syntax().text_range().start());
+					let next_prefix = (!node.children.is_empty()
+						&& (prefix.is_some() || !first_name.is_empty() || !rest.is_empty()))
+					.then_some(&full);
+					entries(set.syntax(), node, next_prefix, visited, file, source)?;
 				} else {
 					node.defined = Some(pos);
 				}
+				Ok(())
+			};
+			match child.kind() {
+				rnix::SyntaxKind::NODE_ATTRPATH_VALUE => {
+					let entry = ast::AttrpathValue::cast(child).unwrap();
+					binding(&mut entry.attrpath().unwrap().attrs(), entry.value())?;
+				}
+				rnix::SyntaxKind::NODE_INHERIT => {
+					for attr in ast::Inherit::cast(child).unwrap().attrs() {
+						binding(&mut std::iter::once(attr), None)?;
+					}
+				}
+				_ => {}
 			}
 		}
 		Ok(())
 	}
+	let mut visited = FxHashSet::default();
 	for syntax in expr.syntax().descendants() {
 		if matches!(
 			syntax.kind(),
 			rnix::SyntaxKind::NODE_ATTR_SET | rnix::SyntaxKind::NODE_LET_IN
-		) {
-			entries(&syntax, &mut Node::default(), "", file, source)?;
+		) && !visited.remove(&syntax.text_range().start())
+		{
+			entries(
+				&syntax,
+				&mut Node::default(),
+				None,
+				&mut visited,
+				file,
+				source,
+			)?;
 		}
 	}
 	Ok(())
