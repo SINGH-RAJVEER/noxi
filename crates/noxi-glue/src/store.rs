@@ -803,7 +803,10 @@ impl EvaluatorStore {
 		}
 	}
 
-	/// Where a logical path is on disk: its mounted source, or the diverted store.
+	/// Where a logical path is on disk: its mounted source, the file system,
+	/// or the diverted store. Like `EvalState`'s root accessor, impure
+	/// evaluation prefers a path that exists at its own location over the
+	/// diverted store's.
 	pub fn physical_path(&self, path: &Path) -> PathBuf {
 		if let Some((mount, rest)) = self.mount_of(path) {
 			return if rest.as_os_str().is_empty() {
@@ -817,11 +820,22 @@ impl EvaluatorStore {
 		{
 			return if rest.as_os_str().is_empty() {
 				real.clone()
+			} else if self.reads_host_store() && std::fs::symlink_metadata(path).is_ok() {
+				path.to_owned()
 			} else {
 				real.join(rest)
 			};
 		}
 		path.to_owned()
+	}
+
+	/// Whether paths below the store directory may also be read where they
+	/// are on the host: pure evaluation sees only the store's own objects.
+	fn reads_host_store(&self) -> bool {
+		self.access
+			.borrow()
+			.as_ref()
+			.is_none_or(|access| !access.pure)
 	}
 
 	pub(crate) fn logical_path(&self, path: &Path) -> PathBuf {
@@ -1307,7 +1321,7 @@ impl EvalIO for StoreIO {
 		if self.store.store.is_none() {
 			for (drv, names) in &requests {
 				let outputs = store
-					.query_partial_derivation_output_map(drv)
+					.deep_query_partial_derivation_output_map(drv)
 					.map_err(io::Error::other)?;
 				for name in names {
 					let output = outputs.get(name).cloned().flatten().ok_or_else(|| {
@@ -1330,7 +1344,7 @@ impl EvalIO for StoreIO {
 			// `resolveDerivedPath`: content-addressed outputs resolve through
 			// their realisations.
 			let outputs = store
-				.query_partial_derivation_output_map(&drv)
+				.deep_query_partial_derivation_output_map(&drv)
 				.map_err(io::Error::other)?;
 			for name in names {
 				let output = outputs
@@ -1557,6 +1571,13 @@ impl EvalIO for StoreIO {
 		// CppNix resolves symlinks in the ancestors only, so a symlink
 		// named directly is copied as a symlink.
 		let resolved = match path.parent() {
+			// A store object is found where it is, not where its parent is.
+			Some(parent) if parent == Path::new(store_path::store_dir()) => {
+				match self.store.mount_of(path) {
+					Some(_) => self.store.physical_path(parent).canonicalize()?.join(name),
+					None => self.store.physical_path(path),
+				}
+			}
 			Some(parent) => self.store.physical_path(parent).canonicalize()?.join(name),
 			None => path.to_owned(),
 		};
