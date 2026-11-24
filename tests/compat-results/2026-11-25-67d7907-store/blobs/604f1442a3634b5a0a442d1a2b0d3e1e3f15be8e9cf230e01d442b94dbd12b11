@@ -1,0 +1,276 @@
++(why-depends.sh:3) source common.sh
+++(common.sh:2) source ../common.sh
++++(../common.sh:3) set -eu -o pipefail
++++(../common.sh:5) [[ -z '' ]]
++++(../common.sh:7) COMMON_SH_SOURCED=1
++++++(../common.sh:9) dirname ../common.sh
+++++(../common.sh:9) readlink -f ..
++++(../common.sh:9) functionalTestsDir=/var/tmp/fg/s/nf2Sdt79/src
++++(../common.sh:11) source /var/tmp/fg/s/nf2Sdt79/src/common/vars.sh
+++++(/var/tmp/fg/s/nf2Sdt79/src/common/vars.sh:3) set -eu -o pipefail
+++++(/var/tmp/fg/s/nf2Sdt79/src/common/vars.sh:5) [[ -z '' ]]
+++++(/var/tmp/fg/s/nf2Sdt79/src/common/vars.sh:7) COMMON_VARS_SH_SOURCED=1
++++++(/var/tmp/fg/s/nf2Sdt79/src/common/vars.sh:9) realpath /var/tmp/fg/s/nf2Sdt79/src
+++++(/var/tmp/fg/s/nf2Sdt79/src/common/vars.sh:9) _NIX_TEST_SOURCE_DIR=/var/tmp/fg/s/nf2Sdt79/src
++++++(/var/tmp/fg/s/nf2Sdt79/src/common/vars.sh:10) realpath /var/tmp/fg/s/nf2Sdt79/build
+++++(/var/tmp/fg/s/nf2Sdt79/src/common/vars.sh:10) _NIX_TEST_BUILD_DIR=/var/tmp/fg/s/nf2Sdt79/build
+++++++(/var/tmp/fg/s/nf2Sdt79/src/common/vars.sh:12) dirname /var/tmp/fg/s/nf2Sdt79/src/common/vars.sh
++++++(/var/tmp/fg/s/nf2Sdt79/src/common/vars.sh:12) readlink -f /var/tmp/fg/s/nf2Sdt79/src/common
+++++(/var/tmp/fg/s/nf2Sdt79/src/common/vars.sh:12) commonDir=/var/tmp/fg/s/nf2Sdt79/src/common
+++++(/var/tmp/fg/s/nf2Sdt79/src/common/vars.sh:16) source /var/tmp/fg/s/nf2Sdt79/build/common/subst-vars.sh
++++++(/var/tmp/fg/s/nf2Sdt79/build/common/subst-vars.sh:3) [[ -z '' ]]
++++++(/var/tmp/fg/s/nf2Sdt79/build/common/subst-vars.sh:5) COMMON_SUBST_VARS_SH_SOURCED=1
++++++(/var/tmp/fg/s/nf2Sdt79/build/common/subst-vars.sh:7) bash=/nix/store/2ndah67h0z5m31v2wkdmg2md4380ggr5-bash-interactive-5.3p15/bin/bash
++++++(/var/tmp/fg/s/nf2Sdt79/build/common/subst-vars.sh:8) bindir=/nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2/bin
++++++(/var/tmp/fg/s/nf2Sdt79/build/common/subst-vars.sh:9) coreutils=/nix/store/xjl7p8dvyk2j53kqf7f43kdj4ypbxz7g-coreutils-9.11/bin
++++++(/var/tmp/fg/s/nf2Sdt79/build/common/subst-vars.sh:11) dot=
++++++(/var/tmp/fg/s/nf2Sdt79/build/common/subst-vars.sh:12) busybox=/nix/store/qddzvnv6b0805nkvbqddbswddcfhx814-busybox-static-x86_64-unknown-linux-musl-1.37.0/bin/busybox
++++++(/var/tmp/fg/s/nf2Sdt79/build/common/subst-vars.sh:14) version=2.35.2
++++++(/var/tmp/fg/s/nf2Sdt79/build/common/subst-vars.sh:15) system=x86_64-linux
+++++(/var/tmp/fg/s/nf2Sdt79/src/common/vars.sh:18) : '/nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2/bin /nix/store/xjl7p8dvyk2j53kqf7f43kdj4ypbxz7g-coreutils-9.11/bin  /run/current-system/sw/bin/nu /nix/store/qddzvnv6b0805nkvbqddbswddcfhx814-busybox-static-x86_64-unknown-linux-musl-1.37.0/bin/busybox 2.35.2 x86_64-linux'
+++++(/var/tmp/fg/s/nf2Sdt79/src/common/vars.sh:19) export coreutils dot busybox version system
+++++(/var/tmp/fg/s/nf2Sdt79/src/common/vars.sh:21) export PAGER=cat
+++++(/var/tmp/fg/s/nf2Sdt79/src/common/vars.sh:21) PAGER=cat
+++++(/var/tmp/fg/s/nf2Sdt79/src/common/vars.sh:23) source /var/tmp/fg/s/nf2Sdt79/src/common/paths.sh
++++++(/var/tmp/fg/s/nf2Sdt79/src/common/paths.sh:3) set -eu -o pipefail
++++++(/var/tmp/fg/s/nf2Sdt79/src/common/paths.sh:5) [[ -z '' ]]
++++++(/var/tmp/fg/s/nf2Sdt79/src/common/paths.sh:7) COMMON_PATHS_SH_SOURCED=1
++++++++(/var/tmp/fg/s/nf2Sdt79/src/common/paths.sh:9) dirname /var/tmp/fg/s/nf2Sdt79/src/common/paths.sh
+++++++(/var/tmp/fg/s/nf2Sdt79/src/common/paths.sh:9) readlink -f /var/tmp/fg/s/nf2Sdt79/src/common
++++++(/var/tmp/fg/s/nf2Sdt79/src/common/paths.sh:9) commonDir=/var/tmp/fg/s/nf2Sdt79/src/common
++++++(/var/tmp/fg/s/nf2Sdt79/src/common/paths.sh:12) source /var/tmp/fg/s/nf2Sdt79/src/common/functions.sh
+++++++(/var/tmp/fg/s/nf2Sdt79/src/common/functions.sh:3) set -eu -o pipefail
+++++++(/var/tmp/fg/s/nf2Sdt79/src/common/functions.sh:5) [[ -z '' ]]
+++++++(/var/tmp/fg/s/nf2Sdt79/src/common/functions.sh:7) COMMON_FUNCTIONS_SH_SOURCED=1
+++++++(/var/tmp/fg/s/nf2Sdt79/src/common/functions.sh:353) trap onError ERR
++++++(/var/tmp/fg/s/nf2Sdt79/src/common/paths.sh:14) source /var/tmp/fg/s/nf2Sdt79/build/common/subst-vars.sh
+++++++(/var/tmp/fg/s/nf2Sdt79/build/common/subst-vars.sh:3) [[ -z 1 ]]
++++++(/var/tmp/fg/s/nf2Sdt79/src/common/paths.sh:16) : /nix/store/2ndah67h0z5m31v2wkdmg2md4380ggr5-bash-interactive-5.3p15/bin/bash /nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2/bin
++++++(/var/tmp/fg/s/nf2Sdt79/src/common/paths.sh:18) isTestOnNixOS
++++++(/var/tmp/fg/s/nf2Sdt79/src/common/functions.sh:10) [[ '' == 1 ]]
++++++(/var/tmp/fg/s/nf2Sdt79/src/common/paths.sh:19) export SHELL=/nix/store/2ndah67h0z5m31v2wkdmg2md4380ggr5-bash-interactive-5.3p15/bin/bash
++++++(/var/tmp/fg/s/nf2Sdt79/src/common/paths.sh:19) SHELL=/nix/store/2ndah67h0z5m31v2wkdmg2md4380ggr5-bash-interactive-5.3p15/bin/bash
++++++(/var/tmp/fg/s/nf2Sdt79/src/common/paths.sh:20) export PATH=/nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2/bin:/nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2/bin:/nix/store/2ndah67h0z5m31v2wkdmg2md4380ggr5-bash-interactive-5.3p15/bin:/nix/store/xjl7p8dvyk2j53kqf7f43kdj4ypbxz7g-coreutils-9.11/bin:/nix/store/xmvbzzxm5snla5a2cyfhm7hjy9bifx7n-gnugrep-3.12/bin:/nix/store/qf2wzyq4irhgyhnq3s2hz0ldjq3w8a3x-gnused-4.10/bin:/nix/store/9zib1q94gka8i5q530364cvy25504qz5-gawk-5.4.1/bin:/nix/store/i9wgqa0l88aprvpwfaq5hkfa6pklhlv0-findutils-4.11.0/bin:/nix/store/b8xvzgd52jby5dfpi0pf46nisy6wma5d-diffutils-3.12/bin:/nix/store/81zqbas7qc02yfdj7142fdcqhxgd3cgz-patch-2.8/bin:/nix/store/c8b0qp903w2hhpa63a2lfs7d565zag30-gnutar-1.35/bin:/nix/store/l5sll8nxk70p73l5yqbsjy4mh0c3g0v5-gzip-1.14/bin:/nix/store/j3yz0ag9j442229n8harpmp9aa5qyvhn-bzip2-1.0.8-bin/bin:/nix/store/518dig8gpvqyac6pkksyjjfzvi9zn8vq-xz-5.8.3-bin/bin:/nix/store/l8ik8mb8lgb60rklxjmkgddmp5qqnv29-zstd-1.5.7-bin/bin:/nix/store/msr1v91ybfw6j12rs5mfl8ghb2rqsnsr-git-2.55.0/bin:/nix/store/hyz22a0l5b5kv7yfypw4ss6d36vbzg01-jq-1.8.2-bin/bin:/nix/store/24gq3bi2yzf7g386p5j32mn78hhanf49-sqlite-3.53.3-bin/bin:/nix/store/cp8qnyl8i0s62g3a1465i258mf5bcr6k-curl-8.22.0-bin/bin:/nix/store/8x4c8zah3fbnyckaic4sskjbw7d2y98n-util-linux-2.42.4-bin/bin:/nix/store/d64q19q1xjdwfhqx6czvrjgrhq0n3lcc-python3-3.14.7/bin:/nix/store/niqsa6mxqsyax9lzbm261a2ml6m71vb6-perl-5.42.3/bin:/nix/store/fv9yl55hkskpc2cj9c0sdyq91car9kgl-file-5.48/bin:/nix/store/jv5kdlkwx0l8a7jdpg21g934ff30s319-which-2.25/bin:/nix/store/aj08b694apkc1jay2akywym9ghlailf5-procps-4.0.7/bin:/nix/store/5wyaj1kvkxbbscz6innrh6yjjkdq4qmk-openssh-10.6p1/bin:/nix/store/44gxi8li8y8wrxrb93sya9hljkpigsqw-openssl-3.6.4-bin/bin:/run/wrappers/wrappers.Yw6nCJO1nt:/nix/store/wmh4xg3557sicfyllmi9ymd8sxaw51wv-man-db-2.13.1/bin:/nix/store/qpgknrlnxca0z99gl12j5n0fgca11cdx-mercurial-7.2.2/bin:/var/tmp/fg/tt/.tmp5krJTK/reference/tools
++++++(/var/tmp/fg/s/nf2Sdt79/src/common/paths.sh:20) PATH=/nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2/bin:/nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2/bin:/nix/store/2ndah67h0z5m31v2wkdmg2md4380ggr5-bash-interactive-5.3p15/bin:/nix/store/xjl7p8dvyk2j53kqf7f43kdj4ypbxz7g-coreutils-9.11/bin:/nix/store/xmvbzzxm5snla5a2cyfhm7hjy9bifx7n-gnugrep-3.12/bin:/nix/store/qf2wzyq4irhgyhnq3s2hz0ldjq3w8a3x-gnused-4.10/bin:/nix/store/9zib1q94gka8i5q530364cvy25504qz5-gawk-5.4.1/bin:/nix/store/i9wgqa0l88aprvpwfaq5hkfa6pklhlv0-findutils-4.11.0/bin:/nix/store/b8xvzgd52jby5dfpi0pf46nisy6wma5d-diffutils-3.12/bin:/nix/store/81zqbas7qc02yfdj7142fdcqhxgd3cgz-patch-2.8/bin:/nix/store/c8b0qp903w2hhpa63a2lfs7d565zag30-gnutar-1.35/bin:/nix/store/l5sll8nxk70p73l5yqbsjy4mh0c3g0v5-gzip-1.14/bin:/nix/store/j3yz0ag9j442229n8harpmp9aa5qyvhn-bzip2-1.0.8-bin/bin:/nix/store/518dig8gpvqyac6pkksyjjfzvi9zn8vq-xz-5.8.3-bin/bin:/nix/store/l8ik8mb8lgb60rklxjmkgddmp5qqnv29-zstd-1.5.7-bin/bin:/nix/store/msr1v91ybfw6j12rs5mfl8ghb2rqsnsr-git-2.55.0/bin:/nix/store/hyz22a0l5b5kv7yfypw4ss6d36vbzg01-jq-1.8.2-bin/bin:/nix/store/24gq3bi2yzf7g386p5j32mn78hhanf49-sqlite-3.53.3-bin/bin:/nix/store/cp8qnyl8i0s62g3a1465i258mf5bcr6k-curl-8.22.0-bin/bin:/nix/store/8x4c8zah3fbnyckaic4sskjbw7d2y98n-util-linux-2.42.4-bin/bin:/nix/store/d64q19q1xjdwfhqx6czvrjgrhq0n3lcc-python3-3.14.7/bin:/nix/store/niqsa6mxqsyax9lzbm261a2ml6m71vb6-perl-5.42.3/bin:/nix/store/fv9yl55hkskpc2cj9c0sdyq91car9kgl-file-5.48/bin:/nix/store/jv5kdlkwx0l8a7jdpg21g934ff30s319-which-2.25/bin:/nix/store/aj08b694apkc1jay2akywym9ghlailf5-procps-4.0.7/bin:/nix/store/5wyaj1kvkxbbscz6innrh6yjjkdq4qmk-openssh-10.6p1/bin:/nix/store/44gxi8li8y8wrxrb93sya9hljkpigsqw-openssl-3.6.4-bin/bin:/run/wrappers/wrappers.Yw6nCJO1nt:/nix/store/wmh4xg3557sicfyllmi9ymd8sxaw51wv-man-db-2.13.1/bin:/nix/store/qpgknrlnxca0z99gl12j5n0fgca11cdx-mercurial-7.2.2/bin:/var/tmp/fg/tt/.tmp5krJTK/reference/tools
++++++(/var/tmp/fg/s/nf2Sdt79/src/common/paths.sh:23) [[ -n '' ]]
++++++(/var/tmp/fg/s/nf2Sdt79/src/common/paths.sh:27) DAEMON_PATH=/nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2/bin:/nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2/bin:/nix/store/2ndah67h0z5m31v2wkdmg2md4380ggr5-bash-interactive-5.3p15/bin:/nix/store/xjl7p8dvyk2j53kqf7f43kdj4ypbxz7g-coreutils-9.11/bin:/nix/store/xmvbzzxm5snla5a2cyfhm7hjy9bifx7n-gnugrep-3.12/bin:/nix/store/qf2wzyq4irhgyhnq3s2hz0ldjq3w8a3x-gnused-4.10/bin:/nix/store/9zib1q94gka8i5q530364cvy25504qz5-gawk-5.4.1/bin:/nix/store/i9wgqa0l88aprvpwfaq5hkfa6pklhlv0-findutils-4.11.0/bin:/nix/store/b8xvzgd52jby5dfpi0pf46nisy6wma5d-diffutils-3.12/bin:/nix/store/81zqbas7qc02yfdj7142fdcqhxgd3cgz-patch-2.8/bin:/nix/store/c8b0qp903w2hhpa63a2lfs7d565zag30-gnutar-1.35/bin:/nix/store/l5sll8nxk70p73l5yqbsjy4mh0c3g0v5-gzip-1.14/bin:/nix/store/j3yz0ag9j442229n8harpmp9aa5qyvhn-bzip2-1.0.8-bin/bin:/nix/store/518dig8gpvqyac6pkksyjjfzvi9zn8vq-xz-5.8.3-bin/bin:/nix/store/l8ik8mb8lgb60rklxjmkgddmp5qqnv29-zstd-1.5.7-bin/bin:/nix/store/msr1v91ybfw6j12rs5mfl8ghb2rqsnsr-git-2.55.0/bin:/nix/store/hyz22a0l5b5kv7yfypw4ss6d36vbzg01-jq-1.8.2-bin/bin:/nix/store/24gq3bi2yzf7g386p5j32mn78hhanf49-sqlite-3.53.3-bin/bin:/nix/store/cp8qnyl8i0s62g3a1465i258mf5bcr6k-curl-8.22.0-bin/bin:/nix/store/8x4c8zah3fbnyckaic4sskjbw7d2y98n-util-linux-2.42.4-bin/bin:/nix/store/d64q19q1xjdwfhqx6czvrjgrhq0n3lcc-python3-3.14.7/bin:/nix/store/niqsa6mxqsyax9lzbm261a2ml6m71vb6-perl-5.42.3/bin:/nix/store/fv9yl55hkskpc2cj9c0sdyq91car9kgl-file-5.48/bin:/nix/store/jv5kdlkwx0l8a7jdpg21g934ff30s319-which-2.25/bin:/nix/store/aj08b694apkc1jay2akywym9ghlailf5-procps-4.0.7/bin:/nix/store/5wyaj1kvkxbbscz6innrh6yjjkdq4qmk-openssh-10.6p1/bin:/nix/store/44gxi8li8y8wrxrb93sya9hljkpigsqw-openssl-3.6.4-bin/bin:/run/wrappers/wrappers.Yw6nCJO1nt:/nix/store/wmh4xg3557sicfyllmi9ymd8sxaw51wv-man-db-2.13.1/bin:/nix/store/qpgknrlnxca0z99gl12j5n0fgca11cdx-mercurial-7.2.2/bin:/var/tmp/fg/tt/.tmp5krJTK/reference/tools
++++++(/var/tmp/fg/s/nf2Sdt79/src/common/paths.sh:28) [[ -n '' ]]
+++++(/var/tmp/fg/s/nf2Sdt79/src/common/vars.sh:24) source /var/tmp/fg/s/nf2Sdt79/src/common/test-root.sh
++++++(/var/tmp/fg/s/nf2Sdt79/src/common/test-root.sh:3) TEST_SUBDIR=ca/why-depends
+++++++(/var/tmp/fg/s/nf2Sdt79/src/common/test-root.sh:4) realpath /var/tmp/fg/s/nf2Sdt79/tmp/nix-test
++++++(/var/tmp/fg/s/nf2Sdt79/src/common/test-root.sh:4) TEST_ROOT=/var/tmp/fg/s/nf2Sdt79/tmp/nix-test/ca/why-depends
++++++(/var/tmp/fg/s/nf2Sdt79/src/common/test-root.sh:5) export TEST_ROOT
+++++(/var/tmp/fg/s/nf2Sdt79/src/common/vars.sh:26) test_nix_conf_dir=/var/tmp/fg/s/nf2Sdt79/tmp/nix-test/ca/why-depends/etc
+++++(/var/tmp/fg/s/nf2Sdt79/src/common/vars.sh:29) test_nix_conf=/var/tmp/fg/s/nf2Sdt79/tmp/nix-test/ca/why-depends/etc/nix.conf
+++++(/var/tmp/fg/s/nf2Sdt79/src/common/vars.sh:31) export TEST_HOME=/var/tmp/fg/s/nf2Sdt79/tmp/nix-test/ca/why-depends/test-home
+++++(/var/tmp/fg/s/nf2Sdt79/src/common/vars.sh:31) TEST_HOME=/var/tmp/fg/s/nf2Sdt79/tmp/nix-test/ca/why-depends/test-home
+++++(/var/tmp/fg/s/nf2Sdt79/src/common/vars.sh:33) isTestOnNixOS
+++++(/var/tmp/fg/s/nf2Sdt79/src/common/functions.sh:10) [[ '' == 1 ]]
+++++(/var/tmp/fg/s/nf2Sdt79/src/common/vars.sh:34) export NIX_STORE_DIR
++++++(/var/tmp/fg/s/nf2Sdt79/src/common/vars.sh:35) readlink -f /var/tmp/fg/s/nf2Sdt79/tmp/nix-test/ca/why-depends/store
+++++(/var/tmp/fg/s/nf2Sdt79/src/common/vars.sh:35) NIX_STORE_DIR=
+++++(/var/tmp/fg/s/nf2Sdt79/src/common/vars.sh:37) export NIX_IGNORE_SYMLINK_STORE=1
+++++(/var/tmp/fg/s/nf2Sdt79/src/common/vars.sh:37) NIX_IGNORE_SYMLINK_STORE=1
+++++(/var/tmp/fg/s/nf2Sdt79/src/common/vars.sh:38) NIX_STORE_DIR=/var/tmp/fg/s/nf2Sdt79/tmp/nix-test/ca/why-depends/store
+++++(/var/tmp/fg/s/nf2Sdt79/src/common/vars.sh:40) export NIX_LOCALSTATE_DIR=/var/tmp/fg/s/nf2Sdt79/tmp/nix-test/ca/why-depends/var
+++++(/var/tmp/fg/s/nf2Sdt79/src/common/vars.sh:40) NIX_LOCALSTATE_DIR=/var/tmp/fg/s/nf2Sdt79/tmp/nix-test/ca/why-depends/var
+++++(/var/tmp/fg/s/nf2Sdt79/src/common/vars.sh:41) export NIX_LOG_DIR=/var/tmp/fg/s/nf2Sdt79/tmp/nix-test/ca/why-depends/var/log/nix
+++++(/var/tmp/fg/s/nf2Sdt79/src/common/vars.sh:41) NIX_LOG_DIR=/var/tmp/fg/s/nf2Sdt79/tmp/nix-test/ca/why-depends/var/log/nix
+++++(/var/tmp/fg/s/nf2Sdt79/src/common/vars.sh:42) export NIX_STATE_DIR=/var/tmp/fg/s/nf2Sdt79/tmp/nix-test/ca/why-depends/var/nix
+++++(/var/tmp/fg/s/nf2Sdt79/src/common/vars.sh:42) NIX_STATE_DIR=/var/tmp/fg/s/nf2Sdt79/tmp/nix-test/ca/why-depends/var/nix
+++++(/var/tmp/fg/s/nf2Sdt79/src/common/vars.sh:43) export NIX_CONF_DIR=/var/tmp/fg/s/nf2Sdt79/tmp/nix-test/ca/why-depends/etc
+++++(/var/tmp/fg/s/nf2Sdt79/src/common/vars.sh:43) NIX_CONF_DIR=/var/tmp/fg/s/nf2Sdt79/tmp/nix-test/ca/why-depends/etc
+++++(/var/tmp/fg/s/nf2Sdt79/src/common/vars.sh:44) export NIX_DAEMON_SOCKET_PATH=/var/tmp/fg/s/nf2Sdt79/tmp/nix-test/ca/why-depends/dSocket
+++++(/var/tmp/fg/s/nf2Sdt79/src/common/vars.sh:44) NIX_DAEMON_SOCKET_PATH=/var/tmp/fg/s/nf2Sdt79/tmp/nix-test/ca/why-depends/dSocket
+++++(/var/tmp/fg/s/nf2Sdt79/src/common/vars.sh:45) unset NIX_USER_CONF_FILES
+++++(/var/tmp/fg/s/nf2Sdt79/src/common/vars.sh:46) export _NIX_TEST_SHARED=/var/tmp/fg/s/nf2Sdt79/tmp/nix-test/ca/why-depends/shared
+++++(/var/tmp/fg/s/nf2Sdt79/src/common/vars.sh:46) _NIX_TEST_SHARED=/var/tmp/fg/s/nf2Sdt79/tmp/nix-test/ca/why-depends/shared
+++++(/var/tmp/fg/s/nf2Sdt79/src/common/vars.sh:47) [[ -n '' ]]
+++++(/var/tmp/fg/s/nf2Sdt79/src/common/vars.sh:50) export _NIX_IN_TEST=/var/tmp/fg/s/nf2Sdt79/tmp/nix-test/ca/why-depends/shared
+++++(/var/tmp/fg/s/nf2Sdt79/src/common/vars.sh:50) _NIX_IN_TEST=/var/tmp/fg/s/nf2Sdt79/tmp/nix-test/ca/why-depends/shared
+++++(/var/tmp/fg/s/nf2Sdt79/src/common/vars.sh:51) export _NIX_TEST_NO_LSOF=1
+++++(/var/tmp/fg/s/nf2Sdt79/src/common/vars.sh:51) _NIX_TEST_NO_LSOF=1
+++++(/var/tmp/fg/s/nf2Sdt79/src/common/vars.sh:54) export _NIX_TEST_NO_ENVIRONMENT_WARNINGS=1
+++++(/var/tmp/fg/s/nf2Sdt79/src/common/vars.sh:54) _NIX_TEST_NO_ENVIRONMENT_WARNINGS=1
+++++(/var/tmp/fg/s/nf2Sdt79/src/common/vars.sh:55) export NIX_REMOTE=
+++++(/var/tmp/fg/s/nf2Sdt79/src/common/vars.sh:55) NIX_REMOTE=
+++++(/var/tmp/fg/s/nf2Sdt79/src/common/vars.sh:59) unset NIX_PATH
+++++(/var/tmp/fg/s/nf2Sdt79/src/common/vars.sh:60) export HOME=/var/tmp/fg/s/nf2Sdt79/tmp/nix-test/ca/why-depends/test-home
+++++(/var/tmp/fg/s/nf2Sdt79/src/common/vars.sh:60) HOME=/var/tmp/fg/s/nf2Sdt79/tmp/nix-test/ca/why-depends/test-home
+++++(/var/tmp/fg/s/nf2Sdt79/src/common/vars.sh:61) unset XDG_STATE_HOME
+++++(/var/tmp/fg/s/nf2Sdt79/src/common/vars.sh:62) unset XDG_DATA_HOME
+++++(/var/tmp/fg/s/nf2Sdt79/src/common/vars.sh:63) unset XDG_CONFIG_HOME
+++++(/var/tmp/fg/s/nf2Sdt79/src/common/vars.sh:64) unset XDG_CONFIG_DIRS
+++++(/var/tmp/fg/s/nf2Sdt79/src/common/vars.sh:65) unset XDG_CACHE_HOME
+++++(/var/tmp/fg/s/nf2Sdt79/src/common/vars.sh:66) unset GIT_DIR
+++++(/var/tmp/fg/s/nf2Sdt79/src/common/vars.sh:68) export GIT_CONFIG_SYSTEM=/dev/null
+++++(/var/tmp/fg/s/nf2Sdt79/src/common/vars.sh:68) GIT_CONFIG_SYSTEM=/dev/null
+++++(/var/tmp/fg/s/nf2Sdt79/src/common/vars.sh:69) export GIT_CONFIG_GLOBAL=/dev/null
+++++(/var/tmp/fg/s/nf2Sdt79/src/common/vars.sh:69) GIT_CONFIG_GLOBAL=/dev/null
+++++(/var/tmp/fg/s/nf2Sdt79/src/common/vars.sh:71) export IMPURE_VAR1=foo
+++++(/var/tmp/fg/s/nf2Sdt79/src/common/vars.sh:71) IMPURE_VAR1=foo
+++++(/var/tmp/fg/s/nf2Sdt79/src/common/vars.sh:72) export IMPURE_VAR2=bar
+++++(/var/tmp/fg/s/nf2Sdt79/src/common/vars.sh:72) IMPURE_VAR2=bar
+++++(/var/tmp/fg/s/nf2Sdt79/src/common/vars.sh:76) cacheDir=/var/tmp/fg/s/nf2Sdt79/tmp/nix-test/ca/why-depends/binary-cache
++++++(/var/tmp/fg/s/nf2Sdt79/src/common/vars.sh:78) uname
+++++(/var/tmp/fg/s/nf2Sdt79/src/common/vars.sh:78) [[ Linux == Linux ]]
+++++(/var/tmp/fg/s/nf2Sdt79/src/common/vars.sh:78) [[ -L /proc/self/ns/user ]]
+++++(/var/tmp/fg/s/nf2Sdt79/src/common/vars.sh:78) unshare --user true
+++++(/var/tmp/fg/s/nf2Sdt79/src/common/vars.sh:79) _canUseSandbox=1
+++++(/var/tmp/fg/s/nf2Sdt79/src/common/vars.sh:85) config_nix=/var/tmp/fg/s/nf2Sdt79/tmp/nix-test/ca/why-depends/config.nix
++++(../common.sh:12) source /var/tmp/fg/s/nf2Sdt79/src/common/functions.sh
+++++(/var/tmp/fg/s/nf2Sdt79/src/common/functions.sh:3) set -eu -o pipefail
+++++(/var/tmp/fg/s/nf2Sdt79/src/common/functions.sh:5) [[ -z 1 ]]
++++(../common.sh:13) source /var/tmp/fg/s/nf2Sdt79/src/common/init.sh
+++++(/var/tmp/fg/s/nf2Sdt79/src/common/init.sh:4) : /var/tmp/fg/s/nf2Sdt79/tmp/nix-test/ca/why-depends/etc /var/tmp/fg/s/nf2Sdt79/tmp/nix-test/ca/why-depends/etc/nix.conf /var/tmp/fg/s/nf2Sdt79/tmp/nix-test/ca/why-depends/config.nix
+++++(/var/tmp/fg/s/nf2Sdt79/src/common/init.sh:6) isTestOnNixOS
+++++(/var/tmp/fg/s/nf2Sdt79/src/common/functions.sh:10) [[ '' == 1 ]]
+++++(/var/tmp/fg/s/nf2Sdt79/src/common/init.sh:29) test -n /var/tmp/fg/s/nf2Sdt79/tmp/nix-test/ca/why-depends
+++++(/var/tmp/fg/s/nf2Sdt79/src/common/init.sh:31) killDaemon
+++++(/var/tmp/fg/s/nf2Sdt79/src/common/functions.sh:100) isTestOnNixOS
+++++(/var/tmp/fg/s/nf2Sdt79/src/common/functions.sh:10) [[ '' == 1 ]]
+++++(/var/tmp/fg/s/nf2Sdt79/src/common/functions.sh:105) [[ '' == '' ]]
+++++(/var/tmp/fg/s/nf2Sdt79/src/common/functions.sh:106) return
+++++(/var/tmp/fg/s/nf2Sdt79/src/common/init.sh:33) [[ -e /var/tmp/fg/s/nf2Sdt79/tmp/nix-test/ca/why-depends ]]
+++++(/var/tmp/fg/s/nf2Sdt79/src/common/init.sh:37) mkdir -p /var/tmp/fg/s/nf2Sdt79/tmp/nix-test/ca/why-depends
+++++(/var/tmp/fg/s/nf2Sdt79/src/common/init.sh:38) mkdir /var/tmp/fg/s/nf2Sdt79/tmp/nix-test/ca/why-depends/test-home
+++++(/var/tmp/fg/s/nf2Sdt79/src/common/init.sh:40) mkdir /var/tmp/fg/s/nf2Sdt79/tmp/nix-test/ca/why-depends/store
+++++(/var/tmp/fg/s/nf2Sdt79/src/common/init.sh:41) mkdir /var/tmp/fg/s/nf2Sdt79/tmp/nix-test/ca/why-depends/var
+++++(/var/tmp/fg/s/nf2Sdt79/src/common/init.sh:42) mkdir -p /var/tmp/fg/s/nf2Sdt79/tmp/nix-test/ca/why-depends/var/log/nix/drvs
+++++(/var/tmp/fg/s/nf2Sdt79/src/common/init.sh:43) mkdir /var/tmp/fg/s/nf2Sdt79/tmp/nix-test/ca/why-depends/var/nix
+++++(/var/tmp/fg/s/nf2Sdt79/src/common/init.sh:44) mkdir /var/tmp/fg/s/nf2Sdt79/tmp/nix-test/ca/why-depends/etc
+++++(/var/tmp/fg/s/nf2Sdt79/src/common/init.sh:46) cat
++++++(/var/tmp/fg/s/nf2Sdt79/src/common/init.sh:46) whoami
+++++(/var/tmp/fg/s/nf2Sdt79/src/common/init.sh:59) cat
+++++(/var/tmp/fg/s/nf2Sdt79/src/common/init.sh:67) nix-store --init
+++++(/var/tmp/fg/s/nf2Sdt79/src/common/init.sh:69) test -e /var/tmp/fg/s/nf2Sdt79/tmp/nix-test/ca/why-depends/var/nix/db/db.sqlite
+++++(/var/tmp/fg/s/nf2Sdt79/src/common/init.sh:75) echo '# config.nix for test ca / why-depends'
+++++(/var/tmp/fg/s/nf2Sdt79/src/common/init.sh:76) cat /var/tmp/fg/s/nf2Sdt79/build/config.nix
++++(../common.sh:15) [[ -n '' ]]
+++(common.sh:5) requireDaemonNewerThan 2.35.0pre20260303
+++(/var/tmp/fg/s/nf2Sdt79/src/common/functions.sh:154) isDaemonNewer 2.35.0pre20260303
+++(/var/tmp/fg/s/nf2Sdt79/src/common/functions.sh:135) [[ -n '' ]]
+++(/var/tmp/fg/s/nf2Sdt79/src/common/functions.sh:135) return 0
+++(common.sh:7) enableFeatures ca-derivations
+++(/var/tmp/fg/s/nf2Sdt79/src/common/functions.sh:236) local features=ca-derivations
+++(/var/tmp/fg/s/nf2Sdt79/src/common/functions.sh:237) sed -i 's/experimental-features .*/& ca-derivations/' /var/tmp/fg/s/nf2Sdt79/tmp/nix-test/ca/why-depends/etc/nix.conf
+++(common.sh:9) TODO_NixOS
+++(/var/tmp/fg/s/nf2Sdt79/src/common/functions.sh:148) isTestOnNixOS
+++(/var/tmp/fg/s/nf2Sdt79/src/common/functions.sh:10) [[ '' == 1 ]]
+++(common.sh:11) restartDaemon
+++(/var/tmp/fg/s/nf2Sdt79/src/common/functions.sh:124) isTestOnNixOS
+++(/var/tmp/fg/s/nf2Sdt79/src/common/functions.sh:10) [[ '' == 1 ]]
+++(/var/tmp/fg/s/nf2Sdt79/src/common/functions.sh:128) [[ -z '' ]]
+++(/var/tmp/fg/s/nf2Sdt79/src/common/functions.sh:128) return 0
++(why-depends.sh:5) export NIX_TESTS_CA_BY_DEFAULT=1
++(why-depends.sh:5) NIX_TESTS_CA_BY_DEFAULT=1
++(why-depends.sh:7) cd ..
++(why-depends.sh:7) source why-depends.sh
+++(why-depends.sh:3) source common.sh
++++(common.sh:3) set -eu -o pipefail
++++(common.sh:5) [[ -z 1 ]]
+++(why-depends.sh:5) cp ./dependencies.nix ./dependencies.builder0.sh /var/tmp/fg/s/nf2Sdt79/tmp/nix-test/ca/why-depends/config.nix /var/tmp/fg/s/nf2Sdt79/tmp/nix-test/ca/why-depends/test-home
+++(why-depends.sh:7) cd /var/tmp/fg/s/nf2Sdt79/tmp/nix-test/ca/why-depends/test-home
+++(why-depends.sh:9) nix why-depends --derivation --file ./dependencies.nix input2_drv input1_drv
+warning: you don't have Internet access; disabling some network-dependent features
+'input2_drv' does not depend on 'input1_drv'
+++(why-depends.sh:10) nix why-depends --file ./dependencies.nix input2_drv input1_drv
+warning: you don't have Internet access; disabling some network-dependent features
+these 2 derivations will be built:
+  /var/tmp/fg/s/nf2Sdt79/tmp/nix-test/ca/why-depends/store/a4q44cg4n59wjc3wkvc4ixaqkxv2ahdx-dependencies-input-0.drv
+  /var/tmp/fg/s/nf2Sdt79/tmp/nix-test/ca/why-depends/store/x3a3q4w2nhb25109p785q1cc5svbs7v1-dependencies-input-2.drv
+building '/var/tmp/fg/s/nf2Sdt79/tmp/nix-test/ca/why-depends/store/a4q44cg4n59wjc3wkvc4ixaqkxv2ahdx-dependencies-input-0.drv'...
+building '/var/tmp/fg/s/nf2Sdt79/tmp/nix-test/ca/why-depends/store/67x0m53g9arr94lir2g4b33g8d53d8gr-dependencies-input-2.drv'...
+this derivation will be built:
+  /var/tmp/fg/s/nf2Sdt79/tmp/nix-test/ca/why-depends/store/fqwybpbhlbjnxd6wrh9xadnk381ybr95-dependencies-input-1.drv
+'input2_drv' does not depend on 'input1_drv'
+++(why-depends.sh:12) nix-build ./dependencies.nix -A input0_drv -o dep
+/var/tmp/fg/s/nf2Sdt79/tmp/nix-test/ca/why-depends/store/pa2h8iy008ycxlvymcl6z1gcjw1i9ph0-dependencies-input-0
+++(why-depends.sh:13) nix-build ./dependencies.nix -o toplevel
+these 4 derivations will be built:
+  /var/tmp/fg/s/nf2Sdt79/tmp/nix-test/ca/why-depends/store/fqwybpbhlbjnxd6wrh9xadnk381ybr95-dependencies-input-1.drv
+  /var/tmp/fg/s/nf2Sdt79/tmp/nix-test/ca/why-depends/store/qancia0cnc0rq6k5wgdvwmm8fgavb78m-fod-input.drv
+  /var/tmp/fg/s/nf2Sdt79/tmp/nix-test/ca/why-depends/store/x3a3q4w2nhb25109p785q1cc5svbs7v1-dependencies-input-2.drv
+  /var/tmp/fg/s/nf2Sdt79/tmp/nix-test/ca/why-depends/store/w5ldavs7lal2jqrd4vj7hdl6rijb35xi-dependencies-top.drv
+resolved derivation: '/var/tmp/fg/s/nf2Sdt79/tmp/nix-test/ca/why-depends/store/x3a3q4w2nhb25109p785q1cc5svbs7v1-dependencies-input-2.drv' -> '/var/tmp/fg/s/nf2Sdt79/tmp/nix-test/ca/why-depends/store/67x0m53g9arr94lir2g4b33g8d53d8gr-dependencies-input-2.drv'...
+building '/var/tmp/fg/s/nf2Sdt79/tmp/nix-test/ca/why-depends/store/fqwybpbhlbjnxd6wrh9xadnk381ybr95-dependencies-input-1.drv'...
+building '/var/tmp/fg/s/nf2Sdt79/tmp/nix-test/ca/why-depends/store/qancia0cnc0rq6k5wgdvwmm8fgavb78m-fod-input.drv'...
+
+resolved derivation: '/var/tmp/fg/s/nf2Sdt79/tmp/nix-test/ca/why-depends/store/w5ldavs7lal2jqrd4vj7hdl6rijb35xi-dependencies-top.drv' -> '/var/tmp/fg/s/nf2Sdt79/tmp/nix-test/ca/why-depends/store/39lzxgjnbpqj7xkzcsp1mnp3bxxshdl6-dependencies-top.drv'...
+building '/var/tmp/fg/s/nf2Sdt79/tmp/nix-test/ca/why-depends/store/39lzxgjnbpqj7xkzcsp1mnp3bxxshdl6-dependencies-top.drv'...
+FOO
+/var/tmp/fg/s/nf2Sdt79/tmp/nix-test/ca/why-depends/store/iy92xfdfjckwrj6fhnkr4d8h6mlw54cq-dependencies-top
++++(why-depends.sh:15) nix why-depends ./toplevel ./dep
+warning: you don't have Internet access; disabling some network-dependent features
+++(why-depends.sh:15) FAST_WHY_DEPENDS_OUTPUT=$'/var/tmp/fg/s/nf2Sdt79/tmp/nix-test/ca/why-depends/store/iy92xfdfjckwrj6fhnkr4d8h6mlw54cq-dependencies-top\n\342\224\224\342\224\200\342\224\200\342\224\200/var/tmp/fg/s/nf2Sdt79/tmp/nix-test/ca/why-depends/store/2mgam9w2fdfnwm5cj5mi3vw5anlbqkv9-dependencies-input-2\E[0m\n    \342\224\224\342\224\200\342\224\200\342\224\200/var/tmp/fg/s/nf2Sdt79/tmp/nix-test/ca/why-depends/store/pa2h8iy008ycxlvymcl6z1gcjw1i9ph0-dependencies-input-0\E[0m'
++++(why-depends.sh:16) nix why-depends ./toplevel ./dep --precise
+warning: you don't have Internet access; disabling some network-dependent features
+++(why-depends.sh:16) PRECISE_WHY_DEPENDS_OUTPUT=$'/var/tmp/fg/s/nf2Sdt79/tmp/nix-test/ca/why-depends/store/iy92xfdfjckwrj6fhnkr4d8h6mlw54cq-dependencies-top\E[0m\n\342\224\224\342\224\200\342\224\200\342\224\200reference-to-input-2 -> /var/tmp/fg/s/nf2Sdt79/tmp/nix-test/ca/why-depends/store/\E[34;1m2mgam9w2fdfnwm5cj5mi3vw5anlbqkv9\E[0m-dependencies-input-2/.\n    \342\206\222 /var/tmp/fg/s/nf2Sdt79/tmp/nix-test/ca/why-depends/store/2mgam9w2fdfnwm5cj5mi3vw5anlbqkv9-dependencies-input-2\E[0m\n    \342\224\224\342\224\200\342\224\200\342\224\200input0: \342\200\246p/nix-test/ca/why-depends/store/\E[32;1mpa2h8iy008ycxlvymcl6z1gcjw1i9ph0\E[0m-dependencies-input-0.\342\200\246\n        \342\206\222 /var/tmp/fg/s/nf2Sdt79/tmp/nix-test/ca/why-depends/store/pa2h8iy008ycxlvymcl6z1gcjw1i9ph0-dependencies-input-0\E[0m'
+++(why-depends.sh:19) echo $'/var/tmp/fg/s/nf2Sdt79/tmp/nix-test/ca/why-depends/store/iy92xfdfjckwrj6fhnkr4d8h6mlw54cq-dependencies-top\n\342\224\224\342\224\200\342\224\200\342\224\200/var/tmp/fg/s/nf2Sdt79/tmp/nix-test/ca/why-depends/store/2mgam9w2fdfnwm5cj5mi3vw5anlbqkv9-dependencies-input-2\E[0m\n    \342\224\224\342\224\200\342\224\200\342\224\200/var/tmp/fg/s/nf2Sdt79/tmp/nix-test/ca/why-depends/store/pa2h8iy008ycxlvymcl6z1gcjw1i9ph0-dependencies-input-0\E[0m'
+++(why-depends.sh:19) grepQuiet input-2
+++(/var/tmp/fg/s/nf2Sdt79/src/common/functions.sh:330) checkGrepArgs input-2
+++(/var/tmp/fg/s/nf2Sdt79/src/common/functions.sh:293) local arg
+++(/var/tmp/fg/s/nf2Sdt79/src/common/functions.sh:294) for arg in "$@"
+++(/var/tmp/fg/s/nf2Sdt79/src/common/functions.sh:295) [[ input-2 != input\-2 ]]
+++(/var/tmp/fg/s/nf2Sdt79/src/common/functions.sh:331) command grep input-2
+++(why-depends.sh:20) echo $'/var/tmp/fg/s/nf2Sdt79/tmp/nix-test/ca/why-depends/store/iy92xfdfjckwrj6fhnkr4d8h6mlw54cq-dependencies-top\E[0m\n\342\224\224\342\224\200\342\224\200\342\224\200reference-to-input-2 -> /var/tmp/fg/s/nf2Sdt79/tmp/nix-test/ca/why-depends/store/\E[34;1m2mgam9w2fdfnwm5cj5mi3vw5anlbqkv9\E[0m-dependencies-input-2/.\n    \342\206\222 /var/tmp/fg/s/nf2Sdt79/tmp/nix-test/ca/why-depends/store/2mgam9w2fdfnwm5cj5mi3vw5anlbqkv9-dependencies-input-2\E[0m\n    \342\224\224\342\224\200\342\224\200\342\224\200input0: \342\200\246p/nix-test/ca/why-depends/store/\E[32;1mpa2h8iy008ycxlvymcl6z1gcjw1i9ph0\E[0m-dependencies-input-0.\342\200\246\n        \342\206\222 /var/tmp/fg/s/nf2Sdt79/tmp/nix-test/ca/why-depends/store/pa2h8iy008ycxlvymcl6z1gcjw1i9ph0-dependencies-input-0\E[0m'
+++(why-depends.sh:20) grepQuiet input-2
+++(/var/tmp/fg/s/nf2Sdt79/src/common/functions.sh:330) checkGrepArgs input-2
+++(/var/tmp/fg/s/nf2Sdt79/src/common/functions.sh:293) local arg
+++(/var/tmp/fg/s/nf2Sdt79/src/common/functions.sh:294) for arg in "$@"
+++(/var/tmp/fg/s/nf2Sdt79/src/common/functions.sh:295) [[ input-2 != input\-2 ]]
+++(/var/tmp/fg/s/nf2Sdt79/src/common/functions.sh:331) command grep input-2
+++(why-depends.sh:23) echo $'/var/tmp/fg/s/nf2Sdt79/tmp/nix-test/ca/why-depends/store/iy92xfdfjckwrj6fhnkr4d8h6mlw54cq-dependencies-top\n\342\224\224\342\224\200\342\224\200\342\224\200/var/tmp/fg/s/nf2Sdt79/tmp/nix-test/ca/why-depends/store/2mgam9w2fdfnwm5cj5mi3vw5anlbqkv9-dependencies-input-2\E[0m\n    \342\224\224\342\224\200\342\224\200\342\224\200/var/tmp/fg/s/nf2Sdt79/tmp/nix-test/ca/why-depends/store/pa2h8iy008ycxlvymcl6z1gcjw1i9ph0-dependencies-input-0\E[0m'
+++(why-depends.sh:23) grepQuietInverse reference-to-input-2
+++(/var/tmp/fg/s/nf2Sdt79/src/common/functions.sh:336) checkGrepArgs reference-to-input-2
+++(/var/tmp/fg/s/nf2Sdt79/src/common/functions.sh:293) local arg
+++(/var/tmp/fg/s/nf2Sdt79/src/common/functions.sh:294) for arg in "$@"
+++(/var/tmp/fg/s/nf2Sdt79/src/common/functions.sh:295) [[ reference-to-input-2 != reference\-to\-input\-2 ]]
+++(/var/tmp/fg/s/nf2Sdt79/src/common/functions.sh:337) command grep reference-to-input-2
+++(why-depends.sh:24) echo $'/var/tmp/fg/s/nf2Sdt79/tmp/nix-test/ca/why-depends/store/iy92xfdfjckwrj6fhnkr4d8h6mlw54cq-dependencies-top\E[0m\n\342\224\224\342\224\200\342\224\200\342\224\200reference-to-input-2 -> /var/tmp/fg/s/nf2Sdt79/tmp/nix-test/ca/why-depends/store/\E[34;1m2mgam9w2fdfnwm5cj5mi3vw5anlbqkv9\E[0m-dependencies-input-2/.\n    \342\206\222 /var/tmp/fg/s/nf2Sdt79/tmp/nix-test/ca/why-depends/store/2mgam9w2fdfnwm5cj5mi3vw5anlbqkv9-dependencies-input-2\E[0m\n    \342\224\224\342\224\200\342\224\200\342\224\200input0: \342\200\246p/nix-test/ca/why-depends/store/\E[32;1mpa2h8iy008ycxlvymcl6z1gcjw1i9ph0\E[0m-dependencies-input-0.\342\200\246\n        \342\206\222 /var/tmp/fg/s/nf2Sdt79/tmp/nix-test/ca/why-depends/store/pa2h8iy008ycxlvymcl6z1gcjw1i9ph0-dependencies-input-0\E[0m'
+++(why-depends.sh:24) grepQuiet reference-to-input-2
+++(/var/tmp/fg/s/nf2Sdt79/src/common/functions.sh:330) checkGrepArgs reference-to-input-2
+++(/var/tmp/fg/s/nf2Sdt79/src/common/functions.sh:293) local arg
+++(/var/tmp/fg/s/nf2Sdt79/src/common/functions.sh:294) for arg in "$@"
+++(/var/tmp/fg/s/nf2Sdt79/src/common/functions.sh:295) [[ reference-to-input-2 != reference\-to\-input\-2 ]]
+++(/var/tmp/fg/s/nf2Sdt79/src/common/functions.sh:331) command grep reference-to-input-2
+++(why-depends.sh:26) sed -n 2p
+++(why-depends.sh:26) grepQuiet $'\342\224\224\342\224\200\342\224\200\342\224\200reference-to-input-2 -> '
+++(/var/tmp/fg/s/nf2Sdt79/src/common/functions.sh:330) checkGrepArgs $'\342\224\224\342\224\200\342\224\200\342\224\200reference-to-input-2 -> '
+++(/var/tmp/fg/s/nf2Sdt79/src/common/functions.sh:293) local arg
+++(/var/tmp/fg/s/nf2Sdt79/src/common/functions.sh:294) for arg in "$@"
+++(/var/tmp/fg/s/nf2Sdt79/src/common/functions.sh:295) [[ └───reference-to-input-2 ->  != └───reference\-to\-input\-2 \->  ]]
+++(/var/tmp/fg/s/nf2Sdt79/src/common/functions.sh:331) command grep $'\342\224\224\342\224\200\342\224\200\342\224\200reference-to-input-2 -> '
+++(why-depends.sh:27) sed -n 3p
+++(why-depends.sh:27) grep $'    \342\206\222'
+++(/var/tmp/fg/s/nf2Sdt79/src/common/functions.sh:344) checkGrepArgs $'    \342\206\222'
+++(/var/tmp/fg/s/nf2Sdt79/src/common/functions.sh:293) local arg
+++(/var/tmp/fg/s/nf2Sdt79/src/common/functions.sh:294) for arg in "$@"
+++(/var/tmp/fg/s/nf2Sdt79/src/common/functions.sh:295) [[     → !=     → ]]
+++(/var/tmp/fg/s/nf2Sdt79/src/common/functions.sh:345) command grep $'    \342\206\222'
+++(why-depends.sh:27) grepQuiet dependencies-input-2
+++(/var/tmp/fg/s/nf2Sdt79/src/common/functions.sh:330) checkGrepArgs dependencies-input-2
+++(/var/tmp/fg/s/nf2Sdt79/src/common/functions.sh:293) local arg
+++(/var/tmp/fg/s/nf2Sdt79/src/common/functions.sh:294) for arg in "$@"
+++(/var/tmp/fg/s/nf2Sdt79/src/common/functions.sh:295) [[ dependencies-input-2 != dependencies\-input\-2 ]]
+++(/var/tmp/fg/s/nf2Sdt79/src/common/functions.sh:331) command grep dependencies-input-2
+++(why-depends.sh:28) sed -n 4p
+++(why-depends.sh:28) grepQuiet $'    \342\224\224\342\224\200\342\224\200\342\224\200input0: \342\200\246'
+++(/var/tmp/fg/s/nf2Sdt79/src/common/functions.sh:330) checkGrepArgs $'    \342\224\224\342\224\200\342\224\200\342\224\200input0: \342\200\246'
+++(/var/tmp/fg/s/nf2Sdt79/src/common/functions.sh:293) local arg
+++(/var/tmp/fg/s/nf2Sdt79/src/common/functions.sh:294) for arg in "$@"
+++(/var/tmp/fg/s/nf2Sdt79/src/common/functions.sh:295) [[     └───input0: … !=     └───input0\: … ]]
+++(/var/tmp/fg/s/nf2Sdt79/src/common/functions.sh:331) command grep $'    \342\224\224\342\224\200\342\224\200\342\224\200input0: \342\200\246'
+++(why-depends.sh:29) sed -n 5p
+++(why-depends.sh:29) grep $'        \342\206\222'
+++(/var/tmp/fg/s/nf2Sdt79/src/common/functions.sh:344) checkGrepArgs $'        \342\206\222'
+++(/var/tmp/fg/s/nf2Sdt79/src/common/functions.sh:293) local arg
+++(/var/tmp/fg/s/nf2Sdt79/src/common/functions.sh:294) for arg in "$@"
+++(/var/tmp/fg/s/nf2Sdt79/src/common/functions.sh:295) [[         → !=         → ]]
+++(/var/tmp/fg/s/nf2Sdt79/src/common/functions.sh:345) command grep $'        \342\206\222'
+++(why-depends.sh:29) grepQuiet dependencies-input-0
+++(/var/tmp/fg/s/nf2Sdt79/src/common/functions.sh:330) checkGrepArgs dependencies-input-0
+++(/var/tmp/fg/s/nf2Sdt79/src/common/functions.sh:293) local arg
+++(/var/tmp/fg/s/nf2Sdt79/src/common/functions.sh:294) for arg in "$@"
+++(/var/tmp/fg/s/nf2Sdt79/src/common/functions.sh:295) [[ dependencies-input-0 != dependencies\-input\-0 ]]
+++(/var/tmp/fg/s/nf2Sdt79/src/common/functions.sh:331) command grep dependencies-input-0

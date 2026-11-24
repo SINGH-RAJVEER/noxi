@@ -1,0 +1,195 @@
++(structured-attrs.sh:3) source common.sh
+++(common.sh:3) set -eu -o pipefail
+++(common.sh:5) [[ -z '' ]]
+++(common.sh:7) COMMON_SH_SOURCED=1
+++++(common.sh:9) dirname common.sh
++++(common.sh:9) readlink -f .
+++(common.sh:9) functionalTestsDir=/var/tmp/fg/s/nf24hfNg/src
+++(common.sh:11) source /var/tmp/fg/s/nf24hfNg/src/common/vars.sh
++++(/var/tmp/fg/s/nf24hfNg/src/common/vars.sh:3) set -eu -o pipefail
++++(/var/tmp/fg/s/nf24hfNg/src/common/vars.sh:5) [[ -z '' ]]
++++(/var/tmp/fg/s/nf24hfNg/src/common/vars.sh:7) COMMON_VARS_SH_SOURCED=1
+++++(/var/tmp/fg/s/nf24hfNg/src/common/vars.sh:9) realpath /var/tmp/fg/s/nf24hfNg/src
++++(/var/tmp/fg/s/nf24hfNg/src/common/vars.sh:9) _NIX_TEST_SOURCE_DIR=/var/tmp/fg/s/nf24hfNg/src
+++++(/var/tmp/fg/s/nf24hfNg/src/common/vars.sh:10) realpath /var/tmp/fg/s/nf24hfNg/build
++++(/var/tmp/fg/s/nf24hfNg/src/common/vars.sh:10) _NIX_TEST_BUILD_DIR=/var/tmp/fg/s/nf24hfNg/build
++++++(/var/tmp/fg/s/nf24hfNg/src/common/vars.sh:12) dirname /var/tmp/fg/s/nf24hfNg/src/common/vars.sh
+++++(/var/tmp/fg/s/nf24hfNg/src/common/vars.sh:12) readlink -f /var/tmp/fg/s/nf24hfNg/src/common
++++(/var/tmp/fg/s/nf24hfNg/src/common/vars.sh:12) commonDir=/var/tmp/fg/s/nf24hfNg/src/common
++++(/var/tmp/fg/s/nf24hfNg/src/common/vars.sh:16) source /var/tmp/fg/s/nf24hfNg/build/common/subst-vars.sh
+++++(/var/tmp/fg/s/nf24hfNg/build/common/subst-vars.sh:3) [[ -z '' ]]
+++++(/var/tmp/fg/s/nf24hfNg/build/common/subst-vars.sh:5) COMMON_SUBST_VARS_SH_SOURCED=1
+++++(/var/tmp/fg/s/nf24hfNg/build/common/subst-vars.sh:7) bash=/nix/store/2ndah67h0z5m31v2wkdmg2md4380ggr5-bash-interactive-5.3p15/bin/bash
+++++(/var/tmp/fg/s/nf24hfNg/build/common/subst-vars.sh:8) bindir=/var/tmp/fg/tt/.tmp5krJTK/noxi-bin
+++++(/var/tmp/fg/s/nf24hfNg/build/common/subst-vars.sh:9) coreutils=/nix/store/xjl7p8dvyk2j53kqf7f43kdj4ypbxz7g-coreutils-9.11/bin
+++++(/var/tmp/fg/s/nf24hfNg/build/common/subst-vars.sh:11) dot=
+++++(/var/tmp/fg/s/nf24hfNg/build/common/subst-vars.sh:12) busybox=/nix/store/qddzvnv6b0805nkvbqddbswddcfhx814-busybox-static-x86_64-unknown-linux-musl-1.37.0/bin/busybox
+++++(/var/tmp/fg/s/nf24hfNg/build/common/subst-vars.sh:14) version=2.35.2
+++++(/var/tmp/fg/s/nf24hfNg/build/common/subst-vars.sh:15) system=x86_64-linux
++++(/var/tmp/fg/s/nf24hfNg/src/common/vars.sh:18) : '/var/tmp/fg/tt/.tmp5krJTK/noxi-bin /nix/store/xjl7p8dvyk2j53kqf7f43kdj4ypbxz7g-coreutils-9.11/bin  /run/current-system/sw/bin/nu /nix/store/qddzvnv6b0805nkvbqddbswddcfhx814-busybox-static-x86_64-unknown-linux-musl-1.37.0/bin/busybox 2.35.2 x86_64-linux'
++++(/var/tmp/fg/s/nf24hfNg/src/common/vars.sh:19) export coreutils dot busybox version system
++++(/var/tmp/fg/s/nf24hfNg/src/common/vars.sh:21) export PAGER=cat
++++(/var/tmp/fg/s/nf24hfNg/src/common/vars.sh:21) PAGER=cat
++++(/var/tmp/fg/s/nf24hfNg/src/common/vars.sh:23) source /var/tmp/fg/s/nf24hfNg/src/common/paths.sh
+++++(/var/tmp/fg/s/nf24hfNg/src/common/paths.sh:3) set -eu -o pipefail
+++++(/var/tmp/fg/s/nf24hfNg/src/common/paths.sh:5) [[ -z '' ]]
+++++(/var/tmp/fg/s/nf24hfNg/src/common/paths.sh:7) COMMON_PATHS_SH_SOURCED=1
+++++++(/var/tmp/fg/s/nf24hfNg/src/common/paths.sh:9) dirname /var/tmp/fg/s/nf24hfNg/src/common/paths.sh
++++++(/var/tmp/fg/s/nf24hfNg/src/common/paths.sh:9) readlink -f /var/tmp/fg/s/nf24hfNg/src/common
+++++(/var/tmp/fg/s/nf24hfNg/src/common/paths.sh:9) commonDir=/var/tmp/fg/s/nf24hfNg/src/common
+++++(/var/tmp/fg/s/nf24hfNg/src/common/paths.sh:12) source /var/tmp/fg/s/nf24hfNg/src/common/functions.sh
++++++(/var/tmp/fg/s/nf24hfNg/src/common/functions.sh:3) set -eu -o pipefail
++++++(/var/tmp/fg/s/nf24hfNg/src/common/functions.sh:5) [[ -z '' ]]
++++++(/var/tmp/fg/s/nf24hfNg/src/common/functions.sh:7) COMMON_FUNCTIONS_SH_SOURCED=1
++++++(/var/tmp/fg/s/nf24hfNg/src/common/functions.sh:353) trap onError ERR
+++++(/var/tmp/fg/s/nf24hfNg/src/common/paths.sh:14) source /var/tmp/fg/s/nf24hfNg/build/common/subst-vars.sh
++++++(/var/tmp/fg/s/nf24hfNg/build/common/subst-vars.sh:3) [[ -z 1 ]]
+++++(/var/tmp/fg/s/nf24hfNg/src/common/paths.sh:16) : /nix/store/2ndah67h0z5m31v2wkdmg2md4380ggr5-bash-interactive-5.3p15/bin/bash /var/tmp/fg/tt/.tmp5krJTK/noxi-bin
+++++(/var/tmp/fg/s/nf24hfNg/src/common/paths.sh:18) isTestOnNixOS
+++++(/var/tmp/fg/s/nf24hfNg/src/common/functions.sh:10) [[ '' == 1 ]]
+++++(/var/tmp/fg/s/nf24hfNg/src/common/paths.sh:19) export SHELL=/nix/store/2ndah67h0z5m31v2wkdmg2md4380ggr5-bash-interactive-5.3p15/bin/bash
+++++(/var/tmp/fg/s/nf24hfNg/src/common/paths.sh:19) SHELL=/nix/store/2ndah67h0z5m31v2wkdmg2md4380ggr5-bash-interactive-5.3p15/bin/bash
+++++(/var/tmp/fg/s/nf24hfNg/src/common/paths.sh:20) export PATH=/var/tmp/fg/tt/.tmp5krJTK/noxi-bin:/var/tmp/fg/tt/.tmp5krJTK/noxi-bin:/nix/store/2ndah67h0z5m31v2wkdmg2md4380ggr5-bash-interactive-5.3p15/bin:/nix/store/xjl7p8dvyk2j53kqf7f43kdj4ypbxz7g-coreutils-9.11/bin:/nix/store/xmvbzzxm5snla5a2cyfhm7hjy9bifx7n-gnugrep-3.12/bin:/nix/store/qf2wzyq4irhgyhnq3s2hz0ldjq3w8a3x-gnused-4.10/bin:/nix/store/9zib1q94gka8i5q530364cvy25504qz5-gawk-5.4.1/bin:/nix/store/i9wgqa0l88aprvpwfaq5hkfa6pklhlv0-findutils-4.11.0/bin:/nix/store/b8xvzgd52jby5dfpi0pf46nisy6wma5d-diffutils-3.12/bin:/nix/store/81zqbas7qc02yfdj7142fdcqhxgd3cgz-patch-2.8/bin:/nix/store/c8b0qp903w2hhpa63a2lfs7d565zag30-gnutar-1.35/bin:/nix/store/l5sll8nxk70p73l5yqbsjy4mh0c3g0v5-gzip-1.14/bin:/nix/store/j3yz0ag9j442229n8harpmp9aa5qyvhn-bzip2-1.0.8-bin/bin:/nix/store/518dig8gpvqyac6pkksyjjfzvi9zn8vq-xz-5.8.3-bin/bin:/nix/store/l8ik8mb8lgb60rklxjmkgddmp5qqnv29-zstd-1.5.7-bin/bin:/nix/store/msr1v91ybfw6j12rs5mfl8ghb2rqsnsr-git-2.55.0/bin:/nix/store/hyz22a0l5b5kv7yfypw4ss6d36vbzg01-jq-1.8.2-bin/bin:/nix/store/24gq3bi2yzf7g386p5j32mn78hhanf49-sqlite-3.53.3-bin/bin:/nix/store/cp8qnyl8i0s62g3a1465i258mf5bcr6k-curl-8.22.0-bin/bin:/nix/store/8x4c8zah3fbnyckaic4sskjbw7d2y98n-util-linux-2.42.4-bin/bin:/nix/store/d64q19q1xjdwfhqx6czvrjgrhq0n3lcc-python3-3.14.7/bin:/nix/store/niqsa6mxqsyax9lzbm261a2ml6m71vb6-perl-5.42.3/bin:/nix/store/fv9yl55hkskpc2cj9c0sdyq91car9kgl-file-5.48/bin:/nix/store/jv5kdlkwx0l8a7jdpg21g934ff30s319-which-2.25/bin:/nix/store/aj08b694apkc1jay2akywym9ghlailf5-procps-4.0.7/bin:/nix/store/5wyaj1kvkxbbscz6innrh6yjjkdq4qmk-openssh-10.6p1/bin:/nix/store/44gxi8li8y8wrxrb93sya9hljkpigsqw-openssl-3.6.4-bin/bin:/run/wrappers/wrappers.Yw6nCJO1nt:/nix/store/wmh4xg3557sicfyllmi9ymd8sxaw51wv-man-db-2.13.1/bin:/nix/store/qpgknrlnxca0z99gl12j5n0fgca11cdx-mercurial-7.2.2/bin:/var/tmp/fg/tt/.tmp5krJTK/tools
+++++(/var/tmp/fg/s/nf24hfNg/src/common/paths.sh:20) PATH=/var/tmp/fg/tt/.tmp5krJTK/noxi-bin:/var/tmp/fg/tt/.tmp5krJTK/noxi-bin:/nix/store/2ndah67h0z5m31v2wkdmg2md4380ggr5-bash-interactive-5.3p15/bin:/nix/store/xjl7p8dvyk2j53kqf7f43kdj4ypbxz7g-coreutils-9.11/bin:/nix/store/xmvbzzxm5snla5a2cyfhm7hjy9bifx7n-gnugrep-3.12/bin:/nix/store/qf2wzyq4irhgyhnq3s2hz0ldjq3w8a3x-gnused-4.10/bin:/nix/store/9zib1q94gka8i5q530364cvy25504qz5-gawk-5.4.1/bin:/nix/store/i9wgqa0l88aprvpwfaq5hkfa6pklhlv0-findutils-4.11.0/bin:/nix/store/b8xvzgd52jby5dfpi0pf46nisy6wma5d-diffutils-3.12/bin:/nix/store/81zqbas7qc02yfdj7142fdcqhxgd3cgz-patch-2.8/bin:/nix/store/c8b0qp903w2hhpa63a2lfs7d565zag30-gnutar-1.35/bin:/nix/store/l5sll8nxk70p73l5yqbsjy4mh0c3g0v5-gzip-1.14/bin:/nix/store/j3yz0ag9j442229n8harpmp9aa5qyvhn-bzip2-1.0.8-bin/bin:/nix/store/518dig8gpvqyac6pkksyjjfzvi9zn8vq-xz-5.8.3-bin/bin:/nix/store/l8ik8mb8lgb60rklxjmkgddmp5qqnv29-zstd-1.5.7-bin/bin:/nix/store/msr1v91ybfw6j12rs5mfl8ghb2rqsnsr-git-2.55.0/bin:/nix/store/hyz22a0l5b5kv7yfypw4ss6d36vbzg01-jq-1.8.2-bin/bin:/nix/store/24gq3bi2yzf7g386p5j32mn78hhanf49-sqlite-3.53.3-bin/bin:/nix/store/cp8qnyl8i0s62g3a1465i258mf5bcr6k-curl-8.22.0-bin/bin:/nix/store/8x4c8zah3fbnyckaic4sskjbw7d2y98n-util-linux-2.42.4-bin/bin:/nix/store/d64q19q1xjdwfhqx6czvrjgrhq0n3lcc-python3-3.14.7/bin:/nix/store/niqsa6mxqsyax9lzbm261a2ml6m71vb6-perl-5.42.3/bin:/nix/store/fv9yl55hkskpc2cj9c0sdyq91car9kgl-file-5.48/bin:/nix/store/jv5kdlkwx0l8a7jdpg21g934ff30s319-which-2.25/bin:/nix/store/aj08b694apkc1jay2akywym9ghlailf5-procps-4.0.7/bin:/nix/store/5wyaj1kvkxbbscz6innrh6yjjkdq4qmk-openssh-10.6p1/bin:/nix/store/44gxi8li8y8wrxrb93sya9hljkpigsqw-openssl-3.6.4-bin/bin:/run/wrappers/wrappers.Yw6nCJO1nt:/nix/store/wmh4xg3557sicfyllmi9ymd8sxaw51wv-man-db-2.13.1/bin:/nix/store/qpgknrlnxca0z99gl12j5n0fgca11cdx-mercurial-7.2.2/bin:/var/tmp/fg/tt/.tmp5krJTK/tools
+++++(/var/tmp/fg/s/nf24hfNg/src/common/paths.sh:23) [[ -n '' ]]
+++++(/var/tmp/fg/s/nf24hfNg/src/common/paths.sh:27) DAEMON_PATH=/var/tmp/fg/tt/.tmp5krJTK/noxi-bin:/var/tmp/fg/tt/.tmp5krJTK/noxi-bin:/nix/store/2ndah67h0z5m31v2wkdmg2md4380ggr5-bash-interactive-5.3p15/bin:/nix/store/xjl7p8dvyk2j53kqf7f43kdj4ypbxz7g-coreutils-9.11/bin:/nix/store/xmvbzzxm5snla5a2cyfhm7hjy9bifx7n-gnugrep-3.12/bin:/nix/store/qf2wzyq4irhgyhnq3s2hz0ldjq3w8a3x-gnused-4.10/bin:/nix/store/9zib1q94gka8i5q530364cvy25504qz5-gawk-5.4.1/bin:/nix/store/i9wgqa0l88aprvpwfaq5hkfa6pklhlv0-findutils-4.11.0/bin:/nix/store/b8xvzgd52jby5dfpi0pf46nisy6wma5d-diffutils-3.12/bin:/nix/store/81zqbas7qc02yfdj7142fdcqhxgd3cgz-patch-2.8/bin:/nix/store/c8b0qp903w2hhpa63a2lfs7d565zag30-gnutar-1.35/bin:/nix/store/l5sll8nxk70p73l5yqbsjy4mh0c3g0v5-gzip-1.14/bin:/nix/store/j3yz0ag9j442229n8harpmp9aa5qyvhn-bzip2-1.0.8-bin/bin:/nix/store/518dig8gpvqyac6pkksyjjfzvi9zn8vq-xz-5.8.3-bin/bin:/nix/store/l8ik8mb8lgb60rklxjmkgddmp5qqnv29-zstd-1.5.7-bin/bin:/nix/store/msr1v91ybfw6j12rs5mfl8ghb2rqsnsr-git-2.55.0/bin:/nix/store/hyz22a0l5b5kv7yfypw4ss6d36vbzg01-jq-1.8.2-bin/bin:/nix/store/24gq3bi2yzf7g386p5j32mn78hhanf49-sqlite-3.53.3-bin/bin:/nix/store/cp8qnyl8i0s62g3a1465i258mf5bcr6k-curl-8.22.0-bin/bin:/nix/store/8x4c8zah3fbnyckaic4sskjbw7d2y98n-util-linux-2.42.4-bin/bin:/nix/store/d64q19q1xjdwfhqx6czvrjgrhq0n3lcc-python3-3.14.7/bin:/nix/store/niqsa6mxqsyax9lzbm261a2ml6m71vb6-perl-5.42.3/bin:/nix/store/fv9yl55hkskpc2cj9c0sdyq91car9kgl-file-5.48/bin:/nix/store/jv5kdlkwx0l8a7jdpg21g934ff30s319-which-2.25/bin:/nix/store/aj08b694apkc1jay2akywym9ghlailf5-procps-4.0.7/bin:/nix/store/5wyaj1kvkxbbscz6innrh6yjjkdq4qmk-openssh-10.6p1/bin:/nix/store/44gxi8li8y8wrxrb93sya9hljkpigsqw-openssl-3.6.4-bin/bin:/run/wrappers/wrappers.Yw6nCJO1nt:/nix/store/wmh4xg3557sicfyllmi9ymd8sxaw51wv-man-db-2.13.1/bin:/nix/store/qpgknrlnxca0z99gl12j5n0fgca11cdx-mercurial-7.2.2/bin:/var/tmp/fg/tt/.tmp5krJTK/tools
+++++(/var/tmp/fg/s/nf24hfNg/src/common/paths.sh:28) [[ -n '' ]]
++++(/var/tmp/fg/s/nf24hfNg/src/common/vars.sh:24) source /var/tmp/fg/s/nf24hfNg/src/common/test-root.sh
+++++(/var/tmp/fg/s/nf24hfNg/src/common/test-root.sh:3) TEST_SUBDIR=main/structured-attrs
++++++(/var/tmp/fg/s/nf24hfNg/src/common/test-root.sh:4) realpath /var/tmp/fg/s/nf24hfNg/tmp/nix-test
+++++(/var/tmp/fg/s/nf24hfNg/src/common/test-root.sh:4) TEST_ROOT=/var/tmp/fg/s/nf24hfNg/tmp/nix-test/main/structured-attrs
+++++(/var/tmp/fg/s/nf24hfNg/src/common/test-root.sh:5) export TEST_ROOT
++++(/var/tmp/fg/s/nf24hfNg/src/common/vars.sh:26) test_nix_conf_dir=/var/tmp/fg/s/nf24hfNg/tmp/nix-test/main/structured-attrs/etc
++++(/var/tmp/fg/s/nf24hfNg/src/common/vars.sh:29) test_nix_conf=/var/tmp/fg/s/nf24hfNg/tmp/nix-test/main/structured-attrs/etc/nix.conf
++++(/var/tmp/fg/s/nf24hfNg/src/common/vars.sh:31) export TEST_HOME=/var/tmp/fg/s/nf24hfNg/tmp/nix-test/main/structured-attrs/test-home
++++(/var/tmp/fg/s/nf24hfNg/src/common/vars.sh:31) TEST_HOME=/var/tmp/fg/s/nf24hfNg/tmp/nix-test/main/structured-attrs/test-home
++++(/var/tmp/fg/s/nf24hfNg/src/common/vars.sh:33) isTestOnNixOS
++++(/var/tmp/fg/s/nf24hfNg/src/common/functions.sh:10) [[ '' == 1 ]]
++++(/var/tmp/fg/s/nf24hfNg/src/common/vars.sh:34) export NIX_STORE_DIR
+++++(/var/tmp/fg/s/nf24hfNg/src/common/vars.sh:35) readlink -f /var/tmp/fg/s/nf24hfNg/tmp/nix-test/main/structured-attrs/store
++++(/var/tmp/fg/s/nf24hfNg/src/common/vars.sh:35) NIX_STORE_DIR=
++++(/var/tmp/fg/s/nf24hfNg/src/common/vars.sh:37) export NIX_IGNORE_SYMLINK_STORE=1
++++(/var/tmp/fg/s/nf24hfNg/src/common/vars.sh:37) NIX_IGNORE_SYMLINK_STORE=1
++++(/var/tmp/fg/s/nf24hfNg/src/common/vars.sh:38) NIX_STORE_DIR=/var/tmp/fg/s/nf24hfNg/tmp/nix-test/main/structured-attrs/store
++++(/var/tmp/fg/s/nf24hfNg/src/common/vars.sh:40) export NIX_LOCALSTATE_DIR=/var/tmp/fg/s/nf24hfNg/tmp/nix-test/main/structured-attrs/var
++++(/var/tmp/fg/s/nf24hfNg/src/common/vars.sh:40) NIX_LOCALSTATE_DIR=/var/tmp/fg/s/nf24hfNg/tmp/nix-test/main/structured-attrs/var
++++(/var/tmp/fg/s/nf24hfNg/src/common/vars.sh:41) export NIX_LOG_DIR=/var/tmp/fg/s/nf24hfNg/tmp/nix-test/main/structured-attrs/var/log/nix
++++(/var/tmp/fg/s/nf24hfNg/src/common/vars.sh:41) NIX_LOG_DIR=/var/tmp/fg/s/nf24hfNg/tmp/nix-test/main/structured-attrs/var/log/nix
++++(/var/tmp/fg/s/nf24hfNg/src/common/vars.sh:42) export NIX_STATE_DIR=/var/tmp/fg/s/nf24hfNg/tmp/nix-test/main/structured-attrs/var/nix
++++(/var/tmp/fg/s/nf24hfNg/src/common/vars.sh:42) NIX_STATE_DIR=/var/tmp/fg/s/nf24hfNg/tmp/nix-test/main/structured-attrs/var/nix
++++(/var/tmp/fg/s/nf24hfNg/src/common/vars.sh:43) export NIX_CONF_DIR=/var/tmp/fg/s/nf24hfNg/tmp/nix-test/main/structured-attrs/etc
++++(/var/tmp/fg/s/nf24hfNg/src/common/vars.sh:43) NIX_CONF_DIR=/var/tmp/fg/s/nf24hfNg/tmp/nix-test/main/structured-attrs/etc
++++(/var/tmp/fg/s/nf24hfNg/src/common/vars.sh:44) export NIX_DAEMON_SOCKET_PATH=/var/tmp/fg/s/nf24hfNg/tmp/nix-test/main/structured-attrs/dSocket
++++(/var/tmp/fg/s/nf24hfNg/src/common/vars.sh:44) NIX_DAEMON_SOCKET_PATH=/var/tmp/fg/s/nf24hfNg/tmp/nix-test/main/structured-attrs/dSocket
++++(/var/tmp/fg/s/nf24hfNg/src/common/vars.sh:45) unset NIX_USER_CONF_FILES
++++(/var/tmp/fg/s/nf24hfNg/src/common/vars.sh:46) export _NIX_TEST_SHARED=/var/tmp/fg/s/nf24hfNg/tmp/nix-test/main/structured-attrs/shared
++++(/var/tmp/fg/s/nf24hfNg/src/common/vars.sh:46) _NIX_TEST_SHARED=/var/tmp/fg/s/nf24hfNg/tmp/nix-test/main/structured-attrs/shared
++++(/var/tmp/fg/s/nf24hfNg/src/common/vars.sh:47) [[ -n '' ]]
++++(/var/tmp/fg/s/nf24hfNg/src/common/vars.sh:50) export _NIX_IN_TEST=/var/tmp/fg/s/nf24hfNg/tmp/nix-test/main/structured-attrs/shared
++++(/var/tmp/fg/s/nf24hfNg/src/common/vars.sh:50) _NIX_IN_TEST=/var/tmp/fg/s/nf24hfNg/tmp/nix-test/main/structured-attrs/shared
++++(/var/tmp/fg/s/nf24hfNg/src/common/vars.sh:51) export _NIX_TEST_NO_LSOF=1
++++(/var/tmp/fg/s/nf24hfNg/src/common/vars.sh:51) _NIX_TEST_NO_LSOF=1
++++(/var/tmp/fg/s/nf24hfNg/src/common/vars.sh:54) export _NIX_TEST_NO_ENVIRONMENT_WARNINGS=1
++++(/var/tmp/fg/s/nf24hfNg/src/common/vars.sh:54) _NIX_TEST_NO_ENVIRONMENT_WARNINGS=1
++++(/var/tmp/fg/s/nf24hfNg/src/common/vars.sh:55) export NIX_REMOTE=
++++(/var/tmp/fg/s/nf24hfNg/src/common/vars.sh:55) NIX_REMOTE=
++++(/var/tmp/fg/s/nf24hfNg/src/common/vars.sh:59) unset NIX_PATH
++++(/var/tmp/fg/s/nf24hfNg/src/common/vars.sh:60) export HOME=/var/tmp/fg/s/nf24hfNg/tmp/nix-test/main/structured-attrs/test-home
++++(/var/tmp/fg/s/nf24hfNg/src/common/vars.sh:60) HOME=/var/tmp/fg/s/nf24hfNg/tmp/nix-test/main/structured-attrs/test-home
++++(/var/tmp/fg/s/nf24hfNg/src/common/vars.sh:61) unset XDG_STATE_HOME
++++(/var/tmp/fg/s/nf24hfNg/src/common/vars.sh:62) unset XDG_DATA_HOME
++++(/var/tmp/fg/s/nf24hfNg/src/common/vars.sh:63) unset XDG_CONFIG_HOME
++++(/var/tmp/fg/s/nf24hfNg/src/common/vars.sh:64) unset XDG_CONFIG_DIRS
++++(/var/tmp/fg/s/nf24hfNg/src/common/vars.sh:65) unset XDG_CACHE_HOME
++++(/var/tmp/fg/s/nf24hfNg/src/common/vars.sh:66) unset GIT_DIR
++++(/var/tmp/fg/s/nf24hfNg/src/common/vars.sh:68) export GIT_CONFIG_SYSTEM=/dev/null
++++(/var/tmp/fg/s/nf24hfNg/src/common/vars.sh:68) GIT_CONFIG_SYSTEM=/dev/null
++++(/var/tmp/fg/s/nf24hfNg/src/common/vars.sh:69) export GIT_CONFIG_GLOBAL=/dev/null
++++(/var/tmp/fg/s/nf24hfNg/src/common/vars.sh:69) GIT_CONFIG_GLOBAL=/dev/null
++++(/var/tmp/fg/s/nf24hfNg/src/common/vars.sh:71) export IMPURE_VAR1=foo
++++(/var/tmp/fg/s/nf24hfNg/src/common/vars.sh:71) IMPURE_VAR1=foo
++++(/var/tmp/fg/s/nf24hfNg/src/common/vars.sh:72) export IMPURE_VAR2=bar
++++(/var/tmp/fg/s/nf24hfNg/src/common/vars.sh:72) IMPURE_VAR2=bar
++++(/var/tmp/fg/s/nf24hfNg/src/common/vars.sh:76) cacheDir=/var/tmp/fg/s/nf24hfNg/tmp/nix-test/main/structured-attrs/binary-cache
+++++(/var/tmp/fg/s/nf24hfNg/src/common/vars.sh:78) uname
++++(/var/tmp/fg/s/nf24hfNg/src/common/vars.sh:78) [[ Linux == Linux ]]
++++(/var/tmp/fg/s/nf24hfNg/src/common/vars.sh:78) [[ -L /proc/self/ns/user ]]
++++(/var/tmp/fg/s/nf24hfNg/src/common/vars.sh:78) unshare --user true
++++(/var/tmp/fg/s/nf24hfNg/src/common/vars.sh:79) _canUseSandbox=1
++++(/var/tmp/fg/s/nf24hfNg/src/common/vars.sh:85) config_nix=/var/tmp/fg/s/nf24hfNg/tmp/nix-test/main/structured-attrs/config.nix
+++(common.sh:12) source /var/tmp/fg/s/nf24hfNg/src/common/functions.sh
++++(/var/tmp/fg/s/nf24hfNg/src/common/functions.sh:3) set -eu -o pipefail
++++(/var/tmp/fg/s/nf24hfNg/src/common/functions.sh:5) [[ -z 1 ]]
+++(common.sh:13) source /var/tmp/fg/s/nf24hfNg/src/common/init.sh
++++(/var/tmp/fg/s/nf24hfNg/src/common/init.sh:4) : /var/tmp/fg/s/nf24hfNg/tmp/nix-test/main/structured-attrs/etc /var/tmp/fg/s/nf24hfNg/tmp/nix-test/main/structured-attrs/etc/nix.conf /var/tmp/fg/s/nf24hfNg/tmp/nix-test/main/structured-attrs/config.nix
++++(/var/tmp/fg/s/nf24hfNg/src/common/init.sh:6) isTestOnNixOS
++++(/var/tmp/fg/s/nf24hfNg/src/common/functions.sh:10) [[ '' == 1 ]]
++++(/var/tmp/fg/s/nf24hfNg/src/common/init.sh:29) test -n /var/tmp/fg/s/nf24hfNg/tmp/nix-test/main/structured-attrs
++++(/var/tmp/fg/s/nf24hfNg/src/common/init.sh:31) killDaemon
++++(/var/tmp/fg/s/nf24hfNg/src/common/functions.sh:100) isTestOnNixOS
++++(/var/tmp/fg/s/nf24hfNg/src/common/functions.sh:10) [[ '' == 1 ]]
++++(/var/tmp/fg/s/nf24hfNg/src/common/functions.sh:105) [[ '' == '' ]]
++++(/var/tmp/fg/s/nf24hfNg/src/common/functions.sh:106) return
++++(/var/tmp/fg/s/nf24hfNg/src/common/init.sh:33) [[ -e /var/tmp/fg/s/nf24hfNg/tmp/nix-test/main/structured-attrs ]]
++++(/var/tmp/fg/s/nf24hfNg/src/common/init.sh:37) mkdir -p /var/tmp/fg/s/nf24hfNg/tmp/nix-test/main/structured-attrs
++++(/var/tmp/fg/s/nf24hfNg/src/common/init.sh:38) mkdir /var/tmp/fg/s/nf24hfNg/tmp/nix-test/main/structured-attrs/test-home
++++(/var/tmp/fg/s/nf24hfNg/src/common/init.sh:40) mkdir /var/tmp/fg/s/nf24hfNg/tmp/nix-test/main/structured-attrs/store
++++(/var/tmp/fg/s/nf24hfNg/src/common/init.sh:41) mkdir /var/tmp/fg/s/nf24hfNg/tmp/nix-test/main/structured-attrs/var
++++(/var/tmp/fg/s/nf24hfNg/src/common/init.sh:42) mkdir -p /var/tmp/fg/s/nf24hfNg/tmp/nix-test/main/structured-attrs/var/log/nix/drvs
++++(/var/tmp/fg/s/nf24hfNg/src/common/init.sh:43) mkdir /var/tmp/fg/s/nf24hfNg/tmp/nix-test/main/structured-attrs/var/nix
++++(/var/tmp/fg/s/nf24hfNg/src/common/init.sh:44) mkdir /var/tmp/fg/s/nf24hfNg/tmp/nix-test/main/structured-attrs/etc
++++(/var/tmp/fg/s/nf24hfNg/src/common/init.sh:46) cat
+++++(/var/tmp/fg/s/nf24hfNg/src/common/init.sh:46) whoami
++++(/var/tmp/fg/s/nf24hfNg/src/common/init.sh:59) cat
++++(/var/tmp/fg/s/nf24hfNg/src/common/init.sh:67) nix-store --init
++++(/var/tmp/fg/s/nf24hfNg/src/common/init.sh:69) test -e /var/tmp/fg/s/nf24hfNg/tmp/nix-test/main/structured-attrs/var/nix/db/db.sqlite
++++(/var/tmp/fg/s/nf24hfNg/src/common/init.sh:75) echo '# config.nix for test main / structured-attrs'
++++(/var/tmp/fg/s/nf24hfNg/src/common/init.sh:76) cat /var/tmp/fg/s/nf24hfNg/build/config.nix
+++(common.sh:15) [[ -n '' ]]
++(structured-attrs.sh:6) requireDaemonNewerThan 2.33
++(/var/tmp/fg/s/nf24hfNg/src/common/functions.sh:154) isDaemonNewer 2.33
++(/var/tmp/fg/s/nf24hfNg/src/common/functions.sh:135) [[ -n '' ]]
++(/var/tmp/fg/s/nf24hfNg/src/common/functions.sh:135) return 0
++(structured-attrs.sh:8) nix-build structured-attrs.nix -A all -o /var/tmp/fg/s/nf24hfNg/tmp/nix-test/main/structured-attrs/result
+these 2 derivations will be built:
+  /var/tmp/fg/s/nf24hfNg/tmp/nix-test/main/structured-attrs/store/xbwdrvpca6k4k7slzx7in6sxpiqs748l-dep.drv
+  /var/tmp/fg/s/nf24hfNg/tmp/nix-test/main/structured-attrs/store/qjgyz0q1cf1dcdwzs4jd6nxb6904glp8-structured.drv
+building '/var/tmp/fg/s/nf24hfNg/tmp/nix-test/main/structured-attrs/store/xbwdrvpca6k4k7slzx7in6sxpiqs748l-dep.drv'...
+building '/var/tmp/fg/s/nf24hfNg/tmp/nix-test/main/structured-attrs/store/qjgyz0q1cf1dcdwzs4jd6nxb6904glp8-structured.drv'...
+++ [[ 123456789 = 123456789 ]]
+++ [[ -z '' ]]
+++ [[ -n 1 ]]
+++ [[ -z '' ]]
+++ [[ -n 1 ]]
+++ [[ -z '' ]]
+++ [[ 7 = 7 ]]
+++ [[ c = c ]]
+++ [[ -v nothing ]]
+++ [[ -z '' ]]
+++ mkdir /var/tmp/fg/s/nf24hfNg/tmp/nix-test/main/structured-attrs/store/nfn06css0hc6mb1x3nfvx8zyk8sd5x5d-structured /var/tmp/fg/s/nf24hfNg/tmp/nix-test/main/structured-attrs/store/s8slqxi63afd89mj4vwhm34h79jv8xz5-structured-dev
+++ echo bar
+++ echo foo
++++ cat /var/tmp/fg/s/nf24hfNg/tmp/nix-test/main/structured-attrs/var/nix/builds/nix-2853134-1/build/.attrs.json
+++ json='{"1foobar":"BAD","PATH":"/nix/store/xjl7p8dvyk2j53kqf7f43kdj4ypbxz7g-coreutils-9.11/bin","boolFalse":false,"boolTrue":true,"buildCommand":"set -x\n\n[[ $int = 123456789 ]]\n[[ -z $float ]]\n[[ -n $boolTrue ]]\n[[ -z $boolFalse ]]\n[[ -n ${hardening[format]} ]]\n[[ -z ${hardening[fortify]} ]]\n[[ ${#buildInputs[@]} = 7 ]]\n[[ ${buildInputs[2]} = c ]]\n[[ -v nothing ]]\n[[ -z $nothing ]]\n\nmkdir ${outputs[out]} ${outputs[dev]}\necho bar > $dest\necho foo > $dest2\n\njson=$(cat $NIX_ATTRS_JSON_FILE)\n[[ $json =~ '\''\"narHash\":\"sha256:1r7yc43zqnzl5b0als5vnyp649gk17i37s7mj00xr8kc47rjcybk\"'\'' ]]\n[[ $json =~ '\''\"narSize\":288'\'' ]]\n[[ $json =~ '\''\"closureSize\":288'\'' ]]\n[[ $json =~ '\''\"references\":[]'\'' ]]\n","buildInputs":["a","b","c",123,"'\''","\"",null],"builder":"/nix/store/2ndah67h0z5m31v2wkdmg2md4380ggr5-bash-interactive-5.3p15/bin/bash","dest":"/var/tmp/fg/s/nf24hfNg/tmp/nix-test/main/structured-attrs/store/nfn06css0hc6mb1x3nfvx8zyk8sd5x5d-structured/foo","dest2":"/var/tmp/fg/s/nf24hfNg/tmp/nix-test/main/structured-attrs/store/s8slqxi63afd89mj4vwhm34h79jv8xz5-structured-dev/foo","exportReferencesGraph":{"refs":["/var/tmp/fg/s/nf24hfNg/tmp/nix-test/main/structured-attrs/store/7m1b1nm0czzhf3wwah57gnrx14l66cjg-dep"],"refs2":["/var/tmp/fg/s/nf24hfNg/tmp/nix-test/main/structured-attrs/store/7m1b1nm0czzhf3wwah57gnrx14l66cjg-dep",["/var/tmp/fg/s/nf24hfNg/tmp/nix-test/main/structured-attrs/store/7m1b1nm0czzhf3wwah57gnrx14l66cjg-dep"]]},"float":123.456,"foo bar":"BAD","foo$":"BAD","hardening":{"format":true,"fortify":false},"int":123456789,"name":"structured","nothing":null,"outer":{"inner":[1,2,3]},"outputs":{"dev":"/var/tmp/fg/s/nf24hfNg/tmp/nix-test/main/structured-attrs/store/s8slqxi63afd89mj4vwhm34h79jv8xz5-structured-dev","out":"/var/tmp/fg/s/nf24hfNg/tmp/nix-test/main/structured-attrs/store/nfn06css0hc6mb1x3nfvx8zyk8sd5x5d-structured"},"refs":[{"closureSize":288,"narHash":"sha256:1r7yc43zqnzl5b0als5vnyp649gk17i37s7mj00xr8kc47rjcybk","narSize":288,"path":"/var/tmp/fg/s/nf24hfNg/tmp/nix-test/main/structured-attrs/store/7m1b1nm0czzhf3wwah57gnrx14l66cjg-dep","references":[],"valid":true}],"refs2":[{"closureSize":288,"narHash":"sha256:1r7yc43zqnzl5b0als5vnyp649gk17i37s7mj00xr8kc47rjcybk","narSize":288,"path":"/var/tmp/fg/s/nf24hfNg/tmp/nix-test/main/structured-attrs/store/7m1b1nm0czzhf3wwah57gnrx14l66cjg-dep","references":[],"valid":true}],"system":"x86_64-linux","testSalt":"52fc835905e4eeabdf91e000c34ed38b9ed3b8c1ec26f9803abe37cb61acb1ba"}'
+++ [[ {"1foobar":"BAD","PATH":"/nix/store/xjl7p8dvyk2j53kqf7f43kdj4ypbxz7g-coreutils-9.11/bin","boolFalse":false,"boolTrue":true,"buildCommand":"set -x\n\n[[ $int = 123456789 ]]\n[[ -z $float ]]\n[[ -n $boolTrue ]]\n[[ -z $boolFalse ]]\n[[ -n ${hardening[format]} ]]\n[[ -z ${hardening[fortify]} ]]\n[[ ${#buildInputs[@]} = 7 ]]\n[[ ${buildInputs[2]} = c ]]\n[[ -v nothing ]]\n[[ -z $nothing ]]\n\nmkdir ${outputs[out]} ${outputs[dev]}\necho bar > $dest\necho foo > $dest2\n\njson=$(cat $NIX_ATTRS_JSON_FILE)\n[[ $json =~ '\"narHash\":\"sha256:1r7yc43zqnzl5b0als5vnyp649gk17i37s7mj00xr8kc47rjcybk\"' ]]\n[[ $json =~ '\"narSize\":288' ]]\n[[ $json =~ '\"closureSize\":288' ]]\n[[ $json =~ '\"references\":[]' ]]\n","buildInputs":["a","b","c",123,"'","\"",null],"builder":"/nix/store/2ndah67h0z5m31v2wkdmg2md4380ggr5-bash-interactive-5.3p15/bin/bash","dest":"/var/tmp/fg/s/nf24hfNg/tmp/nix-test/main/structured-attrs/store/nfn06css0hc6mb1x3nfvx8zyk8sd5x5d-structured/foo","dest2":"/var/tmp/fg/s/nf24hfNg/tmp/nix-test/main/structured-attrs/store/s8slqxi63afd89mj4vwhm34h79jv8xz5-structured-dev/foo","exportReferencesGraph":{"refs":["/var/tmp/fg/s/nf24hfNg/tmp/nix-test/main/structured-attrs/store/7m1b1nm0czzhf3wwah57gnrx14l66cjg-dep"],"refs2":["/var/tmp/fg/s/nf24hfNg/tmp/nix-test/main/structured-attrs/store/7m1b1nm0czzhf3wwah57gnrx14l66cjg-dep",["/var/tmp/fg/s/nf24hfNg/tmp/nix-test/main/structured-attrs/store/7m1b1nm0czzhf3wwah57gnrx14l66cjg-dep"]]},"float":123.456,"foo bar":"BAD","foo$":"BAD","hardening":{"format":true,"fortify":false},"int":123456789,"name":"structured","nothing":null,"outer":{"inner":[1,2,3]},"outputs":{"dev":"/var/tmp/fg/s/nf24hfNg/tmp/nix-test/main/structured-attrs/store/s8slqxi63afd89mj4vwhm34h79jv8xz5-structured-dev","out":"/var/tmp/fg/s/nf24hfNg/tmp/nix-test/main/structured-attrs/store/nfn06css0hc6mb1x3nfvx8zyk8sd5x5d-structured"},"refs":[{"closureSize":288,"narHash":"sha256:1r7yc43zqnzl5b0als5vnyp649gk17i37s7mj00xr8kc47rjcybk","narSize":288,"path":"/var/tmp/fg/s/nf24hfNg/tmp/nix-test/main/structured-attrs/store/7m1b1nm0czzhf3wwah57gnrx14l66cjg-dep","references":[],"valid":true}],"refs2":[{"closureSize":288,"narHash":"sha256:1r7yc43zqnzl5b0als5vnyp649gk17i37s7mj00xr8kc47rjcybk","narSize":288,"path":"/var/tmp/fg/s/nf24hfNg/tmp/nix-test/main/structured-attrs/store/7m1b1nm0czzhf3wwah57gnrx14l66cjg-dep","references":[],"valid":true}],"system":"x86_64-linux","testSalt":"52fc835905e4eeabdf91e000c34ed38b9ed3b8c1ec26f9803abe37cb61acb1ba"} =~ "narHash":"sha256:1r7yc43zqnzl5b0als5vnyp649gk17i37s7mj00xr8kc47rjcybk" ]]
+++ [[ {"1foobar":"BAD","PATH":"/nix/store/xjl7p8dvyk2j53kqf7f43kdj4ypbxz7g-coreutils-9.11/bin","boolFalse":false,"boolTrue":true,"buildCommand":"set -x\n\n[[ $int = 123456789 ]]\n[[ -z $float ]]\n[[ -n $boolTrue ]]\n[[ -z $boolFalse ]]\n[[ -n ${hardening[format]} ]]\n[[ -z ${hardening[fortify]} ]]\n[[ ${#buildInputs[@]} = 7 ]]\n[[ ${buildInputs[2]} = c ]]\n[[ -v nothing ]]\n[[ -z $nothing ]]\n\nmkdir ${outputs[out]} ${outputs[dev]}\necho bar > $dest\necho foo > $dest2\n\njson=$(cat $NIX_ATTRS_JSON_FILE)\n[[ $json =~ '\"narHash\":\"sha256:1r7yc43zqnzl5b0als5vnyp649gk17i37s7mj00xr8kc47rjcybk\"' ]]\n[[ $json =~ '\"narSize\":288' ]]\n[[ $json =~ '\"closureSize\":288' ]]\n[[ $json =~ '\"references\":[]' ]]\n","buildInputs":["a","b","c",123,"'","\"",null],"builder":"/nix/store/2ndah67h0z5m31v2wkdmg2md4380ggr5-bash-interactive-5.3p15/bin/bash","dest":"/var/tmp/fg/s/nf24hfNg/tmp/nix-test/main/structured-attrs/store/nfn06css0hc6mb1x3nfvx8zyk8sd5x5d-structured/foo","dest2":"/var/tmp/fg/s/nf24hfNg/tmp/nix-test/main/structured-attrs/store/s8slqxi63afd89mj4vwhm34h79jv8xz5-structured-dev/foo","exportReferencesGraph":{"refs":["/var/tmp/fg/s/nf24hfNg/tmp/nix-test/main/structured-attrs/store/7m1b1nm0czzhf3wwah57gnrx14l66cjg-dep"],"refs2":["/var/tmp/fg/s/nf24hfNg/tmp/nix-test/main/structured-attrs/store/7m1b1nm0czzhf3wwah57gnrx14l66cjg-dep",["/var/tmp/fg/s/nf24hfNg/tmp/nix-test/main/structured-attrs/store/7m1b1nm0czzhf3wwah57gnrx14l66cjg-dep"]]},"float":123.456,"foo bar":"BAD","foo$":"BAD","hardening":{"format":true,"fortify":false},"int":123456789,"name":"structured","nothing":null,"outer":{"inner":[1,2,3]},"outputs":{"dev":"/var/tmp/fg/s/nf24hfNg/tmp/nix-test/main/structured-attrs/store/s8slqxi63afd89mj4vwhm34h79jv8xz5-structured-dev","out":"/var/tmp/fg/s/nf24hfNg/tmp/nix-test/main/structured-attrs/store/nfn06css0hc6mb1x3nfvx8zyk8sd5x5d-structured"},"refs":[{"closureSize":288,"narHash":"sha256:1r7yc43zqnzl5b0als5vnyp649gk17i37s7mj00xr8kc47rjcybk","narSize":288,"path":"/var/tmp/fg/s/nf24hfNg/tmp/nix-test/main/structured-attrs/store/7m1b1nm0czzhf3wwah57gnrx14l66cjg-dep","references":[],"valid":true}],"refs2":[{"closureSize":288,"narHash":"sha256:1r7yc43zqnzl5b0als5vnyp649gk17i37s7mj00xr8kc47rjcybk","narSize":288,"path":"/var/tmp/fg/s/nf24hfNg/tmp/nix-test/main/structured-attrs/store/7m1b1nm0czzhf3wwah57gnrx14l66cjg-dep","references":[],"valid":true}],"system":"x86_64-linux","testSalt":"52fc835905e4eeabdf91e000c34ed38b9ed3b8c1ec26f9803abe37cb61acb1ba"} =~ "narSize":288 ]]
+++ [[ {"1foobar":"BAD","PATH":"/nix/store/xjl7p8dvyk2j53kqf7f43kdj4ypbxz7g-coreutils-9.11/bin","boolFalse":false,"boolTrue":true,"buildCommand":"set -x\n\n[[ $int = 123456789 ]]\n[[ -z $float ]]\n[[ -n $boolTrue ]]\n[[ -z $boolFalse ]]\n[[ -n ${hardening[format]} ]]\n[[ -z ${hardening[fortify]} ]]\n[[ ${#buildInputs[@]} = 7 ]]\n[[ ${buildInputs[2]} = c ]]\n[[ -v nothing ]]\n[[ -z $nothing ]]\n\nmkdir ${outputs[out]} ${outputs[dev]}\necho bar > $dest\necho foo > $dest2\n\njson=$(cat $NIX_ATTRS_JSON_FILE)\n[[ $json =~ '\"narHash\":\"sha256:1r7yc43zqnzl5b0als5vnyp649gk17i37s7mj00xr8kc47rjcybk\"' ]]\n[[ $json =~ '\"narSize\":288' ]]\n[[ $json =~ '\"closureSize\":288' ]]\n[[ $json =~ '\"references\":[]' ]]\n","buildInputs":["a","b","c",123,"'","\"",null],"builder":"/nix/store/2ndah67h0z5m31v2wkdmg2md4380ggr5-bash-interactive-5.3p15/bin/bash","dest":"/var/tmp/fg/s/nf24hfNg/tmp/nix-test/main/structured-attrs/store/nfn06css0hc6mb1x3nfvx8zyk8sd5x5d-structured/foo","dest2":"/var/tmp/fg/s/nf24hfNg/tmp/nix-test/main/structured-attrs/store/s8slqxi63afd89mj4vwhm34h79jv8xz5-structured-dev/foo","exportReferencesGraph":{"refs":["/var/tmp/fg/s/nf24hfNg/tmp/nix-test/main/structured-attrs/store/7m1b1nm0czzhf3wwah57gnrx14l66cjg-dep"],"refs2":["/var/tmp/fg/s/nf24hfNg/tmp/nix-test/main/structured-attrs/store/7m1b1nm0czzhf3wwah57gnrx14l66cjg-dep",["/var/tmp/fg/s/nf24hfNg/tmp/nix-test/main/structured-attrs/store/7m1b1nm0czzhf3wwah57gnrx14l66cjg-dep"]]},"float":123.456,"foo bar":"BAD","foo$":"BAD","hardening":{"format":true,"fortify":false},"int":123456789,"name":"structured","nothing":null,"outer":{"inner":[1,2,3]},"outputs":{"dev":"/var/tmp/fg/s/nf24hfNg/tmp/nix-test/main/structured-attrs/store/s8slqxi63afd89mj4vwhm34h79jv8xz5-structured-dev","out":"/var/tmp/fg/s/nf24hfNg/tmp/nix-test/main/structured-attrs/store/nfn06css0hc6mb1x3nfvx8zyk8sd5x5d-structured"},"refs":[{"closureSize":288,"narHash":"sha256:1r7yc43zqnzl5b0als5vnyp649gk17i37s7mj00xr8kc47rjcybk","narSize":288,"path":"/var/tmp/fg/s/nf24hfNg/tmp/nix-test/main/structured-attrs/store/7m1b1nm0czzhf3wwah57gnrx14l66cjg-dep","references":[],"valid":true}],"refs2":[{"closureSize":288,"narHash":"sha256:1r7yc43zqnzl5b0als5vnyp649gk17i37s7mj00xr8kc47rjcybk","narSize":288,"path":"/var/tmp/fg/s/nf24hfNg/tmp/nix-test/main/structured-attrs/store/7m1b1nm0czzhf3wwah57gnrx14l66cjg-dep","references":[],"valid":true}],"system":"x86_64-linux","testSalt":"52fc835905e4eeabdf91e000c34ed38b9ed3b8c1ec26f9803abe37cb61acb1ba"} =~ "closureSize":288 ]]
+++ [[ {"1foobar":"BAD","PATH":"/nix/store/xjl7p8dvyk2j53kqf7f43kdj4ypbxz7g-coreutils-9.11/bin","boolFalse":false,"boolTrue":true,"buildCommand":"set -x\n\n[[ $int = 123456789 ]]\n[[ -z $float ]]\n[[ -n $boolTrue ]]\n[[ -z $boolFalse ]]\n[[ -n ${hardening[format]} ]]\n[[ -z ${hardening[fortify]} ]]\n[[ ${#buildInputs[@]} = 7 ]]\n[[ ${buildInputs[2]} = c ]]\n[[ -v nothing ]]\n[[ -z $nothing ]]\n\nmkdir ${outputs[out]} ${outputs[dev]}\necho bar > $dest\necho foo > $dest2\n\njson=$(cat $NIX_ATTRS_JSON_FILE)\n[[ $json =~ '\"narHash\":\"sha256:1r7yc43zqnzl5b0als5vnyp649gk17i37s7mj00xr8kc47rjcybk\"' ]]\n[[ $json =~ '\"narSize\":288' ]]\n[[ $json =~ '\"closureSize\":288' ]]\n[[ $json =~ '\"references\":[]' ]]\n","buildInputs":["a","b","c",123,"'","\"",null],"builder":"/nix/store/2ndah67h0z5m31v2wkdmg2md4380ggr5-bash-interactive-5.3p15/bin/bash","dest":"/var/tmp/fg/s/nf24hfNg/tmp/nix-test/main/structured-attrs/store/nfn06css0hc6mb1x3nfvx8zyk8sd5x5d-structured/foo","dest2":"/var/tmp/fg/s/nf24hfNg/tmp/nix-test/main/structured-attrs/store/s8slqxi63afd89mj4vwhm34h79jv8xz5-structured-dev/foo","exportReferencesGraph":{"refs":["/var/tmp/fg/s/nf24hfNg/tmp/nix-test/main/structured-attrs/store/7m1b1nm0czzhf3wwah57gnrx14l66cjg-dep"],"refs2":["/var/tmp/fg/s/nf24hfNg/tmp/nix-test/main/structured-attrs/store/7m1b1nm0czzhf3wwah57gnrx14l66cjg-dep",["/var/tmp/fg/s/nf24hfNg/tmp/nix-test/main/structured-attrs/store/7m1b1nm0czzhf3wwah57gnrx14l66cjg-dep"]]},"float":123.456,"foo bar":"BAD","foo$":"BAD","hardening":{"format":true,"fortify":false},"int":123456789,"name":"structured","nothing":null,"outer":{"inner":[1,2,3]},"outputs":{"dev":"/var/tmp/fg/s/nf24hfNg/tmp/nix-test/main/structured-attrs/store/s8slqxi63afd89mj4vwhm34h79jv8xz5-structured-dev","out":"/var/tmp/fg/s/nf24hfNg/tmp/nix-test/main/structured-attrs/store/nfn06css0hc6mb1x3nfvx8zyk8sd5x5d-structured"},"refs":[{"closureSize":288,"narHash":"sha256:1r7yc43zqnzl5b0als5vnyp649gk17i37s7mj00xr8kc47rjcybk","narSize":288,"path":"/var/tmp/fg/s/nf24hfNg/tmp/nix-test/main/structured-attrs/store/7m1b1nm0czzhf3wwah57gnrx14l66cjg-dep","references":[],"valid":true}],"refs2":[{"closureSize":288,"narHash":"sha256:1r7yc43zqnzl5b0als5vnyp649gk17i37s7mj00xr8kc47rjcybk","narSize":288,"path":"/var/tmp/fg/s/nf24hfNg/tmp/nix-test/main/structured-attrs/store/7m1b1nm0czzhf3wwah57gnrx14l66cjg-dep","references":[],"valid":true}],"system":"x86_64-linux","testSalt":"52fc835905e4eeabdf91e000c34ed38b9ed3b8c1ec26f9803abe37cb61acb1ba"} =~ "references":\[] ]]
+/var/tmp/fg/s/nf24hfNg/tmp/nix-test/main/structured-attrs/store/nfn06css0hc6mb1x3nfvx8zyk8sd5x5d-structured
+/var/tmp/fg/s/nf24hfNg/tmp/nix-test/main/structured-attrs/store/s8slqxi63afd89mj4vwhm34h79jv8xz5-structured-dev
+++(structured-attrs.sh:10) cat /var/tmp/fg/s/nf24hfNg/tmp/nix-test/main/structured-attrs/result/foo
++(structured-attrs.sh:10) [[ bar = bar ]]
+++(structured-attrs.sh:11) cat /var/tmp/fg/s/nf24hfNg/tmp/nix-test/main/structured-attrs/result-dev/foo
++(structured-attrs.sh:11) [[ foo = foo ]]
++(structured-attrs.sh:13) export NIX_BUILD_SHELL=/nix/store/2ndah67h0z5m31v2wkdmg2md4380ggr5-bash-interactive-5.3p15/bin/bash
++(structured-attrs.sh:13) NIX_BUILD_SHELL=/nix/store/2ndah67h0z5m31v2wkdmg2md4380ggr5-bash-interactive-5.3p15/bin/bash
++(structured-attrs.sh:15) env NIX_PATH=nixpkgs=shell.nix nix-shell structured-attrs-shell.nix --run 'test "3" = "$(jq ".my.list|length" < $NIX_ATTRS_JSON_FILE)"'
+this derivation will be built:
+  /var/tmp/fg/s/nf24hfNg/tmp/nix-test/main/structured-attrs/store/nzywav6jk3kn90hbwrbclkfpwr5nxydy-stdenv.drv
+building '/var/tmp/fg/s/nf24hfNg/tmp/nix-test/main/structured-attrs/store/nzywav6jk3kn90hbwrbclkfpwr5nxydy-stdenv.drv'...
+error: nix-shell with structured exportReferencesGraph is not supported by noxi yet
+++(structured-attrs.sh:15) onError
+++(/var/tmp/fg/s/nf24hfNg/src/common/functions.sh:242) [[ ehuxB == *e* ]]
+++(/var/tmp/fg/s/nf24hfNg/src/common/functions.sh:243) set +x
+structured-attrs.sh: test failed at:
+  main in structured-attrs.sh:15

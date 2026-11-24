@@ -1,0 +1,1086 @@
++(binary-cache.sh:3) source common.sh
+++(common.sh:3) set -eu -o pipefail
+++(common.sh:5) [[ -z '' ]]
+++(common.sh:7) COMMON_SH_SOURCED=1
+++++(common.sh:9) dirname common.sh
++++(common.sh:9) readlink -f .
+++(common.sh:9) functionalTestsDir=/var/tmp/fg/s/nftzV13W/src
+++(common.sh:11) source /var/tmp/fg/s/nftzV13W/src/common/vars.sh
++++(/var/tmp/fg/s/nftzV13W/src/common/vars.sh:3) set -eu -o pipefail
++++(/var/tmp/fg/s/nftzV13W/src/common/vars.sh:5) [[ -z '' ]]
++++(/var/tmp/fg/s/nftzV13W/src/common/vars.sh:7) COMMON_VARS_SH_SOURCED=1
+++++(/var/tmp/fg/s/nftzV13W/src/common/vars.sh:9) realpath /var/tmp/fg/s/nftzV13W/src
++++(/var/tmp/fg/s/nftzV13W/src/common/vars.sh:9) _NIX_TEST_SOURCE_DIR=/var/tmp/fg/s/nftzV13W/src
+++++(/var/tmp/fg/s/nftzV13W/src/common/vars.sh:10) realpath /var/tmp/fg/s/nftzV13W/build
++++(/var/tmp/fg/s/nftzV13W/src/common/vars.sh:10) _NIX_TEST_BUILD_DIR=/var/tmp/fg/s/nftzV13W/build
++++++(/var/tmp/fg/s/nftzV13W/src/common/vars.sh:12) dirname /var/tmp/fg/s/nftzV13W/src/common/vars.sh
+++++(/var/tmp/fg/s/nftzV13W/src/common/vars.sh:12) readlink -f /var/tmp/fg/s/nftzV13W/src/common
++++(/var/tmp/fg/s/nftzV13W/src/common/vars.sh:12) commonDir=/var/tmp/fg/s/nftzV13W/src/common
++++(/var/tmp/fg/s/nftzV13W/src/common/vars.sh:16) source /var/tmp/fg/s/nftzV13W/build/common/subst-vars.sh
+++++(/var/tmp/fg/s/nftzV13W/build/common/subst-vars.sh:3) [[ -z '' ]]
+++++(/var/tmp/fg/s/nftzV13W/build/common/subst-vars.sh:5) COMMON_SUBST_VARS_SH_SOURCED=1
+++++(/var/tmp/fg/s/nftzV13W/build/common/subst-vars.sh:7) bash=/nix/store/2ndah67h0z5m31v2wkdmg2md4380ggr5-bash-interactive-5.3p15/bin/bash
+++++(/var/tmp/fg/s/nftzV13W/build/common/subst-vars.sh:8) bindir=/nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2/bin
+++++(/var/tmp/fg/s/nftzV13W/build/common/subst-vars.sh:9) coreutils=/nix/store/xjl7p8dvyk2j53kqf7f43kdj4ypbxz7g-coreutils-9.11/bin
+++++(/var/tmp/fg/s/nftzV13W/build/common/subst-vars.sh:11) dot=
+++++(/var/tmp/fg/s/nftzV13W/build/common/subst-vars.sh:12) busybox=/nix/store/qddzvnv6b0805nkvbqddbswddcfhx814-busybox-static-x86_64-unknown-linux-musl-1.37.0/bin/busybox
+++++(/var/tmp/fg/s/nftzV13W/build/common/subst-vars.sh:14) version=2.35.2
+++++(/var/tmp/fg/s/nftzV13W/build/common/subst-vars.sh:15) system=x86_64-linux
++++(/var/tmp/fg/s/nftzV13W/src/common/vars.sh:18) : '/nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2/bin /nix/store/xjl7p8dvyk2j53kqf7f43kdj4ypbxz7g-coreutils-9.11/bin  /run/current-system/sw/bin/nu /nix/store/qddzvnv6b0805nkvbqddbswddcfhx814-busybox-static-x86_64-unknown-linux-musl-1.37.0/bin/busybox 2.35.2 x86_64-linux'
++++(/var/tmp/fg/s/nftzV13W/src/common/vars.sh:19) export coreutils dot busybox version system
++++(/var/tmp/fg/s/nftzV13W/src/common/vars.sh:21) export PAGER=cat
++++(/var/tmp/fg/s/nftzV13W/src/common/vars.sh:21) PAGER=cat
++++(/var/tmp/fg/s/nftzV13W/src/common/vars.sh:23) source /var/tmp/fg/s/nftzV13W/src/common/paths.sh
+++++(/var/tmp/fg/s/nftzV13W/src/common/paths.sh:3) set -eu -o pipefail
+++++(/var/tmp/fg/s/nftzV13W/src/common/paths.sh:5) [[ -z '' ]]
+++++(/var/tmp/fg/s/nftzV13W/src/common/paths.sh:7) COMMON_PATHS_SH_SOURCED=1
+++++++(/var/tmp/fg/s/nftzV13W/src/common/paths.sh:9) dirname /var/tmp/fg/s/nftzV13W/src/common/paths.sh
++++++(/var/tmp/fg/s/nftzV13W/src/common/paths.sh:9) readlink -f /var/tmp/fg/s/nftzV13W/src/common
+++++(/var/tmp/fg/s/nftzV13W/src/common/paths.sh:9) commonDir=/var/tmp/fg/s/nftzV13W/src/common
+++++(/var/tmp/fg/s/nftzV13W/src/common/paths.sh:12) source /var/tmp/fg/s/nftzV13W/src/common/functions.sh
++++++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:3) set -eu -o pipefail
++++++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:5) [[ -z '' ]]
++++++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:7) COMMON_FUNCTIONS_SH_SOURCED=1
++++++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:353) trap onError ERR
+++++(/var/tmp/fg/s/nftzV13W/src/common/paths.sh:14) source /var/tmp/fg/s/nftzV13W/build/common/subst-vars.sh
++++++(/var/tmp/fg/s/nftzV13W/build/common/subst-vars.sh:3) [[ -z 1 ]]
+++++(/var/tmp/fg/s/nftzV13W/src/common/paths.sh:16) : /nix/store/2ndah67h0z5m31v2wkdmg2md4380ggr5-bash-interactive-5.3p15/bin/bash /nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2/bin
+++++(/var/tmp/fg/s/nftzV13W/src/common/paths.sh:18) isTestOnNixOS
+++++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:10) [[ '' == 1 ]]
+++++(/var/tmp/fg/s/nftzV13W/src/common/paths.sh:19) export SHELL=/nix/store/2ndah67h0z5m31v2wkdmg2md4380ggr5-bash-interactive-5.3p15/bin/bash
+++++(/var/tmp/fg/s/nftzV13W/src/common/paths.sh:19) SHELL=/nix/store/2ndah67h0z5m31v2wkdmg2md4380ggr5-bash-interactive-5.3p15/bin/bash
+++++(/var/tmp/fg/s/nftzV13W/src/common/paths.sh:20) export PATH=/nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2/bin:/nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2/bin:/nix/store/2ndah67h0z5m31v2wkdmg2md4380ggr5-bash-interactive-5.3p15/bin:/nix/store/xjl7p8dvyk2j53kqf7f43kdj4ypbxz7g-coreutils-9.11/bin:/nix/store/xmvbzzxm5snla5a2cyfhm7hjy9bifx7n-gnugrep-3.12/bin:/nix/store/qf2wzyq4irhgyhnq3s2hz0ldjq3w8a3x-gnused-4.10/bin:/nix/store/9zib1q94gka8i5q530364cvy25504qz5-gawk-5.4.1/bin:/nix/store/i9wgqa0l88aprvpwfaq5hkfa6pklhlv0-findutils-4.11.0/bin:/nix/store/b8xvzgd52jby5dfpi0pf46nisy6wma5d-diffutils-3.12/bin:/nix/store/81zqbas7qc02yfdj7142fdcqhxgd3cgz-patch-2.8/bin:/nix/store/c8b0qp903w2hhpa63a2lfs7d565zag30-gnutar-1.35/bin:/nix/store/l5sll8nxk70p73l5yqbsjy4mh0c3g0v5-gzip-1.14/bin:/nix/store/j3yz0ag9j442229n8harpmp9aa5qyvhn-bzip2-1.0.8-bin/bin:/nix/store/518dig8gpvqyac6pkksyjjfzvi9zn8vq-xz-5.8.3-bin/bin:/nix/store/l8ik8mb8lgb60rklxjmkgddmp5qqnv29-zstd-1.5.7-bin/bin:/nix/store/msr1v91ybfw6j12rs5mfl8ghb2rqsnsr-git-2.55.0/bin:/nix/store/hyz22a0l5b5kv7yfypw4ss6d36vbzg01-jq-1.8.2-bin/bin:/nix/store/24gq3bi2yzf7g386p5j32mn78hhanf49-sqlite-3.53.3-bin/bin:/nix/store/cp8qnyl8i0s62g3a1465i258mf5bcr6k-curl-8.22.0-bin/bin:/nix/store/8x4c8zah3fbnyckaic4sskjbw7d2y98n-util-linux-2.42.4-bin/bin:/nix/store/d64q19q1xjdwfhqx6czvrjgrhq0n3lcc-python3-3.14.7/bin:/nix/store/niqsa6mxqsyax9lzbm261a2ml6m71vb6-perl-5.42.3/bin:/nix/store/fv9yl55hkskpc2cj9c0sdyq91car9kgl-file-5.48/bin:/nix/store/jv5kdlkwx0l8a7jdpg21g934ff30s319-which-2.25/bin:/nix/store/aj08b694apkc1jay2akywym9ghlailf5-procps-4.0.7/bin:/nix/store/5wyaj1kvkxbbscz6innrh6yjjkdq4qmk-openssh-10.6p1/bin:/nix/store/44gxi8li8y8wrxrb93sya9hljkpigsqw-openssl-3.6.4-bin/bin:/run/wrappers/wrappers.Yw6nCJO1nt:/nix/store/wmh4xg3557sicfyllmi9ymd8sxaw51wv-man-db-2.13.1/bin:/nix/store/qpgknrlnxca0z99gl12j5n0fgca11cdx-mercurial-7.2.2/bin:/var/tmp/fg/tt/.tmp5krJTK/reference/tools
+++++(/var/tmp/fg/s/nftzV13W/src/common/paths.sh:20) PATH=/nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2/bin:/nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2/bin:/nix/store/2ndah67h0z5m31v2wkdmg2md4380ggr5-bash-interactive-5.3p15/bin:/nix/store/xjl7p8dvyk2j53kqf7f43kdj4ypbxz7g-coreutils-9.11/bin:/nix/store/xmvbzzxm5snla5a2cyfhm7hjy9bifx7n-gnugrep-3.12/bin:/nix/store/qf2wzyq4irhgyhnq3s2hz0ldjq3w8a3x-gnused-4.10/bin:/nix/store/9zib1q94gka8i5q530364cvy25504qz5-gawk-5.4.1/bin:/nix/store/i9wgqa0l88aprvpwfaq5hkfa6pklhlv0-findutils-4.11.0/bin:/nix/store/b8xvzgd52jby5dfpi0pf46nisy6wma5d-diffutils-3.12/bin:/nix/store/81zqbas7qc02yfdj7142fdcqhxgd3cgz-patch-2.8/bin:/nix/store/c8b0qp903w2hhpa63a2lfs7d565zag30-gnutar-1.35/bin:/nix/store/l5sll8nxk70p73l5yqbsjy4mh0c3g0v5-gzip-1.14/bin:/nix/store/j3yz0ag9j442229n8harpmp9aa5qyvhn-bzip2-1.0.8-bin/bin:/nix/store/518dig8gpvqyac6pkksyjjfzvi9zn8vq-xz-5.8.3-bin/bin:/nix/store/l8ik8mb8lgb60rklxjmkgddmp5qqnv29-zstd-1.5.7-bin/bin:/nix/store/msr1v91ybfw6j12rs5mfl8ghb2rqsnsr-git-2.55.0/bin:/nix/store/hyz22a0l5b5kv7yfypw4ss6d36vbzg01-jq-1.8.2-bin/bin:/nix/store/24gq3bi2yzf7g386p5j32mn78hhanf49-sqlite-3.53.3-bin/bin:/nix/store/cp8qnyl8i0s62g3a1465i258mf5bcr6k-curl-8.22.0-bin/bin:/nix/store/8x4c8zah3fbnyckaic4sskjbw7d2y98n-util-linux-2.42.4-bin/bin:/nix/store/d64q19q1xjdwfhqx6czvrjgrhq0n3lcc-python3-3.14.7/bin:/nix/store/niqsa6mxqsyax9lzbm261a2ml6m71vb6-perl-5.42.3/bin:/nix/store/fv9yl55hkskpc2cj9c0sdyq91car9kgl-file-5.48/bin:/nix/store/jv5kdlkwx0l8a7jdpg21g934ff30s319-which-2.25/bin:/nix/store/aj08b694apkc1jay2akywym9ghlailf5-procps-4.0.7/bin:/nix/store/5wyaj1kvkxbbscz6innrh6yjjkdq4qmk-openssh-10.6p1/bin:/nix/store/44gxi8li8y8wrxrb93sya9hljkpigsqw-openssl-3.6.4-bin/bin:/run/wrappers/wrappers.Yw6nCJO1nt:/nix/store/wmh4xg3557sicfyllmi9ymd8sxaw51wv-man-db-2.13.1/bin:/nix/store/qpgknrlnxca0z99gl12j5n0fgca11cdx-mercurial-7.2.2/bin:/var/tmp/fg/tt/.tmp5krJTK/reference/tools
+++++(/var/tmp/fg/s/nftzV13W/src/common/paths.sh:23) [[ -n '' ]]
+++++(/var/tmp/fg/s/nftzV13W/src/common/paths.sh:27) DAEMON_PATH=/nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2/bin:/nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2/bin:/nix/store/2ndah67h0z5m31v2wkdmg2md4380ggr5-bash-interactive-5.3p15/bin:/nix/store/xjl7p8dvyk2j53kqf7f43kdj4ypbxz7g-coreutils-9.11/bin:/nix/store/xmvbzzxm5snla5a2cyfhm7hjy9bifx7n-gnugrep-3.12/bin:/nix/store/qf2wzyq4irhgyhnq3s2hz0ldjq3w8a3x-gnused-4.10/bin:/nix/store/9zib1q94gka8i5q530364cvy25504qz5-gawk-5.4.1/bin:/nix/store/i9wgqa0l88aprvpwfaq5hkfa6pklhlv0-findutils-4.11.0/bin:/nix/store/b8xvzgd52jby5dfpi0pf46nisy6wma5d-diffutils-3.12/bin:/nix/store/81zqbas7qc02yfdj7142fdcqhxgd3cgz-patch-2.8/bin:/nix/store/c8b0qp903w2hhpa63a2lfs7d565zag30-gnutar-1.35/bin:/nix/store/l5sll8nxk70p73l5yqbsjy4mh0c3g0v5-gzip-1.14/bin:/nix/store/j3yz0ag9j442229n8harpmp9aa5qyvhn-bzip2-1.0.8-bin/bin:/nix/store/518dig8gpvqyac6pkksyjjfzvi9zn8vq-xz-5.8.3-bin/bin:/nix/store/l8ik8mb8lgb60rklxjmkgddmp5qqnv29-zstd-1.5.7-bin/bin:/nix/store/msr1v91ybfw6j12rs5mfl8ghb2rqsnsr-git-2.55.0/bin:/nix/store/hyz22a0l5b5kv7yfypw4ss6d36vbzg01-jq-1.8.2-bin/bin:/nix/store/24gq3bi2yzf7g386p5j32mn78hhanf49-sqlite-3.53.3-bin/bin:/nix/store/cp8qnyl8i0s62g3a1465i258mf5bcr6k-curl-8.22.0-bin/bin:/nix/store/8x4c8zah3fbnyckaic4sskjbw7d2y98n-util-linux-2.42.4-bin/bin:/nix/store/d64q19q1xjdwfhqx6czvrjgrhq0n3lcc-python3-3.14.7/bin:/nix/store/niqsa6mxqsyax9lzbm261a2ml6m71vb6-perl-5.42.3/bin:/nix/store/fv9yl55hkskpc2cj9c0sdyq91car9kgl-file-5.48/bin:/nix/store/jv5kdlkwx0l8a7jdpg21g934ff30s319-which-2.25/bin:/nix/store/aj08b694apkc1jay2akywym9ghlailf5-procps-4.0.7/bin:/nix/store/5wyaj1kvkxbbscz6innrh6yjjkdq4qmk-openssh-10.6p1/bin:/nix/store/44gxi8li8y8wrxrb93sya9hljkpigsqw-openssl-3.6.4-bin/bin:/run/wrappers/wrappers.Yw6nCJO1nt:/nix/store/wmh4xg3557sicfyllmi9ymd8sxaw51wv-man-db-2.13.1/bin:/nix/store/qpgknrlnxca0z99gl12j5n0fgca11cdx-mercurial-7.2.2/bin:/var/tmp/fg/tt/.tmp5krJTK/reference/tools
+++++(/var/tmp/fg/s/nftzV13W/src/common/paths.sh:28) [[ -n '' ]]
++++(/var/tmp/fg/s/nftzV13W/src/common/vars.sh:24) source /var/tmp/fg/s/nftzV13W/src/common/test-root.sh
+++++(/var/tmp/fg/s/nftzV13W/src/common/test-root.sh:3) TEST_SUBDIR=main/binary-cache
++++++(/var/tmp/fg/s/nftzV13W/src/common/test-root.sh:4) realpath /var/tmp/fg/s/nftzV13W/tmp/nix-test
+++++(/var/tmp/fg/s/nftzV13W/src/common/test-root.sh:4) TEST_ROOT=/var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache
+++++(/var/tmp/fg/s/nftzV13W/src/common/test-root.sh:5) export TEST_ROOT
++++(/var/tmp/fg/s/nftzV13W/src/common/vars.sh:26) test_nix_conf_dir=/var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/etc
++++(/var/tmp/fg/s/nftzV13W/src/common/vars.sh:29) test_nix_conf=/var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/etc/nix.conf
++++(/var/tmp/fg/s/nftzV13W/src/common/vars.sh:31) export TEST_HOME=/var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/test-home
++++(/var/tmp/fg/s/nftzV13W/src/common/vars.sh:31) TEST_HOME=/var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/test-home
++++(/var/tmp/fg/s/nftzV13W/src/common/vars.sh:33) isTestOnNixOS
++++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:10) [[ '' == 1 ]]
++++(/var/tmp/fg/s/nftzV13W/src/common/vars.sh:34) export NIX_STORE_DIR
+++++(/var/tmp/fg/s/nftzV13W/src/common/vars.sh:35) readlink -f /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store
++++(/var/tmp/fg/s/nftzV13W/src/common/vars.sh:35) NIX_STORE_DIR=
++++(/var/tmp/fg/s/nftzV13W/src/common/vars.sh:37) export NIX_IGNORE_SYMLINK_STORE=1
++++(/var/tmp/fg/s/nftzV13W/src/common/vars.sh:37) NIX_IGNORE_SYMLINK_STORE=1
++++(/var/tmp/fg/s/nftzV13W/src/common/vars.sh:38) NIX_STORE_DIR=/var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store
++++(/var/tmp/fg/s/nftzV13W/src/common/vars.sh:40) export NIX_LOCALSTATE_DIR=/var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/var
++++(/var/tmp/fg/s/nftzV13W/src/common/vars.sh:40) NIX_LOCALSTATE_DIR=/var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/var
++++(/var/tmp/fg/s/nftzV13W/src/common/vars.sh:41) export NIX_LOG_DIR=/var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/var/log/nix
++++(/var/tmp/fg/s/nftzV13W/src/common/vars.sh:41) NIX_LOG_DIR=/var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/var/log/nix
++++(/var/tmp/fg/s/nftzV13W/src/common/vars.sh:42) export NIX_STATE_DIR=/var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/var/nix
++++(/var/tmp/fg/s/nftzV13W/src/common/vars.sh:42) NIX_STATE_DIR=/var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/var/nix
++++(/var/tmp/fg/s/nftzV13W/src/common/vars.sh:43) export NIX_CONF_DIR=/var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/etc
++++(/var/tmp/fg/s/nftzV13W/src/common/vars.sh:43) NIX_CONF_DIR=/var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/etc
++++(/var/tmp/fg/s/nftzV13W/src/common/vars.sh:44) export NIX_DAEMON_SOCKET_PATH=/var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/dSocket
++++(/var/tmp/fg/s/nftzV13W/src/common/vars.sh:44) NIX_DAEMON_SOCKET_PATH=/var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/dSocket
++++(/var/tmp/fg/s/nftzV13W/src/common/vars.sh:45) unset NIX_USER_CONF_FILES
++++(/var/tmp/fg/s/nftzV13W/src/common/vars.sh:46) export _NIX_TEST_SHARED=/var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/shared
++++(/var/tmp/fg/s/nftzV13W/src/common/vars.sh:46) _NIX_TEST_SHARED=/var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/shared
++++(/var/tmp/fg/s/nftzV13W/src/common/vars.sh:47) [[ -n '' ]]
++++(/var/tmp/fg/s/nftzV13W/src/common/vars.sh:50) export _NIX_IN_TEST=/var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/shared
++++(/var/tmp/fg/s/nftzV13W/src/common/vars.sh:50) _NIX_IN_TEST=/var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/shared
++++(/var/tmp/fg/s/nftzV13W/src/common/vars.sh:51) export _NIX_TEST_NO_LSOF=1
++++(/var/tmp/fg/s/nftzV13W/src/common/vars.sh:51) _NIX_TEST_NO_LSOF=1
++++(/var/tmp/fg/s/nftzV13W/src/common/vars.sh:54) export _NIX_TEST_NO_ENVIRONMENT_WARNINGS=1
++++(/var/tmp/fg/s/nftzV13W/src/common/vars.sh:54) _NIX_TEST_NO_ENVIRONMENT_WARNINGS=1
++++(/var/tmp/fg/s/nftzV13W/src/common/vars.sh:55) export NIX_REMOTE=
++++(/var/tmp/fg/s/nftzV13W/src/common/vars.sh:55) NIX_REMOTE=
++++(/var/tmp/fg/s/nftzV13W/src/common/vars.sh:59) unset NIX_PATH
++++(/var/tmp/fg/s/nftzV13W/src/common/vars.sh:60) export HOME=/var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/test-home
++++(/var/tmp/fg/s/nftzV13W/src/common/vars.sh:60) HOME=/var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/test-home
++++(/var/tmp/fg/s/nftzV13W/src/common/vars.sh:61) unset XDG_STATE_HOME
++++(/var/tmp/fg/s/nftzV13W/src/common/vars.sh:62) unset XDG_DATA_HOME
++++(/var/tmp/fg/s/nftzV13W/src/common/vars.sh:63) unset XDG_CONFIG_HOME
++++(/var/tmp/fg/s/nftzV13W/src/common/vars.sh:64) unset XDG_CONFIG_DIRS
++++(/var/tmp/fg/s/nftzV13W/src/common/vars.sh:65) unset XDG_CACHE_HOME
++++(/var/tmp/fg/s/nftzV13W/src/common/vars.sh:66) unset GIT_DIR
++++(/var/tmp/fg/s/nftzV13W/src/common/vars.sh:68) export GIT_CONFIG_SYSTEM=/dev/null
++++(/var/tmp/fg/s/nftzV13W/src/common/vars.sh:68) GIT_CONFIG_SYSTEM=/dev/null
++++(/var/tmp/fg/s/nftzV13W/src/common/vars.sh:69) export GIT_CONFIG_GLOBAL=/dev/null
++++(/var/tmp/fg/s/nftzV13W/src/common/vars.sh:69) GIT_CONFIG_GLOBAL=/dev/null
++++(/var/tmp/fg/s/nftzV13W/src/common/vars.sh:71) export IMPURE_VAR1=foo
++++(/var/tmp/fg/s/nftzV13W/src/common/vars.sh:71) IMPURE_VAR1=foo
++++(/var/tmp/fg/s/nftzV13W/src/common/vars.sh:72) export IMPURE_VAR2=bar
++++(/var/tmp/fg/s/nftzV13W/src/common/vars.sh:72) IMPURE_VAR2=bar
++++(/var/tmp/fg/s/nftzV13W/src/common/vars.sh:76) cacheDir=/var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/binary-cache
+++++(/var/tmp/fg/s/nftzV13W/src/common/vars.sh:78) uname
++++(/var/tmp/fg/s/nftzV13W/src/common/vars.sh:78) [[ Linux == Linux ]]
++++(/var/tmp/fg/s/nftzV13W/src/common/vars.sh:78) [[ -L /proc/self/ns/user ]]
++++(/var/tmp/fg/s/nftzV13W/src/common/vars.sh:78) unshare --user true
++++(/var/tmp/fg/s/nftzV13W/src/common/vars.sh:79) _canUseSandbox=1
++++(/var/tmp/fg/s/nftzV13W/src/common/vars.sh:85) config_nix=/var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/config.nix
+++(common.sh:12) source /var/tmp/fg/s/nftzV13W/src/common/functions.sh
++++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:3) set -eu -o pipefail
++++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:5) [[ -z 1 ]]
+++(common.sh:13) source /var/tmp/fg/s/nftzV13W/src/common/init.sh
++++(/var/tmp/fg/s/nftzV13W/src/common/init.sh:4) : /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/etc /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/etc/nix.conf /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/config.nix
++++(/var/tmp/fg/s/nftzV13W/src/common/init.sh:6) isTestOnNixOS
++++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:10) [[ '' == 1 ]]
++++(/var/tmp/fg/s/nftzV13W/src/common/init.sh:29) test -n /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache
++++(/var/tmp/fg/s/nftzV13W/src/common/init.sh:31) killDaemon
++++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:100) isTestOnNixOS
++++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:10) [[ '' == 1 ]]
++++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:105) [[ '' == '' ]]
++++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:106) return
++++(/var/tmp/fg/s/nftzV13W/src/common/init.sh:33) [[ -e /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache ]]
++++(/var/tmp/fg/s/nftzV13W/src/common/init.sh:37) mkdir -p /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache
++++(/var/tmp/fg/s/nftzV13W/src/common/init.sh:38) mkdir /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/test-home
++++(/var/tmp/fg/s/nftzV13W/src/common/init.sh:40) mkdir /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store
++++(/var/tmp/fg/s/nftzV13W/src/common/init.sh:41) mkdir /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/var
++++(/var/tmp/fg/s/nftzV13W/src/common/init.sh:42) mkdir -p /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/var/log/nix/drvs
++++(/var/tmp/fg/s/nftzV13W/src/common/init.sh:43) mkdir /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/var/nix
++++(/var/tmp/fg/s/nftzV13W/src/common/init.sh:44) mkdir /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/etc
++++(/var/tmp/fg/s/nftzV13W/src/common/init.sh:46) cat
+++++(/var/tmp/fg/s/nftzV13W/src/common/init.sh:46) whoami
++++(/var/tmp/fg/s/nftzV13W/src/common/init.sh:59) cat
++++(/var/tmp/fg/s/nftzV13W/src/common/init.sh:67) nix-store --init
++++(/var/tmp/fg/s/nftzV13W/src/common/init.sh:69) test -e /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/var/nix/db/db.sqlite
++++(/var/tmp/fg/s/nftzV13W/src/common/init.sh:75) echo '# config.nix for test main / binary-cache'
++++(/var/tmp/fg/s/nftzV13W/src/common/init.sh:76) cat /var/tmp/fg/s/nftzV13W/build/config.nix
+++(common.sh:15) [[ -n '' ]]
++(binary-cache.sh:5) TODO_NixOS
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:148) isTestOnNixOS
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:10) [[ '' == 1 ]]
++(binary-cache.sh:7) needLocalStore $'\'--no-require-sigs\' can\342\200\231t be used with the daemon'
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:225) [[ '' == daemon ]]
++(binary-cache.sh:10) nix-instantiate --store file:///var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/binary-cache dependencies.nix
+warning: you did not specify '--add-root'; the result might be removed by the garbage collector
+/var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store/spxha958c8nszcc8km3djz390ansjqz2-dependencies-top.drv
++(binary-cache.sh:12) clearStore
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:41) isTestOnNixOS
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:10) [[ '' == 1 ]]
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:44) doClearStore
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:48) echo 'clearing store...'
+clearing store...
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:49) chmod -R +w /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:50) rm -rf /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:51) mkdir /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:52) rm -rf /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/var/nix
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:53) mkdir /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/var/nix
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:54) clearProfiles
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:25) profiles=/var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/test-home/.local/state/nix/profiles
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:26) rm -rf /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/test-home/.local/state/nix/profiles
++(binary-cache.sh:13) clearBinaryCache
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:58) rm -rf /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/binary-cache
+++(binary-cache.sh:16) nix-build dependencies.nix --no-out-link
+these 5 derivations will be built:
+  /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store/4c0i97lkkksmrqwi2jn42874jplw83id-dependencies-input-1.drv
+  /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store/9s2iczyaschd5qdspjxj5hwc69r0f6dh-dependencies-input-0.drv
+  /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store/dha9z9qs96k5f955vn7l10a8y5s2yawy-dependencies-input-2.drv
+  /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store/jrwjgz6zwdbyf6lnx69bxjn0p96mjik0-fod-input.drv
+  /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store/spxha958c8nszcc8km3djz390ansjqz2-dependencies-top.drv
+building '/var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store/9s2iczyaschd5qdspjxj5hwc69r0f6dh-dependencies-input-0.drv'...
+building '/var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store/jrwjgz6zwdbyf6lnx69bxjn0p96mjik0-fod-input.drv'...
+
+building '/var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store/4c0i97lkkksmrqwi2jn42874jplw83id-dependencies-input-1.drv'...
+building '/var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store/dha9z9qs96k5f955vn7l10a8y5s2yawy-dependencies-input-2.drv'...
+building '/var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store/spxha958c8nszcc8km3djz390ansjqz2-dependencies-top.drv'...
+FOO
++(binary-cache.sh:16) outPath=/var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store/587jhcam259nfhq36ik8ql4y3nav127m-dependencies-top
+++(binary-cache.sh:17) nix-build dependencies.nix -A input0_drv --no-out-link
++(binary-cache.sh:17) depPath=/var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store/mybxa4m3np2a4wjxhs3pzhx4mplk67bk-dependencies-input-0
++(binary-cache.sh:19) nix copy --to file:///var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/binary-cache /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store/587jhcam259nfhq36ik8ql4y3nav127m-dependencies-top
+warning: you don't have Internet access; disabling some network-dependent features
+copying 3 paths...
+copying path '/var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store/mybxa4m3np2a4wjxhs3pzhx4mplk67bk-dependencies-input-0' to 'file:///var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/binary-cache'...
+copying path '/var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store/587jhcam259nfhq36ik8ql4y3nav127m-dependencies-top' to 'file:///var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/binary-cache'...
+copying path '/var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store/p2h6rgxsd37qfbj5r8hdh91jjwm4sphq-dependencies-input-2' to 'file:///var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/binary-cache'...
++(binary-cache.sh:21) readarray -t paths
+++(binary-cache.sh:21) nix path-info --all --json --json-format 2 --store file:///var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/binary-cache
+++(binary-cache.sh:21) jq '.info|keys|sort|.[]' -r
+warning: you don't have Internet access; disabling some network-dependent features
++(binary-cache.sh:22) [[ 3 -eq 3 ]]
++(binary-cache.sh:23) for path in "${paths[@]}"
++(binary-cache.sh:24) [[ 587jhcam259nfhq36ik8ql4y3nav127m-dependencies-top =~ -dependencies-input-0$ ]]
++(binary-cache.sh:25) [[ 587jhcam259nfhq36ik8ql4y3nav127m-dependencies-top =~ -dependencies-input-2$ ]]
++(binary-cache.sh:26) [[ 587jhcam259nfhq36ik8ql4y3nav127m-dependencies-top =~ -dependencies-top$ ]]
++(binary-cache.sh:23) for path in "${paths[@]}"
++(binary-cache.sh:24) [[ mybxa4m3np2a4wjxhs3pzhx4mplk67bk-dependencies-input-0 =~ -dependencies-input-0$ ]]
++(binary-cache.sh:23) for path in "${paths[@]}"
++(binary-cache.sh:24) [[ p2h6rgxsd37qfbj5r8hdh91jjwm4sphq-dependencies-input-2 =~ -dependencies-input-0$ ]]
++(binary-cache.sh:25) [[ p2h6rgxsd37qfbj5r8hdh91jjwm4sphq-dependencies-input-2 =~ -dependencies-input-2$ ]]
++(binary-cache.sh:30) grep 'is not available'
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:344) checkGrepArgs 'is not available'
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:293) local arg
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:294) for arg in "$@"
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:295) [[ is not available != is not available ]]
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:345) command grep 'is not available'
++(binary-cache.sh:30) expect 1 nix log --store file:///var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/binary-cache /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store/587jhcam259nfhq36ik8ql4y3nav127m-dependencies-top
+error: build log of '/var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store/587jhcam259nfhq36ik8ql4y3nav127m-dependencies-top' is not available
++(binary-cache.sh:31) nix store copy-log --to file:///var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/binary-cache /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store/587jhcam259nfhq36ik8ql4y3nav127m-dependencies-top
+warning: you don't have Internet access; disabling some network-dependent features
++(binary-cache.sh:32) grep FOO
++(binary-cache.sh:32) nix log --store file:///var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/binary-cache /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store/587jhcam259nfhq36ik8ql4y3nav127m-dependencies-top
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:344) checkGrepArgs FOO
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:293) local arg
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:294) for arg in "$@"
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:295) [[ FOO != FOO ]]
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:345) command grep FOO
+warning: you don't have Internet access; disabling some network-dependent features
+got build log for '/var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store/587jhcam259nfhq36ik8ql4y3nav127m-dependencies-top' from 'file:///var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/binary-cache'
+FOO
++(binary-cache.sh:33) rm -rf /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/var/log/nix
++(binary-cache.sh:34) grep 'is not available'
++(binary-cache.sh:34) expect 1 nix log /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store/587jhcam259nfhq36ik8ql4y3nav127m-dependencies-top
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:344) checkGrepArgs 'is not available'
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:293) local arg
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:294) for arg in "$@"
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:295) [[ is not available != is not available ]]
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:345) command grep 'is not available'
+error: build log of '/var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store/587jhcam259nfhq36ik8ql4y3nav127m-dependencies-top' is not available
++(binary-cache.sh:35) grep FOO
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:344) checkGrepArgs FOO
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:293) local arg
++(binary-cache.sh:35) nix log --substituters file:///var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/binary-cache /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store/587jhcam259nfhq36ik8ql4y3nav127m-dependencies-top
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:294) for arg in "$@"
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:295) [[ FOO != FOO ]]
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:345) command grep FOO
+warning: you don't have Internet access; disabling some network-dependent features
+got build log for '/var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store/587jhcam259nfhq36ik8ql4y3nav127m-dependencies-top' from 'file:///var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/binary-cache'
+FOO
+++(binary-cache.sh:38) nix-store -qd /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store/587jhcam259nfhq36ik8ql4y3nav127m-dependencies-top
++(binary-cache.sh:38) nix store copy-log --from file:///var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/binary-cache '/var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store/spxha958c8nszcc8km3djz390ansjqz2-dependencies-top.drv^*'
+warning: you don't have Internet access; disabling some network-dependent features
++(binary-cache.sh:39) nix log /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store/587jhcam259nfhq36ik8ql4y3nav127m-dependencies-top
++(binary-cache.sh:39) grep FOO
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:344) checkGrepArgs FOO
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:293) local arg
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:294) for arg in "$@"
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:295) [[ FOO != FOO ]]
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:345) command grep FOO
+warning: you don't have Internet access; disabling some network-dependent features
+got build log for '/var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store/587jhcam259nfhq36ik8ql4y3nav127m-dependencies-top' from 'local'
+FOO
++(binary-cache.sh:42) cacheDir2=/var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/binary+cache
++(binary-cache.sh:43) nix copy --to file:///var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/binary+cache /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store/587jhcam259nfhq36ik8ql4y3nav127m-dependencies-top
+warning: you don't have Internet access; disabling some network-dependent features
+copying 3 paths...
+copying path '/var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store/p2h6rgxsd37qfbj5r8hdh91jjwm4sphq-dependencies-input-2' to 'file:///var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/binary%2Bcache'...
+copying path '/var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store/mybxa4m3np2a4wjxhs3pzhx4mplk67bk-dependencies-input-0' to 'file:///var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/binary%2Bcache'...
+copying path '/var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store/587jhcam259nfhq36ik8ql4y3nav127m-dependencies-top' to 'file:///var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/binary%2Bcache'...
++(binary-cache.sh:43) [[ -d /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/binary+cache ]]
++(binary-cache.sh:81) basicDownloadTests
++(binary-cache.sh:50) clearStore
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:41) isTestOnNixOS
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:10) [[ '' == 1 ]]
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:44) doClearStore
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:48) echo 'clearing store...'
+clearing store...
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:49) chmod -R +w /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:50) rm -rf /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:51) mkdir /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:52) rm -rf /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/var/nix
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:53) mkdir /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/var/nix
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:54) clearProfiles
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:25) profiles=/var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/test-home/.local/state/nix/profiles
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:26) rm -rf /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/test-home/.local/state/nix/profiles
++(binary-cache.sh:51) clearCacheCache
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:62) rm -f '/var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/test-home/.cache/nix/binary-cache*'
++(binary-cache.sh:53) nix-env --substituters file:///var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/binary-cache -f dependencies.nix -qas '*'
++(binary-cache.sh:53) grep -- ---
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:344) checkGrepArgs -- ---
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:293) local arg
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:294) for arg in "$@"
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:295) [[ -- != \-\- ]]
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:294) for arg in "$@"
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:295) [[ --- != \-\-\- ]]
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:345) command grep -- ---
+---  dependencies-top
++(binary-cache.sh:55) nix-store --substituters file:///var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/binary-cache --no-require-sigs -r /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store/587jhcam259nfhq36ik8ql4y3nav127m-dependencies-top
+these 3 paths will be fetched (0.8 KiB download, 2.1 KiB unpacked):
+  /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store/mybxa4m3np2a4wjxhs3pzhx4mplk67bk-dependencies-input-0
+  /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store/p2h6rgxsd37qfbj5r8hdh91jjwm4sphq-dependencies-input-2
+  /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store/587jhcam259nfhq36ik8ql4y3nav127m-dependencies-top
+copying path '/var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store/mybxa4m3np2a4wjxhs3pzhx4mplk67bk-dependencies-input-0' from 'file:///var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/binary-cache'...
+copying path '/var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store/p2h6rgxsd37qfbj5r8hdh91jjwm4sphq-dependencies-input-2' from 'file:///var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/binary-cache'...
+copying path '/var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store/587jhcam259nfhq36ik8ql4y3nav127m-dependencies-top' from 'file:///var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/binary-cache'...
+warning: you did not specify '--add-root'; the result might be removed by the garbage collector
+/var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store/587jhcam259nfhq36ik8ql4y3nav127m-dependencies-top
++(binary-cache.sh:57) '[' -x /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store/587jhcam259nfhq36ik8ql4y3nav127m-dependencies-top/program ']'
++(binary-cache.sh:61) clearStore
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:41) isTestOnNixOS
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:10) [[ '' == 1 ]]
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:44) doClearStore
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:48) echo 'clearing store...'
+clearing store...
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:49) chmod -R +w /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:50) rm -rf /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:51) mkdir /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:52) rm -rf /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/var/nix
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:53) mkdir /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/var/nix
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:54) clearProfiles
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:25) profiles=/var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/test-home/.local/state/nix/profiles
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:26) rm -rf /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/test-home/.local/state/nix/profiles
++(binary-cache.sh:62) clearCacheCache
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:62) rm -f '/var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/test-home/.cache/nix/binary-cache*'
++(binary-cache.sh:63) echo 'WantMassQuery: 1'
++(binary-cache.sh:65) nix-env --substituters file:///var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/binary-cache -f dependencies.nix -qas '*'
++(binary-cache.sh:65) grep -- --S
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:344) checkGrepArgs -- --S
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:293) local arg
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:294) for arg in "$@"
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:295) [[ -- != \-\- ]]
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:294) for arg in "$@"
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:295) [[ --S != \-\-S ]]
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:345) command grep -- --S
+--S  dependencies-top
++(binary-cache.sh:66) nix-env --substituters file:///var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/binary-cache -f dependencies.nix -qas '*'
++(binary-cache.sh:66) grep -- --S
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:344) checkGrepArgs -- --S
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:293) local arg
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:294) for arg in "$@"
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:295) [[ -- != \-\- ]]
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:294) for arg in "$@"
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:295) [[ --S != \-\-S ]]
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:345) command grep -- --S
+--S  dependencies-top
+++(binary-cache.sh:68) nix-env -f dependencies.nix -qas '*' --prebuilt-only
++(binary-cache.sh:68) x=
++(binary-cache.sh:69) '[' -z '' ']'
++(binary-cache.sh:71) nix-store --substituters file:///var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/binary-cache --no-require-sigs -r /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store/587jhcam259nfhq36ik8ql4y3nav127m-dependencies-top
+these 3 paths will be fetched (0.8 KiB download, 2.1 KiB unpacked):
+  /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store/mybxa4m3np2a4wjxhs3pzhx4mplk67bk-dependencies-input-0
+  /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store/p2h6rgxsd37qfbj5r8hdh91jjwm4sphq-dependencies-input-2
+  /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store/587jhcam259nfhq36ik8ql4y3nav127m-dependencies-top
+copying path '/var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store/mybxa4m3np2a4wjxhs3pzhx4mplk67bk-dependencies-input-0' from 'file:///var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/binary-cache'...
+copying path '/var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store/p2h6rgxsd37qfbj5r8hdh91jjwm4sphq-dependencies-input-2' from 'file:///var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/binary-cache'...
+copying path '/var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store/587jhcam259nfhq36ik8ql4y3nav127m-dependencies-top' from 'file:///var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/binary-cache'...
+warning: you did not specify '--add-root'; the result might be removed by the garbage collector
+/var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store/587jhcam259nfhq36ik8ql4y3nav127m-dependencies-top
++(binary-cache.sh:73) nix-store --check-validity /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store/587jhcam259nfhq36ik8ql4y3nav127m-dependencies-top
++(binary-cache.sh:74) nix-store -qR /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store/587jhcam259nfhq36ik8ql4y3nav127m-dependencies-top
++(binary-cache.sh:74) grep input-2
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:344) checkGrepArgs input-2
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:293) local arg
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:294) for arg in "$@"
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:295) [[ input-2 != input\-2 ]]
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:345) command grep input-2
+/var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store/p2h6rgxsd37qfbj5r8hdh91jjwm4sphq-dependencies-input-2
++(binary-cache.sh:76) echo 'WantMassQuery: 0'
++(binary-cache.sh:85) export _NIX_FORCE_HTTP=1
++(binary-cache.sh:85) _NIX_FORCE_HTTP=1
++(binary-cache.sh:86) basicDownloadTests
++(binary-cache.sh:50) clearStore
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:41) isTestOnNixOS
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:10) [[ '' == 1 ]]
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:44) doClearStore
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:48) echo 'clearing store...'
+clearing store...
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:49) chmod -R +w /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:50) rm -rf /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:51) mkdir /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:52) rm -rf /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/var/nix
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:53) mkdir /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/var/nix
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:54) clearProfiles
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:25) profiles=/var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/test-home/.local/state/nix/profiles
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:26) rm -rf /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/test-home/.local/state/nix/profiles
++(binary-cache.sh:51) clearCacheCache
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:62) rm -f '/var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/test-home/.cache/nix/binary-cache*'
++(binary-cache.sh:53) nix-env --substituters file:///var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/binary-cache -f dependencies.nix -qas '*'
++(binary-cache.sh:53) grep -- ---
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:344) checkGrepArgs -- ---
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:293) local arg
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:294) for arg in "$@"
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:295) [[ -- != \-\- ]]
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:294) for arg in "$@"
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:295) [[ --- != \-\-\- ]]
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:345) command grep -- ---
+---  dependencies-top
++(binary-cache.sh:55) nix-store --substituters file:///var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/binary-cache --no-require-sigs -r /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store/587jhcam259nfhq36ik8ql4y3nav127m-dependencies-top
+these 3 paths will be fetched (0.8 KiB download, 2.1 KiB unpacked):
+  /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store/mybxa4m3np2a4wjxhs3pzhx4mplk67bk-dependencies-input-0
+  /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store/p2h6rgxsd37qfbj5r8hdh91jjwm4sphq-dependencies-input-2
+  /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store/587jhcam259nfhq36ik8ql4y3nav127m-dependencies-top
+copying path '/var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store/mybxa4m3np2a4wjxhs3pzhx4mplk67bk-dependencies-input-0' from 'file:///var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/binary-cache'...
+copying path '/var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store/p2h6rgxsd37qfbj5r8hdh91jjwm4sphq-dependencies-input-2' from 'file:///var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/binary-cache'...
+copying path '/var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store/587jhcam259nfhq36ik8ql4y3nav127m-dependencies-top' from 'file:///var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/binary-cache'...
+warning: you did not specify '--add-root'; the result might be removed by the garbage collector
+/var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store/587jhcam259nfhq36ik8ql4y3nav127m-dependencies-top
++(binary-cache.sh:57) '[' -x /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store/587jhcam259nfhq36ik8ql4y3nav127m-dependencies-top/program ']'
++(binary-cache.sh:61) clearStore
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:41) isTestOnNixOS
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:10) [[ '' == 1 ]]
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:44) doClearStore
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:48) echo 'clearing store...'
+clearing store...
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:49) chmod -R +w /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:50) rm -rf /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:51) mkdir /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:52) rm -rf /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/var/nix
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:53) mkdir /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/var/nix
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:54) clearProfiles
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:25) profiles=/var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/test-home/.local/state/nix/profiles
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:26) rm -rf /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/test-home/.local/state/nix/profiles
++(binary-cache.sh:62) clearCacheCache
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:62) rm -f /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/test-home/.cache/nix/binary-cache-v8.sqlite
++(binary-cache.sh:63) echo 'WantMassQuery: 1'
++(binary-cache.sh:65) nix-env --substituters file:///var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/binary-cache -f dependencies.nix -qas '*'
++(binary-cache.sh:65) grep -- --S
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:344) checkGrepArgs -- --S
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:293) local arg
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:294) for arg in "$@"
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:295) [[ -- != \-\- ]]
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:294) for arg in "$@"
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:295) [[ --S != \-\-S ]]
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:345) command grep -- --S
+--S  dependencies-top
++(binary-cache.sh:66) nix-env --substituters file:///var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/binary-cache -f dependencies.nix -qas '*'
++(binary-cache.sh:66) grep -- --S
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:344) checkGrepArgs -- --S
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:293) local arg
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:294) for arg in "$@"
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:295) [[ -- != \-\- ]]
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:294) for arg in "$@"
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:295) [[ --S != \-\-S ]]
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:345) command grep -- --S
+--S  dependencies-top
+++(binary-cache.sh:68) nix-env -f dependencies.nix -qas '*' --prebuilt-only
++(binary-cache.sh:68) x=
++(binary-cache.sh:69) '[' -z '' ']'
++(binary-cache.sh:71) nix-store --substituters file:///var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/binary-cache --no-require-sigs -r /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store/587jhcam259nfhq36ik8ql4y3nav127m-dependencies-top
+these 3 paths will be fetched (0.8 KiB download, 2.1 KiB unpacked):
+  /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store/mybxa4m3np2a4wjxhs3pzhx4mplk67bk-dependencies-input-0
+  /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store/p2h6rgxsd37qfbj5r8hdh91jjwm4sphq-dependencies-input-2
+  /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store/587jhcam259nfhq36ik8ql4y3nav127m-dependencies-top
+copying path '/var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store/mybxa4m3np2a4wjxhs3pzhx4mplk67bk-dependencies-input-0' from 'file:///var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/binary-cache'...
+copying path '/var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store/p2h6rgxsd37qfbj5r8hdh91jjwm4sphq-dependencies-input-2' from 'file:///var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/binary-cache'...
+copying path '/var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store/587jhcam259nfhq36ik8ql4y3nav127m-dependencies-top' from 'file:///var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/binary-cache'...
+warning: you did not specify '--add-root'; the result might be removed by the garbage collector
+/var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store/587jhcam259nfhq36ik8ql4y3nav127m-dependencies-top
++(binary-cache.sh:73) nix-store --check-validity /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store/587jhcam259nfhq36ik8ql4y3nav127m-dependencies-top
++(binary-cache.sh:74) nix-store -qR /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store/587jhcam259nfhq36ik8ql4y3nav127m-dependencies-top
++(binary-cache.sh:74) grep input-2
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:344) checkGrepArgs input-2
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:293) local arg
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:294) for arg in "$@"
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:295) [[ input-2 != input\-2 ]]
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:345) command grep input-2
+/var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store/p2h6rgxsd37qfbj5r8hdh91jjwm4sphq-dependencies-input-2
++(binary-cache.sh:76) echo 'WantMassQuery: 0'
++(binary-cache.sh:90) clearStore
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:41) isTestOnNixOS
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:10) [[ '' == 1 ]]
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:44) doClearStore
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:48) echo 'clearing store...'
+clearing store...
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:49) chmod -R +w /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:50) rm -rf /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:51) mkdir /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:52) rm -rf /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/var/nix
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:53) mkdir /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/var/nix
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:54) clearProfiles
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:25) profiles=/var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/test-home/.local/state/nix/profiles
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:26) rm -rf /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/test-home/.local/state/nix/profiles
++(binary-cache.sh:91) nix-store --init
++(binary-cache.sh:93) pid1=2735112
++(binary-cache.sh:95) pid2=2735113
++(binary-cache.sh:96) wait 2735112
++(binary-cache.sh:94) _NIX_TEST_CONCURRENT_SUBSTITUTION=1
++(binary-cache.sh:94) nix-store -r /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store/mybxa4m3np2a4wjxhs3pzhx4mplk67bk-dependencies-input-0 --substituters file:///var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/binary-cache --no-require-sigs -vvvv
++(binary-cache.sh:92) _NIX_TEST_CONCURRENT_SUBSTITUTION=1
++(binary-cache.sh:92) nix-store -r /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store/mybxa4m3np2a4wjxhs3pzhx4mplk67bk-dependencies-input-0 --substituters file:///var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/binary-cache --no-require-sigs -vvvv
+/var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store/mybxa4m3np2a4wjxhs3pzhx4mplk67bk-dependencies-input-0
+/var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store/mybxa4m3np2a4wjxhs3pzhx4mplk67bk-dependencies-input-0
++(binary-cache.sh:97) wait 2735113
+++(binary-cache.sh:98) cat /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/log1 /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/log2
+++(binary-cache.sh:98) grep -c 'copying path '
+++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:344) checkGrepArgs -c 'copying path '
+++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:293) local arg
+++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:294) for arg in "$@"
+++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:295) [[ -c != \-c ]]
+++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:294) for arg in "$@"
+++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:295) [[ copying path  != copying path  ]]
+++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:345) command grep -c 'copying path '
++(binary-cache.sh:98) [[ 2 -eq 2 ]]
+++(binary-cache.sh:99) cat /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/log1 /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/log2
+++(binary-cache.sh:99) grep -c 'downloading.*nar.xz'
+++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:344) checkGrepArgs -c 'downloading.*nar.xz'
+++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:293) local arg
+++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:294) for arg in "$@"
+++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:295) [[ -c != \-c ]]
+++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:294) for arg in "$@"
+++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:295) [[ downloading.*nar.xz != downloading\.\*nar\.xz ]]
+++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:345) command grep -c 'downloading.*nar.xz'
++(binary-cache.sh:99) [[ 1 -eq 1 ]]
++(binary-cache.sh:103) clearStore
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:41) isTestOnNixOS
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:10) [[ '' == 1 ]]
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:44) doClearStore
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:48) echo 'clearing store...'
+clearing store...
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:49) chmod -R +w /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:50) rm -rf /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:51) mkdir /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:52) rm -rf /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/var/nix
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:53) mkdir /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/var/nix
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:54) clearProfiles
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:25) profiles=/var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/test-home/.local/state/nix/profiles
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:26) rm -rf /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/test-home/.local/state/nix/profiles
+++(binary-cache.sh:105) find /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/binary-cache/nar/ -type f -name '*.nar.xz'
+++(binary-cache.sh:105) head -n1
++(binary-cache.sh:105) nar=/var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/binary-cache/nar/1pcs3g9r8g6jf8irzs22qpx1rgjmrhkq923qi7b3biwdr8bfwrk7.nar.xz
++(binary-cache.sh:106) mv /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/binary-cache/nar/1pcs3g9r8g6jf8irzs22qpx1rgjmrhkq923qi7b3biwdr8bfwrk7.nar.xz /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/binary-cache/nar/1pcs3g9r8g6jf8irzs22qpx1rgjmrhkq923qi7b3biwdr8bfwrk7.nar.xz.good
++(binary-cache.sh:107) mkdir -p /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/empty
++(binary-cache.sh:108) nix-store --dump /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/empty
++(binary-cache.sh:108) xz
++(binary-cache.sh:110) expect 1 nix-build --substituters file:///var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/binary-cache --no-require-sigs dependencies.nix -o /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/result
++(binary-cache.sh:110) tee /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/log
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:186) local expected res
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:187) expected=1
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:188) shift
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:189) nix-build --substituters file:///var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/binary-cache --no-require-sigs dependencies.nix -o /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/result
+these 3 paths will be fetched (0.8 KiB download, 2.1 KiB unpacked):
+  /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store/mybxa4m3np2a4wjxhs3pzhx4mplk67bk-dependencies-input-0
+  /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store/p2h6rgxsd37qfbj5r8hdh91jjwm4sphq-dependencies-input-2
+  /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store/587jhcam259nfhq36ik8ql4y3nav127m-dependencies-top
+copying path '/var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store/mybxa4m3np2a4wjxhs3pzhx4mplk67bk-dependencies-input-0' from 'file:///var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/binary-cache'...
+error: hash mismatch importing path '/var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store/mybxa4m3np2a4wjxhs3pzhx4mplk67bk-dependencies-input-0';
+         specified: sha256-JvXdSA1fWODOjYS5bQr9Na5XB83BwtIulI/5HFID3fI=
+         got:       sha256-pQpattmS9VmO3ZIQUFn66az8GSmB4IvYhTTCFn6SUmo=
+error: path '/var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store/mybxa4m3np2a4wjxhs3pzhx4mplk67bk-dependencies-input-0' is required, but there is no substituter that can build it
+error: some references of path '/var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store/p2h6rgxsd37qfbj5r8hdh91jjwm4sphq-dependencies-input-2' could not be realised
+error: some references of path '/var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store/587jhcam259nfhq36ik8ql4y3nav127m-dependencies-top' could not be realised
+error: some substitutes for the outputs of derivation '/var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store/spxha958c8nszcc8km3djz390ansjqz2-dependencies-top.drv' failed (usually happens due to networking issues); try '--fallback' to build derivation from source
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:189) res=1
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:191) [[ 1 -ne 1 ]]
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:195) return 0
++(binary-cache.sh:111) grepQuiet 'hash mismatch' /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/log
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:330) checkGrepArgs 'hash mismatch' /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/log
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:293) local arg
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:294) for arg in "$@"
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:295) [[ hash mismatch != hash mismatch ]]
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:294) for arg in "$@"
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:295) [[ /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/log != /var/tmp/fg/s/nftzV13W/tmp/nix\-test/main/binary\-cache/log ]]
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:331) command grep 'hash mismatch' /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/log
++(binary-cache.sh:113) mv /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/binary-cache/nar/1pcs3g9r8g6jf8irzs22qpx1rgjmrhkq923qi7b3biwdr8bfwrk7.nar.xz.good /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/binary-cache/nar/1pcs3g9r8g6jf8irzs22qpx1rgjmrhkq923qi7b3biwdr8bfwrk7.nar.xz
++(binary-cache.sh:117) clearStore
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:41) isTestOnNixOS
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:10) [[ '' == 1 ]]
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:44) doClearStore
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:48) echo 'clearing store...'
+clearing store...
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:49) chmod -R +w /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:50) rm -rf /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:51) mkdir /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:52) rm -rf /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/var/nix
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:53) mkdir /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/var/nix
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:54) clearProfiles
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:25) profiles=/var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/test-home/.local/state/nix/profiles
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:26) rm -rf /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/test-home/.local/state/nix/profiles
++(binary-cache.sh:118) clearCacheCache
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:62) rm -f /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/test-home/.cache/nix/binary-cache-v8.sqlite
++(binary-cache.sh:120) nix-store --substituters file:///var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/binary-cache -r /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store/587jhcam259nfhq36ik8ql4y3nav127m-dependencies-top
+these 3 paths will be fetched (0.8 KiB download, 2.1 KiB unpacked):
+  /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store/mybxa4m3np2a4wjxhs3pzhx4mplk67bk-dependencies-input-0
+  /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store/p2h6rgxsd37qfbj5r8hdh91jjwm4sphq-dependencies-input-2
+  /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store/587jhcam259nfhq36ik8ql4y3nav127m-dependencies-top
+warning: ignoring substitute for '/var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store/587jhcam259nfhq36ik8ql4y3nav127m-dependencies-top' from 'file:///var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/binary-cache', as it's not signed by any of the keys in 'trusted-public-keys'
+error: path '/var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store/587jhcam259nfhq36ik8ql4y3nav127m-dependencies-top' is required, but there is no substituter that can build it
++(binary-cache.sh:127) clearStore
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:41) isTestOnNixOS
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:10) [[ '' == 1 ]]
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:44) doClearStore
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:48) echo 'clearing store...'
+clearing store...
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:49) chmod -R +w /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:50) rm -rf /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:51) mkdir /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:52) rm -rf /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/var/nix
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:53) mkdir /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/var/nix
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:54) clearProfiles
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:25) profiles=/var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/test-home/.local/state/nix/profiles
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:26) rm -rf /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/test-home/.local/state/nix/profiles
++(binary-cache.sh:129) mv /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/binary-cache/nar /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/binary-cache/nar2
++(binary-cache.sh:131) nix-build --substituters file:///var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/binary-cache --no-require-sigs dependencies.nix -o /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/result
++(binary-cache.sh:131) tee /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/log
+these 3 paths will be fetched (0.8 KiB download, 2.1 KiB unpacked):
+  /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store/mybxa4m3np2a4wjxhs3pzhx4mplk67bk-dependencies-input-0
+  /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store/p2h6rgxsd37qfbj5r8hdh91jjwm4sphq-dependencies-input-2
+  /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store/587jhcam259nfhq36ik8ql4y3nav127m-dependencies-top
+copying path '/var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store/mybxa4m3np2a4wjxhs3pzhx4mplk67bk-dependencies-input-0' from 'file:///var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/binary-cache'...
+warning: file 'nar/1pcs3g9r8g6jf8irzs22qpx1rgjmrhkq923qi7b3biwdr8bfwrk7.nar.xz' does not exist in binary cache 'file:///var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/binary-cache'
+copying path '/var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store/mybxa4m3np2a4wjxhs3pzhx4mplk67bk-dependencies-input-0' from 'file:///var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/binary-cache'...
+building '/var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store/4c0i97lkkksmrqwi2jn42874jplw83id-dependencies-input-1.drv'...
+warning: file 'nar/1pcs3g9r8g6jf8irzs22qpx1rgjmrhkq923qi7b3biwdr8bfwrk7.nar.xz' does not exist in binary cache 'file:///var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/binary-cache'
+building '/var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store/9s2iczyaschd5qdspjxj5hwc69r0f6dh-dependencies-input-0.drv'...
+building '/var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store/jrwjgz6zwdbyf6lnx69bxjn0p96mjik0-fod-input.drv'...
+
+building '/var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store/dha9z9qs96k5f955vn7l10a8y5s2yawy-dependencies-input-2.drv'...
+building '/var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store/spxha958c8nszcc8km3djz390ansjqz2-dependencies-top.drv'...
+FOO
+/var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store/587jhcam259nfhq36ik8ql4y3nav127m-dependencies-top
++(binary-cache.sh:135) grepQuiet 'does not exist in binary cache' /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/log
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:330) checkGrepArgs 'does not exist in binary cache' /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/log
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:293) local arg
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:294) for arg in "$@"
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:295) [[ does not exist in binary cache != does not exist in binary cache ]]
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:294) for arg in "$@"
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:295) [[ /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/log != /var/tmp/fg/s/nftzV13W/tmp/nix\-test/main/binary\-cache/log ]]
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:331) command grep 'does not exist in binary cache' /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/log
++(binary-cache.sh:137) '[' -e /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/result ']'
++(binary-cache.sh:139) mv /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/binary-cache/nar2 /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/binary-cache/nar
++(binary-cache.sh:143) clearStore
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:41) isTestOnNixOS
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:10) [[ '' == 1 ]]
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:44) doClearStore
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:48) echo 'clearing store...'
+clearing store...
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:49) chmod -R +w /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:50) rm -rf /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:51) mkdir /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:52) rm -rf /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/var/nix
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:53) mkdir /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/var/nix
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:54) clearProfiles
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:25) profiles=/var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/test-home/.local/state/nix/profiles
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:26) rm -rf /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/test-home/.local/state/nix/profiles
++(binary-cache.sh:145) mv /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/binary-cache/nar /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/binary-cache/nar2
++(binary-cache.sh:146) mkdir /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/binary-cache/nar
+++(binary-cache.sh:147) cd /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/binary-cache/nar2
+++(binary-cache.sh:147) echo 0vy7g11l9aa16qmhqgaf1z0kjh5klhc36v1m9b0zhy3d1fg96fv5.nar.xz 1pcs3g9r8g6jf8irzs22qpx1rgjmrhkq923qi7b3biwdr8bfwrk7.nar.xz 1ypwashibxvpx2qy8kzbf3y90vjd353hhz4fp892rplcb38p2dxk.nar.xz
++(binary-cache.sh:147) for i in $(cd "$cacheDir/nar2" && echo *)
++(binary-cache.sh:147) touch /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/binary-cache/nar/0vy7g11l9aa16qmhqgaf1z0kjh5klhc36v1m9b0zhy3d1fg96fv5.nar.xz
++(binary-cache.sh:147) for i in $(cd "$cacheDir/nar2" && echo *)
++(binary-cache.sh:147) touch /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/binary-cache/nar/1pcs3g9r8g6jf8irzs22qpx1rgjmrhkq923qi7b3biwdr8bfwrk7.nar.xz
++(binary-cache.sh:147) for i in $(cd "$cacheDir/nar2" && echo *)
++(binary-cache.sh:147) touch /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/binary-cache/nar/1ypwashibxvpx2qy8kzbf3y90vjd353hhz4fp892rplcb38p2dxk.nar.xz
++(binary-cache.sh:149) nix-build --substituters file:///var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/binary-cache --no-require-sigs dependencies.nix -o /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/result
+these 3 paths will be fetched (0.8 KiB download, 2.1 KiB unpacked):
+  /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store/mybxa4m3np2a4wjxhs3pzhx4mplk67bk-dependencies-input-0
+  /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store/p2h6rgxsd37qfbj5r8hdh91jjwm4sphq-dependencies-input-2
+  /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store/587jhcam259nfhq36ik8ql4y3nav127m-dependencies-top
+copying path '/var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store/mybxa4m3np2a4wjxhs3pzhx4mplk67bk-dependencies-input-0' from 'file:///var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/binary-cache'...
+error: NAR for '/var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store/mybxa4m3np2a4wjxhs3pzhx4mplk67bk-dependencies-input-0' fetched from 'file:///var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/binary-cache' is incomplete
+error: path '/var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store/mybxa4m3np2a4wjxhs3pzhx4mplk67bk-dependencies-input-0' is required, but there is no substituter that can build it
+error: some references of path '/var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store/p2h6rgxsd37qfbj5r8hdh91jjwm4sphq-dependencies-input-2' could not be realised
+error: some references of path '/var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store/587jhcam259nfhq36ik8ql4y3nav127m-dependencies-top' could not be realised
+error: some substitutes for the outputs of derivation '/var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store/spxha958c8nszcc8km3djz390ansjqz2-dependencies-top.drv' failed (usually happens due to networking issues); try '--fallback' to build derivation from source
++(binary-cache.sh:151) nix-build --substituters file:///var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/binary-cache --no-require-sigs dependencies.nix -o /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/result --fallback
+these 3 paths will be fetched (0.8 KiB download, 2.1 KiB unpacked):
+  /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store/mybxa4m3np2a4wjxhs3pzhx4mplk67bk-dependencies-input-0
+  /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store/p2h6rgxsd37qfbj5r8hdh91jjwm4sphq-dependencies-input-2
+  /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store/587jhcam259nfhq36ik8ql4y3nav127m-dependencies-top
+copying path '/var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store/mybxa4m3np2a4wjxhs3pzhx4mplk67bk-dependencies-input-0' from 'file:///var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/binary-cache'...
+error: NAR for '/var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store/mybxa4m3np2a4wjxhs3pzhx4mplk67bk-dependencies-input-0' fetched from 'file:///var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/binary-cache' is incomplete
+error: path '/var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store/mybxa4m3np2a4wjxhs3pzhx4mplk67bk-dependencies-input-0' is required, but there is no substituter that can build it
+error: some references of path '/var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store/p2h6rgxsd37qfbj5r8hdh91jjwm4sphq-dependencies-input-2' could not be realised
+error: some references of path '/var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store/587jhcam259nfhq36ik8ql4y3nav127m-dependencies-top' could not be realised
+copying path '/var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store/mybxa4m3np2a4wjxhs3pzhx4mplk67bk-dependencies-input-0' from 'file:///var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/binary-cache'...
+building '/var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store/4c0i97lkkksmrqwi2jn42874jplw83id-dependencies-input-1.drv'...
+error: NAR for '/var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store/mybxa4m3np2a4wjxhs3pzhx4mplk67bk-dependencies-input-0' fetched from 'file:///var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/binary-cache' is incomplete
+error: path '/var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store/mybxa4m3np2a4wjxhs3pzhx4mplk67bk-dependencies-input-0' is required, but there is no substituter that can build it
+error: some references of path '/var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store/p2h6rgxsd37qfbj5r8hdh91jjwm4sphq-dependencies-input-2' could not be realised
+building '/var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store/jrwjgz6zwdbyf6lnx69bxjn0p96mjik0-fod-input.drv'...
+
+building '/var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store/9s2iczyaschd5qdspjxj5hwc69r0f6dh-dependencies-input-0.drv'...
+building '/var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store/dha9z9qs96k5f955vn7l10a8y5s2yawy-dependencies-input-2.drv'...
+building '/var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store/spxha958c8nszcc8km3djz390ansjqz2-dependencies-top.drv'...
+FOO
+/var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store/587jhcam259nfhq36ik8ql4y3nav127m-dependencies-top
++(binary-cache.sh:153) rm -rf /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/binary-cache/nar
++(binary-cache.sh:154) mv /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/binary-cache/nar2 /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/binary-cache/nar
++(binary-cache.sh:159) clearStore
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:41) isTestOnNixOS
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:10) [[ '' == 1 ]]
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:44) doClearStore
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:48) echo 'clearing store...'
+clearing store...
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:49) chmod -R +w /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:50) rm -rf /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:51) mkdir /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:52) rm -rf /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/var/nix
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:53) mkdir /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/var/nix
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:54) clearProfiles
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:25) profiles=/var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/test-home/.local/state/nix/profiles
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:26) rm -rf /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/test-home/.local/state/nix/profiles
+++(binary-cache.sh:161) grep -l 'StorePath:.*dependencies-input-2' /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/binary-cache/587jhcam259nfhq36ik8ql4y3nav127m.narinfo /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/binary-cache/mybxa4m3np2a4wjxhs3pzhx4mplk67bk.narinfo /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/binary-cache/p2h6rgxsd37qfbj5r8hdh91jjwm4sphq.narinfo
+++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:344) checkGrepArgs -l 'StorePath:.*dependencies-input-2' /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/binary-cache/587jhcam259nfhq36ik8ql4y3nav127m.narinfo /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/binary-cache/mybxa4m3np2a4wjxhs3pzhx4mplk67bk.narinfo /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/binary-cache/p2h6rgxsd37qfbj5r8hdh91jjwm4sphq.narinfo
+++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:293) local arg
+++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:294) for arg in "$@"
+++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:295) [[ -l != \-l ]]
+++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:294) for arg in "$@"
+++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:295) [[ StorePath:.*dependencies-input-2 != StorePath\:\.\*dependencies\-input\-2 ]]
+++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:294) for arg in "$@"
+++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:295) [[ /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/binary-cache/587jhcam259nfhq36ik8ql4y3nav127m.narinfo != /var/tmp/fg/s/nftzV13W/tmp/nix\-test/main/binary\-cache/binary\-cache/587jhcam259nfhq36ik8ql4y3nav127m\.narinfo ]]
+++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:294) for arg in "$@"
+++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:295) [[ /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/binary-cache/mybxa4m3np2a4wjxhs3pzhx4mplk67bk.narinfo != /var/tmp/fg/s/nftzV13W/tmp/nix\-test/main/binary\-cache/binary\-cache/mybxa4m3np2a4wjxhs3pzhx4mplk67bk\.narinfo ]]
+++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:294) for arg in "$@"
+++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:295) [[ /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/binary-cache/p2h6rgxsd37qfbj5r8hdh91jjwm4sphq.narinfo != /var/tmp/fg/s/nftzV13W/tmp/nix\-test/main/binary\-cache/binary\-cache/p2h6rgxsd37qfbj5r8hdh91jjwm4sphq\.narinfo ]]
+++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:345) command grep -l 'StorePath:.*dependencies-input-2' /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/binary-cache/587jhcam259nfhq36ik8ql4y3nav127m.narinfo /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/binary-cache/mybxa4m3np2a4wjxhs3pzhx4mplk67bk.narinfo /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/binary-cache/p2h6rgxsd37qfbj5r8hdh91jjwm4sphq.narinfo
++(binary-cache.sh:161) rm -v /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/binary-cache/p2h6rgxsd37qfbj5r8hdh91jjwm4sphq.narinfo
+removed '/var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/binary-cache/p2h6rgxsd37qfbj5r8hdh91jjwm4sphq.narinfo'
++(binary-cache.sh:163) nix-build --substituters file:///var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/binary-cache --no-require-sigs dependencies.nix -o /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/result
++(binary-cache.sh:163) tee /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/log
+these 3 paths will be fetched (0.8 KiB download, 2.1 KiB unpacked):
+  /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store/mybxa4m3np2a4wjxhs3pzhx4mplk67bk-dependencies-input-0
+  /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store/p2h6rgxsd37qfbj5r8hdh91jjwm4sphq-dependencies-input-2
+  /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store/587jhcam259nfhq36ik8ql4y3nav127m-dependencies-top
+copying path '/var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store/mybxa4m3np2a4wjxhs3pzhx4mplk67bk-dependencies-input-0' from 'file:///var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/binary-cache'...
+copying path '/var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store/p2h6rgxsd37qfbj5r8hdh91jjwm4sphq-dependencies-input-2' from 'file:///var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/binary-cache'...
+copying path '/var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store/587jhcam259nfhq36ik8ql4y3nav127m-dependencies-top' from 'file:///var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/binary-cache'...
+/var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store/587jhcam259nfhq36ik8ql4y3nav127m-dependencies-top
++(binary-cache.sh:164) grepQuiet 'copying path.*input-0' /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/log
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:330) checkGrepArgs 'copying path.*input-0' /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/log
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:293) local arg
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:294) for arg in "$@"
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:295) [[ copying path.*input-0 != copying path\.\*input\-0 ]]
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:294) for arg in "$@"
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:295) [[ /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/log != /var/tmp/fg/s/nftzV13W/tmp/nix\-test/main/binary\-cache/log ]]
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:331) command grep 'copying path.*input-0' /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/log
++(binary-cache.sh:165) grepQuiet 'copying path.*input-2' /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/log
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:330) checkGrepArgs 'copying path.*input-2' /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/log
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:293) local arg
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:294) for arg in "$@"
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:295) [[ copying path.*input-2 != copying path\.\*input\-2 ]]
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:294) for arg in "$@"
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:295) [[ /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/log != /var/tmp/fg/s/nftzV13W/tmp/nix\-test/main/binary\-cache/log ]]
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:331) command grep 'copying path.*input-2' /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/log
++(binary-cache.sh:166) grepQuiet 'copying path.*top' /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/log
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:330) checkGrepArgs 'copying path.*top' /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/log
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:293) local arg
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:294) for arg in "$@"
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:295) [[ copying path.*top != copying path\.\*top ]]
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:294) for arg in "$@"
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:295) [[ /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/log != /var/tmp/fg/s/nftzV13W/tmp/nix\-test/main/binary\-cache/log ]]
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:331) command grep 'copying path.*top' /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/log
++(binary-cache.sh:170) clearStore
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:41) isTestOnNixOS
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:10) [[ '' == 1 ]]
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:44) doClearStore
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:48) echo 'clearing store...'
+clearing store...
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:49) chmod -R +w /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:50) rm -rf /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:51) mkdir /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:52) rm -rf /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/var/nix
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:53) mkdir /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/var/nix
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:54) clearProfiles
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:25) profiles=/var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/test-home/.local/state/nix/profiles
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:26) rm -rf /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/test-home/.local/state/nix/profiles
++(binary-cache.sh:171) clearCacheCache
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:62) rm -f /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/test-home/.cache/nix/binary-cache-v8.sqlite
++(binary-cache.sh:173) nix-build --substituters file:///var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/binary-cache --no-require-sigs dependencies.nix -o /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/result
++(binary-cache.sh:173) tee /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/log
+this path will be fetched (0.4 KiB download, 1.3 KiB unpacked):
+  /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store/587jhcam259nfhq36ik8ql4y3nav127m-dependencies-top
+don't know how to build these paths:
+  /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store/p2h6rgxsd37qfbj5r8hdh91jjwm4sphq-dependencies-input-2
+copying path '/var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store/mybxa4m3np2a4wjxhs3pzhx4mplk67bk-dependencies-input-0' from 'file:///var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/binary-cache'...
+building '/var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store/4c0i97lkkksmrqwi2jn42874jplw83id-dependencies-input-1.drv'...
+building '/var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store/dha9z9qs96k5f955vn7l10a8y5s2yawy-dependencies-input-2.drv'...
+building '/var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store/jrwjgz6zwdbyf6lnx69bxjn0p96mjik0-fod-input.drv'...
+
+building '/var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store/spxha958c8nszcc8km3djz390ansjqz2-dependencies-top.drv'...
+FOO
+/var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store/587jhcam259nfhq36ik8ql4y3nav127m-dependencies-top
++(binary-cache.sh:174) grepQuiet 'don'\''t know how to build' /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/log
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:330) checkGrepArgs 'don'\''t know how to build' /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/log
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:293) local arg
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:294) for arg in "$@"
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:295) [[ don't know how to build != don't know how to build ]]
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:294) for arg in "$@"
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:295) [[ /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/log != /var/tmp/fg/s/nftzV13W/tmp/nix\-test/main/binary\-cache/log ]]
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:331) command grep 'don'\''t know how to build' /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/log
++(binary-cache.sh:175) grepQuiet 'building.*input-1' /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/log
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:330) checkGrepArgs 'building.*input-1' /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/log
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:293) local arg
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:294) for arg in "$@"
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:295) [[ building.*input-1 != building\.\*input\-1 ]]
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:294) for arg in "$@"
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:295) [[ /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/log != /var/tmp/fg/s/nftzV13W/tmp/nix\-test/main/binary\-cache/log ]]
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:331) command grep 'building.*input-1' /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/log
++(binary-cache.sh:176) grepQuiet 'building.*input-2' /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/log
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:330) checkGrepArgs 'building.*input-2' /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/log
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:293) local arg
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:294) for arg in "$@"
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:295) [[ building.*input-2 != building\.\*input\-2 ]]
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:294) for arg in "$@"
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:295) [[ /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/log != /var/tmp/fg/s/nftzV13W/tmp/nix\-test/main/binary\-cache/log ]]
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:331) command grep 'building.*input-2' /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/log
++(binary-cache.sh:185) clearBinaryCache
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:58) rm -rf /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/binary-cache
++(binary-cache.sh:186) clearCacheCache
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:62) rm -f /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/test-home/.cache/nix/binary-cache-v8.sqlite
++(binary-cache.sh:188) nix key generate-secret --key-name test.nixos.org-1
+warning: you don't have Internet access; disabling some network-dependent features
+++(binary-cache.sh:189) nix key convert-secret-to-public
+warning: you don't have Internet access; disabling some network-dependent features
++(binary-cache.sh:189) publicKey=test.nixos.org-1:lnKbUp2uWGElpfZKgLktB30361act3VrLEOqjfeIUlg=
++(binary-cache.sh:191) nix key generate-secret --key-name test.nixos.org-1
+warning: you don't have Internet access; disabling some network-dependent features
+++(binary-cache.sh:192) nix key convert-secret-to-public
+warning: you don't have Internet access; disabling some network-dependent features
++(binary-cache.sh:192) badKey=test.nixos.org-1:RXIv8viZKoManadRPKy0o1nSaFRXivz2woWtlaD9rtw=
++(binary-cache.sh:194) nix key generate-secret --key-name foo.nixos.org-1
+warning: you don't have Internet access; disabling some network-dependent features
+++(binary-cache.sh:195) nix key convert-secret-to-public
+warning: you don't have Internet access; disabling some network-dependent features
++(binary-cache.sh:195) otherKey=foo.nixos.org-1:ZF67nXB8KFe3VQXj5aMT02UR/CaTT+vRhctUBQN0zhw=
++(binary-cache.sh:197) _NIX_FORCE_HTTP=
++(binary-cache.sh:197) nix copy --to 'file:///var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/binary-cache?secret-key=/var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/sk1' /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store/587jhcam259nfhq36ik8ql4y3nav127m-dependencies-top
+warning: you don't have Internet access; disabling some network-dependent features
+copying 3 paths...
+copying path '/var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store/mybxa4m3np2a4wjxhs3pzhx4mplk67bk-dependencies-input-0' to 'file:///var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/binary-cache'...
+copying path '/var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store/587jhcam259nfhq36ik8ql4y3nav127m-dependencies-top' to 'file:///var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/binary-cache'...
+copying path '/var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store/p2h6rgxsd37qfbj5r8hdh91jjwm4sphq-dependencies-input-2' to 'file:///var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/binary-cache'...
++(binary-cache.sh:201) clearStore
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:41) isTestOnNixOS
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:10) [[ '' == 1 ]]
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:44) doClearStore
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:48) echo 'clearing store...'
+clearing store...
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:49) chmod -R +w /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:50) rm -rf /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:51) mkdir /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:52) rm -rf /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/var/nix
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:53) mkdir /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/var/nix
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:54) clearProfiles
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:25) profiles=/var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/test-home/.local/state/nix/profiles
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:26) rm -rf /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/test-home/.local/state/nix/profiles
++(binary-cache.sh:202) clearCacheCache
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:62) rm -f '/var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/test-home/.cache/nix/binary-cache*'
++(binary-cache.sh:204) nix-store -r /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store/587jhcam259nfhq36ik8ql4y3nav127m-dependencies-top --substituters file:///var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/binary-cache
+these 3 paths will be fetched (0.8 KiB download, 2.1 KiB unpacked):
+  /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store/mybxa4m3np2a4wjxhs3pzhx4mplk67bk-dependencies-input-0
+  /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store/p2h6rgxsd37qfbj5r8hdh91jjwm4sphq-dependencies-input-2
+  /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store/587jhcam259nfhq36ik8ql4y3nav127m-dependencies-top
+warning: ignoring substitute for '/var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store/587jhcam259nfhq36ik8ql4y3nav127m-dependencies-top' from 'file:///var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/binary-cache', as it's not signed by any of the keys in 'trusted-public-keys'
+error: path '/var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store/587jhcam259nfhq36ik8ql4y3nav127m-dependencies-top' is required, but there is no substituter that can build it
++(binary-cache.sh:208) clearStore
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:41) isTestOnNixOS
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:10) [[ '' == 1 ]]
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:44) doClearStore
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:48) echo 'clearing store...'
+clearing store...
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:49) chmod -R +w /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:50) rm -rf /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:51) mkdir /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:52) rm -rf /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/var/nix
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:53) mkdir /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/var/nix
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:54) clearProfiles
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:25) profiles=/var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/test-home/.local/state/nix/profiles
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:26) rm -rf /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/test-home/.local/state/nix/profiles
++(binary-cache.sh:209) clearCacheCache
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:62) rm -f /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/test-home/.cache/nix/binary-cache-v8.sqlite
++(binary-cache.sh:211) nix-store -r /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store/587jhcam259nfhq36ik8ql4y3nav127m-dependencies-top --substituters file:///var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/binary-cache --trusted-public-keys test.nixos.org-1:RXIv8viZKoManadRPKy0o1nSaFRXivz2woWtlaD9rtw=
+these 3 paths will be fetched (0.8 KiB download, 2.1 KiB unpacked):
+  /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store/mybxa4m3np2a4wjxhs3pzhx4mplk67bk-dependencies-input-0
+  /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store/p2h6rgxsd37qfbj5r8hdh91jjwm4sphq-dependencies-input-2
+  /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store/587jhcam259nfhq36ik8ql4y3nav127m-dependencies-top
+warning: ignoring substitute for '/var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store/587jhcam259nfhq36ik8ql4y3nav127m-dependencies-top' from 'file:///var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/binary-cache', as it's not signed by any of the keys in 'trusted-public-keys'
+error: path '/var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store/587jhcam259nfhq36ik8ql4y3nav127m-dependencies-top' is required, but there is no substituter that can build it
++(binary-cache.sh:215) nix-store -r /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store/587jhcam259nfhq36ik8ql4y3nav127m-dependencies-top --substituters file:///var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/binary-cache --trusted-public-keys 'foo.nixos.org-1:ZF67nXB8KFe3VQXj5aMT02UR/CaTT+vRhctUBQN0zhw= test.nixos.org-1:lnKbUp2uWGElpfZKgLktB30361act3VrLEOqjfeIUlg='
+these 3 paths will be fetched (0.8 KiB download, 2.1 KiB unpacked):
+  /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store/mybxa4m3np2a4wjxhs3pzhx4mplk67bk-dependencies-input-0
+  /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store/p2h6rgxsd37qfbj5r8hdh91jjwm4sphq-dependencies-input-2
+  /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store/587jhcam259nfhq36ik8ql4y3nav127m-dependencies-top
+copying path '/var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store/mybxa4m3np2a4wjxhs3pzhx4mplk67bk-dependencies-input-0' from 'file:///var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/binary-cache'...
+copying path '/var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store/p2h6rgxsd37qfbj5r8hdh91jjwm4sphq-dependencies-input-2' from 'file:///var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/binary-cache'...
+copying path '/var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store/587jhcam259nfhq36ik8ql4y3nav127m-dependencies-top' from 'file:///var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/binary-cache'...
+warning: you did not specify '--add-root'; the result might be removed by the garbage collector
+/var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store/587jhcam259nfhq36ik8ql4y3nav127m-dependencies-top
++(binary-cache.sh:219) clearStore
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:41) isTestOnNixOS
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:10) [[ '' == 1 ]]
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:44) doClearStore
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:48) echo 'clearing store...'
+clearing store...
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:49) chmod -R +w /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:50) rm -rf /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:51) mkdir /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:52) rm -rf /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/var/nix
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:53) mkdir /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/var/nix
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:54) clearProfiles
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:25) profiles=/var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/test-home/.local/state/nix/profiles
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:26) rm -rf /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/test-home/.local/state/nix/profiles
++(binary-cache.sh:221) cacheDir2=/var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/binary-cache-2
++(binary-cache.sh:222) rm -rf /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/binary-cache-2
++(binary-cache.sh:223) cp -r /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/binary-cache /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/binary-cache-2
++(binary-cache.sh:225) for i in "$cacheDir2"/*.narinfo
++(binary-cache.sh:226) grep -v References /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/binary-cache-2/587jhcam259nfhq36ik8ql4y3nav127m.narinfo
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:344) checkGrepArgs -v References /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/binary-cache-2/587jhcam259nfhq36ik8ql4y3nav127m.narinfo
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:293) local arg
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:294) for arg in "$@"
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:295) [[ -v != \-v ]]
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:294) for arg in "$@"
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:295) [[ References != References ]]
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:294) for arg in "$@"
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:295) [[ /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/binary-cache-2/587jhcam259nfhq36ik8ql4y3nav127m.narinfo != /var/tmp/fg/s/nftzV13W/tmp/nix\-test/main/binary\-cache/binary\-cache\-2/587jhcam259nfhq36ik8ql4y3nav127m\.narinfo ]]
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:345) command grep -v References /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/binary-cache-2/587jhcam259nfhq36ik8ql4y3nav127m.narinfo
++(binary-cache.sh:227) mv /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/binary-cache-2/587jhcam259nfhq36ik8ql4y3nav127m.narinfo.tmp /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/binary-cache-2/587jhcam259nfhq36ik8ql4y3nav127m.narinfo
++(binary-cache.sh:225) for i in "$cacheDir2"/*.narinfo
++(binary-cache.sh:226) grep -v References /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/binary-cache-2/mybxa4m3np2a4wjxhs3pzhx4mplk67bk.narinfo
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:344) checkGrepArgs -v References /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/binary-cache-2/mybxa4m3np2a4wjxhs3pzhx4mplk67bk.narinfo
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:293) local arg
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:294) for arg in "$@"
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:295) [[ -v != \-v ]]
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:294) for arg in "$@"
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:295) [[ References != References ]]
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:294) for arg in "$@"
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:295) [[ /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/binary-cache-2/mybxa4m3np2a4wjxhs3pzhx4mplk67bk.narinfo != /var/tmp/fg/s/nftzV13W/tmp/nix\-test/main/binary\-cache/binary\-cache\-2/mybxa4m3np2a4wjxhs3pzhx4mplk67bk\.narinfo ]]
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:345) command grep -v References /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/binary-cache-2/mybxa4m3np2a4wjxhs3pzhx4mplk67bk.narinfo
++(binary-cache.sh:227) mv /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/binary-cache-2/mybxa4m3np2a4wjxhs3pzhx4mplk67bk.narinfo.tmp /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/binary-cache-2/mybxa4m3np2a4wjxhs3pzhx4mplk67bk.narinfo
++(binary-cache.sh:225) for i in "$cacheDir2"/*.narinfo
++(binary-cache.sh:226) grep -v References /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/binary-cache-2/p2h6rgxsd37qfbj5r8hdh91jjwm4sphq.narinfo
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:344) checkGrepArgs -v References /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/binary-cache-2/p2h6rgxsd37qfbj5r8hdh91jjwm4sphq.narinfo
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:293) local arg
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:294) for arg in "$@"
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:295) [[ -v != \-v ]]
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:294) for arg in "$@"
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:295) [[ References != References ]]
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:294) for arg in "$@"
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:295) [[ /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/binary-cache-2/p2h6rgxsd37qfbj5r8hdh91jjwm4sphq.narinfo != /var/tmp/fg/s/nftzV13W/tmp/nix\-test/main/binary\-cache/binary\-cache\-2/p2h6rgxsd37qfbj5r8hdh91jjwm4sphq\.narinfo ]]
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:345) command grep -v References /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/binary-cache-2/p2h6rgxsd37qfbj5r8hdh91jjwm4sphq.narinfo
++(binary-cache.sh:227) mv /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/binary-cache-2/p2h6rgxsd37qfbj5r8hdh91jjwm4sphq.narinfo.tmp /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/binary-cache-2/p2h6rgxsd37qfbj5r8hdh91jjwm4sphq.narinfo
++(binary-cache.sh:230) clearCacheCache
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:62) rm -f /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/test-home/.cache/nix/binary-cache-v8.sqlite
++(binary-cache.sh:232) nix-store -r /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store/587jhcam259nfhq36ik8ql4y3nav127m-dependencies-top --substituters file:///var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/binary-cache-2 --trusted-public-keys test.nixos.org-1:lnKbUp2uWGElpfZKgLktB30361act3VrLEOqjfeIUlg=
+this path will be fetched (0.4 KiB download, 1.3 KiB unpacked):
+  /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store/587jhcam259nfhq36ik8ql4y3nav127m-dependencies-top
+warning: ignoring substitute for '/var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store/587jhcam259nfhq36ik8ql4y3nav127m-dependencies-top' from 'file:///var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/binary-cache-2', as it's not signed by any of the keys in 'trusted-public-keys'
+error: path '/var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store/587jhcam259nfhq36ik8ql4y3nav127m-dependencies-top' is required, but there is no substituter that can build it
++(binary-cache.sh:236) nix-store -r /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store/587jhcam259nfhq36ik8ql4y3nav127m-dependencies-top --substituters 'file:///var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/binary-cache-2 file:///var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/binary-cache' --trusted-public-keys test.nixos.org-1:lnKbUp2uWGElpfZKgLktB30361act3VrLEOqjfeIUlg=
+this path will be fetched (0.4 KiB download, 1.3 KiB unpacked):
+  /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store/587jhcam259nfhq36ik8ql4y3nav127m-dependencies-top
+warning: ignoring substitute for '/var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store/587jhcam259nfhq36ik8ql4y3nav127m-dependencies-top' from 'file:///var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/binary-cache-2', as it's not signed by any of the keys in 'trusted-public-keys'
+warning: ignoring substitute for '/var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store/p2h6rgxsd37qfbj5r8hdh91jjwm4sphq-dependencies-input-2' from 'file:///var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/binary-cache-2', as it's not signed by any of the keys in 'trusted-public-keys'
+copying path '/var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store/mybxa4m3np2a4wjxhs3pzhx4mplk67bk-dependencies-input-0' from 'file:///var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/binary-cache-2'...
+copying path '/var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store/p2h6rgxsd37qfbj5r8hdh91jjwm4sphq-dependencies-input-2' from 'file:///var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/binary-cache'...
+copying path '/var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store/587jhcam259nfhq36ik8ql4y3nav127m-dependencies-top' from 'file:///var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/binary-cache'...
+warning: you did not specify '--add-root'; the result might be removed by the garbage collector
+/var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store/587jhcam259nfhq36ik8ql4y3nav127m-dependencies-top
++(binary-cache.sh:239) unset _NIX_FORCE_HTTP
++(binary-cache.sh:243) nix store verify -vvvvv --all --store file:///var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/binary-cache --no-trust
+warning: you don't have Internet access; disabling some network-dependent features
+querying info about '/var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store/587jhcam259nfhq36ik8ql4y3nav127m-x' on 'file:///var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/binary-cache'...
+querying info about '/var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store/mybxa4m3np2a4wjxhs3pzhx4mplk67bk-x' on 'file:///var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/binary-cache'...
+querying info about '/var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store/p2h6rgxsd37qfbj5r8hdh91jjwm4sphq-x' on 'file:///var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/binary-cache'...
+starting pool of 23 threads
+checking '/var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store/587jhcam259nfhq36ik8ql4y3nav127m-dependencies-top'...
+querying info about '/var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store/587jhcam259nfhq36ik8ql4y3nav127m-dependencies-top' on 'file:///var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/binary-cache'...
+checking '/var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store/mybxa4m3np2a4wjxhs3pzhx4mplk67bk-dependencies-input-0'...
+querying info about '/var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store/mybxa4m3np2a4wjxhs3pzhx4mplk67bk-dependencies-input-0' on 'file:///var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/binary-cache'...
+checking '/var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store/p2h6rgxsd37qfbj5r8hdh91jjwm4sphq-dependencies-input-2'...
+querying info about '/var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store/p2h6rgxsd37qfbj5r8hdh91jjwm4sphq-dependencies-input-2' on 'file:///var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/binary-cache'...
+reaping 2 worker threads
++(binary-cache.sh:247) narCache=/var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/nar-cache
++(binary-cache.sh:248) rm -rf /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/nar-cache
++(binary-cache.sh:249) mkdir /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/nar-cache
+++(binary-cache.sh:251) nix store cat --store 'file:///var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/binary-cache?local-nar-cache=/var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/nar-cache' /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store/587jhcam259nfhq36ik8ql4y3nav127m-dependencies-top/foobar
+warning: you don't have Internet access; disabling some network-dependent features
++(binary-cache.sh:251) [[ FOOBAR = FOOBAR ]]
++(binary-cache.sh:253) rm -rfv /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/binary-cache/nar
+removed '/var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/binary-cache/nar/1pcs3g9r8g6jf8irzs22qpx1rgjmrhkq923qi7b3biwdr8bfwrk7.nar.xz'
+removed '/var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/binary-cache/nar/0vy7g11l9aa16qmhqgaf1z0kjh5klhc36v1m9b0zhy3d1fg96fv5.nar.xz'
+removed '/var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/binary-cache/nar/1ypwashibxvpx2qy8kzbf3y90vjd353hhz4fp892rplcb38p2dxk.nar.xz'
+removed directory '/var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/binary-cache/nar'
+++(binary-cache.sh:255) nix store cat --store 'file:///var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/binary-cache?local-nar-cache=/var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/nar-cache' /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store/587jhcam259nfhq36ik8ql4y3nav127m-dependencies-top/foobar
+warning: you don't have Internet access; disabling some network-dependent features
++(binary-cache.sh:255) [[ FOOBAR = FOOBAR ]]
++(binary-cache.sh:257) nix store cat --store file:///var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/binary-cache /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store/587jhcam259nfhq36ik8ql4y3nav127m-dependencies-top/foobar
+warning: you don't have Internet access; disabling some network-dependent features
+error: file 'nar/1ypwashibxvpx2qy8kzbf3y90vjd353hhz4fp892rplcb38p2dxk.nar.xz' does not exist in binary cache
++(binary-cache.sh:261) clearBinaryCache
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:58) rm -rf /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/binary-cache
+++(binary-cache.sh:272) nix-build --no-out-link -E $'\n  with import /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/config.nix;\n  mkDerivation {\n    name = "nar-listing";\n    buildCommand = "mkdir $out; echo foo > $out/bar; ln -s xyzzy $out/link";\n  }\n'
+this derivation will be built:
+  /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store/61a7x82kvravzhk0b8vw93mzapzdh7vy-nar-listing.drv
+building '/var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store/61a7x82kvravzhk0b8vw93mzapzdh7vy-nar-listing.drv'...
++(binary-cache.sh:272) outPath=/var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store/5jkhgycb00vzfj3188pblmvi76w0k5q8-nar-listing
++(binary-cache.sh:274) nix copy --to 'file:///var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/binary-cache?write-nar-listing=1' /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store/5jkhgycb00vzfj3188pblmvi76w0k5q8-nar-listing
+warning: you don't have Internet access; disabling some network-dependent features
+copying 1 paths...
+copying path '/var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store/5jkhgycb00vzfj3188pblmvi76w0k5q8-nar-listing' to 'file:///var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/binary-cache'...
+++(binary-cache.sh:276) jq -S
++(binary-cache.sh:276) diff -u /dev/fd/63 /dev/fd/62
+++(binary-cache.sh:276) jq -S
++++(binary-cache.sh:276) basename /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store/5jkhgycb00vzfj3188pblmvi76w0k5q8-nar-listing
++++(binary-cache.sh:276) cut -c1-32
++(binary-cache.sh:302) clearBinaryCache
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:58) rm -rf /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/binary-cache
+++(binary-cache.sh:312) nix-build --no-out-link -E $'\n  with import /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/config.nix;\n  mkDerivation {\n    name = "debug-info";\n    buildCommand = "mkdir -p $out/lib/debug/.build-id/02; echo foo > $out/lib/debug/.build-id/02/623eda209c26a59b1a8638ff7752f6b945c26b.debug";\n  }\n'
+this derivation will be built:
+  /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store/l4srqgxqi3kr4jvfsa4kcfnpqb7ag6nk-debug-info.drv
+building '/var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store/l4srqgxqi3kr4jvfsa4kcfnpqb7ag6nk-debug-info.drv'...
++(binary-cache.sh:312) outPath=/var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store/a6vgmjxq983fyqwiggbfgk8az1zi5v4d-debug-info
++(binary-cache.sh:314) nix copy --to 'file:///var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/binary-cache?index-debug-info=1&compression=none' /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store/a6vgmjxq983fyqwiggbfgk8az1zi5v4d-debug-info
+warning: you don't have Internet access; disabling some network-dependent features
+copying 1 paths...
+copying path '/var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store/a6vgmjxq983fyqwiggbfgk8az1zi5v4d-debug-info' to 'file:///var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/binary-cache'...
+++(binary-cache.sh:316) jq -S
++(binary-cache.sh:316) diff -u /dev/fd/63 /dev/fd/62
+++(binary-cache.sh:316) jq -S
+++(binary-cache.sh:316) echo '{"archive":"../nar/100vxs724qr46phz8m24iswmg9p3785hsyagz0kchf6q6gf06sw6.nar","member":"lib/debug/.build-id/02/623eda209c26a59b1a8638ff7752f6b945c26b.debug"}'
++(binary-cache.sh:331) expr=$'\n  with import /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/config.nix;\n  mkDerivation {\n    name = "multi-output";\n    buildCommand = "mkdir -p $out; echo foo > $doc; echo $doc > $out/docref";\n    outputs = ["out" "doc"];\n  }\n'
+++(binary-cache.sh:332) nix-build --no-out-link -E $'\n  with import /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/config.nix;\n  mkDerivation {\n    name = "multi-output";\n    buildCommand = "mkdir -p $out; echo foo > $doc; echo $doc > $out/docref";\n    outputs = ["out" "doc"];\n  }\n'
+this derivation will be built:
+  /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store/aaskgpsgwkbajd3fzyfmc3s16di4hfb7-multi-output.drv
+building '/var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store/aaskgpsgwkbajd3fzyfmc3s16di4hfb7-multi-output.drv'...
++(binary-cache.sh:332) outPath=/var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store/l7yqv9ai7kdki2v4zm22hr8i0a9bwdmr-multi-output
+++(binary-cache.sh:333) nix-store -q --references /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store/l7yqv9ai7kdki2v4zm22hr8i0a9bwdmr-multi-output
++(binary-cache.sh:333) docPath=/var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store/blvrw4g22p24wyd9p9ffhrgfww6d3134-multi-output-doc
++(binary-cache.sh:339) nix copy --to file:///var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/binary-cache /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store/l7yqv9ai7kdki2v4zm22hr8i0a9bwdmr-multi-output
+warning: you don't have Internet access; disabling some network-dependent features
+copying 2 paths...
+copying path '/var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store/l7yqv9ai7kdki2v4zm22hr8i0a9bwdmr-multi-output' to 'file:///var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/binary-cache'...
+copying path '/var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store/blvrw4g22p24wyd9p9ffhrgfww6d3134-multi-output-doc' to 'file:///var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/binary-cache'...
+++(binary-cache.sh:346) hashpart /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store/blvrw4g22p24wyd9p9ffhrgfww6d3134-multi-output-doc
+++(binary-cache.sh:342) basename /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store/blvrw4g22p24wyd9p9ffhrgfww6d3134-multi-output-doc
+++(binary-cache.sh:342) cut -c1-32
++(binary-cache.sh:346) rm /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/binary-cache/blvrw4g22p24wyd9p9ffhrgfww6d3134.narinfo
++(binary-cache.sh:348) nix-store --delete /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store/l7yqv9ai7kdki2v4zm22hr8i0a9bwdmr-multi-output /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store/blvrw4g22p24wyd9p9ffhrgfww6d3134-multi-output-doc
+finding garbage collector roots...
+removing stale link from "/var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/var/nix/gcroots/auto/cal4f5rqyiqaxdfdccjh9dgz3qdnysp7" to "/var/tmp/fg/s/nftzV13W/tmp/nix-build-2742133-4123787571/result"
+removing stale link from "/var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/var/nix/gcroots/auto/ay4vwiab87k9k48dzh9481nnazrbfsnh" to "/var/tmp/fg/s/nftzV13W/tmp/nix-build-2742672-2786590935/result"
+removing stale link from "/var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/var/nix/gcroots/auto/r7qv8mz5kgp4kcbfh6jszfi5mkip49b5" to "/var/tmp/fg/s/nftzV13W/tmp/nix-build-2743185-2795211145/result"
+removing stale temporary roots file "/var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/var/nix/temproots/2742133"
+removing stale temporary roots file "/var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/var/nix/temproots/2742672"
+removing stale temporary roots file "/var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/var/nix/temproots/2743185"
+deleting specified paths...
+deleting '/var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store/l7yqv9ai7kdki2v4zm22hr8i0a9bwdmr-multi-output'
+deleting '/var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store/blvrw4g22p24wyd9p9ffhrgfww6d3134-multi-output-doc'
+deleting unused links...
+note: hard linking is currently saving -4.0 KiB
+2 store paths deleted, 0.1 KiB freed
++(binary-cache.sh:350) timeout 60 nix-build --no-out-link -E $'\n  with import /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/config.nix;\n  mkDerivation {\n    name = "multi-output";\n    buildCommand = "mkdir -p $out; echo foo > $doc; echo $doc > $out/docref";\n    outputs = ["out" "doc"];\n  }\n' --option substituters file:///var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/binary-cache --option trusted-binary-caches file:///var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/binary-cache --no-require-sigs
+this path will be fetched (0.3 KiB download, 0.4 KiB unpacked):
+  /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store/l7yqv9ai7kdki2v4zm22hr8i0a9bwdmr-multi-output
+don't know how to build these paths:
+  /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store/blvrw4g22p24wyd9p9ffhrgfww6d3134-multi-output-doc
+building '/var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store/aaskgpsgwkbajd3fzyfmc3s16di4hfb7-multi-output.drv'...
+/var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/store/l7yqv9ai7kdki2v4zm22hr8i0a9bwdmr-multi-output
++(binary-cache.sh:358) _NIX_FORCE_HTTP=1
++(binary-cache.sh:358) nix store info --store file:///var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/binary-cache
+warning: you don't have Internet access; disabling some network-dependent features
+Store URL: file:///var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/binary-cache
++(binary-cache.sh:361) rm /var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/binary-cache/nix-cache-info
++(binary-cache.sh:365) _NIX_FORCE_HTTP=1
++(binary-cache.sh:365) nix store info --store file:///var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/binary-cache
+warning: you don't have Internet access; disabling some network-dependent features
+Store URL: file:///var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/binary-cache
++(binary-cache.sh:369) _NIX_FORCE_HTTP=1
++(binary-cache.sh:369) expectStderr 1 nix store info --store file:///var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/binary-cache --refresh
++(binary-cache.sh:369) grepQuiet 'uploading.*is not supported'
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:201) local expected res
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:330) checkGrepArgs 'uploading.*is not supported'
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:293) local arg
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:202) expected=1
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:203) shift
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:294) for arg in "$@"
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:204) nix store info --store file:///var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/binary-cache --refresh
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:295) [[ uploading.*is not supported != uploading\.\*is not supported ]]
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:331) command grep 'uploading.*is not supported'
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:204) res=1
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:206) [[ 1 -ne 1 ]]
++(/var/tmp/fg/s/nftzV13W/src/common/functions.sh:210) return 0
++(binary-cache.sh:372) _NIX_FORCE_HTTP=1
++(binary-cache.sh:372) nix store info --store file:///var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/binary-cache
+warning: you don't have Internet access; disabling some network-dependent features
+Store URL: file:///var/tmp/fg/s/nftzV13W/tmp/nix-test/main/binary-cache/binary-cache

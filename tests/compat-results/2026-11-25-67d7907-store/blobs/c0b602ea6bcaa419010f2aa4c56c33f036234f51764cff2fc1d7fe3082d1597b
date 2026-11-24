@@ -1,0 +1,825 @@
++(cli-characterisation.sh:9) source common.sh
+++(common.sh:3) set -eu -o pipefail
+++(common.sh:5) [[ -z '' ]]
+++(common.sh:7) COMMON_SH_SOURCED=1
+++++(common.sh:9) dirname common.sh
++++(common.sh:9) readlink -f .
+++(common.sh:9) functionalTestsDir=/var/tmp/fg/s/nfmKCPzz/src
+++(common.sh:11) source /var/tmp/fg/s/nfmKCPzz/src/common/vars.sh
++++(/var/tmp/fg/s/nfmKCPzz/src/common/vars.sh:3) set -eu -o pipefail
++++(/var/tmp/fg/s/nfmKCPzz/src/common/vars.sh:5) [[ -z '' ]]
++++(/var/tmp/fg/s/nfmKCPzz/src/common/vars.sh:7) COMMON_VARS_SH_SOURCED=1
+++++(/var/tmp/fg/s/nfmKCPzz/src/common/vars.sh:9) realpath /var/tmp/fg/s/nfmKCPzz/src
++++(/var/tmp/fg/s/nfmKCPzz/src/common/vars.sh:9) _NIX_TEST_SOURCE_DIR=/var/tmp/fg/s/nfmKCPzz/src
+++++(/var/tmp/fg/s/nfmKCPzz/src/common/vars.sh:10) realpath /var/tmp/fg/s/nfmKCPzz/build
++++(/var/tmp/fg/s/nfmKCPzz/src/common/vars.sh:10) _NIX_TEST_BUILD_DIR=/var/tmp/fg/s/nfmKCPzz/build
++++++(/var/tmp/fg/s/nfmKCPzz/src/common/vars.sh:12) dirname /var/tmp/fg/s/nfmKCPzz/src/common/vars.sh
+++++(/var/tmp/fg/s/nfmKCPzz/src/common/vars.sh:12) readlink -f /var/tmp/fg/s/nfmKCPzz/src/common
++++(/var/tmp/fg/s/nfmKCPzz/src/common/vars.sh:12) commonDir=/var/tmp/fg/s/nfmKCPzz/src/common
++++(/var/tmp/fg/s/nfmKCPzz/src/common/vars.sh:16) source /var/tmp/fg/s/nfmKCPzz/build/common/subst-vars.sh
+++++(/var/tmp/fg/s/nfmKCPzz/build/common/subst-vars.sh:3) [[ -z '' ]]
+++++(/var/tmp/fg/s/nfmKCPzz/build/common/subst-vars.sh:5) COMMON_SUBST_VARS_SH_SOURCED=1
+++++(/var/tmp/fg/s/nfmKCPzz/build/common/subst-vars.sh:7) bash=/nix/store/2ndah67h0z5m31v2wkdmg2md4380ggr5-bash-interactive-5.3p15/bin/bash
+++++(/var/tmp/fg/s/nfmKCPzz/build/common/subst-vars.sh:8) bindir=/var/tmp/fg/tt/.tmp5krJTK/noxi-bin
+++++(/var/tmp/fg/s/nfmKCPzz/build/common/subst-vars.sh:9) coreutils=/nix/store/xjl7p8dvyk2j53kqf7f43kdj4ypbxz7g-coreutils-9.11/bin
+++++(/var/tmp/fg/s/nfmKCPzz/build/common/subst-vars.sh:11) dot=
+++++(/var/tmp/fg/s/nfmKCPzz/build/common/subst-vars.sh:12) busybox=/nix/store/qddzvnv6b0805nkvbqddbswddcfhx814-busybox-static-x86_64-unknown-linux-musl-1.37.0/bin/busybox
+++++(/var/tmp/fg/s/nfmKCPzz/build/common/subst-vars.sh:14) version=2.35.2
+++++(/var/tmp/fg/s/nfmKCPzz/build/common/subst-vars.sh:15) system=x86_64-linux
++++(/var/tmp/fg/s/nfmKCPzz/src/common/vars.sh:18) : '/var/tmp/fg/tt/.tmp5krJTK/noxi-bin /nix/store/xjl7p8dvyk2j53kqf7f43kdj4ypbxz7g-coreutils-9.11/bin  /run/current-system/sw/bin/nu /nix/store/qddzvnv6b0805nkvbqddbswddcfhx814-busybox-static-x86_64-unknown-linux-musl-1.37.0/bin/busybox 2.35.2 x86_64-linux'
++++(/var/tmp/fg/s/nfmKCPzz/src/common/vars.sh:19) export coreutils dot busybox version system
++++(/var/tmp/fg/s/nfmKCPzz/src/common/vars.sh:21) export PAGER=cat
++++(/var/tmp/fg/s/nfmKCPzz/src/common/vars.sh:21) PAGER=cat
++++(/var/tmp/fg/s/nfmKCPzz/src/common/vars.sh:23) source /var/tmp/fg/s/nfmKCPzz/src/common/paths.sh
+++++(/var/tmp/fg/s/nfmKCPzz/src/common/paths.sh:3) set -eu -o pipefail
+++++(/var/tmp/fg/s/nfmKCPzz/src/common/paths.sh:5) [[ -z '' ]]
+++++(/var/tmp/fg/s/nfmKCPzz/src/common/paths.sh:7) COMMON_PATHS_SH_SOURCED=1
+++++++(/var/tmp/fg/s/nfmKCPzz/src/common/paths.sh:9) dirname /var/tmp/fg/s/nfmKCPzz/src/common/paths.sh
++++++(/var/tmp/fg/s/nfmKCPzz/src/common/paths.sh:9) readlink -f /var/tmp/fg/s/nfmKCPzz/src/common
+++++(/var/tmp/fg/s/nfmKCPzz/src/common/paths.sh:9) commonDir=/var/tmp/fg/s/nfmKCPzz/src/common
+++++(/var/tmp/fg/s/nfmKCPzz/src/common/paths.sh:12) source /var/tmp/fg/s/nfmKCPzz/src/common/functions.sh
++++++(/var/tmp/fg/s/nfmKCPzz/src/common/functions.sh:3) set -eu -o pipefail
++++++(/var/tmp/fg/s/nfmKCPzz/src/common/functions.sh:5) [[ -z '' ]]
++++++(/var/tmp/fg/s/nfmKCPzz/src/common/functions.sh:7) COMMON_FUNCTIONS_SH_SOURCED=1
++++++(/var/tmp/fg/s/nfmKCPzz/src/common/functions.sh:353) trap onError ERR
+++++(/var/tmp/fg/s/nfmKCPzz/src/common/paths.sh:14) source /var/tmp/fg/s/nfmKCPzz/build/common/subst-vars.sh
++++++(/var/tmp/fg/s/nfmKCPzz/build/common/subst-vars.sh:3) [[ -z 1 ]]
+++++(/var/tmp/fg/s/nfmKCPzz/src/common/paths.sh:16) : /nix/store/2ndah67h0z5m31v2wkdmg2md4380ggr5-bash-interactive-5.3p15/bin/bash /var/tmp/fg/tt/.tmp5krJTK/noxi-bin
+++++(/var/tmp/fg/s/nfmKCPzz/src/common/paths.sh:18) isTestOnNixOS
+++++(/var/tmp/fg/s/nfmKCPzz/src/common/functions.sh:10) [[ '' == 1 ]]
+++++(/var/tmp/fg/s/nfmKCPzz/src/common/paths.sh:19) export SHELL=/nix/store/2ndah67h0z5m31v2wkdmg2md4380ggr5-bash-interactive-5.3p15/bin/bash
+++++(/var/tmp/fg/s/nfmKCPzz/src/common/paths.sh:19) SHELL=/nix/store/2ndah67h0z5m31v2wkdmg2md4380ggr5-bash-interactive-5.3p15/bin/bash
+++++(/var/tmp/fg/s/nfmKCPzz/src/common/paths.sh:20) export PATH=/var/tmp/fg/tt/.tmp5krJTK/noxi-bin:/var/tmp/fg/tt/.tmp5krJTK/noxi-bin:/nix/store/2ndah67h0z5m31v2wkdmg2md4380ggr5-bash-interactive-5.3p15/bin:/nix/store/xjl7p8dvyk2j53kqf7f43kdj4ypbxz7g-coreutils-9.11/bin:/nix/store/xmvbzzxm5snla5a2cyfhm7hjy9bifx7n-gnugrep-3.12/bin:/nix/store/qf2wzyq4irhgyhnq3s2hz0ldjq3w8a3x-gnused-4.10/bin:/nix/store/9zib1q94gka8i5q530364cvy25504qz5-gawk-5.4.1/bin:/nix/store/i9wgqa0l88aprvpwfaq5hkfa6pklhlv0-findutils-4.11.0/bin:/nix/store/b8xvzgd52jby5dfpi0pf46nisy6wma5d-diffutils-3.12/bin:/nix/store/81zqbas7qc02yfdj7142fdcqhxgd3cgz-patch-2.8/bin:/nix/store/c8b0qp903w2hhpa63a2lfs7d565zag30-gnutar-1.35/bin:/nix/store/l5sll8nxk70p73l5yqbsjy4mh0c3g0v5-gzip-1.14/bin:/nix/store/j3yz0ag9j442229n8harpmp9aa5qyvhn-bzip2-1.0.8-bin/bin:/nix/store/518dig8gpvqyac6pkksyjjfzvi9zn8vq-xz-5.8.3-bin/bin:/nix/store/l8ik8mb8lgb60rklxjmkgddmp5qqnv29-zstd-1.5.7-bin/bin:/nix/store/msr1v91ybfw6j12rs5mfl8ghb2rqsnsr-git-2.55.0/bin:/nix/store/hyz22a0l5b5kv7yfypw4ss6d36vbzg01-jq-1.8.2-bin/bin:/nix/store/24gq3bi2yzf7g386p5j32mn78hhanf49-sqlite-3.53.3-bin/bin:/nix/store/cp8qnyl8i0s62g3a1465i258mf5bcr6k-curl-8.22.0-bin/bin:/nix/store/8x4c8zah3fbnyckaic4sskjbw7d2y98n-util-linux-2.42.4-bin/bin:/nix/store/d64q19q1xjdwfhqx6czvrjgrhq0n3lcc-python3-3.14.7/bin:/nix/store/niqsa6mxqsyax9lzbm261a2ml6m71vb6-perl-5.42.3/bin:/nix/store/fv9yl55hkskpc2cj9c0sdyq91car9kgl-file-5.48/bin:/nix/store/jv5kdlkwx0l8a7jdpg21g934ff30s319-which-2.25/bin:/nix/store/aj08b694apkc1jay2akywym9ghlailf5-procps-4.0.7/bin:/nix/store/5wyaj1kvkxbbscz6innrh6yjjkdq4qmk-openssh-10.6p1/bin:/nix/store/44gxi8li8y8wrxrb93sya9hljkpigsqw-openssl-3.6.4-bin/bin:/run/wrappers/wrappers.Yw6nCJO1nt:/nix/store/wmh4xg3557sicfyllmi9ymd8sxaw51wv-man-db-2.13.1/bin:/nix/store/qpgknrlnxca0z99gl12j5n0fgca11cdx-mercurial-7.2.2/bin:/var/tmp/fg/tt/.tmp5krJTK/tools
+++++(/var/tmp/fg/s/nfmKCPzz/src/common/paths.sh:20) PATH=/var/tmp/fg/tt/.tmp5krJTK/noxi-bin:/var/tmp/fg/tt/.tmp5krJTK/noxi-bin:/nix/store/2ndah67h0z5m31v2wkdmg2md4380ggr5-bash-interactive-5.3p15/bin:/nix/store/xjl7p8dvyk2j53kqf7f43kdj4ypbxz7g-coreutils-9.11/bin:/nix/store/xmvbzzxm5snla5a2cyfhm7hjy9bifx7n-gnugrep-3.12/bin:/nix/store/qf2wzyq4irhgyhnq3s2hz0ldjq3w8a3x-gnused-4.10/bin:/nix/store/9zib1q94gka8i5q530364cvy25504qz5-gawk-5.4.1/bin:/nix/store/i9wgqa0l88aprvpwfaq5hkfa6pklhlv0-findutils-4.11.0/bin:/nix/store/b8xvzgd52jby5dfpi0pf46nisy6wma5d-diffutils-3.12/bin:/nix/store/81zqbas7qc02yfdj7142fdcqhxgd3cgz-patch-2.8/bin:/nix/store/c8b0qp903w2hhpa63a2lfs7d565zag30-gnutar-1.35/bin:/nix/store/l5sll8nxk70p73l5yqbsjy4mh0c3g0v5-gzip-1.14/bin:/nix/store/j3yz0ag9j442229n8harpmp9aa5qyvhn-bzip2-1.0.8-bin/bin:/nix/store/518dig8gpvqyac6pkksyjjfzvi9zn8vq-xz-5.8.3-bin/bin:/nix/store/l8ik8mb8lgb60rklxjmkgddmp5qqnv29-zstd-1.5.7-bin/bin:/nix/store/msr1v91ybfw6j12rs5mfl8ghb2rqsnsr-git-2.55.0/bin:/nix/store/hyz22a0l5b5kv7yfypw4ss6d36vbzg01-jq-1.8.2-bin/bin:/nix/store/24gq3bi2yzf7g386p5j32mn78hhanf49-sqlite-3.53.3-bin/bin:/nix/store/cp8qnyl8i0s62g3a1465i258mf5bcr6k-curl-8.22.0-bin/bin:/nix/store/8x4c8zah3fbnyckaic4sskjbw7d2y98n-util-linux-2.42.4-bin/bin:/nix/store/d64q19q1xjdwfhqx6czvrjgrhq0n3lcc-python3-3.14.7/bin:/nix/store/niqsa6mxqsyax9lzbm261a2ml6m71vb6-perl-5.42.3/bin:/nix/store/fv9yl55hkskpc2cj9c0sdyq91car9kgl-file-5.48/bin:/nix/store/jv5kdlkwx0l8a7jdpg21g934ff30s319-which-2.25/bin:/nix/store/aj08b694apkc1jay2akywym9ghlailf5-procps-4.0.7/bin:/nix/store/5wyaj1kvkxbbscz6innrh6yjjkdq4qmk-openssh-10.6p1/bin:/nix/store/44gxi8li8y8wrxrb93sya9hljkpigsqw-openssl-3.6.4-bin/bin:/run/wrappers/wrappers.Yw6nCJO1nt:/nix/store/wmh4xg3557sicfyllmi9ymd8sxaw51wv-man-db-2.13.1/bin:/nix/store/qpgknrlnxca0z99gl12j5n0fgca11cdx-mercurial-7.2.2/bin:/var/tmp/fg/tt/.tmp5krJTK/tools
+++++(/var/tmp/fg/s/nfmKCPzz/src/common/paths.sh:23) [[ -n '' ]]
+++++(/var/tmp/fg/s/nfmKCPzz/src/common/paths.sh:27) DAEMON_PATH=/var/tmp/fg/tt/.tmp5krJTK/noxi-bin:/var/tmp/fg/tt/.tmp5krJTK/noxi-bin:/nix/store/2ndah67h0z5m31v2wkdmg2md4380ggr5-bash-interactive-5.3p15/bin:/nix/store/xjl7p8dvyk2j53kqf7f43kdj4ypbxz7g-coreutils-9.11/bin:/nix/store/xmvbzzxm5snla5a2cyfhm7hjy9bifx7n-gnugrep-3.12/bin:/nix/store/qf2wzyq4irhgyhnq3s2hz0ldjq3w8a3x-gnused-4.10/bin:/nix/store/9zib1q94gka8i5q530364cvy25504qz5-gawk-5.4.1/bin:/nix/store/i9wgqa0l88aprvpwfaq5hkfa6pklhlv0-findutils-4.11.0/bin:/nix/store/b8xvzgd52jby5dfpi0pf46nisy6wma5d-diffutils-3.12/bin:/nix/store/81zqbas7qc02yfdj7142fdcqhxgd3cgz-patch-2.8/bin:/nix/store/c8b0qp903w2hhpa63a2lfs7d565zag30-gnutar-1.35/bin:/nix/store/l5sll8nxk70p73l5yqbsjy4mh0c3g0v5-gzip-1.14/bin:/nix/store/j3yz0ag9j442229n8harpmp9aa5qyvhn-bzip2-1.0.8-bin/bin:/nix/store/518dig8gpvqyac6pkksyjjfzvi9zn8vq-xz-5.8.3-bin/bin:/nix/store/l8ik8mb8lgb60rklxjmkgddmp5qqnv29-zstd-1.5.7-bin/bin:/nix/store/msr1v91ybfw6j12rs5mfl8ghb2rqsnsr-git-2.55.0/bin:/nix/store/hyz22a0l5b5kv7yfypw4ss6d36vbzg01-jq-1.8.2-bin/bin:/nix/store/24gq3bi2yzf7g386p5j32mn78hhanf49-sqlite-3.53.3-bin/bin:/nix/store/cp8qnyl8i0s62g3a1465i258mf5bcr6k-curl-8.22.0-bin/bin:/nix/store/8x4c8zah3fbnyckaic4sskjbw7d2y98n-util-linux-2.42.4-bin/bin:/nix/store/d64q19q1xjdwfhqx6czvrjgrhq0n3lcc-python3-3.14.7/bin:/nix/store/niqsa6mxqsyax9lzbm261a2ml6m71vb6-perl-5.42.3/bin:/nix/store/fv9yl55hkskpc2cj9c0sdyq91car9kgl-file-5.48/bin:/nix/store/jv5kdlkwx0l8a7jdpg21g934ff30s319-which-2.25/bin:/nix/store/aj08b694apkc1jay2akywym9ghlailf5-procps-4.0.7/bin:/nix/store/5wyaj1kvkxbbscz6innrh6yjjkdq4qmk-openssh-10.6p1/bin:/nix/store/44gxi8li8y8wrxrb93sya9hljkpigsqw-openssl-3.6.4-bin/bin:/run/wrappers/wrappers.Yw6nCJO1nt:/nix/store/wmh4xg3557sicfyllmi9ymd8sxaw51wv-man-db-2.13.1/bin:/nix/store/qpgknrlnxca0z99gl12j5n0fgca11cdx-mercurial-7.2.2/bin:/var/tmp/fg/tt/.tmp5krJTK/tools
+++++(/var/tmp/fg/s/nfmKCPzz/src/common/paths.sh:28) [[ -n '' ]]
++++(/var/tmp/fg/s/nfmKCPzz/src/common/vars.sh:24) source /var/tmp/fg/s/nfmKCPzz/src/common/test-root.sh
+++++(/var/tmp/fg/s/nfmKCPzz/src/common/test-root.sh:3) TEST_SUBDIR=main/cli-characterisation
++++++(/var/tmp/fg/s/nfmKCPzz/src/common/test-root.sh:4) realpath /var/tmp/fg/s/nfmKCPzz/tmp/nix-test
+++++(/var/tmp/fg/s/nfmKCPzz/src/common/test-root.sh:4) TEST_ROOT=/var/tmp/fg/s/nfmKCPzz/tmp/nix-test/main/cli-characterisation
+++++(/var/tmp/fg/s/nfmKCPzz/src/common/test-root.sh:5) export TEST_ROOT
++++(/var/tmp/fg/s/nfmKCPzz/src/common/vars.sh:26) test_nix_conf_dir=/var/tmp/fg/s/nfmKCPzz/tmp/nix-test/main/cli-characterisation/etc
++++(/var/tmp/fg/s/nfmKCPzz/src/common/vars.sh:29) test_nix_conf=/var/tmp/fg/s/nfmKCPzz/tmp/nix-test/main/cli-characterisation/etc/nix.conf
++++(/var/tmp/fg/s/nfmKCPzz/src/common/vars.sh:31) export TEST_HOME=/var/tmp/fg/s/nfmKCPzz/tmp/nix-test/main/cli-characterisation/test-home
++++(/var/tmp/fg/s/nfmKCPzz/src/common/vars.sh:31) TEST_HOME=/var/tmp/fg/s/nfmKCPzz/tmp/nix-test/main/cli-characterisation/test-home
++++(/var/tmp/fg/s/nfmKCPzz/src/common/vars.sh:33) isTestOnNixOS
++++(/var/tmp/fg/s/nfmKCPzz/src/common/functions.sh:10) [[ '' == 1 ]]
++++(/var/tmp/fg/s/nfmKCPzz/src/common/vars.sh:34) export NIX_STORE_DIR
+++++(/var/tmp/fg/s/nfmKCPzz/src/common/vars.sh:35) readlink -f /var/tmp/fg/s/nfmKCPzz/tmp/nix-test/main/cli-characterisation/store
++++(/var/tmp/fg/s/nfmKCPzz/src/common/vars.sh:35) NIX_STORE_DIR=
++++(/var/tmp/fg/s/nfmKCPzz/src/common/vars.sh:37) export NIX_IGNORE_SYMLINK_STORE=1
++++(/var/tmp/fg/s/nfmKCPzz/src/common/vars.sh:37) NIX_IGNORE_SYMLINK_STORE=1
++++(/var/tmp/fg/s/nfmKCPzz/src/common/vars.sh:38) NIX_STORE_DIR=/var/tmp/fg/s/nfmKCPzz/tmp/nix-test/main/cli-characterisation/store
++++(/var/tmp/fg/s/nfmKCPzz/src/common/vars.sh:40) export NIX_LOCALSTATE_DIR=/var/tmp/fg/s/nfmKCPzz/tmp/nix-test/main/cli-characterisation/var
++++(/var/tmp/fg/s/nfmKCPzz/src/common/vars.sh:40) NIX_LOCALSTATE_DIR=/var/tmp/fg/s/nfmKCPzz/tmp/nix-test/main/cli-characterisation/var
++++(/var/tmp/fg/s/nfmKCPzz/src/common/vars.sh:41) export NIX_LOG_DIR=/var/tmp/fg/s/nfmKCPzz/tmp/nix-test/main/cli-characterisation/var/log/nix
++++(/var/tmp/fg/s/nfmKCPzz/src/common/vars.sh:41) NIX_LOG_DIR=/var/tmp/fg/s/nfmKCPzz/tmp/nix-test/main/cli-characterisation/var/log/nix
++++(/var/tmp/fg/s/nfmKCPzz/src/common/vars.sh:42) export NIX_STATE_DIR=/var/tmp/fg/s/nfmKCPzz/tmp/nix-test/main/cli-characterisation/var/nix
++++(/var/tmp/fg/s/nfmKCPzz/src/common/vars.sh:42) NIX_STATE_DIR=/var/tmp/fg/s/nfmKCPzz/tmp/nix-test/main/cli-characterisation/var/nix
++++(/var/tmp/fg/s/nfmKCPzz/src/common/vars.sh:43) export NIX_CONF_DIR=/var/tmp/fg/s/nfmKCPzz/tmp/nix-test/main/cli-characterisation/etc
++++(/var/tmp/fg/s/nfmKCPzz/src/common/vars.sh:43) NIX_CONF_DIR=/var/tmp/fg/s/nfmKCPzz/tmp/nix-test/main/cli-characterisation/etc
++++(/var/tmp/fg/s/nfmKCPzz/src/common/vars.sh:44) export NIX_DAEMON_SOCKET_PATH=/var/tmp/fg/s/nfmKCPzz/tmp/nix-test/main/cli-characterisation/dSocket
++++(/var/tmp/fg/s/nfmKCPzz/src/common/vars.sh:44) NIX_DAEMON_SOCKET_PATH=/var/tmp/fg/s/nfmKCPzz/tmp/nix-test/main/cli-characterisation/dSocket
++++(/var/tmp/fg/s/nfmKCPzz/src/common/vars.sh:45) unset NIX_USER_CONF_FILES
++++(/var/tmp/fg/s/nfmKCPzz/src/common/vars.sh:46) export _NIX_TEST_SHARED=/var/tmp/fg/s/nfmKCPzz/tmp/nix-test/main/cli-characterisation/shared
++++(/var/tmp/fg/s/nfmKCPzz/src/common/vars.sh:46) _NIX_TEST_SHARED=/var/tmp/fg/s/nfmKCPzz/tmp/nix-test/main/cli-characterisation/shared
++++(/var/tmp/fg/s/nfmKCPzz/src/common/vars.sh:47) [[ -n '' ]]
++++(/var/tmp/fg/s/nfmKCPzz/src/common/vars.sh:50) export _NIX_IN_TEST=/var/tmp/fg/s/nfmKCPzz/tmp/nix-test/main/cli-characterisation/shared
++++(/var/tmp/fg/s/nfmKCPzz/src/common/vars.sh:50) _NIX_IN_TEST=/var/tmp/fg/s/nfmKCPzz/tmp/nix-test/main/cli-characterisation/shared
++++(/var/tmp/fg/s/nfmKCPzz/src/common/vars.sh:51) export _NIX_TEST_NO_LSOF=1
++++(/var/tmp/fg/s/nfmKCPzz/src/common/vars.sh:51) _NIX_TEST_NO_LSOF=1
++++(/var/tmp/fg/s/nfmKCPzz/src/common/vars.sh:54) export _NIX_TEST_NO_ENVIRONMENT_WARNINGS=1
++++(/var/tmp/fg/s/nfmKCPzz/src/common/vars.sh:54) _NIX_TEST_NO_ENVIRONMENT_WARNINGS=1
++++(/var/tmp/fg/s/nfmKCPzz/src/common/vars.sh:55) export NIX_REMOTE=
++++(/var/tmp/fg/s/nfmKCPzz/src/common/vars.sh:55) NIX_REMOTE=
++++(/var/tmp/fg/s/nfmKCPzz/src/common/vars.sh:59) unset NIX_PATH
++++(/var/tmp/fg/s/nfmKCPzz/src/common/vars.sh:60) export HOME=/var/tmp/fg/s/nfmKCPzz/tmp/nix-test/main/cli-characterisation/test-home
++++(/var/tmp/fg/s/nfmKCPzz/src/common/vars.sh:60) HOME=/var/tmp/fg/s/nfmKCPzz/tmp/nix-test/main/cli-characterisation/test-home
++++(/var/tmp/fg/s/nfmKCPzz/src/common/vars.sh:61) unset XDG_STATE_HOME
++++(/var/tmp/fg/s/nfmKCPzz/src/common/vars.sh:62) unset XDG_DATA_HOME
++++(/var/tmp/fg/s/nfmKCPzz/src/common/vars.sh:63) unset XDG_CONFIG_HOME
++++(/var/tmp/fg/s/nfmKCPzz/src/common/vars.sh:64) unset XDG_CONFIG_DIRS
++++(/var/tmp/fg/s/nfmKCPzz/src/common/vars.sh:65) unset XDG_CACHE_HOME
++++(/var/tmp/fg/s/nfmKCPzz/src/common/vars.sh:66) unset GIT_DIR
++++(/var/tmp/fg/s/nfmKCPzz/src/common/vars.sh:68) export GIT_CONFIG_SYSTEM=/dev/null
++++(/var/tmp/fg/s/nfmKCPzz/src/common/vars.sh:68) GIT_CONFIG_SYSTEM=/dev/null
++++(/var/tmp/fg/s/nfmKCPzz/src/common/vars.sh:69) export GIT_CONFIG_GLOBAL=/dev/null
++++(/var/tmp/fg/s/nfmKCPzz/src/common/vars.sh:69) GIT_CONFIG_GLOBAL=/dev/null
++++(/var/tmp/fg/s/nfmKCPzz/src/common/vars.sh:71) export IMPURE_VAR1=foo
++++(/var/tmp/fg/s/nfmKCPzz/src/common/vars.sh:71) IMPURE_VAR1=foo
++++(/var/tmp/fg/s/nfmKCPzz/src/common/vars.sh:72) export IMPURE_VAR2=bar
++++(/var/tmp/fg/s/nfmKCPzz/src/common/vars.sh:72) IMPURE_VAR2=bar
++++(/var/tmp/fg/s/nfmKCPzz/src/common/vars.sh:76) cacheDir=/var/tmp/fg/s/nfmKCPzz/tmp/nix-test/main/cli-characterisation/binary-cache
+++++(/var/tmp/fg/s/nfmKCPzz/src/common/vars.sh:78) uname
++++(/var/tmp/fg/s/nfmKCPzz/src/common/vars.sh:78) [[ Linux == Linux ]]
++++(/var/tmp/fg/s/nfmKCPzz/src/common/vars.sh:78) [[ -L /proc/self/ns/user ]]
++++(/var/tmp/fg/s/nfmKCPzz/src/common/vars.sh:78) unshare --user true
++++(/var/tmp/fg/s/nfmKCPzz/src/common/vars.sh:79) _canUseSandbox=1
++++(/var/tmp/fg/s/nfmKCPzz/src/common/vars.sh:85) config_nix=/var/tmp/fg/s/nfmKCPzz/tmp/nix-test/main/cli-characterisation/config.nix
+++(common.sh:12) source /var/tmp/fg/s/nfmKCPzz/src/common/functions.sh
++++(/var/tmp/fg/s/nfmKCPzz/src/common/functions.sh:3) set -eu -o pipefail
++++(/var/tmp/fg/s/nfmKCPzz/src/common/functions.sh:5) [[ -z 1 ]]
+++(common.sh:13) source /var/tmp/fg/s/nfmKCPzz/src/common/init.sh
++++(/var/tmp/fg/s/nfmKCPzz/src/common/init.sh:4) : /var/tmp/fg/s/nfmKCPzz/tmp/nix-test/main/cli-characterisation/etc /var/tmp/fg/s/nfmKCPzz/tmp/nix-test/main/cli-characterisation/etc/nix.conf /var/tmp/fg/s/nfmKCPzz/tmp/nix-test/main/cli-characterisation/config.nix
++++(/var/tmp/fg/s/nfmKCPzz/src/common/init.sh:6) isTestOnNixOS
++++(/var/tmp/fg/s/nfmKCPzz/src/common/functions.sh:10) [[ '' == 1 ]]
++++(/var/tmp/fg/s/nfmKCPzz/src/common/init.sh:29) test -n /var/tmp/fg/s/nfmKCPzz/tmp/nix-test/main/cli-characterisation
++++(/var/tmp/fg/s/nfmKCPzz/src/common/init.sh:31) killDaemon
++++(/var/tmp/fg/s/nfmKCPzz/src/common/functions.sh:100) isTestOnNixOS
++++(/var/tmp/fg/s/nfmKCPzz/src/common/functions.sh:10) [[ '' == 1 ]]
++++(/var/tmp/fg/s/nfmKCPzz/src/common/functions.sh:105) [[ '' == '' ]]
++++(/var/tmp/fg/s/nfmKCPzz/src/common/functions.sh:106) return
++++(/var/tmp/fg/s/nfmKCPzz/src/common/init.sh:33) [[ -e /var/tmp/fg/s/nfmKCPzz/tmp/nix-test/main/cli-characterisation ]]
++++(/var/tmp/fg/s/nfmKCPzz/src/common/init.sh:37) mkdir -p /var/tmp/fg/s/nfmKCPzz/tmp/nix-test/main/cli-characterisation
++++(/var/tmp/fg/s/nfmKCPzz/src/common/init.sh:38) mkdir /var/tmp/fg/s/nfmKCPzz/tmp/nix-test/main/cli-characterisation/test-home
++++(/var/tmp/fg/s/nfmKCPzz/src/common/init.sh:40) mkdir /var/tmp/fg/s/nfmKCPzz/tmp/nix-test/main/cli-characterisation/store
++++(/var/tmp/fg/s/nfmKCPzz/src/common/init.sh:41) mkdir /var/tmp/fg/s/nfmKCPzz/tmp/nix-test/main/cli-characterisation/var
++++(/var/tmp/fg/s/nfmKCPzz/src/common/init.sh:42) mkdir -p /var/tmp/fg/s/nfmKCPzz/tmp/nix-test/main/cli-characterisation/var/log/nix/drvs
++++(/var/tmp/fg/s/nfmKCPzz/src/common/init.sh:43) mkdir /var/tmp/fg/s/nfmKCPzz/tmp/nix-test/main/cli-characterisation/var/nix
++++(/var/tmp/fg/s/nfmKCPzz/src/common/init.sh:44) mkdir /var/tmp/fg/s/nfmKCPzz/tmp/nix-test/main/cli-characterisation/etc
++++(/var/tmp/fg/s/nfmKCPzz/src/common/init.sh:46) cat
+++++(/var/tmp/fg/s/nfmKCPzz/src/common/init.sh:46) whoami
++++(/var/tmp/fg/s/nfmKCPzz/src/common/init.sh:59) cat
++++(/var/tmp/fg/s/nfmKCPzz/src/common/init.sh:67) nix-store --init
++++(/var/tmp/fg/s/nfmKCPzz/src/common/init.sh:69) test -e /var/tmp/fg/s/nfmKCPzz/tmp/nix-test/main/cli-characterisation/var/nix/db/db.sqlite
++++(/var/tmp/fg/s/nfmKCPzz/src/common/init.sh:75) echo '# config.nix for test main / cli-characterisation'
++++(/var/tmp/fg/s/nfmKCPzz/src/common/init.sh:76) cat /var/tmp/fg/s/nfmKCPzz/build/config.nix
+++(common.sh:15) [[ -n '' ]]
++(cli-characterisation.sh:11) source common/characterisation/framework.sh
+++(common/characterisation/framework.sh:3) badTestNames=()
++(cli-characterisation.sh:13) set +x
+testing nix-env-install-bad-oti-elem
+[1m--- cli-characterisation/nix-env-install-bad-oti-elem.err.exp	2026-11-25 02:52:39.793228557 +0530[0m
+[1m+++ /var/tmp/fg/s/nfmKCPzz/tmp/nix-test/main/cli-characterisation/nix-env-install-bad-oti-elem.err	2026-11-25 02:52:39.915091929 +0530[0m
+[36m@@ -1,5 +1,44 @@[0m
+[31m-installing 'bad-outputs-to-install-elem-1.0'[0m
+[31m-this derivation will be built:[0m
+[31m-  /test-root/store/xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx-bad-outputs-to-install-elem-1.0.drv[0m
+[31m-building '/test-root/store/xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx-bad-outputs-to-install-elem-1.0.drv'...[0m
+[31m-error: this derivation has bad 'meta.outputsToInstall'[0m
+[32m+error:[0m
+[32m+       … while evaluating list element at index 0[0m
+[32m+[0m
+[32m+       … while evaluating the attribute 'install'[0m
+[32m+         at «string»:30:3:[0m
+[32m+           29|   outputs = outputsOf e;[0m
+[32m+           30|   install = toInstall e;[0m
+[32m+             |   ^[0m
+[32m+           31|   meta = metaOf e;[0m
+[32m+[0m
+[32m+       … from call site[0m
+[32m+         at «string»:30:13:[0m
+[32m+           29|   outputs = outputsOf e;[0m
+[32m+           30|   install = toInstall e;[0m
+[32m+             |             ^[0m
+[32m+           31|   meta = metaOf e;[0m
+[32m+[0m
+[32m+       … while calling 'toInstall'[0m
+[32m+         at «string»:18:15:[0m
+[32m+           17|     else { out = toString e.outPath; };[0m
+[32m+           18|   toInstall = e: let all = outputsOf e; meta = metaOf e; in[0m
+[32m+             |               ^[0m
+[32m+           19|     if e.outputSpecified or false then { ${e.outputName or "out"} = all.${e.outputName or "out"}; }[0m
+[32m+[0m
+[32m+       … while calling the 'listToAttrs' builtin[0m
+[32m+         at «string»:20:42:[0m
+[32m+           19|     if e.outputSpecified or false then { ${e.outputName or "out"} = all.${e.outputName or "out"}; }[0m
+[32m+           20|     else if meta ? outputsToInstall then builtins.listToAttrs (map (o: { name = o; value = all.${o}; }) meta.outputsToInstall)[0m
+[32m+             |                                          ^[0m
+[32m+           21|     else all;[0m
+[32m+[0m
+[32m+       … while evaluating the `name` attribute of an element of the list passed to builtins.listToAttrs[0m
+[32m+         at «string»:20:74:[0m
+[32m+           19|     if e.outputSpecified or false then { ${e.outputName or "out"} = all.${e.outputName or "out"}; }[0m
+[32m+           20|     else if meta ? outputsToInstall then builtins.listToAttrs (map (o: { name = o; value = all.${o}; }) meta.outputsToInstall)[0m
+[32m+             |                                                                          ^[0m
+[32m+           21|     else all;[0m
+[32m+[0m
+[32m+       error: expected a string but found an integer: 42[0m
+[32m+       at «string»:20:74:[0m
+[32m+           19|     if e.outputSpecified or false then { ${e.outputName or "out"} = all.${e.outputName or "out"}; }[0m
+[32m+           20|     else if meta ? outputsToInstall then builtins.listToAttrs (map (o: { name = o; value = all.${o}; }) meta.outputsToInstall)[0m
+[32m+             |                                                                          ^[0m
+[32m+           21|     else all;[0m
+FAIL: evaluation result of nix-env-install-bad-oti-elem not as expected
+testing nix-env-install-bad-oti-nosuch
+[1m--- cli-characterisation/nix-env-install-bad-oti-nosuch.err.exp	2026-11-25 02:52:39.793874764 +0530[0m
+[1m+++ /var/tmp/fg/s/nfmKCPzz/tmp/nix-test/main/cli-characterisation/nix-env-install-bad-oti-nosuch.err	2026-11-25 02:52:39.950328458 +0530[0m
+[36m@@ -1,5 +1,18 @@[0m
+[31m-installing 'bad-outputs-to-install-nosuch-1.0'[0m
+[31m-this derivation will be built:[0m
+[31m-  /test-root/store/xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx-bad-outputs-to-install-nosuch-1.0.drv[0m
+[31m-building '/test-root/store/xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx-bad-outputs-to-install-nosuch-1.0.drv'...[0m
+[31m-error: this derivation has bad 'meta.outputsToInstall'[0m
+[32m+error:[0m
+[32m+       … while evaluating list element at index 0[0m
+[32m+[0m
+[32m+       … while evaluating the attribute 'install'[0m
+[32m+         at «string»:30:3:[0m
+[32m+           29|   outputs = outputsOf e;[0m
+[32m+           30|   install = toInstall e;[0m
+[32m+             |   ^[0m
+[32m+           31|   meta = metaOf e;[0m
+[32m+[0m
+[32m+       … while evaluating the attribute 'nonexistent'[0m
+[32m+[0m
+[32m+       error: attribute 'nonexistent' missing[0m
+[32m+       at «string»:20:92:[0m
+[32m+           19|     if e.outputSpecified or false then { ${e.outputName or "out"} = all.${e.outputName or "out"}; }[0m
+[32m+           20|     else if meta ? outputsToInstall then builtins.listToAttrs (map (o: { name = o; value = all.${o}; }) meta.outputsToInstall)[0m
+[32m+             |                                                                                            ^[0m
+[32m+           21|     else all;[0m
+FAIL: evaluation result of nix-env-install-bad-oti-nosuch not as expected
+testing nix-env-install-bad-oti-type
+[1m--- cli-characterisation/nix-env-install-bad-oti-type.err.exp	2026-11-25 02:52:39.793388699 +0530[0m
+[1m+++ /var/tmp/fg/s/nfmKCPzz/tmp/nix-test/main/cli-characterisation/nix-env-install-bad-oti-type.err	2026-11-25 02:52:39.985503921 +0530[0m
+[36m@@ -1,5 +1,41 @@[0m
+[31m-installing 'bad-outputs-to-install-type-1.0'[0m
+[31m-this derivation will be built:[0m
+[31m-  /test-root/store/xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx-bad-outputs-to-install-type-1.0.drv[0m
+[31m-building '/test-root/store/xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx-bad-outputs-to-install-type-1.0.drv'...[0m
+[31m-error: this derivation has bad 'meta.outputsToInstall'[0m
+[32m+error:[0m
+[32m+       … while evaluating list element at index 0[0m
+[32m+[0m
+[32m+       … while evaluating the attribute 'install'[0m
+[32m+         at «string»:30:3:[0m
+[32m+           29|   outputs = outputsOf e;[0m
+[32m+           30|   install = toInstall e;[0m
+[32m+             |   ^[0m
+[32m+           31|   meta = metaOf e;[0m
+[32m+[0m
+[32m+       … from call site[0m
+[32m+         at «string»:30:13:[0m
+[32m+           29|   outputs = outputsOf e;[0m
+[32m+           30|   install = toInstall e;[0m
+[32m+             |             ^[0m
+[32m+           31|   meta = metaOf e;[0m
+[32m+[0m
+[32m+       … while calling 'toInstall'[0m
+[32m+         at «string»:18:15:[0m
+[32m+           17|     else { out = toString e.outPath; };[0m
+[32m+           18|   toInstall = e: let all = outputsOf e; meta = metaOf e; in[0m
+[32m+             |               ^[0m
+[32m+           19|     if e.outputSpecified or false then { ${e.outputName or "out"} = all.${e.outputName or "out"}; }[0m
+[32m+[0m
+[32m+       … while calling the 'listToAttrs' builtin[0m
+[32m+         at «string»:20:42:[0m
+[32m+           19|     if e.outputSpecified or false then { ${e.outputName or "out"} = all.${e.outputName or "out"}; }[0m
+[32m+           20|     else if meta ? outputsToInstall then builtins.listToAttrs (map (o: { name = o; value = all.${o}; }) meta.outputsToInstall)[0m
+[32m+             |                                          ^[0m
+[32m+           21|     else all;[0m
+[32m+[0m
+[32m+       … while calling the 'map' builtin[0m
+[32m+         at «string»:20:64:[0m
+[32m+           19|     if e.outputSpecified or false then { ${e.outputName or "out"} = all.${e.outputName or "out"}; }[0m
+[32m+           20|     else if meta ? outputsToInstall then builtins.listToAttrs (map (o: { name = o; value = all.${o}; }) meta.outputsToInstall)[0m
+[32m+             |                                                                ^[0m
+[32m+           21|     else all;[0m
+[32m+[0m
+[32m+       … while evaluating the second argument passed to builtins.map[0m
+[32m+[0m
+[32m+       error: expected a list but found a string: "out"[0m
+FAIL: evaluation result of nix-env-install-bad-oti-type not as expected
+testing nix-env-install-bad-output-specified-type
+[1m--- cli-characterisation/nix-env-install-bad-output-specified-type.err.exp	2026-11-25 02:52:39.793630794 +0530[0m
+[1m+++ /var/tmp/fg/s/nfmKCPzz/tmp/nix-test/main/cli-characterisation/nix-env-install-bad-output-specified-type.err	2026-11-25 02:52:40.014197761 +0530[0m
+[36m@@ -1,15 +1,30 @@[0m
+[31m-installing 'bad-output-specified-type-1.0'[0m
+ error:
+[31m-       … while evaluating the 'outputSpecified' attribute of a derivation[0m
+[31m-         at /pwd/cli-characterisation/bad-output-specified-type.nix:9:3:[0m
+[31m-            8|   };[0m
+[31m-            9|   outputSpecified = "yes";[0m
+[32m+       … while evaluating list element at index 0[0m
+[32m+[0m
+[32m+       … while evaluating the attribute 'install'[0m
+[32m+         at «string»:30:3:[0m
+[32m+           29|   outputs = outputsOf e;[0m
+[32m+           30|   install = toInstall e;[0m
+              |   ^
+[31m-           10| }[0m
+[32m+           31|   meta = metaOf e;[0m
+[32m+[0m
+[32m+       … from call site[0m
+[32m+         at «string»:30:13:[0m
+[32m+           29|   outputs = outputsOf e;[0m
+[32m+           30|   install = toInstall e;[0m
+[32m+             |             ^[0m
+[32m+           31|   meta = metaOf e;[0m
+[32m+[0m
+[32m+       … while calling 'toInstall'[0m
+[32m+         at «string»:18:15:[0m
+[32m+           17|     else { out = toString e.outPath; };[0m
+[32m+           18|   toInstall = e: let all = outputsOf e; meta = metaOf e; in[0m
+[32m+             |               ^[0m
+[32m+           19|     if e.outputSpecified or false then { ${e.outputName or "out"} = all.${e.outputName or "out"}; }[0m
+ 
+        error: expected a Boolean but found a string: "yes"
+[31m-       at /pwd/cli-characterisation/bad-output-specified-type.nix:9:3:[0m
+[31m-            8|   };[0m
+[31m-            9|   outputSpecified = "yes";[0m
+[31m-             |   ^[0m
+[31m-           10| }[0m
+[32m+       at «string»:19:8:[0m
+[32m+           18|   toInstall = e: let all = outputsOf e; meta = metaOf e; in[0m
+[32m+           19|     if e.outputSpecified or false then { ${e.outputName or "out"} = all.${e.outputName or "out"}; }[0m
+[32m+             |        ^[0m
+[32m+           20|     else if meta ? outputsToInstall then builtins.listToAttrs (map (o: { name = o; value = all.${o}; }) meta.outputsToInstall)[0m
+FAIL: evaluation result of nix-env-install-bad-output-specified-type not as expected
+testing nix-env-install-bad-output-specified
+[1m--- cli-characterisation/nix-env-install-bad-output-specified.err.exp	2026-11-25 02:52:39.793746222 +0530[0m
+[1m+++ /var/tmp/fg/s/nfmKCPzz/tmp/nix-test/main/cli-characterisation/nix-env-install-bad-output-specified.err	2026-11-25 02:52:40.048931232 +0530[0m
+[36m@@ -1,2 +1,23 @@[0m
+[31m-installing 'bad-output-specified-1.0'[0m
+[31m-error: derivation does not have output 'nonexistent'[0m
+[32m+error:[0m
+[32m+       … while evaluating list element at index 0[0m
+[32m+[0m
+[32m+       … while evaluating the attribute 'install'[0m
+[32m+         at «string»:30:3:[0m
+[32m+           29|   outputs = outputsOf e;[0m
+[32m+           30|   install = toInstall e;[0m
+[32m+             |   ^[0m
+[32m+           31|   meta = metaOf e;[0m
+[32m+[0m
+[32m+       … while evaluating the attribute 'nonexistent'[0m
+[32m+         at «string»:19:42:[0m
+[32m+           18|   toInstall = e: let all = outputsOf e; meta = metaOf e; in[0m
+[32m+           19|     if e.outputSpecified or false then { ${e.outputName or "out"} = all.${e.outputName or "out"}; }[0m
+[32m+             |                                          ^[0m
+[32m+           20|     else if meta ? outputsToInstall then builtins.listToAttrs (map (o: { name = o; value = all.${o}; }) meta.outputsToInstall)[0m
+[32m+[0m
+[32m+       error: attribute 'nonexistent' missing[0m
+[32m+       at «string»:19:69:[0m
+[32m+           18|   toInstall = e: let all = outputsOf e; meta = metaOf e; in[0m
+[32m+           19|     if e.outputSpecified or false then { ${e.outputName or "out"} = all.${e.outputName or "out"}; }[0m
+[32m+             |                                                                     ^[0m
+[32m+           20|     else if meta ? outputsToInstall then builtins.listToAttrs (map (o: { name = o; value = all.${o}; }) meta.outputsToInstall)[0m
+FAIL: evaluation result of nix-env-install-bad-output-specified not as expected
+testing nix-env-qa-attrpath
+FAIL: nix-env-qa-attrpath exited with wrong code
+testing nix-env-qa-bad-drvpath
+[1m--- cli-characterisation/nix-env-qa-bad-drvpath.err.exp	2026-11-25 02:52:39.793897467 +0530[0m
+[1m+++ /var/tmp/fg/s/nfmKCPzz/tmp/nix-test/main/cli-characterisation/nix-env-qa-bad-drvpath.err	2026-11-25 02:52:40.117137641 +0530[0m
+[36m@@ -1,11 +1 @@[0m
+[31m-error:[0m
+[31m-       … while querying the derivation named 'bad-drvpath-1.0'[0m
+[31m-[0m
+[31m-       … while evaluating the 'drvPath' attribute of a derivation[0m
+[31m-         at /pwd/cli-characterisation/bad-drvpath.nix:5:3:[0m
+[31m-            4|   outPath = builtins.toFile "out" "";[0m
+[31m-            5|   drvPath = builtins.toFile "not-a-drv" "";[0m
+[31m-             |   ^[0m
+[31m-            6| }[0m
+[31m-[0m
+[31m-       error: store path 'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx-not-a-drv' is not a valid derivation path[0m
+[32m+error: path '/nix/store/xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx-query-placeholder' is not in the Nix store[0m
+FAIL: evaluation result of nix-env-qa-bad-drvpath not as expected
+testing nix-env-qa-context-built
+[1m--- cli-characterisation/nix-env-qa-context-built.err.exp	2026-11-25 02:52:39.794023464 +0530[0m
+[1m+++ /var/tmp/fg/s/nfmKCPzz/tmp/nix-test/main/cli-characterisation/nix-env-qa-context-built.err	2026-11-25 02:52:40.149298578 +0530[0m
+[36m@@ -1,4 +1 @@[0m
+[31m-error:[0m
+[31m-       … while evaluating the 'name' attribute of a derivation[0m
+[31m-[0m
+[31m-       error: the string '/test-root/store/xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx-helper-1.0' is not allowed to refer to a store path (such as '/test-root/store/xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx-helper-1.0.drv^out')[0m
+[32m+error: expected value of type 'contextless strings', but found a 'string'[0m
+FAIL: evaluation result of nix-env-qa-context-built not as expected
+testing nix-env-qa-context-drvdeep
+[1m--- cli-characterisation/nix-env-qa-context-drvdeep.err.exp	2026-11-25 02:52:39.793347862 +0530[0m
+[1m+++ /var/tmp/fg/s/nfmKCPzz/tmp/nix-test/main/cli-characterisation/nix-env-qa-context-drvdeep.err	2026-11-25 02:52:40.186766198 +0530[0m
+[36m@@ -1,4 +1 @@[0m
+[31m-error:[0m
+[31m-       … while evaluating the 'name' attribute of a derivation[0m
+[31m-[0m
+[31m-       error: the string '/test-root/store/xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx-helper-1.0.drv' is not allowed to refer to a store path (such as '/test-root/store/xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx-helper-1.0.drv (deep)')[0m
+[32m+error: expected value of type 'contextless strings', but found a 'string'[0m
+FAIL: evaluation result of nix-env-qa-context-drvdeep not as expected
+testing nix-env-qa-context-opaque-drv
+[1m--- cli-characterisation/nix-env-qa-context-opaque-drv.err.exp	2026-11-25 02:52:39.793325229 +0530[0m
+[1m+++ /var/tmp/fg/s/nfmKCPzz/tmp/nix-test/main/cli-characterisation/nix-env-qa-context-opaque-drv.err	2026-11-25 02:52:40.218590822 +0530[0m
+[36m@@ -1,4 +1 @@[0m
+[31m-error:[0m
+[31m-       … while evaluating the 'name' attribute of a derivation[0m
+[31m-[0m
+[31m-       error: the string '/test-root/store/xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx-helper-1.0.drv' is not allowed to refer to a store path (such as '/test-root/store/xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx-helper-1.0.drv')[0m
+[32m+error: expected value of type 'contextless strings', but found a 'string'[0m
+FAIL: evaluation result of nix-env-qa-context-opaque-drv not as expected
+testing nix-env-qa-context-opaque
+[1m--- cli-characterisation/nix-env-qa-context-opaque.err.exp	2026-11-25 02:52:39.793908297 +0530[0m
+[1m+++ /var/tmp/fg/s/nfmKCPzz/tmp/nix-test/main/cli-characterisation/nix-env-qa-context-opaque.err	2026-11-25 02:52:40.243919374 +0530[0m
+[36m@@ -1,4 +1 @@[0m
+[31m-error:[0m
+[31m-       … while evaluating the 'name' attribute of a derivation[0m
+[31m-[0m
+[31m-       error: the string '/test-root/store/xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx-x' is not allowed to refer to a store path (such as '/test-root/store/xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx-x')[0m
+[32m+error: expected value of type 'contextless strings', but found a 'string'[0m
+FAIL: evaluation result of nix-env-qa-context-opaque not as expected
+testing nix-env-qa-deep-meta
+FAIL: nix-env-qa-deep-meta exited with wrong code
+testing nix-env-qa-description
+FAIL: nix-env-qa-description exited with wrong code
+testing nix-env-qa-ghost-outpath
+testing nix-env-qa-ghost-output
+testing nix-env-qa-infinite-meta
+[1m--- cli-characterisation/nix-env-qa-infinite-meta.err.exp	2026-11-25 02:52:39.793493827 +0530[0m
+[1m+++ /var/tmp/fg/s/nfmKCPzz/tmp/nix-test/main/cli-characterisation/nix-env-qa-infinite-meta.err	2026-11-25 02:52:40.810222885 +0530[0m
+[36m@@ -1,9 +1,95 @@[0m
+ error:
+[31m-       … while querying the derivation named 'infinite-meta-1.0'[0m
+[32m+       … while evaluating list element at index 0[0m
+ 
+[31m-       error: stack overflow; max-call-depth exceeded[0m
+[31m-       at /pwd/cli-characterisation/infinite-meta.nix:3:7:[0m
+[32m+       … while evaluating the attribute 'meta'[0m
+[32m+         at «string»:31:3:[0m
+[32m+           30|   install = {};[0m
+[32m+           31|   meta = metaOf e;[0m
+[32m+             |   ^[0m
+[32m+           32| }) (builtins.filter isDerivation manifest)[0m
+[32m+[0m
+[32m+       … from call site[0m
+[32m+         at «string»:31:10:[0m
+[32m+           30|   install = {};[0m
+[32m+           31|   meta = metaOf e;[0m
+[32m+             |          ^[0m
+[32m+           32| }) (builtins.filter isDerivation manifest)[0m
+[32m+[0m
+[32m+       … while calling 'metaOf'[0m
+[32m+         at «string»:8:12:[0m
+[32m+            7|   isDerivation = v: builtins.isAttrs v && v ? type && v.type == "derivation";[0m
+[32m+            8|   metaOf = e: if e ? meta && builtins.isAttrs e.meta[0m
+[32m+             |            ^[0m
+[32m+            9|     then builtins.listToAttrs (builtins.concatMap[0m
+[32m+[0m
+[32m+       … while calling the 'listToAttrs' builtin[0m
+[32m+         at «string»:9:10:[0m
+[32m+            8|   metaOf = e: if e ? meta && builtins.isAttrs e.meta[0m
+[32m+            9|     then builtins.listToAttrs (builtins.concatMap[0m
+[32m+             |          ^[0m
+[32m+           10|       (n: if checkMeta e.meta.${n} then [ { name = n; value = e.meta.${n}; } ] else [ ])[0m
+[32m+[0m
+[32m+       … while calling the 'concatMap' builtin[0m
+[32m+         at «string»:9:32:[0m
+[32m+            8|   metaOf = e: if e ? meta && builtins.isAttrs e.meta[0m
+[32m+            9|     then builtins.listToAttrs (builtins.concatMap[0m
+[32m+             |                                ^[0m
+[32m+           10|       (n: if checkMeta e.meta.${n} then [ { name = n; value = e.meta.${n}; } ] else [ ])[0m
+[32m+[0m
+[32m+       … while calling anonymous lambda[0m
+[32m+         at «string»:10:8:[0m
+[32m+            9|     then builtins.listToAttrs (builtins.concatMap[0m
+[32m+           10|       (n: if checkMeta e.meta.${n} then [ { name = n; value = e.meta.${n}; } ] else [ ])[0m
+[32m+             |        ^[0m
+[32m+           11|       (builtins.attrNames e.meta))[0m
+[32m+[0m
+[32m+       … from call site[0m
+[32m+         at «string»:10:14:[0m
+[32m+            9|     then builtins.listToAttrs (builtins.concatMap[0m
+[32m+           10|       (n: if checkMeta e.meta.${n} then [ { name = n; value = e.meta.${n}; } ] else [ ])[0m
+[32m+             |              ^[0m
+[32m+           11|       (builtins.attrNames e.meta))[0m
+[32m+[0m
+[32m+       … while calling 'checkMeta'[0m
+[32m+         at «string»:3:15:[0m
+             2| let
+[31m-            3|   x = { inherit x; };[0m
+[31m-             |       ^[0m
+[31m-            4| in[0m
+[32m+            3|   checkMeta = v:[0m
+[32m+             |               ^[0m
+[32m+            4|     if builtins.isList v then builtins.all checkMeta v[0m
+[32m+[0m
+[32m+       … in the right operand of the AND (&&) operator[0m
+[32m+         at «string»:5:52:[0m
+[32m+            4|     if builtins.isList v then builtins.all checkMeta v[0m
+[32m+            5|     else if builtins.isAttrs v then !(v ? outPath) && builtins.all (n: checkMeta v.${n}) (builtins.attrNames v)[0m
+[32m+             |                                                    ^[0m
+[32m+            6|     else builtins.isInt v || builtins.isBool v || builtins.isString v || builtins.isFloat v;[0m
+[32m+[0m
+[32m+       … while calling the 'all' builtin[0m
+[32m+         at «string»:5:55:[0m
+[32m+            4|     if builtins.isList v then builtins.all checkMeta v[0m
+[32m+            5|     else if builtins.isAttrs v then !(v ? outPath) && builtins.all (n: checkMeta v.${n}) (builtins.attrNames v)[0m
+[32m+             |                                                       ^[0m
+[32m+            6|     else builtins.isInt v || builtins.isBool v || builtins.isString v || builtins.isFloat v;[0m
+[32m+[0m
+[32m+       … while calling anonymous lambda[0m
+[32m+         at «string»:5:69:[0m
+[32m+            4|     if builtins.isList v then builtins.all checkMeta v[0m
+[32m+            5|     else if builtins.isAttrs v then !(v ? outPath) && builtins.all (n: checkMeta v.${n}) (builtins.attrNames v)[0m
+[32m+             |                                                                     ^[0m
+[32m+            6|     else builtins.isInt v || builtins.isBool v || builtins.isString v || builtins.isFloat v;[0m
+[32m+[0m
+[32m+       … from call site[0m
+[32m+         at «string»:5:72:[0m
+[32m+            4|     if builtins.isList v then builtins.all checkMeta v[0m
+[32m+            5|     else if builtins.isAttrs v then !(v ? outPath) && builtins.all (n: checkMeta v.${n}) (builtins.attrNames v)[0m
+[32m+             |                                                                        ^[0m
+[32m+            6|     else builtins.isInt v || builtins.isBool v || builtins.isString v || builtins.isFloat v;[0m
+[32m+[0m
+[32m+       (24993 duplicate frames omitted)[0m
+[32m+[0m
+[32m+       error: stack overflow; max-call-depth exceeded[0m
+[32m+       at «string»:5:55:[0m
+[32m+            4|     if builtins.isList v then builtins.all checkMeta v[0m
+[32m+            5|     else if builtins.isAttrs v then !(v ? outPath) && builtins.all (n: checkMeta v.${n}) (builtins.attrNames v)[0m
+[32m+             |                                                       ^[0m
+[32m+            6|     else builtins.isInt v || builtins.isBool v || builtins.isString v || builtins.isFloat v;[0m
+FAIL: evaluation result of nix-env-qa-infinite-meta not as expected
+testing nix-env-qa-json-meta
+[1m--- cli-characterisation/nix-env-qa-json-meta.err.exp	2026-11-25 02:52:39.793115965 +0530[0m
+[1m+++ /var/tmp/fg/s/nfmKCPzz/tmp/nix-test/main/cli-characterisation/nix-env-qa-json-meta.err	2026-11-25 02:52:40.852039804 +0530[0m
+[36m@@ -1,9 +1,16 @@[0m
+ error:
+[31m-       … while querying the derivation named 'infinite-meta-1.0'[0m
+[32m+       … while evaluating list element at index 0[0m
+ 
+[31m-       error: stack overflow; max-call-depth exceeded[0m
+[31m-       at /pwd/cli-characterisation/infinite-meta.nix:3:7:[0m
+[31m-            2| let[0m
+[31m-            3|   x = { inherit x; };[0m
+[31m-             |       ^[0m
+[31m-            4| in[0m
+[32m+       … while evaluating the attribute 'name'[0m
+[32m+         at «string»:25:3:[0m
+[32m+           24|   outputName = e.outputName or "";[0m
+[32m+           25|   name = e.name;[0m
+[32m+             |   ^[0m
+[32m+           26|   system = e.system or "unknown";[0m
+[32m+[0m
+[32m+       error: assertion 'false' failed[0m
+[32m+       at /pwd/cli-characterisation/assert-fail.nix:4:5:[0m
+[32m+            3|   name =[0m
+[32m+            4|     assert false;[0m
+[32m+             |     ^[0m
+[32m+            5|     "assert-fail-1.0";[0m
+FAIL: evaluation result of nix-env-qa-json-meta not as expected
+testing nix-env-qa-json-paths
+[1m--- cli-characterisation/nix-env-qa-json-paths.err.exp	2026-11-25 02:52:39.793503535 +0530[0m
+[1m+++ /var/tmp/fg/s/nfmKCPzz/tmp/nix-test/main/cli-characterisation/nix-env-qa-json-paths.err	2026-11-25 02:52:40.898588102 +0530[0m
+[36m@@ -1,11 +1,34 @@[0m
+ error:
+[31m-       … while querying the derivation named 'bad-drvpath-1.0'[0m
+[32m+       … while evaluating list element at index 0[0m
+ 
+[31m-       … while evaluating the 'drvPath' attribute of a derivation[0m
+[31m-         at /pwd/cli-characterisation/bad-drvpath.nix:5:3:[0m
+[31m-            4|   outPath = builtins.toFile "out" "";[0m
+[31m-            5|   drvPath = builtins.toFile "not-a-drv" "";[0m
+[32m+       … while evaluating the attribute 'outPath'[0m
+[32m+         at «string»:27:3:[0m
+[32m+           26|   system = e.system or "unknown";[0m
+[32m+           27|   outPath = toString e.outPath;[0m
+              |   ^
+[31m-            6| }[0m
+[32m+           28|   drvPath = if e ? drvPath then toString e.drvPath else null;[0m
+ 
+[31m-       error: store path 'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx-not-a-drv' is not a valid derivation path[0m
+[32m+       … while calling the 'toString' builtin[0m
+[32m+         at «string»:27:13:[0m
+[32m+           26|   system = e.system or "unknown";[0m
+[32m+           27|   outPath = toString e.outPath;[0m
+[32m+             |             ^[0m
+[32m+           28|   drvPath = if e ? drvPath then toString e.drvPath else null;[0m
+[32m+[0m
+[32m+       … while calling the 'derivationStrict' builtin[0m
+[32m+         at «nix-internal»/derivation-internal.nix:37:12:[0m
+[32m+           36|[0m
+[32m+           37|   strict = derivationStrict drvAttrs;[0m
+[32m+             |            ^[0m
+[32m+           38|[0m
+[32m+[0m
+[32m+       … while evaluating the derivation attribute 'name'[0m
+[32m+[0m
+[32m+       … while evaluating the `name` attribute passed to builtins.derivationStrict[0m
+[32m+[0m
+[32m+       error: assertion 'false' failed[0m
+[32m+       at /pwd/cli-characterisation/assert-fail.nix:4:5:[0m
+[32m+            3|   name =[0m
+[32m+            4|     assert false;[0m
+[32m+             |     ^[0m
+[32m+            5|     "assert-fail-1.0";[0m
+FAIL: evaluation result of nix-env-qa-json-paths not as expected
+testing nix-env-qa-json
+FAIL: nix-env-qa-json exited with wrong code
+testing nix-env-qa-meta-types
+FAIL: nix-env-qa-meta-types exited with wrong code
+testing nix-env-qa-meta-with-bad-list
+FAIL: nix-env-qa-meta-with-bad-list exited with wrong code
+testing nix-env-qa-meta-with-drv
+FAIL: nix-env-qa-meta-with-drv exited with wrong code
+testing nix-env-qa-meta-with-function
+FAIL: nix-env-qa-meta-with-function exited with wrong code
+testing nix-env-qa-meta-with-outpath
+FAIL: nix-env-qa-meta-with-outpath exited with wrong code
+testing nix-env-qa-name-with-context
+[1m--- cli-characterisation/nix-env-qa-name-with-context.err.exp	2026-11-25 02:52:39.793335769 +0530[0m
+[1m+++ /var/tmp/fg/s/nfmKCPzz/tmp/nix-test/main/cli-characterisation/nix-env-qa-name-with-context.err	2026-11-25 02:52:41.129316301 +0530[0m
+[36m@@ -1,4 +1 @@[0m
+[31m-error:[0m
+[31m-       … while evaluating the 'name' attribute of a derivation[0m
+[31m-[0m
+[31m-       error: the string '/test-root/store/xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx-normal-1.0' is not allowed to refer to a store path (such as '/test-root/store/xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx-normal-1.0.drv^out')[0m
+[32m+error: expected value of type 'contextless strings', but found a 'string'[0m
+FAIL: evaluation result of nix-env-qa-name-with-context not as expected
+testing nix-env-qa-no-name
+[1m--- cli-characterisation/nix-env-qa-no-name.err.exp	2026-11-25 02:52:39.793974552 +0530[0m
+[1m+++ /var/tmp/fg/s/nfmKCPzz/tmp/nix-test/main/cli-characterisation/nix-env-qa-no-name.err	2026-11-25 02:52:41.164711769 +0530[0m
+[36m@@ -1 +1,16 @@[0m
+[31m-error: derivation name missing[0m
+[32m+error:[0m
+[32m+       … while evaluating list element at index 0[0m
+[32m+[0m
+[32m+       … while evaluating the attribute 'name'[0m
+[32m+         at «string»:25:3:[0m
+[32m+           24|   outputName = e.outputName or "";[0m
+[32m+           25|   name = e.name;[0m
+[32m+             |   ^[0m
+[32m+           26|   system = e.system or "unknown";[0m
+[32m+[0m
+[32m+       error: attribute 'name' missing[0m
+[32m+       at «string»:25:10:[0m
+[32m+           24|   outputName = e.outputName or "";[0m
+[32m+           25|   name = e.name;[0m
+[32m+             |          ^[0m
+[32m+           26|   system = e.system or "unknown";[0m
+FAIL: evaluation result of nix-env-qa-no-name not as expected
+testing nix-env-qa-no-outpath
+[1m--- cli-characterisation/nix-env-qa-no-outpath.err.exp	2026-11-25 02:52:39.793032838 +0530[0m
+[1m+++ /var/tmp/fg/s/nfmKCPzz/tmp/nix-test/main/cli-characterisation/nix-env-qa-no-outpath.err	2026-11-25 02:52:41.192849541 +0530[0m
+[36m@@ -1,4 +1,23 @@[0m
+ error:
+[31m-       … while querying the derivation named 'no-outpath-1.0'[0m
+[32m+       … while evaluating list element at index 0[0m
+ 
+[31m-       error: derivation does not have attribute 'outPath'[0m
+[32m+       … while evaluating the attribute 'outPath'[0m
+[32m+         at «string»:27:3:[0m
+[32m+           26|   system = e.system or "unknown";[0m
+[32m+           27|   outPath = toString e.outPath;[0m
+[32m+             |   ^[0m
+[32m+           28|   drvPath = null;[0m
+[32m+[0m
+[32m+       … while calling the 'toString' builtin[0m
+[32m+         at «string»:27:13:[0m
+[32m+           26|   system = e.system or "unknown";[0m
+[32m+           27|   outPath = toString e.outPath;[0m
+[32m+             |             ^[0m
+[32m+           28|   drvPath = null;[0m
+[32m+[0m
+[32m+       error: attribute 'outPath' missing[0m
+[32m+       at «string»:27:22:[0m
+[32m+           26|   system = e.system or "unknown";[0m
+[32m+           27|   outPath = toString e.outPath;[0m
+[32m+             |                      ^[0m
+[32m+           28|   drvPath = null;[0m
+FAIL: evaluation result of nix-env-qa-no-outpath not as expected
+testing nix-env-qa-no-system
+FAIL: nix-env-qa-no-system exited with wrong code
+testing nix-env-qa-not-a-drv
+FAIL: nix-env-qa-not-a-drv exited with wrong code
+testing nix-env-qa-outputName-with-context
+[1m--- cli-characterisation/nix-env-qa-outputName-with-context.err.exp	2026-11-25 02:52:39.794035607 +0530[0m
+[1m+++ /var/tmp/fg/s/nfmKCPzz/tmp/nix-test/main/cli-characterisation/nix-env-qa-outputName-with-context.err	2026-11-25 02:52:41.271919225 +0530[0m
+[36m@@ -1,6 +1 @@[0m
+[31m-error:[0m
+[31m-       … while querying the derivation named 'outputName-with-context-1.0'[0m
+[31m-[0m
+[31m-       … while evaluating the output name of a derivation[0m
+[31m-[0m
+[31m-       error: the string '/test-root/store/xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx-normal-1.0' is not allowed to refer to a store path (such as '/test-root/store/xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx-normal-1.0.drv^out')[0m
+[32m+error: expected value of type 'contextless strings', but found a 'string'[0m
+FAIL: evaluation result of nix-env-qa-outputName-with-context not as expected
+testing nix-env-qa-outputsToInstall-with-context
+[1m--- cli-characterisation/nix-env-qa-outputsToInstall-with-context.err.exp	2026-11-25 02:52:39.794073518 +0530[0m
+[1m+++ /var/tmp/fg/s/nfmKCPzz/tmp/nix-test/main/cli-characterisation/nix-env-qa-outputsToInstall-with-context.err	2026-11-25 02:52:41.317745242 +0530[0m
+[36m@@ -1,5 +1,44 @@[0m
+[31m-installing 'outputsToInstall-with-context-1.0'[0m
+[31m-this derivation will be built:[0m
+[31m-  /test-root/store/xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx-outputsToInstall-with-context-1.0.drv[0m
+[31m-building '/test-root/store/xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx-outputsToInstall-with-context-1.0.drv'...[0m
+[31m-error: this derivation has bad 'meta.outputsToInstall'[0m
+[32m+error:[0m
+[32m+       … while evaluating list element at index 0[0m
+[32m+[0m
+[32m+       … while evaluating the attribute 'install'[0m
+[32m+         at «string»:30:3:[0m
+[32m+           29|   outputs = outputsOf e;[0m
+[32m+           30|   install = toInstall e;[0m
+[32m+             |   ^[0m
+[32m+           31|   meta = metaOf e;[0m
+[32m+[0m
+[32m+       … from call site[0m
+[32m+         at «string»:30:13:[0m
+[32m+           29|   outputs = outputsOf e;[0m
+[32m+           30|   install = toInstall e;[0m
+[32m+             |             ^[0m
+[32m+           31|   meta = metaOf e;[0m
+[32m+[0m
+[32m+       … while calling 'toInstall'[0m
+[32m+         at «string»:18:15:[0m
+[32m+           17|     else { out = toString e.outPath; };[0m
+[32m+           18|   toInstall = e: let all = outputsOf e; meta = metaOf e; in[0m
+[32m+             |               ^[0m
+[32m+           19|     if e.outputSpecified or false then { ${e.outputName or "out"} = all.${e.outputName or "out"}; }[0m
+[32m+[0m
+[32m+       … while calling the 'listToAttrs' builtin[0m
+[32m+         at «string»:20:42:[0m
+[32m+           19|     if e.outputSpecified or false then { ${e.outputName or "out"} = all.${e.outputName or "out"}; }[0m
+[32m+           20|     else if meta ? outputsToInstall then builtins.listToAttrs (map (o: { name = o; value = all.${o}; }) meta.outputsToInstall)[0m
+[32m+             |                                          ^[0m
+[32m+           21|     else all;[0m
+[32m+[0m
+[32m+       … while evaluating the `name` attribute of an element of the list passed to builtins.listToAttrs[0m
+[32m+         at «string»:20:74:[0m
+[32m+           19|     if e.outputSpecified or false then { ${e.outputName or "out"} = all.${e.outputName or "out"}; }[0m
+[32m+           20|     else if meta ? outputsToInstall then builtins.listToAttrs (map (o: { name = o; value = all.${o}; }) meta.outputsToInstall)[0m
+[32m+             |                                                                          ^[0m
+[32m+           21|     else all;[0m
+[32m+[0m
+[32m+       error: expected a string but found a string with context: "/test-root/store/xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx-normal-1.0"[0m
+[32m+       at «string»:20:74:[0m
+[32m+           19|     if e.outputSpecified or false then { ${e.outputName or "out"} = all.${e.outputName or "out"}; }[0m
+[32m+           20|     else if meta ? outputsToInstall then builtins.listToAttrs (map (o: { name = o; value = all.${o}; }) meta.outputsToInstall)[0m
+[32m+             |                                                                          ^[0m
+[32m+           21|     else all;[0m
+FAIL: evaluation result of nix-env-qa-outputsToInstall-with-context not as expected
+testing nix-env-qa-system-with-context
+[1m--- cli-characterisation/nix-env-qa-system-with-context.err.exp	2026-11-25 02:52:39.793564470 +0530[0m
+[1m+++ /var/tmp/fg/s/nfmKCPzz/tmp/nix-test/main/cli-characterisation/nix-env-qa-system-with-context.err	2026-11-25 02:52:41.348854550 +0530[0m
+[36m@@ -1,11 +1 @@[0m
+[31m-error:[0m
+[31m-       … while querying the derivation named 'system-with-context-1.0'[0m
+[31m-[0m
+[31m-       … while evaluating the 'system' attribute of a derivation[0m
+[31m-         at /pwd/cli-characterisation/system-with-context.nix:11:3:[0m
+[31m-           10|   name = "system-with-context-1.0";[0m
+[31m-           11|   system = "${normal}";[0m
+[31m-             |   ^[0m
+[31m-           12|   outPath = "/nix/store/fake";[0m
+[31m-[0m
+[31m-       error: the string '/test-root/store/xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx-normal-1.0' is not allowed to refer to a store path (such as '/test-root/store/xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx-normal-1.0.drv^out')[0m
+[32m+error: expected value of type 'contextless strings', but found a 'string'[0m
+FAIL: evaluation result of nix-env-qa-system-with-context not as expected
+testing nix-env-qa-xml
+FAIL: nix-env-qa-xml exited with wrong code
+testing nix-instantiate-no-drvpath
+[1m--- cli-characterisation/nix-instantiate-no-drvpath.err.exp	2026-11-25 02:52:39.793787500 +0530[0m
+[1m+++ /var/tmp/fg/s/nfmKCPzz/tmp/nix-test/main/cli-characterisation/nix-instantiate-no-drvpath.err	2026-11-25 02:52:41.397793530 +0530[0m
+[36m@@ -1 +1 @@[0m
+[31m-error: derivation does not contain a 'drvPath' attribute[0m
+[32m+error: attribute 'drvPath' missing[0m
+FAIL: evaluation result of nix-instantiate-no-drvpath not as expected
+warning: you did not specify '--add-root'; the result might be removed by the garbage collector
+testing nix-build-multi-output
+[1m--- cli-characterisation/nix-build-multi-output.err.exp	2026-11-25 02:52:39.793268152 +0530[0m
+[1m+++ /var/tmp/fg/s/nfmKCPzz/tmp/nix-test/main/cli-characterisation/nix-build-multi-output.err	2026-11-25 02:52:41.429059382 +0530[0m
+[36m@@ -1 +1 @@[0m
+[31m-error: building more than one derivation output is not supported, in '/test-root/store/xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx-simple-1.0.drv!out,bin'[0m
+[32m+error: nix-build with store derivation arguments is not supported by noxi yet[0m
+FAIL: evaluation result of nix-build-multi-output not as expected
+testing nix-build-bad-output
+[1m--- cli-characterisation/nix-build-bad-output.err.exp	2026-11-25 02:52:39.793514235 +0530[0m
+[1m+++ /var/tmp/fg/s/nfmKCPzz/tmp/nix-test/main/cli-characterisation/nix-build-bad-output.err	2026-11-25 02:52:41.435853244 +0530[0m
+[36m@@ -1 +1 @@[0m
+[31m-error: derivation '/test-root/store/xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx-simple-1.0.drv' does not have output 'nonexistent'[0m
+[32m+error: nix-build with store derivation arguments is not supported by noxi yet[0m
+FAIL: evaluation result of nix-build-bad-output not as expected
+
+The following tests had unexpected output:
+    nix-env-install-bad-oti-elem
+    nix-env-install-bad-oti-nosuch
+    nix-env-install-bad-oti-type
+    nix-env-install-bad-output-specified-type
+    nix-env-install-bad-output-specified
+    nix-env-qa-bad-drvpath
+    nix-env-qa-context-built
+    nix-env-qa-context-drvdeep
+    nix-env-qa-context-opaque-drv
+    nix-env-qa-context-opaque
+    nix-env-qa-infinite-meta
+    nix-env-qa-json-meta
+    nix-env-qa-json-paths
+    nix-env-qa-name-with-context
+    nix-env-qa-no-name
+    nix-env-qa-no-outpath
+    nix-env-qa-outputName-with-context
+    nix-env-qa-outputsToInstall-with-context
+    nix-env-qa-system-with-context
+    nix-instantiate-no-drvpath
+    nix-build-multi-output
+    nix-build-bad-output
+
+You can rerun this test with:
+
+    _NIX_TEST_ACCEPT=1 meson test --suite main cli-characterisation
+
+to regenerate the files containing the expected output,
+and then view the git diff to decide whether a change is
+good/intentional or bad/unintentional.
+If the diff contains arbitrary or impure information,
+please improve the normalization that the test applies to the output.
++(common/characterisation/framework.sh:83) exit 2

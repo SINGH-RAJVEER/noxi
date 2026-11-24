@@ -1,0 +1,234 @@
+{
+  "all_match": true,
+  "candidate": {
+    "path": "/home/rajveer/.t3/worktrees/noxi/t3-be127ac0-bfe4293835db1fd4/target/debug/noxi",
+    "resolved": "/home/rajveer/Projects/personal/noxi/target/lanes/debug/noxi",
+    "sha256": "4065dcc5ec807fbdd682ff7f4a2eb5b4f89b5e6c53d39f33552dd542bbe4b6ed",
+    "version": "noxi 0.0.5 (preview)"
+  },
+  "candidate_argv": [
+    "eval",
+    "--expr",
+    "EXPRESSION"
+  ],
+  "cases": [
+    {
+      "candidate": {
+        "exit_code": 0,
+        "signal": null,
+        "stderr": "",
+        "stdout": "7\n",
+        "timed_out": false
+      },
+      "expression": "1 + 2 * 3",
+      "matches": true,
+      "name": "integer",
+      "reference": {
+        "exit_code": 0,
+        "signal": null,
+        "stderr": "",
+        "stdout": "7\n",
+        "timed_out": false
+      }
+    },
+    {
+      "candidate": {
+        "exit_code": 0,
+        "signal": null,
+        "stderr": "",
+        "stdout": "true\n",
+        "timed_out": false
+      },
+      "expression": "true && !false",
+      "matches": true,
+      "name": "boolean",
+      "reference": {
+        "exit_code": 0,
+        "signal": null,
+        "stderr": "",
+        "stdout": "true\n",
+        "timed_out": false
+      }
+    },
+    {
+      "candidate": {
+        "exit_code": 0,
+        "signal": null,
+        "stderr": "",
+        "stdout": "\"hello world\"\n",
+        "timed_out": false
+      },
+      "expression": "\"hello\" + \" world\"",
+      "matches": true,
+      "name": "string",
+      "reference": {
+        "exit_code": 0,
+        "signal": null,
+        "stderr": "",
+        "stdout": "\"hello world\"\n",
+        "timed_out": false
+      }
+    },
+    {
+      "candidate": {
+        "exit_code": 0,
+        "signal": null,
+        "stderr": "",
+        "stdout": "[ 1 2 3 ]\n",
+        "timed_out": false
+      },
+      "expression": "[ 1 2 3 ]",
+      "matches": true,
+      "name": "list",
+      "reference": {
+        "exit_code": 0,
+        "signal": null,
+        "stderr": "",
+        "stdout": "[ 1 2 3 ]\n",
+        "timed_out": false
+      }
+    },
+    {
+      "candidate": {
+        "exit_code": 0,
+        "signal": null,
+        "stderr": "",
+        "stdout": "{ a = 1; b = [ 2 3 ]; }\n",
+        "timed_out": false
+      },
+      "expression": "{ a = 1; b = [ 2 3 ]; }",
+      "matches": true,
+      "name": "attributes",
+      "reference": {
+        "exit_code": 0,
+        "signal": null,
+        "stderr": "",
+        "stdout": "{ a = 1; b = [ 2 3 ]; }\n",
+        "timed_out": false
+      }
+    },
+    {
+      "candidate": {
+        "exit_code": 0,
+        "signal": null,
+        "stderr": "",
+        "stdout": "{ x = 42; }\n",
+        "timed_out": false
+      },
+      "expression": "let x = 42; in { inherit x; }",
+      "matches": true,
+      "name": "inherit",
+      "reference": {
+        "exit_code": 0,
+        "signal": null,
+        "stderr": "",
+        "stdout": "{ x = 42; }\n",
+        "timed_out": false
+      }
+    },
+    {
+      "candidate": {
+        "exit_code": 0,
+        "signal": null,
+        "stderr": "",
+        "stdout": "42\n",
+        "timed_out": false
+      },
+      "expression": "(x: x + 1) 41",
+      "matches": true,
+      "name": "function",
+      "reference": {
+        "exit_code": 0,
+        "signal": null,
+        "stderr": "",
+        "stdout": "42\n",
+        "timed_out": false
+      }
+    },
+    {
+      "candidate": {
+        "exit_code": 0,
+        "signal": null,
+        "stderr": "",
+        "stdout": "1\n",
+        "timed_out": false
+      },
+      "expression": "if true then 1 else (1 / 0)",
+      "matches": true,
+      "name": "lazy-branch",
+      "reference": {
+        "exit_code": 0,
+        "signal": null,
+        "stderr": "",
+        "stdout": "1\n",
+        "timed_out": false
+      }
+    },
+    {
+      "candidate": {
+        "exit_code": 0,
+        "signal": null,
+        "stderr": "",
+        "stdout": "{ a = 1; b = 2; }\n",
+        "timed_out": false
+      },
+      "expression": "rec { a = 1; b = a + 1; }",
+      "matches": true,
+      "name": "recursive-attributes",
+      "reference": {
+        "exit_code": 0,
+        "signal": null,
+        "stderr": "",
+        "stdout": "{ a = 1; b = 2; }\n",
+        "timed_out": false
+      }
+    },
+    {
+      "candidate": {
+        "exit_code": 0,
+        "signal": null,
+        "stderr": "",
+        "stdout": "3\n",
+        "timed_out": false
+      },
+      "expression": "builtins.length [ 1 2 3 ]",
+      "matches": true,
+      "name": "builtin",
+      "reference": {
+        "exit_code": 0,
+        "signal": null,
+        "stderr": "",
+        "stdout": "3\n",
+        "timed_out": false
+      }
+    }
+  ],
+  "environment": {
+    "HOME": "isolated temporary directory",
+    "LC_ALL": "C",
+    "NIX_CONFIG": "",
+    "NIX_CONF_DIR": "temporary empty directory",
+    "NIX_PATH": "",
+    "NIX_REMOTE": "dummy://",
+    "NIX_STORE_DIR": "/nix/store",
+    "NIX_USER_CONF_FILES": "temporary nonexistent file",
+    "PATH": "/nix/store/d64q19q1xjdwfhqx6czvrjgrhq0n3lcc-python3-3.14.7/bin:/nix/store/z4c6k0mrlkwl3s4w9ysxc8vq1wylm3ms-gcc-wrapper-15.3.0/bin:/nix/store/8sjgd7q3mdks1rb7rbcv0sallhvrhai5-gcc-15.3.0/bin:/nix/store/fdpy1l72q9gvq8d9snrdq67gm0j5s1dg-glibc-2.42-84-bin/bin:/nix/store/xjl7p8dvyk2j53kqf7f43kdj4ypbxz7g-coreutils-9.11/bin:/nix/store/0fdc105g1896ganr8916rsjxhvr9qv5b-binutils-wrapper-2.46/bin:/nix/store/31gnwsgag5qa14hfblqi5hyn71pyx7py-binutils-2.46/bin:/nix/store/2ndah67h0z5m31v2wkdmg2md4380ggr5-bash-interactive-5.3p15/bin:/nix/store/4lw36zwbjanv83r0b4r7pagl3lh751qk-rust-minimal-1.100.0-nightly-2026-09-26/bin:/nix/store/kwm3g9vh36d9zd171v0nz64fyan1hvfz-cargo-nextest-0.9.143/bin:/nix/store/kpnsgmzydsr7ig2p09p0143rsw1qik5b-gnumake-4.4.1/bin:/nix/store/c3bm9h7k398cmg00d4rss6hcxkl2zbl2-cmake-4.4.2/bin:/nix/store/jaa89dphx07w3r26y7gh79a7b1mld5p4-meson-1.10.2/bin:/nix/store/r8a159fqvj0mpczq0dq8d3dwdd2rsz8c-ninja-1.13.2/bin:/nix/store/i9wgqa0l88aprvpwfaq5hkfa6pklhlv0-findutils-4.11.0/bin:/nix/store/9zib1q94gka8i5q530364cvy25504qz5-gawk-5.4.1/bin:/nix/store/xmvbzzxm5snla5a2cyfhm7hjy9bifx7n-gnugrep-3.12/bin:/nix/store/qf2wzyq4irhgyhnq3s2hz0ldjq3w8a3x-gnused-4.10/bin:/nix/store/l5sll8nxk70p73l5yqbsjy4mh0c3g0v5-gzip-1.14/bin:/nix/store/j3yz0ag9j442229n8harpmp9aa5qyvhn-bzip2-1.0.8-bin/bin:/nix/store/518dig8gpvqyac6pkksyjjfzvi9zn8vq-xz-5.8.3-bin/bin:/nix/store/5ca54qw9hzpc1f3dk5x3c9cg3bdb93iv-curl-8.22.0-dev/bin:/nix/store/mr9bs7m06hcx6rrjh8f7zxg697z6i14i-brotli-1.2.0/bin:/nix/store/64qispf60bs1g3p7qmj8qd8q7md6barx-krb5-1.22.2-dev/bin:/nix/store/00zndrjzcmzxv27lrbb0k9dky3q98162-krb5-1.22.2/bin:/nix/store/qayx735hmbs9dd8lmxg958gsv6i2z28w-nghttp2-1.70.0/bin:/nix/store/67ras8x9wphk4az0cm1qxyl264k34gv1-libidn2-2.3.8-bin/bin:/nix/store/44gxi8li8y8wrxrb93sya9hljkpigsqw-openssl-3.6.4-bin/bin:/nix/store/02z9zb3m53l02vp51khji7pbhw8jl08r-libpsl-0.21.5/bin:/nix/store/l8ik8mb8lgb60rklxjmkgddmp5qqnv29-zstd-1.5.7-bin/bin:/nix/store/8ik1d1r4l2jzm9mjh6bc0a13yczx62wg-zstd-1.5.7/bin:/nix/store/cp8qnyl8i0s62g3a1465i258mf5bcr6k-curl-8.22.0-bin/bin:/nix/store/msr1v91ybfw6j12rs5mfl8ghb2rqsnsr-git-2.55.0/bin:/nix/store/qpgknrlnxca0z99gl12j5n0fgca11cdx-mercurial-7.2.2/bin:/nix/store/plnh12ax5wvg9lbik80w994h0ls9wpfa-python3.14-pybind11-3.0.4/bin:/nix/store/d64q19q1xjdwfhqx6czvrjgrhq0n3lcc-python3-3.14.7/bin:/nix/store/hy1qgl7m2ryhqx66h4ad2h04wp90004i-jujutsu-0.45.1/bin:/nix/store/nvydswi7ickfaim3l29afrm2238fjzlv-just-1.58.0/bin:/nix/store/hyz22a0l5b5kv7yfypw4ss6d36vbzg01-jq-1.8.2-bin/bin:/nix/store/hkclq7d0j10l7gk1v2hpif398dvnq6lz-ripgrep-15.2.0/bin:/nix/store/6ph2h5b0v19yihxr0id244wh83whwasq-nix-2.34.8/bin:/nix/store/6mr55kkh35a9w95lmcd3nnr6pzl6mgpj-attr-2.6.0-bin/bin:/nix/store/9r6nd21y45xa13cvj1fcrnig0is6f9hc-acl-2.4.0-bin/bin:/nix/store/h4jm4b24wc0q3i521zzhrh4rcgkici38-libarchive-3.8.9/bin:/nix/store/2f655gixf0x7133dfg5gn182ss6l3hyw-cachix-1.12.1-bin/bin:/nix/store/l1mk756h2hqw22g5ba6ppipar40ivij7-actionlint-1.7.12/bin:/nix/store/gpc5h0d71izbwdqxvvxcmwdfr7f2zflx-uv-0.12.11/bin:/nix/store/7sdb8z3cg58dnwvmx61kqwy8qra6a20b-cargo-deny-0.20.2/bin:/nix/store/hcrh74vcdjjr6vzvbaz304505wl7h8xc-cargo-about-0.9.0/bin:/nix/store/wizn21b9virxqcnm4n89b09pgqkaxfn3-perf-linux-7.2.5/bin:/nix/store/5fzpsj7yyzmyh3pgdnh6q7qxgdaah354-socat-1.8.1.3/bin:/nix/store/29d1c5xk6w3rwl7yvdfwl90whslv5h54-pkg-config-wrapper-0.29.2/bin:/nix/store/c8b0qp903w2hhpa63a2lfs7d565zag30-gnutar-1.35/bin:/nix/store/24gq3bi2yzf7g386p5j32mn78hhanf49-sqlite-3.53.3-bin/bin:/nix/store/8cyy56cr8w5wsq5c93pfpnnh4bcsjfdi-qemu-host-cpu-only-11.1.0/bin:/nix/store/h9wq5kdv1jc9hxmwgn9vh9bwsigmnsj6-patchelf-0.15.2/bin:/nix/store/xjl7p8dvyk2j53kqf7f43kdj4ypbxz7g-coreutils-9.11/bin:/nix/store/i9wgqa0l88aprvpwfaq5hkfa6pklhlv0-findutils-4.11.0/bin:/nix/store/b8xvzgd52jby5dfpi0pf46nisy6wma5d-diffutils-3.12/bin:/nix/store/qf2wzyq4irhgyhnq3s2hz0ldjq3w8a3x-gnused-4.10/bin:/nix/store/xmvbzzxm5snla5a2cyfhm7hjy9bifx7n-gnugrep-3.12/bin:/nix/store/9zib1q94gka8i5q530364cvy25504qz5-gawk-5.4.1/bin:/nix/store/41l3h8s1lr518n03bsrzv5vsf37bhnb9-gnutar-1.35/bin:/nix/store/l5sll8nxk70p73l5yqbsjy4mh0c3g0v5-gzip-1.14/bin:/nix/store/j3yz0ag9j442229n8harpmp9aa5qyvhn-bzip2-1.0.8-bin/bin:/nix/store/c011mk580m964s1zxjccvdax3fcmppnl-gnumake-4.4.1/bin:/nix/store/svx59425zxp552p2b8gm11qj5r09b56i-bash-5.3p15/bin:/nix/store/81zqbas7qc02yfdj7142fdcqhxgd3cgz-patch-2.8/bin:/nix/store/518dig8gpvqyac6pkksyjjfzvi9zn8vq-xz-5.8.3-bin/bin:/nix/store/fv9yl55hkskpc2cj9c0sdyq91car9kgl-file-5.48/bin:/nix/store/kz5cwzx31lffv2iwjmnxgfifi999hm9g-devenv-2.4.0/bin:/nix/store/c5pc2bbgfs1iy59bqn26fznkld9f1bm1-cachix-1.15.0-bin/bin:/nix/store/rygkqxk4x5nyji2af0a5i4fdcd2gbsyl-nixd-2.9.4/bin:/nix/store/3lvq7zi7nqalfwk1b3l8bw2wy72ffg8m-gh-2.105.0/bin:/nix/store/nx16mjcv442bx13rn80az81a83aw2xvy-poppler-utils-26.11.0/bin:/home/rajveer/.config/carapace/bin:/run/wrappers/bin:/home/rajveer/.nix-profile/bin:/nix/profile/bin:/home/rajveer/.local/state/nix/profile/bin:/etc/profiles/per-user/rajveer/bin:/nix/var/nix/profiles/default/bin:/run/current-system/sw/bin:/home/rajveer/.cargo/bin:/home/rajveer/.bun/bin:/nix/store/p1hnmz5vhjlfj3jxwzf33ahz9qv20q52-desktop-file-utils-0.28/bin:/nix/store/dlksx1080qkdaxwg2k6bzdva8gk7vn8v-xdg-utils-1.2.1/bin:/nix/store/zcqwfjsajxy3lgpq6pnf6k6dhww1qy6l-cloudflared-2026.10.7/bin:/nix/store/i2m3w4ly2w6grrmk1j59rb7zp09bssia-git-2.56.0/bin",
+    "TZ": "UTC",
+    "XDG_CONFIG_DIRS": "temporary empty directory"
+  },
+  "platform": "x86_64-linux",
+  "records": "/home/rajveer/.t3/worktrees/noxi/t3-be127ac0-bfe4293835db1fd4/target/compat-results/store/differential-eval.jsonl",
+  "reference": {
+    "path": "/home/rajveer/.t3/worktrees/noxi/t3-be127ac0-bfe4293835db1fd4/target/nix-reference/bin/nix-instantiate",
+    "resolved": "/nix/store/irfrbndi76zhkvqsfhmsn4a99iafck29-nix-2.35.2/bin/nix",
+    "sha256": "a1fee5522ad985bc016990d72d3769cf6b40579dd84166124fff00814a77eb79",
+    "version": "nix-instantiate (Nix) 2.35.2"
+  },
+  "reference_argv": [
+    "--eval",
+    "--strict",
+    "--expr",
+    "EXPRESSION"
+  ],
+  "timeout_ms": 20000
+}

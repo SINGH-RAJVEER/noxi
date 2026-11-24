@@ -103,11 +103,11 @@ Other runner fields, such as the functional script `outcome`, are added beside t
 
 ### Kept result sets, 2026-11-25
 
-All three ran at the clean revision `20726bd` against the pinned CppNix 2.35.2, with `TMPDIR` below `/var/tmp`, `NOXI_FUNCTIONAL_SCRATCH` below `/var/tmp` and `NOXI_FUNCTIONAL_JOBS=4`. The `TMPDIR` was empty after the three runs. They replace the `84aec12` sets, which Git history keeps at `528b7aa` (store 1,028, daemon 65 and fast 2,122 tests passed; 65 functional scripts passed).
+All three ran at the clean revision `67d7907` against the pinned CppNix 2.35.2, with `TMPDIR` below `/var/tmp`, `NOXI_FUNCTIONAL_SCRATCH` below `/var/tmp` and `NOXI_FUNCTIONAL_JOBS=4`. The `TMPDIR` was empty after the three runs. They replace the `84aec12` sets, which Git history keeps at `528b7aa` (store 1,028, daemon 65 and fast 2,122 tests passed; 65 functional scripts passed).
 
-- `2026-11-25-20726bd-store`: the whole store tier, `just --no-deps test-store`. All 1,033 tests passed and the `differential-eval` cases match 10/10. Of the 214 functional scripts, 73 pass under both engines, 129 are noxi gaps, 10 are reference anomalies and 2 are unrun. The set is 23 MB, mostly the functional scripts' logs and store snapshots.
-- `2026-11-25-20726bd-daemon`: all 65 daemon-tier tests passed; nextest marked three `noxi-daemon::startup` tests as leaky, meaning a child process still held their output when they ended.
-- `2026-11-25-20726bd-fast`: all 2,122 fast-tier tests passed.
+- `2026-11-25-67d7907-store`: the whole store tier, `just --no-deps test-store`. All 1,033 tests passed and the `differential-eval` cases match 10/10. Of the 214 functional scripts, 73 pass under both engines, 129 are noxi gaps, 10 are reference anomalies and 2 are unrun. The set is 23 MB, mostly the functional scripts' logs and store snapshots.
+- `2026-11-25-67d7907-daemon`: all 65 daemon-tier tests passed.
+- `2026-11-25-67d7907-fast`: all 2,122 fast-tier tests passed.
 
 The first whole run, at `610ec54` with the functional roots in `/tmp`, failed only `functional_scripts_match_expectations` (1,026 of 1,027 passed). An empty `/tmp/.git` broke Git discovery for both engines, the expectation table was out of date for ten scripts that now pass, and `eval.sh` timed out because string coercion ignored `max-call-depth`; `main` at `9b7db67` has the same timeout.
 
