@@ -788,14 +788,10 @@ fn source_elements(
 	}
 	all.retain(|e| globals.system_filter == "*" || e.system == globals.system_filter);
 	if globals.prebuilt_only {
-		let mut prebuilt = Vec::new();
-		for e in all {
-			let missing = store.query_missing(&[DerivedPath::Opaque(e.out_path.clone())])?;
-			if missing.unknown.is_empty() {
-				prebuilt.push(e);
-			}
-		}
-		all = prebuilt;
+		let paths = all.iter().map(|e| e.out_path.clone()).collect();
+		let mut prebuilt = store.query_valid_paths(&paths)?;
+		prebuilt.extend(store.query_substitutable_paths(&paths)?);
+		all.retain(|e| prebuilt.contains(&e.out_path));
 	}
 	Ok(Ok(if expression || attr {
 		all
@@ -1253,17 +1249,16 @@ fn op_query(globals: &Globals, flags: &[String], args: &[String]) -> Result<Exit
 		);
 		return Ok(ExitCode::SUCCESS);
 	}
+	let mut valid_paths = BTreeSet::new();
+	let mut substitutable = BTreeSet::new();
+	if globals.prebuilt_only || print_status {
+		let paths = elements.iter().map(|e| e.out_path.clone()).collect();
+		valid_paths = opened.store.query_valid_paths(&paths)?;
+		substitutable = opened.store.query_substitutable_paths(&paths)?;
+	}
 	if globals.prebuilt_only {
-		let mut prebuilt = Vec::new();
-		for element in elements {
-			let missing = opened
-				.store
-				.query_missing(&[DerivedPath::Opaque(element.out_path.clone())])?;
-			if !missing.unknown.contains(&element.out_path) {
-				prebuilt.push(element);
-			}
-		}
-		elements = prebuilt;
+		elements
+			.retain(|e| valid_paths.contains(&e.out_path) || substitutable.contains(&e.out_path));
 	}
 	if xml_output {
 		println!("<?xml version='1.0' encoding='utf-8'?>\n<items>");
@@ -1276,13 +1271,9 @@ fn op_query(globals: &Globals, flags: &[String], args: &[String]) -> Result<Exit
 			attrs.insert(k.into(), v);
 		};
 		if print_status {
-			let valid = opened.store.is_valid_path(&element.out_path)?;
+			let valid = valid_paths.contains(&element.out_path);
 			let installed = installed_paths.contains(&element.out_path);
-			let subs = opened
-				.store
-				.query_missing(&[DerivedPath::Opaque(element.out_path.clone())])?
-				.will_substitute
-				.contains(&element.out_path);
+			let subs = substitutable.contains(&element.out_path);
 			if xml_output {
 				attribute("installed", u8::from(installed).to_string());
 				attribute("valid", u8::from(valid).to_string());

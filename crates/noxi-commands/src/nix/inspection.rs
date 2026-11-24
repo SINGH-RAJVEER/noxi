@@ -84,10 +84,27 @@ pub fn log(parsed: Parsed) -> Result<ExitCode, Failure> {
 			.and_then(|info| info.deriver)
 	};
 	let uri = crate::store::store_uri(parsed.value("store"), &parsed.settings);
-	let Some((local, _)) = crate::store::open_local(&uri, &parsed.settings)? else {
-		return Err(unsupported("log for this store"));
+	// `fetchBuildLog`: the store, then the substituters that keep logs.
+	let found = |from: &str| {
+		// `printInfo`.
+		if nix_compat::log::log_enabled(nix_compat::log::VerbosityLevel::Info) {
+			eprintln!("got build log for '{what}' from '{from}'");
+		}
 	};
-	if let Some(drv) = drv {
+	let own_cache = crate::store::cache(&uri)?;
+	if let (Some(cache), Some(drv)) = (&own_cache, &drv)
+		&& let Some(log) = cache.build_log(drv)?
+	{
+		found(cache.uri());
+		io::Write::write_all(&mut io::stdout().lock(), &log)?;
+		return Ok(ExitCode::SUCCESS);
+	}
+	if own_cache.is_none()
+		&& let Some(drv) = &drv
+	{
+		let Some((local, _)) = crate::store::open_local(&uri, &parsed.settings)? else {
+			return Err(unsupported("log for this store"));
+		};
 		let name = drv.to_string();
 		let base = local
 			.config()
@@ -104,9 +121,7 @@ pub fn log(parsed: Parsed) -> Result<ExitCode, Failure> {
 		] {
 			match fs::File::open(&path) {
 				Ok(file) => {
-					if nix_compat::log::log_enabled(nix_compat::log::VerbosityLevel::Info) {
-						eprintln!("got build log for '{what}' from 'local://'");
-					}
+					found(local.config().human_uri());
 					let mut reader = noxi_store::binary_cache::decompress(
 						compression,
 						Box::new(BufReader::new(file)),
@@ -119,11 +134,24 @@ pub fn log(parsed: Parsed) -> Result<ExitCode, Failure> {
 			}
 		}
 	}
-	if !parsed
+	let mut unread = false;
+	for uri in parsed
 		.settings
 		.get_list("substituters", &["https://cache.nixos.org/"])
-		.is_empty()
 	{
+		match (crate::store::cache(uri), &drv) {
+			(Ok(Some(cache)), Some(drv)) => {
+				if let Some(log) = cache.build_log(drv)? {
+					found(cache.uri());
+					io::Write::write_all(&mut io::stdout().lock(), &log)?;
+					return Ok(ExitCode::SUCCESS);
+				}
+			}
+			(Ok(Some(_)), None) => {}
+			_ => unread = true,
+		}
+	}
+	if unread {
 		return Err(unsupported(
 			"log from substituters (remote log retrieval API unavailable)",
 		));

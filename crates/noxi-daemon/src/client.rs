@@ -757,6 +757,19 @@ impl Store for DaemonStore {
 		})
 	}
 
+	fn query_substitutable_paths(
+		&self,
+		paths: &BTreeSet<StorePath>,
+	) -> noxi_store::Result<BTreeSet<StorePath>> {
+		self.with_conn(|conn| {
+			conn.to
+				.u64(op::QUERY_SUBSTITUTABLE_PATHS)
+				.store_paths(paths.iter());
+			conn.process_stderr()?;
+			conn.from.read_store_paths()
+		})
+	}
+
 	fn query_valid_paths(
 		&self,
 		paths: &BTreeSet<StorePath>,

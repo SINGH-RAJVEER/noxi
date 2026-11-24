@@ -64,7 +64,7 @@ fn regular_json(executable: bool, size: u64, offset: u64) -> Value {
 }
 
 /// `listNarDeep` and `listNarShallow`.
-fn list_json(node: &Listing, deep: bool) -> Value {
+pub(super) fn list_json(node: &Listing, deep: bool) -> Value {
 	match node {
 		Listing::Regular {
 			executable,

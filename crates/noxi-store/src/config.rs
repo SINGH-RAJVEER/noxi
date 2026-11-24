@@ -43,6 +43,9 @@ pub struct LocalStoreConfig {
 	/// Experimental methods accepted when parsing registered derivations.
 	pub impure_derivations: bool,
 	pub dynamic_derivations: bool,
+	/// `secret-key-files`: the keys built paths are signed with, whose
+	/// public halves are trusted too.
+	pub secret_key_files: Vec<String>,
 	pub git_hashing: bool,
 	/// Whether the store was named with query parameters, as
 	/// `local?root=ROOT` is. CppNix then calls it `local://`, and `local`
@@ -129,6 +132,13 @@ impl LocalStoreConfig {
 			.experimental_features()
 			.contains("dynamic-derivations");
 		self.git_hashing = settings.experimental_features().contains("git-hashing");
+		if settings.get("secret-key-files").is_some() {
+			self.secret_key_files = settings
+				.get_list("secret-key-files", &[])
+				.into_iter()
+				.map(str::to_owned)
+				.collect();
+		}
 		if settings.get("trusted-public-keys").is_some() {
 			self.trusted_public_keys = settings
 				.get_list("trusted-public-keys", &[])
@@ -185,6 +195,7 @@ impl LocalStoreConfig {
 			ca_derivations: false,
 			impure_derivations: false,
 			dynamic_derivations: false,
+			secret_key_files: Vec::new(),
 			git_hashing: false,
 			has_params: false,
 			narinfo_cache_positive_ttl: 30 * 24 * 60 * 60,

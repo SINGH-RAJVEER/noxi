@@ -475,7 +475,7 @@ fn supported_flags(command: &str) -> &'static [&'static str] {
 		"store ls" => &["recursive", "long", "directory", "json"],
 		"store delete" => &["recursive", "ignore-liveness"],
 		"store gc" => &["dry-run", "max"],
-		"store verify" => &["recursive", "no-contents", "no-trust", "sigs-needed"],
+		"store verify" => &["all", "recursive", "no-contents", "no-trust", "sigs-needed"],
 		"store info" => &["json", "pretty", "no-pretty"],
 		"search" => &[
 			"arg",

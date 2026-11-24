@@ -12,7 +12,9 @@ use nix_compat::nixhash::HashAlgo;
 use nix_compat::store_path::StorePath;
 
 use crate::gc::{GcOptions, GcResults, Roots};
-use crate::{CapturedSource, Error, FileIngestionMethod, LocalStore, Result, ValidPathInfo};
+use crate::{
+	CapturedSource, Error, FileIngestionMethod, LocalStore, Realisation, Result, ValidPathInfo,
+};
 
 /// A path to realise: a store path, or outputs of a derivation.
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
@@ -234,6 +236,61 @@ pub trait Store {
 		Ok(valid)
 	}
 
+	/// `Store::querySubstitutablePaths`: the paths a substituter that answers
+	/// mass queries has.
+	fn query_substitutable_paths(
+		&self,
+		_paths: &BTreeSet<StorePath>,
+	) -> Result<BTreeSet<StorePath>> {
+		Ok(BTreeSet::new())
+	}
+
+	/// `Store::queryAllValidPaths`.
+	fn query_all_valid_paths(&self) -> Result<BTreeSet<StorePath>> {
+		Err(Error::Other(
+			"store does not support listing its paths".to_owned(),
+		))
+	}
+
+	/// Write the NAR serialisation of a valid path.
+	fn nar_from_path(&self, path: &StorePath, mut sink: &mut dyn Write) -> Result<()> {
+		crate::nar::dump_path(&mut sink, &self.real_path(path))?;
+		Ok(())
+	}
+
+	/// `Store::queryRealisation`; `None` without `ca-derivations`.
+	fn query_realisation(&self, _drv: &StorePath, _output: &str) -> Result<Option<Realisation>> {
+		Ok(None)
+	}
+
+	/// `Store::registerDrvOutput`.
+	fn register_drv_output(
+		&self,
+		_drv: &StorePath,
+		_output: &str,
+		_realisation: &Realisation,
+	) -> Result<()> {
+		Err(Error::Other(
+			"store does not support registering realisations".to_owned(),
+		))
+	}
+
+	/// `Store::registerDrvOutput` with signature checks: a store that needs
+	/// signatures refuses a realisation without one by a trusted key.
+	fn register_checked_drv_output(
+		&self,
+		drv: &StorePath,
+		output: &str,
+		realisation: &Realisation,
+	) -> Result<()> {
+		self.register_drv_output(drv, output, realisation)
+	}
+
+	/// Whether the store was opened with `ca-derivations`.
+	fn ca_derivations(&self) -> bool {
+		false
+	}
+
 	/// Import `paths` in order, `Store::addMultipleToStore`. `nar` writes
 	/// each path's NAR.
 	fn add_multiple_to_store(
@@ -316,6 +373,42 @@ impl Store for LocalStore {
 
 	fn query_valid_paths(&self, paths: &BTreeSet<StorePath>) -> Result<BTreeSet<StorePath>> {
 		LocalStore::query_valid_paths(self, paths)
+	}
+
+	fn query_all_valid_paths(&self) -> Result<BTreeSet<StorePath>> {
+		LocalStore::query_all_valid_paths(self)
+	}
+
+	fn query_realisation(&self, drv: &StorePath, output: &str) -> Result<Option<Realisation>> {
+		LocalStore::query_realisation(self, drv, output)
+	}
+
+	fn register_drv_output(
+		&self,
+		drv: &StorePath,
+		output: &str,
+		realisation: &Realisation,
+	) -> Result<()> {
+		LocalStore::register_drv_output(self, drv, output, realisation)
+	}
+
+	fn register_checked_drv_output(
+		&self,
+		drv: &StorePath,
+		output: &str,
+		realisation: &Realisation,
+	) -> Result<()> {
+		if self.realisation_is_untrusted(drv, output, realisation) {
+			return Err(Error::Other(format!(
+				"cannot register realisation '{}' because it lacks a signature by a trusted key",
+				realisation.out_path
+			)));
+		}
+		LocalStore::register_drv_output(self, drv, output, realisation)
+	}
+
+	fn ca_derivations(&self) -> bool {
+		self.config().ca_derivations
 	}
 
 	fn optimise_store(&self, log: &mut dyn FnMut(&str)) -> Result<()> {

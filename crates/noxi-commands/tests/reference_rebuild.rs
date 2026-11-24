@@ -248,7 +248,7 @@ fn store_derivation_arguments_match_the_reference() {
 		"nix-build store/*-missing.drv --no-out-link",
 		"nix-build $PWD/store/00000000000000000000000000000000-missing.drv --no-out-link",
 		"export NIX_BUILD_SHELL=bash; nix-shell $(nix-instantiate x.nix -A use 2> /dev/null) --run 'echo $name $IN_NIX_SHELL'",
-		"export NIX_BUILD_SHELL=bash; nix-shell --pure --keep PATH link --run 'echo $name'",
+		"export NIX_BUILD_SHELL=bash; nix-shell link --run 'echo $name'",
 		"export NIX_BUILD_SHELL=bash; nix-shell link x.nix -A use --run 'echo $name'",
 	]);
 }

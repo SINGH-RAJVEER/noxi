@@ -174,6 +174,8 @@ enum Target {
 		socket: PathBuf,
 		root: Option<PathBuf>,
 	},
+	/// A `file://` binary cache.
+	Cache,
 }
 
 /// A store's `store` setting: the logical store directory, which this
@@ -199,6 +201,9 @@ fn set_store_dir(dir: &str) -> Result<(), String> {
 
 /// Resolve `uri` as CppNix's store registry does for the supported kinds.
 fn resolve(uri: &str) -> Result<Target, String> {
+	if uri.starts_with("file://") {
+		return Ok(Target::Cache);
+	}
 	let (scheme, query) = uri.split_once('?').unwrap_or((uri, ""));
 	let dummy = matches!(scheme, "dummy" | "dummy://");
 	let mut root = None;
@@ -291,6 +296,16 @@ pub fn resolves_to_local(uri: &str) -> Result<bool, String> {
 	Ok(matches!(resolve(uri)?, Target::Local { .. }))
 }
 
+/// The `file://` binary cache `uri` names, if it names one.
+pub fn cache(uri: &str) -> Result<Option<noxi_store::binary_cache::BinaryCache>, String> {
+	match resolve(uri)? {
+		Target::Cache => noxi_store::binary_cache::BinaryCache::open(uri)
+			.map(Some)
+			.map_err(|e| e.to_string()),
+		_ => Ok(None),
+	}
+}
+
 /// Open the store named by `uri`. `dummy://` and other stores that cannot
 /// hold paths yield `None`.
 pub fn open(uri: &str, settings: &Settings) -> Result<Option<OpenStore>, String> {
@@ -303,6 +318,23 @@ pub fn open(uri: &str, settings: &Settings) -> Result<Option<OpenStore>, String>
 		return Ok(Some(OpenStore {
 			store: Rc::new(store),
 			real_store_dir: root.map(|root| root.join("nix/store")),
+		}));
+	}
+	if let Target::Cache = resolve(uri)? {
+		let features = settings.experimental_features();
+		let store = noxi_build::cache_store::CacheStore::open(
+			uri,
+			noxi_store::build_derivation::OutputFeatures {
+				ca_derivations: features.contains("ca-derivations"),
+				impure_derivations: features.contains("impure-derivations"),
+				dynamic_derivations: features.contains("dynamic-derivations"),
+				git_hashing: features.contains("git-hashing"),
+			},
+		)
+		.map_err(|e| e.to_string())?;
+		return Ok(Some(OpenStore {
+			store: Rc::new(store),
+			real_store_dir: None,
 		}));
 	}
 	let Some((store, real_store_dir)) = open_local(uri, settings)? else {
@@ -337,6 +369,11 @@ pub fn open_local(
 	let (root, read_only) = match resolve(uri)? {
 		Target::Dummy => return Ok(None),
 		Target::Local { root, read_only } => (root, read_only),
+		Target::Cache => {
+			return Err(format!(
+				"operations that need a local store are not supported by store '{uri}'"
+			));
+		}
 		Target::Daemon { .. } => {
 			return Err(
 				"operations through the Nix daemon other than the store interface are not supported by noxi yet; use a local store"

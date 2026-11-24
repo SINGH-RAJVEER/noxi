@@ -34,7 +34,9 @@ use noxi_store::binary_cache::BinaryCache;
 use noxi_store::build_derivation::{BuildDerivation, FloatingOutput};
 use noxi_store::canonicalise::canonicalise_path_metadata;
 use noxi_store::lock::PathLocks;
-use noxi_store::{FileIngestionMethod, LocalStore, Realisation, ValidPathInfo, delete_path, nar};
+use noxi_store::{
+	FileIngestionMethod, LocalStore, Realisation, Store, ValidPathInfo, delete_path, nar,
+};
 use serde_json::{Map, Value};
 use sha2::{Digest, Sha256};
 
@@ -793,12 +795,20 @@ pub fn resolve_derivation(
 /// its own. Every realisation the query reads is passed to `realisation`,
 /// as `toRealisedPaths` collects them for `nix copy`.
 pub fn deep_query_output(
-	store: &LocalStore,
+	store: &dyn Store,
 	drv_path: &StorePath,
 	output: &str,
 	realisation: &mut dyn FnMut(&StorePath, &str, &Realisation),
 ) -> Result<Option<StorePath>> {
-	if let Some(found) = store.query_realisation(drv_path, output)? {
+	// A statically known path needs no realisation.
+	if store.ca_derivations()
+		&& store
+			.read_build_derivation(drv_path)?
+			.basic
+			.outputs()
+			.is_deferred()
+		&& let Some(found) = store.query_realisation(drv_path, output)?
+	{
 		realisation(drv_path, output, &found);
 		return Ok(Some(found.out_path));
 	}
@@ -808,7 +818,7 @@ pub fn deep_query_output(
 	{
 		return Ok(Some(path));
 	}
-	if !store.config().ca_derivations {
+	if !store.ca_derivations() {
 		return Ok(None);
 	}
 	let drv = store.read_build_derivation(drv_path)?;
@@ -1471,6 +1481,7 @@ impl LocalBuilder<'_> {
 			if !check {
 				info.deriver = Some(drv_path.clone());
 				info.ultimate = true;
+				self.store.sign_path_info(&mut info)?;
 				if info.path != *scratch {
 					rewrites.insert(hash_part(scratch), hash_part(&info.path));
 				}
@@ -1506,15 +1517,15 @@ impl LocalBuilder<'_> {
 		self.store
 			.register_valid_paths(&infos.values().cloned().collect::<Vec<_>>())?;
 		for (name, info) in infos {
-			if outputs[&name].floating.is_some() {
-				self.store.register_drv_output(
-					drv_path,
-					&name,
-					&Realisation {
-						out_path: info.path,
-						signatures: BTreeSet::new(),
-					},
-				)?;
+			if self.store.config().ca_derivations {
+				let mut realisation = Realisation {
+					out_path: info.path,
+					signatures: BTreeSet::new(),
+				};
+				self.store
+					.sign_realisation(drv_path, &name, &mut realisation)?;
+				self.store
+					.register_drv_output(drv_path, &name, &realisation)?;
 			}
 		}
 		Ok(paths)
@@ -1615,6 +1626,7 @@ impl LocalBuilder<'_> {
 		// The build is verified, so the path is now ultimately trusted.
 		if !old.ultimate {
 			old.ultimate = true;
+			self.store.sign_path_info(&mut old)?;
 			self.store.register_valid_path(&old)?;
 		}
 		Ok(())

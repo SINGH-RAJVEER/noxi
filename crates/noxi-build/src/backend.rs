@@ -235,6 +235,61 @@ impl Store for LocalBackend {
 		Store::query_valid_paths(&self.store, paths)
 	}
 
+	fn query_substitutable_paths(
+		&self,
+		paths: &BTreeSet<StorePath>,
+	) -> Result<BTreeSet<StorePath>> {
+		let mut found = BTreeSet::new();
+		if self.settings.use_substitutes {
+			for cache in self.substituters() {
+				if !cache.info().want_mass_query {
+					continue;
+				}
+				for path in paths.difference(&found.clone()) {
+					if cache.query_path_info(path)?.is_some() {
+						found.insert(path.clone());
+					}
+				}
+			}
+		}
+		Ok(found)
+	}
+
+	fn query_all_valid_paths(&self) -> Result<BTreeSet<StorePath>> {
+		self.store.query_all_valid_paths()
+	}
+
+	fn query_realisation(
+		&self,
+		drv: &StorePath,
+		output: &str,
+	) -> Result<Option<noxi_store::Realisation>> {
+		self.store.query_realisation(drv, output)
+	}
+
+	fn register_drv_output(
+		&self,
+		drv: &StorePath,
+		output: &str,
+		realisation: &noxi_store::Realisation,
+	) -> Result<()> {
+		self.store.register_drv_output(drv, output, realisation)
+	}
+
+	fn register_checked_drv_output(
+		&self,
+		drv: &StorePath,
+		output: &str,
+		realisation: &noxi_store::Realisation,
+	) -> Result<()> {
+		self.store
+			.register_checked_drv_output(drv, output, realisation)
+	}
+
+	fn ca_derivations(&self) -> bool {
+		self.store.config().ca_derivations
+	}
+
 	fn optimise_store(&self, log: &mut dyn FnMut(&str)) -> Result<()> {
 		Store::optimise_store(&self.store, log)
 	}

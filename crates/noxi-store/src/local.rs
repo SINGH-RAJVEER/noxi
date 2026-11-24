@@ -24,6 +24,7 @@ use crate::canonicalise::canonicalise_path_metadata;
 use crate::config::LocalStoreConfig;
 use crate::db::{self, DbSettings, OpenMode, SCHEMA_VERSION};
 use crate::error::{Error, IoContext, Result};
+use crate::keys::SecretKey;
 use crate::lock::{LockType, PathLocks, lock_file, open_lock_file};
 use crate::nar::{self, HashingReader};
 use crate::path_info::ValidPathInfo;
@@ -165,7 +166,12 @@ impl LocalStore {
 		} else {
 			let path = db_dir.join("big-lock");
 			let file = open_lock_file(&path, true)
-				.context(|| format!("opening lock file '{}'", path.display()))?
+				.map_err(|e| match e.kind() {
+					io::ErrorKind::PermissionDenied => Error::Other(format!(
+						"\n\u{2026} This command may have been run as non-root in a single-user Nix installation,\nor the Nix daemon may have crashed.\n\nerror: {e}"
+					)),
+					_ => Error::Os(e),
+				})?
 				.expect("created lock file");
 			if !lock_file(&file, LockType::Read, false)? {
 				tracing::info!("waiting for the big Nix store lock...");
@@ -265,6 +271,12 @@ impl LocalStore {
 			.trusted_public_keys
 			.iter()
 			.filter_map(|key| VerifyingKey::parse(key).ok())
+			// `getDefaultPublicKeys`: key files this user cannot read are
+			// ignored, as they are in a multi-user installation.
+			.chain(config.secret_key_files.iter().filter_map(|file| {
+				let key = SecretKey::parse(&fs::read_to_string(file).ok()?).ok()?;
+				VerifyingKey::parse(&key.to_public_text()).ok()
+			}))
 			.collect();
 
 		Ok(Self {
@@ -748,6 +760,86 @@ impl LocalStore {
 		self.config.require_sigs && info.check_signatures(&self.public_keys) == 0
 	}
 
+	fn secret_keys(&self) -> Result<Vec<SecretKey>> {
+		self.config
+			.secret_key_files
+			.iter()
+			.map(|file| {
+				let text = fs::read_to_string(file).map_err(|e| {
+					let text = e.to_string();
+					Error::Other(format!(
+						"opening file \"{file}\": {}",
+						text.split(" (os error").next().unwrap_or(&text)
+					))
+				})?;
+				SecretKey::parse(&text)
+			})
+			.collect()
+	}
+
+	/// `Store::signPathInfo`: sign a path this store built.
+	pub fn sign_path_info(&self, info: &mut ValidPathInfo) -> Result<()> {
+		for key in self.secret_keys()? {
+			let signature = info.signature(&key)?;
+			info.sigs.insert(signature);
+		}
+		Ok(())
+	}
+
+	/// `Store::signRealisation`.
+	pub fn sign_realisation(
+		&self,
+		drv_path: &StorePath,
+		output: &str,
+		realisation: &mut Realisation,
+	) -> Result<()> {
+		use nix_compat::cppnix_json::{DrvOutput, UnkeyedRealisation};
+		for key in self.secret_keys()? {
+			let fingerprint = UnkeyedRealisation {
+				out_path: realisation.out_path.clone(),
+				signatures: BTreeSet::new(),
+			}
+			.fingerprint(&DrvOutput {
+				drv_path: drv_path.clone(),
+				output_name: output.to_owned(),
+			});
+			realisation
+				.signatures
+				.insert(key.sign_detached(fingerprint.as_bytes()));
+		}
+		Ok(())
+	}
+
+	/// Whether a realisation lacks the signatures `require-sigs` demands,
+	/// `realisationIsUntrusted`. A content-addressed output path proves
+	/// nothing about the derivation, so it needs a signature too.
+	pub fn realisation_is_untrusted(
+		&self,
+		drv_path: &StorePath,
+		output: &str,
+		realisation: &Realisation,
+	) -> bool {
+		use nix_compat::cppnix_json::{DrvOutput, Signature, UnkeyedRealisation};
+		if !self.config.require_sigs {
+			return false;
+		}
+		let key = DrvOutput {
+			drv_path: drv_path.clone(),
+			output_name: output.to_owned(),
+		};
+		let unkeyed = UnkeyedRealisation {
+			out_path: realisation.out_path.clone(),
+			signatures: BTreeSet::new(),
+		};
+		!realisation.signatures.iter().any(|signature| {
+			Signature::parse(signature).is_ok_and(|signature| {
+				self.public_keys
+					.iter()
+					.any(|trusted| unkeyed.check_signature(&key, trusted, &signature))
+			})
+		})
+	}
+
 	// Adding paths
 
 	/// Import a path from its NAR serialisation, checking the NAR hash and
@@ -875,7 +967,14 @@ impl LocalStore {
 		repair: bool,
 		captured: Option<([u8; 32], u64)>,
 	) -> Result<StorePath> {
-		let (temp_dir, _temp_lock) = self.create_temp_dir_in_store()?;
+		// A read-only store only says whether it has the path already, which
+		// the reference finds out before it writes to the store.
+		let (temp_dir, _temp_lock) = if self.config.read_only {
+			(tempfile::tempdir()?.keep(), None)
+		} else {
+			let (dir, lock) = self.create_temp_dir_in_store()?;
+			(dir, Some(lock))
+		};
 		let _cleanup = RemoveOnDrop(temp_dir.clone());
 		let temp_path = temp_dir.join("x");
 		let captured_nar = match dump_method {
@@ -951,6 +1050,12 @@ impl LocalStore {
 		if repair || !self.is_valid_path(&dst)? {
 			let real = self.real_path(&dst);
 			let mut lock = PathLocks::lock([real.clone()])?;
+			if self.config.read_only {
+				lock.set_deletion(true);
+				return Err(Error::Other(
+					"attempt to write a readonly database".to_owned(),
+				));
+			}
 			if repair || !self.is_valid_path(&dst)? {
 				delete_path(&real)?;
 				fs::rename(&temp_path, &real)

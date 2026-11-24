@@ -27,7 +27,14 @@ pub fn open_lock_file(path: &Path, create: bool) -> io::Result<Option<File>> {
 	match result {
 		Ok(file) => Ok(Some(file)),
 		Err(e) if !create && e.kind() == io::ErrorKind::NotFound => Ok(None),
-		Err(e) => Err(e),
+		Err(e) => {
+			let text = e.to_string();
+			let reason = text.split(" (os error").next().unwrap_or(&text);
+			Err(io::Error::new(
+				e.kind(),
+				format!("opening lock file \"{}\": {reason}", path.display()),
+			))
+		}
 	}
 }
 

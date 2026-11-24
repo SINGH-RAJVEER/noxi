@@ -396,25 +396,29 @@ pub fn run(
 		})?;
 		return Ok(ExitCode::SUCCESS);
 	}
+	if op == Op::Add {
+		no_flags(flags, "unknown flag")?;
+		let added = crate::store::open(uri, settings)?
+			.ok_or_else(|| Failure::Error(format!("store '{uri}' cannot hold store paths")))?
+			.store;
+		for arg in args {
+			let mut file = dump(cwd, arg, false)?;
+			let path = added.add_to_store_from_dump(
+				&mut file,
+				base_name(arg),
+				FileIngestionMethod::NixArchive,
+				FileIngestionMethod::NixArchive,
+				HashAlgo::Sha256,
+				&BTreeSet::new(),
+			)?;
+			writeln!(io::stdout(), "{}", print(&path))?;
+		}
+		return Ok(ExitCode::SUCCESS);
+	}
 	let store = local_store(uri, settings)?;
 	let mut out = io::stdout().lock();
 	match op {
-		Op::Add => {
-			no_flags(flags, "unknown flag")?;
-			for arg in args {
-				let mut file = dump(cwd, arg, false)?;
-				let path = Store::add_to_store_from_dump(
-					&store,
-					&mut file,
-					base_name(arg),
-					FileIngestionMethod::NixArchive,
-					FileIngestionMethod::NixArchive,
-					HashAlgo::Sha256,
-					&BTreeSet::new(),
-				)?;
-				writeln!(out, "{}", print(&path))?;
-			}
-		}
+		Op::Add => unreachable!("added above"),
 		Op::AddFixed => {
 			let mut method = FileIngestionMethod::Flat;
 			for flag in flags {

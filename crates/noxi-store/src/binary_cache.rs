@@ -179,6 +179,8 @@ pub struct BinaryCache {
 	transfer: TransferSettings,
 	/// Paths whose `query-path-info` activity was already reported.
 	announced: Arc<Mutex<BTreeSet<StorePath>>>,
+	/// `local-nar-cache`: where the cache as a store keeps NARs it has read.
+	local_nar_cache: Option<PathBuf>,
 }
 
 impl BinaryCache {
@@ -200,6 +202,7 @@ impl BinaryCache {
 		// A local store as a substituter, `auto`, `local` or `local?root=DIR`.
 		let local = base == "auto" || base == "local";
 		let mut root = None;
+		let mut local_nar_cache = None;
 		for param in query.split('&').filter(|p| !p.is_empty()) {
 			let (name, value) = param.split_once('=').unwrap_or((param, ""));
 			let invalid = || Error::Other(format!("option '{name}' has invalid value '{value}'"));
@@ -230,6 +233,7 @@ impl BinaryCache {
 				"want-mass-query" => want_mass_query = Some(parse_bool(value).ok_or_else(invalid)?),
 				"priority" => priority = Some(value.parse().map_err(|_| invalid())?),
 				"root" if local => root = Some(value),
+				"local-nar-cache" if !value.is_empty() => local_nar_cache = Some(value.into()),
 				// Settings every binary cache store has that do not affect
 				// what noxi reads or writes.
 				"local-nar-cache" | "path-info-cache-size" | "system-features" | "store" => {}
@@ -318,6 +322,7 @@ impl BinaryCache {
 			http10_close: Arc::default(),
 			transfer,
 			announced: Arc::default(),
+			local_nar_cache,
 		};
 		let cache_info = cache.get_file("nix-cache-info")?;
 		// `HttpBinaryCacheStore::init`: a cache without `nix-cache-info` gets one
@@ -495,6 +500,108 @@ impl BinaryCache {
 		self.publish(source, &info, signing_keys)
 	}
 
+	/// Add a path from its NAR, as `BinaryCacheStore::addToStore` does. `nar`
+	/// may be called once.
+	pub fn add_nar(
+		&self,
+		info: &ValidPathInfo,
+		nar: &mut dyn FnMut(&mut dyn Write) -> Result<()>,
+	) -> Result<()> {
+		for reference in &info.references {
+			if *reference != info.path && self.narinfo_text(reference)?.is_none() {
+				return Err(Error::Other(format!(
+					"cannot add '{}' to the binary cache because the reference '{}' is not valid",
+					print(&info.path),
+					print(reference)
+				)));
+			}
+		}
+		self.publish_nar(info, nar, &[] as &[SigningKey<ed25519_dalek::SigningKey>])
+	}
+
+	/// `LocalBinaryCacheStore::queryAllValidPaths`, with the names the narinfo
+	/// files record.
+	pub fn query_all_valid_paths(&self) -> Result<BTreeSet<StorePath>> {
+		let Transport::File(dir) = &self.transport else {
+			return Err(Error::Other(format!(
+				"operation 'queryAllValidPaths' is not supported by store '{}'",
+				self.uri
+			)));
+		};
+		let mut paths = BTreeSet::new();
+		for entry in fs::read_dir(dir)
+			.map_err(|e| Error::io(format!("reading directory \"{}\"", dir.display()), e))?
+		{
+			let name = entry?.file_name().to_string_lossy().into_owned();
+			if name.len() != 40 || !name.ends_with(".narinfo") {
+				continue;
+			}
+			if let Some(bytes) = self.get_file(&name)? {
+				let narinfo = cppnix::NarInfo::parse(&bytes, &name)
+					.map_err(|e| Error::Other(e.to_string()))?;
+				paths.insert(narinfo.path);
+			}
+		}
+		Ok(paths)
+	}
+
+	/// `BinaryCacheStore::getBuildLogExact`.
+	pub fn build_log(&self, drv: &StorePath) -> Result<Option<Vec<u8>>> {
+		self.get_file(&format!("log/{drv}"))
+	}
+
+	/// `BinaryCacheStore::addBuildLog` for a `file://` cache.
+	pub fn add_build_log(&self, drv: &StorePath, log: &[u8]) -> Result<()> {
+		let Transport::File(dir) = &self.transport else {
+			return Err(Error::Other(
+				"binary cache uploads require a file:// cache".into(),
+			));
+		};
+		let destination = local_cache_path(dir, &format!("log/{drv}"))?;
+		fs::create_dir_all(destination.parent().expect("cache file has a parent"))?;
+		write_atomic(&destination, log)
+	}
+
+	/// The parsed narinfo file of `path`.
+	pub fn nar_info(&self, path: &StorePath) -> Result<Option<cppnix::NarInfo>> {
+		let name = format!("{}.narinfo", nix_compat::nixbase32::encode(path.digest()));
+		self.get_file(&name)?
+			.map(|bytes| {
+				cppnix::NarInfo::parse(&bytes, &name).map_err(|e| Error::Other(e.to_string()))
+			})
+			.transpose()
+	}
+
+	/// `NarCache::getOrInsert`: write the NAR of `path` to `sink`, keeping a
+	/// copy in the `local-nar-cache` directory if there is one. The copy is
+	/// only used if it still has the recorded hash.
+	pub fn copy_nar(&self, cached: &CachedPath, sink: &mut dyn Write) -> Result<()> {
+		let Some(dir) = &self.local_nar_cache else {
+			io::copy(&mut self.nar(cached)?, sink)?;
+			return Ok(());
+		};
+		fs::create_dir_all(dir)?;
+		let name = nix_compat::nixbase32::encode(&cached.info.nar_hash);
+		let file = dir.join(format!("{name}.nar"));
+		if let Ok(bytes) = fs::read(&file)
+			&& <[u8; 32]>::from(<sha2::Sha256 as sha2::Digest>::digest(&bytes))
+				== cached.info.nar_hash
+		{
+			sink.write_all(&bytes)?;
+			return Ok(());
+		}
+		let mut bytes = Vec::new();
+		self.nar(cached)?.read_to_end(&mut bytes)?;
+		let _ = write_atomic(&file, &bytes);
+		if let Ok(listing) = crate::nar_listing::parse_listing(&mut bytes.as_slice()) {
+			let mut json = String::new();
+			listing_json(&listing, &mut json);
+			let _ = write_atomic(&dir.join(format!("{name}.ls")), json.as_bytes());
+		}
+		sink.write_all(&bytes)?;
+		Ok(())
+	}
+
 	fn check_upload<S>(&self, source: &LocalStore, signing_keys: &[SigningKey<S>]) -> Result<()>
 	where
 		S: ed25519::signature::Signer<ed25519::Signature>,
@@ -577,6 +684,22 @@ impl BinaryCache {
 	where
 		S: ed25519::signature::Signer<ed25519::Signature>,
 	{
+		self.publish_nar(
+			info,
+			&mut |mut sink: &mut dyn Write| source.nar_from_path(&info.path, &mut sink),
+			signing_keys,
+		)
+	}
+
+	fn publish_nar<S>(
+		&self,
+		info: &ValidPathInfo,
+		nar: &mut dyn FnMut(&mut dyn Write) -> Result<()>,
+		signing_keys: &[SigningKey<S>],
+	) -> Result<()>
+	where
+		S: ed25519::signature::Signer<ed25519::Signature>,
+	{
 		let path = &info.path;
 		let Transport::File(dir) = &self.transport else {
 			unreachable!()
@@ -588,7 +711,7 @@ impl BinaryCache {
 				file: BufWriter::new(temporary.as_file_mut()),
 				hash: HashSink::new(),
 			};
-			source.nar_from_path(path, &mut sink)?;
+			nar(&mut sink)?;
 			sink.flush()
 				.map_err(|e| Error::io("flushing binary cache NAR", e))?;
 			sink.hash.finish()

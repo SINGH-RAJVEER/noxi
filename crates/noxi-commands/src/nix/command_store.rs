@@ -120,11 +120,7 @@ pub(super) fn paths(parsed: &Parsed, store: &dyn Store) -> Result<BTreeSet<Store
 		if !parsed.operands.is_empty() {
 			return Err(Failure::Usage("'--all' does not expect arguments".into()));
 		}
-		// `queryAllValidPaths`, which only the local store provides here.
-		let uri = crate::store::store_uri(parsed.value("store"), &parsed.settings);
-		let (local, _) = crate::store::open_local(&uri, &parsed.settings)?
-			.ok_or_else(|| unsupported("--all on this store"))?;
-		return Ok(local.query_all_valid_paths()?);
+		return Ok(store.query_all_valid_paths()?);
 	}
 	if parsed.operands.is_empty() {
 		return Err(unsupported(
@@ -175,6 +171,10 @@ pub fn path_info(parsed: Parsed) -> Result<ExitCode, Failure> {
 	let store = opened.store.as_ref();
 	let paths = paths(&parsed, store)?;
 	let mut graph = InfoGraph::new(store);
+	let cache = crate::store::cache(&crate::store::store_uri(
+		parsed.value("store"),
+		&parsed.settings,
+	))?;
 	let format = match parsed.value("json-format") {
 		None | Some("1") => PathInfoFormat::V1,
 		Some("2") => PathInfoFormat::V2,
@@ -202,7 +202,7 @@ pub fn path_info(parsed: Parsed) -> Result<ExitCode, Failure> {
 				objects.insert(key, Value::Null);
 				continue;
 			};
-			let mut value = PathInfo {
+			let info = PathInfo {
 				store_dir: nix_compat::store_path::store_dir().into(),
 				nar_hash: NixHash::Sha256(info.nar_hash),
 				nar_size: info.nar_size,
@@ -217,8 +217,23 @@ pub fn path_info(parsed: Parsed) -> Result<ExitCode, Failure> {
 					.map(|s| nix_compat::cppnix_json::Signature::parse(s))
 					.collect::<Result<_, _>>()
 					.map_err(|e| e.to_string())?,
-			}
-			.to_json(true, format);
+			};
+			// A binary cache also describes the compressed NAR.
+			let narinfo = match &cache {
+				Some(cache) => cache.nar_info(path)?,
+				None => None,
+			};
+			let mut value = match narinfo {
+				Some(narinfo) => nix_compat::cppnix_json::NarInfo {
+					info,
+					url: narinfo.url,
+					compression: Some(narinfo.compression),
+					file_hash: narinfo.file_hash,
+					file_size: narinfo.file_size,
+				}
+				.to_json(true, format),
+				None => info.to_json(true, format),
+			};
 			value["storeDir"] = json!(nix_compat::store_path::store_dir());
 			if parsed.has("closure-size") {
 				value["closureSize"] = json!(graph.closure_size(path)?);
@@ -237,8 +252,13 @@ pub fn path_info(parsed: Parsed) -> Result<ExitCode, Failure> {
 			.map(|p| p.to_absolute_path().len())
 			.max()
 			.unwrap_or(0);
-		// CppNix lists store paths after the paths they refer to.
+		// CppNix lists store paths after the paths they refer to. A cache's
+		// `--all` gives paths without names, which refer to nothing.
+		let unordered = parsed.has("all") && cache.is_some();
 		let sorted = crate::paths::topo_sort_by(&paths, |path| {
+			if unordered {
+				return Ok(BTreeSet::new());
+			}
 			Ok(graph
 				.query(path)?
 				.map(|info| info.references)
@@ -293,11 +313,26 @@ pub fn path_info(parsed: Parsed) -> Result<ExitCode, Failure> {
 
 /// Resolve a store-relative accessor path without following links outside its object.
 /// Store accessors do not follow symlinks. Reject an intermediate symlink explicitly.
-fn accessor(store: &dyn Store, operand: &str) -> Result<(PathBuf, String), Failure> {
+fn accessor(
+	store: &dyn Store,
+	remote: Option<&Path>,
+	operand: &str,
+) -> Result<(PathBuf, String), Failure> {
 	let (path, rest) =
 		StorePath::from_absolute_path_full(Path::new(operand)).map_err(|e| e.to_string())?;
 	info(store, &path)?;
-	let mut physical = store.real_path(&path);
+	let mut physical = match remote {
+		// `RemoteFSAccessor` reads the files from the path's NAR.
+		Some(dir) => {
+			let files = dir.join(path.to_string());
+			let mut spool = tempfile::tempfile()?;
+			store.nar_from_path(&path, &mut spool)?;
+			io::Seek::rewind(&mut spool)?;
+			noxi_store::nar::restore_path(&files, &mut io::BufReader::new(spool))?;
+			files
+		}
+		None => store.real_path(&path),
+	};
 	let rest = Path::new(rest);
 	let parts: Vec<_> = rest.components().collect();
 	for (index, part) in parts.iter().enumerate() {
@@ -320,10 +355,15 @@ pub fn run(parsed: Parsed) -> Result<ExitCode, Failure> {
 	if let Some(result) = super::store_extra::run(&parsed) {
 		return result;
 	}
+	let cache = {
+		let uri = crate::store::store_uri(parsed.value("store"), &parsed.settings);
+		crate::store::cache(&uri)?
+	};
 	if matches!(
 		parsed.command,
 		"store ls" | "store cat" | "store dump-path" | "store verify"
-	) {
+	) && cache.is_none()
+	{
 		let uri = crate::store::store_uri(parsed.value("store"), &parsed.settings);
 		if !crate::store::resolves_to_local(&uri)? {
 			return Err(unsupported(
@@ -336,6 +376,16 @@ pub fn run(parsed: Parsed) -> Result<ExitCode, Failure> {
 	match parsed.command {
 		"store info" => {
 			let uri = crate::store::store_uri(parsed.value("store"), &parsed.settings);
+			if let Some(cache) = &cache {
+				// `file://` has no version; its owner is trusted.
+				if parsed.has("json") {
+					print_json(&parsed, &json!({"url":cache.uri(),"trusted":true}))?;
+				} else {
+					log(&format!("Store URL: {}", cache.uri()));
+					log("Trusted: 1");
+				}
+				return Ok(ExitCode::SUCCESS);
+			}
 			if !matches!(uri.split('?').next(), Some("local" | "local://")) {
 				return Err(unsupported(
 					"store info for non-local stores (connection metadata unavailable)",
@@ -347,16 +397,10 @@ pub fn run(parsed: Parsed) -> Result<ExitCode, Failure> {
 				uri.replacen("local", "local://", 1)
 			};
 			if parsed.has("json") {
-				let value = json!({"url":url,"version":"2.35.2","trusted":true});
-				if parsed.has("pretty") || (!parsed.has("no-pretty") && io::stdout().is_terminal())
-				{
-					println!(
-						"{}",
-						serde_json::to_string_pretty(&value).map_err(|e| e.to_string())?
-					);
-				} else {
-					println!("{value}");
-				}
+				print_json(
+					&parsed,
+					&json!({"url":url,"version":"2.35.2","trusted":true}),
+				)?;
 			} else {
 				log(&format!("Store URL: {url}"));
 				log("Version: 2.35.2");
@@ -430,7 +474,12 @@ pub fn run(parsed: Parsed) -> Result<ExitCode, Failure> {
 			println!("{}", path.to_absolute_path());
 		}
 		"store cat" | "store ls" => {
-			let (path, rest) = accessor(store, &parsed.operands[0])?;
+			let dir = match &cache {
+				Some(_) => Some(tempfile::tempdir()?),
+				None => None,
+			};
+			let remote = dir.as_ref().map(tempfile::TempDir::path);
+			let (path, rest) = accessor(store, remote, &parsed.operands[0])?;
 			if parsed.command == "store cat" {
 				if !fs::symlink_metadata(&path)?.is_file() {
 					return Err(Failure::Error(format!(
@@ -444,7 +493,15 @@ pub fn run(parsed: Parsed) -> Result<ExitCode, Failure> {
 						"'--directory' is useless with '--json'".into(),
 					));
 				}
-				println!("{}", listing_json(&path, parsed.has("recursive"))?);
+				if cache.is_some() {
+					// The NAR accessor's listing knows the NAR offsets.
+					println!(
+						"{}",
+						remote_listing(store, &parsed.operands[0], parsed.has("recursive"))?
+					);
+				} else {
+					println!("{}", listing_json(&path, parsed.has("recursive"))?);
+				}
 			} else {
 				let meta = fs::symlink_metadata(&path)?;
 				let label = if meta.is_dir() {
@@ -471,7 +528,7 @@ pub fn run(parsed: Parsed) -> Result<ExitCode, Failure> {
 			let paths = paths(&parsed, store)?;
 			for path in paths {
 				info(store, &path)?;
-				noxi_store::nar::dump_path(&mut io::stdout().lock(), &store.real_path(&path))?;
+				store.nar_from_path(&path, &mut io::stdout().lock())?;
 			}
 		}
 		"store gc" | "store delete" => {
@@ -517,6 +574,36 @@ pub fn run(parsed: Parsed) -> Result<ExitCode, Failure> {
 		_ => return Err(unsupported(parsed.command)),
 	}
 	Ok(ExitCode::SUCCESS)
+}
+
+fn remote_listing(store: &dyn Store, operand: &str, deep: bool) -> Result<Value, Failure> {
+	let (path, rest) =
+		StorePath::from_absolute_path_full(Path::new(operand)).map_err(|e| e.to_string())?;
+	let mut nar = Vec::new();
+	store.nar_from_path(&path, &mut nar)?;
+	let listing =
+		noxi_store::nar_listing::parse_listing(&mut nar.as_slice()).map_err(Failure::Error)?;
+	let parts: Vec<&[u8]> = rest
+		.iter()
+		.map(|part| part.as_encoded_bytes())
+		.filter(|part| *part != b"/")
+		.collect();
+	let node = listing
+		.find(&parts)
+		.ok_or_else(|| Failure::Error(format!("path '{operand}' does not exist")))?;
+	Ok(super::archive::list_json(node, deep))
+}
+
+fn print_json(parsed: &Parsed, value: &Value) -> Result<(), Failure> {
+	if parsed.has("pretty") || (!parsed.has("no-pretty") && io::stdout().is_terminal()) {
+		println!(
+			"{}",
+			serde_json::to_string_pretty(value).map_err(|e| e.to_string())?
+		);
+	} else {
+		println!("{value}");
+	}
+	Ok(())
 }
 
 fn listing_text(
@@ -623,8 +710,9 @@ fn verify(parsed: &Parsed, store: &dyn Store) -> Result<ExitCode, Failure> {
 		};
 		log(&format!("checking '{}'...", path.to_absolute_path()));
 		if !parsed.has("no-contents") {
-			let (hash, _) = match noxi_store::nar::hash_path(&store.real_path(&path)) {
-				Ok(value) => value,
+			let mut sink = noxi_store::nar::HashSink::new();
+			let (hash, _) = match store.nar_from_path(&path, &mut sink) {
+				Ok(()) => sink.finish(),
 				Err(error) => {
 					crate::cli::print_error(&error.to_string());
 					status |= 4;
@@ -632,7 +720,7 @@ fn verify(parsed: &Parsed, store: &dyn Store) -> Result<ExitCode, Failure> {
 				}
 			};
 			if hash != info.nar_hash {
-				crate::cli::print_error(&format!(
+				print_error_line(&format!(
 					"path '{}' was modified! expected hash '{}', got 'sha256:{}'",
 					path.to_absolute_path(),
 					info.nar_hash_nix32(),
@@ -645,9 +733,14 @@ fn verify(parsed: &Parsed, store: &dyn Store) -> Result<ExitCode, Failure> {
 			&& !(info.ultimate && needed == 0)
 			&& info.check_signatures(&keys) < needed.max(1)
 		{
-			crate::cli::print_error(&format!("path '{}' is untrusted", path.to_absolute_path()));
+			print_error_line(&format!("path '{}' is untrusted", path.to_absolute_path()));
 			status |= 2;
 		}
 	}
 	Ok(ExitCode::from(status))
+}
+
+/// `printError`, which adds no prefix.
+fn print_error_line(message: &str) {
+	nix_compat::log::logger::log(nix_compat::log::VerbosityLevel::Error, message);
 }

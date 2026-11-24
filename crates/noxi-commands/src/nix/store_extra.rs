@@ -471,20 +471,33 @@ fn copy_log(parsed: &Parsed) -> Result<ExitCode, Failure> {
 	if parsed.has("expr") || parsed.has("file") {
 		return Err(unsupported("store copy-log of expression installables"));
 	}
-	let source = local(parsed, parsed.value("from"), "store copy-log")?;
 	if !parsed.has("from") && !parsed.has("to") {
 		return Err(Failure::Usage(
 			"you must pass '--from' and/or '--to'".into(),
 		));
 	}
-	let destination = local(parsed, parsed.value("to"), "store copy-log")?;
+	let source = LogStore::open(parsed, parsed.value("from"))?;
+	let destination = LogStore::open(parsed, parsed.value("to"))?;
+	if parsed.operands.is_empty() {
+		return Err(unsupported(
+			"implicit flake installables; provide store paths",
+		));
+	}
 	let mut derivations = Vec::new();
 	for operand in &parsed.operands {
-		let path = store_path_installable(&source, operand)?;
+		// `DRV^OUTPUTS` names the derivation itself.
+		if let Some((drv, _)) = operand.split_once(".drv^") {
+			derivations.push(crate::paths::follow_links_to_store_path(
+				&std::env::current_dir()?,
+				&format!("{drv}.drv"),
+			)?);
+			continue;
+		}
+		let path = store_path_installable(source.store(), operand)?;
 		if path.name().ends_with(".drv") {
 			derivations.push(path);
 		} else {
-			derivations.push(info(&source, &path)?.deriver.ok_or_else(|| {
+			derivations.push(info(source.store(), &path)?.deriver.ok_or_else(|| {
 				Failure::Error(format!(
 					"'{}' does not have a known deriver",
 					path.to_absolute_path()
@@ -492,21 +505,58 @@ fn copy_log(parsed: &Parsed) -> Result<ExitCode, Failure> {
 			})?);
 		}
 	}
-	if parsed.operands.is_empty() {
-		return Err(unsupported(
-			"implicit flake installables; provide store paths",
-		));
-	}
 	for drv in derivations {
-		let Some(log) = build_log(&source, &drv)? else {
+		let Some(log) = source.build_log(&drv)? else {
 			return Err(Failure::Error(format!(
 				"build log for '{}' is not available",
 				drv.to_absolute_path()
 			)));
 		};
-		destination.add_build_log(&drv, &mut log.as_slice())?;
+		destination.add_build_log(&drv, &log)?;
 	}
 	Ok(ExitCode::SUCCESS)
+}
+
+/// A store that keeps build logs.
+enum LogStore {
+	Local(LocalStore),
+	Cache(noxi_build::cache_store::CacheStore),
+}
+
+impl LogStore {
+	fn open(parsed: &Parsed, uri: Option<&str>) -> Result<Self, Failure> {
+		let default = crate::store::store_uri(parsed.value("store"), &parsed.settings);
+		let chosen = uri.unwrap_or(&default);
+		if crate::store::cache(chosen)?.is_some() {
+			return Ok(Self::Cache(noxi_build::cache_store::CacheStore::open(
+				chosen,
+				Default::default(),
+			)?));
+		}
+		local(parsed, uri, "store copy-log").map(Self::Local)
+	}
+
+	fn store(&self) -> &dyn Store {
+		match self {
+			Self::Local(store) => store,
+			Self::Cache(store) => store,
+		}
+	}
+
+	fn build_log(&self, drv: &StorePath) -> Result<Option<Vec<u8>>, Failure> {
+		match self {
+			Self::Local(store) => build_log(store, drv),
+			Self::Cache(store) => Ok(store.cache().build_log(drv)?),
+		}
+	}
+
+	fn add_build_log(&self, drv: &StorePath, mut log: &[u8]) -> Result<(), Failure> {
+		match self {
+			Self::Local(store) => store.add_build_log(drv, &mut log)?,
+			Self::Cache(store) => store.cache().add_build_log(drv, log)?,
+		}
+		Ok(())
+	}
 }
 
 fn repair(parsed: &Parsed) -> Result<ExitCode, Failure> {
