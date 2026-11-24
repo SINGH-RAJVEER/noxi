@@ -1,0 +1,541 @@
++(follow-paths.sh:3) source ./common.sh
+++(./common.sh:3) source ../common.sh
++++(../common.sh:3) set -eu -o pipefail
++++(../common.sh:5) [[ -z '' ]]
++++(../common.sh:7) COMMON_SH_SOURCED=1
++++++(../common.sh:9) dirname ../common.sh
+++++(../common.sh:9) readlink -f ..
++++(../common.sh:9) functionalTestsDir=/var/tmp/nfzXLel9/src
++++(../common.sh:11) source /var/tmp/nfzXLel9/src/common/vars.sh
+++++(/var/tmp/nfzXLel9/src/common/vars.sh:3) set -eu -o pipefail
+++++(/var/tmp/nfzXLel9/src/common/vars.sh:5) [[ -z '' ]]
+++++(/var/tmp/nfzXLel9/src/common/vars.sh:7) COMMON_VARS_SH_SOURCED=1
++++++(/var/tmp/nfzXLel9/src/common/vars.sh:9) realpath /var/tmp/nfzXLel9/src
+++++(/var/tmp/nfzXLel9/src/common/vars.sh:9) _NIX_TEST_SOURCE_DIR=/var/tmp/nfzXLel9/src
++++++(/var/tmp/nfzXLel9/src/common/vars.sh:10) realpath /var/tmp/nfzXLel9/build
+++++(/var/tmp/nfzXLel9/src/common/vars.sh:10) _NIX_TEST_BUILD_DIR=/var/tmp/nfzXLel9/build
+++++++(/var/tmp/nfzXLel9/src/common/vars.sh:12) dirname /var/tmp/nfzXLel9/src/common/vars.sh
++++++(/var/tmp/nfzXLel9/src/common/vars.sh:12) readlink -f /var/tmp/nfzXLel9/src/common
+++++(/var/tmp/nfzXLel9/src/common/vars.sh:12) commonDir=/var/tmp/nfzXLel9/src/common
+++++(/var/tmp/nfzXLel9/src/common/vars.sh:16) source /var/tmp/nfzXLel9/build/common/subst-vars.sh
++++++(/var/tmp/nfzXLel9/build/common/subst-vars.sh:3) [[ -z '' ]]
++++++(/var/tmp/nfzXLel9/build/common/subst-vars.sh:5) COMMON_SUBST_VARS_SH_SOURCED=1
++++++(/var/tmp/nfzXLel9/build/common/subst-vars.sh:7) bash=/nix/store/2ndah67h0z5m31v2wkdmg2md4380ggr5-bash-interactive-5.3p15/bin/bash
++++++(/var/tmp/nfzXLel9/build/common/subst-vars.sh:8) bindir=/nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2/bin
++++++(/var/tmp/nfzXLel9/build/common/subst-vars.sh:9) coreutils=/nix/store/xjl7p8dvyk2j53kqf7f43kdj4ypbxz7g-coreutils-9.11/bin
++++++(/var/tmp/nfzXLel9/build/common/subst-vars.sh:11) dot=
++++++(/var/tmp/nfzXLel9/build/common/subst-vars.sh:12) busybox=/nix/store/qddzvnv6b0805nkvbqddbswddcfhx814-busybox-static-x86_64-unknown-linux-musl-1.37.0/bin/busybox
++++++(/var/tmp/nfzXLel9/build/common/subst-vars.sh:14) version=2.35.2
++++++(/var/tmp/nfzXLel9/build/common/subst-vars.sh:15) system=x86_64-linux
+++++(/var/tmp/nfzXLel9/src/common/vars.sh:18) : '/nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2/bin /nix/store/xjl7p8dvyk2j53kqf7f43kdj4ypbxz7g-coreutils-9.11/bin  /run/current-system/sw/bin/nu /nix/store/qddzvnv6b0805nkvbqddbswddcfhx814-busybox-static-x86_64-unknown-linux-musl-1.37.0/bin/busybox 2.35.2 x86_64-linux'
+++++(/var/tmp/nfzXLel9/src/common/vars.sh:19) export coreutils dot busybox version system
+++++(/var/tmp/nfzXLel9/src/common/vars.sh:21) export PAGER=cat
+++++(/var/tmp/nfzXLel9/src/common/vars.sh:21) PAGER=cat
+++++(/var/tmp/nfzXLel9/src/common/vars.sh:23) source /var/tmp/nfzXLel9/src/common/paths.sh
++++++(/var/tmp/nfzXLel9/src/common/paths.sh:3) set -eu -o pipefail
++++++(/var/tmp/nfzXLel9/src/common/paths.sh:5) [[ -z '' ]]
++++++(/var/tmp/nfzXLel9/src/common/paths.sh:7) COMMON_PATHS_SH_SOURCED=1
++++++++(/var/tmp/nfzXLel9/src/common/paths.sh:9) dirname /var/tmp/nfzXLel9/src/common/paths.sh
+++++++(/var/tmp/nfzXLel9/src/common/paths.sh:9) readlink -f /var/tmp/nfzXLel9/src/common
++++++(/var/tmp/nfzXLel9/src/common/paths.sh:9) commonDir=/var/tmp/nfzXLel9/src/common
++++++(/var/tmp/nfzXLel9/src/common/paths.sh:12) source /var/tmp/nfzXLel9/src/common/functions.sh
+++++++(/var/tmp/nfzXLel9/src/common/functions.sh:3) set -eu -o pipefail
+++++++(/var/tmp/nfzXLel9/src/common/functions.sh:5) [[ -z '' ]]
+++++++(/var/tmp/nfzXLel9/src/common/functions.sh:7) COMMON_FUNCTIONS_SH_SOURCED=1
+++++++(/var/tmp/nfzXLel9/src/common/functions.sh:353) trap onError ERR
++++++(/var/tmp/nfzXLel9/src/common/paths.sh:14) source /var/tmp/nfzXLel9/build/common/subst-vars.sh
+++++++(/var/tmp/nfzXLel9/build/common/subst-vars.sh:3) [[ -z 1 ]]
++++++(/var/tmp/nfzXLel9/src/common/paths.sh:16) : /nix/store/2ndah67h0z5m31v2wkdmg2md4380ggr5-bash-interactive-5.3p15/bin/bash /nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2/bin
++++++(/var/tmp/nfzXLel9/src/common/paths.sh:18) isTestOnNixOS
++++++(/var/tmp/nfzXLel9/src/common/functions.sh:10) [[ '' == 1 ]]
++++++(/var/tmp/nfzXLel9/src/common/paths.sh:19) export SHELL=/nix/store/2ndah67h0z5m31v2wkdmg2md4380ggr5-bash-interactive-5.3p15/bin/bash
++++++(/var/tmp/nfzXLel9/src/common/paths.sh:19) SHELL=/nix/store/2ndah67h0z5m31v2wkdmg2md4380ggr5-bash-interactive-5.3p15/bin/bash
++++++(/var/tmp/nfzXLel9/src/common/paths.sh:20) export PATH=/nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2/bin:/nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2/bin:/nix/store/2ndah67h0z5m31v2wkdmg2md4380ggr5-bash-interactive-5.3p15/bin:/nix/store/xjl7p8dvyk2j53kqf7f43kdj4ypbxz7g-coreutils-9.11/bin:/nix/store/xmvbzzxm5snla5a2cyfhm7hjy9bifx7n-gnugrep-3.12/bin:/nix/store/qf2wzyq4irhgyhnq3s2hz0ldjq3w8a3x-gnused-4.10/bin:/nix/store/9zib1q94gka8i5q530364cvy25504qz5-gawk-5.4.1/bin:/nix/store/i9wgqa0l88aprvpwfaq5hkfa6pklhlv0-findutils-4.11.0/bin:/nix/store/b8xvzgd52jby5dfpi0pf46nisy6wma5d-diffutils-3.12/bin:/nix/store/81zqbas7qc02yfdj7142fdcqhxgd3cgz-patch-2.8/bin:/nix/store/c8b0qp903w2hhpa63a2lfs7d565zag30-gnutar-1.35/bin:/nix/store/l5sll8nxk70p73l5yqbsjy4mh0c3g0v5-gzip-1.14/bin:/nix/store/j3yz0ag9j442229n8harpmp9aa5qyvhn-bzip2-1.0.8-bin/bin:/nix/store/518dig8gpvqyac6pkksyjjfzvi9zn8vq-xz-5.8.3-bin/bin:/nix/store/l8ik8mb8lgb60rklxjmkgddmp5qqnv29-zstd-1.5.7-bin/bin:/nix/store/msr1v91ybfw6j12rs5mfl8ghb2rqsnsr-git-2.55.0/bin:/nix/store/hyz22a0l5b5kv7yfypw4ss6d36vbzg01-jq-1.8.2-bin/bin:/nix/store/24gq3bi2yzf7g386p5j32mn78hhanf49-sqlite-3.53.3-bin/bin:/nix/store/cp8qnyl8i0s62g3a1465i258mf5bcr6k-curl-8.22.0-bin/bin:/nix/store/8x4c8zah3fbnyckaic4sskjbw7d2y98n-util-linux-2.42.4-bin/bin:/nix/store/d64q19q1xjdwfhqx6czvrjgrhq0n3lcc-python3-3.14.7/bin:/nix/store/niqsa6mxqsyax9lzbm261a2ml6m71vb6-perl-5.42.3/bin:/nix/store/fv9yl55hkskpc2cj9c0sdyq91car9kgl-file-5.48/bin:/nix/store/jv5kdlkwx0l8a7jdpg21g934ff30s319-which-2.25/bin:/nix/store/aj08b694apkc1jay2akywym9ghlailf5-procps-4.0.7/bin:/nix/store/5wyaj1kvkxbbscz6innrh6yjjkdq4qmk-openssh-10.6p1/bin:/nix/store/44gxi8li8y8wrxrb93sya9hljkpigsqw-openssl-3.6.4-bin/bin:/run/wrappers/wrappers.Yw6nCJO1nt:/nix/store/wmh4xg3557sicfyllmi9ymd8sxaw51wv-man-db-2.13.1/bin:/nix/store/qpgknrlnxca0z99gl12j5n0fgca11cdx-mercurial-7.2.2/bin:/var/tmp/noxi-st2/.tmpQra68W/reference/tools
++++++(/var/tmp/nfzXLel9/src/common/paths.sh:20) PATH=/nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2/bin:/nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2/bin:/nix/store/2ndah67h0z5m31v2wkdmg2md4380ggr5-bash-interactive-5.3p15/bin:/nix/store/xjl7p8dvyk2j53kqf7f43kdj4ypbxz7g-coreutils-9.11/bin:/nix/store/xmvbzzxm5snla5a2cyfhm7hjy9bifx7n-gnugrep-3.12/bin:/nix/store/qf2wzyq4irhgyhnq3s2hz0ldjq3w8a3x-gnused-4.10/bin:/nix/store/9zib1q94gka8i5q530364cvy25504qz5-gawk-5.4.1/bin:/nix/store/i9wgqa0l88aprvpwfaq5hkfa6pklhlv0-findutils-4.11.0/bin:/nix/store/b8xvzgd52jby5dfpi0pf46nisy6wma5d-diffutils-3.12/bin:/nix/store/81zqbas7qc02yfdj7142fdcqhxgd3cgz-patch-2.8/bin:/nix/store/c8b0qp903w2hhpa63a2lfs7d565zag30-gnutar-1.35/bin:/nix/store/l5sll8nxk70p73l5yqbsjy4mh0c3g0v5-gzip-1.14/bin:/nix/store/j3yz0ag9j442229n8harpmp9aa5qyvhn-bzip2-1.0.8-bin/bin:/nix/store/518dig8gpvqyac6pkksyjjfzvi9zn8vq-xz-5.8.3-bin/bin:/nix/store/l8ik8mb8lgb60rklxjmkgddmp5qqnv29-zstd-1.5.7-bin/bin:/nix/store/msr1v91ybfw6j12rs5mfl8ghb2rqsnsr-git-2.55.0/bin:/nix/store/hyz22a0l5b5kv7yfypw4ss6d36vbzg01-jq-1.8.2-bin/bin:/nix/store/24gq3bi2yzf7g386p5j32mn78hhanf49-sqlite-3.53.3-bin/bin:/nix/store/cp8qnyl8i0s62g3a1465i258mf5bcr6k-curl-8.22.0-bin/bin:/nix/store/8x4c8zah3fbnyckaic4sskjbw7d2y98n-util-linux-2.42.4-bin/bin:/nix/store/d64q19q1xjdwfhqx6czvrjgrhq0n3lcc-python3-3.14.7/bin:/nix/store/niqsa6mxqsyax9lzbm261a2ml6m71vb6-perl-5.42.3/bin:/nix/store/fv9yl55hkskpc2cj9c0sdyq91car9kgl-file-5.48/bin:/nix/store/jv5kdlkwx0l8a7jdpg21g934ff30s319-which-2.25/bin:/nix/store/aj08b694apkc1jay2akywym9ghlailf5-procps-4.0.7/bin:/nix/store/5wyaj1kvkxbbscz6innrh6yjjkdq4qmk-openssh-10.6p1/bin:/nix/store/44gxi8li8y8wrxrb93sya9hljkpigsqw-openssl-3.6.4-bin/bin:/run/wrappers/wrappers.Yw6nCJO1nt:/nix/store/wmh4xg3557sicfyllmi9ymd8sxaw51wv-man-db-2.13.1/bin:/nix/store/qpgknrlnxca0z99gl12j5n0fgca11cdx-mercurial-7.2.2/bin:/var/tmp/noxi-st2/.tmpQra68W/reference/tools
++++++(/var/tmp/nfzXLel9/src/common/paths.sh:23) [[ -n '' ]]
++++++(/var/tmp/nfzXLel9/src/common/paths.sh:27) DAEMON_PATH=/nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2/bin:/nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2/bin:/nix/store/2ndah67h0z5m31v2wkdmg2md4380ggr5-bash-interactive-5.3p15/bin:/nix/store/xjl7p8dvyk2j53kqf7f43kdj4ypbxz7g-coreutils-9.11/bin:/nix/store/xmvbzzxm5snla5a2cyfhm7hjy9bifx7n-gnugrep-3.12/bin:/nix/store/qf2wzyq4irhgyhnq3s2hz0ldjq3w8a3x-gnused-4.10/bin:/nix/store/9zib1q94gka8i5q530364cvy25504qz5-gawk-5.4.1/bin:/nix/store/i9wgqa0l88aprvpwfaq5hkfa6pklhlv0-findutils-4.11.0/bin:/nix/store/b8xvzgd52jby5dfpi0pf46nisy6wma5d-diffutils-3.12/bin:/nix/store/81zqbas7qc02yfdj7142fdcqhxgd3cgz-patch-2.8/bin:/nix/store/c8b0qp903w2hhpa63a2lfs7d565zag30-gnutar-1.35/bin:/nix/store/l5sll8nxk70p73l5yqbsjy4mh0c3g0v5-gzip-1.14/bin:/nix/store/j3yz0ag9j442229n8harpmp9aa5qyvhn-bzip2-1.0.8-bin/bin:/nix/store/518dig8gpvqyac6pkksyjjfzvi9zn8vq-xz-5.8.3-bin/bin:/nix/store/l8ik8mb8lgb60rklxjmkgddmp5qqnv29-zstd-1.5.7-bin/bin:/nix/store/msr1v91ybfw6j12rs5mfl8ghb2rqsnsr-git-2.55.0/bin:/nix/store/hyz22a0l5b5kv7yfypw4ss6d36vbzg01-jq-1.8.2-bin/bin:/nix/store/24gq3bi2yzf7g386p5j32mn78hhanf49-sqlite-3.53.3-bin/bin:/nix/store/cp8qnyl8i0s62g3a1465i258mf5bcr6k-curl-8.22.0-bin/bin:/nix/store/8x4c8zah3fbnyckaic4sskjbw7d2y98n-util-linux-2.42.4-bin/bin:/nix/store/d64q19q1xjdwfhqx6czvrjgrhq0n3lcc-python3-3.14.7/bin:/nix/store/niqsa6mxqsyax9lzbm261a2ml6m71vb6-perl-5.42.3/bin:/nix/store/fv9yl55hkskpc2cj9c0sdyq91car9kgl-file-5.48/bin:/nix/store/jv5kdlkwx0l8a7jdpg21g934ff30s319-which-2.25/bin:/nix/store/aj08b694apkc1jay2akywym9ghlailf5-procps-4.0.7/bin:/nix/store/5wyaj1kvkxbbscz6innrh6yjjkdq4qmk-openssh-10.6p1/bin:/nix/store/44gxi8li8y8wrxrb93sya9hljkpigsqw-openssl-3.6.4-bin/bin:/run/wrappers/wrappers.Yw6nCJO1nt:/nix/store/wmh4xg3557sicfyllmi9ymd8sxaw51wv-man-db-2.13.1/bin:/nix/store/qpgknrlnxca0z99gl12j5n0fgca11cdx-mercurial-7.2.2/bin:/var/tmp/noxi-st2/.tmpQra68W/reference/tools
++++++(/var/tmp/nfzXLel9/src/common/paths.sh:28) [[ -n '' ]]
+++++(/var/tmp/nfzXLel9/src/common/vars.sh:24) source /var/tmp/nfzXLel9/src/common/test-root.sh
++++++(/var/tmp/nfzXLel9/src/common/test-root.sh:3) TEST_SUBDIR=flakes/follow-paths
+++++++(/var/tmp/nfzXLel9/src/common/test-root.sh:4) realpath /var/tmp/nfzXLel9/tmp/nix-test
++++++(/var/tmp/nfzXLel9/src/common/test-root.sh:4) TEST_ROOT=/var/tmp/nfzXLel9/tmp/nix-test/flakes/follow-paths
++++++(/var/tmp/nfzXLel9/src/common/test-root.sh:5) export TEST_ROOT
+++++(/var/tmp/nfzXLel9/src/common/vars.sh:26) test_nix_conf_dir=/var/tmp/nfzXLel9/tmp/nix-test/flakes/follow-paths/etc
+++++(/var/tmp/nfzXLel9/src/common/vars.sh:29) test_nix_conf=/var/tmp/nfzXLel9/tmp/nix-test/flakes/follow-paths/etc/nix.conf
+++++(/var/tmp/nfzXLel9/src/common/vars.sh:31) export TEST_HOME=/var/tmp/nfzXLel9/tmp/nix-test/flakes/follow-paths/test-home
+++++(/var/tmp/nfzXLel9/src/common/vars.sh:31) TEST_HOME=/var/tmp/nfzXLel9/tmp/nix-test/flakes/follow-paths/test-home
+++++(/var/tmp/nfzXLel9/src/common/vars.sh:33) isTestOnNixOS
+++++(/var/tmp/nfzXLel9/src/common/functions.sh:10) [[ '' == 1 ]]
+++++(/var/tmp/nfzXLel9/src/common/vars.sh:34) export NIX_STORE_DIR
++++++(/var/tmp/nfzXLel9/src/common/vars.sh:35) readlink -f /var/tmp/nfzXLel9/tmp/nix-test/flakes/follow-paths/store
+++++(/var/tmp/nfzXLel9/src/common/vars.sh:35) NIX_STORE_DIR=
+++++(/var/tmp/nfzXLel9/src/common/vars.sh:37) export NIX_IGNORE_SYMLINK_STORE=1
+++++(/var/tmp/nfzXLel9/src/common/vars.sh:37) NIX_IGNORE_SYMLINK_STORE=1
+++++(/var/tmp/nfzXLel9/src/common/vars.sh:38) NIX_STORE_DIR=/var/tmp/nfzXLel9/tmp/nix-test/flakes/follow-paths/store
+++++(/var/tmp/nfzXLel9/src/common/vars.sh:40) export NIX_LOCALSTATE_DIR=/var/tmp/nfzXLel9/tmp/nix-test/flakes/follow-paths/var
+++++(/var/tmp/nfzXLel9/src/common/vars.sh:40) NIX_LOCALSTATE_DIR=/var/tmp/nfzXLel9/tmp/nix-test/flakes/follow-paths/var
+++++(/var/tmp/nfzXLel9/src/common/vars.sh:41) export NIX_LOG_DIR=/var/tmp/nfzXLel9/tmp/nix-test/flakes/follow-paths/var/log/nix
+++++(/var/tmp/nfzXLel9/src/common/vars.sh:41) NIX_LOG_DIR=/var/tmp/nfzXLel9/tmp/nix-test/flakes/follow-paths/var/log/nix
+++++(/var/tmp/nfzXLel9/src/common/vars.sh:42) export NIX_STATE_DIR=/var/tmp/nfzXLel9/tmp/nix-test/flakes/follow-paths/var/nix
+++++(/var/tmp/nfzXLel9/src/common/vars.sh:42) NIX_STATE_DIR=/var/tmp/nfzXLel9/tmp/nix-test/flakes/follow-paths/var/nix
+++++(/var/tmp/nfzXLel9/src/common/vars.sh:43) export NIX_CONF_DIR=/var/tmp/nfzXLel9/tmp/nix-test/flakes/follow-paths/etc
+++++(/var/tmp/nfzXLel9/src/common/vars.sh:43) NIX_CONF_DIR=/var/tmp/nfzXLel9/tmp/nix-test/flakes/follow-paths/etc
+++++(/var/tmp/nfzXLel9/src/common/vars.sh:44) export NIX_DAEMON_SOCKET_PATH=/var/tmp/nfzXLel9/tmp/nix-test/flakes/follow-paths/dSocket
+++++(/var/tmp/nfzXLel9/src/common/vars.sh:44) NIX_DAEMON_SOCKET_PATH=/var/tmp/nfzXLel9/tmp/nix-test/flakes/follow-paths/dSocket
+++++(/var/tmp/nfzXLel9/src/common/vars.sh:45) unset NIX_USER_CONF_FILES
+++++(/var/tmp/nfzXLel9/src/common/vars.sh:46) export _NIX_TEST_SHARED=/var/tmp/nfzXLel9/tmp/nix-test/flakes/follow-paths/shared
+++++(/var/tmp/nfzXLel9/src/common/vars.sh:46) _NIX_TEST_SHARED=/var/tmp/nfzXLel9/tmp/nix-test/flakes/follow-paths/shared
+++++(/var/tmp/nfzXLel9/src/common/vars.sh:47) [[ -n '' ]]
+++++(/var/tmp/nfzXLel9/src/common/vars.sh:50) export _NIX_IN_TEST=/var/tmp/nfzXLel9/tmp/nix-test/flakes/follow-paths/shared
+++++(/var/tmp/nfzXLel9/src/common/vars.sh:50) _NIX_IN_TEST=/var/tmp/nfzXLel9/tmp/nix-test/flakes/follow-paths/shared
+++++(/var/tmp/nfzXLel9/src/common/vars.sh:51) export _NIX_TEST_NO_LSOF=1
+++++(/var/tmp/nfzXLel9/src/common/vars.sh:51) _NIX_TEST_NO_LSOF=1
+++++(/var/tmp/nfzXLel9/src/common/vars.sh:54) export _NIX_TEST_NO_ENVIRONMENT_WARNINGS=1
+++++(/var/tmp/nfzXLel9/src/common/vars.sh:54) _NIX_TEST_NO_ENVIRONMENT_WARNINGS=1
+++++(/var/tmp/nfzXLel9/src/common/vars.sh:55) export NIX_REMOTE=
+++++(/var/tmp/nfzXLel9/src/common/vars.sh:55) NIX_REMOTE=
+++++(/var/tmp/nfzXLel9/src/common/vars.sh:59) unset NIX_PATH
+++++(/var/tmp/nfzXLel9/src/common/vars.sh:60) export HOME=/var/tmp/nfzXLel9/tmp/nix-test/flakes/follow-paths/test-home
+++++(/var/tmp/nfzXLel9/src/common/vars.sh:60) HOME=/var/tmp/nfzXLel9/tmp/nix-test/flakes/follow-paths/test-home
+++++(/var/tmp/nfzXLel9/src/common/vars.sh:61) unset XDG_STATE_HOME
+++++(/var/tmp/nfzXLel9/src/common/vars.sh:62) unset XDG_DATA_HOME
+++++(/var/tmp/nfzXLel9/src/common/vars.sh:63) unset XDG_CONFIG_HOME
+++++(/var/tmp/nfzXLel9/src/common/vars.sh:64) unset XDG_CONFIG_DIRS
+++++(/var/tmp/nfzXLel9/src/common/vars.sh:65) unset XDG_CACHE_HOME
+++++(/var/tmp/nfzXLel9/src/common/vars.sh:66) unset GIT_DIR
+++++(/var/tmp/nfzXLel9/src/common/vars.sh:68) export GIT_CONFIG_SYSTEM=/dev/null
+++++(/var/tmp/nfzXLel9/src/common/vars.sh:68) GIT_CONFIG_SYSTEM=/dev/null
+++++(/var/tmp/nfzXLel9/src/common/vars.sh:69) export GIT_CONFIG_GLOBAL=/dev/null
+++++(/var/tmp/nfzXLel9/src/common/vars.sh:69) GIT_CONFIG_GLOBAL=/dev/null
+++++(/var/tmp/nfzXLel9/src/common/vars.sh:71) export IMPURE_VAR1=foo
+++++(/var/tmp/nfzXLel9/src/common/vars.sh:71) IMPURE_VAR1=foo
+++++(/var/tmp/nfzXLel9/src/common/vars.sh:72) export IMPURE_VAR2=bar
+++++(/var/tmp/nfzXLel9/src/common/vars.sh:72) IMPURE_VAR2=bar
+++++(/var/tmp/nfzXLel9/src/common/vars.sh:76) cacheDir=/var/tmp/nfzXLel9/tmp/nix-test/flakes/follow-paths/binary-cache
++++++(/var/tmp/nfzXLel9/src/common/vars.sh:78) uname
+++++(/var/tmp/nfzXLel9/src/common/vars.sh:78) [[ Linux == Linux ]]
+++++(/var/tmp/nfzXLel9/src/common/vars.sh:78) [[ -L /proc/self/ns/user ]]
+++++(/var/tmp/nfzXLel9/src/common/vars.sh:78) unshare --user true
+++++(/var/tmp/nfzXLel9/src/common/vars.sh:79) _canUseSandbox=1
+++++(/var/tmp/nfzXLel9/src/common/vars.sh:85) config_nix=/var/tmp/nfzXLel9/tmp/nix-test/flakes/follow-paths/config.nix
++++(../common.sh:12) source /var/tmp/nfzXLel9/src/common/functions.sh
+++++(/var/tmp/nfzXLel9/src/common/functions.sh:3) set -eu -o pipefail
+++++(/var/tmp/nfzXLel9/src/common/functions.sh:5) [[ -z 1 ]]
++++(../common.sh:13) source /var/tmp/nfzXLel9/src/common/init.sh
+++++(/var/tmp/nfzXLel9/src/common/init.sh:4) : /var/tmp/nfzXLel9/tmp/nix-test/flakes/follow-paths/etc /var/tmp/nfzXLel9/tmp/nix-test/flakes/follow-paths/etc/nix.conf /var/tmp/nfzXLel9/tmp/nix-test/flakes/follow-paths/config.nix
+++++(/var/tmp/nfzXLel9/src/common/init.sh:6) isTestOnNixOS
+++++(/var/tmp/nfzXLel9/src/common/functions.sh:10) [[ '' == 1 ]]
+++++(/var/tmp/nfzXLel9/src/common/init.sh:29) test -n /var/tmp/nfzXLel9/tmp/nix-test/flakes/follow-paths
+++++(/var/tmp/nfzXLel9/src/common/init.sh:31) killDaemon
+++++(/var/tmp/nfzXLel9/src/common/functions.sh:100) isTestOnNixOS
+++++(/var/tmp/nfzXLel9/src/common/functions.sh:10) [[ '' == 1 ]]
+++++(/var/tmp/nfzXLel9/src/common/functions.sh:105) [[ '' == '' ]]
+++++(/var/tmp/nfzXLel9/src/common/functions.sh:106) return
+++++(/var/tmp/nfzXLel9/src/common/init.sh:33) [[ -e /var/tmp/nfzXLel9/tmp/nix-test/flakes/follow-paths ]]
+++++(/var/tmp/nfzXLel9/src/common/init.sh:37) mkdir -p /var/tmp/nfzXLel9/tmp/nix-test/flakes/follow-paths
+++++(/var/tmp/nfzXLel9/src/common/init.sh:38) mkdir /var/tmp/nfzXLel9/tmp/nix-test/flakes/follow-paths/test-home
+++++(/var/tmp/nfzXLel9/src/common/init.sh:40) mkdir /var/tmp/nfzXLel9/tmp/nix-test/flakes/follow-paths/store
+++++(/var/tmp/nfzXLel9/src/common/init.sh:41) mkdir /var/tmp/nfzXLel9/tmp/nix-test/flakes/follow-paths/var
+++++(/var/tmp/nfzXLel9/src/common/init.sh:42) mkdir -p /var/tmp/nfzXLel9/tmp/nix-test/flakes/follow-paths/var/log/nix/drvs
+++++(/var/tmp/nfzXLel9/src/common/init.sh:43) mkdir /var/tmp/nfzXLel9/tmp/nix-test/flakes/follow-paths/var/nix
+++++(/var/tmp/nfzXLel9/src/common/init.sh:44) mkdir /var/tmp/nfzXLel9/tmp/nix-test/flakes/follow-paths/etc
+++++(/var/tmp/nfzXLel9/src/common/init.sh:46) cat
++++++(/var/tmp/nfzXLel9/src/common/init.sh:46) whoami
+++++(/var/tmp/nfzXLel9/src/common/init.sh:59) cat
+++++(/var/tmp/nfzXLel9/src/common/init.sh:67) nix-store --init
+++++(/var/tmp/nfzXLel9/src/common/init.sh:69) test -e /var/tmp/nfzXLel9/tmp/nix-test/flakes/follow-paths/var/nix/db/db.sqlite
+++++(/var/tmp/nfzXLel9/src/common/init.sh:75) echo '# config.nix for test flakes / follow-paths'
+++++(/var/tmp/nfzXLel9/src/common/init.sh:76) cat /var/tmp/nfzXLel9/build/config.nix
++++(../common.sh:15) [[ -n '' ]]
+++(./common.sh:5) export _NIX_TEST_BARF_ON_UNCACHEABLE=1
+++(./common.sh:5) _NIX_TEST_BARF_ON_UNCACHEABLE=1
+++(./common.sh:8) registry=/var/tmp/nfzXLel9/tmp/nix-test/flakes/follow-paths/registry.json
++(follow-paths.sh:5) requireGit
+++(/var/tmp/nfzXLel9/src/common/functions.sh:166) type -p git
++(/var/tmp/nfzXLel9/src/common/functions.sh:166) [[ -n /nix/store/msr1v91ybfw6j12rs5mfl8ghb2rqsnsr-git-2.55.0/bin/git ]]
++(follow-paths.sh:7) flakeFollowsA=/var/tmp/nfzXLel9/tmp/nix-test/flakes/follow-paths/follows/flakeA
++(follow-paths.sh:8) flakeFollowsB=/var/tmp/nfzXLel9/tmp/nix-test/flakes/follow-paths/follows/flakeA/flakeB
++(follow-paths.sh:9) flakeFollowsC=/var/tmp/nfzXLel9/tmp/nix-test/flakes/follow-paths/follows/flakeA/flakeB/flakeC
++(follow-paths.sh:10) flakeFollowsD=/var/tmp/nfzXLel9/tmp/nix-test/flakes/follow-paths/follows/flakeA/flakeD
++(follow-paths.sh:11) flakeFollowsE=/var/tmp/nfzXLel9/tmp/nix-test/flakes/follow-paths/follows/flakeA/flakeE
++(follow-paths.sh:14) createGitRepo /var/tmp/nfzXLel9/tmp/nix-test/flakes/follow-paths/follows/flakeA
++(/var/tmp/nfzXLel9/src/common/functions.sh:377) local repo=/var/tmp/nfzXLel9/tmp/nix-test/flakes/follow-paths/follows/flakeA
++(/var/tmp/nfzXLel9/src/common/functions.sh:378) local extraArgs=
++(/var/tmp/nfzXLel9/src/common/functions.sh:380) rm -rf /var/tmp/nfzXLel9/tmp/nix-test/flakes/follow-paths/follows/flakeA /var/tmp/nfzXLel9/tmp/nix-test/flakes/follow-paths/follows/flakeA.tmp
++(/var/tmp/nfzXLel9/src/common/functions.sh:381) mkdir -p /var/tmp/nfzXLel9/tmp/nix-test/flakes/follow-paths/follows/flakeA
++(/var/tmp/nfzXLel9/src/common/functions.sh:384) initGitRepo /var/tmp/nfzXLel9/tmp/nix-test/flakes/follow-paths/follows/flakeA
++(/var/tmp/nfzXLel9/src/common/functions.sh:367) local repo=/var/tmp/nfzXLel9/tmp/nix-test/flakes/follow-paths/follows/flakeA
++(/var/tmp/nfzXLel9/src/common/functions.sh:368) local extraArgs=
++(/var/tmp/nfzXLel9/src/common/functions.sh:371) git -C /var/tmp/nfzXLel9/tmp/nix-test/flakes/follow-paths/follows/flakeA init
+hint: Using 'master' as the name for the initial branch. This default branch name
+hint: will change to "main" in Git 3.0. To configure the initial branch name
+hint: to use in all of your new repositories, which will suppress this warning,
+hint: call:
+hint:
+hint: 	git config --global init.defaultBranch <name>
+hint:
+hint: Names commonly chosen instead of 'master' are 'main', 'trunk' and
+hint: 'development'. The just-created branch can be renamed via this command:
+hint:
+hint: 	git branch -m <name>
+hint:
+hint: Disable this message with "git config set advice.defaultBranchName false"
+Initialized empty Git repository in /var/tmp/nfzXLel9/tmp/nix-test/flakes/follow-paths/follows/flakeA/.git/
++(/var/tmp/nfzXLel9/src/common/functions.sh:372) git -C /var/tmp/nfzXLel9/tmp/nix-test/flakes/follow-paths/follows/flakeA config user.email foobar@example.com
++(/var/tmp/nfzXLel9/src/common/functions.sh:373) git -C /var/tmp/nfzXLel9/tmp/nix-test/flakes/follow-paths/follows/flakeA config user.name Foobar
++(follow-paths.sh:15) mkdir -p /var/tmp/nfzXLel9/tmp/nix-test/flakes/follow-paths/follows/flakeA/flakeB
++(follow-paths.sh:16) mkdir -p /var/tmp/nfzXLel9/tmp/nix-test/flakes/follow-paths/follows/flakeA/flakeB/flakeC
++(follow-paths.sh:17) mkdir -p /var/tmp/nfzXLel9/tmp/nix-test/flakes/follow-paths/follows/flakeA/flakeD
++(follow-paths.sh:18) mkdir -p /var/tmp/nfzXLel9/tmp/nix-test/flakes/follow-paths/follows/flakeA/flakeE
++(follow-paths.sh:20) cat
++(follow-paths.sh:35) cat
++(follow-paths.sh:50) cat
++(follow-paths.sh:61) cat
++(follow-paths.sh:69) cat
++(follow-paths.sh:77) git -C /var/tmp/nfzXLel9/tmp/nix-test/flakes/follow-paths/follows/flakeA add flake.nix flakeB/flake.nix flakeB/flakeC/flake.nix flakeD/flake.nix flakeE/flake.nix
++(follow-paths.sh:80) nix flake metadata /var/tmp/nfzXLel9/tmp/nix-test/flakes/follow-paths/follows/flakeA
+warning: you don't have Internet access; disabling some network-dependent features
+warning: Git tree '/var/tmp/nfzXLel9/tmp/nix-test/flakes/follow-paths/follows/flakeA' is dirty
+warning: creating lock file "/var/tmp/nfzXLel9/tmp/nix-test/flakes/follow-paths/follows/flakeA/flake.lock": 
+• Added input 'B':
+    'path:./flakeB'
+• Added input 'B/C':
+    'path:./flakeC'
+• Added input 'B/C/foobar':
+    follows 'B/foobar'
+• Added input 'B/C/goodoo':
+    follows 'B/C/foobar'
+• Added input 'B/foobar':
+    follows 'foobar'
+• Added input 'B/goodoo':
+    follows 'B/C/goodoo'
+• Added input 'foobar':
+    'path:/var/tmp/nfzXLel9/tmp/nix-test/flakes/follow-paths/follows/flakeA/flakeE?lastModified=1795550395&narHash=sha256-IO%2Bpf/K2D8/fbgnK3VlX2eW3/IkUCgQEQKVErKatkfk%3D' (2026-11-24)
+[1mResolved URL:[0m  git+file:///var/tmp/nfzXLel9/tmp/nix-test/flakes/follow-paths/follows/flakeA
+[1mDescription:[0m   Flake A
+[1mPath:[0m          /var/tmp/nfzXLel9/tmp/nix-test/flakes/follow-paths/store/pjag8fl1045asgpcf00c43jj7r6jm8kb-source
+[1mLast modified:[0m 1970-01-01 05:30:00
+[1mFingerprint:[0m   e3defe31239261316c990df107326522a83ca75b67b28dd1846a9a731d920038
+[1mInputs:[0m
+├───[1mB[0m: path:./flakeB
+│   ├───[1mC[0m: path:./flakeC
+│   │   ├───[1mfoobar[0m follows input 'B/foobar'
+│   │   └───[1mgoodoo[0m follows input 'B/C/foobar'
+│   ├───[1mfoobar[0m follows input 'foobar'
+│   └───[1mgoodoo[0m follows input 'B/C/goodoo'
+└───[1mfoobar[0m: path:/var/tmp/nfzXLel9/tmp/nix-test/flakes/follow-paths/follows/flakeA/flakeE?lastModified=1795550395&narHash=sha256-IO%2Bpf/K2D8/fbgnK3VlX2eW3/IkUCgQEQKVErKatkfk%3D (2026-11-24 19:59:55)
++(follow-paths.sh:82) nix flake update --flake /var/tmp/nfzXLel9/tmp/nix-test/flakes/follow-paths/follows/flakeA
+warning: you don't have Internet access; disabling some network-dependent features
+warning: Git tree '/var/tmp/nfzXLel9/tmp/nix-test/flakes/follow-paths/follows/flakeA' is dirty
++(follow-paths.sh:84) nix flake lock /var/tmp/nfzXLel9/tmp/nix-test/flakes/follow-paths/follows/flakeA
+warning: you don't have Internet access; disabling some network-dependent features
+warning: Git tree '/var/tmp/nfzXLel9/tmp/nix-test/flakes/follow-paths/follows/flakeA' is dirty
+++(follow-paths.sh:86) cat /var/tmp/nfzXLel9/tmp/nix-test/flakes/follow-paths/follows/flakeA/flake.lock
++(follow-paths.sh:86) oldLock=$'{\n  "nodes": {\n    "B": {\n      "inputs": {\n        "C": "C",\n        "foobar": [\n          "foobar"\n        ],\n        "goodoo": [\n          "B",\n          "C",\n          "goodoo"\n        ]\n      },\n      "locked": {\n        "path": "./flakeB",\n        "type": "path"\n      },\n      "original": {\n        "path": "./flakeB",\n        "type": "path"\n      },\n      "parent": []\n    },\n    "C": {\n      "inputs": {\n        "foobar": [\n          "B",\n          "foobar"\n        ],\n        "goodoo": [\n          "B",\n          "C",\n          "foobar"\n        ]\n      },\n      "locked": {\n        "path": "./flakeC",\n        "type": "path"\n      },\n      "original": {\n        "path": "./flakeC",\n        "type": "path"\n      },\n      "parent": [\n        "B"\n      ]\n    },\n    "foobar": {\n      "locked": {\n        "lastModified": 1795550395,\n        "narHash": "sha256-IO+pf/K2D8/fbgnK3VlX2eW3/IkUCgQEQKVErKatkfk=",\n        "path": "/var/tmp/nfzXLel9/tmp/nix-test/flakes/follow-paths/follows/flakeA/flakeE",\n        "type": "path"\n      },\n      "original": {\n        "path": "/var/tmp/nfzXLel9/tmp/nix-test/flakes/follow-paths/follows/flakeA/flakeE",\n        "type": "path"\n      }\n    },\n    "root": {\n      "inputs": {\n        "B": "B",\n        "foobar": "foobar"\n      }\n    }\n  },\n  "root": "root",\n  "version": 7\n}'
++(follow-paths.sh:90) nix flake lock /var/tmp/nfzXLel9/tmp/nix-test/flakes/follow-paths/follows/flakeA
+warning: you don't have Internet access; disabling some network-dependent features
+warning: Git tree '/var/tmp/nfzXLel9/tmp/nix-test/flakes/follow-paths/follows/flakeA' is dirty
+++(follow-paths.sh:92) cat /var/tmp/nfzXLel9/tmp/nix-test/flakes/follow-paths/follows/flakeA/flake.lock
++(follow-paths.sh:92) newLock=$'{\n  "nodes": {\n    "B": {\n      "inputs": {\n        "C": "C",\n        "foobar": [\n          "foobar"\n        ],\n        "goodoo": [\n          "B",\n          "C",\n          "goodoo"\n        ]\n      },\n      "locked": {\n        "path": "./flakeB",\n        "type": "path"\n      },\n      "original": {\n        "path": "./flakeB",\n        "type": "path"\n      },\n      "parent": []\n    },\n    "C": {\n      "inputs": {\n        "foobar": [\n          "B",\n          "foobar"\n        ],\n        "goodoo": [\n          "B",\n          "C",\n          "foobar"\n        ]\n      },\n      "locked": {\n        "path": "./flakeC",\n        "type": "path"\n      },\n      "original": {\n        "path": "./flakeC",\n        "type": "path"\n      },\n      "parent": [\n        "B"\n      ]\n    },\n    "foobar": {\n      "locked": {\n        "lastModified": 1795550395,\n        "narHash": "sha256-IO+pf/K2D8/fbgnK3VlX2eW3/IkUCgQEQKVErKatkfk=",\n        "path": "/var/tmp/nfzXLel9/tmp/nix-test/flakes/follow-paths/follows/flakeA/flakeE",\n        "type": "path"\n      },\n      "original": {\n        "path": "/var/tmp/nfzXLel9/tmp/nix-test/flakes/follow-paths/follows/flakeA/flakeE",\n        "type": "path"\n      }\n    },\n    "root": {\n      "inputs": {\n        "B": "B",\n        "foobar": "foobar"\n      }\n    }\n  },\n  "root": "root",\n  "version": 7\n}'
++(follow-paths.sh:94) diff /dev/fd/63 /dev/fd/62
+++(follow-paths.sh:94) echo $'{\n  "nodes": {\n    "B": {\n      "inputs": {\n        "C": "C",\n        "foobar": [\n          "foobar"\n        ],\n        "goodoo": [\n          "B",\n          "C",\n          "goodoo"\n        ]\n      },\n      "locked": {\n        "path": "./flakeB",\n        "type": "path"\n      },\n      "original": {\n        "path": "./flakeB",\n        "type": "path"\n      },\n      "parent": []\n    },\n    "C": {\n      "inputs": {\n        "foobar": [\n          "B",\n          "foobar"\n        ],\n        "goodoo": [\n          "B",\n          "C",\n          "foobar"\n        ]\n      },\n      "locked": {\n        "path": "./flakeC",\n        "type": "path"\n      },\n      "original": {\n        "path": "./flakeC",\n        "type": "path"\n      },\n      "parent": [\n        "B"\n      ]\n    },\n    "foobar": {\n      "locked": {\n        "lastModified": 1795550395,\n        "narHash": "sha256-IO+pf/K2D8/fbgnK3VlX2eW3/IkUCgQEQKVErKatkfk=",\n        "path": "/var/tmp/nfzXLel9/tmp/nix-test/flakes/follow-paths/follows/flakeA/flakeE",\n        "type": "path"\n      },\n      "original": {\n        "path": "/var/tmp/nfzXLel9/tmp/nix-test/flakes/follow-paths/follows/flakeA/flakeE",\n        "type": "path"\n      }\n    },\n    "root": {\n      "inputs": {\n        "B": "B",\n        "foobar": "foobar"\n      }\n    }\n  },\n  "root": "root",\n  "version": 7\n}'
+++(follow-paths.sh:94) echo $'{\n  "nodes": {\n    "B": {\n      "inputs": {\n        "C": "C",\n        "foobar": [\n          "foobar"\n        ],\n        "goodoo": [\n          "B",\n          "C",\n          "goodoo"\n        ]\n      },\n      "locked": {\n        "path": "./flakeB",\n        "type": "path"\n      },\n      "original": {\n        "path": "./flakeB",\n        "type": "path"\n      },\n      "parent": []\n    },\n    "C": {\n      "inputs": {\n        "foobar": [\n          "B",\n          "foobar"\n        ],\n        "goodoo": [\n          "B",\n          "C",\n          "foobar"\n        ]\n      },\n      "locked": {\n        "path": "./flakeC",\n        "type": "path"\n      },\n      "original": {\n        "path": "./flakeC",\n        "type": "path"\n      },\n      "parent": [\n        "B"\n      ]\n    },\n    "foobar": {\n      "locked": {\n        "lastModified": 1795550395,\n        "narHash": "sha256-IO+pf/K2D8/fbgnK3VlX2eW3/IkUCgQEQKVErKatkfk=",\n        "path": "/var/tmp/nfzXLel9/tmp/nix-test/flakes/follow-paths/follows/flakeA/flakeE",\n        "type": "path"\n      },\n      "original": {\n        "path": "/var/tmp/nfzXLel9/tmp/nix-test/flakes/follow-paths/follows/flakeA/flakeE",\n        "type": "path"\n      }\n    },\n    "root": {\n      "inputs": {\n        "B": "B",\n        "foobar": "foobar"\n      }\n    }\n  },\n  "root": "root",\n  "version": 7\n}'
+++(follow-paths.sh:96) jq -c .nodes.B.inputs.C /var/tmp/nfzXLel9/tmp/nix-test/flakes/follow-paths/follows/flakeA/flake.lock
++(follow-paths.sh:96) [[ "C" = "C" ]]
+++(follow-paths.sh:97) jq -c .nodes.B.inputs.foobar /var/tmp/nfzXLel9/tmp/nix-test/flakes/follow-paths/follows/flakeA/flake.lock
++(follow-paths.sh:97) [[ ["foobar"] = \["foobar"\] ]]
+++(follow-paths.sh:98) jq -c .nodes.C.inputs.foobar /var/tmp/nfzXLel9/tmp/nix-test/flakes/follow-paths/follows/flakeA/flake.lock
++(follow-paths.sh:98) [[ ["B","foobar"] = \["B","foobar"\] ]]
++(follow-paths.sh:102) cat
++(follow-paths.sh:115) nix flake lock /var/tmp/nfzXLel9/tmp/nix-test/flakes/follow-paths/follows/flakeA
+warning: you don't have Internet access; disabling some network-dependent features
+warning: Git tree '/var/tmp/nfzXLel9/tmp/nix-test/flakes/follow-paths/follows/flakeA' is dirty
+warning: updating lock file "/var/tmp/nfzXLel9/tmp/nix-test/flakes/follow-paths/follows/flakeA/flake.lock":
+• Updated input 'B/foobar':
+    follows 'foobar'
+  → 'path:/var/tmp/nfzXLel9/tmp/nix-test/flakes/follow-paths/follows/flakeA/flakeE?lastModified=1795550395&narHash=sha256-IO%2Bpf/K2D8/fbgnK3VlX2eW3/IkUCgQEQKVErKatkfk%3D' (2026-11-24)
+• Added input 'D':
+    'path:./flakeD'
+• Removed input 'foobar'
+++(follow-paths.sh:117) jq -c .nodes.B.inputs.foobar /var/tmp/nfzXLel9/tmp/nix-test/flakes/follow-paths/follows/flakeA/flake.lock
++(follow-paths.sh:117) [[ "foobar" = "foobar" ]]
++(follow-paths.sh:118) jq -r -c '.nodes | keys | .[]' /var/tmp/nfzXLel9/tmp/nix-test/flakes/follow-paths/follows/flakeA/flake.lock
++(follow-paths.sh:118) grep '^foobar$'
++(/var/tmp/nfzXLel9/src/common/functions.sh:344) checkGrepArgs '^foobar$'
++(/var/tmp/nfzXLel9/src/common/functions.sh:293) local arg
++(/var/tmp/nfzXLel9/src/common/functions.sh:294) for arg in "$@"
++(/var/tmp/nfzXLel9/src/common/functions.sh:295) [[ ^foobar$ != \^foobar$ ]]
++(/var/tmp/nfzXLel9/src/common/functions.sh:345) command grep '^foobar$'
+foobar
++(follow-paths.sh:121) cat
++(follow-paths.sh:131) git -C /var/tmp/nfzXLel9/tmp/nix-test/flakes/follow-paths/follows/flakeA add flake.nix
++(follow-paths.sh:133) expect 1 nix flake lock /var/tmp/nfzXLel9/tmp/nix-test/flakes/follow-paths/follows/flakeA
++(follow-paths.sh:133) grep '/flakeB.*is forbidden in pure evaluation mode'
++(/var/tmp/nfzXLel9/src/common/functions.sh:344) checkGrepArgs '/flakeB.*is forbidden in pure evaluation mode'
++(/var/tmp/nfzXLel9/src/common/functions.sh:293) local arg
++(/var/tmp/nfzXLel9/src/common/functions.sh:294) for arg in "$@"
++(/var/tmp/nfzXLel9/src/common/functions.sh:295) [[ /flakeB.*is forbidden in pure evaluation mode != /flakeB\.\*is forbidden in pure evaluation mode ]]
++(/var/tmp/nfzXLel9/src/common/functions.sh:345) command grep '/flakeB.*is forbidden in pure evaluation mode'
+       error: access to absolute path '/var/tmp/nfzXLel9/tmp/nix-test/flakes/follow-paths/store/flakeB/flake.nix' is forbidden in pure evaluation mode (use '--impure' to override)
++(follow-paths.sh:134) expect 1 nix flake lock --impure /var/tmp/nfzXLel9/tmp/nix-test/flakes/follow-paths/follows/flakeA
++(follow-paths.sh:134) grep '/flakeB.*does not exist'
++(/var/tmp/nfzXLel9/src/common/functions.sh:344) checkGrepArgs '/flakeB.*does not exist'
++(/var/tmp/nfzXLel9/src/common/functions.sh:293) local arg
++(/var/tmp/nfzXLel9/src/common/functions.sh:294) for arg in "$@"
++(/var/tmp/nfzXLel9/src/common/functions.sh:295) [[ /flakeB.*does not exist != /flakeB\.\*does not exist ]]
++(/var/tmp/nfzXLel9/src/common/functions.sh:345) command grep '/flakeB.*does not exist'
+       error: path '/var/tmp/nfzXLel9/tmp/nix-test/flakes/follow-paths/store/flakeB/flake.nix' does not exist
++(follow-paths.sh:137) cat
++(follow-paths.sh:148) echo 123
++(follow-paths.sh:150) git -C /var/tmp/nfzXLel9/tmp/nix-test/flakes/follow-paths/follows/flakeA add flake.nix foo.nix
++(follow-paths.sh:152) nix flake lock /var/tmp/nfzXLel9/tmp/nix-test/flakes/follow-paths/follows/flakeA
+warning: you don't have Internet access; disabling some network-dependent features
+warning: Git tree '/var/tmp/nfzXLel9/tmp/nix-test/flakes/follow-paths/follows/flakeA' is dirty
+warning: updating lock file "/var/tmp/nfzXLel9/tmp/nix-test/flakes/follow-paths/follows/flakeA/flake.lock":
+• Removed input 'B'
+• Removed input 'B/C'
+• Removed input 'B/C/foobar'
+• Removed input 'B/C/goodoo'
+• Removed input 'B/foobar'
+• Removed input 'B/goodoo'
+• Removed input 'D'
+• Added input 'E':
+    'path:./foo.nix'
+++(follow-paths.sh:154) nix eval --json /var/tmp/nfzXLel9/tmp/nix-test/flakes/follow-paths/follows/flakeA#e
+warning: you don't have Internet access; disabling some network-dependent features
+warning: Git tree '/var/tmp/nfzXLel9/tmp/nix-test/flakes/follow-paths/follows/flakeA' is dirty
++(follow-paths.sh:154) [[ 123 = 123 ]]
++(follow-paths.sh:157) cat
++(follow-paths.sh:170) git -C /var/tmp/nfzXLel9/tmp/nix-test/flakes/follow-paths/follows/flakeA add flake.nix
++(follow-paths.sh:172) nix flake lock /var/tmp/nfzXLel9/tmp/nix-test/flakes/follow-paths/follows/flakeA
++(follow-paths.sh:172) grep 'warning: input '\''B'\'' has an override for a non-existent input '\''invalid'\'''
++(/var/tmp/nfzXLel9/src/common/functions.sh:344) checkGrepArgs 'warning: input '\''B'\'' has an override for a non-existent input '\''invalid'\'''
++(/var/tmp/nfzXLel9/src/common/functions.sh:293) local arg
++(/var/tmp/nfzXLel9/src/common/functions.sh:294) for arg in "$@"
++(/var/tmp/nfzXLel9/src/common/functions.sh:295) [[ warning: input 'B' has an override for a non-existent input 'invalid' != warning\: input 'B' has an override for a non\-existent input 'invalid' ]]
++(/var/tmp/nfzXLel9/src/common/functions.sh:345) command grep 'warning: input '\''B'\'' has an override for a non-existent input '\''invalid'\'''
+warning: input 'B' has an override for a non-existent input 'invalid'
++(follow-paths.sh:173) nix flake lock /var/tmp/nfzXLel9/tmp/nix-test/flakes/follow-paths/follows/flakeA
++(follow-paths.sh:173) grep 'warning: input '\''B'\'' has an override for a non-existent input '\''invalid2'\'''
++(/var/tmp/nfzXLel9/src/common/functions.sh:344) checkGrepArgs 'warning: input '\''B'\'' has an override for a non-existent input '\''invalid2'\'''
++(/var/tmp/nfzXLel9/src/common/functions.sh:293) local arg
++(/var/tmp/nfzXLel9/src/common/functions.sh:294) for arg in "$@"
++(/var/tmp/nfzXLel9/src/common/functions.sh:295) [[ warning: input 'B' has an override for a non-existent input 'invalid2' != warning\: input 'B' has an override for a non\-existent input 'invalid2' ]]
++(/var/tmp/nfzXLel9/src/common/functions.sh:345) command grep 'warning: input '\''B'\'' has an override for a non-existent input '\''invalid2'\'''
+warning: input 'B' has an override for a non-existent input 'invalid2'
++(follow-paths.sh:195) flakeFollowsOverloadA=/var/tmp/nfzXLel9/tmp/nix-test/flakes/follow-paths/follows/overload/flakeA
++(follow-paths.sh:196) flakeFollowsOverloadB=/var/tmp/nfzXLel9/tmp/nix-test/flakes/follow-paths/follows/overload/flakeA/flakeB
++(follow-paths.sh:197) flakeFollowsOverloadC=/var/tmp/nfzXLel9/tmp/nix-test/flakes/follow-paths/follows/overload/flakeA/flakeB/flakeC
++(follow-paths.sh:198) flakeFollowsOverloadD=/var/tmp/nfzXLel9/tmp/nix-test/flakes/follow-paths/follows/overload/flakeA/flakeB/flakeC/flakeD
++(follow-paths.sh:201) createGitRepo /var/tmp/nfzXLel9/tmp/nix-test/flakes/follow-paths/follows/overload/flakeA
++(/var/tmp/nfzXLel9/src/common/functions.sh:377) local repo=/var/tmp/nfzXLel9/tmp/nix-test/flakes/follow-paths/follows/overload/flakeA
++(/var/tmp/nfzXLel9/src/common/functions.sh:378) local extraArgs=
++(/var/tmp/nfzXLel9/src/common/functions.sh:380) rm -rf /var/tmp/nfzXLel9/tmp/nix-test/flakes/follow-paths/follows/overload/flakeA /var/tmp/nfzXLel9/tmp/nix-test/flakes/follow-paths/follows/overload/flakeA.tmp
++(/var/tmp/nfzXLel9/src/common/functions.sh:381) mkdir -p /var/tmp/nfzXLel9/tmp/nix-test/flakes/follow-paths/follows/overload/flakeA
++(/var/tmp/nfzXLel9/src/common/functions.sh:384) initGitRepo /var/tmp/nfzXLel9/tmp/nix-test/flakes/follow-paths/follows/overload/flakeA
++(/var/tmp/nfzXLel9/src/common/functions.sh:367) local repo=/var/tmp/nfzXLel9/tmp/nix-test/flakes/follow-paths/follows/overload/flakeA
++(/var/tmp/nfzXLel9/src/common/functions.sh:368) local extraArgs=
++(/var/tmp/nfzXLel9/src/common/functions.sh:371) git -C /var/tmp/nfzXLel9/tmp/nix-test/flakes/follow-paths/follows/overload/flakeA init
+hint: Using 'master' as the name for the initial branch. This default branch name
+hint: will change to "main" in Git 3.0. To configure the initial branch name
+hint: to use in all of your new repositories, which will suppress this warning,
+hint: call:
+hint:
+hint: 	git config --global init.defaultBranch <name>
+hint:
+hint: Names commonly chosen instead of 'master' are 'main', 'trunk' and
+hint: 'development'. The just-created branch can be renamed via this command:
+hint:
+hint: 	git branch -m <name>
+hint:
+hint: Disable this message with "git config set advice.defaultBranchName false"
+Initialized empty Git repository in /var/tmp/nfzXLel9/tmp/nix-test/flakes/follow-paths/follows/overload/flakeA/.git/
++(/var/tmp/nfzXLel9/src/common/functions.sh:372) git -C /var/tmp/nfzXLel9/tmp/nix-test/flakes/follow-paths/follows/overload/flakeA config user.email foobar@example.com
++(/var/tmp/nfzXLel9/src/common/functions.sh:373) git -C /var/tmp/nfzXLel9/tmp/nix-test/flakes/follow-paths/follows/overload/flakeA config user.name Foobar
++(follow-paths.sh:202) mkdir -p /var/tmp/nfzXLel9/tmp/nix-test/flakes/follow-paths/follows/overload/flakeA/flakeB
++(follow-paths.sh:203) mkdir -p /var/tmp/nfzXLel9/tmp/nix-test/flakes/follow-paths/follows/overload/flakeA/flakeB/flakeC
++(follow-paths.sh:204) mkdir -p /var/tmp/nfzXLel9/tmp/nix-test/flakes/follow-paths/follows/overload/flakeA/flakeB/flakeC/flakeD
++(follow-paths.sh:206) cat
++(follow-paths.sh:214) cat
++(follow-paths.sh:222) cat
++(follow-paths.sh:236) cat
++(follow-paths.sh:250) git -C /var/tmp/nfzXLel9/tmp/nix-test/flakes/follow-paths/follows/overload/flakeA add flake.nix flakeB/flake.nix flakeB/flakeC/flake.nix flakeB/flakeC/flakeD/flake.nix
++(follow-paths.sh:253) nix flake metadata /var/tmp/nfzXLel9/tmp/nix-test/flakes/follow-paths/follows/overload/flakeA
+warning: you don't have Internet access; disabling some network-dependent features
+warning: Git tree '/var/tmp/nfzXLel9/tmp/nix-test/flakes/follow-paths/follows/overload/flakeA' is dirty
+warning: creating lock file "/var/tmp/nfzXLel9/tmp/nix-test/flakes/follow-paths/follows/overload/flakeA/flake.lock": 
+• Added input 'B':
+    'path:./flakeB'
+• Added input 'B/C':
+    follows 'C'
+• Added input 'B/D':
+    follows 'B/C/D'
+• Added input 'C':
+    'path:./flakeB/flakeC'
+• Added input 'C/D':
+    'path:./flakeD'
+[1mResolved URL:[0m  git+file:///var/tmp/nfzXLel9/tmp/nix-test/flakes/follow-paths/follows/overload/flakeA
+[1mDescription:[0m   Flake A
+[1mPath:[0m          /var/tmp/nfzXLel9/tmp/nix-test/flakes/follow-paths/store/x19fjg468m800q4c101cjymaqvfbnk5y-source
+[1mLast modified:[0m 1970-01-01 05:30:00
+[1mFingerprint:[0m   2067bd5868cc1c31a75d0771b2096b54f889b93f52e599c5605d261a39cabab3
+[1mInputs:[0m
+├───[1mB[0m: path:./flakeB
+│   ├───[1mC[0m follows input 'C'
+│   └───[1mD[0m follows input 'B/C/D'
+└───[1mC[0m: path:./flakeB/flakeC
+    └───[1mD[0m: path:./flakeD
++(follow-paths.sh:254) nix flake update --flake /var/tmp/nfzXLel9/tmp/nix-test/flakes/follow-paths/follows/overload/flakeA
+warning: you don't have Internet access; disabling some network-dependent features
+warning: Git tree '/var/tmp/nfzXLel9/tmp/nix-test/flakes/follow-paths/follows/overload/flakeA' is dirty
++(follow-paths.sh:255) nix flake lock /var/tmp/nfzXLel9/tmp/nix-test/flakes/follow-paths/follows/overload/flakeA
+warning: you don't have Internet access; disabling some network-dependent features
+warning: Git tree '/var/tmp/nfzXLel9/tmp/nix-test/flakes/follow-paths/follows/overload/flakeA' is dirty
++(follow-paths.sh:267) flakeFollowCycle=/var/tmp/nfzXLel9/tmp/nix-test/flakes/follow-paths/follows/followCycle
++(follow-paths.sh:270) mkdir -p /var/tmp/nfzXLel9/tmp/nix-test/flakes/follow-paths/follows/followCycle
++(follow-paths.sh:272) cat
+++(follow-paths.sh:285) nix flake lock /var/tmp/nfzXLel9/tmp/nix-test/flakes/follow-paths/follows/followCycle
+++(follow-paths.sh:285) true
++(follow-paths.sh:285) checkRes=$'warning: you don\'t have Internet access; disabling some network-dependent features\nerror:\n       \342\200\246 while updating the lock file of flake \'path:/var/tmp/nfzXLel9/tmp/nix-test/flakes/follow-paths/follows/followCycle?lastModified=1795550396&narHash=sha256-oisciV7hoiKfamY7rsJjf%2Bbwx/3T2H15pcfIAt79rW8%3D\'\n\n       error: follow cycle detected: [baz -> foo -> bar -> baz]'
++(follow-paths.sh:286) echo $'warning: you don\'t have Internet access; disabling some network-dependent features\nerror:\n       \342\200\246 while updating the lock file of flake \'path:/var/tmp/nfzXLel9/tmp/nix-test/flakes/follow-paths/follows/followCycle?lastModified=1795550396&narHash=sha256-oisciV7hoiKfamY7rsJjf%2Bbwx/3T2H15pcfIAt79rW8%3D\'\n\n       error: follow cycle detected: [baz -> foo -> bar -> baz]'
++(follow-paths.sh:286) grep -F 'error: follow cycle detected: [baz -> foo -> bar -> baz]'
++(/var/tmp/nfzXLel9/src/common/functions.sh:344) checkGrepArgs -F 'error: follow cycle detected: [baz -> foo -> bar -> baz]'
++(/var/tmp/nfzXLel9/src/common/functions.sh:293) local arg
++(/var/tmp/nfzXLel9/src/common/functions.sh:294) for arg in "$@"
++(/var/tmp/nfzXLel9/src/common/functions.sh:295) [[ -F != \-F ]]
++(/var/tmp/nfzXLel9/src/common/functions.sh:294) for arg in "$@"
++(/var/tmp/nfzXLel9/src/common/functions.sh:295) [[ error: follow cycle detected: [baz -> foo -> bar -> baz] != error\: follow cycle detected\: \[baz \-> foo \-> bar \-> baz\] ]]
++(/var/tmp/nfzXLel9/src/common/functions.sh:345) command grep -F 'error: follow cycle detected: [baz -> foo -> bar -> baz]'
+       error: follow cycle detected: [baz -> foo -> bar -> baz]
++(follow-paths.sh:299) flakeFollowsCustomUrlA=/var/tmp/nfzXLel9/tmp/nix-test/flakes/follow-paths/follows/custom-url/flakeA
++(follow-paths.sh:300) flakeFollowsCustomUrlB=/var/tmp/nfzXLel9/tmp/nix-test/flakes/follow-paths/follows/custom-url/flakeA/flakeB
++(follow-paths.sh:301) flakeFollowsCustomUrlC=/var/tmp/nfzXLel9/tmp/nix-test/flakes/follow-paths/follows/custom-url/flakeA/flakeB/flakeC
++(follow-paths.sh:302) flakeFollowsCustomUrlD=/var/tmp/nfzXLel9/tmp/nix-test/flakes/follow-paths/follows/custom-url/flakeA/flakeB/flakeD
++(follow-paths.sh:305) createGitRepo /var/tmp/nfzXLel9/tmp/nix-test/flakes/follow-paths/follows/custom-url/flakeA
++(/var/tmp/nfzXLel9/src/common/functions.sh:377) local repo=/var/tmp/nfzXLel9/tmp/nix-test/flakes/follow-paths/follows/custom-url/flakeA
++(/var/tmp/nfzXLel9/src/common/functions.sh:378) local extraArgs=
++(/var/tmp/nfzXLel9/src/common/functions.sh:380) rm -rf /var/tmp/nfzXLel9/tmp/nix-test/flakes/follow-paths/follows/custom-url/flakeA /var/tmp/nfzXLel9/tmp/nix-test/flakes/follow-paths/follows/custom-url/flakeA.tmp
++(/var/tmp/nfzXLel9/src/common/functions.sh:381) mkdir -p /var/tmp/nfzXLel9/tmp/nix-test/flakes/follow-paths/follows/custom-url/flakeA
++(/var/tmp/nfzXLel9/src/common/functions.sh:384) initGitRepo /var/tmp/nfzXLel9/tmp/nix-test/flakes/follow-paths/follows/custom-url/flakeA
++(/var/tmp/nfzXLel9/src/common/functions.sh:367) local repo=/var/tmp/nfzXLel9/tmp/nix-test/flakes/follow-paths/follows/custom-url/flakeA
++(/var/tmp/nfzXLel9/src/common/functions.sh:368) local extraArgs=
++(/var/tmp/nfzXLel9/src/common/functions.sh:371) git -C /var/tmp/nfzXLel9/tmp/nix-test/flakes/follow-paths/follows/custom-url/flakeA init
+hint: Using 'master' as the name for the initial branch. This default branch name
+hint: will change to "main" in Git 3.0. To configure the initial branch name
+hint: to use in all of your new repositories, which will suppress this warning,
+hint: call:
+hint:
+hint: 	git config --global init.defaultBranch <name>
+hint:
+hint: Names commonly chosen instead of 'master' are 'main', 'trunk' and
+hint: 'development'. The just-created branch can be renamed via this command:
+hint:
+hint: 	git branch -m <name>
+hint:
+hint: Disable this message with "git config set advice.defaultBranchName false"
+Initialized empty Git repository in /var/tmp/nfzXLel9/tmp/nix-test/flakes/follow-paths/follows/custom-url/flakeA/.git/
++(/var/tmp/nfzXLel9/src/common/functions.sh:372) git -C /var/tmp/nfzXLel9/tmp/nix-test/flakes/follow-paths/follows/custom-url/flakeA config user.email foobar@example.com
++(/var/tmp/nfzXLel9/src/common/functions.sh:373) git -C /var/tmp/nfzXLel9/tmp/nix-test/flakes/follow-paths/follows/custom-url/flakeA config user.name Foobar
++(follow-paths.sh:306) mkdir -p /var/tmp/nfzXLel9/tmp/nix-test/flakes/follow-paths/follows/custom-url/flakeA/flakeB
++(follow-paths.sh:307) mkdir -p /var/tmp/nfzXLel9/tmp/nix-test/flakes/follow-paths/follows/custom-url/flakeA/flakeB/flakeC
++(follow-paths.sh:308) mkdir -p /var/tmp/nfzXLel9/tmp/nix-test/flakes/follow-paths/follows/custom-url/flakeA/flakeB/flakeD
++(follow-paths.sh:310) cat
++(follow-paths.sh:318) cat
++(follow-paths.sh:326) cat
++(follow-paths.sh:338) cat
++(follow-paths.sh:351) git -C /var/tmp/nfzXLel9/tmp/nix-test/flakes/follow-paths/follows/custom-url/flakeA add flake.nix flakeB/flake.nix flakeB/flakeC/flake.nix flakeB/flakeD/flake.nix
+++(follow-paths.sh:355) nix flake metadata /var/tmp/nfzXLel9/tmp/nix-test/flakes/follow-paths/follows/custom-url/flakeA --json
+warning: you don't have Internet access; disabling some network-dependent features
+warning: Git tree '/var/tmp/nfzXLel9/tmp/nix-test/flakes/follow-paths/follows/custom-url/flakeA' is dirty
+warning: creating lock file "/var/tmp/nfzXLel9/tmp/nix-test/flakes/follow-paths/follows/custom-url/flakeA/flake.lock": 
+• Added input 'B':
+    'path:./flakeB'
+• Added input 'B/C':
+    'path:./flakeB/flakeD'
++(follow-paths.sh:355) json='{"description":"Flake A","fingerprint":"6c36dd3fa0d2f291165ce4457cd3c14b43ebd66690b29164893fb379fdb6132e","lastModified":0,"locked":{"__final":true,"lastModified":0,"narHash":"sha256-/uPQG13dQqfIT8XDI2XqWjFjT+H6ky3XFHH1dNpHr/w=","type":"git","url":"file:///var/tmp/nfzXLel9/tmp/nix-test/flakes/follow-paths/follows/custom-url/flakeA"},"locks":{"nodes":{"B":{"inputs":{"C":"C"},"locked":{"path":"./flakeB","type":"path"},"original":{"path":"./flakeB","type":"path"},"parent":[]},"C":{"locked":{"path":"./flakeB/flakeD","type":"path"},"original":{"path":"./flakeB/flakeD","type":"path"},"parent":[]},"root":{"inputs":{"B":"B"}}},"root":"root","version":7},"original":{"type":"git","url":"file:///var/tmp/nfzXLel9/tmp/nix-test/flakes/follow-paths/follows/custom-url/flakeA"},"originalUrl":"git+file:///var/tmp/nfzXLel9/tmp/nix-test/flakes/follow-paths/follows/custom-url/flakeA","path":"/var/tmp/nfzXLel9/tmp/nix-test/flakes/follow-paths/store/gf0fla7dkdhwbw1fhjmdi3w7203x1yf9-source","resolved":{"type":"git","url":"file:///var/tmp/nfzXLel9/tmp/nix-test/flakes/follow-paths/follows/custom-url/flakeA"},"resolvedUrl":"git+file:///var/tmp/nfzXLel9/tmp/nix-test/flakes/follow-paths/follows/custom-url/flakeA","url":"git+file:///var/tmp/nfzXLel9/tmp/nix-test/flakes/follow-paths/follows/custom-url/flakeA"}'
+++(follow-paths.sh:356) echo '{"description":"Flake A","fingerprint":"6c36dd3fa0d2f291165ce4457cd3c14b43ebd66690b29164893fb379fdb6132e","lastModified":0,"locked":{"__final":true,"lastModified":0,"narHash":"sha256-/uPQG13dQqfIT8XDI2XqWjFjT+H6ky3XFHH1dNpHr/w=","type":"git","url":"file:///var/tmp/nfzXLel9/tmp/nix-test/flakes/follow-paths/follows/custom-url/flakeA"},"locks":{"nodes":{"B":{"inputs":{"C":"C"},"locked":{"path":"./flakeB","type":"path"},"original":{"path":"./flakeB","type":"path"},"parent":[]},"C":{"locked":{"path":"./flakeB/flakeD","type":"path"},"original":{"path":"./flakeB/flakeD","type":"path"},"parent":[]},"root":{"inputs":{"B":"B"}}},"root":"root","version":7},"original":{"type":"git","url":"file:///var/tmp/nfzXLel9/tmp/nix-test/flakes/follow-paths/follows/custom-url/flakeA"},"originalUrl":"git+file:///var/tmp/nfzXLel9/tmp/nix-test/flakes/follow-paths/follows/custom-url/flakeA","path":"/var/tmp/nfzXLel9/tmp/nix-test/flakes/follow-paths/store/gf0fla7dkdhwbw1fhjmdi3w7203x1yf9-source","resolved":{"type":"git","url":"file:///var/tmp/nfzXLel9/tmp/nix-test/flakes/follow-paths/follows/custom-url/flakeA"},"resolvedUrl":"git+file:///var/tmp/nfzXLel9/tmp/nix-test/flakes/follow-paths/follows/custom-url/flakeA","url":"git+file:///var/tmp/nfzXLel9/tmp/nix-test/flakes/follow-paths/follows/custom-url/flakeA"}'
+++(follow-paths.sh:356) jq -r .locks.nodes.C.original.path
++(follow-paths.sh:356) [[ ./flakeB/flakeD = \./flakeB/flakeD ]]
++(follow-paths.sh:357) rm /var/tmp/nfzXLel9/tmp/nix-test/flakes/follow-paths/follows/custom-url/flakeA/flake.lock
+++(follow-paths.sh:360) nix flake metadata /var/tmp/nfzXLel9/tmp/nix-test/flakes/follow-paths/follows/custom-url/flakeA --override-input B/C /var/tmp/nfzXLel9/tmp/nix-test/flakes/follow-paths/follows/custom-url/flakeA/flakeB/flakeD --json
+warning: you don't have Internet access; disabling some network-dependent features
+warning: Git tree '/var/tmp/nfzXLel9/tmp/nix-test/flakes/follow-paths/follows/custom-url/flakeA' is dirty
+warning: not writing modified lock file of flake 'git+file:///var/tmp/nfzXLel9/tmp/nix-test/flakes/follow-paths/follows/custom-url/flakeA':
+• Added input 'B':
+    'path:./flakeB'
+• Added input 'B/C':
+    'git+file:///var/tmp/nfzXLel9/tmp/nix-test/flakes/follow-paths/follows/custom-url/flakeA?dir=flakeB/flakeD' (1970-01-01)
++(follow-paths.sh:360) json='{"description":"Flake A","lastModified":0,"locked":{"__final":true,"lastModified":0,"narHash":"sha256-/uPQG13dQqfIT8XDI2XqWjFjT+H6ky3XFHH1dNpHr/w=","type":"git","url":"file:///var/tmp/nfzXLel9/tmp/nix-test/flakes/follow-paths/follows/custom-url/flakeA"},"locks":{"nodes":{"B":{"inputs":{"C":"C"},"locked":{"path":"./flakeB","type":"path"},"original":{"path":"./flakeB","type":"path"},"parent":[]},"C":{"locked":{"dir":"flakeB/flakeD","lastModified":0,"narHash":"sha256-/uPQG13dQqfIT8XDI2XqWjFjT+H6ky3XFHH1dNpHr/w=","type":"git","url":"file:///var/tmp/nfzXLel9/tmp/nix-test/flakes/follow-paths/follows/custom-url/flakeA"},"original":{"path":"./flakeC","type":"path"}},"root":{"inputs":{"B":"B"}}},"root":"root","version":7},"original":{"type":"git","url":"file:///var/tmp/nfzXLel9/tmp/nix-test/flakes/follow-paths/follows/custom-url/flakeA"},"originalUrl":"git+file:///var/tmp/nfzXLel9/tmp/nix-test/flakes/follow-paths/follows/custom-url/flakeA","path":"/var/tmp/nfzXLel9/tmp/nix-test/flakes/follow-paths/store/gf0fla7dkdhwbw1fhjmdi3w7203x1yf9-source","resolved":{"type":"git","url":"file:///var/tmp/nfzXLel9/tmp/nix-test/flakes/follow-paths/follows/custom-url/flakeA"},"resolvedUrl":"git+file:///var/tmp/nfzXLel9/tmp/nix-test/flakes/follow-paths/follows/custom-url/flakeA","url":"git+file:///var/tmp/nfzXLel9/tmp/nix-test/flakes/follow-paths/follows/custom-url/flakeA"}'
++(follow-paths.sh:361) echo '{"description":"Flake A","lastModified":0,"locked":{"__final":true,"lastModified":0,"narHash":"sha256-/uPQG13dQqfIT8XDI2XqWjFjT+H6ky3XFHH1dNpHr/w=","type":"git","url":"file:///var/tmp/nfzXLel9/tmp/nix-test/flakes/follow-paths/follows/custom-url/flakeA"},"locks":{"nodes":{"B":{"inputs":{"C":"C"},"locked":{"path":"./flakeB","type":"path"},"original":{"path":"./flakeB","type":"path"},"parent":[]},"C":{"locked":{"dir":"flakeB/flakeD","lastModified":0,"narHash":"sha256-/uPQG13dQqfIT8XDI2XqWjFjT+H6ky3XFHH1dNpHr/w=","type":"git","url":"file:///var/tmp/nfzXLel9/tmp/nix-test/flakes/follow-paths/follows/custom-url/flakeA"},"original":{"path":"./flakeC","type":"path"}},"root":{"inputs":{"B":"B"}}},"root":"root","version":7},"original":{"type":"git","url":"file:///var/tmp/nfzXLel9/tmp/nix-test/flakes/follow-paths/follows/custom-url/flakeA"},"originalUrl":"git+file:///var/tmp/nfzXLel9/tmp/nix-test/flakes/follow-paths/follows/custom-url/flakeA","path":"/var/tmp/nfzXLel9/tmp/nix-test/flakes/follow-paths/store/gf0fla7dkdhwbw1fhjmdi3w7203x1yf9-source","resolved":{"type":"git","url":"file:///var/tmp/nfzXLel9/tmp/nix-test/flakes/follow-paths/follows/custom-url/flakeA"},"resolvedUrl":"git+file:///var/tmp/nfzXLel9/tmp/nix-test/flakes/follow-paths/follows/custom-url/flakeA","url":"git+file:///var/tmp/nfzXLel9/tmp/nix-test/flakes/follow-paths/follows/custom-url/flakeA"}'
++(follow-paths.sh:361) jq .locks.nodes.C.original
+{
+  "path": "./flakeC",
+  "type": "path"
+}
+++(follow-paths.sh:362) echo '{"description":"Flake A","lastModified":0,"locked":{"__final":true,"lastModified":0,"narHash":"sha256-/uPQG13dQqfIT8XDI2XqWjFjT+H6ky3XFHH1dNpHr/w=","type":"git","url":"file:///var/tmp/nfzXLel9/tmp/nix-test/flakes/follow-paths/follows/custom-url/flakeA"},"locks":{"nodes":{"B":{"inputs":{"C":"C"},"locked":{"path":"./flakeB","type":"path"},"original":{"path":"./flakeB","type":"path"},"parent":[]},"C":{"locked":{"dir":"flakeB/flakeD","lastModified":0,"narHash":"sha256-/uPQG13dQqfIT8XDI2XqWjFjT+H6ky3XFHH1dNpHr/w=","type":"git","url":"file:///var/tmp/nfzXLel9/tmp/nix-test/flakes/follow-paths/follows/custom-url/flakeA"},"original":{"path":"./flakeC","type":"path"}},"root":{"inputs":{"B":"B"}}},"root":"root","version":7},"original":{"type":"git","url":"file:///var/tmp/nfzXLel9/tmp/nix-test/flakes/follow-paths/follows/custom-url/flakeA"},"originalUrl":"git+file:///var/tmp/nfzXLel9/tmp/nix-test/flakes/follow-paths/follows/custom-url/flakeA","path":"/var/tmp/nfzXLel9/tmp/nix-test/flakes/follow-paths/store/gf0fla7dkdhwbw1fhjmdi3w7203x1yf9-source","resolved":{"type":"git","url":"file:///var/tmp/nfzXLel9/tmp/nix-test/flakes/follow-paths/follows/custom-url/flakeA"},"resolvedUrl":"git+file:///var/tmp/nfzXLel9/tmp/nix-test/flakes/follow-paths/follows/custom-url/flakeA","url":"git+file:///var/tmp/nfzXLel9/tmp/nix-test/flakes/follow-paths/follows/custom-url/flakeA"}'
+++(follow-paths.sh:362) jq -r .locks.nodes.C.original.path
++(follow-paths.sh:362) [[ ./flakeC = \./flakeC ]]
++(follow-paths.sh:366) cat
++(follow-paths.sh:369) cat
++(follow-paths.sh:375) cat
++(follow-paths.sh:381) cat
++(follow-paths.sh:390) nix flake lock /var/tmp/nfzXLel9/tmp/nix-test/flakes/follow-paths/follows/flakeA
+warning: you don't have Internet access; disabling some network-dependent features
+warning: Git tree '/var/tmp/nfzXLel9/tmp/nix-test/flakes/follow-paths/follows/flakeA' is dirty
+warning: updating lock file "/var/tmp/nfzXLel9/tmp/nix-test/flakes/follow-paths/follows/flakeA/flake.lock":
+• Updated input 'B':
+    'path:./flakeB'
+  → 'path:/var/tmp/nfzXLel9/tmp/nix-test/flakes/follow-paths/follows/flakeA/flakeB?lastModified=1795550396&narHash=sha256-Ve4TbicoVam4FspsnmCXe7BHN5p61Hvu85eE6OhiWnk%3D' (2026-11-24)
+• Updated input 'B/C':
+    'path:./flakeC'
+  → 'path:/var/tmp/nfzXLel9/tmp/nix-test/flakes/follow-paths/follows/flakeA/flakeB/flakeC?lastModified=1795550396&narHash=sha256-v7kltKMtZI3qwEfg/qZGE48Hy4rHvC0K%2BuPyd9YyMco%3D' (2026-11-24)
+• Added input 'B/C/D':
+    follows 'D'
+• Removed input 'B/C/foobar'
+• Removed input 'B/C/goodoo'
+• Removed input 'B/foobar'
+• Removed input 'B/goodoo'
+• Updated input 'D':
+    'path:./flakeD'
+  → 'path:/var/tmp/nfzXLel9/tmp/nix-test/flakes/follow-paths/follows/flakeA/flakeD?lastModified=1795550396&narHash=sha256-hTJPMh9Bwky2TlaWmLrkBHdUBmpxSCPRK%2BbmnFNpNQE%3D' (2026-11-24)
+++(follow-paths.sh:392) jq -c .nodes.C.inputs.D /var/tmp/nfzXLel9/tmp/nix-test/flakes/follow-paths/follows/flakeA/flake.lock
++(follow-paths.sh:392) [[ ["D"] = \["D"\] ]]
++(follow-paths.sh:396) cat
++(follow-paths.sh:402) cat
++(follow-paths.sh:409) cat
++(follow-paths.sh:419) nix flake lock /var/tmp/nfzXLel9/tmp/nix-test/flakes/follow-paths/follows/flakeA --recreate-lock-file
+warning: '--recreate-lock-file' is deprecated and will be removed in a future version; use 'nix flake update' instead.
+warning: you don't have Internet access; disabling some network-dependent features
+warning: Git tree '/var/tmp/nfzXLel9/tmp/nix-test/flakes/follow-paths/follows/flakeA' is dirty
+warning: updating lock file "/var/tmp/nfzXLel9/tmp/nix-test/flakes/follow-paths/follows/flakeA/flake.lock":
+• Updated input 'B':
+    'path:/var/tmp/nfzXLel9/tmp/nix-test/flakes/follow-paths/follows/flakeA/flakeB?lastModified=1795550396&narHash=sha256-Ve4TbicoVam4FspsnmCXe7BHN5p61Hvu85eE6OhiWnk%3D' (2026-11-24)
+  → 'path:/var/tmp/nfzXLel9/tmp/nix-test/flakes/follow-paths/follows/flakeA/flakeB?lastModified=1795550396&narHash=sha256-Sd83BkABkMOu42ooPtCmk3Ir3tn8qb5cKYi09/dnYao%3D' (2026-11-24)
+• Updated input 'B/C':
+    'path:/var/tmp/nfzXLel9/tmp/nix-test/flakes/follow-paths/follows/flakeA/flakeB/flakeC?lastModified=1795550396&narHash=sha256-v7kltKMtZI3qwEfg/qZGE48Hy4rHvC0K%2BuPyd9YyMco%3D' (2026-11-24)
+  → follows 'C'
+• Removed input 'B/C/D'
+• Added input 'B/D':
+    follows 'B/C/D'
+• Added input 'C':
+    'path:/var/tmp/nfzXLel9/tmp/nix-test/flakes/follow-paths/follows/flakeA/flakeB/flakeC?lastModified=1795550396&narHash=sha256-OCyDKweM0oneVxxEpF75zL8jiWGqakW7r/TO93eysfE%3D' (2026-11-24)
+• Added input 'C/D':
+    'path:/var/tmp/nfzXLel9/tmp/nix-test/flakes/follow-paths/follows/flakeA/flakeD?lastModified=1795550396&narHash=sha256-hTJPMh9Bwky2TlaWmLrkBHdUBmpxSCPRK%2BbmnFNpNQE%3D' (2026-11-24)
+• Removed input 'D'
+++(follow-paths.sh:421) jq -c .nodes.B.inputs.D /var/tmp/nfzXLel9/tmp/nix-test/flakes/follow-paths/follows/flakeA/flake.lock
++(follow-paths.sh:421) [[ ["B","C","D"] = \["B","C","D"\] ]]
++(follow-paths.sh:424) cat
++(follow-paths.sh:433) expectStderr 1 nix flake lock /var/tmp/nfzXLel9/tmp/nix-test/flakes/follow-paths/follows/flakeA --recreate-lock-file
++(/var/tmp/nfzXLel9/src/common/functions.sh:201) local expected res
++(/var/tmp/nfzXLel9/src/common/functions.sh:202) expected=1
++(/var/tmp/nfzXLel9/src/common/functions.sh:203) shift
++(follow-paths.sh:433) grepQuiet 'flake input has both a flake reference and a follows attribute'
++(/var/tmp/nfzXLel9/src/common/functions.sh:204) nix flake lock /var/tmp/nfzXLel9/tmp/nix-test/flakes/follow-paths/follows/flakeA --recreate-lock-file
++(/var/tmp/nfzXLel9/src/common/functions.sh:330) checkGrepArgs 'flake input has both a flake reference and a follows attribute'
++(/var/tmp/nfzXLel9/src/common/functions.sh:293) local arg
++(/var/tmp/nfzXLel9/src/common/functions.sh:294) for arg in "$@"
++(/var/tmp/nfzXLel9/src/common/functions.sh:295) [[ flake input has both a flake reference and a follows attribute != flake input has both a flake reference and a follows attribute ]]
++(/var/tmp/nfzXLel9/src/common/functions.sh:331) command grep 'flake input has both a flake reference and a follows attribute'
++(/var/tmp/nfzXLel9/src/common/functions.sh:204) res=1
++(/var/tmp/nfzXLel9/src/common/functions.sh:206) [[ 1 -ne 1 ]]
++(/var/tmp/nfzXLel9/src/common/functions.sh:210) return 0

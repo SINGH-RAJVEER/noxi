@@ -1,0 +1,515 @@
++(remote-store.sh:3) source common.sh
+++(common.sh:3) set -eu -o pipefail
+++(common.sh:5) [[ -z '' ]]
+++(common.sh:7) COMMON_SH_SOURCED=1
+++++(common.sh:9) dirname common.sh
++++(common.sh:9) readlink -f .
+++(common.sh:9) functionalTestsDir=/var/tmp/nf1pG5h2/src
+++(common.sh:11) source /var/tmp/nf1pG5h2/src/common/vars.sh
++++(/var/tmp/nf1pG5h2/src/common/vars.sh:3) set -eu -o pipefail
++++(/var/tmp/nf1pG5h2/src/common/vars.sh:5) [[ -z '' ]]
++++(/var/tmp/nf1pG5h2/src/common/vars.sh:7) COMMON_VARS_SH_SOURCED=1
+++++(/var/tmp/nf1pG5h2/src/common/vars.sh:9) realpath /var/tmp/nf1pG5h2/src
++++(/var/tmp/nf1pG5h2/src/common/vars.sh:9) _NIX_TEST_SOURCE_DIR=/var/tmp/nf1pG5h2/src
+++++(/var/tmp/nf1pG5h2/src/common/vars.sh:10) realpath /var/tmp/nf1pG5h2/build
++++(/var/tmp/nf1pG5h2/src/common/vars.sh:10) _NIX_TEST_BUILD_DIR=/var/tmp/nf1pG5h2/build
++++++(/var/tmp/nf1pG5h2/src/common/vars.sh:12) dirname /var/tmp/nf1pG5h2/src/common/vars.sh
+++++(/var/tmp/nf1pG5h2/src/common/vars.sh:12) readlink -f /var/tmp/nf1pG5h2/src/common
++++(/var/tmp/nf1pG5h2/src/common/vars.sh:12) commonDir=/var/tmp/nf1pG5h2/src/common
++++(/var/tmp/nf1pG5h2/src/common/vars.sh:16) source /var/tmp/nf1pG5h2/build/common/subst-vars.sh
+++++(/var/tmp/nf1pG5h2/build/common/subst-vars.sh:3) [[ -z '' ]]
+++++(/var/tmp/nf1pG5h2/build/common/subst-vars.sh:5) COMMON_SUBST_VARS_SH_SOURCED=1
+++++(/var/tmp/nf1pG5h2/build/common/subst-vars.sh:7) bash=/nix/store/2ndah67h0z5m31v2wkdmg2md4380ggr5-bash-interactive-5.3p15/bin/bash
+++++(/var/tmp/nf1pG5h2/build/common/subst-vars.sh:8) bindir=/nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2/bin
+++++(/var/tmp/nf1pG5h2/build/common/subst-vars.sh:9) coreutils=/nix/store/xjl7p8dvyk2j53kqf7f43kdj4ypbxz7g-coreutils-9.11/bin
+++++(/var/tmp/nf1pG5h2/build/common/subst-vars.sh:11) dot=
+++++(/var/tmp/nf1pG5h2/build/common/subst-vars.sh:12) busybox=/nix/store/qddzvnv6b0805nkvbqddbswddcfhx814-busybox-static-x86_64-unknown-linux-musl-1.37.0/bin/busybox
+++++(/var/tmp/nf1pG5h2/build/common/subst-vars.sh:14) version=2.35.2
+++++(/var/tmp/nf1pG5h2/build/common/subst-vars.sh:15) system=x86_64-linux
++++(/var/tmp/nf1pG5h2/src/common/vars.sh:18) : '/nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2/bin /nix/store/xjl7p8dvyk2j53kqf7f43kdj4ypbxz7g-coreutils-9.11/bin  /run/current-system/sw/bin/nu /nix/store/qddzvnv6b0805nkvbqddbswddcfhx814-busybox-static-x86_64-unknown-linux-musl-1.37.0/bin/busybox 2.35.2 x86_64-linux'
++++(/var/tmp/nf1pG5h2/src/common/vars.sh:19) export coreutils dot busybox version system
++++(/var/tmp/nf1pG5h2/src/common/vars.sh:21) export PAGER=cat
++++(/var/tmp/nf1pG5h2/src/common/vars.sh:21) PAGER=cat
++++(/var/tmp/nf1pG5h2/src/common/vars.sh:23) source /var/tmp/nf1pG5h2/src/common/paths.sh
+++++(/var/tmp/nf1pG5h2/src/common/paths.sh:3) set -eu -o pipefail
+++++(/var/tmp/nf1pG5h2/src/common/paths.sh:5) [[ -z '' ]]
+++++(/var/tmp/nf1pG5h2/src/common/paths.sh:7) COMMON_PATHS_SH_SOURCED=1
+++++++(/var/tmp/nf1pG5h2/src/common/paths.sh:9) dirname /var/tmp/nf1pG5h2/src/common/paths.sh
++++++(/var/tmp/nf1pG5h2/src/common/paths.sh:9) readlink -f /var/tmp/nf1pG5h2/src/common
+++++(/var/tmp/nf1pG5h2/src/common/paths.sh:9) commonDir=/var/tmp/nf1pG5h2/src/common
+++++(/var/tmp/nf1pG5h2/src/common/paths.sh:12) source /var/tmp/nf1pG5h2/src/common/functions.sh
++++++(/var/tmp/nf1pG5h2/src/common/functions.sh:3) set -eu -o pipefail
++++++(/var/tmp/nf1pG5h2/src/common/functions.sh:5) [[ -z '' ]]
++++++(/var/tmp/nf1pG5h2/src/common/functions.sh:7) COMMON_FUNCTIONS_SH_SOURCED=1
++++++(/var/tmp/nf1pG5h2/src/common/functions.sh:353) trap onError ERR
+++++(/var/tmp/nf1pG5h2/src/common/paths.sh:14) source /var/tmp/nf1pG5h2/build/common/subst-vars.sh
++++++(/var/tmp/nf1pG5h2/build/common/subst-vars.sh:3) [[ -z 1 ]]
+++++(/var/tmp/nf1pG5h2/src/common/paths.sh:16) : /nix/store/2ndah67h0z5m31v2wkdmg2md4380ggr5-bash-interactive-5.3p15/bin/bash /nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2/bin
+++++(/var/tmp/nf1pG5h2/src/common/paths.sh:18) isTestOnNixOS
+++++(/var/tmp/nf1pG5h2/src/common/functions.sh:10) [[ '' == 1 ]]
+++++(/var/tmp/nf1pG5h2/src/common/paths.sh:19) export SHELL=/nix/store/2ndah67h0z5m31v2wkdmg2md4380ggr5-bash-interactive-5.3p15/bin/bash
+++++(/var/tmp/nf1pG5h2/src/common/paths.sh:19) SHELL=/nix/store/2ndah67h0z5m31v2wkdmg2md4380ggr5-bash-interactive-5.3p15/bin/bash
+++++(/var/tmp/nf1pG5h2/src/common/paths.sh:20) export PATH=/nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2/bin:/nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2/bin:/nix/store/2ndah67h0z5m31v2wkdmg2md4380ggr5-bash-interactive-5.3p15/bin:/nix/store/xjl7p8dvyk2j53kqf7f43kdj4ypbxz7g-coreutils-9.11/bin:/nix/store/xmvbzzxm5snla5a2cyfhm7hjy9bifx7n-gnugrep-3.12/bin:/nix/store/qf2wzyq4irhgyhnq3s2hz0ldjq3w8a3x-gnused-4.10/bin:/nix/store/9zib1q94gka8i5q530364cvy25504qz5-gawk-5.4.1/bin:/nix/store/i9wgqa0l88aprvpwfaq5hkfa6pklhlv0-findutils-4.11.0/bin:/nix/store/b8xvzgd52jby5dfpi0pf46nisy6wma5d-diffutils-3.12/bin:/nix/store/81zqbas7qc02yfdj7142fdcqhxgd3cgz-patch-2.8/bin:/nix/store/c8b0qp903w2hhpa63a2lfs7d565zag30-gnutar-1.35/bin:/nix/store/l5sll8nxk70p73l5yqbsjy4mh0c3g0v5-gzip-1.14/bin:/nix/store/j3yz0ag9j442229n8harpmp9aa5qyvhn-bzip2-1.0.8-bin/bin:/nix/store/518dig8gpvqyac6pkksyjjfzvi9zn8vq-xz-5.8.3-bin/bin:/nix/store/l8ik8mb8lgb60rklxjmkgddmp5qqnv29-zstd-1.5.7-bin/bin:/nix/store/msr1v91ybfw6j12rs5mfl8ghb2rqsnsr-git-2.55.0/bin:/nix/store/hyz22a0l5b5kv7yfypw4ss6d36vbzg01-jq-1.8.2-bin/bin:/nix/store/24gq3bi2yzf7g386p5j32mn78hhanf49-sqlite-3.53.3-bin/bin:/nix/store/cp8qnyl8i0s62g3a1465i258mf5bcr6k-curl-8.22.0-bin/bin:/nix/store/8x4c8zah3fbnyckaic4sskjbw7d2y98n-util-linux-2.42.4-bin/bin:/nix/store/d64q19q1xjdwfhqx6czvrjgrhq0n3lcc-python3-3.14.7/bin:/nix/store/niqsa6mxqsyax9lzbm261a2ml6m71vb6-perl-5.42.3/bin:/nix/store/fv9yl55hkskpc2cj9c0sdyq91car9kgl-file-5.48/bin:/nix/store/jv5kdlkwx0l8a7jdpg21g934ff30s319-which-2.25/bin:/nix/store/aj08b694apkc1jay2akywym9ghlailf5-procps-4.0.7/bin:/nix/store/5wyaj1kvkxbbscz6innrh6yjjkdq4qmk-openssh-10.6p1/bin:/nix/store/44gxi8li8y8wrxrb93sya9hljkpigsqw-openssl-3.6.4-bin/bin:/run/wrappers/wrappers.Yw6nCJO1nt:/nix/store/wmh4xg3557sicfyllmi9ymd8sxaw51wv-man-db-2.13.1/bin:/nix/store/qpgknrlnxca0z99gl12j5n0fgca11cdx-mercurial-7.2.2/bin:/var/tmp/noxi-st2/.tmpQra68W/reference/tools
+++++(/var/tmp/nf1pG5h2/src/common/paths.sh:20) PATH=/nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2/bin:/nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2/bin:/nix/store/2ndah67h0z5m31v2wkdmg2md4380ggr5-bash-interactive-5.3p15/bin:/nix/store/xjl7p8dvyk2j53kqf7f43kdj4ypbxz7g-coreutils-9.11/bin:/nix/store/xmvbzzxm5snla5a2cyfhm7hjy9bifx7n-gnugrep-3.12/bin:/nix/store/qf2wzyq4irhgyhnq3s2hz0ldjq3w8a3x-gnused-4.10/bin:/nix/store/9zib1q94gka8i5q530364cvy25504qz5-gawk-5.4.1/bin:/nix/store/i9wgqa0l88aprvpwfaq5hkfa6pklhlv0-findutils-4.11.0/bin:/nix/store/b8xvzgd52jby5dfpi0pf46nisy6wma5d-diffutils-3.12/bin:/nix/store/81zqbas7qc02yfdj7142fdcqhxgd3cgz-patch-2.8/bin:/nix/store/c8b0qp903w2hhpa63a2lfs7d565zag30-gnutar-1.35/bin:/nix/store/l5sll8nxk70p73l5yqbsjy4mh0c3g0v5-gzip-1.14/bin:/nix/store/j3yz0ag9j442229n8harpmp9aa5qyvhn-bzip2-1.0.8-bin/bin:/nix/store/518dig8gpvqyac6pkksyjjfzvi9zn8vq-xz-5.8.3-bin/bin:/nix/store/l8ik8mb8lgb60rklxjmkgddmp5qqnv29-zstd-1.5.7-bin/bin:/nix/store/msr1v91ybfw6j12rs5mfl8ghb2rqsnsr-git-2.55.0/bin:/nix/store/hyz22a0l5b5kv7yfypw4ss6d36vbzg01-jq-1.8.2-bin/bin:/nix/store/24gq3bi2yzf7g386p5j32mn78hhanf49-sqlite-3.53.3-bin/bin:/nix/store/cp8qnyl8i0s62g3a1465i258mf5bcr6k-curl-8.22.0-bin/bin:/nix/store/8x4c8zah3fbnyckaic4sskjbw7d2y98n-util-linux-2.42.4-bin/bin:/nix/store/d64q19q1xjdwfhqx6czvrjgrhq0n3lcc-python3-3.14.7/bin:/nix/store/niqsa6mxqsyax9lzbm261a2ml6m71vb6-perl-5.42.3/bin:/nix/store/fv9yl55hkskpc2cj9c0sdyq91car9kgl-file-5.48/bin:/nix/store/jv5kdlkwx0l8a7jdpg21g934ff30s319-which-2.25/bin:/nix/store/aj08b694apkc1jay2akywym9ghlailf5-procps-4.0.7/bin:/nix/store/5wyaj1kvkxbbscz6innrh6yjjkdq4qmk-openssh-10.6p1/bin:/nix/store/44gxi8li8y8wrxrb93sya9hljkpigsqw-openssl-3.6.4-bin/bin:/run/wrappers/wrappers.Yw6nCJO1nt:/nix/store/wmh4xg3557sicfyllmi9ymd8sxaw51wv-man-db-2.13.1/bin:/nix/store/qpgknrlnxca0z99gl12j5n0fgca11cdx-mercurial-7.2.2/bin:/var/tmp/noxi-st2/.tmpQra68W/reference/tools
+++++(/var/tmp/nf1pG5h2/src/common/paths.sh:23) [[ -n '' ]]
+++++(/var/tmp/nf1pG5h2/src/common/paths.sh:27) DAEMON_PATH=/nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2/bin:/nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2/bin:/nix/store/2ndah67h0z5m31v2wkdmg2md4380ggr5-bash-interactive-5.3p15/bin:/nix/store/xjl7p8dvyk2j53kqf7f43kdj4ypbxz7g-coreutils-9.11/bin:/nix/store/xmvbzzxm5snla5a2cyfhm7hjy9bifx7n-gnugrep-3.12/bin:/nix/store/qf2wzyq4irhgyhnq3s2hz0ldjq3w8a3x-gnused-4.10/bin:/nix/store/9zib1q94gka8i5q530364cvy25504qz5-gawk-5.4.1/bin:/nix/store/i9wgqa0l88aprvpwfaq5hkfa6pklhlv0-findutils-4.11.0/bin:/nix/store/b8xvzgd52jby5dfpi0pf46nisy6wma5d-diffutils-3.12/bin:/nix/store/81zqbas7qc02yfdj7142fdcqhxgd3cgz-patch-2.8/bin:/nix/store/c8b0qp903w2hhpa63a2lfs7d565zag30-gnutar-1.35/bin:/nix/store/l5sll8nxk70p73l5yqbsjy4mh0c3g0v5-gzip-1.14/bin:/nix/store/j3yz0ag9j442229n8harpmp9aa5qyvhn-bzip2-1.0.8-bin/bin:/nix/store/518dig8gpvqyac6pkksyjjfzvi9zn8vq-xz-5.8.3-bin/bin:/nix/store/l8ik8mb8lgb60rklxjmkgddmp5qqnv29-zstd-1.5.7-bin/bin:/nix/store/msr1v91ybfw6j12rs5mfl8ghb2rqsnsr-git-2.55.0/bin:/nix/store/hyz22a0l5b5kv7yfypw4ss6d36vbzg01-jq-1.8.2-bin/bin:/nix/store/24gq3bi2yzf7g386p5j32mn78hhanf49-sqlite-3.53.3-bin/bin:/nix/store/cp8qnyl8i0s62g3a1465i258mf5bcr6k-curl-8.22.0-bin/bin:/nix/store/8x4c8zah3fbnyckaic4sskjbw7d2y98n-util-linux-2.42.4-bin/bin:/nix/store/d64q19q1xjdwfhqx6czvrjgrhq0n3lcc-python3-3.14.7/bin:/nix/store/niqsa6mxqsyax9lzbm261a2ml6m71vb6-perl-5.42.3/bin:/nix/store/fv9yl55hkskpc2cj9c0sdyq91car9kgl-file-5.48/bin:/nix/store/jv5kdlkwx0l8a7jdpg21g934ff30s319-which-2.25/bin:/nix/store/aj08b694apkc1jay2akywym9ghlailf5-procps-4.0.7/bin:/nix/store/5wyaj1kvkxbbscz6innrh6yjjkdq4qmk-openssh-10.6p1/bin:/nix/store/44gxi8li8y8wrxrb93sya9hljkpigsqw-openssl-3.6.4-bin/bin:/run/wrappers/wrappers.Yw6nCJO1nt:/nix/store/wmh4xg3557sicfyllmi9ymd8sxaw51wv-man-db-2.13.1/bin:/nix/store/qpgknrlnxca0z99gl12j5n0fgca11cdx-mercurial-7.2.2/bin:/var/tmp/noxi-st2/.tmpQra68W/reference/tools
+++++(/var/tmp/nf1pG5h2/src/common/paths.sh:28) [[ -n '' ]]
++++(/var/tmp/nf1pG5h2/src/common/vars.sh:24) source /var/tmp/nf1pG5h2/src/common/test-root.sh
+++++(/var/tmp/nf1pG5h2/src/common/test-root.sh:3) TEST_SUBDIR=main/remote-store
++++++(/var/tmp/nf1pG5h2/src/common/test-root.sh:4) realpath /var/tmp/nf1pG5h2/tmp/nix-test
+++++(/var/tmp/nf1pG5h2/src/common/test-root.sh:4) TEST_ROOT=/var/tmp/nf1pG5h2/tmp/nix-test/main/remote-store
+++++(/var/tmp/nf1pG5h2/src/common/test-root.sh:5) export TEST_ROOT
++++(/var/tmp/nf1pG5h2/src/common/vars.sh:26) test_nix_conf_dir=/var/tmp/nf1pG5h2/tmp/nix-test/main/remote-store/etc
++++(/var/tmp/nf1pG5h2/src/common/vars.sh:29) test_nix_conf=/var/tmp/nf1pG5h2/tmp/nix-test/main/remote-store/etc/nix.conf
++++(/var/tmp/nf1pG5h2/src/common/vars.sh:31) export TEST_HOME=/var/tmp/nf1pG5h2/tmp/nix-test/main/remote-store/test-home
++++(/var/tmp/nf1pG5h2/src/common/vars.sh:31) TEST_HOME=/var/tmp/nf1pG5h2/tmp/nix-test/main/remote-store/test-home
++++(/var/tmp/nf1pG5h2/src/common/vars.sh:33) isTestOnNixOS
++++(/var/tmp/nf1pG5h2/src/common/functions.sh:10) [[ '' == 1 ]]
++++(/var/tmp/nf1pG5h2/src/common/vars.sh:34) export NIX_STORE_DIR
+++++(/var/tmp/nf1pG5h2/src/common/vars.sh:35) readlink -f /var/tmp/nf1pG5h2/tmp/nix-test/main/remote-store/store
++++(/var/tmp/nf1pG5h2/src/common/vars.sh:35) NIX_STORE_DIR=
++++(/var/tmp/nf1pG5h2/src/common/vars.sh:37) export NIX_IGNORE_SYMLINK_STORE=1
++++(/var/tmp/nf1pG5h2/src/common/vars.sh:37) NIX_IGNORE_SYMLINK_STORE=1
++++(/var/tmp/nf1pG5h2/src/common/vars.sh:38) NIX_STORE_DIR=/var/tmp/nf1pG5h2/tmp/nix-test/main/remote-store/store
++++(/var/tmp/nf1pG5h2/src/common/vars.sh:40) export NIX_LOCALSTATE_DIR=/var/tmp/nf1pG5h2/tmp/nix-test/main/remote-store/var
++++(/var/tmp/nf1pG5h2/src/common/vars.sh:40) NIX_LOCALSTATE_DIR=/var/tmp/nf1pG5h2/tmp/nix-test/main/remote-store/var
++++(/var/tmp/nf1pG5h2/src/common/vars.sh:41) export NIX_LOG_DIR=/var/tmp/nf1pG5h2/tmp/nix-test/main/remote-store/var/log/nix
++++(/var/tmp/nf1pG5h2/src/common/vars.sh:41) NIX_LOG_DIR=/var/tmp/nf1pG5h2/tmp/nix-test/main/remote-store/var/log/nix
++++(/var/tmp/nf1pG5h2/src/common/vars.sh:42) export NIX_STATE_DIR=/var/tmp/nf1pG5h2/tmp/nix-test/main/remote-store/var/nix
++++(/var/tmp/nf1pG5h2/src/common/vars.sh:42) NIX_STATE_DIR=/var/tmp/nf1pG5h2/tmp/nix-test/main/remote-store/var/nix
++++(/var/tmp/nf1pG5h2/src/common/vars.sh:43) export NIX_CONF_DIR=/var/tmp/nf1pG5h2/tmp/nix-test/main/remote-store/etc
++++(/var/tmp/nf1pG5h2/src/common/vars.sh:43) NIX_CONF_DIR=/var/tmp/nf1pG5h2/tmp/nix-test/main/remote-store/etc
++++(/var/tmp/nf1pG5h2/src/common/vars.sh:44) export NIX_DAEMON_SOCKET_PATH=/var/tmp/nf1pG5h2/tmp/nix-test/main/remote-store/dSocket
++++(/var/tmp/nf1pG5h2/src/common/vars.sh:44) NIX_DAEMON_SOCKET_PATH=/var/tmp/nf1pG5h2/tmp/nix-test/main/remote-store/dSocket
++++(/var/tmp/nf1pG5h2/src/common/vars.sh:45) unset NIX_USER_CONF_FILES
++++(/var/tmp/nf1pG5h2/src/common/vars.sh:46) export _NIX_TEST_SHARED=/var/tmp/nf1pG5h2/tmp/nix-test/main/remote-store/shared
++++(/var/tmp/nf1pG5h2/src/common/vars.sh:46) _NIX_TEST_SHARED=/var/tmp/nf1pG5h2/tmp/nix-test/main/remote-store/shared
++++(/var/tmp/nf1pG5h2/src/common/vars.sh:47) [[ -n '' ]]
++++(/var/tmp/nf1pG5h2/src/common/vars.sh:50) export _NIX_IN_TEST=/var/tmp/nf1pG5h2/tmp/nix-test/main/remote-store/shared
++++(/var/tmp/nf1pG5h2/src/common/vars.sh:50) _NIX_IN_TEST=/var/tmp/nf1pG5h2/tmp/nix-test/main/remote-store/shared
++++(/var/tmp/nf1pG5h2/src/common/vars.sh:51) export _NIX_TEST_NO_LSOF=1
++++(/var/tmp/nf1pG5h2/src/common/vars.sh:51) _NIX_TEST_NO_LSOF=1
++++(/var/tmp/nf1pG5h2/src/common/vars.sh:54) export _NIX_TEST_NO_ENVIRONMENT_WARNINGS=1
++++(/var/tmp/nf1pG5h2/src/common/vars.sh:54) _NIX_TEST_NO_ENVIRONMENT_WARNINGS=1
++++(/var/tmp/nf1pG5h2/src/common/vars.sh:55) export NIX_REMOTE=
++++(/var/tmp/nf1pG5h2/src/common/vars.sh:55) NIX_REMOTE=
++++(/var/tmp/nf1pG5h2/src/common/vars.sh:59) unset NIX_PATH
++++(/var/tmp/nf1pG5h2/src/common/vars.sh:60) export HOME=/var/tmp/nf1pG5h2/tmp/nix-test/main/remote-store/test-home
++++(/var/tmp/nf1pG5h2/src/common/vars.sh:60) HOME=/var/tmp/nf1pG5h2/tmp/nix-test/main/remote-store/test-home
++++(/var/tmp/nf1pG5h2/src/common/vars.sh:61) unset XDG_STATE_HOME
++++(/var/tmp/nf1pG5h2/src/common/vars.sh:62) unset XDG_DATA_HOME
++++(/var/tmp/nf1pG5h2/src/common/vars.sh:63) unset XDG_CONFIG_HOME
++++(/var/tmp/nf1pG5h2/src/common/vars.sh:64) unset XDG_CONFIG_DIRS
++++(/var/tmp/nf1pG5h2/src/common/vars.sh:65) unset XDG_CACHE_HOME
++++(/var/tmp/nf1pG5h2/src/common/vars.sh:66) unset GIT_DIR
++++(/var/tmp/nf1pG5h2/src/common/vars.sh:68) export GIT_CONFIG_SYSTEM=/dev/null
++++(/var/tmp/nf1pG5h2/src/common/vars.sh:68) GIT_CONFIG_SYSTEM=/dev/null
++++(/var/tmp/nf1pG5h2/src/common/vars.sh:69) export GIT_CONFIG_GLOBAL=/dev/null
++++(/var/tmp/nf1pG5h2/src/common/vars.sh:69) GIT_CONFIG_GLOBAL=/dev/null
++++(/var/tmp/nf1pG5h2/src/common/vars.sh:71) export IMPURE_VAR1=foo
++++(/var/tmp/nf1pG5h2/src/common/vars.sh:71) IMPURE_VAR1=foo
++++(/var/tmp/nf1pG5h2/src/common/vars.sh:72) export IMPURE_VAR2=bar
++++(/var/tmp/nf1pG5h2/src/common/vars.sh:72) IMPURE_VAR2=bar
++++(/var/tmp/nf1pG5h2/src/common/vars.sh:76) cacheDir=/var/tmp/nf1pG5h2/tmp/nix-test/main/remote-store/binary-cache
+++++(/var/tmp/nf1pG5h2/src/common/vars.sh:78) uname
++++(/var/tmp/nf1pG5h2/src/common/vars.sh:78) [[ Linux == Linux ]]
++++(/var/tmp/nf1pG5h2/src/common/vars.sh:78) [[ -L /proc/self/ns/user ]]
++++(/var/tmp/nf1pG5h2/src/common/vars.sh:78) unshare --user true
++++(/var/tmp/nf1pG5h2/src/common/vars.sh:79) _canUseSandbox=1
++++(/var/tmp/nf1pG5h2/src/common/vars.sh:85) config_nix=/var/tmp/nf1pG5h2/tmp/nix-test/main/remote-store/config.nix
+++(common.sh:12) source /var/tmp/nf1pG5h2/src/common/functions.sh
++++(/var/tmp/nf1pG5h2/src/common/functions.sh:3) set -eu -o pipefail
++++(/var/tmp/nf1pG5h2/src/common/functions.sh:5) [[ -z 1 ]]
+++(common.sh:13) source /var/tmp/nf1pG5h2/src/common/init.sh
++++(/var/tmp/nf1pG5h2/src/common/init.sh:4) : /var/tmp/nf1pG5h2/tmp/nix-test/main/remote-store/etc /var/tmp/nf1pG5h2/tmp/nix-test/main/remote-store/etc/nix.conf /var/tmp/nf1pG5h2/tmp/nix-test/main/remote-store/config.nix
++++(/var/tmp/nf1pG5h2/src/common/init.sh:6) isTestOnNixOS
++++(/var/tmp/nf1pG5h2/src/common/functions.sh:10) [[ '' == 1 ]]
++++(/var/tmp/nf1pG5h2/src/common/init.sh:29) test -n /var/tmp/nf1pG5h2/tmp/nix-test/main/remote-store
++++(/var/tmp/nf1pG5h2/src/common/init.sh:31) killDaemon
++++(/var/tmp/nf1pG5h2/src/common/functions.sh:100) isTestOnNixOS
++++(/var/tmp/nf1pG5h2/src/common/functions.sh:10) [[ '' == 1 ]]
++++(/var/tmp/nf1pG5h2/src/common/functions.sh:105) [[ '' == '' ]]
++++(/var/tmp/nf1pG5h2/src/common/functions.sh:106) return
++++(/var/tmp/nf1pG5h2/src/common/init.sh:33) [[ -e /var/tmp/nf1pG5h2/tmp/nix-test/main/remote-store ]]
++++(/var/tmp/nf1pG5h2/src/common/init.sh:37) mkdir -p /var/tmp/nf1pG5h2/tmp/nix-test/main/remote-store
++++(/var/tmp/nf1pG5h2/src/common/init.sh:38) mkdir /var/tmp/nf1pG5h2/tmp/nix-test/main/remote-store/test-home
++++(/var/tmp/nf1pG5h2/src/common/init.sh:40) mkdir /var/tmp/nf1pG5h2/tmp/nix-test/main/remote-store/store
++++(/var/tmp/nf1pG5h2/src/common/init.sh:41) mkdir /var/tmp/nf1pG5h2/tmp/nix-test/main/remote-store/var
++++(/var/tmp/nf1pG5h2/src/common/init.sh:42) mkdir -p /var/tmp/nf1pG5h2/tmp/nix-test/main/remote-store/var/log/nix/drvs
++++(/var/tmp/nf1pG5h2/src/common/init.sh:43) mkdir /var/tmp/nf1pG5h2/tmp/nix-test/main/remote-store/var/nix
++++(/var/tmp/nf1pG5h2/src/common/init.sh:44) mkdir /var/tmp/nf1pG5h2/tmp/nix-test/main/remote-store/etc
++++(/var/tmp/nf1pG5h2/src/common/init.sh:46) cat
+++++(/var/tmp/nf1pG5h2/src/common/init.sh:46) whoami
++++(/var/tmp/nf1pG5h2/src/common/init.sh:59) cat
++++(/var/tmp/nf1pG5h2/src/common/init.sh:67) nix-store --init
++++(/var/tmp/nf1pG5h2/src/common/init.sh:69) test -e /var/tmp/nf1pG5h2/tmp/nix-test/main/remote-store/var/nix/db/db.sqlite
++++(/var/tmp/nf1pG5h2/src/common/init.sh:75) echo '# config.nix for test main / remote-store'
++++(/var/tmp/nf1pG5h2/src/common/init.sh:76) cat /var/tmp/nf1pG5h2/build/config.nix
+++(common.sh:15) [[ -n '' ]]
++(remote-store.sh:5) TODO_NixOS
++(/var/tmp/nf1pG5h2/src/common/functions.sh:148) isTestOnNixOS
++(/var/tmp/nf1pG5h2/src/common/functions.sh:10) [[ '' == 1 ]]
++(remote-store.sh:8) nix --store 'ssh-ng://localhost?remote-store=/var/tmp/nf1pG5h2/tmp/nix-test/main/remote-store/other-store' doctor
+warning: 'doctor' is a deprecated alias for 'config check'
+warning: you don't have Internet access; disabling some network-dependent features
+Running checks against store uri: ssh-ng://localhost
+[PASS] Client protocol matches store protocol.
+[INFO] You are trusted by store uri: ssh-ng://localhost
++(remote-store.sh:11) nix --store 'ssh-ng://localhost?remote-store=/var/tmp/nf1pG5h2/tmp/nix-test/main/remote-store/other-store' store info --json
++(remote-store.sh:11) jq -e .trusted
+warning: you don't have Internet access; disabling some network-dependent features
+true
++(remote-store.sh:13) startDaemon
++(/var/tmp/nf1pG5h2/src/common/functions.sh:66) isTestOnNixOS
++(/var/tmp/nf1pG5h2/src/common/functions.sh:10) [[ '' == 1 ]]
++(/var/tmp/nf1pG5h2/src/common/functions.sh:71) [[ '' != '' ]]
++(/var/tmp/nf1pG5h2/src/common/functions.sh:75) rm -f /var/tmp/nf1pG5h2/tmp/nix-test/main/remote-store/dSocket
++(/var/tmp/nf1pG5h2/src/common/functions.sh:77) _NIX_TEST_DAEMON_PID=1003401
++(/var/tmp/nf1pG5h2/src/common/functions.sh:78) export _NIX_TEST_DAEMON_PID
++(/var/tmp/nf1pG5h2/src/common/functions.sh:79) (( i = 0 ))
++(/var/tmp/nf1pG5h2/src/common/functions.sh:79) (( i < 60 ))
++(/var/tmp/nf1pG5h2/src/common/functions.sh:80) [[ -S /var/tmp/nf1pG5h2/tmp/nix-test/main/remote-store/dSocket ]]
++(/var/tmp/nf1pG5h2/src/common/functions.sh:84) kill -0 1003401
++(/var/tmp/nf1pG5h2/src/common/functions.sh:76) PATH=/nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2/bin:/nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2/bin:/nix/store/2ndah67h0z5m31v2wkdmg2md4380ggr5-bash-interactive-5.3p15/bin:/nix/store/xjl7p8dvyk2j53kqf7f43kdj4ypbxz7g-coreutils-9.11/bin:/nix/store/xmvbzzxm5snla5a2cyfhm7hjy9bifx7n-gnugrep-3.12/bin:/nix/store/qf2wzyq4irhgyhnq3s2hz0ldjq3w8a3x-gnused-4.10/bin:/nix/store/9zib1q94gka8i5q530364cvy25504qz5-gawk-5.4.1/bin:/nix/store/i9wgqa0l88aprvpwfaq5hkfa6pklhlv0-findutils-4.11.0/bin:/nix/store/b8xvzgd52jby5dfpi0pf46nisy6wma5d-diffutils-3.12/bin:/nix/store/81zqbas7qc02yfdj7142fdcqhxgd3cgz-patch-2.8/bin:/nix/store/c8b0qp903w2hhpa63a2lfs7d565zag30-gnutar-1.35/bin:/nix/store/l5sll8nxk70p73l5yqbsjy4mh0c3g0v5-gzip-1.14/bin:/nix/store/j3yz0ag9j442229n8harpmp9aa5qyvhn-bzip2-1.0.8-bin/bin:/nix/store/518dig8gpvqyac6pkksyjjfzvi9zn8vq-xz-5.8.3-bin/bin:/nix/store/l8ik8mb8lgb60rklxjmkgddmp5qqnv29-zstd-1.5.7-bin/bin:/nix/store/msr1v91ybfw6j12rs5mfl8ghb2rqsnsr-git-2.55.0/bin:/nix/store/hyz22a0l5b5kv7yfypw4ss6d36vbzg01-jq-1.8.2-bin/bin:/nix/store/24gq3bi2yzf7g386p5j32mn78hhanf49-sqlite-3.53.3-bin/bin:/nix/store/cp8qnyl8i0s62g3a1465i258mf5bcr6k-curl-8.22.0-bin/bin:/nix/store/8x4c8zah3fbnyckaic4sskjbw7d2y98n-util-linux-2.42.4-bin/bin:/nix/store/d64q19q1xjdwfhqx6czvrjgrhq0n3lcc-python3-3.14.7/bin:/nix/store/niqsa6mxqsyax9lzbm261a2ml6m71vb6-perl-5.42.3/bin:/nix/store/fv9yl55hkskpc2cj9c0sdyq91car9kgl-file-5.48/bin:/nix/store/jv5kdlkwx0l8a7jdpg21g934ff30s319-which-2.25/bin:/nix/store/aj08b694apkc1jay2akywym9ghlailf5-procps-4.0.7/bin:/nix/store/5wyaj1kvkxbbscz6innrh6yjjkdq4qmk-openssh-10.6p1/bin:/nix/store/44gxi8li8y8wrxrb93sya9hljkpigsqw-openssl-3.6.4-bin/bin:/run/wrappers/wrappers.Yw6nCJO1nt:/nix/store/wmh4xg3557sicfyllmi9ymd8sxaw51wv-man-db-2.13.1/bin:/nix/store/qpgknrlnxca0z99gl12j5n0fgca11cdx-mercurial-7.2.2/bin:/var/tmp/noxi-st2/.tmpQra68W/reference/tools
++(/var/tmp/nf1pG5h2/src/common/functions.sh:88) sleep 0.1
++(/var/tmp/nf1pG5h2/src/common/functions.sh:76) nix --extra-experimental-features nix-command daemon
+warning: you don't have Internet access; disabling some network-dependent features
++(/var/tmp/nf1pG5h2/src/common/functions.sh:79) (( i++ ))
++(/var/tmp/nf1pG5h2/src/common/functions.sh:79) (( i < 60 ))
++(/var/tmp/nf1pG5h2/src/common/functions.sh:80) [[ -S /var/tmp/nf1pG5h2/tmp/nix-test/main/remote-store/dSocket ]]
++(/var/tmp/nf1pG5h2/src/common/functions.sh:81) DAEMON_STARTED=1
++(/var/tmp/nf1pG5h2/src/common/functions.sh:82) break
++(/var/tmp/nf1pG5h2/src/common/functions.sh:90) [[ -z x ]]
++(/var/tmp/nf1pG5h2/src/common/functions.sh:93) trap killDaemon EXIT
++(/var/tmp/nf1pG5h2/src/common/functions.sh:95) NIX_REMOTE_OLD=
++(/var/tmp/nf1pG5h2/src/common/functions.sh:96) export NIX_REMOTE=daemon
++(/var/tmp/nf1pG5h2/src/common/functions.sh:96) NIX_REMOTE=daemon
++(remote-store.sh:15) isDaemonNewer 2.15pre0
++(/var/tmp/nf1pG5h2/src/common/functions.sh:135) [[ -n '' ]]
++(/var/tmp/nf1pG5h2/src/common/functions.sh:135) return 0
++(remote-store.sh:17) nix store info --json
++(remote-store.sh:17) jq -e .trusted
+warning: you don't have Internet access; disabling some network-dependent features
+accepted connection from pid 1003627, user rajveer (trusted)
+shutting down[Ktrue
++(remote-store.sh:19) grep 'You are trusted by'
++(/var/tmp/nf1pG5h2/src/common/functions.sh:344) checkGrepArgs 'You are trusted by'
++(/var/tmp/nf1pG5h2/src/common/functions.sh:293) local arg
++(/var/tmp/nf1pG5h2/src/common/functions.sh:294) for arg in "$@"
++(/var/tmp/nf1pG5h2/src/common/functions.sh:295) [[ You are trusted by != You are trusted by ]]
++(/var/tmp/nf1pG5h2/src/common/functions.sh:345) command grep 'You are trusted by'
+reaped child process 1003700, status = succeeded
+accepted connection from pid 1003705, user rajveer (trusted)
+shutting down[K[INFO] You are trusted by store uri: daemon
+++(remote-store.sh:26) nix eval --impure --raw --file ./ifd.nix
+reaped child process 1003757, status = succeeded
+warning: you don't have Internet access; disabling some network-dependent features
+accepted connection from pid 1003760, user rajveer (trusted)
+building '/var/tmp/nf1pG5h2/tmp/nix-test/main/remote-store/store/z8c08nw2337zxfagnwx4pchyhi0q5vxi-dependencies-input-0.drv'...
+building '/var/tmp/nf1pG5h2/tmp/nix-test/main/remote-store/store/c57wmm24v0mwcn7rvj5h8rp5mi6qb9w3-fod-input.drv'...
+building '/var/tmp/nf1pG5h2/tmp/nix-test/main/remote-store/store/2wjvrldyaphzp9n4pi7p095zm2y5hpwa-dependencies-input-1.drv'...
+building '/var/tmp/nf1pG5h2/tmp/nix-test/main/remote-store/store/zlg296p5fp7qmmx40vs78y8a4ymmnnmg-dependencies-input-2.drv'...
+building '/var/tmp/nf1pG5h2/tmp/nix-test/main/remote-store/store/vxipqihsdjhpgyp969xpdcl3njzxfscd-dependencies-top.drv'...
+building '/var/tmp/nf1pG5h2/tmp/nix-test/main/remote-store/store/nch8rs086hk2798ih3ycr0d0w2n8l6aa-foo.drv'...
+shutting down[K+(remote-store.sh:26) [[ hi = hi ]]
++(remote-store.sh:28) NIX_REMOTE_=daemon
++(remote-store.sh:28) /nix/store/2ndah67h0z5m31v2wkdmg2md4380ggr5-bash-interactive-5.3p15/bin/bash ./user-envs-test-case.sh
+./user-envs-test-case.sh: line 2: clearProfiles: command not found
+reaped child process 1003809, status = succeeded
+./user-envs-test-case.sh: line 17: TODO_NixOS: command not found
+true
+true
+true
+./user-envs-test-case.sh: line 31: grepQuiet: command not found
+./user-envs-test-case.sh: line 34: grepQuiet: command not found
+./user-envs-test-case.sh: line 38: grepQuiet: command not found
+installing 'foo-1.0'
+accepted connection from pid 1004873, user rajveer (trusted)
+this derivation will be built:
+  /var/tmp/nf1pG5h2/tmp/nix-test/main/remote-store/store/ma6dfd8nn41pqmcc0wki1y1sdaz69wls-foo-1.0.drv
+building '/var/tmp/nf1pG5h2/tmp/nix-test/main/remote-store/store/ma6dfd8nn41pqmcc0wki1y1sdaz69wls-foo-1.0.drv'...
+building '/var/tmp/nf1pG5h2/tmp/nix-test/main/remote-store/store/2cxii4574b0abr3gdpk5awwfncl28cfz-user-environment.drv'...
+error: opening lock file "/test.lock": Permission denied
+shutting down[Kreaped child process 1004948, status = succeeded
+./user-envs-test-case.sh: line 46: grepQuiet: command not found
+./user-envs-test-case.sh: line 47: /test/bin/foo: No such file or directory
+./user-envs-test-case.sh: line 50: grepQuiet: command not found
+./user-envs-test-case.sh: line 51: grepQuiet: command not found
+accepted connection from pid 1005573, user rajveer (trusted)
+shutting down[K./user-envs-test-case.sh: line 57: grepQuiet: command not found
+reaped child process 1005670, status = succeeded
+accepted connection from pid 1005676, user rajveer (trusted)
+shutting down[K./user-envs-test-case.sh: line 58: grepQuiet: command not found
+reaped child process 1005749, status = succeeded
+accepted connection from pid 1005770, user rajveer (trusted)
+shutting down[Kreaped child process 1005861, status = succeeded
+error: selector 'foo' matches no derivations
+error: selector 'foo' matches no derivations
+foo-1.0 = /var/tmp/nf1pG5h2/tmp/nix-test/main/remote-store/store/1h9b6bnn929ynq290lbfvvvb0snw7yqc-foo-1.0
+installing 'foo-2.0pre1'
+accepted connection from pid 1006119, user rajveer (trusted)
+this derivation will be built:
+  /var/tmp/nf1pG5h2/tmp/nix-test/main/remote-store/store/zgnbixdm2ms61m0w4g92cilvvdnyyplr-foo-2.0pre1.drv
+building '/var/tmp/nf1pG5h2/tmp/nix-test/main/remote-store/store/zgnbixdm2ms61m0w4g92cilvvdnyyplr-foo-2.0pre1.drv'...
+building '/var/tmp/nf1pG5h2/tmp/nix-test/main/remote-store/store/ck3a5qw51ilsw7xk1zzwxh5kr7q1m2lc-user-environment.drv'...
+error: opening lock file "/test.lock": Permission denied
+shutting down[Kreaped child process 1006198, status = succeeded
+./user-envs-test-case.sh: line 79: grepQuiet: command not found
+./user-envs-test-case.sh: line 80: /test/bin/foo: No such file or directory
+accepted connection from pid 1006658, user rajveer (trusted)
+building '/var/tmp/nf1pG5h2/tmp/nix-test/main/remote-store/store/vd50j403ihvv25xlhr4yxcffbf07k11a-user-environment.drv'...
+error: opening lock file "/test.lock": Permission denied
+shutting down[Kreaped child process 1006757, status = succeeded
+./user-envs-test-case.sh: line 87: grepQuiet: command not found
+./user-envs-test-case.sh: line 88: /test/bin/foo: No such file or directory
+installing 'bar-0.1'
+accepted connection from pid 1007077, user rajveer (trusted)
+this derivation will be built:
+  /var/tmp/nf1pG5h2/tmp/nix-test/main/remote-store/store/y8fxmm7s1ms8lp0dh6g4rzbgbxbwklv9-bar-0.1.drv
+building '/var/tmp/nf1pG5h2/tmp/nix-test/main/remote-store/store/y8fxmm7s1ms8lp0dh6g4rzbgbxbwklv9-bar-0.1.drv'...
+building '/var/tmp/nf1pG5h2/tmp/nix-test/main/remote-store/store/3jdhi837a4dwpi1g7lk0avs4yrghci9c-user-environment.drv'...
+error: opening lock file "/test.lock": Permission denied
+shutting down[Kreaped child process 1007179, status = succeeded
+warning: selector 'foo' matched no installed derivations
+accepted connection from pid 1007414, user rajveer (trusted)
+error: opening lock file "/test.lock": Permission denied
+shutting down[K./user-envs-test-case.sh: line 99: grepQuiet: command not found
+reaped child process 1007487, status = succeeded
+./user-envs-test-case.sh: line 100: grepQuiet: command not found
+error: path "/test" is not in the Nix store
+error: opening lock file "/test.lock": Permission denied
+error: path "/test" is not in the Nix store
+./user-envs-test-case.sh: line 106: grepQuiet: command not found
+./user-envs-test-case.sh: line 107: grepQuiet: command not found
+error: opening lock file "/test.lock": Permission denied
+./user-envs-test-case.sh: line 111: grepQuiet: command not found
+./user-envs-test-case.sh: line 112: grepQuiet: command not found
+error: opening lock file "/test.lock": Permission denied
+error: opening lock file "/test.lock": Permission denied
+installing 'foo-2.0'
+accepted connection from pid 1008332, user rajveer (trusted)
+this derivation will be built:
+  /var/tmp/nf1pG5h2/tmp/nix-test/main/remote-store/store/w8k43l0nva0r6bmlcyb93wh47x14995g-foo-2.0.drv
+building '/var/tmp/nf1pG5h2/tmp/nix-test/main/remote-store/store/w8k43l0nva0r6bmlcyb93wh47x14995g-foo-2.0.drv'...
+building '/var/tmp/nf1pG5h2/tmp/nix-test/main/remote-store/store/0ar1v4icz53j4gc9k3k1f3lii7f4z0kd-user-environment.drv'...
+error: opening lock file "/test.lock": Permission denied
+shutting down[Kreaped child process 1008407, status = succeeded
+installing 'foo-2.0'
+accepted connection from pid 1008636, user rajveer (trusted)
+error: opening lock file "/test.lock": Permission denied
+shutting down[Kreaped child process 1008742, status = succeeded
+error: opening lock file "/test.lock": Permission denied
+error: opening lock file "/test.lock": Permission denied
+error: opening lock file "/test.lock": Permission denied
+error: path "/test" is not in the Nix store
+installing 'foo-1.0'
+accepted connection from pid 1009115, user rajveer (trusted)
+building '/var/tmp/nf1pG5h2/tmp/nix-test/main/remote-store/store/k6aiqn5mjyqj85md2asasqj4s6r7wll3-user-environment.drv'...
+error: opening lock file "/test.lock": Permission denied
+shutting down[K./user-envs-test-case.sh: line 134: grepQuiet: command not found
+reaped child process 1009192, status = succeeded
+error: path "/test" is not in the Nix store
+error: path "/test" is not in the Nix store
+error: path "/test" is not in the Nix store
+accepted connection from pid 1009438, user rajveer (trusted)
+shutting down[Kreaped child process 1009535, status = succeeded
+warning: selector '/var/tmp/nf1pG5h2/tmp/nix-test/main/remote-store/symlink' matched no installed derivations
+accepted connection from pid 1009541, user rajveer (trusted)
+error: opening lock file "/test.lock": Permission denied
+shutting down[K./user-envs-test-case.sh: line 142: grepQuiet: command not found
+reaped child process 1009635, status = succeeded
+./user-envs-test-case.sh: line 143: grepInverse: command not found
+error: path "/test" is not in the Nix store
+installing 'foo-1.0'
+accepted connection from pid 1009854, user rajveer (trusted)
+error: opening lock file "/test.lock": Permission denied
+shutting down[K./user-envs-test-case.sh: line 147: grepQuiet: command not found
+reaped child process 1009943, status = succeeded
+error: opening lock file "/test.lock": Permission denied
+accepted connection from pid 1010151, user rajveer (trusted)
+finding garbage collector roots...
+deleting garbage...
+deleting '/var/tmp/nf1pG5h2/tmp/nix-test/main/remote-store/store/w8k43l0nva0r6bmlcyb93wh47x14995g-foo-2.0.drv'
+deleting '/var/tmp/nf1pG5h2/tmp/nix-test/main/remote-store/store/nch8rs086hk2798ih3ycr0d0w2n8l6aa-foo.drv'
+deleting '/var/tmp/nf1pG5h2/tmp/nix-test/main/remote-store/store/vxipqihsdjhpgyp969xpdcl3njzxfscd-dependencies-top.drv'
+deleting '/var/tmp/nf1pG5h2/tmp/nix-test/main/remote-store/store/zlg296p5fp7qmmx40vs78y8a4ymmnnmg-dependencies-input-2.drv'
+deleting '/var/tmp/nf1pG5h2/tmp/nix-test/main/remote-store/store/fddkmkmgknhzr4r7cmrg5zxna7gxvqrc-dependencies.builder0.sh'
+deleting '/var/tmp/nf1pG5h2/tmp/nix-test/main/remote-store/store/zsybqc59h2bimr80bpnjnk244njp2p3p-fod-input'
+deleting '/var/tmp/nf1pG5h2/tmp/nix-test/main/remote-store/store/2ixhyya3b81b450nqaj84qmmgj4vmc6r-user-environment'
+deleting '/var/tmp/nf1pG5h2/tmp/nix-test/main/remote-store/store/0ar1v4icz53j4gc9k3k1f3lii7f4z0kd-user-environment.drv'
+deleting '/var/tmp/nf1pG5h2/tmp/nix-test/main/remote-store/store/zgnbixdm2ms61m0w4g92cilvvdnyyplr-foo-2.0pre1.drv'
+deleting '/var/tmp/nf1pG5h2/tmp/nix-test/main/remote-store/store/y8fxmm7s1ms8lp0dh6g4rzbgbxbwklv9-bar-0.1.drv'
+deleting '/var/tmp/nf1pG5h2/tmp/nix-test/main/remote-store/store/ma6dfd8nn41pqmcc0wki1y1sdaz69wls-foo-1.0.drv'
+deleting '/var/tmp/nf1pG5h2/tmp/nix-test/main/remote-store/store/k6yqnkqjdalqbrp7w4vwrqjadw6ilcih-user-envs.builder.sh'
+deleting '/var/tmp/nf1pG5h2/tmp/nix-test/main/remote-store/store/i48qsns0q9sa6b4wn6mhjpcfgkgbcanc-foo'
+deleting '/var/tmp/nf1pG5h2/tmp/nix-test/main/remote-store/store/pz9xi9hjalhl4lx5nk6sknf0d0zj01hw-user-environment'
+deleting '/var/tmp/nf1pG5h2/tmp/nix-test/main/remote-store/store/3jdhi837a4dwpi1g7lk0avs4yrghci9c-user-environment.drv'
+deleting '/var/tmp/nf1pG5h2/tmp/nix-test/main/remote-store/store/3m13g7cads7ya0skz7jkzi8wg35lc8wr-user-environment'
+deleting '/var/tmp/nf1pG5h2/tmp/nix-test/main/remote-store/store/yjn08w0wsn8aibilfgzybjvxvnvqf5c1-user-environment'
+deleting '/var/tmp/nf1pG5h2/tmp/nix-test/main/remote-store/store/2cxii4574b0abr3gdpk5awwfncl28cfz-user-environment.drv'
+deleting '/var/tmp/nf1pG5h2/tmp/nix-test/main/remote-store/store/cni29k2dfc8qf8f02aamlahhvpfnghxi-user-environment'
+deleting '/var/tmp/nf1pG5h2/tmp/nix-test/main/remote-store/store/5j45xish6p9ykfhq1lr5rda9zwrbb17w-env-manifest.nix'
+deleting '/var/tmp/nf1pG5h2/tmp/nix-test/main/remote-store/store/k6aiqn5mjyqj85md2asasqj4s6r7wll3-user-environment.drv'
+deleting '/var/tmp/nf1pG5h2/tmp/nix-test/main/remote-store/store/7ziyk8829n2xc71saqyq2y31cadldyx4-builder-foo.sh'
+deleting '/var/tmp/nf1pG5h2/tmp/nix-test/main/remote-store/store/2wjvrldyaphzp9n4pi7p095zm2y5hpwa-dependencies-input-1.drv'
+deleting '/var/tmp/nf1pG5h2/tmp/nix-test/main/remote-store/store/3hicg05wz9awmjx8z80lcgg8gh9p939c-builder-dependencies-input-1.sh'
+deleting '/var/tmp/nf1pG5h2/tmp/nix-test/main/remote-store/store/c57wmm24v0mwcn7rvj5h8rp5mi6qb9w3-fod-input.drv'
+deleting '/var/tmp/nf1pG5h2/tmp/nix-test/main/remote-store/store/bhwlb1blq1020yzag0d3jrzl53dl3j6r-builder-fod-input.sh'
+deleting '/var/tmp/nf1pG5h2/tmp/nix-test/main/remote-store/store/2218gdwp2735w9bd5awlsp67qypans94-env-manifest.nix'
+deleting '/var/tmp/nf1pG5h2/tmp/nix-test/main/remote-store/store/kzyzg69j0nay486aynbc1sdhwlw2s85v-dependencies-input-1'
+deleting '/var/tmp/nf1pG5h2/tmp/nix-test/main/remote-store/store/5s1lzkprfc7ny5hlr6zpm5vaiayfpvi9-dependencies-top'
+deleting '/var/tmp/nf1pG5h2/tmp/nix-test/main/remote-store/store/qpiwv4aarnykf6y3s1sg7w8qcg303c75-user-environment'
+deleting '/var/tmp/nf1pG5h2/tmp/nix-test/main/remote-store/store/09x2k7p3kvdc32fb01l7ygysjrhy0f07-env-manifest.nix'
+deleting '/var/tmp/nf1pG5h2/tmp/nix-test/main/remote-store/store/kjc9kvlfhqc5pwdvni1rsxkqwaf4bk9d-builder-dependencies-input-2.sh'
+deleting '/var/tmp/nf1pG5h2/tmp/nix-test/main/remote-store/store/xiwg243mp9b4d8fzcyl51bhh3ry4s1hn-env-manifest.nix'
+deleting '/var/tmp/nf1pG5h2/tmp/nix-test/main/remote-store/store/1h9b6bnn929ynq290lbfvvvb0snw7yqc-foo-1.0'
+deleting '/var/tmp/nf1pG5h2/tmp/nix-test/main/remote-store/store/ck3a5qw51ilsw7xk1zzwxh5kr7q1m2lc-user-environment.drv'
+deleting '/var/tmp/nf1pG5h2/tmp/nix-test/main/remote-store/store/0r5kl98f93lj17hi74p8w4n487pvnfh2-foo-2.0'
+deleting '/var/tmp/nf1pG5h2/tmp/nix-test/main/remote-store/store/vd50j403ihvv25xlhr4yxcffbf07k11a-user-environment.drv'
+deleting '/var/tmp/nf1pG5h2/tmp/nix-test/main/remote-store/store/h1kzp8sy80bvnz3zdpj2iwmzxjv1h1x3-env-manifest.nix'
+deleting '/var/tmp/nf1pG5h2/tmp/nix-test/main/remote-store/store/vhk7wqrgxq857l4j5d7lhv8jjidhz8qr-dependencies-input-2'
+deleting '/var/tmp/nf1pG5h2/tmp/nix-test/main/remote-store/store/3cblcparyvgr6s26z7yz0xqb450n8dc9-dependencies-input-0'
+deleting '/var/tmp/nf1pG5h2/tmp/nix-test/main/remote-store/store/z8c08nw2337zxfagnwx4pchyhi0q5vxi-dependencies-input-0.drv'
+deleting '/var/tmp/nf1pG5h2/tmp/nix-test/main/remote-store/store/z9h25xa82cs3qmlzqbqlbyw8s8xizpin-env-manifest.nix'
+deleting '/var/tmp/nf1pG5h2/tmp/nix-test/main/remote-store/store/3sph7v7ynbv5lvy9xsglsm5m9papsp38-foo-2.0pre1'
+deleting '/var/tmp/nf1pG5h2/tmp/nix-test/main/remote-store/store/x8wrq5k2w90hd7xwmx55f1rhh1v46z0b-builder-dependencies-input-0.sh'
+deleting '/var/tmp/nf1pG5h2/tmp/nix-test/main/remote-store/store/v8xx3gnksqs3cr754471hd323zf6xya7-bar-0.1'
+deleting unused links...
+note: hard linking is currently saving -4.0 KiB
+shutting down[K45 store paths deleted, 20.0 KiB freed
+reaped child process 1010238, status = succeeded
+warning: selector '*' matched no installed derivations
+accepted connection from pid 1010344, user rajveer (trusted)
+building '/var/tmp/nf1pG5h2/tmp/nix-test/main/remote-store/store/vd50j403ihvv25xlhr4yxcffbf07k11a-user-environment.drv'...
+error: opening lock file "/test.lock": Permission denied
+shutting down[Kreaped child process 1010480, status = succeeded
+installing 'foo-2.0'
+accepted connection from pid 1010615, user rajveer (trusted)
+this derivation will be built:
+  /var/tmp/nf1pG5h2/tmp/nix-test/main/remote-store/store/w8k43l0nva0r6bmlcyb93wh47x14995g-foo-2.0.drv
+building '/var/tmp/nf1pG5h2/tmp/nix-test/main/remote-store/store/w8k43l0nva0r6bmlcyb93wh47x14995g-foo-2.0.drv'...
+building '/var/tmp/nf1pG5h2/tmp/nix-test/main/remote-store/store/0ar1v4icz53j4gc9k3k1f3lii7f4z0kd-user-environment.drv'...
+error: opening lock file "/test.lock": Permission denied
+shutting down[Kreaped child process 1010738, status = succeeded
+./user-envs-test-case.sh: line 166: grepQuiet: command not found
+warning: selector '*' matched no installed derivations
+accepted connection from pid 1011176, user rajveer (trusted)
+error: opening lock file "/test.lock": Permission denied
+shutting down[Kreaped child process 1011288, status = succeeded
+installing 'foo-1.0'
+installing 'foo-2.0'
+accepted connection from pid 1011293, user rajveer (trusted)
+this derivation will be built:
+  /var/tmp/nf1pG5h2/tmp/nix-test/main/remote-store/store/ma6dfd8nn41pqmcc0wki1y1sdaz69wls-foo-1.0.drv
+building '/var/tmp/nf1pG5h2/tmp/nix-test/main/remote-store/store/ma6dfd8nn41pqmcc0wki1y1sdaz69wls-foo-1.0.drv'...
+building '/var/tmp/nf1pG5h2/tmp/nix-test/main/remote-store/store/lqi0mvrvj5s2ny9fasbsi89qm51fmbkd-user-environment.drv'...
+error: Unable to build profile. There is a conflict for the following files:
+
+         "/var/tmp/nf1pG5h2/tmp/nix-test/main/remote-store/store/0r5kl98f93lj17hi74p8w4n487pvnfh2-foo-2.0/bin/foo"
+         "/var/tmp/nf1pG5h2/tmp/nix-test/main/remote-store/store/1h9b6bnn929ynq290lbfvvvb0snw7yqc-foo-1.0/bin/foo"
+error: Cannot build '/var/tmp/nf1pG5h2/tmp/nix-test/main/remote-store/store/lqi0mvrvj5s2ny9fasbsi89qm51fmbkd-user-environment.drv'.
+       Reason: builder failed with exit code 1.
+       Output paths:
+         /var/tmp/nf1pG5h2/tmp/nix-test/main/remote-store/store/sk1p7896h5fsl1b2bp97m6lsfscwh0z4-user-environment
+       Last 4 log lines:
+       > error: Unable to build profile. There is a conflict for the following files:
+       >
+       >          "/var/tmp/nf1pG5h2/tmp/nix-test/main/remote-store/store/0r5kl98f93lj17hi74p8w4n487pvnfh2-foo-2.0/bin/foo"
+       >          "/var/tmp/nf1pG5h2/tmp/nix-test/main/remote-store/store/1h9b6bnn929ynq290lbfvvvb0snw7yqc-foo-1.0/bin/foo"
+       For full logs, run:
+         nix log /var/tmp/nf1pG5h2/tmp/nix-test/main/remote-store/store/lqi0mvrvj5s2ny9fasbsi89qm51fmbkd-user-environment.drv
+shutting down[Kreaped child process 1011398, status = succeeded
+warning: selector '*' matched no installed derivations
+accepted connection from pid 1011689, user rajveer (trusted)
+error: opening lock file "/test.lock": Permission denied
+shutting down[Kreaped child process 1011794, status = succeeded
+installing 'bar-0.1.1'
+installing 'foo-2.0'
+accepted connection from pid 1011825, user rajveer (trusted)
+this derivation will be built:
+  /var/tmp/nf1pG5h2/tmp/nix-test/main/remote-store/store/hbshgf681ilsdyjl6mq1lspx2z9vf2xy-bar-0.1.1.drv
+building '/var/tmp/nf1pG5h2/tmp/nix-test/main/remote-store/store/hbshgf681ilsdyjl6mq1lspx2z9vf2xy-bar-0.1.1.drv'...
+building '/var/tmp/nf1pG5h2/tmp/nix-test/main/remote-store/store/8ki18i1x8zsfh6a399mdlfw6r3rjsy73-user-environment.drv'...
+error: opening lock file "/test.lock": Permission denied
+shutting down[Kreaped child process 1011946, status = succeeded
+./user-envs-test-case.sh: line 177: grepQuiet: command not found
+./user-envs-test-case.sh: line 178: grepQuiet: command not found
+warning: selector '*' matched no installed derivations
+accepted connection from pid 1012549, user rajveer (trusted)
+error: opening lock file "/test.lock": Permission denied
+shutting down[Kreaped child process 1012652, status = succeeded
+installing 'foo-0.1'
+installing 'foo-1.0'
+accepted connection from pid 1012677, user rajveer (trusted)
+this derivation will be built:
+  /var/tmp/nf1pG5h2/tmp/nix-test/main/remote-store/store/zczcgyay1m721gljvm6ziyizpm431fqd-foo-0.1.drv
+building '/var/tmp/nf1pG5h2/tmp/nix-test/main/remote-store/store/zczcgyay1m721gljvm6ziyizpm431fqd-foo-0.1.drv'...
+building '/var/tmp/nf1pG5h2/tmp/nix-test/main/remote-store/store/xj9mg501nyl6nlvl1z2asjyhlzkarf1x-user-environment.drv'...
+error: opening lock file "/test.lock": Permission denied
+shutting down[K./user-envs-test-case.sh: line 186: /test/bin/foo: No such file or directory
+reaped child process 1012767, status = succeeded
+error: selector 'foo-0.1' matches no derivations
+./user-envs-test-case.sh: line 188: /test/bin/foo: No such file or directory
+warning: selector '*' matched no installed derivations
+accepted connection from pid 1013112, user rajveer (trusted)
+error: opening lock file "/test.lock": Permission denied
+shutting down[Kreaped child process 1013160, status = succeeded
+installing 'foo-1.0'
+accepted connection from pid 1013168, user rajveer (trusted)
+building '/var/tmp/nf1pG5h2/tmp/nix-test/main/remote-store/store/2cxii4574b0abr3gdpk5awwfncl28cfz-user-environment.drv'...
+error: opening lock file "/test.lock": Permission denied
+shutting down[K./user-envs-test-case.sh: line 193: /test/bin/foo: No such file or directory
+reaped child process 1013236, status = succeeded
+installing 'foo-0.1'
+accepted connection from pid 1013302, user rajveer (trusted)
+building '/var/tmp/nf1pG5h2/tmp/nix-test/main/remote-store/store/ndjwhw2kyiam7rpc7mg23cr7dk520mgk-user-environment.drv'...
+error: opening lock file "/test.lock": Permission denied
+shutting down[K./user-envs-test-case.sh: line 195: /test/bin/foo: No such file or directory
+reaped child process 1013395, status = succeeded
+accepted connection from pid 1013415, user rajveer (trusted)
+error: creating symlink "/test-1-link.tmp-1013415-1804289383" -> "/var/tmp/nf1pG5h2/tmp/nix-test/main/remote-store/store/1h9b6bnn929ynq290lbfvvvb0snw7yqc-foo-1.0": Permission denied
+shutting down[Kreaped child process 1013479, status = succeeded
+error: path "/test" is not in the Nix store
+accepted connection from pid 1013713, user rajveer (trusted)
+error: creating symlink "/test-1-link.tmp-1013713-1804289383" -> "/var/tmp/nf1pG5h2/tmp/nix-test/main/remote-store/store/1h9b6bnn929ynq290lbfvvvb0snw7yqc-foo-1.0": Permission denied
+shutting down[Kreaped child process 1013793, status = succeeded
+error: path "/test" is not in the Nix store
+installing 'foo-0.1'
+accepted connection from pid 1013907, user rajveer (trusted)
+building '/var/tmp/nf1pG5h2/tmp/nix-test/main/remote-store/store/9i1fn36xvx8dvrvsjnvq0plskab3n9dd-user-environment.drv'...
+shutting down[K+(remote-store.sh:30) nix-store --gc --max-freed 1K
+reaped child process 1013986, status = succeeded
+accepted connection from pid 1014022, user rajveer (trusted)
+finding garbage collector roots...
+deleting garbage...
+deleting '/var/tmp/nf1pG5h2/tmp/nix-test/main/remote-store/store/w8k43l0nva0r6bmlcyb93wh47x14995g-foo-2.0.drv'
+deleting '/var/tmp/nf1pG5h2/tmp/nix-test/main/remote-store/store/2ixhyya3b81b450nqaj84qmmgj4vmc6r-user-environment'
+deleted more than 1024 bytes; stopping
+deleting unused links...
+note: hard linking is currently saving -4.0 KiB
+shutting down[K2 store paths deleted, 1.1 KiB freed
++(remote-store.sh:32) nix-store --dump-db
+reaped child process 1014090, status = succeeded
+accepted connection from pid 1014193, user rajveer (trusted)
+shutting down[K+(remote-store.sh:33) NIX_REMOTE=
++(remote-store.sh:33) nix-store --dump-db
+reaped child process 1014251, status = succeeded
++(remote-store.sh:34) cmp /var/tmp/nf1pG5h2/tmp/nix-test/main/remote-store/d1 /var/tmp/nf1pG5h2/tmp/nix-test/main/remote-store/d2
++(remote-store.sh:36) killDaemon
++(/var/tmp/nf1pG5h2/src/common/functions.sh:100) isTestOnNixOS
++(/var/tmp/nf1pG5h2/src/common/functions.sh:10) [[ '' == 1 ]]
++(/var/tmp/nf1pG5h2/src/common/functions.sh:105) [[ 1003401 == '' ]]
++(/var/tmp/nf1pG5h2/src/common/functions.sh:108) kill 1003401
++(/var/tmp/nf1pG5h2/src/common/functions.sh:109) for i in {0..100}
++(/var/tmp/nf1pG5h2/src/common/functions.sh:110) kill -0 1003401
++(/var/tmp/nf1pG5h2/src/common/functions.sh:111) sleep 0.1
+shutting down[K+(/var/tmp/nf1pG5h2/src/common/functions.sh:109) for i in {0..100}
++(/var/tmp/nf1pG5h2/src/common/functions.sh:110) kill -0 1003401
++(/var/tmp/nf1pG5h2/src/common/functions.sh:110) break
++(/var/tmp/nf1pG5h2/src/common/functions.sh:113) kill -9 1003401
++(/var/tmp/nf1pG5h2/src/common/functions.sh:113) true
++(/var/tmp/nf1pG5h2/src/common/functions.sh:114) wait 1003401
++(/var/tmp/nf1pG5h2/src/common/functions.sh:115) rm -f /var/tmp/nf1pG5h2/tmp/nix-test/main/remote-store/dSocket
++(/var/tmp/nf1pG5h2/src/common/functions.sh:117) unset _NIX_TEST_DAEMON_PID
++(/var/tmp/nf1pG5h2/src/common/functions.sh:119) NIX_REMOTE=
++(/var/tmp/nf1pG5h2/src/common/functions.sh:120) trap '' EXIT

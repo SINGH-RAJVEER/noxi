@@ -13,7 +13,7 @@ The workspace tests are split into four tiers. Each tier has the same entry poin
 | `daemon` | `just test-daemon` | `noxi-daemon`, `reference_daemon`, `reference_worker_wire`, `reference_daemon_client` and every other test whose name contains `daemon`. Needs `just reference`. |
 | `system` | `just test-system MODE` | One disposable qualification VM scenario (`nixos`, `home-manager`, `lifecycle` or `daemon`) through `just qualification-report MODE`, with its report turned into records. `just compat-qualification` converts reports already committed under `tests/qualification/results/`. |
 
-The `fast`, `store` and `daemon` tiers are nextest profiles in `.config/nextest.toml` (`cargo nextest run --profile TIER`). Their filters partition the workspace; only the toolchain-sensitive `nix-compat-derive-tests` UI snapshots and `#[ignore]` tests fall outside them, and `just test` still runs the former. On 2026-11-25 the profiles selected 2,122 fast, 1,027 store and 65 daemon tests, with no test in two tiers. The default profile's serialization overrides for tests that list roots or collect garbage apply to every profile.
+The `fast`, `store` and `daemon` tiers are nextest profiles in `.config/nextest.toml` (`cargo nextest run --profile TIER`). Their filters partition the workspace; only the toolchain-sensitive `nix-compat-derive-tests` UI snapshots and `#[ignore]` tests fall outside them, and `just test` still runs the former. On 2026-11-25 the profiles selected 2,122 fast, 1,028 store and 65 daemon tests, with no test in two tiers. The default profile's serialization overrides for tests that list roots or collect garbage apply to every profile.
 
 The functional scripts' scratch roots go in `NOXI_FUNCTIONAL_SCRATCH` (default `/tmp`). Git discovery in those scripts, and in other tests that use `TMPDIR`, walks up from the scratch directory, so set both to a directory outside any repository when `/tmp` holds a stray `.git`, for example `NOXI_FUNCTIONAL_SCRATCH=/var/tmp TMPDIR=/var/tmp/noxi`. The functional runner refuses a scratch directory below a `.git`.
 
@@ -103,14 +103,18 @@ Other runner fields, such as the functional script `outcome`, are added beside t
 
 ### Kept result sets, 2026-11-25
 
-All three ran at the clean revision `0de7311` against the pinned CppNix 2.35.2, with `TMPDIR` below `/var/tmp` and `NOXI_FUNCTIONAL_SCRATCH=/var/tmp`.
+All three ran at the clean revision `84aec12` against the pinned CppNix 2.35.2, with `TMPDIR` below `/var/tmp` and `NOXI_FUNCTIONAL_SCRATCH=/var/tmp`.
 
-- `2026-11-25-0de7311-store`: the whole store tier, `just --no-deps test-store`. All 1,027 tests passed and the `differential-eval` cases match 10/10. Of the 214 functional scripts, 65 pass under both engines, 137 are noxi gaps, 10 are reference anomalies and 2 are unrun. The set is 22 MB, mostly the functional scripts' logs and store snapshots.
-- `2026-11-25-0de7311-daemon`: all 65 daemon-tier tests passed.
-- `2026-11-25-0de7311-fast`: all 2,122 fast-tier tests passed.
+- `2026-11-25-84aec12-store`: the whole store tier, `just --no-deps test-store`. All 1,028 tests passed and the `differential-eval` cases match 10/10. Of the 214 functional scripts, 65 pass under both engines, 137 are noxi gaps, 10 are reference anomalies and 2 are unrun. The set is 22 MB, mostly the functional scripts' logs and store snapshots.
+- `2026-11-25-84aec12-daemon`: all 65 daemon-tier tests passed.
+- `2026-11-25-84aec12-fast`: all 2,122 fast-tier tests passed.
 
 The first whole run, at `610ec54` with the functional roots in `/tmp`, failed only `functional_scripts_match_expectations` (1,026 of 1,027 passed). An empty `/tmp/.git` broke Git discovery for both engines, the expectation table was out of date for ten scripts that now pass, and `eval.sh` timed out because string coercion ignored `max-call-depth`; `main` at `9b7db67` has the same timeout.
 
-`every_protocol_version_matches_the_reference` had failed in 2 of 8 earlier runs at the `FindRoots` count of protocol 1.19. It did not fail again: 20 runs of it alone or in the daemon tier, 45 beside its sibling tests and 198 of protocols 1.18 to 1.20 or 1.21 on a loaded host all passed, and so did 8 runs of its test binary on `main`. A process on the host whose environment names `wire-build-18`, which 1.18 builds and `simultaneous_clients_with_overlapping_builds_and_imports` also builds, raises the count at that token. The cause of the recorded failures is therefore likely but not proved to be a concurrent test's builder; the test now runs alone.
+`every_protocol_version_matches_the_reference` had failed in 2 of 8 earlier runs at the `FindRoots` count of protocol 1.19. It did not fail again: 20 runs of it alone or in the daemon tier, 45 beside its sibling tests and 198 of protocols 1.18 to 1.20 or 1.21 on a loaded host all passed, and so did 8 runs of its test binary on `main`. A process on the host whose environment names `wire-build-18`, which 1.18 builds and `simultaneous_clients_with_overlapping_builds_and_imports` also builds, raises the count at that token. The recorded failures are therefore consistent with a concurrent test's builder, which the test now avoids by running alone, but this is not proved: a worker or builder left over from the test's own 1.18 session would change the same token.
+
+An earlier run at `84aec12`, while another session compiled on the same host (load average about 33), failed `functional_scripts_match_expectations` because the reference's own `lang.sh` exceeded the 120 s script timeout, and `builds_through_the_daemon_match_the_reference` because the two engines' sequential builds were registered 4 s apart where the test allows 2 s. Both passed in the runs kept above.
+
+The test environments leave read-only stores behind in `TMPDIR`, because `TempDir` cannot remove them: one run of `reference_worker_wire` left 28 directories of 835 MB in total. Give the tiers a `TMPDIR` of their own and remove it afterwards.
 
 A new VM run has not been recorded yet.

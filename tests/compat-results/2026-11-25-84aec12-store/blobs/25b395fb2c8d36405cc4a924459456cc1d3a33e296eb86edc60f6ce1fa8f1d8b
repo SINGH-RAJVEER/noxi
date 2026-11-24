@@ -1,0 +1,424 @@
++(check-post-init.sh:2) source common.sh
+++(common.sh:2) source ../common/vars.sh
++++(../common/vars.sh:3) set -eu -o pipefail
++++(../common/vars.sh:5) [[ -z '' ]]
++++(../common/vars.sh:7) COMMON_VARS_SH_SOURCED=1
+++++(../common/vars.sh:9) realpath /var/tmp/nfe4koBZ/src
++++(../common/vars.sh:9) _NIX_TEST_SOURCE_DIR=/var/tmp/nfe4koBZ/src
+++++(../common/vars.sh:10) realpath /var/tmp/nfe4koBZ/build
++++(../common/vars.sh:10) _NIX_TEST_BUILD_DIR=/var/tmp/nfe4koBZ/build
++++++(../common/vars.sh:12) dirname ../common/vars.sh
+++++(../common/vars.sh:12) readlink -f ../common
++++(../common/vars.sh:12) commonDir=/var/tmp/nfe4koBZ/src/common
++++(../common/vars.sh:16) source /var/tmp/nfe4koBZ/build/common/subst-vars.sh
+++++(/var/tmp/nfe4koBZ/build/common/subst-vars.sh:3) [[ -z '' ]]
+++++(/var/tmp/nfe4koBZ/build/common/subst-vars.sh:5) COMMON_SUBST_VARS_SH_SOURCED=1
+++++(/var/tmp/nfe4koBZ/build/common/subst-vars.sh:7) bash=/nix/store/2ndah67h0z5m31v2wkdmg2md4380ggr5-bash-interactive-5.3p15/bin/bash
+++++(/var/tmp/nfe4koBZ/build/common/subst-vars.sh:8) bindir=/nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2/bin
+++++(/var/tmp/nfe4koBZ/build/common/subst-vars.sh:9) coreutils=/nix/store/xjl7p8dvyk2j53kqf7f43kdj4ypbxz7g-coreutils-9.11/bin
+++++(/var/tmp/nfe4koBZ/build/common/subst-vars.sh:11) dot=
+++++(/var/tmp/nfe4koBZ/build/common/subst-vars.sh:12) busybox=/nix/store/qddzvnv6b0805nkvbqddbswddcfhx814-busybox-static-x86_64-unknown-linux-musl-1.37.0/bin/busybox
+++++(/var/tmp/nfe4koBZ/build/common/subst-vars.sh:14) version=2.35.2
+++++(/var/tmp/nfe4koBZ/build/common/subst-vars.sh:15) system=x86_64-linux
++++(../common/vars.sh:18) : '/nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2/bin /nix/store/xjl7p8dvyk2j53kqf7f43kdj4ypbxz7g-coreutils-9.11/bin  /run/current-system/sw/bin/nu /nix/store/qddzvnv6b0805nkvbqddbswddcfhx814-busybox-static-x86_64-unknown-linux-musl-1.37.0/bin/busybox 2.35.2 x86_64-linux'
++++(../common/vars.sh:19) export coreutils dot busybox version system
++++(../common/vars.sh:21) export PAGER=cat
++++(../common/vars.sh:21) PAGER=cat
++++(../common/vars.sh:23) source /var/tmp/nfe4koBZ/src/common/paths.sh
+++++(/var/tmp/nfe4koBZ/src/common/paths.sh:3) set -eu -o pipefail
+++++(/var/tmp/nfe4koBZ/src/common/paths.sh:5) [[ -z '' ]]
+++++(/var/tmp/nfe4koBZ/src/common/paths.sh:7) COMMON_PATHS_SH_SOURCED=1
+++++++(/var/tmp/nfe4koBZ/src/common/paths.sh:9) dirname /var/tmp/nfe4koBZ/src/common/paths.sh
++++++(/var/tmp/nfe4koBZ/src/common/paths.sh:9) readlink -f /var/tmp/nfe4koBZ/src/common
+++++(/var/tmp/nfe4koBZ/src/common/paths.sh:9) commonDir=/var/tmp/nfe4koBZ/src/common
+++++(/var/tmp/nfe4koBZ/src/common/paths.sh:12) source /var/tmp/nfe4koBZ/src/common/functions.sh
++++++(/var/tmp/nfe4koBZ/src/common/functions.sh:3) set -eu -o pipefail
++++++(/var/tmp/nfe4koBZ/src/common/functions.sh:5) [[ -z '' ]]
++++++(/var/tmp/nfe4koBZ/src/common/functions.sh:7) COMMON_FUNCTIONS_SH_SOURCED=1
++++++(/var/tmp/nfe4koBZ/src/common/functions.sh:353) trap onError ERR
+++++(/var/tmp/nfe4koBZ/src/common/paths.sh:14) source /var/tmp/nfe4koBZ/build/common/subst-vars.sh
++++++(/var/tmp/nfe4koBZ/build/common/subst-vars.sh:3) [[ -z 1 ]]
+++++(/var/tmp/nfe4koBZ/src/common/paths.sh:16) : /nix/store/2ndah67h0z5m31v2wkdmg2md4380ggr5-bash-interactive-5.3p15/bin/bash /nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2/bin
+++++(/var/tmp/nfe4koBZ/src/common/paths.sh:18) isTestOnNixOS
+++++(/var/tmp/nfe4koBZ/src/common/functions.sh:10) [[ '' == 1 ]]
+++++(/var/tmp/nfe4koBZ/src/common/paths.sh:19) export SHELL=/nix/store/2ndah67h0z5m31v2wkdmg2md4380ggr5-bash-interactive-5.3p15/bin/bash
+++++(/var/tmp/nfe4koBZ/src/common/paths.sh:19) SHELL=/nix/store/2ndah67h0z5m31v2wkdmg2md4380ggr5-bash-interactive-5.3p15/bin/bash
+++++(/var/tmp/nfe4koBZ/src/common/paths.sh:20) export PATH=/nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2/bin:/nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2/bin:/nix/store/2ndah67h0z5m31v2wkdmg2md4380ggr5-bash-interactive-5.3p15/bin:/nix/store/xjl7p8dvyk2j53kqf7f43kdj4ypbxz7g-coreutils-9.11/bin:/nix/store/xmvbzzxm5snla5a2cyfhm7hjy9bifx7n-gnugrep-3.12/bin:/nix/store/qf2wzyq4irhgyhnq3s2hz0ldjq3w8a3x-gnused-4.10/bin:/nix/store/9zib1q94gka8i5q530364cvy25504qz5-gawk-5.4.1/bin:/nix/store/i9wgqa0l88aprvpwfaq5hkfa6pklhlv0-findutils-4.11.0/bin:/nix/store/b8xvzgd52jby5dfpi0pf46nisy6wma5d-diffutils-3.12/bin:/nix/store/81zqbas7qc02yfdj7142fdcqhxgd3cgz-patch-2.8/bin:/nix/store/c8b0qp903w2hhpa63a2lfs7d565zag30-gnutar-1.35/bin:/nix/store/l5sll8nxk70p73l5yqbsjy4mh0c3g0v5-gzip-1.14/bin:/nix/store/j3yz0ag9j442229n8harpmp9aa5qyvhn-bzip2-1.0.8-bin/bin:/nix/store/518dig8gpvqyac6pkksyjjfzvi9zn8vq-xz-5.8.3-bin/bin:/nix/store/l8ik8mb8lgb60rklxjmkgddmp5qqnv29-zstd-1.5.7-bin/bin:/nix/store/msr1v91ybfw6j12rs5mfl8ghb2rqsnsr-git-2.55.0/bin:/nix/store/hyz22a0l5b5kv7yfypw4ss6d36vbzg01-jq-1.8.2-bin/bin:/nix/store/24gq3bi2yzf7g386p5j32mn78hhanf49-sqlite-3.53.3-bin/bin:/nix/store/cp8qnyl8i0s62g3a1465i258mf5bcr6k-curl-8.22.0-bin/bin:/nix/store/8x4c8zah3fbnyckaic4sskjbw7d2y98n-util-linux-2.42.4-bin/bin:/nix/store/d64q19q1xjdwfhqx6czvrjgrhq0n3lcc-python3-3.14.7/bin:/nix/store/niqsa6mxqsyax9lzbm261a2ml6m71vb6-perl-5.42.3/bin:/nix/store/fv9yl55hkskpc2cj9c0sdyq91car9kgl-file-5.48/bin:/nix/store/jv5kdlkwx0l8a7jdpg21g934ff30s319-which-2.25/bin:/nix/store/aj08b694apkc1jay2akywym9ghlailf5-procps-4.0.7/bin:/nix/store/5wyaj1kvkxbbscz6innrh6yjjkdq4qmk-openssh-10.6p1/bin:/nix/store/44gxi8li8y8wrxrb93sya9hljkpigsqw-openssl-3.6.4-bin/bin:/run/wrappers/wrappers.Yw6nCJO1nt:/nix/store/wmh4xg3557sicfyllmi9ymd8sxaw51wv-man-db-2.13.1/bin:/nix/store/qpgknrlnxca0z99gl12j5n0fgca11cdx-mercurial-7.2.2/bin:/var/tmp/noxi-st2/.tmpQra68W/reference/tools
+++++(/var/tmp/nfe4koBZ/src/common/paths.sh:20) PATH=/nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2/bin:/nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2/bin:/nix/store/2ndah67h0z5m31v2wkdmg2md4380ggr5-bash-interactive-5.3p15/bin:/nix/store/xjl7p8dvyk2j53kqf7f43kdj4ypbxz7g-coreutils-9.11/bin:/nix/store/xmvbzzxm5snla5a2cyfhm7hjy9bifx7n-gnugrep-3.12/bin:/nix/store/qf2wzyq4irhgyhnq3s2hz0ldjq3w8a3x-gnused-4.10/bin:/nix/store/9zib1q94gka8i5q530364cvy25504qz5-gawk-5.4.1/bin:/nix/store/i9wgqa0l88aprvpwfaq5hkfa6pklhlv0-findutils-4.11.0/bin:/nix/store/b8xvzgd52jby5dfpi0pf46nisy6wma5d-diffutils-3.12/bin:/nix/store/81zqbas7qc02yfdj7142fdcqhxgd3cgz-patch-2.8/bin:/nix/store/c8b0qp903w2hhpa63a2lfs7d565zag30-gnutar-1.35/bin:/nix/store/l5sll8nxk70p73l5yqbsjy4mh0c3g0v5-gzip-1.14/bin:/nix/store/j3yz0ag9j442229n8harpmp9aa5qyvhn-bzip2-1.0.8-bin/bin:/nix/store/518dig8gpvqyac6pkksyjjfzvi9zn8vq-xz-5.8.3-bin/bin:/nix/store/l8ik8mb8lgb60rklxjmkgddmp5qqnv29-zstd-1.5.7-bin/bin:/nix/store/msr1v91ybfw6j12rs5mfl8ghb2rqsnsr-git-2.55.0/bin:/nix/store/hyz22a0l5b5kv7yfypw4ss6d36vbzg01-jq-1.8.2-bin/bin:/nix/store/24gq3bi2yzf7g386p5j32mn78hhanf49-sqlite-3.53.3-bin/bin:/nix/store/cp8qnyl8i0s62g3a1465i258mf5bcr6k-curl-8.22.0-bin/bin:/nix/store/8x4c8zah3fbnyckaic4sskjbw7d2y98n-util-linux-2.42.4-bin/bin:/nix/store/d64q19q1xjdwfhqx6czvrjgrhq0n3lcc-python3-3.14.7/bin:/nix/store/niqsa6mxqsyax9lzbm261a2ml6m71vb6-perl-5.42.3/bin:/nix/store/fv9yl55hkskpc2cj9c0sdyq91car9kgl-file-5.48/bin:/nix/store/jv5kdlkwx0l8a7jdpg21g934ff30s319-which-2.25/bin:/nix/store/aj08b694apkc1jay2akywym9ghlailf5-procps-4.0.7/bin:/nix/store/5wyaj1kvkxbbscz6innrh6yjjkdq4qmk-openssh-10.6p1/bin:/nix/store/44gxi8li8y8wrxrb93sya9hljkpigsqw-openssl-3.6.4-bin/bin:/run/wrappers/wrappers.Yw6nCJO1nt:/nix/store/wmh4xg3557sicfyllmi9ymd8sxaw51wv-man-db-2.13.1/bin:/nix/store/qpgknrlnxca0z99gl12j5n0fgca11cdx-mercurial-7.2.2/bin:/var/tmp/noxi-st2/.tmpQra68W/reference/tools
+++++(/var/tmp/nfe4koBZ/src/common/paths.sh:23) [[ -n '' ]]
+++++(/var/tmp/nfe4koBZ/src/common/paths.sh:27) DAEMON_PATH=/nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2/bin:/nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2/bin:/nix/store/2ndah67h0z5m31v2wkdmg2md4380ggr5-bash-interactive-5.3p15/bin:/nix/store/xjl7p8dvyk2j53kqf7f43kdj4ypbxz7g-coreutils-9.11/bin:/nix/store/xmvbzzxm5snla5a2cyfhm7hjy9bifx7n-gnugrep-3.12/bin:/nix/store/qf2wzyq4irhgyhnq3s2hz0ldjq3w8a3x-gnused-4.10/bin:/nix/store/9zib1q94gka8i5q530364cvy25504qz5-gawk-5.4.1/bin:/nix/store/i9wgqa0l88aprvpwfaq5hkfa6pklhlv0-findutils-4.11.0/bin:/nix/store/b8xvzgd52jby5dfpi0pf46nisy6wma5d-diffutils-3.12/bin:/nix/store/81zqbas7qc02yfdj7142fdcqhxgd3cgz-patch-2.8/bin:/nix/store/c8b0qp903w2hhpa63a2lfs7d565zag30-gnutar-1.35/bin:/nix/store/l5sll8nxk70p73l5yqbsjy4mh0c3g0v5-gzip-1.14/bin:/nix/store/j3yz0ag9j442229n8harpmp9aa5qyvhn-bzip2-1.0.8-bin/bin:/nix/store/518dig8gpvqyac6pkksyjjfzvi9zn8vq-xz-5.8.3-bin/bin:/nix/store/l8ik8mb8lgb60rklxjmkgddmp5qqnv29-zstd-1.5.7-bin/bin:/nix/store/msr1v91ybfw6j12rs5mfl8ghb2rqsnsr-git-2.55.0/bin:/nix/store/hyz22a0l5b5kv7yfypw4ss6d36vbzg01-jq-1.8.2-bin/bin:/nix/store/24gq3bi2yzf7g386p5j32mn78hhanf49-sqlite-3.53.3-bin/bin:/nix/store/cp8qnyl8i0s62g3a1465i258mf5bcr6k-curl-8.22.0-bin/bin:/nix/store/8x4c8zah3fbnyckaic4sskjbw7d2y98n-util-linux-2.42.4-bin/bin:/nix/store/d64q19q1xjdwfhqx6czvrjgrhq0n3lcc-python3-3.14.7/bin:/nix/store/niqsa6mxqsyax9lzbm261a2ml6m71vb6-perl-5.42.3/bin:/nix/store/fv9yl55hkskpc2cj9c0sdyq91car9kgl-file-5.48/bin:/nix/store/jv5kdlkwx0l8a7jdpg21g934ff30s319-which-2.25/bin:/nix/store/aj08b694apkc1jay2akywym9ghlailf5-procps-4.0.7/bin:/nix/store/5wyaj1kvkxbbscz6innrh6yjjkdq4qmk-openssh-10.6p1/bin:/nix/store/44gxi8li8y8wrxrb93sya9hljkpigsqw-openssl-3.6.4-bin/bin:/run/wrappers/wrappers.Yw6nCJO1nt:/nix/store/wmh4xg3557sicfyllmi9ymd8sxaw51wv-man-db-2.13.1/bin:/nix/store/qpgknrlnxca0z99gl12j5n0fgca11cdx-mercurial-7.2.2/bin:/var/tmp/noxi-st2/.tmpQra68W/reference/tools
+++++(/var/tmp/nfe4koBZ/src/common/paths.sh:28) [[ -n '' ]]
++++(../common/vars.sh:24) source /var/tmp/nfe4koBZ/src/common/test-root.sh
+++++(/var/tmp/nfe4koBZ/src/common/test-root.sh:3) TEST_SUBDIR=local-overlay-store/check-post-init
++++++(/var/tmp/nfe4koBZ/src/common/test-root.sh:4) realpath /var/tmp/nfe4koBZ/tmp/nix-test
+++++(/var/tmp/nfe4koBZ/src/common/test-root.sh:4) TEST_ROOT=/var/tmp/nfe4koBZ/tmp/nix-test/local-overlay-store/check-post-init
+++++(/var/tmp/nfe4koBZ/src/common/test-root.sh:5) export TEST_ROOT
++++(../common/vars.sh:26) test_nix_conf_dir=/var/tmp/nfe4koBZ/tmp/nix-test/local-overlay-store/check-post-init/etc
++++(../common/vars.sh:29) test_nix_conf=/var/tmp/nfe4koBZ/tmp/nix-test/local-overlay-store/check-post-init/etc/nix.conf
++++(../common/vars.sh:31) export TEST_HOME=/var/tmp/nfe4koBZ/tmp/nix-test/local-overlay-store/check-post-init/test-home
++++(../common/vars.sh:31) TEST_HOME=/var/tmp/nfe4koBZ/tmp/nix-test/local-overlay-store/check-post-init/test-home
++++(../common/vars.sh:33) isTestOnNixOS
++++(/var/tmp/nfe4koBZ/src/common/functions.sh:10) [[ '' == 1 ]]
++++(../common/vars.sh:34) export NIX_STORE_DIR
+++++(../common/vars.sh:35) readlink -f /var/tmp/nfe4koBZ/tmp/nix-test/local-overlay-store/check-post-init/store
++++(../common/vars.sh:35) NIX_STORE_DIR=
++++(../common/vars.sh:37) export NIX_IGNORE_SYMLINK_STORE=1
++++(../common/vars.sh:37) NIX_IGNORE_SYMLINK_STORE=1
++++(../common/vars.sh:38) NIX_STORE_DIR=/var/tmp/nfe4koBZ/tmp/nix-test/local-overlay-store/check-post-init/store
++++(../common/vars.sh:40) export NIX_LOCALSTATE_DIR=/var/tmp/nfe4koBZ/tmp/nix-test/local-overlay-store/check-post-init/var
++++(../common/vars.sh:40) NIX_LOCALSTATE_DIR=/var/tmp/nfe4koBZ/tmp/nix-test/local-overlay-store/check-post-init/var
++++(../common/vars.sh:41) export NIX_LOG_DIR=/var/tmp/nfe4koBZ/tmp/nix-test/local-overlay-store/check-post-init/var/log/nix
++++(../common/vars.sh:41) NIX_LOG_DIR=/var/tmp/nfe4koBZ/tmp/nix-test/local-overlay-store/check-post-init/var/log/nix
++++(../common/vars.sh:42) export NIX_STATE_DIR=/var/tmp/nfe4koBZ/tmp/nix-test/local-overlay-store/check-post-init/var/nix
++++(../common/vars.sh:42) NIX_STATE_DIR=/var/tmp/nfe4koBZ/tmp/nix-test/local-overlay-store/check-post-init/var/nix
++++(../common/vars.sh:43) export NIX_CONF_DIR=/var/tmp/nfe4koBZ/tmp/nix-test/local-overlay-store/check-post-init/etc
++++(../common/vars.sh:43) NIX_CONF_DIR=/var/tmp/nfe4koBZ/tmp/nix-test/local-overlay-store/check-post-init/etc
++++(../common/vars.sh:44) export NIX_DAEMON_SOCKET_PATH=/var/tmp/nfe4koBZ/tmp/nix-test/local-overlay-store/check-post-init/dSocket
++++(../common/vars.sh:44) NIX_DAEMON_SOCKET_PATH=/var/tmp/nfe4koBZ/tmp/nix-test/local-overlay-store/check-post-init/dSocket
++++(../common/vars.sh:45) unset NIX_USER_CONF_FILES
++++(../common/vars.sh:46) export _NIX_TEST_SHARED=/var/tmp/nfe4koBZ/tmp/nix-test/local-overlay-store/check-post-init/shared
++++(../common/vars.sh:46) _NIX_TEST_SHARED=/var/tmp/nfe4koBZ/tmp/nix-test/local-overlay-store/check-post-init/shared
++++(../common/vars.sh:47) [[ -n '' ]]
++++(../common/vars.sh:50) export _NIX_IN_TEST=/var/tmp/nfe4koBZ/tmp/nix-test/local-overlay-store/check-post-init/shared
++++(../common/vars.sh:50) _NIX_IN_TEST=/var/tmp/nfe4koBZ/tmp/nix-test/local-overlay-store/check-post-init/shared
++++(../common/vars.sh:51) export _NIX_TEST_NO_LSOF=1
++++(../common/vars.sh:51) _NIX_TEST_NO_LSOF=1
++++(../common/vars.sh:54) export _NIX_TEST_NO_ENVIRONMENT_WARNINGS=1
++++(../common/vars.sh:54) _NIX_TEST_NO_ENVIRONMENT_WARNINGS=1
++++(../common/vars.sh:55) export NIX_REMOTE=
++++(../common/vars.sh:55) NIX_REMOTE=
++++(../common/vars.sh:59) unset NIX_PATH
++++(../common/vars.sh:60) export HOME=/var/tmp/nfe4koBZ/tmp/nix-test/local-overlay-store/check-post-init/test-home
++++(../common/vars.sh:60) HOME=/var/tmp/nfe4koBZ/tmp/nix-test/local-overlay-store/check-post-init/test-home
++++(../common/vars.sh:61) unset XDG_STATE_HOME
++++(../common/vars.sh:62) unset XDG_DATA_HOME
++++(../common/vars.sh:63) unset XDG_CONFIG_HOME
++++(../common/vars.sh:64) unset XDG_CONFIG_DIRS
++++(../common/vars.sh:65) unset XDG_CACHE_HOME
++++(../common/vars.sh:66) unset GIT_DIR
++++(../common/vars.sh:68) export GIT_CONFIG_SYSTEM=/dev/null
++++(../common/vars.sh:68) GIT_CONFIG_SYSTEM=/dev/null
++++(../common/vars.sh:69) export GIT_CONFIG_GLOBAL=/dev/null
++++(../common/vars.sh:69) GIT_CONFIG_GLOBAL=/dev/null
++++(../common/vars.sh:71) export IMPURE_VAR1=foo
++++(../common/vars.sh:71) IMPURE_VAR1=foo
++++(../common/vars.sh:72) export IMPURE_VAR2=bar
++++(../common/vars.sh:72) IMPURE_VAR2=bar
++++(../common/vars.sh:76) cacheDir=/var/tmp/nfe4koBZ/tmp/nix-test/local-overlay-store/check-post-init/binary-cache
+++++(../common/vars.sh:78) uname
++++(../common/vars.sh:78) [[ Linux == Linux ]]
++++(../common/vars.sh:78) [[ -L /proc/self/ns/user ]]
++++(../common/vars.sh:78) unshare --user true
++++(../common/vars.sh:79) _canUseSandbox=1
++++(../common/vars.sh:85) config_nix=/var/tmp/nfe4koBZ/tmp/nix-test/local-overlay-store/check-post-init/config.nix
+++(common.sh:3) source ../common/functions.sh
++++(../common/functions.sh:3) set -eu -o pipefail
++++(../common/functions.sh:5) [[ -z 1 ]]
+++(common.sh:5) TODO_NixOS
+++(/var/tmp/nfe4koBZ/src/common/functions.sh:148) isTestOnNixOS
+++(/var/tmp/nfe4koBZ/src/common/functions.sh:10) [[ '' == 1 ]]
+++(common.sh:28) export LIBMOUNT_FORCE_MOUNT2=always
+++(common.sh:28) LIBMOUNT_FORCE_MOUNT2=always
++(check-post-init.sh:3) source ../common/init.sh
+++(../common/init.sh:4) : /var/tmp/nfe4koBZ/tmp/nix-test/local-overlay-store/check-post-init/etc /var/tmp/nfe4koBZ/tmp/nix-test/local-overlay-store/check-post-init/etc/nix.conf /var/tmp/nfe4koBZ/tmp/nix-test/local-overlay-store/check-post-init/config.nix
+++(../common/init.sh:6) isTestOnNixOS
+++(/var/tmp/nfe4koBZ/src/common/functions.sh:10) [[ '' == 1 ]]
+++(../common/init.sh:29) test -n /var/tmp/nfe4koBZ/tmp/nix-test/local-overlay-store/check-post-init
+++(../common/init.sh:31) killDaemon
+++(/var/tmp/nfe4koBZ/src/common/functions.sh:100) isTestOnNixOS
+++(/var/tmp/nfe4koBZ/src/common/functions.sh:10) [[ '' == 1 ]]
+++(/var/tmp/nfe4koBZ/src/common/functions.sh:105) [[ '' == '' ]]
+++(/var/tmp/nfe4koBZ/src/common/functions.sh:106) return
+++(../common/init.sh:33) [[ -e /var/tmp/nfe4koBZ/tmp/nix-test/local-overlay-store/check-post-init ]]
+++(../common/init.sh:37) mkdir -p /var/tmp/nfe4koBZ/tmp/nix-test/local-overlay-store/check-post-init
+++(../common/init.sh:38) mkdir /var/tmp/nfe4koBZ/tmp/nix-test/local-overlay-store/check-post-init/test-home
+++(../common/init.sh:40) mkdir /var/tmp/nfe4koBZ/tmp/nix-test/local-overlay-store/check-post-init/store
+++(../common/init.sh:41) mkdir /var/tmp/nfe4koBZ/tmp/nix-test/local-overlay-store/check-post-init/var
+++(../common/init.sh:42) mkdir -p /var/tmp/nfe4koBZ/tmp/nix-test/local-overlay-store/check-post-init/var/log/nix/drvs
+++(../common/init.sh:43) mkdir /var/tmp/nfe4koBZ/tmp/nix-test/local-overlay-store/check-post-init/var/nix
+++(../common/init.sh:44) mkdir /var/tmp/nfe4koBZ/tmp/nix-test/local-overlay-store/check-post-init/etc
+++(../common/init.sh:46) cat
++++(../common/init.sh:46) whoami
+++(../common/init.sh:59) cat
+++(../common/init.sh:67) nix-store --init
+++(../common/init.sh:69) test -e /var/tmp/nfe4koBZ/tmp/nix-test/local-overlay-store/check-post-init/var/nix/db/db.sqlite
+++(../common/init.sh:75) echo '# config.nix for test local-overlay-store / check-post-init'
+++(../common/init.sh:76) cat /var/tmp/nfe4koBZ/build/config.nix
++(check-post-init.sh:5) requireEnvironment
++(common.sh:31) requireSandboxSupport
++(/var/tmp/nfe4koBZ/src/common/functions.sh:162) canUseSandbox
++(/var/tmp/nfe4koBZ/src/common/functions.sh:158) [[ -n 1 ]]
++(common.sh:32) [[ /nix/store/qddzvnv6b0805nkvbqddbswddcfhx814-busybox-static-x86_64-unknown-linux-musl-1.37.0/bin/busybox =~ busybox ]]
+++(common.sh:33) uname
++(common.sh:33) [[ Linux != Linux ]]
++(common.sh:34) needLocalStore 'The test uses --store always so we would just be bypassing the daemon'
++(/var/tmp/nfe4koBZ/src/common/functions.sh:225) [[ '' == daemon ]]
++(check-post-init.sh:6) setupConfig
++(common.sh:42) addConfig 'require-drop-supplementary-groups = false'
++(common.sh:38) echo 'require-drop-supplementary-groups = false'
++(common.sh:43) addConfig 'build-users-group = '
++(common.sh:38) echo 'build-users-group = '
++(common.sh:44) enableFeatures local-overlay-store
++(/var/tmp/nfe4koBZ/src/common/functions.sh:236) local features=local-overlay-store
++(/var/tmp/nfe4koBZ/src/common/functions.sh:237) sed -i 's/experimental-features .*/& local-overlay-store/' /var/tmp/nfe4koBZ/tmp/nix-test/local-overlay-store/check-post-init/etc/nix.conf
++(check-post-init.sh:7) execUnshare ./check-post-init-inner.sh
++(/var/tmp/nfe4koBZ/src/common/functions.sh:362) requiresUnprivilegedUserNamespaces
++(/var/tmp/nfe4koBZ/src/common/functions.sh:356) [[ -f /proc/sys/kernel/apparmor_restrict_unprivileged_userns ]]
++(/var/tmp/nfe4koBZ/src/common/functions.sh:363) exec unshare --mount --map-root-user /nix/store/2ndah67h0z5m31v2wkdmg2md4380ggr5-bash-interactive-5.3p15/bin/bash ./check-post-init-inner.sh
++ source common.sh
+++ source ../common/vars.sh
++++ set -eu -o pipefail
++++ [[ -z '' ]]
++++ COMMON_VARS_SH_SOURCED=1
+++++ realpath /var/tmp/nfe4koBZ/src
++++ _NIX_TEST_SOURCE_DIR=/var/tmp/nfe4koBZ/src
+++++ realpath /var/tmp/nfe4koBZ/build
++++ _NIX_TEST_BUILD_DIR=/var/tmp/nfe4koBZ/build
++++++ dirname ../common/vars.sh
+++++ readlink -f ../common
++++ commonDir=/var/tmp/nfe4koBZ/src/common
++++ source /var/tmp/nfe4koBZ/build/common/subst-vars.sh
+++++ [[ -z '' ]]
+++++ COMMON_SUBST_VARS_SH_SOURCED=1
+++++ bash=/nix/store/2ndah67h0z5m31v2wkdmg2md4380ggr5-bash-interactive-5.3p15/bin/bash
+++++ bindir=/nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2/bin
+++++ coreutils=/nix/store/xjl7p8dvyk2j53kqf7f43kdj4ypbxz7g-coreutils-9.11/bin
+++++ dot=
+++++ busybox=/nix/store/qddzvnv6b0805nkvbqddbswddcfhx814-busybox-static-x86_64-unknown-linux-musl-1.37.0/bin/busybox
+++++ version=2.35.2
+++++ system=x86_64-linux
++++ : '/nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2/bin /nix/store/xjl7p8dvyk2j53kqf7f43kdj4ypbxz7g-coreutils-9.11/bin  /nix/store/2ndah67h0z5m31v2wkdmg2md4380ggr5-bash-interactive-5.3p15/bin/bash /nix/store/qddzvnv6b0805nkvbqddbswddcfhx814-busybox-static-x86_64-unknown-linux-musl-1.37.0/bin/busybox 2.35.2 x86_64-linux'
++++ export coreutils dot busybox version system
++++ export PAGER=cat
++++ PAGER=cat
++++ source /var/tmp/nfe4koBZ/src/common/paths.sh
+++++ set -eu -o pipefail
+++++ [[ -z '' ]]
+++++ COMMON_PATHS_SH_SOURCED=1
+++++++ dirname /var/tmp/nfe4koBZ/src/common/paths.sh
++++++ readlink -f /var/tmp/nfe4koBZ/src/common
+++++ commonDir=/var/tmp/nfe4koBZ/src/common
+++++ source /var/tmp/nfe4koBZ/src/common/functions.sh
++++++ set -eu -o pipefail
++++++ [[ -z '' ]]
++++++ COMMON_FUNCTIONS_SH_SOURCED=1
++++++ trap onError ERR
+++++ source /var/tmp/nfe4koBZ/build/common/subst-vars.sh
++++++ [[ -z 1 ]]
+++++ : /nix/store/2ndah67h0z5m31v2wkdmg2md4380ggr5-bash-interactive-5.3p15/bin/bash /nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2/bin
+++++ isTestOnNixOS
+++++ [[ '' == 1 ]]
+++++ export SHELL=/nix/store/2ndah67h0z5m31v2wkdmg2md4380ggr5-bash-interactive-5.3p15/bin/bash
+++++ SHELL=/nix/store/2ndah67h0z5m31v2wkdmg2md4380ggr5-bash-interactive-5.3p15/bin/bash
+++++ export PATH=/nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2/bin:/nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2/bin:/nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2/bin:/nix/store/2ndah67h0z5m31v2wkdmg2md4380ggr5-bash-interactive-5.3p15/bin:/nix/store/xjl7p8dvyk2j53kqf7f43kdj4ypbxz7g-coreutils-9.11/bin:/nix/store/xmvbzzxm5snla5a2cyfhm7hjy9bifx7n-gnugrep-3.12/bin:/nix/store/qf2wzyq4irhgyhnq3s2hz0ldjq3w8a3x-gnused-4.10/bin:/nix/store/9zib1q94gka8i5q530364cvy25504qz5-gawk-5.4.1/bin:/nix/store/i9wgqa0l88aprvpwfaq5hkfa6pklhlv0-findutils-4.11.0/bin:/nix/store/b8xvzgd52jby5dfpi0pf46nisy6wma5d-diffutils-3.12/bin:/nix/store/81zqbas7qc02yfdj7142fdcqhxgd3cgz-patch-2.8/bin:/nix/store/c8b0qp903w2hhpa63a2lfs7d565zag30-gnutar-1.35/bin:/nix/store/l5sll8nxk70p73l5yqbsjy4mh0c3g0v5-gzip-1.14/bin:/nix/store/j3yz0ag9j442229n8harpmp9aa5qyvhn-bzip2-1.0.8-bin/bin:/nix/store/518dig8gpvqyac6pkksyjjfzvi9zn8vq-xz-5.8.3-bin/bin:/nix/store/l8ik8mb8lgb60rklxjmkgddmp5qqnv29-zstd-1.5.7-bin/bin:/nix/store/msr1v91ybfw6j12rs5mfl8ghb2rqsnsr-git-2.55.0/bin:/nix/store/hyz22a0l5b5kv7yfypw4ss6d36vbzg01-jq-1.8.2-bin/bin:/nix/store/24gq3bi2yzf7g386p5j32mn78hhanf49-sqlite-3.53.3-bin/bin:/nix/store/cp8qnyl8i0s62g3a1465i258mf5bcr6k-curl-8.22.0-bin/bin:/nix/store/8x4c8zah3fbnyckaic4sskjbw7d2y98n-util-linux-2.42.4-bin/bin:/nix/store/d64q19q1xjdwfhqx6czvrjgrhq0n3lcc-python3-3.14.7/bin:/nix/store/niqsa6mxqsyax9lzbm261a2ml6m71vb6-perl-5.42.3/bin:/nix/store/fv9yl55hkskpc2cj9c0sdyq91car9kgl-file-5.48/bin:/nix/store/jv5kdlkwx0l8a7jdpg21g934ff30s319-which-2.25/bin:/nix/store/aj08b694apkc1jay2akywym9ghlailf5-procps-4.0.7/bin:/nix/store/5wyaj1kvkxbbscz6innrh6yjjkdq4qmk-openssh-10.6p1/bin:/nix/store/44gxi8li8y8wrxrb93sya9hljkpigsqw-openssl-3.6.4-bin/bin:/run/wrappers/wrappers.Yw6nCJO1nt:/nix/store/wmh4xg3557sicfyllmi9ymd8sxaw51wv-man-db-2.13.1/bin:/nix/store/qpgknrlnxca0z99gl12j5n0fgca11cdx-mercurial-7.2.2/bin:/var/tmp/noxi-st2/.tmpQra68W/reference/tools
+++++ PATH=/nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2/bin:/nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2/bin:/nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2/bin:/nix/store/2ndah67h0z5m31v2wkdmg2md4380ggr5-bash-interactive-5.3p15/bin:/nix/store/xjl7p8dvyk2j53kqf7f43kdj4ypbxz7g-coreutils-9.11/bin:/nix/store/xmvbzzxm5snla5a2cyfhm7hjy9bifx7n-gnugrep-3.12/bin:/nix/store/qf2wzyq4irhgyhnq3s2hz0ldjq3w8a3x-gnused-4.10/bin:/nix/store/9zib1q94gka8i5q530364cvy25504qz5-gawk-5.4.1/bin:/nix/store/i9wgqa0l88aprvpwfaq5hkfa6pklhlv0-findutils-4.11.0/bin:/nix/store/b8xvzgd52jby5dfpi0pf46nisy6wma5d-diffutils-3.12/bin:/nix/store/81zqbas7qc02yfdj7142fdcqhxgd3cgz-patch-2.8/bin:/nix/store/c8b0qp903w2hhpa63a2lfs7d565zag30-gnutar-1.35/bin:/nix/store/l5sll8nxk70p73l5yqbsjy4mh0c3g0v5-gzip-1.14/bin:/nix/store/j3yz0ag9j442229n8harpmp9aa5qyvhn-bzip2-1.0.8-bin/bin:/nix/store/518dig8gpvqyac6pkksyjjfzvi9zn8vq-xz-5.8.3-bin/bin:/nix/store/l8ik8mb8lgb60rklxjmkgddmp5qqnv29-zstd-1.5.7-bin/bin:/nix/store/msr1v91ybfw6j12rs5mfl8ghb2rqsnsr-git-2.55.0/bin:/nix/store/hyz22a0l5b5kv7yfypw4ss6d36vbzg01-jq-1.8.2-bin/bin:/nix/store/24gq3bi2yzf7g386p5j32mn78hhanf49-sqlite-3.53.3-bin/bin:/nix/store/cp8qnyl8i0s62g3a1465i258mf5bcr6k-curl-8.22.0-bin/bin:/nix/store/8x4c8zah3fbnyckaic4sskjbw7d2y98n-util-linux-2.42.4-bin/bin:/nix/store/d64q19q1xjdwfhqx6czvrjgrhq0n3lcc-python3-3.14.7/bin:/nix/store/niqsa6mxqsyax9lzbm261a2ml6m71vb6-perl-5.42.3/bin:/nix/store/fv9yl55hkskpc2cj9c0sdyq91car9kgl-file-5.48/bin:/nix/store/jv5kdlkwx0l8a7jdpg21g934ff30s319-which-2.25/bin:/nix/store/aj08b694apkc1jay2akywym9ghlailf5-procps-4.0.7/bin:/nix/store/5wyaj1kvkxbbscz6innrh6yjjkdq4qmk-openssh-10.6p1/bin:/nix/store/44gxi8li8y8wrxrb93sya9hljkpigsqw-openssl-3.6.4-bin/bin:/run/wrappers/wrappers.Yw6nCJO1nt:/nix/store/wmh4xg3557sicfyllmi9ymd8sxaw51wv-man-db-2.13.1/bin:/nix/store/qpgknrlnxca0z99gl12j5n0fgca11cdx-mercurial-7.2.2/bin:/var/tmp/noxi-st2/.tmpQra68W/reference/tools
+++++ [[ -n '' ]]
+++++ DAEMON_PATH=/nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2/bin:/nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2/bin:/nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2/bin:/nix/store/2ndah67h0z5m31v2wkdmg2md4380ggr5-bash-interactive-5.3p15/bin:/nix/store/xjl7p8dvyk2j53kqf7f43kdj4ypbxz7g-coreutils-9.11/bin:/nix/store/xmvbzzxm5snla5a2cyfhm7hjy9bifx7n-gnugrep-3.12/bin:/nix/store/qf2wzyq4irhgyhnq3s2hz0ldjq3w8a3x-gnused-4.10/bin:/nix/store/9zib1q94gka8i5q530364cvy25504qz5-gawk-5.4.1/bin:/nix/store/i9wgqa0l88aprvpwfaq5hkfa6pklhlv0-findutils-4.11.0/bin:/nix/store/b8xvzgd52jby5dfpi0pf46nisy6wma5d-diffutils-3.12/bin:/nix/store/81zqbas7qc02yfdj7142fdcqhxgd3cgz-patch-2.8/bin:/nix/store/c8b0qp903w2hhpa63a2lfs7d565zag30-gnutar-1.35/bin:/nix/store/l5sll8nxk70p73l5yqbsjy4mh0c3g0v5-gzip-1.14/bin:/nix/store/j3yz0ag9j442229n8harpmp9aa5qyvhn-bzip2-1.0.8-bin/bin:/nix/store/518dig8gpvqyac6pkksyjjfzvi9zn8vq-xz-5.8.3-bin/bin:/nix/store/l8ik8mb8lgb60rklxjmkgddmp5qqnv29-zstd-1.5.7-bin/bin:/nix/store/msr1v91ybfw6j12rs5mfl8ghb2rqsnsr-git-2.55.0/bin:/nix/store/hyz22a0l5b5kv7yfypw4ss6d36vbzg01-jq-1.8.2-bin/bin:/nix/store/24gq3bi2yzf7g386p5j32mn78hhanf49-sqlite-3.53.3-bin/bin:/nix/store/cp8qnyl8i0s62g3a1465i258mf5bcr6k-curl-8.22.0-bin/bin:/nix/store/8x4c8zah3fbnyckaic4sskjbw7d2y98n-util-linux-2.42.4-bin/bin:/nix/store/d64q19q1xjdwfhqx6czvrjgrhq0n3lcc-python3-3.14.7/bin:/nix/store/niqsa6mxqsyax9lzbm261a2ml6m71vb6-perl-5.42.3/bin:/nix/store/fv9yl55hkskpc2cj9c0sdyq91car9kgl-file-5.48/bin:/nix/store/jv5kdlkwx0l8a7jdpg21g934ff30s319-which-2.25/bin:/nix/store/aj08b694apkc1jay2akywym9ghlailf5-procps-4.0.7/bin:/nix/store/5wyaj1kvkxbbscz6innrh6yjjkdq4qmk-openssh-10.6p1/bin:/nix/store/44gxi8li8y8wrxrb93sya9hljkpigsqw-openssl-3.6.4-bin/bin:/run/wrappers/wrappers.Yw6nCJO1nt:/nix/store/wmh4xg3557sicfyllmi9ymd8sxaw51wv-man-db-2.13.1/bin:/nix/store/qpgknrlnxca0z99gl12j5n0fgca11cdx-mercurial-7.2.2/bin:/var/tmp/noxi-st2/.tmpQra68W/reference/tools
+++++ [[ -n '' ]]
++++ source /var/tmp/nfe4koBZ/src/common/test-root.sh
+++++ TEST_SUBDIR=local-overlay-store/check-post-init
++++++ realpath /var/tmp/nfe4koBZ/tmp/nix-test
+++++ TEST_ROOT=/var/tmp/nfe4koBZ/tmp/nix-test/local-overlay-store/check-post-init
+++++ export TEST_ROOT
++++ test_nix_conf_dir=/var/tmp/nfe4koBZ/tmp/nix-test/local-overlay-store/check-post-init/etc
++++ test_nix_conf=/var/tmp/nfe4koBZ/tmp/nix-test/local-overlay-store/check-post-init/etc/nix.conf
++++ export TEST_HOME=/var/tmp/nfe4koBZ/tmp/nix-test/local-overlay-store/check-post-init/test-home
++++ TEST_HOME=/var/tmp/nfe4koBZ/tmp/nix-test/local-overlay-store/check-post-init/test-home
++++ isTestOnNixOS
++++ [[ '' == 1 ]]
++++ export NIX_STORE_DIR
+++++ readlink -f /var/tmp/nfe4koBZ/tmp/nix-test/local-overlay-store/check-post-init/store
++++ NIX_STORE_DIR=/var/tmp/nfe4koBZ/tmp/nix-test/local-overlay-store/check-post-init/store
++++ export NIX_LOCALSTATE_DIR=/var/tmp/nfe4koBZ/tmp/nix-test/local-overlay-store/check-post-init/var
++++ NIX_LOCALSTATE_DIR=/var/tmp/nfe4koBZ/tmp/nix-test/local-overlay-store/check-post-init/var
++++ export NIX_LOG_DIR=/var/tmp/nfe4koBZ/tmp/nix-test/local-overlay-store/check-post-init/var/log/nix
++++ NIX_LOG_DIR=/var/tmp/nfe4koBZ/tmp/nix-test/local-overlay-store/check-post-init/var/log/nix
++++ export NIX_STATE_DIR=/var/tmp/nfe4koBZ/tmp/nix-test/local-overlay-store/check-post-init/var/nix
++++ NIX_STATE_DIR=/var/tmp/nfe4koBZ/tmp/nix-test/local-overlay-store/check-post-init/var/nix
++++ export NIX_CONF_DIR=/var/tmp/nfe4koBZ/tmp/nix-test/local-overlay-store/check-post-init/etc
++++ NIX_CONF_DIR=/var/tmp/nfe4koBZ/tmp/nix-test/local-overlay-store/check-post-init/etc
++++ export NIX_DAEMON_SOCKET_PATH=/var/tmp/nfe4koBZ/tmp/nix-test/local-overlay-store/check-post-init/dSocket
++++ NIX_DAEMON_SOCKET_PATH=/var/tmp/nfe4koBZ/tmp/nix-test/local-overlay-store/check-post-init/dSocket
++++ unset NIX_USER_CONF_FILES
++++ export _NIX_TEST_SHARED=/var/tmp/nfe4koBZ/tmp/nix-test/local-overlay-store/check-post-init/shared
++++ _NIX_TEST_SHARED=/var/tmp/nfe4koBZ/tmp/nix-test/local-overlay-store/check-post-init/shared
++++ [[ -n '' ]]
++++ export _NIX_IN_TEST=/var/tmp/nfe4koBZ/tmp/nix-test/local-overlay-store/check-post-init/shared
++++ _NIX_IN_TEST=/var/tmp/nfe4koBZ/tmp/nix-test/local-overlay-store/check-post-init/shared
++++ export _NIX_TEST_NO_LSOF=1
++++ _NIX_TEST_NO_LSOF=1
++++ export _NIX_TEST_NO_ENVIRONMENT_WARNINGS=1
++++ _NIX_TEST_NO_ENVIRONMENT_WARNINGS=1
++++ export NIX_REMOTE=
++++ NIX_REMOTE=
++++ unset NIX_PATH
++++ export HOME=/var/tmp/nfe4koBZ/tmp/nix-test/local-overlay-store/check-post-init/test-home
++++ HOME=/var/tmp/nfe4koBZ/tmp/nix-test/local-overlay-store/check-post-init/test-home
++++ unset XDG_STATE_HOME
++++ unset XDG_DATA_HOME
++++ unset XDG_CONFIG_HOME
++++ unset XDG_CONFIG_DIRS
++++ unset XDG_CACHE_HOME
++++ unset GIT_DIR
++++ export GIT_CONFIG_SYSTEM=/dev/null
++++ GIT_CONFIG_SYSTEM=/dev/null
++++ export GIT_CONFIG_GLOBAL=/dev/null
++++ GIT_CONFIG_GLOBAL=/dev/null
++++ export IMPURE_VAR1=foo
++++ IMPURE_VAR1=foo
++++ export IMPURE_VAR2=bar
++++ IMPURE_VAR2=bar
++++ cacheDir=/var/tmp/nfe4koBZ/tmp/nix-test/local-overlay-store/check-post-init/binary-cache
+++++ uname
++++ [[ Linux == Linux ]]
++++ [[ -L /proc/self/ns/user ]]
++++ unshare --user true
++++ _canUseSandbox=1
++++ config_nix=/var/tmp/nfe4koBZ/tmp/nix-test/local-overlay-store/check-post-init/config.nix
+++ source ../common/functions.sh
++++ set -eu -o pipefail
++++ [[ -z 1 ]]
+++ TODO_NixOS
+++ isTestOnNixOS
+++ [[ '' == 1 ]]
+++ export LIBMOUNT_FORCE_MOUNT2=always
+++ LIBMOUNT_FORCE_MOUNT2=always
++ unset NIX_STORE_DIR
++ unset NIX_STATE_DIR
++ setupStoreDirs
++ storeVolume=/var/tmp/nfe4koBZ/tmp/nix-test/local-overlay-store/check-post-init/stores
++ mkdir -p /var/tmp/nfe4koBZ/tmp/nix-test/local-overlay-store/check-post-init/stores
++ mount -t tmpfs tmpfs /var/tmp/nfe4koBZ/tmp/nix-test/local-overlay-store/check-post-init/stores
++ storeA=/var/tmp/nfe4koBZ/tmp/nix-test/local-overlay-store/check-post-init/stores/store-a
++ storeBTop=/var/tmp/nfe4koBZ/tmp/nix-test/local-overlay-store/check-post-init/stores/store-b
++ storeBRoot=/var/tmp/nfe4koBZ/tmp/nix-test/local-overlay-store/check-post-init/stores/merged-store
++ storeB='local-overlay://?root=/var/tmp/nfe4koBZ/tmp/nix-test/local-overlay-store/check-post-init/stores/merged-store&lower-store=/var/tmp/nfe4koBZ/tmp/nix-test/local-overlay-store/check-post-init/stores/store-a&upper-layer=/var/tmp/nfe4koBZ/tmp/nix-test/local-overlay-store/check-post-init/stores/store-b'
++ mkdir -p /var/tmp/nfe4koBZ/tmp/nix-test/local-overlay-store/check-post-init/stores/store-a/nix/store /var/tmp/nfe4koBZ/tmp/nix-test/local-overlay-store/check-post-init/stores/store-b /var/tmp/nfe4koBZ/tmp/nix-test/local-overlay-store/check-post-init/stores/merged-store/nix/store /var/tmp/nfe4koBZ/tmp/nix-test/local-overlay-store/check-post-init/stores/workdir
++ initLowerStore
++ nix-store --store /var/tmp/nfe4koBZ/tmp/nix-test/local-overlay-store/check-post-init/stores/store-a --add ../dummy
+/nix/store/55vdgsrbm0583d34lylslncb1xc7yvl8-dummy
+++ nix-instantiate --store /var/tmp/nfe4koBZ/tmp/nix-test/local-overlay-store/check-post-init/stores/store-a ../hermetic.nix --arg withFinalRefs true --arg busybox /nix/store/qddzvnv6b0805nkvbqddbswddcfhx814-busybox-static-x86_64-unknown-linux-musl-1.37.0/bin/busybox --arg seed 1
+trace: true
+warning: you did not specify '--add-root'; the result might be removed by the garbage collector
++ drvPath=/nix/store/ji987jiya88cd006n5rx45s6cznrcr72-hermetic.drv
+++ nix-store --store /var/tmp/nfe4koBZ/tmp/nix-test/local-overlay-store/check-post-init/stores/store-a --realise /nix/store/ji987jiya88cd006n5rx45s6cznrcr72-hermetic.drv
+these 4 derivations will be built:
+  /nix/store/2w9kf9ks38h9m5csa8a0pw9d2001aajj-hermetic-input-2.drv
+  /nix/store/k510m4drr22jv874ngqsf6brpsc7pyq1-hermetic-input-3.drv
+  /nix/store/xcczyk0s4m3hnfpqxzk95siljrr8xwld-hermetic-input-1.drv
+  /nix/store/ji987jiya88cd006n5rx45s6cznrcr72-hermetic.drv
+building '/nix/store/xcczyk0s4m3hnfpqxzk95siljrr8xwld-hermetic-input-1.drv'...
+hi-input1 seed=1
+building '/nix/store/2w9kf9ks38h9m5csa8a0pw9d2001aajj-hermetic-input-2.drv'...
+hi
+building '/nix/store/k510m4drr22jv874ngqsf6brpsc7pyq1-hermetic-input-3.drv'...
+hi-input3
+building '/nix/store/ji987jiya88cd006n5rx45s6cznrcr72-hermetic.drv'...
+warning: you did not specify '--add-root'; the result might be removed by the garbage collector
++ pathInLowerStore=/nix/store/8mwv8vrl5941q2hcy8x5n40la3kbf6ch-hermetic
++ mountOverlayfs
++ mount -t overlay overlay -o lowerdir=/var/tmp/nfe4koBZ/tmp/nix-test/local-overlay-store/check-post-init/stores/store-a/nix/store -o upperdir=/var/tmp/nfe4koBZ/tmp/nix-test/local-overlay-store/check-post-init/stores/store-b -o workdir=/var/tmp/nfe4koBZ/tmp/nix-test/local-overlay-store/check-post-init/stores/workdir /var/tmp/nfe4koBZ/tmp/nix-test/local-overlay-store/check-post-init/stores/merged-store/nix/store
++ trap cleanupOverlay EXIT
+++ toRealPath /var/tmp/nfe4koBZ/tmp/nix-test/local-overlay-store/check-post-init/stores/store-a/nix/store /nix/store/8mwv8vrl5941q2hcy8x5n40la3kbf6ch-hermetic
+++ storeDir=/var/tmp/nfe4koBZ/tmp/nix-test/local-overlay-store/check-post-init/stores/store-a/nix/store
+++ shift
+++ storePath=/nix/store/8mwv8vrl5941q2hcy8x5n40la3kbf6ch-hermetic
+++ shift
++++ echo /nix/store/8mwv8vrl5941q2hcy8x5n40la3kbf6ch-hermetic
++++ sed 's^/nix/store^^'
+++ echo /var/tmp/nfe4koBZ/tmp/nix-test/local-overlay-store/check-post-init/stores/store-a/nix/store/8mwv8vrl5941q2hcy8x5n40la3kbf6ch-hermetic
++ stat /var/tmp/nfe4koBZ/tmp/nix-test/local-overlay-store/check-post-init/stores/store-a/nix/store/8mwv8vrl5941q2hcy8x5n40la3kbf6ch-hermetic
+  File: /var/tmp/nfe4koBZ/tmp/nix-test/local-overlay-store/check-post-init/stores/store-a/nix/store/8mwv8vrl5941q2hcy8x5n40la3kbf6ch-hermetic
+  Size: 195       	Blocks: 8          IO Block: 4096   regular file
+Device: 0,84	Inode: 209         Links: 1
+Access: (0444/-r--r--r--)  Uid: (    0/    root)   Gid: (    0/    root)
+Access: 2026-11-25 01:30:09.474535695 +0530
+Modify: 1970-01-01 05:30:01.000000000 +0530
+Change: 2026-11-25 01:30:09.474750319 +0530
+ Birth: 2026-11-25 01:30:09.472391210 +0530
+++ toRealPath /var/tmp/nfe4koBZ/tmp/nix-test/local-overlay-store/check-post-init/stores/store-b /nix/store/8mwv8vrl5941q2hcy8x5n40la3kbf6ch-hermetic
+++ storeDir=/var/tmp/nfe4koBZ/tmp/nix-test/local-overlay-store/check-post-init/stores/store-b
+++ shift
+++ storePath=/nix/store/8mwv8vrl5941q2hcy8x5n40la3kbf6ch-hermetic
+++ shift
++++ echo /nix/store/8mwv8vrl5941q2hcy8x5n40la3kbf6ch-hermetic
++++ sed 's^/nix/store^^'
+++ echo /var/tmp/nfe4koBZ/tmp/nix-test/local-overlay-store/check-post-init/stores/store-b/8mwv8vrl5941q2hcy8x5n40la3kbf6ch-hermetic
++ expect 1 stat /var/tmp/nfe4koBZ/tmp/nix-test/local-overlay-store/check-post-init/stores/store-b/8mwv8vrl5941q2hcy8x5n40la3kbf6ch-hermetic
++ local expected res
++ expected=1
++ shift
++ stat /var/tmp/nfe4koBZ/tmp/nix-test/local-overlay-store/check-post-init/stores/store-b/8mwv8vrl5941q2hcy8x5n40la3kbf6ch-hermetic
+stat: cannot statx '/var/tmp/nfe4koBZ/tmp/nix-test/local-overlay-store/check-post-init/stores/store-b/8mwv8vrl5941q2hcy8x5n40la3kbf6ch-hermetic': No such file or directory
++ res=1
++ [[ 1 -ne 1 ]]
++ return 0
+++ toRealPath /var/tmp/nfe4koBZ/tmp/nix-test/local-overlay-store/check-post-init/stores/store-a/nix/store /nix/store/8mwv8vrl5941q2hcy8x5n40la3kbf6ch-hermetic
+++ storeDir=/var/tmp/nfe4koBZ/tmp/nix-test/local-overlay-store/check-post-init/stores/store-a/nix/store
+++ shift
+++ storePath=/nix/store/8mwv8vrl5941q2hcy8x5n40la3kbf6ch-hermetic
+++ shift
++++ echo /nix/store/8mwv8vrl5941q2hcy8x5n40la3kbf6ch-hermetic
++++ sed 's^/nix/store^^'
+++ echo /var/tmp/nfe4koBZ/tmp/nix-test/local-overlay-store/check-post-init/stores/store-a/nix/store/8mwv8vrl5941q2hcy8x5n40la3kbf6ch-hermetic
+++ toRealPath /var/tmp/nfe4koBZ/tmp/nix-test/local-overlay-store/check-post-init/stores/merged-store/nix/store /nix/store/8mwv8vrl5941q2hcy8x5n40la3kbf6ch-hermetic
+++ storeDir=/var/tmp/nfe4koBZ/tmp/nix-test/local-overlay-store/check-post-init/stores/merged-store/nix/store
+++ shift
+++ storePath=/nix/store/8mwv8vrl5941q2hcy8x5n40la3kbf6ch-hermetic
+++ shift
++++ echo /nix/store/8mwv8vrl5941q2hcy8x5n40la3kbf6ch-hermetic
++++ sed 's^/nix/store^^'
+++ echo /var/tmp/nfe4koBZ/tmp/nix-test/local-overlay-store/check-post-init/stores/merged-store/nix/store/8mwv8vrl5941q2hcy8x5n40la3kbf6ch-hermetic
++ diff /var/tmp/nfe4koBZ/tmp/nix-test/local-overlay-store/check-post-init/stores/store-a/nix/store/8mwv8vrl5941q2hcy8x5n40la3kbf6ch-hermetic /var/tmp/nfe4koBZ/tmp/nix-test/local-overlay-store/check-post-init/stores/merged-store/nix/store/8mwv8vrl5941q2hcy8x5n40la3kbf6ch-hermetic
+++ nix-store --store /var/tmp/nfe4koBZ/tmp/nix-test/local-overlay-store/check-post-init/stores/store-a --query --requisites /nix/store/ji987jiya88cd006n5rx45s6cznrcr72-hermetic.drv
+++ nix-store --store 'local-overlay://?root=/var/tmp/nfe4koBZ/tmp/nix-test/local-overlay-store/check-post-init/stores/merged-store&lower-store=/var/tmp/nfe4koBZ/tmp/nix-test/local-overlay-store/check-post-init/stores/store-a&upper-layer=/var/tmp/nfe4koBZ/tmp/nix-test/local-overlay-store/check-post-init/stores/store-b' --query --requisites /nix/store/ji987jiya88cd006n5rx45s6cznrcr72-hermetic.drv
++ [[ /nix/store/9xcs03s8whz671r77s6ykkahkqhb3xgs-builder-hermetic-input-2.sh
+/nix/store/rfgjvzkn9vpkjakhhdaqvxpzk9s6k2sl-busybox
+/nix/store/2w9kf9ks38h9m5csa8a0pw9d2001aajj-hermetic-input-2.drv
+/nix/store/8ayb2cm258yhylcpsgwpmynlyaidapla-builder-hermetic-input-1.sh
+/nix/store/8dlq1jsjzwv5ivs3hg7cdgcq723pjg7z-builder-hermetic.sh
+/nix/store/aaj0dq4ably987p7ckfgrx11dp744zfd-builder-hermetic-input-3.sh
+/nix/store/k510m4drr22jv874ngqsf6brpsc7pyq1-hermetic-input-3.drv
+/nix/store/xcczyk0s4m3hnfpqxzk95siljrr8xwld-hermetic-input-1.drv
+/nix/store/ji987jiya88cd006n5rx45s6cznrcr72-hermetic.drv == /nix/store/9xcs03s8whz671r77s6ykkahkqhb3xgs-builder-hermetic-input-2.sh
+/nix/store/rfgjvzkn9vpkjakhhdaqvxpzk9s6k2sl-busybox
+/nix/store/2w9kf9ks38h9m5csa8a0pw9d2001aajj-hermetic-input-2.drv
+/nix/store/8ayb2cm258yhylcpsgwpmynlyaidapla-builder-hermetic-input-1.sh
+/nix/store/8dlq1jsjzwv5ivs3hg7cdgcq723pjg7z-builder-hermetic.sh
+/nix/store/aaj0dq4ably987p7ckfgrx11dp744zfd-builder-hermetic-input-3.sh
+/nix/store/k510m4drr22jv874ngqsf6brpsc7pyq1-hermetic-input-3.drv
+/nix/store/xcczyk0s4m3hnfpqxzk95siljrr8xwld-hermetic-input-1.drv
+/nix/store/ji987jiya88cd006n5rx45s6cznrcr72-hermetic.drv ]]
+++ nix store --store /var/tmp/nfe4koBZ/tmp/nix-test/local-overlay-store/check-post-init/stores/store-a add-path /nix/store/qddzvnv6b0805nkvbqddbswddcfhx814-busybox-static-x86_64-unknown-linux-musl-1.37.0/bin/busybox
+warning: you don't have Internet access; disabling some network-dependent features
++ busyboxStore=/nix/store/rfgjvzkn9vpkjakhhdaqvxpzk9s6k2sl-busybox
+++ nix-store --store /var/tmp/nfe4koBZ/tmp/nix-test/local-overlay-store/check-post-init/stores/store-a --query --referrers /nix/store/rfgjvzkn9vpkjakhhdaqvxpzk9s6k2sl-busybox
+++ nix-store --store 'local-overlay://?root=/var/tmp/nfe4koBZ/tmp/nix-test/local-overlay-store/check-post-init/stores/merged-store&lower-store=/var/tmp/nfe4koBZ/tmp/nix-test/local-overlay-store/check-post-init/stores/store-a&upper-layer=/var/tmp/nfe4koBZ/tmp/nix-test/local-overlay-store/check-post-init/stores/store-b' --query --referrers /nix/store/rfgjvzkn9vpkjakhhdaqvxpzk9s6k2sl-busybox
++ [[ /nix/store/2w9kf9ks38h9m5csa8a0pw9d2001aajj-hermetic-input-2.drv
+/nix/store/k510m4drr22jv874ngqsf6brpsc7pyq1-hermetic-input-3.drv
+/nix/store/xcczyk0s4m3hnfpqxzk95siljrr8xwld-hermetic-input-1.drv
+/nix/store/ji987jiya88cd006n5rx45s6cznrcr72-hermetic.drv == /nix/store/2w9kf9ks38h9m5csa8a0pw9d2001aajj-hermetic-input-2.drv
+/nix/store/k510m4drr22jv874ngqsf6brpsc7pyq1-hermetic-input-3.drv
+/nix/store/xcczyk0s4m3hnfpqxzk95siljrr8xwld-hermetic-input-1.drv
+/nix/store/ji987jiya88cd006n5rx45s6cznrcr72-hermetic.drv ]]
+++ nix-store --store /var/tmp/nfe4koBZ/tmp/nix-test/local-overlay-store/check-post-init/stores/store-a --query --deriver /nix/store/8mwv8vrl5941q2hcy8x5n40la3kbf6ch-hermetic
+++ nix-store --store 'local-overlay://?root=/var/tmp/nfe4koBZ/tmp/nix-test/local-overlay-store/check-post-init/stores/merged-store&lower-store=/var/tmp/nfe4koBZ/tmp/nix-test/local-overlay-store/check-post-init/stores/store-a&upper-layer=/var/tmp/nfe4koBZ/tmp/nix-test/local-overlay-store/check-post-init/stores/store-b' --query --deriver /nix/store/8mwv8vrl5941q2hcy8x5n40la3kbf6ch-hermetic
++ [[ /nix/store/ji987jiya88cd006n5rx45s6cznrcr72-hermetic.drv == /nix/store/ji987jiya88cd006n5rx45s6cznrcr72-hermetic.drv ]]
+++ nix-store --store /var/tmp/nfe4koBZ/tmp/nix-test/local-overlay-store/check-post-init/stores/store-a --query --outputs /nix/store/ji987jiya88cd006n5rx45s6cznrcr72-hermetic.drv
+++ nix-store --store 'local-overlay://?root=/var/tmp/nfe4koBZ/tmp/nix-test/local-overlay-store/check-post-init/stores/merged-store&lower-store=/var/tmp/nfe4koBZ/tmp/nix-test/local-overlay-store/check-post-init/stores/store-a&upper-layer=/var/tmp/nfe4koBZ/tmp/nix-test/local-overlay-store/check-post-init/stores/store-b' --query --outputs /nix/store/ji987jiya88cd006n5rx45s6cznrcr72-hermetic.drv
++ [[ /nix/store/8mwv8vrl5941q2hcy8x5n40la3kbf6ch-hermetic == /nix/store/8mwv8vrl5941q2hcy8x5n40la3kbf6ch-hermetic ]]
++ nix-store --verify-path --store /var/tmp/nfe4koBZ/tmp/nix-test/local-overlay-store/check-post-init/stores/store-a /nix/store/8mwv8vrl5941q2hcy8x5n40la3kbf6ch-hermetic
++ nix-store --verify-path --store 'local-overlay://?root=/var/tmp/nfe4koBZ/tmp/nix-test/local-overlay-store/check-post-init/stores/merged-store&lower-store=/var/tmp/nfe4koBZ/tmp/nix-test/local-overlay-store/check-post-init/stores/store-a&upper-layer=/var/tmp/nfe4koBZ/tmp/nix-test/local-overlay-store/check-post-init/stores/store-b' /nix/store/8mwv8vrl5941q2hcy8x5n40la3kbf6ch-hermetic
+++ echo /nix/store/8mwv8vrl5941q2hcy8x5n40la3kbf6ch-hermetic
+++ sed 's^/nix/store/^^'
+++ sed 's/-.*//'
++ hashPart=8mwv8vrl5941q2hcy8x5n40la3kbf6ch
+++ nix store --store /var/tmp/nfe4koBZ/tmp/nix-test/local-overlay-store/check-post-init/stores/store-a path-from-hash-part 8mwv8vrl5941q2hcy8x5n40la3kbf6ch
+warning: you don't have Internet access; disabling some network-dependent features
++ [[ /nix/store/8mwv8vrl5941q2hcy8x5n40la3kbf6ch-hermetic == /nix/store/8mwv8vrl5941q2hcy8x5n40la3kbf6ch\-hermetic ]]
+++ nix store --store 'local-overlay://?root=/var/tmp/nfe4koBZ/tmp/nix-test/local-overlay-store/check-post-init/stores/merged-store&lower-store=/var/tmp/nfe4koBZ/tmp/nix-test/local-overlay-store/check-post-init/stores/store-a&upper-layer=/var/tmp/nfe4koBZ/tmp/nix-test/local-overlay-store/check-post-init/stores/store-b' path-from-hash-part 8mwv8vrl5941q2hcy8x5n40la3kbf6ch
+warning: you don't have Internet access; disabling some network-dependent features
++ [[ /nix/store/8mwv8vrl5941q2hcy8x5n40la3kbf6ch-hermetic == /nix/store/8mwv8vrl5941q2hcy8x5n40la3kbf6ch\-hermetic ]]
++ cleanupOverlay
++ umount -n /var/tmp/nfe4koBZ/tmp/nix-test/local-overlay-store/check-post-init/stores/merged-store/nix/store
++ rm -r /var/tmp/nfe4koBZ/tmp/nix-test/local-overlay-store/check-post-init/stores/workdir
