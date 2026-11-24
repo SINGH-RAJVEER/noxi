@@ -111,7 +111,7 @@ table:upstream_fetcher_public_key src/libfetchers-tests/data/public-key/*
 table:upstream_lang tests/functional/lang/**/*
 # Each registered script follows the observed outcome pair in upstream-functional.txt.
 pass:upstream_functional tests/functional/absolute-path-literals.sh
-gap tests/functional/add.sh # main in add.sh:95: error: nix store add with this ingestion method is not supported by noxi yet
+pass:upstream_functional tests/functional/add.sh
 anomaly tests/functional/bash-profile.sh # reference fail: main in bash-profile.sh:5: bash-profile.sh: line 5: ../../scripts/nix-profile.sh.in: No such file or directory
 gap tests/functional/binary-cache-build-remote.sh # main in binary-cache-build-remote.sh:11: error: Unable to build with a primary store that isn't a local store; either pass a different '--store' or enable remote builds.
 gap tests/functional/binary-cache-compression.sh # main in binary-cache-compression.sh:57: error: nix copy --out-link is not supported by noxi yet
@@ -174,8 +174,8 @@ gap tests/functional/dyn-drv/dep-built-drv.sh # main in dep-built-drv.sh:12: err
 pass:upstream_functional tests/functional/dyn-drv/eval-outputOf.sh
 gap tests/functional/dyn-drv/failing-outer.sh # main in failing-outer.sh:12: Expected exit code '100' but got '1' from command 'nix-build' './text-hashed-output.nix' '-A' 'failingWrapper' '--no-out-link'
 anomaly tests/functional/dyn-drv/old-daemon-error-hack.sh # reference skip: Daemon is too new, skipping this test...
-gap tests/functional/dyn-drv/recursive-mod-json.sh # main in recursive-mod-json.sh:19: error: building impure, text or Git-addressed outputs is not supported
-gap tests/functional/dyn-drv/text-hashed-output.sh # main in text-hashed-output.sh:21: error: building impure, text or Git-addressed outputs is not supported
+gap tests/functional/dyn-drv/recursive-mod-json.sh # main in recursive-mod-json.sh:19: error: Cannot build '$ROOT/tmp/nix-test/dyn-drv/recursive-mod-json/store/HASH-foo.drv.drv'.
+pass:upstream_functional tests/functional/dyn-drv/text-hashed-output.sh
 gap tests/functional/eval-store.sh # main in eval-store.sh:14: error: nix build --eval-store is not supported by noxi yet
 pass:upstream_functional tests/functional/eval.sh
 gap tests/functional/experimental-features.sh # main in experimental-features.sh:36:
@@ -195,7 +195,7 @@ pass:upstream_functional tests/functional/fetchTree-file.sh
 gap tests/functional/fetchurl.sh # main in fetchurl.sh:10: error: unsupported builtin builder 'fetchurl'
 pass:upstream_functional tests/functional/filter-source.sh
 pass:upstream_functional tests/functional/fixed-slow-vs-bad.sh
-gap tests/functional/fixed.sh # main in fixed.sh:37: error: invalid digest length for algo md5
+pass:upstream_functional tests/functional/fixed.sh
 pass:upstream_functional tests/functional/flakes/absolute-attr-paths.sh
 pass:upstream_functional tests/functional/flakes/absolute-paths.sh
 pass:upstream_functional tests/functional/flakes/build-paths.sh
@@ -239,16 +239,16 @@ gap tests/functional/gc-concurrent.sh # main in gc-concurrent.sh:40: error: path
 gap tests/functional/gc-non-blocking.sh # main in gc-non-blocking.sh:43: error: Cannot build '$ROOT/tmp/nix-test/main/gc-non-blocking/store/HASH-non-blocking.drv'.
 pass:upstream_functional tests/functional/gc-runtime.sh
 pass:upstream_functional tests/functional/gc.sh
-gap tests/functional/git-hashing/fixed.sh # main in fixed.sh:8: error: building impure, text or Git-addressed outputs is not supported
-gap tests/functional/git-hashing/simple-sha1.sh # : error: nix hash path --mode git is not supported by noxi yet
-gap tests/functional/git-hashing/simple-sha256.sh # : error: nix hash path --mode git is not supported by noxi yet
+pass:upstream_functional tests/functional/git-hashing/fixed.sh
+pass:upstream_functional tests/functional/git-hashing/simple-sha1.sh
+pass:upstream_functional tests/functional/git-hashing/simple-sha256.sh
 gap tests/functional/git/packed-refs-no-cache.sh # main in packed-refs-no-cache.sh:50: fatal: cannot change to '$ROOT/tmp/nix-test/git/packed-refs-no-cache/test-home/.cache/nix/gitv3/*/': No such file or directory
 pass:upstream_functional tests/functional/git/symlinked-repo.sh
 pass:upstream_functional tests/functional/hash-convert.sh
 pass:upstream_functional tests/functional/hash-path.sh
 anomaly tests/functional/help.sh # reference skip: we don't know whether we built the manpages, so we can't reliably test them here., skipping this test...
 gap tests/functional/import-from-derivation.sh # main in import-from-derivation.sh:34: error: --readonly-mode is not supported by noxi yet
-gap tests/functional/impure-derivations.sh # main in impure-derivations.sh:24: error: output 'out' of derivation '$ROOT/tmp/nix-test/main/impure-derivations/store/HASH-impure.drv' has not been built
+gap tests/functional/impure-derivations.sh # main in impure-derivations.sh:70: error: unsupported builtin builder 'fetchurl'
 gap tests/functional/impure-env.sh # : error: hash mismatch in fixed-output derivation '$ROOT/tmp/nix-test/main/impure-env/store/HASH-test.drv':
 pass:upstream_functional tests/functional/impure-eval.sh
 pass:upstream_functional tests/functional/json.sh

@@ -703,6 +703,7 @@ impl Store for DaemonStore {
 			(_, FileIngestionMethod::Text) => format!("text:{hash_algo}"),
 			(_, FileIngestionMethod::NixArchive) => format!("fixed:r:{hash_algo}"),
 			(_, FileIngestionMethod::Flat) => format!("fixed:{hash_algo}"),
+			(_, FileIngestionMethod::Git) => format!("fixed:git:{hash_algo}"),
 		};
 		self.add_to_store(source, name, &method, references)
 	}

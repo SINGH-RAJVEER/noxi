@@ -28,14 +28,16 @@ pub(super) fn shell(mut parsed: Parsed) -> Result<ExitCode, Failure> {
 		let missing = targets.store.query_missing(&targets.paths)?;
 		crate::paths::print_missing(targets.store.as_ref(), &missing)?;
 	}
-	targets
+	let results = targets
 		.store
 		.build_paths_with_results(&targets.paths, noxi_store::BuildMode::Normal)?;
 	let mut bins = Vec::new();
 	let mut seen = BTreeSet::new();
 	let mut pending = Vec::new();
 	for path in &targets.paths {
-		pending.extend(expression::outputs(targets.store.as_ref(), path)?.into_values());
+		pending.extend(
+			expression::built_outputs(targets.store.as_ref(), path, &results)?.into_values(),
+		);
 	}
 	let mut index = 0;
 	while index < pending.len() {

@@ -6,7 +6,7 @@ use std::process::ExitCode;
 
 use nix_compat::store_path::StorePath;
 use noxi_eval::{Ambiguous, Value};
-use noxi_store::{BuildMode, DerivedPath, Store, profiles};
+use noxi_store::{BuildMode, DerivedPath, ImpureOutputs, Store, profiles};
 use serde_json::json;
 
 use super::{Parsed, unsupported};
@@ -272,11 +272,26 @@ pub fn outputs(
 	store: &dyn Store,
 	path: &DerivedPath,
 ) -> Result<BTreeMap<String, StorePath>, Failure> {
+	built_outputs(store, path, &ImpureOutputs::new())
+}
+
+/// The outputs of an installable that was built with these results.
+pub fn built_outputs(
+	store: &dyn Store,
+	path: &DerivedPath,
+	results: &ImpureOutputs,
+) -> Result<BTreeMap<String, StorePath>, Failure> {
 	Ok(match path {
 		DerivedPath::Opaque(path) => BTreeMap::from([(String::new(), path.clone())]),
 		DerivedPath::Built { drv, outputs } => {
 			// Content-addressed outputs are known by their realisations.
-			let mut all = store.deep_query_partial_derivation_output_map(drv)?;
+			let mut all = match results.get(drv) {
+				Some(outputs) => outputs
+					.iter()
+					.map(|(name, path)| (name.clone(), Some(path.clone())))
+					.collect(),
+				None => store.deep_query_partial_derivation_output_map(drv)?,
+			};
 			if !outputs.is_empty() {
 				for name in outputs {
 					if !all.contains_key(name) {
@@ -326,15 +341,30 @@ pub fn build(parsed: Parsed) -> Result<ExitCode, Failure> {
 	}
 	let missing = target.store.query_missing(&target.paths)?;
 	crate::paths::print_missing(target.store.as_ref(), &missing)?;
+	let mut results = ImpureOutputs::new();
 	if !parsed.has("dry-run") {
-		target.store.build_paths_with_results(&target.paths, mode)?;
+		results = target.store.build_paths_with_results(&target.paths, mode)?;
 	}
 	let mut result = Vec::new();
 	for path in &target.paths {
-		let outputs = outputs(target.store.as_ref(), path)?;
 		result.push(match path {
 			DerivedPath::Opaque(path) => json!(path.to_absolute_path()),
-			DerivedPath::Built { drv, .. } => json!({"drvPath": drv.to_absolute_path(), "outputs": outputs.into_iter().map(|(name,path)| (name,path.to_absolute_path())).collect::<BTreeMap<_,_>>()}),
+			DerivedPath::Built { drv, outputs } => {
+				let outputs = if parsed.has("dry-run") {
+					// Outputs that are not known yet are null.
+					let known = target.store.query_partial_derivation_output_map(drv)?;
+					known
+						.into_iter()
+						.filter(|(name, _)| outputs.is_empty() || outputs.contains(name))
+						.collect()
+				} else {
+					built_outputs(target.store.as_ref(), path, &results)?
+						.into_iter()
+						.map(|(name, path)| (name, Some(path)))
+						.collect::<BTreeMap<_, _>>()
+				};
+				json!({"drvPath": drv.to_absolute_path(), "outputs": outputs.into_iter().map(|(name,path)| (name,path.map(|path| path.to_absolute_path()))).collect::<BTreeMap<_,_>>()})
+			}
 		});
 	}
 	if parsed.has("json") {
@@ -345,7 +375,7 @@ pub fn build(parsed: Parsed) -> Result<ExitCode, Failure> {
 		nix_compat::log::logger::stop();
 	}
 	if let Some(profile) = profile.filter(|_| !parsed.has("dry-run")) {
-		let paths = outputs(target.store.as_ref(), &target.paths[0])?;
+		let paths = built_outputs(target.store.as_ref(), &target.paths[0], &results)?;
 		let mut paths = paths.values();
 		let output = paths
 			.next()
@@ -358,8 +388,11 @@ pub fn build(parsed: Parsed) -> Result<ExitCode, Failure> {
 		let generation = profiles::create_generation(target.store.as_ref(), &profile, output)?;
 		profiles::switch_link(&profile, &generation)?;
 	}
+	if parsed.has("dry-run") {
+		return Ok(ExitCode::SUCCESS);
+	}
 	for (index, path) in target.paths.iter().enumerate() {
-		let outputs = outputs(target.store.as_ref(), path)?;
+		let outputs = built_outputs(target.store.as_ref(), path, &results)?;
 		for (name, output) in &outputs {
 			if !parsed.has("dry-run") && !parsed.has("no-link") {
 				let mut link = parsed.value("out-link").unwrap_or("result").to_owned();

@@ -2,8 +2,7 @@
 //!
 //! Flag values are checked when the flag is read, as CppNix's handlers
 //! parse them, so a bad algorithm or format stops parsing and BLAKE3 is
-//! accepted only if `blake3-hashes` is enabled by then. `--mode git` needs
-//! Git tree hashing, which noxi does not provide; it fails explicitly.
+//! accepted only if `blake3-hashes` is enabled by then.
 
 use std::fs::File;
 use std::io::{self, Read, Write};
@@ -222,6 +221,7 @@ fn hash_paths(
 	let cwd = std::env::current_dir()?;
 	for path in paths {
 		let mut digester = Digester(NixHashDigester::new(options.algo));
+		let mut git = None;
 		match options.mode {
 			Mode::Flat => {
 				// `readFile` reads the path as given, so FIFOs work.
@@ -254,12 +254,11 @@ fn hash_paths(
 				if !settings.experimental_features().contains("git-hashing") {
 					return Err(Failure::Error(hash::missing_feature("git-hashing")));
 				}
-				return Err(Failure::Error(
-					"nix hash path --mode git is not supported by noxi yet".into(),
-				));
+				let path = crate::instantiate::absolute_path(&cwd, Path::new(path));
+				git = Some(noxi_store::git::hash_path(&path, options.algo)?);
 			}
 		}
-		let digest = digester.0.finalize();
+		let digest = git.unwrap_or_else(|| digester.0.finalize());
 		let mut hash = Hash {
 			algo: options.algo,
 			digest: digest.digest_as_bytes().to_vec(),

@@ -80,6 +80,15 @@ pub fn build_ca_path<'r, 'n>(
 	}
 }
 
+/// This builds a store path for a Git-hashed path, which has no references.
+pub fn build_git_path<'n>(
+	name: &'n str,
+	hash: &NixHash,
+) -> Result<StorePathRef<'n>, ParseStorePathError> {
+	let inner = format_sha256!("fixed:out:git:{}:", hash.as_nix_lowerhex_string_fmt());
+	build_store_path_from_fingerprint_parts("output:out", &inner, name)
+}
+
 /// Builds an input-addressed store path.
 ///
 /// Input-addresed store paths are always derivation outputs, the "input" in question is the

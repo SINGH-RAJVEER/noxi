@@ -25,6 +25,7 @@ filter = """
 binary(reference_rebuild)
 | binary(reference_cache_store)
 | binary(reference_installables)
+| binary(reference_experimental_outputs)
 """
 threads-required = "num-test-threads"
 

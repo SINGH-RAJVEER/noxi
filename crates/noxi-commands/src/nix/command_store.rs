@@ -127,7 +127,6 @@ pub(super) fn paths(parsed: &Parsed, store: &dyn Store) -> Result<BTreeSet<Store
 			"implicit flake installables; provide store paths",
 		));
 	}
-	parsed.unsupported(&["derivation"])?;
 	if parsed.has("expr") || parsed.has("file") {
 		return Err(unsupported("store queries with expression installables"));
 	}
@@ -141,6 +140,27 @@ pub(super) fn paths(parsed: &Parsed, store: &dyn Store) -> Result<BTreeSet<Store
 			)
 		})
 		.collect::<Result<BTreeSet<_>, _>>()?;
+	if parsed.has("derivation") {
+		// `Installable::toDerivations` with `useDeriver`.
+		paths = paths
+			.into_iter()
+			.map(|path| {
+				if path.name().ends_with(".drv") {
+					return Ok(path);
+				}
+				store
+					.query_valid_derivers(&path)?
+					.into_iter()
+					.next()
+					.ok_or_else(|| {
+						Failure::Error(format!(
+							"'{}' does not have a known deriver",
+							path.to_absolute_path()
+						))
+					})
+			})
+			.collect::<Result<_, _>>()?;
+	}
 	// Realising an invalid path without substituters prints the missing
 	// paths (`printMissing`); the command then reports the invalid path.
 	let mut unknown = Vec::new();
@@ -426,15 +446,38 @@ pub fn run(parsed: Parsed) -> Result<ExitCode, Failure> {
 					}) {
 					"flat" => FileIngestionMethod::Flat,
 					"nar" => FileIngestionMethod::NixArchive,
-					_ => return Err(unsupported("store add with this ingestion method")),
+					"text" => FileIngestionMethod::Text,
+					"git" => FileIngestionMethod::Git,
+					mode => {
+						return Err(Failure::Usage(format!(
+							"Unknown file ingestion method '{mode}', expect `flat`, `nar`, or `git`"
+						)));
+					}
 				};
+			// A Git hash is computed from the files of an archive.
+			let dump_method = match method {
+				FileIngestionMethod::Flat | FileIngestionMethod::Text => FileIngestionMethod::Flat,
+				FileIngestionMethod::NixArchive | FileIngestionMethod::Git => {
+					FileIngestionMethod::NixArchive
+				}
+			};
+			if method == FileIngestionMethod::Git
+				&& !parsed
+					.settings
+					.experimental_features()
+					.contains("git-hashing")
+			{
+				return Err(Failure::Error(nix_compat::nixcpp::hash::missing_feature(
+					"git-hashing",
+				)));
+			}
 			let algo = parsed
 				.value("hash-algo")
 				.unwrap_or("sha256")
 				.parse::<HashAlgo>()
 				.map_err(|e| e.to_string())?;
 			let mut dump = tempfile::tempfile()?;
-			if method == FileIngestionMethod::Flat {
+			if dump_method == FileIngestionMethod::Flat {
 				io::copy(&mut fs::File::open(source)?, &mut dump)?;
 			} else {
 				noxi_store::nar::dump_path(&mut dump, source)?;
@@ -443,30 +486,36 @@ pub fn run(parsed: Parsed) -> Result<ExitCode, Failure> {
 			dump.rewind()?;
 			if parsed.has("dry-run") {
 				use std::io::Read;
-				let mut hash = nix_compat::nixhash::NixHashDigester::new(algo);
-				let mut bytes = [0; 65536];
-				loop {
-					let count = dump.read(&mut bytes)?;
-					if count == 0 {
-						break;
+				let hash = if method == FileIngestionMethod::Git {
+					noxi_store::git::hash_path(source, algo)?
+				} else {
+					let mut hash = nix_compat::nixhash::NixHashDigester::new(algo);
+					let mut bytes = [0; 65536];
+					loop {
+						let count = dump.read(&mut bytes)?;
+						if count == 0 {
+							break;
+						}
+						hash.update(&bytes[..count]);
 					}
-					hash.update(&bytes[..count]);
-				}
-				let path = nix_compat::store_path::build_ca_path(
-					&name,
-					method == FileIngestionMethod::NixArchive,
-					&hash.finalize(),
-					[],
-					false,
-				)
-				.map_err(|e| e.to_string())?;
+					hash.finalize()
+				};
+				let mut info = noxi_store::ValidPathInfo::new(
+					StorePath::from_name_and_digest_fixed(&name, [0; 20])
+						.map_err(|e| e.to_string())?,
+					[0; 32],
+				);
+				info.ca = Some(method.content_address(hash)?);
+				let path = info.ca_path().ok_or_else(|| {
+					format!("cannot compute a content-addressed path for '{name}'")
+				})?;
 				println!("{}", path.to_absolute_path());
 				return Ok(ExitCode::SUCCESS);
 			}
 			let path = store.add_to_store_from_dump(
 				&mut dump,
 				&name,
-				method,
+				dump_method,
 				method,
 				algo,
 				&BTreeSet::new(),

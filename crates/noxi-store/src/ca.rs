@@ -133,6 +133,9 @@ pub fn hash_modulo(
 		FileIngestionMethod::Flat | FileIngestionMethod::Text => {
 			io::copy(&mut File::open(path)?, &mut writer)?;
 		}
+		// A Git hash covers no self-references: the output path depends on
+		// the hash alone.
+		FileIngestionMethod::Git => return crate::git::hash_path(path, algo),
 	}
 	writer.drain(true)?;
 	for offset in writer.matches {

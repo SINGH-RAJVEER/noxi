@@ -2000,10 +2000,14 @@ fn parse_method_algo(
 			algo,
 		)
 	} else if let Some(algo) = s.strip_prefix("fixed:") {
-		if algo.starts_with("git:") {
-			return (None, None, None);
+		match algo.strip_prefix("git:") {
+			Some(algo) => (
+				FileIngestionMethod::NixArchive,
+				FileIngestionMethod::Git,
+				algo,
+			),
+			None => (FileIngestionMethod::Flat, FileIngestionMethod::Flat, algo),
 		}
-		(FileIngestionMethod::Flat, FileIngestionMethod::Flat, algo)
 	} else {
 		return (None, None, None);
 	};

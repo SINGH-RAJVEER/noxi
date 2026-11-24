@@ -444,11 +444,7 @@ fn parse_output(
 					));
 				}
 			},
-			_ => {
-				return Err(AtermError::Unsupported(
-					"Git-hashed fixed outputs are not representable".to_owned(),
-				));
-			}
+			_ => CAHash::Git(hash),
 		};
 		Ok(Output::Fixed(ca))
 	} else {

@@ -5,7 +5,7 @@ use std::borrow::Cow;
 /// A Nix CAHash describes a content-addressed hash of a path.
 ///
 /// The way Nix prints it as a string is a bit confusing, but there's essentially
-/// three modes, `Flat`, `Nar` and `Text`.
+/// four modes, `Flat`, `Nar`, `Text` and `Git`.
 /// `Flat` and `Nar` support all algorithms that [NixHash] supports;
 /// `Text` only supports sha256.
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -13,6 +13,7 @@ pub enum CAHash {
 	Flat(NixHash),  // "fixed flat"
 	Nar(NixHash),   // "fixed recursive"
 	Text([u8; 32]), // "text", only supports sha256
+	Git(NixHash),   // "fixed git", only supports sha1 and sha256
 }
 
 /// Representation for the supported hash modes.
@@ -21,6 +22,7 @@ pub enum HashMode {
 	Flat,
 	Nar,
 	Text,
+	Git,
 }
 
 impl CAHash {
@@ -28,6 +30,7 @@ impl CAHash {
 		match *self {
 			CAHash::Flat(ref digest) => Cow::Borrowed(digest),
 			CAHash::Nar(ref digest) => Cow::Borrowed(digest),
+			CAHash::Git(ref digest) => Cow::Borrowed(digest),
 			CAHash::Text(digest) => Cow::Owned(NixHash::Sha256(digest)),
 		}
 	}
@@ -37,13 +40,15 @@ impl CAHash {
 			CAHash::Flat(_) => HashMode::Flat,
 			CAHash::Nar(_) => HashMode::Nar,
 			CAHash::Text(_) => HashMode::Text,
+			CAHash::Git(_) => HashMode::Git,
 		}
 	}
 
 	/// Constructs a [CAHash] from the textual representation,
-	/// which is one of the three:
+	/// which is one of these:
 	/// - `text:sha256:$nixbase32sha256digest`
 	/// - `fixed:r:$algo:$nixbase32digest`
+	/// - `fixed:git:$algo:$nixbase32digest`
 	/// - `fixed:$algo:$nixbase32digest`
 	///
 	/// These formats are used in NARInfo, for example. As in CppNix's
@@ -56,7 +61,10 @@ impl CAHash {
 			"text" => (HashMode::Text, s),
 			"fixed" => match s.strip_prefix("r:") {
 				Some(rest) => (HashMode::Nar, rest),
-				None => (HashMode::Flat, s),
+				None => match s.strip_prefix("git:") {
+					Some(rest) => (HashMode::Git, rest),
+					None => (HashMode::Flat, s),
+				},
 			},
 			_ => return None,
 		};
@@ -67,6 +75,10 @@ impl CAHash {
 			(HashMode::Text, _) => None,
 			(HashMode::Flat, hash) => Some(CAHash::Flat(hash)),
 			(HashMode::Nar, hash) => Some(CAHash::Nar(hash)),
+			(HashMode::Git, hash @ (NixHash::Sha1(_) | NixHash::Sha256(_))) => {
+				Some(CAHash::Git(hash))
+			}
+			(HashMode::Git, _) => None,
 		}
 	}
 }
@@ -89,6 +101,13 @@ impl std::fmt::Display for CAHash {
 				NixHash::Sha256(h) => ("fixed:r:sha256", &h[..]),
 				NixHash::Sha512(h) => ("fixed:r:sha512", &h[..]),
 				NixHash::Blake3(h) => ("fixed:r:blake3", &h[..]),
+			},
+			CAHash::Git(h) => match h {
+				NixHash::Md5(h) => ("fixed:git:md5", &h[..]),
+				NixHash::Sha1(h) => ("fixed:git:sha1", &h[..]),
+				NixHash::Sha256(h) => ("fixed:git:sha256", &h[..]),
+				NixHash::Sha512(h) => ("fixed:git:sha512", &h[..]),
+				NixHash::Blake3(h) => ("fixed:git:blake3", &h[..]),
 			},
 			CAHash::Text(h) => ("text:sha256", &h[..]),
 		};
@@ -132,11 +151,17 @@ mod tests {
 			),
 			Some(CAHash::Text(ABC))
 		);
+		assert_eq!(
+			CAHash::from_nix_hex_str("fixed:git:sha1:a9993e364706816aba3e25717850c26c9cd0d89d")
+				.map(|ca| ca.to_string())
+				.as_deref(),
+			Some("fixed:git:sha1:kpcd173cq987hw957sx6m0868wv3x6d9")
+		);
 		for invalid in [
 			"fixed:sha256:abc",
 			"fixed:sha3:abc",
 			"narwhal:sha256:1b8m03r63zqhnjf7l5wnldhh7c134ap5vpj0850ymkq1iyzicy5s",
-			"fixed:git:sha1:a9993e364706816aba3e25717850c26c9cd0d89d",
+			"fixed:git:md5:900150983cd24fb0d6963f7d28e17f72",
 			"text:sha1:a9993e364706816aba3e25717850c26c9cd0d89d",
 			"fixed:r:sha256",
 		] {

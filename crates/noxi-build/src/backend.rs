@@ -477,7 +477,11 @@ impl Store for LocalBackend {
 		self.worker().build_paths_in_mode(paths, mode)
 	}
 
-	fn build_paths_with_results(&self, paths: &[DerivedPath], mode: BuildMode) -> Result<()> {
+	fn build_paths_with_results(
+		&self,
+		paths: &[DerivedPath],
+		mode: BuildMode,
+	) -> Result<noxi_store::ImpureOutputs> {
 		let _worker = nix_compat::log::logger::WorkerGuard::new();
 		self.worker()
 			.build_paths_reporting(paths, mode, FailureReport::Results)
@@ -572,6 +576,7 @@ impl Worker<'_> {
 	/// running worker.
 	pub fn build_paths_in_mode(&self, paths: &[DerivedPath], mode: BuildMode) -> Result<()> {
 		self.build_paths_reporting(paths, mode, FailureReport::BuildPaths)
+			.map(drop)
 	}
 
 	fn build_paths_reporting(
@@ -579,7 +584,7 @@ impl Worker<'_> {
 		paths: &[DerivedPath],
 		mode: BuildMode,
 		report: FailureReport,
-	) -> Result<()> {
+	) -> Result<noxi_store::ImpureOutputs> {
 		let substituters = self.substituters;
 		let builder = self.builder().with_mode(mode);
 		let will_build = if paths
@@ -648,7 +653,7 @@ impl Worker<'_> {
 					}
 				}
 			}
-			return Ok(());
+			return Ok(builder.impure_outputs());
 		}
 		// CppNix's worker starts ready builds in the order of their goal keys,
 		// `dd$NAME$PATH`, so independent derivations build in name order.
@@ -669,6 +674,12 @@ impl Worker<'_> {
 			BuildMode::Normal => self.build_order(&will_build)?,
 			BuildMode::Repair | BuildMode::Check => Vec::new(),
 		};
+		for (drv, _) in &order {
+			let derivation = self.store.read_build_derivation(drv)?;
+			if let Some(error) = builder.impure_input(drv, &derivation)? {
+				return Err(error.into());
+			}
+		}
 		let has_waiters = |drv: &StorePath| order.iter().any(|(_, inputs)| inputs.contains(drv));
 		let mut built: BTreeSet<&StorePath> = BTreeSet::new();
 		let mut failed: BTreeSet<&StorePath> = BTreeSet::new();
@@ -797,7 +808,7 @@ impl Worker<'_> {
 				}
 			}
 		}
-		Ok(())
+		Ok(builder.impure_outputs())
 	}
 }
 

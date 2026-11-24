@@ -463,6 +463,7 @@ fn supported_flags(command: &str) -> &'static [&'static str] {
 			"repair",
 		],
 		"path-info" => &[
+			"derivation",
 			"json",
 			"json-format",
 			"recursive",

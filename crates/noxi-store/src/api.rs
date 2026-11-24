@@ -41,6 +41,10 @@ pub enum BuildMode {
 	Check,
 }
 
+/// The outputs of built derivations that the store does not record: those of
+/// impure derivations, by derivation and output name.
+pub type ImpureOutputs = BTreeMap<StorePath, BTreeMap<String, StorePath>>;
+
 /// What realising some paths would take, CppNix's `MissingPaths`.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct Missing {
@@ -181,12 +185,17 @@ pub trait Store {
 
 	/// `Installable::build`: realise `paths` with their results, as the
 	/// modern commands do. A failed build is an error with exit status 1.
-	fn build_paths_with_results(&self, paths: &[DerivedPath], mode: BuildMode) -> Result<()> {
-		self.build_paths_with_mode(paths, mode)
-			.map_err(|error| match error {
-				Error::Build { message, .. } => Error::Other(message),
-				error => error,
-			})
+	/// Outputs the store records are not returned.
+	fn build_paths_with_results(
+		&self,
+		paths: &[DerivedPath],
+		mode: BuildMode,
+	) -> Result<ImpureOutputs> {
+		match self.build_paths_with_mode(paths, mode) {
+			Ok(()) => Ok(ImpureOutputs::new()),
+			Err(Error::Build { message, .. }) => Err(Error::Other(message)),
+			Err(error) => Err(error),
+		}
 	}
 
 	/// `EvalState::repair`: write the paths this client adds again even when

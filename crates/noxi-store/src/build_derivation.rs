@@ -24,6 +24,16 @@ pub enum ExperimentalMethod {
 }
 
 impl ExperimentalMethod {
+	/// How a store computes a content address of this method.
+	pub fn ingestion_method(self) -> FileIngestionMethod {
+		match self {
+			Self::Flat => FileIngestionMethod::Flat,
+			Self::NixArchive => FileIngestionMethod::NixArchive,
+			Self::Text => FileIngestionMethod::Text,
+			Self::Git => FileIngestionMethod::Git,
+		}
+	}
+
 	pub fn parse(name: &str) -> Result<Self> {
 		match name {
 			"flat" => Ok(Self::Flat),
@@ -40,10 +50,7 @@ impl ExperimentalMethod {
 		name: &str,
 		hash: &nix_compat::nixhash::NixHash,
 	) -> Result<nix_compat::store_path::StorePath> {
-		use nix_compat::{
-			nixhash::{NixHash, Sha256},
-			store_path,
-		};
+		use nix_compat::{nixhash::NixHash, store_path};
 		match self {
 			Self::Text => {
 				let NixHash::Sha256(hash) = hash else {
@@ -60,21 +67,9 @@ impl ExperimentalMethod {
 						hash.algo().as_str()
 					)));
 				}
-				let inner = Sha256::digest_bytes(
-					format!("fixed:out:git:{}:", hash.as_nix_lowerhex_string_fmt()).as_bytes(),
-				);
-				let fingerprint = Sha256::digest_bytes(
-					format!(
-						"output:out:sha256:{inner:x}:{}:{name}",
-						store_path::store_dir()
-					)
-					.as_bytes(),
-				);
-				store_path::StorePath::from_name_and_digest(
-					name,
-					&store_path::compress_hash::<20>(&fingerprint),
-				)
-				.map_err(|e| Error::Other(e.to_string()))
+				store_path::build_git_path(name, hash)
+					.map(|path| path.to_owned())
+					.map_err(|e| Error::Other(e.to_string()))
 			}
 			Self::Flat | Self::NixArchive => {
 				store_path::build_ca_path(name, self == Self::NixArchive, hash, [], false)
@@ -134,6 +129,40 @@ pub struct BuildDerivation {
 	pub basic: UnverifiedDerivation,
 	pub floating: BTreeMap<String, FloatingOutput>,
 	pub experimental: BTreeMap<String, ExperimentalOutput>,
+}
+
+impl BuildDerivation {
+	/// `DerivationType::isImpure`.
+	pub fn is_impure(&self) -> bool {
+		self.experimental.values().any(|output| output.impure)
+	}
+
+	/// `DerivationType::isFixed`, by any content address method.
+	pub fn is_fixed(&self) -> bool {
+		self.basic.outputs().is_fixed()
+			|| !self.experimental.is_empty()
+				&& self
+					.experimental
+					.values()
+					.all(|output| output.fixed.is_some())
+	}
+
+	/// Outputs without a path until they are realised, other than impure
+	/// ones.
+	pub fn has_floating_outputs(&self) -> bool {
+		!self.floating.is_empty()
+			|| self
+				.experimental
+				.values()
+				.any(|output| !output.impure && output.fixed.is_none())
+	}
+
+	/// Input-addressed outputs that wait for content-addressed inputs.
+	pub fn is_deferred(&self) -> bool {
+		self.basic.outputs().is_deferred()
+			&& self.floating.is_empty()
+			&& self.experimental.is_empty()
+	}
 }
 
 fn invalid() -> Error {
