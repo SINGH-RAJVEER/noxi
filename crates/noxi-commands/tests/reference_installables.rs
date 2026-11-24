@@ -169,6 +169,7 @@ fn chroot_store_evaluation_reads_host_store_objects() {
 	};
 	// Any object of the host store that a chroot store lacks.
 	let object = fs::canonicalize(reference.join("nix")).unwrap();
+	let object_dir = object.parent().unwrap().to_str().unwrap();
 	let object = object.display();
 	let run = |expr: &str| -> Vec<String> {
 		["--impure", "--pure-eval"]
@@ -180,8 +181,17 @@ fn chroot_store_evaluation_reads_host_store_objects() {
 			})
 			.collect()
 	};
-	let steps: Vec<String> = [
+	// A directory both have, with an entry only the chroot store has. The
+	// file they share differs, and the host's is read.
+	let prepare = format!(
+		"unset NIX_STORE_DIR NIX_STATE_DIR NIX_LOG_DIR; mkdir -p \"$PWD/chroot{0}\"; echo extra > \"$PWD/chroot{0}/extra\"; echo other > \"$PWD/chroot{0}/nix\"",
+		object_dir
+	);
+	let mut steps: Vec<String> = [
 		format!("builtins.pathExists {object}"),
+		format!("builtins.attrNames (builtins.readDir {object_dir})"),
+		format!("builtins.readFile {object_dir}/extra"),
+		format!("builtins.hashFile \"sha256\" {object}"),
 		format!("builtins.readFileType {object}"),
 		format!("\"${{{object}}}\""),
 		"builtins.readFile (builtins.toFile \"x\" \"y\")".to_owned(),
@@ -190,5 +200,6 @@ fn chroot_store_evaluation_reads_host_store_objects() {
 	.iter()
 	.flat_map(|expr| run(expr))
 	.collect();
+	steps.insert(0, prepare);
 	same(&steps.iter().map(String::as_str).collect::<Vec<_>>());
 }

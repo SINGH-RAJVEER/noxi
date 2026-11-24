@@ -1526,7 +1526,19 @@ impl EvalIO for StoreIO {
 				})
 				.collect()),
 			_ => {
-				let entries = StdIO.read_dir(&self.store.physical_path(path))?;
+				let physical = self.store.physical_path(path);
+				let mut entries = StdIO.read_dir(&physical)?;
+				// The union of both directories when the host and the
+				// diverted store have this one.
+				if let Some(real) = &self.store.real_store_dir
+					&& physical == path
+					&& let Ok(rest) = path.strip_prefix(store_path::store_dir())
+					&& real.join(rest) != physical
+					&& let Ok(stored) = StdIO.read_dir(&real.join(rest))
+				{
+					let names: BTreeSet<_> = entries.iter().map(|(name, _)| name.clone()).collect();
+					entries.extend(stored.into_iter().filter(|(name, _)| !names.contains(name)));
+				}
 				let entries = self.store.visible_entries(path, entries);
 				match self.store.mount_of(path) {
 					Some((
