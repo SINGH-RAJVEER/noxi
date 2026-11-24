@@ -24,7 +24,12 @@
 }:
 let
 	system = "x86_64-linux";
-	module = import ./module.nix { inherit package; };
+	module = {
+		imports = [
+			(import ./module.nix { inherit package; })
+			(import ./settings.nix { inherit rust-overlay; })
+		];
+	};
 
 	# Evaluated with eval-config.nix, as Hydra evaluates the official ISO in
 	# nixos/release.nix. nixosSystem would set `nixpkgs.flake.source`, which
@@ -32,8 +37,8 @@ let
 	# entry needs the `flakes` feature the image leaves off. The version module
 	# mirrors what the Nixpkgs flake's lib gives nixosSystem, so the label stays
 	# 26.11.<date>.<rev>.
-	installer =
-		extraModules:
+	mkInstaller =
+		graphical: extraModules:
 		import "${nixpkgs}/nixos/lib/eval-config.nix" {
 			inherit system;
 			modules = [
@@ -42,7 +47,7 @@ let
 				./branding.nix
 				./installer.nix
 				./manual.nix
-				(import ./live.nix { inherit nixpkgs rust-overlay source; })
+				(import ./live.nix { inherit graphical nixpkgs rust-overlay source; })
 				{
 					system.nixos.versionSuffix = ".${builtins.substring 0 8 (nixpkgs.lastModifiedDate or "19700101")}.${nixpkgs.shortRev or "dirty"}";
 					system.nixos.revision = nixpkgs.rev or null;
@@ -61,17 +66,20 @@ let
 						}-${config.system.nixos.release}-${pkgs.stdenv.hostPlatform.uname.processor}";
 					}
 				)
-			] ++ extraModules;
+			] ++ nixpkgs.lib.optional graphical ./desktop.nix ++ extraModules;
 		};
 
+	installer = mkInstaller false;
 	iso = installer [ ];
+	graphical = mkInstaller true [ ];
 	inherit (iso) pkgs;
 	inherit (pkgs) lib;
 	engine = iso.config.nix.package;
 in
 {
-	inherit module iso;
+	inherit module iso graphical;
 	image = iso.config.system.build.isoImage;
+	graphicalImage = graphical.config.system.build.isoImage;
 
 	# The modules of an installed noxios system: noxi as the package manager
 	# and the noxios name. A system's flake adds its own configuration.

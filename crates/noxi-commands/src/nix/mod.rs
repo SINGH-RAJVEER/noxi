@@ -458,6 +458,7 @@ fn supported_flags(command: &str) -> &'static [&'static str] {
 			"no-link",
 			"out-link",
 			"print-out-paths",
+			"profile",
 		],
 		"path-info" => &[
 			"json",

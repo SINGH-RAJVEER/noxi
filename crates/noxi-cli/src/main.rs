@@ -6,6 +6,9 @@ use noxi_eval::{EvalMode, Evaluation};
 // this binary links through `noxi-system`.
 
 fn main() -> ExitCode {
+	if env::args_os().nth(1).as_deref() == Some(std::ffi::OsStr::new("settings")) {
+		return settings(env::args_os().skip(2).collect());
+	}
 	// The native system operations take their own argument vectors.
 	let mut native = env::args().skip(1);
 	match native.next().as_deref() {
@@ -43,11 +46,30 @@ fn main() -> ExitCode {
 		}
 		_ => {
 			eprintln!(
-				"usage: noxi eval --expr EXPRESSION\n       noxi eval --file PATH\n       noxi flake update|lock ...\n       noxi system build|test|boot|switch|dry-activate|rollback ...\n       noxi system version|enter|option|init ...\n       noxi install ...\n       noxi snapshot list|show|rollback ...\n       noxi explain CODE\n       noxi --version"
+				"usage: noxi eval --expr EXPRESSION\n       noxi eval --file PATH\n       noxi flake update|lock ...\n       noxi system build|test|boot|switch|dry-activate|rollback ...\n       noxi system version|enter|option|init ...\n       noxi install ...\n       noxi snapshot list|show|rollback ...\n       noxi settings [tui|gui|COMMAND]\n       noxi explain CODE\n       noxi --version"
 			);
 			ExitCode::from(2)
 		}
 	}
+}
+
+fn settings(args: Vec<std::ffi::OsString>) -> ExitCode {
+	use std::os::unix::process::CommandExt as _;
+
+	let (program, args) = match args.split_first() {
+		Some((mode, rest)) if mode == "tui" => ("noxios-settings-tui", rest),
+		Some((mode, rest)) if mode == "gui" => ("noxios-settings-gui", rest),
+		_ => ("noxios-settings", args.as_slice()),
+	};
+	let installed = PathBuf::from("/run/current-system/sw/bin").join(program);
+	let executable = if installed.is_file() {
+		installed
+	} else {
+		PathBuf::from(program)
+	};
+	let error = std::process::Command::new(executable).args(args).exec();
+	eprintln!("noxi settings: cannot start {program}: {error}");
+	ExitCode::FAILURE
 }
 
 fn evaluate(expression: &str, location: Option<PathBuf>) -> ExitCode {

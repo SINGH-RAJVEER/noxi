@@ -1,0 +1,32 @@
+[package]
+name = "noxios-settings-core"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish = false
+description = "Headless engine behind noxios-settings: manifest mutation, config wiring, and rebuild dispatch"
+
+[features]
+# Exposes `Session::fake_build` so front-end tests can simulate a rebuild.
+test-util = []
+telemetry-receiver = ["dep:axum", "dep:rusqlite"]
+
+[dependencies]
+noxios-settings-config = { path = "../noxios-settings-config" }
+noxios-settings-engine = { path = "../noxios-settings-engine" }
+anyhow = { workspace = true }
+directories = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+tokio = { workspace = true }
+reqwest = { workspace = true }
+axum = { version = "0.8.9", default-features = false, features = ["http1", "json", "tokio"], optional = true }
+rusqlite = { version = "0.40.2", features = ["bundled"], optional = true }
+
+[dev-dependencies]
+tempfile = { workspace = true }
+tokio = { workspace = true, features = ["net", "test-util"] }
+
+[[example]]
+name = "telemetry-receiver"
+required-features = ["telemetry-receiver"]

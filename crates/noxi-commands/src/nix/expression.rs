@@ -1,12 +1,12 @@
 //! Expression installables share the legacy evaluator and store owner.
 use std::collections::BTreeMap;
 use std::io::{self, Write};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
 use nix_compat::store_path::StorePath;
 use noxi_eval::{Ambiguous, Value};
-use noxi_store::{DerivedPath, Store};
+use noxi_store::{DerivedPath, Store, profiles};
 use serde_json::json;
 
 use super::{Parsed, unsupported};
@@ -302,11 +302,20 @@ pub fn outputs(
 }
 
 pub fn build(parsed: Parsed) -> Result<ExitCode, Failure> {
-	parsed.unsupported(&["rebuild", "repair", "profile"])?;
+	parsed.unsupported(&["rebuild", "repair"])?;
 	let target = match targets(&parsed)? {
 		Ok(target) => target,
 		Err(code) => return Ok(code),
 	};
+	let profile = parsed
+		.value("profile")
+		.map(|path| std::path::absolute(PathBuf::from(path)))
+		.transpose()?;
+	if profile.is_some() && target.paths.len() != 1 {
+		return Err(Failure::Error(
+			"--profile requires exactly one installable".into(),
+		));
+	}
 	let missing = target.store.query_missing(&target.paths)?;
 	crate::paths::print_missing(target.store.as_ref(), &missing)?;
 	if !parsed.has("dry-run") {
@@ -326,6 +335,20 @@ pub fn build(parsed: Parsed) -> Result<ExitCode, Failure> {
 	// `printOutPathsMaybe` stops the progress bar before printing.
 	if !parsed.has("dry-run") && parsed.has("print-out-paths") {
 		nix_compat::log::logger::stop();
+	}
+	if let Some(profile) = profile.filter(|_| !parsed.has("dry-run")) {
+		let paths = outputs(target.store.as_ref(), &target.paths[0])?;
+		let mut paths = paths.values();
+		let output = paths
+			.next()
+			.filter(|_| paths.next().is_none())
+			.ok_or_else(|| Failure::Error("--profile requires exactly one output path".into()))?;
+		if let Some(parent) = profile.parent() {
+			std::fs::create_dir_all(parent)?;
+		}
+		let _lock = profiles::lock_profile(&profile)?;
+		let generation = profiles::create_generation(target.store.as_ref(), &profile, output)?;
+		profiles::switch_link(&profile, &generation)?;
 	}
 	for (index, path) in target.paths.iter().enumerate() {
 		let outputs = outputs(target.store.as_ref(), path)?;

@@ -155,8 +155,8 @@ nixos-activation = [
 	"noxi-system::snapshot_cli",
 ]
 installed-os-lifecycle = []
-tui-and-gpui-based-nixbox-gui-parity = []
-nixbox-engine-integration = []
+tui-and-gpui-based-settings-gui-parity = []
+settings-engine-integration = []
 os-native-cli-diagnostics = []
 
 # Disposable-VM qualification reports (tests/qualification/results/*/MODE.json)
