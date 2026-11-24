@@ -6,9 +6,8 @@ use std::process::ExitCode;
 
 use super::{Parsed, expression, unsupported};
 use crate::cli::Failure;
-use nix_compat::cppnix_json::derivation::{Derivation, InputNode, Output};
-use nix_compat::derivation::OutputHashMode;
-use nix_compat::nixhash::CAHash;
+use nix_compat::cppnix_json::derivation::{Derivation, Features};
+use nix_compat::nixcpp::settings::Settings;
 use noxi_store::DerivedPath;
 use serde_json::json;
 
@@ -47,7 +46,7 @@ pub fn show(parsed: Parsed) -> Result<ExitCode, Failure> {
 		if !path.name().ends_with(".drv") {
 			continue;
 		}
-		let drv = json_derivation(target.store.as_ref(), &path)?;
+		let drv = json_derivation(target.store.as_ref(), &path, features(&parsed.settings))?;
 		result.insert(path.to_string(), drv.to_json());
 	}
 	// nlohmann's `dump()`, so structured-attribute floats print as the
@@ -139,76 +138,40 @@ pub fn log(parsed: Parsed) -> Result<ExitCode, Failure> {
 pub(super) fn json_derivation(
 	store: &dyn noxi_store::Store,
 	path: &nix_compat::store_path::StorePath,
+	features: Features,
 ) -> Result<Derivation, Failure> {
-	let utf8 = |bytes: &[u8]| {
-		std::str::from_utf8(bytes)
-			.map(str::to_owned)
-			.map_err(|_| unsupported("derivation show of non-UTF-8 fields"))
-	};
-	let drv = store.read_derivation(path)?;
-	let outputs = if let Some(hash) = drv.outputs().as_fixed_output_hash() {
-		let ca = if hash.mode == OutputHashMode::Recursive {
-			CAHash::Nar(hash.hash.clone())
+	let bytes = fs::read(store.real_path(path)).map_err(|error| {
+		Failure::Error(format!(
+			"reading derivation '{}': {error}",
+			path.to_absolute_path()
+		))
+	})?;
+	let name = path.name().strip_suffix(".drv").unwrap_or(path.name());
+	Derivation::from_aterm(&bytes, name, features).map_err(|error| {
+		Failure::Error(if error.is_format_error() {
+			format!(
+				"error parsing derivation '{}': {error}",
+				path.to_absolute_path()
+			)
 		} else {
-			CAHash::Flat(hash.hash.clone())
-		};
-		drv.outputs()
-			.names()
-			.map(|name| (name.clone(), Output::Fixed(ca.clone())))
-			.collect()
-	} else if drv.outputs().is_deferred() {
-		drv.outputs()
-			.names()
-			.map(|name| (name.clone(), Output::Deferred))
-			.collect()
-	} else {
-		drv.outputs()
-			.iter()
-			.map(|(name, path)| (name.clone(), Output::InputAddressed(path.clone())))
-			.collect()
-	};
-	let mut env = drv
-		.environment()
-		.iter()
-		.map(|(key, value)| Ok((utf8(key)?, utf8(value)?)))
-		.collect::<Result<BTreeMap<_, _>, Failure>>()?;
-	let structured_attrs = env
-		.remove("__json")
-		.map(|text| serde_json::from_str(&text))
-		.transpose()
-		.map_err(|e| e.to_string())?;
-	Ok(Derivation {
-		name: path.name().strip_suffix(".drv").unwrap().to_owned(),
-		outputs,
-		system: utf8(drv.system())?,
-		builder: utf8(drv.command())?,
-		args: drv
-			.arguments()
-			.iter()
-			.map(|a| utf8(a))
-			.collect::<Result<_, _>>()?,
-		env,
-		input_sources: drv.input_sources().clone(),
-		input_derivations: drv
-			.input_derivations()
-			.iter()
-			.map(|(path, outputs)| {
-				(
-					path.clone(),
-					InputNode {
-						outputs: outputs.clone(),
-						dynamic_outputs: BTreeMap::new(),
-					},
-				)
-			})
-			.collect(),
-		structured_attrs,
+			error.to_string()
+		})
 	})
+}
+
+/// The experimental features `settings` enables.
+pub(super) fn features(settings: &Settings) -> Features {
+	let enabled = settings.experimental_features();
+	Features {
+		ca_derivations: enabled.contains("ca-derivations"),
+		dynamic_derivations: enabled.contains("dynamic-derivations"),
+		impure_derivations: enabled.contains("impure-derivations"),
+		git_hashing: enabled.contains("git-hashing"),
+	}
 }
 
 /// Import the version-4 derivation JSON read from stdin.
 pub fn add(parsed: Parsed) -> Result<ExitCode, Failure> {
-	use nix_compat::cppnix_json::derivation::Features;
 	let mut input = Vec::new();
 	io::Read::read_to_end(&mut io::stdin().lock(), &mut input)?;
 	let value: serde_json::Value = serde_json::from_slice(&input).map_err(|e| {
@@ -216,21 +179,13 @@ pub fn add(parsed: Parsed) -> Result<ExitCode, Failure> {
 			"derivation add of malformed JSON (nlohmann parse diagnostics are not reproduced: {e})"
 		))
 	})?;
-	let features = parsed.settings.experimental_features();
-	let mut drv = Derivation::from_json(
-		&value,
-		Features {
-			ca_derivations: features.contains("ca-derivations"),
-			dynamic_derivations: features.contains("dynamic-derivations"),
-			impure_derivations: features.contains("impure-derivations"),
-			git_hashing: features.contains("git-hashing"),
-		},
-	)
-	.map_err(|e| e.to_string())?;
+	let features = features(&parsed.settings);
+	let mut drv = Derivation::from_json(&value, features).map_err(|e| e.to_string())?;
 	let opened = super::command_store::open(&parsed)?;
 	let store = opened.store.as_ref();
 	// `Derivation::parseJsonAndValidate`.
-	let read = |path: &nix_compat::store_path::StorePath| json_derivation(store, path).ok();
+	let read =
+		|path: &nix_compat::store_path::StorePath| json_derivation(store, path, features).ok();
 	let mut warnings = Vec::new();
 	drv.fill_in_output_paths(&read, &mut warnings)
 		.map_err(|e| Failure::Error(e.to_string()))?;

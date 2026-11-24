@@ -228,7 +228,7 @@ fn output_paths(
 	store: &dyn Store,
 	drv_path: &StorePath,
 ) -> Result<BTreeMap<String, StorePath>, Failure> {
-	let drv = store.read_derivation(drv_path)?;
+	let drv = store.read_build_derivation(drv_path)?.basic;
 	if drv.outputs().is_deferred() {
 		return Err(Failure::Usage(
 			"Cannot use output path of floating content-addressing derivation until we know what it is (e.g. by building it)".to_owned(),
@@ -418,13 +418,7 @@ impl NixStore<'_> {
 					outputs: outputs.clone(),
 				}])?;
 			}
-			let mut output_paths = self.store.query_derivation_outputs(path)?;
-			// Content-addressed outputs are known by their realisations.
-			for (name, known) in self.store.deep_query_partial_derivation_output_map(path)? {
-				if let Some(known) = known {
-					output_paths.entry(name).or_insert(known);
-				}
-			}
+			let output_paths = self.store.known_derivation_outputs(path)?;
 			let all = output_paths_or_derivation(self.store, path, output_paths)?;
 			self.root_nr.set(self.root_nr.get() + 1);
 			let wanted: BTreeSet<String> = if outputs.is_empty() {
@@ -556,7 +550,7 @@ impl NixStore<'_> {
 			if force_realise {
 				return Ok(self
 					.store
-					.query_derivation_outputs(&path)?
+					.known_derivation_outputs(&path)?
 					.into_values()
 					.collect());
 			}
@@ -730,7 +724,7 @@ impl NixStore<'_> {
 							))
 						})?;
 					}
-					let drv = self.store.read_derivation(&path)?;
+					let drv = self.store.read_build_derivation(&path)?.basic;
 					let value = drv.environment().get(binding.as_bytes()).ok_or_else(|| {
 						Failure::Error(format!(
 							"derivation '{}' has no environment binding named '{binding}'",

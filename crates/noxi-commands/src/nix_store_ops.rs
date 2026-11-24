@@ -472,7 +472,7 @@ pub fn run(
 					print(&drv)
 				)));
 			}
-			let drv = store.read_derivation(&drv)?;
+			let drv = store.read_build_derivation(&drv)?.basic;
 			for (name, value) in drv.environment() {
 				out.write_all(b"export ")?;
 				out.write_all(name)?;

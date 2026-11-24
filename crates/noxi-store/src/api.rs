@@ -81,7 +81,34 @@ pub trait Store {
 		self.query_partial_derivation_output_map(drv)
 	}
 
+	/// The outputs of `drv` whose paths are known: registered, or realised
+	/// for content-addressed ones.
+	fn known_derivation_outputs(&self, drv: &StorePath) -> Result<BTreeMap<String, StorePath>> {
+		Ok(self
+			.deep_query_partial_derivation_output_map(drv)?
+			.into_iter()
+			.filter_map(|(name, path)| Some((name, path?)))
+			.collect())
+	}
+
 	fn read_derivation(&self, drv: &StorePath) -> Result<UnverifiedDerivation>;
+
+	/// Read a derivation of any kind the store's experimental features
+	/// allow; [`Store::read_derivation`] holds only ordinary ones.
+	fn read_build_derivation(
+		&self,
+		drv: &StorePath,
+	) -> Result<crate::build_derivation::BuildDerivation> {
+		self.read_evaluation_derivation(
+			drv,
+			crate::build_derivation::OutputFeatures {
+				ca_derivations: true,
+				impure_derivations: true,
+				dynamic_derivations: true,
+				git_hashing: true,
+			},
+		)
+	}
 
 	/// Read output declarations for evaluation with the evaluator's feature
 	/// settings, independently of the feature set used to open the owner.
@@ -312,6 +339,13 @@ impl Store for LocalStore {
 
 	fn read_derivation(&self, drv: &StorePath) -> Result<UnverifiedDerivation> {
 		LocalStore::read_derivation(self, drv)
+	}
+
+	fn read_build_derivation(
+		&self,
+		drv: &StorePath,
+	) -> Result<crate::build_derivation::BuildDerivation> {
+		LocalStore::read_build_derivation(self, drv)
 	}
 
 	fn add_text_to_store(

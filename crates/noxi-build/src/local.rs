@@ -1351,7 +1351,12 @@ impl LocalBuilder<'_> {
 			if self.store.is_valid_path(path)? {
 				delete_path(actual)?;
 			} else {
-				move_path(actual, &self.store.real_path(path))?;
+				// An invalid path's leftovers are garbage.
+				let real = self.store.real_path(path);
+				if actual != &real {
+					delete_path(&real)?;
+				}
+				move_path(actual, &real)?;
 			}
 		}
 		self.store

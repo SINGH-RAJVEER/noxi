@@ -107,7 +107,7 @@ impl Element {
 	pub fn from_store_path(store: &dyn Store, path: StorePath) -> Result<Self, Failure> {
 		let name = path.name().to_owned();
 		let (out_path, drv_path) = if name.ends_with(".drv") {
-			let outputs = store.query_derivation_outputs(&path)?;
+			let outputs = store.known_derivation_outputs(&path)?;
 			let out = outputs.get("out").cloned().ok_or_else(|| {
 				Failure::Error(format!(
 					"derivation '{}' does not have an output named 'out'",

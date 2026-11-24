@@ -389,7 +389,7 @@ fn op_set(globals: &Globals, flags: &[String], args: &[String]) -> Result<(), Fa
 	};
 	let store = opened.store.as_ref();
 	let (derived, out_path) = if path.name().ends_with(".drv") {
-		let outputs = store.query_derivation_outputs(path)?;
+		let outputs = store.known_derivation_outputs(path)?;
 		let out = outputs.get("out").cloned().ok_or_else(|| {
 			Failure::Error(format!(
 				"derivation '{}' does not have an output named 'out'",

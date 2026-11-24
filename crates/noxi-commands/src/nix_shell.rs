@@ -250,7 +250,8 @@ pub fn main(settings: Settings, args: Vec<String>) -> Result<ExitCode, Failure> 
 	let store = evaluated
 		.store
 		.ok_or_else(|| Failure::Error("the selected store cannot build derivations".to_owned()))?;
-	let drv = store.read_derivation(drv_path)?;
+	let mut build_drv = store.read_build_derivation(drv_path)?;
+	let drv = build_drv.basic.clone();
 
 	let mut to_build = Vec::new();
 	let mut shell = std::env::var("NIX_BUILD_SHELL").ok();
@@ -309,9 +310,30 @@ pub fn main(settings: Settings, args: Vec<String>) -> Result<ExitCode, Failure> 
 		return Ok(ExitCode::SUCCESS);
 	}
 	store.build_paths(&to_build)?;
+	if options
+		.settings
+		.experimental_features()
+		.contains("ca-derivations")
+	{
+		// `tryResolve`: the environment names the built inputs.
+		let resolved =
+			noxi_build::local::resolve_derivation(drv_path, &build_drv, |input, wanted| {
+				// An excluded input is not built.
+				let known = store.known_derivation_outputs(input)?;
+				Ok(wanted
+					.iter()
+					.all(|name| known.contains_key(name))
+					.then_some(known))
+			})
+			.map_err(|e| Failure::Error(e.to_string()))?;
+		if let Some((_, resolved)) = resolved {
+			build_drv = resolved;
+		}
+	}
+	let environment = build_drv.basic.environment();
 	if let Some(drv) = shell_drv {
 		let out = store
-			.query_derivation_outputs(&drv)?
+			.known_derivation_outputs(&drv)?
 			.remove("out")
 			.ok_or_else(|| Failure::Error("bashInteractive has no 'out' output".into()))?;
 		shell = Some(format!("{}/bin/bash", out.to_absolute_path()));
@@ -340,10 +362,10 @@ pub fn main(settings: Settings, args: Vec<String>) -> Result<ExitCode, Failure> 
 			.into(),
 	);
 
-	let parsed = structured_attrs(drv.environment()).map_err(|e| e.to_string())?;
+	let parsed = structured_attrs(environment).map_err(|e| e.to_string())?;
 	let mut warnings = Vec::new();
 	let drv_options = DerivationOptions::new(
-		drv.environment(),
+		environment,
 		parsed.as_ref(),
 		drv.input_derivations(),
 		false,
@@ -361,7 +383,7 @@ pub fn main(settings: Settings, args: Vec<String>) -> Result<ExitCode, Failure> 
 		}
 	}
 	let mut file_nr = 0;
-	for (name, value) in drv.environment() {
+	for (name, value) in environment {
 		let name = String::from_utf8_lossy(name).into_owned();
 		// CppNix keeps structured attributes out of the environment.
 		if parsed.is_some() && name == "__json" {

@@ -301,6 +301,23 @@ fn why_depends(parsed: Parsed) -> Result<ExitCode, Failure> {
 		target.store.build_paths(&target.paths[..1])?;
 	}
 	let package = resolve(0)?;
+	// Nothing can depend on a content-addressed output that was never built.
+	if !parsed.has("derivation")
+		&& let noxi_store::DerivedPath::Built { drv, outputs } = &target.paths[1]
+	{
+		let known = target.store.deep_query_partial_derivation_output_map(drv)?;
+		if known
+			.iter()
+			.any(|(name, path)| path.is_none() && (outputs.is_empty() || outputs.contains(name)))
+		{
+			eprintln!(
+				"'{}' does not depend on '{}'",
+				what(&parsed.operands[0], &package),
+				parsed.operands[1]
+			);
+			return Ok(ExitCode::SUCCESS);
+		}
+	}
 	let dependency = resolve(1)?;
 	let store = target.store.as_ref();
 	let closure = store.compute_closure(&BTreeSet::from([package.clone()]))?;

@@ -126,7 +126,7 @@ pub fn main(settings: Settings, args: Vec<String>) -> Result<ExitCode, Failure> 
 			link.push(format!("-{output}"));
 		}
 		let out_path = store
-			.query_derivation_outputs(drv)?
+			.known_derivation_outputs(drv)?
 			.remove(output)
 			.ok_or_else(|| {
 				Failure::Error(format!(

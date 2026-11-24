@@ -948,7 +948,7 @@ pub(super) fn run(parsed: Parsed) -> Result<ExitCode, Failure> {
 					if let noxi_store::DerivedPath::Built { drv, outputs } = path {
 						*outputs = targets
 							.store
-							.query_derivation_outputs(drv)?
+							.known_derivation_outputs(drv)?
 							.into_iter()
 							.filter(|(_, p)| {
 								element["storePaths"].as_array().is_some_and(|paths| {

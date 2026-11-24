@@ -75,7 +75,9 @@ pub enum Error {
 	DerivationVersion(u64),
 	#[error("invalid derivation output JSON")]
 	DerivationOutput,
-	#[error("experimental feature '{0}' is required")]
+	#[error(
+		"experimental Nix feature '{0}' is disabled; add '--extra-experimental-features {0}' to enable it"
+	)]
 	FeatureRequired(&'static str),
 }
 

@@ -371,7 +371,7 @@ impl<'a> NarInfo<'a> {
 
 impl Display for NarInfo<'_> {
 	fn fmt(&self, w: &mut fmt::Formatter) -> fmt::Result {
-		writeln!(w, "StorePath: /nix/store/{}", self.store_path)?;
+		writeln!(w, "StorePath: {}", self.store_path.to_absolute_path())?;
 		writeln!(w, "URL: {}", self.url)?;
 
 		if !self.flags.contains(Flags::COMPRESSION_DEFAULT) {

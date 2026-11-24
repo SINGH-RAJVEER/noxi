@@ -379,8 +379,12 @@ fn create_temp_file(prefix: &str) -> Result<std::path::PathBuf, Failure> {
 
 /// `getDerivationEnvironment`: build the rewritten derivation and return
 /// the output holding the environment.
-fn derivation_environment(store: &dyn Store, drv_path: &StorePath) -> Result<StorePath, Failure> {
-	let mut drv: Derivation = inspection::json_derivation(store, drv_path)?;
+fn derivation_environment(
+	store: &dyn Store,
+	drv_path: &StorePath,
+	features: nix_compat::cppnix_json::derivation::Features,
+) -> Result<StorePath, Failure> {
+	let mut drv: Derivation = inspection::json_derivation(store, drv_path, features)?;
 	if drv.builder.rsplit('/').next() != Some("bash") {
 		return Err(Failure::Error(
 			"'nix develop' only works on derivations that use 'bash' as their builder".into(),
@@ -415,7 +419,7 @@ fn derivation_environment(store: &dyn Store, drv_path: &StorePath) -> Result<Sto
 			drv.env.insert(name.to_string(), String::new());
 		}
 	}
-	let read = |path: &StorePath| inspection::json_derivation(store, path).ok();
+	let read = |path: &StorePath| inspection::json_derivation(store, path, features).ok();
 	let mut warnings = Vec::new();
 	drv.fill_in_output_paths(&read, &mut warnings)
 		.map_err(|e| Failure::Error(e.to_string()))?;
@@ -439,7 +443,7 @@ fn derivation_environment(store: &dyn Store, drv_path: &StorePath) -> Result<Sto
 		drv: env_drv.clone(),
 		outputs: BTreeSet::new(),
 	}])?;
-	for path in store.query_derivation_outputs(&env_drv)?.into_values() {
+	for path in store.known_derivation_outputs(&env_drv)?.into_values() {
 		if std::fs::metadata(store.real_path(&path)).is_ok_and(|m| m.len() > 0) {
 			return Ok(path);
 		}
@@ -483,7 +487,7 @@ fn build_environment(
 					drvs.len()
 				))
 			})?;
-			derivation_environment(store.as_ref(), &drv)?
+			derivation_environment(store.as_ref(), &drv, inspection::features(&parsed.settings))?
 		}
 	};
 	if let Some(profile) = parsed.value("profile") {

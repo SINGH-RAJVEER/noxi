@@ -300,6 +300,13 @@ impl Store for LocalBackend {
 		self.store.read_derivation(drv)
 	}
 
+	fn read_build_derivation(
+		&self,
+		drv: &StorePath,
+	) -> Result<noxi_store::build_derivation::BuildDerivation> {
+		self.store.read_build_derivation(drv)
+	}
+
 	fn add_text_to_store(
 		&self,
 		name: &str,
