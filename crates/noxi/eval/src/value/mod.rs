@@ -405,7 +405,11 @@ impl Value {
 			if let Item::Value(_, depth @ 1..) | Item::WithSeparator(_, depth @ 1..) = &item {
 				let budget = match budget {
 					Some(budget) => budget,
-					None => *budget.insert(generators::request_recursion_budget(co).await),
+					// Strong coercions run inside a builtin call, which takes a
+					// level of its own; interpolation does not.
+					None => *budget.insert(
+						generators::request_recursion_budget(co).await + usize::from(!kind.strong),
+					),
 				};
 				if *depth > budget {
 					return Err(ErrorKind::At {

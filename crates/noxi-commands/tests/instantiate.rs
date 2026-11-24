@@ -169,6 +169,47 @@ fn byte_source_strings_and_pipe_features_match_the_reference() {
 	}
 }
 
+/// The call that hits the limit is reported at another position, so only the
+/// outcome is compared.
+#[test]
+fn string_coercion_depth_limit_matches_the_reference() {
+	let dir = tempfile::tempdir().unwrap();
+	let reference = reference_instantiate();
+	let candidate = Path::new(env!("CARGO_BIN_EXE_nix-instantiate"));
+	let chain = |wrap: &str, count: usize| {
+		format!("(builtins.foldl' (a: n: {wrap}) \"x\" (builtins.genList (x: x) {count}))")
+	};
+	let mut expressions = vec![
+		"let f = n: { __toString = _: f (n + 1); }; in \"${f 0}\"".to_owned(),
+		"let f = n: { outPath = f (n + 1); }; in \"${f 0}\"".to_owned(),
+		"let f = n: [ (f (n + 1)) ]; in toString (f 0)".to_owned(),
+	];
+	for count in [98, 99, 100, 101] {
+		for wrap in ["{ outPath = a; }", "{ __toString = s: a; }"] {
+			expressions.push(format!("\"${{{}}}\"", chain(wrap, count)));
+		}
+		for wrap in ["{ outPath = a; }", "[ a ]"] {
+			expressions.push(format!("toString {}", chain(wrap, count)));
+		}
+	}
+	for expression in expressions {
+		let [expected, actual] = [&*reference, candidate].map(|bin| {
+			let out = message_evaluation(
+				bin,
+				dir.path(),
+				&expression,
+				"max-call-depth = 100",
+				&[],
+				"",
+			);
+			let overflow = String::from_utf8_lossy(&out.stderr)
+				.contains("stack overflow; max-call-depth exceeded");
+			(out.status.code(), out.stdout, overflow)
+		});
+		assert_eq!(actual, expected, "{expression}");
+	}
+}
+
 #[test]
 fn ready_and_deferred_builtin_diagnostics_match_the_reference() {
 	let dir = tempfile::tempdir().unwrap();
