@@ -14,6 +14,7 @@
 //! `--read-write-mode` also allows IFD builds through that owner, and
 //! `--dry-run` makes instantiation read-only too.
 
+use std::collections::{BTreeMap, BTreeSet};
 use std::fmt::Write as _;
 use std::io::{self, IsTerminal, Read, Write};
 use std::path::{Path, PathBuf};
@@ -24,7 +25,7 @@ use nix_compat::nixcpp::settings::Settings;
 use nix_compat::store_path::StorePath;
 use noxi_eval::builtin_macros::builtins;
 use noxi_eval::{Ambiguous, EvalMode, Evaluation, SourceFragment, Value};
-use noxi_store::Store;
+use noxi_store::{DerivedPath, Store};
 use rustc_hash::FxHashMap;
 use smol_str::SmolStr;
 
@@ -79,6 +80,9 @@ pub struct Options {
 	pub error_codes: Rc<std::cell::RefCell<Vec<&'static str>>>,
 	/// Flake registry rewrites supplied on the command line.
 	pub override_flakes: Vec<(String, String)>,
+	/// Select outputs as the modern commands' installables do, instead of
+	/// each derivation's `outputName`.
+	pub installables: bool,
 	/// `nix-shell`: functions with an `inNixShell` argument get it as `true`.
 	pub in_nix_shell: bool,
 	/// Source fragments that inputs reference as `@@noxi-frag-N@@`. When set,
@@ -519,6 +523,31 @@ fn driver_expression(
 	// `nix-shell`, those taking `inNixShell` also get it as `true`.
 	driver.push_str("};\n");
 	let _ = writeln!(driver, "__noxi_inNixShell = {};", options.in_nix_shell);
+	// `DrvInfo::queryOutputs` for the outputs to install, or for a flake
+	// installable only those the derivation names.
+	let _ = writeln!(
+		driver,
+		"__noxi_outputs = d: {};",
+		if !options.installables {
+			"[ ]"
+		} else if options.flake.is_some() {
+			"if d.outputSpecified or false then [ d.outputName ] else d.meta.outputsToInstall or [ ]"
+		} else {
+			"if d.outputSpecified or false then [ d.outputName ] else d.meta.outputsToInstall or (d.outputs or [ \"out\" ])"
+		}
+	);
+	// `trySinglePathToDerivedPaths`.
+	let _ = writeln!(
+		driver,
+		"__noxi_path = v: {};",
+		if options.installables {
+			"if builtins.isPath v then [ [ \"${v}\" \"\" null ] ]
+	else if builtins.isString v then __noxi_stringPath v
+	else null"
+		} else {
+			"null"
+		}
+	);
 	driver.push_str(
 		"__noxi_shellArgs = __noxi_autoArgs // { inNixShell = true; };
 __noxi_autoCall = f:
@@ -530,7 +559,25 @@ __noxi_autoCall = f:
 	else f (builtins.intersectAttrs (builtins.functionArgs f) args);
 __noxi_forceEach = results: builtins.foldl' (acc: v: builtins.seq v acc) results results;
 __noxi_isDerivation = v: builtins.isAttrs v && v ? type && v.type == \"derivation\";
-__noxi_pair = d: let p = __noxi_drvPath d; in builtins.seq p [ p (d.outputName or \"\") ];
+__noxi_pair = d: let p = __noxi_drvPath d; in builtins.seq p [ p (d.outputName or \"\") (__noxi_outputs d) ];
+__noxi_stringPath = s:
+	let
+		context = builtins.getContext s;
+		names = builtins.attrNames context;
+		drv = builtins.head names;
+		entry = context.${drv};
+		path = builtins.unsafeDiscardStringContext s;
+		count = builtins.foldl' (n: name: n + (if context.${name} ? path then 1 else 0) + (if context.${name} ? allOutputs then 1 else 0) + builtins.length (context.${name}.outputs or [ ])) 0 names;
+	in
+	if count != 1 then throw \"string '${path}' has ${toString count} entries in its context. It should only have exactly one entry\"
+	else if entry ? allOutputs then throw \"string '${path}' has a context which refers to a complete source and binary closure. This is not supported at this time\"
+	else if entry ? path then
+		if drv == path then [ [ path \"\" null ] ]
+		else throw \"path string '${path}' has context with the different path '${drv}'\"
+	else [ [ drv (builtins.head entry.outputs) entry.outputs ] ];
+__noxi_installable = v:
+	let path = __noxi_path (__noxi_autoCall v); in
+	if path != null then path else __noxi_getDerivations v;
 __noxi_getDerivations = v:
 	let v' = __noxi_autoCall v; in
 	if __noxi_isDerivation v' then [ (__noxi_pair v') ]
@@ -584,7 +631,7 @@ in __noxi_forceEach [\n",
 				selection = format!("(__noxi_autoCall {selection})");
 			}
 			if !options.eval {
-				selection = format!("(__noxi_forceEach (__noxi_getDerivations {selection}))");
+				selection = format!("(__noxi_forceEach (__noxi_installable {selection}))");
 			} else if options.json {
 				selection = format!("(builtins.toJSON {selection})");
 			} else if options.raw {
@@ -1003,6 +1050,89 @@ pub fn derivations(results: &[Value]) -> Result<Vec<(StorePath, String)>, String
 		}
 	}
 	Ok(derivations)
+}
+
+/// What each input of an evaluation with [`Options::installables`] selects,
+/// `toDerivedPaths`: an input's derivations in path order with the outputs to
+/// install, or one store path. `specs` holds the outputs requested after `^`.
+pub fn installables(
+	results: &[Value],
+	specs: &[Option<BTreeSet<String>>],
+) -> Result<Vec<DerivedPath>, String> {
+	let mut paths = Vec::new();
+	for (index, result) in results.iter().enumerate() {
+		let spec = specs.get(index).and_then(Option::as_ref);
+		let mut by_drv: BTreeMap<StorePath, BTreeSet<String>> = BTreeMap::new();
+		let entries = result.to_list().map_err(|e| e.to_string())?;
+		for entry in entries.iter() {
+			let entry = forced(entry).to_list().map_err(|e| e.to_string())?;
+			let text = |index: usize| {
+				entry
+					.get(index)
+					.ok_or("missing installable field".to_owned())
+					.and_then(|value| text_of(value))
+			};
+			let path = text(0)?;
+			let path = StorePath::from_absolute_path(path.as_bytes())
+				.map_err(|_| format!("invalid store path '{path}'"))?;
+			let names = entry.get(2).map(forced);
+			let Some(Value::List(names)) = names else {
+				paths.push(DerivedPath::Opaque(path));
+				continue;
+			};
+			let outputs = by_drv.entry(path).or_default();
+			match spec {
+				// An empty set already means all of them.
+				Some(spec) => outputs.extend(spec.iter().cloned()),
+				None => {
+					for name in names.iter() {
+						outputs.insert(text_of(name)?);
+					}
+					if outputs.is_empty() {
+						outputs.insert("out".to_owned());
+					}
+				}
+			}
+		}
+		paths.extend(
+			by_drv
+				.into_iter()
+				.map(|(drv, outputs)| DerivedPath::Built { drv, outputs }),
+		);
+	}
+	Ok(paths)
+}
+
+fn text_of(value: &Value) -> Result<String, String> {
+	let text = forced(value)
+		.to_contextful_str()
+		.map_err(|e| e.to_string())?;
+	String::from_utf8(text.as_bytes().to_vec()).map_err(|e| e.to_string())
+}
+
+/// `ExtendedOutputsSpec::parse`: an installable without its `^` suffix, and
+/// the outputs the suffix names; the empty set stands for `^*`.
+pub fn extended_outputs_spec(
+	installable: &str,
+) -> Result<(&str, Option<BTreeSet<String>>), String> {
+	let Some((prefix, spec)) = installable.split_once('^') else {
+		return Ok((installable, None));
+	};
+	if spec == "*" {
+		return Ok((prefix, Some(BTreeSet::new())));
+	}
+	let valid = |name: &str| {
+		!name.is_empty()
+			&& name
+				.bytes()
+				.all(|b| b.is_ascii_alphanumeric() || b"+-._?=".contains(&b))
+	};
+	if !spec.split(',').all(valid) {
+		return Err(format!(
+			"invalid extended outputs specifier '{installable}'"
+		));
+	}
+	Ok((prefix, Some(spec.split(',').map(str::to_owned).collect())))
 }
 
 /// Parse each input without evaluating it or opening a store.

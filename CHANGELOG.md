@@ -227,6 +227,7 @@ Nix formats and protocols: store paths, nixbase32, hashes, NAR, ATerm derivation
 
 ### Unreleased
 
+- A `.narinfo` names its `StorePath` in the configured store directory instead of always `/nix/store`, and derivation JSON that needs a disabled experimental feature fails with CppNix's message (2026-11-25).
 - `log::logger::LogSink` and `set_sink` let a process replace its rendered logger: every message, activity start and stop and result goes to the sink unrendered, as CppNix's `TunnelLogger` receives them in a daemon worker. `start_activity`, `stop_activity` and `result` are public for activities another process started, such as a daemon's, and keep their ids, parents and types (2026-11-21).
 - `DerivationBuilder::build_resolved` builds a resolved derivation as `tryResolve` does, setting output environment variables without the platform, builder and input checks of a new derivation (2026-11-21).
 - `cppnix_json::derivation::Derivation::from_aterm` ports CppNix 2.35.2's `parseDerivation` to the full derivation model: floating, impure and text-hashed outputs and the `DrvWithVersion("xp-dyn-drv", ...)` form with nested dynamic inputs parse behind the experimental features the reference requires, with its error messages, its optional list separators, its first-output-wins and last-entry-wins duplicate rules, lexical store path canonicalisation and fixed-output hashes in any encoding. `cppnix_json::derivation_aterm::parse_store_path` is `parseStorePath` with the reference's messages (2026-11-20).
@@ -334,6 +335,7 @@ Serializes Rust values into Nix and deserializes Nix values into Rust types, imp
 
 ### Unreleased
 
+- Impure and restricted evaluation with a chroot store reads a path below the store directory from the host when it exists there, before the chroot store, as CppNix's union accessor does; pure evaluation still sees only the store. Import from derivation finds content-addressed outputs built through a resolved derivation (2026-11-25).
 - A flake `path:` input under the store directory that a diverted store (`--store /mnt`) lacks is read from the host's store, as CppNix's `PathInputScheme` reads it, rather than from inside the diverted store. `nixos-install --flake` relies on this for inputs locked to the installer's store (2026-11-21).
 - Flake locking follows the reference's `computeLocks`. Kept inputs are rebuilt from the old lock without fetching, and a refetch happens only when a follows override has disappeared. Missing-override warnings cover command-line overrides, and "does not match any input" reflects the input paths actually visited. Errors gain the `while updating the lock file`/`while updating the flake input` trace frames and accessor-specific messages for a missing `flake.nix`. A missing `--reference-lock-file` reads as empty, and `allow-dirty = false` rejects one. Relative inputs resolve lexically (2026-11-21).
 - Tarballs that do not hold exactly one top-level directory keep the archive root instead of failing, an archive time of zero adds no `lastModified`, and a download prints `unpacking 'URL' into the Git cache...`. Git work-tree reads set `GIT_OPTIONAL_LOCKS=0` and no longer rewrite `.git/index` (2026-11-21).
@@ -377,6 +379,7 @@ Serializes Rust values into Nix and deserializes Nix values into Rust types, imp
 
 ### Unreleased
 
+- Modern commands accept `^outputs` for every installable, select the default outputs as CppNix does (`outputSpecified`, `meta.outputsToInstall`, else all outputs of an expression or `out` of a flake) and accept path strings with one context element. `nix build --json` works for new builds; the reference prints no build metadata there. `nix-build`, `nix-shell`, `nix run`, `nix why-depends`, `nix develop`, `nix profile` and `nix derivation show` handle floating content-addressed outputs, `nix derivation show` prints every output kind, and `nix shell` follows symlinks in its `PATH` entries and rejects those that leave the store (2026-11-25).
 - The `nix-channel` download test's server runs until the comparisons end and drops a connection that is too slow to send its headers. Its 40 s limit also covered copying the reference's closure, so loaded runs lost the server (2026-11-25).
 - `nix store verify`, `nix store ls`, `nix store cat` and `nix store dump-path` read paths from disk whenever the store URI resolves to a local store, so the default `auto` store works for root on NixOS as in CppNix. They used to require an explicit `--store local` (2026-11-20).
 - `nix-instantiate --dry-run` computes derivation paths without writing them, as CppNix's read-only mode does, even with `--read-write-mode`. It used to be rejected as an unrecognised flag (2026-11-20).
@@ -496,6 +499,7 @@ Internal trybuild tests for `nix-compat-derive`.
 
 ### Unreleased
 
+- `Store` gains `known_derivation_outputs` and `read_build_derivation` (2026-11-25).
 - A local store substituter answers realisation queries from its database, as CppNix's `LocalStore::queryRealisationUncached` does, so content-addressed outputs are substituted from `auto?trusted=1` or `local?root=DIR&trusted=1` without being built. A source database without the content-addressed schema has no realisations. Copying from a local store substituter names the destination, `copying path '...' to 'local://'`, with `local://` as the source in the activity fields, as `makeCopyPathMessage` does for a `local` shorthand source. `reference_ca_substitute` compares a substitution from a local store with 2.35.2 (2026-11-21).
 - A substitution's `copy-path` activity names the destination store as CppNix's `LocalStoreConfig::getReference` renders it: `local://` when the store was named with query parameters (`local?root=DIR`) and `local` otherwise, such as a bare path or the default store. `LocalStoreConfig::has_params` and `human_uri` record it, and the commands set it from the store URI. `BinaryCache::transfer` returns a cache's transfer settings, and a substituter with a scheme no store knows fails with the reference's `don't know how to open Nix store with scheme '...'` (2026-11-21).
 - A local store (`auto`, `local` or `local?root=DIR`) works as a substituter, as in CppNix, so `nixos-install`'s `--extra-substituters "auto?trusted=1"` copies paths from the running system's store into the target instead of rebuilding them. The store is opened read-write when its state directory is accessible, as CppNix's `auto` is, and read-only otherwise. Its priority is 0 and it wants no mass queries, copied paths lose `ultimate` as in `copyStorePath`, and unsigned input-addressed paths need `?trusted=1`. The `priority` and `want-mass-query` URI parameters now override a binary cache's `nix-cache-info` (2026-11-21).
@@ -557,6 +561,7 @@ Internal trybuild tests for `nix-compat-derive`.
 
 ### Unreleased
 
+- Registering a floating content-addressed output replaces leftovers at its path that are not a valid store path (2026-11-25).
 - Write the build directory cleanup mode in octal, which clippy rejected (2026-11-25).
 - `backend::Worker::cancelled` cancels the worker's builds when the flag becomes true, which the daemon sets when its client hangs up (2026-11-21).
 - `backend::Worker` is the local worker of one `buildPaths` call on a borrowed store, settings and substituters, which the local backend and the daemon's `BuildPaths` both run; `backend::announce_goals` and `backend::BuildLogs` (with `repairing` for `repairing outputs of` activities) are public so the daemon's other build operations report the same goal progress and build activities (2026-11-21).

@@ -589,29 +589,12 @@ fn signed_file_copy_matches_cache_bytes_and_can_be_reimported() {
 }
 
 #[test]
-fn unsupported_library_operations_fail_before_building_or_exporting() {
+fn dry_runs_and_rejected_operations_match_the_reference() {
 	let f = Fixture::new();
 	let expr =
 		"derivation { name = \"json-limit\"; system = \"x86_64-linux\"; builder = \"/bin/sh\"; }";
 	let dry = f.same(&["build", "--expr", expr, "--no-link", "--dry-run", "--json"]);
 	assert!(dry.status.success());
-	let paths: serde_json::Value = serde_json::from_slice(&dry.stdout).unwrap();
-	let output = paths[0]["outputs"]["out"].as_str().unwrap();
-	let result = f.run(
-		false,
-		&["build", "--expr", expr, "--no-link", "--json"],
-		"nix-command",
-	);
-	assert_eq!(result.status.code(), Some(1));
-	assert!(result.stdout.is_empty());
-	assert!(String::from_utf8_lossy(&result.stderr).contains("BuildResult metadata"));
-	assert!(
-		!f.dir
-			.path()
-			.join("root")
-			.join(output.trim_start_matches('/'))
-			.exists()
-	);
 	f.same(&["eval", "--raw", "--expr", "builtins.readFile /etc/passwd"]);
 	// A derivation whose builder is not bash is rejected as by the reference.
 	f.same(&["develop", "--expr", expr]);

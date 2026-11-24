@@ -131,28 +131,28 @@ gap tests/functional/build-remote-with-mounted-ssh-ng.sh # main in build-remote-
 gap tests/functional/build.sh # main in build.sh:6: error: nix build --json for new builds (the build API does not return BuildResult metadata) is not supported by noxi yet
 gap tests/functional/ca/build-cache.sh # main in build-cache.sh:8: error: feature not yet implemented in noxi: content-addressed or impure derivation construction
 gap tests/functional/ca/build-delete.sh # : error: feature not yet implemented in noxi: content-addressed or impure derivation construction
-gap tests/functional/ca/build-with-garbage-path.sh # main in build-with-garbage-path.sh:10: error: feature not yet implemented in noxi: content-addressed or impure derivation construction
+pass:upstream_functional tests/functional/ca/build-with-garbage-path.sh
 gap tests/functional/ca/build.sh # main in build.sh:5: error: feature not yet implemented in noxi: content-addressed or impure derivation construction
 pass:upstream_functional tests/functional/ca/concurrent-builds.sh
 pass:upstream_functional tests/functional/ca/derivation-advanced-attributes.sh
-gap tests/functional/ca/derivation-json.sh # main in derivation-json.sh:7: error: feature not yet implemented in noxi: content-addressed or impure derivation construction
+pass:upstream_functional tests/functional/ca/derivation-json.sh
 anomaly tests/functional/ca/duplicate-realisation-in-closure.sh # reference skip: temporarily broken because dependent realisations are removed, skipping this test...
 gap tests/functional/ca/eval-store.sh # source in eval-store.sh:14: error: nix build --eval-store is not supported by noxi yet
 pass:upstream_functional tests/functional/ca/gc.sh
-gap tests/functional/ca/import-from-derivation.sh # source in import-from-derivation.sh:14: error: feature not yet implemented in noxi: content-addressed or impure derivation construction
+pass:upstream_functional tests/functional/ca/import-from-derivation.sh
 gap tests/functional/ca/issue-13247.sh # main in issue-13247.sh:12: error: feature not yet implemented in noxi: content-addressed or impure derivation construction
 gap tests/functional/ca/multiple-outputs.sh # source in ./multiple-outputs.sh:28: error: feature not yet implemented in noxi: content-addressed or impure derivation construction
 gap tests/functional/ca/new-build-cmd.sh # source in ./build.sh:6: error: feature not yet implemented in noxi: content-addressed or impure derivation construction
 gap tests/functional/ca/nix-copy.sh # : error: nix copy to compressed file:// caches; use ?compression=none (the upload API supports uncompressed NARs) is not supported by noxi yet
-gap tests/functional/ca/nix-run.sh # main in nix-run.sh:11: error: feature not yet implemented in noxi: content-addressed or impure derivation construction
+pass:upstream_functional tests/functional/ca/nix-run.sh
 gap tests/functional/ca/nix-shell.sh # source in ./nix-shell.sh:19: error: feature not yet implemented in noxi: content-addressed or impure derivation construction
 gap tests/functional/ca/post-hook.sh # source in ./post-hook.sh:19: error: feature not yet implemented in noxi: content-addressed or impure derivation construction
 gap tests/functional/ca/recursive.sh # source in ./recursive.sh:13: error: nix build with build logs in the bar log format (use --log-format raw-with-logs) is not supported by noxi yet
 gap tests/functional/ca/repl.sh # : error: the noxi repl does not support ':log' yet
-gap tests/functional/ca/selfref-gc.sh # source in ./selfref-gc.sh:8: error: feature not yet implemented in noxi: content-addressed or impure derivation construction
+pass:upstream_functional tests/functional/ca/selfref-gc.sh
 gap tests/functional/ca/signatures.sh # main in signatures.sh:5: error: nix-store --generate-binary-cache-key is not supported by noxi yet
 gap tests/functional/ca/substitute.sh # main in substitute.sh:18: error: nix copy to compressed file:// caches; use ?compression=none (the upload API supports uncompressed NARs) is not supported by noxi yet
-gap tests/functional/ca/why-depends.sh # source in why-depends.sh:9: error: expected a set but found a function: «lambda @ $ROOT/tmp/nix-test/ca/why-depends/test-home/dependencies.nix:1:1»
+pass:upstream_functional tests/functional/ca/why-depends.sh
 pass:upstream_functional tests/functional/characterisation-test-infra.sh
 pass:upstream_functional tests/functional/check-refs.sh
 pass:upstream_functional tests/functional/check-reqs.sh
@@ -198,7 +198,7 @@ gap tests/functional/fixed-slow-vs-bad.sh # main in fixed-slow-vs-bad.sh:48:
 gap tests/functional/fixed.sh # main in fixed.sh:37: error: invalid digest length for algo md5
 pass:upstream_functional tests/functional/flakes/absolute-attr-paths.sh
 pass:upstream_functional tests/functional/flakes/absolute-paths.sh
-gap tests/functional/flakes/build-paths.sh # main in build-paths.sh:86: error: expression does not evaluate to a derivation (or a set or list of those)
+pass:upstream_functional tests/functional/flakes/build-paths.sh
 pass:upstream_functional tests/functional/flakes/bundle.sh
 gap tests/functional/flakes/check.sh # main in check.sh:41: error: overlay does not take an argument named 'final'
 pass:upstream_functional tests/functional/flakes/circular.sh
@@ -304,7 +304,7 @@ pass:upstream_functional tests/functional/restricted.sh
 pass:upstream_functional tests/functional/search.sh
 pass:upstream_functional tests/functional/secure-drv-outputs.sh
 pass:upstream_functional tests/functional/selfref-gc.sh
-gap tests/functional/shell.sh # main in shell.sh:14: error: attribute 'hello^dev' missing
+pass:upstream_functional tests/functional/shell.sh
 gap tests/functional/short-path-literals.sh # : foo/bar
 gap tests/functional/signing.sh # main in signing.sh:5: error: nix-store --generate-binary-cache-key is not supported by noxi yet
 gap tests/functional/simple.sh # main in simple.sh:27: error: --readonly-mode is not supported by noxi yet

@@ -83,6 +83,7 @@ derivation-and-path-formats = [
 	"noxi-compat-tests::upstream_repl_completion",
 ]
 copied-fixture-inventory = [
+	"noxi-test-support",
 	"noxi-compat-tests",
 	"noxi-compat-tests::fixture_inventory",
 	"noxi-compat-tests::upstream_functional",
@@ -126,6 +127,7 @@ daemon-protocol = [
 	"noxi-commands::reference_daemon_log_format",
 ]
 cli-and-configuration = [
+	"noxi-commands::reference_installables",
 	"noxi-commands",
 	"noxi-commands::instantiate",
 	"noxi-commands::reference_nix",

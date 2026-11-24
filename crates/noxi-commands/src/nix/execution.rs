@@ -8,6 +8,7 @@ use std::collections::BTreeSet;
 use std::ffi::CString;
 use std::fs;
 use std::os::unix::process::CommandExt;
+use std::path::Path;
 use std::process::{Command, ExitCode};
 
 pub(super) fn shell(mut parsed: Parsed) -> Result<ExitCode, Failure> {
@@ -41,7 +42,16 @@ pub(super) fn shell(mut parsed: Parsed) -> Result<ExitCode, Failure> {
 		if !seen.insert(path.clone()) {
 			continue;
 		}
-		bins.push(format!("{}/bin", path.to_absolute_path()));
+		let bin = resolve_symlinks(
+			targets.store.as_ref(),
+			&Path::new(&path.to_absolute_path()).join("bin"),
+		)?;
+		if !bin.starts_with(nix_compat::store_path::store_dir_with_slash()) {
+			return Err(Failure::Error(format!(
+				"path '{bin}' is not in the Nix store"
+			)));
+		}
+		bins.push(bin);
 		let propagated = targets
 			.store
 			.real_path(&path)
@@ -79,6 +89,55 @@ pub(super) fn shell(mut parsed: Parsed) -> Result<ExitCode, Failure> {
 		.join(":");
 	child.env("PATH", path).args(&command[1..]);
 	exec_store(&parsed, child)
+}
+
+/// `SourceAccessor::resolveSymlinks` on the store's view of the file system:
+/// the path `path` names once every symlink in it is followed. Components
+/// that do not exist are kept.
+fn resolve_symlinks(store: &dyn noxi_store::Store, path: &Path) -> Result<String, Failure> {
+	use std::path::{Component, PathBuf};
+	let physical =
+		|path: &Path| match nix_compat::store_path::StorePath::from_absolute_path_full(path) {
+			Ok((object, rest)) if rest.as_os_str().is_empty() => store.real_path(&object),
+			Ok((object, rest)) => store.real_path(&object).join(rest),
+			Err(_) => path.to_owned(),
+		};
+	let mut resolved = PathBuf::from("/");
+	let mut pending: Vec<std::ffi::OsString> = Vec::new();
+	let push = |pending: &mut Vec<std::ffi::OsString>, path: &Path| {
+		pending.extend(
+			path.components()
+				.rev()
+				.filter(|c| matches!(c, Component::Normal(_) | Component::ParentDir))
+				.map(|c| c.as_os_str().to_owned()),
+		);
+	};
+	push(&mut pending, path);
+	let mut links = 0;
+	while let Some(component) = pending.pop() {
+		if component == ".." {
+			resolved.pop();
+			continue;
+		}
+		let next = resolved.join(&component);
+		match fs::read_link(physical(&next)) {
+			Ok(target) => {
+				links += 1;
+				if links >= 1024 {
+					return Err(Failure::Error(format!(
+						"infinite symlink recursion in path '{}'",
+						path.display()
+					)));
+				}
+				if target.is_absolute() {
+					resolved = PathBuf::from("/");
+				}
+				push(&mut pending, &target);
+			}
+			Err(_) => resolved = next,
+		}
+	}
+	Ok(resolved.to_string_lossy().into_owned())
 }
 
 pub(super) fn run(mut parsed: Parsed) -> Result<ExitCode, Failure> {
@@ -160,9 +219,19 @@ pub(super) fn run(mut parsed: Parsed) -> Result<ExitCode, Failure> {
 		crate::paths::print_missing(store.as_ref(), &store.query_missing(&paths)?)?;
 	}
 	store.build_paths(&paths)?;
-	let program = std::str::from_utf8(program.as_bytes())
+	let mut program = std::str::from_utf8(program.as_bytes())
 		.map_err(|e| e.to_string())?
 		.to_owned();
+	// Content-addressed outputs are placeholders until they are built.
+	for path in &paths {
+		if let noxi_store::DerivedPath::Built { drv, .. } = path {
+			for (name, output) in expression::outputs(store.as_ref(), path)? {
+				let placeholder =
+					nix_compat::store_path::downstream_placeholder(drv, name.as_bytes());
+				program = program.replace(&placeholder, &output.to_absolute_path());
+			}
+		}
+	}
 	if !program.starts_with('/') {
 		return Err(unsupported("run with a relative application program"));
 	}

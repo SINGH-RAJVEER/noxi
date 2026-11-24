@@ -14,59 +14,59 @@ tests/functional/binary-cache-compression.sh gap fail pass # main in binary-cach
 tests/functional/binary-cache.sh gap fail pass # main in binary-cache.sh:10: error: don't know how to open Nix store with scheme 'file://$ROOT/tmp/nix-test/main/binary-cache/binary-cache'
 tests/functional/build-cores.nix support
 tests/functional/build-cores.sh pass pass pass
-tests/functional/build-delete.sh gap fail pass # : error: nix build --json for new builds (the build API does not return BuildResult metadata) is not supported by noxi yet
+tests/functional/build-delete.sh gap fail pass # : error: Cannot build '$ROOT/tmp/nix-test/main/build-delete/store/HASH-use-a.drv'.
 tests/functional/build-dry.sh pass pass pass
 tests/functional/build-hook-ca-fixed.nix support
 tests/functional/build-hook-ca-floating.nix support
 tests/functional/build-hook-list-paths.sh support
 tests/functional/build-hook.nix support
-tests/functional/build-remote-content-addressed-fixed.sh gap fail pass # source in build-remote.sh:34: error: path '/nix/store/HASH-busybox-static-x86_64-unknown-linux-musl-1.37.0/bin/busybox' does not exist
-tests/functional/build-remote-content-addressed-floating.sh gap fail pass # source in build-remote.sh:34: error: path '/nix/store/HASH-busybox-static-x86_64-unknown-linux-musl-1.37.0/bin/busybox' does not exist
-tests/functional/build-remote-input-addressed.sh gap fail pass # source in build-remote.sh:34: error: path '/nix/store/HASH-busybox-static-x86_64-unknown-linux-musl-1.37.0/bin/busybox' does not exist
+tests/functional/build-remote-content-addressed-fixed.sh gap fail pass # source in build-remote.sh:34: error: Cannot build '/nix/store/HASH-build-remote.drv'.
+tests/functional/build-remote-content-addressed-floating.sh gap fail pass # source in build-remote.sh:34: error: Cannot build '/nix/store/HASH-build-remote.drv'.
+tests/functional/build-remote-input-addressed.sh gap fail pass # source in build-remote.sh:34: error: Cannot build '/nix/store/HASH-build-remote.drv'.
 tests/functional/build-remote-trustless-after.sh support
-tests/functional/build-remote-trustless-should-fail-0.sh gap fail pass # main in build-remote-trustless-should-fail-0.sh:18: error: path '/nix/store/HASH-busybox-static-x86_64-unknown-linux-musl-1.37.0/bin/busybox' does not exist
-tests/functional/build-remote-trustless-should-pass-0.sh gap fail pass # source in build-remote-trustless.sh:17: error: path '/nix/store/HASH-busybox-static-x86_64-unknown-linux-musl-1.37.0/bin/busybox' does not exist
-tests/functional/build-remote-trustless-should-pass-1.sh gap fail pass # source in build-remote-trustless.sh:17: error: path '/nix/store/HASH-busybox-static-x86_64-unknown-linux-musl-1.37.0/bin/busybox' does not exist
-tests/functional/build-remote-trustless-should-pass-2.sh gap fail pass # source in build-remote-trustless.sh:17: error: path '/nix/store/HASH-busybox-static-x86_64-unknown-linux-musl-1.37.0/bin/busybox' does not exist
-tests/functional/build-remote-trustless-should-pass-3.sh gap fail pass # source in build-remote-trustless.sh:17: error: path '/nix/store/HASH-busybox-static-x86_64-unknown-linux-musl-1.37.0/bin/busybox' does not exist
+tests/functional/build-remote-trustless-should-fail-0.sh gap fail pass # main in build-remote-trustless-should-fail-0.sh:37: Expected exit code '1' but got '100' from command 'source' 'build-remote-trustless.sh'
+tests/functional/build-remote-trustless-should-pass-0.sh gap fail pass # source in build-remote-trustless.sh:17: error: Cannot build '/nix/store/HASH-build-remote.drv'.
+tests/functional/build-remote-trustless-should-pass-1.sh gap fail pass # source in build-remote-trustless.sh:17: error: Cannot build '/nix/store/HASH-build-remote.drv'.
+tests/functional/build-remote-trustless-should-pass-2.sh gap fail pass # source in build-remote-trustless.sh:17: error: Cannot build '/nix/store/HASH-build-remote.drv'.
+tests/functional/build-remote-trustless-should-pass-3.sh gap fail pass # source in build-remote-trustless.sh:17: error: Cannot build '/nix/store/HASH-build-remote.drv'.
 tests/functional/build-remote-trustless.sh support
 tests/functional/build-remote-with-mounted-ssh-ng.sh gap fail pass # main in build-remote-with-mounted-ssh-ng.sh:10: error: don't know how to open Nix store with scheme 'mounted-ssh-ng://localhost'
 tests/functional/build-remote.sh support
-tests/functional/build.sh gap fail pass # main in build.sh:6: error: nix build --json for new builds (the build API does not return BuildResult metadata) is not supported by noxi yet
+tests/functional/build.sh gap fail pass # main in build.sh:148: error: nix --relaxed-sandbox is not supported by noxi yet
 tests/functional/ca-shell.nix support
-tests/functional/ca/build-cache.sh gap fail pass # main in build-cache.sh:9: error: derivation '$ROOT/tmp/nix-test/ca/build-cache/store/HASH-rootCA.drv' has floating content-addressed, impure or dynamic outputs, which this operation does not support y
-tests/functional/ca/build-delete.sh gap fail pass # : error: nix build --json for new builds (the build API does not return BuildResult metadata) is not supported by noxi yet
+tests/functional/ca/build-cache.sh gap fail pass # : error: nix copy --all is not supported by noxi yet
+tests/functional/ca/build-delete.sh gap fail pass # : error: Cannot build '$ROOT/tmp/nix-test/ca/build-delete/store/HASH-use-a.drv'.
 tests/functional/ca/build-dry.sh support # test script not registered in ca/meson.build; upstream does not run it
-tests/functional/ca/build-with-garbage-path.sh gap fail pass # main in build-with-garbage-path.sh:10: error: derivation '$ROOT/tmp/nix-test/ca/build-with-garbage-path/store/HASH-rootCA.drv' does not have an output named 'out'
-tests/functional/ca/build.sh gap fail pass # main in build.sh:6: error: derivation '$ROOT/tmp/nix-test/ca/build/store/HASH-rootCA.drv' has floating content-addressed, impure or dynamic outputs, which this operation does not support yet (output d
+tests/functional/ca/build-with-garbage-path.sh pass pass pass
+tests/functional/ca/build.sh gap fail pass # : error: Cannot build '$ROOT/tmp/nix-test/ca/build/store/HASH-rootCA.drv'.
 tests/functional/ca/common.sh support
 tests/functional/ca/concurrent-builds.sh pass pass pass
 tests/functional/ca/config.nix support
 tests/functional/ca/content-addressed.nix support
 tests/functional/ca/derivation-advanced-attributes.sh pass pass pass
-tests/functional/ca/derivation-json.sh gap fail pass # main in derivation-json.sh:9: error: derivation '$ROOT/tmp/nix-test/ca/derivation-json/store/HASH-simple.drv' has floating content-addressed, impure or dynamic outputs, which this operation does not s
-tests/functional/ca/duplicate-realisation-in-closure.sh anomaly fail skip # reference skip: temporarily broken because dependent realisations are removed, skipping this test...
+tests/functional/ca/derivation-json.sh pass pass pass
+tests/functional/ca/duplicate-realisation-in-closure.sh anomaly skip skip # reference skip: temporarily broken because dependent realisations are removed, skipping this test...
 tests/functional/ca/eval-store.sh gap fail pass # source in eval-store.sh:14: error: nix build --eval-store is not supported by noxi yet
 tests/functional/ca/flake.nix support
 tests/functional/ca/gc.sh pass pass pass
-tests/functional/ca/import-from-derivation.sh gap fail pass # source in import-from-derivation.sh:14: error: derivation '$ROOT/tmp/nix-test/ca/import-from-derivation/store/HASH-foo.drv' does not have an output named 'out'
+tests/functional/ca/import-from-derivation.sh pass pass pass
 tests/functional/ca/issue-13247.nix support
-tests/functional/ca/issue-13247.sh gap fail pass # main in issue-13247.sh:12: error: nix build --json for new builds (the build API does not return BuildResult metadata) is not supported by noxi yet
+tests/functional/ca/issue-13247.sh gap fail pass # main in issue-13247.sh:49: copying path '$ROOT/tmp/nix-test/ca/issue-13247/store/HASH-use-a-more-outputs-second' from 'file://$ROOT/tmp/nix-test/ca/issue-13247/cache'...
 tests/functional/ca/meson.build support
-tests/functional/ca/multiple-outputs.sh gap fail pass # source in ./multiple-outputs.sh:34: error: derivation '$ROOT/tmp/nix-test/ca/multiple-outputs/store/HASH-multiple-outputs-d.drv' does not have an output named 'out'
-tests/functional/ca/new-build-cmd.sh gap fail pass # source in ./build.sh:6: error: nix build --json for new builds (the build API does not return BuildResult metadata) is not supported by noxi yet
+tests/functional/ca/multiple-outputs.sh gap fail pass # source in ./multiple-outputs.sh:62: error: nix-build with store derivation arguments is not supported by noxi yet
+tests/functional/ca/new-build-cmd.sh gap fail pass # source in ./build.sh:148: error: nix --relaxed-sandbox is not supported by noxi yet
 tests/functional/ca/nix-copy.sh gap fail pass # : error: don't know how to open Nix store with scheme 'file://$ROOT/tmp/nix-test/ca/nix-copy/binary-cache'
-tests/functional/ca/nix-run.sh gap fail pass # main in nix-run.sh:11: error: unable to execute '/1srqr8im5i4036hy0bj59d3v296c02wf2n9nk22f946fgf0is2h0/bin/runnable-thing': No such file or directory (os error 2)
-tests/functional/ca/nix-shell.sh gap fail pass # source in ./nix-shell.sh:19: error: derivation '$ROOT/tmp/nix-test/ca/nix-shell/store/HASH-shellDrv.drv' has floating content-addressed, impure or dynamic outputs, which this operation does not suppor
+tests/functional/ca/nix-run.sh pass pass pass
+tests/functional/ca/nix-shell.sh gap fail pass # source in ./nix-shell.sh:48: error: path '$ROOT/tmp/nix-test/ca/nix-shell/store/HASH-shellDrv.drv!dev' does not exist
 tests/functional/ca/nondeterministic.nix support
-tests/functional/ca/post-hook.sh gap fail pass # source in ./post-hook.sh:19: error: derivation '$ROOT/tmp/nix-test/ca/post-hook/store/HASH-dependencies-top.drv' does not have an output named 'out'
+tests/functional/ca/post-hook.sh gap fail pass # source in ./post-hook.sh:34: error: nix-build --check is not supported by noxi yet
 tests/functional/ca/racy.nix support
 tests/functional/ca/recursive.sh gap fail pass # source in ./recursive.sh:13: error: Cannot build '$ROOT/tmp/nix-test/ca/recursive/store/HASH-recursive.drv'.
 tests/functional/ca/repl.sh gap fail pass # : error: the noxi repl does not support ':log' yet
-tests/functional/ca/selfref-gc.sh gap fail pass # source in ./selfref-gc.sh:8: error: derivation '$ROOT/tmp/nix-test/ca/selfref-gc/store/HASH-selfref-gc.drv' does not have an output named 'out'
+tests/functional/ca/selfref-gc.sh pass pass pass
 tests/functional/ca/signatures.sh gap fail pass # : error: don't know how to open Nix store with scheme 'file://$ROOT/tmp/nix-test/ca/signatures/binary-cache'
-tests/functional/ca/substitute.sh gap fail pass # : error: path "/nix/store/HASH-simple-input-addressed" is not in the Nix store
-tests/functional/ca/why-depends.sh gap fail pass # source in why-depends.sh:10: error: output 'out' of derivation '$ROOT/tmp/nix-test/ca/why-depends/store/HASH-dependencies-input-2.drv' has not been built
+tests/functional/ca/substitute.sh gap fail pass # main in substitute.sh:27: error: nix store build-trace info --file is not supported by noxi yet
+tests/functional/ca/why-depends.sh pass pass pass
 tests/functional/cancelled-builds/flake.nix support
 tests/functional/case-collision.nar support
 tests/functional/case.nar support
@@ -77,7 +77,7 @@ tests/functional/check-reqs.nix support
 tests/functional/check-reqs.sh pass pass pass
 tests/functional/check.nix support
 tests/functional/check.sh gap fail pass # main in check.sh:21: error: nix-build --check is not supported by noxi yet
-tests/functional/chroot-store.sh gap fail pass # main in chroot-store.sh:22: error: path '$ROOT/tmp/nix-test/main/chroot-store/store/HASH-directory' does not exist
+tests/functional/chroot-store.sh gap fail pass # main in chroot-store.sh:48: error: don't know how to open Nix store with scheme 'local://$ROOT/tmp/nix-test/main/chroot-store/x+chroot'
 tests/functional/cli-characterisation.sh gap fail pass # : error:
 tests/functional/cli-characterisation/assert-fail.nix support
 tests/functional/cli-characterisation/bad-drvpath.nix support
@@ -228,10 +228,10 @@ tests/functional/derivation/ia/advanced-attributes.drv support
 tests/functional/dummy support
 tests/functional/dump-db.sh pass pass pass
 tests/functional/duplicate.nar support
-tests/functional/dyn-drv/build-built-drv.sh gap fail pass # main in build-built-drv.sh:24: error: derivation '$ROOT/tmp/nix-test/dyn-drv/build-built-drv/store/HASH-hello.drv.drv' does not have wanted outputs 'out^out'
+tests/functional/dyn-drv/build-built-drv.sh gap fail pass # main in build-built-drv.sh:24: error: invalid extended outputs specifier '$ROOT/tmp/nix-test/dyn-drv/build-built-drv/store/HASH-hello.drv.drv^out^out'
 tests/functional/dyn-drv/common.sh support
 tests/functional/dyn-drv/config.nix support
-tests/functional/dyn-drv/dep-built-drv-2.sh gap fail pass # main in dep-built-drv-2.sh:16: error: expression does not evaluate to a derivation (or a set or list of those)
+tests/functional/dyn-drv/dep-built-drv-2.sh gap fail pass # main in dep-built-drv-2.sh:16: error: invalid store path 'out!$ROOT/tmp/nix-test/dyn-drv/dep-built-drv-2/store/HASH-make-derivations.drv.drv'
 tests/functional/dyn-drv/dep-built-drv.sh gap fail pass # main in dep-built-drv.sh:12: error: I/O error: Tried to parse an absolute path which was missing the store dir prefix.
 tests/functional/dyn-drv/eval-outputOf.sh pass pass pass
 tests/functional/dyn-drv/failing-outer.sh gap fail pass # main in failing-outer.sh:12: Expected exit code '100' but got '1' from command 'nix-build' './text-hashed-output.nix' '-A' 'failingWrapper' '--no-out-link'
@@ -242,7 +242,7 @@ tests/functional/dyn-drv/old-daemon-error-hack.sh anomaly skip skip # reference 
 tests/functional/dyn-drv/recursive-mod-json.nix support
 tests/functional/dyn-drv/recursive-mod-json.sh gap fail pass # main in recursive-mod-json.sh:19: error: building impure, text or Git-addressed outputs is not supported
 tests/functional/dyn-drv/text-hashed-output.nix support
-tests/functional/dyn-drv/text-hashed-output.sh gap fail pass # main in text-hashed-output.sh:19: error: derivation '$ROOT/tmp/nix-test/dyn-drv/text-hashed-output/store/HASH-hello.drv.drv' has floating content-addressed, impure or dynamic outputs, which this opera
+tests/functional/dyn-drv/text-hashed-output.sh gap fail pass # main in text-hashed-output.sh:21: error: building impure, text or Git-addressed outputs is not supported
 tests/functional/eval-store.sh gap fail pass # main in eval-store.sh:14: error: nix build --eval-store is not supported by noxi yet
 tests/functional/eval.nix support
 tests/functional/eval.sh pass pass pass
@@ -254,7 +254,7 @@ tests/functional/external-builders.sh gap fail pass # main in external-builders.
 tests/functional/extra-sandbox-profile.nix support
 tests/functional/extra-sandbox-profile.sh anomaly skip skip # reference skip: Need Darwin, skipping this test...
 tests/functional/failing.nix support
-tests/functional/fetchClosure.sh gap fail pass # main in fetchClosure.sh:16: error: nix build --json for new builds (the build API does not return BuildResult metadata) is not supported by noxi yet
+tests/functional/fetchClosure.sh gap fail pass # main in fetchClosure.sh:32: error: attribute 'fetchClosure' missing
 tests/functional/fetchGit.sh gap fail pass # main in fetchGit.sh:34: false
 tests/functional/fetchGitRefs.sh pass pass pass
 tests/functional/fetchGitShallow.sh gap fail pass # main in fetchGitShallow.sh:33: error: '$ROOT/tmp/nix-test/main/fetchGitShallow/shallow-clone' is a shallow Git repository, so 'revCount' is not available
@@ -274,11 +274,11 @@ tests/functional/fixed.nix support
 tests/functional/fixed.sh gap fail pass # main in fixed.sh:37: error: invalid digest length for algo md5
 tests/functional/flakes/absolute-attr-paths.sh pass pass pass
 tests/functional/flakes/absolute-paths.sh pass pass pass
-tests/functional/flakes/build-paths.sh gap fail pass # main in build-paths.sh:86: error: expression does not evaluate to a derivation (or a set or list of those)
+tests/functional/flakes/build-paths.sh pass pass pass
 tests/functional/flakes/bundle.sh pass pass pass
 tests/functional/flakes/check.sh gap fail pass # main in check.sh:41: error: overlay does not take an argument named 'final'
 tests/functional/flakes/circular.sh pass pass pass
-tests/functional/flakes/commit-lock-file-summary.sh gap fail pass # main in commit-lock-file-summary.sh:34: 'git+file://$ROOT/tmp/nix-test/flakes/commit-lock-file-summary/flake1?ref=refs/heads/master&rev=abddee3a3e5dce765acc252f748b16f7a7a0616d' (2026-11-24)
+tests/functional/flakes/commit-lock-file-summary.sh gap fail pass # main in commit-lock-file-summary.sh:34: 'git+file://$ROOT/tmp/nix-test/flakes/commit-lock-file-summary/flake1?ref=refs/heads/master&rev=13f5e30f597f47dbc10d6707892b92dd4af9d311' (2026-11-24)
 tests/functional/flakes/common.sh support
 tests/functional/flakes/config.sh gap fail pass # : test failed: The post hook should have ran
 tests/functional/flakes/debugger.sh pass pass pass
@@ -315,7 +315,7 @@ tests/functional/formatter.sh gap fail pass # main in formatter.sh:11: error: ni
 tests/functional/formatter.simple.sh support
 tests/functional/function-trace.sh gap fail pass # main in function-trace.sh:34: <
 tests/functional/gc-auto.sh gap fail pass # main in gc-auto.sh:83: error: Cannot build '$ROOT/tmp/nix-test/main/gc-auto/store/HASH-gc-A.drv'.
-tests/functional/gc-closure.sh gap fail pass # : error: Cannot delete path '$ROOT/tmp/nix-test/main/gc-closure/store/HASH-dependencies-input-2' since it is still alive. To find out why, use: nix-store --query --roots and nix-store --query --referr
+tests/functional/gc-closure.sh gap fail pass # : error: nix store delete --skip-alive is not supported by noxi yet
 tests/functional/gc-concurrent.builder.sh support
 tests/functional/gc-concurrent.nix support
 tests/functional/gc-concurrent.sh gap fail pass # main in gc-concurrent.sh:40: error: path '$ROOT/tmp/nix-test/main/gc-concurrent/store/HASH-gc-concurrent.drv' is not valid
@@ -340,9 +340,9 @@ tests/functional/help.sh anomaly fail skip # reference skip: we don't know wheth
 tests/functional/hermetic.nix support
 tests/functional/ifd.nix support
 tests/functional/import-from-derivation.nix support
-tests/functional/import-from-derivation.sh gap fail pass # main in import-from-derivation.sh:19: error: expression does not evaluate to a derivation (or a set or list of those)
+tests/functional/import-from-derivation.sh gap fail pass # main in import-from-derivation.sh:34: error: --readonly-mode is not supported by noxi yet
 tests/functional/impure-derivations.nix support
-tests/functional/impure-derivations.sh gap fail pass # main in impure-derivations.sh:17: error: derivation '$ROOT/tmp/nix-test/main/impure-derivations/store/HASH-impure.drv' has floating content-addressed, impure or dynamic outputs, which this operation d
+tests/functional/impure-derivations.sh gap fail pass # main in impure-derivations.sh:24: error: output 'out' of derivation '$ROOT/tmp/nix-test/main/impure-derivations/store/HASH-impure.drv' has not been built
 tests/functional/impure-env.nix support
 tests/functional/impure-env.sh gap fail pass # : error: hash mismatch in fixed-output derivation '$ROOT/tmp/nix-test/main/impure-env/store/HASH-test.drv':
 tests/functional/impure-eval.sh pass pass pass
@@ -355,29 +355,29 @@ tests/functional/legacy-ssh-store.sh gap fail pass # main in legacy-ssh-store.sh
 tests/functional/linux-sandbox-cert-test.nix support
 tests/functional/linux-sandbox.sh gap fail pass # : error: nix-build --check is not supported by noxi yet
 tests/functional/local-overlay-store/add-lower-inner.sh support
-tests/functional/local-overlay-store/add-lower.sh gap fail pass # : error: path '/nix/store/HASH-busybox-static-x86_64-unknown-linux-musl-1.37.0/bin/busybox' does not exist
+tests/functional/local-overlay-store/add-lower.sh gap fail pass # main in ./add-lower-inner.sh:20: error: unsupported store parameter 'lower-store=$ROOT/tmp/nix-test/local-overlay-store/add-lower/stores/store-a' in 'local-overlay://?root=$ROOT/tmp/nix-test/local-ove
 tests/functional/local-overlay-store/bad-uris.sh gap fail pass # : local-overlay://?root=$ROOT/tmp/nix-test/local-overlay-store/bad-uris/bad_test&lower-store=$ROOT/tmp/nix-test/local-overlay-store/bad-uris/stores/store-a&upper-layer=$ROOT/tmp/nix-test/local-overlay
 tests/functional/local-overlay-store/build-inner.sh support
-tests/functional/local-overlay-store/build.sh gap fail pass # : error: path '/nix/store/HASH-busybox-static-x86_64-unknown-linux-musl-1.37.0/bin/busybox' does not exist
+tests/functional/local-overlay-store/build.sh gap fail pass # main in ./build-inner.sh:21: error: unsupported store parameter 'lower-store=$ROOT/tmp/nix-test/local-overlay-store/build/stores/store-a' in 'local-overlay://?root=$ROOT/tmp/nix-test/local-overlay-sto
 tests/functional/local-overlay-store/check-post-init-inner.sh support
-tests/functional/local-overlay-store/check-post-init.sh gap fail pass # : error: path '/nix/store/HASH-busybox-static-x86_64-unknown-linux-musl-1.37.0/bin/busybox' does not exist
+tests/functional/local-overlay-store/check-post-init.sh gap fail pass # main in ./check-post-init-inner.sh:34: error: unsupported store parameter 'lower-store=$ROOT/tmp/nix-test/local-overlay-store/check-post-init/stores/store-a' in 'local-overlay://?root=$ROOT/tmp/nix-te
 tests/functional/local-overlay-store/common.sh support
 tests/functional/local-overlay-store/delete-duplicate-inner.sh support
-tests/functional/local-overlay-store/delete-duplicate.sh gap fail pass # : error: path '/nix/store/HASH-busybox-static-x86_64-unknown-linux-musl-1.37.0/bin/busybox' does not exist
+tests/functional/local-overlay-store/delete-duplicate.sh gap fail pass # main in ./delete-duplicate-inner.sh:20: error: unsupported store parameter 'lower-store=$ROOT/tmp/nix-test/local-overlay-store/delete-duplicate/stores/store-a' in 'local-overlay://?root=$ROOT/tmp/nix-
 tests/functional/local-overlay-store/delete-refs-inner.sh support
-tests/functional/local-overlay-store/delete-refs.sh gap fail pass # : error: path '/nix/store/HASH-busybox-static-x86_64-unknown-linux-musl-1.37.0/bin/busybox' does not exist
+tests/functional/local-overlay-store/delete-refs.sh gap fail pass # main in ./delete-refs-inner.sh:20: error: unsupported store parameter 'lower-store=$ROOT/tmp/nix-test/local-overlay-store/delete-refs/stores/store-a' in 'local-overlay://?root=$ROOT/tmp/nix-test/local
 tests/functional/local-overlay-store/gc-inner.sh support
-tests/functional/local-overlay-store/gc.sh gap fail pass # : error: path '/nix/store/HASH-busybox-static-x86_64-unknown-linux-musl-1.37.0/bin/busybox' does not exist
+tests/functional/local-overlay-store/gc.sh gap fail pass # main in ./gc-inner.sh:19: error: unsupported store parameter 'lower-store=$ROOT/tmp/nix-test/local-overlay-store/gc/stores/store-a' in 'local-overlay://?root=$ROOT/tmp/nix-test/local-overlay-store/gc/
 tests/functional/local-overlay-store/meson.build support
 tests/functional/local-overlay-store/optimise-inner.sh support
-tests/functional/local-overlay-store/optimise.sh gap fail pass # : error: path '/nix/store/HASH-busybox-static-x86_64-unknown-linux-musl-1.37.0/bin/busybox' does not exist
+tests/functional/local-overlay-store/optimise.sh gap fail pass # main in ./optimise-inner.sh:24: error: unsupported store parameter 'lower-store=$ROOT/tmp/nix-test/local-overlay-store/optimise/stores/store-a' in 'local-overlay://?root=$ROOT/tmp/nix-test/local-overl
 tests/functional/local-overlay-store/redundant-add-inner.sh support
-tests/functional/local-overlay-store/redundant-add.sh gap fail pass # : error: path '/nix/store/HASH-busybox-static-x86_64-unknown-linux-musl-1.37.0/bin/busybox' does not exist
+tests/functional/local-overlay-store/redundant-add.sh gap fail pass # main in ./redundant-add-inner.sh:27: error: unsupported store parameter 'lower-store=$ROOT/tmp/nix-test/local-overlay-store/redundant-add/stores/store-a' in 'local-overlay://?root=$ROOT/tmp/nix-test/l
 tests/functional/local-overlay-store/remount.sh support
 tests/functional/local-overlay-store/stale-file-handle-inner.sh support
-tests/functional/local-overlay-store/stale-file-handle.sh anomaly fail skip # reference skip: Couldn't trigger the error, skipping this test...
+tests/functional/local-overlay-store/stale-file-handle.sh anomaly skip skip # reference skip: Couldn't trigger the error, skipping this test...
 tests/functional/local-overlay-store/verify-inner.sh support
-tests/functional/local-overlay-store/verify.sh gap fail pass # : error: path '/nix/store/HASH-busybox-static-x86_64-unknown-linux-musl-1.37.0/bin/busybox' does not exist
+tests/functional/local-overlay-store/verify.sh gap fail pass # main in ./verify-inner.sh:23: error: unsupported store parameter 'lower-store=$ROOT/tmp/nix-test/local-overlay-store/verify/stores/store-a' in 'local-overlay://?root=$ROOT/tmp/nix-test/local-overlay-s
 tests/functional/logging.sh gap fail pass # main in logging.sh:32: error: build log of derivation '$ROOT/tmp/nix-test/main/logging/store/HASH-dependencies-top' is not available
 tests/functional/logging/unusual-logging.nix support
 tests/functional/make-content-addressed.nix support
@@ -385,7 +385,7 @@ tests/functional/make-content-addressed.sh pass pass pass
 tests/functional/meson.build support
 tests/functional/meson.options support
 tests/functional/misc.sh pass pass pass
-tests/functional/multiple-outputs-substitute-failure.sh gap fail pass # main in multiple-outputs-substitute-failure.sh:13: error: attribute 'independent^*' in selection path 'independent^*' not found
+tests/functional/multiple-outputs-substitute-failure.sh gap fail pass # main in multiple-outputs-substitute-failure.sh:28: clearing store...
 tests/functional/multiple-outputs.nix support
 tests/functional/multiple-outputs.sh gap fail pass # main in multiple-outputs.sh:62: error: nix-build with store derivation arguments is not supported by noxi yet
 tests/functional/nar-access.nix support
@@ -529,7 +529,7 @@ tests/functional/secure-drv-outputs.sh pass pass pass
 tests/functional/selfref-gc.sh pass pass pass
 tests/functional/shell-hello.nix support
 tests/functional/shell.nix support
-tests/functional/shell.sh gap fail pass # main in shell.sh:14: error: attribute 'hello^dev' in selection path 'hello^dev' not found
+tests/functional/shell.sh pass pass pass
 tests/functional/shell.shebang.expr support
 tests/functional/shell.shebang.legacy.expr support
 tests/functional/shell.shebang.nix support
@@ -549,7 +549,7 @@ tests/functional/structured-attrs.nix support
 tests/functional/structured-attrs.sh anomaly fail fail # reference fail: main in structured-attrs.sh:27: error (ignored): cannot find flake 'flake:nixpkgs' in the flake registries
 tests/functional/substitute-with-invalid-ca.sh pass pass pass
 tests/functional/suggestions.sh gap fail pass # : test failed: The nix build stderr should suggest the three closest possibilities
-tests/functional/supplementary-groups.sh gap fail pass # : supplementary-groups.sh: line 13: require-drop-supplementary-groups: command not found
+tests/functional/supplementary-groups.sh gap fail pass # : Expected exit code '1' but got '0' from command 'nix-build' './hermetic.nix' '--arg' 'busybox' '/nix/store/HASH-busybox-static-x86_64-unknown-linux-musl-1.37.0/bin/busybox' '--arg' 'seed' '1' '--no-
 tests/functional/symlink-derivation.nix support
 tests/functional/symlinks.sh pass pass pass
 tests/functional/tarball.sh gap fail pass # : error: path 'file:$ROOT/tmp/nix-test/main/tarball/tarball.tar' does not exist

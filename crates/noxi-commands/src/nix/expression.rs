@@ -1,5 +1,5 @@
 //! Expression installables share the legacy evaluator and store owner.
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::BTreeMap;
 use std::io::{self, Write};
 use std::path::Path;
 use std::process::ExitCode;
@@ -105,6 +105,7 @@ pub fn options(parsed: &Parsed, eval: bool) -> Result<Options, Failure> {
 	}
 	options.from_args = true;
 	for selection in selections {
+		let selection = instantiate::extended_outputs_spec(&selection)?.0.to_owned();
 		let (root, selection) = if options.flake.is_some() {
 			let (reference, attr) = selection.split_once('#').unwrap_or((
 				if selection.is_empty() {
@@ -224,22 +225,21 @@ pub fn targets(parsed: &Parsed) -> Result<Result<Targets, ExitCode>, Failure> {
 				|| (!s.starts_with(nix_compat::store_path::store_dir_with_slash())
 					&& !std::path::Path::new(s).is_symlink())
 		}) {
-		let options = options(parsed, false)?;
+		let specs = parsed
+			.operands
+			.iter()
+			.map(|operand| Ok(instantiate::extended_outputs_spec(operand)?.1))
+			.collect::<Result<Vec<_>, String>>()?;
+		let mut options = options(parsed, false)?;
+		options.installables = true;
 		let evaluated = match instantiate::evaluate(&options, &std::env::current_dir()?) {
 			Ok(value) => value,
 			Err(code) => return Ok(Err(code)),
 		};
-		let derivations = instantiate::derivations(&evaluated.results)?;
+		let paths = instantiate::installables(&evaluated.results, &specs)?;
 		let store = evaluated
 			.store
 			.ok_or_else(|| unsupported("building with this store"))?;
-		let paths = derivations
-			.into_iter()
-			.map(|(drv, output)| DerivedPath::Built {
-				drv,
-				outputs: BTreeSet::from([output]),
-			})
-			.collect();
 		return Ok(Ok(Targets { store, paths }));
 	}
 	let uri = crate::store::store_uri(parsed.value("store"), &parsed.settings);
@@ -253,19 +253,10 @@ pub fn targets(parsed: &Parsed) -> Result<Result<Targets, ExitCode>, Failure> {
 		)));
 	}
 	for operand in &parsed.operands {
-		let (path, spec) = operand
-			.split_once('^')
-			.map_or((operand.as_str(), None), |(p, s)| (p, Some(s)));
+		let (path, spec) = instantiate::extended_outputs_spec(operand)?;
 		let path = crate::paths::follow_links_to_store_path(&std::env::current_dir()?, path)?;
-		paths.push(if let Some(spec) = spec {
-			DerivedPath::Built {
-				drv: path,
-				outputs: if spec == "*" {
-					BTreeSet::new()
-				} else {
-					spec.split(',').map(str::to_owned).collect()
-				},
-			}
+		paths.push(if let Some(outputs) = spec {
+			DerivedPath::Built { drv: path, outputs }
 		} else {
 			DerivedPath::Opaque(path)
 		});
@@ -284,7 +275,7 @@ pub fn outputs(
 		DerivedPath::Opaque(path) => BTreeMap::from([(String::new(), path.clone())]),
 		DerivedPath::Built { drv, outputs } => {
 			// Content-addressed outputs are known by their realisations.
-			let mut all = store.query_partial_derivation_output_map(drv)?;
+			let mut all = store.deep_query_partial_derivation_output_map(drv)?;
 			if !outputs.is_empty() {
 				for name in outputs {
 					if !all.contains_key(name) {
@@ -312,19 +303,11 @@ pub fn outputs(
 
 pub fn build(parsed: Parsed) -> Result<ExitCode, Failure> {
 	parsed.unsupported(&["rebuild", "repair", "profile"])?;
-	// The shared build API exposes no BuildResult timing/resource fields.
-	// Existing outputs and dry runs have complete JSON; fresh-build --json
-	// must fail before building outputs rather than omit those fields.
 	let target = match targets(&parsed)? {
 		Ok(target) => target,
 		Err(code) => return Ok(code),
 	};
 	let missing = target.store.query_missing(&target.paths)?;
-	if parsed.has("json") && !parsed.has("dry-run") && !missing.will_build.is_empty() {
-		return Err(unsupported(
-			"build --json for new builds (the build API does not return BuildResult metadata)",
-		));
-	}
 	crate::paths::print_missing(target.store.as_ref(), &missing)?;
 	if !parsed.has("dry-run") {
 		target.store.build_paths(&target.paths)?;

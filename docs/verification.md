@@ -421,6 +421,14 @@ The table groups the 137 gap scripts of `tests/compat-results/2026-11-25-84aec12
 | Separate causes: options, output and diagnostics of single commands | 23 | Varies by script | 12 | 1,024 |
 | Total | 137 | | | |
 
+Three of these causes were closed on 2026-11-25. The same run, of all 214 scripts under both engines, gives 73 pass, 129 gap, 10 anomaly and 2 unrun, and no script that passed before fails. `reference_installables` compares each closed behavior with the reference.
+
+- Host store objects in a chroot store: none of the 17 scripts still fails there and none passes yet. The 9 overlay scripts stop at `local-overlay://` and the 8 remote build scripts at remote builders, which noxi does not run.
+- Content-addressed outputs: `ca/build-with-garbage-path`, `ca/derivation-json`, `ca/import-from-derivation`, `ca/nix-run`, `ca/selfref-gc` and `ca/why-depends` pass. `ca/nix-shell` and `ca/multiple-outputs` stop at store derivation arguments, `ca/post-hook` at `--check`, `ca/build-cache` at `nix copy --all`, and `ca/build` at a build without jobs after a garbage collection (`testGC`). Building text, impure and dynamic outputs remains open.
+- Installables: `shell` passes, and `flakes/build-paths` from the path and string row passes with it. `build` and `ca/new-build-cmd` reach line 148 of the 289 of `build.sh` (`--relaxed-sandbox`), both `build-delete` scripts stop at rebuilding a derivation some of whose outputs are still valid, `fetchClosure` at the missing builtin, and `ca/issue-13247` and `multiple-outputs-substitute-failure` at substitution. `nix build --json` for new builds was refused because `BuildResult` metadata was thought to be missing; the reference prints none, directly or through its daemon.
+
+The store directory constant in `.narinfo` files is fixed: `ca/substitute` now stops at `nix store build-trace info --file`. `ca/duplicate-realisation-in-closure` and `local-overlay-store/stale-file-handle` are skipped by upstream itself under both engines now, so they stay anomalies.
+
 The scripts of each row:
 
 1. `build-remote-content-addressed-fixed`, `build-remote-content-addressed-floating`, `build-remote-input-addressed`, `build-remote-trustless-should-fail-0`, `build-remote-trustless-should-pass-0`, `build-remote-trustless-should-pass-1`, `build-remote-trustless-should-pass-2`, `build-remote-trustless-should-pass-3`, `local-overlay-store/add-lower`, `local-overlay-store/build`, `local-overlay-store/check-post-init`, `local-overlay-store/delete-duplicate`, `local-overlay-store/delete-refs`, `local-overlay-store/gc`, `local-overlay-store/optimise`, `local-overlay-store/redundant-add`, `local-overlay-store/verify`.
