@@ -13,7 +13,7 @@ use nix_compat::nixbase32;
 use nix_compat::nixhash::{HashAlgo, NixHash};
 use nix_compat::store_path::StorePath;
 use noxi_build::backend::BuildLogs;
-use noxi_build::local::{BuildEvent, LocalBuilder};
+use noxi_build::local::{BuildEvent, BuildMode, LocalBuilder};
 use noxi_build::missing::{DerivedPath, query_missing};
 use noxi_store::FileIngestionMethod;
 use noxi_store::gc::{GcAction, GcOptions};
@@ -1044,12 +1044,26 @@ impl<R: Read + Send, W: Write + Send + 'static> Connection<'_, R, W> {
 				if repair && self.trust != Trust::Trusted {
 					return Err(Error::Nix("you are not privileged to repair paths".into()));
 				}
-				if repair {
-					return Err(Error::Nix(
-						"noxi does not support repairing paths yet".into(),
-					));
-				}
-				let errors = self.with_log(|store, log| store.verify_store(check_contents, log))?;
+				let errors = if repair {
+					let settings = self.settings.clone();
+					let cancelled = self.cancelled.clone();
+					let caches = settings.open_substituters();
+					self.with_log(|store, log| {
+						noxi_build::backend::Worker {
+							store,
+							settings: &settings.build,
+							substituters: if settings.build.use_substitutes {
+								&caches
+							} else {
+								&[]
+							},
+							cancelled: Some(&cancelled),
+						}
+						.verify_store(check_contents, true, log)
+					})?
+				} else {
+					self.with_log(|store, log| store.verify_store(check_contents, None, log))?
+				};
 				self.stop();
 				self.to.bool(errors);
 			}
@@ -1345,11 +1359,6 @@ impl<R: Read + Send, W: Write + Send + 'static> Connection<'_, R, W> {
 				"you are not privileged to build input-addressed derivations".into(),
 			));
 		}
-		if mode > 1 {
-			return Err(Error::Nix(
-				"noxi does not support checking builds yet".into(),
-			));
-		}
 		let store = self.store;
 		if self.trust != Trust::Trusted {
 			path = store.add_text_to_store(
@@ -1362,7 +1371,7 @@ impl<R: Read + Send, W: Write + Send + 'static> Connection<'_, R, W> {
 		let cancelled = self.cancelled.clone();
 		let builder = LocalBuilder::new(store, &self.settings.build)
 			.with_cancellation(&cancelled)
-			.with_repair(mode == 1);
+			.with_mode(build_mode(mode));
 		let start = now();
 		// The worker runs one goal for the derivation; its progress and the
 		// build's activity go to the client through the tunnel.
@@ -1372,7 +1381,7 @@ impl<R: Read + Send, W: Write + Send + 'static> Connection<'_, R, W> {
 		logger::worker_update(|_| {});
 		logger::worker_update(|c| c.expected_builds += 1);
 		let mut built = false;
-		let mut logs = BuildLogs::default().repairing(mode == 1);
+		let mut logs = BuildLogs::default();
 		let mut events = |event: BuildEvent<'_>| build_event(&mut logs, &mut built, event);
 		let result = builder.build_derivation(&path, &drv, &mut events);
 		if result.is_ok() && !built {
@@ -1401,11 +1410,6 @@ impl<R: Read + Send, W: Write + Send + 'static> Connection<'_, R, W> {
 		if mode == 1 && self.trust != Trust::Trusted {
 			return Err(Error::Nix(
 				"repairing is not allowed because you are not in 'trusted-users'".into(),
-			));
-		}
-		if mode > 1 {
-			return Err(Error::Nix(
-				"noxi does not support repairing or checking builds yet".into(),
 			));
 		}
 		self.start()?;
@@ -1456,7 +1460,7 @@ impl<R: Read + Send, W: Write + Send + 'static> Connection<'_, R, W> {
 		let builder = LocalBuilder::new(store, &settings.build)
 			.with_substituters(caches)
 			.with_cancellation(&cancelled)
-			.with_repair(mode == 1);
+			.with_mode(build_mode(mode));
 		// CppNix's `Worker` for the requested goals: its `realise`, `builds`
 		// and `copy-paths` activities run until the results are known, and
 		// creating the goals reports the builds expected.
@@ -1485,7 +1489,7 @@ impl<R: Read + Send, W: Write + Send + 'static> Connection<'_, R, W> {
 			.will_build;
 			noxi_build::backend::announce_goals(store, &derivations, &will_build)?;
 		}
-		let mut logs = BuildLogs::default().repairing(mode == 1);
+		let mut logs = BuildLogs::default();
 		let mut results = Vec::new();
 		let mut first_error = None;
 		for (text, target) in &targets {
@@ -2006,35 +2010,23 @@ fn parse_method_algo(
 	(Some(dump), Some(hash), algo.parse().ok())
 }
 
-/// A builder event of a daemon build: the build's activity and output go
-/// through [`BuildLogs`] as for a local build, and a repair's path checks
-/// are logged as CppNix's `LocalStore::verifyPath` logs them. `built`
-/// records that a build started.
-fn build_event(logs: &mut BuildLogs, built: &mut bool, event: BuildEvent<'_>) {
-	match event {
-		BuildEvent::PathChecked { path, valid } => {
-			logger::log(
-				VerbosityLevel::Info,
-				&format!("checking path '{}'...", path.to_absolute_path()),
-			);
-			if !valid {
-				// `Worker::pathContentsGood` reports it with `printError`.
-				logger::log(
-					VerbosityLevel::Error,
-					&format!(
-						"path '{}' is corrupted or missing!",
-						path.to_absolute_path()
-					),
-				);
-			}
-		}
-		event => {
-			if matches!(event, BuildEvent::Started { .. }) {
-				*built = true;
-			}
-			logs.event(None, event);
-		}
+/// The build mode the protocol's number names; `read_build_mode` rejects
+/// others.
+fn build_mode(mode: u64) -> BuildMode {
+	match mode {
+		1 => BuildMode::Repair,
+		2 => BuildMode::Check,
+		_ => BuildMode::Normal,
 	}
+}
+
+/// A builder event of a daemon build: the build's activity and output go
+/// through [`BuildLogs`] as for a local build. `built` records that a build started.
+fn build_event(logs: &mut BuildLogs, built: &mut bool, event: BuildEvent<'_>) {
+	if matches!(event, BuildEvent::Started { .. }) {
+		*built = true;
+	}
+	logs.event(None, event);
 }
 
 /// Whether realising `targets` needs the substituters. CppNix's

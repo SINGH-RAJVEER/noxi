@@ -1204,7 +1204,7 @@ fn parallel_builds_bound_jobs_share_dependencies_and_preserve_logs() {
 				BuildEvent::PathChecked { .. } => {
 					panic!("ordinary builds must not report repair checks")
 				}
-				BuildEvent::Started { drv_path } => {
+				BuildEvent::Started { drv_path, .. } => {
 					assert_eq!(identity, drv_path);
 					assert!(active.insert(identity.clone()));
 					*starts.entry(identity.clone()).or_insert(0) += 1;

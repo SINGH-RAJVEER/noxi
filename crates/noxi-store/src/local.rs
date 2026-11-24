@@ -28,6 +28,10 @@ use crate::lock::{LockType, PathLocks, lock_file, open_lock_file};
 use crate::nar::{self, HashingReader};
 use crate::path_info::ValidPathInfo;
 
+/// Restores a path [`LocalStore::verify_store`] found damaged or missing,
+/// `Store::repairPath`.
+pub type RepairPath<'a> = dyn FnMut(&StorePath) -> Result<()> + 'a;
+
 /// How file system data is serialised or hashed.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum FileIngestionMethod {
@@ -1170,6 +1174,7 @@ impl LocalStore {
 	pub fn verify_store(
 		&self,
 		check_contents: bool,
+		mut repair: Option<&mut RepairPath<'_>>,
 		log: &mut dyn FnMut(VerbosityLevel, &str),
 	) -> Result<bool> {
 		log(VerbosityLevel::Info, "reading the Nix store...");
@@ -1195,7 +1200,15 @@ impl LocalStore {
 		let mut done = BTreeSet::new();
 		let mut valid = BTreeSet::new();
 		for path in self.query_all_valid_paths()? {
-			self.verify_path(&path, &on_disk, &mut done, &mut valid, &mut errors, log)?;
+			self.verify_path(
+				&path,
+				&on_disk,
+				&mut done,
+				&mut valid,
+				&mut repair,
+				&mut errors,
+				log,
+			)?;
 		}
 
 		if check_contents {
@@ -1214,7 +1227,15 @@ impl LocalStore {
 							entry.path().display()
 						),
 					);
-					errors = true;
+					if repair.is_some() {
+						fs::remove_file(entry.path())?;
+						log(
+							VerbosityLevel::Info,
+							&format!("removed link \"{}\"", entry.path().display()),
+						);
+					} else {
+						errors = true;
+					}
 				}
 			}
 
@@ -1235,7 +1256,20 @@ impl LocalStore {
 									format_args!("sha256:{}", nixbase32::encode(&digest))
 								),
 							);
-							errors = true;
+							match &mut repair {
+								None => errors = true,
+								Some(repair) => {
+									if let Err(e) = repair(path) {
+										let level = if self.is_valid_path(path)? {
+											"\x1b[31;1merror:"
+										} else {
+											"\x1b[35;1mwarning:"
+										};
+										log(VerbosityLevel::Error, &format!("{level}\x1b[0m {e}"));
+										errors = true;
+									}
+								}
+							}
 						} else if info.nar_size == 0 {
 							log(
 								VerbosityLevel::Info,
@@ -1259,12 +1293,14 @@ impl LocalStore {
 		Ok(errors)
 	}
 
+	#[allow(clippy::too_many_arguments)]
 	fn verify_path(
 		&self,
 		path: &StorePath,
 		on_disk: &BTreeSet<StorePath>,
 		done: &mut BTreeSet<StorePath>,
 		valid: &mut BTreeSet<StorePath>,
+		repair: &mut Option<&mut RepairPath<'_>>,
 		errors: &mut bool,
 		log: &mut dyn FnMut(VerbosityLevel, &str),
 	) -> Result<()> {
@@ -1278,7 +1314,7 @@ impl LocalStore {
 		let mut can_invalidate = true;
 		for referrer in self.query_referrers(path)? {
 			if &referrer != path {
-				self.verify_path(&referrer, on_disk, done, valid, errors, log)?;
+				self.verify_path(&referrer, on_disk, done, valid, repair, errors, log)?;
 				if valid.contains(&referrer) {
 					can_invalidate = false;
 				}
@@ -1303,7 +1339,18 @@ impl LocalStore {
 					print(path)
 				),
 			);
-			*errors = true;
+			match repair {
+				None => *errors = true,
+				Some(repair) => {
+					if let Err(e) = repair(path) {
+						log(
+							VerbosityLevel::Error,
+							&format!("\x1b[35;1mwarning:\x1b[0m {e}"),
+						);
+						*errors = true;
+					}
+				}
+			}
 		}
 		Ok(())
 	}

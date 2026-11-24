@@ -1624,23 +1624,39 @@ impl LocalStore {
 	/// order (`PathSubstitutionGoal`). Fails if no cache has a trusted
 	/// copy of `path`.
 	pub fn substitute(&self, caches: &[BinaryCache], path: &StorePath) -> Result<()> {
+		self.substitute_with(caches, path, false)
+	}
+
+	/// Like [`Self::substitute`], but replace the path if it is valid. Its
+	/// references are only substituted if they are not.
+	pub fn substitute_repair(&self, caches: &[BinaryCache], path: &StorePath) -> Result<()> {
+		self.substitute_with(caches, path, true)
+	}
+
+	fn substitute_with(
+		&self,
+		caches: &[BinaryCache],
+		path: &StorePath,
+		repair: bool,
+	) -> Result<()> {
 		let mut sorted: Vec<&BinaryCache> = caches.iter().collect();
 		sorted.sort_by_key(|c| c.info.priority);
 		let mut done = BTreeSet::new();
-		self.substitute_inner(&sorted, path, &mut done)
+		self.substitute_inner(&sorted, path, repair, &mut done)
 	}
 
 	fn substitute_inner(
 		&self,
 		caches: &[&BinaryCache],
 		path: &StorePath,
+		repair: bool,
 		done: &mut BTreeSet<StorePath>,
 	) -> Result<()> {
 		if done.contains(path) {
 			return Ok(());
 		}
 		self.add_temp_root(path)?;
-		if self.is_valid_path(path)? {
+		if !repair && self.is_valid_path(path)? {
 			done.insert(path.clone());
 			return Ok(());
 		}
@@ -1683,7 +1699,7 @@ impl LocalStore {
 			}
 			for reference in &cached.info.references {
 				if reference != path
-					&& let Err(e) = self.substitute_inner(caches, reference, done)
+					&& let Err(e) = self.substitute_inner(caches, reference, false, done)
 				{
 					tracing::error!("{e}");
 					return Err(Error::Other(format!(
@@ -1759,7 +1775,7 @@ impl LocalStore {
 					reported: 0,
 					size: nar_size,
 				};
-				let result = self.add_to_store(&cached.info, &mut nar, false, !cache.trusted);
+				let result = self.add_to_store(&cached.info, &mut nar, repair, !cache.trusted);
 				nar.report();
 				result
 			});

@@ -1747,6 +1747,71 @@ fn repair_rebuilds_damaged_outputs_and_rejects_untrusted_clients() {
 	}
 }
 
+/// `VerifyStore` repairs damaged paths for a trusted client only.
+#[test]
+fn verification_repairs_damaged_outputs_and_rejects_untrusted_clients() {
+	use std::os::unix::fs::PermissionsExt;
+	for trusted in [false, true] {
+		let env = Env::new(Options {
+			trusted,
+			..Options::default()
+		});
+		for name in DAEMONS {
+			let path = env.root(name).join(env.out.trim_start_matches('/'));
+			fs::set_permissions(&path, fs::Permissions::from_mode(0o644)).unwrap();
+			fs::write(path, b"damaged\n").unwrap();
+		}
+		env.compare(&format!("verify-repair-{trusted}"), |w| {
+			assert_eq!(w.handshake(version(38), &CLIENT_FEATURES), Some(true));
+			assert_eq!(w.set_options(3, &[]), Some(true));
+			w.op("VerifyStore repair", op::VERIFY_STORE).u64(1).u64(1);
+			assert_eq!(w.stderr(), Some(trusted));
+			if trusted {
+				assert_eq!(w.int(), Some(0));
+			}
+		});
+		for name in DAEMONS {
+			let contents = fs::read(env.root(name).join(env.out.trim_start_matches('/'))).unwrap();
+			assert_eq!(contents != b"damaged\n", trusted, "{name}");
+		}
+	}
+}
+
+/// Checks compare a rebuild with the registered output, for any client, and
+/// register nothing.
+#[test]
+fn checking_builds_match_the_reference() {
+	use std::os::unix::fs::PermissionsExt;
+	for trusted in [false, true] {
+		let env = Env::new(Options {
+			trusted,
+			..Options::default()
+		});
+		for (label, damaged) in [("good", false), ("damaged", true)] {
+			if damaged {
+				for name in DAEMONS {
+					let path = env.root(name).join(env.out.trim_start_matches('/'));
+					fs::set_permissions(&path, fs::Permissions::from_mode(0o644)).unwrap();
+					fs::write(path, b"damaged\n").unwrap();
+				}
+			}
+			env.compare(&format!("check-{trusted}-{label}"), |w| {
+				assert_eq!(w.handshake(version(38), &CLIENT_FEATURES), Some(true));
+				assert_eq!(w.set_options(3, &[]), Some(true));
+				w.op("BuildPaths check", op::BUILD_PATHS)
+					.strs(&[&format!("{}!out", env.drv)])
+					.u64(2);
+				assert_eq!(w.stderr(), Some(true));
+				assert_eq!(w.int(), Some(1));
+			});
+		}
+		for name in DAEMONS {
+			let contents = fs::read(env.root(name).join(env.out.trim_start_matches('/'))).unwrap();
+			assert_eq!(contents, b"damaged\n", "{name}");
+		}
+	}
+}
+
 #[test]
 fn malformed_requests_disconnects_and_simultaneous_clients() {
 	use std::net::Shutdown;
@@ -2096,8 +2161,7 @@ fn trusted_only_operations_from_untrusted_and_trusted_clients() {
 			assert_eq!(w.stderr(), Some(false));
 		});
 		if !trusted {
-			// Trusted repairs are compared by the repair test; noxi does
-			// not repair through `VerifyStore` yet.
+			// Trusted repairs are compared by the repair tests.
 			session("verify-repair", &|w| {
 				w.op("VerifyStore repair", op::VERIFY_STORE).u64(0).u64(1);
 				assert_eq!(w.stderr(), Some(false));
@@ -2170,6 +2234,9 @@ fn client_setting_overrides_match_the_reference() {
 			("keep-outputs", "true"),
 			("extra-substituters", &cache),
 			("trusted-public-keys", "a:b"),
+			("post-build-hook", "/nonexistent/hook"),
+			("diff-hook", "/nonexistent/hook"),
+			("run-diff-hook", "true"),
 		];
 		for value in &substituters {
 			overrides.push(("substituters", value));

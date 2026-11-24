@@ -3,10 +3,9 @@
 //!
 //! It accepts `nix-instantiate`'s evaluation arguments plus `--out-link`/`-o`,
 //! `--no-out-link`, `--dry-run` and the obsolete `--indirect`,
-//! `--add-drv-link` and `--drv-link`. Each derivation found is built for its
+//! `--add-drv-link` and `--drv-link`, and `--check` and `--repair`. Each derivation found is built for its
 //! `outputName`, made a GC root named after the out link, and its output path
-//! printed. `--check`, `--repair` and store derivation arguments fail
-//! explicitly.
+//! printed. Store derivation arguments fail explicitly.
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::io::{self, Write};
@@ -15,7 +14,7 @@ use std::process::ExitCode;
 
 use nix_compat::nixcpp::settings::Settings;
 use nix_compat::store_path::StorePath;
-use noxi_store::DerivedPath;
+use noxi_store::{BuildMode, DerivedPath};
 
 use crate::cli::{Failure, print_setting_warnings};
 use crate::instantiate::{self, absolute_path};
@@ -25,6 +24,7 @@ use crate::paths::print_missing;
 pub fn main(settings: Settings, args: Vec<String>) -> Result<ExitCode, Failure> {
 	let mut out_link = Some("./result".to_owned());
 	let mut dry_run = false;
+	let mut mode = BuildMode::Normal;
 	let mut unsupported = None;
 	let mut options = instantiate::parse_args_with(args, settings, |flag, rest| {
 		let value = |rest: &mut dyn Iterator<Item = String>| {
@@ -49,7 +49,15 @@ pub fn main(settings: Settings, args: Vec<String>) -> Result<ExitCode, Failure> 
 				Ok(())
 			}
 			"--help" => crate::cli::show_man_page_or_exit("nix-build"),
-			"--check" | "--repair" | "--run-env" | "--pure" | "--impure" => {
+			"--check" => {
+				mode = BuildMode::Check;
+				Ok(())
+			}
+			"--repair" => {
+				mode = BuildMode::Repair;
+				Ok(())
+			}
+			"--run-env" | "--pure" | "--impure" => {
 				unsupported = Some(flag.to_owned());
 				Ok(())
 			}
@@ -100,7 +108,7 @@ pub fn main(settings: Settings, args: Vec<String>) -> Result<ExitCode, Failure> 
 	if dry_run {
 		return Ok(ExitCode::SUCCESS);
 	}
-	store.build_paths(&paths)?;
+	store.build_paths_with_mode(&paths, mode)?;
 
 	// `--no-out-link` makes the roots in a temporary directory that is
 	// removed afterwards, as CppNix does.

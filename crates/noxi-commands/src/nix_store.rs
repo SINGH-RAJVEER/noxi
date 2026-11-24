@@ -22,7 +22,7 @@ use nix_compat::nixbase32;
 use nix_compat::nixcpp::settings::Settings;
 use nix_compat::store_path::StorePath;
 use noxi_store::gc::{GcAction, GcOptions, render_size};
-use noxi_store::{DerivedPath, Store};
+use noxi_store::{BuildMode, DerivedPath, Store};
 
 use crate::cli::{Failure, print_setting_warnings};
 use crate::paths::{print_missing, topo_sort};
@@ -188,9 +188,7 @@ pub fn main(mut settings: Settings, args: Vec<String>) -> Result<ExitCode, Failu
 				command
 					.store
 					.verify_store(check_contents, repair, &mut |level, message| {
-						if nix_compat::log::log_enabled(level) {
-							eprintln!("{message}");
-						}
+						nix_compat::log::logger::log(level, message);
 					})?;
 			if errors {
 				if nix_compat::log::log_enabled(nix_compat::log::VerbosityLevel::Warn) {
@@ -472,15 +470,13 @@ impl NixStore<'_> {
 	) -> Result<(), Failure> {
 		let mut dry_run = false;
 		let mut ignore_unknown = false;
+		let mut mode = BuildMode::Normal;
 		for flag in flags {
 			match flag.as_str() {
 				"--dry-run" => dry_run = true,
 				"--ignore-unknown" => ignore_unknown = true,
-				"--repair" | "--check" => {
-					return Err(Failure::Error(format!(
-						"nix-store --realise {flag} is not supported by noxi yet"
-					)));
-				}
+				"--repair" => mode = BuildMode::Repair,
+				"--check" => mode = BuildMode::Check,
 				_ => return Err(Failure::Usage(format!("unknown flag '{flag}'"))),
 			}
 		}
@@ -523,7 +519,7 @@ impl NixStore<'_> {
 		if dry_run {
 			return Ok(());
 		}
-		self.store.build_paths(&derived(&paths))?;
+		self.store.build_paths_with_mode(&derived(&paths), mode)?;
 		if !ignore_unknown {
 			for (path, outputs) in &paths {
 				for result in self.realise_path(path, outputs, false)? {

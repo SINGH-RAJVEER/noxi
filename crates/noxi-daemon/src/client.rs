@@ -18,7 +18,7 @@ use nix_compat::log::logger::LogField;
 use nix_compat::nixhash::HashAlgo;
 use nix_compat::store_path::{StorePath, store_dir};
 use noxi_store::gc::{GcAction, GcOptions, GcResults, Roots, make_root_symlink};
-use noxi_store::{DerivedPath, FileIngestionMethod, Missing, Store, ValidPathInfo};
+use noxi_store::{BuildMode, DerivedPath, FileIngestionMethod, Missing, Store, ValidPathInfo};
 
 use crate::connection::{
 	MINIMUM_PROTOCOL_VERSION, PROTOCOL_VERSION, STDERR_ERROR, STDERR_LAST, STDERR_NEXT,
@@ -805,12 +805,30 @@ impl Store for DaemonStore {
 	}
 
 	fn build_paths(&self, paths: &[DerivedPath]) -> noxi_store::Result<()> {
+		self.build_paths_with_mode(paths, BuildMode::Normal)
+	}
+
+	fn repair_path(&self, _path: &StorePath) -> noxi_store::Result<()> {
+		Err(noxi_store::Error::Other(
+			"operation 'repairPath' is not supported by store 'daemon'".to_owned(),
+		))
+	}
+
+	fn build_paths_with_mode(
+		&self,
+		paths: &[DerivedPath],
+		mode: BuildMode,
+	) -> noxi_store::Result<()> {
 		self.with_conn(|conn| {
 			let targets: Vec<String> = paths.iter().map(legacy_string).collect();
 			conn.to
 				.u64(op::BUILD_PATHS)
 				.strings(targets.iter().map(String::as_str))
-				.u64(0);
+				.u64(match mode {
+					BuildMode::Normal => 0,
+					BuildMode::Repair => 1,
+					BuildMode::Check => 2,
+				});
 			conn.process_stderr()?;
 			conn.from.read_u64().map(drop)
 		})

@@ -15,7 +15,7 @@ use noxi_store::{
 };
 
 use crate::error::BuildError;
-use crate::local::{BuildEvent, LocalBuilder};
+use crate::local::{BuildEvent, BuildMode, LocalBuilder};
 use crate::missing;
 use crate::settings::BuildSettings;
 
@@ -228,7 +228,7 @@ impl Store for LocalBackend {
 		repair: bool,
 		log: &mut dyn FnMut(nix_compat::log::VerbosityLevel, &str),
 	) -> Result<bool> {
-		Store::verify_store(&self.store, check_contents, repair, log)
+		self.worker().verify_store(check_contents, repair, log)
 	}
 
 	fn query_valid_paths(&self, paths: &BTreeSet<StorePath>) -> Result<BTreeSet<StorePath>> {
@@ -397,6 +397,15 @@ impl Store for LocalBackend {
 		let _worker = nix_compat::log::logger::WorkerGuard::new();
 		self.worker().build_paths_in_worker(paths)
 	}
+
+	fn build_paths_with_mode(&self, paths: &[DerivedPath], mode: BuildMode) -> Result<()> {
+		let _worker = nix_compat::log::logger::WorkerGuard::new();
+		self.worker().build_paths_in_mode(paths, mode)
+	}
+
+	fn repair_path(&self, path: &StorePath) -> Result<()> {
+		self.worker().repair_path(path)
+	}
 }
 
 impl Worker<'_> {
@@ -443,12 +452,47 @@ impl Worker<'_> {
 
 	/// Realise `paths`, reporting the progress of the running worker.
 	pub fn build_paths_in_worker(&self, paths: &[DerivedPath]) -> Result<()> {
-		let substituters = self.substituters;
-		let mut builder =
-			LocalBuilder::new(self.store, self.settings).with_substituters(substituters);
-		if let Some(cancelled) = self.cancelled {
-			builder = builder.with_cancellation(cancelled);
+		self.build_paths_in_mode(paths, BuildMode::Normal)
+	}
+
+	fn builder(&self) -> LocalBuilder<'_> {
+		let builder =
+			LocalBuilder::new(self.store, self.settings).with_substituters(self.substituters);
+		match self.cancelled {
+			Some(cancelled) => builder.with_cancellation(cancelled),
+			None => builder,
 		}
+	}
+
+	/// `Store::repairPath`.
+	pub fn repair_path(&self, path: &StorePath) -> Result<()> {
+		let _worker = nix_compat::log::logger::WorkerGuard::new();
+		let mut logs = BuildLogs::default();
+		self.builder()
+			.repair_path(path, &mut |event| logs.event(None, event))
+			.map_err(Into::into)
+	}
+
+	/// `LocalStore::verifyStore`, repairing damaged paths when asked to.
+	pub fn verify_store(
+		&self,
+		check_contents: bool,
+		repair: bool,
+		log: &mut dyn FnMut(nix_compat::log::VerbosityLevel, &str),
+	) -> Result<bool> {
+		let mut repair_path = |path: &StorePath| self.repair_path(path);
+		self.store.verify_store(
+			check_contents,
+			repair.then_some(&mut repair_path as &mut noxi_store::RepairPath<'_>),
+			log,
+		)
+	}
+
+	/// Realise `paths` in a build mode, reporting the progress of the
+	/// running worker.
+	pub fn build_paths_in_mode(&self, paths: &[DerivedPath], mode: BuildMode) -> Result<()> {
+		let substituters = self.substituters;
+		let builder = self.builder().with_mode(mode);
 		let will_build = if paths
 			.iter()
 			.any(|path| matches!(path, DerivedPath::Built { .. }))
@@ -516,10 +560,12 @@ impl Worker<'_> {
 				});
 			}
 			for path in paths {
-				if let DerivedPath::Opaque(path) = path
-					&& !self.store.is_valid_path(path)?
-				{
-					self.store.substitute(substituters, path)?;
+				if let DerivedPath::Opaque(path) = path {
+					if mode == BuildMode::Repair {
+						self.store.substitute_repair(substituters, path)?;
+					} else if !self.store.is_valid_path(path)? {
+						self.store.substitute(substituters, path)?;
+					}
 				}
 			}
 			return Ok(());
@@ -537,7 +583,12 @@ impl Worker<'_> {
 				DerivedPath::Opaque(_) => None,
 			})
 			.collect();
-		let order = self.build_order(&will_build)?;
+		// Repairs and checks start from the requested derivations, which
+		// need not be missing.
+		let order = match mode {
+			BuildMode::Normal => self.build_order(&will_build)?,
+			BuildMode::Repair | BuildMode::Check => Vec::new(),
+		};
 		let has_waiters = |drv: &StorePath| order.iter().any(|(_, inputs)| inputs.contains(drv));
 		let mut built: BTreeSet<&StorePath> = BTreeSet::new();
 		let mut failed: BTreeSet<&StorePath> = BTreeSet::new();
@@ -621,6 +672,10 @@ impl Worker<'_> {
 		for path in paths {
 			match path {
 				DerivedPath::Opaque(path) => {
+					if mode == BuildMode::Repair {
+						self.store.substitute_repair(substituters, path)?;
+						continue;
+					}
 					if self.store.is_valid_path(path)? {
 						continue;
 					}
@@ -631,9 +686,25 @@ impl Worker<'_> {
 				// is shared, as in CppNix's worker.
 				DerivedPath::Built { drv, .. } if built.contains(drv) => {}
 				DerivedPath::Built { drv, outputs } => {
-					let wanted = (!outputs.is_empty()).then_some(outputs);
-					let result = builder.realise_with_events(drv, wanted, &mut events);
-					result?;
+					let wanted = if mode == BuildMode::Normal {
+						(!outputs.is_empty()).then(|| outputs.clone())
+					} else {
+						// The requested outputs of a derivation share a goal,
+						// which builds it once.
+						let requests = paths.iter().filter_map(|other| match other {
+							DerivedPath::Built {
+								drv: other,
+								outputs,
+							} if other == drv => Some(outputs),
+							_ => None,
+						});
+						let all = requests.clone().any(BTreeSet::is_empty);
+						(!all).then(|| requests.flatten().cloned().collect())
+					};
+					builder.realise_with_events(drv, wanted.as_ref(), &mut events)?;
+					if mode != BuildMode::Normal {
+						built.insert(drv);
+					}
 				}
 			}
 		}
@@ -641,9 +712,14 @@ impl Worker<'_> {
 	}
 }
 
+/// `printError`: a message without the `error: ` prefix.
+pub(crate) fn log_error_line(message: &str) {
+	nix_compat::log::logger::log(nix_compat::log::VerbosityLevel::Error, message);
+}
+
 /// Log an error as CppNix's `logError` does: continuation lines line up
 /// after the `error: ` prefix. An empty failure logs an empty line.
-fn log_error(message: &str) {
+pub(crate) fn log_error(message: &str) {
 	use nix_compat::log::logger::{ANSI_NORMAL, ANSI_RED, log, log_error};
 	if message.is_empty() {
 		log(nix_compat::log::VerbosityLevel::Error, "");
@@ -822,32 +898,23 @@ pub struct BuildLogs {
 	logs: BTreeMap<StorePath, nix_compat::log::logger::BuildLog>,
 	/// The build whose output arrives without an owner.
 	current: Option<StorePath>,
-	/// Whether the builds repair their outputs, which their activities say.
-	repair: bool,
 }
 
 impl BuildLogs {
-	/// Activities for builds that repair their outputs: `repairing outputs
-	/// of '...'`.
-	pub fn repairing(mut self, repair: bool) -> Self {
-		self.repair = repair;
-		self
-	}
-
 	/// Report a builder event; `owner` is the derivation whose build sent
 	/// it, when several build at once.
 	pub fn event(&mut self, owner: Option<&StorePath>, event: BuildEvent<'_>) {
 		use nix_compat::log::logger::{Activity, BuildLog, worker_change, worker_update};
 		match event {
-			BuildEvent::Started { drv_path } => {
+			BuildEvent::Started { drv_path, mode } => {
 				let path = drv_path.to_absolute_path();
 				let act = Activity::new(
 					nix_compat::log::VerbosityLevel::Info,
 					nix_compat::log::ActivityType::Build,
-					if self.repair {
-						format!("repairing outputs of '{path}'")
-					} else {
-						format!("building '{path}'")
+					match mode {
+						BuildMode::Normal => format!("building '{path}'"),
+						BuildMode::Repair => format!("repairing outputs of '{path}'"),
+						BuildMode::Check => format!("checking outputs of '{path}'"),
 					},
 					vec![path.into(), "".into(), 1u64.into(), 1u64.into()],
 					0,
@@ -886,7 +953,18 @@ impl BuildLogs {
 					self.current = None;
 				}
 			}
-			BuildEvent::PathChecked { .. } => {}
+			// `Worker::pathContentsGood`.
+			BuildEvent::PathChecked { path, valid } => {
+				use nix_compat::log::{VerbosityLevel, logger::log};
+				let path = path.to_absolute_path();
+				log(VerbosityLevel::Info, &format!("checking path '{path}'..."));
+				if !valid {
+					log(
+						VerbosityLevel::Error,
+						&format!("path '{path}' is corrupted or missing!"),
+					);
+				}
+			}
 		}
 	}
 }

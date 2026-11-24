@@ -452,7 +452,7 @@ fn copied_reference_store_returns_to_the_reference_intact() {
 	let mut log = Vec::new();
 	assert!(
 		!store
-			.verify_store(true, &mut |_, line| log.push(line.to_owned()))
+			.verify_store(true, None, &mut |_, line| log.push(line.to_owned()))
 			.unwrap(),
 		"{log:?}"
 	);

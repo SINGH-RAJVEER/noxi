@@ -1,6 +1,6 @@
 //! Build settings from `nix.conf`, with CppNix 2.35.2's defaults.
 
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 use std::path::PathBuf;
 
 use nix_compat::nixcpp::settings::Settings;
@@ -85,6 +85,14 @@ pub struct BuildSettings {
 	pub always_allow_substitutes: bool,
 	/// `FileTransferSettings` for HTTP substituters.
 	pub transfer: noxi_store::binary_cache::TransferSettings,
+	/// `diff-hook`, which runs when `run-diff-hook` is on.
+	pub diff_hook: String,
+	pub run_diff_hook: bool,
+	/// `post-build-hook`; empty for none.
+	pub post_build_hook: String,
+	/// The settings in effect, which `post-build-hook` gets in `NIX_CONFIG`.
+	/// CppNix passes every setting; these are the ones that were set.
+	pub hook_config: BTreeMap<String, String>,
 	/// `build-users-group`: CppNix defaults it to `nixbld` when running as
 	/// root and to empty otherwise.
 	pub build_users_group: String,
@@ -143,6 +151,10 @@ impl Default for BuildSettings {
 			show_log_tail: false,
 			always_allow_substitutes: false,
 			transfer: Default::default(),
+			diff_hook: String::new(),
+			run_diff_hook: false,
+			post_build_hook: String::new(),
+			hook_config: BTreeMap::new(),
 			// SAFETY: getuid cannot fail.
 			build_users_group: if unsafe { libc::getuid() } == 0 {
 				"nixbld".to_owned()
@@ -202,6 +214,21 @@ impl BuildSettings {
 		if let Some(value) = settings.get("build-dir") {
 			self.build_dir = (!value.is_empty()).then(|| PathBuf::from(value));
 		}
+		self.run_diff_hook = settings.get_bool("run-diff-hook", self.run_diff_hook);
+		if let Some(value) = settings.get("post-build-hook") {
+			self.post_build_hook = value.to_owned();
+		}
+		for (name, value, replaces_default) in settings.overridden() {
+			let name = if replaces_default {
+				name.to_owned()
+			} else {
+				format!("extra-{name}")
+			};
+			self.hook_config.insert(name, value.to_owned());
+		}
+		if let Some(value) = settings.get("diff-hook") {
+			self.diff_hook = value.to_owned();
+		}
 		if let Some(value) = settings.get("build-users-group") {
 			self.build_users_group = value.to_owned();
 		}
@@ -226,6 +253,11 @@ impl BuildSettings {
 					.collect();
 			}
 		}
+	}
+
+	/// `getDiffHook`: the hook to show nondeterministic outputs to, if any.
+	pub fn diff_hook(&self) -> Option<&str> {
+		(self.run_diff_hook && !self.diff_hook.is_empty()).then_some(&self.diff_hook)
 	}
 
 	/// The value of `NIX_BUILD_CORES`.

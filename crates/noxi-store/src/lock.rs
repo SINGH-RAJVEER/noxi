@@ -89,6 +89,14 @@ impl PathLocks {
 		Self::lock_inner(paths, Some(cancelled))
 	}
 
+	/// Lock every path without waiting, or none of them.
+	pub fn try_lock(paths: impl IntoIterator<Item = PathBuf>) -> io::Result<Option<Self>> {
+		match Self::lock_inner(paths, Some(&|| true)) {
+			Err(error) if error.kind() == io::ErrorKind::Interrupted => Ok(None),
+			result => result.map(Some),
+		}
+	}
+
 	fn lock_inner(
 		paths: impl IntoIterator<Item = PathBuf>,
 		cancelled: Option<&dyn Fn() -> bool>,
@@ -105,14 +113,14 @@ impl PathLocks {
 				let file = open_lock_file(&lock_path, true)?.expect("created lock file");
 				if let Some(cancelled) = cancelled {
 					loop {
+						if lock_file(&file, LockType::Write, false)? {
+							break;
+						}
 						if cancelled() {
 							return Err(io::Error::new(
 								io::ErrorKind::Interrupted,
 								"build cancelled",
 							));
-						}
-						if lock_file(&file, LockType::Write, false)? {
-							break;
 						}
 						std::thread::sleep(std::time::Duration::from_millis(50));
 					}

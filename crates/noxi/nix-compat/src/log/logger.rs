@@ -590,6 +590,7 @@ pub fn handle_json_log_message(line: &[u8], act: &Activity) -> bool {
 /// message. A carriage return restarts the line.
 pub struct BuildLog {
 	act: Activity,
+	kind: ResultType,
 	line: Vec<u8>,
 	pos: usize,
 }
@@ -598,9 +599,16 @@ impl BuildLog {
 	pub fn new(act: Activity) -> Self {
 		BuildLog {
 			act,
+			kind: ResultType::BuildLogLine,
 			line: Vec::new(),
 			pos: 0,
 		}
+	}
+
+	/// The log of a `post-build-hook`.
+	pub fn post_build(mut self) -> Self {
+		self.kind = ResultType::PostBuildLogLine;
+		self
 	}
 
 	pub fn activity(&self) -> &Activity {
@@ -634,8 +642,7 @@ impl BuildLog {
 		self.line.truncate(self.pos);
 		if !handle_json_log_message(&self.line, &self.act) {
 			let line = String::from_utf8_lossy(&self.line).into_owned();
-			self.act
-				.result(ResultType::BuildLogLine, &[LogField::Str(line)]);
+			self.act.result(self.kind.clone(), &[LogField::Str(line)]);
 		}
 		self.line.clear();
 		self.pos = 0;

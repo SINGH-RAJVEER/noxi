@@ -685,9 +685,11 @@ pub fn run(
 		}
 		Op::RepairPath => {
 			no_flags(flags, "no flags expected")?;
+			let store = crate::store::open(uri, settings)?
+				.ok_or_else(|| Failure::Error(format!("store '{uri}' cannot hold store paths")))?
+				.store;
 			for arg in args {
-				let path = follow(arg)?;
-				repair_path(&store, settings, &path)?;
+				store.repair_path(&follow(arg)?)?;
 			}
 		}
 		Op::GenerateBinaryCacheKey => {
@@ -723,50 +725,6 @@ fn write_file(path: &str, cwd: &Path, contents: &[u8], mode: u32) -> Result<(), 
 	file.write_all(contents)?;
 	file.sync_all()?;
 	Ok(())
-}
-
-/// `Store::repairPath`: substitute the path again from a binary cache, else
-/// fail; rebuilding from the deriver is not available.
-pub fn repair_path(
-	store: &LocalStore,
-	settings: &Settings,
-	path: &StorePath,
-) -> Result<(), Failure> {
-	let caches = if settings.get_bool("substitute", true) {
-		settings
-			.get_list("substituters", &["https://cache.nixos.org/"])
-			.iter()
-			.map(|uri| {
-				noxi_store::binary_cache::BinaryCache::open_with(
-					uri,
-					noxi_store::binary_cache::TransferSettings::from_settings(settings),
-				)
-			})
-			.collect::<Result<Vec<_>, _>>()?
-	} else {
-		Vec::new()
-	};
-	for cache in &caches {
-		if let Some(cached) = cache.query_path_info(path)? {
-			let mut nar = cache.nar(&cached)?;
-			store.add_to_store(&cached.info, &mut nar, true, true)?;
-			return Ok(());
-		}
-	}
-	let info = store
-		.query_path_info(path)?
-		.ok_or_else(|| Failure::Error(format!("path '{}' is not valid", print(path))))?;
-	if let Some(deriver) = &info.deriver
-		&& store.is_valid_path(deriver)?
-	{
-		return Err(Failure::Error(
-			"nix-store --repair-path by rebuilding the deriver is not supported by noxi yet".into(),
-		));
-	}
-	Err(Failure::Error(format!(
-		"cannot repair path '{}'",
-		print(path)
-	)))
 }
 
 /// `dumpPath`'s errors for a missing or unsupported file.

@@ -48,11 +48,13 @@ impl BuildBatch {
 struct Goal {
 	wanted: BTreeSet<String>,
 	inputs: BTreeSet<StorePath>,
+	/// Requested by the caller, not only as an input.
+	target: bool,
 }
 
 enum Message {
 	PathChecked(StorePath, StorePath, bool),
-	Started(StorePath),
+	Started(StorePath, BuildMode),
 	Output(StorePath, Vec<u8>),
 	Finished(StorePath, Option<BuildError>),
 	Done(StorePath, Result<BTreeMap<String, StorePath>>),
@@ -103,7 +105,9 @@ impl LocalBuilder<'_> {
 		// Match the sequential builder's pre-input substitution policy. A
 		// cached output must not cause its otherwise unused inputs to build.
 		let wanted = node.wanted.clone();
-		let needed = if !self.repair
+		let needed = if self.mode == BuildMode::Check {
+			true
+		} else if !self.repair()
 			&& super::has_unknown_outputs(&drv)
 			&& self
 				.substitute_unknown_outputs(path, &drv, &wanted)?
@@ -136,7 +140,8 @@ impl LocalBuilder<'_> {
 		visiting.insert(path.clone());
 		for (input, names) in drv.basic.input_derivations() {
 			let names = names.iter().map(ToString::to_string).collect();
-			self.collect_goals(input, Some(&names), goals, visiting)?;
+			self.for_inputs()
+				.collect_goals(input, Some(&names), goals, visiting)?;
 			goals.get_mut(path).unwrap().inputs.insert(input.clone());
 		}
 		visiting.remove(path);
@@ -156,6 +161,9 @@ impl LocalBuilder<'_> {
 		let mut goals = BTreeMap::new();
 		for (path, wanted) in targets {
 			self.collect_goals(path, wanted.as_ref(), &mut goals, &mut BTreeSet::new())?;
+			if let Some(goal) = goals.get_mut(path) {
+				goal.target = true;
+			}
 		}
 		let key = |path: &StorePath| (path.name().to_owned(), path.clone());
 		let mut ready = BTreeSet::new();
@@ -215,10 +223,14 @@ impl LocalBuilder<'_> {
 					let worker_path = path.clone();
 					let stop = &stop;
 					let handle = scope.spawn(move || {
-						let builder = LocalBuilder::new(self.store, self.settings)
-							.with_substituters(self.substituters)
-							.with_cancellation(stop)
-							.with_repair(self.repair);
+						let builder =
+							self.clone()
+								.with_cancellation(stop)
+								.with_mode(if node.target {
+									self.mode
+								} else {
+									self.for_inputs().mode
+								});
 						let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
 							let mut current = worker_path.clone();
 							builder.realise_inner(
@@ -235,9 +247,9 @@ impl LocalBuilder<'_> {
 												valid,
 											)
 										}
-										BuildEvent::Started { drv_path } => {
+										BuildEvent::Started { drv_path, mode } => {
 											current = drv_path.clone();
-											Message::Started(drv_path.clone())
+											Message::Started(drv_path.clone(), mode)
 										}
 										BuildEvent::Output(data) => {
 											Message::Output(current.clone(), data.to_vec())
@@ -273,9 +285,13 @@ impl LocalBuilder<'_> {
 					Ok(Message::PathChecked(owner, path, valid)) => {
 						events(&owner, BuildEvent::PathChecked { path: &path, valid })
 					}
-					Ok(Message::Started(path)) => {
-						events(&path, BuildEvent::Started { drv_path: &path })
-					}
+					Ok(Message::Started(path, mode)) => events(
+						&path,
+						BuildEvent::Started {
+							drv_path: &path,
+							mode,
+						},
+					),
 					Ok(Message::Output(path, data)) => events(&path, BuildEvent::Output(&data)),
 					Ok(Message::Finished(path, error)) => events(
 						&path,

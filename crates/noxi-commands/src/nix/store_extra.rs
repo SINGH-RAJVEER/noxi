@@ -511,48 +511,14 @@ fn copy_log(parsed: &Parsed) -> Result<ExitCode, Failure> {
 
 fn repair(parsed: &Parsed) -> Result<ExitCode, Failure> {
 	let store = local(parsed, None, "store repair")?;
-	let caches = if parsed.settings.get_bool("substitute", true) {
-		parsed
-			.settings
-			.get_list("substituters", &["https://cache.nixos.org/"])
-			.iter()
-			.map(|uri| {
-				noxi_store::binary_cache::BinaryCache::open_with(
-					uri,
-					noxi_store::binary_cache::TransferSettings::from_settings(&parsed.settings),
-				)
-			})
-			.collect::<Result<Vec<_>, _>>()?
-	} else {
-		Vec::new()
-	};
-	for path in paths(parsed, &store)? {
-		let mut restored = false;
-		for cache in &caches {
-			let Some(cached) = cache.query_path_info(&path)? else {
-				continue;
-			};
-			// The store import verifies the archive hash and trust before replacing
-			// the path. Importing with repair=true restores even registered paths.
-			let mut nar = cache.nar(&cached)?;
-			store.add_to_store(&cached.info, &mut nar, true, true)?;
-			restored = true;
-			break;
-		}
-		if restored {
-			continue;
-		}
-		if let Some(deriver) = info(&store, &path)?.deriver
-			&& store.is_valid_path(&deriver)?
-		{
-			return Err(unsupported(
-				"store repair by rebuilding the deriver (repairing builds are unavailable)",
-			));
-		}
-		return Err(Failure::Error(format!(
-			"cannot repair path '{}'",
-			path.to_absolute_path()
-		)));
+	let paths = paths(parsed, &store)?;
+	drop(store);
+	let uri = crate::store::store_uri(parsed.value("store"), &parsed.settings);
+	let store = crate::store::open(&uri, &parsed.settings)?
+		.ok_or_else(|| Failure::Error(format!("store '{uri}' cannot hold store paths")))?
+		.store;
+	for path in paths {
+		store.repair_path(&path)?;
 	}
 	Ok(ExitCode::SUCCESS)
 }

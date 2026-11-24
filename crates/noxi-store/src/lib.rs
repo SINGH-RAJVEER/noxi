@@ -28,9 +28,11 @@ mod quick_ack;
 pub mod unix_socket;
 mod xz;
 
-pub use api::{DerivedPath, Missing, Store};
+pub use api::{BuildMode, DerivedPath, Missing, Store};
 pub use capture::{CapturedSource, SourceCapture};
 pub use config::LocalStoreConfig;
 pub use error::{Error, Result};
-pub use local::{FileIngestionMethod, LocalStore, Realisation, ca_hash_of, delete_path};
+pub use local::{
+	FileIngestionMethod, LocalStore, Realisation, RepairPath, ca_hash_of, delete_path,
+};
 pub use path_info::ValidPathInfo;

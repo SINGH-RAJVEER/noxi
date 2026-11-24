@@ -26,6 +26,19 @@ pub enum DerivedPath {
 	},
 }
 
+/// CppNix's `BuildMode`.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum BuildMode {
+	#[default]
+	Normal,
+	/// Check registered contents as well as validity, and rebuild damaged
+	/// outputs of the derivation and its inputs.
+	Repair,
+	/// Build the requested derivations again and compare the outputs with
+	/// the registered ones. Their inputs are built normally.
+	Check,
+}
+
 /// What realising some paths would take, CppNix's `MissingPaths`.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct Missing {
@@ -238,6 +251,23 @@ pub trait Store {
 	/// Realise the paths, building or substituting as needed.
 	fn build_paths(&self, paths: &[DerivedPath]) -> Result<()>;
 
+	/// Realise the paths in a build mode other than the normal one.
+	fn build_paths_with_mode(&self, paths: &[DerivedPath], mode: BuildMode) -> Result<()> {
+		match mode {
+			BuildMode::Normal => self.build_paths(paths),
+			BuildMode::Repair | BuildMode::Check => Err(Error::Other(
+				"store does not support repairing or checking builds".to_owned(),
+			)),
+		}
+	}
+
+	/// Restore the contents of a valid path, `Store::repairPath`.
+	fn repair_path(&self, _path: &StorePath) -> Result<()> {
+		Err(Error::Other(
+			"operation 'repairPath' is not supported by this store".to_owned(),
+		))
+	}
+
 	/// What realising `paths` would build and substitute. A store that
 	/// cannot realise anything reports nothing.
 	fn query_missing(&self, _paths: &[DerivedPath]) -> Result<Missing> {
@@ -281,7 +311,7 @@ impl Store for LocalStore {
 				"noxi does not support repairing paths yet".to_owned(),
 			));
 		}
-		LocalStore::verify_store(self, check_contents, log)
+		LocalStore::verify_store(self, check_contents, None, log)
 	}
 
 	fn query_valid_paths(&self, paths: &BTreeSet<StorePath>) -> Result<BTreeSet<StorePath>> {
