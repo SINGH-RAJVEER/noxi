@@ -299,11 +299,12 @@ fn copy_between_stores(
 		.into_iter()
 		.rev()
 	{
-		infos.push(
-			source
-				.query_path_info(&path)?
-				.ok_or_else(|| noxi_store::Error::InvalidPath(path.to_absolute_path()))?,
-		);
+		let mut info = source
+			.query_path_info(&path)?
+			.ok_or_else(|| noxi_store::Error::InvalidPath(path.to_absolute_path()))?;
+		// A copy is never ultimately trusted.
+		info.ultimate = false;
+		infos.push(info);
 	}
 	let shown = destination_uri
 		.split('?')

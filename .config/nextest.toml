@@ -17,6 +17,17 @@ binary(reference_gc)
 """
 threads-required = "num-test-threads"
 
+# On a loaded host CppNix 2.35.2 sometimes kills an unsandboxed builder as it
+# starts ("builder failed due to signal 9"), so the comparisons that build
+# without a sandbox run with no other test alongside.
+[[profile.default.overrides]]
+filter = """
+binary(reference_rebuild)
+| binary(reference_cache_store)
+| binary(reference_installables)
+"""
+threads-required = "num-test-threads"
+
 # Harness tiers (docs/compatibility-results.md). `just test-fast`,
 # `test-store` and `test-daemon` run these profiles through
 # `scripts/compat-results.py run`, which turns each profile's JUnit report

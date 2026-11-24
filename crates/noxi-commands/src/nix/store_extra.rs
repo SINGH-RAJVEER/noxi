@@ -81,18 +81,37 @@ fn sign(parsed: &Parsed) -> Result<ExitCode, Failure> {
 	let key_file = parsed
 		.value("key-file")
 		.ok_or_else(|| Failure::Usage("required argument '--key-file' is missing".into()))?;
-	let store = local(parsed, None, "store sign")?;
-	let paths = paths(parsed, &store)?;
+	let uri = crate::store::store_uri(parsed.value("store"), &parsed.settings);
+	let cache = crate::store::cache(&uri)?;
+	let local = match &cache {
+		Some(_) => None,
+		None => Some(local(parsed, None, "store sign")?),
+	};
+	let cache_store = match &cache {
+		Some(_) => Some(crate::nix::command_store::open(parsed)?.store),
+		None => None,
+	};
+	let store: &dyn Store = match (&local, &cache_store) {
+		(Some(store), _) => store,
+		(None, Some(store)) => store.as_ref(),
+		(None, None) => unreachable!("one store is open"),
+	};
+	let paths = paths(parsed, store)?;
 	let text = fs::read(key_file).map_err(|error| {
 		Failure::Error(format!("opening file \"{key_file}\": {}", strerror(&error)))
 	})?;
 	let key = SecretKey::parse(&String::from_utf8_lossy(&text))?;
 	let mut added = 0;
 	for path in &paths {
-		let info = info(&store, path)?;
+		let info = info(store, path)?;
 		let signature = info.signature(&key)?;
 		if !info.sigs.contains(&signature) {
-			store.add_signatures(path, &BTreeSet::from([signature]))?;
+			let sigs = BTreeSet::from([signature]);
+			match (&cache, &local) {
+				(Some(cache), _) => cache.add_signatures(path, &sigs)?,
+				(None, Some(local)) => local.add_signatures(path, &sigs)?,
+				(None, None) => unreachable!("one store is open"),
+			}
 			added += 1;
 		}
 	}

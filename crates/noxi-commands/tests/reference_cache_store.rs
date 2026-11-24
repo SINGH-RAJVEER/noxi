@@ -186,10 +186,21 @@ fn secret_key_files_sign_builds_like_the_reference() {
 	same(&[
 		"nix key generate-secret --key-name a-1 > a; nix key generate-secret --key-name b-1 > b; nix-build x.nix -A leaf -A leafCa --no-out-link --secret-key-files \"$PWD/a $PWD/b\" 2> /dev/null; nix path-info --sigs $(ls -d $PWD/store/*-leaf $PWD/store/*-leaf-ca) | sed 's/:[A-Za-z0-9+/=]*//g'",
 		"nix copy --to file://$PWD/cache -f x.nix leaf leafCa 2> /dev/null; grep -ho '\"keyName\":\"[^\"]*\"' cache/build-trace*/*/*; grep -h ^Sig cache/*.narinfo | sed 's/\\(Sig: [^:]*\\):.*/\\1/'",
+		"nix key generate-secret --key-name d-1 > d; l=$(ls -d $PWD/store/*-leaf); nix store sign --store file://$PWD/cache --key-file d $l; nix store sign --store file://$PWD/cache --key-file d $l; nix path-info --store file://$PWD/cache --sigs $l | grep -o ' [abd]-1'; nix store verify --store file://$PWD/cache --trusted-public-keys $(nix key convert-secret-to-public < d) $l",
 		"chmod -R u+w store; rm -rf store var; nix copy --from file://$PWD/cache -f x.nix leaf leafCa --trusted-public-keys c-1:oMjUyRqiELXsP0bHrTJVcHXGcnnTHfWFnTBJeH3vMBM= 2>&1 | grep error; ls store | grep -v drv",
 		"nix copy --from file://$PWD/cache -f x.nix leaf leafCa --trusted-public-keys $(nix key convert-secret-to-public < b) 2>&1 | grep error; ls store | grep -v drv",
 		"chmod -R u+w store; rm -rf store var; nix copy --from file://$PWD/cache -f x.nix leaf leafCa --secret-key-files $PWD/a 2>&1 | grep error; ls store | grep -v drv",
 		"nix-build x.nix -A tree --no-out-link --secret-key-files $PWD/missing 2>&1 | grep -v building | tail -1",
+	]);
+}
+
+/// A path copied to another store is not ultimately trusted there.
+#[test]
+fn copies_between_stores_are_not_ultimately_trusted() {
+	same(&[
+		"nix-build x.nix -A leaf --no-out-link > /dev/null 2>&1; l=$(ls -d $PWD/store/*-leaf); nix path-info --sigs $l; nix copy --to $PWD/other $l 2> /dev/null; echo $?; nix copy --no-check-sigs --to $PWD/other $l 2> /dev/null; nix path-info --store $PWD/other --sigs $l",
+		"nix store verify --store $PWD/other $(ls -d $PWD/store/*-leaf) 2>&1 | sort",
+		"nix store verify $(ls -d $PWD/store/*-leaf) 2>&1 | sort",
 	]);
 }
 

@@ -519,6 +519,37 @@ impl BinaryCache {
 		self.publish_nar(info, nar, &[] as &[SigningKey<ed25519_dalek::SigningKey>])
 	}
 
+	/// `BinaryCacheStore::addSignatures` for a `file://` cache.
+	pub fn add_signatures(&self, path: &StorePath, sigs: &BTreeSet<String>) -> Result<()> {
+		let Transport::File(dir) = &self.transport else {
+			return Err(Error::Other(
+				"binary cache uploads require a file:// cache".into(),
+			));
+		};
+		let name = format!("{}.narinfo", nix_compat::nixbase32::encode(path.digest()));
+		let file = local_cache_path(dir, &name)?;
+		let mut lock = PathLocks::lock([file.clone()])?;
+		lock.set_deletion(true);
+		let text = self
+			.narinfo_text(path)?
+			.ok_or_else(|| Error::InvalidPath(print(path)))?;
+		let mut narinfo = NarInfo::parse(&text).map_err(|e| {
+			Error::Other(format!("invalid cache metadata for '{}': {e}", print(path)))
+		})?;
+		for sig in sigs {
+			narinfo.signatures.push(
+				Signature::<&str>::parse(sig).map_err(|_| {
+					Error::Other(format!("invalid signature for '{}'", print(path)))
+				})?,
+			);
+		}
+		narinfo
+			.signatures
+			.sort_by(|a, b| a.name().cmp(b.name()).then(a.bytes().cmp(b.bytes())));
+		narinfo.signatures.dedup();
+		write_atomic(&file, narinfo.to_string().as_bytes())
+	}
+
 	/// `LocalBinaryCacheStore::queryAllValidPaths`, with the names the narinfo
 	/// files record.
 	pub fn query_all_valid_paths(&self) -> Result<BTreeSet<StorePath>> {
