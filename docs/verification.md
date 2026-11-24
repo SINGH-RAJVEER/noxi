@@ -1329,3 +1329,4 @@ Validation used debug builds under the shared heavy-build lock:
 
 - `cargo nextest run -p noxi-eval -p noxi-glue -p noxi-flake -p noxi-flakeref -p noxi-system -p noxi-commands`: 900 passed, 10 failed, 10 skipped. The host had an empty `/tmp/.git` directory, which makes flake discovery treat `/tmp` as a Git repository. With `TMPDIR` outside `/tmp`, those ten tests and the six above passed (16 passed).
 - `upstream_lang` and `differential_eval`: 10 passed, with no expectation changed by the added `findFile` frame.
+- The fast tier ran 2,122 tests at `656ed54`, all passing. Its record is kept in `tests/compat-results/2026-11-24-656ed54-fast`. The store and daemon tiers were not run as tiers.
