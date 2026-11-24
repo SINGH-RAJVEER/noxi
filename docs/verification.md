@@ -392,6 +392,57 @@ Smaller groups:
 - **`filetransfer-retry-backoff`.** This is a `runCommand`, not a VM test. `upstream_filetransfer_retry` reproduces its environment with only the engine and Python on `PATH`. The reference passes in about 25 seconds. noxi's `nix-prefetch-url` fails on the first 503, so the fixture is a gap.
 - **`repl-completion.nix`.** It needs `expect` and a terminal. `upstream_repl_completion` sends the fixture's expressions to noxi's `nix repl` over standard input and checks evaluation and error recovery. It sends no Tab events, so the fixture stays a gap.
 
+### Functional gaps by root cause, 2026-11-25
+
+The table groups the 137 gap scripts of `tests/compat-results/2026-11-25-84aec12-store` (commit `84aec12`) by the cause of the first failure in noxi's recorded log. Every gap script is in exactly one row. The last two columns show how much a first failure can hide: how many scripts stopped in the first half of the script file running at the time, and how many lines of those files follow the failing line. Blank lines and comments count. Helper scripts that a script sources before the failure are not counted.
+
+`NIX_STORE_DIR` blocks no script any more: the 91 scripts recorded on 2026-11-12 were closed on 2026-11-13 (see the store directory follow-up above), and no log in this set fails writing to `/nix/store/tmp-*`. Two scripts still failed on a store directory written as a constant, `ca/substitute` and, later in the script, `ca/issue-13247`: an uploaded `.narinfo` named its path as `/nix/store/...` whatever the store directory.
+
+| Root cause | Scripts | Later failures may hide | In the first half | Lines after the failure |
+|---|---:|---|---:|---:|
+| Host store objects invisible in a chroot store (`path ... busybox ... does not exist`) | 17 | Yes: 9 scripts next need `local-overlay://` stores and 8 need remote builders | 4 | 199 |
+| Content-addressed, text or dynamic outputs unknown to a command after the build or on reading the derivation | 17 | Yes: `nix copy`, `--check`, store derivation arguments, text and dynamic outputs | 6 | 193 |
+| `nix build --json` of new builds, `^outputs` and default outputs of installables | 8 | Yes: `fetchClosure`, partly present outputs, build failure reporting | 7 | 668 |
+| Building impure, text or Git-hashed outputs; Git hashing modes | 5 | Yes: `recursive-nix` and impure rebuild checks | 2 | 41 |
+| Store URL parameters `store=`, `remote-store=` | 5 | Yes: remote program and copy behavior | 2 | 47 |
+| `nix-build --check` and repair | 4 | Yes: `repair` and `post-hook` have not reached their checks | 3 | 353 |
+| Store types and `file://` as a store | 7 | Yes: cache listing, key and repair checks; read-only store rules | 4 | 435 |
+| An expression that is a path, string or other non-derivation where the reference accepts it | 3 | Yes for the profiler and path installables | 2 | 175 |
+| User environment queries stop at the first evaluation error (`progName != "fail"`) | 3 | Yes: most of each script | 3 | 445 |
+| Store derivation arguments to `nix-build` and `nix-shell` | 3 | Yes: most of `nix-shell` and `nix-build` | 2 | 305 |
+| `recursive-nix` | 2 | Unlikely | 0 | 4 |
+| `--eval-store` | 2 | Yes: only the first command ran | 1 | 39 |
+| REPL commands | 2 | Yes: most of `repl` | 1 | 253 |
+| Several causes: flake lock file details (fingerprint, relative inputs, summaries) | 7 | Yes: `flakes/flakes` and the relative input scripts are long | 3 | 655 |
+| Several causes: flake path, output and error checks | 12 | Yes: `flakes/develop`, `flakes/show` and `flakes/check` are long | 4 | 725 |
+| Several causes: Git fetcher (shallow clones, verification, cache layout) | 4 | Yes: most of `fetchGit` | 3 | 415 |
+| Separate causes: build scheduling, hooks and build settings (`external-builders`, `auto-optimise-store`, log limits, sandbox store inputs, `builtin:fetchurl`) | 11 | Yes for `gc-auto` and `fixed`; the scheduling scripts stop near their end | 4 | 233 |
+| Garbage collection | 2 | Yes for `gc-closure` | 1 | 50 |
+| Separate causes: options, output and diagnostics of single commands | 23 | Varies by script | 12 | 1,024 |
+| Total | 137 | | | |
+
+The scripts of each row:
+
+1. `build-remote-content-addressed-fixed`, `build-remote-content-addressed-floating`, `build-remote-input-addressed`, `build-remote-trustless-should-fail-0`, `build-remote-trustless-should-pass-0`, `build-remote-trustless-should-pass-1`, `build-remote-trustless-should-pass-2`, `build-remote-trustless-should-pass-3`, `local-overlay-store/add-lower`, `local-overlay-store/build`, `local-overlay-store/check-post-init`, `local-overlay-store/delete-duplicate`, `local-overlay-store/delete-refs`, `local-overlay-store/gc`, `local-overlay-store/optimise`, `local-overlay-store/redundant-add`, `local-overlay-store/verify`.
+2. `ca/build`, `ca/build-cache`, `ca/build-with-garbage-path`, `ca/derivation-json`, `ca/import-from-derivation`, `ca/multiple-outputs`, `ca/nix-run`, `ca/nix-shell`, `ca/post-hook`, `ca/selfref-gc`, `ca/why-depends`, `dyn-drv/build-built-drv`, `dyn-drv/dep-built-drv`, `dyn-drv/dep-built-drv-2`, `dyn-drv/failing-outer`, `dyn-drv/text-hashed-output`, `impure-derivations`.
+3. `build`, `build-delete`, `ca/build-delete`, `ca/issue-13247`, `ca/new-build-cmd`, `fetchClosure`, `multiple-outputs-substitute-failure`, `shell`.
+4. `add`, `dyn-drv/recursive-mod-json`, `git-hashing/fixed`, `git-hashing/simple-sha1`, `git-hashing/simple-sha256`.
+5. `legacy-ssh-store`, `nix-copy-ssh`, `nix-copy-ssh-ng`, `remote-store`, `ssh-relay`.
+6. `check`, `linux-sandbox`, `post-hook`, `repair`.
+7. `binary-cache`, `binary-cache-build-remote`, `build-remote-with-mounted-ssh-ng`, `ca/nix-copy`, `ca/signatures`, `local-overlay-store/bad-uris`, `read-only-store`.
+8. `flakes/build-paths`, `flamegraph-profiler`, `import-from-derivation`.
+9. `nix-collect-garbage-d`, `nix-profile`, `user-envs`.
+10. `multiple-outputs`, `nix-build`, `nix-shell`.
+11. `ca/recursive`, `recursive`.
+12. `ca/eval-store`, `eval-store`.
+13. `ca/repl`, `repl`.
+14. `flakes/commit-lock-file-summary`, `flakes/flakes`, `flakes/get-flake`, `flakes/non-flake-inputs`, `flakes/relative-paths`, `flakes/relative-paths-lockfile`, `flakes/unlocked-override`.
+15. `flakes/check`, `flakes/config`, `flakes/develop`, `flakes/dubious-query`, `flakes/flake-in-submodule`, `flakes/follow-paths`, `flakes/prefetch`, `flakes/run`, `flakes/search-root`, `flakes/shebang`, `flakes/show`, `flakes/source-paths`.
+16. `fetchGit`, `fetchGitShallow`, `fetchGitVerification`, `git/packed-refs-no-cache`.
+17. `external-builders`, `fetchurl`, `fixed`, `fixed-slow-vs-bad`, `gc-auto`, `gc-non-blocking`, `impure-env`, `nested-sandboxing`, `optimise-store`, `supplementary-groups`, `timeout`.
+18. `gc-closure`, `gc-concurrent`.
+19. `binary-cache-compression`, `ca/substitute`, `chroot-store`, `cli-characterisation`, `completions`, `config`, `dependencies`, `experimental-features`, `formatter`, `function-trace`, `logging`, `nar-access`, `nars`, `nix-channel`, `no-url-literals`, `path-info`, `pure-eval`, `short-path-literals`, `signing`, `simple`, `store-info`, `suggestions`, `tarball`.
+
 ## System tests
 
 `crates/compat-tests/tests/reference_build.rs` checks `noxi-build`'s `LocalBuilder` against the 2.35.2 reference. For each case the reference writes the derivation into two temporary `--store ROOT` stores that also hold the flake's statically linked `test-busybox`. The reference builds it in one store and noxi builds it in the other. Both use a sandbox, one core, no `sandbox-paths`, no build users, and the same system features. The output paths and `nix path-info --json` metadata other than the registration time must match, and the reference must verify the store noxi wrote with `--check-contents`. On 2026-10-02 all twelve cases passed:
