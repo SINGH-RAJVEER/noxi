@@ -237,7 +237,8 @@ pub fn targets(parsed: &Parsed) -> Result<Result<Targets, ExitCode>, Failure> {
 			Ok(value) => value,
 			Err(code) => return Ok(Err(code)),
 		};
-		let paths = instantiate::installables(&evaluated.results, &specs)?;
+		let paths =
+			instantiate::installables(&evaluated.results, &specs, evaluated.store.as_deref())?;
 		let store = evaluated
 			.store
 			.ok_or_else(|| unsupported("building with this store"))?;
@@ -255,7 +256,30 @@ pub fn targets(parsed: &Parsed) -> Result<Result<Targets, ExitCode>, Failure> {
 	}
 	for operand in &parsed.operands {
 		let (path, spec) = instantiate::extended_outputs_spec(operand)?;
-		let path = crate::paths::follow_links_to_store_path(&std::env::current_dir()?, path)?;
+		let nested: Vec<&str> = path.split('^').collect();
+		let dynamic = parsed
+			.settings
+			.experimental_features()
+			.contains("dynamic-derivations");
+		if nested.len() > 1
+			&& !dynamic
+			&& let Err(error) = std::fs::symlink_metadata(path)
+		{
+			return Err(Failure::Error(format!(
+				"getting status of \"{path}\": {}",
+				super::hash::strerror(&error)
+			)));
+		}
+		let path = if nested.len() > 1 && dynamic {
+			if parsed.has("json") || parsed.has("dry-run") {
+				return Err(unsupported(
+					"--json and --dry-run with the outputs of derivations that are still to be built",
+				));
+			}
+			instantiate::built_derivation(opened.store.as_ref(), &nested)?
+		} else {
+			crate::paths::follow_links_to_store_path(&std::env::current_dir()?, path)?
+		};
 		paths.push(if let Some(outputs) = spec {
 			DerivedPath::Built { drv: path, outputs }
 		} else {

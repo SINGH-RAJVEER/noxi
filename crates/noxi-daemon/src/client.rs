@@ -863,6 +863,7 @@ impl Store for DaemonStore {
 				.strings(targets.iter().map(String::as_str));
 			conn.process_stderr()?;
 			Ok(Missing {
+				ignored_dynamic: BTreeSet::new(),
 				will_build: conn.from.read_store_paths()?,
 				will_substitute: conn.from.read_store_paths()?,
 				unknown: conn.from.read_store_paths()?,

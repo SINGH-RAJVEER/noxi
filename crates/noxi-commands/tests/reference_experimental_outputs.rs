@@ -71,6 +71,23 @@ in rec {
 	pureOnFixed = mk { name = "pure-on-fixed"; args = script "cat ${fixedOnImpure} > $out"; };
 	deepPure = mk { name = "deep-pure"; args = script "cat ${pureOnImpure} > $out"; };
 	environment = kind: mk ({ name = "environment"; args = script "echo $ROOT checked=$NIX_OUTPUT_CHECKED > $out"; impureEnvVars = [ "ROOT" ]; } // kind);
+	inner = mk { name = "inner"; outputs = [ "out" "dev" ]; args = script "echo inner > $out; echo dev > $dev"; };
+	produce = drv: name: mk ({ name = name; args = script "cp ${builtins.unsafeDiscardOutputDependency drv.drvPath} $out"; } // ca "text");
+	producer = produce inner "inner.drv";
+	outer = produce producer "inner.drv.drv";
+	dyn = builtins.outputOf producer.outPath;
+	wrapper = mk { name = "wrapper"; args = script "cat ${dyn "out"} ${dyn "dev"} ${text} > $out"; };
+	both = mk { name = "both"; args = script "cat ${builtins.outputOf (builtins.outputOf outer.outPath "out") "out"} ${wrapper} > $out; echo ${producer} >> $out"; };
+	dynFixed = mk ({ name = "dyn-fixed"; args = script "cat ${dyn "out"} > $out"; } // fixed "flat" (builtins.hashString "sha256" "inner\n"));
+	dynBad = mk ({ name = "dyn-bad"; args = script "cat ${dyn "dev"} > $out"; } // fixed "flat" (builtins.hashString "sha256" "inner\n"));
+	dynCa = mk ({ name = "dyn-ca"; args = script "cat ${dyn "out"} > $out"; } // ca "flat");
+	dynMissing = mk { name = "dyn-missing"; args = script "cat ${dyn "nope"} > $out"; };
+	dynFails = mk { name = "dyn-fails"; args = script "cat ${dyn "out"}; exit 3"; };
+	badProducer = mk ({ name = "bad.drv"; args = script "echo not a derivation > $out"; } // ca "text");
+	failingProducer = mk ({ name = "failing.drv"; args = script "exit 4"; } // ca "text");
+	dynOfBad = mk { name = "dyn-of-bad"; args = script "cat ${builtins.outputOf badProducer.outPath "out"} > $out"; };
+	dynOfFailing = mk { name = "dyn-of-failing"; args = script "cat ${builtins.outputOf failingProducer.outPath "out"} > $out"; };
+	caFails = mk ({ name = "ca-fails"; args = script "cat ${text}; exit 5"; } // ca "flat");
 	impureEnv = environment { __impure = true; };
 	pureEnv = environment {};
 }
@@ -250,6 +267,49 @@ fn impure_outputs_match_the_reference() {
 			18,
 			"experimental Nix feature 'impure-derivations' is disabled",
 		),
+	] {
+		if let Some(output) = steps.get(step) {
+			assert!(output.contains(message), "{output}");
+		}
+	}
+}
+
+#[test]
+fn dynamic_derivations_match_the_reference() {
+	let steps = same(
+		FEATURES,
+		&[
+			"for a in wrapper both dynFixed dynCa; do cat $(nix-instantiate x.nix -A $a 2> /dev/null); echo; done",
+			"for a in wrapper both dynFixed dynCa; do nix derivation show $(nix-instantiate x.nix -A $a 2> /dev/null); done 2> /dev/null",
+			"nix-build x.nix -A wrapper --no-out-link",
+			"cat store/*-wrapper; nix-store -q --references store/*-inner",
+			"nix-build x.nix -A wrapper --no-out-link",
+			"nix-build x.nix -A both --no-out-link 2> /dev/null; cat store/*-both",
+			"nix-build x.nix -A dynFixed --no-out-link",
+			"nix-build x.nix -A dynBad --no-out-link",
+			"nix-build x.nix -A dynCa --no-out-link --max-jobs 2 2> /dev/null",
+			"nix-build x.nix -A dynMissing --no-out-link 2>&1 | grep -v 'dynamic derivation'",
+			"nix-build x.nix -A dynFails --no-out-link 2> /dev/null; echo $?",
+			"nix-build x.nix -A dynOfBad --no-out-link 2>&1 | grep -c 'error parsing derivation'",
+			"nix-build x.nix -A dynOfFailing --no-out-link 2>&1",
+			"nix build $(nix-instantiate x.nix -A producer 2> /dev/null)^out^out --no-link --print-out-paths 2> /dev/null",
+			"nix build $(nix-instantiate x.nix -A outer 2> /dev/null)^out^out^dev,out --no-link --print-out-paths 2> /dev/null",
+			"nix build $(nix-instantiate x.nix -A failingProducer 2> /dev/null)^out^out --no-link 2>&1 | tail -1",
+			"nix build --impure --expr '(import ./x.nix).dyn \"dev\"' --no-link --print-out-paths 2> /dev/null",
+			"nix build $(nix-instantiate x.nix -A producer 2> /dev/null)^out^out --no-link --option experimental-features 'nix-command ca-derivations'",
+			"nix-build $(nix-instantiate x.nix -A wrapper 2> /dev/null) --no-out-link --option experimental-features 'nix-command ca-derivations'",
+			"nix-build x.nix -A caFails --no-out-link",
+			"nix-store --verify --check-contents; ls store | grep -v lock",
+		],
+	);
+	for (step, message) in [
+		(7, "hash mismatch in fixed-output derivation"),
+		(10, "100"),
+		(
+			18,
+			"experimental Nix feature 'dynamic-derivations' is disabled",
+		),
+		(19, "build of resolved derivation"),
 	] {
 		if let Some(output) = steps.get(step) {
 			assert!(output.contains(message), "{output}");

@@ -51,6 +51,9 @@ pub struct Missing {
 	pub will_build: BTreeSet<StorePath>,
 	pub will_substitute: BTreeSet<StorePath>,
 	pub unknown: BTreeSet<StorePath>,
+	/// Derivations that are outputs still to be built, whose outputs are not
+	/// looked up.
+	pub ignored_dynamic: BTreeSet<String>,
 	pub download_size: u64,
 	pub nar_size: u64,
 }

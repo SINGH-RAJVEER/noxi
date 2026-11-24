@@ -223,6 +223,20 @@ pub fn downstream_placeholder(drv_path: &StorePath, output_name: &[u8]) -> Strin
 	format!("/{}", nixbase32::encode(hasher.finalize().as_ref()))
 }
 
+/// `DownstreamPlaceholder::unknownDerivation`: the placeholder for an output
+/// of the derivation that the output with the placeholder `parent` is.
+pub fn computed_placeholder(parent: &str, output_name: &[u8]) -> String {
+	use crate::nixhash::Sha256Digester;
+	let digest = nixbase32::decode_fixed::<32>(parent.trim_start_matches('/').as_bytes())
+		.expect("placeholders are nix32 digests");
+	let mut hasher = Sha256Digester::new();
+	hasher.update(b"nix-computed-output:");
+	hasher.update(nixbase32::encode(&compress_hash::<20>(&digest)).as_bytes());
+	hasher.update(b":");
+	hasher.update(output_name);
+	format!("/{}", nixbase32::encode(hasher.finalize().as_ref()))
+}
+
 #[cfg(test)]
 mod test {
 	use hex_literal::hex;

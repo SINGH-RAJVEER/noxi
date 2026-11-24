@@ -502,6 +502,14 @@ fn parse_node(stream: &mut Stream<'_>, dynamic: bool) -> Result<InputNode, Aterm
 	}
 }
 
+/// Read the node of one input derivation of a versioned derivation from the
+/// start of `bytes`, and return it with what follows.
+pub fn parse_input_node(bytes: &[u8]) -> Result<(InputNode, &[u8]), AtermError> {
+	let mut stream = Stream { rest: bytes };
+	let node = parse_node(&mut stream, true)?;
+	Ok((node, stream.rest))
+}
+
 impl Derivation {
 	/// `parseDerivation`: read the ATerm text of a derivation called `name`
 	/// (its store path name without `.drv`).

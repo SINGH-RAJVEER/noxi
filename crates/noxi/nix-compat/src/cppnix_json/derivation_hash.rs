@@ -99,7 +99,9 @@ fn list<'a>(
 	out.push(']');
 }
 
-fn unparse_node(out: &mut String, node: &InputNode) {
+/// `unparseDerivedPathMapNode` of a versioned derivation: a comma, then
+/// the node.
+pub fn unparse_node(out: &mut String, node: &InputNode) {
 	out.push(',');
 	let outputs = node.outputs.iter().map(|o| o.as_str().unwrap_or_default());
 	if node.dynamic_outputs.is_empty() {

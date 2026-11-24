@@ -6,6 +6,7 @@ Changes that have not reached a version yet go under an `Unreleased` heading for
 
 ## Repository - Unreleased
 
+- Dynamic derivations build: derivations with inputs that are outputs of derivations still to be built are evaluated, written and read in the `DrvWithVersion` form, resolved and built, and `nix build DRV^out^out` and `builtins.outputOf` installables build them. A failed resolved derivation is reported as in 2.35.2 (2026-11-25).
 - Text-hashed, Git-hashed and impure derivation outputs build, fixed or floating, with the reference's checks of the output's kind, references and hash, and impure derivations and fixed outputs of every method share the sandbox network exemption. `nix store add --mode text|git`, `nix hash path --mode git`, Git content addresses in the store and the worker protocol, and `nix path-info --derivation` work (2026-11-25).
 - `nix build --rebuild` and `--repair` work as in CppNix 2.35.2, also through a daemon, and a repairing evaluation writes valid derivations and sources again. A failed build in a modern command exits with status 1 and is reported as `buildPathsWithResults` reports it (2026-11-25).
 - The `git daemon` of the fetch cache tests stops with its process group when its guard is dropped, also by a panic, and comparisons that build without a sandbox run with no other test alongside (2026-11-25).

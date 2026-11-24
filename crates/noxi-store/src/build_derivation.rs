@@ -3,8 +3,12 @@
 
 use std::collections::BTreeMap;
 
-use nix_compat::derivation::UnverifiedDerivation;
+use nix_compat::cppnix_json::derivation::InputNode;
+use nix_compat::cppnix_json::derivation_aterm::parse_input_node;
+use nix_compat::cppnix_json::derivation_hash::unparse_node;
+use nix_compat::derivation::{OutputName, UnverifiedDerivation};
 use nix_compat::nixhash::HashAlgo;
+use nix_compat::store_path::StorePath;
 
 use crate::{Error, FileIngestionMethod, Result};
 
@@ -129,6 +133,10 @@ pub struct BuildDerivation {
 	pub basic: UnverifiedDerivation,
 	pub floating: BTreeMap<String, FloatingOutput>,
 	pub experimental: BTreeMap<String, ExperimentalOutput>,
+	/// Inputs that are outputs of derivations that input derivations produce,
+	/// by the output that is the derivation. Each input derivation here is
+	/// also one of `basic`, possibly without outputs of its own.
+	pub dynamic: BTreeMap<StorePath, BTreeMap<OutputName, InputNode>>,
 }
 
 impl BuildDerivation {
@@ -214,7 +222,13 @@ impl BuildDerivation {
 		// shared parser. Floating methods are represented separately, never
 		// silently interpreted as input-addressed or fixed outputs.
 		let mut rest = bytes;
-		take(&mut rest, b"Derive([")?;
+		let versioned = rest.starts_with(b"DrvWithVersion(");
+		if versioned {
+			take(&mut rest, b"DrvWithVersion(\"xp-dyn-drv\",[")?;
+			require_feature(features.dynamic_derivations, "dynamic-derivations", "")?;
+		} else {
+			take(&mut rest, b"Derive([")?;
+		}
 		let mut normalised = b"Derive([".to_vec();
 		let mut floating = BTreeMap::new();
 		let mut experimental = BTreeMap::new();
@@ -309,6 +323,43 @@ impl BuildDerivation {
 				"derivation mixes floating and other output types".to_owned(),
 			));
 		}
+		let mut dynamic = BTreeMap::new();
+		if versioned {
+			take(&mut rest, b"],[")?;
+			normalised.extend_from_slice(b"],[");
+			let mut first = true;
+			while !rest.starts_with(b"]") {
+				if !first {
+					take(&mut rest, b",")?;
+					normalised.push(b',');
+				}
+				first = false;
+				let start = rest;
+				take(&mut rest, b"(")?;
+				let path = string(&mut rest)?;
+				take(&mut rest, b",")?;
+				normalised.extend_from_slice(&start[..start.len() - rest.len()]);
+				let mut names = rest;
+				let (node, tail) =
+					parse_input_node(rest).map_err(|e| Error::Other(e.to_string()))?;
+				let _ = names.strip_prefix(b"(").map(|inner| names = inner);
+				let names_start = names;
+				take(&mut names, b"[")?;
+				while !names.starts_with(b"]") {
+					let _ = names.strip_prefix(b",").map(|inner| names = inner);
+					string(&mut names)?;
+				}
+				take(&mut names, b"]")?;
+				normalised.extend_from_slice(&names_start[..names_start.len() - names.len()]);
+				rest = tail;
+				take(&mut rest, b")")?;
+				normalised.push(b')');
+				if !node.dynamic_outputs.is_empty() {
+					let path = StorePath::from_absolute_path(&path).map_err(|_| invalid())?;
+					dynamic.insert(path, node.dynamic_outputs);
+				}
+			}
+		}
 		normalised.extend_from_slice(rest);
 		let basic = UnverifiedDerivation::from_aterm_bytes(&normalised).map_err(|e| {
 			Error::Other(format!(
@@ -320,7 +371,60 @@ impl BuildDerivation {
 			basic,
 			floating,
 			experimental,
+			dynamic,
 		})
+	}
+
+	/// `Derivation::unparse`'s versioned form, if there are dynamic inputs.
+	fn with_dynamic_inputs(&self, bytes: Vec<u8>) -> Vec<u8> {
+		if self.dynamic.is_empty() {
+			return bytes;
+		}
+		let mut rest = bytes.as_slice();
+		take(&mut rest, b"Derive([").expect("serialized derivation");
+		let mut out = b"DrvWithVersion(\"xp-dyn-drv\",[".to_vec();
+		let start = rest;
+		while !rest.starts_with(b"]") {
+			let _ = rest.strip_prefix(b",").map(|inner| rest = inner);
+			take(&mut rest, b"(").unwrap();
+			for index in 0..4 {
+				if index > 0 {
+					take(&mut rest, b",").unwrap();
+				}
+				string(&mut rest).unwrap();
+			}
+			take(&mut rest, b")").unwrap();
+		}
+		out.extend_from_slice(&start[..start.len() - rest.len()]);
+		out.extend_from_slice(b"],[");
+		for (index, (path, names)) in self.basic.input_derivations().iter().enumerate() {
+			if index > 0 {
+				out.push(b',');
+			}
+			let mut node = String::new();
+			unparse_node(
+				&mut node,
+				&InputNode {
+					outputs: names.clone(),
+					dynamic_outputs: self.dynamic.get(path).cloned().unwrap_or_default(),
+				},
+			);
+			out.extend_from_slice(format!("(\"{}\"{node})", path.to_absolute_path()).as_bytes());
+		}
+		take(&mut rest, b"],[").unwrap();
+		while !rest.starts_with(b"]") {
+			let _ = rest.strip_prefix(b",").map(|inner| rest = inner);
+			take(&mut rest, b"(").unwrap();
+			string(&mut rest).unwrap();
+			take(&mut rest, b",[").unwrap();
+			while !rest.starts_with(b"]") {
+				let _ = rest.strip_prefix(b",").map(|inner| rest = inner);
+				string(&mut rest).unwrap();
+			}
+			take(&mut rest, b"])").unwrap();
+		}
+		out.extend_from_slice(rest);
+		out
 	}
 
 	/// Fixed outputs hide their build provenance from input-addressed parents.
@@ -346,6 +450,10 @@ impl BuildDerivation {
 	}
 
 	pub fn to_aterm_bytes(&self) -> Vec<u8> {
+		self.with_dynamic_inputs(self.to_unversioned_bytes())
+	}
+
+	fn to_unversioned_bytes(&self) -> Vec<u8> {
 		if self.floating.is_empty() && self.experimental.is_empty() {
 			return self.basic.to_aterm_bytes();
 		}

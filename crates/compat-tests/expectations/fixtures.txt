@@ -168,11 +168,11 @@ gap tests/functional/dependencies.sh # main in dependencies.sh:12: error: nix-st
 pass:upstream_functional tests/functional/derivation-advanced-attributes.sh
 pass:upstream_functional tests/functional/derivation-json.sh
 pass:upstream_functional tests/functional/dump-db.sh
-gap tests/functional/dyn-drv/build-built-drv.sh # main in build-built-drv.sh:24: error: invalid extended outputs specifier '$ROOT/tmp/nix-test/dyn-drv/build-built-drv/store/HASH-hello.drv.drv^out^out'
-gap tests/functional/dyn-drv/dep-built-drv-2.sh # main in dep-built-drv-2.sh:16: error: invalid store path 'out!$ROOT/tmp/nix-test/dyn-drv/dep-built-drv-2/store/HASH-make-derivations.drv.drv'
-gap tests/functional/dyn-drv/dep-built-drv.sh # main in dep-built-drv.sh:12: error: I/O error: Tried to parse an absolute path which was missing the store dir prefix.
+pass:upstream_functional tests/functional/dyn-drv/build-built-drv.sh
+gap tests/functional/dyn-drv/dep-built-drv-2.sh # main in dep-built-drv-2.sh:16: error: failed to obtain derivation of '$ROOT/tmp/nix-test/dyn-drv/dep-built-drv-2/store/HASH-make-derivations.drv.drv^out'
+pass:upstream_functional tests/functional/dyn-drv/dep-built-drv.sh
 pass:upstream_functional tests/functional/dyn-drv/eval-outputOf.sh
-gap tests/functional/dyn-drv/failing-outer.sh # main in failing-outer.sh:12: Expected exit code '100' but got '1' from command 'nix-build' './text-hashed-output.nix' '-A' 'failingWrapper' '--no-out-link'
+pass:upstream_functional tests/functional/dyn-drv/failing-outer.sh
 anomaly tests/functional/dyn-drv/old-daemon-error-hack.sh # reference skip: Daemon is too new, skipping this test...
 gap tests/functional/dyn-drv/recursive-mod-json.sh # main in recursive-mod-json.sh:19: error: Cannot build '$ROOT/tmp/nix-test/dyn-drv/recursive-mod-json/store/HASH-foo.drv.drv'.
 pass:upstream_functional tests/functional/dyn-drv/text-hashed-output.sh

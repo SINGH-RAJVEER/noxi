@@ -460,7 +460,13 @@ impl Store for LocalBackend {
 			vec![],
 			0,
 		);
-		self.worker().query_missing_quietly(paths)
+		let missing = self.worker().query_missing_quietly(paths)?;
+		for drv in &missing.ignored_dynamic {
+			nix_compat::log::logger::warn(&format!(
+				"Ignoring dynamic derivation {drv} while querying missing paths; not yet implemented"
+			));
+		}
+		Ok(missing)
 	}
 
 	/// Build output goes to standard error, as the legacy commands print it,

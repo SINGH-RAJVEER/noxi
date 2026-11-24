@@ -228,13 +228,13 @@ tests/functional/derivation/ia/advanced-attributes.drv support
 tests/functional/dummy support
 tests/functional/dump-db.sh pass pass pass
 tests/functional/duplicate.nar support
-tests/functional/dyn-drv/build-built-drv.sh gap fail pass # main in build-built-drv.sh:24: error: invalid extended outputs specifier '$ROOT/tmp/nix-test/dyn-drv/build-built-drv/store/HASH-hello.drv.drv^out^out'
+tests/functional/dyn-drv/build-built-drv.sh pass pass pass
 tests/functional/dyn-drv/common.sh support
 tests/functional/dyn-drv/config.nix support
-tests/functional/dyn-drv/dep-built-drv-2.sh gap fail pass # main in dep-built-drv-2.sh:16: error: invalid store path 'out!$ROOT/tmp/nix-test/dyn-drv/dep-built-drv-2/store/HASH-make-derivations.drv.drv'
-tests/functional/dyn-drv/dep-built-drv.sh gap fail pass # main in dep-built-drv.sh:12: error: I/O error: Tried to parse an absolute path which was missing the store dir prefix.
+tests/functional/dyn-drv/dep-built-drv-2.sh gap fail pass # main in dep-built-drv-2.sh:16: error: failed to obtain derivation of '$ROOT/tmp/nix-test/dyn-drv/dep-built-drv-2/store/HASH-make-derivations.drv.drv^out'
+tests/functional/dyn-drv/dep-built-drv.sh pass pass pass
 tests/functional/dyn-drv/eval-outputOf.sh pass pass pass
-tests/functional/dyn-drv/failing-outer.sh gap fail pass # main in failing-outer.sh:12: Expected exit code '100' but got '1' from command 'nix-build' './text-hashed-output.nix' '-A' 'failingWrapper' '--no-out-link'
+tests/functional/dyn-drv/failing-outer.sh pass pass pass
 tests/functional/dyn-drv/meson.build support
 tests/functional/dyn-drv/non-trivial.nix support
 tests/functional/dyn-drv/old-daemon-error-hack.nix support

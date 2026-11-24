@@ -549,6 +549,10 @@ impl LocalStore {
 			}
 			return Ok(outputs);
 		}
+		if !build_drv.dynamic.is_empty() {
+			// Deferred until the derivations it depends on are built.
+			return Ok(Vec::new());
+		}
 		let drv = build_drv.basic;
 		let name = drv_path
 			.name()
@@ -593,7 +597,10 @@ impl LocalStore {
 			memo.borrow_mut().insert(drv_path.clone(), hash.clone());
 			return Some(hash);
 		}
-		if !build_drv.floating.is_empty() || !build_drv.experimental.is_empty() {
+		if !build_drv.floating.is_empty()
+			|| !build_drv.experimental.is_empty()
+			|| !build_drv.dynamic.is_empty()
+		{
 			return None;
 		}
 		let drv = build_drv.basic;
@@ -625,6 +632,9 @@ impl LocalStore {
 			// Malformed files fail with the reference's `FormatError`;
 			// noxi's own feature and support checks keep their messages.
 			Some((message, true)) => Error::Other(message),
+			Some((message, false)) if bytes.starts_with(b"DrvWithVersion(") => {
+				Error::Other(message)
+			}
 			_ => e,
 		})
 	}

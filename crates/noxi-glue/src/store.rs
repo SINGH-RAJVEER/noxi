@@ -281,6 +281,9 @@ impl EvaluatorStore {
 				NixContextElement::Single { derivation, .. } => (derivation, false),
 				NixContextElement::Derivation(path) => (path, true),
 			};
+			// The outputs of a derivation that is still to be built are unknown,
+			// so only the derivation producing it is loaded.
+			let path = path.rsplit('!').next().unwrap_or(path);
 			let path = StorePath::from_absolute_path(path.as_bytes()).map_err(io::Error::other)?;
 			self.load_derivation(&path)?;
 			if deep && let Some(store) = self.access_store()? {

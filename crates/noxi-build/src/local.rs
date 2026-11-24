@@ -22,7 +22,8 @@ use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
 
 use bstr::{BString, ByteSlice};
-use nix_compat::derivation::{OutputHashMode, UnverifiedDerivation, lookup_fn};
+use nix_compat::cppnix_json::derivation::InputNode;
+use nix_compat::derivation::{OutputHashMode, OutputName, UnverifiedDerivation, lookup_fn};
 use nix_compat::nixbase32;
 use nix_compat::nixhash::{CAHash, HashAlgo, NixHash};
 use nix_compat::store_path::{
@@ -247,6 +248,7 @@ impl<'a> LocalBuilder<'a> {
 			basic: drv.clone(),
 			floating: BTreeMap::new(),
 			experimental: BTreeMap::new(),
+			dynamic: BTreeMap::new(),
 		};
 		let outputs = self.known_outputs(drv_path, &build_drv)?;
 		self.report_checks(&outputs, events)?;
@@ -495,9 +497,9 @@ impl<'a> LocalBuilder<'a> {
 		// derivations by replacing all input derivations with source paths.
 		if !drv.input_derivations().is_empty()
 			&& if build_drv.is_fixed() {
-				self.store.config().ca_derivations
+				self.store.config().ca_derivations || !build_drv.dynamic.is_empty()
 			} else {
-				drv.outputs().is_deferred()
+				drv.outputs().is_deferred() || !build_drv.dynamic.is_empty()
 			} {
 			// A fixed output that is valid needs none of its inputs.
 			if build_drv.is_fixed() && self.mode == BuildMode::Normal {
@@ -729,6 +731,9 @@ impl<'a> LocalBuilder<'a> {
 		stack: &mut Vec<StorePath>,
 		events: &mut dyn FnMut(BuildEvent<'_>),
 	) -> Result<BTreeMap<String, StorePath>> {
+		if !self.store.config().ca_derivations {
+			return Err(BuildError::Other("experimental Nix feature 'ca-derivations' is disabled; add '--extra-experimental-features ca-derivations' to enable it".to_owned()));
+		}
 		let (path, resolved) = resolve_derivation(drv_path, drv, |input, wanted| {
 			self.for_inputs()
 				.realise_inner(input, Some(wanted), done, stack, events)
@@ -750,7 +755,16 @@ impl<'a> LocalBuilder<'a> {
 		);
 		let impure = resolved.is_impure();
 		let resolved = (!self.store.is_valid_path(&path)?).then_some(resolved);
-		let outputs = self.realise_drv(&path, resolved, None, done, stack, events)?;
+		let outputs = match self.realise_drv(&path, resolved, None, done, stack, events) {
+			Err(BuildError::Failed { status, message }) => {
+				crate::backend::log_error(&message);
+				return Err(BuildError::failed(
+					status,
+					format!("build of resolved derivation '{}' failed", print(&path)),
+				));
+			}
+			outputs => outputs?,
+		};
 		if impure {
 			self.impure().insert(drv_path.clone(), outputs.clone());
 		}
@@ -876,6 +890,9 @@ pub fn resolve_derivation(
 	builder.environment = drv.basic.environment().clone();
 	let mut rewrites = BTreeMap::new();
 	for (input, names) in drv.basic.input_derivations() {
+		if names.is_empty() {
+			continue;
+		}
 		let wanted = names.iter().map(ToString::to_string).collect();
 		let Some(paths) = input_outputs(input, &wanted)? else {
 			return Ok(None);
@@ -889,6 +906,47 @@ pub fn resolve_derivation(
 			})?;
 			builder.input_sources.insert(path.clone());
 			rewrites.insert(downstream_placeholder(input, name.as_ref()), print(path));
+		}
+	}
+	for (input, children) in &drv.dynamic {
+		let resolved = resolve_dynamic_inputs(
+			input,
+			children,
+			&|name| downstream_placeholder(input, name),
+			&mut input_outputs,
+			&mut builder.input_sources,
+			&mut rewrites,
+		);
+		match resolved {
+			Ok(true) => {}
+			Ok(false) => return Ok(None),
+			Err(BuildError::Failed { status, message }) => {
+				crate::backend::log_error(&message);
+				let mut message = format!(
+					"Cannot build '{}'.\nReason: 1 dependency failed.",
+					print(drv_path)
+				);
+				let known: BTreeSet<String> = drv
+					.basic
+					.outputs()
+					.store_paths()
+					.map(print)
+					.chain(
+						drv.experimental
+							.values()
+							.filter_map(|output| output.fixed.as_ref())
+							.map(|(path, _)| print(path)),
+					)
+					.collect();
+				if !known.is_empty() {
+					message += "\nOutput paths:";
+				}
+				for path in known {
+					message += &format!("\n  {path}");
+				}
+				return Err(BuildError::failed(status, message));
+			}
+			Err(error) => return Err(error),
 		}
 	}
 	builder.input_derivations.clear();
@@ -925,6 +983,7 @@ pub fn resolve_derivation(
 		basic,
 		floating: drv.floating.clone(),
 		experimental: drv.experimental.clone(),
+		dynamic: BTreeMap::new(),
 	};
 	let path = store_path::build_text_path(
 		&format!("{name}.drv"),
@@ -934,6 +993,85 @@ pub fn resolve_derivation(
 	.map_err(|e| BuildError::Other(e.to_string()))?
 	.to_owned();
 	Ok(Some((path, resolved)))
+}
+
+/// `tryResolveInput` for the derivations that the outputs in `children` of the
+/// derivation at `producer` are.
+fn resolve_dynamic_inputs(
+	producer: &StorePath,
+	children: &BTreeMap<OutputName, InputNode>,
+	placeholder: &dyn Fn(&[u8]) -> String,
+	input_outputs: &mut dyn FnMut(
+		&StorePath,
+		&BTreeSet<String>,
+	) -> Result<Option<BTreeMap<String, StorePath>>>,
+	input_sources: &mut BTreeSet<StorePath>,
+	rewrites: &mut BTreeMap<String, String>,
+) -> Result<bool> {
+	for (output, child) in children {
+		let mut outputs_of =
+			|drv: &StorePath, names: &BTreeSet<String>| match input_outputs(drv, names) {
+				Ok(None) => Ok(None),
+				Ok(Some(paths)) => names
+					.iter()
+					.map(|name| {
+						paths
+							.get(name)
+							.map(|path| (name.clone(), path.clone()))
+							.ok_or_else(|| {
+								BuildError::Other(format!(
+									"derivation '{}' has no output '{name}'",
+									print(drv)
+								))
+							})
+					})
+					.collect::<Result<BTreeMap<_, _>>>()
+					.map(Some),
+				Err(error) => Err(error),
+			};
+		let name = output.to_string();
+		let mut built = match outputs_of(producer, &BTreeSet::from([name.clone()])) {
+			Ok(Some(built)) => built,
+			Ok(None) => return Ok(false),
+			Err(BuildError::Failed { status, message }) => {
+				crate::backend::log_error(&message);
+				return Err(BuildError::failed(
+					status,
+					format!(
+						"failed to obtain derivation of '{}^{name}'",
+						print(producer)
+					),
+				));
+			}
+			Err(error) => return Err(error),
+		};
+		let drv = built.remove(&name).expect("the output was asked for");
+		let parent = placeholder(output.as_bytes());
+		let wanted: BTreeSet<String> = child.outputs.iter().map(ToString::to_string).collect();
+		if !wanted.is_empty() {
+			let Some(paths) = outputs_of(&drv, &wanted)? else {
+				return Ok(false);
+			};
+			for (name, path) in paths {
+				rewrites.insert(
+					store_path::computed_placeholder(&parent, name.as_bytes()),
+					print(&path),
+				);
+				input_sources.insert(path);
+			}
+		}
+		if !resolve_dynamic_inputs(
+			&drv,
+			&child.dynamic_outputs,
+			&|name| store_path::computed_placeholder(&parent, name),
+			input_outputs,
+			input_sources,
+			rewrites,
+		)? {
+			return Ok(false);
+		}
+	}
+	Ok(true)
 }
 
 /// `deepQueryPartialDerivationOutput`: the path of output `output` of
@@ -973,6 +1111,9 @@ pub fn deep_query_output(
 		return Ok(None);
 	}
 	let resolved = resolve_derivation(drv_path, &drv, |input, wanted| {
+		if !store.is_valid_path(input)? {
+			return Ok(None);
+		}
 		let mut paths = BTreeMap::new();
 		for name in wanted {
 			match deep_query_output(store, input, name, realisation)? {
