@@ -65,7 +65,7 @@ impl CapturedSource {
 		(self.hash, self.size)
 	}
 
-	pub(crate) fn reader(&mut self) -> io::Result<&mut SpooledTempFile> {
+	pub fn reader(&mut self) -> io::Result<&mut SpooledTempFile> {
 		self.bytes.rewind()?;
 		Ok(&mut self.bytes)
 	}

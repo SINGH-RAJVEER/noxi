@@ -298,7 +298,9 @@ fn why_depends(parsed: Parsed) -> Result<ExitCode, Failure> {
 		Ok(outputs.into_values().next().unwrap())
 	};
 	if !parsed.has("derivation") {
-		target.store.build_paths(&target.paths[..1])?;
+		target
+			.store
+			.build_paths_with_results(&target.paths[..1], noxi_store::BuildMode::Normal)?;
 	}
 	let package = resolve(0)?;
 	// Nothing can depend on a content-addressed output that was never built.

@@ -740,3 +740,42 @@ fn refused_clients_fail_like_cppnix() {
 		assert_eq!(output, &outputs[0]);
 	}
 }
+
+/// `nix build --rebuild` is open to every client; `--repair` is refused for
+/// one the daemon does not trust, before anything is repaired.
+#[test]
+fn modern_rebuilds_and_repairs_through_both_daemons() {
+	let env = Env::new();
+	for args in [
+		vec!["build", "-f", "expr.nix", "ok", "--no-link"],
+		vec!["build", "-f", "expr.nix", "ok", "--no-link", "--rebuild"],
+		vec!["build", "-f", "expr.nix", "ok", "--no-link", "--repair"],
+		vec![
+			"build",
+			"-f",
+			"expr.nix",
+			"ok",
+			"--no-link",
+			"--rebuild",
+			"--repair",
+		],
+		vec!["build", "-f", "expr.nix", "fail", "--no-link", "--rebuild"],
+		vec!["build", "-f", "expr.nix", "fail", "--no-link"],
+	] {
+		let expected = env.run("reference", "nix", &args);
+		if args.contains(&"--repair") {
+			assert!(
+				expected
+					.contains("repairing is not allowed because you are not in 'trusted-users'"),
+				"{expected}"
+			);
+		}
+		for engine in ["noxi", "pair"] {
+			assert_eq!(
+				env.run(engine, "nix", &args),
+				expected,
+				"{args:?} through {engine}"
+			);
+		}
+	}
+}

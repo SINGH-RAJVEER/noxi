@@ -56,6 +56,8 @@ pub struct Options {
 	/// `nix-instantiate --dry-run`: CppNix's `readOnlyMode`, so derivation
 	/// paths are computed without writing them, even with `--read-write-mode`.
 	pub dry_run: bool,
+	/// `--repair`: write valid derivations and sources again.
+	pub repair: bool,
 	pub strict: bool,
 	pub json: bool,
 	/// `--xml`; the last of `--raw`, `--json` and `--xml` wins, as in CppNix.
@@ -1477,6 +1479,7 @@ fn evaluator_store(
 			.collect();
 		evaluator_store.restrict_access(options.settings.get_bool("pure-eval", false), roots);
 	}
+	evaluator_store.repair(options.repair);
 	evaluator_store.allow_import_from_derivation(
 		options
 			.settings

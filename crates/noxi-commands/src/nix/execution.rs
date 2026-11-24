@@ -28,7 +28,9 @@ pub(super) fn shell(mut parsed: Parsed) -> Result<ExitCode, Failure> {
 		let missing = targets.store.query_missing(&targets.paths)?;
 		crate::paths::print_missing(targets.store.as_ref(), &missing)?;
 	}
-	targets.store.build_paths(&targets.paths)?;
+	targets
+		.store
+		.build_paths_with_results(&targets.paths, noxi_store::BuildMode::Normal)?;
 	let mut bins = Vec::new();
 	let mut seen = BTreeSet::new();
 	let mut pending = Vec::new();
@@ -218,7 +220,7 @@ pub(super) fn run(mut parsed: Parsed) -> Result<ExitCode, Failure> {
 	if parsed.settings.get_bool("print-missing", true) {
 		crate::paths::print_missing(store.as_ref(), &store.query_missing(&paths)?)?;
 	}
-	store.build_paths(&paths)?;
+	store.build_paths_with_results(&paths, noxi_store::BuildMode::Normal)?;
 	let mut program = std::str::from_utf8(program.as_bytes())
 		.map_err(|e| e.to_string())?
 		.to_owned();

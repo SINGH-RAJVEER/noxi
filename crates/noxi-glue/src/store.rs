@@ -46,6 +46,9 @@ pub struct EvaluatorStore {
 	read_access: RefCell<Option<Rc<dyn Store>>>,
 	opener: Option<Box<dyn Fn() -> io::Result<Option<Rc<dyn Store>>>>>,
 	allow_ifd: std::cell::Cell<Option<bool>>,
+	/// `EvalState::repair`: write derivations, texts and sources again even
+	/// when they are valid.
+	repair: std::cell::Cell<bool>,
 	trace_ifd: std::cell::Cell<bool>,
 	access: RefCell<Option<EvaluationAccess>>,
 	/// Fetched trees served at logical store paths, keyed by store path.
@@ -205,6 +208,14 @@ impl EvaluatorStore {
 	/// Whether output-context access may build during evaluation.
 	pub fn allow_import_from_derivation(&self, enabled: bool) {
 		self.allow_ifd.set(Some(enabled));
+	}
+
+	/// `EvalState::repair`.
+	pub fn repair(&self, repair: bool) {
+		self.repair.set(repair);
+		if let Some(store) = &self.store {
+			store.repair_additions(repair);
+		}
 	}
 
 	/// Log the reference's warning for every output-context realization.
@@ -400,7 +411,7 @@ impl EvaluatorStore {
 			return Ok(());
 		}
 		store.add_temp_root(path).map_err(io::Error::other)?;
-		if !store.is_valid_path(path).map_err(io::Error::other)? {
+		if self.repair.get() || !store.is_valid_path(path).map_err(io::Error::other)? {
 			let actual = store
 				.add_text_to_store(path.name(), &contents(), &references())
 				.map_err(io::Error::other)?;

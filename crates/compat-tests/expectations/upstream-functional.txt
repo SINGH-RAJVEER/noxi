@@ -267,7 +267,7 @@ tests/functional/fetchurl.sh gap fail pass # main in fetchurl.sh:10: error: unsu
 tests/functional/filter-source.nix support
 tests/functional/filter-source.sh pass pass pass
 tests/functional/fixed-slow-vs-bad.nix support
-tests/functional/fixed-slow-vs-bad.sh gap fail pass # main in fixed-slow-vs-bad.sh:48: Expected exit code '1' but got '102' from command 'nix' 'build' '-L' '--max-jobs' '2' '--option' 'sandbox' 'true' '--option' 'sandbox-build-dir' '/build-non-standard'
+tests/functional/fixed-slow-vs-bad.sh pass pass pass
 tests/functional/fixed.builder1.sh support
 tests/functional/fixed.builder2.sh support
 tests/functional/fixed.nix support

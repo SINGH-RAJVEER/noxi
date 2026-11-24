@@ -6,7 +6,7 @@ use std::process::ExitCode;
 
 use nix_compat::store_path::StorePath;
 use noxi_eval::{Ambiguous, Value};
-use noxi_store::{DerivedPath, Store, profiles};
+use noxi_store::{BuildMode, DerivedPath, Store, profiles};
 use serde_json::json;
 
 use super::{Parsed, unsupported};
@@ -35,6 +35,7 @@ pub fn options(parsed: &Parsed, eval: bool) -> Result<Options, Failure> {
 		generated: true,
 		eval,
 		read_write_mode: !parsed.has("read-only"),
+		repair: parsed.has("repair"),
 		strict: true,
 		settings,
 		store: parsed.value("store").map(str::to_owned),
@@ -302,7 +303,14 @@ pub fn outputs(
 }
 
 pub fn build(parsed: Parsed) -> Result<ExitCode, Failure> {
-	parsed.unsupported(&["rebuild", "repair"])?;
+	// `MixRepair` and `--rebuild`; a repair takes precedence.
+	let mode = if parsed.has("repair") {
+		BuildMode::Repair
+	} else if parsed.has("rebuild") {
+		BuildMode::Check
+	} else {
+		BuildMode::Normal
+	};
 	let target = match targets(&parsed)? {
 		Ok(target) => target,
 		Err(code) => return Ok(code),
@@ -319,7 +327,7 @@ pub fn build(parsed: Parsed) -> Result<ExitCode, Failure> {
 	let missing = target.store.query_missing(&target.paths)?;
 	crate::paths::print_missing(target.store.as_ref(), &missing)?;
 	if !parsed.has("dry-run") {
-		target.store.build_paths(&target.paths)?;
+		target.store.build_paths_with_results(&target.paths, mode)?;
 	}
 	let mut result = Vec::new();
 	for path in &target.paths {

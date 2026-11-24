@@ -179,6 +179,20 @@ pub trait Store {
 		)
 	}
 
+	/// `Installable::build`: realise `paths` with their results, as the
+	/// modern commands do. A failed build is an error with exit status 1.
+	fn build_paths_with_results(&self, paths: &[DerivedPath], mode: BuildMode) -> Result<()> {
+		self.build_paths_with_mode(paths, mode)
+			.map_err(|error| match error {
+				Error::Build { message, .. } => Error::Other(message),
+				error => error,
+			})
+	}
+
+	/// `EvalState::repair`: write the paths this client adds again even when
+	/// they are valid, as an evaluation with `--repair` does.
+	fn repair_additions(&self, _repair: bool) {}
+
 	/// Keep `path` alive until this process exits.
 	fn add_temp_root(&self, path: &StorePath) -> Result<()>;
 
