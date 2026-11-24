@@ -570,10 +570,15 @@ pub(crate) mod derivation_builtins {
 						}
 						let output_name = output_name.to_str()?;
 						input_context.mimic(&output_name);
-						let output_name: OutputName = output_name
-							.to_str()?
-							.parse()
-							.map_err(|err| ErrorKind::NoxiError(Arc::new(err)))?;
+						let output_name = output_name.to_str()?;
+						let output_name: OutputName = output_name.parse().map_err(|err| {
+							// CppNix reports the name of the output's path.
+							crate::errors::invalid_store_name(&format!("{name}-{output_name}"))
+								.map_or_else(
+									|| ErrorKind::NoxiError(Arc::new(err)),
+									ErrorKind::EvalError,
+								)
+						})?;
 						if output_names.contains(&output_name) {
 							return Err(ErrorKind::EvalError(format!(
 								"duplicate derivation output '{output_name}'"

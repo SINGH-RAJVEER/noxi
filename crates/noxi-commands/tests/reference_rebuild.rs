@@ -233,3 +233,22 @@ fn post_build_hooks_match_the_reference() {
 		"nix-build x.nix -A stateful --no-out-link --post-build-hook $PWD/missing > /dev/null 2>&1; echo $?",
 	]);
 }
+
+#[test]
+fn store_derivation_arguments_match_the_reference() {
+	same(&[
+		"nix-build $(nix-instantiate x.nix -A stable 2> /dev/null) --no-out-link",
+		"d=$(nix-instantiate x.nix -A two 2> /dev/null); nix-build ${d%!*}!second -o out; ls -l out* | wc -l; readlink out*",
+		"nix-build $(nix-instantiate x.nix -A two.first 2> /dev/null) --no-out-link",
+		"d=$(nix-instantiate x.nix -A two 2> /dev/null); nix-build ${d%!*} --no-out-link",
+		"d=$(nix-instantiate x.nix -A two 2> /dev/null); nix-build ${d%!*}!first,second --no-out-link",
+		"d=$(nix-instantiate x.nix -A two 2> /dev/null); nix-build ${d%!*}!nope --no-out-link",
+		"nix-instantiate x.nix -A stateful --add-root $PWD/link.drv; nix-build link.drv x.nix -A stable --no-out-link",
+		"nix-instantiate x.nix -A stateful --add-root $PWD/link; nix-build link --no-out-link --check",
+		"nix-build store/*-missing.drv --no-out-link",
+		"nix-build $PWD/store/00000000000000000000000000000000-missing.drv --no-out-link",
+		"export NIX_BUILD_SHELL=bash; nix-shell $(nix-instantiate x.nix -A use 2> /dev/null) --run 'echo $name $IN_NIX_SHELL'",
+		"export NIX_BUILD_SHELL=bash; nix-shell --pure --keep PATH link --run 'echo $name'",
+		"export NIX_BUILD_SHELL=bash; nix-shell link x.nix -A use --run 'echo $name'",
+	]);
+}

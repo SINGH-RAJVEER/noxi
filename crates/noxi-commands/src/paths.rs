@@ -2,6 +2,8 @@
 
 use std::collections::BTreeSet;
 use std::path::Path;
+use std::process::ExitCode;
+use std::rc::Rc;
 
 use nix_compat::store_path::{StorePath, store_dir};
 use noxi_store::gc::render_size;
@@ -41,6 +43,118 @@ pub fn follow_links_to_store_path(cwd: &Path, arg: &str) -> Result<StorePath, Fa
 			path.display()
 		))),
 	}
+}
+
+/// A store derivation given to `nix-build` or `nix-shell`, as
+/// `PATH.drv!OUTPUT`, with the selected outputs.
+pub type StoreDerivation = (StorePath, BTreeSet<String>);
+
+/// Take the arguments that name store derivations, directly or through
+/// symlinks, out of `inputs`; the rest are expressions to evaluate.
+pub fn take_store_derivations(cwd: &Path, inputs: &mut Vec<String>) -> Vec<StoreDerivation> {
+	let mut found = Vec::new();
+	inputs.retain(|input| {
+		if input == "-" {
+			return true;
+		}
+		// `canonPath` resolves the symlinks of the part that exists.
+		let path = crate::instantiate::absolute_path(cwd, Path::new(input));
+		let resolved = std::fs::canonicalize(&path).unwrap_or_else(|_| {
+			match (path.parent().map(std::fs::canonicalize), path.file_name()) {
+				(Some(Ok(parent)), Some(name)) => parent.join(name),
+				_ => path.clone(),
+			}
+		});
+		let Some(text) = resolved.to_str() else {
+			return true;
+		};
+		let (path, outputs) = text.split_once('!').unwrap_or((text, ""));
+		let Ok(path) = StorePath::from_absolute_path(path.as_bytes()) else {
+			return true;
+		};
+		if !path.name().ends_with(".drv") {
+			return true;
+		}
+		let outputs = outputs
+			.split(',')
+			.filter(|output| !output.is_empty())
+			.map(str::to_owned)
+			.collect();
+		found.push((path, outputs));
+		false
+	});
+	found
+}
+
+/// `PackageInfo`: the output a store derivation argument selects, by default
+/// the one the derivation's `outputName` names, or `out`.
+pub fn store_derivation_output(
+	store: &dyn Store,
+	(path, outputs): &StoreDerivation,
+) -> Result<(StorePath, String), Failure> {
+	store.ensure_path(path)?;
+	let drv = store.read_build_derivation(path)?;
+	let mut selected = outputs.iter();
+	let output = match (selected.next(), selected.next()) {
+		(Some(output), None) => output.clone(),
+		(Some(_), Some(_)) => {
+			return Err(Failure::Error(format!(
+				"building more than one derivation output is not supported, in '{}!{}'",
+				print(path),
+				outputs.iter().cloned().collect::<Vec<_>>().join(",")
+			)));
+		}
+		(None, _) => drv
+			.basic
+			.environment()
+			.get(b"outputName".as_slice())
+			.map_or("out".into(), |name| {
+				String::from_utf8_lossy(name).into_owned()
+			}),
+	};
+	if !drv
+		.basic
+		.outputs()
+		.names()
+		.any(|name| name.as_bytes() == output.as_bytes())
+	{
+		return Err(Failure::Error(format!(
+			"derivation '{}' does not have output '{output}'",
+			print(path)
+		)));
+	}
+	Ok((path.clone(), output))
+}
+
+/// The store and the derivations to build: the store derivations in
+/// `arguments`, then those the expressions evaluate to. A failed evaluation
+/// has printed its errors and gives the exit code.
+#[allow(clippy::type_complexity)]
+pub fn select_derivations(
+	options: &crate::instantiate::Options,
+	cwd: &Path,
+	arguments: &[StoreDerivation],
+) -> Result<Result<(Rc<dyn Store>, Vec<(StorePath, String)>), ExitCode>, Failure> {
+	let no_store = || Failure::Error("the selected store cannot build derivations".to_owned());
+	let (store, evaluated) = if options.inputs.is_empty() {
+		let uri = crate::store::store_uri(options.store.as_deref(), &options.settings);
+		let opened = crate::store::open(&uri, &options.settings)?.ok_or_else(no_store)?;
+		(opened.store, Vec::new())
+	} else {
+		match crate::instantiate::evaluate(options, cwd) {
+			Ok(evaluated) => (
+				evaluated.store.ok_or_else(no_store)?,
+				crate::instantiate::derivations(&evaluated.results)?,
+			),
+			Err(code) => return Ok(Err(code)),
+		}
+	};
+	let mut derivations = Vec::new();
+	for argument in arguments {
+		derivations.push(store_derivation_output(store.as_ref(), argument)?);
+	}
+	derivations.extend(evaluated);
+	Ok(Ok((store, derivations)))
 }
 
 /// CppNix's `topoSortPaths`: each path before the paths it refers to.

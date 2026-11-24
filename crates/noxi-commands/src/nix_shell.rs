@@ -22,7 +22,7 @@ use serde_json::Value;
 
 use crate::cli::{Failure, print_setting_warnings};
 use crate::instantiate::{self, absolute_path};
-use crate::paths::print_missing;
+use crate::paths::{print_missing, select_derivations, take_store_derivations};
 
 /// The variables `--pure` keeps, with the lower-case proxy variables;
 /// CppNix's upper-case proxy names come out empty.
@@ -220,6 +220,11 @@ pub fn main(settings: Settings, args: Vec<String>) -> Result<ExitCode, Failure> 
 		}
 		options.inputs = vec![".".into()];
 	}
+	let arguments = if options.from_args {
+		Vec::new()
+	} else {
+		take_store_derivations(&cwd, &mut options.inputs)
+	};
 	if !options.from_args {
 		options.inputs = options
 			.inputs
@@ -237,19 +242,15 @@ pub fn main(settings: Settings, args: Vec<String>) -> Result<ExitCode, Failure> 
 	// SAFETY: the command runs on a single thread and evaluation reads it.
 	unsafe { std::env::set_var("IN_NIX_SHELL", if pure { "pure" } else { "impure" }) };
 
-	let evaluated = match instantiate::evaluate(&options, &cwd) {
-		Ok(evaluated) => evaluated,
+	let (store, derivations) = match select_derivations(&options, &cwd, &arguments)? {
+		Ok(selected) => selected,
 		Err(code) => return Ok(code),
 	};
-	let derivations = instantiate::derivations(&evaluated.results)?;
 	let [(drv_path, _)] = derivations.as_slice() else {
 		return Err(Failure::Usage(
 			"nix-shell requires a single derivation".into(),
 		));
 	};
-	let store = evaluated
-		.store
-		.ok_or_else(|| Failure::Error("the selected store cannot build derivations".to_owned()))?;
 	let mut build_drv = store.read_build_derivation(drv_path)?;
 	let drv = build_drv.basic.clone();
 

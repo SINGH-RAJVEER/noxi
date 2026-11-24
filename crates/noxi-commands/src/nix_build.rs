@@ -5,7 +5,7 @@
 //! `--no-out-link`, `--dry-run` and the obsolete `--indirect`,
 //! `--add-drv-link` and `--drv-link`, and `--check` and `--repair`. Each derivation found is built for its
 //! `outputName`, made a GC root named after the out link, and its output path
-//! printed. Store derivation arguments fail explicitly.
+//! printed. An argument may also name a store derivation, `PATH.drv!OUTPUT`.
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::io::{self, Write};
@@ -18,7 +18,7 @@ use noxi_store::{BuildMode, DerivedPath};
 
 use crate::cli::{Failure, print_setting_warnings};
 use crate::instantiate::{self, absolute_path};
-use crate::paths::print_missing;
+use crate::paths::{print_missing, select_derivations, take_store_derivations};
 
 /// Run `nix-build` with the arguments after the program name.
 pub fn main(settings: Settings, args: Vec<String>) -> Result<ExitCode, Failure> {
@@ -76,26 +76,16 @@ pub fn main(settings: Settings, args: Vec<String>) -> Result<ExitCode, Failure> 
 	if !options.from_args && options.inputs.is_empty() {
 		options.inputs.push(".".to_owned());
 	}
-	for input in &options.inputs {
-		let path = input.split('!').next().unwrap_or(input);
-		if !options.from_args
-			&& path.starts_with(nix_compat::store_path::store_dir_with_slash())
-			&& path.ends_with(".drv")
-		{
-			return Err(Failure::Error(
-				"nix-build with store derivation arguments is not supported by noxi yet".to_owned(),
-			));
-		}
-	}
 	let cwd = std::env::current_dir()?;
-	let evaluated = match instantiate::evaluate(&options, &cwd) {
-		Ok(evaluated) => evaluated,
+	let arguments = if options.from_args {
+		Vec::new()
+	} else {
+		take_store_derivations(&cwd, &mut options.inputs)
+	};
+	let (store, derivations) = match select_derivations(&options, &cwd, &arguments)? {
+		Ok(selected) => selected,
 		Err(code) => return Ok(code),
 	};
-	let derivations = instantiate::derivations(&evaluated.results)?;
-	let store = evaluated
-		.store
-		.ok_or_else(|| Failure::Error("the selected store cannot build derivations".to_owned()))?;
 
 	let paths: Vec<DerivedPath> = derivations
 		.iter()
