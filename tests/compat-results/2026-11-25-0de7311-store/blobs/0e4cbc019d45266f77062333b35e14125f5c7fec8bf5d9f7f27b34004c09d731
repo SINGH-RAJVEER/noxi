@@ -1,0 +1,661 @@
++(user-envs.sh:3) source ./common.sh
+++(./common.sh:3) set -eu -o pipefail
+++(./common.sh:5) [[ -z '' ]]
+++(./common.sh:7) COMMON_SH_SOURCED=1
+++++(./common.sh:9) dirname ./common.sh
++++(./common.sh:9) readlink -f .
+++(./common.sh:9) functionalTestsDir=/var/tmp/nf21rlRy/src
+++(./common.sh:11) source /var/tmp/nf21rlRy/src/common/vars.sh
++++(/var/tmp/nf21rlRy/src/common/vars.sh:3) set -eu -o pipefail
++++(/var/tmp/nf21rlRy/src/common/vars.sh:5) [[ -z '' ]]
++++(/var/tmp/nf21rlRy/src/common/vars.sh:7) COMMON_VARS_SH_SOURCED=1
+++++(/var/tmp/nf21rlRy/src/common/vars.sh:9) realpath /var/tmp/nf21rlRy/src
++++(/var/tmp/nf21rlRy/src/common/vars.sh:9) _NIX_TEST_SOURCE_DIR=/var/tmp/nf21rlRy/src
+++++(/var/tmp/nf21rlRy/src/common/vars.sh:10) realpath /var/tmp/nf21rlRy/build
++++(/var/tmp/nf21rlRy/src/common/vars.sh:10) _NIX_TEST_BUILD_DIR=/var/tmp/nf21rlRy/build
++++++(/var/tmp/nf21rlRy/src/common/vars.sh:12) dirname /var/tmp/nf21rlRy/src/common/vars.sh
+++++(/var/tmp/nf21rlRy/src/common/vars.sh:12) readlink -f /var/tmp/nf21rlRy/src/common
++++(/var/tmp/nf21rlRy/src/common/vars.sh:12) commonDir=/var/tmp/nf21rlRy/src/common
++++(/var/tmp/nf21rlRy/src/common/vars.sh:16) source /var/tmp/nf21rlRy/build/common/subst-vars.sh
+++++(/var/tmp/nf21rlRy/build/common/subst-vars.sh:3) [[ -z '' ]]
+++++(/var/tmp/nf21rlRy/build/common/subst-vars.sh:5) COMMON_SUBST_VARS_SH_SOURCED=1
+++++(/var/tmp/nf21rlRy/build/common/subst-vars.sh:7) bash=/nix/store/2ndah67h0z5m31v2wkdmg2md4380ggr5-bash-interactive-5.3p15/bin/bash
+++++(/var/tmp/nf21rlRy/build/common/subst-vars.sh:8) bindir=/nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2/bin
+++++(/var/tmp/nf21rlRy/build/common/subst-vars.sh:9) coreutils=/nix/store/xjl7p8dvyk2j53kqf7f43kdj4ypbxz7g-coreutils-9.11/bin
+++++(/var/tmp/nf21rlRy/build/common/subst-vars.sh:11) dot=
+++++(/var/tmp/nf21rlRy/build/common/subst-vars.sh:12) busybox=/nix/store/qddzvnv6b0805nkvbqddbswddcfhx814-busybox-static-x86_64-unknown-linux-musl-1.37.0/bin/busybox
+++++(/var/tmp/nf21rlRy/build/common/subst-vars.sh:14) version=2.35.2
+++++(/var/tmp/nf21rlRy/build/common/subst-vars.sh:15) system=x86_64-linux
++++(/var/tmp/nf21rlRy/src/common/vars.sh:18) : '/nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2/bin /nix/store/xjl7p8dvyk2j53kqf7f43kdj4ypbxz7g-coreutils-9.11/bin  /run/current-system/sw/bin/nu /nix/store/qddzvnv6b0805nkvbqddbswddcfhx814-busybox-static-x86_64-unknown-linux-musl-1.37.0/bin/busybox 2.35.2 x86_64-linux'
++++(/var/tmp/nf21rlRy/src/common/vars.sh:19) export coreutils dot busybox version system
++++(/var/tmp/nf21rlRy/src/common/vars.sh:21) export PAGER=cat
++++(/var/tmp/nf21rlRy/src/common/vars.sh:21) PAGER=cat
++++(/var/tmp/nf21rlRy/src/common/vars.sh:23) source /var/tmp/nf21rlRy/src/common/paths.sh
+++++(/var/tmp/nf21rlRy/src/common/paths.sh:3) set -eu -o pipefail
+++++(/var/tmp/nf21rlRy/src/common/paths.sh:5) [[ -z '' ]]
+++++(/var/tmp/nf21rlRy/src/common/paths.sh:7) COMMON_PATHS_SH_SOURCED=1
+++++++(/var/tmp/nf21rlRy/src/common/paths.sh:9) dirname /var/tmp/nf21rlRy/src/common/paths.sh
++++++(/var/tmp/nf21rlRy/src/common/paths.sh:9) readlink -f /var/tmp/nf21rlRy/src/common
+++++(/var/tmp/nf21rlRy/src/common/paths.sh:9) commonDir=/var/tmp/nf21rlRy/src/common
+++++(/var/tmp/nf21rlRy/src/common/paths.sh:12) source /var/tmp/nf21rlRy/src/common/functions.sh
++++++(/var/tmp/nf21rlRy/src/common/functions.sh:3) set -eu -o pipefail
++++++(/var/tmp/nf21rlRy/src/common/functions.sh:5) [[ -z '' ]]
++++++(/var/tmp/nf21rlRy/src/common/functions.sh:7) COMMON_FUNCTIONS_SH_SOURCED=1
++++++(/var/tmp/nf21rlRy/src/common/functions.sh:353) trap onError ERR
+++++(/var/tmp/nf21rlRy/src/common/paths.sh:14) source /var/tmp/nf21rlRy/build/common/subst-vars.sh
++++++(/var/tmp/nf21rlRy/build/common/subst-vars.sh:3) [[ -z 1 ]]
+++++(/var/tmp/nf21rlRy/src/common/paths.sh:16) : /nix/store/2ndah67h0z5m31v2wkdmg2md4380ggr5-bash-interactive-5.3p15/bin/bash /nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2/bin
+++++(/var/tmp/nf21rlRy/src/common/paths.sh:18) isTestOnNixOS
+++++(/var/tmp/nf21rlRy/src/common/functions.sh:10) [[ '' == 1 ]]
+++++(/var/tmp/nf21rlRy/src/common/paths.sh:19) export SHELL=/nix/store/2ndah67h0z5m31v2wkdmg2md4380ggr5-bash-interactive-5.3p15/bin/bash
+++++(/var/tmp/nf21rlRy/src/common/paths.sh:19) SHELL=/nix/store/2ndah67h0z5m31v2wkdmg2md4380ggr5-bash-interactive-5.3p15/bin/bash
+++++(/var/tmp/nf21rlRy/src/common/paths.sh:20) export PATH=/nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2/bin:/nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2/bin:/nix/store/2ndah67h0z5m31v2wkdmg2md4380ggr5-bash-interactive-5.3p15/bin:/nix/store/xjl7p8dvyk2j53kqf7f43kdj4ypbxz7g-coreutils-9.11/bin:/nix/store/xmvbzzxm5snla5a2cyfhm7hjy9bifx7n-gnugrep-3.12/bin:/nix/store/qf2wzyq4irhgyhnq3s2hz0ldjq3w8a3x-gnused-4.10/bin:/nix/store/9zib1q94gka8i5q530364cvy25504qz5-gawk-5.4.1/bin:/nix/store/i9wgqa0l88aprvpwfaq5hkfa6pklhlv0-findutils-4.11.0/bin:/nix/store/b8xvzgd52jby5dfpi0pf46nisy6wma5d-diffutils-3.12/bin:/nix/store/81zqbas7qc02yfdj7142fdcqhxgd3cgz-patch-2.8/bin:/nix/store/c8b0qp903w2hhpa63a2lfs7d565zag30-gnutar-1.35/bin:/nix/store/l5sll8nxk70p73l5yqbsjy4mh0c3g0v5-gzip-1.14/bin:/nix/store/j3yz0ag9j442229n8harpmp9aa5qyvhn-bzip2-1.0.8-bin/bin:/nix/store/518dig8gpvqyac6pkksyjjfzvi9zn8vq-xz-5.8.3-bin/bin:/nix/store/l8ik8mb8lgb60rklxjmkgddmp5qqnv29-zstd-1.5.7-bin/bin:/nix/store/msr1v91ybfw6j12rs5mfl8ghb2rqsnsr-git-2.55.0/bin:/nix/store/hyz22a0l5b5kv7yfypw4ss6d36vbzg01-jq-1.8.2-bin/bin:/nix/store/24gq3bi2yzf7g386p5j32mn78hhanf49-sqlite-3.53.3-bin/bin:/nix/store/cp8qnyl8i0s62g3a1465i258mf5bcr6k-curl-8.22.0-bin/bin:/nix/store/8x4c8zah3fbnyckaic4sskjbw7d2y98n-util-linux-2.42.4-bin/bin:/nix/store/d64q19q1xjdwfhqx6czvrjgrhq0n3lcc-python3-3.14.7/bin:/nix/store/niqsa6mxqsyax9lzbm261a2ml6m71vb6-perl-5.42.3/bin:/nix/store/fv9yl55hkskpc2cj9c0sdyq91car9kgl-file-5.48/bin:/nix/store/jv5kdlkwx0l8a7jdpg21g934ff30s319-which-2.25/bin:/nix/store/aj08b694apkc1jay2akywym9ghlailf5-procps-4.0.7/bin:/nix/store/5wyaj1kvkxbbscz6innrh6yjjkdq4qmk-openssh-10.6p1/bin:/nix/store/44gxi8li8y8wrxrb93sya9hljkpigsqw-openssl-3.6.4-bin/bin:/run/wrappers/wrappers.fo52KqP85R:/nix/store/wmh4xg3557sicfyllmi9ymd8sxaw51wv-man-db-2.13.1/bin:/nix/store/qpgknrlnxca0z99gl12j5n0fgca11cdx-mercurial-7.2.2/bin:/var/tmp/noxi-store-tier/.tmpQ54r6n/reference/tools
+++++(/var/tmp/nf21rlRy/src/common/paths.sh:20) PATH=/nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2/bin:/nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2/bin:/nix/store/2ndah67h0z5m31v2wkdmg2md4380ggr5-bash-interactive-5.3p15/bin:/nix/store/xjl7p8dvyk2j53kqf7f43kdj4ypbxz7g-coreutils-9.11/bin:/nix/store/xmvbzzxm5snla5a2cyfhm7hjy9bifx7n-gnugrep-3.12/bin:/nix/store/qf2wzyq4irhgyhnq3s2hz0ldjq3w8a3x-gnused-4.10/bin:/nix/store/9zib1q94gka8i5q530364cvy25504qz5-gawk-5.4.1/bin:/nix/store/i9wgqa0l88aprvpwfaq5hkfa6pklhlv0-findutils-4.11.0/bin:/nix/store/b8xvzgd52jby5dfpi0pf46nisy6wma5d-diffutils-3.12/bin:/nix/store/81zqbas7qc02yfdj7142fdcqhxgd3cgz-patch-2.8/bin:/nix/store/c8b0qp903w2hhpa63a2lfs7d565zag30-gnutar-1.35/bin:/nix/store/l5sll8nxk70p73l5yqbsjy4mh0c3g0v5-gzip-1.14/bin:/nix/store/j3yz0ag9j442229n8harpmp9aa5qyvhn-bzip2-1.0.8-bin/bin:/nix/store/518dig8gpvqyac6pkksyjjfzvi9zn8vq-xz-5.8.3-bin/bin:/nix/store/l8ik8mb8lgb60rklxjmkgddmp5qqnv29-zstd-1.5.7-bin/bin:/nix/store/msr1v91ybfw6j12rs5mfl8ghb2rqsnsr-git-2.55.0/bin:/nix/store/hyz22a0l5b5kv7yfypw4ss6d36vbzg01-jq-1.8.2-bin/bin:/nix/store/24gq3bi2yzf7g386p5j32mn78hhanf49-sqlite-3.53.3-bin/bin:/nix/store/cp8qnyl8i0s62g3a1465i258mf5bcr6k-curl-8.22.0-bin/bin:/nix/store/8x4c8zah3fbnyckaic4sskjbw7d2y98n-util-linux-2.42.4-bin/bin:/nix/store/d64q19q1xjdwfhqx6czvrjgrhq0n3lcc-python3-3.14.7/bin:/nix/store/niqsa6mxqsyax9lzbm261a2ml6m71vb6-perl-5.42.3/bin:/nix/store/fv9yl55hkskpc2cj9c0sdyq91car9kgl-file-5.48/bin:/nix/store/jv5kdlkwx0l8a7jdpg21g934ff30s319-which-2.25/bin:/nix/store/aj08b694apkc1jay2akywym9ghlailf5-procps-4.0.7/bin:/nix/store/5wyaj1kvkxbbscz6innrh6yjjkdq4qmk-openssh-10.6p1/bin:/nix/store/44gxi8li8y8wrxrb93sya9hljkpigsqw-openssl-3.6.4-bin/bin:/run/wrappers/wrappers.fo52KqP85R:/nix/store/wmh4xg3557sicfyllmi9ymd8sxaw51wv-man-db-2.13.1/bin:/nix/store/qpgknrlnxca0z99gl12j5n0fgca11cdx-mercurial-7.2.2/bin:/var/tmp/noxi-store-tier/.tmpQ54r6n/reference/tools
+++++(/var/tmp/nf21rlRy/src/common/paths.sh:23) [[ -n '' ]]
+++++(/var/tmp/nf21rlRy/src/common/paths.sh:27) DAEMON_PATH=/nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2/bin:/nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2/bin:/nix/store/2ndah67h0z5m31v2wkdmg2md4380ggr5-bash-interactive-5.3p15/bin:/nix/store/xjl7p8dvyk2j53kqf7f43kdj4ypbxz7g-coreutils-9.11/bin:/nix/store/xmvbzzxm5snla5a2cyfhm7hjy9bifx7n-gnugrep-3.12/bin:/nix/store/qf2wzyq4irhgyhnq3s2hz0ldjq3w8a3x-gnused-4.10/bin:/nix/store/9zib1q94gka8i5q530364cvy25504qz5-gawk-5.4.1/bin:/nix/store/i9wgqa0l88aprvpwfaq5hkfa6pklhlv0-findutils-4.11.0/bin:/nix/store/b8xvzgd52jby5dfpi0pf46nisy6wma5d-diffutils-3.12/bin:/nix/store/81zqbas7qc02yfdj7142fdcqhxgd3cgz-patch-2.8/bin:/nix/store/c8b0qp903w2hhpa63a2lfs7d565zag30-gnutar-1.35/bin:/nix/store/l5sll8nxk70p73l5yqbsjy4mh0c3g0v5-gzip-1.14/bin:/nix/store/j3yz0ag9j442229n8harpmp9aa5qyvhn-bzip2-1.0.8-bin/bin:/nix/store/518dig8gpvqyac6pkksyjjfzvi9zn8vq-xz-5.8.3-bin/bin:/nix/store/l8ik8mb8lgb60rklxjmkgddmp5qqnv29-zstd-1.5.7-bin/bin:/nix/store/msr1v91ybfw6j12rs5mfl8ghb2rqsnsr-git-2.55.0/bin:/nix/store/hyz22a0l5b5kv7yfypw4ss6d36vbzg01-jq-1.8.2-bin/bin:/nix/store/24gq3bi2yzf7g386p5j32mn78hhanf49-sqlite-3.53.3-bin/bin:/nix/store/cp8qnyl8i0s62g3a1465i258mf5bcr6k-curl-8.22.0-bin/bin:/nix/store/8x4c8zah3fbnyckaic4sskjbw7d2y98n-util-linux-2.42.4-bin/bin:/nix/store/d64q19q1xjdwfhqx6czvrjgrhq0n3lcc-python3-3.14.7/bin:/nix/store/niqsa6mxqsyax9lzbm261a2ml6m71vb6-perl-5.42.3/bin:/nix/store/fv9yl55hkskpc2cj9c0sdyq91car9kgl-file-5.48/bin:/nix/store/jv5kdlkwx0l8a7jdpg21g934ff30s319-which-2.25/bin:/nix/store/aj08b694apkc1jay2akywym9ghlailf5-procps-4.0.7/bin:/nix/store/5wyaj1kvkxbbscz6innrh6yjjkdq4qmk-openssh-10.6p1/bin:/nix/store/44gxi8li8y8wrxrb93sya9hljkpigsqw-openssl-3.6.4-bin/bin:/run/wrappers/wrappers.fo52KqP85R:/nix/store/wmh4xg3557sicfyllmi9ymd8sxaw51wv-man-db-2.13.1/bin:/nix/store/qpgknrlnxca0z99gl12j5n0fgca11cdx-mercurial-7.2.2/bin:/var/tmp/noxi-store-tier/.tmpQ54r6n/reference/tools
+++++(/var/tmp/nf21rlRy/src/common/paths.sh:28) [[ -n '' ]]
++++(/var/tmp/nf21rlRy/src/common/vars.sh:24) source /var/tmp/nf21rlRy/src/common/test-root.sh
+++++(/var/tmp/nf21rlRy/src/common/test-root.sh:3) TEST_SUBDIR=main/user-envs
++++++(/var/tmp/nf21rlRy/src/common/test-root.sh:4) realpath /var/tmp/nf21rlRy/tmp/nix-test
+++++(/var/tmp/nf21rlRy/src/common/test-root.sh:4) TEST_ROOT=/var/tmp/nf21rlRy/tmp/nix-test/main/user-envs
+++++(/var/tmp/nf21rlRy/src/common/test-root.sh:5) export TEST_ROOT
++++(/var/tmp/nf21rlRy/src/common/vars.sh:26) test_nix_conf_dir=/var/tmp/nf21rlRy/tmp/nix-test/main/user-envs/etc
++++(/var/tmp/nf21rlRy/src/common/vars.sh:29) test_nix_conf=/var/tmp/nf21rlRy/tmp/nix-test/main/user-envs/etc/nix.conf
++++(/var/tmp/nf21rlRy/src/common/vars.sh:31) export TEST_HOME=/var/tmp/nf21rlRy/tmp/nix-test/main/user-envs/test-home
++++(/var/tmp/nf21rlRy/src/common/vars.sh:31) TEST_HOME=/var/tmp/nf21rlRy/tmp/nix-test/main/user-envs/test-home
++++(/var/tmp/nf21rlRy/src/common/vars.sh:33) isTestOnNixOS
++++(/var/tmp/nf21rlRy/src/common/functions.sh:10) [[ '' == 1 ]]
++++(/var/tmp/nf21rlRy/src/common/vars.sh:34) export NIX_STORE_DIR
+++++(/var/tmp/nf21rlRy/src/common/vars.sh:35) readlink -f /var/tmp/nf21rlRy/tmp/nix-test/main/user-envs/store
++++(/var/tmp/nf21rlRy/src/common/vars.sh:35) NIX_STORE_DIR=
++++(/var/tmp/nf21rlRy/src/common/vars.sh:37) export NIX_IGNORE_SYMLINK_STORE=1
++++(/var/tmp/nf21rlRy/src/common/vars.sh:37) NIX_IGNORE_SYMLINK_STORE=1
++++(/var/tmp/nf21rlRy/src/common/vars.sh:38) NIX_STORE_DIR=/var/tmp/nf21rlRy/tmp/nix-test/main/user-envs/store
++++(/var/tmp/nf21rlRy/src/common/vars.sh:40) export NIX_LOCALSTATE_DIR=/var/tmp/nf21rlRy/tmp/nix-test/main/user-envs/var
++++(/var/tmp/nf21rlRy/src/common/vars.sh:40) NIX_LOCALSTATE_DIR=/var/tmp/nf21rlRy/tmp/nix-test/main/user-envs/var
++++(/var/tmp/nf21rlRy/src/common/vars.sh:41) export NIX_LOG_DIR=/var/tmp/nf21rlRy/tmp/nix-test/main/user-envs/var/log/nix
++++(/var/tmp/nf21rlRy/src/common/vars.sh:41) NIX_LOG_DIR=/var/tmp/nf21rlRy/tmp/nix-test/main/user-envs/var/log/nix
++++(/var/tmp/nf21rlRy/src/common/vars.sh:42) export NIX_STATE_DIR=/var/tmp/nf21rlRy/tmp/nix-test/main/user-envs/var/nix
++++(/var/tmp/nf21rlRy/src/common/vars.sh:42) NIX_STATE_DIR=/var/tmp/nf21rlRy/tmp/nix-test/main/user-envs/var/nix
++++(/var/tmp/nf21rlRy/src/common/vars.sh:43) export NIX_CONF_DIR=/var/tmp/nf21rlRy/tmp/nix-test/main/user-envs/etc
++++(/var/tmp/nf21rlRy/src/common/vars.sh:43) NIX_CONF_DIR=/var/tmp/nf21rlRy/tmp/nix-test/main/user-envs/etc
++++(/var/tmp/nf21rlRy/src/common/vars.sh:44) export NIX_DAEMON_SOCKET_PATH=/var/tmp/nf21rlRy/tmp/nix-test/main/user-envs/dSocket
++++(/var/tmp/nf21rlRy/src/common/vars.sh:44) NIX_DAEMON_SOCKET_PATH=/var/tmp/nf21rlRy/tmp/nix-test/main/user-envs/dSocket
++++(/var/tmp/nf21rlRy/src/common/vars.sh:45) unset NIX_USER_CONF_FILES
++++(/var/tmp/nf21rlRy/src/common/vars.sh:46) export _NIX_TEST_SHARED=/var/tmp/nf21rlRy/tmp/nix-test/main/user-envs/shared
++++(/var/tmp/nf21rlRy/src/common/vars.sh:46) _NIX_TEST_SHARED=/var/tmp/nf21rlRy/tmp/nix-test/main/user-envs/shared
++++(/var/tmp/nf21rlRy/src/common/vars.sh:47) [[ -n '' ]]
++++(/var/tmp/nf21rlRy/src/common/vars.sh:50) export _NIX_IN_TEST=/var/tmp/nf21rlRy/tmp/nix-test/main/user-envs/shared
++++(/var/tmp/nf21rlRy/src/common/vars.sh:50) _NIX_IN_TEST=/var/tmp/nf21rlRy/tmp/nix-test/main/user-envs/shared
++++(/var/tmp/nf21rlRy/src/common/vars.sh:51) export _NIX_TEST_NO_LSOF=1
++++(/var/tmp/nf21rlRy/src/common/vars.sh:51) _NIX_TEST_NO_LSOF=1
++++(/var/tmp/nf21rlRy/src/common/vars.sh:54) export _NIX_TEST_NO_ENVIRONMENT_WARNINGS=1
++++(/var/tmp/nf21rlRy/src/common/vars.sh:54) _NIX_TEST_NO_ENVIRONMENT_WARNINGS=1
++++(/var/tmp/nf21rlRy/src/common/vars.sh:55) export NIX_REMOTE=
++++(/var/tmp/nf21rlRy/src/common/vars.sh:55) NIX_REMOTE=
++++(/var/tmp/nf21rlRy/src/common/vars.sh:59) unset NIX_PATH
++++(/var/tmp/nf21rlRy/src/common/vars.sh:60) export HOME=/var/tmp/nf21rlRy/tmp/nix-test/main/user-envs/test-home
++++(/var/tmp/nf21rlRy/src/common/vars.sh:60) HOME=/var/tmp/nf21rlRy/tmp/nix-test/main/user-envs/test-home
++++(/var/tmp/nf21rlRy/src/common/vars.sh:61) unset XDG_STATE_HOME
++++(/var/tmp/nf21rlRy/src/common/vars.sh:62) unset XDG_DATA_HOME
++++(/var/tmp/nf21rlRy/src/common/vars.sh:63) unset XDG_CONFIG_HOME
++++(/var/tmp/nf21rlRy/src/common/vars.sh:64) unset XDG_CONFIG_DIRS
++++(/var/tmp/nf21rlRy/src/common/vars.sh:65) unset XDG_CACHE_HOME
++++(/var/tmp/nf21rlRy/src/common/vars.sh:66) unset GIT_DIR
++++(/var/tmp/nf21rlRy/src/common/vars.sh:68) export GIT_CONFIG_SYSTEM=/dev/null
++++(/var/tmp/nf21rlRy/src/common/vars.sh:68) GIT_CONFIG_SYSTEM=/dev/null
++++(/var/tmp/nf21rlRy/src/common/vars.sh:69) export GIT_CONFIG_GLOBAL=/dev/null
++++(/var/tmp/nf21rlRy/src/common/vars.sh:69) GIT_CONFIG_GLOBAL=/dev/null
++++(/var/tmp/nf21rlRy/src/common/vars.sh:71) export IMPURE_VAR1=foo
++++(/var/tmp/nf21rlRy/src/common/vars.sh:71) IMPURE_VAR1=foo
++++(/var/tmp/nf21rlRy/src/common/vars.sh:72) export IMPURE_VAR2=bar
++++(/var/tmp/nf21rlRy/src/common/vars.sh:72) IMPURE_VAR2=bar
++++(/var/tmp/nf21rlRy/src/common/vars.sh:76) cacheDir=/var/tmp/nf21rlRy/tmp/nix-test/main/user-envs/binary-cache
+++++(/var/tmp/nf21rlRy/src/common/vars.sh:78) uname
++++(/var/tmp/nf21rlRy/src/common/vars.sh:78) [[ Linux == Linux ]]
++++(/var/tmp/nf21rlRy/src/common/vars.sh:78) [[ -L /proc/self/ns/user ]]
++++(/var/tmp/nf21rlRy/src/common/vars.sh:78) unshare --user true
++++(/var/tmp/nf21rlRy/src/common/vars.sh:79) _canUseSandbox=1
++++(/var/tmp/nf21rlRy/src/common/vars.sh:85) config_nix=/var/tmp/nf21rlRy/tmp/nix-test/main/user-envs/config.nix
+++(./common.sh:12) source /var/tmp/nf21rlRy/src/common/functions.sh
++++(/var/tmp/nf21rlRy/src/common/functions.sh:3) set -eu -o pipefail
++++(/var/tmp/nf21rlRy/src/common/functions.sh:5) [[ -z 1 ]]
+++(./common.sh:13) source /var/tmp/nf21rlRy/src/common/init.sh
++++(/var/tmp/nf21rlRy/src/common/init.sh:4) : /var/tmp/nf21rlRy/tmp/nix-test/main/user-envs/etc /var/tmp/nf21rlRy/tmp/nix-test/main/user-envs/etc/nix.conf /var/tmp/nf21rlRy/tmp/nix-test/main/user-envs/config.nix
++++(/var/tmp/nf21rlRy/src/common/init.sh:6) isTestOnNixOS
++++(/var/tmp/nf21rlRy/src/common/functions.sh:10) [[ '' == 1 ]]
++++(/var/tmp/nf21rlRy/src/common/init.sh:29) test -n /var/tmp/nf21rlRy/tmp/nix-test/main/user-envs
++++(/var/tmp/nf21rlRy/src/common/init.sh:31) killDaemon
++++(/var/tmp/nf21rlRy/src/common/functions.sh:100) isTestOnNixOS
++++(/var/tmp/nf21rlRy/src/common/functions.sh:10) [[ '' == 1 ]]
++++(/var/tmp/nf21rlRy/src/common/functions.sh:105) [[ '' == '' ]]
++++(/var/tmp/nf21rlRy/src/common/functions.sh:106) return
++++(/var/tmp/nf21rlRy/src/common/init.sh:33) [[ -e /var/tmp/nf21rlRy/tmp/nix-test/main/user-envs ]]
++++(/var/tmp/nf21rlRy/src/common/init.sh:37) mkdir -p /var/tmp/nf21rlRy/tmp/nix-test/main/user-envs
++++(/var/tmp/nf21rlRy/src/common/init.sh:38) mkdir /var/tmp/nf21rlRy/tmp/nix-test/main/user-envs/test-home
++++(/var/tmp/nf21rlRy/src/common/init.sh:40) mkdir /var/tmp/nf21rlRy/tmp/nix-test/main/user-envs/store
++++(/var/tmp/nf21rlRy/src/common/init.sh:41) mkdir /var/tmp/nf21rlRy/tmp/nix-test/main/user-envs/var
++++(/var/tmp/nf21rlRy/src/common/init.sh:42) mkdir -p /var/tmp/nf21rlRy/tmp/nix-test/main/user-envs/var/log/nix/drvs
++++(/var/tmp/nf21rlRy/src/common/init.sh:43) mkdir /var/tmp/nf21rlRy/tmp/nix-test/main/user-envs/var/nix
++++(/var/tmp/nf21rlRy/src/common/init.sh:44) mkdir /var/tmp/nf21rlRy/tmp/nix-test/main/user-envs/etc
++++(/var/tmp/nf21rlRy/src/common/init.sh:46) cat
+++++(/var/tmp/nf21rlRy/src/common/init.sh:46) whoami
++++(/var/tmp/nf21rlRy/src/common/init.sh:59) cat
++++(/var/tmp/nf21rlRy/src/common/init.sh:67) nix-store --init
++++(/var/tmp/nf21rlRy/src/common/init.sh:69) test -e /var/tmp/nf21rlRy/tmp/nix-test/main/user-envs/var/nix/db/db.sqlite
++++(/var/tmp/nf21rlRy/src/common/init.sh:75) echo '# config.nix for test main / user-envs'
++++(/var/tmp/nf21rlRy/src/common/init.sh:76) cat /var/tmp/nf21rlRy/build/config.nix
+++(./common.sh:15) [[ -n '' ]]
++(user-envs.sh:5) source ./user-envs-test-case.sh
+++(./user-envs-test-case.sh:2) clearProfiles
+++(/var/tmp/nf21rlRy/src/common/functions.sh:25) profiles=/var/tmp/nf21rlRy/tmp/nix-test/main/user-envs/test-home/.local/state/nix/profiles
+++(/var/tmp/nf21rlRy/src/common/functions.sh:26) rm -rf /var/tmp/nf21rlRy/tmp/nix-test/main/user-envs/test-home/.local/state/nix/profiles
++++(./user-envs-test-case.sh:6) nix-env -p /var/tmp/nf21rlRy/tmp/nix-test/main/user-envs/test-home/.local/state/nix/profiles/test -q '*'
++++(./user-envs-test-case.sh:6) wc -l
+++(./user-envs-test-case.sh:6) test 0 -eq 0
+++(./user-envs-test-case.sh:8) nix-env --switch-profile /var/tmp/nf21rlRy/tmp/nix-test/main/user-envs/test-home/.local/state/nix/profiles/test
++++(./user-envs-test-case.sh:11) nix-env -f ./user-envs.nix -qa '*'
++++(./user-envs-test-case.sh:11) wc -l
+++(./user-envs-test-case.sh:11) test 6 -eq 6
++++(./user-envs-test-case.sh:12) nix-env -f ./user-envs.nix -qa --out-path --no-name '*'
++++(./user-envs-test-case.sh:12) grep foo-1.0
++++(/var/tmp/nf21rlRy/src/common/functions.sh:344) checkGrepArgs foo-1.0
++++(/var/tmp/nf21rlRy/src/common/functions.sh:293) local arg
++++(/var/tmp/nf21rlRy/src/common/functions.sh:294) for arg in "$@"
++++(/var/tmp/nf21rlRy/src/common/functions.sh:295) [[ foo-1.0 != foo\-1\.0 ]]
++++(/var/tmp/nf21rlRy/src/common/functions.sh:345) command grep foo-1.0
+++(./user-envs-test-case.sh:12) outPath10=/var/tmp/nf21rlRy/tmp/nix-test/main/user-envs/store/8nzh84f14k0js7chklmbsxw84hhjap9i-foo-1.0
++++(./user-envs-test-case.sh:13) nix-env -f ./user-envs.nix -qa --drv-path --no-name '*'
++++(./user-envs-test-case.sh:13) grep foo-1.0
++++(/var/tmp/nf21rlRy/src/common/functions.sh:344) checkGrepArgs foo-1.0
++++(/var/tmp/nf21rlRy/src/common/functions.sh:293) local arg
++++(/var/tmp/nf21rlRy/src/common/functions.sh:294) for arg in "$@"
++++(/var/tmp/nf21rlRy/src/common/functions.sh:295) [[ foo-1.0 != foo\-1\.0 ]]
++++(/var/tmp/nf21rlRy/src/common/functions.sh:345) command grep foo-1.0
+++(./user-envs-test-case.sh:13) drvPath10=/var/tmp/nf21rlRy/tmp/nix-test/main/user-envs/store/842s518caffary2fms064kk61a90kgr9-foo-1.0.drv
+++(./user-envs-test-case.sh:15) '[' -n /var/tmp/nf21rlRy/tmp/nix-test/main/user-envs/store/8nzh84f14k0js7chklmbsxw84hhjap9i-foo-1.0 -a -n /var/tmp/nf21rlRy/tmp/nix-test/main/user-envs/store/842s518caffary2fms064kk61a90kgr9-foo-1.0.drv ']'
+++(./user-envs-test-case.sh:17) TODO_NixOS
+++(/var/tmp/nf21rlRy/src/common/functions.sh:148) isTestOnNixOS
+++(/var/tmp/nf21rlRy/src/common/functions.sh:10) [[ '' == 1 ]]
+++(./user-envs-test-case.sh:20) nix-env -f ./user-envs.nix -qa --json
+++(./user-envs-test-case.sh:20) jq -e $'.[] | select(.name == "bar-0.1") | [\n    .outputName == "out",\n    .outputs.out == null\n] | all'
+true
+++(./user-envs-test-case.sh:24) nix-env -f ./user-envs.nix -qa --json --out-path
+++(./user-envs-test-case.sh:24) jq -e $'.[] | select(.name == "bar-0.1") | [\n    .outputName == "out",\n    (.outputs.out | test("/var/tmp/nf21rlRy/tmp/nix-test/main/user-envs/store.*-0\\\\.1"))\n] | all'
+true
+++(./user-envs-test-case.sh:28) nix-env -f ./user-envs.nix -qa --json --drv-path
+++(./user-envs-test-case.sh:28) jq -e '.[] | select(.name == "bar-0.1") | (.drvPath | test("/var/tmp/nf21rlRy/tmp/nix-test/main/user-envs/store.*-0\\.1\\.drv"))'
+true
+++(./user-envs-test-case.sh:31) nix-env -f ./user-envs.nix -qa '*' --description
+++(./user-envs-test-case.sh:31) grepQuiet silly
+++(/var/tmp/nf21rlRy/src/common/functions.sh:330) checkGrepArgs silly
+++(/var/tmp/nf21rlRy/src/common/functions.sh:293) local arg
+++(/var/tmp/nf21rlRy/src/common/functions.sh:294) for arg in "$@"
+++(/var/tmp/nf21rlRy/src/common/functions.sh:295) [[ silly != silly ]]
+++(/var/tmp/nf21rlRy/src/common/functions.sh:331) command grep silly
+++(./user-envs-test-case.sh:32) rm -rf /var/tmp/nf21rlRy/tmp/nix-test/main/user-envs/test-home/.nix-defexpr
++++(./user-envs-test-case.sh:33) pwd
+++(./user-envs-test-case.sh:33) ln -s /var/tmp/nf21rlRy/src/user-envs.nix /var/tmp/nf21rlRy/tmp/nix-test/main/user-envs/test-home/.nix-defexpr
+++(./user-envs-test-case.sh:34) nix-env -qa '*' --description
+++(./user-envs-test-case.sh:34) grepQuiet silly
+++(/var/tmp/nf21rlRy/src/common/functions.sh:330) checkGrepArgs silly
+++(/var/tmp/nf21rlRy/src/common/functions.sh:293) local arg
+++(/var/tmp/nf21rlRy/src/common/functions.sh:294) for arg in "$@"
+++(/var/tmp/nf21rlRy/src/common/functions.sh:295) [[ silly != silly ]]
+++(/var/tmp/nf21rlRy/src/common/functions.sh:331) command grep silly
+++(./user-envs-test-case.sh:38) nix-env -qa '*' --system
+++(./user-envs-test-case.sh:38) grepQuiet x86_64-linux
+++(/var/tmp/nf21rlRy/src/common/functions.sh:330) checkGrepArgs x86_64-linux
+++(/var/tmp/nf21rlRy/src/common/functions.sh:293) local arg
+++(/var/tmp/nf21rlRy/src/common/functions.sh:294) for arg in "$@"
+++(/var/tmp/nf21rlRy/src/common/functions.sh:295) [[ x86_64-linux != x86_64\-linux ]]
+++(/var/tmp/nf21rlRy/src/common/functions.sh:331) command grep x86_64-linux
+++(./user-envs-test-case.sh:41) nix-env -i foo-1.0
+installing 'foo-1.0'
+this derivation will be built:
+  /var/tmp/nf21rlRy/tmp/nix-test/main/user-envs/store/842s518caffary2fms064kk61a90kgr9-foo-1.0.drv
+building '/var/tmp/nf21rlRy/tmp/nix-test/main/user-envs/store/842s518caffary2fms064kk61a90kgr9-foo-1.0.drv'...
+building '/var/tmp/nf21rlRy/tmp/nix-test/main/user-envs/store/26b0npa62rxdlg1350v2yv0bh80ifdym-user-environment.drv'...
++++(./user-envs-test-case.sh:45) nix-env -q '*'
++++(./user-envs-test-case.sh:45) wc -l
+++(./user-envs-test-case.sh:45) test 1 -eq 1
+++(./user-envs-test-case.sh:46) nix-env -q '*'
+++(./user-envs-test-case.sh:46) grepQuiet foo-1.0
+++(/var/tmp/nf21rlRy/src/common/functions.sh:330) checkGrepArgs foo-1.0
+++(/var/tmp/nf21rlRy/src/common/functions.sh:293) local arg
+++(/var/tmp/nf21rlRy/src/common/functions.sh:294) for arg in "$@"
+++(/var/tmp/nf21rlRy/src/common/functions.sh:295) [[ foo-1.0 != foo\-1\.0 ]]
+++(/var/tmp/nf21rlRy/src/common/functions.sh:331) command grep foo-1.0
++++(./user-envs-test-case.sh:47) /var/tmp/nf21rlRy/tmp/nix-test/main/user-envs/test-home/.local/state/nix/profiles/test/bin/foo
+++(./user-envs-test-case.sh:47) test foo-1.0 = foo-1.0
+++(./user-envs-test-case.sh:50) nix-env -qc '*'
+++(./user-envs-test-case.sh:50) grepQuiet '< 2.0'
+++(/var/tmp/nf21rlRy/src/common/functions.sh:330) checkGrepArgs '< 2.0'
+++(/var/tmp/nf21rlRy/src/common/functions.sh:293) local arg
+++(/var/tmp/nf21rlRy/src/common/functions.sh:294) for arg in "$@"
+++(/var/tmp/nf21rlRy/src/common/functions.sh:295) [[ < 2.0 != < 2\.0 ]]
+++(/var/tmp/nf21rlRy/src/common/functions.sh:331) command grep '< 2.0'
+++(./user-envs-test-case.sh:51) nix-env -qac '*'
+++(./user-envs-test-case.sh:51) grepQuiet '> 1.0'
+++(/var/tmp/nf21rlRy/src/common/functions.sh:330) checkGrepArgs '> 1.0'
+++(/var/tmp/nf21rlRy/src/common/functions.sh:293) local arg
+++(/var/tmp/nf21rlRy/src/common/functions.sh:294) for arg in "$@"
+++(/var/tmp/nf21rlRy/src/common/functions.sh:295) [[ > 1.0 != > 1\.0 ]]
+++(/var/tmp/nf21rlRy/src/common/functions.sh:331) command grep '> 1.0'
++++(./user-envs-test-case.sh:54) nix-env -qab
++++(./user-envs-test-case.sh:54) wc -l
+++(./user-envs-test-case.sh:54) '[' 1 -eq 1 ']'
+++(./user-envs-test-case.sh:57) nix-env -qas
+++(./user-envs-test-case.sh:57) grepQuiet 'IP-  foo-1.0'
+++(/var/tmp/nf21rlRy/src/common/functions.sh:330) checkGrepArgs 'IP-  foo-1.0'
+++(/var/tmp/nf21rlRy/src/common/functions.sh:293) local arg
+++(/var/tmp/nf21rlRy/src/common/functions.sh:294) for arg in "$@"
+++(/var/tmp/nf21rlRy/src/common/functions.sh:295) [[ IP-  foo-1.0 != IP\-  foo\-1\.0 ]]
+++(/var/tmp/nf21rlRy/src/common/functions.sh:331) command grep 'IP-  foo-1.0'
+++(./user-envs-test-case.sh:58) nix-env -qas
+++(./user-envs-test-case.sh:58) grepQuiet -- '---  bar-0.1'
+++(/var/tmp/nf21rlRy/src/common/functions.sh:330) checkGrepArgs -- '---  bar-0.1'
+++(/var/tmp/nf21rlRy/src/common/functions.sh:293) local arg
+++(/var/tmp/nf21rlRy/src/common/functions.sh:294) for arg in "$@"
+++(/var/tmp/nf21rlRy/src/common/functions.sh:295) [[ -- != \-\- ]]
+++(/var/tmp/nf21rlRy/src/common/functions.sh:294) for arg in "$@"
+++(/var/tmp/nf21rlRy/src/common/functions.sh:295) [[ ---  bar-0.1 != \-\-\-  bar\-0\.1 ]]
+++(/var/tmp/nf21rlRy/src/common/functions.sh:331) command grep -- '---  bar-0.1'
+++(./user-envs-test-case.sh:61) nix-env --set-flag active false foo
+setting flag on 'foo-1.0'
+building '/var/tmp/nf21rlRy/tmp/nix-test/main/user-envs/store/kbg2xk5ywvf365r9ivhafhs5g0j6y929-user-environment.drv'...
+++(./user-envs-test-case.sh:63) '[' -e /var/tmp/nf21rlRy/tmp/nix-test/main/user-envs/test-home/.local/state/nix/profiles/test/bin/foo ']'
+++(./user-envs-test-case.sh:66) nix-env --set-flag active true foo
+setting flag on 'foo-1.0'
+building '/var/tmp/nf21rlRy/tmp/nix-test/main/user-envs/store/rgz1203jmdw43wffyvnrlypg8y8hjrdi-user-environment.drv'...
+++(./user-envs-test-case.sh:67) '[' -e /var/tmp/nf21rlRy/tmp/nix-test/main/user-envs/test-home/.local/state/nix/profiles/test/bin/foo ']'
++++(./user-envs-test-case.sh:70) nix-env -q --out-path --no-name '*'
++++(./user-envs-test-case.sh:70) grep foo-1.0
++++(/var/tmp/nf21rlRy/src/common/functions.sh:344) checkGrepArgs foo-1.0
++++(/var/tmp/nf21rlRy/src/common/functions.sh:293) local arg
++++(/var/tmp/nf21rlRy/src/common/functions.sh:294) for arg in "$@"
++++(/var/tmp/nf21rlRy/src/common/functions.sh:295) [[ foo-1.0 != foo\-1\.0 ]]
++++(/var/tmp/nf21rlRy/src/common/functions.sh:345) command grep foo-1.0
+++(./user-envs-test-case.sh:70) outPath10_=/var/tmp/nf21rlRy/tmp/nix-test/main/user-envs/store/8nzh84f14k0js7chklmbsxw84hhjap9i-foo-1.0
+++(./user-envs-test-case.sh:71) echo 'foo-1.0 = /var/tmp/nf21rlRy/tmp/nix-test/main/user-envs/store/8nzh84f14k0js7chklmbsxw84hhjap9i-foo-1.0'
+foo-1.0 = /var/tmp/nf21rlRy/tmp/nix-test/main/user-envs/store/8nzh84f14k0js7chklmbsxw84hhjap9i-foo-1.0
+++(./user-envs-test-case.sh:72) '[' /var/tmp/nf21rlRy/tmp/nix-test/main/user-envs/store/8nzh84f14k0js7chklmbsxw84hhjap9i-foo-1.0 = /var/tmp/nf21rlRy/tmp/nix-test/main/user-envs/store/8nzh84f14k0js7chklmbsxw84hhjap9i-foo-1.0 ']'
+++(./user-envs-test-case.sh:75) nix-env -i foo-2.0pre1
+replacing old 'foo-1.0'
+installing 'foo-2.0pre1'
+this derivation will be built:
+  /var/tmp/nf21rlRy/tmp/nix-test/main/user-envs/store/djzhdviwn1vhh40wiks2zgyjfj8drlcw-foo-2.0pre1.drv
+building '/var/tmp/nf21rlRy/tmp/nix-test/main/user-envs/store/djzhdviwn1vhh40wiks2zgyjfj8drlcw-foo-2.0pre1.drv'...
+building '/var/tmp/nf21rlRy/tmp/nix-test/main/user-envs/store/4qgnsp6zg3ixdk62x8jjjrqgh1a051w3-user-environment.drv'...
++++(./user-envs-test-case.sh:78) nix-env -q '*'
++++(./user-envs-test-case.sh:78) wc -l
+++(./user-envs-test-case.sh:78) test 1 -eq 1
+++(./user-envs-test-case.sh:79) nix-env -q '*'
+++(./user-envs-test-case.sh:79) grepQuiet foo-2.0pre1
+++(/var/tmp/nf21rlRy/src/common/functions.sh:330) checkGrepArgs foo-2.0pre1
+++(/var/tmp/nf21rlRy/src/common/functions.sh:293) local arg
+++(/var/tmp/nf21rlRy/src/common/functions.sh:294) for arg in "$@"
+++(/var/tmp/nf21rlRy/src/common/functions.sh:295) [[ foo-2.0pre1 != foo\-2\.0pre1 ]]
+++(/var/tmp/nf21rlRy/src/common/functions.sh:331) command grep foo-2.0pre1
++++(./user-envs-test-case.sh:80) /var/tmp/nf21rlRy/tmp/nix-test/main/user-envs/test-home/.local/state/nix/profiles/test/bin/foo
+++(./user-envs-test-case.sh:80) test foo-2.0pre1 = foo-2.0pre1
+++(./user-envs-test-case.sh:83) NIX_PATH=nixpkgs=./user-envs.nix:
+++(./user-envs-test-case.sh:83) nix-env -f '<nixpkgs>' -u foo
+upgrading 'foo-2.0pre1' to 'foo-2.0'
+this derivation will be built:
+  /var/tmp/nf21rlRy/tmp/nix-test/main/user-envs/store/cbnxvl2c6z1dqsn0akb3rz9m0jvy05z0-foo-2.0.drv
+building '/var/tmp/nf21rlRy/tmp/nix-test/main/user-envs/store/cbnxvl2c6z1dqsn0akb3rz9m0jvy05z0-foo-2.0.drv'...
+building '/var/tmp/nf21rlRy/tmp/nix-test/main/user-envs/store/j3493sj59w1jng7a19b42jyrz0jarrac-user-environment.drv'...
++++(./user-envs-test-case.sh:86) nix-env -q '*'
++++(./user-envs-test-case.sh:86) wc -l
+++(./user-envs-test-case.sh:86) test 1 -eq 1
+++(./user-envs-test-case.sh:87) nix-env -q '*'
+++(./user-envs-test-case.sh:87) grepQuiet foo-2.0
+++(/var/tmp/nf21rlRy/src/common/functions.sh:330) checkGrepArgs foo-2.0
+++(/var/tmp/nf21rlRy/src/common/functions.sh:293) local arg
+++(/var/tmp/nf21rlRy/src/common/functions.sh:294) for arg in "$@"
+++(/var/tmp/nf21rlRy/src/common/functions.sh:295) [[ foo-2.0 != foo\-2\.0 ]]
+++(/var/tmp/nf21rlRy/src/common/functions.sh:331) command grep foo-2.0
++++(./user-envs-test-case.sh:88) /var/tmp/nf21rlRy/tmp/nix-test/main/user-envs/test-home/.local/state/nix/profiles/test/bin/foo
+++(./user-envs-test-case.sh:88) test foo-2.0 = foo-2.0
++++(./user-envs-test-case.sh:91) nix-env -q --out-path --no-name '*'
++++(./user-envs-test-case.sh:91) grep foo-2.0
++++(/var/tmp/nf21rlRy/src/common/functions.sh:344) checkGrepArgs foo-2.0
++++(/var/tmp/nf21rlRy/src/common/functions.sh:293) local arg
++++(/var/tmp/nf21rlRy/src/common/functions.sh:294) for arg in "$@"
++++(/var/tmp/nf21rlRy/src/common/functions.sh:295) [[ foo-2.0 != foo\-2\.0 ]]
++++(/var/tmp/nf21rlRy/src/common/functions.sh:345) command grep foo-2.0
+++(./user-envs-test-case.sh:91) outPath20=/var/tmp/nf21rlRy/tmp/nix-test/main/user-envs/store/d9lj903cpzysllmczmdk2nz6wgccnry2-foo-2.0
+++(./user-envs-test-case.sh:92) test -n /var/tmp/nf21rlRy/tmp/nix-test/main/user-envs/store/d9lj903cpzysllmczmdk2nz6wgccnry2-foo-2.0
+++(./user-envs-test-case.sh:95) nix-env -i bar-0.1
+installing 'bar-0.1'
+this derivation will be built:
+  /var/tmp/nf21rlRy/tmp/nix-test/main/user-envs/store/ciyhsdzpxp0bykrs5mvgzzyd7m2gwn7s-bar-0.1.drv
+building '/var/tmp/nf21rlRy/tmp/nix-test/main/user-envs/store/ciyhsdzpxp0bykrs5mvgzzyd7m2gwn7s-bar-0.1.drv'...
+building '/var/tmp/nf21rlRy/tmp/nix-test/main/user-envs/store/6638y2s58ag8srkw36gs0yby0h2an7vj-user-environment.drv'...
+++(./user-envs-test-case.sh:96) nix-env -e foo
+uninstalling 'foo-2.0'
+building '/var/tmp/nf21rlRy/tmp/nix-test/main/user-envs/store/l5l20kwqh5zrsgp8q2ds2s2hr5csf8ym-user-environment.drv'...
+++(./user-envs-test-case.sh:99) nix-env -q '*'
+++(./user-envs-test-case.sh:99) grepQuiet foo
+++(/var/tmp/nf21rlRy/src/common/functions.sh:330) checkGrepArgs foo
+++(/var/tmp/nf21rlRy/src/common/functions.sh:293) local arg
+++(/var/tmp/nf21rlRy/src/common/functions.sh:294) for arg in "$@"
+++(/var/tmp/nf21rlRy/src/common/functions.sh:295) [[ foo != foo ]]
+++(/var/tmp/nf21rlRy/src/common/functions.sh:331) command grep foo
+++(./user-envs-test-case.sh:100) nix-env -q '*'
+++(./user-envs-test-case.sh:100) grepQuiet bar
+++(/var/tmp/nf21rlRy/src/common/functions.sh:330) checkGrepArgs bar
+++(/var/tmp/nf21rlRy/src/common/functions.sh:293) local arg
+++(/var/tmp/nf21rlRy/src/common/functions.sh:294) for arg in "$@"
+++(/var/tmp/nf21rlRy/src/common/functions.sh:295) [[ bar != bar ]]
+++(/var/tmp/nf21rlRy/src/common/functions.sh:331) command grep bar
++++(./user-envs-test-case.sh:103) nix-store -q --resolve /var/tmp/nf21rlRy/tmp/nix-test/main/user-envs/test-home/.local/state/nix/profiles/test
+++(./user-envs-test-case.sh:103) oldGen=/var/tmp/nf21rlRy/tmp/nix-test/main/user-envs/store/sxp1zxk5wp5l9mnrqh0qap2w2al0a2gl-user-environment
+++(./user-envs-test-case.sh:104) nix-env --rollback
+switching profile from version 7 to 6
++++(./user-envs-test-case.sh:105) nix-store -q --resolve /var/tmp/nf21rlRy/tmp/nix-test/main/user-envs/test-home/.local/state/nix/profiles/test
+++(./user-envs-test-case.sh:105) '[' /var/tmp/nf21rlRy/tmp/nix-test/main/user-envs/store/srp1f1wgkiqhijyr640dk033yp4r1c3k-user-environment '!=' /var/tmp/nf21rlRy/tmp/nix-test/main/user-envs/store/sxp1zxk5wp5l9mnrqh0qap2w2al0a2gl-user-environment ']'
+++(./user-envs-test-case.sh:106) nix-env -q '*'
+++(./user-envs-test-case.sh:106) grepQuiet foo-2.0
+++(/var/tmp/nf21rlRy/src/common/functions.sh:330) checkGrepArgs foo-2.0
+++(/var/tmp/nf21rlRy/src/common/functions.sh:293) local arg
+++(/var/tmp/nf21rlRy/src/common/functions.sh:294) for arg in "$@"
+++(/var/tmp/nf21rlRy/src/common/functions.sh:295) [[ foo-2.0 != foo\-2\.0 ]]
+++(/var/tmp/nf21rlRy/src/common/functions.sh:331) command grep foo-2.0
+++(./user-envs-test-case.sh:107) nix-env -q '*'
+++(./user-envs-test-case.sh:107) grepQuiet bar
+++(/var/tmp/nf21rlRy/src/common/functions.sh:330) checkGrepArgs bar
+++(/var/tmp/nf21rlRy/src/common/functions.sh:293) local arg
+++(/var/tmp/nf21rlRy/src/common/functions.sh:294) for arg in "$@"
+++(/var/tmp/nf21rlRy/src/common/functions.sh:295) [[ bar != bar ]]
+++(/var/tmp/nf21rlRy/src/common/functions.sh:331) command grep bar
+++(./user-envs-test-case.sh:110) nix-env --rollback
+switching profile from version 6 to 5
+++(./user-envs-test-case.sh:111) nix-env -q '*'
+++(./user-envs-test-case.sh:111) grepQuiet foo-2.0
+++(/var/tmp/nf21rlRy/src/common/functions.sh:330) checkGrepArgs foo-2.0
+++(/var/tmp/nf21rlRy/src/common/functions.sh:293) local arg
+++(/var/tmp/nf21rlRy/src/common/functions.sh:294) for arg in "$@"
+++(/var/tmp/nf21rlRy/src/common/functions.sh:295) [[ foo-2.0 != foo\-2\.0 ]]
+++(/var/tmp/nf21rlRy/src/common/functions.sh:331) command grep foo-2.0
+++(./user-envs-test-case.sh:112) nix-env -q '*'
+++(./user-envs-test-case.sh:112) grepQuiet bar
+++(/var/tmp/nf21rlRy/src/common/functions.sh:330) checkGrepArgs bar
+++(/var/tmp/nf21rlRy/src/common/functions.sh:293) local arg
+++(/var/tmp/nf21rlRy/src/common/functions.sh:294) for arg in "$@"
+++(/var/tmp/nf21rlRy/src/common/functions.sh:295) [[ bar != bar ]]
+++(/var/tmp/nf21rlRy/src/common/functions.sh:331) command grep bar
+++(./user-envs-test-case.sh:115) nix-env --list-generations
+   1   2026-11-25 00:26:01   
+   2   2026-11-25 00:26:01   
+   3   2026-11-25 00:26:01   
+   4   2026-11-25 00:26:01   
+   5   2026-11-25 00:26:01   (current)
+   6   2026-11-25 00:26:01   
+   7   2026-11-25 00:26:01   
++++(./user-envs-test-case.sh:116) nix-env --list-generations
++++(./user-envs-test-case.sh:116) wc -l
+++(./user-envs-test-case.sh:116) test 7 -eq 7
+++(./user-envs-test-case.sh:121) nix-env -i foo
+replacing old 'foo-2.0'
+installing 'foo-2.0'
+++(./user-envs-test-case.sh:122) nix-env -i foo
+replacing old 'foo-2.0'
+installing 'foo-2.0'
+++(./user-envs-test-case.sh:125) nix-env --list-generations
+   1   2026-11-25 00:26:01   
+   2   2026-11-25 00:26:01   
+   3   2026-11-25 00:26:01   
+   4   2026-11-25 00:26:01   
+   5   2026-11-25 00:26:01   
+   6   2026-11-25 00:26:01   
+   7   2026-11-25 00:26:01   
+   8   2026-11-25 00:26:02   (current)
++++(./user-envs-test-case.sh:126) nix-env --list-generations
++++(./user-envs-test-case.sh:126) wc -l
+++(./user-envs-test-case.sh:126) test 8 -eq 8
+++(./user-envs-test-case.sh:129) nix-env --switch-generation 7
+switching profile from version 8 to 7
++++(./user-envs-test-case.sh:130) nix-store -q --resolve /var/tmp/nf21rlRy/tmp/nix-test/main/user-envs/test-home/.local/state/nix/profiles/test
+++(./user-envs-test-case.sh:130) '[' /var/tmp/nf21rlRy/tmp/nix-test/main/user-envs/store/sxp1zxk5wp5l9mnrqh0qap2w2al0a2gl-user-environment = /var/tmp/nf21rlRy/tmp/nix-test/main/user-envs/store/sxp1zxk5wp5l9mnrqh0qap2w2al0a2gl-user-environment ']'
+++(./user-envs-test-case.sh:133) nix-env -i /var/tmp/nf21rlRy/tmp/nix-test/main/user-envs/store/8nzh84f14k0js7chklmbsxw84hhjap9i-foo-1.0
+installing 'foo-1.0'
+building '/var/tmp/nf21rlRy/tmp/nix-test/main/user-envs/store/69k8ralkvh8bhd2k5p6wld94xpv2m89h-user-environment.drv'...
+++(./user-envs-test-case.sh:134) nix-env -q '*'
+++(./user-envs-test-case.sh:134) grepQuiet foo-1.0
+++(/var/tmp/nf21rlRy/src/common/functions.sh:330) checkGrepArgs foo-1.0
+++(/var/tmp/nf21rlRy/src/common/functions.sh:293) local arg
+++(/var/tmp/nf21rlRy/src/common/functions.sh:294) for arg in "$@"
+++(/var/tmp/nf21rlRy/src/common/functions.sh:295) [[ foo-1.0 != foo\-1\.0 ]]
+++(/var/tmp/nf21rlRy/src/common/functions.sh:331) command grep foo-1.0
+++(./user-envs-test-case.sh:135) nix-store -qR /var/tmp/nf21rlRy/tmp/nix-test/main/user-envs/test-home/.local/state/nix/profiles/test
+++(./user-envs-test-case.sh:135) grep /var/tmp/nf21rlRy/tmp/nix-test/main/user-envs/store/8nzh84f14k0js7chklmbsxw84hhjap9i-foo-1.0
+++(/var/tmp/nf21rlRy/src/common/functions.sh:344) checkGrepArgs /var/tmp/nf21rlRy/tmp/nix-test/main/user-envs/store/8nzh84f14k0js7chklmbsxw84hhjap9i-foo-1.0
+++(/var/tmp/nf21rlRy/src/common/functions.sh:293) local arg
+++(/var/tmp/nf21rlRy/src/common/functions.sh:294) for arg in "$@"
+++(/var/tmp/nf21rlRy/src/common/functions.sh:295) [[ /var/tmp/nf21rlRy/tmp/nix-test/main/user-envs/store/8nzh84f14k0js7chklmbsxw84hhjap9i-foo-1.0 != /var/tmp/nf21rlRy/tmp/nix\-test/main/user\-envs/store/8nzh84f14k0js7chklmbsxw84hhjap9i\-foo\-1\.0 ]]
+++(/var/tmp/nf21rlRy/src/common/functions.sh:345) command grep /var/tmp/nf21rlRy/tmp/nix-test/main/user-envs/store/8nzh84f14k0js7chklmbsxw84hhjap9i-foo-1.0
+/var/tmp/nf21rlRy/tmp/nix-test/main/user-envs/store/8nzh84f14k0js7chklmbsxw84hhjap9i-foo-1.0
+++(./user-envs-test-case.sh:136) nix-store -q --referrers-closure /var/tmp/nf21rlRy/tmp/nix-test/main/user-envs/test-home/.local/state/nix/profiles/test
++++(./user-envs-test-case.sh:136) nix-store -q --resolve /var/tmp/nf21rlRy/tmp/nix-test/main/user-envs/test-home/.local/state/nix/profiles/test
+++(./user-envs-test-case.sh:136) grep /var/tmp/nf21rlRy/tmp/nix-test/main/user-envs/store/crbx7i39wv6yxkgdpaww6idcqnyp1pwg-user-environment
+++(/var/tmp/nf21rlRy/src/common/functions.sh:344) checkGrepArgs /var/tmp/nf21rlRy/tmp/nix-test/main/user-envs/store/crbx7i39wv6yxkgdpaww6idcqnyp1pwg-user-environment
+++(/var/tmp/nf21rlRy/src/common/functions.sh:293) local arg
+++(/var/tmp/nf21rlRy/src/common/functions.sh:294) for arg in "$@"
+++(/var/tmp/nf21rlRy/src/common/functions.sh:295) [[ /var/tmp/nf21rlRy/tmp/nix-test/main/user-envs/store/crbx7i39wv6yxkgdpaww6idcqnyp1pwg-user-environment != /var/tmp/nf21rlRy/tmp/nix\-test/main/user\-envs/store/crbx7i39wv6yxkgdpaww6idcqnyp1pwg\-user\-environment ]]
+++(/var/tmp/nf21rlRy/src/common/functions.sh:345) command grep /var/tmp/nf21rlRy/tmp/nix-test/main/user-envs/store/crbx7i39wv6yxkgdpaww6idcqnyp1pwg-user-environment
+/var/tmp/nf21rlRy/tmp/nix-test/main/user-envs/store/crbx7i39wv6yxkgdpaww6idcqnyp1pwg-user-environment
++++(./user-envs-test-case.sh:137) nix-store -q --deriver /var/tmp/nf21rlRy/tmp/nix-test/main/user-envs/store/8nzh84f14k0js7chklmbsxw84hhjap9i-foo-1.0
+++(./user-envs-test-case.sh:137) '[' /var/tmp/nf21rlRy/tmp/nix-test/main/user-envs/store/842s518caffary2fms064kk61a90kgr9-foo-1.0.drv = /var/tmp/nf21rlRy/tmp/nix-test/main/user-envs/store/842s518caffary2fms064kk61a90kgr9-foo-1.0.drv ']'
+++(./user-envs-test-case.sh:140) ln -sfn /var/tmp/nf21rlRy/tmp/nix-test/main/user-envs/store/8nzh84f14k0js7chklmbsxw84hhjap9i-foo-1.0/bin/foo /var/tmp/nf21rlRy/tmp/nix-test/main/user-envs/symlink
+++(./user-envs-test-case.sh:141) nix-env -e /var/tmp/nf21rlRy/tmp/nix-test/main/user-envs/symlink
+uninstalling 'foo-1.0'
+++(./user-envs-test-case.sh:142) nix-env -q '*'
+++(./user-envs-test-case.sh:142) grepQuiet foo
+++(/var/tmp/nf21rlRy/src/common/functions.sh:330) checkGrepArgs foo
+++(/var/tmp/nf21rlRy/src/common/functions.sh:293) local arg
+++(/var/tmp/nf21rlRy/src/common/functions.sh:294) for arg in "$@"
+++(/var/tmp/nf21rlRy/src/common/functions.sh:295) [[ foo != foo ]]
+++(/var/tmp/nf21rlRy/src/common/functions.sh:331) command grep foo
+++(./user-envs-test-case.sh:143) nix-store -qR /var/tmp/nf21rlRy/tmp/nix-test/main/user-envs/test-home/.local/state/nix/profiles/test
+++(./user-envs-test-case.sh:143) grepInverse /var/tmp/nf21rlRy/tmp/nix-test/main/user-envs/store/8nzh84f14k0js7chklmbsxw84hhjap9i-foo-1.0
+++(/var/tmp/nf21rlRy/src/common/functions.sh:311) checkGrepArgs /var/tmp/nf21rlRy/tmp/nix-test/main/user-envs/store/8nzh84f14k0js7chklmbsxw84hhjap9i-foo-1.0
+++(/var/tmp/nf21rlRy/src/common/functions.sh:293) local arg
+++(/var/tmp/nf21rlRy/src/common/functions.sh:294) for arg in "$@"
+++(/var/tmp/nf21rlRy/src/common/functions.sh:295) [[ /var/tmp/nf21rlRy/tmp/nix-test/main/user-envs/store/8nzh84f14k0js7chklmbsxw84hhjap9i-foo-1.0 != /var/tmp/nf21rlRy/tmp/nix\-test/main/user\-envs/store/8nzh84f14k0js7chklmbsxw84hhjap9i\-foo\-1\.0 ]]
+++(/var/tmp/nf21rlRy/src/common/functions.sh:312) command grep /var/tmp/nf21rlRy/tmp/nix-test/main/user-envs/store/8nzh84f14k0js7chklmbsxw84hhjap9i-foo-1.0
+++(./user-envs-test-case.sh:146) nix-env -i /var/tmp/nf21rlRy/tmp/nix-test/main/user-envs/symlink
+installing 'foo-1.0'
+++(./user-envs-test-case.sh:147) nix-env -q '*'
+++(./user-envs-test-case.sh:147) grepQuiet foo
+++(/var/tmp/nf21rlRy/src/common/functions.sh:330) checkGrepArgs foo
+++(/var/tmp/nf21rlRy/src/common/functions.sh:293) local arg
+++(/var/tmp/nf21rlRy/src/common/functions.sh:294) for arg in "$@"
+++(/var/tmp/nf21rlRy/src/common/functions.sh:295) [[ foo != foo ]]
+++(/var/tmp/nf21rlRy/src/common/functions.sh:331) command grep foo
+++(./user-envs-test-case.sh:150) nix-env --delete-generations old
+removing profile version 1
+removing profile version 2
+removing profile version 3
+removing profile version 4
+removing profile version 5
+removing profile version 6
+removing profile version 7
+removing profile version 8
+removing profile version 9
+removing profile version 10
+++(./user-envs-test-case.sh:154) nix-collect-garbage
+finding garbage collector roots...
+removing stale link from "/var/tmp/nf21rlRy/tmp/nix-test/main/user-envs/var/nix/gcroots/auto/blghr94jpnz4szh77csbzbsfkiz3nahz" to "/var/tmp/nf21rlRy/tmp/nix-test/main/user-envs/test-home/.local/state/nix/profiles/test-8-link"
+removing stale link from "/var/tmp/nf21rlRy/tmp/nix-test/main/user-envs/var/nix/gcroots/auto/j7ywampwdi6a1wb3s4fyrlazblpalskw" to "/var/tmp/nf21rlRy/tmp/nix-test/main/user-envs/test-home/.local/state/nix/profiles/test-7-link"
+removing stale link from "/var/tmp/nf21rlRy/tmp/nix-test/main/user-envs/var/nix/gcroots/auto/pi0g22ri23gjmll905522pws3g71z4sr" to "/var/tmp/nf21rlRy/tmp/nix-test/main/user-envs/test-home/.local/state/nix/profiles/test-9-link"
+removing stale link from "/var/tmp/nf21rlRy/tmp/nix-test/main/user-envs/var/nix/gcroots/auto/kjna0q2mz716v7diq7jx0qhf4g7qkvaj" to "/var/tmp/nf21rlRy/tmp/nix-test/main/user-envs/test-home/.local/state/nix/profiles/test-6-link"
+removing stale link from "/var/tmp/nf21rlRy/tmp/nix-test/main/user-envs/var/nix/gcroots/auto/f9k0i2a5kd2bid8i0mw7a78f6lvxvhgv" to "/var/tmp/nf21rlRy/tmp/nix-test/main/user-envs/test-home/.local/state/nix/profiles/test-2-link"
+removing stale link from "/var/tmp/nf21rlRy/tmp/nix-test/main/user-envs/var/nix/gcroots/auto/40zkkdiy7zvgjfs1jqs72cja8mdwmmbb" to "/var/tmp/nf21rlRy/tmp/nix-test/main/user-envs/test-home/.local/state/nix/profiles/test-1-link"
+removing stale link from "/var/tmp/nf21rlRy/tmp/nix-test/main/user-envs/var/nix/gcroots/auto/1p0yv3fv5n3qgllgjahpd1385z4b431p" to "/var/tmp/nf21rlRy/tmp/nix-test/main/user-envs/test-home/.local/state/nix/profiles/test-3-link"
+removing stale link from "/var/tmp/nf21rlRy/tmp/nix-test/main/user-envs/var/nix/gcroots/auto/2vwb09n6762gkd3sfhnmcdhgv5zp6g4f" to "/var/tmp/nf21rlRy/tmp/nix-test/main/user-envs/test-home/.local/state/nix/profiles/test-10-link"
+removing stale link from "/var/tmp/nf21rlRy/tmp/nix-test/main/user-envs/var/nix/gcroots/auto/prdk4nwc6hmib4vxd6niv6p0bzqxkm2q" to "/var/tmp/nf21rlRy/tmp/nix-test/main/user-envs/test-home/.local/state/nix/profiles/test-5-link"
+removing stale link from "/var/tmp/nf21rlRy/tmp/nix-test/main/user-envs/var/nix/gcroots/auto/4gsk01aj8hxrk83scnirab3mq9m66bnx" to "/var/tmp/nf21rlRy/tmp/nix-test/main/user-envs/test-home/.local/state/nix/profiles/test-4-link"
+removing stale temporary roots file "/var/tmp/nf21rlRy/tmp/nix-test/main/user-envs/var/nix/temproots/260212"
+removing stale temporary roots file "/var/tmp/nf21rlRy/tmp/nix-test/main/user-envs/var/nix/temproots/260829"
+removing stale temporary roots file "/var/tmp/nf21rlRy/tmp/nix-test/main/user-envs/var/nix/temproots/259622"
+removing stale temporary roots file "/var/tmp/nf21rlRy/tmp/nix-test/main/user-envs/var/nix/temproots/260137"
+removing stale temporary roots file "/var/tmp/nf21rlRy/tmp/nix-test/main/user-envs/var/nix/temproots/259688"
+removing stale temporary roots file "/var/tmp/nf21rlRy/tmp/nix-test/main/user-envs/var/nix/temproots/259065"
+removing stale temporary roots file "/var/tmp/nf21rlRy/tmp/nix-test/main/user-envs/var/nix/temproots/260626"
+removing stale temporary roots file "/var/tmp/nf21rlRy/tmp/nix-test/main/user-envs/var/nix/temproots/261001"
+removing stale temporary roots file "/var/tmp/nf21rlRy/tmp/nix-test/main/user-envs/var/nix/temproots/259901"
+removing stale temporary roots file "/var/tmp/nf21rlRy/tmp/nix-test/main/user-envs/var/nix/temproots/261109"
+removing stale temporary roots file "/var/tmp/nf21rlRy/tmp/nix-test/main/user-envs/var/nix/temproots/259584"
+removing stale temporary roots file "/var/tmp/nf21rlRy/tmp/nix-test/main/user-envs/var/nix/temproots/260661"
+deleting garbage...
+deleting '/var/tmp/nf21rlRy/tmp/nix-test/main/user-envs/store/b5019jb5gpj1qkm28nga85h9slcbia4x-user-environment'
+deleting '/var/tmp/nf21rlRy/tmp/nix-test/main/user-envs/store/4qgnsp6zg3ixdk62x8jjjrqgh1a051w3-user-environment.drv'
+deleting '/var/tmp/nf21rlRy/tmp/nix-test/main/user-envs/store/7yifb3w66lrjpd3km8zlw5qhvr4ayix9-env-manifest.nix'
+deleting '/var/tmp/nf21rlRy/tmp/nix-test/main/user-envs/store/26b0npa62rxdlg1350v2yv0bh80ifdym-user-environment.drv'
+deleting '/var/tmp/nf21rlRy/tmp/nix-test/main/user-envs/store/xcaqs68s34haki9xxlj02p6hcpiz2vwz-user-environment'
+deleting '/var/tmp/nf21rlRy/tmp/nix-test/main/user-envs/store/x4siz9riir6y1gyjiilr904p595bcgli-env-manifest.nix'
+deleting '/var/tmp/nf21rlRy/tmp/nix-test/main/user-envs/store/6638y2s58ag8srkw36gs0yby0h2an7vj-user-environment.drv'
+deleting '/var/tmp/nf21rlRy/tmp/nix-test/main/user-envs/store/ciyhsdzpxp0bykrs5mvgzzyd7m2gwn7s-bar-0.1.drv'
+deleting '/var/tmp/nf21rlRy/tmp/nix-test/main/user-envs/store/3yhzhcl05j34qp4mp3zgfxmzlx0xl6kn-user-environment'
+deleting '/var/tmp/nf21rlRy/tmp/nix-test/main/user-envs/store/842s518caffary2fms064kk61a90kgr9-foo-1.0.drv'
+deleting '/var/tmp/nf21rlRy/tmp/nix-test/main/user-envs/store/j3493sj59w1jng7a19b42jyrz0jarrac-user-environment.drv'
+deleting '/var/tmp/nf21rlRy/tmp/nix-test/main/user-envs/store/djzhdviwn1vhh40wiks2zgyjfj8drlcw-foo-2.0pre1.drv'
+deleting '/var/tmp/nf21rlRy/tmp/nix-test/main/user-envs/store/kbg2xk5ywvf365r9ivhafhs5g0j6y929-user-environment.drv'
+deleting '/var/tmp/nf21rlRy/tmp/nix-test/main/user-envs/store/cbnxvl2c6z1dqsn0akb3rz9m0jvy05z0-foo-2.0.drv'
+deleting '/var/tmp/nf21rlRy/tmp/nix-test/main/user-envs/store/l5l20kwqh5zrsgp8q2ds2s2hr5csf8ym-user-environment.drv'
+deleting '/var/tmp/nf21rlRy/tmp/nix-test/main/user-envs/store/22yhb73kxng7vnbdbnrrnx4ilv9r9zi3-user-envs.builder.sh'
+deleting '/var/tmp/nf21rlRy/tmp/nix-test/main/user-envs/store/sxp1zxk5wp5l9mnrqh0qap2w2al0a2gl-user-environment'
+deleting '/var/tmp/nf21rlRy/tmp/nix-test/main/user-envs/store/yp52g581261gnswapgrcdrg42j5m75fs-env-manifest.nix'
+deleting '/var/tmp/nf21rlRy/tmp/nix-test/main/user-envs/store/69k8ralkvh8bhd2k5p6wld94xpv2m89h-user-environment.drv'
+deleting '/var/tmp/nf21rlRy/tmp/nix-test/main/user-envs/store/srp1f1wgkiqhijyr640dk033yp4r1c3k-user-environment'
+deleting '/var/tmp/nf21rlRy/tmp/nix-test/main/user-envs/store/gk21d30y0x8nw7lhlsvf7jdn0h96jnfg-env-manifest.nix'
+deleting '/var/tmp/nf21rlRy/tmp/nix-test/main/user-envs/store/rgz1203jmdw43wffyvnrlypg8y8hjrdi-user-environment.drv'
+deleting '/var/tmp/nf21rlRy/tmp/nix-test/main/user-envs/store/d9lj903cpzysllmczmdk2nz6wgccnry2-foo-2.0'
+deleting '/var/tmp/nf21rlRy/tmp/nix-test/main/user-envs/store/d8dgf8mf373ra75xr8ajnznf02q0r52f-env-manifest.nix'
+deleting '/var/tmp/nf21rlRy/tmp/nix-test/main/user-envs/store/paz3m2179z45pbj8ifbn142998g398xr-user-environment'
+deleting '/var/tmp/nf21rlRy/tmp/nix-test/main/user-envs/store/3mzjnhlm5m053lsq0scm8zhm664apm8i-env-manifest.nix'
+deleting '/var/tmp/nf21rlRy/tmp/nix-test/main/user-envs/store/pdciwzka5mmbbk9b27rcn0x0zm5vr039-user-environment'
+deleting '/var/tmp/nf21rlRy/tmp/nix-test/main/user-envs/store/hz891yxrvlj2plidc7kvgxvj183capsi-env-manifest.nix'
+deleting '/var/tmp/nf21rlRy/tmp/nix-test/main/user-envs/store/gwxkj2bz6jf8j4sclydhypzjbl0iiyvp-foo-2.0pre1'
+deleting unused links...
+note: hard linking is currently saving -4.0 KiB
+29 store paths deleted, 14.6 KiB freed
+++(./user-envs-test-case.sh:155) test -e /var/tmp/nf21rlRy/tmp/nix-test/main/user-envs/store/8nzh84f14k0js7chklmbsxw84hhjap9i-foo-1.0
+++(./user-envs-test-case.sh:157) '[' -e /var/tmp/nf21rlRy/tmp/nix-test/main/user-envs/store/d9lj903cpzysllmczmdk2nz6wgccnry2-foo-2.0 ']'
+++(./user-envs-test-case.sh:160) nix-env -e '*'
+uninstalling 'foo-1.0'
+uninstalling 'bar-0.1'
+building '/var/tmp/nf21rlRy/tmp/nix-test/main/user-envs/store/87jxf5hcglahwyrm9d8id5l0375npl1v-user-environment.drv'...
++++(./user-envs-test-case.sh:161) nix-env -q '*'
++++(./user-envs-test-case.sh:161) wc -l
+++(./user-envs-test-case.sh:161) test 0 -eq 0
+++(./user-envs-test-case.sh:164) nix-env -i foo
+installing 'foo-2.0'
+this derivation will be built:
+  /var/tmp/nf21rlRy/tmp/nix-test/main/user-envs/store/cbnxvl2c6z1dqsn0akb3rz9m0jvy05z0-foo-2.0.drv
+building '/var/tmp/nf21rlRy/tmp/nix-test/main/user-envs/store/cbnxvl2c6z1dqsn0akb3rz9m0jvy05z0-foo-2.0.drv'...
+building '/var/tmp/nf21rlRy/tmp/nix-test/main/user-envs/store/j3493sj59w1jng7a19b42jyrz0jarrac-user-environment.drv'...
++++(./user-envs-test-case.sh:165) nix-env -q '*'
++++(./user-envs-test-case.sh:165) grep foo- -c
++++(/var/tmp/nf21rlRy/src/common/functions.sh:344) checkGrepArgs foo- -c
++++(/var/tmp/nf21rlRy/src/common/functions.sh:293) local arg
++++(/var/tmp/nf21rlRy/src/common/functions.sh:294) for arg in "$@"
++++(/var/tmp/nf21rlRy/src/common/functions.sh:295) [[ foo- != foo\- ]]
++++(/var/tmp/nf21rlRy/src/common/functions.sh:294) for arg in "$@"
++++(/var/tmp/nf21rlRy/src/common/functions.sh:295) [[ -c != \-c ]]
++++(/var/tmp/nf21rlRy/src/common/functions.sh:345) command grep foo- -c
+++(./user-envs-test-case.sh:165) test 1 -eq 1
+++(./user-envs-test-case.sh:166) nix-env -q '*'
+++(./user-envs-test-case.sh:166) grepQuiet foo-2.0
+++(/var/tmp/nf21rlRy/src/common/functions.sh:330) checkGrepArgs foo-2.0
+++(/var/tmp/nf21rlRy/src/common/functions.sh:293) local arg
+++(/var/tmp/nf21rlRy/src/common/functions.sh:294) for arg in "$@"
+++(/var/tmp/nf21rlRy/src/common/functions.sh:295) [[ foo-2.0 != foo\-2\.0 ]]
+++(/var/tmp/nf21rlRy/src/common/functions.sh:331) command grep foo-2.0
+++(./user-envs-test-case.sh:170) nix-env -e '*'
+uninstalling 'foo-2.0'
+++(./user-envs-test-case.sh:171) nix-env -i foo-1.0 foo-2.0
+installing 'foo-1.0'
+installing 'foo-2.0'
+building '/var/tmp/nf21rlRy/tmp/nix-test/main/user-envs/store/nq40dczgc23g413368a3y7d8mc4yvjc0-user-environment.drv'...
+error: Unable to build profile. There is a conflict for the following files:
+
+         "/var/tmp/nf21rlRy/tmp/nix-test/main/user-envs/store/8nzh84f14k0js7chklmbsxw84hhjap9i-foo-1.0/bin/foo"
+         "/var/tmp/nf21rlRy/tmp/nix-test/main/user-envs/store/d9lj903cpzysllmczmdk2nz6wgccnry2-foo-2.0/bin/foo"
+error: Cannot build '/var/tmp/nf21rlRy/tmp/nix-test/main/user-envs/store/nq40dczgc23g413368a3y7d8mc4yvjc0-user-environment.drv'.
+       Reason: builder failed with exit code 1.
+       Output paths:
+         /var/tmp/nf21rlRy/tmp/nix-test/main/user-envs/store/45hhxy0wrlbxgql0zbanjrb036nvwacw-user-environment
+++(./user-envs-test-case.sh:174) nix-env -e '*'
+warning: selector '*' matched no installed derivations
+++(./user-envs-test-case.sh:175) nix-env -i '*'
+installing 'bar-0.1.1'
+installing 'foo-2.0'
+this derivation will be built:
+  /var/tmp/nf21rlRy/tmp/nix-test/main/user-envs/store/x0j88p7p94v52wyxzmm1his4qwbb84r1-bar-0.1.1.drv
+building '/var/tmp/nf21rlRy/tmp/nix-test/main/user-envs/store/x0j88p7p94v52wyxzmm1his4qwbb84r1-bar-0.1.1.drv'...
+building '/var/tmp/nf21rlRy/tmp/nix-test/main/user-envs/store/cbbm9j0aaqsc4pnygccjxhf22kk672gz-user-environment.drv'...
++++(./user-envs-test-case.sh:176) nix-env -q '*'
++++(./user-envs-test-case.sh:176) wc -l
+++(./user-envs-test-case.sh:176) test 2 -eq 2
+++(./user-envs-test-case.sh:177) nix-env -q '*'
+++(./user-envs-test-case.sh:177) grepQuiet foo-2.0
+++(/var/tmp/nf21rlRy/src/common/functions.sh:330) checkGrepArgs foo-2.0
+++(/var/tmp/nf21rlRy/src/common/functions.sh:293) local arg
+++(/var/tmp/nf21rlRy/src/common/functions.sh:294) for arg in "$@"
+++(/var/tmp/nf21rlRy/src/common/functions.sh:295) [[ foo-2.0 != foo\-2\.0 ]]
+++(/var/tmp/nf21rlRy/src/common/functions.sh:331) command grep foo-2.0
+++(./user-envs-test-case.sh:178) nix-env -q '*'
+++(./user-envs-test-case.sh:178) grepQuiet bar-0.1.1
+++(/var/tmp/nf21rlRy/src/common/functions.sh:330) checkGrepArgs bar-0.1.1
+++(/var/tmp/nf21rlRy/src/common/functions.sh:293) local arg
+++(/var/tmp/nf21rlRy/src/common/functions.sh:294) for arg in "$@"
+++(/var/tmp/nf21rlRy/src/common/functions.sh:295) [[ bar-0.1.1 != bar\-0\.1\.1 ]]
+++(/var/tmp/nf21rlRy/src/common/functions.sh:331) command grep bar-0.1.1
+++(./user-envs-test-case.sh:184) nix-env -e '*'
+uninstalling 'bar-0.1.1'
+uninstalling 'foo-2.0'
+++(./user-envs-test-case.sh:185) nix-env -i foo-0.1 foo-1.0
+installing 'foo-0.1'
+installing 'foo-1.0'
+this derivation will be built:
+  /var/tmp/nf21rlRy/tmp/nix-test/main/user-envs/store/766ghrqcri38lwrfkg2lyk3cfzrnhww9-foo-0.1.drv
+building '/var/tmp/nf21rlRy/tmp/nix-test/main/user-envs/store/766ghrqcri38lwrfkg2lyk3cfzrnhww9-foo-0.1.drv'...
+building '/var/tmp/nf21rlRy/tmp/nix-test/main/user-envs/store/zsdn12pzg48igh1bw0brcgc7pdq8j56b-user-environment.drv'...
++++(./user-envs-test-case.sh:186) /var/tmp/nf21rlRy/tmp/nix-test/main/user-envs/test-home/.local/state/nix/profiles/test/bin/foo
+++(./user-envs-test-case.sh:186) '[' foo-1.0 = foo-1.0 ']'
+++(./user-envs-test-case.sh:187) nix-env --set-flag priority 1 foo-0.1
+setting flag on 'foo-0.1'
+building '/var/tmp/nf21rlRy/tmp/nix-test/main/user-envs/store/y6072nr5p4spzczg3zcm4749h4iddi1j-user-environment.drv'...
++++(./user-envs-test-case.sh:188) /var/tmp/nf21rlRy/tmp/nix-test/main/user-envs/test-home/.local/state/nix/profiles/test/bin/foo
+++(./user-envs-test-case.sh:188) '[' foo-0.1 = foo-0.1 ']'
+++(./user-envs-test-case.sh:191) nix-env -e '*'
+uninstalling 'foo-0.1'
+uninstalling 'foo-1.0'
+++(./user-envs-test-case.sh:192) nix-env -i foo-1.0
+installing 'foo-1.0'
+building '/var/tmp/nf21rlRy/tmp/nix-test/main/user-envs/store/26b0npa62rxdlg1350v2yv0bh80ifdym-user-environment.drv'...
++++(./user-envs-test-case.sh:193) /var/tmp/nf21rlRy/tmp/nix-test/main/user-envs/test-home/.local/state/nix/profiles/test/bin/foo
+++(./user-envs-test-case.sh:193) '[' foo-1.0 = foo-1.0 ']'
+++(./user-envs-test-case.sh:194) nix-env -i --priority 1 foo-0.1
+replacing old 'foo-1.0'
+installing 'foo-0.1'
+building '/var/tmp/nf21rlRy/tmp/nix-test/main/user-envs/store/g7nl8p77jvl6amb462wa6mdkgp324rgw-user-environment.drv'...
++++(./user-envs-test-case.sh:195) /var/tmp/nf21rlRy/tmp/nix-test/main/user-envs/test-home/.local/state/nix/profiles/test/bin/foo
+++(./user-envs-test-case.sh:195) '[' foo-0.1 = foo-0.1 ']'
+++(./user-envs-test-case.sh:198) nix-env --set /var/tmp/nf21rlRy/tmp/nix-test/main/user-envs/store/8nzh84f14k0js7chklmbsxw84hhjap9i-foo-1.0
++++(./user-envs-test-case.sh:199) nix-store -q --resolve /var/tmp/nf21rlRy/tmp/nix-test/main/user-envs/test-home/.local/state/nix/profiles/test
+++(./user-envs-test-case.sh:199) '[' /var/tmp/nf21rlRy/tmp/nix-test/main/user-envs/store/8nzh84f14k0js7chklmbsxw84hhjap9i-foo-1.0 = /var/tmp/nf21rlRy/tmp/nix-test/main/user-envs/store/8nzh84f14k0js7chklmbsxw84hhjap9i-foo-1.0 ']'
+++(./user-envs-test-case.sh:200) nix-env --set /var/tmp/nf21rlRy/tmp/nix-test/main/user-envs/store/842s518caffary2fms064kk61a90kgr9-foo-1.0.drv
++++(./user-envs-test-case.sh:201) nix-store -q --resolve /var/tmp/nf21rlRy/tmp/nix-test/main/user-envs/test-home/.local/state/nix/profiles/test
+++(./user-envs-test-case.sh:201) '[' /var/tmp/nf21rlRy/tmp/nix-test/main/user-envs/store/8nzh84f14k0js7chklmbsxw84hhjap9i-foo-1.0 = /var/tmp/nf21rlRy/tmp/nix-test/main/user-envs/store/8nzh84f14k0js7chklmbsxw84hhjap9i-foo-1.0 ']'
+++(./user-envs-test-case.sh:204) mkdir -p /var/tmp/nf21rlRy/tmp/nix-test/main/user-envs/real-home/alice/.nix-defexpr/channels
+++(./user-envs-test-case.sh:205) ln -sfn /var/tmp/nf21rlRy/tmp/nix-test/main/user-envs/real-home /var/tmp/nf21rlRy/tmp/nix-test/main/user-envs/home
++++(./user-envs-test-case.sh:206) pwd
+++(./user-envs-test-case.sh:206) ln -sfn /var/tmp/nf21rlRy/src/user-envs.nix /var/tmp/nf21rlRy/tmp/nix-test/main/user-envs/home/alice/.nix-defexpr/channels/foo
+++(./user-envs-test-case.sh:207) HOME=/var/tmp/nf21rlRy/tmp/nix-test/main/user-envs/home/alice
+++(./user-envs-test-case.sh:207) nix-env -i foo-0.1
+installing 'foo-0.1'
+building '/var/tmp/nf21rlRy/tmp/nix-test/main/user-envs/store/hxlyj9akf5az4h3js64hmajn8fqaf4b5-user-environment.drv'...

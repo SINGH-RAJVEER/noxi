@@ -1,0 +1,540 @@
++(tarball.sh:3) source common.sh
+++(common.sh:3) set -eu -o pipefail
+++(common.sh:5) [[ -z '' ]]
+++(common.sh:7) COMMON_SH_SOURCED=1
+++++(common.sh:9) dirname common.sh
++++(common.sh:9) readlink -f .
+++(common.sh:9) functionalTestsDir=/var/tmp/nfo1AqW0/src
+++(common.sh:11) source /var/tmp/nfo1AqW0/src/common/vars.sh
++++(/var/tmp/nfo1AqW0/src/common/vars.sh:3) set -eu -o pipefail
++++(/var/tmp/nfo1AqW0/src/common/vars.sh:5) [[ -z '' ]]
++++(/var/tmp/nfo1AqW0/src/common/vars.sh:7) COMMON_VARS_SH_SOURCED=1
+++++(/var/tmp/nfo1AqW0/src/common/vars.sh:9) realpath /var/tmp/nfo1AqW0/src
++++(/var/tmp/nfo1AqW0/src/common/vars.sh:9) _NIX_TEST_SOURCE_DIR=/var/tmp/nfo1AqW0/src
+++++(/var/tmp/nfo1AqW0/src/common/vars.sh:10) realpath /var/tmp/nfo1AqW0/build
++++(/var/tmp/nfo1AqW0/src/common/vars.sh:10) _NIX_TEST_BUILD_DIR=/var/tmp/nfo1AqW0/build
++++++(/var/tmp/nfo1AqW0/src/common/vars.sh:12) dirname /var/tmp/nfo1AqW0/src/common/vars.sh
+++++(/var/tmp/nfo1AqW0/src/common/vars.sh:12) readlink -f /var/tmp/nfo1AqW0/src/common
++++(/var/tmp/nfo1AqW0/src/common/vars.sh:12) commonDir=/var/tmp/nfo1AqW0/src/common
++++(/var/tmp/nfo1AqW0/src/common/vars.sh:16) source /var/tmp/nfo1AqW0/build/common/subst-vars.sh
+++++(/var/tmp/nfo1AqW0/build/common/subst-vars.sh:3) [[ -z '' ]]
+++++(/var/tmp/nfo1AqW0/build/common/subst-vars.sh:5) COMMON_SUBST_VARS_SH_SOURCED=1
+++++(/var/tmp/nfo1AqW0/build/common/subst-vars.sh:7) bash=/nix/store/2ndah67h0z5m31v2wkdmg2md4380ggr5-bash-interactive-5.3p15/bin/bash
+++++(/var/tmp/nfo1AqW0/build/common/subst-vars.sh:8) bindir=/nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2/bin
+++++(/var/tmp/nfo1AqW0/build/common/subst-vars.sh:9) coreutils=/nix/store/xjl7p8dvyk2j53kqf7f43kdj4ypbxz7g-coreutils-9.11/bin
+++++(/var/tmp/nfo1AqW0/build/common/subst-vars.sh:11) dot=
+++++(/var/tmp/nfo1AqW0/build/common/subst-vars.sh:12) busybox=/nix/store/qddzvnv6b0805nkvbqddbswddcfhx814-busybox-static-x86_64-unknown-linux-musl-1.37.0/bin/busybox
+++++(/var/tmp/nfo1AqW0/build/common/subst-vars.sh:14) version=2.35.2
+++++(/var/tmp/nfo1AqW0/build/common/subst-vars.sh:15) system=x86_64-linux
++++(/var/tmp/nfo1AqW0/src/common/vars.sh:18) : '/nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2/bin /nix/store/xjl7p8dvyk2j53kqf7f43kdj4ypbxz7g-coreutils-9.11/bin  /run/current-system/sw/bin/nu /nix/store/qddzvnv6b0805nkvbqddbswddcfhx814-busybox-static-x86_64-unknown-linux-musl-1.37.0/bin/busybox 2.35.2 x86_64-linux'
++++(/var/tmp/nfo1AqW0/src/common/vars.sh:19) export coreutils dot busybox version system
++++(/var/tmp/nfo1AqW0/src/common/vars.sh:21) export PAGER=cat
++++(/var/tmp/nfo1AqW0/src/common/vars.sh:21) PAGER=cat
++++(/var/tmp/nfo1AqW0/src/common/vars.sh:23) source /var/tmp/nfo1AqW0/src/common/paths.sh
+++++(/var/tmp/nfo1AqW0/src/common/paths.sh:3) set -eu -o pipefail
+++++(/var/tmp/nfo1AqW0/src/common/paths.sh:5) [[ -z '' ]]
+++++(/var/tmp/nfo1AqW0/src/common/paths.sh:7) COMMON_PATHS_SH_SOURCED=1
+++++++(/var/tmp/nfo1AqW0/src/common/paths.sh:9) dirname /var/tmp/nfo1AqW0/src/common/paths.sh
++++++(/var/tmp/nfo1AqW0/src/common/paths.sh:9) readlink -f /var/tmp/nfo1AqW0/src/common
+++++(/var/tmp/nfo1AqW0/src/common/paths.sh:9) commonDir=/var/tmp/nfo1AqW0/src/common
+++++(/var/tmp/nfo1AqW0/src/common/paths.sh:12) source /var/tmp/nfo1AqW0/src/common/functions.sh
++++++(/var/tmp/nfo1AqW0/src/common/functions.sh:3) set -eu -o pipefail
++++++(/var/tmp/nfo1AqW0/src/common/functions.sh:5) [[ -z '' ]]
++++++(/var/tmp/nfo1AqW0/src/common/functions.sh:7) COMMON_FUNCTIONS_SH_SOURCED=1
++++++(/var/tmp/nfo1AqW0/src/common/functions.sh:353) trap onError ERR
+++++(/var/tmp/nfo1AqW0/src/common/paths.sh:14) source /var/tmp/nfo1AqW0/build/common/subst-vars.sh
++++++(/var/tmp/nfo1AqW0/build/common/subst-vars.sh:3) [[ -z 1 ]]
+++++(/var/tmp/nfo1AqW0/src/common/paths.sh:16) : /nix/store/2ndah67h0z5m31v2wkdmg2md4380ggr5-bash-interactive-5.3p15/bin/bash /nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2/bin
+++++(/var/tmp/nfo1AqW0/src/common/paths.sh:18) isTestOnNixOS
+++++(/var/tmp/nfo1AqW0/src/common/functions.sh:10) [[ '' == 1 ]]
+++++(/var/tmp/nfo1AqW0/src/common/paths.sh:19) export SHELL=/nix/store/2ndah67h0z5m31v2wkdmg2md4380ggr5-bash-interactive-5.3p15/bin/bash
+++++(/var/tmp/nfo1AqW0/src/common/paths.sh:19) SHELL=/nix/store/2ndah67h0z5m31v2wkdmg2md4380ggr5-bash-interactive-5.3p15/bin/bash
+++++(/var/tmp/nfo1AqW0/src/common/paths.sh:20) export PATH=/nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2/bin:/nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2/bin:/nix/store/2ndah67h0z5m31v2wkdmg2md4380ggr5-bash-interactive-5.3p15/bin:/nix/store/xjl7p8dvyk2j53kqf7f43kdj4ypbxz7g-coreutils-9.11/bin:/nix/store/xmvbzzxm5snla5a2cyfhm7hjy9bifx7n-gnugrep-3.12/bin:/nix/store/qf2wzyq4irhgyhnq3s2hz0ldjq3w8a3x-gnused-4.10/bin:/nix/store/9zib1q94gka8i5q530364cvy25504qz5-gawk-5.4.1/bin:/nix/store/i9wgqa0l88aprvpwfaq5hkfa6pklhlv0-findutils-4.11.0/bin:/nix/store/b8xvzgd52jby5dfpi0pf46nisy6wma5d-diffutils-3.12/bin:/nix/store/81zqbas7qc02yfdj7142fdcqhxgd3cgz-patch-2.8/bin:/nix/store/c8b0qp903w2hhpa63a2lfs7d565zag30-gnutar-1.35/bin:/nix/store/l5sll8nxk70p73l5yqbsjy4mh0c3g0v5-gzip-1.14/bin:/nix/store/j3yz0ag9j442229n8harpmp9aa5qyvhn-bzip2-1.0.8-bin/bin:/nix/store/518dig8gpvqyac6pkksyjjfzvi9zn8vq-xz-5.8.3-bin/bin:/nix/store/l8ik8mb8lgb60rklxjmkgddmp5qqnv29-zstd-1.5.7-bin/bin:/nix/store/msr1v91ybfw6j12rs5mfl8ghb2rqsnsr-git-2.55.0/bin:/nix/store/hyz22a0l5b5kv7yfypw4ss6d36vbzg01-jq-1.8.2-bin/bin:/nix/store/24gq3bi2yzf7g386p5j32mn78hhanf49-sqlite-3.53.3-bin/bin:/nix/store/cp8qnyl8i0s62g3a1465i258mf5bcr6k-curl-8.22.0-bin/bin:/nix/store/8x4c8zah3fbnyckaic4sskjbw7d2y98n-util-linux-2.42.4-bin/bin:/nix/store/d64q19q1xjdwfhqx6czvrjgrhq0n3lcc-python3-3.14.7/bin:/nix/store/niqsa6mxqsyax9lzbm261a2ml6m71vb6-perl-5.42.3/bin:/nix/store/fv9yl55hkskpc2cj9c0sdyq91car9kgl-file-5.48/bin:/nix/store/jv5kdlkwx0l8a7jdpg21g934ff30s319-which-2.25/bin:/nix/store/aj08b694apkc1jay2akywym9ghlailf5-procps-4.0.7/bin:/nix/store/5wyaj1kvkxbbscz6innrh6yjjkdq4qmk-openssh-10.6p1/bin:/nix/store/44gxi8li8y8wrxrb93sya9hljkpigsqw-openssl-3.6.4-bin/bin:/run/wrappers/wrappers.fo52KqP85R:/nix/store/wmh4xg3557sicfyllmi9ymd8sxaw51wv-man-db-2.13.1/bin:/nix/store/qpgknrlnxca0z99gl12j5n0fgca11cdx-mercurial-7.2.2/bin:/var/tmp/noxi-store-tier/.tmpQ54r6n/reference/tools
+++++(/var/tmp/nfo1AqW0/src/common/paths.sh:20) PATH=/nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2/bin:/nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2/bin:/nix/store/2ndah67h0z5m31v2wkdmg2md4380ggr5-bash-interactive-5.3p15/bin:/nix/store/xjl7p8dvyk2j53kqf7f43kdj4ypbxz7g-coreutils-9.11/bin:/nix/store/xmvbzzxm5snla5a2cyfhm7hjy9bifx7n-gnugrep-3.12/bin:/nix/store/qf2wzyq4irhgyhnq3s2hz0ldjq3w8a3x-gnused-4.10/bin:/nix/store/9zib1q94gka8i5q530364cvy25504qz5-gawk-5.4.1/bin:/nix/store/i9wgqa0l88aprvpwfaq5hkfa6pklhlv0-findutils-4.11.0/bin:/nix/store/b8xvzgd52jby5dfpi0pf46nisy6wma5d-diffutils-3.12/bin:/nix/store/81zqbas7qc02yfdj7142fdcqhxgd3cgz-patch-2.8/bin:/nix/store/c8b0qp903w2hhpa63a2lfs7d565zag30-gnutar-1.35/bin:/nix/store/l5sll8nxk70p73l5yqbsjy4mh0c3g0v5-gzip-1.14/bin:/nix/store/j3yz0ag9j442229n8harpmp9aa5qyvhn-bzip2-1.0.8-bin/bin:/nix/store/518dig8gpvqyac6pkksyjjfzvi9zn8vq-xz-5.8.3-bin/bin:/nix/store/l8ik8mb8lgb60rklxjmkgddmp5qqnv29-zstd-1.5.7-bin/bin:/nix/store/msr1v91ybfw6j12rs5mfl8ghb2rqsnsr-git-2.55.0/bin:/nix/store/hyz22a0l5b5kv7yfypw4ss6d36vbzg01-jq-1.8.2-bin/bin:/nix/store/24gq3bi2yzf7g386p5j32mn78hhanf49-sqlite-3.53.3-bin/bin:/nix/store/cp8qnyl8i0s62g3a1465i258mf5bcr6k-curl-8.22.0-bin/bin:/nix/store/8x4c8zah3fbnyckaic4sskjbw7d2y98n-util-linux-2.42.4-bin/bin:/nix/store/d64q19q1xjdwfhqx6czvrjgrhq0n3lcc-python3-3.14.7/bin:/nix/store/niqsa6mxqsyax9lzbm261a2ml6m71vb6-perl-5.42.3/bin:/nix/store/fv9yl55hkskpc2cj9c0sdyq91car9kgl-file-5.48/bin:/nix/store/jv5kdlkwx0l8a7jdpg21g934ff30s319-which-2.25/bin:/nix/store/aj08b694apkc1jay2akywym9ghlailf5-procps-4.0.7/bin:/nix/store/5wyaj1kvkxbbscz6innrh6yjjkdq4qmk-openssh-10.6p1/bin:/nix/store/44gxi8li8y8wrxrb93sya9hljkpigsqw-openssl-3.6.4-bin/bin:/run/wrappers/wrappers.fo52KqP85R:/nix/store/wmh4xg3557sicfyllmi9ymd8sxaw51wv-man-db-2.13.1/bin:/nix/store/qpgknrlnxca0z99gl12j5n0fgca11cdx-mercurial-7.2.2/bin:/var/tmp/noxi-store-tier/.tmpQ54r6n/reference/tools
+++++(/var/tmp/nfo1AqW0/src/common/paths.sh:23) [[ -n '' ]]
+++++(/var/tmp/nfo1AqW0/src/common/paths.sh:27) DAEMON_PATH=/nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2/bin:/nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2/bin:/nix/store/2ndah67h0z5m31v2wkdmg2md4380ggr5-bash-interactive-5.3p15/bin:/nix/store/xjl7p8dvyk2j53kqf7f43kdj4ypbxz7g-coreutils-9.11/bin:/nix/store/xmvbzzxm5snla5a2cyfhm7hjy9bifx7n-gnugrep-3.12/bin:/nix/store/qf2wzyq4irhgyhnq3s2hz0ldjq3w8a3x-gnused-4.10/bin:/nix/store/9zib1q94gka8i5q530364cvy25504qz5-gawk-5.4.1/bin:/nix/store/i9wgqa0l88aprvpwfaq5hkfa6pklhlv0-findutils-4.11.0/bin:/nix/store/b8xvzgd52jby5dfpi0pf46nisy6wma5d-diffutils-3.12/bin:/nix/store/81zqbas7qc02yfdj7142fdcqhxgd3cgz-patch-2.8/bin:/nix/store/c8b0qp903w2hhpa63a2lfs7d565zag30-gnutar-1.35/bin:/nix/store/l5sll8nxk70p73l5yqbsjy4mh0c3g0v5-gzip-1.14/bin:/nix/store/j3yz0ag9j442229n8harpmp9aa5qyvhn-bzip2-1.0.8-bin/bin:/nix/store/518dig8gpvqyac6pkksyjjfzvi9zn8vq-xz-5.8.3-bin/bin:/nix/store/l8ik8mb8lgb60rklxjmkgddmp5qqnv29-zstd-1.5.7-bin/bin:/nix/store/msr1v91ybfw6j12rs5mfl8ghb2rqsnsr-git-2.55.0/bin:/nix/store/hyz22a0l5b5kv7yfypw4ss6d36vbzg01-jq-1.8.2-bin/bin:/nix/store/24gq3bi2yzf7g386p5j32mn78hhanf49-sqlite-3.53.3-bin/bin:/nix/store/cp8qnyl8i0s62g3a1465i258mf5bcr6k-curl-8.22.0-bin/bin:/nix/store/8x4c8zah3fbnyckaic4sskjbw7d2y98n-util-linux-2.42.4-bin/bin:/nix/store/d64q19q1xjdwfhqx6czvrjgrhq0n3lcc-python3-3.14.7/bin:/nix/store/niqsa6mxqsyax9lzbm261a2ml6m71vb6-perl-5.42.3/bin:/nix/store/fv9yl55hkskpc2cj9c0sdyq91car9kgl-file-5.48/bin:/nix/store/jv5kdlkwx0l8a7jdpg21g934ff30s319-which-2.25/bin:/nix/store/aj08b694apkc1jay2akywym9ghlailf5-procps-4.0.7/bin:/nix/store/5wyaj1kvkxbbscz6innrh6yjjkdq4qmk-openssh-10.6p1/bin:/nix/store/44gxi8li8y8wrxrb93sya9hljkpigsqw-openssl-3.6.4-bin/bin:/run/wrappers/wrappers.fo52KqP85R:/nix/store/wmh4xg3557sicfyllmi9ymd8sxaw51wv-man-db-2.13.1/bin:/nix/store/qpgknrlnxca0z99gl12j5n0fgca11cdx-mercurial-7.2.2/bin:/var/tmp/noxi-store-tier/.tmpQ54r6n/reference/tools
+++++(/var/tmp/nfo1AqW0/src/common/paths.sh:28) [[ -n '' ]]
++++(/var/tmp/nfo1AqW0/src/common/vars.sh:24) source /var/tmp/nfo1AqW0/src/common/test-root.sh
+++++(/var/tmp/nfo1AqW0/src/common/test-root.sh:3) TEST_SUBDIR=main/tarball
++++++(/var/tmp/nfo1AqW0/src/common/test-root.sh:4) realpath /var/tmp/nfo1AqW0/tmp/nix-test
+++++(/var/tmp/nfo1AqW0/src/common/test-root.sh:4) TEST_ROOT=/var/tmp/nfo1AqW0/tmp/nix-test/main/tarball
+++++(/var/tmp/nfo1AqW0/src/common/test-root.sh:5) export TEST_ROOT
++++(/var/tmp/nfo1AqW0/src/common/vars.sh:26) test_nix_conf_dir=/var/tmp/nfo1AqW0/tmp/nix-test/main/tarball/etc
++++(/var/tmp/nfo1AqW0/src/common/vars.sh:29) test_nix_conf=/var/tmp/nfo1AqW0/tmp/nix-test/main/tarball/etc/nix.conf
++++(/var/tmp/nfo1AqW0/src/common/vars.sh:31) export TEST_HOME=/var/tmp/nfo1AqW0/tmp/nix-test/main/tarball/test-home
++++(/var/tmp/nfo1AqW0/src/common/vars.sh:31) TEST_HOME=/var/tmp/nfo1AqW0/tmp/nix-test/main/tarball/test-home
++++(/var/tmp/nfo1AqW0/src/common/vars.sh:33) isTestOnNixOS
++++(/var/tmp/nfo1AqW0/src/common/functions.sh:10) [[ '' == 1 ]]
++++(/var/tmp/nfo1AqW0/src/common/vars.sh:34) export NIX_STORE_DIR
+++++(/var/tmp/nfo1AqW0/src/common/vars.sh:35) readlink -f /var/tmp/nfo1AqW0/tmp/nix-test/main/tarball/store
++++(/var/tmp/nfo1AqW0/src/common/vars.sh:35) NIX_STORE_DIR=
++++(/var/tmp/nfo1AqW0/src/common/vars.sh:37) export NIX_IGNORE_SYMLINK_STORE=1
++++(/var/tmp/nfo1AqW0/src/common/vars.sh:37) NIX_IGNORE_SYMLINK_STORE=1
++++(/var/tmp/nfo1AqW0/src/common/vars.sh:38) NIX_STORE_DIR=/var/tmp/nfo1AqW0/tmp/nix-test/main/tarball/store
++++(/var/tmp/nfo1AqW0/src/common/vars.sh:40) export NIX_LOCALSTATE_DIR=/var/tmp/nfo1AqW0/tmp/nix-test/main/tarball/var
++++(/var/tmp/nfo1AqW0/src/common/vars.sh:40) NIX_LOCALSTATE_DIR=/var/tmp/nfo1AqW0/tmp/nix-test/main/tarball/var
++++(/var/tmp/nfo1AqW0/src/common/vars.sh:41) export NIX_LOG_DIR=/var/tmp/nfo1AqW0/tmp/nix-test/main/tarball/var/log/nix
++++(/var/tmp/nfo1AqW0/src/common/vars.sh:41) NIX_LOG_DIR=/var/tmp/nfo1AqW0/tmp/nix-test/main/tarball/var/log/nix
++++(/var/tmp/nfo1AqW0/src/common/vars.sh:42) export NIX_STATE_DIR=/var/tmp/nfo1AqW0/tmp/nix-test/main/tarball/var/nix
++++(/var/tmp/nfo1AqW0/src/common/vars.sh:42) NIX_STATE_DIR=/var/tmp/nfo1AqW0/tmp/nix-test/main/tarball/var/nix
++++(/var/tmp/nfo1AqW0/src/common/vars.sh:43) export NIX_CONF_DIR=/var/tmp/nfo1AqW0/tmp/nix-test/main/tarball/etc
++++(/var/tmp/nfo1AqW0/src/common/vars.sh:43) NIX_CONF_DIR=/var/tmp/nfo1AqW0/tmp/nix-test/main/tarball/etc
++++(/var/tmp/nfo1AqW0/src/common/vars.sh:44) export NIX_DAEMON_SOCKET_PATH=/var/tmp/nfo1AqW0/tmp/nix-test/main/tarball/dSocket
++++(/var/tmp/nfo1AqW0/src/common/vars.sh:44) NIX_DAEMON_SOCKET_PATH=/var/tmp/nfo1AqW0/tmp/nix-test/main/tarball/dSocket
++++(/var/tmp/nfo1AqW0/src/common/vars.sh:45) unset NIX_USER_CONF_FILES
++++(/var/tmp/nfo1AqW0/src/common/vars.sh:46) export _NIX_TEST_SHARED=/var/tmp/nfo1AqW0/tmp/nix-test/main/tarball/shared
++++(/var/tmp/nfo1AqW0/src/common/vars.sh:46) _NIX_TEST_SHARED=/var/tmp/nfo1AqW0/tmp/nix-test/main/tarball/shared
++++(/var/tmp/nfo1AqW0/src/common/vars.sh:47) [[ -n '' ]]
++++(/var/tmp/nfo1AqW0/src/common/vars.sh:50) export _NIX_IN_TEST=/var/tmp/nfo1AqW0/tmp/nix-test/main/tarball/shared
++++(/var/tmp/nfo1AqW0/src/common/vars.sh:50) _NIX_IN_TEST=/var/tmp/nfo1AqW0/tmp/nix-test/main/tarball/shared
++++(/var/tmp/nfo1AqW0/src/common/vars.sh:51) export _NIX_TEST_NO_LSOF=1
++++(/var/tmp/nfo1AqW0/src/common/vars.sh:51) _NIX_TEST_NO_LSOF=1
++++(/var/tmp/nfo1AqW0/src/common/vars.sh:54) export _NIX_TEST_NO_ENVIRONMENT_WARNINGS=1
++++(/var/tmp/nfo1AqW0/src/common/vars.sh:54) _NIX_TEST_NO_ENVIRONMENT_WARNINGS=1
++++(/var/tmp/nfo1AqW0/src/common/vars.sh:55) export NIX_REMOTE=
++++(/var/tmp/nfo1AqW0/src/common/vars.sh:55) NIX_REMOTE=
++++(/var/tmp/nfo1AqW0/src/common/vars.sh:59) unset NIX_PATH
++++(/var/tmp/nfo1AqW0/src/common/vars.sh:60) export HOME=/var/tmp/nfo1AqW0/tmp/nix-test/main/tarball/test-home
++++(/var/tmp/nfo1AqW0/src/common/vars.sh:60) HOME=/var/tmp/nfo1AqW0/tmp/nix-test/main/tarball/test-home
++++(/var/tmp/nfo1AqW0/src/common/vars.sh:61) unset XDG_STATE_HOME
++++(/var/tmp/nfo1AqW0/src/common/vars.sh:62) unset XDG_DATA_HOME
++++(/var/tmp/nfo1AqW0/src/common/vars.sh:63) unset XDG_CONFIG_HOME
++++(/var/tmp/nfo1AqW0/src/common/vars.sh:64) unset XDG_CONFIG_DIRS
++++(/var/tmp/nfo1AqW0/src/common/vars.sh:65) unset XDG_CACHE_HOME
++++(/var/tmp/nfo1AqW0/src/common/vars.sh:66) unset GIT_DIR
++++(/var/tmp/nfo1AqW0/src/common/vars.sh:68) export GIT_CONFIG_SYSTEM=/dev/null
++++(/var/tmp/nfo1AqW0/src/common/vars.sh:68) GIT_CONFIG_SYSTEM=/dev/null
++++(/var/tmp/nfo1AqW0/src/common/vars.sh:69) export GIT_CONFIG_GLOBAL=/dev/null
++++(/var/tmp/nfo1AqW0/src/common/vars.sh:69) GIT_CONFIG_GLOBAL=/dev/null
++++(/var/tmp/nfo1AqW0/src/common/vars.sh:71) export IMPURE_VAR1=foo
++++(/var/tmp/nfo1AqW0/src/common/vars.sh:71) IMPURE_VAR1=foo
++++(/var/tmp/nfo1AqW0/src/common/vars.sh:72) export IMPURE_VAR2=bar
++++(/var/tmp/nfo1AqW0/src/common/vars.sh:72) IMPURE_VAR2=bar
++++(/var/tmp/nfo1AqW0/src/common/vars.sh:76) cacheDir=/var/tmp/nfo1AqW0/tmp/nix-test/main/tarball/binary-cache
+++++(/var/tmp/nfo1AqW0/src/common/vars.sh:78) uname
++++(/var/tmp/nfo1AqW0/src/common/vars.sh:78) [[ Linux == Linux ]]
++++(/var/tmp/nfo1AqW0/src/common/vars.sh:78) [[ -L /proc/self/ns/user ]]
++++(/var/tmp/nfo1AqW0/src/common/vars.sh:78) unshare --user true
++++(/var/tmp/nfo1AqW0/src/common/vars.sh:79) _canUseSandbox=1
++++(/var/tmp/nfo1AqW0/src/common/vars.sh:85) config_nix=/var/tmp/nfo1AqW0/tmp/nix-test/main/tarball/config.nix
+++(common.sh:12) source /var/tmp/nfo1AqW0/src/common/functions.sh
++++(/var/tmp/nfo1AqW0/src/common/functions.sh:3) set -eu -o pipefail
++++(/var/tmp/nfo1AqW0/src/common/functions.sh:5) [[ -z 1 ]]
+++(common.sh:13) source /var/tmp/nfo1AqW0/src/common/init.sh
++++(/var/tmp/nfo1AqW0/src/common/init.sh:4) : /var/tmp/nfo1AqW0/tmp/nix-test/main/tarball/etc /var/tmp/nfo1AqW0/tmp/nix-test/main/tarball/etc/nix.conf /var/tmp/nfo1AqW0/tmp/nix-test/main/tarball/config.nix
++++(/var/tmp/nfo1AqW0/src/common/init.sh:6) isTestOnNixOS
++++(/var/tmp/nfo1AqW0/src/common/functions.sh:10) [[ '' == 1 ]]
++++(/var/tmp/nfo1AqW0/src/common/init.sh:29) test -n /var/tmp/nfo1AqW0/tmp/nix-test/main/tarball
++++(/var/tmp/nfo1AqW0/src/common/init.sh:31) killDaemon
++++(/var/tmp/nfo1AqW0/src/common/functions.sh:100) isTestOnNixOS
++++(/var/tmp/nfo1AqW0/src/common/functions.sh:10) [[ '' == 1 ]]
++++(/var/tmp/nfo1AqW0/src/common/functions.sh:105) [[ '' == '' ]]
++++(/var/tmp/nfo1AqW0/src/common/functions.sh:106) return
++++(/var/tmp/nfo1AqW0/src/common/init.sh:33) [[ -e /var/tmp/nfo1AqW0/tmp/nix-test/main/tarball ]]
++++(/var/tmp/nfo1AqW0/src/common/init.sh:37) mkdir -p /var/tmp/nfo1AqW0/tmp/nix-test/main/tarball
++++(/var/tmp/nfo1AqW0/src/common/init.sh:38) mkdir /var/tmp/nfo1AqW0/tmp/nix-test/main/tarball/test-home
++++(/var/tmp/nfo1AqW0/src/common/init.sh:40) mkdir /var/tmp/nfo1AqW0/tmp/nix-test/main/tarball/store
++++(/var/tmp/nfo1AqW0/src/common/init.sh:41) mkdir /var/tmp/nfo1AqW0/tmp/nix-test/main/tarball/var
++++(/var/tmp/nfo1AqW0/src/common/init.sh:42) mkdir -p /var/tmp/nfo1AqW0/tmp/nix-test/main/tarball/var/log/nix/drvs
++++(/var/tmp/nfo1AqW0/src/common/init.sh:43) mkdir /var/tmp/nfo1AqW0/tmp/nix-test/main/tarball/var/nix
++++(/var/tmp/nfo1AqW0/src/common/init.sh:44) mkdir /var/tmp/nfo1AqW0/tmp/nix-test/main/tarball/etc
++++(/var/tmp/nfo1AqW0/src/common/init.sh:46) cat
+++++(/var/tmp/nfo1AqW0/src/common/init.sh:46) whoami
++++(/var/tmp/nfo1AqW0/src/common/init.sh:59) cat
++++(/var/tmp/nfo1AqW0/src/common/init.sh:67) nix-store --init
++++(/var/tmp/nfo1AqW0/src/common/init.sh:69) test -e /var/tmp/nfo1AqW0/tmp/nix-test/main/tarball/var/nix/db/db.sqlite
++++(/var/tmp/nfo1AqW0/src/common/init.sh:75) echo '# config.nix for test main / tarball'
++++(/var/tmp/nfo1AqW0/src/common/init.sh:76) cat /var/tmp/nfo1AqW0/build/config.nix
+++(common.sh:15) [[ -n '' ]]
++(tarball.sh:5) tarroot=/var/tmp/nfo1AqW0/tmp/nix-test/main/tarball/tarball
++(tarball.sh:6) mkdir -p /var/tmp/nfo1AqW0/tmp/nix-test/main/tarball/tarball
++(tarball.sh:7) cp dependencies.nix /var/tmp/nfo1AqW0/tmp/nix-test/main/tarball/tarball/default.nix
++(tarball.sh:8) cp /var/tmp/nfo1AqW0/tmp/nix-test/main/tarball/config.nix dependencies.builder0.sh /var/tmp/nfo1AqW0/tmp/nix-test/main/tarball/tarball/
++(tarball.sh:9) touch -d @1000000000 /var/tmp/nfo1AqW0/tmp/nix-test/main/tarball/tarball /var/tmp/nfo1AqW0/tmp/nix-test/main/tarball/tarball/config.nix /var/tmp/nfo1AqW0/tmp/nix-test/main/tarball/tarball/default.nix /var/tmp/nfo1AqW0/tmp/nix-test/main/tarball/tarball/dependencies.builder0.sh
+++(tarball.sh:11) nix hash path /var/tmp/nfo1AqW0/tmp/nix-test/main/tarball/tarball
+warning: you don't have Internet access; disabling some network-dependent features
++(tarball.sh:11) hash=sha256-W9QP8cjUWik94of9RfgwYE0J0ZbNhVyGc3oWkvW/IlA=
++(tarball.sh:63) test_tarball '' cat
++(tarball.sh:14) local ext=
++(tarball.sh:15) local compressor=cat
++(tarball.sh:17) tarball=/var/tmp/nfo1AqW0/tmp/nix-test/main/tarball/tarball.tar
++(tarball.sh:18) cd /var/tmp/nfo1AqW0/tmp/nix-test/main/tarball
++(tarball.sh:18) GNUTAR_REPRODUCIBLE=1
++(tarball.sh:18) tar --mtime=/var/tmp/nfo1AqW0/tmp/nix-test/main/tarball/tarball/default.nix --owner=0 --group=0 --numeric-owner --sort=name -c -f - tarball
++(tarball.sh:18) cat
++(tarball.sh:20) nix-env -f file:///var/tmp/nfo1AqW0/tmp/nix-test/main/tarball/tarball.tar -qa --out-path
++(tarball.sh:20) grepQuiet dependencies
++(/var/tmp/nfo1AqW0/src/common/functions.sh:330) checkGrepArgs dependencies
++(/var/tmp/nfo1AqW0/src/common/functions.sh:293) local arg
++(/var/tmp/nfo1AqW0/src/common/functions.sh:294) for arg in "$@"
++(/var/tmp/nfo1AqW0/src/common/functions.sh:295) [[ dependencies != dependencies ]]
++(/var/tmp/nfo1AqW0/src/common/functions.sh:331) command grep dependencies
+unpacking 'file:///var/tmp/nfo1AqW0/tmp/nix-test/main/tarball/tarball.tar' into the Git cache...
++(tarball.sh:22) nix-build -o /var/tmp/nfo1AqW0/tmp/nix-test/main/tarball/result file:///var/tmp/nfo1AqW0/tmp/nix-test/main/tarball/tarball.tar
+these 5 derivations will be built:
+  /var/tmp/nfo1AqW0/tmp/nix-test/main/tarball/store/armh2hkjq0minpf7mwpz091kb4gsqa9r-dependencies-input-0.drv
+  /var/tmp/nfo1AqW0/tmp/nix-test/main/tarball/store/2gkrlnmw0hdk9k645r6a180dr47v5cay-dependencies-input-2.drv
+  /var/tmp/nfo1AqW0/tmp/nix-test/main/tarball/store/505cx5f839c483n9imryddddmjrn72vj-fod-input.drv
+  /var/tmp/nfo1AqW0/tmp/nix-test/main/tarball/store/kil9k0n8m1fq5ad0xpryzh4319xxh38i-dependencies-input-1.drv
+  /var/tmp/nfo1AqW0/tmp/nix-test/main/tarball/store/i2vfk5n31704kshn7x44zikx2zsanj1c-dependencies-top.drv
+building '/var/tmp/nfo1AqW0/tmp/nix-test/main/tarball/store/armh2hkjq0minpf7mwpz091kb4gsqa9r-dependencies-input-0.drv'...
+building '/var/tmp/nfo1AqW0/tmp/nix-test/main/tarball/store/kil9k0n8m1fq5ad0xpryzh4319xxh38i-dependencies-input-1.drv'...
+building '/var/tmp/nfo1AqW0/tmp/nix-test/main/tarball/store/2gkrlnmw0hdk9k645r6a180dr47v5cay-dependencies-input-2.drv'...
+building '/var/tmp/nfo1AqW0/tmp/nix-test/main/tarball/store/505cx5f839c483n9imryddddmjrn72vj-fod-input.drv'...
+
+building '/var/tmp/nfo1AqW0/tmp/nix-test/main/tarball/store/i2vfk5n31704kshn7x44zikx2zsanj1c-dependencies-top.drv'...
+FOO
+/var/tmp/nfo1AqW0/tmp/nix-test/main/tarball/store/lcksgwda25kz7anwgwspxrqcmnz6zphc-dependencies-top
++(tarball.sh:24) nix-build -o /var/tmp/nfo1AqW0/tmp/nix-test/main/tarball/result '<foo>' -I foo=file:///var/tmp/nfo1AqW0/tmp/nix-test/main/tarball/tarball.tar
+/var/tmp/nfo1AqW0/tmp/nix-test/main/tarball/store/lcksgwda25kz7anwgwspxrqcmnz6zphc-dependencies-top
++(tarball.sh:26) nix-build -o /var/tmp/nfo1AqW0/tmp/nix-test/main/tarball/result -E 'import (fetchTarball "file:///var/tmp/nfo1AqW0/tmp/nix-test/main/tarball/tarball.tar")'
+/var/tmp/nfo1AqW0/tmp/nix-test/main/tarball/store/lcksgwda25kz7anwgwspxrqcmnz6zphc-dependencies-top
++(tarball.sh:28) nix-build -o /var/tmp/nfo1AqW0/tmp/nix-test/main/tarball/result -E 'import (fetchTarball { url = "file:///does-not-exist/must-remain-unused//var/tmp/nfo1AqW0/tmp/nix-test/main/tarball/tarball.tar"; sha256 = "sha256-W9QP8cjUWik94of9RfgwYE0J0ZbNhVyGc3oWkvW/IlA="; })'
+/var/tmp/nfo1AqW0/tmp/nix-test/main/tarball/store/lcksgwda25kz7anwgwspxrqcmnz6zphc-dependencies-top
++(tarball.sh:30) nix-build -o /var/tmp/nfo1AqW0/tmp/nix-test/main/tarball/result -E 'import (fetchTree "file:///var/tmp/nfo1AqW0/tmp/nix-test/main/tarball/tarball.tar")'
+/var/tmp/nfo1AqW0/tmp/nix-test/main/tarball/store/lcksgwda25kz7anwgwspxrqcmnz6zphc-dependencies-top
++(tarball.sh:31) nix-build -o /var/tmp/nfo1AqW0/tmp/nix-test/main/tarball/result -E 'import (fetchTree { type = "tarball"; url = "file:///var/tmp/nfo1AqW0/tmp/nix-test/main/tarball/tarball.tar"; })'
+/var/tmp/nfo1AqW0/tmp/nix-test/main/tarball/store/lcksgwda25kz7anwgwspxrqcmnz6zphc-dependencies-top
++(tarball.sh:32) nix-build -o /var/tmp/nfo1AqW0/tmp/nix-test/main/tarball/result -E 'import (fetchTree { type = "tarball"; url = "file:///var/tmp/nfo1AqW0/tmp/nix-test/main/tarball/tarball.tar"; narHash = "sha256-W9QP8cjUWik94of9RfgwYE0J0ZbNhVyGc3oWkvW/IlA="; })'
+/var/tmp/nfo1AqW0/tmp/nix-test/main/tarball/store/lcksgwda25kz7anwgwspxrqcmnz6zphc-dependencies-top
+++(tarball.sh:34) nix eval --impure --expr '(fetchTree "file:///var/tmp/nfo1AqW0/tmp/nix-test/main/tarball/tarball.tar").lastModified'
+warning: you don't have Internet access; disabling some network-dependent features
++(tarball.sh:34) [[ 1000000000 = 1000000000 ]]
++(tarball.sh:36) nix-instantiate --strict --eval -E '!((import (fetchTree { type = "tarball"; url = "file:///var/tmp/nfo1AqW0/tmp/nix-test/main/tarball/tarball.tar"; narHash = "sha256-W9QP8cjUWik94of9RfgwYE0J0ZbNhVyGc3oWkvW/IlA="; })) ? submodules)'
+true
++(tarball.sh:37) nix-instantiate --strict --eval -E '!((import (fetchTree { type = "tarball"; url = "file:///var/tmp/nfo1AqW0/tmp/nix-test/main/tarball/tarball.tar"; narHash = "sha256-W9QP8cjUWik94of9RfgwYE0J0ZbNhVyGc3oWkvW/IlA="; })) ? submodules)'
++(tarball.sh:37) grep true
++(/var/tmp/nfo1AqW0/src/common/functions.sh:344) checkGrepArgs true
++(/var/tmp/nfo1AqW0/src/common/functions.sh:293) local arg
++(/var/tmp/nfo1AqW0/src/common/functions.sh:294) for arg in "$@"
++(/var/tmp/nfo1AqW0/src/common/functions.sh:295) [[ true != true ]]
++(/var/tmp/nfo1AqW0/src/common/functions.sh:345) command grep true
+true
++(tarball.sh:39) nix-instantiate --eval -E '1 + 2' -I fnord=file:///no-such-tarball.tar
+3
++(tarball.sh:40) nix-instantiate --eval -E 'with <fnord/xyzzy>; 1 + 2' -I fnord=file:///no-such-tarball
+3
++(tarball.sh:41) nix-instantiate --eval -E '<fnord/xyzzy> 1' -I fnord=file:///no-such-tarball
+warning: Nix search path entry 'file:///no-such-tarball' cannot be downloaded, ignoring
+warning: Nix search path entry 'file:///no-such-tarball' does not exist, ignoring
+error:
+       … while calling the 'findFile' builtin
+         at «string»:1:1:
+            1| <fnord/xyzzy> 1
+             | ^
+
+       error: file 'fnord/xyzzy' was not found in the Nix search path (add it using $NIX_PATH or -I)
++(tarball.sh:43) nix-instantiate --eval -E '<fnord/config.nix>' -I fnord=file:///no-such-tarball -I fnord=/var/tmp/nfo1AqW0/build
+warning: Nix search path entry 'file:///no-such-tarball' cannot be downloaded, ignoring
+warning: Nix search path entry 'file:///no-such-tarball' does not exist, ignoring
+/var/tmp/nfo1AqW0/build/config.nix
++(tarball.sh:47) nix-instantiate --eval -E 'fetchTree { type = "tarball"; url = "file:///var/tmp/nfo1AqW0/tmp/nix-test/main/tarball/tarball.tar"; narHash = "sha256-W9QP8cjUWik94of9RfgwYE0J0ZbNhVyGc3oWkvW/IlA="; name = "foo"; }'
+error:
+       … while calling the 'fetchTree' builtin
+         at «string»:1:1:
+            1| fetchTree { type = "tarball"; url = "file:///var/tmp/nfo1AqW0/tmp/nix-test/main/tarball/tarball.tar"; narHash = "sha256-W9QP8cjUWik94of9RfgwYE0J0ZbNhVyGc3oWkvW/IlA="; name = "foo"; }
+             | ^
+
+       error: argument 'name' isn’t supported in call to 'fetchTree'
+++(tarball.sh:49) nix store prefetch-file --json file:///var/tmp/nfo1AqW0/tmp/nix-test/main/tarball/tarball.tar
+++(tarball.sh:49) jq -r .storePath
+warning: you don't have Internet access; disabling some network-dependent features
++(tarball.sh:49) store_path=/var/tmp/nfo1AqW0/tmp/nix-test/main/tarball/store/hzs7wjdqxldq86qrskixanrv75cqpq9f-tarball.tar
++(tarball.sh:50) cmp -s /var/tmp/nfo1AqW0/tmp/nix-test/main/tarball/store/hzs7wjdqxldq86qrskixanrv75cqpq9f-tarball.tar /var/tmp/nfo1AqW0/tmp/nix-test/main/tarball/tarball.tar
+++(tarball.sh:54) nix store prefetch-file --json --unpack file:///var/tmp/nfo1AqW0/tmp/nix-test/main/tarball/tarball.tar
+++(tarball.sh:54) jq -r .storePath
+warning: you don't have Internet access; disabling some network-dependent features
++(tarball.sh:54) store_path2=/var/tmp/nfo1AqW0/tmp/nix-test/main/tarball/store/xxr6giyp84n01nphvbns9nl2l4fpv1xa-tarball.tar
+++(tarball.sh:55) diff -r /var/tmp/nfo1AqW0/tmp/nix-test/main/tarball/store/xxr6giyp84n01nphvbns9nl2l4fpv1xa-tarball.tar /var/tmp/nfo1AqW0/tmp/nix-test/main/tarball/tarball
++(tarball.sh:55) diff_output=
++(tarball.sh:56) '[' -n '' ']'
++(tarball.sh:64) test_tarball .xz xz
++(tarball.sh:14) local ext=.xz
++(tarball.sh:15) local compressor=xz
++(tarball.sh:17) tarball=/var/tmp/nfo1AqW0/tmp/nix-test/main/tarball/tarball.tar.xz
++(tarball.sh:18) cd /var/tmp/nfo1AqW0/tmp/nix-test/main/tarball
++(tarball.sh:18) GNUTAR_REPRODUCIBLE=1
++(tarball.sh:18) tar --mtime=/var/tmp/nfo1AqW0/tmp/nix-test/main/tarball/tarball/default.nix --owner=0 --group=0 --numeric-owner --sort=name -c -f - tarball
++(tarball.sh:18) xz
++(tarball.sh:20) nix-env -f file:///var/tmp/nfo1AqW0/tmp/nix-test/main/tarball/tarball.tar.xz -qa --out-path
++(tarball.sh:20) grepQuiet dependencies
++(/var/tmp/nfo1AqW0/src/common/functions.sh:330) checkGrepArgs dependencies
++(/var/tmp/nfo1AqW0/src/common/functions.sh:293) local arg
++(/var/tmp/nfo1AqW0/src/common/functions.sh:294) for arg in "$@"
++(/var/tmp/nfo1AqW0/src/common/functions.sh:295) [[ dependencies != dependencies ]]
++(/var/tmp/nfo1AqW0/src/common/functions.sh:331) command grep dependencies
+unpacking 'file:///var/tmp/nfo1AqW0/tmp/nix-test/main/tarball/tarball.tar.xz' into the Git cache...
++(tarball.sh:22) nix-build -o /var/tmp/nfo1AqW0/tmp/nix-test/main/tarball/result file:///var/tmp/nfo1AqW0/tmp/nix-test/main/tarball/tarball.tar.xz
+/var/tmp/nfo1AqW0/tmp/nix-test/main/tarball/store/lcksgwda25kz7anwgwspxrqcmnz6zphc-dependencies-top
++(tarball.sh:24) nix-build -o /var/tmp/nfo1AqW0/tmp/nix-test/main/tarball/result '<foo>' -I foo=file:///var/tmp/nfo1AqW0/tmp/nix-test/main/tarball/tarball.tar.xz
+/var/tmp/nfo1AqW0/tmp/nix-test/main/tarball/store/lcksgwda25kz7anwgwspxrqcmnz6zphc-dependencies-top
++(tarball.sh:26) nix-build -o /var/tmp/nfo1AqW0/tmp/nix-test/main/tarball/result -E 'import (fetchTarball "file:///var/tmp/nfo1AqW0/tmp/nix-test/main/tarball/tarball.tar.xz")'
+/var/tmp/nfo1AqW0/tmp/nix-test/main/tarball/store/lcksgwda25kz7anwgwspxrqcmnz6zphc-dependencies-top
++(tarball.sh:28) nix-build -o /var/tmp/nfo1AqW0/tmp/nix-test/main/tarball/result -E 'import (fetchTarball { url = "file:///does-not-exist/must-remain-unused//var/tmp/nfo1AqW0/tmp/nix-test/main/tarball/tarball.tar.xz"; sha256 = "sha256-W9QP8cjUWik94of9RfgwYE0J0ZbNhVyGc3oWkvW/IlA="; })'
+/var/tmp/nfo1AqW0/tmp/nix-test/main/tarball/store/lcksgwda25kz7anwgwspxrqcmnz6zphc-dependencies-top
++(tarball.sh:30) nix-build -o /var/tmp/nfo1AqW0/tmp/nix-test/main/tarball/result -E 'import (fetchTree "file:///var/tmp/nfo1AqW0/tmp/nix-test/main/tarball/tarball.tar.xz")'
+/var/tmp/nfo1AqW0/tmp/nix-test/main/tarball/store/lcksgwda25kz7anwgwspxrqcmnz6zphc-dependencies-top
++(tarball.sh:31) nix-build -o /var/tmp/nfo1AqW0/tmp/nix-test/main/tarball/result -E 'import (fetchTree { type = "tarball"; url = "file:///var/tmp/nfo1AqW0/tmp/nix-test/main/tarball/tarball.tar.xz"; })'
+/var/tmp/nfo1AqW0/tmp/nix-test/main/tarball/store/lcksgwda25kz7anwgwspxrqcmnz6zphc-dependencies-top
++(tarball.sh:32) nix-build -o /var/tmp/nfo1AqW0/tmp/nix-test/main/tarball/result -E 'import (fetchTree { type = "tarball"; url = "file:///var/tmp/nfo1AqW0/tmp/nix-test/main/tarball/tarball.tar.xz"; narHash = "sha256-W9QP8cjUWik94of9RfgwYE0J0ZbNhVyGc3oWkvW/IlA="; })'
+/var/tmp/nfo1AqW0/tmp/nix-test/main/tarball/store/lcksgwda25kz7anwgwspxrqcmnz6zphc-dependencies-top
+++(tarball.sh:34) nix eval --impure --expr '(fetchTree "file:///var/tmp/nfo1AqW0/tmp/nix-test/main/tarball/tarball.tar.xz").lastModified'
+warning: you don't have Internet access; disabling some network-dependent features
++(tarball.sh:34) [[ 1000000000 = 1000000000 ]]
++(tarball.sh:36) nix-instantiate --strict --eval -E '!((import (fetchTree { type = "tarball"; url = "file:///var/tmp/nfo1AqW0/tmp/nix-test/main/tarball/tarball.tar.xz"; narHash = "sha256-W9QP8cjUWik94of9RfgwYE0J0ZbNhVyGc3oWkvW/IlA="; })) ? submodules)'
+true
++(tarball.sh:37) nix-instantiate --strict --eval -E '!((import (fetchTree { type = "tarball"; url = "file:///var/tmp/nfo1AqW0/tmp/nix-test/main/tarball/tarball.tar.xz"; narHash = "sha256-W9QP8cjUWik94of9RfgwYE0J0ZbNhVyGc3oWkvW/IlA="; })) ? submodules)'
++(tarball.sh:37) grep true
++(/var/tmp/nfo1AqW0/src/common/functions.sh:344) checkGrepArgs true
++(/var/tmp/nfo1AqW0/src/common/functions.sh:293) local arg
++(/var/tmp/nfo1AqW0/src/common/functions.sh:294) for arg in "$@"
++(/var/tmp/nfo1AqW0/src/common/functions.sh:295) [[ true != true ]]
++(/var/tmp/nfo1AqW0/src/common/functions.sh:345) command grep true
+true
++(tarball.sh:39) nix-instantiate --eval -E '1 + 2' -I fnord=file:///no-such-tarball.tar.xz
+3
++(tarball.sh:40) nix-instantiate --eval -E 'with <fnord/xyzzy>; 1 + 2' -I fnord=file:///no-such-tarball.xz
+3
++(tarball.sh:41) nix-instantiate --eval -E '<fnord/xyzzy> 1' -I fnord=file:///no-such-tarball.xz
+warning: Nix search path entry 'file:///no-such-tarball.xz' cannot be downloaded, ignoring
+warning: Nix search path entry 'file:///no-such-tarball.xz' does not exist, ignoring
+error:
+       … while calling the 'findFile' builtin
+         at «string»:1:1:
+            1| <fnord/xyzzy> 1
+             | ^
+
+       error: file 'fnord/xyzzy' was not found in the Nix search path (add it using $NIX_PATH or -I)
++(tarball.sh:43) nix-instantiate --eval -E '<fnord/config.nix>' -I fnord=file:///no-such-tarball.xz -I fnord=/var/tmp/nfo1AqW0/build
+warning: Nix search path entry 'file:///no-such-tarball.xz' cannot be downloaded, ignoring
+warning: Nix search path entry 'file:///no-such-tarball.xz' does not exist, ignoring
+/var/tmp/nfo1AqW0/build/config.nix
++(tarball.sh:47) nix-instantiate --eval -E 'fetchTree { type = "tarball"; url = "file:///var/tmp/nfo1AqW0/tmp/nix-test/main/tarball/tarball.tar.xz"; narHash = "sha256-W9QP8cjUWik94of9RfgwYE0J0ZbNhVyGc3oWkvW/IlA="; name = "foo"; }'
+error:
+       … while calling the 'fetchTree' builtin
+         at «string»:1:1:
+            1| fetchTree { type = "tarball"; url = "file:///var/tmp/nfo1AqW0/tmp/nix-test/main/tarball/tarball.tar.xz"; narHash = "sha256-W9QP8cjUWik94of9RfgwYE0J0ZbNhVyGc3oWkvW/IlA="; name = "foo"; }
+             | ^
+
+       error: argument 'name' isn’t supported in call to 'fetchTree'
+++(tarball.sh:49) nix store prefetch-file --json file:///var/tmp/nfo1AqW0/tmp/nix-test/main/tarball/tarball.tar.xz
+++(tarball.sh:49) jq -r .storePath
+warning: you don't have Internet access; disabling some network-dependent features
++(tarball.sh:49) store_path=/var/tmp/nfo1AqW0/tmp/nix-test/main/tarball/store/4mc4fsklv3p9bkhllli4qgwrggrwafpb-tarball.tar.xz
++(tarball.sh:50) cmp -s /var/tmp/nfo1AqW0/tmp/nix-test/main/tarball/store/4mc4fsklv3p9bkhllli4qgwrggrwafpb-tarball.tar.xz /var/tmp/nfo1AqW0/tmp/nix-test/main/tarball/tarball.tar.xz
+++(tarball.sh:54) nix store prefetch-file --json --unpack file:///var/tmp/nfo1AqW0/tmp/nix-test/main/tarball/tarball.tar.xz
+++(tarball.sh:54) jq -r .storePath
+warning: you don't have Internet access; disabling some network-dependent features
++(tarball.sh:54) store_path2=/var/tmp/nfo1AqW0/tmp/nix-test/main/tarball/store/x2j4148cgdsms7gihm7jlz3gdxd3qrka-tarball.tar.xz
+++(tarball.sh:55) diff -r /var/tmp/nfo1AqW0/tmp/nix-test/main/tarball/store/x2j4148cgdsms7gihm7jlz3gdxd3qrka-tarball.tar.xz /var/tmp/nfo1AqW0/tmp/nix-test/main/tarball/tarball
++(tarball.sh:55) diff_output=
++(tarball.sh:56) '[' -n '' ']'
++(tarball.sh:65) test_tarball .gz gzip
++(tarball.sh:14) local ext=.gz
++(tarball.sh:15) local compressor=gzip
++(tarball.sh:17) tarball=/var/tmp/nfo1AqW0/tmp/nix-test/main/tarball/tarball.tar.gz
++(tarball.sh:18) cd /var/tmp/nfo1AqW0/tmp/nix-test/main/tarball
++(tarball.sh:18) GNUTAR_REPRODUCIBLE=1
++(tarball.sh:18) tar --mtime=/var/tmp/nfo1AqW0/tmp/nix-test/main/tarball/tarball/default.nix --owner=0 --group=0 --numeric-owner --sort=name -c -f - tarball
++(tarball.sh:18) gzip
++(tarball.sh:20) nix-env -f file:///var/tmp/nfo1AqW0/tmp/nix-test/main/tarball/tarball.tar.gz -qa --out-path
++(tarball.sh:20) grepQuiet dependencies
++(/var/tmp/nfo1AqW0/src/common/functions.sh:330) checkGrepArgs dependencies
++(/var/tmp/nfo1AqW0/src/common/functions.sh:293) local arg
++(/var/tmp/nfo1AqW0/src/common/functions.sh:294) for arg in "$@"
++(/var/tmp/nfo1AqW0/src/common/functions.sh:295) [[ dependencies != dependencies ]]
++(/var/tmp/nfo1AqW0/src/common/functions.sh:331) command grep dependencies
+unpacking 'file:///var/tmp/nfo1AqW0/tmp/nix-test/main/tarball/tarball.tar.gz' into the Git cache...
++(tarball.sh:22) nix-build -o /var/tmp/nfo1AqW0/tmp/nix-test/main/tarball/result file:///var/tmp/nfo1AqW0/tmp/nix-test/main/tarball/tarball.tar.gz
+/var/tmp/nfo1AqW0/tmp/nix-test/main/tarball/store/lcksgwda25kz7anwgwspxrqcmnz6zphc-dependencies-top
++(tarball.sh:24) nix-build -o /var/tmp/nfo1AqW0/tmp/nix-test/main/tarball/result '<foo>' -I foo=file:///var/tmp/nfo1AqW0/tmp/nix-test/main/tarball/tarball.tar.gz
+/var/tmp/nfo1AqW0/tmp/nix-test/main/tarball/store/lcksgwda25kz7anwgwspxrqcmnz6zphc-dependencies-top
++(tarball.sh:26) nix-build -o /var/tmp/nfo1AqW0/tmp/nix-test/main/tarball/result -E 'import (fetchTarball "file:///var/tmp/nfo1AqW0/tmp/nix-test/main/tarball/tarball.tar.gz")'
+/var/tmp/nfo1AqW0/tmp/nix-test/main/tarball/store/lcksgwda25kz7anwgwspxrqcmnz6zphc-dependencies-top
++(tarball.sh:28) nix-build -o /var/tmp/nfo1AqW0/tmp/nix-test/main/tarball/result -E 'import (fetchTarball { url = "file:///does-not-exist/must-remain-unused//var/tmp/nfo1AqW0/tmp/nix-test/main/tarball/tarball.tar.gz"; sha256 = "sha256-W9QP8cjUWik94of9RfgwYE0J0ZbNhVyGc3oWkvW/IlA="; })'
+/var/tmp/nfo1AqW0/tmp/nix-test/main/tarball/store/lcksgwda25kz7anwgwspxrqcmnz6zphc-dependencies-top
++(tarball.sh:30) nix-build -o /var/tmp/nfo1AqW0/tmp/nix-test/main/tarball/result -E 'import (fetchTree "file:///var/tmp/nfo1AqW0/tmp/nix-test/main/tarball/tarball.tar.gz")'
+/var/tmp/nfo1AqW0/tmp/nix-test/main/tarball/store/lcksgwda25kz7anwgwspxrqcmnz6zphc-dependencies-top
++(tarball.sh:31) nix-build -o /var/tmp/nfo1AqW0/tmp/nix-test/main/tarball/result -E 'import (fetchTree { type = "tarball"; url = "file:///var/tmp/nfo1AqW0/tmp/nix-test/main/tarball/tarball.tar.gz"; })'
+/var/tmp/nfo1AqW0/tmp/nix-test/main/tarball/store/lcksgwda25kz7anwgwspxrqcmnz6zphc-dependencies-top
++(tarball.sh:32) nix-build -o /var/tmp/nfo1AqW0/tmp/nix-test/main/tarball/result -E 'import (fetchTree { type = "tarball"; url = "file:///var/tmp/nfo1AqW0/tmp/nix-test/main/tarball/tarball.tar.gz"; narHash = "sha256-W9QP8cjUWik94of9RfgwYE0J0ZbNhVyGc3oWkvW/IlA="; })'
+/var/tmp/nfo1AqW0/tmp/nix-test/main/tarball/store/lcksgwda25kz7anwgwspxrqcmnz6zphc-dependencies-top
+++(tarball.sh:34) nix eval --impure --expr '(fetchTree "file:///var/tmp/nfo1AqW0/tmp/nix-test/main/tarball/tarball.tar.gz").lastModified'
+warning: you don't have Internet access; disabling some network-dependent features
++(tarball.sh:34) [[ 1000000000 = 1000000000 ]]
++(tarball.sh:36) nix-instantiate --strict --eval -E '!((import (fetchTree { type = "tarball"; url = "file:///var/tmp/nfo1AqW0/tmp/nix-test/main/tarball/tarball.tar.gz"; narHash = "sha256-W9QP8cjUWik94of9RfgwYE0J0ZbNhVyGc3oWkvW/IlA="; })) ? submodules)'
+true
++(tarball.sh:37) nix-instantiate --strict --eval -E '!((import (fetchTree { type = "tarball"; url = "file:///var/tmp/nfo1AqW0/tmp/nix-test/main/tarball/tarball.tar.gz"; narHash = "sha256-W9QP8cjUWik94of9RfgwYE0J0ZbNhVyGc3oWkvW/IlA="; })) ? submodules)'
++(tarball.sh:37) grep true
++(/var/tmp/nfo1AqW0/src/common/functions.sh:344) checkGrepArgs true
++(/var/tmp/nfo1AqW0/src/common/functions.sh:293) local arg
++(/var/tmp/nfo1AqW0/src/common/functions.sh:294) for arg in "$@"
++(/var/tmp/nfo1AqW0/src/common/functions.sh:295) [[ true != true ]]
++(/var/tmp/nfo1AqW0/src/common/functions.sh:345) command grep true
+true
++(tarball.sh:39) nix-instantiate --eval -E '1 + 2' -I fnord=file:///no-such-tarball.tar.gz
+3
++(tarball.sh:40) nix-instantiate --eval -E 'with <fnord/xyzzy>; 1 + 2' -I fnord=file:///no-such-tarball.gz
+3
++(tarball.sh:41) nix-instantiate --eval -E '<fnord/xyzzy> 1' -I fnord=file:///no-such-tarball.gz
+warning: Nix search path entry 'file:///no-such-tarball.gz' cannot be downloaded, ignoring
+warning: Nix search path entry 'file:///no-such-tarball.gz' does not exist, ignoring
+error:
+       … while calling the 'findFile' builtin
+         at «string»:1:1:
+            1| <fnord/xyzzy> 1
+             | ^
+
+       error: file 'fnord/xyzzy' was not found in the Nix search path (add it using $NIX_PATH or -I)
++(tarball.sh:43) nix-instantiate --eval -E '<fnord/config.nix>' -I fnord=file:///no-such-tarball.gz -I fnord=/var/tmp/nfo1AqW0/build
+warning: Nix search path entry 'file:///no-such-tarball.gz' cannot be downloaded, ignoring
+warning: Nix search path entry 'file:///no-such-tarball.gz' does not exist, ignoring
+/var/tmp/nfo1AqW0/build/config.nix
++(tarball.sh:47) nix-instantiate --eval -E 'fetchTree { type = "tarball"; url = "file:///var/tmp/nfo1AqW0/tmp/nix-test/main/tarball/tarball.tar.gz"; narHash = "sha256-W9QP8cjUWik94of9RfgwYE0J0ZbNhVyGc3oWkvW/IlA="; name = "foo"; }'
+error:
+       … while calling the 'fetchTree' builtin
+         at «string»:1:1:
+            1| fetchTree { type = "tarball"; url = "file:///var/tmp/nfo1AqW0/tmp/nix-test/main/tarball/tarball.tar.gz"; narHash = "sha256-W9QP8cjUWik94of9RfgwYE0J0ZbNhVyGc3oWkvW/IlA="; name = "foo"; }
+             | ^
+
+       error: argument 'name' isn’t supported in call to 'fetchTree'
+++(tarball.sh:49) nix store prefetch-file --json file:///var/tmp/nfo1AqW0/tmp/nix-test/main/tarball/tarball.tar.gz
+++(tarball.sh:49) jq -r .storePath
+warning: you don't have Internet access; disabling some network-dependent features
++(tarball.sh:49) store_path=/var/tmp/nfo1AqW0/tmp/nix-test/main/tarball/store/fikqk1m6z30qwnm9hjvancs1h5v1068s-tarball.tar.gz
++(tarball.sh:50) cmp -s /var/tmp/nfo1AqW0/tmp/nix-test/main/tarball/store/fikqk1m6z30qwnm9hjvancs1h5v1068s-tarball.tar.gz /var/tmp/nfo1AqW0/tmp/nix-test/main/tarball/tarball.tar.gz
+++(tarball.sh:54) nix store prefetch-file --json --unpack file:///var/tmp/nfo1AqW0/tmp/nix-test/main/tarball/tarball.tar.gz
+++(tarball.sh:54) jq -r .storePath
+warning: you don't have Internet access; disabling some network-dependent features
++(tarball.sh:54) store_path2=/var/tmp/nfo1AqW0/tmp/nix-test/main/tarball/store/g3q70brcw520kwgwqkggallcpmnq7177-tarball.tar.gz
+++(tarball.sh:55) diff -r /var/tmp/nfo1AqW0/tmp/nix-test/main/tarball/store/g3q70brcw520kwgwqkggallcpmnq7177-tarball.tar.gz /var/tmp/nfo1AqW0/tmp/nix-test/main/tarball/tarball
++(tarball.sh:55) diff_output=
++(tarball.sh:56) '[' -n '' ']'
++++(tarball.sh:71) pwd
+++(tarball.sh:71) nix flake prefetch --json tarball+file:///var/tmp/nfo1AqW0/src/tree.tar.gz --out-link /var/tmp/nfo1AqW0/tmp/nix-test/main/tarball/result
+warning: you don't have Internet access; disabling some network-dependent features
+unpacking 'file:///var/tmp/nfo1AqW0/src/tree.tar.gz' into the Git cache...
++(tarball.sh:71) json='{"hash":"sha256-m64C1St9Mh0ijz+iGu4rhRBPMSbTfuWf6qWXuZas1Zo=","locked":{"lastModified":1718114125,"narHash":"sha256-m64C1St9Mh0ijz+iGu4rhRBPMSbTfuWf6qWXuZas1Zo=","type":"tarball","url":"file:///var/tmp/nfo1AqW0/src/tree.tar.gz"},"original":{"type":"tarball","url":"file:///var/tmp/nfo1AqW0/src/tree.tar.gz"},"storePath":"/var/tmp/nfo1AqW0/tmp/nix-test/main/tarball/store/25iiwndapd0cffvdwnvahhkb06jg2klf-source"}'
++(tarball.sh:72) [[ {"hash":"sha256-m64C1St9Mh0ijz+iGu4rhRBPMSbTfuWf6qWXuZas1Zo=","locked":{"lastModified":1718114125,"narHash":"sha256-m64C1St9Mh0ijz+iGu4rhRBPMSbTfuWf6qWXuZas1Zo=","type":"tarball","url":"file:///var/tmp/nfo1AqW0/src/tree.tar.gz"},"original":{"type":"tarball","url":"file:///var/tmp/nfo1AqW0/src/tree.tar.gz"},"storePath":"/var/tmp/nfo1AqW0/tmp/nix-test/main/tarball/store/25iiwndapd0cffvdwnvahhkb06jg2klf-source"} =~ ^\{"hash":"sha256-.*","locked":\{"lastModified":.*,"narHash":"sha256-.*","type":"tarball","url":"file:///.*/tree\.tar\.gz"},"original":\{"type":"tarball","url":"file:///.*/tree\.tar\.gz"},"storePath":".*/store/.*-source"}$ ]]
+++(tarball.sh:73) cat /var/tmp/nfo1AqW0/tmp/nix-test/main/tarball/result/a/b/foo
++(tarball.sh:73) [[ bar = bar ]]
+++(tarball.sh:74) cat /var/tmp/nfo1AqW0/tmp/nix-test/main/tarball/result/a/b/xyzzy
++(tarball.sh:74) [[ bar = bar ]]
+++(tarball.sh:75) cat /var/tmp/nfo1AqW0/tmp/nix-test/main/tarball/result/a/yyy
++(tarball.sh:75) [[ bar = bar ]]
+++(tarball.sh:76) cat /var/tmp/nfo1AqW0/tmp/nix-test/main/tarball/result/a/zzz
++(tarball.sh:76) [[ bar = bar ]]
+++(tarball.sh:77) cat /var/tmp/nfo1AqW0/tmp/nix-test/main/tarball/result/c/aap
++(tarball.sh:77) [[ bar = bar ]]
+++(tarball.sh:78) cat /var/tmp/nfo1AqW0/tmp/nix-test/main/tarball/result/fnord
++(tarball.sh:78) [[ bar = bar ]]
++(tarball.sh:81) mkdir -p /var/tmp/nfo1AqW0/tmp/nix-test/main/tarball/tar_root /var/tmp/nfo1AqW0/tmp/nix-test/main/tarball/tar_root/foo /var/tmp/nfo1AqW0/tmp/nix-test/main/tarball/tar_root/bar
++(tarball.sh:82) tar cvf /var/tmp/nfo1AqW0/tmp/nix-test/main/tarball/tar.tar -C /var/tmp/nfo1AqW0/tmp/nix-test/main/tarball/tar_root .
+./
+./bar/
+./foo/
+++(tarball.sh:83) nix flake prefetch --json tarball+file:///var/tmp/nfo1AqW0/tmp/nix-test/main/tarball/tar.tar
+++(tarball.sh:83) jq -r .storePath
+warning: you don't have Internet access; disabling some network-dependent features
+unpacking 'file:///var/tmp/nfo1AqW0/tmp/nix-test/main/tarball/tar.tar' into the Git cache...
++(tarball.sh:83) path=/var/tmp/nfo1AqW0/tmp/nix-test/main/tarball/store/8sk1vlvv6gy985gs81n0yyl9xc78k1l2-source
++(tarball.sh:84) [[ -d /var/tmp/nfo1AqW0/tmp/nix-test/main/tarball/store/8sk1vlvv6gy985gs81n0yyl9xc78k1l2-source/foo ]]
++(tarball.sh:85) [[ -d /var/tmp/nfo1AqW0/tmp/nix-test/main/tarball/store/8sk1vlvv6gy985gs81n0yyl9xc78k1l2-source/bar ]]
++(tarball.sh:88) rm -rf /var/tmp/nfo1AqW0/tmp/nix-test/main/tarball/tar_root
++(tarball.sh:89) mkdir -p /var/tmp/nfo1AqW0/tmp/nix-test/main/tarball/tar_root
++(tarball.sh:90) echo bar
++(tarball.sh:91) chmod +x /var/tmp/nfo1AqW0/tmp/nix-test/main/tarball/tar_root/foo
++(tarball.sh:92) tar cvf /var/tmp/nfo1AqW0/tmp/nix-test/main/tarball/tar.tar -C /var/tmp/nfo1AqW0/tmp/nix-test/main/tarball/tar_root .
+./
+./foo
+++(tarball.sh:93) nix flake prefetch --refresh --json tarball+file:///var/tmp/nfo1AqW0/tmp/nix-test/main/tarball/tar.tar
+++(tarball.sh:93) jq -r .storePath
+warning: you don't have Internet access; disabling some network-dependent features
+unpacking 'file:///var/tmp/nfo1AqW0/tmp/nix-test/main/tarball/tar.tar' into the Git cache...
++(tarball.sh:93) path=/var/tmp/nfo1AqW0/tmp/nix-test/main/tarball/store/jn2a7wb6486skxkcfy7cn6yrks590b9s-source
+++(tarball.sh:94) cat /var/tmp/nfo1AqW0/tmp/nix-test/main/tarball/store/jn2a7wb6486skxkcfy7cn6yrks590b9s-source/foo
++(tarball.sh:94) [[ bar = bar ]]
++(tarball.sh:97) rm -rf /var/tmp/nfo1AqW0/tmp/nix-test/main/tarball/tar_root
++(tarball.sh:98) mkdir -p /var/tmp/nfo1AqW0/tmp/nix-test/main/tarball/tar_root/a/b
++(tarball.sh:99) echo foo
++(tarball.sh:100) echo bla
++(tarball.sh:101) tar cvf /var/tmp/nfo1AqW0/tmp/nix-test/main/tarball/tar.tar -C /var/tmp/nfo1AqW0/tmp/nix-test/main/tarball/tar_root .
+./
+./a/
+./a/b/
+./a/b/foo
+./bla
++(tarball.sh:102) echo abc
++(tarball.sh:103) echo xyzzy
++(tarball.sh:104) tar rvf /var/tmp/nfo1AqW0/tmp/nix-test/main/tarball/tar.tar -C /var/tmp/nfo1AqW0/tmp/nix-test/main/tarball/tar_root ./a/b/xyzzy ./bla
+./a/b/xyzzy
+./bla
+++(tarball.sh:105) nix flake prefetch --refresh --json tarball+file:///var/tmp/nfo1AqW0/tmp/nix-test/main/tarball/tar.tar
+++(tarball.sh:105) jq -r .storePath
+warning: you don't have Internet access; disabling some network-dependent features
+unpacking 'file:///var/tmp/nfo1AqW0/tmp/nix-test/main/tarball/tar.tar' into the Git cache...
++(tarball.sh:105) path=/var/tmp/nfo1AqW0/tmp/nix-test/main/tarball/store/vw7s7pavb4y9v3kbmjyvd4z2k1q42r1l-source
+++(tarball.sh:106) cat /var/tmp/nfo1AqW0/tmp/nix-test/main/tarball/store/vw7s7pavb4y9v3kbmjyvd4z2k1q42r1l-source/a/b/xyzzy
++(tarball.sh:106) [[ xyzzy = xyzzy ]]
+++(tarball.sh:107) cat /var/tmp/nfo1AqW0/tmp/nix-test/main/tarball/store/vw7s7pavb4y9v3kbmjyvd4z2k1q42r1l-source/a/b/foo
++(tarball.sh:107) [[ foo = foo ]]
+++(tarball.sh:108) cat /var/tmp/nfo1AqW0/tmp/nix-test/main/tarball/store/vw7s7pavb4y9v3kbmjyvd4z2k1q42r1l-source/bla
++(tarball.sh:108) [[ abc = abc ]]
++(tarball.sh:111) touch /var/tmp/nfo1AqW0/tmp/nix-test/main/tarball/empty
++(tarball.sh:112) expectStderr 1 nix store prefetch-file --unpack file:///var/tmp/nfo1AqW0/tmp/nix-test/main/tarball/empty
++(/var/tmp/nfo1AqW0/src/common/functions.sh:201) local expected res
++(/var/tmp/nfo1AqW0/src/common/functions.sh:202) expected=1
++(/var/tmp/nfo1AqW0/src/common/functions.sh:203) shift
++(/var/tmp/nfo1AqW0/src/common/functions.sh:204) nix store prefetch-file --unpack file:///var/tmp/nfo1AqW0/tmp/nix-test/main/tarball/empty
++(tarball.sh:112) grepQuiet 'archive.*is empty'
++(/var/tmp/nfo1AqW0/src/common/functions.sh:330) checkGrepArgs 'archive.*is empty'
++(/var/tmp/nfo1AqW0/src/common/functions.sh:293) local arg
++(/var/tmp/nfo1AqW0/src/common/functions.sh:294) for arg in "$@"
++(/var/tmp/nfo1AqW0/src/common/functions.sh:295) [[ archive.*is empty != archive\.\*is empty ]]
++(/var/tmp/nfo1AqW0/src/common/functions.sh:331) command grep 'archive.*is empty'
++(/var/tmp/nfo1AqW0/src/common/functions.sh:204) res=1
++(/var/tmp/nfo1AqW0/src/common/functions.sh:206) [[ 1 -ne 1 ]]
++(/var/tmp/nfo1AqW0/src/common/functions.sh:210) return 0
++(tarball.sh:115) rm -rf /var/tmp/nfo1AqW0/tmp/nix-test/main/tarball/test-home/.cache
++(tarball.sh:116) store=/var/tmp/nfo1AqW0/tmp/nix-test/main/tarball/prefetch-store
++(tarball.sh:117) nix-store --store /var/tmp/nfo1AqW0/tmp/nix-test/main/tarball/prefetch-store --init
++(tarball.sh:119) pid1=261145
++(tarball.sh:118) _NIX_TEST_CONCURRENT_FETCHES=1
++(tarball.sh:118) _NIX_FORCE_HTTP=1
++(tarball.sh:118) nix flake prefetch --store /var/tmp/nfo1AqW0/tmp/nix-test/main/tarball/prefetch-store -v tarball+file:///var/tmp/nfo1AqW0/tmp/nix-test/main/tarball/tar.tar
++(tarball.sh:121) pid2=261146
++(tarball.sh:122) wait 261145
++(tarball.sh:120) _NIX_TEST_CONCURRENT_FETCHES=1
++(tarball.sh:120) _NIX_FORCE_HTTP=1
++(tarball.sh:120) nix flake prefetch --store /var/tmp/nfo1AqW0/tmp/nix-test/main/tarball/prefetch-store -v tarball+file:///var/tmp/nfo1AqW0/tmp/nix-test/main/tarball/tar.tar
++(tarball.sh:123) wait 261146
+++(tarball.sh:124) cat /var/tmp/nfo1AqW0/tmp/nix-test/main/tarball/log1 /var/tmp/nfo1AqW0/tmp/nix-test/main/tarball/log2
+++(tarball.sh:124) grep -c 'Download.*to'
+++(/var/tmp/nfo1AqW0/src/common/functions.sh:344) checkGrepArgs -c 'Download.*to'
+++(/var/tmp/nfo1AqW0/src/common/functions.sh:293) local arg
+++(/var/tmp/nfo1AqW0/src/common/functions.sh:294) for arg in "$@"
+++(/var/tmp/nfo1AqW0/src/common/functions.sh:295) [[ -c != \-c ]]
+++(/var/tmp/nfo1AqW0/src/common/functions.sh:294) for arg in "$@"
+++(/var/tmp/nfo1AqW0/src/common/functions.sh:295) [[ Download.*to != Download\.\*to ]]
+++(/var/tmp/nfo1AqW0/src/common/functions.sh:345) command grep -c 'Download.*to'
++(tarball.sh:124) [[ 2 -eq 2 ]]
+++(tarball.sh:125) cat /var/tmp/nfo1AqW0/tmp/nix-test/main/tarball/log1 /var/tmp/nfo1AqW0/tmp/nix-test/main/tarball/log2
+++(tarball.sh:125) grep -c 'downloading.*tar.tar'
+++(/var/tmp/nfo1AqW0/src/common/functions.sh:344) checkGrepArgs -c 'downloading.*tar.tar'
+++(/var/tmp/nfo1AqW0/src/common/functions.sh:293) local arg
+++(/var/tmp/nfo1AqW0/src/common/functions.sh:294) for arg in "$@"
+++(/var/tmp/nfo1AqW0/src/common/functions.sh:295) [[ -c != \-c ]]
+++(/var/tmp/nfo1AqW0/src/common/functions.sh:294) for arg in "$@"
+++(/var/tmp/nfo1AqW0/src/common/functions.sh:295) [[ downloading.*tar.tar != downloading\.\*tar\.tar ]]
+++(/var/tmp/nfo1AqW0/src/common/functions.sh:345) command grep -c 'downloading.*tar.tar'
++(tarball.sh:125) [[ 1 -eq 1 ]]
+++(tarball.sh:126) cat /var/tmp/nfo1AqW0/tmp/nix-test/main/tarball/log1 /var/tmp/nfo1AqW0/tmp/nix-test/main/tarball/log2
+++(tarball.sh:126) grep -c 'waiting for another Nix process to finish fetching input'
+++(/var/tmp/nfo1AqW0/src/common/functions.sh:344) checkGrepArgs -c 'waiting for another Nix process to finish fetching input'
+++(/var/tmp/nfo1AqW0/src/common/functions.sh:293) local arg
+++(/var/tmp/nfo1AqW0/src/common/functions.sh:294) for arg in "$@"
+++(/var/tmp/nfo1AqW0/src/common/functions.sh:295) [[ -c != \-c ]]
+++(/var/tmp/nfo1AqW0/src/common/functions.sh:294) for arg in "$@"
+++(/var/tmp/nfo1AqW0/src/common/functions.sh:295) [[ waiting for another Nix process to finish fetching input != waiting for another Nix process to finish fetching input ]]
+++(/var/tmp/nfo1AqW0/src/common/functions.sh:345) command grep -c 'waiting for another Nix process to finish fetching input'
++(tarball.sh:126) [[ 1 -eq 1 ]]

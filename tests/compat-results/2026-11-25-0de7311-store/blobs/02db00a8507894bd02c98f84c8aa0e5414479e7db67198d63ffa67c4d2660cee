@@ -1,0 +1,838 @@
++(fetchGitRefs.sh:3) source common.sh
+++(common.sh:3) set -eu -o pipefail
+++(common.sh:5) [[ -z '' ]]
+++(common.sh:7) COMMON_SH_SOURCED=1
+++++(common.sh:9) dirname common.sh
++++(common.sh:9) readlink -f .
+++(common.sh:9) functionalTestsDir=/var/tmp/nfzmQsSy/src
+++(common.sh:11) source /var/tmp/nfzmQsSy/src/common/vars.sh
++++(/var/tmp/nfzmQsSy/src/common/vars.sh:3) set -eu -o pipefail
++++(/var/tmp/nfzmQsSy/src/common/vars.sh:5) [[ -z '' ]]
++++(/var/tmp/nfzmQsSy/src/common/vars.sh:7) COMMON_VARS_SH_SOURCED=1
+++++(/var/tmp/nfzmQsSy/src/common/vars.sh:9) realpath /var/tmp/nfzmQsSy/src
++++(/var/tmp/nfzmQsSy/src/common/vars.sh:9) _NIX_TEST_SOURCE_DIR=/var/tmp/nfzmQsSy/src
+++++(/var/tmp/nfzmQsSy/src/common/vars.sh:10) realpath /var/tmp/nfzmQsSy/build
++++(/var/tmp/nfzmQsSy/src/common/vars.sh:10) _NIX_TEST_BUILD_DIR=/var/tmp/nfzmQsSy/build
++++++(/var/tmp/nfzmQsSy/src/common/vars.sh:12) dirname /var/tmp/nfzmQsSy/src/common/vars.sh
+++++(/var/tmp/nfzmQsSy/src/common/vars.sh:12) readlink -f /var/tmp/nfzmQsSy/src/common
++++(/var/tmp/nfzmQsSy/src/common/vars.sh:12) commonDir=/var/tmp/nfzmQsSy/src/common
++++(/var/tmp/nfzmQsSy/src/common/vars.sh:16) source /var/tmp/nfzmQsSy/build/common/subst-vars.sh
+++++(/var/tmp/nfzmQsSy/build/common/subst-vars.sh:3) [[ -z '' ]]
+++++(/var/tmp/nfzmQsSy/build/common/subst-vars.sh:5) COMMON_SUBST_VARS_SH_SOURCED=1
+++++(/var/tmp/nfzmQsSy/build/common/subst-vars.sh:7) bash=/nix/store/2ndah67h0z5m31v2wkdmg2md4380ggr5-bash-interactive-5.3p15/bin/bash
+++++(/var/tmp/nfzmQsSy/build/common/subst-vars.sh:8) bindir=/nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2/bin
+++++(/var/tmp/nfzmQsSy/build/common/subst-vars.sh:9) coreutils=/nix/store/xjl7p8dvyk2j53kqf7f43kdj4ypbxz7g-coreutils-9.11/bin
+++++(/var/tmp/nfzmQsSy/build/common/subst-vars.sh:11) dot=
+++++(/var/tmp/nfzmQsSy/build/common/subst-vars.sh:12) busybox=/nix/store/qddzvnv6b0805nkvbqddbswddcfhx814-busybox-static-x86_64-unknown-linux-musl-1.37.0/bin/busybox
+++++(/var/tmp/nfzmQsSy/build/common/subst-vars.sh:14) version=2.35.2
+++++(/var/tmp/nfzmQsSy/build/common/subst-vars.sh:15) system=x86_64-linux
++++(/var/tmp/nfzmQsSy/src/common/vars.sh:18) : '/nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2/bin /nix/store/xjl7p8dvyk2j53kqf7f43kdj4ypbxz7g-coreutils-9.11/bin  /run/current-system/sw/bin/nu /nix/store/qddzvnv6b0805nkvbqddbswddcfhx814-busybox-static-x86_64-unknown-linux-musl-1.37.0/bin/busybox 2.35.2 x86_64-linux'
++++(/var/tmp/nfzmQsSy/src/common/vars.sh:19) export coreutils dot busybox version system
++++(/var/tmp/nfzmQsSy/src/common/vars.sh:21) export PAGER=cat
++++(/var/tmp/nfzmQsSy/src/common/vars.sh:21) PAGER=cat
++++(/var/tmp/nfzmQsSy/src/common/vars.sh:23) source /var/tmp/nfzmQsSy/src/common/paths.sh
+++++(/var/tmp/nfzmQsSy/src/common/paths.sh:3) set -eu -o pipefail
+++++(/var/tmp/nfzmQsSy/src/common/paths.sh:5) [[ -z '' ]]
+++++(/var/tmp/nfzmQsSy/src/common/paths.sh:7) COMMON_PATHS_SH_SOURCED=1
+++++++(/var/tmp/nfzmQsSy/src/common/paths.sh:9) dirname /var/tmp/nfzmQsSy/src/common/paths.sh
++++++(/var/tmp/nfzmQsSy/src/common/paths.sh:9) readlink -f /var/tmp/nfzmQsSy/src/common
+++++(/var/tmp/nfzmQsSy/src/common/paths.sh:9) commonDir=/var/tmp/nfzmQsSy/src/common
+++++(/var/tmp/nfzmQsSy/src/common/paths.sh:12) source /var/tmp/nfzmQsSy/src/common/functions.sh
++++++(/var/tmp/nfzmQsSy/src/common/functions.sh:3) set -eu -o pipefail
++++++(/var/tmp/nfzmQsSy/src/common/functions.sh:5) [[ -z '' ]]
++++++(/var/tmp/nfzmQsSy/src/common/functions.sh:7) COMMON_FUNCTIONS_SH_SOURCED=1
++++++(/var/tmp/nfzmQsSy/src/common/functions.sh:353) trap onError ERR
+++++(/var/tmp/nfzmQsSy/src/common/paths.sh:14) source /var/tmp/nfzmQsSy/build/common/subst-vars.sh
++++++(/var/tmp/nfzmQsSy/build/common/subst-vars.sh:3) [[ -z 1 ]]
+++++(/var/tmp/nfzmQsSy/src/common/paths.sh:16) : /nix/store/2ndah67h0z5m31v2wkdmg2md4380ggr5-bash-interactive-5.3p15/bin/bash /nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2/bin
+++++(/var/tmp/nfzmQsSy/src/common/paths.sh:18) isTestOnNixOS
+++++(/var/tmp/nfzmQsSy/src/common/functions.sh:10) [[ '' == 1 ]]
+++++(/var/tmp/nfzmQsSy/src/common/paths.sh:19) export SHELL=/nix/store/2ndah67h0z5m31v2wkdmg2md4380ggr5-bash-interactive-5.3p15/bin/bash
+++++(/var/tmp/nfzmQsSy/src/common/paths.sh:19) SHELL=/nix/store/2ndah67h0z5m31v2wkdmg2md4380ggr5-bash-interactive-5.3p15/bin/bash
+++++(/var/tmp/nfzmQsSy/src/common/paths.sh:20) export PATH=/nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2/bin:/nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2/bin:/nix/store/2ndah67h0z5m31v2wkdmg2md4380ggr5-bash-interactive-5.3p15/bin:/nix/store/xjl7p8dvyk2j53kqf7f43kdj4ypbxz7g-coreutils-9.11/bin:/nix/store/xmvbzzxm5snla5a2cyfhm7hjy9bifx7n-gnugrep-3.12/bin:/nix/store/qf2wzyq4irhgyhnq3s2hz0ldjq3w8a3x-gnused-4.10/bin:/nix/store/9zib1q94gka8i5q530364cvy25504qz5-gawk-5.4.1/bin:/nix/store/i9wgqa0l88aprvpwfaq5hkfa6pklhlv0-findutils-4.11.0/bin:/nix/store/b8xvzgd52jby5dfpi0pf46nisy6wma5d-diffutils-3.12/bin:/nix/store/81zqbas7qc02yfdj7142fdcqhxgd3cgz-patch-2.8/bin:/nix/store/c8b0qp903w2hhpa63a2lfs7d565zag30-gnutar-1.35/bin:/nix/store/l5sll8nxk70p73l5yqbsjy4mh0c3g0v5-gzip-1.14/bin:/nix/store/j3yz0ag9j442229n8harpmp9aa5qyvhn-bzip2-1.0.8-bin/bin:/nix/store/518dig8gpvqyac6pkksyjjfzvi9zn8vq-xz-5.8.3-bin/bin:/nix/store/l8ik8mb8lgb60rklxjmkgddmp5qqnv29-zstd-1.5.7-bin/bin:/nix/store/msr1v91ybfw6j12rs5mfl8ghb2rqsnsr-git-2.55.0/bin:/nix/store/hyz22a0l5b5kv7yfypw4ss6d36vbzg01-jq-1.8.2-bin/bin:/nix/store/24gq3bi2yzf7g386p5j32mn78hhanf49-sqlite-3.53.3-bin/bin:/nix/store/cp8qnyl8i0s62g3a1465i258mf5bcr6k-curl-8.22.0-bin/bin:/nix/store/8x4c8zah3fbnyckaic4sskjbw7d2y98n-util-linux-2.42.4-bin/bin:/nix/store/d64q19q1xjdwfhqx6czvrjgrhq0n3lcc-python3-3.14.7/bin:/nix/store/niqsa6mxqsyax9lzbm261a2ml6m71vb6-perl-5.42.3/bin:/nix/store/fv9yl55hkskpc2cj9c0sdyq91car9kgl-file-5.48/bin:/nix/store/jv5kdlkwx0l8a7jdpg21g934ff30s319-which-2.25/bin:/nix/store/aj08b694apkc1jay2akywym9ghlailf5-procps-4.0.7/bin:/nix/store/5wyaj1kvkxbbscz6innrh6yjjkdq4qmk-openssh-10.6p1/bin:/nix/store/44gxi8li8y8wrxrb93sya9hljkpigsqw-openssl-3.6.4-bin/bin:/run/wrappers/wrappers.fo52KqP85R:/nix/store/wmh4xg3557sicfyllmi9ymd8sxaw51wv-man-db-2.13.1/bin:/nix/store/qpgknrlnxca0z99gl12j5n0fgca11cdx-mercurial-7.2.2/bin:/var/tmp/noxi-store-tier/.tmpQ54r6n/reference/tools
+++++(/var/tmp/nfzmQsSy/src/common/paths.sh:20) PATH=/nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2/bin:/nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2/bin:/nix/store/2ndah67h0z5m31v2wkdmg2md4380ggr5-bash-interactive-5.3p15/bin:/nix/store/xjl7p8dvyk2j53kqf7f43kdj4ypbxz7g-coreutils-9.11/bin:/nix/store/xmvbzzxm5snla5a2cyfhm7hjy9bifx7n-gnugrep-3.12/bin:/nix/store/qf2wzyq4irhgyhnq3s2hz0ldjq3w8a3x-gnused-4.10/bin:/nix/store/9zib1q94gka8i5q530364cvy25504qz5-gawk-5.4.1/bin:/nix/store/i9wgqa0l88aprvpwfaq5hkfa6pklhlv0-findutils-4.11.0/bin:/nix/store/b8xvzgd52jby5dfpi0pf46nisy6wma5d-diffutils-3.12/bin:/nix/store/81zqbas7qc02yfdj7142fdcqhxgd3cgz-patch-2.8/bin:/nix/store/c8b0qp903w2hhpa63a2lfs7d565zag30-gnutar-1.35/bin:/nix/store/l5sll8nxk70p73l5yqbsjy4mh0c3g0v5-gzip-1.14/bin:/nix/store/j3yz0ag9j442229n8harpmp9aa5qyvhn-bzip2-1.0.8-bin/bin:/nix/store/518dig8gpvqyac6pkksyjjfzvi9zn8vq-xz-5.8.3-bin/bin:/nix/store/l8ik8mb8lgb60rklxjmkgddmp5qqnv29-zstd-1.5.7-bin/bin:/nix/store/msr1v91ybfw6j12rs5mfl8ghb2rqsnsr-git-2.55.0/bin:/nix/store/hyz22a0l5b5kv7yfypw4ss6d36vbzg01-jq-1.8.2-bin/bin:/nix/store/24gq3bi2yzf7g386p5j32mn78hhanf49-sqlite-3.53.3-bin/bin:/nix/store/cp8qnyl8i0s62g3a1465i258mf5bcr6k-curl-8.22.0-bin/bin:/nix/store/8x4c8zah3fbnyckaic4sskjbw7d2y98n-util-linux-2.42.4-bin/bin:/nix/store/d64q19q1xjdwfhqx6czvrjgrhq0n3lcc-python3-3.14.7/bin:/nix/store/niqsa6mxqsyax9lzbm261a2ml6m71vb6-perl-5.42.3/bin:/nix/store/fv9yl55hkskpc2cj9c0sdyq91car9kgl-file-5.48/bin:/nix/store/jv5kdlkwx0l8a7jdpg21g934ff30s319-which-2.25/bin:/nix/store/aj08b694apkc1jay2akywym9ghlailf5-procps-4.0.7/bin:/nix/store/5wyaj1kvkxbbscz6innrh6yjjkdq4qmk-openssh-10.6p1/bin:/nix/store/44gxi8li8y8wrxrb93sya9hljkpigsqw-openssl-3.6.4-bin/bin:/run/wrappers/wrappers.fo52KqP85R:/nix/store/wmh4xg3557sicfyllmi9ymd8sxaw51wv-man-db-2.13.1/bin:/nix/store/qpgknrlnxca0z99gl12j5n0fgca11cdx-mercurial-7.2.2/bin:/var/tmp/noxi-store-tier/.tmpQ54r6n/reference/tools
+++++(/var/tmp/nfzmQsSy/src/common/paths.sh:23) [[ -n '' ]]
+++++(/var/tmp/nfzmQsSy/src/common/paths.sh:27) DAEMON_PATH=/nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2/bin:/nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2/bin:/nix/store/2ndah67h0z5m31v2wkdmg2md4380ggr5-bash-interactive-5.3p15/bin:/nix/store/xjl7p8dvyk2j53kqf7f43kdj4ypbxz7g-coreutils-9.11/bin:/nix/store/xmvbzzxm5snla5a2cyfhm7hjy9bifx7n-gnugrep-3.12/bin:/nix/store/qf2wzyq4irhgyhnq3s2hz0ldjq3w8a3x-gnused-4.10/bin:/nix/store/9zib1q94gka8i5q530364cvy25504qz5-gawk-5.4.1/bin:/nix/store/i9wgqa0l88aprvpwfaq5hkfa6pklhlv0-findutils-4.11.0/bin:/nix/store/b8xvzgd52jby5dfpi0pf46nisy6wma5d-diffutils-3.12/bin:/nix/store/81zqbas7qc02yfdj7142fdcqhxgd3cgz-patch-2.8/bin:/nix/store/c8b0qp903w2hhpa63a2lfs7d565zag30-gnutar-1.35/bin:/nix/store/l5sll8nxk70p73l5yqbsjy4mh0c3g0v5-gzip-1.14/bin:/nix/store/j3yz0ag9j442229n8harpmp9aa5qyvhn-bzip2-1.0.8-bin/bin:/nix/store/518dig8gpvqyac6pkksyjjfzvi9zn8vq-xz-5.8.3-bin/bin:/nix/store/l8ik8mb8lgb60rklxjmkgddmp5qqnv29-zstd-1.5.7-bin/bin:/nix/store/msr1v91ybfw6j12rs5mfl8ghb2rqsnsr-git-2.55.0/bin:/nix/store/hyz22a0l5b5kv7yfypw4ss6d36vbzg01-jq-1.8.2-bin/bin:/nix/store/24gq3bi2yzf7g386p5j32mn78hhanf49-sqlite-3.53.3-bin/bin:/nix/store/cp8qnyl8i0s62g3a1465i258mf5bcr6k-curl-8.22.0-bin/bin:/nix/store/8x4c8zah3fbnyckaic4sskjbw7d2y98n-util-linux-2.42.4-bin/bin:/nix/store/d64q19q1xjdwfhqx6czvrjgrhq0n3lcc-python3-3.14.7/bin:/nix/store/niqsa6mxqsyax9lzbm261a2ml6m71vb6-perl-5.42.3/bin:/nix/store/fv9yl55hkskpc2cj9c0sdyq91car9kgl-file-5.48/bin:/nix/store/jv5kdlkwx0l8a7jdpg21g934ff30s319-which-2.25/bin:/nix/store/aj08b694apkc1jay2akywym9ghlailf5-procps-4.0.7/bin:/nix/store/5wyaj1kvkxbbscz6innrh6yjjkdq4qmk-openssh-10.6p1/bin:/nix/store/44gxi8li8y8wrxrb93sya9hljkpigsqw-openssl-3.6.4-bin/bin:/run/wrappers/wrappers.fo52KqP85R:/nix/store/wmh4xg3557sicfyllmi9ymd8sxaw51wv-man-db-2.13.1/bin:/nix/store/qpgknrlnxca0z99gl12j5n0fgca11cdx-mercurial-7.2.2/bin:/var/tmp/noxi-store-tier/.tmpQ54r6n/reference/tools
+++++(/var/tmp/nfzmQsSy/src/common/paths.sh:28) [[ -n '' ]]
++++(/var/tmp/nfzmQsSy/src/common/vars.sh:24) source /var/tmp/nfzmQsSy/src/common/test-root.sh
+++++(/var/tmp/nfzmQsSy/src/common/test-root.sh:3) TEST_SUBDIR=main/fetchGitRefs
++++++(/var/tmp/nfzmQsSy/src/common/test-root.sh:4) realpath /var/tmp/nfzmQsSy/tmp/nix-test
+++++(/var/tmp/nfzmQsSy/src/common/test-root.sh:4) TEST_ROOT=/var/tmp/nfzmQsSy/tmp/nix-test/main/fetchGitRefs
+++++(/var/tmp/nfzmQsSy/src/common/test-root.sh:5) export TEST_ROOT
++++(/var/tmp/nfzmQsSy/src/common/vars.sh:26) test_nix_conf_dir=/var/tmp/nfzmQsSy/tmp/nix-test/main/fetchGitRefs/etc
++++(/var/tmp/nfzmQsSy/src/common/vars.sh:29) test_nix_conf=/var/tmp/nfzmQsSy/tmp/nix-test/main/fetchGitRefs/etc/nix.conf
++++(/var/tmp/nfzmQsSy/src/common/vars.sh:31) export TEST_HOME=/var/tmp/nfzmQsSy/tmp/nix-test/main/fetchGitRefs/test-home
++++(/var/tmp/nfzmQsSy/src/common/vars.sh:31) TEST_HOME=/var/tmp/nfzmQsSy/tmp/nix-test/main/fetchGitRefs/test-home
++++(/var/tmp/nfzmQsSy/src/common/vars.sh:33) isTestOnNixOS
++++(/var/tmp/nfzmQsSy/src/common/functions.sh:10) [[ '' == 1 ]]
++++(/var/tmp/nfzmQsSy/src/common/vars.sh:34) export NIX_STORE_DIR
+++++(/var/tmp/nfzmQsSy/src/common/vars.sh:35) readlink -f /var/tmp/nfzmQsSy/tmp/nix-test/main/fetchGitRefs/store
++++(/var/tmp/nfzmQsSy/src/common/vars.sh:35) NIX_STORE_DIR=
++++(/var/tmp/nfzmQsSy/src/common/vars.sh:37) export NIX_IGNORE_SYMLINK_STORE=1
++++(/var/tmp/nfzmQsSy/src/common/vars.sh:37) NIX_IGNORE_SYMLINK_STORE=1
++++(/var/tmp/nfzmQsSy/src/common/vars.sh:38) NIX_STORE_DIR=/var/tmp/nfzmQsSy/tmp/nix-test/main/fetchGitRefs/store
++++(/var/tmp/nfzmQsSy/src/common/vars.sh:40) export NIX_LOCALSTATE_DIR=/var/tmp/nfzmQsSy/tmp/nix-test/main/fetchGitRefs/var
++++(/var/tmp/nfzmQsSy/src/common/vars.sh:40) NIX_LOCALSTATE_DIR=/var/tmp/nfzmQsSy/tmp/nix-test/main/fetchGitRefs/var
++++(/var/tmp/nfzmQsSy/src/common/vars.sh:41) export NIX_LOG_DIR=/var/tmp/nfzmQsSy/tmp/nix-test/main/fetchGitRefs/var/log/nix
++++(/var/tmp/nfzmQsSy/src/common/vars.sh:41) NIX_LOG_DIR=/var/tmp/nfzmQsSy/tmp/nix-test/main/fetchGitRefs/var/log/nix
++++(/var/tmp/nfzmQsSy/src/common/vars.sh:42) export NIX_STATE_DIR=/var/tmp/nfzmQsSy/tmp/nix-test/main/fetchGitRefs/var/nix
++++(/var/tmp/nfzmQsSy/src/common/vars.sh:42) NIX_STATE_DIR=/var/tmp/nfzmQsSy/tmp/nix-test/main/fetchGitRefs/var/nix
++++(/var/tmp/nfzmQsSy/src/common/vars.sh:43) export NIX_CONF_DIR=/var/tmp/nfzmQsSy/tmp/nix-test/main/fetchGitRefs/etc
++++(/var/tmp/nfzmQsSy/src/common/vars.sh:43) NIX_CONF_DIR=/var/tmp/nfzmQsSy/tmp/nix-test/main/fetchGitRefs/etc
++++(/var/tmp/nfzmQsSy/src/common/vars.sh:44) export NIX_DAEMON_SOCKET_PATH=/var/tmp/nfzmQsSy/tmp/nix-test/main/fetchGitRefs/dSocket
++++(/var/tmp/nfzmQsSy/src/common/vars.sh:44) NIX_DAEMON_SOCKET_PATH=/var/tmp/nfzmQsSy/tmp/nix-test/main/fetchGitRefs/dSocket
++++(/var/tmp/nfzmQsSy/src/common/vars.sh:45) unset NIX_USER_CONF_FILES
++++(/var/tmp/nfzmQsSy/src/common/vars.sh:46) export _NIX_TEST_SHARED=/var/tmp/nfzmQsSy/tmp/nix-test/main/fetchGitRefs/shared
++++(/var/tmp/nfzmQsSy/src/common/vars.sh:46) _NIX_TEST_SHARED=/var/tmp/nfzmQsSy/tmp/nix-test/main/fetchGitRefs/shared
++++(/var/tmp/nfzmQsSy/src/common/vars.sh:47) [[ -n '' ]]
++++(/var/tmp/nfzmQsSy/src/common/vars.sh:50) export _NIX_IN_TEST=/var/tmp/nfzmQsSy/tmp/nix-test/main/fetchGitRefs/shared
++++(/var/tmp/nfzmQsSy/src/common/vars.sh:50) _NIX_IN_TEST=/var/tmp/nfzmQsSy/tmp/nix-test/main/fetchGitRefs/shared
++++(/var/tmp/nfzmQsSy/src/common/vars.sh:51) export _NIX_TEST_NO_LSOF=1
++++(/var/tmp/nfzmQsSy/src/common/vars.sh:51) _NIX_TEST_NO_LSOF=1
++++(/var/tmp/nfzmQsSy/src/common/vars.sh:54) export _NIX_TEST_NO_ENVIRONMENT_WARNINGS=1
++++(/var/tmp/nfzmQsSy/src/common/vars.sh:54) _NIX_TEST_NO_ENVIRONMENT_WARNINGS=1
++++(/var/tmp/nfzmQsSy/src/common/vars.sh:55) export NIX_REMOTE=
++++(/var/tmp/nfzmQsSy/src/common/vars.sh:55) NIX_REMOTE=
++++(/var/tmp/nfzmQsSy/src/common/vars.sh:59) unset NIX_PATH
++++(/var/tmp/nfzmQsSy/src/common/vars.sh:60) export HOME=/var/tmp/nfzmQsSy/tmp/nix-test/main/fetchGitRefs/test-home
++++(/var/tmp/nfzmQsSy/src/common/vars.sh:60) HOME=/var/tmp/nfzmQsSy/tmp/nix-test/main/fetchGitRefs/test-home
++++(/var/tmp/nfzmQsSy/src/common/vars.sh:61) unset XDG_STATE_HOME
++++(/var/tmp/nfzmQsSy/src/common/vars.sh:62) unset XDG_DATA_HOME
++++(/var/tmp/nfzmQsSy/src/common/vars.sh:63) unset XDG_CONFIG_HOME
++++(/var/tmp/nfzmQsSy/src/common/vars.sh:64) unset XDG_CONFIG_DIRS
++++(/var/tmp/nfzmQsSy/src/common/vars.sh:65) unset XDG_CACHE_HOME
++++(/var/tmp/nfzmQsSy/src/common/vars.sh:66) unset GIT_DIR
++++(/var/tmp/nfzmQsSy/src/common/vars.sh:68) export GIT_CONFIG_SYSTEM=/dev/null
++++(/var/tmp/nfzmQsSy/src/common/vars.sh:68) GIT_CONFIG_SYSTEM=/dev/null
++++(/var/tmp/nfzmQsSy/src/common/vars.sh:69) export GIT_CONFIG_GLOBAL=/dev/null
++++(/var/tmp/nfzmQsSy/src/common/vars.sh:69) GIT_CONFIG_GLOBAL=/dev/null
++++(/var/tmp/nfzmQsSy/src/common/vars.sh:71) export IMPURE_VAR1=foo
++++(/var/tmp/nfzmQsSy/src/common/vars.sh:71) IMPURE_VAR1=foo
++++(/var/tmp/nfzmQsSy/src/common/vars.sh:72) export IMPURE_VAR2=bar
++++(/var/tmp/nfzmQsSy/src/common/vars.sh:72) IMPURE_VAR2=bar
++++(/var/tmp/nfzmQsSy/src/common/vars.sh:76) cacheDir=/var/tmp/nfzmQsSy/tmp/nix-test/main/fetchGitRefs/binary-cache
+++++(/var/tmp/nfzmQsSy/src/common/vars.sh:78) uname
++++(/var/tmp/nfzmQsSy/src/common/vars.sh:78) [[ Linux == Linux ]]
++++(/var/tmp/nfzmQsSy/src/common/vars.sh:78) [[ -L /proc/self/ns/user ]]
++++(/var/tmp/nfzmQsSy/src/common/vars.sh:78) unshare --user true
++++(/var/tmp/nfzmQsSy/src/common/vars.sh:79) _canUseSandbox=1
++++(/var/tmp/nfzmQsSy/src/common/vars.sh:85) config_nix=/var/tmp/nfzmQsSy/tmp/nix-test/main/fetchGitRefs/config.nix
+++(common.sh:12) source /var/tmp/nfzmQsSy/src/common/functions.sh
++++(/var/tmp/nfzmQsSy/src/common/functions.sh:3) set -eu -o pipefail
++++(/var/tmp/nfzmQsSy/src/common/functions.sh:5) [[ -z 1 ]]
+++(common.sh:13) source /var/tmp/nfzmQsSy/src/common/init.sh
++++(/var/tmp/nfzmQsSy/src/common/init.sh:4) : /var/tmp/nfzmQsSy/tmp/nix-test/main/fetchGitRefs/etc /var/tmp/nfzmQsSy/tmp/nix-test/main/fetchGitRefs/etc/nix.conf /var/tmp/nfzmQsSy/tmp/nix-test/main/fetchGitRefs/config.nix
++++(/var/tmp/nfzmQsSy/src/common/init.sh:6) isTestOnNixOS
++++(/var/tmp/nfzmQsSy/src/common/functions.sh:10) [[ '' == 1 ]]
++++(/var/tmp/nfzmQsSy/src/common/init.sh:29) test -n /var/tmp/nfzmQsSy/tmp/nix-test/main/fetchGitRefs
++++(/var/tmp/nfzmQsSy/src/common/init.sh:31) killDaemon
++++(/var/tmp/nfzmQsSy/src/common/functions.sh:100) isTestOnNixOS
++++(/var/tmp/nfzmQsSy/src/common/functions.sh:10) [[ '' == 1 ]]
++++(/var/tmp/nfzmQsSy/src/common/functions.sh:105) [[ '' == '' ]]
++++(/var/tmp/nfzmQsSy/src/common/functions.sh:106) return
++++(/var/tmp/nfzmQsSy/src/common/init.sh:33) [[ -e /var/tmp/nfzmQsSy/tmp/nix-test/main/fetchGitRefs ]]
++++(/var/tmp/nfzmQsSy/src/common/init.sh:37) mkdir -p /var/tmp/nfzmQsSy/tmp/nix-test/main/fetchGitRefs
++++(/var/tmp/nfzmQsSy/src/common/init.sh:38) mkdir /var/tmp/nfzmQsSy/tmp/nix-test/main/fetchGitRefs/test-home
++++(/var/tmp/nfzmQsSy/src/common/init.sh:40) mkdir /var/tmp/nfzmQsSy/tmp/nix-test/main/fetchGitRefs/store
++++(/var/tmp/nfzmQsSy/src/common/init.sh:41) mkdir /var/tmp/nfzmQsSy/tmp/nix-test/main/fetchGitRefs/var
++++(/var/tmp/nfzmQsSy/src/common/init.sh:42) mkdir -p /var/tmp/nfzmQsSy/tmp/nix-test/main/fetchGitRefs/var/log/nix/drvs
++++(/var/tmp/nfzmQsSy/src/common/init.sh:43) mkdir /var/tmp/nfzmQsSy/tmp/nix-test/main/fetchGitRefs/var/nix
++++(/var/tmp/nfzmQsSy/src/common/init.sh:44) mkdir /var/tmp/nfzmQsSy/tmp/nix-test/main/fetchGitRefs/etc
++++(/var/tmp/nfzmQsSy/src/common/init.sh:46) cat
+++++(/var/tmp/nfzmQsSy/src/common/init.sh:46) whoami
++++(/var/tmp/nfzmQsSy/src/common/init.sh:59) cat
++++(/var/tmp/nfzmQsSy/src/common/init.sh:67) nix-store --init
++++(/var/tmp/nfzmQsSy/src/common/init.sh:69) test -e /var/tmp/nfzmQsSy/tmp/nix-test/main/fetchGitRefs/var/nix/db/db.sqlite
++++(/var/tmp/nfzmQsSy/src/common/init.sh:75) echo '# config.nix for test main / fetchGitRefs'
++++(/var/tmp/nfzmQsSy/src/common/init.sh:76) cat /var/tmp/nfzmQsSy/build/config.nix
+++(common.sh:15) [[ -n '' ]]
++(fetchGitRefs.sh:5) requireGit
+++(/var/tmp/nfzmQsSy/src/common/functions.sh:166) type -p git
++(/var/tmp/nfzmQsSy/src/common/functions.sh:166) [[ -n /nix/store/msr1v91ybfw6j12rs5mfl8ghb2rqsnsr-git-2.55.0/bin/git ]]
++(fetchGitRefs.sh:7) repo=/var/tmp/nfzmQsSy/tmp/nix-test/main/fetchGitRefs/git
++(fetchGitRefs.sh:9) createGitRepo /var/tmp/nfzmQsSy/tmp/nix-test/main/fetchGitRefs/git
++(/var/tmp/nfzmQsSy/src/common/functions.sh:377) local repo=/var/tmp/nfzmQsSy/tmp/nix-test/main/fetchGitRefs/git
++(/var/tmp/nfzmQsSy/src/common/functions.sh:378) local extraArgs=
++(/var/tmp/nfzmQsSy/src/common/functions.sh:380) rm -rf /var/tmp/nfzmQsSy/tmp/nix-test/main/fetchGitRefs/git /var/tmp/nfzmQsSy/tmp/nix-test/main/fetchGitRefs/git.tmp
++(/var/tmp/nfzmQsSy/src/common/functions.sh:381) mkdir -p /var/tmp/nfzmQsSy/tmp/nix-test/main/fetchGitRefs/git
++(/var/tmp/nfzmQsSy/src/common/functions.sh:384) initGitRepo /var/tmp/nfzmQsSy/tmp/nix-test/main/fetchGitRefs/git
++(/var/tmp/nfzmQsSy/src/common/functions.sh:367) local repo=/var/tmp/nfzmQsSy/tmp/nix-test/main/fetchGitRefs/git
++(/var/tmp/nfzmQsSy/src/common/functions.sh:368) local extraArgs=
++(/var/tmp/nfzmQsSy/src/common/functions.sh:371) git -C /var/tmp/nfzmQsSy/tmp/nix-test/main/fetchGitRefs/git init
+hint: Using 'master' as the name for the initial branch. This default branch name
+hint: will change to "main" in Git 3.0. To configure the initial branch name
+hint: to use in all of your new repositories, which will suppress this warning,
+hint: call:
+hint:
+hint: 	git config --global init.defaultBranch <name>
+hint:
+hint: Names commonly chosen instead of 'master' are 'main', 'trunk' and
+hint: 'development'. The just-created branch can be renamed via this command:
+hint:
+hint: 	git branch -m <name>
+hint:
+hint: Disable this message with "git config set advice.defaultBranchName false"
+Initialized empty Git repository in /var/tmp/nfzmQsSy/tmp/nix-test/main/fetchGitRefs/git/.git/
++(/var/tmp/nfzmQsSy/src/common/functions.sh:372) git -C /var/tmp/nfzmQsSy/tmp/nix-test/main/fetchGitRefs/git config user.email foobar@example.com
++(/var/tmp/nfzmQsSy/src/common/functions.sh:373) git -C /var/tmp/nfzmQsSy/tmp/nix-test/main/fetchGitRefs/git config user.name Foobar
++(fetchGitRefs.sh:11) echo utrecht
++(fetchGitRefs.sh:12) git -C /var/tmp/nfzmQsSy/tmp/nix-test/main/fetchGitRefs/git add hello
++(fetchGitRefs.sh:13) git -C /var/tmp/nfzmQsSy/tmp/nix-test/main/fetchGitRefs/git commit -m Bla1
+[master (root-commit) c8dc5b2] Bla1
+ 1 file changed, 1 insertion(+)
+ create mode 100644 hello
+++(fetchGitRefs.sh:15) nix eval --raw --impure --expr '(builtins.fetchGit { url = /var/tmp/nfzmQsSy/tmp/nix-test/main/fetchGitRefs/git; ref = "master"; }).outPath'
+warning: you don't have Internet access; disabling some network-dependent features
++(fetchGitRefs.sh:15) path=/var/tmp/nfzmQsSy/tmp/nix-test/main/fetchGitRefs/store/h7s20a8s9lxw51d1qd54az2611hhq7iz-source
++(fetchGitRefs.sh:56) valid_ref A/b
++(fetchGitRefs.sh:35) set +x
+
+>>>>>>>>>> valid_ref A/b$ <<<<<<<<<<
++(fetchGitRefs.sh:36) git check-ref-format --branch A/b
++(fetchGitRefs.sh:37) git -C /var/tmp/nfzmQsSy/tmp/nix-test/main/fetchGitRefs/git branch A/b master
+++(fetchGitRefs.sh:38) nix eval --raw --impure --expr '(builtins.fetchGit { url = /var/tmp/nfzmQsSy/tmp/nix-test/main/fetchGitRefs/git; ref = '\'''\''A/b'\'''\''; }).outPath'
+warning: you don't have Internet access; disabling some network-dependent features
++(fetchGitRefs.sh:38) path1=/var/tmp/nfzmQsSy/tmp/nix-test/main/fetchGitRefs/store/h7s20a8s9lxw51d1qd54az2611hhq7iz-source
++(fetchGitRefs.sh:39) [[ /var/tmp/nfzmQsSy/tmp/nix-test/main/fetchGitRefs/store/h7s20a8s9lxw51d1qd54az2611hhq7iz-source = /var/tmp/nfzmQsSy/tmp/nix\-test/main/fetchGitRefs/store/h7s20a8s9lxw51d1qd54az2611hhq7iz\-source ]]
++(fetchGitRefs.sh:40) git -C /var/tmp/nfzmQsSy/tmp/nix-test/main/fetchGitRefs/git branch -D A/b
++(fetchGitRefs.sh:57) valid_ref AaA/b
++(fetchGitRefs.sh:35) set +x
+
+>>>>>>>>>> valid_ref AaA/b$ <<<<<<<<<<
++(fetchGitRefs.sh:36) git check-ref-format --branch AaA/b
++(fetchGitRefs.sh:37) git -C /var/tmp/nfzmQsSy/tmp/nix-test/main/fetchGitRefs/git branch AaA/b master
+++(fetchGitRefs.sh:38) nix eval --raw --impure --expr '(builtins.fetchGit { url = /var/tmp/nfzmQsSy/tmp/nix-test/main/fetchGitRefs/git; ref = '\'''\''AaA/b'\'''\''; }).outPath'
+warning: you don't have Internet access; disabling some network-dependent features
++(fetchGitRefs.sh:38) path1=/var/tmp/nfzmQsSy/tmp/nix-test/main/fetchGitRefs/store/h7s20a8s9lxw51d1qd54az2611hhq7iz-source
++(fetchGitRefs.sh:39) [[ /var/tmp/nfzmQsSy/tmp/nix-test/main/fetchGitRefs/store/h7s20a8s9lxw51d1qd54az2611hhq7iz-source = /var/tmp/nfzmQsSy/tmp/nix\-test/main/fetchGitRefs/store/h7s20a8s9lxw51d1qd54az2611hhq7iz\-source ]]
++(fetchGitRefs.sh:40) git -C /var/tmp/nfzmQsSy/tmp/nix-test/main/fetchGitRefs/git branch -D AaA/b
++(fetchGitRefs.sh:58) valid_ref FOO/BAR/BAZ
++(fetchGitRefs.sh:35) set +x
+
+>>>>>>>>>> valid_ref FOO/BAR/BAZ$ <<<<<<<<<<
++(fetchGitRefs.sh:36) git check-ref-format --branch FOO/BAR/BAZ
++(fetchGitRefs.sh:37) git -C /var/tmp/nfzmQsSy/tmp/nix-test/main/fetchGitRefs/git branch FOO/BAR/BAZ master
+++(fetchGitRefs.sh:38) nix eval --raw --impure --expr '(builtins.fetchGit { url = /var/tmp/nfzmQsSy/tmp/nix-test/main/fetchGitRefs/git; ref = '\'''\''FOO/BAR/BAZ'\'''\''; }).outPath'
+warning: you don't have Internet access; disabling some network-dependent features
++(fetchGitRefs.sh:38) path1=/var/tmp/nfzmQsSy/tmp/nix-test/main/fetchGitRefs/store/h7s20a8s9lxw51d1qd54az2611hhq7iz-source
++(fetchGitRefs.sh:39) [[ /var/tmp/nfzmQsSy/tmp/nix-test/main/fetchGitRefs/store/h7s20a8s9lxw51d1qd54az2611hhq7iz-source = /var/tmp/nfzmQsSy/tmp/nix\-test/main/fetchGitRefs/store/h7s20a8s9lxw51d1qd54az2611hhq7iz\-source ]]
++(fetchGitRefs.sh:40) git -C /var/tmp/nfzmQsSy/tmp/nix-test/main/fetchGitRefs/git branch -D FOO/BAR/BAZ
++(fetchGitRefs.sh:59) valid_ref foox
++(fetchGitRefs.sh:35) set +x
+
+>>>>>>>>>> valid_ref foox$ <<<<<<<<<<
++(fetchGitRefs.sh:36) git check-ref-format --branch foox
++(fetchGitRefs.sh:37) git -C /var/tmp/nfzmQsSy/tmp/nix-test/main/fetchGitRefs/git branch foox master
+++(fetchGitRefs.sh:38) nix eval --raw --impure --expr '(builtins.fetchGit { url = /var/tmp/nfzmQsSy/tmp/nix-test/main/fetchGitRefs/git; ref = '\'''\''foox'\'''\''; }).outPath'
+warning: you don't have Internet access; disabling some network-dependent features
++(fetchGitRefs.sh:38) path1=/var/tmp/nfzmQsSy/tmp/nix-test/main/fetchGitRefs/store/h7s20a8s9lxw51d1qd54az2611hhq7iz-source
++(fetchGitRefs.sh:39) [[ /var/tmp/nfzmQsSy/tmp/nix-test/main/fetchGitRefs/store/h7s20a8s9lxw51d1qd54az2611hhq7iz-source = /var/tmp/nfzmQsSy/tmp/nix\-test/main/fetchGitRefs/store/h7s20a8s9lxw51d1qd54az2611hhq7iz\-source ]]
++(fetchGitRefs.sh:40) git -C /var/tmp/nfzmQsSy/tmp/nix-test/main/fetchGitRefs/git branch -D foox
++(fetchGitRefs.sh:60) valid_ref 1337
++(fetchGitRefs.sh:35) set +x
+
+>>>>>>>>>> valid_ref 1337$ <<<<<<<<<<
++(fetchGitRefs.sh:36) git check-ref-format --branch 1337
++(fetchGitRefs.sh:37) git -C /var/tmp/nfzmQsSy/tmp/nix-test/main/fetchGitRefs/git branch 1337 master
+++(fetchGitRefs.sh:38) nix eval --raw --impure --expr '(builtins.fetchGit { url = /var/tmp/nfzmQsSy/tmp/nix-test/main/fetchGitRefs/git; ref = '\'''\''1337'\'''\''; }).outPath'
+warning: you don't have Internet access; disabling some network-dependent features
++(fetchGitRefs.sh:38) path1=/var/tmp/nfzmQsSy/tmp/nix-test/main/fetchGitRefs/store/h7s20a8s9lxw51d1qd54az2611hhq7iz-source
++(fetchGitRefs.sh:39) [[ /var/tmp/nfzmQsSy/tmp/nix-test/main/fetchGitRefs/store/h7s20a8s9lxw51d1qd54az2611hhq7iz-source = /var/tmp/nfzmQsSy/tmp/nix\-test/main/fetchGitRefs/store/h7s20a8s9lxw51d1qd54az2611hhq7iz\-source ]]
++(fetchGitRefs.sh:40) git -C /var/tmp/nfzmQsSy/tmp/nix-test/main/fetchGitRefs/git branch -D 1337
++(fetchGitRefs.sh:61) valid_ref foo.baz
++(fetchGitRefs.sh:35) set +x
+
+>>>>>>>>>> valid_ref foo.baz$ <<<<<<<<<<
++(fetchGitRefs.sh:36) git check-ref-format --branch foo.baz
++(fetchGitRefs.sh:37) git -C /var/tmp/nfzmQsSy/tmp/nix-test/main/fetchGitRefs/git branch foo.baz master
+++(fetchGitRefs.sh:38) nix eval --raw --impure --expr '(builtins.fetchGit { url = /var/tmp/nfzmQsSy/tmp/nix-test/main/fetchGitRefs/git; ref = '\'''\''foo.baz'\'''\''; }).outPath'
+warning: you don't have Internet access; disabling some network-dependent features
++(fetchGitRefs.sh:38) path1=/var/tmp/nfzmQsSy/tmp/nix-test/main/fetchGitRefs/store/h7s20a8s9lxw51d1qd54az2611hhq7iz-source
++(fetchGitRefs.sh:39) [[ /var/tmp/nfzmQsSy/tmp/nix-test/main/fetchGitRefs/store/h7s20a8s9lxw51d1qd54az2611hhq7iz-source = /var/tmp/nfzmQsSy/tmp/nix\-test/main/fetchGitRefs/store/h7s20a8s9lxw51d1qd54az2611hhq7iz\-source ]]
++(fetchGitRefs.sh:40) git -C /var/tmp/nfzmQsSy/tmp/nix-test/main/fetchGitRefs/git branch -D foo.baz
++(fetchGitRefs.sh:62) valid_ref foo/bar/baz
++(fetchGitRefs.sh:35) set +x
+
+>>>>>>>>>> valid_ref foo/bar/baz$ <<<<<<<<<<
++(fetchGitRefs.sh:36) git check-ref-format --branch foo/bar/baz
++(fetchGitRefs.sh:37) git -C /var/tmp/nfzmQsSy/tmp/nix-test/main/fetchGitRefs/git branch foo/bar/baz master
+++(fetchGitRefs.sh:38) nix eval --raw --impure --expr '(builtins.fetchGit { url = /var/tmp/nfzmQsSy/tmp/nix-test/main/fetchGitRefs/git; ref = '\'''\''foo/bar/baz'\'''\''; }).outPath'
+warning: you don't have Internet access; disabling some network-dependent features
++(fetchGitRefs.sh:38) path1=/var/tmp/nfzmQsSy/tmp/nix-test/main/fetchGitRefs/store/h7s20a8s9lxw51d1qd54az2611hhq7iz-source
++(fetchGitRefs.sh:39) [[ /var/tmp/nfzmQsSy/tmp/nix-test/main/fetchGitRefs/store/h7s20a8s9lxw51d1qd54az2611hhq7iz-source = /var/tmp/nfzmQsSy/tmp/nix\-test/main/fetchGitRefs/store/h7s20a8s9lxw51d1qd54az2611hhq7iz\-source ]]
++(fetchGitRefs.sh:40) git -C /var/tmp/nfzmQsSy/tmp/nix-test/main/fetchGitRefs/git branch -D foo/bar/baz
++(fetchGitRefs.sh:63) valid_ref foo./bar
++(fetchGitRefs.sh:35) set +x
+
+>>>>>>>>>> valid_ref foo./bar$ <<<<<<<<<<
++(fetchGitRefs.sh:36) git check-ref-format --branch foo./bar
++(fetchGitRefs.sh:37) git -C /var/tmp/nfzmQsSy/tmp/nix-test/main/fetchGitRefs/git branch foo./bar master
+++(fetchGitRefs.sh:38) nix eval --raw --impure --expr '(builtins.fetchGit { url = /var/tmp/nfzmQsSy/tmp/nix-test/main/fetchGitRefs/git; ref = '\'''\''foo./bar'\'''\''; }).outPath'
+warning: you don't have Internet access; disabling some network-dependent features
++(fetchGitRefs.sh:38) path1=/var/tmp/nfzmQsSy/tmp/nix-test/main/fetchGitRefs/store/h7s20a8s9lxw51d1qd54az2611hhq7iz-source
++(fetchGitRefs.sh:39) [[ /var/tmp/nfzmQsSy/tmp/nix-test/main/fetchGitRefs/store/h7s20a8s9lxw51d1qd54az2611hhq7iz-source = /var/tmp/nfzmQsSy/tmp/nix\-test/main/fetchGitRefs/store/h7s20a8s9lxw51d1qd54az2611hhq7iz\-source ]]
++(fetchGitRefs.sh:40) git -C /var/tmp/nfzmQsSy/tmp/nix-test/main/fetchGitRefs/git branch -D foo./bar
++(fetchGitRefs.sh:64) valid_ref heads/foo@bar
++(fetchGitRefs.sh:35) set +x
+
+>>>>>>>>>> valid_ref heads/foo@bar$ <<<<<<<<<<
++(fetchGitRefs.sh:36) git check-ref-format --branch heads/foo@bar
++(fetchGitRefs.sh:37) git -C /var/tmp/nfzmQsSy/tmp/nix-test/main/fetchGitRefs/git branch heads/foo@bar master
+++(fetchGitRefs.sh:38) nix eval --raw --impure --expr '(builtins.fetchGit { url = /var/tmp/nfzmQsSy/tmp/nix-test/main/fetchGitRefs/git; ref = '\'''\''heads/foo@bar'\'''\''; }).outPath'
+warning: you don't have Internet access; disabling some network-dependent features
++(fetchGitRefs.sh:38) path1=/var/tmp/nfzmQsSy/tmp/nix-test/main/fetchGitRefs/store/h7s20a8s9lxw51d1qd54az2611hhq7iz-source
++(fetchGitRefs.sh:39) [[ /var/tmp/nfzmQsSy/tmp/nix-test/main/fetchGitRefs/store/h7s20a8s9lxw51d1qd54az2611hhq7iz-source = /var/tmp/nfzmQsSy/tmp/nix\-test/main/fetchGitRefs/store/h7s20a8s9lxw51d1qd54az2611hhq7iz\-source ]]
++(fetchGitRefs.sh:40) git -C /var/tmp/nfzmQsSy/tmp/nix-test/main/fetchGitRefs/git branch -D heads/foo@bar
+++(fetchGitRefs.sh:65) printf 'heads/fu\303\237'
++(fetchGitRefs.sh:65) valid_ref $'heads/fu\303\237'
++(fetchGitRefs.sh:35) set +x
+
+>>>>>>>>>> valid_ref heads/fu\303\237$ <<<<<<<<<<
++(fetchGitRefs.sh:36) git check-ref-format --branch $'heads/fu\303\237'
++(fetchGitRefs.sh:37) git -C /var/tmp/nfzmQsSy/tmp/nix-test/main/fetchGitRefs/git branch $'heads/fu\303\237' master
+++(fetchGitRefs.sh:38) nix eval --raw --impure --expr $'(builtins.fetchGit { url = /var/tmp/nfzmQsSy/tmp/nix-test/main/fetchGitRefs/git; ref = \'\'heads/fu\303\237\'\'; }).outPath'
+warning: you don't have Internet access; disabling some network-dependent features
++(fetchGitRefs.sh:38) path1=/var/tmp/nfzmQsSy/tmp/nix-test/main/fetchGitRefs/store/h7s20a8s9lxw51d1qd54az2611hhq7iz-source
++(fetchGitRefs.sh:39) [[ /var/tmp/nfzmQsSy/tmp/nix-test/main/fetchGitRefs/store/h7s20a8s9lxw51d1qd54az2611hhq7iz-source = /var/tmp/nfzmQsSy/tmp/nix\-test/main/fetchGitRefs/store/h7s20a8s9lxw51d1qd54az2611hhq7iz\-source ]]
++(fetchGitRefs.sh:40) git -C /var/tmp/nfzmQsSy/tmp/nix-test/main/fetchGitRefs/git branch -D $'heads/fu\303\237'
++(fetchGitRefs.sh:66) valid_ref foo-bar-baz
++(fetchGitRefs.sh:35) set +x
+
+>>>>>>>>>> valid_ref foo-bar-baz$ <<<<<<<<<<
++(fetchGitRefs.sh:36) git check-ref-format --branch foo-bar-baz
++(fetchGitRefs.sh:37) git -C /var/tmp/nfzmQsSy/tmp/nix-test/main/fetchGitRefs/git branch foo-bar-baz master
+++(fetchGitRefs.sh:38) nix eval --raw --impure --expr '(builtins.fetchGit { url = /var/tmp/nfzmQsSy/tmp/nix-test/main/fetchGitRefs/git; ref = '\'''\''foo-bar-baz'\'''\''; }).outPath'
+warning: you don't have Internet access; disabling some network-dependent features
++(fetchGitRefs.sh:38) path1=/var/tmp/nfzmQsSy/tmp/nix-test/main/fetchGitRefs/store/h7s20a8s9lxw51d1qd54az2611hhq7iz-source
++(fetchGitRefs.sh:39) [[ /var/tmp/nfzmQsSy/tmp/nix-test/main/fetchGitRefs/store/h7s20a8s9lxw51d1qd54az2611hhq7iz-source = /var/tmp/nfzmQsSy/tmp/nix\-test/main/fetchGitRefs/store/h7s20a8s9lxw51d1qd54az2611hhq7iz\-source ]]
++(fetchGitRefs.sh:40) git -C /var/tmp/nfzmQsSy/tmp/nix-test/main/fetchGitRefs/git branch -D foo-bar-baz
++(fetchGitRefs.sh:67) valid_ref branch#
++(fetchGitRefs.sh:35) set +x
+
+>>>>>>>>>> valid_ref branch#$ <<<<<<<<<<
++(fetchGitRefs.sh:36) git check-ref-format --branch branch#
++(fetchGitRefs.sh:37) git -C /var/tmp/nfzmQsSy/tmp/nix-test/main/fetchGitRefs/git branch branch# master
+++(fetchGitRefs.sh:38) nix eval --raw --impure --expr '(builtins.fetchGit { url = /var/tmp/nfzmQsSy/tmp/nix-test/main/fetchGitRefs/git; ref = '\'''\''branch#'\'''\''; }).outPath'
+warning: you don't have Internet access; disabling some network-dependent features
++(fetchGitRefs.sh:38) path1=/var/tmp/nfzmQsSy/tmp/nix-test/main/fetchGitRefs/store/h7s20a8s9lxw51d1qd54az2611hhq7iz-source
++(fetchGitRefs.sh:39) [[ /var/tmp/nfzmQsSy/tmp/nix-test/main/fetchGitRefs/store/h7s20a8s9lxw51d1qd54az2611hhq7iz-source = /var/tmp/nfzmQsSy/tmp/nix\-test/main/fetchGitRefs/store/h7s20a8s9lxw51d1qd54az2611hhq7iz\-source ]]
++(fetchGitRefs.sh:40) git -C /var/tmp/nfzmQsSy/tmp/nix-test/main/fetchGitRefs/git branch -D branch#
++(fetchGitRefs.sh:69) valid_ref '$1'
++(fetchGitRefs.sh:35) set +x
+
+>>>>>>>>>> valid_ref $1$ <<<<<<<<<<
++(fetchGitRefs.sh:36) git check-ref-format --branch '$1'
++(fetchGitRefs.sh:37) git -C /var/tmp/nfzmQsSy/tmp/nix-test/main/fetchGitRefs/git branch '$1' master
+++(fetchGitRefs.sh:38) nix eval --raw --impure --expr '(builtins.fetchGit { url = /var/tmp/nfzmQsSy/tmp/nix-test/main/fetchGitRefs/git; ref = '\'''\''$1'\'''\''; }).outPath'
+warning: you don't have Internet access; disabling some network-dependent features
++(fetchGitRefs.sh:38) path1=/var/tmp/nfzmQsSy/tmp/nix-test/main/fetchGitRefs/store/h7s20a8s9lxw51d1qd54az2611hhq7iz-source
++(fetchGitRefs.sh:39) [[ /var/tmp/nfzmQsSy/tmp/nix-test/main/fetchGitRefs/store/h7s20a8s9lxw51d1qd54az2611hhq7iz-source = /var/tmp/nfzmQsSy/tmp/nix\-test/main/fetchGitRefs/store/h7s20a8s9lxw51d1qd54az2611hhq7iz\-source ]]
++(fetchGitRefs.sh:40) git -C /var/tmp/nfzmQsSy/tmp/nix-test/main/fetchGitRefs/git branch -D '$1'
++(fetchGitRefs.sh:70) valid_ref foo.locke
++(fetchGitRefs.sh:35) set +x
+
+>>>>>>>>>> valid_ref foo.locke$ <<<<<<<<<<
++(fetchGitRefs.sh:36) git check-ref-format --branch foo.locke
++(fetchGitRefs.sh:37) git -C /var/tmp/nfzmQsSy/tmp/nix-test/main/fetchGitRefs/git branch foo.locke master
+++(fetchGitRefs.sh:38) nix eval --raw --impure --expr '(builtins.fetchGit { url = /var/tmp/nfzmQsSy/tmp/nix-test/main/fetchGitRefs/git; ref = '\'''\''foo.locke'\'''\''; }).outPath'
+warning: you don't have Internet access; disabling some network-dependent features
++(fetchGitRefs.sh:38) path1=/var/tmp/nfzmQsSy/tmp/nix-test/main/fetchGitRefs/store/h7s20a8s9lxw51d1qd54az2611hhq7iz-source
++(fetchGitRefs.sh:39) [[ /var/tmp/nfzmQsSy/tmp/nix-test/main/fetchGitRefs/store/h7s20a8s9lxw51d1qd54az2611hhq7iz-source = /var/tmp/nfzmQsSy/tmp/nix\-test/main/fetchGitRefs/store/h7s20a8s9lxw51d1qd54az2611hhq7iz\-source ]]
++(fetchGitRefs.sh:40) git -C /var/tmp/nfzmQsSy/tmp/nix-test/main/fetchGitRefs/git branch -D foo.locke
++(fetchGitRefs.sh:72) invalid_ref refs///heads/foo
++(fetchGitRefs.sh:44) set +x
+
+>>>>>>>>>> invalid_ref refs///heads/foo$ <<<<<<<<<<
++(fetchGitRefs.sh:47) '[' refs///heads/foo = @ ']'
++(fetchGitRefs.sh:50) git check-ref-format --branch refs///heads/foo
++(fetchGitRefs.sh:52) expect 1 nix --debug eval --raw --impure --expr '(builtins.fetchGit { url = /var/tmp/nfzmQsSy/tmp/nix-test/main/fetchGitRefs/git; ref = '\'''\''refs///heads/foo'\'''\''; }).outPath'
++(fetchGitRefs.sh:52) grep 'invalid Git branch/tag name'
++(/var/tmp/nfzmQsSy/src/common/functions.sh:344) checkGrepArgs 'invalid Git branch/tag name'
++(/var/tmp/nfzmQsSy/src/common/functions.sh:293) local arg
++(/var/tmp/nfzmQsSy/src/common/functions.sh:294) for arg in "$@"
++(/var/tmp/nfzmQsSy/src/common/functions.sh:295) [[ invalid Git branch/tag name != invalid Git branch/tag name ]]
++(/var/tmp/nfzmQsSy/src/common/functions.sh:345) command grep 'invalid Git branch/tag name'
++(fetchGitRefs.sh:73) invalid_ref heads/foo/
++(fetchGitRefs.sh:44) set +x
+
+>>>>>>>>>> invalid_ref heads/foo/$ <<<<<<<<<<
++(fetchGitRefs.sh:47) '[' heads/foo/ = @ ']'
++(fetchGitRefs.sh:50) git check-ref-format --branch heads/foo/
++(fetchGitRefs.sh:52) expect 1 nix --debug eval --raw --impure --expr '(builtins.fetchGit { url = /var/tmp/nfzmQsSy/tmp/nix-test/main/fetchGitRefs/git; ref = '\'''\''heads/foo/'\'''\''; }).outPath'
++(fetchGitRefs.sh:52) grep 'invalid Git branch/tag name'
++(/var/tmp/nfzmQsSy/src/common/functions.sh:344) checkGrepArgs 'invalid Git branch/tag name'
++(/var/tmp/nfzmQsSy/src/common/functions.sh:293) local arg
++(/var/tmp/nfzmQsSy/src/common/functions.sh:294) for arg in "$@"
++(/var/tmp/nfzmQsSy/src/common/functions.sh:295) [[ invalid Git branch/tag name != invalid Git branch/tag name ]]
++(/var/tmp/nfzmQsSy/src/common/functions.sh:345) command grep 'invalid Git branch/tag name'
++(fetchGitRefs.sh:74) invalid_ref ///heads/foo
++(fetchGitRefs.sh:44) set +x
+
+>>>>>>>>>> invalid_ref ///heads/foo$ <<<<<<<<<<
++(fetchGitRefs.sh:47) '[' ///heads/foo = @ ']'
++(fetchGitRefs.sh:50) git check-ref-format --branch ///heads/foo
++(fetchGitRefs.sh:52) expect 1 nix --debug eval --raw --impure --expr '(builtins.fetchGit { url = /var/tmp/nfzmQsSy/tmp/nix-test/main/fetchGitRefs/git; ref = '\'''\''///heads/foo'\'''\''; }).outPath'
++(fetchGitRefs.sh:52) grep 'invalid Git branch/tag name'
++(/var/tmp/nfzmQsSy/src/common/functions.sh:344) checkGrepArgs 'invalid Git branch/tag name'
++(/var/tmp/nfzmQsSy/src/common/functions.sh:293) local arg
++(/var/tmp/nfzmQsSy/src/common/functions.sh:294) for arg in "$@"
++(/var/tmp/nfzmQsSy/src/common/functions.sh:295) [[ invalid Git branch/tag name != invalid Git branch/tag name ]]
++(/var/tmp/nfzmQsSy/src/common/functions.sh:345) command grep 'invalid Git branch/tag name'
++(fetchGitRefs.sh:75) invalid_ref .foo
++(fetchGitRefs.sh:44) set +x
+
+>>>>>>>>>> invalid_ref .foo$ <<<<<<<<<<
++(fetchGitRefs.sh:47) '[' .foo = @ ']'
++(fetchGitRefs.sh:50) git check-ref-format --branch .foo
++(fetchGitRefs.sh:52) expect 1 nix --debug eval --raw --impure --expr '(builtins.fetchGit { url = /var/tmp/nfzmQsSy/tmp/nix-test/main/fetchGitRefs/git; ref = '\'''\''.foo'\'''\''; }).outPath'
++(fetchGitRefs.sh:52) grep 'invalid Git branch/tag name'
++(/var/tmp/nfzmQsSy/src/common/functions.sh:344) checkGrepArgs 'invalid Git branch/tag name'
++(/var/tmp/nfzmQsSy/src/common/functions.sh:293) local arg
++(/var/tmp/nfzmQsSy/src/common/functions.sh:294) for arg in "$@"
++(/var/tmp/nfzmQsSy/src/common/functions.sh:295) [[ invalid Git branch/tag name != invalid Git branch/tag name ]]
++(/var/tmp/nfzmQsSy/src/common/functions.sh:345) command grep 'invalid Git branch/tag name'
++(fetchGitRefs.sh:76) invalid_ref ./foo
++(fetchGitRefs.sh:44) set +x
+
+>>>>>>>>>> invalid_ref ./foo$ <<<<<<<<<<
++(fetchGitRefs.sh:47) '[' ./foo = @ ']'
++(fetchGitRefs.sh:50) git check-ref-format --branch ./foo
++(fetchGitRefs.sh:52) expect 1 nix --debug eval --raw --impure --expr '(builtins.fetchGit { url = /var/tmp/nfzmQsSy/tmp/nix-test/main/fetchGitRefs/git; ref = '\'''\''./foo'\'''\''; }).outPath'
++(fetchGitRefs.sh:52) grep 'invalid Git branch/tag name'
++(/var/tmp/nfzmQsSy/src/common/functions.sh:344) checkGrepArgs 'invalid Git branch/tag name'
++(/var/tmp/nfzmQsSy/src/common/functions.sh:293) local arg
++(/var/tmp/nfzmQsSy/src/common/functions.sh:294) for arg in "$@"
++(/var/tmp/nfzmQsSy/src/common/functions.sh:295) [[ invalid Git branch/tag name != invalid Git branch/tag name ]]
++(/var/tmp/nfzmQsSy/src/common/functions.sh:345) command grep 'invalid Git branch/tag name'
++(fetchGitRefs.sh:77) invalid_ref ./foo/bar
++(fetchGitRefs.sh:44) set +x
+
+>>>>>>>>>> invalid_ref ./foo/bar$ <<<<<<<<<<
++(fetchGitRefs.sh:47) '[' ./foo/bar = @ ']'
++(fetchGitRefs.sh:50) git check-ref-format --branch ./foo/bar
++(fetchGitRefs.sh:52) expect 1 nix --debug eval --raw --impure --expr '(builtins.fetchGit { url = /var/tmp/nfzmQsSy/tmp/nix-test/main/fetchGitRefs/git; ref = '\'''\''./foo/bar'\'''\''; }).outPath'
++(fetchGitRefs.sh:52) grep 'invalid Git branch/tag name'
++(/var/tmp/nfzmQsSy/src/common/functions.sh:344) checkGrepArgs 'invalid Git branch/tag name'
++(/var/tmp/nfzmQsSy/src/common/functions.sh:293) local arg
++(/var/tmp/nfzmQsSy/src/common/functions.sh:294) for arg in "$@"
++(/var/tmp/nfzmQsSy/src/common/functions.sh:295) [[ invalid Git branch/tag name != invalid Git branch/tag name ]]
++(/var/tmp/nfzmQsSy/src/common/functions.sh:345) command grep 'invalid Git branch/tag name'
++(fetchGitRefs.sh:78) invalid_ref foo/./bar
++(fetchGitRefs.sh:44) set +x
+
+>>>>>>>>>> invalid_ref foo/./bar$ <<<<<<<<<<
++(fetchGitRefs.sh:47) '[' foo/./bar = @ ']'
++(fetchGitRefs.sh:50) git check-ref-format --branch foo/./bar
++(fetchGitRefs.sh:52) expect 1 nix --debug eval --raw --impure --expr '(builtins.fetchGit { url = /var/tmp/nfzmQsSy/tmp/nix-test/main/fetchGitRefs/git; ref = '\'''\''foo/./bar'\'''\''; }).outPath'
++(fetchGitRefs.sh:52) grep 'invalid Git branch/tag name'
++(/var/tmp/nfzmQsSy/src/common/functions.sh:344) checkGrepArgs 'invalid Git branch/tag name'
++(/var/tmp/nfzmQsSy/src/common/functions.sh:293) local arg
++(/var/tmp/nfzmQsSy/src/common/functions.sh:294) for arg in "$@"
++(/var/tmp/nfzmQsSy/src/common/functions.sh:295) [[ invalid Git branch/tag name != invalid Git branch/tag name ]]
++(/var/tmp/nfzmQsSy/src/common/functions.sh:345) command grep 'invalid Git branch/tag name'
++(fetchGitRefs.sh:79) invalid_ref foo/bar/.
++(fetchGitRefs.sh:44) set +x
+
+>>>>>>>>>> invalid_ref foo/bar/.$ <<<<<<<<<<
++(fetchGitRefs.sh:47) '[' foo/bar/. = @ ']'
++(fetchGitRefs.sh:50) git check-ref-format --branch foo/bar/.
++(fetchGitRefs.sh:52) expect 1 nix --debug eval --raw --impure --expr '(builtins.fetchGit { url = /var/tmp/nfzmQsSy/tmp/nix-test/main/fetchGitRefs/git; ref = '\'''\''foo/bar/.'\'''\''; }).outPath'
++(fetchGitRefs.sh:52) grep 'invalid Git branch/tag name'
++(/var/tmp/nfzmQsSy/src/common/functions.sh:344) checkGrepArgs 'invalid Git branch/tag name'
++(/var/tmp/nfzmQsSy/src/common/functions.sh:293) local arg
++(/var/tmp/nfzmQsSy/src/common/functions.sh:294) for arg in "$@"
++(/var/tmp/nfzmQsSy/src/common/functions.sh:295) [[ invalid Git branch/tag name != invalid Git branch/tag name ]]
++(/var/tmp/nfzmQsSy/src/common/functions.sh:345) command grep 'invalid Git branch/tag name'
++(fetchGitRefs.sh:80) invalid_ref 'foo bar'
++(fetchGitRefs.sh:44) set +x
+
+>>>>>>>>>> invalid_ref foo bar$ <<<<<<<<<<
++(fetchGitRefs.sh:47) '[' 'foo bar' = @ ']'
++(fetchGitRefs.sh:50) git check-ref-format --branch 'foo bar'
++(fetchGitRefs.sh:52) expect 1 nix --debug eval --raw --impure --expr '(builtins.fetchGit { url = /var/tmp/nfzmQsSy/tmp/nix-test/main/fetchGitRefs/git; ref = '\'''\''foo bar'\'''\''; }).outPath'
++(fetchGitRefs.sh:52) grep 'invalid Git branch/tag name'
++(/var/tmp/nfzmQsSy/src/common/functions.sh:344) checkGrepArgs 'invalid Git branch/tag name'
++(/var/tmp/nfzmQsSy/src/common/functions.sh:293) local arg
++(/var/tmp/nfzmQsSy/src/common/functions.sh:294) for arg in "$@"
++(/var/tmp/nfzmQsSy/src/common/functions.sh:295) [[ invalid Git branch/tag name != invalid Git branch/tag name ]]
++(/var/tmp/nfzmQsSy/src/common/functions.sh:345) command grep 'invalid Git branch/tag name'
++(fetchGitRefs.sh:81) invalid_ref 'foo?bar'
++(fetchGitRefs.sh:44) set +x
+
+>>>>>>>>>> invalid_ref foo?bar$ <<<<<<<<<<
++(fetchGitRefs.sh:47) '[' 'foo?bar' = @ ']'
++(fetchGitRefs.sh:50) git check-ref-format --branch 'foo?bar'
++(fetchGitRefs.sh:52) expect 1 nix --debug eval --raw --impure --expr '(builtins.fetchGit { url = /var/tmp/nfzmQsSy/tmp/nix-test/main/fetchGitRefs/git; ref = '\'''\''foo?bar'\'''\''; }).outPath'
++(fetchGitRefs.sh:52) grep 'invalid Git branch/tag name'
++(/var/tmp/nfzmQsSy/src/common/functions.sh:344) checkGrepArgs 'invalid Git branch/tag name'
++(/var/tmp/nfzmQsSy/src/common/functions.sh:293) local arg
++(/var/tmp/nfzmQsSy/src/common/functions.sh:294) for arg in "$@"
++(/var/tmp/nfzmQsSy/src/common/functions.sh:295) [[ invalid Git branch/tag name != invalid Git branch/tag name ]]
++(/var/tmp/nfzmQsSy/src/common/functions.sh:345) command grep 'invalid Git branch/tag name'
++(fetchGitRefs.sh:82) invalid_ref 'foo^bar'
++(fetchGitRefs.sh:44) set +x
+
+>>>>>>>>>> invalid_ref foo^bar$ <<<<<<<<<<
++(fetchGitRefs.sh:47) '[' 'foo^bar' = @ ']'
++(fetchGitRefs.sh:50) git check-ref-format --branch 'foo^bar'
++(fetchGitRefs.sh:52) expect 1 nix --debug eval --raw --impure --expr '(builtins.fetchGit { url = /var/tmp/nfzmQsSy/tmp/nix-test/main/fetchGitRefs/git; ref = '\'''\''foo^bar'\'''\''; }).outPath'
++(fetchGitRefs.sh:52) grep 'invalid Git branch/tag name'
++(/var/tmp/nfzmQsSy/src/common/functions.sh:344) checkGrepArgs 'invalid Git branch/tag name'
++(/var/tmp/nfzmQsSy/src/common/functions.sh:293) local arg
++(/var/tmp/nfzmQsSy/src/common/functions.sh:294) for arg in "$@"
++(/var/tmp/nfzmQsSy/src/common/functions.sh:295) [[ invalid Git branch/tag name != invalid Git branch/tag name ]]
++(/var/tmp/nfzmQsSy/src/common/functions.sh:345) command grep 'invalid Git branch/tag name'
++(fetchGitRefs.sh:83) invalid_ref foo~bar
++(fetchGitRefs.sh:44) set +x
+
+>>>>>>>>>> invalid_ref foo~bar$ <<<<<<<<<<
++(fetchGitRefs.sh:47) '[' foo~bar = @ ']'
++(fetchGitRefs.sh:50) git check-ref-format --branch foo~bar
++(fetchGitRefs.sh:52) expect 1 nix --debug eval --raw --impure --expr '(builtins.fetchGit { url = /var/tmp/nfzmQsSy/tmp/nix-test/main/fetchGitRefs/git; ref = '\'''\''foo~bar'\'''\''; }).outPath'
++(fetchGitRefs.sh:52) grep 'invalid Git branch/tag name'
++(/var/tmp/nfzmQsSy/src/common/functions.sh:344) checkGrepArgs 'invalid Git branch/tag name'
++(/var/tmp/nfzmQsSy/src/common/functions.sh:293) local arg
++(/var/tmp/nfzmQsSy/src/common/functions.sh:294) for arg in "$@"
++(/var/tmp/nfzmQsSy/src/common/functions.sh:295) [[ invalid Git branch/tag name != invalid Git branch/tag name ]]
++(/var/tmp/nfzmQsSy/src/common/functions.sh:345) command grep 'invalid Git branch/tag name'
++(fetchGitRefs.sh:84) invalid_ref foo:bar
++(fetchGitRefs.sh:44) set +x
+
+>>>>>>>>>> invalid_ref foo:bar$ <<<<<<<<<<
++(fetchGitRefs.sh:47) '[' foo:bar = @ ']'
++(fetchGitRefs.sh:50) git check-ref-format --branch foo:bar
++(fetchGitRefs.sh:52) expect 1 nix --debug eval --raw --impure --expr '(builtins.fetchGit { url = /var/tmp/nfzmQsSy/tmp/nix-test/main/fetchGitRefs/git; ref = '\'''\''foo:bar'\'''\''; }).outPath'
++(fetchGitRefs.sh:52) grep 'invalid Git branch/tag name'
++(/var/tmp/nfzmQsSy/src/common/functions.sh:344) checkGrepArgs 'invalid Git branch/tag name'
++(/var/tmp/nfzmQsSy/src/common/functions.sh:293) local arg
++(/var/tmp/nfzmQsSy/src/common/functions.sh:294) for arg in "$@"
++(/var/tmp/nfzmQsSy/src/common/functions.sh:295) [[ invalid Git branch/tag name != invalid Git branch/tag name ]]
++(/var/tmp/nfzmQsSy/src/common/functions.sh:345) command grep 'invalid Git branch/tag name'
++(fetchGitRefs.sh:85) invalid_ref 'foo[bar'
++(fetchGitRefs.sh:44) set +x
+
+>>>>>>>>>> invalid_ref foo[bar$ <<<<<<<<<<
++(fetchGitRefs.sh:47) '[' 'foo[bar' = @ ']'
++(fetchGitRefs.sh:50) git check-ref-format --branch 'foo[bar'
++(fetchGitRefs.sh:52) expect 1 nix --debug eval --raw --impure --expr '(builtins.fetchGit { url = /var/tmp/nfzmQsSy/tmp/nix-test/main/fetchGitRefs/git; ref = '\'''\''foo[bar'\'''\''; }).outPath'
++(fetchGitRefs.sh:52) grep 'invalid Git branch/tag name'
++(/var/tmp/nfzmQsSy/src/common/functions.sh:344) checkGrepArgs 'invalid Git branch/tag name'
++(/var/tmp/nfzmQsSy/src/common/functions.sh:293) local arg
++(/var/tmp/nfzmQsSy/src/common/functions.sh:294) for arg in "$@"
++(/var/tmp/nfzmQsSy/src/common/functions.sh:295) [[ invalid Git branch/tag name != invalid Git branch/tag name ]]
++(/var/tmp/nfzmQsSy/src/common/functions.sh:345) command grep 'invalid Git branch/tag name'
++(fetchGitRefs.sh:86) invalid_ref foo/bar/.
++(fetchGitRefs.sh:44) set +x
+
+>>>>>>>>>> invalid_ref foo/bar/.$ <<<<<<<<<<
++(fetchGitRefs.sh:47) '[' foo/bar/. = @ ']'
++(fetchGitRefs.sh:50) git check-ref-format --branch foo/bar/.
++(fetchGitRefs.sh:52) expect 1 nix --debug eval --raw --impure --expr '(builtins.fetchGit { url = /var/tmp/nfzmQsSy/tmp/nix-test/main/fetchGitRefs/git; ref = '\'''\''foo/bar/.'\'''\''; }).outPath'
++(fetchGitRefs.sh:52) grep 'invalid Git branch/tag name'
++(/var/tmp/nfzmQsSy/src/common/functions.sh:344) checkGrepArgs 'invalid Git branch/tag name'
++(/var/tmp/nfzmQsSy/src/common/functions.sh:293) local arg
++(/var/tmp/nfzmQsSy/src/common/functions.sh:294) for arg in "$@"
++(/var/tmp/nfzmQsSy/src/common/functions.sh:295) [[ invalid Git branch/tag name != invalid Git branch/tag name ]]
++(/var/tmp/nfzmQsSy/src/common/functions.sh:345) command grep 'invalid Git branch/tag name'
++(fetchGitRefs.sh:87) invalid_ref .refs/foo
++(fetchGitRefs.sh:44) set +x
+
+>>>>>>>>>> invalid_ref .refs/foo$ <<<<<<<<<<
++(fetchGitRefs.sh:47) '[' .refs/foo = @ ']'
++(fetchGitRefs.sh:50) git check-ref-format --branch .refs/foo
++(fetchGitRefs.sh:52) expect 1 nix --debug eval --raw --impure --expr '(builtins.fetchGit { url = /var/tmp/nfzmQsSy/tmp/nix-test/main/fetchGitRefs/git; ref = '\'''\''.refs/foo'\'''\''; }).outPath'
++(fetchGitRefs.sh:52) grep 'invalid Git branch/tag name'
++(/var/tmp/nfzmQsSy/src/common/functions.sh:344) checkGrepArgs 'invalid Git branch/tag name'
++(/var/tmp/nfzmQsSy/src/common/functions.sh:293) local arg
++(/var/tmp/nfzmQsSy/src/common/functions.sh:294) for arg in "$@"
++(/var/tmp/nfzmQsSy/src/common/functions.sh:295) [[ invalid Git branch/tag name != invalid Git branch/tag name ]]
++(/var/tmp/nfzmQsSy/src/common/functions.sh:345) command grep 'invalid Git branch/tag name'
++(fetchGitRefs.sh:88) invalid_ref refs/heads/foo.
++(fetchGitRefs.sh:44) set +x
+
+>>>>>>>>>> invalid_ref refs/heads/foo.$ <<<<<<<<<<
++(fetchGitRefs.sh:47) '[' refs/heads/foo. = @ ']'
++(fetchGitRefs.sh:50) git check-ref-format --branch refs/heads/foo.
++(fetchGitRefs.sh:52) expect 1 nix --debug eval --raw --impure --expr '(builtins.fetchGit { url = /var/tmp/nfzmQsSy/tmp/nix-test/main/fetchGitRefs/git; ref = '\'''\''refs/heads/foo.'\'''\''; }).outPath'
++(fetchGitRefs.sh:52) grep 'invalid Git branch/tag name'
++(/var/tmp/nfzmQsSy/src/common/functions.sh:344) checkGrepArgs 'invalid Git branch/tag name'
++(/var/tmp/nfzmQsSy/src/common/functions.sh:293) local arg
++(/var/tmp/nfzmQsSy/src/common/functions.sh:294) for arg in "$@"
++(/var/tmp/nfzmQsSy/src/common/functions.sh:295) [[ invalid Git branch/tag name != invalid Git branch/tag name ]]
++(/var/tmp/nfzmQsSy/src/common/functions.sh:345) command grep 'invalid Git branch/tag name'
++(fetchGitRefs.sh:89) invalid_ref heads/foo..bar
++(fetchGitRefs.sh:44) set +x
+
+>>>>>>>>>> invalid_ref heads/foo..bar$ <<<<<<<<<<
++(fetchGitRefs.sh:47) '[' heads/foo..bar = @ ']'
++(fetchGitRefs.sh:50) git check-ref-format --branch heads/foo..bar
++(fetchGitRefs.sh:52) expect 1 nix --debug eval --raw --impure --expr '(builtins.fetchGit { url = /var/tmp/nfzmQsSy/tmp/nix-test/main/fetchGitRefs/git; ref = '\'''\''heads/foo..bar'\'''\''; }).outPath'
++(fetchGitRefs.sh:52) grep 'invalid Git branch/tag name'
++(/var/tmp/nfzmQsSy/src/common/functions.sh:344) checkGrepArgs 'invalid Git branch/tag name'
++(/var/tmp/nfzmQsSy/src/common/functions.sh:293) local arg
++(/var/tmp/nfzmQsSy/src/common/functions.sh:294) for arg in "$@"
++(/var/tmp/nfzmQsSy/src/common/functions.sh:295) [[ invalid Git branch/tag name != invalid Git branch/tag name ]]
++(/var/tmp/nfzmQsSy/src/common/functions.sh:345) command grep 'invalid Git branch/tag name'
++(fetchGitRefs.sh:90) invalid_ref 'heads/foo?bar'
++(fetchGitRefs.sh:44) set +x
+
+>>>>>>>>>> invalid_ref heads/foo?bar$ <<<<<<<<<<
++(fetchGitRefs.sh:47) '[' 'heads/foo?bar' = @ ']'
++(fetchGitRefs.sh:50) git check-ref-format --branch 'heads/foo?bar'
++(fetchGitRefs.sh:52) expect 1 nix --debug eval --raw --impure --expr '(builtins.fetchGit { url = /var/tmp/nfzmQsSy/tmp/nix-test/main/fetchGitRefs/git; ref = '\'''\''heads/foo?bar'\'''\''; }).outPath'
++(fetchGitRefs.sh:52) grep 'invalid Git branch/tag name'
++(/var/tmp/nfzmQsSy/src/common/functions.sh:344) checkGrepArgs 'invalid Git branch/tag name'
++(/var/tmp/nfzmQsSy/src/common/functions.sh:293) local arg
++(/var/tmp/nfzmQsSy/src/common/functions.sh:294) for arg in "$@"
++(/var/tmp/nfzmQsSy/src/common/functions.sh:295) [[ invalid Git branch/tag name != invalid Git branch/tag name ]]
++(/var/tmp/nfzmQsSy/src/common/functions.sh:345) command grep 'invalid Git branch/tag name'
++(fetchGitRefs.sh:91) invalid_ref heads/foo.lock
++(fetchGitRefs.sh:44) set +x
+
+>>>>>>>>>> invalid_ref heads/foo.lock$ <<<<<<<<<<
++(fetchGitRefs.sh:47) '[' heads/foo.lock = @ ']'
++(fetchGitRefs.sh:50) git check-ref-format --branch heads/foo.lock
++(fetchGitRefs.sh:52) expect 1 nix --debug eval --raw --impure --expr '(builtins.fetchGit { url = /var/tmp/nfzmQsSy/tmp/nix-test/main/fetchGitRefs/git; ref = '\'''\''heads/foo.lock'\'''\''; }).outPath'
++(fetchGitRefs.sh:52) grep 'invalid Git branch/tag name'
++(/var/tmp/nfzmQsSy/src/common/functions.sh:344) checkGrepArgs 'invalid Git branch/tag name'
++(/var/tmp/nfzmQsSy/src/common/functions.sh:293) local arg
++(/var/tmp/nfzmQsSy/src/common/functions.sh:294) for arg in "$@"
++(/var/tmp/nfzmQsSy/src/common/functions.sh:295) [[ invalid Git branch/tag name != invalid Git branch/tag name ]]
++(/var/tmp/nfzmQsSy/src/common/functions.sh:345) command grep 'invalid Git branch/tag name'
++(fetchGitRefs.sh:92) invalid_ref heads///foo.lock
++(fetchGitRefs.sh:44) set +x
+
+>>>>>>>>>> invalid_ref heads///foo.lock$ <<<<<<<<<<
++(fetchGitRefs.sh:47) '[' heads///foo.lock = @ ']'
++(fetchGitRefs.sh:50) git check-ref-format --branch heads///foo.lock
++(fetchGitRefs.sh:52) expect 1 nix --debug eval --raw --impure --expr '(builtins.fetchGit { url = /var/tmp/nfzmQsSy/tmp/nix-test/main/fetchGitRefs/git; ref = '\'''\''heads///foo.lock'\'''\''; }).outPath'
++(fetchGitRefs.sh:52) grep 'invalid Git branch/tag name'
++(/var/tmp/nfzmQsSy/src/common/functions.sh:344) checkGrepArgs 'invalid Git branch/tag name'
++(/var/tmp/nfzmQsSy/src/common/functions.sh:293) local arg
++(/var/tmp/nfzmQsSy/src/common/functions.sh:294) for arg in "$@"
++(/var/tmp/nfzmQsSy/src/common/functions.sh:295) [[ invalid Git branch/tag name != invalid Git branch/tag name ]]
++(/var/tmp/nfzmQsSy/src/common/functions.sh:345) command grep 'invalid Git branch/tag name'
++(fetchGitRefs.sh:93) invalid_ref foo.lock/bar
++(fetchGitRefs.sh:44) set +x
+
+>>>>>>>>>> invalid_ref foo.lock/bar$ <<<<<<<<<<
++(fetchGitRefs.sh:47) '[' foo.lock/bar = @ ']'
++(fetchGitRefs.sh:50) git check-ref-format --branch foo.lock/bar
++(fetchGitRefs.sh:52) expect 1 nix --debug eval --raw --impure --expr '(builtins.fetchGit { url = /var/tmp/nfzmQsSy/tmp/nix-test/main/fetchGitRefs/git; ref = '\'''\''foo.lock/bar'\'''\''; }).outPath'
++(fetchGitRefs.sh:52) grep 'invalid Git branch/tag name'
++(/var/tmp/nfzmQsSy/src/common/functions.sh:344) checkGrepArgs 'invalid Git branch/tag name'
++(/var/tmp/nfzmQsSy/src/common/functions.sh:293) local arg
++(/var/tmp/nfzmQsSy/src/common/functions.sh:294) for arg in "$@"
++(/var/tmp/nfzmQsSy/src/common/functions.sh:295) [[ invalid Git branch/tag name != invalid Git branch/tag name ]]
++(/var/tmp/nfzmQsSy/src/common/functions.sh:345) command grep 'invalid Git branch/tag name'
++(fetchGitRefs.sh:94) invalid_ref foo.lock///bar
++(fetchGitRefs.sh:44) set +x
+
+>>>>>>>>>> invalid_ref foo.lock///bar$ <<<<<<<<<<
++(fetchGitRefs.sh:47) '[' foo.lock///bar = @ ']'
++(fetchGitRefs.sh:50) git check-ref-format --branch foo.lock///bar
++(fetchGitRefs.sh:52) expect 1 nix --debug eval --raw --impure --expr '(builtins.fetchGit { url = /var/tmp/nfzmQsSy/tmp/nix-test/main/fetchGitRefs/git; ref = '\'''\''foo.lock///bar'\'''\''; }).outPath'
++(fetchGitRefs.sh:52) grep 'invalid Git branch/tag name'
++(/var/tmp/nfzmQsSy/src/common/functions.sh:344) checkGrepArgs 'invalid Git branch/tag name'
++(/var/tmp/nfzmQsSy/src/common/functions.sh:293) local arg
++(/var/tmp/nfzmQsSy/src/common/functions.sh:294) for arg in "$@"
++(/var/tmp/nfzmQsSy/src/common/functions.sh:295) [[ invalid Git branch/tag name != invalid Git branch/tag name ]]
++(/var/tmp/nfzmQsSy/src/common/functions.sh:345) command grep 'invalid Git branch/tag name'
++(fetchGitRefs.sh:95) invalid_ref 'heads/v@{ation'
++(fetchGitRefs.sh:44) set +x
+
+>>>>>>>>>> invalid_ref heads/v@{ation$ <<<<<<<<<<
++(fetchGitRefs.sh:47) '[' 'heads/v@{ation' = @ ']'
++(fetchGitRefs.sh:50) git check-ref-format --branch 'heads/v@{ation'
++(fetchGitRefs.sh:52) expect 1 nix --debug eval --raw --impure --expr '(builtins.fetchGit { url = /var/tmp/nfzmQsSy/tmp/nix-test/main/fetchGitRefs/git; ref = '\'''\''heads/v@{ation'\'''\''; }).outPath'
++(fetchGitRefs.sh:52) grep 'invalid Git branch/tag name'
++(/var/tmp/nfzmQsSy/src/common/functions.sh:344) checkGrepArgs 'invalid Git branch/tag name'
++(/var/tmp/nfzmQsSy/src/common/functions.sh:293) local arg
++(/var/tmp/nfzmQsSy/src/common/functions.sh:294) for arg in "$@"
++(/var/tmp/nfzmQsSy/src/common/functions.sh:295) [[ invalid Git branch/tag name != invalid Git branch/tag name ]]
++(/var/tmp/nfzmQsSy/src/common/functions.sh:345) command grep 'invalid Git branch/tag name'
++(fetchGitRefs.sh:96) invalid_ref 'heads/foo\.ar'
++(fetchGitRefs.sh:44) set +x
+
+>>>>>>>>>> invalid_ref heads/foo\\.ar$ <<<<<<<<<<
++(fetchGitRefs.sh:47) '[' 'heads/foo\.ar' = @ ']'
++(fetchGitRefs.sh:50) git check-ref-format --branch 'heads/foo\.ar'
++(fetchGitRefs.sh:52) expect 1 nix --debug eval --raw --impure --expr '(builtins.fetchGit { url = /var/tmp/nfzmQsSy/tmp/nix-test/main/fetchGitRefs/git; ref = '\'''\''heads/foo\.ar'\'''\''; }).outPath'
++(fetchGitRefs.sh:52) grep 'invalid Git branch/tag name'
++(/var/tmp/nfzmQsSy/src/common/functions.sh:344) checkGrepArgs 'invalid Git branch/tag name'
++(/var/tmp/nfzmQsSy/src/common/functions.sh:293) local arg
++(/var/tmp/nfzmQsSy/src/common/functions.sh:294) for arg in "$@"
++(/var/tmp/nfzmQsSy/src/common/functions.sh:295) [[ invalid Git branch/tag name != invalid Git branch/tag name ]]
++(/var/tmp/nfzmQsSy/src/common/functions.sh:345) command grep 'invalid Git branch/tag name'
++(fetchGitRefs.sh:97) invalid_ref 'heads/foo\bar'
++(fetchGitRefs.sh:44) set +x
+
+>>>>>>>>>> invalid_ref heads/foo\\bar$ <<<<<<<<<<
++(fetchGitRefs.sh:47) '[' 'heads/foo\bar' = @ ']'
++(fetchGitRefs.sh:50) git check-ref-format --branch 'heads/foo\bar'
++(fetchGitRefs.sh:52) expect 1 nix --debug eval --raw --impure --expr '(builtins.fetchGit { url = /var/tmp/nfzmQsSy/tmp/nix-test/main/fetchGitRefs/git; ref = '\'''\''heads/foo\bar'\'''\''; }).outPath'
++(fetchGitRefs.sh:52) grep 'invalid Git branch/tag name'
++(/var/tmp/nfzmQsSy/src/common/functions.sh:344) checkGrepArgs 'invalid Git branch/tag name'
++(/var/tmp/nfzmQsSy/src/common/functions.sh:293) local arg
++(/var/tmp/nfzmQsSy/src/common/functions.sh:294) for arg in "$@"
++(/var/tmp/nfzmQsSy/src/common/functions.sh:295) [[ invalid Git branch/tag name != invalid Git branch/tag name ]]
++(/var/tmp/nfzmQsSy/src/common/functions.sh:345) command grep 'invalid Git branch/tag name'
+++(fetchGitRefs.sh:98) printf 'heads/foo\t'
++(fetchGitRefs.sh:98) invalid_ref $'heads/foo\t'
++(fetchGitRefs.sh:44) set +x
+
+>>>>>>>>>> invalid_ref heads/foo\t$ <<<<<<<<<<
++(fetchGitRefs.sh:47) '[' $'heads/foo\t' = @ ']'
++(fetchGitRefs.sh:50) git check-ref-format --branch $'heads/foo\t'
++(fetchGitRefs.sh:52) expect 1 nix --debug eval --raw --impure --expr $'(builtins.fetchGit { url = /var/tmp/nfzmQsSy/tmp/nix-test/main/fetchGitRefs/git; ref = \'\'heads/foo\t\'\'; }).outPath'
++(fetchGitRefs.sh:52) grep 'invalid Git branch/tag name'
++(/var/tmp/nfzmQsSy/src/common/functions.sh:344) checkGrepArgs 'invalid Git branch/tag name'
++(/var/tmp/nfzmQsSy/src/common/functions.sh:293) local arg
++(/var/tmp/nfzmQsSy/src/common/functions.sh:294) for arg in "$@"
++(/var/tmp/nfzmQsSy/src/common/functions.sh:295) [[ invalid Git branch/tag name != invalid Git branch/tag name ]]
++(/var/tmp/nfzmQsSy/src/common/functions.sh:345) command grep 'invalid Git branch/tag name'
+++(fetchGitRefs.sh:99) printf 'heads/foo\37'
++(fetchGitRefs.sh:99) invalid_ref $'heads/foo\037'
++(fetchGitRefs.sh:44) set +x
+
+>>>>>>>>>> invalid_ref heads/foo\037$ <<<<<<<<<<
++(fetchGitRefs.sh:47) '[' $'heads/foo\037' = @ ']'
++(fetchGitRefs.sh:50) git check-ref-format --branch $'heads/foo\037'
++(fetchGitRefs.sh:52) expect 1 nix --debug eval --raw --impure --expr $'(builtins.fetchGit { url = /var/tmp/nfzmQsSy/tmp/nix-test/main/fetchGitRefs/git; ref = \'\'heads/foo\037\'\'; }).outPath'
++(fetchGitRefs.sh:52) grep 'invalid Git branch/tag name'
++(/var/tmp/nfzmQsSy/src/common/functions.sh:344) checkGrepArgs 'invalid Git branch/tag name'
++(/var/tmp/nfzmQsSy/src/common/functions.sh:293) local arg
++(/var/tmp/nfzmQsSy/src/common/functions.sh:294) for arg in "$@"
++(/var/tmp/nfzmQsSy/src/common/functions.sh:295) [[ invalid Git branch/tag name != invalid Git branch/tag name ]]
++(/var/tmp/nfzmQsSy/src/common/functions.sh:345) command grep 'invalid Git branch/tag name'
+++(fetchGitRefs.sh:100) printf 'heads/foo\177'
++(fetchGitRefs.sh:100) invalid_ref $'heads/foo\177'
++(fetchGitRefs.sh:44) set +x
+
+>>>>>>>>>> invalid_ref heads/foo\177$ <<<<<<<<<<
++(fetchGitRefs.sh:47) '[' $'heads/foo\177' = @ ']'
++(fetchGitRefs.sh:50) git check-ref-format --branch $'heads/foo\177'
++(fetchGitRefs.sh:52) expect 1 nix --debug eval --raw --impure --expr $'(builtins.fetchGit { url = /var/tmp/nfzmQsSy/tmp/nix-test/main/fetchGitRefs/git; ref = \'\'heads/foo\177\'\'; }).outPath'
++(fetchGitRefs.sh:52) grep 'invalid Git branch/tag name'
++(/var/tmp/nfzmQsSy/src/common/functions.sh:344) checkGrepArgs 'invalid Git branch/tag name'
++(/var/tmp/nfzmQsSy/src/common/functions.sh:293) local arg
++(/var/tmp/nfzmQsSy/src/common/functions.sh:294) for arg in "$@"
++(/var/tmp/nfzmQsSy/src/common/functions.sh:295) [[ invalid Git branch/tag name != invalid Git branch/tag name ]]
++(/var/tmp/nfzmQsSy/src/common/functions.sh:345) command grep 'invalid Git branch/tag name'
++(fetchGitRefs.sh:101) invalid_ref @
++(fetchGitRefs.sh:44) set +x
+
+>>>>>>>>>> invalid_ref @$ <<<<<<<<<<
++(fetchGitRefs.sh:47) '[' @ = @ ']'
++(fetchGitRefs.sh:48) git check-ref-format --allow-onelevel @
++(fetchGitRefs.sh:52) expect 1 nix --debug eval --raw --impure --expr '(builtins.fetchGit { url = /var/tmp/nfzmQsSy/tmp/nix-test/main/fetchGitRefs/git; ref = '\'''\''@'\'''\''; }).outPath'
++(fetchGitRefs.sh:52) grep 'invalid Git branch/tag name'
++(/var/tmp/nfzmQsSy/src/common/functions.sh:344) checkGrepArgs 'invalid Git branch/tag name'
++(/var/tmp/nfzmQsSy/src/common/functions.sh:293) local arg
++(/var/tmp/nfzmQsSy/src/common/functions.sh:294) for arg in "$@"
++(/var/tmp/nfzmQsSy/src/common/functions.sh:295) [[ invalid Git branch/tag name != invalid Git branch/tag name ]]
++(/var/tmp/nfzmQsSy/src/common/functions.sh:345) command grep 'invalid Git branch/tag name'
++(fetchGitRefs.sh:103) invalid_ref 'foo/*'
++(fetchGitRefs.sh:44) set +x
+
+>>>>>>>>>> invalid_ref foo/*$ <<<<<<<<<<
++(fetchGitRefs.sh:47) '[' 'foo/*' = @ ']'
++(fetchGitRefs.sh:50) git check-ref-format --branch 'foo/*'
++(fetchGitRefs.sh:52) expect 1 nix --debug eval --raw --impure --expr '(builtins.fetchGit { url = /var/tmp/nfzmQsSy/tmp/nix-test/main/fetchGitRefs/git; ref = '\'''\''foo/*'\'''\''; }).outPath'
++(fetchGitRefs.sh:52) grep 'invalid Git branch/tag name'
++(/var/tmp/nfzmQsSy/src/common/functions.sh:344) checkGrepArgs 'invalid Git branch/tag name'
++(/var/tmp/nfzmQsSy/src/common/functions.sh:293) local arg
++(/var/tmp/nfzmQsSy/src/common/functions.sh:294) for arg in "$@"
++(/var/tmp/nfzmQsSy/src/common/functions.sh:295) [[ invalid Git branch/tag name != invalid Git branch/tag name ]]
++(/var/tmp/nfzmQsSy/src/common/functions.sh:345) command grep 'invalid Git branch/tag name'
++(fetchGitRefs.sh:104) invalid_ref '*/foo'
++(fetchGitRefs.sh:44) set +x
+
+>>>>>>>>>> invalid_ref */foo$ <<<<<<<<<<
++(fetchGitRefs.sh:47) '[' '*/foo' = @ ']'
++(fetchGitRefs.sh:50) git check-ref-format --branch '*/foo'
++(fetchGitRefs.sh:52) expect 1 nix --debug eval --raw --impure --expr '(builtins.fetchGit { url = /var/tmp/nfzmQsSy/tmp/nix-test/main/fetchGitRefs/git; ref = '\'''\''*/foo'\'''\''; }).outPath'
++(fetchGitRefs.sh:52) grep 'invalid Git branch/tag name'
++(/var/tmp/nfzmQsSy/src/common/functions.sh:344) checkGrepArgs 'invalid Git branch/tag name'
++(/var/tmp/nfzmQsSy/src/common/functions.sh:293) local arg
++(/var/tmp/nfzmQsSy/src/common/functions.sh:294) for arg in "$@"
++(/var/tmp/nfzmQsSy/src/common/functions.sh:295) [[ invalid Git branch/tag name != invalid Git branch/tag name ]]
++(/var/tmp/nfzmQsSy/src/common/functions.sh:345) command grep 'invalid Git branch/tag name'
++(fetchGitRefs.sh:105) invalid_ref 'foo/*/bar'
++(fetchGitRefs.sh:44) set +x
+
+>>>>>>>>>> invalid_ref foo/*/bar$ <<<<<<<<<<
++(fetchGitRefs.sh:47) '[' 'foo/*/bar' = @ ']'
++(fetchGitRefs.sh:50) git check-ref-format --branch 'foo/*/bar'
++(fetchGitRefs.sh:52) expect 1 nix --debug eval --raw --impure --expr '(builtins.fetchGit { url = /var/tmp/nfzmQsSy/tmp/nix-test/main/fetchGitRefs/git; ref = '\'''\''foo/*/bar'\'''\''; }).outPath'
++(fetchGitRefs.sh:52) grep 'invalid Git branch/tag name'
++(/var/tmp/nfzmQsSy/src/common/functions.sh:344) checkGrepArgs 'invalid Git branch/tag name'
++(/var/tmp/nfzmQsSy/src/common/functions.sh:293) local arg
++(/var/tmp/nfzmQsSy/src/common/functions.sh:294) for arg in "$@"
++(/var/tmp/nfzmQsSy/src/common/functions.sh:295) [[ invalid Git branch/tag name != invalid Git branch/tag name ]]
++(/var/tmp/nfzmQsSy/src/common/functions.sh:345) command grep 'invalid Git branch/tag name'
++(fetchGitRefs.sh:106) invalid_ref '*'
++(fetchGitRefs.sh:44) set +x
+
+>>>>>>>>>> invalid_ref *$ <<<<<<<<<<
++(fetchGitRefs.sh:47) '[' '*' = @ ']'
++(fetchGitRefs.sh:50) git check-ref-format --branch '*'
++(fetchGitRefs.sh:52) expect 1 nix --debug eval --raw --impure --expr '(builtins.fetchGit { url = /var/tmp/nfzmQsSy/tmp/nix-test/main/fetchGitRefs/git; ref = '\'''\''*'\'''\''; }).outPath'
++(fetchGitRefs.sh:52) grep 'invalid Git branch/tag name'
++(/var/tmp/nfzmQsSy/src/common/functions.sh:344) checkGrepArgs 'invalid Git branch/tag name'
++(/var/tmp/nfzmQsSy/src/common/functions.sh:293) local arg
++(/var/tmp/nfzmQsSy/src/common/functions.sh:294) for arg in "$@"
++(/var/tmp/nfzmQsSy/src/common/functions.sh:295) [[ invalid Git branch/tag name != invalid Git branch/tag name ]]
++(/var/tmp/nfzmQsSy/src/common/functions.sh:345) command grep 'invalid Git branch/tag name'
++(fetchGitRefs.sh:107) invalid_ref 'foo/*/*'
++(fetchGitRefs.sh:44) set +x
+
+>>>>>>>>>> invalid_ref foo/*/*$ <<<<<<<<<<
++(fetchGitRefs.sh:47) '[' 'foo/*/*' = @ ']'
++(fetchGitRefs.sh:50) git check-ref-format --branch 'foo/*/*'
++(fetchGitRefs.sh:52) expect 1 nix --debug eval --raw --impure --expr '(builtins.fetchGit { url = /var/tmp/nfzmQsSy/tmp/nix-test/main/fetchGitRefs/git; ref = '\'''\''foo/*/*'\'''\''; }).outPath'
++(fetchGitRefs.sh:52) grep 'invalid Git branch/tag name'
++(/var/tmp/nfzmQsSy/src/common/functions.sh:344) checkGrepArgs 'invalid Git branch/tag name'
++(/var/tmp/nfzmQsSy/src/common/functions.sh:293) local arg
++(/var/tmp/nfzmQsSy/src/common/functions.sh:294) for arg in "$@"
++(/var/tmp/nfzmQsSy/src/common/functions.sh:295) [[ invalid Git branch/tag name != invalid Git branch/tag name ]]
++(/var/tmp/nfzmQsSy/src/common/functions.sh:345) command grep 'invalid Git branch/tag name'
++(fetchGitRefs.sh:108) invalid_ref '*/foo/*'
++(fetchGitRefs.sh:44) set +x
+
+>>>>>>>>>> invalid_ref */foo/*$ <<<<<<<<<<
++(fetchGitRefs.sh:47) '[' '*/foo/*' = @ ']'
++(fetchGitRefs.sh:50) git check-ref-format --branch '*/foo/*'
++(fetchGitRefs.sh:52) expect 1 nix --debug eval --raw --impure --expr '(builtins.fetchGit { url = /var/tmp/nfzmQsSy/tmp/nix-test/main/fetchGitRefs/git; ref = '\'''\''*/foo/*'\'''\''; }).outPath'
++(fetchGitRefs.sh:52) grep 'invalid Git branch/tag name'
++(/var/tmp/nfzmQsSy/src/common/functions.sh:344) checkGrepArgs 'invalid Git branch/tag name'
++(/var/tmp/nfzmQsSy/src/common/functions.sh:293) local arg
++(/var/tmp/nfzmQsSy/src/common/functions.sh:294) for arg in "$@"
++(/var/tmp/nfzmQsSy/src/common/functions.sh:295) [[ invalid Git branch/tag name != invalid Git branch/tag name ]]
++(/var/tmp/nfzmQsSy/src/common/functions.sh:345) command grep 'invalid Git branch/tag name'
++(fetchGitRefs.sh:109) invalid_ref /foo
++(fetchGitRefs.sh:44) set +x
+
+>>>>>>>>>> invalid_ref /foo$ <<<<<<<<<<
++(fetchGitRefs.sh:47) '[' /foo = @ ']'
++(fetchGitRefs.sh:50) git check-ref-format --branch /foo
++(fetchGitRefs.sh:52) expect 1 nix --debug eval --raw --impure --expr '(builtins.fetchGit { url = /var/tmp/nfzmQsSy/tmp/nix-test/main/fetchGitRefs/git; ref = '\'''\''/foo'\'''\''; }).outPath'
++(fetchGitRefs.sh:52) grep 'invalid Git branch/tag name'
++(/var/tmp/nfzmQsSy/src/common/functions.sh:344) checkGrepArgs 'invalid Git branch/tag name'
++(/var/tmp/nfzmQsSy/src/common/functions.sh:293) local arg
++(/var/tmp/nfzmQsSy/src/common/functions.sh:294) for arg in "$@"
++(/var/tmp/nfzmQsSy/src/common/functions.sh:295) [[ invalid Git branch/tag name != invalid Git branch/tag name ]]
++(/var/tmp/nfzmQsSy/src/common/functions.sh:345) command grep 'invalid Git branch/tag name'
++(fetchGitRefs.sh:110) invalid_ref ''
++(fetchGitRefs.sh:44) set +x
+
+>>>>>>>>>> invalid_ref  <<<<<<<<<<
++(fetchGitRefs.sh:47) '[' '' = @ ']'
++(fetchGitRefs.sh:50) git check-ref-format --branch ''
++(fetchGitRefs.sh:52) expect 1 nix --debug eval --raw --impure --expr '(builtins.fetchGit { url = /var/tmp/nfzmQsSy/tmp/nix-test/main/fetchGitRefs/git; ref = '\'''\'''\'''\''; }).outPath'
++(fetchGitRefs.sh:52) grep 'invalid Git branch/tag name'
++(/var/tmp/nfzmQsSy/src/common/functions.sh:344) checkGrepArgs 'invalid Git branch/tag name'
++(/var/tmp/nfzmQsSy/src/common/functions.sh:293) local arg
++(/var/tmp/nfzmQsSy/src/common/functions.sh:294) for arg in "$@"
++(/var/tmp/nfzmQsSy/src/common/functions.sh:295) [[ invalid Git branch/tag name != invalid Git branch/tag name ]]
++(/var/tmp/nfzmQsSy/src/common/functions.sh:345) command grep 'invalid Git branch/tag name'

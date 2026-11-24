@@ -1,0 +1,935 @@
++(nested-sandboxing.sh:3) source common.sh
+++(common.sh:3) set -eu -o pipefail
+++(common.sh:5) [[ -z '' ]]
+++(common.sh:7) COMMON_SH_SOURCED=1
+++++(common.sh:9) dirname common.sh
++++(common.sh:9) readlink -f .
+++(common.sh:9) functionalTestsDir=/var/tmp/nf6lMfCF/src
+++(common.sh:11) source /var/tmp/nf6lMfCF/src/common/vars.sh
++++(/var/tmp/nf6lMfCF/src/common/vars.sh:3) set -eu -o pipefail
++++(/var/tmp/nf6lMfCF/src/common/vars.sh:5) [[ -z '' ]]
++++(/var/tmp/nf6lMfCF/src/common/vars.sh:7) COMMON_VARS_SH_SOURCED=1
+++++(/var/tmp/nf6lMfCF/src/common/vars.sh:9) realpath /var/tmp/nf6lMfCF/src
++++(/var/tmp/nf6lMfCF/src/common/vars.sh:9) _NIX_TEST_SOURCE_DIR=/var/tmp/nf6lMfCF/src
+++++(/var/tmp/nf6lMfCF/src/common/vars.sh:10) realpath /var/tmp/nf6lMfCF/build
++++(/var/tmp/nf6lMfCF/src/common/vars.sh:10) _NIX_TEST_BUILD_DIR=/var/tmp/nf6lMfCF/build
++++++(/var/tmp/nf6lMfCF/src/common/vars.sh:12) dirname /var/tmp/nf6lMfCF/src/common/vars.sh
+++++(/var/tmp/nf6lMfCF/src/common/vars.sh:12) readlink -f /var/tmp/nf6lMfCF/src/common
++++(/var/tmp/nf6lMfCF/src/common/vars.sh:12) commonDir=/var/tmp/nf6lMfCF/src/common
++++(/var/tmp/nf6lMfCF/src/common/vars.sh:16) source /var/tmp/nf6lMfCF/build/common/subst-vars.sh
+++++(/var/tmp/nf6lMfCF/build/common/subst-vars.sh:3) [[ -z '' ]]
+++++(/var/tmp/nf6lMfCF/build/common/subst-vars.sh:5) COMMON_SUBST_VARS_SH_SOURCED=1
+++++(/var/tmp/nf6lMfCF/build/common/subst-vars.sh:7) bash=/nix/store/2ndah67h0z5m31v2wkdmg2md4380ggr5-bash-interactive-5.3p15/bin/bash
+++++(/var/tmp/nf6lMfCF/build/common/subst-vars.sh:8) bindir=/nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2/bin
+++++(/var/tmp/nf6lMfCF/build/common/subst-vars.sh:9) coreutils=/nix/store/xjl7p8dvyk2j53kqf7f43kdj4ypbxz7g-coreutils-9.11/bin
+++++(/var/tmp/nf6lMfCF/build/common/subst-vars.sh:11) dot=
+++++(/var/tmp/nf6lMfCF/build/common/subst-vars.sh:12) busybox=/nix/store/qddzvnv6b0805nkvbqddbswddcfhx814-busybox-static-x86_64-unknown-linux-musl-1.37.0/bin/busybox
+++++(/var/tmp/nf6lMfCF/build/common/subst-vars.sh:14) version=2.35.2
+++++(/var/tmp/nf6lMfCF/build/common/subst-vars.sh:15) system=x86_64-linux
++++(/var/tmp/nf6lMfCF/src/common/vars.sh:18) : '/nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2/bin /nix/store/xjl7p8dvyk2j53kqf7f43kdj4ypbxz7g-coreutils-9.11/bin  /run/current-system/sw/bin/nu /nix/store/qddzvnv6b0805nkvbqddbswddcfhx814-busybox-static-x86_64-unknown-linux-musl-1.37.0/bin/busybox 2.35.2 x86_64-linux'
++++(/var/tmp/nf6lMfCF/src/common/vars.sh:19) export coreutils dot busybox version system
++++(/var/tmp/nf6lMfCF/src/common/vars.sh:21) export PAGER=cat
++++(/var/tmp/nf6lMfCF/src/common/vars.sh:21) PAGER=cat
++++(/var/tmp/nf6lMfCF/src/common/vars.sh:23) source /var/tmp/nf6lMfCF/src/common/paths.sh
+++++(/var/tmp/nf6lMfCF/src/common/paths.sh:3) set -eu -o pipefail
+++++(/var/tmp/nf6lMfCF/src/common/paths.sh:5) [[ -z '' ]]
+++++(/var/tmp/nf6lMfCF/src/common/paths.sh:7) COMMON_PATHS_SH_SOURCED=1
+++++++(/var/tmp/nf6lMfCF/src/common/paths.sh:9) dirname /var/tmp/nf6lMfCF/src/common/paths.sh
++++++(/var/tmp/nf6lMfCF/src/common/paths.sh:9) readlink -f /var/tmp/nf6lMfCF/src/common
+++++(/var/tmp/nf6lMfCF/src/common/paths.sh:9) commonDir=/var/tmp/nf6lMfCF/src/common
+++++(/var/tmp/nf6lMfCF/src/common/paths.sh:12) source /var/tmp/nf6lMfCF/src/common/functions.sh
++++++(/var/tmp/nf6lMfCF/src/common/functions.sh:3) set -eu -o pipefail
++++++(/var/tmp/nf6lMfCF/src/common/functions.sh:5) [[ -z '' ]]
++++++(/var/tmp/nf6lMfCF/src/common/functions.sh:7) COMMON_FUNCTIONS_SH_SOURCED=1
++++++(/var/tmp/nf6lMfCF/src/common/functions.sh:353) trap onError ERR
+++++(/var/tmp/nf6lMfCF/src/common/paths.sh:14) source /var/tmp/nf6lMfCF/build/common/subst-vars.sh
++++++(/var/tmp/nf6lMfCF/build/common/subst-vars.sh:3) [[ -z 1 ]]
+++++(/var/tmp/nf6lMfCF/src/common/paths.sh:16) : /nix/store/2ndah67h0z5m31v2wkdmg2md4380ggr5-bash-interactive-5.3p15/bin/bash /nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2/bin
+++++(/var/tmp/nf6lMfCF/src/common/paths.sh:18) isTestOnNixOS
+++++(/var/tmp/nf6lMfCF/src/common/functions.sh:10) [[ '' == 1 ]]
+++++(/var/tmp/nf6lMfCF/src/common/paths.sh:19) export SHELL=/nix/store/2ndah67h0z5m31v2wkdmg2md4380ggr5-bash-interactive-5.3p15/bin/bash
+++++(/var/tmp/nf6lMfCF/src/common/paths.sh:19) SHELL=/nix/store/2ndah67h0z5m31v2wkdmg2md4380ggr5-bash-interactive-5.3p15/bin/bash
+++++(/var/tmp/nf6lMfCF/src/common/paths.sh:20) export PATH=/nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2/bin:/nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2/bin:/nix/store/2ndah67h0z5m31v2wkdmg2md4380ggr5-bash-interactive-5.3p15/bin:/nix/store/xjl7p8dvyk2j53kqf7f43kdj4ypbxz7g-coreutils-9.11/bin:/nix/store/xmvbzzxm5snla5a2cyfhm7hjy9bifx7n-gnugrep-3.12/bin:/nix/store/qf2wzyq4irhgyhnq3s2hz0ldjq3w8a3x-gnused-4.10/bin:/nix/store/9zib1q94gka8i5q530364cvy25504qz5-gawk-5.4.1/bin:/nix/store/i9wgqa0l88aprvpwfaq5hkfa6pklhlv0-findutils-4.11.0/bin:/nix/store/b8xvzgd52jby5dfpi0pf46nisy6wma5d-diffutils-3.12/bin:/nix/store/81zqbas7qc02yfdj7142fdcqhxgd3cgz-patch-2.8/bin:/nix/store/c8b0qp903w2hhpa63a2lfs7d565zag30-gnutar-1.35/bin:/nix/store/l5sll8nxk70p73l5yqbsjy4mh0c3g0v5-gzip-1.14/bin:/nix/store/j3yz0ag9j442229n8harpmp9aa5qyvhn-bzip2-1.0.8-bin/bin:/nix/store/518dig8gpvqyac6pkksyjjfzvi9zn8vq-xz-5.8.3-bin/bin:/nix/store/l8ik8mb8lgb60rklxjmkgddmp5qqnv29-zstd-1.5.7-bin/bin:/nix/store/msr1v91ybfw6j12rs5mfl8ghb2rqsnsr-git-2.55.0/bin:/nix/store/hyz22a0l5b5kv7yfypw4ss6d36vbzg01-jq-1.8.2-bin/bin:/nix/store/24gq3bi2yzf7g386p5j32mn78hhanf49-sqlite-3.53.3-bin/bin:/nix/store/cp8qnyl8i0s62g3a1465i258mf5bcr6k-curl-8.22.0-bin/bin:/nix/store/8x4c8zah3fbnyckaic4sskjbw7d2y98n-util-linux-2.42.4-bin/bin:/nix/store/d64q19q1xjdwfhqx6czvrjgrhq0n3lcc-python3-3.14.7/bin:/nix/store/niqsa6mxqsyax9lzbm261a2ml6m71vb6-perl-5.42.3/bin:/nix/store/fv9yl55hkskpc2cj9c0sdyq91car9kgl-file-5.48/bin:/nix/store/jv5kdlkwx0l8a7jdpg21g934ff30s319-which-2.25/bin:/nix/store/aj08b694apkc1jay2akywym9ghlailf5-procps-4.0.7/bin:/nix/store/5wyaj1kvkxbbscz6innrh6yjjkdq4qmk-openssh-10.6p1/bin:/nix/store/44gxi8li8y8wrxrb93sya9hljkpigsqw-openssl-3.6.4-bin/bin:/run/wrappers/wrappers.fo52KqP85R:/nix/store/wmh4xg3557sicfyllmi9ymd8sxaw51wv-man-db-2.13.1/bin:/nix/store/qpgknrlnxca0z99gl12j5n0fgca11cdx-mercurial-7.2.2/bin:/var/tmp/noxi-store-tier/.tmpQ54r6n/reference/tools
+++++(/var/tmp/nf6lMfCF/src/common/paths.sh:20) PATH=/nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2/bin:/nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2/bin:/nix/store/2ndah67h0z5m31v2wkdmg2md4380ggr5-bash-interactive-5.3p15/bin:/nix/store/xjl7p8dvyk2j53kqf7f43kdj4ypbxz7g-coreutils-9.11/bin:/nix/store/xmvbzzxm5snla5a2cyfhm7hjy9bifx7n-gnugrep-3.12/bin:/nix/store/qf2wzyq4irhgyhnq3s2hz0ldjq3w8a3x-gnused-4.10/bin:/nix/store/9zib1q94gka8i5q530364cvy25504qz5-gawk-5.4.1/bin:/nix/store/i9wgqa0l88aprvpwfaq5hkfa6pklhlv0-findutils-4.11.0/bin:/nix/store/b8xvzgd52jby5dfpi0pf46nisy6wma5d-diffutils-3.12/bin:/nix/store/81zqbas7qc02yfdj7142fdcqhxgd3cgz-patch-2.8/bin:/nix/store/c8b0qp903w2hhpa63a2lfs7d565zag30-gnutar-1.35/bin:/nix/store/l5sll8nxk70p73l5yqbsjy4mh0c3g0v5-gzip-1.14/bin:/nix/store/j3yz0ag9j442229n8harpmp9aa5qyvhn-bzip2-1.0.8-bin/bin:/nix/store/518dig8gpvqyac6pkksyjjfzvi9zn8vq-xz-5.8.3-bin/bin:/nix/store/l8ik8mb8lgb60rklxjmkgddmp5qqnv29-zstd-1.5.7-bin/bin:/nix/store/msr1v91ybfw6j12rs5mfl8ghb2rqsnsr-git-2.55.0/bin:/nix/store/hyz22a0l5b5kv7yfypw4ss6d36vbzg01-jq-1.8.2-bin/bin:/nix/store/24gq3bi2yzf7g386p5j32mn78hhanf49-sqlite-3.53.3-bin/bin:/nix/store/cp8qnyl8i0s62g3a1465i258mf5bcr6k-curl-8.22.0-bin/bin:/nix/store/8x4c8zah3fbnyckaic4sskjbw7d2y98n-util-linux-2.42.4-bin/bin:/nix/store/d64q19q1xjdwfhqx6czvrjgrhq0n3lcc-python3-3.14.7/bin:/nix/store/niqsa6mxqsyax9lzbm261a2ml6m71vb6-perl-5.42.3/bin:/nix/store/fv9yl55hkskpc2cj9c0sdyq91car9kgl-file-5.48/bin:/nix/store/jv5kdlkwx0l8a7jdpg21g934ff30s319-which-2.25/bin:/nix/store/aj08b694apkc1jay2akywym9ghlailf5-procps-4.0.7/bin:/nix/store/5wyaj1kvkxbbscz6innrh6yjjkdq4qmk-openssh-10.6p1/bin:/nix/store/44gxi8li8y8wrxrb93sya9hljkpigsqw-openssl-3.6.4-bin/bin:/run/wrappers/wrappers.fo52KqP85R:/nix/store/wmh4xg3557sicfyllmi9ymd8sxaw51wv-man-db-2.13.1/bin:/nix/store/qpgknrlnxca0z99gl12j5n0fgca11cdx-mercurial-7.2.2/bin:/var/tmp/noxi-store-tier/.tmpQ54r6n/reference/tools
+++++(/var/tmp/nf6lMfCF/src/common/paths.sh:23) [[ -n '' ]]
+++++(/var/tmp/nf6lMfCF/src/common/paths.sh:27) DAEMON_PATH=/nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2/bin:/nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2/bin:/nix/store/2ndah67h0z5m31v2wkdmg2md4380ggr5-bash-interactive-5.3p15/bin:/nix/store/xjl7p8dvyk2j53kqf7f43kdj4ypbxz7g-coreutils-9.11/bin:/nix/store/xmvbzzxm5snla5a2cyfhm7hjy9bifx7n-gnugrep-3.12/bin:/nix/store/qf2wzyq4irhgyhnq3s2hz0ldjq3w8a3x-gnused-4.10/bin:/nix/store/9zib1q94gka8i5q530364cvy25504qz5-gawk-5.4.1/bin:/nix/store/i9wgqa0l88aprvpwfaq5hkfa6pklhlv0-findutils-4.11.0/bin:/nix/store/b8xvzgd52jby5dfpi0pf46nisy6wma5d-diffutils-3.12/bin:/nix/store/81zqbas7qc02yfdj7142fdcqhxgd3cgz-patch-2.8/bin:/nix/store/c8b0qp903w2hhpa63a2lfs7d565zag30-gnutar-1.35/bin:/nix/store/l5sll8nxk70p73l5yqbsjy4mh0c3g0v5-gzip-1.14/bin:/nix/store/j3yz0ag9j442229n8harpmp9aa5qyvhn-bzip2-1.0.8-bin/bin:/nix/store/518dig8gpvqyac6pkksyjjfzvi9zn8vq-xz-5.8.3-bin/bin:/nix/store/l8ik8mb8lgb60rklxjmkgddmp5qqnv29-zstd-1.5.7-bin/bin:/nix/store/msr1v91ybfw6j12rs5mfl8ghb2rqsnsr-git-2.55.0/bin:/nix/store/hyz22a0l5b5kv7yfypw4ss6d36vbzg01-jq-1.8.2-bin/bin:/nix/store/24gq3bi2yzf7g386p5j32mn78hhanf49-sqlite-3.53.3-bin/bin:/nix/store/cp8qnyl8i0s62g3a1465i258mf5bcr6k-curl-8.22.0-bin/bin:/nix/store/8x4c8zah3fbnyckaic4sskjbw7d2y98n-util-linux-2.42.4-bin/bin:/nix/store/d64q19q1xjdwfhqx6czvrjgrhq0n3lcc-python3-3.14.7/bin:/nix/store/niqsa6mxqsyax9lzbm261a2ml6m71vb6-perl-5.42.3/bin:/nix/store/fv9yl55hkskpc2cj9c0sdyq91car9kgl-file-5.48/bin:/nix/store/jv5kdlkwx0l8a7jdpg21g934ff30s319-which-2.25/bin:/nix/store/aj08b694apkc1jay2akywym9ghlailf5-procps-4.0.7/bin:/nix/store/5wyaj1kvkxbbscz6innrh6yjjkdq4qmk-openssh-10.6p1/bin:/nix/store/44gxi8li8y8wrxrb93sya9hljkpigsqw-openssl-3.6.4-bin/bin:/run/wrappers/wrappers.fo52KqP85R:/nix/store/wmh4xg3557sicfyllmi9ymd8sxaw51wv-man-db-2.13.1/bin:/nix/store/qpgknrlnxca0z99gl12j5n0fgca11cdx-mercurial-7.2.2/bin:/var/tmp/noxi-store-tier/.tmpQ54r6n/reference/tools
+++++(/var/tmp/nf6lMfCF/src/common/paths.sh:28) [[ -n '' ]]
++++(/var/tmp/nf6lMfCF/src/common/vars.sh:24) source /var/tmp/nf6lMfCF/src/common/test-root.sh
+++++(/var/tmp/nf6lMfCF/src/common/test-root.sh:3) TEST_SUBDIR=main/nested-sandboxing
++++++(/var/tmp/nf6lMfCF/src/common/test-root.sh:4) realpath /var/tmp/nf6lMfCF/tmp/nix-test
+++++(/var/tmp/nf6lMfCF/src/common/test-root.sh:4) TEST_ROOT=/var/tmp/nf6lMfCF/tmp/nix-test/main/nested-sandboxing
+++++(/var/tmp/nf6lMfCF/src/common/test-root.sh:5) export TEST_ROOT
++++(/var/tmp/nf6lMfCF/src/common/vars.sh:26) test_nix_conf_dir=/var/tmp/nf6lMfCF/tmp/nix-test/main/nested-sandboxing/etc
++++(/var/tmp/nf6lMfCF/src/common/vars.sh:29) test_nix_conf=/var/tmp/nf6lMfCF/tmp/nix-test/main/nested-sandboxing/etc/nix.conf
++++(/var/tmp/nf6lMfCF/src/common/vars.sh:31) export TEST_HOME=/var/tmp/nf6lMfCF/tmp/nix-test/main/nested-sandboxing/test-home
++++(/var/tmp/nf6lMfCF/src/common/vars.sh:31) TEST_HOME=/var/tmp/nf6lMfCF/tmp/nix-test/main/nested-sandboxing/test-home
++++(/var/tmp/nf6lMfCF/src/common/vars.sh:33) isTestOnNixOS
++++(/var/tmp/nf6lMfCF/src/common/functions.sh:10) [[ '' == 1 ]]
++++(/var/tmp/nf6lMfCF/src/common/vars.sh:34) export NIX_STORE_DIR
+++++(/var/tmp/nf6lMfCF/src/common/vars.sh:35) readlink -f /var/tmp/nf6lMfCF/tmp/nix-test/main/nested-sandboxing/store
++++(/var/tmp/nf6lMfCF/src/common/vars.sh:35) NIX_STORE_DIR=
++++(/var/tmp/nf6lMfCF/src/common/vars.sh:37) export NIX_IGNORE_SYMLINK_STORE=1
++++(/var/tmp/nf6lMfCF/src/common/vars.sh:37) NIX_IGNORE_SYMLINK_STORE=1
++++(/var/tmp/nf6lMfCF/src/common/vars.sh:38) NIX_STORE_DIR=/var/tmp/nf6lMfCF/tmp/nix-test/main/nested-sandboxing/store
++++(/var/tmp/nf6lMfCF/src/common/vars.sh:40) export NIX_LOCALSTATE_DIR=/var/tmp/nf6lMfCF/tmp/nix-test/main/nested-sandboxing/var
++++(/var/tmp/nf6lMfCF/src/common/vars.sh:40) NIX_LOCALSTATE_DIR=/var/tmp/nf6lMfCF/tmp/nix-test/main/nested-sandboxing/var
++++(/var/tmp/nf6lMfCF/src/common/vars.sh:41) export NIX_LOG_DIR=/var/tmp/nf6lMfCF/tmp/nix-test/main/nested-sandboxing/var/log/nix
++++(/var/tmp/nf6lMfCF/src/common/vars.sh:41) NIX_LOG_DIR=/var/tmp/nf6lMfCF/tmp/nix-test/main/nested-sandboxing/var/log/nix
++++(/var/tmp/nf6lMfCF/src/common/vars.sh:42) export NIX_STATE_DIR=/var/tmp/nf6lMfCF/tmp/nix-test/main/nested-sandboxing/var/nix
++++(/var/tmp/nf6lMfCF/src/common/vars.sh:42) NIX_STATE_DIR=/var/tmp/nf6lMfCF/tmp/nix-test/main/nested-sandboxing/var/nix
++++(/var/tmp/nf6lMfCF/src/common/vars.sh:43) export NIX_CONF_DIR=/var/tmp/nf6lMfCF/tmp/nix-test/main/nested-sandboxing/etc
++++(/var/tmp/nf6lMfCF/src/common/vars.sh:43) NIX_CONF_DIR=/var/tmp/nf6lMfCF/tmp/nix-test/main/nested-sandboxing/etc
++++(/var/tmp/nf6lMfCF/src/common/vars.sh:44) export NIX_DAEMON_SOCKET_PATH=/var/tmp/nf6lMfCF/tmp/nix-test/main/nested-sandboxing/dSocket
++++(/var/tmp/nf6lMfCF/src/common/vars.sh:44) NIX_DAEMON_SOCKET_PATH=/var/tmp/nf6lMfCF/tmp/nix-test/main/nested-sandboxing/dSocket
++++(/var/tmp/nf6lMfCF/src/common/vars.sh:45) unset NIX_USER_CONF_FILES
++++(/var/tmp/nf6lMfCF/src/common/vars.sh:46) export _NIX_TEST_SHARED=/var/tmp/nf6lMfCF/tmp/nix-test/main/nested-sandboxing/shared
++++(/var/tmp/nf6lMfCF/src/common/vars.sh:46) _NIX_TEST_SHARED=/var/tmp/nf6lMfCF/tmp/nix-test/main/nested-sandboxing/shared
++++(/var/tmp/nf6lMfCF/src/common/vars.sh:47) [[ -n '' ]]
++++(/var/tmp/nf6lMfCF/src/common/vars.sh:50) export _NIX_IN_TEST=/var/tmp/nf6lMfCF/tmp/nix-test/main/nested-sandboxing/shared
++++(/var/tmp/nf6lMfCF/src/common/vars.sh:50) _NIX_IN_TEST=/var/tmp/nf6lMfCF/tmp/nix-test/main/nested-sandboxing/shared
++++(/var/tmp/nf6lMfCF/src/common/vars.sh:51) export _NIX_TEST_NO_LSOF=1
++++(/var/tmp/nf6lMfCF/src/common/vars.sh:51) _NIX_TEST_NO_LSOF=1
++++(/var/tmp/nf6lMfCF/src/common/vars.sh:54) export _NIX_TEST_NO_ENVIRONMENT_WARNINGS=1
++++(/var/tmp/nf6lMfCF/src/common/vars.sh:54) _NIX_TEST_NO_ENVIRONMENT_WARNINGS=1
++++(/var/tmp/nf6lMfCF/src/common/vars.sh:55) export NIX_REMOTE=
++++(/var/tmp/nf6lMfCF/src/common/vars.sh:55) NIX_REMOTE=
++++(/var/tmp/nf6lMfCF/src/common/vars.sh:59) unset NIX_PATH
++++(/var/tmp/nf6lMfCF/src/common/vars.sh:60) export HOME=/var/tmp/nf6lMfCF/tmp/nix-test/main/nested-sandboxing/test-home
++++(/var/tmp/nf6lMfCF/src/common/vars.sh:60) HOME=/var/tmp/nf6lMfCF/tmp/nix-test/main/nested-sandboxing/test-home
++++(/var/tmp/nf6lMfCF/src/common/vars.sh:61) unset XDG_STATE_HOME
++++(/var/tmp/nf6lMfCF/src/common/vars.sh:62) unset XDG_DATA_HOME
++++(/var/tmp/nf6lMfCF/src/common/vars.sh:63) unset XDG_CONFIG_HOME
++++(/var/tmp/nf6lMfCF/src/common/vars.sh:64) unset XDG_CONFIG_DIRS
++++(/var/tmp/nf6lMfCF/src/common/vars.sh:65) unset XDG_CACHE_HOME
++++(/var/tmp/nf6lMfCF/src/common/vars.sh:66) unset GIT_DIR
++++(/var/tmp/nf6lMfCF/src/common/vars.sh:68) export GIT_CONFIG_SYSTEM=/dev/null
++++(/var/tmp/nf6lMfCF/src/common/vars.sh:68) GIT_CONFIG_SYSTEM=/dev/null
++++(/var/tmp/nf6lMfCF/src/common/vars.sh:69) export GIT_CONFIG_GLOBAL=/dev/null
++++(/var/tmp/nf6lMfCF/src/common/vars.sh:69) GIT_CONFIG_GLOBAL=/dev/null
++++(/var/tmp/nf6lMfCF/src/common/vars.sh:71) export IMPURE_VAR1=foo
++++(/var/tmp/nf6lMfCF/src/common/vars.sh:71) IMPURE_VAR1=foo
++++(/var/tmp/nf6lMfCF/src/common/vars.sh:72) export IMPURE_VAR2=bar
++++(/var/tmp/nf6lMfCF/src/common/vars.sh:72) IMPURE_VAR2=bar
++++(/var/tmp/nf6lMfCF/src/common/vars.sh:76) cacheDir=/var/tmp/nf6lMfCF/tmp/nix-test/main/nested-sandboxing/binary-cache
+++++(/var/tmp/nf6lMfCF/src/common/vars.sh:78) uname
++++(/var/tmp/nf6lMfCF/src/common/vars.sh:78) [[ Linux == Linux ]]
++++(/var/tmp/nf6lMfCF/src/common/vars.sh:78) [[ -L /proc/self/ns/user ]]
++++(/var/tmp/nf6lMfCF/src/common/vars.sh:78) unshare --user true
++++(/var/tmp/nf6lMfCF/src/common/vars.sh:79) _canUseSandbox=1
++++(/var/tmp/nf6lMfCF/src/common/vars.sh:85) config_nix=/var/tmp/nf6lMfCF/tmp/nix-test/main/nested-sandboxing/config.nix
+++(common.sh:12) source /var/tmp/nf6lMfCF/src/common/functions.sh
++++(/var/tmp/nf6lMfCF/src/common/functions.sh:3) set -eu -o pipefail
++++(/var/tmp/nf6lMfCF/src/common/functions.sh:5) [[ -z 1 ]]
+++(common.sh:13) source /var/tmp/nf6lMfCF/src/common/init.sh
++++(/var/tmp/nf6lMfCF/src/common/init.sh:4) : /var/tmp/nf6lMfCF/tmp/nix-test/main/nested-sandboxing/etc /var/tmp/nf6lMfCF/tmp/nix-test/main/nested-sandboxing/etc/nix.conf /var/tmp/nf6lMfCF/tmp/nix-test/main/nested-sandboxing/config.nix
++++(/var/tmp/nf6lMfCF/src/common/init.sh:6) isTestOnNixOS
++++(/var/tmp/nf6lMfCF/src/common/functions.sh:10) [[ '' == 1 ]]
++++(/var/tmp/nf6lMfCF/src/common/init.sh:29) test -n /var/tmp/nf6lMfCF/tmp/nix-test/main/nested-sandboxing
++++(/var/tmp/nf6lMfCF/src/common/init.sh:31) killDaemon
++++(/var/tmp/nf6lMfCF/src/common/functions.sh:100) isTestOnNixOS
++++(/var/tmp/nf6lMfCF/src/common/functions.sh:10) [[ '' == 1 ]]
++++(/var/tmp/nf6lMfCF/src/common/functions.sh:105) [[ '' == '' ]]
++++(/var/tmp/nf6lMfCF/src/common/functions.sh:106) return
++++(/var/tmp/nf6lMfCF/src/common/init.sh:33) [[ -e /var/tmp/nf6lMfCF/tmp/nix-test/main/nested-sandboxing ]]
++++(/var/tmp/nf6lMfCF/src/common/init.sh:37) mkdir -p /var/tmp/nf6lMfCF/tmp/nix-test/main/nested-sandboxing
++++(/var/tmp/nf6lMfCF/src/common/init.sh:38) mkdir /var/tmp/nf6lMfCF/tmp/nix-test/main/nested-sandboxing/test-home
++++(/var/tmp/nf6lMfCF/src/common/init.sh:40) mkdir /var/tmp/nf6lMfCF/tmp/nix-test/main/nested-sandboxing/store
++++(/var/tmp/nf6lMfCF/src/common/init.sh:41) mkdir /var/tmp/nf6lMfCF/tmp/nix-test/main/nested-sandboxing/var
++++(/var/tmp/nf6lMfCF/src/common/init.sh:42) mkdir -p /var/tmp/nf6lMfCF/tmp/nix-test/main/nested-sandboxing/var/log/nix/drvs
++++(/var/tmp/nf6lMfCF/src/common/init.sh:43) mkdir /var/tmp/nf6lMfCF/tmp/nix-test/main/nested-sandboxing/var/nix
++++(/var/tmp/nf6lMfCF/src/common/init.sh:44) mkdir /var/tmp/nf6lMfCF/tmp/nix-test/main/nested-sandboxing/etc
++++(/var/tmp/nf6lMfCF/src/common/init.sh:46) cat
+++++(/var/tmp/nf6lMfCF/src/common/init.sh:46) whoami
++++(/var/tmp/nf6lMfCF/src/common/init.sh:59) cat
++++(/var/tmp/nf6lMfCF/src/common/init.sh:67) nix-store --init
++++(/var/tmp/nf6lMfCF/src/common/init.sh:69) test -e /var/tmp/nf6lMfCF/tmp/nix-test/main/nested-sandboxing/var/nix/db/db.sqlite
++++(/var/tmp/nf6lMfCF/src/common/init.sh:75) echo '# config.nix for test main / nested-sandboxing'
++++(/var/tmp/nf6lMfCF/src/common/init.sh:76) cat /var/tmp/nf6lMfCF/build/config.nix
+++(common.sh:15) [[ -n '' ]]
++(nested-sandboxing.sh:5) [[ -d /nix/store ]]
++(nested-sandboxing.sh:7) TODO_NixOS
++(/var/tmp/nf6lMfCF/src/common/functions.sh:148) isTestOnNixOS
++(/var/tmp/nf6lMfCF/src/common/functions.sh:10) [[ '' == 1 ]]
++(nested-sandboxing.sh:9) requireSandboxSupport
++(/var/tmp/nf6lMfCF/src/common/functions.sh:162) canUseSandbox
++(/var/tmp/nf6lMfCF/src/common/functions.sh:158) [[ -n 1 ]]
++(nested-sandboxing.sh:10) requiresUnprivilegedUserNamespaces
++(/var/tmp/nf6lMfCF/src/common/functions.sh:356) [[ -f /proc/sys/kernel/apparmor_restrict_unprivileged_userns ]]
++(nested-sandboxing.sh:12) start=/var/tmp/nf6lMfCF/tmp/nix-test/main/nested-sandboxing/start
++(nested-sandboxing.sh:13) mkdir -p /var/tmp/nf6lMfCF/tmp/nix-test/main/nested-sandboxing/start
++(nested-sandboxing.sh:14) cp -r common common.sh /var/tmp/nf6lMfCF/tmp/nix-test/main/nested-sandboxing/config.nix ./nested-sandboxing /var/tmp/nf6lMfCF/tmp/nix-test/main/nested-sandboxing/start
++(nested-sandboxing.sh:15) cp /var/tmp/nf6lMfCF/build/common/subst-vars.sh /var/tmp/nf6lMfCF/tmp/nix-test/main/nested-sandboxing/start/common
++(nested-sandboxing.sh:17) _NIX_TEST_SOURCE_DIR=/var/tmp/nf6lMfCF/tmp/nix-test/main/nested-sandboxing/start
++(nested-sandboxing.sh:18) _NIX_TEST_BUILD_DIR=/var/tmp/nf6lMfCF/tmp/nix-test/main/nested-sandboxing/start
++(nested-sandboxing.sh:19) cd /var/tmp/nf6lMfCF/tmp/nix-test/main/nested-sandboxing/start
++(nested-sandboxing.sh:21) source ./nested-sandboxing/command.sh
+++(./nested-sandboxing/command.sh:2) set -eu -o pipefail
+++++(./nested-sandboxing/command.sh:4) type -p nix
++++(./nested-sandboxing/command.sh:4) dirname /nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2/bin/nix
+++(./nested-sandboxing/command.sh:4) NIX_BIN_DIR=/nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2/bin
+++(./nested-sandboxing/command.sh:5) export NIX_BIN_DIR
++++(./nested-sandboxing/command.sh:7) dirname /nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2/bin
+++(./nested-sandboxing/command.sh:7) EXTRA_SANDBOX='/nix/store /nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2'
+++(./nested-sandboxing/command.sh:8) export EXTRA_SANDBOX
++(nested-sandboxing.sh:24) expectStderr 100 runNixBuild badStoreUrl 2
++(/var/tmp/nf6lMfCF/src/common/functions.sh:201) local expected res
++(/var/tmp/nf6lMfCF/src/common/functions.sh:202) expected=100
++(/var/tmp/nf6lMfCF/src/common/functions.sh:203) shift
++(/var/tmp/nf6lMfCF/src/common/functions.sh:204) runNixBuild badStoreUrl 2
++(nested-sandboxing.sh:24) grepQuiet '`sandbox-build-dir` must not contain'
++(/var/tmp/nf6lMfCF/src/common/functions.sh:330) checkGrepArgs '`sandbox-build-dir` must not contain'
++(/var/tmp/nf6lMfCF/src/common/functions.sh:293) local arg
++(/var/tmp/nf6lMfCF/src/common/functions.sh:294) for arg in "$@"
++(/var/tmp/nf6lMfCF/src/common/functions.sh:295) [[ `sandbox-build-dir` must not contain != `sandbox\-build\-dir` must not contain ]]
++(/var/tmp/nf6lMfCF/src/common/functions.sh:331) command grep '`sandbox-build-dir` must not contain'
++(/var/tmp/nf6lMfCF/src/common/functions.sh:204) res=100
++(/var/tmp/nf6lMfCF/src/common/functions.sh:206) [[ 100 -ne 100 ]]
++(/var/tmp/nf6lMfCF/src/common/functions.sh:210) return 0
++(nested-sandboxing.sh:26) runNixBuild goodStoreUrl 5
++(./nested-sandboxing/command.sh:25) local storeFun=goodStoreUrl
++(./nested-sandboxing/command.sh:26) local altitude=5
+++(./nested-sandboxing/command.sh:27) goodStoreUrl 5
+++(./nested-sandboxing/command.sh:16) local altitude=5
++++(./nested-sandboxing/command.sh:17) badStoreUrl 5
++++(./nested-sandboxing/command.sh:11) local altitude=5
++++(./nested-sandboxing/command.sh:12) echo /var/tmp/nf6lMfCF/tmp/nix-test/main/nested-sandboxing/store-5
+++(./nested-sandboxing/command.sh:17) echo '/var/tmp/nf6lMfCF/tmp/nix-test/main/nested-sandboxing/store-5?store=/foo-5'
++(./nested-sandboxing/command.sh:27) nix-build --no-substitute --no-out-link --store '/var/tmp/nf6lMfCF/tmp/nix-test/main/nested-sandboxing/store-5?store=/foo-5' --extra-sandbox-paths '/nix/store /nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2' ./nested-sandboxing/runner.nix --arg altitude 4 --argstr storeFun goodStoreUrl --sandbox-build-dir /build-non-standard
+this derivation will be built:
+  /foo-5/m2dy8640prr560xsdci2vn25fqmyd5zd-nested-sandboxing.drv
+building '/foo-5/m2dy8640prr560xsdci2vn25fqmyd5zd-nested-sandboxing.drv'...
+++ set -eu -o pipefail
+++ cp -r /foo-5/2q9k3907q9smngmq7kq7wsk9641fbcr7-common ./common
+++ cp /foo-5/jcq25szp993k755hlgdrjzvx2ysq64zj-common.sh ./common.sh
+++ cp /foo-5/83z2h68mwvdqq4dyxfadqqbjcic8g40x-config.nix ./config.nix
+++ cp -r /foo-5/syskk600cls987jffrv1qgkxb6a931p7-nested-sandboxing ./nested-sandboxing
+++ export PATH=/nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2/bin:/nix/store/xjl7p8dvyk2j53kqf7f43kdj4ypbxz7g-coreutils-9.11/bin
+++ PATH=/nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2/bin:/nix/store/xjl7p8dvyk2j53kqf7f43kdj4ypbxz7g-coreutils-9.11/bin
+++ export _NIX_TEST_SOURCE_DIR=/build-non-standard
+++ _NIX_TEST_SOURCE_DIR=/build-non-standard
+++ export _NIX_TEST_BUILD_DIR=/build-non-standard
+++ _NIX_TEST_BUILD_DIR=/build-non-standard
+++ source common.sh
++++ set -eu -o pipefail
++++ [[ -z '' ]]
++++ COMMON_SH_SOURCED=1
++++++ dirname common.sh
+++++ readlink -f .
++++ functionalTestsDir=/build-non-standard
++++ source /build-non-standard/common/vars.sh
+++++ set -eu -o pipefail
+++++ [[ -z '' ]]
+++++ COMMON_VARS_SH_SOURCED=1
++++++ realpath /build-non-standard
+++++ _NIX_TEST_SOURCE_DIR=/build-non-standard
++++++ realpath /build-non-standard
+++++ _NIX_TEST_BUILD_DIR=/build-non-standard
+++++++ dirname /build-non-standard/common/vars.sh
++++++ readlink -f /build-non-standard/common
+++++ commonDir=/build-non-standard/common
+++++ source /build-non-standard/common/subst-vars.sh
++++++ [[ -z '' ]]
++++++ COMMON_SUBST_VARS_SH_SOURCED=1
++++++ bash=/nix/store/2ndah67h0z5m31v2wkdmg2md4380ggr5-bash-interactive-5.3p15/bin/bash
++++++ bindir=/nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2/bin
++++++ coreutils=/nix/store/xjl7p8dvyk2j53kqf7f43kdj4ypbxz7g-coreutils-9.11/bin
++++++ dot=
++++++ busybox=/nix/store/qddzvnv6b0805nkvbqddbswddcfhx814-busybox-static-x86_64-unknown-linux-musl-1.37.0/bin/busybox
++++++ version=2.35.2
++++++ system=x86_64-linux
+++++ : '/nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2/bin /nix/store/xjl7p8dvyk2j53kqf7f43kdj4ypbxz7g-coreutils-9.11/bin  /noshell /nix/store/qddzvnv6b0805nkvbqddbswddcfhx814-busybox-static-x86_64-unknown-linux-musl-1.37.0/bin/busybox 2.35.2 x86_64-linux'
+++++ export coreutils dot busybox version system
+++++ export PAGER=cat
+++++ PAGER=cat
+++++ source /build-non-standard/common/paths.sh
++++++ set -eu -o pipefail
++++++ [[ -z '' ]]
++++++ COMMON_PATHS_SH_SOURCED=1
++++++++ dirname /build-non-standard/common/paths.sh
+++++++ readlink -f /build-non-standard/common
++++++ commonDir=/build-non-standard/common
++++++ source /build-non-standard/common/functions.sh
+++++++ set -eu -o pipefail
+++++++ [[ -z '' ]]
+++++++ COMMON_FUNCTIONS_SH_SOURCED=1
+++++++ trap onError ERR
++++++ source /build-non-standard/common/subst-vars.sh
+++++++ [[ -z 1 ]]
++++++ : /nix/store/2ndah67h0z5m31v2wkdmg2md4380ggr5-bash-interactive-5.3p15/bin/bash /nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2/bin
++++++ isTestOnNixOS
++++++ [[ '' == 1 ]]
++++++ export SHELL=/nix/store/2ndah67h0z5m31v2wkdmg2md4380ggr5-bash-interactive-5.3p15/bin/bash
++++++ SHELL=/nix/store/2ndah67h0z5m31v2wkdmg2md4380ggr5-bash-interactive-5.3p15/bin/bash
++++++ export PATH=/nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2/bin:/nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2/bin:/nix/store/xjl7p8dvyk2j53kqf7f43kdj4ypbxz7g-coreutils-9.11/bin
++++++ PATH=/nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2/bin:/nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2/bin:/nix/store/xjl7p8dvyk2j53kqf7f43kdj4ypbxz7g-coreutils-9.11/bin
++++++ [[ -n '' ]]
++++++ DAEMON_PATH=/nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2/bin:/nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2/bin:/nix/store/xjl7p8dvyk2j53kqf7f43kdj4ypbxz7g-coreutils-9.11/bin
++++++ [[ -n '' ]]
+++++ source /build-non-standard/common/test-root.sh
++++++ TEST_SUBDIR=main/nested-sandboxing
+++++++ realpath /build-non-standard/nix-test
++++++ TEST_ROOT=/build-non-standard/nix-test/main/nested-sandboxing
++++++ export TEST_ROOT
+++++ test_nix_conf_dir=/build-non-standard/nix-test/main/nested-sandboxing/etc
+++++ test_nix_conf=/build-non-standard/nix-test/main/nested-sandboxing/etc/nix.conf
+++++ export TEST_HOME=/build-non-standard/nix-test/main/nested-sandboxing/test-home
+++++ TEST_HOME=/build-non-standard/nix-test/main/nested-sandboxing/test-home
+++++ isTestOnNixOS
+++++ [[ '' == 1 ]]
+++++ export NIX_STORE_DIR
++++++ readlink -f /build-non-standard/nix-test/main/nested-sandboxing/store
+++++ NIX_STORE_DIR=
+++++ export NIX_IGNORE_SYMLINK_STORE=1
+++++ NIX_IGNORE_SYMLINK_STORE=1
+++++ NIX_STORE_DIR=/build-non-standard/nix-test/main/nested-sandboxing/store
+++++ export NIX_LOCALSTATE_DIR=/build-non-standard/nix-test/main/nested-sandboxing/var
+++++ NIX_LOCALSTATE_DIR=/build-non-standard/nix-test/main/nested-sandboxing/var
+++++ export NIX_LOG_DIR=/build-non-standard/nix-test/main/nested-sandboxing/var/log/nix
+++++ NIX_LOG_DIR=/build-non-standard/nix-test/main/nested-sandboxing/var/log/nix
+++++ export NIX_STATE_DIR=/build-non-standard/nix-test/main/nested-sandboxing/var/nix
+++++ NIX_STATE_DIR=/build-non-standard/nix-test/main/nested-sandboxing/var/nix
+++++ export NIX_CONF_DIR=/build-non-standard/nix-test/main/nested-sandboxing/etc
+++++ NIX_CONF_DIR=/build-non-standard/nix-test/main/nested-sandboxing/etc
+++++ export NIX_DAEMON_SOCKET_PATH=/build-non-standard/nix-test/main/nested-sandboxing/dSocket
+++++ NIX_DAEMON_SOCKET_PATH=/build-non-standard/nix-test/main/nested-sandboxing/dSocket
+++++ unset NIX_USER_CONF_FILES
+++++ export _NIX_TEST_SHARED=/build-non-standard/nix-test/main/nested-sandboxing/shared
+++++ _NIX_TEST_SHARED=/build-non-standard/nix-test/main/nested-sandboxing/shared
+++++ [[ -n /foo-5 ]]
+++++ export _NIX_TEST_NO_SANDBOX=1
+++++ _NIX_TEST_NO_SANDBOX=1
+++++ export _NIX_IN_TEST=/build-non-standard/nix-test/main/nested-sandboxing/shared
+++++ _NIX_IN_TEST=/build-non-standard/nix-test/main/nested-sandboxing/shared
+++++ export _NIX_TEST_NO_LSOF=1
+++++ _NIX_TEST_NO_LSOF=1
+++++ export _NIX_TEST_NO_ENVIRONMENT_WARNINGS=1
+++++ _NIX_TEST_NO_ENVIRONMENT_WARNINGS=1
+++++ export NIX_REMOTE=
+++++ NIX_REMOTE=
+++++ unset NIX_PATH
+++++ export HOME=/build-non-standard/nix-test/main/nested-sandboxing/test-home
+++++ HOME=/build-non-standard/nix-test/main/nested-sandboxing/test-home
+++++ unset XDG_STATE_HOME
+++++ unset XDG_DATA_HOME
+++++ unset XDG_CONFIG_HOME
+++++ unset XDG_CONFIG_DIRS
+++++ unset XDG_CACHE_HOME
+++++ unset GIT_DIR
+++++ export GIT_CONFIG_SYSTEM=/dev/null
+++++ GIT_CONFIG_SYSTEM=/dev/null
+++++ export GIT_CONFIG_GLOBAL=/dev/null
+++++ GIT_CONFIG_GLOBAL=/dev/null
+++++ export IMPURE_VAR1=foo
+++++ IMPURE_VAR1=foo
+++++ export IMPURE_VAR2=bar
+++++ IMPURE_VAR2=bar
+++++ cacheDir=/build-non-standard/nix-test/main/nested-sandboxing/binary-cache
++++++ uname
+++++ [[ Linux == Linux ]]
+++++ [[ -L /proc/self/ns/user ]]
+++++ unshare --user true
+/build-non-standard/common/vars.sh: line 78: unshare: command not found
+++++ config_nix=/build-non-standard/nix-test/main/nested-sandboxing/config.nix
++++ source /build-non-standard/common/functions.sh
+++++ set -eu -o pipefail
+++++ [[ -z 1 ]]
++++ source /build-non-standard/common/init.sh
+++++ : /build-non-standard/nix-test/main/nested-sandboxing/etc /build-non-standard/nix-test/main/nested-sandboxing/etc/nix.conf /build-non-standard/nix-test/main/nested-sandboxing/config.nix
+++++ isTestOnNixOS
+++++ [[ '' == 1 ]]
+++++ test -n /build-non-standard/nix-test/main/nested-sandboxing
+++++ killDaemon
+++++ isTestOnNixOS
+++++ [[ '' == 1 ]]
+++++ [[ '' == '' ]]
+++++ return
+++++ [[ -e /build-non-standard/nix-test/main/nested-sandboxing ]]
+++++ mkdir -p /build-non-standard/nix-test/main/nested-sandboxing
+++++ mkdir /build-non-standard/nix-test/main/nested-sandboxing/test-home
+++++ mkdir /build-non-standard/nix-test/main/nested-sandboxing/store
+++++ mkdir /build-non-standard/nix-test/main/nested-sandboxing/var
+++++ mkdir -p /build-non-standard/nix-test/main/nested-sandboxing/var/log/nix/drvs
+++++ mkdir /build-non-standard/nix-test/main/nested-sandboxing/var/nix
+++++ mkdir /build-non-standard/nix-test/main/nested-sandboxing/etc
+++++ cat
++++++ whoami
+++++ cat
+++++ nix-store --init
+++++ test -e /build-non-standard/nix-test/main/nested-sandboxing/var/nix/db/db.sqlite
+++++ echo '# config.nix for test main / nested-sandboxing'
+++++ cat /build-non-standard/config.nix
++++ [[ -n '' ]]
+++ source ./nested-sandboxing/command.sh
++++ set -eu -o pipefail
++++++ type -p nix
+++++ dirname /nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2/bin/nix
++++ NIX_BIN_DIR=/nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2/bin
++++ export NIX_BIN_DIR
+++++ dirname /nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2/bin
++++ EXTRA_SANDBOX='/nix/store /nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2'
++++ export EXTRA_SANDBOX
+++ runNixBuild goodStoreUrl 4
+++ local storeFun=goodStoreUrl
+++ local altitude=4
++++ goodStoreUrl 4
++++ local altitude=4
+++++ badStoreUrl 4
+++++ local altitude=4
+++++ echo /build-non-standard/nix-test/main/nested-sandboxing/store-4
++++ echo '/build-non-standard/nix-test/main/nested-sandboxing/store-4?store=/foo-4'
+++ nix-build --no-substitute --no-out-link --store '/build-non-standard/nix-test/main/nested-sandboxing/store-4?store=/foo-4' --extra-sandbox-paths '/nix/store /nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2' ./nested-sandboxing/runner.nix --arg altitude 3 --argstr storeFun goodStoreUrl --sandbox-build-dir /build-non-standard
+this derivation will be built:
+  /foo-4/6bchb233xwayfb3gphibiw73nm94f6jk-nested-sandboxing.drv
+building '/foo-4/6bchb233xwayfb3gphibiw73nm94f6jk-nested-sandboxing.drv'...
+++ set -eu -o pipefail
+++ cp -r /foo-4/gi194p1z6qam9h6jy442hxj6ksf1zxf6-common ./common
+++ cp /foo-4/31rcnjyrz8wr53lfq5418chdysy2qfnr-common.sh ./common.sh
+++ cp /foo-4/3m99yi1pgnpldmz9c4scvpf5cwqkznrm-config.nix ./config.nix
+++ cp -r /foo-4/kw9kdyg0kfkj0pkhikrj29m6sni9dzcl-nested-sandboxing ./nested-sandboxing
+++ export PATH=/nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2/bin:/nix/store/xjl7p8dvyk2j53kqf7f43kdj4ypbxz7g-coreutils-9.11/bin
+++ PATH=/nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2/bin:/nix/store/xjl7p8dvyk2j53kqf7f43kdj4ypbxz7g-coreutils-9.11/bin
+++ export _NIX_TEST_SOURCE_DIR=/build-non-standard
+++ _NIX_TEST_SOURCE_DIR=/build-non-standard
+++ export _NIX_TEST_BUILD_DIR=/build-non-standard
+++ _NIX_TEST_BUILD_DIR=/build-non-standard
+++ source common.sh
++++ set -eu -o pipefail
++++ [[ -z '' ]]
++++ COMMON_SH_SOURCED=1
++++++ dirname common.sh
+++++ readlink -f .
++++ functionalTestsDir=/build-non-standard
++++ source /build-non-standard/common/vars.sh
+++++ set -eu -o pipefail
+++++ [[ -z '' ]]
+++++ COMMON_VARS_SH_SOURCED=1
++++++ realpath /build-non-standard
+++++ _NIX_TEST_SOURCE_DIR=/build-non-standard
++++++ realpath /build-non-standard
+++++ _NIX_TEST_BUILD_DIR=/build-non-standard
+++++++ dirname /build-non-standard/common/vars.sh
++++++ readlink -f /build-non-standard/common
+++++ commonDir=/build-non-standard/common
+++++ source /build-non-standard/common/subst-vars.sh
++++++ [[ -z '' ]]
++++++ COMMON_SUBST_VARS_SH_SOURCED=1
++++++ bash=/nix/store/2ndah67h0z5m31v2wkdmg2md4380ggr5-bash-interactive-5.3p15/bin/bash
++++++ bindir=/nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2/bin
++++++ coreutils=/nix/store/xjl7p8dvyk2j53kqf7f43kdj4ypbxz7g-coreutils-9.11/bin
++++++ dot=
++++++ busybox=/nix/store/qddzvnv6b0805nkvbqddbswddcfhx814-busybox-static-x86_64-unknown-linux-musl-1.37.0/bin/busybox
++++++ version=2.35.2
++++++ system=x86_64-linux
+++++ : '/nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2/bin /nix/store/xjl7p8dvyk2j53kqf7f43kdj4ypbxz7g-coreutils-9.11/bin  /noshell /nix/store/qddzvnv6b0805nkvbqddbswddcfhx814-busybox-static-x86_64-unknown-linux-musl-1.37.0/bin/busybox 2.35.2 x86_64-linux'
+++++ export coreutils dot busybox version system
+++++ export PAGER=cat
+++++ PAGER=cat
+++++ source /build-non-standard/common/paths.sh
++++++ set -eu -o pipefail
++++++ [[ -z '' ]]
++++++ COMMON_PATHS_SH_SOURCED=1
++++++++ dirname /build-non-standard/common/paths.sh
+++++++ readlink -f /build-non-standard/common
++++++ commonDir=/build-non-standard/common
++++++ source /build-non-standard/common/functions.sh
+++++++ set -eu -o pipefail
+++++++ [[ -z '' ]]
+++++++ COMMON_FUNCTIONS_SH_SOURCED=1
+++++++ trap onError ERR
++++++ source /build-non-standard/common/subst-vars.sh
+++++++ [[ -z 1 ]]
++++++ : /nix/store/2ndah67h0z5m31v2wkdmg2md4380ggr5-bash-interactive-5.3p15/bin/bash /nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2/bin
++++++ isTestOnNixOS
++++++ [[ '' == 1 ]]
++++++ export SHELL=/nix/store/2ndah67h0z5m31v2wkdmg2md4380ggr5-bash-interactive-5.3p15/bin/bash
++++++ SHELL=/nix/store/2ndah67h0z5m31v2wkdmg2md4380ggr5-bash-interactive-5.3p15/bin/bash
++++++ export PATH=/nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2/bin:/nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2/bin:/nix/store/xjl7p8dvyk2j53kqf7f43kdj4ypbxz7g-coreutils-9.11/bin
++++++ PATH=/nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2/bin:/nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2/bin:/nix/store/xjl7p8dvyk2j53kqf7f43kdj4ypbxz7g-coreutils-9.11/bin
++++++ [[ -n '' ]]
++++++ DAEMON_PATH=/nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2/bin:/nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2/bin:/nix/store/xjl7p8dvyk2j53kqf7f43kdj4ypbxz7g-coreutils-9.11/bin
++++++ [[ -n '' ]]
+++++ source /build-non-standard/common/test-root.sh
++++++ TEST_SUBDIR=main/nested-sandboxing
+++++++ realpath /build-non-standard/nix-test
++++++ TEST_ROOT=/build-non-standard/nix-test/main/nested-sandboxing
++++++ export TEST_ROOT
+++++ test_nix_conf_dir=/build-non-standard/nix-test/main/nested-sandboxing/etc
+++++ test_nix_conf=/build-non-standard/nix-test/main/nested-sandboxing/etc/nix.conf
+++++ export TEST_HOME=/build-non-standard/nix-test/main/nested-sandboxing/test-home
+++++ TEST_HOME=/build-non-standard/nix-test/main/nested-sandboxing/test-home
+++++ isTestOnNixOS
+++++ [[ '' == 1 ]]
+++++ export NIX_STORE_DIR
++++++ readlink -f /build-non-standard/nix-test/main/nested-sandboxing/store
+++++ NIX_STORE_DIR=
+++++ export NIX_IGNORE_SYMLINK_STORE=1
+++++ NIX_IGNORE_SYMLINK_STORE=1
+++++ NIX_STORE_DIR=/build-non-standard/nix-test/main/nested-sandboxing/store
+++++ export NIX_LOCALSTATE_DIR=/build-non-standard/nix-test/main/nested-sandboxing/var
+++++ NIX_LOCALSTATE_DIR=/build-non-standard/nix-test/main/nested-sandboxing/var
+++++ export NIX_LOG_DIR=/build-non-standard/nix-test/main/nested-sandboxing/var/log/nix
+++++ NIX_LOG_DIR=/build-non-standard/nix-test/main/nested-sandboxing/var/log/nix
+++++ export NIX_STATE_DIR=/build-non-standard/nix-test/main/nested-sandboxing/var/nix
+++++ NIX_STATE_DIR=/build-non-standard/nix-test/main/nested-sandboxing/var/nix
+++++ export NIX_CONF_DIR=/build-non-standard/nix-test/main/nested-sandboxing/etc
+++++ NIX_CONF_DIR=/build-non-standard/nix-test/main/nested-sandboxing/etc
+++++ export NIX_DAEMON_SOCKET_PATH=/build-non-standard/nix-test/main/nested-sandboxing/dSocket
+++++ NIX_DAEMON_SOCKET_PATH=/build-non-standard/nix-test/main/nested-sandboxing/dSocket
+++++ unset NIX_USER_CONF_FILES
+++++ export _NIX_TEST_SHARED=/build-non-standard/nix-test/main/nested-sandboxing/shared
+++++ _NIX_TEST_SHARED=/build-non-standard/nix-test/main/nested-sandboxing/shared
+++++ [[ -n /foo-4 ]]
+++++ export _NIX_TEST_NO_SANDBOX=1
+++++ _NIX_TEST_NO_SANDBOX=1
+++++ export _NIX_IN_TEST=/build-non-standard/nix-test/main/nested-sandboxing/shared
+++++ _NIX_IN_TEST=/build-non-standard/nix-test/main/nested-sandboxing/shared
+++++ export _NIX_TEST_NO_LSOF=1
+++++ _NIX_TEST_NO_LSOF=1
+++++ export _NIX_TEST_NO_ENVIRONMENT_WARNINGS=1
+++++ _NIX_TEST_NO_ENVIRONMENT_WARNINGS=1
+++++ export NIX_REMOTE=
+++++ NIX_REMOTE=
+++++ unset NIX_PATH
+++++ export HOME=/build-non-standard/nix-test/main/nested-sandboxing/test-home
+++++ HOME=/build-non-standard/nix-test/main/nested-sandboxing/test-home
+++++ unset XDG_STATE_HOME
+++++ unset XDG_DATA_HOME
+++++ unset XDG_CONFIG_HOME
+++++ unset XDG_CONFIG_DIRS
+++++ unset XDG_CACHE_HOME
+++++ unset GIT_DIR
+++++ export GIT_CONFIG_SYSTEM=/dev/null
+++++ GIT_CONFIG_SYSTEM=/dev/null
+++++ export GIT_CONFIG_GLOBAL=/dev/null
+++++ GIT_CONFIG_GLOBAL=/dev/null
+++++ export IMPURE_VAR1=foo
+++++ IMPURE_VAR1=foo
+++++ export IMPURE_VAR2=bar
+++++ IMPURE_VAR2=bar
+++++ cacheDir=/build-non-standard/nix-test/main/nested-sandboxing/binary-cache
++++++ uname
+++++ [[ Linux == Linux ]]
+++++ [[ -L /proc/self/ns/user ]]
+++++ unshare --user true
+/build-non-standard/common/vars.sh: line 78: unshare: command not found
+++++ config_nix=/build-non-standard/nix-test/main/nested-sandboxing/config.nix
++++ source /build-non-standard/common/functions.sh
+++++ set -eu -o pipefail
+++++ [[ -z 1 ]]
++++ source /build-non-standard/common/init.sh
+++++ : /build-non-standard/nix-test/main/nested-sandboxing/etc /build-non-standard/nix-test/main/nested-sandboxing/etc/nix.conf /build-non-standard/nix-test/main/nested-sandboxing/config.nix
+++++ isTestOnNixOS
+++++ [[ '' == 1 ]]
+++++ test -n /build-non-standard/nix-test/main/nested-sandboxing
+++++ killDaemon
+++++ isTestOnNixOS
+++++ [[ '' == 1 ]]
+++++ [[ '' == '' ]]
+++++ return
+++++ [[ -e /build-non-standard/nix-test/main/nested-sandboxing ]]
+++++ mkdir -p /build-non-standard/nix-test/main/nested-sandboxing
+++++ mkdir /build-non-standard/nix-test/main/nested-sandboxing/test-home
+++++ mkdir /build-non-standard/nix-test/main/nested-sandboxing/store
+++++ mkdir /build-non-standard/nix-test/main/nested-sandboxing/var
+++++ mkdir -p /build-non-standard/nix-test/main/nested-sandboxing/var/log/nix/drvs
+++++ mkdir /build-non-standard/nix-test/main/nested-sandboxing/var/nix
+++++ mkdir /build-non-standard/nix-test/main/nested-sandboxing/etc
+++++ cat
++++++ whoami
+++++ cat
+++++ nix-store --init
+++++ test -e /build-non-standard/nix-test/main/nested-sandboxing/var/nix/db/db.sqlite
+++++ echo '# config.nix for test main / nested-sandboxing'
+++++ cat /build-non-standard/config.nix
++++ [[ -n '' ]]
+++ source ./nested-sandboxing/command.sh
++++ set -eu -o pipefail
++++++ type -p nix
+++++ dirname /nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2/bin/nix
++++ NIX_BIN_DIR=/nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2/bin
++++ export NIX_BIN_DIR
+++++ dirname /nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2/bin
++++ EXTRA_SANDBOX='/nix/store /nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2'
++++ export EXTRA_SANDBOX
+++ runNixBuild goodStoreUrl 3
+++ local storeFun=goodStoreUrl
+++ local altitude=3
++++ goodStoreUrl 3
++++ local altitude=3
+++++ badStoreUrl 3
+++++ local altitude=3
+++++ echo /build-non-standard/nix-test/main/nested-sandboxing/store-3
++++ echo '/build-non-standard/nix-test/main/nested-sandboxing/store-3?store=/foo-3'
+++ nix-build --no-substitute --no-out-link --store '/build-non-standard/nix-test/main/nested-sandboxing/store-3?store=/foo-3' --extra-sandbox-paths '/nix/store /nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2' ./nested-sandboxing/runner.nix --arg altitude 2 --argstr storeFun goodStoreUrl --sandbox-build-dir /build-non-standard
+this derivation will be built:
+  /foo-3/vcfgci5mv44690wkah5n80xjcxa1nf78-nested-sandboxing.drv
+building '/foo-3/vcfgci5mv44690wkah5n80xjcxa1nf78-nested-sandboxing.drv'...
+++ set -eu -o pipefail
+++ cp -r /foo-3/419mqlgmyiicyv82xb964fhw056l1wif-common ./common
+++ cp /foo-3/hgk932f1ca6qpia8j0f38jaga1fwgjym-common.sh ./common.sh
+++ cp /foo-3/9yp7nj7a4siib124kjr5dphxxrd8xvbm-config.nix ./config.nix
+++ cp -r /foo-3/0s8cd16nhjc2bckvcjfc1901pfnpbpvm-nested-sandboxing ./nested-sandboxing
+++ export PATH=/nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2/bin:/nix/store/xjl7p8dvyk2j53kqf7f43kdj4ypbxz7g-coreutils-9.11/bin
+++ PATH=/nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2/bin:/nix/store/xjl7p8dvyk2j53kqf7f43kdj4ypbxz7g-coreutils-9.11/bin
+++ export _NIX_TEST_SOURCE_DIR=/build-non-standard
+++ _NIX_TEST_SOURCE_DIR=/build-non-standard
+++ export _NIX_TEST_BUILD_DIR=/build-non-standard
+++ _NIX_TEST_BUILD_DIR=/build-non-standard
+++ source common.sh
++++ set -eu -o pipefail
++++ [[ -z '' ]]
++++ COMMON_SH_SOURCED=1
++++++ dirname common.sh
+++++ readlink -f .
++++ functionalTestsDir=/build-non-standard
++++ source /build-non-standard/common/vars.sh
+++++ set -eu -o pipefail
+++++ [[ -z '' ]]
+++++ COMMON_VARS_SH_SOURCED=1
++++++ realpath /build-non-standard
+++++ _NIX_TEST_SOURCE_DIR=/build-non-standard
++++++ realpath /build-non-standard
+++++ _NIX_TEST_BUILD_DIR=/build-non-standard
+++++++ dirname /build-non-standard/common/vars.sh
++++++ readlink -f /build-non-standard/common
+++++ commonDir=/build-non-standard/common
+++++ source /build-non-standard/common/subst-vars.sh
++++++ [[ -z '' ]]
++++++ COMMON_SUBST_VARS_SH_SOURCED=1
++++++ bash=/nix/store/2ndah67h0z5m31v2wkdmg2md4380ggr5-bash-interactive-5.3p15/bin/bash
++++++ bindir=/nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2/bin
++++++ coreutils=/nix/store/xjl7p8dvyk2j53kqf7f43kdj4ypbxz7g-coreutils-9.11/bin
++++++ dot=
++++++ busybox=/nix/store/qddzvnv6b0805nkvbqddbswddcfhx814-busybox-static-x86_64-unknown-linux-musl-1.37.0/bin/busybox
++++++ version=2.35.2
++++++ system=x86_64-linux
+++++ : '/nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2/bin /nix/store/xjl7p8dvyk2j53kqf7f43kdj4ypbxz7g-coreutils-9.11/bin  /noshell /nix/store/qddzvnv6b0805nkvbqddbswddcfhx814-busybox-static-x86_64-unknown-linux-musl-1.37.0/bin/busybox 2.35.2 x86_64-linux'
+++++ export coreutils dot busybox version system
+++++ export PAGER=cat
+++++ PAGER=cat
+++++ source /build-non-standard/common/paths.sh
++++++ set -eu -o pipefail
++++++ [[ -z '' ]]
++++++ COMMON_PATHS_SH_SOURCED=1
++++++++ dirname /build-non-standard/common/paths.sh
+++++++ readlink -f /build-non-standard/common
++++++ commonDir=/build-non-standard/common
++++++ source /build-non-standard/common/functions.sh
+++++++ set -eu -o pipefail
+++++++ [[ -z '' ]]
+++++++ COMMON_FUNCTIONS_SH_SOURCED=1
+++++++ trap onError ERR
++++++ source /build-non-standard/common/subst-vars.sh
+++++++ [[ -z 1 ]]
++++++ : /nix/store/2ndah67h0z5m31v2wkdmg2md4380ggr5-bash-interactive-5.3p15/bin/bash /nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2/bin
++++++ isTestOnNixOS
++++++ [[ '' == 1 ]]
++++++ export SHELL=/nix/store/2ndah67h0z5m31v2wkdmg2md4380ggr5-bash-interactive-5.3p15/bin/bash
++++++ SHELL=/nix/store/2ndah67h0z5m31v2wkdmg2md4380ggr5-bash-interactive-5.3p15/bin/bash
++++++ export PATH=/nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2/bin:/nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2/bin:/nix/store/xjl7p8dvyk2j53kqf7f43kdj4ypbxz7g-coreutils-9.11/bin
++++++ PATH=/nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2/bin:/nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2/bin:/nix/store/xjl7p8dvyk2j53kqf7f43kdj4ypbxz7g-coreutils-9.11/bin
++++++ [[ -n '' ]]
++++++ DAEMON_PATH=/nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2/bin:/nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2/bin:/nix/store/xjl7p8dvyk2j53kqf7f43kdj4ypbxz7g-coreutils-9.11/bin
++++++ [[ -n '' ]]
+++++ source /build-non-standard/common/test-root.sh
++++++ TEST_SUBDIR=main/nested-sandboxing
+++++++ realpath /build-non-standard/nix-test
++++++ TEST_ROOT=/build-non-standard/nix-test/main/nested-sandboxing
++++++ export TEST_ROOT
+++++ test_nix_conf_dir=/build-non-standard/nix-test/main/nested-sandboxing/etc
+++++ test_nix_conf=/build-non-standard/nix-test/main/nested-sandboxing/etc/nix.conf
+++++ export TEST_HOME=/build-non-standard/nix-test/main/nested-sandboxing/test-home
+++++ TEST_HOME=/build-non-standard/nix-test/main/nested-sandboxing/test-home
+++++ isTestOnNixOS
+++++ [[ '' == 1 ]]
+++++ export NIX_STORE_DIR
++++++ readlink -f /build-non-standard/nix-test/main/nested-sandboxing/store
+++++ NIX_STORE_DIR=
+++++ export NIX_IGNORE_SYMLINK_STORE=1
+++++ NIX_IGNORE_SYMLINK_STORE=1
+++++ NIX_STORE_DIR=/build-non-standard/nix-test/main/nested-sandboxing/store
+++++ export NIX_LOCALSTATE_DIR=/build-non-standard/nix-test/main/nested-sandboxing/var
+++++ NIX_LOCALSTATE_DIR=/build-non-standard/nix-test/main/nested-sandboxing/var
+++++ export NIX_LOG_DIR=/build-non-standard/nix-test/main/nested-sandboxing/var/log/nix
+++++ NIX_LOG_DIR=/build-non-standard/nix-test/main/nested-sandboxing/var/log/nix
+++++ export NIX_STATE_DIR=/build-non-standard/nix-test/main/nested-sandboxing/var/nix
+++++ NIX_STATE_DIR=/build-non-standard/nix-test/main/nested-sandboxing/var/nix
+++++ export NIX_CONF_DIR=/build-non-standard/nix-test/main/nested-sandboxing/etc
+++++ NIX_CONF_DIR=/build-non-standard/nix-test/main/nested-sandboxing/etc
+++++ export NIX_DAEMON_SOCKET_PATH=/build-non-standard/nix-test/main/nested-sandboxing/dSocket
+++++ NIX_DAEMON_SOCKET_PATH=/build-non-standard/nix-test/main/nested-sandboxing/dSocket
+++++ unset NIX_USER_CONF_FILES
+++++ export _NIX_TEST_SHARED=/build-non-standard/nix-test/main/nested-sandboxing/shared
+++++ _NIX_TEST_SHARED=/build-non-standard/nix-test/main/nested-sandboxing/shared
+++++ [[ -n /foo-3 ]]
+++++ export _NIX_TEST_NO_SANDBOX=1
+++++ _NIX_TEST_NO_SANDBOX=1
+++++ export _NIX_IN_TEST=/build-non-standard/nix-test/main/nested-sandboxing/shared
+++++ _NIX_IN_TEST=/build-non-standard/nix-test/main/nested-sandboxing/shared
+++++ export _NIX_TEST_NO_LSOF=1
+++++ _NIX_TEST_NO_LSOF=1
+++++ export _NIX_TEST_NO_ENVIRONMENT_WARNINGS=1
+++++ _NIX_TEST_NO_ENVIRONMENT_WARNINGS=1
+++++ export NIX_REMOTE=
+++++ NIX_REMOTE=
+++++ unset NIX_PATH
+++++ export HOME=/build-non-standard/nix-test/main/nested-sandboxing/test-home
+++++ HOME=/build-non-standard/nix-test/main/nested-sandboxing/test-home
+++++ unset XDG_STATE_HOME
+++++ unset XDG_DATA_HOME
+++++ unset XDG_CONFIG_HOME
+++++ unset XDG_CONFIG_DIRS
+++++ unset XDG_CACHE_HOME
+++++ unset GIT_DIR
+++++ export GIT_CONFIG_SYSTEM=/dev/null
+++++ GIT_CONFIG_SYSTEM=/dev/null
+++++ export GIT_CONFIG_GLOBAL=/dev/null
+++++ GIT_CONFIG_GLOBAL=/dev/null
+++++ export IMPURE_VAR1=foo
+++++ IMPURE_VAR1=foo
+++++ export IMPURE_VAR2=bar
+++++ IMPURE_VAR2=bar
+++++ cacheDir=/build-non-standard/nix-test/main/nested-sandboxing/binary-cache
++++++ uname
+++++ [[ Linux == Linux ]]
+++++ [[ -L /proc/self/ns/user ]]
+++++ unshare --user true
+/build-non-standard/common/vars.sh: line 78: unshare: command not found
+++++ config_nix=/build-non-standard/nix-test/main/nested-sandboxing/config.nix
++++ source /build-non-standard/common/functions.sh
+++++ set -eu -o pipefail
+++++ [[ -z 1 ]]
++++ source /build-non-standard/common/init.sh
+++++ : /build-non-standard/nix-test/main/nested-sandboxing/etc /build-non-standard/nix-test/main/nested-sandboxing/etc/nix.conf /build-non-standard/nix-test/main/nested-sandboxing/config.nix
+++++ isTestOnNixOS
+++++ [[ '' == 1 ]]
+++++ test -n /build-non-standard/nix-test/main/nested-sandboxing
+++++ killDaemon
+++++ isTestOnNixOS
+++++ [[ '' == 1 ]]
+++++ [[ '' == '' ]]
+++++ return
+++++ [[ -e /build-non-standard/nix-test/main/nested-sandboxing ]]
+++++ mkdir -p /build-non-standard/nix-test/main/nested-sandboxing
+++++ mkdir /build-non-standard/nix-test/main/nested-sandboxing/test-home
+++++ mkdir /build-non-standard/nix-test/main/nested-sandboxing/store
+++++ mkdir /build-non-standard/nix-test/main/nested-sandboxing/var
+++++ mkdir -p /build-non-standard/nix-test/main/nested-sandboxing/var/log/nix/drvs
+++++ mkdir /build-non-standard/nix-test/main/nested-sandboxing/var/nix
+++++ mkdir /build-non-standard/nix-test/main/nested-sandboxing/etc
+++++ cat
++++++ whoami
+++++ cat
+++++ nix-store --init
+++++ test -e /build-non-standard/nix-test/main/nested-sandboxing/var/nix/db/db.sqlite
+++++ echo '# config.nix for test main / nested-sandboxing'
+++++ cat /build-non-standard/config.nix
++++ [[ -n '' ]]
+++ source ./nested-sandboxing/command.sh
++++ set -eu -o pipefail
++++++ type -p nix
+++++ dirname /nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2/bin/nix
++++ NIX_BIN_DIR=/nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2/bin
++++ export NIX_BIN_DIR
+++++ dirname /nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2/bin
++++ EXTRA_SANDBOX='/nix/store /nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2'
++++ export EXTRA_SANDBOX
+++ runNixBuild goodStoreUrl 2
+++ local storeFun=goodStoreUrl
+++ local altitude=2
++++ goodStoreUrl 2
++++ local altitude=2
+++++ badStoreUrl 2
+++++ local altitude=2
+++++ echo /build-non-standard/nix-test/main/nested-sandboxing/store-2
++++ echo '/build-non-standard/nix-test/main/nested-sandboxing/store-2?store=/foo-2'
+++ nix-build --no-substitute --no-out-link --store '/build-non-standard/nix-test/main/nested-sandboxing/store-2?store=/foo-2' --extra-sandbox-paths '/nix/store /nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2' ./nested-sandboxing/runner.nix --arg altitude 1 --argstr storeFun goodStoreUrl --sandbox-build-dir /build-non-standard
+this derivation will be built:
+  /foo-2/dmyaycmfx6bvsrh8yfwpi1rcqw069asi-nested-sandboxing.drv
+building '/foo-2/dmyaycmfx6bvsrh8yfwpi1rcqw069asi-nested-sandboxing.drv'...
+++ set -eu -o pipefail
+++ cp -r /foo-2/8zhilx2liv63g019y3x52wabalz2ywkh-common ./common
+++ cp /foo-2/80s2gii78sqcl0vjkd3rz6r1lgrlr290-common.sh ./common.sh
+++ cp /foo-2/9hihbjh26ig93vi67qmpc4j2i32zcpns-config.nix ./config.nix
+++ cp -r /foo-2/6nisdydx1zyh1l344hmld624hi284drm-nested-sandboxing ./nested-sandboxing
+++ export PATH=/nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2/bin:/nix/store/xjl7p8dvyk2j53kqf7f43kdj4ypbxz7g-coreutils-9.11/bin
+++ PATH=/nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2/bin:/nix/store/xjl7p8dvyk2j53kqf7f43kdj4ypbxz7g-coreutils-9.11/bin
+++ export _NIX_TEST_SOURCE_DIR=/build-non-standard
+++ _NIX_TEST_SOURCE_DIR=/build-non-standard
+++ export _NIX_TEST_BUILD_DIR=/build-non-standard
+++ _NIX_TEST_BUILD_DIR=/build-non-standard
+++ source common.sh
++++ set -eu -o pipefail
++++ [[ -z '' ]]
++++ COMMON_SH_SOURCED=1
++++++ dirname common.sh
+++++ readlink -f .
++++ functionalTestsDir=/build-non-standard
++++ source /build-non-standard/common/vars.sh
+++++ set -eu -o pipefail
+++++ [[ -z '' ]]
+++++ COMMON_VARS_SH_SOURCED=1
++++++ realpath /build-non-standard
+++++ _NIX_TEST_SOURCE_DIR=/build-non-standard
++++++ realpath /build-non-standard
+++++ _NIX_TEST_BUILD_DIR=/build-non-standard
+++++++ dirname /build-non-standard/common/vars.sh
++++++ readlink -f /build-non-standard/common
+++++ commonDir=/build-non-standard/common
+++++ source /build-non-standard/common/subst-vars.sh
++++++ [[ -z '' ]]
++++++ COMMON_SUBST_VARS_SH_SOURCED=1
++++++ bash=/nix/store/2ndah67h0z5m31v2wkdmg2md4380ggr5-bash-interactive-5.3p15/bin/bash
++++++ bindir=/nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2/bin
++++++ coreutils=/nix/store/xjl7p8dvyk2j53kqf7f43kdj4ypbxz7g-coreutils-9.11/bin
++++++ dot=
++++++ busybox=/nix/store/qddzvnv6b0805nkvbqddbswddcfhx814-busybox-static-x86_64-unknown-linux-musl-1.37.0/bin/busybox
++++++ version=2.35.2
++++++ system=x86_64-linux
+++++ : '/nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2/bin /nix/store/xjl7p8dvyk2j53kqf7f43kdj4ypbxz7g-coreutils-9.11/bin  /noshell /nix/store/qddzvnv6b0805nkvbqddbswddcfhx814-busybox-static-x86_64-unknown-linux-musl-1.37.0/bin/busybox 2.35.2 x86_64-linux'
+++++ export coreutils dot busybox version system
+++++ export PAGER=cat
+++++ PAGER=cat
+++++ source /build-non-standard/common/paths.sh
++++++ set -eu -o pipefail
++++++ [[ -z '' ]]
++++++ COMMON_PATHS_SH_SOURCED=1
++++++++ dirname /build-non-standard/common/paths.sh
+++++++ readlink -f /build-non-standard/common
++++++ commonDir=/build-non-standard/common
++++++ source /build-non-standard/common/functions.sh
+++++++ set -eu -o pipefail
+++++++ [[ -z '' ]]
+++++++ COMMON_FUNCTIONS_SH_SOURCED=1
+++++++ trap onError ERR
++++++ source /build-non-standard/common/subst-vars.sh
+++++++ [[ -z 1 ]]
++++++ : /nix/store/2ndah67h0z5m31v2wkdmg2md4380ggr5-bash-interactive-5.3p15/bin/bash /nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2/bin
++++++ isTestOnNixOS
++++++ [[ '' == 1 ]]
++++++ export SHELL=/nix/store/2ndah67h0z5m31v2wkdmg2md4380ggr5-bash-interactive-5.3p15/bin/bash
++++++ SHELL=/nix/store/2ndah67h0z5m31v2wkdmg2md4380ggr5-bash-interactive-5.3p15/bin/bash
++++++ export PATH=/nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2/bin:/nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2/bin:/nix/store/xjl7p8dvyk2j53kqf7f43kdj4ypbxz7g-coreutils-9.11/bin
++++++ PATH=/nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2/bin:/nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2/bin:/nix/store/xjl7p8dvyk2j53kqf7f43kdj4ypbxz7g-coreutils-9.11/bin
++++++ [[ -n '' ]]
++++++ DAEMON_PATH=/nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2/bin:/nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2/bin:/nix/store/xjl7p8dvyk2j53kqf7f43kdj4ypbxz7g-coreutils-9.11/bin
++++++ [[ -n '' ]]
+++++ source /build-non-standard/common/test-root.sh
++++++ TEST_SUBDIR=main/nested-sandboxing
+++++++ realpath /build-non-standard/nix-test
++++++ TEST_ROOT=/build-non-standard/nix-test/main/nested-sandboxing
++++++ export TEST_ROOT
+++++ test_nix_conf_dir=/build-non-standard/nix-test/main/nested-sandboxing/etc
+++++ test_nix_conf=/build-non-standard/nix-test/main/nested-sandboxing/etc/nix.conf
+++++ export TEST_HOME=/build-non-standard/nix-test/main/nested-sandboxing/test-home
+++++ TEST_HOME=/build-non-standard/nix-test/main/nested-sandboxing/test-home
+++++ isTestOnNixOS
+++++ [[ '' == 1 ]]
+++++ export NIX_STORE_DIR
++++++ readlink -f /build-non-standard/nix-test/main/nested-sandboxing/store
+++++ NIX_STORE_DIR=
+++++ export NIX_IGNORE_SYMLINK_STORE=1
+++++ NIX_IGNORE_SYMLINK_STORE=1
+++++ NIX_STORE_DIR=/build-non-standard/nix-test/main/nested-sandboxing/store
+++++ export NIX_LOCALSTATE_DIR=/build-non-standard/nix-test/main/nested-sandboxing/var
+++++ NIX_LOCALSTATE_DIR=/build-non-standard/nix-test/main/nested-sandboxing/var
+++++ export NIX_LOG_DIR=/build-non-standard/nix-test/main/nested-sandboxing/var/log/nix
+++++ NIX_LOG_DIR=/build-non-standard/nix-test/main/nested-sandboxing/var/log/nix
+++++ export NIX_STATE_DIR=/build-non-standard/nix-test/main/nested-sandboxing/var/nix
+++++ NIX_STATE_DIR=/build-non-standard/nix-test/main/nested-sandboxing/var/nix
+++++ export NIX_CONF_DIR=/build-non-standard/nix-test/main/nested-sandboxing/etc
+++++ NIX_CONF_DIR=/build-non-standard/nix-test/main/nested-sandboxing/etc
+++++ export NIX_DAEMON_SOCKET_PATH=/build-non-standard/nix-test/main/nested-sandboxing/dSocket
+++++ NIX_DAEMON_SOCKET_PATH=/build-non-standard/nix-test/main/nested-sandboxing/dSocket
+++++ unset NIX_USER_CONF_FILES
+++++ export _NIX_TEST_SHARED=/build-non-standard/nix-test/main/nested-sandboxing/shared
+++++ _NIX_TEST_SHARED=/build-non-standard/nix-test/main/nested-sandboxing/shared
+++++ [[ -n /foo-2 ]]
+++++ export _NIX_TEST_NO_SANDBOX=1
+++++ _NIX_TEST_NO_SANDBOX=1
+++++ export _NIX_IN_TEST=/build-non-standard/nix-test/main/nested-sandboxing/shared
+++++ _NIX_IN_TEST=/build-non-standard/nix-test/main/nested-sandboxing/shared
+++++ export _NIX_TEST_NO_LSOF=1
+++++ _NIX_TEST_NO_LSOF=1
+++++ export _NIX_TEST_NO_ENVIRONMENT_WARNINGS=1
+++++ _NIX_TEST_NO_ENVIRONMENT_WARNINGS=1
+++++ export NIX_REMOTE=
+++++ NIX_REMOTE=
+++++ unset NIX_PATH
+++++ export HOME=/build-non-standard/nix-test/main/nested-sandboxing/test-home
+++++ HOME=/build-non-standard/nix-test/main/nested-sandboxing/test-home
+++++ unset XDG_STATE_HOME
+++++ unset XDG_DATA_HOME
+++++ unset XDG_CONFIG_HOME
+++++ unset XDG_CONFIG_DIRS
+++++ unset XDG_CACHE_HOME
+++++ unset GIT_DIR
+++++ export GIT_CONFIG_SYSTEM=/dev/null
+++++ GIT_CONFIG_SYSTEM=/dev/null
+++++ export GIT_CONFIG_GLOBAL=/dev/null
+++++ GIT_CONFIG_GLOBAL=/dev/null
+++++ export IMPURE_VAR1=foo
+++++ IMPURE_VAR1=foo
+++++ export IMPURE_VAR2=bar
+++++ IMPURE_VAR2=bar
+++++ cacheDir=/build-non-standard/nix-test/main/nested-sandboxing/binary-cache
++++++ uname
+++++ [[ Linux == Linux ]]
+++++ [[ -L /proc/self/ns/user ]]
+++++ unshare --user true
+/build-non-standard/common/vars.sh: line 78: unshare: command not found
+++++ config_nix=/build-non-standard/nix-test/main/nested-sandboxing/config.nix
++++ source /build-non-standard/common/functions.sh
+++++ set -eu -o pipefail
+++++ [[ -z 1 ]]
++++ source /build-non-standard/common/init.sh
+++++ : /build-non-standard/nix-test/main/nested-sandboxing/etc /build-non-standard/nix-test/main/nested-sandboxing/etc/nix.conf /build-non-standard/nix-test/main/nested-sandboxing/config.nix
+++++ isTestOnNixOS
+++++ [[ '' == 1 ]]
+++++ test -n /build-non-standard/nix-test/main/nested-sandboxing
+++++ killDaemon
+++++ isTestOnNixOS
+++++ [[ '' == 1 ]]
+++++ [[ '' == '' ]]
+++++ return
+++++ [[ -e /build-non-standard/nix-test/main/nested-sandboxing ]]
+++++ mkdir -p /build-non-standard/nix-test/main/nested-sandboxing
+++++ mkdir /build-non-standard/nix-test/main/nested-sandboxing/test-home
+++++ mkdir /build-non-standard/nix-test/main/nested-sandboxing/store
+++++ mkdir /build-non-standard/nix-test/main/nested-sandboxing/var
+++++ mkdir -p /build-non-standard/nix-test/main/nested-sandboxing/var/log/nix/drvs
+++++ mkdir /build-non-standard/nix-test/main/nested-sandboxing/var/nix
+++++ mkdir /build-non-standard/nix-test/main/nested-sandboxing/etc
+++++ cat
++++++ whoami
+++++ cat
+++++ nix-store --init
+++++ test -e /build-non-standard/nix-test/main/nested-sandboxing/var/nix/db/db.sqlite
+++++ echo '# config.nix for test main / nested-sandboxing'
+++++ cat /build-non-standard/config.nix
++++ [[ -n '' ]]
+++ source ./nested-sandboxing/command.sh
++++ set -eu -o pipefail
++++++ type -p nix
+++++ dirname /nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2/bin/nix
++++ NIX_BIN_DIR=/nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2/bin
++++ export NIX_BIN_DIR
+++++ dirname /nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2/bin
++++ EXTRA_SANDBOX='/nix/store /nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2'
++++ export EXTRA_SANDBOX
+++ runNixBuild goodStoreUrl 1
+++ local storeFun=goodStoreUrl
+++ local altitude=1
++++ goodStoreUrl 1
++++ local altitude=1
+++++ badStoreUrl 1
+++++ local altitude=1
+++++ echo /build-non-standard/nix-test/main/nested-sandboxing/store-1
++++ echo '/build-non-standard/nix-test/main/nested-sandboxing/store-1?store=/foo-1'
+++ nix-build --no-substitute --no-out-link --store '/build-non-standard/nix-test/main/nested-sandboxing/store-1?store=/foo-1' --extra-sandbox-paths '/nix/store /nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2' ./nested-sandboxing/runner.nix --arg altitude 0 --argstr storeFun goodStoreUrl --sandbox-build-dir /build-non-standard
+this derivation will be built:
+  /foo-1/kjvr1i88s9gaan3d28gbm7x42hr104az-nested-sandboxing.drv
+building '/foo-1/kjvr1i88s9gaan3d28gbm7x42hr104az-nested-sandboxing.drv'...
+++ set -eu -o pipefail
+++ echo Deep 'enough!'
+/foo-5/ajwvgzgqz1nlq7v242x8z4pw2y1pxfyi-nested-sandboxing
