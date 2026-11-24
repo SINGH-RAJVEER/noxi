@@ -2356,7 +2356,7 @@ impl<'b> Build<'b> {
 
 	fn cleanup(&self) {
 		use std::os::unix::fs::PermissionsExt;
-		let _ = fs::set_permissions(&self.top_tmp_dir, fs::Permissions::from_mode(0));
+		let _ = fs::set_permissions(&self.top_tmp_dir, fs::Permissions::from_mode(0o000));
 		let _ = delete_path(&self.top_tmp_dir);
 		let _ = delete_path(&self.chroot_parent);
 	}
