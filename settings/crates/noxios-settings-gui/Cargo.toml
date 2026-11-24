@@ -1,0 +1,54 @@
+[package]
+name = "noxios-settings-gui"
+default-run = "noxios-settings-gui"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish = false
+keywords = ["nixos", "nix", "gui", "package-manager", "home-manager"]
+categories = ["command-line-utilities", "gui"]
+description = "Graphical system settings for noxios"
+
+[features]
+default = []
+# Keep graphics dependencies out of builds that only need the console interfaces.
+native = [
+	"dep:clap",
+	"dep:noxios-settings-core",
+	"dep:noxios-settings-config",
+	"dep:noxios-settings-engine",
+	"dep:anyhow",
+	"dep:tokio",
+	"dep:tracing",
+	"dep:tracing-subscriber",
+	"dep:gpui-kit",
+	"dep:regex",
+	"dep:unicode-segmentation",
+	"dep:unicode-width",
+]
+
+[[bin]]
+name = "noxios-settings-gui"
+path = "src/main.rs"
+required-features = ["native"]
+
+[dependencies]
+clap = { workspace = true, optional = true }
+noxios-settings-core = { path = "../noxios-settings-core", optional = true }
+noxios-settings-config = { path = "../noxios-settings-config", optional = true }
+noxios-settings-engine = { path = "../noxios-settings-engine", optional = true }
+anyhow = { workspace = true, optional = true }
+tokio = { workspace = true, optional = true }
+tracing = { workspace = true, optional = true }
+tracing-subscriber = { workspace = true, optional = true }
+# One facade over gpui, gpui-component, and the Lucide icons, pinned together.
+gpui-kit = { version = "0.6.6", optional = true }
+# Within-line diff emphasis, adapted from delta, uses the same tokenizer crates.
+regex = { version = "1.12", optional = true }
+unicode-segmentation = { version = "1.13", optional = true }
+unicode-width = { version = "0.2", optional = true }
+
+[dev-dependencies]
+serde_json = { workspace = true }
+gpui-kit = { version = "0.6.6", features = ["test-support"] }
+noxios-settings-core = { path = "../noxios-settings-core", features = ["test-util"] }

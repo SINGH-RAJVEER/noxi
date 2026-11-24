@@ -1,0 +1,34 @@
+[package]
+name = "noxios-settings-tui"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish = false
+keywords = ["nixos", "nix", "tui", "package-manager", "home-manager"]
+description = "Terminal UI package manager for NixOS and Home Manager"
+
+[[bin]]
+# Its own name, like `noxios-settings-cli`, so it can share a profile with the desktop
+# `noxios-settings` without overwriting it.
+name = "noxios-settings-tui"
+path = "src/main.rs"
+
+[dependencies]
+clap = { workspace = true }
+noxios-settings-engine = { path = "../noxios-settings-engine" }
+noxios-settings-core = { path = "../noxios-settings-core" }
+noxios-settings-config = { path = "../noxios-settings-config" }
+anyhow = { workspace = true }
+ratatui = { workspace = true }
+crossterm = { workspace = true }
+tui-input = { workspace = true }
+tokio = { workspace = true }
+futures = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+directories = { workspace = true }
+
+[dev-dependencies]
+noxios-settings-core = { path = "../noxios-settings-core", features = ["test-util"] }
