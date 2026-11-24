@@ -207,8 +207,9 @@ fn loopback_download_cache_and_selective_update() {
 	let addr = listener.local_addr().unwrap();
 	let (body, seen, done) = (payload.clone(), requests.clone(), stop.clone());
 	let server = std::thread::spawn(move || {
-		let deadline = std::time::Instant::now() + Duration::from_secs(40);
-		while !done.load(Ordering::Relaxed) && std::time::Instant::now() < deadline {
+		// Serve until the comparisons end: a deadline here would also cover
+		// the reference closure copy below, which takes most of a loaded run.
+		while !done.load(Ordering::Relaxed) {
 			let (mut stream, _) = match listener.accept() {
 				Ok(v) => v,
 				Err(e) if e.kind() == std::io::ErrorKind::WouldBlock => {
@@ -223,8 +224,15 @@ fn loopback_download_cache_and_selective_update() {
 			let mut request = Vec::new();
 			while !request.ends_with(b"\r\n\r\n") {
 				let mut byte = [0];
-				if stream.read(&mut byte).unwrap() == 0 {
-					break;
+				match stream.read(&mut byte) {
+					Ok(0) => break,
+					Ok(_) => {}
+					// A client too slow to send its headers only loses its
+					// connection, not the server.
+					Err(_) => {
+						request.clear();
+						break;
+					}
 				}
 				request.push(byte[0]);
 				assert!(request.len() < 65536, "bounded loopback request headers");
