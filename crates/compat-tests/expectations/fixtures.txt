@@ -138,7 +138,7 @@ pass:upstream_functional tests/functional/ca/derivation-advanced-attributes.sh
 gap tests/functional/ca/derivation-json.sh # main in derivation-json.sh:7: error: feature not yet implemented in noxi: content-addressed or impure derivation construction
 anomaly tests/functional/ca/duplicate-realisation-in-closure.sh # reference skip: temporarily broken because dependent realisations are removed, skipping this test...
 gap tests/functional/ca/eval-store.sh # source in eval-store.sh:14: error: nix build --eval-store is not supported by noxi yet
-gap tests/functional/ca/gc.sh # source in gc.sh:7: error: feature not yet implemented in noxi: content-addressed or impure derivation construction
+pass:upstream_functional tests/functional/ca/gc.sh
 gap tests/functional/ca/import-from-derivation.sh # source in import-from-derivation.sh:14: error: feature not yet implemented in noxi: content-addressed or impure derivation construction
 gap tests/functional/ca/issue-13247.sh # main in issue-13247.sh:12: error: feature not yet implemented in noxi: content-addressed or impure derivation construction
 gap tests/functional/ca/multiple-outputs.sh # source in ./multiple-outputs.sh:28: error: feature not yet implemented in noxi: content-addressed or impure derivation construction
@@ -160,7 +160,7 @@ gap tests/functional/check.sh # main in check.sh:21: error: nix-build --check is
 gap tests/functional/chroot-store.sh # main in chroot-store.sh:20: error: nix-store --add-fixed is not supported by noxi yet
 gap tests/functional/cli-characterisation.sh # : error:
 gap tests/functional/completions.sh # main in completions.sh:39: error: 'buil' is not a recognised command
-gap tests/functional/compression-levels.sh # main in compression-levels.sh:9: error: nix copy to compressed file:// caches; use ?compression=none (the upload API supports uncompressed NARs) is not supported by noxi yet
+pass:upstream_functional tests/functional/compression-levels.sh
 gap tests/functional/config.sh # main in config.sh:32: warning: you don't have Internet access; disabling some network-dependent features
 anomaly tests/functional/db-migration.sh # reference skip: not using the Nix daemon, skipping this test...
 pass:upstream_functional tests/functional/delete-no-keep.sh
@@ -171,13 +171,13 @@ pass:upstream_functional tests/functional/dump-db.sh
 gap tests/functional/dyn-drv/build-built-drv.sh # main in build-built-drv.sh:19: error: feature not yet implemented in noxi: content-addressed or impure derivation construction
 gap tests/functional/dyn-drv/dep-built-drv-2.sh # main in dep-built-drv-2.sh:16: error: nix build with build logs in the bar log format (use --log-format raw-with-logs) is not supported by noxi yet
 gap tests/functional/dyn-drv/dep-built-drv.sh # main in dep-built-drv.sh:12: error: attribute 'outputOf' missing
-gap tests/functional/dyn-drv/eval-outputOf.sh # main in eval-outputOf.sh:17: ""
+pass:upstream_functional tests/functional/dyn-drv/eval-outputOf.sh
 gap tests/functional/dyn-drv/failing-outer.sh # main in failing-outer.sh:12: Expected exit code '100' but got '1' from command 'nix-build' './text-hashed-output.nix' '-A' 'failingWrapper' '--no-out-link'
 anomaly tests/functional/dyn-drv/old-daemon-error-hack.sh # reference skip: Daemon is too new, skipping this test...
 gap tests/functional/dyn-drv/recursive-mod-json.sh # main in recursive-mod-json.sh:16: error: feature not yet implemented in noxi: content-addressed or impure derivation construction
 gap tests/functional/dyn-drv/text-hashed-output.sh # main in text-hashed-output.sh:18: error: feature not yet implemented in noxi: content-addressed or impure derivation construction
 gap tests/functional/eval-store.sh # main in eval-store.sh:14: error: nix build --eval-store is not supported by noxi yet
-gap tests/functional/eval.sh # main in eval.sh:30: error: unrecognised flag '--raw'
+pass:upstream_functional tests/functional/eval.sh
 gap tests/functional/experimental-features.sh # main in experimental-features.sh:36: 
 pass:upstream_functional tests/functional/export-graph.sh
 pass:upstream_functional tests/functional/export.sh
@@ -208,7 +208,7 @@ pass:upstream_functional tests/functional/flakes/debugger.sh
 gap tests/functional/flakes/develop.sh # main in develop.sh:148: error: cannot find flake 'flake:nixpkgs' in the flake registries
 gap tests/functional/flakes/dubious-query.sh # main in dubious-query.sh:16: $ROOT/tmp/nix-test/flakes/dubious-query/store/HASH-simple.drv
 pass:upstream_functional tests/functional/flakes/edit.sh
-gap tests/functional/flakes/eval-cache.sh # main in eval-cache.sh:49: building '$ROOT/tmp/nix-test/flakes/eval-cache/store/HASH-build.drv'...
+pass:upstream_functional tests/functional/flakes/eval-cache.sh
 gap tests/functional/flakes/flake-in-submodule.sh # main in flake-in-submodule.sh:108: Initialized empty Git repository in $ROOT/tmp/nix-test/flakes/flake-in-submodule/otherRepo/.git/
 gap tests/functional/flakes/flakes.sh # main in flakes.sh:59: error: don't know how to open Nix store with scheme '$ROOT/tmp/nix-test/flakes/flakes/chroot-store'
 gap tests/functional/flakes/follow-paths.sh # main in follow-paths.sh:133: foobar
@@ -250,7 +250,7 @@ anomaly tests/functional/help.sh # reference skip: we don't know whether we buil
 gap tests/functional/import-from-derivation.sh # main in import-from-derivation.sh:19: error: expression does not evaluate to a derivation (or a set or list of those)
 gap tests/functional/impure-derivations.sh # main in impure-derivations.sh:16: error: feature not yet implemented in noxi: content-addressed or impure derivation construction
 gap tests/functional/impure-env.sh # : error: nix build with build logs in the bar log format (use --log-format raw-with-logs) is not supported by noxi yet
-gap tests/functional/impure-eval.sh # : error: unsupported store parameter 'store=/foo' in 'dummy://?store=/foo'
+pass:upstream_functional tests/functional/impure-eval.sh
 pass:upstream_functional tests/functional/json.sh
 anomaly tests/functional/lang-gc.sh # reference skip: Too memory intensive for CI. Attempt to reduce memory usage was unsuccessful, because it made detection of the bug unreliable., skipping this test...
 pass:upstream_functional tests/functional/lang.sh
@@ -268,8 +268,8 @@ gap tests/functional/local-overlay-store/redundant-add.sh # : error: nix-store -
 anomaly tests/functional/local-overlay-store/stale-file-handle.sh # reference skip: Couldn't trigger the error, skipping this test...
 gap tests/functional/local-overlay-store/verify.sh # : error: nix-store --add is not supported by noxi yet
 gap tests/functional/logging.sh # main in logging.sh:10: error: nix-store -l is not supported by noxi yet
-gap tests/functional/make-content-addressed.sh # main in make-content-addressed.sh:24: error: nix filesystem access without an explicit local store (remote accessor API unavailable) is not supported by noxi yet
-gap tests/functional/misc.sh # main in misc.sh:18: nix-env (Nix) 2.35.2
+pass:upstream_functional tests/functional/make-content-addressed.sh
+pass:upstream_functional tests/functional/misc.sh
 gap tests/functional/multiple-outputs-substitute-failure.sh # main in multiple-outputs-substitute-failure.sh:13: error: attribute 'independent^*' missing
 gap tests/functional/multiple-outputs.sh # main in multiple-outputs.sh:62: error: nix-build with store derivation arguments is not supported by noxi yet
 gap tests/functional/nar-access.sh # main in nar-access.sh:12: error: nix-store requires --store local?root=ABSOLUTE_ROOT
@@ -300,7 +300,7 @@ pass:upstream_functional tests/functional/referrers.sh
 gap tests/functional/remote-store.sh # main in remote-store.sh:8: error: unsupported store parameter 'remote-store=$ROOT/tmp/nix-test/main/remote-store/other-store' in 'ssh-ng://localhost?remote-store=$ROOT/tmp/nix-test/main/remote-store/o
 gap tests/functional/repair.sh # main in repair.sh:23: error: noxi does not support repairing paths yet
 gap tests/functional/repl.sh # : error: the noxi repl does not support ':log' yet
-gap tests/functional/restricted.sh # main in restricted.sh:6: 3
+pass:upstream_functional tests/functional/restricted.sh
 pass:upstream_functional tests/functional/search.sh
 pass:upstream_functional tests/functional/secure-drv-outputs.sh
 pass:upstream_functional tests/functional/selfref-gc.sh
@@ -312,7 +312,7 @@ gap tests/functional/ssh-relay.sh # main in ssh-relay.sh:16: error: unsupported 
 gap tests/functional/store-info.sh # main in store-info.sh:38: 
 pass:upstream_functional tests/functional/store-print-env.sh
 anomaly tests/functional/structured-attrs.sh # reference fail: main in structured-attrs.sh:27: error (ignored): cannot find flake 'flake:nixpkgs' in the flake registries
-gap tests/functional/substitute-with-invalid-ca.sh # main in substitute-with-invalid-ca.sh:22: error: nix-store --add is not supported by noxi yet
+pass:upstream_functional tests/functional/substitute-with-invalid-ca.sh
 gap tests/functional/suggestions.sh # : test failed: The nix build stderr should suggest the three closest possibilities
 gap tests/functional/supplementary-groups.sh # : supplementary-groups.sh: line 13: require-drop-supplementary-groups: command not found
 pass:upstream_functional tests/functional/symlinks.sh
@@ -323,7 +323,7 @@ gap tests/functional/timeout.sh # timed out at +(common/functions.sh:331) comman
 pass:upstream_functional tests/functional/toString-path.sh
 anomaly tests/functional/user-envs-migration.sh # reference skip: Daemon is too new, skipping this test...
 gap tests/functional/user-envs.sh # source in ./user-envs-test-case.sh:11: error: assertion '(progName != "fail")' failed
-gap tests/functional/why-depends.sh # main in why-depends.sh:9: error: expected a set but found a function: «lambda @ $ROOT/tmp/nix-test/main/why-depends/test-home/dependencies.nix:1:1»
+pass:upstream_functional tests/functional/why-depends.sh
 table:upstream_functional tests/functional/**/* # helpers and data read by the scripts
 # Out of scope for compat-tests: NixOS VM tests run in the qualification VMs (owner: TODO section 7, NixOS and Home Manager replacement).
 unrun tests/nixos/**/* # NixOS VM tests; need the VM driver, not a Cargo test

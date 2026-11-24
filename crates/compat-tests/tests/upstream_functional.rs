@@ -43,8 +43,10 @@
 //! (owned by `upstream_lang`) is listed as `support`. A changed outcome, a
 //! new file or a stale entry fails this test; `NOXI_COMPAT_BLESS=1` rewrites
 //! the table. `NOXI_FUNCTIONAL_FILTER` (comma-separated substrings of the
-//! script path) restricts the run, and `NOXI_FUNCTIONAL_JOBS` sets the
-//! number of concurrent scripts (default 8). Logs and a JSON report are
+//! script path) restricts the run, `NOXI_FUNCTIONAL_JOBS` sets the number of
+//! concurrent scripts (default 8), and `NOXI_FUNCTIONAL_SCRATCH` the directory
+//! the scratch roots are made in (default `/tmp`; keep it short, for the socket
+//! path limit, and outside any Git repository). Logs and a JSON report are
 //! written under the Cargo target temporary directory.
 //!
 //! Both engines run a script in turn at the same scratch root, so their
@@ -87,6 +89,7 @@ const JOBS_VAR: &str = "NOXI_FUNCTIONAL_JOBS";
 const TIMEOUT_VAR: &str = "NOXI_FUNCTIONAL_TIMEOUT";
 const KEEP_VAR: &str = "NOXI_FUNCTIONAL_KEEP";
 const CANDIDATE_VAR: &str = "NOXI_CANDIDATE_BIN";
+const SCRATCH_VAR: &str = "NOXI_FUNCTIONAL_SCRATCH";
 const REFERENCE_VAR: &str = "NOXI_REFERENCE_BIN";
 
 /// The executables CppNix 2.35.2 installs in its `bin` directory.
@@ -1060,6 +1063,16 @@ fn functional_scripts_match_expectations() {
 		.unwrap_or(8usize)
 		.max(1);
 	let queue: Vec<&Script> = chosen.clone();
+	let scratch_parent = PathBuf::from(env::var_os(SCRATCH_VAR).unwrap_or_else(|| "/tmp".into()));
+	// Flake and Git discovery walks up from the scratch roots, so a
+	// repository above them changes what many scripts find.
+	for dir in fs::canonicalize(&scratch_parent).unwrap().ancestors() {
+		assert!(
+			!dir.join(".git").exists(),
+			"{} would be found by the scripts' Git discovery; set {SCRATCH_VAR} to a directory outside any repository",
+			dir.join(".git").display()
+		);
+	}
 	let blobs = env::var_os(results::RESULTS_DIR_VAR)
 		.map_or_else(|| Path::new(OUTPUT_DIR).join("records"), PathBuf::from)
 		.join("blobs");
@@ -1079,7 +1092,7 @@ fn functional_scripts_match_expectations() {
 					// path limit. Each engine runs the script here in turn.
 					let root = tempfile::Builder::new()
 						.prefix("nf")
-						.tempdir_in("/tmp")
+						.tempdir_in(&scratch_parent)
 						.unwrap();
 					for engine in &engines {
 						let run = run_script(engine, script, timeout, root.path(), &blobs);
