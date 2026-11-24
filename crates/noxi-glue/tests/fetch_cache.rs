@@ -460,16 +460,21 @@ fn remote_relative_submodules_match_reference_and_reopen_offline() {
 	);
 }
 
+/// A `git daemon` for a test, stopped with everything it started when the
+/// guard is dropped, also by a panic.
 struct GitServer {
 	url: String,
 	child: std::process::Child,
 }
 impl GitServer {
 	fn start(root: &Path) -> Self {
+		use std::os::unix::process::CommandExt;
 		let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
 		let port = listener.local_addr().unwrap().port();
 		drop(listener);
-		let mut child = Command::new("git")
+		// `git daemon` runs `git-daemon` as its child, which killing `git`
+		// alone would leave behind, so both get a process group of their own.
+		let child = Command::new("git")
 			.args([
 				"daemon",
 				"--reuseaddr",
@@ -480,16 +485,22 @@ impl GitServer {
 			])
 			.arg(root)
 			.stdout(std::process::Stdio::null())
-			.stderr(std::process::Stdio::piped())
+			.stderr(std::process::Stdio::null())
+			.process_group(0)
 			.spawn()
 			.unwrap();
+		// The guard owns the process before anything can fail.
+		let mut server = Self {
+			url: format!("git://127.0.0.1:{port}"),
+			child,
+		};
 		let deadline = std::time::Instant::now() + std::time::Duration::from_secs(5);
 		loop {
 			if std::net::TcpStream::connect(("127.0.0.1", port)).is_ok() {
 				break;
 			}
 			assert!(
-				child.try_wait().unwrap().is_none(),
+				server.child.try_wait().unwrap().is_none(),
 				"Git fixture exited before listening"
 			);
 			assert!(
@@ -498,15 +509,52 @@ impl GitServer {
 			);
 			std::thread::sleep(std::time::Duration::from_millis(10));
 		}
-		Self {
-			url: format!("git://127.0.0.1:{port}"),
-			child,
-		}
+		server
 	}
 }
 impl Drop for GitServer {
 	fn drop(&mut self) {
-		let _ = self.child.kill();
+		// SAFETY: the unreaped child keeps its process group's id in use.
+		unsafe { libc::killpg(self.child.id() as i32, libc::SIGKILL) };
 		let _ = self.child.wait();
+	}
+}
+
+/// Whether any process of a group is left, counting zombies as gone.
+fn group_is_running(group: u32) -> bool {
+	fs::read_dir("/proc").unwrap().flatten().any(|entry| {
+		let Ok(stat) = fs::read_to_string(entry.path().join("stat")) else {
+			return false;
+		};
+		// After the parenthesised name: state, parent, process group.
+		let Some((_, rest)) = stat.rsplit_once(')') else {
+			return false;
+		};
+		let fields: Vec<&str> = rest.split_whitespace().collect();
+		fields.first() != Some(&"Z") && fields.get(2).and_then(|f| f.parse().ok()) == Some(group)
+	})
+}
+
+#[test]
+fn git_fixture_server_stops_when_its_test_panics() {
+	let fixture = noxi_test_support::tempdir().unwrap();
+	let group = std::sync::atomic::AtomicU32::new(0);
+	let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+		let server = GitServer::start(fixture.path());
+		let id = server.child.id();
+		assert!(group_is_running(id));
+		group.store(id, std::sync::atomic::Ordering::Relaxed);
+		panic!("the test owning the server fails");
+	}));
+	assert!(result.is_err());
+	let group = group.into_inner();
+	assert_ne!(group, 0);
+	let deadline = std::time::Instant::now() + std::time::Duration::from_secs(5);
+	while group_is_running(group) {
+		assert!(
+			std::time::Instant::now() < deadline,
+			"git daemon still runs"
+		);
+		std::thread::sleep(std::time::Duration::from_millis(10));
 	}
 }

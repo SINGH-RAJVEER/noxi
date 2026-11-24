@@ -1686,6 +1686,7 @@ dependencies = [
  "bzip2",
  "data-encoding",
  "flate2",
+ "libc",
  "lzma-rust2",
  "noxi-compat",
  "noxi-eval",

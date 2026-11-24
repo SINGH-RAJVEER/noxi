@@ -28,4 +28,5 @@ zstd.workspace = true
 ureq = "3"
 
 [dev-dependencies]
+libc.workspace = true
 noxi-test-support = { path = "../noxi-test-support" }
