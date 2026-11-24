@@ -25,14 +25,17 @@ fn reference_dir() -> Option<PathBuf> {
 
 struct Pair {
 	reference: PathBuf,
-	dirs: [tempfile::TempDir; 2],
+	dirs: [noxi_test_support::TempDir; 2],
 }
 
 impl Pair {
 	fn new() -> Option<Self> {
 		Some(Self {
 			reference: reference_dir()?,
-			dirs: [tempfile::tempdir().unwrap(), tempfile::tempdir().unwrap()],
+			dirs: [
+				noxi_test_support::tempdir().unwrap(),
+				noxi_test_support::tempdir().unwrap(),
+			],
 		})
 	}
 

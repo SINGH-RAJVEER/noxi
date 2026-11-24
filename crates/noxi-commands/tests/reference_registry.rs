@@ -13,8 +13,11 @@ fn registry_mutations_and_resolution_match_reference() {
 			Path::new(env!("CARGO_MANIFEST_DIR")).join("../../target/nix-reference/bin")
 		})
 		.join("nix");
-	let roots = [tempfile::tempdir().unwrap(), tempfile::tempdir().unwrap()];
-	let source = tempfile::tempdir().unwrap();
+	let roots = [
+		noxi_test_support::tempdir().unwrap(),
+		noxi_test_support::tempdir().unwrap(),
+	];
+	let source = noxi_test_support::tempdir().unwrap();
 	fs::write(source.path().join("flake.nix"), "{ outputs = {self}: {}; }").unwrap();
 	let source_url = format!("path:{}", source.path().display());
 	for args in [

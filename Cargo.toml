@@ -20,6 +20,7 @@ members = [
 	"crates/compat-tests",
 	"crates/noxi-cli",
 	"crates/noxi-events",
+	"crates/noxi-test-support",
 ]
 
 [workspace.package]

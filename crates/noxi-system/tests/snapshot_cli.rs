@@ -27,7 +27,7 @@ const LOCK_2: &str = r#"{"nodes":{"nixpkgs":{"locked":{"lastModified":2,"narHash
 
 #[test]
 fn list_show_diff_and_usage() {
-	let tmp = tempfile::tempdir().unwrap();
+	let tmp = noxi_test_support::tempdir().unwrap();
 	let dir = tmp.path().join("snapshots");
 	// SAFETY: this binary runs a single test, so no other thread reads the
 	// environment concurrently.

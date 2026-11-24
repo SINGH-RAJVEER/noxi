@@ -14,11 +14,10 @@ use noxi_system::flake::{self, ChangeKind, Operation, UpdateOptions};
 fn isolate() {
 	static ROOT: OnceLock<PathBuf> = OnceLock::new();
 	ROOT.get_or_init(|| {
-		let root = tempfile::Builder::new()
+		let root = noxi_test_support::until_exit(tempfile::Builder::new()
 			.prefix("noxi-system-flake-")
 			.tempdir_in(env!("CARGO_TARGET_TMPDIR"))
-			.unwrap()
-			.keep();
+			.unwrap());
 		let config = format!(
 			"store = local?root={}\nsubstituters =\nflake-registry =\nwarn-dirty = false\nbuild-users-group =\n",
 			root.join("store").display()
@@ -107,7 +106,7 @@ fn kinds(report: &flake::UpdateReport) -> Vec<(String, ChangeKind)> {
 
 #[test]
 fn initial_lock_adds_both_inputs() {
-	let dir = tempfile::tempdir().unwrap();
+	let dir = noxi_test_support::tempdir().unwrap();
 	let root = two_path_inputs(dir.path());
 	let (code, out, err) = run(&["lock", "--flake", root.to_str().unwrap()]);
 	assert_eq!(code, ExitCode::SUCCESS, "{err}");
@@ -124,7 +123,7 @@ fn initial_lock_adds_both_inputs() {
 
 #[test]
 fn selective_and_full_updates_report_changes() {
-	let dir = tempfile::tempdir().unwrap();
+	let dir = noxi_test_support::tempdir().unwrap();
 	let root = two_path_inputs(dir.path());
 	update(&root, Operation::Lock, &[]);
 
@@ -169,7 +168,7 @@ fn selective_and_full_updates_report_changes() {
 
 #[test]
 fn git_input_reports_short_revisions() {
-	let dir = tempfile::tempdir().unwrap();
+	let dir = noxi_test_support::tempdir().unwrap();
 	let repo = dir.path().join("repo");
 	fs::create_dir(&repo).unwrap();
 	let git = |date: &str, args: &[&str]| {
@@ -231,7 +230,7 @@ fn git_input_reports_short_revisions() {
 
 #[test]
 fn json_report_has_the_documented_shape() {
-	let dir = tempfile::tempdir().unwrap();
+	let dir = noxi_test_support::tempdir().unwrap();
 	let root = two_path_inputs(dir.path());
 	let (code, out, err) = run(&["lock", "--flake", root.to_str().unwrap(), "--json"]);
 	assert_eq!(code, ExitCode::SUCCESS, "{err}");
@@ -267,7 +266,7 @@ fn json_report_has_the_documented_shape() {
 
 #[test]
 fn errors_name_the_phase_and_usage_errors_exit_two() {
-	let dir = tempfile::tempdir().unwrap();
+	let dir = noxi_test_support::tempdir().unwrap();
 	let missing = dir.path().join("missing");
 	let (code, out, err) = run(&["update", "--flake", missing.to_str().unwrap()]);
 	assert_eq!(code, ExitCode::from(1));

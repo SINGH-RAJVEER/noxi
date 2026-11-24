@@ -46,7 +46,7 @@ fn impure_placeholder_feature_checks_follow_attribute_validation() {
 		})
 		.join("nix-instantiate");
 	let candidate = Path::new(env!("CARGO_BIN_EXE_nix-instantiate"));
-	let home = tempfile::tempdir().unwrap();
+	let home = noxi_test_support::tempdir().unwrap();
 	for (attrs, features) in [
 		("__impure = true;", "impure-derivations"),
 		(
@@ -113,7 +113,7 @@ fn floating_ca_paths_placeholders_and_registered_bytes_match_reference() {
 		})
 		.join("nix-instantiate");
 	let candidate = Path::new(env!("CARGO_BIN_EXE_nix-instantiate"));
-	let home = tempfile::tempdir().unwrap();
+	let home = noxi_test_support::tempdir().unwrap();
 	for (kind, attrs, features) in [
 		("__contentAddressed = true;", "", "ca-derivations"),
 		(
@@ -192,7 +192,10 @@ fn floating_ca_paths_placeholders_and_registered_bytes_match_reference() {
 			"let d = derivation {{ name = \"audit\"; system = \"x86_64-linux\"; builder = \"/bin/sh\"; {kind} {attrs} }}; in {{ drvPath = d.drvPath; output = d.outPath; context = builtins.getContext d.outPath; }}"
 		);
 		for writable in [false, true] {
-			let roots = [tempfile::tempdir().unwrap(), tempfile::tempdir().unwrap()];
+			let roots = [
+				noxi_test_support::tempdir().unwrap(),
+				noxi_test_support::tempdir().unwrap(),
+			];
 			let stores = roots
 				.iter()
 				.map(|root| format!("local?root={}", root.path().display()))
@@ -285,7 +288,7 @@ fn dependencies_of_floating_ca_outputs_keep_deferred_paths() {
 		})
 		.join("nix-instantiate");
 	let candidate = Path::new(env!("CARGO_BIN_EXE_nix-instantiate"));
-	let home = tempfile::tempdir().unwrap();
+	let home = noxi_test_support::tempdir().unwrap();
 	for content_addressed in [false, true] {
 		let expression = format!(
 			"let a = derivation {{ name = \"input\"; system = \"x86_64-linux\"; builder = \"/bin/sh\"; __contentAddressed = true; }}; b = derivation {{ name = \"dependent\"; system = \"x86_64-linux\"; builder = \"/bin/sh\"; input = a; __contentAddressed = {content_addressed}; }}; in {{ drvPath = b.drvPath; output = b.outPath; }}"
@@ -310,7 +313,7 @@ fn fixed_text_and_git_inputs_preserve_parent_hashes() {
 		})
 		.join("nix-instantiate");
 	let candidate = Path::new(env!("CARGO_BIN_EXE_nix-instantiate"));
-	let home = tempfile::tempdir().unwrap();
+	let home = noxi_test_support::tempdir().unwrap();
 	for mode in ["text", "git"] {
 		let expression = format!(
 			"let a = derivation {{ name = \"source\"; system = \"x86_64-linux\"; builder = \"/bin/sh\"; outputHashMode = \"{mode}\"; outputHash = \"sha256-47DEQpj8HBSa+/TImW+5JCeuQeRkm5NMpJWZG3hSuFU=\"; }}; b = derivation {{ name = \"dependent\"; system = \"x86_64-linux\"; builder = \"/bin/sh\"; input = a; }}; in {{ drvPath = b.drvPath; output = b.outPath; }}"

@@ -17,4 +17,5 @@ noxi-events = { path = "../noxi-events", version = "0.0.1" }
 noxi-system = { path = "../noxi-system", version = "0.0.4" }
 
 [dev-dependencies]
+noxi-test-support = { path = "../noxi-test-support" }
 tempfile.workspace = true

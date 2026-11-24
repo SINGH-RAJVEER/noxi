@@ -5,12 +5,12 @@ use std::path::{Path, PathBuf};
 use std::process::{Command, Output};
 
 struct Fixture {
-	dir: tempfile::TempDir,
+	dir: noxi_test_support::TempDir,
 	reference: PathBuf,
 }
 impl Fixture {
 	fn new() -> Self {
-		let dir = tempfile::tempdir().unwrap();
+		let dir = noxi_test_support::tempdir().unwrap();
 		let reference = std::env::var_os("NOXI_REFERENCE_BIN")
 			.map(PathBuf::from)
 			.unwrap_or_else(|| {
@@ -758,8 +758,8 @@ fn config_show_validates_generated_nix_conf() {
 /// as `nix-prefetch-url --store` and a daemon serving a new root rely on.
 #[test]
 fn missing_diverted_root_is_created() {
-	let reference = tempfile::tempdir().unwrap();
-	let candidate = tempfile::tempdir().unwrap();
+	let reference = noxi_test_support::tempdir().unwrap();
+	let candidate = noxi_test_support::tempdir().unwrap();
 	let f = Fixture::new();
 	let run = |dir: &Path, program: PathBuf| {
 		let root = dir.join("missing/parent/root");

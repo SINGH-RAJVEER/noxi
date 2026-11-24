@@ -96,7 +96,7 @@ fn evaluate(cache: &Path, fixture: Rc<Forge>, reference: &str, offline: bool) ->
 
 #[test]
 fn github_gitlab_and_sourcehut_apis_lock_offline_with_reference_attributes() {
-	let dir = tempfile::tempdir().unwrap();
+	let dir = noxi_test_support::tempdir().unwrap();
 	let mut tar_bytes = Vec::new();
 	{
 		let mut tar = tar::Builder::new(&mut tar_bytes);
@@ -117,8 +117,8 @@ fn github_gitlab_and_sourcehut_apis_lock_offline_with_reference_attributes() {
 		"builtins.fetchTree {{ type = \"tarball\"; url = {}; rev = \"{REV}\"; }}",
 		serde_json::json!(format!("file://{}", archive.display()))
 	));
-	let home = tempfile::tempdir().unwrap();
-	let store = tempfile::tempdir().unwrap();
+	let home = noxi_test_support::tempdir().unwrap();
+	let store = noxi_test_support::tempdir().unwrap();
 	let output = Command::new(reference)
 		.env_clear()
 		.env("PATH", std::env::var_os("PATH").unwrap())
@@ -150,7 +150,7 @@ fn github_gitlab_and_sourcehut_apis_lock_offline_with_reference_attributes() {
 		"gitlab:owner/repo/main",
 		"sourcehut:~owner/repo",
 	] {
-		let cache = tempfile::tempdir().unwrap();
+		let cache = noxi_test_support::tempdir().unwrap();
 		let fixture = Rc::new(Forge {
 			tar: tar_bytes.clone(),
 			calls: RefCell::new(Vec::new()),

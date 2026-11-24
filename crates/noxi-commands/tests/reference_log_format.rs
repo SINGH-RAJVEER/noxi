@@ -81,13 +81,13 @@ in {
 "#;
 
 struct Env {
-	dir: tempfile::TempDir,
+	dir: noxi_test_support::TempDir,
 	busybox: String,
 }
 
 impl Env {
 	fn new() -> Self {
-		let dir = tempfile::tempdir().unwrap();
+		let dir = noxi_test_support::tempdir().unwrap();
 		for sub in ["conf", "home"] {
 			fs::create_dir(dir.path().join(sub)).unwrap();
 		}
@@ -203,12 +203,7 @@ impl Env {
 	fn reset(&self) {
 		for engine in ENGINES {
 			let root = self.root(engine);
-			let _ = Command::new("chmod")
-				.arg("-R")
-				.arg("u+w")
-				.arg(&root)
-				.status();
-			let _ = fs::remove_dir_all(&root);
+			noxi_test_support::remove_tree(&root).unwrap();
 			let output = self.run(
 				"reference",
 				"nix",

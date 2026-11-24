@@ -56,13 +56,13 @@ fn busybox() -> String {
 }
 
 struct Env {
-	dir: tempfile::TempDir,
+	dir: noxi_test_support::TempDir,
 	busybox: String,
 }
 
 impl Env {
 	fn new() -> Self {
-		let dir = tempfile::tempdir().unwrap();
+		let dir = noxi_test_support::tempdir().unwrap();
 		fs::create_dir(dir.path().join("conf")).unwrap();
 		fs::create_dir(dir.path().join("home")).unwrap();
 		fs::create_dir(dir.path().join("links")).unwrap();

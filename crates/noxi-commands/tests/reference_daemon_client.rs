@@ -53,7 +53,7 @@ fn noxi_bin(program: &str) -> &'static str {
 }
 
 struct Env {
-	dir: tempfile::TempDir,
+	dir: noxi_test_support::TempDir,
 	/// Where the stores, work directories and sockets live.
 	base: PathBuf,
 	busybox: String,
@@ -66,11 +66,6 @@ impl Drop for Env {
 			let _ = daemon.kill();
 			let _ = daemon.wait();
 		}
-		// Store paths are read-only.
-		let _ = Command::new("chmod")
-			.args(["-R", "u+w"])
-			.arg(self.dir.path())
-			.status();
 	}
 }
 
@@ -94,7 +89,7 @@ impl Env {
 	/// An environment whose stores, work directories and sockets are in
 	/// `subdir` of its temporary directory.
 	fn new_in(subdir: &str) -> Self {
-		let dir = tempfile::tempdir().unwrap();
+		let dir = noxi_test_support::tempdir().unwrap();
 		let base = dir.path().join(subdir);
 		for sub in ["conf", "home"] {
 			fs::create_dir(dir.path().join(sub)).unwrap();

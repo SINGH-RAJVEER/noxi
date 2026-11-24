@@ -129,8 +129,8 @@ fn repo(path: &Path) {
 	git(path, &["commit", "-m", "initial"]);
 }
 fn reference(cwd: &Path, operation: &str, reference: &str, flags: &[&str]) -> std::process::Output {
-	let home = tempfile::tempdir().unwrap();
-	let store = tempfile::tempdir().unwrap();
+	let home = noxi_test_support::tempdir().unwrap();
+	let store = noxi_test_support::tempdir().unwrap();
 	Command::new(Path::new(env!("CARGO_MANIFEST_DIR")).join("../../target/nix-reference/bin/nix")).env_clear().env("PATH",std::env::var_os("PATH").unwrap()).env("HOME",home.path()).env("NIX_CONF_DIR",home.path()).env("NIX_CONFIG","experimental-features = flakes nix-command\nsubstituters =\nflake-registry =\nwarn-dirty = false\n").current_dir(cwd)
 	.args(["--store",&format!("local?root={}",store.path().display()),"flake",operation,reference]).args(if operation == "lock" {Vec::new()} else {vec!["--no-write-lock-file"]}).args(flags).output().unwrap()
 }
@@ -161,8 +161,8 @@ fn run_with_overrides(
 	all_systems: bool,
 	overrides: Vec<(String, String)>,
 ) -> Result<Json, String> {
-	let root = tempfile::tempdir().unwrap();
-	let cache = tempfile::tempdir().unwrap();
+	let root = noxi_test_support::tempdir().unwrap();
+	let cache = noxi_test_support::tempdir().unwrap();
 	let store = if command == "check" {
 		let config = noxi_store::LocalStoreConfig::diverted(root.path()).unwrap();
 		let directory = config.real_store_dir.clone();
@@ -252,7 +252,7 @@ fn compare(
 }
 #[test]
 fn metadata_and_prefetch_json_match_reference() {
-	let fixture = tempfile::tempdir().unwrap();
+	let fixture = noxi_test_support::tempdir().unwrap();
 	fs::write(fixture.path().join("flake.nix"),"{ description = \"Fixture description\"; outputs = { self }: throw \"metadata must not evaluate outputs\"; }").unwrap();
 	repo(fixture.path());
 	let rev = git(fixture.path(), &["rev-parse", "HEAD"]);
@@ -266,9 +266,9 @@ fn metadata_and_prefetch_json_match_reference() {
 }
 #[test]
 fn archive_graph_json_matches_reference() {
-	let fixture = tempfile::tempdir().unwrap();
+	let fixture = noxi_test_support::tempdir().unwrap();
 	let child = fixture.path().join("child");
-	let external = tempfile::tempdir().unwrap();
+	let external = noxi_test_support::tempdir().unwrap();
 	fs::create_dir(&child).unwrap();
 	fs::write(child.join("flake.nix"), "{ outputs = { self }: {}; }").unwrap();
 	fs::write(external.path().join("file"), "non-flake source").unwrap();
@@ -285,7 +285,7 @@ fn archive_graph_json_matches_reference() {
 }
 #[test]
 fn show_and_check_conventional_outputs_match_reference() {
-	let fixture = tempfile::tempdir().unwrap();
+	let fixture = noxi_test_support::tempdir().unwrap();
 	let busybox = Path::new(env!("CARGO_MANIFEST_DIR"))
 		.join("../../target/test-busybox")
 		.canonicalize()
@@ -343,7 +343,7 @@ fn show_and_check_conventional_outputs_match_reference() {
 
 #[test]
 fn registry_metadata_preserves_resolved_reference_across_cache_hits() {
-	let fixture = tempfile::tempdir().unwrap();
+	let fixture = noxi_test_support::tempdir().unwrap();
 	fs::write(
 		fixture.path().join("flake.nix"),
 		"{ outputs = { self }: {}; }",
@@ -378,7 +378,7 @@ fn registry_metadata_preserves_resolved_reference_across_cache_hits() {
 
 #[test]
 fn check_schema_errors_match_reference_messages() {
-	let fixture = tempfile::tempdir().unwrap();
+	let fixture = noxi_test_support::tempdir().unwrap();
 	let system = format!("{}-linux", std::env::consts::ARCH);
 	for output in [
 		format!("packages.{system}.default = 42;"),
@@ -415,7 +415,7 @@ fn check_schema_errors_match_reference_messages() {
 
 #[test]
 fn library_lock_selective_update_and_full_update_match_reference_bytes() {
-	let fixture = tempfile::tempdir().unwrap();
+	let fixture = noxi_test_support::tempdir().unwrap();
 	let root = fixture.path().join("root");
 	let a = fixture.path().join("a");
 	let b = fixture.path().join("b");

@@ -102,7 +102,7 @@ fn candidate(
 }
 #[test]
 fn lfs_batch_and_offline_cache_match_reference() {
-	let root = tempfile::tempdir().unwrap();
+	let root = noxi_test_support::tempdir().unwrap();
 	git(root.path(), &["init", "-b", "main"]);
 	git(root.path(), &["config", "user.name", "Fetcher test"]);
 	git(
@@ -139,7 +139,7 @@ fn lfs_batch_and_offline_cache_match_reference() {
 		],
 	);
 	let rev = git(root.path(), &["rev-parse", "HEAD"]);
-	let home = tempfile::tempdir().unwrap();
+	let home = noxi_test_support::tempdir().unwrap();
 	let cache = home.path().join("reference-cache");
 	let object_dir = cache.join("git-lfs").join(hex(&Sha256::digest(b"object")));
 	fs::create_dir_all(&object_dir).unwrap();
@@ -159,9 +159,9 @@ fn lfs_batch_and_offline_cache_match_reference() {
 		oid,
 		calls: RefCell::new(Vec::new()),
 	});
-	let candidate_cache = tempfile::tempdir().unwrap();
+	let candidate_cache = noxi_test_support::tempdir().unwrap();
 	for expression in expressions {
-		let store = tempfile::tempdir().unwrap();
+		let store = noxi_test_support::tempdir().unwrap();
 		let output = Command::new(Path::new(env!("CARGO_MANIFEST_DIR")).join("../../target/nix-reference/bin/nix-instantiate"))
 			.env_clear().env("PATH", std::env::var_os("PATH").unwrap()).env("HOME", home.path()).env("NIX_CACHE_HOME", &cache).env("NIX_CONF_DIR",home.path())
 			.env("NIX_CONFIG", "experimental-features = flakes nix-command\nsubstituters =\nflake-registry =\nwarn-dirty = false\n")

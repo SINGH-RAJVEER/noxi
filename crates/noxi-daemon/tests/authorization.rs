@@ -77,12 +77,12 @@ fn identity() -> Identity {
 struct Daemon {
 	child: Child,
 	socket: PathBuf,
-	_dir: tempfile::TempDir,
+	_dir: noxi_test_support::TempDir,
 }
 
 impl Daemon {
 	fn start(bin: &Path, config: &str, flags: &[&str]) -> Self {
-		let dir = tempfile::tempdir().unwrap();
+		let dir = noxi_test_support::tempdir().unwrap();
 		std::fs::create_dir(dir.path().join("conf")).unwrap();
 		// A socket in directories that do not exist yet.
 		let socket = dir.path().join("run/daemon/socket");
@@ -326,7 +326,7 @@ fn daemon_socket_permissions_and_refused_clients_match_the_reference() {
 					& 0o7777,
 			);
 			// The reference client against this daemon.
-			let dir = tempfile::tempdir().unwrap();
+			let dir = noxi_test_support::tempdir().unwrap();
 			let out = Command::new(reference_bin().join("nix"))
 				.args([
 					"store",

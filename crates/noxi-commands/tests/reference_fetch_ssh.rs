@@ -28,13 +28,13 @@ fn git(path: &Path, args: &[&str]) -> String {
 	String::from_utf8(output.stdout).unwrap().trim().into()
 }
 struct Fixture {
-	dir: tempfile::TempDir,
+	dir: noxi_test_support::TempDir,
 	rev: String,
 	url: String,
 }
 impl Fixture {
 	fn new(lfs: bool) -> Self {
-		let dir = tempfile::tempdir().unwrap();
+		let dir = noxi_test_support::tempdir().unwrap();
 		let repo = dir.path().join("repo");
 		fs::create_dir(&repo).unwrap();
 		git(&repo, &["init", "--quiet", "-b", "main"]);
@@ -98,9 +98,9 @@ exit 0
 		}
 	}
 	fn run(&self, reference: bool, expression: &str, auth: Option<&str>) -> Output {
-		let root = tempfile::tempdir().unwrap();
-		let home = tempfile::tempdir().unwrap();
-		let cache = tempfile::tempdir().unwrap();
+		let root = noxi_test_support::tempdir().unwrap();
+		let home = noxi_test_support::tempdir().unwrap();
+		let cache = noxi_test_support::tempdir().unwrap();
 		let executable = if reference {
 			std::env::var_os("NOXI_REFERENCE_BIN")
 				.map(PathBuf::from)

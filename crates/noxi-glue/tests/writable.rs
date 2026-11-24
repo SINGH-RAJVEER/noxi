@@ -23,8 +23,8 @@ fn path(value: Value) -> StorePath {
 
 #[test]
 fn materializes_text_sources_and_derivations_with_references() {
-	let root = tempfile::tempdir().unwrap();
-	let source = tempfile::tempdir().unwrap();
+	let root = noxi_test_support::tempdir().unwrap();
+	let source = noxi_test_support::tempdir().unwrap();
 	fs::write(source.path().join("source"), "hello").unwrap();
 	fs::set_permissions(
 		source.path().join("source"),
@@ -125,8 +125,8 @@ fn materializes_text_sources_and_derivations_with_references() {
 
 #[test]
 fn readonly_computes_the_same_paths_without_opening_a_store() {
-	let root = tempfile::tempdir().unwrap();
-	let source = tempfile::tempdir().unwrap();
+	let root = noxi_test_support::tempdir().unwrap();
+	let source = noxi_test_support::tempdir().unwrap();
 	fs::write(source.path().join("source"), "hello").unwrap();
 	let readonly = EvaluatorStore::new();
 	assert!(readonly.store().is_none());
@@ -156,7 +156,7 @@ fn readonly_computes_the_same_paths_without_opening_a_store() {
 
 #[test]
 fn writable_drvpath_dependencies_use_the_diverted_database() {
-	let root = tempfile::tempdir().unwrap();
+	let root = noxi_test_support::tempdir().unwrap();
 	let store = EvaluatorStore::writable(root.path()).unwrap();
 	let expr = r#"let a = derivation { name = "a"; system = "x"; builder = "/bin/sh"; }; in (derivation { name = "b"; system = "x"; builder = "/bin/sh"; dep = a.drvPath; }).drvPath"#;
 	let result = path(evaluate(&store, root.path(), expr));
@@ -169,7 +169,7 @@ fn writable_drvpath_dependencies_use_the_diverted_database() {
 
 #[test]
 fn dependency_outputs_register_the_input_drv_not_the_unbuilt_output_as_a_reference() {
-	let root = tempfile::tempdir().unwrap();
+	let root = noxi_test_support::tempdir().unwrap();
 	let store = EvaluatorStore::writable(root.path()).unwrap();
 	let result = path(evaluate(
 		&store,
@@ -210,7 +210,7 @@ fn dependency_outputs_register_the_input_drv_not_the_unbuilt_output_as_a_referen
 
 #[test]
 fn diverted_source_filters_receive_logical_paths_in_both_store_modes() {
-	let root = tempfile::tempdir().unwrap();
+	let root = noxi_test_support::tempdir().unwrap();
 	let logical = "/nix/store/00000000000000000000000000000000-logical-source";
 	let physical = root.path().join(logical.trim_start_matches('/'));
 	fs::create_dir_all(physical.join("sub")).unwrap();
@@ -260,10 +260,10 @@ fn diverted_source_filters_receive_logical_paths_in_both_store_modes() {
 #[test]
 fn rejects_live_and_symlink_redirected_roots_before_opening() {
 	assert!(EvaluatorStore::writable(Path::new("/")).is_err());
-	let root = tempfile::tempdir().unwrap();
+	let root = noxi_test_support::tempdir().unwrap();
 	symlink("/nix", root.path().join("nix")).unwrap();
 	assert!(EvaluatorStore::writable(root.path()).is_err());
-	let root = tempfile::tempdir().unwrap();
+	let root = noxi_test_support::tempdir().unwrap();
 	fs::create_dir_all(root.path().join("nix/var/nix")).unwrap();
 	symlink("/nix/var/nix/db", root.path().join("nix/var/nix/db")).unwrap();
 	assert!(EvaluatorStore::writable(root.path()).is_err());
@@ -272,8 +272,8 @@ fn rejects_live_and_symlink_redirected_roots_before_opening() {
 
 #[test]
 fn hash_mismatch_does_not_register_the_source() {
-	let root = tempfile::tempdir().unwrap();
-	let source = tempfile::tempdir().unwrap();
+	let root = noxi_test_support::tempdir().unwrap();
+	let source = noxi_test_support::tempdir().unwrap();
 	fs::write(source.path().join("source"), "hello").unwrap();
 	let store = EvaluatorStore::writable(root.path()).unwrap();
 	let result = configure(Evaluation::builder_pure(), store.clone()).build().evaluate_in_dir(
@@ -291,7 +291,7 @@ fn hash_mismatch_does_not_register_the_source() {
 
 #[test]
 fn store_path_validity_is_checked_only_in_writable_mode() {
-	let root = tempfile::tempdir().unwrap();
+	let root = noxi_test_support::tempdir().unwrap();
 	let expr = r#"builtins.storePath "/nix/store/lfngsssysp6h1v4ccqg23c52s9sjl779-x""#;
 	let readonly = EvaluatorStore::new();
 	let expected = path(evaluate(&readonly, root.path(), expr));
@@ -313,8 +313,8 @@ fn store_path_validity_is_checked_only_in_writable_mode() {
 
 #[test]
 fn imports_directories_and_symlinks_in_the_diverted_store() {
-	let root = tempfile::tempdir().unwrap();
-	let source = tempfile::tempdir().unwrap();
+	let root = noxi_test_support::tempdir().unwrap();
+	let source = noxi_test_support::tempdir().unwrap();
 	fs::write(source.path().join("default.nix"), "import ./child.nix").unwrap();
 	fs::write(source.path().join("child.nix"), "[ 17 ./. ]").unwrap();
 	symlink("child.nix", source.path().join("link.nix")).unwrap();
@@ -351,7 +351,7 @@ fn imports_directories_and_symlinks_in_the_diverted_store() {
 
 #[test]
 fn derivation_import_ignores_scope_and_preserves_output_contexts() {
-	let root = tempfile::tempdir().unwrap();
+	let root = noxi_test_support::tempdir().unwrap();
 	let store = EvaluatorStore::writable(root.path()).unwrap();
 	let drv = path(evaluate(
 		&store,
@@ -383,7 +383,7 @@ fn derivation_import_ignores_scope_and_preserves_output_contexts() {
 
 #[test]
 fn unregistered_drv_files_are_imported_as_expressions() {
-	let root = tempfile::tempdir().unwrap();
+	let root = noxi_test_support::tempdir().unwrap();
 	let store = EvaluatorStore::writable(root.path()).unwrap();
 	let fake: StorePath = "00000000000000000000000000000000-expression.drv"
 		.parse()
@@ -398,7 +398,7 @@ fn unregistered_drv_files_are_imported_as_expressions() {
 
 #[test]
 fn read_file_retains_only_references_that_occur_in_its_contents() {
-	let root = tempfile::tempdir().unwrap();
+	let root = noxi_test_support::tempdir().unwrap();
 	let store = EvaluatorStore::writable(root.path()).unwrap();
 	let expression = r#"let
 		a = builtins.toFile "a" "present";
@@ -420,7 +420,7 @@ fn read_file_retains_only_references_that_occur_in_its_contents() {
 
 #[test]
 fn appended_context_paths_are_ensured_only_in_writable_evaluation() {
-	let root = tempfile::tempdir().unwrap();
+	let root = noxi_test_support::tempdir().unwrap();
 	let writable = EvaluatorStore::writable(root.path()).unwrap();
 	let missing = r#"builtins.appendContext "text" { "/nix/store/00000000000000000000000000000000-missing" = throw "context value evaluated"; }"#;
 	let result = configure(Evaluation::builder_pure(), writable.clone())
@@ -482,8 +482,8 @@ fn path_inputs_the_diverted_store_lacks_are_read_from_the_host() {
 	let Some(host) = small_host_store_dir() else {
 		return;
 	};
-	let root = tempfile::tempdir().unwrap();
-	let cache = tempfile::tempdir().unwrap();
+	let root = noxi_test_support::tempdir().unwrap();
+	let cache = noxi_test_support::tempdir().unwrap();
 	let store = EvaluatorStore::writable(root.path()).unwrap();
 	store.configure_fetching(noxi_glue::fetch::FetchConfig {
 		cwd: root.path().to_owned(),

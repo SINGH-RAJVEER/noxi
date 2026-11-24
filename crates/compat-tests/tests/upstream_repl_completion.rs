@@ -42,7 +42,7 @@ fn noxi_repl_recovers_from_fixture_expression_errors() {
 		spawn,
 		"repl --offline --extra-experimental-features nix-command"
 	);
-	let scratch = tempfile::tempdir().unwrap();
+	let scratch = noxi_test_support::tempdir().unwrap();
 	let mut child = Command::new(candidate_nix())
 		.args(spawn.split_whitespace())
 		.env_clear()

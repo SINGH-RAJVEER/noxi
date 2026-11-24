@@ -42,18 +42,6 @@ fn sh(dir: &Path, script: &str) {
 	assert!(status.success(), "{script}");
 }
 
-/// Remove a tree that may contain read-only store paths.
-fn remove(path: &Path) {
-	if path.exists() {
-		let _ = Command::new("chmod")
-			.arg("-R")
-			.arg("u+w")
-			.arg(path)
-			.status();
-		fs::remove_dir_all(path).unwrap();
-	}
-}
-
 struct Run {
 	code: Option<i32>,
 	stdout: String,
@@ -81,7 +69,7 @@ fn locks(root: &Path, dir: &Path, out: &mut Vec<(String, Vec<u8>)>) {
 }
 
 fn run(bin: &Path, work: &Path, conf: &str, args: &[String]) -> Run {
-	let root = tempfile::tempdir().unwrap();
+	let root = noxi_test_support::tempdir().unwrap();
 	let output = Command::new(bin)
 		.env_clear()
 		.env("PATH", std::env::var_os("PATH").unwrap())
@@ -119,7 +107,6 @@ fn run(bin: &Path, work: &Path, conf: &str, args: &[String]) -> Run {
 		stderr: normalize(&output.stderr),
 		locks: found,
 	};
-	remove(&root.keep());
 	result
 }
 
@@ -495,7 +482,7 @@ fn script(work: &Path, body: &str) -> String {
 
 /// Copy the template to the work path, keeping mtimes and Git index bytes.
 fn place(template: &Path, work: &Path) {
-	remove(work);
+	noxi_test_support::remove_tree(work).unwrap();
 	let status = Command::new("cp")
 		.arg("-a")
 		.arg(template)
@@ -509,12 +496,12 @@ fn place(template: &Path, work: &Path) {
 fn lock_graphs_registries_and_policies_match_reference() {
 	let reference = reference();
 	let candidate = Path::new(env!("CARGO_BIN_EXE_nix"));
-	let scratch = tempfile::tempdir().unwrap();
+	let scratch = noxi_test_support::tempdir().unwrap();
 	let template = scratch.path().join("template");
 	let work = scratch.path().join("work");
 	let mut failures = Vec::new();
 	for case in cases() {
-		remove(&template);
+		noxi_test_support::remove_tree(&template).unwrap();
 		fs::create_dir(&template).unwrap();
 		sh(&template, &script(&work, case.setup));
 		if let Some(after) = case.after_lock {
@@ -564,7 +551,7 @@ fn lock_graphs_registries_and_policies_match_reference() {
 			}
 		}
 	}
-	remove(&work);
-	remove(&template);
+	noxi_test_support::remove_tree(&work).unwrap();
+	noxi_test_support::remove_tree(&template).unwrap();
 	assert!(failures.is_empty(), "{}", failures.join("\n\n"));
 }

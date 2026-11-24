@@ -31,7 +31,7 @@ Each row lists the upstream project, the revision that was imported, the license
 | CppNix setting metadata | `crates/noxi-commands/src/nix/config-settings.json` | The 2.35.2 reference's `GlobalConfig::toJSON` output | LGPL-2.1-or-later for the description text | Embedded by `noxi-commands` for `nix config show`. |
 | CppNix behavior, no copied source | `crates/noxi-store`, `crates/noxi-commands`, `crates/noxi-flake`, `crates/noxi/nix-compat` | CppNix 2.35.2, same revision | Project code, GPL-3.0-only | Per their `PROVENANCE.md`, these follow CppNix behavior and copy no source apart from the files listed above. |
 | CppNix behavior, close to the C++ | `crates/noxi-build`, `crates/noxi-daemon` | CppNix 2.35.2, same revision | Project code, GPL-3.0-only | `noxi-build`'s `PROVENANCE.md` says it "adapts routines"; `noxi-daemon` follows `daemon.cc`'s `performOp` and `TunnelLogger`. Whether any file is a translation is open. See [Open items](#open-items). |
-| Project-owned crates | `crates/noxi-system`, `crates/noxi-events`, `crates/noxi-cli` | None | GPL-3.0-only; `noxi-cli` declares Apache-2.0 | Each `PROVENANCE.md` states that no source is copied. |
+| Project-owned crates | `crates/noxi-system`, `crates/noxi-events`, `crates/noxi-cli`, `crates/noxi-test-support` | None | GPL-3.0-only; `noxi-cli` declares Apache-2.0 | Each `PROVENANCE.md` states that no source is copied. |
 
 Every file in this table that is embedded with `include_str!` is compiled into the packaged executables, because `noxi-cli` depends on `noxi-system`, which links `noxi-commands`, `noxi-glue` and `noxi-store`.
 

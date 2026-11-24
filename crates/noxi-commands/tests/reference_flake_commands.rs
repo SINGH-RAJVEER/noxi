@@ -30,7 +30,7 @@ fn reference() -> Option<PathBuf> {
 /// One engine's private directory: `work` is the working directory, `home`
 /// the home directory and `root` the diverted store root.
 struct Engine {
-	dir: tempfile::TempDir,
+	dir: noxi_test_support::TempDir,
 	program: PathBuf,
 	name: &'static str,
 }
@@ -99,12 +99,12 @@ impl Pair {
 		Self {
 			engines: [
 				Engine {
-					dir: tempfile::tempdir().unwrap(),
+					dir: noxi_test_support::tempdir().unwrap(),
 					program: reference.join(name),
 					name,
 				},
 				Engine {
-					dir: tempfile::tempdir().unwrap(),
+					dir: noxi_test_support::tempdir().unwrap(),
 					program: candidate,
 					name,
 				},
@@ -218,8 +218,8 @@ const PACKAGES: &str = r#"{
 	};
 }"#;
 
-fn fixture(contents: &str) -> tempfile::TempDir {
-	let dir = tempfile::tempdir().unwrap();
+fn fixture(contents: &str) -> noxi_test_support::TempDir {
+	let dir = noxi_test_support::tempdir().unwrap();
 	fs::write(dir.path().join("flake.nix"), contents).unwrap();
 	dir
 }
@@ -268,7 +268,7 @@ fn search_text_json_exclusion_and_errors_match() {
 #[test]
 fn flake_init_new_and_conflicts_match() {
 	let Some(reference) = reference() else { return };
-	let templates = tempfile::tempdir().unwrap();
+	let templates = noxi_test_support::tempdir().unwrap();
 	let root = templates.path();
 	fs::create_dir_all(root.join("a/sub")).unwrap();
 	fs::create_dir_all(root.join("b")).unwrap();
@@ -306,7 +306,7 @@ fn flake_init_new_and_conflicts_match() {
 	pair.same(&["flake", "new"], &[]);
 	// Identical files are skipped, others conflict, and new files are
 	// added to an existing Git checkout with intent-to-add.
-	let existing = tempfile::tempdir().unwrap();
+	let existing = noxi_test_support::tempdir().unwrap();
 	fs::write(existing.path().join("file.txt"), "hello\n").unwrap();
 	fs::write(existing.path().join("run.sh"), "other\n").unwrap();
 	std::os::unix::fs::symlink("other", existing.path().join("link")).unwrap();
@@ -363,7 +363,7 @@ fn flake_clone_matches_for_path_git_and_registry_sources() {
 				.success()
 		)
 	};
-	let plain = tempfile::tempdir().unwrap();
+	let plain = noxi_test_support::tempdir().unwrap();
 	copy_tree(source.path(), plain.path());
 	git(&["init", "-q", "-b", "main"]);
 	git(&["add", "."]);
@@ -425,8 +425,8 @@ fn flake_clone_matches_for_path_git_and_registry_sources() {
 fn formatter_build_run_and_errors_match() {
 	let Some(reference) = reference() else { return };
 	// `builtin:unpack-channel` builds the formatter without a host builder.
-	let fixture = tempfile::tempdir().unwrap();
-	let unpacked = tempfile::tempdir().unwrap();
+	let fixture = noxi_test_support::tempdir().unwrap();
+	let unpacked = noxi_test_support::tempdir().unwrap();
 	fs::create_dir(unpacked.path().join("x")).unwrap();
 	let script = unpacked.path().join("x/fmt");
 	fs::write(
@@ -514,7 +514,7 @@ fn edit_positions_editors_and_errors_match() {
 }; }"#,
 	);
 	fs::write(flake.path().join("other.nix"), "other file\n").unwrap();
-	let editor = tempfile::tempdir().unwrap();
+	let editor = noxi_test_support::tempdir().unwrap();
 	fs::write(editor.path().join("vim"), "#!/bin/sh\necho \"$@\"\n").unwrap();
 	fs::set_permissions(editor.path().join("vim"), fs::Permissions::from_mode(0o755)).unwrap();
 	let vim = editor.path().join("vim").display().to_string();
@@ -641,7 +641,7 @@ fn help_page_lookup_and_errors_match() {
 #[test]
 fn repl_sessions_match() {
 	let Some(reference) = reference() else { return };
-	let file = tempfile::tempdir().unwrap();
+	let file = noxi_test_support::tempdir().unwrap();
 	let pkgs = file.path().join("pkgs.nix");
 	fs::write(
 		&pkgs,
@@ -706,7 +706,7 @@ fn daemon_usage_and_stdio_handshake_match() {
 #[test]
 fn upgrade_nix_dry_run_and_profile_errors_match() {
 	let Some(reference) = reference() else { return };
-	let fixture = tempfile::tempdir().unwrap();
+	let fixture = noxi_test_support::tempdir().unwrap();
 	let paths = fixture.path().join("paths.nix");
 	fs::write(
 		&paths,
@@ -766,8 +766,8 @@ fn upgrade_nix_dry_run_and_profile_errors_match() {
 #[test]
 fn bundle_with_a_local_bundler_matches() {
 	let Some(reference) = reference() else { return };
-	let bundler = tempfile::tempdir().unwrap();
-	let unpacked = tempfile::tempdir().unwrap();
+	let bundler = noxi_test_support::tempdir().unwrap();
+	let unpacked = noxi_test_support::tempdir().unwrap();
 	fs::create_dir(unpacked.path().join("x")).unwrap();
 	fs::write(unpacked.path().join("x/tool"), "#!/bin/sh\n").unwrap();
 	assert!(

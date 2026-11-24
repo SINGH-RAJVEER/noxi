@@ -51,13 +51,13 @@ impl Tools for FakeTools {
 }
 
 struct Tree {
-	dir: tempfile::TempDir,
+	dir: noxi_test_support::TempDir,
 }
 
 impl Tree {
 	fn new() -> Self {
 		Tree {
-			dir: tempfile::tempdir().unwrap(),
+			dir: noxi_test_support::tempdir().unwrap(),
 		}
 	}
 
@@ -379,7 +379,7 @@ fn writes_under_the_root_and_keeps_existing_configuration() {
 	let tree = Tree::new();
 	tree.write("/proc/cpuinfo", "")
 		.write("/proc/self/mountinfo", "");
-	let target = tempfile::tempdir().unwrap();
+	let target = noxi_test_support::tempdir().unwrap();
 	let root = target.path().to_str().unwrap().to_owned();
 	let distribution = Distribution {
 		release: "26.11".to_owned(),
@@ -483,7 +483,7 @@ fn noxios_flake_keeps_noxi_and_reuses_the_running_lock() {
 	tree.write("/proc/cpuinfo", "")
 		.write("/proc/self/mountinfo", "")
 		.write(init::NOXIOS_FLAKE_LOCK, lock);
-	let target = tempfile::tempdir().unwrap();
+	let target = noxi_test_support::tempdir().unwrap();
 	let distribution = Distribution {
 		release: "26.11".to_owned(),
 		hostname: "noxios".to_owned(),
@@ -510,7 +510,7 @@ fn noxios_flake_keeps_noxi_and_reuses_the_running_lock() {
 	assert_eq!(fs::read_to_string(dir.join("flake.lock")).unwrap(), lock);
 
 	// A lock that does not pin the flake's inputs is not copied.
-	let other = tempfile::tempdir().unwrap();
+	let other = noxi_test_support::tempdir().unwrap();
 	tree.write(
 		init::NOXIOS_FLAKE_LOCK,
 		"{\"nodes\":{\"root\":{\"inputs\":{\"nixpkgs\":\"nixpkgs\"}}},\"root\":\"root\",\"version\":7}\n",
@@ -532,7 +532,7 @@ fn show_hardware_config_writes_nothing() {
 		virt: "kvm".to_owned(),
 		..FakeTools::default()
 	};
-	let out_dir = tempfile::tempdir().unwrap();
+	let out_dir = noxi_test_support::tempdir().unwrap();
 	let options = Options {
 		root: "/mnt".to_owned(),
 		dir: out_dir.path().join("cfg").to_string_lossy().into_owned(),

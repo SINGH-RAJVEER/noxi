@@ -32,7 +32,10 @@ fn evaluate(binary: &Path, home: &Path, store: &str, expression: &str, flags: &[
 }
 
 fn compare(root: &Path, expression: &str, flags: &[&str], writable: Option<bool>) {
-	let roots = [tempfile::tempdir().unwrap(), tempfile::tempdir().unwrap()];
+	let roots = [
+		noxi_test_support::tempdir().unwrap(),
+		noxi_test_support::tempdir().unwrap(),
+	];
 	let homes = [root.join("candidate"), root.join("reference")];
 	let mut outputs = Vec::new();
 	for (i, binary) in [
@@ -102,7 +105,7 @@ fn hg(repo: &Path, args: &[&str]) -> String {
 
 #[test]
 fn mercurial_arguments_and_pure_revision_gate_match_reference() {
-	let root = tempfile::tempdir().unwrap();
+	let root = noxi_test_support::tempdir().unwrap();
 	for expression in [
 		"builtins.fetchMercurial {}",
 		"builtins.fetchMercurial { url = \"\"; }",
@@ -178,7 +181,7 @@ fn mercurial_arguments_and_pure_revision_gate_match_reference() {
 
 #[test]
 fn mercurial_clean_dirty_and_pinned_trees_match_reference() {
-	let root = tempfile::tempdir().unwrap();
+	let root = noxi_test_support::tempdir().unwrap();
 	let repo = root.path().join("repo");
 	std::fs::create_dir(&repo).unwrap();
 	hg(&repo, &["init"]);
@@ -280,7 +283,7 @@ fn mercurial_clean_dirty_and_pinned_trees_match_reference() {
 
 #[test]
 fn mercurial_flake_lock_writes_are_tracked_and_dirty() {
-	let root = tempfile::tempdir().unwrap();
+	let root = noxi_test_support::tempdir().unwrap();
 	let dependency = root.path().join("dependency");
 	std::fs::create_dir(&dependency).unwrap();
 	hg(&dependency, &["init"]);

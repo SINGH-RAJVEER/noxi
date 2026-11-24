@@ -234,7 +234,7 @@ mod tests {
 		writer.drain(true).unwrap();
 		assert_eq!(writer.matches, [1, 6]);
 		assert_eq!(writer.inner, b"x\0\0\0\0q\0\0\0\0!");
-		let dir = tempfile::tempdir().unwrap();
+		let dir = noxi_test_support::tempdir().unwrap();
 		let path = dir.path().join("file");
 		fs::write(&path, "xabcdqabcd!").unwrap();
 		let expected: [u8; 32] = Sha256::digest(b"x\0\0\0\0q\0\0\0\0!|1|6").into();

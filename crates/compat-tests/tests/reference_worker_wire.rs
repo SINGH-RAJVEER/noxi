@@ -435,7 +435,7 @@ impl Wire {
 }
 
 struct Env {
-	dir: tempfile::TempDir,
+	dir: noxi_test_support::TempDir,
 	busybox: String,
 	out: String,
 	drv: String,
@@ -523,7 +523,7 @@ impl Env {
 	/// Build the source store, let `setup` add to it, copy it for both
 	/// daemons and start them.
 	fn with_setup(options: Options, setup: impl FnOnce(&Env)) -> Self {
-		let dir = tempfile::tempdir().unwrap();
+		let dir = noxi_test_support::tempdir().unwrap();
 		for sub in ["conf", "home"] {
 			fs::create_dir(dir.path().join(sub)).unwrap();
 		}

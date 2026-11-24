@@ -32,3 +32,6 @@ zstd = { workspace = true, features = ["zstdmt"] }
 
 [build-dependencies]
 pkg-config = "0.3"
+
+[dev-dependencies]
+noxi-test-support = { path = "../noxi-test-support" }

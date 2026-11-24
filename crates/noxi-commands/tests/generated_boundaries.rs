@@ -52,7 +52,7 @@ fn compare(root: &Path, expression: &str, config: &str, flags: &[&str]) {
 
 #[test]
 fn invalid_text_contexts_keep_the_path_realisation_error() {
-	let root = tempfile::tempdir().unwrap();
+	let root = noxi_test_support::tempdir().unwrap();
 	for expression in [
 		"builtins.hashFile \"sha256\" (builtins.toFile \"f\" \"c\")",
 		"builtins.pathExists (builtins.toFile \"f\" \"c\")",
@@ -67,7 +67,7 @@ fn invalid_text_contexts_keep_the_path_realisation_error() {
 
 #[test]
 fn restricted_fetch_uris_follow_reference_prefix_and_error_order() {
-	let root = tempfile::tempdir().unwrap();
+	let root = noxi_test_support::tempdir().unwrap();
 	for expression in [
 		"builtins.fetchurl \"https://example.invalid/repo\"",
 		"builtins.fetchTarball \"https://example.invalid/repo\"",
@@ -104,7 +104,7 @@ fn restricted_fetch_uris_follow_reference_prefix_and_error_order() {
 
 #[test]
 fn pure_evaluation_hides_impure_constants_regardless_of_builder_order() {
-	let root = tempfile::tempdir().unwrap();
+	let root = noxi_test_support::tempdir().unwrap();
 	for expression in [
 		"builtins ? currentSystem",
 		"builtins ? currentTime",
@@ -125,7 +125,7 @@ fn pure_evaluation_hides_impure_constants_regardless_of_builder_order() {
 
 #[test]
 fn restricted_metadata_preserves_the_final_symlink_without_allowing_target_reads() {
-	let root = tempfile::tempdir().unwrap();
+	let root = noxi_test_support::tempdir().unwrap();
 	std::fs::create_dir(root.path().join("allowed")).unwrap();
 	std::fs::create_dir(root.path().join("outside-dir")).unwrap();
 	std::fs::write(root.path().join("outside"), "secret").unwrap();
@@ -176,7 +176,7 @@ fn restricted_metadata_preserves_the_final_symlink_without_allowing_target_reads
 
 #[test]
 fn hash_builtins_apply_algorithm_features_and_argument_order() {
-	let root = tempfile::tempdir().unwrap();
+	let root = noxi_test_support::tempdir().unwrap();
 	std::fs::write(root.path().join("data"), b"abc\xff").unwrap();
 	for config in ["", "experimental-features = blake3-hashes\n"] {
 		for expression in [

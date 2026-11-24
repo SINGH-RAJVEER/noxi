@@ -56,7 +56,7 @@ fn same(cwd: &Path, expression: &str, trace: bool) {
 
 #[test]
 fn nullable_repetition_captures_match_the_reference() {
-	let dir = tempfile::tempdir().unwrap();
+	let dir = noxi_test_support::tempdir().unwrap();
 	for pattern in [
 		"(a*)*",
 		"(a*)+",
@@ -85,7 +85,7 @@ fn nullable_repetition_captures_match_the_reference() {
 
 #[test]
 fn json_numbers_and_data_parser_errors_match_the_reference() {
-	let dir = tempfile::tempdir().unwrap();
+	let dir = noxi_test_support::tempdir().unwrap();
 	for input in [
 		"-0",
 		"-0.0",
@@ -146,7 +146,7 @@ fn json_numbers_and_data_parser_errors_match_the_reference() {
 
 #[test]
 fn invalid_byte_regex_diagnostics_preserve_pattern_bytes() {
-	let dir = tempfile::tempdir().unwrap();
+	let dir = noxi_test_support::tempdir().unwrap();
 	for (index, pattern) in [b"\xff[".as_slice(), b"[\xff", b"(\xff", b"\xff)"]
 		.into_iter()
 		.enumerate()
@@ -168,7 +168,7 @@ fn invalid_byte_regex_diagnostics_preserve_pattern_bytes() {
 
 #[test]
 fn regex_compilation_precedes_subject_forcing() {
-	let dir = tempfile::tempdir().unwrap();
+	let dir = noxi_test_support::tempdir().unwrap();
 	let subject = dir.path().join("subject");
 	std::fs::write(&subject, b"\0\xff").unwrap();
 	for builtin in ["match", "split"] {

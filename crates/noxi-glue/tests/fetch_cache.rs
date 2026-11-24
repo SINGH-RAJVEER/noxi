@@ -59,8 +59,8 @@ fn reference(cache: &Path, expression: &str) -> String {
 			Path::new(env!("CARGO_MANIFEST_DIR")).join("../../target/nix-reference/bin")
 		})
 		.join("nix-instantiate");
-	let home = tempfile::tempdir().unwrap();
-	let root = tempfile::tempdir().unwrap();
+	let home = noxi_test_support::tempdir().unwrap();
+	let root = noxi_test_support::tempdir().unwrap();
 	let output = Command::new(executable)
 		.env_clear()
 		.env("PATH", std::env::var_os("PATH").unwrap())
@@ -92,7 +92,7 @@ fn reference(cache: &Path, expression: &str) -> String {
 
 #[test]
 fn tarball_cache_is_shared_bidirectionally_with_cppnix() {
-	let fixture = tempfile::tempdir().unwrap();
+	let fixture = noxi_test_support::tempdir().unwrap();
 	let archive_path = fixture.path().join("source.tar");
 	let expression = format!(
 		"builtins.readFile ((builtins.fetchTarball {}) + \"/file\")",
@@ -100,7 +100,7 @@ fn tarball_cache_is_shared_bidirectionally_with_cppnix() {
 	);
 	let mut nar_hashes = Vec::new();
 	for candidate_first in [true, false] {
-		let cache = tempfile::tempdir().unwrap();
+		let cache = noxi_test_support::tempdir().unwrap();
 		archive(&archive_path, b"first");
 		let first = if candidate_first {
 			candidate(cache.path(), &expression, false)
@@ -196,7 +196,7 @@ impl Drop for FileServer {
 
 #[test]
 fn gitv3_cache_is_shared_bidirectionally_with_cppnix() {
-	let fixture = tempfile::tempdir().unwrap();
+	let fixture = noxi_test_support::tempdir().unwrap();
 	let repo = fixture.path().join("repo");
 	fs::create_dir(&repo).unwrap();
 	let git = |args: &[&str]| {
@@ -245,7 +245,7 @@ fn gitv3_cache_is_shared_bidirectionally_with_cppnix() {
 			.success()
 	);
 	for candidate_first in [true, false] {
-		let cache = tempfile::tempdir().unwrap();
+		let cache = noxi_test_support::tempdir().unwrap();
 		let server = FileServer::start(fixture.path().to_owned());
 		let expression = format!(
 			"builtins.toJSON (let tree = builtins.fetchGit {{ url = {}; ref = \"main\"; }}; in {{ rev = tree.rev; narHash = tree.narHash; count = tree.revCount; }})",
@@ -296,7 +296,7 @@ impl noxi_glue::fetch::http::Client for EtagClient {
 
 #[test]
 fn file_cache_revalidates_etags_and_reopens_offline() {
-	let cache = tempfile::tempdir().unwrap();
+	let cache = noxi_test_support::tempdir().unwrap();
 	let client = Rc::new(EtagClient {
 		calls: std::cell::Cell::new(0),
 	});
@@ -352,7 +352,7 @@ impl noxi_glue::fetch::http::Client for NoRevalidateClient {
 
 #[test]
 fn file_cache_skips_etag_when_cached_content_is_gone() {
-	let cache = tempfile::tempdir().unwrap();
+	let cache = noxi_test_support::tempdir().unwrap();
 	let expression = "builtins.readFile (builtins.fetchurl \"https://example.invalid/file\")";
 	for round in 0..2 {
 		if round == 1 {
@@ -375,7 +375,7 @@ fn file_cache_skips_etag_when_cached_content_is_gone() {
 
 #[test]
 fn remote_relative_submodules_match_reference_and_reopen_offline() {
-	let fixture = tempfile::tempdir().unwrap();
+	let fixture = noxi_test_support::tempdir().unwrap();
 	let child = fixture.path().join("child");
 	let parent = fixture.path().join("parent");
 	let git = |path: &Path, args: &[&str]| -> String {
@@ -446,8 +446,8 @@ fn remote_relative_submodules_match_reference_and_reopen_offline() {
 		"builtins.toJSON (let tree = builtins.fetchTree {{ type = \"git\"; url = {}; rev = \"{rev}\"; submodules = true; }}; in {{ attributes = builtins.map (key: {{ inherit key; value = tree.${{key}}; }}) (builtins.attrNames tree); content = builtins.readFile (tree.outPath + \"/nested/file\"); }})",
 		serde_json::json!(format!("{}/parent.git", server.url))
 	);
-	let reference_cache = tempfile::tempdir().unwrap();
-	let candidate_cache = tempfile::tempdir().unwrap();
+	let reference_cache = noxi_test_support::tempdir().unwrap();
+	let candidate_cache = noxi_test_support::tempdir().unwrap();
 	let expected = reference(reference_cache.path(), &expression);
 	assert_eq!(
 		candidate(candidate_cache.path(), &expression, false),

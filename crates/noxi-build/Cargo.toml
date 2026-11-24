@@ -23,3 +23,6 @@ thiserror.workspace = true
 tracing.workspace = true
 
 tempfile.workspace = true
+
+[dev-dependencies]
+noxi-test-support = { path = "../noxi-test-support" }

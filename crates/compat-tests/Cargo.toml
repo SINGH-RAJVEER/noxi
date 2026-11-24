@@ -15,6 +15,7 @@ sha2.workspace = true
 tempfile.workspace = true
 
 [dev-dependencies]
+noxi-test-support = { path = "../noxi-test-support" }
 libc.workspace = true
 noxi-eval = { version = "0.0.5", path = "../noxi/eval", default-features = false, features = ["impure"] }
 noxi-commands = { version = "0.0.5", path = "../noxi-commands" }

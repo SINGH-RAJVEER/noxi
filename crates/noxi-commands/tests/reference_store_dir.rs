@@ -6,7 +6,6 @@
 //! `NOXI_REFERENCE_BIN`, else `target/nix-reference/bin`; without it the test
 //! prints a notice and returns.
 use std::fs;
-use std::os::unix::fs::PermissionsExt;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output};
 
@@ -31,40 +30,11 @@ fn candidate_dir() -> PathBuf {
 		.to_owned()
 }
 
-fn wipe(root: &Path) {
-	if !root.exists() {
-		return;
-	}
-	for entry in walk(root) {
-		if let Ok(meta) = fs::symlink_metadata(&entry)
-			&& meta.is_dir()
-		{
-			let _ = fs::set_permissions(&entry, fs::Permissions::from_mode(0o755));
-		}
-	}
-	fs::remove_dir_all(root).unwrap();
-}
-
-fn walk(root: &Path) -> Vec<PathBuf> {
-	let mut out = vec![root.to_owned()];
-	let mut index = 0;
-	while index < out.len() {
-		let path = out[index].clone();
-		index += 1;
-		if fs::symlink_metadata(&path).is_ok_and(|m| m.is_dir())
-			&& let Ok(entries) = fs::read_dir(&path)
-		{
-			out.extend(entries.flatten().map(|e| e.path()));
-		}
-	}
-	out
-}
-
 /// Run `steps` with one engine's commands in a fresh diverted environment
 /// below `root`, returning each step's output with `root` replaced by
 /// `ROOT`, then the store directory's entries.
 fn session(bin: &Path, root: &Path, steps: &[Vec<String>]) -> Vec<String> {
-	wipe(root);
+	noxi_test_support::remove_tree(root).unwrap();
 	fs::create_dir_all(root.join("etc")).unwrap();
 	fs::write(
 		root.join("etc/nix.conf"),
@@ -127,7 +97,7 @@ fn store_state_log_and_conf_directories_follow_the_environment() {
 			}),
 	)
 	.unwrap();
-	let fixture = tempfile::tempdir().unwrap();
+	let fixture = noxi_test_support::tempdir().unwrap();
 	let root = fixture.path().join("diverted");
 	let expr = format!(
 		r#"derivation {{
@@ -170,7 +140,7 @@ fn store_state_log_and_conf_directories_follow_the_environment() {
 	];
 	let expected = session(&reference, &root, &steps);
 	let actual = session(&candidate_dir(), &root, &steps);
-	wipe(&root);
+	noxi_test_support::remove_tree(&root).unwrap();
 	for (actual, expected) in actual.iter().zip(&expected) {
 		let strip = |s: &str| {
 			let mut out = String::new();
@@ -197,7 +167,7 @@ fn auto_store_reads_paths_like_an_explicit_local_store() {
 	let Some(reference) = reference_dir() else {
 		return;
 	};
-	let fixture = tempfile::tempdir().unwrap();
+	let fixture = noxi_test_support::tempdir().unwrap();
 	let root = fixture.path().join("diverted");
 	let payload = fixture.path().join("payload");
 	fs::write(&payload, "payload\n").unwrap();
@@ -220,7 +190,7 @@ fn auto_store_reads_paths_like_an_explicit_local_store() {
 	)
 	.unwrap();
 	let session = |bin: &Path| {
-		wipe(&root);
+		noxi_test_support::remove_tree(&root).unwrap();
 		let added = run(bin, &["store", "add-file", payload.to_str().unwrap()]);
 		assert!(added.status.success());
 		let path = String::from_utf8(added.stdout).unwrap().trim().to_owned();
@@ -243,6 +213,6 @@ fn auto_store_reads_paths_like_an_explicit_local_store() {
 	};
 	let expected = session(&reference);
 	let actual = session(&candidate_dir());
-	wipe(&root);
+	noxi_test_support::remove_tree(&root).unwrap();
 	assert_eq!(actual, expected);
 }

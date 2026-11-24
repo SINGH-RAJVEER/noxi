@@ -20,7 +20,7 @@ use noxi_system::rebuild::{
 use noxi_system::snapshot::{Action, Phase, SnapshotStore, Status};
 
 struct Fixture {
-	dir: tempfile::TempDir,
+	dir: noxi_test_support::TempDir,
 }
 
 impl Fixture {
@@ -28,7 +28,7 @@ impl Fixture {
 	/// running system.
 	fn new() -> Self {
 		let fixture = Fixture {
-			dir: tempfile::tempdir().unwrap(),
+			dir: noxi_test_support::tempdir().unwrap(),
 		};
 		fs::create_dir(fixture.path("profiles")).unwrap();
 		fs::write(fixture.path("configuration.nix"), "{ }").unwrap();

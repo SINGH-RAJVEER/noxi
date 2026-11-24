@@ -29,7 +29,7 @@ fn reference_bin() -> Option<PathBuf> {
 
 struct Pair {
 	reference: PathBuf,
-	dirs: [tempfile::TempDir; 2],
+	dirs: [noxi_test_support::TempDir; 2],
 	features: &'static str,
 }
 
@@ -37,7 +37,10 @@ impl Pair {
 	fn new() -> Option<Self> {
 		Some(Self {
 			reference: reference_bin()?,
-			dirs: [tempfile::tempdir().unwrap(), tempfile::tempdir().unwrap()],
+			dirs: [
+				noxi_test_support::tempdir().unwrap(),
+				noxi_test_support::tempdir().unwrap(),
+			],
 			features: "nix-command",
 		})
 	}

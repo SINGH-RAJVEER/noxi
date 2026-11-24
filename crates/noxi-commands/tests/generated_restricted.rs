@@ -151,7 +151,7 @@ fn run_cases(binary: &Path, root: &Path) -> Vec<(String, Output)> {
 
 #[test]
 fn restricted_access_matches_reference() {
-	let temp = tempfile::tempdir().unwrap();
+	let temp = noxi_test_support::tempdir().unwrap();
 	let root = temp.path().join("w");
 	let expected = run_cases(&reference(), &root);
 	let actual = run_cases(Path::new(env!("CARGO_BIN_EXE_nix-instantiate")), &root);

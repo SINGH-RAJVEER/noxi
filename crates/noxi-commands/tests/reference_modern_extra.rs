@@ -36,8 +36,8 @@ fn run(bin: &Path, root: &Path, args: &[&str], input: &[u8]) -> Output {
 	child.wait_with_output().unwrap()
 }
 fn same(args: &[&str], input: &[u8]) -> Output {
-	let a = tempfile::tempdir().unwrap();
-	let b = tempfile::tempdir().unwrap();
+	let a = noxi_test_support::tempdir().unwrap();
+	let b = noxi_test_support::tempdir().unwrap();
 	let expected = run(&reference(), a.path(), args, input);
 	let actual = run(Path::new(env!("CARGO_BIN_EXE_nix")), b.path(), args, input);
 	assert!(
@@ -57,7 +57,7 @@ fn same(args: &[&str], input: &[u8]) -> Output {
 }
 #[test]
 fn nar_pack_list_cat_and_key_conversion() {
-	let d = tempfile::tempdir().unwrap();
+	let d = noxi_test_support::tempdir().unwrap();
 	let tree = d.path().join("tree");
 	fs::create_dir(&tree).unwrap();
 	fs::write(tree.join("hello"), b"hello\n").unwrap();
@@ -78,7 +78,7 @@ fn nar_pack_list_cat_and_key_conversion() {
 		same(&args, &[]);
 	}
 	same(&["nar", "cat", archive.to_str().unwrap(), "/hello"], &[]);
-	let a = tempfile::tempdir().unwrap();
+	let a = noxi_test_support::tempdir().unwrap();
 	let generated = run(
 		&reference(),
 		a.path(),
@@ -90,7 +90,7 @@ fn nar_pack_list_cat_and_key_conversion() {
 }
 #[test]
 fn native_prefetch_hashes_paths_and_permissions() {
-	let d = tempfile::tempdir().unwrap();
+	let d = noxi_test_support::tempdir().unwrap();
 	let source = d.path().join("hello");
 	fs::write(&source, b"hello\n").unwrap();
 	let url = format!("file://{}", source.display());
@@ -110,7 +110,7 @@ fn native_prefetch_hashes_paths_and_permissions() {
 
 #[test]
 fn derivation_json_import_and_upgrade_dry_run() {
-	let a = tempfile::tempdir().unwrap();
+	let a = noxi_test_support::tempdir().unwrap();
 	let expression = "derivation { name = \"hello\"; system = \"x86_64-linux\"; builder = \"/bin/sh\"; args = []; }";
 	let show = run(
 		&reference(),
@@ -158,11 +158,11 @@ fn derivation_json_import_and_upgrade_dry_run() {
 
 #[test]
 fn store_signatures_hash_lookup_and_content_address_rewrite() {
-	let fixture = tempfile::tempdir().unwrap();
+	let fixture = noxi_test_support::tempdir().unwrap();
 	let source = fixture.path().join("hello-1.0");
 	fs::write(&source, b"hello\n").unwrap();
-	let a = tempfile::tempdir().unwrap();
-	let b = tempfile::tempdir().unwrap();
+	let a = noxi_test_support::tempdir().unwrap();
+	let b = noxi_test_support::tempdir().unwrap();
 	let reference = reference();
 	let candidate = Path::new(env!("CARGO_BIN_EXE_nix"));
 	let generated = run(
@@ -232,12 +232,12 @@ fn search_expression_names_descriptions_and_exclusions() {
 #[test]
 fn repair_restores_corrupt_registered_contents_from_binary_cache() {
 	use std::os::unix::fs::PermissionsExt;
-	let fixture = tempfile::tempdir().unwrap();
+	let fixture = noxi_test_support::tempdir().unwrap();
 	let file = fixture.path().join("hello");
 	fs::write(&file, b"original\n").unwrap();
 	for bin in [reference(), PathBuf::from(env!("CARGO_BIN_EXE_nix"))] {
-		let root = tempfile::tempdir().unwrap();
-		let cache = tempfile::tempdir().unwrap();
+		let root = noxi_test_support::tempdir().unwrap();
+		let cache = noxi_test_support::tempdir().unwrap();
 		let add = run(
 			&bin,
 			root.path(),
@@ -282,7 +282,7 @@ fn help_matches_reference_lookup_and_fails_explicitly_for_pages() {
 	// `showHelp`: unknown pages are the reference's usage error; existing
 	// pages are rendered from CppNix's embedded manual, which noxi does not
 	// embed, so rendering fails explicitly.
-	let root = tempfile::tempdir().unwrap();
+	let root = noxi_test_support::tempdir().unwrap();
 	let candidate = Path::new(env!("CARGO_BIN_EXE_nix"));
 	for args in [vec!["help", "nonexistent"], vec!["help", "a", "b"]] {
 		let expected = run(&reference(), root.path(), &args, &[]);
@@ -307,7 +307,7 @@ fn help_matches_reference_lookup_and_fails_explicitly_for_pages() {
 #[test]
 fn compressed_command_uploads_import_with_reference() {
 	let candidate = Path::new(env!("CARGO_BIN_EXE_nix"));
-	let source = tempfile::tempdir().unwrap();
+	let source = noxi_test_support::tempdir().unwrap();
 	let file = source.path().join("payload");
 	fs::write(&file, b"compressed command upload\n").unwrap();
 	let added = run(
@@ -327,7 +327,7 @@ fn compressed_command_uploads_import_with_reference() {
 	let secret = source.path().join("secret");
 	fs::write(&secret, key.to_text()).unwrap();
 	for codec in ["none", "gzip", "bzip2", "zstd"] {
-		let cache = tempfile::tempdir().unwrap();
+		let cache = noxi_test_support::tempdir().unwrap();
 		let uri = format!(
 			"file://{}?compression={codec}&secret-key={}",
 			cache.path().display(),
@@ -339,7 +339,7 @@ fn compressed_command_uploads_import_with_reference() {
 			"{codec}: {}",
 			String::from_utf8_lossy(&copied.stderr)
 		);
-		let destination = tempfile::tempdir().unwrap();
+		let destination = noxi_test_support::tempdir().unwrap();
 		let uri = format!("file://{}", cache.path().display());
 		let imported = run(
 			&reference(),
@@ -392,7 +392,7 @@ fn tree(dir: &Path) -> Vec<(String, Option<Vec<u8>>)> {
 
 #[test]
 fn file_cache_copies_write_the_reference_layout_and_bytes() {
-	let root = tempfile::tempdir().unwrap();
+	let root = noxi_test_support::tempdir().unwrap();
 	let file = root.path().join("payload");
 	fs::write(&file, b"cache upload\n").unwrap();
 	let tree_dir = root.path().join("tree");
@@ -503,10 +503,10 @@ impl Drop for FailingServer {
 
 #[test]
 fn unreachable_http_substituters_retry_and_warn_like_reference() {
-	let fixture = tempfile::tempdir().unwrap();
+	let fixture = noxi_test_support::tempdir().unwrap();
 	let file = fixture.path().join("payload");
 	fs::write(&file, b"retry fixture\n").unwrap();
-	let source = tempfile::tempdir().unwrap();
+	let source = noxi_test_support::tempdir().unwrap();
 	let added = run(
 		&reference(),
 		source.path(),
@@ -588,7 +588,7 @@ fn unreachable_http_substituters_retry_and_warn_like_reference() {
 			reference().with_file_name("nix-store"),
 			PathBuf::from(env!("CARGO_BIN_EXE_nix-store")),
 		] {
-			let root = tempfile::tempdir().unwrap();
+			let root = noxi_test_support::tempdir().unwrap();
 			let output = Command::new(&bin)
 				.env_clear()
 				.env("HOME", root.path())

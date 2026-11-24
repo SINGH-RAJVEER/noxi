@@ -82,7 +82,7 @@ impl Default for Case<'_> {
 }
 
 struct Fixture {
-	dir: tempfile::TempDir,
+	dir: noxi_test_support::TempDir,
 	url: String,
 	requests: Arc<Mutex<Vec<String>>>,
 	bins: [PathBuf; 2],
@@ -103,7 +103,7 @@ impl Fixture {
 			.parent()
 			.unwrap()
 			.to_owned();
-		let dir = tempfile::tempdir().unwrap();
+		let dir = noxi_test_support::tempdir().unwrap();
 		let root = dir.path();
 		for tree in ["tree", "flake", "git"] {
 			fs::create_dir_all(root.join(tree).join("sub")).unwrap();
@@ -212,10 +212,8 @@ impl Fixture {
 	/// Run both engines with fresh state, and return their common result.
 	fn same(&self, case: &Case) -> (Option<i32>, String, String, Vec<String>) {
 		let [reference, noxi] = [0, 1].map(|engine| {
-			let state = tempfile::tempdir().unwrap();
-			let result = self.run(engine, state.path(), case);
-			make_writable(state.path());
-			result
+			let state = noxi_test_support::tempdir().unwrap();
+			self.run(engine, state.path(), case)
 		});
 		assert_eq!(
 			reference, noxi,
@@ -224,15 +222,6 @@ impl Fixture {
 		);
 		noxi
 	}
-}
-
-fn make_writable(root: &Path) {
-	let status = Command::new("chmod")
-		.args(["-R", "u+w"])
-		.arg(root)
-		.status()
-		.unwrap();
-	assert!(status.success());
 }
 
 #[test]
@@ -470,7 +459,10 @@ fn modern_commands_match_the_reference() {
 fn tarball_ttl_governs_downloads() {
 	let fixture = Fixture::new();
 	let entry = format!("nixpkgs={}/x.tar.gz", fixture.url);
-	let states = [tempfile::tempdir().unwrap(), tempfile::tempdir().unwrap()];
+	let states = [
+		noxi_test_support::tempdir().unwrap(),
+		noxi_test_support::tempdir().unwrap(),
+	];
 	let run = |ttl| {
 		let [reference, noxi] = [0, 1].map(|engine| {
 			fixture.run(
@@ -501,7 +493,4 @@ fn tarball_ttl_governs_downloads() {
 	// CppNix timestamps cache entries in whole seconds.
 	std::thread::sleep(Duration::from_millis(1100));
 	assert_eq!(run("0").3, ["GET /x.tar.gz"]);
-	for state in &states {
-		make_writable(state.path());
-	}
 }

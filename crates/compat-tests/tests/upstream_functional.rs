@@ -599,25 +599,6 @@ fn copy_tree(from: &Path, to: &Path, top: &Path) {
 	}
 }
 
-fn make_writable(path: &Path) {
-	let Ok(meta) = fs::symlink_metadata(path) else {
-		return;
-	};
-	if meta.file_type().is_symlink() {
-		return;
-	}
-	let mut perms = meta.permissions();
-	perms.set_mode(perms.mode() | 0o700);
-	let _ = fs::set_permissions(path, perms);
-	if meta.is_dir()
-		&& let Ok(entries) = fs::read_dir(path)
-	{
-		for entry in entries.flatten() {
-			make_writable(&entry.path());
-		}
-	}
-}
-
 /// Store paths below the scratch root hash that root (`NIX_STORE_DIR`), so
 /// their hash parts change from run to run; notes show them as `HASH`.
 fn mask_store_hashes(line: &str) -> String {
@@ -821,7 +802,7 @@ fn run_script(
 		.join("nix-test")
 		.join(&script.suite)
 		.join(script.name());
-	make_writable(&test_root);
+	let _ = noxi_test_support::make_removable(&test_root);
 	let capture = Capture {
 		argv: vec![
 			"bash".to_owned(),
@@ -863,7 +844,7 @@ fn run_script(
 		.join(format!("{}.log", script.path.replace('/', "_")));
 	fs::create_dir_all(saved.parent().unwrap()).unwrap();
 	fs::write(&saved, &text).unwrap();
-	make_writable(&root_path);
+	let _ = noxi_test_support::make_removable(&root_path);
 	if env::var_os(KEEP_VAR).is_some() {
 		let kept = PathBuf::from(format!("{}-{}", root_path.display(), engine.name));
 		fs::rename(&root_path, &kept).unwrap();
@@ -1023,7 +1004,7 @@ fn functional_scripts_match_expectations() {
 	}
 
 	let chosen: Vec<&Script> = all.iter().filter(|script| selected(script)).collect();
-	let scratch = tempfile::tempdir().unwrap();
+	let scratch = noxi_test_support::tempdir().unwrap();
 	let noxi = Engine::new(
 		"noxi",
 		candidate_bin(&scratch.path().join("noxi-bin")),

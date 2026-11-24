@@ -1449,6 +1449,7 @@ dependencies = [
  "lzma-rust2",
  "noxi-compat",
  "noxi-store",
+ "noxi-test-support",
  "serde_json",
  "sha2",
  "tar",
@@ -1464,6 +1465,7 @@ dependencies = [
  "noxi-eval",
  "noxi-events",
  "noxi-system",
+ "noxi-test-support",
  "tempfile",
 ]
 
@@ -1483,6 +1485,7 @@ dependencies = [
  "noxi-flakeref",
  "noxi-glue",
  "noxi-store",
+ "noxi-test-support",
  "regex",
  "rnix",
  "rusqlite",
@@ -1557,6 +1560,7 @@ dependencies = [
  "noxi-daemon",
  "noxi-eval",
  "noxi-store",
+ "noxi-test-support",
  "rusqlite",
  "serde",
  "serde_json",
@@ -1573,6 +1577,7 @@ dependencies = [
  "noxi-build",
  "noxi-compat",
  "noxi-store",
+ "noxi-test-support",
  "tempfile",
  "thiserror",
  "tracing",
@@ -1654,6 +1659,7 @@ dependencies = [
  "noxi-flakeref",
  "noxi-glue",
  "noxi-store",
+ "noxi-test-support",
  "serde_json",
  "sha2",
  "tempfile",
@@ -1685,6 +1691,7 @@ dependencies = [
  "noxi-eval",
  "noxi-flakeref",
  "noxi-store",
+ "noxi-test-support",
  "serde_json",
  "sha1",
  "sha2",
@@ -1740,6 +1747,7 @@ dependencies = [
  "lzma-rust2",
  "memchr",
  "noxi-compat",
+ "noxi-test-support",
  "path-clean",
  "pkg-config",
  "rusqlite",
@@ -1765,11 +1773,20 @@ dependencies = [
  "noxi-flakeref",
  "noxi-glue",
  "noxi-store",
+ "noxi-test-support",
  "serde",
  "serde_json",
  "sha2",
  "tempfile",
  "thiserror",
+]
+
+[[package]]
+name = "noxi-test-support"
+version = "0.0.1"
+dependencies = [
+ "libc",
+ "tempfile",
 ]
 
 [[package]]

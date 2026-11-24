@@ -13,7 +13,7 @@ fn compare(expressions: &[&str]) {
 		})
 		.join("nix-instantiate");
 	let candidate = Path::new(env!("CARGO_BIN_EXE_nix-instantiate"));
-	let home = tempfile::tempdir().unwrap();
+	let home = noxi_test_support::tempdir().unwrap();
 	for expression in expressions {
 		for trace in [false, true] {
 			let run = |binary: &Path| {

@@ -197,7 +197,7 @@ mod tests {
 
 	#[test]
 	fn dump_restore_round_trip() {
-		let dir = tempfile::tempdir().unwrap();
+		let dir = noxi_test_support::tempdir().unwrap();
 		let src = dir.path().join("src");
 		fs::create_dir(&src).unwrap();
 		fs::write(src.join("b"), b"bee").unwrap();

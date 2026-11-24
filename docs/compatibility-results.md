@@ -115,6 +115,13 @@ The first whole run, at `610ec54` with the functional roots in `/tmp`, failed on
 
 An earlier run at `84aec12`, while another session compiled on the same host (load average about 33), failed `functional_scripts_match_expectations` because the reference's own `lang.sh` exceeded the 120 s script timeout, and `builds_through_the_daemon_match_the_reference` because the two engines' sequential builds were registered 4 s apart where the test allows 2 s. Both passed in the runs kept above.
 
-The test environments leave read-only stores behind in `TMPDIR`, because `TempDir` cannot remove them: one run of `reference_worker_wire` left 28 directories of 835 MB in total. Give the tiers a `TMPDIR` of their own and remove it afterwards.
+Until 2026-11-25 the test environments left read-only stores behind in `TMPDIR`, because `TempDir` cannot remove them. Tests that create stores now use `noxi-test-support`, whose `TempDir` makes the directories it owns writable before removing them, also when the test panics. It follows no symlink and refuses to cross a mount. Each test binary got a fresh `TMPDIR` of its own, for the whole workspace except `upstream_functional`, `upstream_lang` and the derive UI snapshots:
+
+| | Commit | Tests | Left in `TMPDIR` | `reference_worker_wire` alone |
+|---|---|---:|---:|---:|
+| Before | `528b7aa` | 3,212 passed | 318 directories in 30 binaries, 5,839 MiB | 28 directories, 837 MiB |
+| After | this change | 3,214 passed | 0 | 0 |
+
+A test killed by a signal or a nextest timeout still leaves its directory, so give long runs a `TMPDIR` of their own.
 
 A new VM run has not been recorded yet.

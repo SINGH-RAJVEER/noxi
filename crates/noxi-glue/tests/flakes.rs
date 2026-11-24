@@ -25,7 +25,7 @@ fn reference() -> Option<PathBuf> {
 
 fn candidate(cwd: &Path, expression: &str) -> Value {
 	let store = EvaluatorStore::new();
-	let cache = tempfile::tempdir().unwrap();
+	let cache = noxi_test_support::tempdir().unwrap();
 	store.configure_fetching(FetchConfig {
 		cwd: cwd.to_owned(),
 		cache_dir: Some(cache.path().to_owned()),
@@ -62,8 +62,8 @@ fn compare(cwd: &Path, expression: &str) -> Option<Value> {
 	let expression = format!(
 		"let result = ({expression}); in if builtins.isAttrs result && result ? outPath then builtins.map (key: {{ inherit key; value = result.${{key}}; }}) (builtins.attrNames result) else result"
 	);
-	let root = tempfile::tempdir().unwrap();
-	let home = tempfile::tempdir().unwrap();
+	let root = noxi_test_support::tempdir().unwrap();
+	let home = noxi_test_support::tempdir().unwrap();
 	let output = Command::new(reference)
 		.env_clear()
 		.env("PATH", std::env::var_os("PATH").unwrap())
@@ -129,7 +129,7 @@ fn repo(path: &Path) {
 
 #[test]
 fn local_path_and_file_fetches_match_reference() {
-	let fixture = tempfile::tempdir().unwrap();
+	let fixture = noxi_test_support::tempdir().unwrap();
 	fs::write(fixture.path().join("file"), "hello\n").unwrap();
 	std::os::unix::fs::symlink("file", fixture.path().join("link")).unwrap();
 	for expression in [
@@ -144,7 +144,7 @@ fn local_path_and_file_fetches_match_reference() {
 
 #[test]
 fn git_worktrees_and_commits_match_reference() {
-	let fixture = tempfile::tempdir().unwrap();
+	let fixture = noxi_test_support::tempdir().unwrap();
 	repo(fixture.path());
 	fs::write(fixture.path().join("untracked"), "hidden").unwrap();
 	let url = json!(format!("file://{}", fixture.path().display()));
@@ -169,7 +169,7 @@ fn git_worktrees_and_commits_match_reference() {
 
 #[test]
 fn file_tarballs_match_reference() {
-	let fixture = tempfile::tempdir().unwrap();
+	let fixture = noxi_test_support::tempdir().unwrap();
 	let mut bytes = Vec::new();
 	{
 		let mut archive = tar::Builder::new(&mut bytes);
@@ -220,9 +220,9 @@ fn file_tarballs_match_reference() {
 
 #[test]
 fn fetched_git_tree_is_registered_in_the_diverted_store() {
-	let fixture = tempfile::tempdir().unwrap();
+	let fixture = noxi_test_support::tempdir().unwrap();
 	repo(fixture.path());
-	let root = tempfile::tempdir().unwrap();
+	let root = noxi_test_support::tempdir().unwrap();
 	let store = EvaluatorStore::writable(root.path()).unwrap();
 	let expression = format!(
 		"let tree = builtins.fetchTree {{ type = \"git\"; url = {}; }}; in {{ path = tree.outPath; hash = tree.narHash; }}",
@@ -292,7 +292,7 @@ fn fetched_git_tree_is_registered_in_the_diverted_store() {
 #[test]
 #[ignore = "downloads the pinned Nix source from GitHub; offline tests cover local sources"]
 fn github_fetch_matches_reference_live() {
-	let fixture = tempfile::tempdir().unwrap();
+	let fixture = noxi_test_support::tempdir().unwrap();
 	compare(
 		fixture.path(),
 		"builtins.fetchTree \"github:NixOS/nix/2c73b59da29606068c0c98db015dd3a66955525d\"",
@@ -302,7 +302,7 @@ fn github_fetch_matches_reference_live() {
 #[test]
 #[ignore = "requires GitHub API quota; the pinned-archive comparison does not use the API"]
 fn github_tag_resolution_matches_reference_live() {
-	let fixture = tempfile::tempdir().unwrap();
+	let fixture = noxi_test_support::tempdir().unwrap();
 	compare(
 		fixture.path(),
 		"builtins.fetchTree \"github:NixOS/nix/2.35.2\"",
@@ -312,7 +312,7 @@ fn github_tag_resolution_matches_reference_live() {
 #[test]
 #[ignore = "fetches the pinned Nix Git revision over HTTPS; local transport tests are offline"]
 fn remote_git_fetch_matches_reference_live() {
-	let fixture = tempfile::tempdir().unwrap();
+	let fixture = noxi_test_support::tempdir().unwrap();
 	compare(
 		fixture.path(),
 		"builtins.fetchTree { type = \"git\"; url = \"https://github.com/NixOS/nix\"; rev = \"2c73b59da29606068c0c98db015dd3a66955525d\"; shallow = true; }",
@@ -355,7 +355,7 @@ fn lock_candidate(
 	options: noxi_glue::fetch::flake::LockOptions,
 ) {
 	let store = EvaluatorStore::new();
-	let cache = tempfile::tempdir().unwrap();
+	let cache = noxi_test_support::tempdir().unwrap();
 	store.configure_fetching(FetchConfig {
 		cwd: cwd.to_owned(),
 		cache_dir: Some(cache.path().to_owned()),
@@ -384,8 +384,8 @@ fn reference_lock(cwd: &Path, flake_ref: &str, extra: &[&str]) -> bool {
 	let Some(bin) = reference() else {
 		return false;
 	};
-	let root = tempfile::tempdir().unwrap();
-	let home = tempfile::tempdir().unwrap();
+	let root = noxi_test_support::tempdir().unwrap();
+	let home = noxi_test_support::tempdir().unwrap();
 	let result = Command::new(bin.with_file_name("nix"))
 		.current_dir(cwd)
 		.env_clear()
@@ -416,7 +416,7 @@ fn reference_lock(cwd: &Path, flake_ref: &str, extra: &[&str]) -> bool {
 
 #[test]
 fn relative_inputs_follows_and_outputs_match_reference() {
-	let fixture = tempfile::tempdir().unwrap();
+	let fixture = noxi_test_support::tempdir().unwrap();
 	let root = fixture.path().join("root");
 	fs::create_dir_all(root.join("child")).unwrap();
 	fs::write(root.join("flake.nix"), r#"{
@@ -453,7 +453,7 @@ fn relative_inputs_follows_and_outputs_match_reference() {
 
 #[test]
 fn git_lock_updates_match_reference_bytes() {
-	let fixture = tempfile::tempdir().unwrap();
+	let fixture = noxi_test_support::tempdir().unwrap();
 	let dependency = fixture.path().join("dependency");
 	let root = fixture.path().join("root");
 	fs::create_dir_all(&root).unwrap();
@@ -504,7 +504,7 @@ fn git_lock_updates_match_reference_bytes() {
 
 #[test]
 fn nested_input_overrides_match_reference() {
-	let fixture = tempfile::tempdir().unwrap();
+	let fixture = noxi_test_support::tempdir().unwrap();
 	let root = fixture.path().join("root");
 	for name in ["root", "branch", "leaf"] {
 		fs::create_dir_all(fixture.path().join(name)).unwrap();
@@ -566,7 +566,7 @@ fn nested_input_overrides_match_reference() {
 
 #[test]
 fn initialized_git_submodules_match_reference() {
-	let fixture = tempfile::tempdir().unwrap();
+	let fixture = noxi_test_support::tempdir().unwrap();
 	let root = fixture.path().join("root");
 	let child = fixture.path().join("child");
 	fs::create_dir(&root).unwrap();
@@ -604,7 +604,7 @@ fn initialized_git_submodules_match_reference() {
 
 #[test]
 fn self_submodules_and_deinitialized_pinned_submodules_match_reference() {
-	let fixture = tempfile::tempdir().unwrap();
+	let fixture = noxi_test_support::tempdir().unwrap();
 	let child = fixture.path().join("child");
 	let root = fixture.path().join("root");
 	fs::create_dir_all(&child).unwrap();
@@ -662,7 +662,7 @@ fn self_submodules_and_deinitialized_pinned_submodules_match_reference() {
 
 #[test]
 fn explicit_cli_overrides_are_sticky_and_match_reference_lock_bytes() {
-	let fixture = tempfile::tempdir().unwrap();
+	let fixture = noxi_test_support::tempdir().unwrap();
 	let root = fixture.path().join("root");
 	let first = fixture.path().join("first");
 	let second = fixture.path().join("second");
@@ -710,9 +710,9 @@ fn graph_failures_match_reference_messages() {
 	let Some(reference) = reference() else {
 		return;
 	};
-	let fixture = tempfile::tempdir().unwrap();
-	let home = tempfile::tempdir().unwrap();
-	let root = tempfile::tempdir().unwrap();
+	let fixture = noxi_test_support::tempdir().unwrap();
+	let home = noxi_test_support::tempdir().unwrap();
+	let root = noxi_test_support::tempdir().unwrap();
 	let inputs: Vec<String> = [
 		"a.follows = \"missing\";",
 		"a.follows = \"a\";",

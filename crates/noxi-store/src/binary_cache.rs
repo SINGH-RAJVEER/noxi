@@ -1949,7 +1949,7 @@ mod tests {
 
 	#[test]
 	fn local_store_substituter_copies_a_closure_when_trusted() {
-		let dir = tempfile::tempdir().unwrap();
+		let dir = noxi_test_support::tempdir().unwrap();
 		let source = local_store(&dir.path().join("source"));
 		let dep = add_input_addressed(
 			&source,
@@ -1996,7 +1996,7 @@ mod tests {
 
 	#[test]
 	fn local_store_substituter_needs_trust_for_unsigned_paths() {
-		let dir = tempfile::tempdir().unwrap();
+		let dir = noxi_test_support::tempdir().unwrap();
 		let source = local_store(&dir.path().join("source"));
 		let path = add_input_addressed(
 			&source,
@@ -2014,7 +2014,7 @@ mod tests {
 
 	#[test]
 	fn local_store_substituter_settings_and_read_errors() {
-		let dir = tempfile::tempdir().unwrap();
+		let dir = noxi_test_support::tempdir().unwrap();
 		let source = local_store(&dir.path().join("source"));
 		let path = add_input_addressed(
 			&source,

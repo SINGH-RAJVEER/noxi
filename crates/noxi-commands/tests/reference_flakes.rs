@@ -12,7 +12,7 @@ fn registry(path: &Path, target: &Path) {
 
 #[test]
 fn registry_precedence_and_override_flake_match_reference() {
-	let fixture = tempfile::tempdir().unwrap();
+	let fixture = noxi_test_support::tempdir().unwrap();
 	let dir = fixture.path();
 	for sub in ["home", "config/nix", "system", "global", "user", "flag"] {
 		fs::create_dir_all(dir.join(sub)).unwrap();
@@ -39,7 +39,7 @@ fn registry_precedence_and_override_flake_match_reference() {
 		"run just reference or set NOXI_REFERENCE_BIN"
 	);
 	let run = |bin: &Path, flags: &[&str]| {
-		let store = tempfile::tempdir().unwrap();
+		let store = noxi_test_support::tempdir().unwrap();
 		Command::new(bin)
 			.env_clear()
 			.env("PATH", std::env::var_os("PATH").unwrap())

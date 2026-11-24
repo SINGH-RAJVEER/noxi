@@ -88,7 +88,7 @@ impl Store for FakeStore {
 const NIXBASE32: &[u8] = b"0123456789abcdfghijklmnpqrsvwxyz";
 
 struct Fixture {
-	_tmp: tempfile::TempDir,
+	_tmp: noxi_test_support::TempDir,
 	root: PathBuf,
 	fake: FakeStore,
 	journal: SnapshotStore,
@@ -101,7 +101,7 @@ struct Fixture {
 
 impl Fixture {
 	fn new() -> Self {
-		let tmp = tempfile::tempdir().unwrap();
+		let tmp = noxi_test_support::tempdir().unwrap();
 		let root = tmp.path().to_owned();
 		for dir in ["closures", "profiles", "source"] {
 			fs::create_dir(root.join(dir)).unwrap();

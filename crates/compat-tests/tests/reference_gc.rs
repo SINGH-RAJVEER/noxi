@@ -35,7 +35,7 @@ fn from_env_or_target(var: &str, target: &str, probe: &str) -> PathBuf {
 }
 
 struct Env {
-	dir: tempfile::TempDir,
+	dir: noxi_test_support::TempDir,
 	busybox: String,
 }
 
@@ -80,7 +80,7 @@ impl Env {
 
 	/// Build the graph in store "src" and return the paths of interest.
 	fn new() -> (Self, Graph) {
-		let dir = tempfile::tempdir().unwrap();
+		let dir = noxi_test_support::tempdir().unwrap();
 		for sub in ["conf", "home", "links"] {
 			fs::create_dir(dir.path().join(sub)).unwrap();
 		}

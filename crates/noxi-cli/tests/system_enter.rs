@@ -27,8 +27,8 @@ fn script(path: &Path, shell: &Path, body: &str) {
 
 /// A root with `etc/NIXOS`, an empty `nix/store` to bind the host store
 /// onto, and a system at `/system` whose programs log what they ran.
-fn fixture(shell: &Path) -> tempfile::TempDir {
-	let dir = tempfile::tempdir().unwrap();
+fn fixture(shell: &Path) -> noxi_test_support::TempDir {
+	let dir = noxi_test_support::tempdir().unwrap();
 	let root = dir.path().join("root");
 	fs::create_dir_all(root.join("etc")).unwrap();
 	fs::create_dir_all(root.join("nix/store")).unwrap();
@@ -102,7 +102,7 @@ fn creates_its_own_user_namespace_without_root() {
 		eprintln!("skipped: needs an unprivileged caller with user namespaces");
 		return;
 	}
-	let dir = tempfile::tempdir().unwrap();
+	let dir = noxi_test_support::tempdir().unwrap();
 	let root = dir.path();
 	fs::create_dir_all(root.join("etc")).unwrap();
 	fs::write(root.join("etc/NIXOS"), "").unwrap();
@@ -121,7 +121,7 @@ fn creates_its_own_user_namespace_without_root() {
 
 #[test]
 fn refuses_a_root_that_is_not_nixos() {
-	let dir = tempfile::tempdir().unwrap();
+	let dir = noxi_test_support::tempdir().unwrap();
 	let output = Command::new(env!("CARGO_BIN_EXE_noxi"))
 		.args(["system", "enter", "--root"])
 		.arg(dir.path())

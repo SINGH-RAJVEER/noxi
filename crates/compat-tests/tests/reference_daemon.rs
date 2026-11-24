@@ -35,7 +35,7 @@ fn from_env_or_target(var: &str, target: &str, probe: &str) -> PathBuf {
 const CONFIG: &str = "experimental-features = nix-command\nbuild-users-group =\nsubstituters =\nsandbox = true\nsandbox-fallback = false\nsandbox-paths =\ncores = 1\n";
 
 struct Env {
-	dir: tempfile::TempDir,
+	dir: noxi_test_support::TempDir,
 	busybox: String,
 	out: String,
 	drv: String,
@@ -99,7 +99,7 @@ impl Env {
 
 	/// With `trusted`, both daemons trust the user running the tests.
 	fn with_trust(trusted: bool) -> Self {
-		let dir = tempfile::tempdir().unwrap();
+		let dir = noxi_test_support::tempdir().unwrap();
 		for sub in ["conf", "home"] {
 			fs::create_dir(dir.path().join(sub)).unwrap();
 		}

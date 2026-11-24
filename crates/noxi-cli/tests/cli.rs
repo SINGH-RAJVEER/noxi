@@ -1,6 +1,6 @@
 use std::process::Command;
 
-use tempfile::tempdir;
+use noxi_test_support::tempdir;
 
 #[test]
 fn evaluates_a_pure_expression() {

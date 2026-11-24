@@ -1083,8 +1083,8 @@ mod tests {
 
 	fn check_capture_survives_replacement(size: usize) {
 		for recursive in [false, true] {
-			let root = tempfile::tempdir().unwrap();
-			let source = tempfile::tempdir().unwrap();
+			let root = noxi_test_support::tempdir().unwrap();
+			let source = noxi_test_support::tempdir().unwrap();
 			let file = source.path().join("source");
 			let original = vec![b'o'; size];
 			std::fs::write(&file, &original).unwrap();

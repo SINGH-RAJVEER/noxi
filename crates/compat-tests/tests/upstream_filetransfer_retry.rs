@@ -71,7 +71,7 @@ fn python_dir() -> PathBuf {
 fn run(bin: &Path) -> (bool, String) {
 	let prefetch = bin.join("nix-prefetch-url");
 	assert!(prefetch.exists(), "{} is missing", prefetch.display());
-	let scratch = tempfile::tempdir().unwrap();
+	let scratch = noxi_test_support::tempdir().unwrap();
 	let tmp = scratch.path();
 	for dir in ["nix-state", "nix-log", "nix-store", "nix-conf"] {
 		fs::create_dir_all(tmp.join(dir)).unwrap();
@@ -121,7 +121,7 @@ fn noxi_bin(into: &Path) -> PathBuf {
 
 #[test]
 fn noxi_retry_backoff_matches_recorded_outcome() {
-	let bin = tempfile::tempdir().unwrap();
+	let bin = noxi_test_support::tempdir().unwrap();
 	let (passed, log) = run(&noxi_bin(bin.path()));
 	assert_eq!(
 		passed, NOXI_PASSES,

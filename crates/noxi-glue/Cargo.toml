@@ -26,3 +26,6 @@ bzip2 = "0.6"
 lzma-rust2 = { version = "0.15", default-features = false, features = ["std", "xz"] }
 zstd.workspace = true
 ureq = "3"
+
+[dev-dependencies]
+noxi-test-support = { path = "../noxi-test-support" }

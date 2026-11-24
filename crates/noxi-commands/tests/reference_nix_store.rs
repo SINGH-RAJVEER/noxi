@@ -39,13 +39,13 @@ fn reference_bin() -> PathBuf {
 const ENGINES: [&str; 2] = ["reference", "noxi"];
 
 struct Env {
-	dir: tempfile::TempDir,
+	dir: noxi_test_support::TempDir,
 	busybox: String,
 }
 
 impl Env {
 	fn new() -> Self {
-		let dir = tempfile::tempdir().unwrap();
+		let dir = noxi_test_support::tempdir().unwrap();
 		for sub in ["conf", "home"] {
 			fs::create_dir(dir.path().join(sub)).unwrap();
 		}

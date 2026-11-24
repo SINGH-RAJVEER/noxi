@@ -30,7 +30,7 @@ fn disabled_derivation_features_match_reference_errors_and_forcing() {
 		})
 		.join("nix-instantiate");
 	let candidate = Path::new(env!("CARGO_BIN_EXE_nix-instantiate"));
-	let home = tempfile::tempdir().unwrap();
+	let home = noxi_test_support::tempdir().unwrap();
 	for control in ["__contentAddressed", "__impure"] {
 		for value in ["true", "false", "null", "1", "throw \"control\""] {
 			let expression = format!(
@@ -58,7 +58,7 @@ fn nested_byte_strings_and_attribute_names_print_without_replacement() {
 		})
 		.join("nix-instantiate");
 	let candidate = Path::new(env!("CARGO_BIN_EXE_nix-instantiate"));
-	let home = tempfile::tempdir().unwrap();
+	let home = noxi_test_support::tempdir().unwrap();
 	let path = home.path().join("bytes");
 	std::fs::write(&path, b"\xff\"\n\t\\${").unwrap();
 	for body in [
@@ -89,7 +89,7 @@ fn generic_closure_prints_elements_when_an_error_passes() {
 		})
 		.join("nix-instantiate");
 	let candidate = Path::new(env!("CARGO_BIN_EXE_nix-instantiate"));
-	let home = tempfile::tempdir().unwrap();
+	let home = noxi_test_support::tempdir().unwrap();
 	// Comparing the keys and calling the operator force parts of the
 	// elements before the error, and a duplicate key leaves no comparison
 	// frame behind for the next element.
@@ -122,7 +122,7 @@ fn structured_attribute_floats_give_the_reference_derivation_path() {
 		})
 		.join("nix-instantiate");
 	let candidate = Path::new(env!("CARGO_BIN_EXE_nix-instantiate"));
-	let home = tempfile::tempdir().unwrap();
+	let home = noxi_test_support::tempdir().unwrap();
 	for (attrs, path) in [
 		(
 			"w = 1.5e-7;",

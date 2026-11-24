@@ -67,48 +67,20 @@ const FEATURES: Features = Features {
 	git_hashing: false,
 };
 
-/// A scratch directory under the test target directory. Store files are
-/// read-only, so they are made writable before removal.
-struct Scratch(PathBuf);
+/// A scratch directory under the test target directory.
+struct Scratch(noxi_test_support::TempDir);
 
 impl Scratch {
 	fn new() -> Self {
 		let dir = tempfile::Builder::new()
 			.prefix("dummy-store-states-")
 			.tempdir_in(env!("CARGO_TARGET_TMPDIR"))
-			.unwrap()
-			.keep();
-		Scratch(dir)
+			.unwrap();
+		Scratch(dir.into())
 	}
 
 	fn path(&self, name: &str) -> PathBuf {
-		self.0.join(name)
-	}
-}
-
-fn make_writable(path: &Path) {
-	let Ok(meta) = fs::symlink_metadata(path) else {
-		return;
-	};
-	if meta.file_type().is_symlink() {
-		return;
-	}
-	let mut permissions = meta.permissions();
-	permissions.set_mode(permissions.mode() | 0o700);
-	let _ = fs::set_permissions(path, permissions);
-	if meta.is_dir()
-		&& let Ok(entries) = fs::read_dir(path)
-	{
-		for entry in entries.flatten() {
-			make_writable(&entry.path());
-		}
-	}
-}
-
-impl Drop for Scratch {
-	fn drop(&mut self) {
-		make_writable(&self.0);
-		let _ = fs::remove_dir_all(&self.0);
+		self.0.path().join(name)
 	}
 }
 

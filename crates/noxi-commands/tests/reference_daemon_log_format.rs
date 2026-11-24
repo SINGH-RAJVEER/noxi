@@ -104,7 +104,7 @@ in {
 "#;
 
 struct Env {
-	dir: tempfile::TempDir,
+	dir: noxi_test_support::TempDir,
 	busybox: String,
 	daemons: Vec<Child>,
 }
@@ -115,11 +115,6 @@ impl Drop for Env {
 			let _ = daemon.kill();
 			let _ = daemon.wait();
 		}
-		// Store paths are read-only.
-		let _ = Command::new("chmod")
-			.args(["-R", "u+w"])
-			.arg(self.dir.path())
-			.status();
 	}
 }
 
@@ -132,7 +127,7 @@ impl Env {
 	/// Four stores holding the busybox, each served by its pairing's
 	/// daemon with `daemon_config` added to its configuration.
 	fn new(daemon_config: &str) -> Self {
-		let dir = tempfile::tempdir().unwrap();
+		let dir = noxi_test_support::tempdir().unwrap();
 		for sub in ["conf", "home", "daemon-conf"] {
 			fs::create_dir(dir.path().join(sub)).unwrap();
 		}
@@ -480,7 +475,7 @@ fn internal_json_through_a_daemon_matches_cppnix() {
 fn substitution_through_a_daemon_matches_cppnix() {
 	// The daemons substitute from a `file://` cache; a substituter they
 	// cannot open is reported to the client when they first need them.
-	let probe = tempfile::tempdir().unwrap();
+	let probe = noxi_test_support::tempdir().unwrap();
 	let cache = probe.path().join("cache");
 	let env = Env::new(&format!(
 		"substituters = foo://bar file://{}?trusted=1\n",

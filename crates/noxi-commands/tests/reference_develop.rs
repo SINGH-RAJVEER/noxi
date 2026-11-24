@@ -79,13 +79,13 @@ fn normalise_temp_names(text: &str) -> String {
 }
 
 struct Fixture {
-	dir: tempfile::TempDir,
+	dir: noxi_test_support::TempDir,
 	reference: PathBuf,
 }
 
 impl Fixture {
 	fn new() -> Self {
-		let dir = tempfile::tempdir().unwrap();
+		let dir = noxi_test_support::tempdir().unwrap();
 		let reference = from_env_or_target("NOXI_REFERENCE_BIN", "nix-reference/bin", "nix");
 		let busybox = fs::canonicalize(from_env_or_target(
 			"NOXI_TEST_BUSYBOX",

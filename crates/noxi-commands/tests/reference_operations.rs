@@ -31,7 +31,7 @@ fn reference() -> PathBuf {
 #[test]
 fn local_url_initializes_a_missing_diverted_root() {
 	let run = |binary: &Path| {
-		let temp = tempfile::tempdir().unwrap();
+		let temp = noxi_test_support::tempdir().unwrap();
 		let root = temp.path().join("missing");
 		let output = command(binary, temp.path())
 			.args([
@@ -55,7 +55,7 @@ fn local_url_initializes_a_missing_diverted_root() {
 
 #[test]
 fn local_url_info_json_formats_match_reference() {
-	let temp = tempfile::tempdir().unwrap();
+	let temp = noxi_test_support::tempdir().unwrap();
 	for scheme in ["local", "local://"] {
 		for flags in [
 			vec!["--json"],
@@ -90,7 +90,7 @@ fn local_url_info_json_formats_match_reference() {
 
 #[test]
 fn dependency_paths_match_reference() {
-	let temp = tempfile::tempdir().unwrap();
+	let temp = noxi_test_support::tempdir().unwrap();
 	let store = LocalStore::open(LocalStoreConfig::diverted(temp.path()).unwrap()).unwrap();
 	let leaf = store
 		.add_text_to_store("leaf", b"leaf", &BTreeSet::new(), false)
@@ -145,7 +145,7 @@ fn repl_keeps_lazy_bindings_and_recovers_after_errors() {
 	let input: &[u8] =
 		b"x = 3\nx + 4\nx = x + 1\nx\n{\na = 1;\n}\nbad = throw \"deferred\"\nbad\n1 + 2\n:q\n";
 	let session = |binary: &Path| {
-		let temp = tempfile::tempdir().unwrap();
+		let temp = noxi_test_support::tempdir().unwrap();
 		let mut child = command(binary, temp.path())
 			.args(["repl", "--impure"])
 			.stdin(Stdio::piped())
@@ -174,7 +174,7 @@ fn repl_keeps_lazy_bindings_and_recovers_after_errors() {
 
 #[test]
 fn store_init_creates_database_in_isolated_store() {
-	let temp = tempfile::tempdir().unwrap();
+	let temp = noxi_test_support::tempdir().unwrap();
 	let output = Command::new(env!("CARGO_BIN_EXE_nix-store"))
 		.env_clear()
 		.env("HOME", temp.path())
@@ -197,7 +197,7 @@ fn store_init_creates_database_in_isolated_store() {
 
 #[test]
 fn bundle_rejects_a_non_derivation_from_custom_bundler() {
-	let temp = tempfile::tempdir().unwrap();
+	let temp = noxi_test_support::tempdir().unwrap();
 	let flake = temp.path().join("flake");
 	std::fs::create_dir(&flake).unwrap();
 	std::fs::write(
@@ -229,7 +229,7 @@ fn bundle_rejects_a_non_derivation_from_custom_bundler() {
 #[test]
 fn bundle_builds_custom_derivation_and_roots_named_output() {
 	use std::io::Seek;
-	let temp = tempfile::tempdir().unwrap();
+	let temp = noxi_test_support::tempdir().unwrap();
 	let busybox = std::fs::canonicalize(
 		Path::new(env!("CARGO_MANIFEST_DIR")).join("../../target/test-busybox"),
 	)
@@ -308,7 +308,7 @@ fn bundle_builds_custom_derivation_and_roots_named_output() {
 
 #[test]
 fn config_check_reports_missing_nix_in_path() {
-	let temp = tempfile::tempdir().unwrap();
+	let temp = noxi_test_support::tempdir().unwrap();
 	let output = command(Path::new(env!("CARGO_BIN_EXE_nix")), temp.path())
 		.env("PATH", "")
 		.args(["config", "check"])

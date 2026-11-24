@@ -7,9 +7,9 @@ use std::os::unix::fs::{PermissionsExt, symlink};
 use std::path::Path;
 use std::process::{Command, Output};
 
+use noxi_test_support::tempdir;
 use serde_json::Value;
 use sha2::{Digest, Sha256};
-use tempfile::tempdir;
 
 fn executable(path: &Path, script: &str) {
 	fs::write(path, format!("#!/bin/sh\nset -eu\n{script}\n")).expect("write mock executable");

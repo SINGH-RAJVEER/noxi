@@ -132,7 +132,7 @@ fn run(dir: &Path, collector: &Path, args: &[&str]) -> (String, Vec<String>) {
 
 #[test]
 fn collects_garbage_like_cppnix() {
-	let base = tempfile::tempdir().unwrap();
+	let base = noxi_test_support::tempdir().unwrap();
 	let dir = base.path().join("scenario");
 	let reference = reference_bin().join("nix-collect-garbage");
 	let noxi = Path::new(env!("CARGO_BIN_EXE_nix-collect-garbage"));

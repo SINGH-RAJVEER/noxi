@@ -86,7 +86,7 @@ fn compare_repository_flake(subdir: &str, outputs: &str) {
 		serde_json::json!(reference),
 		"lastModifiedDate"
 	);
-	let home = tempfile::tempdir().unwrap();
+	let home = noxi_test_support::tempdir().unwrap();
 	let reference_result=Command::new(repo.join("target/nix-reference/bin/nix-instantiate")).env_clear().env("PATH",std::env::var_os("PATH").unwrap()).env("HOME",home.path()).env("NIX_CONF_DIR",home.path()).env("NIX_CONFIG","experimental-features = flakes nix-command read-only-local-store\nflake-registry =\nsubstituters =\nwarn-dirty = false\n")
 		.args(["--store","local?read-only=true","--eval","--strict","--json","--expr",&expression]).output().unwrap();
 	assert!(

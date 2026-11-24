@@ -556,7 +556,7 @@ fn run_command(case: &Case, scratch: &Path, reference: Option<&Path>, args: &[St
 /// The checks before the fixture loops in the pinned lang.sh. Compare full
 /// streams, including diagnostics, rather than only its grep predicates.
 fn embedded_checks(reference: &Path) -> Vec<String> {
-	let scratch = tempfile::tempdir().expect("embedded checks scratch");
+	let scratch = noxi_test_support::tempdir().expect("embedded checks scratch");
 	write_test_config(scratch.path()).unwrap();
 	let mut failures = vec![];
 	let mut report = vec![];
@@ -789,7 +789,7 @@ extra-experimental-features = flakes
 }
 
 fn run_all(cases: &[Case], reference: Option<&Path>) -> Vec<Run> {
-	let scratch = tempfile::tempdir().expect("scratch directory for post-processing");
+	let scratch = noxi_test_support::tempdir().expect("scratch directory for post-processing");
 	write_test_config(scratch.path()).expect("write the test configuration");
 	let next = AtomicUsize::new(0);
 	let results = Mutex::new(BTreeMap::new());
@@ -1004,7 +1004,7 @@ fn main() -> ExitCode {
 			Json::Object(all)
 		};
 		for ((case, candidate), reference) in cases.iter().zip(&runs).zip(reference_runs) {
-			let scratch = tempfile::tempdir().expect("comparison scratch");
+			let scratch = noxi_test_support::tempdir().expect("comparison scratch");
 			let equal = matches!(candidate.exit_code, Some(0 | 1))
 				&& candidate.outcome != Outcome::Disabled
 				&& candidate.exit_code == reference.exit_code

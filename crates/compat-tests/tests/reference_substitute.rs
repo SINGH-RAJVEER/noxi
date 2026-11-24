@@ -36,7 +36,7 @@ fn from_env_or_target(var: &str, target: &str, probe: &str) -> PathBuf {
 }
 
 struct Env {
-	dir: tempfile::TempDir,
+	dir: noxi_test_support::TempDir,
 	public_key: String,
 	/// The built path and the busybox it refers to.
 	out: StorePath,
@@ -45,7 +45,7 @@ struct Env {
 
 impl Env {
 	fn new() -> Self {
-		let dir = tempfile::tempdir().unwrap();
+		let dir = noxi_test_support::tempdir().unwrap();
 		for sub in ["conf", "home"] {
 			fs::create_dir(dir.path().join(sub)).unwrap();
 		}
@@ -1131,7 +1131,7 @@ fn cache_nixos_org_substitutes_with_its_signing_key() {
 	))
 	.unwrap();
 	let busybox = StorePath::from_absolute_path(busybox.to_str().unwrap().as_bytes()).unwrap();
-	let dir = tempfile::tempdir().unwrap();
+	let dir = noxi_test_support::tempdir().unwrap();
 	let mut config = LocalStoreConfig::with_root(dir.path());
 	config.trusted_public_keys =
 		vec!["cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY=".to_owned()];

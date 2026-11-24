@@ -163,7 +163,7 @@ mod tests {
 
 	#[test]
 	fn canonicalises_modes_and_times() {
-		let dir = tempfile::tempdir().unwrap();
+		let dir = noxi_test_support::tempdir().unwrap();
 		let root = dir.path().join("out");
 		fs::create_dir(&root).unwrap();
 		fs::write(root.join("file"), b"x").unwrap();

@@ -73,6 +73,7 @@ tempfile.workspace = true
 serde_json.workspace = true
 
 [dev-dependencies]
+noxi-test-support = { path = "../noxi-test-support" }
 tempfile.workspace = true
 serde_json.workspace = true
 rusqlite = { version = "0.40.2", features = ["bundled"] }

@@ -13,7 +13,10 @@ fn subscription_files_and_xdg_precedence() {
 		})
 		.join("nix-channel");
 	for xdg in [false, true] {
-		let homes = [tempfile::tempdir().unwrap(), tempfile::tempdir().unwrap()];
+		let homes = [
+			noxi_test_support::tempdir().unwrap(),
+			noxi_test_support::tempdir().unwrap(),
+		];
 		for args in [
 			vec!["--add", "https://example.org/foo/"],
 			vec!["--add", "file:///tmp/source", "local"],
@@ -73,11 +76,14 @@ fn channel_updates_preserve_reference_paths_contents_and_generations() {
 		.unwrap_or_else(|| {
 			Path::new(env!("CARGO_MANIFEST_DIR")).join("../../target/nix-reference/bin")
 		});
-	let fixture = tempfile::tempdir().unwrap();
+	let fixture = noxi_test_support::tempdir().unwrap();
 	let source = fixture.path().join("nixexprs");
 	fs::create_dir(&source).unwrap();
 	let archive = fixture.path().join("channel.tar.gz");
-	let roots = [tempfile::tempdir().unwrap(), tempfile::tempdir().unwrap()];
+	let roots = [
+		noxi_test_support::tempdir().unwrap(),
+		noxi_test_support::tempdir().unwrap(),
+	];
 	let binaries = [
 		reference.join("nix-channel"),
 		PathBuf::from(env!("CARGO_BIN_EXE_nix-channel")),
@@ -185,7 +191,7 @@ fn loopback_download_cache_and_selective_update() {
 		time::Duration,
 	};
 	let reference = PathBuf::from(std::env::var_os("NOXI_REFERENCE_BIN").unwrap());
-	let fixture = tempfile::tempdir().unwrap();
+	let fixture = noxi_test_support::tempdir().unwrap();
 	let source = fixture.path().join("nixexprs");
 	fs::create_dir(&source).unwrap();
 	let make_archive = |answer: u8| {
@@ -269,7 +275,10 @@ fn loopback_download_cache_and_selective_update() {
 			}
 		}
 	});
-	let roots = [tempfile::tempdir().unwrap(), tempfile::tempdir().unwrap()];
+	let roots = [
+		noxi_test_support::tempdir().unwrap(),
+		noxi_test_support::tempdir().unwrap(),
+	];
 	let bins = [
 		reference.join("nix-channel"),
 		PathBuf::from(env!("CARGO_BIN_EXE_nix-channel")),
@@ -394,7 +403,10 @@ fn subscription_defaults_comments_and_errors_match() {
 	use std::os::unix::process::CommandExt;
 	let reference =
 		PathBuf::from(std::env::var_os("NOXI_REFERENCE_BIN").unwrap()).join("nix-channel");
-	let roots = [tempfile::tempdir().unwrap(), tempfile::tempdir().unwrap()];
+	let roots = [
+		noxi_test_support::tempdir().unwrap(),
+		noxi_test_support::tempdir().unwrap(),
+	];
 	for root in &roots {
 		fs::write(
 			root.path().join(".nix-channels"),

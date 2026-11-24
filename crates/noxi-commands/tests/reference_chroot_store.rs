@@ -16,7 +16,6 @@
 //! tests return with a notice when the reference, the static busybox or
 //! unprivileged user namespaces are unavailable.
 use std::fs;
-use std::os::unix::fs::PermissionsExt;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
@@ -129,24 +128,6 @@ fn namespaces_available() -> bool {
 	ok
 }
 
-/// Remove `root`, first making the read-only store objects below it
-/// writable.
-fn wipe(root: &Path) {
-	if !root.exists() {
-		return;
-	}
-	let mut pending = vec![root.to_owned()];
-	while let Some(path) = pending.pop() {
-		if fs::symlink_metadata(&path).is_ok_and(|m| m.is_dir()) {
-			let _ = fs::set_permissions(&path, fs::Permissions::from_mode(0o755));
-			if let Ok(entries) = fs::read_dir(&path) {
-				pending.extend(entries.flatten().map(|e| e.path()));
-			}
-		}
-	}
-	fs::remove_dir_all(root).unwrap();
-}
-
 /// The directories and files below `dir`, relative and sorted.
 fn tree(dir: &Path) -> Vec<String> {
 	let mut out = Vec::new();
@@ -187,7 +168,7 @@ impl Session<'_> {
 	/// each step's status and output with `root` replaced by `ROOT`, then
 	/// the files made.
 	fn run(&self, bin: &Path, root: &Path, steps: &[Step]) -> Vec<String> {
-		wipe(root);
+		noxi_test_support::remove_tree(root).unwrap();
 		let home = root.join("home");
 		let conf = root.join("conf");
 		fs::create_dir_all(&home).unwrap();
@@ -301,7 +282,7 @@ fn auto_store_falls_back_to_a_per_user_chroot_store_like_cppnix() {
 			&[("XDG_DATA_HOME", "xdg"), ("NIX_DATA_HOME", "data")],
 		),
 	];
-	let root = tempfile::tempdir().unwrap();
+	let root = noxi_test_support::tempdir().unwrap();
 	let root = root.path().join("engine");
 	let expected = EVAL_ONLY.run(&reference, &root, steps);
 	let actual = EVAL_ONLY.run(&candidate_dir(), &root, steps);
@@ -312,7 +293,7 @@ fn auto_store_falls_back_to_a_per_user_chroot_store_like_cppnix() {
 		expected[0]
 	);
 	assert_reference_verifies(&reference, &root);
-	wipe(&root);
+	noxi_test_support::remove_tree(&root).unwrap();
 }
 
 #[test]
@@ -323,7 +304,7 @@ fn explicit_state_dir_disables_the_chroot_store_fallback_like_cppnix() {
 	if !namespaces_available() {
 		return;
 	}
-	let root = tempfile::tempdir().unwrap();
+	let root = noxi_test_support::tempdir().unwrap();
 	let root = root.path().join("engine");
 	let state: &[(&str, &str)] = &[("NIX_STATE_DIR", "state")];
 	let steps: &[Step] = &[(
@@ -387,7 +368,7 @@ fn sandboxed_builds_and_shells_use_the_chroot_store_like_cppnix() {
 			&[],
 		),
 	];
-	let root = tempfile::tempdir().unwrap();
+	let root = noxi_test_support::tempdir().unwrap();
 	let root = root.path().join("engine");
 	let expected = session.run(&reference, &root, steps);
 	let actual = session.run(&candidate_dir(), &root, steps);
@@ -397,7 +378,7 @@ fn sandboxed_builds_and_shells_use_the_chroot_store_like_cppnix() {
 		"{expected:?}"
 	);
 	assert_reference_verifies(&reference, &root);
-	wipe(&root);
+	noxi_test_support::remove_tree(&root).unwrap();
 }
 
 #[test]
@@ -433,7 +414,7 @@ fn shell_runs_in_a_chroot_when_the_store_dir_is_missing_like_cppnix() {
 			store_dir,
 		),
 	];
-	let root = tempfile::tempdir().unwrap();
+	let root = noxi_test_support::tempdir().unwrap();
 	let root = root.path().join("engine");
 	let expected = session.run(&reference, &root, steps);
 	let actual = session.run(&candidate_dir(), &root, steps);
@@ -442,5 +423,5 @@ fn shell_runs_in_a_chroot_when_the_store_dir_is_missing_like_cppnix() {
 		expected[1].contains("status Some(3)") && expected[1].contains("hello from ROOT y"),
 		"{expected:?}"
 	);
-	wipe(&root);
+	noxi_test_support::remove_tree(&root).unwrap();
 }

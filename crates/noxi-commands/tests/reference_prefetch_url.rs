@@ -27,7 +27,7 @@ fn run(bin: &Path, root: &Path, flags: &[&str]) -> Output {
 }
 #[test]
 fn files_hashes_paths_executable_and_unpacked_trees() {
-	let fixture = tempfile::tempdir().unwrap();
+	let fixture = noxi_test_support::tempdir().unwrap();
 	let source = fixture.path().join("hello");
 	fs::write(&source, b"hello world\n").unwrap();
 	let tree = fixture.path().join("tree");
@@ -51,8 +51,8 @@ fn files_hashes_paths_executable_and_unpacked_trees() {
 		(&archive, vec!["--unpack"]),
 	] {
 		for algo in ["md5", "sha1", "sha256", "sha512"] {
-			let a = tempfile::tempdir().unwrap();
-			let b = tempfile::tempdir().unwrap();
+			let a = noxi_test_support::tempdir().unwrap();
+			let b = noxi_test_support::tempdir().unwrap();
 			let url = format!("file://{}", file.display());
 			let mut args = vec!["--print-path", "--name", "download", "--type", algo];
 			args.extend(flags.iter().copied());
@@ -104,10 +104,10 @@ fn files_hashes_paths_executable_and_unpacked_trees() {
 }
 #[test]
 fn mismatch_does_not_register_download() {
-	let fixture = tempfile::tempdir().unwrap();
+	let fixture = noxi_test_support::tempdir().unwrap();
 	let source = fixture.path().join("hello");
 	fs::write(&source, "hello").unwrap();
-	let root = tempfile::tempdir().unwrap();
+	let root = noxi_test_support::tempdir().unwrap();
 	let output = run(
 		Path::new(env!("CARGO_BIN_EXE_nix-prefetch-url")),
 		root.path(),
@@ -116,7 +116,7 @@ fn mismatch_does_not_register_download() {
 			"0000000000000000000000000000000000000000000000000000",
 		],
 	);
-	let oracle_root = tempfile::tempdir().unwrap();
+	let oracle_root = noxi_test_support::tempdir().unwrap();
 	let oracle = run(
 		&reference("nix-prefetch-url"),
 		oracle_root.path(),
@@ -179,7 +179,10 @@ fn http_redirects_and_expected_hash_reuse() {
 		}
 		count
 	});
-	let roots = [tempfile::tempdir().unwrap(), tempfile::tempdir().unwrap()];
+	let roots = [
+		noxi_test_support::tempdir().unwrap(),
+		noxi_test_support::tempdir().unwrap(),
+	];
 	let url = format!("http://{addr}/redirect");
 	let args = ["--print-path", "--name", "download", &url];
 	let a = run(&reference("nix-prefetch-url"), roots[0].path(), &args);
@@ -233,7 +236,10 @@ fn http_not_found_error_matches_reference() {
 			stream.write_all(b"HTTP/1.1 404 Not Found\r\nContent-Length: 8\r\nConnection: close\r\n\r\nmissing\n").unwrap();
 		}
 	});
-	let roots = [tempfile::tempdir().unwrap(), tempfile::tempdir().unwrap()];
+	let roots = [
+		noxi_test_support::tempdir().unwrap(),
+		noxi_test_support::tempdir().unwrap(),
+	];
 	let url = format!("http://{addr}/missing");
 	let a = run(&reference("nix-prefetch-url"), roots[0].path(), &[&url]);
 	let b = run(

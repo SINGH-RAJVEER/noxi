@@ -30,7 +30,7 @@ fn generated_identity_and_float_outputs_match_reference() {
 		})
 		.join("nix-instantiate");
 	let candidate = Path::new(env!("CARGO_BIN_EXE_nix-instantiate"));
-	let home = tempfile::tempdir().unwrap();
+	let home = noxi_test_support::tempdir().unwrap();
 	for expression in [
 		"builtins == builtins",
 		"let alias = builtins; in [ (alias == builtins) (builtins == builtins.builtins) (alias == alias) ]",

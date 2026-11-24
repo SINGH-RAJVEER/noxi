@@ -94,7 +94,7 @@ fn stdio_flags_trust_overrides_and_registration_match_reference() {
 			reference().join("nix-daemon"),
 			PathBuf::from(env!("CARGO_BIN_EXE_nix-daemon")),
 		] {
-			let dir = tempfile::tempdir().unwrap();
+			let dir = noxi_test_support::tempdir().unwrap();
 			let mut child = command(&bin, dir.path())
 				.args(&flags)
 				.args(["--store", &format!("local?root={}", dir.path().display())])
@@ -123,7 +123,7 @@ fn experimental_flag_gates_match_reference() {
 		("--default-trust", "daemon-trust-override"),
 		("--process-ops", "mounted-ssh-store"),
 	] {
-		let dir = tempfile::tempdir().unwrap();
+		let dir = noxi_test_support::tempdir().unwrap();
 		let mut outputs = Vec::new();
 		for bin in [
 			reference().join("nix-daemon"),
@@ -147,7 +147,7 @@ fn experimental_flag_gates_match_reference() {
 
 #[test]
 fn daemon_service_default_socket_and_evaluator_registration() {
-	let dir = tempfile::tempdir().unwrap();
+	let dir = noxi_test_support::tempdir().unwrap();
 	// UDSRemoteStore opens its local view of the store before connecting.
 	std::fs::create_dir_all(dir.path().join("nix/store")).unwrap();
 	let socket = dir.path().join("nix/var/nix/daemon-socket/socket");
@@ -278,7 +278,7 @@ fn connect(socket: &Path) -> (Reader<BufReader<UnixStream>>, Writer<UnixStream>)
 #[test]
 fn systemd_socket_activation_serves_inherited_descriptors() {
 	for named in [false, true] {
-		let dir = tempfile::tempdir().unwrap();
+		let dir = noxi_test_support::tempdir().unwrap();
 		let socket = dir.path().join("activated.sock");
 		let listener = UnixListener::bind(&socket).unwrap();
 		let _process = activated_daemon(dir.path(), &listener, named, None);
@@ -293,7 +293,7 @@ fn systemd_socket_activation_serves_inherited_descriptors() {
 
 #[test]
 fn activated_daemon_exits_when_idle_and_reactivates() {
-	let dir = tempfile::tempdir().unwrap();
+	let dir = noxi_test_support::tempdir().unwrap();
 	let socket = dir.path().join("activated.sock");
 	// The test keeps the listener open, as the service manager does.
 	let listener = UnixListener::bind(&socket).unwrap();
@@ -330,7 +330,7 @@ fn activated_daemon_exits_when_idle_and_reactivates() {
 
 #[test]
 fn self_bound_daemon_ignores_idle_timeout() {
-	let dir = tempfile::tempdir().unwrap();
+	let dir = noxi_test_support::tempdir().unwrap();
 	let socket = dir.path().join("self-bound.sock");
 	let mut process = Process(
 		command(Path::new(env!("CARGO_BIN_EXE_nix-daemon")), dir.path())
@@ -356,7 +356,7 @@ fn self_bound_daemon_ignores_idle_timeout() {
 
 #[test]
 fn invalid_idle_timeout_is_rejected() {
-	let dir = tempfile::tempdir().unwrap();
+	let dir = noxi_test_support::tempdir().unwrap();
 	let output = command(Path::new(env!("CARGO_BIN_EXE_nix-daemon")), dir.path())
 		.env("NOXI_DAEMON_IDLE_TIMEOUT", "5m")
 		.args([

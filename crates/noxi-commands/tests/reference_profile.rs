@@ -12,11 +12,14 @@ fn modern_profiles_match_manifest_and_output_paths() {
 		.unwrap_or_else(|| {
 			Path::new(env!("CARGO_MANIFEST_DIR")).join("../../target/nix-reference/bin")
 		});
-	let fixture = tempfile::tempdir().unwrap();
+	let fixture = noxi_test_support::tempdir().unwrap();
 	let pkg = fixture.path().join("demo-1");
 	fs::create_dir_all(pkg.join("bin")).unwrap();
 	fs::write(pkg.join("bin/demo"), "hello").unwrap();
-	let roots = [tempfile::tempdir().unwrap(), tempfile::tempdir().unwrap()];
+	let roots = [
+		noxi_test_support::tempdir().unwrap(),
+		noxi_test_support::tempdir().unwrap(),
+	];
 	let bins = [
 		reference.join("nix"),
 		PathBuf::from(env!("CARGO_BIN_EXE_nix")),

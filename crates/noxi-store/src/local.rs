@@ -1705,7 +1705,7 @@ mod import_tests {
 
 	#[test]
 	fn captured_archive_import_preserves_validation_and_ignores_trailing_bytes() {
-		let dir = tempfile::tempdir().unwrap();
+		let dir = noxi_test_support::tempdir().unwrap();
 		let source = dir.path().join("source");
 		fs::write(&source, vec![b'x'; 65536]).unwrap();
 		let mut archive = Vec::new();
@@ -1751,7 +1751,7 @@ mod import_tests {
 
 	#[test]
 	fn archive_import_hashes_one_nar_and_preserves_other_hash_algorithms() {
-		let dir = tempfile::tempdir().unwrap();
+		let dir = noxi_test_support::tempdir().unwrap();
 		let source = dir.path().join("source");
 		fs::create_dir(&source).unwrap();
 		fs::write(source.join("file"), vec![b'x'; 65536]).unwrap();
@@ -1800,8 +1800,8 @@ mod read_derivation_tests {
 	fn store_with(
 		ca_derivations: bool,
 		files: &[(&str, &[u8])],
-	) -> (tempfile::TempDir, LocalStore) {
-		let dir = tempfile::tempdir().unwrap();
+	) -> (noxi_test_support::TempDir, LocalStore) {
+		let dir = noxi_test_support::tempdir().unwrap();
 		let mut config = LocalStoreConfig::with_root(&dir.path().join("root"));
 		config.ca_derivations = ca_derivations;
 		let store = LocalStore::open(config).unwrap();

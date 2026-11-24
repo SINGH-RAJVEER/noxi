@@ -64,7 +64,7 @@ in
 #[test]
 #[ignore = "needs NOXI_NIXPKGS; run with `just nixpkgs-paths`"]
 fn renders_an_option_and_a_set_like_nixos_option() {
-	let dir = tempfile::tempdir().unwrap();
+	let dir = noxi_test_support::tempdir().unwrap();
 	let file = module_file(dir.path());
 
 	let (code, out, err) = invoke(&["--file", &file, "services.web.port"]);
@@ -91,7 +91,7 @@ fn renders_an_option_and_a_set_like_nixos_option() {
 #[test]
 #[ignore = "needs NOXI_NIXPKGS; run with `just nixpkgs-paths`"]
 fn evaluates_nixos_config_from_the_lookup_path() {
-	let dir = tempfile::tempdir().unwrap();
+	let dir = noxi_test_support::tempdir().unwrap();
 	let config = dir.path().join("configuration.nix");
 	fs::write(
 		&config,
@@ -119,7 +119,7 @@ fn evaluates_nixos_config_from_the_lookup_path() {
 #[test]
 #[ignore = "needs NOXI_NIXPKGS; run with `just nixpkgs-paths`"]
 fn evaluates_a_flake_configuration() {
-	let dir = tempfile::tempdir().unwrap();
+	let dir = noxi_test_support::tempdir().unwrap();
 	// Not a Git work tree, so the flake is read as a `path:` flake.
 	fs::write(
 		dir.path().join("flake.nix"),

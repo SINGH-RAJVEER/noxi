@@ -32,12 +32,12 @@ fn reference_bin() -> PathBuf {
 }
 
 struct Env {
-	dir: tempfile::TempDir,
+	dir: noxi_test_support::TempDir,
 }
 
 impl Env {
 	fn new() -> Self {
-		let dir = tempfile::tempdir().unwrap();
+		let dir = noxi_test_support::tempdir().unwrap();
 		fs::create_dir(dir.path().join("conf")).unwrap();
 		fs::create_dir(dir.path().join("home")).unwrap();
 		Env { dir }

@@ -10,7 +10,7 @@ fn run(bin: &Path, root: &Path, args: &[&str]) -> Output {
 
 #[test]
 fn dirty_git_tree_does_not_warn_and_can_still_be_rejected() {
-	let fixture = tempfile::tempdir().unwrap();
+	let fixture = noxi_test_support::tempdir().unwrap();
 	let repo = fixture.path();
 	assert!(
 		Command::new("git")
@@ -56,7 +56,7 @@ fn dirty_git_tree_does_not_warn_and_can_still_be_rejected() {
 		"{ outputs = { self }: { answer = 43; }; }",
 	)
 	.unwrap();
-	let root = tempfile::tempdir().unwrap();
+	let root = noxi_test_support::tempdir().unwrap();
 	let url = format!("{}#answer", repo.display());
 	let bin = Path::new(env!("CARGO_BIN_EXE_nix"));
 	let result = run(bin, root.path(), &["eval", "--json", "--warn-dirty", &url]);
@@ -84,7 +84,10 @@ fn pure_generated_text_can_be_read_without_allowing_host_files() {
 			Path::new(env!("CARGO_MANIFEST_DIR")).join("../../target/nix-reference/bin")
 		})
 		.join("nix");
-	let roots = [tempfile::tempdir().unwrap(), tempfile::tempdir().unwrap()];
+	let roots = [
+		noxi_test_support::tempdir().unwrap(),
+		noxi_test_support::tempdir().unwrap(),
+	];
 	for expression in [
 		"builtins.readFile (builtins.toFile \"generated\" \"hello\")",
 		"import (builtins.toFile \"generated.nix\" \"42\")",
@@ -107,7 +110,7 @@ fn pure_flake_imports_a_native_builder_output() {
 			Path::new(env!("CARGO_MANIFEST_DIR")).join("../../target/nix-reference/bin")
 		})
 		.join("nix");
-	let fixture = tempfile::tempdir().unwrap();
+	let fixture = noxi_test_support::tempdir().unwrap();
 	let source = fixture.path().join("nixexprs");
 	fs::create_dir(&source).unwrap();
 	fs::write(source.join("default.nix"), "42").unwrap();
@@ -126,7 +129,10 @@ fn pure_flake_imports_a_native_builder_output() {
 	);
 	fs::write(fixture.path().join("flake.nix"), "{ outputs = { self }: let d = derivation { name = \"pure-ifd\"; builder = \"builtin:unpack-channel\"; system = \"builtin\"; channelName = \"demo\"; src = self + \"/source.tar.gz\"; }; in { answer = import (d + \"/demo\"); }; }").unwrap();
 	let url = format!("path:{}#answer", fixture.path().display());
-	let roots = [tempfile::tempdir().unwrap(), tempfile::tempdir().unwrap()];
+	let roots = [
+		noxi_test_support::tempdir().unwrap(),
+		noxi_test_support::tempdir().unwrap(),
+	];
 	let args = ["eval", "--json", &url];
 	let a = run(&reference, roots[0].path(), &args);
 	let b = run(Path::new(env!("CARGO_BIN_EXE_nix")), roots[1].path(), &args);
@@ -144,7 +150,7 @@ fn flake_lookup_path_imports_source_files() {
 			Path::new(env!("CARGO_MANIFEST_DIR")).join("../../target/nix-reference/bin")
 		})
 		.join("nix");
-	let fixture = tempfile::tempdir().unwrap();
+	let fixture = noxi_test_support::tempdir().unwrap();
 	fs::write(
 		fixture.path().join("flake.nix"),
 		"{ outputs = { self }: {}; }",
@@ -152,7 +158,10 @@ fn flake_lookup_path_imports_source_files() {
 	.unwrap();
 	fs::write(fixture.path().join("default.nix"), "42").unwrap();
 	let entry = format!("demo=flake:path:{}", fixture.path().display());
-	let roots = [tempfile::tempdir().unwrap(), tempfile::tempdir().unwrap()];
+	let roots = [
+		noxi_test_support::tempdir().unwrap(),
+		noxi_test_support::tempdir().unwrap(),
+	];
 	let args = [
 		"eval",
 		"--impure",
@@ -178,14 +187,17 @@ fn explicit_empty_lock_files_match_reference_bytes() {
 			Path::new(env!("CARGO_MANIFEST_DIR")).join("../../target/nix-reference/bin")
 		})
 		.join("nix");
-	let fixture = tempfile::tempdir().unwrap();
+	let fixture = noxi_test_support::tempdir().unwrap();
 	fs::write(
 		fixture.path().join("flake.nix"),
 		"{ outputs = { self }: {}; }",
 	)
 	.unwrap();
 	let url = format!("path:{}", fixture.path().display());
-	let roots = [tempfile::tempdir().unwrap(), tempfile::tempdir().unwrap()];
+	let roots = [
+		noxi_test_support::tempdir().unwrap(),
+		noxi_test_support::tempdir().unwrap(),
+	];
 	let mut bytes = Vec::new();
 	for (engine, bin) in [reference.as_path(), Path::new(env!("CARGO_BIN_EXE_nix"))]
 		.iter()
@@ -240,14 +252,17 @@ fn flake_text_metadata_prefetch_and_archive_match_reference() {
 			Path::new(env!("CARGO_MANIFEST_DIR")).join("../../target/nix-reference/bin")
 		})
 		.join("nix");
-	let fixture = tempfile::tempdir().unwrap();
+	let fixture = noxi_test_support::tempdir().unwrap();
 	fs::write(
 		fixture.path().join("flake.nix"),
 		"{ description = \"demo\"; outputs = { self }: {}; }",
 	)
 	.unwrap();
 	let url = format!("path:{}", fixture.path().display());
-	let roots = [tempfile::tempdir().unwrap(), tempfile::tempdir().unwrap()];
+	let roots = [
+		noxi_test_support::tempdir().unwrap(),
+		noxi_test_support::tempdir().unwrap(),
+	];
 	for operation in ["metadata", "info", "prefetch", "archive"] {
 		let args = ["flake", operation, &url];
 		let a = run(&reference, roots[0].path(), &args);
@@ -266,7 +281,7 @@ fn modern_flake_metadata_lock_and_installable_selection() {
 			Path::new(env!("CARGO_MANIFEST_DIR")).join("../../target/nix-reference/bin")
 		})
 		.join("nix");
-	let fixture = tempfile::tempdir().unwrap();
+	let fixture = noxi_test_support::tempdir().unwrap();
 	let dep = fixture.path().join("project/dep");
 	let project = fixture.path().join("project");
 	fs::create_dir_all(&dep).unwrap();
@@ -278,7 +293,10 @@ fn modern_flake_metadata_lock_and_installable_selection() {
 	.unwrap();
 	fs::write(project.join("flake.nix"), "{ inputs.dep.url = \"path:./dep\"; outputs = { self, dep }: { answer = dep.answer; packages.x86_64-linux.default = dep.answer; }; }").unwrap();
 	let url = format!("path:{}", project.display());
-	let roots = [tempfile::tempdir().unwrap(), tempfile::tempdir().unwrap()];
+	let roots = [
+		noxi_test_support::tempdir().unwrap(),
+		noxi_test_support::tempdir().unwrap(),
+	];
 	let blocked_args = ["flake", "metadata", &url, "--json", "--no-update-lock-file"];
 	for (bin, root) in [reference.as_path(), Path::new(env!("CARGO_BIN_EXE_nix"))]
 		.iter()
@@ -361,10 +379,13 @@ fn flake_show_check_update_and_lock_policy() {
 			Path::new(env!("CARGO_MANIFEST_DIR")).join("../../target/nix-reference/bin")
 		})
 		.join("nix");
-	let project = tempfile::tempdir().unwrap();
+	let project = noxi_test_support::tempdir().unwrap();
 	fs::write(project.path().join("flake.nix"), "{ outputs = { self }: let d = derivation { name = \"test\"; system = \"x86_64-linux\"; builder = \"/bin/sh\"; args = [ \"-c\" \"echo hi > $out\" ]; }; in { packages.x86_64-linux.default = d; checks.x86_64-linux.test = d; }; }").unwrap();
 	let url = format!("path:{}", project.path().display());
-	let roots = [tempfile::tempdir().unwrap(), tempfile::tempdir().unwrap()];
+	let roots = [
+		noxi_test_support::tempdir().unwrap(),
+		noxi_test_support::tempdir().unwrap(),
+	];
 	for flags in [
 		vec!["flake", "show", &url, "--json", "--no-write-lock-file"],
 		vec!["flake", "check", &url, "--no-build", "--no-write-lock-file"],
@@ -412,9 +433,12 @@ fn stored_flake_fragments_select_build_installables() {
 			Path::new(env!("CARGO_MANIFEST_DIR")).join("../../target/nix-reference/bin")
 		})
 		.join("nix");
-	let project = tempfile::tempdir().unwrap();
+	let project = noxi_test_support::tempdir().unwrap();
 	fs::write(project.path().join("flake.nix"), "{ outputs = { self }: { nixosConfigurations.\"two\".config.system.build.toplevel = derivation { name = \"stored-flake-test\"; system = \"x86_64-linux\"; builder = \"/bin/sh\"; args = [ \"-c\" \"echo hi > $out\" ]; }; }; }").unwrap();
-	let roots = [tempfile::tempdir().unwrap(), tempfile::tempdir().unwrap()];
+	let roots = [
+		noxi_test_support::tempdir().unwrap(),
+		noxi_test_support::tempdir().unwrap(),
+	];
 	let mut outputs = Vec::new();
 	for (bin, root) in [reference.as_path(), Path::new(env!("CARGO_BIN_EXE_nix"))]
 		.iter()
@@ -479,11 +503,14 @@ fn stored_path_input_imports_as_plain_string() {
 			Path::new(env!("CARGO_MANIFEST_DIR")).join("../../target/nix-reference/bin")
 		})
 		.join("nix");
-	let fixture = tempfile::tempdir().unwrap();
+	let fixture = noxi_test_support::tempdir().unwrap();
 	let source = fixture.path().join("source");
 	fs::create_dir_all(&source).unwrap();
 	fs::write(source.join("default.nix"), "{ value = \"ok\"; }").unwrap();
-	let roots = [tempfile::tempdir().unwrap(), tempfile::tempdir().unwrap()];
+	let roots = [
+		noxi_test_support::tempdir().unwrap(),
+		noxi_test_support::tempdir().unwrap(),
+	];
 	let mut outputs = Vec::new();
 	for (index, (bin, root)) in [reference.as_path(), Path::new(env!("CARGO_BIN_EXE_nix"))]
 		.iter()
@@ -562,13 +589,16 @@ fn pure_flakes_see_forbidden_paths_as_missing_and_find_corepkgs() {
 			Path::new(env!("CARGO_MANIFEST_DIR")).join("../../target/nix-reference/bin")
 		})
 		.join("nix");
-	let fixture = tempfile::tempdir().unwrap();
+	let fixture = noxi_test_support::tempdir().unwrap();
 	fs::write(
 		fixture.path().join("flake.nix"),
 		"{ outputs = { self }: { overlays = builtins.pathExists (builtins.getEnv \"HOME\" + \"/.config/nixpkgs/overlays.nix\"); etc = builtins.pathExists /etc/passwd; fetchurl = builtins.isFunction (import <nix/fetchurl.nix>); }; }",
 	)
 	.unwrap();
-	let roots = [tempfile::tempdir().unwrap(), tempfile::tempdir().unwrap()];
+	let roots = [
+		noxi_test_support::tempdir().unwrap(),
+		noxi_test_support::tempdir().unwrap(),
+	];
 	let mut outputs = Vec::new();
 	for (bin, root) in [reference.as_path(), Path::new(env!("CARGO_BIN_EXE_nix"))]
 		.iter()
@@ -608,13 +638,16 @@ fn pure_flake_path_imports_allow_only_fetched_sources() {
 			Path::new(env!("CARGO_MANIFEST_DIR")).join("../../target/nix-reference/bin")
 		})
 		.join("nix");
-	let fixture = tempfile::tempdir().unwrap();
+	let fixture = noxi_test_support::tempdir().unwrap();
 	let source = fixture.path().join("source");
 	fs::create_dir_all(source.join("sub")).unwrap();
 	fs::write(source.join("sub/keep"), "keep\n").unwrap();
 	fs::write(source.join("sub/drop"), "drop\n").unwrap();
 	std::os::unix::fs::symlink("/etc/passwd", source.join("escape")).unwrap();
-	let roots = [tempfile::tempdir().unwrap(), tempfile::tempdir().unwrap()];
+	let roots = [
+		noxi_test_support::tempdir().unwrap(),
+		noxi_test_support::tempdir().unwrap(),
+	];
 	let mut outputs = Vec::new();
 	for (index, (bin, root)) in [reference.as_path(), Path::new(env!("CARGO_BIN_EXE_nix"))]
 		.iter()
@@ -708,12 +741,15 @@ fn pure_flake_reads_copied_paths_but_no_other_store_path() {
 			Path::new(env!("CARGO_MANIFEST_DIR")).join("../../target/nix-reference/bin")
 		})
 		.join("nix");
-	let fixture = tempfile::tempdir().unwrap();
+	let fixture = noxi_test_support::tempdir().unwrap();
 	let flake = fixture.path().join("flake");
 	fs::create_dir_all(flake.join("dir")).unwrap();
 	fs::write(flake.join("dir/file"), "copied\n").unwrap();
 	fs::write(fixture.path().join("other"), "other\n").unwrap();
-	let roots = [tempfile::tempdir().unwrap(), tempfile::tempdir().unwrap()];
+	let roots = [
+		noxi_test_support::tempdir().unwrap(),
+		noxi_test_support::tempdir().unwrap(),
+	];
 	let mut outputs = Vec::new();
 	for (bin, root) in [reference.as_path(), Path::new(env!("CARGO_BIN_EXE_nix"))]
 		.iter()
@@ -794,7 +830,7 @@ fn pure_flake_inspects_a_symlink_without_reading_its_target() {
 			Path::new(env!("CARGO_MANIFEST_DIR")).join("../../target/nix-reference/bin")
 		})
 		.join("nix");
-	let fixture = tempfile::tempdir().unwrap();
+	let fixture = noxi_test_support::tempdir().unwrap();
 	let flake = fixture.path().join("flake");
 	fs::create_dir_all(&flake).unwrap();
 	std::os::unix::fs::symlink("/etc/passwd", flake.join("link")).unwrap();
@@ -803,7 +839,10 @@ fn pure_flake_inspects_a_symlink_without_reading_its_target() {
 		"{ outputs = { self }: { exists = builtins.pathExists ./link; type = builtins.readFileType ./link; read = builtins.readFile ./link; }; }",
 	)
 	.unwrap();
-	let roots = [tempfile::tempdir().unwrap(), tempfile::tempdir().unwrap()];
+	let roots = [
+		noxi_test_support::tempdir().unwrap(),
+		noxi_test_support::tempdir().unwrap(),
+	];
 	let mut outputs = Vec::new();
 	for (bin, root) in [reference.as_path(), Path::new(env!("CARGO_BIN_EXE_nix"))]
 		.iter()
@@ -860,7 +899,7 @@ fn pure_flake_root_serves_only_the_store() {
 			Path::new(env!("CARGO_MANIFEST_DIR")).join("../../target/nix-reference/bin")
 		})
 		.join("nix");
-	let fixture = tempfile::tempdir().unwrap();
+	let fixture = noxi_test_support::tempdir().unwrap();
 	let flake = fixture.path().join("flake");
 	fs::create_dir_all(&flake).unwrap();
 	fs::write(
@@ -868,7 +907,10 @@ fn pure_flake_root_serves_only_the_store() {
 		"{ outputs = { self }: { root = builtins.readDir /.; exists = builtins.pathExists /nix; type = builtins.readFileType /nix; copy = builtins.path { path = /nix; name = \"nix\"; }; empty = builtins.path { path = /.; name = \"root\"; }; }; }",
 	)
 	.unwrap();
-	let roots = [tempfile::tempdir().unwrap(), tempfile::tempdir().unwrap()];
+	let roots = [
+		noxi_test_support::tempdir().unwrap(),
+		noxi_test_support::tempdir().unwrap(),
+	];
 	let mut outputs = Vec::new();
 	for (bin, root) in [reference.as_path(), Path::new(env!("CARGO_BIN_EXE_nix"))]
 		.iter()
@@ -919,7 +961,7 @@ fn pure_flake_root_serves_only_the_store() {
 #[test]
 fn show_text_and_json_preserve_lazy_outputs_and_omissions() {
 	let reference = PathBuf::from(std::env::var_os("NOXI_REFERENCE_BIN").unwrap()).join("nix");
-	let fixture = tempfile::tempdir().unwrap();
+	let fixture = noxi_test_support::tempdir().unwrap();
 	fs::write(fixture.path().join("flake.nix"), r#"{ outputs = { self }: let d = { type = "derivation"; name = "demo-1"; meta.description = "demo"; }; in {
 		packages.x86_64-linux.default = d;
 		packages.aarch64-linux.default = d;
@@ -935,7 +977,10 @@ fn show_text_and_json_preserve_lazy_outputs_and_omissions() {
 		unknown = throw "lazy";
 	}; }"#).unwrap();
 	let url = format!("path:{}", fixture.path().display());
-	let roots = [tempfile::tempdir().unwrap(), tempfile::tempdir().unwrap()];
+	let roots = [
+		noxi_test_support::tempdir().unwrap(),
+		noxi_test_support::tempdir().unwrap(),
+	];
 	for flags in [
 		vec![],
 		vec!["--all-systems"],
@@ -979,14 +1024,17 @@ fn show_text_and_json_preserve_lazy_outputs_and_omissions() {
 #[test]
 fn lock_creation_and_refusal_diagnostics_match() {
 	let reference = PathBuf::from(std::env::var_os("NOXI_REFERENCE_BIN").unwrap()).join("nix");
-	let fixture = tempfile::tempdir().unwrap();
+	let fixture = noxi_test_support::tempdir().unwrap();
 	let dep = fixture.path().join("dep");
 	fs::create_dir(&dep).unwrap();
 	fs::write(dep.join("flake.nix"), "{ outputs = { self }: {}; }").unwrap();
 	let project = fixture.path().join("project");
 	fs::create_dir(&project).unwrap();
 	let url = format!("path:{}?lastModified=1", project.display());
-	let roots = [tempfile::tempdir().unwrap(), tempfile::tempdir().unwrap()];
+	let roots = [
+		noxi_test_support::tempdir().unwrap(),
+		noxi_test_support::tempdir().unwrap(),
+	];
 	for flags in [
 		vec!["--no-write-lock-file"],
 		vec!["--no-update-lock-file"],
@@ -1057,7 +1105,7 @@ fn lock_creation_and_refusal_diagnostics_match() {
 #[test]
 fn archive_destination_dry_run_and_prefetch_link_match() {
 	let reference = PathBuf::from(std::env::var_os("NOXI_REFERENCE_BIN").unwrap()).join("nix");
-	let fixture = tempfile::tempdir().unwrap();
+	let fixture = noxi_test_support::tempdir().unwrap();
 	fs::write(
 		fixture.path().join("flake.nix"),
 		"{ outputs = { self }: {}; }",
@@ -1069,7 +1117,10 @@ fn archive_destination_dry_run_and_prefetch_link_match() {
 			if operation == "prefetch" && dry {
 				continue;
 			}
-			let roots = [tempfile::tempdir().unwrap(), tempfile::tempdir().unwrap()];
+			let roots = [
+				noxi_test_support::tempdir().unwrap(),
+				noxi_test_support::tempdir().unwrap(),
+			];
 			let mut jsons = Vec::new();
 			let mut diagnostics = Vec::new();
 			for (engine, bin) in [reference.as_path(), Path::new(env!("CARGO_BIN_EXE_nix"))]
@@ -1128,7 +1179,7 @@ fn archive_destination_dry_run_and_prefetch_link_match() {
 #[test]
 fn command_registry_overrides_and_inputs_from_resolve_locally() {
 	let reference = PathBuf::from(std::env::var_os("NOXI_REFERENCE_BIN").unwrap()).join("nix");
-	let fixture = tempfile::tempdir().unwrap();
+	let fixture = noxi_test_support::tempdir().unwrap();
 	let dep = fixture.path().join("dep");
 	fs::create_dir(&dep).unwrap();
 	fs::write(dep.join("flake.nix"), "{ outputs = { self }: {}; }").unwrap();
@@ -1141,10 +1192,13 @@ fn command_registry_overrides_and_inputs_from_resolve_locally() {
 	)
 	.unwrap();
 	let provider_url = format!("path:{}", provider.display());
-	let root = tempfile::tempdir().unwrap();
+	let root = noxi_test_support::tempdir().unwrap();
 	let locked = run(&reference, root.path(), &["flake", "lock", &provider_url]);
 	assert!(locked.status.success());
-	let prefetch_roots = [tempfile::tempdir().unwrap(), tempfile::tempdir().unwrap()];
+	let prefetch_roots = [
+		noxi_test_support::tempdir().unwrap(),
+		noxi_test_support::tempdir().unwrap(),
+	];
 	let mut fetches = Vec::new();
 	for (engine, bin) in [reference.as_path(), Path::new(env!("CARGO_BIN_EXE_nix"))]
 		.iter()
@@ -1167,7 +1221,10 @@ fn command_registry_overrides_and_inputs_from_resolve_locally() {
 		vec!["--override-flake", "demo", &dep_url],
 		vec!["--inputs-from", &provider_url],
 	] {
-		let roots = [tempfile::tempdir().unwrap(), tempfile::tempdir().unwrap()];
+		let roots = [
+			noxi_test_support::tempdir().unwrap(),
+			noxi_test_support::tempdir().unwrap(),
+		];
 		let mut outputs = Vec::new();
 		for (engine, bin) in [reference.as_path(), Path::new(env!("CARGO_BIN_EXE_nix"))]
 			.iter()
@@ -1195,7 +1252,7 @@ fn command_registry_overrides_and_inputs_from_resolve_locally() {
 #[test]
 fn git_root_lock_intent_to_add_and_commit_match_reference() {
 	let reference = PathBuf::from(std::env::var_os("NOXI_REFERENCE_BIN").unwrap()).join("nix");
-	let fixture = tempfile::tempdir().unwrap();
+	let fixture = noxi_test_support::tempdir().unwrap();
 	let dep = fixture.path().join("dep");
 	fs::create_dir(&dep).unwrap();
 	fs::write(dep.join("flake.nix"), "{ outputs = { self }: {}; }").unwrap();
@@ -1238,7 +1295,7 @@ fn git_root_lock_intent_to_add_and_commit_match_reference() {
 			.unwrap();
 			git(&repo, &["add", "flake.nix"]);
 			git(&repo, &["commit", "-m", "initial"]);
-			let root = tempfile::tempdir().unwrap();
+			let root = noxi_test_support::tempdir().unwrap();
 			let url = format!("git+file://{}", repo.display());
 			let mut args = vec!["flake", "lock", &url];
 			if commit {
@@ -1267,7 +1324,7 @@ fn git_root_lock_intent_to_add_and_commit_match_reference() {
 #[test]
 fn selective_flake_update_keeps_other_git_lock_bytes() {
 	let reference = PathBuf::from(std::env::var_os("NOXI_REFERENCE_BIN").unwrap()).join("nix");
-	let fixture = tempfile::tempdir().unwrap();
+	let fixture = noxi_test_support::tempdir().unwrap();
 	let git = |repo: &Path, args: &[&str]| {
 		let out = Command::new("git")
 			.env("GIT_CONFIG_GLOBAL", "/dev/null")
@@ -1303,7 +1360,10 @@ fn selective_flake_update_keeps_other_git_lock_bytes() {
 	fs::create_dir(&project).unwrap();
 	fs::write(project.join("flake.nix"), format!("{{ inputs.a.url = \"git+file://{}/a\"; inputs.b.url = \"git+file://{}/b\"; outputs = {{ self, a, b }}: {{}}; }}", fixture.path().display(), fixture.path().display())).unwrap();
 	let url = format!("path:{}?lastModified=1", project.display());
-	let roots = [tempfile::tempdir().unwrap(), tempfile::tempdir().unwrap()];
+	let roots = [
+		noxi_test_support::tempdir().unwrap(),
+		noxi_test_support::tempdir().unwrap(),
+	];
 	let initial = run(&reference, roots[0].path(), &["flake", "lock", &url]);
 	assert!(initial.status.success());
 	let initial = fs::read(project.join("flake.lock")).unwrap();

@@ -19,5 +19,6 @@ sha2.workspace = true
 data-encoding.workspace = true
 
 [dev-dependencies]
+noxi-test-support = { path = "../noxi-test-support" }
 tempfile.workspace = true
 noxi-build = { path = "../noxi-build", version = "0.0.4" }

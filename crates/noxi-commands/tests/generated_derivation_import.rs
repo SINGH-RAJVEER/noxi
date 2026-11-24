@@ -101,8 +101,8 @@ fn seed(reference: &Path, home: &Path, store: &str, name: &str, attrs: &str) -> 
 fn imported_output_values_contexts_and_downstream_derivations_match_reference() {
 	let reference = reference();
 	let candidate = Path::new(env!("CARGO_BIN_EXE_nix-instantiate"));
-	let home = tempfile::tempdir().unwrap();
-	let root = tempfile::tempdir().unwrap();
+	let home = noxi_test_support::tempdir().unwrap();
+	let root = noxi_test_support::tempdir().unwrap();
 	let store = format!("local?root={}", root.path().display());
 	for (name, attrs) in KINDS {
 		let drv = seed(&reference, home.path(), &store, name, attrs);
@@ -155,8 +155,8 @@ fn imported_output_values_contexts_and_downstream_derivations_match_reference() 
 fn stored_derivation_feature_gates_match_reference() {
 	let reference = reference();
 	let candidate = Path::new(env!("CARGO_BIN_EXE_nix-instantiate"));
-	let home = tempfile::tempdir().unwrap();
-	let root = tempfile::tempdir().unwrap();
+	let home = noxi_test_support::tempdir().unwrap();
+	let root = noxi_test_support::tempdir().unwrap();
 	let store = format!("local?root={}", root.path().display());
 	for (name, attrs) in KINDS {
 		let drv = seed(&reference, home.path(), &store, name, attrs);
@@ -197,8 +197,8 @@ fn stored_derivation_feature_gates_match_reference() {
 fn stored_fixed_outputs_recompute_paths_from_hashes() {
 	let reference = reference();
 	let candidate = Path::new(env!("CARGO_BIN_EXE_nix-instantiate"));
-	let home = tempfile::tempdir().unwrap();
-	let root = tempfile::tempdir().unwrap();
+	let home = noxi_test_support::tempdir().unwrap();
+	let root = noxi_test_support::tempdir().unwrap();
 	let store = format!("local?root={}", root.path().display());
 	for mode in ["flat", "recursive", "text", "git"] {
 		let name = format!("fixed-{mode}");

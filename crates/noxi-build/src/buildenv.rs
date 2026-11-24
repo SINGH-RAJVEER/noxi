@@ -312,7 +312,7 @@ mod tests {
 
 	#[test]
 	fn links_packages_by_priority_and_reports_conflicts() {
-		let dir = tempfile::tempdir().unwrap();
+		let dir = noxi_test_support::tempdir().unwrap();
 		let root = dir.path().to_owned();
 		let real = move |path: &Path| root.join(path.strip_prefix("/").unwrap());
 		for (pkg, file) in [

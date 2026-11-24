@@ -319,7 +319,7 @@ fn archives_at_the_format_limits_are_read_like_the_reference() {
 	);
 
 	for (index, ((name, bytes), ok)) in cases.iter().enumerate() {
-		let dir = tempfile::tempdir().unwrap();
+		let dir = noxi_test_support::tempdir().unwrap();
 		let out = dir.path().join("reference");
 		let output = reference(dir.path(), &["--restore", out.to_str().unwrap()], bytes);
 		let stderr = String::from_utf8_lossy(&output.stderr);
@@ -349,7 +349,7 @@ fn archives_at_the_format_limits_are_read_like_the_reference() {
 
 #[test]
 fn dumping_a_tree_nested_too_deep_fails_like_the_reference() {
-	let dir = tempfile::tempdir().unwrap();
+	let dir = noxi_test_support::tempdir().unwrap();
 	for (depth, leaf) in [(63, false), (63, true), (64, false)] {
 		let root = dir.path().join(format!("tree-{depth}-{leaf}"));
 		let mut deepest = root.clone();

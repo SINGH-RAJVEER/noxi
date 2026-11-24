@@ -160,13 +160,13 @@ mod commands {
 	}
 
 	struct Fixture {
-		dir: tempfile::TempDir,
+		dir: noxi_test_support::TempDir,
 	}
 
 	impl Fixture {
 		fn new() -> Self {
 			use std::os::unix::fs::PermissionsExt;
-			let dir = tempfile::tempdir().unwrap();
+			let dir = noxi_test_support::tempdir().unwrap();
 			for sub in ["conf", "home", "work/d/sub"] {
 				std::fs::create_dir_all(dir.path().join(sub)).unwrap();
 			}

@@ -12,7 +12,7 @@ fn flake_reference_attribute_builtins_match_reference_values() {
 		.unwrap_or_else(|| {
 			Path::new(env!("CARGO_MANIFEST_DIR")).join("../../target/nix-reference/bin")
 		});
-	let scratch = tempfile::tempdir().unwrap();
+	let scratch = noxi_test_support::tempdir().unwrap();
 	let expressions = [
 		r#"builtins.parseFlakeRef "github:NixOS/nixpkgs/23.05?dir=lib""#,
 		r#"builtins.parseFlakeRef "gitlab:owner/repo/main?host=git.example.org""#,

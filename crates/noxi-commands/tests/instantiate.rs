@@ -18,7 +18,7 @@ fn reference_instantiate() -> std::path::PathBuf {
 
 #[test]
 fn appended_string_context_validation_matches_the_reference() {
-	let dir = tempfile::tempdir().unwrap();
+	let dir = noxi_test_support::tempdir().unwrap();
 	let reference = reference_instantiate();
 	let candidate = Path::new(env!("CARGO_BIN_EXE_nix-instantiate"));
 	let source = "/nix/store/00000000000000000000000000000000-source";
@@ -91,7 +91,7 @@ fn appended_string_context_validation_matches_the_reference() {
 
 #[test]
 fn diagnostic_contexts_and_failed_thunks_match_the_reference() {
-	let dir = tempfile::tempdir().unwrap();
+	let dir = noxi_test_support::tempdir().unwrap();
 	let reference = reference_instantiate();
 	let candidate = Path::new(env!("CARGO_BIN_EXE_nix-instantiate"));
 	for expression in [
@@ -122,7 +122,7 @@ fn diagnostic_contexts_and_failed_thunks_match_the_reference() {
 
 #[test]
 fn byte_source_strings_and_pipe_features_match_the_reference() {
-	let dir = tempfile::tempdir().unwrap();
+	let dir = noxi_test_support::tempdir().unwrap();
 	let reference = reference_instantiate();
 	let candidate = Path::new(env!("CARGO_BIN_EXE_nix-instantiate"));
 	fs::write(
@@ -173,7 +173,7 @@ fn byte_source_strings_and_pipe_features_match_the_reference() {
 /// outcome is compared.
 #[test]
 fn string_coercion_depth_limit_matches_the_reference() {
-	let dir = tempfile::tempdir().unwrap();
+	let dir = noxi_test_support::tempdir().unwrap();
 	let reference = reference_instantiate();
 	let candidate = Path::new(env!("CARGO_BIN_EXE_nix-instantiate"));
 	let chain = |wrap: &str, count: usize| {
@@ -212,7 +212,7 @@ fn string_coercion_depth_limit_matches_the_reference() {
 
 #[test]
 fn ready_and_deferred_builtin_diagnostics_match_the_reference() {
-	let dir = tempfile::tempdir().unwrap();
+	let dir = noxi_test_support::tempdir().unwrap();
 	let reference = reference_instantiate();
 	let candidate = Path::new(env!("CARGO_BIN_EXE_nix-instantiate"));
 	for expression in [
@@ -238,7 +238,7 @@ fn ready_and_deferred_builtin_diagnostics_match_the_reference() {
 
 #[test]
 fn parse_output_matches_the_reference() {
-	let dir = tempfile::tempdir().unwrap();
+	let dir = noxi_test_support::tempdir().unwrap();
 	let reference = reference_instantiate();
 	let candidate = Path::new(env!("CARGO_BIN_EXE_nix-instantiate"));
 	for expression in [
@@ -287,7 +287,7 @@ fn parse_output_matches_the_reference() {
 fn parse_files_and_stdin_match_the_reference() {
 	use std::io::Write;
 	use std::process::Stdio;
-	let dir = tempfile::tempdir().unwrap();
+	let dir = noxi_test_support::tempdir().unwrap();
 	fs::create_dir(dir.path().join("subdir")).unwrap();
 	fs::write(dir.path().join("subdir/default.nix"), "{ path = ./file; }").unwrap();
 	symlink("subdir/default.nix", dir.path().join("link.nix")).unwrap();
@@ -347,7 +347,7 @@ fn parse_files_and_stdin_match_the_reference() {
 
 #[test]
 fn parser_lints_match_the_reference() {
-	let dir = tempfile::tempdir().unwrap();
+	let dir = noxi_test_support::tempdir().unwrap();
 	let reference = reference_instantiate();
 	let candidate = Path::new(env!("CARGO_BIN_EXE_nix-instantiate"));
 	fs::write(
@@ -413,7 +413,7 @@ fn parser_lints_match_the_reference() {
 
 #[test]
 fn remaining_language_outputs_match_the_reference() {
-	let dir = tempfile::tempdir().unwrap();
+	let dir = noxi_test_support::tempdir().unwrap();
 	let reference = reference_instantiate();
 	let candidate = Path::new(env!("CARGO_BIN_EXE_nix-instantiate"));
 	fs::write(dir.path().join("data"), "data").unwrap();
@@ -522,7 +522,7 @@ fn message_evaluation(
 
 #[test]
 fn warning_and_verbose_trace_behavior_matches_the_reference() {
-	let dir = tempfile::tempdir().unwrap();
+	let dir = noxi_test_support::tempdir().unwrap();
 	fs::write(dir.path().join("ansi-message"), b"\x1b[31mred\x1b[0m").unwrap();
 	let reference = reference_instantiate();
 	let candidate = Path::new(env!("CARGO_BIN_EXE_nix-instantiate"));
@@ -680,7 +680,7 @@ fn warning_and_verbose_trace_behavior_matches_the_reference() {
 
 #[test]
 fn sequencing_matches_the_reference() {
-	let dir = tempfile::tempdir().unwrap();
+	let dir = noxi_test_support::tempdir().unwrap();
 	let reference = reference_instantiate();
 	let candidate = Path::new(env!("CARGO_BIN_EXE_nix-instantiate"));
 	for expression in [
@@ -705,7 +705,7 @@ fn sequencing_matches_the_reference() {
 
 #[test]
 fn scoped_import_matches_the_reference() {
-	let dir = tempfile::tempdir().unwrap();
+	let dir = noxi_test_support::tempdir().unwrap();
 	fs::create_dir(dir.path().join("nested")).unwrap();
 	fs::write(
 		dir.path().join("nested/default.nix"),
@@ -768,7 +768,7 @@ fn scoped_import_matches_the_reference() {
 
 #[test]
 fn mapped_store_imports_match_the_reference() {
-	let source = tempfile::tempdir().unwrap();
+	let source = noxi_test_support::tempdir().unwrap();
 	let directory = source.path().join("expression");
 	fs::create_dir(&directory).unwrap();
 	fs::write(directory.join("default.nix"), "import ./child.nix").unwrap();
@@ -776,8 +776,8 @@ fn mapped_store_imports_match_the_reference() {
 	fs::write(directory.join("scope.nix"), "x + import ./value.nix").unwrap();
 	fs::write(directory.join("value.nix"), "4").unwrap();
 	symlink("child.nix", directory.join("link.nix")).unwrap();
-	let reference_root = tempfile::tempdir().unwrap();
-	let candidate_root = tempfile::tempdir().unwrap();
+	let reference_root = noxi_test_support::tempdir().unwrap();
+	let candidate_root = noxi_test_support::tempdir().unwrap();
 	let reference = reference_instantiate();
 	let candidate = Path::new(env!("CARGO_BIN_EXE_nix-instantiate"));
 	for expression in [
@@ -831,7 +831,7 @@ fn nix_instantiate() -> Command {
 
 #[test]
 fn instantiation_registers_drv_bytes_in_a_diverted_store() {
-	let root = tempfile::tempdir().unwrap();
+	let root = noxi_test_support::tempdir().unwrap();
 	let expr = r#"derivation { name = "a"; system = "x"; builder = "/bin/sh"; }"#;
 	let output = nix_instantiate()
 		.args([
@@ -894,7 +894,7 @@ fn instantiation_registers_drv_bytes_in_a_diverted_store() {
 /// derivation path without writing it, even with `--read-write-mode`.
 #[test]
 fn dry_run_instantiation_writes_nothing() {
-	let root = tempfile::tempdir().unwrap();
+	let root = noxi_test_support::tempdir().unwrap();
 	let uri = format!("local?root={}", root.path().display());
 	let expr = r#"derivation { name = "a"; system = "x"; builder = "/bin/sh"; }"#;
 	for extra in [&[][..], &["--read-write-mode"][..]] {
@@ -923,7 +923,7 @@ fn dry_run_instantiation_writes_nothing() {
 
 #[test]
 fn evaluation_registers_paths_only_with_read_write_mode() {
-	let root = tempfile::tempdir().unwrap();
+	let root = noxi_test_support::tempdir().unwrap();
 	let uri = format!("local?root={}", root.path().display());
 	let mut command = nix_instantiate();
 	command.args([
@@ -961,8 +961,8 @@ fn evaluation_registers_paths_only_with_read_write_mode() {
 
 #[test]
 fn readonly_store_selection_matches_reference_initialization_without_registering_values() {
-	let root = tempfile::tempdir().unwrap();
-	let reference_root = tempfile::tempdir().unwrap();
+	let root = noxi_test_support::tempdir().unwrap();
+	let reference_root = noxi_test_support::tempdir().unwrap();
 	let logical = "/nix/store/00000000000000000000000000000000-fixture";
 	let physical_store = root.path().join("nix/store");
 	fs::create_dir_all(&physical_store).unwrap();
@@ -1048,7 +1048,7 @@ fn readonly_store_selection_matches_reference_initialization_without_registering
 
 #[test]
 fn instantiation_forces_each_selection_once() {
-	let root = tempfile::tempdir().unwrap();
+	let root = noxi_test_support::tempdir().unwrap();
 	let uri = format!("local?root={}", root.path().display());
 	let output = nix_instantiate()
 		.args([
@@ -1251,7 +1251,7 @@ fn instantiate(cwd: &Path, args: &[&str]) -> (String, i32) {
 
 #[test]
 fn matches_reference_store_paths() {
-	let dir = tempfile::tempdir().unwrap();
+	let dir = noxi_test_support::tempdir().unwrap();
 	fixture_dir(dir.path());
 	let mut mismatches = Vec::new();
 	for (expression, expected, status) in CASES {
@@ -1268,7 +1268,7 @@ fn matches_reference_store_paths() {
 
 #[test]
 fn selects_attributes_and_passes_arguments() {
-	let dir = tempfile::tempdir().unwrap();
+	let dir = noxi_test_support::tempdir().unwrap();
 	fs::write(dir.path().join("f.nix"), "{ a ? 1 }: { b = a; }").unwrap();
 	// Recorded from the reference: the file alone is not called, a
 	// selection calls it, and `--arg`/`--argstr` also call the result.
@@ -1309,7 +1309,7 @@ fn selects_attributes_and_passes_arguments() {
 
 #[test]
 fn rejects_what_needs_a_writable_store() {
-	let dir = tempfile::tempdir().unwrap();
+	let dir = noxi_test_support::tempdir().unwrap();
 	let (_, code) = instantiate(dir.path(), &["-E", "1"]);
 	assert_eq!(code, 1);
 	let (_, code) = instantiate(dir.path(), &["--eval", "--no-such-flag"]);
@@ -1320,7 +1320,7 @@ fn rejects_what_needs_a_writable_store() {
 /// entries searched before `NIX_PATH`, as recorded from the reference.
 #[test]
 fn prints_xml_and_searches_include_paths() {
-	let dir = tempfile::tempdir().unwrap();
+	let dir = noxi_test_support::tempdir().unwrap();
 	let (stdout, code) = instantiate(
 		dir.path(),
 		&[
@@ -1391,7 +1391,7 @@ fn prints_xml_and_searches_include_paths() {
 /// a missing entry warned about once, a rebound `__nixPath`, and the error.
 #[test]
 fn finds_files_in_the_lookup_path() {
-	let dir = tempfile::tempdir().unwrap();
+	let dir = noxi_test_support::tempdir().unwrap();
 	let root = dir.path().canonicalize().unwrap();
 	fs::create_dir_all(root.join("a/sub")).unwrap();
 	fs::write(root.join("a/sub/x.nix"), "1").unwrap();
@@ -1484,7 +1484,7 @@ fn matches_reference_nixpkgs_paths() {
 			"/nix/store/msr1v91ybfw6j12rs5mfl8ghb2rqsnsr-git-2.55.0",
 		),
 	];
-	let dir = tempfile::tempdir().unwrap();
+	let dir = noxi_test_support::tempdir().unwrap();
 	for (attr, expected) in cases {
 		let args = [
 			"--eval",
@@ -1566,7 +1566,7 @@ fn matches_reference_nixos_paths() {
 	let nixpkgs = std::env::var("NOXI_QUALIFICATION_NIXPKGS").expect("NOXI_QUALIFICATION_NIXPKGS");
 	let home_manager =
 		std::env::var("NOXI_QUALIFICATION_HOME_MANAGER").expect("NOXI_QUALIFICATION_HOME_MANAGER");
-	let dir = tempfile::tempdir().unwrap();
+	let dir = noxi_test_support::tempdir().unwrap();
 	fs::write(dir.path().join("system.nix"), QUALIFICATION_SYSTEM).unwrap();
 	let args = [
 		"--eval",
@@ -1598,7 +1598,7 @@ fn matches_reference_nixos_paths() {
 /// in `--expr`.
 #[test]
 fn resolves_paths_against_the_given_directory() {
-	let dir = tempfile::tempdir().unwrap();
+	let dir = noxi_test_support::tempdir().unwrap();
 	fixture_dir(dir.path());
 	let options = noxi_commands::instantiate::parse_args(
 		["--eval", "--expr", "builtins.readFile ./f.txt"].map(String::from),
@@ -1614,7 +1614,7 @@ fn resolves_paths_against_the_given_directory() {
 /// and errors recorded from the reference.
 #[test]
 fn reads_configuration_like_cppnix() {
-	let dir = tempfile::tempdir().unwrap();
+	let dir = noxi_test_support::tempdir().unwrap();
 	let conf = dir.path().join("etc");
 	fs::create_dir(&conf).unwrap();
 	let run = |nix_conf: &str, args: &[&str]| {
@@ -1686,7 +1686,7 @@ fn reads_configuration_like_cppnix() {
 
 #[test]
 fn extended_regex_split_and_collation_match_the_reference() {
-	let dir = tempfile::tempdir().unwrap();
+	let dir = noxi_test_support::tempdir().unwrap();
 	fs::write(dir.path().join("raw-pattern"), b"(\xff)+").unwrap();
 	fs::write(dir.path().join("raw-subject"), b"a\xff\xffb").unwrap();
 	let reference = reference_instantiate();
@@ -1782,7 +1782,7 @@ fn extended_regex_split_and_collation_match_the_reference() {
 
 #[test]
 fn legacy_pure_and_restricted_source_access_matches_the_reference() {
-	let dir = tempfile::tempdir().unwrap();
+	let dir = noxi_test_support::tempdir().unwrap();
 	let allowed = dir.path().join("allowed");
 	fs::create_dir(&allowed).unwrap();
 	fs::write(allowed.join("default.nix"), "{ answer = 42; }").unwrap();

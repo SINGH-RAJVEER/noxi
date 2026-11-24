@@ -24,11 +24,10 @@ static SERIAL: Mutex<()> = Mutex::new(());
 fn isolate() -> &'static Path {
 	static ROOT: OnceLock<PathBuf> = OnceLock::new();
 	ROOT.get_or_init(|| {
-		let root = tempfile::Builder::new()
+		let root = noxi_test_support::until_exit(tempfile::Builder::new()
 			.prefix("noxi-system-rebuild-")
 			.tempdir_in(env!("CARGO_TARGET_TMPDIR"))
-			.unwrap()
-			.keep();
+			.unwrap());
 		let config = format!(
 			"store = local?root={}\nsubstituters =\nflake-registry =\nwarn-dirty = false\nbuild-users-group =\n",
 			root.join("store").display()
@@ -116,7 +115,7 @@ fn assert_toplevel(root: &Path, link: &Path) -> PathBuf {
 fn file_build_realizes_the_toplevel_in_process() {
 	let _serial = SERIAL.lock().unwrap_or_else(|e| e.into_inner());
 	let root = isolate();
-	let dir = tempfile::tempdir().unwrap();
+	let dir = noxi_test_support::tempdir().unwrap();
 	package(dir.path());
 	fs::write(
 		dir.path().join("system.nix"),
@@ -157,7 +156,7 @@ fn file_build_realizes_the_toplevel_in_process() {
 fn flake_build_with_update_realizes_the_host_toplevel_in_process() {
 	let _serial = SERIAL.lock().unwrap_or_else(|e| e.into_inner());
 	let root = isolate();
-	let dir = tempfile::tempdir().unwrap();
+	let dir = noxi_test_support::tempdir().unwrap();
 	let extra = dir.path().join("extra");
 	fs::create_dir(&extra).unwrap();
 	fs::write(extra.join("value"), "1").unwrap();

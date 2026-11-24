@@ -194,7 +194,7 @@ fn run(dir: &Path, nix_env: &Path) -> (String, Vec<String>) {
 
 #[test]
 fn manages_profiles_like_cppnix() {
-	let base = tempfile::tempdir().unwrap();
+	let base = noxi_test_support::tempdir().unwrap();
 	let dir = base.path().join("scenario");
 	let expected = run(&dir, &reference_bin().join("nix-env"));
 	let actual = run(&dir, Path::new(env!("CARGO_BIN_EXE_nix-env")));
