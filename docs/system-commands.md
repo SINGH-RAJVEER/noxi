@@ -313,7 +313,7 @@ This is `nixos-option` (`crates/noxi-system/src/option.rs`). It evaluates upstre
 
 This is `nixos-generate-config` (`crates/noxi-system/src/init.rs`). It ports the hardware detection of `nixos-generate-config.pl` probe for probe, and it writes the same templates. On this host, `--show-hardware-config` differs from `nixos-generate-config`'s only in the header, which names `noxi system init`. With `--flake`, it pins `nixpkgs` to the running system's revision.
 
-Gap: the generated `configuration.nix` and `flake.nix` are stock NixOS. They do not import the noxios modules. A system installed from them uses CppNix. Until `init` writes a noxios flake, use one like [`nix/noxios/install-test/flake.nix`](../nix/noxios/install-test/flake.nix), which adds the modules from the `noxi` input.
+On noxios (`ID=noxios` in `/etc/os-release`), `--flake` writes a noxios flake instead of the stock one. It has the live image's inputs (`nixpkgs`, the `noxi` source and `rust-overlay`), and its configuration imports `noxios.modules`, so a system installed from it keeps noxi as its package manager. It also copies the running system's `/etc/nixos/flake.lock` next to it when that lock pins those three inputs, so the flake evaluates from the same sources, offline from the image's store. On other systems, the generated `configuration.nix` and `flake.nix` are stock NixOS.
 
 ### noxi install
 

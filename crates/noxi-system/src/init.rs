@@ -42,6 +42,13 @@
 //! outside its evaluation; and with `--flake` the `nixpkgs` input is pinned
 //! to the running system's Nixpkgs revision when `noxi system version`
 //! knows it, instead of following the unstable channel.
+//!
+//! On a noxios system (`ID=noxios` in os-release), `--flake` writes a flake
+//! with the noxios live image's inputs whose configuration imports the
+//! noxios modules, so the installed system keeps noxi as its package
+//! manager, and copies the running system's `/etc/nixos/flake.lock` next to
+//! it when that lock pins those inputs, so the flake evaluates from the
+//! same sources, offline from the image's store.
 
 use std::collections::BTreeMap;
 use std::fs;
@@ -787,6 +794,22 @@ pub fn configuration(boot_loader: &str, release: &str) -> String {
 	format!("{text}\n")
 }
 
+/// The `flake.nix` written on a noxios system: the live image's inputs and
+/// the noxios modules, so the installed system keeps noxi as its package
+/// manager.
+const NOXIOS_FLAKE_TEMPLATE: &str = include_str!("init/noxios-flake.nix.in");
+
+/// Where a noxios system keeps its flake; its `flake.lock` pins the inputs
+/// [`noxios_flake`] declares.
+pub const NOXIOS_FLAKE_LOCK: &str = "/etc/nixos/flake.lock";
+
+/// The text of `flake.nix` on a noxios system, for the configuration named
+/// `hostname`.
+pub fn noxios_flake(hostname: &str) -> String {
+	let text = spaces(NOXIOS_FLAKE_TEMPLATE).replace("@hostname@", hostname);
+	format!("{text}\n")
+}
+
 /// The text of `flake.nix` for the configuration named `hostname`, with
 /// Nixpkgs pinned to `revision` when it is known.
 pub fn flake(hostname: &str, revision: Option<&str>) -> String {
@@ -928,6 +951,9 @@ pub struct Distribution {
 	pub hostname: String,
 	/// The running system's Nixpkgs revision, pinned by `--flake`.
 	pub revision: Option<String>,
+	/// Whether the running system is noxios (`ID=noxios`), whose `--flake`
+	/// output imports the noxios modules instead of the stock template.
+	pub noxios: bool,
 }
 
 impl Distribution {
@@ -958,8 +984,23 @@ impl Distribution {
 				.cloned()
 				.unwrap_or_else(|| "nixos".to_owned()),
 			revision: info.and_then(|info| info.revision),
+			noxios: os_release.get("ID").map(String::as_str) == Some("noxios"),
 		}
 	}
+}
+
+/// The running noxios system's `flake.lock` when it locks every input of
+/// [`noxios_flake`], so a generated flake evaluates from the same sources,
+/// offline when they are in the store.
+fn noxios_lock(host: &Host) -> Option<String> {
+	let text = host.read(NOXIOS_FLAKE_LOCK)?;
+	let lock: serde_json::Value = serde_json::from_str(&text).ok()?;
+	let root = lock.get("root")?.as_str()?;
+	let inputs = lock.get("nodes")?.get(root)?.get("inputs")?;
+	["nixpkgs", "noxi", "rust-overlay"]
+		.iter()
+		.all(|name| inputs.get(name).is_some())
+		.then_some(text)
 }
 
 fn write_file(path: &Path, text: &str) -> Result<(), String> {
@@ -1016,10 +1057,27 @@ pub fn run(
 		if options.flake {
 			if options.force || !file.exists() {
 				let _ = writeln!(err, "writing {}...", file.display());
-				write_file(
-					&file,
-					&flake(&distribution.hostname, distribution.revision.as_deref()),
-				)?;
+				if distribution.noxios {
+					write_file(&file, &noxios_flake(&distribution.hostname))?;
+					let lock = dir.join("flake.lock");
+					let source = host.path(NOXIOS_FLAKE_LOCK);
+					// `noxi system init` run in /etc/nixos itself keeps its lock.
+					let same = matches!(
+						(fs::canonicalize(&source), fs::canonicalize(&lock)),
+						(Ok(a), Ok(b)) if a == b
+					);
+					if !same && (options.force || !lock.exists()) {
+						if let Some(text) = noxios_lock(host) {
+							let _ = writeln!(err, "writing {}...", lock.display());
+							write_file(&lock, &text)?;
+						}
+					}
+				} else {
+					write_file(
+						&file,
+						&flake(&distribution.hostname, distribution.revision.as_deref()),
+					)?;
+				}
 			} else {
 				warning(err, &format!("not overwriting existing {}", file.display()));
 			}

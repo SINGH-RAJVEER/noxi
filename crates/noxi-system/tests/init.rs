@@ -385,6 +385,7 @@ fn writes_under_the_root_and_keeps_existing_configuration() {
 		release: "26.11".to_owned(),
 		hostname: "noxios".to_owned(),
 		revision: Some("e94cb152ed51bd6e24eb4a41f1460252beb52cd2".to_owned()),
+		noxios: false,
 	};
 	let options = Options {
 		root: root.clone(),
@@ -471,6 +472,57 @@ fn writes_under_the_root_and_keeps_existing_configuration() {
 	assert!(unpinned.contains(
 		"    nixpkgs.url = \"https://channels.nixos.org/nixos-unstable/nixexprs.tar.zst\";\n"
 	));
+}
+
+/// On noxios, `--flake` writes a flake that imports the noxios modules and
+/// copies the running system's lock when it pins the flake's inputs.
+#[test]
+fn noxios_flake_keeps_noxi_and_reuses_the_running_lock() {
+	let lock = "{\"nodes\":{\"root\":{\"inputs\":{\"nixpkgs\":\"nixpkgs\",\"noxi\":\"noxi\",\"rust-overlay\":\"rust-overlay\"}}},\"root\":\"root\",\"version\":7}\n";
+	let tree = Tree::new();
+	tree.write("/proc/cpuinfo", "")
+		.write("/proc/self/mountinfo", "")
+		.write(init::NOXIOS_FLAKE_LOCK, lock);
+	let target = tempfile::tempdir().unwrap();
+	let distribution = Distribution {
+		release: "26.11".to_owned(),
+		hostname: "noxios".to_owned(),
+		revision: Some("e94cb152ed51bd6e24eb4a41f1460252beb52cd2".to_owned()),
+		noxios: true,
+	};
+	let options = Options {
+		root: target.path().to_str().unwrap().to_owned(),
+		flake: true,
+		..Options::default()
+	};
+	let dir = target.path().join("etc/nixos");
+
+	let (code, err) = run(&tree, &options, &distribution);
+	assert_eq!(code, ExitCode::SUCCESS, "{err}");
+	assert!(
+		err.contains(&format!("writing {}/flake.lock...\n", dir.display())),
+		"{err}"
+	);
+	let flake = fs::read_to_string(dir.join("flake.nix")).unwrap();
+	assert_eq!(flake, init::noxios_flake("noxios"));
+	assert!(flake.contains("      nixosConfigurations.noxios = nixpkgs.lib.nixosSystem {\n        modules = noxios.modules ++ [ ./configuration.nix ];\n"), "{flake}");
+	assert!(flake.contains("      url = \"github:SINGH-RAJVEER/nix-rs\";\n"));
+	assert_eq!(fs::read_to_string(dir.join("flake.lock")).unwrap(), lock);
+
+	// A lock that does not pin the flake's inputs is not copied.
+	let other = tempfile::tempdir().unwrap();
+	tree.write(
+		init::NOXIOS_FLAKE_LOCK,
+		"{\"nodes\":{\"root\":{\"inputs\":{\"nixpkgs\":\"nixpkgs\"}}},\"root\":\"root\",\"version\":7}\n",
+	);
+	let options = Options {
+		root: other.path().to_str().unwrap().to_owned(),
+		..options
+	};
+	let (code, err) = run(&tree, &options, &distribution);
+	assert_eq!(code, ExitCode::SUCCESS, "{err}");
+	assert!(!other.path().join("etc/nixos/flake.lock").exists());
+	assert!(other.path().join("etc/nixos/flake.nix").exists());
 }
 
 #[test]
