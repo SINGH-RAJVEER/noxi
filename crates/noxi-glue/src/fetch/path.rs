@@ -34,6 +34,12 @@ pub(crate) fn get_accessor(store: &EvaluatorStore, input: &Input) -> Result<(Mou
 	};
 	let mut result = input.clone();
 	if result.get_last_modified()?.is_none() {
+		if fs::symlink_metadata(&physical).is_err_and(|e| e.kind() == std::io::ErrorKind::NotFound)
+		{
+			return Err(Error::new(format!(
+				"opening file {physical:?}: No such file or directory"
+			)));
+		}
 		result
 			.attrs
 			.insert("lastModified".into(), Attr::Int(last_modified(&physical)?));

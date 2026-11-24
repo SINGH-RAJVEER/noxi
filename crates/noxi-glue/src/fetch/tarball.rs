@@ -211,7 +211,10 @@ pub(crate) fn get_tarball_accessor(
 	input: &Input,
 ) -> Result<(Mount, Input)> {
 	let url = get_str_attr(&input.attrs, "url")?;
-	let activity = format!("unpacking '{url}' into the Git cache...");
+	let activity = format!(
+		"unpacking '{}' into the Git cache...",
+		parse_url(&url, true)?
+	);
 	let (mount, last_modified) =
 		download_tarball(store, &url, &[], &input.get_name(), Some(&activity))?;
 	let mut result = input.clone();
@@ -233,6 +236,24 @@ pub(super) fn download_tarball(
 	// Progress text the reference prints when it downloads, rather than reusing, the archive.
 	activity: Option<&str>,
 ) -> Result<(Mount, u64)> {
+	let parsed = parse_url(url, true)?;
+	if parsed.scheme == "file" {
+		let path = url_path_to_path(&parsed.path)?;
+		if path.is_absolute() && !path.exists() {
+			return Err(Error::new(format!("tarball {path:?} does not exist.")));
+		}
+		if path.is_dir() {
+			return Err(Error::new(if path.join(".git").exists() {
+				format!(
+					"tarball {path:?} is a git repository, not a tarball. Please use `git+file` as the scheme."
+				)
+			} else {
+				format!("tarball {path:?} is a directory, not a file.")
+			}));
+		}
+	}
+	// CppNix requests the parsed URL, but keys the cache by the given one.
+	let request_url = parsed.to_string();
 	let cache = store.fetch_cache()?;
 	let key: Attrs = [("url".into(), url.into())].into();
 	let cached = cache.lookup_expired("tarball", &key, store.fetch_settings().tarball_ttl)?;
@@ -280,7 +301,7 @@ pub(super) fn download_tarball(
 	if let Some(activity) = activity {
 		noxi_flakeref::notice(activity);
 	}
-	let response = request(store, url, headers, etag.as_deref())?;
+	let response = request(store, &request_url, headers, etag.as_deref())?;
 	if response.status == 304 {
 		let mount = mount.ok_or_else(|| Error::new("HTTP 304 without a valid cached tarball"))?;
 		let value = cached.unwrap().value;

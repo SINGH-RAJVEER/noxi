@@ -81,7 +81,7 @@ pub fn options(parsed: &Parsed, eval: bool) -> Result<Options, Failure> {
 		format!("@@noxi-frag-{}@@", options.fragments.len() - 1)
 	} else if let Some(file) = parsed.value("file") {
 		if instantiate::is_lookup_path(file) {
-			format!("import {file}")
+			format!("builtins.seq {file} (import {file})")
 		} else if file == "-" {
 			std::io::read_to_string(std::io::stdin())?
 		} else {

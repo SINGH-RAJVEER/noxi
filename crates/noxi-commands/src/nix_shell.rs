@@ -255,19 +255,6 @@ pub fn main(settings: Settings, args: Vec<String>) -> Result<ExitCode, Failure> 
 	let mut to_build = Vec::new();
 	let mut shell = std::env::var("NIX_BUILD_SHELL").ok();
 	let mut shell_drv = None;
-	// noxi skips `flake:` and URL lookup path entries, which the reference
-	// resolves; `<nixpkgs>` from one would give it `bashInteractive`.
-	if shell.is_none()
-		&& instantiate::search_path(&options).iter().any(|entry| {
-			let value = entry
-				.split_once('=')
-				.map_or(entry.as_str(), |(_, value)| value);
-			value.starts_with("flake:") || value.contains("://") || value.starts_with("channel:")
-		}) {
-		return Err(Failure::Error(
-			"nix-shell without NIX_BUILD_SHELL and with flake:, channel: or URL lookup path entries is not supported by noxi yet".into(),
-		));
-	}
 	if shell.is_none() {
 		let bash = instantiate::Options {
 			from_args: true,

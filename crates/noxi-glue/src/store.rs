@@ -50,6 +50,8 @@ pub struct EvaluatorStore {
 	access: RefCell<Option<EvaluationAccess>>,
 	/// Fetched trees served at logical store paths, keyed by store path.
 	mounts: RefCell<BTreeMap<PathBuf, Mount>>,
+	/// Mounts that are accessible only once their path is allowed.
+	hidden_mounts: RefCell<BTreeSet<PathBuf>>,
 	pub(crate) fetch_config: RefCell<crate::fetch::FetchConfig>,
 	pub(crate) fetch_state: RefCell<crate::fetch::FetchState>,
 }
@@ -515,6 +517,21 @@ impl EvaluatorStore {
 			.insert(PathBuf::from(path.to_absolute_path()), mount);
 	}
 
+	/// Run `add`, which may mount trees, without letting a restricted
+	/// evaluation access the mounts it makes.
+	pub(crate) fn with_hidden_mounts<T>(&self, add: impl FnOnce() -> T) -> T {
+		let before: BTreeSet<_> = self.mounts.borrow().keys().cloned().collect();
+		let result = add();
+		self.hidden_mounts.borrow_mut().extend(
+			self.mounts
+				.borrow()
+				.keys()
+				.filter(|path| !before.contains(*path))
+				.cloned(),
+		);
+		result
+	}
+
 	/// The mount whose physical root contains `physical`.
 	fn mount_at_physical(&self, physical: &Path) -> Option<(PathBuf, Mount)> {
 		self.mounts
@@ -603,13 +620,15 @@ impl EvaluatorStore {
 			return false;
 		}
 		let mounts = self.mounts.borrow();
+		let hidden = self.hidden_mounts.borrow();
 		// Paths order by component, so the descendants of `path` follow it
 		// directly: the first prefix at or after it is one if any is.
 		let from = (std::ops::Bound::Included(path), std::ops::Bound::Unbounded);
 		path.starts_with(COREPKGS_DIR)
-			|| path
-				.ancestors()
-				.any(|prefix| access.roots.contains(prefix) || mounts.contains_key(prefix))
+			|| path.ancestors().any(|prefix| {
+				access.roots.contains(prefix)
+					|| (mounts.contains_key(prefix) && !hidden.contains(prefix))
+			})
 			|| access
 				.roots
 				.range::<Path, _>(from)
@@ -617,7 +636,7 @@ impl EvaluatorStore {
 				.is_some_and(|root| root.starts_with(path))
 			|| mounts
 				.range::<Path, _>(from)
-				.next()
+				.find(|(mounted, _)| !hidden.contains(*mounted))
 				.is_some_and(|(mounted, _)| mounted.starts_with(path))
 	}
 
@@ -1179,27 +1198,7 @@ impl StoreIO {
 
 impl EvalIO for StoreIO {
 	fn resolve_lookup_path(&self, value: &str) -> io::Result<Option<PathBuf>> {
-		// `lookupPathResolve` requires the feature for `flake:` entries.
-		if value.starts_with("flake:") && !self.store.fetch_settings().flakes {
-			return Err(io::Error::other(nix_compat::nixcpp::hash::missing_feature(
-				"flakes",
-			)));
-		}
-		let reference = value.strip_prefix("flake:").unwrap_or(value);
-		let reference = if let Some(channel) = reference.strip_prefix("channel:") {
-			format!("https://nixos.org/channels/{channel}/nixexprs.tar.xz")
-		} else {
-			reference.to_owned()
-		};
-		let parsed = crate::fetch::flake::parse_reference(&self.store, &reference)
-			.map_err(|e| io::Error::other(e.to_string()))?;
-		let source = crate::fetch::flake::fetch_source(
-			&self.store,
-			&parsed,
-			noxi_flakeref::registry::UseRegistries::All,
-		)
-		.map_err(|e| io::Error::other(e.to_string()))?;
-		Ok(Some(source.out_path))
+		crate::fetch::lookup::resolve(&self.store, value).map(Some)
 	}
 
 	fn path_exists(&self, path: &Path) -> io::Result<bool> {

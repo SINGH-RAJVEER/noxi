@@ -58,7 +58,7 @@ pub use crate::compiler::{CompilationOutput, GlobalsMap, compile, prepare_global
 pub use crate::errors::{AddContext, CatchableErrorKind, Error, ErrorKind, EvalResult, Trace};
 pub use crate::io::{DummyIO, EvalIO, FileType};
 pub use crate::nix_search_path::{
-	NixSearchPath, NixSearchPathEntry, is_pseudo_url, parse_nix_path,
+	LookupError, NixSearchPath, NixSearchPathEntry, is_pseudo_url, parse_nix_path,
 };
 pub use crate::pretty_ast::pretty_print_expr;
 pub use crate::show_ast::show_expr;
@@ -597,6 +597,18 @@ impl<'co, 'ro, 'env> Evaluation<'co, 'ro, 'env, Box<dyn EvalIO>> {
 
 	pub fn builder_pure() -> EvaluationBuilder<'co, 'ro, 'env, Box<dyn EvalIO>> {
 		EvaluationBuilder::new_pure()
+	}
+}
+
+impl<IO> Evaluation<'_, '_, '_, IO>
+where
+	IO: AsRef<dyn EvalIO>,
+{
+	/// Resolve every lookup path entry, as CppNix does before a restricted
+	/// evaluation.
+	pub fn resolve_search_path(&self) -> Result<(), LookupError> {
+		self.nix_search_path
+			.resolve_entries(self.io_handle.as_ref())
 	}
 }
 

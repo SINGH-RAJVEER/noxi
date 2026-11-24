@@ -134,11 +134,23 @@ in {{ inNixShell ? false, extra ? "none" }}: derivation {{
 	}
 
 	fn run(&self, engine: &str, args: &[&str], cwd: &str) -> (Option<i32>, String, String) {
+		self.run_with(engine, args, cwd, None)
+	}
+
+	/// With `nix_path`, use the default shell instead of `NIX_BUILD_SHELL`.
+	fn run_with(
+		&self,
+		engine: &str,
+		args: &[&str],
+		cwd: &str,
+		nix_path: Option<&str>,
+	) -> (Option<i32>, String, String) {
 		let program = match engine {
 			"reference" => self.reference.join("nix-shell"),
 			_ => PathBuf::from(env!("CARGO_BIN_EXE_nix-shell")),
 		};
-		let output = Command::new(program)
+		let mut command = Command::new(program);
+		command
 			.arg0("nix-shell")
 			.args(["--store", &self.store(engine)])
 			.args(args)
@@ -152,9 +164,13 @@ in {{ inNixShell ? false, extra ? "none" }}: derivation {{
 			.env(
 				"NIX_CONFIG",
 				"experimental-features = nix-command\nbuild-users-group =\nsubstituters =\nsandbox = true\nsandbox-fallback = false\ncores = 1\n",
-			)
-			.output()
-			.unwrap();
+			);
+		if let Some(nix_path) = nix_path {
+			command
+				.env_remove("NIX_BUILD_SHELL")
+				.env("NIX_PATH", nix_path);
+		}
+		let output = command.output().unwrap();
 		let normalise = |bytes: &[u8]| {
 			let text = String::from_utf8_lossy(bytes)
 				.replace(&*self.engine(engine).to_string_lossy(), "ENGINE");
@@ -252,29 +268,72 @@ fn unsupported_modes_fail_explicitly() {
 	let (status, _, stderr) = f.run("noxi", &["--check"], "work");
 	assert_eq!(status, Some(1));
 	assert!(stderr.contains("is not supported by noxi yet"), "{stderr}");
-	// The default shell would come from a `flake:` `<nixpkgs>`, which noxi
-	// skips and the reference resolves.
-	let output = Command::new(env!("CARGO_BIN_EXE_nix-shell"))
-		.arg0("nix-shell")
-		.args(["--store", &f.store("noxi"), "--run", "true"])
-		.current_dir(f.engine("noxi").join("work"))
-		.env_clear()
-		.env("HOME", f.dir.path().join("home"))
-		.env("NIX_CONF_DIR", f.dir.path().join("conf"))
-		.env("NIX_PATH", "nixpkgs=flake:nixpkgs")
-		.env("PATH", PATH)
-		.env(
-			"NIX_CONFIG",
-			"experimental-features = nix-command\nbuild-users-group =\nsubstituters =\nsandbox = true\nsandbox-fallback = false\n",
-		)
-		.output()
-		.unwrap();
-	assert_eq!(output.status.code(), Some(1));
-	assert!(
-		String::from_utf8_lossy(&output.stderr).contains("is not supported by noxi yet"),
-		"{}",
-		String::from_utf8_lossy(&output.stderr)
-	);
+}
+
+/// Without `NIX_BUILD_SHELL` the shell is `<nixpkgs>`'s `bashInteractive`,
+/// and `<nixpkgs>` may come from the flake registry.
+#[test]
+fn finds_the_default_shell_through_a_flake_entry() {
+	let f = Fixture::new();
+	let busybox = fs::canonicalize(from_env_or_target(
+		"NOXI_TEST_BUSYBOX",
+		"test-busybox",
+		"bin/busybox",
+	))
+	.unwrap();
+	let nixpkgs = f.dir.path().join("nixpkgs");
+	fs::create_dir(&nixpkgs).unwrap();
+	fs::write(
+		nixpkgs.join("default.nix"),
+		format!(
+			r#"{{ }}: let bb = builtins.storePath {}; in {{
+	bashInteractive = derivation {{
+		name = "test-bash";
+		system = "x86_64-linux";
+		builder = "${{bb}}/bin/sh";
+		args = [ "-c" "${{bb}}/bin/mkdir -p $out/bin; echo 'exec sh' > $out/bin/bash" ];
+	}};
+}}
+"#,
+			busybox.display()
+		),
+	)
+	.unwrap();
+	let registry = f.dir.path().join("registry.json");
+	fs::write(
+		&registry,
+		serde_json::json!({ "version": 2, "flakes": [{
+			"from": { "type": "indirect", "id": "nixpkgs" },
+			"to": { "type": "path", "path": nixpkgs },
+		}] })
+		.to_string(),
+	)
+	.unwrap();
+	let registry = registry.to_str().unwrap();
+	for nix_path in ["nixpkgs=flake:nixpkgs", "nixpkgs=flake:unknown"] {
+		let args = [
+			"--option",
+			"extra-experimental-features",
+			"flakes",
+			"--option",
+			"flake-registry",
+			registry,
+			"--run",
+			"true",
+		];
+		let [expected, actual] =
+			ENGINES.map(|engine| f.run_with(engine, &args, "work", Some(nix_path)));
+		assert_eq!(actual, expected, "{nix_path}");
+	}
+	// The shell that the registry's `<nixpkgs>` names was built.
+	let store = f.engine("noxi").join("root/nix/store");
+	assert!(fs::read_dir(store).unwrap().any(|entry| {
+		entry
+			.unwrap()
+			.file_name()
+			.to_string_lossy()
+			.ends_with("-test-bash")
+	}));
 }
 
 #[test]

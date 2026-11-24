@@ -876,7 +876,9 @@ where
 								.nix_search_path
 								.with_entries(entries)
 								.resolve(&self.io_handle, &path);
-							message = VMResponse::Value(found.into());
+							let found = crate::nix_search_path::lookup_value(found)
+								.with_span(span, self)?;
+							message = VMResponse::Value(found);
 						}
 
 						VMRequest::Span => {

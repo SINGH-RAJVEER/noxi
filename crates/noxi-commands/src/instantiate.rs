@@ -300,6 +300,16 @@ pub fn search_path(options: &Options) -> Vec<String> {
 	elements
 }
 
+/// `flake:` and URL entries are fetched through the selected store and the
+/// flake registries, as an evaluation resolves them.
+fn lookup_io(options: &Options) -> Box<dyn noxi_eval::EvalIO> {
+	let cwd = std::env::current_dir().unwrap_or_default();
+	match evaluator_store(options, &cwd, true) {
+		Ok((store, _)) => Box::new(noxi_glue::StoreIO::new(store)),
+		Err(_) => Box::new(noxi_eval::StdIO),
+	}
+}
+
 /// `--find-file`: print the physical path of each input in the lookup path.
 pub fn find_files(options: &Options) -> ExitCode {
 	let search_path = noxi_eval::NixSearchPath::new(
@@ -310,25 +320,25 @@ pub fn find_files(options: &Options) -> ExitCode {
 		None,
 	)
 	.with_pure_eval(options.settings.get_bool("pure-eval", false));
-	// `flake:` and URL entries are fetched through the selected store and the
-	// flake registries, as an evaluation resolves them.
-	let cwd = std::env::current_dir().unwrap_or_default();
-	let io = match evaluator_store(options, &cwd, true) {
-		Ok((store, _)) => Box::new(noxi_glue::StoreIO::new(store)) as Box<dyn noxi_eval::EvalIO>,
-		Err(_) => Box::new(noxi_eval::StdIO) as Box<dyn noxi_eval::EvalIO>,
-	};
+	let io = lookup_io(options);
+	if options.settings.get_bool("restrict-eval", false)
+		&& let Err(error) = search_path.resolve_entries(io.as_ref())
+	{
+		eprintln!("{}", error.report());
+		return ExitCode::FAILURE;
+	}
 	let mut stdout = io::stdout().lock();
 	for input in &options.inputs {
 		match search_path.resolve(&io, input) {
 			Ok(path) => {
 				let _ = writeln!(stdout, "{}", path.display());
 			}
-			Err(_) if input.starts_with("nix/") => {
+			Err(noxi_eval::LookupError::NotFound(_)) if input.starts_with("nix/") => {
 				eprintln!("error: '<{input}>' has no physical path");
 				return ExitCode::FAILURE;
 			}
 			Err(error) => {
-				eprintln!("error: {error}");
+				eprintln!("{}", error.report());
 				return ExitCode::FAILURE;
 			}
 		}
@@ -463,7 +473,8 @@ fn root_expression(
 		return Ok(format!("@@noxi-input-{}@@", sources.len() - 1));
 	}
 	if is_lookup_path(input) {
-		return Ok(format!("(import {input})"));
+		// Resolve before `import`, whose frame a failed lookup lacks.
+		return Ok(format!("(builtins.seq {input} (import {input}))"));
 	}
 	let path = cwd.join(input);
 	let source_path = if path.is_dir() {
@@ -908,8 +919,14 @@ pub fn evaluate(options: &Options, cwd: &Path) -> Result<Evaluated, ExitCode> {
 			evaluator_store.clone(),
 		)
 	} else {
-		builder
-			.build()
+		let evaluation = builder.build();
+		if options.settings.get_bool("restrict-eval", false)
+			&& let Err(error) = evaluation.resolve_search_path()
+		{
+			eprintln!("{}", error.report());
+			return Err(ExitCode::FAILURE);
+		}
+		evaluation
 			.hide_root_source()
 			.with_source_fragments(fragments)
 			.evaluate_in_dir(&driver, cwd.to_path_buf())
@@ -1013,11 +1030,11 @@ pub fn parse(options: &Options, cwd: &Path, stdout: &mut dyn Write) -> ExitCode 
 					None,
 				)
 				.with_pure_eval(options.settings.get_bool("pure-eval", false));
-				let io = Box::new(noxi_eval::StdIO) as Box<dyn noxi_eval::EvalIO>;
+				let io = lookup_io(options);
 				match lookup.resolve(&io, &input[1..input.len() - 1]) {
 					Ok(path) => path,
 					Err(error) => {
-						eprintln!("error: {error}");
+						eprintln!("{}", error.report());
 						return ExitCode::FAILURE;
 					}
 				}

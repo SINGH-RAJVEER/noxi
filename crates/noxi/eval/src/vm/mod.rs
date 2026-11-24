@@ -1903,7 +1903,21 @@ where
 						let resolved = self
 							.nix_search_path
 							.resolve(&self.io_handle, &path.to_string_lossy());
-						self.stack.push(resolved.into());
+						// CppNix calls `findFile` for `<...>`, so failures show its frame.
+						if resolved.is_err() {
+							frame.trace = FrameTrace::Builtin {
+								name: "findFile",
+								call_site: Some(frame.current_span()),
+								contexts: None,
+								path: None,
+							};
+						}
+						let value = match crate::nix_search_path::lookup_value(resolved) {
+							Ok(value) => value,
+							Err(kind) => return frame.error(self, kind),
+						};
+						let value = self.trace_catchable_in(value, Some(&frame.trace), None, None);
+						self.stack.push(value);
 					}
 
 					_ => panic!("noxi bug: OpFindFile called on non-UnresolvedPath"),

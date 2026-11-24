@@ -13,6 +13,7 @@ pub(crate) mod github;
 pub mod http;
 pub use tarball::{download_file, unpack as unpack_tarball};
 mod lfs;
+pub(crate) mod lookup;
 pub(crate) mod mercurial;
 pub(crate) mod path;
 pub(crate) mod tarball;

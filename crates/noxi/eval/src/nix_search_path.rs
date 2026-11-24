@@ -4,11 +4,12 @@
 use path_clean::PathClean;
 use rustc_hash::FxHashMap;
 use std::cell::RefCell;
+use std::io;
 use std::path::{Path, PathBuf};
 use std::rc::Rc;
 
-use crate::EvalIO;
-use crate::errors::CatchableErrorKind;
+use crate::errors::{AddContext, CatchableErrorKind, ErrorKind};
+use crate::{EvalIO, Value};
 
 /// One lookup path element: `prefix=path`, or a bare `path` with an empty
 /// prefix.
@@ -99,6 +100,65 @@ pub fn parse_nix_path(s: &str) -> Vec<String> {
 	elements
 }
 
+/// Why a lookup found nothing.
+#[derive(Debug, Clone, thiserror::Error)]
+pub enum LookupError {
+	/// No entry has the file, which `builtins.tryEval` catches.
+	#[error("{0}")]
+	NotFound(Box<str>),
+	/// An entry failed to resolve or may not be accessed.
+	#[error("{message}")]
+	Fatal {
+		message: String,
+		/// Context of the failure, outermost first.
+		traces: Vec<String>,
+	},
+}
+
+impl LookupError {
+	/// The error as CppNix prints it outside an evaluation.
+	pub fn report(&self) -> String {
+		match self {
+			LookupError::Fatal { message, traces } if !traces.is_empty() => {
+				let traces: String = traces
+					.iter()
+					.map(|trace| format!("       … {trace}\n\n"))
+					.collect();
+				format!("error:\n{traces}       error: {message}")
+			}
+			error => format!("error: {error}"),
+		}
+	}
+}
+
+impl From<io::Error> for LookupError {
+	fn from(error: io::Error) -> Self {
+		error
+			.downcast::<LookupError>()
+			.unwrap_or_else(|error| LookupError::Fatal {
+				message: error.to_string(),
+				traces: Vec::new(),
+			})
+	}
+}
+
+/// A lookup's value: a failed one is catchable only if nothing was found.
+pub(crate) fn lookup_value(result: Result<PathBuf, LookupError>) -> Result<Value, ErrorKind> {
+	match result {
+		Ok(path) => Ok(path.into()),
+		Err(LookupError::NotFound(message)) => {
+			Ok(CatchableErrorKind::NixPathResolution(message).into())
+		}
+		Err(LookupError::Fatal { message, traces }) => {
+			let mut kind = ErrorKind::EvalError(message);
+			for trace in traces.into_iter().rev() {
+				kind = kind.trace(None, trace);
+			}
+			Err(kind)
+		}
+	}
+}
+
 /// The lookup path of an evaluation, with CppNix's resolution rules.
 #[derive(Default, Debug, Clone)]
 pub struct NixSearchPath {
@@ -141,51 +201,50 @@ impl NixSearchPath {
 	}
 
 	/// `EvalState::resolveLookupPathPath`: the directory an entry's value
-	/// names, or `None` with a warning when it does not exist. A `flake:`
-	/// entry that cannot be resolved is an error, as in CppNix.
+	/// names, or `None` with a warning when it does not exist. A pseudo-URL
+	/// that cannot be downloaded is tried as a path. A `flake:` entry that
+	/// cannot be resolved is an error, as is one restricted evaluation may
+	/// not access; `allowed` says that the evaluation may access `value`.
 	fn resolve_entry(
 		&self,
 		io: &dyn EvalIO,
 		value: &str,
-	) -> Result<Option<PathBuf>, CatchableErrorKind> {
+		allowed: bool,
+	) -> Result<Option<PathBuf>, LookupError> {
 		if let Some(cached) = self.resolved.borrow().get(value) {
 			return Ok(cached.clone());
 		}
-		if is_pseudo_url(value) || value.starts_with("flake:") {
-			match io.resolve_lookup_path(value) {
-				Ok(Some(path)) => {
-					self.resolved
-						.borrow_mut()
-						.insert(value.into(), Some(path.clone()));
-					return Ok(Some(path));
-				}
-				Err(error) if value.starts_with("flake:") => {
-					return Err(CatchableErrorKind::NixPathResolution(
-						error.to_string().into_boxed_str(),
-					));
-				}
-				Err(error) => {
-					eprintln!("warning: {error}");
-					self.resolved.borrow_mut().insert(value.into(), None);
-					return Ok(None);
-				}
-				Ok(None) => eprintln!(
+		let mut fetched = None;
+		if is_pseudo_url(value) {
+			fetched = io.resolve_lookup_path(value).unwrap_or_default();
+			if fetched.is_none() {
+				eprintln!(
 					"warning: Nix search path entry '{value}' cannot be downloaded, ignoring"
-				),
+				);
 			}
+		} else if value.starts_with("flake:") {
+			fetched = io.resolve_lookup_path(value).map_err(LookupError::from)?;
 		}
-		let path = Path::new(value);
-		let path = if path.is_absolute() {
-			path.to_owned()
-		} else {
-			std::env::current_dir().unwrap_or_default().join(path)
-		}
-		.clean();
-		let resolved = if io.canonicalize(&path).is_ok() {
-			Some(path)
-		} else {
-			eprintln!("warning: Nix search path entry '{value}' does not exist, ignoring");
-			None
+		let resolved = match fetched {
+			Some(path) => Some(path),
+			None => {
+				let path = Path::new(value);
+				let path = if path.is_absolute() {
+					path.to_owned()
+				} else {
+					std::env::current_dir().unwrap_or_default().join(path)
+				}
+				.clean();
+				if existing(io, &path).is_some() {
+					Some(path)
+				} else {
+					if !allowed {
+						check_access(io, &path)?;
+					}
+					eprintln!("warning: Nix search path entry '{value}' does not exist, ignoring");
+					None
+				}
+			}
 		};
 		self.resolved
 			.borrow_mut()
@@ -193,9 +252,17 @@ impl NixSearchPath {
 		Ok(resolved)
 	}
 
+	/// Resolve every entry, as CppNix does before a restricted evaluation.
+	pub fn resolve_entries(&self, io: &dyn EvalIO) -> Result<(), LookupError> {
+		for entry in &self.entries {
+			self.resolve_entry(io, &entry.path, true)?;
+		}
+		Ok(())
+	}
+
 	/// `EvalState::findFile`: the first entry with the file, symlinks
 	/// resolved, falling back to the built-in `<nix/...>` files.
-	pub fn resolve<IO>(&self, io: IO, path: &str) -> Result<PathBuf, CatchableErrorKind>
+	pub fn resolve<IO>(&self, io: IO, path: &str) -> Result<PathBuf, LookupError>
 	where
 		IO: AsRef<dyn EvalIO>,
 	{
@@ -204,13 +271,14 @@ impl NixSearchPath {
 			let Some(suffix) = entry.suffix(path) else {
 				continue;
 			};
-			let Some(root) = self.resolve_entry(io, &entry.path)? else {
+			let Some(root) = self.resolve_entry(io, &entry.path, false)? else {
 				continue;
 			};
 			let candidate = root.join(suffix.trim_start_matches('/')).clean();
-			if let Ok(found) = io.canonicalize(&candidate) {
+			if let Some(found) = existing(io, &candidate) {
 				return Ok(found);
 			}
+			check_access(io, &io.canonicalize(&candidate).unwrap_or(candidate))?;
 		}
 		if let (Some(rest), Some(corepkgs)) = (path.strip_prefix("nix/"), &self.corepkgs) {
 			return Ok(corepkgs.join(rest.trim_start_matches('/')).clean());
@@ -224,9 +292,27 @@ impl NixSearchPath {
 				"file '{path}' was not found in the Nix search path (add it using $NIX_PATH or -I)"
 			)
 		};
-		Err(CatchableErrorKind::NixPathResolution(
-			message.into_boxed_str(),
-		))
+		Err(LookupError::NotFound(message.into_boxed_str()))
+	}
+}
+
+/// `path` with its symlinks resolved, if evaluation can see that it exists.
+fn existing(io: &dyn EvalIO, path: &Path) -> Option<PathBuf> {
+	let found = io.canonicalize(path).ok()?;
+	io.file_type(&found).is_ok().then_some(found)
+}
+
+/// `FilteringSourceAccessor::checkAccess`: fail if the evaluation's access
+/// rules, rather than the filesystem, refuse `path`.
+fn check_access(io: &dyn EvalIO, path: &Path) -> Result<(), LookupError> {
+	match io.file_type(path) {
+		Err(error)
+			if error.kind() == io::ErrorKind::PermissionDenied
+				&& error.raw_os_error().is_none() =>
+		{
+			Err(error.into())
+		}
+		_ => Ok(()),
 	}
 }
 
@@ -303,7 +389,7 @@ mod tests {
 		);
 		assert!(matches!(
 			search_path.resolve(&io, "y.nix"),
-			Err(CatchableErrorKind::NixPathResolution(_))
+			Err(LookupError::NotFound(_))
 		));
 	}
 }
