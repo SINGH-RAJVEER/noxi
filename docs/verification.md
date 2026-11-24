@@ -394,7 +394,7 @@ Smaller groups:
 
 ### Functional gaps by root cause, 2026-11-25
 
-The table groups the 137 gap scripts of `tests/compat-results/2026-11-25-84aec12-store` (commit `84aec12`) by the cause of the first failure in noxi's recorded log. Every gap script is in exactly one row. The last two columns show how much a first failure can hide: how many scripts stopped in the first half of the script file running at the time, and how many lines of those files follow the failing line. Blank lines and comments count. Helper scripts that a script sources before the failure are not counted.
+The table groups the 137 gap scripts of the store-tier records at `84aec12` (`tests/compat-results/2026-11-25-84aec12-store` in Git at `528b7aa`) by the cause of the first failure in noxi's recorded log. Every gap script is in exactly one row. The last two columns show how much a first failure can hide: how many scripts stopped in the first half of the script file running at the time, and how many lines of those files follow the failing line. Blank lines and comments count. Helper scripts that a script sources before the failure are not counted.
 
 `NIX_STORE_DIR` blocks no script any more: the 91 scripts recorded on 2026-11-12 were closed on 2026-11-13 (see the store directory follow-up above), and no log in this set fails writing to `/nix/store/tmp-*`. Two scripts still failed on a store directory written as a constant, `ca/substitute` and, later in the script, `ca/issue-13247`: an uploaded `.narinfo` named its path as `/nix/store/...` whatever the store directory.
 
@@ -421,7 +421,7 @@ The table groups the 137 gap scripts of `tests/compat-results/2026-11-25-84aec12
 | Separate causes: options, output and diagnostics of single commands | 23 | Varies by script | 12 | 1,024 |
 | Total | 137 | | | |
 
-Three of these causes were closed on 2026-11-25. The same run, of all 214 scripts under both engines, gives 73 pass, 129 gap, 10 anomaly and 2 unrun, and no script that passed before fails. `reference_installables` compares each closed behavior with the reference.
+Three of these causes were closed on 2026-11-25. A run of all 214 scripts under both engines at `20726bd` ([records](../tests/compat-results/2026-11-25-20726bd-store/)) gives 73 pass, 129 gap, 10 anomaly and 2 unrun, and no script that passed before fails. `reference_installables` compares each closed behavior with the reference.
 
 - Host store objects in a chroot store: none of the 17 scripts still fails there and none passes yet. The 9 overlay scripts stop at `local-overlay://` and the 8 remote build scripts at remote builders, which noxi does not run.
 - Content-addressed outputs: `ca/build-with-garbage-path`, `ca/derivation-json`, `ca/import-from-derivation`, `ca/nix-run`, `ca/selfref-gc` and `ca/why-depends` pass. `ca/nix-shell` and `ca/multiple-outputs` stop at store derivation arguments, `ca/post-hook` at `--check`, `ca/build-cache` at `nix copy --all`, and `ca/build` at a build without jobs after a garbage collection (`testGC`). Building text, impure and dynamic outputs remains open.

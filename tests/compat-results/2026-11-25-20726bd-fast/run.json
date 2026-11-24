@@ -1,0 +1,34 @@
+{
+	"command": [
+		"cargo",
+		"nextest",
+		"run",
+		"--workspace",
+		"--all-features",
+		"--profile",
+		"fast",
+		"--no-fail-fast"
+	],
+	"exit_status": 0,
+	"kernel": "7.3.4",
+	"noxi": {
+		"dirty": false,
+		"revision": "20726bda44bdcd6a2e5ec74ef3684ad254a4209e",
+		"source": "git"
+	},
+	"platform": "x86_64-linux",
+	"reference": {
+		"release": "2.35.2",
+		"repository": "https://github.com/NixOS/nix.git",
+		"revision": "2c73b59da29606068c0c98db015dd3a66955525d"
+	},
+	"schema": "noxi-compat-result/1",
+	"settings": {
+		"NOXI_FUNCTIONAL_JOBS": "4",
+		"NOXI_FUNCTIONAL_SCRATCH": "/var/tmp/fg/s",
+		"NOXI_REFERENCE_BIN": "/home/rajveer/.t3/worktrees/noxi/t3-be127ac0-bfe4293835db1fd4/target/nix-reference/bin",
+		"NOXI_TEST_BUSYBOX": "/home/rajveer/.t3/worktrees/noxi/t3-be127ac0-bfe4293835db1fd4/target/test-busybox"
+	},
+	"started": "2026-11-24T21:04:14+00:00",
+	"tier": "fast"
+}
