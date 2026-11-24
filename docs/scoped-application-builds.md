@@ -4,7 +4,7 @@
 
 Users must be able to add, update, or remove an application in a selected scope without building or activating a complete NixOS system generation. The planner evaluates an independent application declaration and realizes its package closure and profile. It reuses existing store paths and trusted cache substitutes; local builds cover missing dependencies and the affected profile output. A scoped build can still build dependencies, including shared libraries.
 
-This is a planned native extension after the package-manager MVP. Reference-compatible profiles, builds, shells, and NixOS activation remain in the unchanged compatibility gate. It uses the noxi engine and NixBox's shared operations and is not implemented support.
+This is a planned native extension after the package-manager MVP. Reference-compatible profiles, builds, shells, and NixOS activation remain in the unchanged compatibility gate. It uses the noxi engine and Settings's shared operations and is not implemented support.
 
 ## Scopes
 
@@ -43,7 +43,7 @@ CLI, TUI, and GUI share typed scope, frozen plans, events, and results. Final co
 
 ## Example and acceptance cases
 
-A user adds `ripgrep` to their user application scope. NixBox resolves it against that scope's locked Nixpkgs, stages its declaration, realizes missing paths, saves and verifies the declaration, and switches the user application profile. The user can run `rg` after apply. The operation creates an application generation; the running OS generation and boot default stay unchanged. Machine scope additionally requires administrator authority and shared profile integration.
+A user adds `ripgrep` to their user application scope. Settings resolves it against that scope's locked Nixpkgs, stages its declaration, realizes missing paths, saves and verifies the declaration, and switches the user application profile. The user can run `rg` after apply. The operation creates an application generation; the running OS generation and boot default stay unchanged. Machine scope additionally requires administrator authority and shared profile integration.
 
 Before advertising support, qualify:
 

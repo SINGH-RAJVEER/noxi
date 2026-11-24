@@ -2,17 +2,17 @@
 
 ## Decision
 
-The system configuration, written in Nix, is the source of truth for persistent system state. The CLI, TUI, and GUI submit typed requests to NixBox. NixBox resolves them through the noxi evaluator and store, computes the candidate system generation, and persists the accepted desired state as configuration source before activation. A persistent change is therefore a semantic engine operation with declarative persistence, not a text substitution followed by a shell command. The interface must never make a lasting runtime change first and try to reverse-engineer configuration files afterward.
+The system configuration, written in Nix, is the source of truth for persistent system state. The CLI, TUI, and GUI submit typed requests to Settings. Settings resolves them through the noxi evaluator and store, computes the candidate system generation, and persists the accepted desired state as configuration source before activation. A persistent change is therefore a semantic engine operation with declarative persistence, not a text substitution followed by a shell command. The interface must never make a lasting runtime change first and try to reverse-engineer configuration files afterward.
 
 This matches NixOS's documented model: edit the configuration, run a rebuild, and select the resulting generation. Module definitions can merge, override, or derive values from other definitions, so observing a running system is not enough to reconstruct the expression that produced it. [NixOS configuration and generations](https://nixos.org/manual/nixos/stable/), [NixOS module definitions](https://nixos.org/manual/nixos/stable/)
 
-The approach is hybrid in the interface, not in the source of truth. A form, source editor, CLI command, and package search can all propose the same typed change. NixBox evaluates it against the exact locked inputs, drives store and build work through noxi, and records persistent intent in an imported module. The system still follows its committed configuration. [NixBox integration](nixbox-integration.md) defines this lower-level role.
+The approach is hybrid in the interface, not in the source of truth. A form, source editor, CLI command, and package search can all propose the same typed change. Settings evaluates it against the exact locked inputs, drives store and build work through noxi, and records persistent intent in an imported module. The system still follows its committed configuration. [noxios Settings](settings.md) defines this lower-level role.
 
 The planned [scoped application workflow](scoped-application-builds.md) applies the same source-first contract to independently declared application profiles. Its candidate and activation target is the selected application profile, with its own locked inputs and generations. Eligible application changes build and switch that profile without constructing a system generation. The system sequence below applies to changes in NixOS configuration; profile operations use the scoped sequence and report application generation separately from running OS and boot state.
 
 ## Ownership and round trips
 
-NixBox owns one explicitly imported module, provisionally `noxi-managed.nix`. It renders that module deterministically from evaluated package selections and typed option values after constructing a candidate plan. It may also update a lock file in a separate, explicit input-update operation. The generated file records desired state; it does not replace package resolution, module evaluation, store realization, or activation. NixBox must not rewrite an arbitrary user module to make a toggle work.
+Settings owns the explicitly imported `noxios-settings-*.nix` modules. In the planned workflow it renders those modules deterministically from evaluated package selections and typed option values after constructing a candidate plan. An explicit input-update operation may also update the lock. The generated files record desired state. Settings must preserve unrelated user definitions when applying a structured edit.
 
 For every option, the interface shows the effective value, its contributing definitions and source locations when available, and whether the editor owns a writable definition. A value computed by a function, conflicting with another module, or requiring a complex expression can be inspected and edited in source. The UI must not silently insert `mkForce` or claim a change succeeded just because the generated file contains the requested value. Reevaluate and show the effective result.
 
@@ -40,7 +40,7 @@ No filesystem transaction can make a source edit, store build, bootloader update
 
 ## Fleet desired state
 
-The later [fleet workflow](distributed-computing.md#fleet-plan-rollout-and-recovery) extends this contract to a common authoritative configuration, recorded inventory, and locked inputs. NixBox may own an explicitly imported fleet module for supported structured declarations; it must preserve unrelated shared modules and per-machine overrides. Live discovery and runtime membership are observations, not permission to rewrite inventory during pure evaluation.
+The later [fleet workflow](distributed-computing.md#fleet-plan-rollout-and-recovery) extends this contract to a common authoritative configuration, recorded inventory, and locked inputs. Settings may own an explicitly imported fleet module for supported structured declarations; it must preserve unrelated shared modules and per-machine overrides. Live discovery and runtime membership are observations, not permission to rewrite inventory during pure evaluation.
 
 A fleet preview freezes selectors to exact machine identities and records the candidate closure for every target. It also shows connection changes, cluster membership, capacity requirements, ordered batches, disruption limits, and any data migration. A shared role is not proof that every machine builds the same closure. Changes to inventory, source, target identity, or relevant service membership require revalidation or a new preview before mutation.
 
@@ -56,7 +56,7 @@ Compatibility commands may retain their existing imperative behavior, such as op
 
 ## Example
 
-A user enables OpenSSH in the GUI. The GUI submits a typed option change to NixBox. NixBox asks the noxi evaluator for the effective option and contributing definitions, adds a definition setting `services.openssh.enable` to true in the staged application-owned module, and computes and builds the resulting system closure through the engine. After the source revision is rechecked, the manager saves the module and switches to the new generation. The result shows the new running and boot generations and whether `sshd` started. If evaluation reports a conflict or activation fails, the UI names that phase and displays what changed. It never calls `systemctl enable sshd` and later guesses how to encode that state in configuration source.
+A user enables OpenSSH in the GUI. The GUI submits a typed option change to Settings. Settings asks the noxi evaluator for the effective option and contributing definitions, adds a definition setting `services.openssh.enable` to true in the staged application-owned module, and computes and builds the resulting system closure through the engine. After the source revision is rechecked, the manager saves the module and switches to the new generation. The result shows the new running and boot generations and whether `sshd` started. If evaluation reports a conflict or activation fails, the UI names that phase and displays what changed. It never calls `systemctl enable sshd` and later guesses how to encode that state in configuration source.
 
 ## Acceptance cases
 

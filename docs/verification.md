@@ -247,7 +247,7 @@ Map every applicable entry in the [reference inventory](reference-inventory.md) 
 
 ### Rust-core completion work
 
-The active completion scope is the package-manager core in TODO sections 0 through 8. The installer and OS lifecycle, NixBox interfaces, and fleet execution remain outside this scope. Completion requires the pinned CppNix 2.35.2 qualification gates, not merely a passing workspace suite.
+The active completion scope is the package-manager core in TODO sections 0 through 8. The installer and OS lifecycle, Settings interfaces, and fleet execution remain outside this scope. Completion requires the pinned CppNix 2.35.2 qualification gates, not merely a passing workspace suite.
 
 The current working tree adds writable evaluation through `EvaluatorStore::writable(root)` and single-derivation instantiation through `nix-instantiate --store 'local?root=ROOT'`. ROOT must be an existing absolute diverted directory. System roots and symlink-redirected store/state directories are rejected before opening the store. These checks are development safeguards, not an authorization boundary for untrusted concurrent users.
 
@@ -485,9 +485,9 @@ For the later OS image, qualify ordinary systemd-boot and Lanzaboote Secure Boot
 
 The [configuration workflow](configuration-workflow.md) requires additional cases for external source edits, staged build versus saved-source mismatch, interrupted journal writes, and desired configuration diverging from the running generation after partial activation.
 
-The [NixBox integration](nixbox-integration.md) must be tested at the engine interface: package lookup uses the selected lock revision, a typed operation produces the expected derivation graph and source change, realization uses the single store owner, and CLI/TUI/GUI receive the same events. A test that only inspects generated Nix text does not prove those behaviors.
+The [noxios Settings](settings.md) must be tested at the engine interface: package lookup uses the selected lock revision, a typed operation produces the expected derivation graph and source change, realization uses the single store owner, and CLI/TUI/GUI receive the same events. A test that only inspects generated Nix text does not prove those behaviors.
 
-Qualify the GPUI-based NixBox GUI in a graphical VM: verify package and option inspection, source-edit fallback, preview and confirmation, live progress during a long build, cancellation, disconnect and restart recovery, distinct pending/running/boot states, generation comparison, rollback, keyboard use, and accessible labels. Run the same operations through the CLI and TUI and compare their plans, events, authorization decisions, and resulting generations. Test headless and recovery workflows without a desktop session.
+Qualify the GPUI-based Settings GUI in a graphical VM: verify package and option inspection, source-edit fallback, preview and confirmation, live progress during a long build, cancellation, disconnect and restart recovery, distinct pending/running/boot states, generation comparison, rollback, keyboard use, and accessible labels. Run the same operations through the CLI and TUI and compare their plans, events, authorization decisions, and resulting generations. Test headless and recovery workflows without a desktop session.
 
 Run tests for the public C and C++ library interfaces or maintain an explicit list of incompatible consumers. A release with a required incompatible interface cannot claim 100% drop-in behavior for its matrix row. Security checks cover multi-user authorization, trusted users, sandbox escape attempts, cache signature rejection, and secret handling.
 
@@ -517,7 +517,7 @@ The later OS release additionally requires:
 
 1. The installed OS builds and activates its next generation using noxi, with no CppNix dependency for normal maintenance.
 2. Installer, update, rollback, and recovery workflows pass on every advertised platform.
-3. CLI, TUI, and GPUI-based NixBox GUI operations pass their shared behavior and accessibility tests.
+3. CLI, TUI, and GPUI-based Settings GUI operations pass their shared behavior and accessibility tests.
 
 A later release advertising fleet or distributed-computing support must additionally pass the fleet security, lifecycle, service-topology, partial-recovery, and measured-scale gates for every advertised support combination. Single-machine OS qualification and CppNix compatibility cannot substitute for those results, and fleet results cannot substitute for either earlier gate.
 

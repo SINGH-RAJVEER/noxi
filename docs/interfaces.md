@@ -1,10 +1,10 @@
 # CLI, TUI, and GUI specification
 
-The graphical client is the GPUI-based NixBox GUI. GPUI is the Rust UI framework used by Zed; its upstream API is still evolving, so the GUI must pin and qualify the revision it builds against. [GPUI upstream](https://github.com/zed-industries/zed/blob/main/crates/gpui/README.md)
+The graphical client is the GPUI-based Settings GUI. GPUI is the Rust UI framework used by Zed; its upstream API is still evolving, so the GUI must pin and qualify the revision it builds against. [GPUI upstream](https://github.com/zed-industries/zed/blob/main/crates/gpui/README.md)
 
 ## Shared operation interface
 
-The OS-native CLI, TUI, and GUI must call the NixBox operation module for package and system management. Its interface includes the typed request, target scope, selected configuration revision, evaluated candidate plan, required authority, progress events, cancellation, result, and structured errors. Each client must present the same operation plan and apply the same validation. Frontends may differ in presentation; they cannot silently add different semantics for the same action. Legacy compatibility commands call the noxi engine under their reference command semantics. [NixBox integration](nixbox-integration.md) defines the module's engine interaction.
+The OS-native CLI, TUI, and GUI must call the Settings operation module for package and system management. Its interface includes the typed request, target scope, selected configuration revision, evaluated candidate plan, required authority, progress events, cancellation, result, and structured errors. Each client must present the same operation plan and apply the same validation. Frontends may differ in presentation; they cannot silently add different semantics for the same action. Legacy compatibility commands call the noxi engine under their reference command semantics. [noxios Settings](settings.md) defines the module's engine interaction.
 
 The module must support at least: inspect current configuration and generations; search and select packages; inspect option metadata and effective values; propose a configuration change; evaluate and preview; build; activate with the selected NixOS action; inspect logs; roll back; and manage supported store operations. An operation must report whether it changed configuration, store state, the running system, or the boot default.
 
@@ -44,9 +44,9 @@ Preview shows the fleet revision, resolved target count and identities, architec
 
 Execution shows completed, failed, blocked, unreachable, and not-started targets with service-specific health and correlated logs. Saved desired state, actual generations, boot defaults, runtime membership, and replication lag remain separate facts. Unknown remote state must not look healthy. Recovery must explain its service-specific data and availability effects; no control may imply an atomic fleet rollback or automatic repair of split brain.
 
-## GPUI-based NixBox GUI
+## GPUI-based Settings GUI
 
-The desktop application belongs in a planned `nixbox-gui` crate. It consumes the same versioned NixBox operation interface as the CLI and TUI; GPUI owns rendering and interaction, not evaluation, store mutation, authorization, or activation. Keep the GUI process unprivileged. A narrowly scoped system service authorizes and executes privileged operations after the user has reviewed the evaluated plan. The GUI must show the target host and scope before applying a change.
+The desktop application lives in `settings/crates/noxios-settings-gui` and shares the Settings engine with the CLI and TUI. The GUI runs as the desktop user and requests sudo for system activation. The planned operation interface adds a reviewed candidate plan and narrowly scoped system authorization. It must show the target host and scope before applying a change.
 
 Provide package search tied to the selected lock revision, option inspection with provenance, safe structured edits, a source editor path for expressions that cannot be represented as controls, plan and file-diff preview, build and activation progress, concise diagnostics with full logs on demand, generation comparison, and rollback. Long builds must leave the window responsive and support cancellation where the engine can cancel safely. After reconnecting or restarting, the GUI must recover operation state rather than imply that a still-running build failed or stopped.
 

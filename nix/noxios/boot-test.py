@@ -45,6 +45,102 @@ with subtest("the live user is noxi, logged in at the console"):
 	machine.wait_for_unit("getty@tty1.service")
 	machine.wait_until_succeeds("pgrep -u noxi -t tty1")
 
+with subtest("Settings is built in on the text console"):
+	machine.succeed("su noxi -c 'noxi settings --help' | grep -q 'Usage: noxios-settings '")
+	machine.succeed("su noxi -c 'noxi settings tui --help' | grep -q 'Usage:'")
+	machine.fail("command -v noxios-settings-gui")
+	machine.fail("systemctl is-active display-manager.service")
+
+with subtest("Settings searches, previews, installs and removes a package as the live user"):
+	machine.succeed(r"""su noxi -c 'bash -se' <<'SH'
+set -euo pipefail
+scratch=$(mktemp -d)
+trap 'rm -rf "$scratch"' EXIT
+export NOXIOS_SETTINGS_CONFIG_DIR="$scratch/config"
+export XDG_CONFIG_HOME="$scratch/preferences"
+export XDG_CACHE_HOME="$scratch/cache"
+mkdir -p "$NOXIOS_SETTINGS_CONFIG_DIR" "$scratch/catalog"
+cd "$NOXIOS_SETTINGS_CONFIG_DIR"
+cat > "$scratch/catalog/flake.nix" <<'NIX'
+{
+	outputs = { self }: {
+		packages.x86_64-linux.settings-test-tool = (derivation {
+			name = "settings-test-tool-1.0";
+			system = "x86_64-linux";
+			builder = "/bin/sh";
+		}) // {
+			pname = "settings-test-tool";
+			version = "1.0";
+			meta.description = "Offline Settings test package";
+		};
+	};
+}
+NIX
+source_path=$(nix --extra-experimental-features nix-command store add-path "$scratch/catalog")
+nar_hash=$(nix --extra-experimental-features nix-command hash path "$source_path")
+printf '{"root":"root","version":7,"nodes":{"root":{"inputs":{"nixpkgs":"pinned"}},"pinned":{"locked":{"type":"path","path":"%s","narHash":"%s"}}}}\n' \
+	"$source_path" "$nar_hash" > flake.lock
+printf '{ pkgs, ... }: {\n\timports = [ ];\n}\n' > configuration.nix
+cp configuration.nix configuration.before
+noxi settings search --json settings-test-tool > search.json
+grep -Fq '"attr": "settings-test-tool"' search.json
+noxi settings install --dry-run settings-test-tool
+cmp configuration.before configuration.nix
+test ! -e noxios-settings-system-packages.nix
+noxi settings install --no-rebuild --yes settings-test-tool
+grep -Fq './noxios-settings-system-packages.nix' configuration.nix
+grep -Fq pkgs.settings-test-tool noxios-settings-system-packages.nix
+noxi settings list --json > packages.json
+grep -Fq '"name": "settings-test-tool"' packages.json
+noxi settings remove --no-rebuild --yes settings-test-tool
+if grep -Fq pkgs.settings-test-tool noxios-settings-system-packages.nix; then
+	echo "the removed package is still in the managed module" >&2
+	exit 1
+fi
+
+# A small flake export lets Apply exercise a real build and generation change
+# without replacing the running installer system.
+busybox=
+for candidate in /nix/store/*-busybox-*/bin/busybox; do
+	if test -x "$candidate"; then
+		busybox=${candidate%/bin/busybox}
+		break
+	fi
+done
+test -n "$busybox"
+cat > flake.nix <<NIX
+{
+	inputs.nixpkgs.url = "path:$source_path";
+	outputs = { self, nixpkgs }: {
+		nixosConfigurations.noxios.config.noxios-settings.profile = derivation {
+			name = "settings-profile-v1";
+			system = "x86_64-linux";
+			builder = builtins.appendContext "$busybox/bin/busybox" {
+				"$busybox".path = true;
+			};
+			args = [ "sh" "-c" "echo profile-ready > \$out" ];
+		};
+	};
+}
+NIX
+rm flake.lock
+nix --extra-experimental-features 'nix-command flakes' flake lock
+running=$(readlink -f /run/current-system)
+profile=/nix/var/nix/profiles/noxios-settings
+noxi settings profile setup --no-rebuild --yes
+noxi settings apply --yes
+first=$(readlink "$profile")
+grep -qx profile-ready "$profile"
+sed -i s/settings-profile-v1/settings-profile-v2/ flake.nix
+noxi settings apply --yes
+test "$(readlink "$profile")" != "$first"
+noxi settings profile generations
+noxi settings profile rollback --to 1
+test "$(readlink "$profile")" = "$first"
+test "$(readlink -f /run/current-system)" = "$running"
+SH""")
+
+
 with subtest("the noxios manual replaces the NixOS manual"):
 	machine.fail("command -v nixos-help")
 	machine.fail("test -e /run/current-system/sw/share/doc/nixos")
