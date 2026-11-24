@@ -389,23 +389,38 @@ impl Value {
 			return Ok(value);
 		}
 		enum Item {
-			Value(Value),
-			WithSeparator(Value),
+			// A value and how many coercions enclose it.
+			Value(Value, usize),
+			WithSeparator(Value, usize),
 			Space,
 		}
 
+		// Asked for only once a coercion nests, because most do not.
+		let mut budget = None;
 		let mut out = BString::default();
 		let mut out_context: NixContext = NixContext::new();
 
-		let mut worklist = vec![Item::Value(self)];
+		let mut worklist = vec![Item::Value(self, 0)];
 		while let Some(item) = worklist.pop() {
-			let value = match item {
+			if let Item::Value(_, depth @ 1..) | Item::WithSeparator(_, depth @ 1..) = &item {
+				let budget = match budget {
+					Some(budget) => budget,
+					None => *budget.insert(generators::request_recursion_budget(co).await),
+				};
+				if *depth > budget {
+					return Err(ErrorKind::At {
+						message: "stack overflow; max-call-depth exceeded".into(),
+						span,
+					});
+				}
+			}
+			let (value, depth) = match item {
 				Item::Space => {
 					out.push(b' ');
 					continue;
 				}
-				Item::Value(value) => value.force(co, span).await?,
-				Item::WithSeparator(value) => {
+				Item::Value(value, depth) => (value.force(co, span).await?, depth),
+				Item::WithSeparator(value, depth) => {
 					let value = value.force(co, span).await?;
 
 					// Separate non-final list elements with a space, except when the element is
@@ -414,7 +429,7 @@ impl Value {
 					if !matches!(&value, Value::List(list) if list.is_empty()) {
 						worklist.push(Item::Space);
 					}
-					value
+					(value, depth)
 				}
 			};
 
@@ -475,9 +490,9 @@ impl Value {
 						// Recurse on the result, as attribute set coercion
 						// actually works recursively, e.g. you can even return
 						// /another/ set with a __toString attr.
-						worklist.push(Item::Value(result));
+						worklist.push(Item::Value(result, depth + 1));
 					} else if let Some(out_path) = attrs.select("outPath") {
-						worklist.push(Item::Value(out_path.clone()));
+						worklist.push(Item::Value(out_path.clone(), depth + 1));
 					} else {
 						return Err(ErrorKind::NotCoercibleToString {
 							from: "set",
@@ -509,9 +524,9 @@ impl Value {
 					let len = list.len();
 					for (i, value) in list.into_iter().enumerate().rev() {
 						if i < len - 1 {
-							worklist.push(Item::WithSeparator(value))
+							worklist.push(Item::WithSeparator(value, depth + 1))
 						} else {
-							worklist.push(Item::Value(value))
+							worklist.push(Item::Value(value, depth + 1))
 						}
 					}
 				}
