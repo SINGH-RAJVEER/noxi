@@ -1,0 +1,593 @@
++(hash-path.sh:3) source common.sh
+++(common.sh:3) set -eu -o pipefail
+++(common.sh:5) [[ -z '' ]]
+++(common.sh:7) COMMON_SH_SOURCED=1
+++++(common.sh:9) dirname common.sh
++++(common.sh:9) readlink -f .
+++(common.sh:9) functionalTestsDir=/var/tmp/fg2/fn/nfcllGOR/src
+++(common.sh:11) source /var/tmp/fg2/fn/nfcllGOR/src/common/vars.sh
++++(/var/tmp/fg2/fn/nfcllGOR/src/common/vars.sh:3) set -eu -o pipefail
++++(/var/tmp/fg2/fn/nfcllGOR/src/common/vars.sh:5) [[ -z '' ]]
++++(/var/tmp/fg2/fn/nfcllGOR/src/common/vars.sh:7) COMMON_VARS_SH_SOURCED=1
+++++(/var/tmp/fg2/fn/nfcllGOR/src/common/vars.sh:9) realpath /var/tmp/fg2/fn/nfcllGOR/src
++++(/var/tmp/fg2/fn/nfcllGOR/src/common/vars.sh:9) _NIX_TEST_SOURCE_DIR=/var/tmp/fg2/fn/nfcllGOR/src
+++++(/var/tmp/fg2/fn/nfcllGOR/src/common/vars.sh:10) realpath /var/tmp/fg2/fn/nfcllGOR/build
++++(/var/tmp/fg2/fn/nfcllGOR/src/common/vars.sh:10) _NIX_TEST_BUILD_DIR=/var/tmp/fg2/fn/nfcllGOR/build
++++++(/var/tmp/fg2/fn/nfcllGOR/src/common/vars.sh:12) dirname /var/tmp/fg2/fn/nfcllGOR/src/common/vars.sh
+++++(/var/tmp/fg2/fn/nfcllGOR/src/common/vars.sh:12) readlink -f /var/tmp/fg2/fn/nfcllGOR/src/common
++++(/var/tmp/fg2/fn/nfcllGOR/src/common/vars.sh:12) commonDir=/var/tmp/fg2/fn/nfcllGOR/src/common
++++(/var/tmp/fg2/fn/nfcllGOR/src/common/vars.sh:16) source /var/tmp/fg2/fn/nfcllGOR/build/common/subst-vars.sh
+++++(/var/tmp/fg2/fn/nfcllGOR/build/common/subst-vars.sh:3) [[ -z '' ]]
+++++(/var/tmp/fg2/fn/nfcllGOR/build/common/subst-vars.sh:5) COMMON_SUBST_VARS_SH_SOURCED=1
+++++(/var/tmp/fg2/fn/nfcllGOR/build/common/subst-vars.sh:7) bash=/nix/store/2ndah67h0z5m31v2wkdmg2md4380ggr5-bash-interactive-5.3p15/bin/bash
+++++(/var/tmp/fg2/fn/nfcllGOR/build/common/subst-vars.sh:8) bindir=/var/tmp/fg2/tmp/.tmpEVBu8f/noxi-bin
+++++(/var/tmp/fg2/fn/nfcllGOR/build/common/subst-vars.sh:9) coreutils=/nix/store/xjl7p8dvyk2j53kqf7f43kdj4ypbxz7g-coreutils-9.11/bin
+++++(/var/tmp/fg2/fn/nfcllGOR/build/common/subst-vars.sh:11) dot=
+++++(/var/tmp/fg2/fn/nfcllGOR/build/common/subst-vars.sh:12) busybox=/nix/store/qddzvnv6b0805nkvbqddbswddcfhx814-busybox-static-x86_64-unknown-linux-musl-1.37.0/bin/busybox
+++++(/var/tmp/fg2/fn/nfcllGOR/build/common/subst-vars.sh:14) version=2.35.2
+++++(/var/tmp/fg2/fn/nfcllGOR/build/common/subst-vars.sh:15) system=x86_64-linux
++++(/var/tmp/fg2/fn/nfcllGOR/src/common/vars.sh:18) : '/var/tmp/fg2/tmp/.tmpEVBu8f/noxi-bin /nix/store/xjl7p8dvyk2j53kqf7f43kdj4ypbxz7g-coreutils-9.11/bin  /run/current-system/sw/bin/nu /nix/store/qddzvnv6b0805nkvbqddbswddcfhx814-busybox-static-x86_64-unknown-linux-musl-1.37.0/bin/busybox 2.35.2 x86_64-linux'
++++(/var/tmp/fg2/fn/nfcllGOR/src/common/vars.sh:19) export coreutils dot busybox version system
++++(/var/tmp/fg2/fn/nfcllGOR/src/common/vars.sh:21) export PAGER=cat
++++(/var/tmp/fg2/fn/nfcllGOR/src/common/vars.sh:21) PAGER=cat
++++(/var/tmp/fg2/fn/nfcllGOR/src/common/vars.sh:23) source /var/tmp/fg2/fn/nfcllGOR/src/common/paths.sh
+++++(/var/tmp/fg2/fn/nfcllGOR/src/common/paths.sh:3) set -eu -o pipefail
+++++(/var/tmp/fg2/fn/nfcllGOR/src/common/paths.sh:5) [[ -z '' ]]
+++++(/var/tmp/fg2/fn/nfcllGOR/src/common/paths.sh:7) COMMON_PATHS_SH_SOURCED=1
+++++++(/var/tmp/fg2/fn/nfcllGOR/src/common/paths.sh:9) dirname /var/tmp/fg2/fn/nfcllGOR/src/common/paths.sh
++++++(/var/tmp/fg2/fn/nfcllGOR/src/common/paths.sh:9) readlink -f /var/tmp/fg2/fn/nfcllGOR/src/common
+++++(/var/tmp/fg2/fn/nfcllGOR/src/common/paths.sh:9) commonDir=/var/tmp/fg2/fn/nfcllGOR/src/common
+++++(/var/tmp/fg2/fn/nfcllGOR/src/common/paths.sh:12) source /var/tmp/fg2/fn/nfcllGOR/src/common/functions.sh
++++++(/var/tmp/fg2/fn/nfcllGOR/src/common/functions.sh:3) set -eu -o pipefail
++++++(/var/tmp/fg2/fn/nfcllGOR/src/common/functions.sh:5) [[ -z '' ]]
++++++(/var/tmp/fg2/fn/nfcllGOR/src/common/functions.sh:7) COMMON_FUNCTIONS_SH_SOURCED=1
++++++(/var/tmp/fg2/fn/nfcllGOR/src/common/functions.sh:353) trap onError ERR
+++++(/var/tmp/fg2/fn/nfcllGOR/src/common/paths.sh:14) source /var/tmp/fg2/fn/nfcllGOR/build/common/subst-vars.sh
++++++(/var/tmp/fg2/fn/nfcllGOR/build/common/subst-vars.sh:3) [[ -z 1 ]]
+++++(/var/tmp/fg2/fn/nfcllGOR/src/common/paths.sh:16) : /nix/store/2ndah67h0z5m31v2wkdmg2md4380ggr5-bash-interactive-5.3p15/bin/bash /var/tmp/fg2/tmp/.tmpEVBu8f/noxi-bin
+++++(/var/tmp/fg2/fn/nfcllGOR/src/common/paths.sh:18) isTestOnNixOS
+++++(/var/tmp/fg2/fn/nfcllGOR/src/common/functions.sh:10) [[ '' == 1 ]]
+++++(/var/tmp/fg2/fn/nfcllGOR/src/common/paths.sh:19) export SHELL=/nix/store/2ndah67h0z5m31v2wkdmg2md4380ggr5-bash-interactive-5.3p15/bin/bash
+++++(/var/tmp/fg2/fn/nfcllGOR/src/common/paths.sh:19) SHELL=/nix/store/2ndah67h0z5m31v2wkdmg2md4380ggr5-bash-interactive-5.3p15/bin/bash
+++++(/var/tmp/fg2/fn/nfcllGOR/src/common/paths.sh:20) export PATH=/var/tmp/fg2/tmp/.tmpEVBu8f/noxi-bin:/var/tmp/fg2/tmp/.tmpEVBu8f/noxi-bin:/nix/store/2ndah67h0z5m31v2wkdmg2md4380ggr5-bash-interactive-5.3p15/bin:/nix/store/xjl7p8dvyk2j53kqf7f43kdj4ypbxz7g-coreutils-9.11/bin:/nix/store/xmvbzzxm5snla5a2cyfhm7hjy9bifx7n-gnugrep-3.12/bin:/nix/store/qf2wzyq4irhgyhnq3s2hz0ldjq3w8a3x-gnused-4.10/bin:/nix/store/9zib1q94gka8i5q530364cvy25504qz5-gawk-5.4.1/bin:/nix/store/i9wgqa0l88aprvpwfaq5hkfa6pklhlv0-findutils-4.11.0/bin:/nix/store/b8xvzgd52jby5dfpi0pf46nisy6wma5d-diffutils-3.12/bin:/nix/store/81zqbas7qc02yfdj7142fdcqhxgd3cgz-patch-2.8/bin:/nix/store/c8b0qp903w2hhpa63a2lfs7d565zag30-gnutar-1.35/bin:/nix/store/l5sll8nxk70p73l5yqbsjy4mh0c3g0v5-gzip-1.14/bin:/nix/store/j3yz0ag9j442229n8harpmp9aa5qyvhn-bzip2-1.0.8-bin/bin:/nix/store/518dig8gpvqyac6pkksyjjfzvi9zn8vq-xz-5.8.3-bin/bin:/nix/store/l8ik8mb8lgb60rklxjmkgddmp5qqnv29-zstd-1.5.7-bin/bin:/nix/store/msr1v91ybfw6j12rs5mfl8ghb2rqsnsr-git-2.55.0/bin:/nix/store/hyz22a0l5b5kv7yfypw4ss6d36vbzg01-jq-1.8.2-bin/bin:/nix/store/24gq3bi2yzf7g386p5j32mn78hhanf49-sqlite-3.53.3-bin/bin:/nix/store/cp8qnyl8i0s62g3a1465i258mf5bcr6k-curl-8.22.0-bin/bin:/nix/store/8x4c8zah3fbnyckaic4sskjbw7d2y98n-util-linux-2.42.4-bin/bin:/nix/store/d64q19q1xjdwfhqx6czvrjgrhq0n3lcc-python3-3.14.7/bin:/nix/store/niqsa6mxqsyax9lzbm261a2ml6m71vb6-perl-5.42.3/bin:/nix/store/fv9yl55hkskpc2cj9c0sdyq91car9kgl-file-5.48/bin:/nix/store/jv5kdlkwx0l8a7jdpg21g934ff30s319-which-2.25/bin:/nix/store/aj08b694apkc1jay2akywym9ghlailf5-procps-4.0.7/bin:/nix/store/5wyaj1kvkxbbscz6innrh6yjjkdq4qmk-openssh-10.6p1/bin:/nix/store/44gxi8li8y8wrxrb93sya9hljkpigsqw-openssl-3.6.4-bin/bin:/run/wrappers/wrappers.Yw6nCJO1nt:/nix/store/wmh4xg3557sicfyllmi9ymd8sxaw51wv-man-db-2.13.1/bin:/nix/store/qpgknrlnxca0z99gl12j5n0fgca11cdx-mercurial-7.2.2/bin:/var/tmp/fg2/tmp/.tmpEVBu8f/tools
+++++(/var/tmp/fg2/fn/nfcllGOR/src/common/paths.sh:20) PATH=/var/tmp/fg2/tmp/.tmpEVBu8f/noxi-bin:/var/tmp/fg2/tmp/.tmpEVBu8f/noxi-bin:/nix/store/2ndah67h0z5m31v2wkdmg2md4380ggr5-bash-interactive-5.3p15/bin:/nix/store/xjl7p8dvyk2j53kqf7f43kdj4ypbxz7g-coreutils-9.11/bin:/nix/store/xmvbzzxm5snla5a2cyfhm7hjy9bifx7n-gnugrep-3.12/bin:/nix/store/qf2wzyq4irhgyhnq3s2hz0ldjq3w8a3x-gnused-4.10/bin:/nix/store/9zib1q94gka8i5q530364cvy25504qz5-gawk-5.4.1/bin:/nix/store/i9wgqa0l88aprvpwfaq5hkfa6pklhlv0-findutils-4.11.0/bin:/nix/store/b8xvzgd52jby5dfpi0pf46nisy6wma5d-diffutils-3.12/bin:/nix/store/81zqbas7qc02yfdj7142fdcqhxgd3cgz-patch-2.8/bin:/nix/store/c8b0qp903w2hhpa63a2lfs7d565zag30-gnutar-1.35/bin:/nix/store/l5sll8nxk70p73l5yqbsjy4mh0c3g0v5-gzip-1.14/bin:/nix/store/j3yz0ag9j442229n8harpmp9aa5qyvhn-bzip2-1.0.8-bin/bin:/nix/store/518dig8gpvqyac6pkksyjjfzvi9zn8vq-xz-5.8.3-bin/bin:/nix/store/l8ik8mb8lgb60rklxjmkgddmp5qqnv29-zstd-1.5.7-bin/bin:/nix/store/msr1v91ybfw6j12rs5mfl8ghb2rqsnsr-git-2.55.0/bin:/nix/store/hyz22a0l5b5kv7yfypw4ss6d36vbzg01-jq-1.8.2-bin/bin:/nix/store/24gq3bi2yzf7g386p5j32mn78hhanf49-sqlite-3.53.3-bin/bin:/nix/store/cp8qnyl8i0s62g3a1465i258mf5bcr6k-curl-8.22.0-bin/bin:/nix/store/8x4c8zah3fbnyckaic4sskjbw7d2y98n-util-linux-2.42.4-bin/bin:/nix/store/d64q19q1xjdwfhqx6czvrjgrhq0n3lcc-python3-3.14.7/bin:/nix/store/niqsa6mxqsyax9lzbm261a2ml6m71vb6-perl-5.42.3/bin:/nix/store/fv9yl55hkskpc2cj9c0sdyq91car9kgl-file-5.48/bin:/nix/store/jv5kdlkwx0l8a7jdpg21g934ff30s319-which-2.25/bin:/nix/store/aj08b694apkc1jay2akywym9ghlailf5-procps-4.0.7/bin:/nix/store/5wyaj1kvkxbbscz6innrh6yjjkdq4qmk-openssh-10.6p1/bin:/nix/store/44gxi8li8y8wrxrb93sya9hljkpigsqw-openssl-3.6.4-bin/bin:/run/wrappers/wrappers.Yw6nCJO1nt:/nix/store/wmh4xg3557sicfyllmi9ymd8sxaw51wv-man-db-2.13.1/bin:/nix/store/qpgknrlnxca0z99gl12j5n0fgca11cdx-mercurial-7.2.2/bin:/var/tmp/fg2/tmp/.tmpEVBu8f/tools
+++++(/var/tmp/fg2/fn/nfcllGOR/src/common/paths.sh:23) [[ -n '' ]]
+++++(/var/tmp/fg2/fn/nfcllGOR/src/common/paths.sh:27) DAEMON_PATH=/var/tmp/fg2/tmp/.tmpEVBu8f/noxi-bin:/var/tmp/fg2/tmp/.tmpEVBu8f/noxi-bin:/nix/store/2ndah67h0z5m31v2wkdmg2md4380ggr5-bash-interactive-5.3p15/bin:/nix/store/xjl7p8dvyk2j53kqf7f43kdj4ypbxz7g-coreutils-9.11/bin:/nix/store/xmvbzzxm5snla5a2cyfhm7hjy9bifx7n-gnugrep-3.12/bin:/nix/store/qf2wzyq4irhgyhnq3s2hz0ldjq3w8a3x-gnused-4.10/bin:/nix/store/9zib1q94gka8i5q530364cvy25504qz5-gawk-5.4.1/bin:/nix/store/i9wgqa0l88aprvpwfaq5hkfa6pklhlv0-findutils-4.11.0/bin:/nix/store/b8xvzgd52jby5dfpi0pf46nisy6wma5d-diffutils-3.12/bin:/nix/store/81zqbas7qc02yfdj7142fdcqhxgd3cgz-patch-2.8/bin:/nix/store/c8b0qp903w2hhpa63a2lfs7d565zag30-gnutar-1.35/bin:/nix/store/l5sll8nxk70p73l5yqbsjy4mh0c3g0v5-gzip-1.14/bin:/nix/store/j3yz0ag9j442229n8harpmp9aa5qyvhn-bzip2-1.0.8-bin/bin:/nix/store/518dig8gpvqyac6pkksyjjfzvi9zn8vq-xz-5.8.3-bin/bin:/nix/store/l8ik8mb8lgb60rklxjmkgddmp5qqnv29-zstd-1.5.7-bin/bin:/nix/store/msr1v91ybfw6j12rs5mfl8ghb2rqsnsr-git-2.55.0/bin:/nix/store/hyz22a0l5b5kv7yfypw4ss6d36vbzg01-jq-1.8.2-bin/bin:/nix/store/24gq3bi2yzf7g386p5j32mn78hhanf49-sqlite-3.53.3-bin/bin:/nix/store/cp8qnyl8i0s62g3a1465i258mf5bcr6k-curl-8.22.0-bin/bin:/nix/store/8x4c8zah3fbnyckaic4sskjbw7d2y98n-util-linux-2.42.4-bin/bin:/nix/store/d64q19q1xjdwfhqx6czvrjgrhq0n3lcc-python3-3.14.7/bin:/nix/store/niqsa6mxqsyax9lzbm261a2ml6m71vb6-perl-5.42.3/bin:/nix/store/fv9yl55hkskpc2cj9c0sdyq91car9kgl-file-5.48/bin:/nix/store/jv5kdlkwx0l8a7jdpg21g934ff30s319-which-2.25/bin:/nix/store/aj08b694apkc1jay2akywym9ghlailf5-procps-4.0.7/bin:/nix/store/5wyaj1kvkxbbscz6innrh6yjjkdq4qmk-openssh-10.6p1/bin:/nix/store/44gxi8li8y8wrxrb93sya9hljkpigsqw-openssl-3.6.4-bin/bin:/run/wrappers/wrappers.Yw6nCJO1nt:/nix/store/wmh4xg3557sicfyllmi9ymd8sxaw51wv-man-db-2.13.1/bin:/nix/store/qpgknrlnxca0z99gl12j5n0fgca11cdx-mercurial-7.2.2/bin:/var/tmp/fg2/tmp/.tmpEVBu8f/tools
+++++(/var/tmp/fg2/fn/nfcllGOR/src/common/paths.sh:28) [[ -n '' ]]
++++(/var/tmp/fg2/fn/nfcllGOR/src/common/vars.sh:24) source /var/tmp/fg2/fn/nfcllGOR/src/common/test-root.sh
+++++(/var/tmp/fg2/fn/nfcllGOR/src/common/test-root.sh:3) TEST_SUBDIR=main/hash-path
++++++(/var/tmp/fg2/fn/nfcllGOR/src/common/test-root.sh:4) realpath /var/tmp/fg2/fn/nfcllGOR/tmp/nix-test
+++++(/var/tmp/fg2/fn/nfcllGOR/src/common/test-root.sh:4) TEST_ROOT=/var/tmp/fg2/fn/nfcllGOR/tmp/nix-test/main/hash-path
+++++(/var/tmp/fg2/fn/nfcllGOR/src/common/test-root.sh:5) export TEST_ROOT
++++(/var/tmp/fg2/fn/nfcllGOR/src/common/vars.sh:26) test_nix_conf_dir=/var/tmp/fg2/fn/nfcllGOR/tmp/nix-test/main/hash-path/etc
++++(/var/tmp/fg2/fn/nfcllGOR/src/common/vars.sh:29) test_nix_conf=/var/tmp/fg2/fn/nfcllGOR/tmp/nix-test/main/hash-path/etc/nix.conf
++++(/var/tmp/fg2/fn/nfcllGOR/src/common/vars.sh:31) export TEST_HOME=/var/tmp/fg2/fn/nfcllGOR/tmp/nix-test/main/hash-path/test-home
++++(/var/tmp/fg2/fn/nfcllGOR/src/common/vars.sh:31) TEST_HOME=/var/tmp/fg2/fn/nfcllGOR/tmp/nix-test/main/hash-path/test-home
++++(/var/tmp/fg2/fn/nfcllGOR/src/common/vars.sh:33) isTestOnNixOS
++++(/var/tmp/fg2/fn/nfcllGOR/src/common/functions.sh:10) [[ '' == 1 ]]
++++(/var/tmp/fg2/fn/nfcllGOR/src/common/vars.sh:34) export NIX_STORE_DIR
+++++(/var/tmp/fg2/fn/nfcllGOR/src/common/vars.sh:35) readlink -f /var/tmp/fg2/fn/nfcllGOR/tmp/nix-test/main/hash-path/store
++++(/var/tmp/fg2/fn/nfcllGOR/src/common/vars.sh:35) NIX_STORE_DIR=
++++(/var/tmp/fg2/fn/nfcllGOR/src/common/vars.sh:37) export NIX_IGNORE_SYMLINK_STORE=1
++++(/var/tmp/fg2/fn/nfcllGOR/src/common/vars.sh:37) NIX_IGNORE_SYMLINK_STORE=1
++++(/var/tmp/fg2/fn/nfcllGOR/src/common/vars.sh:38) NIX_STORE_DIR=/var/tmp/fg2/fn/nfcllGOR/tmp/nix-test/main/hash-path/store
++++(/var/tmp/fg2/fn/nfcllGOR/src/common/vars.sh:40) export NIX_LOCALSTATE_DIR=/var/tmp/fg2/fn/nfcllGOR/tmp/nix-test/main/hash-path/var
++++(/var/tmp/fg2/fn/nfcllGOR/src/common/vars.sh:40) NIX_LOCALSTATE_DIR=/var/tmp/fg2/fn/nfcllGOR/tmp/nix-test/main/hash-path/var
++++(/var/tmp/fg2/fn/nfcllGOR/src/common/vars.sh:41) export NIX_LOG_DIR=/var/tmp/fg2/fn/nfcllGOR/tmp/nix-test/main/hash-path/var/log/nix
++++(/var/tmp/fg2/fn/nfcllGOR/src/common/vars.sh:41) NIX_LOG_DIR=/var/tmp/fg2/fn/nfcllGOR/tmp/nix-test/main/hash-path/var/log/nix
++++(/var/tmp/fg2/fn/nfcllGOR/src/common/vars.sh:42) export NIX_STATE_DIR=/var/tmp/fg2/fn/nfcllGOR/tmp/nix-test/main/hash-path/var/nix
++++(/var/tmp/fg2/fn/nfcllGOR/src/common/vars.sh:42) NIX_STATE_DIR=/var/tmp/fg2/fn/nfcllGOR/tmp/nix-test/main/hash-path/var/nix
++++(/var/tmp/fg2/fn/nfcllGOR/src/common/vars.sh:43) export NIX_CONF_DIR=/var/tmp/fg2/fn/nfcllGOR/tmp/nix-test/main/hash-path/etc
++++(/var/tmp/fg2/fn/nfcllGOR/src/common/vars.sh:43) NIX_CONF_DIR=/var/tmp/fg2/fn/nfcllGOR/tmp/nix-test/main/hash-path/etc
++++(/var/tmp/fg2/fn/nfcllGOR/src/common/vars.sh:44) export NIX_DAEMON_SOCKET_PATH=/var/tmp/fg2/fn/nfcllGOR/tmp/nix-test/main/hash-path/dSocket
++++(/var/tmp/fg2/fn/nfcllGOR/src/common/vars.sh:44) NIX_DAEMON_SOCKET_PATH=/var/tmp/fg2/fn/nfcllGOR/tmp/nix-test/main/hash-path/dSocket
++++(/var/tmp/fg2/fn/nfcllGOR/src/common/vars.sh:45) unset NIX_USER_CONF_FILES
++++(/var/tmp/fg2/fn/nfcllGOR/src/common/vars.sh:46) export _NIX_TEST_SHARED=/var/tmp/fg2/fn/nfcllGOR/tmp/nix-test/main/hash-path/shared
++++(/var/tmp/fg2/fn/nfcllGOR/src/common/vars.sh:46) _NIX_TEST_SHARED=/var/tmp/fg2/fn/nfcllGOR/tmp/nix-test/main/hash-path/shared
++++(/var/tmp/fg2/fn/nfcllGOR/src/common/vars.sh:47) [[ -n '' ]]
++++(/var/tmp/fg2/fn/nfcllGOR/src/common/vars.sh:50) export _NIX_IN_TEST=/var/tmp/fg2/fn/nfcllGOR/tmp/nix-test/main/hash-path/shared
++++(/var/tmp/fg2/fn/nfcllGOR/src/common/vars.sh:50) _NIX_IN_TEST=/var/tmp/fg2/fn/nfcllGOR/tmp/nix-test/main/hash-path/shared
++++(/var/tmp/fg2/fn/nfcllGOR/src/common/vars.sh:51) export _NIX_TEST_NO_LSOF=1
++++(/var/tmp/fg2/fn/nfcllGOR/src/common/vars.sh:51) _NIX_TEST_NO_LSOF=1
++++(/var/tmp/fg2/fn/nfcllGOR/src/common/vars.sh:54) export _NIX_TEST_NO_ENVIRONMENT_WARNINGS=1
++++(/var/tmp/fg2/fn/nfcllGOR/src/common/vars.sh:54) _NIX_TEST_NO_ENVIRONMENT_WARNINGS=1
++++(/var/tmp/fg2/fn/nfcllGOR/src/common/vars.sh:55) export NIX_REMOTE=
++++(/var/tmp/fg2/fn/nfcllGOR/src/common/vars.sh:55) NIX_REMOTE=
++++(/var/tmp/fg2/fn/nfcllGOR/src/common/vars.sh:59) unset NIX_PATH
++++(/var/tmp/fg2/fn/nfcllGOR/src/common/vars.sh:60) export HOME=/var/tmp/fg2/fn/nfcllGOR/tmp/nix-test/main/hash-path/test-home
++++(/var/tmp/fg2/fn/nfcllGOR/src/common/vars.sh:60) HOME=/var/tmp/fg2/fn/nfcllGOR/tmp/nix-test/main/hash-path/test-home
++++(/var/tmp/fg2/fn/nfcllGOR/src/common/vars.sh:61) unset XDG_STATE_HOME
++++(/var/tmp/fg2/fn/nfcllGOR/src/common/vars.sh:62) unset XDG_DATA_HOME
++++(/var/tmp/fg2/fn/nfcllGOR/src/common/vars.sh:63) unset XDG_CONFIG_HOME
++++(/var/tmp/fg2/fn/nfcllGOR/src/common/vars.sh:64) unset XDG_CONFIG_DIRS
++++(/var/tmp/fg2/fn/nfcllGOR/src/common/vars.sh:65) unset XDG_CACHE_HOME
++++(/var/tmp/fg2/fn/nfcllGOR/src/common/vars.sh:66) unset GIT_DIR
++++(/var/tmp/fg2/fn/nfcllGOR/src/common/vars.sh:68) export GIT_CONFIG_SYSTEM=/dev/null
++++(/var/tmp/fg2/fn/nfcllGOR/src/common/vars.sh:68) GIT_CONFIG_SYSTEM=/dev/null
++++(/var/tmp/fg2/fn/nfcllGOR/src/common/vars.sh:69) export GIT_CONFIG_GLOBAL=/dev/null
++++(/var/tmp/fg2/fn/nfcllGOR/src/common/vars.sh:69) GIT_CONFIG_GLOBAL=/dev/null
++++(/var/tmp/fg2/fn/nfcllGOR/src/common/vars.sh:71) export IMPURE_VAR1=foo
++++(/var/tmp/fg2/fn/nfcllGOR/src/common/vars.sh:71) IMPURE_VAR1=foo
++++(/var/tmp/fg2/fn/nfcllGOR/src/common/vars.sh:72) export IMPURE_VAR2=bar
++++(/var/tmp/fg2/fn/nfcllGOR/src/common/vars.sh:72) IMPURE_VAR2=bar
++++(/var/tmp/fg2/fn/nfcllGOR/src/common/vars.sh:76) cacheDir=/var/tmp/fg2/fn/nfcllGOR/tmp/nix-test/main/hash-path/binary-cache
+++++(/var/tmp/fg2/fn/nfcllGOR/src/common/vars.sh:78) uname
++++(/var/tmp/fg2/fn/nfcllGOR/src/common/vars.sh:78) [[ Linux == Linux ]]
++++(/var/tmp/fg2/fn/nfcllGOR/src/common/vars.sh:78) [[ -L /proc/self/ns/user ]]
++++(/var/tmp/fg2/fn/nfcllGOR/src/common/vars.sh:78) unshare --user true
++++(/var/tmp/fg2/fn/nfcllGOR/src/common/vars.sh:79) _canUseSandbox=1
++++(/var/tmp/fg2/fn/nfcllGOR/src/common/vars.sh:85) config_nix=/var/tmp/fg2/fn/nfcllGOR/tmp/nix-test/main/hash-path/config.nix
+++(common.sh:12) source /var/tmp/fg2/fn/nfcllGOR/src/common/functions.sh
++++(/var/tmp/fg2/fn/nfcllGOR/src/common/functions.sh:3) set -eu -o pipefail
++++(/var/tmp/fg2/fn/nfcllGOR/src/common/functions.sh:5) [[ -z 1 ]]
+++(common.sh:13) source /var/tmp/fg2/fn/nfcllGOR/src/common/init.sh
++++(/var/tmp/fg2/fn/nfcllGOR/src/common/init.sh:4) : /var/tmp/fg2/fn/nfcllGOR/tmp/nix-test/main/hash-path/etc /var/tmp/fg2/fn/nfcllGOR/tmp/nix-test/main/hash-path/etc/nix.conf /var/tmp/fg2/fn/nfcllGOR/tmp/nix-test/main/hash-path/config.nix
++++(/var/tmp/fg2/fn/nfcllGOR/src/common/init.sh:6) isTestOnNixOS
++++(/var/tmp/fg2/fn/nfcllGOR/src/common/functions.sh:10) [[ '' == 1 ]]
++++(/var/tmp/fg2/fn/nfcllGOR/src/common/init.sh:29) test -n /var/tmp/fg2/fn/nfcllGOR/tmp/nix-test/main/hash-path
++++(/var/tmp/fg2/fn/nfcllGOR/src/common/init.sh:31) killDaemon
++++(/var/tmp/fg2/fn/nfcllGOR/src/common/functions.sh:100) isTestOnNixOS
++++(/var/tmp/fg2/fn/nfcllGOR/src/common/functions.sh:10) [[ '' == 1 ]]
++++(/var/tmp/fg2/fn/nfcllGOR/src/common/functions.sh:105) [[ '' == '' ]]
++++(/var/tmp/fg2/fn/nfcllGOR/src/common/functions.sh:106) return
++++(/var/tmp/fg2/fn/nfcllGOR/src/common/init.sh:33) [[ -e /var/tmp/fg2/fn/nfcllGOR/tmp/nix-test/main/hash-path ]]
++++(/var/tmp/fg2/fn/nfcllGOR/src/common/init.sh:37) mkdir -p /var/tmp/fg2/fn/nfcllGOR/tmp/nix-test/main/hash-path
++++(/var/tmp/fg2/fn/nfcllGOR/src/common/init.sh:38) mkdir /var/tmp/fg2/fn/nfcllGOR/tmp/nix-test/main/hash-path/test-home
++++(/var/tmp/fg2/fn/nfcllGOR/src/common/init.sh:40) mkdir /var/tmp/fg2/fn/nfcllGOR/tmp/nix-test/main/hash-path/store
++++(/var/tmp/fg2/fn/nfcllGOR/src/common/init.sh:41) mkdir /var/tmp/fg2/fn/nfcllGOR/tmp/nix-test/main/hash-path/var
++++(/var/tmp/fg2/fn/nfcllGOR/src/common/init.sh:42) mkdir -p /var/tmp/fg2/fn/nfcllGOR/tmp/nix-test/main/hash-path/var/log/nix/drvs
++++(/var/tmp/fg2/fn/nfcllGOR/src/common/init.sh:43) mkdir /var/tmp/fg2/fn/nfcllGOR/tmp/nix-test/main/hash-path/var/nix
++++(/var/tmp/fg2/fn/nfcllGOR/src/common/init.sh:44) mkdir /var/tmp/fg2/fn/nfcllGOR/tmp/nix-test/main/hash-path/etc
++++(/var/tmp/fg2/fn/nfcllGOR/src/common/init.sh:46) cat
+++++(/var/tmp/fg2/fn/nfcllGOR/src/common/init.sh:46) whoami
++++(/var/tmp/fg2/fn/nfcllGOR/src/common/init.sh:59) cat
++++(/var/tmp/fg2/fn/nfcllGOR/src/common/init.sh:67) nix-store --init
++++(/var/tmp/fg2/fn/nfcllGOR/src/common/init.sh:69) test -e /var/tmp/fg2/fn/nfcllGOR/tmp/nix-test/main/hash-path/var/nix/db/db.sqlite
++++(/var/tmp/fg2/fn/nfcllGOR/src/common/init.sh:75) echo '# config.nix for test main / hash-path'
++++(/var/tmp/fg2/fn/nfcllGOR/src/common/init.sh:76) cat /var/tmp/fg2/fn/nfcllGOR/build/config.nix
+++(common.sh:15) [[ -n '' ]]
++(hash-path.sh:24) FORMAT=base16
++(hash-path.sh:25) try md5 '' d41d8cd98f00b204e9800998ecf8427e
++(hash-path.sh:6) printf %s ''
+++(hash-path.sh:7) nix-hash --flat --base16 --type md5 /var/tmp/fg2/fn/nfcllGOR/tmp/nix-test/main/hash-path/vector
++(hash-path.sh:7) hash=d41d8cd98f00b204e9800998ecf8427e
++(hash-path.sh:8) ((    ))
++(hash-path.sh:8) test d41d8cd98f00b204e9800998ecf8427e '!=' d41d8cd98f00b204e9800998ecf8427e
+++(hash-path.sh:12) nix hash file --base16 --type md5 /var/tmp/fg2/fn/nfcllGOR/tmp/nix-test/main/hash-path/vector
+warning: you don't have Internet access; disabling some network-dependent features
++(hash-path.sh:12) hash=d41d8cd98f00b204e9800998ecf8427e
++(hash-path.sh:13) ((    ))
++(hash-path.sh:13) test d41d8cd98f00b204e9800998ecf8427e '!=' d41d8cd98f00b204e9800998ecf8427e
+++(hash-path.sh:17) nix hash path --mode flat --format base16 --algo md5 /var/tmp/fg2/fn/nfcllGOR/tmp/nix-test/main/hash-path/vector
+warning: you don't have Internet access; disabling some network-dependent features
++(hash-path.sh:17) hash=d41d8cd98f00b204e9800998ecf8427e
++(hash-path.sh:18) ((    ))
++(hash-path.sh:18) test d41d8cd98f00b204e9800998ecf8427e '!=' d41d8cd98f00b204e9800998ecf8427e
++(hash-path.sh:26) try md5 a 0cc175b9c0f1b6a831c399e269772661
++(hash-path.sh:6) printf %s a
+++(hash-path.sh:7) nix-hash --flat --base16 --type md5 /var/tmp/fg2/fn/nfcllGOR/tmp/nix-test/main/hash-path/vector
++(hash-path.sh:7) hash=0cc175b9c0f1b6a831c399e269772661
++(hash-path.sh:8) ((    ))
++(hash-path.sh:8) test 0cc175b9c0f1b6a831c399e269772661 '!=' 0cc175b9c0f1b6a831c399e269772661
+++(hash-path.sh:12) nix hash file --base16 --type md5 /var/tmp/fg2/fn/nfcllGOR/tmp/nix-test/main/hash-path/vector
+warning: you don't have Internet access; disabling some network-dependent features
++(hash-path.sh:12) hash=0cc175b9c0f1b6a831c399e269772661
++(hash-path.sh:13) ((    ))
++(hash-path.sh:13) test 0cc175b9c0f1b6a831c399e269772661 '!=' 0cc175b9c0f1b6a831c399e269772661
+++(hash-path.sh:17) nix hash path --mode flat --format base16 --algo md5 /var/tmp/fg2/fn/nfcllGOR/tmp/nix-test/main/hash-path/vector
+warning: you don't have Internet access; disabling some network-dependent features
++(hash-path.sh:17) hash=0cc175b9c0f1b6a831c399e269772661
++(hash-path.sh:18) ((    ))
++(hash-path.sh:18) test 0cc175b9c0f1b6a831c399e269772661 '!=' 0cc175b9c0f1b6a831c399e269772661
++(hash-path.sh:27) try md5 abc 900150983cd24fb0d6963f7d28e17f72
++(hash-path.sh:6) printf %s abc
+++(hash-path.sh:7) nix-hash --flat --base16 --type md5 /var/tmp/fg2/fn/nfcllGOR/tmp/nix-test/main/hash-path/vector
++(hash-path.sh:7) hash=900150983cd24fb0d6963f7d28e17f72
++(hash-path.sh:8) ((    ))
++(hash-path.sh:8) test 900150983cd24fb0d6963f7d28e17f72 '!=' 900150983cd24fb0d6963f7d28e17f72
+++(hash-path.sh:12) nix hash file --base16 --type md5 /var/tmp/fg2/fn/nfcllGOR/tmp/nix-test/main/hash-path/vector
+warning: you don't have Internet access; disabling some network-dependent features
++(hash-path.sh:12) hash=900150983cd24fb0d6963f7d28e17f72
++(hash-path.sh:13) ((    ))
++(hash-path.sh:13) test 900150983cd24fb0d6963f7d28e17f72 '!=' 900150983cd24fb0d6963f7d28e17f72
+++(hash-path.sh:17) nix hash path --mode flat --format base16 --algo md5 /var/tmp/fg2/fn/nfcllGOR/tmp/nix-test/main/hash-path/vector
+warning: you don't have Internet access; disabling some network-dependent features
++(hash-path.sh:17) hash=900150983cd24fb0d6963f7d28e17f72
++(hash-path.sh:18) ((    ))
++(hash-path.sh:18) test 900150983cd24fb0d6963f7d28e17f72 '!=' 900150983cd24fb0d6963f7d28e17f72
++(hash-path.sh:28) try md5 'message digest' f96b697d7cb7938d525a2f31aaf161d0
++(hash-path.sh:6) printf %s 'message digest'
+++(hash-path.sh:7) nix-hash --flat --base16 --type md5 /var/tmp/fg2/fn/nfcllGOR/tmp/nix-test/main/hash-path/vector
++(hash-path.sh:7) hash=f96b697d7cb7938d525a2f31aaf161d0
++(hash-path.sh:8) ((    ))
++(hash-path.sh:8) test f96b697d7cb7938d525a2f31aaf161d0 '!=' f96b697d7cb7938d525a2f31aaf161d0
+++(hash-path.sh:12) nix hash file --base16 --type md5 /var/tmp/fg2/fn/nfcllGOR/tmp/nix-test/main/hash-path/vector
+warning: you don't have Internet access; disabling some network-dependent features
++(hash-path.sh:12) hash=f96b697d7cb7938d525a2f31aaf161d0
++(hash-path.sh:13) ((    ))
++(hash-path.sh:13) test f96b697d7cb7938d525a2f31aaf161d0 '!=' f96b697d7cb7938d525a2f31aaf161d0
+++(hash-path.sh:17) nix hash path --mode flat --format base16 --algo md5 /var/tmp/fg2/fn/nfcllGOR/tmp/nix-test/main/hash-path/vector
+warning: you don't have Internet access; disabling some network-dependent features
++(hash-path.sh:17) hash=f96b697d7cb7938d525a2f31aaf161d0
++(hash-path.sh:18) ((    ))
++(hash-path.sh:18) test f96b697d7cb7938d525a2f31aaf161d0 '!=' f96b697d7cb7938d525a2f31aaf161d0
++(hash-path.sh:29) try md5 abcdefghijklmnopqrstuvwxyz c3fcd3d76192e4007dfb496cca67e13b
++(hash-path.sh:6) printf %s abcdefghijklmnopqrstuvwxyz
+++(hash-path.sh:7) nix-hash --flat --base16 --type md5 /var/tmp/fg2/fn/nfcllGOR/tmp/nix-test/main/hash-path/vector
++(hash-path.sh:7) hash=c3fcd3d76192e4007dfb496cca67e13b
++(hash-path.sh:8) ((    ))
++(hash-path.sh:8) test c3fcd3d76192e4007dfb496cca67e13b '!=' c3fcd3d76192e4007dfb496cca67e13b
+++(hash-path.sh:12) nix hash file --base16 --type md5 /var/tmp/fg2/fn/nfcllGOR/tmp/nix-test/main/hash-path/vector
+warning: you don't have Internet access; disabling some network-dependent features
++(hash-path.sh:12) hash=c3fcd3d76192e4007dfb496cca67e13b
++(hash-path.sh:13) ((    ))
++(hash-path.sh:13) test c3fcd3d76192e4007dfb496cca67e13b '!=' c3fcd3d76192e4007dfb496cca67e13b
+++(hash-path.sh:17) nix hash path --mode flat --format base16 --algo md5 /var/tmp/fg2/fn/nfcllGOR/tmp/nix-test/main/hash-path/vector
+warning: you don't have Internet access; disabling some network-dependent features
++(hash-path.sh:17) hash=c3fcd3d76192e4007dfb496cca67e13b
++(hash-path.sh:18) ((    ))
++(hash-path.sh:18) test c3fcd3d76192e4007dfb496cca67e13b '!=' c3fcd3d76192e4007dfb496cca67e13b
++(hash-path.sh:30) try md5 ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789 d174ab98d277d9f5a5611c2c9f419d9f
++(hash-path.sh:6) printf %s ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789
+++(hash-path.sh:7) nix-hash --flat --base16 --type md5 /var/tmp/fg2/fn/nfcllGOR/tmp/nix-test/main/hash-path/vector
++(hash-path.sh:7) hash=d174ab98d277d9f5a5611c2c9f419d9f
++(hash-path.sh:8) ((    ))
++(hash-path.sh:8) test d174ab98d277d9f5a5611c2c9f419d9f '!=' d174ab98d277d9f5a5611c2c9f419d9f
+++(hash-path.sh:12) nix hash file --base16 --type md5 /var/tmp/fg2/fn/nfcllGOR/tmp/nix-test/main/hash-path/vector
+warning: you don't have Internet access; disabling some network-dependent features
++(hash-path.sh:12) hash=d174ab98d277d9f5a5611c2c9f419d9f
++(hash-path.sh:13) ((    ))
++(hash-path.sh:13) test d174ab98d277d9f5a5611c2c9f419d9f '!=' d174ab98d277d9f5a5611c2c9f419d9f
+++(hash-path.sh:17) nix hash path --mode flat --format base16 --algo md5 /var/tmp/fg2/fn/nfcllGOR/tmp/nix-test/main/hash-path/vector
+warning: you don't have Internet access; disabling some network-dependent features
++(hash-path.sh:17) hash=d174ab98d277d9f5a5611c2c9f419d9f
++(hash-path.sh:18) ((    ))
++(hash-path.sh:18) test d174ab98d277d9f5a5611c2c9f419d9f '!=' d174ab98d277d9f5a5611c2c9f419d9f
++(hash-path.sh:31) try md5 12345678901234567890123456789012345678901234567890123456789012345678901234567890 57edf4a22be3c955ac49da2e2107b67a
++(hash-path.sh:6) printf %s 12345678901234567890123456789012345678901234567890123456789012345678901234567890
+++(hash-path.sh:7) nix-hash --flat --base16 --type md5 /var/tmp/fg2/fn/nfcllGOR/tmp/nix-test/main/hash-path/vector
++(hash-path.sh:7) hash=57edf4a22be3c955ac49da2e2107b67a
++(hash-path.sh:8) ((    ))
++(hash-path.sh:8) test 57edf4a22be3c955ac49da2e2107b67a '!=' 57edf4a22be3c955ac49da2e2107b67a
+++(hash-path.sh:12) nix hash file --base16 --type md5 /var/tmp/fg2/fn/nfcllGOR/tmp/nix-test/main/hash-path/vector
+warning: you don't have Internet access; disabling some network-dependent features
++(hash-path.sh:12) hash=57edf4a22be3c955ac49da2e2107b67a
++(hash-path.sh:13) ((    ))
++(hash-path.sh:13) test 57edf4a22be3c955ac49da2e2107b67a '!=' 57edf4a22be3c955ac49da2e2107b67a
+++(hash-path.sh:17) nix hash path --mode flat --format base16 --algo md5 /var/tmp/fg2/fn/nfcllGOR/tmp/nix-test/main/hash-path/vector
+warning: you don't have Internet access; disabling some network-dependent features
++(hash-path.sh:17) hash=57edf4a22be3c955ac49da2e2107b67a
++(hash-path.sh:18) ((    ))
++(hash-path.sh:18) test 57edf4a22be3c955ac49da2e2107b67a '!=' 57edf4a22be3c955ac49da2e2107b67a
++(hash-path.sh:33) try sha1 '' da39a3ee5e6b4b0d3255bfef95601890afd80709
++(hash-path.sh:6) printf %s ''
+++(hash-path.sh:7) nix-hash --flat --base16 --type sha1 /var/tmp/fg2/fn/nfcllGOR/tmp/nix-test/main/hash-path/vector
++(hash-path.sh:7) hash=da39a3ee5e6b4b0d3255bfef95601890afd80709
++(hash-path.sh:8) ((    ))
++(hash-path.sh:8) test da39a3ee5e6b4b0d3255bfef95601890afd80709 '!=' da39a3ee5e6b4b0d3255bfef95601890afd80709
+++(hash-path.sh:12) nix hash file --base16 --type sha1 /var/tmp/fg2/fn/nfcllGOR/tmp/nix-test/main/hash-path/vector
+warning: you don't have Internet access; disabling some network-dependent features
++(hash-path.sh:12) hash=da39a3ee5e6b4b0d3255bfef95601890afd80709
++(hash-path.sh:13) ((    ))
++(hash-path.sh:13) test da39a3ee5e6b4b0d3255bfef95601890afd80709 '!=' da39a3ee5e6b4b0d3255bfef95601890afd80709
+++(hash-path.sh:17) nix hash path --mode flat --format base16 --algo sha1 /var/tmp/fg2/fn/nfcllGOR/tmp/nix-test/main/hash-path/vector
+warning: you don't have Internet access; disabling some network-dependent features
++(hash-path.sh:17) hash=da39a3ee5e6b4b0d3255bfef95601890afd80709
++(hash-path.sh:18) ((    ))
++(hash-path.sh:18) test da39a3ee5e6b4b0d3255bfef95601890afd80709 '!=' da39a3ee5e6b4b0d3255bfef95601890afd80709
++(hash-path.sh:34) try sha1 abc a9993e364706816aba3e25717850c26c9cd0d89d
++(hash-path.sh:6) printf %s abc
+++(hash-path.sh:7) nix-hash --flat --base16 --type sha1 /var/tmp/fg2/fn/nfcllGOR/tmp/nix-test/main/hash-path/vector
++(hash-path.sh:7) hash=a9993e364706816aba3e25717850c26c9cd0d89d
++(hash-path.sh:8) ((    ))
++(hash-path.sh:8) test a9993e364706816aba3e25717850c26c9cd0d89d '!=' a9993e364706816aba3e25717850c26c9cd0d89d
+++(hash-path.sh:12) nix hash file --base16 --type sha1 /var/tmp/fg2/fn/nfcllGOR/tmp/nix-test/main/hash-path/vector
+warning: you don't have Internet access; disabling some network-dependent features
++(hash-path.sh:12) hash=a9993e364706816aba3e25717850c26c9cd0d89d
++(hash-path.sh:13) ((    ))
++(hash-path.sh:13) test a9993e364706816aba3e25717850c26c9cd0d89d '!=' a9993e364706816aba3e25717850c26c9cd0d89d
+++(hash-path.sh:17) nix hash path --mode flat --format base16 --algo sha1 /var/tmp/fg2/fn/nfcllGOR/tmp/nix-test/main/hash-path/vector
+warning: you don't have Internet access; disabling some network-dependent features
++(hash-path.sh:17) hash=a9993e364706816aba3e25717850c26c9cd0d89d
++(hash-path.sh:18) ((    ))
++(hash-path.sh:18) test a9993e364706816aba3e25717850c26c9cd0d89d '!=' a9993e364706816aba3e25717850c26c9cd0d89d
++(hash-path.sh:35) try sha1 abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnomnopnopq 84983e441c3bd26ebaae4aa1f95129e5e54670f1
++(hash-path.sh:6) printf %s abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnomnopnopq
+++(hash-path.sh:7) nix-hash --flat --base16 --type sha1 /var/tmp/fg2/fn/nfcllGOR/tmp/nix-test/main/hash-path/vector
++(hash-path.sh:7) hash=84983e441c3bd26ebaae4aa1f95129e5e54670f1
++(hash-path.sh:8) ((    ))
++(hash-path.sh:8) test 84983e441c3bd26ebaae4aa1f95129e5e54670f1 '!=' 84983e441c3bd26ebaae4aa1f95129e5e54670f1
+++(hash-path.sh:12) nix hash file --base16 --type sha1 /var/tmp/fg2/fn/nfcllGOR/tmp/nix-test/main/hash-path/vector
+warning: you don't have Internet access; disabling some network-dependent features
++(hash-path.sh:12) hash=84983e441c3bd26ebaae4aa1f95129e5e54670f1
++(hash-path.sh:13) ((    ))
++(hash-path.sh:13) test 84983e441c3bd26ebaae4aa1f95129e5e54670f1 '!=' 84983e441c3bd26ebaae4aa1f95129e5e54670f1
+++(hash-path.sh:17) nix hash path --mode flat --format base16 --algo sha1 /var/tmp/fg2/fn/nfcllGOR/tmp/nix-test/main/hash-path/vector
+warning: you don't have Internet access; disabling some network-dependent features
++(hash-path.sh:17) hash=84983e441c3bd26ebaae4aa1f95129e5e54670f1
++(hash-path.sh:18) ((    ))
++(hash-path.sh:18) test 84983e441c3bd26ebaae4aa1f95129e5e54670f1 '!=' 84983e441c3bd26ebaae4aa1f95129e5e54670f1
++(hash-path.sh:37) try sha256 '' e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
++(hash-path.sh:6) printf %s ''
+++(hash-path.sh:7) nix-hash --flat --base16 --type sha256 /var/tmp/fg2/fn/nfcllGOR/tmp/nix-test/main/hash-path/vector
++(hash-path.sh:7) hash=e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
++(hash-path.sh:8) ((    ))
++(hash-path.sh:8) test e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855 '!=' e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+++(hash-path.sh:12) nix hash file --base16 --type sha256 /var/tmp/fg2/fn/nfcllGOR/tmp/nix-test/main/hash-path/vector
+warning: you don't have Internet access; disabling some network-dependent features
++(hash-path.sh:12) hash=e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
++(hash-path.sh:13) ((    ))
++(hash-path.sh:13) test e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855 '!=' e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+++(hash-path.sh:17) nix hash path --mode flat --format base16 --algo sha256 /var/tmp/fg2/fn/nfcllGOR/tmp/nix-test/main/hash-path/vector
+warning: you don't have Internet access; disabling some network-dependent features
++(hash-path.sh:17) hash=e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
++(hash-path.sh:18) ((    ))
++(hash-path.sh:18) test e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855 '!=' e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
++(hash-path.sh:38) try sha256 abc ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad
++(hash-path.sh:6) printf %s abc
+++(hash-path.sh:7) nix-hash --flat --base16 --type sha256 /var/tmp/fg2/fn/nfcllGOR/tmp/nix-test/main/hash-path/vector
++(hash-path.sh:7) hash=ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad
++(hash-path.sh:8) ((    ))
++(hash-path.sh:8) test ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad '!=' ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad
+++(hash-path.sh:12) nix hash file --base16 --type sha256 /var/tmp/fg2/fn/nfcllGOR/tmp/nix-test/main/hash-path/vector
+warning: you don't have Internet access; disabling some network-dependent features
++(hash-path.sh:12) hash=ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad
++(hash-path.sh:13) ((    ))
++(hash-path.sh:13) test ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad '!=' ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad
+++(hash-path.sh:17) nix hash path --mode flat --format base16 --algo sha256 /var/tmp/fg2/fn/nfcllGOR/tmp/nix-test/main/hash-path/vector
+warning: you don't have Internet access; disabling some network-dependent features
++(hash-path.sh:17) hash=ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad
++(hash-path.sh:18) ((    ))
++(hash-path.sh:18) test ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad '!=' ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad
++(hash-path.sh:39) try sha256 abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnomnopnopq 248d6a61d20638b8e5c026930c3e6039a33ce45964ff2167f6ecedd419db06c1
++(hash-path.sh:6) printf %s abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnomnopnopq
+++(hash-path.sh:7) nix-hash --flat --base16 --type sha256 /var/tmp/fg2/fn/nfcllGOR/tmp/nix-test/main/hash-path/vector
++(hash-path.sh:7) hash=248d6a61d20638b8e5c026930c3e6039a33ce45964ff2167f6ecedd419db06c1
++(hash-path.sh:8) ((    ))
++(hash-path.sh:8) test 248d6a61d20638b8e5c026930c3e6039a33ce45964ff2167f6ecedd419db06c1 '!=' 248d6a61d20638b8e5c026930c3e6039a33ce45964ff2167f6ecedd419db06c1
+++(hash-path.sh:12) nix hash file --base16 --type sha256 /var/tmp/fg2/fn/nfcllGOR/tmp/nix-test/main/hash-path/vector
+warning: you don't have Internet access; disabling some network-dependent features
++(hash-path.sh:12) hash=248d6a61d20638b8e5c026930c3e6039a33ce45964ff2167f6ecedd419db06c1
++(hash-path.sh:13) ((    ))
++(hash-path.sh:13) test 248d6a61d20638b8e5c026930c3e6039a33ce45964ff2167f6ecedd419db06c1 '!=' 248d6a61d20638b8e5c026930c3e6039a33ce45964ff2167f6ecedd419db06c1
+++(hash-path.sh:17) nix hash path --mode flat --format base16 --algo sha256 /var/tmp/fg2/fn/nfcllGOR/tmp/nix-test/main/hash-path/vector
+warning: you don't have Internet access; disabling some network-dependent features
++(hash-path.sh:17) hash=248d6a61d20638b8e5c026930c3e6039a33ce45964ff2167f6ecedd419db06c1
++(hash-path.sh:18) ((    ))
++(hash-path.sh:18) test 248d6a61d20638b8e5c026930c3e6039a33ce45964ff2167f6ecedd419db06c1 '!=' 248d6a61d20638b8e5c026930c3e6039a33ce45964ff2167f6ecedd419db06c1
++(hash-path.sh:41) try sha512 '' cf83e1357eefb8bdf1542850d66d8007d620e4050b5715dc83f4a921d36ce9ce47d0d13c5d85f2b0ff8318d2877eec2f63b931bd47417a81a538327af927da3e
++(hash-path.sh:6) printf %s ''
+++(hash-path.sh:7) nix-hash --flat --base16 --type sha512 /var/tmp/fg2/fn/nfcllGOR/tmp/nix-test/main/hash-path/vector
++(hash-path.sh:7) hash=cf83e1357eefb8bdf1542850d66d8007d620e4050b5715dc83f4a921d36ce9ce47d0d13c5d85f2b0ff8318d2877eec2f63b931bd47417a81a538327af927da3e
++(hash-path.sh:8) ((    ))
++(hash-path.sh:8) test cf83e1357eefb8bdf1542850d66d8007d620e4050b5715dc83f4a921d36ce9ce47d0d13c5d85f2b0ff8318d2877eec2f63b931bd47417a81a538327af927da3e '!=' cf83e1357eefb8bdf1542850d66d8007d620e4050b5715dc83f4a921d36ce9ce47d0d13c5d85f2b0ff8318d2877eec2f63b931bd47417a81a538327af927da3e
+++(hash-path.sh:12) nix hash file --base16 --type sha512 /var/tmp/fg2/fn/nfcllGOR/tmp/nix-test/main/hash-path/vector
+warning: you don't have Internet access; disabling some network-dependent features
++(hash-path.sh:12) hash=cf83e1357eefb8bdf1542850d66d8007d620e4050b5715dc83f4a921d36ce9ce47d0d13c5d85f2b0ff8318d2877eec2f63b931bd47417a81a538327af927da3e
++(hash-path.sh:13) ((    ))
++(hash-path.sh:13) test cf83e1357eefb8bdf1542850d66d8007d620e4050b5715dc83f4a921d36ce9ce47d0d13c5d85f2b0ff8318d2877eec2f63b931bd47417a81a538327af927da3e '!=' cf83e1357eefb8bdf1542850d66d8007d620e4050b5715dc83f4a921d36ce9ce47d0d13c5d85f2b0ff8318d2877eec2f63b931bd47417a81a538327af927da3e
+++(hash-path.sh:17) nix hash path --mode flat --format base16 --algo sha512 /var/tmp/fg2/fn/nfcllGOR/tmp/nix-test/main/hash-path/vector
+warning: you don't have Internet access; disabling some network-dependent features
++(hash-path.sh:17) hash=cf83e1357eefb8bdf1542850d66d8007d620e4050b5715dc83f4a921d36ce9ce47d0d13c5d85f2b0ff8318d2877eec2f63b931bd47417a81a538327af927da3e
++(hash-path.sh:18) ((    ))
++(hash-path.sh:18) test cf83e1357eefb8bdf1542850d66d8007d620e4050b5715dc83f4a921d36ce9ce47d0d13c5d85f2b0ff8318d2877eec2f63b931bd47417a81a538327af927da3e '!=' cf83e1357eefb8bdf1542850d66d8007d620e4050b5715dc83f4a921d36ce9ce47d0d13c5d85f2b0ff8318d2877eec2f63b931bd47417a81a538327af927da3e
++(hash-path.sh:42) try sha512 abc ddaf35a193617abacc417349ae20413112e6fa4e89a97ea20a9eeee64b55d39a2192992a274fc1a836ba3c23a3feebbd454d4423643ce80e2a9ac94fa54ca49f
++(hash-path.sh:6) printf %s abc
+++(hash-path.sh:7) nix-hash --flat --base16 --type sha512 /var/tmp/fg2/fn/nfcllGOR/tmp/nix-test/main/hash-path/vector
++(hash-path.sh:7) hash=ddaf35a193617abacc417349ae20413112e6fa4e89a97ea20a9eeee64b55d39a2192992a274fc1a836ba3c23a3feebbd454d4423643ce80e2a9ac94fa54ca49f
++(hash-path.sh:8) ((    ))
++(hash-path.sh:8) test ddaf35a193617abacc417349ae20413112e6fa4e89a97ea20a9eeee64b55d39a2192992a274fc1a836ba3c23a3feebbd454d4423643ce80e2a9ac94fa54ca49f '!=' ddaf35a193617abacc417349ae20413112e6fa4e89a97ea20a9eeee64b55d39a2192992a274fc1a836ba3c23a3feebbd454d4423643ce80e2a9ac94fa54ca49f
+++(hash-path.sh:12) nix hash file --base16 --type sha512 /var/tmp/fg2/fn/nfcllGOR/tmp/nix-test/main/hash-path/vector
+warning: you don't have Internet access; disabling some network-dependent features
++(hash-path.sh:12) hash=ddaf35a193617abacc417349ae20413112e6fa4e89a97ea20a9eeee64b55d39a2192992a274fc1a836ba3c23a3feebbd454d4423643ce80e2a9ac94fa54ca49f
++(hash-path.sh:13) ((    ))
++(hash-path.sh:13) test ddaf35a193617abacc417349ae20413112e6fa4e89a97ea20a9eeee64b55d39a2192992a274fc1a836ba3c23a3feebbd454d4423643ce80e2a9ac94fa54ca49f '!=' ddaf35a193617abacc417349ae20413112e6fa4e89a97ea20a9eeee64b55d39a2192992a274fc1a836ba3c23a3feebbd454d4423643ce80e2a9ac94fa54ca49f
+++(hash-path.sh:17) nix hash path --mode flat --format base16 --algo sha512 /var/tmp/fg2/fn/nfcllGOR/tmp/nix-test/main/hash-path/vector
+warning: you don't have Internet access; disabling some network-dependent features
++(hash-path.sh:17) hash=ddaf35a193617abacc417349ae20413112e6fa4e89a97ea20a9eeee64b55d39a2192992a274fc1a836ba3c23a3feebbd454d4423643ce80e2a9ac94fa54ca49f
++(hash-path.sh:18) ((    ))
++(hash-path.sh:18) test ddaf35a193617abacc417349ae20413112e6fa4e89a97ea20a9eeee64b55d39a2192992a274fc1a836ba3c23a3feebbd454d4423643ce80e2a9ac94fa54ca49f '!=' ddaf35a193617abacc417349ae20413112e6fa4e89a97ea20a9eeee64b55d39a2192992a274fc1a836ba3c23a3feebbd454d4423643ce80e2a9ac94fa54ca49f
++(hash-path.sh:43) try sha512 abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnomnopnopq 204a8fc6dda82f0a0ced7beb8e08a41657c16ef468b228a8279be331a703c33596fd15c13b1b07f9aa1d3bea57789ca031ad85c7a71dd70354ec631238ca3445
++(hash-path.sh:6) printf %s abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnomnopnopq
+++(hash-path.sh:7) nix-hash --flat --base16 --type sha512 /var/tmp/fg2/fn/nfcllGOR/tmp/nix-test/main/hash-path/vector
++(hash-path.sh:7) hash=204a8fc6dda82f0a0ced7beb8e08a41657c16ef468b228a8279be331a703c33596fd15c13b1b07f9aa1d3bea57789ca031ad85c7a71dd70354ec631238ca3445
++(hash-path.sh:8) ((    ))
++(hash-path.sh:8) test 204a8fc6dda82f0a0ced7beb8e08a41657c16ef468b228a8279be331a703c33596fd15c13b1b07f9aa1d3bea57789ca031ad85c7a71dd70354ec631238ca3445 '!=' 204a8fc6dda82f0a0ced7beb8e08a41657c16ef468b228a8279be331a703c33596fd15c13b1b07f9aa1d3bea57789ca031ad85c7a71dd70354ec631238ca3445
+++(hash-path.sh:12) nix hash file --base16 --type sha512 /var/tmp/fg2/fn/nfcllGOR/tmp/nix-test/main/hash-path/vector
+warning: you don't have Internet access; disabling some network-dependent features
++(hash-path.sh:12) hash=204a8fc6dda82f0a0ced7beb8e08a41657c16ef468b228a8279be331a703c33596fd15c13b1b07f9aa1d3bea57789ca031ad85c7a71dd70354ec631238ca3445
++(hash-path.sh:13) ((    ))
++(hash-path.sh:13) test 204a8fc6dda82f0a0ced7beb8e08a41657c16ef468b228a8279be331a703c33596fd15c13b1b07f9aa1d3bea57789ca031ad85c7a71dd70354ec631238ca3445 '!=' 204a8fc6dda82f0a0ced7beb8e08a41657c16ef468b228a8279be331a703c33596fd15c13b1b07f9aa1d3bea57789ca031ad85c7a71dd70354ec631238ca3445
+++(hash-path.sh:17) nix hash path --mode flat --format base16 --algo sha512 /var/tmp/fg2/fn/nfcllGOR/tmp/nix-test/main/hash-path/vector
+warning: you don't have Internet access; disabling some network-dependent features
++(hash-path.sh:17) hash=204a8fc6dda82f0a0ced7beb8e08a41657c16ef468b228a8279be331a703c33596fd15c13b1b07f9aa1d3bea57789ca031ad85c7a71dd70354ec631238ca3445
++(hash-path.sh:18) ((    ))
++(hash-path.sh:18) test 204a8fc6dda82f0a0ced7beb8e08a41657c16ef468b228a8279be331a703c33596fd15c13b1b07f9aa1d3bea57789ca031ad85c7a71dd70354ec631238ca3445 '!=' 204a8fc6dda82f0a0ced7beb8e08a41657c16ef468b228a8279be331a703c33596fd15c13b1b07f9aa1d3bea57789ca031ad85c7a71dd70354ec631238ca3445
++(hash-path.sh:44) unset FORMAT
++(hash-path.sh:46) FORMAT=base32
++(hash-path.sh:47) try sha256 abc 1b8m03r63zqhnjf7l5wnldhh7c134ap5vpj0850ymkq1iyzicy5s
++(hash-path.sh:6) printf %s abc
+++(hash-path.sh:7) nix-hash --flat --base32 --type sha256 /var/tmp/fg2/fn/nfcllGOR/tmp/nix-test/main/hash-path/vector
++(hash-path.sh:7) hash=1b8m03r63zqhnjf7l5wnldhh7c134ap5vpj0850ymkq1iyzicy5s
++(hash-path.sh:8) ((    ))
++(hash-path.sh:8) test 1b8m03r63zqhnjf7l5wnldhh7c134ap5vpj0850ymkq1iyzicy5s '!=' 1b8m03r63zqhnjf7l5wnldhh7c134ap5vpj0850ymkq1iyzicy5s
+++(hash-path.sh:12) nix hash file --base32 --type sha256 /var/tmp/fg2/fn/nfcllGOR/tmp/nix-test/main/hash-path/vector
+warning: you don't have Internet access; disabling some network-dependent features
++(hash-path.sh:12) hash=1b8m03r63zqhnjf7l5wnldhh7c134ap5vpj0850ymkq1iyzicy5s
++(hash-path.sh:13) ((    ))
++(hash-path.sh:13) test 1b8m03r63zqhnjf7l5wnldhh7c134ap5vpj0850ymkq1iyzicy5s '!=' 1b8m03r63zqhnjf7l5wnldhh7c134ap5vpj0850ymkq1iyzicy5s
+++(hash-path.sh:17) nix hash path --mode flat --format base32 --algo sha256 /var/tmp/fg2/fn/nfcllGOR/tmp/nix-test/main/hash-path/vector
+warning: "base32" is a deprecated alias for hash format "nix32".
+warning: you don't have Internet access; disabling some network-dependent features
++(hash-path.sh:17) hash=1b8m03r63zqhnjf7l5wnldhh7c134ap5vpj0850ymkq1iyzicy5s
++(hash-path.sh:18) ((    ))
++(hash-path.sh:18) test 1b8m03r63zqhnjf7l5wnldhh7c134ap5vpj0850ymkq1iyzicy5s '!=' 1b8m03r63zqhnjf7l5wnldhh7c134ap5vpj0850ymkq1iyzicy5s
++(hash-path.sh:48) unset FORMAT
++(hash-path.sh:50) FORMAT=sri
++(hash-path.sh:51) try sha512 '' sha512-z4PhNX7vuL3xVChQ1m2AB9Yg5AULVxXcg/SpIdNs6c5H0NE8XYXysP+DGNKHfuwvY7kxvUdBeoGlODJ6+SfaPg==
++(hash-path.sh:6) printf %s ''
+++(hash-path.sh:7) nix-hash --flat --sri --type sha512 /var/tmp/fg2/fn/nfcllGOR/tmp/nix-test/main/hash-path/vector
++(hash-path.sh:7) hash=sha512-z4PhNX7vuL3xVChQ1m2AB9Yg5AULVxXcg/SpIdNs6c5H0NE8XYXysP+DGNKHfuwvY7kxvUdBeoGlODJ6+SfaPg==
++(hash-path.sh:8) ((    ))
++(hash-path.sh:8) test sha512-z4PhNX7vuL3xVChQ1m2AB9Yg5AULVxXcg/SpIdNs6c5H0NE8XYXysP+DGNKHfuwvY7kxvUdBeoGlODJ6+SfaPg== '!=' sha512-z4PhNX7vuL3xVChQ1m2AB9Yg5AULVxXcg/SpIdNs6c5H0NE8XYXysP+DGNKHfuwvY7kxvUdBeoGlODJ6+SfaPg==
+++(hash-path.sh:12) nix hash file --sri --type sha512 /var/tmp/fg2/fn/nfcllGOR/tmp/nix-test/main/hash-path/vector
+warning: you don't have Internet access; disabling some network-dependent features
++(hash-path.sh:12) hash=sha512-z4PhNX7vuL3xVChQ1m2AB9Yg5AULVxXcg/SpIdNs6c5H0NE8XYXysP+DGNKHfuwvY7kxvUdBeoGlODJ6+SfaPg==
++(hash-path.sh:13) ((    ))
++(hash-path.sh:13) test sha512-z4PhNX7vuL3xVChQ1m2AB9Yg5AULVxXcg/SpIdNs6c5H0NE8XYXysP+DGNKHfuwvY7kxvUdBeoGlODJ6+SfaPg== '!=' sha512-z4PhNX7vuL3xVChQ1m2AB9Yg5AULVxXcg/SpIdNs6c5H0NE8XYXysP+DGNKHfuwvY7kxvUdBeoGlODJ6+SfaPg==
+++(hash-path.sh:17) nix hash path --mode flat --format sri --algo sha512 /var/tmp/fg2/fn/nfcllGOR/tmp/nix-test/main/hash-path/vector
+warning: you don't have Internet access; disabling some network-dependent features
++(hash-path.sh:17) hash=sha512-z4PhNX7vuL3xVChQ1m2AB9Yg5AULVxXcg/SpIdNs6c5H0NE8XYXysP+DGNKHfuwvY7kxvUdBeoGlODJ6+SfaPg==
++(hash-path.sh:18) ((    ))
++(hash-path.sh:18) test sha512-z4PhNX7vuL3xVChQ1m2AB9Yg5AULVxXcg/SpIdNs6c5H0NE8XYXysP+DGNKHfuwvY7kxvUdBeoGlODJ6+SfaPg== '!=' sha512-z4PhNX7vuL3xVChQ1m2AB9Yg5AULVxXcg/SpIdNs6c5H0NE8XYXysP+DGNKHfuwvY7kxvUdBeoGlODJ6+SfaPg==
++(hash-path.sh:52) try sha512 abc sha512-3a81oZNherrMQXNJriBBMRLm+k6JqX6iCp7u5ktV05ohkpkqJ0/BqDa6PCOj/uu9RU1EI2Q86A4qmslPpUyknw==
++(hash-path.sh:6) printf %s abc
+++(hash-path.sh:7) nix-hash --flat --sri --type sha512 /var/tmp/fg2/fn/nfcllGOR/tmp/nix-test/main/hash-path/vector
++(hash-path.sh:7) hash=sha512-3a81oZNherrMQXNJriBBMRLm+k6JqX6iCp7u5ktV05ohkpkqJ0/BqDa6PCOj/uu9RU1EI2Q86A4qmslPpUyknw==
++(hash-path.sh:8) ((    ))
++(hash-path.sh:8) test sha512-3a81oZNherrMQXNJriBBMRLm+k6JqX6iCp7u5ktV05ohkpkqJ0/BqDa6PCOj/uu9RU1EI2Q86A4qmslPpUyknw== '!=' sha512-3a81oZNherrMQXNJriBBMRLm+k6JqX6iCp7u5ktV05ohkpkqJ0/BqDa6PCOj/uu9RU1EI2Q86A4qmslPpUyknw==
+++(hash-path.sh:12) nix hash file --sri --type sha512 /var/tmp/fg2/fn/nfcllGOR/tmp/nix-test/main/hash-path/vector
+warning: you don't have Internet access; disabling some network-dependent features
++(hash-path.sh:12) hash=sha512-3a81oZNherrMQXNJriBBMRLm+k6JqX6iCp7u5ktV05ohkpkqJ0/BqDa6PCOj/uu9RU1EI2Q86A4qmslPpUyknw==
++(hash-path.sh:13) ((    ))
++(hash-path.sh:13) test sha512-3a81oZNherrMQXNJriBBMRLm+k6JqX6iCp7u5ktV05ohkpkqJ0/BqDa6PCOj/uu9RU1EI2Q86A4qmslPpUyknw== '!=' sha512-3a81oZNherrMQXNJriBBMRLm+k6JqX6iCp7u5ktV05ohkpkqJ0/BqDa6PCOj/uu9RU1EI2Q86A4qmslPpUyknw==
+++(hash-path.sh:17) nix hash path --mode flat --format sri --algo sha512 /var/tmp/fg2/fn/nfcllGOR/tmp/nix-test/main/hash-path/vector
+warning: you don't have Internet access; disabling some network-dependent features
++(hash-path.sh:17) hash=sha512-3a81oZNherrMQXNJriBBMRLm+k6JqX6iCp7u5ktV05ohkpkqJ0/BqDa6PCOj/uu9RU1EI2Q86A4qmslPpUyknw==
++(hash-path.sh:18) ((    ))
++(hash-path.sh:18) test sha512-3a81oZNherrMQXNJriBBMRLm+k6JqX6iCp7u5ktV05ohkpkqJ0/BqDa6PCOj/uu9RU1EI2Q86A4qmslPpUyknw== '!=' sha512-3a81oZNherrMQXNJriBBMRLm+k6JqX6iCp7u5ktV05ohkpkqJ0/BqDa6PCOj/uu9RU1EI2Q86A4qmslPpUyknw==
++(hash-path.sh:53) try sha512 abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnomnopnopq sha512-IEqPxt2oLwoM7XvrjgikFlfBbvRosiioJ5vjMacDwzWW/RXBOxsH+aodO+pXeJygMa2Fx6cd1wNU7GMSOMo0RQ==
++(hash-path.sh:6) printf %s abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnomnopnopq
+++(hash-path.sh:7) nix-hash --flat --sri --type sha512 /var/tmp/fg2/fn/nfcllGOR/tmp/nix-test/main/hash-path/vector
++(hash-path.sh:7) hash=sha512-IEqPxt2oLwoM7XvrjgikFlfBbvRosiioJ5vjMacDwzWW/RXBOxsH+aodO+pXeJygMa2Fx6cd1wNU7GMSOMo0RQ==
++(hash-path.sh:8) ((    ))
++(hash-path.sh:8) test sha512-IEqPxt2oLwoM7XvrjgikFlfBbvRosiioJ5vjMacDwzWW/RXBOxsH+aodO+pXeJygMa2Fx6cd1wNU7GMSOMo0RQ== '!=' sha512-IEqPxt2oLwoM7XvrjgikFlfBbvRosiioJ5vjMacDwzWW/RXBOxsH+aodO+pXeJygMa2Fx6cd1wNU7GMSOMo0RQ==
+++(hash-path.sh:12) nix hash file --sri --type sha512 /var/tmp/fg2/fn/nfcllGOR/tmp/nix-test/main/hash-path/vector
+warning: you don't have Internet access; disabling some network-dependent features
++(hash-path.sh:12) hash=sha512-IEqPxt2oLwoM7XvrjgikFlfBbvRosiioJ5vjMacDwzWW/RXBOxsH+aodO+pXeJygMa2Fx6cd1wNU7GMSOMo0RQ==
++(hash-path.sh:13) ((    ))
++(hash-path.sh:13) test sha512-IEqPxt2oLwoM7XvrjgikFlfBbvRosiioJ5vjMacDwzWW/RXBOxsH+aodO+pXeJygMa2Fx6cd1wNU7GMSOMo0RQ== '!=' sha512-IEqPxt2oLwoM7XvrjgikFlfBbvRosiioJ5vjMacDwzWW/RXBOxsH+aodO+pXeJygMa2Fx6cd1wNU7GMSOMo0RQ==
+++(hash-path.sh:17) nix hash path --mode flat --format sri --algo sha512 /var/tmp/fg2/fn/nfcllGOR/tmp/nix-test/main/hash-path/vector
+warning: you don't have Internet access; disabling some network-dependent features
++(hash-path.sh:17) hash=sha512-IEqPxt2oLwoM7XvrjgikFlfBbvRosiioJ5vjMacDwzWW/RXBOxsH+aodO+pXeJygMa2Fx6cd1wNU7GMSOMo0RQ==
++(hash-path.sh:18) ((    ))
++(hash-path.sh:18) test sha512-IEqPxt2oLwoM7XvrjgikFlfBbvRosiioJ5vjMacDwzWW/RXBOxsH+aodO+pXeJygMa2Fx6cd1wNU7GMSOMo0RQ== '!=' sha512-IEqPxt2oLwoM7XvrjgikFlfBbvRosiioJ5vjMacDwzWW/RXBOxsH+aodO+pXeJygMa2Fx6cd1wNU7GMSOMo0RQ==
++(hash-path.sh:54) try sha256 abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnomnopnopq sha256-JI1qYdIGOLjlwCaTDD5gOaM85Flk/yFn9uzt1BnbBsE=
++(hash-path.sh:6) printf %s abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnomnopnopq
+++(hash-path.sh:7) nix-hash --flat --sri --type sha256 /var/tmp/fg2/fn/nfcllGOR/tmp/nix-test/main/hash-path/vector
++(hash-path.sh:7) hash=sha256-JI1qYdIGOLjlwCaTDD5gOaM85Flk/yFn9uzt1BnbBsE=
++(hash-path.sh:8) ((    ))
++(hash-path.sh:8) test sha256-JI1qYdIGOLjlwCaTDD5gOaM85Flk/yFn9uzt1BnbBsE= '!=' sha256-JI1qYdIGOLjlwCaTDD5gOaM85Flk/yFn9uzt1BnbBsE=
+++(hash-path.sh:12) nix hash file --sri --type sha256 /var/tmp/fg2/fn/nfcllGOR/tmp/nix-test/main/hash-path/vector
+warning: you don't have Internet access; disabling some network-dependent features
++(hash-path.sh:12) hash=sha256-JI1qYdIGOLjlwCaTDD5gOaM85Flk/yFn9uzt1BnbBsE=
++(hash-path.sh:13) ((    ))
++(hash-path.sh:13) test sha256-JI1qYdIGOLjlwCaTDD5gOaM85Flk/yFn9uzt1BnbBsE= '!=' sha256-JI1qYdIGOLjlwCaTDD5gOaM85Flk/yFn9uzt1BnbBsE=
+++(hash-path.sh:17) nix hash path --mode flat --format sri --algo sha256 /var/tmp/fg2/fn/nfcllGOR/tmp/nix-test/main/hash-path/vector
+warning: you don't have Internet access; disabling some network-dependent features
++(hash-path.sh:17) hash=sha256-JI1qYdIGOLjlwCaTDD5gOaM85Flk/yFn9uzt1BnbBsE=
++(hash-path.sh:18) ((    ))
++(hash-path.sh:18) test sha256-JI1qYdIGOLjlwCaTDD5gOaM85Flk/yFn9uzt1BnbBsE= '!=' sha256-JI1qYdIGOLjlwCaTDD5gOaM85Flk/yFn9uzt1BnbBsE=
++(hash-path.sh:55) unset FORMAT
++(hash-path.sh:58) NO_TEST_NIX_COMMAND=1
++(hash-path.sh:58) try sha512 abc ddaf35a193617abacc417349ae20413112e6fa4e89a97ea20a9eeee64b55d39a2192992a274fc1a836ba3c23a3feebbd454d4423643ce80e2a9ac94fa54ca49f
++(hash-path.sh:6) printf %s abc
+++(hash-path.sh:7) nix-hash --flat --type sha512 /var/tmp/fg2/fn/nfcllGOR/tmp/nix-test/main/hash-path/vector
++(hash-path.sh:7) hash=ddaf35a193617abacc417349ae20413112e6fa4e89a97ea20a9eeee64b55d39a2192992a274fc1a836ba3c23a3feebbd454d4423643ce80e2a9ac94fa54ca49f
++(hash-path.sh:8) ((    ))
++(hash-path.sh:8) test ddaf35a193617abacc417349ae20413112e6fa4e89a97ea20a9eeee64b55d39a2192992a274fc1a836ba3c23a3feebbd454d4423643ce80e2a9ac94fa54ca49f '!=' ddaf35a193617abacc417349ae20413112e6fa4e89a97ea20a9eeee64b55d39a2192992a274fc1a836ba3c23a3feebbd454d4423643ce80e2a9ac94fa54ca49f
+++(hash-path.sh:12) nix hash file --type sha512 /var/tmp/fg2/fn/nfcllGOR/tmp/nix-test/main/hash-path/vector
+warning: you don't have Internet access; disabling some network-dependent features
++(hash-path.sh:12) hash=sha512-3a81oZNherrMQXNJriBBMRLm+k6JqX6iCp7u5ktV05ohkpkqJ0/BqDa6PCOj/uu9RU1EI2Q86A4qmslPpUyknw==
++(hash-path.sh:13) ((  1  ))
+++(hash-path.sh:17) nix hash path --mode flat --algo sha512 /var/tmp/fg2/fn/nfcllGOR/tmp/nix-test/main/hash-path/vector
+warning: you don't have Internet access; disabling some network-dependent features
++(hash-path.sh:17) hash=sha512-3a81oZNherrMQXNJriBBMRLm+k6JqX6iCp7u5ktV05ohkpkqJ0/BqDa6PCOj/uu9RU1EI2Q86A4qmslPpUyknw==
++(hash-path.sh:18) ((  1  ))
++(hash-path.sh:61) NO_TEST_CLASSIC=1
++(hash-path.sh:61) try sha512 abc sha512-3a81oZNherrMQXNJriBBMRLm+k6JqX6iCp7u5ktV05ohkpkqJ0/BqDa6PCOj/uu9RU1EI2Q86A4qmslPpUyknw==
++(hash-path.sh:6) printf %s abc
+++(hash-path.sh:7) nix-hash --flat --type sha512 /var/tmp/fg2/fn/nfcllGOR/tmp/nix-test/main/hash-path/vector
++(hash-path.sh:7) hash=ddaf35a193617abacc417349ae20413112e6fa4e89a97ea20a9eeee64b55d39a2192992a274fc1a836ba3c23a3feebbd454d4423643ce80e2a9ac94fa54ca49f
++(hash-path.sh:8) ((  1  ))
+++(hash-path.sh:12) nix hash file --type sha512 /var/tmp/fg2/fn/nfcllGOR/tmp/nix-test/main/hash-path/vector
+warning: you don't have Internet access; disabling some network-dependent features
++(hash-path.sh:12) hash=sha512-3a81oZNherrMQXNJriBBMRLm+k6JqX6iCp7u5ktV05ohkpkqJ0/BqDa6PCOj/uu9RU1EI2Q86A4qmslPpUyknw==
++(hash-path.sh:13) ((    ))
++(hash-path.sh:13) test sha512-3a81oZNherrMQXNJriBBMRLm+k6JqX6iCp7u5ktV05ohkpkqJ0/BqDa6PCOj/uu9RU1EI2Q86A4qmslPpUyknw== '!=' sha512-3a81oZNherrMQXNJriBBMRLm+k6JqX6iCp7u5ktV05ohkpkqJ0/BqDa6PCOj/uu9RU1EI2Q86A4qmslPpUyknw==
+++(hash-path.sh:17) nix hash path --mode flat --algo sha512 /var/tmp/fg2/fn/nfcllGOR/tmp/nix-test/main/hash-path/vector
+warning: you don't have Internet access; disabling some network-dependent features
++(hash-path.sh:17) hash=sha512-3a81oZNherrMQXNJriBBMRLm+k6JqX6iCp7u5ktV05ohkpkqJ0/BqDa6PCOj/uu9RU1EI2Q86A4qmslPpUyknw==
++(hash-path.sh:18) ((    ))
++(hash-path.sh:18) test sha512-3a81oZNherrMQXNJriBBMRLm+k6JqX6iCp7u5ktV05ohkpkqJ0/BqDa6PCOj/uu9RU1EI2Q86A4qmslPpUyknw== '!=' sha512-3a81oZNherrMQXNJriBBMRLm+k6JqX6iCp7u5ktV05ohkpkqJ0/BqDa6PCOj/uu9RU1EI2Q86A4qmslPpUyknw==
++(hash-path.sh:76) mkdir /var/tmp/fg2/fn/nfcllGOR/tmp/nix-test/main/hash-path/hash-path
++(hash-path.sh:77) echo 'Hello World'
++(hash-path.sh:79) try2 md5 ea9b55537dd4c7e104515b2ccfaf4100
+++(hash-path.sh:64) nix-hash --type md5 /var/tmp/fg2/fn/nfcllGOR/tmp/nix-test/main/hash-path/hash-path
++(hash-path.sh:64) hash=ea9b55537dd4c7e104515b2ccfaf4100
++(hash-path.sh:65) test ea9b55537dd4c7e104515b2ccfaf4100 '!=' ea9b55537dd4c7e104515b2ccfaf4100
+++(hash-path.sh:69) nix hash path --mode nar --format base16 --algo md5 /var/tmp/fg2/fn/nfcllGOR/tmp/nix-test/main/hash-path/hash-path
+warning: you don't have Internet access; disabling some network-dependent features
++(hash-path.sh:69) hash=ea9b55537dd4c7e104515b2ccfaf4100
++(hash-path.sh:70) test ea9b55537dd4c7e104515b2ccfaf4100 '!=' ea9b55537dd4c7e104515b2ccfaf4100
++(hash-path.sh:82) chmod +x /var/tmp/fg2/fn/nfcllGOR/tmp/nix-test/main/hash-path/hash-path/hello
++(hash-path.sh:83) try2 md5 20f3ffe011d4cfa7d72bfabef7882836
+++(hash-path.sh:64) nix-hash --type md5 /var/tmp/fg2/fn/nfcllGOR/tmp/nix-test/main/hash-path/hash-path
++(hash-path.sh:64) hash=20f3ffe011d4cfa7d72bfabef7882836
++(hash-path.sh:65) test 20f3ffe011d4cfa7d72bfabef7882836 '!=' 20f3ffe011d4cfa7d72bfabef7882836
+++(hash-path.sh:69) nix hash path --mode nar --format base16 --algo md5 /var/tmp/fg2/fn/nfcllGOR/tmp/nix-test/main/hash-path/hash-path
+warning: you don't have Internet access; disabling some network-dependent features
++(hash-path.sh:69) hash=20f3ffe011d4cfa7d72bfabef7882836
++(hash-path.sh:70) test 20f3ffe011d4cfa7d72bfabef7882836 '!=' 20f3ffe011d4cfa7d72bfabef7882836
++(hash-path.sh:86) touch -r . /var/tmp/fg2/fn/nfcllGOR/tmp/nix-test/main/hash-path/hash-path/hello
++(hash-path.sh:87) chmod 744 /var/tmp/fg2/fn/nfcllGOR/tmp/nix-test/main/hash-path/hash-path/hello
++(hash-path.sh:88) try2 md5 20f3ffe011d4cfa7d72bfabef7882836
+++(hash-path.sh:64) nix-hash --type md5 /var/tmp/fg2/fn/nfcllGOR/tmp/nix-test/main/hash-path/hash-path
++(hash-path.sh:64) hash=20f3ffe011d4cfa7d72bfabef7882836
++(hash-path.sh:65) test 20f3ffe011d4cfa7d72bfabef7882836 '!=' 20f3ffe011d4cfa7d72bfabef7882836
+++(hash-path.sh:69) nix hash path --mode nar --format base16 --algo md5 /var/tmp/fg2/fn/nfcllGOR/tmp/nix-test/main/hash-path/hash-path
+warning: you don't have Internet access; disabling some network-dependent features
++(hash-path.sh:69) hash=20f3ffe011d4cfa7d72bfabef7882836
++(hash-path.sh:70) test 20f3ffe011d4cfa7d72bfabef7882836 '!=' 20f3ffe011d4cfa7d72bfabef7882836
++(hash-path.sh:91) rm /var/tmp/fg2/fn/nfcllGOR/tmp/nix-test/main/hash-path/hash-path/hello
++(hash-path.sh:92) ln -s x /var/tmp/fg2/fn/nfcllGOR/tmp/nix-test/main/hash-path/hash-path/hello
++(hash-path.sh:93) try2 md5 f78b733a68f5edbdf9413899339eaa4a
+++(hash-path.sh:64) nix-hash --type md5 /var/tmp/fg2/fn/nfcllGOR/tmp/nix-test/main/hash-path/hash-path
++(hash-path.sh:64) hash=f78b733a68f5edbdf9413899339eaa4a
++(hash-path.sh:65) test f78b733a68f5edbdf9413899339eaa4a '!=' f78b733a68f5edbdf9413899339eaa4a
+++(hash-path.sh:69) nix hash path --mode nar --format base16 --algo md5 /var/tmp/fg2/fn/nfcllGOR/tmp/nix-test/main/hash-path/hash-path
+warning: you don't have Internet access; disabling some network-dependent features
++(hash-path.sh:69) hash=f78b733a68f5edbdf9413899339eaa4a
++(hash-path.sh:70) test f78b733a68f5edbdf9413899339eaa4a '!=' f78b733a68f5edbdf9413899339eaa4a
+++(hash-path.sh:96) nix hash path --mode flat --type sha256 --base32 /dev/fd/63
++++(hash-path.sh:96) printf 'SMASH THE STATE'
+warning: you don't have Internet access; disabling some network-dependent features
++(hash-path.sh:96) h=0d9n3r2i4m1zgy0wpqbsyabsfzgs952066bfp8gwvcg4mkr4r5g8
++(hash-path.sh:97) [[ 0d9n3r2i4m1zgy0wpqbsyabsfzgs952066bfp8gwvcg4mkr4r5g8 == 0d9n3r2i4m1zgy0wpqbsyabsfzgs952066bfp8gwvcg4mkr4r5g8 ]]
+++(hash-path.sh:100) nix hash file --type sha256 --base32 /dev/fd/63
++++(hash-path.sh:100) printf 'SMASH THE STATE'
+warning: you don't have Internet access; disabling some network-dependent features
++(hash-path.sh:100) h=0d9n3r2i4m1zgy0wpqbsyabsfzgs952066bfp8gwvcg4mkr4r5g8
++(hash-path.sh:101) [[ 0d9n3r2i4m1zgy0wpqbsyabsfzgs952066bfp8gwvcg4mkr4r5g8 == 0d9n3r2i4m1zgy0wpqbsyabsfzgs952066bfp8gwvcg4mkr4r5g8 ]]
++(hash-path.sh:104) mkdir -p /var/tmp/fg2/fn/nfcllGOR/tmp/nix-test/main/hash-path/simple /var/tmp/fg2/fn/nfcllGOR/tmp/nix-test/main/hash-path/try/to/mess/with/it
++(hash-path.sh:105) echo hi
++(hash-path.sh:106) ln -s /var/tmp/fg2/fn/nfcllGOR/tmp/nix-test/main/hash-path/simple /var/tmp/fg2/fn/nfcllGOR/tmp/nix-test/main/hash-path/try/to/mess/with/it/simple-link
+++(hash-path.sh:107) nix hash path --type sha256 --base32 /var/tmp/fg2/fn/nfcllGOR/tmp/nix-test/main/hash-path/simple/hi
+warning: you don't have Internet access; disabling some network-dependent features
++(hash-path.sh:107) h=1xmr8jicvzszfzpz46g37mlpvbzjl2wpwvl2b05psipssyp1sm8h
++(hash-path.sh:108) [[ 1xmr8jicvzszfzpz46g37mlpvbzjl2wpwvl2b05psipssyp1sm8h == 1xmr8jicvzszfzpz46g37mlpvbzjl2wpwvl2b05psipssyp1sm8h ]]
+++(hash-path.sh:109) nix hash path --type sha256 --base32 /var/tmp/fg2/fn/nfcllGOR/tmp/nix-test/main/hash-path/try/to/mess/with/it/simple-link/hi
+warning: you don't have Internet access; disabling some network-dependent features
++(hash-path.sh:109) h=1xmr8jicvzszfzpz46g37mlpvbzjl2wpwvl2b05psipssyp1sm8h
++(hash-path.sh:110) [[ 1xmr8jicvzszfzpz46g37mlpvbzjl2wpwvl2b05psipssyp1sm8h == 1xmr8jicvzszfzpz46g37mlpvbzjl2wpwvl2b05psipssyp1sm8h ]]
++(hash-path.sh:115) ln -s /non-existent-48cujwe8ndf4as0bne /var/tmp/fg2/fn/nfcllGOR/tmp/nix-test/main/hash-path/symlink-to-nowhere
+++(hash-path.sh:116) nix hash path --mode nar --type sha256 --base32 /var/tmp/fg2/fn/nfcllGOR/tmp/nix-test/main/hash-path/symlink-to-nowhere
+warning: you don't have Internet access; disabling some network-dependent features
++(hash-path.sh:116) h=1bl5ry3x1fcbwgr5c2x50bn572iixh4j1p6ax5isxly2ddgn8pbp
++(hash-path.sh:117) [[ 1bl5ry3x1fcbwgr5c2x50bn572iixh4j1p6ax5isxly2ddgn8pbp == 1bl5ry3x1fcbwgr5c2x50bn572iixh4j1p6ax5isxly2ddgn8pbp ]]
++(hash-path.sh:118) [[ -e /bin ]]
++(hash-path.sh:119) ln -s /bin /var/tmp/fg2/fn/nfcllGOR/tmp/nix-test/main/hash-path/symlink-to-bin
+++(hash-path.sh:120) nix hash path --mode nar --type sha256 --base32 /var/tmp/fg2/fn/nfcllGOR/tmp/nix-test/main/hash-path/symlink-to-bin
+warning: you don't have Internet access; disabling some network-dependent features
++(hash-path.sh:120) h=0z2mdmkd43l0ijdxfbj1y8vzli15yh9b09n3a3rrygmjshbyypsw
++(hash-path.sh:121) [[ 0z2mdmkd43l0ijdxfbj1y8vzli15yh9b09n3a3rrygmjshbyypsw == 0z2mdmkd43l0ijdxfbj1y8vzli15yh9b09n3a3rrygmjshbyypsw ]]

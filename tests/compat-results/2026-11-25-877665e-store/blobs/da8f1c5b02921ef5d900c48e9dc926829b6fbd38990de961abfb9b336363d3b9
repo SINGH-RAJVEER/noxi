@@ -1,0 +1,301 @@
++(fetchGitVerification.sh:3) source common.sh
+++(common.sh:3) set -eu -o pipefail
+++(common.sh:5) [[ -z '' ]]
+++(common.sh:7) COMMON_SH_SOURCED=1
+++++(common.sh:9) dirname common.sh
++++(common.sh:9) readlink -f .
+++(common.sh:9) functionalTestsDir=/var/tmp/fg2/fn/nfDu3og6/src
+++(common.sh:11) source /var/tmp/fg2/fn/nfDu3og6/src/common/vars.sh
++++(/var/tmp/fg2/fn/nfDu3og6/src/common/vars.sh:3) set -eu -o pipefail
++++(/var/tmp/fg2/fn/nfDu3og6/src/common/vars.sh:5) [[ -z '' ]]
++++(/var/tmp/fg2/fn/nfDu3og6/src/common/vars.sh:7) COMMON_VARS_SH_SOURCED=1
+++++(/var/tmp/fg2/fn/nfDu3og6/src/common/vars.sh:9) realpath /var/tmp/fg2/fn/nfDu3og6/src
++++(/var/tmp/fg2/fn/nfDu3og6/src/common/vars.sh:9) _NIX_TEST_SOURCE_DIR=/var/tmp/fg2/fn/nfDu3og6/src
+++++(/var/tmp/fg2/fn/nfDu3og6/src/common/vars.sh:10) realpath /var/tmp/fg2/fn/nfDu3og6/build
++++(/var/tmp/fg2/fn/nfDu3og6/src/common/vars.sh:10) _NIX_TEST_BUILD_DIR=/var/tmp/fg2/fn/nfDu3og6/build
++++++(/var/tmp/fg2/fn/nfDu3og6/src/common/vars.sh:12) dirname /var/tmp/fg2/fn/nfDu3og6/src/common/vars.sh
+++++(/var/tmp/fg2/fn/nfDu3og6/src/common/vars.sh:12) readlink -f /var/tmp/fg2/fn/nfDu3og6/src/common
++++(/var/tmp/fg2/fn/nfDu3og6/src/common/vars.sh:12) commonDir=/var/tmp/fg2/fn/nfDu3og6/src/common
++++(/var/tmp/fg2/fn/nfDu3og6/src/common/vars.sh:16) source /var/tmp/fg2/fn/nfDu3og6/build/common/subst-vars.sh
+++++(/var/tmp/fg2/fn/nfDu3og6/build/common/subst-vars.sh:3) [[ -z '' ]]
+++++(/var/tmp/fg2/fn/nfDu3og6/build/common/subst-vars.sh:5) COMMON_SUBST_VARS_SH_SOURCED=1
+++++(/var/tmp/fg2/fn/nfDu3og6/build/common/subst-vars.sh:7) bash=/nix/store/2ndah67h0z5m31v2wkdmg2md4380ggr5-bash-interactive-5.3p15/bin/bash
+++++(/var/tmp/fg2/fn/nfDu3og6/build/common/subst-vars.sh:8) bindir=/nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2/bin
+++++(/var/tmp/fg2/fn/nfDu3og6/build/common/subst-vars.sh:9) coreutils=/nix/store/xjl7p8dvyk2j53kqf7f43kdj4ypbxz7g-coreutils-9.11/bin
+++++(/var/tmp/fg2/fn/nfDu3og6/build/common/subst-vars.sh:11) dot=
+++++(/var/tmp/fg2/fn/nfDu3og6/build/common/subst-vars.sh:12) busybox=/nix/store/qddzvnv6b0805nkvbqddbswddcfhx814-busybox-static-x86_64-unknown-linux-musl-1.37.0/bin/busybox
+++++(/var/tmp/fg2/fn/nfDu3og6/build/common/subst-vars.sh:14) version=2.35.2
+++++(/var/tmp/fg2/fn/nfDu3og6/build/common/subst-vars.sh:15) system=x86_64-linux
++++(/var/tmp/fg2/fn/nfDu3og6/src/common/vars.sh:18) : '/nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2/bin /nix/store/xjl7p8dvyk2j53kqf7f43kdj4ypbxz7g-coreutils-9.11/bin  /run/current-system/sw/bin/nu /nix/store/qddzvnv6b0805nkvbqddbswddcfhx814-busybox-static-x86_64-unknown-linux-musl-1.37.0/bin/busybox 2.35.2 x86_64-linux'
++++(/var/tmp/fg2/fn/nfDu3og6/src/common/vars.sh:19) export coreutils dot busybox version system
++++(/var/tmp/fg2/fn/nfDu3og6/src/common/vars.sh:21) export PAGER=cat
++++(/var/tmp/fg2/fn/nfDu3og6/src/common/vars.sh:21) PAGER=cat
++++(/var/tmp/fg2/fn/nfDu3og6/src/common/vars.sh:23) source /var/tmp/fg2/fn/nfDu3og6/src/common/paths.sh
+++++(/var/tmp/fg2/fn/nfDu3og6/src/common/paths.sh:3) set -eu -o pipefail
+++++(/var/tmp/fg2/fn/nfDu3og6/src/common/paths.sh:5) [[ -z '' ]]
+++++(/var/tmp/fg2/fn/nfDu3og6/src/common/paths.sh:7) COMMON_PATHS_SH_SOURCED=1
+++++++(/var/tmp/fg2/fn/nfDu3og6/src/common/paths.sh:9) dirname /var/tmp/fg2/fn/nfDu3og6/src/common/paths.sh
++++++(/var/tmp/fg2/fn/nfDu3og6/src/common/paths.sh:9) readlink -f /var/tmp/fg2/fn/nfDu3og6/src/common
+++++(/var/tmp/fg2/fn/nfDu3og6/src/common/paths.sh:9) commonDir=/var/tmp/fg2/fn/nfDu3og6/src/common
+++++(/var/tmp/fg2/fn/nfDu3og6/src/common/paths.sh:12) source /var/tmp/fg2/fn/nfDu3og6/src/common/functions.sh
++++++(/var/tmp/fg2/fn/nfDu3og6/src/common/functions.sh:3) set -eu -o pipefail
++++++(/var/tmp/fg2/fn/nfDu3og6/src/common/functions.sh:5) [[ -z '' ]]
++++++(/var/tmp/fg2/fn/nfDu3og6/src/common/functions.sh:7) COMMON_FUNCTIONS_SH_SOURCED=1
++++++(/var/tmp/fg2/fn/nfDu3og6/src/common/functions.sh:353) trap onError ERR
+++++(/var/tmp/fg2/fn/nfDu3og6/src/common/paths.sh:14) source /var/tmp/fg2/fn/nfDu3og6/build/common/subst-vars.sh
++++++(/var/tmp/fg2/fn/nfDu3og6/build/common/subst-vars.sh:3) [[ -z 1 ]]
+++++(/var/tmp/fg2/fn/nfDu3og6/src/common/paths.sh:16) : /nix/store/2ndah67h0z5m31v2wkdmg2md4380ggr5-bash-interactive-5.3p15/bin/bash /nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2/bin
+++++(/var/tmp/fg2/fn/nfDu3og6/src/common/paths.sh:18) isTestOnNixOS
+++++(/var/tmp/fg2/fn/nfDu3og6/src/common/functions.sh:10) [[ '' == 1 ]]
+++++(/var/tmp/fg2/fn/nfDu3og6/src/common/paths.sh:19) export SHELL=/nix/store/2ndah67h0z5m31v2wkdmg2md4380ggr5-bash-interactive-5.3p15/bin/bash
+++++(/var/tmp/fg2/fn/nfDu3og6/src/common/paths.sh:19) SHELL=/nix/store/2ndah67h0z5m31v2wkdmg2md4380ggr5-bash-interactive-5.3p15/bin/bash
+++++(/var/tmp/fg2/fn/nfDu3og6/src/common/paths.sh:20) export PATH=/nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2/bin:/nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2/bin:/nix/store/2ndah67h0z5m31v2wkdmg2md4380ggr5-bash-interactive-5.3p15/bin:/nix/store/xjl7p8dvyk2j53kqf7f43kdj4ypbxz7g-coreutils-9.11/bin:/nix/store/xmvbzzxm5snla5a2cyfhm7hjy9bifx7n-gnugrep-3.12/bin:/nix/store/qf2wzyq4irhgyhnq3s2hz0ldjq3w8a3x-gnused-4.10/bin:/nix/store/9zib1q94gka8i5q530364cvy25504qz5-gawk-5.4.1/bin:/nix/store/i9wgqa0l88aprvpwfaq5hkfa6pklhlv0-findutils-4.11.0/bin:/nix/store/b8xvzgd52jby5dfpi0pf46nisy6wma5d-diffutils-3.12/bin:/nix/store/81zqbas7qc02yfdj7142fdcqhxgd3cgz-patch-2.8/bin:/nix/store/c8b0qp903w2hhpa63a2lfs7d565zag30-gnutar-1.35/bin:/nix/store/l5sll8nxk70p73l5yqbsjy4mh0c3g0v5-gzip-1.14/bin:/nix/store/j3yz0ag9j442229n8harpmp9aa5qyvhn-bzip2-1.0.8-bin/bin:/nix/store/518dig8gpvqyac6pkksyjjfzvi9zn8vq-xz-5.8.3-bin/bin:/nix/store/l8ik8mb8lgb60rklxjmkgddmp5qqnv29-zstd-1.5.7-bin/bin:/nix/store/msr1v91ybfw6j12rs5mfl8ghb2rqsnsr-git-2.55.0/bin:/nix/store/hyz22a0l5b5kv7yfypw4ss6d36vbzg01-jq-1.8.2-bin/bin:/nix/store/24gq3bi2yzf7g386p5j32mn78hhanf49-sqlite-3.53.3-bin/bin:/nix/store/cp8qnyl8i0s62g3a1465i258mf5bcr6k-curl-8.22.0-bin/bin:/nix/store/8x4c8zah3fbnyckaic4sskjbw7d2y98n-util-linux-2.42.4-bin/bin:/nix/store/d64q19q1xjdwfhqx6czvrjgrhq0n3lcc-python3-3.14.7/bin:/nix/store/niqsa6mxqsyax9lzbm261a2ml6m71vb6-perl-5.42.3/bin:/nix/store/fv9yl55hkskpc2cj9c0sdyq91car9kgl-file-5.48/bin:/nix/store/jv5kdlkwx0l8a7jdpg21g934ff30s319-which-2.25/bin:/nix/store/aj08b694apkc1jay2akywym9ghlailf5-procps-4.0.7/bin:/nix/store/5wyaj1kvkxbbscz6innrh6yjjkdq4qmk-openssh-10.6p1/bin:/nix/store/44gxi8li8y8wrxrb93sya9hljkpigsqw-openssl-3.6.4-bin/bin:/run/wrappers/wrappers.Yw6nCJO1nt:/nix/store/wmh4xg3557sicfyllmi9ymd8sxaw51wv-man-db-2.13.1/bin:/nix/store/qpgknrlnxca0z99gl12j5n0fgca11cdx-mercurial-7.2.2/bin:/var/tmp/fg2/tmp/.tmpEVBu8f/reference/tools
+++++(/var/tmp/fg2/fn/nfDu3og6/src/common/paths.sh:20) PATH=/nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2/bin:/nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2/bin:/nix/store/2ndah67h0z5m31v2wkdmg2md4380ggr5-bash-interactive-5.3p15/bin:/nix/store/xjl7p8dvyk2j53kqf7f43kdj4ypbxz7g-coreutils-9.11/bin:/nix/store/xmvbzzxm5snla5a2cyfhm7hjy9bifx7n-gnugrep-3.12/bin:/nix/store/qf2wzyq4irhgyhnq3s2hz0ldjq3w8a3x-gnused-4.10/bin:/nix/store/9zib1q94gka8i5q530364cvy25504qz5-gawk-5.4.1/bin:/nix/store/i9wgqa0l88aprvpwfaq5hkfa6pklhlv0-findutils-4.11.0/bin:/nix/store/b8xvzgd52jby5dfpi0pf46nisy6wma5d-diffutils-3.12/bin:/nix/store/81zqbas7qc02yfdj7142fdcqhxgd3cgz-patch-2.8/bin:/nix/store/c8b0qp903w2hhpa63a2lfs7d565zag30-gnutar-1.35/bin:/nix/store/l5sll8nxk70p73l5yqbsjy4mh0c3g0v5-gzip-1.14/bin:/nix/store/j3yz0ag9j442229n8harpmp9aa5qyvhn-bzip2-1.0.8-bin/bin:/nix/store/518dig8gpvqyac6pkksyjjfzvi9zn8vq-xz-5.8.3-bin/bin:/nix/store/l8ik8mb8lgb60rklxjmkgddmp5qqnv29-zstd-1.5.7-bin/bin:/nix/store/msr1v91ybfw6j12rs5mfl8ghb2rqsnsr-git-2.55.0/bin:/nix/store/hyz22a0l5b5kv7yfypw4ss6d36vbzg01-jq-1.8.2-bin/bin:/nix/store/24gq3bi2yzf7g386p5j32mn78hhanf49-sqlite-3.53.3-bin/bin:/nix/store/cp8qnyl8i0s62g3a1465i258mf5bcr6k-curl-8.22.0-bin/bin:/nix/store/8x4c8zah3fbnyckaic4sskjbw7d2y98n-util-linux-2.42.4-bin/bin:/nix/store/d64q19q1xjdwfhqx6czvrjgrhq0n3lcc-python3-3.14.7/bin:/nix/store/niqsa6mxqsyax9lzbm261a2ml6m71vb6-perl-5.42.3/bin:/nix/store/fv9yl55hkskpc2cj9c0sdyq91car9kgl-file-5.48/bin:/nix/store/jv5kdlkwx0l8a7jdpg21g934ff30s319-which-2.25/bin:/nix/store/aj08b694apkc1jay2akywym9ghlailf5-procps-4.0.7/bin:/nix/store/5wyaj1kvkxbbscz6innrh6yjjkdq4qmk-openssh-10.6p1/bin:/nix/store/44gxi8li8y8wrxrb93sya9hljkpigsqw-openssl-3.6.4-bin/bin:/run/wrappers/wrappers.Yw6nCJO1nt:/nix/store/wmh4xg3557sicfyllmi9ymd8sxaw51wv-man-db-2.13.1/bin:/nix/store/qpgknrlnxca0z99gl12j5n0fgca11cdx-mercurial-7.2.2/bin:/var/tmp/fg2/tmp/.tmpEVBu8f/reference/tools
+++++(/var/tmp/fg2/fn/nfDu3og6/src/common/paths.sh:23) [[ -n '' ]]
+++++(/var/tmp/fg2/fn/nfDu3og6/src/common/paths.sh:27) DAEMON_PATH=/nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2/bin:/nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2/bin:/nix/store/2ndah67h0z5m31v2wkdmg2md4380ggr5-bash-interactive-5.3p15/bin:/nix/store/xjl7p8dvyk2j53kqf7f43kdj4ypbxz7g-coreutils-9.11/bin:/nix/store/xmvbzzxm5snla5a2cyfhm7hjy9bifx7n-gnugrep-3.12/bin:/nix/store/qf2wzyq4irhgyhnq3s2hz0ldjq3w8a3x-gnused-4.10/bin:/nix/store/9zib1q94gka8i5q530364cvy25504qz5-gawk-5.4.1/bin:/nix/store/i9wgqa0l88aprvpwfaq5hkfa6pklhlv0-findutils-4.11.0/bin:/nix/store/b8xvzgd52jby5dfpi0pf46nisy6wma5d-diffutils-3.12/bin:/nix/store/81zqbas7qc02yfdj7142fdcqhxgd3cgz-patch-2.8/bin:/nix/store/c8b0qp903w2hhpa63a2lfs7d565zag30-gnutar-1.35/bin:/nix/store/l5sll8nxk70p73l5yqbsjy4mh0c3g0v5-gzip-1.14/bin:/nix/store/j3yz0ag9j442229n8harpmp9aa5qyvhn-bzip2-1.0.8-bin/bin:/nix/store/518dig8gpvqyac6pkksyjjfzvi9zn8vq-xz-5.8.3-bin/bin:/nix/store/l8ik8mb8lgb60rklxjmkgddmp5qqnv29-zstd-1.5.7-bin/bin:/nix/store/msr1v91ybfw6j12rs5mfl8ghb2rqsnsr-git-2.55.0/bin:/nix/store/hyz22a0l5b5kv7yfypw4ss6d36vbzg01-jq-1.8.2-bin/bin:/nix/store/24gq3bi2yzf7g386p5j32mn78hhanf49-sqlite-3.53.3-bin/bin:/nix/store/cp8qnyl8i0s62g3a1465i258mf5bcr6k-curl-8.22.0-bin/bin:/nix/store/8x4c8zah3fbnyckaic4sskjbw7d2y98n-util-linux-2.42.4-bin/bin:/nix/store/d64q19q1xjdwfhqx6czvrjgrhq0n3lcc-python3-3.14.7/bin:/nix/store/niqsa6mxqsyax9lzbm261a2ml6m71vb6-perl-5.42.3/bin:/nix/store/fv9yl55hkskpc2cj9c0sdyq91car9kgl-file-5.48/bin:/nix/store/jv5kdlkwx0l8a7jdpg21g934ff30s319-which-2.25/bin:/nix/store/aj08b694apkc1jay2akywym9ghlailf5-procps-4.0.7/bin:/nix/store/5wyaj1kvkxbbscz6innrh6yjjkdq4qmk-openssh-10.6p1/bin:/nix/store/44gxi8li8y8wrxrb93sya9hljkpigsqw-openssl-3.6.4-bin/bin:/run/wrappers/wrappers.Yw6nCJO1nt:/nix/store/wmh4xg3557sicfyllmi9ymd8sxaw51wv-man-db-2.13.1/bin:/nix/store/qpgknrlnxca0z99gl12j5n0fgca11cdx-mercurial-7.2.2/bin:/var/tmp/fg2/tmp/.tmpEVBu8f/reference/tools
+++++(/var/tmp/fg2/fn/nfDu3og6/src/common/paths.sh:28) [[ -n '' ]]
++++(/var/tmp/fg2/fn/nfDu3og6/src/common/vars.sh:24) source /var/tmp/fg2/fn/nfDu3og6/src/common/test-root.sh
+++++(/var/tmp/fg2/fn/nfDu3og6/src/common/test-root.sh:3) TEST_SUBDIR=main/fetchGitVerification
++++++(/var/tmp/fg2/fn/nfDu3og6/src/common/test-root.sh:4) realpath /var/tmp/fg2/fn/nfDu3og6/tmp/nix-test
+++++(/var/tmp/fg2/fn/nfDu3og6/src/common/test-root.sh:4) TEST_ROOT=/var/tmp/fg2/fn/nfDu3og6/tmp/nix-test/main/fetchGitVerification
+++++(/var/tmp/fg2/fn/nfDu3og6/src/common/test-root.sh:5) export TEST_ROOT
++++(/var/tmp/fg2/fn/nfDu3og6/src/common/vars.sh:26) test_nix_conf_dir=/var/tmp/fg2/fn/nfDu3og6/tmp/nix-test/main/fetchGitVerification/etc
++++(/var/tmp/fg2/fn/nfDu3og6/src/common/vars.sh:29) test_nix_conf=/var/tmp/fg2/fn/nfDu3og6/tmp/nix-test/main/fetchGitVerification/etc/nix.conf
++++(/var/tmp/fg2/fn/nfDu3og6/src/common/vars.sh:31) export TEST_HOME=/var/tmp/fg2/fn/nfDu3og6/tmp/nix-test/main/fetchGitVerification/test-home
++++(/var/tmp/fg2/fn/nfDu3og6/src/common/vars.sh:31) TEST_HOME=/var/tmp/fg2/fn/nfDu3og6/tmp/nix-test/main/fetchGitVerification/test-home
++++(/var/tmp/fg2/fn/nfDu3og6/src/common/vars.sh:33) isTestOnNixOS
++++(/var/tmp/fg2/fn/nfDu3og6/src/common/functions.sh:10) [[ '' == 1 ]]
++++(/var/tmp/fg2/fn/nfDu3og6/src/common/vars.sh:34) export NIX_STORE_DIR
+++++(/var/tmp/fg2/fn/nfDu3og6/src/common/vars.sh:35) readlink -f /var/tmp/fg2/fn/nfDu3og6/tmp/nix-test/main/fetchGitVerification/store
++++(/var/tmp/fg2/fn/nfDu3og6/src/common/vars.sh:35) NIX_STORE_DIR=
++++(/var/tmp/fg2/fn/nfDu3og6/src/common/vars.sh:37) export NIX_IGNORE_SYMLINK_STORE=1
++++(/var/tmp/fg2/fn/nfDu3og6/src/common/vars.sh:37) NIX_IGNORE_SYMLINK_STORE=1
++++(/var/tmp/fg2/fn/nfDu3og6/src/common/vars.sh:38) NIX_STORE_DIR=/var/tmp/fg2/fn/nfDu3og6/tmp/nix-test/main/fetchGitVerification/store
++++(/var/tmp/fg2/fn/nfDu3og6/src/common/vars.sh:40) export NIX_LOCALSTATE_DIR=/var/tmp/fg2/fn/nfDu3og6/tmp/nix-test/main/fetchGitVerification/var
++++(/var/tmp/fg2/fn/nfDu3og6/src/common/vars.sh:40) NIX_LOCALSTATE_DIR=/var/tmp/fg2/fn/nfDu3og6/tmp/nix-test/main/fetchGitVerification/var
++++(/var/tmp/fg2/fn/nfDu3og6/src/common/vars.sh:41) export NIX_LOG_DIR=/var/tmp/fg2/fn/nfDu3og6/tmp/nix-test/main/fetchGitVerification/var/log/nix
++++(/var/tmp/fg2/fn/nfDu3og6/src/common/vars.sh:41) NIX_LOG_DIR=/var/tmp/fg2/fn/nfDu3og6/tmp/nix-test/main/fetchGitVerification/var/log/nix
++++(/var/tmp/fg2/fn/nfDu3og6/src/common/vars.sh:42) export NIX_STATE_DIR=/var/tmp/fg2/fn/nfDu3og6/tmp/nix-test/main/fetchGitVerification/var/nix
++++(/var/tmp/fg2/fn/nfDu3og6/src/common/vars.sh:42) NIX_STATE_DIR=/var/tmp/fg2/fn/nfDu3og6/tmp/nix-test/main/fetchGitVerification/var/nix
++++(/var/tmp/fg2/fn/nfDu3og6/src/common/vars.sh:43) export NIX_CONF_DIR=/var/tmp/fg2/fn/nfDu3og6/tmp/nix-test/main/fetchGitVerification/etc
++++(/var/tmp/fg2/fn/nfDu3og6/src/common/vars.sh:43) NIX_CONF_DIR=/var/tmp/fg2/fn/nfDu3og6/tmp/nix-test/main/fetchGitVerification/etc
++++(/var/tmp/fg2/fn/nfDu3og6/src/common/vars.sh:44) export NIX_DAEMON_SOCKET_PATH=/var/tmp/fg2/fn/nfDu3og6/tmp/nix-test/main/fetchGitVerification/dSocket
++++(/var/tmp/fg2/fn/nfDu3og6/src/common/vars.sh:44) NIX_DAEMON_SOCKET_PATH=/var/tmp/fg2/fn/nfDu3og6/tmp/nix-test/main/fetchGitVerification/dSocket
++++(/var/tmp/fg2/fn/nfDu3og6/src/common/vars.sh:45) unset NIX_USER_CONF_FILES
++++(/var/tmp/fg2/fn/nfDu3og6/src/common/vars.sh:46) export _NIX_TEST_SHARED=/var/tmp/fg2/fn/nfDu3og6/tmp/nix-test/main/fetchGitVerification/shared
++++(/var/tmp/fg2/fn/nfDu3og6/src/common/vars.sh:46) _NIX_TEST_SHARED=/var/tmp/fg2/fn/nfDu3og6/tmp/nix-test/main/fetchGitVerification/shared
++++(/var/tmp/fg2/fn/nfDu3og6/src/common/vars.sh:47) [[ -n '' ]]
++++(/var/tmp/fg2/fn/nfDu3og6/src/common/vars.sh:50) export _NIX_IN_TEST=/var/tmp/fg2/fn/nfDu3og6/tmp/nix-test/main/fetchGitVerification/shared
++++(/var/tmp/fg2/fn/nfDu3og6/src/common/vars.sh:50) _NIX_IN_TEST=/var/tmp/fg2/fn/nfDu3og6/tmp/nix-test/main/fetchGitVerification/shared
++++(/var/tmp/fg2/fn/nfDu3og6/src/common/vars.sh:51) export _NIX_TEST_NO_LSOF=1
++++(/var/tmp/fg2/fn/nfDu3og6/src/common/vars.sh:51) _NIX_TEST_NO_LSOF=1
++++(/var/tmp/fg2/fn/nfDu3og6/src/common/vars.sh:54) export _NIX_TEST_NO_ENVIRONMENT_WARNINGS=1
++++(/var/tmp/fg2/fn/nfDu3og6/src/common/vars.sh:54) _NIX_TEST_NO_ENVIRONMENT_WARNINGS=1
++++(/var/tmp/fg2/fn/nfDu3og6/src/common/vars.sh:55) export NIX_REMOTE=
++++(/var/tmp/fg2/fn/nfDu3og6/src/common/vars.sh:55) NIX_REMOTE=
++++(/var/tmp/fg2/fn/nfDu3og6/src/common/vars.sh:59) unset NIX_PATH
++++(/var/tmp/fg2/fn/nfDu3og6/src/common/vars.sh:60) export HOME=/var/tmp/fg2/fn/nfDu3og6/tmp/nix-test/main/fetchGitVerification/test-home
++++(/var/tmp/fg2/fn/nfDu3og6/src/common/vars.sh:60) HOME=/var/tmp/fg2/fn/nfDu3og6/tmp/nix-test/main/fetchGitVerification/test-home
++++(/var/tmp/fg2/fn/nfDu3og6/src/common/vars.sh:61) unset XDG_STATE_HOME
++++(/var/tmp/fg2/fn/nfDu3og6/src/common/vars.sh:62) unset XDG_DATA_HOME
++++(/var/tmp/fg2/fn/nfDu3og6/src/common/vars.sh:63) unset XDG_CONFIG_HOME
++++(/var/tmp/fg2/fn/nfDu3og6/src/common/vars.sh:64) unset XDG_CONFIG_DIRS
++++(/var/tmp/fg2/fn/nfDu3og6/src/common/vars.sh:65) unset XDG_CACHE_HOME
++++(/var/tmp/fg2/fn/nfDu3og6/src/common/vars.sh:66) unset GIT_DIR
++++(/var/tmp/fg2/fn/nfDu3og6/src/common/vars.sh:68) export GIT_CONFIG_SYSTEM=/dev/null
++++(/var/tmp/fg2/fn/nfDu3og6/src/common/vars.sh:68) GIT_CONFIG_SYSTEM=/dev/null
++++(/var/tmp/fg2/fn/nfDu3og6/src/common/vars.sh:69) export GIT_CONFIG_GLOBAL=/dev/null
++++(/var/tmp/fg2/fn/nfDu3og6/src/common/vars.sh:69) GIT_CONFIG_GLOBAL=/dev/null
++++(/var/tmp/fg2/fn/nfDu3og6/src/common/vars.sh:71) export IMPURE_VAR1=foo
++++(/var/tmp/fg2/fn/nfDu3og6/src/common/vars.sh:71) IMPURE_VAR1=foo
++++(/var/tmp/fg2/fn/nfDu3og6/src/common/vars.sh:72) export IMPURE_VAR2=bar
++++(/var/tmp/fg2/fn/nfDu3og6/src/common/vars.sh:72) IMPURE_VAR2=bar
++++(/var/tmp/fg2/fn/nfDu3og6/src/common/vars.sh:76) cacheDir=/var/tmp/fg2/fn/nfDu3og6/tmp/nix-test/main/fetchGitVerification/binary-cache
+++++(/var/tmp/fg2/fn/nfDu3og6/src/common/vars.sh:78) uname
++++(/var/tmp/fg2/fn/nfDu3og6/src/common/vars.sh:78) [[ Linux == Linux ]]
++++(/var/tmp/fg2/fn/nfDu3og6/src/common/vars.sh:78) [[ -L /proc/self/ns/user ]]
++++(/var/tmp/fg2/fn/nfDu3og6/src/common/vars.sh:78) unshare --user true
++++(/var/tmp/fg2/fn/nfDu3og6/src/common/vars.sh:79) _canUseSandbox=1
++++(/var/tmp/fg2/fn/nfDu3og6/src/common/vars.sh:85) config_nix=/var/tmp/fg2/fn/nfDu3og6/tmp/nix-test/main/fetchGitVerification/config.nix
+++(common.sh:12) source /var/tmp/fg2/fn/nfDu3og6/src/common/functions.sh
++++(/var/tmp/fg2/fn/nfDu3og6/src/common/functions.sh:3) set -eu -o pipefail
++++(/var/tmp/fg2/fn/nfDu3og6/src/common/functions.sh:5) [[ -z 1 ]]
+++(common.sh:13) source /var/tmp/fg2/fn/nfDu3og6/src/common/init.sh
++++(/var/tmp/fg2/fn/nfDu3og6/src/common/init.sh:4) : /var/tmp/fg2/fn/nfDu3og6/tmp/nix-test/main/fetchGitVerification/etc /var/tmp/fg2/fn/nfDu3og6/tmp/nix-test/main/fetchGitVerification/etc/nix.conf /var/tmp/fg2/fn/nfDu3og6/tmp/nix-test/main/fetchGitVerification/config.nix
++++(/var/tmp/fg2/fn/nfDu3og6/src/common/init.sh:6) isTestOnNixOS
++++(/var/tmp/fg2/fn/nfDu3og6/src/common/functions.sh:10) [[ '' == 1 ]]
++++(/var/tmp/fg2/fn/nfDu3og6/src/common/init.sh:29) test -n /var/tmp/fg2/fn/nfDu3og6/tmp/nix-test/main/fetchGitVerification
++++(/var/tmp/fg2/fn/nfDu3og6/src/common/init.sh:31) killDaemon
++++(/var/tmp/fg2/fn/nfDu3og6/src/common/functions.sh:100) isTestOnNixOS
++++(/var/tmp/fg2/fn/nfDu3og6/src/common/functions.sh:10) [[ '' == 1 ]]
++++(/var/tmp/fg2/fn/nfDu3og6/src/common/functions.sh:105) [[ '' == '' ]]
++++(/var/tmp/fg2/fn/nfDu3og6/src/common/functions.sh:106) return
++++(/var/tmp/fg2/fn/nfDu3og6/src/common/init.sh:33) [[ -e /var/tmp/fg2/fn/nfDu3og6/tmp/nix-test/main/fetchGitVerification ]]
++++(/var/tmp/fg2/fn/nfDu3og6/src/common/init.sh:37) mkdir -p /var/tmp/fg2/fn/nfDu3og6/tmp/nix-test/main/fetchGitVerification
++++(/var/tmp/fg2/fn/nfDu3og6/src/common/init.sh:38) mkdir /var/tmp/fg2/fn/nfDu3og6/tmp/nix-test/main/fetchGitVerification/test-home
++++(/var/tmp/fg2/fn/nfDu3og6/src/common/init.sh:40) mkdir /var/tmp/fg2/fn/nfDu3og6/tmp/nix-test/main/fetchGitVerification/store
++++(/var/tmp/fg2/fn/nfDu3og6/src/common/init.sh:41) mkdir /var/tmp/fg2/fn/nfDu3og6/tmp/nix-test/main/fetchGitVerification/var
++++(/var/tmp/fg2/fn/nfDu3og6/src/common/init.sh:42) mkdir -p /var/tmp/fg2/fn/nfDu3og6/tmp/nix-test/main/fetchGitVerification/var/log/nix/drvs
++++(/var/tmp/fg2/fn/nfDu3og6/src/common/init.sh:43) mkdir /var/tmp/fg2/fn/nfDu3og6/tmp/nix-test/main/fetchGitVerification/var/nix
++++(/var/tmp/fg2/fn/nfDu3og6/src/common/init.sh:44) mkdir /var/tmp/fg2/fn/nfDu3og6/tmp/nix-test/main/fetchGitVerification/etc
++++(/var/tmp/fg2/fn/nfDu3og6/src/common/init.sh:46) cat
+++++(/var/tmp/fg2/fn/nfDu3og6/src/common/init.sh:46) whoami
++++(/var/tmp/fg2/fn/nfDu3og6/src/common/init.sh:59) cat
++++(/var/tmp/fg2/fn/nfDu3og6/src/common/init.sh:67) nix-store --init
++++(/var/tmp/fg2/fn/nfDu3og6/src/common/init.sh:69) test -e /var/tmp/fg2/fn/nfDu3og6/tmp/nix-test/main/fetchGitVerification/var/nix/db/db.sqlite
++++(/var/tmp/fg2/fn/nfDu3og6/src/common/init.sh:75) echo '# config.nix for test main / fetchGitVerification'
++++(/var/tmp/fg2/fn/nfDu3og6/src/common/init.sh:76) cat /var/tmp/fg2/fn/nfDu3og6/build/config.nix
+++(common.sh:15) [[ -n '' ]]
++(fetchGitVerification.sh:5) requireGit
+++(/var/tmp/fg2/fn/nfDu3og6/src/common/functions.sh:166) type -p git
++(/var/tmp/fg2/fn/nfDu3og6/src/common/functions.sh:166) [[ -n /nix/store/msr1v91ybfw6j12rs5mfl8ghb2rqsnsr-git-2.55.0/bin/git ]]
+++(fetchGitVerification.sh:6) type -p ssh-keygen
++(fetchGitVerification.sh:6) [[ -n /nix/store/5wyaj1kvkxbbscz6innrh6yjjkdq4qmk-openssh-10.6p1/bin/ssh-keygen ]]
++(fetchGitVerification.sh:8) enableFeatures verified-fetches
++(/var/tmp/fg2/fn/nfDu3og6/src/common/functions.sh:236) local features=verified-fetches
++(/var/tmp/fg2/fn/nfDu3og6/src/common/functions.sh:237) sed -i 's/experimental-features .*/& verified-fetches/' /var/tmp/fg2/fn/nfDu3og6/tmp/nix-test/main/fetchGitVerification/etc/nix.conf
++(fetchGitVerification.sh:10) repo=/var/tmp/fg2/fn/nfDu3og6/tmp/nix-test/main/fetchGitVerification/git
++(fetchGitVerification.sh:13) keysDir=/var/tmp/fg2/fn/nfDu3og6/tmp/nix-test/main/fetchGitVerification/.ssh
++(fetchGitVerification.sh:14) mkdir -p /var/tmp/fg2/fn/nfDu3og6/tmp/nix-test/main/fetchGitVerification/.ssh
++(fetchGitVerification.sh:15) ssh-keygen -f /var/tmp/fg2/fn/nfDu3og6/tmp/nix-test/main/fetchGitVerification/.ssh/testkey1 -t ed25519 -P '' -C 'test key 1'
+Generating public/private ed25519 key pair.
+Your identification has been saved in /var/tmp/fg2/fn/nfDu3og6/tmp/nix-test/main/fetchGitVerification/.ssh/testkey1
+Your public key has been saved in /var/tmp/fg2/fn/nfDu3og6/tmp/nix-test/main/fetchGitVerification/.ssh/testkey1.pub
+The key fingerprint is:
+SHA256:7W8G/I02dO/UTA90TZoitI6VwUoNhjxx6XtdXnxaZW8 test key 1
+The key's randomart image is:
++--[ED25519 256]--+
+|     ..o+=o     .|
+|      +oo.o+   ++|
+|       + .= . +o=|
+|        o= . o..E|
+|        Soo. o.=o|
+|        ..+ o ++o|
+|         ..+ + .=|
+|           .B ...|
+|           +.. ..|
++----[SHA256]-----+
++(fetchGitVerification.sh:16) key1File=/var/tmp/fg2/fn/nfDu3og6/tmp/nix-test/main/fetchGitVerification/.ssh/testkey1.pub
+++(fetchGitVerification.sh:17) awk '{print $2}' /var/tmp/fg2/fn/nfDu3og6/tmp/nix-test/main/fetchGitVerification/.ssh/testkey1.pub
++(fetchGitVerification.sh:17) publicKey1=AAAAC3NzaC1lZDI1NTE5AAAAIPbM+QY+Eae1jwzUJaT4Ib7AcZc80cum3nSdLsuiDpTk
++(fetchGitVerification.sh:18) ssh-keygen -f /var/tmp/fg2/fn/nfDu3og6/tmp/nix-test/main/fetchGitVerification/.ssh/testkey2 -t rsa -P '' -C 'test key 2'
+Generating public/private rsa key pair.
+Your identification has been saved in /var/tmp/fg2/fn/nfDu3og6/tmp/nix-test/main/fetchGitVerification/.ssh/testkey2
+Your public key has been saved in /var/tmp/fg2/fn/nfDu3og6/tmp/nix-test/main/fetchGitVerification/.ssh/testkey2.pub
+The key fingerprint is:
+SHA256:r8B2kBGfNYaGaxZ5G7TroL87pUQ0O6O5hzdnqXFacLE test key 2
+The key's randomart image is:
++---[RSA 3072]----+
+|      .+..+      |
+|      *o== .     |
+|     ..B=o       |
+|      Oo.+       |
+|     *=oE        |
+|    oo.*..       |
+|    .+=o=..      |
+|    oo*B+.       |
+|     o*O.        |
++----[SHA256]-----+
++(fetchGitVerification.sh:19) key2File=/var/tmp/fg2/fn/nfDu3og6/tmp/nix-test/main/fetchGitVerification/.ssh/testkey2.pub
+++(fetchGitVerification.sh:20) awk '{print $2}' /var/tmp/fg2/fn/nfDu3og6/tmp/nix-test/main/fetchGitVerification/.ssh/testkey2.pub
++(fetchGitVerification.sh:20) publicKey2=AAAAB3NzaC1yc2EAAAADAQABAAABgQDiZAei3DFyg7CjKYY7vApTQ3vRHgjjLU83sO20LtIS253to5Pii1nx9FgCBdDlv4rayD0REu8BZcUuoscKHm9nf2gMGJ9eWVZeq1duUPOuNhtC0sAcfq5UpAoITqQXzReeXIJYaDGoNN6BXGon+ZimcXlbFWCF84O4LjgrkXb3sJWzy46U0abtCVNG0nHVWUonAnzi7/MQNb8Y91spDtMaPwZ9gjyewF9v/Iz2KARl/t4Ui/hP9jHJcOL/i+CwTt90w3EgDmnh3jOvWotKnqgjACfjMmZOTV8QOtNegpGX7JbiZF+lhvPvPK9a7RdaAtDTcxIhK3iMz/FRgCtITd0EOVy/F1Y2WKPXSjE/1wQiQKZmruplGBYjxMAseYYHr2ekmPmfn48zXQ7WEpwpTQjbX6G6i4grjsfLoEJt35tJEAix7cH9bIExtkb+pfxV8WjIyvXWqb6HgXr0GrpWp8vhZrYkZzUICDQQoEEq2zwB9ahcsML3+6QH9fshkKxGglc=
++(fetchGitVerification.sh:22) createGitRepo /var/tmp/fg2/fn/nfDu3og6/tmp/nix-test/main/fetchGitVerification/git
++(/var/tmp/fg2/fn/nfDu3og6/src/common/functions.sh:377) local repo=/var/tmp/fg2/fn/nfDu3og6/tmp/nix-test/main/fetchGitVerification/git
++(/var/tmp/fg2/fn/nfDu3og6/src/common/functions.sh:378) local extraArgs=
++(/var/tmp/fg2/fn/nfDu3og6/src/common/functions.sh:380) rm -rf /var/tmp/fg2/fn/nfDu3og6/tmp/nix-test/main/fetchGitVerification/git /var/tmp/fg2/fn/nfDu3og6/tmp/nix-test/main/fetchGitVerification/git.tmp
++(/var/tmp/fg2/fn/nfDu3og6/src/common/functions.sh:381) mkdir -p /var/tmp/fg2/fn/nfDu3og6/tmp/nix-test/main/fetchGitVerification/git
++(/var/tmp/fg2/fn/nfDu3og6/src/common/functions.sh:384) initGitRepo /var/tmp/fg2/fn/nfDu3og6/tmp/nix-test/main/fetchGitVerification/git
++(/var/tmp/fg2/fn/nfDu3og6/src/common/functions.sh:367) local repo=/var/tmp/fg2/fn/nfDu3og6/tmp/nix-test/main/fetchGitVerification/git
++(/var/tmp/fg2/fn/nfDu3og6/src/common/functions.sh:368) local extraArgs=
++(/var/tmp/fg2/fn/nfDu3og6/src/common/functions.sh:371) git -C /var/tmp/fg2/fn/nfDu3og6/tmp/nix-test/main/fetchGitVerification/git init
+hint: Using 'master' as the name for the initial branch. This default branch name
+hint: will change to "main" in Git 3.0. To configure the initial branch name
+hint: to use in all of your new repositories, which will suppress this warning,
+hint: call:
+hint:
+hint: 	git config --global init.defaultBranch <name>
+hint:
+hint: Names commonly chosen instead of 'master' are 'main', 'trunk' and
+hint: 'development'. The just-created branch can be renamed via this command:
+hint:
+hint: 	git branch -m <name>
+hint:
+hint: Disable this message with "git config set advice.defaultBranchName false"
+Initialized empty Git repository in /var/tmp/fg2/fn/nfDu3og6/tmp/nix-test/main/fetchGitVerification/git/.git/
++(/var/tmp/fg2/fn/nfDu3og6/src/common/functions.sh:372) git -C /var/tmp/fg2/fn/nfDu3og6/tmp/nix-test/main/fetchGitVerification/git config user.email foobar@example.com
++(/var/tmp/fg2/fn/nfDu3og6/src/common/functions.sh:373) git -C /var/tmp/fg2/fn/nfDu3og6/tmp/nix-test/main/fetchGitVerification/git config user.name Foobar
++(fetchGitVerification.sh:23) git -C /var/tmp/fg2/fn/nfDu3og6/tmp/nix-test/main/fetchGitVerification/git config gpg.format ssh
++(fetchGitVerification.sh:25) echo hello
++(fetchGitVerification.sh:26) git -C /var/tmp/fg2/fn/nfDu3og6/tmp/nix-test/main/fetchGitVerification/git add text
++(fetchGitVerification.sh:27) git -C /var/tmp/fg2/fn/nfDu3og6/tmp/nix-test/main/fetchGitVerification/git -c user.signingkey=/var/tmp/fg2/fn/nfDu3og6/tmp/nix-test/main/fetchGitVerification/.ssh/testkey1.pub commit -S -m 'initial commit'
+[master (root-commit) 7aca6d3] initial commit
+ 1 file changed, 1 insertion(+)
+ create mode 100644 text
+++(fetchGitVerification.sh:29) nix eval --impure --raw --expr 'builtins.fetchGit { url = "file:///var/tmp/fg2/fn/nfDu3og6/tmp/nix-test/main/fetchGitVerification/git"; keytype = "ssh-rsa"; publicKey = "AAAAB3NzaC1yc2EAAAADAQABAAABgQDiZAei3DFyg7CjKYY7vApTQ3vRHgjjLU83sO20LtIS253to5Pii1nx9FgCBdDlv4rayD0REu8BZcUuoscKHm9nf2gMGJ9eWVZeq1duUPOuNhtC0sAcfq5UpAoITqQXzReeXIJYaDGoNN6BXGon+ZimcXlbFWCF84O4LjgrkXb3sJWzy46U0abtCVNG0nHVWUonAnzi7/MQNb8Y91spDtMaPwZ9gjyewF9v/Iz2KARl/t4Ui/hP9jHJcOL/i+CwTt90w3EgDmnh3jOvWotKnqgjACfjMmZOTV8QOtNegpGX7JbiZF+lhvPvPK9a7RdaAtDTcxIhK3iMz/FRgCtITd0EOVy/F1Y2WKPXSjE/1wQiQKZmruplGBYjxMAseYYHr2ekmPmfn48zXQ7WEpwpTQjbX6G6i4grjsfLoEJt35tJEAix7cH9bIExtkb+pfxV8WjIyvXWqb6HgXr0GrpWp8vhZrYkZzUICDQQoEEq2zwB9ahcsML3+6QH9fshkKxGglc="; }'
++(fetchGitVerification.sh:29) out=$'warning: you don\'t have Internet access; disabling some network-dependent features\nerror:\n       \342\200\246 while calling the \'fetchGit\' builtin\n         at \302\253string\302\273:1:1:\n            1| builtins.fetchGit { url = "file:///var/tmp/fg2/fn/nfDu3og6/tmp/nix-test/main/fetchGitVerification/git"; keytype = "ssh-rsa"; publicKey = "AAAAB3NzaC1yc2EAAAADAQABAAABgQDiZAei3DFyg7CjKYY7vApTQ3vRHgjjLU83sO20LtIS253to5Pii1nx9FgCBdDlv4rayD0REu8BZcUuoscKHm9nf2gMGJ9eWVZeq1duUPOuNhtC0sAcfq5UpAoITqQXzReeXIJYaDGoNN6BXGon+ZimcXlbFWCF84O4LjgrkXb3sJWzy46U0abtCVNG0nHVWUonAnzi7/MQNb8Y91spDtMaPwZ9gjyewF9v/Iz2KARl/t4Ui/hP9jHJcOL/i+CwTt90w3EgDmnh3jOvWotKnqgjACfjMmZOTV8QOtNegpGX7JbiZF+lhvPvPK9a7RdaAtDTcxIhK3iMz/FRgCtITd0EOVy/F1Y2WKPXSjE/1wQiQKZmruplGBYjxMAseYYHr2ekmPmfn48zXQ7WEpwpTQjbX6G6i4grjsfLoEJt35tJEAix7cH9bIExtkb+pfxV8WjIyvXWqb6HgXr0GrpWp8vhZrYkZzUICDQQoEEq2zwB9ahcsML3+6QH9fshkKxGglc="; }\n             | ^\n\n       \342\200\246 while fetching the input \'git+file:///var/tmp/fg2/fn/nfDu3og6/tmp/nix-test/main/fetchGitVerification/git?exportIgnore=1&keytype=ssh-rsa&publicKey=AAAAB3NzaC1yc2EAAAADAQABAAABgQDiZAei3DFyg7CjKYY7vApTQ3vRHgjjLU83sO20LtIS253to5Pii1nx9FgCBdDlv4rayD0REu8BZcUuoscKHm9nf2gMGJ9eWVZeq1duUPOuNhtC0sAcfq5UpAoITqQXzReeXIJYaDGoNN6BXGon%2BZimcXlbFWCF84O4LjgrkXb3sJWzy46U0abtCVNG0nHVWUonAnzi7/MQNb8Y91spDtMaPwZ9gjyewF9v/Iz2KARl/t4Ui/hP9jHJcOL/i%2BCwTt90w3EgDmnh3jOvWotKnqgjACfjMmZOTV8QOtNegpGX7JbiZF%2BlhvPvPK9a7RdaAtDTcxIhK3iMz/FRgCtITd0EOVy/F1Y2WKPXSjE/1wQiQKZmruplGBYjxMAseYYHr2ekmPmfn48zXQ7WEpwpTQjbX6G6i4grjsfLoEJt35tJEAix7cH9bIExtkb%2BpfxV8WjIyvXWqb6HgXr0GrpWp8vhZrYkZzUICDQQoEEq2zwB9ahcsML3%2B6QH9fshkKxGglc%3D\'\n\n       error: Commit signature verification on commit 7aca6d3fd48270a2b95cab5ef279efc4c2ed44c7 failed: Good "git" signature with ED25519 key SHA256:7W8G/I02dO/UTA90TZoitI6VwUoNhjxx6XtdXnxaZW8\n       No principal matched.\n       '
++(fetchGitVerification.sh:29) status=1
++(fetchGitVerification.sh:30) [[ 1 == 1 ]]
++(fetchGitVerification.sh:31) [[ warning: you don't have Internet access; disabling some network-dependent features
+error:
+       … while calling the 'fetchGit' builtin
+         at «string»:1:1:
+            1| builtins.fetchGit { url = "file:///var/tmp/fg2/fn/nfDu3og6/tmp/nix-test/main/fetchGitVerification/git"; keytype = "ssh-rsa"; publicKey = "AAAAB3NzaC1yc2EAAAADAQABAAABgQDiZAei3DFyg7CjKYY7vApTQ3vRHgjjLU83sO20LtIS253to5Pii1nx9FgCBdDlv4rayD0REu8BZcUuoscKHm9nf2gMGJ9eWVZeq1duUPOuNhtC0sAcfq5UpAoITqQXzReeXIJYaDGoNN6BXGon+ZimcXlbFWCF84O4LjgrkXb3sJWzy46U0abtCVNG0nHVWUonAnzi7/MQNb8Y91spDtMaPwZ9gjyewF9v/Iz2KARl/t4Ui/hP9jHJcOL/i+CwTt90w3EgDmnh3jOvWotKnqgjACfjMmZOTV8QOtNegpGX7JbiZF+lhvPvPK9a7RdaAtDTcxIhK3iMz/FRgCtITd0EOVy/F1Y2WKPXSjE/1wQiQKZmruplGBYjxMAseYYHr2ekmPmfn48zXQ7WEpwpTQjbX6G6i4grjsfLoEJt35tJEAix7cH9bIExtkb+pfxV8WjIyvXWqb6HgXr0GrpWp8vhZrYkZzUICDQQoEEq2zwB9ahcsML3+6QH9fshkKxGglc="; }
+             | ^
+
+       … while fetching the input 'git+file:///var/tmp/fg2/fn/nfDu3og6/tmp/nix-test/main/fetchGitVerification/git?exportIgnore=1&keytype=ssh-rsa&publicKey=AAAAB3NzaC1yc2EAAAADAQABAAABgQDiZAei3DFyg7CjKYY7vApTQ3vRHgjjLU83sO20LtIS253to5Pii1nx9FgCBdDlv4rayD0REu8BZcUuoscKHm9nf2gMGJ9eWVZeq1duUPOuNhtC0sAcfq5UpAoITqQXzReeXIJYaDGoNN6BXGon%2BZimcXlbFWCF84O4LjgrkXb3sJWzy46U0abtCVNG0nHVWUonAnzi7/MQNb8Y91spDtMaPwZ9gjyewF9v/Iz2KARl/t4Ui/hP9jHJcOL/i%2BCwTt90w3EgDmnh3jOvWotKnqgjACfjMmZOTV8QOtNegpGX7JbiZF%2BlhvPvPK9a7RdaAtDTcxIhK3iMz/FRgCtITd0EOVy/F1Y2WKPXSjE/1wQiQKZmruplGBYjxMAseYYHr2ekmPmfn48zXQ7WEpwpTQjbX6G6i4grjsfLoEJt35tJEAix7cH9bIExtkb%2BpfxV8WjIyvXWqb6HgXr0GrpWp8vhZrYkZzUICDQQoEEq2zwB9ahcsML3%2B6QH9fshkKxGglc%3D'
+
+       error: Commit signature verification on commit 7aca6d3fd48270a2b95cab5ef279efc4c2ed44c7 failed: Good "git" signature with ED25519 key SHA256:7W8G/I02dO/UTA90TZoitI6VwUoNhjxx6XtdXnxaZW8
+       No principal matched.
+        == *No principal matched\.* ]]
+++(fetchGitVerification.sh:32) nix eval --impure --raw --expr 'builtins.readFile (builtins.fetchGit { url = "file:///var/tmp/fg2/fn/nfDu3og6/tmp/nix-test/main/fetchGitVerification/git"; publicKey = "AAAAC3NzaC1lZDI1NTE5AAAAIPbM+QY+Eae1jwzUJaT4Ib7AcZc80cum3nSdLsuiDpTk"; } + "/text")'
+warning: you don't have Internet access; disabling some network-dependent features
++(fetchGitVerification.sh:32) [[ hello = hello ]]
++(fetchGitVerification.sh:34) echo 'hello world'
+++(fetchGitVerification.sh:37) nix eval --impure --raw --expr 'builtins.fetchGit { url = "file:///var/tmp/fg2/fn/nfDu3og6/tmp/nix-test/main/fetchGitVerification/git"; keytype = "ssh-rsa"; publicKey = "AAAAB3NzaC1yc2EAAAADAQABAAABgQDiZAei3DFyg7CjKYY7vApTQ3vRHgjjLU83sO20LtIS253to5Pii1nx9FgCBdDlv4rayD0REu8BZcUuoscKHm9nf2gMGJ9eWVZeq1duUPOuNhtC0sAcfq5UpAoITqQXzReeXIJYaDGoNN6BXGon+ZimcXlbFWCF84O4LjgrkXb3sJWzy46U0abtCVNG0nHVWUonAnzi7/MQNb8Y91spDtMaPwZ9gjyewF9v/Iz2KARl/t4Ui/hP9jHJcOL/i+CwTt90w3EgDmnh3jOvWotKnqgjACfjMmZOTV8QOtNegpGX7JbiZF+lhvPvPK9a7RdaAtDTcxIhK3iMz/FRgCtITd0EOVy/F1Y2WKPXSjE/1wQiQKZmruplGBYjxMAseYYHr2ekmPmfn48zXQ7WEpwpTQjbX6G6i4grjsfLoEJt35tJEAix7cH9bIExtkb+pfxV8WjIyvXWqb6HgXr0GrpWp8vhZrYkZzUICDQQoEEq2zwB9ahcsML3+6QH9fshkKxGglc="; }'
++(fetchGitVerification.sh:37) out=$'warning: you don\'t have Internet access; disabling some network-dependent features\nwarning: Git tree \'/var/tmp/fg2/fn/nfDu3og6/tmp/nix-test/main/fetchGitVerification/git\' is dirty\nerror:\n       \342\200\246 while calling the \'fetchGit\' builtin\n         at \302\253string\302\273:1:1:\n            1| builtins.fetchGit { url = "file:///var/tmp/fg2/fn/nfDu3og6/tmp/nix-test/main/fetchGitVerification/git"; keytype = "ssh-rsa"; publicKey = "AAAAB3NzaC1yc2EAAAADAQABAAABgQDiZAei3DFyg7CjKYY7vApTQ3vRHgjjLU83sO20LtIS253to5Pii1nx9FgCBdDlv4rayD0REu8BZcUuoscKHm9nf2gMGJ9eWVZeq1duUPOuNhtC0sAcfq5UpAoITqQXzReeXIJYaDGoNN6BXGon+ZimcXlbFWCF84O4LjgrkXb3sJWzy46U0abtCVNG0nHVWUonAnzi7/MQNb8Y91spDtMaPwZ9gjyewF9v/Iz2KARl/t4Ui/hP9jHJcOL/i+CwTt90w3EgDmnh3jOvWotKnqgjACfjMmZOTV8QOtNegpGX7JbiZF+lhvPvPK9a7RdaAtDTcxIhK3iMz/FRgCtITd0EOVy/F1Y2WKPXSjE/1wQiQKZmruplGBYjxMAseYYHr2ekmPmfn48zXQ7WEpwpTQjbX6G6i4grjsfLoEJt35tJEAix7cH9bIExtkb+pfxV8WjIyvXWqb6HgXr0GrpWp8vhZrYkZzUICDQQoEEq2zwB9ahcsML3+6QH9fshkKxGglc="; }\n             | ^\n\n       \342\200\246 while fetching the input \'git+file:///var/tmp/fg2/fn/nfDu3og6/tmp/nix-test/main/fetchGitVerification/git?exportIgnore=1&keytype=ssh-rsa&publicKey=AAAAB3NzaC1yc2EAAAADAQABAAABgQDiZAei3DFyg7CjKYY7vApTQ3vRHgjjLU83sO20LtIS253to5Pii1nx9FgCBdDlv4rayD0REu8BZcUuoscKHm9nf2gMGJ9eWVZeq1duUPOuNhtC0sAcfq5UpAoITqQXzReeXIJYaDGoNN6BXGon%2BZimcXlbFWCF84O4LjgrkXb3sJWzy46U0abtCVNG0nHVWUonAnzi7/MQNb8Y91spDtMaPwZ9gjyewF9v/Iz2KARl/t4Ui/hP9jHJcOL/i%2BCwTt90w3EgDmnh3jOvWotKnqgjACfjMmZOTV8QOtNegpGX7JbiZF%2BlhvPvPK9a7RdaAtDTcxIhK3iMz/FRgCtITd0EOVy/F1Y2WKPXSjE/1wQiQKZmruplGBYjxMAseYYHr2ekmPmfn48zXQ7WEpwpTQjbX6G6i4grjsfLoEJt35tJEAix7cH9bIExtkb%2BpfxV8WjIyvXWqb6HgXr0GrpWp8vhZrYkZzUICDQQoEEq2zwB9ahcsML3%2B6QH9fshkKxGglc%3D\'\n\n       error: commit verification is required for Git repository \'git+file:///var/tmp/fg2/fn/nfDu3og6/tmp/nix-test/main/fetchGitVerification/git?exportIgnore=1&keytype=ssh-rsa&publicKey=AAAAB3NzaC1yc2EAAAADAQABAAABgQDiZAei3DFyg7CjKYY7vApTQ3vRHgjjLU83sO20LtIS253to5Pii1nx9FgCBdDlv4rayD0REu8BZcUuoscKHm9nf2gMGJ9eWVZeq1duUPOuNhtC0sAcfq5UpAoITqQXzReeXIJYaDGoNN6BXGon%2BZimcXlbFWCF84O4LjgrkXb3sJWzy46U0abtCVNG0nHVWUonAnzi7/MQNb8Y91spDtMaPwZ9gjyewF9v/Iz2KARl/t4Ui/hP9jHJcOL/i%2BCwTt90w3EgDmnh3jOvWotKnqgjACfjMmZOTV8QOtNegpGX7JbiZF%2BlhvPvPK9a7RdaAtDTcxIhK3iMz/FRgCtITd0EOVy/F1Y2WKPXSjE/1wQiQKZmruplGBYjxMAseYYHr2ekmPmfn48zXQ7WEpwpTQjbX6G6i4grjsfLoEJt35tJEAix7cH9bIExtkb%2BpfxV8WjIyvXWqb6HgXr0GrpWp8vhZrYkZzUICDQQoEEq2zwB9ahcsML3%2B6QH9fshkKxGglc%3D\', but it\'s dirty'
++(fetchGitVerification.sh:37) status=1
++(fetchGitVerification.sh:38) [[ 1 == 1 ]]
++(fetchGitVerification.sh:39) [[ warning: you don't have Internet access; disabling some network-dependent features
+warning: Git tree '/var/tmp/fg2/fn/nfDu3og6/tmp/nix-test/main/fetchGitVerification/git' is dirty
+error:
+       … while calling the 'fetchGit' builtin
+         at «string»:1:1:
+            1| builtins.fetchGit { url = "file:///var/tmp/fg2/fn/nfDu3og6/tmp/nix-test/main/fetchGitVerification/git"; keytype = "ssh-rsa"; publicKey = "AAAAB3NzaC1yc2EAAAADAQABAAABgQDiZAei3DFyg7CjKYY7vApTQ3vRHgjjLU83sO20LtIS253to5Pii1nx9FgCBdDlv4rayD0REu8BZcUuoscKHm9nf2gMGJ9eWVZeq1duUPOuNhtC0sAcfq5UpAoITqQXzReeXIJYaDGoNN6BXGon+ZimcXlbFWCF84O4LjgrkXb3sJWzy46U0abtCVNG0nHVWUonAnzi7/MQNb8Y91spDtMaPwZ9gjyewF9v/Iz2KARl/t4Ui/hP9jHJcOL/i+CwTt90w3EgDmnh3jOvWotKnqgjACfjMmZOTV8QOtNegpGX7JbiZF+lhvPvPK9a7RdaAtDTcxIhK3iMz/FRgCtITd0EOVy/F1Y2WKPXSjE/1wQiQKZmruplGBYjxMAseYYHr2ekmPmfn48zXQ7WEpwpTQjbX6G6i4grjsfLoEJt35tJEAix7cH9bIExtkb+pfxV8WjIyvXWqb6HgXr0GrpWp8vhZrYkZzUICDQQoEEq2zwB9ahcsML3+6QH9fshkKxGglc="; }
+             | ^
+
+       … while fetching the input 'git+file:///var/tmp/fg2/fn/nfDu3og6/tmp/nix-test/main/fetchGitVerification/git?exportIgnore=1&keytype=ssh-rsa&publicKey=AAAAB3NzaC1yc2EAAAADAQABAAABgQDiZAei3DFyg7CjKYY7vApTQ3vRHgjjLU83sO20LtIS253to5Pii1nx9FgCBdDlv4rayD0REu8BZcUuoscKHm9nf2gMGJ9eWVZeq1duUPOuNhtC0sAcfq5UpAoITqQXzReeXIJYaDGoNN6BXGon%2BZimcXlbFWCF84O4LjgrkXb3sJWzy46U0abtCVNG0nHVWUonAnzi7/MQNb8Y91spDtMaPwZ9gjyewF9v/Iz2KARl/t4Ui/hP9jHJcOL/i%2BCwTt90w3EgDmnh3jOvWotKnqgjACfjMmZOTV8QOtNegpGX7JbiZF%2BlhvPvPK9a7RdaAtDTcxIhK3iMz/FRgCtITd0EOVy/F1Y2WKPXSjE/1wQiQKZmruplGBYjxMAseYYHr2ekmPmfn48zXQ7WEpwpTQjbX6G6i4grjsfLoEJt35tJEAix7cH9bIExtkb%2BpfxV8WjIyvXWqb6HgXr0GrpWp8vhZrYkZzUICDQQoEEq2zwB9ahcsML3%2B6QH9fshkKxGglc%3D'
+
+       error: commit verification is required for Git repository 'git+file:///var/tmp/fg2/fn/nfDu3og6/tmp/nix-test/main/fetchGitVerification/git?exportIgnore=1&keytype=ssh-rsa&publicKey=AAAAB3NzaC1yc2EAAAADAQABAAABgQDiZAei3DFyg7CjKYY7vApTQ3vRHgjjLU83sO20LtIS253to5Pii1nx9FgCBdDlv4rayD0REu8BZcUuoscKHm9nf2gMGJ9eWVZeq1duUPOuNhtC0sAcfq5UpAoITqQXzReeXIJYaDGoNN6BXGon%2BZimcXlbFWCF84O4LjgrkXb3sJWzy46U0abtCVNG0nHVWUonAnzi7/MQNb8Y91spDtMaPwZ9gjyewF9v/Iz2KARl/t4Ui/hP9jHJcOL/i%2BCwTt90w3EgDmnh3jOvWotKnqgjACfjMmZOTV8QOtNegpGX7JbiZF%2BlhvPvPK9a7RdaAtDTcxIhK3iMz/FRgCtITd0EOVy/F1Y2WKPXSjE/1wQiQKZmruplGBYjxMAseYYHr2ekmPmfn48zXQ7WEpwpTQjbX6G6i4grjsfLoEJt35tJEAix7cH9bIExtkb%2BpfxV8WjIyvXWqb6HgXr0GrpWp8vhZrYkZzUICDQQoEEq2zwB9ahcsML3%2B6QH9fshkKxGglc%3D', but it's dirty =~ dirty ]]
++(fetchGitVerification.sh:41) git -C /var/tmp/fg2/fn/nfDu3og6/tmp/nix-test/main/fetchGitVerification/git add text
++(fetchGitVerification.sh:42) git -C /var/tmp/fg2/fn/nfDu3og6/tmp/nix-test/main/fetchGitVerification/git -c user.signingkey=/var/tmp/fg2/fn/nfDu3og6/tmp/nix-test/main/fetchGitVerification/.ssh/testkey2.pub commit -S -m 'second commit'
+[master 37055b5] second commit
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+++(fetchGitVerification.sh:44) nix eval --impure --raw --expr 'builtins.readFile (builtins.fetchGit { url = "file:///var/tmp/fg2/fn/nfDu3og6/tmp/nix-test/main/fetchGitVerification/git"; publicKeys = [{key = "AAAAC3NzaC1lZDI1NTE5AAAAIPbM+QY+Eae1jwzUJaT4Ib7AcZc80cum3nSdLsuiDpTk";} {type = "ssh-rsa"; key = "AAAAB3NzaC1yc2EAAAADAQABAAABgQDiZAei3DFyg7CjKYY7vApTQ3vRHgjjLU83sO20LtIS253to5Pii1nx9FgCBdDlv4rayD0REu8BZcUuoscKHm9nf2gMGJ9eWVZeq1duUPOuNhtC0sAcfq5UpAoITqQXzReeXIJYaDGoNN6BXGon+ZimcXlbFWCF84O4LjgrkXb3sJWzy46U0abtCVNG0nHVWUonAnzi7/MQNb8Y91spDtMaPwZ9gjyewF9v/Iz2KARl/t4Ui/hP9jHJcOL/i+CwTt90w3EgDmnh3jOvWotKnqgjACfjMmZOTV8QOtNegpGX7JbiZF+lhvPvPK9a7RdaAtDTcxIhK3iMz/FRgCtITd0EOVy/F1Y2WKPXSjE/1wQiQKZmruplGBYjxMAseYYHr2ekmPmfn48zXQ7WEpwpTQjbX6G6i4grjsfLoEJt35tJEAix7cH9bIExtkb+pfxV8WjIyvXWqb6HgXr0GrpWp8vhZrYkZzUICDQQoEEq2zwB9ahcsML3+6QH9fshkKxGglc=";}]; } + "/text")'
+warning: you don't have Internet access; disabling some network-dependent features
++(fetchGitVerification.sh:44) [[ hello world = hello world ]]
++(fetchGitVerification.sh:47) flakeDir=/var/tmp/fg2/fn/nfDu3og6/tmp/nix-test/main/fetchGitVerification/flake
++(fetchGitVerification.sh:48) mkdir -p /var/tmp/fg2/fn/nfDu3og6/tmp/nix-test/main/fetchGitVerification/flake
++(fetchGitVerification.sh:49) cat
++(fetchGitVerification.sh:63) nix build --out-link /var/tmp/fg2/fn/nfDu3og6/tmp/nix-test/main/fetchGitVerification/flake/result /var/tmp/fg2/fn/nfDu3og6/tmp/nix-test/main/fetchGitVerification/flake#test
+warning: you don't have Internet access; disabling some network-dependent features
+warning: creating lock file "/var/tmp/fg2/fn/nfDu3og6/tmp/nix-test/main/fetchGitVerification/flake/flake.lock": 
+• Added input 'test':
+    'git+file:///var/tmp/fg2/fn/nfDu3og6/tmp/nix-test/main/fetchGitVerification/git?keytype=ssh-rsa&publicKey=AAAAB3NzaC1yc2EAAAADAQABAAABgQDiZAei3DFyg7CjKYY7vApTQ3vRHgjjLU83sO20LtIS253to5Pii1nx9FgCBdDlv4rayD0REu8BZcUuoscKHm9nf2gMGJ9eWVZeq1duUPOuNhtC0sAcfq5UpAoITqQXzReeXIJYaDGoNN6BXGon%2BZimcXlbFWCF84O4LjgrkXb3sJWzy46U0abtCVNG0nHVWUonAnzi7/MQNb8Y91spDtMaPwZ9gjyewF9v/Iz2KARl/t4Ui/hP9jHJcOL/i%2BCwTt90w3EgDmnh3jOvWotKnqgjACfjMmZOTV8QOtNegpGX7JbiZF%2BlhvPvPK9a7RdaAtDTcxIhK3iMz/FRgCtITd0EOVy/F1Y2WKPXSjE/1wQiQKZmruplGBYjxMAseYYHr2ekmPmfn48zXQ7WEpwpTQjbX6G6i4grjsfLoEJt35tJEAix7cH9bIExtkb%2BpfxV8WjIyvXWqb6HgXr0GrpWp8vhZrYkZzUICDQQoEEq2zwB9ahcsML3%2B6QH9fshkKxGglc%3D&ref=refs/heads/master&rev=37055b51f7a467f9119c13aad69e3322fbdda32d' (2026-11-24)
+++(fetchGitVerification.sh:64) cat /var/tmp/fg2/fn/nfDu3og6/tmp/nix-test/main/fetchGitVerification/flake/result/text
++(fetchGitVerification.sh:64) [[ hello world = hello world ]]
++(fetchGitVerification.sh:66) cat
+++(fetchGitVerification.sh:78) nix build /var/tmp/fg2/fn/nfDu3og6/tmp/nix-test/main/fetchGitVerification/flake#test
++(fetchGitVerification.sh:78) out=$'warning: you don\'t have Internet access; disabling some network-dependent features\nerror:\n       \342\200\246 while updating the lock file of flake \'path:/var/tmp/fg2/fn/nfDu3og6/tmp/nix-test/main/fetchGitVerification/flake?lastModified=1795561684&narHash=sha256-3rW9VCsienS4Qm4SjnKSPezQI9ip%2BptjoBpyeKLXrhQ%3D\'\n\n       \342\200\246 while updating the flake input \'test\'\n\n       \342\200\246 while fetching the input \'git+file:///var/tmp/fg2/fn/nfDu3og6/tmp/nix-test/main/fetchGitVerification/git?keytype=ssh-ed25519&publicKey=AAAAC3NzaC1lZDI1NTE5AAAAIPbM%2BQY%2BEae1jwzUJaT4Ib7AcZc80cum3nSdLsuiDpTk\'\n\n       error: Commit signature verification on commit 37055b51f7a467f9119c13aad69e3322fbdda32d failed: Good "git" signature with RSA key SHA256:r8B2kBGfNYaGaxZ5G7TroL87pUQ0O6O5hzdnqXFacLE\n       No principal matched.\n       '
++(fetchGitVerification.sh:78) status=1
++(fetchGitVerification.sh:80) [[ 1 == 1 ]]
++(fetchGitVerification.sh:81) [[ warning: you don't have Internet access; disabling some network-dependent features
+error:
+       … while updating the lock file of flake 'path:/var/tmp/fg2/fn/nfDu3og6/tmp/nix-test/main/fetchGitVerification/flake?lastModified=1795561684&narHash=sha256-3rW9VCsienS4Qm4SjnKSPezQI9ip%2BptjoBpyeKLXrhQ%3D'
+
+       … while updating the flake input 'test'
+
+       … while fetching the input 'git+file:///var/tmp/fg2/fn/nfDu3og6/tmp/nix-test/main/fetchGitVerification/git?keytype=ssh-ed25519&publicKey=AAAAC3NzaC1lZDI1NTE5AAAAIPbM%2BQY%2BEae1jwzUJaT4Ib7AcZc80cum3nSdLsuiDpTk'
+
+       error: Commit signature verification on commit 37055b51f7a467f9119c13aad69e3322fbdda32d failed: Good "git" signature with RSA key SHA256:r8B2kBGfNYaGaxZ5G7TroL87pUQ0O6O5hzdnqXFacLE
+       No principal matched.
+        == *No principal matched\.* ]]

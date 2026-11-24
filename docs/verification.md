@@ -421,7 +421,7 @@ The table groups the 137 gap scripts of the store-tier records at `84aec12` (`te
 | Separate causes: options, output and diagnostics of single commands | 23 | Varies by script | 12 | 1,024 |
 | Total | 137 | | | |
 
-Three of these causes were closed on 2026-11-25. A run of all 214 scripts under both engines at `67d7907` ([records](../tests/compat-results/2026-11-25-67d7907-store/)) gives 73 pass, 129 gap, 10 anomaly and 2 unrun, and no script that passed before fails. `reference_installables` compares each closed behavior with the reference.
+Three of these causes were closed on 2026-11-25. A run of all 214 scripts under both engines at `67d7907` (`tests/compat-results/2026-11-25-67d7907-store` in Git at `1d483bb7`) gave 73 pass, 129 gap, 10 anomaly and 2 unrun, and no script that passed before failed. `reference_installables` compares each closed behavior with the reference.
 
 - Host store objects in a chroot store: reads prefer the host's file and listings are merged, as in the reference. Copying a directory to the store when both stores hold it with different contents still uses the host's copy alone, where the reference merges them; a valid path is the same in both. None of the 17 scripts still fails there and none passes yet. The 9 overlay scripts stop at `local-overlay://` and the 8 remote build scripts at remote builders, which noxi does not run.
 - Content-addressed outputs: `ca/build-with-garbage-path`, `ca/derivation-json`, `ca/import-from-derivation`, `ca/nix-run`, `ca/selfref-gc` and `ca/why-depends` pass. `ca/nix-shell` and `ca/multiple-outputs` stop at store derivation arguments, `ca/post-hook` at `--check`, `ca/build-cache` at `nix copy --all`, and `ca/build` at a build without jobs after a garbage collection (`testGC`). Building text, impure and dynamic outputs remains open.
@@ -429,7 +429,35 @@ Three of these causes were closed on 2026-11-25. A run of all 214 scripts under 
 
 The store directory constant in `.narinfo` files is fixed: `ca/substitute` now stops at `nix store build-trace info --file`. `ca/duplicate-realisation-in-closure` and `local-overlay-store/stale-file-handle` are skipped by upstream itself under both engines now, so they stay anomalies.
 
-The scripts of each row:
+Four more causes were closed later that day. The run at `877665e` ([records](../tests/compat-results/2026-11-25-877665e-store/)) gives 84 pass, 118 gap, 10 anomaly and 2 unrun, and no script that passed before fails. `reference_rebuild` and `reference_cache_store` compare each behavior with the reference.
+
+- Rebuilding with some outputs valid (row 3): unsandboxed builds write an output whose path is present to a scratch path and rewrite its hash parts afterwards, as `DerivationBuilderImpl` does. `build-delete` and `ca/build-delete` pass.
+- `--check` and repair (row 6): `repair` and `post-hook` pass, and `ca/post-hook` from row 2. `check` reaches line 95 of 122 and stops at `builtin:fetchurl`; `linux-sandbox` reaches line 81 of 148 and stops at `ssl-cert-file` in fixed-output sandboxes. `keep-failed`, `diff-hook` and `post-build-hook` work. `nix build --rebuild` and `--repair` still fail explicitly.
+- Store derivation arguments (row 10): `nix-build` and `multiple-outputs` pass, and `ca/multiple-outputs` from row 2. `nix-shell` and `ca/nix-shell` stop at shebang scripts.
+- `file://` as a store and store types (row 7): `ca/nix-copy`, `ca/signatures` and `read-only-store` pass. `binary-cache` reaches line 99 of 372 and stops at the HTTP code path forced by `_NIX_FORCE_HTTP`; `binary-cache-build-remote` stops at remote builders, `build-remote-with-mounted-ssh-ng` at `mounted-ssh-ng://` and `bad-uris` at `local-overlay://`. `signing` (row 19) reaches line 103 of 119 and stops at the `require-sigs` store parameter.
+
+Building text, impure, dynamic and Git-hashed outputs (rows 2 and 4) was not started.
+
+Known differences in these areas:
+
+- With `ca-derivations` enabled, 2.35.2 takes a registered realisation as proof that an output is good, so `--repair` and `nix-store --repair-path` leave a damaged output as it is and exit 0. noxi repairs it. The repair comparison therefore runs without that feature.
+- 2.35.2's `diff-hook` fails as an ordinary user because it calls `setgroups`; noxi runs the hook. `--check` in 2.35.2 also leaves the scratch outputs of a differing build in the store directory; noxi removes them unless it keeps them as `.check`.
+- `NIX_CONFIG` in `post-build-hook` holds the settings that were set, where 2.35.2 writes every setting.
+- An invalid output name is reported as the name of the output's path, without the path's hash.
+- Among independent derivations, noxi still starts builds in name order, which is not always the reference's order.
+
+Security-relevant behavior and its negative tests:
+
+- `VerifyStore` and `BuildPaths` repairs are refused for untrusted daemon clients, which also cannot set `post-build-hook`, `diff-hook` or `run-diff-hook` (`verification_repairs_damaged_outputs_and_rejects_untrusted_clients`, `client_setting_overrides_match_the_reference`).
+- A copied realisation needs a signature by a trusted key unless signature checks are off, even when its output is content-addressed (`unsigned_copies_are_refused_like_the_reference`, `secret_key_files_sign_builds_like_the_reference`).
+- `nix copy` between stores kept the source's ultimate trust, so `nix store verify` accepted an unsigned copy. It no longer does (`copies_between_stores_are_not_ultimately_trusted`).
+- A fixed output is copied into a directory the builder cannot enter before it is hashed and registered, as `moveOutputToTempDir` does, so a process the builder left behind holds no writable descriptor of it. No test exercises such a process.
+
+`reference_rebuild`, `reference_cache_store` and `reference_installables` run with no other test alongside. On a loaded host the reference itself fails unsandboxed builds with `builder failed due to signal 9 (Killed)`: forty concurrent `nix-build` loops of a trivial derivation, with no noxi code involved, showed it repeatedly.
+
+`reference_daemon_client`'s `refused_clients_fail_like_cppnix` failed once in about ten loaded runs of the crate. Its output was not captured. The test connects once the reference's socket file exists, which can be before the daemon listens; this was not proved to be the cause and the test is unchanged.
+
+The scripts of each row, as of `84aec12`:
 
 1. `build-remote-content-addressed-fixed`, `build-remote-content-addressed-floating`, `build-remote-input-addressed`, `build-remote-trustless-should-fail-0`, `build-remote-trustless-should-pass-0`, `build-remote-trustless-should-pass-1`, `build-remote-trustless-should-pass-2`, `build-remote-trustless-should-pass-3`, `local-overlay-store/add-lower`, `local-overlay-store/build`, `local-overlay-store/check-post-init`, `local-overlay-store/delete-duplicate`, `local-overlay-store/delete-refs`, `local-overlay-store/gc`, `local-overlay-store/optimise`, `local-overlay-store/redundant-add`, `local-overlay-store/verify`.
 2. `ca/build`, `ca/build-cache`, `ca/build-with-garbage-path`, `ca/derivation-json`, `ca/import-from-derivation`, `ca/multiple-outputs`, `ca/nix-run`, `ca/nix-shell`, `ca/post-hook`, `ca/selfref-gc`, `ca/why-depends`, `dyn-drv/build-built-drv`, `dyn-drv/dep-built-drv`, `dyn-drv/dep-built-drv-2`, `dyn-drv/failing-outer`, `dyn-drv/text-hashed-output`, `impure-derivations`.
@@ -637,7 +665,7 @@ These are normalized wire comparisons. Store roots, process/activity IDs, regist
 
 `noxi-daemon/tests/startup.rs` runs the actual executable with the NixOS-style `--daemon` invocation, its default socket location, and a configured diverted store. `--stdio`, `--force-trusted`, `--force-untrusted`, `--default-trust`, and `--process-ops` have reference comparisons, including their experimental-feature gates. Normal socket connections authorize peer credentials; trust overrides bypass peer authorization as the reference does. Every socket connection forks a worker with its own session. Systemd activation consumes matching descriptors from fd 3 using `LISTEN_FDS`, `LISTEN_PID` and optional `LISTEN_FDNAMES`, and does not bind a second socket. Executable tests cover named and unnamed activation, source registration and same-connection reuse, evaluator `builtins.toFile` registration through the socket, and restart with an existing store and stale socket. Default system-store path selection is checked without opening it. All runtime tests use diverted stores; no host daemon was started or replaced.
 
-The worker and system gates remain open. Unqualified or unsupported cases include check builds, complete closure repair and repair substitution, floating/impure/dynamic derivations, exhaustive build failure results, the progress counts of `BuildPathsWithResults` with opaque paths and of repairs, crash/restart recovery during a write, complete multi-user privilege boundaries (see [Daemon authorization and connection lifecycle, 2026-11-21](#daemon-authorization-and-connection-lifecycle-2026-11-21)), remote backing stores for stdio forwarding, and the selected NixOS/Home Manager VM replacement run. Startup and source registration tests remove the observed CLI startup blocker; they do not establish a successful NixOS rebuild or Home Manager activation.
+The worker and system gates remain open. Unqualified or unsupported cases include impure and dynamic derivations, exhaustive build failure results, the progress counts of `BuildPathsWithResults` with opaque paths and of repairs, crash/restart recovery during a write, complete multi-user privilege boundaries (see [Daemon authorization and connection lifecycle, 2026-11-21](#daemon-authorization-and-connection-lifecycle-2026-11-21)), remote backing stores for stdio forwarding, and the selected NixOS/Home Manager VM replacement run. Startup and source registration tests remove the observed CLI startup blocker; they do not establish a successful NixOS rebuild or Home Manager activation.
 
 `addDrvOutputDependencies`, `parseFlakeRef` and `flakeRefToString` now pass their upstream success fixtures. Eleven additional flake-reference expressions compare values and formatting against the pinned executable, including repeated query parameters and Boolean query syntax. This is partial reference parsing and formatting; fetchers, registries, lockfiles and exhaustive validation remain open.
 
@@ -718,7 +746,7 @@ Still open:
 - Cancelling substitutions and `EnsurePath` when a client hangs up.
 - Crash recovery during a write.
 - `BuildDerivation` from an untrusted client treats only fixed-output derivations as content-addressed. The reference also accepts floating content-addressed and impure derivations.
-- noxi does not repair through `VerifyStore`, so only the untrusted refusal is compared.
+- `VerifyStore` repairs are compared for an untrusted and a trusted client since 2026-11-25.
 - A daemon backed by a remote store, which `--stdio` forwards to, is not supported.
 - noxi reads wire strings as UTF-8. A request with a string that is not UTF-8 fails as a protocol error and closes the connection, where the reference reads bytes and rejects or ignores the value with its own message. A root path with a NUL is cut at the NUL by the reference and refused by noxi.
 
@@ -886,7 +914,7 @@ This round follows `sigs.cc`, `nar.cc`, `ls.cc`, `cat.cc`, `dump-path.cc`, `why-
 - `nix store prefetch-file` downloads, optionally unpacks or makes executable, checks the expected hash and adds the path. Compared over `file://`: text (also with `--quiet`, which still shows the notice), `--json`, `--executable` with SHA-512, invalid `--name` values, a name taken from a percent-encoded URL (with the reference's trace), a missing file, a mismatched expected hash (the reference names a random temporary directory, so only the message before the path is compared) and an expected hash that is already valid.
 - `nix derivation add` reads version-4 JSON into the CppNix derivation model, fills in and checks output paths (`parseJsonAndValidate`) and writes the ATerm. Compared: a round trip, `--dry-run`, wrong and renamed outputs, deferred outputs with and without the output variable, and the written `.drv` bytes and metadata. Malformed JSON fails explicitly, because nlohmann's parse diagnostics are not reproduced.
 - `nix store copy-log` copies a plain or bzip2 local log to another local store as bzip2. Compared: the missing `--from`/`--to`, a path without a deriver, an invalid path, a relative destination root, and a copy whose log the reference then reads back from either engine's destination.
-- `nix store repair` restores a path from a binary cache (`reference_modern_extra`) and reports `cannot repair path` without substituters or a valid deriver. Compared: both errors. Repair by rebuilding the deriver fails explicitly.
+- `nix store repair` restores a path from a binary cache (`reference_modern_extra`) and reports `cannot repair path` without substituters or a valid deriver. Compared: both errors. Since 2026-11-25 it rebuilds a valid deriver (`reference_rebuild` compares `nix-store --repair-path`).
 - `nix store build-trace info` requires `ca-derivations` and prints opaque store paths and their JSON. Compared: the gate and both outputs. Realisations of derivation outputs fail explicitly.
 - `nix store roots-daemon` serves the unchecked runtime roots on `STATE/gc-roots-socket/socket` as NUL-terminated paths. Compared: the non-local store usage error only; the served list depends on host processes, and systemd socket activation fails explicitly.
 - `nix config check` is compared in `reference_operations` (no `nix-env` in `PATH`).

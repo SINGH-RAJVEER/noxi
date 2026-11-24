@@ -1,0 +1,1433 @@
++(fetchurl.sh:3) source common.sh
+++(common.sh:3) set -eu -o pipefail
+++(common.sh:5) [[ -z '' ]]
+++(common.sh:7) COMMON_SH_SOURCED=1
+++++(common.sh:9) dirname common.sh
++++(common.sh:9) readlink -f .
+++(common.sh:9) functionalTestsDir=/var/tmp/fg2/fn/nfjyYVQI/src
+++(common.sh:11) source /var/tmp/fg2/fn/nfjyYVQI/src/common/vars.sh
++++(/var/tmp/fg2/fn/nfjyYVQI/src/common/vars.sh:3) set -eu -o pipefail
++++(/var/tmp/fg2/fn/nfjyYVQI/src/common/vars.sh:5) [[ -z '' ]]
++++(/var/tmp/fg2/fn/nfjyYVQI/src/common/vars.sh:7) COMMON_VARS_SH_SOURCED=1
+++++(/var/tmp/fg2/fn/nfjyYVQI/src/common/vars.sh:9) realpath /var/tmp/fg2/fn/nfjyYVQI/src
++++(/var/tmp/fg2/fn/nfjyYVQI/src/common/vars.sh:9) _NIX_TEST_SOURCE_DIR=/var/tmp/fg2/fn/nfjyYVQI/src
+++++(/var/tmp/fg2/fn/nfjyYVQI/src/common/vars.sh:10) realpath /var/tmp/fg2/fn/nfjyYVQI/build
++++(/var/tmp/fg2/fn/nfjyYVQI/src/common/vars.sh:10) _NIX_TEST_BUILD_DIR=/var/tmp/fg2/fn/nfjyYVQI/build
++++++(/var/tmp/fg2/fn/nfjyYVQI/src/common/vars.sh:12) dirname /var/tmp/fg2/fn/nfjyYVQI/src/common/vars.sh
+++++(/var/tmp/fg2/fn/nfjyYVQI/src/common/vars.sh:12) readlink -f /var/tmp/fg2/fn/nfjyYVQI/src/common
++++(/var/tmp/fg2/fn/nfjyYVQI/src/common/vars.sh:12) commonDir=/var/tmp/fg2/fn/nfjyYVQI/src/common
++++(/var/tmp/fg2/fn/nfjyYVQI/src/common/vars.sh:16) source /var/tmp/fg2/fn/nfjyYVQI/build/common/subst-vars.sh
+++++(/var/tmp/fg2/fn/nfjyYVQI/build/common/subst-vars.sh:3) [[ -z '' ]]
+++++(/var/tmp/fg2/fn/nfjyYVQI/build/common/subst-vars.sh:5) COMMON_SUBST_VARS_SH_SOURCED=1
+++++(/var/tmp/fg2/fn/nfjyYVQI/build/common/subst-vars.sh:7) bash=/nix/store/2ndah67h0z5m31v2wkdmg2md4380ggr5-bash-interactive-5.3p15/bin/bash
+++++(/var/tmp/fg2/fn/nfjyYVQI/build/common/subst-vars.sh:8) bindir=/nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2/bin
+++++(/var/tmp/fg2/fn/nfjyYVQI/build/common/subst-vars.sh:9) coreutils=/nix/store/xjl7p8dvyk2j53kqf7f43kdj4ypbxz7g-coreutils-9.11/bin
+++++(/var/tmp/fg2/fn/nfjyYVQI/build/common/subst-vars.sh:11) dot=
+++++(/var/tmp/fg2/fn/nfjyYVQI/build/common/subst-vars.sh:12) busybox=/nix/store/qddzvnv6b0805nkvbqddbswddcfhx814-busybox-static-x86_64-unknown-linux-musl-1.37.0/bin/busybox
+++++(/var/tmp/fg2/fn/nfjyYVQI/build/common/subst-vars.sh:14) version=2.35.2
+++++(/var/tmp/fg2/fn/nfjyYVQI/build/common/subst-vars.sh:15) system=x86_64-linux
++++(/var/tmp/fg2/fn/nfjyYVQI/src/common/vars.sh:18) : '/nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2/bin /nix/store/xjl7p8dvyk2j53kqf7f43kdj4ypbxz7g-coreutils-9.11/bin  /run/current-system/sw/bin/nu /nix/store/qddzvnv6b0805nkvbqddbswddcfhx814-busybox-static-x86_64-unknown-linux-musl-1.37.0/bin/busybox 2.35.2 x86_64-linux'
++++(/var/tmp/fg2/fn/nfjyYVQI/src/common/vars.sh:19) export coreutils dot busybox version system
++++(/var/tmp/fg2/fn/nfjyYVQI/src/common/vars.sh:21) export PAGER=cat
++++(/var/tmp/fg2/fn/nfjyYVQI/src/common/vars.sh:21) PAGER=cat
++++(/var/tmp/fg2/fn/nfjyYVQI/src/common/vars.sh:23) source /var/tmp/fg2/fn/nfjyYVQI/src/common/paths.sh
+++++(/var/tmp/fg2/fn/nfjyYVQI/src/common/paths.sh:3) set -eu -o pipefail
+++++(/var/tmp/fg2/fn/nfjyYVQI/src/common/paths.sh:5) [[ -z '' ]]
+++++(/var/tmp/fg2/fn/nfjyYVQI/src/common/paths.sh:7) COMMON_PATHS_SH_SOURCED=1
+++++++(/var/tmp/fg2/fn/nfjyYVQI/src/common/paths.sh:9) dirname /var/tmp/fg2/fn/nfjyYVQI/src/common/paths.sh
++++++(/var/tmp/fg2/fn/nfjyYVQI/src/common/paths.sh:9) readlink -f /var/tmp/fg2/fn/nfjyYVQI/src/common
+++++(/var/tmp/fg2/fn/nfjyYVQI/src/common/paths.sh:9) commonDir=/var/tmp/fg2/fn/nfjyYVQI/src/common
+++++(/var/tmp/fg2/fn/nfjyYVQI/src/common/paths.sh:12) source /var/tmp/fg2/fn/nfjyYVQI/src/common/functions.sh
++++++(/var/tmp/fg2/fn/nfjyYVQI/src/common/functions.sh:3) set -eu -o pipefail
++++++(/var/tmp/fg2/fn/nfjyYVQI/src/common/functions.sh:5) [[ -z '' ]]
++++++(/var/tmp/fg2/fn/nfjyYVQI/src/common/functions.sh:7) COMMON_FUNCTIONS_SH_SOURCED=1
++++++(/var/tmp/fg2/fn/nfjyYVQI/src/common/functions.sh:353) trap onError ERR
+++++(/var/tmp/fg2/fn/nfjyYVQI/src/common/paths.sh:14) source /var/tmp/fg2/fn/nfjyYVQI/build/common/subst-vars.sh
++++++(/var/tmp/fg2/fn/nfjyYVQI/build/common/subst-vars.sh:3) [[ -z 1 ]]
+++++(/var/tmp/fg2/fn/nfjyYVQI/src/common/paths.sh:16) : /nix/store/2ndah67h0z5m31v2wkdmg2md4380ggr5-bash-interactive-5.3p15/bin/bash /nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2/bin
+++++(/var/tmp/fg2/fn/nfjyYVQI/src/common/paths.sh:18) isTestOnNixOS
+++++(/var/tmp/fg2/fn/nfjyYVQI/src/common/functions.sh:10) [[ '' == 1 ]]
+++++(/var/tmp/fg2/fn/nfjyYVQI/src/common/paths.sh:19) export SHELL=/nix/store/2ndah67h0z5m31v2wkdmg2md4380ggr5-bash-interactive-5.3p15/bin/bash
+++++(/var/tmp/fg2/fn/nfjyYVQI/src/common/paths.sh:19) SHELL=/nix/store/2ndah67h0z5m31v2wkdmg2md4380ggr5-bash-interactive-5.3p15/bin/bash
+++++(/var/tmp/fg2/fn/nfjyYVQI/src/common/paths.sh:20) export PATH=/nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2/bin:/nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2/bin:/nix/store/2ndah67h0z5m31v2wkdmg2md4380ggr5-bash-interactive-5.3p15/bin:/nix/store/xjl7p8dvyk2j53kqf7f43kdj4ypbxz7g-coreutils-9.11/bin:/nix/store/xmvbzzxm5snla5a2cyfhm7hjy9bifx7n-gnugrep-3.12/bin:/nix/store/qf2wzyq4irhgyhnq3s2hz0ldjq3w8a3x-gnused-4.10/bin:/nix/store/9zib1q94gka8i5q530364cvy25504qz5-gawk-5.4.1/bin:/nix/store/i9wgqa0l88aprvpwfaq5hkfa6pklhlv0-findutils-4.11.0/bin:/nix/store/b8xvzgd52jby5dfpi0pf46nisy6wma5d-diffutils-3.12/bin:/nix/store/81zqbas7qc02yfdj7142fdcqhxgd3cgz-patch-2.8/bin:/nix/store/c8b0qp903w2hhpa63a2lfs7d565zag30-gnutar-1.35/bin:/nix/store/l5sll8nxk70p73l5yqbsjy4mh0c3g0v5-gzip-1.14/bin:/nix/store/j3yz0ag9j442229n8harpmp9aa5qyvhn-bzip2-1.0.8-bin/bin:/nix/store/518dig8gpvqyac6pkksyjjfzvi9zn8vq-xz-5.8.3-bin/bin:/nix/store/l8ik8mb8lgb60rklxjmkgddmp5qqnv29-zstd-1.5.7-bin/bin:/nix/store/msr1v91ybfw6j12rs5mfl8ghb2rqsnsr-git-2.55.0/bin:/nix/store/hyz22a0l5b5kv7yfypw4ss6d36vbzg01-jq-1.8.2-bin/bin:/nix/store/24gq3bi2yzf7g386p5j32mn78hhanf49-sqlite-3.53.3-bin/bin:/nix/store/cp8qnyl8i0s62g3a1465i258mf5bcr6k-curl-8.22.0-bin/bin:/nix/store/8x4c8zah3fbnyckaic4sskjbw7d2y98n-util-linux-2.42.4-bin/bin:/nix/store/d64q19q1xjdwfhqx6czvrjgrhq0n3lcc-python3-3.14.7/bin:/nix/store/niqsa6mxqsyax9lzbm261a2ml6m71vb6-perl-5.42.3/bin:/nix/store/fv9yl55hkskpc2cj9c0sdyq91car9kgl-file-5.48/bin:/nix/store/jv5kdlkwx0l8a7jdpg21g934ff30s319-which-2.25/bin:/nix/store/aj08b694apkc1jay2akywym9ghlailf5-procps-4.0.7/bin:/nix/store/5wyaj1kvkxbbscz6innrh6yjjkdq4qmk-openssh-10.6p1/bin:/nix/store/44gxi8li8y8wrxrb93sya9hljkpigsqw-openssl-3.6.4-bin/bin:/run/wrappers/wrappers.Yw6nCJO1nt:/nix/store/wmh4xg3557sicfyllmi9ymd8sxaw51wv-man-db-2.13.1/bin:/nix/store/qpgknrlnxca0z99gl12j5n0fgca11cdx-mercurial-7.2.2/bin:/var/tmp/fg2/tmp/.tmpEVBu8f/reference/tools
+++++(/var/tmp/fg2/fn/nfjyYVQI/src/common/paths.sh:20) PATH=/nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2/bin:/nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2/bin:/nix/store/2ndah67h0z5m31v2wkdmg2md4380ggr5-bash-interactive-5.3p15/bin:/nix/store/xjl7p8dvyk2j53kqf7f43kdj4ypbxz7g-coreutils-9.11/bin:/nix/store/xmvbzzxm5snla5a2cyfhm7hjy9bifx7n-gnugrep-3.12/bin:/nix/store/qf2wzyq4irhgyhnq3s2hz0ldjq3w8a3x-gnused-4.10/bin:/nix/store/9zib1q94gka8i5q530364cvy25504qz5-gawk-5.4.1/bin:/nix/store/i9wgqa0l88aprvpwfaq5hkfa6pklhlv0-findutils-4.11.0/bin:/nix/store/b8xvzgd52jby5dfpi0pf46nisy6wma5d-diffutils-3.12/bin:/nix/store/81zqbas7qc02yfdj7142fdcqhxgd3cgz-patch-2.8/bin:/nix/store/c8b0qp903w2hhpa63a2lfs7d565zag30-gnutar-1.35/bin:/nix/store/l5sll8nxk70p73l5yqbsjy4mh0c3g0v5-gzip-1.14/bin:/nix/store/j3yz0ag9j442229n8harpmp9aa5qyvhn-bzip2-1.0.8-bin/bin:/nix/store/518dig8gpvqyac6pkksyjjfzvi9zn8vq-xz-5.8.3-bin/bin:/nix/store/l8ik8mb8lgb60rklxjmkgddmp5qqnv29-zstd-1.5.7-bin/bin:/nix/store/msr1v91ybfw6j12rs5mfl8ghb2rqsnsr-git-2.55.0/bin:/nix/store/hyz22a0l5b5kv7yfypw4ss6d36vbzg01-jq-1.8.2-bin/bin:/nix/store/24gq3bi2yzf7g386p5j32mn78hhanf49-sqlite-3.53.3-bin/bin:/nix/store/cp8qnyl8i0s62g3a1465i258mf5bcr6k-curl-8.22.0-bin/bin:/nix/store/8x4c8zah3fbnyckaic4sskjbw7d2y98n-util-linux-2.42.4-bin/bin:/nix/store/d64q19q1xjdwfhqx6czvrjgrhq0n3lcc-python3-3.14.7/bin:/nix/store/niqsa6mxqsyax9lzbm261a2ml6m71vb6-perl-5.42.3/bin:/nix/store/fv9yl55hkskpc2cj9c0sdyq91car9kgl-file-5.48/bin:/nix/store/jv5kdlkwx0l8a7jdpg21g934ff30s319-which-2.25/bin:/nix/store/aj08b694apkc1jay2akywym9ghlailf5-procps-4.0.7/bin:/nix/store/5wyaj1kvkxbbscz6innrh6yjjkdq4qmk-openssh-10.6p1/bin:/nix/store/44gxi8li8y8wrxrb93sya9hljkpigsqw-openssl-3.6.4-bin/bin:/run/wrappers/wrappers.Yw6nCJO1nt:/nix/store/wmh4xg3557sicfyllmi9ymd8sxaw51wv-man-db-2.13.1/bin:/nix/store/qpgknrlnxca0z99gl12j5n0fgca11cdx-mercurial-7.2.2/bin:/var/tmp/fg2/tmp/.tmpEVBu8f/reference/tools
+++++(/var/tmp/fg2/fn/nfjyYVQI/src/common/paths.sh:23) [[ -n '' ]]
+++++(/var/tmp/fg2/fn/nfjyYVQI/src/common/paths.sh:27) DAEMON_PATH=/nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2/bin:/nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2/bin:/nix/store/2ndah67h0z5m31v2wkdmg2md4380ggr5-bash-interactive-5.3p15/bin:/nix/store/xjl7p8dvyk2j53kqf7f43kdj4ypbxz7g-coreutils-9.11/bin:/nix/store/xmvbzzxm5snla5a2cyfhm7hjy9bifx7n-gnugrep-3.12/bin:/nix/store/qf2wzyq4irhgyhnq3s2hz0ldjq3w8a3x-gnused-4.10/bin:/nix/store/9zib1q94gka8i5q530364cvy25504qz5-gawk-5.4.1/bin:/nix/store/i9wgqa0l88aprvpwfaq5hkfa6pklhlv0-findutils-4.11.0/bin:/nix/store/b8xvzgd52jby5dfpi0pf46nisy6wma5d-diffutils-3.12/bin:/nix/store/81zqbas7qc02yfdj7142fdcqhxgd3cgz-patch-2.8/bin:/nix/store/c8b0qp903w2hhpa63a2lfs7d565zag30-gnutar-1.35/bin:/nix/store/l5sll8nxk70p73l5yqbsjy4mh0c3g0v5-gzip-1.14/bin:/nix/store/j3yz0ag9j442229n8harpmp9aa5qyvhn-bzip2-1.0.8-bin/bin:/nix/store/518dig8gpvqyac6pkksyjjfzvi9zn8vq-xz-5.8.3-bin/bin:/nix/store/l8ik8mb8lgb60rklxjmkgddmp5qqnv29-zstd-1.5.7-bin/bin:/nix/store/msr1v91ybfw6j12rs5mfl8ghb2rqsnsr-git-2.55.0/bin:/nix/store/hyz22a0l5b5kv7yfypw4ss6d36vbzg01-jq-1.8.2-bin/bin:/nix/store/24gq3bi2yzf7g386p5j32mn78hhanf49-sqlite-3.53.3-bin/bin:/nix/store/cp8qnyl8i0s62g3a1465i258mf5bcr6k-curl-8.22.0-bin/bin:/nix/store/8x4c8zah3fbnyckaic4sskjbw7d2y98n-util-linux-2.42.4-bin/bin:/nix/store/d64q19q1xjdwfhqx6czvrjgrhq0n3lcc-python3-3.14.7/bin:/nix/store/niqsa6mxqsyax9lzbm261a2ml6m71vb6-perl-5.42.3/bin:/nix/store/fv9yl55hkskpc2cj9c0sdyq91car9kgl-file-5.48/bin:/nix/store/jv5kdlkwx0l8a7jdpg21g934ff30s319-which-2.25/bin:/nix/store/aj08b694apkc1jay2akywym9ghlailf5-procps-4.0.7/bin:/nix/store/5wyaj1kvkxbbscz6innrh6yjjkdq4qmk-openssh-10.6p1/bin:/nix/store/44gxi8li8y8wrxrb93sya9hljkpigsqw-openssl-3.6.4-bin/bin:/run/wrappers/wrappers.Yw6nCJO1nt:/nix/store/wmh4xg3557sicfyllmi9ymd8sxaw51wv-man-db-2.13.1/bin:/nix/store/qpgknrlnxca0z99gl12j5n0fgca11cdx-mercurial-7.2.2/bin:/var/tmp/fg2/tmp/.tmpEVBu8f/reference/tools
+++++(/var/tmp/fg2/fn/nfjyYVQI/src/common/paths.sh:28) [[ -n '' ]]
++++(/var/tmp/fg2/fn/nfjyYVQI/src/common/vars.sh:24) source /var/tmp/fg2/fn/nfjyYVQI/src/common/test-root.sh
+++++(/var/tmp/fg2/fn/nfjyYVQI/src/common/test-root.sh:3) TEST_SUBDIR=main/fetchurl
++++++(/var/tmp/fg2/fn/nfjyYVQI/src/common/test-root.sh:4) realpath /var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test
+++++(/var/tmp/fg2/fn/nfjyYVQI/src/common/test-root.sh:4) TEST_ROOT=/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl
+++++(/var/tmp/fg2/fn/nfjyYVQI/src/common/test-root.sh:5) export TEST_ROOT
++++(/var/tmp/fg2/fn/nfjyYVQI/src/common/vars.sh:26) test_nix_conf_dir=/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/etc
++++(/var/tmp/fg2/fn/nfjyYVQI/src/common/vars.sh:29) test_nix_conf=/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/etc/nix.conf
++++(/var/tmp/fg2/fn/nfjyYVQI/src/common/vars.sh:31) export TEST_HOME=/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/test-home
++++(/var/tmp/fg2/fn/nfjyYVQI/src/common/vars.sh:31) TEST_HOME=/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/test-home
++++(/var/tmp/fg2/fn/nfjyYVQI/src/common/vars.sh:33) isTestOnNixOS
++++(/var/tmp/fg2/fn/nfjyYVQI/src/common/functions.sh:10) [[ '' == 1 ]]
++++(/var/tmp/fg2/fn/nfjyYVQI/src/common/vars.sh:34) export NIX_STORE_DIR
+++++(/var/tmp/fg2/fn/nfjyYVQI/src/common/vars.sh:35) readlink -f /var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store
++++(/var/tmp/fg2/fn/nfjyYVQI/src/common/vars.sh:35) NIX_STORE_DIR=
++++(/var/tmp/fg2/fn/nfjyYVQI/src/common/vars.sh:37) export NIX_IGNORE_SYMLINK_STORE=1
++++(/var/tmp/fg2/fn/nfjyYVQI/src/common/vars.sh:37) NIX_IGNORE_SYMLINK_STORE=1
++++(/var/tmp/fg2/fn/nfjyYVQI/src/common/vars.sh:38) NIX_STORE_DIR=/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store
++++(/var/tmp/fg2/fn/nfjyYVQI/src/common/vars.sh:40) export NIX_LOCALSTATE_DIR=/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/var
++++(/var/tmp/fg2/fn/nfjyYVQI/src/common/vars.sh:40) NIX_LOCALSTATE_DIR=/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/var
++++(/var/tmp/fg2/fn/nfjyYVQI/src/common/vars.sh:41) export NIX_LOG_DIR=/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/var/log/nix
++++(/var/tmp/fg2/fn/nfjyYVQI/src/common/vars.sh:41) NIX_LOG_DIR=/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/var/log/nix
++++(/var/tmp/fg2/fn/nfjyYVQI/src/common/vars.sh:42) export NIX_STATE_DIR=/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/var/nix
++++(/var/tmp/fg2/fn/nfjyYVQI/src/common/vars.sh:42) NIX_STATE_DIR=/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/var/nix
++++(/var/tmp/fg2/fn/nfjyYVQI/src/common/vars.sh:43) export NIX_CONF_DIR=/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/etc
++++(/var/tmp/fg2/fn/nfjyYVQI/src/common/vars.sh:43) NIX_CONF_DIR=/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/etc
++++(/var/tmp/fg2/fn/nfjyYVQI/src/common/vars.sh:44) export NIX_DAEMON_SOCKET_PATH=/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/dSocket
++++(/var/tmp/fg2/fn/nfjyYVQI/src/common/vars.sh:44) NIX_DAEMON_SOCKET_PATH=/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/dSocket
++++(/var/tmp/fg2/fn/nfjyYVQI/src/common/vars.sh:45) unset NIX_USER_CONF_FILES
++++(/var/tmp/fg2/fn/nfjyYVQI/src/common/vars.sh:46) export _NIX_TEST_SHARED=/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/shared
++++(/var/tmp/fg2/fn/nfjyYVQI/src/common/vars.sh:46) _NIX_TEST_SHARED=/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/shared
++++(/var/tmp/fg2/fn/nfjyYVQI/src/common/vars.sh:47) [[ -n '' ]]
++++(/var/tmp/fg2/fn/nfjyYVQI/src/common/vars.sh:50) export _NIX_IN_TEST=/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/shared
++++(/var/tmp/fg2/fn/nfjyYVQI/src/common/vars.sh:50) _NIX_IN_TEST=/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/shared
++++(/var/tmp/fg2/fn/nfjyYVQI/src/common/vars.sh:51) export _NIX_TEST_NO_LSOF=1
++++(/var/tmp/fg2/fn/nfjyYVQI/src/common/vars.sh:51) _NIX_TEST_NO_LSOF=1
++++(/var/tmp/fg2/fn/nfjyYVQI/src/common/vars.sh:54) export _NIX_TEST_NO_ENVIRONMENT_WARNINGS=1
++++(/var/tmp/fg2/fn/nfjyYVQI/src/common/vars.sh:54) _NIX_TEST_NO_ENVIRONMENT_WARNINGS=1
++++(/var/tmp/fg2/fn/nfjyYVQI/src/common/vars.sh:55) export NIX_REMOTE=
++++(/var/tmp/fg2/fn/nfjyYVQI/src/common/vars.sh:55) NIX_REMOTE=
++++(/var/tmp/fg2/fn/nfjyYVQI/src/common/vars.sh:59) unset NIX_PATH
++++(/var/tmp/fg2/fn/nfjyYVQI/src/common/vars.sh:60) export HOME=/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/test-home
++++(/var/tmp/fg2/fn/nfjyYVQI/src/common/vars.sh:60) HOME=/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/test-home
++++(/var/tmp/fg2/fn/nfjyYVQI/src/common/vars.sh:61) unset XDG_STATE_HOME
++++(/var/tmp/fg2/fn/nfjyYVQI/src/common/vars.sh:62) unset XDG_DATA_HOME
++++(/var/tmp/fg2/fn/nfjyYVQI/src/common/vars.sh:63) unset XDG_CONFIG_HOME
++++(/var/tmp/fg2/fn/nfjyYVQI/src/common/vars.sh:64) unset XDG_CONFIG_DIRS
++++(/var/tmp/fg2/fn/nfjyYVQI/src/common/vars.sh:65) unset XDG_CACHE_HOME
++++(/var/tmp/fg2/fn/nfjyYVQI/src/common/vars.sh:66) unset GIT_DIR
++++(/var/tmp/fg2/fn/nfjyYVQI/src/common/vars.sh:68) export GIT_CONFIG_SYSTEM=/dev/null
++++(/var/tmp/fg2/fn/nfjyYVQI/src/common/vars.sh:68) GIT_CONFIG_SYSTEM=/dev/null
++++(/var/tmp/fg2/fn/nfjyYVQI/src/common/vars.sh:69) export GIT_CONFIG_GLOBAL=/dev/null
++++(/var/tmp/fg2/fn/nfjyYVQI/src/common/vars.sh:69) GIT_CONFIG_GLOBAL=/dev/null
++++(/var/tmp/fg2/fn/nfjyYVQI/src/common/vars.sh:71) export IMPURE_VAR1=foo
++++(/var/tmp/fg2/fn/nfjyYVQI/src/common/vars.sh:71) IMPURE_VAR1=foo
++++(/var/tmp/fg2/fn/nfjyYVQI/src/common/vars.sh:72) export IMPURE_VAR2=bar
++++(/var/tmp/fg2/fn/nfjyYVQI/src/common/vars.sh:72) IMPURE_VAR2=bar
++++(/var/tmp/fg2/fn/nfjyYVQI/src/common/vars.sh:76) cacheDir=/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/binary-cache
+++++(/var/tmp/fg2/fn/nfjyYVQI/src/common/vars.sh:78) uname
++++(/var/tmp/fg2/fn/nfjyYVQI/src/common/vars.sh:78) [[ Linux == Linux ]]
++++(/var/tmp/fg2/fn/nfjyYVQI/src/common/vars.sh:78) [[ -L /proc/self/ns/user ]]
++++(/var/tmp/fg2/fn/nfjyYVQI/src/common/vars.sh:78) unshare --user true
++++(/var/tmp/fg2/fn/nfjyYVQI/src/common/vars.sh:79) _canUseSandbox=1
++++(/var/tmp/fg2/fn/nfjyYVQI/src/common/vars.sh:85) config_nix=/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/config.nix
+++(common.sh:12) source /var/tmp/fg2/fn/nfjyYVQI/src/common/functions.sh
++++(/var/tmp/fg2/fn/nfjyYVQI/src/common/functions.sh:3) set -eu -o pipefail
++++(/var/tmp/fg2/fn/nfjyYVQI/src/common/functions.sh:5) [[ -z 1 ]]
+++(common.sh:13) source /var/tmp/fg2/fn/nfjyYVQI/src/common/init.sh
++++(/var/tmp/fg2/fn/nfjyYVQI/src/common/init.sh:4) : /var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/etc /var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/etc/nix.conf /var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/config.nix
++++(/var/tmp/fg2/fn/nfjyYVQI/src/common/init.sh:6) isTestOnNixOS
++++(/var/tmp/fg2/fn/nfjyYVQI/src/common/functions.sh:10) [[ '' == 1 ]]
++++(/var/tmp/fg2/fn/nfjyYVQI/src/common/init.sh:29) test -n /var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl
++++(/var/tmp/fg2/fn/nfjyYVQI/src/common/init.sh:31) killDaemon
++++(/var/tmp/fg2/fn/nfjyYVQI/src/common/functions.sh:100) isTestOnNixOS
++++(/var/tmp/fg2/fn/nfjyYVQI/src/common/functions.sh:10) [[ '' == 1 ]]
++++(/var/tmp/fg2/fn/nfjyYVQI/src/common/functions.sh:105) [[ '' == '' ]]
++++(/var/tmp/fg2/fn/nfjyYVQI/src/common/functions.sh:106) return
++++(/var/tmp/fg2/fn/nfjyYVQI/src/common/init.sh:33) [[ -e /var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl ]]
++++(/var/tmp/fg2/fn/nfjyYVQI/src/common/init.sh:37) mkdir -p /var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl
++++(/var/tmp/fg2/fn/nfjyYVQI/src/common/init.sh:38) mkdir /var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/test-home
++++(/var/tmp/fg2/fn/nfjyYVQI/src/common/init.sh:40) mkdir /var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store
++++(/var/tmp/fg2/fn/nfjyYVQI/src/common/init.sh:41) mkdir /var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/var
++++(/var/tmp/fg2/fn/nfjyYVQI/src/common/init.sh:42) mkdir -p /var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/var/log/nix/drvs
++++(/var/tmp/fg2/fn/nfjyYVQI/src/common/init.sh:43) mkdir /var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/var/nix
++++(/var/tmp/fg2/fn/nfjyYVQI/src/common/init.sh:44) mkdir /var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/etc
++++(/var/tmp/fg2/fn/nfjyYVQI/src/common/init.sh:46) cat
+++++(/var/tmp/fg2/fn/nfjyYVQI/src/common/init.sh:46) whoami
++++(/var/tmp/fg2/fn/nfjyYVQI/src/common/init.sh:59) cat
++++(/var/tmp/fg2/fn/nfjyYVQI/src/common/init.sh:67) nix-store --init
++++(/var/tmp/fg2/fn/nfjyYVQI/src/common/init.sh:69) test -e /var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/var/nix/db/db.sqlite
++++(/var/tmp/fg2/fn/nfjyYVQI/src/common/init.sh:75) echo '# config.nix for test main / fetchurl'
++++(/var/tmp/fg2/fn/nfjyYVQI/src/common/init.sh:76) cat /var/tmp/fg2/fn/nfjyYVQI/build/config.nix
+++(common.sh:15) [[ -n '' ]]
++(fetchurl.sh:5) TODO_NixOS
++(/var/tmp/fg2/fn/nfjyYVQI/src/common/functions.sh:148) isTestOnNixOS
++(/var/tmp/fg2/fn/nfjyYVQI/src/common/functions.sh:10) [[ '' == 1 ]]
+++(fetchurl.sh:8) nix-hash --flat --type sha256 ./fetchurl.sh
++(fetchurl.sh:8) hash=0ce77644fe0de2a4db0e14ba992914ec76813c3ec7e7d17ec5baa565f6383966
++++(fetchurl.sh:10) pwd
+++(fetchurl.sh:10) nix-build -vvvvv --expr 'import <nix/fetchurl.nix>' --argstr url file:///var/tmp/fg2/fn/nfjyYVQI/src/fetchurl.sh --argstr sha256 0ce77644fe0de2a4db0e14ba992914ec76813c3ec7e7d17ec5baa565f6383966 --no-out-link
+evaluating file '«nix-internal»/derivation-internal.nix'
+evaluating file '<nix/fetchurl.nix>'
+processing attribute 'builder'
+processing attribute 'executable'
+processing attribute 'impureEnvVars'
+processing attribute 'name'
+processing attribute 'outputHash'
+processing attribute 'outputHashAlgo'
+processing attribute 'outputHashMode'
+processing attribute 'preferLocalBuild'
+processing attribute 'system'
+processing attribute 'unpack'
+processing attribute 'url'
+processing attribute 'urls'
+acquiring write lock on "/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/var/nix/temproots/1033782"
+locking path "/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/r1aca0ly3zrhplaig5gpndymzgdwjrqw-fetchurl.sh.drv"
+lock acquired on "/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/r1aca0ly3zrhplaig5gpndymzgdwjrqw-fetchurl.sh.drv.lock"
+lock released on "/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/r1aca0ly3zrhplaig5gpndymzgdwjrqw-fetchurl.sh.drv.lock"
+instantiated 'fetchurl.sh' -> '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/r1aca0ly3zrhplaig5gpndymzgdwjrqw-fetchurl.sh.drv'
+querying info about missing paths...
+this derivation will be built:
+  /var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/r1aca0ly3zrhplaig5gpndymzgdwjrqw-fetchurl.sh.drv
+obtaining derivation from '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/r1aca0ly3zrhplaig5gpndymzgdwjrqw-fetchurl.sh.drv' and then building outputs 'out': created outer
+obtaining derivation from '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/r1aca0ly3zrhplaig5gpndymzgdwjrqw-fetchurl.sh.drv' and then building outputs 'out': woken up
+entered goal loop
+obtaining derivation from '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/r1aca0ly3zrhplaig5gpndymzgdwjrqw-fetchurl.sh.drv' and then building outputs 'out': need to load derivation from file
+obtaining derivation from '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/r1aca0ly3zrhplaig5gpndymzgdwjrqw-fetchurl.sh.drv' and then building outputs 'out': already have drv '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/r1aca0ly3zrhplaig5gpndymzgdwjrqw-fetchurl.sh.drv' for '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/r1aca0ly3zrhplaig5gpndymzgdwjrqw-fetchurl.sh.drv', can go straight to building
+obtaining derivation from '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/r1aca0ly3zrhplaig5gpndymzgdwjrqw-fetchurl.sh.drv' and then building outputs 'out': outer load and build derivation
+obtaining derivation from '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/r1aca0ly3zrhplaig5gpndymzgdwjrqw-fetchurl.sh.drv' and then building outputs 'out': return_value(Co&&)
+obtaining derivation from '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/r1aca0ly3zrhplaig5gpndymzgdwjrqw-fetchurl.sh.drv' and then building outputs 'out': in final_awaiter
+obtaining derivation from '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/r1aca0ly3zrhplaig5gpndymzgdwjrqw-fetchurl.sh.drv' and then building outputs 'out': have derivation, will kick off derivations goals per wanted output
+getting output 'out' from derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/r1aca0ly3zrhplaig5gpndymzgdwjrqw-fetchurl.sh.drv': created
+getting output 'out' from derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/r1aca0ly3zrhplaig5gpndymzgdwjrqw-fetchurl.sh.drv': woken up
+worker event loop worked goal 'obtaining derivation from '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/r1aca0ly3zrhplaig5gpndymzgdwjrqw-fetchurl.sh.drv' and then building outputs 'out'' for 0.041ms
+getting output 'out' from derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/r1aca0ly3zrhplaig5gpndymzgdwjrqw-fetchurl.sh.drv': have derivation
+substitution of '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/5vhymm0ijw51c4i5wnpz7pvjcl3fxx50-fetchurl.sh': created
+substitution of '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/5vhymm0ijw51c4i5wnpz7pvjcl3fxx50-fetchurl.sh': woken up
+worker event loop worked goal 'getting output 'out' from derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/r1aca0ly3zrhplaig5gpndymzgdwjrqw-fetchurl.sh.drv'' for 0.026ms
+substitution of '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/5vhymm0ijw51c4i5wnpz7pvjcl3fxx50-fetchurl.sh': init
+substitution of '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/5vhymm0ijw51c4i5wnpz7pvjcl3fxx50-fetchurl.sh': done
+getting output 'out' from derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/r1aca0ly3zrhplaig5gpndymzgdwjrqw-fetchurl.sh.drv': waitee 'substitution of '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/5vhymm0ijw51c4i5wnpz7pvjcl3fxx50-fetchurl.sh'' done; 0 left
+getting output 'out' from derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/r1aca0ly3zrhplaig5gpndymzgdwjrqw-fetchurl.sh.drv': woken up
+substitution of '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/5vhymm0ijw51c4i5wnpz7pvjcl3fxx50-fetchurl.sh': in final_awaiter
+worker event loop worked goal 'substitution of '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/5vhymm0ijw51c4i5wnpz7pvjcl3fxx50-fetchurl.sh'' for 0.031ms
+substitution of '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/5vhymm0ijw51c4i5wnpz7pvjcl3fxx50-fetchurl.sh': goal destroyed
+getting output 'out' from derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/r1aca0ly3zrhplaig5gpndymzgdwjrqw-fetchurl.sh.drv': in final_awaiter
+getting output 'out' from derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/r1aca0ly3zrhplaig5gpndymzgdwjrqw-fetchurl.sh.drv': all outputs substituted (maybe)
+resolving derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/r1aca0ly3zrhplaig5gpndymzgdwjrqw-fetchurl.sh.drv': created
+resolving derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/r1aca0ly3zrhplaig5gpndymzgdwjrqw-fetchurl.sh.drv': woken up
+worker event loop worked goal 'getting output 'out' from derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/r1aca0ly3zrhplaig5gpndymzgdwjrqw-fetchurl.sh.drv'' for 0.015ms
+resolving derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/r1aca0ly3zrhplaig5gpndymzgdwjrqw-fetchurl.sh.drv': in final_awaiter
+resolving derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/r1aca0ly3zrhplaig5gpndymzgdwjrqw-fetchurl.sh.drv': all inputs realised
+resolving derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/r1aca0ly3zrhplaig5gpndymzgdwjrqw-fetchurl.sh.drv': done
+getting output 'out' from derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/r1aca0ly3zrhplaig5gpndymzgdwjrqw-fetchurl.sh.drv': waitee 'resolving derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/r1aca0ly3zrhplaig5gpndymzgdwjrqw-fetchurl.sh.drv'' done; 0 left
+getting output 'out' from derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/r1aca0ly3zrhplaig5gpndymzgdwjrqw-fetchurl.sh.drv': woken up
+resolving derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/r1aca0ly3zrhplaig5gpndymzgdwjrqw-fetchurl.sh.drv': in final_awaiter
+worker event loop worked goal 'resolving derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/r1aca0ly3zrhplaig5gpndymzgdwjrqw-fetchurl.sh.drv'' for 0.015ms
+getting output 'out' from derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/r1aca0ly3zrhplaig5gpndymzgdwjrqw-fetchurl.sh.drv': in final_awaiter
+resolving derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/r1aca0ly3zrhplaig5gpndymzgdwjrqw-fetchurl.sh.drv': goal destroyed
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/r1aca0ly3zrhplaig5gpndymzgdwjrqw-fetchurl.sh.drv': created
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/r1aca0ly3zrhplaig5gpndymzgdwjrqw-fetchurl.sh.drv': woken up
+worker event loop worked goal 'getting output 'out' from derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/r1aca0ly3zrhplaig5gpndymzgdwjrqw-fetchurl.sh.drv'' for 0.012ms
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/r1aca0ly3zrhplaig5gpndymzgdwjrqw-fetchurl.sh.drv': in final_awaiter
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/r1aca0ly3zrhplaig5gpndymzgdwjrqw-fetchurl.sh.drv': all inputs realised
+added input paths 
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/r1aca0ly3zrhplaig5gpndymzgdwjrqw-fetchurl.sh.drv': woken up
+worker event loop worked goal 'building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/r1aca0ly3zrhplaig5gpndymzgdwjrqw-fetchurl.sh.drv'' for 0.015ms
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/r1aca0ly3zrhplaig5gpndymzgdwjrqw-fetchurl.sh.drv': in final_awaiter
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/r1aca0ly3zrhplaig5gpndymzgdwjrqw-fetchurl.sh.drv': return_value(Co&&)
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/r1aca0ly3zrhplaig5gpndymzgdwjrqw-fetchurl.sh.drv': in final_awaiter
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/r1aca0ly3zrhplaig5gpndymzgdwjrqw-fetchurl.sh.drv': trying to build
+locking path "/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/5vhymm0ijw51c4i5wnpz7pvjcl3fxx50-fetchurl.sh"
+lock acquired on "/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/5vhymm0ijw51c4i5wnpz7pvjcl3fxx50-fetchurl.sh.lock"
+removing invalid path '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/5vhymm0ijw51c4i5wnpz7pvjcl3fxx50-fetchurl.sh'
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/r1aca0ly3zrhplaig5gpndymzgdwjrqw-fetchurl.sh.drv': in final_awaiter
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/r1aca0ly3zrhplaig5gpndymzgdwjrqw-fetchurl.sh.drv': return_value(Co&&)
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/r1aca0ly3zrhplaig5gpndymzgdwjrqw-fetchurl.sh.drv': in final_awaiter
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/r1aca0ly3zrhplaig5gpndymzgdwjrqw-fetchurl.sh.drv': woken up
+worker event loop worked goal 'building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/r1aca0ly3zrhplaig5gpndymzgdwjrqw-fetchurl.sh.drv'' for 0.082ms
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/r1aca0ly3zrhplaig5gpndymzgdwjrqw-fetchurl.sh.drv': in final_awaiter
+executing builder 'builtin:fetchurl'
+using builder args ''
+setting builder env variable 'builder'='builtin:fetchurl'
+setting builder env variable 'executable'=''
+setting builder env variable 'impureEnvVars'='http_proxy https_proxy ftp_proxy all_proxy no_proxy'
+setting builder env variable 'name'='fetchurl.sh'
+setting builder env variable 'out'='/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/5vhymm0ijw51c4i5wnpz7pvjcl3fxx50-fetchurl.sh'
+setting builder env variable 'outputHash'='0ce77644fe0de2a4db0e14ba992914ec76813c3ec7e7d17ec5baa565f6383966'
+setting builder env variable 'outputHashAlgo'='sha256'
+setting builder env variable 'outputHashMode'='flat'
+setting builder env variable 'preferLocalBuild'='1'
+setting builder env variable 'system'='builtin'
+setting builder env variable 'unpack'=''
+setting builder env variable 'url'='file:///var/tmp/fg2/fn/nfjyYVQI/src/fetchurl.sh'
+setting builder env variable 'urls'='file:///var/tmp/fg2/fn/nfjyYVQI/src/fetchurl.sh'
+sandbox setup: applied landlock sandboxing
+building '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/r1aca0ly3zrhplaig5gpndymzgdwjrqw-fetchurl.sh.drv'...
+worker event loop worked goal 'building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/r1aca0ly3zrhplaig5gpndymzgdwjrqw-fetchurl.sh.drv'' for 5.096ms
+waiting for children
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/r1aca0ly3zrhplaig5gpndymzgdwjrqw-fetchurl.sh.drv': read 108 bytes
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/r1aca0ly3zrhplaig5gpndymzgdwjrqw-fetchurl.sh.drv': woken up
+[pid=1033819] builtin:fetchurl creating fresh FileTransfer instance
+worker event loop worked goal 'building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/r1aca0ly3zrhplaig5gpndymzgdwjrqw-fetchurl.sh.drv'' for 0.034ms
+waiting for children
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/r1aca0ly3zrhplaig5gpndymzgdwjrqw-fetchurl.sh.drv': read 120 bytes
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/r1aca0ly3zrhplaig5gpndymzgdwjrqw-fetchurl.sh.drv': woken up
+starting download of 'file:///var/tmp/fg2/fn/nfjyYVQI/src/fetchurl.sh'
+worker event loop worked goal 'building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/r1aca0ly3zrhplaig5gpndymzgdwjrqw-fetchurl.sh.drv'' for 0.005ms
+waiting for children
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/r1aca0ly3zrhplaig5gpndymzgdwjrqw-fetchurl.sh.drv': read 157 bytes
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/r1aca0ly3zrhplaig5gpndymzgdwjrqw-fetchurl.sh.drv': woken up
+curl: Could not find host  in the /var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/etc/netrc file; using defaults
+worker event loop worked goal 'building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/r1aca0ly3zrhplaig5gpndymzgdwjrqw-fetchurl.sh.drv'' for 0.004ms
+waiting for children
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/r1aca0ly3zrhplaig5gpndymzgdwjrqw-fetchurl.sh.drv': read 210 bytes
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/r1aca0ly3zrhplaig5gpndymzgdwjrqw-fetchurl.sh.drv': woken up
+downloading 'file:///var/tmp/fg2/fn/nfjyYVQI/src/fetchurl.sh'...
+worker event loop worked goal 'building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/r1aca0ly3zrhplaig5gpndymzgdwjrqw-fetchurl.sh.drv'' for 0.009ms
+waiting for children
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/r1aca0ly3zrhplaig5gpndymzgdwjrqw-fetchurl.sh.drv': read 281 bytes
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/r1aca0ly3zrhplaig5gpndymzgdwjrqw-fetchurl.sh.drv': woken up
+got header for 'file:///var/tmp/fg2/fn/nfjyYVQI/src/fetchurl.sh': Content-Length: 3223
+worker event loop worked goal 'building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/r1aca0ly3zrhplaig5gpndymzgdwjrqw-fetchurl.sh.drv'' for 0.011ms
+waiting for children
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/r1aca0ly3zrhplaig5gpndymzgdwjrqw-fetchurl.sh.drv': read 127 bytes
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/r1aca0ly3zrhplaig5gpndymzgdwjrqw-fetchurl.sh.drv': woken up
+got header for 'file:///var/tmp/fg2/fn/nfjyYVQI/src/fetchurl.sh': Accept-ranges: bytes
+worker event loop worked goal 'building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/r1aca0ly3zrhplaig5gpndymzgdwjrqw-fetchurl.sh.drv'' for 0.003ms
+waiting for children
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/r1aca0ly3zrhplaig5gpndymzgdwjrqw-fetchurl.sh.drv': read 151 bytes
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/r1aca0ly3zrhplaig5gpndymzgdwjrqw-fetchurl.sh.drv': woken up
+got header for 'file:///var/tmp/fg2/fn/nfjyYVQI/src/fetchurl.sh': Last-Modified: Tue, 24 Nov 2026 23:08:06 GMT
+worker event loop worked goal 'building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/r1aca0ly3zrhplaig5gpndymzgdwjrqw-fetchurl.sh.drv'' for 0.003ms
+waiting for children
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/r1aca0ly3zrhplaig5gpndymzgdwjrqw-fetchurl.sh.drv': read 107 bytes
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/r1aca0ly3zrhplaig5gpndymzgdwjrqw-fetchurl.sh.drv': woken up
+got header for 'file:///var/tmp/fg2/fn/nfjyYVQI/src/fetchurl.sh': 
+worker event loop worked goal 'building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/r1aca0ly3zrhplaig5gpndymzgdwjrqw-fetchurl.sh.drv'' for 0.003ms
+waiting for children
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/r1aca0ly3zrhplaig5gpndymzgdwjrqw-fetchurl.sh.drv': read 83 bytes
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/r1aca0ly3zrhplaig5gpndymzgdwjrqw-fetchurl.sh.drv': woken up
+worker event loop worked goal 'building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/r1aca0ly3zrhplaig5gpndymzgdwjrqw-fetchurl.sh.drv'' for 0.003ms
+waiting for children
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/r1aca0ly3zrhplaig5gpndymzgdwjrqw-fetchurl.sh.drv': read 166 bytes
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/r1aca0ly3zrhplaig5gpndymzgdwjrqw-fetchurl.sh.drv': woken up
+worker event loop worked goal 'building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/r1aca0ly3zrhplaig5gpndymzgdwjrqw-fetchurl.sh.drv'' for 0.004ms
+waiting for children
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/r1aca0ly3zrhplaig5gpndymzgdwjrqw-fetchurl.sh.drv': read 166 bytes
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/r1aca0ly3zrhplaig5gpndymzgdwjrqw-fetchurl.sh.drv': woken up
+worker event loop worked goal 'building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/r1aca0ly3zrhplaig5gpndymzgdwjrqw-fetchurl.sh.drv'' for 0.006ms
+waiting for children
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/r1aca0ly3zrhplaig5gpndymzgdwjrqw-fetchurl.sh.drv': read 74 bytes
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/r1aca0ly3zrhplaig5gpndymzgdwjrqw-fetchurl.sh.drv': woken up
+curl: shutting down connection #0
+worker event loop worked goal 'building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/r1aca0ly3zrhplaig5gpndymzgdwjrqw-fetchurl.sh.drv'' for 0.002ms
+waiting for children
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/r1aca0ly3zrhplaig5gpndymzgdwjrqw-fetchurl.sh.drv': read 192 bytes
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/r1aca0ly3zrhplaig5gpndymzgdwjrqw-fetchurl.sh.drv': woken up
+finished download of 'file:///var/tmp/fg2/fn/nfjyYVQI/src/fetchurl.sh'; curl status = 0, HTTP status = 0, body = 3223 bytes, duration = 0.00 s
+worker event loop worked goal 'building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/r1aca0ly3zrhplaig5gpndymzgdwjrqw-fetchurl.sh.drv'' for 0.004ms
+waiting for children
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/r1aca0ly3zrhplaig5gpndymzgdwjrqw-fetchurl.sh.drv': read 83 bytes
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/r1aca0ly3zrhplaig5gpndymzgdwjrqw-fetchurl.sh.drv': woken up
+worker event loop worked goal 'building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/r1aca0ly3zrhplaig5gpndymzgdwjrqw-fetchurl.sh.drv'' for 0.002ms
+waiting for children
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/r1aca0ly3zrhplaig5gpndymzgdwjrqw-fetchurl.sh.drv': read 45 bytes
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/r1aca0ly3zrhplaig5gpndymzgdwjrqw-fetchurl.sh.drv': woken up
+worker event loop worked goal 'building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/r1aca0ly3zrhplaig5gpndymzgdwjrqw-fetchurl.sh.drv'' for 0.002ms
+waiting for children
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/r1aca0ly3zrhplaig5gpndymzgdwjrqw-fetchurl.sh.drv': read 70 bytes
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/r1aca0ly3zrhplaig5gpndymzgdwjrqw-fetchurl.sh.drv': woken up
+download thread shutting down
+worker event loop worked goal 'building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/r1aca0ly3zrhplaig5gpndymzgdwjrqw-fetchurl.sh.drv'' for 0.002ms
+waiting for children
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/r1aca0ly3zrhplaig5gpndymzgdwjrqw-fetchurl.sh.drv': got EOF
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/r1aca0ly3zrhplaig5gpndymzgdwjrqw-fetchurl.sh.drv': woken up
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/r1aca0ly3zrhplaig5gpndymzgdwjrqw-fetchurl.sh.drv': build done
+killing process 1033819
+builder process for '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/r1aca0ly3zrhplaig5gpndymzgdwjrqw-fetchurl.sh.drv' finished
+scanning for references for output 'out' in temp location "/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/5vhymm0ijw51c4i5wnpz7pvjcl3fxx50-fetchurl.sh"
+lock released on "/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/5vhymm0ijw51c4i5wnpz7pvjcl3fxx50-fetchurl.sh.lock"
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/r1aca0ly3zrhplaig5gpndymzgdwjrqw-fetchurl.sh.drv': done
+getting output 'out' from derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/r1aca0ly3zrhplaig5gpndymzgdwjrqw-fetchurl.sh.drv': waitee 'building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/r1aca0ly3zrhplaig5gpndymzgdwjrqw-fetchurl.sh.drv'' done; 0 left
+getting output 'out' from derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/r1aca0ly3zrhplaig5gpndymzgdwjrqw-fetchurl.sh.drv': woken up
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/r1aca0ly3zrhplaig5gpndymzgdwjrqw-fetchurl.sh.drv': in final_awaiter
+worker event loop worked goal 'building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/r1aca0ly3zrhplaig5gpndymzgdwjrqw-fetchurl.sh.drv'' for 1.037ms
+getting output 'out' from derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/r1aca0ly3zrhplaig5gpndymzgdwjrqw-fetchurl.sh.drv': in final_awaiter
+getting output 'out' from derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/r1aca0ly3zrhplaig5gpndymzgdwjrqw-fetchurl.sh.drv': outer build done
+getting output 'out' from derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/r1aca0ly3zrhplaig5gpndymzgdwjrqw-fetchurl.sh.drv': done
+obtaining derivation from '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/r1aca0ly3zrhplaig5gpndymzgdwjrqw-fetchurl.sh.drv' and then building outputs 'out': waitee 'getting output 'out' from derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/r1aca0ly3zrhplaig5gpndymzgdwjrqw-fetchurl.sh.drv'' done; 0 left
+obtaining derivation from '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/r1aca0ly3zrhplaig5gpndymzgdwjrqw-fetchurl.sh.drv' and then building outputs 'out': woken up
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/r1aca0ly3zrhplaig5gpndymzgdwjrqw-fetchurl.sh.drv': goal destroyed
+getting output 'out' from derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/r1aca0ly3zrhplaig5gpndymzgdwjrqw-fetchurl.sh.drv': in final_awaiter
+worker event loop worked goal 'getting output 'out' from derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/r1aca0ly3zrhplaig5gpndymzgdwjrqw-fetchurl.sh.drv'' for 0.026ms
+obtaining derivation from '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/r1aca0ly3zrhplaig5gpndymzgdwjrqw-fetchurl.sh.drv' and then building outputs 'out': in final_awaiter
+obtaining derivation from '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/r1aca0ly3zrhplaig5gpndymzgdwjrqw-fetchurl.sh.drv' and then building outputs 'out': outer build done
+obtaining derivation from '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/r1aca0ly3zrhplaig5gpndymzgdwjrqw-fetchurl.sh.drv' and then building outputs 'out': done
+getting output 'out' from derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/r1aca0ly3zrhplaig5gpndymzgdwjrqw-fetchurl.sh.drv': goal destroyed
+obtaining derivation from '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/r1aca0ly3zrhplaig5gpndymzgdwjrqw-fetchurl.sh.drv' and then building outputs 'out': in final_awaiter
+worker event loop worked goal 'obtaining derivation from '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/r1aca0ly3zrhplaig5gpndymzgdwjrqw-fetchurl.sh.drv' and then building outputs 'out'' for 0.019ms
+obtaining derivation from '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/r1aca0ly3zrhplaig5gpndymzgdwjrqw-fetchurl.sh.drv' and then building outputs 'out': goal destroyed
++(fetchurl.sh:10) outPath=/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/5vhymm0ijw51c4i5wnpz7pvjcl3fxx50-fetchurl.sh
++(fetchurl.sh:12) cmp /var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/5vhymm0ijw51c4i5wnpz7pvjcl3fxx50-fetchurl.sh fetchurl.sh
+++(fetchurl.sh:15) nix-build -vvvvv --expr 'import <nix/fetchurl.nix>' --argstr url file:///does-not-exist/must-remain-unused/fetchurl.sh --argstr sha256 0ce77644fe0de2a4db0e14ba992914ec76813c3ec7e7d17ec5baa565f6383966 --no-out-link
+evaluating file '«nix-internal»/derivation-internal.nix'
+evaluating file '<nix/fetchurl.nix>'
+processing attribute 'builder'
+processing attribute 'executable'
+processing attribute 'impureEnvVars'
+processing attribute 'name'
+processing attribute 'outputHash'
+processing attribute 'outputHashAlgo'
+processing attribute 'outputHashMode'
+processing attribute 'preferLocalBuild'
+processing attribute 'system'
+processing attribute 'unpack'
+processing attribute 'url'
+processing attribute 'urls'
+acquiring write lock on "/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/var/nix/temproots/1033832"
+locking path "/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/mi28ib5wnk1phc4hxif7z6pn01v5zngn-fetchurl.sh.drv"
+lock acquired on "/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/mi28ib5wnk1phc4hxif7z6pn01v5zngn-fetchurl.sh.drv.lock"
+lock released on "/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/mi28ib5wnk1phc4hxif7z6pn01v5zngn-fetchurl.sh.drv.lock"
+instantiated 'fetchurl.sh' -> '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/mi28ib5wnk1phc4hxif7z6pn01v5zngn-fetchurl.sh.drv'
+querying info about missing paths...
+obtaining derivation from '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/mi28ib5wnk1phc4hxif7z6pn01v5zngn-fetchurl.sh.drv' and then building outputs 'out': created outer
+obtaining derivation from '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/mi28ib5wnk1phc4hxif7z6pn01v5zngn-fetchurl.sh.drv' and then building outputs 'out': woken up
+entered goal loop
+obtaining derivation from '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/mi28ib5wnk1phc4hxif7z6pn01v5zngn-fetchurl.sh.drv' and then building outputs 'out': need to load derivation from file
+obtaining derivation from '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/mi28ib5wnk1phc4hxif7z6pn01v5zngn-fetchurl.sh.drv' and then building outputs 'out': already have drv '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/mi28ib5wnk1phc4hxif7z6pn01v5zngn-fetchurl.sh.drv' for '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/mi28ib5wnk1phc4hxif7z6pn01v5zngn-fetchurl.sh.drv', can go straight to building
+obtaining derivation from '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/mi28ib5wnk1phc4hxif7z6pn01v5zngn-fetchurl.sh.drv' and then building outputs 'out': outer load and build derivation
+obtaining derivation from '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/mi28ib5wnk1phc4hxif7z6pn01v5zngn-fetchurl.sh.drv' and then building outputs 'out': return_value(Co&&)
+obtaining derivation from '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/mi28ib5wnk1phc4hxif7z6pn01v5zngn-fetchurl.sh.drv' and then building outputs 'out': in final_awaiter
+obtaining derivation from '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/mi28ib5wnk1phc4hxif7z6pn01v5zngn-fetchurl.sh.drv' and then building outputs 'out': have derivation, will kick off derivations goals per wanted output
+getting output 'out' from derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/mi28ib5wnk1phc4hxif7z6pn01v5zngn-fetchurl.sh.drv': created
+getting output 'out' from derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/mi28ib5wnk1phc4hxif7z6pn01v5zngn-fetchurl.sh.drv': woken up
+worker event loop worked goal 'obtaining derivation from '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/mi28ib5wnk1phc4hxif7z6pn01v5zngn-fetchurl.sh.drv' and then building outputs 'out'' for 0.224ms
+getting output 'out' from derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/mi28ib5wnk1phc4hxif7z6pn01v5zngn-fetchurl.sh.drv': have derivation
+getting output 'out' from derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/mi28ib5wnk1phc4hxif7z6pn01v5zngn-fetchurl.sh.drv': done
+obtaining derivation from '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/mi28ib5wnk1phc4hxif7z6pn01v5zngn-fetchurl.sh.drv' and then building outputs 'out': waitee 'getting output 'out' from derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/mi28ib5wnk1phc4hxif7z6pn01v5zngn-fetchurl.sh.drv'' done; 0 left
+obtaining derivation from '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/mi28ib5wnk1phc4hxif7z6pn01v5zngn-fetchurl.sh.drv' and then building outputs 'out': woken up
+getting output 'out' from derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/mi28ib5wnk1phc4hxif7z6pn01v5zngn-fetchurl.sh.drv': in final_awaiter
+worker event loop worked goal 'getting output 'out' from derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/mi28ib5wnk1phc4hxif7z6pn01v5zngn-fetchurl.sh.drv'' for 0.049ms
+obtaining derivation from '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/mi28ib5wnk1phc4hxif7z6pn01v5zngn-fetchurl.sh.drv' and then building outputs 'out': in final_awaiter
+obtaining derivation from '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/mi28ib5wnk1phc4hxif7z6pn01v5zngn-fetchurl.sh.drv' and then building outputs 'out': outer build done
+obtaining derivation from '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/mi28ib5wnk1phc4hxif7z6pn01v5zngn-fetchurl.sh.drv' and then building outputs 'out': done
+getting output 'out' from derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/mi28ib5wnk1phc4hxif7z6pn01v5zngn-fetchurl.sh.drv': goal destroyed
+obtaining derivation from '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/mi28ib5wnk1phc4hxif7z6pn01v5zngn-fetchurl.sh.drv' and then building outputs 'out': in final_awaiter
+worker event loop worked goal 'obtaining derivation from '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/mi28ib5wnk1phc4hxif7z6pn01v5zngn-fetchurl.sh.drv' and then building outputs 'out'' for 0.011ms
+obtaining derivation from '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/mi28ib5wnk1phc4hxif7z6pn01v5zngn-fetchurl.sh.drv' and then building outputs 'out': goal destroyed
++(fetchurl.sh:15) outPath2=/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/5vhymm0ijw51c4i5wnpz7pvjcl3fxx50-fetchurl.sh
++(fetchurl.sh:16) test /var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/5vhymm0ijw51c4i5wnpz7pvjcl3fxx50-fetchurl.sh == /var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/5vhymm0ijw51c4i5wnpz7pvjcl3fxx50-fetchurl.sh
++(fetchurl.sh:19) clearStore
++(/var/tmp/fg2/fn/nfjyYVQI/src/common/functions.sh:41) isTestOnNixOS
++(/var/tmp/fg2/fn/nfjyYVQI/src/common/functions.sh:10) [[ '' == 1 ]]
++(/var/tmp/fg2/fn/nfjyYVQI/src/common/functions.sh:44) doClearStore
++(/var/tmp/fg2/fn/nfjyYVQI/src/common/functions.sh:48) echo 'clearing store...'
+clearing store...
++(/var/tmp/fg2/fn/nfjyYVQI/src/common/functions.sh:49) chmod -R +w /var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store
++(/var/tmp/fg2/fn/nfjyYVQI/src/common/functions.sh:50) rm -rf /var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store
++(/var/tmp/fg2/fn/nfjyYVQI/src/common/functions.sh:51) mkdir /var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store
++(/var/tmp/fg2/fn/nfjyYVQI/src/common/functions.sh:52) rm -rf /var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/var/nix
++(/var/tmp/fg2/fn/nfjyYVQI/src/common/functions.sh:53) mkdir /var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/var/nix
++(/var/tmp/fg2/fn/nfjyYVQI/src/common/functions.sh:54) clearProfiles
++(/var/tmp/fg2/fn/nfjyYVQI/src/common/functions.sh:25) profiles=/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/test-home/.local/state/nix/profiles
++(/var/tmp/fg2/fn/nfjyYVQI/src/common/functions.sh:26) rm -rf /var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/test-home/.local/state/nix/profiles
+++(fetchurl.sh:21) nix hash file --type sha512 --base64 ./fetchurl.sh
+warning: you don't have Internet access; disabling some network-dependent features
++(fetchurl.sh:21) hash=cI2LM+WSGpF8jMeW0edRDHpqUsO/G6kGtjd8aEA2uioGLnnps6Btn/CnD9/i/e0DDCshTe/xSyge5fRnAJMLfA==
++++(fetchurl.sh:23) pwd
+++(fetchurl.sh:23) nix-build -vvvvv --expr 'import <nix/fetchurl.nix>' --argstr url file:///var/tmp/fg2/fn/nfjyYVQI/src/fetchurl.sh --argstr sha512 cI2LM+WSGpF8jMeW0edRDHpqUsO/G6kGtjd8aEA2uioGLnnps6Btn/CnD9/i/e0DDCshTe/xSyge5fRnAJMLfA== --no-out-link
+executing Nix database schema migration '20260309-drop-redundant-indexreferrer'...
+evaluating file '«nix-internal»/derivation-internal.nix'
+evaluating file '<nix/fetchurl.nix>'
+processing attribute 'builder'
+processing attribute 'executable'
+processing attribute 'impureEnvVars'
+processing attribute 'name'
+processing attribute 'outputHash'
+processing attribute 'outputHashAlgo'
+processing attribute 'outputHashMode'
+processing attribute 'preferLocalBuild'
+processing attribute 'system'
+processing attribute 'unpack'
+processing attribute 'url'
+processing attribute 'urls'
+acquiring write lock on "/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/var/nix/temproots/1033913"
+locking path "/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/0v687fm774w7dvdwsvmml7lcijmjhf9d-fetchurl.sh.drv"
+lock acquired on "/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/0v687fm774w7dvdwsvmml7lcijmjhf9d-fetchurl.sh.drv.lock"
+lock released on "/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/0v687fm774w7dvdwsvmml7lcijmjhf9d-fetchurl.sh.drv.lock"
+instantiated 'fetchurl.sh' -> '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/0v687fm774w7dvdwsvmml7lcijmjhf9d-fetchurl.sh.drv'
+querying info about missing paths...
+this derivation will be built:
+  /var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/0v687fm774w7dvdwsvmml7lcijmjhf9d-fetchurl.sh.drv
+obtaining derivation from '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/0v687fm774w7dvdwsvmml7lcijmjhf9d-fetchurl.sh.drv' and then building outputs 'out': created outer
+obtaining derivation from '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/0v687fm774w7dvdwsvmml7lcijmjhf9d-fetchurl.sh.drv' and then building outputs 'out': woken up
+entered goal loop
+obtaining derivation from '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/0v687fm774w7dvdwsvmml7lcijmjhf9d-fetchurl.sh.drv' and then building outputs 'out': need to load derivation from file
+obtaining derivation from '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/0v687fm774w7dvdwsvmml7lcijmjhf9d-fetchurl.sh.drv' and then building outputs 'out': already have drv '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/0v687fm774w7dvdwsvmml7lcijmjhf9d-fetchurl.sh.drv' for '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/0v687fm774w7dvdwsvmml7lcijmjhf9d-fetchurl.sh.drv', can go straight to building
+obtaining derivation from '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/0v687fm774w7dvdwsvmml7lcijmjhf9d-fetchurl.sh.drv' and then building outputs 'out': outer load and build derivation
+obtaining derivation from '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/0v687fm774w7dvdwsvmml7lcijmjhf9d-fetchurl.sh.drv' and then building outputs 'out': return_value(Co&&)
+obtaining derivation from '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/0v687fm774w7dvdwsvmml7lcijmjhf9d-fetchurl.sh.drv' and then building outputs 'out': in final_awaiter
+obtaining derivation from '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/0v687fm774w7dvdwsvmml7lcijmjhf9d-fetchurl.sh.drv' and then building outputs 'out': have derivation, will kick off derivations goals per wanted output
+getting output 'out' from derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/0v687fm774w7dvdwsvmml7lcijmjhf9d-fetchurl.sh.drv': created
+getting output 'out' from derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/0v687fm774w7dvdwsvmml7lcijmjhf9d-fetchurl.sh.drv': woken up
+worker event loop worked goal 'obtaining derivation from '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/0v687fm774w7dvdwsvmml7lcijmjhf9d-fetchurl.sh.drv' and then building outputs 'out'' for 0.028ms
+getting output 'out' from derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/0v687fm774w7dvdwsvmml7lcijmjhf9d-fetchurl.sh.drv': have derivation
+substitution of '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/3mra1fgnygmmljff3hn3bgsnnw81i4mm-fetchurl.sh': created
+substitution of '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/3mra1fgnygmmljff3hn3bgsnnw81i4mm-fetchurl.sh': woken up
+worker event loop worked goal 'getting output 'out' from derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/0v687fm774w7dvdwsvmml7lcijmjhf9d-fetchurl.sh.drv'' for 0.019ms
+substitution of '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/3mra1fgnygmmljff3hn3bgsnnw81i4mm-fetchurl.sh': init
+substitution of '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/3mra1fgnygmmljff3hn3bgsnnw81i4mm-fetchurl.sh': done
+getting output 'out' from derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/0v687fm774w7dvdwsvmml7lcijmjhf9d-fetchurl.sh.drv': waitee 'substitution of '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/3mra1fgnygmmljff3hn3bgsnnw81i4mm-fetchurl.sh'' done; 0 left
+getting output 'out' from derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/0v687fm774w7dvdwsvmml7lcijmjhf9d-fetchurl.sh.drv': woken up
+substitution of '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/3mra1fgnygmmljff3hn3bgsnnw81i4mm-fetchurl.sh': in final_awaiter
+worker event loop worked goal 'substitution of '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/3mra1fgnygmmljff3hn3bgsnnw81i4mm-fetchurl.sh'' for 0.022ms
+substitution of '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/3mra1fgnygmmljff3hn3bgsnnw81i4mm-fetchurl.sh': goal destroyed
+getting output 'out' from derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/0v687fm774w7dvdwsvmml7lcijmjhf9d-fetchurl.sh.drv': in final_awaiter
+getting output 'out' from derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/0v687fm774w7dvdwsvmml7lcijmjhf9d-fetchurl.sh.drv': all outputs substituted (maybe)
+resolving derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/0v687fm774w7dvdwsvmml7lcijmjhf9d-fetchurl.sh.drv': created
+resolving derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/0v687fm774w7dvdwsvmml7lcijmjhf9d-fetchurl.sh.drv': woken up
+worker event loop worked goal 'getting output 'out' from derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/0v687fm774w7dvdwsvmml7lcijmjhf9d-fetchurl.sh.drv'' for 0.010ms
+resolving derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/0v687fm774w7dvdwsvmml7lcijmjhf9d-fetchurl.sh.drv': in final_awaiter
+resolving derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/0v687fm774w7dvdwsvmml7lcijmjhf9d-fetchurl.sh.drv': all inputs realised
+resolving derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/0v687fm774w7dvdwsvmml7lcijmjhf9d-fetchurl.sh.drv': done
+getting output 'out' from derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/0v687fm774w7dvdwsvmml7lcijmjhf9d-fetchurl.sh.drv': waitee 'resolving derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/0v687fm774w7dvdwsvmml7lcijmjhf9d-fetchurl.sh.drv'' done; 0 left
+getting output 'out' from derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/0v687fm774w7dvdwsvmml7lcijmjhf9d-fetchurl.sh.drv': woken up
+resolving derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/0v687fm774w7dvdwsvmml7lcijmjhf9d-fetchurl.sh.drv': in final_awaiter
+worker event loop worked goal 'resolving derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/0v687fm774w7dvdwsvmml7lcijmjhf9d-fetchurl.sh.drv'' for 0.013ms
+getting output 'out' from derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/0v687fm774w7dvdwsvmml7lcijmjhf9d-fetchurl.sh.drv': in final_awaiter
+resolving derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/0v687fm774w7dvdwsvmml7lcijmjhf9d-fetchurl.sh.drv': goal destroyed
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/0v687fm774w7dvdwsvmml7lcijmjhf9d-fetchurl.sh.drv': created
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/0v687fm774w7dvdwsvmml7lcijmjhf9d-fetchurl.sh.drv': woken up
+worker event loop worked goal 'getting output 'out' from derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/0v687fm774w7dvdwsvmml7lcijmjhf9d-fetchurl.sh.drv'' for 0.013ms
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/0v687fm774w7dvdwsvmml7lcijmjhf9d-fetchurl.sh.drv': in final_awaiter
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/0v687fm774w7dvdwsvmml7lcijmjhf9d-fetchurl.sh.drv': all inputs realised
+added input paths 
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/0v687fm774w7dvdwsvmml7lcijmjhf9d-fetchurl.sh.drv': woken up
+worker event loop worked goal 'building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/0v687fm774w7dvdwsvmml7lcijmjhf9d-fetchurl.sh.drv'' for 0.014ms
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/0v687fm774w7dvdwsvmml7lcijmjhf9d-fetchurl.sh.drv': in final_awaiter
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/0v687fm774w7dvdwsvmml7lcijmjhf9d-fetchurl.sh.drv': return_value(Co&&)
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/0v687fm774w7dvdwsvmml7lcijmjhf9d-fetchurl.sh.drv': in final_awaiter
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/0v687fm774w7dvdwsvmml7lcijmjhf9d-fetchurl.sh.drv': trying to build
+locking path "/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/3mra1fgnygmmljff3hn3bgsnnw81i4mm-fetchurl.sh"
+lock acquired on "/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/3mra1fgnygmmljff3hn3bgsnnw81i4mm-fetchurl.sh.lock"
+removing invalid path '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/3mra1fgnygmmljff3hn3bgsnnw81i4mm-fetchurl.sh'
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/0v687fm774w7dvdwsvmml7lcijmjhf9d-fetchurl.sh.drv': in final_awaiter
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/0v687fm774w7dvdwsvmml7lcijmjhf9d-fetchurl.sh.drv': return_value(Co&&)
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/0v687fm774w7dvdwsvmml7lcijmjhf9d-fetchurl.sh.drv': in final_awaiter
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/0v687fm774w7dvdwsvmml7lcijmjhf9d-fetchurl.sh.drv': woken up
+worker event loop worked goal 'building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/0v687fm774w7dvdwsvmml7lcijmjhf9d-fetchurl.sh.drv'' for 0.058ms
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/0v687fm774w7dvdwsvmml7lcijmjhf9d-fetchurl.sh.drv': in final_awaiter
+executing builder 'builtin:fetchurl'
+using builder args ''
+setting builder env variable 'builder'='builtin:fetchurl'
+setting builder env variable 'executable'=''
+setting builder env variable 'impureEnvVars'='http_proxy https_proxy ftp_proxy all_proxy no_proxy'
+setting builder env variable 'name'='fetchurl.sh'
+setting builder env variable 'out'='/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/3mra1fgnygmmljff3hn3bgsnnw81i4mm-fetchurl.sh'
+setting builder env variable 'outputHash'='cI2LM+WSGpF8jMeW0edRDHpqUsO/G6kGtjd8aEA2uioGLnnps6Btn/CnD9/i/e0DDCshTe/xSyge5fRnAJMLfA=='
+setting builder env variable 'outputHashAlgo'='sha512'
+setting builder env variable 'outputHashMode'='flat'
+setting builder env variable 'preferLocalBuild'='1'
+setting builder env variable 'system'='builtin'
+setting builder env variable 'unpack'=''
+setting builder env variable 'url'='file:///var/tmp/fg2/fn/nfjyYVQI/src/fetchurl.sh'
+setting builder env variable 'urls'='file:///var/tmp/fg2/fn/nfjyYVQI/src/fetchurl.sh'
+sandbox setup: applied landlock sandboxing
+building '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/0v687fm774w7dvdwsvmml7lcijmjhf9d-fetchurl.sh.drv'...
+worker event loop worked goal 'building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/0v687fm774w7dvdwsvmml7lcijmjhf9d-fetchurl.sh.drv'' for 2.846ms
+waiting for children
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/0v687fm774w7dvdwsvmml7lcijmjhf9d-fetchurl.sh.drv': read 108 bytes
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/0v687fm774w7dvdwsvmml7lcijmjhf9d-fetchurl.sh.drv': woken up
+[pid=1033953] builtin:fetchurl creating fresh FileTransfer instance
+worker event loop worked goal 'building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/0v687fm774w7dvdwsvmml7lcijmjhf9d-fetchurl.sh.drv'' for 0.023ms
+waiting for children
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/0v687fm774w7dvdwsvmml7lcijmjhf9d-fetchurl.sh.drv': read 120 bytes
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/0v687fm774w7dvdwsvmml7lcijmjhf9d-fetchurl.sh.drv': woken up
+starting download of 'file:///var/tmp/fg2/fn/nfjyYVQI/src/fetchurl.sh'
+worker event loop worked goal 'building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/0v687fm774w7dvdwsvmml7lcijmjhf9d-fetchurl.sh.drv'' for 0.004ms
+waiting for children
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/0v687fm774w7dvdwsvmml7lcijmjhf9d-fetchurl.sh.drv': read 157 bytes
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/0v687fm774w7dvdwsvmml7lcijmjhf9d-fetchurl.sh.drv': woken up
+curl: Could not find host  in the /var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/etc/netrc file; using defaults
+worker event loop worked goal 'building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/0v687fm774w7dvdwsvmml7lcijmjhf9d-fetchurl.sh.drv'' for 0.022ms
+waiting for children
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/0v687fm774w7dvdwsvmml7lcijmjhf9d-fetchurl.sh.drv': read 491 bytes
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/0v687fm774w7dvdwsvmml7lcijmjhf9d-fetchurl.sh.drv': woken up
+downloading 'file:///var/tmp/fg2/fn/nfjyYVQI/src/fetchurl.sh'...
+got header for 'file:///var/tmp/fg2/fn/nfjyYVQI/src/fetchurl.sh': Content-Length: 3223
+worker event loop worked goal 'building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/0v687fm774w7dvdwsvmml7lcijmjhf9d-fetchurl.sh.drv'' for 0.030ms
+waiting for children
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/0v687fm774w7dvdwsvmml7lcijmjhf9d-fetchurl.sh.drv': read 127 bytes
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/0v687fm774w7dvdwsvmml7lcijmjhf9d-fetchurl.sh.drv': woken up
+got header for 'file:///var/tmp/fg2/fn/nfjyYVQI/src/fetchurl.sh': Accept-ranges: bytes
+worker event loop worked goal 'building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/0v687fm774w7dvdwsvmml7lcijmjhf9d-fetchurl.sh.drv'' for 0.003ms
+waiting for children
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/0v687fm774w7dvdwsvmml7lcijmjhf9d-fetchurl.sh.drv': read 258 bytes
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/0v687fm774w7dvdwsvmml7lcijmjhf9d-fetchurl.sh.drv': woken up
+got header for 'file:///var/tmp/fg2/fn/nfjyYVQI/src/fetchurl.sh': Last-Modified: Tue, 24 Nov 2026 23:08:06 GMT
+got header for 'file:///var/tmp/fg2/fn/nfjyYVQI/src/fetchurl.sh': 
+worker event loop worked goal 'building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/0v687fm774w7dvdwsvmml7lcijmjhf9d-fetchurl.sh.drv'' for 0.006ms
+waiting for children
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/0v687fm774w7dvdwsvmml7lcijmjhf9d-fetchurl.sh.drv': read 83 bytes
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/0v687fm774w7dvdwsvmml7lcijmjhf9d-fetchurl.sh.drv': woken up
+worker event loop worked goal 'building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/0v687fm774w7dvdwsvmml7lcijmjhf9d-fetchurl.sh.drv'' for 0.003ms
+waiting for children
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/0v687fm774w7dvdwsvmml7lcijmjhf9d-fetchurl.sh.drv': read 332 bytes
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/0v687fm774w7dvdwsvmml7lcijmjhf9d-fetchurl.sh.drv': woken up
+worker event loop worked goal 'building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/0v687fm774w7dvdwsvmml7lcijmjhf9d-fetchurl.sh.drv'' for 0.008ms
+waiting for children
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/0v687fm774w7dvdwsvmml7lcijmjhf9d-fetchurl.sh.drv': read 74 bytes
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/0v687fm774w7dvdwsvmml7lcijmjhf9d-fetchurl.sh.drv': woken up
+curl: shutting down connection #0
+worker event loop worked goal 'building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/0v687fm774w7dvdwsvmml7lcijmjhf9d-fetchurl.sh.drv'' for 0.002ms
+waiting for children
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/0v687fm774w7dvdwsvmml7lcijmjhf9d-fetchurl.sh.drv': read 275 bytes
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/0v687fm774w7dvdwsvmml7lcijmjhf9d-fetchurl.sh.drv': woken up
+finished download of 'file:///var/tmp/fg2/fn/nfjyYVQI/src/fetchurl.sh'; curl status = 0, HTTP status = 0, body = 3223 bytes, duration = 0.00 s
+worker event loop worked goal 'building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/0v687fm774w7dvdwsvmml7lcijmjhf9d-fetchurl.sh.drv'' for 0.007ms
+waiting for children
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/0v687fm774w7dvdwsvmml7lcijmjhf9d-fetchurl.sh.drv': read 45 bytes
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/0v687fm774w7dvdwsvmml7lcijmjhf9d-fetchurl.sh.drv': woken up
+worker event loop worked goal 'building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/0v687fm774w7dvdwsvmml7lcijmjhf9d-fetchurl.sh.drv'' for 0.002ms
+waiting for children
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/0v687fm774w7dvdwsvmml7lcijmjhf9d-fetchurl.sh.drv': read 70 bytes
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/0v687fm774w7dvdwsvmml7lcijmjhf9d-fetchurl.sh.drv': woken up
+download thread shutting down
+worker event loop worked goal 'building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/0v687fm774w7dvdwsvmml7lcijmjhf9d-fetchurl.sh.drv'' for 0.002ms
+waiting for children
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/0v687fm774w7dvdwsvmml7lcijmjhf9d-fetchurl.sh.drv': got EOF
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/0v687fm774w7dvdwsvmml7lcijmjhf9d-fetchurl.sh.drv': woken up
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/0v687fm774w7dvdwsvmml7lcijmjhf9d-fetchurl.sh.drv': build done
+killing process 1033953
+builder process for '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/0v687fm774w7dvdwsvmml7lcijmjhf9d-fetchurl.sh.drv' finished
+scanning for references for output 'out' in temp location "/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/3mra1fgnygmmljff3hn3bgsnnw81i4mm-fetchurl.sh"
+lock released on "/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/3mra1fgnygmmljff3hn3bgsnnw81i4mm-fetchurl.sh.lock"
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/0v687fm774w7dvdwsvmml7lcijmjhf9d-fetchurl.sh.drv': done
+getting output 'out' from derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/0v687fm774w7dvdwsvmml7lcijmjhf9d-fetchurl.sh.drv': waitee 'building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/0v687fm774w7dvdwsvmml7lcijmjhf9d-fetchurl.sh.drv'' done; 0 left
+getting output 'out' from derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/0v687fm774w7dvdwsvmml7lcijmjhf9d-fetchurl.sh.drv': woken up
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/0v687fm774w7dvdwsvmml7lcijmjhf9d-fetchurl.sh.drv': in final_awaiter
+worker event loop worked goal 'building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/0v687fm774w7dvdwsvmml7lcijmjhf9d-fetchurl.sh.drv'' for 0.850ms
+getting output 'out' from derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/0v687fm774w7dvdwsvmml7lcijmjhf9d-fetchurl.sh.drv': in final_awaiter
+getting output 'out' from derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/0v687fm774w7dvdwsvmml7lcijmjhf9d-fetchurl.sh.drv': outer build done
+getting output 'out' from derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/0v687fm774w7dvdwsvmml7lcijmjhf9d-fetchurl.sh.drv': done
+obtaining derivation from '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/0v687fm774w7dvdwsvmml7lcijmjhf9d-fetchurl.sh.drv' and then building outputs 'out': waitee 'getting output 'out' from derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/0v687fm774w7dvdwsvmml7lcijmjhf9d-fetchurl.sh.drv'' done; 0 left
+obtaining derivation from '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/0v687fm774w7dvdwsvmml7lcijmjhf9d-fetchurl.sh.drv' and then building outputs 'out': woken up
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/0v687fm774w7dvdwsvmml7lcijmjhf9d-fetchurl.sh.drv': goal destroyed
+getting output 'out' from derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/0v687fm774w7dvdwsvmml7lcijmjhf9d-fetchurl.sh.drv': in final_awaiter
+worker event loop worked goal 'getting output 'out' from derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/0v687fm774w7dvdwsvmml7lcijmjhf9d-fetchurl.sh.drv'' for 0.019ms
+obtaining derivation from '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/0v687fm774w7dvdwsvmml7lcijmjhf9d-fetchurl.sh.drv' and then building outputs 'out': in final_awaiter
+obtaining derivation from '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/0v687fm774w7dvdwsvmml7lcijmjhf9d-fetchurl.sh.drv' and then building outputs 'out': outer build done
+obtaining derivation from '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/0v687fm774w7dvdwsvmml7lcijmjhf9d-fetchurl.sh.drv' and then building outputs 'out': done
+getting output 'out' from derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/0v687fm774w7dvdwsvmml7lcijmjhf9d-fetchurl.sh.drv': goal destroyed
+obtaining derivation from '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/0v687fm774w7dvdwsvmml7lcijmjhf9d-fetchurl.sh.drv' and then building outputs 'out': in final_awaiter
+worker event loop worked goal 'obtaining derivation from '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/0v687fm774w7dvdwsvmml7lcijmjhf9d-fetchurl.sh.drv' and then building outputs 'out'' for 0.015ms
+obtaining derivation from '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/0v687fm774w7dvdwsvmml7lcijmjhf9d-fetchurl.sh.drv' and then building outputs 'out': goal destroyed
++(fetchurl.sh:23) outPath=/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/3mra1fgnygmmljff3hn3bgsnnw81i4mm-fetchurl.sh
++(fetchurl.sh:25) cmp /var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/3mra1fgnygmmljff3hn3bgsnnw81i4mm-fetchurl.sh fetchurl.sh
++(fetchurl.sh:28) clearStore
++(/var/tmp/fg2/fn/nfjyYVQI/src/common/functions.sh:41) isTestOnNixOS
++(/var/tmp/fg2/fn/nfjyYVQI/src/common/functions.sh:10) [[ '' == 1 ]]
++(/var/tmp/fg2/fn/nfjyYVQI/src/common/functions.sh:44) doClearStore
++(/var/tmp/fg2/fn/nfjyYVQI/src/common/functions.sh:48) echo 'clearing store...'
+clearing store...
++(/var/tmp/fg2/fn/nfjyYVQI/src/common/functions.sh:49) chmod -R +w /var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store
++(/var/tmp/fg2/fn/nfjyYVQI/src/common/functions.sh:50) rm -rf /var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store
++(/var/tmp/fg2/fn/nfjyYVQI/src/common/functions.sh:51) mkdir /var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store
++(/var/tmp/fg2/fn/nfjyYVQI/src/common/functions.sh:52) rm -rf /var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/var/nix
++(/var/tmp/fg2/fn/nfjyYVQI/src/common/functions.sh:53) mkdir /var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/var/nix
++(/var/tmp/fg2/fn/nfjyYVQI/src/common/functions.sh:54) clearProfiles
++(/var/tmp/fg2/fn/nfjyYVQI/src/common/functions.sh:25) profiles=/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/test-home/.local/state/nix/profiles
++(/var/tmp/fg2/fn/nfjyYVQI/src/common/functions.sh:26) rm -rf /var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/test-home/.local/state/nix/profiles
+++(fetchurl.sh:30) nix hash file ./fetchurl.sh
+warning: you don't have Internet access; disabling some network-dependent features
++(fetchurl.sh:30) hash=sha256-DOd2RP4N4qTbDhS6mSkU7HaBPD7H59F+xbqlZfY4OWY=
++(fetchurl.sh:32) [[ sha256-DOd2RP4N4qTbDhS6mSkU7HaBPD7H59F+xbqlZfY4OWY= =~ ^sha256- ]]
++++(fetchurl.sh:34) pwd
+++(fetchurl.sh:34) nix-build -vvvvv --expr 'import <nix/fetchurl.nix>' --argstr url file:///var/tmp/fg2/fn/nfjyYVQI/src/fetchurl.sh --argstr hash sha256-DOd2RP4N4qTbDhS6mSkU7HaBPD7H59F+xbqlZfY4OWY= --no-out-link
+executing Nix database schema migration '20260309-drop-redundant-indexreferrer'...
+evaluating file '«nix-internal»/derivation-internal.nix'
+evaluating file '<nix/fetchurl.nix>'
+processing attribute 'builder'
+processing attribute 'executable'
+processing attribute 'impureEnvVars'
+processing attribute 'name'
+processing attribute 'outputHash'
+processing attribute 'outputHashAlgo'
+processing attribute 'outputHashMode'
+processing attribute 'preferLocalBuild'
+processing attribute 'system'
+processing attribute 'unpack'
+processing attribute 'url'
+processing attribute 'urls'
+acquiring write lock on "/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/var/nix/temproots/1034014"
+locking path "/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/l1hjnnr7ibmliwm584akk7qg1hpa0j9z-fetchurl.sh.drv"
+lock acquired on "/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/l1hjnnr7ibmliwm584akk7qg1hpa0j9z-fetchurl.sh.drv.lock"
+lock released on "/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/l1hjnnr7ibmliwm584akk7qg1hpa0j9z-fetchurl.sh.drv.lock"
+instantiated 'fetchurl.sh' -> '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/l1hjnnr7ibmliwm584akk7qg1hpa0j9z-fetchurl.sh.drv'
+querying info about missing paths...
+this derivation will be built:
+  /var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/l1hjnnr7ibmliwm584akk7qg1hpa0j9z-fetchurl.sh.drv
+obtaining derivation from '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/l1hjnnr7ibmliwm584akk7qg1hpa0j9z-fetchurl.sh.drv' and then building outputs 'out': created outer
+obtaining derivation from '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/l1hjnnr7ibmliwm584akk7qg1hpa0j9z-fetchurl.sh.drv' and then building outputs 'out': woken up
+entered goal loop
+obtaining derivation from '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/l1hjnnr7ibmliwm584akk7qg1hpa0j9z-fetchurl.sh.drv' and then building outputs 'out': need to load derivation from file
+obtaining derivation from '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/l1hjnnr7ibmliwm584akk7qg1hpa0j9z-fetchurl.sh.drv' and then building outputs 'out': already have drv '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/l1hjnnr7ibmliwm584akk7qg1hpa0j9z-fetchurl.sh.drv' for '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/l1hjnnr7ibmliwm584akk7qg1hpa0j9z-fetchurl.sh.drv', can go straight to building
+obtaining derivation from '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/l1hjnnr7ibmliwm584akk7qg1hpa0j9z-fetchurl.sh.drv' and then building outputs 'out': outer load and build derivation
+obtaining derivation from '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/l1hjnnr7ibmliwm584akk7qg1hpa0j9z-fetchurl.sh.drv' and then building outputs 'out': return_value(Co&&)
+obtaining derivation from '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/l1hjnnr7ibmliwm584akk7qg1hpa0j9z-fetchurl.sh.drv' and then building outputs 'out': in final_awaiter
+obtaining derivation from '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/l1hjnnr7ibmliwm584akk7qg1hpa0j9z-fetchurl.sh.drv' and then building outputs 'out': have derivation, will kick off derivations goals per wanted output
+getting output 'out' from derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/l1hjnnr7ibmliwm584akk7qg1hpa0j9z-fetchurl.sh.drv': created
+getting output 'out' from derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/l1hjnnr7ibmliwm584akk7qg1hpa0j9z-fetchurl.sh.drv': woken up
+worker event loop worked goal 'obtaining derivation from '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/l1hjnnr7ibmliwm584akk7qg1hpa0j9z-fetchurl.sh.drv' and then building outputs 'out'' for 0.053ms
+getting output 'out' from derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/l1hjnnr7ibmliwm584akk7qg1hpa0j9z-fetchurl.sh.drv': have derivation
+substitution of '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/5vhymm0ijw51c4i5wnpz7pvjcl3fxx50-fetchurl.sh': created
+substitution of '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/5vhymm0ijw51c4i5wnpz7pvjcl3fxx50-fetchurl.sh': woken up
+worker event loop worked goal 'getting output 'out' from derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/l1hjnnr7ibmliwm584akk7qg1hpa0j9z-fetchurl.sh.drv'' for 0.037ms
+substitution of '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/5vhymm0ijw51c4i5wnpz7pvjcl3fxx50-fetchurl.sh': init
+substitution of '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/5vhymm0ijw51c4i5wnpz7pvjcl3fxx50-fetchurl.sh': done
+getting output 'out' from derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/l1hjnnr7ibmliwm584akk7qg1hpa0j9z-fetchurl.sh.drv': waitee 'substitution of '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/5vhymm0ijw51c4i5wnpz7pvjcl3fxx50-fetchurl.sh'' done; 0 left
+getting output 'out' from derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/l1hjnnr7ibmliwm584akk7qg1hpa0j9z-fetchurl.sh.drv': woken up
+substitution of '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/5vhymm0ijw51c4i5wnpz7pvjcl3fxx50-fetchurl.sh': in final_awaiter
+worker event loop worked goal 'substitution of '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/5vhymm0ijw51c4i5wnpz7pvjcl3fxx50-fetchurl.sh'' for 0.044ms
+substitution of '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/5vhymm0ijw51c4i5wnpz7pvjcl3fxx50-fetchurl.sh': goal destroyed
+getting output 'out' from derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/l1hjnnr7ibmliwm584akk7qg1hpa0j9z-fetchurl.sh.drv': in final_awaiter
+getting output 'out' from derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/l1hjnnr7ibmliwm584akk7qg1hpa0j9z-fetchurl.sh.drv': all outputs substituted (maybe)
+resolving derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/l1hjnnr7ibmliwm584akk7qg1hpa0j9z-fetchurl.sh.drv': created
+resolving derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/l1hjnnr7ibmliwm584akk7qg1hpa0j9z-fetchurl.sh.drv': woken up
+worker event loop worked goal 'getting output 'out' from derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/l1hjnnr7ibmliwm584akk7qg1hpa0j9z-fetchurl.sh.drv'' for 0.015ms
+resolving derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/l1hjnnr7ibmliwm584akk7qg1hpa0j9z-fetchurl.sh.drv': in final_awaiter
+resolving derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/l1hjnnr7ibmliwm584akk7qg1hpa0j9z-fetchurl.sh.drv': all inputs realised
+resolving derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/l1hjnnr7ibmliwm584akk7qg1hpa0j9z-fetchurl.sh.drv': done
+getting output 'out' from derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/l1hjnnr7ibmliwm584akk7qg1hpa0j9z-fetchurl.sh.drv': waitee 'resolving derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/l1hjnnr7ibmliwm584akk7qg1hpa0j9z-fetchurl.sh.drv'' done; 0 left
+getting output 'out' from derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/l1hjnnr7ibmliwm584akk7qg1hpa0j9z-fetchurl.sh.drv': woken up
+resolving derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/l1hjnnr7ibmliwm584akk7qg1hpa0j9z-fetchurl.sh.drv': in final_awaiter
+worker event loop worked goal 'resolving derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/l1hjnnr7ibmliwm584akk7qg1hpa0j9z-fetchurl.sh.drv'' for 0.020ms
+getting output 'out' from derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/l1hjnnr7ibmliwm584akk7qg1hpa0j9z-fetchurl.sh.drv': in final_awaiter
+resolving derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/l1hjnnr7ibmliwm584akk7qg1hpa0j9z-fetchurl.sh.drv': goal destroyed
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/l1hjnnr7ibmliwm584akk7qg1hpa0j9z-fetchurl.sh.drv': created
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/l1hjnnr7ibmliwm584akk7qg1hpa0j9z-fetchurl.sh.drv': woken up
+worker event loop worked goal 'getting output 'out' from derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/l1hjnnr7ibmliwm584akk7qg1hpa0j9z-fetchurl.sh.drv'' for 0.013ms
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/l1hjnnr7ibmliwm584akk7qg1hpa0j9z-fetchurl.sh.drv': in final_awaiter
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/l1hjnnr7ibmliwm584akk7qg1hpa0j9z-fetchurl.sh.drv': all inputs realised
+added input paths 
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/l1hjnnr7ibmliwm584akk7qg1hpa0j9z-fetchurl.sh.drv': woken up
+worker event loop worked goal 'building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/l1hjnnr7ibmliwm584akk7qg1hpa0j9z-fetchurl.sh.drv'' for 0.021ms
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/l1hjnnr7ibmliwm584akk7qg1hpa0j9z-fetchurl.sh.drv': in final_awaiter
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/l1hjnnr7ibmliwm584akk7qg1hpa0j9z-fetchurl.sh.drv': return_value(Co&&)
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/l1hjnnr7ibmliwm584akk7qg1hpa0j9z-fetchurl.sh.drv': in final_awaiter
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/l1hjnnr7ibmliwm584akk7qg1hpa0j9z-fetchurl.sh.drv': trying to build
+locking path "/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/5vhymm0ijw51c4i5wnpz7pvjcl3fxx50-fetchurl.sh"
+lock acquired on "/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/5vhymm0ijw51c4i5wnpz7pvjcl3fxx50-fetchurl.sh.lock"
+removing invalid path '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/5vhymm0ijw51c4i5wnpz7pvjcl3fxx50-fetchurl.sh'
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/l1hjnnr7ibmliwm584akk7qg1hpa0j9z-fetchurl.sh.drv': in final_awaiter
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/l1hjnnr7ibmliwm584akk7qg1hpa0j9z-fetchurl.sh.drv': return_value(Co&&)
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/l1hjnnr7ibmliwm584akk7qg1hpa0j9z-fetchurl.sh.drv': in final_awaiter
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/l1hjnnr7ibmliwm584akk7qg1hpa0j9z-fetchurl.sh.drv': woken up
+worker event loop worked goal 'building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/l1hjnnr7ibmliwm584akk7qg1hpa0j9z-fetchurl.sh.drv'' for 0.112ms
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/l1hjnnr7ibmliwm584akk7qg1hpa0j9z-fetchurl.sh.drv': in final_awaiter
+executing builder 'builtin:fetchurl'
+using builder args ''
+setting builder env variable 'builder'='builtin:fetchurl'
+setting builder env variable 'executable'=''
+setting builder env variable 'impureEnvVars'='http_proxy https_proxy ftp_proxy all_proxy no_proxy'
+setting builder env variable 'name'='fetchurl.sh'
+setting builder env variable 'out'='/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/5vhymm0ijw51c4i5wnpz7pvjcl3fxx50-fetchurl.sh'
+setting builder env variable 'outputHash'='sha256-DOd2RP4N4qTbDhS6mSkU7HaBPD7H59F+xbqlZfY4OWY='
+setting builder env variable 'outputHashAlgo'=''
+setting builder env variable 'outputHashMode'='flat'
+setting builder env variable 'preferLocalBuild'='1'
+setting builder env variable 'system'='builtin'
+setting builder env variable 'unpack'=''
+setting builder env variable 'url'='file:///var/tmp/fg2/fn/nfjyYVQI/src/fetchurl.sh'
+setting builder env variable 'urls'='file:///var/tmp/fg2/fn/nfjyYVQI/src/fetchurl.sh'
+sandbox setup: applied landlock sandboxing
+building '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/l1hjnnr7ibmliwm584akk7qg1hpa0j9z-fetchurl.sh.drv'...
+worker event loop worked goal 'building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/l1hjnnr7ibmliwm584akk7qg1hpa0j9z-fetchurl.sh.drv'' for 5.587ms
+waiting for children
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/l1hjnnr7ibmliwm584akk7qg1hpa0j9z-fetchurl.sh.drv': read 108 bytes
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/l1hjnnr7ibmliwm584akk7qg1hpa0j9z-fetchurl.sh.drv': woken up
+[pid=1034039] builtin:fetchurl creating fresh FileTransfer instance
+worker event loop worked goal 'building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/l1hjnnr7ibmliwm584akk7qg1hpa0j9z-fetchurl.sh.drv'' for 0.033ms
+waiting for children
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/l1hjnnr7ibmliwm584akk7qg1hpa0j9z-fetchurl.sh.drv': read 120 bytes
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/l1hjnnr7ibmliwm584akk7qg1hpa0j9z-fetchurl.sh.drv': woken up
+starting download of 'file:///var/tmp/fg2/fn/nfjyYVQI/src/fetchurl.sh'
+worker event loop worked goal 'building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/l1hjnnr7ibmliwm584akk7qg1hpa0j9z-fetchurl.sh.drv'' for 0.006ms
+waiting for children
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/l1hjnnr7ibmliwm584akk7qg1hpa0j9z-fetchurl.sh.drv': read 157 bytes
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/l1hjnnr7ibmliwm584akk7qg1hpa0j9z-fetchurl.sh.drv': woken up
+curl: Could not find host  in the /var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/etc/netrc file; using defaults
+worker event loop worked goal 'building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/l1hjnnr7ibmliwm584akk7qg1hpa0j9z-fetchurl.sh.drv'' for 0.003ms
+waiting for children
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/l1hjnnr7ibmliwm584akk7qg1hpa0j9z-fetchurl.sh.drv': read 210 bytes
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/l1hjnnr7ibmliwm584akk7qg1hpa0j9z-fetchurl.sh.drv': woken up
+downloading 'file:///var/tmp/fg2/fn/nfjyYVQI/src/fetchurl.sh'...
+worker event loop worked goal 'building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/l1hjnnr7ibmliwm584akk7qg1hpa0j9z-fetchurl.sh.drv'' for 0.009ms
+waiting for children
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/l1hjnnr7ibmliwm584akk7qg1hpa0j9z-fetchurl.sh.drv': read 281 bytes
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/l1hjnnr7ibmliwm584akk7qg1hpa0j9z-fetchurl.sh.drv': woken up
+got header for 'file:///var/tmp/fg2/fn/nfjyYVQI/src/fetchurl.sh': Content-Length: 3223
+worker event loop worked goal 'building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/l1hjnnr7ibmliwm584akk7qg1hpa0j9z-fetchurl.sh.drv'' for 0.008ms
+waiting for children
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/l1hjnnr7ibmliwm584akk7qg1hpa0j9z-fetchurl.sh.drv': read 127 bytes
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/l1hjnnr7ibmliwm584akk7qg1hpa0j9z-fetchurl.sh.drv': woken up
+got header for 'file:///var/tmp/fg2/fn/nfjyYVQI/src/fetchurl.sh': Accept-ranges: bytes
+worker event loop worked goal 'building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/l1hjnnr7ibmliwm584akk7qg1hpa0j9z-fetchurl.sh.drv'' for 0.002ms
+waiting for children
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/l1hjnnr7ibmliwm584akk7qg1hpa0j9z-fetchurl.sh.drv': read 258 bytes
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/l1hjnnr7ibmliwm584akk7qg1hpa0j9z-fetchurl.sh.drv': woken up
+got header for 'file:///var/tmp/fg2/fn/nfjyYVQI/src/fetchurl.sh': Last-Modified: Tue, 24 Nov 2026 23:08:06 GMT
+got header for 'file:///var/tmp/fg2/fn/nfjyYVQI/src/fetchurl.sh': 
+worker event loop worked goal 'building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/l1hjnnr7ibmliwm584akk7qg1hpa0j9z-fetchurl.sh.drv'' for 0.008ms
+waiting for children
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/l1hjnnr7ibmliwm584akk7qg1hpa0j9z-fetchurl.sh.drv': read 83 bytes
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/l1hjnnr7ibmliwm584akk7qg1hpa0j9z-fetchurl.sh.drv': woken up
+worker event loop worked goal 'building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/l1hjnnr7ibmliwm584akk7qg1hpa0j9z-fetchurl.sh.drv'' for 0.002ms
+waiting for children
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/l1hjnnr7ibmliwm584akk7qg1hpa0j9z-fetchurl.sh.drv': read 249 bytes
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/l1hjnnr7ibmliwm584akk7qg1hpa0j9z-fetchurl.sh.drv': woken up
+worker event loop worked goal 'building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/l1hjnnr7ibmliwm584akk7qg1hpa0j9z-fetchurl.sh.drv'' for 0.005ms
+waiting for children
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/l1hjnnr7ibmliwm584akk7qg1hpa0j9z-fetchurl.sh.drv': read 83 bytes
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/l1hjnnr7ibmliwm584akk7qg1hpa0j9z-fetchurl.sh.drv': woken up
+worker event loop worked goal 'building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/l1hjnnr7ibmliwm584akk7qg1hpa0j9z-fetchurl.sh.drv'' for 0.002ms
+waiting for children
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/l1hjnnr7ibmliwm584akk7qg1hpa0j9z-fetchurl.sh.drv': read 74 bytes
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/l1hjnnr7ibmliwm584akk7qg1hpa0j9z-fetchurl.sh.drv': woken up
+curl: shutting down connection #0
+worker event loop worked goal 'building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/l1hjnnr7ibmliwm584akk7qg1hpa0j9z-fetchurl.sh.drv'' for 0.002ms
+waiting for children
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/l1hjnnr7ibmliwm584akk7qg1hpa0j9z-fetchurl.sh.drv': read 275 bytes
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/l1hjnnr7ibmliwm584akk7qg1hpa0j9z-fetchurl.sh.drv': woken up
+finished download of 'file:///var/tmp/fg2/fn/nfjyYVQI/src/fetchurl.sh'; curl status = 0, HTTP status = 0, body = 3223 bytes, duration = 0.00 s
+worker event loop worked goal 'building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/l1hjnnr7ibmliwm584akk7qg1hpa0j9z-fetchurl.sh.drv'' for 0.005ms
+waiting for children
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/l1hjnnr7ibmliwm584akk7qg1hpa0j9z-fetchurl.sh.drv': read 45 bytes
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/l1hjnnr7ibmliwm584akk7qg1hpa0j9z-fetchurl.sh.drv': woken up
+worker event loop worked goal 'building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/l1hjnnr7ibmliwm584akk7qg1hpa0j9z-fetchurl.sh.drv'' for 0.001ms
+waiting for children
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/l1hjnnr7ibmliwm584akk7qg1hpa0j9z-fetchurl.sh.drv': read 70 bytes
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/l1hjnnr7ibmliwm584akk7qg1hpa0j9z-fetchurl.sh.drv': woken up
+download thread shutting down
+worker event loop worked goal 'building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/l1hjnnr7ibmliwm584akk7qg1hpa0j9z-fetchurl.sh.drv'' for 0.002ms
+waiting for children
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/l1hjnnr7ibmliwm584akk7qg1hpa0j9z-fetchurl.sh.drv': got EOF
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/l1hjnnr7ibmliwm584akk7qg1hpa0j9z-fetchurl.sh.drv': woken up
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/l1hjnnr7ibmliwm584akk7qg1hpa0j9z-fetchurl.sh.drv': build done
+killing process 1034039
+builder process for '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/l1hjnnr7ibmliwm584akk7qg1hpa0j9z-fetchurl.sh.drv' finished
+scanning for references for output 'out' in temp location "/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/5vhymm0ijw51c4i5wnpz7pvjcl3fxx50-fetchurl.sh"
+lock released on "/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/5vhymm0ijw51c4i5wnpz7pvjcl3fxx50-fetchurl.sh.lock"
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/l1hjnnr7ibmliwm584akk7qg1hpa0j9z-fetchurl.sh.drv': done
+getting output 'out' from derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/l1hjnnr7ibmliwm584akk7qg1hpa0j9z-fetchurl.sh.drv': waitee 'building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/l1hjnnr7ibmliwm584akk7qg1hpa0j9z-fetchurl.sh.drv'' done; 0 left
+getting output 'out' from derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/l1hjnnr7ibmliwm584akk7qg1hpa0j9z-fetchurl.sh.drv': woken up
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/l1hjnnr7ibmliwm584akk7qg1hpa0j9z-fetchurl.sh.drv': in final_awaiter
+worker event loop worked goal 'building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/l1hjnnr7ibmliwm584akk7qg1hpa0j9z-fetchurl.sh.drv'' for 1.056ms
+getting output 'out' from derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/l1hjnnr7ibmliwm584akk7qg1hpa0j9z-fetchurl.sh.drv': in final_awaiter
+getting output 'out' from derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/l1hjnnr7ibmliwm584akk7qg1hpa0j9z-fetchurl.sh.drv': outer build done
+getting output 'out' from derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/l1hjnnr7ibmliwm584akk7qg1hpa0j9z-fetchurl.sh.drv': done
+obtaining derivation from '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/l1hjnnr7ibmliwm584akk7qg1hpa0j9z-fetchurl.sh.drv' and then building outputs 'out': waitee 'getting output 'out' from derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/l1hjnnr7ibmliwm584akk7qg1hpa0j9z-fetchurl.sh.drv'' done; 0 left
+obtaining derivation from '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/l1hjnnr7ibmliwm584akk7qg1hpa0j9z-fetchurl.sh.drv' and then building outputs 'out': woken up
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/l1hjnnr7ibmliwm584akk7qg1hpa0j9z-fetchurl.sh.drv': goal destroyed
+getting output 'out' from derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/l1hjnnr7ibmliwm584akk7qg1hpa0j9z-fetchurl.sh.drv': in final_awaiter
+worker event loop worked goal 'getting output 'out' from derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/l1hjnnr7ibmliwm584akk7qg1hpa0j9z-fetchurl.sh.drv'' for 0.026ms
+obtaining derivation from '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/l1hjnnr7ibmliwm584akk7qg1hpa0j9z-fetchurl.sh.drv' and then building outputs 'out': in final_awaiter
+obtaining derivation from '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/l1hjnnr7ibmliwm584akk7qg1hpa0j9z-fetchurl.sh.drv' and then building outputs 'out': outer build done
+obtaining derivation from '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/l1hjnnr7ibmliwm584akk7qg1hpa0j9z-fetchurl.sh.drv' and then building outputs 'out': done
+getting output 'out' from derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/l1hjnnr7ibmliwm584akk7qg1hpa0j9z-fetchurl.sh.drv': goal destroyed
+obtaining derivation from '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/l1hjnnr7ibmliwm584akk7qg1hpa0j9z-fetchurl.sh.drv' and then building outputs 'out': in final_awaiter
+worker event loop worked goal 'obtaining derivation from '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/l1hjnnr7ibmliwm584akk7qg1hpa0j9z-fetchurl.sh.drv' and then building outputs 'out'' for 0.021ms
+obtaining derivation from '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/l1hjnnr7ibmliwm584akk7qg1hpa0j9z-fetchurl.sh.drv' and then building outputs 'out': goal destroyed
++(fetchurl.sh:34) outPath=/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/5vhymm0ijw51c4i5wnpz7pvjcl3fxx50-fetchurl.sh
++(fetchurl.sh:36) cmp /var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/5vhymm0ijw51c4i5wnpz7pvjcl3fxx50-fetchurl.sh fetchurl.sh
++(fetchurl.sh:39) clearStore
++(/var/tmp/fg2/fn/nfjyYVQI/src/common/functions.sh:41) isTestOnNixOS
++(/var/tmp/fg2/fn/nfjyYVQI/src/common/functions.sh:10) [[ '' == 1 ]]
++(/var/tmp/fg2/fn/nfjyYVQI/src/common/functions.sh:44) doClearStore
++(/var/tmp/fg2/fn/nfjyYVQI/src/common/functions.sh:48) echo 'clearing store...'
+clearing store...
++(/var/tmp/fg2/fn/nfjyYVQI/src/common/functions.sh:49) chmod -R +w /var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store
++(/var/tmp/fg2/fn/nfjyYVQI/src/common/functions.sh:50) rm -rf /var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store
++(/var/tmp/fg2/fn/nfjyYVQI/src/common/functions.sh:51) mkdir /var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store
++(/var/tmp/fg2/fn/nfjyYVQI/src/common/functions.sh:52) rm -rf /var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/var/nix
++(/var/tmp/fg2/fn/nfjyYVQI/src/common/functions.sh:53) mkdir /var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/var/nix
++(/var/tmp/fg2/fn/nfjyYVQI/src/common/functions.sh:54) clearProfiles
++(/var/tmp/fg2/fn/nfjyYVQI/src/common/functions.sh:25) profiles=/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/test-home/.local/state/nix/profiles
++(/var/tmp/fg2/fn/nfjyYVQI/src/common/functions.sh:26) rm -rf /var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/test-home/.local/state/nix/profiles
++(fetchurl.sh:41) other_store='file:///var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/other_store?store=/fnord/store'
+++(fetchurl.sh:43) nix hash file --type sha256 --base16 ./fetchurl.sh
+warning: you don't have Internet access; disabling some network-dependent features
++(fetchurl.sh:43) hash=0ce77644fe0de2a4db0e14ba992914ec76813c3ec7e7d17ec5baa565f6383966
++(fetchurl.sh:45) nix --store 'file:///var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/other_store?store=/fnord/store' store add-file ./fetchurl.sh
+warning: you don't have Internet access; disabling some network-dependent features
+/fnord/store/22knb15ygix03mp7bshvv8g92dr97dr9-fetchurl.sh
+++(fetchurl.sh:47) nix-build -vvvvv --expr 'import <nix/fetchurl.nix>' --argstr url file:///no-such-dir/fetchurl.sh --argstr sha256 0ce77644fe0de2a4db0e14ba992914ec76813c3ec7e7d17ec5baa565f6383966 --no-out-link --substituters 'file:///var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/other_store?store=/fnord/store'
+executing Nix database schema migration '20260309-drop-redundant-indexreferrer'...
+evaluating file '«nix-internal»/derivation-internal.nix'
+evaluating file '<nix/fetchurl.nix>'
+processing attribute 'builder'
+processing attribute 'executable'
+processing attribute 'impureEnvVars'
+processing attribute 'name'
+processing attribute 'outputHash'
+processing attribute 'outputHashAlgo'
+processing attribute 'outputHashMode'
+processing attribute 'preferLocalBuild'
+processing attribute 'system'
+processing attribute 'unpack'
+processing attribute 'url'
+processing attribute 'urls'
+acquiring write lock on "/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/var/nix/temproots/1034122"
+locking path "/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/nc9vknzrf3knq83fpjs417p8mry2422p-fetchurl.sh.drv"
+lock acquired on "/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/nc9vknzrf3knq83fpjs417p8mry2422p-fetchurl.sh.drv.lock"
+lock released on "/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/nc9vknzrf3knq83fpjs417p8mry2422p-fetchurl.sh.drv.lock"
+instantiated 'fetchurl.sh' -> '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/nc9vknzrf3knq83fpjs417p8mry2422p-fetchurl.sh.drv'
+querying info about missing paths...
+checking substituter 'file:///var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/other_store' for path '/fnord/store/5vhymm0ijw51c4i5wnpz7pvjcl3fxx50-fetchurl.sh'
+querying info about '/fnord/store/5vhymm0ijw51c4i5wnpz7pvjcl3fxx50-fetchurl.sh' on 'file:///var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/other_store'...
+memory-mapping failed for path: "/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/other_store/5vhymm0ijw51c4i5wnpz7pvjcl3fxx50.narinfo"
+this derivation will be built:
+  /var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/nc9vknzrf3knq83fpjs417p8mry2422p-fetchurl.sh.drv
+obtaining derivation from '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/nc9vknzrf3knq83fpjs417p8mry2422p-fetchurl.sh.drv' and then building outputs 'out': created outer
+obtaining derivation from '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/nc9vknzrf3knq83fpjs417p8mry2422p-fetchurl.sh.drv' and then building outputs 'out': woken up
+entered goal loop
+obtaining derivation from '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/nc9vknzrf3knq83fpjs417p8mry2422p-fetchurl.sh.drv' and then building outputs 'out': need to load derivation from file
+obtaining derivation from '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/nc9vknzrf3knq83fpjs417p8mry2422p-fetchurl.sh.drv' and then building outputs 'out': already have drv '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/nc9vknzrf3knq83fpjs417p8mry2422p-fetchurl.sh.drv' for '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/nc9vknzrf3knq83fpjs417p8mry2422p-fetchurl.sh.drv', can go straight to building
+obtaining derivation from '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/nc9vknzrf3knq83fpjs417p8mry2422p-fetchurl.sh.drv' and then building outputs 'out': outer load and build derivation
+obtaining derivation from '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/nc9vknzrf3knq83fpjs417p8mry2422p-fetchurl.sh.drv' and then building outputs 'out': return_value(Co&&)
+obtaining derivation from '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/nc9vknzrf3knq83fpjs417p8mry2422p-fetchurl.sh.drv' and then building outputs 'out': in final_awaiter
+obtaining derivation from '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/nc9vknzrf3knq83fpjs417p8mry2422p-fetchurl.sh.drv' and then building outputs 'out': have derivation, will kick off derivations goals per wanted output
+getting output 'out' from derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/nc9vknzrf3knq83fpjs417p8mry2422p-fetchurl.sh.drv': created
+getting output 'out' from derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/nc9vknzrf3knq83fpjs417p8mry2422p-fetchurl.sh.drv': woken up
+worker event loop worked goal 'obtaining derivation from '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/nc9vknzrf3knq83fpjs417p8mry2422p-fetchurl.sh.drv' and then building outputs 'out'' for 0.047ms
+getting output 'out' from derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/nc9vknzrf3knq83fpjs417p8mry2422p-fetchurl.sh.drv': have derivation
+substitution of '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/5vhymm0ijw51c4i5wnpz7pvjcl3fxx50-fetchurl.sh': created
+substitution of '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/5vhymm0ijw51c4i5wnpz7pvjcl3fxx50-fetchurl.sh': woken up
+worker event loop worked goal 'getting output 'out' from derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/nc9vknzrf3knq83fpjs417p8mry2422p-fetchurl.sh.drv'' for 0.033ms
+substitution of '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/5vhymm0ijw51c4i5wnpz7pvjcl3fxx50-fetchurl.sh': init
+substitution of '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/5vhymm0ijw51c4i5wnpz7pvjcl3fxx50-fetchurl.sh': trying next substituter
+querying info about '/fnord/store/22knb15ygix03mp7bshvv8g92dr97dr9-fetchurl.sh' on 'file:///var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/other_store'...
+substitution of '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/5vhymm0ijw51c4i5wnpz7pvjcl3fxx50-fetchurl.sh': waiting for completion callback
+worker event loop worked goal 'substitution of '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/5vhymm0ijw51c4i5wnpz7pvjcl3fxx50-fetchurl.sh'' for 0.061ms
+waiting for children
+substitution of '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/5vhymm0ijw51c4i5wnpz7pvjcl3fxx50-fetchurl.sh': woken up
+substitution of '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/5vhymm0ijw51c4i5wnpz7pvjcl3fxx50-fetchurl.sh': in final_awaiter
+substitution of '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/5vhymm0ijw51c4i5wnpz7pvjcl3fxx50-fetchurl.sh': all references realised
+substitution of '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/5vhymm0ijw51c4i5wnpz7pvjcl3fxx50-fetchurl.sh': woken up
+worker event loop worked goal 'substitution of '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/5vhymm0ijw51c4i5wnpz7pvjcl3fxx50-fetchurl.sh'' for 0.016ms
+substitution of '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/5vhymm0ijw51c4i5wnpz7pvjcl3fxx50-fetchurl.sh': in final_awaiter
+substitution of '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/5vhymm0ijw51c4i5wnpz7pvjcl3fxx50-fetchurl.sh': trying to run
+substitution of '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/5vhymm0ijw51c4i5wnpz7pvjcl3fxx50-fetchurl.sh': waiting for completion callback
+worker event loop worked goal 'substitution of '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/5vhymm0ijw51c4i5wnpz7pvjcl3fxx50-fetchurl.sh'' for 0.065ms
+waiting for children
+copying path '/fnord/store/22knb15ygix03mp7bshvv8g92dr97dr9-fetchurl.sh' from 'file:///var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/other_store'...
+locking path "/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/5vhymm0ijw51c4i5wnpz7pvjcl3fxx50-fetchurl.sh"
+lock acquired on "/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/5vhymm0ijw51c4i5wnpz7pvjcl3fxx50-fetchurl.sh.lock"
+lock released on "/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/5vhymm0ijw51c4i5wnpz7pvjcl3fxx50-fetchurl.sh.lock"
+substitution of '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/5vhymm0ijw51c4i5wnpz7pvjcl3fxx50-fetchurl.sh': woken up
+substitution of '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/5vhymm0ijw51c4i5wnpz7pvjcl3fxx50-fetchurl.sh': in final_awaiter
+substitution of '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/5vhymm0ijw51c4i5wnpz7pvjcl3fxx50-fetchurl.sh': substitute finished
+substitution of path '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/5vhymm0ijw51c4i5wnpz7pvjcl3fxx50-fetchurl.sh' succeeded
+substitution of '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/5vhymm0ijw51c4i5wnpz7pvjcl3fxx50-fetchurl.sh': done
+getting output 'out' from derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/nc9vknzrf3knq83fpjs417p8mry2422p-fetchurl.sh.drv': waitee 'substitution of '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/5vhymm0ijw51c4i5wnpz7pvjcl3fxx50-fetchurl.sh'' done; 0 left
+getting output 'out' from derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/nc9vknzrf3knq83fpjs417p8mry2422p-fetchurl.sh.drv': woken up
+substitution of '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/5vhymm0ijw51c4i5wnpz7pvjcl3fxx50-fetchurl.sh': in final_awaiter
+worker event loop worked goal 'substitution of '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/5vhymm0ijw51c4i5wnpz7pvjcl3fxx50-fetchurl.sh'' for 0.060ms
+substitution of '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/5vhymm0ijw51c4i5wnpz7pvjcl3fxx50-fetchurl.sh': goal destroyed
+getting output 'out' from derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/nc9vknzrf3knq83fpjs417p8mry2422p-fetchurl.sh.drv': in final_awaiter
+getting output 'out' from derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/nc9vknzrf3knq83fpjs417p8mry2422p-fetchurl.sh.drv': all outputs substituted (maybe)
+getting output 'out' from derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/nc9vknzrf3knq83fpjs417p8mry2422p-fetchurl.sh.drv': done
+obtaining derivation from '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/nc9vknzrf3knq83fpjs417p8mry2422p-fetchurl.sh.drv' and then building outputs 'out': waitee 'getting output 'out' from derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/nc9vknzrf3knq83fpjs417p8mry2422p-fetchurl.sh.drv'' done; 0 left
+obtaining derivation from '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/nc9vknzrf3knq83fpjs417p8mry2422p-fetchurl.sh.drv' and then building outputs 'out': woken up
+getting output 'out' from derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/nc9vknzrf3knq83fpjs417p8mry2422p-fetchurl.sh.drv': in final_awaiter
+worker event loop worked goal 'getting output 'out' from derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/nc9vknzrf3knq83fpjs417p8mry2422p-fetchurl.sh.drv'' for 0.027ms
+obtaining derivation from '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/nc9vknzrf3knq83fpjs417p8mry2422p-fetchurl.sh.drv' and then building outputs 'out': in final_awaiter
+obtaining derivation from '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/nc9vknzrf3knq83fpjs417p8mry2422p-fetchurl.sh.drv' and then building outputs 'out': outer build done
+obtaining derivation from '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/nc9vknzrf3knq83fpjs417p8mry2422p-fetchurl.sh.drv' and then building outputs 'out': done
+getting output 'out' from derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/nc9vknzrf3knq83fpjs417p8mry2422p-fetchurl.sh.drv': goal destroyed
+obtaining derivation from '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/nc9vknzrf3knq83fpjs417p8mry2422p-fetchurl.sh.drv' and then building outputs 'out': in final_awaiter
+worker event loop worked goal 'obtaining derivation from '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/nc9vknzrf3knq83fpjs417p8mry2422p-fetchurl.sh.drv' and then building outputs 'out'' for 0.017ms
+obtaining derivation from '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/nc9vknzrf3knq83fpjs417p8mry2422p-fetchurl.sh.drv' and then building outputs 'out': goal destroyed
++(fetchurl.sh:47) outPath=/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/5vhymm0ijw51c4i5wnpz7pvjcl3fxx50-fetchurl.sh
+++(fetchurl.sh:50) nix hash to-sri --type sha256 0ce77644fe0de2a4db0e14ba992914ec76813c3ec7e7d17ec5baa565f6383966
+warning: you don't have Internet access; disabling some network-dependent features
+warning: The old format conversion subcommands of `nix hash` were deprecated in favor of `nix hash convert`.
++(fetchurl.sh:50) nix-build -vvvvv --expr 'import <nix/fetchurl.nix>' --argstr url file:///no-such-dir/fetchurl.sh --argstr hash sha256-DOd2RP4N4qTbDhS6mSkU7HaBPD7H59F+xbqlZfY4OWY= --no-out-link --substituters 'file:///var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/other_store?store=/fnord/store'
+evaluating file '«nix-internal»/derivation-internal.nix'
+evaluating file '<nix/fetchurl.nix>'
+processing attribute 'builder'
+processing attribute 'executable'
+processing attribute 'impureEnvVars'
+processing attribute 'name'
+processing attribute 'outputHash'
+processing attribute 'outputHashAlgo'
+processing attribute 'outputHashMode'
+processing attribute 'preferLocalBuild'
+processing attribute 'system'
+processing attribute 'unpack'
+processing attribute 'url'
+processing attribute 'urls'
+acquiring write lock on "/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/var/nix/temproots/1034180"
+locking path "/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/k04zl7n7q5v0rnvdbx6qicgzxldiix3v-fetchurl.sh.drv"
+lock acquired on "/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/k04zl7n7q5v0rnvdbx6qicgzxldiix3v-fetchurl.sh.drv.lock"
+lock released on "/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/k04zl7n7q5v0rnvdbx6qicgzxldiix3v-fetchurl.sh.drv.lock"
+instantiated 'fetchurl.sh' -> '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/k04zl7n7q5v0rnvdbx6qicgzxldiix3v-fetchurl.sh.drv'
+querying info about missing paths...
+obtaining derivation from '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/k04zl7n7q5v0rnvdbx6qicgzxldiix3v-fetchurl.sh.drv' and then building outputs 'out': created outer
+obtaining derivation from '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/k04zl7n7q5v0rnvdbx6qicgzxldiix3v-fetchurl.sh.drv' and then building outputs 'out': woken up
+entered goal loop
+obtaining derivation from '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/k04zl7n7q5v0rnvdbx6qicgzxldiix3v-fetchurl.sh.drv' and then building outputs 'out': need to load derivation from file
+obtaining derivation from '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/k04zl7n7q5v0rnvdbx6qicgzxldiix3v-fetchurl.sh.drv' and then building outputs 'out': already have drv '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/k04zl7n7q5v0rnvdbx6qicgzxldiix3v-fetchurl.sh.drv' for '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/k04zl7n7q5v0rnvdbx6qicgzxldiix3v-fetchurl.sh.drv', can go straight to building
+obtaining derivation from '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/k04zl7n7q5v0rnvdbx6qicgzxldiix3v-fetchurl.sh.drv' and then building outputs 'out': outer load and build derivation
+obtaining derivation from '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/k04zl7n7q5v0rnvdbx6qicgzxldiix3v-fetchurl.sh.drv' and then building outputs 'out': return_value(Co&&)
+obtaining derivation from '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/k04zl7n7q5v0rnvdbx6qicgzxldiix3v-fetchurl.sh.drv' and then building outputs 'out': in final_awaiter
+obtaining derivation from '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/k04zl7n7q5v0rnvdbx6qicgzxldiix3v-fetchurl.sh.drv' and then building outputs 'out': have derivation, will kick off derivations goals per wanted output
+getting output 'out' from derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/k04zl7n7q5v0rnvdbx6qicgzxldiix3v-fetchurl.sh.drv': created
+getting output 'out' from derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/k04zl7n7q5v0rnvdbx6qicgzxldiix3v-fetchurl.sh.drv': woken up
+worker event loop worked goal 'obtaining derivation from '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/k04zl7n7q5v0rnvdbx6qicgzxldiix3v-fetchurl.sh.drv' and then building outputs 'out'' for 0.049ms
+getting output 'out' from derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/k04zl7n7q5v0rnvdbx6qicgzxldiix3v-fetchurl.sh.drv': have derivation
+getting output 'out' from derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/k04zl7n7q5v0rnvdbx6qicgzxldiix3v-fetchurl.sh.drv': done
+obtaining derivation from '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/k04zl7n7q5v0rnvdbx6qicgzxldiix3v-fetchurl.sh.drv' and then building outputs 'out': waitee 'getting output 'out' from derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/k04zl7n7q5v0rnvdbx6qicgzxldiix3v-fetchurl.sh.drv'' done; 0 left
+obtaining derivation from '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/k04zl7n7q5v0rnvdbx6qicgzxldiix3v-fetchurl.sh.drv' and then building outputs 'out': woken up
+getting output 'out' from derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/k04zl7n7q5v0rnvdbx6qicgzxldiix3v-fetchurl.sh.drv': in final_awaiter
+worker event loop worked goal 'getting output 'out' from derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/k04zl7n7q5v0rnvdbx6qicgzxldiix3v-fetchurl.sh.drv'' for 0.042ms
+obtaining derivation from '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/k04zl7n7q5v0rnvdbx6qicgzxldiix3v-fetchurl.sh.drv' and then building outputs 'out': in final_awaiter
+obtaining derivation from '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/k04zl7n7q5v0rnvdbx6qicgzxldiix3v-fetchurl.sh.drv' and then building outputs 'out': outer build done
+obtaining derivation from '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/k04zl7n7q5v0rnvdbx6qicgzxldiix3v-fetchurl.sh.drv' and then building outputs 'out': done
+getting output 'out' from derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/k04zl7n7q5v0rnvdbx6qicgzxldiix3v-fetchurl.sh.drv': goal destroyed
+obtaining derivation from '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/k04zl7n7q5v0rnvdbx6qicgzxldiix3v-fetchurl.sh.drv' and then building outputs 'out': in final_awaiter
+worker event loop worked goal 'obtaining derivation from '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/k04zl7n7q5v0rnvdbx6qicgzxldiix3v-fetchurl.sh.drv' and then building outputs 'out'' for 0.011ms
+obtaining derivation from '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/k04zl7n7q5v0rnvdbx6qicgzxldiix3v-fetchurl.sh.drv' and then building outputs 'out': goal destroyed
+/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/5vhymm0ijw51c4i5wnpz7pvjcl3fxx50-fetchurl.sh
++(fetchurl.sh:54) rm -rf /var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/archive
++(fetchurl.sh:55) mkdir -p /var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/archive
++(fetchurl.sh:56) cp ./fetchurl.sh /var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/archive
++(fetchurl.sh:57) chmod +x /var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/archive/fetchurl.sh
++(fetchurl.sh:58) ln -s foo /var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/archive/symlink
++(fetchurl.sh:59) nar=/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/archive.nar
++(fetchurl.sh:60) nix-store --dump /var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/archive
+++(fetchurl.sh:62) nix-hash --flat --type sha256 /var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/archive.nar
++(fetchurl.sh:62) hash=ce38bda2338f7dfb01ca0d8bee52d0f6f118c22b00ce9659877fc4ff8ed26d1c
+++(fetchurl.sh:65) nix-build -vvvvv --expr 'import <nix/fetchurl.nix>' --argstr url file:///var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/archive.nar --argstr sha256 ce38bda2338f7dfb01ca0d8bee52d0f6f118c22b00ce9659877fc4ff8ed26d1c --arg unpack true --argstr name xyzzy --no-out-link
+evaluating file '«nix-internal»/derivation-internal.nix'
+evaluating file '<nix/fetchurl.nix>'
+processing attribute 'builder'
+processing attribute 'executable'
+processing attribute 'impureEnvVars'
+processing attribute 'name'
+processing attribute 'outputHash'
+processing attribute 'outputHashAlgo'
+processing attribute 'outputHashMode'
+processing attribute 'preferLocalBuild'
+processing attribute 'system'
+processing attribute 'unpack'
+processing attribute 'url'
+processing attribute 'urls'
+acquiring write lock on "/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/var/nix/temproots/1034283"
+locking path "/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/kgqfl092rsrz9g1pam58m3qjr6g3fkb9-xyzzy.drv"
+lock acquired on "/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/kgqfl092rsrz9g1pam58m3qjr6g3fkb9-xyzzy.drv.lock"
+lock released on "/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/kgqfl092rsrz9g1pam58m3qjr6g3fkb9-xyzzy.drv.lock"
+instantiated 'xyzzy' -> '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/kgqfl092rsrz9g1pam58m3qjr6g3fkb9-xyzzy.drv'
+querying info about missing paths...
+this derivation will be built:
+  /var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/kgqfl092rsrz9g1pam58m3qjr6g3fkb9-xyzzy.drv
+obtaining derivation from '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/kgqfl092rsrz9g1pam58m3qjr6g3fkb9-xyzzy.drv' and then building outputs 'out': created outer
+obtaining derivation from '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/kgqfl092rsrz9g1pam58m3qjr6g3fkb9-xyzzy.drv' and then building outputs 'out': woken up
+entered goal loop
+obtaining derivation from '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/kgqfl092rsrz9g1pam58m3qjr6g3fkb9-xyzzy.drv' and then building outputs 'out': need to load derivation from file
+obtaining derivation from '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/kgqfl092rsrz9g1pam58m3qjr6g3fkb9-xyzzy.drv' and then building outputs 'out': already have drv '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/kgqfl092rsrz9g1pam58m3qjr6g3fkb9-xyzzy.drv' for '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/kgqfl092rsrz9g1pam58m3qjr6g3fkb9-xyzzy.drv', can go straight to building
+obtaining derivation from '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/kgqfl092rsrz9g1pam58m3qjr6g3fkb9-xyzzy.drv' and then building outputs 'out': outer load and build derivation
+obtaining derivation from '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/kgqfl092rsrz9g1pam58m3qjr6g3fkb9-xyzzy.drv' and then building outputs 'out': return_value(Co&&)
+obtaining derivation from '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/kgqfl092rsrz9g1pam58m3qjr6g3fkb9-xyzzy.drv' and then building outputs 'out': in final_awaiter
+obtaining derivation from '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/kgqfl092rsrz9g1pam58m3qjr6g3fkb9-xyzzy.drv' and then building outputs 'out': have derivation, will kick off derivations goals per wanted output
+getting output 'out' from derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/kgqfl092rsrz9g1pam58m3qjr6g3fkb9-xyzzy.drv': created
+getting output 'out' from derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/kgqfl092rsrz9g1pam58m3qjr6g3fkb9-xyzzy.drv': woken up
+worker event loop worked goal 'obtaining derivation from '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/kgqfl092rsrz9g1pam58m3qjr6g3fkb9-xyzzy.drv' and then building outputs 'out'' for 0.042ms
+getting output 'out' from derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/kgqfl092rsrz9g1pam58m3qjr6g3fkb9-xyzzy.drv': have derivation
+substitution of '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/dx7wvjjknak56fbbn883vh3frkb2n9k6-xyzzy': created
+substitution of '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/dx7wvjjknak56fbbn883vh3frkb2n9k6-xyzzy': woken up
+worker event loop worked goal 'getting output 'out' from derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/kgqfl092rsrz9g1pam58m3qjr6g3fkb9-xyzzy.drv'' for 0.041ms
+substitution of '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/dx7wvjjknak56fbbn883vh3frkb2n9k6-xyzzy': init
+substitution of '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/dx7wvjjknak56fbbn883vh3frkb2n9k6-xyzzy': done
+getting output 'out' from derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/kgqfl092rsrz9g1pam58m3qjr6g3fkb9-xyzzy.drv': waitee 'substitution of '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/dx7wvjjknak56fbbn883vh3frkb2n9k6-xyzzy'' done; 0 left
+getting output 'out' from derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/kgqfl092rsrz9g1pam58m3qjr6g3fkb9-xyzzy.drv': woken up
+substitution of '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/dx7wvjjknak56fbbn883vh3frkb2n9k6-xyzzy': in final_awaiter
+worker event loop worked goal 'substitution of '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/dx7wvjjknak56fbbn883vh3frkb2n9k6-xyzzy'' for 0.029ms
+substitution of '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/dx7wvjjknak56fbbn883vh3frkb2n9k6-xyzzy': goal destroyed
+getting output 'out' from derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/kgqfl092rsrz9g1pam58m3qjr6g3fkb9-xyzzy.drv': in final_awaiter
+getting output 'out' from derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/kgqfl092rsrz9g1pam58m3qjr6g3fkb9-xyzzy.drv': all outputs substituted (maybe)
+resolving derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/kgqfl092rsrz9g1pam58m3qjr6g3fkb9-xyzzy.drv': created
+resolving derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/kgqfl092rsrz9g1pam58m3qjr6g3fkb9-xyzzy.drv': woken up
+worker event loop worked goal 'getting output 'out' from derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/kgqfl092rsrz9g1pam58m3qjr6g3fkb9-xyzzy.drv'' for 0.016ms
+resolving derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/kgqfl092rsrz9g1pam58m3qjr6g3fkb9-xyzzy.drv': in final_awaiter
+resolving derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/kgqfl092rsrz9g1pam58m3qjr6g3fkb9-xyzzy.drv': all inputs realised
+resolving derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/kgqfl092rsrz9g1pam58m3qjr6g3fkb9-xyzzy.drv': done
+getting output 'out' from derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/kgqfl092rsrz9g1pam58m3qjr6g3fkb9-xyzzy.drv': waitee 'resolving derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/kgqfl092rsrz9g1pam58m3qjr6g3fkb9-xyzzy.drv'' done; 0 left
+getting output 'out' from derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/kgqfl092rsrz9g1pam58m3qjr6g3fkb9-xyzzy.drv': woken up
+resolving derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/kgqfl092rsrz9g1pam58m3qjr6g3fkb9-xyzzy.drv': in final_awaiter
+worker event loop worked goal 'resolving derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/kgqfl092rsrz9g1pam58m3qjr6g3fkb9-xyzzy.drv'' for 0.015ms
+getting output 'out' from derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/kgqfl092rsrz9g1pam58m3qjr6g3fkb9-xyzzy.drv': in final_awaiter
+resolving derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/kgqfl092rsrz9g1pam58m3qjr6g3fkb9-xyzzy.drv': goal destroyed
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/kgqfl092rsrz9g1pam58m3qjr6g3fkb9-xyzzy.drv': created
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/kgqfl092rsrz9g1pam58m3qjr6g3fkb9-xyzzy.drv': woken up
+worker event loop worked goal 'getting output 'out' from derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/kgqfl092rsrz9g1pam58m3qjr6g3fkb9-xyzzy.drv'' for 0.011ms
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/kgqfl092rsrz9g1pam58m3qjr6g3fkb9-xyzzy.drv': in final_awaiter
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/kgqfl092rsrz9g1pam58m3qjr6g3fkb9-xyzzy.drv': all inputs realised
+added input paths 
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/kgqfl092rsrz9g1pam58m3qjr6g3fkb9-xyzzy.drv': woken up
+worker event loop worked goal 'building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/kgqfl092rsrz9g1pam58m3qjr6g3fkb9-xyzzy.drv'' for 0.020ms
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/kgqfl092rsrz9g1pam58m3qjr6g3fkb9-xyzzy.drv': in final_awaiter
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/kgqfl092rsrz9g1pam58m3qjr6g3fkb9-xyzzy.drv': return_value(Co&&)
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/kgqfl092rsrz9g1pam58m3qjr6g3fkb9-xyzzy.drv': in final_awaiter
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/kgqfl092rsrz9g1pam58m3qjr6g3fkb9-xyzzy.drv': trying to build
+locking path "/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/dx7wvjjknak56fbbn883vh3frkb2n9k6-xyzzy"
+lock acquired on "/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/dx7wvjjknak56fbbn883vh3frkb2n9k6-xyzzy.lock"
+removing invalid path '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/dx7wvjjknak56fbbn883vh3frkb2n9k6-xyzzy'
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/kgqfl092rsrz9g1pam58m3qjr6g3fkb9-xyzzy.drv': in final_awaiter
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/kgqfl092rsrz9g1pam58m3qjr6g3fkb9-xyzzy.drv': return_value(Co&&)
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/kgqfl092rsrz9g1pam58m3qjr6g3fkb9-xyzzy.drv': in final_awaiter
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/kgqfl092rsrz9g1pam58m3qjr6g3fkb9-xyzzy.drv': woken up
+worker event loop worked goal 'building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/kgqfl092rsrz9g1pam58m3qjr6g3fkb9-xyzzy.drv'' for 0.123ms
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/kgqfl092rsrz9g1pam58m3qjr6g3fkb9-xyzzy.drv': in final_awaiter
+executing builder 'builtin:fetchurl'
+using builder args ''
+setting builder env variable 'builder'='builtin:fetchurl'
+setting builder env variable 'executable'=''
+setting builder env variable 'impureEnvVars'='http_proxy https_proxy ftp_proxy all_proxy no_proxy'
+setting builder env variable 'name'='xyzzy'
+setting builder env variable 'out'='/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/dx7wvjjknak56fbbn883vh3frkb2n9k6-xyzzy'
+setting builder env variable 'outputHash'='ce38bda2338f7dfb01ca0d8bee52d0f6f118c22b00ce9659877fc4ff8ed26d1c'
+setting builder env variable 'outputHashAlgo'='sha256'
+setting builder env variable 'outputHashMode'='recursive'
+setting builder env variable 'preferLocalBuild'='1'
+setting builder env variable 'system'='builtin'
+setting builder env variable 'unpack'='1'
+setting builder env variable 'url'='file:///var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/archive.nar'
+setting builder env variable 'urls'='file:///var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/archive.nar'
+sandbox setup: applied landlock sandboxing
+building '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/kgqfl092rsrz9g1pam58m3qjr6g3fkb9-xyzzy.drv'...
+worker event loop worked goal 'building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/kgqfl092rsrz9g1pam58m3qjr6g3fkb9-xyzzy.drv'' for 2.645ms
+waiting for children
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/kgqfl092rsrz9g1pam58m3qjr6g3fkb9-xyzzy.drv': read 108 bytes
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/kgqfl092rsrz9g1pam58m3qjr6g3fkb9-xyzzy.drv': woken up
+[pid=1034341] builtin:fetchurl creating fresh FileTransfer instance
+worker event loop worked goal 'building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/kgqfl092rsrz9g1pam58m3qjr6g3fkb9-xyzzy.drv'' for 0.028ms
+waiting for children
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/kgqfl092rsrz9g1pam58m3qjr6g3fkb9-xyzzy.drv': read 143 bytes
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/kgqfl092rsrz9g1pam58m3qjr6g3fkb9-xyzzy.drv': woken up
+starting download of 'file:///var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/archive.nar'
+worker event loop worked goal 'building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/kgqfl092rsrz9g1pam58m3qjr6g3fkb9-xyzzy.drv'' for 0.006ms
+waiting for children
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/kgqfl092rsrz9g1pam58m3qjr6g3fkb9-xyzzy.drv': read 157 bytes
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/kgqfl092rsrz9g1pam58m3qjr6g3fkb9-xyzzy.drv': woken up
+curl: Could not find host  in the /var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/etc/netrc file; using defaults
+worker event loop worked goal 'building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/kgqfl092rsrz9g1pam58m3qjr6g3fkb9-xyzzy.drv'' for 0.004ms
+waiting for children
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/kgqfl092rsrz9g1pam58m3qjr6g3fkb9-xyzzy.drv': read 256 bytes
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/kgqfl092rsrz9g1pam58m3qjr6g3fkb9-xyzzy.drv': woken up
+downloading 'file:///var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/archive.nar'...
+worker event loop worked goal 'building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/kgqfl092rsrz9g1pam58m3qjr6g3fkb9-xyzzy.drv'' for 0.010ms
+waiting for children
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/kgqfl092rsrz9g1pam58m3qjr6g3fkb9-xyzzy.drv': read 304 bytes
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/kgqfl092rsrz9g1pam58m3qjr6g3fkb9-xyzzy.drv': woken up
+got header for 'file:///var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/archive.nar': Content-Length: 3736
+worker event loop worked goal 'building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/kgqfl092rsrz9g1pam58m3qjr6g3fkb9-xyzzy.drv'' for 0.011ms
+waiting for children
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/kgqfl092rsrz9g1pam58m3qjr6g3fkb9-xyzzy.drv': read 150 bytes
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/kgqfl092rsrz9g1pam58m3qjr6g3fkb9-xyzzy.drv': woken up
+got header for 'file:///var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/archive.nar': Accept-ranges: bytes
+worker event loop worked goal 'building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/kgqfl092rsrz9g1pam58m3qjr6g3fkb9-xyzzy.drv'' for 0.005ms
+waiting for children
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/kgqfl092rsrz9g1pam58m3qjr6g3fkb9-xyzzy.drv': read 174 bytes
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/kgqfl092rsrz9g1pam58m3qjr6g3fkb9-xyzzy.drv': woken up
+got header for 'file:///var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/archive.nar': Last-Modified: Tue, 24 Nov 2026 23:08:06 GMT
+worker event loop worked goal 'building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/kgqfl092rsrz9g1pam58m3qjr6g3fkb9-xyzzy.drv'' for 0.004ms
+waiting for children
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/kgqfl092rsrz9g1pam58m3qjr6g3fkb9-xyzzy.drv': read 130 bytes
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/kgqfl092rsrz9g1pam58m3qjr6g3fkb9-xyzzy.drv': woken up
+got header for 'file:///var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/archive.nar': 
+worker event loop worked goal 'building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/kgqfl092rsrz9g1pam58m3qjr6g3fkb9-xyzzy.drv'' for 0.003ms
+waiting for children
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/kgqfl092rsrz9g1pam58m3qjr6g3fkb9-xyzzy.drv': read 83 bytes
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/kgqfl092rsrz9g1pam58m3qjr6g3fkb9-xyzzy.drv': woken up
+worker event loop worked goal 'building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/kgqfl092rsrz9g1pam58m3qjr6g3fkb9-xyzzy.drv'' for 0.004ms
+waiting for children
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/kgqfl092rsrz9g1pam58m3qjr6g3fkb9-xyzzy.drv': read 332 bytes
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/kgqfl092rsrz9g1pam58m3qjr6g3fkb9-xyzzy.drv': woken up
+worker event loop worked goal 'building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/kgqfl092rsrz9g1pam58m3qjr6g3fkb9-xyzzy.drv'' for 0.012ms
+waiting for children
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/kgqfl092rsrz9g1pam58m3qjr6g3fkb9-xyzzy.drv': read 74 bytes
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/kgqfl092rsrz9g1pam58m3qjr6g3fkb9-xyzzy.drv': woken up
+curl: shutting down connection #0
+worker event loop worked goal 'building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/kgqfl092rsrz9g1pam58m3qjr6g3fkb9-xyzzy.drv'' for 0.005ms
+waiting for children
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/kgqfl092rsrz9g1pam58m3qjr6g3fkb9-xyzzy.drv': read 298 bytes
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/kgqfl092rsrz9g1pam58m3qjr6g3fkb9-xyzzy.drv': woken up
+finished download of 'file:///var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/archive.nar'; curl status = 0, HTTP status = 0, body = 3736 bytes, duration = 0.00 s
+worker event loop worked goal 'building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/kgqfl092rsrz9g1pam58m3qjr6g3fkb9-xyzzy.drv'' for 0.016ms
+waiting for children
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/kgqfl092rsrz9g1pam58m3qjr6g3fkb9-xyzzy.drv': read 45 bytes
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/kgqfl092rsrz9g1pam58m3qjr6g3fkb9-xyzzy.drv': woken up
+worker event loop worked goal 'building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/kgqfl092rsrz9g1pam58m3qjr6g3fkb9-xyzzy.drv'' for 0.002ms
+waiting for children
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/kgqfl092rsrz9g1pam58m3qjr6g3fkb9-xyzzy.drv': read 70 bytes
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/kgqfl092rsrz9g1pam58m3qjr6g3fkb9-xyzzy.drv': woken up
+download thread shutting down
+worker event loop worked goal 'building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/kgqfl092rsrz9g1pam58m3qjr6g3fkb9-xyzzy.drv'' for 0.011ms
+waiting for children
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/kgqfl092rsrz9g1pam58m3qjr6g3fkb9-xyzzy.drv': got EOF
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/kgqfl092rsrz9g1pam58m3qjr6g3fkb9-xyzzy.drv': woken up
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/kgqfl092rsrz9g1pam58m3qjr6g3fkb9-xyzzy.drv': build done
+killing process 1034341
+builder process for '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/kgqfl092rsrz9g1pam58m3qjr6g3fkb9-xyzzy.drv' finished
+scanning for references for output 'out' in temp location "/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/dx7wvjjknak56fbbn883vh3frkb2n9k6-xyzzy"
+lock released on "/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/dx7wvjjknak56fbbn883vh3frkb2n9k6-xyzzy.lock"
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/kgqfl092rsrz9g1pam58m3qjr6g3fkb9-xyzzy.drv': done
+getting output 'out' from derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/kgqfl092rsrz9g1pam58m3qjr6g3fkb9-xyzzy.drv': waitee 'building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/kgqfl092rsrz9g1pam58m3qjr6g3fkb9-xyzzy.drv'' done; 0 left
+getting output 'out' from derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/kgqfl092rsrz9g1pam58m3qjr6g3fkb9-xyzzy.drv': woken up
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/kgqfl092rsrz9g1pam58m3qjr6g3fkb9-xyzzy.drv': in final_awaiter
+worker event loop worked goal 'building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/kgqfl092rsrz9g1pam58m3qjr6g3fkb9-xyzzy.drv'' for 1.146ms
+getting output 'out' from derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/kgqfl092rsrz9g1pam58m3qjr6g3fkb9-xyzzy.drv': in final_awaiter
+getting output 'out' from derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/kgqfl092rsrz9g1pam58m3qjr6g3fkb9-xyzzy.drv': outer build done
+getting output 'out' from derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/kgqfl092rsrz9g1pam58m3qjr6g3fkb9-xyzzy.drv': done
+obtaining derivation from '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/kgqfl092rsrz9g1pam58m3qjr6g3fkb9-xyzzy.drv' and then building outputs 'out': waitee 'getting output 'out' from derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/kgqfl092rsrz9g1pam58m3qjr6g3fkb9-xyzzy.drv'' done; 0 left
+obtaining derivation from '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/kgqfl092rsrz9g1pam58m3qjr6g3fkb9-xyzzy.drv' and then building outputs 'out': woken up
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/kgqfl092rsrz9g1pam58m3qjr6g3fkb9-xyzzy.drv': goal destroyed
+getting output 'out' from derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/kgqfl092rsrz9g1pam58m3qjr6g3fkb9-xyzzy.drv': in final_awaiter
+worker event loop worked goal 'getting output 'out' from derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/kgqfl092rsrz9g1pam58m3qjr6g3fkb9-xyzzy.drv'' for 0.113ms
+obtaining derivation from '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/kgqfl092rsrz9g1pam58m3qjr6g3fkb9-xyzzy.drv' and then building outputs 'out': in final_awaiter
+obtaining derivation from '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/kgqfl092rsrz9g1pam58m3qjr6g3fkb9-xyzzy.drv' and then building outputs 'out': outer build done
+obtaining derivation from '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/kgqfl092rsrz9g1pam58m3qjr6g3fkb9-xyzzy.drv' and then building outputs 'out': done
+getting output 'out' from derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/kgqfl092rsrz9g1pam58m3qjr6g3fkb9-xyzzy.drv': goal destroyed
+obtaining derivation from '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/kgqfl092rsrz9g1pam58m3qjr6g3fkb9-xyzzy.drv' and then building outputs 'out': in final_awaiter
+worker event loop worked goal 'obtaining derivation from '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/kgqfl092rsrz9g1pam58m3qjr6g3fkb9-xyzzy.drv' and then building outputs 'out'' for 0.019ms
+obtaining derivation from '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/kgqfl092rsrz9g1pam58m3qjr6g3fkb9-xyzzy.drv' and then building outputs 'out': goal destroyed
++(fetchurl.sh:65) outPath=/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/dx7wvjjknak56fbbn883vh3frkb2n9k6-xyzzy
++(fetchurl.sh:67) echo /var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/dx7wvjjknak56fbbn883vh3frkb2n9k6-xyzzy
++(fetchurl.sh:67) grepQuiet xyzzy
++(/var/tmp/fg2/fn/nfjyYVQI/src/common/functions.sh:330) checkGrepArgs xyzzy
++(/var/tmp/fg2/fn/nfjyYVQI/src/common/functions.sh:293) local arg
++(/var/tmp/fg2/fn/nfjyYVQI/src/common/functions.sh:294) for arg in "$@"
++(/var/tmp/fg2/fn/nfjyYVQI/src/common/functions.sh:295) [[ xyzzy != xyzzy ]]
++(/var/tmp/fg2/fn/nfjyYVQI/src/common/functions.sh:331) command grep xyzzy
++(fetchurl.sh:69) test -x /var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/dx7wvjjknak56fbbn883vh3frkb2n9k6-xyzzy/fetchurl.sh
++(fetchurl.sh:70) test -L /var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/dx7wvjjknak56fbbn883vh3frkb2n9k6-xyzzy/symlink
++(fetchurl.sh:72) nix-store --delete /var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/dx7wvjjknak56fbbn883vh3frkb2n9k6-xyzzy
+finding garbage collector roots...
+removing stale link from "/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/var/nix/gcroots/auto/6pfc5n7gnblivkgzgnvhfhq8mjy4c26w" to "/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-build-1034180-90460057/result"
+removing stale link from "/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/var/nix/gcroots/auto/zx4bxsf0505b2sy8za6l7l9gchxqlzpj" to "/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-build-1034283-3014072327/result"
+removing stale link from "/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/var/nix/gcroots/auto/81q0n4qy7impdvg7jhhybp4h0y044xy0" to "/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-build-1034122-303275985/result"
+deleting specified paths...
+deleting '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/dx7wvjjknak56fbbn883vh3frkb2n9k6-xyzzy'
+deleting unused links...
+note: hard linking is currently saving -4.0 KiB
+1 store paths deleted, 3.2 KiB freed
++(fetchurl.sh:75) narxz=/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/archive.nar.xz
++(fetchurl.sh:76) rm -f /var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/archive.nar.xz
++(fetchurl.sh:77) xz --keep /var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/archive.nar
+++(fetchurl.sh:79) nix-build -vvvvv --expr 'import <nix/fetchurl.nix>' --argstr url file:///var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/archive.nar.xz --argstr sha256 ce38bda2338f7dfb01ca0d8bee52d0f6f118c22b00ce9659877fc4ff8ed26d1c --arg unpack true --argstr name xyzzy --no-out-link
+evaluating file '«nix-internal»/derivation-internal.nix'
+evaluating file '<nix/fetchurl.nix>'
+processing attribute 'builder'
+processing attribute 'executable'
+processing attribute 'impureEnvVars'
+processing attribute 'name'
+processing attribute 'outputHash'
+processing attribute 'outputHashAlgo'
+processing attribute 'outputHashMode'
+processing attribute 'preferLocalBuild'
+processing attribute 'system'
+processing attribute 'unpack'
+processing attribute 'url'
+processing attribute 'urls'
+acquiring write lock on "/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/var/nix/temproots/1034406"
+locking path "/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/5kkcqsq7zrplgcjl061l473y6ylb2xhm-xyzzy.drv"
+lock acquired on "/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/5kkcqsq7zrplgcjl061l473y6ylb2xhm-xyzzy.drv.lock"
+lock released on "/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/5kkcqsq7zrplgcjl061l473y6ylb2xhm-xyzzy.drv.lock"
+instantiated 'xyzzy' -> '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/5kkcqsq7zrplgcjl061l473y6ylb2xhm-xyzzy.drv'
+querying info about missing paths...
+this derivation will be built:
+  /var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/5kkcqsq7zrplgcjl061l473y6ylb2xhm-xyzzy.drv
+obtaining derivation from '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/5kkcqsq7zrplgcjl061l473y6ylb2xhm-xyzzy.drv' and then building outputs 'out': created outer
+obtaining derivation from '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/5kkcqsq7zrplgcjl061l473y6ylb2xhm-xyzzy.drv' and then building outputs 'out': woken up
+entered goal loop
+obtaining derivation from '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/5kkcqsq7zrplgcjl061l473y6ylb2xhm-xyzzy.drv' and then building outputs 'out': need to load derivation from file
+obtaining derivation from '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/5kkcqsq7zrplgcjl061l473y6ylb2xhm-xyzzy.drv' and then building outputs 'out': already have drv '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/5kkcqsq7zrplgcjl061l473y6ylb2xhm-xyzzy.drv' for '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/5kkcqsq7zrplgcjl061l473y6ylb2xhm-xyzzy.drv', can go straight to building
+obtaining derivation from '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/5kkcqsq7zrplgcjl061l473y6ylb2xhm-xyzzy.drv' and then building outputs 'out': outer load and build derivation
+obtaining derivation from '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/5kkcqsq7zrplgcjl061l473y6ylb2xhm-xyzzy.drv' and then building outputs 'out': return_value(Co&&)
+obtaining derivation from '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/5kkcqsq7zrplgcjl061l473y6ylb2xhm-xyzzy.drv' and then building outputs 'out': in final_awaiter
+obtaining derivation from '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/5kkcqsq7zrplgcjl061l473y6ylb2xhm-xyzzy.drv' and then building outputs 'out': have derivation, will kick off derivations goals per wanted output
+getting output 'out' from derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/5kkcqsq7zrplgcjl061l473y6ylb2xhm-xyzzy.drv': created
+getting output 'out' from derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/5kkcqsq7zrplgcjl061l473y6ylb2xhm-xyzzy.drv': woken up
+worker event loop worked goal 'obtaining derivation from '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/5kkcqsq7zrplgcjl061l473y6ylb2xhm-xyzzy.drv' and then building outputs 'out'' for 0.032ms
+getting output 'out' from derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/5kkcqsq7zrplgcjl061l473y6ylb2xhm-xyzzy.drv': have derivation
+substitution of '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/dx7wvjjknak56fbbn883vh3frkb2n9k6-xyzzy': created
+substitution of '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/dx7wvjjknak56fbbn883vh3frkb2n9k6-xyzzy': woken up
+worker event loop worked goal 'getting output 'out' from derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/5kkcqsq7zrplgcjl061l473y6ylb2xhm-xyzzy.drv'' for 0.021ms
+substitution of '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/dx7wvjjknak56fbbn883vh3frkb2n9k6-xyzzy': init
+substitution of '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/dx7wvjjknak56fbbn883vh3frkb2n9k6-xyzzy': done
+getting output 'out' from derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/5kkcqsq7zrplgcjl061l473y6ylb2xhm-xyzzy.drv': waitee 'substitution of '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/dx7wvjjknak56fbbn883vh3frkb2n9k6-xyzzy'' done; 0 left
+getting output 'out' from derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/5kkcqsq7zrplgcjl061l473y6ylb2xhm-xyzzy.drv': woken up
+substitution of '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/dx7wvjjknak56fbbn883vh3frkb2n9k6-xyzzy': in final_awaiter
+worker event loop worked goal 'substitution of '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/dx7wvjjknak56fbbn883vh3frkb2n9k6-xyzzy'' for 0.025ms
+substitution of '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/dx7wvjjknak56fbbn883vh3frkb2n9k6-xyzzy': goal destroyed
+getting output 'out' from derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/5kkcqsq7zrplgcjl061l473y6ylb2xhm-xyzzy.drv': in final_awaiter
+getting output 'out' from derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/5kkcqsq7zrplgcjl061l473y6ylb2xhm-xyzzy.drv': all outputs substituted (maybe)
+resolving derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/5kkcqsq7zrplgcjl061l473y6ylb2xhm-xyzzy.drv': created
+resolving derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/5kkcqsq7zrplgcjl061l473y6ylb2xhm-xyzzy.drv': woken up
+worker event loop worked goal 'getting output 'out' from derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/5kkcqsq7zrplgcjl061l473y6ylb2xhm-xyzzy.drv'' for 0.010ms
+resolving derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/5kkcqsq7zrplgcjl061l473y6ylb2xhm-xyzzy.drv': in final_awaiter
+resolving derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/5kkcqsq7zrplgcjl061l473y6ylb2xhm-xyzzy.drv': all inputs realised
+resolving derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/5kkcqsq7zrplgcjl061l473y6ylb2xhm-xyzzy.drv': done
+getting output 'out' from derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/5kkcqsq7zrplgcjl061l473y6ylb2xhm-xyzzy.drv': waitee 'resolving derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/5kkcqsq7zrplgcjl061l473y6ylb2xhm-xyzzy.drv'' done; 0 left
+getting output 'out' from derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/5kkcqsq7zrplgcjl061l473y6ylb2xhm-xyzzy.drv': woken up
+resolving derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/5kkcqsq7zrplgcjl061l473y6ylb2xhm-xyzzy.drv': in final_awaiter
+worker event loop worked goal 'resolving derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/5kkcqsq7zrplgcjl061l473y6ylb2xhm-xyzzy.drv'' for 0.011ms
+getting output 'out' from derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/5kkcqsq7zrplgcjl061l473y6ylb2xhm-xyzzy.drv': in final_awaiter
+resolving derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/5kkcqsq7zrplgcjl061l473y6ylb2xhm-xyzzy.drv': goal destroyed
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/5kkcqsq7zrplgcjl061l473y6ylb2xhm-xyzzy.drv': created
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/5kkcqsq7zrplgcjl061l473y6ylb2xhm-xyzzy.drv': woken up
+worker event loop worked goal 'getting output 'out' from derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/5kkcqsq7zrplgcjl061l473y6ylb2xhm-xyzzy.drv'' for 0.009ms
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/5kkcqsq7zrplgcjl061l473y6ylb2xhm-xyzzy.drv': in final_awaiter
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/5kkcqsq7zrplgcjl061l473y6ylb2xhm-xyzzy.drv': all inputs realised
+added input paths 
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/5kkcqsq7zrplgcjl061l473y6ylb2xhm-xyzzy.drv': woken up
+worker event loop worked goal 'building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/5kkcqsq7zrplgcjl061l473y6ylb2xhm-xyzzy.drv'' for 0.013ms
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/5kkcqsq7zrplgcjl061l473y6ylb2xhm-xyzzy.drv': in final_awaiter
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/5kkcqsq7zrplgcjl061l473y6ylb2xhm-xyzzy.drv': return_value(Co&&)
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/5kkcqsq7zrplgcjl061l473y6ylb2xhm-xyzzy.drv': in final_awaiter
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/5kkcqsq7zrplgcjl061l473y6ylb2xhm-xyzzy.drv': trying to build
+locking path "/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/dx7wvjjknak56fbbn883vh3frkb2n9k6-xyzzy"
+lock acquired on "/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/dx7wvjjknak56fbbn883vh3frkb2n9k6-xyzzy.lock"
+removing invalid path '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/dx7wvjjknak56fbbn883vh3frkb2n9k6-xyzzy'
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/5kkcqsq7zrplgcjl061l473y6ylb2xhm-xyzzy.drv': in final_awaiter
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/5kkcqsq7zrplgcjl061l473y6ylb2xhm-xyzzy.drv': return_value(Co&&)
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/5kkcqsq7zrplgcjl061l473y6ylb2xhm-xyzzy.drv': in final_awaiter
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/5kkcqsq7zrplgcjl061l473y6ylb2xhm-xyzzy.drv': woken up
+worker event loop worked goal 'building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/5kkcqsq7zrplgcjl061l473y6ylb2xhm-xyzzy.drv'' for 0.057ms
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/5kkcqsq7zrplgcjl061l473y6ylb2xhm-xyzzy.drv': in final_awaiter
+executing builder 'builtin:fetchurl'
+using builder args ''
+setting builder env variable 'builder'='builtin:fetchurl'
+setting builder env variable 'executable'=''
+setting builder env variable 'impureEnvVars'='http_proxy https_proxy ftp_proxy all_proxy no_proxy'
+setting builder env variable 'name'='xyzzy'
+setting builder env variable 'out'='/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/dx7wvjjknak56fbbn883vh3frkb2n9k6-xyzzy'
+setting builder env variable 'outputHash'='ce38bda2338f7dfb01ca0d8bee52d0f6f118c22b00ce9659877fc4ff8ed26d1c'
+setting builder env variable 'outputHashAlgo'='sha256'
+setting builder env variable 'outputHashMode'='recursive'
+setting builder env variable 'preferLocalBuild'='1'
+setting builder env variable 'system'='builtin'
+setting builder env variable 'unpack'='1'
+setting builder env variable 'url'='file:///var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/archive.nar.xz'
+setting builder env variable 'urls'='file:///var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/archive.nar.xz'
+sandbox setup: applied landlock sandboxing
+building '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/5kkcqsq7zrplgcjl061l473y6ylb2xhm-xyzzy.drv'...
+worker event loop worked goal 'building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/5kkcqsq7zrplgcjl061l473y6ylb2xhm-xyzzy.drv'' for 2.462ms
+waiting for children
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/5kkcqsq7zrplgcjl061l473y6ylb2xhm-xyzzy.drv': read 108 bytes
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/5kkcqsq7zrplgcjl061l473y6ylb2xhm-xyzzy.drv': woken up
+[pid=1034440] builtin:fetchurl creating fresh FileTransfer instance
+worker event loop worked goal 'building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/5kkcqsq7zrplgcjl061l473y6ylb2xhm-xyzzy.drv'' for 0.024ms
+waiting for children
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/5kkcqsq7zrplgcjl061l473y6ylb2xhm-xyzzy.drv': read 146 bytes
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/5kkcqsq7zrplgcjl061l473y6ylb2xhm-xyzzy.drv': woken up
+starting download of 'file:///var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/archive.nar.xz'
+worker event loop worked goal 'building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/5kkcqsq7zrplgcjl061l473y6ylb2xhm-xyzzy.drv'' for 0.004ms
+waiting for children
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/5kkcqsq7zrplgcjl061l473y6ylb2xhm-xyzzy.drv': read 157 bytes
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/5kkcqsq7zrplgcjl061l473y6ylb2xhm-xyzzy.drv': woken up
+curl: Could not find host  in the /var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/etc/netrc file; using defaults
+worker event loop worked goal 'building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/5kkcqsq7zrplgcjl061l473y6ylb2xhm-xyzzy.drv'' for 0.005ms
+waiting for children
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/5kkcqsq7zrplgcjl061l473y6ylb2xhm-xyzzy.drv': read 339 bytes
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/5kkcqsq7zrplgcjl061l473y6ylb2xhm-xyzzy.drv': woken up
+downloading 'file:///var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/archive.nar.xz'...
+worker event loop worked goal 'building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/5kkcqsq7zrplgcjl061l473y6ylb2xhm-xyzzy.drv'' for 0.013ms
+waiting for children
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/5kkcqsq7zrplgcjl061l473y6ylb2xhm-xyzzy.drv': read 230 bytes
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/5kkcqsq7zrplgcjl061l473y6ylb2xhm-xyzzy.drv': woken up
+got header for 'file:///var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/archive.nar.xz': Content-Length: 1236
+worker event loop worked goal 'building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/5kkcqsq7zrplgcjl061l473y6ylb2xhm-xyzzy.drv'' for 0.004ms
+waiting for children
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/5kkcqsq7zrplgcjl061l473y6ylb2xhm-xyzzy.drv': read 153 bytes
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/5kkcqsq7zrplgcjl061l473y6ylb2xhm-xyzzy.drv': woken up
+got header for 'file:///var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/archive.nar.xz': Accept-ranges: bytes
+worker event loop worked goal 'building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/5kkcqsq7zrplgcjl061l473y6ylb2xhm-xyzzy.drv'' for 0.002ms
+waiting for children
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/5kkcqsq7zrplgcjl061l473y6ylb2xhm-xyzzy.drv': read 177 bytes
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/5kkcqsq7zrplgcjl061l473y6ylb2xhm-xyzzy.drv': woken up
+got header for 'file:///var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/archive.nar.xz': Last-Modified: Tue, 24 Nov 2026 23:08:06 GMT
+worker event loop worked goal 'building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/5kkcqsq7zrplgcjl061l473y6ylb2xhm-xyzzy.drv'' for 0.003ms
+waiting for children
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/5kkcqsq7zrplgcjl061l473y6ylb2xhm-xyzzy.drv': read 133 bytes
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/5kkcqsq7zrplgcjl061l473y6ylb2xhm-xyzzy.drv': woken up
+got header for 'file:///var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/archive.nar.xz': 
+worker event loop worked goal 'building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/5kkcqsq7zrplgcjl061l473y6ylb2xhm-xyzzy.drv'' for 0.002ms
+waiting for children
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/5kkcqsq7zrplgcjl061l473y6ylb2xhm-xyzzy.drv': read 166 bytes
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/5kkcqsq7zrplgcjl061l473y6ylb2xhm-xyzzy.drv': woken up
+worker event loop worked goal 'building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/5kkcqsq7zrplgcjl061l473y6ylb2xhm-xyzzy.drv'' for 0.003ms
+waiting for children
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/5kkcqsq7zrplgcjl061l473y6ylb2xhm-xyzzy.drv': read 166 bytes
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/5kkcqsq7zrplgcjl061l473y6ylb2xhm-xyzzy.drv': woken up
+worker event loop worked goal 'building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/5kkcqsq7zrplgcjl061l473y6ylb2xhm-xyzzy.drv'' for 0.003ms
+waiting for children
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/5kkcqsq7zrplgcjl061l473y6ylb2xhm-xyzzy.drv': read 83 bytes
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/5kkcqsq7zrplgcjl061l473y6ylb2xhm-xyzzy.drv': woken up
+worker event loop worked goal 'building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/5kkcqsq7zrplgcjl061l473y6ylb2xhm-xyzzy.drv'' for 0.001ms
+waiting for children
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/5kkcqsq7zrplgcjl061l473y6ylb2xhm-xyzzy.drv': read 74 bytes
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/5kkcqsq7zrplgcjl061l473y6ylb2xhm-xyzzy.drv': woken up
+curl: shutting down connection #0
+worker event loop worked goal 'building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/5kkcqsq7zrplgcjl061l473y6ylb2xhm-xyzzy.drv'' for 0.002ms
+waiting for children
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/5kkcqsq7zrplgcjl061l473y6ylb2xhm-xyzzy.drv': read 218 bytes
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/5kkcqsq7zrplgcjl061l473y6ylb2xhm-xyzzy.drv': woken up
+finished download of 'file:///var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/archive.nar.xz'; curl status = 0, HTTP status = 0, body = 1236 bytes, duration = 0.00 s
+worker event loop worked goal 'building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/5kkcqsq7zrplgcjl061l473y6ylb2xhm-xyzzy.drv'' for 0.003ms
+waiting for children
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/5kkcqsq7zrplgcjl061l473y6ylb2xhm-xyzzy.drv': read 83 bytes
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/5kkcqsq7zrplgcjl061l473y6ylb2xhm-xyzzy.drv': woken up
+worker event loop worked goal 'building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/5kkcqsq7zrplgcjl061l473y6ylb2xhm-xyzzy.drv'' for 0.002ms
+waiting for children
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/5kkcqsq7zrplgcjl061l473y6ylb2xhm-xyzzy.drv': read 45 bytes
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/5kkcqsq7zrplgcjl061l473y6ylb2xhm-xyzzy.drv': woken up
+worker event loop worked goal 'building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/5kkcqsq7zrplgcjl061l473y6ylb2xhm-xyzzy.drv'' for 0.001ms
+waiting for children
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/5kkcqsq7zrplgcjl061l473y6ylb2xhm-xyzzy.drv': read 70 bytes
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/5kkcqsq7zrplgcjl061l473y6ylb2xhm-xyzzy.drv': woken up
+download thread shutting down
+worker event loop worked goal 'building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/5kkcqsq7zrplgcjl061l473y6ylb2xhm-xyzzy.drv'' for 0.002ms
+waiting for children
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/5kkcqsq7zrplgcjl061l473y6ylb2xhm-xyzzy.drv': got EOF
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/5kkcqsq7zrplgcjl061l473y6ylb2xhm-xyzzy.drv': woken up
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/5kkcqsq7zrplgcjl061l473y6ylb2xhm-xyzzy.drv': build done
+killing process 1034440
+builder process for '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/5kkcqsq7zrplgcjl061l473y6ylb2xhm-xyzzy.drv' finished
+scanning for references for output 'out' in temp location "/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/dx7wvjjknak56fbbn883vh3frkb2n9k6-xyzzy"
+lock released on "/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/dx7wvjjknak56fbbn883vh3frkb2n9k6-xyzzy.lock"
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/5kkcqsq7zrplgcjl061l473y6ylb2xhm-xyzzy.drv': done
+getting output 'out' from derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/5kkcqsq7zrplgcjl061l473y6ylb2xhm-xyzzy.drv': waitee 'building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/5kkcqsq7zrplgcjl061l473y6ylb2xhm-xyzzy.drv'' done; 0 left
+getting output 'out' from derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/5kkcqsq7zrplgcjl061l473y6ylb2xhm-xyzzy.drv': woken up
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/5kkcqsq7zrplgcjl061l473y6ylb2xhm-xyzzy.drv': in final_awaiter
+worker event loop worked goal 'building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/5kkcqsq7zrplgcjl061l473y6ylb2xhm-xyzzy.drv'' for 0.980ms
+getting output 'out' from derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/5kkcqsq7zrplgcjl061l473y6ylb2xhm-xyzzy.drv': in final_awaiter
+getting output 'out' from derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/5kkcqsq7zrplgcjl061l473y6ylb2xhm-xyzzy.drv': outer build done
+getting output 'out' from derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/5kkcqsq7zrplgcjl061l473y6ylb2xhm-xyzzy.drv': done
+obtaining derivation from '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/5kkcqsq7zrplgcjl061l473y6ylb2xhm-xyzzy.drv' and then building outputs 'out': waitee 'getting output 'out' from derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/5kkcqsq7zrplgcjl061l473y6ylb2xhm-xyzzy.drv'' done; 0 left
+obtaining derivation from '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/5kkcqsq7zrplgcjl061l473y6ylb2xhm-xyzzy.drv' and then building outputs 'out': woken up
+building derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/5kkcqsq7zrplgcjl061l473y6ylb2xhm-xyzzy.drv': goal destroyed
+getting output 'out' from derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/5kkcqsq7zrplgcjl061l473y6ylb2xhm-xyzzy.drv': in final_awaiter
+worker event loop worked goal 'getting output 'out' from derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/5kkcqsq7zrplgcjl061l473y6ylb2xhm-xyzzy.drv'' for 0.020ms
+obtaining derivation from '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/5kkcqsq7zrplgcjl061l473y6ylb2xhm-xyzzy.drv' and then building outputs 'out': in final_awaiter
+obtaining derivation from '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/5kkcqsq7zrplgcjl061l473y6ylb2xhm-xyzzy.drv' and then building outputs 'out': outer build done
+obtaining derivation from '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/5kkcqsq7zrplgcjl061l473y6ylb2xhm-xyzzy.drv' and then building outputs 'out': done
+getting output 'out' from derivation '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/5kkcqsq7zrplgcjl061l473y6ylb2xhm-xyzzy.drv': goal destroyed
+obtaining derivation from '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/5kkcqsq7zrplgcjl061l473y6ylb2xhm-xyzzy.drv' and then building outputs 'out': in final_awaiter
+worker event loop worked goal 'obtaining derivation from '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/5kkcqsq7zrplgcjl061l473y6ylb2xhm-xyzzy.drv' and then building outputs 'out'' for 0.014ms
+obtaining derivation from '/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/5kkcqsq7zrplgcjl061l473y6ylb2xhm-xyzzy.drv' and then building outputs 'out': goal destroyed
++(fetchurl.sh:79) outPath=/var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/dx7wvjjknak56fbbn883vh3frkb2n9k6-xyzzy
++(fetchurl.sh:81) test -x /var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/dx7wvjjknak56fbbn883vh3frkb2n9k6-xyzzy/fetchurl.sh
++(fetchurl.sh:82) test -L /var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/store/dx7wvjjknak56fbbn883vh3frkb2n9k6-xyzzy/symlink
++(fetchurl.sh:85) requireDaemonNewerThan 2.20
++(/var/tmp/fg2/fn/nfjyYVQI/src/common/functions.sh:154) isDaemonNewer 2.20
++(/var/tmp/fg2/fn/nfjyYVQI/src/common/functions.sh:135) [[ -n '' ]]
++(/var/tmp/fg2/fn/nfjyYVQI/src/common/functions.sh:135) return 0
++(fetchurl.sh:86) expected=100
++(fetchurl.sh:87) [[ -v NIX_DAEMON_PACKAGE ]]
++(fetchurl.sh:88) grep 'must be a fixed-output or impure derivation'
++(fetchurl.sh:88) expectStderr 100 nix-build --expr '{ url }: builtins.derivation { name = "nix-cache-info"; system = "x86_64-linux"; builder = "builtin:fetchurl"; inherit url; outputHashMode = "flat"; }' --argstr url file:///var/tmp/fg2/fn/nfjyYVQI/tmp/nix-test/main/fetchurl/archive.nar.xz
++(/var/tmp/fg2/fn/nfjyYVQI/src/common/functions.sh:344) checkGrepArgs 'must be a fixed-output or impure derivation'
++(/var/tmp/fg2/fn/nfjyYVQI/src/common/functions.sh:293) local arg
++(/var/tmp/fg2/fn/nfjyYVQI/src/common/functions.sh:294) for arg in "$@"
++(/var/tmp/fg2/fn/nfjyYVQI/src/common/functions.sh:295) [[ must be a fixed-output or impure derivation != must be a fixed\-output or impure derivation ]]
++(/var/tmp/fg2/fn/nfjyYVQI/src/common/functions.sh:345) command grep 'must be a fixed-output or impure derivation'
+error: 'builtin:fetchurl' must be a fixed-output or impure derivation

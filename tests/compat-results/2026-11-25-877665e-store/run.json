@@ -1,0 +1,29 @@
+{
+	"command": [
+		"bash",
+		"-c",
+		"status=0; cargo nextest run --workspace --all-features --profile store --no-fail-fast || status=$?; target/debug/differential-eval target/nix-reference/bin/nix-instantiate target/debug/noxi \"$NOXI_RESULTS_DIR/differential-eval-report.json\" || status=$?; exit $status"
+	],
+	"exit_status": 0,
+	"kernel": "7.3.4",
+	"noxi": {
+		"dirty": false,
+		"revision": "877665e9b15092664144a94ddda04b51bbe1a3cd",
+		"source": "git"
+	},
+	"platform": "x86_64-linux",
+	"reference": {
+		"release": "2.35.2",
+		"repository": "https://github.com/NixOS/nix.git",
+		"revision": "2c73b59da29606068c0c98db015dd3a66955525d"
+	},
+	"schema": "noxi-compat-result/1",
+	"settings": {
+		"NOXI_FUNCTIONAL_JOBS": "4",
+		"NOXI_FUNCTIONAL_SCRATCH": "/var/tmp/fg2/fn",
+		"NOXI_REFERENCE_BIN": "/home/rajveer/.t3/worktrees/noxi/t3-fa3a2397-659add7b19683232/target/nix-reference/bin",
+		"NOXI_TEST_BUSYBOX": "/home/rajveer/.t3/worktrees/noxi/t3-fa3a2397-659add7b19683232/target/test-busybox"
+	},
+	"started": "2026-11-24T23:06:07+00:00",
+	"tier": "store"
+}

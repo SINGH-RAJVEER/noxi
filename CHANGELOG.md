@@ -6,6 +6,7 @@ Changes that have not reached a version yet go under an `Unreleased` heading for
 
 ## Repository - Unreleased
 
+- The `git daemon` of the fetch cache tests stops with its process group when its guard is dropped, also by a panic, and comparisons that build without a sandbox run with no other test alongside (2026-11-25).
 - Tests that create stores use the new test-only `noxi-test-support` crate, whose temporary directories remove the read-only store objects `TempDir` cannot, also when a test panics, without following symlinks or crossing mounts. A workspace run left 318 directories of 5,839 MiB in `TMPDIR` before and none after (2026-11-25).
 - Lookup path entries follow CppNix 2.35.2 for `flake:` references and pseudo-URLs: pseudo-URLs are always unpacked as tarballs, `channel:` uses `channels.nixos.org`, a failed download falls back to a path with both warnings, `flake:` uses the whole tree without a base directory, failures other than not-found are not catchable, `restrict-eval` resolves entries first and does not admit downloaded trees, and failed `<...>` lookups show the `findFile` frame. `nix-shell` accepts such entries without `NIX_BUILD_SHELL`. Tarball fetches of missing files, directories and Git repositories, and missing `path:` inputs, report CppNix's messages. `reference_lookup_path` compares these with the reference.
 - Differential results have a versioned machine-readable format, `noxi-compat-result/1`, documented in `docs/compatibility-results.md`. `differential-eval`, `upstream_lang` and `upstream_functional` write one record per case with the case and matrix row, tier, both command lines, shared settings, noxi and reference revisions, platform, exit statuses, stdout and stderr, structured output, and store snapshots (produced paths, derivation bytes, NAR digests, `ValidPaths` rows); `upstream_functional` now runs both engines in the same scratch root so their store paths compare. `scripts/compat-results.py` wraps the tiers, converts nextest JUnit reports and VM qualification reports into records, summarizes them, keeps result sets in `tests/compat-results/` and generates `docs/compatibility-evidence.md`, which `just compat-evidence-check` (now part of `just ci`) keeps current.
@@ -335,6 +336,7 @@ Serializes Rust values into Nix and deserializes Nix values into Rust types, imp
 
 ### Unreleased
 
+- An invalid derivation output name is reported as the name of the output's path (2026-11-25).
 - Impure and restricted evaluation with a chroot store reads a path below the store directory from the host when it exists there, before the chroot store, as CppNix's union accessor does, and lists the union of a directory both have; pure evaluation still sees only the store. Import from derivation finds content-addressed outputs built through a resolved derivation (2026-11-25).
 - A flake `path:` input under the store directory that a diverted store (`--store /mnt`) lacks is read from the host's store, as CppNix's `PathInputScheme` reads it, rather than from inside the diverted store. `nixos-install --flake` relies on this for inputs locked to the installer's store (2026-11-21).
 - Flake locking follows the reference's `computeLocks`. Kept inputs are rebuilt from the old lock without fetching, and a refetch happens only when a follows override has disappeared. Missing-override warnings cover command-line overrides, and "does not match any input" reflects the input paths actually visited. Errors gain the `while updating the lock file`/`while updating the flake input` trace frames and accessor-specific messages for a missing `flake.nix`. A missing `--reference-lock-file` reads as empty, and `allow-dirty = false` rejects one. Relative inputs resolve lexically (2026-11-21).
@@ -379,6 +381,11 @@ Serializes Rust values into Nix and deserializes Nix values into Rust types, imp
 
 ### Unreleased
 
+- `nix-build --check` and `--repair`, `nix-store --realise --check` and `--repair`, `nix-store --verify --repair`, and repairs that rebuild the deriver (2026-11-25).
+- `nix-build` and `nix-shell` accept store derivations, `PATH.drv!OUTPUT`, directly or through symlinks (2026-11-25).
+- A `file://` cache works as `--store` for path-info, store ls, cat, dump-path, verify, sign, info and add, nix log, copy-log, instantiation and realised builds, and `nix copy --from file://` takes installables (2026-11-25).
+- `nix copy` between stores no longer copies ultimate trust, and copied realisations need a trusted signature (2026-11-25).
+- `nix-env` reports substitute status from caches that answer mass queries (2026-11-25).
 - Modern commands accept `^outputs` for every installable, select the default outputs as CppNix does (`outputSpecified`, `meta.outputsToInstall`, else all outputs of an expression or `out` of a flake) and accept path strings with one context element. `nix build --json` works for new builds; the reference prints no build metadata there. `nix-build`, `nix-shell`, `nix run`, `nix why-depends`, `nix develop`, `nix profile` and `nix derivation show` handle floating content-addressed outputs, `nix derivation show` prints every output kind, and `nix shell` follows symlinks in its `PATH` entries and rejects those that leave the store (2026-11-25).
 - The `nix-channel` download test's server runs until the comparisons end and drops a connection that is too slow to send its headers. Its 40 s limit also covered copying the reference's closure, so loaded runs lost the server (2026-11-25).
 - `nix store verify`, `nix store ls`, `nix store cat` and `nix store dump-path` read paths from disk whenever the store URI resolves to a local store, so the default `auto` store works for root on NixOS as in CppNix. They used to require an explicit `--store local` (2026-11-20).
@@ -499,6 +506,9 @@ Internal trybuild tests for `nix-compat-derive`.
 
 ### Unreleased
 
+- `BuildMode`, `Store::build_paths_with_mode`, `repair_path`, `query_all_valid_paths`, `nar_from_path`, `query_substitutable_paths` and the realisation methods; `LocalStore::verify_store` takes a repair callback (2026-11-25).
+- `secret-key-files` sign paths and realisations, and their public keys are trusted; a read-only store reports paths it has without writing (2026-11-25).
+- `BinaryCache` adds NARs, build logs and signatures, lists its paths, and honors `local-nar-cache` (2026-11-25).
 - `Store` gains `known_derivation_outputs` and `read_build_derivation` (2026-11-25).
 - A local store substituter answers realisation queries from its database, as CppNix's `LocalStore::queryRealisationUncached` does, so content-addressed outputs are substituted from `auto?trusted=1` or `local?root=DIR&trusted=1` without being built. A source database without the content-addressed schema has no realisations. Copying from a local store substituter names the destination, `copying path '...' to 'local://'`, with `local://` as the source in the activity fields, as `makeCopyPathMessage` does for a `local` shorthand source. `reference_ca_substitute` compares a substitution from a local store with 2.35.2 (2026-11-21).
 - A substitution's `copy-path` activity names the destination store as CppNix's `LocalStoreConfig::getReference` renders it: `local://` when the store was named with query parameters (`local?root=DIR`) and `local` otherwise, such as a bare path or the default store. `LocalStoreConfig::has_params` and `human_uri` record it, and the commands set it from the store URI. `BinaryCache::transfer` returns a cache's transfer settings, and a substituter with a scheme no store knows fails with the reference's `don't know how to open Nix store with scheme '...'` (2026-11-21).
@@ -533,6 +543,7 @@ Internal trybuild tests for `nix-compat-derive`.
 
 ### Unreleased
 
+- `BuildPaths`, `BuildPathsWithResults` and `BuildDerivation` check builds, and `VerifyStore` repairs paths for trusted clients (2026-11-25).
 - A worker cancels its builds when its client hangs up, as `processConnection`'s `MonitorFdHup` does: a thread waits for `POLLHUP` on the connection (or on standard input under `--stdio`), and the builders of `BuildPaths`, `BuildPathsWithResults` and `BuildDerivation` are killed and reaped, their output locks released, and the worker exits without reporting the interrupted operation. A client that only shuts down its writing side keeps its operation running, as in the reference. Substitutions are not cancelled yet (2026-11-21).
 - Authorization follows `daemonLoop` more closely: a connection whose peer credentials cannot be read is dropped instead of stopping the daemon, a refused connection is logged as `while processing connection: user '...' is not allowed to connect to the Nix daemon`, accepted connections are logged as `accepted connection from pid ..., user ...`, with `<unknown>` for both when a trust override skips the peer, and the socket daemon serves from `/` (2026-11-21).
 - Untrusted `SetOptions` accepts `timeout`, `max-silent-time`, `build-poll-interval`, `connect-timeout` and an empty `builders` by name only; the aliases `build-timeout` and `build-max-silent-time` are restricted, as in the reference. A client's substituter is trusted when, parsed as a store reference, it equals a configured one, with its parameters in any order, or does once a slash is added to its authority; a URL with a slash the configured one lacks is ignored with the reference's warning (2026-11-21).
@@ -561,6 +572,10 @@ Internal trybuild tests for `nix-compat-derive`.
 
 ### Unreleased
 
+- Builds take a `BuildMode`: `Check` compares a rebuild with the registered outputs, and `Repair` restores damaged paths of an output closure from substitutes or by rebuilding. `LocalBuilder::with_repair` is replaced by `with_mode` (2026-11-25).
+- Unsandboxed builds write outputs whose paths are present to scratch paths and rewrite their hashes, so a derivation can be rebuilt when only some outputs are valid. Fixed outputs are copied out of the builder's reach before they are hashed (2026-11-25).
+- `keep-failed`, `diff-hook` and `post-build-hook` take effect, and built paths and realisations are signed with `secret-key-files` (2026-11-25).
+- `cache_store::CacheStore` is a `file://` binary cache as a store (2026-11-25).
 - Registering a floating content-addressed output replaces leftovers at its path that are not a valid store path (2026-11-25).
 - Write the build directory cleanup mode in octal, which clippy rejected (2026-11-25).
 - `backend::Worker::cancelled` cancels the worker's builds when the flag becomes true, which the daemon sets when its client hangs up (2026-11-21).

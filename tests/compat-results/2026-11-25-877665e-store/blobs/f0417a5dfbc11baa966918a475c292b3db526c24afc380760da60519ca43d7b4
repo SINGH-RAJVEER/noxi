@@ -1,0 +1,1374 @@
++(logging.sh:3) source common.sh
+++(common.sh:3) set -eu -o pipefail
+++(common.sh:5) [[ -z '' ]]
+++(common.sh:7) COMMON_SH_SOURCED=1
+++++(common.sh:9) dirname common.sh
++++(common.sh:9) readlink -f .
+++(common.sh:9) functionalTestsDir=/var/tmp/fg2/fn/nfyGuhyi/src
+++(common.sh:11) source /var/tmp/fg2/fn/nfyGuhyi/src/common/vars.sh
++++(/var/tmp/fg2/fn/nfyGuhyi/src/common/vars.sh:3) set -eu -o pipefail
++++(/var/tmp/fg2/fn/nfyGuhyi/src/common/vars.sh:5) [[ -z '' ]]
++++(/var/tmp/fg2/fn/nfyGuhyi/src/common/vars.sh:7) COMMON_VARS_SH_SOURCED=1
+++++(/var/tmp/fg2/fn/nfyGuhyi/src/common/vars.sh:9) realpath /var/tmp/fg2/fn/nfyGuhyi/src
++++(/var/tmp/fg2/fn/nfyGuhyi/src/common/vars.sh:9) _NIX_TEST_SOURCE_DIR=/var/tmp/fg2/fn/nfyGuhyi/src
+++++(/var/tmp/fg2/fn/nfyGuhyi/src/common/vars.sh:10) realpath /var/tmp/fg2/fn/nfyGuhyi/build
++++(/var/tmp/fg2/fn/nfyGuhyi/src/common/vars.sh:10) _NIX_TEST_BUILD_DIR=/var/tmp/fg2/fn/nfyGuhyi/build
++++++(/var/tmp/fg2/fn/nfyGuhyi/src/common/vars.sh:12) dirname /var/tmp/fg2/fn/nfyGuhyi/src/common/vars.sh
+++++(/var/tmp/fg2/fn/nfyGuhyi/src/common/vars.sh:12) readlink -f /var/tmp/fg2/fn/nfyGuhyi/src/common
++++(/var/tmp/fg2/fn/nfyGuhyi/src/common/vars.sh:12) commonDir=/var/tmp/fg2/fn/nfyGuhyi/src/common
++++(/var/tmp/fg2/fn/nfyGuhyi/src/common/vars.sh:16) source /var/tmp/fg2/fn/nfyGuhyi/build/common/subst-vars.sh
+++++(/var/tmp/fg2/fn/nfyGuhyi/build/common/subst-vars.sh:3) [[ -z '' ]]
+++++(/var/tmp/fg2/fn/nfyGuhyi/build/common/subst-vars.sh:5) COMMON_SUBST_VARS_SH_SOURCED=1
+++++(/var/tmp/fg2/fn/nfyGuhyi/build/common/subst-vars.sh:7) bash=/nix/store/2ndah67h0z5m31v2wkdmg2md4380ggr5-bash-interactive-5.3p15/bin/bash
+++++(/var/tmp/fg2/fn/nfyGuhyi/build/common/subst-vars.sh:8) bindir=/nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2/bin
+++++(/var/tmp/fg2/fn/nfyGuhyi/build/common/subst-vars.sh:9) coreutils=/nix/store/xjl7p8dvyk2j53kqf7f43kdj4ypbxz7g-coreutils-9.11/bin
+++++(/var/tmp/fg2/fn/nfyGuhyi/build/common/subst-vars.sh:11) dot=
+++++(/var/tmp/fg2/fn/nfyGuhyi/build/common/subst-vars.sh:12) busybox=/nix/store/qddzvnv6b0805nkvbqddbswddcfhx814-busybox-static-x86_64-unknown-linux-musl-1.37.0/bin/busybox
+++++(/var/tmp/fg2/fn/nfyGuhyi/build/common/subst-vars.sh:14) version=2.35.2
+++++(/var/tmp/fg2/fn/nfyGuhyi/build/common/subst-vars.sh:15) system=x86_64-linux
++++(/var/tmp/fg2/fn/nfyGuhyi/src/common/vars.sh:18) : '/nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2/bin /nix/store/xjl7p8dvyk2j53kqf7f43kdj4ypbxz7g-coreutils-9.11/bin  /run/current-system/sw/bin/nu /nix/store/qddzvnv6b0805nkvbqddbswddcfhx814-busybox-static-x86_64-unknown-linux-musl-1.37.0/bin/busybox 2.35.2 x86_64-linux'
++++(/var/tmp/fg2/fn/nfyGuhyi/src/common/vars.sh:19) export coreutils dot busybox version system
++++(/var/tmp/fg2/fn/nfyGuhyi/src/common/vars.sh:21) export PAGER=cat
++++(/var/tmp/fg2/fn/nfyGuhyi/src/common/vars.sh:21) PAGER=cat
++++(/var/tmp/fg2/fn/nfyGuhyi/src/common/vars.sh:23) source /var/tmp/fg2/fn/nfyGuhyi/src/common/paths.sh
+++++(/var/tmp/fg2/fn/nfyGuhyi/src/common/paths.sh:3) set -eu -o pipefail
+++++(/var/tmp/fg2/fn/nfyGuhyi/src/common/paths.sh:5) [[ -z '' ]]
+++++(/var/tmp/fg2/fn/nfyGuhyi/src/common/paths.sh:7) COMMON_PATHS_SH_SOURCED=1
+++++++(/var/tmp/fg2/fn/nfyGuhyi/src/common/paths.sh:9) dirname /var/tmp/fg2/fn/nfyGuhyi/src/common/paths.sh
++++++(/var/tmp/fg2/fn/nfyGuhyi/src/common/paths.sh:9) readlink -f /var/tmp/fg2/fn/nfyGuhyi/src/common
+++++(/var/tmp/fg2/fn/nfyGuhyi/src/common/paths.sh:9) commonDir=/var/tmp/fg2/fn/nfyGuhyi/src/common
+++++(/var/tmp/fg2/fn/nfyGuhyi/src/common/paths.sh:12) source /var/tmp/fg2/fn/nfyGuhyi/src/common/functions.sh
++++++(/var/tmp/fg2/fn/nfyGuhyi/src/common/functions.sh:3) set -eu -o pipefail
++++++(/var/tmp/fg2/fn/nfyGuhyi/src/common/functions.sh:5) [[ -z '' ]]
++++++(/var/tmp/fg2/fn/nfyGuhyi/src/common/functions.sh:7) COMMON_FUNCTIONS_SH_SOURCED=1
++++++(/var/tmp/fg2/fn/nfyGuhyi/src/common/functions.sh:353) trap onError ERR
+++++(/var/tmp/fg2/fn/nfyGuhyi/src/common/paths.sh:14) source /var/tmp/fg2/fn/nfyGuhyi/build/common/subst-vars.sh
++++++(/var/tmp/fg2/fn/nfyGuhyi/build/common/subst-vars.sh:3) [[ -z 1 ]]
+++++(/var/tmp/fg2/fn/nfyGuhyi/src/common/paths.sh:16) : /nix/store/2ndah67h0z5m31v2wkdmg2md4380ggr5-bash-interactive-5.3p15/bin/bash /nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2/bin
+++++(/var/tmp/fg2/fn/nfyGuhyi/src/common/paths.sh:18) isTestOnNixOS
+++++(/var/tmp/fg2/fn/nfyGuhyi/src/common/functions.sh:10) [[ '' == 1 ]]
+++++(/var/tmp/fg2/fn/nfyGuhyi/src/common/paths.sh:19) export SHELL=/nix/store/2ndah67h0z5m31v2wkdmg2md4380ggr5-bash-interactive-5.3p15/bin/bash
+++++(/var/tmp/fg2/fn/nfyGuhyi/src/common/paths.sh:19) SHELL=/nix/store/2ndah67h0z5m31v2wkdmg2md4380ggr5-bash-interactive-5.3p15/bin/bash
+++++(/var/tmp/fg2/fn/nfyGuhyi/src/common/paths.sh:20) export PATH=/nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2/bin:/nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2/bin:/nix/store/2ndah67h0z5m31v2wkdmg2md4380ggr5-bash-interactive-5.3p15/bin:/nix/store/xjl7p8dvyk2j53kqf7f43kdj4ypbxz7g-coreutils-9.11/bin:/nix/store/xmvbzzxm5snla5a2cyfhm7hjy9bifx7n-gnugrep-3.12/bin:/nix/store/qf2wzyq4irhgyhnq3s2hz0ldjq3w8a3x-gnused-4.10/bin:/nix/store/9zib1q94gka8i5q530364cvy25504qz5-gawk-5.4.1/bin:/nix/store/i9wgqa0l88aprvpwfaq5hkfa6pklhlv0-findutils-4.11.0/bin:/nix/store/b8xvzgd52jby5dfpi0pf46nisy6wma5d-diffutils-3.12/bin:/nix/store/81zqbas7qc02yfdj7142fdcqhxgd3cgz-patch-2.8/bin:/nix/store/c8b0qp903w2hhpa63a2lfs7d565zag30-gnutar-1.35/bin:/nix/store/l5sll8nxk70p73l5yqbsjy4mh0c3g0v5-gzip-1.14/bin:/nix/store/j3yz0ag9j442229n8harpmp9aa5qyvhn-bzip2-1.0.8-bin/bin:/nix/store/518dig8gpvqyac6pkksyjjfzvi9zn8vq-xz-5.8.3-bin/bin:/nix/store/l8ik8mb8lgb60rklxjmkgddmp5qqnv29-zstd-1.5.7-bin/bin:/nix/store/msr1v91ybfw6j12rs5mfl8ghb2rqsnsr-git-2.55.0/bin:/nix/store/hyz22a0l5b5kv7yfypw4ss6d36vbzg01-jq-1.8.2-bin/bin:/nix/store/24gq3bi2yzf7g386p5j32mn78hhanf49-sqlite-3.53.3-bin/bin:/nix/store/cp8qnyl8i0s62g3a1465i258mf5bcr6k-curl-8.22.0-bin/bin:/nix/store/8x4c8zah3fbnyckaic4sskjbw7d2y98n-util-linux-2.42.4-bin/bin:/nix/store/d64q19q1xjdwfhqx6czvrjgrhq0n3lcc-python3-3.14.7/bin:/nix/store/niqsa6mxqsyax9lzbm261a2ml6m71vb6-perl-5.42.3/bin:/nix/store/fv9yl55hkskpc2cj9c0sdyq91car9kgl-file-5.48/bin:/nix/store/jv5kdlkwx0l8a7jdpg21g934ff30s319-which-2.25/bin:/nix/store/aj08b694apkc1jay2akywym9ghlailf5-procps-4.0.7/bin:/nix/store/5wyaj1kvkxbbscz6innrh6yjjkdq4qmk-openssh-10.6p1/bin:/nix/store/44gxi8li8y8wrxrb93sya9hljkpigsqw-openssl-3.6.4-bin/bin:/run/wrappers/wrappers.Yw6nCJO1nt:/nix/store/wmh4xg3557sicfyllmi9ymd8sxaw51wv-man-db-2.13.1/bin:/nix/store/qpgknrlnxca0z99gl12j5n0fgca11cdx-mercurial-7.2.2/bin:/var/tmp/fg2/tmp/.tmpEVBu8f/reference/tools
+++++(/var/tmp/fg2/fn/nfyGuhyi/src/common/paths.sh:20) PATH=/nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2/bin:/nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2/bin:/nix/store/2ndah67h0z5m31v2wkdmg2md4380ggr5-bash-interactive-5.3p15/bin:/nix/store/xjl7p8dvyk2j53kqf7f43kdj4ypbxz7g-coreutils-9.11/bin:/nix/store/xmvbzzxm5snla5a2cyfhm7hjy9bifx7n-gnugrep-3.12/bin:/nix/store/qf2wzyq4irhgyhnq3s2hz0ldjq3w8a3x-gnused-4.10/bin:/nix/store/9zib1q94gka8i5q530364cvy25504qz5-gawk-5.4.1/bin:/nix/store/i9wgqa0l88aprvpwfaq5hkfa6pklhlv0-findutils-4.11.0/bin:/nix/store/b8xvzgd52jby5dfpi0pf46nisy6wma5d-diffutils-3.12/bin:/nix/store/81zqbas7qc02yfdj7142fdcqhxgd3cgz-patch-2.8/bin:/nix/store/c8b0qp903w2hhpa63a2lfs7d565zag30-gnutar-1.35/bin:/nix/store/l5sll8nxk70p73l5yqbsjy4mh0c3g0v5-gzip-1.14/bin:/nix/store/j3yz0ag9j442229n8harpmp9aa5qyvhn-bzip2-1.0.8-bin/bin:/nix/store/518dig8gpvqyac6pkksyjjfzvi9zn8vq-xz-5.8.3-bin/bin:/nix/store/l8ik8mb8lgb60rklxjmkgddmp5qqnv29-zstd-1.5.7-bin/bin:/nix/store/msr1v91ybfw6j12rs5mfl8ghb2rqsnsr-git-2.55.0/bin:/nix/store/hyz22a0l5b5kv7yfypw4ss6d36vbzg01-jq-1.8.2-bin/bin:/nix/store/24gq3bi2yzf7g386p5j32mn78hhanf49-sqlite-3.53.3-bin/bin:/nix/store/cp8qnyl8i0s62g3a1465i258mf5bcr6k-curl-8.22.0-bin/bin:/nix/store/8x4c8zah3fbnyckaic4sskjbw7d2y98n-util-linux-2.42.4-bin/bin:/nix/store/d64q19q1xjdwfhqx6czvrjgrhq0n3lcc-python3-3.14.7/bin:/nix/store/niqsa6mxqsyax9lzbm261a2ml6m71vb6-perl-5.42.3/bin:/nix/store/fv9yl55hkskpc2cj9c0sdyq91car9kgl-file-5.48/bin:/nix/store/jv5kdlkwx0l8a7jdpg21g934ff30s319-which-2.25/bin:/nix/store/aj08b694apkc1jay2akywym9ghlailf5-procps-4.0.7/bin:/nix/store/5wyaj1kvkxbbscz6innrh6yjjkdq4qmk-openssh-10.6p1/bin:/nix/store/44gxi8li8y8wrxrb93sya9hljkpigsqw-openssl-3.6.4-bin/bin:/run/wrappers/wrappers.Yw6nCJO1nt:/nix/store/wmh4xg3557sicfyllmi9ymd8sxaw51wv-man-db-2.13.1/bin:/nix/store/qpgknrlnxca0z99gl12j5n0fgca11cdx-mercurial-7.2.2/bin:/var/tmp/fg2/tmp/.tmpEVBu8f/reference/tools
+++++(/var/tmp/fg2/fn/nfyGuhyi/src/common/paths.sh:23) [[ -n '' ]]
+++++(/var/tmp/fg2/fn/nfyGuhyi/src/common/paths.sh:27) DAEMON_PATH=/nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2/bin:/nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2/bin:/nix/store/2ndah67h0z5m31v2wkdmg2md4380ggr5-bash-interactive-5.3p15/bin:/nix/store/xjl7p8dvyk2j53kqf7f43kdj4ypbxz7g-coreutils-9.11/bin:/nix/store/xmvbzzxm5snla5a2cyfhm7hjy9bifx7n-gnugrep-3.12/bin:/nix/store/qf2wzyq4irhgyhnq3s2hz0ldjq3w8a3x-gnused-4.10/bin:/nix/store/9zib1q94gka8i5q530364cvy25504qz5-gawk-5.4.1/bin:/nix/store/i9wgqa0l88aprvpwfaq5hkfa6pklhlv0-findutils-4.11.0/bin:/nix/store/b8xvzgd52jby5dfpi0pf46nisy6wma5d-diffutils-3.12/bin:/nix/store/81zqbas7qc02yfdj7142fdcqhxgd3cgz-patch-2.8/bin:/nix/store/c8b0qp903w2hhpa63a2lfs7d565zag30-gnutar-1.35/bin:/nix/store/l5sll8nxk70p73l5yqbsjy4mh0c3g0v5-gzip-1.14/bin:/nix/store/j3yz0ag9j442229n8harpmp9aa5qyvhn-bzip2-1.0.8-bin/bin:/nix/store/518dig8gpvqyac6pkksyjjfzvi9zn8vq-xz-5.8.3-bin/bin:/nix/store/l8ik8mb8lgb60rklxjmkgddmp5qqnv29-zstd-1.5.7-bin/bin:/nix/store/msr1v91ybfw6j12rs5mfl8ghb2rqsnsr-git-2.55.0/bin:/nix/store/hyz22a0l5b5kv7yfypw4ss6d36vbzg01-jq-1.8.2-bin/bin:/nix/store/24gq3bi2yzf7g386p5j32mn78hhanf49-sqlite-3.53.3-bin/bin:/nix/store/cp8qnyl8i0s62g3a1465i258mf5bcr6k-curl-8.22.0-bin/bin:/nix/store/8x4c8zah3fbnyckaic4sskjbw7d2y98n-util-linux-2.42.4-bin/bin:/nix/store/d64q19q1xjdwfhqx6czvrjgrhq0n3lcc-python3-3.14.7/bin:/nix/store/niqsa6mxqsyax9lzbm261a2ml6m71vb6-perl-5.42.3/bin:/nix/store/fv9yl55hkskpc2cj9c0sdyq91car9kgl-file-5.48/bin:/nix/store/jv5kdlkwx0l8a7jdpg21g934ff30s319-which-2.25/bin:/nix/store/aj08b694apkc1jay2akywym9ghlailf5-procps-4.0.7/bin:/nix/store/5wyaj1kvkxbbscz6innrh6yjjkdq4qmk-openssh-10.6p1/bin:/nix/store/44gxi8li8y8wrxrb93sya9hljkpigsqw-openssl-3.6.4-bin/bin:/run/wrappers/wrappers.Yw6nCJO1nt:/nix/store/wmh4xg3557sicfyllmi9ymd8sxaw51wv-man-db-2.13.1/bin:/nix/store/qpgknrlnxca0z99gl12j5n0fgca11cdx-mercurial-7.2.2/bin:/var/tmp/fg2/tmp/.tmpEVBu8f/reference/tools
+++++(/var/tmp/fg2/fn/nfyGuhyi/src/common/paths.sh:28) [[ -n '' ]]
++++(/var/tmp/fg2/fn/nfyGuhyi/src/common/vars.sh:24) source /var/tmp/fg2/fn/nfyGuhyi/src/common/test-root.sh
+++++(/var/tmp/fg2/fn/nfyGuhyi/src/common/test-root.sh:3) TEST_SUBDIR=main/logging
++++++(/var/tmp/fg2/fn/nfyGuhyi/src/common/test-root.sh:4) realpath /var/tmp/fg2/fn/nfyGuhyi/tmp/nix-test
+++++(/var/tmp/fg2/fn/nfyGuhyi/src/common/test-root.sh:4) TEST_ROOT=/var/tmp/fg2/fn/nfyGuhyi/tmp/nix-test/main/logging
+++++(/var/tmp/fg2/fn/nfyGuhyi/src/common/test-root.sh:5) export TEST_ROOT
++++(/var/tmp/fg2/fn/nfyGuhyi/src/common/vars.sh:26) test_nix_conf_dir=/var/tmp/fg2/fn/nfyGuhyi/tmp/nix-test/main/logging/etc
++++(/var/tmp/fg2/fn/nfyGuhyi/src/common/vars.sh:29) test_nix_conf=/var/tmp/fg2/fn/nfyGuhyi/tmp/nix-test/main/logging/etc/nix.conf
++++(/var/tmp/fg2/fn/nfyGuhyi/src/common/vars.sh:31) export TEST_HOME=/var/tmp/fg2/fn/nfyGuhyi/tmp/nix-test/main/logging/test-home
++++(/var/tmp/fg2/fn/nfyGuhyi/src/common/vars.sh:31) TEST_HOME=/var/tmp/fg2/fn/nfyGuhyi/tmp/nix-test/main/logging/test-home
++++(/var/tmp/fg2/fn/nfyGuhyi/src/common/vars.sh:33) isTestOnNixOS
++++(/var/tmp/fg2/fn/nfyGuhyi/src/common/functions.sh:10) [[ '' == 1 ]]
++++(/var/tmp/fg2/fn/nfyGuhyi/src/common/vars.sh:34) export NIX_STORE_DIR
+++++(/var/tmp/fg2/fn/nfyGuhyi/src/common/vars.sh:35) readlink -f /var/tmp/fg2/fn/nfyGuhyi/tmp/nix-test/main/logging/store
++++(/var/tmp/fg2/fn/nfyGuhyi/src/common/vars.sh:35) NIX_STORE_DIR=
++++(/var/tmp/fg2/fn/nfyGuhyi/src/common/vars.sh:37) export NIX_IGNORE_SYMLINK_STORE=1
++++(/var/tmp/fg2/fn/nfyGuhyi/src/common/vars.sh:37) NIX_IGNORE_SYMLINK_STORE=1
++++(/var/tmp/fg2/fn/nfyGuhyi/src/common/vars.sh:38) NIX_STORE_DIR=/var/tmp/fg2/fn/nfyGuhyi/tmp/nix-test/main/logging/store
++++(/var/tmp/fg2/fn/nfyGuhyi/src/common/vars.sh:40) export NIX_LOCALSTATE_DIR=/var/tmp/fg2/fn/nfyGuhyi/tmp/nix-test/main/logging/var
++++(/var/tmp/fg2/fn/nfyGuhyi/src/common/vars.sh:40) NIX_LOCALSTATE_DIR=/var/tmp/fg2/fn/nfyGuhyi/tmp/nix-test/main/logging/var
++++(/var/tmp/fg2/fn/nfyGuhyi/src/common/vars.sh:41) export NIX_LOG_DIR=/var/tmp/fg2/fn/nfyGuhyi/tmp/nix-test/main/logging/var/log/nix
++++(/var/tmp/fg2/fn/nfyGuhyi/src/common/vars.sh:41) NIX_LOG_DIR=/var/tmp/fg2/fn/nfyGuhyi/tmp/nix-test/main/logging/var/log/nix
++++(/var/tmp/fg2/fn/nfyGuhyi/src/common/vars.sh:42) export NIX_STATE_DIR=/var/tmp/fg2/fn/nfyGuhyi/tmp/nix-test/main/logging/var/nix
++++(/var/tmp/fg2/fn/nfyGuhyi/src/common/vars.sh:42) NIX_STATE_DIR=/var/tmp/fg2/fn/nfyGuhyi/tmp/nix-test/main/logging/var/nix
++++(/var/tmp/fg2/fn/nfyGuhyi/src/common/vars.sh:43) export NIX_CONF_DIR=/var/tmp/fg2/fn/nfyGuhyi/tmp/nix-test/main/logging/etc
++++(/var/tmp/fg2/fn/nfyGuhyi/src/common/vars.sh:43) NIX_CONF_DIR=/var/tmp/fg2/fn/nfyGuhyi/tmp/nix-test/main/logging/etc
++++(/var/tmp/fg2/fn/nfyGuhyi/src/common/vars.sh:44) export NIX_DAEMON_SOCKET_PATH=/var/tmp/fg2/fn/nfyGuhyi/tmp/nix-test/main/logging/dSocket
++++(/var/tmp/fg2/fn/nfyGuhyi/src/common/vars.sh:44) NIX_DAEMON_SOCKET_PATH=/var/tmp/fg2/fn/nfyGuhyi/tmp/nix-test/main/logging/dSocket
++++(/var/tmp/fg2/fn/nfyGuhyi/src/common/vars.sh:45) unset NIX_USER_CONF_FILES
++++(/var/tmp/fg2/fn/nfyGuhyi/src/common/vars.sh:46) export _NIX_TEST_SHARED=/var/tmp/fg2/fn/nfyGuhyi/tmp/nix-test/main/logging/shared
++++(/var/tmp/fg2/fn/nfyGuhyi/src/common/vars.sh:46) _NIX_TEST_SHARED=/var/tmp/fg2/fn/nfyGuhyi/tmp/nix-test/main/logging/shared
++++(/var/tmp/fg2/fn/nfyGuhyi/src/common/vars.sh:47) [[ -n '' ]]
++++(/var/tmp/fg2/fn/nfyGuhyi/src/common/vars.sh:50) export _NIX_IN_TEST=/var/tmp/fg2/fn/nfyGuhyi/tmp/nix-test/main/logging/shared
++++(/var/tmp/fg2/fn/nfyGuhyi/src/common/vars.sh:50) _NIX_IN_TEST=/var/tmp/fg2/fn/nfyGuhyi/tmp/nix-test/main/logging/shared
++++(/var/tmp/fg2/fn/nfyGuhyi/src/common/vars.sh:51) export _NIX_TEST_NO_LSOF=1
++++(/var/tmp/fg2/fn/nfyGuhyi/src/common/vars.sh:51) _NIX_TEST_NO_LSOF=1
++++(/var/tmp/fg2/fn/nfyGuhyi/src/common/vars.sh:54) export _NIX_TEST_NO_ENVIRONMENT_WARNINGS=1
++++(/var/tmp/fg2/fn/nfyGuhyi/src/common/vars.sh:54) _NIX_TEST_NO_ENVIRONMENT_WARNINGS=1
++++(/var/tmp/fg2/fn/nfyGuhyi/src/common/vars.sh:55) export NIX_REMOTE=
++++(/var/tmp/fg2/fn/nfyGuhyi/src/common/vars.sh:55) NIX_REMOTE=
++++(/var/tmp/fg2/fn/nfyGuhyi/src/common/vars.sh:59) unset NIX_PATH
++++(/var/tmp/fg2/fn/nfyGuhyi/src/common/vars.sh:60) export HOME=/var/tmp/fg2/fn/nfyGuhyi/tmp/nix-test/main/logging/test-home
++++(/var/tmp/fg2/fn/nfyGuhyi/src/common/vars.sh:60) HOME=/var/tmp/fg2/fn/nfyGuhyi/tmp/nix-test/main/logging/test-home
++++(/var/tmp/fg2/fn/nfyGuhyi/src/common/vars.sh:61) unset XDG_STATE_HOME
++++(/var/tmp/fg2/fn/nfyGuhyi/src/common/vars.sh:62) unset XDG_DATA_HOME
++++(/var/tmp/fg2/fn/nfyGuhyi/src/common/vars.sh:63) unset XDG_CONFIG_HOME
++++(/var/tmp/fg2/fn/nfyGuhyi/src/common/vars.sh:64) unset XDG_CONFIG_DIRS
++++(/var/tmp/fg2/fn/nfyGuhyi/src/common/vars.sh:65) unset XDG_CACHE_HOME
++++(/var/tmp/fg2/fn/nfyGuhyi/src/common/vars.sh:66) unset GIT_DIR
++++(/var/tmp/fg2/fn/nfyGuhyi/src/common/vars.sh:68) export GIT_CONFIG_SYSTEM=/dev/null
++++(/var/tmp/fg2/fn/nfyGuhyi/src/common/vars.sh:68) GIT_CONFIG_SYSTEM=/dev/null
++++(/var/tmp/fg2/fn/nfyGuhyi/src/common/vars.sh:69) export GIT_CONFIG_GLOBAL=/dev/null
++++(/var/tmp/fg2/fn/nfyGuhyi/src/common/vars.sh:69) GIT_CONFIG_GLOBAL=/dev/null
++++(/var/tmp/fg2/fn/nfyGuhyi/src/common/vars.sh:71) export IMPURE_VAR1=foo
++++(/var/tmp/fg2/fn/nfyGuhyi/src/common/vars.sh:71) IMPURE_VAR1=foo
++++(/var/tmp/fg2/fn/nfyGuhyi/src/common/vars.sh:72) export IMPURE_VAR2=bar
++++(/var/tmp/fg2/fn/nfyGuhyi/src/common/vars.sh:72) IMPURE_VAR2=bar
++++(/var/tmp/fg2/fn/nfyGuhyi/src/common/vars.sh:76) cacheDir=/var/tmp/fg2/fn/nfyGuhyi/tmp/nix-test/main/logging/binary-cache
+++++(/var/tmp/fg2/fn/nfyGuhyi/src/common/vars.sh:78) uname
++++(/var/tmp/fg2/fn/nfyGuhyi/src/common/vars.sh:78) [[ Linux == Linux ]]
++++(/var/tmp/fg2/fn/nfyGuhyi/src/common/vars.sh:78) [[ -L /proc/self/ns/user ]]
++++(/var/tmp/fg2/fn/nfyGuhyi/src/common/vars.sh:78) unshare --user true
++++(/var/tmp/fg2/fn/nfyGuhyi/src/common/vars.sh:79) _canUseSandbox=1
++++(/var/tmp/fg2/fn/nfyGuhyi/src/common/vars.sh:85) config_nix=/var/tmp/fg2/fn/nfyGuhyi/tmp/nix-test/main/logging/config.nix
+++(common.sh:12) source /var/tmp/fg2/fn/nfyGuhyi/src/common/functions.sh
++++(/var/tmp/fg2/fn/nfyGuhyi/src/common/functions.sh:3) set -eu -o pipefail
++++(/var/tmp/fg2/fn/nfyGuhyi/src/common/functions.sh:5) [[ -z 1 ]]
+++(common.sh:13) source /var/tmp/fg2/fn/nfyGuhyi/src/common/init.sh
++++(/var/tmp/fg2/fn/nfyGuhyi/src/common/init.sh:4) : /var/tmp/fg2/fn/nfyGuhyi/tmp/nix-test/main/logging/etc /var/tmp/fg2/fn/nfyGuhyi/tmp/nix-test/main/logging/etc/nix.conf /var/tmp/fg2/fn/nfyGuhyi/tmp/nix-test/main/logging/config.nix
++++(/var/tmp/fg2/fn/nfyGuhyi/src/common/init.sh:6) isTestOnNixOS
++++(/var/tmp/fg2/fn/nfyGuhyi/src/common/functions.sh:10) [[ '' == 1 ]]
++++(/var/tmp/fg2/fn/nfyGuhyi/src/common/init.sh:29) test -n /var/tmp/fg2/fn/nfyGuhyi/tmp/nix-test/main/logging
++++(/var/tmp/fg2/fn/nfyGuhyi/src/common/init.sh:31) killDaemon
++++(/var/tmp/fg2/fn/nfyGuhyi/src/common/functions.sh:100) isTestOnNixOS
++++(/var/tmp/fg2/fn/nfyGuhyi/src/common/functions.sh:10) [[ '' == 1 ]]
++++(/var/tmp/fg2/fn/nfyGuhyi/src/common/functions.sh:105) [[ '' == '' ]]
++++(/var/tmp/fg2/fn/nfyGuhyi/src/common/functions.sh:106) return
++++(/var/tmp/fg2/fn/nfyGuhyi/src/common/init.sh:33) [[ -e /var/tmp/fg2/fn/nfyGuhyi/tmp/nix-test/main/logging ]]
++++(/var/tmp/fg2/fn/nfyGuhyi/src/common/init.sh:37) mkdir -p /var/tmp/fg2/fn/nfyGuhyi/tmp/nix-test/main/logging
++++(/var/tmp/fg2/fn/nfyGuhyi/src/common/init.sh:38) mkdir /var/tmp/fg2/fn/nfyGuhyi/tmp/nix-test/main/logging/test-home
++++(/var/tmp/fg2/fn/nfyGuhyi/src/common/init.sh:40) mkdir /var/tmp/fg2/fn/nfyGuhyi/tmp/nix-test/main/logging/store
++++(/var/tmp/fg2/fn/nfyGuhyi/src/common/init.sh:41) mkdir /var/tmp/fg2/fn/nfyGuhyi/tmp/nix-test/main/logging/var
++++(/var/tmp/fg2/fn/nfyGuhyi/src/common/init.sh:42) mkdir -p /var/tmp/fg2/fn/nfyGuhyi/tmp/nix-test/main/logging/var/log/nix/drvs
++++(/var/tmp/fg2/fn/nfyGuhyi/src/common/init.sh:43) mkdir /var/tmp/fg2/fn/nfyGuhyi/tmp/nix-test/main/logging/var/nix
++++(/var/tmp/fg2/fn/nfyGuhyi/src/common/init.sh:44) mkdir /var/tmp/fg2/fn/nfyGuhyi/tmp/nix-test/main/logging/etc
++++(/var/tmp/fg2/fn/nfyGuhyi/src/common/init.sh:46) cat
+++++(/var/tmp/fg2/fn/nfyGuhyi/src/common/init.sh:46) whoami
++++(/var/tmp/fg2/fn/nfyGuhyi/src/common/init.sh:59) cat
++++(/var/tmp/fg2/fn/nfyGuhyi/src/common/init.sh:67) nix-store --init
++++(/var/tmp/fg2/fn/nfyGuhyi/src/common/init.sh:69) test -e /var/tmp/fg2/fn/nfyGuhyi/tmp/nix-test/main/logging/var/nix/db/db.sqlite
++++(/var/tmp/fg2/fn/nfyGuhyi/src/common/init.sh:75) echo '# config.nix for test main / logging'
++++(/var/tmp/fg2/fn/nfyGuhyi/src/common/init.sh:76) cat /var/tmp/fg2/fn/nfyGuhyi/build/config.nix
+++(common.sh:15) [[ -n '' ]]
++(logging.sh:5) TODO_NixOS
++(/var/tmp/fg2/fn/nfyGuhyi/src/common/functions.sh:148) isTestOnNixOS
++(/var/tmp/fg2/fn/nfyGuhyi/src/common/functions.sh:10) [[ '' == 1 ]]
+++(logging.sh:7) nix-build dependencies.nix --no-out-link
+these 5 derivations will be built:
+  /var/tmp/fg2/fn/nfyGuhyi/tmp/nix-test/main/logging/store/22x6w6wx6120s5s3i75y88j5dnifpf8j-dependencies-input-1.drv
+  /var/tmp/fg2/fn/nfyGuhyi/tmp/nix-test/main/logging/store/vkhnhhbn0lhvwlyya48nr37m006nh4k1-dependencies-input-0.drv
+  /var/tmp/fg2/fn/nfyGuhyi/tmp/nix-test/main/logging/store/3pr2bvk7kgbxd3bpad8jgwy8d0nl9avw-dependencies-input-2.drv
+  /var/tmp/fg2/fn/nfyGuhyi/tmp/nix-test/main/logging/store/cr8n3jm6kwkw9wvhg24yl2s0zrbl7v01-fod-input.drv
+  /var/tmp/fg2/fn/nfyGuhyi/tmp/nix-test/main/logging/store/s9xgppf9ffyz7wqgs9lijakw7qv7gb8g-dependencies-top.drv
+building '/var/tmp/fg2/fn/nfyGuhyi/tmp/nix-test/main/logging/store/vkhnhhbn0lhvwlyya48nr37m006nh4k1-dependencies-input-0.drv'...
+building '/var/tmp/fg2/fn/nfyGuhyi/tmp/nix-test/main/logging/store/cr8n3jm6kwkw9wvhg24yl2s0zrbl7v01-fod-input.drv'...
+
+building '/var/tmp/fg2/fn/nfyGuhyi/tmp/nix-test/main/logging/store/22x6w6wx6120s5s3i75y88j5dnifpf8j-dependencies-input-1.drv'...
+building '/var/tmp/fg2/fn/nfyGuhyi/tmp/nix-test/main/logging/store/3pr2bvk7kgbxd3bpad8jgwy8d0nl9avw-dependencies-input-2.drv'...
+building '/var/tmp/fg2/fn/nfyGuhyi/tmp/nix-test/main/logging/store/s9xgppf9ffyz7wqgs9lijakw7qv7gb8g-dependencies-top.drv'...
+FOO
++(logging.sh:7) path=/var/tmp/fg2/fn/nfyGuhyi/tmp/nix-test/main/logging/store/43m7a75wlsz1bpwwmc6ban6rkrxapqnn-dependencies-top
+++(logging.sh:10) nix-store -l /var/tmp/fg2/fn/nfyGuhyi/tmp/nix-test/main/logging/store/43m7a75wlsz1bpwwmc6ban6rkrxapqnn-dependencies-top
++(logging.sh:10) '[' FOO = FOO ']'
++(logging.sh:13) clearStore
++(/var/tmp/fg2/fn/nfyGuhyi/src/common/functions.sh:41) isTestOnNixOS
++(/var/tmp/fg2/fn/nfyGuhyi/src/common/functions.sh:10) [[ '' == 1 ]]
++(/var/tmp/fg2/fn/nfyGuhyi/src/common/functions.sh:44) doClearStore
++(/var/tmp/fg2/fn/nfyGuhyi/src/common/functions.sh:48) echo 'clearing store...'
+clearing store...
++(/var/tmp/fg2/fn/nfyGuhyi/src/common/functions.sh:49) chmod -R +w /var/tmp/fg2/fn/nfyGuhyi/tmp/nix-test/main/logging/store
++(/var/tmp/fg2/fn/nfyGuhyi/src/common/functions.sh:50) rm -rf /var/tmp/fg2/fn/nfyGuhyi/tmp/nix-test/main/logging/store
++(/var/tmp/fg2/fn/nfyGuhyi/src/common/functions.sh:51) mkdir /var/tmp/fg2/fn/nfyGuhyi/tmp/nix-test/main/logging/store
++(/var/tmp/fg2/fn/nfyGuhyi/src/common/functions.sh:52) rm -rf /var/tmp/fg2/fn/nfyGuhyi/tmp/nix-test/main/logging/var/nix
++(/var/tmp/fg2/fn/nfyGuhyi/src/common/functions.sh:53) mkdir /var/tmp/fg2/fn/nfyGuhyi/tmp/nix-test/main/logging/var/nix
++(/var/tmp/fg2/fn/nfyGuhyi/src/common/functions.sh:54) clearProfiles
++(/var/tmp/fg2/fn/nfyGuhyi/src/common/functions.sh:25) profiles=/var/tmp/fg2/fn/nfyGuhyi/tmp/nix-test/main/logging/test-home/.local/state/nix/profiles
++(/var/tmp/fg2/fn/nfyGuhyi/src/common/functions.sh:26) rm -rf /var/tmp/fg2/fn/nfyGuhyi/tmp/nix-test/main/logging/test-home/.local/state/nix/profiles
++(logging.sh:14) rm -rf /var/tmp/fg2/fn/nfyGuhyi/tmp/nix-test/main/logging/var/log/nix
++(logging.sh:15) nix-store -l /var/tmp/fg2/fn/nfyGuhyi/tmp/nix-test/main/logging/store/43m7a75wlsz1bpwwmc6ban6rkrxapqnn-dependencies-top
+error: build log of derivation '/var/tmp/fg2/fn/nfyGuhyi/tmp/nix-test/main/logging/store/43m7a75wlsz1bpwwmc6ban6rkrxapqnn-dependencies-top' is not available
++(logging.sh:16) nix-build dependencies.nix --no-out-link --compress-build-log
+these 5 derivations will be built:
+  /var/tmp/fg2/fn/nfyGuhyi/tmp/nix-test/main/logging/store/22x6w6wx6120s5s3i75y88j5dnifpf8j-dependencies-input-1.drv
+  /var/tmp/fg2/fn/nfyGuhyi/tmp/nix-test/main/logging/store/vkhnhhbn0lhvwlyya48nr37m006nh4k1-dependencies-input-0.drv
+  /var/tmp/fg2/fn/nfyGuhyi/tmp/nix-test/main/logging/store/3pr2bvk7kgbxd3bpad8jgwy8d0nl9avw-dependencies-input-2.drv
+  /var/tmp/fg2/fn/nfyGuhyi/tmp/nix-test/main/logging/store/cr8n3jm6kwkw9wvhg24yl2s0zrbl7v01-fod-input.drv
+  /var/tmp/fg2/fn/nfyGuhyi/tmp/nix-test/main/logging/store/s9xgppf9ffyz7wqgs9lijakw7qv7gb8g-dependencies-top.drv
+building '/var/tmp/fg2/fn/nfyGuhyi/tmp/nix-test/main/logging/store/vkhnhhbn0lhvwlyya48nr37m006nh4k1-dependencies-input-0.drv'...
+building '/var/tmp/fg2/fn/nfyGuhyi/tmp/nix-test/main/logging/store/cr8n3jm6kwkw9wvhg24yl2s0zrbl7v01-fod-input.drv'...
+
+building '/var/tmp/fg2/fn/nfyGuhyi/tmp/nix-test/main/logging/store/22x6w6wx6120s5s3i75y88j5dnifpf8j-dependencies-input-1.drv'...
+building '/var/tmp/fg2/fn/nfyGuhyi/tmp/nix-test/main/logging/store/3pr2bvk7kgbxd3bpad8jgwy8d0nl9avw-dependencies-input-2.drv'...
+building '/var/tmp/fg2/fn/nfyGuhyi/tmp/nix-test/main/logging/store/s9xgppf9ffyz7wqgs9lijakw7qv7gb8g-dependencies-top.drv'...
+FOO
+/var/tmp/fg2/fn/nfyGuhyi/tmp/nix-test/main/logging/store/43m7a75wlsz1bpwwmc6ban6rkrxapqnn-dependencies-top
+++(logging.sh:17) nix-store -l /var/tmp/fg2/fn/nfyGuhyi/tmp/nix-test/main/logging/store/43m7a75wlsz1bpwwmc6ban6rkrxapqnn-dependencies-top
++(logging.sh:17) '[' FOO = FOO ']'
++(logging.sh:20) builder=/var/tmp/fg2/fn/nfyGuhyi/tmp/nix-test/main/logging/builder
++(logging.sh:21) echo -e '#!/bin/sh\nmkdir $out'
+++(logging.sh:24) nix-build -E 'with import /var/tmp/fg2/fn/nfyGuhyi/tmp/nix-test/main/logging/config.nix; mkDerivation { name = "fnord"; builder = /var/tmp/fg2/fn/nfyGuhyi/tmp/nix-test/main/logging/builder; }' --out-link /var/tmp/fg2/fn/nfyGuhyi/tmp/nix-test/main/logging/result
+this derivation will be built:
+  /var/tmp/fg2/fn/nfyGuhyi/tmp/nix-test/main/logging/store/4dq45ag4m6b2w5g2ff9f8d2jqk2pscxh-fnord.drv
+building '/var/tmp/fg2/fn/nfyGuhyi/tmp/nix-test/main/logging/store/4dq45ag4m6b2w5g2ff9f8d2jqk2pscxh-fnord.drv'...
++(logging.sh:24) outp=/var/tmp/fg2/fn/nfyGuhyi/tmp/nix-test/main/logging/store/0i42pyy15kvkr2bjsgaw6wwn5kr1arq6-fnord
++(logging.sh:26) test -d /var/tmp/fg2/fn/nfyGuhyi/tmp/nix-test/main/logging/store/0i42pyy15kvkr2bjsgaw6wwn5kr1arq6-fnord
++(logging.sh:28) nix log /var/tmp/fg2/fn/nfyGuhyi/tmp/nix-test/main/logging/store/0i42pyy15kvkr2bjsgaw6wwn5kr1arq6-fnord
+warning: you don't have Internet access; disabling some network-dependent features
+got build log for '/var/tmp/fg2/fn/nfyGuhyi/tmp/nix-test/main/logging/store/0i42pyy15kvkr2bjsgaw6wwn5kr1arq6-fnord' from 'local'
++(logging.sh:30) isDaemonNewer 2.26
++(/var/tmp/fg2/fn/nfyGuhyi/src/common/functions.sh:135) [[ -n '' ]]
++(/var/tmp/fg2/fn/nfyGuhyi/src/common/functions.sh:135) return 0
++(logging.sh:32) expectStderr 0 nix build -f ./logging/unusual-logging.nix --no-link
++(/var/tmp/fg2/fn/nfyGuhyi/src/common/functions.sh:201) local expected res
++(logging.sh:32) grepQuiet 'warning: Unable to handle a JSON message from the derivation builder:'
++(/var/tmp/fg2/fn/nfyGuhyi/src/common/functions.sh:202) expected=0
++(/var/tmp/fg2/fn/nfyGuhyi/src/common/functions.sh:203) shift
++(/var/tmp/fg2/fn/nfyGuhyi/src/common/functions.sh:204) nix build -f ./logging/unusual-logging.nix --no-link
++(/var/tmp/fg2/fn/nfyGuhyi/src/common/functions.sh:330) checkGrepArgs 'warning: Unable to handle a JSON message from the derivation builder:'
++(/var/tmp/fg2/fn/nfyGuhyi/src/common/functions.sh:293) local arg
++(/var/tmp/fg2/fn/nfyGuhyi/src/common/functions.sh:294) for arg in "$@"
++(/var/tmp/fg2/fn/nfyGuhyi/src/common/functions.sh:295) [[ warning: Unable to handle a JSON message from the derivation builder: != warning\: Unable to handle a JSON message from the derivation builder\: ]]
++(/var/tmp/fg2/fn/nfyGuhyi/src/common/functions.sh:331) command grep 'warning: Unable to handle a JSON message from the derivation builder:'
++(/var/tmp/fg2/fn/nfyGuhyi/src/common/functions.sh:204) res=0
++(/var/tmp/fg2/fn/nfyGuhyi/src/common/functions.sh:206) [[ 0 -ne 0 ]]
++(/var/tmp/fg2/fn/nfyGuhyi/src/common/functions.sh:210) return 0
++(logging.sh:36) [[ '' != daemon ]]
++(logging.sh:37) clearStore
++(/var/tmp/fg2/fn/nfyGuhyi/src/common/functions.sh:41) isTestOnNixOS
++(/var/tmp/fg2/fn/nfyGuhyi/src/common/functions.sh:10) [[ '' == 1 ]]
++(/var/tmp/fg2/fn/nfyGuhyi/src/common/functions.sh:44) doClearStore
++(/var/tmp/fg2/fn/nfyGuhyi/src/common/functions.sh:48) echo 'clearing store...'
+clearing store...
++(/var/tmp/fg2/fn/nfyGuhyi/src/common/functions.sh:49) chmod -R +w /var/tmp/fg2/fn/nfyGuhyi/tmp/nix-test/main/logging/store
++(/var/tmp/fg2/fn/nfyGuhyi/src/common/functions.sh:50) rm -rf /var/tmp/fg2/fn/nfyGuhyi/tmp/nix-test/main/logging/store
++(/var/tmp/fg2/fn/nfyGuhyi/src/common/functions.sh:51) mkdir /var/tmp/fg2/fn/nfyGuhyi/tmp/nix-test/main/logging/store
++(/var/tmp/fg2/fn/nfyGuhyi/src/common/functions.sh:52) rm -rf /var/tmp/fg2/fn/nfyGuhyi/tmp/nix-test/main/logging/var/nix
++(/var/tmp/fg2/fn/nfyGuhyi/src/common/functions.sh:53) mkdir /var/tmp/fg2/fn/nfyGuhyi/tmp/nix-test/main/logging/var/nix
++(/var/tmp/fg2/fn/nfyGuhyi/src/common/functions.sh:54) clearProfiles
++(/var/tmp/fg2/fn/nfyGuhyi/src/common/functions.sh:25) profiles=/var/tmp/fg2/fn/nfyGuhyi/tmp/nix-test/main/logging/test-home/.local/state/nix/profiles
++(/var/tmp/fg2/fn/nfyGuhyi/src/common/functions.sh:26) rm -rf /var/tmp/fg2/fn/nfyGuhyi/tmp/nix-test/main/logging/test-home/.local/state/nix/profiles
++(logging.sh:38) nix build -vv --file dependencies.nix --no-link --json-log-path /var/tmp/fg2/fn/nfyGuhyi/tmp/nix-test/main/logging/log.json
++(logging.sh:38) grepQuiet 'building.*dependencies-top.drv'
++(/var/tmp/fg2/fn/nfyGuhyi/src/common/functions.sh:330) checkGrepArgs 'building.*dependencies-top.drv'
++(/var/tmp/fg2/fn/nfyGuhyi/src/common/functions.sh:293) local arg
++(/var/tmp/fg2/fn/nfyGuhyi/src/common/functions.sh:294) for arg in "$@"
++(/var/tmp/fg2/fn/nfyGuhyi/src/common/functions.sh:295) [[ building.*dependencies-top.drv != building\.\*dependencies\-top\.drv ]]
++(/var/tmp/fg2/fn/nfyGuhyi/src/common/functions.sh:331) command grep 'building.*dependencies-top.drv'
++(logging.sh:39) jq
+{
+  "action": "msg",
+  "level": 1,
+  "msg": "\u001b[35;1mwarning:\u001b[0m you don't have Internet access; disabling some network-dependent features"
+}
+{
+  "action": "msg",
+  "level": 4,
+  "msg": "evaluating file '«nix-internal»/derivation-internal.nix'"
+}
+{
+  "action": "msg",
+  "level": 4,
+  "msg": "evaluating file '/var/tmp/fg2/fn/nfyGuhyi/src/dependencies.nix'"
+}
+{
+  "action": "msg",
+  "level": 4,
+  "msg": "evaluating file '/var/tmp/fg2/fn/nfyGuhyi/src/config.nix'"
+}
+{
+  "action": "msg",
+  "level": 4,
+  "msg": "evaluating file '/var/tmp/fg2/fn/nfyGuhyi/tmp/nix-test/main/logging/config.nix'"
+}
+{
+  "action": "start",
+  "id": 4625228806225920,
+  "level": 5,
+  "parent": 0,
+  "text": "copying '/var/tmp/fg2/fn/nfyGuhyi/src/dependencies.builder0.sh' to the store",
+  "type": 0
+}
+{
+  "action": "msg",
+  "level": 5,
+  "msg": "copied source '/var/tmp/fg2/fn/nfyGuhyi/src/dependencies.builder0.sh' -> '/var/tmp/fg2/fn/nfyGuhyi/tmp/nix-test/main/logging/store/csrpz1p6sy7lr3nm4wbhsgapxx1mygzp-dependencies.builder0.sh' (hash 'sha256-Q82bqquN4cOZRb89kSRh22bfSUT2u9AffBavMFgutR0=')"
+}
+{
+  "action": "stop",
+  "id": 4625228806225920
+}
+{
+  "action": "msg",
+  "level": 5,
+  "msg": "instantiated 'fod-input' -> '/var/tmp/fg2/fn/nfyGuhyi/tmp/nix-test/main/logging/store/cr8n3jm6kwkw9wvhg24yl2s0zrbl7v01-fod-input.drv'"
+}
+{
+  "action": "msg",
+  "level": 5,
+  "msg": "instantiated 'dependencies-input-0' -> '/var/tmp/fg2/fn/nfyGuhyi/tmp/nix-test/main/logging/store/vkhnhhbn0lhvwlyya48nr37m006nh4k1-dependencies-input-0.drv'"
+}
+{
+  "action": "msg",
+  "level": 5,
+  "msg": "instantiated 'dependencies-input-1' -> '/var/tmp/fg2/fn/nfyGuhyi/tmp/nix-test/main/logging/store/22x6w6wx6120s5s3i75y88j5dnifpf8j-dependencies-input-1.drv'"
+}
+{
+  "action": "msg",
+  "level": 5,
+  "msg": "instantiated 'dependencies-input-2' -> '/var/tmp/fg2/fn/nfyGuhyi/tmp/nix-test/main/logging/store/3pr2bvk7kgbxd3bpad8jgwy8d0nl9avw-dependencies-input-2.drv'"
+}
+{
+  "action": "msg",
+  "level": 5,
+  "msg": "instantiated 'dependencies-top' -> '/var/tmp/fg2/fn/nfyGuhyi/tmp/nix-test/main/logging/store/s9xgppf9ffyz7wqgs9lijakw7qv7gb8g-dependencies-top.drv'"
+}
+{
+  "action": "start",
+  "id": 4625228806225921,
+  "level": 6,
+  "parent": 0,
+  "text": "querying info about missing paths",
+  "type": 0
+}
+{
+  "action": "stop",
+  "id": 4625228806225921
+}
+{
+  "action": "msg",
+  "level": 3,
+  "msg": "these 5 derivations will be built:"
+}
+{
+  "action": "msg",
+  "level": 3,
+  "msg": "  /var/tmp/fg2/fn/nfyGuhyi/tmp/nix-test/main/logging/store/22x6w6wx6120s5s3i75y88j5dnifpf8j-dependencies-input-1.drv"
+}
+{
+  "action": "msg",
+  "level": 3,
+  "msg": "  /var/tmp/fg2/fn/nfyGuhyi/tmp/nix-test/main/logging/store/vkhnhhbn0lhvwlyya48nr37m006nh4k1-dependencies-input-0.drv"
+}
+{
+  "action": "msg",
+  "level": 3,
+  "msg": "  /var/tmp/fg2/fn/nfyGuhyi/tmp/nix-test/main/logging/store/3pr2bvk7kgbxd3bpad8jgwy8d0nl9avw-dependencies-input-2.drv"
+}
+{
+  "action": "msg",
+  "level": 3,
+  "msg": "  /var/tmp/fg2/fn/nfyGuhyi/tmp/nix-test/main/logging/store/cr8n3jm6kwkw9wvhg24yl2s0zrbl7v01-fod-input.drv"
+}
+{
+  "action": "msg",
+  "level": 3,
+  "msg": "  /var/tmp/fg2/fn/nfyGuhyi/tmp/nix-test/main/logging/store/s9xgppf9ffyz7wqgs9lijakw7qv7gb8g-dependencies-top.drv"
+}
+{
+  "action": "start",
+  "id": 4625228806225922,
+  "level": 0,
+  "parent": 0,
+  "text": "",
+  "type": 102
+}
+{
+  "action": "start",
+  "id": 4625228806225923,
+  "level": 0,
+  "parent": 0,
+  "text": "",
+  "type": 104
+}
+{
+  "action": "start",
+  "id": 4625228806225924,
+  "level": 0,
+  "parent": 0,
+  "text": "",
+  "type": 103
+}
+{
+  "action": "result",
+  "fields": [
+    0,
+    0,
+    0,
+    0
+  ],
+  "id": 4625228806225923,
+  "type": 105
+}
+{
+  "action": "result",
+  "fields": [
+    0,
+    0,
+    0,
+    0
+  ],
+  "id": 4625228806225924,
+  "type": 105
+}
+{
+  "action": "result",
+  "fields": [
+    101,
+    0
+  ],
+  "id": 4625228806225922,
+  "type": 106
+}
+{
+  "action": "result",
+  "fields": [
+    100,
+    0
+  ],
+  "id": 4625228806225922,
+  "type": 106
+}
+{
+  "action": "result",
+  "fields": [
+    0,
+    1,
+    0,
+    0
+  ],
+  "id": 4625228806225923,
+  "type": 105
+}
+{
+  "action": "result",
+  "fields": [
+    0,
+    0,
+    0,
+    0
+  ],
+  "id": 4625228806225924,
+  "type": 105
+}
+{
+  "action": "result",
+  "fields": [
+    101,
+    0
+  ],
+  "id": 4625228806225922,
+  "type": 106
+}
+{
+  "action": "result",
+  "fields": [
+    100,
+    0
+  ],
+  "id": 4625228806225922,
+  "type": 106
+}
+{
+  "action": "result",
+  "fields": [
+    0,
+    1,
+    0,
+    0
+  ],
+  "id": 4625228806225923,
+  "type": 105
+}
+{
+  "action": "result",
+  "fields": [
+    0,
+    0,
+    0,
+    0
+  ],
+  "id": 4625228806225924,
+  "type": 105
+}
+{
+  "action": "result",
+  "fields": [
+    101,
+    0
+  ],
+  "id": 4625228806225922,
+  "type": 106
+}
+{
+  "action": "result",
+  "fields": [
+    100,
+    0
+  ],
+  "id": 4625228806225922,
+  "type": 106
+}
+{
+  "action": "result",
+  "fields": [
+    0,
+    1,
+    0,
+    0
+  ],
+  "id": 4625228806225923,
+  "type": 105
+}
+{
+  "action": "result",
+  "fields": [
+    0,
+    0,
+    0,
+    0
+  ],
+  "id": 4625228806225924,
+  "type": 105
+}
+{
+  "action": "result",
+  "fields": [
+    101,
+    0
+  ],
+  "id": 4625228806225922,
+  "type": 106
+}
+{
+  "action": "result",
+  "fields": [
+    100,
+    0
+  ],
+  "id": 4625228806225922,
+  "type": 106
+}
+{
+  "action": "result",
+  "fields": [
+    0,
+    1,
+    0,
+    0
+  ],
+  "id": 4625228806225923,
+  "type": 105
+}
+{
+  "action": "result",
+  "fields": [
+    0,
+    0,
+    0,
+    0
+  ],
+  "id": 4625228806225924,
+  "type": 105
+}
+{
+  "action": "result",
+  "fields": [
+    101,
+    0
+  ],
+  "id": 4625228806225922,
+  "type": 106
+}
+{
+  "action": "result",
+  "fields": [
+    100,
+    0
+  ],
+  "id": 4625228806225922,
+  "type": 106
+}
+{
+  "action": "result",
+  "fields": [
+    0,
+    1,
+    0,
+    0
+  ],
+  "id": 4625228806225923,
+  "type": 105
+}
+{
+  "action": "result",
+  "fields": [
+    0,
+    0,
+    0,
+    0
+  ],
+  "id": 4625228806225924,
+  "type": 105
+}
+{
+  "action": "result",
+  "fields": [
+    101,
+    0
+  ],
+  "id": 4625228806225922,
+  "type": 106
+}
+{
+  "action": "result",
+  "fields": [
+    100,
+    0
+  ],
+  "id": 4625228806225922,
+  "type": 106
+}
+{
+  "action": "result",
+  "fields": [
+    0,
+    2,
+    0,
+    0
+  ],
+  "id": 4625228806225923,
+  "type": 105
+}
+{
+  "action": "result",
+  "fields": [
+    0,
+    0,
+    0,
+    0
+  ],
+  "id": 4625228806225924,
+  "type": 105
+}
+{
+  "action": "result",
+  "fields": [
+    101,
+    0
+  ],
+  "id": 4625228806225922,
+  "type": 106
+}
+{
+  "action": "result",
+  "fields": [
+    100,
+    0
+  ],
+  "id": 4625228806225922,
+  "type": 106
+}
+{
+  "action": "result",
+  "fields": [
+    0,
+    3,
+    0,
+    0
+  ],
+  "id": 4625228806225923,
+  "type": 105
+}
+{
+  "action": "result",
+  "fields": [
+    0,
+    0,
+    0,
+    0
+  ],
+  "id": 4625228806225924,
+  "type": 105
+}
+{
+  "action": "result",
+  "fields": [
+    101,
+    0
+  ],
+  "id": 4625228806225922,
+  "type": 106
+}
+{
+  "action": "result",
+  "fields": [
+    100,
+    0
+  ],
+  "id": 4625228806225922,
+  "type": 106
+}
+{
+  "action": "result",
+  "fields": [
+    0,
+    4,
+    0,
+    0
+  ],
+  "id": 4625228806225923,
+  "type": 105
+}
+{
+  "action": "result",
+  "fields": [
+    0,
+    0,
+    0,
+    0
+  ],
+  "id": 4625228806225924,
+  "type": 105
+}
+{
+  "action": "result",
+  "fields": [
+    101,
+    0
+  ],
+  "id": 4625228806225922,
+  "type": 106
+}
+{
+  "action": "result",
+  "fields": [
+    100,
+    0
+  ],
+  "id": 4625228806225922,
+  "type": 106
+}
+{
+  "action": "result",
+  "fields": [
+    0,
+    5,
+    0,
+    0
+  ],
+  "id": 4625228806225923,
+  "type": 105
+}
+{
+  "action": "result",
+  "fields": [
+    0,
+    0,
+    0,
+    0
+  ],
+  "id": 4625228806225924,
+  "type": 105
+}
+{
+  "action": "result",
+  "fields": [
+    101,
+    0
+  ],
+  "id": 4625228806225922,
+  "type": 106
+}
+{
+  "action": "result",
+  "fields": [
+    100,
+    0
+  ],
+  "id": 4625228806225922,
+  "type": 106
+}
+{
+  "action": "msg",
+  "level": 5,
+  "msg": "executing builder '/nix/store/2ndah67h0z5m31v2wkdmg2md4380ggr5-bash-interactive-5.3p15/bin/bash'"
+}
+{
+  "action": "msg",
+  "level": 5,
+  "msg": "using builder args '-e /var/tmp/fg2/fn/nfyGuhyi/tmp/nix-test/main/logging/store/85cbmf0rnmqnaa2nqrkql85155pdf820-builder-dependencies-input-0.sh'"
+}
+{
+  "action": "start",
+  "fields": [
+    "/var/tmp/fg2/fn/nfyGuhyi/tmp/nix-test/main/logging/store/vkhnhhbn0lhvwlyya48nr37m006nh4k1-dependencies-input-0.drv",
+    "",
+    1,
+    1
+  ],
+  "id": 4625228806225925,
+  "level": 3,
+  "parent": 0,
+  "text": "building '/var/tmp/fg2/fn/nfyGuhyi/tmp/nix-test/main/logging/store/vkhnhhbn0lhvwlyya48nr37m006nh4k1-dependencies-input-0.drv'",
+  "type": 105
+}
+{
+  "action": "result",
+  "fields": [
+    0,
+    5,
+    1,
+    0
+  ],
+  "id": 4625228806225923,
+  "type": 105
+}
+{
+  "action": "result",
+  "fields": [
+    0,
+    0,
+    0,
+    0
+  ],
+  "id": 4625228806225924,
+  "type": 105
+}
+{
+  "action": "result",
+  "fields": [
+    101,
+    0
+  ],
+  "id": 4625228806225922,
+  "type": 106
+}
+{
+  "action": "result",
+  "fields": [
+    100,
+    0
+  ],
+  "id": 4625228806225922,
+  "type": 106
+}
+{
+  "action": "result",
+  "fields": [
+    1,
+    6,
+    0,
+    0
+  ],
+  "id": 4625228806225923,
+  "type": 105
+}
+{
+  "action": "result",
+  "fields": [
+    0,
+    0,
+    0,
+    0
+  ],
+  "id": 4625228806225924,
+  "type": 105
+}
+{
+  "action": "result",
+  "fields": [
+    101,
+    0
+  ],
+  "id": 4625228806225922,
+  "type": 106
+}
+{
+  "action": "result",
+  "fields": [
+    100,
+    0
+  ],
+  "id": 4625228806225922,
+  "type": 106
+}
+{
+  "action": "stop",
+  "id": 4625228806225925
+}
+{
+  "action": "msg",
+  "level": 5,
+  "msg": "executing builder '/nix/store/2ndah67h0z5m31v2wkdmg2md4380ggr5-bash-interactive-5.3p15/bin/bash'"
+}
+{
+  "action": "msg",
+  "level": 5,
+  "msg": "using builder args '-e /var/tmp/fg2/fn/nfyGuhyi/tmp/nix-test/main/logging/store/p462dqnh0ilvac6ghl8ify5ijfc8b9i7-builder-fod-input.sh'"
+}
+{
+  "action": "start",
+  "fields": [
+    "/var/tmp/fg2/fn/nfyGuhyi/tmp/nix-test/main/logging/store/cr8n3jm6kwkw9wvhg24yl2s0zrbl7v01-fod-input.drv",
+    "",
+    1,
+    1
+  ],
+  "id": 4625228806225926,
+  "level": 3,
+  "parent": 0,
+  "text": "building '/var/tmp/fg2/fn/nfyGuhyi/tmp/nix-test/main/logging/store/cr8n3jm6kwkw9wvhg24yl2s0zrbl7v01-fod-input.drv'",
+  "type": 105
+}
+{
+  "action": "result",
+  "fields": [
+    1,
+    5,
+    1,
+    0
+  ],
+  "id": 4625228806225923,
+  "type": 105
+}
+{
+  "action": "result",
+  "fields": [
+    0,
+    0,
+    0,
+    0
+  ],
+  "id": 4625228806225924,
+  "type": 105
+}
+{
+  "action": "result",
+  "fields": [
+    101,
+    0
+  ],
+  "id": 4625228806225922,
+  "type": 106
+}
+{
+  "action": "result",
+  "fields": [
+    100,
+    0
+  ],
+  "id": 4625228806225922,
+  "type": 106
+}
+{
+  "action": "result",
+  "fields": [
+    ""
+  ],
+  "id": 4625228806225926,
+  "type": 101
+}
+{
+  "action": "result",
+  "fields": [
+    2,
+    6,
+    0,
+    0
+  ],
+  "id": 4625228806225923,
+  "type": 105
+}
+{
+  "action": "result",
+  "fields": [
+    0,
+    0,
+    0,
+    0
+  ],
+  "id": 4625228806225924,
+  "type": 105
+}
+{
+  "action": "result",
+  "fields": [
+    101,
+    0
+  ],
+  "id": 4625228806225922,
+  "type": 106
+}
+{
+  "action": "result",
+  "fields": [
+    100,
+    0
+  ],
+  "id": 4625228806225922,
+  "type": 106
+}
+{
+  "action": "stop",
+  "id": 4625228806225926
+}
+{
+  "action": "msg",
+  "level": 5,
+  "msg": "executing builder '/nix/store/2ndah67h0z5m31v2wkdmg2md4380ggr5-bash-interactive-5.3p15/bin/bash'"
+}
+{
+  "action": "msg",
+  "level": 5,
+  "msg": "using builder args '-e /var/tmp/fg2/fn/nfyGuhyi/tmp/nix-test/main/logging/store/c19nh477n9jfs1nqm7n83p57l3jix904-builder-dependencies-input-1.sh'"
+}
+{
+  "action": "start",
+  "fields": [
+    "/var/tmp/fg2/fn/nfyGuhyi/tmp/nix-test/main/logging/store/22x6w6wx6120s5s3i75y88j5dnifpf8j-dependencies-input-1.drv",
+    "",
+    1,
+    1
+  ],
+  "id": 4625228806225927,
+  "level": 3,
+  "parent": 0,
+  "text": "building '/var/tmp/fg2/fn/nfyGuhyi/tmp/nix-test/main/logging/store/22x6w6wx6120s5s3i75y88j5dnifpf8j-dependencies-input-1.drv'",
+  "type": 105
+}
+{
+  "action": "result",
+  "fields": [
+    2,
+    5,
+    1,
+    0
+  ],
+  "id": 4625228806225923,
+  "type": 105
+}
+{
+  "action": "result",
+  "fields": [
+    0,
+    0,
+    0,
+    0
+  ],
+  "id": 4625228806225924,
+  "type": 105
+}
+{
+  "action": "result",
+  "fields": [
+    101,
+    0
+  ],
+  "id": 4625228806225922,
+  "type": 106
+}
+{
+  "action": "result",
+  "fields": [
+    100,
+    0
+  ],
+  "id": 4625228806225922,
+  "type": 106
+}
+{
+  "action": "result",
+  "fields": [
+    3,
+    6,
+    0,
+    0
+  ],
+  "id": 4625228806225923,
+  "type": 105
+}
+{
+  "action": "result",
+  "fields": [
+    0,
+    0,
+    0,
+    0
+  ],
+  "id": 4625228806225924,
+  "type": 105
+}
+{
+  "action": "result",
+  "fields": [
+    101,
+    0
+  ],
+  "id": 4625228806225922,
+  "type": 106
+}
+{
+  "action": "result",
+  "fields": [
+    100,
+    0
+  ],
+  "id": 4625228806225922,
+  "type": 106
+}
+{
+  "action": "stop",
+  "id": 4625228806225927
+}
+{
+  "action": "msg",
+  "level": 5,
+  "msg": "executing builder '/nix/store/2ndah67h0z5m31v2wkdmg2md4380ggr5-bash-interactive-5.3p15/bin/bash'"
+}
+{
+  "action": "msg",
+  "level": 5,
+  "msg": "using builder args '-e /var/tmp/fg2/fn/nfyGuhyi/tmp/nix-test/main/logging/store/5q7dq3kxjhi6q0fd88mfc4vibdl2021m-builder-dependencies-input-2.sh'"
+}
+{
+  "action": "start",
+  "fields": [
+    "/var/tmp/fg2/fn/nfyGuhyi/tmp/nix-test/main/logging/store/3pr2bvk7kgbxd3bpad8jgwy8d0nl9avw-dependencies-input-2.drv",
+    "",
+    1,
+    1
+  ],
+  "id": 4625228806225928,
+  "level": 3,
+  "parent": 0,
+  "text": "building '/var/tmp/fg2/fn/nfyGuhyi/tmp/nix-test/main/logging/store/3pr2bvk7kgbxd3bpad8jgwy8d0nl9avw-dependencies-input-2.drv'",
+  "type": 105
+}
+{
+  "action": "result",
+  "fields": [
+    3,
+    5,
+    1,
+    0
+  ],
+  "id": 4625228806225923,
+  "type": 105
+}
+{
+  "action": "result",
+  "fields": [
+    0,
+    0,
+    0,
+    0
+  ],
+  "id": 4625228806225924,
+  "type": 105
+}
+{
+  "action": "result",
+  "fields": [
+    101,
+    0
+  ],
+  "id": 4625228806225922,
+  "type": 106
+}
+{
+  "action": "result",
+  "fields": [
+    100,
+    0
+  ],
+  "id": 4625228806225922,
+  "type": 106
+}
+{
+  "action": "result",
+  "fields": [
+    4,
+    6,
+    0,
+    0
+  ],
+  "id": 4625228806225923,
+  "type": 105
+}
+{
+  "action": "result",
+  "fields": [
+    0,
+    0,
+    0,
+    0
+  ],
+  "id": 4625228806225924,
+  "type": 105
+}
+{
+  "action": "result",
+  "fields": [
+    101,
+    0
+  ],
+  "id": 4625228806225922,
+  "type": 106
+}
+{
+  "action": "result",
+  "fields": [
+    100,
+    0
+  ],
+  "id": 4625228806225922,
+  "type": 106
+}
+{
+  "action": "stop",
+  "id": 4625228806225928
+}
+{
+  "action": "msg",
+  "level": 5,
+  "msg": "executing builder '/nix/store/2ndah67h0z5m31v2wkdmg2md4380ggr5-bash-interactive-5.3p15/bin/bash'"
+}
+{
+  "action": "msg",
+  "level": 5,
+  "msg": "using builder args '-e /var/tmp/fg2/fn/nfyGuhyi/tmp/nix-test/main/logging/store/csrpz1p6sy7lr3nm4wbhsgapxx1mygzp-dependencies.builder0.sh'"
+}
+{
+  "action": "start",
+  "fields": [
+    "/var/tmp/fg2/fn/nfyGuhyi/tmp/nix-test/main/logging/store/s9xgppf9ffyz7wqgs9lijakw7qv7gb8g-dependencies-top.drv",
+    "",
+    1,
+    1
+  ],
+  "id": 4625228806225929,
+  "level": 3,
+  "parent": 0,
+  "text": "building '/var/tmp/fg2/fn/nfyGuhyi/tmp/nix-test/main/logging/store/s9xgppf9ffyz7wqgs9lijakw7qv7gb8g-dependencies-top.drv'",
+  "type": 105
+}
+{
+  "action": "result",
+  "fields": [
+    4,
+    5,
+    1,
+    0
+  ],
+  "id": 4625228806225923,
+  "type": 105
+}
+{
+  "action": "result",
+  "fields": [
+    0,
+    0,
+    0,
+    0
+  ],
+  "id": 4625228806225924,
+  "type": 105
+}
+{
+  "action": "result",
+  "fields": [
+    101,
+    0
+  ],
+  "id": 4625228806225922,
+  "type": 106
+}
+{
+  "action": "result",
+  "fields": [
+    100,
+    0
+  ],
+  "id": 4625228806225922,
+  "type": 106
+}
+{
+  "action": "result",
+  "fields": [
+    "FOO"
+  ],
+  "id": 4625228806225929,
+  "type": 101
+}
+{
+  "action": "result",
+  "fields": [
+    5,
+    6,
+    0,
+    0
+  ],
+  "id": 4625228806225923,
+  "type": 105
+}
+{
+  "action": "result",
+  "fields": [
+    0,
+    0,
+    0,
+    0
+  ],
+  "id": 4625228806225924,
+  "type": 105
+}
+{
+  "action": "result",
+  "fields": [
+    101,
+    0
+  ],
+  "id": 4625228806225922,
+  "type": 106
+}
+{
+  "action": "result",
+  "fields": [
+    100,
+    0
+  ],
+  "id": 4625228806225922,
+  "type": 106
+}
+{
+  "action": "stop",
+  "id": 4625228806225929
+}
+{
+  "action": "stop",
+  "id": 4625228806225924
+}
+{
+  "action": "stop",
+  "id": 4625228806225923
+}
+{
+  "action": "stop",
+  "id": 4625228806225922
+}
++(logging.sh:40) grep '{"action":"start","fields":\[".*-dependencies-top.drv","",1,1\],"id":.*,"level":3,"parent":0' /var/tmp/fg2/fn/nfyGuhyi/tmp/nix-test/main/logging/log.json
++(/var/tmp/fg2/fn/nfyGuhyi/src/common/functions.sh:344) checkGrepArgs '{"action":"start","fields":\[".*-dependencies-top.drv","",1,1\],"id":.*,"level":3,"parent":0' /var/tmp/fg2/fn/nfyGuhyi/tmp/nix-test/main/logging/log.json
++(/var/tmp/fg2/fn/nfyGuhyi/src/common/functions.sh:293) local arg
++(/var/tmp/fg2/fn/nfyGuhyi/src/common/functions.sh:294) for arg in "$@"
++(/var/tmp/fg2/fn/nfyGuhyi/src/common/functions.sh:295) [[ {"action":"start","fields":\[".*-dependencies-top.drv","",1,1\],"id":.*,"level":3,"parent":0 != {"action"\:"start","fields"\:\\\["\.\*\-dependencies\-top\.drv","",1,1\\\],"id"\:\.\*,"level"\:3,"parent"\:0 ]]
++(/var/tmp/fg2/fn/nfyGuhyi/src/common/functions.sh:294) for arg in "$@"
++(/var/tmp/fg2/fn/nfyGuhyi/src/common/functions.sh:295) [[ /var/tmp/fg2/fn/nfyGuhyi/tmp/nix-test/main/logging/log.json != /var/tmp/fg2/fn/nfyGuhyi/tmp/nix\-test/main/logging/log\.json ]]
++(/var/tmp/fg2/fn/nfyGuhyi/src/common/functions.sh:345) command grep '{"action":"start","fields":\[".*-dependencies-top.drv","",1,1\],"id":.*,"level":3,"parent":0' /var/tmp/fg2/fn/nfyGuhyi/tmp/nix-test/main/logging/log.json
+{"action":"start","fields":["/var/tmp/fg2/fn/nfyGuhyi/tmp/nix-test/main/logging/store/s9xgppf9ffyz7wqgs9lijakw7qv7gb8g-dependencies-top.drv","",1,1],"id":4625228806225929,"level":3,"parent":0,"text":"building '/var/tmp/fg2/fn/nfyGuhyi/tmp/nix-test/main/logging/store/s9xgppf9ffyz7wqgs9lijakw7qv7gb8g-dependencies-top.drv'","type":105}
+++(logging.sh:41) grep -c '{"action":"msg","level":5,"msg":"executing builder .*"}' /var/tmp/fg2/fn/nfyGuhyi/tmp/nix-test/main/logging/log.json
+++(/var/tmp/fg2/fn/nfyGuhyi/src/common/functions.sh:344) checkGrepArgs -c '{"action":"msg","level":5,"msg":"executing builder .*"}' /var/tmp/fg2/fn/nfyGuhyi/tmp/nix-test/main/logging/log.json
+++(/var/tmp/fg2/fn/nfyGuhyi/src/common/functions.sh:293) local arg
+++(/var/tmp/fg2/fn/nfyGuhyi/src/common/functions.sh:294) for arg in "$@"
+++(/var/tmp/fg2/fn/nfyGuhyi/src/common/functions.sh:295) [[ -c != \-c ]]
+++(/var/tmp/fg2/fn/nfyGuhyi/src/common/functions.sh:294) for arg in "$@"
+++(/var/tmp/fg2/fn/nfyGuhyi/src/common/functions.sh:295) [[ {"action":"msg","level":5,"msg":"executing builder .*"} != {"action"\:"msg","level"\:5,"msg"\:"executing builder \.\*"} ]]
+++(/var/tmp/fg2/fn/nfyGuhyi/src/common/functions.sh:294) for arg in "$@"
+++(/var/tmp/fg2/fn/nfyGuhyi/src/common/functions.sh:295) [[ /var/tmp/fg2/fn/nfyGuhyi/tmp/nix-test/main/logging/log.json != /var/tmp/fg2/fn/nfyGuhyi/tmp/nix\-test/main/logging/log\.json ]]
+++(/var/tmp/fg2/fn/nfyGuhyi/src/common/functions.sh:345) command grep -c '{"action":"msg","level":5,"msg":"executing builder .*"}' /var/tmp/fg2/fn/nfyGuhyi/tmp/nix-test/main/logging/log.json
++(logging.sh:41) ((  5 == 5  ))

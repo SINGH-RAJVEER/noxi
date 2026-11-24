@@ -1,0 +1,436 @@
++(substitute.sh:5) source common.sh
+++(common.sh:2) source ../common.sh
++++(../common.sh:3) set -eu -o pipefail
++++(../common.sh:5) [[ -z '' ]]
++++(../common.sh:7) COMMON_SH_SOURCED=1
++++++(../common.sh:9) dirname ../common.sh
+++++(../common.sh:9) readlink -f ..
++++(../common.sh:9) functionalTestsDir=/var/tmp/fg2/fn/nfwxooZo/src
++++(../common.sh:11) source /var/tmp/fg2/fn/nfwxooZo/src/common/vars.sh
+++++(/var/tmp/fg2/fn/nfwxooZo/src/common/vars.sh:3) set -eu -o pipefail
+++++(/var/tmp/fg2/fn/nfwxooZo/src/common/vars.sh:5) [[ -z '' ]]
+++++(/var/tmp/fg2/fn/nfwxooZo/src/common/vars.sh:7) COMMON_VARS_SH_SOURCED=1
++++++(/var/tmp/fg2/fn/nfwxooZo/src/common/vars.sh:9) realpath /var/tmp/fg2/fn/nfwxooZo/src
+++++(/var/tmp/fg2/fn/nfwxooZo/src/common/vars.sh:9) _NIX_TEST_SOURCE_DIR=/var/tmp/fg2/fn/nfwxooZo/src
++++++(/var/tmp/fg2/fn/nfwxooZo/src/common/vars.sh:10) realpath /var/tmp/fg2/fn/nfwxooZo/build
+++++(/var/tmp/fg2/fn/nfwxooZo/src/common/vars.sh:10) _NIX_TEST_BUILD_DIR=/var/tmp/fg2/fn/nfwxooZo/build
+++++++(/var/tmp/fg2/fn/nfwxooZo/src/common/vars.sh:12) dirname /var/tmp/fg2/fn/nfwxooZo/src/common/vars.sh
++++++(/var/tmp/fg2/fn/nfwxooZo/src/common/vars.sh:12) readlink -f /var/tmp/fg2/fn/nfwxooZo/src/common
+++++(/var/tmp/fg2/fn/nfwxooZo/src/common/vars.sh:12) commonDir=/var/tmp/fg2/fn/nfwxooZo/src/common
+++++(/var/tmp/fg2/fn/nfwxooZo/src/common/vars.sh:16) source /var/tmp/fg2/fn/nfwxooZo/build/common/subst-vars.sh
++++++(/var/tmp/fg2/fn/nfwxooZo/build/common/subst-vars.sh:3) [[ -z '' ]]
++++++(/var/tmp/fg2/fn/nfwxooZo/build/common/subst-vars.sh:5) COMMON_SUBST_VARS_SH_SOURCED=1
++++++(/var/tmp/fg2/fn/nfwxooZo/build/common/subst-vars.sh:7) bash=/nix/store/2ndah67h0z5m31v2wkdmg2md4380ggr5-bash-interactive-5.3p15/bin/bash
++++++(/var/tmp/fg2/fn/nfwxooZo/build/common/subst-vars.sh:8) bindir=/nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2/bin
++++++(/var/tmp/fg2/fn/nfwxooZo/build/common/subst-vars.sh:9) coreutils=/nix/store/xjl7p8dvyk2j53kqf7f43kdj4ypbxz7g-coreutils-9.11/bin
++++++(/var/tmp/fg2/fn/nfwxooZo/build/common/subst-vars.sh:11) dot=
++++++(/var/tmp/fg2/fn/nfwxooZo/build/common/subst-vars.sh:12) busybox=/nix/store/qddzvnv6b0805nkvbqddbswddcfhx814-busybox-static-x86_64-unknown-linux-musl-1.37.0/bin/busybox
++++++(/var/tmp/fg2/fn/nfwxooZo/build/common/subst-vars.sh:14) version=2.35.2
++++++(/var/tmp/fg2/fn/nfwxooZo/build/common/subst-vars.sh:15) system=x86_64-linux
+++++(/var/tmp/fg2/fn/nfwxooZo/src/common/vars.sh:18) : '/nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2/bin /nix/store/xjl7p8dvyk2j53kqf7f43kdj4ypbxz7g-coreutils-9.11/bin  /run/current-system/sw/bin/nu /nix/store/qddzvnv6b0805nkvbqddbswddcfhx814-busybox-static-x86_64-unknown-linux-musl-1.37.0/bin/busybox 2.35.2 x86_64-linux'
+++++(/var/tmp/fg2/fn/nfwxooZo/src/common/vars.sh:19) export coreutils dot busybox version system
+++++(/var/tmp/fg2/fn/nfwxooZo/src/common/vars.sh:21) export PAGER=cat
+++++(/var/tmp/fg2/fn/nfwxooZo/src/common/vars.sh:21) PAGER=cat
+++++(/var/tmp/fg2/fn/nfwxooZo/src/common/vars.sh:23) source /var/tmp/fg2/fn/nfwxooZo/src/common/paths.sh
++++++(/var/tmp/fg2/fn/nfwxooZo/src/common/paths.sh:3) set -eu -o pipefail
++++++(/var/tmp/fg2/fn/nfwxooZo/src/common/paths.sh:5) [[ -z '' ]]
++++++(/var/tmp/fg2/fn/nfwxooZo/src/common/paths.sh:7) COMMON_PATHS_SH_SOURCED=1
++++++++(/var/tmp/fg2/fn/nfwxooZo/src/common/paths.sh:9) dirname /var/tmp/fg2/fn/nfwxooZo/src/common/paths.sh
+++++++(/var/tmp/fg2/fn/nfwxooZo/src/common/paths.sh:9) readlink -f /var/tmp/fg2/fn/nfwxooZo/src/common
++++++(/var/tmp/fg2/fn/nfwxooZo/src/common/paths.sh:9) commonDir=/var/tmp/fg2/fn/nfwxooZo/src/common
++++++(/var/tmp/fg2/fn/nfwxooZo/src/common/paths.sh:12) source /var/tmp/fg2/fn/nfwxooZo/src/common/functions.sh
+++++++(/var/tmp/fg2/fn/nfwxooZo/src/common/functions.sh:3) set -eu -o pipefail
+++++++(/var/tmp/fg2/fn/nfwxooZo/src/common/functions.sh:5) [[ -z '' ]]
+++++++(/var/tmp/fg2/fn/nfwxooZo/src/common/functions.sh:7) COMMON_FUNCTIONS_SH_SOURCED=1
+++++++(/var/tmp/fg2/fn/nfwxooZo/src/common/functions.sh:353) trap onError ERR
++++++(/var/tmp/fg2/fn/nfwxooZo/src/common/paths.sh:14) source /var/tmp/fg2/fn/nfwxooZo/build/common/subst-vars.sh
+++++++(/var/tmp/fg2/fn/nfwxooZo/build/common/subst-vars.sh:3) [[ -z 1 ]]
++++++(/var/tmp/fg2/fn/nfwxooZo/src/common/paths.sh:16) : /nix/store/2ndah67h0z5m31v2wkdmg2md4380ggr5-bash-interactive-5.3p15/bin/bash /nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2/bin
++++++(/var/tmp/fg2/fn/nfwxooZo/src/common/paths.sh:18) isTestOnNixOS
++++++(/var/tmp/fg2/fn/nfwxooZo/src/common/functions.sh:10) [[ '' == 1 ]]
++++++(/var/tmp/fg2/fn/nfwxooZo/src/common/paths.sh:19) export SHELL=/nix/store/2ndah67h0z5m31v2wkdmg2md4380ggr5-bash-interactive-5.3p15/bin/bash
++++++(/var/tmp/fg2/fn/nfwxooZo/src/common/paths.sh:19) SHELL=/nix/store/2ndah67h0z5m31v2wkdmg2md4380ggr5-bash-interactive-5.3p15/bin/bash
++++++(/var/tmp/fg2/fn/nfwxooZo/src/common/paths.sh:20) export PATH=/nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2/bin:/nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2/bin:/nix/store/2ndah67h0z5m31v2wkdmg2md4380ggr5-bash-interactive-5.3p15/bin:/nix/store/xjl7p8dvyk2j53kqf7f43kdj4ypbxz7g-coreutils-9.11/bin:/nix/store/xmvbzzxm5snla5a2cyfhm7hjy9bifx7n-gnugrep-3.12/bin:/nix/store/qf2wzyq4irhgyhnq3s2hz0ldjq3w8a3x-gnused-4.10/bin:/nix/store/9zib1q94gka8i5q530364cvy25504qz5-gawk-5.4.1/bin:/nix/store/i9wgqa0l88aprvpwfaq5hkfa6pklhlv0-findutils-4.11.0/bin:/nix/store/b8xvzgd52jby5dfpi0pf46nisy6wma5d-diffutils-3.12/bin:/nix/store/81zqbas7qc02yfdj7142fdcqhxgd3cgz-patch-2.8/bin:/nix/store/c8b0qp903w2hhpa63a2lfs7d565zag30-gnutar-1.35/bin:/nix/store/l5sll8nxk70p73l5yqbsjy4mh0c3g0v5-gzip-1.14/bin:/nix/store/j3yz0ag9j442229n8harpmp9aa5qyvhn-bzip2-1.0.8-bin/bin:/nix/store/518dig8gpvqyac6pkksyjjfzvi9zn8vq-xz-5.8.3-bin/bin:/nix/store/l8ik8mb8lgb60rklxjmkgddmp5qqnv29-zstd-1.5.7-bin/bin:/nix/store/msr1v91ybfw6j12rs5mfl8ghb2rqsnsr-git-2.55.0/bin:/nix/store/hyz22a0l5b5kv7yfypw4ss6d36vbzg01-jq-1.8.2-bin/bin:/nix/store/24gq3bi2yzf7g386p5j32mn78hhanf49-sqlite-3.53.3-bin/bin:/nix/store/cp8qnyl8i0s62g3a1465i258mf5bcr6k-curl-8.22.0-bin/bin:/nix/store/8x4c8zah3fbnyckaic4sskjbw7d2y98n-util-linux-2.42.4-bin/bin:/nix/store/d64q19q1xjdwfhqx6czvrjgrhq0n3lcc-python3-3.14.7/bin:/nix/store/niqsa6mxqsyax9lzbm261a2ml6m71vb6-perl-5.42.3/bin:/nix/store/fv9yl55hkskpc2cj9c0sdyq91car9kgl-file-5.48/bin:/nix/store/jv5kdlkwx0l8a7jdpg21g934ff30s319-which-2.25/bin:/nix/store/aj08b694apkc1jay2akywym9ghlailf5-procps-4.0.7/bin:/nix/store/5wyaj1kvkxbbscz6innrh6yjjkdq4qmk-openssh-10.6p1/bin:/nix/store/44gxi8li8y8wrxrb93sya9hljkpigsqw-openssl-3.6.4-bin/bin:/run/wrappers/wrappers.Yw6nCJO1nt:/nix/store/wmh4xg3557sicfyllmi9ymd8sxaw51wv-man-db-2.13.1/bin:/nix/store/qpgknrlnxca0z99gl12j5n0fgca11cdx-mercurial-7.2.2/bin:/var/tmp/fg2/tmp/.tmpEVBu8f/reference/tools
++++++(/var/tmp/fg2/fn/nfwxooZo/src/common/paths.sh:20) PATH=/nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2/bin:/nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2/bin:/nix/store/2ndah67h0z5m31v2wkdmg2md4380ggr5-bash-interactive-5.3p15/bin:/nix/store/xjl7p8dvyk2j53kqf7f43kdj4ypbxz7g-coreutils-9.11/bin:/nix/store/xmvbzzxm5snla5a2cyfhm7hjy9bifx7n-gnugrep-3.12/bin:/nix/store/qf2wzyq4irhgyhnq3s2hz0ldjq3w8a3x-gnused-4.10/bin:/nix/store/9zib1q94gka8i5q530364cvy25504qz5-gawk-5.4.1/bin:/nix/store/i9wgqa0l88aprvpwfaq5hkfa6pklhlv0-findutils-4.11.0/bin:/nix/store/b8xvzgd52jby5dfpi0pf46nisy6wma5d-diffutils-3.12/bin:/nix/store/81zqbas7qc02yfdj7142fdcqhxgd3cgz-patch-2.8/bin:/nix/store/c8b0qp903w2hhpa63a2lfs7d565zag30-gnutar-1.35/bin:/nix/store/l5sll8nxk70p73l5yqbsjy4mh0c3g0v5-gzip-1.14/bin:/nix/store/j3yz0ag9j442229n8harpmp9aa5qyvhn-bzip2-1.0.8-bin/bin:/nix/store/518dig8gpvqyac6pkksyjjfzvi9zn8vq-xz-5.8.3-bin/bin:/nix/store/l8ik8mb8lgb60rklxjmkgddmp5qqnv29-zstd-1.5.7-bin/bin:/nix/store/msr1v91ybfw6j12rs5mfl8ghb2rqsnsr-git-2.55.0/bin:/nix/store/hyz22a0l5b5kv7yfypw4ss6d36vbzg01-jq-1.8.2-bin/bin:/nix/store/24gq3bi2yzf7g386p5j32mn78hhanf49-sqlite-3.53.3-bin/bin:/nix/store/cp8qnyl8i0s62g3a1465i258mf5bcr6k-curl-8.22.0-bin/bin:/nix/store/8x4c8zah3fbnyckaic4sskjbw7d2y98n-util-linux-2.42.4-bin/bin:/nix/store/d64q19q1xjdwfhqx6czvrjgrhq0n3lcc-python3-3.14.7/bin:/nix/store/niqsa6mxqsyax9lzbm261a2ml6m71vb6-perl-5.42.3/bin:/nix/store/fv9yl55hkskpc2cj9c0sdyq91car9kgl-file-5.48/bin:/nix/store/jv5kdlkwx0l8a7jdpg21g934ff30s319-which-2.25/bin:/nix/store/aj08b694apkc1jay2akywym9ghlailf5-procps-4.0.7/bin:/nix/store/5wyaj1kvkxbbscz6innrh6yjjkdq4qmk-openssh-10.6p1/bin:/nix/store/44gxi8li8y8wrxrb93sya9hljkpigsqw-openssl-3.6.4-bin/bin:/run/wrappers/wrappers.Yw6nCJO1nt:/nix/store/wmh4xg3557sicfyllmi9ymd8sxaw51wv-man-db-2.13.1/bin:/nix/store/qpgknrlnxca0z99gl12j5n0fgca11cdx-mercurial-7.2.2/bin:/var/tmp/fg2/tmp/.tmpEVBu8f/reference/tools
++++++(/var/tmp/fg2/fn/nfwxooZo/src/common/paths.sh:23) [[ -n '' ]]
++++++(/var/tmp/fg2/fn/nfwxooZo/src/common/paths.sh:27) DAEMON_PATH=/nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2/bin:/nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2/bin:/nix/store/2ndah67h0z5m31v2wkdmg2md4380ggr5-bash-interactive-5.3p15/bin:/nix/store/xjl7p8dvyk2j53kqf7f43kdj4ypbxz7g-coreutils-9.11/bin:/nix/store/xmvbzzxm5snla5a2cyfhm7hjy9bifx7n-gnugrep-3.12/bin:/nix/store/qf2wzyq4irhgyhnq3s2hz0ldjq3w8a3x-gnused-4.10/bin:/nix/store/9zib1q94gka8i5q530364cvy25504qz5-gawk-5.4.1/bin:/nix/store/i9wgqa0l88aprvpwfaq5hkfa6pklhlv0-findutils-4.11.0/bin:/nix/store/b8xvzgd52jby5dfpi0pf46nisy6wma5d-diffutils-3.12/bin:/nix/store/81zqbas7qc02yfdj7142fdcqhxgd3cgz-patch-2.8/bin:/nix/store/c8b0qp903w2hhpa63a2lfs7d565zag30-gnutar-1.35/bin:/nix/store/l5sll8nxk70p73l5yqbsjy4mh0c3g0v5-gzip-1.14/bin:/nix/store/j3yz0ag9j442229n8harpmp9aa5qyvhn-bzip2-1.0.8-bin/bin:/nix/store/518dig8gpvqyac6pkksyjjfzvi9zn8vq-xz-5.8.3-bin/bin:/nix/store/l8ik8mb8lgb60rklxjmkgddmp5qqnv29-zstd-1.5.7-bin/bin:/nix/store/msr1v91ybfw6j12rs5mfl8ghb2rqsnsr-git-2.55.0/bin:/nix/store/hyz22a0l5b5kv7yfypw4ss6d36vbzg01-jq-1.8.2-bin/bin:/nix/store/24gq3bi2yzf7g386p5j32mn78hhanf49-sqlite-3.53.3-bin/bin:/nix/store/cp8qnyl8i0s62g3a1465i258mf5bcr6k-curl-8.22.0-bin/bin:/nix/store/8x4c8zah3fbnyckaic4sskjbw7d2y98n-util-linux-2.42.4-bin/bin:/nix/store/d64q19q1xjdwfhqx6czvrjgrhq0n3lcc-python3-3.14.7/bin:/nix/store/niqsa6mxqsyax9lzbm261a2ml6m71vb6-perl-5.42.3/bin:/nix/store/fv9yl55hkskpc2cj9c0sdyq91car9kgl-file-5.48/bin:/nix/store/jv5kdlkwx0l8a7jdpg21g934ff30s319-which-2.25/bin:/nix/store/aj08b694apkc1jay2akywym9ghlailf5-procps-4.0.7/bin:/nix/store/5wyaj1kvkxbbscz6innrh6yjjkdq4qmk-openssh-10.6p1/bin:/nix/store/44gxi8li8y8wrxrb93sya9hljkpigsqw-openssl-3.6.4-bin/bin:/run/wrappers/wrappers.Yw6nCJO1nt:/nix/store/wmh4xg3557sicfyllmi9ymd8sxaw51wv-man-db-2.13.1/bin:/nix/store/qpgknrlnxca0z99gl12j5n0fgca11cdx-mercurial-7.2.2/bin:/var/tmp/fg2/tmp/.tmpEVBu8f/reference/tools
++++++(/var/tmp/fg2/fn/nfwxooZo/src/common/paths.sh:28) [[ -n '' ]]
+++++(/var/tmp/fg2/fn/nfwxooZo/src/common/vars.sh:24) source /var/tmp/fg2/fn/nfwxooZo/src/common/test-root.sh
++++++(/var/tmp/fg2/fn/nfwxooZo/src/common/test-root.sh:3) TEST_SUBDIR=ca/substitute
+++++++(/var/tmp/fg2/fn/nfwxooZo/src/common/test-root.sh:4) realpath /var/tmp/fg2/fn/nfwxooZo/tmp/nix-test
++++++(/var/tmp/fg2/fn/nfwxooZo/src/common/test-root.sh:4) TEST_ROOT=/var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute
++++++(/var/tmp/fg2/fn/nfwxooZo/src/common/test-root.sh:5) export TEST_ROOT
+++++(/var/tmp/fg2/fn/nfwxooZo/src/common/vars.sh:26) test_nix_conf_dir=/var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/etc
+++++(/var/tmp/fg2/fn/nfwxooZo/src/common/vars.sh:29) test_nix_conf=/var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/etc/nix.conf
+++++(/var/tmp/fg2/fn/nfwxooZo/src/common/vars.sh:31) export TEST_HOME=/var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/test-home
+++++(/var/tmp/fg2/fn/nfwxooZo/src/common/vars.sh:31) TEST_HOME=/var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/test-home
+++++(/var/tmp/fg2/fn/nfwxooZo/src/common/vars.sh:33) isTestOnNixOS
+++++(/var/tmp/fg2/fn/nfwxooZo/src/common/functions.sh:10) [[ '' == 1 ]]
+++++(/var/tmp/fg2/fn/nfwxooZo/src/common/vars.sh:34) export NIX_STORE_DIR
++++++(/var/tmp/fg2/fn/nfwxooZo/src/common/vars.sh:35) readlink -f /var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/store
+++++(/var/tmp/fg2/fn/nfwxooZo/src/common/vars.sh:35) NIX_STORE_DIR=
+++++(/var/tmp/fg2/fn/nfwxooZo/src/common/vars.sh:37) export NIX_IGNORE_SYMLINK_STORE=1
+++++(/var/tmp/fg2/fn/nfwxooZo/src/common/vars.sh:37) NIX_IGNORE_SYMLINK_STORE=1
+++++(/var/tmp/fg2/fn/nfwxooZo/src/common/vars.sh:38) NIX_STORE_DIR=/var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/store
+++++(/var/tmp/fg2/fn/nfwxooZo/src/common/vars.sh:40) export NIX_LOCALSTATE_DIR=/var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/var
+++++(/var/tmp/fg2/fn/nfwxooZo/src/common/vars.sh:40) NIX_LOCALSTATE_DIR=/var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/var
+++++(/var/tmp/fg2/fn/nfwxooZo/src/common/vars.sh:41) export NIX_LOG_DIR=/var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/var/log/nix
+++++(/var/tmp/fg2/fn/nfwxooZo/src/common/vars.sh:41) NIX_LOG_DIR=/var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/var/log/nix
+++++(/var/tmp/fg2/fn/nfwxooZo/src/common/vars.sh:42) export NIX_STATE_DIR=/var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/var/nix
+++++(/var/tmp/fg2/fn/nfwxooZo/src/common/vars.sh:42) NIX_STATE_DIR=/var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/var/nix
+++++(/var/tmp/fg2/fn/nfwxooZo/src/common/vars.sh:43) export NIX_CONF_DIR=/var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/etc
+++++(/var/tmp/fg2/fn/nfwxooZo/src/common/vars.sh:43) NIX_CONF_DIR=/var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/etc
+++++(/var/tmp/fg2/fn/nfwxooZo/src/common/vars.sh:44) export NIX_DAEMON_SOCKET_PATH=/var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/dSocket
+++++(/var/tmp/fg2/fn/nfwxooZo/src/common/vars.sh:44) NIX_DAEMON_SOCKET_PATH=/var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/dSocket
+++++(/var/tmp/fg2/fn/nfwxooZo/src/common/vars.sh:45) unset NIX_USER_CONF_FILES
+++++(/var/tmp/fg2/fn/nfwxooZo/src/common/vars.sh:46) export _NIX_TEST_SHARED=/var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/shared
+++++(/var/tmp/fg2/fn/nfwxooZo/src/common/vars.sh:46) _NIX_TEST_SHARED=/var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/shared
+++++(/var/tmp/fg2/fn/nfwxooZo/src/common/vars.sh:47) [[ -n '' ]]
+++++(/var/tmp/fg2/fn/nfwxooZo/src/common/vars.sh:50) export _NIX_IN_TEST=/var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/shared
+++++(/var/tmp/fg2/fn/nfwxooZo/src/common/vars.sh:50) _NIX_IN_TEST=/var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/shared
+++++(/var/tmp/fg2/fn/nfwxooZo/src/common/vars.sh:51) export _NIX_TEST_NO_LSOF=1
+++++(/var/tmp/fg2/fn/nfwxooZo/src/common/vars.sh:51) _NIX_TEST_NO_LSOF=1
+++++(/var/tmp/fg2/fn/nfwxooZo/src/common/vars.sh:54) export _NIX_TEST_NO_ENVIRONMENT_WARNINGS=1
+++++(/var/tmp/fg2/fn/nfwxooZo/src/common/vars.sh:54) _NIX_TEST_NO_ENVIRONMENT_WARNINGS=1
+++++(/var/tmp/fg2/fn/nfwxooZo/src/common/vars.sh:55) export NIX_REMOTE=
+++++(/var/tmp/fg2/fn/nfwxooZo/src/common/vars.sh:55) NIX_REMOTE=
+++++(/var/tmp/fg2/fn/nfwxooZo/src/common/vars.sh:59) unset NIX_PATH
+++++(/var/tmp/fg2/fn/nfwxooZo/src/common/vars.sh:60) export HOME=/var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/test-home
+++++(/var/tmp/fg2/fn/nfwxooZo/src/common/vars.sh:60) HOME=/var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/test-home
+++++(/var/tmp/fg2/fn/nfwxooZo/src/common/vars.sh:61) unset XDG_STATE_HOME
+++++(/var/tmp/fg2/fn/nfwxooZo/src/common/vars.sh:62) unset XDG_DATA_HOME
+++++(/var/tmp/fg2/fn/nfwxooZo/src/common/vars.sh:63) unset XDG_CONFIG_HOME
+++++(/var/tmp/fg2/fn/nfwxooZo/src/common/vars.sh:64) unset XDG_CONFIG_DIRS
+++++(/var/tmp/fg2/fn/nfwxooZo/src/common/vars.sh:65) unset XDG_CACHE_HOME
+++++(/var/tmp/fg2/fn/nfwxooZo/src/common/vars.sh:66) unset GIT_DIR
+++++(/var/tmp/fg2/fn/nfwxooZo/src/common/vars.sh:68) export GIT_CONFIG_SYSTEM=/dev/null
+++++(/var/tmp/fg2/fn/nfwxooZo/src/common/vars.sh:68) GIT_CONFIG_SYSTEM=/dev/null
+++++(/var/tmp/fg2/fn/nfwxooZo/src/common/vars.sh:69) export GIT_CONFIG_GLOBAL=/dev/null
+++++(/var/tmp/fg2/fn/nfwxooZo/src/common/vars.sh:69) GIT_CONFIG_GLOBAL=/dev/null
+++++(/var/tmp/fg2/fn/nfwxooZo/src/common/vars.sh:71) export IMPURE_VAR1=foo
+++++(/var/tmp/fg2/fn/nfwxooZo/src/common/vars.sh:71) IMPURE_VAR1=foo
+++++(/var/tmp/fg2/fn/nfwxooZo/src/common/vars.sh:72) export IMPURE_VAR2=bar
+++++(/var/tmp/fg2/fn/nfwxooZo/src/common/vars.sh:72) IMPURE_VAR2=bar
+++++(/var/tmp/fg2/fn/nfwxooZo/src/common/vars.sh:76) cacheDir=/var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/binary-cache
++++++(/var/tmp/fg2/fn/nfwxooZo/src/common/vars.sh:78) uname
+++++(/var/tmp/fg2/fn/nfwxooZo/src/common/vars.sh:78) [[ Linux == Linux ]]
+++++(/var/tmp/fg2/fn/nfwxooZo/src/common/vars.sh:78) [[ -L /proc/self/ns/user ]]
+++++(/var/tmp/fg2/fn/nfwxooZo/src/common/vars.sh:78) unshare --user true
+++++(/var/tmp/fg2/fn/nfwxooZo/src/common/vars.sh:79) _canUseSandbox=1
+++++(/var/tmp/fg2/fn/nfwxooZo/src/common/vars.sh:85) config_nix=/var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/config.nix
++++(../common.sh:12) source /var/tmp/fg2/fn/nfwxooZo/src/common/functions.sh
+++++(/var/tmp/fg2/fn/nfwxooZo/src/common/functions.sh:3) set -eu -o pipefail
+++++(/var/tmp/fg2/fn/nfwxooZo/src/common/functions.sh:5) [[ -z 1 ]]
++++(../common.sh:13) source /var/tmp/fg2/fn/nfwxooZo/src/common/init.sh
+++++(/var/tmp/fg2/fn/nfwxooZo/src/common/init.sh:4) : /var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/etc /var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/etc/nix.conf /var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/config.nix
+++++(/var/tmp/fg2/fn/nfwxooZo/src/common/init.sh:6) isTestOnNixOS
+++++(/var/tmp/fg2/fn/nfwxooZo/src/common/functions.sh:10) [[ '' == 1 ]]
+++++(/var/tmp/fg2/fn/nfwxooZo/src/common/init.sh:29) test -n /var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute
+++++(/var/tmp/fg2/fn/nfwxooZo/src/common/init.sh:31) killDaemon
+++++(/var/tmp/fg2/fn/nfwxooZo/src/common/functions.sh:100) isTestOnNixOS
+++++(/var/tmp/fg2/fn/nfwxooZo/src/common/functions.sh:10) [[ '' == 1 ]]
+++++(/var/tmp/fg2/fn/nfwxooZo/src/common/functions.sh:105) [[ '' == '' ]]
+++++(/var/tmp/fg2/fn/nfwxooZo/src/common/functions.sh:106) return
+++++(/var/tmp/fg2/fn/nfwxooZo/src/common/init.sh:33) [[ -e /var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute ]]
+++++(/var/tmp/fg2/fn/nfwxooZo/src/common/init.sh:37) mkdir -p /var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute
+++++(/var/tmp/fg2/fn/nfwxooZo/src/common/init.sh:38) mkdir /var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/test-home
+++++(/var/tmp/fg2/fn/nfwxooZo/src/common/init.sh:40) mkdir /var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/store
+++++(/var/tmp/fg2/fn/nfwxooZo/src/common/init.sh:41) mkdir /var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/var
+++++(/var/tmp/fg2/fn/nfwxooZo/src/common/init.sh:42) mkdir -p /var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/var/log/nix/drvs
+++++(/var/tmp/fg2/fn/nfwxooZo/src/common/init.sh:43) mkdir /var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/var/nix
+++++(/var/tmp/fg2/fn/nfwxooZo/src/common/init.sh:44) mkdir /var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/etc
+++++(/var/tmp/fg2/fn/nfwxooZo/src/common/init.sh:46) cat
++++++(/var/tmp/fg2/fn/nfwxooZo/src/common/init.sh:46) whoami
+++++(/var/tmp/fg2/fn/nfwxooZo/src/common/init.sh:59) cat
+++++(/var/tmp/fg2/fn/nfwxooZo/src/common/init.sh:67) nix-store --init
+++++(/var/tmp/fg2/fn/nfwxooZo/src/common/init.sh:69) test -e /var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/var/nix/db/db.sqlite
+++++(/var/tmp/fg2/fn/nfwxooZo/src/common/init.sh:75) echo '# config.nix for test ca / substitute'
+++++(/var/tmp/fg2/fn/nfwxooZo/src/common/init.sh:76) cat /var/tmp/fg2/fn/nfwxooZo/build/config.nix
++++(../common.sh:15) [[ -n '' ]]
+++(common.sh:5) requireDaemonNewerThan 2.35.0pre20260303
+++(/var/tmp/fg2/fn/nfwxooZo/src/common/functions.sh:154) isDaemonNewer 2.35.0pre20260303
+++(/var/tmp/fg2/fn/nfwxooZo/src/common/functions.sh:135) [[ -n '' ]]
+++(/var/tmp/fg2/fn/nfwxooZo/src/common/functions.sh:135) return 0
+++(common.sh:7) enableFeatures ca-derivations
+++(/var/tmp/fg2/fn/nfwxooZo/src/common/functions.sh:236) local features=ca-derivations
+++(/var/tmp/fg2/fn/nfwxooZo/src/common/functions.sh:237) sed -i 's/experimental-features .*/& ca-derivations/' /var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/etc/nix.conf
+++(common.sh:9) TODO_NixOS
+++(/var/tmp/fg2/fn/nfwxooZo/src/common/functions.sh:148) isTestOnNixOS
+++(/var/tmp/fg2/fn/nfwxooZo/src/common/functions.sh:10) [[ '' == 1 ]]
+++(common.sh:11) restartDaemon
+++(/var/tmp/fg2/fn/nfwxooZo/src/common/functions.sh:124) isTestOnNixOS
+++(/var/tmp/fg2/fn/nfwxooZo/src/common/functions.sh:10) [[ '' == 1 ]]
+++(/var/tmp/fg2/fn/nfwxooZo/src/common/functions.sh:128) [[ -z '' ]]
+++(/var/tmp/fg2/fn/nfwxooZo/src/common/functions.sh:128) return 0
++(substitute.sh:8) needLocalStore $'\342\200\234--no-require-sigs\342\200\235 can\342\200\231t be used with the daemon'
++(/var/tmp/fg2/fn/nfwxooZo/src/common/functions.sh:225) [[ '' == daemon ]]
++(substitute.sh:10) export REMOTE_STORE=file:///var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/binary-cache
++(substitute.sh:10) REMOTE_STORE=file:///var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/binary-cache
++(substitute.sh:17) clearStore
++(/var/tmp/fg2/fn/nfwxooZo/src/common/functions.sh:41) isTestOnNixOS
++(/var/tmp/fg2/fn/nfwxooZo/src/common/functions.sh:10) [[ '' == 1 ]]
++(/var/tmp/fg2/fn/nfwxooZo/src/common/functions.sh:44) doClearStore
++(/var/tmp/fg2/fn/nfwxooZo/src/common/functions.sh:48) echo 'clearing store...'
+clearing store...
++(/var/tmp/fg2/fn/nfwxooZo/src/common/functions.sh:49) chmod -R +w /var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/store
++(/var/tmp/fg2/fn/nfwxooZo/src/common/functions.sh:50) rm -rf /var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/store
++(/var/tmp/fg2/fn/nfwxooZo/src/common/functions.sh:51) mkdir /var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/store
++(/var/tmp/fg2/fn/nfwxooZo/src/common/functions.sh:52) rm -rf /var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/var/nix
++(/var/tmp/fg2/fn/nfwxooZo/src/common/functions.sh:53) mkdir /var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/var/nix
++(/var/tmp/fg2/fn/nfwxooZo/src/common/functions.sh:54) clearProfiles
++(/var/tmp/fg2/fn/nfwxooZo/src/common/functions.sh:25) profiles=/var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/test-home/.local/state/nix/profiles
++(/var/tmp/fg2/fn/nfwxooZo/src/common/functions.sh:26) rm -rf /var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/test-home/.local/state/nix/profiles
++(substitute.sh:18) nix copy --to file:///var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/binary-cache --file ./content-addressed.nix
+warning: you don't have Internet access; disabling some network-dependent features
+these 9 derivations will be built:
+  /var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/store/r78nxfjj0cjz1vcnbnlb2z1nlcyd47aw-simple-input-addressed.drv
+  /var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/store/rfvignfyk1v4z3vazqihgigf0hmw5lh8-rootCA.drv
+  /var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/store/av8zlaz3dvnrn898yn1axa38hkg36lpf-dependent-non-ca.drv
+  /var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/store/b722q89k5cx429zjjy576nfinga3s5nk-dependent-for-build-ca.drv
+  /var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/store/cpcf0f7xlk00dx2qf3bn4acdfbkx5gxp-runnable-thing.drv
+  /var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/store/dl5vwy40vszsqhziyx4730kw14pbw9j0-dependent.drv
+  /var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/store/i042z6vqpzf8hf668dhgfhz7p863j1lb-dependent-for-build-non-ca.drv
+  /var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/store/x72z2hcclppszasm49dqigchzmmwkzl3-dependent-fixed-output.drv
+  /var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/store/z1pzzvwgad0kw2vadvlf86ga2gs8bdsn-transitively-dependent.drv
+building '/var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/store/r78nxfjj0cjz1vcnbnlb2z1nlcyd47aw-simple-input-addressed.drv'...
+building '/var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/store/khri5axhql0l70l1y3y8zhq5v2f0wpvm-rootCA.drv'...
+building '/var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/store/bmf7307pwl3b5iwn0hx7ngdi4w7a1wil-dependent-for-build-ca.drv'...
+building '/var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/store/cn7n43adwdrc799rpq04g3dmiac9fxfh-runnable-thing.drv'...
+building '/var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/store/zhc6dab668d0xy0qpp27kzp6yfwxk9f4-dependent.drv'...
+building '/var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/store/s9iys4fzxvid0mlnvfz5diyz2mlbbjb2-dependent-non-ca.drv'...
+building '/var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/store/hv9f9gd9i3gp0h8irnksn670mch5w808-transitively-dependent.drv'...
+building '/var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/store/pplvif836a884fgn3wiilh44sq2xcb8z-dependent-for-build-non-ca.drv'...
+building '/var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/store/cikavp6db46mb6z95kfvnw6fkrq5mipa-dependent-fixed-output.drv'...
+copying 11 paths...
+copying path '/var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/store/91fq406s34ivdhn676bg1q4cc4saiv53-rootCA' to 'file:///var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/binary-cache'...
+copying path '/var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/store/7asnsfjk58l58j3819psg105s9zbmhs4-dependent-non-ca' to 'file:///var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/binary-cache'...
+copying path '/var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/store/0y7f15y7k5lg1pc90pr74m79w64drg29-rootCA-foo' to 'file:///var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/binary-cache'...
+copying path '/var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/store/hx9dvl6s0x8qp66cqa9a93vblcdl4dzn-dependent-fixed-output' to 'file:///var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/binary-cache'...
+copying path '/var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/store/g173k8xjrm3hmm0aykwc6kyjgw4p8g2v-simple-input-addressed' to 'file:///var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/binary-cache'...
+copying path '/var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/store/i533m8yb3bddgs6dfdfkr1xvkjhnfcwz-rootCA-dev' to 'file:///var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/binary-cache'...
+copying path '/var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/store/8j45ci5vj0lqi4mz7nxqvsnbbhzrddmp-runnable-thing' to 'file:///var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/binary-cache'...
+copying path '/var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/store/fng0k7dwc7ik5cbbz6rbdqr2grzwipvg-dependent' to 'file:///var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/binary-cache'...
+copying path '/var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/store/d1872k8csr1xhwmr2839v12973x4rl4d-dependent-for-build-ca' to 'file:///var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/binary-cache'...
+copying path '/var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/store/czfl0y038a2lyzk11l2mhmcgy33kzfs0-dependent-for-build-non-ca' to 'file:///var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/binary-cache'...
+copying path '/var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/store/30gyjmwg16dpj1zclfspn4b85wygf2hk-transitively-dependent' to 'file:///var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/binary-cache'...
++(substitute.sh:21) clearStore
++(/var/tmp/fg2/fn/nfwxooZo/src/common/functions.sh:41) isTestOnNixOS
++(/var/tmp/fg2/fn/nfwxooZo/src/common/functions.sh:10) [[ '' == 1 ]]
++(/var/tmp/fg2/fn/nfwxooZo/src/common/functions.sh:44) doClearStore
++(/var/tmp/fg2/fn/nfwxooZo/src/common/functions.sh:48) echo 'clearing store...'
+clearing store...
++(/var/tmp/fg2/fn/nfwxooZo/src/common/functions.sh:49) chmod -R +w /var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/store
++(/var/tmp/fg2/fn/nfwxooZo/src/common/functions.sh:50) rm -rf /var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/store
++(/var/tmp/fg2/fn/nfwxooZo/src/common/functions.sh:51) mkdir /var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/store
++(/var/tmp/fg2/fn/nfwxooZo/src/common/functions.sh:52) rm -rf /var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/var/nix
++(/var/tmp/fg2/fn/nfwxooZo/src/common/functions.sh:53) mkdir /var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/var/nix
++(/var/tmp/fg2/fn/nfwxooZo/src/common/functions.sh:54) clearProfiles
++(/var/tmp/fg2/fn/nfwxooZo/src/common/functions.sh:25) profiles=/var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/test-home/.local/state/nix/profiles
++(/var/tmp/fg2/fn/nfwxooZo/src/common/functions.sh:26) rm -rf /var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/test-home/.local/state/nix/profiles
++(substitute.sh:25) buildDrvs --substitute --substituters file:///var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/binary-cache --no-require-sigs -j0 transitivelyDependentCA dependentCA
++(substitute.sh:13) nix build --file ./content-addressed.nix -L --no-link --substitute --substituters file:///var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/binary-cache --no-require-sigs -j0 transitivelyDependentCA dependentCA
+warning: you don't have Internet access; disabling some network-dependent features
+these 3 derivations will be built:
+  /var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/store/rfvignfyk1v4z3vazqihgigf0hmw5lh8-rootCA.drv
+  /var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/store/dl5vwy40vszsqhziyx4730kw14pbw9j0-dependent.drv
+  /var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/store/z1pzzvwgad0kw2vadvlf86ga2gs8bdsn-transitively-dependent.drv
+this path will be fetched (0.2 KiB download, 0.3 KiB unpacked):
+  /var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/store/g173k8xjrm3hmm0aykwc6kyjgw4p8g2v-simple-input-addressed
+copying path '/var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/store/g173k8xjrm3hmm0aykwc6kyjgw4p8g2v-simple-input-addressed' from 'file:///var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/binary-cache'...
+copying path '/var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/store/91fq406s34ivdhn676bg1q4cc4saiv53-rootCA' from 'file:///var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/binary-cache'...
+copying path '/var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/store/fng0k7dwc7ik5cbbz6rbdqr2grzwipvg-dependent' from 'file:///var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/binary-cache'...
+copying path '/var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/store/30gyjmwg16dpj1zclfspn4b85wygf2hk-transitively-dependent' from 'file:///var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/binary-cache'...
++(substitute.sh:27) nix store build-trace info --file ./content-addressed.nix transitivelyDependentCA
+warning: you don't have Internet access; disabling some network-dependent features
+these 3 derivations will be built:
+  /var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/store/rfvignfyk1v4z3vazqihgigf0hmw5lh8-rootCA.drv
+  /var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/store/dl5vwy40vszsqhziyx4730kw14pbw9j0-dependent.drv
+  /var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/store/z1pzzvwgad0kw2vadvlf86ga2gs8bdsn-transitively-dependent.drv
+hv9f9gd9i3gp0h8irnksn670mch5w808-transitively-dependent.drv^out /var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/store/30gyjmwg16dpj1zclfspn4b85wygf2hk-transitively-dependent
+khri5axhql0l70l1y3y8zhq5v2f0wpvm-rootCA.drv^out /var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/store/91fq406s34ivdhn676bg1q4cc4saiv53-rootCA
+zhc6dab668d0xy0qpp27kzp6yfwxk9f4-dependent.drv^out /var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/store/fng0k7dwc7ik5cbbz6rbdqr2grzwipvg-dependent
+/var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/store/30gyjmwg16dpj1zclfspn4b85wygf2hk-transitively-dependent
++(substitute.sh:30) nix realisation info --file ./content-addressed.nix dependentCA
+warning: 'realisation' is a deprecated alias for 'store build-trace'
+warning: you don't have Internet access; disabling some network-dependent features
+these 2 derivations will be built:
+  /var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/store/rfvignfyk1v4z3vazqihgigf0hmw5lh8-rootCA.drv
+  /var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/store/dl5vwy40vszsqhziyx4730kw14pbw9j0-dependent.drv
+khri5axhql0l70l1y3y8zhq5v2f0wpvm-rootCA.drv^out /var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/store/91fq406s34ivdhn676bg1q4cc4saiv53-rootCA
+zhc6dab668d0xy0qpp27kzp6yfwxk9f4-dependent.drv^out /var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/store/fng0k7dwc7ik5cbbz6rbdqr2grzwipvg-dependent
+/var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/store/fng0k7dwc7ik5cbbz6rbdqr2grzwipvg-dependent
++(substitute.sh:33) isDaemonNewer 2.13
++(/var/tmp/fg2/fn/nfwxooZo/src/common/functions.sh:135) [[ -n '' ]]
++(/var/tmp/fg2/fn/nfwxooZo/src/common/functions.sh:135) return 0
++(substitute.sh:34) pushToStore=../push-to-store.sh
++(substitute.sh:40) buildDrvs --post-build-hook ../push-to-store.sh
++(substitute.sh:13) nix build --file ./content-addressed.nix -L --no-link --post-build-hook ../push-to-store.sh
+warning: you don't have Internet access; disabling some network-dependent features
+these 8 derivations will be built:
+  /var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/store/rfvignfyk1v4z3vazqihgigf0hmw5lh8-rootCA.drv
+  /var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/store/av8zlaz3dvnrn898yn1axa38hkg36lpf-dependent-non-ca.drv
+  /var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/store/b722q89k5cx429zjjy576nfinga3s5nk-dependent-for-build-ca.drv
+  /var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/store/cpcf0f7xlk00dx2qf3bn4acdfbkx5gxp-runnable-thing.drv
+  /var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/store/dl5vwy40vszsqhziyx4730kw14pbw9j0-dependent.drv
+  /var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/store/i042z6vqpzf8hf668dhgfhz7p863j1lb-dependent-for-build-non-ca.drv
+  /var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/store/x72z2hcclppszasm49dqigchzmmwkzl3-dependent-fixed-output.drv
+  /var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/store/z1pzzvwgad0kw2vadvlf86ga2gs8bdsn-transitively-dependent.drv
+building '/var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/store/khri5axhql0l70l1y3y8zhq5v2f0wpvm-rootCA.drv'...
+rootCA> building a CA derivation
+rootCA> The seed is 0
+building '/var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/store/cikavp6db46mb6z95kfvnw6fkrq5mipa-dependent-fixed-output.drv'...
+rootCA (post)> +(../push-to-store.sh:4) set -e
+rootCA (post)> +(../push-to-store.sh:6) '[' -n '/var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/store/0y7f15y7k5lg1pc90pr74m79w64drg29-rootCA-foo /var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/store/i533m8yb3bddgs6dfdfkr1xvkjhnfcwz-rootCA-dev' ']'
+rootCA (post)> +(../push-to-store.sh:7) '[' -n /var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/store/khri5axhql0l70l1y3y8zhq5v2f0wpvm-rootCA.drv ']'
+rootCA (post)> +(../push-to-store.sh:9) echo Pushing '/var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/store/0y7f15y7k5lg1pc90pr74m79w64drg29-rootCA-foo /var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/store/i533m8yb3bddgs6dfdfkr1xvkjhnfcwz-rootCA-dev' to file:///var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/binary-cache
+rootCA (post)> Pushing /var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/store/0y7f15y7k5lg1pc90pr74m79w64drg29-rootCA-foo /var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/store/i533m8yb3bddgs6dfdfkr1xvkjhnfcwz-rootCA-dev to file:///var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/binary-cache
+rootCA (post)> +(../push-to-store.sh:10) '[' -n '' ']'
+rootCA (post)> +(../push-to-store.sh:13) printf %s '/var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/store/khri5axhql0l70l1y3y8zhq5v2f0wpvm-rootCA.drv^*'
+rootCA (post)> +(../push-to-store.sh:13) xargs nix copy --to file:///var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/binary-cache --no-require-sigs
+dependent-fixed-output> /var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/store/91fq406s34ivdhn676bg1q4cc4saiv53-rootCA/self/dep
+building '/var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/store/cn7n43adwdrc799rpq04g3dmiac9fxfh-runnable-thing.drv'...
+dependent-fixed-output (post)> +(../push-to-store.sh:4) set -e
+dependent-fixed-output (post)> +(../push-to-store.sh:6) '[' -n /var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/store/hx9dvl6s0x8qp66cqa9a93vblcdl4dzn-dependent-fixed-output ']'
+dependent-fixed-output (post)> +(../push-to-store.sh:7) '[' -n /var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/store/cikavp6db46mb6z95kfvnw6fkrq5mipa-dependent-fixed-output.drv ']'
+dependent-fixed-output (post)> +(../push-to-store.sh:9) echo Pushing /var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/store/hx9dvl6s0x8qp66cqa9a93vblcdl4dzn-dependent-fixed-output to file:///var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/binary-cache
+dependent-fixed-output (post)> Pushing /var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/store/hx9dvl6s0x8qp66cqa9a93vblcdl4dzn-dependent-fixed-output to file:///var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/binary-cache
+dependent-fixed-output (post)> +(../push-to-store.sh:10) '[' -n '' ']'
+dependent-fixed-output (post)> +(../push-to-store.sh:13) printf %s '/var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/store/cikavp6db46mb6z95kfvnw6fkrq5mipa-dependent-fixed-output.drv^*'
+dependent-fixed-output (post)> +(../push-to-store.sh:13) xargs nix copy --to file:///var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/binary-cache --no-require-sigs
+runnable-thing> /var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/store/91fq406s34ivdhn676bg1q4cc4saiv53-rootCA
+building '/var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/store/s9iys4fzxvid0mlnvfz5diyz2mlbbjb2-dependent-non-ca.drv'...
+runnable-thing (post)> +(../push-to-store.sh:4) set -e
+runnable-thing (post)> +(../push-to-store.sh:6) '[' -n /var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/store/8j45ci5vj0lqi4mz7nxqvsnbbhzrddmp-runnable-thing ']'
+runnable-thing (post)> +(../push-to-store.sh:7) '[' -n /var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/store/cn7n43adwdrc799rpq04g3dmiac9fxfh-runnable-thing.drv ']'
+runnable-thing (post)> +(../push-to-store.sh:9) echo Pushing /var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/store/8j45ci5vj0lqi4mz7nxqvsnbbhzrddmp-runnable-thing to file:///var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/binary-cache
+runnable-thing (post)> Pushing /var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/store/8j45ci5vj0lqi4mz7nxqvsnbbhzrddmp-runnable-thing to file:///var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/binary-cache
+runnable-thing (post)> +(../push-to-store.sh:10) '[' -n '' ']'
+runnable-thing (post)> +(../push-to-store.sh:13) printf %s '/var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/store/cn7n43adwdrc799rpq04g3dmiac9fxfh-runnable-thing.drv^*'
+runnable-thing (post)> +(../push-to-store.sh:13) xargs nix copy --to file:///var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/binary-cache --no-require-sigs
+rootCA (post)> warning: 'warn-short-path-literals' is deprecated, use 'lint-short-path-literals = ignore' instead
+dependent-non-ca> Didn't cut-off
+dependent-non-ca> building dependent-non-ca
+building '/var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/store/bmf7307pwl3b5iwn0hx7ngdi4w7a1wil-dependent-for-build-ca.drv'...
+dependent-non-ca (post)> +(../push-to-store.sh:4) set -e
+dependent-non-ca (post)> +(../push-to-store.sh:6) '[' -n /var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/store/7asnsfjk58l58j3819psg105s9zbmhs4-dependent-non-ca ']'
+dependent-non-ca (post)> +(../push-to-store.sh:7) '[' -n /var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/store/s9iys4fzxvid0mlnvfz5diyz2mlbbjb2-dependent-non-ca.drv ']'
+dependent-non-ca (post)> +(../push-to-store.sh:9) echo Pushing /var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/store/7asnsfjk58l58j3819psg105s9zbmhs4-dependent-non-ca to file:///var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/binary-cache
+dependent-non-ca (post)> Pushing /var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/store/7asnsfjk58l58j3819psg105s9zbmhs4-dependent-non-ca to file:///var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/binary-cache
+dependent-non-ca (post)> +(../push-to-store.sh:10) '[' -n '' ']'
+dependent-non-ca (post)> +(../push-to-store.sh:13) printf %s '/var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/store/s9iys4fzxvid0mlnvfz5diyz2mlbbjb2-dependent-non-ca.drv^*'
+dependent-non-ca (post)> +(../push-to-store.sh:13) xargs nix copy --to file:///var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/binary-cache --no-require-sigs
+rootCA (post)> warning: you don't have Internet access; disabling some network-dependent features
+dependent-for-build-ca> Depends on rootCA for building only
+dependent-for-build-ca> /var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/store/91fq406s34ivdhn676bg1q4cc4saiv53-rootCA
+building '/var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/store/pplvif836a884fgn3wiilh44sq2xcb8z-dependent-for-build-non-ca.drv'...
+dependent-fixed-output (post)> warning: 'warn-short-path-literals' is deprecated, use 'lint-short-path-literals = ignore' instead
+dependent-for-build-ca (post)> +(../push-to-store.sh:4) set -e
+dependent-for-build-ca (post)> +(../push-to-store.sh:6) '[' -n /var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/store/d1872k8csr1xhwmr2839v12973x4rl4d-dependent-for-build-ca ']'
+dependent-for-build-ca (post)> +(../push-to-store.sh:7) '[' -n /var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/store/bmf7307pwl3b5iwn0hx7ngdi4w7a1wil-dependent-for-build-ca.drv ']'
+dependent-for-build-ca (post)> +(../push-to-store.sh:9) echo Pushing /var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/store/d1872k8csr1xhwmr2839v12973x4rl4d-dependent-for-build-ca to file:///var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/binary-cache
+dependent-for-build-ca (post)> Pushing /var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/store/d1872k8csr1xhwmr2839v12973x4rl4d-dependent-for-build-ca to file:///var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/binary-cache
+dependent-for-build-ca (post)> +(../push-to-store.sh:10) '[' -n '' ']'
+dependent-fixed-output (post)> warning: you don't have Internet access; disabling some network-dependent features
+dependent-for-build-ca (post)> +(../push-to-store.sh:13) printf %s '/var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/store/bmf7307pwl3b5iwn0hx7ngdi4w7a1wil-dependent-for-build-ca.drv^*'
+dependent-for-build-ca (post)> +(../push-to-store.sh:13) xargs nix copy --to file:///var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/binary-cache --no-require-sigs
+dependent-for-build-non-ca> Depends on rootCA for building only
+runnable-thing (post)> warning: 'warn-short-path-literals' is deprecated, use 'lint-short-path-literals = ignore' instead
+dependent-for-build-non-ca> /var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/store/91fq406s34ivdhn676bg1q4cc4saiv53-rootCA
+runnable-thing (post)> warning: you don't have Internet access; disabling some network-dependent features
+dependent-for-build-non-ca (post)> +(../push-to-store.sh:4) set -e
+dependent-for-build-non-ca (post)> +(../push-to-store.sh:6) '[' -n /var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/store/czfl0y038a2lyzk11l2mhmcgy33kzfs0-dependent-for-build-non-ca ']'
+dependent-for-build-non-ca (post)> +(../push-to-store.sh:7) '[' -n /var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/store/pplvif836a884fgn3wiilh44sq2xcb8z-dependent-for-build-non-ca.drv ']'
+dependent-for-build-non-ca (post)> +(../push-to-store.sh:9) echo Pushing /var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/store/czfl0y038a2lyzk11l2mhmcgy33kzfs0-dependent-for-build-non-ca to file:///var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/binary-cache
+dependent-for-build-non-ca (post)> Pushing /var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/store/czfl0y038a2lyzk11l2mhmcgy33kzfs0-dependent-for-build-non-ca to file:///var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/binary-cache
+dependent-for-build-non-ca (post)> +(../push-to-store.sh:10) '[' -n '' ']'
+dependent-for-build-non-ca (post)> +(../push-to-store.sh:13) printf %s '/var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/store/pplvif836a884fgn3wiilh44sq2xcb8z-dependent-for-build-non-ca.drv^*'
+dependent-for-build-non-ca (post)> +(../push-to-store.sh:13) xargs nix copy --to file:///var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/binary-cache --no-require-sigs
+dependent-non-ca (post)> warning: 'warn-short-path-literals' is deprecated, use 'lint-short-path-literals = ignore' instead
+dependent-for-build-ca (post)> warning: 'warn-short-path-literals' is deprecated, use 'lint-short-path-literals = ignore' instead
+dependent-non-ca (post)> warning: you don't have Internet access; disabling some network-dependent features
+dependent-for-build-ca (post)> warning: you don't have Internet access; disabling some network-dependent features
+dependent-for-build-non-ca (post)> warning: 'warn-short-path-literals' is deprecated, use 'lint-short-path-literals = ignore' instead
+dependent-for-build-non-ca (post)> warning: you don't have Internet access; disabling some network-dependent features
++(substitute.sh:41) clearStore
++(/var/tmp/fg2/fn/nfwxooZo/src/common/functions.sh:41) isTestOnNixOS
++(/var/tmp/fg2/fn/nfwxooZo/src/common/functions.sh:10) [[ '' == 1 ]]
++(/var/tmp/fg2/fn/nfwxooZo/src/common/functions.sh:44) doClearStore
++(/var/tmp/fg2/fn/nfwxooZo/src/common/functions.sh:48) echo 'clearing store...'
+clearing store...
++(/var/tmp/fg2/fn/nfwxooZo/src/common/functions.sh:49) chmod -R +w /var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/store
++(/var/tmp/fg2/fn/nfwxooZo/src/common/functions.sh:50) rm -rf /var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/store
++(/var/tmp/fg2/fn/nfwxooZo/src/common/functions.sh:51) mkdir /var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/store
++(/var/tmp/fg2/fn/nfwxooZo/src/common/functions.sh:52) rm -rf /var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/var/nix
++(/var/tmp/fg2/fn/nfwxooZo/src/common/functions.sh:53) mkdir /var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/var/nix
++(/var/tmp/fg2/fn/nfwxooZo/src/common/functions.sh:54) clearProfiles
++(/var/tmp/fg2/fn/nfwxooZo/src/common/functions.sh:25) profiles=/var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/test-home/.local/state/nix/profiles
++(/var/tmp/fg2/fn/nfwxooZo/src/common/functions.sh:26) rm -rf /var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/test-home/.local/state/nix/profiles
++(substitute.sh:43) clearCacheCache
++(/var/tmp/fg2/fn/nfwxooZo/src/common/functions.sh:62) rm -f '/var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/test-home/.cache/nix/binary-cache*'
++(substitute.sh:44) export _NIX_FORCE_HTTP=1
++(substitute.sh:44) _NIX_FORCE_HTTP=1
++(substitute.sh:45) buildDrvs --substitute --substituters file:///var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/binary-cache --no-require-sigs -j0
++(substitute.sh:13) nix build --file ./content-addressed.nix -L --no-link --substitute --substituters file:///var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/binary-cache --no-require-sigs -j0
+warning: you don't have Internet access; disabling some network-dependent features
+these 7 derivations will be built:
+  /var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/store/rfvignfyk1v4z3vazqihgigf0hmw5lh8-rootCA.drv
+  /var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/store/av8zlaz3dvnrn898yn1axa38hkg36lpf-dependent-non-ca.drv
+  /var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/store/b722q89k5cx429zjjy576nfinga3s5nk-dependent-for-build-ca.drv
+  /var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/store/cpcf0f7xlk00dx2qf3bn4acdfbkx5gxp-runnable-thing.drv
+  /var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/store/dl5vwy40vszsqhziyx4730kw14pbw9j0-dependent.drv
+  /var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/store/i042z6vqpzf8hf668dhgfhz7p863j1lb-dependent-for-build-non-ca.drv
+  /var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/store/z1pzzvwgad0kw2vadvlf86ga2gs8bdsn-transitively-dependent.drv
+these 2 paths will be fetched (0.3 KiB download, 0.4 KiB unpacked):
+  /var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/store/hx9dvl6s0x8qp66cqa9a93vblcdl4dzn-dependent-fixed-output
+  /var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/store/g173k8xjrm3hmm0aykwc6kyjgw4p8g2v-simple-input-addressed
+copying path '/var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/store/g173k8xjrm3hmm0aykwc6kyjgw4p8g2v-simple-input-addressed' from 'file:///var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/binary-cache'...
+copying path '/var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/store/hx9dvl6s0x8qp66cqa9a93vblcdl4dzn-dependent-fixed-output' from 'file:///var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/binary-cache'...
+copying path '/var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/store/91fq406s34ivdhn676bg1q4cc4saiv53-rootCA' from 'file:///var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/binary-cache'...
+copying path '/var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/store/i533m8yb3bddgs6dfdfkr1xvkjhnfcwz-rootCA-dev' from 'file:///var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/binary-cache'...
+copying path '/var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/store/0y7f15y7k5lg1pc90pr74m79w64drg29-rootCA-foo' from 'file:///var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/binary-cache'...
+copying path '/var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/store/czfl0y038a2lyzk11l2mhmcgy33kzfs0-dependent-for-build-non-ca' from 'file:///var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/binary-cache'...
+copying path '/var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/store/d1872k8csr1xhwmr2839v12973x4rl4d-dependent-for-build-ca' from 'file:///var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/binary-cache'...
+copying path '/var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/store/8j45ci5vj0lqi4mz7nxqvsnbbhzrddmp-runnable-thing' from 'file:///var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/binary-cache'...
+copying path '/var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/store/fng0k7dwc7ik5cbbz6rbdqr2grzwipvg-dependent' from 'file:///var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/binary-cache'...
+copying path '/var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/store/7asnsfjk58l58j3819psg105s9zbmhs4-dependent-non-ca' from 'file:///var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/binary-cache'...
+copying path '/var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/store/30gyjmwg16dpj1zclfspn4b85wygf2hk-transitively-dependent' from 'file:///var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/binary-cache'...
++(substitute.sh:48) clearStore
++(/var/tmp/fg2/fn/nfwxooZo/src/common/functions.sh:41) isTestOnNixOS
++(/var/tmp/fg2/fn/nfwxooZo/src/common/functions.sh:10) [[ '' == 1 ]]
++(/var/tmp/fg2/fn/nfwxooZo/src/common/functions.sh:44) doClearStore
++(/var/tmp/fg2/fn/nfwxooZo/src/common/functions.sh:48) echo 'clearing store...'
+clearing store...
++(/var/tmp/fg2/fn/nfwxooZo/src/common/functions.sh:49) chmod -R +w /var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/store
++(/var/tmp/fg2/fn/nfwxooZo/src/common/functions.sh:50) rm -rf /var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/store
++(/var/tmp/fg2/fn/nfwxooZo/src/common/functions.sh:51) mkdir /var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/store
++(/var/tmp/fg2/fn/nfwxooZo/src/common/functions.sh:52) rm -rf /var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/var/nix
++(/var/tmp/fg2/fn/nfwxooZo/src/common/functions.sh:53) mkdir /var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/var/nix
++(/var/tmp/fg2/fn/nfwxooZo/src/common/functions.sh:54) clearProfiles
++(/var/tmp/fg2/fn/nfwxooZo/src/common/functions.sh:25) profiles=/var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/test-home/.local/state/nix/profiles
++(/var/tmp/fg2/fn/nfwxooZo/src/common/functions.sh:26) rm -rf /var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/test-home/.local/state/nix/profiles
++(substitute.sh:49) rm -r /var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/binary-cache/build-trace-v2/bmf7307pwl3b5iwn0hx7ngdi4w7a1wil-dependent-for-build-ca.drv /var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/binary-cache/build-trace-v2/cn7n43adwdrc799rpq04g3dmiac9fxfh-runnable-thing.drv /var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/binary-cache/build-trace-v2/hv9f9gd9i3gp0h8irnksn670mch5w808-transitively-dependent.drv /var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/binary-cache/build-trace-v2/khri5axhql0l70l1y3y8zhq5v2f0wpvm-rootCA.drv /var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/binary-cache/build-trace-v2/pplvif836a884fgn3wiilh44sq2xcb8z-dependent-for-build-non-ca.drv /var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/binary-cache/build-trace-v2/s9iys4fzxvid0mlnvfz5diyz2mlbbjb2-dependent-non-ca.drv /var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/binary-cache/build-trace-v2/zhc6dab668d0xy0qpp27kzp6yfwxk9f4-dependent.drv
++(substitute.sh:50) buildDrvs --substitute --substituters file:///var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/binary-cache --no-require-sigs -j0
++(substitute.sh:13) nix build --file ./content-addressed.nix -L --no-link --substitute --substituters file:///var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/binary-cache --no-require-sigs -j0
+warning: you don't have Internet access; disabling some network-dependent features
+these 7 derivations will be built:
+  /var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/store/rfvignfyk1v4z3vazqihgigf0hmw5lh8-rootCA.drv
+  /var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/store/av8zlaz3dvnrn898yn1axa38hkg36lpf-dependent-non-ca.drv
+  /var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/store/b722q89k5cx429zjjy576nfinga3s5nk-dependent-for-build-ca.drv
+  /var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/store/cpcf0f7xlk00dx2qf3bn4acdfbkx5gxp-runnable-thing.drv
+  /var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/store/dl5vwy40vszsqhziyx4730kw14pbw9j0-dependent.drv
+  /var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/store/i042z6vqpzf8hf668dhgfhz7p863j1lb-dependent-for-build-non-ca.drv
+  /var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/store/z1pzzvwgad0kw2vadvlf86ga2gs8bdsn-transitively-dependent.drv
+these 2 paths will be fetched (0.3 KiB download, 0.4 KiB unpacked):
+  /var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/store/hx9dvl6s0x8qp66cqa9a93vblcdl4dzn-dependent-fixed-output
+  /var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/store/g173k8xjrm3hmm0aykwc6kyjgw4p8g2v-simple-input-addressed
+copying path '/var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/store/hx9dvl6s0x8qp66cqa9a93vblcdl4dzn-dependent-fixed-output' from 'file:///var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/binary-cache'...
+copying path '/var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/store/g173k8xjrm3hmm0aykwc6kyjgw4p8g2v-simple-input-addressed' from 'file:///var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/binary-cache'...
+copying path '/var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/store/91fq406s34ivdhn676bg1q4cc4saiv53-rootCA' from 'file:///var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/binary-cache'...
+copying path '/var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/store/i533m8yb3bddgs6dfdfkr1xvkjhnfcwz-rootCA-dev' from 'file:///var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/binary-cache'...
+copying path '/var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/store/0y7f15y7k5lg1pc90pr74m79w64drg29-rootCA-foo' from 'file:///var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/binary-cache'...
+copying path '/var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/store/czfl0y038a2lyzk11l2mhmcgy33kzfs0-dependent-for-build-non-ca' from 'file:///var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/binary-cache'...
+copying path '/var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/store/7asnsfjk58l58j3819psg105s9zbmhs4-dependent-non-ca' from 'file:///var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/binary-cache'...
+copying path '/var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/store/d1872k8csr1xhwmr2839v12973x4rl4d-dependent-for-build-ca' from 'file:///var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/binary-cache'...
+copying path '/var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/store/8j45ci5vj0lqi4mz7nxqvsnbbhzrddmp-runnable-thing' from 'file:///var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/binary-cache'...
+copying path '/var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/store/fng0k7dwc7ik5cbbz6rbdqr2grzwipvg-dependent' from 'file:///var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/binary-cache'...
+copying path '/var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/store/30gyjmwg16dpj1zclfspn4b85wygf2hk-transitively-dependent' from 'file:///var/tmp/fg2/fn/nfwxooZo/tmp/nix-test/ca/substitute/binary-cache'...
