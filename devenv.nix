@@ -12,6 +12,13 @@ in
 {
 	dotenv.disableHint = true;
 	cachix.pull = [ "noxios" ];
+	env.LD_LIBRARY_PATH = pkgs.lib.makeLibraryPath (with pkgs; [
+		vulkan-loader
+		wayland
+		libxkbcommon
+		libx11
+		libxcb
+	]);
 	packages = [
 		# Rust and native code compiled by Cargo dependencies.
 		rustToolchain
@@ -50,6 +57,16 @@ in
 		pkgs.zstd
 		pkgs.cargo-deny
 		pkgs.cargo-about
+
+		# Native noxios Settings desktop compilation.
+		pkgs.fontconfig
+		pkgs.freetype
+		pkgs.libxkbcommon
+		pkgs.libx11
+		pkgs.libxcb
+		pkgs.vulkan-loader
+		pkgs.wayland
+		pkgs.desktop-file-utils
 
 		# Evaluator profiling.
 		pkgs.perf

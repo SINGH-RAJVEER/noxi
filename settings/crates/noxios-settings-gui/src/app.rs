@@ -1,0 +1,1949 @@
+//! The window's state and everything that changes it.
+//!
+//! Work that touches nix runs on the tokio runtime `main` starts; gpui tasks
+//! await its join handles and fold the results back in here. Queued ops and
+//! rebuilds go through the shared [`Session`], exactly as in the TUI.
+
+use std::collections::HashMap;
+use std::path::PathBuf;
+use std::sync::Arc;
+use std::time::Duration;
+
+use gpui_kit::component::input::{InputEvent, InputState};
+use gpui_kit::component::notification::Notification;
+use gpui_kit::component::{Root, WindowExt as _};
+use gpui_kit::{
+	App, AppContext as _, Context, Entity, PathPromptOptions, SharedString, Subscription, Task,
+	UniformListScrollHandle, Window, actions,
+};
+use noxios_settings_config::{TabLabels, Target, config_dir_from_env};
+use noxios_settings_core::progress::{StepKind, StepState};
+use noxios_settings_core::search::{catalog_cache_path, search_packages};
+use noxios_settings_core::{
+	BuildEnded, Engine, Enqueued, InstalledFlake, Op, Restored, Session, flake_choices,
+};
+use noxios_settings_engine::build::BuildEvent;
+use noxios_settings_engine::flakes::{FlakeDetails, FlakeHit, fetch_flake_details, search_flakes};
+use noxios_settings_engine::options::OptionSet;
+use noxios_settings_engine::scan::ExternalPackage;
+use noxios_settings_engine::search::{MAX_SEARCH_RESULTS, PackageCatalog, SearchHit};
+use tokio::runtime::Handle;
+use tokio::sync::mpsc::UnboundedReceiver;
+
+use crate::model::target_of;
+use crate::options::OptionsView;
+use crate::theme;
+
+actions!(
+	noxios_settings,
+	[Quit, FocusSearch, ZoomIn, ZoomOut, ResetZoom]
+);
+
+/// Expands a leading `~` the way a shell would, for typed paths.
+fn expand_home(path: &str) -> PathBuf {
+	let home = || std::env::var_os("HOME").map(PathBuf::from);
+	match path.strip_prefix('~') {
+		Some("") => home().unwrap_or_else(|| PathBuf::from(path)),
+		Some(rest) if rest.starts_with('/') => home()
+			.map(|home| home.join(rest.trim_start_matches('/')))
+			.unwrap_or_else(|| PathBuf::from(path)),
+		_ => PathBuf::from(path),
+	}
+}
+
+pub fn bind_keys(cx: &mut App) {
+	cx.on_action(|_: &Quit, cx| cx.quit());
+	cx.on_action(|_: &ZoomIn, cx| theme::set_zoom(theme::zoom(cx) + theme::ZOOM_STEP, cx));
+	cx.on_action(|_: &ZoomOut, cx| {
+		theme::set_zoom(theme::zoom(cx).saturating_sub(theme::ZOOM_STEP), cx);
+	});
+	cx.on_action(|_: &ResetZoom, cx| theme::set_zoom(theme::DEFAULT_ZOOM, cx));
+}
+
+/// Which step of the Build page shows its log.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub enum BuildFocus {
+	/// The step the rebuild is in, or the one it failed in.
+	#[default]
+	Follow,
+	Step(StepKind),
+	/// Every step collapsed.
+	None,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Page {
+	Packages,
+	Flakes,
+	Installed,
+	/// One installed package's options, opened from the Installed page.
+	Options,
+	/// Host-wide NixOS option discovery, independent of the install target.
+	Nixos,
+	Queue,
+	Build,
+	VersionControl,
+	Settings,
+}
+
+pub struct SettingsApp {
+	pub keyboard: crate::keyboard::Keyboard,
+	pub keyboard_previous_page: Page,
+	pub repository: crate::repository::RepositoryControls,
+	pub session: Session,
+	pub page: Page,
+	pub status: SharedString,
+	pub(crate) runtime: Handle,
+
+	pub search_input: Entity<InputState>,
+	pub results: Vec<SearchHit>,
+	pub searching: bool,
+	search_epoch: u64,
+	search_task: Option<Task<()>>,
+	catalog: Option<Arc<PackageCatalog>>,
+	pub catalog_loading: bool,
+	catalog_task: Option<Task<()>>,
+
+	pub flake_input: Entity<InputState>,
+	pub flake_results: Vec<FlakeHit>,
+	pub flake_selected: Option<usize>,
+	pub flake_details: Option<FlakeDetails>,
+	pub flake_picker_open: bool,
+	pub flake_searching: bool,
+	pub flake_detail_loading: bool,
+	flake_epoch: u64,
+	flake_task: Option<Task<()>>,
+	flake_detail_task: Option<Task<()>>,
+
+	pub installed_input: Entity<InputState>,
+	pub log_scroll: UniformListScrollHandle,
+	/// The Build page's open step, for the rebuild numbered `build_focus_run`.
+	pub build_focus: BuildFocus,
+	pub build_focus_run: u64,
+
+	pub options: Option<OptionsView>,
+	pub(crate) configuration_choices:
+		Vec<noxios_settings_core::configurations::ConfigurationChoice>,
+	pub(crate) configuration_diagnostic: Option<String>,
+	pub(crate) options_cache: HashMap<(Target, String), Arc<OptionSet>>,
+	pub(crate) options_epoch: u64,
+	pub(crate) options_task: Option<Task<()>>,
+	pub options_filter: Entity<InputState>,
+	/// The value field for the selected option's text editor.
+	pub option_input: Entity<InputState>,
+	pub nixos: crate::nixos::NixosView,
+	pub nixos_filter: Entity<InputState>,
+	/// The value field for the selected NixOS option's text editor.
+	pub nixos_input: Entity<InputState>,
+	/// Set when the selected NixOS value arrives, so the next frame puts it
+	/// in the text field.
+	pub nixos_input_dirty: bool,
+	/// The configuration directory field on the Settings page.
+	pub config_dir_input: Entity<InputState>,
+
+	_build_events: Task<()>,
+	_build_clock: Task<()>,
+	_subscriptions: Vec<Subscription>,
+}
+
+impl SettingsApp {
+	pub fn new(
+		session: Session,
+		mut build_rx: UnboundedReceiver<BuildEvent>,
+		runtime: Handle,
+		window: &mut Window,
+		cx: &mut Context<Self>,
+	) -> Self {
+		theme::apply(&session.engine.config.theme, Some(window), cx);
+
+		let search_input =
+			cx.new(|cx| InputState::new(window, cx).placeholder("Search nixpkgs, e.g. ripgrep"));
+		let flake_input = cx.new(|cx| {
+			InputState::new(window, cx).placeholder("Search GitHub for flakes by name or content")
+		});
+		let installed_input =
+			cx.new(|cx| InputState::new(window, cx).placeholder("Filter installed packages"));
+		let options_filter = cx.new(|cx| InputState::new(window, cx).placeholder("Filter options"));
+		let option_input = cx.new(|cx| InputState::new(window, cx).placeholder("Value"));
+		let nixos_input = cx.new(|cx| InputState::new(window, cx).placeholder("Value"));
+		let nixos_filter =
+			cx.new(|cx| InputState::new(window, cx).placeholder("Search settings and options"));
+		let config_dir_input = cx.new(|cx| {
+			let mut input =
+				InputState::new(window, cx).placeholder("Path to your configuration flake");
+			input.set_value(session.config_dir().display().to_string(), window, cx);
+			input
+		});
+		let keyboard = crate::keyboard::Keyboard::new(&session.engine.config, window, cx);
+		let mut repository = crate::repository::RepositoryControls::new(window, cx);
+		repository.backend = crate::repository::nearest_backend(&session.config_dir());
+		search_input.update(cx, |input, cx| input.focus(window, cx));
+
+		let mut subscriptions = vec![
+			cx.subscribe_in(&nixos_filter, window, |this, _, event, _, cx| {
+				if let InputEvent::Change = event {
+					this.refresh_nixos_filter(cx);
+				}
+			}),
+			cx.subscribe_in(&repository.branch, window, |_, _, _: &InputEvent, _, cx| {
+				cx.notify()
+			}),
+			cx.subscribe_in(&repository.owner, window, |_, _, _: &InputEvent, _, cx| {
+				cx.notify()
+			}),
+			cx.subscribe_in(&repository.name, window, |_, _, _: &InputEvent, _, cx| {
+				cx.notify()
+			}),
+			// The review stays on screen while the message is edited; the commit
+			// control, `commit_repository`, and the backend all refuse a message
+			// that differs from the reviewed one.
+			cx.subscribe_in(&repository.message, window, |_, _, event, _, cx| {
+				if let InputEvent::Change = event {
+					cx.notify();
+				}
+			}),
+			cx.subscribe_in(&search_input, window, |this, _, event, _, cx| {
+				if let InputEvent::Change = event {
+					this.schedule_search(cx);
+				}
+			}),
+			cx.subscribe_in(&flake_input, window, |this, _, event, _, cx| {
+				if let InputEvent::Change = event {
+					this.schedule_flake_search(cx);
+				}
+			}),
+			cx.subscribe_in(&installed_input, window, |this, _, event, _, cx| {
+				if let InputEvent::Change = event {
+					this.keyboard.selected = 0;
+					cx.notify();
+				}
+			}),
+			cx.subscribe_in(&options_filter, window, |this, _, event, _, cx| {
+				if let InputEvent::Change = event {
+					this.keyboard.selected = 0;
+					cx.notify();
+				}
+			}),
+			cx.subscribe_in(&option_input, window, |this, _, event, _, cx| {
+				if let InputEvent::PressEnter { .. } = event {
+					this.stage_text(cx);
+				}
+			}),
+			cx.subscribe_in(&nixos_input, window, |this, _, event, _, cx| {
+				if let InputEvent::PressEnter { .. } = event {
+					this.stage_nixos_text(cx);
+				}
+			}),
+			cx.subscribe_in(
+				&config_dir_input,
+				window,
+				|this, _, event, window, cx| match event {
+					InputEvent::PressEnter { .. } => this.apply_config_dir_input(window, cx),
+					InputEvent::Change => cx.notify(),
+					_ => {}
+				},
+			),
+			cx.observe_window_appearance(window, |this, window, cx| {
+				if this.session.engine.config.theme == "default" {
+					theme::apply("default", Some(window), cx);
+				}
+			}),
+		];
+
+		for (&id, input) in &keyboard.inputs {
+			subscriptions.push(cx.subscribe_in(
+				input,
+				window,
+				move |this, _, event, window, cx| {
+					if let InputEvent::PressEnter { .. } = event {
+						this.save_shortcut(id, false, window, cx);
+					}
+				},
+			));
+		}
+		let handle = window.window_handle();
+		let listener = cx.listener(SettingsApp::handle_key);
+		subscriptions.push(cx.intercept_keystrokes(move |event, window, cx| {
+			if window.window_handle() == handle {
+				listener(event, window, cx);
+			}
+		}));
+
+		let build_events = cx.spawn_in(window, async move |this, cx| {
+			while let Some(event) = build_rx.recv().await {
+				// Nix's structured log can send thousands of events a second;
+				// fold everything waiting into one update.
+				let mut batch = vec![event];
+				while let Ok(event) = build_rx.try_recv() {
+					batch.push(event);
+				}
+				let updated = this.update_in(cx, |this, window, cx| {
+					for event in batch {
+						this.on_build_event(event, window, cx);
+					}
+				});
+				if updated.is_err() {
+					break;
+				}
+			}
+		});
+
+		// Step durations count up even while nix is quiet.
+		let build_clock = cx.spawn(async move |this, cx| {
+			loop {
+				cx.background_executor().timer(Duration::from_secs(1)).await;
+				let ticked = this.update(cx, |this, cx| {
+					if this.page == Page::Build && this.session.progress.is_running() {
+						cx.notify();
+					}
+				});
+				if ticked.is_err() {
+					break;
+				}
+			}
+		});
+
+		let managed = session.engine.managed_packages().len();
+		let external = session.engine.external_packages.len();
+		let (configuration_choices, configuration_diagnostic) =
+			match noxios_settings_core::configurations::choices(&session.engine.config) {
+				Ok(choices) => (choices, None),
+				Err(error) => (Vec::new(), Some(error.to_string())),
+			};
+		let mut app = Self {
+			configuration_choices,
+			configuration_diagnostic,
+			keyboard,
+			keyboard_previous_page: Page::Packages,
+			repository,
+			session,
+			page: Page::Packages,
+			status: format!("{managed} managed, {external} external.").into(),
+			runtime,
+			search_input,
+			results: Vec::new(),
+			searching: false,
+			search_epoch: 0,
+			search_task: None,
+			catalog: None,
+			catalog_loading: false,
+			catalog_task: None,
+			flake_input,
+			flake_results: Vec::new(),
+			flake_selected: None,
+			flake_details: None,
+			flake_picker_open: false,
+			flake_searching: false,
+			flake_detail_loading: false,
+			flake_epoch: 0,
+			flake_task: None,
+			flake_detail_task: None,
+			installed_input,
+			log_scroll: UniformListScrollHandle::new(),
+			build_focus: BuildFocus::Follow,
+			build_focus_run: 0,
+			options: None,
+			options_cache: HashMap::new(),
+			options_epoch: 0,
+			options_task: None,
+			options_filter,
+			option_input,
+			nixos: crate::nixos::NixosView::default(),
+			nixos_filter,
+			nixos_input,
+			nixos_input_dirty: false,
+			config_dir_input,
+			_build_events: build_events,
+			_build_clock: build_clock,
+			_subscriptions: subscriptions,
+		};
+		app.restore();
+		app
+	}
+
+	fn restore(&mut self) {
+		let restored = self.session.restore();
+		if let Some(error) = &self.session.last_error {
+			self.status = format!("Previous run failed: {error}").into();
+		}
+		match restored {
+			Restored::Nothing => {}
+			Restored::Rebuild(label) => {
+				self.page = Page::Build;
+				self.status = format!(
+					"Resuming interrupted build: {}.",
+					label.trim_start_matches("resume ")
+				)
+				.into();
+			}
+			Restored::Queue(count) => {
+				self.page = Page::Queue;
+				self.status = format!("Resuming {count} queued op(s).").into();
+			}
+		}
+	}
+
+	pub fn set_page(&mut self, page: Page, window: &mut Window, cx: &mut Context<Self>) {
+		if page == Page::Settings && self.page != Page::Settings {
+			self.keyboard_previous_page = self.page;
+		}
+		self.page = page;
+		self.keyboard
+			.reset_mode(self.session.engine.config.input_mode);
+		self.keyboard.selected = 0;
+		self.keyboard.choice = 0;
+		if page == Page::Settings {
+			self.keyboard
+				.settings_scroll
+				.set_offset(gpui_kit::point(gpui_kit::px(0.), gpui_kit::px(0.)));
+		}
+		self.keyboard.focus.focus(window, cx);
+		let input = match page {
+			Page::Packages => Some(&self.search_input),
+			Page::Flakes => Some(&self.flake_input),
+			Page::Installed => Some(&self.installed_input),
+			Page::Options => Some(&self.options_filter),
+			Page::Nixos => Some(&self.nixos_filter),
+			Page::Queue | Page::Build | Page::VersionControl | Page::Settings => None,
+		};
+		if let Some(input) = input {
+			input.update(cx, |input, cx| input.focus(window, cx));
+		}
+		if page == Page::Build {
+			self.scroll_log_to_end();
+		}
+		if page == Page::Nixos && !self.nixos.initialized {
+			self.reload_nixos(cx);
+		}
+		if page == Page::VersionControl && !self.repository_pending_writes() {
+			self.refresh_repository(window, cx);
+		}
+		cx.notify();
+	}
+
+	pub fn focus_search(&mut self, _: &FocusSearch, window: &mut Window, cx: &mut Context<Self>) {
+		let page = match self.page {
+			Page::Flakes | Page::Installed | Page::Options | Page::Nixos => self.page,
+			_ => Page::Packages,
+		};
+		self.set_page(page, window, cx);
+	}
+
+	fn set_status(&mut self, status: impl Into<SharedString>, cx: &mut Context<Self>) {
+		self.status = status.into();
+		cx.notify();
+	}
+
+	// ── nixpkgs search ──────────────────────────────────────────────────
+
+	/// Loads the package catalog for the locked nixpkgs, building it the
+	/// first time, so searches stop shelling out to `nix search`.
+	pub fn prepare_catalog(&mut self, cx: &mut Context<Self>) {
+		let Some(cache_path) = catalog_cache_path() else {
+			return;
+		};
+		let config_dir = self.session.config_dir();
+		self.catalog_loading = true;
+		let job = self
+			.runtime
+			.spawn(async move { PackageCatalog::load_or_build(&config_dir, &cache_path).await });
+		self.catalog_task = Some(cx.spawn(async move |this, cx| {
+			let result = match job.await {
+				Ok(result) => result.map_err(|error| error.to_string()),
+				Err(error) => Err(error.to_string()),
+			};
+			let _ = this.update(cx, |this, cx| {
+				this.catalog_loading = false;
+				this.catalog_task = None;
+				match result {
+					Ok(catalog) => {
+						let revision: String = catalog.revision().chars().take(12).collect();
+						this.catalog = Some(Arc::new(catalog));
+						this.status = format!("Package catalog ready at {revision}.").into();
+					}
+					Err(error) => {
+						this.catalog = None;
+						this.status =
+							format!("Package catalog unavailable; using live search: {error}")
+								.into();
+					}
+				}
+				if this.searching {
+					this.schedule_search(cx);
+				}
+				cx.notify();
+			});
+		}));
+	}
+
+	fn schedule_search(&mut self, cx: &mut Context<Self>) {
+		self.search_epoch = self.search_epoch.wrapping_add(1);
+		let epoch = self.search_epoch;
+		let query = self.search_input.read(cx).value().trim().to_string();
+		if query.is_empty() {
+			self.search_task = None;
+			self.searching = false;
+			self.results.clear();
+			self.set_status("Type to search packages.", cx);
+			return;
+		}
+		self.searching = true;
+		if self.catalog_loading {
+			self.set_status(
+				"Preparing the package catalog for your locked nixpkgs revision...",
+				cx,
+			);
+			return;
+		}
+		if self.catalog.as_ref().is_some_and(|catalog| {
+			!catalog
+				.is_current_for(&self.session.config_dir())
+				.unwrap_or(false)
+		}) {
+			self.catalog = None;
+			self.prepare_catalog(cx);
+			self.set_status(
+				"The nixpkgs lock changed; refreshing the package catalog...",
+				cx,
+			);
+			return;
+		}
+
+		let catalog = self.catalog.clone();
+		let channel = self.session.engine.config.channel.clone();
+		let runtime = self.runtime.clone();
+		cx.notify();
+		self.search_task = Some(cx.spawn(async move |this, cx| {
+			cx.background_executor()
+				.timer(Duration::from_millis(180))
+				.await;
+			let label = query.clone();
+			let job = runtime.spawn(async move { search_packages(catalog, &channel, query).await });
+			let result = match job.await {
+				Ok(result) => result.map_err(|error| error.to_string()),
+				Err(error) => Err(error.to_string()),
+			};
+			let _ = this.update(cx, |this, cx| {
+				if epoch != this.search_epoch {
+					return;
+				}
+				this.searching = false;
+				match result {
+					Ok(hits) => {
+						this.status = if hits.len() == MAX_SEARCH_RESULTS {
+							format!(
+								"Showing the first {} matches for `{label}`; refine the search for more.",
+								hits.len()
+							)
+						} else {
+							format!("{} matches for `{label}`.", hits.len())
+						}
+						.into();
+						this.keyboard.selected = 0;
+						this.results = hits;
+					}
+					Err(error) => {
+						this.results.clear();
+						this.status = format!("Search failed: {error}").into();
+					}
+				}
+				cx.notify();
+			});
+		}));
+	}
+
+	pub fn install(&mut self, index: usize, window: &mut Window, cx: &mut Context<Self>) {
+		let Some(hit) = self.results.get(index).cloned() else {
+			return;
+		};
+		let scope = self.session.engine.config.target;
+		if self.session.engine.is_tracked(&hit.attr, scope) {
+			self.set_status(format!("{} is already tracked.", hit.attr), cx);
+			return;
+		}
+		let attr = hit.attr.clone();
+		self.enqueue(
+			Op::Install { hit, scope },
+			format!("{attr} is already queued."),
+			window,
+			cx,
+		);
+	}
+
+	// ── flakes ──────────────────────────────────────────────────────────
+
+	fn schedule_flake_search(&mut self, cx: &mut Context<Self>) {
+		self.flake_epoch = self.flake_epoch.wrapping_add(1);
+		let epoch = self.flake_epoch;
+		self.flake_detail_task = None;
+		self.flake_detail_loading = false;
+		self.flake_picker_open = false;
+		let query = self.flake_input.read(cx).value().trim().to_string();
+		if query.is_empty() {
+			self.flake_task = None;
+			self.flake_searching = false;
+			self.flake_results.clear();
+			self.flake_selected = None;
+			self.flake_details = None;
+			self.set_status("Search GitHub for flakes by content or project name.", cx);
+			return;
+		}
+		self.flake_searching = true;
+		let runtime = self.runtime.clone();
+		cx.notify();
+		self.flake_task = Some(cx.spawn(async move |this, cx| {
+			cx.background_executor()
+				.timer(Duration::from_millis(250))
+				.await;
+			let label = query.clone();
+			let job = runtime.spawn(async move { search_flakes(&query).await });
+			let result = match job.await {
+				Ok(result) => result.map_err(|error| error.to_string()),
+				Err(error) => Err(error.to_string()),
+			};
+			let _ = this.update(cx, |this, cx| {
+				if epoch != this.flake_epoch {
+					return;
+				}
+				this.flake_searching = false;
+				this.flake_details = None;
+				match result {
+					Ok(hits) => {
+						this.status =
+							format!("{} GitHub flake matches for `{label}`.", hits.len()).into();
+						this.flake_results = hits;
+						this.select_flake(0, cx);
+					}
+					Err(error) => {
+						this.flake_results.clear();
+						this.flake_selected = None;
+						this.status = format!("Flake search failed: {error}").into();
+					}
+				}
+				cx.notify();
+			});
+		}));
+	}
+
+	pub fn select_flake(&mut self, index: usize, cx: &mut Context<Self>) {
+		self.flake_epoch = self.flake_epoch.wrapping_add(1);
+		self.flake_picker_open = false;
+		self.keyboard.choice = 0;
+		let Some(hit) = self.flake_results.get(index).cloned() else {
+			self.flake_selected = None;
+			return;
+		};
+		self.flake_selected = Some(index);
+		self.flake_details = None;
+		self.flake_detail_loading = true;
+		let epoch = self.flake_epoch;
+		let runtime = self.runtime.clone();
+		self.flake_detail_task = Some(cx.spawn(async move |this, cx| {
+			let job = runtime.spawn(async move { fetch_flake_details(&hit).await });
+			let result = match job.await {
+				Ok(result) => result.map_err(|error| error.to_string()),
+				Err(error) => Err(error.to_string()),
+			};
+			let _ = this.update(cx, |this, cx| {
+				if epoch != this.flake_epoch || this.flake_selected != Some(index) {
+					return;
+				}
+				this.flake_detail_loading = false;
+				match result {
+					Ok(details) => {
+						if this.flake_picker_open {
+							this.flake_picker_open =
+								flake_choices(&details, this.session.engine.config.target).len()
+									> 1;
+						}
+						this.flake_details = Some(details);
+					}
+					Err(error) => this.status = format!("Flake details failed: {error}").into(),
+				}
+				cx.notify();
+			});
+		}));
+		cx.notify();
+	}
+
+	pub fn open_flake(&mut self, index: usize, cx: &mut Context<Self>) {
+		self.select_flake(index, cx);
+		self.flake_picker_open = self.flake_selected.is_some();
+	}
+
+	pub fn install_flake(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+		let Some(details) = self.flake_details.as_ref() else {
+			self.set_status("Wait for the flake details before installing.", cx);
+			return;
+		};
+		let scope = self.session.engine.config.target;
+		let repo = details.repo.clone();
+		let choices = flake_choices(details, scope);
+		if choices.len() > 1 {
+			self.flake_picker_open = true;
+			cx.notify();
+			return;
+		}
+		let Some(choice) = choices.first() else {
+			self.set_status(
+				format!(
+					"{repo} has no installable package for this system or compatible {} module.",
+					scope.label()
+				),
+				cx,
+			);
+			return;
+		};
+		self.enqueue(
+			choice.operation(repo.clone(), scope),
+			format!("{repo}#{} is already queued.", choice.path),
+			window,
+			cx,
+		);
+	}
+
+	pub fn install_flake_choice(
+		&mut self,
+		path: &str,
+		window: &mut Window,
+		cx: &mut Context<Self>,
+	) {
+		let Some(details) = self.flake_details.as_ref() else {
+			return;
+		};
+		let scope = self.session.engine.config.target;
+		let Some(choice) = flake_choices(details, scope)
+			.into_iter()
+			.find(|choice| choice.path == path)
+		else {
+			return;
+		};
+		let repo = details.repo.clone();
+		self.flake_picker_open = false;
+		self.enqueue(
+			choice.operation(repo.clone(), scope),
+			format!("{repo}#{path} is already queued."),
+			window,
+			cx,
+		);
+	}
+
+	// ── installed ───────────────────────────────────────────────────────
+
+	pub fn remove_managed(
+		&mut self,
+		name: String,
+		scope: Target,
+		window: &mut Window,
+		cx: &mut Context<Self>,
+	) {
+		let duplicate = format!("{name} is already queued for removal.");
+		self.enqueue(Op::Uninstall { name, scope }, duplicate, window, cx);
+	}
+
+	pub fn remove_flake(
+		&mut self,
+		flake: InstalledFlake,
+		window: &mut Window,
+		cx: &mut Context<Self>,
+	) {
+		let name = flake.name();
+		if !flake.removable {
+			self.set_status(
+				format!(
+					"{name} shares a line in {} with other entries; remove it by hand.",
+					flake.declared_in.as_deref().unwrap_or("your config")
+				),
+				cx,
+			);
+			return;
+		}
+		self.enqueue(
+			Op::UninstallFlakeOutput {
+				input: flake.input,
+				output: flake.output,
+				scope: flake.scope,
+			},
+			format!("{name} is already queued for removal."),
+			window,
+			cx,
+		);
+	}
+
+	/// Reports and returns true when `package` cannot be moved automatically.
+	fn reject_unmigratable(&mut self, package: &ExternalPackage, cx: &mut Context<Self>) -> bool {
+		if !package.migratable {
+			self.set_status(
+				format!(
+					"{} shares a line in {} with other entries; move it by hand.",
+					package.name, package.source_attr
+				),
+				cx,
+			);
+		}
+		!package.migratable
+	}
+
+	pub fn migrate(
+		&mut self,
+		package: ExternalPackage,
+		window: &mut Window,
+		cx: &mut Context<Self>,
+	) {
+		if self.reject_unmigratable(&package, cx) {
+			return;
+		}
+		let name = package.name;
+		self.enqueue(
+			Op::Migrate {
+				names: vec![name.clone()],
+				scope: target_of(package.scope),
+			},
+			format!("{name} is already queued for migration."),
+			window,
+			cx,
+		);
+	}
+
+	/// Moves a hand-declared package into the other target's managed file.
+	pub fn migrate_across(
+		&mut self,
+		package: ExternalPackage,
+		window: &mut Window,
+		cx: &mut Context<Self>,
+	) {
+		if self.reject_unmigratable(&package, cx) {
+			return;
+		}
+		let from = target_of(package.scope);
+		let scope = from.other();
+		if !self.session.engine.has_main_file(scope) {
+			self.set_status(
+				format!("{} is not configured on this machine.", scope.title()),
+				cx,
+			);
+			return;
+		}
+		let name = package.name;
+		self.enqueue(
+			Op::MigrateAcross {
+				names: vec![name.clone()],
+				from,
+				scope,
+			},
+			format!("{name} is already queued for migration."),
+			window,
+			cx,
+		);
+	}
+
+	pub fn migrate_flake(
+		&mut self,
+		flake: InstalledFlake,
+		window: &mut Window,
+		cx: &mut Context<Self>,
+	) {
+		let name = flake.name();
+		if !flake.migratable() {
+			self.set_status(format!("{name} cannot be migrated automatically."), cx);
+			return;
+		}
+		if let noxios_settings_engine::manifest::FlakeOutput::Package(package) = flake.output {
+			self.enqueue(
+				Op::MigrateFlakePackage {
+					input: flake.input,
+					package,
+					scope: flake.scope,
+				},
+				format!("{name} is already queued for migration."),
+				window,
+				cx,
+			);
+		}
+	}
+
+	pub fn migrate_all(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+		if self.repository_blocks_mutation(cx) {
+			return;
+		}
+		let ops = self.session.migrate_all_ops();
+		if ops.is_empty() {
+			self.set_status("No external packages or flake outputs left to migrate.", cx);
+			return;
+		}
+		let outcome = self.session.enqueue_all(ops);
+		self.report_enqueued(outcome, "Nothing new to migrate.".into(), window, cx);
+	}
+
+	// ── queue and rebuilds ──────────────────────────────────────────────
+
+	pub(crate) fn enqueue(
+		&mut self,
+		op: Op,
+		duplicate: String,
+		window: &mut Window,
+		cx: &mut Context<Self>,
+	) {
+		if self.repository_blocks_mutation(cx) {
+			return;
+		}
+		let outcome = self.session.enqueue(op);
+		self.report_enqueued(outcome, duplicate, window, cx);
+	}
+
+	fn report_enqueued(
+		&mut self,
+		outcome: Enqueued,
+		duplicate: String,
+		window: &mut Window,
+		cx: &mut Context<Self>,
+	) {
+		let status = match outcome {
+			Enqueued::Duplicate => duplicate,
+			Enqueued::Queued => format!(
+				"Queued behind the running rebuild ({} waiting).",
+				self.session.queue.len()
+			),
+			Enqueued::Started(label) => {
+				window.push_notification(Notification::info(format!("Started: {label}")), cx);
+				format!("{label}...")
+			}
+			Enqueued::NotWritten => {
+				"The queued changes could not be written; see the build log.".into()
+			}
+		};
+		self.set_status(status, cx);
+	}
+
+	pub fn dequeue(&mut self, index: usize, cx: &mut Context<Self>) {
+		if let Some(op) = self.session.dequeue(index) {
+			self.set_status(format!("Dropped {} from the queue.", op.label()), cx);
+		}
+	}
+
+	pub fn apply_queue(&mut self, cx: &mut Context<Self>) {
+		if self.repository_blocks_mutation(cx) {
+			return;
+		}
+		match self.session.drain() {
+			Some(label) => self.set_status(format!("{label}..."), cx),
+			None => cx.notify(),
+		}
+	}
+
+	/// Updates every flake input and rebuilds the whole system onto them.
+	pub fn update_system(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+		if self.repository_blocks_mutation(cx) {
+			return;
+		}
+		match self.session.start_update() {
+			Some(label) => {
+				window.push_notification(Notification::info(format!("Started: {label}")), cx);
+				self.set_page(Page::Build, window, cx);
+				self.set_status(format!("{label}..."), cx);
+			}
+			None => self.set_status("Wait for the running rebuild before updating.", cx),
+		}
+	}
+
+	pub fn cancel_build(&mut self, cx: &mut Context<Self>) {
+		if self.session.cancel_build() {
+			self.set_status("Cancelling the rebuild...", cx);
+		}
+	}
+
+	pub fn dismiss_error(&mut self, cx: &mut Context<Self>) {
+		self.session.dismiss_error();
+		cx.notify();
+	}
+
+	fn on_build_event(&mut self, event: BuildEvent, window: &mut Window, cx: &mut Context<Self>) {
+		let Some(ended) = self.session.on_build_event(event) else {
+			if self.page == Page::Build && self.following_build() {
+				self.scroll_log_to_end();
+			}
+			cx.notify();
+			return;
+		};
+		let (status, note) = match ended {
+			BuildEnded::Succeeded { label, next } => (
+				next.map_or_else(|| format!("{label} done."), |next| format!("{next}...")),
+				Notification::success(format!("{label} done.")),
+			),
+			BuildEnded::Failed { label, error, next } => (
+				next.map_or_else(
+					|| format!("{label} failed: {error}."),
+					|next| format!("{next}..."),
+				),
+				Notification::error(format!("{label} failed: {error}.")),
+			),
+			BuildEnded::Cancelled { label, paused } => {
+				let status = if paused == 0 {
+					format!("{label} cancelled.")
+				} else {
+					format!("{label} cancelled; {paused} queued op(s) paused.")
+				};
+				(status.clone(), Notification::warning(status))
+			}
+		};
+		window.push_notification(note, cx);
+		self.set_status(status, cx);
+		self.options_after_build(cx);
+		self.nixos_after_build(cx);
+		self.repository.review = None;
+		if self.page == Page::VersionControl && !self.repository_pending_writes() {
+			self.refresh_repository(window, cx);
+		}
+	}
+
+	fn scroll_log_to_end(&self) {
+		let len = match self.expanded_step() {
+			Some(kind) => self
+				.session
+				.progress
+				.step(kind)
+				.map_or(0, |step| step.lines.len()),
+			None if self.session.progress.is_empty() => self.session.log.len(),
+			None => 0,
+		};
+		if let Some(last) = len.checked_sub(1) {
+			self.log_scroll
+				.scroll_to_item(last, gpui_kit::ScrollStrategy::Bottom);
+		}
+	}
+
+	/// Whether new output should scroll the Build page: the open log is the
+	/// one output is going to.
+	fn following_build(&self) -> bool {
+		self.session.progress.is_empty()
+			|| self.expanded_step().is_some_and(|kind| {
+				self.session
+					.progress
+					.step(kind)
+					.is_some_and(|step| step.state == StepState::Running)
+			})
+	}
+
+	/// The step whose log the Build page shows.
+	pub fn expanded_step(&self) -> Option<StepKind> {
+		let progress = &self.session.progress;
+		let focus = if self.build_focus_run == progress.run {
+			self.build_focus
+		} else {
+			BuildFocus::Follow
+		};
+		match focus {
+			BuildFocus::Follow if progress.is_running() => progress.current(),
+			BuildFocus::Follow => progress.failed_step(),
+			BuildFocus::Step(kind) => Some(kind),
+			BuildFocus::None => None,
+		}
+	}
+
+	/// Opens `kind`'s log on the Build page, or closes it when open.
+	pub fn toggle_build_step(&mut self, kind: StepKind, cx: &mut Context<Self>) {
+		let open = self.expanded_step() != Some(kind);
+		self.build_focus = if open {
+			BuildFocus::Step(kind)
+		} else {
+			BuildFocus::None
+		};
+		self.build_focus_run = self.session.progress.run;
+		if open {
+			let running = self
+				.session
+				.progress
+				.step(kind)
+				.is_some_and(|step| step.state == StepState::Running);
+			if running {
+				self.scroll_log_to_end();
+			} else {
+				self.log_scroll
+					.scroll_to_item(0, gpui_kit::ScrollStrategy::Top);
+			}
+		}
+		cx.notify();
+	}
+
+	// ── settings ────────────────────────────────────────────────────────
+
+	pub fn set_target(&mut self, target: Target, cx: &mut Context<Self>) {
+		if self.repository_blocks_mutation(cx) {
+			return;
+		}
+		self.session.engine.config.target = target;
+		self.save_config(format!("New installs go to {}.", target.label()), cx);
+	}
+
+	pub fn set_channel(&mut self, channel: &str, cx: &mut Context<Self>) {
+		if self.repository_blocks_mutation(cx) {
+			return;
+		}
+		self.session.engine.config.channel = channel.to_string();
+		self.save_config(format!("Live search uses {channel}."), cx);
+	}
+
+	pub fn set_theme(&mut self, name: &str, window: &mut Window, cx: &mut Context<Self>) {
+		if self.repository_blocks_mutation(cx) {
+			return;
+		}
+		self.session.engine.config.theme = name.to_string();
+		theme::apply(name, Some(window), cx);
+		self.save_config(format!("Theme set to {name}."), cx);
+	}
+
+	/// Display only, and settings live outside the reviewed configuration, so
+	/// this neither waits for nor discards a repository review.
+	pub fn set_tab_labels(&mut self, labels: TabLabels, cx: &mut Context<Self>) {
+		self.session.engine.config.tab_labels = labels;
+		self.save_config(format!("Tabs show {}.", labels.label().to_lowercase()), cx);
+	}
+
+	/// Display only, like the tab labels.
+	pub fn set_close_button(&mut self, shown: bool, cx: &mut Context<Self>) {
+		self.session.engine.config.close_button = shown;
+		let state = if shown { "shown" } else { "hidden" };
+		self.save_config(format!("Close button {state}."), cx);
+	}
+
+	pub fn set_dendritic_detection(&mut self, enabled: bool, cx: &mut Context<Self>) {
+		if !self.nixos.staged.is_empty()
+			|| self
+				.options
+				.as_ref()
+				.is_some_and(|options| !options.staged.is_empty())
+		{
+			self.set_status(
+				"Apply or discard staged option edits before changing detection mode.",
+				cx,
+			);
+			return;
+		}
+		if self.repository_blocks_mutation(cx) {
+			return;
+		}
+		match self.session.set_dendritic_detection(enabled) {
+			Ok(()) => {
+				self.options_epoch = self.options_epoch.wrapping_add(1);
+				self.options_cache.clear();
+				self.options = None;
+				self.options_task = None;
+				self.nixos.reset();
+				if self.page == Page::Options {
+					self.page = Page::Installed;
+				}
+				self.repository.forget(&self.session.config_dir());
+				self.refresh_configuration_choices();
+				let mode = if enabled { "enabled" } else { "disabled" };
+				self.set_status(
+					format!("Dendritic detection {mode}. Configuration reloaded."),
+					cx,
+				);
+			}
+			Err(error) => {
+				self.set_status(format!("Could not change detection mode: {error:#}"), cx)
+			}
+		}
+	}
+
+	pub fn set_telemetry(&mut self, enabled: bool, cx: &mut Context<Self>) {
+		if !enabled {
+			self.session.telemetry.disable();
+		}
+		let status = match noxios_settings_core::telemetry::set_enabled(
+			&mut self.session.engine.config,
+			enabled,
+		) {
+			Ok(()) => {
+				self.session.telemetry.refresh();
+				format!(
+					"Basic usage data: {}.",
+					noxios_settings_core::telemetry::status_label(
+						self.session.engine.config.telemetry
+					)
+				)
+			}
+			Err(error) => format!("Saving telemetry preference failed: {error}"),
+		};
+		self.set_status(status, cx);
+	}
+
+	pub fn copy_telemetry_preview(&mut self, cx: &mut Context<Self>) {
+		match noxios_settings_core::telemetry::preview() {
+			Ok(example) => {
+				cx.write_to_clipboard(gpui_kit::ClipboardItem::new_string(example));
+				self.set_status(
+					"Synthetic example copied. Nothing was collected or sent.",
+					cx,
+				);
+			}
+			Err(error) => {
+				self.set_status(format!("Creating telemetry example failed: {error}"), cx)
+			}
+		}
+	}
+
+	/// Uses the typed directory; an empty field returns to the default.
+	pub fn apply_config_dir_input(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+		let typed = self.config_dir_input.read(cx).value().trim().to_owned();
+		let path = (!typed.is_empty()).then(|| expand_home(&typed));
+		self.set_config_dir(path, window, cx);
+	}
+
+	pub fn browse_config_dir(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+		let paths = cx.prompt_for_paths(PathPromptOptions {
+			files: false,
+			directories: true,
+			multiple: false,
+			prompt: Some("Use as configuration".into()),
+		});
+		cx.spawn_in(window, async move |this, cx| {
+			let Ok(Ok(Some(paths))) = paths.await else {
+				return;
+			};
+			if let Some(path) = paths.into_iter().next() {
+				let _ = this.update_in(cx, |this, window, cx| {
+					this.set_config_dir(Some(path), window, cx)
+				});
+			}
+		})
+		.detach();
+	}
+
+	/// Moves noxios-settings to another configuration directory, or back to the
+	/// default with `None`, and reloads everything read from the old one.
+	/// Refused while writes are queued, since they target the old directory.
+	pub fn set_config_dir(
+		&mut self,
+		path: Option<PathBuf>,
+		window: &mut Window,
+		cx: &mut Context<Self>,
+	) {
+		let current = self.session.config_dir().display().to_string();
+		let refuse =
+			|this: &mut Self, status: String, window: &mut Window, cx: &mut Context<Self>| {
+				this.config_dir_input
+					.update(cx, |input, cx| input.set_value(current.clone(), window, cx));
+				this.set_status(status, cx);
+			};
+		if config_dir_from_env().is_some() {
+			return refuse(
+				self,
+				"NOXIOS_SETTINGS_CONFIG_DIR is set, and it overrides the saved location.".into(),
+				window,
+				cx,
+			);
+		}
+		if self.repository_pending_writes() {
+			return refuse(
+				self,
+				"Finish or drop queued changes before changing the configuration.".into(),
+				window,
+				cx,
+			);
+		}
+		if self.repository_blocks_mutation(cx) {
+			return;
+		}
+		let path = match path.map(std::path::absolute).transpose() {
+			Ok(path) => path,
+			Err(error) => return refuse(self, format!("Invalid path: {error}"), window, cx),
+		};
+		if let Some(path) = path.as_ref().filter(|path| !path.is_dir()) {
+			return refuse(
+				self,
+				format!("{} is not a directory.", path.display()),
+				window,
+				cx,
+			);
+		}
+		let mut config = self.session.engine.config.clone();
+		config.config_dir = path;
+		config.nixos_host = None;
+		config.home_user = None;
+		config.home_configuration = None;
+		let engine = match Engine::with_config(config) {
+			Ok(engine) => engine,
+			Err(error) => {
+				return refuse(
+					self,
+					format!("Could not load that configuration: {error:#}"),
+					window,
+					cx,
+				);
+			}
+		};
+		self.session.engine = engine;
+		self.refresh_configuration_choices();
+		let root = self.session.config_dir();
+		self.config_dir_input.update(cx, |input, cx| {
+			input.set_value(root.display().to_string(), window, cx)
+		});
+		self.options_cache.clear();
+		self.options = None;
+		self.options_task = None;
+		self.nixos.reset();
+		if self.page == Page::Options {
+			self.page = Page::Installed;
+		}
+		self.repository.forget(&root);
+		let mut done = format!("Configuration set to {}.", root.display());
+		if !root.join("flake.nix").is_file() {
+			done.push_str(" It has no flake.nix, so rebuilds fail until it does.");
+		}
+		self.save_config(done, cx);
+	}
+
+	pub(crate) fn save_config(&mut self, done: String, cx: &mut Context<Self>) {
+		let status = match self.session.engine.config.save() {
+			Ok(()) => done,
+			Err(error) => format!("Saving settings failed: {error}"),
+		};
+		self.set_status(status, cx);
+	}
+
+	pub(crate) fn select_configuration(
+		&mut self,
+		choice: &noxios_settings_core::configurations::ConfigurationChoice,
+		_window: &mut Window,
+		cx: &mut Context<Self>,
+	) {
+		if !self.nixos.staged.is_empty()
+			|| self
+				.options
+				.as_ref()
+				.is_some_and(|options| !options.staged.is_empty())
+		{
+			self.set_status(
+				"Apply or discard staged option edits before changing configuration.",
+				cx,
+			);
+			return;
+		}
+		if self.repository_blocks_mutation(cx) {
+			return;
+		}
+		match self.session.select_configuration(choice) {
+			Ok(()) => {
+				self.options_epoch = self.options_epoch.wrapping_add(1);
+				self.options_cache.clear();
+				self.options = None;
+				self.options_task = None;
+				self.nixos.reset();
+				self.set_status(format!("Configuration set to {}.", choice.label), cx);
+			}
+			Err(error) => self.set_status(format!("Could not change configuration: {error:#}"), cx),
+		}
+	}
+
+	fn refresh_configuration_choices(&mut self) {
+		match noxios_settings_core::configurations::choices(&self.session.engine.config) {
+			Ok(choices) => {
+				self.configuration_choices = choices;
+				self.configuration_diagnostic = None;
+			}
+			Err(error) => {
+				self.configuration_choices.clear();
+				self.configuration_diagnostic = Some(error.to_string());
+			}
+		}
+	}
+
+	/// Notification and dialog layers, drawn above the page.
+	pub fn overlays(
+		window: &mut Window,
+		cx: &mut App,
+	) -> impl Iterator<Item = gpui_kit::AnyElement> {
+		use gpui_kit::IntoElement;
+		[
+			Root::render_sheet_layer(window, cx).map(IntoElement::into_any_element),
+			Root::render_dialog_layer(window, cx).map(IntoElement::into_any_element),
+			Root::render_notification_layer(window, cx).map(IntoElement::into_any_element),
+		]
+		.into_iter()
+		.flatten()
+	}
+}
+
+#[cfg(test)]
+mod tests {
+	use gpui_kit::component::Root;
+	use gpui_kit::test::TestWindowExt as _;
+	use gpui_kit::{AppContext as _, TestAppContext, px, size};
+	use noxios_settings_config::{Config, TabLabels, Target};
+	use noxios_settings_core::vcs::{Backend, Repository};
+	use noxios_settings_core::{Engine, Op, Session};
+	use noxios_settings_engine::build::BuildEvent;
+	use noxios_settings_engine::flakes::{FlakeDetails, FlakePackage};
+	use noxios_settings_engine::manifest::Manifest;
+	use noxios_settings_engine::nix_log::NixLog;
+	use noxios_settings_engine::search::SearchHit;
+
+	use super::{Page, SettingsApp, StepKind, expand_home};
+
+	#[test]
+	fn typed_paths_expand_a_leading_tilde() {
+		let home = std::path::PathBuf::from(std::env::var_os("HOME").expect("HOME"));
+		assert_eq!(expand_home("~"), home);
+		assert_eq!(expand_home("~/nixos"), home.join("nixos"));
+		assert_eq!(
+			expand_home("/etc/nixos"),
+			std::path::PathBuf::from("/etc/nixos")
+		);
+		assert_eq!(expand_home("~other"), std::path::PathBuf::from("~other"));
+	}
+
+	#[gpui_kit::test]
+	async fn package_results_appear_replace_and_clear_in_the_window(cx: &mut TestAppContext) {
+		cx.update(gpui_kit::init);
+		let runtime = tokio::runtime::Builder::new_current_thread()
+			.enable_all()
+			.build()
+			.expect("runtime");
+		let (session, build_rx) = Session::new(Engine::from_parts(
+			Config::default(),
+			Manifest::default(),
+			Manifest::default(),
+			Vec::new(),
+		));
+		let session = session
+			.without_persistence()
+			.with_runtime(runtime.handle().clone());
+		let mut app = None;
+		let handle = cx.open_window(size(px(1180.), px(760.)), |window, cx| {
+			let view = cx.new(|cx| {
+				SettingsApp::new(session, build_rx, runtime.handle().clone(), window, cx)
+			});
+			app = Some(view.clone());
+			Root::new(view, window, cx)
+		});
+		let app = app.expect("view");
+		let hit = |attr: &str| SearchHit {
+			attr: attr.into(),
+			pname: attr.into(),
+			version: "1.0".into(),
+			description: "Search result".into(),
+		};
+
+		// Exercise completion updates on the same page, without a page switch
+		// that could hide a missing repaint or a collapsed list viewport.
+		for hits in [
+			Vec::new(),
+			vec![hit("ripgrep"), hit("fd")],
+			vec![hit("git")],
+			Vec::new(),
+			vec![hit("ripgrep")],
+		] {
+			let count = hits.len();
+			cx.update_window(handle.into(), |_, window, cx| {
+				app.update(cx, |app, cx| {
+					app.results = hits;
+					app.searching = false;
+					cx.notify();
+				});
+				window.render_frame(cx);
+				for index in 0..count {
+					let button = window.find(("install", index));
+					assert!(button.visible(), "Search result {index} must be visible");
+					assert!(button.bounds().size.width > px(0.));
+					assert!(button.bounds().size.height > px(0.));
+				}
+				assert!(window.try_find(("install", count)).is_none());
+			})
+			.expect("window");
+		}
+	}
+
+	#[gpui_kit::test]
+	async fn zoom_keys_scale_the_window_and_survive_theme_changes(cx: &mut TestAppContext) {
+		cx.update(gpui_kit::init);
+		cx.update(super::bind_keys);
+		let runtime = tokio::runtime::Builder::new_current_thread()
+			.enable_all()
+			.build()
+			.expect("runtime");
+		let (session, build_rx) = Session::new(Engine::from_parts(
+			Config::default(),
+			Manifest::default(),
+			Manifest::default(),
+			Vec::new(),
+		));
+		let session = session
+			.without_persistence()
+			.with_runtime(runtime.handle().clone());
+		let handle = cx.open_window(size(px(1180.), px(760.)), |window, cx| {
+			let view = cx.new(|cx| {
+				SettingsApp::new(session, build_rx, runtime.handle().clone(), window, cx)
+			});
+			Root::new(view, window, cx)
+		});
+		let window = handle.into();
+		let rem = |cx: &mut TestAppContext| {
+			cx.update_window(window, |_, window, cx| {
+				window.render_frame(cx);
+				window.rem_size()
+			})
+			.expect("window")
+		};
+		let base = rem(cx);
+		let assert_zoom = |rem: gpui_kit::Pixels, percent: f32| {
+			let expected = base * (percent / 100.);
+			assert!(
+				(rem - expected).abs() < px(0.01),
+				"{rem:?} is not {percent}% of {base:?}"
+			);
+		};
+
+		cx.simulate_keystrokes(window, "ctrl-= ctrl-+");
+		assert_zoom(rem(cx), 120.);
+
+		cx.update_window(window, |_, window, cx| {
+			crate::theme::apply("dracula", Some(window), cx)
+		})
+		.expect("window");
+		assert_zoom(rem(cx), 120.);
+
+		cx.simulate_keystrokes(window, &["ctrl--"; 10].join(" "));
+		assert_zoom(rem(cx), 50.);
+
+		cx.simulate_keystrokes(window, "ctrl-0");
+		assert_zoom(rem(cx), 100.);
+	}
+
+	#[gpui_kit::test]
+	async fn every_page_renders_with_data_and_while_building(cx: &mut TestAppContext) {
+		cx.update(gpui_kit::init);
+		let runtime = tokio::runtime::Builder::new_current_thread()
+			.enable_all()
+			.build()
+			.expect("runtime");
+		let mut home = Manifest::default();
+		home.packages.insert("ripgrep".into());
+		let (session, build_rx) = Session::new(Engine::from_parts(
+			Config::default(),
+			home,
+			Manifest::default(),
+			Vec::new(),
+		));
+		let session = session
+			.without_persistence()
+			.with_runtime(runtime.handle().clone());
+
+		let mut app = None;
+		let handle = cx.open_window(size(px(1180.), px(760.)), |window, cx| {
+			let view = cx.new(|cx| {
+				SettingsApp::new(session, build_rx, runtime.handle().clone(), window, cx)
+			});
+			app = Some(view.clone());
+			Root::new(view, window, cx)
+		});
+		let app = app.expect("view");
+
+		cx.update_window(handle.into(), |_, window, cx| {
+			app.update(cx, |app, cx| {
+				app.set_page(Page::Settings, window, cx);
+				assert_eq!(app.page, Page::Settings);
+				assert!(
+					!app.repository.busy,
+					"Settings must not start repository commands"
+				);
+			});
+		})
+		.expect("window");
+
+		app.update(cx, |app, _| {
+			app.results = vec![SearchHit {
+				attr: "ripgrep".into(),
+				pname: "ripgrep".into(),
+				version: "14.1.1".into(),
+				description: "Fast grep".into(),
+			}];
+			let _cancel = app
+				.session
+				.fake_build(Target::HomeManager, "apply 1 queued change(s)");
+			let nix = |line: &str| BuildEvent::Nix(NixLog::parse(line).expect("structured line"));
+			for event in [
+				BuildEvent::Line("$ home-manager switch".into()),
+				nix(r#"@nix {"action":"start","id":1,"level":0,"parent":0,"text":"","type":104}"#),
+				nix(r#"@nix {"action":"result","fields":[0,2,1,0],"id":1,"type":105}"#),
+				nix(
+					r#"@nix {"action":"start","fields":["/nix/store/z91qddwj7wi5cy096nqchdfy7a83gpjs-hello-2.12.drv","",1,1],"id":2,"level":3,"parent":0,"text":"building","type":105}"#,
+				),
+				nix(r#"@nix {"action":"result","fields":["compiling"],"id":2,"type":101}"#),
+			] {
+				app.session.on_build_event(event);
+			}
+		});
+
+		for page in [
+			Page::Packages,
+			Page::Flakes,
+			Page::Installed,
+			Page::Options,
+			Page::Nixos,
+			Page::Queue,
+			Page::Build,
+			Page::VersionControl,
+			Page::Settings,
+		] {
+			cx.update_window(handle.into(), |_, window, cx| {
+				window.render_frame(cx);
+				let first = window.within("page-tabs").find(0_usize).bounds();
+				let last = window.within("page-tabs").find(7_usize).bounds();
+				assert_eq!(first.top(), last.top(), "Tabs must share a horizontal row");
+				assert!(last.left() > first.right());
+				assert!(first.bottom() < px(120.), "Navigation must stay at the top");
+				let index = match page {
+					Page::Packages => Some(0),
+					Page::Flakes => Some(1),
+					Page::Installed => Some(2),
+					Page::Options => None,
+					Page::Nixos => Some(3),
+					Page::Queue => Some(4),
+					Page::Build => Some(5),
+					Page::VersionControl => Some(6),
+					Page::Settings => Some(7),
+				};
+				if let Some(index) = index {
+					window.within("page-tabs").click(index, cx);
+				}
+				app.update(cx, |app, cx| {
+					let notice = app.repository.notice.clone();
+					if page == Page::Options {
+						app.set_page(page, window, cx);
+					}
+					assert_eq!(app.page, page);
+					if page == Page::VersionControl {
+						assert!(!app.repository.busy, "Rebuilds must block automatic review");
+						assert_eq!(app.repository.notice, notice);
+					}
+				});
+				window.render_frame(cx);
+				if page == Page::Settings {
+					app.update(cx, |app, _| {
+						app.keyboard
+							.settings_scroll
+							.scroll_to_item(crate::ui::settings::TERMINAL_SECTION)
+					});
+					window.render_frame(cx);
+					for (id, command) in [
+						("copy-terminal-tui", "noxi settings tui"),
+						("copy-terminal-cli", "noxi settings --help"),
+					] {
+						assert!(
+							window.find(id).visible(),
+							"Terminal commands must be visible"
+						);
+						window.click(id, cx);
+						assert_eq!(
+							cx.read_from_clipboard().and_then(|item| item.text()),
+							Some(command.to_owned())
+						);
+					}
+					app.update(cx, |app, _| {
+						app.keyboard
+							.settings_scroll
+							.scroll_to_item(crate::ui::settings::PRIVACY_SECTION)
+					});
+					window.render_frame(cx);
+					for id in ["telemetry-off", "telemetry-on", "telemetry-preview"] {
+						assert!(
+							window.find(id).visible(),
+							"Privacy controls must be visible after scrolling"
+						);
+					}
+					assert!(!app.read(cx).session.engine.config.telemetry.enabled);
+					window.click("telemetry-preview", cx);
+					let example = cx
+						.read_from_clipboard()
+						.and_then(|item| item.text())
+						.expect("example report");
+					let report: noxios_settings_core::telemetry::Report =
+						serde_json::from_str(&example).expect("report JSON");
+					report.validate().expect("strict example schema");
+				}
+				if page == Page::Build {
+					assert!(
+						window
+							.find(("build-step", StepKind::Build as usize))
+							.visible(),
+						"A step with work to do is listed"
+					);
+					assert!(
+						window.find("build-step-output").visible(),
+						"The running step shows its log"
+					);
+					window.click(("build-step", StepKind::Evaluate as usize), cx);
+					assert_eq!(app.read(cx).expanded_step(), Some(StepKind::Evaluate));
+					window.render_frame(cx);
+				}
+				if page == Page::Packages {
+					assert!(
+						window.find(("install", 0_usize)).visible(),
+						"Computed search results must be visible in the package list"
+					);
+				}
+			})
+			.expect("window");
+		}
+
+		// ripgrep is only tracked for home and the default target is NixOS, so
+		// it is queued, and waits behind the running rebuild.
+		cx.update_window(handle.into(), |_, window, cx| {
+			app.update(cx, |app, cx| app.install(0, window, cx));
+		})
+		.expect("window");
+		app.read_with(cx, |app, _| {
+			assert_eq!(app.session.queue.len(), 1);
+			assert!(app.status.contains("Queued behind the running rebuild"));
+		});
+
+		cx.update_window(handle.into(), |_, window, cx| {
+			app.update(cx, |app, cx| {
+				// Pending writes must refuse a repository operation before spawning.
+				app.refresh_repository(window, cx);
+				assert!(!app.repository.busy);
+				assert!(app.repository.notice.contains("queued operations"));
+				// A repository worker excludes new writes from every GUI page.
+				app.repository.busy = true;
+				let target = app.session.engine.config.target;
+				app.set_target(Target::HomeManager, cx);
+				assert_eq!(app.session.engine.config.target, target);
+				app.remove_managed("fd".into(), Target::HomeManager, window, cx);
+				assert_eq!(app.session.queue.len(), 1);
+				assert!(app.status.contains("Wait for the repository operation"));
+				app.repository.busy = false;
+			});
+		})
+		.expect("window");
+
+		app.update(cx, |app, _| {
+			app.flake_details = Some(FlakeDetails {
+				repo: "owner/repo".into(),
+				repo_url: String::new(),
+				path: "flake.nix".into(),
+				description: None,
+				stars: 0,
+				topics: Vec::new(),
+				homepage: None,
+				default_branch: "main".into(),
+				pushed_at: None,
+				archived: false,
+				inputs: Vec::new(),
+				outputs: Vec::new(),
+				output_entries: Vec::new(),
+				system: "x86_64-linux".into(),
+				packages: vec![FlakePackage {
+					attr: "default".into(),
+					name: "pkg".into(),
+					version: String::new(),
+				}],
+				modules: vec!["nixosModules.server".into()],
+				nixos_module: None,
+				home_manager_module: None,
+			});
+			app.flake_picker_open = true;
+			app.page = Page::Flakes;
+		});
+		cx.update_window(handle.into(), |_, window, cx| {
+			window.render_frame(cx);
+			app.update(cx, |app, cx| {
+				app.install_flake_choice("nixosModules.server", window, cx)
+			});
+		})
+		.expect("window");
+		app.read_with(cx, |app, _| {
+            assert_eq!(app.session.queue.len(), 2);
+            assert!(!app.flake_picker_open);
+            assert!(matches!(app.session.queue.back(), Some(Op::InstallFlake { module, .. }) if module == "nixosModules.server"));
+        });
+		cx.update_window(handle.into(), |_, window, cx| {
+			app.update(cx, |app, cx| {
+				app.session.on_build_event(BuildEvent::Cancelled);
+				assert!(!app.session.is_building());
+				assert_eq!(app.session.queue.len(), 2);
+				app.refresh_repository(window, cx);
+				assert!(!app.repository.busy);
+				assert!(app.repository.notice.contains("queued operations"));
+			});
+		})
+		.expect("window");
+	}
+
+	#[gpui_kit::test]
+	async fn tab_labels_and_the_repository_panes_render(cx: &mut TestAppContext) {
+		cx.update(gpui_kit::init);
+		let runtime = tokio::runtime::Builder::new_current_thread()
+			.enable_all()
+			.build()
+			.expect("runtime");
+		let (session, build_rx) = Session::new(Engine::from_parts(
+			Config::default(),
+			Manifest::default(),
+			Manifest::default(),
+			Vec::new(),
+		));
+		let session = session
+			.without_persistence()
+			.with_runtime(runtime.handle().clone());
+		let mut app = None;
+		let handle = cx.open_window(size(px(1180.), px(760.)), |window, cx| {
+			let view = cx.new(|cx| {
+				SettingsApp::new(session, build_rx, runtime.handle().clone(), window, cx)
+			});
+			app = Some(view.clone());
+			Root::new(view, window, cx)
+		});
+		let app = app.expect("view");
+
+		let mut widths = Vec::new();
+		for labels in TabLabels::ALL {
+			cx.update_window(handle.into(), |_, window, cx| {
+				// Assigned directly: `set_tab_labels` would save the host's settings.
+				app.update(cx, |app, cx| {
+					app.session.engine.config.tab_labels = labels;
+					cx.notify();
+				});
+				window.render_frame(cx);
+				let first = window.within("page-tabs").find(0_usize).bounds();
+				let last = window.within("page-tabs").find(7_usize).bounds();
+				assert_eq!(first.top(), last.top(), "{labels:?} tabs share a row");
+				widths.push(first.size.width);
+			})
+			.expect("window");
+		}
+		let [icons, both, names] = widths[..] else {
+			unreachable!()
+		};
+		assert!(icons < names && names < both, "{widths:?}");
+
+		cx.update_window(handle.into(), |_, window, cx| {
+			window.render_frame(cx);
+			let first = window.within("page-tabs").find(0_usize).bounds();
+			let last = window.within("page-tabs").find(7_usize).bounds();
+			let center = (first.left() + last.right()) / 2.;
+			assert!(
+				(center - px(590.)).abs() < px(8.),
+				"Tabs center in the window: {center:?}"
+			);
+			assert!(first.top() < px(8.), "Tabs sit at the top: {first:?}");
+			let close = window.find("window-close").bounds();
+			assert!(
+				(close.right() - px(1172.)).abs() < px(1.)
+					&& ((close.top() + close.bottom()) / 2. - (first.top() + first.bottom()) / 2.)
+						.abs()
+						< px(1.),
+				"The close button sits at the right, vertically centered with the tabs: {close:?}"
+			);
+			app.update(cx, |app, cx| {
+				app.session.engine.config.close_button = false;
+				cx.notify();
+			});
+			window.render_frame(cx);
+			assert!(window.try_find("window-close").is_none());
+
+			// A missing directory is refused before anything is saved or reloaded.
+			app.update(cx, |app, cx| {
+				let before = app.session.config_dir();
+				let missing = std::env::temp_dir().join("noxios-settings-missing-config-dir");
+				app.set_config_dir(Some(missing), window, cx);
+				assert!(app.status.contains("is not a directory"), "{}", app.status);
+				assert_eq!(app.session.config_dir(), before);
+				assert_eq!(
+					app.config_dir_input.read(cx).value().as_str(),
+					before.display().to_string()
+				);
+			});
+		})
+		.expect("window");
+
+		cx.update_window(handle.into(), |_, window, cx| {
+			app.update(cx, |app, cx| {
+				let root = std::env::temp_dir();
+				app.repository.backend = Some(Backend::Git);
+				app.repository.detected = Some(Repository {
+					backend: Backend::Git,
+					root: root.clone(),
+					config_root: root,
+				});
+				app.repository.loaded = true;
+				app.page = Page::VersionControl;
+				cx.notify();
+			});
+			window.render_frame(cx);
+			// The commit and push controls sit beside the diff, not below it.
+			for id in ["repository-commit", "repository-push"] {
+				assert!(window.find(id).visible(), "{id} must be visible");
+			}
+			// The remote section can sit below the fold of the scrolling panel.
+			assert!(window.try_find("repository-create-remote").is_some());
+		})
+		.expect("window");
+	}
+	#[gpui_kit::test]
+	async fn configuration_picker_renders_choices_and_blocks_queued_target_changes(
+		cx: &mut TestAppContext,
+	) {
+		cx.update(gpui_kit::init);
+		let runtime = tokio::runtime::Builder::new_current_thread()
+			.enable_all()
+			.build()
+			.unwrap();
+		let config = Config {
+			config_dir: Some(std::env::temp_dir().join("noxios-settings-picker-render-only")),
+			..Config::default()
+		};
+		let (session, build_rx) = Session::new(Engine::from_parts(
+			config,
+			Manifest::default(),
+			Manifest::default(),
+			Vec::new(),
+		));
+		let mut session = session.without_persistence();
+		session.queue.push_back(Op::Install {
+			hit: SearchHit {
+				attr: "hello".into(),
+				pname: "hello".into(),
+				version: String::new(),
+				description: String::new(),
+			},
+			scope: Target::NixosSystem,
+		});
+		let mut view = None;
+		let handle = cx.open_window(size(px(1180.), px(1400.)), |window, cx| {
+			let app = cx.new(|cx| {
+				let mut app =
+					SettingsApp::new(session, build_rx, runtime.handle().clone(), window, cx);
+				app.page = Page::Settings;
+				app.configuration_choices =
+					vec![noxios_settings_core::configurations::ConfigurationChoice {
+						label: "NixOS: server".into(),
+						host: Some("server".into()),
+						user: None,
+						home: None,
+					}];
+				app
+			});
+			view = Some(app.clone());
+			Root::new(app, window, cx)
+		});
+		let view = view.unwrap();
+		cx.update_window(handle.into(), |_, window, cx| {
+			window.render_frame(cx);
+			assert!(window.find("configuration-0").bounds().size.width > px(0.));
+			assert!(window.find("dendritic-detection").bounds().size.width > px(0.));
+			view.update(cx, |app, cx| {
+				app.set_dendritic_detection(false, cx);
+				assert!(app.session.engine.config.dendritic_detection);
+				assert!(app.status.contains("queued work"), "{}", app.status);
+			});
+			window
+				.within("configuration-selection")
+				.click("configuration-0", cx);
+			view.update(cx, |app, _| {
+				assert!(app.session.engine.config.nixos_host.is_none())
+			});
+		})
+		.unwrap();
+	}
+}

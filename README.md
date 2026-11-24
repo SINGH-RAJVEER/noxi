@@ -28,7 +28,7 @@ From a checkout, `nix run . -- eval --expr '1 + 2'` builds and runs the same com
 | [Declarative configuration workflow](docs/configuration-workflow.md) | Source of truth, staged edits, rebuild, runtime actions, and rollback |
 | [Scoped application builds](docs/scoped-application-builds.md) | Planned user, machine, and project application changes without a full system generation |
 | [Native projects and development environments](docs/development-environments.md) | Compatible flake environments, a dedicated devenv equivalent, optional native projects, and built-in server supervision |
-| [NixBox integration](docs/nixbox-integration.md) | Typed package operations, direct engine use, and declarative persistence |
+| [noxios Settings](docs/settings.md) | Typed package operations, direct engine use, and declarative persistence |
 | [Rebuild diagnostics and logging](docs/logging.md) | Rebuild phases, event schema, error rendering, output modes, and log tests |
 | [Performance architecture](docs/performance.md) | Optimization hypotheses, CppNix prior art, compatibility constraints, and implementation order |
 | [Benchmarks against CppNix](docs/performance-benchmarks.md) | Paired measurement protocol and 154 planned scenarios across 18 families |

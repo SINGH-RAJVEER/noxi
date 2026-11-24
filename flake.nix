@@ -51,6 +51,7 @@
 			# probes and inspection. Never deploy them to a host.
 			nixosConfigurations = replacement.configurations // {
 				noxios-iso = noxios.iso;
+				noxios-iso-graphical = noxios.graphical;
 			};
 			homeConfigurations.qualification = qualification.inputs.home-manager.lib.homeManagerConfiguration {
 				pkgs = qualification.inputs.nixpkgs.legacyPackages.x86_64-linux;
@@ -77,7 +78,7 @@
 				};
 			};
 			nixosModules.qualification = import ./nix/qualification-module.nix;
-			# Replaces `nix.package` with noxi and leaves every other NixOS default.
+			# Uses noxi as the engine and installs the built-in settings interfaces.
 			nixosModules.noxios = noxios.module;
 			packages = forAllSystems (system: {
 				default = preview system;
@@ -86,6 +87,7 @@
 				noxi-replacement = replacement.candidate;
 				# The NixOS minimal installation ISO with noxi as `nix.package`.
 				noxios-iso = noxios.image;
+				noxios-iso-graphical = noxios.graphicalImage;
 				qualification-nixos-report = replacement.reports.nixos;
 				qualification-home-manager-report = replacement.reports.home-manager;
 				qualification-lifecycle-report = replacement.reports.lifecycle;

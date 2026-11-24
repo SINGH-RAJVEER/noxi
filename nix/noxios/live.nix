@@ -16,6 +16,7 @@
 	rust-overlay,
 	# The noxi repository source the image was built from.
 	source,
+	graphical ? false,
 }:
 { config, lib, pkgs, ... }:
 let
@@ -55,7 +56,12 @@ let
 	};
 	flake = pkgs.runCommand "noxios-live-flake" { nativeBuildInputs = [ pkgs.jq ]; } ''
 		mkdir "$out"
-		cp ${./live/flake.nix} "$out/flake.nix"
+		${if graphical then ''
+			substitute ${./live/flake.nix} "$out/flake.nix" \
+				--replace-fail 'noxios.iso.extendModules' 'noxios.graphical.extendModules'
+		'' else ''
+			cp ${./live/flake.nix} "$out/flake.nix"
+		''}
 		cp ${./live/configuration.nix} "$out/configuration.nix"
 		jq . ${pkgs.writeText "flake.lock" (builtins.toJSON lock)} > "$out/flake.lock"
 	'';
@@ -74,7 +80,10 @@ in
 	boot.postBootCommands = ''
 		if ! [ -e /etc/nixos/flake.nix ]; then
 			mkdir -p /etc/nixos
-			install -m 0644 ${flake}/flake.nix ${flake}/flake.lock ${flake}/configuration.nix /etc/nixos/
+			install -o noxi -g users -m 0644 ${flake}/flake.nix ${flake}/flake.lock ${flake}/configuration.nix /etc/nixos/
+			# The live administrator owns this ephemeral workspace so Settings
+			# can create managed modules and atomically replace files.
+			chown noxi:users /etc/nixos
 		fi
 	'';
 }

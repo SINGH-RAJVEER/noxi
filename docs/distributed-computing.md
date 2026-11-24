@@ -50,7 +50,7 @@ Fleet support must add depth to the existing [product architecture](product.md#r
 | Machine executor | Accept a reviewed step bound to machine identity, closure, and operation identifier | Local authorization, activation serialization, durable step results, reboot and reconnect verification |
 | Provisioning adapter | Resolve a bounded capacity request to admitted machines or a specific capacity failure | Infrastructure-specific creation, enrollment, readiness, removal, and quota handling |
 
-NixBox coordinates plans and exposes inspection, preview, apply, observation, cancellation, and resume through one versioned operation interface. The noxi engine evaluates and realizes ordinary NixOS closures. NixOS activation applies each closure. Kubernetes schedules Pods; the fleet planner does not become another Pod scheduler. A remote Nix builder builds derivations and is not implicitly a Kubernetes worker.
+Settings coordinates plans and exposes inspection, preview, apply, observation, cancellation, and resume through one versioned operation interface. The noxi engine evaluates and realizes ordinary NixOS closures. NixOS activation applies each closure. Kubernetes schedules Pods; the fleet planner does not become another Pod scheduler. A remote Nix builder builds derivations and is not implicitly a Kubernetes worker.
 
 Topology adapters may call pinned upstream tools such as kubeadm through typed execution steps. Their interfaces must define authority, retry behavior, durable state, and health checks. The result cannot be inferred solely from command exit status or human-readable output. There is no generic "run this shell command as root on every machine" substitute for these contracts.
 
