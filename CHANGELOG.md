@@ -137,6 +137,7 @@ Nix language parser, compiler and bytecode VM with the pure builtins, imported f
 
 ### Unreleased
 
+- String coercion through `__toString`, `outPath` and nested lists is limited by `max-call-depth`; an endless chain looped forever before. The upstream `eval.sh` functional script passes (2026-11-25).
 - `builtins.appendContext` prints a context key that is not a store path as CppNix prints the symbol, quoted unless it is a plain identifier (`context key '"/bad"' is not a store path`) (2026-11-21).
 - Avoid recursive JSON conversion, serialization and release, and release long attribute-set chains iteratively. The two recorded deep-value crashes now return controlled errors (2026-10-03).
 
@@ -375,6 +376,7 @@ Serializes Rust values into Nix and deserializes Nix values into Rust types, imp
 
 ### Unreleased
 
+- The `nix-channel` download test's server runs until the comparisons end and drops a connection that is too slow to send its headers. Its 40 s limit also covered copying the reference's closure, so loaded runs lost the server (2026-11-25).
 - `nix store verify`, `nix store ls`, `nix store cat` and `nix store dump-path` read paths from disk whenever the store URI resolves to a local store, so the default `auto` store works for root on NixOS as in CppNix. They used to require an explicit `--store local` (2026-11-20).
 - `nix-instantiate --dry-run` computes derivation paths without writing them, as CppNix's read-only mode does, even with `--read-write-mode`. It used to be rejected as an unrecognised flag (2026-11-20).
 - `nix flake lock|update|metadata` decide on writing the lock in the reference's order and under its trace frame. `nix flake lock` refuses a lock with an unlocked input, the other commands leave it unwritten and warn when `warn-dirty` is set, and an empty-diff rewrite prints `updating lock file "PATH"`. `flake prefetch` of a tarball or file reports `narHash` in `locked`. The new `reference_flake_lock` test compares 32 lock, follows, override, registry and policy cases, lock bytes included, with 2.35.2 (2026-11-21).
@@ -429,6 +431,9 @@ Serializes Rust values into Nix and deserializes Nix values into Rust types, imp
 Internal test crate that checks the workspace crates against the CppNix 2.35.2 fixtures in `tests/nix/`. Not published.
 
 ### Unreleased
+
+- `upstream_functional` makes its scratch roots in `NOXI_FUNCTIONAL_SCRATCH` (default `/tmp`) and refuses a directory below a `.git`, which both engines' Git discovery would find. The expectation table records the eleven scripts that now pass under both engines (2026-11-25).
+- `every_protocol_version_matches_the_reference` runs with no other test alongside, as the other tests that list roots do (2026-11-25).
 
 #### Added
 
@@ -551,6 +556,7 @@ Internal trybuild tests for `nix-compat-derive`.
 
 ### Unreleased
 
+- Write the build directory cleanup mode in octal, which clippy rejected (2026-11-25).
 - `backend::Worker::cancelled` cancels the worker's builds when the flag becomes true, which the daemon sets when its client hangs up (2026-11-21).
 - `backend::Worker` is the local worker of one `buildPaths` call on a borrowed store, settings and substituters, which the local backend and the daemon's `BuildPaths` both run; `backend::announce_goals` and `backend::BuildLogs` (with `repairing` for `repairing outputs of` activities) are public so the daemon's other build operations report the same goal progress and build activities (2026-11-21).
 - Substituters are asked in priority order, as CppNix's `getDefaultSubstituters` sorts them, keeping the configured order among equal priorities. They used to be asked in configured order, so `--extra-substituters "auto?trusted=1"` (priority 0) came after cache.nixos.org (40), and an install fetched paths from the network that the running system already had (2026-11-21).
