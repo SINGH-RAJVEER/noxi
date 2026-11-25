@@ -569,5 +569,5 @@ tests/functional/user-envs-migration.sh anomaly skip skip # reference skip: Daem
 tests/functional/user-envs-test-case.sh support
 tests/functional/user-envs.builder.sh support
 tests/functional/user-envs.nix support
-tests/functional/user-envs.sh gap fail pass # source in ./user-envs-test-case.sh:20: JSON outputName and null output paths differ
+tests/functional/user-envs.sh pass pass pass
 tests/functional/why-depends.sh pass pass pass

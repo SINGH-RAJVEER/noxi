@@ -7,6 +7,9 @@ Changes that have not reached a version yet go under an `Unreleased` heading for
 ## Repository - Unreleased
 
 - `nix-channel --update` accepts local channel directory URLs and looks for `nixexprs.tar.xz` or `nixexprs.tar.bz2` inside them.
+- `nix-env` keeps list indices in JSON queries, reads `NIX_PATH` before processing its flags, and finds channel expressions through symlinks to Nix files. `nix-store --query --resolve` prints the enclosing store path of a symlink or store path operand.
+- Shell completion suggests command names, flake directories for `nix build`, and package names for profile removal and upgrades. Profile upgrades report when none of the requested names or patterns match.
+- The REPL can build derivations with `:b`, create result links with `:bl`, and read logs with `:log`. Named `nix config show` queries respect experimental feature gates.
 
 - `builtin:fetchurl` downloads flat files, executables and NARs, from `hashed-mirrors` first. It runs outside the sandbox, so `file:` URLs are refused unless the builder would run unsandboxed as the same user. Builders with network access see the `ssl-cert-file` certificates at `/etc/ssl/certs/ca-certificates.crt` (2026-11-25).
 - Dynamic derivations build: derivations with inputs that are outputs of derivations still to be built are evaluated, written and read in the `DrvWithVersion` form, resolved and built, and `nix build DRV^out^out` and `builtins.outputOf` installables build them. A failed resolved derivation is reported as in 2.35.2 (2026-11-25).

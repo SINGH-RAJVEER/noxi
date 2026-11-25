@@ -425,6 +425,60 @@ enum Outcome {
 }
 
 impl Session {
+	fn derivation_command(&mut self, command: &str, arg: &str) -> Result<(), Failure> {
+		let fragment = self.fragment(arg);
+		let cwd = std::env::current_dir()?;
+		let mut options = self.options.clone();
+		options.strict = true;
+		options.inputs = vec![format!(
+			"{} (let d = {fragment}; in if builtins.isAttrs d && (d.type or null) == \"derivation\" then d.drvPath else null)",
+			self.layers.join(" ")
+		)];
+		let Ok(evaluated) = instantiate::evaluate(&options, &cwd) else {
+			return Ok(());
+		};
+		let Some(Value::String(path)) = evaluated.results.first() else {
+			return Err(Failure::Error(
+				"expression does not evaluate to a derivation, so I can't build it".into(),
+			));
+		};
+		let store = evaluated
+			.store
+			.ok_or_else(|| Failure::Error("a writable store is required".into()))?;
+		let drv = nix_compat::store_path::StorePath::from_absolute_path(path.as_bytes())
+			.map_err(|e| e.to_string())?;
+		if command == ":log" {
+			let uri = crate::store::store_uri(options.store.as_deref(), &options.settings);
+			super::inspection::write_build_log(
+				store.as_ref(),
+				&drv,
+				&drv.to_absolute_path(),
+				&uri,
+				&options.settings,
+			)?;
+			println!();
+			return Ok(());
+		}
+		let target = noxi_store::DerivedPath::Built {
+			drv,
+			outputs: Default::default(),
+		};
+		store.build_paths(std::slice::from_ref(&target))?;
+		let outputs = super::expression::outputs(store.as_ref(), &target)?;
+		println!("\nThis derivation produced the following outputs:");
+		for (name, path) in outputs {
+			let label = if command == ":bl" {
+				let label = format!("./repl-result-{name}");
+				store.add_perm_root(&path, &cwd.join(&label))?;
+				label
+			} else {
+				name
+			};
+			println!("  {label} -> {}", path.to_absolute_path());
+		}
+		Ok(())
+	}
+
 	fn fragment(&mut self, text: &str) -> String {
 		self.options.fragments.push(text.to_owned());
 		format!("@@noxi-frag-{}@@", self.options.fragments.len() - 1)
@@ -596,7 +650,10 @@ fn process(session: &mut Session, input: &str) -> Result<Line, Failure> {
 	} else {
 		("", line)
 	};
-	let evaluating = matches!(command, "" | ":a" | ":add" | ":t" | ":p" | ":print");
+	let evaluating = matches!(
+		command,
+		"" | ":a" | ":add" | ":t" | ":p" | ":print" | ":b" | ":bl" | ":log"
+	);
 	if evaluating && incomplete(arg) {
 		return Ok(Line::Incomplete);
 	}
@@ -669,7 +726,15 @@ fn process(session: &mut Session, input: &str) -> Result<Line, Failure> {
 				.settings
 				.set("show-trace", if enable { "true" } else { "false" });
 		}
-		":b" | ":bl" | ":i" | ":sh" | ":log" | ":u" | ":e" | ":edit" | ":doc" => {
+		":b" | ":bl" | ":log" => {
+			if let Err(
+				Failure::Usage(message) | Failure::Error(message) | Failure::Exit(_, message),
+			) = session.derivation_command(command, arg)
+			{
+				print_error(&message);
+			}
+		}
+		":i" | ":sh" | ":u" | ":e" | ":edit" | ":doc" => {
 			print_error(&format!("the noxi repl does not support '{command}' yet"));
 		}
 		"" => {

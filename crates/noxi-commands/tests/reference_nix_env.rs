@@ -217,17 +217,19 @@ fn available_packages_skip_failed_candidates() {
 		]"#,
 	)
 	.unwrap();
-	let run = |binary: &Path, engine: &str| {
+	let run = |binary: &Path, engine: &str, format: &[&str]| {
 		let state = dir.join(engine);
 		let store = state.join("store");
 		let profile = state.join("profile");
 		let output = command(dir, binary)
+			.env("NIX_PATH", "fixture=./packages.nix")
 			.env("NIX_STATE_DIR", state.join("state"))
 			.env("NIX_STORE_DIR", &store)
 			.env("NIX_LOG_DIR", state.join("log"))
 			.args(["--store", "local", "--profile"])
 			.arg(&profile)
-			.args(["-f", "packages.nix", "-qa", "*"])
+			.args(["-f", "<fixture>", "-qa", "*"])
+			.args(format)
 			.output()
 			.unwrap();
 		assert!(!profile.exists());
@@ -238,11 +240,22 @@ fn available_packages_skip_failed_candidates() {
 		);
 		output
 	};
-	let expected = run(&reference_bin().join("nix-env"), "reference");
-	let actual = run(Path::new(env!("CARGO_BIN_EXE_nix-env")), "candidate");
-	assert_eq!(expected.status.code(), Some(0));
-	assert_eq!(expected.stdout, b"working-1\n");
-	assert_eq!(actual.status.code(), expected.status.code());
-	assert_eq!(actual.stdout, expected.stdout);
-	assert_eq!(actual.stderr, expected.stderr);
+	for format in [&[][..], &["--json"][..]] {
+		let expected = run(&reference_bin().join("nix-env"), "reference", format);
+		let actual = run(
+			Path::new(env!("CARGO_BIN_EXE_nix-env")),
+			"candidate",
+			format,
+		);
+		assert_eq!(expected.status.code(), Some(0));
+		if format.is_empty() {
+			assert_eq!(expected.stdout, b"working-1\n");
+		} else {
+			let json: serde_json::Value = serde_json::from_slice(&expected.stdout).unwrap();
+			assert_eq!(json["3"]["name"], "working-1");
+		}
+		assert_eq!(actual.status.code(), expected.status.code());
+		assert_eq!(actual.stdout, expected.stdout);
+		assert_eq!(actual.stderr, expected.stderr);
+	}
 }

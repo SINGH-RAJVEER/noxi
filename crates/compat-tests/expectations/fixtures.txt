@@ -322,7 +322,7 @@ unrun tests/functional/test-libstoreconsumer.sh # needs the C++ libstore consume
 gap tests/functional/timeout.sh # timed out at +(common/functions.sh:331) command grep 'killed after writing more than 100 bytes of log output'
 pass:upstream_functional tests/functional/toString-path.sh
 anomaly tests/functional/user-envs-migration.sh # reference skip: Daemon is too new, skipping this test...
-gap tests/functional/user-envs.sh # source in ./user-envs-test-case.sh:20: JSON outputName and null output paths differ
+pass tests/functional/user-envs.sh
 pass:upstream_functional tests/functional/why-depends.sh
 table:upstream_functional tests/functional/**/* # helpers and data read by the scripts
 # Out of scope for compat-tests: NixOS VM tests run in the qualification VMs (owner: TODO section 7, NixOS and Home Manager replacement).

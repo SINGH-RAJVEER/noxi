@@ -446,7 +446,15 @@ A focused run against 2.35.2 passed five more scripts from the single-command ro
 - `nar-access.sh` covers missing entry diagnostics in recursive JSON and human-readable store listings.
 - `no-url-literals.sh` covers the warning that directs users of the retired experimental feature to `lint-url-literals = fatal`.
 
-The `available_packages_skip_failed_candidates` comparison covers `nix-env -qa` with an assertion, a throw, a derivation whose name fails an assertion, and a valid sibling in an isolated store with a custom logical store directory. Package discovery skips those failed candidates. A failure importing or auto-calling the root still propagates. The comparison checks stdout, stderr, exit status, and that the query creates neither a store object nor a profile link. In the functional run, `nix-collect-garbage-d.sh` passes. `user-envs.sh` reaches the JSON query at line 20 of `user-envs-test-case.sh`, where the reference includes `outputName` and null output paths without `--out-path`. `nix-profile.sh` reaches profile-removal completion at line 75. Both remain gaps.
+The `available_packages_skip_failed_candidates` comparison covers `nix-env -qa` with an assertion, a throw, a derivation whose name fails an assertion, and a valid sibling in an isolated store with a custom logical store directory. Package discovery skips those failed candidates and retains the original list index in JSON. The expression is loaded from a relative `NIX_PATH` entry. The comparison checks stdout, stderr, exit status, and that the query creates neither a store object nor a profile link. A failure importing or auto-calling the root still propagates.
+
+`user-envs.sh` passes on both engines. It covers the JSON queries, an upgrade through `NIX_PATH`, generation changes and symlink resolution, and installing from a channel expression under a symlinked home directory. `user-envs-migration.sh` remains a reference skip.
+
+`nix-store --query --resolve` follows symlinks to the enclosing store path even when the path is unregistered. `resolves_store_links_without_requiring_a_valid_path` compares the successful and missing-path results against CppNix.
+
+`nix-profile.sh` passes the completion and no-match diagnostics and reaches the content-addressed upgrade at line 176. The command tries to read the `man` output before the build has made it available. `completions.sh` reaches the `--override-input` argument completion at line 47. Flake input and attribute completion remain open.
+
+`repl.sh` and `ca/repl.sh` get through the build, result link and log checks. Both stop at line 70 of `repl.sh`, where starting the REPL with a non-flake file as an installable should fail. `experimental-features.sh` gets through the named config queries and stops at `nix --help` at line 78.
 
 Building the remaining kinds of outputs was closed next. The run at `84915f32` ([records](../tests/compat-results/2026-11-25-84915f32-store/)), which also holds the flake and single-command fixes, gives 107 pass, 95 gap, 10 anomaly and 2 unrun, and no script that passed at `08e4440a` fails. `reference_rebuild`, `reference_daemon_client` and `reference_experimental_outputs` compare each behavior below with the reference.
 

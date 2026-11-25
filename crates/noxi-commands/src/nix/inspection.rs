@@ -75,15 +75,23 @@ pub fn log(parsed: Parsed) -> Result<ExitCode, Failure> {
 		.first()
 		.cloned()
 		.unwrap_or_else(|| path.to_absolute_path());
+	let uri = crate::store::store_uri(parsed.value("store"), &parsed.settings);
+	write_build_log(target.store.as_ref(), path, &what, &uri, &parsed.settings)?;
+	Ok(ExitCode::SUCCESS)
+}
+
+pub(super) fn write_build_log(
+	store: &dyn noxi_store::Store,
+	path: &nix_compat::store_path::StorePath,
+	what: &str,
+	uri: &str,
+	settings: &nix_compat::nixcpp::settings::Settings,
+) -> Result<(), Failure> {
 	let drv = if path.name().ends_with(".drv") {
 		Some(path.clone())
 	} else {
-		target
-			.store
-			.query_path_info(path)?
-			.and_then(|info| info.deriver)
+		store.query_path_info(path)?.and_then(|info| info.deriver)
 	};
-	let uri = crate::store::store_uri(parsed.value("store"), &parsed.settings);
 	// `fetchBuildLog`: the store, then the substituters that keep logs.
 	let found = |from: &str| {
 		// `printInfo`.
@@ -91,18 +99,18 @@ pub fn log(parsed: Parsed) -> Result<ExitCode, Failure> {
 			eprintln!("got build log for '{what}' from '{from}'");
 		}
 	};
-	let own_cache = crate::store::cache(&uri)?;
+	let own_cache = crate::store::cache(uri)?;
 	if let (Some(cache), Some(drv)) = (&own_cache, &drv)
 		&& let Some(log) = cache.build_log(drv)?
 	{
 		found(cache.uri());
 		io::Write::write_all(&mut io::stdout().lock(), &log)?;
-		return Ok(ExitCode::SUCCESS);
+		return Ok(());
 	}
 	if own_cache.is_none()
 		&& let Some(drv) = &drv
 	{
-		let Some((local, _)) = crate::store::open_local(&uri, &parsed.settings)? else {
+		let Some((local, _)) = crate::store::open_local(uri, settings)? else {
 			return Err(unsupported("log for this store"));
 		};
 		let name = drv.to_string();
@@ -127,7 +135,7 @@ pub fn log(parsed: Parsed) -> Result<ExitCode, Failure> {
 						Box::new(BufReader::new(file)),
 					)?;
 					io::copy(&mut reader, &mut io::stdout().lock())?;
-					return Ok(ExitCode::SUCCESS);
+					return Ok(());
 				}
 				Err(error) if error.kind() == io::ErrorKind::NotFound => {}
 				Err(error) => return Err(error.into()),
@@ -135,16 +143,13 @@ pub fn log(parsed: Parsed) -> Result<ExitCode, Failure> {
 		}
 	}
 	let mut unread = false;
-	for uri in parsed
-		.settings
-		.get_list("substituters", &["https://cache.nixos.org/"])
-	{
+	for uri in settings.get_list("substituters", &["https://cache.nixos.org/"]) {
 		match (crate::store::cache(uri), &drv) {
 			(Ok(Some(cache)), Some(drv)) => {
 				if let Some(log) = cache.build_log(drv)? {
 					found(cache.uri());
 					io::Write::write_all(&mut io::stdout().lock(), &log)?;
-					return Ok(ExitCode::SUCCESS);
+					return Ok(());
 				}
 			}
 			(Ok(Some(_)), None) => {}
