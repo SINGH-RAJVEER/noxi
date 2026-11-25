@@ -170,21 +170,12 @@ const IMPURE: &str = "__impure = true;";
 const HASH: &str = r#"outputHash = builtins.hashString "sha256" "one\n";"#;
 
 /// One build of a `builtin:fetchurl` derivation.
+#[derive(Default)]
 struct Case<'a> {
 	/// Attributes besides the defaults of a flat output with contents `one`.
 	attrs: &'a str,
 	config: &'a str,
 	env: &'a [(&'a str, &'a str)],
-}
-
-impl Default for Case<'_> {
-	fn default() -> Self {
-		Self {
-			attrs: "",
-			config: "",
-			env: &[],
-		}
-	}
 }
 
 /// What a build did: its exit status, the output's contents and mode, and the
