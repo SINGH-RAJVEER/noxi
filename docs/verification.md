@@ -435,7 +435,7 @@ Four more causes were closed later that day. The run at `877665e` (`tests/compat
 
 - Rebuilding with some outputs valid (row 3): unsandboxed builds write an output whose path is present to a scratch path and rewrite its hash parts afterwards, as `DerivationBuilderImpl` does. `build-delete` and `ca/build-delete` pass.
 - `--check` and repair (row 6): `repair` and `post-hook` pass, and `ca/post-hook` from row 2. `check` reaches line 95 of 122 and stops at `builtin:fetchurl`; `linux-sandbox` reaches line 81 of 148 and stops at `ssl-cert-file` in fixed-output sandboxes. `keep-failed`, `diff-hook` and `post-build-hook` work.
-- Store derivation arguments (row 10): `nix-build` and `multiple-outputs` pass, and `ca/multiple-outputs` from row 2. `nix-shell` and `ca/nix-shell` stop at shebang scripts.
+- Store derivation arguments (row 10): `nix-build` and `multiple-outputs` pass, and `ca/multiple-outputs` from row 2. `nix-shell` and `ca/nix-shell` pass since shebang scripts are run (`runs_shebang_scripts`, `looks_for_shell_nix_as_configured`).
 - `file://` as a store and store types (row 7): `ca/nix-copy`, `ca/signatures` and `read-only-store` pass. `binary-cache` reaches line 99 of 372 and stops at the HTTP code path forced by `_NIX_FORCE_HTTP`; `binary-cache-build-remote` stops at remote builders, `build-remote-with-mounted-ssh-ng` at `mounted-ssh-ng://` and `bad-uris` at `local-overlay://`. `signing` (row 19) reaches line 103 of 119 and stops at the `require-sigs` store parameter.
 
 A focused run against 2.35.2 passed five more scripts from the single-command row under both engines:
@@ -462,14 +462,19 @@ Building the remaining kinds of outputs was closed next. The run at `84915f32` (
 - Text-hashed and Git-hashed outputs, fixed or floating, and `nix store add --mode text|git` and `nix hash path --mode git` (row 4): `add`, `git-hashing/fixed`, `git-hashing/simple-sha1` and `git-hashing/simple-sha256` pass, `dyn-drv/text-hashed-output` from row 2 with `nix path-info --derivation`, and `fixed` from row 17, whose flat output with references is refused.
 - Impure derivations (row 2) are built at random paths, once per request, and leave no realisation. `impure-derivations` passes.
 - Dynamic derivations (row 2): the `DrvWithVersion` form is evaluated, written, read and resolved, and `DRV^out^out` installables are built. `dyn-drv/build-built-drv`, `dyn-drv/dep-built-drv` and `dyn-drv/failing-outer` pass. `dyn-drv/dep-built-drv-2` and `dyn-drv/recursive-mod-json` stop at `recursive-nix`.
-- `builtin:fetchurl` and `ssl-cert-file` (rows 6 and 17): `fetchurl` and `check` pass. `linux-sandbox` reaches line 104 of 148 and stops at the refusal of `sandbox-paths` targets that contain `..` or an empty name.
+- `builtin:fetchurl` and `ssl-cert-file` (rows 6 and 17): `fetchurl` and `check` pass.
 
 Differences that remain in these areas:
 
-- The reference runs `builtin:fetchurl` as the build user in the sandbox. noxi runs it in the building process, so it refuses every `file:` URL in the sandbox or with build users, also those of files the builder could read: ones in `sandbox-paths`, or readable to the build user without a sandbox. It sends no `netrc` credentials, verifies TLS against ureq's roots rather than `ssl-cert-file`, and the `timeout` settings do not stop it.
 - `DRV^out^out` is built in two requests, so the second one's list of missing paths is printed separately. `--json` and `--dry-run` with it fail explicitly.
-- Outputs of impure derivations are known to `nix build` and `nix shell` in a local store. Through a daemon, and in other commands, they are reported as not built.
+- Outputs of impure derivations are known to `nix build`, also through a daemon (`impure_outputs_come_back_through_both_daemons`), and to `nix shell` in a local store. In other commands they are reported as not built. A noxi daemon that returns results builds independent targets in the order given, where the reference's order differs.
 - Binary caches do not read narinfo files with a Git content address.
+
+Flake and Git fetcher follow-up (rows 15 and 16):
+
+- `flakes/dubious-query` and `git/packed-refs-no-cache` pass on both engines. The latter reaches upstream's explicitly inverted final assertion, which expects a refresh when the cached branch ref is packed.
+- `flakes/check` reaches line 157. The check builds successfully and the script stops at the missing `running 1 flake check` progress message. The remaining checks for output paths, links and build failures are still open.
+- `wrong_nar_hash_preserves_fetch_failure_status` verifies that `fetchTree` exits 102 through `tryEval` in pure and impure mode. Flake prefetch with a supplied hash still differs. The reference can return the actual store hash alongside the supplied locked hash, while noxi rejects the mismatch.
 
 Known differences in these areas:
 
@@ -481,7 +486,7 @@ Known differences in these areas:
 
 Security-relevant behavior and its negative tests:
 
-- `builtin:fetchurl` must not read files the builder could not (`fetchurl_cannot_read_host_files_in_the_sandbox`), must be a fixed or impure derivation, and its output's hash is checked (`fetchurl_matches_the_reference`). Untrusted daemon clients cannot set `hashed-mirrors` or `ssl-cert-file` (`client_setting_overrides_match_the_reference`).
+- `builtin:fetchurl` must not read files the builder could not (`fetchurl_cannot_read_host_files_in_the_sandbox`, `reference_fetchurl`), must be a fixed or impure derivation, and its output's hash is checked (`fetchurl_matches_the_reference`). Untrusted daemon clients cannot set `hashed-mirrors` or `ssl-cert-file` (`client_setting_overrides_match_the_reference`).
 - Impure derivations and fixed outputs of every method share the host's network and `impureEnvVars`; text, Git and input-addressed outputs do not (`sandboxes_of_experimental_outputs_match_the_reference`). Pure derivations cannot use impure ones (`impure_outputs_match_the_reference`).
 - Wrong hashes, executables, directories and references are refused for text and Git outputs, and the experimental features are required (`text_outputs_match_the_reference`, `git_outputs_match_the_reference`, `dynamic_derivations_match_the_reference`).
 - An untrusted client's `nix build --repair` is refused (`modern_rebuilds_and_repairs_through_both_daemons`).
@@ -489,6 +494,26 @@ Security-relevant behavior and its negative tests:
 - A copied realisation needs a signature by a trusted key unless signature checks are off, even when its output is content-addressed (`unsigned_copies_are_refused_like_the_reference`, `secret_key_files_sign_builds_like_the_reference`).
 - `nix copy` between stores kept the source's ultimate trust, so `nix store verify` accepted an unsigned copy. It no longer does (`copies_between_stores_are_not_ultimately_trusted`).
 - A fixed output is copied into a directory the builder cannot enter before it is hashed and registered, as `moveOutputToTempDir` does, so a process the builder left behind holds no writable descriptor of it. No test exercises such a process.
+
+### Sandbox path targets, 2026-11-25
+
+`sandbox-paths` targets could reach the host. At `da3e6d7c` the sandbox setup created mount points by path before `pivot_root`, following symlinks. With `/a=LINK` and `/a/new=FILE`, where `LINK` is a symlink to a host directory, it created `new` in that directory on the host; a directory source created a directory there and a symlink source a symlink. A symlink inside a bound directory had the same effect, so somebody who may write to a bound directory could redirect a configured target below it. The process that creates them has the host identity of the building process, root in a daemon run as root, and the mounts themselves stay in the build's private mount namespace. Existing host files were not overwritten (`O_EXCL`), and `..` was already refused. Only trusted users can set `sandbox-paths`, so an untrusted client needs such a configuration to exist.
+
+noxi now follows the reference's `doBind`: every component is opened with `O_NOFOLLOW` relative to the chroot's directory descriptor, `..` cannot rise above it, and sources and targets are attached by descriptor with `open_tree` and `move_mount`. `reference_sandbox_paths` compares 121 settings with the reference, including the messages, and checks that the host tree is unchanged: targets below symlinks, also in bound directories; `..`, `.`, empty and relative targets; targets over `/etc`, `/dev`, `/proc`, `/tmp`, `/build`, the store and `real-root`; and optional paths. `linux-sandbox` passes.
+
+Remaining, as in the reference: a directory bound to `/etc` is made read-only on the host when the building process owns it; a symlink bound to `/proc` or `/dev` directs the sandbox's own mounts, in its private namespace; and a target below a bound directory creates missing components in that directory. When one setting without `extra-` gives two sources for one target, the reference uses the last in byte order and noxi the first. The checks ran unprivileged in user namespaces; a root daemon with build users needs a VM.
+
+### Builtin builders in the sandbox, 2026-11-25
+
+At `da3e6d7c` the builtin builders ran in the process that builds. `builtin:fetchurl` refused `file:` URLs for that reason, but `builtin:unpack-channel` and `builtin:buildenv` followed any path in their attributes, so a derivation could make a daemon read a tarball or list a directory that the builder could not. All three now run in the forked builder process after the sandbox is set up and the user is switched. `reference_fetchurl` compares them with the reference through loopback HTTP and HTTPS servers: `file:` URLs of visible and hidden files, `netrc` lookup including redirects and credentials in URLs, `ssl-cert-file` from the setting and the environment, mirrors, unpacking, executables, retries, HTTP errors, `timeout`, `max-silent-time` and `stalled-download-timeout`. `does_not_inherit_privileges_or_the_environment` reads `/proc/self/status` and `/proc/self/environ` through a `file:` URL.
+
+Three things the reference exposes to a derivation are withheld, because matching them would be harmful. Each was observed with the pinned reference and an impure derivation:
+
+- `file:///build/netrc` returns the contents of `netrc-file`, which the reference copies into the build directory. noxi keeps them in memory, so that URL fails.
+- `file:///proc/self/environ` returned the environment of the process that builds, in a build without build users. noxi clears it, except for the proxy variables.
+- The builder process holds all capabilities in its user namespace, since nothing is executed. noxi drops them.
+
+Remaining differences: only HTTP, HTTPS and `file:` URLs are supported; an interrupted body is not resumed with a range request; certificates are checked by rustls, which for example refuses a CA certificate as the server's own; and proxies are chosen by ureq's rules rather than curl's. The checks ran as an ordinary user. A root daemon switching to build users, and `sandbox = false` with build users, need a VM.
 
 `reference_rebuild`, `reference_cache_store` and `reference_installables` run with no other test alongside. On a loaded host the reference itself fails unsandboxed builds with `builder failed due to signal 9 (Killed)`: forty concurrent `nix-build` loops of a trivial derivation, with no noxi code involved, showed it repeatedly.
 
@@ -1445,7 +1470,7 @@ Remaining differences found by a 508-case sweep, which otherwise matched:
 
 - `builtins.pathExists <x>` under `restrict-eval`, for a downloaded entry, is the access error instead of `false`.
 - In pure evaluation with a diverted store, CppNix prints a `flake:` result from `builtins.findFile` at its physical path.
-- `nix eval --override-flake` is not implemented.
+- `nix eval --override-flake` was not implemented. It works since 2026-11-25, for installables, `--expr` and `--file`, and for `nix build` (`reference_override_flake`).
 - `s3://` entries fail without CppNix's AWS authentication warning, and the HTTP client uses `https_proxy` for `http://` URLs and does not retry failed connections.
 - `nix-instantiate` file arguments that are themselves `flake:` or URL references are not covered.
 

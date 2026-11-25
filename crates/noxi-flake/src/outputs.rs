@@ -48,6 +48,7 @@ pub struct CheckOptions {
 	pub system: String,
 	pub all_systems: bool,
 	pub build: bool,
+	pub keep_going: bool,
 }
 impl Default for CheckOptions {
 	fn default() -> Self {
@@ -55,6 +56,7 @@ impl Default for CheckOptions {
 			system: local_system(),
 			all_systems: false,
 			build: true,
+			keep_going: false,
 		}
 	}
 }
@@ -64,6 +66,7 @@ pub struct CheckReport {
 	pub check_builds: BTreeSet<String>,
 	pub omitted_systems: BTreeSet<String>,
 	pub warnings: Vec<String>,
+	pub errors: Vec<ErrorKind>,
 }
 async fn attrs(co: &GenCo, value: Value) -> Result<NixAttrs, ErrorKind> {
 	generators::request_force(co, value).await.to_attrs()
@@ -371,10 +374,13 @@ async fn check_template(co: &GenCo, value: Value, path: &str) -> Result<(), Erro
 }
 async fn check_overlay(co: &GenCo, value: Value) -> Result<(), ErrorKind> {
 	let value = generators::request_force(co, value).await;
+	if let Value::Catchable(caught) = value {
+		return Err(ErrorKind::CatchableError(*caught));
+	}
 	let Value::Closure(closure) = value else {
 		return Err(error(format!(
 			"overlay is not a function, but {} instead",
-			value.type_of()
+			noxi_eval::diagnostics::show_type(&value)
 		)));
 	};
 	let lambda = closure.lambda();
@@ -384,6 +390,13 @@ async fn check_overlay(co: &GenCo, value: Value) -> Result<(), ErrorKind> {
 	}
 	Ok(())
 }
+async fn check_module(co: &GenCo, value: Value) -> Result<(), ErrorKind> {
+	match generators::request_force(co, value).await {
+		Value::Catchable(caught) => Err(ErrorKind::CatchableError(*caught)),
+		_ => Ok(()),
+	}
+}
+
 fn check_hydra<'a>(
 	co: &'a GenCo,
 	value: Value,
@@ -479,14 +492,20 @@ pub async fn check(
 								return Err(error("bundler must be a function"));
 							}
 						} else {
-							check_derivation(
+							let result = check_derivation(
 								co,
 								value,
 								&path,
 								&mut report,
 								name == "checks" && system == options.system,
 							)
-							.await?;
+							.await;
+							if let Err(error) = result {
+								if !options.keep_going {
+									return Err(error);
+								}
+								report.errors.push(error);
+							}
 						}
 					}
 				}
@@ -497,10 +516,10 @@ pub async fn check(
 					check_overlay(co, value.clone()).await?;
 				}
 			}
-			"nixosModule" => {}
+			"nixosModule" => check_module(co, value).await?,
 			"nixosModules" => {
 				for (_, value) in attrs(co, value).await?.iter_sorted() {
-					generators::request_force(co, value.clone()).await;
+					check_module(co, value.clone()).await?;
 				}
 			}
 			"nixosConfigurations" => {

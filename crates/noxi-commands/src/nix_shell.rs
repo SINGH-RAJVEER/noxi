@@ -5,7 +5,8 @@
 //! that sets up the derivation's environment, sources `$stdenv/setup` when
 //! it exists, runs `shellHook` and then the `--run` or `--command` text.
 //! The shell is `NIX_BUILD_SHELL`, or `bashInteractive` from `<nixpkgs>`,
-//! or `bash` from `PATH`. Shebang scripts, `--check`, `--repair` and
+//! or `bash` from `PATH`. A script whose first line starts with `#!` gives the
+//! arguments in its `#! nix-shell` lines. `--check`, `--repair` and
 //! `exportReferencesGraph` fail explicitly.
 
 use std::collections::{BTreeMap, BTreeSet};
@@ -94,41 +95,176 @@ fn rand_seed() -> u32 {
 
 /// `resolveShellExprPath` for a file argument: a directory is replaced by
 /// its `shell.nix`, else its `default.nix`.
-fn resolve_shell_expr(cwd: &Path, input: &str) -> Result<String, Failure> {
-	if instantiate::is_lookup_path(input) || input.contains("://") {
+fn resolve_shell_expr(
+	cwd: &Path,
+	input: &str,
+	options: &instantiate::Options,
+) -> Result<String, Failure> {
+	if input.contains("://") && !input.starts_with('/') {
 		return Ok(input.to_owned());
 	}
-	let path = absolute_path(cwd, Path::new(input));
-	if std::fs::symlink_metadata(&path).is_err() {
+	let lookup = instantiate::is_lookup_path(input);
+	let path = if lookup {
+		// Evaluation reports what is not found.
+		match instantiate::lookup_file(options, input) {
+			Some(path) => path,
+			None => return Ok(input.to_owned()),
+		}
+	} else {
+		absolute_path(cwd, Path::new(input))
+	};
+	if !lookup && std::fs::symlink_metadata(&path).is_err() {
 		return Err(Failure::Error(format!(
 			"path '{}' does not exist",
 			path.display()
 		)));
 	}
 	if std::fs::metadata(&path).is_ok_and(|m| m.is_dir()) {
-		for name in ["shell.nix", "default.nix"] {
-			if path.join(name).exists() {
-				return Ok(path.join(name).to_string_lossy().into_owned());
+		let shell = path.join("shell.nix");
+		if shell.exists() {
+			if always_looks_for_shell_nix(options) {
+				return Ok(shell.to_string_lossy().into_owned());
 			}
+			nix_compat::log::logger::warn(&format!(
+				"Skipping '{}', because the setting '{SHELL_NIX_SETTING}' is disabled. This is a deprecated behavior. Consider enabling '{SHELL_NIX_SETTING}'.",
+				shell.display()
+			));
+		}
+		if path.join("default.nix").exists() {
+			return Ok(path.join("default.nix").to_string_lossy().into_owned());
 		}
 		return Err(Failure::Error(format!(
 			"neither 'shell.nix' nor 'default.nix' found in '{}'",
 			path.display()
 		)));
 	}
-	Ok(input.to_owned())
+	Ok(if lookup {
+		input.to_owned()
+	} else {
+		path.to_string_lossy().into_owned()
+	})
+}
+
+const SHELL_NIX_SETTING: &str = "nix-shell-always-looks-for-shell-nix";
+
+fn always_looks_for_shell_nix(options: &instantiate::Options) -> bool {
+	options.settings.get_bool(SHELL_NIX_SETTING, true)
+}
+
+/// A script that runs `nix-shell` as its interpreter.
+struct Script {
+	path: String,
+	/// The arguments the script was called with.
+	args: Vec<String>,
+}
+
+impl Script {
+	/// `absPath(script.parent_path())`.
+	fn dir(&self, cwd: &Path) -> PathBuf {
+		absolute_path(cwd, Path::new(&self.path).parent().unwrap_or(Path::new("")))
+	}
+
+	/// The command that runs the script with `interpreter`, for `-i`.
+	fn command(&self, interpreter: &str) -> String {
+		// Perl runs the interpreter of a script's first line unless its own
+		// name does not contain `perl`.
+		let exec_args = if interpreter.contains("perl") {
+			"-a PERL"
+		} else {
+			""
+		};
+		// Ruby looks at the first line too; `load` ignores it.
+		let load = if interpreter.contains("ruby") {
+			" -e 'load(ARGV.shift)' --"
+		} else {
+			""
+		};
+		let mut command = format!(
+			"exec {exec_args} {interpreter}{load} {} ",
+			quote(&self.path)
+		);
+		for arg in &self.args {
+			command.push_str(&quote(arg));
+			command.push(' ');
+		}
+		command
+	}
+}
+
+/// CppNix's `shellwords`.
+fn shellwords(line: &str) -> Result<Vec<String>, Failure> {
+	let mut words = Vec::new();
+	let mut word = String::new();
+	let mut quote = None;
+	let mut chars = line.chars().peekable();
+	let space = |c: &char| c.is_ascii_whitespace() || *c == '\x0b';
+	while let Some(c) = chars.next() {
+		if quote.is_none() && space(&c) {
+			while chars.next_if(space).is_some() {}
+			words.push(std::mem::take(&mut word));
+			if chars.peek().is_none() {
+				return Ok(words);
+			}
+			continue;
+		}
+		match (c, quote) {
+			('\'' | '"', None) => quote = Some(c),
+			('\'' | '"', Some(open)) if open == c => quote = None,
+			('\\', None | Some('"')) => word.extend(chars.next()),
+			_ => word.push(c),
+		}
+	}
+	if quote.is_some() {
+		return Err(Failure::Error("unterminated quote in shebang line".into()));
+	}
+	words.push(word);
+	Ok(words)
+}
+
+/// The script and the arguments of its `nix-shell` lines, when `args` name a
+/// file that starts with `#!`.
+fn read_script(cwd: &Path, args: &[String]) -> Result<Option<(Script, Vec<String>)>, Failure> {
+	let Some((path, rest)) = args.split_first() else {
+		return Ok(None);
+	};
+	let Ok(contents) = std::fs::read(cwd.join(path)) else {
+		return Ok(None);
+	};
+	let contents = String::from_utf8_lossy(&contents);
+	let mut lines = contents.split('\n').filter(|line| !line.is_empty());
+	if !lines.next().is_some_and(|line| line.starts_with("#!")) {
+		return Ok(None);
+	}
+	let mut words = Vec::new();
+	for line in lines {
+		let line = line.trim_end_matches([' ', '\n', '\r', '\t']);
+		let Some(arguments) = line
+			.strip_prefix("#!")
+			.and_then(|line| line.trim_start().strip_prefix("nix-shell"))
+		else {
+			continue;
+		};
+		let trimmed = arguments.trim_start();
+		if trimmed.len() < arguments.len() && !trimmed.contains('\r') {
+			words.extend(shellwords(trimmed)?);
+		}
+	}
+	Ok(Some((
+		Script {
+			path: path.clone(),
+			args: rest.to_vec(),
+		},
+		words,
+	)))
 }
 
 /// Run `nix-shell` with the arguments after the program name.
 pub fn main(settings: Settings, args: Vec<String>) -> Result<ExitCode, Failure> {
 	let cwd = std::env::current_dir()?;
-	if let Some(script) = args.first()
-		&& std::fs::read(cwd.join(script)).is_ok_and(|contents| contents.starts_with(b"#!"))
-	{
-		return Err(Failure::Error(
-			"nix-shell shebang scripts are not supported by noxi yet".into(),
-		));
-	}
+	let (script, args) = match read_script(&cwd, &args)? {
+		Some((script, args)) => (Some(script), args),
+		None => (None, args),
+	};
 	let mut pure = false;
 	let mut packages = false;
 	let mut dry_run = false;
@@ -160,6 +296,10 @@ pub fn main(settings: Settings, args: Vec<String>) -> Result<ExitCode, Failure> 
 					interactive = false;
 				}
 				env_command = format!("{command}\nexit");
+			}),
+			"-i" if script.is_some() => value().map(|interpreter| {
+				interactive = false;
+				env_command = script.as_ref().expect("a script").command(&interpreter);
 			}),
 			"--exclude" => value().map(|regex| exclude.push(regex)),
 			"--pure" => {
@@ -218,7 +358,21 @@ pub fn main(settings: Settings, args: Vec<String>) -> Result<ExitCode, Failure> 
 					.into(),
 			));
 		}
-		options.inputs = vec![".".into()];
+		options.inputs = vec![
+			if !always_looks_for_shell_nix(&options) && cwd.join("shell.nix").exists() {
+				"shell.nix"
+			} else {
+				"."
+			}
+			.into(),
+		];
+	}
+	let script_dir = script.as_ref().map(|script| script.dir(&cwd));
+	if options
+		.settings
+		.get_bool("nix-shell-shebang-arguments-relative-to-script", true)
+	{
+		options.base_dir.clone_from(&script_dir);
 	}
 	let arguments = if options.from_args {
 		Vec::new()
@@ -229,12 +383,14 @@ pub fn main(settings: Settings, args: Vec<String>) -> Result<ExitCode, Failure> 
 		options.inputs = options
 			.inputs
 			.iter()
-			.map(|input| {
-				if input == "-" {
-					Ok(input.clone())
-				} else {
-					resolve_shell_expr(&cwd, input)
+			.map(|input| match &script_dir {
+				_ if input == "-" => Ok(input.clone()),
+				// File names in a script are relative to it.
+				Some(dir) => {
+					let path = absolute_path(dir, Path::new(input));
+					resolve_shell_expr(&cwd, &path.to_string_lossy(), &options)
 				}
+				None => resolve_shell_expr(&cwd, input, &options),
 			})
 			.collect::<Result<_, _>>()?;
 	}
@@ -265,6 +421,7 @@ pub fn main(settings: Settings, args: Vec<String>) -> Result<ExitCode, Failure> 
 		};
 		let bash = instantiate::Options {
 			in_nix_shell: false,
+			base_dir: None,
 			auto_args: Vec::new(),
 			attr_paths: Vec::new(),
 			..bash
@@ -495,6 +652,21 @@ pub fn main(settings: Settings, args: Vec<String>) -> Result<ExitCode, Failure> 
 #[cfg(test)]
 mod tests {
 	use super::*;
+
+	#[test]
+	fn splits_script_lines_like_cppnix() {
+		for (line, words) in [
+			("-A x -i bash", vec!["-A", "x", "-i", "bash"]),
+			(
+				r#"'a "b" \c'"'"'d' "e 'f' \"\g" \h\ i\'j ''"#,
+				vec![r#"a "b" \c'd"#, r#"e 'f' "g"#, "h i'j", ""],
+			),
+			("a  ", vec!["a"]),
+		] {
+			assert_eq!(shellwords(line).unwrap(), words, "{line}");
+		}
+		assert!(shellwords("a 'b").is_err());
+	}
 
 	#[test]
 	fn quotes_like_escape_shell_arg_always() {

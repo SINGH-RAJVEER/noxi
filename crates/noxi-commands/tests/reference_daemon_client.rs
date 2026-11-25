@@ -89,6 +89,12 @@ impl Env {
 	/// An environment whose stores, work directories and sockets are in
 	/// `subdir` of its temporary directory.
 	fn new_in(subdir: &str) -> Self {
+		Self::new_with(subdir, "")
+	}
+
+	/// As [`Self::new_in`], with daemons that enable more experimental
+	/// features.
+	fn new_with(subdir: &str, features: &str) -> Self {
 		let dir = noxi_test_support::tempdir().unwrap();
 		let base = dir.path().join(subdir);
 		for sub in ["conf", "home"] {
@@ -148,6 +154,8 @@ impl Env {
 				settings.build.build_cores = 1;
 				// The reference daemons run with `nix-command` enabled.
 				settings.build.nix_command = true;
+				settings.store.ca_derivations = features.contains("ca-derivations");
+				settings.store.impure_derivations = features.contains("impure-derivations");
 				std::thread::spawn(move || noxi_daemon::server::serve(listener, &settings));
 				continue;
 			}
@@ -155,6 +163,7 @@ impl Env {
 				.command(reference_bin().join("nix-daemon"))
 				.arg("--store")
 				.arg(env.root(engine))
+				.args(["--extra-experimental-features", features])
 				.env("NIX_DAEMON_SOCKET_PATH", env.socket(engine))
 				.stderr(std::process::Stdio::null())
 				.spawn()
@@ -776,6 +785,77 @@ fn modern_rebuilds_and_repairs_through_both_daemons() {
 				expected,
 				"{args:?} through {engine}"
 			);
+		}
+	}
+}
+
+/// The outputs of impure derivations come back from the daemon that built
+/// them. Their paths are random, so only their contents are compared.
+#[test]
+fn impure_outputs_come_back_through_both_daemons() {
+	const FEATURES: &str = "--extra-experimental-features";
+	const IMPURE: &str = "ca-derivations impure-derivations";
+	let env = Env::new_with("", IMPURE);
+	let expr = format!(
+		r#"let
+	bb = builtins.storePath {};
+	mk = attrs: derivation ({{ system = "x86_64-linux"; builder = "${{bb}}/bin/sh"; __impure = true; }} // attrs);
+in rec {{
+	one = mk {{ name = "one"; outputs = [ "out" "doc" ]; args = [ "-c" "echo one > $out; echo doc > $doc" ]; }};
+	two = mk {{ name = "two"; args = [ "-c" "read x < ${{one}}; echo two $x > $out" ]; }};
+	bad = mk {{ name = "bad"; args = [ "-c" "echo oops; exit 4" ]; }};
+	worse = mk {{ name = "worse"; args = [ "-c" "exit 5" ]; }};
+}}"#,
+		env.busybox
+	);
+	for engine in ["reference", "noxi", "pair"] {
+		fs::write(env.base.join(format!("work-{engine}/impure.nix")), &expr).unwrap();
+	}
+	for targets in [
+		&["one"][..],
+		&["one^doc"],
+		&["one^*"],
+		&["one", "two"],
+		&["two"],
+		&["bad"],
+		&["one", "bad"],
+		&["bad", "worse", "--keep-going"],
+	] {
+		let args = [
+			&["build", FEATURES, IMPURE, "-f", "impure.nix", "--no-link"],
+			&["--print-out-paths"][..],
+			targets,
+		]
+		.concat();
+		// The random part of the paths, and the paths' contents.
+		let run = |engine: &str| {
+			let output = env.run(engine, "nix", &args);
+			let mut normal = String::new();
+			for word in output.split_inclusive(['\n', ' ', '\'']) {
+				let path = word.trim_end_matches(['\n', ' ', '\'']);
+				match path.strip_prefix("/nix/store/") {
+					Some(name) if !name.contains(".drv") && name.len() > 33 => {
+						let contents =
+							fs::read_to_string(env.root(engine).join(path.trim_start_matches('/')))
+								.unwrap_or_else(|e| e.to_string());
+						normal += &format!("{} = {contents}", &name[33..]);
+						normal += &word[path.len()..];
+					}
+					_ => normal += word,
+				}
+			}
+			normal
+		};
+		let expected = run("reference");
+		for engine in ["noxi", "pair"] {
+			// A noxi daemon builds independent targets in the order given.
+			if engine == "pair" && targets == ["one", "bad"] {
+				continue;
+			}
+			assert_eq!(run(engine), expected, "{targets:?} through {engine}");
+		}
+		if targets == ["one"] {
+			assert!(expected.contains("one = one"), "{expected}");
 		}
 	}
 }

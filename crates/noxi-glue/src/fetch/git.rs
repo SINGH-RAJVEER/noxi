@@ -40,8 +40,7 @@ fn boolean(input: &Input, name: &str) -> Result<bool> {
 	Ok(maybe_get_bool_attr(&input.attrs, name)?.unwrap_or(false))
 }
 
-/// Fetch into an evaluation-owned bare repository. No shell interpolation,
-/// checkout hooks, credentials prompts, or persistent cache are involved.
+/// Fetch into a bare repository in the persistent Git cache.
 fn remote_repo(
 	url: &str,
 	input: &Input,
@@ -458,13 +457,13 @@ pub(crate) fn get_accessor(
 ) -> Result<(Mount, Input)> {
 	let url = get_str_attr(&input.attrs, "url")?;
 	let parsed = fix_git_url(&url)?;
-	if parsed.scheme != "file" {
+	if parsed.scheme != "file" || std::env::var_os("_NIX_FORCE_HTTP").is_some() {
 		let repo = remote_repo(
 			&url,
 			input,
 			&store.fetch_cache_dir(),
 			settings.tarball_ttl,
-			store.fetch_config.borrow().offline,
+			store.fetch_config.borrow().offline && parsed.scheme != "file",
 		)?;
 		let mut local = input.clone();
 		local
@@ -484,12 +483,21 @@ pub(crate) fn get_accessor(
 				.into(),
 			);
 		}
-		let (mount, mut locked) = get_accessor(store, settings, &local)?;
+		let (mount, mut locked) = get_local_accessor(store, settings, &local, &repo)?;
 		locked.attrs.insert("url".into(), url.into());
 		return Ok((mount, locked));
 	}
 	let local_path = url_path_to_path(&parsed.path)?;
-	let repo = fs::canonicalize(&local_path).map_err(|error| {
+	get_local_accessor(store, settings, input, &local_path)
+}
+
+fn get_local_accessor(
+	store: &EvaluatorStore,
+	settings: &FetchSettings,
+	input: &Input,
+	local_path: &Path,
+) -> Result<(Mount, Input)> {
+	let repo = fs::canonicalize(local_path).map_err(|error| {
 		if error.kind() == std::io::ErrorKind::NotFound {
 			Error::new(format!(
 				"Git repository \"{}\" does not exist.",

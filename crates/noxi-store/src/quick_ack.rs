@@ -19,7 +19,10 @@ use ureq::{Error, Timeout};
 
 /// The first connector of a chain: opens direct TCP connections.
 #[derive(Debug, Default)]
-pub struct QuickAckConnector;
+pub struct QuickAckConnector {
+	/// How long a read may wait for data, besides ureq's timeouts.
+	stall: Option<Duration>,
+}
 
 impl Connector<()> for QuickAckConnector {
 	type Out = QuickAckTransport;
@@ -49,6 +52,7 @@ impl Connector<()> for QuickAckConnector {
 							details.config.input_buffer_size(),
 							details.config.output_buffer_size(),
 						),
+						stall: self.stall,
 						read_timeout: None,
 						write_timeout: None,
 					}));
@@ -68,6 +72,7 @@ impl Connector<()> for QuickAckConnector {
 pub struct QuickAckTransport {
 	stream: TcpStream,
 	buffers: LazyBuffers,
+	stall: Option<Duration>,
 	read_timeout: Option<Duration>,
 	write_timeout: Option<Duration>,
 }
@@ -110,9 +115,14 @@ impl Transport for QuickAckTransport {
 	}
 
 	fn await_input(&mut self, timeout: NextTimeout) -> Result<bool, Error> {
-		if std_timeout(timeout) != self.read_timeout {
-			self.stream.set_read_timeout(std_timeout(timeout))?;
-			self.read_timeout = std_timeout(timeout);
+		let step = std_timeout(timeout);
+		let stalls_first = self
+			.stall
+			.is_some_and(|stall| step.is_none_or(|step| stall < step));
+		let limit = if stalls_first { self.stall } else { step };
+		if limit != self.read_timeout {
+			self.stream.set_read_timeout(limit)?;
+			self.read_timeout = limit;
 		}
 		let on: libc::c_int = 1;
 		// SAFETY: setting an integer option on a socket we own. A failure
@@ -127,7 +137,12 @@ impl Transport for QuickAckTransport {
 			);
 		}
 		let input = self.buffers.input_append_buf();
-		let amount = self.stream.read(input).map_err(|e| io_error(e, timeout))?;
+		let amount = self.stream.read(input).map_err(|e| match e.kind() {
+			io::ErrorKind::TimedOut | io::ErrorKind::WouldBlock if stalls_first => {
+				Error::Io(io::Error::new(io::ErrorKind::TimedOut, STALLED))
+			}
+			_ => io_error(e, timeout),
+		})?;
 		self.buffers.input_appended(amount);
 		Ok(amount > 0)
 	}
@@ -145,13 +160,25 @@ impl Transport for QuickAckTransport {
 	}
 }
 
+/// The message of a read that waited longer than `stall`.
+pub const STALLED: &str = "transfer stalled";
+
+/// An agent whose reads fail after `stall` without data.
+pub fn stalling_agent(config: ureq::config::Config, stall: Option<Duration>) -> ureq::Agent {
+	build(config, QuickAckConnector { stall })
+}
+
 /// An agent with ureq's connectors after [`QuickAckConnector`], which
 /// takes every direct connection.
 pub fn agent(config: ureq::config::Config) -> ureq::Agent {
+	build(config, QuickAckConnector::default())
+}
+
+fn build(config: ureq::config::Config, quick_ack: QuickAckConnector) -> ureq::Agent {
 	use ureq::unversioned::resolver::DefaultResolver;
 	use ureq::unversioned::transport::{ConnectProxyConnector, RustlsConnector, TcpConnector};
 	let connector =
-		().chain(QuickAckConnector)
+		().chain(quick_ack)
 			.chain(ConnectProxyConnector::default())
 			.chain(TcpConnector::default())
 			.chain(RustlsConnector::default());

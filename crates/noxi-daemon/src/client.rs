@@ -18,7 +18,9 @@ use nix_compat::log::logger::LogField;
 use nix_compat::nixhash::HashAlgo;
 use nix_compat::store_path::{StorePath, store_dir};
 use noxi_store::gc::{GcAction, GcOptions, GcResults, Roots, make_root_symlink};
-use noxi_store::{BuildMode, DerivedPath, FileIngestionMethod, Missing, Store, ValidPathInfo};
+use noxi_store::{
+	BuildMode, DerivedPath, FileIngestionMethod, ImpureOutputs, Missing, Store, ValidPathInfo,
+};
 
 use crate::connection::{
 	MINIMUM_PROTOCOL_VERSION, PROTOCOL_VERSION, STDERR_ERROR, STDERR_LAST, STDERR_NEXT,
@@ -536,6 +538,65 @@ fn legacy_string(path: &DerivedPath) -> String {
 	}
 }
 
+fn mode_number(mode: BuildMode) -> u64 {
+	match mode {
+		BuildMode::Normal => 0,
+		BuildMode::Repair => 1,
+		BuildMode::Check => 2,
+	}
+}
+
+/// A `BuildResult`: its outputs, or the message of the failure.
+fn read_build_result(
+	conn: &mut Connection,
+) -> Result<std::result::Result<BTreeMap<String, StorePath>, String>> {
+	let status = conn.from.read_u64()?;
+	let message = conn.from.read_string()?;
+	if conn.version >= version(1, 29) {
+		// How often it was built, whether the results differed, and when.
+		for _ in 0..4 {
+			conn.from.read_u64()?;
+		}
+	}
+	if conn.version >= version(1, 37) {
+		// The optional user and system CPU times.
+		for _ in 0..2 {
+			if conn.from.read_u64()? != 0 {
+				conn.from.read_u64()?;
+			}
+		}
+	}
+	let mut outputs = BTreeMap::new();
+	if conn.features.contains("realisation-with-path-not-hash") {
+		for _ in 0..conn.from.read_u64()? {
+			let name = conn.from.read_string()?;
+			let path = conn.from.read_store_path()?;
+			conn.from.read_strings()?;
+			outputs.insert(name, path);
+		}
+	} else if conn.version >= version(1, 28) {
+		for _ in 0..conn.from.read_u64()? {
+			let id = conn.from.read_string()?;
+			let realisation = conn.from.read_string()?;
+			let name = id
+				.split_once('!')
+				.ok_or_else(|| Error::Nix(format!("Invalid derivation output id {id}")))?
+				.1;
+			let path = serde_json::from_str::<serde_json::Value>(&realisation)
+				.ok()
+				.and_then(|json| StorePath::from_bytes(json["outPath"].as_str()?.as_bytes()).ok())
+				.ok_or_else(|| Error::Nix(format!("invalid realisation '{realisation}'")))?;
+			outputs.insert(name.to_owned(), path);
+		}
+	}
+	// `Built`, `Substituted`, `AlreadyValid` and `ResolvesToAlreadyValid`.
+	Ok(if matches!(status, 0 | 1 | 2 | 13) {
+		Ok(outputs)
+	} else {
+		Err(message)
+	})
+}
+
 impl Store for DaemonStore {
 	fn optimise_store(&self, _log: &mut dyn FnMut(&str)) -> noxi_store::Result<()> {
 		self.with_conn(|conn| {
@@ -845,14 +906,89 @@ impl Store for DaemonStore {
 			conn.to
 				.u64(op::BUILD_PATHS)
 				.strings(targets.iter().map(String::as_str))
-				.u64(match mode {
-					BuildMode::Normal => 0,
-					BuildMode::Repair => 1,
-					BuildMode::Check => 2,
-				});
+				.u64(mode_number(mode));
 			conn.process_stderr()?;
 			conn.from.read_u64().map(drop)
 		})
+	}
+
+	/// The outputs of impure derivations are known only from the results of
+	/// building them.
+	fn build_paths_with_results(
+		&self,
+		paths: &[DerivedPath],
+		mode: BuildMode,
+	) -> noxi_store::Result<ImpureOutputs> {
+		let impure = paths.iter().any(|path| match path {
+			DerivedPath::Opaque(_) => false,
+			DerivedPath::Built { drv, .. } => self
+				.read_build_derivation(drv)
+				.is_ok_and(|drv| drv.is_impure()),
+		});
+		if !impure {
+			return match self.build_paths_with_mode(paths, mode) {
+				Ok(()) => Ok(ImpureOutputs::new()),
+				Err(noxi_store::Error::Build { message, .. }) => {
+					Err(noxi_store::Error::Other(message))
+				}
+				Err(error) => Err(error),
+			};
+		}
+		let targets: Vec<String> = paths.iter().map(legacy_string).collect();
+		let results = self.with_conn(|conn| {
+			if conn.version < version(1, 34) {
+				return Err(Error::Nix(
+					"the daemon is too old to return the outputs of impure derivations".into(),
+				));
+			}
+			conn.to
+				.u64(op::BUILD_PATHS_WITH_RESULTS)
+				.strings(targets.iter().map(String::as_str))
+				.u64(mode_number(mode));
+			conn.process_stderr()?;
+			let count = conn.from.read_u64()?;
+			let mut results = Vec::new();
+			for _ in 0..count {
+				results.push((conn.from.read_string()?, read_build_result(conn)?));
+			}
+			Ok(results)
+		})?;
+		let mut failures = Vec::new();
+		let mut outputs = ImpureOutputs::new();
+		for (target, result) in results {
+			match result {
+				Err(message) => failures.push((target, message)),
+				Ok(built) => {
+					if let Some(DerivedPath::Built { drv, .. }) =
+						paths.iter().find(|path| legacy_string(path) == target)
+					{
+						outputs.entry(drv.clone()).or_default().extend(built);
+					}
+				}
+			}
+		}
+		// `throwBuildErrors`.
+		if failures.len() > 1 {
+			let mut targets = BTreeSet::new();
+			for (target, message) in &failures {
+				if !message.is_empty() {
+					nix_compat::log::logger::log_error(
+						&nix_compat::log::format_error(message),
+						message,
+					);
+				}
+				targets.insert(format!("'{}'", target.replace('!', "^")));
+			}
+			let targets: Vec<String> = targets.into_iter().collect();
+			return Err(noxi_store::Error::Other(format!(
+				"build of {} failed",
+				targets.join(", ")
+			)));
+		}
+		match failures.pop() {
+			Some((_, message)) => Err(noxi_store::Error::Other(message)),
+			None => Ok(outputs),
+		}
 	}
 
 	fn query_missing(&self, paths: &[DerivedPath]) -> noxi_store::Result<Missing> {

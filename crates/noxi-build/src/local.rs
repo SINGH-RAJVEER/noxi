@@ -42,7 +42,7 @@ use sha2::{Digest, Sha256};
 use crate::error::{BuildError, FailureStatus, Result};
 use crate::options::{self, DerivationOptions, DrvRef, OutputChecks, OutputChecksSpec};
 use crate::refscan::scan_for_references;
-use crate::sandbox::{self, Bind, SandboxSpec};
+use crate::sandbox::{self, Bind, ChrootBinds, SandboxSpec};
 use crate::settings::{BuildSettings, SandboxMode};
 use crate::structured;
 use crate::user_lock::{self, BuildUser};
@@ -1500,39 +1500,6 @@ impl LocalBuilder<'_> {
 				SandboxMode::Disabled => false,
 				SandboxMode::Relaxed => kind.sandboxed() && !drv_options.no_chroot,
 			};
-		if builtin.is_some() {
-			// CppNix runs builtin builders in the builder's process, in the
-			// sandbox when there is one and in the store otherwise; their
-			// outputs are registered as any build's are.
-			let build = Build::start(
-				self,
-				drv_path,
-				outputs,
-				&drv_options,
-				parsed,
-				kind,
-				None,
-				!use_sandbox,
-			)?;
-			let result = build
-				.run_builtin(drv, outputs, kind, events)
-				.and_then(|()| {
-					self.register_outputs(
-						drv_path,
-						drv_name,
-						outputs,
-						&drv_options,
-						&input_paths,
-						&build,
-					)
-				});
-			let built = result?;
-			build.succeeded.set(true);
-			drop(build);
-			self.run_post_build_hook(drv_path, &built)?;
-			locks.set_deletion(true);
-			return Ok(built);
-		}
 		let build_user = self.acquire_build_user(drv_path)?;
 		// Without the sandbox the builder writes its outputs in place.
 		let mut build = Build::start(
@@ -1545,18 +1512,21 @@ impl LocalBuilder<'_> {
 			build_user,
 			!use_sandbox,
 		)?;
-		build.keep_failed = self.settings.keep_failed;
-		let result = build.run(drv, &env, &input_paths, events).and_then(|()| {
-			self.check_cancelled()?;
-			self.register_outputs(
-				drv_path,
-				drv_name,
-				outputs,
-				&drv_options,
-				&input_paths,
-				&build,
-			)
-		});
+		// A builtin builder's directory may hold credentials.
+		build.keep_failed = self.settings.keep_failed && builtin.is_none();
+		let result = build
+			.run(drv, &env, kind, outputs, &input_paths, events)
+			.and_then(|()| {
+				self.check_cancelled()?;
+				self.register_outputs(
+					drv_path,
+					drv_name,
+					outputs,
+					&drv_options,
+					&input_paths,
+					&build,
+				)
+			});
 		let built = result?;
 		build.succeeded.set(true);
 		drop(build);
@@ -2891,81 +2861,111 @@ impl<'b> Build<'b> {
 		Ok(s)
 	}
 
-	fn run(
-		&self,
-		drv: &UnverifiedDerivation,
-		env: &BTreeMap<BString, BString>,
-		input_paths: &BTreeSet<StorePath>,
-		events: &mut dyn FnMut(BuildEvent<'_>),
-	) -> Result<()> {
+	/// `getPathsInSandbox` and `ChrootDerivationBuilder::prepareSandbox`:
+	/// the host paths the builder sees.
+	fn chroot_binds(&self, input_paths: &BTreeSet<StorePath>) -> Result<Vec<Bind>> {
 		let settings = self.builder.settings;
 		let store = self.builder.store;
-
-		let rewrites = &self.input_rewrites;
-		let env = self.environment(drv, env, input_paths, rewrites)?;
-
-		let mut binds: BTreeMap<PathBuf, Bind> = BTreeMap::new();
+		let mut binds = ChrootBinds::default();
+		if self.direct {
+			return Ok(Vec::new());
+		}
 		for path in &settings.sandbox_paths {
-			binds.insert(
-				PathBuf::from(&path.target),
-				Bind {
-					target: PathBuf::from(&path.target),
-					source: PathBuf::from(&path.source),
-					optional: path.optional,
-				},
-			);
+			binds.add(Bind {
+				target: PathBuf::from(&path.target),
+				source: PathBuf::from(&path.source),
+				optional: path.optional,
+			});
+		}
+		// Store paths made visible bring their closures.
+		let mut closure = BTreeSet::new();
+		for path in &settings.sandbox_paths {
+			let in_store = Path::new(&path.source)
+				.strip_prefix(store_dir())
+				.ok()
+				.and_then(|rest| rest.iter().next())
+				.and_then(|name| StorePath::from_bytes(name.as_encoded_bytes()).ok());
+			if let Some(source) = in_store
+				&& store.is_valid_path(&source)?
+			{
+				self.builder.closure(&source, &mut closure)?;
+			}
+		}
+		for path in closure {
+			let path = PathBuf::from(print(&path));
+			binds.set(Bind {
+				target: path.clone(),
+				source: path,
+				optional: false,
+			});
 		}
 		let build_top = self.build_top();
-		binds.insert(
-			build_top.clone(),
-			Bind {
-				target: build_top.clone(),
-				source: self.tmp_dir.clone(),
-				optional: false,
-			},
-		);
-		// `ssl-cert-file`, for builders with access to the network.
-		let ca_bundle = PathBuf::from("/etc/ssl/certs/ca-certificates.crt");
-		if !self.sandboxed
-			&& !binds.contains_key(&ca_bundle)
-			&& let Some(file) = settings.ca_file().filter(|file| file.exists())
+		if store_dir()
+			.as_bytes()
+			.starts_with(build_top.as_os_str().as_encoded_bytes())
 		{
-			binds.insert(
-				ca_bundle.clone(),
-				Bind {
-					target: ca_bundle,
-					source: fs::canonicalize(file)?,
-					optional: true,
-				},
-			);
+			return Err(BuildError::Other(
+				"`sandbox-build-dir` must not contain the storeDir".to_owned(),
+			));
 		}
+		binds.set(Bind {
+			target: build_top,
+			source: self.tmp_dir.clone(),
+			optional: false,
+		});
 		for path in input_paths {
-			let target = PathBuf::from(print(path));
-			binds.insert(
-				target.clone(),
-				Bind {
-					target,
-					source: store.real_path(path),
-					optional: false,
-				},
-			);
+			binds.set(Bind {
+				target: PathBuf::from(print(path)),
+				source: store.real_path(path),
+				optional: false,
+			});
 		}
 		for output in self.scratch.values() {
 			binds.remove(Path::new(&print(output)));
 		}
+		// `ssl-cert-file`, for builders with access to the network.
+		if !self.sandboxed
+			&& let Some(file) = settings.ca_file().filter(|file| file.exists())
+		{
+			binds.add(Bind {
+				target: PathBuf::from("/etc/ssl/certs/ca-certificates.crt"),
+				source: fs::canonicalize(file)?,
+				optional: true,
+			});
+		}
+		Ok(binds.iter().cloned().collect())
+	}
 
+	fn run(
+		&self,
+		drv: &UnverifiedDerivation,
+		env: &BTreeMap<BString, BString>,
+		kind: BuildKind,
+		outputs: &BTreeMap<String, KnownOutput>,
+		input_paths: &BTreeSet<StorePath>,
+		events: &mut dyn FnMut(BuildEvent<'_>),
+	) -> Result<()> {
+		let settings = self.builder.settings;
+
+		let rewrites = &self.input_rewrites;
+		let env = self.environment(drv, env, input_paths, rewrites)?;
+
+		let binds = self.chroot_binds(input_paths)?;
+
+		let builtin = self.builtin(drv, kind, outputs)?;
 		let spec = SandboxSpec {
+			builtin: builtin.as_deref(),
 			chroot_root: self.chroot_root.clone(),
 			chroot: !self.direct,
 			store_dir: PathBuf::from(store_dir()),
-			binds: binds.into_values().collect(),
+			binds,
 			sandboxed: self.sandboxed,
 			build_user: self.build_user.as_ref().map(|u| (u.uid, u.gid)),
 			kvm: settings.system_features.contains("kvm"),
 			shm_size: settings.sandbox_shm_size.clone(),
 			allow_new_privileges: settings.allow_new_privileges,
 			filter_syscalls: settings.filter_syscalls,
-			build_dir_in_sandbox: build_top,
+			build_dir_in_sandbox: self.build_top(),
 			builder: drv.command().to_vec(),
 			args: drv
 				.arguments()
@@ -3018,103 +3018,73 @@ impl<'b> Build<'b> {
 		Ok(())
 	}
 
-	/// `builtin:buildenv` and the other builtin builders, logged as a builder process is: its warnings and
-	/// error go to the build log, and an error fails the build with exit
-	/// code 1.
-	fn run_builtin(
+	/// A builtin builder, with what it needs of this process. It runs in the
+	/// builder's process, so it sees paths as a builder does.
+	#[allow(clippy::type_complexity)]
+	fn builtin(
 		&self,
 		drv: &UnverifiedDerivation,
-		outputs: &BTreeMap<String, KnownOutput>,
 		kind: BuildKind,
-		events: &mut dyn FnMut(BuildEvent<'_>),
-	) -> Result<()> {
+		outputs: &BTreeMap<String, KnownOutput>,
+	) -> Result<Option<Box<dyn Fn(&mut dyn FnMut(&str)) -> std::result::Result<(), String>>>> {
+		let Some(name) = drv.command().strip_prefix(b"builtin:") else {
+			return Ok(None);
+		};
 		let settings = self.builder.settings;
-		let store = self.builder.store;
 		let env: BTreeMap<String, String> = drv
 			.environment()
 			.iter()
-			.map(|(k, v)| {
-				let value = rewrite_strings(v.to_vec(), &self.input_rewrites);
-				(
-					k.to_str_lossy().into_owned(),
-					String::from_utf8_lossy(&value).into_owned(),
-				)
-			})
+			.map(|(k, v)| (k.to_str_lossy().into_owned(), v.to_str_lossy().into_owned()))
 			.collect();
-		let out = self.scratch.get("out").ok_or_else(|| {
-			BuildError::Other(format!("'{}' requires an 'out' output", drv.command()))
-		})?;
-		let output_names: BTreeSet<String> =
-			self.scratch.values().map(ToString::to_string).collect();
-		let chroot_store = self.chroot_root.join(store_dir().trim_start_matches('/'));
-		let real_store = store.config().real_store_dir.clone();
-		let real = |path: &Path| -> PathBuf {
-			let Ok(rest) = path.strip_prefix(store_dir()) else {
-				return path.to_owned();
-			};
-			let name = rest.iter().next().map(|n| n.to_string_lossy().into_owned());
-			if !self.direct && name.is_some_and(|n| output_names.contains(&n)) {
-				chroot_store.join(rest)
-			} else {
-				real_store.join(rest)
-			}
+		let Some(out) = self.scratch.get("out") else {
+			let message = format!("'{}' requires an 'out' output", drv.command());
+			return Ok(Some(Box::new(move |_| Err(message.clone()))));
 		};
-		let mut log_file = self.open_log_file()?;
-		let mut tail = LogTail::new(settings.log_lines);
-		let mut write_error = None;
-		let mut log = |line: &str| {
-			let data = format!("{line}\n");
-			tail.feed(data.as_bytes());
-			if let Some(file) = &mut log_file
-				&& let Err(e) = file.write_all(data.as_bytes())
-			{
-				write_error.get_or_insert(e);
-			}
-			events(BuildEvent::Output(data.as_bytes()));
-		};
-		let result = if drv.command() == b"builtin:unpack-channel" {
-			crate::unpack_channel::build(&env, &real(Path::new(&print(out))), &real)
-		} else if drv.command() == b"builtin:fetchurl" {
-			if kind.sandboxed() {
-				Err(crate::buildenv::Error(
-					"'builtin:fetchurl' must be a fixed-output or impure derivation".to_owned(),
-				))
-			} else {
-				crate::fetchurl::Fetch {
-					env: &env,
-					out: &real(Path::new(&print(out))),
+		let out = PathBuf::from(print(out));
+		Ok(Some(match name {
+			b"unpack-channel" => Box::new(move |_| {
+				crate::unpack_channel::build(&env, &out, &Path::to_path_buf).map_err(|e| e.0)
+			}),
+			b"fetchurl" => {
+				if kind.sandboxed() {
+					return Ok(Some(Box::new(|_| {
+						Err(
+							"'builtin:fetchurl' must be a fixed-output or impure derivation"
+								.to_owned(),
+						)
+					})));
+				}
+				// What the builder may not be able to read.
+				let netrc = fs::read(&settings.netrc_file).unwrap_or_default();
+				let ca_certificates = settings
+					.ca_file()
+					.and_then(|file| fs::read(file).ok())
+					.unwrap_or_default();
+				let fetch = crate::fetchurl::Fetch {
+					env,
+					out,
 					flat_hash: outputs.get("out").and_then(|output| match &output.fixed {
-						Some((FileIngestionMethod::Flat, hash)) => Some(hash),
+						Some((FileIngestionMethod::Flat, hash)) => Some(hash.clone()),
 						_ => None,
 					}),
-					hashed_mirrors: &settings.hashed_mirrors,
-					transfer: settings.transfer,
-					local_files: self.direct
-						&& !user_lock::use_build_users(&settings.build_users_group),
-					cancelled: self.builder.cancelled,
-				}
-				.run()
+					hashed_mirrors: settings.hashed_mirrors.clone(),
+					options: noxi_store::download::Options {
+						transfer: settings.transfer,
+						netrc: noxi_store::netrc::Netrc::parse(&String::from_utf8_lossy(&netrc)),
+						ca_certificates,
+						stalled_timeout: settings.stalled_download_timeout,
+					},
+					ca_copy: self.build_top().join("ca-certificates.crt"),
+				};
+				Box::new(move |log| fetch.run(log).map_err(|e| e.0))
 			}
-		} else {
-			crate::buildenv::builtin_buildenv(&env, Path::new(&print(out)), &real, &mut |warning| {
-				log(&format!("warning: {warning}"))
-			})
-		};
-		if let Err(error) = &result {
-			log(&nix_compat::log::format_error(&error.0));
-		}
-		tail.flush();
-		if let Some(file) = log_file {
-			file.finish()?;
-		}
-		if let Some(e) = write_error {
-			return Err(e.into());
-		}
-		match result {
-			Ok(()) => Ok(()),
-			// The wait status of a process that exited with code 1.
-			Err(_) => Err(self.failure(&sandbox::ExitStatus(1 << 8), &tail)),
-		}
+			_ => Box::new(move |log| {
+				crate::buildenv::builtin_buildenv(&env, &out, &Path::to_path_buf, &mut |warning| {
+					log(&format!("warning: {warning}\n"))
+				})
+				.map_err(|e| e.0)
+			}),
+		}))
 	}
 
 	/// `handleDiffHook`: show what a nondeterministic output's rebuild

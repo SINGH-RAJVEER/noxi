@@ -23,19 +23,16 @@ pub struct SandboxPath {
 
 impl SandboxPath {
 	/// Parse a `sandbox-paths` entry: `PATH`, `TARGET=SOURCE`, with an
-	/// optional trailing `?` on the source.
+	/// optional trailing `?`.
 	pub fn parse(entry: &str) -> Self {
-		let (target, source) = match entry.split_once('=') {
-			Some((t, s)) => (t.to_owned(), s.to_owned()),
-			None => (entry.trim_end_matches('?').to_owned(), entry.to_owned()),
+		let (entry, optional) = match entry.strip_suffix('?') {
+			Some(entry) => (entry, true),
+			None => (entry, false),
 		};
-		let (source, optional) = match source.strip_suffix('?') {
-			Some(s) => (s.to_owned(), true),
-			None => (source, false),
-		};
+		let (target, source) = entry.split_once('=').unwrap_or((entry, entry));
 		SandboxPath {
-			target,
-			source,
+			target: target.to_owned(),
+			source: source.to_owned(),
 			optional,
 		}
 	}
@@ -89,6 +86,10 @@ pub struct BuildSettings {
 	pub hashed_mirrors: Vec<String>,
 	/// `ssl-cert-file`, if it is set.
 	pub ssl_cert_file: Option<String>,
+	/// `stalled-download-timeout`, in seconds.
+	pub stalled_download_timeout: u64,
+	/// `netrc-file`, whose credentials `builtin:fetchurl` sends.
+	pub netrc_file: PathBuf,
 	/// `diff-hook`, which runs when `run-diff-hook` is on.
 	pub diff_hook: String,
 	pub run_diff_hook: bool,
@@ -157,6 +158,10 @@ impl Default for BuildSettings {
 			transfer: Default::default(),
 			hashed_mirrors: Vec::new(),
 			ssl_cert_file: None,
+			stalled_download_timeout: 300,
+			netrc_file: std::env::var_os("NIX_CONF_DIR")
+				.map_or_else(|| PathBuf::from("/etc/nix"), PathBuf::from)
+				.join("netrc"),
 			diff_hook: String::new(),
 			run_diff_hook: false,
 			post_build_hook: String::new(),
@@ -224,6 +229,13 @@ impl BuildSettings {
 		}
 		if let Some(file) = settings.get("ssl-cert-file") {
 			self.ssl_cert_file = Some(file.to_owned());
+		}
+		self.stalled_download_timeout = settings.get_int(
+			"stalled-download-timeout",
+			self.stalled_download_timeout as i64,
+		) as u64;
+		if let Some(file) = settings.get("netrc-file") {
+			self.netrc_file = PathBuf::from(file);
 		}
 		if settings.get("experimental-features").is_some() {
 			self.nix_command = settings.experimental_features().contains("nix-command");

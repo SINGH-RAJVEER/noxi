@@ -21,6 +21,7 @@ pub struct Request {
 	pub all_systems: bool,
 	pub legacy: bool,
 	pub no_build: bool,
+	pub keep_going: bool,
 	pub json: bool,
 	pub system: String,
 	pub commit_lock: bool,
@@ -404,14 +405,17 @@ mod operations {
 						system: request.system.clone(),
 						all_systems: request.all_systems,
 						build: !request.no_build,
-						..Default::default()
+						keep_going: request.keep_going,
 					},
 				)
 				.await?;
 				for warning in report.warnings {
 					eprintln!("warning: {warning}");
 				}
-				return Ok(Value::Null);
+				for error in &report.errors {
+					eprintln!("error: {error}");
+				}
+				return Ok(Value::Bool(report.errors.is_empty()));
 			}
 			_ => return Err(ErrorKind::EvalError("unsupported flake operation".into())),
 		};
@@ -566,6 +570,7 @@ pub(super) fn request(parsed: &Parsed, operation: &str) -> Result<Request, Failu
 		all_systems: parsed.has("all-systems"),
 		legacy: parsed.has("legacy"),
 		no_build: parsed.has("no-build"),
+		keep_going: parsed.settings.get_bool("keep-going", false) || parsed.has("keep-going"),
 		json: parsed.has("json"),
 		system: parsed
 			.settings

@@ -77,3 +77,5 @@ noxi-test-support = { path = "../noxi-test-support" }
 tempfile.workspace = true
 serde_json.workspace = true
 rusqlite = { version = "0.40.2", features = ["bundled"] }
+rustls = { version = "0.23", default-features = false, features = ["std", "ring", "tls12"] }
+lzma-rust2 = { version = "0.15", default-features = false, features = ["std", "xz", "encoder"] }

@@ -110,7 +110,7 @@ impl TransferSettings {
 	/// `computeRetryDelayMs`: exponential backoff from `base`, at least the
 	/// server's `Retry-After`, spread over `[floor, floor + backoff]` with
 	/// jitter.
-	fn retry_delay(&self, attempt: u32, base: u32, retry_after_ms: Option<u32>) -> u32 {
+	pub(crate) fn retry_delay(&self, attempt: u32, base: u32, retry_after_ms: Option<u32>) -> u32 {
 		let shift = attempt.saturating_sub(1).min(31);
 		let backoff = ((base as u64) << shift).min(self.max_delay_ms as u64) as u32;
 		let floor = retry_after_ms.unwrap_or(0);
@@ -1304,28 +1304,6 @@ impl BufRead for ProgressReader<'_> {
 	}
 }
 
-/// Download `url` without decoding its content, as `FileTransfer::download`
-/// does, retrying transient failures.
-pub fn download(url: &str, transfer: TransferSettings) -> Result<Box<dyn Read + Send>> {
-	if !url.starts_with("http://") && !url.starts_with("https://") {
-		return Err(Error::Other(format!(
-			"unable to download '{url}': Unsupported protocol (1)"
-		)));
-	}
-	let agent = crate::quick_ack::agent(
-		ureq::Agent::config_builder()
-			.http_status_as_error(false)
-			.accept_encoding("")
-			.user_agent(concat!("noxi/", env!("CARGO_PKG_VERSION")))
-			.build(),
-	);
-	http_get(url, url, &agent, &transfer, &Default::default())?.ok_or_else(|| {
-		Error::Other(format!(
-			"unable to download '{url}': the server does not have the file"
-		))
-	})
-}
-
 /// `GET url` from the server of `base`, or `None` if the server has no such
 /// file.
 fn http_get(
@@ -1438,7 +1416,7 @@ fn http_get(
 
 /// A request failure in the words of curl's `curl_easy_strerror`, its code
 /// and its error buffer, as CppNix's file transfers report them.
-fn curl_message(error: &ureq::Error, base: &str, elapsed: Duration) -> String {
+pub(crate) fn curl_message(error: &ureq::Error, base: &str, elapsed: Duration) -> String {
 	let authority = base
 		.split_once("://")
 		.map_or(base, |(_, rest)| rest)

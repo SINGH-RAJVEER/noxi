@@ -87,6 +87,9 @@ pub struct Options {
 	pub installables: bool,
 	/// `nix-shell`: functions with an `inNixShell` argument get it as `true`.
 	pub in_nix_shell: bool,
+	/// Relative paths in command-line expressions are below this directory
+	/// instead of the working directory.
+	pub base_dir: Option<PathBuf>,
 	/// Source fragments that inputs reference as `@@noxi-frag-N@@`. When set,
 	/// the inputs themselves are hidden driver code and only these fragments
 	/// are shown as `«string»` sources, as `nix repl` shows each line.
@@ -314,6 +317,21 @@ fn lookup_io(options: &Options) -> Box<dyn noxi_eval::EvalIO> {
 		Ok((store, _)) => Box::new(noxi_glue::StoreIO::new(store)),
 		Err(_) => Box::new(noxi_eval::StdIO),
 	}
+}
+
+/// The file of a lookup path such as `<nixpkgs>`, if it is found.
+pub(crate) fn lookup_file(options: &Options, input: &str) -> Option<PathBuf> {
+	let name = input.strip_prefix('<')?.strip_suffix('>')?;
+	noxi_eval::NixSearchPath::new(
+		search_path(options)
+			.iter()
+			.map(|element| noxi_eval::NixSearchPathEntry::parse(element))
+			.collect(),
+		None,
+	)
+	.with_pure_eval(options.settings.get_bool("pure-eval", false))
+	.resolve(&lookup_io(options), name)
+	.ok()
 }
 
 /// `--find-file`: print the physical path of each input in the lookup path.
@@ -811,14 +829,20 @@ mod driver_builtins {
 	}
 }
 
-/// Keep the owner's build status through the evaluator's I/O wrappers.
-fn evaluation_build_exit_status(error: &(dyn std::error::Error + 'static)) -> Option<u8> {
+/// Keep build and fetch statuses through the evaluator's error wrappers.
+fn evaluation_exit_status(error: &(dyn std::error::Error + 'static)) -> Option<u8> {
 	let mut cause = Some(error);
 	while let Some(error) = cause {
 		if let Some(noxi_store::Error::Build { exit_status, .. }) =
 			error.downcast_ref::<noxi_store::Error>()
 		{
 			return Some(*exit_status);
+		}
+		if let Some(status) = error
+			.downcast_ref::<noxi_flakeref::error::Error>()
+			.and_then(|error| error.status)
+		{
+			return Some(status);
 		}
 		cause = if let Some(error) = error.downcast_ref::<io::Error>() {
 			error.get_ref().map(|error| error as &dyn std::error::Error)
@@ -895,6 +919,10 @@ pub fn evaluate(options: &Options, cwd: &Path) -> Result<Evaluated, ExitCode> {
 
 	let writable = !options.dry_run && (!options.eval || options.read_write_mode);
 	let (evaluator_store, store) = evaluator_store(options, cwd, writable).map_err(|e| fail(&e))?;
+	// The overrides are parsed even if no flake is looked up.
+	if !options.override_flakes.is_empty() {
+		evaluator_store.registries().map_err(|e| fail(&e))?;
+	}
 	let mut env: FxHashMap<SmolStr, Value> = driver_builtins::builtins()
 		.into_iter()
 		.map(|(name, value)| (SmolStr::new(format!("__noxi_{name}")), value))
@@ -978,7 +1006,13 @@ pub fn evaluate(options: &Options, cwd: &Path) -> Result<Evaluated, ExitCode> {
 		evaluation
 			.hide_root_source()
 			.with_source_fragments(fragments)
-			.evaluate_in_dir(&driver, cwd.to_path_buf())
+			.evaluate_in_dir(
+				&driver,
+				options
+					.base_dir
+					.clone()
+					.unwrap_or_else(|| cwd.to_path_buf()),
+			)
 	};
 
 	if !result.errors.is_empty() {
@@ -997,7 +1031,7 @@ pub fn evaluate(options: &Options, cwd: &Path) -> Result<Evaluated, ExitCode> {
 		let status = result
 			.errors
 			.iter()
-			.find_map(|error| evaluation_build_exit_status(error));
+			.find_map(|error| evaluation_exit_status(error));
 		return Err(status.map(ExitCode::from).unwrap_or(ExitCode::FAILURE));
 	}
 	let Some(Value::List(results)) = result.value else {

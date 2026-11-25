@@ -145,7 +145,7 @@ pass:upstream_functional tests/functional/ca/multiple-outputs.sh
 gap tests/functional/ca/new-build-cmd.sh # source in ./build.sh:148: error: nix --relaxed-sandbox is not supported by noxi yet
 pass:upstream_functional tests/functional/ca/nix-copy.sh
 pass:upstream_functional tests/functional/ca/nix-run.sh
-gap tests/functional/ca/nix-shell.sh # source in ./nix-shell.sh:81: error: nix-shell shebang scripts are not supported by noxi yet
+pass:upstream_functional tests/functional/ca/nix-shell.sh
 pass:upstream_functional tests/functional/ca/post-hook.sh
 gap tests/functional/ca/recursive.sh # source in ./recursive.sh:13: error: Cannot build '$ROOT/tmp/nix-test/ca/recursive/store/HASH-recursive.drv'.
 gap tests/functional/ca/repl.sh # : error: the noxi repl does not support ':log' yet
@@ -200,13 +200,13 @@ pass:upstream_functional tests/functional/flakes/absolute-attr-paths.sh
 pass:upstream_functional tests/functional/flakes/absolute-paths.sh
 pass:upstream_functional tests/functional/flakes/build-paths.sh
 pass:upstream_functional tests/functional/flakes/bundle.sh
-gap tests/functional/flakes/check.sh # main in check.sh:41: error: overlay does not take an argument named 'final'
+gap tests/functional/flakes/check.sh # main in check.sh:157: missing flake check build progress
 pass:upstream_functional tests/functional/flakes/circular.sh
 pass:upstream_functional tests/functional/flakes/commit-lock-file-summary.sh
 gap tests/functional/flakes/config.sh # : test failed: The post hook should have ran
 pass:upstream_functional tests/functional/flakes/debugger.sh
 gap tests/functional/flakes/develop.sh # main in develop.sh:148: error: cannot find flake 'flake:nixpkgs' in the flake registries
-gap tests/functional/flakes/dubious-query.sh # main in dubious-query.sh:16: $ROOT/tmp/nix-test/flakes/dubious-query/store/HASH-simple.drv
+pass:upstream_functional tests/functional/flakes/dubious-query.sh
 pass:upstream_functional tests/functional/flakes/edit.sh
 pass:upstream_functional tests/functional/flakes/eval-cache.sh
 gap tests/functional/flakes/flake-in-submodule.sh # main in flake-in-submodule.sh:108: Initialized empty Git repository in $ROOT/tmp/nix-test/flakes/flake-in-submodule/otherRepo/.git/
@@ -239,10 +239,10 @@ gap tests/functional/gc-concurrent.sh # main in gc-concurrent.sh:40: error: path
 gap tests/functional/gc-non-blocking.sh # main in gc-non-blocking.sh:43: error: Cannot build '$ROOT/tmp/nix-test/main/gc-non-blocking/store/HASH-non-blocking.drv'.
 pass:upstream_functional tests/functional/gc-runtime.sh
 pass:upstream_functional tests/functional/gc.sh
+pass:upstream_functional tests/functional/git/packed-refs-no-cache.sh
 pass:upstream_functional tests/functional/git-hashing/fixed.sh
 pass:upstream_functional tests/functional/git-hashing/simple-sha1.sh
 pass:upstream_functional tests/functional/git-hashing/simple-sha256.sh
-gap tests/functional/git/packed-refs-no-cache.sh # main in packed-refs-no-cache.sh:50: fatal: cannot change to '$ROOT/tmp/nix-test/git/packed-refs-no-cache/test-home/.cache/nix/gitv3/*/': No such file or directory
 pass:upstream_functional tests/functional/git/symlinked-repo.sh
 pass:upstream_functional tests/functional/hash-convert.sh
 pass:upstream_functional tests/functional/hash-path.sh
@@ -255,7 +255,7 @@ pass:upstream_functional tests/functional/json.sh
 anomaly tests/functional/lang-gc.sh # reference skip: Too memory intensive for CI. Attempt to reduce memory usage was unsuccessful, because it made detection of the bug unreliable., skipping this test...
 pass:upstream_functional tests/functional/lang.sh
 gap tests/functional/legacy-ssh-store.sh # main in legacy-ssh-store.sh:8: error: unsupported store parameter 'remote-store=$ROOT/tmp/nix-test/main/legacy-ssh-store/other-store' in 'ssh://localhost?remote-store=$ROOT/tmp/nix-test/main/legacy-ss
-gap tests/functional/linux-sandbox.sh # main in linux-sandbox.sh:104: /my/store/HASH-test-sandbox-paths
+pass:upstream_functional tests/functional/linux-sandbox.sh
 gap tests/functional/local-overlay-store/add-lower.sh # main in ./add-lower-inner.sh:20: error: unsupported store parameter 'lower-store=$ROOT/tmp/nix-test/local-overlay-store/add-lower/stores/store-a' in 'local-overlay://?root=$ROOT/tmp/nix-test/local-ove
 gap tests/functional/local-overlay-store/bad-uris.sh # : local-overlay://?root=$ROOT/tmp/nix-test/local-overlay-store/bad-uris/bad_test&lower-store=$ROOT/tmp/nix-test/local-overlay-store/bad-uris/stores/store-a&upper-layer=$ROOT/tmp/nix-test/local-overlay
 gap tests/functional/local-overlay-store/build.sh # main in ./build-inner.sh:21: error: unsupported store parameter 'lower-store=$ROOT/tmp/nix-test/local-overlay-store/build/stores/store-a' in 'local-overlay://?root=$ROOT/tmp/nix-test/local-overlay-sto
@@ -281,7 +281,7 @@ pass:upstream_functional tests/functional/nix-collect-garbage-d.sh
 gap tests/functional/nix-copy-ssh-ng.sh # source in nix-copy-ssh-common.sh:39: error: unsupported store parameter 'store=$ROOT/tmp/nix-test/main/nix-copy-ssh-ng/store' in 'ssh-ng://localhost?store=$ROOT/tmp/nix-test/main/nix-copy-ssh-ng/store
 gap tests/functional/nix-copy-ssh.sh # source in nix-copy-ssh-common.sh:39: error: unsupported store parameter 'store=$ROOT/tmp/nix-test/main/nix-copy-ssh/store' in 'ssh://localhost?store=$ROOT/tmp/nix-test/main/nix-copy-ssh/store&remote-s
 gap tests/functional/nix-profile.sh # main in nix-profile.sh:76: profile removal completion is missing
-gap tests/functional/nix-shell.sh # main in nix-shell.sh:81: error: nix-shell shebang scripts are not supported by noxi yet
+pass:upstream_functional tests/functional/nix-shell.sh
 pass:upstream_functional tests/functional/nix_path.sh
 pass:upstream_functional tests/functional/no-url-literals.sh
 gap tests/functional/optimise-store.sh # : inodes do not match
