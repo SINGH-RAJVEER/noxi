@@ -86,7 +86,10 @@ fn get_flake_path_values_respect_evaluation_access() {
 	let expression = format!("(builtins.getFlake {}).x", flake.display());
 	for (flags, diagnostic) in [
 		(vec!["--pure-eval"], "is forbidden in pure evaluation mode"),
-		(vec!["--impure", "--restrict-eval"], "is forbidden in restricted mode"),
+		(
+			vec!["--impure", "--restrict-eval"],
+			"is forbidden in restricted mode",
+		),
 		(vec!["--impure"], "is not in the Nix store"),
 	] {
 		let mut args = vec!["eval", "--offline", "--expr", &expression];

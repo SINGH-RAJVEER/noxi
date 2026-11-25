@@ -389,7 +389,7 @@ tests/functional/multiple-outputs-substitute-failure.sh gap fail pass # main in 
 tests/functional/multiple-outputs.nix support
 tests/functional/multiple-outputs.sh pass pass pass
 tests/functional/nar-access.nix support
-tests/functional/nar-access.sh gap fail pass # main in nar-access.sh:156: error: path '$ROOT/tmp/nix-test/main/nar-access/store/HASH-foo' is not valid
+tests/functional/nar-access.sh pass pass pass
 tests/functional/nars.sh gap fail pass # main in nars.sh:6:
 tests/functional/nested-sandboxing.sh gap fail pass # main in nested-sandboxing.sh:24:
 tests/functional/nested-sandboxing/command.sh support
@@ -397,16 +397,16 @@ tests/functional/nested-sandboxing/runner.nix support
 tests/functional/nix-build-examples.nix support
 tests/functional/nix-build.sh pass pass pass
 tests/functional/nix-channel.sh gap fail pass # main in nix-channel.sh:44: error: Is a directory (os error 21)
-tests/functional/nix-collect-garbage-d.sh gap fail pass # : error: assertion '(progName != "fail")' failed
+tests/functional/nix-collect-garbage-d.sh pass pass pass
 tests/functional/nix-copy-ssh-common.sh support
 tests/functional/nix-copy-ssh-ng.sh gap fail pass # source in nix-copy-ssh-common.sh:39: error: unsupported store parameter 'store=$ROOT/tmp/nix-test/main/nix-copy-ssh-ng/store' in 'ssh-ng://localhost?store=$ROOT/tmp/nix-test/main/nix-copy-ssh-ng/store
 tests/functional/nix-copy-ssh.sh gap fail pass # source in nix-copy-ssh-common.sh:39: error: unsupported store parameter 'store=$ROOT/tmp/nix-test/main/nix-copy-ssh/store' in 'ssh://localhost?store=$ROOT/tmp/nix-test/main/nix-copy-ssh/store&remote-s
 tests/functional/nix-daemon-untrusting.sh support # daemon wrapper used by remote-store tests
 tests/functional/nix-meson-build-support support
-tests/functional/nix-profile.sh gap fail pass # main in nix-profile.sh:51: error: assertion '(progName != "fail")' failed
+tests/functional/nix-profile.sh gap fail pass # main in nix-profile.sh:76: profile removal completion is missing
 tests/functional/nix-shell.sh gap fail pass # main in nix-shell.sh:81: error: nix-shell shebang scripts are not supported by noxi yet
 tests/functional/nix_path.sh pass pass pass
-tests/functional/no-url-literals.sh gap fail pass # main in no-url-literals.sh:19:
+tests/functional/no-url-literals.sh pass pass pass
 tests/functional/optimise-store.sh gap fail pass # : inodes do not match
 tests/functional/output-normalization.sh pass pass pass
 tests/functional/package.nix support
@@ -415,7 +415,7 @@ tests/functional/parallel.nix support
 tests/functional/parallel.sh support # test script not registered in meson.build; upstream does not run it
 tests/functional/pass-as-file.sh pass pass pass
 tests/functional/path-from-hash-part.sh pass pass pass
-tests/functional/path-info.sh gap fail pass # main in path-info.sh:37: error: nix path-info --stdin is not supported by noxi yet
+tests/functional/path-info.sh pass pass pass
 tests/functional/path.nix support
 tests/functional/placeholders.sh pass pass pass
 tests/functional/plugins.sh unrun not-run not-run # needs C++ evaluator plugins built against the engine's libraries (TODO section 6)
@@ -542,7 +542,7 @@ tests/functional/simple.builder.sh support
 tests/functional/simple.nix support
 tests/functional/simple.sh gap fail pass # main in simple.sh:27: error: --readonly-mode is not supported by noxi yet
 tests/functional/ssh-relay.sh gap fail pass # main in ssh-relay.sh:16: error: unsupported store parameter 'remote-store=ssh://localhost?remote-store=ssh://localhost?remote-store=ssh://localhost' in 'ssh://localhost?remote-store=ssh://localhost?re
-tests/functional/store-info.sh gap fail pass # main in store-info.sh:38:
+tests/functional/store-info.sh pass pass pass
 tests/functional/store-print-env.sh pass pass pass
 tests/functional/structured-attrs-shell.nix support
 tests/functional/structured-attrs.nix support
@@ -569,5 +569,5 @@ tests/functional/user-envs-migration.sh anomaly skip skip # reference skip: Daem
 tests/functional/user-envs-test-case.sh support
 tests/functional/user-envs.builder.sh support
 tests/functional/user-envs.nix support
-tests/functional/user-envs.sh gap fail pass # source in ./user-envs-test-case.sh:11: error: assertion '(progName != "fail")' failed
+tests/functional/user-envs.sh gap fail pass # source in ./user-envs-test-case.sh:20: JSON outputName and null output paths differ
 tests/functional/why-depends.sh pass pass pass

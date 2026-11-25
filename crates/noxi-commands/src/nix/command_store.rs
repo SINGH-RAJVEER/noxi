@@ -1,7 +1,7 @@
 //! Store inspection and maintenance through existing Rust store APIs.
 use std::collections::{BTreeSet, HashMap};
 use std::fs;
-use std::io::{self, IsTerminal};
+use std::io::{self, IsTerminal, Read};
 use std::os::unix::fs::PermissionsExt;
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
@@ -122,7 +122,7 @@ pub(super) fn paths(parsed: &Parsed, store: &dyn Store) -> Result<BTreeSet<Store
 		}
 		return Ok(store.query_all_valid_paths()?);
 	}
-	if parsed.operands.is_empty() {
+	if parsed.operands.is_empty() && !parsed.has("stdin") {
 		return Err(unsupported(
 			"implicit flake installables; provide store paths",
 		));
@@ -186,7 +186,14 @@ fn log(message: &str) {
 	}
 }
 
-pub fn path_info(parsed: Parsed) -> Result<ExitCode, Failure> {
+pub fn path_info(mut parsed: Parsed) -> Result<ExitCode, Failure> {
+	if parsed.has("stdin") {
+		let mut input = String::new();
+		io::stdin().lock().read_to_string(&mut input)?;
+		parsed
+			.operands
+			.extend(input.split_ascii_whitespace().map(str::to_owned));
+	}
 	let opened = open(&parsed)?;
 	let store = opened.store.as_ref();
 	let paths = paths(&parsed, store)?;
@@ -341,7 +348,7 @@ fn accessor(
 	let (path, rest) =
 		StorePath::from_absolute_path_full(Path::new(operand)).map_err(|e| e.to_string())?;
 	info(store, &path)?;
-	let mut physical = match remote {
+	let physical_root = match remote {
 		// `RemoteFSAccessor` reads the files from the path's NAR.
 		Some(dir) => {
 			let files = dir.join(path.to_string());
@@ -355,13 +362,29 @@ fn accessor(
 	};
 	let rest = Path::new(rest);
 	let parts: Vec<_> = rest.components().collect();
+	let mut physical = physical_root.clone();
 	for (index, part) in parts.iter().enumerate() {
 		match part {
 			std::path::Component::Normal(name) => physical.push(name),
 			std::path::Component::RootDir | std::path::Component::CurDir => continue,
 			_ => return Err(unsupported("store accessor paths containing '..'")),
 		}
-		if index + 1 < parts.len() && fs::symlink_metadata(&physical)?.file_type().is_symlink() {
+		let metadata = fs::symlink_metadata(&physical).map_err(|error| {
+			if matches!(
+				error.kind(),
+				io::ErrorKind::NotFound | io::ErrorKind::NotADirectory
+			) {
+				let missing = if remote.is_some() {
+					PathBuf::from(operand)
+				} else {
+					physical_root.join(rest.strip_prefix("/").unwrap_or(rest))
+				};
+				Failure::Error(format!("path '{}' does not exist", missing.display()))
+			} else {
+				error.into()
+			}
+		})?;
+		if index + 1 < parts.len() && metadata.file_type().is_symlink() {
 			return Err(unsupported("store access through intermediate symlinks"));
 		}
 	}
@@ -406,15 +429,19 @@ pub fn run(parsed: Parsed) -> Result<ExitCode, Failure> {
 				}
 				return Ok(ExitCode::SUCCESS);
 			}
-			if !matches!(uri.split('?').next(), Some("local" | "local://")) {
+			if !crate::store::resolves_to_local(&uri)? {
 				return Err(unsupported(
 					"store info for non-local stores (connection metadata unavailable)",
 				));
 			}
-			let url = if uri.starts_with("local://") {
-				uri
-			} else {
-				uri.replacen("local", "local://", 1)
+			let url = match uri.split_once('?') {
+				Some((_, query)) if !query.is_empty() => {
+					let mut params: Vec<_> =
+						query.split('&').filter(|part| !part.is_empty()).collect();
+					params.sort_unstable();
+					format!("local://?{}", params.join("&"))
+				}
+				_ => "local".to_owned(),
 			};
 			if parsed.has("json") {
 				print_json(
@@ -476,6 +503,31 @@ pub fn run(parsed: Parsed) -> Result<ExitCode, Failure> {
 				.unwrap_or("sha256")
 				.parse::<HashAlgo>()
 				.map_err(|e| e.to_string())?;
+			if method == FileIngestionMethod::Text && algo != HashAlgo::Sha256 {
+				return Err(Failure::Error("text ingestion requires SHA-256".into()));
+			}
+			if method == FileIngestionMethod::Text {
+				let source = std::path::absolute(source)?;
+				let metadata = fs::symlink_metadata(&source).map_err(|error| {
+					Failure::Error(format!(
+						"opening file \"{}\": {}",
+						source.display(),
+						super::hash::strerror(&error)
+					))
+				})?;
+				if metadata.is_symlink() {
+					return Err(Failure::Error(format!(
+						"file '{}' is a symlink",
+						source.display()
+					)));
+				}
+				if !metadata.is_file() {
+					return Err(Failure::Error(format!(
+						"'{}' is not a regular file",
+						source.display()
+					)));
+				}
+			}
 			let mut dump = tempfile::tempfile()?;
 			if dump_method == FileIngestionMethod::Flat {
 				io::copy(&mut fs::File::open(source)?, &mut dump)?;
@@ -485,7 +537,6 @@ pub fn run(parsed: Parsed) -> Result<ExitCode, Failure> {
 			use std::io::Seek;
 			dump.rewind()?;
 			if parsed.has("dry-run") {
-				use std::io::Read;
 				let hash = if method == FileIngestionMethod::Git {
 					noxi_store::git::hash_path(source, algo)?
 				} else {

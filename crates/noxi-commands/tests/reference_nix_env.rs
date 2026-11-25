@@ -201,3 +201,48 @@ fn manages_profiles_like_cppnix() {
 	assert_eq!(actual.0, expected.0);
 	assert_eq!(actual.1, expected.1);
 }
+
+#[test]
+fn available_packages_skip_failed_candidates() {
+	let base = noxi_test_support::tempdir().unwrap();
+	let dir = base.path();
+	std::fs::create_dir(dir.join("home")).unwrap();
+	std::fs::write(
+		dir.join("packages.nix"),
+		r#"{}: [
+			(assert false; null)
+			(throw "unavailable")
+			{ type = "derivation"; name = assert false; "broken"; }
+			{ type = "derivation"; name = "working-1"; }
+		]"#,
+	)
+	.unwrap();
+	let run = |binary: &Path, engine: &str| {
+		let state = dir.join(engine);
+		let store = state.join("store");
+		let profile = state.join("profile");
+		let output = command(dir, binary)
+			.env("NIX_STATE_DIR", state.join("state"))
+			.env("NIX_STORE_DIR", &store)
+			.env("NIX_LOG_DIR", state.join("log"))
+			.args(["--store", "local", "--profile"])
+			.arg(&profile)
+			.args(["-f", "packages.nix", "-qa", "*"])
+			.output()
+			.unwrap();
+		assert!(!profile.exists());
+		assert!(
+			std::fs::read_dir(store)
+				.unwrap()
+				.all(|entry| entry.unwrap().file_name() == ".links")
+		);
+		output
+	};
+	let expected = run(&reference_bin().join("nix-env"), "reference");
+	let actual = run(Path::new(env!("CARGO_BIN_EXE_nix-env")), "candidate");
+	assert_eq!(expected.status.code(), Some(0));
+	assert_eq!(expected.stdout, b"working-1\n");
+	assert_eq!(actual.status.code(), expected.status.code());
+	assert_eq!(actual.stdout, expected.stdout);
+	assert_eq!(actual.stderr, expected.stderr);
+}

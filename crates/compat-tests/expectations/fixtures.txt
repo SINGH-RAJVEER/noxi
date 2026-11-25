@@ -272,23 +272,23 @@ pass:upstream_functional tests/functional/make-content-addressed.sh
 pass:upstream_functional tests/functional/misc.sh
 gap tests/functional/multiple-outputs-substitute-failure.sh # main in multiple-outputs-substitute-failure.sh:28: clearing store...
 pass:upstream_functional tests/functional/multiple-outputs.sh
-gap tests/functional/nar-access.sh # main in nar-access.sh:156: error: path '$ROOT/tmp/nix-test/main/nar-access/store/HASH-foo' is not valid
+pass:upstream_functional tests/functional/nar-access.sh
 gap tests/functional/nars.sh # main in nars.sh:6:
 gap tests/functional/nested-sandboxing.sh # main in nested-sandboxing.sh:24:
 pass:upstream_functional tests/functional/nix-build.sh
 gap tests/functional/nix-channel.sh # main in nix-channel.sh:44: error: Is a directory (os error 21)
-gap tests/functional/nix-collect-garbage-d.sh # : error: assertion '(progName != "fail")' failed
+pass:upstream_functional tests/functional/nix-collect-garbage-d.sh
 gap tests/functional/nix-copy-ssh-ng.sh # source in nix-copy-ssh-common.sh:39: error: unsupported store parameter 'store=$ROOT/tmp/nix-test/main/nix-copy-ssh-ng/store' in 'ssh-ng://localhost?store=$ROOT/tmp/nix-test/main/nix-copy-ssh-ng/store
 gap tests/functional/nix-copy-ssh.sh # source in nix-copy-ssh-common.sh:39: error: unsupported store parameter 'store=$ROOT/tmp/nix-test/main/nix-copy-ssh/store' in 'ssh://localhost?store=$ROOT/tmp/nix-test/main/nix-copy-ssh/store&remote-s
-gap tests/functional/nix-profile.sh # main in nix-profile.sh:51: error: assertion '(progName != "fail")' failed
+gap tests/functional/nix-profile.sh # main in nix-profile.sh:76: profile removal completion is missing
 gap tests/functional/nix-shell.sh # main in nix-shell.sh:81: error: nix-shell shebang scripts are not supported by noxi yet
 pass:upstream_functional tests/functional/nix_path.sh
-gap tests/functional/no-url-literals.sh # main in no-url-literals.sh:19:
+pass:upstream_functional tests/functional/no-url-literals.sh
 gap tests/functional/optimise-store.sh # : inodes do not match
 pass:upstream_functional tests/functional/output-normalization.sh
 pass:upstream_functional tests/functional/pass-as-file.sh
 pass:upstream_functional tests/functional/path-from-hash-part.sh
-gap tests/functional/path-info.sh # main in path-info.sh:37: error: nix path-info --stdin is not supported by noxi yet
+pass:upstream_functional tests/functional/path-info.sh
 pass:upstream_functional tests/functional/placeholders.sh
 unrun tests/functional/plugins.sh # needs C++ evaluator plugins built against the engine's libraries (TODO section 6)
 pass:upstream_functional tests/functional/post-hook.sh
@@ -309,7 +309,7 @@ gap tests/functional/short-path-literals.sh # : foo/bar
 gap tests/functional/signing.sh # main in signing.sh:103: error: unsupported store parameter 'require-sigs=false' in '$ROOT/tmp/nix-test/main/signing/store0?require-sigs=false'
 gap tests/functional/simple.sh # main in simple.sh:27: error: --readonly-mode is not supported by noxi yet
 gap tests/functional/ssh-relay.sh # main in ssh-relay.sh:16: error: unsupported store parameter 'remote-store=ssh://localhost?remote-store=ssh://localhost?remote-store=ssh://localhost' in 'ssh://localhost?remote-store=ssh://localhost?re
-gap tests/functional/store-info.sh # main in store-info.sh:38:
+pass:upstream_functional tests/functional/store-info.sh
 pass:upstream_functional tests/functional/store-print-env.sh
 anomaly tests/functional/structured-attrs.sh # reference fail: main in structured-attrs.sh:27: error (ignored): cannot find flake 'flake:nixpkgs' in the flake registries
 pass:upstream_functional tests/functional/substitute-with-invalid-ca.sh
@@ -322,7 +322,7 @@ unrun tests/functional/test-libstoreconsumer.sh # needs the C++ libstore consume
 gap tests/functional/timeout.sh # timed out at +(common/functions.sh:331) command grep 'killed after writing more than 100 bytes of log output'
 pass:upstream_functional tests/functional/toString-path.sh
 anomaly tests/functional/user-envs-migration.sh # reference skip: Daemon is too new, skipping this test...
-gap tests/functional/user-envs.sh # source in ./user-envs-test-case.sh:11: error: assertion '(progName != "fail")' failed
+gap tests/functional/user-envs.sh # source in ./user-envs-test-case.sh:20: JSON outputName and null output paths differ
 pass:upstream_functional tests/functional/why-depends.sh
 table:upstream_functional tests/functional/**/* # helpers and data read by the scripts
 # Out of scope for compat-tests: NixOS VM tests run in the qualification VMs (owner: TODO section 7, NixOS and Home Manager replacement).
