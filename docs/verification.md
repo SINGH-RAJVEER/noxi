@@ -429,7 +429,9 @@ Three of these causes were closed on 2026-11-25. A run of all 214 scripts under 
 
 The store directory constant in `.narinfo` files is fixed: `ca/substitute` now stops at `nix store build-trace info --file`. `ca/duplicate-realisation-in-closure` and `local-overlay-store/stale-file-handle` are skipped by upstream itself under both engines now, so they stay anomalies.
 
-The store library now has a `local-overlay://` opener. The functional gaps still require CLI routing to that opener. CppNix 2.35.2 advertises `local-overlay-store` but attempts to open the store even when the feature flag is absent. The invalid-mount differential test checks both flag states. With `check-mount=false`, noxi still refuses a merged or upper directory that overlaps the lower directory that could let deletion reach the lower store directly.
+The store library now has a `local-overlay://` opener. The targeted functional run covered 11 scripts on each engine. CppNix passed 10 and both engines skipped `stale-file-handle`. The nine overlay scripts from row 1 reached the CLI resolver, which reported `unsupported store parameter 'lower-store=…'`. `bad-uris` still stopped at its first `nix doctor` mount-diagnostic assertion. These 10 gaps require CLI routing to the new opener.
+
+CppNix 2.35.2 advertises `local-overlay-store` and opens the store with the feature flag absent. The invalid-mount differential test checks both flag states. With `check-mount=false`, noxi still refuses a merged or upper directory that aliases or overlaps the lower directory, where deletion could otherwise reach the lower store directly.
 
 Four more causes were closed later that day. The run at `877665e` ([records](../tests/compat-results/2026-11-25-877665e-store/)) gives 84 pass, 118 gap, 10 anomaly and 2 unrun, and no script that passed before fails. `reference_rebuild` and `reference_cache_store` compare each behavior with the reference.
 
