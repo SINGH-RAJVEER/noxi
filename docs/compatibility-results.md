@@ -103,11 +103,11 @@ Other runner fields, such as the functional script `outcome`, are added beside t
 
 ### Kept result sets, 2026-11-25
 
-All three ran at the clean revision `877665e` against the pinned CppNix 2.35.2, with `TMPDIR` and `NOXI_FUNCTIONAL_SCRATCH` below `/var/tmp` and `NOXI_FUNCTIONAL_JOBS=4`. The three runs left nothing in `TMPDIR`; the one directory there predates them, from a test run stopped by a time limit. No `git daemon` was left running. They replace the `67d7907` sets, which Git history keeps at `1d483bb7` (store 1,033, daemon 65 and fast 2,122 tests passed; 73 functional scripts passed).
+All three ran at the clean revision `84915f32` against the pinned CppNix 2.35.2, with `TMPDIR` and `NOXI_FUNCTIONAL_SCRATCH` below `/var/tmp` and `NOXI_FUNCTIONAL_JOBS=4`. They replace the `877665e` sets, which Git history keeps at `08e4440a` (store 1,050, daemon 67 and fast 2,122 tests passed; 84 functional scripts passed).
 
-- `2026-11-25-877665e-store`: the whole store tier, `just --no-deps test-store`. All 1,050 tests passed and the `differential-eval` cases match 10/10. Of the 214 functional scripts, 84 pass under both engines, 118 are noxi gaps, 10 are reference anomalies and 2 are unrun.
-- `2026-11-25-877665e-daemon`: all 67 daemon-tier tests passed.
-- `2026-11-25-877665e-fast`: all 2,122 fast-tier tests passed.
+- `2026-11-25-84915f32-store`: the whole store tier. All 1,068 tests passed and the `differential-eval` cases match 10/10. Of the 214 functional scripts, 107 pass under both engines, 95 are noxi gaps, 10 are reference anomalies and 2 are unrun.
+- `2026-11-25-84915f32-daemon`: all 68 daemon-tier tests passed. nextest marked `imports_and_realizes_through_both_daemons` as leaky, because a process it started kept its output open after it passed.
+- `2026-11-25-84915f32-fast`: all 2,122 fast-tier tests passed.
 
 The first whole run, at `610ec54` with the functional roots in `/tmp`, failed only `functional_scripts_match_expectations` (1,026 of 1,027 passed). An empty `/tmp/.git` broke Git discovery for both engines, the expectation table was out of date for ten scripts that now pass, and `eval.sh` timed out because string coercion ignored `max-call-depth`; `main` at `9b7db67` has the same timeout.
 

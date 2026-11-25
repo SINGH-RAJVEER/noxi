@@ -429,10 +429,10 @@ Three of these causes were closed on 2026-11-25. A run of all 214 scripts under 
 
 The store directory constant in `.narinfo` files is fixed: `ca/substitute` now stops at `nix store build-trace info --file`. `ca/duplicate-realisation-in-closure` and `local-overlay-store/stale-file-handle` are skipped by upstream itself under both engines now, so they stay anomalies.
 
-Four more causes were closed later that day. The run at `877665e` ([records](../tests/compat-results/2026-11-25-877665e-store/)) gives 84 pass, 118 gap, 10 anomaly and 2 unrun, and no script that passed before fails. `reference_rebuild` and `reference_cache_store` compare each behavior with the reference.
+Four more causes were closed later that day. The run at `877665e` (`tests/compat-results/2026-11-25-877665e-store` in Git at `08e4440a`) gives 84 pass, 118 gap, 10 anomaly and 2 unrun, and no script that passed before fails. `reference_rebuild` and `reference_cache_store` compare each behavior with the reference.
 
 - Rebuilding with some outputs valid (row 3): unsandboxed builds write an output whose path is present to a scratch path and rewrite its hash parts afterwards, as `DerivationBuilderImpl` does. `build-delete` and `ca/build-delete` pass.
-- `--check` and repair (row 6): `repair` and `post-hook` pass, and `ca/post-hook` from row 2. `check` reaches line 95 of 122 and stops at `builtin:fetchurl`; `linux-sandbox` reaches line 81 of 148 and stops at `ssl-cert-file` in fixed-output sandboxes. `keep-failed`, `diff-hook` and `post-build-hook` work. `nix build --rebuild` and `--repair` still fail explicitly.
+- `--check` and repair (row 6): `repair` and `post-hook` pass, and `ca/post-hook` from row 2. `check` reaches line 95 of 122 and stops at `builtin:fetchurl`; `linux-sandbox` reaches line 81 of 148 and stops at `ssl-cert-file` in fixed-output sandboxes. `keep-failed`, `diff-hook` and `post-build-hook` work.
 - Store derivation arguments (row 10): `nix-build` and `multiple-outputs` pass, and `ca/multiple-outputs` from row 2. `nix-shell` and `ca/nix-shell` stop at shebang scripts.
 - `file://` as a store and store types (row 7): `ca/nix-copy`, `ca/signatures` and `read-only-store` pass. `binary-cache` reaches line 99 of 372 and stops at the HTTP code path forced by `_NIX_FORCE_HTTP`; `binary-cache-build-remote` stops at remote builders, `build-remote-with-mounted-ssh-ng` at `mounted-ssh-ng://` and `bad-uris` at `local-overlay://`. `signing` (row 19) reaches line 103 of 119 and stops at the `require-sigs` store parameter.
 
@@ -446,7 +446,20 @@ A focused run against 2.35.2 passed five more scripts from the single-command ro
 
 The `available_packages_skip_failed_candidates` comparison covers `nix-env -qa` with an assertion, a throw, a derivation whose name fails an assertion, and a valid sibling in an isolated store with a custom logical store directory. Package discovery skips those failed candidates. A failure importing or auto-calling the root still propagates. The comparison checks stdout, stderr, exit status, and that the query creates neither a store object nor a profile link. In the functional run, `nix-collect-garbage-d.sh` passes. `user-envs.sh` reaches the JSON query at line 20 of `user-envs-test-case.sh`, where the reference includes `outputName` and null output paths without `--out-path`. `nix-profile.sh` reaches profile-removal completion at line 75. Both remain gaps.
 
-Building text, impure, dynamic and Git-hashed outputs (rows 2 and 4) was not started.
+Building the remaining kinds of outputs was closed next. The run at `84915f32` ([records](../tests/compat-results/2026-11-25-84915f32-store/)), which also holds the flake and single-command fixes, gives 107 pass, 95 gap, 10 anomaly and 2 unrun, and no script that passed at `08e4440a` fails. `reference_rebuild`, `reference_daemon_client` and `reference_experimental_outputs` compare each behavior below with the reference.
+
+- `nix build --rebuild` and `--repair` (row 6) work, also through a daemon, which refuses repairs of untrusted clients. A repairing evaluation writes valid derivations and sources again. Failed builds of the modern commands exit with status 1 and are reported as `buildPathsWithResults` reports them; `fixed-slow-vs-bad` (row 17) passes.
+- Text-hashed and Git-hashed outputs, fixed or floating, and `nix store add --mode text|git` and `nix hash path --mode git` (row 4): `add`, `git-hashing/fixed`, `git-hashing/simple-sha1` and `git-hashing/simple-sha256` pass, `dyn-drv/text-hashed-output` from row 2 with `nix path-info --derivation`, and `fixed` from row 17, whose flat output with references is refused.
+- Impure derivations (row 2) are built at random paths, once per request, and leave no realisation. `impure-derivations` passes.
+- Dynamic derivations (row 2): the `DrvWithVersion` form is evaluated, written, read and resolved, and `DRV^out^out` installables are built. `dyn-drv/build-built-drv`, `dyn-drv/dep-built-drv` and `dyn-drv/failing-outer` pass. `dyn-drv/dep-built-drv-2` and `dyn-drv/recursive-mod-json` stop at `recursive-nix`.
+- `builtin:fetchurl` and `ssl-cert-file` (rows 6 and 17): `fetchurl` and `check` pass. `linux-sandbox` reaches line 104 of 148 and stops at the refusal of `sandbox-paths` targets that contain `..` or an empty name.
+
+Differences that remain in these areas:
+
+- The reference runs `builtin:fetchurl` as the build user in the sandbox. noxi runs it in the building process, so it refuses every `file:` URL in the sandbox or with build users, also those of files the builder could read: ones in `sandbox-paths`, or readable to the build user without a sandbox. It sends no `netrc` credentials, verifies TLS against ureq's roots rather than `ssl-cert-file`, and the `timeout` settings do not stop it.
+- `DRV^out^out` is built in two requests, so the second one's list of missing paths is printed separately. `--json` and `--dry-run` with it fail explicitly.
+- Outputs of impure derivations are known to `nix build` and `nix shell` in a local store. Through a daemon, and in other commands, they are reported as not built.
+- Binary caches do not read narinfo files with a Git content address.
 
 Known differences in these areas:
 
@@ -458,6 +471,10 @@ Known differences in these areas:
 
 Security-relevant behavior and its negative tests:
 
+- `builtin:fetchurl` must not read files the builder could not (`fetchurl_cannot_read_host_files_in_the_sandbox`), must be a fixed or impure derivation, and its output's hash is checked (`fetchurl_matches_the_reference`). Untrusted daemon clients cannot set `hashed-mirrors` or `ssl-cert-file` (`client_setting_overrides_match_the_reference`).
+- Impure derivations and fixed outputs of every method share the host's network and `impureEnvVars`; text, Git and input-addressed outputs do not (`sandboxes_of_experimental_outputs_match_the_reference`). Pure derivations cannot use impure ones (`impure_outputs_match_the_reference`).
+- Wrong hashes, executables, directories and references are refused for text and Git outputs, and the experimental features are required (`text_outputs_match_the_reference`, `git_outputs_match_the_reference`, `dynamic_derivations_match_the_reference`).
+- An untrusted client's `nix build --repair` is refused (`modern_rebuilds_and_repairs_through_both_daemons`).
 - `VerifyStore` and `BuildPaths` repairs are refused for untrusted daemon clients, which also cannot set `post-build-hook`, `diff-hook` or `run-diff-hook` (`verification_repairs_damaged_outputs_and_rejects_untrusted_clients`, `client_setting_overrides_match_the_reference`).
 - A copied realisation needs a signature by a trusted key unless signature checks are off, even when its output is content-addressed (`unsigned_copies_are_refused_like_the_reference`, `secret_key_files_sign_builds_like_the_reference`).
 - `nix copy` between stores kept the source's ultimate trust, so `nix store verify` accepted an unsigned copy. It no longer does (`copies_between_stores_are_not_ultimately_trusted`).

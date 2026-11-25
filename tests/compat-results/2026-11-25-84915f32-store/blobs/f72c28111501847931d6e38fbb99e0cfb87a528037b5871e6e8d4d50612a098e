@@ -1,0 +1,293 @@
++(shell.sh:3) source common.sh
+++(common.sh:3) set -eu -o pipefail
+++(common.sh:5) [[ -z '' ]]
+++(common.sh:7) COMMON_SH_SOURCED=1
+++++(common.sh:9) dirname common.sh
++++(common.sh:9) readlink -f .
+++(common.sh:9) functionalTestsDir=/var/tmp/noxi-fg3/func/nfhr5bEk/src
+++(common.sh:11) source /var/tmp/noxi-fg3/func/nfhr5bEk/src/common/vars.sh
++++(/var/tmp/noxi-fg3/func/nfhr5bEk/src/common/vars.sh:3) set -eu -o pipefail
++++(/var/tmp/noxi-fg3/func/nfhr5bEk/src/common/vars.sh:5) [[ -z '' ]]
++++(/var/tmp/noxi-fg3/func/nfhr5bEk/src/common/vars.sh:7) COMMON_VARS_SH_SOURCED=1
+++++(/var/tmp/noxi-fg3/func/nfhr5bEk/src/common/vars.sh:9) realpath /var/tmp/noxi-fg3/func/nfhr5bEk/src
++++(/var/tmp/noxi-fg3/func/nfhr5bEk/src/common/vars.sh:9) _NIX_TEST_SOURCE_DIR=/var/tmp/noxi-fg3/func/nfhr5bEk/src
+++++(/var/tmp/noxi-fg3/func/nfhr5bEk/src/common/vars.sh:10) realpath /var/tmp/noxi-fg3/func/nfhr5bEk/build
++++(/var/tmp/noxi-fg3/func/nfhr5bEk/src/common/vars.sh:10) _NIX_TEST_BUILD_DIR=/var/tmp/noxi-fg3/func/nfhr5bEk/build
++++++(/var/tmp/noxi-fg3/func/nfhr5bEk/src/common/vars.sh:12) dirname /var/tmp/noxi-fg3/func/nfhr5bEk/src/common/vars.sh
+++++(/var/tmp/noxi-fg3/func/nfhr5bEk/src/common/vars.sh:12) readlink -f /var/tmp/noxi-fg3/func/nfhr5bEk/src/common
++++(/var/tmp/noxi-fg3/func/nfhr5bEk/src/common/vars.sh:12) commonDir=/var/tmp/noxi-fg3/func/nfhr5bEk/src/common
++++(/var/tmp/noxi-fg3/func/nfhr5bEk/src/common/vars.sh:16) source /var/tmp/noxi-fg3/func/nfhr5bEk/build/common/subst-vars.sh
+++++(/var/tmp/noxi-fg3/func/nfhr5bEk/build/common/subst-vars.sh:3) [[ -z '' ]]
+++++(/var/tmp/noxi-fg3/func/nfhr5bEk/build/common/subst-vars.sh:5) COMMON_SUBST_VARS_SH_SOURCED=1
+++++(/var/tmp/noxi-fg3/func/nfhr5bEk/build/common/subst-vars.sh:7) bash=/nix/store/2ndah67h0z5m31v2wkdmg2md4380ggr5-bash-interactive-5.3p15/bin/bash
+++++(/var/tmp/noxi-fg3/func/nfhr5bEk/build/common/subst-vars.sh:8) bindir=/nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2/bin
+++++(/var/tmp/noxi-fg3/func/nfhr5bEk/build/common/subst-vars.sh:9) coreutils=/nix/store/xjl7p8dvyk2j53kqf7f43kdj4ypbxz7g-coreutils-9.11/bin
+++++(/var/tmp/noxi-fg3/func/nfhr5bEk/build/common/subst-vars.sh:11) dot=
+++++(/var/tmp/noxi-fg3/func/nfhr5bEk/build/common/subst-vars.sh:12) busybox=/nix/store/qddzvnv6b0805nkvbqddbswddcfhx814-busybox-static-x86_64-unknown-linux-musl-1.37.0/bin/busybox
+++++(/var/tmp/noxi-fg3/func/nfhr5bEk/build/common/subst-vars.sh:14) version=2.35.2
+++++(/var/tmp/noxi-fg3/func/nfhr5bEk/build/common/subst-vars.sh:15) system=x86_64-linux
++++(/var/tmp/noxi-fg3/func/nfhr5bEk/src/common/vars.sh:18) : '/nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2/bin /nix/store/xjl7p8dvyk2j53kqf7f43kdj4ypbxz7g-coreutils-9.11/bin  /run/current-system/sw/bin/nu /nix/store/qddzvnv6b0805nkvbqddbswddcfhx814-busybox-static-x86_64-unknown-linux-musl-1.37.0/bin/busybox 2.35.2 x86_64-linux'
++++(/var/tmp/noxi-fg3/func/nfhr5bEk/src/common/vars.sh:19) export coreutils dot busybox version system
++++(/var/tmp/noxi-fg3/func/nfhr5bEk/src/common/vars.sh:21) export PAGER=cat
++++(/var/tmp/noxi-fg3/func/nfhr5bEk/src/common/vars.sh:21) PAGER=cat
++++(/var/tmp/noxi-fg3/func/nfhr5bEk/src/common/vars.sh:23) source /var/tmp/noxi-fg3/func/nfhr5bEk/src/common/paths.sh
+++++(/var/tmp/noxi-fg3/func/nfhr5bEk/src/common/paths.sh:3) set -eu -o pipefail
+++++(/var/tmp/noxi-fg3/func/nfhr5bEk/src/common/paths.sh:5) [[ -z '' ]]
+++++(/var/tmp/noxi-fg3/func/nfhr5bEk/src/common/paths.sh:7) COMMON_PATHS_SH_SOURCED=1
+++++++(/var/tmp/noxi-fg3/func/nfhr5bEk/src/common/paths.sh:9) dirname /var/tmp/noxi-fg3/func/nfhr5bEk/src/common/paths.sh
++++++(/var/tmp/noxi-fg3/func/nfhr5bEk/src/common/paths.sh:9) readlink -f /var/tmp/noxi-fg3/func/nfhr5bEk/src/common
+++++(/var/tmp/noxi-fg3/func/nfhr5bEk/src/common/paths.sh:9) commonDir=/var/tmp/noxi-fg3/func/nfhr5bEk/src/common
+++++(/var/tmp/noxi-fg3/func/nfhr5bEk/src/common/paths.sh:12) source /var/tmp/noxi-fg3/func/nfhr5bEk/src/common/functions.sh
++++++(/var/tmp/noxi-fg3/func/nfhr5bEk/src/common/functions.sh:3) set -eu -o pipefail
++++++(/var/tmp/noxi-fg3/func/nfhr5bEk/src/common/functions.sh:5) [[ -z '' ]]
++++++(/var/tmp/noxi-fg3/func/nfhr5bEk/src/common/functions.sh:7) COMMON_FUNCTIONS_SH_SOURCED=1
++++++(/var/tmp/noxi-fg3/func/nfhr5bEk/src/common/functions.sh:353) trap onError ERR
+++++(/var/tmp/noxi-fg3/func/nfhr5bEk/src/common/paths.sh:14) source /var/tmp/noxi-fg3/func/nfhr5bEk/build/common/subst-vars.sh
++++++(/var/tmp/noxi-fg3/func/nfhr5bEk/build/common/subst-vars.sh:3) [[ -z 1 ]]
+++++(/var/tmp/noxi-fg3/func/nfhr5bEk/src/common/paths.sh:16) : /nix/store/2ndah67h0z5m31v2wkdmg2md4380ggr5-bash-interactive-5.3p15/bin/bash /nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2/bin
+++++(/var/tmp/noxi-fg3/func/nfhr5bEk/src/common/paths.sh:18) isTestOnNixOS
+++++(/var/tmp/noxi-fg3/func/nfhr5bEk/src/common/functions.sh:10) [[ '' == 1 ]]
+++++(/var/tmp/noxi-fg3/func/nfhr5bEk/src/common/paths.sh:19) export SHELL=/nix/store/2ndah67h0z5m31v2wkdmg2md4380ggr5-bash-interactive-5.3p15/bin/bash
+++++(/var/tmp/noxi-fg3/func/nfhr5bEk/src/common/paths.sh:19) SHELL=/nix/store/2ndah67h0z5m31v2wkdmg2md4380ggr5-bash-interactive-5.3p15/bin/bash
+++++(/var/tmp/noxi-fg3/func/nfhr5bEk/src/common/paths.sh:20) export PATH=/nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2/bin:/nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2/bin:/nix/store/2ndah67h0z5m31v2wkdmg2md4380ggr5-bash-interactive-5.3p15/bin:/nix/store/xjl7p8dvyk2j53kqf7f43kdj4ypbxz7g-coreutils-9.11/bin:/nix/store/xmvbzzxm5snla5a2cyfhm7hjy9bifx7n-gnugrep-3.12/bin:/nix/store/qf2wzyq4irhgyhnq3s2hz0ldjq3w8a3x-gnused-4.10/bin:/nix/store/9zib1q94gka8i5q530364cvy25504qz5-gawk-5.4.1/bin:/nix/store/i9wgqa0l88aprvpwfaq5hkfa6pklhlv0-findutils-4.11.0/bin:/nix/store/b8xvzgd52jby5dfpi0pf46nisy6wma5d-diffutils-3.12/bin:/nix/store/81zqbas7qc02yfdj7142fdcqhxgd3cgz-patch-2.8/bin:/nix/store/c8b0qp903w2hhpa63a2lfs7d565zag30-gnutar-1.35/bin:/nix/store/l5sll8nxk70p73l5yqbsjy4mh0c3g0v5-gzip-1.14/bin:/nix/store/j3yz0ag9j442229n8harpmp9aa5qyvhn-bzip2-1.0.8-bin/bin:/nix/store/518dig8gpvqyac6pkksyjjfzvi9zn8vq-xz-5.8.3-bin/bin:/nix/store/l8ik8mb8lgb60rklxjmkgddmp5qqnv29-zstd-1.5.7-bin/bin:/nix/store/msr1v91ybfw6j12rs5mfl8ghb2rqsnsr-git-2.55.0/bin:/nix/store/hyz22a0l5b5kv7yfypw4ss6d36vbzg01-jq-1.8.2-bin/bin:/nix/store/24gq3bi2yzf7g386p5j32mn78hhanf49-sqlite-3.53.3-bin/bin:/nix/store/cp8qnyl8i0s62g3a1465i258mf5bcr6k-curl-8.22.0-bin/bin:/nix/store/8x4c8zah3fbnyckaic4sskjbw7d2y98n-util-linux-2.42.4-bin/bin:/nix/store/d64q19q1xjdwfhqx6czvrjgrhq0n3lcc-python3-3.14.7/bin:/nix/store/niqsa6mxqsyax9lzbm261a2ml6m71vb6-perl-5.42.3/bin:/nix/store/fv9yl55hkskpc2cj9c0sdyq91car9kgl-file-5.48/bin:/nix/store/jv5kdlkwx0l8a7jdpg21g934ff30s319-which-2.25/bin:/nix/store/aj08b694apkc1jay2akywym9ghlailf5-procps-4.0.7/bin:/nix/store/5wyaj1kvkxbbscz6innrh6yjjkdq4qmk-openssh-10.6p1/bin:/nix/store/44gxi8li8y8wrxrb93sya9hljkpigsqw-openssl-3.6.4-bin/bin:/run/wrappers/wrappers.Yw6nCJO1nt:/nix/store/wmh4xg3557sicfyllmi9ymd8sxaw51wv-man-db-2.13.1/bin:/nix/store/qpgknrlnxca0z99gl12j5n0fgca11cdx-mercurial-7.2.2/bin:/var/tmp/noxi-fg3/tmp/.tmpx5Vwp1/reference/tools
+++++(/var/tmp/noxi-fg3/func/nfhr5bEk/src/common/paths.sh:20) PATH=/nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2/bin:/nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2/bin:/nix/store/2ndah67h0z5m31v2wkdmg2md4380ggr5-bash-interactive-5.3p15/bin:/nix/store/xjl7p8dvyk2j53kqf7f43kdj4ypbxz7g-coreutils-9.11/bin:/nix/store/xmvbzzxm5snla5a2cyfhm7hjy9bifx7n-gnugrep-3.12/bin:/nix/store/qf2wzyq4irhgyhnq3s2hz0ldjq3w8a3x-gnused-4.10/bin:/nix/store/9zib1q94gka8i5q530364cvy25504qz5-gawk-5.4.1/bin:/nix/store/i9wgqa0l88aprvpwfaq5hkfa6pklhlv0-findutils-4.11.0/bin:/nix/store/b8xvzgd52jby5dfpi0pf46nisy6wma5d-diffutils-3.12/bin:/nix/store/81zqbas7qc02yfdj7142fdcqhxgd3cgz-patch-2.8/bin:/nix/store/c8b0qp903w2hhpa63a2lfs7d565zag30-gnutar-1.35/bin:/nix/store/l5sll8nxk70p73l5yqbsjy4mh0c3g0v5-gzip-1.14/bin:/nix/store/j3yz0ag9j442229n8harpmp9aa5qyvhn-bzip2-1.0.8-bin/bin:/nix/store/518dig8gpvqyac6pkksyjjfzvi9zn8vq-xz-5.8.3-bin/bin:/nix/store/l8ik8mb8lgb60rklxjmkgddmp5qqnv29-zstd-1.5.7-bin/bin:/nix/store/msr1v91ybfw6j12rs5mfl8ghb2rqsnsr-git-2.55.0/bin:/nix/store/hyz22a0l5b5kv7yfypw4ss6d36vbzg01-jq-1.8.2-bin/bin:/nix/store/24gq3bi2yzf7g386p5j32mn78hhanf49-sqlite-3.53.3-bin/bin:/nix/store/cp8qnyl8i0s62g3a1465i258mf5bcr6k-curl-8.22.0-bin/bin:/nix/store/8x4c8zah3fbnyckaic4sskjbw7d2y98n-util-linux-2.42.4-bin/bin:/nix/store/d64q19q1xjdwfhqx6czvrjgrhq0n3lcc-python3-3.14.7/bin:/nix/store/niqsa6mxqsyax9lzbm261a2ml6m71vb6-perl-5.42.3/bin:/nix/store/fv9yl55hkskpc2cj9c0sdyq91car9kgl-file-5.48/bin:/nix/store/jv5kdlkwx0l8a7jdpg21g934ff30s319-which-2.25/bin:/nix/store/aj08b694apkc1jay2akywym9ghlailf5-procps-4.0.7/bin:/nix/store/5wyaj1kvkxbbscz6innrh6yjjkdq4qmk-openssh-10.6p1/bin:/nix/store/44gxi8li8y8wrxrb93sya9hljkpigsqw-openssl-3.6.4-bin/bin:/run/wrappers/wrappers.Yw6nCJO1nt:/nix/store/wmh4xg3557sicfyllmi9ymd8sxaw51wv-man-db-2.13.1/bin:/nix/store/qpgknrlnxca0z99gl12j5n0fgca11cdx-mercurial-7.2.2/bin:/var/tmp/noxi-fg3/tmp/.tmpx5Vwp1/reference/tools
+++++(/var/tmp/noxi-fg3/func/nfhr5bEk/src/common/paths.sh:23) [[ -n '' ]]
+++++(/var/tmp/noxi-fg3/func/nfhr5bEk/src/common/paths.sh:27) DAEMON_PATH=/nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2/bin:/nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2/bin:/nix/store/2ndah67h0z5m31v2wkdmg2md4380ggr5-bash-interactive-5.3p15/bin:/nix/store/xjl7p8dvyk2j53kqf7f43kdj4ypbxz7g-coreutils-9.11/bin:/nix/store/xmvbzzxm5snla5a2cyfhm7hjy9bifx7n-gnugrep-3.12/bin:/nix/store/qf2wzyq4irhgyhnq3s2hz0ldjq3w8a3x-gnused-4.10/bin:/nix/store/9zib1q94gka8i5q530364cvy25504qz5-gawk-5.4.1/bin:/nix/store/i9wgqa0l88aprvpwfaq5hkfa6pklhlv0-findutils-4.11.0/bin:/nix/store/b8xvzgd52jby5dfpi0pf46nisy6wma5d-diffutils-3.12/bin:/nix/store/81zqbas7qc02yfdj7142fdcqhxgd3cgz-patch-2.8/bin:/nix/store/c8b0qp903w2hhpa63a2lfs7d565zag30-gnutar-1.35/bin:/nix/store/l5sll8nxk70p73l5yqbsjy4mh0c3g0v5-gzip-1.14/bin:/nix/store/j3yz0ag9j442229n8harpmp9aa5qyvhn-bzip2-1.0.8-bin/bin:/nix/store/518dig8gpvqyac6pkksyjjfzvi9zn8vq-xz-5.8.3-bin/bin:/nix/store/l8ik8mb8lgb60rklxjmkgddmp5qqnv29-zstd-1.5.7-bin/bin:/nix/store/msr1v91ybfw6j12rs5mfl8ghb2rqsnsr-git-2.55.0/bin:/nix/store/hyz22a0l5b5kv7yfypw4ss6d36vbzg01-jq-1.8.2-bin/bin:/nix/store/24gq3bi2yzf7g386p5j32mn78hhanf49-sqlite-3.53.3-bin/bin:/nix/store/cp8qnyl8i0s62g3a1465i258mf5bcr6k-curl-8.22.0-bin/bin:/nix/store/8x4c8zah3fbnyckaic4sskjbw7d2y98n-util-linux-2.42.4-bin/bin:/nix/store/d64q19q1xjdwfhqx6czvrjgrhq0n3lcc-python3-3.14.7/bin:/nix/store/niqsa6mxqsyax9lzbm261a2ml6m71vb6-perl-5.42.3/bin:/nix/store/fv9yl55hkskpc2cj9c0sdyq91car9kgl-file-5.48/bin:/nix/store/jv5kdlkwx0l8a7jdpg21g934ff30s319-which-2.25/bin:/nix/store/aj08b694apkc1jay2akywym9ghlailf5-procps-4.0.7/bin:/nix/store/5wyaj1kvkxbbscz6innrh6yjjkdq4qmk-openssh-10.6p1/bin:/nix/store/44gxi8li8y8wrxrb93sya9hljkpigsqw-openssl-3.6.4-bin/bin:/run/wrappers/wrappers.Yw6nCJO1nt:/nix/store/wmh4xg3557sicfyllmi9ymd8sxaw51wv-man-db-2.13.1/bin:/nix/store/qpgknrlnxca0z99gl12j5n0fgca11cdx-mercurial-7.2.2/bin:/var/tmp/noxi-fg3/tmp/.tmpx5Vwp1/reference/tools
+++++(/var/tmp/noxi-fg3/func/nfhr5bEk/src/common/paths.sh:28) [[ -n '' ]]
++++(/var/tmp/noxi-fg3/func/nfhr5bEk/src/common/vars.sh:24) source /var/tmp/noxi-fg3/func/nfhr5bEk/src/common/test-root.sh
+++++(/var/tmp/noxi-fg3/func/nfhr5bEk/src/common/test-root.sh:3) TEST_SUBDIR=main/shell
++++++(/var/tmp/noxi-fg3/func/nfhr5bEk/src/common/test-root.sh:4) realpath /var/tmp/noxi-fg3/func/nfhr5bEk/tmp/nix-test
+++++(/var/tmp/noxi-fg3/func/nfhr5bEk/src/common/test-root.sh:4) TEST_ROOT=/var/tmp/noxi-fg3/func/nfhr5bEk/tmp/nix-test/main/shell
+++++(/var/tmp/noxi-fg3/func/nfhr5bEk/src/common/test-root.sh:5) export TEST_ROOT
++++(/var/tmp/noxi-fg3/func/nfhr5bEk/src/common/vars.sh:26) test_nix_conf_dir=/var/tmp/noxi-fg3/func/nfhr5bEk/tmp/nix-test/main/shell/etc
++++(/var/tmp/noxi-fg3/func/nfhr5bEk/src/common/vars.sh:29) test_nix_conf=/var/tmp/noxi-fg3/func/nfhr5bEk/tmp/nix-test/main/shell/etc/nix.conf
++++(/var/tmp/noxi-fg3/func/nfhr5bEk/src/common/vars.sh:31) export TEST_HOME=/var/tmp/noxi-fg3/func/nfhr5bEk/tmp/nix-test/main/shell/test-home
++++(/var/tmp/noxi-fg3/func/nfhr5bEk/src/common/vars.sh:31) TEST_HOME=/var/tmp/noxi-fg3/func/nfhr5bEk/tmp/nix-test/main/shell/test-home
++++(/var/tmp/noxi-fg3/func/nfhr5bEk/src/common/vars.sh:33) isTestOnNixOS
++++(/var/tmp/noxi-fg3/func/nfhr5bEk/src/common/functions.sh:10) [[ '' == 1 ]]
++++(/var/tmp/noxi-fg3/func/nfhr5bEk/src/common/vars.sh:34) export NIX_STORE_DIR
+++++(/var/tmp/noxi-fg3/func/nfhr5bEk/src/common/vars.sh:35) readlink -f /var/tmp/noxi-fg3/func/nfhr5bEk/tmp/nix-test/main/shell/store
++++(/var/tmp/noxi-fg3/func/nfhr5bEk/src/common/vars.sh:35) NIX_STORE_DIR=
++++(/var/tmp/noxi-fg3/func/nfhr5bEk/src/common/vars.sh:37) export NIX_IGNORE_SYMLINK_STORE=1
++++(/var/tmp/noxi-fg3/func/nfhr5bEk/src/common/vars.sh:37) NIX_IGNORE_SYMLINK_STORE=1
++++(/var/tmp/noxi-fg3/func/nfhr5bEk/src/common/vars.sh:38) NIX_STORE_DIR=/var/tmp/noxi-fg3/func/nfhr5bEk/tmp/nix-test/main/shell/store
++++(/var/tmp/noxi-fg3/func/nfhr5bEk/src/common/vars.sh:40) export NIX_LOCALSTATE_DIR=/var/tmp/noxi-fg3/func/nfhr5bEk/tmp/nix-test/main/shell/var
++++(/var/tmp/noxi-fg3/func/nfhr5bEk/src/common/vars.sh:40) NIX_LOCALSTATE_DIR=/var/tmp/noxi-fg3/func/nfhr5bEk/tmp/nix-test/main/shell/var
++++(/var/tmp/noxi-fg3/func/nfhr5bEk/src/common/vars.sh:41) export NIX_LOG_DIR=/var/tmp/noxi-fg3/func/nfhr5bEk/tmp/nix-test/main/shell/var/log/nix
++++(/var/tmp/noxi-fg3/func/nfhr5bEk/src/common/vars.sh:41) NIX_LOG_DIR=/var/tmp/noxi-fg3/func/nfhr5bEk/tmp/nix-test/main/shell/var/log/nix
++++(/var/tmp/noxi-fg3/func/nfhr5bEk/src/common/vars.sh:42) export NIX_STATE_DIR=/var/tmp/noxi-fg3/func/nfhr5bEk/tmp/nix-test/main/shell/var/nix
++++(/var/tmp/noxi-fg3/func/nfhr5bEk/src/common/vars.sh:42) NIX_STATE_DIR=/var/tmp/noxi-fg3/func/nfhr5bEk/tmp/nix-test/main/shell/var/nix
++++(/var/tmp/noxi-fg3/func/nfhr5bEk/src/common/vars.sh:43) export NIX_CONF_DIR=/var/tmp/noxi-fg3/func/nfhr5bEk/tmp/nix-test/main/shell/etc
++++(/var/tmp/noxi-fg3/func/nfhr5bEk/src/common/vars.sh:43) NIX_CONF_DIR=/var/tmp/noxi-fg3/func/nfhr5bEk/tmp/nix-test/main/shell/etc
++++(/var/tmp/noxi-fg3/func/nfhr5bEk/src/common/vars.sh:44) export NIX_DAEMON_SOCKET_PATH=/var/tmp/noxi-fg3/func/nfhr5bEk/tmp/nix-test/main/shell/dSocket
++++(/var/tmp/noxi-fg3/func/nfhr5bEk/src/common/vars.sh:44) NIX_DAEMON_SOCKET_PATH=/var/tmp/noxi-fg3/func/nfhr5bEk/tmp/nix-test/main/shell/dSocket
++++(/var/tmp/noxi-fg3/func/nfhr5bEk/src/common/vars.sh:45) unset NIX_USER_CONF_FILES
++++(/var/tmp/noxi-fg3/func/nfhr5bEk/src/common/vars.sh:46) export _NIX_TEST_SHARED=/var/tmp/noxi-fg3/func/nfhr5bEk/tmp/nix-test/main/shell/shared
++++(/var/tmp/noxi-fg3/func/nfhr5bEk/src/common/vars.sh:46) _NIX_TEST_SHARED=/var/tmp/noxi-fg3/func/nfhr5bEk/tmp/nix-test/main/shell/shared
++++(/var/tmp/noxi-fg3/func/nfhr5bEk/src/common/vars.sh:47) [[ -n '' ]]
++++(/var/tmp/noxi-fg3/func/nfhr5bEk/src/common/vars.sh:50) export _NIX_IN_TEST=/var/tmp/noxi-fg3/func/nfhr5bEk/tmp/nix-test/main/shell/shared
++++(/var/tmp/noxi-fg3/func/nfhr5bEk/src/common/vars.sh:50) _NIX_IN_TEST=/var/tmp/noxi-fg3/func/nfhr5bEk/tmp/nix-test/main/shell/shared
++++(/var/tmp/noxi-fg3/func/nfhr5bEk/src/common/vars.sh:51) export _NIX_TEST_NO_LSOF=1
++++(/var/tmp/noxi-fg3/func/nfhr5bEk/src/common/vars.sh:51) _NIX_TEST_NO_LSOF=1
++++(/var/tmp/noxi-fg3/func/nfhr5bEk/src/common/vars.sh:54) export _NIX_TEST_NO_ENVIRONMENT_WARNINGS=1
++++(/var/tmp/noxi-fg3/func/nfhr5bEk/src/common/vars.sh:54) _NIX_TEST_NO_ENVIRONMENT_WARNINGS=1
++++(/var/tmp/noxi-fg3/func/nfhr5bEk/src/common/vars.sh:55) export NIX_REMOTE=
++++(/var/tmp/noxi-fg3/func/nfhr5bEk/src/common/vars.sh:55) NIX_REMOTE=
++++(/var/tmp/noxi-fg3/func/nfhr5bEk/src/common/vars.sh:59) unset NIX_PATH
++++(/var/tmp/noxi-fg3/func/nfhr5bEk/src/common/vars.sh:60) export HOME=/var/tmp/noxi-fg3/func/nfhr5bEk/tmp/nix-test/main/shell/test-home
++++(/var/tmp/noxi-fg3/func/nfhr5bEk/src/common/vars.sh:60) HOME=/var/tmp/noxi-fg3/func/nfhr5bEk/tmp/nix-test/main/shell/test-home
++++(/var/tmp/noxi-fg3/func/nfhr5bEk/src/common/vars.sh:61) unset XDG_STATE_HOME
++++(/var/tmp/noxi-fg3/func/nfhr5bEk/src/common/vars.sh:62) unset XDG_DATA_HOME
++++(/var/tmp/noxi-fg3/func/nfhr5bEk/src/common/vars.sh:63) unset XDG_CONFIG_HOME
++++(/var/tmp/noxi-fg3/func/nfhr5bEk/src/common/vars.sh:64) unset XDG_CONFIG_DIRS
++++(/var/tmp/noxi-fg3/func/nfhr5bEk/src/common/vars.sh:65) unset XDG_CACHE_HOME
++++(/var/tmp/noxi-fg3/func/nfhr5bEk/src/common/vars.sh:66) unset GIT_DIR
++++(/var/tmp/noxi-fg3/func/nfhr5bEk/src/common/vars.sh:68) export GIT_CONFIG_SYSTEM=/dev/null
++++(/var/tmp/noxi-fg3/func/nfhr5bEk/src/common/vars.sh:68) GIT_CONFIG_SYSTEM=/dev/null
++++(/var/tmp/noxi-fg3/func/nfhr5bEk/src/common/vars.sh:69) export GIT_CONFIG_GLOBAL=/dev/null
++++(/var/tmp/noxi-fg3/func/nfhr5bEk/src/common/vars.sh:69) GIT_CONFIG_GLOBAL=/dev/null
++++(/var/tmp/noxi-fg3/func/nfhr5bEk/src/common/vars.sh:71) export IMPURE_VAR1=foo
++++(/var/tmp/noxi-fg3/func/nfhr5bEk/src/common/vars.sh:71) IMPURE_VAR1=foo
++++(/var/tmp/noxi-fg3/func/nfhr5bEk/src/common/vars.sh:72) export IMPURE_VAR2=bar
++++(/var/tmp/noxi-fg3/func/nfhr5bEk/src/common/vars.sh:72) IMPURE_VAR2=bar
++++(/var/tmp/noxi-fg3/func/nfhr5bEk/src/common/vars.sh:76) cacheDir=/var/tmp/noxi-fg3/func/nfhr5bEk/tmp/nix-test/main/shell/binary-cache
+++++(/var/tmp/noxi-fg3/func/nfhr5bEk/src/common/vars.sh:78) uname
++++(/var/tmp/noxi-fg3/func/nfhr5bEk/src/common/vars.sh:78) [[ Linux == Linux ]]
++++(/var/tmp/noxi-fg3/func/nfhr5bEk/src/common/vars.sh:78) [[ -L /proc/self/ns/user ]]
++++(/var/tmp/noxi-fg3/func/nfhr5bEk/src/common/vars.sh:78) unshare --user true
++++(/var/tmp/noxi-fg3/func/nfhr5bEk/src/common/vars.sh:79) _canUseSandbox=1
++++(/var/tmp/noxi-fg3/func/nfhr5bEk/src/common/vars.sh:85) config_nix=/var/tmp/noxi-fg3/func/nfhr5bEk/tmp/nix-test/main/shell/config.nix
+++(common.sh:12) source /var/tmp/noxi-fg3/func/nfhr5bEk/src/common/functions.sh
++++(/var/tmp/noxi-fg3/func/nfhr5bEk/src/common/functions.sh:3) set -eu -o pipefail
++++(/var/tmp/noxi-fg3/func/nfhr5bEk/src/common/functions.sh:5) [[ -z 1 ]]
+++(common.sh:13) source /var/tmp/noxi-fg3/func/nfhr5bEk/src/common/init.sh
++++(/var/tmp/noxi-fg3/func/nfhr5bEk/src/common/init.sh:4) : /var/tmp/noxi-fg3/func/nfhr5bEk/tmp/nix-test/main/shell/etc /var/tmp/noxi-fg3/func/nfhr5bEk/tmp/nix-test/main/shell/etc/nix.conf /var/tmp/noxi-fg3/func/nfhr5bEk/tmp/nix-test/main/shell/config.nix
++++(/var/tmp/noxi-fg3/func/nfhr5bEk/src/common/init.sh:6) isTestOnNixOS
++++(/var/tmp/noxi-fg3/func/nfhr5bEk/src/common/functions.sh:10) [[ '' == 1 ]]
++++(/var/tmp/noxi-fg3/func/nfhr5bEk/src/common/init.sh:29) test -n /var/tmp/noxi-fg3/func/nfhr5bEk/tmp/nix-test/main/shell
++++(/var/tmp/noxi-fg3/func/nfhr5bEk/src/common/init.sh:31) killDaemon
++++(/var/tmp/noxi-fg3/func/nfhr5bEk/src/common/functions.sh:100) isTestOnNixOS
++++(/var/tmp/noxi-fg3/func/nfhr5bEk/src/common/functions.sh:10) [[ '' == 1 ]]
++++(/var/tmp/noxi-fg3/func/nfhr5bEk/src/common/functions.sh:105) [[ '' == '' ]]
++++(/var/tmp/noxi-fg3/func/nfhr5bEk/src/common/functions.sh:106) return
++++(/var/tmp/noxi-fg3/func/nfhr5bEk/src/common/init.sh:33) [[ -e /var/tmp/noxi-fg3/func/nfhr5bEk/tmp/nix-test/main/shell ]]
++++(/var/tmp/noxi-fg3/func/nfhr5bEk/src/common/init.sh:37) mkdir -p /var/tmp/noxi-fg3/func/nfhr5bEk/tmp/nix-test/main/shell
++++(/var/tmp/noxi-fg3/func/nfhr5bEk/src/common/init.sh:38) mkdir /var/tmp/noxi-fg3/func/nfhr5bEk/tmp/nix-test/main/shell/test-home
++++(/var/tmp/noxi-fg3/func/nfhr5bEk/src/common/init.sh:40) mkdir /var/tmp/noxi-fg3/func/nfhr5bEk/tmp/nix-test/main/shell/store
++++(/var/tmp/noxi-fg3/func/nfhr5bEk/src/common/init.sh:41) mkdir /var/tmp/noxi-fg3/func/nfhr5bEk/tmp/nix-test/main/shell/var
++++(/var/tmp/noxi-fg3/func/nfhr5bEk/src/common/init.sh:42) mkdir -p /var/tmp/noxi-fg3/func/nfhr5bEk/tmp/nix-test/main/shell/var/log/nix/drvs
++++(/var/tmp/noxi-fg3/func/nfhr5bEk/src/common/init.sh:43) mkdir /var/tmp/noxi-fg3/func/nfhr5bEk/tmp/nix-test/main/shell/var/nix
++++(/var/tmp/noxi-fg3/func/nfhr5bEk/src/common/init.sh:44) mkdir /var/tmp/noxi-fg3/func/nfhr5bEk/tmp/nix-test/main/shell/etc
++++(/var/tmp/noxi-fg3/func/nfhr5bEk/src/common/init.sh:46) cat
+++++(/var/tmp/noxi-fg3/func/nfhr5bEk/src/common/init.sh:46) whoami
++++(/var/tmp/noxi-fg3/func/nfhr5bEk/src/common/init.sh:59) cat
++++(/var/tmp/noxi-fg3/func/nfhr5bEk/src/common/init.sh:67) nix-store --init
++++(/var/tmp/noxi-fg3/func/nfhr5bEk/src/common/init.sh:69) test -e /var/tmp/noxi-fg3/func/nfhr5bEk/tmp/nix-test/main/shell/var/nix/db/db.sqlite
++++(/var/tmp/noxi-fg3/func/nfhr5bEk/src/common/init.sh:75) echo '# config.nix for test main / shell'
++++(/var/tmp/noxi-fg3/func/nfhr5bEk/src/common/init.sh:76) cat /var/tmp/noxi-fg3/func/nfhr5bEk/build/config.nix
+++(common.sh:15) [[ -n '' ]]
++(shell.sh:5) TODO_NixOS
++(/var/tmp/noxi-fg3/func/nfhr5bEk/src/common/functions.sh:148) isTestOnNixOS
++(/var/tmp/noxi-fg3/func/nfhr5bEk/src/common/functions.sh:10) [[ '' == 1 ]]
++(shell.sh:8) nix env shell -f shell-hello.nix hello -c hello
++(shell.sh:8) grep 'Hello World'
++(/var/tmp/noxi-fg3/func/nfhr5bEk/src/common/functions.sh:344) checkGrepArgs 'Hello World'
++(/var/tmp/noxi-fg3/func/nfhr5bEk/src/common/functions.sh:293) local arg
++(/var/tmp/noxi-fg3/func/nfhr5bEk/src/common/functions.sh:294) for arg in "$@"
++(/var/tmp/noxi-fg3/func/nfhr5bEk/src/common/functions.sh:295) [[ Hello World != Hello World ]]
++(/var/tmp/noxi-fg3/func/nfhr5bEk/src/common/functions.sh:345) command grep 'Hello World'
+warning: you don't have Internet access; disabling some network-dependent features
+this derivation will be built:
+  /var/tmp/noxi-fg3/func/nfhr5bEk/tmp/nix-test/main/shell/store/qa98ka06x5h2pwfrq12a2ib8q98hq9wc-hello.drv
+building '/var/tmp/noxi-fg3/func/nfhr5bEk/tmp/nix-test/main/shell/store/qa98ka06x5h2pwfrq12a2ib8q98hq9wc-hello.drv'...
+Hello World from /var/tmp/noxi-fg3/func/nfhr5bEk/tmp/nix-test/main/shell/store/16dc75pisspn2xfz5v6yfkmzl5q0zlz9-hello/bin/hello
++(shell.sh:10) nix shell -f shell-hello.nix hello -c hello
++(shell.sh:10) grep 'Hello World'
++(/var/tmp/noxi-fg3/func/nfhr5bEk/src/common/functions.sh:344) checkGrepArgs 'Hello World'
++(/var/tmp/noxi-fg3/func/nfhr5bEk/src/common/functions.sh:293) local arg
++(/var/tmp/noxi-fg3/func/nfhr5bEk/src/common/functions.sh:294) for arg in "$@"
++(/var/tmp/noxi-fg3/func/nfhr5bEk/src/common/functions.sh:295) [[ Hello World != Hello World ]]
++(/var/tmp/noxi-fg3/func/nfhr5bEk/src/common/functions.sh:345) command grep 'Hello World'
+warning: you don't have Internet access; disabling some network-dependent features
+Hello World from /var/tmp/noxi-fg3/func/nfhr5bEk/tmp/nix-test/main/shell/store/16dc75pisspn2xfz5v6yfkmzl5q0zlz9-hello/bin/hello
++(shell.sh:11) nix shell -f shell-hello.nix hello -c hello NixOS
++(shell.sh:11) grep 'Hello NixOS'
++(/var/tmp/noxi-fg3/func/nfhr5bEk/src/common/functions.sh:344) checkGrepArgs 'Hello NixOS'
++(/var/tmp/noxi-fg3/func/nfhr5bEk/src/common/functions.sh:293) local arg
++(/var/tmp/noxi-fg3/func/nfhr5bEk/src/common/functions.sh:294) for arg in "$@"
++(/var/tmp/noxi-fg3/func/nfhr5bEk/src/common/functions.sh:295) [[ Hello NixOS != Hello NixOS ]]
++(/var/tmp/noxi-fg3/func/nfhr5bEk/src/common/functions.sh:345) command grep 'Hello NixOS'
+warning: you don't have Internet access; disabling some network-dependent features
+Hello NixOS from /var/tmp/noxi-fg3/func/nfhr5bEk/tmp/nix-test/main/shell/store/16dc75pisspn2xfz5v6yfkmzl5q0zlz9-hello/bin/hello
++(shell.sh:14) nix shell -f shell-hello.nix 'hello^dev' -c hello2
++(shell.sh:14) grep Hello2
++(/var/tmp/noxi-fg3/func/nfhr5bEk/src/common/functions.sh:344) checkGrepArgs Hello2
++(/var/tmp/noxi-fg3/func/nfhr5bEk/src/common/functions.sh:293) local arg
++(/var/tmp/noxi-fg3/func/nfhr5bEk/src/common/functions.sh:294) for arg in "$@"
++(/var/tmp/noxi-fg3/func/nfhr5bEk/src/common/functions.sh:295) [[ Hello2 != Hello2 ]]
++(/var/tmp/noxi-fg3/func/nfhr5bEk/src/common/functions.sh:345) command grep Hello2
+warning: you don't have Internet access; disabling some network-dependent features
+Hello2
++(shell.sh:15) nix shell -f shell-hello.nix 'hello^*' -c hello2
++(shell.sh:15) grep Hello2
++(/var/tmp/noxi-fg3/func/nfhr5bEk/src/common/functions.sh:344) checkGrepArgs Hello2
++(/var/tmp/noxi-fg3/func/nfhr5bEk/src/common/functions.sh:293) local arg
++(/var/tmp/noxi-fg3/func/nfhr5bEk/src/common/functions.sh:294) for arg in "$@"
++(/var/tmp/noxi-fg3/func/nfhr5bEk/src/common/functions.sh:295) [[ Hello2 != Hello2 ]]
++(/var/tmp/noxi-fg3/func/nfhr5bEk/src/common/functions.sh:345) command grep Hello2
+warning: you don't have Internet access; disabling some network-dependent features
+Hello2
++(shell.sh:18) nix shell -f shell-hello.nix hello-symlink -c hello
++(shell.sh:18) grep 'Hello World'
++(/var/tmp/noxi-fg3/func/nfhr5bEk/src/common/functions.sh:344) checkGrepArgs 'Hello World'
++(/var/tmp/noxi-fg3/func/nfhr5bEk/src/common/functions.sh:293) local arg
++(/var/tmp/noxi-fg3/func/nfhr5bEk/src/common/functions.sh:294) for arg in "$@"
++(/var/tmp/noxi-fg3/func/nfhr5bEk/src/common/functions.sh:295) [[ Hello World != Hello World ]]
++(/var/tmp/noxi-fg3/func/nfhr5bEk/src/common/functions.sh:345) command grep 'Hello World'
+warning: you don't have Internet access; disabling some network-dependent features
+this derivation will be built:
+  /var/tmp/noxi-fg3/func/nfhr5bEk/tmp/nix-test/main/shell/store/s654yli41s997a7d2m539kj44arkjmvw-hello-symlink.drv
+building '/var/tmp/noxi-fg3/func/nfhr5bEk/tmp/nix-test/main/shell/store/s654yli41s997a7d2m539kj44arkjmvw-hello-symlink.drv'...
+Hello World from /var/tmp/noxi-fg3/func/nfhr5bEk/tmp/nix-test/main/shell/store/16dc75pisspn2xfz5v6yfkmzl5q0zlz9-hello/bin/hello
++(shell.sh:21) expect 1 nix shell -f shell-hello.nix forbidden-symlink -c hello
++(shell.sh:21) grepQuiet 'is not in the Nix store'
++(/var/tmp/noxi-fg3/func/nfhr5bEk/src/common/functions.sh:330) checkGrepArgs 'is not in the Nix store'
++(/var/tmp/noxi-fg3/func/nfhr5bEk/src/common/functions.sh:293) local arg
++(/var/tmp/noxi-fg3/func/nfhr5bEk/src/common/functions.sh:294) for arg in "$@"
++(/var/tmp/noxi-fg3/func/nfhr5bEk/src/common/functions.sh:295) [[ is not in the Nix store != is not in the Nix store ]]
++(/var/tmp/noxi-fg3/func/nfhr5bEk/src/common/functions.sh:331) command grep 'is not in the Nix store'
++(shell.sh:27) env
++(shell.sh:28) nix shell -f shell-hello.nix hello -c env
+warning: you don't have Internet access; disabling some network-dependent features
++(shell.sh:35) sed -i -e 's/PATH=.*/PATH=.../' -e 's/_=.*/_=.../' -e '/^TMPDIR=\/var\/folders\/.*/d' -e '/^__CF_USER_TEXT_ENCODING=.*$/d' -e '/^__LLVM_PROFILE_RT_INIT_ONCE=.*$/d' /var/tmp/noxi-fg3/func/nfhr5bEk/tmp/nix-test/main/shell/expected-env /var/tmp/noxi-fg3/func/nfhr5bEk/tmp/nix-test/main/shell/actual-env
++(shell.sh:42) sort /var/tmp/noxi-fg3/func/nfhr5bEk/tmp/nix-test/main/shell/expected-env
++(shell.sh:43) sort /var/tmp/noxi-fg3/func/nfhr5bEk/tmp/nix-test/main/shell/actual-env
++(shell.sh:44) diff /var/tmp/noxi-fg3/func/nfhr5bEk/tmp/nix-test/main/shell/expected-env.sorted /var/tmp/noxi-fg3/func/nfhr5bEk/tmp/nix-test/main/shell/actual-env.sorted
++(shell.sh:46) isDaemonNewer 2.20.0pre20231220
++(/var/tmp/noxi-fg3/func/nfhr5bEk/src/common/functions.sh:135) [[ -n '' ]]
++(/var/tmp/noxi-fg3/func/nfhr5bEk/src/common/functions.sh:135) return 0
++(shell.sh:49) nix shell -f shell-hello.nix hello salve-mundi -c hello
++(shell.sh:49) grep 'Hello World'
++(/var/tmp/noxi-fg3/func/nfhr5bEk/src/common/functions.sh:344) checkGrepArgs 'Hello World'
++(/var/tmp/noxi-fg3/func/nfhr5bEk/src/common/functions.sh:293) local arg
++(/var/tmp/noxi-fg3/func/nfhr5bEk/src/common/functions.sh:294) for arg in "$@"
++(/var/tmp/noxi-fg3/func/nfhr5bEk/src/common/functions.sh:295) [[ Hello World != Hello World ]]
++(/var/tmp/noxi-fg3/func/nfhr5bEk/src/common/functions.sh:345) command grep 'Hello World'
+warning: you don't have Internet access; disabling some network-dependent features
+this derivation will be built:
+  /var/tmp/noxi-fg3/func/nfhr5bEk/tmp/nix-test/main/shell/store/239xqq48xn3wlymnxjx941v32wyd3cr4-salve-mundi.drv
+building '/var/tmp/noxi-fg3/func/nfhr5bEk/tmp/nix-test/main/shell/store/239xqq48xn3wlymnxjx941v32wyd3cr4-salve-mundi.drv'...
+Hello World from /var/tmp/noxi-fg3/func/nfhr5bEk/tmp/nix-test/main/shell/store/16dc75pisspn2xfz5v6yfkmzl5q0zlz9-hello/bin/hello
++(shell.sh:50) nix shell -f shell-hello.nix salve-mundi hello -c hello
++(shell.sh:50) grep 'Salve Mundi'
++(/var/tmp/noxi-fg3/func/nfhr5bEk/src/common/functions.sh:344) checkGrepArgs 'Salve Mundi'
++(/var/tmp/noxi-fg3/func/nfhr5bEk/src/common/functions.sh:293) local arg
++(/var/tmp/noxi-fg3/func/nfhr5bEk/src/common/functions.sh:294) for arg in "$@"
++(/var/tmp/noxi-fg3/func/nfhr5bEk/src/common/functions.sh:295) [[ Salve Mundi != Salve Mundi ]]
++(/var/tmp/noxi-fg3/func/nfhr5bEk/src/common/functions.sh:345) command grep 'Salve Mundi'
+warning: you don't have Internet access; disabling some network-dependent features
+Salve Mundi from /var/tmp/noxi-fg3/func/nfhr5bEk/tmp/nix-test/main/shell/store/51gyja2gv20w880damviinhxr27cjk0r-salve-mundi/bin/hello
++(shell.sh:53) requireSandboxSupport
++(/var/tmp/noxi-fg3/func/nfhr5bEk/src/common/functions.sh:162) canUseSandbox
++(/var/tmp/noxi-fg3/func/nfhr5bEk/src/common/functions.sh:158) [[ -n 1 ]]
++(shell.sh:54) requiresUnprivilegedUserNamespaces
++(/var/tmp/noxi-fg3/func/nfhr5bEk/src/common/functions.sh:356) [[ -f /proc/sys/kernel/apparmor_restrict_unprivileged_userns ]]
++(shell.sh:56) chmod -R u+w /var/tmp/noxi-fg3/func/nfhr5bEk/tmp/nix-test/main/shell/store0
+chmod: cannot access '/var/tmp/noxi-fg3/func/nfhr5bEk/tmp/nix-test/main/shell/store0': No such file or directory
++(shell.sh:56) true
++(shell.sh:57) rm -rf /var/tmp/noxi-fg3/func/nfhr5bEk/tmp/nix-test/main/shell/store0
++(shell.sh:59) clearStore
++(/var/tmp/noxi-fg3/func/nfhr5bEk/src/common/functions.sh:41) isTestOnNixOS
++(/var/tmp/noxi-fg3/func/nfhr5bEk/src/common/functions.sh:10) [[ '' == 1 ]]
++(/var/tmp/noxi-fg3/func/nfhr5bEk/src/common/functions.sh:44) doClearStore
++(/var/tmp/noxi-fg3/func/nfhr5bEk/src/common/functions.sh:48) echo 'clearing store...'
+clearing store...
++(/var/tmp/noxi-fg3/func/nfhr5bEk/src/common/functions.sh:49) chmod -R +w /var/tmp/noxi-fg3/func/nfhr5bEk/tmp/nix-test/main/shell/store
++(/var/tmp/noxi-fg3/func/nfhr5bEk/src/common/functions.sh:50) rm -rf /var/tmp/noxi-fg3/func/nfhr5bEk/tmp/nix-test/main/shell/store
++(/var/tmp/noxi-fg3/func/nfhr5bEk/src/common/functions.sh:51) mkdir /var/tmp/noxi-fg3/func/nfhr5bEk/tmp/nix-test/main/shell/store
++(/var/tmp/noxi-fg3/func/nfhr5bEk/src/common/functions.sh:52) rm -rf /var/tmp/noxi-fg3/func/nfhr5bEk/tmp/nix-test/main/shell/var/nix
++(/var/tmp/noxi-fg3/func/nfhr5bEk/src/common/functions.sh:53) mkdir /var/tmp/noxi-fg3/func/nfhr5bEk/tmp/nix-test/main/shell/var/nix
++(/var/tmp/noxi-fg3/func/nfhr5bEk/src/common/functions.sh:54) clearProfiles
++(/var/tmp/noxi-fg3/func/nfhr5bEk/src/common/functions.sh:25) profiles=/var/tmp/noxi-fg3/func/nfhr5bEk/tmp/nix-test/main/shell/test-home/.local/state/nix/profiles
++(/var/tmp/noxi-fg3/func/nfhr5bEk/src/common/functions.sh:26) rm -rf /var/tmp/noxi-fg3/func/nfhr5bEk/tmp/nix-test/main/shell/test-home/.local/state/nix/profiles
+++(shell.sh:61) nix eval --raw -f shell-hello.nix hello
+warning: you don't have Internet access; disabling some network-dependent features
++(shell.sh:61) path=/var/tmp/noxi-fg3/func/nfhr5bEk/tmp/nix-test/main/shell/store/16dc75pisspn2xfz5v6yfkmzl5q0zlz9-hello
++(shell.sh:65) nix shell --sandbox-build-dir /build-tmp --sandbox-paths '/nix? /bin? /lib? /lib64? /usr?' --store /var/tmp/noxi-fg3/func/nfhr5bEk/tmp/nix-test/main/shell/store0 -f shell-hello.nix hello -c hello
++(shell.sh:67) grep 'Hello World'
++(/var/tmp/noxi-fg3/func/nfhr5bEk/src/common/functions.sh:344) checkGrepArgs 'Hello World'
++(/var/tmp/noxi-fg3/func/nfhr5bEk/src/common/functions.sh:293) local arg
++(/var/tmp/noxi-fg3/func/nfhr5bEk/src/common/functions.sh:294) for arg in "$@"
++(/var/tmp/noxi-fg3/func/nfhr5bEk/src/common/functions.sh:295) [[ Hello World != Hello World ]]
++(/var/tmp/noxi-fg3/func/nfhr5bEk/src/common/functions.sh:345) command grep 'Hello World'
+warning: you don't have Internet access; disabling some network-dependent features
+this derivation will be built:
+  /var/tmp/noxi-fg3/func/nfhr5bEk/tmp/nix-test/main/shell/store/qa98ka06x5h2pwfrq12a2ib8q98hq9wc-hello.drv
+building '/var/tmp/noxi-fg3/func/nfhr5bEk/tmp/nix-test/main/shell/store/qa98ka06x5h2pwfrq12a2ib8q98hq9wc-hello.drv'...
+Hello World from /var/tmp/noxi-fg3/func/nfhr5bEk/tmp/nix-test/main/shell/store/16dc75pisspn2xfz5v6yfkmzl5q0zlz9-hello/bin/hello
+++(shell.sh:69) nix shell --sandbox-paths '/nix? /bin? /lib? /lib64? /usr?' --store /var/tmp/noxi-fg3/func/nfhr5bEk/tmp/nix-test/main/shell/store0 -f shell-hello.nix hello -c /nix/store/2ndah67h0z5m31v2wkdmg2md4380ggr5-bash-interactive-5.3p15/bin/bash -c 'type -p hello'
+warning: you don't have Internet access; disabling some network-dependent features
++(shell.sh:69) path2=/var/tmp/noxi-fg3/func/nfhr5bEk/tmp/nix-test/main/shell/store/16dc75pisspn2xfz5v6yfkmzl5q0zlz9-hello/bin/hello
++(shell.sh:71) [[ /var/tmp/noxi-fg3/func/nfhr5bEk/tmp/nix-test/main/shell/store/16dc75pisspn2xfz5v6yfkmzl5q0zlz9-hello/bin/hello = /var/tmp/noxi\-fg3/func/nfhr5bEk/tmp/nix\-test/main/shell/store/16dc75pisspn2xfz5v6yfkmzl5q0zlz9\-hello/bin/hello ]]
+++(shell.sh:73) basename /var/tmp/noxi-fg3/func/nfhr5bEk/tmp/nix-test/main/shell/store/16dc75pisspn2xfz5v6yfkmzl5q0zlz9-hello
++(shell.sh:73) [[ -e /var/tmp/noxi-fg3/func/nfhr5bEk/tmp/nix-test/main/shell/store0/nix/store/16dc75pisspn2xfz5v6yfkmzl5q0zlz9-hello/bin/hello ]]

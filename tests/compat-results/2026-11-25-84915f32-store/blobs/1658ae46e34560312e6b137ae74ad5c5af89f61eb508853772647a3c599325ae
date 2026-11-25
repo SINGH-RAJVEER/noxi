@@ -1,0 +1,296 @@
++(fetchMercurial.sh:3) source common.sh
+++(common.sh:3) set -eu -o pipefail
+++(common.sh:5) [[ -z '' ]]
+++(common.sh:7) COMMON_SH_SOURCED=1
+++++(common.sh:9) dirname common.sh
++++(common.sh:9) readlink -f .
+++(common.sh:9) functionalTestsDir=/var/tmp/noxi-fg3/func/nf4ztsTM/src
+++(common.sh:11) source /var/tmp/noxi-fg3/func/nf4ztsTM/src/common/vars.sh
++++(/var/tmp/noxi-fg3/func/nf4ztsTM/src/common/vars.sh:3) set -eu -o pipefail
++++(/var/tmp/noxi-fg3/func/nf4ztsTM/src/common/vars.sh:5) [[ -z '' ]]
++++(/var/tmp/noxi-fg3/func/nf4ztsTM/src/common/vars.sh:7) COMMON_VARS_SH_SOURCED=1
+++++(/var/tmp/noxi-fg3/func/nf4ztsTM/src/common/vars.sh:9) realpath /var/tmp/noxi-fg3/func/nf4ztsTM/src
++++(/var/tmp/noxi-fg3/func/nf4ztsTM/src/common/vars.sh:9) _NIX_TEST_SOURCE_DIR=/var/tmp/noxi-fg3/func/nf4ztsTM/src
+++++(/var/tmp/noxi-fg3/func/nf4ztsTM/src/common/vars.sh:10) realpath /var/tmp/noxi-fg3/func/nf4ztsTM/build
++++(/var/tmp/noxi-fg3/func/nf4ztsTM/src/common/vars.sh:10) _NIX_TEST_BUILD_DIR=/var/tmp/noxi-fg3/func/nf4ztsTM/build
++++++(/var/tmp/noxi-fg3/func/nf4ztsTM/src/common/vars.sh:12) dirname /var/tmp/noxi-fg3/func/nf4ztsTM/src/common/vars.sh
+++++(/var/tmp/noxi-fg3/func/nf4ztsTM/src/common/vars.sh:12) readlink -f /var/tmp/noxi-fg3/func/nf4ztsTM/src/common
++++(/var/tmp/noxi-fg3/func/nf4ztsTM/src/common/vars.sh:12) commonDir=/var/tmp/noxi-fg3/func/nf4ztsTM/src/common
++++(/var/tmp/noxi-fg3/func/nf4ztsTM/src/common/vars.sh:16) source /var/tmp/noxi-fg3/func/nf4ztsTM/build/common/subst-vars.sh
+++++(/var/tmp/noxi-fg3/func/nf4ztsTM/build/common/subst-vars.sh:3) [[ -z '' ]]
+++++(/var/tmp/noxi-fg3/func/nf4ztsTM/build/common/subst-vars.sh:5) COMMON_SUBST_VARS_SH_SOURCED=1
+++++(/var/tmp/noxi-fg3/func/nf4ztsTM/build/common/subst-vars.sh:7) bash=/nix/store/2ndah67h0z5m31v2wkdmg2md4380ggr5-bash-interactive-5.3p15/bin/bash
+++++(/var/tmp/noxi-fg3/func/nf4ztsTM/build/common/subst-vars.sh:8) bindir=/nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2/bin
+++++(/var/tmp/noxi-fg3/func/nf4ztsTM/build/common/subst-vars.sh:9) coreutils=/nix/store/xjl7p8dvyk2j53kqf7f43kdj4ypbxz7g-coreutils-9.11/bin
+++++(/var/tmp/noxi-fg3/func/nf4ztsTM/build/common/subst-vars.sh:11) dot=
+++++(/var/tmp/noxi-fg3/func/nf4ztsTM/build/common/subst-vars.sh:12) busybox=/nix/store/qddzvnv6b0805nkvbqddbswddcfhx814-busybox-static-x86_64-unknown-linux-musl-1.37.0/bin/busybox
+++++(/var/tmp/noxi-fg3/func/nf4ztsTM/build/common/subst-vars.sh:14) version=2.35.2
+++++(/var/tmp/noxi-fg3/func/nf4ztsTM/build/common/subst-vars.sh:15) system=x86_64-linux
++++(/var/tmp/noxi-fg3/func/nf4ztsTM/src/common/vars.sh:18) : '/nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2/bin /nix/store/xjl7p8dvyk2j53kqf7f43kdj4ypbxz7g-coreutils-9.11/bin  /run/current-system/sw/bin/nu /nix/store/qddzvnv6b0805nkvbqddbswddcfhx814-busybox-static-x86_64-unknown-linux-musl-1.37.0/bin/busybox 2.35.2 x86_64-linux'
++++(/var/tmp/noxi-fg3/func/nf4ztsTM/src/common/vars.sh:19) export coreutils dot busybox version system
++++(/var/tmp/noxi-fg3/func/nf4ztsTM/src/common/vars.sh:21) export PAGER=cat
++++(/var/tmp/noxi-fg3/func/nf4ztsTM/src/common/vars.sh:21) PAGER=cat
++++(/var/tmp/noxi-fg3/func/nf4ztsTM/src/common/vars.sh:23) source /var/tmp/noxi-fg3/func/nf4ztsTM/src/common/paths.sh
+++++(/var/tmp/noxi-fg3/func/nf4ztsTM/src/common/paths.sh:3) set -eu -o pipefail
+++++(/var/tmp/noxi-fg3/func/nf4ztsTM/src/common/paths.sh:5) [[ -z '' ]]
+++++(/var/tmp/noxi-fg3/func/nf4ztsTM/src/common/paths.sh:7) COMMON_PATHS_SH_SOURCED=1
+++++++(/var/tmp/noxi-fg3/func/nf4ztsTM/src/common/paths.sh:9) dirname /var/tmp/noxi-fg3/func/nf4ztsTM/src/common/paths.sh
++++++(/var/tmp/noxi-fg3/func/nf4ztsTM/src/common/paths.sh:9) readlink -f /var/tmp/noxi-fg3/func/nf4ztsTM/src/common
+++++(/var/tmp/noxi-fg3/func/nf4ztsTM/src/common/paths.sh:9) commonDir=/var/tmp/noxi-fg3/func/nf4ztsTM/src/common
+++++(/var/tmp/noxi-fg3/func/nf4ztsTM/src/common/paths.sh:12) source /var/tmp/noxi-fg3/func/nf4ztsTM/src/common/functions.sh
++++++(/var/tmp/noxi-fg3/func/nf4ztsTM/src/common/functions.sh:3) set -eu -o pipefail
++++++(/var/tmp/noxi-fg3/func/nf4ztsTM/src/common/functions.sh:5) [[ -z '' ]]
++++++(/var/tmp/noxi-fg3/func/nf4ztsTM/src/common/functions.sh:7) COMMON_FUNCTIONS_SH_SOURCED=1
++++++(/var/tmp/noxi-fg3/func/nf4ztsTM/src/common/functions.sh:353) trap onError ERR
+++++(/var/tmp/noxi-fg3/func/nf4ztsTM/src/common/paths.sh:14) source /var/tmp/noxi-fg3/func/nf4ztsTM/build/common/subst-vars.sh
++++++(/var/tmp/noxi-fg3/func/nf4ztsTM/build/common/subst-vars.sh:3) [[ -z 1 ]]
+++++(/var/tmp/noxi-fg3/func/nf4ztsTM/src/common/paths.sh:16) : /nix/store/2ndah67h0z5m31v2wkdmg2md4380ggr5-bash-interactive-5.3p15/bin/bash /nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2/bin
+++++(/var/tmp/noxi-fg3/func/nf4ztsTM/src/common/paths.sh:18) isTestOnNixOS
+++++(/var/tmp/noxi-fg3/func/nf4ztsTM/src/common/functions.sh:10) [[ '' == 1 ]]
+++++(/var/tmp/noxi-fg3/func/nf4ztsTM/src/common/paths.sh:19) export SHELL=/nix/store/2ndah67h0z5m31v2wkdmg2md4380ggr5-bash-interactive-5.3p15/bin/bash
+++++(/var/tmp/noxi-fg3/func/nf4ztsTM/src/common/paths.sh:19) SHELL=/nix/store/2ndah67h0z5m31v2wkdmg2md4380ggr5-bash-interactive-5.3p15/bin/bash
+++++(/var/tmp/noxi-fg3/func/nf4ztsTM/src/common/paths.sh:20) export PATH=/nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2/bin:/nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2/bin:/nix/store/2ndah67h0z5m31v2wkdmg2md4380ggr5-bash-interactive-5.3p15/bin:/nix/store/xjl7p8dvyk2j53kqf7f43kdj4ypbxz7g-coreutils-9.11/bin:/nix/store/xmvbzzxm5snla5a2cyfhm7hjy9bifx7n-gnugrep-3.12/bin:/nix/store/qf2wzyq4irhgyhnq3s2hz0ldjq3w8a3x-gnused-4.10/bin:/nix/store/9zib1q94gka8i5q530364cvy25504qz5-gawk-5.4.1/bin:/nix/store/i9wgqa0l88aprvpwfaq5hkfa6pklhlv0-findutils-4.11.0/bin:/nix/store/b8xvzgd52jby5dfpi0pf46nisy6wma5d-diffutils-3.12/bin:/nix/store/81zqbas7qc02yfdj7142fdcqhxgd3cgz-patch-2.8/bin:/nix/store/c8b0qp903w2hhpa63a2lfs7d565zag30-gnutar-1.35/bin:/nix/store/l5sll8nxk70p73l5yqbsjy4mh0c3g0v5-gzip-1.14/bin:/nix/store/j3yz0ag9j442229n8harpmp9aa5qyvhn-bzip2-1.0.8-bin/bin:/nix/store/518dig8gpvqyac6pkksyjjfzvi9zn8vq-xz-5.8.3-bin/bin:/nix/store/l8ik8mb8lgb60rklxjmkgddmp5qqnv29-zstd-1.5.7-bin/bin:/nix/store/msr1v91ybfw6j12rs5mfl8ghb2rqsnsr-git-2.55.0/bin:/nix/store/hyz22a0l5b5kv7yfypw4ss6d36vbzg01-jq-1.8.2-bin/bin:/nix/store/24gq3bi2yzf7g386p5j32mn78hhanf49-sqlite-3.53.3-bin/bin:/nix/store/cp8qnyl8i0s62g3a1465i258mf5bcr6k-curl-8.22.0-bin/bin:/nix/store/8x4c8zah3fbnyckaic4sskjbw7d2y98n-util-linux-2.42.4-bin/bin:/nix/store/d64q19q1xjdwfhqx6czvrjgrhq0n3lcc-python3-3.14.7/bin:/nix/store/niqsa6mxqsyax9lzbm261a2ml6m71vb6-perl-5.42.3/bin:/nix/store/fv9yl55hkskpc2cj9c0sdyq91car9kgl-file-5.48/bin:/nix/store/jv5kdlkwx0l8a7jdpg21g934ff30s319-which-2.25/bin:/nix/store/aj08b694apkc1jay2akywym9ghlailf5-procps-4.0.7/bin:/nix/store/5wyaj1kvkxbbscz6innrh6yjjkdq4qmk-openssh-10.6p1/bin:/nix/store/44gxi8li8y8wrxrb93sya9hljkpigsqw-openssl-3.6.4-bin/bin:/run/wrappers/wrappers.Yw6nCJO1nt:/nix/store/wmh4xg3557sicfyllmi9ymd8sxaw51wv-man-db-2.13.1/bin:/nix/store/qpgknrlnxca0z99gl12j5n0fgca11cdx-mercurial-7.2.2/bin:/var/tmp/noxi-fg3/tmp/.tmpx5Vwp1/reference/tools
+++++(/var/tmp/noxi-fg3/func/nf4ztsTM/src/common/paths.sh:20) PATH=/nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2/bin:/nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2/bin:/nix/store/2ndah67h0z5m31v2wkdmg2md4380ggr5-bash-interactive-5.3p15/bin:/nix/store/xjl7p8dvyk2j53kqf7f43kdj4ypbxz7g-coreutils-9.11/bin:/nix/store/xmvbzzxm5snla5a2cyfhm7hjy9bifx7n-gnugrep-3.12/bin:/nix/store/qf2wzyq4irhgyhnq3s2hz0ldjq3w8a3x-gnused-4.10/bin:/nix/store/9zib1q94gka8i5q530364cvy25504qz5-gawk-5.4.1/bin:/nix/store/i9wgqa0l88aprvpwfaq5hkfa6pklhlv0-findutils-4.11.0/bin:/nix/store/b8xvzgd52jby5dfpi0pf46nisy6wma5d-diffutils-3.12/bin:/nix/store/81zqbas7qc02yfdj7142fdcqhxgd3cgz-patch-2.8/bin:/nix/store/c8b0qp903w2hhpa63a2lfs7d565zag30-gnutar-1.35/bin:/nix/store/l5sll8nxk70p73l5yqbsjy4mh0c3g0v5-gzip-1.14/bin:/nix/store/j3yz0ag9j442229n8harpmp9aa5qyvhn-bzip2-1.0.8-bin/bin:/nix/store/518dig8gpvqyac6pkksyjjfzvi9zn8vq-xz-5.8.3-bin/bin:/nix/store/l8ik8mb8lgb60rklxjmkgddmp5qqnv29-zstd-1.5.7-bin/bin:/nix/store/msr1v91ybfw6j12rs5mfl8ghb2rqsnsr-git-2.55.0/bin:/nix/store/hyz22a0l5b5kv7yfypw4ss6d36vbzg01-jq-1.8.2-bin/bin:/nix/store/24gq3bi2yzf7g386p5j32mn78hhanf49-sqlite-3.53.3-bin/bin:/nix/store/cp8qnyl8i0s62g3a1465i258mf5bcr6k-curl-8.22.0-bin/bin:/nix/store/8x4c8zah3fbnyckaic4sskjbw7d2y98n-util-linux-2.42.4-bin/bin:/nix/store/d64q19q1xjdwfhqx6czvrjgrhq0n3lcc-python3-3.14.7/bin:/nix/store/niqsa6mxqsyax9lzbm261a2ml6m71vb6-perl-5.42.3/bin:/nix/store/fv9yl55hkskpc2cj9c0sdyq91car9kgl-file-5.48/bin:/nix/store/jv5kdlkwx0l8a7jdpg21g934ff30s319-which-2.25/bin:/nix/store/aj08b694apkc1jay2akywym9ghlailf5-procps-4.0.7/bin:/nix/store/5wyaj1kvkxbbscz6innrh6yjjkdq4qmk-openssh-10.6p1/bin:/nix/store/44gxi8li8y8wrxrb93sya9hljkpigsqw-openssl-3.6.4-bin/bin:/run/wrappers/wrappers.Yw6nCJO1nt:/nix/store/wmh4xg3557sicfyllmi9ymd8sxaw51wv-man-db-2.13.1/bin:/nix/store/qpgknrlnxca0z99gl12j5n0fgca11cdx-mercurial-7.2.2/bin:/var/tmp/noxi-fg3/tmp/.tmpx5Vwp1/reference/tools
+++++(/var/tmp/noxi-fg3/func/nf4ztsTM/src/common/paths.sh:23) [[ -n '' ]]
+++++(/var/tmp/noxi-fg3/func/nf4ztsTM/src/common/paths.sh:27) DAEMON_PATH=/nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2/bin:/nix/store/nskid3yq908g18x6cnvrk2hy96327f3f-nix-2.35.2/bin:/nix/store/2ndah67h0z5m31v2wkdmg2md4380ggr5-bash-interactive-5.3p15/bin:/nix/store/xjl7p8dvyk2j53kqf7f43kdj4ypbxz7g-coreutils-9.11/bin:/nix/store/xmvbzzxm5snla5a2cyfhm7hjy9bifx7n-gnugrep-3.12/bin:/nix/store/qf2wzyq4irhgyhnq3s2hz0ldjq3w8a3x-gnused-4.10/bin:/nix/store/9zib1q94gka8i5q530364cvy25504qz5-gawk-5.4.1/bin:/nix/store/i9wgqa0l88aprvpwfaq5hkfa6pklhlv0-findutils-4.11.0/bin:/nix/store/b8xvzgd52jby5dfpi0pf46nisy6wma5d-diffutils-3.12/bin:/nix/store/81zqbas7qc02yfdj7142fdcqhxgd3cgz-patch-2.8/bin:/nix/store/c8b0qp903w2hhpa63a2lfs7d565zag30-gnutar-1.35/bin:/nix/store/l5sll8nxk70p73l5yqbsjy4mh0c3g0v5-gzip-1.14/bin:/nix/store/j3yz0ag9j442229n8harpmp9aa5qyvhn-bzip2-1.0.8-bin/bin:/nix/store/518dig8gpvqyac6pkksyjjfzvi9zn8vq-xz-5.8.3-bin/bin:/nix/store/l8ik8mb8lgb60rklxjmkgddmp5qqnv29-zstd-1.5.7-bin/bin:/nix/store/msr1v91ybfw6j12rs5mfl8ghb2rqsnsr-git-2.55.0/bin:/nix/store/hyz22a0l5b5kv7yfypw4ss6d36vbzg01-jq-1.8.2-bin/bin:/nix/store/24gq3bi2yzf7g386p5j32mn78hhanf49-sqlite-3.53.3-bin/bin:/nix/store/cp8qnyl8i0s62g3a1465i258mf5bcr6k-curl-8.22.0-bin/bin:/nix/store/8x4c8zah3fbnyckaic4sskjbw7d2y98n-util-linux-2.42.4-bin/bin:/nix/store/d64q19q1xjdwfhqx6czvrjgrhq0n3lcc-python3-3.14.7/bin:/nix/store/niqsa6mxqsyax9lzbm261a2ml6m71vb6-perl-5.42.3/bin:/nix/store/fv9yl55hkskpc2cj9c0sdyq91car9kgl-file-5.48/bin:/nix/store/jv5kdlkwx0l8a7jdpg21g934ff30s319-which-2.25/bin:/nix/store/aj08b694apkc1jay2akywym9ghlailf5-procps-4.0.7/bin:/nix/store/5wyaj1kvkxbbscz6innrh6yjjkdq4qmk-openssh-10.6p1/bin:/nix/store/44gxi8li8y8wrxrb93sya9hljkpigsqw-openssl-3.6.4-bin/bin:/run/wrappers/wrappers.Yw6nCJO1nt:/nix/store/wmh4xg3557sicfyllmi9ymd8sxaw51wv-man-db-2.13.1/bin:/nix/store/qpgknrlnxca0z99gl12j5n0fgca11cdx-mercurial-7.2.2/bin:/var/tmp/noxi-fg3/tmp/.tmpx5Vwp1/reference/tools
+++++(/var/tmp/noxi-fg3/func/nf4ztsTM/src/common/paths.sh:28) [[ -n '' ]]
++++(/var/tmp/noxi-fg3/func/nf4ztsTM/src/common/vars.sh:24) source /var/tmp/noxi-fg3/func/nf4ztsTM/src/common/test-root.sh
+++++(/var/tmp/noxi-fg3/func/nf4ztsTM/src/common/test-root.sh:3) TEST_SUBDIR=main/fetchMercurial
++++++(/var/tmp/noxi-fg3/func/nf4ztsTM/src/common/test-root.sh:4) realpath /var/tmp/noxi-fg3/func/nf4ztsTM/tmp/nix-test
+++++(/var/tmp/noxi-fg3/func/nf4ztsTM/src/common/test-root.sh:4) TEST_ROOT=/var/tmp/noxi-fg3/func/nf4ztsTM/tmp/nix-test/main/fetchMercurial
+++++(/var/tmp/noxi-fg3/func/nf4ztsTM/src/common/test-root.sh:5) export TEST_ROOT
++++(/var/tmp/noxi-fg3/func/nf4ztsTM/src/common/vars.sh:26) test_nix_conf_dir=/var/tmp/noxi-fg3/func/nf4ztsTM/tmp/nix-test/main/fetchMercurial/etc
++++(/var/tmp/noxi-fg3/func/nf4ztsTM/src/common/vars.sh:29) test_nix_conf=/var/tmp/noxi-fg3/func/nf4ztsTM/tmp/nix-test/main/fetchMercurial/etc/nix.conf
++++(/var/tmp/noxi-fg3/func/nf4ztsTM/src/common/vars.sh:31) export TEST_HOME=/var/tmp/noxi-fg3/func/nf4ztsTM/tmp/nix-test/main/fetchMercurial/test-home
++++(/var/tmp/noxi-fg3/func/nf4ztsTM/src/common/vars.sh:31) TEST_HOME=/var/tmp/noxi-fg3/func/nf4ztsTM/tmp/nix-test/main/fetchMercurial/test-home
++++(/var/tmp/noxi-fg3/func/nf4ztsTM/src/common/vars.sh:33) isTestOnNixOS
++++(/var/tmp/noxi-fg3/func/nf4ztsTM/src/common/functions.sh:10) [[ '' == 1 ]]
++++(/var/tmp/noxi-fg3/func/nf4ztsTM/src/common/vars.sh:34) export NIX_STORE_DIR
+++++(/var/tmp/noxi-fg3/func/nf4ztsTM/src/common/vars.sh:35) readlink -f /var/tmp/noxi-fg3/func/nf4ztsTM/tmp/nix-test/main/fetchMercurial/store
++++(/var/tmp/noxi-fg3/func/nf4ztsTM/src/common/vars.sh:35) NIX_STORE_DIR=
++++(/var/tmp/noxi-fg3/func/nf4ztsTM/src/common/vars.sh:37) export NIX_IGNORE_SYMLINK_STORE=1
++++(/var/tmp/noxi-fg3/func/nf4ztsTM/src/common/vars.sh:37) NIX_IGNORE_SYMLINK_STORE=1
++++(/var/tmp/noxi-fg3/func/nf4ztsTM/src/common/vars.sh:38) NIX_STORE_DIR=/var/tmp/noxi-fg3/func/nf4ztsTM/tmp/nix-test/main/fetchMercurial/store
++++(/var/tmp/noxi-fg3/func/nf4ztsTM/src/common/vars.sh:40) export NIX_LOCALSTATE_DIR=/var/tmp/noxi-fg3/func/nf4ztsTM/tmp/nix-test/main/fetchMercurial/var
++++(/var/tmp/noxi-fg3/func/nf4ztsTM/src/common/vars.sh:40) NIX_LOCALSTATE_DIR=/var/tmp/noxi-fg3/func/nf4ztsTM/tmp/nix-test/main/fetchMercurial/var
++++(/var/tmp/noxi-fg3/func/nf4ztsTM/src/common/vars.sh:41) export NIX_LOG_DIR=/var/tmp/noxi-fg3/func/nf4ztsTM/tmp/nix-test/main/fetchMercurial/var/log/nix
++++(/var/tmp/noxi-fg3/func/nf4ztsTM/src/common/vars.sh:41) NIX_LOG_DIR=/var/tmp/noxi-fg3/func/nf4ztsTM/tmp/nix-test/main/fetchMercurial/var/log/nix
++++(/var/tmp/noxi-fg3/func/nf4ztsTM/src/common/vars.sh:42) export NIX_STATE_DIR=/var/tmp/noxi-fg3/func/nf4ztsTM/tmp/nix-test/main/fetchMercurial/var/nix
++++(/var/tmp/noxi-fg3/func/nf4ztsTM/src/common/vars.sh:42) NIX_STATE_DIR=/var/tmp/noxi-fg3/func/nf4ztsTM/tmp/nix-test/main/fetchMercurial/var/nix
++++(/var/tmp/noxi-fg3/func/nf4ztsTM/src/common/vars.sh:43) export NIX_CONF_DIR=/var/tmp/noxi-fg3/func/nf4ztsTM/tmp/nix-test/main/fetchMercurial/etc
++++(/var/tmp/noxi-fg3/func/nf4ztsTM/src/common/vars.sh:43) NIX_CONF_DIR=/var/tmp/noxi-fg3/func/nf4ztsTM/tmp/nix-test/main/fetchMercurial/etc
++++(/var/tmp/noxi-fg3/func/nf4ztsTM/src/common/vars.sh:44) export NIX_DAEMON_SOCKET_PATH=/var/tmp/noxi-fg3/func/nf4ztsTM/tmp/nix-test/main/fetchMercurial/dSocket
++++(/var/tmp/noxi-fg3/func/nf4ztsTM/src/common/vars.sh:44) NIX_DAEMON_SOCKET_PATH=/var/tmp/noxi-fg3/func/nf4ztsTM/tmp/nix-test/main/fetchMercurial/dSocket
++++(/var/tmp/noxi-fg3/func/nf4ztsTM/src/common/vars.sh:45) unset NIX_USER_CONF_FILES
++++(/var/tmp/noxi-fg3/func/nf4ztsTM/src/common/vars.sh:46) export _NIX_TEST_SHARED=/var/tmp/noxi-fg3/func/nf4ztsTM/tmp/nix-test/main/fetchMercurial/shared
++++(/var/tmp/noxi-fg3/func/nf4ztsTM/src/common/vars.sh:46) _NIX_TEST_SHARED=/var/tmp/noxi-fg3/func/nf4ztsTM/tmp/nix-test/main/fetchMercurial/shared
++++(/var/tmp/noxi-fg3/func/nf4ztsTM/src/common/vars.sh:47) [[ -n '' ]]
++++(/var/tmp/noxi-fg3/func/nf4ztsTM/src/common/vars.sh:50) export _NIX_IN_TEST=/var/tmp/noxi-fg3/func/nf4ztsTM/tmp/nix-test/main/fetchMercurial/shared
++++(/var/tmp/noxi-fg3/func/nf4ztsTM/src/common/vars.sh:50) _NIX_IN_TEST=/var/tmp/noxi-fg3/func/nf4ztsTM/tmp/nix-test/main/fetchMercurial/shared
++++(/var/tmp/noxi-fg3/func/nf4ztsTM/src/common/vars.sh:51) export _NIX_TEST_NO_LSOF=1
++++(/var/tmp/noxi-fg3/func/nf4ztsTM/src/common/vars.sh:51) _NIX_TEST_NO_LSOF=1
++++(/var/tmp/noxi-fg3/func/nf4ztsTM/src/common/vars.sh:54) export _NIX_TEST_NO_ENVIRONMENT_WARNINGS=1
++++(/var/tmp/noxi-fg3/func/nf4ztsTM/src/common/vars.sh:54) _NIX_TEST_NO_ENVIRONMENT_WARNINGS=1
++++(/var/tmp/noxi-fg3/func/nf4ztsTM/src/common/vars.sh:55) export NIX_REMOTE=
++++(/var/tmp/noxi-fg3/func/nf4ztsTM/src/common/vars.sh:55) NIX_REMOTE=
++++(/var/tmp/noxi-fg3/func/nf4ztsTM/src/common/vars.sh:59) unset NIX_PATH
++++(/var/tmp/noxi-fg3/func/nf4ztsTM/src/common/vars.sh:60) export HOME=/var/tmp/noxi-fg3/func/nf4ztsTM/tmp/nix-test/main/fetchMercurial/test-home
++++(/var/tmp/noxi-fg3/func/nf4ztsTM/src/common/vars.sh:60) HOME=/var/tmp/noxi-fg3/func/nf4ztsTM/tmp/nix-test/main/fetchMercurial/test-home
++++(/var/tmp/noxi-fg3/func/nf4ztsTM/src/common/vars.sh:61) unset XDG_STATE_HOME
++++(/var/tmp/noxi-fg3/func/nf4ztsTM/src/common/vars.sh:62) unset XDG_DATA_HOME
++++(/var/tmp/noxi-fg3/func/nf4ztsTM/src/common/vars.sh:63) unset XDG_CONFIG_HOME
++++(/var/tmp/noxi-fg3/func/nf4ztsTM/src/common/vars.sh:64) unset XDG_CONFIG_DIRS
++++(/var/tmp/noxi-fg3/func/nf4ztsTM/src/common/vars.sh:65) unset XDG_CACHE_HOME
++++(/var/tmp/noxi-fg3/func/nf4ztsTM/src/common/vars.sh:66) unset GIT_DIR
++++(/var/tmp/noxi-fg3/func/nf4ztsTM/src/common/vars.sh:68) export GIT_CONFIG_SYSTEM=/dev/null
++++(/var/tmp/noxi-fg3/func/nf4ztsTM/src/common/vars.sh:68) GIT_CONFIG_SYSTEM=/dev/null
++++(/var/tmp/noxi-fg3/func/nf4ztsTM/src/common/vars.sh:69) export GIT_CONFIG_GLOBAL=/dev/null
++++(/var/tmp/noxi-fg3/func/nf4ztsTM/src/common/vars.sh:69) GIT_CONFIG_GLOBAL=/dev/null
++++(/var/tmp/noxi-fg3/func/nf4ztsTM/src/common/vars.sh:71) export IMPURE_VAR1=foo
++++(/var/tmp/noxi-fg3/func/nf4ztsTM/src/common/vars.sh:71) IMPURE_VAR1=foo
++++(/var/tmp/noxi-fg3/func/nf4ztsTM/src/common/vars.sh:72) export IMPURE_VAR2=bar
++++(/var/tmp/noxi-fg3/func/nf4ztsTM/src/common/vars.sh:72) IMPURE_VAR2=bar
++++(/var/tmp/noxi-fg3/func/nf4ztsTM/src/common/vars.sh:76) cacheDir=/var/tmp/noxi-fg3/func/nf4ztsTM/tmp/nix-test/main/fetchMercurial/binary-cache
+++++(/var/tmp/noxi-fg3/func/nf4ztsTM/src/common/vars.sh:78) uname
++++(/var/tmp/noxi-fg3/func/nf4ztsTM/src/common/vars.sh:78) [[ Linux == Linux ]]
++++(/var/tmp/noxi-fg3/func/nf4ztsTM/src/common/vars.sh:78) [[ -L /proc/self/ns/user ]]
++++(/var/tmp/noxi-fg3/func/nf4ztsTM/src/common/vars.sh:78) unshare --user true
++++(/var/tmp/noxi-fg3/func/nf4ztsTM/src/common/vars.sh:79) _canUseSandbox=1
++++(/var/tmp/noxi-fg3/func/nf4ztsTM/src/common/vars.sh:85) config_nix=/var/tmp/noxi-fg3/func/nf4ztsTM/tmp/nix-test/main/fetchMercurial/config.nix
+++(common.sh:12) source /var/tmp/noxi-fg3/func/nf4ztsTM/src/common/functions.sh
++++(/var/tmp/noxi-fg3/func/nf4ztsTM/src/common/functions.sh:3) set -eu -o pipefail
++++(/var/tmp/noxi-fg3/func/nf4ztsTM/src/common/functions.sh:5) [[ -z 1 ]]
+++(common.sh:13) source /var/tmp/noxi-fg3/func/nf4ztsTM/src/common/init.sh
++++(/var/tmp/noxi-fg3/func/nf4ztsTM/src/common/init.sh:4) : /var/tmp/noxi-fg3/func/nf4ztsTM/tmp/nix-test/main/fetchMercurial/etc /var/tmp/noxi-fg3/func/nf4ztsTM/tmp/nix-test/main/fetchMercurial/etc/nix.conf /var/tmp/noxi-fg3/func/nf4ztsTM/tmp/nix-test/main/fetchMercurial/config.nix
++++(/var/tmp/noxi-fg3/func/nf4ztsTM/src/common/init.sh:6) isTestOnNixOS
++++(/var/tmp/noxi-fg3/func/nf4ztsTM/src/common/functions.sh:10) [[ '' == 1 ]]
++++(/var/tmp/noxi-fg3/func/nf4ztsTM/src/common/init.sh:29) test -n /var/tmp/noxi-fg3/func/nf4ztsTM/tmp/nix-test/main/fetchMercurial
++++(/var/tmp/noxi-fg3/func/nf4ztsTM/src/common/init.sh:31) killDaemon
++++(/var/tmp/noxi-fg3/func/nf4ztsTM/src/common/functions.sh:100) isTestOnNixOS
++++(/var/tmp/noxi-fg3/func/nf4ztsTM/src/common/functions.sh:10) [[ '' == 1 ]]
++++(/var/tmp/noxi-fg3/func/nf4ztsTM/src/common/functions.sh:105) [[ '' == '' ]]
++++(/var/tmp/noxi-fg3/func/nf4ztsTM/src/common/functions.sh:106) return
++++(/var/tmp/noxi-fg3/func/nf4ztsTM/src/common/init.sh:33) [[ -e /var/tmp/noxi-fg3/func/nf4ztsTM/tmp/nix-test/main/fetchMercurial ]]
++++(/var/tmp/noxi-fg3/func/nf4ztsTM/src/common/init.sh:37) mkdir -p /var/tmp/noxi-fg3/func/nf4ztsTM/tmp/nix-test/main/fetchMercurial
++++(/var/tmp/noxi-fg3/func/nf4ztsTM/src/common/init.sh:38) mkdir /var/tmp/noxi-fg3/func/nf4ztsTM/tmp/nix-test/main/fetchMercurial/test-home
++++(/var/tmp/noxi-fg3/func/nf4ztsTM/src/common/init.sh:40) mkdir /var/tmp/noxi-fg3/func/nf4ztsTM/tmp/nix-test/main/fetchMercurial/store
++++(/var/tmp/noxi-fg3/func/nf4ztsTM/src/common/init.sh:41) mkdir /var/tmp/noxi-fg3/func/nf4ztsTM/tmp/nix-test/main/fetchMercurial/var
++++(/var/tmp/noxi-fg3/func/nf4ztsTM/src/common/init.sh:42) mkdir -p /var/tmp/noxi-fg3/func/nf4ztsTM/tmp/nix-test/main/fetchMercurial/var/log/nix/drvs
++++(/var/tmp/noxi-fg3/func/nf4ztsTM/src/common/init.sh:43) mkdir /var/tmp/noxi-fg3/func/nf4ztsTM/tmp/nix-test/main/fetchMercurial/var/nix
++++(/var/tmp/noxi-fg3/func/nf4ztsTM/src/common/init.sh:44) mkdir /var/tmp/noxi-fg3/func/nf4ztsTM/tmp/nix-test/main/fetchMercurial/etc
++++(/var/tmp/noxi-fg3/func/nf4ztsTM/src/common/init.sh:46) cat
+++++(/var/tmp/noxi-fg3/func/nf4ztsTM/src/common/init.sh:46) whoami
++++(/var/tmp/noxi-fg3/func/nf4ztsTM/src/common/init.sh:59) cat
++++(/var/tmp/noxi-fg3/func/nf4ztsTM/src/common/init.sh:67) nix-store --init
++++(/var/tmp/noxi-fg3/func/nf4ztsTM/src/common/init.sh:69) test -e /var/tmp/noxi-fg3/func/nf4ztsTM/tmp/nix-test/main/fetchMercurial/var/nix/db/db.sqlite
++++(/var/tmp/noxi-fg3/func/nf4ztsTM/src/common/init.sh:75) echo '# config.nix for test main / fetchMercurial'
++++(/var/tmp/noxi-fg3/func/nf4ztsTM/src/common/init.sh:76) cat /var/tmp/noxi-fg3/func/nf4ztsTM/build/config.nix
+++(common.sh:15) [[ -n '' ]]
+++(fetchMercurial.sh:5) type -p hg
++(fetchMercurial.sh:5) [[ -n /nix/store/qpgknrlnxca0z99gl12j5n0fgca11cdx-mercurial-7.2.2/bin/hg ]]
++(fetchMercurial.sh:7) TODO_NixOS
++(/var/tmp/noxi-fg3/func/nf4ztsTM/src/common/functions.sh:148) isTestOnNixOS
++(/var/tmp/noxi-fg3/func/nf4ztsTM/src/common/functions.sh:10) [[ '' == 1 ]]
++(fetchMercurial.sh:11) repo=/var/tmp/noxi-fg3/func/nf4ztsTM/tmp/nix-test/main/fetchMercurial/./hg
++(fetchMercurial.sh:13) hg init /var/tmp/noxi-fg3/func/nf4ztsTM/tmp/nix-test/main/fetchMercurial/./hg
++(fetchMercurial.sh:15) echo '[ui]'
++(fetchMercurial.sh:16) echo 'username = Foobar <foobar@example.org>'
++(fetchMercurial.sh:18) echo 'tweakdefaults = True'
++(fetchMercurial.sh:21) echo utrecht
++(fetchMercurial.sh:22) touch /var/tmp/noxi-fg3/func/nf4ztsTM/tmp/nix-test/main/fetchMercurial/./hg/.hgignore
++(fetchMercurial.sh:23) hg add --cwd /var/tmp/noxi-fg3/func/nf4ztsTM/tmp/nix-test/main/fetchMercurial/./hg hello .hgignore
++(fetchMercurial.sh:24) hg commit --cwd /var/tmp/noxi-fg3/func/nf4ztsTM/tmp/nix-test/main/fetchMercurial/./hg -m Bla1
+++(fetchMercurial.sh:25) hg log --cwd /var/tmp/noxi-fg3/func/nf4ztsTM/tmp/nix-test/main/fetchMercurial/./hg -r tip --template '{node}'
++(fetchMercurial.sh:25) rev1=b2a2a687b472666ffaeb017447316277604b72ce
++(fetchMercurial.sh:27) echo world
++(fetchMercurial.sh:28) hg commit --cwd /var/tmp/noxi-fg3/func/nf4ztsTM/tmp/nix-test/main/fetchMercurial/./hg -m Bla2
+++(fetchMercurial.sh:29) hg log --cwd /var/tmp/noxi-fg3/func/nf4ztsTM/tmp/nix-test/main/fetchMercurial/./hg -r tip --template '{node}'
++(fetchMercurial.sh:29) rev2=acc6a08fcc824763e8f060ea5c8179245c14ff06
++(fetchMercurial.sh:32) echo unclean
+++(fetchMercurial.sh:33) nix eval --impure --raw --expr '(builtins.fetchMercurial "file:///var/tmp/noxi-fg3/func/nf4ztsTM/tmp/nix-test/main/fetchMercurial/./hg").outPath'
+warning: you don't have Internet access; disabling some network-dependent features
+warning: Mercurial tree '"/var/tmp/noxi-fg3/func/nf4ztsTM/tmp/nix-test/main/fetchMercurial/./hg"' is unclean
++(fetchMercurial.sh:33) path=/var/tmp/noxi-fg3/func/nf4ztsTM/tmp/nix-test/main/fetchMercurial/store/pkdz9aa55f8aky7sbilgi4jgfz0j5w0x-source
+++(fetchMercurial.sh:34) cat /var/tmp/noxi-fg3/func/nf4ztsTM/tmp/nix-test/main/fetchMercurial/store/pkdz9aa55f8aky7sbilgi4jgfz0j5w0x-source/hello
++(fetchMercurial.sh:34) [[ unclean = unclean ]]
++(fetchMercurial.sh:35) hg revert --cwd /var/tmp/noxi-fg3/func/nf4ztsTM/tmp/nix-test/main/fetchMercurial/./hg --all
+reverting hello
+++(fetchMercurial.sh:38) nix eval --impure --raw --expr '(builtins.fetchMercurial "file:///var/tmp/noxi-fg3/func/nf4ztsTM/tmp/nix-test/main/fetchMercurial/./hg").outPath'
+warning: you don't have Internet access; disabling some network-dependent features
++(fetchMercurial.sh:38) path=/var/tmp/noxi-fg3/func/nf4ztsTM/tmp/nix-test/main/fetchMercurial/store/zrl9ymgahwjafdad2wd8c16klkhrdv3g-source
+++(fetchMercurial.sh:39) cat /var/tmp/noxi-fg3/func/nf4ztsTM/tmp/nix-test/main/fetchMercurial/store/zrl9ymgahwjafdad2wd8c16klkhrdv3g-source/hello
++(fetchMercurial.sh:39) [[ world = world ]]
+++(fetchMercurial.sh:42) nix eval --impure --raw --expr '(builtins.readFile (fetchMercurial "file:///var/tmp/noxi-fg3/func/nf4ztsTM/tmp/nix-test/main/fetchMercurial/./hg" + "/hello"))'
+warning: you don't have Internet access; disabling some network-dependent features
++(fetchMercurial.sh:42) [[ world = world ]]
++(fetchMercurial.sh:43) nix eval --raw --expr 'builtins.readFile (fetchMercurial "file:///var/tmp/noxi-fg3/func/nf4ztsTM/tmp/nix-test/main/fetchMercurial/./hg" + "/hello")'
+warning: you don't have Internet access; disabling some network-dependent features
+error:
+       … while calling the 'readFile' builtin
+         at «string»:1:1:
+            1| builtins.readFile (fetchMercurial "file:///var/tmp/noxi-fg3/func/nf4ztsTM/tmp/nix-test/main/fetchMercurial/./hg" + "/hello")
+             | ^
+
+       … while realising the context of a path
+
+       … while calling the 'fetchMercurial' builtin
+         at «string»:1:20:
+            1| builtins.readFile (fetchMercurial "file:///var/tmp/noxi-fg3/func/nf4ztsTM/tmp/nix-test/main/fetchMercurial/./hg" + "/hello")
+             |                    ^
+
+       error: in pure evaluation mode, 'fetchMercurial' requires a Mercurial revision
+++(fetchMercurial.sh:46) nix eval --impure --raw --expr '(builtins.fetchMercurial { url = "file:///var/tmp/noxi-fg3/func/nf4ztsTM/tmp/nix-test/main/fetchMercurial/./hg"; rev = "acc6a08fcc824763e8f060ea5c8179245c14ff06"; }).outPath'
+warning: you don't have Internet access; disabling some network-dependent features
++(fetchMercurial.sh:46) path2=/var/tmp/noxi-fg3/func/nf4ztsTM/tmp/nix-test/main/fetchMercurial/store/zrl9ymgahwjafdad2wd8c16klkhrdv3g-source
++(fetchMercurial.sh:47) [[ /var/tmp/noxi-fg3/func/nf4ztsTM/tmp/nix-test/main/fetchMercurial/store/zrl9ymgahwjafdad2wd8c16klkhrdv3g-source = /var/tmp/noxi\-fg3/func/nf4ztsTM/tmp/nix\-test/main/fetchMercurial/store/zrl9ymgahwjafdad2wd8c16klkhrdv3g\-source ]]
+++(fetchMercurial.sh:50) nix eval --raw --expr 'builtins.readFile (fetchMercurial { url = "file:///var/tmp/noxi-fg3/func/nf4ztsTM/tmp/nix-test/main/fetchMercurial/./hg"; rev = "acc6a08fcc824763e8f060ea5c8179245c14ff06"; } + "/hello")'
+warning: you don't have Internet access; disabling some network-dependent features
++(fetchMercurial.sh:50) [[ world = world ]]
++(fetchMercurial.sh:53) mv /var/tmp/noxi-fg3/func/nf4ztsTM/tmp/nix-test/main/fetchMercurial/./hg /var/tmp/noxi-fg3/func/nf4ztsTM/tmp/nix-test/main/fetchMercurial/./hg-tmp
+++(fetchMercurial.sh:54) nix eval --impure --raw --expr '(builtins.fetchMercurial "file:///var/tmp/noxi-fg3/func/nf4ztsTM/tmp/nix-test/main/fetchMercurial/./hg").outPath'
+warning: you don't have Internet access; disabling some network-dependent features
++(fetchMercurial.sh:54) path2=/var/tmp/noxi-fg3/func/nf4ztsTM/tmp/nix-test/main/fetchMercurial/store/zrl9ymgahwjafdad2wd8c16klkhrdv3g-source
++(fetchMercurial.sh:55) [[ /var/tmp/noxi-fg3/func/nf4ztsTM/tmp/nix-test/main/fetchMercurial/store/zrl9ymgahwjafdad2wd8c16klkhrdv3g-source = /var/tmp/noxi\-fg3/func/nf4ztsTM/tmp/nix\-test/main/fetchMercurial/store/zrl9ymgahwjafdad2wd8c16klkhrdv3g\-source ]]
+++(fetchMercurial.sh:57) nix eval --impure --raw --expr '(builtins.fetchMercurial "file:///var/tmp/noxi-fg3/func/nf4ztsTM/tmp/nix-test/main/fetchMercurial/./hg").branch'
+warning: you don't have Internet access; disabling some network-dependent features
++(fetchMercurial.sh:57) [[ default = default ]]
+++(fetchMercurial.sh:58) nix eval --impure --expr '(builtins.fetchMercurial "file:///var/tmp/noxi-fg3/func/nf4ztsTM/tmp/nix-test/main/fetchMercurial/./hg").revCount'
+warning: you don't have Internet access; disabling some network-dependent features
++(fetchMercurial.sh:58) [[ 1 = 1 ]]
+++(fetchMercurial.sh:59) nix eval --impure --raw --expr '(builtins.fetchMercurial "file:///var/tmp/noxi-fg3/func/nf4ztsTM/tmp/nix-test/main/fetchMercurial/./hg").rev'
+warning: you don't have Internet access; disabling some network-dependent features
++(fetchMercurial.sh:59) [[ acc6a08fcc824763e8f060ea5c8179245c14ff06 = acc6a08fcc824763e8f060ea5c8179245c14ff06 ]]
++(fetchMercurial.sh:62) nix eval --impure --refresh --expr 'builtins.fetchMercurial "file:///var/tmp/noxi-fg3/func/nf4ztsTM/tmp/nix-test/main/fetchMercurial/./hg"'
+warning: you don't have Internet access; disabling some network-dependent features
+abort: repository /var/tmp/noxi-fg3/func/nf4ztsTM/tmp/nix-test/main/fetchMercurial/./hg not found
+error:
+       … while calling the 'fetchMercurial' builtin
+         at «string»:1:1:
+            1| builtins.fetchMercurial "file:///var/tmp/noxi-fg3/func/nf4ztsTM/tmp/nix-test/main/fetchMercurial/./hg"
+             | ^
+
+       … while fetching the input 'hg+file:///var/tmp/noxi-fg3/func/nf4ztsTM/tmp/nix-test/main/fetchMercurial/./hg'
+
+       error: 'hg pull' failed with exit code 255
+++(fetchMercurial.sh:65) nix eval --refresh --raw --expr '(builtins.fetchMercurial { url = "file:///var/tmp/noxi-fg3/func/nf4ztsTM/tmp/nix-test/main/fetchMercurial/./hg"; rev = "acc6a08fcc824763e8f060ea5c8179245c14ff06"; }).outPath'
+warning: you don't have Internet access; disabling some network-dependent features
++(fetchMercurial.sh:65) path2=/var/tmp/noxi-fg3/func/nf4ztsTM/tmp/nix-test/main/fetchMercurial/store/zrl9ymgahwjafdad2wd8c16klkhrdv3g-source
++(fetchMercurial.sh:66) [[ /var/tmp/noxi-fg3/func/nf4ztsTM/tmp/nix-test/main/fetchMercurial/store/zrl9ymgahwjafdad2wd8c16klkhrdv3g-source = /var/tmp/noxi\-fg3/func/nf4ztsTM/tmp/nix\-test/main/fetchMercurial/store/zrl9ymgahwjafdad2wd8c16klkhrdv3g\-source ]]
+++(fetchMercurial.sh:68) nix eval --refresh --raw --expr '(builtins.fetchMercurial { url = "file:///var/tmp/noxi-fg3/func/nf4ztsTM/tmp/nix-test/main/fetchMercurial/./hg"; rev = "b2a2a687b472666ffaeb017447316277604b72ce"; }).outPath'
+warning: you don't have Internet access; disabling some network-dependent features
++(fetchMercurial.sh:68) path2=/var/tmp/noxi-fg3/func/nf4ztsTM/tmp/nix-test/main/fetchMercurial/store/d293p9jhbnmcgdnv7n83ni00cw03xs30-source
+++(fetchMercurial.sh:69) cat /var/tmp/noxi-fg3/func/nf4ztsTM/tmp/nix-test/main/fetchMercurial/store/d293p9jhbnmcgdnv7n83ni00cw03xs30-source/hello
++(fetchMercurial.sh:69) [[ utrecht = utrecht ]]
++(fetchMercurial.sh:71) mv /var/tmp/noxi-fg3/func/nf4ztsTM/tmp/nix-test/main/fetchMercurial/./hg-tmp /var/tmp/noxi-fg3/func/nf4ztsTM/tmp/nix-test/main/fetchMercurial/./hg
+++(fetchMercurial.sh:74) nix eval --impure --raw --expr '(builtins.fetchMercurial /var/tmp/noxi-fg3/func/nf4ztsTM/tmp/nix-test/main/fetchMercurial/./hg).outPath'
+warning: you don't have Internet access; disabling some network-dependent features
++(fetchMercurial.sh:74) path2=/var/tmp/noxi-fg3/func/nf4ztsTM/tmp/nix-test/main/fetchMercurial/store/zrl9ymgahwjafdad2wd8c16klkhrdv3g-source
++(fetchMercurial.sh:75) [[ /var/tmp/noxi-fg3/func/nf4ztsTM/tmp/nix-test/main/fetchMercurial/store/zrl9ymgahwjafdad2wd8c16klkhrdv3g-source = /var/tmp/noxi\-fg3/func/nf4ztsTM/tmp/nix\-test/main/fetchMercurial/store/zrl9ymgahwjafdad2wd8c16klkhrdv3g\-source ]]
++(fetchMercurial.sh:78) mkdir /var/tmp/noxi-fg3/func/nf4ztsTM/tmp/nix-test/main/fetchMercurial/./hg/dir1 /var/tmp/noxi-fg3/func/nf4ztsTM/tmp/nix-test/main/fetchMercurial/./hg/dir2
++(fetchMercurial.sh:79) echo foo
++(fetchMercurial.sh:80) echo bar
++(fetchMercurial.sh:81) echo bar
++(fetchMercurial.sh:82) hg add --cwd /var/tmp/noxi-fg3/func/nf4ztsTM/tmp/nix-test/main/fetchMercurial/./hg dir1/foo
++(fetchMercurial.sh:83) hg rm --cwd /var/tmp/noxi-fg3/func/nf4ztsTM/tmp/nix-test/main/fetchMercurial/./hg hello
+++(fetchMercurial.sh:85) nix eval --impure --raw --expr '(builtins.fetchMercurial /var/tmp/noxi-fg3/func/nf4ztsTM/tmp/nix-test/main/fetchMercurial/./hg).outPath'
+warning: you don't have Internet access; disabling some network-dependent features
+warning: Mercurial tree '"/var/tmp/noxi-fg3/func/nf4ztsTM/tmp/nix-test/main/fetchMercurial/hg"' is unclean
++(fetchMercurial.sh:85) path2=/var/tmp/noxi-fg3/func/nf4ztsTM/tmp/nix-test/main/fetchMercurial/store/py67i1fb3fcqwsrv5w2mxkc5xbncwvj1-source
++(fetchMercurial.sh:86) '[' '!' -e /var/tmp/noxi-fg3/func/nf4ztsTM/tmp/nix-test/main/fetchMercurial/store/py67i1fb3fcqwsrv5w2mxkc5xbncwvj1-source/hello ']'
++(fetchMercurial.sh:87) '[' '!' -e /var/tmp/noxi-fg3/func/nf4ztsTM/tmp/nix-test/main/fetchMercurial/store/py67i1fb3fcqwsrv5w2mxkc5xbncwvj1-source/bar ']'
++(fetchMercurial.sh:88) '[' '!' -e /var/tmp/noxi-fg3/func/nf4ztsTM/tmp/nix-test/main/fetchMercurial/store/py67i1fb3fcqwsrv5w2mxkc5xbncwvj1-source/dir2/bar ']'
++(fetchMercurial.sh:89) '[' '!' -e /var/tmp/noxi-fg3/func/nf4ztsTM/tmp/nix-test/main/fetchMercurial/store/py67i1fb3fcqwsrv5w2mxkc5xbncwvj1-source/.hg ']'
+++(fetchMercurial.sh:90) cat /var/tmp/noxi-fg3/func/nf4ztsTM/tmp/nix-test/main/fetchMercurial/store/py67i1fb3fcqwsrv5w2mxkc5xbncwvj1-source/dir1/foo
++(fetchMercurial.sh:90) [[ foo = foo ]]
+++(fetchMercurial.sh:92) nix eval --impure --raw --expr '(builtins.fetchMercurial /var/tmp/noxi-fg3/func/nf4ztsTM/tmp/nix-test/main/fetchMercurial/./hg).rev'
+warning: you don't have Internet access; disabling some network-dependent features
+warning: Mercurial tree '"/var/tmp/noxi-fg3/func/nf4ztsTM/tmp/nix-test/main/fetchMercurial/hg"' is unclean
++(fetchMercurial.sh:92) [[ 0000000000000000000000000000000000000000 = 0000000000000000000000000000000000000000 ]]
+++(fetchMercurial.sh:95) nix eval --impure --raw --expr '(builtins.fetchMercurial { url = /var/tmp/noxi-fg3/func/nf4ztsTM/tmp/nix-test/main/fetchMercurial/./hg; rev = "default"; }).outPath'
+warning: you don't have Internet access; disabling some network-dependent features
++(fetchMercurial.sh:95) path3=/var/tmp/noxi-fg3/func/nf4ztsTM/tmp/nix-test/main/fetchMercurial/store/zrl9ymgahwjafdad2wd8c16klkhrdv3g-source
++(fetchMercurial.sh:96) [[ /var/tmp/noxi-fg3/func/nf4ztsTM/tmp/nix-test/main/fetchMercurial/store/zrl9ymgahwjafdad2wd8c16klkhrdv3g-source = /var/tmp/noxi\-fg3/func/nf4ztsTM/tmp/nix\-test/main/fetchMercurial/store/zrl9ymgahwjafdad2wd8c16klkhrdv3g\-source ]]
++(fetchMercurial.sh:99) hg commit --cwd /var/tmp/noxi-fg3/func/nf4ztsTM/tmp/nix-test/main/fetchMercurial/./hg -m Bla3
+++(fetchMercurial.sh:101) nix eval --impure --refresh --raw --expr '(builtins.fetchMercurial "file:///var/tmp/noxi-fg3/func/nf4ztsTM/tmp/nix-test/main/fetchMercurial/./hg").outPath'
+warning: you don't have Internet access; disabling some network-dependent features
++(fetchMercurial.sh:101) path4=/var/tmp/noxi-fg3/func/nf4ztsTM/tmp/nix-test/main/fetchMercurial/store/py67i1fb3fcqwsrv5w2mxkc5xbncwvj1-source
++(fetchMercurial.sh:102) [[ /var/tmp/noxi-fg3/func/nf4ztsTM/tmp/nix-test/main/fetchMercurial/store/py67i1fb3fcqwsrv5w2mxkc5xbncwvj1-source = /var/tmp/noxi\-fg3/func/nf4ztsTM/tmp/nix\-test/main/fetchMercurial/store/py67i1fb3fcqwsrv5w2mxkc5xbncwvj1\-source ]]
++(fetchMercurial.sh:104) echo paris
+++(fetchMercurial.sh:107) nix eval -vvvvv --impure --refresh --raw --expr '(builtins.fetchMercurial { url = "file:///var/tmp/noxi-fg3/func/nf4ztsTM/tmp/nix-test/main/fetchMercurial/./hg"; name = "foo"; } ).outPath'
+warning: you don't have Internet access; disabling some network-dependent features
+evaluating file '«nix-internal»/derivation-internal.nix'
+locking path "/var/tmp/noxi-fg3/func/nf4ztsTM/tmp/nix-test/main/fetchMercurial/test-home/.cache/nix/fetcher-locks/7cbddef0ed4c08b7c20da57b0dbfd3ddc362823e17c98aac749aca2ea8fa64fc"
+lock acquired on "/var/tmp/noxi-fg3/func/nf4ztsTM/tmp/nix-test/main/fetchMercurial/test-home/.cache/nix/fetcher-locks/7cbddef0ed4c08b7c20da57b0dbfd3ddc362823e17c98aac749aca2ea8fa64fc.lock"
+using cache entry 'hgRefToRev:{"ref":"default","url":"/var/tmp/noxi-fg3/func/nf4ztsTM/tmp/nix-test/main/fetchMercurial/./hg"}' -> '{"rev":"07db3a6ced85cad269921c4e83841e07d0394c9b"}'
+ignoring expired cache entry 'hgRefToRev:{"ref":"default","url":"/var/tmp/noxi-fg3/func/nf4ztsTM/tmp/nix-test/main/fetchMercurial/./hg"}'
+fetching Mercurial repository '/var/tmp/noxi-fg3/func/nf4ztsTM/tmp/nix-test/main/fetchMercurial/./hg'...
+did not find cache entry for 'hgRev:{"name":"foo","rev":"07db3a6ced85cad269921c4e83841e07d0394c9b","store":"/var/tmp/noxi-fg3/func/nf4ztsTM/tmp/nix-test/main/fetchMercurial/store"}'
+acquiring write lock on "/var/tmp/noxi-fg3/func/nf4ztsTM/tmp/nix-test/main/fetchMercurial/var/nix/temproots/3214148"
+locking path "/var/tmp/noxi-fg3/func/nf4ztsTM/tmp/nix-test/main/fetchMercurial/store/0v99zyfwbrnwvyddy9bmk9ydrw4309i8-foo"
+lock acquired on "/var/tmp/noxi-fg3/func/nf4ztsTM/tmp/nix-test/main/fetchMercurial/store/0v99zyfwbrnwvyddy9bmk9ydrw4309i8-foo.lock"
+lock released on "/var/tmp/noxi-fg3/func/nf4ztsTM/tmp/nix-test/main/fetchMercurial/store/0v99zyfwbrnwvyddy9bmk9ydrw4309i8-foo.lock"
+lock released on "/var/tmp/noxi-fg3/func/nf4ztsTM/tmp/nix-test/main/fetchMercurial/test-home/.cache/nix/fetcher-locks/7cbddef0ed4c08b7c20da57b0dbfd3ddc362823e17c98aac749aca2ea8fa64fc.lock"
+using cache entry 'sourcePathToHash:{"fingerprint":"07db3a6ced85cad269921c4e83841e07d0394c9b","method":"nar","path":"/"}' -> '{"hash":"sha256-CPSdjF7VnjSnEhSOnBGILrskjcvtCMO5yOilk4y484g="}'
+source path '«hg+file:///var/tmp/noxi-fg3/func/nf4ztsTM/tmp/nix-test/main/fetchMercurial/./hg?ref=default&rev=07db3a6ced85cad269921c4e83841e07d0394c9b»' cache hit in '/var/tmp/noxi-fg3/func/nf4ztsTM/tmp/nix-test/main/fetchMercurial/store/0v99zyfwbrnwvyddy9bmk9ydrw4309i8-foo' (hash 'sha256-CPSdjF7VnjSnEhSOnBGILrskjcvtCMO5yOilk4y484g=')
++(fetchMercurial.sh:107) path5=/var/tmp/noxi-fg3/func/nf4ztsTM/tmp/nix-test/main/fetchMercurial/store/0v99zyfwbrnwvyddy9bmk9ydrw4309i8-foo
++(fetchMercurial.sh:108) [[ /var/tmp/noxi-fg3/func/nf4ztsTM/tmp/nix-test/main/fetchMercurial/store/0v99zyfwbrnwvyddy9bmk9ydrw4309i8-foo =~ -foo$ ]]
