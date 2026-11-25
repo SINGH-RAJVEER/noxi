@@ -54,6 +54,7 @@ pub struct Realisation {
 }
 
 pub struct LocalStore {
+	pub(crate) overlay: Option<Box<crate::local_overlay::Overlay>>,
 	config: LocalStoreConfig,
 	db: Mutex<Connection>,
 	/// Held in shared mode while the store is open, so that no schema
@@ -132,6 +133,13 @@ impl LocalStore {
 	/// Open the store, creating it if it does not exist and upgrading its
 	/// schema if needed.
 	pub fn open(config: LocalStoreConfig) -> Result<Self> {
+		Self::open_with_overlay(config, None)
+	}
+
+	pub(crate) fn open_with_overlay(
+		config: LocalStoreConfig,
+		overlay: Option<Box<crate::local_overlay::Overlay>>,
+	) -> Result<Self> {
 		let db_dir = config.db_dir();
 		let links_dir = config.real_store_dir.join(".links");
 		let profiles_dir = config.state_dir.join("profiles");
@@ -280,6 +288,7 @@ impl LocalStore {
 			.collect();
 
 		Ok(Self {
+			overlay,
 			config,
 			db: Mutex::new(conn),
 			_global_lock: global_lock,
@@ -310,11 +319,36 @@ impl LocalStore {
 	// Queries
 
 	pub fn is_valid_path(&self, path: &StorePath) -> Result<bool> {
+		if self.is_valid_path_local(path)? {
+			return Ok(true);
+		}
+		let Some(overlay) = &self.overlay else {
+			return Ok(false);
+		};
+		let Some(info) = overlay.lower.query_path_info(path)? else {
+			return Ok(false);
+		};
+		if !self.config.read_only {
+			for reference in &info.references {
+				if reference != path {
+					self.is_valid_path(reference)?;
+				}
+			}
+			self.register_valid_paths_local(&[info])?;
+		}
+		Ok(true)
+	}
+
+	fn is_valid_path_local(&self, path: &StorePath) -> Result<bool> {
 		Ok(query_id(&self.db(), path)?.is_some())
 	}
 
 	pub fn query_path_info(&self, path: &StorePath) -> Result<Option<ValidPathInfo>> {
-		query_path_info(&self.db(), path)
+		let info = query_path_info(&self.db(), path)?;
+		match (&self.overlay, info) {
+			(Some(overlay), None) => overlay.lower.query_path_info(path),
+			(_, info) => Ok(info),
+		}
 	}
 
 	pub fn query_all_valid_paths(&self) -> Result<BTreeSet<StorePath>> {
@@ -327,6 +361,15 @@ impl LocalStore {
 	}
 
 	pub fn query_valid_paths(&self, paths: &BTreeSet<StorePath>) -> Result<BTreeSet<StorePath>> {
+		if self.overlay.is_some() {
+			let mut valid = BTreeSet::new();
+			for path in paths {
+				if self.is_valid_path(path)? {
+					valid.insert(path.clone());
+				}
+			}
+			return Ok(valid);
+		}
 		let db = self.db();
 		let mut valid = BTreeSet::new();
 		for path in paths {
@@ -338,11 +381,27 @@ impl LocalStore {
 	}
 
 	pub fn query_referrers(&self, path: &StorePath) -> Result<BTreeSet<StorePath>> {
+		let mut referrers = self.query_gc_referrers(path)?;
+		if let Some(overlay) = &self.overlay {
+			referrers.extend(overlay.lower.query_referrers(path)?);
+		}
+		Ok(referrers)
+	}
+
+	pub(crate) fn query_gc_referrers(&self, path: &StorePath) -> Result<BTreeSet<StorePath>> {
 		query_referrers(&self.db(), path)
 	}
 
 	/// Valid derivations that list `path` as an output.
 	pub fn query_valid_derivers(&self, path: &StorePath) -> Result<BTreeSet<StorePath>> {
+		let mut derivers = self.query_local_derivers(path)?;
+		if let Some(overlay) = &self.overlay {
+			derivers.extend(overlay.lower.query_valid_derivers(path)?);
+		}
+		Ok(derivers)
+	}
+
+	fn query_local_derivers(&self, path: &StorePath) -> Result<BTreeSet<StorePath>> {
 		let db = self.db();
 		let mut stmt = db.prepare_cached(
 			"select v.id, v.path from DerivationOutputs d join ValidPaths v on d.drv = v.id where d.path = ?",
@@ -355,6 +414,11 @@ impl LocalStore {
 
 	/// The outputs a valid derivation was registered with.
 	pub fn query_derivation_outputs(&self, drv: &StorePath) -> Result<BTreeMap<String, StorePath>> {
+		if let Some(overlay) = &self.overlay
+			&& !self.is_valid_path_local(drv)?
+		{
+			return overlay.lower.query_derivation_outputs(drv);
+		}
 		let db = self.db();
 		let id = query_id(&db, drv)?.ok_or_else(|| Error::InvalidPath(print(drv)))?;
 		let mut stmt = db.prepare_cached("select id, path from DerivationOutputs where drv = ?")?;
@@ -381,7 +445,10 @@ impl LocalStore {
 			.optional()?;
 		match found {
 			Some(path) if path.starts_with(&prefix) => Ok(Some(parse_store_path(&path)?)),
-			_ => Ok(None),
+			_ => match &self.overlay {
+				Some(overlay) => overlay.lower.query_path_from_hash_part(hash_part),
+				None => Ok(None),
+			},
 		}
 	}
 
@@ -395,6 +462,23 @@ impl LocalStore {
 	/// transaction. Fails, registering nothing, if their references form a
 	/// cycle.
 	pub fn register_valid_paths(&self, infos: &[ValidPathInfo]) -> Result<()> {
+		if let Some(overlay) = &self.overlay {
+			let mut lower_infos = Vec::new();
+			for info in infos {
+				if !self.is_valid_path_local(&info.path)?
+					&& let Some(lower) = overlay.lower.query_path_info(&info.path)?
+				{
+					lower_infos.push(lower);
+				}
+			}
+			if !lower_infos.is_empty() {
+				self.register_valid_paths_local(&lower_infos)?;
+			}
+		}
+		self.register_valid_paths_local(infos)
+	}
+
+	fn register_valid_paths_local(&self, infos: &[ValidPathInfo]) -> Result<()> {
 		let mut db = self.db();
 		// Take the writer reservation before reading. Upgrading a deferred
 		// read transaction can fail with SQLITE_BUSY_SNAPSHOT, bypassing the
@@ -675,6 +759,20 @@ impl LocalStore {
 		output: &str,
 		realisation: &Realisation,
 	) -> Result<()> {
+		if let Some(overlay) = &self.overlay
+			&& let Some(lower) = overlay.lower.query_realisation(drv_path, output)?
+		{
+			self.register_drv_output_local(drv_path, output, &lower)?;
+		}
+		self.register_drv_output_local(drv_path, output, realisation)
+	}
+
+	fn register_drv_output_local(
+		&self,
+		drv_path: &StorePath,
+		output: &str,
+		realisation: &Realisation,
+	) -> Result<()> {
 		self.require_ca_derivations()?;
 		let mut db = self.db();
 		let tx = db.transaction_with_behavior(TransactionBehavior::Immediate)?;
@@ -729,7 +827,11 @@ impl LocalStore {
 		if !self.config.ca_derivations {
 			return Ok(None);
 		}
-		query_realisation(&self.db(), drv_path, output)
+		let info = query_realisation(&self.db(), drv_path, output)?;
+		match (&self.overlay, info) {
+			(Some(overlay), None) => overlay.lower.query_realisation(drv_path, output),
+			(_, info) => Ok(info),
+		}
 	}
 
 	/// The build trace entry for output `output` of `drv_path`, for this
@@ -1293,10 +1395,12 @@ impl LocalStore {
 		}
 
 		let mut on_disk = BTreeSet::new();
-		for entry in fs::read_dir(&self.config.real_store_dir)? {
-			let name = entry?.file_name();
-			if let Ok(path) = StorePath::from_bytes(name.as_encoded_bytes()) {
-				on_disk.insert(path);
+		if self.overlay.is_none() {
+			for entry in fs::read_dir(&self.config.real_store_dir)? {
+				let name = entry?.file_name();
+				if let Ok(path) = StorePath::from_bytes(name.as_encoded_bytes()) {
+					on_disk.insert(path);
+				}
 			}
 		}
 
@@ -1412,7 +1516,16 @@ impl LocalStore {
 		if !done.insert(path.clone()) {
 			return Ok(());
 		}
-		if on_disk.contains(path) {
+		let exists = if self.overlay.is_some() {
+			match fs::symlink_metadata(self.real_path(path)) {
+				Ok(_) => true,
+				Err(error) if error.kind() == io::ErrorKind::NotFound => false,
+				Err(error) => return Err(error.into()),
+			}
+		} else {
+			on_disk.contains(path)
+		};
+		if exists {
 			valid.insert(path.clone());
 			return Ok(());
 		}

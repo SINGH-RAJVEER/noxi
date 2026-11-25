@@ -668,7 +668,10 @@ impl LocalStore {
 			let path = format!("{}{base_name}", store_dir_with_slash());
 			log(&format!("deleting '{path}'"));
 			results.paths.insert(path);
-			results.bytes_freed += delete_counting(&real)?;
+			results.bytes_freed += match &self.overlay {
+				Some(overlay) => overlay.delete(&real, log)?,
+				None => delete_counting(&real)?,
+			};
 			if results.bytes_freed > options.max_freed {
 				log(&format!(
 					"deleted more than {} bytes; stopping",
@@ -734,7 +737,7 @@ impl LocalStore {
 				set_pending(Some(&path));
 				if self.is_valid_path(&path)? {
 					if !referrers_cache.contains_key(&path) {
-						referrers_cache.insert(path.clone(), self.query_referrers(&path)?);
+						referrers_cache.insert(path.clone(), self.query_gc_referrers(&path)?);
 					}
 					for referrer in &referrers_cache[&path] {
 						if visited.insert(referrer.clone()) {
@@ -872,6 +875,9 @@ impl LocalStore {
 			"note: hard linking is currently saving {}",
 			render_size(unshared - actual - overhead, false)
 		));
+		if let Some(overlay) = &self.overlay {
+			overlay.remount(&real_store, log)?;
+		}
 		Ok(results)
 	}
 }

@@ -28,6 +28,21 @@ impl LocalStore {
 				"cannot optimise a read-only store".into(),
 			));
 		}
+		if let Some(overlay) = &self.overlay {
+			let mut stats = OptimiseStats::default();
+			let mut warn = |message: &str| {
+				if nix_compat::log::log_enabled(nix_compat::log::VerbosityLevel::Warn) {
+					eprintln!("warning: {message}");
+				}
+			};
+			for path in self.query_all_valid_paths()? {
+				if overlay.lower.is_valid_path(&path)? {
+					stats.bytes_freed += overlay.delete(&self.real_path(&path), &mut warn)?;
+				}
+			}
+			overlay.remount(&self.config().real_store_dir, &mut warn)?;
+			return Ok(stats);
+		}
 		let links = self.config().real_store_dir.join(".links");
 		fs::create_dir_all(&links)?;
 		let mut stats = OptimiseStats::default();
