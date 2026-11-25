@@ -51,6 +51,15 @@ impl LocalBackend {
 		}
 	}
 
+	/// The substituters, if they are used.
+	pub fn open_substituters(&self) -> &[BinaryCache] {
+		if self.settings.use_substitutes {
+			self.substituters()
+		} else {
+			&[]
+		}
+	}
+
 	/// The substituters that could be opened, in priority order.
 	fn substituters(&self) -> &[BinaryCache] {
 		self.substituters.get_or_init(|| {
@@ -607,7 +616,7 @@ impl Worker<'_> {
 		// and `internal-json` sends them as results.
 		let mut logs = BuildLogs::default();
 		let mut events = |event: BuildEvent<'_>| logs.event(None, event);
-		if self.settings.max_build_jobs > 1 || self.settings.keep_going {
+		if builder.builds_in_parallel() {
 			let targets: Vec<_> = paths
 				.iter()
 				.filter_map(|path| match path {
@@ -1085,28 +1094,45 @@ pub struct BuildLogs {
 }
 
 impl BuildLogs {
+	fn started(&mut self, drv_path: &StorePath, mode: BuildMode, machine: Option<&str>) {
+		use nix_compat::log::logger::{Activity, BuildLog, worker_update};
+		let path = drv_path.to_absolute_path();
+		let mut text = match mode {
+			BuildMode::Normal => format!("building '{path}'"),
+			BuildMode::Repair => format!("repairing outputs of '{path}'"),
+			BuildMode::Check => format!("checking outputs of '{path}'"),
+		};
+		if let Some(machine) = machine {
+			text += &format!(" on '{machine}'");
+		}
+		let act = Activity::new(
+			nix_compat::log::VerbosityLevel::Info,
+			nix_compat::log::ActivityType::Build,
+			text,
+			vec![
+				path.into(),
+				machine.unwrap_or_default().into(),
+				1u64.into(),
+				1u64.into(),
+			],
+			0,
+		);
+		self.logs.insert(drv_path.clone(), BuildLog::new(act));
+		self.current = Some(drv_path.clone());
+		worker_update(|c| c.running_builds += 1);
+	}
+
 	/// Report a builder event; `owner` is the derivation whose build sent
 	/// it, when several build at once.
 	pub fn event(&mut self, owner: Option<&StorePath>, event: BuildEvent<'_>) {
-		use nix_compat::log::logger::{Activity, BuildLog, worker_change, worker_update};
+		use nix_compat::log::logger::{worker_change, worker_update};
 		match event {
-			BuildEvent::Started { drv_path, mode } => {
-				let path = drv_path.to_absolute_path();
-				let act = Activity::new(
-					nix_compat::log::VerbosityLevel::Info,
-					nix_compat::log::ActivityType::Build,
-					match mode {
-						BuildMode::Normal => format!("building '{path}'"),
-						BuildMode::Repair => format!("repairing outputs of '{path}'"),
-						BuildMode::Check => format!("checking outputs of '{path}'"),
-					},
-					vec![path.into(), "".into(), 1u64.into(), 1u64.into()],
-					0,
-				);
-				self.logs.insert(drv_path.clone(), BuildLog::new(act));
-				self.current = Some(drv_path.clone());
-				worker_update(|c| c.running_builds += 1);
-			}
+			BuildEvent::Started { drv_path, mode } => self.started(drv_path, mode, None),
+			BuildEvent::StartedRemotely {
+				drv_path,
+				mode,
+				machine,
+			} => self.started(drv_path, mode, Some(machine)),
 			BuildEvent::Output(data) => {
 				let owner = owner.or(self.current.as_ref());
 				if let Some(log) = owner.and_then(|owner| self.logs.get_mut(owner)) {
@@ -1115,6 +1141,15 @@ impl BuildLogs {
 			}
 			BuildEvent::Finished { drv_path, error } => {
 				let Some(mut log) = self.logs.remove(drv_path) else {
+					// It failed, or was found valid, before it started.
+					if let Some(error) = error {
+						worker_update(|c| {
+							if error.status() != crate::FailureStatus::DependencyFailed {
+								c.failed_builds += 1;
+							}
+						});
+					}
+					worker_change(|c| c.expected_builds = c.expected_builds.saturating_sub(1));
 					return;
 				};
 				log.flush();

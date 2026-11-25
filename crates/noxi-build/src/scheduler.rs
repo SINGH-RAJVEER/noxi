@@ -55,6 +55,7 @@ struct Goal {
 enum Message {
 	PathChecked(StorePath, StorePath, bool),
 	Started(StorePath, BuildMode),
+	StartedRemotely(StorePath, BuildMode, String),
 	Output(StorePath, Vec<u8>),
 	Finished(StorePath, Option<BuildError>),
 	Done(StorePath, Result<BTreeMap<String, StorePath>>),
@@ -182,7 +183,12 @@ impl LocalBuilder<'_> {
 			}
 		}
 		let stop = AtomicBool::new(false);
-		let limit = usize::try_from(self.settings.max_build_jobs.max(1)).unwrap_or(usize::MAX);
+		// With a build hook, builds here take one of `max-jobs` slots and
+		// builds on other machines as many as the machines accept.
+		let limit = match self.hooks {
+			Some(_) => 256,
+			None => usize::try_from(self.settings.max_build_jobs.max(1)).unwrap_or(usize::MAX),
+		};
 		std::thread::scope(|scope| {
 			let _stop_on_drop = StopOnDrop(&stop);
 			let (tx, rx) = mpsc::sync_channel(64);
@@ -251,6 +257,18 @@ impl LocalBuilder<'_> {
 											current = drv_path.clone();
 											Message::Started(drv_path.clone(), mode)
 										}
+										BuildEvent::StartedRemotely {
+											drv_path,
+											mode,
+											machine,
+										} => {
+											current = drv_path.clone();
+											Message::StartedRemotely(
+												drv_path.clone(),
+												mode,
+												machine.to_owned(),
+											)
+										}
 										BuildEvent::Output(data) => {
 											Message::Output(current.clone(), data.to_vec())
 										}
@@ -290,6 +308,14 @@ impl LocalBuilder<'_> {
 						BuildEvent::Started {
 							drv_path: &path,
 							mode,
+						},
+					),
+					Ok(Message::StartedRemotely(path, mode, machine)) => events(
+						&path,
+						BuildEvent::StartedRemotely {
+							drv_path: &path,
+							mode,
+							machine: &machine,
 						},
 					),
 					Ok(Message::Output(path, data)) => events(&path, BuildEvent::Output(&data)),

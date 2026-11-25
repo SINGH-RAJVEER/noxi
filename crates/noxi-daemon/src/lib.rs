@@ -9,8 +9,13 @@
 pub mod client;
 pub mod connection;
 pub mod error;
+pub mod legacy_ssh;
+pub mod nar_stream;
+pub mod peer;
+pub mod serve_protocol;
 pub mod server;
 pub mod settings;
+pub mod ssh;
 pub mod wire;
 
 pub use error::{Error, Result};

@@ -91,6 +91,8 @@ pub struct LocalStore {
 	gc_lock: Mutex<Option<File>>,
 	roots_socket: Mutex<Option<UnixStream>>,
 	public_keys: Vec<VerifyingKey>,
+	/// `locksHeld`: paths a parent process has locked for this one.
+	locks_held: Mutex<BTreeSet<StorePath>>,
 }
 
 /// Each store's open `temproots/<pid>` file, by path.
@@ -315,7 +317,17 @@ impl LocalStore {
 			gc_lock: Mutex::new(None),
 			roots_socket: Mutex::new(None),
 			public_keys,
+			locks_held: Mutex::default(),
 		})
+	}
+
+	/// Do not lock `path` when adding it: the process that started this one
+	/// holds its lock, as a build hook's does.
+	pub fn assume_locked(&self, path: &StorePath) {
+		self.locks_held
+			.lock()
+			.unwrap_or_else(|e| e.into_inner())
+			.insert(path.clone());
 	}
 
 	pub fn config(&self) -> &LocalStoreConfig {
@@ -921,7 +933,12 @@ impl LocalStore {
 		}
 
 		let real = self.real_path(&info.path);
-		let mut lock = PathLocks::lock([real.clone()])?;
+		let held = self
+			.locks_held
+			.lock()
+			.unwrap_or_else(|e| e.into_inner())
+			.contains(&info.path);
+		let mut lock = PathLocks::lock((!held).then(|| real.clone()))?;
 		if repair || !self.is_valid_path(&info.path)? {
 			delete_path(&real)?;
 			let mut reader = HashingReader::new(source);

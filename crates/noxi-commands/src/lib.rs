@@ -7,12 +7,14 @@
 mod allocation_diagnostics;
 
 pub mod build;
+pub mod build_remote;
 pub mod channel;
 pub mod cli;
 pub mod collect_garbage;
 pub mod instantiate;
 mod instantiate_lints;
 pub mod legacy_environment;
+mod machine;
 pub mod maintenance;
 pub mod nix;
 pub mod nix_build;
@@ -22,6 +24,7 @@ pub mod nix_store;
 mod nix_store_ops;
 pub mod paths;
 pub mod prefetch_url;
+mod serve;
 pub mod store;
 mod suggestions;
 pub mod user_env;

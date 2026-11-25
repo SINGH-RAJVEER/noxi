@@ -1351,10 +1351,21 @@ impl<R: Read + Send, W: Write + Send + 'static> Connection<'_, R, W> {
 				path.to_absolute_path()
 			)));
 		}
-		let drv = read_basic_derivation(&mut self.from, &path)?;
+		let config = self.store.config();
+		let drv = read_basic_derivation(
+			&mut self.from,
+			&path,
+			noxi_store::build_derivation::OutputFeatures {
+				ca_derivations: config.ca_derivations,
+				impure_derivations: config.impure_derivations,
+				dynamic_derivations: config.dynamic_derivations,
+				git_hashing: config.git_hashing,
+			},
+		)?;
 		let mode = self.from.read_build_mode()?;
 		self.start()?;
-		if !drv.outputs().is_fixed() && self.trust != Trust::Trusted {
+		let content_addressed = drv.is_fixed() || drv.has_floating_outputs() || drv.is_impure();
+		if !content_addressed && self.trust != Trust::Trusted {
 			return Err(Error::Nix(
 				"you are not privileged to build input-addressed derivations".into(),
 			));
@@ -1364,7 +1375,7 @@ impl<R: Read + Send, W: Write + Send + 'static> Connection<'_, R, W> {
 			path = store.add_text_to_store(
 				path.name(),
 				&drv.to_aterm_bytes(),
-				drv.input_sources(),
+				drv.basic.input_sources(),
 				false,
 			)?;
 		}
@@ -1383,7 +1394,7 @@ impl<R: Read + Send, W: Write + Send + 'static> Connection<'_, R, W> {
 		let mut built = false;
 		let mut logs = BuildLogs::default();
 		let mut events = |event: BuildEvent<'_>| build_event(&mut logs, &mut built, event);
-		let result = builder.build_derivation(&path, &drv, &mut events);
+		let result = builder.build_supplied_derivation(&path, &drv, &mut events);
 		if result.is_ok() && !built {
 			logger::worker_update(|c| c.expected_builds = c.expected_builds.saturating_sub(1));
 		}
@@ -1765,7 +1776,7 @@ enum BuildOutcome {
 }
 
 /// The wire code of a failed build's `BuildResult` status.
-fn failure_code(e: &noxi_build::BuildError) -> u64 {
+pub(crate) fn failure_code(e: &noxi_build::BuildError) -> u64 {
 	use noxi_build::FailureStatus::*;
 	match e.status() {
 		PermanentFailure => 3,
@@ -1811,10 +1822,11 @@ impl<R: Read, W: Write> Read for TunnelReader<'_, R, W> {
 
 /// `readDerivation` for a BasicDerivation. ATerm preserves arbitrary byte strings
 /// and the parser shares output validation with stored derivations.
-fn read_basic_derivation<R: Read>(
+pub(crate) fn read_basic_derivation<R: Read>(
 	from: &mut Reader<R>,
 	drv_path: &StorePath,
-) -> Result<nix_compat::derivation::UnverifiedDerivation> {
+	features: noxi_store::build_derivation::OutputFeatures,
+) -> Result<noxi_store::build_derivation::BuildDerivation> {
 	fn quote(s: &[u8]) -> Vec<u8> {
 		let mut out = vec![b'"'];
 		for &c in s {
@@ -1853,7 +1865,11 @@ fn read_basic_derivation<R: Read>(
 			// A fixed output's supplied path is syntax only. Recompute the
 			// actual path from its hash even for a trusted client.
 			crate::wire::parse_store_path(&path)?;
-			let ca = crate::wire::parse_content_address(&format!("fixed:{algo}:{hash}"))?;
+			let ca = match algo.strip_prefix("text:") {
+				Some(algo) => format!("text:{algo}:{hash}"),
+				None => format!("fixed:{algo}:{hash}"),
+			};
+			let ca = crate::wire::parse_content_address(&ca)?;
 			let mut info = ValidPathInfo::new(
 				StorePath::from_bytes(
 					format!(
@@ -1925,8 +1941,8 @@ fn read_basic_derivation<R: Read>(
 	*term.last_mut().unwrap() = b')';
 	let mut bytes = b"Derive".to_vec();
 	bytes.extend(term);
-	nix_compat::derivation::UnverifiedDerivation::from_aterm_bytes(&bytes)
-		.map_err(|e| Error::Nix(format!("error parsing derivation: {e:?}")))
+	noxi_store::build_derivation::BuildDerivation::from_aterm_bytes_with_features(&bytes, features)
+		.map_err(|e| Error::Nix(format!("error parsing derivation: {e}")))
 }
 
 /// Read exactly one legacy NAR without buffering bytes of the next request.
@@ -1965,7 +1981,7 @@ fn read_nar<R: Read + Send>(from: &mut R) -> Result<Vec<u8>> {
 	Ok(recording.bytes)
 }
 
-fn now() -> u64 {
+pub(crate) fn now() -> u64 {
 	std::time::SystemTime::now()
 		.duration_since(std::time::UNIX_EPOCH)
 		.map(|d| d.as_secs())
@@ -2027,7 +2043,10 @@ fn build_mode(mode: u64) -> BuildMode {
 /// A builder event of a daemon build: the build's activity and output go
 /// through [`BuildLogs`] as for a local build. `built` records that a build started.
 fn build_event(logs: &mut BuildLogs, built: &mut bool, event: BuildEvent<'_>) {
-	if matches!(event, BuildEvent::Started { .. }) {
+	if matches!(
+		event,
+		BuildEvent::Started { .. } | BuildEvent::StartedRemotely { .. }
+	) {
 		*built = true;
 	}
 	logs.event(None, event);

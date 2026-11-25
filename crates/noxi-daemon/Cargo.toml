@@ -15,8 +15,8 @@ noxi-build = { path = "../noxi-build", version = "0.0.4" }
 noxi-store = { path = "../noxi-store", version = "0.0.5" }
 thiserror.workspace = true
 serde_json.workspace = true
+tempfile.workspace = true
 tracing.workspace = true
 
 [dev-dependencies]
 noxi-test-support = { path = "../noxi-test-support" }
-tempfile.workspace = true

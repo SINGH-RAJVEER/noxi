@@ -1,12 +1,19 @@
 //! A `file://` binary cache as a store, CppNix's `LocalBinaryCacheStore`.
 //!
 //! Paths are read from and written to the cache as NARs. Nothing can be
-//! built in it: realising outputs succeeds only if they are there.
+//! built in it: realising outputs succeeds only if they are there, or if the
+//! build hook builds them elsewhere.
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
 
+use crate::backend::BuildLogs;
+use crate::error::{BuildError, FailureStatus};
+use crate::hook::{Hooks, Reply};
+use crate::local::{BuildEvent, build_with_hook, run_post_build_hook};
+use crate::options;
+use crate::settings::BuildSettings;
 use nix_compat::derivation::UnverifiedDerivation;
 use nix_compat::nixhash::{CAHash, HashAlgo, NixHash};
 use nix_compat::store_path::{self, StorePath};
@@ -17,9 +24,14 @@ use noxi_store::{
 	ca_hash_of, nar,
 };
 
+/// `LocalBuildRejection::NoLocalStore`.
+const NO_LOCAL_STORE: &str = "Unable to build with a primary store that isn't a local store; either pass a different '--store' or enable remote builds.\n\nFor more information check 'man nix.conf' and search for '/machines'.";
+
 pub struct CacheStore {
 	cache: BinaryCache,
 	features: OutputFeatures,
+	/// How the build hook, which alone can build for a cache, is asked.
+	settings: BuildSettings,
 }
 
 impl CacheStore {
@@ -28,7 +40,147 @@ impl CacheStore {
 	pub fn open(uri: &str, features: OutputFeatures) -> Result<Self> {
 		let cache = BinaryCache::open(uri)?;
 		cache.init_for_upload()?;
-		Ok(Self { cache, features })
+		Ok(Self {
+			cache,
+			features,
+			settings: BuildSettings::default(),
+		})
+	}
+
+	/// Offer builds to the build hook of `settings`.
+	pub fn with_build_settings(mut self, settings: BuildSettings) -> Self {
+		self.settings = settings;
+		self
+	}
+
+	/// Build a derivation whose inputs the cache has with the build hook,
+	/// which puts the outputs into the cache.
+	fn build_with_hook(
+		&self,
+		hooks: &Hooks,
+		drv_path: &StorePath,
+		logs: &mut BuildLogs,
+	) -> std::result::Result<(), BuildError> {
+		let drv = self.read_build_derivation(drv_path)?;
+		let structured = options::structured_attrs(drv.basic.environment())?;
+		let env = drv
+			.basic
+			.environment()
+			.iter()
+			.filter(|(name, _)| name.as_slice() != b"__json")
+			.map(|(name, value)| (name.clone(), value.clone()))
+			.collect();
+		let features = options::DerivationOptions::new(
+			&env,
+			structured.as_ref(),
+			drv.basic.input_derivations(),
+			false,
+			&mut Vec::new(),
+		)?
+		.get_required_system_features(true);
+		let mut inputs = drv.basic.input_sources().clone();
+		for (input, names) in drv.basic.input_derivations() {
+			let known = self.deep_query_partial_derivation_output_map(input)?;
+			for name in names {
+				let name = name.to_string();
+				inputs.insert(known.get(&name).cloned().flatten().ok_or_else(|| {
+					BuildError::Other(format!(
+						"derivation '{}' requires non-existent output '{name}' from input derivation '{}'",
+						drv_path.to_absolute_path(),
+						input.to_absolute_path()
+					))
+				})?);
+			}
+		}
+		let inputs = self.compute_closure(&inputs)?;
+		let hook = loop {
+			match hooks.offer(
+				&self.settings,
+				drv.basic.system(),
+				drv_path,
+				&features,
+				&|| false,
+			)? {
+				Reply::Accept(hook) => break hook,
+				Reply::Decline => {
+					return Err(BuildError::failed(
+						FailureStatus::InputRejected,
+						NO_LOCAL_STORE,
+					));
+				}
+				Reply::Postpone => {
+					let seconds = self
+						.settings
+						.config
+						.get_int("build-poll-interval", 5)
+						.max(1);
+					std::thread::sleep(std::time::Duration::from_secs(seconds as u64));
+				}
+			}
+		};
+		let outputs = self.query_partial_derivation_output_map(drv_path)?;
+		let mut missing = BTreeSet::new();
+		for (name, path) in &outputs {
+			if !matches!(path, Some(path) if self.is_valid_path(path)?) {
+				missing.insert(name.clone());
+			}
+		}
+		let known: Vec<StorePath> = outputs.into_values().flatten().collect();
+		build_with_hook(
+			&self.settings,
+			&noxi_store::LocalStoreConfig::system().log_dir,
+			drv_path,
+			&known,
+			&inputs,
+			&missing,
+			*hook,
+			&|| false,
+			&mut |event| logs.event(None, event),
+		)?;
+		let mut built = BTreeMap::new();
+		for (name, path) in self.query_partial_derivation_output_map(drv_path)? {
+			match path {
+				Some(path) if self.is_valid_path(&path)? => built.insert(name, path),
+				_ => {
+					return Err(BuildError::Other(
+						"some outputs are unexpectedly invalid".to_owned(),
+					));
+				}
+			};
+		}
+		run_post_build_hook(&self.settings, drv_path, &built)
+	}
+
+	/// The derivations to build, each after its inputs.
+	fn build_order(&self, drvs: &BTreeSet<StorePath>) -> Result<Vec<StorePath>> {
+		fn visit(
+			store: &CacheStore,
+			drvs: &BTreeSet<StorePath>,
+			drv: &StorePath,
+			order: &mut Vec<StorePath>,
+			seen: &mut BTreeSet<StorePath>,
+		) -> Result<()> {
+			if !seen.insert(drv.clone()) {
+				return Ok(());
+			}
+			for input in store
+				.read_build_derivation(drv)?
+				.basic
+				.input_derivations()
+				.keys()
+				.filter(|input| drvs.contains(*input))
+			{
+				visit(store, drvs, input, order, seen)?;
+			}
+			order.push(drv.clone());
+			Ok(())
+		}
+		let mut order = Vec::new();
+		let mut seen = BTreeSet::new();
+		for drv in drvs {
+			visit(self, drvs, drv, &mut order, &mut seen)?;
+		}
+		Ok(order)
 	}
 
 	pub fn cache(&self) -> &BinaryCache {
@@ -300,10 +452,45 @@ impl Store for CacheStore {
 	fn build_paths(&self, paths: &[DerivedPath]) -> Result<()> {
 		let missing = self.query_missing(paths)?;
 		if !missing.will_build.is_empty() {
-			return Err(Error::Build {
-				exit_status: 100,
-				message: "Unable to build with a primary store that isn't a local store; either pass a different '--store' or enable remote builds.\n\nFor more information check 'man nix.conf' and search for '/machines'.".to_owned(),
-			});
+			let Some(hooks) = Hooks::new(&self.settings) else {
+				return Err(Error::Build {
+					exit_status: 100,
+					message: NO_LOCAL_STORE.to_owned(),
+				});
+			};
+			let targets: Vec<&StorePath> = paths
+				.iter()
+				.filter_map(|path| match path {
+					DerivedPath::Built { drv, .. } => Some(drv),
+					DerivedPath::Opaque(_) => None,
+				})
+				.collect();
+			let _worker = nix_compat::log::logger::WorkerGuard::new();
+			let mut logs = BuildLogs::default();
+			for drv in self.build_order(&missing.will_build)? {
+				let result = self.build_with_hook(&hooks, &drv, &mut logs);
+				logs.event(
+					None,
+					BuildEvent::Finished {
+						drv_path: &drv,
+						error: result.as_ref().err(),
+					},
+				);
+				if let Err(error) = result {
+					let target = targets.first().filter(|_| !targets.contains(&&drv));
+					let Some(target) = target else {
+						return Err(error.into());
+					};
+					crate::backend::log_error(&error.to_string());
+					return Err(Error::Build {
+						exit_status: error.status().exit_status(),
+						message: format!(
+							"Cannot build '{}'.\nReason: 1 dependency failed.",
+							target.to_absolute_path()
+						),
+					});
+				}
+			}
 		}
 		if let Some(path) = missing.unknown.first() {
 			return Err(Error::Other(format!(

@@ -126,7 +126,7 @@ fn list_default(name: &str) -> &'static str {
 }
 
 /// What `RemoteStore::setOptions` sends for `settings`.
-fn client_options(settings: &Settings) -> noxi_daemon::client::ClientOptions {
+pub(crate) fn client_options(settings: &Settings) -> noxi_daemon::client::ClientOptions {
 	let max_jobs = match settings.get("max-jobs") {
 		Some("auto") => std::thread::available_parallelism().map_or(1, |n| n.get() as u64),
 		Some(value) => value.parse().unwrap_or(1),
@@ -332,6 +332,10 @@ pub fn open(uri: &str, settings: &Settings) -> Result<Option<OpenStore>, String>
 			},
 		)
 		.map_err(|e| e.to_string())?;
+		let mut build_settings = BuildSettings::from_settings(settings);
+		build_settings.show_log_tail = !nix_compat::log::print_build_logs();
+		build_settings.store_uri = rendered_reference(uri);
+		let store = store.with_build_settings(build_settings);
 		return Ok(Some(OpenStore {
 			store: Rc::new(store),
 			real_store_dir: None,
@@ -353,11 +357,25 @@ pub fn open(uri: &str, settings: &Settings) -> Result<Option<OpenStore>, String>
 	// The simple logger is verbose, so failed builds omit their log tail,
 	// unless `--no-build-output` hides the build output.
 	build_settings.show_log_tail = !nix_compat::log::print_build_logs();
+	build_settings.store_uri = rendered_reference(uri);
 	let backend = LocalBackend::new(store, build_settings, substituters);
 	Ok(Some(OpenStore {
 		store: Rc::new(backend),
 		real_store_dir,
 	}))
+}
+
+/// The store setting as CppNix prints it.
+fn rendered_reference(uri: &str) -> Option<String> {
+	let cwd = std::env::current_dir().ok()?;
+	nix_compat::nixcpp::store_reference::StoreReference::parse(
+		uri,
+		&Default::default(),
+		&cwd,
+		&mut Vec::new(),
+	)
+	.ok()
+	.map(|reference| reference.render(true))
 }
 
 /// Open the local store named by `uri`, and where its paths are visible to

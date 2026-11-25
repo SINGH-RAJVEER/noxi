@@ -98,6 +98,15 @@ pub struct BuildSettings {
 	/// The settings in effect, which `post-build-hook` gets in `NIX_CONFIG`.
 	/// CppNix passes every setting; these are the ones that were set.
 	pub hook_config: BTreeMap<String, String>,
+	/// The settings in effect, as they were given. A build hook is sent
+	/// them; see [`BuildSettings::config_table`].
+	pub config: Settings,
+	/// The store being built in, as a store reference, when it is not the
+	/// `store` setting of `config`.
+	pub store_uri: Option<String>,
+	/// Whether builds are offered to the build hook. Off unless the
+	/// settings come from a configuration.
+	pub remote_builds: bool,
 	/// `build-users-group`: CppNix defaults it to `nixbld` when running as
 	/// root and to empty otherwise.
 	pub build_users_group: String,
@@ -166,6 +175,9 @@ impl Default for BuildSettings {
 			run_diff_hook: false,
 			post_build_hook: String::new(),
 			hook_config: BTreeMap::new(),
+			config: Settings::default(),
+			store_uri: None,
+			remote_builds: false,
 			// SAFETY: getuid cannot fail.
 			build_users_group: if unsafe { libc::getuid() } == 0 {
 				"nixbld".to_owned()
@@ -274,8 +286,10 @@ impl BuildSettings {
 			} else {
 				format!("extra-{name}")
 			};
+			let _ = self.config.set(&name, value);
 			self.hook_config.insert(name, value.to_owned());
 		}
+		self.remote_builds = true;
 		if let Some(value) = settings.get("diff-hook") {
 			self.diff_hook = value.to_owned();
 		}
@@ -308,6 +322,34 @@ impl BuildSettings {
 	/// `getDiffHook`: the hook to show nondeterministic outputs to, if any.
 	pub fn diff_hook(&self) -> Option<&str> {
 		(self.run_diff_hook && !self.diff_hook.is_empty()).then_some(&self.diff_hook)
+	}
+
+	/// `GlobalConfig::getSettings` as a build hook is sent it, with the
+	/// settings a daemon's client chose and the store being built in.
+	pub fn config_table(&self) -> Result<BTreeMap<String, String>, String> {
+		let mut table = crate::config_values::table(&self.config)?;
+		let mut set = |name: &str, value: String| {
+			table.insert(name.to_owned(), value);
+		};
+		for (name, value) in [
+			("keep-failed", self.keep_failed),
+			("keep-going", self.keep_going),
+			("fallback", self.try_fallback),
+			("substitute", self.use_substitutes),
+		] {
+			set(name, value.to_string());
+		}
+		for (name, value) in [
+			("max-jobs", self.max_build_jobs),
+			("max-silent-time", self.max_silent_time),
+			("cores", self.build_cores.into()),
+		] {
+			set(name, value.to_string());
+		}
+		if let Some(uri) = &self.store_uri {
+			set("store", uri.clone());
+		}
+		Ok(table)
 	}
 
 	/// The value of `NIX_BUILD_CORES`.

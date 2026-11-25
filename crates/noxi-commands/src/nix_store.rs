@@ -37,6 +37,7 @@ enum Operation {
 	Delete,
 	Optimise,
 	Verify,
+	Serve,
 	Other(crate::nix_store_ops::Op),
 }
 
@@ -86,11 +87,7 @@ pub fn main(mut settings: Settings, args: Vec<String>) -> Result<ExitCode, Failu
 				op = crate::nix_store_ops::Op::parse(other).map(Operation::Other);
 			}
 			"--help" => return Err(crate::cli::show_man_page("nix-store")),
-			"--serve" => {
-				return Err(Failure::Error(format!(
-					"nix-store {arg} is not supported by noxi yet"
-				)));
-			}
+			"--serve" => op = Some(Operation::Serve),
 			"--add-root" => {
 				let root = args
 					.next()
@@ -128,7 +125,11 @@ pub fn main(mut settings: Settings, args: Vec<String>) -> Result<ExitCode, Failu
 		}
 	}
 	print_setting_warnings(&mut settings);
-	if read_stdin && !matches!(op, Some(Operation::Other(other)) if !other.reads_stdin_words()) {
+	let stdin_is_input = op == Some(Operation::Serve);
+	if read_stdin
+		&& !stdin_is_input
+		&& !matches!(op, Some(Operation::Other(other)) if !other.reads_stdin_words())
+	{
 		for line in io::stdin().lock().lines() {
 			op_args.extend(line?.split_whitespace().map(str::to_owned));
 		}
@@ -138,6 +139,10 @@ pub fn main(mut settings: Settings, args: Vec<String>) -> Result<ExitCode, Failu
 	let uri = store::store_uri(store_uri.as_deref(), &settings);
 	if op == Operation::Init && (!op_flags.is_empty() || !op_args.is_empty()) {
 		return Err(Failure::Usage("no arguments expected".into()));
+	}
+	if op == Operation::Serve {
+		crate::serve::run(&op_flags, &op_args, &uri, &settings)?;
+		return Ok(ExitCode::SUCCESS);
 	}
 	if let Operation::Other(other) = op {
 		return crate::nix_store_ops::run(other, &op_flags, &op_args, &uri, &settings, &cwd);
@@ -156,7 +161,7 @@ pub fn main(mut settings: Settings, args: Vec<String>) -> Result<ExitCode, Failu
 	let mut stdout = io::stdout().lock();
 	match op {
 		Operation::Init => {}
-		Operation::Other(_) => unreachable!("dispatched above"),
+		Operation::Other(_) | Operation::Serve => unreachable!("dispatched above"),
 		Operation::Realise => command.realise(&op_flags, &op_args, &mut stdout)?,
 		Operation::Query => command.query(&op_flags, op_args, &settings, &mut stdout)?,
 		Operation::Gc | Operation::Delete => {
