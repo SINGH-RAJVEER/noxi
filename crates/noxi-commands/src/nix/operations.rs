@@ -232,10 +232,16 @@ fn daemon(parsed: Parsed) -> Result<ExitCode, Failure> {
 	// `--process-ops` only stops forwarding to a remote backing store; a
 	// local backing store always processes the operations itself.
 	let uri = crate::store::store_uri(parsed.value("store"), &parsed.settings);
-	let (store, _) = crate::store::open_local(&uri, &parsed.settings)?
-		.ok_or_else(|| unsupported("daemon with a non-local backing store"))?;
+	let overlay = noxi_store::local_overlay::parse(&uri, &parsed.settings)?;
+	let store = match &overlay {
+		Some(overlay) => overlay.open()?,
+		None => crate::store::open_local(&uri, &parsed.settings)?
+			.map(|(store, _)| store)
+			.ok_or_else(|| unsupported("daemon with a non-local backing store"))?,
+	};
 	let mut settings =
 		noxi_daemon::DaemonSettings::from_config(store.config().clone(), &parsed.settings)?;
+	settings.overlay = overlay;
 	for (name, _) in &parsed.sequence {
 		match name.as_str() {
 			"force-trusted" => settings.force_trust = Some(Trust::Trusted),

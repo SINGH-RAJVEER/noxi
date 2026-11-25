@@ -25,11 +25,49 @@ pub(crate) struct Overlay {
 	remount_required: AtomicBool,
 }
 
-/// Open a local-overlay URL. Other schemes return `None` so a caller can
-/// continue resolving stores with its usual registry.
+/// Parsed overlay settings, reusable by daemon workers.
+#[derive(Clone, Debug)]
+pub struct OverlayConfig {
+	pub store: LocalStoreConfig,
+	lower: LocalStoreConfig,
+	upper: PathBuf,
+	hook: Option<PathBuf>,
+	check_mount: bool,
+}
+
+impl OverlayConfig {
+	pub fn open(&self) -> Result<LocalStore> {
+		let merged = &self.store.real_store_dir;
+		let lower = &self.lower.real_store_dir;
+		if self.check_mount {
+			check_mount(merged, lower, &self.upper)?;
+		}
+		if overlaps_lower(merged, lower) || overlaps_lower(&self.upper, lower) {
+			return Err(invalid_mount(merged));
+		}
+		let overlay = Overlay {
+			lower: LocalStore::open(self.lower.clone())?,
+			upper: self.upper.clone(),
+			hook: self.hook.clone(),
+			remount_required: AtomicBool::new(false),
+		};
+		LocalStore::open_with_overlay(self.store.clone(), Some(Box::new(overlay)))
+	}
+}
+
+/// Open a local-overlay URL. Other schemes return `None`.
 pub fn open(uri: &str, settings: &Settings) -> Result<Option<LocalStore>> {
-	let base = uri.split_once('?').map_or(uri, |(base, _)| base);
-	if !base.starts_with("local-overlay:") {
+	parse(uri, settings)?
+		.map(|config| config.open())
+		.transpose()
+}
+
+pub fn is_overlay(uri: &str) -> bool {
+	uri.starts_with("local-overlay:")
+}
+
+pub fn parse(uri: &str, settings: &Settings) -> Result<Option<OverlayConfig>> {
+	if !is_overlay(uri) {
 		return Ok(None);
 	}
 	let cwd = std::env::current_dir()?;
@@ -46,6 +84,32 @@ pub fn open(uri: &str, settings: &Settings) -> Result<Option<LocalStore>> {
 	let Variant::Specified { authority, .. } = variant else {
 		return Ok(None);
 	};
+	for name in params.keys() {
+		if !matches!(
+			name.as_str(),
+			"build-dir"
+				| "check-mount"
+				| "ignore-gc-delete-failure"
+				| "log"
+				| "lower-store"
+				| "path-info-cache-size"
+				| "priority"
+				| "read-only"
+				| "real"
+				| "remount-hook"
+				| "require-sigs"
+				| "root"
+				| "state"
+				| "store"
+				| "system-features"
+				| "trusted"
+				| "upper-layer"
+				| "use-roots-daemon"
+				| "want-mass-query"
+		) {
+			warn(&format!("unknown setting '{name}'"));
+		}
+	}
 	let config = local_config(&authority, &params, settings)?;
 	let lower_uri = params.get("lower-store").map_or("", String::as_str);
 	let StoreReference {
@@ -65,37 +129,30 @@ pub fn open(uri: &str, settings: &Settings) -> Result<Option<LocalStore>> {
 		))
 	})?;
 	let upper = absolute(upper)?;
-	match params
+	let check_mount = match params
 		.get("check-mount")
 		.map(String::as_str)
 		.unwrap_or("true")
 	{
-		"true" | "yes" | "1" => {
-			check_mount(&config.real_store_dir, &lower_config.real_store_dir, &upper)?
-		}
-		"false" | "no" | "0" => {}
+		"true" | "yes" | "1" => true,
+		"false" | "no" | "0" => false,
 		value => {
 			return Err(Error::Other(format!(
 				"Boolean setting 'check-mount' has invalid value '{value}'"
 			)));
 		}
-	}
-	let lower_dir = &lower_config.real_store_dir;
-	if overlaps_lower(&config.real_store_dir, lower_dir) || overlaps_lower(&upper, lower_dir) {
-		return Err(invalid_mount(&config.real_store_dir));
-	}
+	};
 	let hook = params
 		.get("remount-hook")
 		.map(|path| absolute(path))
 		.transpose()?;
-	let lower = LocalStore::open(lower_config)?;
-	let overlay = Overlay {
-		lower,
+	Ok(Some(OverlayConfig {
+		store: config,
+		lower: lower_config,
 		upper,
 		hook,
-		remount_required: AtomicBool::new(false),
-	};
-	LocalStore::open_with_overlay(config, Some(Box::new(overlay))).map(Some)
+		check_mount,
+	}))
 }
 
 fn warn(message: &str) {

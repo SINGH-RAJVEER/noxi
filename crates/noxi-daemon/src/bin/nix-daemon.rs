@@ -1,5 +1,4 @@
 use noxi_daemon::connection::{Trust, process_monitored_connection};
-use noxi_store::LocalStore;
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
@@ -64,14 +63,19 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
 		.or_else(|| settings.get("store").map(str::to_owned))
 		.or_else(|| std::env::var("NIX_REMOTE").ok())
 		.unwrap_or_default();
-	let config = local_config(&uri)?;
+	let overlay = noxi_store::local_overlay::parse(&uri, &settings)?;
+	let config = match &overlay {
+		Some(overlay) => overlay.store.clone(),
+		None => local_config(&uri)?,
+	};
 	let socket = std::env::var_os("NIX_DAEMON_SOCKET_PATH")
 		.map(PathBuf::from)
 		.unwrap_or_else(|| config.state_dir.join("daemon-socket/socket"));
 	let mut settings = DaemonSettings::from_config(config, &settings)?;
 	settings.force_trust = force_trust;
+	settings.overlay = overlay;
 	if stdio {
-		let store = LocalStore::open(settings.store.clone())?;
+		let store = settings.open_store()?;
 		process_monitored_connection(
 			std::io::stdin(),
 			std::io::stdout(),

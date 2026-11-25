@@ -176,6 +176,7 @@ enum Target {
 	},
 	/// A `file://` binary cache.
 	Cache,
+	Overlay,
 }
 
 /// A store's `store` setting: the logical store directory, which this
@@ -201,6 +202,9 @@ fn set_store_dir(dir: &str) -> Result<(), String> {
 
 /// Resolve `uri` as CppNix's store registry does for the supported kinds.
 fn resolve(uri: &str) -> Result<Target, String> {
+	if noxi_store::local_overlay::is_overlay(uri) {
+		return Ok(Target::Overlay);
+	}
 	if uri.starts_with("file://") {
 		return Ok(Target::Cache);
 	}
@@ -293,7 +297,10 @@ fn resolve(uri: &str) -> Result<Target, String> {
 /// directory is writable, as for root on NixOS, and in the chroot store
 /// fallback; CppNix then reads paths through `LocalStore`'s accessor.
 pub fn resolves_to_local(uri: &str) -> Result<bool, String> {
-	Ok(matches!(resolve(uri)?, Target::Local { .. }))
+	Ok(matches!(
+		resolve(uri)?,
+		Target::Local { .. } | Target::Overlay
+	))
 }
 
 /// The `file://` binary cache `uri` names, if it names one.
@@ -367,6 +374,16 @@ pub fn open_local(
 	settings: &Settings,
 ) -> Result<Option<(LocalStore, Option<PathBuf>)>, String> {
 	let (root, read_only) = match resolve(uri)? {
+		Target::Overlay => {
+			return noxi_store::local_overlay::open(uri, settings)
+				.map(|store| {
+					store.map(|store| {
+						let real = store.config().real_store_dir.clone();
+						(store, Some(real))
+					})
+				})
+				.map_err(|error| error.to_string());
+		}
 		Target::Dummy => return Ok(None),
 		Target::Local { root, read_only } => (root, read_only),
 		Target::Cache => {

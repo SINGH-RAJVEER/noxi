@@ -17,7 +17,7 @@ The `fast`, `store` and `daemon` tiers are nextest profiles in `.config/nextest.
 
 The functional scripts' scratch roots go in `NOXI_FUNCTIONAL_SCRATCH` (default `/tmp`). Git discovery in those scripts, and in other tests that use `TMPDIR`, walks up from the scratch directory, so set both to a directory outside any repository when `/tmp` holds a stray `.git`, for example `NOXI_FUNCTIONAL_SCRATCH=/var/tmp TMPDIR=/var/tmp/noxi`. The functional runner refuses a scratch directory below a `.git`.
 
-The store tier also runs `reference_local_overlay`. It compares invalid-mount refusal, redundant adds, deletion, deduplication, remount hooks and verification against CppNix 2.35.2. The mounted case uses user, mount and network namespaces under `TMPDIR` and requires `NOXI_REFERENCE_BIN`.
+The CLI and daemon accept `local-overlay://` store URLs. The store tier also runs `reference_local_overlay`. It compares invalid-mount refusal, redundant adds, deletion, deduplication, remount hooks and verification against CppNix 2.35.2. The mounted case uses user, mount and network namespaces under `TMPDIR` and requires `NOXI_REFERENCE_BIN`.
 
 `just test` and `just ci` are unchanged and still run the whole workspace. `.github/workflows/compat.yml` runs `just compat-evidence-check` and the fast tier on every push and pull request, and the store and daemon tiers only on manual dispatch. The system tier needs KVM and is not in CI.
 
