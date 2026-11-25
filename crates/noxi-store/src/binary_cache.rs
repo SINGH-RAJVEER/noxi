@@ -966,107 +966,7 @@ impl BinaryCache {
 			Transport::Store(_) => Ok(None),
 			Transport::Http(base, agent) => {
 				let url = format!("{base}/{name}");
-				let transfer = &self.transfer;
-				let mut attempt = 0;
-				loop {
-					let mut request = agent.get(&url);
-					if self.http10_close.load(Ordering::Relaxed) {
-						// ureq 3.4 does not close a length-delimited HTTP/1.0
-						// response unless Connection: close is explicit. Do not
-						// race the server's FIN on the next request.
-						request = request.header("Connection", "close");
-					}
-					let request = request
-						.config()
-						.max_idle_age(if self.http10_close.load(Ordering::Relaxed) {
-							Duration::ZERO
-						} else {
-							Duration::from_secs(15)
-						})
-						.timeout_connect(
-							(transfer.connect_timeout != 0)
-								.then(|| Duration::from_secs(transfer.connect_timeout)),
-						)
-						.build();
-					let started = Instant::now();
-					// `TransferItem::finish`'s classification: whether to retry,
-					// the message, and the server's `Retry-After`.
-					let (transient, message, status, retry_after) = match request.call() {
-						Err(e) => {
-							let transient = !matches!(e, ureq::Error::BadUri(_));
-							let message = curl_message(&e, base, started.elapsed());
-							(
-								transient,
-								format!("unable to download '{url}': {message}"),
-								0,
-								None,
-							)
-						}
-						Ok(response) => {
-							if response.version() == ureq::http::Version::HTTP_10
-								&& !response
-									.headers()
-									.get_all("connection")
-									.iter()
-									.any(|value| {
-										value.to_str().is_ok_and(|value| {
-											value.split(',').any(|token| {
-												token.trim().eq_ignore_ascii_case("keep-alive")
-											})
-										})
-									}) {
-								self.http10_close.store(true, Ordering::Relaxed);
-							}
-							let status = response.status().as_u16();
-							match status {
-								200..=299 => {
-									return Ok(Some(Box::new(response.into_body().into_reader())));
-								}
-								// S3 answers 403 for files that do not exist.
-								404 | 403 | 410 => return Ok(None),
-								_ => {}
-							}
-							let retry_after = response
-								.headers()
-								.get("retry-after")
-								.and_then(|value| value.to_str().ok())
-								.and_then(|value| value.trim().parse::<u32>().ok())
-								.map(|seconds| seconds.saturating_mul(1000));
-							let mut body = Vec::new();
-							let _ = response
-								.into_body()
-								.into_reader()
-								.take(1 << 20)
-								.read_to_end(&mut body);
-							let body = String::from_utf8_lossy(&body).into_owned();
-							let mut message =
-								format!("unable to download '{url}': HTTP error {status}");
-							// `FileTransferError`'s heuristic for showing the body.
-							if !body.is_empty() && (body.len() < 1024 || body.contains("<html>")) {
-								message += &format!("\n\nresponse body:\n\n{}", body.trim_end());
-							}
-							let transient = !(matches!(status, 401 | 407)
-								|| ((400..500).contains(&status) && !matches!(status, 408 | 429))
-								|| matches!(status, 501 | 505 | 511));
-							(transient, message, status, retry_after)
-						}
-					};
-					attempt += 1;
-					if !transient || attempt >= transfer.attempts {
-						return Err(Error::Other(message));
-					}
-					let base_ms = if matches!(status, 429 | 503) {
-						transfer.rate_limited_delay_ms
-					} else {
-						transfer.delay_ms
-					};
-					let delay = transfer.retry_delay(attempt, base_ms, retry_after);
-					nix_compat::log::logger::warn(&format!(
-						"{message}; retrying in {delay} ms (attempt {attempt}/{})",
-						transfer.attempts
-					));
-					std::thread::sleep(Duration::from_millis(delay as u64));
-				}
+				http_get(&url, base, agent, &self.transfer, &self.http10_close)
 			}
 		}
 	}
@@ -1401,6 +1301,138 @@ impl BufRead for ProgressReader<'_> {
 	fn consume(&mut self, amt: usize) {
 		self.inner.consume(amt);
 		self.advance(amt);
+	}
+}
+
+/// Download `url` without decoding its content, as `FileTransfer::download`
+/// does, retrying transient failures.
+pub fn download(url: &str, transfer: TransferSettings) -> Result<Box<dyn Read + Send>> {
+	if !url.starts_with("http://") && !url.starts_with("https://") {
+		return Err(Error::Other(format!(
+			"unable to download '{url}': Unsupported protocol (1)"
+		)));
+	}
+	let agent = crate::quick_ack::agent(
+		ureq::Agent::config_builder()
+			.http_status_as_error(false)
+			.accept_encoding("")
+			.user_agent(concat!("noxi/", env!("CARGO_PKG_VERSION")))
+			.build(),
+	);
+	http_get(url, url, &agent, &transfer, &Default::default())?.ok_or_else(|| {
+		Error::Other(format!(
+			"unable to download '{url}': the server does not have the file"
+		))
+	})
+}
+
+/// `GET url` from the server of `base`, or `None` if the server has no such
+/// file.
+fn http_get(
+	url: &str,
+	base: &str,
+	agent: &ureq::Agent,
+	transfer: &TransferSettings,
+	http10_close: &AtomicBool,
+) -> Result<Option<Box<dyn Read + Send>>> {
+	let mut attempt = 0;
+	loop {
+		let mut request = agent.get(url);
+		if http10_close.load(Ordering::Relaxed) {
+			// ureq 3.4 does not close a length-delimited HTTP/1.0
+			// response unless Connection: close is explicit. Do not
+			// race the server's FIN on the next request.
+			request = request.header("Connection", "close");
+		}
+		let request = request
+			.config()
+			.max_idle_age(if http10_close.load(Ordering::Relaxed) {
+				Duration::ZERO
+			} else {
+				Duration::from_secs(15)
+			})
+			.timeout_connect(
+				(transfer.connect_timeout != 0)
+					.then(|| Duration::from_secs(transfer.connect_timeout)),
+			)
+			.build();
+		let started = Instant::now();
+		// `TransferItem::finish`'s classification: whether to retry,
+		// the message, and the server's `Retry-After`.
+		let (transient, message, status, retry_after) = match request.call() {
+			Err(e) => {
+				let transient = !matches!(e, ureq::Error::BadUri(_));
+				let message = curl_message(&e, base, started.elapsed());
+				(
+					transient,
+					format!("unable to download '{url}': {message}"),
+					0,
+					None,
+				)
+			}
+			Ok(response) => {
+				if response.version() == ureq::http::Version::HTTP_10
+					&& !response
+						.headers()
+						.get_all("connection")
+						.iter()
+						.any(|value| {
+							value.to_str().is_ok_and(|value| {
+								value
+									.split(',')
+									.any(|token| token.trim().eq_ignore_ascii_case("keep-alive"))
+							})
+						}) {
+					http10_close.store(true, Ordering::Relaxed);
+				}
+				let status = response.status().as_u16();
+				match status {
+					200..=299 => {
+						return Ok(Some(Box::new(response.into_body().into_reader())));
+					}
+					// S3 answers 403 for files that do not exist.
+					404 | 403 | 410 => return Ok(None),
+					_ => {}
+				}
+				let retry_after = response
+					.headers()
+					.get("retry-after")
+					.and_then(|value| value.to_str().ok())
+					.and_then(|value| value.trim().parse::<u32>().ok())
+					.map(|seconds| seconds.saturating_mul(1000));
+				let mut body = Vec::new();
+				let _ = response
+					.into_body()
+					.into_reader()
+					.take(1 << 20)
+					.read_to_end(&mut body);
+				let body = String::from_utf8_lossy(&body).into_owned();
+				let mut message = format!("unable to download '{url}': HTTP error {status}");
+				// `FileTransferError`'s heuristic for showing the body.
+				if !body.is_empty() && (body.len() < 1024 || body.contains("<html>")) {
+					message += &format!("\n\nresponse body:\n\n{}", body.trim_end());
+				}
+				let transient = !(matches!(status, 401 | 407)
+					|| ((400..500).contains(&status) && !matches!(status, 408 | 429))
+					|| matches!(status, 501 | 505 | 511));
+				(transient, message, status, retry_after)
+			}
+		};
+		attempt += 1;
+		if !transient || attempt >= transfer.attempts {
+			return Err(Error::Other(message));
+		}
+		let base_ms = if matches!(status, 429 | 503) {
+			transfer.rate_limited_delay_ms
+		} else {
+			transfer.delay_ms
+		};
+		let delay = transfer.retry_delay(attempt, base_ms, retry_after);
+		nix_compat::log::logger::warn(&format!(
+			"{message}; retrying in {delay} ms (attempt {attempt}/{})",
+			transfer.attempts
+		));
+		std::thread::sleep(Duration::from_millis(delay as u64));
 	}
 }
 

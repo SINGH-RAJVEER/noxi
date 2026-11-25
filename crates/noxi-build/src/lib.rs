@@ -10,6 +10,7 @@ pub mod backend;
 pub mod buildenv;
 pub mod cache_store;
 pub mod error;
+mod fetchurl;
 pub mod local;
 pub mod missing;
 pub mod options;

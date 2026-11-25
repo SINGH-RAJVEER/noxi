@@ -9,8 +9,7 @@
 //! are canonicalised, scanned for references, checked and registered with
 //! the derivation as their deriver.
 //!
-//! Not supported yet: builtin builders other than `buildenv` and
-//! `unpack-channel`, and remote builders.
+//! Not supported yet: remote builders.
 
 use std::cell::Cell;
 use std::collections::{BTreeMap, BTreeSet};
@@ -1416,8 +1415,8 @@ impl LocalBuilder<'_> {
 		let features = drv_options.get_required_system_features(true);
 		self.check_platform(drv_path, drv, &features)?;
 		let builtin = drv.command().strip_prefix(b"builtin:");
-		if let Some(name) =
-			builtin.filter(|name| *name != b"buildenv" && *name != b"unpack-channel")
+		if let Some(name) = builtin
+			.filter(|name| !matches!(&name[..], b"buildenv" | b"unpack-channel" | b"fetchurl"))
 		{
 			return Err(BuildError::Other(format!(
 				"unsupported builtin builder '{}'",
@@ -1515,16 +1514,18 @@ impl LocalBuilder<'_> {
 				None,
 				!use_sandbox,
 			)?;
-			let result = build.run_buildenv(drv, events).and_then(|()| {
-				self.register_outputs(
-					drv_path,
-					drv_name,
-					outputs,
-					&drv_options,
-					&input_paths,
-					&build,
-				)
-			});
+			let result = build
+				.run_builtin(drv, outputs, kind, events)
+				.and_then(|()| {
+					self.register_outputs(
+						drv_path,
+						drv_name,
+						outputs,
+						&drv_options,
+						&input_paths,
+						&build,
+					)
+				});
 			let built = result?;
 			build.succeeded.set(true);
 			drop(build);
@@ -2923,6 +2924,21 @@ impl<'b> Build<'b> {
 				optional: false,
 			},
 		);
+		// `ssl-cert-file`, for builders with access to the network.
+		let ca_bundle = PathBuf::from("/etc/ssl/certs/ca-certificates.crt");
+		if !self.sandboxed
+			&& !binds.contains_key(&ca_bundle)
+			&& let Some(file) = settings.ca_file().filter(|file| file.exists())
+		{
+			binds.insert(
+				ca_bundle.clone(),
+				Bind {
+					target: ca_bundle,
+					source: fs::canonicalize(file)?,
+					optional: true,
+				},
+			);
+		}
 		for path in input_paths {
 			let target = PathBuf::from(print(path));
 			binds.insert(
@@ -3002,12 +3018,14 @@ impl<'b> Build<'b> {
 		Ok(())
 	}
 
-	/// `builtin:buildenv`, logged as a builder process is: its warnings and
+	/// `builtin:buildenv` and the other builtin builders, logged as a builder process is: its warnings and
 	/// error go to the build log, and an error fails the build with exit
 	/// code 1.
-	fn run_buildenv(
+	fn run_builtin(
 		&self,
 		drv: &UnverifiedDerivation,
+		outputs: &BTreeMap<String, KnownOutput>,
+		kind: BuildKind,
 		events: &mut dyn FnMut(BuildEvent<'_>),
 	) -> Result<()> {
 		let settings = self.builder.settings;
@@ -3024,7 +3042,7 @@ impl<'b> Build<'b> {
 			})
 			.collect();
 		let out = self.scratch.get("out").ok_or_else(|| {
-			BuildError::Other("builtin:buildenv needs an output 'out'".to_owned())
+			BuildError::Other(format!("'{}' requires an 'out' output", drv.command()))
 		})?;
 		let output_names: BTreeSet<String> =
 			self.scratch.values().map(ToString::to_string).collect();
@@ -3056,6 +3074,27 @@ impl<'b> Build<'b> {
 		};
 		let result = if drv.command() == b"builtin:unpack-channel" {
 			crate::unpack_channel::build(&env, &real(Path::new(&print(out))), &real)
+		} else if drv.command() == b"builtin:fetchurl" {
+			if kind.sandboxed() {
+				Err(crate::buildenv::Error(
+					"'builtin:fetchurl' must be a fixed-output or impure derivation".to_owned(),
+				))
+			} else {
+				crate::fetchurl::Fetch {
+					env: &env,
+					out: &real(Path::new(&print(out))),
+					flat_hash: outputs.get("out").and_then(|output| match &output.fixed {
+						Some((FileIngestionMethod::Flat, hash)) => Some(hash),
+						_ => None,
+					}),
+					hashed_mirrors: &settings.hashed_mirrors,
+					transfer: settings.transfer,
+					local_files: self.direct
+						&& !user_lock::use_build_users(&settings.build_users_group),
+					cancelled: self.builder.cancelled,
+				}
+				.run()
+			}
 		} else {
 			crate::buildenv::builtin_buildenv(&env, Path::new(&print(out)), &real, &mut |warning| {
 				log(&format!("warning: {warning}"))

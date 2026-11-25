@@ -156,7 +156,7 @@ pass:upstream_functional tests/functional/ca/why-depends.sh
 pass:upstream_functional tests/functional/characterisation-test-infra.sh
 pass:upstream_functional tests/functional/check-refs.sh
 pass:upstream_functional tests/functional/check-reqs.sh
-gap tests/functional/check.sh # main in check.sh:95: error: unsupported builtin builder 'fetchurl'
+pass:upstream_functional tests/functional/check.sh
 gap tests/functional/chroot-store.sh # main in chroot-store.sh:48: error: don't know how to open Nix store with scheme 'local://$ROOT/tmp/nix-test/main/chroot-store/x+chroot'
 gap tests/functional/cli-characterisation.sh # : error:
 gap tests/functional/completions.sh # main in completions.sh:39: error: 'buil' is not a recognised command
@@ -192,7 +192,7 @@ gap tests/functional/fetchGitVerification.sh # main in fetchGitVerification.sh:3
 pass:upstream_functional tests/functional/fetchMercurial.sh
 pass:upstream_functional tests/functional/fetchPath.sh
 pass:upstream_functional tests/functional/fetchTree-file.sh
-gap tests/functional/fetchurl.sh # main in fetchurl.sh:10: error: unsupported builtin builder 'fetchurl'
+pass:upstream_functional tests/functional/fetchurl.sh
 pass:upstream_functional tests/functional/filter-source.sh
 pass:upstream_functional tests/functional/fixed-slow-vs-bad.sh
 pass:upstream_functional tests/functional/fixed.sh
@@ -248,14 +248,14 @@ pass:upstream_functional tests/functional/hash-convert.sh
 pass:upstream_functional tests/functional/hash-path.sh
 anomaly tests/functional/help.sh # reference skip: we don't know whether we built the manpages, so we can't reliably test them here., skipping this test...
 gap tests/functional/import-from-derivation.sh # main in import-from-derivation.sh:34: error: --readonly-mode is not supported by noxi yet
-gap tests/functional/impure-derivations.sh # main in impure-derivations.sh:70: error: unsupported builtin builder 'fetchurl'
+pass:upstream_functional tests/functional/impure-derivations.sh
 gap tests/functional/impure-env.sh # : error: hash mismatch in fixed-output derivation '$ROOT/tmp/nix-test/main/impure-env/store/HASH-test.drv':
 pass:upstream_functional tests/functional/impure-eval.sh
 pass:upstream_functional tests/functional/json.sh
 anomaly tests/functional/lang-gc.sh # reference skip: Too memory intensive for CI. Attempt to reduce memory usage was unsuccessful, because it made detection of the bug unreliable., skipping this test...
 pass:upstream_functional tests/functional/lang.sh
 gap tests/functional/legacy-ssh-store.sh # main in legacy-ssh-store.sh:8: error: unsupported store parameter 'remote-store=$ROOT/tmp/nix-test/main/legacy-ssh-store/other-store' in 'ssh://localhost?remote-store=$ROOT/tmp/nix-test/main/legacy-ss
-gap tests/functional/linux-sandbox.sh # : /my/store/HASH-nondeterministic
+gap tests/functional/linux-sandbox.sh # main in linux-sandbox.sh:104: /my/store/HASH-test-sandbox-paths
 gap tests/functional/local-overlay-store/add-lower.sh # main in ./add-lower-inner.sh:20: error: unsupported store parameter 'lower-store=$ROOT/tmp/nix-test/local-overlay-store/add-lower/stores/store-a' in 'local-overlay://?root=$ROOT/tmp/nix-test/local-ove
 gap tests/functional/local-overlay-store/bad-uris.sh # : local-overlay://?root=$ROOT/tmp/nix-test/local-overlay-store/bad-uris/bad_test&lower-store=$ROOT/tmp/nix-test/local-overlay-store/bad-uris/stores/store-a&upper-layer=$ROOT/tmp/nix-test/local-overlay
 gap tests/functional/local-overlay-store/build.sh # main in ./build-inner.sh:21: error: unsupported store parameter 'lower-store=$ROOT/tmp/nix-test/local-overlay-store/build/stores/store-a' in 'local-overlay://?root=$ROOT/tmp/nix-test/local-overlay-sto

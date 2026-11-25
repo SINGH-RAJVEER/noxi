@@ -87,6 +87,14 @@ in rec {
 	failingProducer = mk ({ name = "failing.drv"; args = script "exit 4"; } // ca "text");
 	dynOfBad = mk { name = "dyn-of-bad"; args = script "cat ${builtins.outputOf badProducer.outPath "out"} > $out"; };
 	dynOfFailing = mk { name = "dyn-of-failing"; args = script "cat ${builtins.outputOf failingProducer.outPath "out"} > $out"; };
+	fetch = attrs: derivation ({ name = "fetched"; system = "builtin"; builder = "builtin:fetchurl"; outputHashMode = "flat"; outputHashAlgo = "sha256"; outputHash = builtins.hashString "sha256" "one\n"; } // attrs);
+	fetched = fetch { url = "file://${builtins.getEnv "ROOT"}/data"; };
+	fetchedExec = fetch { name = "fetched-exec"; url = "file://${builtins.getEnv "ROOT"}/data"; executable = "1"; outputHashMode = "recursive"; outputHash = "sha256-pzqGE5pKoUaYGBhCNTBYnBD+NvE0w0zyXqBZuUvUFoI="; };
+	fetchedBad = fetch { name = "fetched-bad"; url = "file://${builtins.getEnv "ROOT"}/x.nix"; };
+	fetchedPure = derivation { name = "fetched-pure"; system = "builtin"; builder = "builtin:fetchurl"; url = "file://${builtins.getEnv "ROOT"}/data"; };
+	fetchedImpure = derivation { name = "fetched-impure"; system = "builtin"; builder = "builtin:fetchurl"; url = "file://${builtins.getEnv "ROOT"}/data"; __impure = true; outputHashMode = "flat"; };
+	fetchedMissing = fetch { name = "fetched-missing"; url = "file:///does/not/exist"; };
+	fetchedScheme = fetch { name = "fetched-scheme"; url = "gopher://localhost/x"; };
 	caFails = mk ({ name = "ca-fails"; args = script "cat ${text}; exit 5"; } // ca "flat");
 	impureEnv = environment { __impure = true; };
 	pureEnv = environment {};
@@ -106,6 +114,7 @@ fn session(bin: &Path, root: &Path, features: &str, steps: &[&str]) -> Vec<Strin
 	)
 	.unwrap();
 	fs::write(root.join("x.nix"), EXPR).unwrap();
+	fs::write(root.join("data"), "one\n").unwrap();
 	fs::write(root.join("counter"), "0\n").unwrap();
 	steps
 		.iter()
@@ -314,6 +323,68 @@ fn dynamic_derivations_match_the_reference() {
 		if let Some(output) = steps.get(step) {
 			assert!(output.contains(message), "{output}");
 		}
+	}
+}
+
+/// `builtin:fetchurl` from files.
+#[test]
+fn fetchurl_matches_the_reference() {
+	let steps = same(
+		FEATURES,
+		&[
+			"echo one > data; nix-build x.nix -A fetched --no-out-link; cat store/*-fetched; stat -c %a store/*-fetched",
+			"nix-build x.nix -A fetchedExec --no-out-link 2> /dev/null; ls store | grep fetched-exec | grep -v drv; stat -c %a store/*-fetched-exec",
+			"nix-build x.nix -A fetchedBad --no-out-link",
+			"nix-build x.nix -A fetchedPure --no-out-link 2>&1 | grep -o \"'builtin:fetchurl' must.*\"",
+			"nix-build x.nix -A fetchedMissing --no-out-link > /dev/null 2>&1; echo $?",
+			"nix-build x.nix -A fetchedScheme --no-out-link --option filetransfer-retry-attempts 1 > /dev/null 2>&1; echo $?",
+			"nix build -f x.nix fetchedImpure --no-link --print-out-paths; echo two > data; nix build -f x.nix fetchedImpure --no-link --print-out-paths",
+			"echo one > data; nix-build x.nix -A fetched --no-out-link --check; echo two > data; nix-build x.nix -A fetched --no-out-link --check",
+			"mkdir -p mirror/sha256; echo one > mirror/sha256/2c8b08da5ce60398e1f19af0e5dccc744df274b826abe585eaba68c525434806; nix-store --delete store/*-fetched > /dev/null 2>&1; nix-build x.nix -A fetched --no-out-link --option hashed-mirrors file://$PWD/mirror; cat store/*-fetched",
+		],
+	);
+	for (step, message) in [
+		(2, "hash mismatch in fixed-output derivation"),
+		(3, "must be a fixed-output or impure derivation"),
+		(4, "\n1\n"),
+		(7, "hash mismatch in fixed-output derivation"),
+	] {
+		if let Some(output) = steps.get(step) {
+			assert!(output.contains(message), "{output}");
+		}
+	}
+}
+
+/// noxi's `builtin:fetchurl` runs outside the sandbox, so in the sandbox it
+/// must not read host files for the derivation.
+#[test]
+fn fetchurl_cannot_read_host_files_in_the_sandbox() {
+	let dir = noxi_test_support::tempdir().unwrap();
+	let secret = dir.path().join("secret");
+	fs::write(&secret, "one\n").unwrap();
+	let expr = format!(
+		r#"derivation {{ name = "stolen"; system = "builtin"; builder = "builtin:fetchurl"; url = "file://{}"; outputHashMode = "flat"; outputHashAlgo = "sha256"; outputHash = builtins.hashString "sha256" "one\n"; }}"#,
+		secret.display()
+	);
+	let mut engines = vec![candidate_dir().to_owned()];
+	engines.extend(reference_dir());
+	for (index, bin) in engines.iter().enumerate() {
+		let root = dir.path().join(format!("root{index}"));
+		let output = Command::new(bin.join("nix-build"))
+			.env_clear()
+			.env("HOME", dir.path().join("home"))
+			.env("NIX_CONF_DIR", dir.path().join("none"))
+			.env(
+				"NIX_CONFIG",
+				"sandbox = true\nbuild-users-group =\nsubstituters =\nfiletransfer-retry-attempts = 1\n",
+			)
+			.args(["--store", &format!("local?root={}", root.display())])
+			.args(["--no-out-link", "-E", &expr])
+			.output()
+			.unwrap();
+		let errors = String::from_utf8_lossy(&output.stderr);
+		assert_eq!(output.status.code(), Some(1), "{errors}");
+		assert!(errors.contains("unable to download 'file://"), "{errors}");
 	}
 }
 

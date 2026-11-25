@@ -76,7 +76,7 @@ tests/functional/check-refs.sh pass pass pass
 tests/functional/check-reqs.nix support
 tests/functional/check-reqs.sh pass pass pass
 tests/functional/check.nix support
-tests/functional/check.sh gap fail pass # main in check.sh:95: error: unsupported builtin builder 'fetchurl'
+tests/functional/check.sh pass pass pass
 tests/functional/chroot-store.sh gap fail pass # main in chroot-store.sh:48: error: don't know how to open Nix store with scheme 'local://$ROOT/tmp/nix-test/main/chroot-store/x+chroot'
 tests/functional/cli-characterisation.sh gap fail pass # : error:
 tests/functional/cli-characterisation/assert-fail.nix support
@@ -263,7 +263,7 @@ tests/functional/fetchGitVerification.sh gap fail pass # main in fetchGitVerific
 tests/functional/fetchMercurial.sh pass pass pass
 tests/functional/fetchPath.sh pass pass pass
 tests/functional/fetchTree-file.sh pass pass pass
-tests/functional/fetchurl.sh gap fail pass # main in fetchurl.sh:10: error: unsupported builtin builder 'fetchurl'
+tests/functional/fetchurl.sh pass pass pass
 tests/functional/filter-source.nix support
 tests/functional/filter-source.sh pass pass pass
 tests/functional/fixed-slow-vs-bad.nix support
@@ -342,7 +342,7 @@ tests/functional/ifd.nix support
 tests/functional/import-from-derivation.nix support
 tests/functional/import-from-derivation.sh gap fail pass # main in import-from-derivation.sh:34: error: --readonly-mode is not supported by noxi yet
 tests/functional/impure-derivations.nix support
-tests/functional/impure-derivations.sh gap fail pass # main in impure-derivations.sh:70: error: unsupported builtin builder 'fetchurl'
+tests/functional/impure-derivations.sh pass pass pass
 tests/functional/impure-env.nix support
 tests/functional/impure-env.sh gap fail pass # : error: hash mismatch in fixed-output derivation '$ROOT/tmp/nix-test/main/impure-env/store/HASH-test.drv':
 tests/functional/impure-eval.sh pass pass pass
@@ -353,7 +353,7 @@ tests/functional/lang-gc/issue-11141-gc-coroutine-test.nix support
 tests/functional/lang.sh pass pass pass
 tests/functional/legacy-ssh-store.sh gap fail pass # main in legacy-ssh-store.sh:8: error: unsupported store parameter 'remote-store=$ROOT/tmp/nix-test/main/legacy-ssh-store/other-store' in 'ssh://localhost?remote-store=$ROOT/tmp/nix-test/main/legacy-ss
 tests/functional/linux-sandbox-cert-test.nix support
-tests/functional/linux-sandbox.sh gap fail pass # : /my/store/HASH-nondeterministic
+tests/functional/linux-sandbox.sh gap fail pass # main in linux-sandbox.sh:104: /my/store/HASH-test-sandbox-paths
 tests/functional/local-overlay-store/add-lower-inner.sh support
 tests/functional/local-overlay-store/add-lower.sh gap fail pass # main in ./add-lower-inner.sh:20: error: unsupported store parameter 'lower-store=$ROOT/tmp/nix-test/local-overlay-store/add-lower/stores/store-a' in 'local-overlay://?root=$ROOT/tmp/nix-test/local-ove
 tests/functional/local-overlay-store/bad-uris.sh gap fail pass # : local-overlay://?root=$ROOT/tmp/nix-test/local-overlay-store/bad-uris/bad_test&lower-store=$ROOT/tmp/nix-test/local-overlay-store/bad-uris/stores/store-a&upper-layer=$ROOT/tmp/nix-test/local-overlay
