@@ -328,5 +328,65 @@ fn run_overlay_case(engine: Engine, root: &Path) {
 		}
 	}
 
+	for self_ref in [false, true] {
+		let suffix = if self_ref { "self-ref" } else { "non-self-ref" };
+		let leaf = seed_lower(&format!("leaf-{suffix}"));
+		let parent = seed_lower(&format!("parent-{suffix}"));
+		let mut leaf_info = lower_store.query_path_info(&leaf).unwrap().unwrap();
+		let mut parent_info = lower_store.query_path_info(&parent).unwrap().unwrap();
+		leaf_info.ca = None;
+		parent_info.ca = None;
+		parent_info.references.insert(leaf.clone());
+		if self_ref {
+			leaf_info.references.insert(leaf.clone());
+			parent_info.references.insert(parent.clone());
+		}
+		let registration = |info: &noxi_store::ValidPathInfo| {
+			format!(
+				"/nix/store/{}\n{}\n{}\n\n{}\n{}",
+				info.path,
+				info.nar_hash_base16(),
+				info.nar_size,
+				info.references.len(),
+				info.references
+					.iter()
+					.map(|path| format!("/nix/store/{path}\n"))
+					.collect::<String>(),
+			)
+		};
+		let load = |store: &str, data: String| {
+			let input = root.join("registration");
+			fs::write(&input, data).unwrap();
+			succeeded(
+				reference(root, "nix-store")
+					.args(["--store", store, "--load-db"])
+					.stdin(fs::File::open(input).unwrap()),
+			);
+		};
+		load(
+			lower.to_str().unwrap(),
+			registration(&leaf_info) + &registration(&parent_info),
+		);
+		let upper_db = LocalStore::open(LocalStoreConfig::with_root(&root.join("merged"))).unwrap();
+		assert!(!upper_db.is_valid_path(&leaf).unwrap());
+		assert!(!upper_db.is_valid_path(&parent).unwrap());
+		match engine {
+			Engine::Reference => load(&uri, registration(&parent_info)),
+			Engine::Noxi => {
+				local_overlay::open(&uri, &settings())
+					.unwrap()
+					.unwrap()
+					.register_valid_paths(std::slice::from_ref(&parent_info))
+					.unwrap();
+			}
+		}
+		for expected in [leaf_info, parent_info] {
+			let actual = upper_db.query_path_info(&expected.path).unwrap().unwrap();
+			assert_eq!(actual.references, expected.references);
+			assert_eq!(actual.nar_hash, expected.nar_hash);
+			assert!(!upper.join(expected.path.to_string()).exists());
+		}
+	}
+
 	succeeded(Command::new("umount").arg(merged));
 }

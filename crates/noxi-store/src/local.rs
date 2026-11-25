@@ -496,20 +496,27 @@ impl LocalStore {
 	/// transaction. Fails, registering nothing, if their references form a
 	/// cycle.
 	pub fn register_valid_paths(&self, infos: &[ValidPathInfo]) -> Result<()> {
-		if let Some(overlay) = &self.overlay {
-			let mut lower_infos = Vec::new();
-			for info in infos {
-				if !self.is_valid_path_local(&info.path)?
-					&& let Some(lower) = overlay.lower.query_path_info(&info.path)?
-				{
-					lower_infos.push(lower);
-				}
-			}
-			if !lower_infos.is_empty() {
-				self.register_valid_paths_local(&lower_infos)?;
+		let Some(overlay) = &self.overlay else {
+			return self.register_valid_paths_local(infos);
+		};
+		let mut pending: Vec<_> = infos
+			.iter()
+			.flat_map(|info| std::iter::once(&info.path).chain(&info.references))
+			.cloned()
+			.collect();
+		let mut seen = BTreeSet::new();
+		let mut lower_infos = Vec::new();
+		while let Some(path) = pending.pop() {
+			if seen.insert(path.clone())
+				&& !self.is_valid_path_local(&path)?
+				&& let Some(lower) = overlay.lower.query_path_info(&path)?
+			{
+				pending.extend(lower.references.iter().cloned());
+				lower_infos.push(lower);
 			}
 		}
-		self.register_valid_paths_local(infos)
+		lower_infos.extend_from_slice(infos);
+		self.register_valid_paths_local(&lower_infos)
 	}
 
 	fn register_valid_paths_local(&self, infos: &[ValidPathInfo]) -> Result<()> {
