@@ -9,9 +9,7 @@
 //! are canonicalised, scanned for references, checked and registered with
 //! the derivation as their deriver.
 //!
-//! Not supported yet: builtin builders other than `buildenv` and
-//! `unpack-channel`, impure outputs and dynamic derivations, and remote
-//! builders.
+//! Not supported yet: remote builders.
 
 use std::cell::Cell;
 use std::collections::{BTreeMap, BTreeSet};
@@ -23,7 +21,8 @@ use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
 
 use bstr::{BString, ByteSlice};
-use nix_compat::derivation::{OutputHashMode, UnverifiedDerivation, lookup_fn};
+use nix_compat::cppnix_json::derivation::InputNode;
+use nix_compat::derivation::{OutputHashMode, OutputName, UnverifiedDerivation, lookup_fn};
 use nix_compat::nixbase32;
 use nix_compat::nixhash::{CAHash, HashAlgo, NixHash};
 use nix_compat::store_path::{
@@ -89,6 +88,9 @@ pub struct LocalBuilder<'a> {
 	mode: BuildMode,
 	/// `pathContentsGoodCache`: the paths a repair has checked.
 	checked: Arc<Mutex<BTreeMap<StorePath, bool>>>,
+	/// The outputs of the impure derivations built by this request, which the
+	/// store does not record. Each is built once per request.
+	impure: Arc<Mutex<BTreeMap<StorePath, BTreeMap<String, StorePath>>>>,
 }
 
 /// An output a derivation declares, with the path it must produce.
@@ -96,19 +98,38 @@ pub struct LocalBuilder<'a> {
 struct KnownOutput {
 	path: StorePath,
 	/// The expected content address of a fixed output.
-	fixed: Option<(OutputHashMode, NixHash)>,
+	fixed: Option<(FileIngestionMethod, NixHash)>,
 	floating: Option<FloatingOutput>,
+	/// Built at a random path, and never valid before it is built.
+	impure: bool,
+}
+
+/// What a build depends on besides the derivation's fields.
+#[derive(Clone, Copy)]
+struct BuildKind {
+	fixed: bool,
+	impure: bool,
+}
+
+impl BuildKind {
+	fn of(drv: &BuildDerivation) -> Self {
+		Self {
+			fixed: drv.is_fixed(),
+			impure: drv.is_impure(),
+		}
+	}
+
+	/// `DerivationType::isSandboxed`.
+	fn sandboxed(self) -> bool {
+		!self.fixed && !self.impure
+	}
 }
 
 impl KnownOutput {
 	/// How the output's content address is computed, if it has one.
 	fn content_address(&self) -> Option<(FileIngestionMethod, HashAlgo)> {
-		if let Some((mode, hash)) = &self.fixed {
-			let method = match mode {
-				OutputHashMode::Recursive => FileIngestionMethod::NixArchive,
-				_ => FileIngestionMethod::Flat,
-			};
-			return Some((method, hash.algo()));
+		if let Some((method, hash)) = &self.fixed {
+			return Some((*method, hash.algo()));
 		}
 		self.floating
 			.as_ref()
@@ -125,6 +146,7 @@ impl<'a> LocalBuilder<'a> {
 			cancelled: None,
 			mode: BuildMode::Normal,
 			checked: Arc::default(),
+			impure: Arc::default(),
 		}
 	}
 
@@ -225,6 +247,7 @@ impl<'a> LocalBuilder<'a> {
 			basic: drv.clone(),
 			floating: BTreeMap::new(),
 			experimental: BTreeMap::new(),
+			dynamic: BTreeMap::new(),
 		};
 		let outputs = self.known_outputs(drv_path, &build_drv)?;
 		self.report_checks(&outputs, events)?;
@@ -237,7 +260,8 @@ impl<'a> LocalBuilder<'a> {
 				drv_path,
 				mode: self.mode,
 			});
-			let result = self.build(drv_path, drv, &outputs, events);
+			let kind = BuildKind::of(&build_drv);
+			let result = self.build(drv_path, drv, kind, &outputs, events);
 			events(BuildEvent::Finished {
 				drv_path,
 				error: result.as_ref().err(),
@@ -422,6 +446,24 @@ impl<'a> LocalBuilder<'a> {
 			None => self.store.read_build_derivation(drv_path)?,
 		};
 		let drv = &build_drv.basic;
+		let impure = build_drv.is_impure();
+		if impure {
+			if let Some(outputs) = self.impure().get(drv_path) {
+				return Ok(outputs.clone());
+			}
+			// `DerivationGoal::haveDerivation`.
+			if !self.store.config().ca_derivations {
+				return Err(BuildError::Other("experimental Nix feature 'ca-derivations' is disabled; add '--extra-experimental-features ca-derivations' to enable it".to_owned()));
+			}
+		} else if let Some(error) = self.impure_input(drv_path, &build_drv)? {
+			let names: BTreeSet<String> = match wanted {
+				Some(names) => names.clone(),
+				None => drv.outputs().names().map(ToString::to_string).collect(),
+			};
+			if self.mode != BuildMode::Normal || !self.have_outputs(drv_path, &build_drv, &names)? {
+				return Err(error);
+			}
+		}
 		if let Some(wanted) = wanted
 			&& let Some(missing) = wanted.iter().find(|name| {
 				!drv.outputs()
@@ -453,9 +495,23 @@ impl<'a> LocalBuilder<'a> {
 		// CppNix resolves deferred, floating and feature-enabled fixed
 		// derivations by replacing all input derivations with source paths.
 		if !drv.input_derivations().is_empty()
-			&& (drv.outputs().is_deferred()
-				|| (drv.outputs().is_fixed() && self.store.config().ca_derivations))
-		{
+			&& if build_drv.is_fixed() {
+				self.store.config().ca_derivations || !build_drv.dynamic.is_empty()
+			} else {
+				drv.outputs().is_deferred() || !build_drv.dynamic.is_empty()
+			} {
+			// A fixed output that is valid needs none of its inputs.
+			if build_drv.is_fixed() && self.mode == BuildMode::Normal {
+				let outputs = self.known_outputs(drv_path, &build_drv)?;
+				if self.all_valid(&outputs)? || self.substitute_known(&build_drv, &outputs)? {
+					let paths = outputs
+						.into_iter()
+						.map(|(name, o)| (name, o.path))
+						.collect();
+					self.register_realisations(drv_path, &paths)?;
+					return Ok(paths);
+				}
+			}
 			stack.push(drv_path.clone());
 			let result = self.resolve_inputs(drv_path, &build_drv, done, stack, events);
 			stack.pop();
@@ -495,19 +551,9 @@ impl<'a> LocalBuilder<'a> {
 		// Like `DerivationGoal`, substitute missing outputs before
 		// realising any inputs, which then may not be needed at all.
 		self.report_checks(&wanted_outputs, events)?;
-		if self.settings.use_substitutes
-			&& !self.substituters.is_empty()
-			&& (self.repair() || !self.all_valid(&wanted_outputs)?)
-			&& self.substitutes_allowed(&drv)?
-		{
-			// Floating outputs were looked up by their realisations.
-			for output in wanted_outputs.values().filter(|o| o.floating.is_none()) {
-				if self.repair() || !self.store.is_valid_path(&output.path)? {
-					self.try_substitute(&output.path)?;
-				}
-			}
-		}
-		let check = self.mode == BuildMode::Check;
+		self.substitute_known(&build_drv, &wanted_outputs)?;
+		// An impure derivation is always built, and never checked.
+		let check = self.mode == BuildMode::Check && !impure;
 		let valid = self.all_valid(&wanted_outputs)?;
 		if check && !valid {
 			return Err(self.cannot_check(drv_path));
@@ -552,18 +598,115 @@ impl<'a> LocalBuilder<'a> {
 					drv_path,
 					mode: self.mode,
 				});
-				let result = self.build(drv_path, &drv, &outputs, events);
+				let kind = BuildKind::of(&build_drv);
+				let result = self.build(drv_path, drv, kind, &outputs, events);
 				events(BuildEvent::Finished {
 					drv_path,
 					error: result.as_ref().err(),
 				});
-				result?;
+				let built = result?;
+				if impure {
+					if self.mode == BuildMode::Check {
+						// `assertPathValidity`: no impure output is valid.
+						return Err(BuildError::Other(
+							"some outputs are unexpectedly invalid".to_owned(),
+						));
+					}
+					self.impure().insert(drv_path.clone(), built.clone());
+					return Ok(built);
+				}
 			}
 		}
 		done.entry(drv_path.clone()).or_default().extend(wanted);
 		let paths = all_paths(&self.known_outputs(drv_path, &build_drv)?);
+		self.register_realisations(drv_path, &paths)?;
+		Ok(paths)
+	}
+
+	/// The outputs of the impure derivations this request built.
+	pub(crate) fn impure_outputs(&self) -> BTreeMap<StorePath, BTreeMap<String, StorePath>> {
+		self.impure().clone()
+	}
+
+	fn impure(
+		&self,
+	) -> std::sync::MutexGuard<'_, BTreeMap<StorePath, BTreeMap<String, StorePath>>> {
+		self.impure.lock().unwrap_or_else(|e| e.into_inner())
+	}
+
+	/// The error for building a pure derivation that uses an impure one.
+	pub(crate) fn impure_input(
+		&self,
+		drv_path: &StorePath,
+		drv: &BuildDerivation,
+	) -> Result<Option<BuildError>> {
+		if !self.store.config().impure_derivations || drv.is_impure() || drv.is_fixed() {
+			return Ok(None);
+		}
+		for input in drv.basic.input_derivations().keys() {
+			if self.store.is_valid_path(input)?
+				&& self.store.read_build_derivation(input)?.is_impure()
+			{
+				return Ok(Some(BuildError::Other(format!(
+					"pure derivation '{}' depends on impure derivation '{}'",
+					print(drv_path),
+					print(input)
+				))));
+			}
+		}
+		Ok(None)
+	}
+
+	/// Whether the outputs `names` of a derivation are valid, after
+	/// substituting what may be substituted of them.
+	fn have_outputs(
+		&self,
+		drv_path: &StorePath,
+		drv: &BuildDerivation,
+		names: &BTreeSet<String>,
+	) -> Result<bool> {
+		if drv.has_floating_outputs() || drv.is_deferred() {
+			return Ok(self
+				.substitute_unknown_outputs(drv_path, drv, names)?
+				.is_some());
+		}
+		let outputs: BTreeMap<_, _> = self
+			.known_outputs(drv_path, drv)?
+			.into_iter()
+			.filter(|(name, _)| names.contains(name))
+			.collect();
+		self.substitute_known(drv, &outputs)
+	}
+
+	/// Substitute the outputs with known paths, if they may be and are not
+	/// valid yet. Returns whether all outputs are valid afterwards.
+	fn substitute_known(
+		&self,
+		drv: &BuildDerivation,
+		outputs: &BTreeMap<String, KnownOutput>,
+	) -> Result<bool> {
+		if self.settings.use_substitutes
+			&& !self.substituters.is_empty()
+			&& (self.repair() || !self.all_valid(outputs)?)
+			&& self.substitutes_allowed(&drv.basic)?
+		{
+			// Floating outputs were looked up by their realisations.
+			for output in outputs.values().filter(|o| o.floating.is_none()) {
+				if self.repair() || !self.store.is_valid_path(&output.path)? {
+					self.try_substitute(&output.path)?;
+				}
+			}
+		}
+		self.all_valid(outputs)
+	}
+
+	fn register_realisations(
+		&self,
+		drv_path: &StorePath,
+		paths: &BTreeMap<String, StorePath>,
+	) -> Result<()> {
 		if self.store.config().ca_derivations {
-			for (name, path) in &paths {
+			for (name, path) in paths {
 				if self.store.is_valid_path(path)? {
 					self.store.register_drv_output(
 						drv_path,
@@ -576,7 +719,7 @@ impl<'a> LocalBuilder<'a> {
 				}
 			}
 		}
-		Ok(paths)
+		Ok(())
 	}
 
 	fn resolve_inputs(
@@ -587,6 +730,9 @@ impl<'a> LocalBuilder<'a> {
 		stack: &mut Vec<StorePath>,
 		events: &mut dyn FnMut(BuildEvent<'_>),
 	) -> Result<BTreeMap<String, StorePath>> {
+		if !self.store.config().ca_derivations {
+			return Err(BuildError::Other("experimental Nix feature 'ca-derivations' is disabled; add '--extra-experimental-features ca-derivations' to enable it".to_owned()));
+		}
 		let (path, resolved) = resolve_derivation(drv_path, drv, |input, wanted| {
 			self.for_inputs()
 				.realise_inner(input, Some(wanted), done, stack, events)
@@ -606,8 +752,22 @@ impl<'a> LocalBuilder<'a> {
 			vec![print(drv_path).into(), print(&path).into()],
 			0,
 		);
+		let impure = resolved.is_impure();
 		let resolved = (!self.store.is_valid_path(&path)?).then_some(resolved);
-		self.realise_drv(&path, resolved, None, done, stack, events)
+		let outputs = match self.realise_drv(&path, resolved, None, done, stack, events) {
+			Err(BuildError::Failed { status, message }) => {
+				crate::backend::log_error(&message);
+				return Err(BuildError::failed(
+					status,
+					format!("build of resolved derivation '{}' failed", print(&path)),
+				));
+			}
+			outputs => outputs?,
+		};
+		if impure {
+			self.impure().insert(drv_path.clone(), outputs.clone());
+		}
+		Ok(outputs)
 	}
 
 	/// `writeDerivation` for a resolved derivation about to be built.
@@ -709,7 +869,7 @@ impl<'a> LocalBuilder<'a> {
 /// floating content-addressed outputs, or input-addressed outputs that wait
 /// for content-addressed inputs.
 pub(crate) fn has_unknown_outputs(drv: &BuildDerivation) -> bool {
-	drv.experimental.is_empty() && (!drv.floating.is_empty() || drv.basic.outputs().is_deferred())
+	!drv.is_impure() && (drv.has_floating_outputs() || drv.is_deferred())
 }
 
 /// `Derivation::tryResolve`: replace each input derivation of `drv` with
@@ -729,6 +889,9 @@ pub fn resolve_derivation(
 	builder.environment = drv.basic.environment().clone();
 	let mut rewrites = BTreeMap::new();
 	for (input, names) in drv.basic.input_derivations() {
+		if names.is_empty() {
+			continue;
+		}
 		let wanted = names.iter().map(ToString::to_string).collect();
 		let Some(paths) = input_outputs(input, &wanted)? else {
 			return Ok(None);
@@ -742,6 +905,47 @@ pub fn resolve_derivation(
 			})?;
 			builder.input_sources.insert(path.clone());
 			rewrites.insert(downstream_placeholder(input, name.as_ref()), print(path));
+		}
+	}
+	for (input, children) in &drv.dynamic {
+		let resolved = resolve_dynamic_inputs(
+			input,
+			children,
+			&|name| downstream_placeholder(input, name),
+			&mut input_outputs,
+			&mut builder.input_sources,
+			&mut rewrites,
+		);
+		match resolved {
+			Ok(true) => {}
+			Ok(false) => return Ok(None),
+			Err(BuildError::Failed { status, message }) => {
+				crate::backend::log_error(&message);
+				let mut message = format!(
+					"Cannot build '{}'.\nReason: 1 dependency failed.",
+					print(drv_path)
+				);
+				let known: BTreeSet<String> = drv
+					.basic
+					.outputs()
+					.store_paths()
+					.map(print)
+					.chain(
+						drv.experimental
+							.values()
+							.filter_map(|output| output.fixed.as_ref())
+							.map(|(path, _)| print(path)),
+					)
+					.collect();
+				if !known.is_empty() {
+					message += "\nOutput paths:";
+				}
+				for path in known {
+					message += &format!("\n  {path}");
+				}
+				return Err(BuildError::failed(status, message));
+			}
+			Err(error) => return Err(error),
 		}
 	}
 	builder.input_derivations.clear();
@@ -778,6 +982,7 @@ pub fn resolve_derivation(
 		basic,
 		floating: drv.floating.clone(),
 		experimental: drv.experimental.clone(),
+		dynamic: BTreeMap::new(),
 	};
 	let path = store_path::build_text_path(
 		&format!("{name}.drv"),
@@ -787,6 +992,85 @@ pub fn resolve_derivation(
 	.map_err(|e| BuildError::Other(e.to_string()))?
 	.to_owned();
 	Ok(Some((path, resolved)))
+}
+
+/// `tryResolveInput` for the derivations that the outputs in `children` of the
+/// derivation at `producer` are.
+fn resolve_dynamic_inputs(
+	producer: &StorePath,
+	children: &BTreeMap<OutputName, InputNode>,
+	placeholder: &dyn Fn(&[u8]) -> String,
+	input_outputs: &mut dyn FnMut(
+		&StorePath,
+		&BTreeSet<String>,
+	) -> Result<Option<BTreeMap<String, StorePath>>>,
+	input_sources: &mut BTreeSet<StorePath>,
+	rewrites: &mut BTreeMap<String, String>,
+) -> Result<bool> {
+	for (output, child) in children {
+		let mut outputs_of =
+			|drv: &StorePath, names: &BTreeSet<String>| match input_outputs(drv, names) {
+				Ok(None) => Ok(None),
+				Ok(Some(paths)) => names
+					.iter()
+					.map(|name| {
+						paths
+							.get(name)
+							.map(|path| (name.clone(), path.clone()))
+							.ok_or_else(|| {
+								BuildError::Other(format!(
+									"derivation '{}' has no output '{name}'",
+									print(drv)
+								))
+							})
+					})
+					.collect::<Result<BTreeMap<_, _>>>()
+					.map(Some),
+				Err(error) => Err(error),
+			};
+		let name = output.to_string();
+		let mut built = match outputs_of(producer, &BTreeSet::from([name.clone()])) {
+			Ok(Some(built)) => built,
+			Ok(None) => return Ok(false),
+			Err(BuildError::Failed { status, message }) => {
+				crate::backend::log_error(&message);
+				return Err(BuildError::failed(
+					status,
+					format!(
+						"failed to obtain derivation of '{}^{name}'",
+						print(producer)
+					),
+				));
+			}
+			Err(error) => return Err(error),
+		};
+		let drv = built.remove(&name).expect("the output was asked for");
+		let parent = placeholder(output.as_bytes());
+		let wanted: BTreeSet<String> = child.outputs.iter().map(ToString::to_string).collect();
+		if !wanted.is_empty() {
+			let Some(paths) = outputs_of(&drv, &wanted)? else {
+				return Ok(false);
+			};
+			for (name, path) in paths {
+				rewrites.insert(
+					store_path::computed_placeholder(&parent, name.as_bytes()),
+					print(&path),
+				);
+				input_sources.insert(path);
+			}
+		}
+		if !resolve_dynamic_inputs(
+			&drv,
+			&child.dynamic_outputs,
+			&|name| store_path::computed_placeholder(&parent, name),
+			input_outputs,
+			input_sources,
+			rewrites,
+		)? {
+			return Ok(false);
+		}
+	}
+	Ok(true)
 }
 
 /// `deepQueryPartialDerivationOutput`: the path of output `output` of
@@ -826,6 +1110,9 @@ pub fn deep_query_output(
 		return Ok(None);
 	}
 	let resolved = resolve_derivation(drv_path, &drv, |input, wanted| {
+		if !store.is_valid_path(input)? {
+			return Ok(None);
+		}
 		let mut paths = BTreeMap::new();
 		for name in wanted {
 			match deep_query_output(store, input, name, realisation)? {
@@ -1089,14 +1376,20 @@ impl LocalBuilder<'_> {
 		&self,
 		drv_path: &StorePath,
 		drv: &UnverifiedDerivation,
+		kind: BuildKind,
 		outputs: &BTreeMap<String, KnownOutput>,
 		events: &mut dyn FnMut(BuildEvent<'_>),
-	) -> Result<()> {
+	) -> Result<BTreeMap<String, StorePath>> {
+		let output_paths = |outputs: &BTreeMap<String, KnownOutput>| {
+			outputs
+				.iter()
+				.map(|(name, output)| (name.clone(), output.path.clone()))
+				.collect::<BTreeMap<_, _>>()
+		};
 		let drv_name = drv_path
 			.name()
 			.strip_suffix(".drv")
 			.unwrap_or(drv_path.name());
-		let is_fixed = drv.outputs().is_fixed();
 
 		let parsed = options::structured_attrs(drv.environment())?;
 		let env: BTreeMap<BString, BString> = drv
@@ -1122,8 +1415,8 @@ impl LocalBuilder<'_> {
 		let features = drv_options.get_required_system_features(true);
 		self.check_platform(drv_path, drv, &features)?;
 		let builtin = drv.command().strip_prefix(b"builtin:");
-		if let Some(name) =
-			builtin.filter(|name| *name != b"buildenv" && *name != b"unpack-channel")
+		if let Some(name) = builtin
+			.filter(|name| !matches!(&name[..], b"buildenv" | b"unpack-channel" | b"fetchurl"))
 		{
 			return Err(BuildError::Other(format!(
 				"unsupported builtin builder '{}'",
@@ -1141,14 +1434,18 @@ impl LocalBuilder<'_> {
 		// requested outputs.
 		let mut input_paths = BTreeSet::new();
 		for (input_drv, names) in drv.input_derivations() {
-			let input = self.store.read_derivation(input_drv)?;
+			let input = self.store.query_partial_derivation_output_map(input_drv)?;
 			for name in names {
-				let path = input.outputs().get(name).ok_or_else(|| {
-					BuildError::Other(format!(
-						"derivation '{}' has no output '{name}'",
-						print(input_drv)
-					))
-				})?;
+				let path = input
+					.get(&name.to_string())
+					.and_then(Option::as_ref)
+					.ok_or_else(|| {
+						BuildError::Other(format!(
+							"derivation '{}' requires non-existent output '{name}' from input derivation '{}'",
+							print(drv_path),
+							print(input_drv)
+						))
+					})?;
 				self.closure(path, &mut input_paths)?;
 			}
 		}
@@ -1169,15 +1466,15 @@ impl LocalBuilder<'_> {
 		let check = self.mode == BuildMode::Check;
 		if !check && self.all_valid(outputs)? {
 			locks.set_deletion(true);
-			return Ok(());
+			return Ok(output_paths(outputs));
 		}
 		let current;
 		let mut outputs = outputs;
-		if outputs.values().any(|o| o.floating.is_some()) {
+		if outputs.values().any(|o| o.floating.is_some() && !o.impure) {
 			current = self.known_outputs(drv_path, &self.store.read_build_derivation(drv_path)?)?;
 			if !check && self.all_valid(&current)? {
 				locks.set_deletion(true);
-				return Ok(());
+				return Ok(output_paths(&current));
 			}
 			outputs = &current;
 		}
@@ -1201,7 +1498,7 @@ impl LocalBuilder<'_> {
 					true
 				}
 				SandboxMode::Disabled => false,
-				SandboxMode::Relaxed => !is_fixed && !drv_options.no_chroot,
+				SandboxMode::Relaxed => kind.sandboxed() && !drv_options.no_chroot,
 			};
 		if builtin.is_some() {
 			// CppNix runs builtin builders in the builder's process, in the
@@ -1213,26 +1510,28 @@ impl LocalBuilder<'_> {
 				outputs,
 				&drv_options,
 				parsed,
-				is_fixed,
+				kind,
 				None,
 				!use_sandbox,
 			)?;
-			let result = build.run_buildenv(drv, events).and_then(|()| {
-				self.register_outputs(
-					drv_path,
-					drv_name,
-					outputs,
-					&drv_options,
-					&input_paths,
-					&build,
-				)
-			});
+			let result = build
+				.run_builtin(drv, outputs, kind, events)
+				.and_then(|()| {
+					self.register_outputs(
+						drv_path,
+						drv_name,
+						outputs,
+						&drv_options,
+						&input_paths,
+						&build,
+					)
+				});
 			let built = result?;
 			build.succeeded.set(true);
 			drop(build);
 			self.run_post_build_hook(drv_path, &built)?;
 			locks.set_deletion(true);
-			return Ok(());
+			return Ok(built);
 		}
 		let build_user = self.acquire_build_user(drv_path)?;
 		// Without the sandbox the builder writes its outputs in place.
@@ -1242,7 +1541,7 @@ impl LocalBuilder<'_> {
 			outputs,
 			&drv_options,
 			parsed,
-			is_fixed,
+			kind,
 			build_user,
 			!use_sandbox,
 		)?;
@@ -1263,7 +1562,7 @@ impl LocalBuilder<'_> {
 		drop(build);
 		self.run_post_build_hook(drv_path, &built)?;
 		locks.set_deletion(true);
-		Ok(())
+		Ok(built)
 	}
 
 	/// `DerivationBuilderImpl::registerOutputs`: register the outputs the
@@ -1277,7 +1576,7 @@ impl LocalBuilder<'_> {
 		drv_options: &DerivationOptions<StorePath>,
 		input_paths: &BTreeSet<StorePath>,
 		build: &Build,
-	) -> Result<BTreeSet<StorePath>> {
+	) -> Result<BTreeMap<String, StorePath>> {
 		let check = self.mode == BuildMode::Check;
 		let mut referenceable = input_paths.clone();
 		referenceable.extend(build.scratch.values().cloned());
@@ -1379,13 +1678,16 @@ impl LocalBuilder<'_> {
 					info
 				}
 				Some((method, algo)) => {
-					if output.fixed.is_some() {
+					if output.fixed.is_some() || output.impure {
 						let copy = TempCopy::new(self.store, &actual)?;
 						actual = copy.path();
 						temp_copy = Some(copy);
 					}
-					let recursive = method == FileIngestionMethod::NixArchive;
-					if !recursive && (!metadata.is_file() || metadata.mode() & 0o100 != 0) {
+					let flat = matches!(
+						method,
+						FileIngestionMethod::Flat | FileIngestionMethod::Text
+					);
+					if flat && (!metadata.is_file() || metadata.mode() & 0o100 != 0) {
 						return Err(BuildError::failed(
 							FailureStatus::OutputRejected,
 							format!(
@@ -1397,15 +1699,9 @@ impl LocalBuilder<'_> {
 					noxi_store::ca::rewrite_path(&actual, &rewrites)?;
 					let old_hash = hash_part(scratch);
 					let hash = noxi_store::ca::hash_modulo(&actual, method, algo, &old_hash)?;
-					let path = store_path::build_ca_path(
-						&output_path_name(drv_name, name),
-						recursive,
-						&hash,
-						others.iter().map(StorePath::as_ref),
-						self_ref,
-					)
-					.map_err(|e| BuildError::Other(e.to_string()))?
-					.to_owned();
+					let output_name = output_path_name(drv_name, name);
+					let ca = method.content_address(hash)?;
+					let path = output_ca_path(&output_name, &ca, &others, self_ref)?;
 					if path != *scratch {
 						noxi_store::ca::rewrite_path(
 							&actual,
@@ -1419,11 +1715,7 @@ impl LocalBuilder<'_> {
 					if self_ref {
 						info.references.insert(path);
 					}
-					info.ca = Some(if recursive {
-						CAHash::Nar(hash)
-					} else {
-						CAHash::Flat(hash)
-					});
+					info.ca = Some(ca);
 					info
 				}
 			};
@@ -1505,19 +1797,25 @@ impl LocalBuilder<'_> {
 
 		self.check_outputs(drv_path, drv_options, &infos)?;
 		if check {
-			return Ok(outputs.values().map(|o| o.path.clone()).collect());
+			return Ok(outputs
+				.iter()
+				.map(|(name, output)| (name.clone(), output.path.clone()))
+				.collect());
 		}
 
-		let paths: BTreeSet<StorePath> = infos.values().map(|info| info.path.clone()).collect();
+		let paths: BTreeMap<String, StorePath> = infos
+			.iter()
+			.map(|(name, info)| (name.clone(), info.path.clone()))
+			.collect();
 		if self.repair() {
 			// `markContentsGood`.
 			self.checked()
-				.extend(paths.iter().map(|path| (path.clone(), true)));
+				.extend(paths.values().map(|path| (path.clone(), true)));
 		}
 		self.store
 			.register_valid_paths(&infos.values().cloned().collect::<Vec<_>>())?;
 		for (name, info) in infos {
-			if self.store.config().ca_derivations {
+			if self.store.config().ca_derivations && !outputs[&name].impure {
 				let mut realisation = Realisation {
 					out_path: info.path,
 					signatures: BTreeSet::new(),
@@ -1536,7 +1834,7 @@ impl LocalBuilder<'_> {
 	fn run_post_build_hook(
 		&self,
 		drv_path: &StorePath,
-		outputs: &BTreeSet<StorePath>,
+		outputs: &BTreeMap<String, StorePath>,
 	) -> Result<()> {
 		use nix_compat::log::{ActivityType, VerbosityLevel, logger};
 		let hook = &self.settings.post_build_hook;
@@ -1558,7 +1856,8 @@ impl LocalBuilder<'_> {
 			.iter()
 			.map(|(name, value)| format!("{name} = {value}\n"))
 			.collect();
-		let paths: Vec<String> = outputs.iter().map(print).collect();
+		let outputs: BTreeSet<&StorePath> = outputs.values().collect();
+		let paths: Vec<String> = outputs.into_iter().map(print).collect();
 		let child = std::process::Command::new(hook)
 			.env("DRV_PATH", print(drv_path))
 			.env("OUT_PATHS", paths.join(" "))
@@ -1765,36 +2064,59 @@ impl LocalBuilder<'_> {
 		build_drv: &BuildDerivation,
 	) -> Result<BTreeMap<String, KnownOutput>> {
 		let drv = &build_drv.basic;
+		let drv_name = drv_path
+			.name()
+			.strip_suffix(".drv")
+			.unwrap_or(drv_path.name());
+		let floating_output =
+			|name: &str, spec: FloatingOutput, impure: bool| -> Result<KnownOutput> {
+				let name_part = output_path_name(drv_name, name);
+				let path = if impure {
+					random_path(&name_part)?
+				} else {
+					match self.store.query_realisation(drv_path, name)? {
+						Some(real) if self.store.is_valid_path(&real.out_path)? => real.out_path,
+						_ => rewrite_path(&format!("rewrite:{drv_path}:name:{name}"), &name_part)?,
+					}
+				};
+				Ok(KnownOutput {
+					path,
+					fixed: None,
+					floating: Some(spec),
+					impure,
+				})
+			};
 		if !build_drv.experimental.is_empty() {
-			return Err(BuildError::Other(
-				"building impure, text or Git-addressed outputs is not supported".into(),
-			));
+			return build_drv
+				.experimental
+				.iter()
+				.map(|(name, spec)| {
+					let method = spec.method.ingestion_method();
+					let output = match &spec.fixed {
+						Some((path, hash)) => KnownOutput {
+							path: path.clone(),
+							fixed: Some((method, hash.clone())),
+							floating: None,
+							impure: false,
+						},
+						None => floating_output(
+							name,
+							FloatingOutput {
+								method,
+								hash_algo: spec.hash_algo,
+							},
+							spec.impure,
+						)?,
+					};
+					Ok((name.clone(), output))
+				})
+				.collect();
 		}
 		if !build_drv.floating.is_empty() {
 			return build_drv
 				.floating
 				.iter()
-				.map(|(name, spec)| {
-					let path = match self.store.query_realisation(drv_path, name)? {
-						Some(real) if self.store.is_valid_path(&real.out_path)? => real.out_path,
-						_ => {
-							let drv_name = drv_path
-								.name()
-								.strip_suffix(".drv")
-								.unwrap_or(drv_path.name());
-							let name_part = output_path_name(drv_name, name);
-							rewrite_path(&format!("rewrite:{drv_path}:name:{name}"), &name_part)?
-						}
-					};
-					Ok((
-						name.clone(),
-						KnownOutput {
-							path,
-							fixed: None,
-							floating: Some(spec.clone()),
-						},
-					))
-				})
+				.map(|(name, spec)| Ok((name.clone(), floating_output(name, spec.clone(), false)?)))
 				.collect();
 		}
 		if drv.outputs().is_deferred() {
@@ -1808,8 +2130,15 @@ impl LocalBuilder<'_> {
 				"out".to_owned(),
 				KnownOutput {
 					path: path.clone(),
-					fixed: Some((hash.mode.clone(), hash.hash.clone())),
+					fixed: Some((
+						match hash.mode {
+							OutputHashMode::Recursive => FileIngestionMethod::NixArchive,
+							OutputHashMode::Flat => FileIngestionMethod::Flat,
+						},
+						hash.hash.clone(),
+					)),
 					floating: None,
+					impure: false,
 				},
 			)]));
 		}
@@ -1823,11 +2152,53 @@ impl LocalBuilder<'_> {
 						path: path.clone(),
 						fixed: None,
 						floating: None,
+						impure: false,
 					},
 				)
 			})
 			.collect())
 	}
+}
+
+/// `StorePath::random`.
+fn random_path(name: &str) -> Result<StorePath> {
+	let mut digest = [0; store_path::DIGEST_SIZE];
+	use std::io::Read;
+	fs::File::open("/dev/urandom")?.read_exact(&mut digest)?;
+	StorePath::from_name_and_digest(name, &digest).map_err(|e| BuildError::Other(e.to_string()))
+}
+
+/// `makeFixedOutputPathFromCA` for the content address of an output.
+fn output_ca_path(
+	name: &str,
+	ca: &CAHash,
+	references: &BTreeSet<StorePath>,
+	self_ref: bool,
+) -> Result<StorePath> {
+	let refs = references.iter().map(StorePath::as_ref);
+	let not_allowed = || {
+		BuildError::Other(format!(
+			"fixed output derivation '{name}' is not allowed to refer to other store paths.\nYou may need to use the 'unsafeDiscardReferences' derivation attribute, see the manual for more details."
+		))
+	};
+	let has_references = self_ref || !references.is_empty();
+	match ca {
+		// The reference asserts that a text output has no self-reference.
+		CAHash::Text(_) if self_ref => return Err(not_allowed()),
+		CAHash::Text(digest) => {
+			store_path::build_text_path_from_content_digest(name, *digest, refs)
+		}
+		CAHash::Nar(hash) if hash.algo() == HashAlgo::Sha256 || !has_references => {
+			store_path::build_ca_path(name, true, hash, refs, self_ref)
+		}
+		_ if has_references => return Err(not_allowed()),
+		CAHash::Git(hash) => store_path::build_git_path(name, hash),
+		CAHash::Flat(hash) | CAHash::Nar(hash) => {
+			store_path::build_ca_path(name, false, hash, refs, false)
+		}
+	}
+	.map(|path| path.to_owned())
+	.map_err(|e| BuildError::Other(e.to_string()))
 }
 
 /// `makeFallbackPath`: a path no other store path collides with, as its
@@ -2151,6 +2522,8 @@ struct Build<'b> {
 	/// unsandboxed build's are, rather than in the chroot.
 	direct: bool,
 	sandboxed: bool,
+	/// The builder is told its output's hash is checked.
+	fixed: bool,
 	/// The outputs that were valid before the build.
 	valid: BTreeSet<String>,
 	/// The paths the builder is told to write its outputs to. They differ
@@ -2182,7 +2555,7 @@ impl<'b> Build<'b> {
 		outputs: &BTreeMap<String, KnownOutput>,
 		drv_options: &DerivationOptions<StorePath>,
 		structured: Option<Map<String, Value>>,
-		is_fixed: bool,
+		kind: BuildKind,
 		build_user: Option<BuildUser>,
 		direct: bool,
 	) -> Result<Self> {
@@ -2237,7 +2610,7 @@ impl<'b> Build<'b> {
 		let chroot_root = sandbox::setup_chroot(
 			&chroot_parent,
 			Path::new(store_dir()),
-			!is_fixed,
+			kind.sandboxed(),
 			build_user.as_ref().map(|u| u.gid),
 		)?;
 		Ok(Self {
@@ -2253,7 +2626,8 @@ impl<'b> Build<'b> {
 			chroot_parent,
 			chroot_root,
 			direct,
-			sandboxed: !is_fixed,
+			sandboxed: kind.sandboxed(),
+			fixed: kind.fixed,
 			valid,
 			scratch,
 			redirected,
@@ -2395,8 +2769,10 @@ impl<'b> Build<'b> {
 		for name in ["TMPDIR", "TEMPDIR", "TMP", "TEMP", "PWD"] {
 			set(name, build_top);
 		}
-		if !self.sandboxed {
+		if self.fixed {
 			set("NIX_OUTPUT_CHECKED", "1");
+		}
+		if !self.sandboxed {
 			for name in &self.impure_env_vars {
 				let value = settings
 					.impure_env
@@ -2436,9 +2812,16 @@ impl<'b> Build<'b> {
 		}
 		for path in closure.clone() {
 			if path.name().ends_with(".drv") {
-				let drv = store.read_derivation(&path)?;
-				for output in drv.outputs().store_paths() {
-					self.builder.closure(output, &mut closure)?;
+				for output in store
+					.query_partial_derivation_output_map(&path)?
+					.into_values()
+				{
+					let Some(output) = output else {
+						return Err(BuildError::Other(
+							"exportReferences on CA derivations is not yet implemented".to_owned(),
+						));
+					};
+					self.builder.closure(&output, &mut closure)?;
 				}
 			}
 		}
@@ -2541,6 +2924,21 @@ impl<'b> Build<'b> {
 				optional: false,
 			},
 		);
+		// `ssl-cert-file`, for builders with access to the network.
+		let ca_bundle = PathBuf::from("/etc/ssl/certs/ca-certificates.crt");
+		if !self.sandboxed
+			&& !binds.contains_key(&ca_bundle)
+			&& let Some(file) = settings.ca_file().filter(|file| file.exists())
+		{
+			binds.insert(
+				ca_bundle.clone(),
+				Bind {
+					target: ca_bundle,
+					source: fs::canonicalize(file)?,
+					optional: true,
+				},
+			);
+		}
 		for path in input_paths {
 			let target = PathBuf::from(print(path));
 			binds.insert(
@@ -2620,12 +3018,14 @@ impl<'b> Build<'b> {
 		Ok(())
 	}
 
-	/// `builtin:buildenv`, logged as a builder process is: its warnings and
+	/// `builtin:buildenv` and the other builtin builders, logged as a builder process is: its warnings and
 	/// error go to the build log, and an error fails the build with exit
 	/// code 1.
-	fn run_buildenv(
+	fn run_builtin(
 		&self,
 		drv: &UnverifiedDerivation,
+		outputs: &BTreeMap<String, KnownOutput>,
+		kind: BuildKind,
 		events: &mut dyn FnMut(BuildEvent<'_>),
 	) -> Result<()> {
 		let settings = self.builder.settings;
@@ -2642,7 +3042,7 @@ impl<'b> Build<'b> {
 			})
 			.collect();
 		let out = self.scratch.get("out").ok_or_else(|| {
-			BuildError::Other("builtin:buildenv needs an output 'out'".to_owned())
+			BuildError::Other(format!("'{}' requires an 'out' output", drv.command()))
 		})?;
 		let output_names: BTreeSet<String> =
 			self.scratch.values().map(ToString::to_string).collect();
@@ -2674,6 +3074,27 @@ impl<'b> Build<'b> {
 		};
 		let result = if drv.command() == b"builtin:unpack-channel" {
 			crate::unpack_channel::build(&env, &real(Path::new(&print(out))), &real)
+		} else if drv.command() == b"builtin:fetchurl" {
+			if kind.sandboxed() {
+				Err(crate::buildenv::Error(
+					"'builtin:fetchurl' must be a fixed-output or impure derivation".to_owned(),
+				))
+			} else {
+				crate::fetchurl::Fetch {
+					env: &env,
+					out: &real(Path::new(&print(out))),
+					flat_hash: outputs.get("out").and_then(|output| match &output.fixed {
+						Some((FileIngestionMethod::Flat, hash)) => Some(hash),
+						_ => None,
+					}),
+					hashed_mirrors: &settings.hashed_mirrors,
+					transfer: settings.transfer,
+					local_files: self.direct
+						&& !user_lock::use_build_users(&settings.build_users_group),
+					cancelled: self.builder.cancelled,
+				}
+				.run()
+			}
 		} else {
 			crate::buildenv::builtin_buildenv(&env, Path::new(&print(out)), &real, &mut |warning| {
 				log(&format!("warning: {warning}"))

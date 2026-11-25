@@ -247,7 +247,7 @@ Map every applicable entry in the [reference inventory](reference-inventory.md) 
 
 ### Rust-core completion work
 
-The active completion scope is the package-manager core in TODO sections 0 through 8. The installer and OS lifecycle, NixBox interfaces, and fleet execution remain outside this scope. Completion requires the pinned CppNix 2.35.2 qualification gates, not merely a passing workspace suite.
+The active completion scope is the package-manager core in TODO sections 0 through 8. The installer and OS lifecycle, Settings interfaces, and fleet execution remain outside this scope. Completion requires the pinned CppNix 2.35.2 qualification gates, not merely a passing workspace suite.
 
 The current working tree adds writable evaluation through `EvaluatorStore::writable(root)` and single-derivation instantiation through `nix-instantiate --store 'local?root=ROOT'`. ROOT must be an existing absolute diverted directory. System roots and symlink-redirected store/state directories are rejected before opening the store. These checks are development safeguards, not an authorization boundary for untrusted concurrent users.
 
@@ -429,14 +429,37 @@ Three of these causes were closed on 2026-11-25. A run of all 214 scripts under 
 
 The store directory constant in `.narinfo` files is fixed: `ca/substitute` now stops at `nix store build-trace info --file`. `ca/duplicate-realisation-in-closure` and `local-overlay-store/stale-file-handle` are skipped by upstream itself under both engines now, so they stay anomalies.
 
-Four more causes were closed later that day. The run at `877665e` ([records](../tests/compat-results/2026-11-25-877665e-store/)) gives 84 pass, 118 gap, 10 anomaly and 2 unrun, and no script that passed before fails. `reference_rebuild` and `reference_cache_store` compare each behavior with the reference.
+Four more causes were closed later that day. The run at `877665e` (`tests/compat-results/2026-11-25-877665e-store` in Git at `08e4440a`) gives 84 pass, 118 gap, 10 anomaly and 2 unrun, and no script that passed before fails. `reference_rebuild` and `reference_cache_store` compare each behavior with the reference.
 
 - Rebuilding with some outputs valid (row 3): unsandboxed builds write an output whose path is present to a scratch path and rewrite its hash parts afterwards, as `DerivationBuilderImpl` does. `build-delete` and `ca/build-delete` pass.
-- `--check` and repair (row 6): `repair` and `post-hook` pass, and `ca/post-hook` from row 2. `check` reaches line 95 of 122 and stops at `builtin:fetchurl`; `linux-sandbox` reaches line 81 of 148 and stops at `ssl-cert-file` in fixed-output sandboxes. `keep-failed`, `diff-hook` and `post-build-hook` work. `nix build --rebuild` and `--repair` still fail explicitly.
+- `--check` and repair (row 6): `repair` and `post-hook` pass, and `ca/post-hook` from row 2. `check` reaches line 95 of 122 and stops at `builtin:fetchurl`; `linux-sandbox` reaches line 81 of 148 and stops at `ssl-cert-file` in fixed-output sandboxes. `keep-failed`, `diff-hook` and `post-build-hook` work.
 - Store derivation arguments (row 10): `nix-build` and `multiple-outputs` pass, and `ca/multiple-outputs` from row 2. `nix-shell` and `ca/nix-shell` stop at shebang scripts.
 - `file://` as a store and store types (row 7): `ca/nix-copy`, `ca/signatures` and `read-only-store` pass. `binary-cache` reaches line 99 of 372 and stops at the HTTP code path forced by `_NIX_FORCE_HTTP`; `binary-cache-build-remote` stops at remote builders, `build-remote-with-mounted-ssh-ng` at `mounted-ssh-ng://` and `bad-uris` at `local-overlay://`. `signing` (row 19) reaches line 103 of 119 and stops at the `require-sigs` store parameter.
 
-Building text, impure, dynamic and Git-hashed outputs (rows 2 and 4) was not started.
+A focused run against 2.35.2 passed five more scripts from the single-command row under both engines:
+
+- `add.sh` covers SHA-256 text ingestion, including agreement with the path produced by `builtins.toFile`. The reference aborts on text ingestion with another hash algorithm. noxi returns an error for that input. Both reject non-regular sources. For an actual add, the reference can leave an unregistered object and lock file behind for those inputs. noxi rejects them before writing either.
+- `path-info.sh` covers empty stdin with JSON format 2, including the top-level store directory. The command appends whitespace-separated stdin operands to arguments given on the command line.
+- `store-info.sh` covers human-readable and JSON output for the resolved local store, including the `nix store ping` alias.
+- `nar-access.sh` covers missing entry diagnostics in recursive JSON and human-readable store listings.
+- `no-url-literals.sh` covers the warning that directs users of the retired experimental feature to `lint-url-literals = fatal`.
+
+The `available_packages_skip_failed_candidates` comparison covers `nix-env -qa` with an assertion, a throw, a derivation whose name fails an assertion, and a valid sibling in an isolated store with a custom logical store directory. Package discovery skips those failed candidates. A failure importing or auto-calling the root still propagates. The comparison checks stdout, stderr, exit status, and that the query creates neither a store object nor a profile link. In the functional run, `nix-collect-garbage-d.sh` passes. `user-envs.sh` reaches the JSON query at line 20 of `user-envs-test-case.sh`, where the reference includes `outputName` and null output paths without `--out-path`. `nix-profile.sh` reaches profile-removal completion at line 75. Both remain gaps.
+
+Building the remaining kinds of outputs was closed next. The run at `84915f32` ([records](../tests/compat-results/2026-11-25-84915f32-store/)), which also holds the flake and single-command fixes, gives 107 pass, 95 gap, 10 anomaly and 2 unrun, and no script that passed at `08e4440a` fails. `reference_rebuild`, `reference_daemon_client` and `reference_experimental_outputs` compare each behavior below with the reference.
+
+- `nix build --rebuild` and `--repair` (row 6) work, also through a daemon, which refuses repairs of untrusted clients. A repairing evaluation writes valid derivations and sources again. Failed builds of the modern commands exit with status 1 and are reported as `buildPathsWithResults` reports them; `fixed-slow-vs-bad` (row 17) passes.
+- Text-hashed and Git-hashed outputs, fixed or floating, and `nix store add --mode text|git` and `nix hash path --mode git` (row 4): `add`, `git-hashing/fixed`, `git-hashing/simple-sha1` and `git-hashing/simple-sha256` pass, `dyn-drv/text-hashed-output` from row 2 with `nix path-info --derivation`, and `fixed` from row 17, whose flat output with references is refused.
+- Impure derivations (row 2) are built at random paths, once per request, and leave no realisation. `impure-derivations` passes.
+- Dynamic derivations (row 2): the `DrvWithVersion` form is evaluated, written, read and resolved, and `DRV^out^out` installables are built. `dyn-drv/build-built-drv`, `dyn-drv/dep-built-drv` and `dyn-drv/failing-outer` pass. `dyn-drv/dep-built-drv-2` and `dyn-drv/recursive-mod-json` stop at `recursive-nix`.
+- `builtin:fetchurl` and `ssl-cert-file` (rows 6 and 17): `fetchurl` and `check` pass. `linux-sandbox` reaches line 104 of 148 and stops at the refusal of `sandbox-paths` targets that contain `..` or an empty name.
+
+Differences that remain in these areas:
+
+- The reference runs `builtin:fetchurl` as the build user in the sandbox. noxi runs it in the building process, so it refuses every `file:` URL in the sandbox or with build users, also those of files the builder could read: ones in `sandbox-paths`, or readable to the build user without a sandbox. It sends no `netrc` credentials, verifies TLS against ureq's roots rather than `ssl-cert-file`, and the `timeout` settings do not stop it.
+- `DRV^out^out` is built in two requests, so the second one's list of missing paths is printed separately. `--json` and `--dry-run` with it fail explicitly.
+- Outputs of impure derivations are known to `nix build` and `nix shell` in a local store. Through a daemon, and in other commands, they are reported as not built.
+- Binary caches do not read narinfo files with a Git content address.
 
 Flake and Git fetcher follow-up (rows 15 and 16):
 
@@ -454,6 +477,10 @@ Known differences in these areas:
 
 Security-relevant behavior and its negative tests:
 
+- `builtin:fetchurl` must not read files the builder could not (`fetchurl_cannot_read_host_files_in_the_sandbox`), must be a fixed or impure derivation, and its output's hash is checked (`fetchurl_matches_the_reference`). Untrusted daemon clients cannot set `hashed-mirrors` or `ssl-cert-file` (`client_setting_overrides_match_the_reference`).
+- Impure derivations and fixed outputs of every method share the host's network and `impureEnvVars`; text, Git and input-addressed outputs do not (`sandboxes_of_experimental_outputs_match_the_reference`). Pure derivations cannot use impure ones (`impure_outputs_match_the_reference`).
+- Wrong hashes, executables, directories and references are refused for text and Git outputs, and the experimental features are required (`text_outputs_match_the_reference`, `git_outputs_match_the_reference`, `dynamic_derivations_match_the_reference`).
+- An untrusted client's `nix build --repair` is refused (`modern_rebuilds_and_repairs_through_both_daemons`).
 - `VerifyStore` and `BuildPaths` repairs are refused for untrusted daemon clients, which also cannot set `post-build-hook`, `diff-hook` or `run-diff-hook` (`verification_repairs_damaged_outputs_and_rejects_untrusted_clients`, `client_setting_overrides_match_the_reference`).
 - A copied realisation needs a signature by a trusted key unless signature checks are off, even when its output is content-addressed (`unsigned_copies_are_refused_like_the_reference`, `secret_key_files_sign_builds_like_the_reference`).
 - `nix copy` between stores kept the source's ultimate trust, so `nix store verify` accepted an unsigned copy. It no longer does (`copies_between_stores_are_not_ultimately_trusted`).
@@ -600,9 +627,9 @@ For the later OS image, qualify ordinary systemd-boot and Lanzaboote Secure Boot
 
 The [configuration workflow](configuration-workflow.md) requires additional cases for external source edits, staged build versus saved-source mismatch, interrupted journal writes, and desired configuration diverging from the running generation after partial activation.
 
-The [NixBox integration](nixbox-integration.md) must be tested at the engine interface: package lookup uses the selected lock revision, a typed operation produces the expected derivation graph and source change, realization uses the single store owner, and CLI/TUI/GUI receive the same events. A test that only inspects generated Nix text does not prove those behaviors.
+The [noxios Settings](settings.md) must be tested at the engine interface: package lookup uses the selected lock revision, a typed operation produces the expected derivation graph and source change, realization uses the single store owner, and CLI/TUI/GUI receive the same events. A test that only inspects generated Nix text does not prove those behaviors.
 
-Qualify the GPUI-based NixBox GUI in a graphical VM: verify package and option inspection, source-edit fallback, preview and confirmation, live progress during a long build, cancellation, disconnect and restart recovery, distinct pending/running/boot states, generation comparison, rollback, keyboard use, and accessible labels. Run the same operations through the CLI and TUI and compare their plans, events, authorization decisions, and resulting generations. Test headless and recovery workflows without a desktop session.
+Qualify the GPUI-based Settings GUI in a graphical VM: verify package and option inspection, source-edit fallback, preview and confirmation, live progress during a long build, cancellation, disconnect and restart recovery, distinct pending/running/boot states, generation comparison, rollback, keyboard use, and accessible labels. Run the same operations through the CLI and TUI and compare their plans, events, authorization decisions, and resulting generations. Test headless and recovery workflows without a desktop session.
 
 Run tests for the public C and C++ library interfaces or maintain an explicit list of incompatible consumers. A release with a required incompatible interface cannot claim 100% drop-in behavior for its matrix row. Security checks cover multi-user authorization, trusted users, sandbox escape attempts, cache signature rejection, and secret handling.
 
@@ -632,7 +659,7 @@ The later OS release additionally requires:
 
 1. The installed OS builds and activates its next generation using noxi, with no CppNix dependency for normal maintenance.
 2. Installer, update, rollback, and recovery workflows pass on every advertised platform.
-3. CLI, TUI, and GPUI-based NixBox GUI operations pass their shared behavior and accessibility tests.
+3. CLI, TUI, and GPUI-based Settings GUI operations pass their shared behavior and accessibility tests.
 
 A later release advertising fleet or distributed-computing support must additionally pass the fleet security, lifecycle, service-topology, partial-recovery, and measured-scale gates for every advertised support combination. Single-machine OS qualification and CppNix compatibility cannot substitute for those results, and fleet results cannot substitute for either earlier gate.
 

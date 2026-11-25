@@ -563,7 +563,9 @@ fn add_element(
 			&targets.store.query_missing(&targets.paths)?,
 		)?;
 		if !parsed.has("dry-run") {
-			targets.store.build_paths(&targets.paths)?;
+			targets
+				.store
+				.build_paths_with_results(&targets.paths, noxi_store::BuildMode::Normal)?;
 		}
 	}
 	Ok(Ok((name, element)))
@@ -963,7 +965,9 @@ pub(super) fn run(parsed: Parsed) -> Result<ExitCode, Failure> {
 					targets.store.as_ref(),
 					&targets.store.query_missing(&targets.paths)?,
 				)?;
-				targets.store.build_paths(&targets.paths)?;
+				targets
+					.store
+					.build_paths_with_results(&targets.paths, noxi_store::BuildMode::Normal)?;
 			}
 			elements.insert(name, element);
 		}

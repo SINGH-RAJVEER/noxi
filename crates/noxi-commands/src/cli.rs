@@ -338,6 +338,12 @@ pub fn print_setting_warnings(settings: &mut Settings) {
 		return;
 	}
 	for warning in settings.finish() {
+		let warning = match warning.as_str() {
+			"unknown experimental feature 'no-url-literals'" => {
+				"experimental feature 'no-url-literals' has been stabilized and renamed; use 'lint-url-literals = fatal' setting instead"
+			}
+			other => other,
+		};
 		eprintln!("warning: {warning}");
 	}
 }

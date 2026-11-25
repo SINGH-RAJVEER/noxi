@@ -49,6 +49,7 @@ impl CacheStore {
 				*digest,
 				references.iter().map(StorePath::as_ref),
 			),
+			CAHash::Git(hash) => store_path::build_git_path(name, hash),
 			_ => store_path::build_ca_path(
 				name,
 				matches!(ca, CAHash::Nar(_)),
@@ -250,17 +251,18 @@ impl Store for CacheStore {
 			FileIngestionMethod::Flat | FileIngestionMethod::Text => {
 				nar::restore_flat(&files, source)?;
 			}
+			FileIngestionMethod::Git => {
+				return Err(Error::Other(
+					"a Git object is not a whole file system object".into(),
+				));
+			}
 		}
 		let zero = NixHash::from_algo_and_digest(hash_algo, &vec![0; hash_algo.digest_length()])
 			.map_err(|e| Error::Other(e.to_string()))?;
-		let claimed = match (hash_method, zero) {
-			(FileIngestionMethod::NixArchive, zero) => CAHash::Nar(zero),
-			(FileIngestionMethod::Text, NixHash::Sha256(zero)) => CAHash::Text(zero),
-			(FileIngestionMethod::Text, _) => {
-				return Err(Error::Other("text-hashed paths require SHA-256".into()));
-			}
-			(FileIngestionMethod::Flat, zero) => CAHash::Flat(zero),
-		};
+		if hash_method == FileIngestionMethod::Git && !self.features.git_hashing {
+			return Err(Error::Other("experimental Nix feature 'git-hashing' is disabled; add '--extra-experimental-features git-hashing' to enable it".into()));
+		}
+		let claimed = hash_method.content_address(zero)?;
 		let ca = ca_hash_of(&files, &claimed)?;
 		let result = self.add_files(name, &files, ca, references);
 		noxi_store::delete_path(&files)?;

@@ -99,7 +99,9 @@ fn list<'a>(
 	out.push(']');
 }
 
-fn unparse_node(out: &mut String, node: &InputNode) {
+/// `unparseDerivedPathMapNode` of a versioned derivation: a comma, then
+/// the node.
+pub fn unparse_node(out: &mut String, node: &InputNode) {
 	out.push(',');
 	let outputs = node.outputs.iter().map(|o| o.as_str().unwrap_or_default());
 	if node.dynamic_outputs.is_empty() {
@@ -138,6 +140,7 @@ fn method_algo(ca: &CAHash) -> String {
 		CAHash::Flat(hash) => hash.algo().to_string(),
 		CAHash::Nar(hash) => format!("r:{}", hash.algo()),
 		CAHash::Text(_) => "text:sha256".to_owned(),
+		CAHash::Git(hash) => format!("git:{}", hash.algo()),
 	}
 }
 
@@ -165,6 +168,7 @@ pub fn fixed_output_path(
 		CAHash::Flat(hash) => build_ca_path(&name, false, hash, [], false),
 		CAHash::Nar(hash) => build_ca_path(&name, true, hash, [], false),
 		CAHash::Text(digest) => build_text_path_from_content_digest(&name, *digest, []),
+		CAHash::Git(hash) => store_path::build_git_path(&name, hash),
 	};
 	path.map(|p| p.to_owned()).map_err(path_error)
 }

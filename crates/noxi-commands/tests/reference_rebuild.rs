@@ -49,6 +49,8 @@ in rec {
 	stateful = mk { name = "stateful"; args = script "cat ${builtins.getEnv "ROOT"}/state > $out"; };
 	statefulCa = mk ({ name = "stateful-ca"; args = script "cat ${builtins.getEnv "ROOT"}/state > $out"; } // ca);
 	failing = mk { name = "failing"; args = script "echo kept > leftover; exit 1"; };
+	failingToo = mk { name = "a-failing-too"; args = script "exit 2"; };
+	failingParent = mk { name = "failing-parent"; args = script "cat ${failing}"; };
 	parent = mk { name = "parent"; args = script "mkdir $out; ln -s ${stable} $out/stable"; };
 }
 "#;
@@ -219,6 +221,72 @@ fn repairs_match_the_reference() {
 			"chmod u+w store/*-stable; echo bad > store/*-stable; nix-store -r --repair $(nix-instantiate x.nix -A stable) > /dev/null; cat store/*-stable; ls store",
 			"chmod u+w store/*-stable; rm store/*-stable; nix-store --verify --repair; cat store/*-stable",
 			"nix-store --delete $(nix-store -q --referrers-closure $(nix-store -qd store/*-stable)) > /dev/null 2>&1; chmod u+w store/*-stable; echo bad > store/*-stable; nix-store --verify --check-contents --repair; nix-store --repair-path store/*-stable; cat store/*-stable",
+		],
+	);
+}
+
+/// `nix build --rebuild` and `--repair`.
+#[test]
+fn modern_rebuilds_match_the_reference() {
+	same(&[
+		"nix build -f x.nix stable --no-link --rebuild",
+		"for a in stable stableCa stateful statefulCa fixed two.first; do nix build -f x.nix $a --no-link 2> /dev/null; done",
+		"nix build -f x.nix stable --no-link --rebuild --print-out-paths",
+		"nix build -f x.nix stable --rebuild --json --out-link link; readlink link",
+		"nix build -f x.nix stable stableCa --no-link --rebuild --json",
+		"nix build -f x.nix two.first two.second --no-link --rebuild; ls store | grep two",
+		"nix build -f x.nix fixed stateful --no-link --rebuild",
+		"nix build $(nix-instantiate x.nix -A stable 2> /dev/null)^out --no-link --rebuild",
+		"nix build -f x.nix parent --no-link --rebuild; nix build -f x.nix parent --dry-run --rebuild",
+		"echo two > state",
+		"nix build -f x.nix stateful --no-link --rebuild; ls store | grep check",
+		"nix build -f x.nix stateful --no-link --rebuild --keep-failed; cat store/*-stateful.check; ls store | grep check",
+		"nix build -f x.nix statefulCa --no-link --rebuild",
+		"nix build -f x.nix fixed --no-link --rebuild --json",
+		"nix build -f x.nix stateful --out-link failed --rebuild; ls failed",
+		"nix build -f x.nix stateful fixed --no-link --rebuild --keep-going",
+		"nix build -f x.nix stateful statefulCa --no-link --rebuild",
+		"cat $(nix-store -q $(nix-instantiate x.nix -A stateful 2> /dev/null)); nix-store --verify --check-contents",
+		"nix build -f x.nix stateful --dry-run --rebuild --json",
+		"nix build $(nix-store -q store/*-stable | tail -1) --no-link --rebuild",
+	]);
+}
+
+/// The modern commands exit with status 1 whatever failed, where the legacy
+/// ones distinguish failures.
+#[test]
+fn modern_build_failures_match_the_reference() {
+	same(&[
+		"nix build -f x.nix failing --no-link",
+		"nix build -f x.nix failing stable --no-link",
+		"nix build -f x.nix failing failingToo --no-link",
+		"nix build -f x.nix failing failingToo failingParent --no-link --keep-going",
+		"nix build -f x.nix failingParent --no-link",
+		"echo two > state; nix build -f x.nix fixed --no-link",
+		"nix build -f x.nix fixed failing --no-link --keep-going",
+		"nix shell -f x.nix failing -c true",
+		"nix run -f x.nix failing",
+		"nix-build x.nix -A failing -A failingToo --no-out-link --keep-going",
+		"nix-build x.nix -A failing -A failingToo --no-out-link",
+	]);
+}
+
+/// Without `ca-derivations`, as in `repairs_match_the_reference`.
+#[test]
+fn modern_repairs_match_the_reference() {
+	same_with(
+		"nix-command",
+		&[
+			"nix build -f x.nix parent --no-link --repair",
+			"chmod u+w store/*-stable; echo bad > store/*-stable; nix build -f x.nix stable --no-link --dry-run --repair; cat store/*-stable",
+			"nix build -f x.nix stable --no-link --repair --json; cat store/*-stable; stat -c %a store/*-stable",
+			"chmod u+w store/*-stable; echo bad > store/*-stable; nix build -f x.nix parent --no-link --repair; cat store/*-stable",
+			"chmod u+w store/*-stable; echo bad > store/*-stable; nix build -f x.nix stable --no-link --rebuild --repair --print-out-paths; cat store/*-stable",
+			"chmod u+w store/*-stable; echo bad > store/*-stable; nix build -f x.nix stable --no-link --rebuild; cat store/*-stable",
+			"nix build -f x.nix stable --no-link --repair; nix-store --verify --check-contents",
+			"chmod u+w store/*-stable; rm store/*-stable; nix build -f x.nix stable --no-link --repair; cat store/*-stable",
+			"chmod u+w store/*-stable.drv; echo bad >> store/*-stable.drv; nix build -f x.nix stable --no-link --repair; nix-store --verify --check-contents",
+			"nix build -f x.nix failing --no-link --repair 2> /dev/null; echo $?",
 		],
 	);
 }

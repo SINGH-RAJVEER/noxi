@@ -4,6 +4,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use bstr::BString;
+use nix_compat::derivation::OutputName;
 use nix_compat::store_path::StorePath;
 use noxi_store::LocalStore;
 use noxi_store::binary_cache::BinaryCache;
@@ -41,6 +42,21 @@ impl DerivedPath {
 }
 
 pub use noxi_store::Missing;
+
+/// The derivations among dynamic inputs of a derivation to be built.
+fn ignored_dynamic(
+	producer: &str,
+	children: &BTreeMap<OutputName, nix_compat::cppnix_json::derivation::InputNode>,
+	ignored: &mut BTreeSet<String>,
+) {
+	for (output, child) in children {
+		let drv = format!("{producer}^{output}");
+		if !child.outputs.is_empty() {
+			ignored.insert(drv.clone());
+		}
+		ignored_dynamic(&drv, &child.dynamic_outputs, ignored);
+	}
+}
 
 /// `queryMissing`.
 pub fn query_missing(
@@ -217,6 +233,16 @@ pub fn query_missing(
 				if must_build {
 					res.will_build.insert(drv_path.clone());
 					for (input, names) in drv.input_derivations() {
+						if let Some(children) = build_drv.dynamic.get(input) {
+							ignored_dynamic(
+								&input.to_absolute_path(),
+								children,
+								&mut res.ignored_dynamic,
+							);
+						}
+						if names.is_empty() {
+							continue;
+						}
 						todo.push(DerivedPath::Built {
 							drv_path: input.clone(),
 							outputs: Some(names.iter().map(|n| n.to_string()).collect()),

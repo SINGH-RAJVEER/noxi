@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=noxios Settings
+GenericName=System Settings
+Comment=Manage system options and packages on noxios
+Exec=@NOXIOS_SETTINGS_EXEC@
+Icon=noxios-settings
+Terminal=false
+Categories=Settings;PackageManager;
+StartupNotify=true
+StartupWMClass=noxios-settings

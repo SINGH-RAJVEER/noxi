@@ -444,11 +444,7 @@ fn parse_output(
 					));
 				}
 			},
-			_ => {
-				return Err(AtermError::Unsupported(
-					"Git-hashed fixed outputs are not representable".to_owned(),
-				));
-			}
+			_ => CAHash::Git(hash),
 		};
 		Ok(Output::Fixed(ca))
 	} else {
@@ -504,6 +500,14 @@ fn parse_node(stream: &mut Stream<'_>, dynamic: bool) -> Result<InputNode, Aterm
 		}
 		_ => Err(format_error("invalid inputDrvs entry in derivation")),
 	}
+}
+
+/// Read the node of one input derivation of a versioned derivation from the
+/// start of `bytes`, and return it with what follows.
+pub fn parse_input_node(bytes: &[u8]) -> Result<(InputNode, &[u8]), AtermError> {
+	let mut stream = Stream { rest: bytes };
+	let node = parse_node(&mut stream, true)?;
+	Ok((node, stream.rest))
 }
 
 impl Derivation {

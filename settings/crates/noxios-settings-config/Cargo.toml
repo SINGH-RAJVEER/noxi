@@ -1,0 +1,14 @@
+[package]
+name = "noxios-settings-config"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish = false
+description = "Persisted user settings (channel, target, theme, paths) for noxios-settings"
+
+[dependencies]
+anyhow = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+directories = { workspace = true }
+tempfile = { workspace = true }

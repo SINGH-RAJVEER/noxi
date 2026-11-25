@@ -728,3 +728,90 @@ fn logs_repair_roots_daemon_and_build_traces() {
 	ca.same(&["store", "build-trace", "info", &dep]);
 	ca.same(&["store", "build-trace", "info", "--json", &dep]);
 }
+
+#[test]
+fn path_info_stdin_takes_whitespace_separated_paths_and_arguments() {
+	let Some(pair) = Pair::new() else { return };
+	pair.file("first", b"first");
+	pair.file("second", b"second");
+	let first = pair.seed(&["store", "add-file", "first"]);
+	let second = pair.seed(&["store", "add-file", "second"]);
+	let input = format!("  {first}\t{second}\n\n{first}");
+	pair.same_input(&["path-info", "--stdin", &second], input.as_bytes());
+	pair.same_input(&["path-info", "--stdin", "--all"], input.as_bytes());
+	pair.same_input(&["path-info", "--stdin", "--all"], b"\n");
+}
+
+#[test]
+fn store_add_text_dry_run_and_ingestion() {
+	let Some(pair) = Pair::new() else { return };
+	pair.file("text", b"some text\n");
+	let args = [
+		"store", "add", "--mode", "text", "--name", "renamed", "text",
+	];
+	let mut dry_args = args.to_vec();
+	dry_args.push("--dry-run");
+	let dry = pair.same(&dry_args);
+	assert!(dry.status.success());
+	let path = String::from_utf8(dry.stdout).unwrap();
+	for engine in 0..2 {
+		assert!(
+			!pair
+				.dir(engine)
+				.join("root")
+				.join(path.trim_start_matches('/').trim())
+				.exists()
+		);
+	}
+	let added = pair.same(&args);
+	assert!(added.status.success());
+	assert_eq!(added.stdout, path.as_bytes());
+	pair.same_state(&["path-info", "--json", "--json-format", "2", path.trim()]);
+	for engine in 0..2 {
+		std::os::unix::fs::symlink("text", pair.dir(engine).join("link")).unwrap();
+	}
+	for source in ["link", "missing"] {
+		let rejected = pair.same(&["store", "add", "--mode", "text", "--dry-run", source]);
+		assert_eq!(rejected.status.code(), Some(1));
+	}
+}
+
+#[test]
+fn store_access_reports_missing_entries_in_diverted_stores() {
+	let Some(pair) = Pair::new() else { return };
+	pair.file("tree/file", b"payload");
+	let tree = pair.seed(&["store", "add-path", "tree"]);
+	let missing = format!("{tree}/missing/child");
+	let not_directory = format!("{tree}/file/child");
+	pair.same(&["store", "ls", "--json", &missing]);
+	pair.same(&["store", "ls", &not_directory]);
+	pair.same(&["store", "cat", &missing]);
+}
+
+#[test]
+fn store_info_uses_the_resolved_local_url() {
+	let Some(pair) = Pair::new() else { return };
+	let run = |engine, reference| {
+		let root = pair.dir(engine).join("root");
+		let uri = format!("local?root={}&read-only=false", root.display());
+		let output = pair.run_in(
+			engine,
+			reference,
+			&["--store", &uri, "store", "info", "--json"],
+			b"",
+		);
+		assert!(root.join("nix/var/nix/db/db.sqlite").is_file());
+		(output, root)
+	};
+	let (expected, ref_root) = run(0, true);
+	let (actual, candidate_root) = run(1, false);
+	let stdout = |output: Output, root: PathBuf| {
+		String::from_utf8(output.stdout)
+			.unwrap()
+			.replace(root.to_str().unwrap(), "ROOT")
+	};
+	assert_eq!(expected.status.code(), Some(0));
+	assert_eq!(actual.status.code(), expected.status.code());
+	assert_eq!(actual.stderr, expected.stderr);
+	assert_eq!(stdout(actual, candidate_root), stdout(expected, ref_root));
+}

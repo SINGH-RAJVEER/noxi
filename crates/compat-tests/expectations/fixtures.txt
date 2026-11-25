@@ -111,28 +111,28 @@ table:upstream_fetcher_public_key src/libfetchers-tests/data/public-key/*
 table:upstream_lang tests/functional/lang/**/*
 # Each registered script follows the observed outcome pair in upstream-functional.txt.
 pass:upstream_functional tests/functional/absolute-path-literals.sh
-gap tests/functional/add.sh # main in add.sh:5: error: nix-store --add is not supported by noxi yet
+pass:upstream_functional tests/functional/add.sh
 anomaly tests/functional/bash-profile.sh # reference fail: main in bash-profile.sh:5: bash-profile.sh: line 5: ../../scripts/nix-profile.sh.in: No such file or directory
 gap tests/functional/binary-cache-build-remote.sh # main in binary-cache-build-remote.sh:11: error: Unable to build with a primary store that isn't a local store; either pass a different '--store' or enable remote builds.
-gap tests/functional/binary-cache-compression.sh # : test failed: 'lzma' compression algorithm doesn't seem to be supported
+gap tests/functional/binary-cache-compression.sh # main in binary-cache-compression.sh:57: error: nix copy --out-link is not supported by noxi yet
 gap tests/functional/binary-cache.sh # main in binary-cache.sh:99: error: build log of '$ROOT/tmp/nix-test/main/binary-cache/store/HASH-dependencies-top' is not available
 pass:upstream_functional tests/functional/build-cores.sh
 pass:upstream_functional tests/functional/build-delete.sh
 pass:upstream_functional tests/functional/build-dry.sh
-gap tests/functional/build-remote-content-addressed-fixed.sh # source in build-remote.sh:34: error: nix build with build logs in the bar log format (use --log-format raw-with-logs) is not supported by noxi yet
-gap tests/functional/build-remote-content-addressed-floating.sh # source in build-remote.sh:34: error: nix build with build logs in the bar log format (use --log-format raw-with-logs) is not supported by noxi yet
-gap tests/functional/build-remote-input-addressed.sh # source in build-remote.sh:34: error: nix build with build logs in the bar log format (use --log-format raw-with-logs) is not supported by noxi yet
-gap tests/functional/build-remote-trustless-should-fail-0.sh # main in build-remote-trustless-should-fail-0.sh:18: error: don't know how to open Nix store with scheme '$ROOT/tmp/nix-test/main/build-remote-trustless-should-fail-0/local'
-gap tests/functional/build-remote-trustless-should-pass-0.sh # source in build-remote-trustless.sh:17: error: don't know how to open Nix store with scheme '$ROOT/tmp/nix-test/main/build-remote-trustless-should-pass-0/local'
-gap tests/functional/build-remote-trustless-should-pass-1.sh # source in build-remote-trustless.sh:17: error: don't know how to open Nix store with scheme '$ROOT/tmp/nix-test/main/build-remote-trustless-should-pass-1/local'
-gap tests/functional/build-remote-trustless-should-pass-2.sh # source in build-remote-trustless.sh:17: error: don't know how to open Nix store with scheme '$ROOT/tmp/nix-test/main/build-remote-trustless-should-pass-2/local'
-gap tests/functional/build-remote-trustless-should-pass-3.sh # source in build-remote-trustless.sh:17: error: don't know how to open Nix store with scheme '$ROOT/tmp/nix-test/main/build-remote-trustless-should-pass-3/local'
-gap tests/functional/build-remote-with-mounted-ssh-ng.sh # main in build-remote-with-mounted-ssh-ng.sh:10: error: nix build with build logs in the bar log format (use --log-format raw-with-logs) is not supported by noxi yet
-gap tests/functional/build.sh # main in build.sh:6: error: nix build --json for new builds (the build API does not return BuildResult metadata) is not supported by noxi yet
-gap tests/functional/ca/build-cache.sh # main in build-cache.sh:8: error: feature not yet implemented in noxi: content-addressed or impure derivation construction
+gap tests/functional/build-remote-content-addressed-fixed.sh # source in build-remote.sh:34: error: Cannot build '/nix/store/HASH-build-remote.drv'.
+gap tests/functional/build-remote-content-addressed-floating.sh # source in build-remote.sh:34: error: Cannot build '/nix/store/HASH-build-remote.drv'.
+gap tests/functional/build-remote-input-addressed.sh # source in build-remote.sh:34: error: Cannot build '/nix/store/HASH-build-remote.drv'.
+gap tests/functional/build-remote-trustless-should-fail-0.sh # main in build-remote-trustless-should-fail-0.sh:37: Expected exit code '1' but got '100' from command 'source' 'build-remote-trustless.sh'
+gap tests/functional/build-remote-trustless-should-pass-0.sh # source in build-remote-trustless.sh:17: error: Cannot build '/nix/store/HASH-build-remote.drv'.
+gap tests/functional/build-remote-trustless-should-pass-1.sh # source in build-remote-trustless.sh:17: error: Cannot build '/nix/store/HASH-build-remote.drv'.
+gap tests/functional/build-remote-trustless-should-pass-2.sh # source in build-remote-trustless.sh:17: error: Cannot build '/nix/store/HASH-build-remote.drv'.
+gap tests/functional/build-remote-trustless-should-pass-3.sh # source in build-remote-trustless.sh:17: error: Cannot build '/nix/store/HASH-build-remote.drv'.
+gap tests/functional/build-remote-with-mounted-ssh-ng.sh # main in build-remote-with-mounted-ssh-ng.sh:10: error: don't know how to open Nix store with scheme 'mounted-ssh-ng://localhost'
+gap tests/functional/build.sh # main in build.sh:148: error: nix --relaxed-sandbox is not supported by noxi yet
+gap tests/functional/ca/build-cache.sh # : error: nix copy --all is not supported by noxi yet
 pass:upstream_functional tests/functional/ca/build-delete.sh
 pass:upstream_functional tests/functional/ca/build-with-garbage-path.sh
-gap tests/functional/ca/build.sh # main in build.sh:5: error: feature not yet implemented in noxi: content-addressed or impure derivation construction
+gap tests/functional/ca/build.sh # : error: Cannot build '$ROOT/tmp/nix-test/ca/build/store/HASH-rootCA.drv'.
 pass:upstream_functional tests/functional/ca/concurrent-builds.sh
 pass:upstream_functional tests/functional/ca/derivation-advanced-attributes.sh
 pass:upstream_functional tests/functional/ca/derivation-json.sh
@@ -140,24 +140,24 @@ anomaly tests/functional/ca/duplicate-realisation-in-closure.sh # reference skip
 gap tests/functional/ca/eval-store.sh # source in eval-store.sh:14: error: nix build --eval-store is not supported by noxi yet
 pass:upstream_functional tests/functional/ca/gc.sh
 pass:upstream_functional tests/functional/ca/import-from-derivation.sh
-gap tests/functional/ca/issue-13247.sh # main in issue-13247.sh:12: error: feature not yet implemented in noxi: content-addressed or impure derivation construction
+gap tests/functional/ca/issue-13247.sh # main in issue-13247.sh:49: copying path '$ROOT/tmp/nix-test/ca/issue-13247/store/HASH-use-a-more-outputs-second' from 'file://$ROOT/tmp/nix-test/ca/issue-13247/cache'...
 pass:upstream_functional tests/functional/ca/multiple-outputs.sh
-gap tests/functional/ca/new-build-cmd.sh # source in ./build.sh:6: error: feature not yet implemented in noxi: content-addressed or impure derivation construction
+gap tests/functional/ca/new-build-cmd.sh # source in ./build.sh:148: error: nix --relaxed-sandbox is not supported by noxi yet
 pass:upstream_functional tests/functional/ca/nix-copy.sh
 pass:upstream_functional tests/functional/ca/nix-run.sh
 gap tests/functional/ca/nix-shell.sh # source in ./nix-shell.sh:81: error: nix-shell shebang scripts are not supported by noxi yet
 pass:upstream_functional tests/functional/ca/post-hook.sh
-gap tests/functional/ca/recursive.sh # source in ./recursive.sh:13: error: nix build with build logs in the bar log format (use --log-format raw-with-logs) is not supported by noxi yet
+gap tests/functional/ca/recursive.sh # source in ./recursive.sh:13: error: Cannot build '$ROOT/tmp/nix-test/ca/recursive/store/HASH-recursive.drv'.
 gap tests/functional/ca/repl.sh # : error: the noxi repl does not support ':log' yet
 pass:upstream_functional tests/functional/ca/selfref-gc.sh
 pass:upstream_functional tests/functional/ca/signatures.sh
-gap tests/functional/ca/substitute.sh # main in substitute.sh:18: error: nix copy to compressed file:// caches; use ?compression=none (the upload API supports uncompressed NARs) is not supported by noxi yet
+gap tests/functional/ca/substitute.sh # main in substitute.sh:27: error: nix store build-trace info --file is not supported by noxi yet
 pass:upstream_functional tests/functional/ca/why-depends.sh
 pass:upstream_functional tests/functional/characterisation-test-infra.sh
 pass:upstream_functional tests/functional/check-refs.sh
 pass:upstream_functional tests/functional/check-reqs.sh
-gap tests/functional/check.sh # main in check.sh:95: error: unsupported builtin builder 'fetchurl'
-gap tests/functional/chroot-store.sh # main in chroot-store.sh:20: error: nix-store --add-fixed is not supported by noxi yet
+pass:upstream_functional tests/functional/check.sh
+gap tests/functional/chroot-store.sh # main in chroot-store.sh:48: error: don't know how to open Nix store with scheme 'local://$ROOT/tmp/nix-test/main/chroot-store/x+chroot'
 gap tests/functional/cli-characterisation.sh # : error:
 gap tests/functional/completions.sh # main in completions.sh:39: error: 'buil' is not a recognised command
 pass:upstream_functional tests/functional/compression-levels.sh
@@ -168,22 +168,22 @@ gap tests/functional/dependencies.sh # main in dependencies.sh:12: error: nix-st
 pass:upstream_functional tests/functional/derivation-advanced-attributes.sh
 pass:upstream_functional tests/functional/derivation-json.sh
 pass:upstream_functional tests/functional/dump-db.sh
-gap tests/functional/dyn-drv/build-built-drv.sh # main in build-built-drv.sh:19: error: feature not yet implemented in noxi: content-addressed or impure derivation construction
-gap tests/functional/dyn-drv/dep-built-drv-2.sh # main in dep-built-drv-2.sh:16: error: nix build with build logs in the bar log format (use --log-format raw-with-logs) is not supported by noxi yet
-gap tests/functional/dyn-drv/dep-built-drv.sh # main in dep-built-drv.sh:12: error: attribute 'outputOf' missing
+pass:upstream_functional tests/functional/dyn-drv/build-built-drv.sh
+gap tests/functional/dyn-drv/dep-built-drv-2.sh # main in dep-built-drv-2.sh:16: error: failed to obtain derivation of '$ROOT/tmp/nix-test/dyn-drv/dep-built-drv-2/store/HASH-make-derivations.drv.drv^out'
+pass:upstream_functional tests/functional/dyn-drv/dep-built-drv.sh
 pass:upstream_functional tests/functional/dyn-drv/eval-outputOf.sh
-gap tests/functional/dyn-drv/failing-outer.sh # main in failing-outer.sh:12: Expected exit code '100' but got '1' from command 'nix-build' './text-hashed-output.nix' '-A' 'failingWrapper' '--no-out-link'
+pass:upstream_functional tests/functional/dyn-drv/failing-outer.sh
 anomaly tests/functional/dyn-drv/old-daemon-error-hack.sh # reference skip: Daemon is too new, skipping this test...
-gap tests/functional/dyn-drv/recursive-mod-json.sh # main in recursive-mod-json.sh:16: error: feature not yet implemented in noxi: content-addressed or impure derivation construction
-gap tests/functional/dyn-drv/text-hashed-output.sh # main in text-hashed-output.sh:18: error: feature not yet implemented in noxi: content-addressed or impure derivation construction
+gap tests/functional/dyn-drv/recursive-mod-json.sh # main in recursive-mod-json.sh:19: error: Cannot build '$ROOT/tmp/nix-test/dyn-drv/recursive-mod-json/store/HASH-foo.drv.drv'.
+pass:upstream_functional tests/functional/dyn-drv/text-hashed-output.sh
 gap tests/functional/eval-store.sh # main in eval-store.sh:14: error: nix build --eval-store is not supported by noxi yet
 pass:upstream_functional tests/functional/eval.sh
-gap tests/functional/experimental-features.sh # main in experimental-features.sh:36: 
+gap tests/functional/experimental-features.sh # main in experimental-features.sh:36:
 pass:upstream_functional tests/functional/export-graph.sh
 pass:upstream_functional tests/functional/export.sh
-gap tests/functional/external-builders.sh # main in external-builders.sh:46: error: nix build with build logs in the bar log format (use --log-format raw-with-logs) is not supported by noxi yet
+gap tests/functional/external-builders.sh # main in external-builders.sh:46: error: Cannot build '$ROOT/tmp/nix-test/main/external-builders/store/HASH-external.drv'.
 anomaly tests/functional/extra-sandbox-profile.sh # reference skip: Need Darwin, skipping this test...
-gap tests/functional/fetchClosure.sh # main in fetchClosure.sh:16: error: nix build --json for new builds (the build API does not return BuildResult metadata) is not supported by noxi yet
+gap tests/functional/fetchClosure.sh # main in fetchClosure.sh:32: error: attribute 'fetchClosure' missing
 gap tests/functional/fetchGit.sh # main in fetchGit.sh:34: false
 pass:upstream_functional tests/functional/fetchGitRefs.sh
 pass:upstream_functional tests/functional/fetchGitShallow.sh
@@ -192,10 +192,10 @@ gap tests/functional/fetchGitVerification.sh # main in fetchGitVerification.sh:3
 pass:upstream_functional tests/functional/fetchMercurial.sh
 pass:upstream_functional tests/functional/fetchPath.sh
 pass:upstream_functional tests/functional/fetchTree-file.sh
-gap tests/functional/fetchurl.sh # main in fetchurl.sh:10: error: unsupported builtin builder 'fetchurl'
+pass:upstream_functional tests/functional/fetchurl.sh
 pass:upstream_functional tests/functional/filter-source.sh
-gap tests/functional/fixed-slow-vs-bad.sh # main in fixed-slow-vs-bad.sh:48: 
-gap tests/functional/fixed.sh # main in fixed.sh:37: error: invalid digest length for algo md5
+pass:upstream_functional tests/functional/fixed-slow-vs-bad.sh
+pass:upstream_functional tests/functional/fixed.sh
 pass:upstream_functional tests/functional/flakes/absolute-attr-paths.sh
 pass:upstream_functional tests/functional/flakes/absolute-paths.sh
 pass:upstream_functional tests/functional/flakes/build-paths.sh
@@ -210,7 +210,7 @@ pass:upstream_functional tests/functional/flakes/dubious-query.sh
 pass:upstream_functional tests/functional/flakes/edit.sh
 pass:upstream_functional tests/functional/flakes/eval-cache.sh
 gap tests/functional/flakes/flake-in-submodule.sh # main in flake-in-submodule.sh:108: Initialized empty Git repository in $ROOT/tmp/nix-test/flakes/flake-in-submodule/otherRepo/.git/
-gap tests/functional/flakes/flakes.sh # main in flakes.sh:59: error: don't know how to open Nix store with scheme '$ROOT/tmp/nix-test/flakes/flakes/chroot-store'
+gap tests/functional/flakes/flakes.sh # main in flakes.sh:76: warning: you don't have Internet access; disabling some network-dependent features
 gap tests/functional/flakes/follow-paths.sh # main in follow-paths.sh:133: foobar
 pass:upstream_functional tests/functional/flakes/get-flake.sh
 pass:upstream_functional tests/functional/flakes/init.sh
@@ -220,11 +220,11 @@ gap tests/functional/flakes/non-flake-inputs.sh # main in non-flake-inputs.sh:80
 pass:upstream_functional tests/functional/flakes/old-lockfiles.sh
 gap tests/functional/flakes/prefetch.sh # main in prefetch.sh:6: error: failed to read entire block
 gap tests/functional/flakes/relative-paths-lockfile.sh # main in relative-paths-lockfile.sh:75: warning: you don't have Internet access; disabling some network-dependent features
-gap tests/functional/flakes/relative-paths.sh # main in relative-paths.sh:45: error: I/O error: $ROOT/tmp/nix-test/flakes/relative-paths/store/HASH-source/sub1/../../../sub0/flake.nix: access to absolute path '$ROOT/tmp/nix-test/flakes/relative-pat
+gap tests/functional/flakes/relative-paths.sh # main in relative-paths.sh:71: warning: you don't have Internet access; disabling some network-dependent features
 gap tests/functional/flakes/run.sh # : test failed: 'nix run' shouldn’t accept an 'app' defined under 'packages'
 pass:upstream_functional tests/functional/flakes/search-root.sh
 gap tests/functional/flakes/shebang.sh # main in shebang.sh:103: error: '$ROOT/tmp/nix-test/flakes/shebang/nonFlake/shebang.sh' is not a recognised command
-gap tests/functional/flakes/show.sh # main in show.sh:102: error: I/O error: $ROOT/tmp/nix-test/flakes/show/store/HASH-foo: cannot build '$ROOT/tmp/nix-test/flakes/show/store/HASH-foo.drv^out' during evaluation because the option 'allow-i
+gap tests/functional/flakes/show.sh # main in show.sh:102: error: cannot build '$ROOT/tmp/nix-test/flakes/show/store/HASH-foo.drv^out' during evaluation because the option 'allow-import-from-derivation' is disabled
 gap tests/functional/flakes/source-paths.sh # main in source-paths.sh:23: Initialized empty Git repository in $ROOT/tmp/nix-test/flakes/source-paths/repo/.git/
 pass:upstream_functional tests/functional/flakes/symlink-paths.sh
 pass:upstream_functional tests/functional/flakes/trace-ifd.sh
@@ -233,69 +233,69 @@ pass:upstream_functional tests/functional/flakes/unlocked-override.sh
 gap tests/functional/flamegraph-profiler.sh # main in flamegraph-profiler.sh:35: error: expression does not evaluate to a derivation (or a set or list of those)
 gap tests/functional/formatter.sh # main in formatter.sh:11: error: nix --help is not supported by noxi yet
 gap tests/functional/function-trace.sh # main in function-trace.sh:34: <
-gap tests/functional/gc-auto.sh # timed out at +(gc-auto.sh:82) echo unlock
-gap tests/functional/gc-closure.sh # : error: Cannot delete path '$ROOT/tmp/nix-test/main/gc-closure/store/HASH-dependencies-input-2' since it is still alive. To find out why, use: nix-store --query --roots and nix-store --query --referr
-gap tests/functional/gc-concurrent.sh # main in gc-concurrent.sh:40: error: reading derivation '$ROOT/tmp/nix-test/main/gc-concurrent/store/HASH-gc-concurrent.drv': No such file or directory (os error 2)
+gap tests/functional/gc-auto.sh # main in gc-auto.sh:83: error: Cannot build '$ROOT/tmp/nix-test/main/gc-auto/store/HASH-gc-A.drv'.
+gap tests/functional/gc-closure.sh # : error: nix store delete --skip-alive is not supported by noxi yet
+gap tests/functional/gc-concurrent.sh # main in gc-concurrent.sh:40: error: path '$ROOT/tmp/nix-test/main/gc-concurrent/store/HASH-gc-concurrent.drv' is not valid
 gap tests/functional/gc-non-blocking.sh # main in gc-non-blocking.sh:43: error: Cannot build '$ROOT/tmp/nix-test/main/gc-non-blocking/store/HASH-non-blocking.drv'.
 pass:upstream_functional tests/functional/gc-runtime.sh
 pass:upstream_functional tests/functional/gc.sh
-gap tests/functional/git-hashing/fixed.sh # main in fixed.sh:8: error: Invalid hash mode: git
-gap tests/functional/git-hashing/simple-sha1.sh # : error: nix hash path --mode git is not supported by noxi yet
-gap tests/functional/git-hashing/simple-sha256.sh # : error: nix hash path --mode git is not supported by noxi yet
 pass:upstream_functional tests/functional/git/packed-refs-no-cache.sh
+pass:upstream_functional tests/functional/git-hashing/fixed.sh
+pass:upstream_functional tests/functional/git-hashing/simple-sha1.sh
+pass:upstream_functional tests/functional/git-hashing/simple-sha256.sh
 pass:upstream_functional tests/functional/git/symlinked-repo.sh
 pass:upstream_functional tests/functional/hash-convert.sh
 pass:upstream_functional tests/functional/hash-path.sh
 anomaly tests/functional/help.sh # reference skip: we don't know whether we built the manpages, so we can't reliably test them here., skipping this test...
-gap tests/functional/import-from-derivation.sh # main in import-from-derivation.sh:19: error: expression does not evaluate to a derivation (or a set or list of those)
-gap tests/functional/impure-derivations.sh # main in impure-derivations.sh:16: error: feature not yet implemented in noxi: content-addressed or impure derivation construction
-gap tests/functional/impure-env.sh # : error: nix build with build logs in the bar log format (use --log-format raw-with-logs) is not supported by noxi yet
+gap tests/functional/import-from-derivation.sh # main in import-from-derivation.sh:34: error: --readonly-mode is not supported by noxi yet
+pass:upstream_functional tests/functional/impure-derivations.sh
+gap tests/functional/impure-env.sh # : error: hash mismatch in fixed-output derivation '$ROOT/tmp/nix-test/main/impure-env/store/HASH-test.drv':
 pass:upstream_functional tests/functional/impure-eval.sh
 pass:upstream_functional tests/functional/json.sh
 anomaly tests/functional/lang-gc.sh # reference skip: Too memory intensive for CI. Attempt to reduce memory usage was unsuccessful, because it made detection of the bug unreliable., skipping this test...
 pass:upstream_functional tests/functional/lang.sh
 gap tests/functional/legacy-ssh-store.sh # main in legacy-ssh-store.sh:8: error: unsupported store parameter 'remote-store=$ROOT/tmp/nix-test/main/legacy-ssh-store/other-store' in 'ssh://localhost?remote-store=$ROOT/tmp/nix-test/main/legacy-ss
-gap tests/functional/linux-sandbox.sh # : /my/store/HASH-nondeterministic
-gap tests/functional/local-overlay-store/add-lower.sh # : error: nix-store --add is not supported by noxi yet
+gap tests/functional/linux-sandbox.sh # main in linux-sandbox.sh:104: /my/store/HASH-test-sandbox-paths
+gap tests/functional/local-overlay-store/add-lower.sh # main in ./add-lower-inner.sh:20: error: unsupported store parameter 'lower-store=$ROOT/tmp/nix-test/local-overlay-store/add-lower/stores/store-a' in 'local-overlay://?root=$ROOT/tmp/nix-test/local-ove
 gap tests/functional/local-overlay-store/bad-uris.sh # : local-overlay://?root=$ROOT/tmp/nix-test/local-overlay-store/bad-uris/bad_test&lower-store=$ROOT/tmp/nix-test/local-overlay-store/bad-uris/stores/store-a&upper-layer=$ROOT/tmp/nix-test/local-overlay
-gap tests/functional/local-overlay-store/build.sh # : error: nix-store --add is not supported by noxi yet
-gap tests/functional/local-overlay-store/check-post-init.sh # : error: nix-store --add is not supported by noxi yet
-gap tests/functional/local-overlay-store/delete-duplicate.sh # : error: nix-store --add is not supported by noxi yet
-gap tests/functional/local-overlay-store/delete-refs.sh # : error: nix-store --add is not supported by noxi yet
-gap tests/functional/local-overlay-store/gc.sh # : error: nix-store --add is not supported by noxi yet
-gap tests/functional/local-overlay-store/optimise.sh # : error: nix-store --add is not supported by noxi yet
-gap tests/functional/local-overlay-store/redundant-add.sh # : error: nix-store --add is not supported by noxi yet
+gap tests/functional/local-overlay-store/build.sh # main in ./build-inner.sh:21: error: unsupported store parameter 'lower-store=$ROOT/tmp/nix-test/local-overlay-store/build/stores/store-a' in 'local-overlay://?root=$ROOT/tmp/nix-test/local-overlay-sto
+gap tests/functional/local-overlay-store/check-post-init.sh # main in ./check-post-init-inner.sh:34: error: unsupported store parameter 'lower-store=$ROOT/tmp/nix-test/local-overlay-store/check-post-init/stores/store-a' in 'local-overlay://?root=$ROOT/tmp/nix-te
+gap tests/functional/local-overlay-store/delete-duplicate.sh # main in ./delete-duplicate-inner.sh:20: error: unsupported store parameter 'lower-store=$ROOT/tmp/nix-test/local-overlay-store/delete-duplicate/stores/store-a' in 'local-overlay://?root=$ROOT/tmp/nix-
+gap tests/functional/local-overlay-store/delete-refs.sh # main in ./delete-refs-inner.sh:20: error: unsupported store parameter 'lower-store=$ROOT/tmp/nix-test/local-overlay-store/delete-refs/stores/store-a' in 'local-overlay://?root=$ROOT/tmp/nix-test/local
+gap tests/functional/local-overlay-store/gc.sh # main in ./gc-inner.sh:19: error: unsupported store parameter 'lower-store=$ROOT/tmp/nix-test/local-overlay-store/gc/stores/store-a' in 'local-overlay://?root=$ROOT/tmp/nix-test/local-overlay-store/gc/
+gap tests/functional/local-overlay-store/optimise.sh # main in ./optimise-inner.sh:24: error: unsupported store parameter 'lower-store=$ROOT/tmp/nix-test/local-overlay-store/optimise/stores/store-a' in 'local-overlay://?root=$ROOT/tmp/nix-test/local-overl
+gap tests/functional/local-overlay-store/redundant-add.sh # main in ./redundant-add-inner.sh:27: error: unsupported store parameter 'lower-store=$ROOT/tmp/nix-test/local-overlay-store/redundant-add/stores/store-a' in 'local-overlay://?root=$ROOT/tmp/nix-test/l
 anomaly tests/functional/local-overlay-store/stale-file-handle.sh # reference skip: Couldn't trigger the error, skipping this test...
-gap tests/functional/local-overlay-store/verify.sh # : error: nix-store --add is not supported by noxi yet
-gap tests/functional/logging.sh # main in logging.sh:10: error: nix-store -l is not supported by noxi yet
+gap tests/functional/local-overlay-store/verify.sh # main in ./verify-inner.sh:23: error: unsupported store parameter 'lower-store=$ROOT/tmp/nix-test/local-overlay-store/verify/stores/store-a' in 'local-overlay://?root=$ROOT/tmp/nix-test/local-overlay-s
+gap tests/functional/logging.sh # main in logging.sh:32: error: build log of derivation '$ROOT/tmp/nix-test/main/logging/store/HASH-dependencies-top' is not available
 pass:upstream_functional tests/functional/make-content-addressed.sh
 pass:upstream_functional tests/functional/misc.sh
-gap tests/functional/multiple-outputs-substitute-failure.sh # main in multiple-outputs-substitute-failure.sh:13: error: attribute 'independent^*' missing
+gap tests/functional/multiple-outputs-substitute-failure.sh # main in multiple-outputs-substitute-failure.sh:28: clearing store...
 pass:upstream_functional tests/functional/multiple-outputs.sh
-gap tests/functional/nar-access.sh # main in nar-access.sh:12: error: nix-store requires --store local?root=ABSOLUTE_ROOT
-gap tests/functional/nars.sh # main in nars.sh:6: 
-gap tests/functional/nested-sandboxing.sh # main in nested-sandboxing.sh:24: Expected exit code '100' but got '1' from command 'runNixBuild' 'badStoreUrl' '2'
+pass:upstream_functional tests/functional/nar-access.sh
+gap tests/functional/nars.sh # main in nars.sh:6:
+gap tests/functional/nested-sandboxing.sh # main in nested-sandboxing.sh:24:
 pass:upstream_functional tests/functional/nix-build.sh
-gap tests/functional/nix-channel.sh # main in nix-channel.sh:35: error: nix copy to compressed file:// caches; use ?compression=none (the upload API supports uncompressed NARs) is not supported by noxi yet
-gap tests/functional/nix-collect-garbage-d.sh # : error: assertion '(progName != "fail")' failed
+gap tests/functional/nix-channel.sh # main in nix-channel.sh:44: error: Is a directory (os error 21)
+pass:upstream_functional tests/functional/nix-collect-garbage-d.sh
 gap tests/functional/nix-copy-ssh-ng.sh # source in nix-copy-ssh-common.sh:39: error: unsupported store parameter 'store=$ROOT/tmp/nix-test/main/nix-copy-ssh-ng/store' in 'ssh-ng://localhost?store=$ROOT/tmp/nix-test/main/nix-copy-ssh-ng/store
 gap tests/functional/nix-copy-ssh.sh # source in nix-copy-ssh-common.sh:39: error: unsupported store parameter 'store=$ROOT/tmp/nix-test/main/nix-copy-ssh/store' in 'ssh://localhost?store=$ROOT/tmp/nix-test/main/nix-copy-ssh/store&remote-s
-gap tests/functional/nix-profile.sh # main in nix-profile.sh:51: error: assertion '(progName != "fail")' failed
+gap tests/functional/nix-profile.sh # main in nix-profile.sh:76: profile removal completion is missing
 gap tests/functional/nix-shell.sh # main in nix-shell.sh:81: error: nix-shell shebang scripts are not supported by noxi yet
 pass:upstream_functional tests/functional/nix_path.sh
-gap tests/functional/no-url-literals.sh # main in no-url-literals.sh:19: 
+pass:upstream_functional tests/functional/no-url-literals.sh
 gap tests/functional/optimise-store.sh # : inodes do not match
 pass:upstream_functional tests/functional/output-normalization.sh
 pass:upstream_functional tests/functional/pass-as-file.sh
 pass:upstream_functional tests/functional/path-from-hash-part.sh
-gap tests/functional/path-info.sh # main in path-info.sh:37: error: nix path-info --stdin is not supported by noxi yet
+pass:upstream_functional tests/functional/path-info.sh
 pass:upstream_functional tests/functional/placeholders.sh
 unrun tests/functional/plugins.sh # needs C++ evaluator plugins built against the engine's libraries (TODO section 6)
 pass:upstream_functional tests/functional/post-hook.sh
-gap tests/functional/pure-eval.sh # main in pure-eval.sh:21: error: attribute 'currentSystem' missing
+gap tests/functional/pure-eval.sh # main in pure-eval.sh:28: error: nix eval --write-to is not supported by noxi yet
 pass:upstream_functional tests/functional/read-only-store.sh
 pass:upstream_functional tests/functional/readfile-context.sh
-gap tests/functional/recursive.sh # main in recursive.sh:13: error: nix build with build logs in the bar log format (use --log-format raw-with-logs) is not supported by noxi yet
+gap tests/functional/recursive.sh # main in recursive.sh:13: error: Cannot build '$ROOT/tmp/nix-test/main/recursive/store/HASH-recursive.drv'.
 pass:upstream_functional tests/functional/referrers.sh
 gap tests/functional/remote-store.sh # main in remote-store.sh:8: error: unsupported store parameter 'remote-store=$ROOT/tmp/nix-test/main/remote-store/other-store' in 'ssh-ng://localhost?remote-store=$ROOT/tmp/nix-test/main/remote-store/o
 pass:upstream_functional tests/functional/repair.sh
@@ -309,12 +309,12 @@ gap tests/functional/short-path-literals.sh # : foo/bar
 gap tests/functional/signing.sh # main in signing.sh:103: error: unsupported store parameter 'require-sigs=false' in '$ROOT/tmp/nix-test/main/signing/store0?require-sigs=false'
 gap tests/functional/simple.sh # main in simple.sh:27: error: --readonly-mode is not supported by noxi yet
 gap tests/functional/ssh-relay.sh # main in ssh-relay.sh:16: error: unsupported store parameter 'remote-store=ssh://localhost?remote-store=ssh://localhost?remote-store=ssh://localhost' in 'ssh://localhost?remote-store=ssh://localhost?re
-gap tests/functional/store-info.sh # main in store-info.sh:38: 
+pass:upstream_functional tests/functional/store-info.sh
 pass:upstream_functional tests/functional/store-print-env.sh
 anomaly tests/functional/structured-attrs.sh # reference fail: main in structured-attrs.sh:27: error (ignored): cannot find flake 'flake:nixpkgs' in the flake registries
 pass:upstream_functional tests/functional/substitute-with-invalid-ca.sh
 gap tests/functional/suggestions.sh # : test failed: The nix build stderr should suggest the three closest possibilities
-gap tests/functional/supplementary-groups.sh # : supplementary-groups.sh: line 13: require-drop-supplementary-groups: command not found
+gap tests/functional/supplementary-groups.sh # : Expected exit code '1' but got '0' from command 'nix-build' './hermetic.nix' '--arg' 'busybox' '/nix/store/HASH-busybox-static-x86_64-unknown-linux-musl-1.37.0/bin/busybox' '--arg' 'seed' '1' '--no-
 pass:upstream_functional tests/functional/symlinks.sh
 gap tests/functional/tarball.sh # : error: path 'file:$ROOT/tmp/nix-test/main/tarball/tarball.tar' does not exist
 pass:upstream_functional tests/functional/test-infra.sh
@@ -322,7 +322,7 @@ unrun tests/functional/test-libstoreconsumer.sh # needs the C++ libstore consume
 gap tests/functional/timeout.sh # timed out at +(common/functions.sh:331) command grep 'killed after writing more than 100 bytes of log output'
 pass:upstream_functional tests/functional/toString-path.sh
 anomaly tests/functional/user-envs-migration.sh # reference skip: Daemon is too new, skipping this test...
-gap tests/functional/user-envs.sh # source in ./user-envs-test-case.sh:11: error: assertion '(progName != "fail")' failed
+gap tests/functional/user-envs.sh # source in ./user-envs-test-case.sh:20: JSON outputName and null output paths differ
 pass:upstream_functional tests/functional/why-depends.sh
 table:upstream_functional tests/functional/**/* # helpers and data read by the scripts
 # Out of scope for compat-tests: NixOS VM tests run in the qualification VMs (owner: TODO section 7, NixOS and Home Manager replacement).

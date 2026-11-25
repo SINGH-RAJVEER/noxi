@@ -114,10 +114,7 @@ impl LocalBuilder<'_> {
 				.is_some()
 		{
 			false
-		} else if drv.basic.outputs().is_deferred()
-			&& drv.floating.is_empty()
-			&& drv.experimental.is_empty()
-		{
+		} else if drv.is_deferred() || drv.is_impure() {
 			true
 		} else {
 			let outputs: BTreeMap<_, _> = self
@@ -136,6 +133,9 @@ impl LocalBuilder<'_> {
 		};
 		if !needed {
 			return Ok(());
+		}
+		if let Some(error) = self.impure_input(path, &drv)? {
+			return Err(error);
 		}
 		visiting.insert(path.clone());
 		for (input, names) in drv.basic.input_derivations() {

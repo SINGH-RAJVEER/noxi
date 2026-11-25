@@ -15,6 +15,7 @@ pub mod config;
 mod db;
 pub mod error;
 pub mod gc;
+pub mod git;
 pub mod keys;
 mod local;
 pub mod lock;
@@ -28,7 +29,7 @@ mod quick_ack;
 pub mod unix_socket;
 mod xz;
 
-pub use api::{BuildMode, DerivedPath, Missing, Store};
+pub use api::{BuildMode, DerivedPath, ImpureOutputs, Missing, Store};
 pub use capture::{CapturedSource, SourceCapture};
 pub use config::LocalStoreConfig;
 pub use error::{Error, Result};

@@ -1,0 +1,15 @@
+[package]
+name = "noxios-settings-cli"
+default-run = "noxios-settings"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish = false
+description = "Command-line package manager for NixOS and Home Manager, with no user interface"
+
+[[bin]]
+name = "noxios-settings"
+path = "src/main.rs"
+
+[dependencies]
+noxios-settings-cmd = { path = "../noxios-settings-cmd" }

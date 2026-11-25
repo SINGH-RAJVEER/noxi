@@ -253,13 +253,19 @@ pub fn content_address_to_json(ca: &CAHash) -> Value {
 		CAHash::Flat(_) => "flat",
 		CAHash::Nar(_) => "nar",
 		CAHash::Text(_) => "text",
+		CAHash::Git(_) => "git",
 	};
 	json!({ "method": method, "hash": hash_to_json(&ca.hash()) })
 }
 
-/// `adl_serializer<ContentAddress>`. The `git` method needs `git-hashing`,
-/// which [`CAHash`] cannot represent.
+/// `adl_serializer<ContentAddress>` without `git-hashing`, which the `git`
+/// method needs.
 pub fn content_address_from_json(value: &Value) -> Result<CAHash, Error> {
+	content_address_from_json_with(value, false)
+}
+
+/// [`content_address_from_json`] with `git-hashing` enabled or not.
+pub fn content_address_from_json_with(value: &Value, git_hashing: bool) -> Result<CAHash, Error> {
 	let object = as_object(value)?;
 	let method = as_str(field(object, "method")?, "method string")?;
 	let hash = hash_from_json(field(object, "hash")?)?;
@@ -270,6 +276,7 @@ pub fn content_address_from_json(value: &Value) -> Result<CAHash, Error> {
 			NixHash::Sha256(digest) => Ok(CAHash::Text(digest)),
 			_ => Err(Error::TextNotSha256),
 		},
+		"git" if git_hashing => Ok(CAHash::Git(hash)),
 		"git" => Err(Error::Unsupported(GIT_HASHING)),
 		other => Err(Error::Method(other.to_owned())),
 	}

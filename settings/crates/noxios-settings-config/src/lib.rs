@@ -1,0 +1,579 @@
+mod settings;
+mod telemetry;
+
+use std::collections::BTreeMap;
+use std::path::PathBuf;
+
+use anyhow::{Context, Result};
+use directories::BaseDirs;
+use serde::{Deserialize, Serialize};
+
+pub use telemetry::{TELEMETRY_CONSENT_VERSION, TelemetrySettings, TelemetryStatus};
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Hash)]
+#[serde(rename_all = "kebab-case")]
+pub enum Target {
+	HomeManager,
+	NixosSystem,
+}
+
+#[derive(Debug, Default, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "kebab-case")]
+pub enum InputMode {
+	#[default]
+	Vim,
+	Normal,
+}
+
+impl InputMode {
+	pub fn label(self) -> &'static str {
+		match self {
+			InputMode::Vim => "Vim mode",
+			InputMode::Normal => "Normal mode",
+		}
+	}
+}
+
+/// What the desktop GUI's navigation tabs show.
+#[derive(Debug, Default, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "kebab-case")]
+pub enum TabLabels {
+	Icons,
+	#[default]
+	IconsAndNames,
+	Names,
+}
+
+impl TabLabels {
+	pub const ALL: [TabLabels; 3] = [TabLabels::Icons, TabLabels::IconsAndNames, TabLabels::Names];
+
+	pub fn label(self) -> &'static str {
+		match self {
+			TabLabels::Icons => "Icons",
+			TabLabels::IconsAndNames => "Icons and names",
+			TabLabels::Names => "Names",
+		}
+	}
+
+	/// The stored, kebab-case spelling.
+	pub fn name(self) -> &'static str {
+		match self {
+			TabLabels::Icons => "icons",
+			TabLabels::IconsAndNames => "icons-and-names",
+			TabLabels::Names => "names",
+		}
+	}
+
+	pub fn from_name(name: &str) -> Option<Self> {
+		Self::ALL.into_iter().find(|labels| labels.name() == name)
+	}
+
+	pub fn shows_icons(self) -> bool {
+		self != TabLabels::Names
+	}
+
+	pub fn shows_names(self) -> bool {
+		self != TabLabels::Icons
+	}
+}
+
+impl Target {
+	pub fn label(self) -> &'static str {
+		match self {
+			Target::HomeManager => "home-manager",
+			Target::NixosSystem => "nixos",
+		}
+	}
+
+	/// Short scope tag for compact display in the TUI.
+	pub fn tag(self) -> &'static str {
+		match self {
+			Target::HomeManager => "hm",
+			Target::NixosSystem => "nixos",
+		}
+	}
+
+	/// Display name for prose and buttons.
+	pub fn title(self) -> &'static str {
+		match self {
+			Target::HomeManager => "Home Manager",
+			Target::NixosSystem => "NixOS",
+		}
+	}
+
+	/// The target a package can be moved across to.
+	#[must_use]
+	pub fn other(self) -> Self {
+		match self {
+			Target::HomeManager => Target::NixosSystem,
+			Target::NixosSystem => Target::HomeManager,
+		}
+	}
+}
+
+const MAX_RECENT_SEARCHES: usize = 20;
+pub const DEFAULT_CHANNEL: &str = "nixpkgs-unstable";
+
+/// Identity shared by every operation in one session and its recovery file.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct ConfigurationIdentity {
+	pub root: PathBuf,
+	#[serde(default = "default_dendritic_detection")]
+	pub dendritic_detection: bool,
+	pub host: Option<String>,
+	pub user: Option<String>,
+	#[serde(default)]
+	pub home_configuration: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Config {
+	pub channel: String,
+	pub target: Target,
+	#[serde(default = "default_theme")]
+	pub theme: String,
+	#[serde(default)]
+	pub input_mode: InputMode,
+	#[serde(default)]
+	pub tab_labels: TabLabels,
+	/// Whether the desktop GUI draws a close button at the right of its tabs.
+	#[serde(default = "default_close_button")]
+	pub close_button: bool,
+	/// Discover native flake-parts modules instead of conventional entry files.
+	#[serde(default = "default_dendritic_detection")]
+	pub dendritic_detection: bool,
+	/// Desktop keyboard overrides. Missing actions use their defaults; empty lists disable them.
+	#[serde(default)]
+	pub gui_shortcuts: BTreeMap<String, Vec<String>>,
+	/// Optional usage collection. Only explicit consent changes may persist this field.
+	#[serde(default)]
+	pub telemetry: TelemetrySettings,
+	#[serde(default)]
+	pub recent_searches: Vec<String>,
+	/// The configuration directory noxios-settings edits and rebuilds. `None` uses
+	/// `/etc/nixos`; `NOXIOS_SETTINGS_CONFIG_DIR` overrides both.
+	#[serde(default)]
+	pub config_dir: Option<PathBuf>,
+	/// Override for the user's main home-manager config (defaults to
+	/// `<config_root>/home.nix`). Scanned for externally-declared packages.
+	#[serde(default)]
+	pub home_manager_main_file: Option<PathBuf>,
+	/// Override for the user's main NixOS config (defaults to
+	/// `<config_root>/configuration.nix`).
+	#[serde(default)]
+	pub nixos_main_file: Option<PathBuf>,
+	/// Selected flake output and attached Home Manager user.
+	#[serde(default)]
+	pub nixos_host: Option<String>,
+	#[serde(default)]
+	pub home_user: Option<String>,
+	#[serde(default)]
+	pub home_configuration: Option<String>,
+	/// Resolved import-tree directory; discovered afresh, never persisted.
+	#[serde(skip)]
+	pub native_modules_dir: Option<PathBuf>,
+	#[serde(skip)]
+	pub legacy_system_module: bool,
+	#[serde(skip)]
+	pub legacy_home_module: bool,
+}
+
+/// Every theme name `theme` accepts.
+///
+/// The palettes themselves belong to the front-end that draws them, but the
+/// name is a stored setting, so validating one must not require the TUI to be
+/// compiled in. A test in `noxios-settings-tui` keeps the two lists in step.
+pub const THEMES: [&str; 6] = [
+	"default",
+	"dracula",
+	"gruvbox",
+	"nord",
+	"catppuccin",
+	"monokai",
+];
+
+fn default_theme() -> String {
+	"default".to_string()
+}
+
+fn default_close_button() -> bool {
+	true
+}
+
+fn default_dendritic_detection() -> bool {
+	true
+}
+
+impl Default for Config {
+	fn default() -> Self {
+		Self {
+			channel: DEFAULT_CHANNEL.to_string(),
+			target: Target::NixosSystem,
+			theme: default_theme(),
+			input_mode: InputMode::default(),
+			tab_labels: TabLabels::default(),
+			close_button: default_close_button(),
+			dendritic_detection: default_dendritic_detection(),
+			gui_shortcuts: BTreeMap::new(),
+			telemetry: TelemetrySettings::default(),
+			recent_searches: Vec::new(),
+			config_dir: None,
+			home_manager_main_file: None,
+			nixos_main_file: None,
+			nixos_host: None,
+			home_user: None,
+			home_configuration: None,
+			native_modules_dir: None,
+			legacy_system_module: false,
+			legacy_home_module: false,
+		}
+	}
+}
+
+impl Config {
+	pub fn identity(&self) -> ConfigurationIdentity {
+		let root = self.config_root();
+		ConfigurationIdentity {
+			dendritic_detection: self.dendritic_detection,
+			root: root.canonicalize().unwrap_or_else(|_| {
+				if root.is_absolute() {
+					root.clone()
+				} else {
+					std::env::current_dir().unwrap_or_default().join(&root)
+				}
+			}),
+			host: self.nixos_host.clone(),
+			user: self.home_user.clone(),
+			home_configuration: self.home_configuration.clone(),
+		}
+	}
+
+	/// Pushes a query to the front of recent_searches, dedups, caps the list.
+	pub fn push_recent(&mut self, query: String) {
+		let trimmed = query.trim().to_string();
+		if trimmed.is_empty() {
+			return;
+		}
+		self.recent_searches.retain(|q| q != &trimmed);
+		self.recent_searches.insert(0, trimmed);
+		if self.recent_searches.len() > MAX_RECENT_SEARCHES {
+			self.recent_searches.truncate(MAX_RECENT_SEARCHES);
+		}
+	}
+}
+
+impl Config {
+	/// Root of the configuration managed by noxios-settings, independent of the target.
+	pub fn config_root(&self) -> PathBuf {
+		config_dir_from_env()
+			.or_else(|| self.config_dir.clone())
+			.unwrap_or_else(default_config_dir)
+	}
+
+	/// Returns the path where noxios-settings writes its managed packages file for the
+	/// current target.
+	pub fn managed_file(&self) -> PathBuf {
+		self.managed_file_for(self.target)
+	}
+
+	/// Returns the managed packages file for an arbitrary target.
+	pub fn managed_file_for(&self, target: Target) -> PathBuf {
+		match target {
+			Target::HomeManager => self
+				.generated_dir_for(target)
+				.join("noxios-settings-home-packages.nix"),
+			Target::NixosSystem => self
+				.generated_dir_for(target)
+				.join("noxios-settings-system-packages.nix"),
+		}
+	}
+
+	pub fn generated_dir_for(&self, target: Target) -> PathBuf {
+		let legacy = match target {
+			Target::NixosSystem => self.legacy_system_module,
+			Target::HomeManager => self.legacy_home_module,
+		};
+		let Some(tree) = self.native_modules_dir.as_ref().filter(|_| !legacy) else {
+			return self.config_root();
+		};
+		let encoded = |name: &str| {
+			name.as_bytes()
+				.iter()
+				.map(|byte| format!("{byte:02x}"))
+				.collect::<String>()
+		};
+		if let Some(output) = &self.home_configuration {
+			return tree
+				.join("noxios-settings")
+				.join("homes")
+				.join(encoded(output));
+		}
+		let mut directory = tree
+			.join("noxios-settings")
+			.join("hosts")
+			.join(encoded(self.nixos_host.as_deref().unwrap_or("nixos")));
+		if target == Target::HomeManager {
+			directory = directory
+				.join("users")
+				.join(encoded(self.home_user.as_deref().unwrap_or("unselected")));
+		}
+		directory
+	}
+
+	/// Flake outputs share the target's package module.
+	pub fn flake_manifest_for(&self, target: Target) -> PathBuf {
+		self.managed_file_for(target)
+	}
+
+	/// Previous releases kept flake outputs in a separate module. Only the
+	/// automatic upgrade uses this path; new writes use `managed_file_for`.
+	pub fn legacy_flake_manifest_for(&self, target: Target) -> PathBuf {
+		match target {
+			Target::HomeManager => self.config_root().join("noxios-settings-home-flakes.nix"),
+			Target::NixosSystem => self.config_root().join("noxios-settings-system-flakes.nix"),
+		}
+	}
+
+	/// Returns the generated module that sets package options for `target`.
+	pub fn settings_file_for(&self, target: Target) -> PathBuf {
+		match target {
+			Target::HomeManager => self
+				.generated_dir_for(target)
+				.join("noxios-settings-home-settings.nix"),
+			Target::NixosSystem => self
+				.generated_dir_for(target)
+				.join("noxios-settings-system-settings.nix"),
+		}
+	}
+
+	/// Returns the NixOS module that puts the Home Manager package profile on
+	/// PATH when Home Manager runs inside NixOS.
+	pub fn home_integration_file(&self) -> PathBuf {
+		self.generated_dir_for(Target::HomeManager)
+			.join("noxios-settings-home-integration.nix")
+	}
+
+	/// Returns the root flake that owns the inputs used by noxios-settings modules.
+	pub fn flake_file(&self) -> PathBuf {
+		self.config_root().join("flake.nix")
+	}
+
+	/// Returns the directory where noxios-settings keeps its generated nix files.
+	pub fn home_manager_dir(&self) -> PathBuf {
+		self.config_root()
+	}
+
+	/// Returns the user's main config file for the current target.
+	pub fn main_file(&self) -> PathBuf {
+		self.main_file_for(self.target)
+	}
+
+	/// Returns the user's main config file for an arbitrary target.
+	pub fn main_file_for(&self, target: Target) -> PathBuf {
+		match target {
+			Target::HomeManager => self
+				.home_manager_main_file
+				.clone()
+				.unwrap_or_else(|| self.config_root().join("home.nix")),
+			Target::NixosSystem => self
+				.nixos_main_file
+				.clone()
+				.unwrap_or_else(|| self.config_root().join("configuration.nix")),
+		}
+	}
+
+	pub fn load_or_default() -> Result<Self> {
+		settings::load(&settings_path()?)
+	}
+
+	/// Saves ordinary preferences while preserving the latest saved consent.
+	pub fn save(&self) -> Result<()> {
+		settings::save(&settings_path()?, self)
+	}
+
+	/// Persists an explicit consent change without saving other in-memory preferences.
+	/// A failed disable still leaves this instance opted out.
+	pub fn set_telemetry_enabled(&mut self, enabled: bool) -> Result<()> {
+		if !enabled {
+			self.telemetry.enabled = false;
+		}
+		self.telemetry = settings::set_telemetry_enabled(&settings_path()?, enabled)?;
+		Ok(())
+	}
+}
+
+pub fn settings_path() -> Result<PathBuf> {
+	// Respect an explicit isolated configuration directory on every platform,
+	// including macOS where BaseDirs otherwise uses Application Support.
+	if let Some(directory) = std::env::var_os("XDG_CONFIG_HOME")
+		.map(PathBuf::from)
+		.filter(|directory| directory.is_absolute())
+	{
+		return Ok(directory.join("noxios-settings").join("settings.json"));
+	}
+	let base = BaseDirs::new().context("locating user directories")?;
+	Ok(base
+		.config_dir()
+		.join("noxios-settings")
+		.join("settings.json"))
+}
+
+/// The directory `NOXIOS_SETTINGS_CONFIG_DIR` names, which wins over the saved setting.
+pub fn config_dir_from_env() -> Option<PathBuf> {
+	std::env::var_os("NOXIOS_SETTINGS_CONFIG_DIR").map(PathBuf::from)
+}
+
+/// The configuration directory used when nothing names another one.
+pub fn default_config_dir() -> PathBuf {
+	PathBuf::from("/etc/nixos")
+}
+
+#[cfg(test)]
+mod tests {
+	use super::*;
+
+	#[test]
+	fn default_config_is_nixos_on_nixpkgs_with_default_theme() {
+		let cfg = Config::default();
+		assert_eq!(cfg.channel, DEFAULT_CHANNEL);
+		assert_eq!(cfg.target, Target::NixosSystem);
+		assert_eq!(cfg.theme, "default");
+		assert_eq!(cfg.input_mode, InputMode::Vim);
+		assert!(cfg.recent_searches.is_empty());
+		assert_eq!(cfg.telemetry, TelemetrySettings::default());
+		assert!(cfg.home_manager_main_file.is_none());
+		assert!(cfg.nixos_main_file.is_none());
+	}
+
+	#[test]
+	fn target_labels_and_tags_are_stable() {
+		assert_eq!(Target::HomeManager.label(), "home-manager");
+		assert_eq!(Target::HomeManager.tag(), "hm");
+		assert_eq!(Target::NixosSystem.label(), "nixos");
+		assert_eq!(Target::NixosSystem.tag(), "nixos");
+	}
+
+	#[test]
+	fn push_recent_trims_deduplicates_and_moves_to_front() {
+		let mut cfg = Config::default();
+		cfg.push_recent(" ripgrep ".into());
+		cfg.push_recent("fd".into());
+		cfg.push_recent("ripgrep".into());
+		cfg.push_recent("   ".into());
+
+		assert_eq!(cfg.recent_searches, vec!["ripgrep", "fd"]);
+	}
+
+	#[test]
+	fn push_recent_caps_history() {
+		let mut cfg = Config::default();
+		for i in 0..25 {
+			cfg.push_recent(format!("pkg-{i}"));
+		}
+
+		assert_eq!(cfg.recent_searches.len(), 20);
+		assert_eq!(cfg.recent_searches.first().unwrap(), "pkg-24");
+		assert_eq!(cfg.recent_searches.last().unwrap(), "pkg-5");
+	}
+
+	#[test]
+	fn config_deserialization_applies_defaults_for_new_fields() {
+		let cfg: Config = serde_json::from_str(
+			r#"{
+                "channel": "nixpkgs-unstable",
+                "target": "home-manager"
+            }"#,
+		)
+		.expect("deserialize config");
+
+		assert_eq!(cfg.channel, "nixpkgs-unstable");
+		assert_eq!(cfg.target, Target::HomeManager);
+		assert_eq!(cfg.theme, "default");
+		assert_eq!(cfg.input_mode, InputMode::Vim);
+		assert_eq!(cfg.tab_labels, TabLabels::IconsAndNames);
+		assert!(cfg.close_button);
+		assert!(cfg.dendritic_detection);
+		assert!(cfg.gui_shortcuts.is_empty());
+		assert_eq!(cfg.telemetry, TelemetrySettings::default());
+		assert!(cfg.recent_searches.is_empty());
+		assert!(cfg.home_manager_main_file.is_none());
+		assert!(cfg.nixos_main_file.is_none());
+	}
+
+	#[test]
+	fn input_modes_have_stable_names() {
+		assert_eq!(serde_json::to_string(&InputMode::Vim).unwrap(), r#""vim""#);
+		assert_eq!(
+			serde_json::to_string(&InputMode::Normal).unwrap(),
+			r#""normal""#
+		);
+		assert_eq!(InputMode::Vim.label(), "Vim mode");
+		assert_eq!(InputMode::Normal.label(), "Normal mode");
+	}
+
+	#[test]
+	fn desktop_shortcuts_round_trip_overrides_and_disabled_actions() {
+		let mut config = Config::default();
+		config
+			.gui_shortcuts
+			.insert("settings".into(), vec!["f2".into(), "ctrl-s".into()]);
+		config.gui_shortcuts.insert("quit".into(), Vec::new());
+		let restored: Config =
+			serde_json::from_str(&serde_json::to_string(&config).unwrap()).unwrap();
+		assert_eq!(restored.gui_shortcuts, config.gui_shortcuts);
+		assert_eq!(restored.input_mode, InputMode::Vim);
+	}
+
+	#[test]
+	fn tab_labels_store_their_kebab_case_names() {
+		for labels in TabLabels::ALL {
+			assert_eq!(
+				serde_json::to_string(&labels).unwrap(),
+				format!("\"{}\"", labels.name())
+			);
+			assert_eq!(TabLabels::from_name(labels.name()), Some(labels));
+		}
+		assert_eq!(TabLabels::from_name("emoji"), None);
+	}
+
+	#[test]
+	fn the_environment_then_the_setting_then_the_default_names_the_config_root() {
+		let cfg = Config {
+			config_dir: Some(PathBuf::from("/tmp/saved-config")),
+			..Config::default()
+		};
+		// SAFETY: no other test in this crate reads or writes the environment.
+		unsafe { std::env::remove_var("NOXIOS_SETTINGS_CONFIG_DIR") };
+		assert_eq!(cfg.config_root(), PathBuf::from("/tmp/saved-config"));
+		assert_eq!(
+			cfg.flake_file(),
+			PathBuf::from("/tmp/saved-config/flake.nix")
+		);
+		assert_eq!(
+			cfg.main_file_for(Target::NixosSystem),
+			PathBuf::from("/tmp/saved-config/configuration.nix")
+		);
+		assert_eq!(Config::default().config_root(), default_config_dir());
+		unsafe { std::env::set_var("NOXIOS_SETTINGS_CONFIG_DIR", "/tmp/env-config") };
+		assert_eq!(cfg.config_root(), PathBuf::from("/tmp/env-config"));
+		unsafe { std::env::remove_var("NOXIOS_SETTINGS_CONFIG_DIR") };
+	}
+
+	#[test]
+	fn explicit_main_file_overrides_are_respected() {
+		let cfg = Config {
+			home_manager_main_file: Some(PathBuf::from("/tmp/home.nix")),
+			nixos_main_file: Some(PathBuf::from("/tmp/configuration.nix")),
+			..Config::default()
+		};
+
+		assert_eq!(
+			cfg.main_file_for(Target::HomeManager),
+			PathBuf::from("/tmp/home.nix")
+		);
+		assert_eq!(
+			cfg.main_file_for(Target::NixosSystem),
+			PathBuf::from("/tmp/configuration.nix")
+		);
+	}
+}

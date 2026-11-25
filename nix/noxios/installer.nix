@@ -138,6 +138,8 @@ in
 				""
 				"To set up a wireless connection, run `nmtui`."
 				""
+				"Run `noxi settings tui` for system settings or `noxi settings --help` for commands."
+				""
 				"Run `noxios-help` for the noxios manual. The live system's flake is in"
 				"/etc/nixos; `sudo noxi system switch` rebuilds the running system from it."
 			]

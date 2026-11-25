@@ -13,7 +13,7 @@ use crate::nixhash::{CAHash, HashAlgo};
 use crate::store_path::StorePath;
 
 use super::{
-	DYNAMIC_DERIVATIONS, Error, GIT_HASHING, as_object, as_str, content_address_from_json,
+	DYNAMIC_DERIVATIONS, Error, GIT_HASHING, as_object, as_str, content_address_from_json_with,
 	content_address_to_json, field, output_name_from_json, output_name_to_json,
 	store_path_from_json, store_path_to_json, type_name,
 };
@@ -67,7 +67,7 @@ impl Output {
 				object, "path",
 			)?)?)),
 			["hash", "method"] => {
-				let ca = content_address_from_json(value)?;
+				let ca = content_address_from_json_with(value, features.git_hashing)?;
 				if matches!(ca, CAHash::Text(_)) && !features.dynamic_derivations {
 					return Err(Error::FeatureRequired(DYNAMIC_DERIVATIONS));
 				}
