@@ -6,6 +6,7 @@ Changes that have not reached a version yet go under an `Unreleased` heading for
 
 ## Repository - Unreleased
 
+- The store library can open local OverlayFS stores, validate the mount, reuse lower-store metadata and deduplicate upper-layer paths. CLI store URL routing is tracked separately.
 - Flake lock commits honor `--commit-lock-file-summary` and its `commit-lockfile-summary` setting alias.
 - Flake lock files retain the implicit registry reference when an input is overridden. A root-level override can point back to the checkout and use its declared inputs.
 - `builtins.getFlake` accepts path values inside evaluator-visible store objects. The Git fetcher computes `revCount` lazily, so clients can use a shallow checkout without asking for its history.

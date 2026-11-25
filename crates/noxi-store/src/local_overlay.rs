@@ -1,13 +1,17 @@
 //! Local stores backed by an externally mounted OverlayFS.
 
 use std::fs;
-use std::path::{Path, PathBuf};
-use std::process::Command;
 #[cfg(target_os = "linux")]
 use std::os::unix::ffi::OsStrExt;
+use std::path::{Path, PathBuf};
+use std::process::Command;
 use std::sync::atomic::{AtomicBool, Ordering};
 
-use nix_compat::nixcpp::settings::Settings;
+use nix_compat::nixcpp::{
+	settings::Settings,
+	store_reference::{StoreReference, Variant},
+	url::{Query, percent_decode},
+};
 use nix_compat::store_path::StorePath;
 use path_clean::PathClean;
 
@@ -23,35 +27,36 @@ pub(crate) struct Overlay {
 /// Open a local-overlay URL. Other schemes return `None` so a caller can
 /// continue resolving stores with its usual registry.
 pub fn open(uri: &str, settings: &Settings) -> Result<Option<LocalStore>> {
-	let (base, query) = uri.split_once('?').unwrap_or((uri, ""));
-	if base != "local-overlay://" {
+	let base = uri.split_once('?').map_or(uri, |(base, _)| base);
+	if !base.starts_with("local-overlay:") {
 		return Ok(None);
 	}
-	if !settings
-		.experimental_features()
-		.contains("local-overlay-store")
-	{
-		return Err(Error::Other(
-			"experimental Nix feature 'local-overlay-store' is disabled; add '--extra-experimental-features local-overlay-store' to enable it".into(),
-		));
-	}
-	let params = parameters(query);
-	let config = local_config(params.get("root").copied(), &params, settings)?;
-	let lower_uri = params.get("lower-store").copied().unwrap_or("");
-	let (lower_base, lower_query) = lower_uri.split_once('?').unwrap_or((lower_uri, ""));
-	let lower_params = parameters(lower_query);
-	let lower_root = match lower_base {
-		"" | "auto" | "local" | "local://" => lower_params.get("root").copied(),
-		path if path.starts_with('/') || path.starts_with("./") || path.starts_with("../") => {
-			Some(path)
+	let cwd = std::env::current_dir()?;
+	let parse = |uri| {
+		let mut warnings = Vec::new();
+		let result = StoreReference::parse(uri, &Query::new(), &cwd, &mut warnings)
+			.map_err(|error| Error::Other(error.to_string()));
+		for warning in warnings {
+			warn(&warning);
 		}
-		_ => {
-			return Err(Error::Other(format!(
-				"store '{lower_uri}' is not a local filesystem store"
-			)));
-		}
+		result
 	};
-	let lower_config = local_config(lower_root, &lower_params, settings)?;
+	let StoreReference { variant, params } = parse(uri)?;
+	let Variant::Specified { authority, .. } = variant else {
+		return Ok(None);
+	};
+	let config = local_config(&authority, &params, settings)?;
+	let lower_uri = params.get("lower-store").map_or("", String::as_str);
+	let StoreReference {
+		variant: lower_variant,
+		params: lower_params,
+	} = parse(lower_uri)?;
+	let authority = match &lower_variant {
+		Variant::Auto | Variant::Local => "",
+		Variant::Specified { scheme, authority } if scheme == "local" => authority,
+		_ => return Err(Error::Other("null pointer cast to ref".into())),
+	};
+	let lower_config = local_config(authority, &lower_params, settings)?;
 	let upper = params.get("upper-layer").ok_or_else(|| {
 		Error::Other(format!(
 			"overlay store at {:?} requires the 'upper-layer' setting",
@@ -59,8 +64,14 @@ pub fn open(uri: &str, settings: &Settings) -> Result<Option<LocalStore>> {
 		))
 	})?;
 	let upper = absolute(upper)?;
-	match params.get("check-mount").copied().unwrap_or("true") {
-		"true" | "yes" | "1" => check_mount(&config.real_store_dir, &lower_config.real_store_dir, &upper)?,
+	match params
+		.get("check-mount")
+		.map(String::as_str)
+		.unwrap_or("true")
+	{
+		"true" | "yes" | "1" => {
+			check_mount(&config.real_store_dir, &lower_config.real_store_dir, &upper)?
+		}
 		"false" | "no" | "0" => {}
 		value => {
 			return Err(Error::Other(format!(
@@ -71,7 +82,9 @@ pub fn open(uri: &str, settings: &Settings) -> Result<Option<LocalStore>> {
 	let lower_dir = &lower_config.real_store_dir;
 	for path in [&config.real_store_dir, &upper] {
 		let canonical = path.canonicalize().unwrap_or_else(|_| path.clone());
-		let lower = lower_dir.canonicalize().unwrap_or_else(|_| lower_dir.clone());
+		let lower = lower_dir
+			.canonicalize()
+			.unwrap_or_else(|_| lower_dir.clone());
 		if canonical.starts_with(&lower) || lower.starts_with(&canonical) {
 			return Err(invalid_mount(&config.real_store_dir));
 		}
@@ -90,25 +103,31 @@ pub fn open(uri: &str, settings: &Settings) -> Result<Option<LocalStore>> {
 	LocalStore::open_with_overlay(config, Some(Box::new(overlay))).map(Some)
 }
 
-fn parameters(query: &str) -> std::collections::BTreeMap<&str, &str> {
-	query.split('&').filter_map(|p| p.split_once('=')).collect()
+fn warn(message: &str) {
+	if nix_compat::log::log_enabled(nix_compat::log::VerbosityLevel::Warn) {
+		eprintln!("warning: {message}");
+	}
 }
 
 fn absolute(path: &str) -> Result<PathBuf> {
 	Ok(std::path::absolute(path)?.clean())
 }
 
-fn local_config(
-	root: Option<&str>,
-	params: &std::collections::BTreeMap<&str, &str>,
-	settings: &Settings,
-) -> Result<LocalStoreConfig> {
-	let mut config = match root {
+fn local_config(authority: &str, params: &Query, settings: &Settings) -> Result<LocalStoreConfig> {
+	let mut config = match params.get("root") {
 		Some(root) => LocalStoreConfig::with_root(&absolute(root)?),
+		None if !authority.is_empty() => {
+			let root =
+				percent_decode(authority).map_err(|error| Error::Other(error.to_string()))?;
+			LocalStoreConfig::with_root(&absolute(&root)?)
+		}
 		None => LocalStoreConfig::system(),
 	};
 	config.apply_config(settings);
-	config.read_only = matches!(params.get("read-only"), Some(&("true" | "1")));
+	config.read_only = matches!(
+		params.get("read-only").map(String::as_str),
+		Some("true" | "yes" | "1")
+	);
 	for (name, dir) in [
 		("real", &mut config.real_store_dir),
 		("state", &mut config.state_dir),

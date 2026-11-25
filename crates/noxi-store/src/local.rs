@@ -328,14 +328,12 @@ impl LocalStore {
 		let Some(info) = overlay.lower.query_path_info(path)? else {
 			return Ok(false);
 		};
-		if !self.config.read_only {
-			for reference in &info.references {
-				if reference != path {
-					self.is_valid_path(reference)?;
-				}
+		for reference in &info.references {
+			if reference != path {
+				self.is_valid_path(reference)?;
 			}
-			self.register_valid_paths_local(&[info])?;
 		}
+		self.register_valid_paths_local(&[info])?;
 		Ok(true)
 	}
 

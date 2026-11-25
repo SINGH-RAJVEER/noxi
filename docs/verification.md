@@ -429,6 +429,8 @@ Three of these causes were closed on 2026-11-25. A run of all 214 scripts under 
 
 The store directory constant in `.narinfo` files is fixed: `ca/substitute` now stops at `nix store build-trace info --file`. `ca/duplicate-realisation-in-closure` and `local-overlay-store/stale-file-handle` are skipped by upstream itself under both engines now, so they stay anomalies.
 
+The store library now has a `local-overlay://` opener. The functional gaps still require CLI routing to that opener. CppNix 2.35.2 advertises `local-overlay-store` but attempts to open the store even when the feature flag is absent. The invalid-mount differential test checks both flag states. With `check-mount=false`, noxi still refuses overlapping lower, merged or upper paths that could let deletion reach the lower store directly.
+
 Four more causes were closed later that day. The run at `877665e` ([records](../tests/compat-results/2026-11-25-877665e-store/)) gives 84 pass, 118 gap, 10 anomaly and 2 unrun, and no script that passed before fails. `reference_rebuild` and `reference_cache_store` compare each behavior with the reference.
 
 - Rebuilding with some outputs valid (row 3): unsandboxed builds write an output whose path is present to a scratch path and rewrite its hash parts afterwards, as `DerivationBuilderImpl` does. `build-delete` and `ca/build-delete` pass.
