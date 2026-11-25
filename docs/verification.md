@@ -452,7 +452,7 @@ Building the remaining kinds of outputs was closed next. The run at `84915f32` (
 - Text-hashed and Git-hashed outputs, fixed or floating, and `nix store add --mode text|git` and `nix hash path --mode git` (row 4): `add`, `git-hashing/fixed`, `git-hashing/simple-sha1` and `git-hashing/simple-sha256` pass, `dyn-drv/text-hashed-output` from row 2 with `nix path-info --derivation`, and `fixed` from row 17, whose flat output with references is refused.
 - Impure derivations (row 2) are built at random paths, once per request, and leave no realisation. `impure-derivations` passes.
 - Dynamic derivations (row 2): the `DrvWithVersion` form is evaluated, written, read and resolved, and `DRV^out^out` installables are built. `dyn-drv/build-built-drv`, `dyn-drv/dep-built-drv` and `dyn-drv/failing-outer` pass. `dyn-drv/dep-built-drv-2` and `dyn-drv/recursive-mod-json` stop at `recursive-nix`.
-- `builtin:fetchurl` and `ssl-cert-file` (rows 6 and 17): `fetchurl` and `check` pass. `linux-sandbox` reaches line 104 of 148 and stops at the refusal of `sandbox-paths` targets that contain `..` or an empty name.
+- `builtin:fetchurl` and `ssl-cert-file` (rows 6 and 17): `fetchurl` and `check` pass.
 
 Differences that remain in these areas:
 
@@ -479,6 +479,14 @@ Security-relevant behavior and its negative tests:
 - A copied realisation needs a signature by a trusted key unless signature checks are off, even when its output is content-addressed (`unsigned_copies_are_refused_like_the_reference`, `secret_key_files_sign_builds_like_the_reference`).
 - `nix copy` between stores kept the source's ultimate trust, so `nix store verify` accepted an unsigned copy. It no longer does (`copies_between_stores_are_not_ultimately_trusted`).
 - A fixed output is copied into a directory the builder cannot enter before it is hashed and registered, as `moveOutputToTempDir` does, so a process the builder left behind holds no writable descriptor of it. No test exercises such a process.
+
+### Sandbox path targets, 2026-11-25
+
+`sandbox-paths` targets could reach the host. At `da3e6d7c` the sandbox setup created mount points by path before `pivot_root`, following symlinks. With `/a=LINK` and `/a/new=FILE`, where `LINK` is a symlink to a host directory, it created `new` in that directory on the host; a directory source created a directory there and a symlink source a symlink. A symlink inside a bound directory had the same effect, so somebody who may write to a bound directory could redirect a configured target below it. The process that creates them has the host identity of the building process, root in a daemon run as root, and the mounts themselves stay in the build's private mount namespace. Existing host files were not overwritten (`O_EXCL`), and `..` was already refused. Only trusted users can set `sandbox-paths`, so an untrusted client needs such a configuration to exist.
+
+noxi now follows the reference's `doBind`: every component is opened with `O_NOFOLLOW` relative to the chroot's directory descriptor, `..` cannot rise above it, and sources and targets are attached by descriptor with `open_tree` and `move_mount`. `reference_sandbox_paths` compares 101 settings with the reference, including the messages, and checks that the host tree is unchanged: targets below symlinks, also in bound directories; `..`, `.`, empty and relative targets; targets over `/etc`, `/dev`, `/proc`, `/tmp`, `/build`, the store and `real-root`; and optional paths. `linux-sandbox` passes.
+
+Remaining, as in the reference: a directory bound to `/etc` is made read-only on the host when the building process owns it; a symlink bound to `/proc` or `/dev` directs the sandbox's own mounts, in its private namespace; and a target below a bound directory creates missing components in that directory. When one setting without `extra-` gives two sources for one target, the reference uses the last in byte order and noxi the first. The checks ran unprivileged in user namespaces; a root daemon with build users needs a VM.
 
 `reference_rebuild`, `reference_cache_store` and `reference_installables` run with no other test alongside. On a loaded host the reference itself fails unsandboxed builds with `builder failed due to signal 9 (Killed)`: forty concurrent `nix-build` loops of a trivial derivation, with no noxi code involved, showed it repeatedly.
 

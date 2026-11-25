@@ -42,7 +42,7 @@ use sha2::{Digest, Sha256};
 use crate::error::{BuildError, FailureStatus, Result};
 use crate::options::{self, DerivationOptions, DrvRef, OutputChecks, OutputChecksSpec};
 use crate::refscan::scan_for_references;
-use crate::sandbox::{self, Bind, SandboxSpec};
+use crate::sandbox::{self, Bind, ChrootBinds, SandboxSpec};
 use crate::settings::{BuildSettings, SandboxMode};
 use crate::structured;
 use crate::user_lock::{self, BuildUser};
@@ -2891,6 +2891,81 @@ impl<'b> Build<'b> {
 		Ok(s)
 	}
 
+	/// `getPathsInSandbox` and `ChrootDerivationBuilder::prepareSandbox`:
+	/// the host paths the builder sees.
+	fn chroot_binds(&self, input_paths: &BTreeSet<StorePath>) -> Result<Vec<Bind>> {
+		let settings = self.builder.settings;
+		let store = self.builder.store;
+		let mut binds = ChrootBinds::default();
+		if self.direct {
+			return Ok(Vec::new());
+		}
+		for path in &settings.sandbox_paths {
+			binds.add(Bind {
+				target: PathBuf::from(&path.target),
+				source: PathBuf::from(&path.source),
+				optional: path.optional,
+			});
+		}
+		// Store paths made visible bring their closures.
+		let mut closure = BTreeSet::new();
+		for path in &settings.sandbox_paths {
+			let in_store = Path::new(&path.source)
+				.strip_prefix(store_dir())
+				.ok()
+				.and_then(|rest| rest.iter().next())
+				.and_then(|name| StorePath::from_bytes(name.as_encoded_bytes()).ok());
+			if let Some(source) = in_store
+				&& store.is_valid_path(&source)?
+			{
+				self.builder.closure(&source, &mut closure)?;
+			}
+		}
+		for path in closure {
+			let path = PathBuf::from(print(&path));
+			binds.set(Bind {
+				target: path.clone(),
+				source: path,
+				optional: false,
+			});
+		}
+		let build_top = self.build_top();
+		if store_dir()
+			.as_bytes()
+			.starts_with(build_top.as_os_str().as_encoded_bytes())
+		{
+			return Err(BuildError::Other(
+				"`sandbox-build-dir` must not contain the storeDir".to_owned(),
+			));
+		}
+		binds.set(Bind {
+			target: build_top,
+			source: self.tmp_dir.clone(),
+			optional: false,
+		});
+		for path in input_paths {
+			binds.set(Bind {
+				target: PathBuf::from(print(path)),
+				source: store.real_path(path),
+				optional: false,
+			});
+		}
+		for output in self.scratch.values() {
+			binds.remove(Path::new(&print(output)));
+		}
+		// `ssl-cert-file`, for builders with access to the network.
+		if !self.sandboxed
+			&& let Some(file) = settings.ca_file().filter(|file| file.exists())
+		{
+			binds.add(Bind {
+				target: PathBuf::from("/etc/ssl/certs/ca-certificates.crt"),
+				source: fs::canonicalize(file)?,
+				optional: true,
+			});
+		}
+		Ok(binds.iter().cloned().collect())
+	}
+
 	fn run(
 		&self,
 		drv: &UnverifiedDerivation,
@@ -2899,73 +2974,24 @@ impl<'b> Build<'b> {
 		events: &mut dyn FnMut(BuildEvent<'_>),
 	) -> Result<()> {
 		let settings = self.builder.settings;
-		let store = self.builder.store;
 
 		let rewrites = &self.input_rewrites;
 		let env = self.environment(drv, env, input_paths, rewrites)?;
 
-		let mut binds: BTreeMap<PathBuf, Bind> = BTreeMap::new();
-		for path in &settings.sandbox_paths {
-			binds.insert(
-				PathBuf::from(&path.target),
-				Bind {
-					target: PathBuf::from(&path.target),
-					source: PathBuf::from(&path.source),
-					optional: path.optional,
-				},
-			);
-		}
-		let build_top = self.build_top();
-		binds.insert(
-			build_top.clone(),
-			Bind {
-				target: build_top.clone(),
-				source: self.tmp_dir.clone(),
-				optional: false,
-			},
-		);
-		// `ssl-cert-file`, for builders with access to the network.
-		let ca_bundle = PathBuf::from("/etc/ssl/certs/ca-certificates.crt");
-		if !self.sandboxed
-			&& !binds.contains_key(&ca_bundle)
-			&& let Some(file) = settings.ca_file().filter(|file| file.exists())
-		{
-			binds.insert(
-				ca_bundle.clone(),
-				Bind {
-					target: ca_bundle,
-					source: fs::canonicalize(file)?,
-					optional: true,
-				},
-			);
-		}
-		for path in input_paths {
-			let target = PathBuf::from(print(path));
-			binds.insert(
-				target.clone(),
-				Bind {
-					target,
-					source: store.real_path(path),
-					optional: false,
-				},
-			);
-		}
-		for output in self.scratch.values() {
-			binds.remove(Path::new(&print(output)));
-		}
+		let binds = self.chroot_binds(input_paths)?;
 
 		let spec = SandboxSpec {
 			chroot_root: self.chroot_root.clone(),
 			chroot: !self.direct,
 			store_dir: PathBuf::from(store_dir()),
-			binds: binds.into_values().collect(),
+			binds,
 			sandboxed: self.sandboxed,
 			build_user: self.build_user.as_ref().map(|u| (u.uid, u.gid)),
 			kvm: settings.system_features.contains("kvm"),
 			shm_size: settings.sandbox_shm_size.clone(),
 			allow_new_privileges: settings.allow_new_privileges,
 			filter_syscalls: settings.filter_syscalls,
-			build_dir_in_sandbox: build_top,
+			build_dir_in_sandbox: self.build_top(),
 			builder: drv.command().to_vec(),
 			args: drv
 				.arguments()

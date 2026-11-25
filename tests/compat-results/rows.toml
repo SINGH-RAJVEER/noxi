@@ -112,6 +112,7 @@ build-engine-and-sandbox = [
 	"noxi-build",
 	"noxi-commands::reference_experimental_outputs",
 	"noxi-commands::reference_rebuild",
+	"noxi-commands::reference_sandbox_paths",
 	"noxi-compat-tests::reference_build",
 ]
 binary-caches-and-signatures = [

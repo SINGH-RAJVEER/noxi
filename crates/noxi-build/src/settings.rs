@@ -23,19 +23,16 @@ pub struct SandboxPath {
 
 impl SandboxPath {
 	/// Parse a `sandbox-paths` entry: `PATH`, `TARGET=SOURCE`, with an
-	/// optional trailing `?` on the source.
+	/// optional trailing `?`.
 	pub fn parse(entry: &str) -> Self {
-		let (target, source) = match entry.split_once('=') {
-			Some((t, s)) => (t.to_owned(), s.to_owned()),
-			None => (entry.trim_end_matches('?').to_owned(), entry.to_owned()),
+		let (entry, optional) = match entry.strip_suffix('?') {
+			Some(entry) => (entry, true),
+			None => (entry, false),
 		};
-		let (source, optional) = match source.strip_suffix('?') {
-			Some(s) => (s.to_owned(), true),
-			None => (source, false),
-		};
+		let (target, source) = entry.split_once('=').unwrap_or((entry, entry));
 		SandboxPath {
-			target,
-			source,
+			target: target.to_owned(),
+			source: source.to_owned(),
 			optional,
 		}
 	}

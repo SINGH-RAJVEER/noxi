@@ -353,7 +353,7 @@ tests/functional/lang-gc/issue-11141-gc-coroutine-test.nix support
 tests/functional/lang.sh pass pass pass
 tests/functional/legacy-ssh-store.sh gap fail pass # main in legacy-ssh-store.sh:8: error: unsupported store parameter 'remote-store=$ROOT/tmp/nix-test/main/legacy-ssh-store/other-store' in 'ssh://localhost?remote-store=$ROOT/tmp/nix-test/main/legacy-ss
 tests/functional/linux-sandbox-cert-test.nix support
-tests/functional/linux-sandbox.sh gap fail pass # main in linux-sandbox.sh:104: /my/store/HASH-test-sandbox-paths
+tests/functional/linux-sandbox.sh pass pass pass
 tests/functional/local-overlay-store/add-lower-inner.sh support
 tests/functional/local-overlay-store/add-lower.sh gap fail pass # main in ./add-lower-inner.sh:20: error: unsupported store parameter 'lower-store=$ROOT/tmp/nix-test/local-overlay-store/add-lower/stores/store-a' in 'local-overlay://?root=$ROOT/tmp/nix-test/local-ove
 tests/functional/local-overlay-store/bad-uris.sh gap fail pass # : local-overlay://?root=$ROOT/tmp/nix-test/local-overlay-store/bad-uris/bad_test&lower-store=$ROOT/tmp/nix-test/local-overlay-store/bad-uris/stores/store-a&upper-layer=$ROOT/tmp/nix-test/local-overlay
