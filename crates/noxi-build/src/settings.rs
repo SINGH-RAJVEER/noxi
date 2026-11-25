@@ -54,6 +54,9 @@ pub struct BuildSettings {
 	pub system: String,
 	pub extra_platforms: BTreeSet<String>,
 	pub system_features: BTreeSet<String>,
+	/// `system_features` are those of the store, to which enabled
+	/// experimental features add none.
+	pub exact_system_features: bool,
 	/// `cores`; 0 means all available.
 	pub build_cores: u32,
 	pub keep_failed: bool,
@@ -150,6 +153,7 @@ impl Default for BuildSettings {
 			]
 			.map(String::from)
 			.into(),
+			exact_system_features: false,
 			build_cores: 0,
 			keep_failed: false,
 			allow_new_privileges: false,
@@ -360,6 +364,11 @@ impl BuildSettings {
 		std::thread::available_parallelism()
 			.map(|n| n.get() as u32)
 			.unwrap_or(1)
+	}
+
+	/// `max-build-log-size`; 0 for no limit.
+	pub fn max_log_size(&self) -> u64 {
+		self.config.get_int("max-build-log-size", 0).max(0) as u64
 	}
 
 	/// Whether this machine can build for `system`.

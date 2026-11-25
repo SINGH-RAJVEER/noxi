@@ -1337,6 +1337,31 @@ impl LocalBuilder<'_> {
 		self.settings.max_build_jobs > 1 || self.settings.keep_going || self.hooks.is_some()
 	}
 
+	/// The store's `system-features`: `getDefaultSystemFeatures`, unless the
+	/// store was opened with some of its own.
+	fn available_features(&self) -> BTreeSet<&str> {
+		let mut features: BTreeSet<&str> = self
+			.settings
+			.system_features
+			.iter()
+			.map(String::as_str)
+			.collect();
+		if !self.settings.exact_system_features {
+			if self.store.config().ca_derivations {
+				features.insert("ca-derivations");
+			}
+			if self
+				.settings
+				.config
+				.experimental_features()
+				.contains("recursive-nix")
+			{
+				features.insert("recursive-nix");
+			}
+		}
+		features
+	}
+
 	/// Check that this machine can build `drv`: `LocalBuildRejection`.
 	fn check_platform(
 		&self,
@@ -1349,9 +1374,10 @@ impl LocalBuilder<'_> {
 		let bad_platform = !builtin
 			&& system != self.settings.system
 			&& !self.settings.extra_platforms.contains(system.as_ref());
+		let available = self.available_features();
 		let missing: Vec<&str> = features
 			.iter()
-			.filter(|f| !self.settings.system_features.contains(*f))
+			.filter(|f| !available.contains(f.as_str()))
 			.map(String::as_str)
 			.collect();
 		let max_jobs_zero = self.settings.max_build_jobs == 0;
@@ -1376,12 +1402,7 @@ impl LocalBuilder<'_> {
 					.map(String::as_str)
 					.collect::<Vec<_>>()
 					.join(", "),
-				self.settings
-					.system_features
-					.iter()
-					.map(String::as_str)
-					.collect::<Vec<_>>()
-					.join(", ")
+				available.into_iter().collect::<Vec<_>>().join(", ")
 			);
 		}
 		Err(BuildError::failed(FailureStatus::InputRejected, msg))
@@ -1417,7 +1438,7 @@ impl LocalBuilder<'_> {
 			tracing::warn!("{warning}");
 		}
 
-		let features = drv_options.get_required_system_features(true);
+		let features = drv_options.get_required_system_features(has_known_output_paths(build_drv));
 		let mut rejection = self.check_platform(drv_path, drv, &features).err();
 		// Only an untouched store's derivations can be built elsewhere:
 		// checks and repairs are about this store.
@@ -2559,6 +2580,22 @@ enum Prepared {
 	Locked(PathLocks),
 }
 
+/// `doneFailureLogTooLong`.
+fn log_too_long(drv_path: &StorePath, max_log_size: u64) -> BuildError {
+	BuildError::failed(
+		FailureStatus::LogLimitExceeded,
+		format!(
+			"building derivation '{}' killed after writing more than {max_log_size} bytes of log output",
+			print(drv_path)
+		),
+	)
+}
+
+/// `DerivationType::hasKnownOutputPaths`.
+pub fn has_known_output_paths(drv: &BuildDerivation) -> bool {
+	drv.is_fixed() || !(drv.has_floating_outputs() || drv.is_impure() || drv.is_deferred())
+}
+
 /// `runPostBuildHook`.
 pub(crate) fn run_post_build_hook(
 	settings: &BuildSettings,
@@ -2632,14 +2669,14 @@ pub(crate) fn build_with_hook(
 	events: &mut dyn FnMut(BuildEvent<'_>),
 ) -> Result<()> {
 	let machine = hook.read_machine_name(cancelled)?;
-	hook.send_paths(input_paths, missing_outputs)?;
-	let mut log_file = open_log_file(settings, log_dir, drv_path)?;
 	events(BuildEvent::StartedRemotely {
 		drv_path,
 		mode: BuildMode::Normal,
 		machine: &machine,
 	});
-	let max_log_size = settings.config.get_int("max-build-log-size", 0).max(0) as u64;
+	hook.send_paths(input_paths, missing_outputs)?;
+	let mut log_file = open_log_file(settings, log_dir, drv_path)?;
+	let max_log_size = settings.max_log_size();
 	let mut tail = LogTail::new(settings.log_lines);
 	let mut log_size = 0u64;
 	let status = hook.run(cancelled, &mut |event| {
@@ -2647,13 +2684,7 @@ pub(crate) fn build_with_hook(
 			HookEvent::Output(data) => {
 				log_size += data.len() as u64;
 				if max_log_size != 0 && log_size > max_log_size {
-					return Err(BuildError::failed(
-						FailureStatus::LogLimitExceeded,
-						format!(
-							"building derivation '{}' killed after writing more than {max_log_size} bytes of log output",
-							print(drv_path)
-						),
-					));
+					return Err(log_too_long(drv_path, max_log_size));
 				}
 				tail.feed(data);
 				events(BuildEvent::Output(data));
@@ -3335,9 +3366,16 @@ impl<'b> Build<'b> {
 		let mut log_file = self.open_log_file()?;
 		let mut tail = LogTail::new(settings.log_lines);
 		let mut write_error = None;
+		let max_log_size = settings.max_log_size();
+		let log_size = Cell::new(0u64);
+		let too_long = || max_log_size != 0 && log_size.get() > max_log_size;
 		let status = sandbox::run_cancellable(
 			&spec,
 			&mut |data: &[u8]| {
+				log_size.set(log_size.get() + data.len() as u64);
+				if too_long() {
+					return;
+				}
 				tail.feed(data);
 				if let Some(file) = &mut log_file
 					&& let Err(e) = file.write_all(data)
@@ -3346,7 +3384,7 @@ impl<'b> Build<'b> {
 				}
 				events(BuildEvent::Output(data));
 			},
-			&|| self.builder.is_cancelled(),
+			&|| too_long() || self.builder.is_cancelled(),
 		);
 		// `killSandbox`: nothing the builder started may outlive it.
 		if let Some(user) = &self.build_user {
@@ -3358,6 +3396,9 @@ impl<'b> Build<'b> {
 		}
 		if let Some(e) = write_error {
 			return Err(e.into());
+		}
+		if too_long() {
+			return Err(log_too_long(&self.drv_path, max_log_size));
 		}
 		let status = status?;
 		if !status.success() {

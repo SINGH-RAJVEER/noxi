@@ -11,7 +11,7 @@ use std::path::{Path, PathBuf};
 use crate::backend::BuildLogs;
 use crate::error::{BuildError, FailureStatus};
 use crate::hook::{Hooks, Reply};
-use crate::local::{BuildEvent, build_with_hook, run_post_build_hook};
+use crate::local::{BuildEvent, build_with_hook, has_known_output_paths, run_post_build_hook};
 use crate::options;
 use crate::settings::BuildSettings;
 use nix_compat::derivation::UnverifiedDerivation;
@@ -77,7 +77,7 @@ impl CacheStore {
 			false,
 			&mut Vec::new(),
 		)?
-		.get_required_system_features(true);
+		.get_required_system_features(has_known_output_paths(&drv));
 		let mut inputs = drv.basic.input_sources().clone();
 		for (input, names) in drv.basic.input_derivations() {
 			let known = self.deep_query_partial_derivation_output_map(input)?;

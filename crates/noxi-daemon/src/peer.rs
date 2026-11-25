@@ -13,7 +13,9 @@ use noxi_build::local::{BuildEvent, LocalBuilder};
 use noxi_build::settings::BuildSettings;
 use noxi_store::binary_cache::BinaryCache;
 use noxi_store::build_derivation::{BuildDerivation, ExperimentalMethod};
-use noxi_store::{DerivedPath, FileIngestionMethod, LocalStore, Result, Store, ValidPathInfo};
+use noxi_store::{
+	BuildMode, DerivedPath, FileIngestionMethod, LocalStore, Result, Store, ValidPathInfo,
+};
 
 use crate::connection::{failure_code, now};
 use crate::wire::{Reader, Writer};
@@ -85,11 +87,14 @@ pub fn build_locally(
 	settings: &BuildSettings,
 	substituters: &[BinaryCache],
 	cancelled: Option<&std::sync::atomic::AtomicBool>,
+	mode: BuildMode,
 	drv_path: &StorePath,
 	drv: &BuildDerivation,
 ) -> BuildResult {
 	use nix_compat::log::logger;
-	let mut builder = LocalBuilder::new(store, settings).with_substituters(substituters);
+	let mut builder = LocalBuilder::new(store, settings)
+		.with_substituters(substituters)
+		.with_mode(mode);
 	if let Some(cancelled) = cancelled {
 		builder = builder.with_cancellation(cancelled);
 	}
@@ -120,7 +125,14 @@ pub fn build_locally(
 		Err(error) => BuildResult {
 			start,
 			stop: now(),
-			..BuildResult::failure(failure_code(&error), error.to_string())
+			..BuildResult::failure(
+				failure_code(&error),
+				match error {
+					noxi_build::BuildError::Failed { message, .. } => message,
+					// `Store::buildDerivation` catches what ends the worker.
+					error => format!("error: {error}"),
+				},
+			)
 		},
 	}
 }
@@ -161,6 +173,7 @@ impl Peer for LocalBackend {
 			&self.settings,
 			self.open_substituters(),
 			None,
+			BuildMode::Normal,
 			drv_path,
 			drv,
 		))

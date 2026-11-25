@@ -146,12 +146,14 @@ fn parse_builder_line(
 		// CppNix only checks the characters it decodes: those before the
 		// first `=`, skipping newlines.
 		let data: String = key.split('=').next().unwrap_or("").replace('\n', "");
-		if let Some(c) = data
+		if data
 			.chars()
-			.find(|c| !(c.is_ascii_alphanumeric() || *c == '+' || *c == '/'))
+			.any(|c| !(c.is_ascii_alphanumeric() || c == '+' || c == '/'))
 		{
+			// The reference highlights the character, and prints only the
+			// first byte of the result, the escape.
 			return Err(Error::Format(format!(
-				"invalid character in Base64 string: '{c}'"
+				"\n… while parsing machine specification at a column #7 in a row: '{line}'\n\nerror: invalid character in Base64 string: '\x1b'"
 			)));
 		}
 		key.to_owned()

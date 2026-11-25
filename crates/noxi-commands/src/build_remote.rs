@@ -159,7 +159,10 @@ pub fn main(mut settings: Settings, args: Vec<String>) -> Result<ExitCode, Failu
 		&cwd,
 		&mut warnings,
 	)
-	.map_err(message)?;
+	.map_err(|e| match e {
+		nix_compat::nixcpp::machines::Error::Usage(text) => Failure::Usage(text),
+		e => message(e),
+	})?;
 	for warning in warnings {
 		logger::warn(&warning);
 	}
@@ -235,10 +238,15 @@ impl Hook {
 		&mut self,
 		request: &Request,
 	) -> Result<Option<(usize, Box<dyn Peer>, File)>, Failure> {
-		let available = &self.build.system_features;
+		let experimental = self.settings.experimental_features();
+		let available = |feature: &String| {
+			self.build.system_features.contains(feature)
+				|| matches!(feature.as_str(), "ca-derivations" | "recursive-nix")
+					&& experimental.contains(feature.as_str())
+		};
 		let could_build_locally = self.max_jobs > 0
 			&& self.build.can_build_platform(&request.system)
-			&& request.features.iter().all(|f| available.contains(f));
+			&& request.features.iter().all(available);
 		let can_build_locally = request.willing && could_build_locally;
 		let _ = std::fs::create_dir(&self.current_load);
 		loop {
@@ -444,9 +452,7 @@ impl Hook {
 
 		let mut missing = BTreeSet::new();
 		let mut realisations = BTreeMap::new();
-		let known_paths =
-			drv.is_fixed() || !(drv.has_floating_outputs() || drv.is_impure() || drv.is_deferred());
-		if self.features().ca_derivations && !known_paths {
+		if self.features().ca_derivations && !noxi_build::local::has_known_output_paths(&drv) {
 			for output in &wanted {
 				if store.query_realisation(drv_path, output)?.is_some() || !result.success() {
 					continue;
@@ -639,6 +645,7 @@ fn copy_paths(
 	let sorted = crate::paths::topo_sort_by(paths, |path| Ok(known[path].references.clone()))?;
 	let infos: Vec<ValidPathInfo> = sorted
 		.into_iter()
+		.rev()
 		.map(|path| {
 			let mut info = known[&path].clone();
 			info.ultimate = false;

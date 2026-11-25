@@ -1380,37 +1380,22 @@ impl<R: Read + Send, W: Write + Send + 'static> Connection<'_, R, W> {
 			)?;
 		}
 		let cancelled = self.cancelled.clone();
-		let builder = LocalBuilder::new(store, &self.settings.build)
-			.with_cancellation(&cancelled)
-			.with_mode(build_mode(mode));
-		let start = now();
-		// The worker runs one goal for the derivation; its progress and the
-		// build's activity go to the client through the tunnel.
-		let worker = logger::WorkerGuard::new();
-		// Creating the goal reports progress, then counts its expected build,
-		// which is released at once if the outputs are valid.
-		logger::worker_update(|_| {});
-		logger::worker_update(|c| c.expected_builds += 1);
-		let mut built = false;
-		let mut logs = BuildLogs::default();
-		let mut events = |event: BuildEvent<'_>| build_event(&mut logs, &mut built, event);
-		let result = builder.build_supplied_derivation(&path, &drv, &mut events);
-		if result.is_ok() && !built {
-			logger::worker_update(|c| c.expected_builds = c.expected_builds.saturating_sub(1));
-		}
-		drop(logs);
-		drop(worker);
-		let result = result
-			.map(|paths| {
-				if built {
-					BuildOutcome::Built(paths)
-				} else {
-					BuildOutcome::AlreadyValid(paths)
-				}
-			})
-			.map_err(|e| (e.to_string(), failure_code(&e)));
+		let result = crate::peer::build_locally(
+			store,
+			&self.settings.build,
+			&[],
+			Some(&cancelled),
+			build_mode(mode),
+			&path,
+			&drv,
+		);
 		self.stop();
-		self.write_build_result(result, start, now(), Some(0));
+		let outcome = match result.status {
+			0 => Ok(BuildOutcome::Built(result.outputs)),
+			2 => Ok(BuildOutcome::AlreadyValid(result.outputs)),
+			code => Err((result.message, code)),
+		};
+		self.write_build_result(outcome, result.start, result.stop, Some(0));
 		Ok(())
 	}
 

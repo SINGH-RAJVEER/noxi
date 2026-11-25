@@ -17,6 +17,7 @@ pub fn text(value: &Value, name: &str) -> String {
 	match value {
 		Value::Null => String::new(),
 		Value::String(s) => s.clone(),
+		Value::Array(a) if a.is_empty() && name == "external-builders" => "[]".to_owned(),
 		Value::Array(a) => a
 			.iter()
 			.map(|v| text(v, name))

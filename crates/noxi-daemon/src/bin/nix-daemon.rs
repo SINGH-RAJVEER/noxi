@@ -70,6 +70,17 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
 		.unwrap_or_else(|| config.state_dir.join("daemon-socket/socket"));
 	let mut settings = DaemonSettings::from_config(config, &settings)?;
 	settings.force_trust = force_trust;
+	// The build hook is told which store the daemon builds in.
+	if !uri.is_empty() {
+		settings.build.store_uri = nix_compat::nixcpp::store_reference::StoreReference::parse(
+			&uri,
+			&Default::default(),
+			&std::env::current_dir()?,
+			&mut Vec::new(),
+		)
+		.ok()
+		.map(|reference| reference.render(true));
+	}
 	if stdio {
 		let store = LocalStore::open(settings.store.clone())?;
 		process_monitored_connection(

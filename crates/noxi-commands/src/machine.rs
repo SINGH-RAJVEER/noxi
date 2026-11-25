@@ -149,6 +149,7 @@ pub fn open_local(
 	build.show_log_tail = !nix_compat::log::print_build_logs();
 	build.store_uri = Some(reference.render(true));
 	if let Some(features) = reference.params.get("system-features") {
+		build.exact_system_features = true;
 		build.system_features = features
 			.split_ascii_whitespace()
 			.map(str::to_owned)

@@ -72,6 +72,7 @@ impl Served for LocalBackend {
 			&self.settings,
 			self.open_substituters(),
 			Some(&cancelled),
+			noxi_store::BuildMode::Normal,
 			drv_path,
 			drv,
 		))

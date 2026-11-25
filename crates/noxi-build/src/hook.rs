@@ -16,7 +16,7 @@ use std::path::{Path, PathBuf};
 use std::sync::{Arc, Condvar, Mutex};
 use std::time::{Duration, Instant};
 
-use nix_compat::log::logger::{self, Activity, LogField};
+use nix_compat::log::logger::{self, ANSI_MAGENTA, ANSI_NORMAL, ANSI_RED, Activity, LogField};
 use nix_compat::log::{ActivityType, ResultType, VerbosityLevel};
 use nix_compat::nixcpp::machines::Machine;
 use nix_compat::store_path::StorePath;
@@ -192,6 +192,7 @@ impl Hooks {
 			}
 			let _ = io::stderr().lock().write_all(&[&line[..], b"\n"].concat());
 		};
+		logger::log(VerbosityLevel::Debug, &format!("hook reply is '{reply}'"));
 		match reply.as_str() {
 			"accept" => Ok(Reply::Accept(hook)),
 			"decline" => {
@@ -213,7 +214,7 @@ impl Hooks {
 
 fn traced(error: BuildError, trace: &str) -> BuildError {
 	match error {
-		BuildError::Other(message) => BuildError::Other(format!("{message}\n… {trace}")),
+		BuildError::Other(message) => BuildError::Other(format!("\n… {trace}\n\nerror: {message}")),
 		error => error,
 	}
 }
@@ -288,9 +289,10 @@ fn find_program(name: &str) -> Result<PathBuf> {
 			return Ok(file);
 		}
 	}
-	Err(BuildError::Other(format!(
-		"Could not find executable '{name}'\n… while resolving the 'build-hook' setting'"
-	)))
+	Err(traced(
+		BuildError::Other(format!("Could not find executable '{name}'")),
+		"while resolving the 'build-hook' setting'",
+	))
 }
 
 impl HookInstance {
@@ -666,7 +668,35 @@ fn spawn(
 		.collect::<Result<Vec<CString>>>()?;
 	let mut pointers: Vec<*const libc::c_char> = c_args.iter().map(|arg| arg.as_ptr()).collect();
 	pointers.push(std::ptr::null());
-	let error = format!("executing \"{}\"\n", program.display());
+	// `startProcess` prints what the child threw, colours included.
+	let prefix = format!(
+		"{ANSI_RED}error:{ANSI_NORMAL} executing {ANSI_MAGENTA}\"{}\"{ANSI_NORMAL}",
+		program.display()
+	);
+	let errors: Vec<(i32, String)> = [
+		libc::ENOENT,
+		libc::EACCES,
+		libc::ENOTDIR,
+		libc::ENOEXEC,
+		libc::E2BIG,
+		libc::ELOOP,
+		libc::ETXTBSY,
+	]
+	.into_iter()
+	.map(|code| {
+		let reason = io::Error::from_raw_os_error(code).to_string();
+		let reason = reason
+			.split(" (os error")
+			.next()
+			.unwrap_or_default()
+			.to_owned();
+		(
+			code,
+			format!("{prefix}: {ANSI_MAGENTA}{reason}{ANSI_NORMAL}\n"),
+		)
+	})
+	.collect();
+	let error = format!("{prefix}\n");
 	// SAFETY: the child of a possibly threaded process makes only
 	// async-signal-safe calls on memory prepared before the fork.
 	unsafe {
@@ -678,6 +708,11 @@ fn spawn(
 			return Ok(pid);
 		}
 		let fail = || -> ! {
+			let code = *libc::__errno_location();
+			let error = errors
+				.iter()
+				.find(|(known, _)| *known == code)
+				.map_or(error.as_str(), |(_, error)| error.as_str());
 			libc::write(2, error.as_ptr().cast(), error.len());
 			libc::_exit(1);
 		};

@@ -251,6 +251,7 @@ impl SshMaster {
 		Ok(())
 	}
 
+	/// `createSSHEnv`: `ssh` runs its local command with `SHELL`.
 	fn ssh(&self) -> Command {
 		let mut command = Command::new("ssh");
 		command.env("SHELL", "/bin/sh");
@@ -260,8 +261,7 @@ impl SshMaster {
 	fn master_is_running(&self) -> Result<bool> {
 		let mut args = vec!["-O".into(), "check".into(), self.destination()];
 		self.common_options(&mut args)?;
-		let output = self
-			.ssh()
+		let output = Command::new("ssh")
 			.args(args)
 			.stdin(Stdio::null())
 			.output()
