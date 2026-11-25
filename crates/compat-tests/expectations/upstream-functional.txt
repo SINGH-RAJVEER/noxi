@@ -403,7 +403,7 @@ tests/functional/nix-copy-ssh-ng.sh gap fail pass # source in nix-copy-ssh-commo
 tests/functional/nix-copy-ssh.sh gap fail pass # source in nix-copy-ssh-common.sh:39: error: unsupported store parameter 'store=$ROOT/tmp/nix-test/main/nix-copy-ssh/store' in 'ssh://localhost?store=$ROOT/tmp/nix-test/main/nix-copy-ssh/store&remote-s
 tests/functional/nix-daemon-untrusting.sh support # daemon wrapper used by remote-store tests
 tests/functional/nix-meson-build-support support
-tests/functional/nix-profile.sh gap fail pass # main in nix-profile.sh:51: error: assertion '(progName != "fail")' failed
+tests/functional/nix-profile.sh gap fail pass # main in nix-profile.sh:76: profile removal completion is missing
 tests/functional/nix-shell.sh gap fail pass # main in nix-shell.sh:81: error: nix-shell shebang scripts are not supported by noxi yet
 tests/functional/nix_path.sh pass pass pass
 tests/functional/no-url-literals.sh pass pass pass
@@ -569,5 +569,5 @@ tests/functional/user-envs-migration.sh anomaly skip skip # reference skip: Daem
 tests/functional/user-envs-test-case.sh support
 tests/functional/user-envs.builder.sh support
 tests/functional/user-envs.nix support
-tests/functional/user-envs.sh gap fail pass # source in ./user-envs-test-case.sh:11: error: assertion '(progName != "fail")' failed
+tests/functional/user-envs.sh gap fail pass # source in ./user-envs-test-case.sh:20: JSON outputName and null output paths differ
 tests/functional/why-depends.sh pass pass pass
