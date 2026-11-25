@@ -9,6 +9,94 @@ fn run(bin: &Path, root: &Path, args: &[&str]) -> Output {
 }
 
 #[test]
+fn wrong_nar_hash_preserves_fetch_failure_status() {
+	let reference = PathBuf::from(std::env::var_os("NOXI_REFERENCE_BIN").unwrap()).join("nix");
+	let fixture = noxi_test_support::tempdir().unwrap();
+	let source = fixture.path().join("source");
+	fs::create_dir(&source).unwrap();
+	fs::write(
+		source.join("flake.nix"),
+		"{ outputs = _: { answer = 42; }; }",
+	)
+	.unwrap();
+	let hash = "sha256-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=";
+	let expression = format!(
+		r#"builtins.tryEval (builtins.fetchTree {{ type = "path"; path = "{}"; narHash = "{hash}"; }}).outPath"#,
+		source.display()
+	);
+	for bin in [&reference, Path::new(env!("CARGO_BIN_EXE_nix"))] {
+		let store = noxi_test_support::tempdir().unwrap();
+		for mode in ["--pure-eval", "--impure"] {
+			let args = [
+				"eval",
+				"--offline",
+				mode,
+				"--extra-experimental-features",
+				"fetch-tree",
+				"--expr",
+				&expression,
+			];
+			let result = run(bin, store.path(), &args);
+			let stderr = String::from_utf8_lossy(&result.stderr);
+			assert_eq!(
+				result.status.code(),
+				Some(102),
+				"{bin:?} {args:?}: {stderr}"
+			);
+			assert!(
+				stderr.contains("NAR hash mismatch") && stderr.contains(hash),
+				"{stderr}"
+			);
+			assert!(result.stdout.is_empty());
+		}
+	}
+}
+
+#[test]
+fn flake_check_reports_invalid_modules_overlays_and_system_packages() {
+	let reference = PathBuf::from(std::env::var_os("NOXI_REFERENCE_BIN").unwrap()).join("nix");
+	let fixture = noxi_test_support::tempdir().unwrap();
+	let source = fixture.path().join("source");
+	fs::create_dir(&source).unwrap();
+	let url = format!("path:{}", source.display());
+	for (outputs, flags, diagnostics) in [
+		(
+			"overlays.default = {};",
+			vec![],
+			vec!["overlay is not a function, but a set instead"],
+		),
+		("nixosModule = assert false; {};", vec![], vec!["assertion"]),
+		(
+			"nixosModules.bad = assert false; {};",
+			vec![],
+			vec!["assertion"],
+		),
+		(
+			"packages.system-1.default = 1; packages.system-2.default = 2;",
+			vec!["--all-systems", "--keep-going"],
+			vec!["packages.system-1.default", "packages.system-2.default"],
+		),
+	] {
+		fs::write(
+			source.join("flake.nix"),
+			format!("{{ outputs = _: {{ {outputs} }}; }}"),
+		)
+		.unwrap();
+		let mut args = vec!["flake", "check", "--offline", "--no-build", &url];
+		args.extend(flags);
+		for bin in [&reference, Path::new(env!("CARGO_BIN_EXE_nix"))] {
+			let store = noxi_test_support::tempdir().unwrap();
+			let result = run(bin, store.path(), &args);
+			let stderr = String::from_utf8_lossy(&result.stderr);
+			assert_eq!(result.status.code(), Some(1), "{bin:?} {args:?}: {stderr}");
+			for diagnostic in &diagnostics {
+				assert!(stderr.contains(diagnostic), "{bin:?}: {stderr}");
+			}
+		}
+	}
+}
+
+#[test]
 fn dirty_git_tree_does_not_warn_and_can_still_be_rejected() {
 	let fixture = noxi_test_support::tempdir().unwrap();
 	let repo = fixture.path();

@@ -25,9 +25,14 @@ pub(crate) fn error(error: impl std::fmt::Display) -> ErrorKind {
 	)
 }
 
-pub(crate) fn fetch_error(error: noxi_flakeref::error::Error) -> ErrorKind {
-	let mut kind = ErrorKind::EvalError(error.message);
-	for trace in error.traces {
+pub(crate) fn fetch_error(mut error: noxi_flakeref::error::Error) -> ErrorKind {
+	let traces = std::mem::take(&mut error.traces);
+	let mut kind = if error.status.is_some() {
+		ErrorKind::NoxiError(std::sync::Arc::new(error))
+	} else {
+		ErrorKind::EvalError(error.message)
+	};
+	for trace in traces {
 		kind = kind.trace(None, trace);
 	}
 	kind
@@ -335,7 +340,7 @@ async fn fetch_tree(
 	}
 	let (mount, _, mut locked, _) =
 		super::get_cached(store, &input, UseRegistries::No).map_err(fetch_error)?;
-	let path = super::mount_input(store, &mut locked, &input, &mount).map_err(error)?;
+	let path = super::mount_input(store, &mut locked, &input, &mount).map_err(fetch_error)?;
 	tree_attrs(&path, &locked, git)
 }
 
@@ -478,7 +483,7 @@ async fn fetch_url(
 	let (mount, _, mut locked, _) =
 		super::get_cached(store, &input, UseRegistries::No).map_err(fetch_error)?;
 	let path = if unpack {
-		super::mount_input(store, &mut locked, &input, &mount).map_err(error)?
+		super::mount_input(store, &mut locked, &input, &mount).map_err(fetch_error)?
 	} else {
 		let captured = store
 			.capture_import(&mount.root, &name, false, None)

@@ -276,14 +276,14 @@ tests/functional/flakes/absolute-attr-paths.sh pass pass pass
 tests/functional/flakes/absolute-paths.sh pass pass pass
 tests/functional/flakes/build-paths.sh pass pass pass
 tests/functional/flakes/bundle.sh pass pass pass
-tests/functional/flakes/check.sh gap fail pass # main in check.sh:41: error: overlay does not take an argument named 'final'
+tests/functional/flakes/check.sh gap fail pass # main in check.sh:157: missing flake check build progress
 tests/functional/flakes/circular.sh pass pass pass
 tests/functional/flakes/commit-lock-file-summary.sh pass pass pass
 tests/functional/flakes/common.sh support
 tests/functional/flakes/config.sh gap fail pass # : test failed: The post hook should have ran
 tests/functional/flakes/debugger.sh pass pass pass
 tests/functional/flakes/develop.sh gap fail pass # main in develop.sh:148: error: cannot find flake 'flake:nixpkgs' in the flake registries
-tests/functional/flakes/dubious-query.sh gap fail pass # main in dubious-query.sh:16: $ROOT/tmp/nix-test/flakes/dubious-query/store/HASH-simple.drv
+tests/functional/flakes/dubious-query.sh pass pass pass
 tests/functional/flakes/edit.sh pass pass pass
 tests/functional/flakes/eval-cache.sh pass pass pass
 tests/functional/flakes/flake-in-submodule.sh gap fail pass # main in flake-in-submodule.sh:108: Initialized empty Git repository in $ROOT/tmp/nix-test/flakes/flake-in-submodule/otherRepo/.git/
@@ -331,7 +331,7 @@ tests/functional/git-hashing/simple-common.sh support
 tests/functional/git-hashing/simple-sha1.sh pass pass pass
 tests/functional/git-hashing/simple-sha256.sh pass pass pass
 tests/functional/git/meson.build support
-tests/functional/git/packed-refs-no-cache.sh gap fail pass # main in packed-refs-no-cache.sh:50: fatal: cannot change to '$ROOT/tmp/nix-test/git/packed-refs-no-cache/test-home/.cache/nix/gitv3/*/': No such file or directory
+tests/functional/git/packed-refs-no-cache.sh pass pass pass
 tests/functional/git/symlinked-repo.sh pass pass pass
 tests/functional/hash-check.nix support
 tests/functional/hash-convert.sh pass pass pass

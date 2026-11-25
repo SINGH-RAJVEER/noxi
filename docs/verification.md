@@ -460,6 +460,12 @@ Differences that remain in these areas:
 - Outputs of impure derivations are known to `nix build`, also through a daemon (`impure_outputs_come_back_through_both_daemons`), and to `nix shell` in a local store. In other commands they are reported as not built. A noxi daemon that returns results builds independent targets in the order given, where the reference's order differs.
 - Binary caches do not read narinfo files with a Git content address.
 
+Flake and Git fetcher follow-up (rows 15 and 16):
+
+- `flakes/dubious-query` and `git/packed-refs-no-cache` pass on both engines. The latter reaches upstream's explicitly inverted final assertion, which expects a refresh when the cached branch ref is packed.
+- `flakes/check` reaches line 157. The check builds successfully and the script stops at the missing `running 1 flake check` progress message. The remaining checks for output paths, links and build failures are still open.
+- `wrong_nar_hash_preserves_fetch_failure_status` verifies that `fetchTree` exits 102 through `tryEval` in pure and impure mode. Flake prefetch with a supplied hash still differs. The reference can return the actual store hash alongside the supplied locked hash, while noxi rejects the mismatch.
+
 Known differences in these areas:
 
 - With `ca-derivations` enabled, 2.35.2 takes a registered realisation as proof that an output is good, so `--repair` and `nix-store --repair-path` leave a damaged output as it is and exit 0. noxi repairs it. The repair comparison therefore runs without that feature.
