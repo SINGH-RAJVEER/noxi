@@ -460,6 +460,7 @@ fn supported_flags(command: &str) -> &'static [&'static str] {
 			"print-out-paths",
 		],
 		"path-info" => &[
+			"stdin",
 			"json",
 			"json-format",
 			"recursive",

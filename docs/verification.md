@@ -436,6 +436,14 @@ Four more causes were closed later that day. The run at `877665e` ([records](../
 - Store derivation arguments (row 10): `nix-build` and `multiple-outputs` pass, and `ca/multiple-outputs` from row 2. `nix-shell` and `ca/nix-shell` stop at shebang scripts.
 - `file://` as a store and store types (row 7): `ca/nix-copy`, `ca/signatures` and `read-only-store` pass. `binary-cache` reaches line 99 of 372 and stops at the HTTP code path forced by `_NIX_FORCE_HTTP`; `binary-cache-build-remote` stops at remote builders, `build-remote-with-mounted-ssh-ng` at `mounted-ssh-ng://` and `bad-uris` at `local-overlay://`. `signing` (row 19) reaches line 103 of 119 and stops at the `require-sigs` store parameter.
 
+A focused run against 2.35.2 passed five more scripts from the single-command row under both engines:
+
+- `add.sh` covers SHA-256 text ingestion, including agreement with the path produced by `builtins.toFile`. The reference aborts on text ingestion with another hash algorithm. noxi returns an error for that input.
+- `path-info.sh` covers empty stdin with JSON format 2, including the top-level store directory. The command appends whitespace-separated stdin operands to arguments given on the command line.
+- `store-info.sh` covers human-readable and JSON output for the resolved local store, including the `nix store ping` alias.
+- `nar-access.sh` covers missing entry diagnostics in recursive JSON and human-readable store listings.
+- `no-url-literals.sh` covers the warning that directs users of the retired experimental feature to `lint-url-literals = fatal`.
+
 Building text, impure, dynamic and Git-hashed outputs (rows 2 and 4) was not started.
 
 Known differences in these areas:

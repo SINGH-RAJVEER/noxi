@@ -1,7 +1,7 @@
 //! Store inspection and maintenance through existing Rust store APIs.
 use std::collections::{BTreeSet, HashMap};
 use std::fs;
-use std::io::{self, IsTerminal};
+use std::io::{self, IsTerminal, Read};
 use std::os::unix::fs::PermissionsExt;
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
@@ -122,7 +122,7 @@ pub(super) fn paths(parsed: &Parsed, store: &dyn Store) -> Result<BTreeSet<Store
 		}
 		return Ok(store.query_all_valid_paths()?);
 	}
-	if parsed.operands.is_empty() {
+	if parsed.operands.is_empty() && !parsed.has("stdin") {
 		return Err(unsupported(
 			"implicit flake installables; provide store paths",
 		));
@@ -166,7 +166,12 @@ fn log(message: &str) {
 	}
 }
 
-pub fn path_info(parsed: Parsed) -> Result<ExitCode, Failure> {
+pub fn path_info(mut parsed: Parsed) -> Result<ExitCode, Failure> {
+	if parsed.has("stdin") {
+		let mut input = String::new();
+		io::stdin().lock().read_to_string(&mut input)?;
+		parsed.operands.extend(input.split_ascii_whitespace().map(str::to_owned));
+	}
 	let opened = open(&parsed)?;
 	let store = opened.store.as_ref();
 	let paths = paths(&parsed, store)?;
@@ -341,7 +346,14 @@ fn accessor(
 			std::path::Component::RootDir | std::path::Component::CurDir => continue,
 			_ => return Err(unsupported("store accessor paths containing '..'")),
 		}
-		if index + 1 < parts.len() && fs::symlink_metadata(&physical)?.file_type().is_symlink() {
+		let metadata = fs::symlink_metadata(&physical).map_err(|error| {
+			if error.kind() == io::ErrorKind::NotFound {
+				Failure::Error(format!("path '{operand}' does not exist"))
+			} else {
+				error.into()
+			}
+		})?;
+		if index + 1 < parts.len() && metadata.file_type().is_symlink() {
 			return Err(unsupported("store access through intermediate symlinks"));
 		}
 	}
@@ -386,15 +398,14 @@ pub fn run(parsed: Parsed) -> Result<ExitCode, Failure> {
 				}
 				return Ok(ExitCode::SUCCESS);
 			}
-			if !matches!(uri.split('?').next(), Some("local" | "local://")) {
+			if !crate::store::resolves_to_local(&uri)? {
 				return Err(unsupported(
 					"store info for non-local stores (connection metadata unavailable)",
 				));
 			}
-			let url = if uri.starts_with("local://") {
-				uri
-			} else {
-				uri.replacen("local", "local://", 1)
+			let url = match uri.split_once('?') {
+				Some((_, query)) if !query.is_empty() => format!("local://?{query}"),
+				_ => "local".to_owned(),
 			};
 			if parsed.has("json") {
 				print_json(
@@ -426,6 +437,7 @@ pub fn run(parsed: Parsed) -> Result<ExitCode, Failure> {
 					}) {
 					"flat" => FileIngestionMethod::Flat,
 					"nar" => FileIngestionMethod::NixArchive,
+					"text" => FileIngestionMethod::Text,
 					_ => return Err(unsupported("store add with this ingestion method")),
 				};
 			let algo = parsed
@@ -433,8 +445,16 @@ pub fn run(parsed: Parsed) -> Result<ExitCode, Failure> {
 				.unwrap_or("sha256")
 				.parse::<HashAlgo>()
 				.map_err(|e| e.to_string())?;
+			if method == FileIngestionMethod::Text && algo != HashAlgo::Sha256 {
+				return Err(Failure::Error("text ingestion requires SHA-256".into()));
+			}
+			let dump_method = if method == FileIngestionMethod::Text {
+				FileIngestionMethod::Flat
+			} else {
+				method
+			};
 			let mut dump = tempfile::tempfile()?;
-			if method == FileIngestionMethod::Flat {
+			if dump_method == FileIngestionMethod::Flat {
 				io::copy(&mut fs::File::open(source)?, &mut dump)?;
 			} else {
 				noxi_store::nar::dump_path(&mut dump, source)?;
@@ -442,7 +462,6 @@ pub fn run(parsed: Parsed) -> Result<ExitCode, Failure> {
 			use std::io::Seek;
 			dump.rewind()?;
 			if parsed.has("dry-run") {
-				use std::io::Read;
 				let mut hash = nix_compat::nixhash::NixHashDigester::new(algo);
 				let mut bytes = [0; 65536];
 				loop {
@@ -452,13 +471,21 @@ pub fn run(parsed: Parsed) -> Result<ExitCode, Failure> {
 					}
 					hash.update(&bytes[..count]);
 				}
-				let path = nix_compat::store_path::build_ca_path(
-					&name,
-					method == FileIngestionMethod::NixArchive,
-					&hash.finalize(),
-					[],
-					false,
-				)
+				let hash = hash.finalize();
+				let path = if method == FileIngestionMethod::Text {
+					let NixHash::Sha256(digest) = hash else {
+						unreachable!("text ingestion validated the hash algorithm")
+					};
+					nix_compat::store_path::build_text_path_from_content_digest(&name, digest, [])
+				} else {
+					nix_compat::store_path::build_ca_path(
+						&name,
+						method == FileIngestionMethod::NixArchive,
+						&hash,
+						[],
+						false,
+					)
+				}
 				.map_err(|e| e.to_string())?;
 				println!("{}", path.to_absolute_path());
 				return Ok(ExitCode::SUCCESS);
@@ -466,7 +493,7 @@ pub fn run(parsed: Parsed) -> Result<ExitCode, Failure> {
 			let path = store.add_to_store_from_dump(
 				&mut dump,
 				&name,
-				method,
+				dump_method,
 				method,
 				algo,
 				&BTreeSet::new(),
