@@ -415,6 +415,28 @@ pub fn run(
 		}
 		return Ok(ExitCode::SUCCESS);
 	}
+	if op == Op::DumpDb {
+		no_flags(flags, "unknown flag")?;
+		let opened = crate::store::open(uri, settings)?
+			.ok_or_else(|| Failure::Error(format!("store '{uri}' cannot hold store paths")))?;
+		let store = opened.store.as_ref();
+		let mut out = io::stdout().lock();
+		if args.is_empty() {
+			for path in store.query_all_valid_paths()? {
+				out.write_all(
+					validity_registration(store, &BTreeSet::from([path]), true, true)?.as_bytes(),
+				)?;
+			}
+		} else {
+			for arg in args {
+				out.write_all(
+					validity_registration(store, &BTreeSet::from([follow(arg)?]), true, true)?
+						.as_bytes(),
+				)?;
+			}
+		}
+		return Ok(ExitCode::SUCCESS);
+	}
 	let store = local_store(uri, settings)?;
 	let mut out = io::stdout().lock();
 	match op {
@@ -504,25 +526,7 @@ pub fn run(
 				out.write_all(&log)?;
 			}
 		}
-		Op::DumpDb => {
-			no_flags(flags, "unknown flag")?;
-			if args.is_empty() {
-				for path in store.query_all_valid_paths()? {
-					out.write_all(
-						validity_registration(&store, &BTreeSet::from([path]), true, true)?
-							.as_bytes(),
-					)?;
-				}
-			} else {
-				for arg in args {
-					let path = follow(arg)?;
-					out.write_all(
-						validity_registration(&store, &BTreeSet::from([path]), true, true)?
-							.as_bytes(),
-					)?;
-				}
-			}
-		}
+		Op::DumpDb => unreachable!("dispatched above"),
 		Op::LoadDb => {
 			no_flags(flags, "unknown flag")?;
 			if !args.is_empty() {

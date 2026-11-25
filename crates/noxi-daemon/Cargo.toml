@@ -13,9 +13,9 @@ libc.workspace = true
 nix-compat = { package = "noxi-compat", path = "../noxi/nix-compat", version = "0.0.5" }
 noxi-build = { path = "../noxi-build", version = "0.0.4" }
 noxi-store = { path = "../noxi-store", version = "0.0.5" }
+tempfile.workspace = true
 thiserror.workspace = true
 tracing.workspace = true
 
 [dev-dependencies]
 noxi-test-support = { path = "../noxi-test-support" }
-tempfile.workspace = true

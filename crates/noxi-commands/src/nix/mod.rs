@@ -406,6 +406,7 @@ fn supported_flags(command: &str) -> &'static [&'static str] {
 		],
 		"log" => &["arg", "argstr", "expr", "file", "include", "impure"],
 		"copy" => &[
+			"substitute-on-destination",
 			"to",
 			"from",
 			"no-check-sigs",

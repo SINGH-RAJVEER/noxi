@@ -525,9 +525,12 @@ fn source_root(globals: &Globals) -> Result<String, Failure> {
 				if name == "manifest.nix" || !path.exists() {
 					continue;
 				}
-				if path.is_file() && name.ends_with(".nix")
-					|| path.is_dir() && path.join("default.nix").exists()
-				{
+				let nix_file = path.is_file()
+					&& (name.ends_with(".nix")
+						|| path.canonicalize().is_ok_and(|target| {
+							target.extension().is_some_and(|ext| ext == "nix")
+						}));
+				if nix_file || path.is_dir() && path.join("default.nix").exists() {
 					let name = name.strip_suffix(".nix").unwrap_or(&name).to_owned();
 					if !seen.insert(name.clone()) {
 						eprintln!(

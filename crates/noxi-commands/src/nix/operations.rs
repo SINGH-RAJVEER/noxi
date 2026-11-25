@@ -140,6 +140,18 @@ fn bundle(mut parsed: Parsed) -> Result<ExitCode, Failure> {
 
 fn config_check(parsed: Parsed) -> Result<ExitCode, Failure> {
 	let uri = crate::store::store_uri(parsed.value("store"), &parsed.settings);
+	if let Some(store) = crate::store::open_remote(&uri, &parsed.settings)? {
+		let uri = store.uri();
+		eprintln!("Running checks against store uri: {uri}");
+		let info = store.connection_info()?;
+		eprintln!("[PASS] Client protocol matches store protocol.");
+		match info.trusted {
+			Some(true) => eprintln!("[INFO] You are trusted by store uri: {uri}"),
+			Some(false) => eprintln!("[INFO] You are not trusted by store uri: {uri}"),
+			None => eprintln!("[INFO] Store uri: {uri} doesn't have a notion of trusted user"),
+		}
+		return Ok(ExitCode::SUCCESS);
+	}
 	let (store, _) = crate::store::open_local(&uri, &parsed.settings)?
 		.ok_or_else(|| unsupported("config check for a non-local store"))?;
 	let uri = store.human_uri();

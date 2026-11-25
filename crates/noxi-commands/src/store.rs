@@ -168,12 +168,14 @@ enum Target {
 	Dummy,
 	Local {
 		root: Option<PathBuf>,
+		real: Option<PathBuf>,
 		read_only: bool,
 	},
 	Daemon {
 		socket: PathBuf,
 		root: Option<PathBuf>,
 	},
+	Ssh(nix_compat::nixcpp::store_reference::StoreReference),
 	/// A `file://` binary cache.
 	Cache,
 	Overlay,
@@ -182,22 +184,8 @@ enum Target {
 /// A store's `store` setting: the logical store directory, which this
 /// process reads once from `NIX_STORE_DIR` the first time it needs it.
 fn set_store_dir(dir: &str) -> Result<(), String> {
-	if !dir.starts_with('/') {
-		return Err(format!(
-			"store directory path \"{dir}\" is not an absolute path"
-		));
-	}
-	// SAFETY: the command runs on a single thread, so nothing reads the
-	// environment concurrently.
-	unsafe { std::env::set_var("NIX_STORE_DIR", dir) };
-	let canonical = crate::instantiate::absolute_path(Path::new("/"), Path::new(dir));
-	if Path::new(nix_compat::store_path::store_dir()) != canonical {
-		return Err(format!(
-			"cannot use store directory '{dir}': noxi already uses '{}'",
-			nix_compat::store_path::store_dir()
-		));
-	}
-	Ok(())
+	let dir = nix_compat::nixcpp::url::percent_decode(dir).map_err(|e| e.to_string())?;
+	nix_compat::store_path::configure_store_dir(&dir)
 }
 
 /// Resolve `uri` as CppNix's store registry does for the supported kinds.
@@ -209,14 +197,23 @@ fn resolve(uri: &str) -> Result<Target, String> {
 		return Ok(Target::Cache);
 	}
 	let (scheme, query) = uri.split_once('?').unwrap_or((uri, ""));
+	if matches!(scheme, "ssh-ng://localhost" | "ssh://localhost") {
+		let reference = parse_reference(uri)?;
+		if let Some(dir) = reference.params.get("store") {
+			nix_compat::store_path::configure_store_dir(dir)?;
+		}
+		return Ok(Target::Ssh(reference));
+	}
 	let dummy = matches!(scheme, "dummy" | "dummy://");
 	let mut root = None;
+	let mut real = None;
 	let mut read_only = false;
 	for param in query.split('&').filter(|p| !p.is_empty()) {
 		match param.split_once('=') {
 			Some(("root", value)) if !value.is_empty() => root = Some(PathBuf::from(value)),
 			Some(("read-only", value)) => read_only = value == "true",
-			Some(("store", value)) if dummy => set_store_dir(value)?,
+			Some(("store", value)) => set_store_dir(value)?,
+			Some(("real", value)) if !value.is_empty() => real = Some(absolute_parameter(value)?),
 			// The dummy store has no other settings; CppNix warns about them.
 			Some((name, _)) if dummy => {
 				// The store is opened once; its URI may be resolved more often.
@@ -244,12 +241,24 @@ fn resolve(uri: &str) -> Result<Target, String> {
 	};
 	Ok(match scheme {
 		"dummy" | "dummy://" => Target::Dummy,
-		"local" | "local://" => Target::Local { root, read_only },
-		"auto" if root.is_some() => Target::Local { root, read_only },
+		"local" | "local://" => Target::Local {
+			root,
+			real,
+			read_only,
+		},
+		"auto" if root.is_some() => Target::Local {
+			root,
+			real,
+			read_only,
+		},
 		"auto" => {
 			let state_dir = LocalStoreConfig::system().state_dir;
 			if accessible(&state_dir) {
-				Target::Local { root, read_only }
+				Target::Local {
+					root,
+					real,
+					read_only,
+				}
 			} else if daemon_socket().exists() {
 				Target::Daemon {
 					socket: daemon_socket(),
@@ -258,6 +267,7 @@ fn resolve(uri: &str) -> Result<Target, String> {
 			} else {
 				Target::Local {
 					root: chroot_store_fallback(&state_dir, query.is_empty()),
+					real,
 					read_only,
 				}
 			}
@@ -271,19 +281,14 @@ fn resolve(uri: &str) -> Result<Target, String> {
 			root,
 		},
 		// `StoreReference::parse`: a plain path is a local store rooted there.
-		_ if !scheme.contains("://")
-			&& (scheme.starts_with('/')
-				|| scheme.starts_with("../")
-				|| scheme.starts_with("./")) =>
-		{
-			Target::Local {
-				root: Some(crate::instantiate::absolute_path(
-					&std::env::current_dir().unwrap_or_default(),
-					Path::new(scheme),
-				)),
-				read_only,
-			}
-		}
+		_ if !scheme.contains("://") && scheme.contains('/') => Target::Local {
+			root: Some(crate::instantiate::absolute_path(
+				&std::env::current_dir().unwrap_or_default(),
+				Path::new(scheme),
+			)),
+			real,
+			read_only,
+		},
 		_ => {
 			return Err(format!(
 				"don't know how to open Nix store with scheme '{scheme}'"
@@ -313,18 +318,124 @@ pub fn cache(uri: &str) -> Result<Option<noxi_store::binary_cache::BinaryCache>,
 	}
 }
 
-/// Open the store named by `uri`. `dummy://` and other stores that cannot
-/// hold paths yield `None`.
+fn absolute_parameter(value: &str) -> Result<PathBuf, String> {
+	let value = nix_compat::nixcpp::url::percent_decode(value).map_err(|e| e.to_string())?;
+	let cwd = std::env::current_dir().map_err(|e| e.to_string())?;
+	Ok(crate::instantiate::absolute_path(&cwd, Path::new(&value)))
+}
+
+fn parse_reference(
+	uri: &str,
+) -> Result<nix_compat::nixcpp::store_reference::StoreReference, String> {
+	use nix_compat::nixcpp::store_reference::StoreReference;
+	let cwd = std::env::current_dir().map_err(|e| e.to_string())?;
+	let mut warnings = Vec::new();
+	let reference = StoreReference::parse(uri, &Default::default(), &cwd, &mut warnings)
+		.map_err(|e| e.to_string())?;
+	for warning in warnings {
+		nix_compat::log::logger::warn(&warning);
+	}
+	Ok(reference)
+}
+
+pub enum RemoteStore {
+	Worker(noxi_daemon::client::DaemonStore),
+	Serve {
+		store: noxi_daemon::serve::ServeStore,
+		uri: String,
+	},
+}
+
+impl RemoteStore {
+	pub fn uri(&self) -> &str {
+		match self {
+			Self::Worker(store) => store.uri(),
+			Self::Serve { uri, .. } => uri,
+		}
+	}
+
+	pub fn connection_info(&self) -> noxi_store::Result<noxi_daemon::client::ConnectionInfo> {
+		match self {
+			Self::Worker(store) => store.connection_info(),
+			Self::Serve { store, .. } => {
+				store.connect()?;
+				Ok(Default::default())
+			}
+		}
+	}
+
+	fn into_store(self) -> Rc<dyn Store> {
+		match self {
+			Self::Worker(store) => Rc::new(store),
+			Self::Serve { store, .. } => Rc::new(store),
+		}
+	}
+}
+
+fn remote_store(
+	target: Target,
+	settings: &Settings,
+) -> Result<Option<(RemoteStore, Option<PathBuf>)>, String> {
+	let options = || client_options(settings);
+	let store = match target {
+		Target::Daemon { socket, root } => (
+			RemoteStore::Worker(noxi_daemon::client::DaemonStore::new(
+				&socket,
+				root.as_deref(),
+				&options(),
+			)),
+			root.map(|root| root.join("nix/store")),
+		),
+		Target::Ssh(reference) => {
+			// SSHMaster runs the remote program directly for localhost.
+			let uri = reference.render(false);
+			let legacy = uri.starts_with("ssh://");
+			let params = &reference.params;
+			let program = match params.get("remote-program") {
+				Some(program) => PathBuf::from(program),
+				None => std::env::current_exe()
+					.map_err(|error| error.to_string())?
+					.with_file_name(if legacy { "nix-store" } else { "nix-daemon" }),
+			};
+			let args: &[&str] = if legacy {
+				&["--serve", "--write"]
+			} else {
+				&["--stdio"]
+			};
+			let mut args: Vec<_> = args.iter().map(|arg| (*arg).to_owned()).collect();
+			if let Some(store) = params.get("remote-store").filter(|store| !store.is_empty()) {
+				args.extend(["--store".to_owned(), store.clone()]);
+			}
+			let remote = if legacy {
+				RemoteStore::Serve {
+					store: noxi_daemon::serve::ServeStore::new(program, args),
+					uri,
+				}
+			} else {
+				RemoteStore::Worker(noxi_daemon::client::DaemonStore::from_ssh_command(
+					program,
+					args,
+					uri,
+					&options(),
+				))
+			};
+			(remote, None)
+		}
+		_ => return Ok(None),
+	};
+	Ok(Some(store))
+}
+
+pub fn open_remote(uri: &str, settings: &Settings) -> Result<Option<RemoteStore>, String> {
+	Ok(remote_store(resolve(uri)?, settings)?.map(|(store, _)| store))
+}
+
+/// Open the store named by `uri`. `dummy://` yields `None`.
 pub fn open(uri: &str, settings: &Settings) -> Result<Option<OpenStore>, String> {
-	if let Target::Daemon { socket, root } = resolve(uri)? {
-		let store = noxi_daemon::client::DaemonStore::new(
-			&socket,
-			root.as_deref(),
-			&client_options(settings),
-		);
+	if let Some((store, real_store_dir)) = remote_store(resolve(uri)?, settings)? {
 		return Ok(Some(OpenStore {
-			store: Rc::new(store),
-			real_store_dir: root.map(|root| root.join("nix/store")),
+			store: store.into_store(),
+			real_store_dir,
 		}));
 	}
 	if let Target::Cache = resolve(uri)? {
@@ -373,7 +484,7 @@ pub fn open_local(
 	uri: &str,
 	settings: &Settings,
 ) -> Result<Option<(LocalStore, Option<PathBuf>)>, String> {
-	let (root, read_only) = match resolve(uri)? {
+	let (root, real, read_only) = match resolve(uri)? {
 		Target::Overlay => {
 			return noxi_store::local_overlay::open(uri, settings)
 				.map(|store| {
@@ -385,13 +496,17 @@ pub fn open_local(
 				.map_err(|error| error.to_string());
 		}
 		Target::Dummy => return Ok(None),
-		Target::Local { root, read_only } => (root, read_only),
+		Target::Local {
+			root,
+			real,
+			read_only,
+		} => (root, real, read_only),
 		Target::Cache => {
 			return Err(format!(
 				"operations that need a local store are not supported by store '{uri}'"
 			));
 		}
-		Target::Daemon { .. } => {
+		Target::Daemon { .. } | Target::Ssh(_) => {
 			return Err(
 				"operations through the Nix daemon other than the store interface are not supported by noxi yet; use a local store"
 					.to_owned(),
@@ -421,7 +536,11 @@ pub fn open_local(
 		.collect();
 	config.use_sqlite_wal = settings.get_bool("use-sqlite-wal", config.use_sqlite_wal);
 	config.fsync_metadata = settings.get_bool("fsync-metadata", config.fsync_metadata);
-	let real_store_dir = root.as_ref().map(|_| config.real_store_dir.clone());
+	let has_real_dir = root.is_some() || real.is_some();
+	if let Some(real) = real {
+		config.real_store_dir = real;
+	}
+	let real_store_dir = has_real_dir.then(|| config.real_store_dir.clone());
 	let store = LocalStore::open(config).map_err(|e| e.to_string())?;
 	Ok(Some((store, real_store_dir)))
 }

@@ -1931,14 +1931,32 @@ fn read_basic_derivation<R: Read>(
 
 /// Read exactly one legacy NAR without buffering bytes of the next request.
 fn read_nar<R: Read + Send>(from: &mut R) -> Result<Vec<u8>> {
-	struct Recording<'a, R> {
-		from: &'a mut R,
-		bytes: Vec<u8>,
+	let mut bytes = Vec::new();
+	read_nar_to(from, &mut bytes)?;
+	Ok(bytes)
+}
+
+pub(crate) fn copy_nar(from: &mut (dyn Read + Send), sink: &mut dyn Write) -> Result<()> {
+	use std::io::Seek;
+	let mut archive = tempfile::tempfile()?;
+	read_nar_to(from, &mut archive)?;
+	archive.rewind()?;
+	io::copy(&mut archive, sink)?;
+	Ok(())
+}
+
+pub(crate) fn read_nar_to(
+	from: &mut (dyn Read + Send),
+	sink: &mut (dyn Write + Send),
+) -> Result<()> {
+	struct Copying<'a> {
+		from: &'a mut (dyn Read + Send),
+		sink: &'a mut (dyn Write + Send),
 	}
-	impl<R: Read> Read for Recording<'_, R> {
+	impl Read for Copying<'_> {
 		fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
 			let n = self.from.read(buf)?;
-			self.bytes.extend_from_slice(&buf[..n]);
+			self.sink.write_all(&buf[..n])?;
 			Ok(n)
 		}
 	}
@@ -1955,14 +1973,10 @@ fn read_nar<R: Read + Send>(from: &mut R) -> Result<Vec<u8>> {
 			}
 		}
 	}
-	let mut recording = Recording {
-		from,
-		bytes: Vec::new(),
-	};
 	drain(nix_compat::nar::reader::open(
-		&mut BufReader::with_capacity(1, &mut recording),
+		&mut BufReader::with_capacity(1, Copying { from, sink }),
 	)?)?;
-	Ok(recording.bytes)
+	Ok(())
 }
 
 fn now() -> u64 {

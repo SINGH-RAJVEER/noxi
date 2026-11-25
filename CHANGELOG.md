@@ -6,6 +6,7 @@ Changes that have not reached a version yet go under an `Unreleased` heading for
 
 ## Repository - Unreleased
 
+- Localhost SSH stores honor `store=` and nested `remote-store=` URLs. Both SSH dialects support closure copies and substitution at the destination. `nix doctor` and `nix store info` report the remote protocol’s trust metadata, and `nix-store --dump-db` can read through a daemon.
 - The store library can open local OverlayFS stores, validate the mount, reuse lower-store metadata and deduplicate upper-layer paths. The CLI and daemon can select these stores with a `local-overlay://` URL.
 - `nix doctor` checks overlay mounts and reports unknown overlay URL parameters.
 - Overlay validity checks import lower closures into the upper database, including self-referential paths. Differential coverage checks this during validity registration.

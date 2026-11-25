@@ -351,7 +351,7 @@ tests/functional/json.sh pass pass pass
 tests/functional/lang-gc.sh anomaly skip skip # reference skip: Too memory intensive for CI. Attempt to reduce memory usage was unsuccessful, because it made detection of the bug unreliable., skipping this test...
 tests/functional/lang-gc/issue-11141-gc-coroutine-test.nix support
 tests/functional/lang.sh pass pass pass
-tests/functional/legacy-ssh-store.sh gap fail pass # main in legacy-ssh-store.sh:8: error: unsupported store parameter 'remote-store=$ROOT/tmp/nix-test/main/legacy-ssh-store/other-store' in 'ssh://localhost?remote-store=$ROOT/tmp/nix-test/main/legacy-ss
+tests/functional/legacy-ssh-store.sh pass pass pass
 tests/functional/linux-sandbox-cert-test.nix support
 tests/functional/linux-sandbox.sh gap fail pass # main in linux-sandbox.sh:104: /my/store/HASH-test-sandbox-paths
 tests/functional/local-overlay-store/add-lower-inner.sh support
@@ -399,8 +399,8 @@ tests/functional/nix-build.sh pass pass pass
 tests/functional/nix-channel.sh gap fail pass # main in nix-channel.sh:44: error: Is a directory (os error 21)
 tests/functional/nix-collect-garbage-d.sh pass pass pass
 tests/functional/nix-copy-ssh-common.sh support
-tests/functional/nix-copy-ssh-ng.sh gap fail pass # source in nix-copy-ssh-common.sh:39: error: unsupported store parameter 'store=$ROOT/tmp/nix-test/main/nix-copy-ssh-ng/store' in 'ssh-ng://localhost?store=$ROOT/tmp/nix-test/main/nix-copy-ssh-ng/store
-tests/functional/nix-copy-ssh.sh gap fail pass # source in nix-copy-ssh-common.sh:39: error: unsupported store parameter 'store=$ROOT/tmp/nix-test/main/nix-copy-ssh/store' in 'ssh://localhost?store=$ROOT/tmp/nix-test/main/nix-copy-ssh/store&remote-s
+tests/functional/nix-copy-ssh-ng.sh pass pass pass
+tests/functional/nix-copy-ssh.sh pass pass pass
 tests/functional/nix-daemon-untrusting.sh support # daemon wrapper used by remote-store tests
 tests/functional/nix-meson-build-support support
 tests/functional/nix-profile.sh gap fail pass # main in nix-profile.sh:76: profile removal completion is missing
@@ -433,7 +433,7 @@ tests/functional/readfile-context.sh pass pass pass
 tests/functional/recursive.nix support
 tests/functional/recursive.sh gap fail pass # main in recursive.sh:13: error: Cannot build '$ROOT/tmp/nix-test/main/recursive/store/HASH-recursive.drv'.
 tests/functional/referrers.sh pass pass pass
-tests/functional/remote-store.sh gap fail pass # main in remote-store.sh:8: error: unsupported store parameter 'remote-store=$ROOT/tmp/nix-test/main/remote-store/other-store' in 'ssh-ng://localhost?remote-store=$ROOT/tmp/nix-test/main/remote-store/o
+tests/functional/remote-store.sh pass pass pass
 tests/functional/repair.sh pass pass pass
 tests/functional/repl.sh gap fail pass # : error: the noxi repl does not support ':log' yet
 tests/functional/repl/add-lots-of-variables.expected support
@@ -541,7 +541,7 @@ tests/functional/simple-failing.nix support
 tests/functional/simple.builder.sh support
 tests/functional/simple.nix support
 tests/functional/simple.sh gap fail pass # main in simple.sh:27: error: --readonly-mode is not supported by noxi yet
-tests/functional/ssh-relay.sh gap fail pass # main in ssh-relay.sh:16: error: unsupported store parameter 'remote-store=ssh://localhost?remote-store=ssh://localhost?remote-store=ssh://localhost' in 'ssh://localhost?remote-store=ssh://localhost?re
+tests/functional/ssh-relay.sh pass pass pass
 tests/functional/store-info.sh pass pass pass
 tests/functional/store-print-env.sh pass pass pass
 tests/functional/structured-attrs-shell.nix support

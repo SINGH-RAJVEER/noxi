@@ -254,7 +254,7 @@ pass:upstream_functional tests/functional/impure-eval.sh
 pass:upstream_functional tests/functional/json.sh
 anomaly tests/functional/lang-gc.sh # reference skip: Too memory intensive for CI. Attempt to reduce memory usage was unsuccessful, because it made detection of the bug unreliable., skipping this test...
 pass:upstream_functional tests/functional/lang.sh
-gap tests/functional/legacy-ssh-store.sh # main in legacy-ssh-store.sh:8: error: unsupported store parameter 'remote-store=$ROOT/tmp/nix-test/main/legacy-ssh-store/other-store' in 'ssh://localhost?remote-store=$ROOT/tmp/nix-test/main/legacy-ss
+pass:upstream_functional tests/functional/legacy-ssh-store.sh
 gap tests/functional/linux-sandbox.sh # main in linux-sandbox.sh:104: /my/store/HASH-test-sandbox-paths
 pass:upstream_functional tests/functional/local-overlay-store/add-lower.sh
 pass:upstream_functional tests/functional/local-overlay-store/bad-uris.sh
@@ -278,8 +278,8 @@ gap tests/functional/nested-sandboxing.sh # main in nested-sandboxing.sh:24:
 pass:upstream_functional tests/functional/nix-build.sh
 gap tests/functional/nix-channel.sh # main in nix-channel.sh:44: error: Is a directory (os error 21)
 pass:upstream_functional tests/functional/nix-collect-garbage-d.sh
-gap tests/functional/nix-copy-ssh-ng.sh # source in nix-copy-ssh-common.sh:39: error: unsupported store parameter 'store=$ROOT/tmp/nix-test/main/nix-copy-ssh-ng/store' in 'ssh-ng://localhost?store=$ROOT/tmp/nix-test/main/nix-copy-ssh-ng/store
-gap tests/functional/nix-copy-ssh.sh # source in nix-copy-ssh-common.sh:39: error: unsupported store parameter 'store=$ROOT/tmp/nix-test/main/nix-copy-ssh/store' in 'ssh://localhost?store=$ROOT/tmp/nix-test/main/nix-copy-ssh/store&remote-s
+pass:upstream_functional tests/functional/nix-copy-ssh-ng.sh
+pass:upstream_functional tests/functional/nix-copy-ssh.sh
 gap tests/functional/nix-profile.sh # main in nix-profile.sh:76: profile removal completion is missing
 gap tests/functional/nix-shell.sh # main in nix-shell.sh:81: error: nix-shell shebang scripts are not supported by noxi yet
 pass:upstream_functional tests/functional/nix_path.sh
@@ -297,7 +297,7 @@ pass:upstream_functional tests/functional/read-only-store.sh
 pass:upstream_functional tests/functional/readfile-context.sh
 gap tests/functional/recursive.sh # main in recursive.sh:13: error: Cannot build '$ROOT/tmp/nix-test/main/recursive/store/HASH-recursive.drv'.
 pass:upstream_functional tests/functional/referrers.sh
-gap tests/functional/remote-store.sh # main in remote-store.sh:8: error: unsupported store parameter 'remote-store=$ROOT/tmp/nix-test/main/remote-store/other-store' in 'ssh-ng://localhost?remote-store=$ROOT/tmp/nix-test/main/remote-store/o
+pass:upstream_functional tests/functional/remote-store.sh
 pass:upstream_functional tests/functional/repair.sh
 gap tests/functional/repl.sh # : error: the noxi repl does not support ':log' yet
 pass:upstream_functional tests/functional/restricted.sh
@@ -308,7 +308,7 @@ pass:upstream_functional tests/functional/shell.sh
 gap tests/functional/short-path-literals.sh # : foo/bar
 gap tests/functional/signing.sh # main in signing.sh:103: error: unsupported store parameter 'require-sigs=false' in '$ROOT/tmp/nix-test/main/signing/store0?require-sigs=false'
 gap tests/functional/simple.sh # main in simple.sh:27: error: --readonly-mode is not supported by noxi yet
-gap tests/functional/ssh-relay.sh # main in ssh-relay.sh:16: error: unsupported store parameter 'remote-store=ssh://localhost?remote-store=ssh://localhost?remote-store=ssh://localhost' in 'ssh://localhost?remote-store=ssh://localhost?re
+pass:upstream_functional tests/functional/ssh-relay.sh
 pass:upstream_functional tests/functional/store-info.sh
 pass:upstream_functional tests/functional/store-print-env.sh
 anomaly tests/functional/structured-attrs.sh # reference fail: main in structured-attrs.sh:27: error (ignored): cannot find flake 'flake:nixpkgs' in the flake registries

@@ -37,6 +37,7 @@ enum Operation {
 	Delete,
 	Optimise,
 	Verify,
+	Serve,
 	Other(crate::nix_store_ops::Op),
 }
 
@@ -86,11 +87,7 @@ pub fn main(mut settings: Settings, args: Vec<String>) -> Result<ExitCode, Failu
 				op = crate::nix_store_ops::Op::parse(other).map(Operation::Other);
 			}
 			"--help" => return Err(crate::cli::show_man_page("nix-store")),
-			"--serve" => {
-				return Err(Failure::Error(format!(
-					"nix-store {arg} is not supported by noxi yet"
-				)));
-			}
+			"--serve" => op = Some(Operation::Serve),
 			"--add-root" => {
 				let root = args
 					.next()
@@ -139,6 +136,22 @@ pub fn main(mut settings: Settings, args: Vec<String>) -> Result<ExitCode, Failu
 	if op == Operation::Init && (!op_flags.is_empty() || !op_args.is_empty()) {
 		return Err(Failure::Usage("no arguments expected".into()));
 	}
+	if op == Operation::Serve {
+		let write = op_flags.iter().any(|flag| flag == "--write");
+		if !op_args.is_empty() || op_flags.iter().any(|flag| flag != "--write") {
+			return Err(Failure::Usage("unsupported argument for --serve".into()));
+		}
+		let opened = store::open(&uri, &settings)?
+			.ok_or_else(|| Failure::Error(format!("store '{uri}' cannot hold store paths")))?;
+		noxi_daemon::serve::run(
+			opened.store.as_ref(),
+			io::stdin(),
+			io::stdout().lock(),
+			write,
+		)
+		.map_err(|error| Failure::Error(error.to_string()))?;
+		return Ok(ExitCode::SUCCESS);
+	}
 	if let Operation::Other(other) = op {
 		return crate::nix_store_ops::run(other, &op_flags, &op_args, &uri, &settings, &cwd);
 	}
@@ -156,7 +169,7 @@ pub fn main(mut settings: Settings, args: Vec<String>) -> Result<ExitCode, Failu
 	let mut stdout = io::stdout().lock();
 	match op {
 		Operation::Init => {}
-		Operation::Other(_) => unreachable!("dispatched above"),
+		Operation::Other(_) | Operation::Serve => unreachable!("dispatched above"),
 		Operation::Realise => command.realise(&op_flags, &op_args, &mut stdout)?,
 		Operation::Query => command.query(&op_flags, op_args, &settings, &mut stdout)?,
 		Operation::Gc | Operation::Delete => {

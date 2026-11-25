@@ -108,20 +108,28 @@ fn local_config(uri: &str) -> Result<LocalStoreConfig, Box<dyn std::error::Error
 		&std::env::current_dir()?,
 		&mut Vec::new(),
 	)?;
-	match &reference.variant {
-		Variant::Auto | Variant::Local => {}
-		Variant::Specified { scheme, authority } if scheme == "local" && authority.is_empty() => {}
+	let authority_root = match &reference.variant {
+		Variant::Auto | Variant::Local => None,
+		Variant::Specified { scheme, authority } if scheme == "local" && authority.is_empty() => {
+			None
+		}
+		Variant::Specified { scheme, authority } if scheme == "local" => {
+			Some(nix_compat::nixcpp::url::percent_decode(authority)?)
+		}
 		_ => return Err(format!("daemon backing store '{uri}' is not supported").into()),
+	};
+	if let Some(dir) = reference.params.get("store") {
+		nix_compat::store_path::configure_store_dir(dir)?;
 	}
-	if let Some(root) = reference
-		.params
-		.get("root")
-		.filter(|root| !root.is_empty() && *root != "/")
-	{
-		Ok(LocalStoreConfig::diverted(Path::new(root))?)
-	} else {
-		Ok(LocalStoreConfig::system())
+	let root = reference.params.get("root").or(authority_root.as_ref());
+	let mut config = match root.filter(|root| !root.is_empty() && *root != "/") {
+		Some(root) => LocalStoreConfig::diverted(Path::new(root))?,
+		None => LocalStoreConfig::system(),
+	};
+	if let Some(real) = reference.params.get("real") {
+		config.real_store_dir = std::path::absolute(real)?;
 	}
+	Ok(config)
 }
 
 #[cfg(test)]
