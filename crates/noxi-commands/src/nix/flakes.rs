@@ -543,7 +543,7 @@ pub(super) fn request(parsed: &Parsed, operation: &str) -> Result<Request, Failu
 		commit_lock: parsed.has("commit-lock-file"),
 		commit_summary: parsed
 			.settings
-			.get("commit-lockfile-summary")
+			.get("commit-lock-file-summary")
 			.map(str::to_owned),
 		inputs_from: parsed
 			.flags

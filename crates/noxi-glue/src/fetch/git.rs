@@ -8,7 +8,7 @@ use std::rc::Rc;
 
 use noxi_flakeref::error::{Error, Result, warn};
 use noxi_flakeref::input::{
-	Attr, FetchSettings, Input, get_str_attr, git_rev, maybe_get_bool_attr,
+	Attr, FetchSettings, Input, LazyAttr, get_str_attr, git_rev, maybe_get_bool_attr,
 };
 use noxi_flakeref::url::{fix_git_url, url_path_to_path};
 
@@ -513,12 +513,6 @@ pub(crate) fn get_accessor(
 		));
 	}
 	let shallow = boolean(input, "shallow")?;
-	if !shallow && text(&repo, &["rev-parse", "--is-shallow-repository"])? == "true" {
-		return Err(Error::new(format!(
-			"'{}' is a shallow Git repository, so 'revCount' is not available",
-			repo.display()
-		)));
-	}
 	let worktree =
 		input.get_ref()?.is_none() && input.get_rev()?.is_none() && repo.join(".git").exists();
 	let mut result = input.clone();
@@ -728,16 +722,23 @@ pub(crate) fn get_accessor(
 			.or_insert(Attr::Int(modified));
 	}
 	if !shallow && result.get_rev()?.is_some() {
-		let count = match rev {
-			Some(rev) => text(&repo, &["rev-list", "--count", &rev])?
-				.parse::<u64>()
-				.map_err(|e| Error::new(e.to_string()))?,
-			None => 0,
-		};
-		result
-			.attrs
-			.entry("revCount".into())
-			.or_insert(Attr::Int(count));
+		result.attrs.entry("revCount".into()).or_insert_with(|| {
+			Attr::Lazy(LazyAttr::new(move || {
+				if text(&repo, &["rev-parse", "--is-shallow-repository"])? == "true" {
+					return Err(Error::new(format!(
+						"'{}' is a shallow Git repository, so 'revCount' is not available",
+						repo.display()
+					)));
+				}
+				let count = match &rev {
+					Some(rev) => text(&repo, &["rev-list", "--count", rev])?
+						.parse::<u64>()
+						.map_err(|e| Error::new(e.to_string()))?,
+					None => 0,
+				};
+				Ok(Attr::Int(count))
+			}))
+		});
 	}
 	Ok((mount, result))
 }

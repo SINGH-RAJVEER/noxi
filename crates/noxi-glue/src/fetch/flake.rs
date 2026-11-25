@@ -9,6 +9,7 @@ use std::pin::Pin;
 use std::rc::Rc;
 
 use bstr::ByteSlice;
+use nix_compat::store_path::StorePath;
 use noxi_eval::generators::{self, GenCo};
 use noxi_eval::{AddContext, ErrorKind, NixAttrs, Value};
 use noxi_flakeref::flake_ref::{FlakeRef, ParseOptions, parse_flake_ref};
@@ -538,7 +539,7 @@ impl Resolver<'_> {
 				let result: Result<(), ErrorKind> = async {
 					let mut path = prefix.clone();
 					path.push(name.clone());
-					let declared = spec.reference.clone();
+					let mut declared = spec.reference.clone();
 					let cli_override = self.options.override_inputs.get(&path);
 					if let Some(replacement) = cli_override {
 						let cwd = self.store.fetch_config.borrow().cwd.clone();
@@ -564,6 +565,16 @@ impl Resolver<'_> {
 						return Ok(());
 					}
 					let settings = self.store.fetch_settings();
+					if cli_override.is_some() && declared.is_none() && spec.is_flake {
+						declared = Some(
+							parse_flake_ref(
+								&settings,
+								&format!("flake:{name}"),
+								ParseOptions::default(),
+							)
+							.map_err(error)?,
+						);
+					}
 					let original = match spec.reference {
 						Some(reference) => reference,
 						None => FlakeRef::new(
@@ -735,7 +746,11 @@ impl Resolver<'_> {
 							path.join("/")
 						)));
 					}
-					if self.parents.contains(&original) {
+					// A root-level CLI override can point to the root checkout.
+					// Its own inputs use their declarations, so it is a separate
+					// graph node. Nested references still need the cycle check.
+					let root_override = cli_override.is_some() && self.parents.len() == 1;
+					if !root_override && self.parents.contains(&original) {
 						return Err(error(format!(
 							"found circular import of flake '{original}'"
 						)));
@@ -861,6 +876,57 @@ pub async fn lock_flake(
 		},
 	)
 	.await?;
+	lock_source(store, co, original, source, options).await
+}
+
+/// A path value already has an accessor. Reuse its store object and relative
+/// directory directly, without fetching or creating a new source snapshot.
+pub(crate) async fn lock_flake_path(
+	store: &EvaluatorStore,
+	co: &GenCo,
+	path: &Path,
+) -> Result<LockedFlake, ErrorKind> {
+	let flake_file = path.join("flake.nix");
+	store.check_visible(&flake_file).map_err(error)?;
+	if !store.physical_path(&flake_file).exists() {
+		return Err(error(format!(
+			"path '{}' does not exist",
+			flake_file.display()
+		)));
+	}
+	let (root, dir) = StorePath::from_absolute_path_full(path)
+		.map_err(|_| error(format!("path '{}' is not in the Nix store", path.display())))?;
+	let dir = dir
+		.to_str()
+		.ok_or_else(|| error("flake directory is not UTF-8"))?;
+	let input = Input::from_attrs(
+		&store.fetch_settings(),
+		[
+			("type".into(), "path".into()),
+			("path".into(), root.to_absolute_path().into()),
+		]
+		.into(),
+	)
+	.map_err(error)?;
+	let reference = FlakeRef::new(input.clone(), dir);
+	let source = FetchedSource {
+		resolved_ref: reference.clone(),
+		fetched_ref: reference.clone(),
+		locked_ref: reference.clone(),
+		out_path: path.to_owned(),
+		source_info: tree_attrs(&root, &input, false)?,
+	};
+	lock_source(store, co, reference, source, &LockOptions::default()).await
+}
+
+async fn lock_source(
+	store: &EvaluatorStore,
+	co: &GenCo,
+	original: FlakeRef,
+	source: FetchedSource,
+	options: &LockOptions,
+) -> Result<LockedFlake, ErrorKind> {
+	let settings = store.fetch_settings();
 	let FetchedSource {
 		resolved_ref,
 		locked_ref,

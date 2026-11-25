@@ -161,6 +161,12 @@ The installable comparisons cover `eval`, `build --dry-run` and `edit`: the `def
 
 ## Lock computation and lock policy, 2026-11-21
 
+`nix flake lock --commit-lock-file` uses the subject supplied by `--commit-lock-file-summary` or its configuration alias `commit-lockfile-summary`. The lock diff remains in the commit body.
+
+An override of an implicit input records the input's indirect reference in `original`, so a later invocation can reuse the lock without another override. This also applies to dirty Git overrides written with `--allow-dirty-locks`. A root-level `--override-input` can name the checkout itself. The input's nested dependencies still resolve from their own declarations, and circular imports below that edge are checked.
+
+`builtins.getFlake` can take a path value pointing to an evaluator-visible directory inside a store object, including a subdirectory. It uses that object as the source and still checks access to its `flake.nix`. For Git sources, `revCount` is lazy. Selecting it on a shallow checkout fails when the fetch expects full history. A fetch explicitly marked `shallow = true` omits the attribute.
+
 The lock resolver in `crates/noxi-glue/src/fetch/flake.rs` and the lock-writing step of `nix flake lock|update|metadata` in `crates/noxi-commands/src/nix/flakes.rs` follow `computeLocks` and `lockFlake` in the pinned `src/libflake/flake.cc`:
 
 - An input kept from the old lock is not fetched. Its edges are rebuilt from the old lock as the reference's "fake inputs", so new overrides still apply. A follows edge whose override has disappeared refetches the input, except below an input kept this way. Changing a locked `path:` input's contents therefore no longer fails with a NAR hash mismatch while the input carries a declared follows override, and removing such an override relocks the followed input.
