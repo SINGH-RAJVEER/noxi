@@ -8,6 +8,8 @@ Changes that have not reached a version yet go under an `Unreleased` heading for
 
 - The compatibility CLI supports text-mode store adds and stdin path queries, reports the resolved local store URL, and matches CppNix diagnostics for missing store entries and the retired `no-url-literals` feature.
 
+- `nix-env` skips assertion failures and throws during package discovery and uses the selected logical store directory when querying derivation names without output paths.
+
 - The `git daemon` of the fetch cache tests stops with its process group when its guard is dropped, also by a panic, and comparisons that build without a sandbox run with no other test alongside (2026-11-25).
 - Tests that create stores use the new test-only `noxi-test-support` crate, whose temporary directories remove the read-only store objects `TempDir` cannot, also when a test panics, without following symlinks or crossing mounts. A workspace run left 318 directories of 5,839 MiB in `TMPDIR` before and none after (2026-11-25).
 - Lookup path entries follow CppNix 2.35.2 for `flake:` references and pseudo-URLs: pseudo-URLs are always unpacked as tarballs, `channel:` uses `channels.nixos.org`, a failed download falls back to a path with both warnings, `flake:` uses the whole tree without a base directory, failures other than not-found are not catchable, `restrict-eval` resolves entries first and does not admit downloaded trees, and failed `<...>` lookups show the `findFile` frame. `nix-shell` accepts such entries without `NIX_BUILD_SHELL`. Tarball fetches of missing files, directories and Git repositories, and missing `path:` inputs, report CppNix's messages. `reference_lookup_path` compares these with the reference.

@@ -170,7 +170,9 @@ pub fn path_info(mut parsed: Parsed) -> Result<ExitCode, Failure> {
 	if parsed.has("stdin") {
 		let mut input = String::new();
 		io::stdin().lock().read_to_string(&mut input)?;
-		parsed.operands.extend(input.split_ascii_whitespace().map(str::to_owned));
+		parsed
+			.operands
+			.extend(input.split_ascii_whitespace().map(str::to_owned));
 	}
 	let opened = open(&parsed)?;
 	let store = opened.store.as_ref();
@@ -326,7 +328,7 @@ fn accessor(
 	let (path, rest) =
 		StorePath::from_absolute_path_full(Path::new(operand)).map_err(|e| e.to_string())?;
 	info(store, &path)?;
-	let mut physical = match remote {
+	let physical_root = match remote {
 		// `RemoteFSAccessor` reads the files from the path's NAR.
 		Some(dir) => {
 			let files = dir.join(path.to_string());
@@ -340,6 +342,7 @@ fn accessor(
 	};
 	let rest = Path::new(rest);
 	let parts: Vec<_> = rest.components().collect();
+	let mut physical = physical_root.clone();
 	for (index, part) in parts.iter().enumerate() {
 		match part {
 			std::path::Component::Normal(name) => physical.push(name),
@@ -347,8 +350,16 @@ fn accessor(
 			_ => return Err(unsupported("store accessor paths containing '..'")),
 		}
 		let metadata = fs::symlink_metadata(&physical).map_err(|error| {
-			if error.kind() == io::ErrorKind::NotFound {
-				Failure::Error(format!("path '{operand}' does not exist"))
+			if matches!(
+				error.kind(),
+				io::ErrorKind::NotFound | io::ErrorKind::NotADirectory
+			) {
+				let missing = if remote.is_some() {
+					PathBuf::from(operand)
+				} else {
+					physical_root.join(rest.strip_prefix("/").unwrap_or(rest))
+				};
+				Failure::Error(format!("path '{}' does not exist", missing.display()))
 			} else {
 				error.into()
 			}
@@ -404,7 +415,12 @@ pub fn run(parsed: Parsed) -> Result<ExitCode, Failure> {
 				));
 			}
 			let url = match uri.split_once('?') {
-				Some((_, query)) if !query.is_empty() => format!("local://?{query}"),
+				Some((_, query)) if !query.is_empty() => {
+					let mut params: Vec<_> =
+						query.split('&').filter(|part| !part.is_empty()).collect();
+					params.sort_unstable();
+					format!("local://?{}", params.join("&"))
+				}
 				_ => "local".to_owned(),
 			};
 			if parsed.has("json") {
@@ -447,6 +463,28 @@ pub fn run(parsed: Parsed) -> Result<ExitCode, Failure> {
 				.map_err(|e| e.to_string())?;
 			if method == FileIngestionMethod::Text && algo != HashAlgo::Sha256 {
 				return Err(Failure::Error("text ingestion requires SHA-256".into()));
+			}
+			if method == FileIngestionMethod::Text {
+				let source = std::path::absolute(source)?;
+				let metadata = fs::symlink_metadata(&source).map_err(|error| {
+					Failure::Error(format!(
+						"opening file \"{}\": {}",
+						source.display(),
+						super::hash::strerror(&error)
+					))
+				})?;
+				if metadata.is_symlink() {
+					return Err(Failure::Error(format!(
+						"file '{}' is a symlink",
+						source.display()
+					)));
+				}
+				if !metadata.is_file() {
+					return Err(Failure::Error(format!(
+						"'{}' is not a regular file",
+						source.display()
+					)));
+				}
 			}
 			let dump_method = if method == FileIngestionMethod::Text {
 				FileIngestionMethod::Flat

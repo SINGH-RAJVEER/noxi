@@ -438,11 +438,13 @@ Four more causes were closed later that day. The run at `877665e` ([records](../
 
 A focused run against 2.35.2 passed five more scripts from the single-command row under both engines:
 
-- `add.sh` covers SHA-256 text ingestion, including agreement with the path produced by `builtins.toFile`. The reference aborts on text ingestion with another hash algorithm. noxi returns an error for that input.
+- `add.sh` covers SHA-256 text ingestion, including agreement with the path produced by `builtins.toFile`. The reference aborts on text ingestion with another hash algorithm. noxi returns an error for that input. Both reject non-regular sources. For an actual add, the reference can leave an unregistered object and lock file behind for those inputs. noxi rejects them before writing either.
 - `path-info.sh` covers empty stdin with JSON format 2, including the top-level store directory. The command appends whitespace-separated stdin operands to arguments given on the command line.
 - `store-info.sh` covers human-readable and JSON output for the resolved local store, including the `nix store ping` alias.
 - `nar-access.sh` covers missing entry diagnostics in recursive JSON and human-readable store listings.
 - `no-url-literals.sh` covers the warning that directs users of the retired experimental feature to `lint-url-literals = fatal`.
+
+The `available_packages_skip_failed_candidates` comparison covers `nix-env -qa` with an assertion, a throw, a derivation whose name fails an assertion, and a valid sibling in an isolated store with a custom logical store directory. Package discovery skips those failed candidates. A failure importing or auto-calling the root still propagates. The comparison checks stdout, stderr, exit status, and that the query creates neither a store object nor a profile link.
 
 Building text, impure, dynamic and Git-hashed outputs (rows 2 and 4) was not started.
 
