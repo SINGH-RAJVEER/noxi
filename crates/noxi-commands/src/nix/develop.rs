@@ -605,7 +605,9 @@ pub(super) fn develop(parsed: Parsed) -> Result<ExitCode, Failure> {
 		};
 		match expression::targets(&shell_request) {
 			Ok(Ok(targets)) => {
-				targets.store.build_paths(&targets.paths)?;
+				targets
+					.store
+					.build_paths_with_results(&targets.paths, noxi_store::BuildMode::Normal)?;
 				let mut paths = Vec::new();
 				for target in &targets.paths {
 					paths

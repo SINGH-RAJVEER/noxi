@@ -76,6 +76,14 @@ impl ValidPathInfo {
 				let refs = self.references.iter().map(StorePath::as_ref);
 				store_path::build_text_path_from_content_digest(name, *digest, refs)
 			}
+			CAHash::Git(hash) => {
+				if !self.references.is_empty()
+					|| !matches!(hash.algo(), HashAlgo::Sha1 | HashAlgo::Sha256)
+				{
+					return None;
+				}
+				store_path::build_git_path(name, hash)
+			}
 			CAHash::Flat(hash) | CAHash::Nar(hash) => {
 				let recursive = matches!(ca, CAHash::Nar(_));
 				let self_ref = self.references.contains(&self.path);

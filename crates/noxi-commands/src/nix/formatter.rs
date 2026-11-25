@@ -104,7 +104,8 @@ fn build(parsed: &Parsed, app: &App) -> Result<(), Failure> {
 	if parsed.settings.get_bool("print-missing", true) {
 		crate::paths::print_missing(app.store.as_ref(), &app.store.query_missing(&app.context)?)?;
 	}
-	app.store.build_paths(&app.context)?;
+	app.store
+		.build_paths_with_results(&app.context, noxi_store::BuildMode::Normal)?;
 	if !app
 		.program
 		.starts_with(nix_compat::store_path::store_dir_with_slash())

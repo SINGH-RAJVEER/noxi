@@ -66,7 +66,9 @@ pub fn copy(parsed: Parsed) -> Result<ExitCode, Failure> {
 	if !built.is_empty() {
 		let missing = target.store.query_missing(&built)?;
 		crate::paths::print_missing(target.store.as_ref(), &missing)?;
-		target.store.build_paths(&built)?;
+		target
+			.store
+			.build_paths_with_results(&built, noxi_store::BuildMode::Normal)?;
 	}
 	let source_uri = crate::store::store_uri(parsed.value("store"), &parsed.settings);
 	let (source, _) = crate::store::open_local(&source_uri, &parsed.settings)?
@@ -197,7 +199,7 @@ fn copy_from_cache(mut parsed: Parsed, uri: &str) -> Result<ExitCode, Failure> {
 	{
 		let missing = source.query_missing(&target.paths)?;
 		crate::paths::print_missing(source.as_ref(), &missing)?;
-		source.build_paths(&target.paths)?;
+		source.build_paths_with_results(&target.paths, noxi_store::BuildMode::Normal)?;
 	}
 	let mut roots = BTreeSet::new();
 	let mut realisations = Realisations::new();

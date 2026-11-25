@@ -1,0 +1,309 @@
++(new-build-cmd.sh:3) source common.sh
+++(common.sh:2) source ../common.sh
++++(../common.sh:3) set -eu -o pipefail
++++(../common.sh:5) [[ -z '' ]]
++++(../common.sh:7) COMMON_SH_SOURCED=1
++++++(../common.sh:9) dirname ../common.sh
+++++(../common.sh:9) readlink -f ..
++++(../common.sh:9) functionalTestsDir=/var/tmp/noxi-fg3/func/nfsrBI3I/src
++++(../common.sh:11) source /var/tmp/noxi-fg3/func/nfsrBI3I/src/common/vars.sh
+++++(/var/tmp/noxi-fg3/func/nfsrBI3I/src/common/vars.sh:3) set -eu -o pipefail
+++++(/var/tmp/noxi-fg3/func/nfsrBI3I/src/common/vars.sh:5) [[ -z '' ]]
+++++(/var/tmp/noxi-fg3/func/nfsrBI3I/src/common/vars.sh:7) COMMON_VARS_SH_SOURCED=1
++++++(/var/tmp/noxi-fg3/func/nfsrBI3I/src/common/vars.sh:9) realpath /var/tmp/noxi-fg3/func/nfsrBI3I/src
+++++(/var/tmp/noxi-fg3/func/nfsrBI3I/src/common/vars.sh:9) _NIX_TEST_SOURCE_DIR=/var/tmp/noxi-fg3/func/nfsrBI3I/src
++++++(/var/tmp/noxi-fg3/func/nfsrBI3I/src/common/vars.sh:10) realpath /var/tmp/noxi-fg3/func/nfsrBI3I/build
+++++(/var/tmp/noxi-fg3/func/nfsrBI3I/src/common/vars.sh:10) _NIX_TEST_BUILD_DIR=/var/tmp/noxi-fg3/func/nfsrBI3I/build
+++++++(/var/tmp/noxi-fg3/func/nfsrBI3I/src/common/vars.sh:12) dirname /var/tmp/noxi-fg3/func/nfsrBI3I/src/common/vars.sh
++++++(/var/tmp/noxi-fg3/func/nfsrBI3I/src/common/vars.sh:12) readlink -f /var/tmp/noxi-fg3/func/nfsrBI3I/src/common
+++++(/var/tmp/noxi-fg3/func/nfsrBI3I/src/common/vars.sh:12) commonDir=/var/tmp/noxi-fg3/func/nfsrBI3I/src/common
+++++(/var/tmp/noxi-fg3/func/nfsrBI3I/src/common/vars.sh:16) source /var/tmp/noxi-fg3/func/nfsrBI3I/build/common/subst-vars.sh
++++++(/var/tmp/noxi-fg3/func/nfsrBI3I/build/common/subst-vars.sh:3) [[ -z '' ]]
++++++(/var/tmp/noxi-fg3/func/nfsrBI3I/build/common/subst-vars.sh:5) COMMON_SUBST_VARS_SH_SOURCED=1
++++++(/var/tmp/noxi-fg3/func/nfsrBI3I/build/common/subst-vars.sh:7) bash=/nix/store/2ndah67h0z5m31v2wkdmg2md4380ggr5-bash-interactive-5.3p15/bin/bash
++++++(/var/tmp/noxi-fg3/func/nfsrBI3I/build/common/subst-vars.sh:8) bindir=/var/tmp/noxi-fg3/tmp/.tmpx5Vwp1/noxi-bin
++++++(/var/tmp/noxi-fg3/func/nfsrBI3I/build/common/subst-vars.sh:9) coreutils=/nix/store/xjl7p8dvyk2j53kqf7f43kdj4ypbxz7g-coreutils-9.11/bin
++++++(/var/tmp/noxi-fg3/func/nfsrBI3I/build/common/subst-vars.sh:11) dot=
++++++(/var/tmp/noxi-fg3/func/nfsrBI3I/build/common/subst-vars.sh:12) busybox=/nix/store/qddzvnv6b0805nkvbqddbswddcfhx814-busybox-static-x86_64-unknown-linux-musl-1.37.0/bin/busybox
++++++(/var/tmp/noxi-fg3/func/nfsrBI3I/build/common/subst-vars.sh:14) version=2.35.2
++++++(/var/tmp/noxi-fg3/func/nfsrBI3I/build/common/subst-vars.sh:15) system=x86_64-linux
+++++(/var/tmp/noxi-fg3/func/nfsrBI3I/src/common/vars.sh:18) : '/var/tmp/noxi-fg3/tmp/.tmpx5Vwp1/noxi-bin /nix/store/xjl7p8dvyk2j53kqf7f43kdj4ypbxz7g-coreutils-9.11/bin  /run/current-system/sw/bin/nu /nix/store/qddzvnv6b0805nkvbqddbswddcfhx814-busybox-static-x86_64-unknown-linux-musl-1.37.0/bin/busybox 2.35.2 x86_64-linux'
+++++(/var/tmp/noxi-fg3/func/nfsrBI3I/src/common/vars.sh:19) export coreutils dot busybox version system
+++++(/var/tmp/noxi-fg3/func/nfsrBI3I/src/common/vars.sh:21) export PAGER=cat
+++++(/var/tmp/noxi-fg3/func/nfsrBI3I/src/common/vars.sh:21) PAGER=cat
+++++(/var/tmp/noxi-fg3/func/nfsrBI3I/src/common/vars.sh:23) source /var/tmp/noxi-fg3/func/nfsrBI3I/src/common/paths.sh
++++++(/var/tmp/noxi-fg3/func/nfsrBI3I/src/common/paths.sh:3) set -eu -o pipefail
++++++(/var/tmp/noxi-fg3/func/nfsrBI3I/src/common/paths.sh:5) [[ -z '' ]]
++++++(/var/tmp/noxi-fg3/func/nfsrBI3I/src/common/paths.sh:7) COMMON_PATHS_SH_SOURCED=1
++++++++(/var/tmp/noxi-fg3/func/nfsrBI3I/src/common/paths.sh:9) dirname /var/tmp/noxi-fg3/func/nfsrBI3I/src/common/paths.sh
+++++++(/var/tmp/noxi-fg3/func/nfsrBI3I/src/common/paths.sh:9) readlink -f /var/tmp/noxi-fg3/func/nfsrBI3I/src/common
++++++(/var/tmp/noxi-fg3/func/nfsrBI3I/src/common/paths.sh:9) commonDir=/var/tmp/noxi-fg3/func/nfsrBI3I/src/common
++++++(/var/tmp/noxi-fg3/func/nfsrBI3I/src/common/paths.sh:12) source /var/tmp/noxi-fg3/func/nfsrBI3I/src/common/functions.sh
+++++++(/var/tmp/noxi-fg3/func/nfsrBI3I/src/common/functions.sh:3) set -eu -o pipefail
+++++++(/var/tmp/noxi-fg3/func/nfsrBI3I/src/common/functions.sh:5) [[ -z '' ]]
+++++++(/var/tmp/noxi-fg3/func/nfsrBI3I/src/common/functions.sh:7) COMMON_FUNCTIONS_SH_SOURCED=1
+++++++(/var/tmp/noxi-fg3/func/nfsrBI3I/src/common/functions.sh:353) trap onError ERR
++++++(/var/tmp/noxi-fg3/func/nfsrBI3I/src/common/paths.sh:14) source /var/tmp/noxi-fg3/func/nfsrBI3I/build/common/subst-vars.sh
+++++++(/var/tmp/noxi-fg3/func/nfsrBI3I/build/common/subst-vars.sh:3) [[ -z 1 ]]
++++++(/var/tmp/noxi-fg3/func/nfsrBI3I/src/common/paths.sh:16) : /nix/store/2ndah67h0z5m31v2wkdmg2md4380ggr5-bash-interactive-5.3p15/bin/bash /var/tmp/noxi-fg3/tmp/.tmpx5Vwp1/noxi-bin
++++++(/var/tmp/noxi-fg3/func/nfsrBI3I/src/common/paths.sh:18) isTestOnNixOS
++++++(/var/tmp/noxi-fg3/func/nfsrBI3I/src/common/functions.sh:10) [[ '' == 1 ]]
++++++(/var/tmp/noxi-fg3/func/nfsrBI3I/src/common/paths.sh:19) export SHELL=/nix/store/2ndah67h0z5m31v2wkdmg2md4380ggr5-bash-interactive-5.3p15/bin/bash
++++++(/var/tmp/noxi-fg3/func/nfsrBI3I/src/common/paths.sh:19) SHELL=/nix/store/2ndah67h0z5m31v2wkdmg2md4380ggr5-bash-interactive-5.3p15/bin/bash
++++++(/var/tmp/noxi-fg3/func/nfsrBI3I/src/common/paths.sh:20) export PATH=/var/tmp/noxi-fg3/tmp/.tmpx5Vwp1/noxi-bin:/var/tmp/noxi-fg3/tmp/.tmpx5Vwp1/noxi-bin:/nix/store/2ndah67h0z5m31v2wkdmg2md4380ggr5-bash-interactive-5.3p15/bin:/nix/store/xjl7p8dvyk2j53kqf7f43kdj4ypbxz7g-coreutils-9.11/bin:/nix/store/xmvbzzxm5snla5a2cyfhm7hjy9bifx7n-gnugrep-3.12/bin:/nix/store/qf2wzyq4irhgyhnq3s2hz0ldjq3w8a3x-gnused-4.10/bin:/nix/store/9zib1q94gka8i5q530364cvy25504qz5-gawk-5.4.1/bin:/nix/store/i9wgqa0l88aprvpwfaq5hkfa6pklhlv0-findutils-4.11.0/bin:/nix/store/b8xvzgd52jby5dfpi0pf46nisy6wma5d-diffutils-3.12/bin:/nix/store/81zqbas7qc02yfdj7142fdcqhxgd3cgz-patch-2.8/bin:/nix/store/c8b0qp903w2hhpa63a2lfs7d565zag30-gnutar-1.35/bin:/nix/store/l5sll8nxk70p73l5yqbsjy4mh0c3g0v5-gzip-1.14/bin:/nix/store/j3yz0ag9j442229n8harpmp9aa5qyvhn-bzip2-1.0.8-bin/bin:/nix/store/518dig8gpvqyac6pkksyjjfzvi9zn8vq-xz-5.8.3-bin/bin:/nix/store/l8ik8mb8lgb60rklxjmkgddmp5qqnv29-zstd-1.5.7-bin/bin:/nix/store/msr1v91ybfw6j12rs5mfl8ghb2rqsnsr-git-2.55.0/bin:/nix/store/hyz22a0l5b5kv7yfypw4ss6d36vbzg01-jq-1.8.2-bin/bin:/nix/store/24gq3bi2yzf7g386p5j32mn78hhanf49-sqlite-3.53.3-bin/bin:/nix/store/cp8qnyl8i0s62g3a1465i258mf5bcr6k-curl-8.22.0-bin/bin:/nix/store/8x4c8zah3fbnyckaic4sskjbw7d2y98n-util-linux-2.42.4-bin/bin:/nix/store/d64q19q1xjdwfhqx6czvrjgrhq0n3lcc-python3-3.14.7/bin:/nix/store/niqsa6mxqsyax9lzbm261a2ml6m71vb6-perl-5.42.3/bin:/nix/store/fv9yl55hkskpc2cj9c0sdyq91car9kgl-file-5.48/bin:/nix/store/jv5kdlkwx0l8a7jdpg21g934ff30s319-which-2.25/bin:/nix/store/aj08b694apkc1jay2akywym9ghlailf5-procps-4.0.7/bin:/nix/store/5wyaj1kvkxbbscz6innrh6yjjkdq4qmk-openssh-10.6p1/bin:/nix/store/44gxi8li8y8wrxrb93sya9hljkpigsqw-openssl-3.6.4-bin/bin:/run/wrappers/wrappers.Yw6nCJO1nt:/nix/store/wmh4xg3557sicfyllmi9ymd8sxaw51wv-man-db-2.13.1/bin:/nix/store/qpgknrlnxca0z99gl12j5n0fgca11cdx-mercurial-7.2.2/bin:/var/tmp/noxi-fg3/tmp/.tmpx5Vwp1/tools
++++++(/var/tmp/noxi-fg3/func/nfsrBI3I/src/common/paths.sh:20) PATH=/var/tmp/noxi-fg3/tmp/.tmpx5Vwp1/noxi-bin:/var/tmp/noxi-fg3/tmp/.tmpx5Vwp1/noxi-bin:/nix/store/2ndah67h0z5m31v2wkdmg2md4380ggr5-bash-interactive-5.3p15/bin:/nix/store/xjl7p8dvyk2j53kqf7f43kdj4ypbxz7g-coreutils-9.11/bin:/nix/store/xmvbzzxm5snla5a2cyfhm7hjy9bifx7n-gnugrep-3.12/bin:/nix/store/qf2wzyq4irhgyhnq3s2hz0ldjq3w8a3x-gnused-4.10/bin:/nix/store/9zib1q94gka8i5q530364cvy25504qz5-gawk-5.4.1/bin:/nix/store/i9wgqa0l88aprvpwfaq5hkfa6pklhlv0-findutils-4.11.0/bin:/nix/store/b8xvzgd52jby5dfpi0pf46nisy6wma5d-diffutils-3.12/bin:/nix/store/81zqbas7qc02yfdj7142fdcqhxgd3cgz-patch-2.8/bin:/nix/store/c8b0qp903w2hhpa63a2lfs7d565zag30-gnutar-1.35/bin:/nix/store/l5sll8nxk70p73l5yqbsjy4mh0c3g0v5-gzip-1.14/bin:/nix/store/j3yz0ag9j442229n8harpmp9aa5qyvhn-bzip2-1.0.8-bin/bin:/nix/store/518dig8gpvqyac6pkksyjjfzvi9zn8vq-xz-5.8.3-bin/bin:/nix/store/l8ik8mb8lgb60rklxjmkgddmp5qqnv29-zstd-1.5.7-bin/bin:/nix/store/msr1v91ybfw6j12rs5mfl8ghb2rqsnsr-git-2.55.0/bin:/nix/store/hyz22a0l5b5kv7yfypw4ss6d36vbzg01-jq-1.8.2-bin/bin:/nix/store/24gq3bi2yzf7g386p5j32mn78hhanf49-sqlite-3.53.3-bin/bin:/nix/store/cp8qnyl8i0s62g3a1465i258mf5bcr6k-curl-8.22.0-bin/bin:/nix/store/8x4c8zah3fbnyckaic4sskjbw7d2y98n-util-linux-2.42.4-bin/bin:/nix/store/d64q19q1xjdwfhqx6czvrjgrhq0n3lcc-python3-3.14.7/bin:/nix/store/niqsa6mxqsyax9lzbm261a2ml6m71vb6-perl-5.42.3/bin:/nix/store/fv9yl55hkskpc2cj9c0sdyq91car9kgl-file-5.48/bin:/nix/store/jv5kdlkwx0l8a7jdpg21g934ff30s319-which-2.25/bin:/nix/store/aj08b694apkc1jay2akywym9ghlailf5-procps-4.0.7/bin:/nix/store/5wyaj1kvkxbbscz6innrh6yjjkdq4qmk-openssh-10.6p1/bin:/nix/store/44gxi8li8y8wrxrb93sya9hljkpigsqw-openssl-3.6.4-bin/bin:/run/wrappers/wrappers.Yw6nCJO1nt:/nix/store/wmh4xg3557sicfyllmi9ymd8sxaw51wv-man-db-2.13.1/bin:/nix/store/qpgknrlnxca0z99gl12j5n0fgca11cdx-mercurial-7.2.2/bin:/var/tmp/noxi-fg3/tmp/.tmpx5Vwp1/tools
++++++(/var/tmp/noxi-fg3/func/nfsrBI3I/src/common/paths.sh:23) [[ -n '' ]]
++++++(/var/tmp/noxi-fg3/func/nfsrBI3I/src/common/paths.sh:27) DAEMON_PATH=/var/tmp/noxi-fg3/tmp/.tmpx5Vwp1/noxi-bin:/var/tmp/noxi-fg3/tmp/.tmpx5Vwp1/noxi-bin:/nix/store/2ndah67h0z5m31v2wkdmg2md4380ggr5-bash-interactive-5.3p15/bin:/nix/store/xjl7p8dvyk2j53kqf7f43kdj4ypbxz7g-coreutils-9.11/bin:/nix/store/xmvbzzxm5snla5a2cyfhm7hjy9bifx7n-gnugrep-3.12/bin:/nix/store/qf2wzyq4irhgyhnq3s2hz0ldjq3w8a3x-gnused-4.10/bin:/nix/store/9zib1q94gka8i5q530364cvy25504qz5-gawk-5.4.1/bin:/nix/store/i9wgqa0l88aprvpwfaq5hkfa6pklhlv0-findutils-4.11.0/bin:/nix/store/b8xvzgd52jby5dfpi0pf46nisy6wma5d-diffutils-3.12/bin:/nix/store/81zqbas7qc02yfdj7142fdcqhxgd3cgz-patch-2.8/bin:/nix/store/c8b0qp903w2hhpa63a2lfs7d565zag30-gnutar-1.35/bin:/nix/store/l5sll8nxk70p73l5yqbsjy4mh0c3g0v5-gzip-1.14/bin:/nix/store/j3yz0ag9j442229n8harpmp9aa5qyvhn-bzip2-1.0.8-bin/bin:/nix/store/518dig8gpvqyac6pkksyjjfzvi9zn8vq-xz-5.8.3-bin/bin:/nix/store/l8ik8mb8lgb60rklxjmkgddmp5qqnv29-zstd-1.5.7-bin/bin:/nix/store/msr1v91ybfw6j12rs5mfl8ghb2rqsnsr-git-2.55.0/bin:/nix/store/hyz22a0l5b5kv7yfypw4ss6d36vbzg01-jq-1.8.2-bin/bin:/nix/store/24gq3bi2yzf7g386p5j32mn78hhanf49-sqlite-3.53.3-bin/bin:/nix/store/cp8qnyl8i0s62g3a1465i258mf5bcr6k-curl-8.22.0-bin/bin:/nix/store/8x4c8zah3fbnyckaic4sskjbw7d2y98n-util-linux-2.42.4-bin/bin:/nix/store/d64q19q1xjdwfhqx6czvrjgrhq0n3lcc-python3-3.14.7/bin:/nix/store/niqsa6mxqsyax9lzbm261a2ml6m71vb6-perl-5.42.3/bin:/nix/store/fv9yl55hkskpc2cj9c0sdyq91car9kgl-file-5.48/bin:/nix/store/jv5kdlkwx0l8a7jdpg21g934ff30s319-which-2.25/bin:/nix/store/aj08b694apkc1jay2akywym9ghlailf5-procps-4.0.7/bin:/nix/store/5wyaj1kvkxbbscz6innrh6yjjkdq4qmk-openssh-10.6p1/bin:/nix/store/44gxi8li8y8wrxrb93sya9hljkpigsqw-openssl-3.6.4-bin/bin:/run/wrappers/wrappers.Yw6nCJO1nt:/nix/store/wmh4xg3557sicfyllmi9ymd8sxaw51wv-man-db-2.13.1/bin:/nix/store/qpgknrlnxca0z99gl12j5n0fgca11cdx-mercurial-7.2.2/bin:/var/tmp/noxi-fg3/tmp/.tmpx5Vwp1/tools
++++++(/var/tmp/noxi-fg3/func/nfsrBI3I/src/common/paths.sh:28) [[ -n '' ]]
+++++(/var/tmp/noxi-fg3/func/nfsrBI3I/src/common/vars.sh:24) source /var/tmp/noxi-fg3/func/nfsrBI3I/src/common/test-root.sh
++++++(/var/tmp/noxi-fg3/func/nfsrBI3I/src/common/test-root.sh:3) TEST_SUBDIR=ca/new-build-cmd
+++++++(/var/tmp/noxi-fg3/func/nfsrBI3I/src/common/test-root.sh:4) realpath /var/tmp/noxi-fg3/func/nfsrBI3I/tmp/nix-test
++++++(/var/tmp/noxi-fg3/func/nfsrBI3I/src/common/test-root.sh:4) TEST_ROOT=/var/tmp/noxi-fg3/func/nfsrBI3I/tmp/nix-test/ca/new-build-cmd
++++++(/var/tmp/noxi-fg3/func/nfsrBI3I/src/common/test-root.sh:5) export TEST_ROOT
+++++(/var/tmp/noxi-fg3/func/nfsrBI3I/src/common/vars.sh:26) test_nix_conf_dir=/var/tmp/noxi-fg3/func/nfsrBI3I/tmp/nix-test/ca/new-build-cmd/etc
+++++(/var/tmp/noxi-fg3/func/nfsrBI3I/src/common/vars.sh:29) test_nix_conf=/var/tmp/noxi-fg3/func/nfsrBI3I/tmp/nix-test/ca/new-build-cmd/etc/nix.conf
+++++(/var/tmp/noxi-fg3/func/nfsrBI3I/src/common/vars.sh:31) export TEST_HOME=/var/tmp/noxi-fg3/func/nfsrBI3I/tmp/nix-test/ca/new-build-cmd/test-home
+++++(/var/tmp/noxi-fg3/func/nfsrBI3I/src/common/vars.sh:31) TEST_HOME=/var/tmp/noxi-fg3/func/nfsrBI3I/tmp/nix-test/ca/new-build-cmd/test-home
+++++(/var/tmp/noxi-fg3/func/nfsrBI3I/src/common/vars.sh:33) isTestOnNixOS
+++++(/var/tmp/noxi-fg3/func/nfsrBI3I/src/common/functions.sh:10) [[ '' == 1 ]]
+++++(/var/tmp/noxi-fg3/func/nfsrBI3I/src/common/vars.sh:34) export NIX_STORE_DIR
++++++(/var/tmp/noxi-fg3/func/nfsrBI3I/src/common/vars.sh:35) readlink -f /var/tmp/noxi-fg3/func/nfsrBI3I/tmp/nix-test/ca/new-build-cmd/store
+++++(/var/tmp/noxi-fg3/func/nfsrBI3I/src/common/vars.sh:35) NIX_STORE_DIR=
+++++(/var/tmp/noxi-fg3/func/nfsrBI3I/src/common/vars.sh:37) export NIX_IGNORE_SYMLINK_STORE=1
+++++(/var/tmp/noxi-fg3/func/nfsrBI3I/src/common/vars.sh:37) NIX_IGNORE_SYMLINK_STORE=1
+++++(/var/tmp/noxi-fg3/func/nfsrBI3I/src/common/vars.sh:38) NIX_STORE_DIR=/var/tmp/noxi-fg3/func/nfsrBI3I/tmp/nix-test/ca/new-build-cmd/store
+++++(/var/tmp/noxi-fg3/func/nfsrBI3I/src/common/vars.sh:40) export NIX_LOCALSTATE_DIR=/var/tmp/noxi-fg3/func/nfsrBI3I/tmp/nix-test/ca/new-build-cmd/var
+++++(/var/tmp/noxi-fg3/func/nfsrBI3I/src/common/vars.sh:40) NIX_LOCALSTATE_DIR=/var/tmp/noxi-fg3/func/nfsrBI3I/tmp/nix-test/ca/new-build-cmd/var
+++++(/var/tmp/noxi-fg3/func/nfsrBI3I/src/common/vars.sh:41) export NIX_LOG_DIR=/var/tmp/noxi-fg3/func/nfsrBI3I/tmp/nix-test/ca/new-build-cmd/var/log/nix
+++++(/var/tmp/noxi-fg3/func/nfsrBI3I/src/common/vars.sh:41) NIX_LOG_DIR=/var/tmp/noxi-fg3/func/nfsrBI3I/tmp/nix-test/ca/new-build-cmd/var/log/nix
+++++(/var/tmp/noxi-fg3/func/nfsrBI3I/src/common/vars.sh:42) export NIX_STATE_DIR=/var/tmp/noxi-fg3/func/nfsrBI3I/tmp/nix-test/ca/new-build-cmd/var/nix
+++++(/var/tmp/noxi-fg3/func/nfsrBI3I/src/common/vars.sh:42) NIX_STATE_DIR=/var/tmp/noxi-fg3/func/nfsrBI3I/tmp/nix-test/ca/new-build-cmd/var/nix
+++++(/var/tmp/noxi-fg3/func/nfsrBI3I/src/common/vars.sh:43) export NIX_CONF_DIR=/var/tmp/noxi-fg3/func/nfsrBI3I/tmp/nix-test/ca/new-build-cmd/etc
+++++(/var/tmp/noxi-fg3/func/nfsrBI3I/src/common/vars.sh:43) NIX_CONF_DIR=/var/tmp/noxi-fg3/func/nfsrBI3I/tmp/nix-test/ca/new-build-cmd/etc
+++++(/var/tmp/noxi-fg3/func/nfsrBI3I/src/common/vars.sh:44) export NIX_DAEMON_SOCKET_PATH=/var/tmp/noxi-fg3/func/nfsrBI3I/tmp/nix-test/ca/new-build-cmd/dSocket
+++++(/var/tmp/noxi-fg3/func/nfsrBI3I/src/common/vars.sh:44) NIX_DAEMON_SOCKET_PATH=/var/tmp/noxi-fg3/func/nfsrBI3I/tmp/nix-test/ca/new-build-cmd/dSocket
+++++(/var/tmp/noxi-fg3/func/nfsrBI3I/src/common/vars.sh:45) unset NIX_USER_CONF_FILES
+++++(/var/tmp/noxi-fg3/func/nfsrBI3I/src/common/vars.sh:46) export _NIX_TEST_SHARED=/var/tmp/noxi-fg3/func/nfsrBI3I/tmp/nix-test/ca/new-build-cmd/shared
+++++(/var/tmp/noxi-fg3/func/nfsrBI3I/src/common/vars.sh:46) _NIX_TEST_SHARED=/var/tmp/noxi-fg3/func/nfsrBI3I/tmp/nix-test/ca/new-build-cmd/shared
+++++(/var/tmp/noxi-fg3/func/nfsrBI3I/src/common/vars.sh:47) [[ -n '' ]]
+++++(/var/tmp/noxi-fg3/func/nfsrBI3I/src/common/vars.sh:50) export _NIX_IN_TEST=/var/tmp/noxi-fg3/func/nfsrBI3I/tmp/nix-test/ca/new-build-cmd/shared
+++++(/var/tmp/noxi-fg3/func/nfsrBI3I/src/common/vars.sh:50) _NIX_IN_TEST=/var/tmp/noxi-fg3/func/nfsrBI3I/tmp/nix-test/ca/new-build-cmd/shared
+++++(/var/tmp/noxi-fg3/func/nfsrBI3I/src/common/vars.sh:51) export _NIX_TEST_NO_LSOF=1
+++++(/var/tmp/noxi-fg3/func/nfsrBI3I/src/common/vars.sh:51) _NIX_TEST_NO_LSOF=1
+++++(/var/tmp/noxi-fg3/func/nfsrBI3I/src/common/vars.sh:54) export _NIX_TEST_NO_ENVIRONMENT_WARNINGS=1
+++++(/var/tmp/noxi-fg3/func/nfsrBI3I/src/common/vars.sh:54) _NIX_TEST_NO_ENVIRONMENT_WARNINGS=1
+++++(/var/tmp/noxi-fg3/func/nfsrBI3I/src/common/vars.sh:55) export NIX_REMOTE=
+++++(/var/tmp/noxi-fg3/func/nfsrBI3I/src/common/vars.sh:55) NIX_REMOTE=
+++++(/var/tmp/noxi-fg3/func/nfsrBI3I/src/common/vars.sh:59) unset NIX_PATH
+++++(/var/tmp/noxi-fg3/func/nfsrBI3I/src/common/vars.sh:60) export HOME=/var/tmp/noxi-fg3/func/nfsrBI3I/tmp/nix-test/ca/new-build-cmd/test-home
+++++(/var/tmp/noxi-fg3/func/nfsrBI3I/src/common/vars.sh:60) HOME=/var/tmp/noxi-fg3/func/nfsrBI3I/tmp/nix-test/ca/new-build-cmd/test-home
+++++(/var/tmp/noxi-fg3/func/nfsrBI3I/src/common/vars.sh:61) unset XDG_STATE_HOME
+++++(/var/tmp/noxi-fg3/func/nfsrBI3I/src/common/vars.sh:62) unset XDG_DATA_HOME
+++++(/var/tmp/noxi-fg3/func/nfsrBI3I/src/common/vars.sh:63) unset XDG_CONFIG_HOME
+++++(/var/tmp/noxi-fg3/func/nfsrBI3I/src/common/vars.sh:64) unset XDG_CONFIG_DIRS
+++++(/var/tmp/noxi-fg3/func/nfsrBI3I/src/common/vars.sh:65) unset XDG_CACHE_HOME
+++++(/var/tmp/noxi-fg3/func/nfsrBI3I/src/common/vars.sh:66) unset GIT_DIR
+++++(/var/tmp/noxi-fg3/func/nfsrBI3I/src/common/vars.sh:68) export GIT_CONFIG_SYSTEM=/dev/null
+++++(/var/tmp/noxi-fg3/func/nfsrBI3I/src/common/vars.sh:68) GIT_CONFIG_SYSTEM=/dev/null
+++++(/var/tmp/noxi-fg3/func/nfsrBI3I/src/common/vars.sh:69) export GIT_CONFIG_GLOBAL=/dev/null
+++++(/var/tmp/noxi-fg3/func/nfsrBI3I/src/common/vars.sh:69) GIT_CONFIG_GLOBAL=/dev/null
+++++(/var/tmp/noxi-fg3/func/nfsrBI3I/src/common/vars.sh:71) export IMPURE_VAR1=foo
+++++(/var/tmp/noxi-fg3/func/nfsrBI3I/src/common/vars.sh:71) IMPURE_VAR1=foo
+++++(/var/tmp/noxi-fg3/func/nfsrBI3I/src/common/vars.sh:72) export IMPURE_VAR2=bar
+++++(/var/tmp/noxi-fg3/func/nfsrBI3I/src/common/vars.sh:72) IMPURE_VAR2=bar
+++++(/var/tmp/noxi-fg3/func/nfsrBI3I/src/common/vars.sh:76) cacheDir=/var/tmp/noxi-fg3/func/nfsrBI3I/tmp/nix-test/ca/new-build-cmd/binary-cache
++++++(/var/tmp/noxi-fg3/func/nfsrBI3I/src/common/vars.sh:78) uname
+++++(/var/tmp/noxi-fg3/func/nfsrBI3I/src/common/vars.sh:78) [[ Linux == Linux ]]
+++++(/var/tmp/noxi-fg3/func/nfsrBI3I/src/common/vars.sh:78) [[ -L /proc/self/ns/user ]]
+++++(/var/tmp/noxi-fg3/func/nfsrBI3I/src/common/vars.sh:78) unshare --user true
+++++(/var/tmp/noxi-fg3/func/nfsrBI3I/src/common/vars.sh:79) _canUseSandbox=1
+++++(/var/tmp/noxi-fg3/func/nfsrBI3I/src/common/vars.sh:85) config_nix=/var/tmp/noxi-fg3/func/nfsrBI3I/tmp/nix-test/ca/new-build-cmd/config.nix
++++(../common.sh:12) source /var/tmp/noxi-fg3/func/nfsrBI3I/src/common/functions.sh
+++++(/var/tmp/noxi-fg3/func/nfsrBI3I/src/common/functions.sh:3) set -eu -o pipefail
+++++(/var/tmp/noxi-fg3/func/nfsrBI3I/src/common/functions.sh:5) [[ -z 1 ]]
++++(../common.sh:13) source /var/tmp/noxi-fg3/func/nfsrBI3I/src/common/init.sh
+++++(/var/tmp/noxi-fg3/func/nfsrBI3I/src/common/init.sh:4) : /var/tmp/noxi-fg3/func/nfsrBI3I/tmp/nix-test/ca/new-build-cmd/etc /var/tmp/noxi-fg3/func/nfsrBI3I/tmp/nix-test/ca/new-build-cmd/etc/nix.conf /var/tmp/noxi-fg3/func/nfsrBI3I/tmp/nix-test/ca/new-build-cmd/config.nix
+++++(/var/tmp/noxi-fg3/func/nfsrBI3I/src/common/init.sh:6) isTestOnNixOS
+++++(/var/tmp/noxi-fg3/func/nfsrBI3I/src/common/functions.sh:10) [[ '' == 1 ]]
+++++(/var/tmp/noxi-fg3/func/nfsrBI3I/src/common/init.sh:29) test -n /var/tmp/noxi-fg3/func/nfsrBI3I/tmp/nix-test/ca/new-build-cmd
+++++(/var/tmp/noxi-fg3/func/nfsrBI3I/src/common/init.sh:31) killDaemon
+++++(/var/tmp/noxi-fg3/func/nfsrBI3I/src/common/functions.sh:100) isTestOnNixOS
+++++(/var/tmp/noxi-fg3/func/nfsrBI3I/src/common/functions.sh:10) [[ '' == 1 ]]
+++++(/var/tmp/noxi-fg3/func/nfsrBI3I/src/common/functions.sh:105) [[ '' == '' ]]
+++++(/var/tmp/noxi-fg3/func/nfsrBI3I/src/common/functions.sh:106) return
+++++(/var/tmp/noxi-fg3/func/nfsrBI3I/src/common/init.sh:33) [[ -e /var/tmp/noxi-fg3/func/nfsrBI3I/tmp/nix-test/ca/new-build-cmd ]]
+++++(/var/tmp/noxi-fg3/func/nfsrBI3I/src/common/init.sh:37) mkdir -p /var/tmp/noxi-fg3/func/nfsrBI3I/tmp/nix-test/ca/new-build-cmd
+++++(/var/tmp/noxi-fg3/func/nfsrBI3I/src/common/init.sh:38) mkdir /var/tmp/noxi-fg3/func/nfsrBI3I/tmp/nix-test/ca/new-build-cmd/test-home
+++++(/var/tmp/noxi-fg3/func/nfsrBI3I/src/common/init.sh:40) mkdir /var/tmp/noxi-fg3/func/nfsrBI3I/tmp/nix-test/ca/new-build-cmd/store
+++++(/var/tmp/noxi-fg3/func/nfsrBI3I/src/common/init.sh:41) mkdir /var/tmp/noxi-fg3/func/nfsrBI3I/tmp/nix-test/ca/new-build-cmd/var
+++++(/var/tmp/noxi-fg3/func/nfsrBI3I/src/common/init.sh:42) mkdir -p /var/tmp/noxi-fg3/func/nfsrBI3I/tmp/nix-test/ca/new-build-cmd/var/log/nix/drvs
+++++(/var/tmp/noxi-fg3/func/nfsrBI3I/src/common/init.sh:43) mkdir /var/tmp/noxi-fg3/func/nfsrBI3I/tmp/nix-test/ca/new-build-cmd/var/nix
+++++(/var/tmp/noxi-fg3/func/nfsrBI3I/src/common/init.sh:44) mkdir /var/tmp/noxi-fg3/func/nfsrBI3I/tmp/nix-test/ca/new-build-cmd/etc
+++++(/var/tmp/noxi-fg3/func/nfsrBI3I/src/common/init.sh:46) cat
++++++(/var/tmp/noxi-fg3/func/nfsrBI3I/src/common/init.sh:46) whoami
+++++(/var/tmp/noxi-fg3/func/nfsrBI3I/src/common/init.sh:59) cat
+++++(/var/tmp/noxi-fg3/func/nfsrBI3I/src/common/init.sh:67) nix-store --init
+++++(/var/tmp/noxi-fg3/func/nfsrBI3I/src/common/init.sh:69) test -e /var/tmp/noxi-fg3/func/nfsrBI3I/tmp/nix-test/ca/new-build-cmd/var/nix/db/db.sqlite
+++++(/var/tmp/noxi-fg3/func/nfsrBI3I/src/common/init.sh:75) echo '# config.nix for test ca / new-build-cmd'
+++++(/var/tmp/noxi-fg3/func/nfsrBI3I/src/common/init.sh:76) cat /var/tmp/noxi-fg3/func/nfsrBI3I/build/config.nix
++++(../common.sh:15) [[ -n '' ]]
+++(common.sh:5) requireDaemonNewerThan 2.35.0pre20260303
+++(/var/tmp/noxi-fg3/func/nfsrBI3I/src/common/functions.sh:154) isDaemonNewer 2.35.0pre20260303
+++(/var/tmp/noxi-fg3/func/nfsrBI3I/src/common/functions.sh:135) [[ -n '' ]]
+++(/var/tmp/noxi-fg3/func/nfsrBI3I/src/common/functions.sh:135) return 0
+++(common.sh:7) enableFeatures ca-derivations
+++(/var/tmp/noxi-fg3/func/nfsrBI3I/src/common/functions.sh:236) local features=ca-derivations
+++(/var/tmp/noxi-fg3/func/nfsrBI3I/src/common/functions.sh:237) sed -i 's/experimental-features .*/& ca-derivations/' /var/tmp/noxi-fg3/func/nfsrBI3I/tmp/nix-test/ca/new-build-cmd/etc/nix.conf
+++(common.sh:9) TODO_NixOS
+++(/var/tmp/noxi-fg3/func/nfsrBI3I/src/common/functions.sh:148) isTestOnNixOS
+++(/var/tmp/noxi-fg3/func/nfsrBI3I/src/common/functions.sh:10) [[ '' == 1 ]]
+++(common.sh:11) restartDaemon
+++(/var/tmp/noxi-fg3/func/nfsrBI3I/src/common/functions.sh:124) isTestOnNixOS
+++(/var/tmp/noxi-fg3/func/nfsrBI3I/src/common/functions.sh:10) [[ '' == 1 ]]
+++(/var/tmp/noxi-fg3/func/nfsrBI3I/src/common/functions.sh:128) [[ -z '' ]]
+++(/var/tmp/noxi-fg3/func/nfsrBI3I/src/common/functions.sh:128) return 0
++(new-build-cmd.sh:5) export NIX_TESTS_CA_BY_DEFAULT=1
++(new-build-cmd.sh:5) NIX_TESTS_CA_BY_DEFAULT=1
++(new-build-cmd.sh:6) cd ..
++(new-build-cmd.sh:8) source ./build.sh
+++(./build.sh:3) source common.sh
++++(common.sh:3) set -eu -o pipefail
++++(common.sh:5) [[ -z 1 ]]
+++(./build.sh:6) nix build -f multiple-outputs.nix --json a b --no-link
+++(./build.sh:6) jq --exit-status $'\n  (.[0] |\n    (.drvPath | match(".*multiple-outputs-a.drv")) and\n    (.outputs |\n      (keys | length == 2) and\n      (.first | match(".*multiple-outputs-a-first")) and\n      (.second | match(".*multiple-outputs-a-second"))))\n  and (.[1] |\n    (.drvPath | match(".*multiple-outputs-b.drv")) and\n    (.outputs |\n      (keys | length == 1) and\n      (.out | match(".*multiple-outputs-b"))))\n'
+warning: you don't have Internet access; disabling some network-dependent features
+these 2 derivations will be built:
+  /var/tmp/noxi-fg3/func/nfsrBI3I/tmp/nix-test/ca/new-build-cmd/store/gy0k1bhlnwfv3lkmbkl22g4sjl3l5hw7-multiple-outputs-a.drv
+  /var/tmp/noxi-fg3/func/nfsrBI3I/tmp/nix-test/ca/new-build-cmd/store/5r6xs3y8j9wccdfk2rkzviirawnzm684-multiple-outputs-b.drv
+building '/var/tmp/noxi-fg3/func/nfsrBI3I/tmp/nix-test/ca/new-build-cmd/store/gy0k1bhlnwfv3lkmbkl22g4sjl3l5hw7-multiple-outputs-a.drv'...
+building '/var/tmp/noxi-fg3/func/nfsrBI3I/tmp/nix-test/ca/new-build-cmd/store/68c64lq1wc8ivm5qyv71zlqhv0glsh2h-multiple-outputs-b.drv'...
+true
+++(./build.sh:21) nix build -f multiple-outputs.nix --json 'a^first' --no-link
+++(./build.sh:21) jq --exit-status $'\n  (.[0] |\n    (.drvPath | match(".*multiple-outputs-a.drv")) and\n    (.outputs | keys == ["first"]))\n'
+warning: you don't have Internet access; disabling some network-dependent features
+true
+++(./build.sh:27) nix build -f multiple-outputs.nix --json 'a^second,first' --no-link
+++(./build.sh:27) jq --exit-status $'\n  (.[0] |\n    (.drvPath | match(".*multiple-outputs-a.drv")) and\n    (.outputs | keys == ["first", "second"]))\n'
+warning: you don't have Internet access; disabling some network-dependent features
+true
+++(./build.sh:33) nix build -f multiple-outputs.nix --json 'a^*' --no-link
+++(./build.sh:33) jq --exit-status $'\n  (.[0] |\n    (.drvPath | match(".*multiple-outputs-a.drv")) and\n    (.outputs | keys == ["first", "second"]))\n'
+warning: you don't have Internet access; disabling some network-dependent features
+true
+++(./build.sh:40) nix build -f multiple-outputs.nix --json e --no-link
+++(./build.sh:40) jq --exit-status $'\n  (.[0] |\n    (.drvPath | match(".*multiple-outputs-e.drv")) and\n    (.outputs | keys == ["a_a", "b"]))\n'
+warning: you don't have Internet access; disabling some network-dependent features
+this derivation will be built:
+  /var/tmp/noxi-fg3/func/nfsrBI3I/tmp/nix-test/ca/new-build-cmd/store/cd5z12b8kk56ac96z480a2sf99vlkm4c-multiple-outputs-e.drv
+building '/var/tmp/noxi-fg3/func/nfsrBI3I/tmp/nix-test/ca/new-build-cmd/store/cd5z12b8kk56ac96z480a2sf99vlkm4c-multiple-outputs-e.drv'...
+true
+++(./build.sh:48) nix build -f multiple-outputs.nix --json nothing-to-install --no-link
+++(./build.sh:48) jq --exit-status $'\n  (.[0] |\n    (.drvPath | match(".*nothing-to-install.drv")) and\n    (.outputs | keys == ["out"]))\n'
+warning: you don't have Internet access; disabling some network-dependent features
+this derivation will be built:
+  /var/tmp/noxi-fg3/func/nfsrBI3I/tmp/nix-test/ca/new-build-cmd/store/5krslh6wx45p3rabi999d308n7mbdxz0-nothing-to-install.drv
+building '/var/tmp/noxi-fg3/func/nfsrBI3I/tmp/nix-test/ca/new-build-cmd/store/5krslh6wx45p3rabi999d308n7mbdxz0-nothing-to-install.drv'...
+true
+++(./build.sh:55) nix build -f multiple-outputs.nix --json 'e^a_a' --no-link
+warning: you don't have Internet access; disabling some network-dependent features
+[{"drvPath":"/var/tmp/noxi-fg3/func/nfsrBI3I/tmp/nix-test/ca/new-build-cmd/store/cd5z12b8kk56ac96z480a2sf99vlkm4c-multiple-outputs-e.drv","outputs":{"a_a":"/var/tmp/noxi-fg3/func/nfsrBI3I/tmp/nix-test/ca/new-build-cmd/store/r0jqbc055g5h591xrd4jz62ps5a3paa2-multiple-outputs-e-a_a"}}]
+++(./build.sh:56) nix build -f multiple-outputs.nix --json 'e^a_a' --no-link
+++(./build.sh:56) jq --exit-status $'\n  (.[0] |\n    (.drvPath | match(".*multiple-outputs-e.drv")) and\n    (.outputs | keys == ["a_a"]))\n'
+warning: you don't have Internet access; disabling some network-dependent features
+true
+++(./build.sh:62) nix build -f multiple-outputs.nix --json 'e^*' --no-link
+++(./build.sh:62) jq --exit-status $'\n  (.[0] |\n    (.drvPath | match(".*multiple-outputs-e.drv")) and\n    (.outputs | keys == ["a_a", "b", "c"]))\n'
+warning: you don't have Internet access; disabling some network-dependent features
+true
+++(./build.sh:70) nix build -f multiple-outputs.nix --json e.a_a.outPath --no-link
+++(./build.sh:70) jq --exit-status $'\n  (.[0] |\n    (.drvPath | match(".*multiple-outputs-e.drv")) and\n    (.outputs | keys == ["a_a"]))\n'
+warning: you don't have Internet access; disabling some network-dependent features
+true
+++(./build.sh:77) expectStderr 1 nix build -f multiple-outputs.nix e.a_a.drvPath
+++(./build.sh:78) grepQuiet 'has a context which refers to a complete source and binary closure.'
+++(/var/tmp/noxi-fg3/func/nfsrBI3I/src/common/functions.sh:201) local expected res
+++(/var/tmp/noxi-fg3/func/nfsrBI3I/src/common/functions.sh:330) checkGrepArgs 'has a context which refers to a complete source and binary closure.'
+++(/var/tmp/noxi-fg3/func/nfsrBI3I/src/common/functions.sh:202) expected=1
+++(/var/tmp/noxi-fg3/func/nfsrBI3I/src/common/functions.sh:203) shift
+++(/var/tmp/noxi-fg3/func/nfsrBI3I/src/common/functions.sh:293) local arg
+++(/var/tmp/noxi-fg3/func/nfsrBI3I/src/common/functions.sh:204) nix build -f multiple-outputs.nix e.a_a.drvPath
+++(/var/tmp/noxi-fg3/func/nfsrBI3I/src/common/functions.sh:294) for arg in "$@"
+++(/var/tmp/noxi-fg3/func/nfsrBI3I/src/common/functions.sh:295) [[ has a context which refers to a complete source and binary closure. != has a context which refers to a complete source and binary closure\. ]]
+++(/var/tmp/noxi-fg3/func/nfsrBI3I/src/common/functions.sh:331) command grep 'has a context which refers to a complete source and binary closure.'
+++(/var/tmp/noxi-fg3/func/nfsrBI3I/src/common/functions.sh:204) res=1
+++(/var/tmp/noxi-fg3/func/nfsrBI3I/src/common/functions.sh:206) [[ 1 -ne 1 ]]
+++(/var/tmp/noxi-fg3/func/nfsrBI3I/src/common/functions.sh:210) return 0
+++(./build.sh:81) expectStderr 1 nix build --expr '""' --no-link
+++(/var/tmp/noxi-fg3/func/nfsrBI3I/src/common/functions.sh:201) local expected res
+++(/var/tmp/noxi-fg3/func/nfsrBI3I/src/common/functions.sh:202) expected=1
+++(/var/tmp/noxi-fg3/func/nfsrBI3I/src/common/functions.sh:203) shift
+++(/var/tmp/noxi-fg3/func/nfsrBI3I/src/common/functions.sh:204) nix build --expr '""' --no-link
+++(./build.sh:82) grepQuiet 'has 0 entries in its context. It should only have exactly one entry'
+++(/var/tmp/noxi-fg3/func/nfsrBI3I/src/common/functions.sh:330) checkGrepArgs 'has 0 entries in its context. It should only have exactly one entry'
+++(/var/tmp/noxi-fg3/func/nfsrBI3I/src/common/functions.sh:293) local arg
+++(/var/tmp/noxi-fg3/func/nfsrBI3I/src/common/functions.sh:294) for arg in "$@"
+++(/var/tmp/noxi-fg3/func/nfsrBI3I/src/common/functions.sh:295) [[ has 0 entries in its context. It should only have exactly one entry != has 0 entries in its context\. It should only have exactly one entry ]]
+++(/var/tmp/noxi-fg3/func/nfsrBI3I/src/common/functions.sh:331) command grep 'has 0 entries in its context. It should only have exactly one entry'
+++(/var/tmp/noxi-fg3/func/nfsrBI3I/src/common/functions.sh:204) res=1
+++(/var/tmp/noxi-fg3/func/nfsrBI3I/src/common/functions.sh:206) [[ 1 -ne 1 ]]
+++(/var/tmp/noxi-fg3/func/nfsrBI3I/src/common/functions.sh:210) return 0
+++(./build.sh:86) expectStderr 1 nix build --impure --expr 'with (import ./multiple-outputs.nix).e.a_a; "${drvPath}${outPath}"' --no-link
+++(./build.sh:87) grepQuiet 'has 2 entries in its context. It should only have exactly one entry'
+++(/var/tmp/noxi-fg3/func/nfsrBI3I/src/common/functions.sh:201) local expected res
+++(/var/tmp/noxi-fg3/func/nfsrBI3I/src/common/functions.sh:202) expected=1
+++(/var/tmp/noxi-fg3/func/nfsrBI3I/src/common/functions.sh:203) shift
+++(/var/tmp/noxi-fg3/func/nfsrBI3I/src/common/functions.sh:330) checkGrepArgs 'has 2 entries in its context. It should only have exactly one entry'
+++(/var/tmp/noxi-fg3/func/nfsrBI3I/src/common/functions.sh:204) nix build --impure --expr 'with (import ./multiple-outputs.nix).e.a_a; "${drvPath}${outPath}"' --no-link
+++(/var/tmp/noxi-fg3/func/nfsrBI3I/src/common/functions.sh:293) local arg
+++(/var/tmp/noxi-fg3/func/nfsrBI3I/src/common/functions.sh:294) for arg in "$@"
+++(/var/tmp/noxi-fg3/func/nfsrBI3I/src/common/functions.sh:295) [[ has 2 entries in its context. It should only have exactly one entry != has 2 entries in its context\. It should only have exactly one entry ]]
+++(/var/tmp/noxi-fg3/func/nfsrBI3I/src/common/functions.sh:331) command grep 'has 2 entries in its context. It should only have exactly one entry'
+++(/var/tmp/noxi-fg3/func/nfsrBI3I/src/common/functions.sh:204) res=1
+++(/var/tmp/noxi-fg3/func/nfsrBI3I/src/common/functions.sh:206) [[ 1 -ne 1 ]]
+++(/var/tmp/noxi-fg3/func/nfsrBI3I/src/common/functions.sh:210) return 0
+++(./build.sh:89) nix build --impure --json --expr 'builtins.unsafeDiscardOutputDependency (import ./multiple-outputs.nix).e.a_a.drvPath' --no-link
+++(./build.sh:89) jq --exit-status $'\n  (.[0] | match(".*multiple-outputs-e.drv"))\n'
+warning: you don't have Internet access; disabling some network-dependent features
+{
+  "offset": 0,
+  "length": 123,
+  "string": "/var/tmp/noxi-fg3/func/nfsrBI3I/tmp/nix-test/ca/new-build-cmd/store/cd5z12b8kk56ac96z480a2sf99vlkm4c-multiple-outputs-e.drv",
+  "captures": []
+}
++++(./build.sh:95) nix eval -f multiple-outputs.nix --raw a.drvPath
+warning: you don't have Internet access; disabling some network-dependent features
+++(./build.sh:95) drv=/var/tmp/noxi-fg3/func/nfsrBI3I/tmp/nix-test/ca/new-build-cmd/store/gy0k1bhlnwfv3lkmbkl22g4sjl3l5hw7-multiple-outputs-a.drv
+++(./build.sh:96) nix build '/var/tmp/noxi-fg3/func/nfsrBI3I/tmp/nix-test/ca/new-build-cmd/store/gy0k1bhlnwfv3lkmbkl22g4sjl3l5hw7-multiple-outputs-a.drv^not-an-output' --no-link --json
+warning: you don't have Internet access; disabling some network-dependent features
+error: derivation '/var/tmp/noxi-fg3/func/nfsrBI3I/tmp/nix-test/ca/new-build-cmd/store/gy0k1bhlnwfv3lkmbkl22g4sjl3l5hw7-multiple-outputs-a.drv' does not have wanted outputs 'not-an-output'
+++(./build.sh:100) nix build '/var/tmp/noxi-fg3/func/nfsrBI3I/tmp/nix-test/ca/new-build-cmd/store/gy0k1bhlnwfv3lkmbkl22g4sjl3l5hw7-multiple-outputs-a.drv^' --no-link --json
+warning: you don't have Internet access; disabling some network-dependent features
+error: invalid extended outputs specifier '/var/tmp/noxi-fg3/func/nfsrBI3I/tmp/nix-test/ca/new-build-cmd/store/gy0k1bhlnwfv3lkmbkl22g4sjl3l5hw7-multiple-outputs-a.drv^'
+++(./build.sh:104) nix build '/var/tmp/noxi-fg3/func/nfsrBI3I/tmp/nix-test/ca/new-build-cmd/store/gy0k1bhlnwfv3lkmbkl22g4sjl3l5hw7-multiple-outputs-a.drv^*nope' --no-link --json
+warning: you don't have Internet access; disabling some network-dependent features
+error: invalid extended outputs specifier '/var/tmp/noxi-fg3/func/nfsrBI3I/tmp/nix-test/ca/new-build-cmd/store/gy0k1bhlnwfv3lkmbkl22g4sjl3l5hw7-multiple-outputs-a.drv^*nope'
+++(./build.sh:108) nix build '/var/tmp/noxi-fg3/func/nfsrBI3I/tmp/nix-test/ca/new-build-cmd/store/gy0k1bhlnwfv3lkmbkl22g4sjl3l5hw7-multiple-outputs-a.drv^first' --no-link --json
+++(./build.sh:108) jq --exit-status $'\n  (.[0] |\n    (.drvPath | match(".*multiple-outputs-a.drv")) and\n    (.outputs |\n      (keys | length == 1) and\n      (.first | match(".*multiple-outputs-a-first")) and\n      (has("second") | not)))\n'
+warning: you don't have Internet access; disabling some network-dependent features
+true
+++(./build.sh:117) nix build '/var/tmp/noxi-fg3/func/nfsrBI3I/tmp/nix-test/ca/new-build-cmd/store/gy0k1bhlnwfv3lkmbkl22g4sjl3l5hw7-multiple-outputs-a.drv^first,second' --no-link --json
+++(./build.sh:117) jq --exit-status $'\n  (.[0] |\n    (.drvPath | match(".*multiple-outputs-a.drv")) and\n    (.outputs |\n      (keys | length == 2) and\n      (.first | match(".*multiple-outputs-a-first")) and\n      (.second | match(".*multiple-outputs-a-second"))))\n'
+warning: you don't have Internet access; disabling some network-dependent features
+true
+++(./build.sh:126) nix build '/var/tmp/noxi-fg3/func/nfsrBI3I/tmp/nix-test/ca/new-build-cmd/store/gy0k1bhlnwfv3lkmbkl22g4sjl3l5hw7-multiple-outputs-a.drv^*' --no-link --json
+++(./build.sh:126) jq --exit-status $'\n  (.[0] |\n    (.drvPath | match(".*multiple-outputs-a.drv")) and\n    (.outputs |\n      (keys | length == 2) and\n      (.first | match(".*multiple-outputs-a-first")) and\n      (.second | match(".*multiple-outputs-a-second"))))\n'
+warning: you don't have Internet access; disabling some network-dependent features
+true
+++(./build.sh:136) nix build --impure -f multiple-outputs.nix --json e --no-link
+++(./build.sh:136) jq --exit-status $'\n  (.[0] |\n    (.drvPath | match(".*multiple-outputs-e.drv")) and\n    (.outputs | keys == ["a_a", "b"]))\n'
+warning: you don't have Internet access; disabling some network-dependent features
+true
+++(./build.sh:144) nix build --impure -f multiple-outputs.nix --json e --no-link --build-max-jobs 3 --gc-keep-outputs --build-use-sandbox
+++(./build.sh:148) jq --exit-status $'\n  (.[0] |\n    (.drvPath | match(".*multiple-outputs-e.drv")) and\n    (.outputs | keys == ["a_a", "b"]))\n'
+error: nix --relaxed-sandbox is not supported by noxi yet
++++(./build.sh:148) onError
++++(/var/tmp/noxi-fg3/func/nfsrBI3I/src/common/functions.sh:242) [[ ehuxB == *e* ]]
++++(/var/tmp/noxi-fg3/func/nfsrBI3I/src/common/functions.sh:243) set +x
+new-build-cmd.sh: test failed at:
+  source in ./build.sh:148
+  main in new-build-cmd.sh:8

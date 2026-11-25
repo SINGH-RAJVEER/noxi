@@ -136,6 +136,7 @@ fn output_json_matches_cppnix() {
 			Output::Fixed(nix_compat::nixhash::CAHash::Flat(_)) => "fixed-flat",
 			Output::Fixed(nix_compat::nixhash::CAHash::Nar(_)) => "fixed-nar",
 			Output::Fixed(nix_compat::nixhash::CAHash::Text(_)) => "fixed-text",
+			Output::Fixed(nix_compat::nixhash::CAHash::Git(_)) => "fixed-git",
 			Output::Floating { .. } => "floating",
 			Output::Deferred => "deferred",
 			Output::Impure { .. } => "impure",

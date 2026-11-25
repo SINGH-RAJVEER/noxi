@@ -163,6 +163,41 @@ fn build_existing_paths_and_roots() {
 }
 
 #[test]
+fn build_profile_registers_the_output_and_keeps_the_previous_generation_on_failure() {
+	let f = Fixture::new();
+	let profile = f.dir.path().join("settings-profile");
+	let profile_arg = profile.to_str().unwrap();
+	let add = |name: &str| {
+		fs::write(f.dir.path().join(name), name).unwrap();
+		let output = f.run(false, &["store", "add-file", name], "nix-command");
+		assert!(output.status.success());
+		String::from_utf8(output.stdout).unwrap().trim().to_owned()
+	};
+	let first = add("first");
+	let second = add("second");
+	let build = |paths: &[&str]| {
+		let mut args = vec!["build", "--no-link", "--profile", profile_arg];
+		args.extend_from_slice(paths);
+		f.run(false, &args, "nix-command")
+	};
+	let output = build(&[&first]);
+	assert!(output.status.success(), "{:?}", output);
+	let generation = f.dir.path().join(fs::read_link(&profile).unwrap());
+	assert_eq!(fs::read_link(&generation).unwrap(), Path::new(&first));
+	assert!(!build(&[&first, &second]).status.success());
+	assert_eq!(
+		f.dir.path().join(fs::read_link(&profile).unwrap()),
+		generation
+	);
+	let output = build(&[&second]);
+	assert!(output.status.success(), "{:?}", output);
+	let next = f.dir.path().join(fs::read_link(&profile).unwrap());
+	assert_ne!(next, generation);
+	assert_eq!(fs::read_link(next).unwrap(), Path::new(&second));
+	assert!(!f.dir.path().join("result").is_symlink());
+}
+
+#[test]
 fn store_add_inspect_verify_and_info() {
 	let f = Fixture::new();
 	fs::create_dir(f.dir.path().join("tree")).unwrap();

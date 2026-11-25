@@ -1,0 +1,1003 @@
+use anyhow::Result;
+use crossterm::event::{Event as CtEvent, KeyCode, KeyEventKind, KeyModifiers};
+use noxios_settings_config::InputMode;
+use noxios_settings_core::{BuildEnded, flake_choices};
+use noxios_settings_engine::search::MAX_SEARCH_RESULTS;
+use tokio::sync::mpsc;
+
+use crate::app::{App, AppEvent, CHANNELS, INPUT_MODES, Mode, SettingsPage, TARGETS, Tab};
+use crate::nav::{
+	cycle_tab, cycle_tab_back, move_flake_selection, move_installed_selection, move_selection,
+	open_settings,
+};
+use crate::ops::{
+	cancel_build, confirm_flake_choice, install_selected, install_selected_flake, migrate_all,
+	migrate_selected, migrate_selected_across, schedule_flake_details, schedule_flake_search,
+	schedule_search, uninstall_selected, update_system,
+};
+use crate::options::{
+	handle_panel_key, on_build_ended, on_options_failed, on_options_loaded, open_options_panel,
+};
+use crate::theme;
+use crate::vim::{VimInput, VimMode};
+
+pub(crate) async fn handle_terminal_event(
+	app: &mut App,
+	tx: &mpsc::Sender<AppEvent>,
+	ev: CtEvent,
+) -> Result<()> {
+	handle_key_event(app, tx, ev).await?;
+	// Any key may have switched tabs; the NixOS tab loads on its first visit.
+	if app.tab == Tab::Nixos && !app.should_quit {
+		crate::nixos::ensure_loaded(app, tx);
+	}
+	Ok(())
+}
+
+async fn handle_key_event(app: &mut App, tx: &mpsc::Sender<AppEvent>, ev: CtEvent) -> Result<()> {
+	let CtEvent::Key(key) = ev else { return Ok(()) };
+	if key.kind != KeyEventKind::Press {
+		return Ok(());
+	}
+	if app.repository.busy {
+		if app.mode == Mode::SettingsSelect
+			&& matches!(
+				app.settings_page,
+				SettingsPage::Telemetry | SettingsPage::TelemetryPreview
+			) {
+			handle_settings_select(app, key.code, key.modifiers);
+			return Ok(());
+		}
+		if key.code == KeyCode::Char('s') && key.modifiers.contains(KeyModifiers::CONTROL) {
+			app.mode = Mode::SettingsSelect;
+			app.settings_page = SettingsPage::Telemetry;
+			app.settings_cursor = usize::from(app.session.engine.config.telemetry.enabled);
+			return Ok(());
+		}
+		crate::repository::handle_key(app, tx, key);
+		return Ok(());
+	}
+
+	if let Some(input) = active_input(app)
+		&& input.mode() == VimMode::Normal
+		&& key.code != KeyCode::Char('d')
+	{
+		input.clear_pending_d();
+	}
+
+	if key.code == KeyCode::Char('r') && key.modifiers.contains(KeyModifiers::CONTROL) {
+		app.mode = Mode::Browsing;
+		app.flake_picker = None;
+		crate::nav::set_tab(app, Tab::Vcs);
+		crate::repository::ensure_loaded(app, tx);
+		return Ok(());
+	}
+
+	if key.modifiers.contains(KeyModifiers::CONTROL) && matches!(key.code, KeyCode::Char('c')) {
+		app.should_quit = true;
+		return Ok(());
+	}
+
+	if let Mode::SettingsSelect = app.mode {
+		handle_settings_select(app, key.code, key.modifiers);
+		return Ok(());
+	}
+	if app.tab == Tab::Vcs {
+		match key.code {
+			KeyCode::Tab => cycle_tab(app),
+			KeyCode::BackTab => cycle_tab_back(app),
+			_ => crate::repository::handle_key(app, tx, key),
+		}
+		return Ok(());
+	}
+
+	if let Some(index) = app.flake_picker {
+		let count = app.flake_details.as_ref().map_or(0, |details| {
+			flake_choices(details, app.session.engine.config.target).len()
+		});
+		match key.code {
+			KeyCode::Esc => app.flake_picker = None,
+			KeyCode::Down | KeyCode::Char('j') if count > 0 => {
+				app.flake_picker = Some((index + 1) % count)
+			}
+			KeyCode::Up | KeyCode::Char('k') if count > 0 => {
+				app.flake_picker = Some((index + count - 1) % count)
+			}
+			KeyCode::Enter => confirm_flake_choice(app),
+			_ => {}
+		}
+		return Ok(());
+	}
+
+	if app.tab == Tab::Flakes {
+		match key.code {
+			KeyCode::PageDown => {
+				app.flake_details_scroll = app.flake_details_scroll.saturating_add(10)
+			}
+			KeyCode::PageUp => {
+				app.flake_details_scroll = app.flake_details_scroll.saturating_sub(10)
+			}
+			_ => {}
+		}
+		if matches!(key.code, KeyCode::PageDown | KeyCode::PageUp) {
+			return Ok(());
+		}
+	}
+
+	if app.options_panel_active() && handle_panel_key(app, tx, key) {
+		return Ok(());
+	}
+
+	if app.tab == Tab::Nixos && crate::nixos::handle_key(app, tx, key) {
+		return Ok(());
+	}
+
+	if key.code == KeyCode::Esc
+		&& app.session.engine.config.input_mode == InputMode::Vim
+		&& let Some(input) = active_input(app)
+		&& input.mode() != VimMode::Normal
+	{
+		input.handle_event(&ev);
+		return Ok(());
+	}
+
+	match key.code {
+		KeyCode::Tab => {
+			cycle_tab(app);
+			if app.tab == Tab::Vcs {
+				crate::repository::ensure_loaded(app, tx);
+			}
+			return Ok(());
+		}
+		KeyCode::BackTab => {
+			cycle_tab_back(app);
+			if app.tab == Tab::Vcs {
+				crate::repository::ensure_loaded(app, tx);
+			}
+			return Ok(());
+		}
+		KeyCode::Char('s') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+			open_settings(app);
+			return Ok(());
+		}
+		KeyCode::Esc => {
+			app.should_quit = true;
+			return Ok(());
+		}
+		_ => {}
+	}
+
+	let vim = app.session.engine.config.input_mode == InputMode::Vim;
+	let Some(input) = active_input(app) else {
+		if app.tab == Tab::Building {
+			match key.code {
+				KeyCode::Char('c') => cancel_build(app),
+				KeyCode::Char('u') => update_system(app),
+				_ => {}
+			}
+		}
+		return Ok(());
+	};
+	if !vim && input.mode() != VimMode::Insert {
+		input.enter_insert_before();
+	}
+	let mode = input.mode();
+	let normal = vim && mode == VimMode::Normal;
+	let delta = match key.code {
+		KeyCode::Down if mode != VimMode::Visual => Some(1),
+		KeyCode::Up if mode != VimMode::Visual => Some(-1),
+		KeyCode::Char('j') if normal => Some(1),
+		KeyCode::Char('k') if normal => Some(-1),
+		_ => None,
+	};
+	if let Some(delta) = delta {
+		match app.tab {
+			Tab::Search => move_selection(app, delta),
+			Tab::Flakes => {
+				move_flake_selection(app, delta);
+				schedule_flake_details(app, tx.clone());
+			}
+			Tab::Installed => move_installed_selection(app, delta),
+			_ => {}
+		}
+		return Ok(());
+	}
+	match key.code {
+		KeyCode::Enter if mode != VimMode::Visual => match app.tab {
+			Tab::Search => install_selected(app, tx).await?,
+			Tab::Flakes => install_selected_flake(app, tx).await?,
+			Tab::Installed => open_options_panel(app, tx),
+			_ => {}
+		},
+		KeyCode::Delete if app.tab == Tab::Installed && normal => {
+			uninstall_selected(app, tx).await?;
+		}
+		KeyCode::Char('m') if app.tab == Tab::Installed && normal => {
+			migrate_selected(app, tx).await?;
+		}
+		KeyCode::Char('M') if app.tab == Tab::Installed && normal => {
+			migrate_all(app, tx).await?;
+		}
+		KeyCode::Char('o') if app.tab == Tab::Installed && normal => {
+			migrate_selected_across(app);
+		}
+		_ => {
+			if let Some(input) = active_input(app)
+				&& input.handle_event(&ev)
+			{
+				match app.tab {
+					Tab::Search => schedule_search(app, tx.clone()),
+					Tab::Flakes => schedule_flake_search(app, tx.clone()),
+					Tab::Installed => app.clamp_installed_selection(),
+					Tab::Nixos => crate::nixos::refilter(app),
+					_ => {}
+				}
+			}
+		}
+	}
+	Ok(())
+}
+
+fn active_input(app: &mut App) -> Option<&mut VimInput> {
+	match app.tab {
+		Tab::Search => Some(&mut app.input),
+		Tab::Flakes => Some(&mut app.flake_input),
+		Tab::Installed => Some(&mut app.installed_input),
+		Tab::Nixos => Some(&mut app.nixos_input),
+		Tab::Building | Tab::Queue | Tab::Vcs => None,
+	}
+}
+
+fn handle_settings_select(app: &mut App, code: KeyCode, modifiers: KeyModifiers) {
+	if matches!(code, KeyCode::Char('s')) && modifiers.contains(KeyModifiers::CONTROL) {
+		app.mode = Mode::Browsing;
+		app.status = "Settings closed.".into();
+		return;
+	}
+
+	match code {
+		KeyCode::Up | KeyCode::Char('k')
+			if matches!(code, KeyCode::Up)
+				|| app.session.engine.config.input_mode == InputMode::Vim =>
+		{
+			let n = settings_option_count(app, app.settings_page);
+			app.settings_cursor = app.settings_cursor.checked_sub(1).unwrap_or(n - 1);
+		}
+		KeyCode::Down | KeyCode::Char('j')
+			if matches!(code, KeyCode::Down)
+				|| app.session.engine.config.input_mode == InputMode::Vim =>
+		{
+			app.settings_cursor =
+				(app.settings_cursor + 1) % settings_option_count(app, app.settings_page);
+		}
+		KeyCode::Enter => select_setting(app),
+		KeyCode::Esc => close_settings_page(app),
+		_ => {}
+	}
+}
+
+fn settings_option_count(app: &App, page: SettingsPage) -> usize {
+	match page {
+		SettingsPage::Main => 6,
+		SettingsPage::Configurations => app.configuration_choices.len().max(1),
+		SettingsPage::InputMode => INPUT_MODES.len(),
+		SettingsPage::Theme => theme::ALL.len(),
+		SettingsPage::Target => TARGETS.len(),
+		SettingsPage::Channel => CHANNELS.len(),
+		SettingsPage::Telemetry => 3,
+		SettingsPage::TelemetryPreview => noxios_settings_core::telemetry::preview()
+			.unwrap_or_default()
+			.lines()
+			.count()
+			.max(1),
+	}
+}
+
+fn select_setting(app: &mut App) {
+	if app.settings_page == SettingsPage::Main {
+		app.settings_page = match app.settings_cursor {
+			0 => SettingsPage::InputMode,
+			1 => SettingsPage::Theme,
+			2 => SettingsPage::Target,
+			3 => SettingsPage::Channel,
+			4 => SettingsPage::Telemetry,
+			_ => SettingsPage::Configurations,
+		};
+		app.settings_cursor = match app.settings_page {
+			SettingsPage::InputMode => INPUT_MODES
+				.iter()
+				.position(|mode| *mode == app.session.engine.config.input_mode)
+				.unwrap_or(0),
+			SettingsPage::Theme => app.theme_index,
+			SettingsPage::Target => TARGETS
+				.iter()
+				.position(|target| *target == app.session.engine.config.target)
+				.unwrap_or(0),
+			SettingsPage::Channel => CHANNELS
+				.iter()
+				.position(|channel| *channel == app.session.engine.config.channel)
+				.unwrap_or(0),
+			SettingsPage::Main => 0,
+			SettingsPage::Configurations => app
+				.configuration_choices
+				.iter()
+				.position(|choice| choice.selected(&app.session.engine.config))
+				.unwrap_or(0),
+			SettingsPage::Telemetry => usize::from(app.session.engine.config.telemetry.enabled),
+			SettingsPage::TelemetryPreview => 0,
+		};
+		app.status = "↑/↓ select  ·  Enter confirm  ·  Esc back".into();
+		return;
+	}
+	if app.settings_page == SettingsPage::TelemetryPreview {
+		app.settings_page = SettingsPage::Telemetry;
+		app.settings_cursor = 2;
+		return;
+	}
+	if app.settings_page == SettingsPage::Telemetry {
+		if app.settings_cursor == 2 {
+			app.settings_page = SettingsPage::TelemetryPreview;
+			app.settings_cursor = 0;
+			app.status = "Synthetic example. Nothing collected or sent. Esc returns.".into();
+			return;
+		}
+		let enabled = app.settings_cursor == 1;
+		if !enabled {
+			app.session.telemetry.disable();
+		}
+		app.status = match noxios_settings_core::telemetry::set_enabled(
+			&mut app.session.engine.config,
+			enabled,
+		) {
+			Ok(()) => {
+				app.session.telemetry.refresh();
+				format!(
+					"Basic usage data: {}.",
+					noxios_settings_core::telemetry::status_label(
+						app.session.engine.config.telemetry
+					)
+				)
+			}
+			Err(error) => format!("Saving telemetry preference failed: {error}"),
+		};
+		return;
+	}
+
+	let page = app.settings_page;
+	app.status = match page {
+		SettingsPage::Configurations => {
+			if app
+				.options_panel
+				.as_ref()
+				.is_some_and(|panel| !panel.staged.is_empty())
+			{
+				app.status =
+					"Apply or discard staged options before changing configuration.".into();
+				return;
+			}
+			match app.configuration_choices.get(app.settings_cursor).cloned() {
+				Some(choice) => match app.session.select_configuration(&choice) {
+					Ok(()) => {
+						app.nixos.abort();
+						app.nixos = Default::default();
+						app.options_cache.clear();
+						app.options_epoch = app.options_epoch.wrapping_add(1);
+						app.options_panel = None;
+						if let Some(task) = app.options_task.take() {
+							task.abort();
+						}
+						format!("Configuration set to {}.", choice.label)
+					}
+					Err(error) => format!("Could not change configuration: {error:#}"),
+				},
+				None => "No supported configuration outputs were discovered.".into(),
+			}
+		}
+		SettingsPage::InputMode => {
+			let mode = INPUT_MODES[app.settings_cursor];
+			app.apply_input_mode(mode);
+			format!("Input set to {}.", mode.label())
+		}
+		SettingsPage::Theme => {
+			app.theme_index = app.settings_cursor;
+			app.session.engine.config.theme = theme::ALL[app.theme_index].name.to_string();
+			format!("Theme set to {}.", theme::ALL[app.theme_index].name)
+		}
+		SettingsPage::Target => {
+			app.session.engine.config.target = TARGETS[app.settings_cursor];
+			format!(
+				"Target set to {}.",
+				app.session.engine.config.target.label()
+			)
+		}
+		SettingsPage::Channel => {
+			app.session.engine.config.channel = CHANNELS[app.settings_cursor].to_string();
+			format!("Channel set to {}.", app.session.engine.config.channel)
+		}
+		SettingsPage::Main | SettingsPage::Telemetry | SettingsPage::TelemetryPreview => {
+			unreachable!()
+		}
+	};
+	let _ = app.session.engine.config.save();
+	app.settings_page = SettingsPage::Main;
+	app.settings_cursor = settings_main_index(page);
+}
+
+fn close_settings_page(app: &mut App) {
+	if app.settings_page == SettingsPage::TelemetryPreview {
+		app.settings_page = SettingsPage::Telemetry;
+		app.settings_cursor = 2;
+		return;
+	}
+	if app.repository.busy && app.settings_page == SettingsPage::Telemetry {
+		app.mode = Mode::Browsing;
+		return;
+	}
+	if app.settings_page == SettingsPage::Main {
+		app.mode = Mode::Browsing;
+		app.status = "Settings closed.".into();
+	} else {
+		let page = app.settings_page;
+		app.settings_page = SettingsPage::Main;
+		app.settings_cursor = settings_main_index(page);
+		app.status = "↑/↓ select  ·  Enter open  ·  Esc close".into();
+	}
+}
+
+fn settings_main_index(page: SettingsPage) -> usize {
+	match page {
+		SettingsPage::Main | SettingsPage::InputMode => 0,
+		SettingsPage::Theme => 1,
+		SettingsPage::Target => 2,
+		SettingsPage::Channel => 3,
+		SettingsPage::Telemetry | SettingsPage::TelemetryPreview => 4,
+		SettingsPage::Configurations => 5,
+	}
+}
+
+pub(crate) fn handle_app_event(app: &mut App, tx: &mpsc::Sender<AppEvent>, ev: AppEvent) {
+	match ev {
+		AppEvent::Repository(result) => crate::repository::on_result(app, *result),
+		AppEvent::Nixos(event) => crate::nixos::on_event(app, tx, event),
+		AppEvent::SearchDone { epoch, hits } => {
+			if epoch == app.search_epoch {
+				app.search_task = None;
+				app.searching = false;
+				app.search_task = None;
+				let count = hits.len();
+				app.results = hits;
+				app.selected = 0;
+				app.status = if count == MAX_SEARCH_RESULTS {
+					format!(
+						"Showing first {} matches for `{}`; refine search for more.",
+						count, app.latest_query
+					)
+				} else {
+					format!("{} matches for `{}`", count, app.latest_query)
+				};
+			}
+		}
+		AppEvent::SearchFailed { epoch, error } => {
+			if epoch == app.search_epoch {
+				app.search_task = None;
+				app.searching = false;
+				app.search_task = None;
+				app.results.clear();
+				app.status = format!("search failed: {}", error);
+			}
+		}
+		AppEvent::CatalogReady(catalog) => {
+			app.catalog_task = None;
+			app.catalog_loading = false;
+			let revision: String = catalog.revision().chars().take(12).collect();
+			app.package_catalog = Some(catalog);
+			if app.input.value().is_empty()
+				&& !app.session.is_building()
+				&& app.session.last_error.is_none()
+			{
+				app.status = format!("Package catalog ready at {revision}.");
+			} else if !app.input.value().is_empty() {
+				schedule_search(app, tx.clone());
+			}
+		}
+		AppEvent::CatalogFailed(error) => {
+			app.catalog_task = None;
+			app.catalog_loading = false;
+			app.package_catalog = None;
+			if app.input.value().is_empty()
+				&& !app.session.is_building()
+				&& app.session.last_error.is_none()
+			{
+				app.status =
+					format!("Package catalog unavailable; live search will be used: {error}");
+			} else if !app.input.value().is_empty() {
+				app.status = format!("Package catalog unavailable; using live search: {error}");
+				schedule_search(app, tx.clone());
+			}
+		}
+		AppEvent::FlakeSearchDone { epoch, hits } => {
+			if epoch == app.flake_search_epoch {
+				app.flake_search_task = None;
+				app.flake_searching = false;
+				app.flake_selected = 0;
+				app.flake_results = hits;
+				app.flake_details = None;
+				let count = app.flake_results.len();
+				app.status = format!("{} GitHub flake matches for `{}`", count, app.flake_query);
+				schedule_flake_details(app, tx.clone());
+			}
+		}
+		AppEvent::FlakeSearchFailed { epoch, error } => {
+			if epoch == app.flake_search_epoch {
+				app.flake_search_task = None;
+				app.flake_searching = false;
+				app.flake_results.clear();
+				app.flake_details = None;
+				app.flake_picker = None;
+				app.status = format!("flake search failed: {}", error);
+			}
+		}
+		AppEvent::FlakeDetailsDone { epoch, details } => {
+			if epoch == app.flake_detail_epoch {
+				app.flake_detail_task = None;
+				app.flake_detail_loading = false;
+				app.flake_details = Some(*details);
+			}
+		}
+		AppEvent::FlakeDetailsFailed { epoch, error } => {
+			if epoch == app.flake_detail_epoch {
+				app.flake_detail_task = None;
+				app.flake_detail_loading = false;
+				app.status = format!("flake details failed: {}", error);
+			}
+		}
+		AppEvent::OptionsLoaded { epoch, key, set } => on_options_loaded(app, epoch, key, set),
+		AppEvent::OptionsFailed { epoch, error } => on_options_failed(app, epoch, error),
+		AppEvent::Build(event) => {
+			let Some(ended) = app.session.on_build_event(event) else {
+				return;
+			};
+			on_build_ended(app, tx);
+			crate::nixos::on_build_ended(app, tx);
+			app.status = match ended {
+				BuildEnded::Succeeded {
+					next: Some(next), ..
+				}
+				| BuildEnded::Failed {
+					next: Some(next), ..
+				} => format!("{next}..."),
+				BuildEnded::Succeeded { label, next: None } => format!("{label} done."),
+				BuildEnded::Failed {
+					label,
+					error,
+					next: None,
+				} => format!("{label} failed: {error}."),
+				BuildEnded::Cancelled { label, paused: 0 } => format!("{label} cancelled."),
+				BuildEnded::Cancelled { label, paused } => {
+					format!("{label} cancelled; {paused} queued operation(s) paused.")
+				}
+			};
+			app.clamp_installed_selection();
+			if !app.visible_tabs().contains(&app.tab) {
+				app.tab = Tab::Search;
+			}
+		}
+	}
+}
+
+#[cfg(test)]
+mod tests {
+	use super::*;
+	use crossterm::event::KeyEvent;
+	use noxios_settings_config::Config;
+	use noxios_settings_engine::Manifest;
+
+	fn test_app() -> App {
+		App::new(
+			Config::default(),
+			Manifest::default(),
+			Manifest::default(),
+			Vec::new(),
+		)
+	}
+
+	async fn press(app: &mut App, code: KeyCode) {
+		press_with_modifiers(app, code, KeyModifiers::NONE).await;
+	}
+
+	async fn press_with_modifiers(app: &mut App, code: KeyCode, modifiers: KeyModifiers) {
+		let (tx, _rx) = mpsc::channel(1);
+		let key = KeyEvent::new(code, modifiers);
+		handle_terminal_event(app, &tx, CtEvent::Key(key))
+			.await
+			.unwrap();
+	}
+
+	#[tokio::test]
+	async fn h_and_l_move_the_search_cursor_without_switching_tabs() {
+		let mut app = test_app();
+		app.input = VimInput::new("abc".into());
+
+		press(&mut app, KeyCode::Char('h')).await;
+		assert_eq!(app.input.cursor(), 1);
+		assert_eq!(app.tab, Tab::Search);
+
+		press(&mut app, KeyCode::Char('l')).await;
+		assert_eq!(app.input.cursor(), 2);
+		assert_eq!(app.tab, Tab::Search);
+	}
+
+	#[tokio::test]
+	async fn repository_busy_intercepts_mutation_and_exit_keys() {
+		for tab in [Tab::Vcs, Tab::Search, Tab::Flakes, Tab::Installed] {
+			let mut app = test_app();
+			app.tab = tab;
+			app.repository.busy = true;
+			press(&mut app, KeyCode::Enter).await;
+			press(&mut app, KeyCode::Esc).await;
+			press(&mut app, KeyCode::Tab).await;
+			press(&mut app, KeyCode::BackTab).await;
+			press(&mut app, KeyCode::Char('d')).await;
+			press(&mut app, KeyCode::Delete).await;
+			for code in ['c', 'r'] {
+				press_with_modifiers(&mut app, KeyCode::Char(code), KeyModifiers::CONTROL).await;
+			}
+			assert_eq!(app.tab, tab);
+			assert_eq!(app.mode, Mode::Browsing);
+			assert!(!app.should_quit);
+			assert!(app.session.queue.is_empty());
+			press_with_modifiers(&mut app, KeyCode::Char('s'), KeyModifiers::CONTROL).await;
+			assert_eq!(app.settings_page, SettingsPage::Telemetry);
+			assert_eq!(app.mode, Mode::SettingsSelect);
+			assert!(!app.session.engine.config.telemetry.enabled);
+			press(&mut app, KeyCode::Esc).await;
+			assert_eq!(app.mode, Mode::Browsing);
+		}
+	}
+
+	#[tokio::test]
+	async fn ctrl_r_clears_pending_delete_before_opening_vcs_across_search_tabs() {
+		for tab in [Tab::Search, Tab::Flakes, Tab::Installed] {
+			let mut app = test_app();
+			crate::repository::on_result(&mut app, Ok(crate::repository::Outcome::nothing()));
+			app.tab = tab;
+			*active_input(&mut app).unwrap() = VimInput::new("ripgrep".into());
+			press(&mut app, KeyCode::Char('d')).await;
+			app.mode = Mode::SettingsSelect;
+			app.flake_picker = Some(0);
+
+			press_with_modifiers(&mut app, KeyCode::Char('r'), KeyModifiers::CONTROL).await;
+			assert_eq!(app.tab, Tab::Vcs);
+			assert_eq!(app.mode, Mode::Browsing);
+			assert!(app.flake_picker.is_none());
+			assert!(active_input(&mut app).is_none());
+			app.tab = tab;
+			let input = active_input(&mut app).unwrap();
+			assert!(!input.has_pending_d(), "{tab:?}");
+			assert_eq!(input.value(), "ripgrep");
+		}
+	}
+
+	#[tokio::test]
+	async fn tab_and_backtab_switch_tabs_and_wrap_through_vcs() {
+		let mut app = test_app();
+		app.input = VimInput::new("abc".into());
+		crate::repository::on_result(&mut app, Ok(crate::repository::Outcome::nothing()));
+		// Keeps the NixOS tab from evaluating a real configuration.
+		app.nixos.loaded = true;
+
+		press(&mut app, KeyCode::Left).await;
+		assert_eq!(app.tab, Tab::Search);
+		assert_eq!(app.input.cursor(), 1);
+
+		press(&mut app, KeyCode::Right).await;
+		assert_eq!(app.tab, Tab::Search);
+		assert_eq!(app.input.cursor(), 2);
+
+		press(&mut app, KeyCode::Tab).await;
+		assert_eq!(app.tab, Tab::Flakes);
+
+		press(&mut app, KeyCode::BackTab).await;
+		assert_eq!(app.tab, Tab::Search);
+		press(&mut app, KeyCode::BackTab).await;
+		assert_eq!(app.tab, Tab::Vcs);
+		press(&mut app, KeyCode::BackTab).await;
+		assert_eq!(app.tab, Tab::Nixos);
+		press(&mut app, KeyCode::BackTab).await;
+		assert_eq!(app.tab, Tab::Installed);
+		press(&mut app, KeyCode::Tab).await;
+		assert_eq!(app.tab, Tab::Nixos);
+		press(&mut app, KeyCode::Tab).await;
+		assert_eq!(app.tab, Tab::Vcs);
+		press(&mut app, KeyCode::Tab).await;
+		assert_eq!(app.tab, Tab::Search);
+		app.mode = Mode::SettingsSelect;
+		press_with_modifiers(&mut app, KeyCode::Char('r'), KeyModifiers::CONTROL).await;
+		assert_eq!(app.tab, Tab::Vcs);
+		assert_eq!(app.mode, Mode::Browsing);
+		assert!(!app.repository.busy);
+	}
+
+	#[tokio::test]
+	async fn double_d_deletes_the_search_line() {
+		for tab in [Tab::Search, Tab::Flakes, Tab::Installed] {
+			let mut app = test_app();
+			app.tab = tab;
+			app.input = VimInput::new("ripgrep".into());
+			app.flake_input = VimInput::new("ripgrep".into());
+			app.installed_input = VimInput::new("ripgrep".into());
+
+			press(&mut app, KeyCode::Char('d')).await;
+			let input = match tab {
+				Tab::Search => &app.input,
+				Tab::Flakes => &app.flake_input,
+				_ => &app.installed_input,
+			};
+			assert_eq!(input.value(), "ripgrep");
+
+			press(&mut app, KeyCode::Char('d')).await;
+			let input = match tab {
+				Tab::Search => &app.input,
+				Tab::Flakes => &app.flake_input,
+				_ => &app.installed_input,
+			};
+			assert_eq!(input.value(), "", "tab: {tab:?}");
+			assert!(!input.has_pending_d());
+		}
+	}
+
+	#[tokio::test]
+	async fn pending_delete_cancels_on_other_keys() {
+		let mut app = test_app();
+		app.input = VimInput::new("ab".into());
+
+		press(&mut app, KeyCode::Char('d')).await;
+		assert!(app.input.has_pending_d());
+
+		press(&mut app, KeyCode::Char('e')).await;
+		assert!(!app.input.has_pending_d());
+		assert_eq!(app.input.value(), "ab");
+	}
+
+	#[tokio::test]
+	async fn arrow_keys_move_visual_cursor_across_search_tabs() {
+		for tab in [Tab::Search, Tab::Flakes, Tab::Installed] {
+			let mut app = test_app();
+			app.tab = tab;
+			*active_input(&mut app).unwrap() = VimInput::new("abcd".into());
+
+			press(&mut app, KeyCode::Left).await;
+			assert_eq!(active_input(&mut app).unwrap().cursor(), 2, "{tab:?}");
+			press(&mut app, KeyCode::Char('v')).await;
+			press(&mut app, KeyCode::Left).await;
+			let input = active_input(&mut app).unwrap();
+			assert_eq!(input.cursor(), 1, "{tab:?}");
+			assert_eq!(input.selection_range(), Some((1, 2)), "{tab:?}");
+
+			press(&mut app, KeyCode::Right).await;
+			press(&mut app, KeyCode::Right).await;
+			let input = active_input(&mut app).unwrap();
+			assert_eq!(input.cursor(), 3, "{tab:?}");
+			assert_eq!(input.selection_range(), Some((2, 3)), "{tab:?}");
+			assert_eq!(input.value(), "abcd");
+			assert_eq!(input.mode(), VimMode::Visual);
+			assert_eq!(app.tab, tab);
+			assert_eq!(app.search_epoch, 0);
+			assert_eq!(app.flake_search_epoch, 0);
+		}
+	}
+
+	#[tokio::test]
+	async fn interrupted_double_d_does_not_delete_across_search_tabs() {
+		for tab in [Tab::Search, Tab::Flakes, Tab::Installed] {
+			for code in [
+				KeyCode::Char('e'),
+				KeyCode::Left,
+				KeyCode::Down,
+				KeyCode::Char('j'),
+				KeyCode::Enter,
+				KeyCode::Tab,
+				KeyCode::BackTab,
+				KeyCode::PageDown,
+			] {
+				let mut app = test_app();
+				crate::repository::on_result(&mut app, Ok(crate::repository::Outcome::nothing()));
+				app.tab = tab;
+				*active_input(&mut app).unwrap() = VimInput::new("ripgrep".into());
+				press(&mut app, KeyCode::Char('d')).await;
+				assert!(active_input(&mut app).unwrap().has_pending_d());
+
+				press(&mut app, code).await;
+				// Inspect the original tab's input without resetting its mode.
+				app.tab = tab;
+				assert!(
+					!active_input(&mut app).unwrap().has_pending_d(),
+					"tab: {tab:?}, interrupt: {code:?}"
+				);
+				press(&mut app, KeyCode::Char('d')).await;
+				let input = active_input(&mut app).unwrap();
+				assert_eq!(
+					input.value(),
+					"ripgrep",
+					"tab: {tab:?}, interrupt: {code:?}"
+				);
+				assert!(input.has_pending_d());
+			}
+		}
+	}
+
+	#[tokio::test]
+	async fn global_shortcuts_clear_pending_delete_across_search_tabs() {
+		for tab in [Tab::Search, Tab::Flakes, Tab::Installed] {
+			for (code, modifiers) in [
+				(KeyCode::Esc, KeyModifiers::NONE),
+				(KeyCode::Char('s'), KeyModifiers::CONTROL),
+				(KeyCode::Char('c'), KeyModifiers::CONTROL),
+			] {
+				let mut app = test_app();
+				app.tab = tab;
+				*active_input(&mut app).unwrap() = VimInput::new("ripgrep".into());
+				press(&mut app, KeyCode::Char('d')).await;
+				press_with_modifiers(&mut app, code, modifiers).await;
+				let input = active_input(&mut app).unwrap();
+				assert!(!input.has_pending_d(), "tab: {tab:?}, shortcut: {code:?}");
+				assert_eq!(input.value(), "ripgrep");
+			}
+		}
+	}
+
+	#[tokio::test]
+	async fn vim_escape_leaves_edit_mode_before_quitting_across_search_tabs() {
+		for tab in [Tab::Search, Tab::Flakes, Tab::Installed] {
+			for mode in [VimMode::Insert, VimMode::Visual] {
+				let mut app = test_app();
+				app.tab = tab;
+				let input = active_input(&mut app).unwrap();
+				*input = VimInput::new("abc".into());
+				match mode {
+					VimMode::Insert => input.enter_insert_before(),
+					VimMode::Visual => input.enter_visual(),
+					VimMode::Normal => unreachable!(),
+				}
+
+				press(&mut app, KeyCode::Esc).await;
+				assert_eq!(active_input(&mut app).unwrap().mode(), VimMode::Normal);
+				assert!(!app.should_quit, "tab: {tab:?}, mode: {mode:?}");
+				press(&mut app, KeyCode::Esc).await;
+				assert!(app.should_quit);
+			}
+		}
+	}
+
+	#[tokio::test]
+	async fn normal_config_keeps_insert_mode_across_search_tabs() {
+		for tab in [Tab::Search, Tab::Flakes, Tab::Installed] {
+			let mut app = test_app();
+			app.apply_input_mode(InputMode::Normal);
+			app.tab = tab;
+			for code in ['j', 'k', 'd', 'm', 'M'] {
+				press(&mut app, KeyCode::Char(code)).await;
+			}
+			let input = active_input(&mut app).unwrap();
+			assert_eq!(input.value(), "jkdmM", "{tab:?}");
+			assert_eq!(input.mode(), VimMode::Insert);
+			assert!(!input.has_pending_d());
+
+			press(&mut app, KeyCode::Esc).await;
+			assert!(app.should_quit);
+			assert_eq!(active_input(&mut app).unwrap().mode(), VimMode::Insert);
+		}
+	}
+
+	#[tokio::test]
+	async fn flakes_tab_uses_vim_cursor_navigation() {
+		let mut app = test_app();
+		app.tab = Tab::Flakes;
+		app.flake_input = VimInput::new("niri".into());
+
+		press(&mut app, KeyCode::Char('h')).await;
+		assert_eq!(app.flake_input.cursor(), 2);
+
+		press(&mut app, KeyCode::Char('v')).await;
+		press(&mut app, KeyCode::Char('l')).await;
+		assert_eq!(app.flake_input.selection_range(), Some((2, 3)));
+	}
+
+	#[tokio::test]
+	async fn ctrl_s_opens_and_closes_settings() {
+		let mut app = test_app();
+
+		press_with_modifiers(&mut app, KeyCode::Char('s'), KeyModifiers::CONTROL).await;
+		assert_eq!(app.mode, Mode::SettingsSelect);
+		assert_eq!(app.settings_page, SettingsPage::Main);
+		assert_eq!(app.settings_cursor, 0);
+
+		press(&mut app, KeyCode::Enter).await;
+		assert_eq!(app.settings_page, SettingsPage::InputMode);
+		assert_eq!(app.settings_cursor, 0);
+
+		press(&mut app, KeyCode::Esc).await;
+		assert_eq!(app.settings_page, SettingsPage::Main);
+		assert_eq!(app.settings_cursor, 0);
+
+		press(&mut app, KeyCode::Down).await;
+		assert_eq!(app.settings_cursor, 1);
+
+		press(&mut app, KeyCode::Enter).await;
+		assert_eq!(app.settings_page, SettingsPage::Theme);
+
+		press_with_modifiers(&mut app, KeyCode::Char('s'), KeyModifiers::CONTROL).await;
+		assert_eq!(app.mode, Mode::Browsing);
+		assert_eq!(app.session.engine.config.input_mode, InputMode::Vim);
+	}
+
+	#[tokio::test]
+	async fn normal_mode_settings_navigation_uses_only_arrow_keys() {
+		let mut app = test_app();
+		app.apply_input_mode(InputMode::Normal);
+
+		press_with_modifiers(&mut app, KeyCode::Char('s'), KeyModifiers::CONTROL).await;
+		press(&mut app, KeyCode::Char('j')).await;
+		assert_eq!(app.settings_cursor, 0);
+
+		press(&mut app, KeyCode::Down).await;
+		assert_eq!(app.settings_cursor, 1);
+
+		press(&mut app, KeyCode::Char('k')).await;
+		assert_eq!(app.settings_cursor, 1);
+
+		press(&mut app, KeyCode::Up).await;
+		assert_eq!(app.settings_cursor, 0);
+	}
+
+	#[tokio::test]
+	async fn former_settings_shortcuts_are_unbound() {
+		let mut app = test_app();
+
+		for code in ['t', 'g', 'n'] {
+			press_with_modifiers(&mut app, KeyCode::Char(code), KeyModifiers::CONTROL).await;
+		}
+
+		assert_eq!(app.mode, Mode::Browsing);
+		assert_eq!(app.session.engine.config.target, Config::default().target);
+		assert_eq!(app.session.engine.config.channel, Config::default().channel);
+		assert_eq!(app.session.engine.config.theme, Config::default().theme);
+	}
+
+	#[test]
+	fn every_settings_row_opens_its_own_page() {
+		let mut app = test_app();
+		let pages = [
+			SettingsPage::InputMode,
+			SettingsPage::Theme,
+			SettingsPage::Target,
+			SettingsPage::Channel,
+		];
+
+		for (index, page) in pages.into_iter().enumerate() {
+			app.settings_page = SettingsPage::Main;
+			app.settings_cursor = index;
+			select_setting(&mut app);
+			assert_eq!(app.settings_page, page);
+
+			close_settings_page(&mut app);
+			assert_eq!(app.settings_page, SettingsPage::Main);
+			assert_eq!(app.settings_cursor, index);
+		}
+	}
+
+	#[tokio::test]
+	async fn normal_input_mode_types_without_vim_transitions() {
+		let mut app = test_app();
+		app.apply_input_mode(InputMode::Normal);
+		app.tab = Tab::Installed;
+
+		press(&mut app, KeyCode::Char('h')).await;
+		assert_eq!(app.installed_input.value(), "h");
+		assert_eq!(app.installed_input.mode(), VimMode::Insert);
+
+		press(&mut app, KeyCode::Esc).await;
+		assert!(app.should_quit);
+		assert_eq!(app.installed_input.mode(), VimMode::Insert);
+	}
+}

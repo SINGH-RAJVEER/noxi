@@ -96,6 +96,8 @@ pub struct DaemonStore {
 	path_infos: RefCell<HashMap<StorePath, ValidPathInfo>>,
 	/// Where this process sees the store's files.
 	real_store_dir: PathBuf,
+	/// Ask the daemon to write added paths again even when they are valid.
+	repair_additions: std::cell::Cell<bool>,
 }
 
 fn store_error(e: Error) -> noxi_store::Error {
@@ -275,6 +277,7 @@ impl DaemonStore {
 			conn: RefCell::new(None),
 			path_infos: RefCell::default(),
 			real_store_dir,
+			repair_additions: std::cell::Cell::new(false),
 		}
 	}
 
@@ -355,7 +358,7 @@ impl DaemonStore {
 				.string(name)
 				.string(method)
 				.store_paths(references.iter())
-				.bool(false);
+				.bool(self.repair_additions.get());
 			conn.to.flush()?;
 			// `FramedSink`: length-prefixed chunks, then an empty one.
 			let mut buf = vec![0u8; 32768];
@@ -700,8 +703,13 @@ impl Store for DaemonStore {
 			(_, FileIngestionMethod::Text) => format!("text:{hash_algo}"),
 			(_, FileIngestionMethod::NixArchive) => format!("fixed:r:{hash_algo}"),
 			(_, FileIngestionMethod::Flat) => format!("fixed:{hash_algo}"),
+			(_, FileIngestionMethod::Git) => format!("fixed:git:{hash_algo}"),
 		};
 		self.add_to_store(source, name, &method, references)
+	}
+
+	fn repair_additions(&self, repair: bool) {
+		self.repair_additions.set(repair);
 	}
 
 	fn add_temp_root(&self, path: &StorePath) -> noxi_store::Result<()> {
@@ -855,6 +863,7 @@ impl Store for DaemonStore {
 				.strings(targets.iter().map(String::as_str));
 			conn.process_stderr()?;
 			Ok(Missing {
+				ignored_dynamic: BTreeSet::new(),
 				will_build: conn.from.read_store_paths()?,
 				will_substitute: conn.from.read_store_paths()?,
 				unknown: conn.from.read_store_paths()?,

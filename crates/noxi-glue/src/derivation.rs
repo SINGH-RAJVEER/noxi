@@ -6,7 +6,10 @@ use std::rc::Rc;
 use std::sync::Arc;
 
 use bstr::{BString, ByteSlice};
-use nix_compat::derivation::{DerivationBuilder, OutputHash, OutputName, Outputs, OutputsBuilder};
+use nix_compat::cppnix_json::derivation::InputNode;
+use nix_compat::derivation::{
+	DerivationBuilder, OutputHash, OutputHashMode, OutputName, Outputs, OutputsBuilder,
+};
 use nix_compat::nixhash::{HashAlgo, NixHash};
 use nix_compat::store_path::{StorePath, hash_placeholder};
 use noxi_eval::builtin_macros::builtins;
@@ -66,11 +69,35 @@ fn populate_inputs(
 	context: NixContext,
 	known_paths: &KnownPaths,
 	state: &ReadOnlyStore,
-) -> Result<(), DerivationError> {
+) -> Result<BTreeMap<StorePath, BTreeMap<OutputName, InputNode>>, DerivationError> {
+	let mut dynamic = BTreeMap::<StorePath, BTreeMap<OutputName, InputNode>>::new();
 	for element in context.iter() {
 		match element {
 			NixContextElement::Plain(path) => {
 				drv.input_sources.insert(parse_store_path(path)?);
+			}
+			// An output of a derivation that is itself an output of another.
+			NixContextElement::Single { name, derivation } if derivation.contains('!') => {
+				let parse_name = |name: &str| {
+					name.parse::<OutputName>()
+						.map_err(|_| DerivationError::InvalidContext(name.to_owned()))
+				};
+				let mut parts = derivation.rsplit('!');
+				let root = parse_store_path(parts.next().unwrap_or_default())?;
+				drv.input_derivations.entry(root.clone()).or_default();
+				let empty = || InputNode {
+					outputs: Default::default(),
+					dynamic_outputs: BTreeMap::new(),
+				};
+				let mut children = dynamic.entry(root).or_default();
+				let mut parts = parts.peekable();
+				while let Some(output) = parts.next() {
+					let node = children.entry(parse_name(output)?).or_insert_with(empty);
+					if parts.peek().is_none() {
+						node.outputs.insert(parse_name(name)?);
+					}
+					children = &mut node.dynamic_outputs;
+				}
 			}
 			NixContextElement::Single { name, derivation } => {
 				let derivation = parse_store_path(derivation)?;
@@ -122,7 +149,7 @@ fn populate_inputs(
 			}
 		}
 	}
-	Ok(())
+	Ok(dynamic)
 }
 
 /// CppNix's `SingleDerivedPath`: a store path, or an output of a derivation
@@ -798,7 +825,7 @@ pub(crate) mod derivation_builtins {
 				error: Rc::new(error),
 			})?;
 		let mut known_paths = state.store.known_paths();
-		populate_inputs(&mut drv, input_context, &known_paths, &state.store)?;
+		let dynamic = populate_inputs(&mut drv, input_context, &known_paths, &state.store)?;
 
 		if drv.command.is_empty() {
 			return Err(ErrorKind::EvalError(
@@ -816,6 +843,26 @@ pub(crate) mod derivation_builtins {
 			if mode.as_deref() != Some("text") || output_names != [OutputName::out()] {
 				return Err(ErrorKind::EvalError("derivation names are allowed to end in '.drv' only if they produce a single derivation file".into()));
 			}
+		}
+
+		// The full model holds the dynamic inputs of a fixed output too.
+		if !dynamic.is_empty()
+			&& let OutputsBuilder::Fixed(OutputHash { mode, hash }) = &drv.outputs
+		{
+			use noxi_store::build_derivation::{ExperimentalMethod, ExperimentalOutput};
+			let method = match mode {
+				OutputHashMode::Flat => ExperimentalMethod::Flat,
+				OutputHashMode::Recursive => ExperimentalMethod::NixArchive,
+			};
+			let path = method
+				.fixed_path(&name, hash)
+				.map_err(|e| ErrorKind::EvalError(e.to_string()))?;
+			fixed_experimental = Some(ExperimentalOutput {
+				method,
+				hash_algo: hash.algo(),
+				impure: false,
+				fixed: Some((path, hash.clone())),
+			});
 		}
 
 		// Unknown output paths need the CA placeholder feature only after
@@ -836,6 +883,7 @@ pub(crate) mod derivation_builtins {
 			|| !drv.outputs.is_fixed()
 				&& (content_addressed
 					|| impure
+					|| !dynamic.is_empty()
 					|| drv
 						.input_derivations
 						.keys()
@@ -915,6 +963,7 @@ pub(crate) mod derivation_builtins {
 				basic,
 				floating,
 				experimental,
+				dynamic,
 			};
 			let references: std::collections::BTreeSet<_> = drv
 				.basic

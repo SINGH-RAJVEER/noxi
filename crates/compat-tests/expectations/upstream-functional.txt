@@ -6,7 +6,7 @@
 # Classes and outcomes are defined in tests/upstream_functional.rs.
 tests/functional/.version support
 tests/functional/absolute-path-literals.sh pass pass pass
-tests/functional/add.sh gap fail pass # main in add.sh:95: error: nix store add with this ingestion method is not supported by noxi yet
+tests/functional/add.sh pass pass pass
 tests/functional/bash-profile.sh anomaly fail fail # reference fail: main in bash-profile.sh:5: bash-profile.sh: line 5: ../../scripts/nix-profile.sh.in: No such file or directory
 tests/functional/big-derivation-attr.nix support
 tests/functional/binary-cache-build-remote.sh gap fail pass # main in binary-cache-build-remote.sh:11: error: Unable to build with a primary store that isn't a local store; either pass a different '--store' or enable remote builds.
@@ -76,7 +76,7 @@ tests/functional/check-refs.sh pass pass pass
 tests/functional/check-reqs.nix support
 tests/functional/check-reqs.sh pass pass pass
 tests/functional/check.nix support
-tests/functional/check.sh gap fail pass # main in check.sh:95: error: unsupported builtin builder 'fetchurl'
+tests/functional/check.sh pass pass pass
 tests/functional/chroot-store.sh gap fail pass # main in chroot-store.sh:48: error: don't know how to open Nix store with scheme 'local://$ROOT/tmp/nix-test/main/chroot-store/x+chroot'
 tests/functional/cli-characterisation.sh gap fail pass # : error:
 tests/functional/cli-characterisation/assert-fail.nix support
@@ -228,21 +228,21 @@ tests/functional/derivation/ia/advanced-attributes.drv support
 tests/functional/dummy support
 tests/functional/dump-db.sh pass pass pass
 tests/functional/duplicate.nar support
-tests/functional/dyn-drv/build-built-drv.sh gap fail pass # main in build-built-drv.sh:24: error: invalid extended outputs specifier '$ROOT/tmp/nix-test/dyn-drv/build-built-drv/store/HASH-hello.drv.drv^out^out'
+tests/functional/dyn-drv/build-built-drv.sh pass pass pass
 tests/functional/dyn-drv/common.sh support
 tests/functional/dyn-drv/config.nix support
-tests/functional/dyn-drv/dep-built-drv-2.sh gap fail pass # main in dep-built-drv-2.sh:16: error: invalid store path 'out!$ROOT/tmp/nix-test/dyn-drv/dep-built-drv-2/store/HASH-make-derivations.drv.drv'
-tests/functional/dyn-drv/dep-built-drv.sh gap fail pass # main in dep-built-drv.sh:12: error: I/O error: Tried to parse an absolute path which was missing the store dir prefix.
+tests/functional/dyn-drv/dep-built-drv-2.sh gap fail pass # main in dep-built-drv-2.sh:16: error: failed to obtain derivation of '$ROOT/tmp/nix-test/dyn-drv/dep-built-drv-2/store/HASH-make-derivations.drv.drv^out'
+tests/functional/dyn-drv/dep-built-drv.sh pass pass pass
 tests/functional/dyn-drv/eval-outputOf.sh pass pass pass
-tests/functional/dyn-drv/failing-outer.sh gap fail pass # main in failing-outer.sh:12: Expected exit code '100' but got '1' from command 'nix-build' './text-hashed-output.nix' '-A' 'failingWrapper' '--no-out-link'
+tests/functional/dyn-drv/failing-outer.sh pass pass pass
 tests/functional/dyn-drv/meson.build support
 tests/functional/dyn-drv/non-trivial.nix support
 tests/functional/dyn-drv/old-daemon-error-hack.nix support
 tests/functional/dyn-drv/old-daemon-error-hack.sh anomaly skip skip # reference skip: Daemon is too new, skipping this test...
 tests/functional/dyn-drv/recursive-mod-json.nix support
-tests/functional/dyn-drv/recursive-mod-json.sh gap fail pass # main in recursive-mod-json.sh:19: error: building impure, text or Git-addressed outputs is not supported
+tests/functional/dyn-drv/recursive-mod-json.sh gap fail pass # main in recursive-mod-json.sh:19: error: Cannot build '$ROOT/tmp/nix-test/dyn-drv/recursive-mod-json/store/HASH-foo.drv.drv'.
 tests/functional/dyn-drv/text-hashed-output.nix support
-tests/functional/dyn-drv/text-hashed-output.sh gap fail pass # main in text-hashed-output.sh:21: error: building impure, text or Git-addressed outputs is not supported
+tests/functional/dyn-drv/text-hashed-output.sh pass pass pass
 tests/functional/eval-store.sh gap fail pass # main in eval-store.sh:14: error: nix build --eval-store is not supported by noxi yet
 tests/functional/eval.nix support
 tests/functional/eval.sh pass pass pass
@@ -263,15 +263,15 @@ tests/functional/fetchGitVerification.sh gap fail pass # main in fetchGitVerific
 tests/functional/fetchMercurial.sh pass pass pass
 tests/functional/fetchPath.sh pass pass pass
 tests/functional/fetchTree-file.sh pass pass pass
-tests/functional/fetchurl.sh gap fail pass # main in fetchurl.sh:10: error: unsupported builtin builder 'fetchurl'
+tests/functional/fetchurl.sh pass pass pass
 tests/functional/filter-source.nix support
 tests/functional/filter-source.sh pass pass pass
 tests/functional/fixed-slow-vs-bad.nix support
-tests/functional/fixed-slow-vs-bad.sh gap fail pass # main in fixed-slow-vs-bad.sh:48: Expected exit code '1' but got '102' from command 'nix' 'build' '-L' '--max-jobs' '2' '--option' 'sandbox' 'true' '--option' 'sandbox-build-dir' '/build-non-standard'
+tests/functional/fixed-slow-vs-bad.sh pass pass pass
 tests/functional/fixed.builder1.sh support
 tests/functional/fixed.builder2.sh support
 tests/functional/fixed.nix support
-tests/functional/fixed.sh gap fail pass # main in fixed.sh:37: error: invalid digest length for algo md5
+tests/functional/fixed.sh pass pass pass
 tests/functional/flakes/absolute-attr-paths.sh pass pass pass
 tests/functional/flakes/absolute-paths.sh pass pass pass
 tests/functional/flakes/build-paths.sh pass pass pass
@@ -325,11 +325,11 @@ tests/functional/gc-runtime.nix support
 tests/functional/gc-runtime.sh pass pass pass
 tests/functional/gc.sh pass pass pass
 tests/functional/git-hashing/common.sh support
-tests/functional/git-hashing/fixed.sh gap fail pass # main in fixed.sh:8: error: building impure, text or Git-addressed outputs is not supported
+tests/functional/git-hashing/fixed.sh pass pass pass
 tests/functional/git-hashing/meson.build support
 tests/functional/git-hashing/simple-common.sh support
-tests/functional/git-hashing/simple-sha1.sh gap fail pass # : error: nix hash path --mode git is not supported by noxi yet
-tests/functional/git-hashing/simple-sha256.sh gap fail pass # : error: nix hash path --mode git is not supported by noxi yet
+tests/functional/git-hashing/simple-sha1.sh pass pass pass
+tests/functional/git-hashing/simple-sha256.sh pass pass pass
 tests/functional/git/meson.build support
 tests/functional/git/packed-refs-no-cache.sh gap fail pass # main in packed-refs-no-cache.sh:50: fatal: cannot change to '$ROOT/tmp/nix-test/git/packed-refs-no-cache/test-home/.cache/nix/gitv3/*/': No such file or directory
 tests/functional/git/symlinked-repo.sh pass pass pass
@@ -342,7 +342,7 @@ tests/functional/ifd.nix support
 tests/functional/import-from-derivation.nix support
 tests/functional/import-from-derivation.sh gap fail pass # main in import-from-derivation.sh:34: error: --readonly-mode is not supported by noxi yet
 tests/functional/impure-derivations.nix support
-tests/functional/impure-derivations.sh gap fail pass # main in impure-derivations.sh:24: error: output 'out' of derivation '$ROOT/tmp/nix-test/main/impure-derivations/store/HASH-impure.drv' has not been built
+tests/functional/impure-derivations.sh pass pass pass
 tests/functional/impure-env.nix support
 tests/functional/impure-env.sh gap fail pass # : error: hash mismatch in fixed-output derivation '$ROOT/tmp/nix-test/main/impure-env/store/HASH-test.drv':
 tests/functional/impure-eval.sh pass pass pass
@@ -353,7 +353,7 @@ tests/functional/lang-gc/issue-11141-gc-coroutine-test.nix support
 tests/functional/lang.sh pass pass pass
 tests/functional/legacy-ssh-store.sh gap fail pass # main in legacy-ssh-store.sh:8: error: unsupported store parameter 'remote-store=$ROOT/tmp/nix-test/main/legacy-ssh-store/other-store' in 'ssh://localhost?remote-store=$ROOT/tmp/nix-test/main/legacy-ss
 tests/functional/linux-sandbox-cert-test.nix support
-tests/functional/linux-sandbox.sh gap fail pass # : /my/store/HASH-nondeterministic
+tests/functional/linux-sandbox.sh gap fail pass # main in linux-sandbox.sh:104: /my/store/HASH-test-sandbox-paths
 tests/functional/local-overlay-store/add-lower-inner.sh support
 tests/functional/local-overlay-store/add-lower.sh gap fail pass # main in ./add-lower-inner.sh:20: error: unsupported store parameter 'lower-store=$ROOT/tmp/nix-test/local-overlay-store/add-lower/stores/store-a' in 'local-overlay://?root=$ROOT/tmp/nix-test/local-ove
 tests/functional/local-overlay-store/bad-uris.sh gap fail pass # : local-overlay://?root=$ROOT/tmp/nix-test/local-overlay-store/bad-uris/bad_test&lower-store=$ROOT/tmp/nix-test/local-overlay-store/bad-uris/stores/store-a&upper-layer=$ROOT/tmp/nix-test/local-overlay
@@ -389,7 +389,7 @@ tests/functional/multiple-outputs-substitute-failure.sh gap fail pass # main in 
 tests/functional/multiple-outputs.nix support
 tests/functional/multiple-outputs.sh pass pass pass
 tests/functional/nar-access.nix support
-tests/functional/nar-access.sh gap fail pass # main in nar-access.sh:156: error: path '$ROOT/tmp/nix-test/main/nar-access/store/HASH-foo' is not valid
+tests/functional/nar-access.sh pass pass pass
 tests/functional/nars.sh gap fail pass # main in nars.sh:6:
 tests/functional/nested-sandboxing.sh gap fail pass # main in nested-sandboxing.sh:24:
 tests/functional/nested-sandboxing/command.sh support
@@ -397,16 +397,16 @@ tests/functional/nested-sandboxing/runner.nix support
 tests/functional/nix-build-examples.nix support
 tests/functional/nix-build.sh pass pass pass
 tests/functional/nix-channel.sh gap fail pass # main in nix-channel.sh:44: error: Is a directory (os error 21)
-tests/functional/nix-collect-garbage-d.sh gap fail pass # : error: assertion '(progName != "fail")' failed
+tests/functional/nix-collect-garbage-d.sh pass pass pass
 tests/functional/nix-copy-ssh-common.sh support
 tests/functional/nix-copy-ssh-ng.sh gap fail pass # source in nix-copy-ssh-common.sh:39: error: unsupported store parameter 'store=$ROOT/tmp/nix-test/main/nix-copy-ssh-ng/store' in 'ssh-ng://localhost?store=$ROOT/tmp/nix-test/main/nix-copy-ssh-ng/store
 tests/functional/nix-copy-ssh.sh gap fail pass # source in nix-copy-ssh-common.sh:39: error: unsupported store parameter 'store=$ROOT/tmp/nix-test/main/nix-copy-ssh/store' in 'ssh://localhost?store=$ROOT/tmp/nix-test/main/nix-copy-ssh/store&remote-s
 tests/functional/nix-daemon-untrusting.sh support # daemon wrapper used by remote-store tests
 tests/functional/nix-meson-build-support support
-tests/functional/nix-profile.sh gap fail pass # main in nix-profile.sh:51: error: assertion '(progName != "fail")' failed
+tests/functional/nix-profile.sh gap fail pass # main in nix-profile.sh:76: profile removal completion is missing
 tests/functional/nix-shell.sh gap fail pass # main in nix-shell.sh:81: error: nix-shell shebang scripts are not supported by noxi yet
 tests/functional/nix_path.sh pass pass pass
-tests/functional/no-url-literals.sh gap fail pass # main in no-url-literals.sh:19:
+tests/functional/no-url-literals.sh pass pass pass
 tests/functional/optimise-store.sh gap fail pass # : inodes do not match
 tests/functional/output-normalization.sh pass pass pass
 tests/functional/package.nix support
@@ -415,7 +415,7 @@ tests/functional/parallel.nix support
 tests/functional/parallel.sh support # test script not registered in meson.build; upstream does not run it
 tests/functional/pass-as-file.sh pass pass pass
 tests/functional/path-from-hash-part.sh pass pass pass
-tests/functional/path-info.sh gap fail pass # main in path-info.sh:37: error: nix path-info --stdin is not supported by noxi yet
+tests/functional/path-info.sh pass pass pass
 tests/functional/path.nix support
 tests/functional/placeholders.sh pass pass pass
 tests/functional/plugins.sh unrun not-run not-run # needs C++ evaluator plugins built against the engine's libraries (TODO section 6)
@@ -542,7 +542,7 @@ tests/functional/simple.builder.sh support
 tests/functional/simple.nix support
 tests/functional/simple.sh gap fail pass # main in simple.sh:27: error: --readonly-mode is not supported by noxi yet
 tests/functional/ssh-relay.sh gap fail pass # main in ssh-relay.sh:16: error: unsupported store parameter 'remote-store=ssh://localhost?remote-store=ssh://localhost?remote-store=ssh://localhost' in 'ssh://localhost?remote-store=ssh://localhost?re
-tests/functional/store-info.sh gap fail pass # main in store-info.sh:38:
+tests/functional/store-info.sh pass pass pass
 tests/functional/store-print-env.sh pass pass pass
 tests/functional/structured-attrs-shell.nix support
 tests/functional/structured-attrs.nix support
@@ -569,5 +569,5 @@ tests/functional/user-envs-migration.sh anomaly skip skip # reference skip: Daem
 tests/functional/user-envs-test-case.sh support
 tests/functional/user-envs.builder.sh support
 tests/functional/user-envs.nix support
-tests/functional/user-envs.sh gap fail pass # source in ./user-envs-test-case.sh:11: error: assertion '(progName != "fail")' failed
+tests/functional/user-envs.sh gap fail pass # source in ./user-envs-test-case.sh:20: JSON outputName and null output paths differ
 tests/functional/why-depends.sh pass pass pass

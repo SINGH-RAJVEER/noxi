@@ -110,6 +110,8 @@ store-and-garbage-collection = [
 ]
 build-engine-and-sandbox = [
 	"noxi-build",
+	"noxi-commands::reference_experimental_outputs",
+	"noxi-commands::reference_rebuild",
 	"noxi-compat-tests::reference_build",
 ]
 binary-caches-and-signatures = [
@@ -155,8 +157,8 @@ nixos-activation = [
 	"noxi-system::snapshot_cli",
 ]
 installed-os-lifecycle = []
-tui-and-gpui-based-nixbox-gui-parity = []
-nixbox-engine-integration = []
+tui-and-gpui-based-settings-gui-parity = []
+settings-engine-integration = []
 os-native-cli-diagnostics = []
 
 # Disposable-VM qualification reports (tests/qualification/results/*/MODE.json)

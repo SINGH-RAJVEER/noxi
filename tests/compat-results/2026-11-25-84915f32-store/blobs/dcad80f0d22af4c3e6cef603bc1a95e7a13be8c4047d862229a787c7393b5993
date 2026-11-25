@@ -1,0 +1,682 @@
++(hash-convert.sh:3) source common.sh
+++(common.sh:3) set -eu -o pipefail
+++(common.sh:5) [[ -z '' ]]
+++(common.sh:7) COMMON_SH_SOURCED=1
+++++(common.sh:9) dirname common.sh
++++(common.sh:9) readlink -f .
+++(common.sh:9) functionalTestsDir=/var/tmp/noxi-fg3/func/nfGA8fbR/src
+++(common.sh:11) source /var/tmp/noxi-fg3/func/nfGA8fbR/src/common/vars.sh
++++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/vars.sh:3) set -eu -o pipefail
++++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/vars.sh:5) [[ -z '' ]]
++++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/vars.sh:7) COMMON_VARS_SH_SOURCED=1
+++++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/vars.sh:9) realpath /var/tmp/noxi-fg3/func/nfGA8fbR/src
++++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/vars.sh:9) _NIX_TEST_SOURCE_DIR=/var/tmp/noxi-fg3/func/nfGA8fbR/src
+++++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/vars.sh:10) realpath /var/tmp/noxi-fg3/func/nfGA8fbR/build
++++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/vars.sh:10) _NIX_TEST_BUILD_DIR=/var/tmp/noxi-fg3/func/nfGA8fbR/build
++++++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/vars.sh:12) dirname /var/tmp/noxi-fg3/func/nfGA8fbR/src/common/vars.sh
+++++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/vars.sh:12) readlink -f /var/tmp/noxi-fg3/func/nfGA8fbR/src/common
++++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/vars.sh:12) commonDir=/var/tmp/noxi-fg3/func/nfGA8fbR/src/common
++++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/vars.sh:16) source /var/tmp/noxi-fg3/func/nfGA8fbR/build/common/subst-vars.sh
+++++(/var/tmp/noxi-fg3/func/nfGA8fbR/build/common/subst-vars.sh:3) [[ -z '' ]]
+++++(/var/tmp/noxi-fg3/func/nfGA8fbR/build/common/subst-vars.sh:5) COMMON_SUBST_VARS_SH_SOURCED=1
+++++(/var/tmp/noxi-fg3/func/nfGA8fbR/build/common/subst-vars.sh:7) bash=/nix/store/2ndah67h0z5m31v2wkdmg2md4380ggr5-bash-interactive-5.3p15/bin/bash
+++++(/var/tmp/noxi-fg3/func/nfGA8fbR/build/common/subst-vars.sh:8) bindir=/var/tmp/noxi-fg3/tmp/.tmpx5Vwp1/noxi-bin
+++++(/var/tmp/noxi-fg3/func/nfGA8fbR/build/common/subst-vars.sh:9) coreutils=/nix/store/xjl7p8dvyk2j53kqf7f43kdj4ypbxz7g-coreutils-9.11/bin
+++++(/var/tmp/noxi-fg3/func/nfGA8fbR/build/common/subst-vars.sh:11) dot=
+++++(/var/tmp/noxi-fg3/func/nfGA8fbR/build/common/subst-vars.sh:12) busybox=/nix/store/qddzvnv6b0805nkvbqddbswddcfhx814-busybox-static-x86_64-unknown-linux-musl-1.37.0/bin/busybox
+++++(/var/tmp/noxi-fg3/func/nfGA8fbR/build/common/subst-vars.sh:14) version=2.35.2
+++++(/var/tmp/noxi-fg3/func/nfGA8fbR/build/common/subst-vars.sh:15) system=x86_64-linux
++++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/vars.sh:18) : '/var/tmp/noxi-fg3/tmp/.tmpx5Vwp1/noxi-bin /nix/store/xjl7p8dvyk2j53kqf7f43kdj4ypbxz7g-coreutils-9.11/bin  /run/current-system/sw/bin/nu /nix/store/qddzvnv6b0805nkvbqddbswddcfhx814-busybox-static-x86_64-unknown-linux-musl-1.37.0/bin/busybox 2.35.2 x86_64-linux'
++++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/vars.sh:19) export coreutils dot busybox version system
++++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/vars.sh:21) export PAGER=cat
++++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/vars.sh:21) PAGER=cat
++++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/vars.sh:23) source /var/tmp/noxi-fg3/func/nfGA8fbR/src/common/paths.sh
+++++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/paths.sh:3) set -eu -o pipefail
+++++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/paths.sh:5) [[ -z '' ]]
+++++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/paths.sh:7) COMMON_PATHS_SH_SOURCED=1
+++++++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/paths.sh:9) dirname /var/tmp/noxi-fg3/func/nfGA8fbR/src/common/paths.sh
++++++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/paths.sh:9) readlink -f /var/tmp/noxi-fg3/func/nfGA8fbR/src/common
+++++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/paths.sh:9) commonDir=/var/tmp/noxi-fg3/func/nfGA8fbR/src/common
+++++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/paths.sh:12) source /var/tmp/noxi-fg3/func/nfGA8fbR/src/common/functions.sh
++++++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/functions.sh:3) set -eu -o pipefail
++++++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/functions.sh:5) [[ -z '' ]]
++++++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/functions.sh:7) COMMON_FUNCTIONS_SH_SOURCED=1
++++++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/functions.sh:353) trap onError ERR
+++++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/paths.sh:14) source /var/tmp/noxi-fg3/func/nfGA8fbR/build/common/subst-vars.sh
++++++(/var/tmp/noxi-fg3/func/nfGA8fbR/build/common/subst-vars.sh:3) [[ -z 1 ]]
+++++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/paths.sh:16) : /nix/store/2ndah67h0z5m31v2wkdmg2md4380ggr5-bash-interactive-5.3p15/bin/bash /var/tmp/noxi-fg3/tmp/.tmpx5Vwp1/noxi-bin
+++++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/paths.sh:18) isTestOnNixOS
+++++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/functions.sh:10) [[ '' == 1 ]]
+++++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/paths.sh:19) export SHELL=/nix/store/2ndah67h0z5m31v2wkdmg2md4380ggr5-bash-interactive-5.3p15/bin/bash
+++++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/paths.sh:19) SHELL=/nix/store/2ndah67h0z5m31v2wkdmg2md4380ggr5-bash-interactive-5.3p15/bin/bash
+++++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/paths.sh:20) export PATH=/var/tmp/noxi-fg3/tmp/.tmpx5Vwp1/noxi-bin:/var/tmp/noxi-fg3/tmp/.tmpx5Vwp1/noxi-bin:/nix/store/2ndah67h0z5m31v2wkdmg2md4380ggr5-bash-interactive-5.3p15/bin:/nix/store/xjl7p8dvyk2j53kqf7f43kdj4ypbxz7g-coreutils-9.11/bin:/nix/store/xmvbzzxm5snla5a2cyfhm7hjy9bifx7n-gnugrep-3.12/bin:/nix/store/qf2wzyq4irhgyhnq3s2hz0ldjq3w8a3x-gnused-4.10/bin:/nix/store/9zib1q94gka8i5q530364cvy25504qz5-gawk-5.4.1/bin:/nix/store/i9wgqa0l88aprvpwfaq5hkfa6pklhlv0-findutils-4.11.0/bin:/nix/store/b8xvzgd52jby5dfpi0pf46nisy6wma5d-diffutils-3.12/bin:/nix/store/81zqbas7qc02yfdj7142fdcqhxgd3cgz-patch-2.8/bin:/nix/store/c8b0qp903w2hhpa63a2lfs7d565zag30-gnutar-1.35/bin:/nix/store/l5sll8nxk70p73l5yqbsjy4mh0c3g0v5-gzip-1.14/bin:/nix/store/j3yz0ag9j442229n8harpmp9aa5qyvhn-bzip2-1.0.8-bin/bin:/nix/store/518dig8gpvqyac6pkksyjjfzvi9zn8vq-xz-5.8.3-bin/bin:/nix/store/l8ik8mb8lgb60rklxjmkgddmp5qqnv29-zstd-1.5.7-bin/bin:/nix/store/msr1v91ybfw6j12rs5mfl8ghb2rqsnsr-git-2.55.0/bin:/nix/store/hyz22a0l5b5kv7yfypw4ss6d36vbzg01-jq-1.8.2-bin/bin:/nix/store/24gq3bi2yzf7g386p5j32mn78hhanf49-sqlite-3.53.3-bin/bin:/nix/store/cp8qnyl8i0s62g3a1465i258mf5bcr6k-curl-8.22.0-bin/bin:/nix/store/8x4c8zah3fbnyckaic4sskjbw7d2y98n-util-linux-2.42.4-bin/bin:/nix/store/d64q19q1xjdwfhqx6czvrjgrhq0n3lcc-python3-3.14.7/bin:/nix/store/niqsa6mxqsyax9lzbm261a2ml6m71vb6-perl-5.42.3/bin:/nix/store/fv9yl55hkskpc2cj9c0sdyq91car9kgl-file-5.48/bin:/nix/store/jv5kdlkwx0l8a7jdpg21g934ff30s319-which-2.25/bin:/nix/store/aj08b694apkc1jay2akywym9ghlailf5-procps-4.0.7/bin:/nix/store/5wyaj1kvkxbbscz6innrh6yjjkdq4qmk-openssh-10.6p1/bin:/nix/store/44gxi8li8y8wrxrb93sya9hljkpigsqw-openssl-3.6.4-bin/bin:/run/wrappers/wrappers.Yw6nCJO1nt:/nix/store/wmh4xg3557sicfyllmi9ymd8sxaw51wv-man-db-2.13.1/bin:/nix/store/qpgknrlnxca0z99gl12j5n0fgca11cdx-mercurial-7.2.2/bin:/var/tmp/noxi-fg3/tmp/.tmpx5Vwp1/tools
+++++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/paths.sh:20) PATH=/var/tmp/noxi-fg3/tmp/.tmpx5Vwp1/noxi-bin:/var/tmp/noxi-fg3/tmp/.tmpx5Vwp1/noxi-bin:/nix/store/2ndah67h0z5m31v2wkdmg2md4380ggr5-bash-interactive-5.3p15/bin:/nix/store/xjl7p8dvyk2j53kqf7f43kdj4ypbxz7g-coreutils-9.11/bin:/nix/store/xmvbzzxm5snla5a2cyfhm7hjy9bifx7n-gnugrep-3.12/bin:/nix/store/qf2wzyq4irhgyhnq3s2hz0ldjq3w8a3x-gnused-4.10/bin:/nix/store/9zib1q94gka8i5q530364cvy25504qz5-gawk-5.4.1/bin:/nix/store/i9wgqa0l88aprvpwfaq5hkfa6pklhlv0-findutils-4.11.0/bin:/nix/store/b8xvzgd52jby5dfpi0pf46nisy6wma5d-diffutils-3.12/bin:/nix/store/81zqbas7qc02yfdj7142fdcqhxgd3cgz-patch-2.8/bin:/nix/store/c8b0qp903w2hhpa63a2lfs7d565zag30-gnutar-1.35/bin:/nix/store/l5sll8nxk70p73l5yqbsjy4mh0c3g0v5-gzip-1.14/bin:/nix/store/j3yz0ag9j442229n8harpmp9aa5qyvhn-bzip2-1.0.8-bin/bin:/nix/store/518dig8gpvqyac6pkksyjjfzvi9zn8vq-xz-5.8.3-bin/bin:/nix/store/l8ik8mb8lgb60rklxjmkgddmp5qqnv29-zstd-1.5.7-bin/bin:/nix/store/msr1v91ybfw6j12rs5mfl8ghb2rqsnsr-git-2.55.0/bin:/nix/store/hyz22a0l5b5kv7yfypw4ss6d36vbzg01-jq-1.8.2-bin/bin:/nix/store/24gq3bi2yzf7g386p5j32mn78hhanf49-sqlite-3.53.3-bin/bin:/nix/store/cp8qnyl8i0s62g3a1465i258mf5bcr6k-curl-8.22.0-bin/bin:/nix/store/8x4c8zah3fbnyckaic4sskjbw7d2y98n-util-linux-2.42.4-bin/bin:/nix/store/d64q19q1xjdwfhqx6czvrjgrhq0n3lcc-python3-3.14.7/bin:/nix/store/niqsa6mxqsyax9lzbm261a2ml6m71vb6-perl-5.42.3/bin:/nix/store/fv9yl55hkskpc2cj9c0sdyq91car9kgl-file-5.48/bin:/nix/store/jv5kdlkwx0l8a7jdpg21g934ff30s319-which-2.25/bin:/nix/store/aj08b694apkc1jay2akywym9ghlailf5-procps-4.0.7/bin:/nix/store/5wyaj1kvkxbbscz6innrh6yjjkdq4qmk-openssh-10.6p1/bin:/nix/store/44gxi8li8y8wrxrb93sya9hljkpigsqw-openssl-3.6.4-bin/bin:/run/wrappers/wrappers.Yw6nCJO1nt:/nix/store/wmh4xg3557sicfyllmi9ymd8sxaw51wv-man-db-2.13.1/bin:/nix/store/qpgknrlnxca0z99gl12j5n0fgca11cdx-mercurial-7.2.2/bin:/var/tmp/noxi-fg3/tmp/.tmpx5Vwp1/tools
+++++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/paths.sh:23) [[ -n '' ]]
+++++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/paths.sh:27) DAEMON_PATH=/var/tmp/noxi-fg3/tmp/.tmpx5Vwp1/noxi-bin:/var/tmp/noxi-fg3/tmp/.tmpx5Vwp1/noxi-bin:/nix/store/2ndah67h0z5m31v2wkdmg2md4380ggr5-bash-interactive-5.3p15/bin:/nix/store/xjl7p8dvyk2j53kqf7f43kdj4ypbxz7g-coreutils-9.11/bin:/nix/store/xmvbzzxm5snla5a2cyfhm7hjy9bifx7n-gnugrep-3.12/bin:/nix/store/qf2wzyq4irhgyhnq3s2hz0ldjq3w8a3x-gnused-4.10/bin:/nix/store/9zib1q94gka8i5q530364cvy25504qz5-gawk-5.4.1/bin:/nix/store/i9wgqa0l88aprvpwfaq5hkfa6pklhlv0-findutils-4.11.0/bin:/nix/store/b8xvzgd52jby5dfpi0pf46nisy6wma5d-diffutils-3.12/bin:/nix/store/81zqbas7qc02yfdj7142fdcqhxgd3cgz-patch-2.8/bin:/nix/store/c8b0qp903w2hhpa63a2lfs7d565zag30-gnutar-1.35/bin:/nix/store/l5sll8nxk70p73l5yqbsjy4mh0c3g0v5-gzip-1.14/bin:/nix/store/j3yz0ag9j442229n8harpmp9aa5qyvhn-bzip2-1.0.8-bin/bin:/nix/store/518dig8gpvqyac6pkksyjjfzvi9zn8vq-xz-5.8.3-bin/bin:/nix/store/l8ik8mb8lgb60rklxjmkgddmp5qqnv29-zstd-1.5.7-bin/bin:/nix/store/msr1v91ybfw6j12rs5mfl8ghb2rqsnsr-git-2.55.0/bin:/nix/store/hyz22a0l5b5kv7yfypw4ss6d36vbzg01-jq-1.8.2-bin/bin:/nix/store/24gq3bi2yzf7g386p5j32mn78hhanf49-sqlite-3.53.3-bin/bin:/nix/store/cp8qnyl8i0s62g3a1465i258mf5bcr6k-curl-8.22.0-bin/bin:/nix/store/8x4c8zah3fbnyckaic4sskjbw7d2y98n-util-linux-2.42.4-bin/bin:/nix/store/d64q19q1xjdwfhqx6czvrjgrhq0n3lcc-python3-3.14.7/bin:/nix/store/niqsa6mxqsyax9lzbm261a2ml6m71vb6-perl-5.42.3/bin:/nix/store/fv9yl55hkskpc2cj9c0sdyq91car9kgl-file-5.48/bin:/nix/store/jv5kdlkwx0l8a7jdpg21g934ff30s319-which-2.25/bin:/nix/store/aj08b694apkc1jay2akywym9ghlailf5-procps-4.0.7/bin:/nix/store/5wyaj1kvkxbbscz6innrh6yjjkdq4qmk-openssh-10.6p1/bin:/nix/store/44gxi8li8y8wrxrb93sya9hljkpigsqw-openssl-3.6.4-bin/bin:/run/wrappers/wrappers.Yw6nCJO1nt:/nix/store/wmh4xg3557sicfyllmi9ymd8sxaw51wv-man-db-2.13.1/bin:/nix/store/qpgknrlnxca0z99gl12j5n0fgca11cdx-mercurial-7.2.2/bin:/var/tmp/noxi-fg3/tmp/.tmpx5Vwp1/tools
+++++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/paths.sh:28) [[ -n '' ]]
++++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/vars.sh:24) source /var/tmp/noxi-fg3/func/nfGA8fbR/src/common/test-root.sh
+++++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/test-root.sh:3) TEST_SUBDIR=main/hash-convert
++++++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/test-root.sh:4) realpath /var/tmp/noxi-fg3/func/nfGA8fbR/tmp/nix-test
+++++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/test-root.sh:4) TEST_ROOT=/var/tmp/noxi-fg3/func/nfGA8fbR/tmp/nix-test/main/hash-convert
+++++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/test-root.sh:5) export TEST_ROOT
++++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/vars.sh:26) test_nix_conf_dir=/var/tmp/noxi-fg3/func/nfGA8fbR/tmp/nix-test/main/hash-convert/etc
++++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/vars.sh:29) test_nix_conf=/var/tmp/noxi-fg3/func/nfGA8fbR/tmp/nix-test/main/hash-convert/etc/nix.conf
++++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/vars.sh:31) export TEST_HOME=/var/tmp/noxi-fg3/func/nfGA8fbR/tmp/nix-test/main/hash-convert/test-home
++++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/vars.sh:31) TEST_HOME=/var/tmp/noxi-fg3/func/nfGA8fbR/tmp/nix-test/main/hash-convert/test-home
++++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/vars.sh:33) isTestOnNixOS
++++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/functions.sh:10) [[ '' == 1 ]]
++++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/vars.sh:34) export NIX_STORE_DIR
+++++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/vars.sh:35) readlink -f /var/tmp/noxi-fg3/func/nfGA8fbR/tmp/nix-test/main/hash-convert/store
++++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/vars.sh:35) NIX_STORE_DIR=
++++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/vars.sh:37) export NIX_IGNORE_SYMLINK_STORE=1
++++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/vars.sh:37) NIX_IGNORE_SYMLINK_STORE=1
++++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/vars.sh:38) NIX_STORE_DIR=/var/tmp/noxi-fg3/func/nfGA8fbR/tmp/nix-test/main/hash-convert/store
++++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/vars.sh:40) export NIX_LOCALSTATE_DIR=/var/tmp/noxi-fg3/func/nfGA8fbR/tmp/nix-test/main/hash-convert/var
++++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/vars.sh:40) NIX_LOCALSTATE_DIR=/var/tmp/noxi-fg3/func/nfGA8fbR/tmp/nix-test/main/hash-convert/var
++++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/vars.sh:41) export NIX_LOG_DIR=/var/tmp/noxi-fg3/func/nfGA8fbR/tmp/nix-test/main/hash-convert/var/log/nix
++++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/vars.sh:41) NIX_LOG_DIR=/var/tmp/noxi-fg3/func/nfGA8fbR/tmp/nix-test/main/hash-convert/var/log/nix
++++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/vars.sh:42) export NIX_STATE_DIR=/var/tmp/noxi-fg3/func/nfGA8fbR/tmp/nix-test/main/hash-convert/var/nix
++++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/vars.sh:42) NIX_STATE_DIR=/var/tmp/noxi-fg3/func/nfGA8fbR/tmp/nix-test/main/hash-convert/var/nix
++++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/vars.sh:43) export NIX_CONF_DIR=/var/tmp/noxi-fg3/func/nfGA8fbR/tmp/nix-test/main/hash-convert/etc
++++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/vars.sh:43) NIX_CONF_DIR=/var/tmp/noxi-fg3/func/nfGA8fbR/tmp/nix-test/main/hash-convert/etc
++++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/vars.sh:44) export NIX_DAEMON_SOCKET_PATH=/var/tmp/noxi-fg3/func/nfGA8fbR/tmp/nix-test/main/hash-convert/dSocket
++++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/vars.sh:44) NIX_DAEMON_SOCKET_PATH=/var/tmp/noxi-fg3/func/nfGA8fbR/tmp/nix-test/main/hash-convert/dSocket
++++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/vars.sh:45) unset NIX_USER_CONF_FILES
++++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/vars.sh:46) export _NIX_TEST_SHARED=/var/tmp/noxi-fg3/func/nfGA8fbR/tmp/nix-test/main/hash-convert/shared
++++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/vars.sh:46) _NIX_TEST_SHARED=/var/tmp/noxi-fg3/func/nfGA8fbR/tmp/nix-test/main/hash-convert/shared
++++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/vars.sh:47) [[ -n '' ]]
++++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/vars.sh:50) export _NIX_IN_TEST=/var/tmp/noxi-fg3/func/nfGA8fbR/tmp/nix-test/main/hash-convert/shared
++++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/vars.sh:50) _NIX_IN_TEST=/var/tmp/noxi-fg3/func/nfGA8fbR/tmp/nix-test/main/hash-convert/shared
++++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/vars.sh:51) export _NIX_TEST_NO_LSOF=1
++++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/vars.sh:51) _NIX_TEST_NO_LSOF=1
++++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/vars.sh:54) export _NIX_TEST_NO_ENVIRONMENT_WARNINGS=1
++++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/vars.sh:54) _NIX_TEST_NO_ENVIRONMENT_WARNINGS=1
++++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/vars.sh:55) export NIX_REMOTE=
++++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/vars.sh:55) NIX_REMOTE=
++++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/vars.sh:59) unset NIX_PATH
++++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/vars.sh:60) export HOME=/var/tmp/noxi-fg3/func/nfGA8fbR/tmp/nix-test/main/hash-convert/test-home
++++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/vars.sh:60) HOME=/var/tmp/noxi-fg3/func/nfGA8fbR/tmp/nix-test/main/hash-convert/test-home
++++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/vars.sh:61) unset XDG_STATE_HOME
++++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/vars.sh:62) unset XDG_DATA_HOME
++++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/vars.sh:63) unset XDG_CONFIG_HOME
++++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/vars.sh:64) unset XDG_CONFIG_DIRS
++++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/vars.sh:65) unset XDG_CACHE_HOME
++++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/vars.sh:66) unset GIT_DIR
++++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/vars.sh:68) export GIT_CONFIG_SYSTEM=/dev/null
++++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/vars.sh:68) GIT_CONFIG_SYSTEM=/dev/null
++++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/vars.sh:69) export GIT_CONFIG_GLOBAL=/dev/null
++++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/vars.sh:69) GIT_CONFIG_GLOBAL=/dev/null
++++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/vars.sh:71) export IMPURE_VAR1=foo
++++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/vars.sh:71) IMPURE_VAR1=foo
++++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/vars.sh:72) export IMPURE_VAR2=bar
++++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/vars.sh:72) IMPURE_VAR2=bar
++++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/vars.sh:76) cacheDir=/var/tmp/noxi-fg3/func/nfGA8fbR/tmp/nix-test/main/hash-convert/binary-cache
+++++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/vars.sh:78) uname
++++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/vars.sh:78) [[ Linux == Linux ]]
++++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/vars.sh:78) [[ -L /proc/self/ns/user ]]
++++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/vars.sh:78) unshare --user true
++++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/vars.sh:79) _canUseSandbox=1
++++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/vars.sh:85) config_nix=/var/tmp/noxi-fg3/func/nfGA8fbR/tmp/nix-test/main/hash-convert/config.nix
+++(common.sh:12) source /var/tmp/noxi-fg3/func/nfGA8fbR/src/common/functions.sh
++++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/functions.sh:3) set -eu -o pipefail
++++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/functions.sh:5) [[ -z 1 ]]
+++(common.sh:13) source /var/tmp/noxi-fg3/func/nfGA8fbR/src/common/init.sh
++++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/init.sh:4) : /var/tmp/noxi-fg3/func/nfGA8fbR/tmp/nix-test/main/hash-convert/etc /var/tmp/noxi-fg3/func/nfGA8fbR/tmp/nix-test/main/hash-convert/etc/nix.conf /var/tmp/noxi-fg3/func/nfGA8fbR/tmp/nix-test/main/hash-convert/config.nix
++++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/init.sh:6) isTestOnNixOS
++++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/functions.sh:10) [[ '' == 1 ]]
++++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/init.sh:29) test -n /var/tmp/noxi-fg3/func/nfGA8fbR/tmp/nix-test/main/hash-convert
++++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/init.sh:31) killDaemon
++++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/functions.sh:100) isTestOnNixOS
++++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/functions.sh:10) [[ '' == 1 ]]
++++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/functions.sh:105) [[ '' == '' ]]
++++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/functions.sh:106) return
++++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/init.sh:33) [[ -e /var/tmp/noxi-fg3/func/nfGA8fbR/tmp/nix-test/main/hash-convert ]]
++++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/init.sh:37) mkdir -p /var/tmp/noxi-fg3/func/nfGA8fbR/tmp/nix-test/main/hash-convert
++++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/init.sh:38) mkdir /var/tmp/noxi-fg3/func/nfGA8fbR/tmp/nix-test/main/hash-convert/test-home
++++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/init.sh:40) mkdir /var/tmp/noxi-fg3/func/nfGA8fbR/tmp/nix-test/main/hash-convert/store
++++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/init.sh:41) mkdir /var/tmp/noxi-fg3/func/nfGA8fbR/tmp/nix-test/main/hash-convert/var
++++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/init.sh:42) mkdir -p /var/tmp/noxi-fg3/func/nfGA8fbR/tmp/nix-test/main/hash-convert/var/log/nix/drvs
++++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/init.sh:43) mkdir /var/tmp/noxi-fg3/func/nfGA8fbR/tmp/nix-test/main/hash-convert/var/nix
++++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/init.sh:44) mkdir /var/tmp/noxi-fg3/func/nfGA8fbR/tmp/nix-test/main/hash-convert/etc
++++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/init.sh:46) cat
+++++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/init.sh:46) whoami
++++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/init.sh:59) cat
++++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/init.sh:67) nix-store --init
++++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/init.sh:69) test -e /var/tmp/noxi-fg3/func/nfGA8fbR/tmp/nix-test/main/hash-convert/var/nix/db/db.sqlite
++++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/init.sh:75) echo '# config.nix for test main / hash-convert'
++++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/init.sh:76) cat /var/tmp/noxi-fg3/func/nfGA8fbR/build/config.nix
+++(common.sh:15) [[ -n '' ]]
++(hash-convert.sh:105) try3 sha1 800d59cfcd3c05e900cb4e214be48f6b886a08df vw46m23bizj4n8afrc0fj19wrp7mj3c0 gA1Zz808BekAy04hS+SPa4hqCN8=
+++(hash-convert.sh:11) nix hash convert --hash-algo sha1 --to base64 800d59cfcd3c05e900cb4e214be48f6b886a08df
+warning: you don't have Internet access; disabling some network-dependent features
++(hash-convert.sh:11) h64=gA1Zz808BekAy04hS+SPa4hqCN8=
++(hash-convert.sh:12) '[' gA1Zz808BekAy04hS+SPa4hqCN8= = gA1Zz808BekAy04hS+SPa4hqCN8= ']'
+++(hash-convert.sh:13) nix-hash --type sha1 --to-base64 800d59cfcd3c05e900cb4e214be48f6b886a08df
++(hash-convert.sh:13) h64=gA1Zz808BekAy04hS+SPa4hqCN8=
++(hash-convert.sh:14) '[' gA1Zz808BekAy04hS+SPa4hqCN8= = gA1Zz808BekAy04hS+SPa4hqCN8= ']'
+++(hash-convert.sh:16) nix hash to-base64 --type sha1 800d59cfcd3c05e900cb4e214be48f6b886a08df
+warning: you don't have Internet access; disabling some network-dependent features
+warning: The old format conversion subcommands of `nix hash` were deprecated in favor of `nix hash convert`.
++(hash-convert.sh:16) h64=gA1Zz808BekAy04hS+SPa4hqCN8=
++(hash-convert.sh:17) '[' gA1Zz808BekAy04hS+SPa4hqCN8= = gA1Zz808BekAy04hS+SPa4hqCN8= ']'
+++(hash-convert.sh:19) nix hash convert --hash-algo sha1 --to sri 800d59cfcd3c05e900cb4e214be48f6b886a08df
+warning: you don't have Internet access; disabling some network-dependent features
++(hash-convert.sh:19) sri=sha1-gA1Zz808BekAy04hS+SPa4hqCN8=
++(hash-convert.sh:20) '[' sha1-gA1Zz808BekAy04hS+SPa4hqCN8= = sha1-gA1Zz808BekAy04hS+SPa4hqCN8= ']'
+++(hash-convert.sh:21) nix-hash --type sha1 --to-sri 800d59cfcd3c05e900cb4e214be48f6b886a08df
++(hash-convert.sh:21) sri=sha1-gA1Zz808BekAy04hS+SPa4hqCN8=
++(hash-convert.sh:22) '[' sha1-gA1Zz808BekAy04hS+SPa4hqCN8= = sha1-gA1Zz808BekAy04hS+SPa4hqCN8= ']'
+++(hash-convert.sh:23) nix hash to-sri --type sha1 800d59cfcd3c05e900cb4e214be48f6b886a08df
+warning: you don't have Internet access; disabling some network-dependent features
+warning: The old format conversion subcommands of `nix hash` were deprecated in favor of `nix hash convert`.
++(hash-convert.sh:23) sri=sha1-gA1Zz808BekAy04hS+SPa4hqCN8=
++(hash-convert.sh:24) '[' sha1-gA1Zz808BekAy04hS+SPa4hqCN8= = sha1-gA1Zz808BekAy04hS+SPa4hqCN8= ']'
+++(hash-convert.sh:25) nix hash convert --hash-algo sha1 --to base32 800d59cfcd3c05e900cb4e214be48f6b886a08df
+warning: "base32" is a deprecated alias for hash format "nix32".
+warning: you don't have Internet access; disabling some network-dependent features
++(hash-convert.sh:25) h32=vw46m23bizj4n8afrc0fj19wrp7mj3c0
++(hash-convert.sh:26) '[' vw46m23bizj4n8afrc0fj19wrp7mj3c0 = vw46m23bizj4n8afrc0fj19wrp7mj3c0 ']'
+++(hash-convert.sh:27) nix-hash --type sha1 --to-base32 800d59cfcd3c05e900cb4e214be48f6b886a08df
++(hash-convert.sh:27) h32=vw46m23bizj4n8afrc0fj19wrp7mj3c0
++(hash-convert.sh:28) '[' vw46m23bizj4n8afrc0fj19wrp7mj3c0 = vw46m23bizj4n8afrc0fj19wrp7mj3c0 ']'
+++(hash-convert.sh:29) nix hash to-base32 --type sha1 800d59cfcd3c05e900cb4e214be48f6b886a08df
+warning: you don't have Internet access; disabling some network-dependent features
+warning: The old format conversion subcommands of `nix hash` were deprecated in favor of `nix hash convert`.
++(hash-convert.sh:29) h32=vw46m23bizj4n8afrc0fj19wrp7mj3c0
++(hash-convert.sh:30) '[' vw46m23bizj4n8afrc0fj19wrp7mj3c0 = vw46m23bizj4n8afrc0fj19wrp7mj3c0 ']'
+++(hash-convert.sh:31) nix-hash --type sha1 --to-base16 vw46m23bizj4n8afrc0fj19wrp7mj3c0
++(hash-convert.sh:31) h16=800d59cfcd3c05e900cb4e214be48f6b886a08df
++(hash-convert.sh:32) '[' 800d59cfcd3c05e900cb4e214be48f6b886a08df = 800d59cfcd3c05e900cb4e214be48f6b886a08df ']'
+++(hash-convert.sh:34) nix hash convert --hash-algo sha1 --to base16 gA1Zz808BekAy04hS+SPa4hqCN8=
+warning: you don't have Internet access; disabling some network-dependent features
++(hash-convert.sh:34) h16=800d59cfcd3c05e900cb4e214be48f6b886a08df
++(hash-convert.sh:35) '[' 800d59cfcd3c05e900cb4e214be48f6b886a08df = 800d59cfcd3c05e900cb4e214be48f6b886a08df ']'
+++(hash-convert.sh:36) nix hash to-base16 --type sha1 gA1Zz808BekAy04hS+SPa4hqCN8=
+warning: you don't have Internet access; disabling some network-dependent features
+warning: The old format conversion subcommands of `nix hash` were deprecated in favor of `nix hash convert`.
++(hash-convert.sh:36) h16=800d59cfcd3c05e900cb4e214be48f6b886a08df
++(hash-convert.sh:37) '[' 800d59cfcd3c05e900cb4e214be48f6b886a08df = 800d59cfcd3c05e900cb4e214be48f6b886a08df ']'
+++(hash-convert.sh:38) nix hash convert --to base16 sha1-gA1Zz808BekAy04hS+SPa4hqCN8=
+warning: you don't have Internet access; disabling some network-dependent features
++(hash-convert.sh:38) h16=800d59cfcd3c05e900cb4e214be48f6b886a08df
++(hash-convert.sh:39) '[' 800d59cfcd3c05e900cb4e214be48f6b886a08df = 800d59cfcd3c05e900cb4e214be48f6b886a08df ']'
+++(hash-convert.sh:40) nix hash to-base16 sha1-gA1Zz808BekAy04hS+SPa4hqCN8=
+warning: you don't have Internet access; disabling some network-dependent features
+warning: The old format conversion subcommands of `nix hash` were deprecated in favor of `nix hash convert`.
++(hash-convert.sh:40) h16=800d59cfcd3c05e900cb4e214be48f6b886a08df
++(hash-convert.sh:41) '[' 800d59cfcd3c05e900cb4e214be48f6b886a08df = 800d59cfcd3c05e900cb4e214be48f6b886a08df ']'
+++(hash-convert.sh:48) nix hash convert sha1-gA1Zz808BekAy04hS+SPa4hqCN8=
+warning: you don't have Internet access; disabling some network-dependent features
++(hash-convert.sh:48) sri=sha1-gA1Zz808BekAy04hS+SPa4hqCN8=
++(hash-convert.sh:49) '[' sha1-gA1Zz808BekAy04hS+SPa4hqCN8= = sha1-gA1Zz808BekAy04hS+SPa4hqCN8= ']'
+++(hash-convert.sh:51) nix hash convert --from sri sha1-gA1Zz808BekAy04hS+SPa4hqCN8=
+warning: you don't have Internet access; disabling some network-dependent features
++(hash-convert.sh:51) sri=sha1-gA1Zz808BekAy04hS+SPa4hqCN8=
++(hash-convert.sh:52) '[' sha1-gA1Zz808BekAy04hS+SPa4hqCN8= = sha1-gA1Zz808BekAy04hS+SPa4hqCN8= ']'
+++(hash-convert.sh:54) nix hash convert --to sri sha1-gA1Zz808BekAy04hS+SPa4hqCN8=
+warning: you don't have Internet access; disabling some network-dependent features
++(hash-convert.sh:54) sri=sha1-gA1Zz808BekAy04hS+SPa4hqCN8=
++(hash-convert.sh:55) '[' sha1-gA1Zz808BekAy04hS+SPa4hqCN8= = sha1-gA1Zz808BekAy04hS+SPa4hqCN8= ']'
+++(hash-convert.sh:57) nix hash convert --from sri --to sri sha1-gA1Zz808BekAy04hS+SPa4hqCN8=
+warning: you don't have Internet access; disabling some network-dependent features
++(hash-convert.sh:57) sri=sha1-gA1Zz808BekAy04hS+SPa4hqCN8=
++(hash-convert.sh:58) '[' sha1-gA1Zz808BekAy04hS+SPa4hqCN8= = sha1-gA1Zz808BekAy04hS+SPa4hqCN8= ']'
+++(hash-convert.sh:60) nix hash convert --to base64 sha1-gA1Zz808BekAy04hS+SPa4hqCN8=
+warning: you don't have Internet access; disabling some network-dependent features
++(hash-convert.sh:60) sri=gA1Zz808BekAy04hS+SPa4hqCN8=
++(hash-convert.sh:61) '[' gA1Zz808BekAy04hS+SPa4hqCN8= = gA1Zz808BekAy04hS+SPa4hqCN8= ']'
+++(hash-convert.sh:67) nix hash convert --hash-algo sha1 800d59cfcd3c05e900cb4e214be48f6b886a08df
+warning: you don't have Internet access; disabling some network-dependent features
++(hash-convert.sh:67) sri=sha1-gA1Zz808BekAy04hS+SPa4hqCN8=
++(hash-convert.sh:68) '[' sha1-gA1Zz808BekAy04hS+SPa4hqCN8= = sha1-gA1Zz808BekAy04hS+SPa4hqCN8= ']'
+++(hash-convert.sh:69) nix hash convert --hash-algo sha1 vw46m23bizj4n8afrc0fj19wrp7mj3c0
+warning: you don't have Internet access; disabling some network-dependent features
++(hash-convert.sh:69) sri=sha1-gA1Zz808BekAy04hS+SPa4hqCN8=
++(hash-convert.sh:70) '[' sha1-gA1Zz808BekAy04hS+SPa4hqCN8= = sha1-gA1Zz808BekAy04hS+SPa4hqCN8= ']'
+++(hash-convert.sh:71) nix hash convert --hash-algo sha1 gA1Zz808BekAy04hS+SPa4hqCN8=
+warning: you don't have Internet access; disabling some network-dependent features
++(hash-convert.sh:71) sri=sha1-gA1Zz808BekAy04hS+SPa4hqCN8=
++(hash-convert.sh:72) '[' sha1-gA1Zz808BekAy04hS+SPa4hqCN8= = sha1-gA1Zz808BekAy04hS+SPa4hqCN8= ']'
+++(hash-convert.sh:74) nix hash convert --hash-algo sha1 800d59cfcd3c05e900cb4e214be48f6b886a08df
+warning: you don't have Internet access; disabling some network-dependent features
++(hash-convert.sh:74) sri=sha1-gA1Zz808BekAy04hS+SPa4hqCN8=
++(hash-convert.sh:75) '[' sha1-gA1Zz808BekAy04hS+SPa4hqCN8= = sha1-gA1Zz808BekAy04hS+SPa4hqCN8= ']'
+++(hash-convert.sh:76) nix hash convert --hash-algo sha1 vw46m23bizj4n8afrc0fj19wrp7mj3c0
+warning: you don't have Internet access; disabling some network-dependent features
++(hash-convert.sh:76) sri=sha1-gA1Zz808BekAy04hS+SPa4hqCN8=
++(hash-convert.sh:77) '[' sha1-gA1Zz808BekAy04hS+SPa4hqCN8= = sha1-gA1Zz808BekAy04hS+SPa4hqCN8= ']'
+++(hash-convert.sh:78) nix hash convert --hash-algo sha1 gA1Zz808BekAy04hS+SPa4hqCN8=
+warning: you don't have Internet access; disabling some network-dependent features
++(hash-convert.sh:78) sri=sha1-gA1Zz808BekAy04hS+SPa4hqCN8=
++(hash-convert.sh:79) '[' sha1-gA1Zz808BekAy04hS+SPa4hqCN8= = sha1-gA1Zz808BekAy04hS+SPa4hqCN8= ']'
+++(hash-convert.sh:85) nix hash convert --hash-algo sha1 --from base16 800d59cfcd3c05e900cb4e214be48f6b886a08df
+warning: you don't have Internet access; disabling some network-dependent features
++(hash-convert.sh:85) sri=sha1-gA1Zz808BekAy04hS+SPa4hqCN8=
++(hash-convert.sh:86) '[' sha1-gA1Zz808BekAy04hS+SPa4hqCN8= = sha1-gA1Zz808BekAy04hS+SPa4hqCN8= ']'
+++(hash-convert.sh:87) nix hash convert --hash-algo sha1 --from nix32 vw46m23bizj4n8afrc0fj19wrp7mj3c0
+warning: you don't have Internet access; disabling some network-dependent features
++(hash-convert.sh:87) sri=sha1-gA1Zz808BekAy04hS+SPa4hqCN8=
++(hash-convert.sh:88) '[' sha1-gA1Zz808BekAy04hS+SPa4hqCN8= = sha1-gA1Zz808BekAy04hS+SPa4hqCN8= ']'
+++(hash-convert.sh:89) nix hash convert --hash-algo sha1 --from base64 gA1Zz808BekAy04hS+SPa4hqCN8=
+warning: you don't have Internet access; disabling some network-dependent features
++(hash-convert.sh:89) sri=sha1-gA1Zz808BekAy04hS+SPa4hqCN8=
++(hash-convert.sh:90) '[' sha1-gA1Zz808BekAy04hS+SPa4hqCN8= = sha1-gA1Zz808BekAy04hS+SPa4hqCN8= ']'
++(hash-convert.sh:96) expectStderr 1 nix hash convert --hash-algo sha1 --from sri 800d59cfcd3c05e900cb4e214be48f6b886a08df
++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/functions.sh:201) local expected res
++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/functions.sh:202) expected=1
++(hash-convert.sh:96) grepQuiet ''\''base16'\'', but '\''--from sri'\'''
++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/functions.sh:203) shift
++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/functions.sh:204) nix hash convert --hash-algo sha1 --from sri 800d59cfcd3c05e900cb4e214be48f6b886a08df
++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/functions.sh:330) checkGrepArgs ''\''base16'\'', but '\''--from sri'\'''
++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/functions.sh:293) local arg
++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/functions.sh:294) for arg in "$@"
++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/functions.sh:295) [[ 'base16', but '--from sri' != 'base16', but '\-\-from sri' ]]
++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/functions.sh:331) command grep ''\''base16'\'', but '\''--from sri'\'''
++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/functions.sh:204) res=1
++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/functions.sh:206) [[ 1 -ne 1 ]]
++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/functions.sh:210) return 0
++(hash-convert.sh:97) expectStderr 1 nix hash convert --hash-algo sha1 --from nix32 800d59cfcd3c05e900cb4e214be48f6b886a08df
++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/functions.sh:201) local expected res
++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/functions.sh:202) expected=1
++(hash-convert.sh:97) grepQuiet ''\''base16'\'', but '\''--from nix32'\'''
++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/functions.sh:203) shift
++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/functions.sh:204) nix hash convert --hash-algo sha1 --from nix32 800d59cfcd3c05e900cb4e214be48f6b886a08df
++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/functions.sh:330) checkGrepArgs ''\''base16'\'', but '\''--from nix32'\'''
++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/functions.sh:293) local arg
++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/functions.sh:294) for arg in "$@"
++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/functions.sh:295) [[ 'base16', but '--from nix32' != 'base16', but '\-\-from nix32' ]]
++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/functions.sh:331) command grep ''\''base16'\'', but '\''--from nix32'\'''
++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/functions.sh:204) res=1
++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/functions.sh:206) [[ 1 -ne 1 ]]
++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/functions.sh:210) return 0
++(hash-convert.sh:98) expectStderr 1 nix hash convert --hash-algo sha1 --from base16 vw46m23bizj4n8afrc0fj19wrp7mj3c0
++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/functions.sh:201) local expected res
++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/functions.sh:202) expected=1
++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/functions.sh:203) shift
++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/functions.sh:204) nix hash convert --hash-algo sha1 --from base16 vw46m23bizj4n8afrc0fj19wrp7mj3c0
++(hash-convert.sh:98) grepQuiet ''\''nix32'\'', but '\''--from base16'\'''
++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/functions.sh:330) checkGrepArgs ''\''nix32'\'', but '\''--from base16'\'''
++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/functions.sh:293) local arg
++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/functions.sh:294) for arg in "$@"
++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/functions.sh:295) [[ 'nix32', but '--from base16' != 'nix32', but '\-\-from base16' ]]
++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/functions.sh:331) command grep ''\''nix32'\'', but '\''--from base16'\'''
++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/functions.sh:204) res=1
++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/functions.sh:206) [[ 1 -ne 1 ]]
++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/functions.sh:210) return 0
++(hash-convert.sh:99) expectStderr 1 nix hash convert --hash-algo sha1 --from nix32 gA1Zz808BekAy04hS+SPa4hqCN8=
++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/functions.sh:201) local expected res
++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/functions.sh:202) expected=1
++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/functions.sh:203) shift
++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/functions.sh:204) nix hash convert --hash-algo sha1 --from nix32 gA1Zz808BekAy04hS+SPa4hqCN8=
++(hash-convert.sh:99) grepQuiet ''\''base64'\'', but '\''--from nix32'\'''
++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/functions.sh:330) checkGrepArgs ''\''base64'\'', but '\''--from nix32'\'''
++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/functions.sh:293) local arg
++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/functions.sh:294) for arg in "$@"
++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/functions.sh:295) [[ 'base64', but '--from nix32' != 'base64', but '\-\-from nix32' ]]
++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/functions.sh:331) command grep ''\''base64'\'', but '\''--from nix32'\'''
++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/functions.sh:204) res=1
++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/functions.sh:206) [[ 1 -ne 1 ]]
++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/functions.sh:210) return 0
+++(hash-convert.sh:102) echo 800d59cfcd3c05e900cb4e214be48f6b886a08df
+++(hash-convert.sh:102) tr '[:lower:]' '[:upper:]'
++(hash-convert.sh:102) nix hash convert --hash-algo sha1 --from base16 800D59CFCD3C05E900CB4E214BE48F6B886A08DF
+warning: you don't have Internet access; disabling some network-dependent features
+sha1-gA1Zz808BekAy04hS+SPa4hqCN8=
++(hash-convert.sh:106) try3 sha256 ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad 1b8m03r63zqhnjf7l5wnldhh7c134ap5vpj0850ymkq1iyzicy5s ungWv48Bz+pBQUDeXa4iI7ADYaOWF3qctBD/YfIAFa0=
+++(hash-convert.sh:11) nix hash convert --hash-algo sha256 --to base64 ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad
+warning: you don't have Internet access; disabling some network-dependent features
++(hash-convert.sh:11) h64=ungWv48Bz+pBQUDeXa4iI7ADYaOWF3qctBD/YfIAFa0=
++(hash-convert.sh:12) '[' ungWv48Bz+pBQUDeXa4iI7ADYaOWF3qctBD/YfIAFa0= = ungWv48Bz+pBQUDeXa4iI7ADYaOWF3qctBD/YfIAFa0= ']'
+++(hash-convert.sh:13) nix-hash --type sha256 --to-base64 ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad
++(hash-convert.sh:13) h64=ungWv48Bz+pBQUDeXa4iI7ADYaOWF3qctBD/YfIAFa0=
++(hash-convert.sh:14) '[' ungWv48Bz+pBQUDeXa4iI7ADYaOWF3qctBD/YfIAFa0= = ungWv48Bz+pBQUDeXa4iI7ADYaOWF3qctBD/YfIAFa0= ']'
+++(hash-convert.sh:16) nix hash to-base64 --type sha256 ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad
+warning: you don't have Internet access; disabling some network-dependent features
+warning: The old format conversion subcommands of `nix hash` were deprecated in favor of `nix hash convert`.
++(hash-convert.sh:16) h64=ungWv48Bz+pBQUDeXa4iI7ADYaOWF3qctBD/YfIAFa0=
++(hash-convert.sh:17) '[' ungWv48Bz+pBQUDeXa4iI7ADYaOWF3qctBD/YfIAFa0= = ungWv48Bz+pBQUDeXa4iI7ADYaOWF3qctBD/YfIAFa0= ']'
+++(hash-convert.sh:19) nix hash convert --hash-algo sha256 --to sri ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad
+warning: you don't have Internet access; disabling some network-dependent features
++(hash-convert.sh:19) sri=sha256-ungWv48Bz+pBQUDeXa4iI7ADYaOWF3qctBD/YfIAFa0=
++(hash-convert.sh:20) '[' sha256-ungWv48Bz+pBQUDeXa4iI7ADYaOWF3qctBD/YfIAFa0= = sha256-ungWv48Bz+pBQUDeXa4iI7ADYaOWF3qctBD/YfIAFa0= ']'
+++(hash-convert.sh:21) nix-hash --type sha256 --to-sri ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad
++(hash-convert.sh:21) sri=sha256-ungWv48Bz+pBQUDeXa4iI7ADYaOWF3qctBD/YfIAFa0=
++(hash-convert.sh:22) '[' sha256-ungWv48Bz+pBQUDeXa4iI7ADYaOWF3qctBD/YfIAFa0= = sha256-ungWv48Bz+pBQUDeXa4iI7ADYaOWF3qctBD/YfIAFa0= ']'
+++(hash-convert.sh:23) nix hash to-sri --type sha256 ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad
+warning: you don't have Internet access; disabling some network-dependent features
+warning: The old format conversion subcommands of `nix hash` were deprecated in favor of `nix hash convert`.
++(hash-convert.sh:23) sri=sha256-ungWv48Bz+pBQUDeXa4iI7ADYaOWF3qctBD/YfIAFa0=
++(hash-convert.sh:24) '[' sha256-ungWv48Bz+pBQUDeXa4iI7ADYaOWF3qctBD/YfIAFa0= = sha256-ungWv48Bz+pBQUDeXa4iI7ADYaOWF3qctBD/YfIAFa0= ']'
+++(hash-convert.sh:25) nix hash convert --hash-algo sha256 --to base32 ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad
+warning: "base32" is a deprecated alias for hash format "nix32".
+warning: you don't have Internet access; disabling some network-dependent features
++(hash-convert.sh:25) h32=1b8m03r63zqhnjf7l5wnldhh7c134ap5vpj0850ymkq1iyzicy5s
++(hash-convert.sh:26) '[' 1b8m03r63zqhnjf7l5wnldhh7c134ap5vpj0850ymkq1iyzicy5s = 1b8m03r63zqhnjf7l5wnldhh7c134ap5vpj0850ymkq1iyzicy5s ']'
+++(hash-convert.sh:27) nix-hash --type sha256 --to-base32 ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad
++(hash-convert.sh:27) h32=1b8m03r63zqhnjf7l5wnldhh7c134ap5vpj0850ymkq1iyzicy5s
++(hash-convert.sh:28) '[' 1b8m03r63zqhnjf7l5wnldhh7c134ap5vpj0850ymkq1iyzicy5s = 1b8m03r63zqhnjf7l5wnldhh7c134ap5vpj0850ymkq1iyzicy5s ']'
+++(hash-convert.sh:29) nix hash to-base32 --type sha256 ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad
+warning: you don't have Internet access; disabling some network-dependent features
+warning: The old format conversion subcommands of `nix hash` were deprecated in favor of `nix hash convert`.
++(hash-convert.sh:29) h32=1b8m03r63zqhnjf7l5wnldhh7c134ap5vpj0850ymkq1iyzicy5s
++(hash-convert.sh:30) '[' 1b8m03r63zqhnjf7l5wnldhh7c134ap5vpj0850ymkq1iyzicy5s = 1b8m03r63zqhnjf7l5wnldhh7c134ap5vpj0850ymkq1iyzicy5s ']'
+++(hash-convert.sh:31) nix-hash --type sha256 --to-base16 1b8m03r63zqhnjf7l5wnldhh7c134ap5vpj0850ymkq1iyzicy5s
++(hash-convert.sh:31) h16=ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad
++(hash-convert.sh:32) '[' ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad = ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad ']'
+++(hash-convert.sh:34) nix hash convert --hash-algo sha256 --to base16 ungWv48Bz+pBQUDeXa4iI7ADYaOWF3qctBD/YfIAFa0=
+warning: you don't have Internet access; disabling some network-dependent features
++(hash-convert.sh:34) h16=ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad
++(hash-convert.sh:35) '[' ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad = ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad ']'
+++(hash-convert.sh:36) nix hash to-base16 --type sha256 ungWv48Bz+pBQUDeXa4iI7ADYaOWF3qctBD/YfIAFa0=
+warning: you don't have Internet access; disabling some network-dependent features
+warning: The old format conversion subcommands of `nix hash` were deprecated in favor of `nix hash convert`.
++(hash-convert.sh:36) h16=ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad
++(hash-convert.sh:37) '[' ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad = ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad ']'
+++(hash-convert.sh:38) nix hash convert --to base16 sha256-ungWv48Bz+pBQUDeXa4iI7ADYaOWF3qctBD/YfIAFa0=
+warning: you don't have Internet access; disabling some network-dependent features
++(hash-convert.sh:38) h16=ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad
++(hash-convert.sh:39) '[' ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad = ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad ']'
+++(hash-convert.sh:40) nix hash to-base16 sha256-ungWv48Bz+pBQUDeXa4iI7ADYaOWF3qctBD/YfIAFa0=
+warning: you don't have Internet access; disabling some network-dependent features
+warning: The old format conversion subcommands of `nix hash` were deprecated in favor of `nix hash convert`.
++(hash-convert.sh:40) h16=ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad
++(hash-convert.sh:41) '[' ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad = ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad ']'
+++(hash-convert.sh:48) nix hash convert sha256-ungWv48Bz+pBQUDeXa4iI7ADYaOWF3qctBD/YfIAFa0=
+warning: you don't have Internet access; disabling some network-dependent features
++(hash-convert.sh:48) sri=sha256-ungWv48Bz+pBQUDeXa4iI7ADYaOWF3qctBD/YfIAFa0=
++(hash-convert.sh:49) '[' sha256-ungWv48Bz+pBQUDeXa4iI7ADYaOWF3qctBD/YfIAFa0= = sha256-ungWv48Bz+pBQUDeXa4iI7ADYaOWF3qctBD/YfIAFa0= ']'
+++(hash-convert.sh:51) nix hash convert --from sri sha256-ungWv48Bz+pBQUDeXa4iI7ADYaOWF3qctBD/YfIAFa0=
+warning: you don't have Internet access; disabling some network-dependent features
++(hash-convert.sh:51) sri=sha256-ungWv48Bz+pBQUDeXa4iI7ADYaOWF3qctBD/YfIAFa0=
++(hash-convert.sh:52) '[' sha256-ungWv48Bz+pBQUDeXa4iI7ADYaOWF3qctBD/YfIAFa0= = sha256-ungWv48Bz+pBQUDeXa4iI7ADYaOWF3qctBD/YfIAFa0= ']'
+++(hash-convert.sh:54) nix hash convert --to sri sha256-ungWv48Bz+pBQUDeXa4iI7ADYaOWF3qctBD/YfIAFa0=
+warning: you don't have Internet access; disabling some network-dependent features
++(hash-convert.sh:54) sri=sha256-ungWv48Bz+pBQUDeXa4iI7ADYaOWF3qctBD/YfIAFa0=
++(hash-convert.sh:55) '[' sha256-ungWv48Bz+pBQUDeXa4iI7ADYaOWF3qctBD/YfIAFa0= = sha256-ungWv48Bz+pBQUDeXa4iI7ADYaOWF3qctBD/YfIAFa0= ']'
+++(hash-convert.sh:57) nix hash convert --from sri --to sri sha256-ungWv48Bz+pBQUDeXa4iI7ADYaOWF3qctBD/YfIAFa0=
+warning: you don't have Internet access; disabling some network-dependent features
++(hash-convert.sh:57) sri=sha256-ungWv48Bz+pBQUDeXa4iI7ADYaOWF3qctBD/YfIAFa0=
++(hash-convert.sh:58) '[' sha256-ungWv48Bz+pBQUDeXa4iI7ADYaOWF3qctBD/YfIAFa0= = sha256-ungWv48Bz+pBQUDeXa4iI7ADYaOWF3qctBD/YfIAFa0= ']'
+++(hash-convert.sh:60) nix hash convert --to base64 sha256-ungWv48Bz+pBQUDeXa4iI7ADYaOWF3qctBD/YfIAFa0=
+warning: you don't have Internet access; disabling some network-dependent features
++(hash-convert.sh:60) sri=ungWv48Bz+pBQUDeXa4iI7ADYaOWF3qctBD/YfIAFa0=
++(hash-convert.sh:61) '[' ungWv48Bz+pBQUDeXa4iI7ADYaOWF3qctBD/YfIAFa0= = ungWv48Bz+pBQUDeXa4iI7ADYaOWF3qctBD/YfIAFa0= ']'
+++(hash-convert.sh:67) nix hash convert --hash-algo sha256 ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad
+warning: you don't have Internet access; disabling some network-dependent features
++(hash-convert.sh:67) sri=sha256-ungWv48Bz+pBQUDeXa4iI7ADYaOWF3qctBD/YfIAFa0=
++(hash-convert.sh:68) '[' sha256-ungWv48Bz+pBQUDeXa4iI7ADYaOWF3qctBD/YfIAFa0= = sha256-ungWv48Bz+pBQUDeXa4iI7ADYaOWF3qctBD/YfIAFa0= ']'
+++(hash-convert.sh:69) nix hash convert --hash-algo sha256 1b8m03r63zqhnjf7l5wnldhh7c134ap5vpj0850ymkq1iyzicy5s
+warning: you don't have Internet access; disabling some network-dependent features
++(hash-convert.sh:69) sri=sha256-ungWv48Bz+pBQUDeXa4iI7ADYaOWF3qctBD/YfIAFa0=
++(hash-convert.sh:70) '[' sha256-ungWv48Bz+pBQUDeXa4iI7ADYaOWF3qctBD/YfIAFa0= = sha256-ungWv48Bz+pBQUDeXa4iI7ADYaOWF3qctBD/YfIAFa0= ']'
+++(hash-convert.sh:71) nix hash convert --hash-algo sha256 ungWv48Bz+pBQUDeXa4iI7ADYaOWF3qctBD/YfIAFa0=
+warning: you don't have Internet access; disabling some network-dependent features
++(hash-convert.sh:71) sri=sha256-ungWv48Bz+pBQUDeXa4iI7ADYaOWF3qctBD/YfIAFa0=
++(hash-convert.sh:72) '[' sha256-ungWv48Bz+pBQUDeXa4iI7ADYaOWF3qctBD/YfIAFa0= = sha256-ungWv48Bz+pBQUDeXa4iI7ADYaOWF3qctBD/YfIAFa0= ']'
+++(hash-convert.sh:74) nix hash convert --hash-algo sha256 ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad
+warning: you don't have Internet access; disabling some network-dependent features
++(hash-convert.sh:74) sri=sha256-ungWv48Bz+pBQUDeXa4iI7ADYaOWF3qctBD/YfIAFa0=
++(hash-convert.sh:75) '[' sha256-ungWv48Bz+pBQUDeXa4iI7ADYaOWF3qctBD/YfIAFa0= = sha256-ungWv48Bz+pBQUDeXa4iI7ADYaOWF3qctBD/YfIAFa0= ']'
+++(hash-convert.sh:76) nix hash convert --hash-algo sha256 1b8m03r63zqhnjf7l5wnldhh7c134ap5vpj0850ymkq1iyzicy5s
+warning: you don't have Internet access; disabling some network-dependent features
++(hash-convert.sh:76) sri=sha256-ungWv48Bz+pBQUDeXa4iI7ADYaOWF3qctBD/YfIAFa0=
++(hash-convert.sh:77) '[' sha256-ungWv48Bz+pBQUDeXa4iI7ADYaOWF3qctBD/YfIAFa0= = sha256-ungWv48Bz+pBQUDeXa4iI7ADYaOWF3qctBD/YfIAFa0= ']'
+++(hash-convert.sh:78) nix hash convert --hash-algo sha256 ungWv48Bz+pBQUDeXa4iI7ADYaOWF3qctBD/YfIAFa0=
+warning: you don't have Internet access; disabling some network-dependent features
++(hash-convert.sh:78) sri=sha256-ungWv48Bz+pBQUDeXa4iI7ADYaOWF3qctBD/YfIAFa0=
++(hash-convert.sh:79) '[' sha256-ungWv48Bz+pBQUDeXa4iI7ADYaOWF3qctBD/YfIAFa0= = sha256-ungWv48Bz+pBQUDeXa4iI7ADYaOWF3qctBD/YfIAFa0= ']'
+++(hash-convert.sh:85) nix hash convert --hash-algo sha256 --from base16 ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad
+warning: you don't have Internet access; disabling some network-dependent features
++(hash-convert.sh:85) sri=sha256-ungWv48Bz+pBQUDeXa4iI7ADYaOWF3qctBD/YfIAFa0=
++(hash-convert.sh:86) '[' sha256-ungWv48Bz+pBQUDeXa4iI7ADYaOWF3qctBD/YfIAFa0= = sha256-ungWv48Bz+pBQUDeXa4iI7ADYaOWF3qctBD/YfIAFa0= ']'
+++(hash-convert.sh:87) nix hash convert --hash-algo sha256 --from nix32 1b8m03r63zqhnjf7l5wnldhh7c134ap5vpj0850ymkq1iyzicy5s
+warning: you don't have Internet access; disabling some network-dependent features
++(hash-convert.sh:87) sri=sha256-ungWv48Bz+pBQUDeXa4iI7ADYaOWF3qctBD/YfIAFa0=
++(hash-convert.sh:88) '[' sha256-ungWv48Bz+pBQUDeXa4iI7ADYaOWF3qctBD/YfIAFa0= = sha256-ungWv48Bz+pBQUDeXa4iI7ADYaOWF3qctBD/YfIAFa0= ']'
+++(hash-convert.sh:89) nix hash convert --hash-algo sha256 --from base64 ungWv48Bz+pBQUDeXa4iI7ADYaOWF3qctBD/YfIAFa0=
+warning: you don't have Internet access; disabling some network-dependent features
++(hash-convert.sh:89) sri=sha256-ungWv48Bz+pBQUDeXa4iI7ADYaOWF3qctBD/YfIAFa0=
++(hash-convert.sh:90) '[' sha256-ungWv48Bz+pBQUDeXa4iI7ADYaOWF3qctBD/YfIAFa0= = sha256-ungWv48Bz+pBQUDeXa4iI7ADYaOWF3qctBD/YfIAFa0= ']'
++(hash-convert.sh:96) expectStderr 1 nix hash convert --hash-algo sha256 --from sri ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad
++(hash-convert.sh:96) grepQuiet ''\''base16'\'', but '\''--from sri'\'''
++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/functions.sh:330) checkGrepArgs ''\''base16'\'', but '\''--from sri'\'''
++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/functions.sh:201) local expected res
++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/functions.sh:293) local arg
++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/functions.sh:202) expected=1
++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/functions.sh:294) for arg in "$@"
++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/functions.sh:203) shift
++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/functions.sh:295) [[ 'base16', but '--from sri' != 'base16', but '\-\-from sri' ]]
++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/functions.sh:204) nix hash convert --hash-algo sha256 --from sri ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad
++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/functions.sh:331) command grep ''\''base16'\'', but '\''--from sri'\'''
++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/functions.sh:204) res=1
++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/functions.sh:206) [[ 1 -ne 1 ]]
++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/functions.sh:210) return 0
++(hash-convert.sh:97) expectStderr 1 nix hash convert --hash-algo sha256 --from nix32 ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad
++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/functions.sh:201) local expected res
++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/functions.sh:202) expected=1
++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/functions.sh:203) shift
++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/functions.sh:204) nix hash convert --hash-algo sha256 --from nix32 ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad
++(hash-convert.sh:97) grepQuiet ''\''base16'\'', but '\''--from nix32'\'''
++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/functions.sh:330) checkGrepArgs ''\''base16'\'', but '\''--from nix32'\'''
++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/functions.sh:293) local arg
++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/functions.sh:294) for arg in "$@"
++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/functions.sh:295) [[ 'base16', but '--from nix32' != 'base16', but '\-\-from nix32' ]]
++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/functions.sh:331) command grep ''\''base16'\'', but '\''--from nix32'\'''
++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/functions.sh:204) res=1
++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/functions.sh:206) [[ 1 -ne 1 ]]
++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/functions.sh:210) return 0
++(hash-convert.sh:98) expectStderr 1 nix hash convert --hash-algo sha256 --from base16 1b8m03r63zqhnjf7l5wnldhh7c134ap5vpj0850ymkq1iyzicy5s
++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/functions.sh:201) local expected res
++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/functions.sh:202) expected=1
++(hash-convert.sh:98) grepQuiet ''\''nix32'\'', but '\''--from base16'\'''
++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/functions.sh:203) shift
++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/functions.sh:204) nix hash convert --hash-algo sha256 --from base16 1b8m03r63zqhnjf7l5wnldhh7c134ap5vpj0850ymkq1iyzicy5s
++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/functions.sh:330) checkGrepArgs ''\''nix32'\'', but '\''--from base16'\'''
++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/functions.sh:293) local arg
++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/functions.sh:294) for arg in "$@"
++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/functions.sh:295) [[ 'nix32', but '--from base16' != 'nix32', but '\-\-from base16' ]]
++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/functions.sh:331) command grep ''\''nix32'\'', but '\''--from base16'\'''
++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/functions.sh:204) res=1
++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/functions.sh:206) [[ 1 -ne 1 ]]
++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/functions.sh:210) return 0
++(hash-convert.sh:99) expectStderr 1 nix hash convert --hash-algo sha256 --from nix32 ungWv48Bz+pBQUDeXa4iI7ADYaOWF3qctBD/YfIAFa0=
++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/functions.sh:201) local expected res
++(hash-convert.sh:99) grepQuiet ''\''base64'\'', but '\''--from nix32'\'''
++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/functions.sh:202) expected=1
++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/functions.sh:203) shift
++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/functions.sh:204) nix hash convert --hash-algo sha256 --from nix32 ungWv48Bz+pBQUDeXa4iI7ADYaOWF3qctBD/YfIAFa0=
++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/functions.sh:330) checkGrepArgs ''\''base64'\'', but '\''--from nix32'\'''
++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/functions.sh:293) local arg
++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/functions.sh:294) for arg in "$@"
++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/functions.sh:295) [[ 'base64', but '--from nix32' != 'base64', but '\-\-from nix32' ]]
++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/functions.sh:331) command grep ''\''base64'\'', but '\''--from nix32'\'''
++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/functions.sh:204) res=1
++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/functions.sh:206) [[ 1 -ne 1 ]]
++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/functions.sh:210) return 0
+++(hash-convert.sh:102) echo ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad
+++(hash-convert.sh:102) tr '[:lower:]' '[:upper:]'
++(hash-convert.sh:102) nix hash convert --hash-algo sha256 --from base16 BA7816BF8F01CFEA414140DE5DAE2223B00361A396177A9CB410FF61F20015AD
+warning: you don't have Internet access; disabling some network-dependent features
+sha256-ungWv48Bz+pBQUDeXa4iI7ADYaOWF3qctBD/YfIAFa0=
++(hash-convert.sh:107) try3 sha512 204a8fc6dda82f0a0ced7beb8e08a41657c16ef468b228a8279be331a703c33596fd15c13b1b07f9aa1d3bea57789ca031ad85c7a71dd70354ec631238ca3445 12k9jiq29iyqm03swfsgiw5mlqs173qazm3n7daz43infy12pyrcdf30fkk3qwv4yl2ick8yipc2mqnlh48xsvvxl60lbx8vp38yji0 IEqPxt2oLwoM7XvrjgikFlfBbvRosiioJ5vjMacDwzWW/RXBOxsH+aodO+pXeJygMa2Fx6cd1wNU7GMSOMo0RQ==
+++(hash-convert.sh:11) nix hash convert --hash-algo sha512 --to base64 204a8fc6dda82f0a0ced7beb8e08a41657c16ef468b228a8279be331a703c33596fd15c13b1b07f9aa1d3bea57789ca031ad85c7a71dd70354ec631238ca3445
+warning: you don't have Internet access; disabling some network-dependent features
++(hash-convert.sh:11) h64=IEqPxt2oLwoM7XvrjgikFlfBbvRosiioJ5vjMacDwzWW/RXBOxsH+aodO+pXeJygMa2Fx6cd1wNU7GMSOMo0RQ==
++(hash-convert.sh:12) '[' IEqPxt2oLwoM7XvrjgikFlfBbvRosiioJ5vjMacDwzWW/RXBOxsH+aodO+pXeJygMa2Fx6cd1wNU7GMSOMo0RQ== = IEqPxt2oLwoM7XvrjgikFlfBbvRosiioJ5vjMacDwzWW/RXBOxsH+aodO+pXeJygMa2Fx6cd1wNU7GMSOMo0RQ== ']'
+++(hash-convert.sh:13) nix-hash --type sha512 --to-base64 204a8fc6dda82f0a0ced7beb8e08a41657c16ef468b228a8279be331a703c33596fd15c13b1b07f9aa1d3bea57789ca031ad85c7a71dd70354ec631238ca3445
++(hash-convert.sh:13) h64=IEqPxt2oLwoM7XvrjgikFlfBbvRosiioJ5vjMacDwzWW/RXBOxsH+aodO+pXeJygMa2Fx6cd1wNU7GMSOMo0RQ==
++(hash-convert.sh:14) '[' IEqPxt2oLwoM7XvrjgikFlfBbvRosiioJ5vjMacDwzWW/RXBOxsH+aodO+pXeJygMa2Fx6cd1wNU7GMSOMo0RQ== = IEqPxt2oLwoM7XvrjgikFlfBbvRosiioJ5vjMacDwzWW/RXBOxsH+aodO+pXeJygMa2Fx6cd1wNU7GMSOMo0RQ== ']'
+++(hash-convert.sh:16) nix hash to-base64 --type sha512 204a8fc6dda82f0a0ced7beb8e08a41657c16ef468b228a8279be331a703c33596fd15c13b1b07f9aa1d3bea57789ca031ad85c7a71dd70354ec631238ca3445
+warning: you don't have Internet access; disabling some network-dependent features
+warning: The old format conversion subcommands of `nix hash` were deprecated in favor of `nix hash convert`.
++(hash-convert.sh:16) h64=IEqPxt2oLwoM7XvrjgikFlfBbvRosiioJ5vjMacDwzWW/RXBOxsH+aodO+pXeJygMa2Fx6cd1wNU7GMSOMo0RQ==
++(hash-convert.sh:17) '[' IEqPxt2oLwoM7XvrjgikFlfBbvRosiioJ5vjMacDwzWW/RXBOxsH+aodO+pXeJygMa2Fx6cd1wNU7GMSOMo0RQ== = IEqPxt2oLwoM7XvrjgikFlfBbvRosiioJ5vjMacDwzWW/RXBOxsH+aodO+pXeJygMa2Fx6cd1wNU7GMSOMo0RQ== ']'
+++(hash-convert.sh:19) nix hash convert --hash-algo sha512 --to sri 204a8fc6dda82f0a0ced7beb8e08a41657c16ef468b228a8279be331a703c33596fd15c13b1b07f9aa1d3bea57789ca031ad85c7a71dd70354ec631238ca3445
+warning: you don't have Internet access; disabling some network-dependent features
++(hash-convert.sh:19) sri=sha512-IEqPxt2oLwoM7XvrjgikFlfBbvRosiioJ5vjMacDwzWW/RXBOxsH+aodO+pXeJygMa2Fx6cd1wNU7GMSOMo0RQ==
++(hash-convert.sh:20) '[' sha512-IEqPxt2oLwoM7XvrjgikFlfBbvRosiioJ5vjMacDwzWW/RXBOxsH+aodO+pXeJygMa2Fx6cd1wNU7GMSOMo0RQ== = sha512-IEqPxt2oLwoM7XvrjgikFlfBbvRosiioJ5vjMacDwzWW/RXBOxsH+aodO+pXeJygMa2Fx6cd1wNU7GMSOMo0RQ== ']'
+++(hash-convert.sh:21) nix-hash --type sha512 --to-sri 204a8fc6dda82f0a0ced7beb8e08a41657c16ef468b228a8279be331a703c33596fd15c13b1b07f9aa1d3bea57789ca031ad85c7a71dd70354ec631238ca3445
++(hash-convert.sh:21) sri=sha512-IEqPxt2oLwoM7XvrjgikFlfBbvRosiioJ5vjMacDwzWW/RXBOxsH+aodO+pXeJygMa2Fx6cd1wNU7GMSOMo0RQ==
++(hash-convert.sh:22) '[' sha512-IEqPxt2oLwoM7XvrjgikFlfBbvRosiioJ5vjMacDwzWW/RXBOxsH+aodO+pXeJygMa2Fx6cd1wNU7GMSOMo0RQ== = sha512-IEqPxt2oLwoM7XvrjgikFlfBbvRosiioJ5vjMacDwzWW/RXBOxsH+aodO+pXeJygMa2Fx6cd1wNU7GMSOMo0RQ== ']'
+++(hash-convert.sh:23) nix hash to-sri --type sha512 204a8fc6dda82f0a0ced7beb8e08a41657c16ef468b228a8279be331a703c33596fd15c13b1b07f9aa1d3bea57789ca031ad85c7a71dd70354ec631238ca3445
+warning: you don't have Internet access; disabling some network-dependent features
+warning: The old format conversion subcommands of `nix hash` were deprecated in favor of `nix hash convert`.
++(hash-convert.sh:23) sri=sha512-IEqPxt2oLwoM7XvrjgikFlfBbvRosiioJ5vjMacDwzWW/RXBOxsH+aodO+pXeJygMa2Fx6cd1wNU7GMSOMo0RQ==
++(hash-convert.sh:24) '[' sha512-IEqPxt2oLwoM7XvrjgikFlfBbvRosiioJ5vjMacDwzWW/RXBOxsH+aodO+pXeJygMa2Fx6cd1wNU7GMSOMo0RQ== = sha512-IEqPxt2oLwoM7XvrjgikFlfBbvRosiioJ5vjMacDwzWW/RXBOxsH+aodO+pXeJygMa2Fx6cd1wNU7GMSOMo0RQ== ']'
+++(hash-convert.sh:25) nix hash convert --hash-algo sha512 --to base32 204a8fc6dda82f0a0ced7beb8e08a41657c16ef468b228a8279be331a703c33596fd15c13b1b07f9aa1d3bea57789ca031ad85c7a71dd70354ec631238ca3445
+warning: "base32" is a deprecated alias for hash format "nix32".
+warning: you don't have Internet access; disabling some network-dependent features
++(hash-convert.sh:25) h32=12k9jiq29iyqm03swfsgiw5mlqs173qazm3n7daz43infy12pyrcdf30fkk3qwv4yl2ick8yipc2mqnlh48xsvvxl60lbx8vp38yji0
++(hash-convert.sh:26) '[' 12k9jiq29iyqm03swfsgiw5mlqs173qazm3n7daz43infy12pyrcdf30fkk3qwv4yl2ick8yipc2mqnlh48xsvvxl60lbx8vp38yji0 = 12k9jiq29iyqm03swfsgiw5mlqs173qazm3n7daz43infy12pyrcdf30fkk3qwv4yl2ick8yipc2mqnlh48xsvvxl60lbx8vp38yji0 ']'
+++(hash-convert.sh:27) nix-hash --type sha512 --to-base32 204a8fc6dda82f0a0ced7beb8e08a41657c16ef468b228a8279be331a703c33596fd15c13b1b07f9aa1d3bea57789ca031ad85c7a71dd70354ec631238ca3445
++(hash-convert.sh:27) h32=12k9jiq29iyqm03swfsgiw5mlqs173qazm3n7daz43infy12pyrcdf30fkk3qwv4yl2ick8yipc2mqnlh48xsvvxl60lbx8vp38yji0
++(hash-convert.sh:28) '[' 12k9jiq29iyqm03swfsgiw5mlqs173qazm3n7daz43infy12pyrcdf30fkk3qwv4yl2ick8yipc2mqnlh48xsvvxl60lbx8vp38yji0 = 12k9jiq29iyqm03swfsgiw5mlqs173qazm3n7daz43infy12pyrcdf30fkk3qwv4yl2ick8yipc2mqnlh48xsvvxl60lbx8vp38yji0 ']'
+++(hash-convert.sh:29) nix hash to-base32 --type sha512 204a8fc6dda82f0a0ced7beb8e08a41657c16ef468b228a8279be331a703c33596fd15c13b1b07f9aa1d3bea57789ca031ad85c7a71dd70354ec631238ca3445
+warning: you don't have Internet access; disabling some network-dependent features
+warning: The old format conversion subcommands of `nix hash` were deprecated in favor of `nix hash convert`.
++(hash-convert.sh:29) h32=12k9jiq29iyqm03swfsgiw5mlqs173qazm3n7daz43infy12pyrcdf30fkk3qwv4yl2ick8yipc2mqnlh48xsvvxl60lbx8vp38yji0
++(hash-convert.sh:30) '[' 12k9jiq29iyqm03swfsgiw5mlqs173qazm3n7daz43infy12pyrcdf30fkk3qwv4yl2ick8yipc2mqnlh48xsvvxl60lbx8vp38yji0 = 12k9jiq29iyqm03swfsgiw5mlqs173qazm3n7daz43infy12pyrcdf30fkk3qwv4yl2ick8yipc2mqnlh48xsvvxl60lbx8vp38yji0 ']'
+++(hash-convert.sh:31) nix-hash --type sha512 --to-base16 12k9jiq29iyqm03swfsgiw5mlqs173qazm3n7daz43infy12pyrcdf30fkk3qwv4yl2ick8yipc2mqnlh48xsvvxl60lbx8vp38yji0
++(hash-convert.sh:31) h16=204a8fc6dda82f0a0ced7beb8e08a41657c16ef468b228a8279be331a703c33596fd15c13b1b07f9aa1d3bea57789ca031ad85c7a71dd70354ec631238ca3445
++(hash-convert.sh:32) '[' 204a8fc6dda82f0a0ced7beb8e08a41657c16ef468b228a8279be331a703c33596fd15c13b1b07f9aa1d3bea57789ca031ad85c7a71dd70354ec631238ca3445 = 204a8fc6dda82f0a0ced7beb8e08a41657c16ef468b228a8279be331a703c33596fd15c13b1b07f9aa1d3bea57789ca031ad85c7a71dd70354ec631238ca3445 ']'
+++(hash-convert.sh:34) nix hash convert --hash-algo sha512 --to base16 IEqPxt2oLwoM7XvrjgikFlfBbvRosiioJ5vjMacDwzWW/RXBOxsH+aodO+pXeJygMa2Fx6cd1wNU7GMSOMo0RQ==
+warning: you don't have Internet access; disabling some network-dependent features
++(hash-convert.sh:34) h16=204a8fc6dda82f0a0ced7beb8e08a41657c16ef468b228a8279be331a703c33596fd15c13b1b07f9aa1d3bea57789ca031ad85c7a71dd70354ec631238ca3445
++(hash-convert.sh:35) '[' 204a8fc6dda82f0a0ced7beb8e08a41657c16ef468b228a8279be331a703c33596fd15c13b1b07f9aa1d3bea57789ca031ad85c7a71dd70354ec631238ca3445 = 204a8fc6dda82f0a0ced7beb8e08a41657c16ef468b228a8279be331a703c33596fd15c13b1b07f9aa1d3bea57789ca031ad85c7a71dd70354ec631238ca3445 ']'
+++(hash-convert.sh:36) nix hash to-base16 --type sha512 IEqPxt2oLwoM7XvrjgikFlfBbvRosiioJ5vjMacDwzWW/RXBOxsH+aodO+pXeJygMa2Fx6cd1wNU7GMSOMo0RQ==
+warning: you don't have Internet access; disabling some network-dependent features
+warning: The old format conversion subcommands of `nix hash` were deprecated in favor of `nix hash convert`.
++(hash-convert.sh:36) h16=204a8fc6dda82f0a0ced7beb8e08a41657c16ef468b228a8279be331a703c33596fd15c13b1b07f9aa1d3bea57789ca031ad85c7a71dd70354ec631238ca3445
++(hash-convert.sh:37) '[' 204a8fc6dda82f0a0ced7beb8e08a41657c16ef468b228a8279be331a703c33596fd15c13b1b07f9aa1d3bea57789ca031ad85c7a71dd70354ec631238ca3445 = 204a8fc6dda82f0a0ced7beb8e08a41657c16ef468b228a8279be331a703c33596fd15c13b1b07f9aa1d3bea57789ca031ad85c7a71dd70354ec631238ca3445 ']'
+++(hash-convert.sh:38) nix hash convert --to base16 sha512-IEqPxt2oLwoM7XvrjgikFlfBbvRosiioJ5vjMacDwzWW/RXBOxsH+aodO+pXeJygMa2Fx6cd1wNU7GMSOMo0RQ==
+warning: you don't have Internet access; disabling some network-dependent features
++(hash-convert.sh:38) h16=204a8fc6dda82f0a0ced7beb8e08a41657c16ef468b228a8279be331a703c33596fd15c13b1b07f9aa1d3bea57789ca031ad85c7a71dd70354ec631238ca3445
++(hash-convert.sh:39) '[' 204a8fc6dda82f0a0ced7beb8e08a41657c16ef468b228a8279be331a703c33596fd15c13b1b07f9aa1d3bea57789ca031ad85c7a71dd70354ec631238ca3445 = 204a8fc6dda82f0a0ced7beb8e08a41657c16ef468b228a8279be331a703c33596fd15c13b1b07f9aa1d3bea57789ca031ad85c7a71dd70354ec631238ca3445 ']'
+++(hash-convert.sh:40) nix hash to-base16 sha512-IEqPxt2oLwoM7XvrjgikFlfBbvRosiioJ5vjMacDwzWW/RXBOxsH+aodO+pXeJygMa2Fx6cd1wNU7GMSOMo0RQ==
+warning: you don't have Internet access; disabling some network-dependent features
+warning: The old format conversion subcommands of `nix hash` were deprecated in favor of `nix hash convert`.
++(hash-convert.sh:40) h16=204a8fc6dda82f0a0ced7beb8e08a41657c16ef468b228a8279be331a703c33596fd15c13b1b07f9aa1d3bea57789ca031ad85c7a71dd70354ec631238ca3445
++(hash-convert.sh:41) '[' 204a8fc6dda82f0a0ced7beb8e08a41657c16ef468b228a8279be331a703c33596fd15c13b1b07f9aa1d3bea57789ca031ad85c7a71dd70354ec631238ca3445 = 204a8fc6dda82f0a0ced7beb8e08a41657c16ef468b228a8279be331a703c33596fd15c13b1b07f9aa1d3bea57789ca031ad85c7a71dd70354ec631238ca3445 ']'
+++(hash-convert.sh:48) nix hash convert sha512-IEqPxt2oLwoM7XvrjgikFlfBbvRosiioJ5vjMacDwzWW/RXBOxsH+aodO+pXeJygMa2Fx6cd1wNU7GMSOMo0RQ==
+warning: you don't have Internet access; disabling some network-dependent features
++(hash-convert.sh:48) sri=sha512-IEqPxt2oLwoM7XvrjgikFlfBbvRosiioJ5vjMacDwzWW/RXBOxsH+aodO+pXeJygMa2Fx6cd1wNU7GMSOMo0RQ==
++(hash-convert.sh:49) '[' sha512-IEqPxt2oLwoM7XvrjgikFlfBbvRosiioJ5vjMacDwzWW/RXBOxsH+aodO+pXeJygMa2Fx6cd1wNU7GMSOMo0RQ== = sha512-IEqPxt2oLwoM7XvrjgikFlfBbvRosiioJ5vjMacDwzWW/RXBOxsH+aodO+pXeJygMa2Fx6cd1wNU7GMSOMo0RQ== ']'
+++(hash-convert.sh:51) nix hash convert --from sri sha512-IEqPxt2oLwoM7XvrjgikFlfBbvRosiioJ5vjMacDwzWW/RXBOxsH+aodO+pXeJygMa2Fx6cd1wNU7GMSOMo0RQ==
+warning: you don't have Internet access; disabling some network-dependent features
++(hash-convert.sh:51) sri=sha512-IEqPxt2oLwoM7XvrjgikFlfBbvRosiioJ5vjMacDwzWW/RXBOxsH+aodO+pXeJygMa2Fx6cd1wNU7GMSOMo0RQ==
++(hash-convert.sh:52) '[' sha512-IEqPxt2oLwoM7XvrjgikFlfBbvRosiioJ5vjMacDwzWW/RXBOxsH+aodO+pXeJygMa2Fx6cd1wNU7GMSOMo0RQ== = sha512-IEqPxt2oLwoM7XvrjgikFlfBbvRosiioJ5vjMacDwzWW/RXBOxsH+aodO+pXeJygMa2Fx6cd1wNU7GMSOMo0RQ== ']'
+++(hash-convert.sh:54) nix hash convert --to sri sha512-IEqPxt2oLwoM7XvrjgikFlfBbvRosiioJ5vjMacDwzWW/RXBOxsH+aodO+pXeJygMa2Fx6cd1wNU7GMSOMo0RQ==
+warning: you don't have Internet access; disabling some network-dependent features
++(hash-convert.sh:54) sri=sha512-IEqPxt2oLwoM7XvrjgikFlfBbvRosiioJ5vjMacDwzWW/RXBOxsH+aodO+pXeJygMa2Fx6cd1wNU7GMSOMo0RQ==
++(hash-convert.sh:55) '[' sha512-IEqPxt2oLwoM7XvrjgikFlfBbvRosiioJ5vjMacDwzWW/RXBOxsH+aodO+pXeJygMa2Fx6cd1wNU7GMSOMo0RQ== = sha512-IEqPxt2oLwoM7XvrjgikFlfBbvRosiioJ5vjMacDwzWW/RXBOxsH+aodO+pXeJygMa2Fx6cd1wNU7GMSOMo0RQ== ']'
+++(hash-convert.sh:57) nix hash convert --from sri --to sri sha512-IEqPxt2oLwoM7XvrjgikFlfBbvRosiioJ5vjMacDwzWW/RXBOxsH+aodO+pXeJygMa2Fx6cd1wNU7GMSOMo0RQ==
+warning: you don't have Internet access; disabling some network-dependent features
++(hash-convert.sh:57) sri=sha512-IEqPxt2oLwoM7XvrjgikFlfBbvRosiioJ5vjMacDwzWW/RXBOxsH+aodO+pXeJygMa2Fx6cd1wNU7GMSOMo0RQ==
++(hash-convert.sh:58) '[' sha512-IEqPxt2oLwoM7XvrjgikFlfBbvRosiioJ5vjMacDwzWW/RXBOxsH+aodO+pXeJygMa2Fx6cd1wNU7GMSOMo0RQ== = sha512-IEqPxt2oLwoM7XvrjgikFlfBbvRosiioJ5vjMacDwzWW/RXBOxsH+aodO+pXeJygMa2Fx6cd1wNU7GMSOMo0RQ== ']'
+++(hash-convert.sh:60) nix hash convert --to base64 sha512-IEqPxt2oLwoM7XvrjgikFlfBbvRosiioJ5vjMacDwzWW/RXBOxsH+aodO+pXeJygMa2Fx6cd1wNU7GMSOMo0RQ==
+warning: you don't have Internet access; disabling some network-dependent features
++(hash-convert.sh:60) sri=IEqPxt2oLwoM7XvrjgikFlfBbvRosiioJ5vjMacDwzWW/RXBOxsH+aodO+pXeJygMa2Fx6cd1wNU7GMSOMo0RQ==
++(hash-convert.sh:61) '[' IEqPxt2oLwoM7XvrjgikFlfBbvRosiioJ5vjMacDwzWW/RXBOxsH+aodO+pXeJygMa2Fx6cd1wNU7GMSOMo0RQ== = IEqPxt2oLwoM7XvrjgikFlfBbvRosiioJ5vjMacDwzWW/RXBOxsH+aodO+pXeJygMa2Fx6cd1wNU7GMSOMo0RQ== ']'
+++(hash-convert.sh:67) nix hash convert --hash-algo sha512 204a8fc6dda82f0a0ced7beb8e08a41657c16ef468b228a8279be331a703c33596fd15c13b1b07f9aa1d3bea57789ca031ad85c7a71dd70354ec631238ca3445
+warning: you don't have Internet access; disabling some network-dependent features
++(hash-convert.sh:67) sri=sha512-IEqPxt2oLwoM7XvrjgikFlfBbvRosiioJ5vjMacDwzWW/RXBOxsH+aodO+pXeJygMa2Fx6cd1wNU7GMSOMo0RQ==
++(hash-convert.sh:68) '[' sha512-IEqPxt2oLwoM7XvrjgikFlfBbvRosiioJ5vjMacDwzWW/RXBOxsH+aodO+pXeJygMa2Fx6cd1wNU7GMSOMo0RQ== = sha512-IEqPxt2oLwoM7XvrjgikFlfBbvRosiioJ5vjMacDwzWW/RXBOxsH+aodO+pXeJygMa2Fx6cd1wNU7GMSOMo0RQ== ']'
+++(hash-convert.sh:69) nix hash convert --hash-algo sha512 12k9jiq29iyqm03swfsgiw5mlqs173qazm3n7daz43infy12pyrcdf30fkk3qwv4yl2ick8yipc2mqnlh48xsvvxl60lbx8vp38yji0
+warning: you don't have Internet access; disabling some network-dependent features
++(hash-convert.sh:69) sri=sha512-IEqPxt2oLwoM7XvrjgikFlfBbvRosiioJ5vjMacDwzWW/RXBOxsH+aodO+pXeJygMa2Fx6cd1wNU7GMSOMo0RQ==
++(hash-convert.sh:70) '[' sha512-IEqPxt2oLwoM7XvrjgikFlfBbvRosiioJ5vjMacDwzWW/RXBOxsH+aodO+pXeJygMa2Fx6cd1wNU7GMSOMo0RQ== = sha512-IEqPxt2oLwoM7XvrjgikFlfBbvRosiioJ5vjMacDwzWW/RXBOxsH+aodO+pXeJygMa2Fx6cd1wNU7GMSOMo0RQ== ']'
+++(hash-convert.sh:71) nix hash convert --hash-algo sha512 IEqPxt2oLwoM7XvrjgikFlfBbvRosiioJ5vjMacDwzWW/RXBOxsH+aodO+pXeJygMa2Fx6cd1wNU7GMSOMo0RQ==
+warning: you don't have Internet access; disabling some network-dependent features
++(hash-convert.sh:71) sri=sha512-IEqPxt2oLwoM7XvrjgikFlfBbvRosiioJ5vjMacDwzWW/RXBOxsH+aodO+pXeJygMa2Fx6cd1wNU7GMSOMo0RQ==
++(hash-convert.sh:72) '[' sha512-IEqPxt2oLwoM7XvrjgikFlfBbvRosiioJ5vjMacDwzWW/RXBOxsH+aodO+pXeJygMa2Fx6cd1wNU7GMSOMo0RQ== = sha512-IEqPxt2oLwoM7XvrjgikFlfBbvRosiioJ5vjMacDwzWW/RXBOxsH+aodO+pXeJygMa2Fx6cd1wNU7GMSOMo0RQ== ']'
+++(hash-convert.sh:74) nix hash convert --hash-algo sha512 204a8fc6dda82f0a0ced7beb8e08a41657c16ef468b228a8279be331a703c33596fd15c13b1b07f9aa1d3bea57789ca031ad85c7a71dd70354ec631238ca3445
+warning: you don't have Internet access; disabling some network-dependent features
++(hash-convert.sh:74) sri=sha512-IEqPxt2oLwoM7XvrjgikFlfBbvRosiioJ5vjMacDwzWW/RXBOxsH+aodO+pXeJygMa2Fx6cd1wNU7GMSOMo0RQ==
++(hash-convert.sh:75) '[' sha512-IEqPxt2oLwoM7XvrjgikFlfBbvRosiioJ5vjMacDwzWW/RXBOxsH+aodO+pXeJygMa2Fx6cd1wNU7GMSOMo0RQ== = sha512-IEqPxt2oLwoM7XvrjgikFlfBbvRosiioJ5vjMacDwzWW/RXBOxsH+aodO+pXeJygMa2Fx6cd1wNU7GMSOMo0RQ== ']'
+++(hash-convert.sh:76) nix hash convert --hash-algo sha512 12k9jiq29iyqm03swfsgiw5mlqs173qazm3n7daz43infy12pyrcdf30fkk3qwv4yl2ick8yipc2mqnlh48xsvvxl60lbx8vp38yji0
+warning: you don't have Internet access; disabling some network-dependent features
++(hash-convert.sh:76) sri=sha512-IEqPxt2oLwoM7XvrjgikFlfBbvRosiioJ5vjMacDwzWW/RXBOxsH+aodO+pXeJygMa2Fx6cd1wNU7GMSOMo0RQ==
++(hash-convert.sh:77) '[' sha512-IEqPxt2oLwoM7XvrjgikFlfBbvRosiioJ5vjMacDwzWW/RXBOxsH+aodO+pXeJygMa2Fx6cd1wNU7GMSOMo0RQ== = sha512-IEqPxt2oLwoM7XvrjgikFlfBbvRosiioJ5vjMacDwzWW/RXBOxsH+aodO+pXeJygMa2Fx6cd1wNU7GMSOMo0RQ== ']'
+++(hash-convert.sh:78) nix hash convert --hash-algo sha512 IEqPxt2oLwoM7XvrjgikFlfBbvRosiioJ5vjMacDwzWW/RXBOxsH+aodO+pXeJygMa2Fx6cd1wNU7GMSOMo0RQ==
+warning: you don't have Internet access; disabling some network-dependent features
++(hash-convert.sh:78) sri=sha512-IEqPxt2oLwoM7XvrjgikFlfBbvRosiioJ5vjMacDwzWW/RXBOxsH+aodO+pXeJygMa2Fx6cd1wNU7GMSOMo0RQ==
++(hash-convert.sh:79) '[' sha512-IEqPxt2oLwoM7XvrjgikFlfBbvRosiioJ5vjMacDwzWW/RXBOxsH+aodO+pXeJygMa2Fx6cd1wNU7GMSOMo0RQ== = sha512-IEqPxt2oLwoM7XvrjgikFlfBbvRosiioJ5vjMacDwzWW/RXBOxsH+aodO+pXeJygMa2Fx6cd1wNU7GMSOMo0RQ== ']'
+++(hash-convert.sh:85) nix hash convert --hash-algo sha512 --from base16 204a8fc6dda82f0a0ced7beb8e08a41657c16ef468b228a8279be331a703c33596fd15c13b1b07f9aa1d3bea57789ca031ad85c7a71dd70354ec631238ca3445
+warning: you don't have Internet access; disabling some network-dependent features
++(hash-convert.sh:85) sri=sha512-IEqPxt2oLwoM7XvrjgikFlfBbvRosiioJ5vjMacDwzWW/RXBOxsH+aodO+pXeJygMa2Fx6cd1wNU7GMSOMo0RQ==
++(hash-convert.sh:86) '[' sha512-IEqPxt2oLwoM7XvrjgikFlfBbvRosiioJ5vjMacDwzWW/RXBOxsH+aodO+pXeJygMa2Fx6cd1wNU7GMSOMo0RQ== = sha512-IEqPxt2oLwoM7XvrjgikFlfBbvRosiioJ5vjMacDwzWW/RXBOxsH+aodO+pXeJygMa2Fx6cd1wNU7GMSOMo0RQ== ']'
+++(hash-convert.sh:87) nix hash convert --hash-algo sha512 --from nix32 12k9jiq29iyqm03swfsgiw5mlqs173qazm3n7daz43infy12pyrcdf30fkk3qwv4yl2ick8yipc2mqnlh48xsvvxl60lbx8vp38yji0
+warning: you don't have Internet access; disabling some network-dependent features
++(hash-convert.sh:87) sri=sha512-IEqPxt2oLwoM7XvrjgikFlfBbvRosiioJ5vjMacDwzWW/RXBOxsH+aodO+pXeJygMa2Fx6cd1wNU7GMSOMo0RQ==
++(hash-convert.sh:88) '[' sha512-IEqPxt2oLwoM7XvrjgikFlfBbvRosiioJ5vjMacDwzWW/RXBOxsH+aodO+pXeJygMa2Fx6cd1wNU7GMSOMo0RQ== = sha512-IEqPxt2oLwoM7XvrjgikFlfBbvRosiioJ5vjMacDwzWW/RXBOxsH+aodO+pXeJygMa2Fx6cd1wNU7GMSOMo0RQ== ']'
+++(hash-convert.sh:89) nix hash convert --hash-algo sha512 --from base64 IEqPxt2oLwoM7XvrjgikFlfBbvRosiioJ5vjMacDwzWW/RXBOxsH+aodO+pXeJygMa2Fx6cd1wNU7GMSOMo0RQ==
+warning: you don't have Internet access; disabling some network-dependent features
++(hash-convert.sh:89) sri=sha512-IEqPxt2oLwoM7XvrjgikFlfBbvRosiioJ5vjMacDwzWW/RXBOxsH+aodO+pXeJygMa2Fx6cd1wNU7GMSOMo0RQ==
++(hash-convert.sh:90) '[' sha512-IEqPxt2oLwoM7XvrjgikFlfBbvRosiioJ5vjMacDwzWW/RXBOxsH+aodO+pXeJygMa2Fx6cd1wNU7GMSOMo0RQ== = sha512-IEqPxt2oLwoM7XvrjgikFlfBbvRosiioJ5vjMacDwzWW/RXBOxsH+aodO+pXeJygMa2Fx6cd1wNU7GMSOMo0RQ== ']'
++(hash-convert.sh:96) expectStderr 1 nix hash convert --hash-algo sha512 --from sri 204a8fc6dda82f0a0ced7beb8e08a41657c16ef468b228a8279be331a703c33596fd15c13b1b07f9aa1d3bea57789ca031ad85c7a71dd70354ec631238ca3445
++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/functions.sh:201) local expected res
++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/functions.sh:202) expected=1
++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/functions.sh:203) shift
++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/functions.sh:204) nix hash convert --hash-algo sha512 --from sri 204a8fc6dda82f0a0ced7beb8e08a41657c16ef468b228a8279be331a703c33596fd15c13b1b07f9aa1d3bea57789ca031ad85c7a71dd70354ec631238ca3445
++(hash-convert.sh:96) grepQuiet ''\''base16'\'', but '\''--from sri'\'''
++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/functions.sh:330) checkGrepArgs ''\''base16'\'', but '\''--from sri'\'''
++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/functions.sh:293) local arg
++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/functions.sh:294) for arg in "$@"
++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/functions.sh:295) [[ 'base16', but '--from sri' != 'base16', but '\-\-from sri' ]]
++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/functions.sh:331) command grep ''\''base16'\'', but '\''--from sri'\'''
++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/functions.sh:204) res=1
++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/functions.sh:206) [[ 1 -ne 1 ]]
++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/functions.sh:210) return 0
++(hash-convert.sh:97) expectStderr 1 nix hash convert --hash-algo sha512 --from nix32 204a8fc6dda82f0a0ced7beb8e08a41657c16ef468b228a8279be331a703c33596fd15c13b1b07f9aa1d3bea57789ca031ad85c7a71dd70354ec631238ca3445
++(hash-convert.sh:97) grepQuiet ''\''base16'\'', but '\''--from nix32'\'''
++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/functions.sh:201) local expected res
++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/functions.sh:202) expected=1
++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/functions.sh:203) shift
++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/functions.sh:330) checkGrepArgs ''\''base16'\'', but '\''--from nix32'\'''
++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/functions.sh:204) nix hash convert --hash-algo sha512 --from nix32 204a8fc6dda82f0a0ced7beb8e08a41657c16ef468b228a8279be331a703c33596fd15c13b1b07f9aa1d3bea57789ca031ad85c7a71dd70354ec631238ca3445
++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/functions.sh:293) local arg
++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/functions.sh:294) for arg in "$@"
++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/functions.sh:295) [[ 'base16', but '--from nix32' != 'base16', but '\-\-from nix32' ]]
++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/functions.sh:331) command grep ''\''base16'\'', but '\''--from nix32'\'''
++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/functions.sh:204) res=1
++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/functions.sh:206) [[ 1 -ne 1 ]]
++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/functions.sh:210) return 0
++(hash-convert.sh:98) expectStderr 1 nix hash convert --hash-algo sha512 --from base16 12k9jiq29iyqm03swfsgiw5mlqs173qazm3n7daz43infy12pyrcdf30fkk3qwv4yl2ick8yipc2mqnlh48xsvvxl60lbx8vp38yji0
++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/functions.sh:201) local expected res
++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/functions.sh:202) expected=1
++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/functions.sh:203) shift
++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/functions.sh:204) nix hash convert --hash-algo sha512 --from base16 12k9jiq29iyqm03swfsgiw5mlqs173qazm3n7daz43infy12pyrcdf30fkk3qwv4yl2ick8yipc2mqnlh48xsvvxl60lbx8vp38yji0
++(hash-convert.sh:98) grepQuiet ''\''nix32'\'', but '\''--from base16'\'''
++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/functions.sh:330) checkGrepArgs ''\''nix32'\'', but '\''--from base16'\'''
++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/functions.sh:293) local arg
++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/functions.sh:294) for arg in "$@"
++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/functions.sh:295) [[ 'nix32', but '--from base16' != 'nix32', but '\-\-from base16' ]]
++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/functions.sh:331) command grep ''\''nix32'\'', but '\''--from base16'\'''
++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/functions.sh:204) res=1
++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/functions.sh:206) [[ 1 -ne 1 ]]
++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/functions.sh:210) return 0
++(hash-convert.sh:99) expectStderr 1 nix hash convert --hash-algo sha512 --from nix32 IEqPxt2oLwoM7XvrjgikFlfBbvRosiioJ5vjMacDwzWW/RXBOxsH+aodO+pXeJygMa2Fx6cd1wNU7GMSOMo0RQ==
++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/functions.sh:201) local expected res
++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/functions.sh:202) expected=1
++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/functions.sh:203) shift
++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/functions.sh:204) nix hash convert --hash-algo sha512 --from nix32 IEqPxt2oLwoM7XvrjgikFlfBbvRosiioJ5vjMacDwzWW/RXBOxsH+aodO+pXeJygMa2Fx6cd1wNU7GMSOMo0RQ==
++(hash-convert.sh:99) grepQuiet ''\''base64'\'', but '\''--from nix32'\'''
++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/functions.sh:330) checkGrepArgs ''\''base64'\'', but '\''--from nix32'\'''
++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/functions.sh:293) local arg
++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/functions.sh:294) for arg in "$@"
++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/functions.sh:295) [[ 'base64', but '--from nix32' != 'base64', but '\-\-from nix32' ]]
++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/functions.sh:331) command grep ''\''base64'\'', but '\''--from nix32'\'''
++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/functions.sh:204) res=1
++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/functions.sh:206) [[ 1 -ne 1 ]]
++(/var/tmp/noxi-fg3/func/nfGA8fbR/src/common/functions.sh:210) return 0
+++(hash-convert.sh:102) echo 204a8fc6dda82f0a0ced7beb8e08a41657c16ef468b228a8279be331a703c33596fd15c13b1b07f9aa1d3bea57789ca031ad85c7a71dd70354ec631238ca3445
+++(hash-convert.sh:102) tr '[:lower:]' '[:upper:]'
++(hash-convert.sh:102) nix hash convert --hash-algo sha512 --from base16 204A8FC6DDA82F0A0CED7BEB8E08A41657C16EF468B228A8279BE331A703C33596FD15C13B1B07F9AA1D3BEA57789CA031AD85C7A71DD70354EC631238CA3445
+warning: you don't have Internet access; disabling some network-dependent features
+sha512-IEqPxt2oLwoM7XvrjgikFlfBbvRosiioJ5vjMacDwzWW/RXBOxsH+aodO+pXeJygMa2Fx6cd1wNU7GMSOMo0RQ==
+++(hash-convert.sh:110) nix hash convert --from sri sha256-ungWv48Bz+pBQUDeXa4iI7ADYaOWF3qctBD/YfIAFa0
+warning: you don't have Internet access; disabling some network-dependent features
++(hash-convert.sh:110) [[ sha256-ungWv48Bz+pBQUDeXa4iI7ADYaOWF3qctBD/YfIAFa0= = sha256-ungWv48Bz+pBQUDeXa4iI7ADYaOWF3qctBD/YfIAFa0= ]]
+++(hash-convert.sh:111) nix hash convert --from sri sha512-IEqPxt2oLwoM7XvrjgikFlfBbvRosiioJ5vjMacDwzWW/RXBOxsH+aodO+pXeJygMa2Fx6cd1wNU7GMSOMo0RQ
+warning: you don't have Internet access; disabling some network-dependent features
++(hash-convert.sh:111) [[ sha512-IEqPxt2oLwoM7XvrjgikFlfBbvRosiioJ5vjMacDwzWW/RXBOxsH+aodO+pXeJygMa2Fx6cd1wNU7GMSOMo0RQ== = sha512-IEqPxt2oLwoM7XvrjgikFlfBbvRosiioJ5vjMacDwzWW/RXBOxsH+aodO+pXeJygMa2Fx6cd1wNU7GMSOMo0RQ== ]]

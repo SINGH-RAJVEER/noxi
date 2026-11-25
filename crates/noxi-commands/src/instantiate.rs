@@ -56,6 +56,8 @@ pub struct Options {
 	/// `nix-instantiate --dry-run`: CppNix's `readOnlyMode`, so derivation
 	/// paths are computed without writing them, even with `--read-write-mode`.
 	pub dry_run: bool,
+	/// `--repair`: write valid derivations and sources again.
+	pub repair: bool,
 	pub strict: bool,
 	pub json: bool,
 	/// `--xml`; the last of `--raw`, `--json` and `--xml` wins, as in CppNix.
@@ -1058,7 +1060,8 @@ pub fn derivations(results: &[Value]) -> Result<Vec<(StorePath, String)>, String
 pub fn installables(
 	results: &[Value],
 	specs: &[Option<BTreeSet<String>>],
-) -> Result<Vec<DerivedPath>, String> {
+	store: Option<&dyn Store>,
+) -> Result<Vec<DerivedPath>, crate::cli::Failure> {
 	let mut paths = Vec::new();
 	for (index, result) in results.iter().enumerate() {
 		let spec = specs.get(index).and_then(Option::as_ref);
@@ -1073,8 +1076,14 @@ pub fn installables(
 					.and_then(|value| text_of(value))
 			};
 			let path = text(0)?;
-			let path = StorePath::from_absolute_path(path.as_bytes())
-				.map_err(|_| format!("invalid store path '{path}'"))?;
+			let path = match (path.contains('!'), store) {
+				(true, Some(store)) => {
+					let nested: Vec<&str> = path.rsplit('!').collect();
+					built_derivation(store, &nested)?
+				}
+				_ => StorePath::from_absolute_path(path.as_bytes())
+					.map_err(|_| format!("invalid store path '{path}'"))?,
+			};
 			let names = entry.get(2).map(forced);
 			let Some(Value::List(names)) = names else {
 				paths.push(DerivedPath::Opaque(path));
@@ -1103,6 +1112,52 @@ pub fn installables(
 	Ok(paths)
 }
 
+/// `DerivationTrampolineGoal`: the derivation that the last of `nested` is,
+/// the first being a store derivation and each other an output of the one
+/// before. Derivations producing it are built.
+pub fn built_derivation(
+	store: &dyn Store,
+	nested: &[&str],
+) -> Result<StorePath, crate::cli::Failure> {
+	let (root, outputs) = nested
+		.split_first()
+		.ok_or_else(|| "missing store derivation".to_owned())?;
+	let mut drv = StorePath::from_absolute_path(root.as_bytes())
+		.map_err(|_| format!("invalid store path '{root}'"))?;
+	let mut name = drv.to_absolute_path();
+	for output in outputs {
+		name = format!("{name}^{output}");
+		let request = [DerivedPath::Built {
+			drv: drv.clone(),
+			outputs: BTreeSet::from([(*output).to_owned()]),
+		}];
+		crate::paths::print_missing(store, &store.query_missing(&request)?)?;
+		let built = match store.build_paths_with_results(&request, noxi_store::BuildMode::Normal) {
+			Ok(built) => built,
+			Err(error) => {
+				nix_compat::log::logger::log_error(
+					&nix_compat::log::format_error(&error.to_string()),
+					&error.to_string(),
+				);
+				return Err(crate::cli::Failure::Error(format!(
+					"failed to obtain derivation of '{name}'"
+				)));
+			}
+		};
+		let mut paths = match built.get(&drv) {
+			Some(paths) => paths.clone(),
+			None => store.known_derivation_outputs(&drv)?,
+		};
+		drv = paths.remove(*output).ok_or_else(|| {
+			format!(
+				"derivation '{}' does not have an output named '{output}'",
+				drv.to_absolute_path()
+			)
+		})?;
+	}
+	Ok(drv)
+}
+
 fn text_of(value: &Value) -> Result<String, String> {
 	let text = forced(value)
 		.to_contextful_str()
@@ -1115,7 +1170,7 @@ fn text_of(value: &Value) -> Result<String, String> {
 pub fn extended_outputs_spec(
 	installable: &str,
 ) -> Result<(&str, Option<BTreeSet<String>>), String> {
-	let Some((prefix, spec)) = installable.split_once('^') else {
+	let Some((prefix, spec)) = installable.rsplit_once('^') else {
 		return Ok((installable, None));
 	};
 	if spec == "*" {
@@ -1477,6 +1532,7 @@ fn evaluator_store(
 			.collect();
 		evaluator_store.restrict_access(options.settings.get_bool("pure-eval", false), roots);
 	}
+	evaluator_store.repair(options.repair);
 	evaluator_store.allow_import_from_derivation(
 		options
 			.settings

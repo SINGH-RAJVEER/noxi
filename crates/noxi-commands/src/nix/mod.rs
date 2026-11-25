@@ -458,8 +458,13 @@ fn supported_flags(command: &str) -> &'static [&'static str] {
 			"no-link",
 			"out-link",
 			"print-out-paths",
+			"profile",
+			"rebuild",
+			"repair",
 		],
 		"path-info" => &[
+			"derivation",
+			"stdin",
 			"json",
 			"json-format",
 			"recursive",

@@ -41,12 +41,19 @@ pub enum BuildMode {
 	Check,
 }
 
+/// The outputs of built derivations that the store does not record: those of
+/// impure derivations, by derivation and output name.
+pub type ImpureOutputs = BTreeMap<StorePath, BTreeMap<String, StorePath>>;
+
 /// What realising some paths would take, CppNix's `MissingPaths`.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct Missing {
 	pub will_build: BTreeSet<StorePath>,
 	pub will_substitute: BTreeSet<StorePath>,
 	pub unknown: BTreeSet<StorePath>,
+	/// Derivations that are outputs still to be built, whose outputs are not
+	/// looked up.
+	pub ignored_dynamic: BTreeSet<String>,
 	pub download_size: u64,
 	pub nar_size: u64,
 }
@@ -178,6 +185,25 @@ pub trait Store {
 			references,
 		)
 	}
+
+	/// `Installable::build`: realise `paths` with their results, as the
+	/// modern commands do. A failed build is an error with exit status 1.
+	/// Outputs the store records are not returned.
+	fn build_paths_with_results(
+		&self,
+		paths: &[DerivedPath],
+		mode: BuildMode,
+	) -> Result<ImpureOutputs> {
+		match self.build_paths_with_mode(paths, mode) {
+			Ok(()) => Ok(ImpureOutputs::new()),
+			Err(Error::Build { message, .. }) => Err(Error::Other(message)),
+			Err(error) => Err(error),
+		}
+	}
+
+	/// `EvalState::repair`: write the paths this client adds again even when
+	/// they are valid, as an evaluation with `--repair` does.
+	fn repair_additions(&self, _repair: bool) {}
 
 	/// Keep `path` alive until this process exits.
 	fn add_temp_root(&self, path: &StorePath) -> Result<()>;

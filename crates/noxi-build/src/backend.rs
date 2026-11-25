@@ -1,7 +1,7 @@
 //! A local store that builds and substitutes the paths it is asked to
 //! realise, as CppNix's `LocalStore` does.
 
-use std::cell::OnceCell;
+use std::cell::{Cell, OnceCell};
 use std::collections::{BTreeMap, BTreeSet};
 use std::io::Read;
 use std::path::{Path, PathBuf};
@@ -26,6 +26,8 @@ pub struct LocalBackend {
 	/// The `substituters` setting, opened when a path is first realised.
 	substituter_uris: Vec<String>,
 	substituters: OnceCell<Vec<BinaryCache>>,
+	/// Write added paths again even when they are valid.
+	repair_additions: Cell<bool>,
 }
 
 impl LocalBackend {
@@ -35,6 +37,7 @@ impl LocalBackend {
 			settings,
 			substituter_uris: substituters,
 			substituters: OnceCell::new(),
+			repair_additions: Cell::new(false),
 		}
 	}
 
@@ -369,7 +372,7 @@ impl Store for LocalBackend {
 		references: &BTreeSet<StorePath>,
 	) -> Result<StorePath> {
 		self.store
-			.add_text_to_store(name, contents, references, false)
+			.add_text_to_store(name, contents, references, self.repair_additions.get())
 	}
 
 	fn add_multiple_to_store(
@@ -410,7 +413,7 @@ impl Store for LocalBackend {
 			hash_method,
 			hash_algo,
 			references,
-			false,
+			self.repair_additions.get(),
 		)
 	}
 
@@ -421,8 +424,24 @@ impl Store for LocalBackend {
 		method: FileIngestionMethod,
 		references: &BTreeSet<StorePath>,
 	) -> Result<StorePath> {
+		let mut source = source;
+		if self.repair_additions.get() {
+			return self.store.add_to_store_from_dump(
+				source.reader()?,
+				name,
+				method,
+				method,
+				HashAlgo::Sha256,
+				references,
+				true,
+			);
+		}
 		self.store
 			.add_to_store_from_capture(source, name, method, references)
+	}
+
+	fn repair_additions(&self, repair: bool) {
+		self.repair_additions.set(repair);
 	}
 
 	fn add_temp_root(&self, path: &StorePath) -> Result<()> {
@@ -441,7 +460,13 @@ impl Store for LocalBackend {
 			vec![],
 			0,
 		);
-		self.worker().query_missing_quietly(paths)
+		let missing = self.worker().query_missing_quietly(paths)?;
+		for drv in &missing.ignored_dynamic {
+			nix_compat::log::logger::warn(&format!(
+				"Ignoring dynamic derivation {drv} while querying missing paths; not yet implemented"
+			));
+		}
+		Ok(missing)
 	}
 
 	/// Build output goes to standard error, as the legacy commands print it,
@@ -456,6 +481,16 @@ impl Store for LocalBackend {
 	fn build_paths_with_mode(&self, paths: &[DerivedPath], mode: BuildMode) -> Result<()> {
 		let _worker = nix_compat::log::logger::WorkerGuard::new();
 		self.worker().build_paths_in_mode(paths, mode)
+	}
+
+	fn build_paths_with_results(
+		&self,
+		paths: &[DerivedPath],
+		mode: BuildMode,
+	) -> Result<noxi_store::ImpureOutputs> {
+		let _worker = nix_compat::log::logger::WorkerGuard::new();
+		self.worker()
+			.build_paths_reporting(paths, mode, FailureReport::Results)
 	}
 
 	fn repair_path(&self, path: &StorePath) -> Result<()> {
@@ -546,6 +581,16 @@ impl Worker<'_> {
 	/// Realise `paths` in a build mode, reporting the progress of the
 	/// running worker.
 	pub fn build_paths_in_mode(&self, paths: &[DerivedPath], mode: BuildMode) -> Result<()> {
+		self.build_paths_reporting(paths, mode, FailureReport::BuildPaths)
+			.map(drop)
+	}
+
+	fn build_paths_reporting(
+		&self,
+		paths: &[DerivedPath],
+		mode: BuildMode,
+		report: FailureReport,
+	) -> Result<noxi_store::ImpureOutputs> {
 		let substituters = self.substituters;
 		let builder = self.builder().with_mode(mode);
 		let will_build = if paths
@@ -578,9 +623,17 @@ impl Worker<'_> {
 				logs.event(Some(owner), event)
 			})?;
 			let exit_status = batch.exit_status();
+			let mut waited_on = BTreeSet::new();
+			for drv in batch.failures.keys() {
+				let derivation = self.store.read_build_derivation(drv)?;
+				waited_on.extend(derivation.basic.input_derivations().keys().cloned());
+			}
 			let mut failed_targets = Vec::new();
 			for (path, _) in &targets {
 				if let Some(error) = batch.failures.remove(path) {
+					if self.settings.keep_going && waited_on.contains(path) {
+						log_error(&error.to_string());
+					}
 					let message = if error.status() == crate::FailureStatus::DependencyFailed {
 						self.dependency_failed(path)?
 					} else {
@@ -594,25 +647,8 @@ impl Worker<'_> {
 					log_error(&error.to_string());
 				}
 			}
-			if failed_targets.len() == 1 {
-				return Err(Error::Build {
-					exit_status,
-					message: failed_targets.remove(0).1,
-				});
-			}
 			if !failed_targets.is_empty() {
-				let mut quoted: Vec<_> = failed_targets
-					.iter()
-					.map(|(p, _)| format!("'{}'", p.to_absolute_path()))
-					.collect();
-				quoted.sort();
-				for (_, message) in failed_targets {
-					log_error(&message);
-				}
-				return Err(Error::Build {
-					exit_status,
-					message: format!("build of {} failed", quoted.join(", ")),
-				});
+				return Err(failed_paths(paths, failed_targets, exit_status, report));
 			}
 			for path in paths {
 				if let DerivedPath::Opaque(path) = path {
@@ -623,7 +659,7 @@ impl Worker<'_> {
 					}
 				}
 			}
-			return Ok(());
+			return Ok(builder.impure_outputs());
 		}
 		// CppNix's worker starts ready builds in the order of their goal keys,
 		// `dd$NAME$PATH`, so independent derivations build in name order.
@@ -644,6 +680,12 @@ impl Worker<'_> {
 			BuildMode::Normal => self.build_order(&will_build)?,
 			BuildMode::Repair | BuildMode::Check => Vec::new(),
 		};
+		for (drv, _) in &order {
+			let derivation = self.store.read_build_derivation(drv)?;
+			if let Some(error) = builder.impure_input(drv, &derivation)? {
+				return Err(error.into());
+			}
+		}
 		let has_waiters = |drv: &StorePath| order.iter().any(|(_, inputs)| inputs.contains(drv));
 		let mut built: BTreeSet<&StorePath> = BTreeSet::new();
 		let mut failed: BTreeSet<&StorePath> = BTreeSet::new();
@@ -692,39 +734,29 @@ impl Worker<'_> {
 				.filter(|drv| !built.contains(drv) && order.iter().any(|(other, _)| other == *drv))
 				.collect();
 			unfinished.sort_by_key(|drv| (drv.name().to_owned(), drv.to_absolute_path()));
-			if unfinished.len() == 1 {
-				return Err(Error::Build {
-					exit_status,
-					message,
-				});
-			}
 			let failed_target = failed.iter().find(|drv| targets.contains(*drv));
-			let mut held = None;
-			for drv in &unfinished {
-				let text = if Some(drv) == failed_target {
-					message.clone()
-				} else {
-					String::new()
-				};
-				match held {
-					None => held = Some(text),
-					Some(_) => log_error(&text),
-				}
-			}
-			if let Some(text) = held {
-				log_error(&text);
-			}
-			let mut quoted: Vec<String> = unfinished
-				.iter()
-				.map(|drv| format!("'{}'", drv.to_absolute_path()))
+			let failures = unfinished
+				.into_iter()
+				.map(|drv| {
+					let text = if Some(&drv) == failed_target {
+						message.clone()
+					} else {
+						String::new()
+					};
+					(drv.clone(), text)
+				})
 				.collect();
-			quoted.sort();
-			return Err(Error::Build {
-				exit_status,
-				message: format!("build of {} failed", quoted.join(", ")),
+			return Err(failed_paths(paths, failures, exit_status, report));
+		}
+		let mut ordered: Vec<&DerivedPath> = paths.iter().collect();
+		if mode != BuildMode::Normal {
+			// These goals too start in the order of their keys.
+			ordered.sort_by_key(|path| match path {
+				DerivedPath::Opaque(path) => (true, path.name().to_owned(), path.clone()),
+				DerivedPath::Built { drv, .. } => (false, drv.name().to_owned(), drv.clone()),
 			});
 		}
-		for path in paths {
+		for path in ordered {
 			match path {
 				DerivedPath::Opaque(path) => {
 					if mode == BuildMode::Repair {
@@ -756,14 +788,111 @@ impl Worker<'_> {
 						let all = requests.clone().any(BTreeSet::is_empty);
 						(!all).then(|| requests.flatten().cloned().collect())
 					};
-					builder.realise_with_events(drv, wanted.as_ref(), &mut events)?;
+					match builder.realise_with_events(drv, wanted.as_ref(), &mut events) {
+						Ok(_) => {}
+						Err(BuildError::Failed { status, message }) => {
+							let failures = targets
+								.iter()
+								.filter(|other| !built.contains(**other))
+								.map(|other| {
+									let text = if *other == drv {
+										message.clone()
+									} else {
+										String::new()
+									};
+									((*other).clone(), text)
+								})
+								.collect();
+							let exit_status = status.exit_status();
+							return Err(failed_paths(paths, failures, exit_status, report));
+						}
+						Err(error) => return Err(error.into()),
+					}
 					if mode != BuildMode::Normal {
 						built.insert(drv);
 					}
 				}
 			}
 		}
-		Ok(())
+		Ok(builder.impure_outputs())
+	}
+}
+
+/// How failed requests become one error.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum FailureReport {
+	/// `Store::buildPaths`.
+	BuildPaths,
+	/// `Store::buildPathsWithResults` and `throwBuildErrors`, as the modern
+	/// commands build their installables: the exit status is always 1.
+	Results,
+}
+
+/// The error for the requested derivations in `failures`, which did not
+/// finish. Those the stopped worker never finished have an empty message.
+fn failed_paths(
+	paths: &[DerivedPath],
+	mut failures: Vec<(StorePath, String)>,
+	exit_status: u8,
+	report: FailureReport,
+) -> Error {
+	if report == FailureReport::Results {
+		let failed: Vec<(String, String)> = paths
+			.iter()
+			.filter_map(|path| {
+				let DerivedPath::Built { drv, outputs } = path else {
+					return None;
+				};
+				// Goals the stopped worker never finished have no failure.
+				let (_, message) = failures
+					.iter()
+					.find(|(failed, message)| failed == drv && !message.is_empty())?;
+				let outputs = if outputs.is_empty() {
+					"*".to_owned()
+				} else {
+					outputs.iter().cloned().collect::<Vec<_>>().join(",")
+				};
+				Some((
+					format!("'{}^{outputs}'", drv.to_absolute_path()),
+					message.clone(),
+				))
+			})
+			.collect();
+		if let [(_, message)] = failed.as_slice() {
+			return Error::Other(message.clone());
+		}
+		for (_, message) in &failed {
+			log_error(message);
+		}
+		let quoted: BTreeSet<String> = failed.into_iter().map(|(name, _)| name).collect();
+		return Error::Other(format!(
+			"build of {} failed",
+			quoted.into_iter().collect::<Vec<_>>().join(", ")
+		));
+	}
+	if failures.len() == 1 {
+		return Error::Build {
+			exit_status,
+			message: failures.remove(0).1,
+		};
+	}
+	// `Store::buildPaths` walks the goals in key order. The first failure is
+	// held and later ones are logged; empty failures log as empty lines.
+	failures.sort_by_key(|(drv, _)| (drv.name().to_owned(), drv.to_absolute_path()));
+	for (_, message) in failures.iter().skip(1) {
+		log_error(message);
+	}
+	if let Some((_, message)) = failures.first() {
+		log_error(message);
+	}
+	let mut quoted: Vec<String> = failures
+		.iter()
+		.map(|(drv, _)| format!("'{}'", drv.to_absolute_path()))
+		.collect();
+	quoted.sort();
+	Error::Build {
+		exit_status,
+		message: format!("build of {} failed", quoted.join(", ")),
 	}
 }
 

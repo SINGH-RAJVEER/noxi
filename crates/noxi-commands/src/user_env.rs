@@ -377,7 +377,10 @@ pub fn query_available(
 	drv: bool,
 	meta: bool,
 ) -> Result<Result<Vec<Element>, ExitCode>, Failure> {
-	let dummy = "\"/nix/store/00000000000000000000000000000000-query-placeholder\"";
+	let dummy = instantiate::nix_string_literal(&format!(
+		"{}00000000000000000000000000000000-query-placeholder",
+		nix_compat::store_path::store_dir_with_slash()
+	));
 	let mut normalize = READ_MANIFEST.replace("(import manifest)", "manifest");
 	if !paths {
 		normalize = normalize.replace(
@@ -417,15 +420,28 @@ fn query_expression_impl(
 	root: &str,
 	normalize: String,
 ) -> Result<Result<Vec<Element>, ExitCode>, Failure> {
+	// Package discovery skips assertions and throws while inspecting an
+	// individual candidate. Importing or auto-calling the root can still fail.
 	let collect = r#"auto: root: let
-	  walk = path: top: v:
-	    if builtins.isFunction v then walk path top (v (builtins.intersectAttrs (builtins.functionArgs v) auto))
-	    else if builtins.isAttrs v && (v.type or "") == "derivation" then [ (v // { __noxiAttrPath = path; }) ]
-	    else if builtins.isList v then builtins.concatMap (walk path true) v
-	    else if builtins.isAttrs v && (top || (v.recurseForDerivations or false)) then builtins.concatMap
-	      (n: if n == "recurseForDerivations" then [] else walk (if path == "" then n else path + "." + n) false v.${n}) (builtins.attrNames v)
-	    else [];
-	in walk "" true root"#;
+		autoCall = v: v (builtins.intersectAttrs (builtins.functionArgs v) auto);
+		walk = path: top: v:
+			let
+				kind = builtins.tryEval (
+					if builtins.isFunction v then "function"
+					else if builtins.isAttrs v && (v.type or "") == "derivation" then builtins.seq (v.name or null) "derivation"
+					else if builtins.isList v then "list"
+					else if builtins.isAttrs v && (top || (v.recurseForDerivations or false)) then "attrs"
+					else "");
+			in
+				if !kind.success then []
+				else if kind.value == "function" then walk path top (autoCall v)
+				else if kind.value == "derivation" then [ (v // { __noxiAttrPath = path; }) ]
+				else if kind.value == "list" then builtins.concatMap (walk path true) v
+				else if kind.value == "attrs" then builtins.concatMap
+					(n: if n == "recurseForDerivations" then [] else walk (if path == "" then n else path + "." + n) false v.${n}) (builtins.attrNames v)
+				else [];
+		rootValue = if builtins.isFunction root then autoCall root else root;
+	in builtins.seq rootValue (walk "" true rootValue)"#;
 
 	let mut options = options.clone();
 	options.from_args = true;

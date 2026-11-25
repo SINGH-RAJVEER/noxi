@@ -73,6 +73,7 @@ pub fn main(settings: Settings, args: Vec<String>) -> Result<ExitCode, Failure> 
 		)));
 	}
 	print_setting_warnings(&mut options.settings);
+	options.repair = mode == BuildMode::Repair;
 	if !options.from_args && options.inputs.is_empty() {
 		options.inputs.push(".".to_owned());
 	}

@@ -2236,6 +2236,8 @@ fn client_setting_overrides_match_the_reference() {
 			("trusted-public-keys", "a:b"),
 			("post-build-hook", "/nonexistent/hook"),
 			("diff-hook", "/nonexistent/hook"),
+			("ssl-cert-file", "/etc/shadow"),
+			("hashed-mirrors", "http://localhost:1/"),
 			("run-diff-hook", "true"),
 		];
 		for value in &substituters {

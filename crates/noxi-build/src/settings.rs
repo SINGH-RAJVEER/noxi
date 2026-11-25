@@ -85,6 +85,10 @@ pub struct BuildSettings {
 	pub always_allow_substitutes: bool,
 	/// `FileTransferSettings` for HTTP substituters.
 	pub transfer: noxi_store::binary_cache::TransferSettings,
+	/// `hashed-mirrors`, which `builtin:fetchurl` tries first.
+	pub hashed_mirrors: Vec<String>,
+	/// `ssl-cert-file`, if it is set.
+	pub ssl_cert_file: Option<String>,
 	/// `diff-hook`, which runs when `run-diff-hook` is on.
 	pub diff_hook: String,
 	pub run_diff_hook: bool,
@@ -151,6 +155,8 @@ impl Default for BuildSettings {
 			show_log_tail: false,
 			always_allow_substitutes: false,
 			transfer: Default::default(),
+			hashed_mirrors: Vec::new(),
+			ssl_cert_file: None,
 			diff_hook: String::new(),
 			run_diff_hook: false,
 			post_build_hook: String::new(),
@@ -166,6 +172,28 @@ impl Default for BuildSettings {
 }
 
 impl BuildSettings {
+	/// `FileTransferSettings::caFile`: the setting, the environment or a
+	/// well-known path.
+	pub fn ca_file(&self) -> Option<PathBuf> {
+		if let Some(file) = &self.ssl_cert_file {
+			return (!file.is_empty()).then(|| PathBuf::from(file));
+		}
+		["NIX_SSL_CERT_FILE", "SSL_CERT_FILE"]
+			.into_iter()
+			.find_map(std::env::var_os)
+			.filter(|file| !file.is_empty())
+			.map(PathBuf::from)
+			.or_else(|| {
+				[
+					"/etc/ssl/certs/ca-certificates.crt",
+					"/nix/var/nix/profiles/default/etc/ssl/certs/ca-bundle.crt",
+				]
+				.into_iter()
+				.map(PathBuf::from)
+				.find(|file| file.exists())
+			})
+	}
+
 	/// Apply the shared configuration loader's typed values. Fields absent
 	/// from the configuration retain their existing defaults.
 	pub fn apply_config(&mut self, settings: &Settings) {
@@ -187,6 +215,16 @@ impl BuildSettings {
 		self.always_allow_substitutes =
 			settings.get_bool("always-allow-substitutes", self.always_allow_substitutes);
 		self.transfer.apply(settings);
+		if settings.get("hashed-mirrors").is_some() {
+			self.hashed_mirrors = settings
+				.get_list("hashed-mirrors", &[])
+				.into_iter()
+				.map(str::to_owned)
+				.collect();
+		}
+		if let Some(file) = settings.get("ssl-cert-file") {
+			self.ssl_cert_file = Some(file.to_owned());
+		}
 		if settings.get("experimental-features").is_some() {
 			self.nix_command = settings.experimental_features().contains("nix-command");
 		}

@@ -43,6 +43,34 @@ pub enum FileIngestionMethod {
 	/// The contents of a text file, which may reference other store paths
 	/// (`text:` content addresses). Only valid as a hash method.
 	Text,
+	/// Git's object hash of a file, symlink or directory tree. Only valid as
+	/// a hash method.
+	Git,
+}
+
+impl FileIngestionMethod {
+	/// The content address of this method with the hash `hash`,
+	/// `ContentAddressWithReferences::fromParts`.
+	pub fn content_address(self, hash: NixHash) -> Result<CAHash> {
+		Ok(match (self, hash) {
+			(Self::Flat, hash) => CAHash::Flat(hash),
+			(Self::NixArchive, hash) => CAHash::Nar(hash),
+			(Self::Text, NixHash::Sha256(digest)) => CAHash::Text(digest),
+			(Self::Text, hash) => {
+				return Err(Error::Other(format!(
+					"text hashing requires SHA-256, not {}",
+					hash.algo()
+				)));
+			}
+			(Self::Git, hash @ (NixHash::Sha1(_) | NixHash::Sha256(_))) => CAHash::Git(hash),
+			(Self::Git, hash) => {
+				return Err(Error::Other(format!(
+					"Git file ingestion must use SHA-1 or SHA-256 hash, but instead using: {}",
+					hash.algo()
+				)));
+			}
+		})
+	}
 }
 
 /// CppNix's `UnkeyedRealisation`: the path a derivation output was realised
@@ -603,6 +631,10 @@ impl LocalStore {
 			}
 			return Ok(outputs);
 		}
+		if !build_drv.dynamic.is_empty() {
+			// Deferred until the derivations it depends on are built.
+			return Ok(Vec::new());
+		}
 		let drv = build_drv.basic;
 		let name = drv_path
 			.name()
@@ -642,7 +674,18 @@ impl LocalStore {
 		if let Some(hash) = memo.borrow().get(drv_path) {
 			return Some(hash.clone());
 		}
-		let drv = self.read_derivation(drv_path).ok()?;
+		let build_drv = self.read_build_derivation(drv_path).ok()?;
+		if let Some(hash) = build_drv.fixed_hash_derivation_modulo() {
+			memo.borrow_mut().insert(drv_path.clone(), hash.clone());
+			return Some(hash);
+		}
+		if !build_drv.floating.is_empty()
+			|| !build_drv.experimental.is_empty()
+			|| !build_drv.dynamic.is_empty()
+		{
+			return None;
+		}
+		let drv = build_drv.basic;
 		let lookup = lookup_fn(|path: &StorePathRef<'_>| {
 			self.hash_modulo_of(&StorePath::from(path.clone()), memo)
 		});
@@ -671,6 +714,9 @@ impl LocalStore {
 			// Malformed files fail with the reference's `FormatError`;
 			// noxi's own feature and support checks keep their messages.
 			Some((message, true)) => Error::Other(message),
+			Some((message, false)) if bytes.starts_with(b"DrvWithVersion(") => {
+				Error::Other(message)
+			}
 			_ => e,
 		})
 	}
@@ -736,6 +782,16 @@ impl LocalStore {
 	}
 
 	// Realisations
+
+	fn require_git_hashing(&self) -> Result<()> {
+		if self.config.git_hashing {
+			Ok(())
+		} else {
+			Err(Error::Other(
+				"experimental Nix feature 'git-hashing' is disabled; add '--extra-experimental-features git-hashing' to enable it".to_owned(),
+			))
+		}
+	}
 
 	fn require_ca_derivations(&self) -> Result<()> {
 		if self.config.ca_derivations {
@@ -1097,6 +1153,11 @@ impl LocalStore {
 				nar::restore_flat(&temp_path, source)?;
 				None
 			}
+			FileIngestionMethod::Git => {
+				return Err(Error::Other(
+					"a Git object is not a whole file system object".to_owned(),
+				));
+			}
 		};
 
 		let digest = match hash_method {
@@ -1113,6 +1174,10 @@ impl LocalStore {
 				}
 				digester.finalize()
 			}
+			FileIngestionMethod::Git => {
+				self.require_git_hashing()?;
+				crate::git::hash_path(&temp_path, hash_algo)?
+			}
 			FileIngestionMethod::NixArchive => {
 				if let Some((hash, _)) = captured_nar.filter(|_| hash_algo == HashAlgo::Sha256) {
 					NixHash::Sha256(hash)
@@ -1123,14 +1188,7 @@ impl LocalStore {
 				}
 			}
 		};
-		let ca = match hash_method {
-			FileIngestionMethod::Text => match digest {
-				NixHash::Sha256(d) => CAHash::Text(d),
-				_ => return Err(Error::Other("text hashing requires SHA-256".to_owned())),
-			},
-			FileIngestionMethod::Flat => CAHash::Flat(digest),
-			FileIngestionMethod::NixArchive => CAHash::Nar(digest),
-		};
+		let ca = hash_method.content_address(digest)?;
 
 		let mut info = ValidPathInfo::new(
 			StorePath::from_name_and_digest_fixed(name, [0; 20])
@@ -1605,6 +1663,9 @@ fn nix32_with_algo(hash: &NixHash) -> String {
 /// was.
 pub fn ca_hash_of(path: &Path, claimed: &CAHash) -> Result<CAHash> {
 	let algo = claimed.hash().algo();
+	if matches!(claimed, CAHash::Git(_)) {
+		return FileIngestionMethod::Git.content_address(crate::git::hash_path(path, algo)?);
+	}
 	if !matches!(claimed, CAHash::Text(_))
 		&& let Some(name) = path.file_name().and_then(|s| s.to_str())
 		&& let Ok(store_path) = StorePath::from_bytes(name.as_bytes())
@@ -1632,7 +1693,7 @@ pub fn ca_hash_of(path: &Path, claimed: &CAHash) -> Result<CAHash> {
 			nar::dump_path(&mut writer, path)?;
 			CAHash::Nar(writer.0.finalize())
 		}
-		CAHash::Flat(_) | CAHash::Text(_) => {
+		CAHash::Flat(_) | CAHash::Text(_) | CAHash::Git(_) => {
 			let mut digester = NixHashDigester::new(algo);
 			digester.update(fs::read(path)?);
 			match (claimed, digester.finalize()) {

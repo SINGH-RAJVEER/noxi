@@ -24,6 +24,7 @@ The first image is the NixOS minimal installation ISO with noxi in place of CppN
 |---|---|
 | [`module.nix`](../nix/noxios/module.nix), also `nixosModules.noxios` | Sets `nix.package` to `packages.x86_64-linux.noxi-replacement` |
 | [`branding.nix`](../nix/noxios/branding.nix) | The noxios name, URLs, getty greeting and volume label; drops the NixOS manual |
+| [`settings.nix`](../nix/noxios/settings.nix) | Built-in CLI and TUI, plus the graphical Settings application when a desktop session is configured |
 | [`installer.nix`](../nix/noxios/installer.nix) | The installer profile, with a `noxi` live user |
 | [`manual.nix`](../nix/noxios/manual.nix) | The noxios manual and `noxios-help` |
 | [`live.nix`](../nix/noxios/live.nix) | The live system's locked flake in `/etc/nixos` |
@@ -36,11 +37,13 @@ The image is evaluated with `nixos/lib/eval-config.nix`, as Hydra evaluates the 
 |---|---|
 | `nixosConfigurations.noxios-iso` | The image's NixOS configuration |
 | `packages.x86_64-linux.noxios-iso` | The ISO, under `iso/` |
-| `nixosModules.noxios` | The `nix.package` replacement on its own, for other configurations |
+| `nixosConfigurations.noxios-iso-graphical` | The image configuration with Xfce, LightDM and the Settings application |
+| `packages.x86_64-linux.noxios-iso-graphical` | The graphical ISO, under `iso/` |
+| `nixosModules.noxios` | The noxi engine and built-in Settings module for installed systems |
 | `checks.x86_64-linux.noxios-iso-closure` | Fails if a CppNix package is in the image's store, or if the engine is not |
 | `checks.x86_64-linux.noxios-iso-boot` | Boots the ISO in QEMU and checks that noxi did the work, the branding, the live user, the manual and the flake |
 
-Build the image with `nix build .#noxios-iso` in the development shell.
+Build the console image with `nix build .#noxios-iso` or the graphical image with `nix build .#noxios-iso-graphical` in the development shell. Both include `noxi settings` and `noxi settings tui`. The graphical image also includes the **noxios Settings** desktop launcher. See [Settings](settings.md) for configuration and commands.
 
 #### What is branded
 

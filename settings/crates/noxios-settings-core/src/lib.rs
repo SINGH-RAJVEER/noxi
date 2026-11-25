@@ -1,0 +1,143 @@
+//! The headless engine behind noxios-settings.
+//!
+//! Everything that mutates the user's configuration lives here: manifest
+//! bookkeeping, writing the managed `.nix` files, inserting the `imports`
+//! entry, keeping git aware of generated files, and working out which rebuild
+//! command applies to a given target. The [`Session`] drives queued ops
+//! through rebuilds for the interactive front-ends; front-ends own
+//! presentation, not policy.
+
+pub mod configurations;
+mod dendritic_ops;
+pub mod engine;
+pub mod flakes;
+pub mod hardware;
+pub mod op;
+pub mod options;
+pub mod profile;
+pub mod progress;
+pub mod rebuild;
+pub mod report;
+pub mod search;
+pub mod session;
+pub mod settings_pages;
+pub mod state;
+pub mod system_options;
+pub mod telemetry;
+pub mod text_motion;
+pub mod vcs;
+
+pub use dendritic_ops::apply_managed_migration;
+pub use engine::{Engine, ImportState, ManagedPackage, scan_externals, scan_target, scope_matches};
+pub use flakes::InstalledFlake;
+pub use op::{
+	FlakeChoice, FlakeOutputGroup, FlakeOutputItem, Op, flake_choices, flake_output_groups,
+};
+pub use options::{OptionChange, load_options};
+pub use profile::Activation;
+pub use rebuild::{Escalation, HOME_FALLBACK_NOTE, RebuildCommand};
+pub use report::{LogReporter, Reporter, SilentReporter};
+pub use session::{BuildEnded, Enqueued, Restored, Session};
+pub use state::{InProgress, PersistedState, state_path};
+pub use vcs::{Backend, CommitOutcome, JournalEntry, Repository, Review, Vcs, Visibility};
+
+#[cfg(test)]
+pub(crate) mod tests {
+	use std::ffi::OsString;
+	use std::path::PathBuf;
+	use std::sync::atomic::{AtomicU32, Ordering};
+	use std::sync::{Mutex, MutexGuard, PoisonError};
+
+	use noxios_settings_config::Config;
+	use noxios_settings_engine::search::SearchHit;
+
+	static ENV_LOCK: Mutex<()> = Mutex::new(());
+	static COUNTER: AtomicU32 = AtomicU32::new(0);
+
+	/// Isolates configuration files and user settings in separate temporary
+	/// directories for as long as the guard lives, including the VCS journal.
+	///
+	/// The config crate reads that variable on every path lookup, so it is
+	/// process-global state: the guard holds a lock to keep tests that touch
+	/// it from overlapping.
+	pub(crate) struct TempConfigDir {
+		path: PathBuf,
+		settings: PathBuf,
+		previous_config: Option<OsString>,
+		previous_settings: Option<OsString>,
+		_guard: MutexGuard<'static, ()>,
+	}
+
+	impl TempConfigDir {
+		/// A config pinned to this directory, so nothing in a test can reach
+		/// the host's real `/etc/nixos`.
+		pub(crate) fn config(&self) -> Config {
+			Config {
+				home_manager_main_file: Some(self.path.join("home.nix")),
+				nixos_main_file: Some(self.path.join("configuration.nix")),
+				..Config::default()
+			}
+		}
+	}
+
+	impl Drop for TempConfigDir {
+		fn drop(&mut self) {
+			// SAFETY: the lock this guard holds is still held here, so no
+			// other test is reading the environment concurrently.
+			unsafe {
+				for (name, previous) in [
+					("NOXIOS_SETTINGS_CONFIG_DIR", &self.previous_config),
+					("XDG_CONFIG_HOME", &self.previous_settings),
+				] {
+					if let Some(value) = previous {
+						std::env::set_var(name, value);
+					} else {
+						std::env::remove_var(name);
+					}
+				}
+			}
+			let _ = std::fs::remove_dir_all(&self.path);
+			let _ = std::fs::remove_dir_all(&self.settings);
+		}
+	}
+
+	pub(crate) fn temp_dir(label: &str) -> TempConfigDir {
+		let guard = ENV_LOCK.lock().unwrap_or_else(PoisonError::into_inner);
+		let unique = COUNTER.fetch_add(1, Ordering::Relaxed);
+		let path = std::env::temp_dir().join(format!(
+			"noxios-settings-{label}-{}-{unique}",
+			std::process::id()
+		));
+		let _ = std::fs::remove_dir_all(&path);
+		std::fs::create_dir_all(&path).expect("create temp config dir");
+		// Keep journals outside the configuration root, as production requires.
+		let settings = path.with_extension("settings");
+		let _ = std::fs::remove_dir_all(&settings);
+		std::fs::create_dir_all(&settings).expect("create temp settings dir");
+		let previous_config = std::env::var_os("NOXIOS_SETTINGS_CONFIG_DIR");
+		let previous_settings = std::env::var_os("XDG_CONFIG_HOME");
+		// SAFETY: guarded by ENV_LOCK, held for the lifetime of the guard.
+		unsafe {
+			std::env::set_var("NOXIOS_SETTINGS_CONFIG_DIR", &path);
+			std::env::set_var("XDG_CONFIG_HOME", &settings);
+		}
+		TempConfigDir {
+			path,
+			settings,
+			previous_config,
+			previous_settings,
+			_guard: guard,
+		}
+	}
+
+	pub(crate) fn hit(attr: &str) -> SearchHit {
+		SearchHit {
+			attr: attr.into(),
+			pname: attr.into(),
+			version: "1.0".into(),
+			description: String::new(),
+		}
+	}
+}
+#[cfg(test)]
+mod dendritic_tests;
