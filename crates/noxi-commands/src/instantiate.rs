@@ -809,14 +809,20 @@ mod driver_builtins {
 	}
 }
 
-/// Keep the owner's build status through the evaluator's I/O wrappers.
-fn evaluation_build_exit_status(error: &(dyn std::error::Error + 'static)) -> Option<u8> {
+/// Keep build and fetch statuses through the evaluator's error wrappers.
+fn evaluation_exit_status(error: &(dyn std::error::Error + 'static)) -> Option<u8> {
 	let mut cause = Some(error);
 	while let Some(error) = cause {
 		if let Some(noxi_store::Error::Build { exit_status, .. }) =
 			error.downcast_ref::<noxi_store::Error>()
 		{
 			return Some(*exit_status);
+		}
+		if let Some(status) = error
+			.downcast_ref::<noxi_flakeref::error::Error>()
+			.and_then(|error| error.status)
+		{
+			return Some(status);
 		}
 		cause = if let Some(error) = error.downcast_ref::<io::Error>() {
 			error.get_ref().map(|error| error as &dyn std::error::Error)
@@ -995,7 +1001,7 @@ pub fn evaluate(options: &Options, cwd: &Path) -> Result<Evaluated, ExitCode> {
 		let status = result
 			.errors
 			.iter()
-			.find_map(|error| evaluation_build_exit_status(error));
+			.find_map(|error| evaluation_exit_status(error));
 		return Err(status.map(ExitCode::from).unwrap_or(ExitCode::FAILURE));
 	}
 	let Some(Value::List(results)) = result.value else {

@@ -6,6 +6,8 @@ Changes that have not reached a version yet go under an `Unreleased` heading for
 
 ## Repository - Unreleased
 
+- Fetch failures retain the evaluator exit status for a wrong NAR hash. Git's forced transport path caches local repositories in `gitv3`.
+- Flake reference parsing warns about URI query fields without an equals sign. Flake checks report overlay types, propagate module assertion failures and collect invalid package outputs with `--keep-going`.
 - Flake lock commits honor `--commit-lock-file-summary` and its `commit-lockfile-summary` setting alias.
 - Flake lock files retain the implicit registry reference when an input is overridden. A root-level override can point back to the checkout and use its declared inputs.
 - `builtins.getFlake` accepts path values inside evaluator-visible store objects. The Git fetcher computes `revCount` lazily, so clients can use a shallow checkout without asking for its history.

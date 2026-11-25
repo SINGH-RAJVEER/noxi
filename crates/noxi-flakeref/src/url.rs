@@ -230,6 +230,11 @@ pub fn decode_query(query: &str, lenient: bool) -> Result<BTreeMap<String, Strin
 	}
 	for param in query.split('&') {
 		let Some((key, value)) = param.split_once('=') else {
+			if !param.is_empty() {
+				crate::error::warn(&format!(
+					"dubious URI query '{param}' is missing equal sign '=', ignoring"
+				));
+			}
 			continue;
 		};
 		let invalid = || Error::bad_url(format!("invalid URI query '{query}'"));

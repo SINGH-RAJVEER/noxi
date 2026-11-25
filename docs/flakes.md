@@ -161,6 +161,10 @@ The installable comparisons cover `eval`, `build --dry-run` and `edit`: the `def
 
 ## Lock computation and lock policy, 2026-11-21
 
+Flake reference parsing warns about nonempty URI query fields without an equals sign and ignores them. The fragment remains a single installable attribute path. A rejected fetch with the wrong NAR hash carries exit status 102 through the evaluator and the command.
+
+`nix flake check` reports the actual value type for a non-function overlay. It forces the outer value of each NixOS module and propagates failures from that force. With `--all-systems --keep-going`, schema validation can report multiple invalid package derivations in a single invocation.
+
 `nix flake lock --commit-lock-file` uses the subject supplied by `--commit-lock-file-summary` or its configuration alias `commit-lockfile-summary`. The lock diff remains in the commit body.
 
 An override of an implicit input records the input's indirect reference in `original`, so a later invocation can reuse the lock without another override. This also applies to dirty Git overrides written with `--allow-dirty-locks`. A root-level `--override-input` can name the checkout itself. The input's nested dependencies still resolve from their own declarations, and circular imports below that edge are checked.

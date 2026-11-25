@@ -347,7 +347,8 @@ pub fn fetch_source(
 	let (mount, resolved, mut input, extra) = super::get_cached(store, &original.input, registries)
 		.map_err(super::builtins::fetch_error)?;
 	let fetched = input.clone();
-	let path = super::mount_input(store, &mut input, &original.input, &mount).map_err(error)?;
+	let path = super::mount_input(store, &mut input, &original.input, &mount)
+		.map_err(super::builtins::fetch_error)?;
 	let subdir = if original.subdir.is_empty() {
 		noxi_flakeref::input::maybe_get_str_attr(&extra, "dir")
 			.map_err(error)?
