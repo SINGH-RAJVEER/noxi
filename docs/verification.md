@@ -1454,7 +1454,7 @@ Remaining differences found by a 508-case sweep, which otherwise matched:
 
 - `builtins.pathExists <x>` under `restrict-eval`, for a downloaded entry, is the access error instead of `false`.
 - In pure evaluation with a diverted store, CppNix prints a `flake:` result from `builtins.findFile` at its physical path.
-- `nix eval --override-flake` is not implemented.
+- `nix eval --override-flake` was not implemented. It works since 2026-11-25, for installables, `--expr` and `--file`, and for `nix build` (`reference_override_flake`).
 - `s3://` entries fail without CppNix's AWS authentication warning, and the HTTP client uses `https_proxy` for `http://` URLs and does not retry failed connections.
 - `nix-instantiate` file arguments that are themselves `flake:` or URL references are not covered.
 

@@ -913,6 +913,10 @@ pub fn evaluate(options: &Options, cwd: &Path) -> Result<Evaluated, ExitCode> {
 
 	let writable = !options.dry_run && (!options.eval || options.read_write_mode);
 	let (evaluator_store, store) = evaluator_store(options, cwd, writable).map_err(|e| fail(&e))?;
+	// The overrides are parsed even if no flake is looked up.
+	if !options.override_flakes.is_empty() {
+		evaluator_store.registries().map_err(|e| fail(&e))?;
+	}
 	let mut env: FxHashMap<SmolStr, Value> = driver_builtins::builtins()
 		.into_iter()
 		.map(|(name, value)| (SmolStr::new(format!("__noxi_{name}")), value))
