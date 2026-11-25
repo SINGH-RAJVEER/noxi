@@ -6,6 +6,8 @@ Changes that have not reached a version yet go under an `Unreleased` heading for
 
 ## Repository - Unreleased
 
+- `nix-channel --update` accepts local channel directory URLs and looks for `nixexprs.tar.xz` or `nixexprs.tar.bz2` inside them.
+
 - `builtin:fetchurl` downloads flat files, executables and NARs, from `hashed-mirrors` first. It runs outside the sandbox, so `file:` URLs are refused unless the builder would run unsandboxed as the same user. Builders with network access see the `ssl-cert-file` certificates at `/etc/ssl/certs/ca-certificates.crt` (2026-11-25).
 - Dynamic derivations build: derivations with inputs that are outputs of derivations still to be built are evaluated, written and read in the `DrvWithVersion` form, resolved and built, and `nix build DRV^out^out` and `builtins.outputOf` installables build them. A failed resolved derivation is reported as in 2.35.2 (2026-11-25).
 - Text-hashed, Git-hashed and impure derivation outputs build, fixed or floating, with the reference's checks of the output's kind, references and hash, and impure derivations and fixed outputs of every method share the sandbox network exemption. `nix store add --mode text|git`, `nix hash path --mode git`, Git content addresses in the store and the worker protocol, and `nix path-info --derivation` work (2026-11-25).

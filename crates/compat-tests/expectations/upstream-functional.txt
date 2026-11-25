@@ -396,7 +396,7 @@ tests/functional/nested-sandboxing/command.sh support
 tests/functional/nested-sandboxing/runner.nix support
 tests/functional/nix-build-examples.nix support
 tests/functional/nix-build.sh pass pass pass
-tests/functional/nix-channel.sh gap fail pass # main in nix-channel.sh:44: error: Is a directory (os error 21)
+tests/functional/nix-channel.sh pass pass pass
 tests/functional/nix-collect-garbage-d.sh pass pass pass
 tests/functional/nix-copy-ssh-common.sh support
 tests/functional/nix-copy-ssh-ng.sh gap fail pass # source in nix-copy-ssh-common.sh:39: error: unsupported store parameter 'store=$ROOT/tmp/nix-test/main/nix-copy-ssh-ng/store' in 'ssh-ng://localhost?store=$ROOT/tmp/nix-test/main/nix-copy-ssh-ng/store

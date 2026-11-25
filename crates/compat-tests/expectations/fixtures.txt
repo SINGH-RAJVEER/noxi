@@ -276,7 +276,7 @@ pass:upstream_functional tests/functional/nar-access.sh
 gap tests/functional/nars.sh # main in nars.sh:6:
 gap tests/functional/nested-sandboxing.sh # main in nested-sandboxing.sh:24:
 pass:upstream_functional tests/functional/nix-build.sh
-gap tests/functional/nix-channel.sh # main in nix-channel.sh:44: error: Is a directory (os error 21)
+pass tests/functional/nix-channel.sh
 pass:upstream_functional tests/functional/nix-collect-garbage-d.sh
 gap tests/functional/nix-copy-ssh-ng.sh # source in nix-copy-ssh-common.sh:39: error: unsupported store parameter 'store=$ROOT/tmp/nix-test/main/nix-copy-ssh-ng/store' in 'ssh-ng://localhost?store=$ROOT/tmp/nix-test/main/nix-copy-ssh-ng/store
 gap tests/functional/nix-copy-ssh.sh # source in nix-copy-ssh-common.sh:39: error: unsupported store parameter 'store=$ROOT/tmp/nix-test/main/nix-copy-ssh/store' in 'ssh://localhost?store=$ROOT/tmp/nix-test/main/nix-copy-ssh/store&remote-s

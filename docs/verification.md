@@ -394,6 +394,8 @@ Smaller groups:
 
 ### Functional gaps by root cause, 2026-11-25
 
+`nix-channel.sh` passes against noxi and CppNix 2.35.2. It covers a `file://` channel directory with a bzip2 archive, alongside direct archive subscriptions, profile generations, and package lookup and installation from the channel.
+
 The table groups the 137 gap scripts of the store-tier records at `84aec12` (`tests/compat-results/2026-11-25-84aec12-store` in Git at `528b7aa`) by the cause of the first failure in noxi's recorded log. Every gap script is in exactly one row. The last two columns show how much a first failure can hide: how many scripts stopped in the first half of the script file running at the time, and how many lines of those files follow the failing line. Blank lines and comments count. Helper scripts that a script sources before the failure are not counted, and neither are the bodies of scripts that run untraced in a namespace, such as the overlay `*-inner.sh` files.
 
 `NIX_STORE_DIR` blocks no script any more: the 91 scripts recorded on 2026-11-12 were closed on 2026-11-13 (see the store directory follow-up above), and no log in this set fails writing to `/nix/store/tmp-*`. Two scripts still failed on a store directory written as a constant, `ca/substitute` and, later in the script, `ca/issue-13247`: an uploaded `.narinfo` named its path as `/nix/store/...` whatever the store directory.
