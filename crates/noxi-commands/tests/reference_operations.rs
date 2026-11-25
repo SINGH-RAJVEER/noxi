@@ -97,7 +97,7 @@ fn doctor_rejects_bad_overlay_mount_and_warns_about_unknown_parameter() {
 	);
 	let run = |binary: &Path| {
 		command(binary, temp.path())
-			.args(["doctor", "--store", &uri])
+			.args(["doctor", "--offline", "--store", &uri])
 			.output()
 			.unwrap()
 	};

@@ -89,6 +89,25 @@ fn reference_rejects_invalid_mount() {
 			.to_string(),
 		error
 	);
+
+	let lower = root.join("lower/nix/store");
+	fs::create_dir_all(&lower).unwrap();
+	let protected = lower.join("lower-data");
+	fs::write(&protected, b"lower").unwrap();
+	let alias = root.join("alias");
+	std::os::unix::fs::symlink(&lower, &alias).unwrap();
+	for merged_alias in [true, false] {
+		let aliased_uri = if merged_alias {
+			format!("{uri}&check-mount=false&real={}", alias.display())
+		} else {
+			format!(
+				"local-overlay://?root={0}/merged&lower-store={0}/lower&upper-layer={0}/alias&check-mount=false",
+				root.display()
+			)
+		};
+		assert!(local_overlay::open(&aliased_uri, &settings()).is_err());
+		assert_eq!(fs::read(&protected).unwrap(), b"lower");
+	}
 }
 
 #[test]
