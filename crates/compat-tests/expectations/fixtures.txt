@@ -257,7 +257,7 @@ pass:upstream_functional tests/functional/lang.sh
 gap tests/functional/legacy-ssh-store.sh # main in legacy-ssh-store.sh:8: error: unsupported store parameter 'remote-store=$ROOT/tmp/nix-test/main/legacy-ssh-store/other-store' in 'ssh://localhost?remote-store=$ROOT/tmp/nix-test/main/legacy-ss
 gap tests/functional/linux-sandbox.sh # main in linux-sandbox.sh:104: /my/store/HASH-test-sandbox-paths
 pass:upstream_functional tests/functional/local-overlay-store/add-lower.sh
-gap tests/functional/local-overlay-store/bad-uris.sh # : local-overlay://?root=$ROOT/tmp/nix-test/local-overlay-store/bad-uris/bad_test&lower-store=$ROOT/tmp/nix-test/local-overlay-store/bad-uris/stores/store-a&upper-layer=$ROOT/tmp/nix-test/local-overlay
+pass:upstream_functional tests/functional/local-overlay-store/bad-uris.sh
 pass:upstream_functional tests/functional/local-overlay-store/build.sh
 pass:upstream_functional tests/functional/local-overlay-store/check-post-init.sh
 pass:upstream_functional tests/functional/local-overlay-store/delete-duplicate.sh

@@ -142,6 +142,7 @@ fn config_check(parsed: Parsed) -> Result<ExitCode, Failure> {
 	let uri = crate::store::store_uri(parsed.value("store"), &parsed.settings);
 	let (store, _) = crate::store::open_local(&uri, &parsed.settings)?
 		.ok_or_else(|| unsupported("config check for a non-local store"))?;
+	let uri = store.human_uri();
 	eprintln!("Running checks against store uri: {uri}");
 	let mut versions = BTreeSet::new();
 	let mut unrooted = BTreeSet::new();
