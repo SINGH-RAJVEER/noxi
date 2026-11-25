@@ -77,6 +77,33 @@ fn dirty_git_tree_does_not_warn_and_can_still_be_rejected() {
 }
 
 #[test]
+fn get_flake_path_values_respect_evaluation_access() {
+	let reference = PathBuf::from(std::env::var_os("NOXI_REFERENCE_BIN").unwrap()).join("nix");
+	let fixture = noxi_test_support::tempdir().unwrap();
+	let flake = fixture.path().join("host-flake");
+	fs::create_dir(&flake).unwrap();
+	fs::write(flake.join("flake.nix"), "{ outputs = _: { x = 42; }; }").unwrap();
+	let expression = format!("(builtins.getFlake {}).x", flake.display());
+	for (flags, diagnostic) in [
+		(vec!["--pure-eval"], "is forbidden in pure evaluation mode"),
+		(vec!["--impure", "--restrict-eval"], "is forbidden in restricted mode"),
+		(vec!["--impure"], "is not in the Nix store"),
+	] {
+		let mut args = vec!["eval", "--offline", "--expr", &expression];
+		args.extend(flags);
+		let a = run(&reference, fixture.path(), &args);
+		let b = run(Path::new(env!("CARGO_BIN_EXE_nix")), fixture.path(), &args);
+		for output in [&a, &b] {
+			assert_eq!(output.status.code(), Some(1), "{args:?}");
+			let stderr = String::from_utf8_lossy(&output.stderr);
+			assert!(stderr.contains(diagnostic), "{args:?}: {stderr}");
+		}
+		assert_eq!(a.stdout, b.stdout);
+		assert_eq!(a.stderr, b.stderr);
+	}
+}
+
+#[test]
 fn pure_generated_text_can_be_read_without_allowing_host_files() {
 	let reference = std::env::var_os("NOXI_REFERENCE_BIN")
 		.map(PathBuf::from)

@@ -257,7 +257,7 @@ tests/functional/failing.nix support
 tests/functional/fetchClosure.sh gap fail pass # main in fetchClosure.sh:32: error: attribute 'fetchClosure' missing
 tests/functional/fetchGit.sh gap fail pass # main in fetchGit.sh:34: false
 tests/functional/fetchGitRefs.sh pass pass pass
-tests/functional/fetchGitShallow.sh gap fail pass # main in fetchGitShallow.sh:33: error: '$ROOT/tmp/nix-test/main/fetchGitShallow/shallow-clone' is a shallow Git repository, so 'revCount' is not available
+tests/functional/fetchGitShallow.sh pass pass pass
 tests/functional/fetchGitSubmodules.sh pass pass pass
 tests/functional/fetchGitVerification.sh gap fail pass # main in fetchGitVerification.sh:31: error: verified fetches are not implemented == *No principal matched\.* ]]
 tests/functional/fetchMercurial.sh pass pass pass
@@ -278,7 +278,7 @@ tests/functional/flakes/build-paths.sh pass pass pass
 tests/functional/flakes/bundle.sh pass pass pass
 tests/functional/flakes/check.sh gap fail pass # main in check.sh:41: error: overlay does not take an argument named 'final'
 tests/functional/flakes/circular.sh pass pass pass
-tests/functional/flakes/commit-lock-file-summary.sh gap fail pass # main in commit-lock-file-summary.sh:34: 'git+file://$ROOT/tmp/nix-test/flakes/commit-lock-file-summary/flake1?ref=refs/heads/master&rev=13f5e30f597f47dbc10d6707892b92dd4af9d311' (2026-11-24)
+tests/functional/flakes/commit-lock-file-summary.sh pass pass pass
 tests/functional/flakes/common.sh support
 tests/functional/flakes/config.sh gap fail pass # : test failed: The post hook should have ran
 tests/functional/flakes/debugger.sh pass pass pass
@@ -289,7 +289,7 @@ tests/functional/flakes/eval-cache.sh pass pass pass
 tests/functional/flakes/flake-in-submodule.sh gap fail pass # main in flake-in-submodule.sh:108: Initialized empty Git repository in $ROOT/tmp/nix-test/flakes/flake-in-submodule/otherRepo/.git/
 tests/functional/flakes/flakes.sh gap fail pass # main in flakes.sh:76: warning: you don't have Internet access; disabling some network-dependent features
 tests/functional/flakes/follow-paths.sh gap fail pass # main in follow-paths.sh:133: foobar
-tests/functional/flakes/get-flake.sh gap fail pass # main in get-flake.sh:26: error: expected a string but found a path: $ROOT/tmp/nix-test/flakes/get-flake/store/HASH-source
+tests/functional/flakes/get-flake.sh pass pass pass
 tests/functional/flakes/init.sh pass pass pass
 tests/functional/flakes/inputs.sh pass pass pass
 tests/functional/flakes/mercurial.sh pass pass pass
@@ -300,7 +300,7 @@ tests/functional/flakes/prefetch.sh gap fail pass # main in prefetch.sh:6: error
 tests/functional/flakes/relative-paths-lockfile.sh gap fail pass # main in relative-paths-lockfile.sh:75: warning: you don't have Internet access; disabling some network-dependent features
 tests/functional/flakes/relative-paths.sh gap fail pass # main in relative-paths.sh:71: warning: you don't have Internet access; disabling some network-dependent features
 tests/functional/flakes/run.sh gap fail pass # : test failed: 'nix run' shouldn’t accept an 'app' defined under 'packages'
-tests/functional/flakes/search-root.sh gap fail pass # : test failed: flake should search up directories when not an installable
+tests/functional/flakes/search-root.sh pass pass pass
 tests/functional/flakes/shebang.sh gap fail pass # main in shebang.sh:103: error: '$ROOT/tmp/nix-test/flakes/shebang/nonFlake/shebang.sh' is not a recognised command
 tests/functional/flakes/show.sh gap fail pass # main in show.sh:102: error: cannot build '$ROOT/tmp/nix-test/flakes/show/store/HASH-foo.drv^out' during evaluation because the option 'allow-import-from-derivation' is disabled
 tests/functional/flakes/source-paths.sh gap fail pass # main in source-paths.sh:23: Initialized empty Git repository in $ROOT/tmp/nix-test/flakes/source-paths/repo/.git/
@@ -308,7 +308,7 @@ tests/functional/flakes/symlink-paths.sh pass pass pass
 tests/functional/flakes/trace-ifd.sh pass pass pass
 tests/functional/flakes/tree.zip support
 tests/functional/flakes/type-error-fallback.sh pass pass pass
-tests/functional/flakes/unlocked-override.sh gap fail pass # main in unlocked-override.sh:42: Expected exit code '0' but got '1' from command 'nix' 'eval' '$ROOT/tmp/nix-test/flakes/unlocked-override/flake2#x'
+tests/functional/flakes/unlocked-override.sh pass pass pass
 tests/functional/flamegraph-profiler.sh gap fail pass # main in flamegraph-profiler.sh:35: error: expression does not evaluate to a derivation (or a set or list of those)
 tests/functional/fod-failing.nix support
 tests/functional/formatter.sh gap fail pass # main in formatter.sh:11: error: nix --help is not supported by noxi yet
