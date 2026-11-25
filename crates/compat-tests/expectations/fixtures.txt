@@ -186,7 +186,7 @@ anomaly tests/functional/extra-sandbox-profile.sh # reference skip: Need Darwin,
 gap tests/functional/fetchClosure.sh # main in fetchClosure.sh:16: error: nix build --json for new builds (the build API does not return BuildResult metadata) is not supported by noxi yet
 gap tests/functional/fetchGit.sh # main in fetchGit.sh:34: false
 pass:upstream_functional tests/functional/fetchGitRefs.sh
-gap tests/functional/fetchGitShallow.sh # main in fetchGitShallow.sh:33: error: '$ROOT/tmp/nix-test/main/fetchGitShallow/shallow-clone' is a shallow Git repository, so 'revCount' is not available
+pass:upstream_functional tests/functional/fetchGitShallow.sh
 pass:upstream_functional tests/functional/fetchGitSubmodules.sh
 gap tests/functional/fetchGitVerification.sh # main in fetchGitVerification.sh:31: error: verified fetches are not implemented == *No principal matched\.* ]]
 pass:upstream_functional tests/functional/fetchMercurial.sh
@@ -202,7 +202,7 @@ pass:upstream_functional tests/functional/flakes/build-paths.sh
 pass:upstream_functional tests/functional/flakes/bundle.sh
 gap tests/functional/flakes/check.sh # main in check.sh:41: error: overlay does not take an argument named 'final'
 pass:upstream_functional tests/functional/flakes/circular.sh
-gap tests/functional/flakes/commit-lock-file-summary.sh # main in commit-lock-file-summary.sh:34: 'git+file://$ROOT/tmp/nix-test/flakes/commit-lock-file-summary/flake1?ref=refs/heads/master&rev=b6f8dc7dd736ea93a686dc18f9aef80c7d821568' (2026-11-13)
+pass:upstream_functional tests/functional/flakes/commit-lock-file-summary.sh
 gap tests/functional/flakes/config.sh # : test failed: The post hook should have ran
 pass:upstream_functional tests/functional/flakes/debugger.sh
 gap tests/functional/flakes/develop.sh # main in develop.sh:148: error: cannot find flake 'flake:nixpkgs' in the flake registries
@@ -212,7 +212,7 @@ pass:upstream_functional tests/functional/flakes/eval-cache.sh
 gap tests/functional/flakes/flake-in-submodule.sh # main in flake-in-submodule.sh:108: Initialized empty Git repository in $ROOT/tmp/nix-test/flakes/flake-in-submodule/otherRepo/.git/
 gap tests/functional/flakes/flakes.sh # main in flakes.sh:59: error: don't know how to open Nix store with scheme '$ROOT/tmp/nix-test/flakes/flakes/chroot-store'
 gap tests/functional/flakes/follow-paths.sh # main in follow-paths.sh:133: foobar
-gap tests/functional/flakes/get-flake.sh # main in get-flake.sh:26: error: cannot call 'getFlake' on unlocked flake reference '$ROOT/tmp/nix-test/flakes/get-flake/store/HASH-source', at (none) (use --impure to override)
+pass:upstream_functional tests/functional/flakes/get-flake.sh
 pass:upstream_functional tests/functional/flakes/init.sh
 pass:upstream_functional tests/functional/flakes/inputs.sh
 pass:upstream_functional tests/functional/flakes/mercurial.sh
@@ -222,14 +222,14 @@ gap tests/functional/flakes/prefetch.sh # main in prefetch.sh:6: error: failed t
 gap tests/functional/flakes/relative-paths-lockfile.sh # main in relative-paths-lockfile.sh:75: warning: you don't have Internet access; disabling some network-dependent features
 gap tests/functional/flakes/relative-paths.sh # main in relative-paths.sh:45: error: I/O error: $ROOT/tmp/nix-test/flakes/relative-paths/store/HASH-source/sub1/../../../sub0/flake.nix: access to absolute path '$ROOT/tmp/nix-test/flakes/relative-pat
 gap tests/functional/flakes/run.sh # : test failed: 'nix run' shouldn’t accept an 'app' defined under 'packages'
-gap tests/functional/flakes/search-root.sh # : test failed: flake should search up directories when not an installable
+pass:upstream_functional tests/functional/flakes/search-root.sh
 gap tests/functional/flakes/shebang.sh # main in shebang.sh:103: error: '$ROOT/tmp/nix-test/flakes/shebang/nonFlake/shebang.sh' is not a recognised command
 gap tests/functional/flakes/show.sh # main in show.sh:102: error: I/O error: $ROOT/tmp/nix-test/flakes/show/store/HASH-foo: cannot build '$ROOT/tmp/nix-test/flakes/show/store/HASH-foo.drv^out' during evaluation because the option 'allow-i
 gap tests/functional/flakes/source-paths.sh # main in source-paths.sh:23: Initialized empty Git repository in $ROOT/tmp/nix-test/flakes/source-paths/repo/.git/
 pass:upstream_functional tests/functional/flakes/symlink-paths.sh
 pass:upstream_functional tests/functional/flakes/trace-ifd.sh
 pass:upstream_functional tests/functional/flakes/type-error-fallback.sh
-gap tests/functional/flakes/unlocked-override.sh # main in unlocked-override.sh:36: Expected exit code '1' but got '0' from command 'nix' 'flake' 'lock' '$ROOT/tmp/nix-test/flakes/unlocked-override/flake2' '--override-input' 'flake1' '$ROOT/tmp/nix-te
+pass:upstream_functional tests/functional/flakes/unlocked-override.sh
 gap tests/functional/flamegraph-profiler.sh # main in flamegraph-profiler.sh:35: error: expression does not evaluate to a derivation (or a set or list of those)
 gap tests/functional/formatter.sh # main in formatter.sh:11: error: nix --help is not supported by noxi yet
 gap tests/functional/function-trace.sh # main in function-trace.sh:34: <
