@@ -110,6 +110,8 @@ store-and-garbage-collection = [
 ]
 build-engine-and-sandbox = [
 	"noxi-build",
+	"noxi-commands::reference_experimental_outputs",
+	"noxi-commands::reference_rebuild",
 	"noxi-compat-tests::reference_build",
 ]
 binary-caches-and-signatures = [
