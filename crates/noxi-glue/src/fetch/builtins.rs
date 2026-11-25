@@ -131,7 +131,18 @@ pub(crate) fn tree_attrs(
 		));
 		attrs.push(("shortRev".into(), "0000000".into()));
 	}
-	if let Some(count) = input.get_rev_count().map_err(error)? {
+	if let Some(Attr::Lazy(count)) = input.attrs.get("revCount") {
+		let count = count.clone();
+		attrs.push((
+			"revCount".into(),
+			Value::suspended_native_thunk(Box::new(move || {
+				match count.force().map_err(error)? {
+					Attr::Int(count) => Ok(Value::Integer(count as i64)),
+					_ => Err(error("revCount is not an integer")),
+				}
+			})),
+		));
+	} else if let Some(count) = input.get_rev_count().map_err(error)? {
 		attrs.push(("revCount".into(), Value::Integer(count as i64)));
 	} else if empty_rev {
 		attrs.push(("revCount".into(), Value::Integer(0)));
@@ -541,6 +552,12 @@ pub(crate) mod fetch_builtins {
 		let value = generators::request_force(&co, value).await;
 		if let Value::Catchable(kind) = value {
 			return Err(ErrorKind::CatchableError(*kind));
+		}
+		if let Value::Path(path) = value {
+			return super::super::flake::lock_flake_path(&state, &co, &path)
+				.await?
+				.evaluate(&state, &co)
+				.await;
 		}
 		let reference = string_no_context(
 			&co,

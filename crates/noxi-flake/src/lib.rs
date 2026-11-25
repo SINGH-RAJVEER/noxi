@@ -151,14 +151,13 @@ pub fn fingerprint(
 		flake.locked_ref.subdir,
 		flake.lock_file.render().map_err(error)?
 	));
-	if let Some(count) = input.get_rev_count().map_err(error)? {
-		if input.scheme == Some(Scheme::Git)
-			&& !flake.resolved_ref.input.attrs.contains_key("revCount")
-		{
-			fingerprint.push_str(";hasRevCount");
-		} else {
-			fingerprint.push_str(&format!(";revCount={count}"));
-		}
+	if input.scheme == Some(Scheme::Git)
+		&& input.attrs.contains_key("revCount")
+		&& !flake.resolved_ref.input.attrs.contains_key("revCount")
+	{
+		fingerprint.push_str(";hasRevCount");
+	} else if let Some(count) = input.get_rev_count().map_err(error)? {
+		fingerprint.push_str(&format!(";revCount={count}"));
 	}
 	if let Some(time) = input.get_last_modified().map_err(error)? {
 		fingerprint.push_str(&format!(";lastModified={time}"));
