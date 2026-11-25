@@ -30,8 +30,15 @@ pub struct Bind {
 	pub optional: bool,
 }
 
+/// A builder that is part of this program. It runs in the builder's process,
+/// as the builder's user and in its sandbox, and passes messages to the log.
+/// The process is a fork of a possibly threaded one, so it must not use
+/// anything of the parent's that other threads lock, such as the store or the
+/// logger.
+pub type Builtin<'a> = &'a dyn Fn(&mut dyn FnMut(&str)) -> std::result::Result<(), String>;
+
 /// Everything the sandboxed child needs, prepared before forking.
-pub struct SandboxSpec {
+pub struct SandboxSpec<'a> {
 	pub chroot_root: PathBuf,
 	/// Whether the builder runs in namespaces and the chroot. Without it
 	/// (`sandbox = false`), it runs directly on the host in its own
@@ -51,6 +58,8 @@ pub struct SandboxSpec {
 	pub allow_new_privileges: bool,
 	pub filter_syscalls: bool,
 	pub build_dir_in_sandbox: PathBuf,
+	/// Run instead of `builder`.
+	pub builtin: Option<Builtin<'a>>,
 	pub builder: Vec<u8>,
 	pub args: Vec<Vec<u8>>,
 	pub env: Vec<Vec<u8>>,
@@ -166,14 +175,14 @@ pub fn setup_chroot(
 
 /// Run the builder described by `spec`, passing its output to `log`.
 /// Returns how it exited.
-pub fn run(spec: &SandboxSpec, log: &mut dyn FnMut(&[u8])) -> Result<ExitStatus> {
+pub fn run(spec: &SandboxSpec<'_>, log: &mut dyn FnMut(&[u8])) -> Result<ExitStatus> {
 	run_cancellable(spec, log, &|| false)
 }
 
 /// Run a builder with cooperative cancellation in the parent. Killing the
 /// PID-namespace init also kills its descendants; `Builder` reaps it.
 pub fn run_cancellable(
-	spec: &SandboxSpec,
+	spec: &SandboxSpec<'_>,
 	log: &mut dyn FnMut(&[u8]),
 	cancelled: &dyn Fn() -> bool,
 ) -> Result<ExitStatus> {
@@ -344,10 +353,7 @@ pub fn run_cancellable(
 				} else if spec.max_silent_time != 0
 					&& last_output.elapsed() >= Duration::from_secs(spec.max_silent_time)
 				{
-					timed_out = Some(format!(
-						"timed out after {} seconds of silence",
-						spec.max_silent_time
-					));
+					timed_out = Some(format!("timed out after {} seconds", spec.max_silent_time));
 				} else {
 					continue;
 				}
@@ -398,10 +404,7 @@ pub fn run_cancellable(
 		{
 			return Err(BuildError::failed(
 				FailureStatus::TimedOut,
-				format!(
-					"timed out after {} seconds of silence",
-					spec.max_silent_time
-				),
+				format!("timed out after {} seconds", spec.max_silent_time),
 			));
 		}
 		match &exited {
@@ -451,7 +454,7 @@ impl Drop for Builder {
 	}
 }
 
-fn poll_timeout(spec: &SandboxSpec, start: Instant, last_output: Instant) -> Option<Duration> {
+fn poll_timeout(spec: &SandboxSpec<'_>, start: Instant, last_output: Instant) -> Option<Duration> {
 	let mut timeout: Option<Duration> = None;
 	if spec.max_silent_time != 0 {
 		timeout =
@@ -610,10 +613,13 @@ struct ChildPlan {
 	builder: CString,
 	argv: Vec<CString>,
 	envp: Vec<CString>,
+	/// For a builtin builder: where the process's initial environment is in
+	/// memory, and the variables it keeps.
+	environment: Option<(std::ops::Range<usize>, Vec<(CString, CString)>)>,
 }
 
 impl ChildPlan {
-	fn new(spec: &SandboxSpec) -> io::Result<Self> {
+	fn new(spec: &SandboxSpec<'_>) -> io::Result<Self> {
 		let store_rel = spec.store_dir.strip_prefix("/").unwrap_or(&spec.store_dir);
 		let base_name = spec
 			.builder
@@ -636,7 +642,110 @@ impl ChildPlan {
 				.iter()
 				.map(|e| cstring(e))
 				.collect::<io::Result<_>>()?,
+			environment: match spec.builtin {
+				Some(_) => Some((initial_environment()?, kept_environment()?)),
+				None => None,
+			},
 		})
+	}
+}
+
+/// Where `/proc/self/environ` reads from, which a forked process shares.
+fn initial_environment() -> io::Result<std::ops::Range<usize>> {
+	let stat = fs::read_to_string("/proc/self/stat")?;
+	// The fields after the parenthesised command, which is the second one.
+	let fields: Vec<&str> = stat
+		.rsplit_once(')')
+		.map_or("", |(_, rest)| rest)
+		.split_whitespace()
+		.collect();
+	// `env_start` and `env_end` are fields 50 and 51.
+	let field = |number: usize| fields.get(number - 3).and_then(|f| f.parse().ok());
+	match (field(50), field(51)) {
+		(Some(start), Some(end)) if start != 0 && start <= end => Ok(start..end),
+		_ => Err(io::Error::other(
+			"cannot find the environment in '/proc/self/stat'",
+		)),
+	}
+}
+
+/// The proxy variables, which downloads use and the reference's curl too.
+fn kept_environment() -> io::Result<Vec<(CString, CString)>> {
+	[
+		"http_proxy",
+		"https_proxy",
+		"all_proxy",
+		"no_proxy",
+		"HTTP_PROXY",
+		"HTTPS_PROXY",
+		"ALL_PROXY",
+		"NO_PROXY",
+	]
+	.into_iter()
+	.filter_map(|name| Some((name, std::env::var_os(name)?)))
+	.map(|(name, value)| Ok((cstring(name.as_bytes())?, cstring(value.as_bytes())?)))
+	.collect()
+}
+
+/// Leave a builtin builder nothing of the parent's privileges and
+/// environment: an exec would drop the capabilities it has in its user
+/// namespace and replace its memory.
+fn shed_parent(plan: &ChildPlan) -> io::Result<()> {
+	#[repr(C)]
+	struct Header {
+		version: u32,
+		pid: libc::c_int,
+	}
+	const LINUX_CAPABILITY_VERSION_3: u32 = 0x20080522;
+	let header = Header {
+		version: LINUX_CAPABILITY_VERSION_3,
+		pid: 0,
+	};
+	let none = [0u32; 6];
+	// SAFETY: a capability header and two sets of three words.
+	check(
+		unsafe { libc::syscall(libc::SYS_capset, &header, none.as_ptr()) } as libc::c_int,
+		|| "dropping capabilities".to_owned(),
+	)?;
+	if let Some((initial, kept)) = &plan.environment {
+		// SAFETY: this process has one thread, and nothing uses the old
+		// environment once `environ` is cleared. The block is part of the
+		// initial stack, which is writable and private to this process.
+		unsafe {
+			libc::clearenv();
+			std::ptr::write_bytes(initial.start as *mut u8, 0, initial.len());
+			for (name, value) in kept {
+				libc::setenv(name.as_ptr(), value.as_ptr(), 1);
+			}
+		}
+	}
+	Ok(())
+}
+
+fn write_stderr(mut text: &[u8]) {
+	while !text.is_empty() {
+		// SAFETY: writing to our standard error.
+		let n = unsafe { libc::write(libc::STDERR_FILENO, text.as_ptr().cast(), text.len()) };
+		if n > 0 {
+			text = &text[n as usize..];
+		} else if io::Error::last_os_error().raw_os_error() != Some(libc::EINTR) {
+			return;
+		}
+	}
+}
+
+/// Run `builtin` in the builder's process and return its exit status.
+fn run_builtin(builtin: Builtin<'_>) -> i32 {
+	let mut log = |message: &str| write_stderr(message.as_bytes());
+	let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| builtin(&mut log)));
+	match result {
+		Ok(Ok(())) => 0,
+		Ok(Err(message)) => {
+			let text = nix_compat::log::format_error(&message);
+			write_stderr(format!("{text}\n").as_bytes());
+			1
+		}
+		Err(_) => 1,
 	}
 }
 
@@ -644,7 +753,7 @@ impl ChildPlan {
 /// builder in new namespaces as a sibling (CLONE_PARENT).
 fn helper_main(
 	slave: &CStr,
-	spec: &SandboxSpec,
+	spec: &SandboxSpec<'_>,
 	sync_read: RawFd,
 	pid_write: RawFd,
 	plan: &ChildPlan,
@@ -747,9 +856,12 @@ fn report_child_error(message: &str) {
 	unsafe { libc::write(libc::STDERR_FILENO, text.as_ptr().cast(), text.len()) };
 }
 
-fn child_main(sync_read: RawFd, spec: &SandboxSpec, plan: &ChildPlan) -> i32 {
+fn child_main(sync_read: RawFd, spec: &SandboxSpec<'_>, plan: &ChildPlan) -> i32 {
 	match child_setup(sync_read, spec, plan) {
 		Ok(()) => {
+			if let Some(builtin) = spec.builtin {
+				return run_builtin(builtin);
+			}
 			// SAFETY: the argument and environment arrays are NUL-terminated
 			// pointer lists that outlive the call.
 			unsafe {
@@ -774,7 +886,7 @@ fn child_main(sync_read: RawFd, spec: &SandboxSpec, plan: &ChildPlan) -> i32 {
 	}
 }
 
-fn child_setup(sync_read: RawFd, spec: &SandboxSpec, plan: &ChildPlan) -> io::Result<()> {
+fn child_setup(sync_read: RawFd, spec: &SandboxSpec<'_>, plan: &ChildPlan) -> io::Result<()> {
 	// commonChildInit: a new session, stdout to the terminal, stdin from
 	// /dev/null.
 	// SAFETY: plain process-state syscalls.
@@ -824,8 +936,11 @@ fn child_setup(sync_read: RawFd, spec: &SandboxSpec, plan: &ChildPlan) -> io::Re
 			check(libc::setgid(gid), || "setgid failed".to_owned())?;
 			check(libc::setuid(uid), || "setuid failed".to_owned())?;
 		}
-		libc::write(libc::STDERR_FILENO, b"\x02\n".as_ptr().cast(), 2);
 	}
+	if spec.builtin.is_some() {
+		shed_parent(plan)?;
+	}
+	write_stderr(b"\x02\n");
 	Ok(())
 }
 
@@ -864,7 +979,7 @@ fn mount(
 	Ok(())
 }
 
-fn enter_chroot(spec: &SandboxSpec, plan: &ChildPlan) -> io::Result<()> {
+fn enter_chroot(spec: &SandboxSpec<'_>, plan: &ChildPlan) -> io::Result<()> {
 	if spec.sandboxed {
 		bring_up_loopback()?;
 	}
