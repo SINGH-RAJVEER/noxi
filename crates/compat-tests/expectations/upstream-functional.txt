@@ -355,29 +355,29 @@ tests/functional/legacy-ssh-store.sh gap fail pass # main in legacy-ssh-store.sh
 tests/functional/linux-sandbox-cert-test.nix support
 tests/functional/linux-sandbox.sh gap fail pass # main in linux-sandbox.sh:104: /my/store/HASH-test-sandbox-paths
 tests/functional/local-overlay-store/add-lower-inner.sh support
-tests/functional/local-overlay-store/add-lower.sh gap fail pass # main in ./add-lower-inner.sh:20: error: unsupported store parameter 'lower-store=$ROOT/tmp/nix-test/local-overlay-store/add-lower/stores/store-a' in 'local-overlay://?root=$ROOT/tmp/nix-test/local-ove
+tests/functional/local-overlay-store/add-lower.sh pass pass pass
 tests/functional/local-overlay-store/bad-uris.sh gap fail pass # : local-overlay://?root=$ROOT/tmp/nix-test/local-overlay-store/bad-uris/bad_test&lower-store=$ROOT/tmp/nix-test/local-overlay-store/bad-uris/stores/store-a&upper-layer=$ROOT/tmp/nix-test/local-overlay
 tests/functional/local-overlay-store/build-inner.sh support
-tests/functional/local-overlay-store/build.sh gap fail pass # main in ./build-inner.sh:21: error: unsupported store parameter 'lower-store=$ROOT/tmp/nix-test/local-overlay-store/build/stores/store-a' in 'local-overlay://?root=$ROOT/tmp/nix-test/local-overlay-sto
+tests/functional/local-overlay-store/build.sh pass pass pass
 tests/functional/local-overlay-store/check-post-init-inner.sh support
-tests/functional/local-overlay-store/check-post-init.sh gap fail pass # main in ./check-post-init-inner.sh:34: error: unsupported store parameter 'lower-store=$ROOT/tmp/nix-test/local-overlay-store/check-post-init/stores/store-a' in 'local-overlay://?root=$ROOT/tmp/nix-te
+tests/functional/local-overlay-store/check-post-init.sh pass pass pass
 tests/functional/local-overlay-store/common.sh support
 tests/functional/local-overlay-store/delete-duplicate-inner.sh support
-tests/functional/local-overlay-store/delete-duplicate.sh gap fail pass # main in ./delete-duplicate-inner.sh:20: error: unsupported store parameter 'lower-store=$ROOT/tmp/nix-test/local-overlay-store/delete-duplicate/stores/store-a' in 'local-overlay://?root=$ROOT/tmp/nix-
+tests/functional/local-overlay-store/delete-duplicate.sh pass pass pass
 tests/functional/local-overlay-store/delete-refs-inner.sh support
-tests/functional/local-overlay-store/delete-refs.sh gap fail pass # main in ./delete-refs-inner.sh:20: error: unsupported store parameter 'lower-store=$ROOT/tmp/nix-test/local-overlay-store/delete-refs/stores/store-a' in 'local-overlay://?root=$ROOT/tmp/nix-test/local
+tests/functional/local-overlay-store/delete-refs.sh pass pass pass
 tests/functional/local-overlay-store/gc-inner.sh support
-tests/functional/local-overlay-store/gc.sh gap fail pass # main in ./gc-inner.sh:19: error: unsupported store parameter 'lower-store=$ROOT/tmp/nix-test/local-overlay-store/gc/stores/store-a' in 'local-overlay://?root=$ROOT/tmp/nix-test/local-overlay-store/gc/
+tests/functional/local-overlay-store/gc.sh pass pass pass
 tests/functional/local-overlay-store/meson.build support
 tests/functional/local-overlay-store/optimise-inner.sh support
-tests/functional/local-overlay-store/optimise.sh gap fail pass # main in ./optimise-inner.sh:24: error: unsupported store parameter 'lower-store=$ROOT/tmp/nix-test/local-overlay-store/optimise/stores/store-a' in 'local-overlay://?root=$ROOT/tmp/nix-test/local-overl
+tests/functional/local-overlay-store/optimise.sh pass pass pass
 tests/functional/local-overlay-store/redundant-add-inner.sh support
-tests/functional/local-overlay-store/redundant-add.sh gap fail pass # main in ./redundant-add-inner.sh:27: error: unsupported store parameter 'lower-store=$ROOT/tmp/nix-test/local-overlay-store/redundant-add/stores/store-a' in 'local-overlay://?root=$ROOT/tmp/nix-test/l
+tests/functional/local-overlay-store/redundant-add.sh pass pass pass
 tests/functional/local-overlay-store/remount.sh support
 tests/functional/local-overlay-store/stale-file-handle-inner.sh support
 tests/functional/local-overlay-store/stale-file-handle.sh anomaly skip skip # reference skip: Couldn't trigger the error, skipping this test...
 tests/functional/local-overlay-store/verify-inner.sh support
-tests/functional/local-overlay-store/verify.sh gap fail pass # main in ./verify-inner.sh:23: error: unsupported store parameter 'lower-store=$ROOT/tmp/nix-test/local-overlay-store/verify/stores/store-a' in 'local-overlay://?root=$ROOT/tmp/nix-test/local-overlay-s
+tests/functional/local-overlay-store/verify.sh pass pass pass
 tests/functional/logging.sh gap fail pass # main in logging.sh:32: error: build log of derivation '$ROOT/tmp/nix-test/main/logging/store/HASH-dependencies-top' is not available
 tests/functional/logging/unusual-logging.nix support
 tests/functional/make-content-addressed.nix support

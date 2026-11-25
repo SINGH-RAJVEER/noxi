@@ -256,17 +256,17 @@ anomaly tests/functional/lang-gc.sh # reference skip: Too memory intensive for C
 pass:upstream_functional tests/functional/lang.sh
 gap tests/functional/legacy-ssh-store.sh # main in legacy-ssh-store.sh:8: error: unsupported store parameter 'remote-store=$ROOT/tmp/nix-test/main/legacy-ssh-store/other-store' in 'ssh://localhost?remote-store=$ROOT/tmp/nix-test/main/legacy-ss
 gap tests/functional/linux-sandbox.sh # main in linux-sandbox.sh:104: /my/store/HASH-test-sandbox-paths
-gap tests/functional/local-overlay-store/add-lower.sh # main in ./add-lower-inner.sh:20: error: unsupported store parameter 'lower-store=$ROOT/tmp/nix-test/local-overlay-store/add-lower/stores/store-a' in 'local-overlay://?root=$ROOT/tmp/nix-test/local-ove
+pass:upstream_functional tests/functional/local-overlay-store/add-lower.sh
 gap tests/functional/local-overlay-store/bad-uris.sh # : local-overlay://?root=$ROOT/tmp/nix-test/local-overlay-store/bad-uris/bad_test&lower-store=$ROOT/tmp/nix-test/local-overlay-store/bad-uris/stores/store-a&upper-layer=$ROOT/tmp/nix-test/local-overlay
-gap tests/functional/local-overlay-store/build.sh # main in ./build-inner.sh:21: error: unsupported store parameter 'lower-store=$ROOT/tmp/nix-test/local-overlay-store/build/stores/store-a' in 'local-overlay://?root=$ROOT/tmp/nix-test/local-overlay-sto
-gap tests/functional/local-overlay-store/check-post-init.sh # main in ./check-post-init-inner.sh:34: error: unsupported store parameter 'lower-store=$ROOT/tmp/nix-test/local-overlay-store/check-post-init/stores/store-a' in 'local-overlay://?root=$ROOT/tmp/nix-te
-gap tests/functional/local-overlay-store/delete-duplicate.sh # main in ./delete-duplicate-inner.sh:20: error: unsupported store parameter 'lower-store=$ROOT/tmp/nix-test/local-overlay-store/delete-duplicate/stores/store-a' in 'local-overlay://?root=$ROOT/tmp/nix-
-gap tests/functional/local-overlay-store/delete-refs.sh # main in ./delete-refs-inner.sh:20: error: unsupported store parameter 'lower-store=$ROOT/tmp/nix-test/local-overlay-store/delete-refs/stores/store-a' in 'local-overlay://?root=$ROOT/tmp/nix-test/local
-gap tests/functional/local-overlay-store/gc.sh # main in ./gc-inner.sh:19: error: unsupported store parameter 'lower-store=$ROOT/tmp/nix-test/local-overlay-store/gc/stores/store-a' in 'local-overlay://?root=$ROOT/tmp/nix-test/local-overlay-store/gc/
-gap tests/functional/local-overlay-store/optimise.sh # main in ./optimise-inner.sh:24: error: unsupported store parameter 'lower-store=$ROOT/tmp/nix-test/local-overlay-store/optimise/stores/store-a' in 'local-overlay://?root=$ROOT/tmp/nix-test/local-overl
-gap tests/functional/local-overlay-store/redundant-add.sh # main in ./redundant-add-inner.sh:27: error: unsupported store parameter 'lower-store=$ROOT/tmp/nix-test/local-overlay-store/redundant-add/stores/store-a' in 'local-overlay://?root=$ROOT/tmp/nix-test/l
+pass:upstream_functional tests/functional/local-overlay-store/build.sh
+pass:upstream_functional tests/functional/local-overlay-store/check-post-init.sh
+pass:upstream_functional tests/functional/local-overlay-store/delete-duplicate.sh
+pass:upstream_functional tests/functional/local-overlay-store/delete-refs.sh
+pass:upstream_functional tests/functional/local-overlay-store/gc.sh
+pass:upstream_functional tests/functional/local-overlay-store/optimise.sh
+pass:upstream_functional tests/functional/local-overlay-store/redundant-add.sh
 anomaly tests/functional/local-overlay-store/stale-file-handle.sh # reference skip: Couldn't trigger the error, skipping this test...
-gap tests/functional/local-overlay-store/verify.sh # main in ./verify-inner.sh:23: error: unsupported store parameter 'lower-store=$ROOT/tmp/nix-test/local-overlay-store/verify/stores/store-a' in 'local-overlay://?root=$ROOT/tmp/nix-test/local-overlay-s
+pass:upstream_functional tests/functional/local-overlay-store/verify.sh
 gap tests/functional/logging.sh # main in logging.sh:32: error: build log of derivation '$ROOT/tmp/nix-test/main/logging/store/HASH-dependencies-top' is not available
 pass:upstream_functional tests/functional/make-content-addressed.sh
 pass:upstream_functional tests/functional/misc.sh

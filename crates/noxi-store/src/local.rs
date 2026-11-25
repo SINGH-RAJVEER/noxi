@@ -331,6 +331,14 @@ impl LocalStore {
 		&self.config
 	}
 
+	pub fn human_uri(&self) -> &'static str {
+		if self.overlay.is_some() {
+			"local-overlay://"
+		} else {
+			self.config.human_uri()
+		}
+	}
+
 	/// Where `path`'s contents live on disk.
 	pub fn real_path(&self, path: &StorePath) -> PathBuf {
 		self.config.real_store_dir.join(format!(

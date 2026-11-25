@@ -431,6 +431,8 @@ The store directory constant in `.narinfo` files is fixed: `ca/substitute` now s
 
 The store library now has a `local-overlay://` opener. The targeted functional run covered 11 scripts on each engine. CppNix passed 10 and both engines skipped `stale-file-handle`. The nine overlay scripts from row 1 reached the CLI resolver, which reported `unsupported store parameter 'lower-store=…'`. `bad-uris` still stopped at its first `nix doctor` mount-diagnostic assertion. These 10 gaps require CLI routing to the new opener.
 
+A later paired run passed all nine main overlay scripts, including builds, referrer-aware garbage collection and deduplication. `verify` also passed after the substituter could open a diverted backup named by a filesystem path, allowing repair of the two registered damaged objects. Both engines still skip `stale-file-handle` when the script cannot trigger a stale file handle.
+
 CppNix 2.35.2 advertises `local-overlay-store` and opens the store with the feature flag absent. The invalid-mount differential test checks both flag states. With `check-mount=false`, noxi still refuses a merged or upper directory that aliases or overlaps the lower directory, where deletion could otherwise reach the lower store directly.
 
 Four more causes were closed later that day. The run at `877665e` (`tests/compat-results/2026-11-25-877665e-store` in Git at `08e4440a`) gives 84 pass, 118 gap, 10 anomaly and 2 unrun, and no script that passed before fails. `reference_rebuild` and `reference_cache_store` compare each behavior with the reference.

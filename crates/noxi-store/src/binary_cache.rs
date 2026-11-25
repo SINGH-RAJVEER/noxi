@@ -199,9 +199,12 @@ impl BinaryCache {
 		let mut want_mass_query = None;
 		let mut priority = None;
 		let http = base.starts_with("http://") || base.starts_with("https://");
-		// A local store as a substituter, `auto`, `local` or `local?root=DIR`.
-		let local = base == "auto" || base == "local";
-		let mut root = None;
+		// A local store can also be named by a filesystem path, for example
+		// when repairing against a backup of a diverted store.
+		let path = (base.starts_with('/') || base.starts_with("./") || base.starts_with("../"))
+			.then_some(base);
+		let local = matches!(base, "auto" | "local" | "local://") || path.is_some();
+		let mut root = path;
 		let mut local_nar_cache = None;
 		for param in query.split('&').filter(|p| !p.is_empty()) {
 			let (name, value) = param.split_once('=').unwrap_or((param, ""));
@@ -1221,7 +1224,7 @@ impl BinaryCache {
 /// since the last checkpoint.
 fn open_source_store(root: Option<&str>) -> Result<LocalStore> {
 	let mut config = match root {
-		Some(root) => crate::LocalStoreConfig::with_root(Path::new(root)),
+		Some(root) => crate::LocalStoreConfig::diverted(Path::new(root))?,
 		None => crate::LocalStoreConfig::system(),
 	};
 	let state = std::ffi::CString::new(config.state_dir.as_os_str().as_encoded_bytes())
@@ -1926,7 +1929,7 @@ impl LocalStore {
 				// store substituter (`auto?trusted=1`, `local?root=`) has
 				// parameters, so it shows as `local://`, and the copy then names
 				// the destination as it was named.
-				let destination = self.config().human_uri();
+				let destination = self.human_uri();
 				let (source, text) = match cache.transport {
 					Transport::Store(_) => (
 						"local://".to_owned(),
