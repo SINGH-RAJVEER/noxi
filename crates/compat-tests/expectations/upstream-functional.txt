@@ -57,7 +57,7 @@ tests/functional/ca/multiple-outputs.sh pass pass pass
 tests/functional/ca/new-build-cmd.sh gap fail pass # source in ./build.sh:148: error: nix --relaxed-sandbox is not supported by noxi yet
 tests/functional/ca/nix-copy.sh pass pass pass
 tests/functional/ca/nix-run.sh pass pass pass
-tests/functional/ca/nix-shell.sh gap fail pass # source in ./nix-shell.sh:81: error: nix-shell shebang scripts are not supported by noxi yet
+tests/functional/ca/nix-shell.sh pass pass pass
 tests/functional/ca/nondeterministic.nix support
 tests/functional/ca/post-hook.sh pass pass pass
 tests/functional/ca/racy.nix support
@@ -404,7 +404,7 @@ tests/functional/nix-copy-ssh.sh gap fail pass # source in nix-copy-ssh-common.s
 tests/functional/nix-daemon-untrusting.sh support # daemon wrapper used by remote-store tests
 tests/functional/nix-meson-build-support support
 tests/functional/nix-profile.sh gap fail pass # main in nix-profile.sh:76: profile removal completion is missing
-tests/functional/nix-shell.sh gap fail pass # main in nix-shell.sh:81: error: nix-shell shebang scripts are not supported by noxi yet
+tests/functional/nix-shell.sh pass pass pass
 tests/functional/nix_path.sh pass pass pass
 tests/functional/no-url-literals.sh pass pass pass
 tests/functional/optimise-store.sh gap fail pass # : inodes do not match

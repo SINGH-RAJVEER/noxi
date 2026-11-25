@@ -433,7 +433,7 @@ Four more causes were closed later that day. The run at `877665e` (`tests/compat
 
 - Rebuilding with some outputs valid (row 3): unsandboxed builds write an output whose path is present to a scratch path and rewrite its hash parts afterwards, as `DerivationBuilderImpl` does. `build-delete` and `ca/build-delete` pass.
 - `--check` and repair (row 6): `repair` and `post-hook` pass, and `ca/post-hook` from row 2. `check` reaches line 95 of 122 and stops at `builtin:fetchurl`; `linux-sandbox` reaches line 81 of 148 and stops at `ssl-cert-file` in fixed-output sandboxes. `keep-failed`, `diff-hook` and `post-build-hook` work.
-- Store derivation arguments (row 10): `nix-build` and `multiple-outputs` pass, and `ca/multiple-outputs` from row 2. `nix-shell` and `ca/nix-shell` stop at shebang scripts.
+- Store derivation arguments (row 10): `nix-build` and `multiple-outputs` pass, and `ca/multiple-outputs` from row 2. `nix-shell` and `ca/nix-shell` pass since shebang scripts are run (`runs_shebang_scripts`, `looks_for_shell_nix_as_configured`).
 - `file://` as a store and store types (row 7): `ca/nix-copy`, `ca/signatures` and `read-only-store` pass. `binary-cache` reaches line 99 of 372 and stops at the HTTP code path forced by `_NIX_FORCE_HTTP`; `binary-cache-build-remote` stops at remote builders, `build-remote-with-mounted-ssh-ng` at `mounted-ssh-ng://` and `bad-uris` at `local-overlay://`. `signing` (row 19) reaches line 103 of 119 and stops at the `require-sigs` store parameter.
 
 A focused run against 2.35.2 passed five more scripts from the single-command row under both engines:

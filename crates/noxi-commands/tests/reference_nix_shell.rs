@@ -134,7 +134,7 @@ in {{ inNixShell ? false, extra ? "none" }}: derivation {{
 	}
 
 	fn run(&self, engine: &str, args: &[&str], cwd: &str) -> (Option<i32>, String, String) {
-		self.run_with(engine, args, cwd, None)
+		self.run_with(engine, args, cwd, None, false)
 	}
 
 	/// With `nix_path`, use the default shell instead of `NIX_BUILD_SHELL`.
@@ -144,15 +144,19 @@ in {{ inNixShell ? false, extra ? "none" }}: derivation {{
 		args: &[&str],
 		cwd: &str,
 		nix_path: Option<&str>,
+		script: bool,
 	) -> (Option<i32>, String, String) {
 		let program = match engine {
 			"reference" => self.reference.join("nix-shell"),
 			_ => PathBuf::from(env!("CARGO_BIN_EXE_nix-shell")),
 		};
 		let mut command = Command::new(program);
+		command.arg0("nix-shell");
+		// A script must be the first argument.
+		if !script {
+			command.args(["--store", &self.store(engine)]);
+		}
 		command
-			.arg0("nix-shell")
-			.args(["--store", &self.store(engine)])
 			.args(args)
 			.current_dir(self.engine(engine).join(cwd))
 			.env_clear()
@@ -165,6 +169,11 @@ in {{ inNixShell ? false, extra ? "none" }}: derivation {{
 				"NIX_CONFIG",
 				"experimental-features = nix-command\nbuild-users-group =\nsubstituters =\nsandbox = true\nsandbox-fallback = false\ncores = 1\n",
 			);
+		if script {
+			command
+				.env("NIX_REMOTE", self.store(engine))
+				.env("KEPT", "k");
+		}
 		if let Some(nix_path) = nix_path {
 			command
 				.env_remove("NIX_BUILD_SHELL")
@@ -187,6 +196,13 @@ in {{ inNixShell ? false, extra ? "none" }}: derivation {{
 	/// for each, and compare.
 	fn same(&self, args: &[&str]) {
 		self.same_in(args, "work");
+	}
+
+	/// Compare a script's run; the store comes from the environment.
+	fn same_script(&self, args: &[&str], cwd: &str) {
+		let expected = self.run_with("reference", args, cwd, None, true);
+		let actual = self.run_with("noxi", args, cwd, None, true);
+		assert_eq!(actual, expected, "nix-shell {args:?} in {cwd}");
 	}
 
 	fn same_in(&self, args: &[&str], cwd: &str) {
@@ -322,7 +338,7 @@ fn finds_the_default_shell_through_a_flake_entry() {
 			"true",
 		];
 		let [expected, actual] =
-			ENGINES.map(|engine| f.run_with(engine, &args, "work", Some(nix_path)));
+			ENGINES.map(|engine| f.run_with(engine, &args, "work", Some(nix_path), false));
 		assert_eq!(actual, expected, "{nix_path}");
 	}
 	// The shell that the registry's `<nixpkgs>` names was built.
@@ -350,4 +366,144 @@ fn passes_structured_attributes_as_files() {
 		"--run",
 		"env | sort | grep -v -e ^_= -e ^PWD= -e ^OLDPWD=",
 	]);
+}
+
+/// Scripts run through `nix-shell SCRIPT ARGS`, as the kernel does for a
+/// script whose interpreter is `nix-shell`.
+#[test]
+fn runs_shebang_scripts() {
+	let f = Fixture::new();
+	// Prints its name, arguments and the derivation's environment.
+	let body = "echo \"$(basename \"$0\") $# $* isShell=$isShell extra=$extra\"; cat </dev/null\n";
+	let scripts = [
+		("plain", "#! /usr/bin/env nix-shell\n#! nix-shell -i bash\n"),
+		(
+			"args",
+			"#!/usr/bin/env nix-shell\n#!nix-shell shell.nix --argstr extra 'a \"b\" c'\n#!  \tnix-shell   -i 'bash -eu'  \n",
+		),
+		(
+			"late",
+			"#! /usr/bin/env nix-shell\n# a comment\n#! nix-shell-not --bad\n#!nix-shell\necho between\n#! nix-shell -i bash\n",
+		),
+		(
+			"expr",
+			"#! /usr/bin/env nix-shell\n#! nix-shell -i bash --expr \"import ./shell.nix { inNixShell = true; extra = toString ./x; }\"\n",
+		),
+		(
+			"arg",
+			"#! /usr/bin/env nix-shell\n#! nix-shell -i bash --arg extra \"toString ./x\"\n",
+		),
+		(
+			"legacy",
+			"#! /usr/bin/env nix-shell\n#! nix-shell -i bash --arg extra \"toString ./x\" --option nix-shell-shebang-arguments-relative-to-script false\n",
+		),
+		(
+			"perl",
+			"#! /usr/bin/env nix-shell\n#! nix-shell -i ../bin/myperl\n",
+		),
+		(
+			"ruby",
+			"#! /usr/bin/env nix-shell\n#! nix-shell -i ../bin/myruby\n",
+		),
+		(
+			"run",
+			"#! /usr/bin/env nix-shell\n#! nix-shell --run 'echo ran'\n",
+		),
+		(
+			"pure",
+			"#! /usr/bin/env nix-shell\n#! nix-shell --pure --keep KEPT -i bash\n",
+		),
+		(
+			"missing",
+			"#! /usr/bin/env nix-shell\n#! nix-shell absent.nix -i bash\n",
+		),
+		(
+			"unterminated",
+			"#! /usr/bin/env nix-shell\n#! nix-shell -i 'bash\n",
+		),
+		(
+			"unknown",
+			"#! /usr/bin/env nix-shell\n#! nix-shell --no-such-flag\n",
+		),
+		(
+			"interpreter",
+			"#! /usr/bin/env nix-shell\n#! nix-shell -i\n",
+		),
+		(
+			"two",
+			"#! /usr/bin/env nix-shell\n#! nix-shell shell.nix shell.nix -i bash\n",
+		),
+		(
+			"it's \"odd\" \\$x",
+			"#! /usr/bin/env nix-shell\n#! nix-shell -i bash\n",
+		),
+		(
+			"blank",
+			"\n\n#! /usr/bin/env nix-shell\n#! nix-shell -i bash\n",
+		),
+		(
+			"crlf",
+			"#! /usr/bin/env nix-shell\r\n#! nix-shell -i bash\r\n",
+		),
+	];
+	for engine in ENGINES {
+		let bin = f.engine(engine).join("bin");
+		fs::create_dir(&bin).unwrap();
+		for name in ["myperl", "myruby"] {
+			let program = bin.join(name);
+			fs::write(
+				&program,
+				format!("#!{}\necho \"$0 $*\"\n", host_bash().display()),
+			)
+			.unwrap();
+			let chmod = Command::new("chmod").arg("+x").arg(&program).status();
+			assert!(chmod.unwrap().success());
+		}
+		for (name, text) in scripts {
+			fs::write(
+				f.engine(engine).join("work").join(name),
+				format!("{text}{body}"),
+			)
+			.unwrap();
+		}
+		fs::create_dir(f.engine(engine).join("work/dir")).unwrap();
+	}
+	for (name, _) in scripts {
+		for (cwd, path) in [
+			("work", name.to_owned()),
+			("tmp", format!("../work/{name}")),
+		] {
+			// Without `shell.nix` in the working directory the default file
+			// name is refused before the script's directory is considered.
+			for args in [&[][..], &["one", "two words", "it's", ""]] {
+				let mut command = vec![path.as_str()];
+				command.extend(args);
+				f.same_script(&command, cwd);
+			}
+		}
+	}
+	// A directory is not a script, and `-i` is only for scripts.
+	f.same(&["dir"]);
+	f.same(&["shell.nix", "-i", "bash"]);
+	f.same_script(&["absent"], "work");
+}
+
+/// `nix-shell-always-looks-for-shell-nix`, and lookup paths of directories.
+#[test]
+fn looks_for_shell_nix_as_configured() {
+	let f = Fixture::new();
+	for engine in ENGINES {
+		let work = f.engine(engine).join("work");
+		fs::create_dir_all(work.join("both")).unwrap();
+		fs::create_dir_all(work.join("empty")).unwrap();
+		fs::copy(work.join("shell.nix"), work.join("both/shell.nix")).unwrap();
+		fs::write(work.join("both/default.nix"), "abort \"default.nix\"").unwrap();
+	}
+	let off = ["--option", "nix-shell-always-looks-for-shell-nix", "false"];
+	for target in ["both", "<here/both>", "<here/empty>", "empty", "."] {
+		let args = ["-I", "here=.", target, "--run", "echo $isShell"];
+		f.same(&args);
+		f.same(&[&args[..], &off].concat());
+	}
+	f.same(&[&["--run", "echo $isShell"][..], &off].concat());
 }
