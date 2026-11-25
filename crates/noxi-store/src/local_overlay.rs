@@ -3,6 +3,7 @@
 use std::fs;
 #[cfg(target_os = "linux")]
 use std::os::unix::ffi::OsStrExt;
+use std::os::unix::fs::MetadataExt;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -80,14 +81,8 @@ pub fn open(uri: &str, settings: &Settings) -> Result<Option<LocalStore>> {
 		}
 	}
 	let lower_dir = &lower_config.real_store_dir;
-	for path in [&config.real_store_dir, &upper] {
-		let canonical = path.canonicalize().unwrap_or_else(|_| path.clone());
-		let lower = lower_dir
-			.canonicalize()
-			.unwrap_or_else(|_| lower_dir.clone());
-		if canonical.starts_with(&lower) || lower.starts_with(&canonical) {
-			return Err(invalid_mount(&config.real_store_dir));
-		}
+	if overlaps_lower(&config.real_store_dir, lower_dir) || overlaps_lower(&upper, lower_dir) {
+		return Err(invalid_mount(&config.real_store_dir));
 	}
 	let hook = params
 		.get("remount-hook")
@@ -138,6 +133,22 @@ fn local_config(authority: &str, params: &Query, settings: &Settings) -> Result<
 		}
 	}
 	Ok(config)
+}
+
+fn overlaps_lower(directory: &Path, lower: &Path) -> bool {
+	let directory = directory
+		.canonicalize()
+		.unwrap_or_else(|_| directory.to_owned());
+	let lower = lower.canonicalize().unwrap_or_else(|_| lower.to_owned());
+	if directory.starts_with(&lower) || lower.starts_with(&directory) {
+		return true;
+	}
+	match (fs::metadata(directory), fs::metadata(lower)) {
+		(Ok(directory), Ok(lower)) => {
+			directory.dev() == lower.dev() && directory.ino() == lower.ino()
+		}
+		_ => false,
+	}
 }
 
 fn check_mount(merged: &Path, lower: &Path, upper: &Path) -> Result<()> {
@@ -216,17 +227,14 @@ impl Overlay {
 		// Reject an upper directory that resolves into the lower store even
 		// when the caller explicitly disabled mount checks.
 		let upper_dir = self.upper.canonicalize()?;
-		let lower_dir = self.lower.config().real_store_dir.canonicalize()?;
-		if upper_dir.starts_with(&lower_dir) || lower_dir.starts_with(&upper_dir) {
+		let lower_dir = &self.lower.config().real_store_dir;
+		if overlaps_lower(&upper_dir, lower_dir) || overlaps_lower(merged, lower_dir) {
 			return Err(invalid_mount(merged));
 		}
 		if self.lower.is_valid_path(&path)? {
 			self.remount_required.store(true, Ordering::Relaxed);
 			delete_counting(&upper_dir.join(name))
 		} else {
-			if merged.canonicalize()?.starts_with(lower_dir) {
-				return Err(invalid_mount(merged));
-			}
 			delete_counting(merged_path)
 		}
 	}
