@@ -457,7 +457,7 @@ Building the remaining kinds of outputs was closed next. The run at `84915f32` (
 Differences that remain in these areas:
 
 - `DRV^out^out` is built in two requests, so the second one's list of missing paths is printed separately. `--json` and `--dry-run` with it fail explicitly.
-- Outputs of impure derivations are known to `nix build` and `nix shell` in a local store. Through a daemon, and in other commands, they are reported as not built.
+- Outputs of impure derivations are known to `nix build`, also through a daemon (`impure_outputs_come_back_through_both_daemons`), and to `nix shell` in a local store. In other commands they are reported as not built. A noxi daemon that returns results builds independent targets in the order given, where the reference's order differs.
 - Binary caches do not read narinfo files with a Git content address.
 
 Known differences in these areas:

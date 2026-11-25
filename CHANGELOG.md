@@ -6,6 +6,7 @@ Changes that have not reached a version yet go under an `Unreleased` heading for
 
 ## Repository - Unreleased
 
+- `nix build` of impure derivations through a daemon shows and links their outputs, which the client takes from the daemon's build results (2026-11-25).
 - `nix eval` and `nix build` accept `--override-flake` for installables, `--expr` and `--file`, and malformed references are reported even when no flake is looked up (2026-11-25).
 - `nix-shell` runs shebang scripts as CppNix 2.35.2 does: the `#! nix-shell` lines give the arguments, `-i` the interpreter, with the special cases for Perl and Ruby, and file names and expressions are relative to the script unless `nix-shell-shebang-arguments-relative-to-script` is off. `nix-shell-always-looks-for-shell-nix` applies, and lookup paths of directories prefer `shell.nix` (2026-11-25).
 - Security: `sandbox-paths` targets are bound into the sandbox as CppNix 2.35.2 does it, relative to the chroot's directory and without following symlinks. Before, a target below another bound path that is a symlink, or that contains one, created its mount point where the symlink led on the host, with the privileges of the building process. Targets with `..`, `.`, empty names and the root are handled and refused with the reference's messages, the first of two sources for a target is used, a source in the store brings its closure, and only one final `?` makes a path optional (2026-11-25).

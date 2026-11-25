@@ -1580,6 +1580,7 @@ dependencies = [
  "noxi-compat",
  "noxi-store",
  "noxi-test-support",
+ "serde_json",
  "tempfile",
  "thiserror",
  "tracing",

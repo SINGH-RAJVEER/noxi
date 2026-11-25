@@ -14,6 +14,7 @@ nix-compat = { package = "noxi-compat", path = "../noxi/nix-compat", version = "
 noxi-build = { path = "../noxi-build", version = "0.0.4" }
 noxi-store = { path = "../noxi-store", version = "0.0.5" }
 thiserror.workspace = true
+serde_json.workspace = true
 tracing.workspace = true
 
 [dev-dependencies]
