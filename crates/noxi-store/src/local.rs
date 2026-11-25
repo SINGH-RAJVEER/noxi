@@ -496,27 +496,23 @@ impl LocalStore {
 	/// transaction. Fails, registering nothing, if their references form a
 	/// cycle.
 	pub fn register_valid_paths(&self, infos: &[ValidPathInfo]) -> Result<()> {
-		let Some(overlay) = &self.overlay else {
-			return self.register_valid_paths_local(infos);
-		};
-		let mut pending: Vec<_> = infos
-			.iter()
-			.flat_map(|info| std::iter::once(&info.path).chain(&info.references))
-			.cloned()
-			.collect();
-		let mut seen = BTreeSet::new();
-		let mut lower_infos = Vec::new();
-		while let Some(path) = pending.pop() {
-			if seen.insert(path.clone())
-				&& !self.is_valid_path_local(&path)?
-				&& let Some(lower) = overlay.lower.query_path_info(&path)?
-			{
-				pending.extend(lower.references.iter().cloned());
-				lower_infos.push(lower);
+		if let Some(overlay) = &self.overlay {
+			// CppNix seeds the batch's own paths from the lower store.
+			// Validity checks, including those made by --load-db, are
+			// responsible for bringing in the rest of the lower closure.
+			let mut lower_infos = Vec::new();
+			for info in infos {
+				if !self.is_valid_path_local(&info.path)?
+					&& let Some(lower) = overlay.lower.query_path_info(&info.path)?
+				{
+					lower_infos.push(lower);
+				}
+			}
+			if !lower_infos.is_empty() {
+				self.register_valid_paths_local(&lower_infos)?;
 			}
 		}
-		lower_infos.extend_from_slice(infos);
-		self.register_valid_paths_local(&lower_infos)
+		self.register_valid_paths_local(infos)
 	}
 
 	fn register_valid_paths_local(&self, infos: &[ValidPathInfo]) -> Result<()> {

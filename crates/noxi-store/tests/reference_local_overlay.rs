@@ -373,9 +373,17 @@ fn run_overlay_case(engine: Engine, root: &Path) {
 		match engine {
 			Engine::Reference => load(&uri, registration(&parent_info)),
 			Engine::Noxi => {
-				local_overlay::open(&uri, &settings())
-					.unwrap()
-					.unwrap()
+				let overlay = local_overlay::open(&uri, &settings()).unwrap().unwrap();
+				// The raw reference method also seeds only paths named in
+				// the batch. Without the validity preflight, registration
+				// fails to find the lower-only reference in the upper DB.
+				assert!(matches!(
+					overlay.register_valid_paths(std::slice::from_ref(&parent_info)),
+					Err(noxi_store::Error::InvalidPath(path)) if path == leaf.to_absolute_path()
+				));
+				assert!(!upper_db.is_valid_path(&parent).unwrap());
+				assert!(overlay.is_valid_path(&parent).unwrap());
+				overlay
 					.register_valid_paths(std::slice::from_ref(&parent_info))
 					.unwrap();
 			}
