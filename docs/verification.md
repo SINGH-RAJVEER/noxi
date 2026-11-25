@@ -444,7 +444,7 @@ A focused run against 2.35.2 passed five more scripts from the single-command ro
 - `nar-access.sh` covers missing entry diagnostics in recursive JSON and human-readable store listings.
 - `no-url-literals.sh` covers the warning that directs users of the retired experimental feature to `lint-url-literals = fatal`.
 
-The `available_packages_skip_failed_candidates` comparison covers `nix-env -qa` with an assertion, a throw, a derivation whose name fails an assertion, and a valid sibling in an isolated store with a custom logical store directory. Package discovery skips those failed candidates. A failure importing or auto-calling the root still propagates. The comparison checks stdout, stderr, exit status, and that the query creates neither a store object nor a profile link.
+The `available_packages_skip_failed_candidates` comparison covers `nix-env -qa` with an assertion, a throw, a derivation whose name fails an assertion, and a valid sibling in an isolated store with a custom logical store directory. Package discovery skips those failed candidates. A failure importing or auto-calling the root still propagates. The comparison checks stdout, stderr, exit status, and that the query creates neither a store object nor a profile link. In the functional run, `nix-collect-garbage-d.sh` passes. `user-envs.sh` reaches the JSON query at line 20 of `user-envs-test-case.sh`, where the reference includes `outputName` and null output paths without `--out-path`. `nix-profile.sh` reaches profile-removal completion at line 75. Both remain gaps.
 
 Building text, impure, dynamic and Git-hashed outputs (rows 2 and 4) was not started.
 
