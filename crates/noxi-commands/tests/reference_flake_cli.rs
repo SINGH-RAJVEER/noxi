@@ -9,6 +9,65 @@ fn run(bin: &Path, root: &Path, args: &[&str]) -> Output {
 }
 
 #[test]
+fn completing_flake_inputs_reads_all_local_installables() {
+	let reference = PathBuf::from(std::env::var_os("NOXI_REFERENCE_BIN").unwrap()).join("nix");
+	let fixture = noxi_test_support::tempdir().unwrap();
+	for (directory, input) in [("foo", "a"), ("bar", "b")] {
+		let directory = fixture.path().join(directory);
+		fs::create_dir(&directory).unwrap();
+		fs::write(
+			directory.join("flake.nix"),
+			format!(
+				r#"{{ inputs.{input}.url = "path:./missing"; outputs = {{ self, {input}, implied }}: {{}}; }}"#
+			),
+		)
+		.unwrap();
+	}
+	let scratch = noxi_test_support::tempdir().unwrap();
+	for (index, args, wanted) in [
+		(
+			"3",
+			vec!["build", "--override-input", "", "", "./foo", "./bar"],
+			"normal\na\t\nb\t\nimplied\t\n",
+		),
+		(
+			"5",
+			vec!["flake", "update", "--flake", "~/foo", "imp"],
+			"normal\nimplied\t\n",
+		),
+	] {
+		for (engine, bin) in [&reference, Path::new(env!("CARGO_BIN_EXE_nix"))]
+			.into_iter()
+			.enumerate()
+		{
+			let store = scratch.path().join(format!("store{engine}"));
+			fs::create_dir_all(&store).unwrap();
+			let result = Command::new(bin)
+				.current_dir(fixture.path())
+				.env_clear()
+				.env("HOME", fixture.path())
+				.env(
+					"XDG_CACHE_HOME",
+					scratch.path().join(format!("cache{engine}")),
+				)
+				.env("NIX_CONF_DIR", scratch.path())
+				.env(
+					"NIX_CONFIG",
+					"experimental-features = nix-command flakes\nsubstituters =\nflake-registry =",
+				)
+				.env("NIX_REMOTE", format!("local?root={}", store.display()))
+				.env("NIX_GET_COMPLETIONS", index)
+				.args(&args)
+				.output()
+				.unwrap();
+			assert!(result.status.success(), "{bin:?} {args:?}: {:?}", result);
+			assert_eq!(result.stdout, wanted.as_bytes(), "{bin:?} {args:?}");
+			assert!(result.stderr.is_empty(), "{bin:?} {args:?}: {:?}", result);
+		}
+	}
+}
+
+#[test]
 fn wrong_nar_hash_preserves_fetch_failure_status() {
 	let reference = PathBuf::from(std::env::var_os("NOXI_REFERENCE_BIN").unwrap()).join("nix");
 	let fixture = noxi_test_support::tempdir().unwrap();
@@ -144,6 +203,39 @@ fn dirty_git_tree_does_not_warn_and_can_still_be_rejected() {
 		"{ outputs = { self }: { answer = 43; }; }",
 	)
 	.unwrap();
+	let reference = PathBuf::from(std::env::var_os("NOXI_REFERENCE_BIN").unwrap()).join("nix");
+	let candidate = Path::new(env!("CARGO_BIN_EXE_nix"));
+	let expression = format!("(builtins.fetchGit \"file://{}\").outPath", repo.display());
+	let copying = format!("copying '{}' to the store...", repo.display());
+	let results = [&reference, candidate].map(|bin| {
+		let store = noxi_test_support::tempdir().unwrap();
+		let args = [
+			"eval",
+			"--offline",
+			"-vvvv",
+			"--impure",
+			"--raw",
+			"--expr",
+			&expression,
+		];
+		let cold = run(bin, store.path(), &args);
+		assert!(cold.status.success(), "{bin:?}: {cold:?}");
+		assert!(
+			String::from_utf8_lossy(&cold.stderr)
+				.lines()
+				.any(|line| line == copying),
+			"{bin:?}: {cold:?}"
+		);
+		let warm = run(bin, store.path(), &args);
+		assert!(warm.status.success(), "{bin:?}: {warm:?}");
+		assert!(
+			!String::from_utf8_lossy(&warm.stderr).contains(&copying),
+			"{bin:?}: {warm:?}"
+		);
+		assert_eq!(cold.stdout, warm.stdout);
+		cold.stdout
+	});
+	assert_eq!(results[0], results[1]);
 	let root = noxi_test_support::tempdir().unwrap();
 	let url = format!("{}#answer", repo.display());
 	let bin = Path::new(env!("CARGO_BIN_EXE_nix"));

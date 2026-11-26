@@ -44,7 +44,7 @@ fn resolve_tarball(store: &EvaluatorStore, url: &str) -> Result<PathBuf> {
 	.into();
 	let input = Input::from_attrs(&store.fetch_settings(), attrs)?;
 	let (mount, _, locked, _) = super::get_cached(store, &input, UseRegistries::No)?;
-	let (path, _) = store.with_hidden_mounts(|| super::add_tree(store, &locked, &mount))?;
+	let (path, _) = store.with_hidden_mounts(|| super::add_tree(store, &locked, &mount, None))?;
 	Ok(path.to_absolute_path().into())
 }
 

@@ -465,6 +465,14 @@ The `available_packages_skip_failed_candidates` comparison covers `nix-env -qa` 
 
 `repl.sh` and `ca/repl.sh` get through the build, result link and log checks. Both stop at line 70 of `repl.sh`, where starting the REPL with a non-flake file as an installable should fail. `experimental-features.sh` gets through the named config queries and stops at `nix --help` at line 78.
 
+The next focused functional run passed `flakes/check.sh` on both engines. It checks build progress, agreement with `nix build --print-out-paths`, output links, and the diagnostics for failed checks with and without `--keep-going`.
+
+- `repl.sh` and `ca/repl.sh` now reject the non-flake startup file and reach the builtin source editor check at line 229.
+- `completions.sh` now completes flake input names and reaches flag completion at line 65.
+- `nix-profile.sh` passes on both engines. It upgrades and adds content-addressed outputs, including the manual output, and checks the priority conflict diagnostic through the deprecated `nix profile install` alias.
+- `fetchGit.sh` now finds the worktree-copy activity and reaches the unlocked-input warning at line 151.
+- `logging.sh` already gets through plain, compressed and empty build logs at the starting revision. It still needs the malformed builder JSON warning at line 32.
+
 Building the remaining kinds of outputs was closed next. The run at `84915f32` ([records](../tests/compat-results/2026-11-25-84915f32-store/)), which also holds the flake and single-command fixes, gives 107 pass, 95 gap, 10 anomaly and 2 unrun, and no script that passed at `08e4440a` fails. `reference_rebuild`, `reference_daemon_client` and `reference_experimental_outputs` compare each behavior below with the reference.
 
 - `nix build --rebuild` and `--repair` (row 6) work, also through a daemon, which refuses repairs of untrusted clients. A repairing evaluation writes valid derivations and sources again. Failed builds of the modern commands exit with status 1 and are reported as `buildPathsWithResults` reports them; `fixed-slow-vs-bad` (row 17) passes.

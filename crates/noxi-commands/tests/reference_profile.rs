@@ -6,6 +6,65 @@ use std::{
 };
 
 #[test]
+fn profile_upgrade_realizes_content_addressed_outputs() {
+	let reference = PathBuf::from(std::env::var_os("NOXI_REFERENCE_BIN").unwrap()).join("nix");
+	let candidate = Path::new(env!("CARGO_BIN_EXE_nix"));
+	let fixture = noxi_test_support::tempdir().unwrap();
+	let busybox = PathBuf::from(std::env::var_os("NOXI_TEST_BUSYBOX").unwrap());
+	let busybox = fs::canonicalize(busybox.join("bin/busybox")).unwrap();
+	let flake = fixture.path().join("flake");
+	fs::create_dir(&flake).unwrap();
+	let url = format!("path:{}", flake.display());
+	let root = fixture.path().join("state");
+	let results = [&reference, candidate].map(|bin| {
+		noxi_test_support::remove_tree(&root).unwrap();
+		fs::create_dir(&root).unwrap();
+		let store = root.join("store");
+		let profile = root.join("profile");
+		let run = |args: &[&str]| {
+			let output = Command::new(bin)
+				.env_clear()
+				.env("HOME", &root)
+				.env("NIX_CONF_DIR", &root)
+				.env("NIX_STORE_DIR", &store)
+				.env("NIX_STATE_DIR", root.join("var"))
+				.env("NIX_LOG_DIR", root.join("log"))
+				.env("NIX_CONFIG", "experimental-features = nix-command flakes ca-derivations\nsubstituters =\nflake-registry =\nbuild-users-group =\nsandbox = false")
+				.args(args)
+				.args(["--offline", "--profile", profile.to_str().unwrap()])
+				.output()
+				.unwrap();
+			assert!(output.status.success(), "{bin:?} {args:?}: {:?}", output);
+			output.stdout
+		};
+		for (version, ca) in [(1, false), (2, true)] {
+			fs::write(flake.join("flake.nix"), format!(r#"{{
+				outputs = {{ self }}: {{
+					packages.x86_64-linux.default = (derivation {{
+						name = "demo-{version}";
+						system = "x86_64-linux";
+						builder = "/bin/sh";
+						args = [ "-c" "{} mkdir -p $out $man; echo {version} > $out/demo; echo {version} > $man/manual" ];
+						outputs = [ "out" "man" ];
+						__contentAddressed = {ca};
+					}}) // {{ meta.outputsToInstall = [ "out" "man" ]; }};
+				}};
+			}}"#, busybox.display())).unwrap();
+			if ca {
+				run(&["profile", "upgrade", "flake"]);
+			} else {
+				run(&["profile", "add", &url]);
+			}
+			for file in ["demo", "manual"] {
+				assert_eq!(fs::read_to_string(profile.join(file)).unwrap(), format!("{version}\n"));
+			}
+		}
+		run(&["profile", "list", "--json"])
+	});
+	assert_eq!(results[0], results[1]);
+}
+
+#[test]
 fn modern_profiles_match_manifest_and_output_paths() {
 	let reference = std::env::var_os("NOXI_REFERENCE_BIN")
 		.map(PathBuf::from)

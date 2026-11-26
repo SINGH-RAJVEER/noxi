@@ -6,6 +6,9 @@ Changes that have not reached a version yet go under an `Unreleased` heading for
 
 ## Repository - Unreleased
 
+- `nix flake check` reports the checks it runs and identifies failing attributes. It supports `--print-out-paths` and `--out-link`.
+- `nix repl` exits when a startup installable fails to evaluate. Shell completion suggests local flake inputs for `--override-input` and `nix flake update`.
+- Profile upgrades build content-addressed outputs before recording their paths. `nix profile install` warns and runs `nix profile add`. Verbose Git fetches identify the worktree being copied into the store.
 - Localhost SSH stores honor `store=` and nested `remote-store=` URLs. Both SSH dialects support closure copies and substitution at the destination. `nix doctor` and `nix store info` report the remote protocol’s trust metadata, and `nix-store --dump-db` can read through a daemon.
 - The store library can open local OverlayFS stores, validate the mount, reuse lower-store metadata and deduplicate upper-layer paths. The CLI and daemon can select these stores with a `local-overlay://` URL.
 - `nix doctor` checks overlay mounts and reports unknown overlay URL parameters.

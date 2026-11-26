@@ -148,7 +148,7 @@ pass:upstream_functional tests/functional/ca/nix-run.sh
 pass:upstream_functional tests/functional/ca/nix-shell.sh
 pass:upstream_functional tests/functional/ca/post-hook.sh
 gap tests/functional/ca/recursive.sh # source in ./recursive.sh:13: error: Cannot build '$ROOT/tmp/nix-test/ca/recursive/store/HASH-recursive.drv'.
-gap tests/functional/ca/repl.sh # : error: the noxi repl does not support ':log' yet
+gap tests/functional/ca/repl.sh # source in repl.sh:229: REPL :edit does not open the derivation builtin source
 pass:upstream_functional tests/functional/ca/selfref-gc.sh
 pass:upstream_functional tests/functional/ca/signatures.sh
 gap tests/functional/ca/substitute.sh # main in substitute.sh:27: error: nix store build-trace info --file is not supported by noxi yet
@@ -159,7 +159,7 @@ pass:upstream_functional tests/functional/check-reqs.sh
 pass:upstream_functional tests/functional/check.sh
 gap tests/functional/chroot-store.sh # main in chroot-store.sh:48: error: don't know how to open Nix store with scheme 'local://$ROOT/tmp/nix-test/main/chroot-store/x+chroot'
 gap tests/functional/cli-characterisation.sh # : error:
-gap tests/functional/completions.sh # main in completions.sh:39: error: 'buil' is not a recognised command
+gap tests/functional/completions.sh # main in completions.sh:65: --log-format flag completion is missing
 pass:upstream_functional tests/functional/compression-levels.sh
 gap tests/functional/config.sh # main in config.sh:32: warning: you don't have Internet access; disabling some network-dependent features
 anomaly tests/functional/db-migration.sh # reference skip: not using the Nix daemon, skipping this test...
@@ -184,7 +184,7 @@ pass:upstream_functional tests/functional/export.sh
 gap tests/functional/external-builders.sh # main in external-builders.sh:46: error: Cannot build '$ROOT/tmp/nix-test/main/external-builders/store/HASH-external.drv'.
 anomaly tests/functional/extra-sandbox-profile.sh # reference skip: Need Darwin, skipping this test...
 gap tests/functional/fetchClosure.sh # main in fetchClosure.sh:32: error: attribute 'fetchClosure' missing
-gap tests/functional/fetchGit.sh # main in fetchGit.sh:34: false
+gap tests/functional/fetchGit.sh # main in fetchGit.sh:151: unlocked input warning is missing
 pass:upstream_functional tests/functional/fetchGitRefs.sh
 pass:upstream_functional tests/functional/fetchGitShallow.sh
 pass:upstream_functional tests/functional/fetchGitSubmodules.sh
@@ -200,7 +200,7 @@ pass:upstream_functional tests/functional/flakes/absolute-attr-paths.sh
 pass:upstream_functional tests/functional/flakes/absolute-paths.sh
 pass:upstream_functional tests/functional/flakes/build-paths.sh
 pass:upstream_functional tests/functional/flakes/bundle.sh
-gap tests/functional/flakes/check.sh # main in check.sh:157: missing flake check build progress
+pass:upstream_functional tests/functional/flakes/check.sh
 pass:upstream_functional tests/functional/flakes/circular.sh
 pass:upstream_functional tests/functional/flakes/commit-lock-file-summary.sh
 gap tests/functional/flakes/config.sh # : test failed: The post hook should have ran
@@ -267,7 +267,7 @@ pass:upstream_functional tests/functional/local-overlay-store/optimise.sh
 pass:upstream_functional tests/functional/local-overlay-store/redundant-add.sh
 anomaly tests/functional/local-overlay-store/stale-file-handle.sh # reference skip: Couldn't trigger the error, skipping this test...
 pass:upstream_functional tests/functional/local-overlay-store/verify.sh
-gap tests/functional/logging.sh # main in logging.sh:32: error: build log of derivation '$ROOT/tmp/nix-test/main/logging/store/HASH-dependencies-top' is not available
+gap tests/functional/logging.sh # main in logging.sh:32: malformed builder JSON does not produce the reference warning
 pass:upstream_functional tests/functional/make-content-addressed.sh
 pass:upstream_functional tests/functional/misc.sh
 gap tests/functional/multiple-outputs-substitute-failure.sh # main in multiple-outputs-substitute-failure.sh:28: clearing store...
@@ -280,7 +280,7 @@ pass:upstream_functional tests/functional/nix-channel.sh
 pass:upstream_functional tests/functional/nix-collect-garbage-d.sh
 pass:upstream_functional tests/functional/nix-copy-ssh-ng.sh
 pass:upstream_functional tests/functional/nix-copy-ssh.sh
-gap tests/functional/nix-profile.sh # main in nix-profile.sh:76: profile removal completion is missing
+pass:upstream_functional tests/functional/nix-profile.sh
 pass:upstream_functional tests/functional/nix-shell.sh
 pass:upstream_functional tests/functional/nix_path.sh
 pass:upstream_functional tests/functional/no-url-literals.sh
@@ -299,7 +299,7 @@ gap tests/functional/recursive.sh # main in recursive.sh:13: error: Cannot build
 pass:upstream_functional tests/functional/referrers.sh
 pass:upstream_functional tests/functional/remote-store.sh
 pass:upstream_functional tests/functional/repair.sh
-gap tests/functional/repl.sh # : error: the noxi repl does not support ':log' yet
+gap tests/functional/repl.sh # main in repl.sh:229: REPL :edit does not open the derivation builtin source
 pass:upstream_functional tests/functional/restricted.sh
 pass:upstream_functional tests/functional/search.sh
 pass:upstream_functional tests/functional/secure-drv-outputs.sh

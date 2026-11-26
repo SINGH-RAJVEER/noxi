@@ -426,6 +426,7 @@ fn source_info(parsed: &Parsed, operand: &str) -> Result<Result<Value, ExitCode>
 fn add_element(
 	parsed: &Parsed,
 	operand: &str,
+	previous: Option<&Value>,
 ) -> Result<Result<(String, Value), ExitCode>, Failure> {
 	let (operand, output_spec) = operand
 		.split_once('^')
@@ -498,18 +499,7 @@ fn add_element(
 			}
 		}
 	}
-	let paths = targets
-		.paths
-		.iter()
-		.map(|target| {
-			expression::outputs(targets.store.as_ref(), target)
-				.map(|o| o.into_values().collect::<Vec<_>>())
-		})
-		.collect::<Result<Vec<_>, _>>()?
-		.into_iter()
-		.flatten()
-		.collect::<BTreeSet<_>>();
-	let mut element = json!({"active":true,"priority":parsed.value("priority").map(|s| s.parse::<i64>().map_err(|e| Failure::Usage(e.to_string()))).transpose()?.unwrap_or(5),"storePaths":paths.iter().map(|p| p.to_absolute_path()).collect::<Vec<_>>()});
+	let mut element = json!({"active":true,"priority":parsed.value("priority").map(|s| s.parse::<i64>().map_err(|e| Failure::Usage(e.to_string()))).transpose()?.unwrap_or(5)});
 	if !parsed.has("priority")
 		&& !operand.starts_with(nix_compat::store_path::store_dir_with_slash())
 	{
@@ -525,7 +515,7 @@ fn add_element(
 			element["priority"] = json!(priority);
 		}
 	}
-	let mut name = identifier(&element);
+	let mut name = None;
 	if !parsed.has("expr")
 		&& !parsed.has("file")
 		&& !operand.starts_with(nix_compat::store_path::store_dir_with_slash())
@@ -541,7 +531,7 @@ fn add_element(
 		}
 		// URL fragments determine the package name, falling back to the source basename for default outputs.
 		let attr = operand.split_once('#').map(|(_, a)| a).unwrap_or("");
-		name = if !attr.is_empty() {
+		name = Some(if !attr.is_empty() {
 			attr.rsplit('.')
 				.next()
 				.unwrap_or(attr)
@@ -555,20 +545,39 @@ fn add_element(
 				.unwrap_or(operand)
 				.trim_start_matches("path:")
 				.into()
-		};
+		});
 	}
-	if parsed.command != "profile upgrade" {
+	if let Some(old) = previous
+		&& old["url"] != element["url"]
+	{
+		eprintln!(
+			"upgrading '{}' from flake '{}' to '{}'",
+			old["attrPath"].as_str().unwrap_or(""),
+			old["url"].as_str().unwrap_or(""),
+			element["url"].as_str().unwrap_or("")
+		);
+	}
+	if previous.is_none() || !parsed.has("dry-run") {
 		crate::paths::print_missing(
 			targets.store.as_ref(),
 			&targets.store.query_missing(&targets.paths)?,
 		)?;
-		if !parsed.has("dry-run") {
-			targets
-				.store
-				.build_paths_with_results(&targets.paths, noxi_store::BuildMode::Normal)?;
-		}
 	}
-	Ok(Ok((name, element)))
+	if !parsed.has("dry-run") {
+		let results = targets
+			.store
+			.build_paths_with_results(&targets.paths, noxi_store::BuildMode::Normal)?;
+		let mut paths = BTreeSet::new();
+		for target in &targets.paths {
+			paths.extend(
+				expression::built_outputs(targets.store.as_ref(), target, &results)?
+					.into_values()
+					.map(|path| path.to_absolute_path()),
+			);
+		}
+		element["storePaths"] = json!(paths);
+	}
+	Ok(Ok((name.unwrap_or_else(|| identifier(&element)), element)))
 }
 
 fn versions(element: &Value) -> String {
@@ -898,7 +907,7 @@ pub(super) fn run(parsed: Parsed) -> Result<ExitCode, Failure> {
 			parsed.operands.clone()
 		};
 		for operand in operands {
-			let (name, element) = match add_element(&parsed, &operand)? {
+			let (name, element) = match add_element(&parsed, &operand, None)? {
 				Ok(v) => v,
 				Err(c) => return Ok(c),
 			};
@@ -950,53 +959,12 @@ pub(super) fn run(parsed: Parsed) -> Result<ExitCode, Failure> {
 				old["attrPath"].as_str().unwrap_or(""),
 				output_suffix(old)
 			);
-			let (_, mut element) = match add_element(&parsed, &operand)? {
+			let (_, mut element) = match add_element(&parsed, &operand, Some(old))? {
 				Ok(v) => v,
 				Err(c) => return Ok(c),
 			};
 			element["priority"] = old["priority"].clone();
 			element["active"] = old["active"].clone();
-			if old["url"] != element["url"] {
-				eprintln!(
-					"upgrading '{}' from flake '{}' to '{}'",
-					old["attrPath"].as_str().unwrap_or(""),
-					old["url"].as_str().unwrap_or(""),
-					element["url"].as_str().unwrap_or("")
-				);
-			}
-			if !parsed.has("dry-run") {
-				let target_operand = format!(
-					"{}#{}",
-					element["url"].as_str().unwrap_or(""),
-					element["attrPath"].as_str().unwrap_or("")
-				);
-				let mut targets = match expression::targets(&single(&parsed, &target_operand))? {
-					Ok(v) => v,
-					Err(c) => return Ok(c),
-				};
-				for path in &mut targets.paths {
-					if let noxi_store::DerivedPath::Built { drv, outputs } = path {
-						*outputs = targets
-							.store
-							.known_derivation_outputs(drv)?
-							.into_iter()
-							.filter(|(_, p)| {
-								element["storePaths"].as_array().is_some_and(|paths| {
-									paths.contains(&json!(p.to_absolute_path()))
-								})
-							})
-							.map(|(name, _)| name)
-							.collect();
-					}
-				}
-				crate::paths::print_missing(
-					targets.store.as_ref(),
-					&targets.store.query_missing(&targets.paths)?,
-				)?;
-				targets
-					.store
-					.build_paths_with_results(&targets.paths, noxi_store::BuildMode::Normal)?;
-			}
 			elements.insert(name, element);
 		}
 		if count == 0 {
