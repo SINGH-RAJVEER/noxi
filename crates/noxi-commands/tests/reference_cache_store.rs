@@ -114,6 +114,35 @@ fn same_with(features: &str, steps: &[&str]) {
 }
 
 #[test]
+fn default_sandbox_rejects_derivations_that_request_no_chroot() {
+	let Some(reference) = reference_dir() else {
+		return;
+	};
+	let dir = noxi_test_support::tempdir().unwrap();
+	let steps = [
+		"sed -i '/^sandbox =/d' etc/nix.conf",
+		r#"drv='derivation { name = "no-chroot"; system = builtins.currentSystem; builder = "/nonexistent"; __noChroot = true; }'
+		for flags in '' '--relaxed-sandbox --sandbox'; do
+			if nix build --impure --no-link --expr "$drv" $flags >stdout 2>stderr; then
+				exit 1
+			fi
+			grep -Fq "__noChroot' set, but that's not allowed when 'sandbox' is 'true'" stderr || exit 1
+		done"#,
+	];
+	for engine in [&reference, candidate_dir()] {
+		let results = session(engine, &dir.path().join("engine"), "nix-command", &steps);
+		for (result, step) in results.iter().zip(steps) {
+			assert_eq!(
+				result,
+				&format!("$ {step}\nSome(0)\n"),
+				"{}",
+				engine.display()
+			);
+		}
+	}
+}
+
+#[test]
 fn cache_queries_match_the_reference() {
 	same(&[
 		"nix-build x.nix -A tree --no-out-link; nix copy --to file://$PWD/cache -f x.nix tree 2> /dev/null; find cache | sort",
