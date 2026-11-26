@@ -103,7 +103,13 @@ in rec {
 
 /// Run the shell commands `steps` with one engine in a fresh diverted store,
 /// returning each step's exit status, standard output and error lines.
-fn session(bin: &Path, root: &Path, features: &str, steps: &[&str]) -> Vec<String> {
+fn session(
+	bin: &Path,
+	root: &Path,
+	features: &str,
+	steps: &[&str],
+	retry_signal_9: bool,
+) -> Vec<String> {
 	noxi_test_support::remove_tree(root).unwrap();
 	fs::create_dir_all(root.join("etc")).unwrap();
 	fs::write(
@@ -119,7 +125,8 @@ fn session(bin: &Path, root: &Path, features: &str, steps: &[&str]) -> Vec<Strin
 	steps
 		.iter()
 		.map(|step| {
-			let output = Command::new("bash")
+			let mut command = Command::new("bash");
+			command
 				.args(["-c", step])
 				.current_dir(root)
 				.env_clear()
@@ -133,9 +140,18 @@ fn session(bin: &Path, root: &Path, features: &str, steps: &[&str]) -> Vec<Strin
 				.env("NIX_STATE_DIR", root.join("var"))
 				.env("NIX_LOG_DIR", root.join("log"))
 				.env("NIX_CONF_DIR", root.join("etc"))
-				.env("NIX_REMOTE", "")
-				.output()
-				.unwrap();
+				.env("NIX_REMOTE", "");
+			let mut output = command.output().unwrap();
+			// Retry only the reference step when its unsandboxed builder is killed by signal 9.
+			for _ in 0..2 {
+				if !retry_signal_9
+					|| ![&output.stderr, &output.stdout].iter().any(|stream| {
+						String::from_utf8_lossy(stream).contains("builder failed due to signal 9")
+					}) {
+					break;
+				}
+				output = command.output().unwrap();
+			}
 			let errors: String = String::from_utf8_lossy(&output.stderr)
 				.lines()
 				.filter(|line| !line.starts_with("warning: you don't have Internet access"))
@@ -151,13 +167,17 @@ fn session(bin: &Path, root: &Path, features: &str, steps: &[&str]) -> Vec<Strin
 }
 
 fn same(features: &str, steps: &[&str]) -> Vec<String> {
+	same_with_reference_retry(features, steps, false)
+}
+
+fn same_with_reference_retry(features: &str, steps: &[&str], retry_signal_9: bool) -> Vec<String> {
 	let Some(reference) = reference_dir() else {
 		return Vec::new();
 	};
 	let dir = noxi_test_support::tempdir().unwrap();
 	let root = dir.path().join("engine");
-	let expected = session(&reference, &root, features, steps);
-	let actual = session(candidate_dir(), &root, features, steps);
+	let expected = session(&reference, &root, features, steps, retry_signal_9);
+	let actual = session(candidate_dir(), &root, features, steps, false);
 	let different: Vec<String> = expected
 		.iter()
 		.zip(&actual)
@@ -285,7 +305,7 @@ fn impure_outputs_match_the_reference() {
 
 #[test]
 fn dynamic_derivations_match_the_reference() {
-	let steps = same(
+	let steps = same_with_reference_retry(
 		FEATURES,
 		&[
 			"for a in wrapper both dynFixed dynCa; do cat $(nix-instantiate x.nix -A $a 2> /dev/null); echo; done",
@@ -310,6 +330,7 @@ fn dynamic_derivations_match_the_reference() {
 			"nix-build x.nix -A caFails --no-out-link",
 			"nix-store --verify --check-contents; ls store | grep -v lock",
 		],
+		true,
 	);
 	for (step, message) in [
 		(7, "hash mismatch in fixed-output derivation"),
