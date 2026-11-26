@@ -200,7 +200,7 @@ tests/functional/compression-levels.sh pass pass pass
 tests/functional/compute-levels.sh support
 tests/functional/config.nix support
 tests/functional/config.nix.in support
-tests/functional/config.sh gap fail pass # main in config.sh:32: verbose nix-build version omits the user configuration files
+tests/functional/config.sh pass pass pass
 tests/functional/config/extra-config.conf support
 tests/functional/config/nix-with-bang-include.conf support
 tests/functional/config/nix-with-include.conf support
@@ -294,11 +294,11 @@ tests/functional/flakes/init.sh pass pass pass
 tests/functional/flakes/inputs.sh pass pass pass
 tests/functional/flakes/mercurial.sh pass pass pass
 tests/functional/flakes/meson.build support
-tests/functional/flakes/non-flake-inputs.sh gap fail pass # main in non-flake-inputs.sh:135: relative non-flake outPath retains an extra /./ segment
+tests/functional/flakes/non-flake-inputs.sh pass pass pass
 tests/functional/flakes/old-lockfiles.sh pass pass pass
 tests/functional/flakes/prefetch.sh gap fail pass # main in prefetch.sh:6: error: failed to read entire block
-tests/functional/flakes/relative-paths-lockfile.sh gap fail pass # main in relative-paths-lockfile.sh:75: refreshing the root lock retains the previous nested dependency
-tests/functional/flakes/relative-paths.sh gap fail pass # main in relative-paths.sh:71: relative lock paths differ from the expected lock graph
+tests/functional/flakes/relative-paths-lockfile.sh pass pass pass
+tests/functional/flakes/relative-paths.sh pass pass pass
 tests/functional/flakes/run.sh pass pass pass
 tests/functional/flakes/search-root.sh pass pass pass
 tests/functional/flakes/shebang.sh gap fail pass # main in shebang.sh:103: error: '$ROOT/tmp/nix-test/flakes/shebang/nonFlake/shebang.sh' is not a recognised command
@@ -340,7 +340,7 @@ tests/functional/help.sh anomaly fail skip # reference skip: we don't know wheth
 tests/functional/hermetic.nix support
 tests/functional/ifd.nix support
 tests/functional/import-from-derivation.nix support
-tests/functional/import-from-derivation.sh gap fail pass # main in import-from-derivation.sh:34: error: --readonly-mode is not supported by noxi yet
+tests/functional/import-from-derivation.sh gap fail pass # main in import-from-derivation.sh:34: the copied IFD result is missing both registered references
 tests/functional/impure-derivations.nix support
 tests/functional/impure-derivations.sh pass pass pass
 tests/functional/impure-env.nix support
@@ -540,7 +540,7 @@ tests/functional/signing.sh gap fail pass # main in signing.sh:103: error: unsup
 tests/functional/simple-failing.nix support
 tests/functional/simple.builder.sh support
 tests/functional/simple.nix support
-tests/functional/simple.sh gap fail pass # main in simple.sh:27: error: --readonly-mode is not supported by noxi yet
+tests/functional/simple.sh gap fail pass # main in simple.sh:42: recursive recurseForDerivations does not reach the max-call-depth error
 tests/functional/ssh-relay.sh pass pass pass
 tests/functional/store-info.sh pass pass pass
 tests/functional/store-print-env.sh pass pass pass

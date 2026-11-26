@@ -144,15 +144,15 @@ pub fn parse_args_with(
 			.ok_or_else(|| format!("flag '{flag}' requires 1 argument"))
 	};
 	while let Some(arg) = args.next_arg() {
-		if let Some(result) = crate::cli::apply_common_flag(&arg, &mut args, &mut options.settings)
-		{
-			result.map_err(failure_message)?;
-			continue;
-		}
 		if arg.starts_with('-')
 			&& let Some(result) = extra(&arg, &mut args)
 		{
 			result?;
+			continue;
+		}
+		if let Some(result) = crate::cli::apply_common_flag(&arg, &mut args, &mut options.settings)
+		{
+			result.map_err(failure_message)?;
 			continue;
 		}
 		match arg.as_str() {
@@ -1587,7 +1587,7 @@ pub fn main(settings: Settings, args: Vec<String>) -> Result<ExitCode, crate::cl
 			std::process::exit(0)
 		}
 		"--help" => crate::cli::show_man_page_or_exit("nix-instantiate"),
-		"--dry-run" => {
+		"--dry-run" | "--readonly-mode" => {
 			dry_run = true;
 			Some(Ok(()))
 		}

@@ -161,7 +161,7 @@ gap tests/functional/chroot-store.sh # main in chroot-store.sh:48: error: don't 
 gap tests/functional/cli-characterisation.sh # : error:
 gap tests/functional/completions.sh # main in completions.sh:65: --log-format flag completion is missing
 pass:upstream_functional tests/functional/compression-levels.sh
-gap tests/functional/config.sh # main in config.sh:32: verbose nix-build version omits the user configuration files
+pass:upstream_functional tests/functional/config.sh
 anomaly tests/functional/db-migration.sh # reference skip: not using the Nix daemon, skipping this test...
 pass:upstream_functional tests/functional/delete-no-keep.sh
 gap tests/functional/dependencies.sh # main in dependencies.sh:12: error: nix-store --query --graph is not supported by noxi yet
@@ -216,11 +216,11 @@ pass:upstream_functional tests/functional/flakes/get-flake.sh
 pass:upstream_functional tests/functional/flakes/init.sh
 pass:upstream_functional tests/functional/flakes/inputs.sh
 pass:upstream_functional tests/functional/flakes/mercurial.sh
-gap tests/functional/flakes/non-flake-inputs.sh # main in non-flake-inputs.sh:135: relative non-flake outPath retains an extra /./ segment
+pass:upstream_functional tests/functional/flakes/non-flake-inputs.sh
 pass:upstream_functional tests/functional/flakes/old-lockfiles.sh
 gap tests/functional/flakes/prefetch.sh # main in prefetch.sh:6: error: failed to read entire block
-gap tests/functional/flakes/relative-paths-lockfile.sh # main in relative-paths-lockfile.sh:75: refreshing the root lock retains the previous nested dependency
-gap tests/functional/flakes/relative-paths.sh # main in relative-paths.sh:71: relative lock paths differ from the expected lock graph
+pass:upstream_functional tests/functional/flakes/relative-paths-lockfile.sh
+pass:upstream_functional tests/functional/flakes/relative-paths.sh
 pass:upstream_functional tests/functional/flakes/run.sh
 pass:upstream_functional tests/functional/flakes/search-root.sh
 gap tests/functional/flakes/shebang.sh # main in shebang.sh:103: error: '$ROOT/tmp/nix-test/flakes/shebang/nonFlake/shebang.sh' is not a recognised command
@@ -247,7 +247,7 @@ pass:upstream_functional tests/functional/git/symlinked-repo.sh
 pass:upstream_functional tests/functional/hash-convert.sh
 pass:upstream_functional tests/functional/hash-path.sh
 anomaly tests/functional/help.sh # reference skip: we don't know whether we built the manpages, so we can't reliably test them here., skipping this test...
-gap tests/functional/import-from-derivation.sh # main in import-from-derivation.sh:34: error: --readonly-mode is not supported by noxi yet
+gap tests/functional/import-from-derivation.sh # main in import-from-derivation.sh:34: the copied IFD result is missing both registered references
 pass:upstream_functional tests/functional/impure-derivations.sh
 gap tests/functional/impure-env.sh # : error: hash mismatch in fixed-output derivation '$ROOT/tmp/nix-test/main/impure-env/store/HASH-test.drv':
 pass:upstream_functional tests/functional/impure-eval.sh
@@ -307,7 +307,7 @@ pass:upstream_functional tests/functional/selfref-gc.sh
 pass:upstream_functional tests/functional/shell.sh
 gap tests/functional/short-path-literals.sh # : foo/bar
 gap tests/functional/signing.sh # main in signing.sh:103: error: unsupported store parameter 'require-sigs=false' in '$ROOT/tmp/nix-test/main/signing/store0?require-sigs=false'
-gap tests/functional/simple.sh # main in simple.sh:27: error: --readonly-mode is not supported by noxi yet
+gap tests/functional/simple.sh # main in simple.sh:42: recursive recurseForDerivations does not reach the max-call-depth error
 pass:upstream_functional tests/functional/ssh-relay.sh
 pass:upstream_functional tests/functional/store-info.sh
 pass:upstream_functional tests/functional/store-print-env.sh

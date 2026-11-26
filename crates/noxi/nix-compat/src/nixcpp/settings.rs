@@ -482,7 +482,7 @@ fn is_experimental_features(name: &str) -> bool {
 /// CppNix's `getUserConfigFiles`: `NIX_USER_CONF_FILES`, or `nix/nix.conf`
 /// under `XDG_CONFIG_HOME` (default `~/.config`) and each `XDG_CONFIG_DIRS`
 /// entry (default `/etc/xdg`).
-fn user_config_files(env: &impl Fn(&str) -> Option<String>) -> Vec<String> {
+pub fn user_config_files(env: &impl Fn(&str) -> Option<String>) -> Vec<String> {
 	if let Some(files) = env("NIX_USER_CONF_FILES") {
 		return files
 			.split(':')
