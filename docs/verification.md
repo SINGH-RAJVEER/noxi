@@ -394,12 +394,6 @@ Smaller groups:
 
 ### Functional gaps by root cause, 2026-11-25
 
-#### Store and build flags follow-up
-
-The focused `reference_cache_store` comparisons cover copying all valid local paths to a file cache, copying paths back with output and profile links, reading a realised build trace selected with `--file`, and looking up a substituted path's build log by the deriver recorded in the cache. `reference_modern_extra` also covers sandbox mode flags, the strict default, and build installables read through standard input.
-
-The upstream compression script reached its unsupported-algorithm checks after the copy links were added and stopped at `compress`. `ca/build-cache` copied all paths and then requested a local build at `max-jobs = 0` while substituting `dependentCA`. `ca/substitute` passed both build-trace queries and failed at line 50, after deleting the remote trace files to test disk-cache reuse. The binary-cache script passed its log retrieval checks and reached the concurrent NAR download count at line 99.
-
 `nix-channel.sh` passes against noxi and CppNix 2.35.2. It covers a `file://` channel directory with a bzip2 archive, alongside direct archive subscriptions, profile generations, and package lookup and installation from the channel.
 
 The table groups the 137 gap scripts of the store-tier records at `84aec12` (`tests/compat-results/2026-11-25-84aec12-store` in Git at `528b7aa`) by the cause of the first failure in noxi's recorded log. Every gap script is in exactly one row. The last two columns show how much a first failure can hide: how many scripts stopped in the first half of the script file running at the time, and how many lines of those files follow the failing line. Blank lines and comments count. Helper scripts that a script sources before the failure are not counted, and neither are the bodies of scripts that run untraced in a namespace, such as the overlay `*-inner.sh` files.
@@ -517,6 +511,12 @@ Security-relevant behavior and its negative tests:
 - A copied realisation needs a signature by a trusted key unless signature checks are off, even when its output is content-addressed (`unsigned_copies_are_refused_like_the_reference`, `secret_key_files_sign_builds_like_the_reference`).
 - `nix copy` between stores kept the source's ultimate trust, so `nix store verify` accepted an unsigned copy. It no longer does (`copies_between_stores_are_not_ultimately_trusted`).
 - A fixed output is copied into a directory the builder cannot enter before it is hashed and registered, as `moveOutputToTempDir` does, so a process the builder left behind holds no writable descriptor of it. No test exercises such a process.
+
+#### Store and build flags follow-up
+
+The focused `reference_cache_store` comparisons cover copying all valid local paths to a file cache, copying paths back with output and profile links, reading a realised build trace selected with `--file`, and looking up a substituted path's build log by the deriver recorded in the cache. `reference_modern_extra` also covers sandbox mode flags, the strict default, and build installables read through standard input. The separate `default_sandbox_rejects_derivations_that_request_no_chroot` comparison confirms a local build refuses `__noChroot` under the default and after an explicit return to strict mode.
+
+The upstream compression script reached its unsupported-algorithm checks after the copy links were added and stopped at `compress`. `ca/build-cache` copied all paths and then requested a local build at `max-jobs = 0` while substituting `dependentCA`. `ca/substitute` passed both build-trace queries and failed at line 50, after deleting the remote trace files to test disk-cache reuse. The binary-cache script passed its log retrieval checks and reached the concurrent NAR download count at line 99.
 
 ### Sandbox path targets, 2026-11-25
 
