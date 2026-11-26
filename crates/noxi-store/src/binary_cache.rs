@@ -1970,7 +1970,9 @@ impl LocalStore {
 					done.insert(path.clone());
 					return Ok(());
 				}
-				Err(e) => tracing::error!("{e}"),
+				// `PathSubstitutionGoal` prints the error and tries the
+				// next substituter.
+				Err(e) => log_substitution_error(&e.to_string()),
 			}
 		}
 		if let Some(e) = last_error {
@@ -1981,6 +1983,17 @@ impl LocalStore {
 			print(path)
 		)))
 	}
+}
+
+/// `printError(e.what())`: an error rendered as `logError` renders it.
+fn log_substitution_error(message: &str) {
+	use nix_compat::log::logger::{ANSI_NORMAL, ANSI_RED};
+	let formatted = nix_compat::log::format_error(message);
+	let rendered = match formatted.strip_prefix("error: ") {
+		Some(rest) => format!("{ANSI_RED}error:{ANSI_NORMAL} {rest}"),
+		None => formatted,
+	};
+	nix_compat::log::logger::log_error(&rendered, message);
 }
 
 #[cfg(test)]

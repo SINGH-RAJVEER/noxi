@@ -311,8 +311,25 @@ impl<'a> LocalBuilder<'a> {
 
 	/// Try to substitute `path`; a failure is logged, not returned.
 	fn try_substitute(&self, path: &StorePath) -> Result<bool> {
+		match self.substitute_attempt(path)? {
+			Ok(substituted) => Ok(substituted),
+			Err(error) if !self.settings.try_fallback => Err(error.into()),
+			Err(e) => {
+				tracing::debug!("cannot substitute '{}': {e}", print(path));
+				Ok(false)
+			}
+		}
+	}
+
+	/// Substitute `path` if a substituter has it. The inner error is a
+	/// failed substitution, which `PathSubstitutionGoal` reports as
+	/// `ecFailed`; the outer one any other failure.
+	fn substitute_attempt(
+		&self,
+		path: &StorePath,
+	) -> Result<std::result::Result<bool, noxi_store::Error>> {
 		if !self.settings.use_substitutes || self.substituters.is_empty() {
-			return Ok(false);
+			return Ok(Ok(false));
 		}
 		let mut available = false;
 		for cache in self.substituters {
@@ -327,26 +344,22 @@ impl<'a> LocalBuilder<'a> {
 			}
 		}
 		if !available {
-			return Ok(false);
+			return Ok(Ok(false));
 		}
 		let substituted = if self.repair() {
 			self.store.substitute_repair(self.substituters, path)
 		} else {
 			self.store.substitute(self.substituters, path)
 		};
-		match substituted {
+		Ok(match substituted {
 			Ok(()) => {
 				if self.repair() {
 					self.checked().insert(path.clone(), true);
 				}
 				Ok(true)
 			}
-			Err(error) if !self.settings.try_fallback => Err(error.into()),
-			Err(e) => {
-				tracing::debug!("cannot substitute '{}': {e}", print(path));
-				Ok(false)
-			}
-		}
+			Err(error) => Err(error),
+		})
 	}
 
 	/// Whether the derivation's options allow substituting its outputs.
@@ -538,7 +551,9 @@ impl<'a> LocalBuilder<'a> {
 			// A fixed output that is valid needs none of its inputs.
 			if build_drv.is_fixed() && self.mode == BuildMode::Normal {
 				let outputs = self.known_outputs(drv_path, &build_drv)?;
-				if self.all_valid(&outputs)? || self.substitute_known(&build_drv, &outputs)? {
+				if self.all_valid(&outputs)?
+					|| self.substitute_known(drv_path, &build_drv, &outputs)?
+				{
 					let paths = outputs
 						.into_iter()
 						.map(|(name, o)| (name, o.path))
@@ -586,7 +601,7 @@ impl<'a> LocalBuilder<'a> {
 		// Like `DerivationGoal`, substitute missing outputs before
 		// realising any inputs, which then may not be needed at all.
 		self.report_checks(&wanted_outputs, events)?;
-		self.substitute_known(&build_drv, &wanted_outputs)?;
+		self.substitute_known(drv_path, &build_drv, &wanted_outputs)?;
 		// An impure derivation is always built, and never checked.
 		let check = self.mode == BuildMode::Check && !impure;
 		let valid = self.all_valid(&wanted_outputs)?;
@@ -696,13 +711,18 @@ impl<'a> LocalBuilder<'a> {
 			.into_iter()
 			.filter(|(name, _)| names.contains(name))
 			.collect();
-		self.substitute_known(drv, &outputs)
+		self.substitute_known(drv_path, drv, &outputs)
 	}
 
 	/// Substitute the outputs with known paths, if they may be and are not
 	/// valid yet. Returns whether all outputs are valid afterwards.
+	///
+	/// As in `DerivationGoal::haveDerivation`, a failed substitution is
+	/// logged as its `PathSubstitutionGoal` logs it, and unless `fallback`
+	/// is set the derivation then fails instead of being built.
 	fn substitute_known(
 		&self,
+		drv_path: &StorePath,
 		drv: &BuildDerivation,
 		outputs: &BTreeMap<String, KnownOutput>,
 	) -> Result<bool> {
@@ -711,11 +731,24 @@ impl<'a> LocalBuilder<'a> {
 			&& (self.repair() || !self.all_valid(outputs)?)
 			&& self.substitutes_allowed(&drv.basic)?
 		{
+			let mut failed = false;
 			// Floating outputs were looked up by their realisations.
 			for output in outputs.values().filter(|o| o.floating.is_none()) {
-				if self.repair() || !self.store.is_valid_path(&output.path)? {
-					self.try_substitute(&output.path)?;
+				if (self.repair() || !self.store.is_valid_path(&output.path)?)
+					&& let Err(error) = self.substitute_attempt(&output.path)?
+				{
+					crate::backend::log_error(&error.to_string());
+					failed = true;
 				}
+			}
+			if failed && !self.settings.try_fallback {
+				return Err(BuildError::failed(
+					FailureStatus::TransientFailure,
+					format!(
+						"some substitutes for the outputs of derivation '{}' failed (usually happens due to networking issues); try '--fallback' to build derivation from source ",
+						print(drv_path)
+					),
+				));
 			}
 		}
 		self.all_valid(outputs)
