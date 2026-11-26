@@ -122,9 +122,29 @@ fn session(
 	fs::write(root.join("x.nix"), EXPR).unwrap();
 	fs::write(root.join("data"), "one\n").unwrap();
 	fs::write(root.join("counter"), "0\n").unwrap();
+	let checkpoint = retry_signal_9.then(|| noxi_test_support::tempdir().unwrap());
+	let copy_tree = |source: &Path, destination: &Path| {
+		let output = Command::new("cp")
+			.arg("-a")
+			.arg(source)
+			.arg(destination)
+			.output()
+			.unwrap();
+		assert!(
+			output.status.success(),
+			"{}",
+			String::from_utf8_lossy(&output.stderr)
+		);
+	};
 	steps
 		.iter()
 		.map(|step| {
+			let backup = checkpoint.as_ref().map(|dir| {
+				let backup = dir.path().join("engine");
+				noxi_test_support::remove_tree(&backup).unwrap();
+				copy_tree(root, &backup);
+				backup
+			});
 			let mut command = Command::new("bash");
 			command
 				.args(["-c", step])
@@ -142,15 +162,20 @@ fn session(
 				.env("NIX_CONF_DIR", root.join("etc"))
 				.env("NIX_REMOTE", "");
 			let mut output = command.output().unwrap();
-			// Retry only the reference step when its unsandboxed builder is killed by signal 9.
-			for _ in 0..2 {
-				if !retry_signal_9
-					|| ![&output.stderr, &output.stdout].iter().any(|stream| {
+			// A killed reference builder can leave partial store state behind.
+			// Retry the same step from its checkpoint only for signal 9.
+			if let Some(backup) = backup {
+				for _ in 0..2 {
+					if ![&output.stderr, &output.stdout].iter().any(|stream| {
 						String::from_utf8_lossy(stream).contains("builder failed due to signal 9")
 					}) {
-					break;
+						break;
+					}
+					noxi_test_support::remove_tree(root).unwrap();
+					copy_tree(&backup, root);
+					eprintln!("retrying reference step after builder signal 9: {step}");
+					output = command.output().unwrap();
 				}
-				output = command.output().unwrap();
 			}
 			let errors: String = String::from_utf8_lossy(&output.stderr)
 				.lines()
