@@ -34,7 +34,7 @@ pub fn main(settings: Settings, args: Vec<String>) -> Result<ExitCode, Failure> 
 		Some(match flag {
 			"--version" => {
 				println!("nix-build (Nix) 2.35.2");
-				if nix_compat::log::log_enabled(nix_compat::log::VerbosityLevel::Info) {
+				if nix_compat::log::verbosity() > nix_compat::log::VerbosityLevel::Info as u64 {
 					let env = |name: &str| std::env::var(name).ok();
 					let conf = env("NIX_CONF_DIR").unwrap_or_else(|| "/etc/nix".to_owned());
 					let state = env("NIX_STATE_DIR").unwrap_or_else(|| "/nix/var/nix".to_owned());
