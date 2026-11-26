@@ -5,7 +5,7 @@ use std::io;
 use nix_compat::nixcpp::settings::Settings;
 use nix_compat::nixcpp::store_reference::StoreReference;
 use noxi_daemon::client::DaemonStore;
-use noxi_daemon::serve_protocol::serve;
+use noxi_daemon::serve_protocol::{AnyStore, serve};
 use noxi_store::build_derivation::OutputFeatures;
 
 use crate::cli::Failure;
@@ -39,12 +39,29 @@ pub fn run(
 		.map_err(|e| Failure::Error(e.to_string()))?;
 	let input = io::stdin().lock();
 	let output = io::stdout().lock();
-	let result = match machine::local(&reference, settings)? {
-		Some(mut store) => serve(&mut store, features, input, output, 0, write),
-		None => {
-			let mut store: DaemonStore = machine::daemon(&reference, settings)?;
-			serve(&mut store, features, input, output, 0, write)
-		}
+	// A local store builds supplied derivations itself, a daemon through
+	// its worker. Other stores are served as they are.
+	let local = match crate::store::resolves_to_local(uri) {
+		// Every parameter a command's local store takes.
+		Ok(true) => Some(machine::backend(uri, &reference, settings)?),
+		// A machine's `system-features` too.
+		_ => machine::local(&reference, settings).ok().flatten(),
+	};
+	let result = if let Some(mut store) = local {
+		serve(&mut store, features, input, output, 0, write)
+	} else if let Ok(mut store) = machine::daemon(&reference, settings) {
+		serve::<DaemonStore>(&mut store, features, input, output, 0, write)
+	} else {
+		let opened = crate::store::open(uri, settings)?
+			.ok_or_else(|| Failure::Error(format!("store '{uri}' cannot hold store paths")))?;
+		serve(
+			&mut AnyStore(opened.store),
+			features,
+			input,
+			output,
+			0,
+			write,
+		)
 	};
 	result.map_err(|e| Failure::Error(e.to_string()))
 }

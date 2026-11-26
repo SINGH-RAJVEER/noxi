@@ -140,8 +140,21 @@ fn bundle(mut parsed: Parsed) -> Result<ExitCode, Failure> {
 
 fn config_check(parsed: Parsed) -> Result<ExitCode, Failure> {
 	let uri = crate::store::store_uri(parsed.value("store"), &parsed.settings);
+	if let Some(store) = crate::store::open_remote(&uri, &parsed.settings)? {
+		let uri = store.uri();
+		eprintln!("Running checks against store uri: {uri}");
+		let info = store.connection_info()?;
+		eprintln!("[PASS] Client protocol matches store protocol.");
+		match info.trusted {
+			Some(true) => eprintln!("[INFO] You are trusted by store uri: {uri}"),
+			Some(false) => eprintln!("[INFO] You are not trusted by store uri: {uri}"),
+			None => eprintln!("[INFO] Store uri: {uri} doesn't have a notion of trusted user"),
+		}
+		return Ok(ExitCode::SUCCESS);
+	}
 	let (store, _) = crate::store::open_local(&uri, &parsed.settings)?
 		.ok_or_else(|| unsupported("config check for a non-local store"))?;
+	let uri = store.human_uri();
 	eprintln!("Running checks against store uri: {uri}");
 	let mut versions = BTreeSet::new();
 	let mut unrooted = BTreeSet::new();
@@ -232,10 +245,16 @@ fn daemon(parsed: Parsed) -> Result<ExitCode, Failure> {
 	// `--process-ops` only stops forwarding to a remote backing store; a
 	// local backing store always processes the operations itself.
 	let uri = crate::store::store_uri(parsed.value("store"), &parsed.settings);
-	let (store, _) = crate::store::open_local(&uri, &parsed.settings)?
-		.ok_or_else(|| unsupported("daemon with a non-local backing store"))?;
+	let overlay = noxi_store::local_overlay::parse(&uri, &parsed.settings)?;
+	let store = match &overlay {
+		Some(overlay) => overlay.open()?,
+		None => crate::store::open_local(&uri, &parsed.settings)?
+			.map(|(store, _)| store)
+			.ok_or_else(|| unsupported("daemon with a non-local backing store"))?,
+	};
 	let mut settings =
 		noxi_daemon::DaemonSettings::from_config(store.config().clone(), &parsed.settings)?;
+	settings.overlay = overlay;
 	for (name, _) in &parsed.sequence {
 		match name.as_str() {
 			"force-trusted" => settings.force_trust = Some(Trust::Trusted),

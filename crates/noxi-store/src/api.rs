@@ -262,6 +262,16 @@ pub trait Store {
 		Ok(valid)
 	}
 
+	/// Query validity, giving a remote destination the opportunity to
+	/// substitute the paths before the caller uploads them.
+	fn query_valid_paths_with_substitute(
+		&self,
+		paths: &BTreeSet<StorePath>,
+		_substitute: bool,
+	) -> Result<BTreeSet<StorePath>> {
+		self.query_valid_paths(paths)
+	}
+
 	/// `Store::querySubstitutablePaths`: the paths a substituter that answers
 	/// mass queries has.
 	fn query_substitutable_paths(

@@ -25,7 +25,10 @@ use crate::wire::{Reader, Version, Writer, parse_content_address, parse_store_pa
 const EXPORT_MAGIC: u64 = 0x4558494e;
 
 /// A store `nix-store --serve` can serve.
-pub trait Served: Peer + Store {
+pub trait Served: Peer {
+	/// The store, for the operations every store has.
+	fn store(&self) -> &dyn Store;
+
 	/// `getBuildSettings`: the client's options for the next build. They
 	/// have no effect on a store that a daemon owns.
 	fn set_build_options(&mut self, options: &BuildOptions);
@@ -41,6 +44,10 @@ pub trait Served: Peer + Store {
 }
 
 impl Served for LocalBackend {
+	fn store(&self) -> &dyn Store {
+		self
+	}
+
 	fn set_build_options(&mut self, options: &BuildOptions) {
 		let settings = &mut self.settings;
 		settings.keep_build_log = false;
@@ -80,6 +87,10 @@ impl Served for LocalBackend {
 }
 
 impl Served for DaemonStore {
+	fn store(&self) -> &dyn Store {
+		self
+	}
+
 	fn set_build_options(&mut self, _options: &BuildOptions) {}
 
 	fn build_for(
@@ -122,18 +133,18 @@ pub fn serve<S: Served>(
 				let paths = from.read_store_paths()?;
 				if lock && write {
 					for path in &paths {
-						store.add_temp_root(path)?;
+						store.store().add_temp_root(path)?;
 					}
 				}
 				if substitute && write {
 					substitute_paths(store, &paths)?;
 				}
-				let valid = Store::query_valid_paths(store, &paths)?;
+				let valid = store.store().query_valid_paths(&paths)?;
 				to.store_paths(valid.iter());
 			}
 			command::QUERY_PATH_INFOS => {
 				for path in &from.read_store_paths()? {
-					if let Some(info) = store.query_path_info(path)? {
+					if let Some(info) = store.store().query_path_info(path)? {
 						write_path_info(&mut to, version, &info);
 					}
 				}
@@ -141,7 +152,7 @@ pub fn serve<S: Served>(
 			}
 			command::DUMP_STORE_PATH => {
 				let path = from.read_store_path()?;
-				if !Store::is_valid_path(store, &path)? {
+				if !store.store().is_valid_path(&path)? {
 					return Err(Error::Nix(format!(
 						"path '{}' is not valid",
 						path.to_absolute_path()
@@ -163,7 +174,7 @@ pub fn serve<S: Served>(
 				}
 				let options = read_build_options(&mut from, version)?;
 				store.set_build_options(&options);
-				match Store::build_paths(store, &paths) {
+				match store.store().build_paths(&paths) {
 					Ok(()) => {
 						to.u64(0);
 					}
@@ -226,10 +237,10 @@ fn substitute_paths<S: Served>(store: &S, paths: &BTreeSet<StorePath>) -> Result
 		.cloned()
 		.map(DerivedPath::Opaque)
 		.collect();
-	let missing = store.query_missing(&wanted)?.will_substitute;
+	let missing = store.store().query_missing(&wanted)?.will_substitute;
 	if !missing.is_empty() {
 		let missing: Vec<DerivedPath> = missing.into_iter().map(DerivedPath::Opaque).collect();
-		if let Err(error) = Store::build_paths(store, &missing) {
+		if let Err(error) = store.store().build_paths(&missing) {
 			nix_compat::log::logger::warn(&error.to_string());
 		}
 	}
@@ -242,17 +253,18 @@ fn closure<S: Served>(
 	paths: BTreeSet<StorePath>,
 	include_outputs: bool,
 ) -> Result<BTreeSet<StorePath>> {
-	let mut closure = store.compute_closure(&paths)?;
+	let mut closure = store.store().compute_closure(&paths)?;
 	while include_outputs {
 		let mut outputs = BTreeSet::new();
 		for drv in closure.iter().filter(|path| path.name().ends_with(".drv")) {
 			for path in store
+				.store()
 				.query_partial_derivation_output_map(drv)?
 				.into_values()
 			{
 				if let Some(path) = path
 					&& !closure.contains(&path)
-					&& Store::is_valid_path(store, &path)?
+					&& store.store().is_valid_path(&path)?
 				{
 					outputs.insert(path);
 				}
@@ -261,7 +273,7 @@ fn closure<S: Served>(
 		if outputs.is_empty() {
 			break;
 		}
-		closure.extend(store.compute_closure(&outputs)?);
+		closure.extend(store.store().compute_closure(&outputs)?);
 	}
 	Ok(closure)
 }
@@ -437,4 +449,77 @@ fn drain<R: std::io::BufRead + Send>(
 ) -> std::io::Result<([u8; 32], u64)> {
 	std::io::copy(&mut reader, &mut std::io::sink())?;
 	Ok(reader.finish())
+}
+
+/// Any other store, served without builds of supplied derivations, as
+/// `nix-store --serve` serves a store whose builds are not its own.
+pub struct AnyStore(pub std::rc::Rc<dyn Store>);
+
+impl Peer for AnyStore {
+	fn connect(&self) -> noxi_store::Result<()> {
+		Ok(())
+	}
+
+	fn trusted(&self) -> noxi_store::Result<Option<bool>> {
+		Ok(None)
+	}
+
+	fn valid_paths(
+		&self,
+		paths: &BTreeSet<StorePath>,
+		substitute: bool,
+	) -> noxi_store::Result<BTreeSet<StorePath>> {
+		self.0.query_valid_paths_with_substitute(paths, substitute)
+	}
+
+	fn path_info(&self, path: &StorePath) -> noxi_store::Result<Option<ValidPathInfo>> {
+		self.0.query_path_info(path)
+	}
+
+	fn nar(&self, path: &StorePath, sink: &mut dyn Write) -> noxi_store::Result<()> {
+		self.0.nar_from_path(path, sink)
+	}
+
+	fn add_paths(
+		&self,
+		infos: &[ValidPathInfo],
+		nar: &mut crate::peer::NarSource<'_>,
+	) -> noxi_store::Result<()> {
+		self.0.add_multiple_to_store(infos, nar, false, false)
+	}
+
+	fn build_derivation(
+		&self,
+		_drv_path: &StorePath,
+		_drv: &noxi_store::build_derivation::BuildDerivation,
+	) -> noxi_store::Result<BuildResult> {
+		Err(noxi_store::Error::Other(
+			"this store cannot build a supplied derivation".to_owned(),
+		))
+	}
+
+	fn build_registered(&self, drv_path: &StorePath) -> noxi_store::Result<BuildResult> {
+		self.0.build_paths(&[DerivedPath::Built {
+			drv: drv_path.clone(),
+			outputs: BTreeSet::new(),
+		}])?;
+		Ok(BuildResult::default())
+	}
+}
+
+impl Served for AnyStore {
+	fn store(&self) -> &dyn Store {
+		self.0.as_ref()
+	}
+
+	fn set_build_options(&mut self, _options: &BuildOptions) {}
+
+	fn build_for(
+		&self,
+		_fd: RawFd,
+		drv_path: &StorePath,
+		drv: &noxi_store::build_derivation::BuildDerivation,
+	) -> Result<BuildResult> {
+		Ok(self.build_derivation(drv_path, drv)?)
+	}
 }

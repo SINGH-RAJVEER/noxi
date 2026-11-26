@@ -38,6 +38,37 @@ fn reference_bin() -> PathBuf {
 
 const ENGINES: [&str; 2] = ["reference", "noxi"];
 
+#[test]
+fn resolves_store_links_without_requiring_a_valid_path() {
+	let dir = noxi_test_support::tempdir().unwrap();
+	let target = "/nix/store/00000000000000000000000000000000-package";
+	let link = dir.path().join("result");
+	let destination = format!("{target}/bin/program");
+	std::os::unix::fs::symlink(&destination, &link).unwrap();
+	for arg in ["result", &destination, "missing"] {
+		let run = |binary: &Path, name: &str| {
+			let root = dir.path().join(name);
+			Command::new(binary)
+				.current_dir(dir.path())
+				.env_clear()
+				.env("HOME", dir.path())
+				.env("NIX_CONF_DIR", dir.path().join("conf"))
+				.env("NIX_CONFIG", "build-users-group =\nsubstituters =")
+				.args(["--store", &format!("local?root={}", root.display())])
+				.args(["--query", "--resolve", arg])
+				.output()
+				.unwrap()
+		};
+		let expected = run(&reference_bin().join("nix-store"), "reference");
+		let actual = run(Path::new(env!("CARGO_BIN_EXE_nix-store")), "candidate");
+		assert_eq!(expected.status.code(), Some(i32::from(arg == "missing")));
+		assert_eq!(actual.status.code(), expected.status.code());
+		assert_eq!(actual.stdout, expected.stdout);
+		assert_eq!(actual.stderr, expected.stderr);
+		assert_eq!(fs::read_link(&link).unwrap(), Path::new(&destination));
+	}
+}
+
 struct Env {
 	dir: noxi_test_support::TempDir,
 	busybox: String,

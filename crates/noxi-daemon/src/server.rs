@@ -11,7 +11,6 @@ use std::path::Path;
 
 use nix_compat::log::VerbosityLevel;
 use nix_compat::log::logger;
-use noxi_store::LocalStore;
 
 use crate::connection::{Trust, process_monitored_connection};
 use crate::error::{Error, Result};
@@ -158,7 +157,7 @@ pub fn handle_connection(
 	settings: &DaemonSettings,
 	trust: Trust,
 ) -> Result<()> {
-	let store = LocalStore::open(settings.store.clone())?;
+	let store = settings.open_store()?;
 	// Buffered, so a request costs a few reads rather than one per field.
 	let read = std::io::BufReader::new(stream.try_clone()?);
 	let fd = stream.as_raw_fd();

@@ -89,6 +89,33 @@ fn local_url_info_json_formats_match_reference() {
 }
 
 #[test]
+fn doctor_rejects_bad_overlay_mount_and_warns_about_unknown_parameter() {
+	let temp = noxi_test_support::tempdir().unwrap();
+	let root = temp.path().display();
+	let uri = format!(
+		"local-overlay://?root={root}/merged&lower-store={root}/lower&upper-layer={root}/upper&unknown-option=1"
+	);
+	let run = |binary: &Path| {
+		command(binary, temp.path())
+			.args(["doctor", "--offline", "--store", &uri])
+			.output()
+			.unwrap()
+	};
+	let expected = run(&reference());
+	let actual = run(Path::new(env!("CARGO_BIN_EXE_nix")));
+	assert_eq!(expected.status.code(), Some(1));
+	assert_eq!(
+		String::from_utf8_lossy(&expected.stderr),
+		format!(
+			"warning: 'doctor' is a deprecated alias for 'config check'\nwarning: unknown setting 'unknown-option'\nerror: overlay filesystem \"{root}/merged/nix/store\" mounted incorrectly\n"
+		)
+	);
+	assert_eq!(actual.status.code(), expected.status.code());
+	assert_eq!(actual.stdout, expected.stdout);
+	assert_eq!(actual.stderr, expected.stderr);
+}
+
+#[test]
 fn dependency_paths_match_reference() {
 	let temp = noxi_test_support::tempdir().unwrap();
 	let store = LocalStore::open(LocalStoreConfig::diverted(temp.path()).unwrap()).unwrap();

@@ -1,5 +1,4 @@
 use noxi_daemon::connection::{Trust, process_monitored_connection};
-use noxi_store::LocalStore;
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
@@ -64,25 +63,35 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
 		.or_else(|| settings.get("store").map(str::to_owned))
 		.or_else(|| std::env::var("NIX_REMOTE").ok())
 		.unwrap_or_default();
-	let config = local_config(&uri)?;
+	let overlay = noxi_store::local_overlay::parse(&uri, &settings)?;
+	let config = match &overlay {
+		Some(overlay) => overlay.store.clone(),
+		None => local_config(&uri)?,
+	};
 	let socket = std::env::var_os("NIX_DAEMON_SOCKET_PATH")
 		.map(PathBuf::from)
 		.unwrap_or_else(|| config.state_dir.join("daemon-socket/socket"));
 	let mut settings = DaemonSettings::from_config(config, &settings)?;
 	settings.force_trust = force_trust;
-	// The build hook is told which store the daemon builds in.
-	if !uri.is_empty() {
-		settings.build.store_uri = nix_compat::nixcpp::store_reference::StoreReference::parse(
+	settings.overlay = overlay;
+	// The build hook is told which store the daemon builds in, and the
+	// store's `system-features` are those of its builds.
+	if !uri.is_empty()
+		&& let Ok(reference) = nix_compat::nixcpp::store_reference::StoreReference::parse(
 			&uri,
 			&Default::default(),
 			&std::env::current_dir()?,
 			&mut Vec::new(),
-		)
-		.ok()
-		.map(|reference| reference.render(true));
+		) {
+		settings.build.store_uri = Some(reference.render(true));
+		if let Some(features) = reference.params.get("system-features") {
+			settings.build.exact_system_features = true;
+			settings.build.system_features =
+				features.split_whitespace().map(str::to_owned).collect();
+		}
 	}
 	if stdio {
-		let store = LocalStore::open(settings.store.clone())?;
+		let store = settings.open_store()?;
 		process_monitored_connection(
 			std::io::stdin(),
 			std::io::stdout(),
@@ -115,20 +124,28 @@ fn local_config(uri: &str) -> Result<LocalStoreConfig, Box<dyn std::error::Error
 		&std::env::current_dir()?,
 		&mut Vec::new(),
 	)?;
-	match &reference.variant {
-		Variant::Auto | Variant::Local => {}
-		Variant::Specified { scheme, authority } if scheme == "local" && authority.is_empty() => {}
+	let authority_root = match &reference.variant {
+		Variant::Auto | Variant::Local => None,
+		Variant::Specified { scheme, authority } if scheme == "local" && authority.is_empty() => {
+			None
+		}
+		Variant::Specified { scheme, authority } if scheme == "local" => {
+			Some(nix_compat::nixcpp::url::percent_decode(authority)?)
+		}
 		_ => return Err(format!("daemon backing store '{uri}' is not supported").into()),
+	};
+	if let Some(dir) = reference.params.get("store") {
+		nix_compat::store_path::configure_store_dir(dir)?;
 	}
-	if let Some(root) = reference
-		.params
-		.get("root")
-		.filter(|root| !root.is_empty() && *root != "/")
-	{
-		Ok(LocalStoreConfig::diverted(Path::new(root))?)
-	} else {
-		Ok(LocalStoreConfig::system())
+	let root = reference.params.get("root").or(authority_root.as_ref());
+	let mut config = match root.filter(|root| !root.is_empty() && *root != "/") {
+		Some(root) => LocalStoreConfig::diverted(Path::new(root))?,
+		None => LocalStoreConfig::system(),
+	};
+	if let Some(real) = reference.params.get("real") {
+		config.real_store_dir = std::path::absolute(real)?;
 	}
+	Ok(config)
 }
 
 #[cfg(test)]

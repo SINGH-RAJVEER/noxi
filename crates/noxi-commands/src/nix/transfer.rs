@@ -9,7 +9,7 @@ use std::fs;
 use std::process::ExitCode;
 
 pub fn copy(parsed: Parsed) -> Result<ExitCode, Failure> {
-	parsed.unsupported(&["out-link", "profile", "substitute-on-destination"])?;
+	parsed.unsupported(&["out-link", "profile"])?;
 	let from = parsed.value("from").map(str::to_owned);
 	let to = parsed.value("to").map(str::to_owned);
 	let is_store = |uri: &Option<String>| uri.as_deref().is_none_or(|u| !u.starts_with("file://"));
@@ -274,8 +274,9 @@ fn copy_between_stores(
 	let default = crate::store::store_uri(parsed.value("store"), &parsed.settings);
 	let source_uri = from.unwrap_or_else(|| default.clone());
 	let destination_uri = to.unwrap_or(default);
-	let (source, _) = crate::store::open_local(&source_uri, &parsed.settings)?
-		.ok_or_else(|| unsupported("copy from this store"))?;
+	let source = crate::store::open(&source_uri, &parsed.settings)?
+		.ok_or_else(|| unsupported("copy from this store"))?
+		.store;
 	let destination = crate::store::open(&destination_uri, &parsed.settings)?
 		.ok_or_else(|| unsupported("copy into this store"))?;
 	let roots = parsed
@@ -290,14 +291,16 @@ fn copy_between_stores(
 	for path in &closure {
 		source.add_temp_root(path)?;
 	}
-	let valid = destination.store.query_valid_paths(&closure)?;
+	let valid = destination
+		.store
+		.query_valid_paths_with_substitute(&closure, parsed.has("substitute-on-destination"))?;
 	let missing: BTreeSet<_> = closure.difference(&valid).cloned().collect();
 	if missing.is_empty() {
 		return Ok(ExitCode::SUCCESS);
 	}
 	log(&format!("copying {} paths...", missing.len()));
 	let mut infos = Vec::new();
-	for path in crate::paths::topo_sort(&source, &missing)?
+	for path in crate::paths::topo_sort(source.as_ref(), &missing)?
 		.into_iter()
 		.rev()
 	{

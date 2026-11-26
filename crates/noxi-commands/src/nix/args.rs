@@ -228,6 +228,21 @@ pub fn parse<P: Program>(
 	program: &mut P,
 	args: Vec<String>,
 ) -> Result<Parsed<P::Handler>, Failure> {
+	parse_args(program, args, true)
+}
+
+pub(super) fn parse_prefix<P: Program>(
+	program: &mut P,
+	args: Vec<String>,
+) -> Result<Parsed<P::Handler>, Failure> {
+	parse_args(program, args, false)
+}
+
+fn parse_args<P: Program>(
+	program: &mut P,
+	args: Vec<String>,
+	finish: bool,
+) -> Result<Parsed<P::Handler>, Failure> {
 	let mut parser = Parser {
 		levels: Vec::new(),
 		flag_features: Vec::new(),
@@ -289,7 +304,9 @@ pub fn parse<P: Program>(
 			}
 		}
 	}
-	parser.process_args(program, &pending, true)?;
+	if finish {
+		parser.process_args(program, &pending, true)?;
+	}
 	Ok(Parsed {
 		levels: parser.levels,
 		flag_features: parser.flag_features,

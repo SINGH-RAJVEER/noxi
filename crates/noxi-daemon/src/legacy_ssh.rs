@@ -83,12 +83,11 @@ impl Read for Tee<'_> {
 }
 
 impl LegacySshStore {
-	/// `remote_program` gets `--serve --write` and then `extra`.
-	pub fn new(master: SshMaster, extra: Vec<OsString>, options: BuildOptions) -> Self {
+	/// A store served by `nix-store --serve --write` on the host of
+	/// `master`, which builds with `options`.
+	pub fn new(master: SshMaster, options: BuildOptions) -> Self {
 		let config = master.config();
-		let mut command: Vec<OsString> = config.remote_program.iter().map(OsString::from).collect();
-		command.extend(["--serve".into(), "--write".into()]);
-		command.extend(extra);
+		let command = config.remote_command(true);
 		let host = config.authority.host.clone();
 		Self {
 			master,
@@ -368,5 +367,143 @@ pub(crate) fn parse_nar_hash(hash: &str) -> crate::error::Result<[u8; 32]> {
 	match NixHash::from_str(hash, Some(HashAlgo::Sha256)) {
 		Ok(NixHash::Sha256(digest)) => Ok(digest),
 		_ => Err(Error::Nix(format!("invalid NAR hash '{hash}'"))),
+	}
+}
+
+fn unsupported<T>(operation: &str) -> Result<T> {
+	Err(noxi_store::Error::Other(format!(
+		"legacy SSH store does not support {operation}"
+	)))
+}
+
+/// What commands such as `nix copy` need of an `ssh://` store.
+impl noxi_store::Store for LegacySshStore {
+	fn real_path(&self, path: &StorePath) -> std::path::PathBuf {
+		std::path::PathBuf::from(path.to_absolute_path())
+	}
+
+	fn is_valid_path(&self, path: &StorePath) -> Result<bool> {
+		Ok(self
+			.valid_paths(&BTreeSet::from([path.clone()]), false)?
+			.contains(path))
+	}
+
+	fn query_path_info(&self, path: &StorePath) -> Result<Option<ValidPathInfo>> {
+		self.path_info(path)
+	}
+
+	fn query_valid_paths(&self, paths: &BTreeSet<StorePath>) -> Result<BTreeSet<StorePath>> {
+		self.valid_paths(paths, false)
+	}
+
+	fn query_valid_paths_with_substitute(
+		&self,
+		paths: &BTreeSet<StorePath>,
+		substitute: bool,
+	) -> Result<BTreeSet<StorePath>> {
+		self.valid_paths(paths, substitute)
+	}
+
+	fn query_referrers(&self, _: &StorePath) -> Result<BTreeSet<StorePath>> {
+		unsupported("querying referrers")
+	}
+
+	fn query_valid_derivers(&self, _: &StorePath) -> Result<BTreeSet<StorePath>> {
+		unsupported("querying valid derivers")
+	}
+
+	fn query_derivation_outputs(
+		&self,
+		_: &StorePath,
+	) -> Result<std::collections::BTreeMap<String, StorePath>> {
+		unsupported("querying derivation outputs")
+	}
+
+	fn read_derivation(
+		&self,
+		_: &StorePath,
+	) -> Result<nix_compat::derivation::UnverifiedDerivation> {
+		unsupported("reading derivations")
+	}
+
+	fn add_temp_root(&self, _: &StorePath) -> Result<()> {
+		Ok(())
+	}
+
+	fn add_perm_root(&self, _: &StorePath, _: &std::path::Path) -> Result<std::path::PathBuf> {
+		unsupported("creating roots")
+	}
+
+	fn build_paths(&self, _: &[noxi_store::DerivedPath]) -> Result<()> {
+		unsupported("building paths")
+	}
+
+	fn nar_from_path(&self, path: &StorePath, sink: &mut dyn Write) -> Result<()> {
+		self.nar(path, sink)
+	}
+
+	fn add_text_to_store(&self, _: &str, _: &[u8], _: &BTreeSet<StorePath>) -> Result<StorePath> {
+		unsupported("adding text paths")
+	}
+
+	fn add_to_store_from_dump(
+		&self,
+		source: &mut (dyn Read + Send),
+		name: &str,
+		dump_method: noxi_store::FileIngestionMethod,
+		hash_method: noxi_store::FileIngestionMethod,
+		hash_algo: HashAlgo,
+		references: &BTreeSet<StorePath>,
+	) -> Result<StorePath> {
+		use std::io::Seek;
+		if dump_method != noxi_store::FileIngestionMethod::NixArchive || hash_method != dump_method
+		{
+			return unsupported("adding paths other than recursive NARs");
+		}
+		let mut nar = tempfile::tempfile()?;
+		let mut hash = noxi_store::nar::HashingReader::new(BufReader::new(source));
+		copy_nar(&mut hash, &mut nar).map_err(store_error)?;
+		let (digest, size) = hash.finish();
+		nar.rewind()?;
+		let ca_hash = if hash_algo == HashAlgo::Sha256 {
+			NixHash::Sha256(digest)
+		} else {
+			let mut hasher = nix_compat::nixhash::NixHashDigester::new(hash_algo);
+			let mut chunk = [0; 65536];
+			loop {
+				let size = nar.read(&mut chunk)?;
+				if size == 0 {
+					break;
+				}
+				hasher.update(&chunk[..size]);
+			}
+			nar.rewind()?;
+			hasher.finalize()
+		};
+		let path = StorePath::from_name_and_digest_fixed(name, [0; 20])
+			.map_err(|error| noxi_store::Error::Other(error.to_string()))?;
+		let mut info = ValidPathInfo::new(path, digest);
+		info.nar_size = size;
+		info.references = references.clone();
+		info.ca = Some(hash_method.content_address(ca_hash)?);
+		info.path = info.ca_path().ok_or_else(|| {
+			noxi_store::Error::Other(format!(
+				"cannot compute a content-addressed path for '{name}'"
+			))
+		})?;
+		self.add_paths(std::slice::from_ref(&info), &mut |_, sink| {
+			std::io::copy(&mut nar, sink).map(drop).map_err(Into::into)
+		})?;
+		Ok(info.path)
+	}
+
+	fn add_multiple_to_store(
+		&self,
+		infos: &[ValidPathInfo],
+		nar: &mut dyn FnMut(&StorePath, &mut dyn Write) -> Result<()>,
+		_repair: bool,
+		_check_sigs: bool,
+	) -> Result<()> {
+		self.add_paths(infos, nar)
 	}
 }

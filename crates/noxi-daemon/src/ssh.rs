@@ -31,6 +31,8 @@ pub struct SshConfig {
 	pub log_fd: Option<RawFd>,
 	/// `remote-program`.
 	pub remote_program: Vec<String>,
+	/// `remote-store`: the store the remote program opens.
+	pub remote_store: Option<String>,
 }
 
 impl SshConfig {
@@ -65,7 +67,24 @@ impl SshConfig {
 					.collect(),
 				None => vec![default_program.to_owned()],
 			},
+			remote_store: get("remote-store").cloned(),
 		})
+	}
+
+	/// The command run on the host: `LegacySSHStore::openConnection`'s
+	/// `--serve --write`, or `SSHStore::openConnection`'s `--stdio`, then
+	/// `--store` and the remote store if one is given.
+	pub fn remote_command(&self, legacy: bool) -> Vec<OsString> {
+		let mut command: Vec<OsString> = self.remote_program.iter().map(OsString::from).collect();
+		if legacy {
+			command.extend(["--serve".into(), "--write".into()]);
+		} else {
+			command.push("--stdio".into());
+		}
+		if let Some(store) = &self.remote_store {
+			command.extend(["--store".into(), store.into()]);
+		}
+		command
 	}
 }
 

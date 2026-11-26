@@ -406,6 +406,7 @@ fn supported_flags(command: &str) -> &'static [&'static str] {
 		],
 		"log" => &["arg", "argstr", "expr", "file", "include", "impure"],
 		"copy" => &[
+			"substitute-on-destination",
 			"to",
 			"from",
 			"no-check-sigs",
@@ -569,6 +570,9 @@ pub fn main(mut settings: Settings, args: Vec<String>) -> Result<ExitCode, Failu
 		settings,
 		flags: BTreeMap::new(),
 	};
+	if let Ok(index) = std::env::var("NIX_GET_COMPLETIONS") {
+		return complete(program, args, &index);
+	}
 	// CppNix ignores usage errors when help was requested.
 	let parsed = match args::parse(&mut program, args) {
 		Err(Failure::Usage(_)) if program.flags.contains_key("help") => None,
@@ -724,6 +728,80 @@ pub fn main(mut settings: Settings, args: Vec<String>) -> Result<ExitCode, Failu
 		command if command.starts_with("store ") => command_store::run(parsed),
 		command => Err(unsupported(command)),
 	}
+}
+
+fn complete(mut program: Program, mut args: Vec<String>, index: &str) -> Result<ExitCode, Failure> {
+	let index = index
+		.parse::<usize>()
+		.ok()
+		.and_then(|value| value.checked_sub(1))
+		.filter(|value| *value < args.len())
+		.ok_or_else(|| Failure::Usage("invalid NIX_GET_COMPLETIONS index".into()))?;
+	let prefix = args.remove(index);
+	let settings = program.settings.clone();
+	let mut kind = "normal";
+	let mut candidates = Vec::new();
+	if let Ok(parsed) = args::parse_prefix(&mut program, args[..index].to_vec()) {
+		let command = parsed.levels.last().map(|level| level.command);
+		if command.is_none_or(args::Command::is_multi) && !prefix.starts_with('-') {
+			let parent = command.map_or("", |command| command.path);
+			candidates.extend(
+				args::Command::subcommands(parent)
+					.filter(|name| name.starts_with(&prefix))
+					.map(|name| (name.to_owned(), String::new())),
+			);
+		} else if command
+			.is_some_and(|command| matches!(command.path, "profile remove" | "profile upgrade"))
+			&& !prefix.starts_with('-')
+		{
+			let mut full_program = Program {
+				settings,
+				flags: BTreeMap::new(),
+			};
+			if let Ok(mut parsed) = args::parse_prefix(&mut full_program, args)
+				&& let Some(level) = parsed.levels.pop()
+			{
+				full_program.flags.extend(level.handler.flags);
+				let parsed = Parsed {
+					command: level.command.path,
+					settings: full_program.settings,
+					flags: full_program.flags,
+					sequence: level.handler.sequence,
+					operands: level.handler.operands,
+				};
+				candidates = profile::complete(&parsed, &prefix)?;
+			}
+		} else if command.is_some_and(|command| command.path == "build") && !prefix.starts_with('-')
+		{
+			kind = "filenames";
+			let (parent, name) = prefix.rsplit_once('/').unwrap_or(("", &prefix));
+			let directory = if parent.is_empty() {
+				if prefix.starts_with('/') { "/" } else { "." }
+			} else {
+				parent
+			};
+			if let Ok(entries) = std::fs::read_dir(directory) {
+				for entry in entries.flatten() {
+					let name_on_disk = entry.file_name();
+					if let Some(text) = name_on_disk.to_str()
+						&& text.starts_with(name)
+						&& (!text.starts_with('.') || name.starts_with('.'))
+						&& entry.path().is_dir()
+					{
+						let stem = &prefix[..prefix.len() - name.len()];
+						candidates.push((format!("{stem}{text}"), String::new()));
+					}
+				}
+			}
+		}
+	}
+	candidates.sort();
+	candidates.dedup();
+	println!("{kind}");
+	for (name, description) in candidates {
+		println!("{name}\t{description}");
+	}
+	Ok(ExitCode::SUCCESS)
 }
 
 /// Modern Nix creates a missing diverted root. The shared legacy opener

@@ -2,7 +2,6 @@
 //! store types it can name.
 
 use std::collections::BTreeSet;
-use std::ffi::OsString;
 use std::path::{Path, PathBuf};
 
 use nix_compat::nixcpp::machines::Machine;
@@ -58,8 +57,8 @@ pub fn complete_reference(machine: &Machine) -> StoreReference {
 enum Kind {
 	Local(Option<PathBuf>),
 	Daemon(PathBuf, Option<PathBuf>),
-	Ssh(String),
-	SshNg(String),
+	Ssh,
+	SshNg,
 }
 
 fn daemon_socket() -> PathBuf {
@@ -86,6 +85,7 @@ fn kind(reference: &StoreReference) -> Result<Kind, String> {
 			"log-fd",
 			"max-connections",
 			"remote-program",
+			"remote-store",
 			"ssh-key",
 			"system-features",
 		],
@@ -122,8 +122,8 @@ fn kind(reference: &StoreReference) -> Result<Kind, String> {
 				PathBuf::from(url::percent_decode(authority).map_err(|e| e.to_string())?),
 				root,
 			),
-			"ssh" => Kind::Ssh(authority.clone()),
-			"ssh-ng" => Kind::SshNg(authority.clone()),
+			"ssh" => Kind::Ssh,
+			"ssh-ng" => Kind::SshNg,
 			scheme => {
 				return Err(format!(
 					"don't know how to open Nix store with scheme '{scheme}'"
@@ -143,7 +143,17 @@ pub fn open_local(
 		Some(root) => root.to_string_lossy().into_owned(),
 		None => "local".to_owned(),
 	};
-	let (store, _) = crate::store::open_local(&uri, settings)?
+	backend(&uri, reference, settings)
+}
+
+/// The local store `uri` names, opened as every command opens it, with its
+/// builder and `reference`'s `system-features`.
+pub fn backend(
+	uri: &str,
+	reference: &StoreReference,
+	settings: &Settings,
+) -> Result<LocalBackend, String> {
+	let (store, _) = crate::store::open_local(uri, settings)?
 		.ok_or_else(|| format!("store '{uri}' cannot build"))?;
 	let mut build = BuildSettings::from_settings(settings);
 	build.show_log_tail = !nix_compat::log::print_build_logs();
@@ -165,11 +175,6 @@ pub fn open_local(
 
 /// Open the store of `reference`.
 pub fn open(reference: &StoreReference, settings: &Settings) -> Result<Box<dyn Peer>, String> {
-	let ssh = |authority: &str, program: &str| -> Result<SshMaster, String> {
-		SshConfig::new(authority, &reference.params, program)
-			.and_then(SshMaster::new)
-			.map_err(|e| e.to_string())
-	};
 	Ok(match kind(reference)? {
 		Kind::Local(root) => Box::new(open_local(root.as_deref(), reference, settings)?),
 		Kind::Daemon(socket, root) => Box::new(DaemonStore::new(
@@ -177,34 +182,48 @@ pub fn open(reference: &StoreReference, settings: &Settings) -> Result<Box<dyn P
 			root.as_deref(),
 			&crate::store::client_options(settings),
 		)),
-		Kind::Ssh(authority) => {
-			let int = |name| settings.get_int(name, 0).max(0) as u64;
-			Box::new(LegacySshStore::new(
-				ssh(&authority, "nix-store")?,
-				Vec::new(),
-				BuildOptions {
-					max_silent_time: int("max-silent-time"),
-					build_timeout: int("timeout"),
-					max_log_size: int("max-build-log-size"),
-					keep_failed: settings.get_bool("keep-failed", false),
-				},
-			))
-		}
-		Kind::SshNg(authority) => {
-			let master = ssh(&authority, "nix-daemon")?;
-			let mut command: Vec<OsString> = master
-				.config()
-				.remote_program
-				.iter()
-				.map(OsString::from)
-				.collect();
-			command.push("--stdio".into());
-			Box::new(DaemonStore::over_ssh(
-				master,
-				command,
-				reference.render(false),
-			))
-		}
+		Kind::Ssh | Kind::SshNg => match ssh_store(reference, settings)? {
+			SshStore::Legacy(store) => Box::new(store),
+			SshStore::Ng(store) => Box::new(store),
+		},
+	})
+}
+
+/// An `ssh://` or `ssh-ng://` store.
+pub enum SshStore {
+	Legacy(LegacySshStore),
+	Ng(DaemonStore),
+}
+
+/// Open the `ssh://` or `ssh-ng://` store `reference` names, for building on
+/// it or as the store of a command.
+pub fn ssh_store(reference: &StoreReference, settings: &Settings) -> Result<SshStore, String> {
+	let Variant::Specified { scheme, authority } = &reference.variant else {
+		return Err(format!("'{}' is not an SSH store", reference.render(true)));
+	};
+	let legacy = scheme == "ssh";
+	let program = if legacy { "nix-store" } else { "nix-daemon" };
+	let master = SshConfig::new(authority, &reference.params, program)
+		.and_then(SshMaster::new)
+		.map_err(|e| e.to_string())?;
+	Ok(if legacy {
+		let int = |name| settings.get_int(name, 0).max(0) as u64;
+		SshStore::Legacy(LegacySshStore::new(
+			master,
+			BuildOptions {
+				max_silent_time: int("max-silent-time"),
+				build_timeout: int("timeout"),
+				max_log_size: int("max-build-log-size"),
+				keep_failed: settings.get_bool("keep-failed", false),
+			},
+		))
+	} else {
+		let command = master.config().remote_command(false);
+		SshStore::Ng(DaemonStore::over_ssh(
+			master,
+			command,
+			reference.render(false),
+		))
 	})
 }
 

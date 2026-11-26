@@ -10,6 +10,7 @@ use noxi_store::binary_cache::BinaryCache;
 pub struct DaemonSettings {
 	/// The store the daemon owns.
 	pub store: LocalStoreConfig,
+	pub overlay: Option<noxi_store::local_overlay::OverlayConfig>,
 	pub build: BuildSettings,
 	/// `substituters`, as configured. Each connection opens them when it
 	/// first needs them, as CppNix's `getDefaultSubstituters` does, so one
@@ -41,6 +42,13 @@ pub struct DaemonSettings {
 }
 
 impl DaemonSettings {
+	pub fn open_store(&self) -> noxi_store::Result<noxi_store::LocalStore> {
+		match &self.overlay {
+			Some(overlay) => overlay.open(),
+			None => noxi_store::LocalStore::open(self.store.clone()),
+		}
+	}
+
 	pub fn from_config(
 		mut store: LocalStoreConfig,
 		settings: &nix_compat::nixcpp::settings::Settings,
@@ -83,6 +91,7 @@ impl DaemonSettings {
 	pub fn new(store: LocalStoreConfig) -> Self {
 		Self {
 			store,
+			overlay: None,
 			// A daemon worker's logger does not print build output, so
 			// failed builds end with the log tail, as in CppNix.
 			build: BuildSettings {

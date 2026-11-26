@@ -737,11 +737,7 @@ fn diff_closures(store: &dyn Store, profile: &Path) -> Result<(), Failure> {
 	}
 	Ok(())
 }
-pub(super) fn run(parsed: Parsed) -> Result<ExitCode, Failure> {
-	let uri = crate::store::store_uri(parsed.value("store"), &parsed.settings);
-	let opened = crate::store::open(&uri, &parsed.settings)?
-		.ok_or_else(|| Failure::Error("profile requires a writable store".into()))?;
-	let store = opened.store.as_ref();
+fn profile_path(parsed: &Parsed) -> Result<PathBuf, Failure> {
 	let profile = parsed
 		.value("profile")
 		.map(PathBuf::from)
@@ -751,7 +747,33 @@ pub(super) fn run(parsed: Parsed) -> Result<ExitCode, Failure> {
 				parsed.settings.get_bool("use-xdg-base-directories", false),
 			)
 		});
-	let profile = crate::instantiate::absolute_path(&std::env::current_dir()?, &profile);
+	Ok(crate::instantiate::absolute_path(
+		&std::env::current_dir()?,
+		&profile,
+	))
+}
+
+pub(super) fn complete(parsed: &Parsed, prefix: &str) -> Result<Vec<(String, String)>, Failure> {
+	let uri = crate::store::store_uri(parsed.value("store"), &parsed.settings);
+	let Some(opened) = crate::store::open(&uri, &parsed.settings)? else {
+		return Ok(Vec::new());
+	};
+	let current = manifest(opened.store.as_ref(), &profile_path(parsed)?)?;
+	Ok(current["elements"]
+		.as_object()
+		.into_iter()
+		.flat_map(|elements| elements.iter())
+		.filter(|(name, _)| name.starts_with(prefix))
+		.map(|(name, element)| (name.clone(), identifier(element)))
+		.collect())
+}
+
+pub(super) fn run(parsed: Parsed) -> Result<ExitCode, Failure> {
+	let uri = crate::store::store_uri(parsed.value("store"), &parsed.settings);
+	let opened = crate::store::open(&uri, &parsed.settings)?
+		.ok_or_else(|| Failure::Error("profile requires a writable store".into()))?;
+	let store = opened.store.as_ref();
+	let profile = profile_path(&parsed)?;
 	if parsed.command == "profile rollback" {
 		let to = parsed
 			.value("to")
@@ -899,6 +921,12 @@ pub(super) fn run(parsed: Parsed) -> Result<ExitCode, Failure> {
 		}
 	} else if parsed.command == "profile upgrade" {
 		let names = matching(&parsed, elements)?;
+		if names.is_empty() {
+			eprintln!(
+				"warning: No packages to upgrade. Use 'nix profile list' to see the current profile."
+			);
+			return Ok(ExitCode::SUCCESS);
+		}
 		let mut count = 0;
 		for name in names {
 			let old = &elements[&name];

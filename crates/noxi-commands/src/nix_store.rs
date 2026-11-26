@@ -581,6 +581,7 @@ impl NixStore<'_> {
 			Size,
 			Roots,
 			Tree,
+			Resolve,
 		}
 		let mut query = None;
 		let mut use_output = false;
@@ -610,7 +611,8 @@ impl NixStore<'_> {
 				"--size" => query = Some(Query::Size),
 				"--roots" => query = Some(Query::Roots),
 				"--tree" => query = Some(Query::Tree),
-				"--graph" | "--graphml" | "--resolve" => {
+				"--resolve" => query = Some(Query::Resolve),
+				"--graph" | "--graphml" => {
 					return Err(Failure::Error(format!(
 						"nix-store --query {flag} is not supported by noxi yet"
 					)));
@@ -635,6 +637,11 @@ impl NixStore<'_> {
 			};
 
 		match query.unwrap_or(Query::Outputs) {
+			Query::Resolve => {
+				for arg in &args {
+					writeln!(out, "{}", print(&self.follow_links(arg)?))?;
+				}
+			}
 			Query::Outputs => {
 				for arg in &args {
 					let path = self.follow_links(arg)?;

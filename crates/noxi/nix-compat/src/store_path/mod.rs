@@ -45,13 +45,34 @@ fn store_dirs() -> &'static (String, String) {
 			.filter(|dir| dir.starts_with('/'))
 			.map(|dir| canon_path(&dir))
 			.unwrap_or_else(|| DEFAULT_STORE_DIR.to_owned());
-		let with_slash = if dir == "/" {
-			dir.clone()
-		} else {
-			format!("{dir}/")
-		};
-		(dir, with_slash)
+		with_slash(dir)
 	})
+}
+
+fn with_slash(dir: String) -> (String, String) {
+	let with_slash = if dir == "/" {
+		dir.clone()
+	} else {
+		format!("{dir}/")
+	};
+	(dir, with_slash)
+}
+
+/// Set the process's logical store directory before store paths are used.
+pub fn configure_store_dir(dir: &str) -> Result<(), String> {
+	if !dir.starts_with('/') {
+		return Err(format!(
+			"store directory path \"{dir}\" is not an absolute path"
+		));
+	}
+	let canonical = canon_path(dir);
+	let configured = &STORE_DIRS.get_or_init(|| with_slash(canonical.clone())).0;
+	if *configured != canonical {
+		return Err(format!(
+			"cannot use store directory '{dir}': noxi already uses '{configured}'"
+		));
+	}
+	Ok(())
 }
 
 /// The logical store directory, without a trailing slash: CppNix's

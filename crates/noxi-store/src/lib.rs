@@ -19,6 +19,7 @@ pub mod gc;
 pub mod git;
 pub mod keys;
 mod local;
+pub mod local_overlay;
 pub mod lock;
 pub mod logs;
 pub mod nar;

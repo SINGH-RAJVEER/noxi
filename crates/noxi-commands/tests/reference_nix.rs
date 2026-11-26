@@ -135,6 +135,119 @@ fn feature_gate_and_global_precedence() {
 }
 
 #[test]
+fn config_show_checks_the_feature_of_a_named_setting() {
+	let f = Fixture::new();
+	for (features, status) in [("nix-command", 1), ("nix-command flakes", 0)] {
+		let args = [
+			"--offline",
+			"--option",
+			"accept-flake-config",
+			"true",
+			"config",
+			"show",
+			"accept-flake-config",
+		];
+		let expected = f.run(true, &args, features);
+		let actual = f.run(false, &args, features);
+		assert_eq!(expected.status.code(), Some(status));
+		assert_eq!(actual.status.code(), expected.status.code());
+		assert_eq!(actual.stdout, expected.stdout);
+		assert_eq!(actual.stderr, expected.stderr);
+		assert!(!f.dir.path().join("root").exists());
+	}
+}
+
+#[test]
+fn completes_command_prefixes_and_installable_directories() {
+	let f = Fixture::new();
+	let root = f.dir.path();
+	fs::create_dir(root.join("food")).unwrap();
+	fs::write(root.join("fool"), "").unwrap();
+	for (args, index, stdout) in [
+		(&["buil"][..], "3", "normal\nbuild\t\n"),
+		(&["flake", "metad"][..], "4", "normal\nmetadata\t\n"),
+		(&["build", "./fo"][..], "4", "filenames\n./food\t\n"),
+		(&["build", "./missing"][..], "4", "filenames\n"),
+	] {
+		let run = |binary: &Path| {
+			Command::new(binary)
+				.current_dir(root)
+				.env_clear()
+				.env("HOME", root)
+				.env("NIX_CONF_DIR", root.join("conf"))
+				.env("NIX_CONFIG", "experimental-features = nix-command flakes")
+				.env("NIX_GET_COMPLETIONS", index)
+				.args(["--store", "dummy://"])
+				.args(args)
+				.output()
+				.unwrap()
+		};
+		let expected = run(&f.reference.join("nix"));
+		let actual = run(Path::new(env!("CARGO_BIN_EXE_nix")));
+		assert_eq!(expected.status.code(), Some(0));
+		assert_eq!(expected.stdout, stdout.as_bytes());
+		assert_eq!(actual.status.code(), expected.status.code());
+		assert_eq!(actual.stdout, expected.stdout);
+		assert_eq!(actual.stderr, expected.stderr);
+		assert!(!root.join("result").exists());
+	}
+}
+
+#[test]
+fn repl_builds_links_and_reads_the_build_log() {
+	use std::io::Write;
+	use std::process::Stdio;
+
+	let f = Fixture::new();
+	let root = f.dir.path();
+	let store = root.join("store");
+	let state = root.join("state");
+	let log = root.join("log");
+	let link = root.join("repl-result-out");
+	let run = |binary: &Path, engine: &str| {
+		fs::create_dir(&store).unwrap();
+		let mut child = Command::new(binary)
+			.current_dir(root)
+			.env_clear()
+			.env("HOME", root)
+			.env("NIX_CONF_DIR", root.join("conf"))
+			.env("NIX_STORE_DIR", &store)
+			.env("NIX_STATE_DIR", &state)
+			.env("NIX_LOG_DIR", &log)
+			.env(
+				"NIX_CONFIG",
+				"experimental-features = nix-command\nsubstituters =\nbuild-users-group =\nsandbox = false",
+			)
+			.args(["--store", "local", "--offline", "repl"])
+			.stdin(Stdio::piped())
+			.stdout(Stdio::piped())
+			.stderr(Stdio::piped())
+			.spawn()
+			.unwrap();
+		child.stdin.take().unwrap().write_all(
+			br#"pkg = derivation { name = "demo"; system = builtins.currentSystem; builder = "/bin/sh"; args = [ "-c" "echo marker; echo built > $out" ]; }
+:b pkg
+:bl pkg
+:log pkg
+"#,
+		).unwrap();
+		let output = child.wait_with_output().unwrap();
+		assert_eq!(output.status.code(), Some(0));
+		let target = fs::read_link(&link).unwrap();
+		assert_eq!(fs::read(&target).unwrap(), b"built\n");
+		fs::remove_file(&link).unwrap();
+		for dir in [&store, &state, &log] {
+			fs::rename(dir, dir.with_extension(engine)).unwrap();
+		}
+		(output.stdout, output.stderr, target)
+	};
+	let expected = run(&f.reference.join("nix"), "reference");
+	let actual = run(Path::new(env!("CARGO_BIN_EXE_nix")), "candidate");
+	assert!(String::from_utf8_lossy(&expected.0).contains("\nmarker\n"));
+	assert_eq!(actual, expected);
+}
+
+#[test]
 fn build_existing_paths_and_roots() {
 	let f = Fixture::new();
 	fs::write(f.dir.path().join("payload"), "payload\n").unwrap();

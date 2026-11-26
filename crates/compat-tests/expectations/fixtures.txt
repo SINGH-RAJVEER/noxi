@@ -119,14 +119,14 @@ gap tests/functional/binary-cache.sh # main in binary-cache.sh:99: error: build 
 pass:upstream_functional tests/functional/build-cores.sh
 pass:upstream_functional tests/functional/build-delete.sh
 pass:upstream_functional tests/functional/build-dry.sh
-gap tests/functional/build-remote-content-addressed-fixed.sh # source in build-remote.sh:34: error: Cannot build '/nix/store/HASH-build-remote.drv'.
-gap tests/functional/build-remote-content-addressed-floating.sh # source in build-remote.sh:34: error: Cannot build '/nix/store/HASH-build-remote.drv'.
-gap tests/functional/build-remote-input-addressed.sh # source in build-remote.sh:34: error: Cannot build '/nix/store/HASH-build-remote.drv'.
-gap tests/functional/build-remote-trustless-should-fail-0.sh # main in build-remote-trustless-should-fail-0.sh:37: Expected exit code '1' but got '100' from command 'source' 'build-remote-trustless.sh'
-gap tests/functional/build-remote-trustless-should-pass-0.sh # source in build-remote-trustless.sh:17: error: Cannot build '/nix/store/HASH-build-remote.drv'.
-gap tests/functional/build-remote-trustless-should-pass-1.sh # source in build-remote-trustless.sh:17: error: Cannot build '/nix/store/HASH-build-remote.drv'.
-gap tests/functional/build-remote-trustless-should-pass-2.sh # source in build-remote-trustless.sh:17: error: Cannot build '/nix/store/HASH-build-remote.drv'.
-gap tests/functional/build-remote-trustless-should-pass-3.sh # source in build-remote-trustless.sh:17: error: Cannot build '/nix/store/HASH-build-remote.drv'.
+pass:upstream_functional tests/functional/build-remote-content-addressed-fixed.sh
+gap tests/functional/build-remote-content-addressed-floating.sh # source in build-remote.sh:74: error: build log of 'passthru.input3' is not available
+pass:upstream_functional tests/functional/build-remote-input-addressed.sh
+pass:upstream_functional tests/functional/build-remote-trustless-should-fail-0.sh
+pass:upstream_functional tests/functional/build-remote-trustless-should-pass-0.sh
+pass:upstream_functional tests/functional/build-remote-trustless-should-pass-1.sh
+pass:upstream_functional tests/functional/build-remote-trustless-should-pass-2.sh
+pass:upstream_functional tests/functional/build-remote-trustless-should-pass-3.sh
 gap tests/functional/build-remote-with-mounted-ssh-ng.sh # main in build-remote-with-mounted-ssh-ng.sh:10: error: don't know how to open Nix store with scheme 'mounted-ssh-ng://localhost'
 gap tests/functional/build.sh # main in build.sh:148: error: nix --relaxed-sandbox is not supported by noxi yet
 gap tests/functional/ca/build-cache.sh # : error: nix copy --all is not supported by noxi yet
@@ -254,19 +254,19 @@ pass:upstream_functional tests/functional/impure-eval.sh
 pass:upstream_functional tests/functional/json.sh
 anomaly tests/functional/lang-gc.sh # reference skip: Too memory intensive for CI. Attempt to reduce memory usage was unsuccessful, because it made detection of the bug unreliable., skipping this test...
 pass:upstream_functional tests/functional/lang.sh
-gap tests/functional/legacy-ssh-store.sh # main in legacy-ssh-store.sh:8: error: unsupported store parameter 'remote-store=$ROOT/tmp/nix-test/main/legacy-ssh-store/other-store' in 'ssh://localhost?remote-store=$ROOT/tmp/nix-test/main/legacy-ss
+pass:upstream_functional tests/functional/legacy-ssh-store.sh
 pass:upstream_functional tests/functional/linux-sandbox.sh
-gap tests/functional/local-overlay-store/add-lower.sh # main in ./add-lower-inner.sh:20: error: unsupported store parameter 'lower-store=$ROOT/tmp/nix-test/local-overlay-store/add-lower/stores/store-a' in 'local-overlay://?root=$ROOT/tmp/nix-test/local-ove
-gap tests/functional/local-overlay-store/bad-uris.sh # : local-overlay://?root=$ROOT/tmp/nix-test/local-overlay-store/bad-uris/bad_test&lower-store=$ROOT/tmp/nix-test/local-overlay-store/bad-uris/stores/store-a&upper-layer=$ROOT/tmp/nix-test/local-overlay
-gap tests/functional/local-overlay-store/build.sh # main in ./build-inner.sh:21: error: unsupported store parameter 'lower-store=$ROOT/tmp/nix-test/local-overlay-store/build/stores/store-a' in 'local-overlay://?root=$ROOT/tmp/nix-test/local-overlay-sto
-gap tests/functional/local-overlay-store/check-post-init.sh # main in ./check-post-init-inner.sh:34: error: unsupported store parameter 'lower-store=$ROOT/tmp/nix-test/local-overlay-store/check-post-init/stores/store-a' in 'local-overlay://?root=$ROOT/tmp/nix-te
-gap tests/functional/local-overlay-store/delete-duplicate.sh # main in ./delete-duplicate-inner.sh:20: error: unsupported store parameter 'lower-store=$ROOT/tmp/nix-test/local-overlay-store/delete-duplicate/stores/store-a' in 'local-overlay://?root=$ROOT/tmp/nix-
-gap tests/functional/local-overlay-store/delete-refs.sh # main in ./delete-refs-inner.sh:20: error: unsupported store parameter 'lower-store=$ROOT/tmp/nix-test/local-overlay-store/delete-refs/stores/store-a' in 'local-overlay://?root=$ROOT/tmp/nix-test/local
-gap tests/functional/local-overlay-store/gc.sh # main in ./gc-inner.sh:19: error: unsupported store parameter 'lower-store=$ROOT/tmp/nix-test/local-overlay-store/gc/stores/store-a' in 'local-overlay://?root=$ROOT/tmp/nix-test/local-overlay-store/gc/
-gap tests/functional/local-overlay-store/optimise.sh # main in ./optimise-inner.sh:24: error: unsupported store parameter 'lower-store=$ROOT/tmp/nix-test/local-overlay-store/optimise/stores/store-a' in 'local-overlay://?root=$ROOT/tmp/nix-test/local-overl
-gap tests/functional/local-overlay-store/redundant-add.sh # main in ./redundant-add-inner.sh:27: error: unsupported store parameter 'lower-store=$ROOT/tmp/nix-test/local-overlay-store/redundant-add/stores/store-a' in 'local-overlay://?root=$ROOT/tmp/nix-test/l
+pass:upstream_functional tests/functional/local-overlay-store/add-lower.sh
+pass:upstream_functional tests/functional/local-overlay-store/bad-uris.sh
+pass:upstream_functional tests/functional/local-overlay-store/build.sh
+pass:upstream_functional tests/functional/local-overlay-store/check-post-init.sh
+pass:upstream_functional tests/functional/local-overlay-store/delete-duplicate.sh
+pass:upstream_functional tests/functional/local-overlay-store/delete-refs.sh
+pass:upstream_functional tests/functional/local-overlay-store/gc.sh
+pass:upstream_functional tests/functional/local-overlay-store/optimise.sh
+pass:upstream_functional tests/functional/local-overlay-store/redundant-add.sh
 anomaly tests/functional/local-overlay-store/stale-file-handle.sh # reference skip: Couldn't trigger the error, skipping this test...
-gap tests/functional/local-overlay-store/verify.sh # main in ./verify-inner.sh:23: error: unsupported store parameter 'lower-store=$ROOT/tmp/nix-test/local-overlay-store/verify/stores/store-a' in 'local-overlay://?root=$ROOT/tmp/nix-test/local-overlay-s
+pass:upstream_functional tests/functional/local-overlay-store/verify.sh
 gap tests/functional/logging.sh # main in logging.sh:32: error: build log of derivation '$ROOT/tmp/nix-test/main/logging/store/HASH-dependencies-top' is not available
 pass:upstream_functional tests/functional/make-content-addressed.sh
 pass:upstream_functional tests/functional/misc.sh
@@ -276,10 +276,10 @@ pass:upstream_functional tests/functional/nar-access.sh
 gap tests/functional/nars.sh # main in nars.sh:6:
 gap tests/functional/nested-sandboxing.sh # main in nested-sandboxing.sh:24:
 pass:upstream_functional tests/functional/nix-build.sh
-gap tests/functional/nix-channel.sh # main in nix-channel.sh:44: error: Is a directory (os error 21)
+pass:upstream_functional tests/functional/nix-channel.sh
 pass:upstream_functional tests/functional/nix-collect-garbage-d.sh
-gap tests/functional/nix-copy-ssh-ng.sh # source in nix-copy-ssh-common.sh:39: error: unsupported store parameter 'store=$ROOT/tmp/nix-test/main/nix-copy-ssh-ng/store' in 'ssh-ng://localhost?store=$ROOT/tmp/nix-test/main/nix-copy-ssh-ng/store
-gap tests/functional/nix-copy-ssh.sh # source in nix-copy-ssh-common.sh:39: error: unsupported store parameter 'store=$ROOT/tmp/nix-test/main/nix-copy-ssh/store' in 'ssh://localhost?store=$ROOT/tmp/nix-test/main/nix-copy-ssh/store&remote-s
+pass:upstream_functional tests/functional/nix-copy-ssh-ng.sh
+pass:upstream_functional tests/functional/nix-copy-ssh.sh
 gap tests/functional/nix-profile.sh # main in nix-profile.sh:76: profile removal completion is missing
 pass:upstream_functional tests/functional/nix-shell.sh
 pass:upstream_functional tests/functional/nix_path.sh
@@ -297,7 +297,7 @@ pass:upstream_functional tests/functional/read-only-store.sh
 pass:upstream_functional tests/functional/readfile-context.sh
 gap tests/functional/recursive.sh # main in recursive.sh:13: error: Cannot build '$ROOT/tmp/nix-test/main/recursive/store/HASH-recursive.drv'.
 pass:upstream_functional tests/functional/referrers.sh
-gap tests/functional/remote-store.sh # main in remote-store.sh:8: error: unsupported store parameter 'remote-store=$ROOT/tmp/nix-test/main/remote-store/other-store' in 'ssh-ng://localhost?remote-store=$ROOT/tmp/nix-test/main/remote-store/o
+pass:upstream_functional tests/functional/remote-store.sh
 pass:upstream_functional tests/functional/repair.sh
 gap tests/functional/repl.sh # : error: the noxi repl does not support ':log' yet
 pass:upstream_functional tests/functional/restricted.sh
@@ -308,7 +308,7 @@ pass:upstream_functional tests/functional/shell.sh
 gap tests/functional/short-path-literals.sh # : foo/bar
 gap tests/functional/signing.sh # main in signing.sh:103: error: unsupported store parameter 'require-sigs=false' in '$ROOT/tmp/nix-test/main/signing/store0?require-sigs=false'
 gap tests/functional/simple.sh # main in simple.sh:27: error: --readonly-mode is not supported by noxi yet
-gap tests/functional/ssh-relay.sh # main in ssh-relay.sh:16: error: unsupported store parameter 'remote-store=ssh://localhost?remote-store=ssh://localhost?remote-store=ssh://localhost' in 'ssh://localhost?remote-store=ssh://localhost?re
+pass:upstream_functional tests/functional/ssh-relay.sh
 pass:upstream_functional tests/functional/store-info.sh
 pass:upstream_functional tests/functional/store-print-env.sh
 anomaly tests/functional/structured-attrs.sh # reference fail: main in structured-attrs.sh:27: error (ignored): cannot find flake 'flake:nixpkgs' in the flake registries
@@ -322,7 +322,7 @@ unrun tests/functional/test-libstoreconsumer.sh # needs the C++ libstore consume
 gap tests/functional/timeout.sh # timed out at +(common/functions.sh:331) command grep 'killed after writing more than 100 bytes of log output'
 pass:upstream_functional tests/functional/toString-path.sh
 anomaly tests/functional/user-envs-migration.sh # reference skip: Daemon is too new, skipping this test...
-gap tests/functional/user-envs.sh # source in ./user-envs-test-case.sh:20: JSON outputName and null output paths differ
+pass:upstream_functional tests/functional/user-envs.sh
 pass:upstream_functional tests/functional/why-depends.sh
 table:upstream_functional tests/functional/**/* # helpers and data read by the scripts
 # Out of scope for compat-tests: NixOS VM tests run in the qualification VMs (owner: TODO section 7, NixOS and Home Manager replacement).

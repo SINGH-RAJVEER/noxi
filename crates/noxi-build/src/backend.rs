@@ -247,6 +247,23 @@ impl Store for LocalBackend {
 		Store::query_valid_paths(&self.store, paths)
 	}
 
+	fn query_valid_paths_with_substitute(
+		&self,
+		paths: &BTreeSet<StorePath>,
+		substitute: bool,
+	) -> Result<BTreeSet<StorePath>> {
+		if substitute && self.settings.use_substitutes {
+			let valid = self.store.query_valid_paths(paths)?;
+			for path in paths
+				.difference(&valid)
+				.filter(|path| !path.name().ends_with(".drv"))
+			{
+				let _ = self.store.substitute(self.substituters(), path);
+			}
+		}
+		self.store.query_valid_paths(paths)
+	}
+
 	fn query_substitutable_paths(
 		&self,
 		paths: &BTreeSet<StorePath>,

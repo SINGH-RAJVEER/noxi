@@ -429,10 +429,32 @@ pub fn run(parsed: Parsed) -> Result<ExitCode, Failure> {
 				}
 				return Ok(ExitCode::SUCCESS);
 			}
-			if !crate::store::resolves_to_local(&uri)? {
-				return Err(unsupported(
-					"store info for non-local stores (connection metadata unavailable)",
-				));
+			if let Some(remote) = crate::store::open_remote(&uri, &parsed.settings)? {
+				let info = remote.connection_info()?;
+				let url = if uri.starts_with("ssh") {
+					&uri
+				} else {
+					remote.uri()
+				};
+				if parsed.has("json") {
+					let mut result = json!({"url": url});
+					if let Some(version) = info.version {
+						result["version"] = json!(version);
+					}
+					if let Some(trusted) = info.trusted {
+						result["trusted"] = json!(trusted);
+					}
+					print_json(&parsed, &result)?;
+				} else {
+					log(&format!("Store URL: {url}"));
+					if let Some(version) = info.version {
+						log(&format!("Version: {version}"));
+					}
+					if let Some(trusted) = info.trusted {
+						log(&format!("Trusted: {}", u8::from(trusted)));
+					}
+				}
+				return Ok(ExitCode::SUCCESS);
 			}
 			let url = match uri.split_once('?') {
 				Some((_, query)) if !query.is_empty() => {
