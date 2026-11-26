@@ -120,7 +120,7 @@ pass:upstream_functional tests/functional/build-cores.sh
 pass:upstream_functional tests/functional/build-delete.sh
 pass:upstream_functional tests/functional/build-dry.sh
 pass:upstream_functional tests/functional/build-remote-content-addressed-fixed.sh
-pass tests/functional/build-remote-content-addressed-floating.sh
+pass:upstream_functional tests/functional/build-remote-content-addressed-floating.sh
 pass:upstream_functional tests/functional/build-remote-input-addressed.sh
 pass:upstream_functional tests/functional/build-remote-trustless-should-fail-0.sh
 pass:upstream_functional tests/functional/build-remote-trustless-should-pass-0.sh
