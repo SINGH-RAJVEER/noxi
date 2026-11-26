@@ -370,7 +370,7 @@ pub fn run(
 		}
 		let output = &args[0];
 		if output.is_empty() {
-			return Err(Failure::Error("destination path is empty".into()));
+			return Err(Failure::Error("restore destination path is empty".into()));
 		}
 		let basename = output
 			.trim_end_matches('/')
@@ -379,7 +379,7 @@ pub fn run(
 			.unwrap_or("");
 		if matches!(basename, "." | "..") {
 			return Err(Failure::Error(format!(
-				"destination path '{output}' ends in '{basename}', which is not a valid filename"
+				"restore destination '{output}' ends in '{basename}', which is not a valid filename"
 			)));
 		}
 		let dest = crate::instantiate::absolute_path(cwd, Path::new(output));
