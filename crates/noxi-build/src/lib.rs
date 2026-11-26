@@ -17,6 +17,7 @@ pub mod interrupt;
 pub mod local;
 pub mod missing;
 pub mod options;
+pub mod recursive;
 pub mod refscan;
 pub mod sandbox;
 pub mod seccomp;

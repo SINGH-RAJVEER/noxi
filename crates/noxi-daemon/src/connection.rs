@@ -369,6 +369,9 @@ pub struct Connection<'a, R: Read, W: Write> {
 	caches: std::cell::OnceCell<Vec<noxi_store::binary_cache::BinaryCache>>,
 	/// Set once the client hangs up, which cancels the running builds.
 	cancelled: Arc<AtomicBool>,
+	/// For a recursive Nix call: the paths the build may see, as
+	/// `RestrictedStore` limits them.
+	restriction: Option<Arc<noxi_build::recursive::Restriction>>,
 }
 
 /// `MonitorFdHup`: a thread that waits for the client's end of the
@@ -468,6 +471,7 @@ pub fn process_connection<R: Read + Send, W: Write + Send + 'static>(
 		settings,
 		trust,
 		Arc::new(AtomicBool::new(false)),
+		None,
 	)
 }
 
@@ -482,9 +486,46 @@ pub fn process_monitored_connection<R: Read + Send, W: Write + Send + 'static>(
 	trust: Trust,
 ) -> Result<()> {
 	let monitor = HangupMonitor::new(hangup)?;
-	let result = serve_connection(read, write, store, settings, trust, monitor.cancelled());
+	let result = serve_connection(
+		read,
+		write,
+		store,
+		settings,
+		trust,
+		monitor.cancelled(),
+		None,
+	);
 	drop(monitor);
 	result
+}
+
+/// `processConnection` with `NotTrusted` and `Recursive` on a recursive
+/// build's socket: the client is the builder, served from the building
+/// process with the build's store and settings, and sees only what the
+/// build's [`Restriction`](noxi_build::recursive::Restriction) allows.
+/// Register it with [`noxi_build::recursive::set_server`].
+pub fn serve_recursive(
+	stream: std::os::unix::net::UnixStream,
+	context: &noxi_build::recursive::Context<'_>,
+) {
+	let Ok(write) = stream.try_clone() else {
+		return;
+	};
+	let mut settings = DaemonSettings::new(context.store.config().clone());
+	settings.build = context.settings.clone();
+	settings.substituters = context.substituters.clone();
+	match serve_connection(
+		stream,
+		write,
+		context.store,
+		&settings,
+		Trust::NotTrusted,
+		Arc::new(AtomicBool::new(false)),
+		Some(context.restriction.clone()),
+	) {
+		Ok(()) => tracing::debug!("terminated daemon connection"),
+		Err(e) => tracing::debug!("recursive Nix connection: {e}"),
+	}
 }
 
 fn serve_connection<R: Read + Send, W: Write + Send + 'static>(
@@ -494,6 +535,7 @@ fn serve_connection<R: Read + Send, W: Write + Send + 'static>(
 	settings: &DaemonSettings,
 	trust: Trust,
 	cancelled: Arc<AtomicBool>,
+	restriction: Option<Arc<noxi_build::recursive::Restriction>>,
 ) -> Result<()> {
 	let mut from = Reader::new(read);
 	let stream = Arc::new(Mutex::new(write));
@@ -508,9 +550,15 @@ fn serve_connection<R: Read + Send, W: Write + Send + 'static>(
 	let mut features = BTreeSet::new();
 	if protocol >= version(1, 38) {
 		let client_features: BTreeSet<String> = from.read_strings()?.into_iter().collect();
-		to.strings(FEATURES.iter().copied());
+		// A recursive Nix call ignores the client's options, and says so.
+		let ours: Vec<&str> = FEATURES
+			.iter()
+			.copied()
+			.chain(restriction.is_some().then_some("disable-set-options"))
+			.collect();
+		to.strings(ours.iter().copied());
 		to.flush()?;
-		features = FEATURES
+		features = ours
 			.iter()
 			.filter(|f| client_features.contains(**f))
 			.map(|f| f.to_string())
@@ -531,11 +579,16 @@ fn serve_connection<R: Read + Send, W: Write + Send + 'static>(
 		settings: settings.clone(),
 		caches: std::cell::OnceCell::new(),
 		cancelled,
+		restriction,
 	};
 	// This process serves one connection, so its builds, substitutions and
-	// messages go to this client.
-	logger::set_sink(Some(conn.logger.tunnel.clone()));
-	let _sink = SinkGuard;
+	// messages go to this client. A recursive Nix call is served by a
+	// thread of the building process, whose messages stay its own, as
+	// CppNix keeps its logger in recursive mode.
+	let _sink = conn.restriction.is_none().then(|| {
+		logger::set_sink(Some(conn.logger.tunnel.clone()));
+		SinkGuard
+	});
 
 	// postHandshake.
 	if protocol >= version(1, 14) && conn.from.read_u64()? != 0 {
@@ -644,6 +697,23 @@ impl<R: Read + Send, W: Write + Send + 'static> Connection<'_, R, W> {
 		}
 	}
 
+	/// Whether a recursive Nix call may see `path`; any client of the
+	/// daemon may.
+	fn allowed(&self, path: &StorePath) -> bool {
+		self.restriction
+			.as_ref()
+			.is_none_or(|restriction| restriction.is_allowed(path))
+	}
+
+	/// `RestrictedStore`: a path a recursive Nix call added becomes visible
+	/// to the build.
+	fn add_dependency(&self, path: &StorePath) -> Result<()> {
+		if let Some(restriction) = &self.restriction {
+			restriction.add_dependency(path).map_err(Error::Nix)?;
+		}
+		Ok(())
+	}
+
 	fn perform_op(&mut self, op: u64) -> Result<()> {
 		match op {
 			op::REGISTER_DRV_OUTPUT | op::QUERY_REALISATION => {
@@ -656,6 +726,9 @@ impl<R: Read + Send, W: Write + Send + 'static> Connection<'_, R, W> {
 				if op == op::REGISTER_DRV_OUTPUT {
 					let path = self.from.read_store_path()?;
 					let sigs = self.from.read_signatures()?.into_iter().collect();
+					if self.restriction.is_some() {
+						return Err(Error::Nix("registerDrvOutput".into()));
+					}
 					self.store.register_drv_output(
 						&drv,
 						&output,
@@ -666,7 +739,11 @@ impl<R: Read + Send, W: Write + Send + 'static> Connection<'_, R, W> {
 					)?;
 					self.stop();
 				} else {
-					let info = self.store.query_realisation(&drv, &output)?;
+					// A recursive Nix call sees only the outputs it built.
+					let info = match &self.restriction {
+						Some(restriction) if !restriction.is_allowed_output(&drv, &output) => None,
+						_ => self.store.query_realisation(&drv, &output)?,
+					};
 					self.stop();
 					self.to.bool(info.is_some());
 					if let Some(noxi_store::Realisation {
@@ -697,6 +774,12 @@ impl<R: Read + Send, W: Write + Send + 'static> Connection<'_, R, W> {
 			}
 			op::OPTIMISE_STORE => {
 				self.start()?;
+				// `Store::optimiseStore` does nothing for other stores.
+				if self.restriction.is_some() {
+					self.stop();
+					self.to.u64(1);
+					return Ok(());
+				}
 				let stats = self.store.optimise()?;
 				self.logger.log(
 					&mut self.to,
@@ -772,7 +855,7 @@ impl<R: Read + Send, W: Write + Send + 'static> Connection<'_, R, W> {
 			op::IS_VALID_PATH => {
 				let path = self.from.read_store_path()?;
 				self.start()?;
-				let valid = self.store.is_valid_path(&path)?;
+				let valid = self.allowed(&path) && self.store.is_valid_path(&path)?;
 				self.stop();
 				self.to.bool(valid);
 			}
@@ -781,7 +864,7 @@ impl<R: Read + Send, W: Write + Send + 'static> Connection<'_, R, W> {
 				// `readInt`, so any value up to `unsigned int` asks for it.
 				let substitute = self.version >= version(1, 27) && self.from.read_int()? != 0;
 				self.start()?;
-				if substitute {
+				if substitute && self.restriction.is_none() {
 					// `substitutePaths`: `queryMissing` for the paths that are
 					// not derivations, with its activity, which opens the
 					// substituters if it needs them, then the paths it would
@@ -827,6 +910,10 @@ impl<R: Read + Send, W: Write + Send + 'static> Connection<'_, R, W> {
 						}
 					}
 				}
+				let paths: BTreeSet<StorePath> = paths
+					.into_iter()
+					.filter(|path| self.allowed(path))
+					.collect();
 				let valid = self.store.query_valid_paths(&paths)?;
 				self.stop();
 				self.to.store_paths(valid.iter());
@@ -834,6 +921,29 @@ impl<R: Read + Send, W: Write + Send + 'static> Connection<'_, R, W> {
 			op::QUERY_REFERRERS | op::QUERY_VALID_DERIVERS | op::QUERY_DERIVATION_OUTPUTS => {
 				let path = self.from.read_store_path()?;
 				self.start()?;
+				if self.restriction.is_some() {
+					match op {
+						// `RestrictedStore::queryReferrers` finds none.
+						op::QUERY_REFERRERS => {
+							self.stop();
+							self.to.store_paths(std::iter::empty());
+							return Ok(());
+						}
+						op::QUERY_VALID_DERIVERS => {
+							return Err(Error::Nix(
+								"operation 'queryValidDerivers' is not supported by store 'local'"
+									.into(),
+							));
+						}
+						_ if !self.allowed(&path) => {
+							return Err(Error::Nix(format!(
+								"cannot query output map for unknown path '{}' in recursive Nix",
+								path.to_absolute_path()
+							)));
+						}
+						_ => {}
+					}
+				}
 				let paths: BTreeSet<StorePath> = match op {
 					op::QUERY_REFERRERS => self.store.query_referrers(&path)?,
 					op::QUERY_VALID_DERIVERS => self.store.query_valid_derivers(&path)?,
@@ -849,6 +959,12 @@ impl<R: Read + Send, W: Write + Send + 'static> Connection<'_, R, W> {
 			op::QUERY_DERIVATION_OUTPUT_NAMES => {
 				let path = self.from.read_store_path()?;
 				self.start()?;
+				if !self.allowed(&path) {
+					return Err(Error::Nix(format!(
+						"path '{}' is not valid",
+						path.to_absolute_path()
+					)));
+				}
 				let drv = self.store.read_derivation(&path)?;
 				let names: Vec<String> = drv.outputs().names().map(|n| n.to_string()).collect();
 				self.stop();
@@ -857,6 +973,12 @@ impl<R: Read + Send, W: Write + Send + 'static> Connection<'_, R, W> {
 			op::QUERY_DERIVATION_OUTPUT_MAP => {
 				let path = self.from.read_store_path()?;
 				self.start()?;
+				if !self.allowed(&path) {
+					return Err(Error::Nix(format!(
+						"cannot query output map for unknown path '{}' in recursive Nix",
+						path.to_absolute_path()
+					)));
+				}
 				let outputs = self.store.query_partial_derivation_output_map(&path)?;
 				self.stop();
 				self.to.u64(outputs.len() as u64);
@@ -869,11 +991,16 @@ impl<R: Read + Send, W: Write + Send + 'static> Connection<'_, R, W> {
 				self.start()?;
 				let info = self.query_path_info(&path)?;
 				self.stop();
-				self.to.opt_store_path(info.deriver.as_ref());
+				// A recursive Nix call sees no deriver.
+				let deriver = info.deriver.filter(|_| self.restriction.is_none());
+				self.to.opt_store_path(deriver.as_ref());
 			}
 			op::QUERY_PATH_FROM_HASH_PART => {
 				let hash = self.from.read_string()?;
 				self.start()?;
+				if self.restriction.is_some() {
+					return Err(Error::Nix("queryPathFromHashPart".into()));
+				}
 				let path = self.store.query_path_from_hash_part(&hash)?;
 				self.stop();
 				self.to.opt_store_path(path.as_ref());
@@ -881,6 +1008,18 @@ impl<R: Read + Send, W: Write + Send + 'static> Connection<'_, R, W> {
 			op::ENSURE_PATH => {
 				let path = self.from.read_store_path()?;
 				self.start()?;
+				if self.restriction.is_some() {
+					// Nothing to be done: an allowed path is valid.
+					if !self.allowed(&path) {
+						return Err(Error::Nix(format!(
+							"cannot substitute unknown path '{}' in recursive Nix",
+							path.to_absolute_path()
+						)));
+					}
+					self.stop();
+					self.to.u64(1);
+					return Ok(());
+				}
 				if !self.store.is_valid_path(&path)? {
 					if !self.settings.build.use_substitutes {
 						return Err(Error::Nix(format!(
@@ -902,7 +1041,9 @@ impl<R: Read + Send, W: Write + Send + 'static> Connection<'_, R, W> {
 			op::ADD_TEMP_ROOT => {
 				let path = self.from.read_store_path()?;
 				self.start()?;
-				self.store.add_temp_root(&path)?;
+				if self.restriction.is_none() {
+					self.store.add_temp_root(&path)?;
+				}
 				self.stop();
 				self.to.u64(1);
 			}
@@ -914,7 +1055,11 @@ impl<R: Read + Send, W: Write + Send + 'static> Connection<'_, R, W> {
 			op::FIND_ROOTS => {
 				self.start()?;
 				let censor = self.trust == Trust::NotTrusted;
-				let roots = self.with_info_log(|store, log| store.find_roots(censor, log))?;
+				let roots = if self.restriction.is_some() {
+					BTreeMap::new()
+				} else {
+					self.with_info_log(|store, log| store.find_roots(censor, log))?
+				};
 				self.stop();
 				let count: usize = roots.values().map(BTreeSet::len).sum();
 				self.to.u64(count as u64);
@@ -927,14 +1072,35 @@ impl<R: Read + Send, W: Write + Send + 'static> Connection<'_, R, W> {
 			op::SET_OPTIONS => self.set_options()?,
 			op::QUERY_ALL_VALID_PATHS => {
 				self.start()?;
-				let paths = self.store.query_all_valid_paths()?;
+				let paths = match &self.restriction {
+					Some(restriction) => {
+						let mut paths = restriction.original_paths().clone();
+						paths.extend(restriction.added_paths());
+						paths
+					}
+					None => self.store.query_all_valid_paths()?,
+				};
 				self.stop();
 				self.to.store_paths(paths.iter());
 			}
 			op::QUERY_PATH_INFO => {
 				let path = self.from.read_store_path()?;
 				self.start()?;
-				let info = self.store.query_path_info(&path)?;
+				let info = if self.allowed(&path) {
+					self.store.query_path_info(&path)?
+				} else {
+					None
+				};
+				// `RestrictedStore` censors impure information.
+				let info = info.map(|mut info| {
+					if self.restriction.is_some() {
+						info.deriver = None;
+						info.registration_time = 0;
+						info.ultimate = false;
+						info.sigs.clear();
+					}
+					info
+				});
 				self.stop();
 				match info {
 					Some(info) => {
@@ -949,6 +1115,12 @@ impl<R: Read + Send, W: Write + Send + 'static> Connection<'_, R, W> {
 			op::NAR_FROM_PATH => {
 				let path = self.from.read_store_path()?;
 				self.start()?;
+				if !self.allowed(&path) {
+					return Err(Error::Nix(format!(
+						"cannot dump unknown path '{}' in recursive Nix",
+						path.to_absolute_path()
+					)));
+				}
 				self.stop();
 				self.to.flush()?;
 				self.store.nar_from_path(&path, self.to.inner_mut())?;
@@ -967,6 +1139,22 @@ impl<R: Read + Send, W: Write + Send + 'static> Connection<'_, R, W> {
 					);
 				}
 				self.start()?;
+				// `RestrictedStore::queryMissing`: paths a recursive Nix call may
+				// not see are unknown.
+				let mut hidden = BTreeSet::new();
+				if self.restriction.is_some() {
+					targets.retain(|target| {
+						let path = match target {
+							DerivedPath::Opaque(path) => path,
+							DerivedPath::Built { drv_path, .. } => drv_path,
+						};
+						if self.allowed(path) {
+							return true;
+						}
+						hidden.insert(path.clone());
+						false
+					});
+				}
 				let act = logger::Activity::new(
 					VerbosityLevel::Debug,
 					ActivityType::Unknown,
@@ -991,7 +1179,8 @@ impl<R: Read + Send, W: Write + Send + 'static> Connection<'_, R, W> {
 					.map_err(Error::from)
 				});
 				drop(act);
-				let missing = missing?;
+				let mut missing = missing?;
+				missing.unknown.extend(hidden);
 				self.stop();
 				self.to
 					.store_paths(missing.will_build.iter())
@@ -1009,13 +1198,16 @@ impl<R: Read + Send, W: Write + Send + 'static> Connection<'_, R, W> {
 				let path = self
 					.store
 					.add_text_to_store(&suffix, &contents, &refs, false)?;
+				self.add_dependency(&path)?;
 				self.stop();
 				self.to.store_path(&path);
 			}
 			op::ADD_INDIRECT_ROOT => {
 				let path = absolute(&self.from.read_string()?);
 				self.start()?;
-				self.store.add_indirect_root(&path)?;
+				if self.restriction.is_none() {
+					self.store.add_indirect_root(&path)?;
+				}
 				self.stop();
 				self.to.u64(1);
 			}
@@ -1044,7 +1236,10 @@ impl<R: Read + Send, W: Write + Send + 'static> Connection<'_, R, W> {
 				if repair && self.trust != Trust::Trusted {
 					return Err(Error::Nix("you are not privileged to repair paths".into()));
 				}
-				let errors = if repair {
+				// `Store::verifyStore` finds nothing wrong in other stores.
+				let errors = if self.restriction.is_some() {
+					false
+				} else if repair {
 					let settings = self.settings.clone();
 					let cancelled = self.cancelled.clone();
 					let caches = settings.open_substituters();
@@ -1071,6 +1266,11 @@ impl<R: Read + Send, W: Write + Send + 'static> Connection<'_, R, W> {
 				let path = self.from.read_store_path()?;
 				let sigs: BTreeSet<String> = self.from.read_signatures()?.into_iter().collect();
 				self.start()?;
+				if self.restriction.is_some() {
+					return Err(Error::Nix(
+						"operation 'addSignatures' is not supported by store 'local'".into(),
+					));
+				}
 				self.store.add_signatures(&path, &sigs)?;
 				self.stop();
 				self.to.u64(1);
@@ -1154,7 +1354,12 @@ impl<R: Read + Send, W: Write + Send + 'static> Connection<'_, R, W> {
 		if options.ignore_liveness {
 			return Err(Error::Nix("you are not allowed to ignore liveness".into()));
 		}
-		let results = self.with_info_log(|store, log| store.collect_garbage(&options, log))?;
+		// `RestrictedStore::collectGarbage` collects nothing.
+		let results = if self.restriction.is_some() {
+			Default::default()
+		} else {
+			self.with_info_log(|store, log| store.collect_garbage(&options, log))?
+		};
 		self.stop();
 		self.to
 			.strings(results.paths.iter().map(String::as_str))
@@ -1222,6 +1427,7 @@ impl<R: Read + Send, W: Write + Send + 'static> Connection<'_, R, W> {
 				&BTreeSet::new(),
 				false,
 			)?;
+			self.add_dependency(&path)?;
 			self.stop();
 			self.to.store_path(&path);
 			return Ok(());
@@ -1253,6 +1459,7 @@ impl<R: Read + Send, W: Write + Send + 'static> Connection<'_, R, W> {
 			}
 		};
 		let path = result?;
+		self.add_dependency(&path)?;
 		let info = self.query_path_info(&path)?;
 		self.stop();
 		self.to.store_path(&path);
@@ -1292,6 +1499,7 @@ impl<R: Read + Send, W: Write + Send + 'static> Connection<'_, R, W> {
 				self.store
 					.add_to_store(&info, &mut &nar[..], repair, !dont_check_sigs)?;
 			}
+			self.add_dependency(&info.path)?;
 			self.stop();
 			return Ok(());
 		}
@@ -1306,6 +1514,7 @@ impl<R: Read + Send, W: Write + Send + 'static> Connection<'_, R, W> {
 		);
 		drain_frames(&mut framed, &mut self.logger, &mut self.to)?;
 		result?;
+		self.add_dependency(&info.path)?;
 		self.stop();
 		Ok(())
 	}
@@ -1317,6 +1526,7 @@ impl<R: Read + Send, W: Write + Send + 'static> Connection<'_, R, W> {
 		let dont_check_sigs = self.from.read_bool()? && self.trust == Trust::Trusted;
 		self.start()?;
 		let store = self.store;
+		let restriction = self.restriction.clone();
 		let mut framed = FramedReader::new(&mut self.from);
 		let result = (|| -> Result<()> {
 			let mut source = Reader::new(&mut framed);
@@ -1332,6 +1542,9 @@ impl<R: Read + Send, W: Write + Send + 'static> Connection<'_, R, W> {
 					repair,
 					!dont_check_sigs,
 				)?;
+				if let Some(restriction) = &restriction {
+					restriction.add_dependency(&info.path).map_err(Error::Nix)?;
+				}
 				io::copy(&mut nar, &mut io::sink())?;
 			}
 			Ok(())
@@ -1364,6 +1577,11 @@ impl<R: Read + Send, W: Write + Send + 'static> Connection<'_, R, W> {
 		)?;
 		let mode = self.from.read_build_mode()?;
 		self.start()?;
+		if self.restriction.is_some() {
+			return Err(Error::Nix(
+				"operation 'buildDerivation' is not supported by store 'local'".into(),
+			));
+		}
 		let content_addressed = drv.is_fixed() || drv.has_floating_outputs() || drv.is_impure();
 		if !content_addressed && self.trust != Trust::Trusted {
 			return Err(Error::Nix(
@@ -1409,6 +1627,23 @@ impl<R: Read + Send, W: Write + Send + 'static> Connection<'_, R, W> {
 			));
 		}
 		self.start()?;
+		// `RestrictedStore::buildPathsWithResults`.
+		if self.restriction.is_some() {
+			if mode != 0 {
+				return Err(Error::Nix("unsupported build mode".into()));
+			}
+			for (text, target) in &targets {
+				let path = match target {
+					DerivedPath::Opaque(path) => path,
+					DerivedPath::Built { drv_path, .. } => drv_path,
+				};
+				if !self.allowed(path) {
+					return Err(Error::Nix(format!(
+						"cannot build '{text}' in recursive Nix because path is unknown"
+					)));
+				}
+			}
+		}
 		let store = self.store;
 		let settings = &self.settings;
 		let cancelled = self.cancelled.clone();
@@ -1449,6 +1684,7 @@ impl<R: Read + Send, W: Write + Send + 'static> Connection<'_, R, W> {
 			.build_paths_in_worker(&paths);
 			drop(worker);
 			result.map_err(|e| Error::Nix(e.to_string()))?;
+			self.add_built(targets.iter().map(|(_, target)| target))?;
 			self.stop();
 			self.to.u64(1);
 			return Ok(());
@@ -1544,6 +1780,13 @@ impl<R: Read + Send, W: Write + Send + 'static> Connection<'_, R, W> {
 		// The worker's activities stop before the operation ends.
 		drop(logs);
 		drop(worker);
+		self.add_built(
+			targets
+				.iter()
+				.zip(&results)
+				.filter(|(_, (_, result, _, _))| result.is_ok())
+				.map(|((_, target), _)| target),
+		)?;
 		if op == op::BUILD_PATHS {
 			if let Some(message) = first_error {
 				return Err(Error::Nix(message));
@@ -1602,8 +1845,54 @@ impl<R: Read + Send, W: Write + Send + 'static> Connection<'_, R, W> {
 		}
 	}
 
+	/// After a recursive Nix call built `targets`: the closures of their
+	/// outputs and the outputs themselves become visible to the build, as
+	/// `RestrictedStore::buildPathsWithResults` adds them.
+	fn add_built<'t>(&self, targets: impl Iterator<Item = &'t DerivedPath>) -> Result<()> {
+		let Some(restriction) = &self.restriction else {
+			return Ok(());
+		};
+		let mut closure = BTreeSet::new();
+		for target in targets {
+			let DerivedPath::Built { drv_path, outputs } = target else {
+				continue;
+			};
+			for (name, path) in self.store.query_partial_derivation_output_map(drv_path)? {
+				let Some(path) = path else { continue };
+				if outputs
+					.as_ref()
+					.is_some_and(|wanted| !wanted.contains(&name))
+					|| !self.store.is_valid_path(&path)?
+				{
+					continue;
+				}
+				restriction.add_drv_output(drv_path, &name);
+				let mut pending = vec![path];
+				while let Some(path) = pending.pop() {
+					if closure.contains(&path) {
+						continue;
+					}
+					if let Some(info) = self.store.query_path_info(&path)? {
+						pending.extend(info.references.iter().cloned());
+					}
+					closure.insert(path);
+				}
+			}
+		}
+		for path in &closure {
+			restriction.add_dependency(path).map_err(Error::Nix)?;
+		}
+		Ok(())
+	}
+
 	/// `queryPathInfo`, which fails for an invalid path.
 	fn query_path_info(&self, path: &StorePath) -> Result<ValidPathInfo> {
+		if !self.allowed(path) {
+			return Err(Error::Nix(format!(
+				"path '{}' is not valid",
+				path.to_absolute_path()
+			)));
+		}
 		self.store
 			.query_path_info(path)?
 			.ok_or_else(|| Error::Nix(format!("path '{}' is not valid", path.to_absolute_path())))
@@ -1631,6 +1920,11 @@ impl<R: Read + Send, W: Write + Send + 'static> Connection<'_, R, W> {
 			overrides.insert(name, value);
 		}
 		self.start()?;
+		// A recursive Nix call keeps the build's settings.
+		if self.restriction.is_some() {
+			self.stop();
+			return Ok(());
+		}
 		// `nix::verbosity = clientSettings.verbosity`: the tunnel and the
 		// builds this worker runs log at the client's verbosity.
 		nix_compat::log::set_verbosity(verbosity);

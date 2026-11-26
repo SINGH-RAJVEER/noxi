@@ -11,6 +11,7 @@ use noxi_store::LocalStoreConfig;
 
 /// Run `nix-daemon` with this process's arguments.
 pub fn main() -> ExitCode {
+	noxi_build::recursive::set_server(crate::connection::serve_recursive);
 	match run() {
 		Ok(()) => ExitCode::SUCCESS,
 		Err(error) => {

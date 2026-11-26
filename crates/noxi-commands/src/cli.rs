@@ -103,6 +103,8 @@ pub fn main(
 	#[cfg(feature = "eval-allocation-diagnostics")]
 	let _allocation_diagnostics = crate::allocation_diagnostics::ReportGuard::new();
 	noxi_build::interrupt::install();
+	// Builds that require `recursive-nix` serve the worker protocol.
+	noxi_build::recursive::set_server(noxi_daemon::connection::serve_recursive);
 	let code = std::thread::Builder::new()
 		.stack_size(STACK_SIZE)
 		.spawn(move || {

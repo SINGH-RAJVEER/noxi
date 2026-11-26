@@ -1865,6 +1865,10 @@ impl LocalBuilder<'_> {
 		let check = self.mode == BuildMode::Check;
 		let mut referenceable = input_paths.clone();
 		referenceable.extend(build.scratch.values().cloned());
+		// And any paths that were added or built through recursive Nix.
+		if let Some(restriction) = &*build.restriction.borrow() {
+			referenceable.extend(restriction.added_paths());
+		}
 
 		// Rewrite rules from the hash parts outputs were built with to those
 		// of their final paths, for the outputs that refer to them.
@@ -2986,6 +2990,10 @@ struct Build<'b> {
 	structured: Option<Map<String, Value>>,
 	/// The build user the builder runs as, when the daemon runs as root.
 	build_user: Option<BuildUser>,
+	/// Whether the derivation requires `recursive-nix`.
+	recursive: bool,
+	/// The paths a recursive build may see; set while it runs.
+	restriction: std::cell::RefCell<Option<std::sync::Arc<crate::recursive::Restriction>>>,
 }
 
 impl<'b> Build<'b> {
@@ -3080,6 +3088,10 @@ impl<'b> Build<'b> {
 			export_references_graph: drv_options.export_references_graph.clone(),
 			structured,
 			build_user,
+			recursive: drv_options
+				.required_system_features
+				.contains("recursive-nix"),
+			restriction: std::cell::RefCell::new(None),
 		})
 	}
 
@@ -3419,9 +3431,16 @@ impl<'b> Build<'b> {
 		let settings = self.builder.settings;
 
 		let rewrites = &self.input_rewrites;
-		let env = self.environment(drv, env, input_paths, rewrites)?;
+		let mut env = self.environment(drv, env, input_paths, rewrites)?;
 
 		let binds = self.chroot_binds(input_paths)?;
+
+		// `startDaemon`: a socket for recursive Nix calls.
+		let recursive = if self.recursive {
+			Some(self.start_daemon(input_paths, &mut env)?)
+		} else {
+			None
+		};
 
 		let builtin = self.builtin(drv, kind, outputs)?;
 		let spec = SandboxSpec {
@@ -3467,23 +3486,29 @@ impl<'b> Build<'b> {
 		let max_log_size = settings.max_log_size();
 		let log_size = Cell::new(0u64);
 		let too_long = || max_log_size != 0 && log_size.get() > max_log_size;
-		let status = sandbox::run_cancellable(
-			&spec,
-			&mut |data: &[u8]| {
-				log_size.set(log_size.get() + data.len() as u64);
-				if too_long() {
-					return;
-				}
-				tail.feed(data);
-				if let Some(file) = &mut log_file
-					&& let Err(e) = file.write_all(data)
-				{
-					write_error.get_or_insert(e);
-				}
-				events(BuildEvent::Output(data));
-			},
-			&|| too_long() || self.builder.is_cancelled(),
-		);
+		let mut run = || {
+			sandbox::run_cancellable(
+				&spec,
+				&mut |data: &[u8]| {
+					log_size.set(log_size.get() + data.len() as u64);
+					if too_long() {
+						return;
+					}
+					tail.feed(data);
+					if let Some(file) = &mut log_file
+						&& let Err(e) = file.write_all(data)
+					{
+						write_error.get_or_insert(e);
+					}
+					events(BuildEvent::Output(data));
+				},
+				&|| too_long() || self.builder.is_cancelled(),
+			)
+		};
+		let status = match recursive {
+			Some((listener, context)) => serve_recursive(listener, &context, run),
+			None => run(),
+		};
 		// `killSandbox`: nothing the builder started may outlive it.
 		if let Some(user) = &self.build_user {
 			user.kill()?;
@@ -3503,6 +3528,72 @@ impl<'b> Build<'b> {
 			return Err(self.failure(&status, &tail));
 		}
 		Ok(())
+	}
+
+	/// `startDaemon`: create the recursive Nix socket in the build directory,
+	/// readable and writable only by the builder, and name it in
+	/// `NIX_REMOTE`.
+	fn start_daemon(
+		&self,
+		input_paths: &BTreeSet<StorePath>,
+		env: &mut BTreeMap<BString, BString>,
+	) -> Result<(
+		std::os::unix::net::UnixListener,
+		crate::recursive::Context<'b>,
+	)> {
+		use crate::recursive::{Context, Restriction, SOCKET_NAME};
+		use std::os::unix::fs::PermissionsExt;
+		let settings = self.builder.settings;
+		if !settings
+			.config
+			.experimental_features()
+			.contains("recursive-nix")
+		{
+			return Err(BuildError::Other("experimental Nix feature 'recursive-nix' is disabled; add '--extra-experimental-features recursive-nix' to enable it".to_owned()));
+		}
+		if crate::recursive::server().is_none() {
+			return Err(BuildError::Other(
+				"this program cannot serve recursive Nix calls".to_owned(),
+			));
+		}
+		// Sandboxed builders see only the paths bound into their chroot;
+		// paths added while they run are not bound in yet.
+		let add_to_sandbox: Option<crate::recursive::AddToSandbox> = if self.direct {
+			None
+		} else {
+			Some(Box::new(|path: &StorePath| {
+				Err(format!(
+					"adding store path '{}' to the sandbox is not implemented (recursive-nix)",
+					print(path)
+				))
+			}))
+		};
+		let restriction = Arc::new(Restriction::new(input_paths.clone(), add_to_sandbox));
+		*self.restriction.borrow_mut() = Some(restriction.clone());
+		let socket = self.tmp_dir.join(SOCKET_NAME);
+		let listener = noxi_store::unix_socket::bind(&socket).map_err(|e| {
+			BuildError::Other(format!("cannot bind to socket '{}': {e}", socket.display()))
+		})?;
+		fs::set_permissions(&socket, fs::Permissions::from_mode(0o600))?;
+		if let Some(user) = &self.build_user {
+			user.chown(&socket)?;
+		}
+		env.insert(
+			"NIX_REMOTE".into(),
+			format!("unix://{}/{SOCKET_NAME}", self.build_top().display()).into(),
+		);
+		let context = Context {
+			store: self.builder.store,
+			settings,
+			substituters: self
+				.builder
+				.substituters
+				.iter()
+				.map(|cache| cache.uri().to_owned())
+				.collect(),
+			restriction,
+		};
+		Ok((listener, context))
 	}
 
 	/// A builtin builder, with what it needs of this process. It runs in the
@@ -3700,4 +3791,66 @@ mod tests {
 		assert_eq!(output_path_name("hello", "out"), "hello");
 		assert_eq!(output_path_name("hello", "dev"), "hello-dev");
 	}
+}
+
+/// Run the builder with `run` while serving its recursive Nix socket, as
+/// `startDaemon`'s thread does: one thread accepts connections and each
+/// connection is served by its own thread. When the builder is done the
+/// socket is closed and every connection shut down, as `stopDaemon` does,
+/// so a process the builder left behind cannot keep a worker alive.
+fn serve_recursive<T>(
+	listener: std::os::unix::net::UnixListener,
+	context: &crate::recursive::Context<'_>,
+	run: impl FnOnce() -> T,
+) -> T {
+	use std::sync::atomic::{AtomicBool, Ordering};
+	let server = crate::recursive::server().expect("checked by start_daemon");
+	let stop = AtomicBool::new(false);
+	let connections: Mutex<Vec<std::os::unix::net::UnixStream>> = Mutex::new(Vec::new());
+	std::thread::scope(|scope| {
+		let (stop, connections) = (&stop, &connections);
+		scope.spawn(move || {
+			if listener.set_nonblocking(true).is_err() {
+				return;
+			}
+			while !stop.load(Ordering::Relaxed) {
+				match listener.accept() {
+					Ok((stream, _)) => {
+						if stream.set_nonblocking(false).is_err() {
+							continue;
+						}
+						// Under the lock, so that a connection accepted as the
+						// builder finishes is shut down too.
+						let mut open = connections.lock().unwrap_or_else(|e| e.into_inner());
+						if stop.load(Ordering::Relaxed) {
+							let _ = stream.shutdown(std::net::Shutdown::Both);
+							break;
+						}
+						match stream.try_clone() {
+							Ok(copy) => open.push(copy),
+							Err(_) => continue,
+						}
+						drop(open);
+						tracing::debug!("received daemon connection");
+						scope.spawn(move || server(stream, context));
+					}
+					Err(e) if e.kind() == std::io::ErrorKind::WouldBlock => {
+						std::thread::sleep(std::time::Duration::from_millis(20));
+					}
+					Err(e) if e.kind() == std::io::ErrorKind::Interrupted => {}
+					Err(e) => {
+						tracing::debug!("accepting connection: {e}");
+						break;
+					}
+				}
+			}
+		});
+		let result = run();
+		let mut open = connections.lock().unwrap_or_else(|e| e.into_inner());
+		stop.store(true, Ordering::Relaxed);
+		for stream in open.drain(..) {
+			let _ = stream.shutdown(std::net::Shutdown::Both);
+		}
+		result
+	})
 }
