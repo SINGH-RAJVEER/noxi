@@ -147,7 +147,7 @@ pass:upstream_functional tests/functional/ca/nix-copy.sh
 pass:upstream_functional tests/functional/ca/nix-run.sh
 pass:upstream_functional tests/functional/ca/nix-shell.sh
 pass:upstream_functional tests/functional/ca/post-hook.sh
-gap tests/functional/ca/recursive.sh # source in ./recursive.sh:13: error: Cannot build '$ROOT/tmp/nix-test/ca/recursive/store/HASH-recursive.drv'.
+pass:upstream_functional tests/functional/ca/recursive.sh
 gap tests/functional/ca/repl.sh # source in repl.sh:229: REPL :edit does not open the derivation builtin source
 pass:upstream_functional tests/functional/ca/selfref-gc.sh
 pass:upstream_functional tests/functional/ca/signatures.sh
@@ -169,12 +169,12 @@ pass:upstream_functional tests/functional/derivation-advanced-attributes.sh
 pass:upstream_functional tests/functional/derivation-json.sh
 pass:upstream_functional tests/functional/dump-db.sh
 pass:upstream_functional tests/functional/dyn-drv/build-built-drv.sh
-gap tests/functional/dyn-drv/dep-built-drv-2.sh # main in dep-built-drv-2.sh:16: error: failed to obtain derivation of '$ROOT/tmp/nix-test/dyn-drv/dep-built-drv-2/store/HASH-make-derivations.drv.drv^out'
+pass:upstream_functional tests/functional/dyn-drv/dep-built-drv-2.sh
 pass:upstream_functional tests/functional/dyn-drv/dep-built-drv.sh
 pass:upstream_functional tests/functional/dyn-drv/eval-outputOf.sh
 pass:upstream_functional tests/functional/dyn-drv/failing-outer.sh
 anomaly tests/functional/dyn-drv/old-daemon-error-hack.sh # reference skip: Daemon is too new, skipping this test...
-gap tests/functional/dyn-drv/recursive-mod-json.sh # main in recursive-mod-json.sh:19: error: Cannot build '$ROOT/tmp/nix-test/dyn-drv/recursive-mod-json/store/HASH-foo.drv.drv'.
+pass:upstream_functional tests/functional/dyn-drv/recursive-mod-json.sh
 pass:upstream_functional tests/functional/dyn-drv/text-hashed-output.sh
 gap tests/functional/eval-store.sh # main in eval-store.sh:14: error: nix build --eval-store is not supported by noxi yet
 pass:upstream_functional tests/functional/eval.sh
@@ -295,7 +295,7 @@ pass:upstream_functional tests/functional/post-hook.sh
 gap tests/functional/pure-eval.sh # main in pure-eval.sh:28: error: nix eval --write-to is not supported by noxi yet
 pass:upstream_functional tests/functional/read-only-store.sh
 pass:upstream_functional tests/functional/readfile-context.sh
-gap tests/functional/recursive.sh # main in recursive.sh:13: error: Cannot build '$ROOT/tmp/nix-test/main/recursive/store/HASH-recursive.drv'.
+pass:upstream_functional tests/functional/recursive.sh
 pass:upstream_functional tests/functional/referrers.sh
 pass:upstream_functional tests/functional/remote-store.sh
 pass:upstream_functional tests/functional/repair.sh
@@ -319,7 +319,7 @@ pass:upstream_functional tests/functional/symlinks.sh
 gap tests/functional/tarball.sh # : error: path 'file:$ROOT/tmp/nix-test/main/tarball/tarball.tar' does not exist
 pass:upstream_functional tests/functional/test-infra.sh
 unrun tests/functional/test-libstoreconsumer.sh # needs the C++ libstore consumer built against the engine's libraries (TODO section 6)
-gap tests/functional/timeout.sh # timed out at +(common/functions.sh:331) command grep 'killed after writing more than 100 bytes of log output'
+pass:upstream_functional tests/functional/timeout.sh
 pass:upstream_functional tests/functional/toString-path.sh
 anomaly tests/functional/user-envs-migration.sh # reference skip: Daemon is too new, skipping this test...
 pass:upstream_functional tests/functional/user-envs.sh

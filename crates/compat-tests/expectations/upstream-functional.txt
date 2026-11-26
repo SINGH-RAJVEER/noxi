@@ -61,7 +61,7 @@ tests/functional/ca/nix-shell.sh pass pass pass
 tests/functional/ca/nondeterministic.nix support
 tests/functional/ca/post-hook.sh pass pass pass
 tests/functional/ca/racy.nix support
-tests/functional/ca/recursive.sh gap fail pass # source in ./recursive.sh:13: error: Cannot build '$ROOT/tmp/nix-test/ca/recursive/store/HASH-recursive.drv'.
+tests/functional/ca/recursive.sh pass pass pass
 tests/functional/ca/repl.sh gap fail pass # source in repl.sh:229: REPL :edit does not open the derivation builtin source
 tests/functional/ca/selfref-gc.sh pass pass pass
 tests/functional/ca/signatures.sh pass pass pass
@@ -231,7 +231,7 @@ tests/functional/duplicate.nar support
 tests/functional/dyn-drv/build-built-drv.sh pass pass pass
 tests/functional/dyn-drv/common.sh support
 tests/functional/dyn-drv/config.nix support
-tests/functional/dyn-drv/dep-built-drv-2.sh gap fail pass # main in dep-built-drv-2.sh:16: error: failed to obtain derivation of '$ROOT/tmp/nix-test/dyn-drv/dep-built-drv-2/store/HASH-make-derivations.drv.drv^out'
+tests/functional/dyn-drv/dep-built-drv-2.sh pass pass pass
 tests/functional/dyn-drv/dep-built-drv.sh pass pass pass
 tests/functional/dyn-drv/eval-outputOf.sh pass pass pass
 tests/functional/dyn-drv/failing-outer.sh pass pass pass
@@ -240,7 +240,7 @@ tests/functional/dyn-drv/non-trivial.nix support
 tests/functional/dyn-drv/old-daemon-error-hack.nix support
 tests/functional/dyn-drv/old-daemon-error-hack.sh anomaly skip skip # reference skip: Daemon is too new, skipping this test...
 tests/functional/dyn-drv/recursive-mod-json.nix support
-tests/functional/dyn-drv/recursive-mod-json.sh gap fail pass # main in recursive-mod-json.sh:19: error: Cannot build '$ROOT/tmp/nix-test/dyn-drv/recursive-mod-json/store/HASH-foo.drv.drv'.
+tests/functional/dyn-drv/recursive-mod-json.sh pass pass pass
 tests/functional/dyn-drv/text-hashed-output.nix support
 tests/functional/dyn-drv/text-hashed-output.sh pass pass pass
 tests/functional/eval-store.sh gap fail pass # main in eval-store.sh:14: error: nix build --eval-store is not supported by noxi yet
@@ -431,7 +431,7 @@ tests/functional/read-only-store.sh pass pass pass
 tests/functional/readfile-context.nix support
 tests/functional/readfile-context.sh pass pass pass
 tests/functional/recursive.nix support
-tests/functional/recursive.sh gap fail pass # main in recursive.sh:13: error: Cannot build '$ROOT/tmp/nix-test/main/recursive/store/HASH-recursive.drv'.
+tests/functional/recursive.sh pass pass pass
 tests/functional/referrers.sh pass pass pass
 tests/functional/remote-store.sh pass pass pass
 tests/functional/repair.sh pass pass pass
@@ -560,7 +560,7 @@ tests/functional/test-libstoreconsumer/main.cc support
 tests/functional/test-libstoreconsumer/meson.build support
 tests/functional/test-libstoreconsumer/nix-meson-build-support support
 tests/functional/timeout.nix support
-tests/functional/timeout.sh gap timeout pass # timed out at +(common/functions.sh:331) command grep 'killed after writing more than 100 bytes of log output'
+tests/functional/timeout.sh pass pass pass
 tests/functional/toString-path.sh pass pass pass
 tests/functional/tree.tar.gz support
 tests/functional/undefined-variable.nix support

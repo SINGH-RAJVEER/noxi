@@ -1632,14 +1632,24 @@ impl<R: Read + Send, W: Write + Send + 'static> Connection<'_, R, W> {
 			if mode != 0 {
 				return Err(Error::Nix("unsupported build mode".into()));
 			}
-			for (text, target) in &targets {
-				let path = match target {
-					DerivedPath::Opaque(path) => path,
-					DerivedPath::Built { drv_path, .. } => drv_path,
+			for (_, target) in &targets {
+				// `DerivedPath::to_string`, in the current syntax.
+				let (path, shown) = match target {
+					DerivedPath::Opaque(path) => (path, path.to_absolute_path()),
+					DerivedPath::Built { drv_path, outputs } => (
+						drv_path,
+						format!(
+							"{}^{}",
+							drv_path.to_absolute_path(),
+							outputs.as_ref().map_or("*".to_owned(), |names| {
+								names.iter().cloned().collect::<Vec<_>>().join(",")
+							})
+						),
+					),
 				};
 				if !self.allowed(path) {
 					return Err(Error::Nix(format!(
-						"cannot build '{text}' in recursive Nix because path is unknown"
+						"cannot build '{shown}' in recursive Nix because path is unknown"
 					)));
 				}
 			}
