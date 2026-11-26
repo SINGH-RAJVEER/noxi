@@ -376,7 +376,7 @@ impl NixStore<'_> {
 			if !graphml {
 				writeln!(
 					out,
-					"\"{path}\" [label = \"{name}\", shape = box, style = filled, fillcolor = #ff0000];"
+					"\"{path}\" [label = \"{name}\", shape = box, style = filled, fillcolor = \"#ff0000\"];"
 				)?;
 			}
 			let info = self.info(&path)?;
@@ -401,7 +401,7 @@ impl NixStore<'_> {
 					writeln!(out, "  <edge source=\"{path}\" target=\"{reference}\"/>")?;
 				} else {
 					let colour = colours.next().expect("nonempty colour cycle");
-					writeln!(out, "\"{reference}\" -> \"{path}\" [color = {colour}];")?;
+					writeln!(out, "\"{reference}\" -> \"{path}\" [color = \"{colour}\"];")?;
 				}
 				pending.insert(reference);
 			}

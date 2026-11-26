@@ -1573,3 +1573,11 @@ Legacy `nix-env -f` and `nix-build` accept local `file://` archives. An offline 
 ### Dependency graphs and flake suggestions
 
 The pinned upstream `dependencies.sh` and `suggestions.sh` pass on both engines in private stores. The graph commands traverse registered references, skip self edges and retain the reference's edge directions for DOT and GraphML. Flake lookup merges suggestions at the first missing component of each candidate path and applies the reference's distance cutoff after merging.
+
+`reference_nix_store::realises_with_roots_and_queries_like_cppnix` compares DOT and GraphML for multiple roots and GraphML with `--use-output` byte for byte.
+
+### Store references and fixed-output sources
+
+`import-from-derivation.sh` now passes on both engines. When a path with string context resolves inside the store, `builtins.path` and `builtins.filterSource` copy the enclosing object's registered references into the new object, including when copying a single file from that object. The content-addressed variant still passes.
+
+`tarball.sh` passes its fixed-output reuse and empty-archive assertions. It reaches line 125, where concurrent flake prefetch emits no download diagnostic. The next assertion checks the message for the process waiting on the fetch lock. The script remains a gap.

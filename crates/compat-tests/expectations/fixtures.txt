@@ -247,7 +247,7 @@ pass:upstream_functional tests/functional/git/symlinked-repo.sh
 pass:upstream_functional tests/functional/hash-convert.sh
 pass:upstream_functional tests/functional/hash-path.sh
 anomaly tests/functional/help.sh # reference skip: we don't know whether we built the manpages, so we can't reliably test them here., skipping this test...
-gap tests/functional/import-from-derivation.sh # main in import-from-derivation.sh:34: the copied IFD result is missing both registered references
+pass tests/functional/import-from-derivation.sh
 pass:upstream_functional tests/functional/impure-derivations.sh
 gap tests/functional/impure-env.sh # : error: hash mismatch in fixed-output derivation '$ROOT/tmp/nix-test/main/impure-env/store/HASH-test.drv':
 pass:upstream_functional tests/functional/impure-eval.sh
@@ -316,7 +316,7 @@ pass:upstream_functional tests/functional/substitute-with-invalid-ca.sh
 pass tests/functional/suggestions.sh
 gap tests/functional/supplementary-groups.sh # : Expected exit code '1' but got '0' from command 'nix-build' './hermetic.nix' '--arg' 'busybox' '/nix/store/HASH-busybox-static-x86_64-unknown-linux-musl-1.37.0/bin/busybox' '--arg' 'seed' '1' '--no-
 pass:upstream_functional tests/functional/symlinks.sh
-gap tests/functional/tarball.sh # main in tarball.sh:28: fetchTarball tries to download a missing URL despite the requested fixed-output path already existing in the store
+gap tests/functional/tarball.sh # main in tarball.sh:125: concurrent prefetch produces no download diagnostic
 pass:upstream_functional tests/functional/test-infra.sh
 unrun tests/functional/test-libstoreconsumer.sh # needs the C++ libstore consumer built against the engine's libraries (TODO section 6)
 gap tests/functional/timeout.sh # timed out at +(common/functions.sh:331) command grep 'killed after writing more than 100 bytes of log output'

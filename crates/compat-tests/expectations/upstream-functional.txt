@@ -340,7 +340,7 @@ tests/functional/help.sh anomaly fail skip # reference skip: we don't know wheth
 tests/functional/hermetic.nix support
 tests/functional/ifd.nix support
 tests/functional/import-from-derivation.nix support
-tests/functional/import-from-derivation.sh gap fail pass # main in import-from-derivation.sh:34: the copied IFD result is missing both registered references
+tests/functional/import-from-derivation.sh pass pass pass
 tests/functional/impure-derivations.nix support
 tests/functional/impure-derivations.sh pass pass pass
 tests/functional/impure-env.nix support
@@ -552,7 +552,7 @@ tests/functional/suggestions.sh pass pass pass
 tests/functional/supplementary-groups.sh gap fail pass # : Expected exit code '1' but got '0' from command 'nix-build' './hermetic.nix' '--arg' 'busybox' '/nix/store/HASH-busybox-static-x86_64-unknown-linux-musl-1.37.0/bin/busybox' '--arg' 'seed' '1' '--no-
 tests/functional/symlink-derivation.nix support
 tests/functional/symlinks.sh pass pass pass
-tests/functional/tarball.sh gap fail pass # main in tarball.sh:28: fetchTarball tries to download a missing URL despite the requested fixed-output path already existing in the store
+tests/functional/tarball.sh gap fail pass # main in tarball.sh:125: concurrent prefetch produces no download diagnostic
 tests/functional/test-infra.sh pass pass pass
 tests/functional/test-libstoreconsumer.sh unrun not-run not-run # needs the C++ libstore consumer built against the engine's libraries (TODO section 6)
 tests/functional/test-libstoreconsumer/README.md support

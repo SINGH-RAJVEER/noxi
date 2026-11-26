@@ -5,6 +5,7 @@ Changes to each crate in this workspace, grouped by crate and version, newest fi
 Changes that have not reached a version yet go under an `Unreleased` heading for that crate.
 
 ## Repository - Unreleased
+- `builtins.path` and `builtins.filterSource` preserve the registered references of a store source selected with string context. Fixed-output fetches reuse valid store paths, and `nix store prefetch-file --unpack` rejects an empty download.
 - `nix-store --query` exports reference graphs as Graphviz DOT or GraphML. Flake installables suggest nearby attribute names when none of the candidate paths exists.
 
 - Git fetches refresh a remote default branch when its cache expires. Pure evaluation warns when a Git input relies on its NAR hash alone.
