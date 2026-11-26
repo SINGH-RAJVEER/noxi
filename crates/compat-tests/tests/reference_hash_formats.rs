@@ -423,10 +423,11 @@ mod commands {
 			"nix-instantiate",
 			"nix-copy-closure",
 			"nix-hash",
+			"nix-daemon",
 		] {
 			fixture.check("", program, &["--version"]);
 		}
-		for program in ["nix-channel", "nix-prefetch-url", "nix-daemon"] {
+		for program in ["nix-channel", "nix-prefetch-url"] {
 			let output = Command::new(candidate())
 				.arg0(program)
 				.arg("--version")
