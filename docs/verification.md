@@ -1381,7 +1381,7 @@ The package-manager MVP is not complete. This inventory lists every gate from TO
 | Packaged-artifact compatibility suite (§8) | VM gates and the layout check use the packaged executables | run the full applicable differential suite against the packaged release-profile executables and record hashes | system |
 | Performance baselines (§8) | development-tree benchmarks only | packaged-artifact baselines for evaluation, substitution, builds, daemon startup and memory | unowned |
 | Security checks (§8) | focused malformed-wire and untrusted-client cases | sandbox escape attempts, untrusted caches and signatures, secret handling, daemon authorization review | system |
-| Licensing (§8) | audit and `THIRD_PARTY.md` exist | decide `noxi-cli` Apache-2.0 vs GPL-3.0-only, add a root `LICENSE`, generate commands/daemon dependency notices | unowned |
+| Licensing (§8) | audit, `THIRD_PARTY.md`, root `LICENSE`; `noxi-cli` relicensed GPL-3.0-only on 2026-11-26 | generate commands/daemon dependency notices | unowned |
 | Reproducible clean-clone release and publication (§8) | clean-clone and `--rebuild` checks recorded at `44d9bd7` | repeat for the release revision; publish binaries, sources, signatures, reports, known limits and the migration/rollback procedure | system |
 
 ## Profile and nix-env follow-up, 2026-11-09

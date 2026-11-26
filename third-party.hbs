@@ -2,7 +2,7 @@
 
 This file accompanies the noxi executables the flake packages: `noxi` from `crates/noxi-cli`, and in the replacement package the `nix`, legacy `nix-*` and `nix-daemon` executables from `crates/noxi-commands` and `crates/noxi-daemon`. The dependency graph of `noxi-cli` contains both of those crates, so the license list below covers every packaged executable. It lists the upstream projects whose code is compiled in, their revisions, and the full text of every license in the dependency graph. Regenerate it with `just third-party` whenever `Cargo.lock` or a bundled source changes; the policy and the review of each license are in [docs/licensing.md](docs/licensing.md), and [NOTICE](NOTICE) summarizes the attribution.
 
-The executables are distributed under GPL-3.0-only. They link crates licensed GPL-3.0-only, so the combined work carries those terms even though `noxi-cli` declares Apache-2.0 in its own manifest. See [docs/licensing.md](docs/licensing.md#conflicts) for the open decision.
+The executables are distributed under GPL-3.0-only, the license of every workspace crate they are built from. The full text is in [LICENSE](LICENSE).
 
 ## Bundled upstream sources
 

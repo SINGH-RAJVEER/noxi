@@ -2,9 +2,8 @@ noxi
 https://github.com/SINGH-RAJVEER/nix-rs
 
 The noxi executables are distributed under the GNU General Public License,
-version 3 only. Each crate's own license is in its LICENSE file; the
-noxi-cli crate declares Apache-2.0 for its own source, and the executables
-built from it link GPL-3.0-only crates.
+version 3 only. The full text is in LICENSE at the repository root, and each
+crate carries a copy in its own LICENSE file.
 
 This product includes code from the following projects. Their authors keep
 their copyright, and each copied file keeps its notices.

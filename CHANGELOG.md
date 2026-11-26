@@ -6,6 +6,8 @@ Changes that have not reached a version yet go under an `Unreleased` heading for
 
 ## Repository - Unreleased
 - `nix log` finds local logs for resolved content-addressed derivations. Parallel keep-going builds count failed dependencies. `nix-store --restore` reports unordered NAR entries and rejects empty destinations and destinations ending in `/.` or `/..`.
+- `noxi-cli` is licensed GPL-3.0-only, the license of every crate it links, and the repository has a root `LICENSE` with the GPLv3 text. Published `noxi-cli` versions keep their Apache-2.0 metadata (2026-11-26).
+- The deliberate differences from CppNix 2.35.2 that are kept, because matching would expose a secret, weaken isolation or damage the store, are listed in `docs/compatibility-matrix.md` (2026-11-26).
 - `builtins.path` and `builtins.filterSource` preserve the registered references of a store source selected with string context. Fixed-output fetches reuse valid store paths, and `nix store prefetch-file --unpack` rejects an empty download.
 - `nix-store --query` exports reference graphs as Graphviz DOT or GraphML. Flake installables suggest nearby attribute names when none of the candidate paths exists.
 

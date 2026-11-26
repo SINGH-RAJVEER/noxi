@@ -93,3 +93,20 @@ CA construction remains rejected by `noxi-glue/src/derivation.rs` for `__content
 The engine cache upload API now honors explicit `compression=gzip`, `compression=bzip2` and `compression=zstd` URI parameters. It stages compressed bytes before publication, computes `FileHash` and `FileSize` over those bytes, and retains `NarHash` and `NarSize` over the original NAR, following the separation in pinned CppNix 2.35.2 `binary-cache-store.cc`. Signed closure export and atomic publication retain their existing checks. The engine API default remains uncompressed; the command owner integrated an explicit codec allowlist and continues rejecting unspecified/default compression pending separate default-policy qualification. Unsupported upload codecs fail before writing cache objects; read caches remain usable with other compression parameters.
 
 `CARGO_BUILD_JOBS=2 cargo test -p noxi-compat-tests --test reference_substitute compressed_local_uploads -- --test-threads=1` passed one test, exporting a signed closure in all three formats and requiring the pinned reference to substitute it and pass `nix-store --verify --check-contents`. The store library suite passed 19 tests before the final read-parameter validation adjustment; the reference test compiled and exercised that adjustment. Logs are `/tmp/noxi-engine-20261113/compressed-reference.log` and `compressed-store-tests.log`. This closes the explicit gzip/bzip2/zstd API gap, while XZ/LZMA uploads, compression defaults and the complete upstream compression script remain unqualified. The earlier full functional counts qualify their recorded candidate, not this later change.
+
+## Deliberate differences from CppNix 2.35.2
+
+The maintainer decided on 2026-11-26 to keep these differences. In each case matching the reference would expose a secret, weaken isolation, crash or leave a corrupt store, so noxi behaves more strictly. Everything else is meant to match the reference, and any other difference is a gap.
+
+| Area | CppNix 2.35.2 | noxi | Recorded in |
+|---|---|---|---|
+| `--repair` with `ca-derivations` enabled | skips the repair silently and exits 0 | repairs | [verification](verification.md) |
+| `diff-hook` as an ordinary user | fails to run the hook | runs it | [verification](verification.md) |
+| `builtin:fetchurl` reading `file:///build/netrc` | returns the contents of `netrc-file` | keeps netrc in memory; the file does not exist in the sandbox | [verification](verification.md) |
+| Builtin builders and their environment | can read the building process's environment through `/proc/self/environ` | clears the environment except the proxy variables | [verification](verification.md) |
+| Builtin builder capabilities | keeps every capability in its user namespace | drops them | [verification](verification.md) |
+| `nix store add --mode text` with a non-SHA-256 hash | aborts | reports an error | [verification](verification.md) |
+| `nix store add --mode text` of a source that is not a regular file | leaves an unregistered store object and lock file | refuses before writing | [verification](verification.md) |
+| `nix eval --write-to` with an attribute name such as `..` | writes outside the output directory | refuses the name | [verification](verification.md) |
+| Verified Git fetch (`verifyCommit`, `publicKey`) with a warm cache | reuses the cached copy for a commit signed by a key that is not allowed | refuses the commit | [flakes](flakes.md) |
+| `local-overlay://` with `check-mount=false` and an upper or merged directory that aliases the lower store | uses it | refuses it, so deletion cannot reach lower-store data | [verification](verification.md) |

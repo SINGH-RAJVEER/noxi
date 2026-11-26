@@ -2,7 +2,7 @@
 
 This file accompanies the noxi executables the flake packages: `noxi` from `crates/noxi-cli`, and in the replacement package the `nix`, legacy `nix-*` and `nix-daemon` executables from `crates/noxi-commands` and `crates/noxi-daemon`. The dependency graph of `noxi-cli` contains both of those crates, so the license list below covers every packaged executable. It lists the upstream projects whose code is compiled in, their revisions, and the full text of every license in the dependency graph. Regenerate it with `just third-party` whenever `Cargo.lock` or a bundled source changes; the policy and the review of each license are in [docs/licensing.md](docs/licensing.md), and [NOTICE](NOTICE) summarizes the attribution.
 
-The executables are distributed under GPL-3.0-only. They link crates licensed GPL-3.0-only, so the combined work carries those terms even though `noxi-cli` declares Apache-2.0 in its own manifest. See [docs/licensing.md](docs/licensing.md#conflicts) for the open decision.
+The executables are distributed under GPL-3.0-only, the license of every workspace crate they are built from. The full text is in [LICENSE](LICENSE).
 
 ## Bundled upstream sources
 
@@ -17,10 +17,10 @@ Project ownership of the workspace does not change the authorship of the bundled
 
 ## Summary
 
-- Apache License 2.0: 132 crate(s)
+- Apache License 2.0: 131 crate(s)
 - MIT License: 31 crate(s)
 - Unicode License v3: 19 crate(s)
-- GNU General Public License v3.0 only: 13 crate(s)
+- GNU General Public License v3.0 only: 14 crate(s)
 - BSD 3-Clause "New" or "Revised" License: 6 crate(s)
 - ISC License: 3 crate(s)
 - BSD Zero Clause License: 1 crate(s)
@@ -54,7 +54,6 @@ PERFORMANCE OF THIS SOFTWARE.
 ### Apache License 2.0
 
 Used by:
-- noxi-cli 0.0.5
 - static_assertions 1.1.0
 - ureq-proto 0.6.4
 - utf8_iter 1.0.4
@@ -4219,6 +4218,7 @@ insights.
 
 Used by:
 - noxi-build 0.0.4
+- noxi-cli 0.0.5
 - noxi-commands 0.0.5
 - noxi-daemon 0.0.5
 - noxi-events 0.0.1

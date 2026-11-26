@@ -1,6 +1,6 @@
 # noxi-cli provenance
 
-The `noxi` command is project-owned source at https://github.com/SINGH-RAJVEER/nix-rs under `crates/noxi-cli/`, prepared for preview release `0.1.1`. Its own command parsing, file loading, and evaluation/output driver are Apache-2.0, with text in [LICENSE](LICENSE). This package bundles no imported Snix module tree or copied Nix fixture suite.
+The `noxi` command is project-owned source at https://github.com/SINGH-RAJVEER/nix-rs under `crates/noxi-cli/`, prepared for preview release `0.1.1`. Its own command parsing, file loading, and evaluation/output driver are GPL-3.0-only (Apache-2.0 before 2026-11-26), with text in [LICENSE](LICENSE). This package bundles no imported Snix module tree or copied Nix fixture suite.
 
 The command links `noxi-eval`, derived from `snix/eval/` in [Snix](https://git.snix.dev/snix/snix), revision `22ca63bdb71c221001526304eca934385fb47c26` dated 2026-09-24. That dependency retains GPL-3.0-only and its original contributors' authorship. Its packaged provenance records borrowed modules, older LGPL Nix language fixtures, and local adaptations. Project ownership of the CLI does not claim authorship of the evaluator. Distributed linked binaries must meet GPL terms; the CLI's Apache license does not override dependency licenses.
 

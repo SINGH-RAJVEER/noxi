@@ -4,12 +4,7 @@ This is the license audit for the MVP release item in [TODO section 8](../TODO.m
 
 ## Project license
 
-The repository has no root `LICENSE` file. Each crate carries its own license field and its own `LICENSE` or `COPYING` copy:
-
-- Every library and tool crate declares `GPL-3.0-only`, and its `LICENSE` reproduces the GPLv3 text.
-- `crates/noxi-cli` (the `noxi` binary) declares `Apache-2.0`, with the Apache text in its `LICENSE`.
-
-The effective license of the `noxi` binary is GPL-3.0-only, because it links GPL-3.0-only crates. See [Conflicts](#conflicts).
+The project is licensed GPL-3.0-only. The root [LICENSE](../LICENSE) holds the GPLv3 text, and every workspace crate declares `GPL-3.0-only` with its own copy in `LICENSE`. `crates/noxi-cli` moved from `Apache-2.0` to `GPL-3.0-only` on 2026-11-26, by the maintainer's decision, so the declared license now matches the terms of the executables it builds. Versions of `noxi-cli` already published on crates.io keep their Apache-2.0 metadata; the change applies from the next published version.
 
 ## Imported code
 
@@ -31,7 +26,7 @@ Each row lists the upstream project, the revision that was imported, the license
 | CppNix setting metadata | `crates/noxi-build/src/config-settings.json` | The 2.35.2 reference's `GlobalConfig::toJSON` output | LGPL-2.1-or-later for the description text | Embedded by `noxi-build` for `nix config show` and the settings a build hook is sent. Moved from `noxi-commands` on 2026-11-26. |
 | CppNix behavior, no copied source | `crates/noxi-store`, `crates/noxi-commands`, `crates/noxi-flake`, `crates/noxi/nix-compat` | CppNix 2.35.2, same revision | Project code, GPL-3.0-only | Per their `PROVENANCE.md`, these follow CppNix behavior and copy no source apart from the files listed above. |
 | CppNix behavior, close to the C++ | `crates/noxi-build`, `crates/noxi-daemon` | CppNix 2.35.2, same revision | Project code, GPL-3.0-only | `noxi-build`'s `PROVENANCE.md` says it "adapts routines"; `noxi-daemon` follows `daemon.cc`'s `performOp` and `TunnelLogger`. Whether any file is a translation is open. See [Open items](#open-items). |
-| Project-owned crates | `crates/noxi-system`, `crates/noxi-events`, `crates/noxi-cli`, `crates/noxi-test-support` | None | GPL-3.0-only; `noxi-cli` declares Apache-2.0 | Each `PROVENANCE.md` states that no source is copied. |
+| Project-owned crates | `crates/noxi-system`, `crates/noxi-events`, `crates/noxi-cli`, `crates/noxi-test-support` | None | GPL-3.0-only | Each `PROVENANCE.md` states that no source is copied. |
 
 Every file in this table that is embedded with `include_str!` is compiled into the packaged executables, because `noxi-cli` depends on `noxi-system`, which links `noxi-commands`, `noxi-glue` and `noxi-store`.
 
@@ -60,7 +55,7 @@ Project-generated fixtures are not third-party copies, and each one names the re
 
 The flake packages executables from `crates/noxi-cli`, `crates/noxi-commands` and `crates/noxi-daemon` (see `nix/package.nix`). Since `noxi-cli` gained its `noxi-system` dependency on 2026-11-12, its normal and build dependency closure on `x86_64-unknown-linux-gnu` contains `noxi-commands`, `noxi-daemon`, `noxi-store`, `noxi-build`, `noxi-flake` and their closures. `cargo tree` on 2026-11-20 found no crate in the `noxi-commands` or `noxi-daemon` closure that is missing from `noxi-cli`'s, so one notice generated from `noxi-cli` covers all three.
 
-[THIRD_PARTY.md](../THIRD_PARTY.md), regenerated on 2026-11-20, lists 206 crates including `noxi-cli`. cargo-about assigns each crate one license from its expression: Apache-2.0 132, MIT 31, Unicode-3.0 19, GPL-3.0-only 13 (the workspace crates), BSD-3-Clause 6, ISC 3, 0BSD 1, CDLA-Permissive-2.0 1, Zlib 1, and bzip2-1.0.6 1.
+[THIRD_PARTY.md](../THIRD_PARTY.md), regenerated on 2026-11-26, lists 206 crates including `noxi-cli`. cargo-about assigns each crate one license from its expression: Apache-2.0 131, MIT 31, Unicode-3.0 19, GPL-3.0-only 14 (the workspace crates), BSD-3-Clause 6, ISC 3, 0BSD 1, CDLA-Permissive-2.0 1, Zlib 1, and bzip2-1.0.6 1.
 
 Every term in that list is compatible with distributing a GPL-3.0-only binary. None of these crates is GPL-2.0-only, LGPL, AGPL, SSPL, BUSL, non-commercial, or unlicensed. Dual-licensed entries are satisfied by their MIT or Apache option. `CDLA-Permissive-2.0` is `webpki-roots`, a bundled root-certificate data crate, and `ISC` covers `ring`, `rustls-webpki` and `untrusted`; they enter through `ureq` in `noxi-store` and now ship in every packaged executable. `webpki-roots` is accepted as permissive, but a reviewer should confirm its terms before a qualified release. The embedded CppNix files are not Cargo dependencies, so they are absent from that listing and are recorded in [THIRD_PARTY.md](../THIRD_PARTY.md#bundled-upstream-sources) and [NOTICE](../NOTICE) instead.
 
@@ -73,14 +68,9 @@ Every term in that list is compatible with distributing a GPL-3.0-only binary. N
 
 ## Conflicts
 
-### noxi-cli declares Apache-2.0 but links GPL-3.0-only code
+### noxi-cli license, resolved 2026-11-26
 
-`crates/noxi-cli` declares `Apache-2.0`, but it depends on `noxi-eval`, `noxi-eval-builtin-macros`, `noxi-hash` and, through `noxi-system`, the rest of the workspace, which are `GPL-3.0-only`. The executables the flake builds are therefore a combined work, and their distributed terms are GPL-3.0-only. Apache-2.0 is generally treated as compatible with GPLv3, so the combination itself is not the problem. The declared license is. It understates the terms that apply when the binary is distributed, and the published `noxi-cli` metadata says Apache-2.0. Whether this is acceptable is a licensing judgment for the maintainer, not something this audit settles.
-
-This needs a decision, and it was not changed in this audit:
-
-1. Relicense `noxi-cli` to `GPL-3.0-only` to match the binary. This changes the published crate metadata and needs a patch bump under AGENTS.md.
-2. Keep `Apache-2.0` for the package's own source and state in the release notice that the binary is GPL-3.0-only. [THIRD_PARTY.md](../THIRD_PARTY.md) and [NOTICE](../NOTICE) already do this.
+`crates/noxi-cli` declared `Apache-2.0` while linking `GPL-3.0-only` crates, so its manifest understated the terms of the distributed executables. The maintainer chose to relicense it as `GPL-3.0-only`, and a root `LICENSE` was added. The crates.io metadata changes with the next published version, which needs a patch bump under AGENTS.md.
 
 ### No other conflicts found
 
