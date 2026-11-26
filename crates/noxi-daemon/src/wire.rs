@@ -293,6 +293,11 @@ impl<W: Write> Writer<W> {
 		self
 	}
 
+	/// The number of bytes buffered and not yet sent.
+	pub fn buffered(&self) -> usize {
+		self.buf.len()
+	}
+
 	pub fn flush(&mut self) -> Result<()> {
 		self.inner.write_all(&self.buf)?;
 		self.buf.clear();

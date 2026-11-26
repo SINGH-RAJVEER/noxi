@@ -535,11 +535,23 @@ fn io_message(e: &io::Error) -> String {
 	}
 }
 
+/// Send what the handshake has buffered. A failed write is reported as
+/// CppNix's `FdSink` reports it, with the size of the buffer it wrote: a
+/// daemon that refuses the user may close the connection before the
+/// greeting arrives.
+fn flush_greeting(conn: &mut Connection) -> Result<()> {
+	let size = conn.to.buffered();
+	conn.to.flush().map_err(|e| match e {
+		Error::Io(e) => Error::Nix(format!("write of {size} bytes: {}", io_message(&e))),
+		e => e,
+	})
+}
+
 /// `BasicClientConnection::handshake` and `postHandshake`: the negotiated
 /// features.
 fn handshake(conn: &mut Connection) -> Result<BTreeSet<String>> {
 	conn.to.u64(WORKER_MAGIC_1).u64(PROTOCOL_VERSION);
-	conn.to.flush()?;
+	flush_greeting(conn)?;
 	if conn.from.read_u64()? != WORKER_MAGIC_2 {
 		return Err(Error::Nix("nix-daemon protocol mismatch from".into()));
 	}
@@ -556,7 +568,7 @@ fn handshake(conn: &mut Connection) -> Result<BTreeSet<String>> {
 	let mut features = BTreeSet::new();
 	if conn.version >= version(1, 38) {
 		conn.to.strings(CLIENT_FEATURES.iter().copied());
-		conn.to.flush()?;
+		flush_greeting(conn)?;
 		for feature in conn.from.read_strings()? {
 			if CLIENT_FEATURES.contains(&feature.as_str()) {
 				features.insert(feature);

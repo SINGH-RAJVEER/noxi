@@ -728,13 +728,30 @@ fn refused_clients_fail_like_cppnix() {
 			reference_bin().join("nix-store"),
 			PathBuf::from(noxi_bin("nix-store")),
 		] {
-			let output = env
-				.command(&bin)
-				.arg("--store")
-				.arg(format!("unix://{}", refused(daemon_engine).display()))
-				.args(["-q", "--references", env.busybox.as_str()])
-				.output()
-				.unwrap();
+			let run = || {
+				env.command(&bin)
+					.arg("--store")
+					.arg(format!("unix://{}", refused(daemon_engine).display()))
+					.args(["-q", "--references", env.busybox.as_str()])
+					.output()
+					.unwrap()
+			};
+			let mut output = run();
+			// Both clients write a 16-byte greeting and then read. When the
+			// daemon closes the connection before the greeting arrives, the
+			// write fails with `EPIPE`; when after, the unread greeting makes
+			// the read fail with `ECONNRESET`. Which comes first is a race the
+			// daemon wins now and then under load: ask again only for that
+			// message.
+			for _ in 0..2 {
+				if !String::from_utf8_lossy(&output.stderr)
+					.contains("error: write of 16 bytes: Broken pipe")
+				{
+					break;
+				}
+				eprintln!("retrying {} after its connection race", bin.display());
+				output = run();
+			}
 			outputs.push((
 				output.status.code(),
 				String::from_utf8_lossy(&output.stderr)
