@@ -190,3 +190,9 @@ The lock resolver in `crates/noxi-glue/src/fetch/flake.rs` and the lock-writing 
 An exploratory sweep matched `builtins.parseFlakeRef` and `flakeRefToString` with the reference for 70 references across every scheme, including query parameters, `dir`, `rev`, `ref`, `narHash`, `lastModified`, repeated parameters and invalid forms. The existing `reference_flakeref` test keeps a subset of them.
 
 Still open: the JSON parser's wording for malformed lock files (nlohmann `parse_error`/`type_error` text), libgit2 wording for Git object errors, source positions in flake input attribute errors (`unexpected flake input attribute 'foo', at FILE:L:C`), the pure-mode access error for a relative input that leaves its source tree, the `unpacking ... into the Git cache` line for forge archives, `«…»` display paths for other accessors, and the dirty-tree warning, which stays suppressed by design.
+
+## SSH commit verification
+
+With `verified-fetches` enabled, Git inputs accept `verifyCommit`, `publicKey` with optional `keytype`, and `publicKeys` lists. Providing keys enables verification by default. Verification uses Git and `ssh-keygen` and checks the selected commit against the supplied keys before exporting its tree or reusing a cached store path. Unpinned local worktrees must be clean.
+
+The upstream `fetchGitVerification.sh` passes under CppNix 2.35.2 and noxi. It exercises Ed25519 and RSA signatures, incorrect keys, dirty worktrees, key lists, and flake inputs. An unsigned commit with explicit verification enabled was also refused by both engines.

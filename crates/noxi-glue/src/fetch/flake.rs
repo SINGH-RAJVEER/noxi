@@ -19,7 +19,7 @@ use noxi_flakeref::lockfile::{
 };
 use noxi_flakeref::registry::UseRegistries;
 
-use super::builtins::{error, string, tree_attrs};
+use super::builtins::{error, public_keys_attr, string, tree_attrs};
 use crate::store::EvaluatorStore;
 
 #[derive(Clone, Debug, Default)]
@@ -184,6 +184,9 @@ fn parse_inputs<'a>(
 					}
 					key => {
 						let attr = match value {
+							Value::List(_) if key == "publicKeys" => {
+								public_keys_attr(co, value).await?
+							}
 							Value::String(value) => Attr::String(value.to_str()?.to_owned()),
 							Value::Bool(value) => Attr::Bool(value),
 							Value::Integer(value) if value >= 0 => Attr::Int(value as u64),

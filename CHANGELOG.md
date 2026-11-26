@@ -6,6 +6,8 @@ Changes that have not reached a version yet go under an `Unreleased` heading for
 
 ## Repository - Unreleased
 
+- Git fetches support SSH commit verification with explicit public keys in builtins and flake inputs.
+
 - `nix eval --write-to` writes string values and nested attribute sets to a new filesystem path. `nix run` checks the type of a flake output against the resolved attribute path. `nix build --commit-lock-file` uses the existing flake lock commit logic.
 - Flake input path literals are stored relative to the declaring flake, with no redundant `./` segment. Recreating the root lock reads a dependency's own lock file.
 - `nix-instantiate --readonly-mode` evaluates without writing derivations. `nix-build --verbose --version` prints the configuration paths and runtime settings.

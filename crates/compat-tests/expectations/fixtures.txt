@@ -188,7 +188,7 @@ gap tests/functional/fetchGit.sh # main in fetchGit.sh:151: unlocked input warni
 pass:upstream_functional tests/functional/fetchGitRefs.sh
 pass:upstream_functional tests/functional/fetchGitShallow.sh
 pass:upstream_functional tests/functional/fetchGitSubmodules.sh
-gap tests/functional/fetchGitVerification.sh # main in fetchGitVerification.sh:31: error: verified fetches are not implemented == *No principal matched\.* ]]
+pass tests/functional/fetchGitVerification.sh
 pass:upstream_functional tests/functional/fetchMercurial.sh
 pass:upstream_functional tests/functional/fetchPath.sh
 pass:upstream_functional tests/functional/fetchTree-file.sh

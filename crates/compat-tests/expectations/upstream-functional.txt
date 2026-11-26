@@ -259,7 +259,7 @@ tests/functional/fetchGit.sh gap fail pass # main in fetchGit.sh:151: unlocked i
 tests/functional/fetchGitRefs.sh pass pass pass
 tests/functional/fetchGitShallow.sh pass pass pass
 tests/functional/fetchGitSubmodules.sh pass pass pass
-tests/functional/fetchGitVerification.sh gap fail pass # main in fetchGitVerification.sh:31: error: verified fetches are not implemented == *No principal matched\.* ]]
+tests/functional/fetchGitVerification.sh pass pass pass
 tests/functional/fetchMercurial.sh pass pass pass
 tests/functional/fetchPath.sh pass pass pass
 tests/functional/fetchTree-file.sh pass pass pass

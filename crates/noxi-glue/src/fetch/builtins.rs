@@ -169,6 +169,28 @@ pub(crate) fn tree_attrs(
 	Ok(Value::attrs(NixAttrs::from_iter(attrs)))
 }
 
+pub(super) async fn public_keys_attr(co: &GenCo, value: Value) -> Result<Attr, ErrorKind> {
+	let Value::List(list) = value else {
+		return Err(error("'publicKeys' must be a list"));
+	};
+	let mut keys = Vec::with_capacity(list.len());
+	for value in list.iter() {
+		let attrs = generators::request_force(co, value.clone())
+			.await
+			.to_attrs()?;
+		let key = generators::request_force(co, attrs.select_required("key")?.clone()).await;
+		let key = key.to_str()?;
+		let key_type = match attrs.select("type") {
+			Some(value) => generators::request_force(co, value.clone())
+				.await
+				.to_str()?,
+			None => NixString::from("ssh-ed25519"),
+		};
+		keys.push(serde_json::json!({ "key": key.to_str()?, "type": key_type.to_str()? }));
+	}
+	Ok(Attr::String(serde_json::Value::Array(keys).to_string()))
+}
+
 async fn fetch_tree(
 	store: &EvaluatorStore,
 	co: &GenCo,
@@ -194,6 +216,7 @@ async fn fetch_tree(
 					return Ok(value);
 				}
 				let value = match value {
+					Value::List(_) if key == "publicKeys" => public_keys_attr(co, value).await?,
 					Value::String(_) | Value::Path(_) => {
 						let mut s = string(co, value).await?;
 						if git && key == "url" {
