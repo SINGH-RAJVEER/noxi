@@ -372,11 +372,24 @@ pub fn run(
 		if output.is_empty() {
 			return Err(Failure::Error("restore destination path is empty".into()));
 		}
-		let basename = output
-			.trim_end_matches('/')
-			.rsplit('/')
-			.next()
-			.unwrap_or("");
+		let basename = output.rsplit('/').next().unwrap_or("");
+		if basename.is_empty() {
+			let parent = cwd.join(output);
+			let directory = fs::metadata(parent).and_then(|metadata| {
+				if metadata.is_dir() {
+					Ok(())
+				} else {
+					Err(io::Error::from_raw_os_error(libc::ENOTDIR))
+				}
+			});
+			if let Err(error) = directory {
+				return Err(Failure::Error(format!(
+					"opening parent directory of {output:?}: {}",
+					crate::nix::hash::strerror(&error)
+				)));
+			}
+			return Err(Failure::Error("invalid filename ''".into()));
+		}
 		if matches!(basename, "." | "..") {
 			return Err(Failure::Error(format!(
 				"restore destination '{output}' ends in '{basename}', which is not a valid filename"
