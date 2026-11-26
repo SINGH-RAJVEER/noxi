@@ -48,6 +48,12 @@ pub fn options(parsed: &Parsed, eval: bool) -> Result<Options, Failure> {
 	if let Some(includes) = parsed.flags.get("include") {
 		options.include = includes.iter().map(|v| v[0].clone()).collect();
 	}
+	if let Some(overrides) = parsed.flags.get("override-flake") {
+		options.override_flakes = overrides
+			.iter()
+			.map(|v| (v[0].clone(), v[1].clone()))
+			.collect();
+	}
 	// `MixEvalArgs`: the last value given for a name wins.
 	for (flag, values) in &parsed.sequence {
 		let value = match flag.as_str() {
@@ -90,7 +96,11 @@ pub fn options(parsed: &Parsed, eval: bool) -> Result<Options, Failure> {
 			format!("import {}", nix_string_literal(&absolute.to_string_lossy()))
 		}
 	} else {
-		options.flake = Some(super::flakes::request(parsed, "outputs")?);
+		// The overrides are the evaluation's, below.
+		options.flake = Some(super::flakes::Request {
+			registry_overrides: Vec::new(),
+			..super::flakes::request(parsed, "outputs")?
+		});
 		String::new()
 	};
 	let selections = if parsed.operands.is_empty() {

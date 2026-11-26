@@ -3,7 +3,8 @@
 //! (except for fixed-output derivations) network namespaces, a chroot with
 //! only the input closure, and output read from a pseudoterminal.
 
-use std::ffi::{CStr, CString};
+use std::collections::BTreeMap;
+use std::ffi::{CStr, CString, OsStr};
 use std::fs::{self, File};
 use std::io::{self, Read, Write};
 use std::os::fd::{AsRawFd, FromRawFd, OwnedFd, RawFd};
@@ -29,8 +30,15 @@ pub struct Bind {
 	pub optional: bool,
 }
 
+/// A builder that is part of this program. It runs in the builder's process,
+/// as the builder's user and in its sandbox, and passes messages to the log.
+/// The process is a fork of a possibly threaded one, so it must not use
+/// anything of the parent's that other threads lock, such as the store or the
+/// logger.
+pub type Builtin<'a> = &'a dyn Fn(&mut dyn FnMut(&str)) -> std::result::Result<(), String>;
+
 /// Everything the sandboxed child needs, prepared before forking.
-pub struct SandboxSpec {
+pub struct SandboxSpec<'a> {
 	pub chroot_root: PathBuf,
 	/// Whether the builder runs in namespaces and the chroot. Without it
 	/// (`sandbox = false`), it runs directly on the host in its own
@@ -50,6 +58,8 @@ pub struct SandboxSpec {
 	pub allow_new_privileges: bool,
 	pub filter_syscalls: bool,
 	pub build_dir_in_sandbox: PathBuf,
+	/// Run instead of `builder`.
+	pub builtin: Option<Builtin<'a>>,
 	pub builder: Vec<u8>,
 	pub args: Vec<Vec<u8>>,
 	pub env: Vec<Vec<u8>>,
@@ -97,10 +107,22 @@ fn cpath(path: &Path) -> io::Result<CString> {
 	cstring(path.as_os_str().as_bytes())
 }
 
+/// An error in the words of CppNix's `SysError`.
+fn sys_error(what: &str, error: &io::Error) -> io::Error {
+	let reason = match error.raw_os_error() {
+		Some(code) => {
+			// SAFETY: strerror returns a static or thread-local string.
+			let text = unsafe { CStr::from_ptr(libc::strerror(code)) };
+			text.to_string_lossy().into_owned()
+		}
+		None => error.to_string(),
+	};
+	io::Error::new(error.kind(), format!("{what}: {reason}"))
+}
+
 fn check(ret: libc::c_int, what: impl FnOnce() -> String) -> io::Result<()> {
 	if ret == -1 {
-		let error = io::Error::last_os_error();
-		return Err(io::Error::new(error.kind(), format!("{}: {error}", what())));
+		return Err(sys_error(&what(), &io::Error::last_os_error()));
 	}
 	Ok(())
 }
@@ -153,14 +175,14 @@ pub fn setup_chroot(
 
 /// Run the builder described by `spec`, passing its output to `log`.
 /// Returns how it exited.
-pub fn run(spec: &SandboxSpec, log: &mut dyn FnMut(&[u8])) -> Result<ExitStatus> {
+pub fn run(spec: &SandboxSpec<'_>, log: &mut dyn FnMut(&[u8])) -> Result<ExitStatus> {
 	run_cancellable(spec, log, &|| false)
 }
 
 /// Run a builder with cooperative cancellation in the parent. Killing the
 /// PID-namespace init also kills its descendants; `Builder` reaps it.
 pub fn run_cancellable(
-	spec: &SandboxSpec,
+	spec: &SandboxSpec<'_>,
 	log: &mut dyn FnMut(&[u8]),
 	cancelled: &dyn Fn() -> bool,
 ) -> Result<ExitStatus> {
@@ -285,7 +307,7 @@ pub fn run_cancellable(
 				let rest = reader.read_rest()?;
 				let status = builder.wait()?;
 				return Err(BuildError::Other(format!(
-					"while setting up the build environment: {}{}",
+					"\n… while setting up the build environment\n\nerror: {}{}",
 					String::from_utf8_lossy(&rest).trim_end(),
 					if libc::WIFEXITED(status) {
 						String::new()
@@ -331,10 +353,7 @@ pub fn run_cancellable(
 				} else if spec.max_silent_time != 0
 					&& last_output.elapsed() >= Duration::from_secs(spec.max_silent_time)
 				{
-					timed_out = Some(format!(
-						"timed out after {} seconds of silence",
-						spec.max_silent_time
-					));
+					timed_out = Some(format!("timed out after {} seconds", spec.max_silent_time));
 				} else {
 					continue;
 				}
@@ -385,10 +404,7 @@ pub fn run_cancellable(
 		{
 			return Err(BuildError::failed(
 				FailureStatus::TimedOut,
-				format!(
-					"timed out after {} seconds of silence",
-					spec.max_silent_time
-				),
+				format!("timed out after {} seconds", spec.max_silent_time),
 			));
 		}
 		match &exited {
@@ -438,7 +454,7 @@ impl Drop for Builder {
 	}
 }
 
-fn poll_timeout(spec: &SandboxSpec, start: Instant, last_output: Instant) -> Option<Duration> {
+fn poll_timeout(spec: &SandboxSpec<'_>, start: Instant, last_output: Instant) -> Option<Duration> {
 	let mut timeout: Option<Duration> = None;
 	if spec.max_silent_time != 0 {
 		timeout =
@@ -597,10 +613,13 @@ struct ChildPlan {
 	builder: CString,
 	argv: Vec<CString>,
 	envp: Vec<CString>,
+	/// For a builtin builder: where the process's initial environment is in
+	/// memory, and the variables it keeps.
+	environment: Option<(std::ops::Range<usize>, Vec<(CString, CString)>)>,
 }
 
 impl ChildPlan {
-	fn new(spec: &SandboxSpec) -> io::Result<Self> {
+	fn new(spec: &SandboxSpec<'_>) -> io::Result<Self> {
 		let store_rel = spec.store_dir.strip_prefix("/").unwrap_or(&spec.store_dir);
 		let base_name = spec
 			.builder
@@ -623,7 +642,110 @@ impl ChildPlan {
 				.iter()
 				.map(|e| cstring(e))
 				.collect::<io::Result<_>>()?,
+			environment: match spec.builtin {
+				Some(_) => Some((initial_environment()?, kept_environment()?)),
+				None => None,
+			},
 		})
+	}
+}
+
+/// Where `/proc/self/environ` reads from, which a forked process shares.
+fn initial_environment() -> io::Result<std::ops::Range<usize>> {
+	let stat = fs::read_to_string("/proc/self/stat")?;
+	// The fields after the parenthesised command, which is the second one.
+	let fields: Vec<&str> = stat
+		.rsplit_once(')')
+		.map_or("", |(_, rest)| rest)
+		.split_whitespace()
+		.collect();
+	// `env_start` and `env_end` are fields 50 and 51.
+	let field = |number: usize| fields.get(number - 3).and_then(|f| f.parse().ok());
+	match (field(50), field(51)) {
+		(Some(start), Some(end)) if start != 0 && start <= end => Ok(start..end),
+		_ => Err(io::Error::other(
+			"cannot find the environment in '/proc/self/stat'",
+		)),
+	}
+}
+
+/// The proxy variables, which downloads use and the reference's curl too.
+fn kept_environment() -> io::Result<Vec<(CString, CString)>> {
+	[
+		"http_proxy",
+		"https_proxy",
+		"all_proxy",
+		"no_proxy",
+		"HTTP_PROXY",
+		"HTTPS_PROXY",
+		"ALL_PROXY",
+		"NO_PROXY",
+	]
+	.into_iter()
+	.filter_map(|name| Some((name, std::env::var_os(name)?)))
+	.map(|(name, value)| Ok((cstring(name.as_bytes())?, cstring(value.as_bytes())?)))
+	.collect()
+}
+
+/// Leave a builtin builder nothing of the parent's privileges and
+/// environment: an exec would drop the capabilities it has in its user
+/// namespace and replace its memory.
+fn shed_parent(plan: &ChildPlan) -> io::Result<()> {
+	#[repr(C)]
+	struct Header {
+		version: u32,
+		pid: libc::c_int,
+	}
+	const LINUX_CAPABILITY_VERSION_3: u32 = 0x20080522;
+	let header = Header {
+		version: LINUX_CAPABILITY_VERSION_3,
+		pid: 0,
+	};
+	let none = [0u32; 6];
+	// SAFETY: a capability header and two sets of three words.
+	check(
+		unsafe { libc::syscall(libc::SYS_capset, &header, none.as_ptr()) } as libc::c_int,
+		|| "dropping capabilities".to_owned(),
+	)?;
+	if let Some((initial, kept)) = &plan.environment {
+		// SAFETY: this process has one thread, and nothing uses the old
+		// environment once `environ` is cleared. The block is part of the
+		// initial stack, which is writable and private to this process.
+		unsafe {
+			libc::clearenv();
+			std::ptr::write_bytes(initial.start as *mut u8, 0, initial.len());
+			for (name, value) in kept {
+				libc::setenv(name.as_ptr(), value.as_ptr(), 1);
+			}
+		}
+	}
+	Ok(())
+}
+
+fn write_stderr(mut text: &[u8]) {
+	while !text.is_empty() {
+		// SAFETY: writing to our standard error.
+		let n = unsafe { libc::write(libc::STDERR_FILENO, text.as_ptr().cast(), text.len()) };
+		if n > 0 {
+			text = &text[n as usize..];
+		} else if io::Error::last_os_error().raw_os_error() != Some(libc::EINTR) {
+			return;
+		}
+	}
+}
+
+/// Run `builtin` in the builder's process and return its exit status.
+fn run_builtin(builtin: Builtin<'_>) -> i32 {
+	let mut log = |message: &str| write_stderr(message.as_bytes());
+	let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| builtin(&mut log)));
+	match result {
+		Ok(Ok(())) => 0,
+		Ok(Err(message)) => {
+			let text = nix_compat::log::format_error(&message);
+			write_stderr(format!("{text}\n").as_bytes());
+			1
+		}
+		Err(_) => 1,
 	}
 }
 
@@ -631,7 +753,7 @@ impl ChildPlan {
 /// builder in new namespaces as a sibling (CLONE_PARENT).
 fn helper_main(
 	slave: &CStr,
-	spec: &SandboxSpec,
+	spec: &SandboxSpec<'_>,
 	sync_read: RawFd,
 	pid_write: RawFd,
 	plan: &ChildPlan,
@@ -734,9 +856,12 @@ fn report_child_error(message: &str) {
 	unsafe { libc::write(libc::STDERR_FILENO, text.as_ptr().cast(), text.len()) };
 }
 
-fn child_main(sync_read: RawFd, spec: &SandboxSpec, plan: &ChildPlan) -> i32 {
+fn child_main(sync_read: RawFd, spec: &SandboxSpec<'_>, plan: &ChildPlan) -> i32 {
 	match child_setup(sync_read, spec, plan) {
 		Ok(()) => {
+			if let Some(builtin) = spec.builtin {
+				return run_builtin(builtin);
+			}
 			// SAFETY: the argument and environment arrays are NUL-terminated
 			// pointer lists that outlive the call.
 			unsafe {
@@ -761,7 +886,7 @@ fn child_main(sync_read: RawFd, spec: &SandboxSpec, plan: &ChildPlan) -> i32 {
 	}
 }
 
-fn child_setup(sync_read: RawFd, spec: &SandboxSpec, plan: &ChildPlan) -> io::Result<()> {
+fn child_setup(sync_read: RawFd, spec: &SandboxSpec<'_>, plan: &ChildPlan) -> io::Result<()> {
 	// commonChildInit: a new session, stdout to the terminal, stdin from
 	// /dev/null.
 	// SAFETY: plain process-state syscalls.
@@ -811,8 +936,11 @@ fn child_setup(sync_read: RawFd, spec: &SandboxSpec, plan: &ChildPlan) -> io::Re
 			check(libc::setgid(gid), || "setgid failed".to_owned())?;
 			check(libc::setuid(uid), || "setuid failed".to_owned())?;
 		}
-		libc::write(libc::STDERR_FILENO, b"\x02\n".as_ptr().cast(), 2);
 	}
+	if spec.builtin.is_some() {
+		shed_parent(plan)?;
+	}
+	write_stderr(b"\x02\n");
 	Ok(())
 }
 
@@ -845,10 +973,13 @@ fn mount(
 			data.map_or(std::ptr::null(), |d| d.as_ptr().cast()),
 		)
 	};
-	check(ret, || format!("mounting '{}'", target.to_string_lossy()))
+	if ret == -1 {
+		return Err(io::Error::last_os_error());
+	}
+	Ok(())
 }
 
-fn enter_chroot(spec: &SandboxSpec, plan: &ChildPlan) -> io::Result<()> {
+fn enter_chroot(spec: &SandboxSpec<'_>, plan: &ChildPlan) -> io::Result<()> {
 	if spec.sandboxed {
 		bring_up_loopback()?;
 	}
@@ -863,20 +994,38 @@ fn enter_chroot(spec: &SandboxSpec, plan: &ChildPlan) -> io::Result<()> {
 	}
 
 	mount(None, c"/", None, libc::MS_PRIVATE | libc::MS_REC, None)
-		.map_err(|e| io::Error::other(format!("unable to make '/' private: {e}")))?;
-	mount(Some(&plan.root), &plan.root, None, libc::MS_BIND, None)?;
+		.map_err(|e| sys_error("unable to make '/' private", &e))?;
+	mount(Some(&plan.root), &plan.root, None, libc::MS_BIND, None).map_err(|e| {
+		sys_error(
+			&format!("unable to bind mount {}", quoted(&spec.chroot_root)),
+			&e,
+		)
+	})?;
 	mount(
 		Some(&plan.store_in_root),
 		&plan.store_in_root,
 		None,
 		libc::MS_BIND,
 		None,
-	)?;
-	mount(None, &plan.store_in_root, None, libc::MS_SHARED, None)?;
+	)
+	.map_err(|e| {
+		let store = quoted(plan.store_in_root.to_string_lossy().as_ref());
+		sys_error(
+			&format!("unable to bind mount the Nix store at {store}"),
+			&e,
+		)
+	})?;
+	mount(None, &plan.store_in_root, None, libc::MS_SHARED, None).map_err(|e| {
+		let store = quoted(plan.store_in_root.to_string_lossy().as_ref());
+		sys_error(&format!("unable to make {store} shared"), &e)
+	})?;
 
 	let root = &spec.chroot_root;
-	let mut binds = spec.binds.clone();
-	if !binds.iter().any(|b| b.target == Path::new("/dev")) {
+	let mut binds = ChrootBinds::default();
+	for bind in &spec.binds {
+		binds.set(bind.clone());
+	}
+	if !binds.contains(Path::new("/dev")) {
 		fs::create_dir_all(root.join("dev/shm"))?;
 		fs::create_dir_all(root.join("dev/pts"))?;
 		let mut devices = vec!["/dev/full"];
@@ -891,7 +1040,7 @@ fn enter_chroot(spec: &SandboxSpec, plan: &ChildPlan) -> io::Result<()> {
 			"/dev/zero",
 		]);
 		for device in devices {
-			binds.push(Bind {
+			binds.add(Bind {
 				target: PathBuf::from(device),
 				source: fs::canonicalize(device).unwrap_or_else(|_| PathBuf::from(device)),
 				optional: false,
@@ -910,7 +1059,7 @@ fn enter_chroot(spec: &SandboxSpec, plan: &ChildPlan) -> io::Result<()> {
 		)?;
 		for path in ["/etc/resolv.conf", "/etc/services", "/etc/hosts"] {
 			if Path::new(path).exists() {
-				binds.push(Bind {
+				binds.add(Bind {
 					target: PathBuf::from(path),
 					source: fs::canonicalize(path)?,
 					optional: false,
@@ -919,24 +1068,39 @@ fn enter_chroot(spec: &SandboxSpec, plan: &ChildPlan) -> io::Result<()> {
 		}
 	}
 
-	for bind in &binds {
+	// Opened after the root became a mount of its own, so that mounts end
+	// up on it.
+	let root_fd = open_at(
+		libc::AT_FDCWD,
+		&plan.root,
+		libc::O_RDONLY | libc::O_DIRECTORY | libc::O_NOFOLLOW,
+		0,
+	)
+	.map_err(|e| sys_error(&format!("opening directory {}", quoted(root)), &e))?;
+	for bind in binds.iter() {
+		// Backwards compatibility, as in CppNix.
 		if bind.source == Path::new("/proc") {
 			continue;
 		}
-		do_bind(root, bind)?;
+		do_bind(&root_fd, root, bind)?;
 	}
 
 	let proc = cpath(&root.join("proc"))?;
 	fs::create_dir_all(root.join("proc"))?;
-	mount(Some(c"none"), &proc, Some(c"proc"), 0, None)?;
+	mount(Some(c"none"), &proc, Some(c"proc"), 0, None)
+		.map_err(|e| sys_error("mounting /proc", &e))?;
 
 	if Path::new("/dev/shm").exists() {
 		let shm = cpath(&root.join("dev/shm"))?;
 		let data = cstring(format!("size={}", spec.shm_size).as_bytes())?;
-		mount(Some(c"none"), &shm, Some(c"tmpfs"), 0, Some(&data))?;
+		mount(Some(c"none"), &shm, Some(c"tmpfs"), 0, Some(&data))
+			.map_err(|e| sys_error("mounting /dev/shm", &e))?;
 	}
 
-	if Path::new("/dev/pts/ptmx").exists() && !root.join("dev/ptmx").exists() {
+	if Path::new("/dev/pts/ptmx").exists()
+		&& fs::symlink_metadata(root.join("dev/ptmx")).is_err()
+		&& !binds.contains(Path::new("/dev/pts"))
+	{
 		let pts = cpath(&root.join("dev/pts"))?;
 		match mount(
 			Some(c"none"),
@@ -954,6 +1118,7 @@ fn enter_chroot(spec: &SandboxSpec, plan: &ChildPlan) -> io::Result<()> {
 			}
 			Err(e) if e.raw_os_error() == Some(libc::EINVAL) => {
 				do_bind(
+					&root_fd,
 					root,
 					&Bind {
 						target: "/dev/pts".into(),
@@ -962,6 +1127,7 @@ fn enter_chroot(spec: &SandboxSpec, plan: &ChildPlan) -> io::Result<()> {
 					},
 				)?;
 				do_bind(
+					&root_fd,
 					root,
 					&Bind {
 						target: "/dev/ptmx".into(),
@@ -970,7 +1136,7 @@ fn enter_chroot(spec: &SandboxSpec, plan: &ChildPlan) -> io::Result<()> {
 					},
 				)?;
 			}
-			Err(e) => return Err(e),
+			Err(e) => return Err(sys_error("mounting /dev/pts", &e)),
 		}
 	}
 
@@ -1031,80 +1197,302 @@ fn bring_up_loopback() -> io::Result<()> {
 	}
 }
 
-/// Make `bind.source` appear at `bind.target` in the chroot: bind-mount
-/// directories and files, and copy symlinks.
-fn do_bind(root: &Path, bind: &Bind) -> io::Result<()> {
-	let rel = bind.target.strip_prefix("/").unwrap_or(&bind.target);
-	if rel.as_os_str().is_empty()
-		|| rel
-			.components()
-			.any(|c| matches!(c, std::path::Component::ParentDir))
-	{
+/// The host paths visible in the chroot, ordered by their targets as CppNix's
+/// `PathsInChroot` is: targets are compared by their components, of which a
+/// trailing slash and `.` are some.
+#[derive(Clone, Default)]
+pub struct ChrootBinds(BTreeMap<(bool, Vec<Vec<u8>>), Bind>);
+
+impl ChrootBinds {
+	fn key(target: &Path) -> (bool, Vec<Vec<u8>>) {
+		let bytes = target.as_os_str().as_bytes();
+		let absolute = bytes.starts_with(b"/");
+		(absolute, components(relative(bytes)))
+	}
+
+	/// Add `bind` unless its target is present.
+	pub fn add(&mut self, bind: Bind) {
+		self.0.entry(Self::key(&bind.target)).or_insert(bind);
+	}
+
+	/// Add `bind`, replacing one with the same target.
+	pub fn set(&mut self, bind: Bind) {
+		self.0.insert(Self::key(&bind.target), bind);
+	}
+
+	pub fn remove(&mut self, target: &Path) {
+		self.0.remove(&Self::key(target));
+	}
+
+	pub fn contains(&self, target: &Path) -> bool {
+		self.0.contains_key(&Self::key(target))
+	}
+
+	pub fn iter(&self) -> impl Iterator<Item = &Bind> {
+		self.0.values()
+	}
+}
+
+/// `std::filesystem::path::relative_path`.
+fn relative(path: &[u8]) -> &[u8] {
+	let start = path.iter().position(|&b| b != b'/').unwrap_or(path.len());
+	&path[start..]
+}
+
+/// The components of a relative path as `std::filesystem::path` iterates over
+/// them; a trailing slash is an empty last one.
+fn components(path: &[u8]) -> Vec<Vec<u8>> {
+	let mut out: Vec<Vec<u8>> = path
+		.split(|&b| b == b'/')
+		.filter(|c| !c.is_empty())
+		.map(<[u8]>::to_vec)
+		.collect();
+	if path.ends_with(b"/") && !out.is_empty() {
+		out.push(Vec::new());
+	}
+	out
+}
+
+/// `std::filesystem::path`'s `parent_path` and `filename` of a relative path.
+fn split_filename(path: &[u8]) -> (&[u8], &[u8]) {
+	match path.iter().rposition(|&b| b == b'/') {
+		None => (b"", path),
+		Some(slash) => {
+			let end = path[..slash]
+				.iter()
+				.rposition(|&b| b != b'/')
+				.map_or(0, |last| last + 1);
+			(&path[..end], &path[slash + 1..])
+		}
+	}
+}
+
+fn quoted(path: impl AsRef<OsStr>) -> String {
+	format!("\"{}\"", path.as_ref().to_string_lossy())
+}
+
+fn open_at(dir: RawFd, path: &CStr, flags: libc::c_int, mode: libc::c_uint) -> io::Result<OwnedFd> {
+	// SAFETY: `path` is NUL-terminated.
+	let fd = unsafe { libc::openat(dir, path.as_ptr(), flags | libc::O_CLOEXEC, mode) };
+	if fd == -1 {
+		return Err(io::Error::last_os_error());
+	}
+	// SAFETY: openat returned a new descriptor.
+	Ok(unsafe { OwnedFd::from_raw_fd(fd) })
+}
+
+/// Open the directory `path` in the chroot, creating missing components. No
+/// symlink is followed and `..` cannot leave the chroot. The result is `None`
+/// when `path` has no components, and otherwise says whether it denotes the
+/// root.
+fn create_dirs_and_open(root: &OwnedFd, path: &[u8]) -> io::Result<Option<(OwnedFd, bool)>> {
+	const DIRECTORY: libc::c_int = libc::O_DIRECTORY | libc::O_NOFOLLOW;
+	let mut current: Option<OwnedFd> = None;
+	let mut depth = 0usize;
+	for component in components(path) {
+		if component.is_empty() || component == b"." {
+			continue;
+		}
+		if component == b".." {
+			if depth == 0 {
+				return Err(io::Error::other(format!(
+					"sandbox path {} escapes the chroot",
+					quoted(OsStr::from_bytes(path))
+				)));
+			}
+			depth -= 1;
+		} else {
+			depth += 1;
+		}
+		let parent = current.as_ref().unwrap_or(root).as_raw_fd();
+		let name = cstring(&component)?;
+		let error = |e: io::Error| {
+			sys_error(
+				&format!(
+					"creating directory component {} in the sandbox path {}",
+					quoted(OsStr::from_bytes(&component)),
+					quoted(OsStr::from_bytes(path))
+				),
+				&e,
+			)
+		};
+		let next = match open_at(parent, &name, DIRECTORY, 0) {
+			Err(e) if e.raw_os_error() == Some(libc::ENOENT) => {
+				// SAFETY: `name` is NUL-terminated. EEXIST is an error: somebody
+				// else is changing the chroot.
+				if unsafe { libc::mkdirat(parent, name.as_ptr(), 0o777) } == -1 {
+					return Err(error(io::Error::last_os_error()));
+				}
+				open_at(parent, &name, DIRECTORY, 0)
+			}
+			result => result,
+		};
+		current = Some(next.map_err(error)?);
+	}
+	Ok(current.map(|fd| (fd, depth == 0)))
+}
+
+/// Attach a recursive copy of the mount at `source` to `target`.
+fn bind_mount(source: &OwnedFd, target: &OwnedFd, names: (&Path, &Path)) -> io::Result<()> {
+	const OPEN_TREE_CLONE: libc::c_uint = 1;
+	const AT_RECURSIVE: libc::c_uint = 0x8000;
+	const MOVE_MOUNT_F_EMPTY_PATH: libc::c_uint = 0x4;
+	const MOVE_MOUNT_T_EMPTY_PATH: libc::c_uint = 0x40;
+	let (from, to) = (quoted(names.0), quoted(names.1));
+	// SAFETY: open descriptors and NUL-terminated strings.
+	let tree = unsafe {
+		libc::syscall(
+			libc::SYS_open_tree,
+			source.as_raw_fd(),
+			c"".as_ptr(),
+			OPEN_TREE_CLONE
+				| AT_RECURSIVE
+				| (libc::O_CLOEXEC | libc::AT_EMPTY_PATH) as libc::c_uint,
+		)
+	};
+	if tree == -1 {
+		let error = io::Error::last_os_error();
+		if error.raw_os_error() != Some(libc::ENOSYS) {
+			return Err(sys_error(
+				&format!("opening bind mount source {from}"),
+				&error,
+			));
+		}
+		let proc = |fd: &OwnedFd| cstring(format!("/proc/self/fd/{}", fd.as_raw_fd()).as_bytes());
+		return mount(
+			Some(&proc(source)?),
+			&proc(target)?,
+			Some(c""),
+			libc::MS_BIND | libc::MS_REC,
+			None,
+		)
+		.map_err(|e| sys_error(&format!("bind mount from {from} to {to} failed"), &e));
+	}
+	// SAFETY: open_tree returned a new descriptor.
+	let tree = unsafe { OwnedFd::from_raw_fd(tree as RawFd) };
+	// SAFETY: open descriptors and NUL-terminated strings.
+	let moved = unsafe {
+		libc::syscall(
+			libc::SYS_move_mount,
+			tree.as_raw_fd(),
+			c"".as_ptr(),
+			target.as_raw_fd(),
+			c"".as_ptr(),
+			MOVE_MOUNT_F_EMPTY_PATH | MOVE_MOUNT_T_EMPTY_PATH,
+		)
+	};
+	if moved == -1 {
+		return Err(sys_error(
+			&format!("bind mount from {from} to {to} failed"),
+			&io::Error::last_os_error(),
+		));
+	}
+	Ok(())
+}
+
+/// CppNix's `doBind`: make `bind.source` appear at `bind.target` in the
+/// chroot. Directories and files are bind-mounted and symlinks copied. Every
+/// operation is relative to `root`, the chroot's directory, and follows no
+/// symlink, because some of the components may be symlinks copied from the
+/// host, or below a directory that others can write to.
+fn do_bind(root: &OwnedFd, root_path: &Path, bind: &Bind) -> io::Result<()> {
+	let target = relative(bind.target.as_os_str().as_bytes());
+	let (parent, name) = split_filename(target);
+	if target.is_empty() {
+		return Err(io::Error::other(
+			"invalid path to bind mount in the chroot: \"\"",
+		));
+	}
+	if name == b"." || name == b".." {
 		return Err(io::Error::other(format!(
-			"invalid path to bind mount in the chroot: '{}'",
-			bind.target.display()
+			"sandbox path to bind mount in the chroot has an invalid filename: {}",
+			quoted(OsStr::from_bytes(target))
 		)));
 	}
-	let target = root.join(rel);
-	let metadata = match fs::symlink_metadata(&bind.source) {
-		Ok(m) => m,
+	let full = root_path.join(OsStr::from_bytes(target));
+	let source = match open_at(
+		libc::AT_FDCWD,
+		&cpath(&bind.source)?,
+		libc::O_PATH | libc::O_NOFOLLOW,
+		0,
+	) {
+		Ok(fd) => fd,
 		Err(e)
-			if bind.optional
-				&& matches!(
-					e.kind(),
-					io::ErrorKind::NotFound | io::ErrorKind::NotADirectory
-				) =>
+			if bind.optional && matches!(e.raw_os_error(), Some(libc::ENOENT | libc::ENOTDIR)) =>
 		{
 			return Ok(());
 		}
 		Err(e) => {
-			return Err(io::Error::new(
-				e.kind(),
-				format!(
-					"getting attributes of path '{}': {e}",
-					bind.source.display()
-				),
+			return Err(sys_error(
+				&format!("getting attributes of path {}", quoted(&bind.source)),
+				&e,
 			));
 		}
 	};
-	if let Some(parent) = target.parent() {
-		fs::create_dir_all(parent)?;
+	// SAFETY: `stat` is filled by fstat.
+	let mut stat: libc::stat = unsafe { std::mem::zeroed() };
+	// SAFETY: an open descriptor and a writable structure.
+	check(
+		unsafe { libc::fstat(source.as_raw_fd(), &mut stat) },
+		|| format!("getting attributes of path {}", quoted(&bind.source)),
+	)?;
+	let kind = stat.st_mode & libc::S_IFMT;
+	if kind == libc::S_IFDIR {
+		return match create_dirs_and_open(root, target)? {
+			Some((directory, false)) => bind_mount(&source, &directory, (&bind.source, &full)),
+			_ => Err(io::Error::other(format!(
+				"sandbox path {} escapes the chroot",
+				quoted(&full)
+			))),
+		};
 	}
-	let source = cpath(&bind.source)?;
-	let ctarget = cpath(&target)?;
-	if metadata.is_dir() {
-		fs::create_dir_all(&target)?;
-		mount(
-			Some(&source),
-			&ctarget,
-			Some(c""),
-			libc::MS_BIND | libc::MS_REC,
-			None,
-		)
-		.map_err(|e| {
-			io::Error::other(format!(
-				"bind mount from '{}' to '{}' failed: {e}",
-				bind.source.display(),
-				target.display()
-			))
-		})
-	} else if metadata.file_type().is_symlink() {
-		std::os::unix::fs::symlink(fs::read_link(&bind.source)?, &target)
-	} else {
-		File::options().write(true).create_new(true).open(&target)?;
-		mount(
-			Some(&source),
-			&ctarget,
-			Some(c""),
-			libc::MS_BIND | libc::MS_REC,
-			None,
-		)
-		.map_err(|e| {
-			io::Error::other(format!(
-				"bind mount from '{}' to '{}' failed: {e}",
-				bind.source.display(),
-				target.display()
-			))
-		})
+	let name = cstring(name)?;
+	let parent = create_dirs_and_open(root, parent)?;
+	let parent = parent.as_ref().map_or(root, |(fd, _)| fd).as_raw_fd();
+	if kind == libc::S_IFLNK {
+		let mut buffer = vec![0u8; libc::PATH_MAX as usize];
+		// SAFETY: an open O_PATH descriptor and a buffer of the length passed.
+		let length = unsafe {
+			libc::readlinkat(
+				source.as_raw_fd(),
+				c"".as_ptr(),
+				buffer.as_mut_ptr().cast(),
+				buffer.len(),
+			)
+		};
+		check(length as libc::c_int, || {
+			format!("reading symbolic link {}", quoted(&bind.source))
+		})?;
+		let link = cstring(&buffer[..length as usize])?;
+		// SAFETY: NUL-terminated strings and an open directory.
+		check(
+			unsafe { libc::symlinkat(link.as_ptr(), parent, name.as_ptr()) },
+			|| format!("creating symlink {}", quoted(&full)),
+		)?;
+		let time = |tv_sec, tv_nsec| libc::timespec { tv_sec, tv_nsec };
+		let times = [
+			time(stat.st_atime, stat.st_atime_nsec),
+			time(stat.st_mtime, stat.st_mtime_nsec),
+		];
+		// SAFETY: two timespecs, a NUL-terminated string and an open directory.
+		return check(
+			unsafe {
+				libc::utimensat(
+					parent,
+					name.as_ptr(),
+					times.as_ptr(),
+					libc::AT_SYMLINK_NOFOLLOW,
+				)
+			},
+			|| format!("changing write time of {}", quoted(&full)),
+		);
 	}
+	let file = open_at(
+		parent,
+		&name,
+		libc::O_CREAT | libc::O_EXCL | libc::O_WRONLY | libc::O_NOFOLLOW,
+		0o666,
+	)
+	.map_err(|e| sys_error(&format!("creating regular file {}", quoted(&full)), &e))?;
+	bind_mount(&source, &file, (&bind.source, &full))
 }

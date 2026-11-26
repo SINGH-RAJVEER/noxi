@@ -117,6 +117,11 @@ fn no_flags(flags: &[String]) -> Result<(), Failure> {
 
 /// Run `nix-env` with the arguments after the program name.
 pub fn main(mut settings: Settings, args: Vec<String>) -> Result<ExitCode, Failure> {
+	if let Ok(path) = std::env::var("NIX_PATH") {
+		settings
+			.set("nix-path", &noxi_eval::parse_nix_path(&path).join(" "))
+			.map_err(|error| error.to_string())?;
+	}
 	let state_dir = LocalStoreConfig::system().state_dir;
 	ensure_def_expr(&settings, &state_dir);
 	let cwd = std::env::current_dir()?;
@@ -526,10 +531,8 @@ fn source_root(globals: &Globals) -> Result<String, Failure> {
 					continue;
 				}
 				let nix_file = path.is_file()
-					&& (name.ends_with(".nix")
-						|| path.canonicalize().is_ok_and(|target| {
-							target.extension().is_some_and(|ext| ext == "nix")
-						}));
+					&& std::fs::canonicalize(&path)
+						.is_ok_and(|target| target.extension().is_some_and(|ext| ext == "nix"));
 				if nix_file || path.is_dir() && path.join("default.nix").exists() {
 					let name = name.strip_suffix(".nix").unwrap_or(&name).to_owned();
 					if !seen.insert(name.clone()) {
@@ -552,7 +555,10 @@ fn source_root(globals: &Globals) -> Result<String, Failure> {
 		}
 		let mut entries = Vec::new();
 		expressions(&path, &mut BTreeSet::new(), &mut entries)?;
-		return Ok(format!("{{ {} }}", entries.join(" ")));
+		return Ok(format!(
+			"{{ _combineChannels = {{}}; {} }}",
+			entries.join(" ")
+		));
 	}
 	Ok(format!(
 		"import {}",

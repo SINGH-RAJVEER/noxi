@@ -24,7 +24,7 @@ fn modern_profiles_match_manifest_and_output_paths() {
 		reference.join("nix"),
 		PathBuf::from(env!("CARGO_BIN_EXE_nix")),
 	];
-	let run = |engine: usize, bin: &Path, args: &[&str]| {
+	let run_with_completion = |engine: usize, bin: &Path, args: &[&str], completing: bool| {
 		let root = roots[engine].path();
 		{
 			let mut command = if engine == 0 && args.first() == Some(&"profile") {
@@ -43,9 +43,14 @@ fn modern_profiles_match_manifest_and_output_paths() {
 			} else {
 				Command::new(bin)
 			};
-			command.env_clear().env("PATH", std::env::var_os("PATH").unwrap()).env("HOME", root).env("NIX_CONF_DIR", root.join("conf")).env("NIX_USER_CONF_FILES", "").env("NIX_CONFIG", "experimental-features = nix-command flakes\nsubstituters =\nflake-registry =\nbuild-users-group =\nrequire-drop-supplementary-groups = false\nsandbox = false\n").args(["--store", &format!("local?root={}/store", root.display())]).args(args).output().unwrap()
+			command.env_clear().env("PATH", std::env::var_os("PATH").unwrap()).env("HOME", root).env("NIX_CONF_DIR", root.join("conf")).env("NIX_USER_CONF_FILES", "").env("NIX_CONFIG", "experimental-features = nix-command flakes\nsubstituters =\nflake-registry =\nbuild-users-group =\nrequire-drop-supplementary-groups = false\nsandbox = false\n").args(["--store", &format!("local?root={}/store", root.display())]).args(args);
+			if completing {
+				command.env("NIX_GET_COMPLETIONS", "5");
+			}
+			command.output().unwrap()
 		}
 	};
+	let run = |engine, bin: &Path, args: &[&str]| run_with_completion(engine, bin, args, false);
 	for root in &roots {
 		let package = fs::canonicalize(&reference).unwrap();
 		let package = package.parent().unwrap();
@@ -91,6 +96,8 @@ fn modern_profiles_match_manifest_and_output_paths() {
 		vec!["profile", "history"],
 		vec!["profile", "diff-closures"],
 		vec!["profile", "list"],
+		vec!["profile", "upgrade", "--offline", "missing"],
+		vec!["profile", "upgrade", "--offline", "--regex", "missing.*"],
 		vec!["profile", "remove", "demo"],
 		vec!["profile", "list", "--json"],
 		vec!["profile", "rollback"],
@@ -124,6 +131,34 @@ fn modern_profiles_match_manifest_and_output_paths() {
 			})
 			.collect();
 		assert_eq!(stderr[0], stderr[1], "{args:?}");
+		if args.starts_with(&["profile", "add"]) {
+			for (subcommand, prefix, expected) in [
+				("remove", "", b"normal\ndemo\tdemo\n".as_slice()),
+				("upgrade", "de", b"normal\ndemo\tdemo\n".as_slice()),
+				("remove", "missing", b"normal\n".as_slice()),
+			] {
+				for engine in 0..2 {
+					let profile = roots[engine].path().join("profile");
+					let before = fs::read_link(&profile).unwrap();
+					let result = run_with_completion(
+						engine,
+						&bins[engine],
+						&[
+							"profile",
+							subcommand,
+							prefix,
+							"--profile",
+							profile.to_str().unwrap(),
+						],
+						true,
+					);
+					assert_eq!(result.status.code(), Some(0));
+					assert_eq!(result.stdout, expected);
+					assert!(result.stderr.is_empty());
+					assert_eq!(fs::read_link(&profile).unwrap(), before);
+				}
+			}
+		}
 		let targets: Vec<_> = roots
 			.iter()
 			.map(|r| {

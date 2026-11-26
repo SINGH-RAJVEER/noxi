@@ -436,9 +436,11 @@ fn query_expression_impl(
 				if !kind.success then []
 				else if kind.value == "function" then walk path top (autoCall v)
 				else if kind.value == "derivation" then [ (v // { __noxiAttrPath = path; }) ]
-				else if kind.value == "list" then builtins.concatMap (walk path true) v
+				else if kind.value == "list" && top then builtins.concatLists (builtins.genList
+					(i: let index = toString i; in walk (if path == "" then index else path + "." + index) true (builtins.elemAt v i))
+					(builtins.length v))
 				else if kind.value == "attrs" then builtins.concatMap
-					(n: if n == "recurseForDerivations" then [] else walk (if path == "" then n else path + "." + n) false v.${n}) (builtins.attrNames v)
+					(n: if n == "recurseForDerivations" then [] else walk (if path == "" then n else path + "." + n) (v ? _combineChannels) v.${n}) (builtins.attrNames v)
 				else [];
 		rootValue = if builtins.isFunction root then autoCall root else root;
 	in builtins.seq rootValue (walk "" true rootValue)"#;

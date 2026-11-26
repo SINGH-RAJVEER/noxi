@@ -71,6 +71,15 @@ fn subscription_files_and_xdg_precedence() {
 
 #[test]
 fn channel_updates_preserve_reference_paths_contents_and_generations() {
+	channel_update_matches_reference(false);
+}
+
+#[test]
+fn file_directory_channel_falls_back_to_the_bzip2_archive() {
+	channel_update_matches_reference(true);
+}
+
+fn channel_update_matches_reference(directory: bool) {
 	let reference = std::env::var_os("NOXI_REFERENCE_BIN")
 		.map(PathBuf::from)
 		.unwrap_or_else(|| {
@@ -79,7 +88,13 @@ fn channel_updates_preserve_reference_paths_contents_and_generations() {
 	let fixture = noxi_test_support::tempdir().unwrap();
 	let source = fixture.path().join("nixexprs");
 	fs::create_dir(&source).unwrap();
-	let archive = fixture.path().join("channel.tar.gz");
+	let endpoint = fixture.path().join("channel");
+	let archive = if directory {
+		fs::create_dir(&endpoint).unwrap();
+		endpoint.join("nixexprs.tar.bz2")
+	} else {
+		endpoint.with_extension("tar.gz")
+	};
 	let roots = [
 		noxi_test_support::tempdir().unwrap(),
 		noxi_test_support::tempdir().unwrap(),
@@ -120,8 +135,8 @@ fn channel_updates_preserve_reference_paths_contents_and_generations() {
 		assert_eq!(outputs[0].stdout, outputs[1].stdout, "{args:?}");
 		assert_eq!(outputs[0].stderr, outputs[1].stderr, "{args:?}");
 	};
-	let url = format!("file://{}", archive.display());
-	same(&["--add", &url, "demo"]);
+	let url = url::Url::from_file_path(if directory { &endpoint } else { &archive }).unwrap();
+	same(&["--add", url.as_str(), "demo"]);
 	for answer in [42, 43] {
 		fs::write(
 			source.join("default.nix"),
@@ -131,7 +146,7 @@ fn channel_updates_preserve_reference_paths_contents_and_generations() {
 		assert!(
 			Command::new("tar")
 				.args([
-					"-czf",
+					if directory { "-cjf" } else { "-czf" },
 					archive.to_str().unwrap(),
 					"-C",
 					fixture.path().to_str().unwrap(),

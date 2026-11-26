@@ -244,8 +244,14 @@ pub(super) fn show(parsed: Parsed) -> Result<ExitCode, Failure> {
 	}
 	settings["experimental-features"]["value"] = json!(parsed.settings.experimental_features());
 	if let Some(name) = parsed.operands.first() {
+		let features = parsed.settings.experimental_features();
 		let entry = settings
 			.get(name)
+			.filter(|entry| {
+				entry["experimentalFeature"]
+					.as_str()
+					.is_none_or(|feature| features.contains(feature))
+			})
 			.ok_or_else(|| Failure::Error(format!("could not find setting '{name}'")))?;
 		println!("{}", text(&entry["value"], name));
 	} else if parsed.has("json") {

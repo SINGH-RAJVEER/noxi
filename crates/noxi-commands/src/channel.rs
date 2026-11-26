@@ -83,14 +83,23 @@ fn lifecycle(
 			elements.push(element);
 			continue;
 		}
-		let (mut bytes, effective) = download(&fetcher, url)?;
+		let local_directory = url::Url::parse(url)
+			.ok()
+			.and_then(|url| url.to_file_path().ok())
+			.is_some_and(|path| path.is_dir());
+		let (mut bytes, effective) = if local_directory {
+			(Vec::new(), url.clone())
+		} else {
+			download(&fetcher, url)?
+		};
 		let direct = [".tar.gz", ".tar.bz2", ".tar.xz"]
 			.iter()
 			.any(|ext| url.ends_with(ext));
 		let mut filename = url.rsplit('/').next().unwrap_or("").to_owned();
-		if ![".tar.gz", ".tar.bz2", ".tar.xz"]
-			.iter()
-			.any(|ext| filename.ends_with(ext))
+		if local_directory
+			|| ![".tar.gz", ".tar.bz2", ".tar.xz"]
+				.iter()
+				.any(|ext| filename.ends_with(ext))
 		{
 			let base = effective.trim_end_matches('/');
 			match download(&fetcher, &format!("{base}/nixexprs.tar.xz")) {

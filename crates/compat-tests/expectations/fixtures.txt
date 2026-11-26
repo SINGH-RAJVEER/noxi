@@ -145,7 +145,7 @@ pass:upstream_functional tests/functional/ca/multiple-outputs.sh
 gap tests/functional/ca/new-build-cmd.sh # source in ./build.sh:148: error: nix --relaxed-sandbox is not supported by noxi yet
 pass:upstream_functional tests/functional/ca/nix-copy.sh
 pass:upstream_functional tests/functional/ca/nix-run.sh
-gap tests/functional/ca/nix-shell.sh # source in ./nix-shell.sh:81: error: nix-shell shebang scripts are not supported by noxi yet
+pass:upstream_functional tests/functional/ca/nix-shell.sh
 pass:upstream_functional tests/functional/ca/post-hook.sh
 gap tests/functional/ca/recursive.sh # source in ./recursive.sh:13: error: Cannot build '$ROOT/tmp/nix-test/ca/recursive/store/HASH-recursive.drv'.
 gap tests/functional/ca/repl.sh # : error: the noxi repl does not support ':log' yet
@@ -200,13 +200,13 @@ pass:upstream_functional tests/functional/flakes/absolute-attr-paths.sh
 pass:upstream_functional tests/functional/flakes/absolute-paths.sh
 pass:upstream_functional tests/functional/flakes/build-paths.sh
 pass:upstream_functional tests/functional/flakes/bundle.sh
-gap tests/functional/flakes/check.sh # main in check.sh:41: error: overlay does not take an argument named 'final'
+gap tests/functional/flakes/check.sh # main in check.sh:157: missing flake check build progress
 pass:upstream_functional tests/functional/flakes/circular.sh
 pass:upstream_functional tests/functional/flakes/commit-lock-file-summary.sh
 gap tests/functional/flakes/config.sh # : test failed: The post hook should have ran
 pass:upstream_functional tests/functional/flakes/debugger.sh
 gap tests/functional/flakes/develop.sh # main in develop.sh:148: error: cannot find flake 'flake:nixpkgs' in the flake registries
-gap tests/functional/flakes/dubious-query.sh # main in dubious-query.sh:16: $ROOT/tmp/nix-test/flakes/dubious-query/store/HASH-simple.drv
+pass:upstream_functional tests/functional/flakes/dubious-query.sh
 pass:upstream_functional tests/functional/flakes/edit.sh
 pass:upstream_functional tests/functional/flakes/eval-cache.sh
 gap tests/functional/flakes/flake-in-submodule.sh # main in flake-in-submodule.sh:108: Initialized empty Git repository in $ROOT/tmp/nix-test/flakes/flake-in-submodule/otherRepo/.git/
@@ -239,10 +239,10 @@ gap tests/functional/gc-concurrent.sh # main in gc-concurrent.sh:40: error: path
 gap tests/functional/gc-non-blocking.sh # main in gc-non-blocking.sh:43: error: Cannot build '$ROOT/tmp/nix-test/main/gc-non-blocking/store/HASH-non-blocking.drv'.
 pass:upstream_functional tests/functional/gc-runtime.sh
 pass:upstream_functional tests/functional/gc.sh
+pass:upstream_functional tests/functional/git/packed-refs-no-cache.sh
 pass:upstream_functional tests/functional/git-hashing/fixed.sh
 pass:upstream_functional tests/functional/git-hashing/simple-sha1.sh
 pass:upstream_functional tests/functional/git-hashing/simple-sha256.sh
-gap tests/functional/git/packed-refs-no-cache.sh # main in packed-refs-no-cache.sh:50: fatal: cannot change to '$ROOT/tmp/nix-test/git/packed-refs-no-cache/test-home/.cache/nix/gitv3/*/': No such file or directory
 pass:upstream_functional tests/functional/git/symlinked-repo.sh
 pass:upstream_functional tests/functional/hash-convert.sh
 pass:upstream_functional tests/functional/hash-path.sh
@@ -255,7 +255,7 @@ pass:upstream_functional tests/functional/json.sh
 anomaly tests/functional/lang-gc.sh # reference skip: Too memory intensive for CI. Attempt to reduce memory usage was unsuccessful, because it made detection of the bug unreliable., skipping this test...
 pass:upstream_functional tests/functional/lang.sh
 pass:upstream_functional tests/functional/legacy-ssh-store.sh
-gap tests/functional/linux-sandbox.sh # main in linux-sandbox.sh:104: /my/store/HASH-test-sandbox-paths
+pass:upstream_functional tests/functional/linux-sandbox.sh
 pass:upstream_functional tests/functional/local-overlay-store/add-lower.sh
 pass:upstream_functional tests/functional/local-overlay-store/bad-uris.sh
 pass:upstream_functional tests/functional/local-overlay-store/build.sh
@@ -276,12 +276,12 @@ pass:upstream_functional tests/functional/nar-access.sh
 gap tests/functional/nars.sh # main in nars.sh:6:
 gap tests/functional/nested-sandboxing.sh # main in nested-sandboxing.sh:24:
 pass:upstream_functional tests/functional/nix-build.sh
-gap tests/functional/nix-channel.sh # main in nix-channel.sh:44: error: Is a directory (os error 21)
+pass:upstream_functional tests/functional/nix-channel.sh
 pass:upstream_functional tests/functional/nix-collect-garbage-d.sh
 pass:upstream_functional tests/functional/nix-copy-ssh-ng.sh
 pass:upstream_functional tests/functional/nix-copy-ssh.sh
 gap tests/functional/nix-profile.sh # main in nix-profile.sh:76: profile removal completion is missing
-gap tests/functional/nix-shell.sh # main in nix-shell.sh:81: error: nix-shell shebang scripts are not supported by noxi yet
+pass:upstream_functional tests/functional/nix-shell.sh
 pass:upstream_functional tests/functional/nix_path.sh
 pass:upstream_functional tests/functional/no-url-literals.sh
 gap tests/functional/optimise-store.sh # : inodes do not match
@@ -322,7 +322,7 @@ unrun tests/functional/test-libstoreconsumer.sh # needs the C++ libstore consume
 gap tests/functional/timeout.sh # timed out at +(common/functions.sh:331) command grep 'killed after writing more than 100 bytes of log output'
 pass:upstream_functional tests/functional/toString-path.sh
 anomaly tests/functional/user-envs-migration.sh # reference skip: Daemon is too new, skipping this test...
-gap tests/functional/user-envs.sh # source in ./user-envs-test-case.sh:20: JSON outputName and null output paths differ
+pass:upstream_functional tests/functional/user-envs.sh
 pass:upstream_functional tests/functional/why-depends.sh
 table:upstream_functional tests/functional/**/* # helpers and data read by the scripts
 # Out of scope for compat-tests: NixOS VM tests run in the qualification VMs (owner: TODO section 7, NixOS and Home Manager replacement).

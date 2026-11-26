@@ -355,8 +355,7 @@ fn fetchurl_matches_the_reference() {
 	}
 }
 
-/// noxi's `builtin:fetchurl` runs outside the sandbox, so in the sandbox it
-/// must not read host files for the derivation.
+/// `builtin:fetchurl` runs in the sandbox, so it cannot read host files.
 #[test]
 fn fetchurl_cannot_read_host_files_in_the_sandbox() {
 	let dir = noxi_test_support::tempdir().unwrap();
