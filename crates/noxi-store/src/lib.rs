@@ -23,6 +23,7 @@ pub mod keys;
 mod local;
 pub mod local_overlay;
 pub mod lock;
+pub mod narinfo_disk_cache;
 pub mod logs;
 pub mod nar;
 pub mod nar_listing;

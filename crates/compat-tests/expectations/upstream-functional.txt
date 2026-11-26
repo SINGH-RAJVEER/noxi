@@ -11,7 +11,7 @@ tests/functional/bash-profile.sh anomaly fail fail # reference fail: main in bas
 tests/functional/big-derivation-attr.nix support
 tests/functional/binary-cache-build-remote.sh pass pass pass
 tests/functional/binary-cache-compression.sh pass pass pass
-tests/functional/binary-cache.sh gap fail pass # main in binary-cache.sh:165: noxi has no narinfo disk cache, so a .narinfo deleted from the cache is not reused
+tests/functional/binary-cache.sh pass pass pass
 tests/functional/build-cores.nix support
 tests/functional/build-cores.sh pass pass pass
 tests/functional/build-delete.sh pass pass pass
@@ -65,7 +65,7 @@ tests/functional/ca/recursive.sh pass pass pass
 tests/functional/ca/repl.sh gap fail pass # source in repl.sh:229: REPL :edit does not open the derivation builtin source
 tests/functional/ca/selfref-gc.sh pass pass pass
 tests/functional/ca/signatures.sh pass pass pass
-tests/functional/ca/substitute.sh gap fail pass # substitute.sh:50: substitution cannot reuse the cached realisation after the remote build trace is removed
+tests/functional/ca/substitute.sh pass pass pass
 tests/functional/ca/why-depends.sh pass pass pass
 tests/functional/cancelled-builds/flake.nix support
 tests/functional/case-collision.nar support

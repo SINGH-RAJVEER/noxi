@@ -174,9 +174,15 @@ impl args::Program for Program {
 			}
 			"print-build-logs" => nix_compat::log::set_print_build_logs(true),
 			"refresh" => {
-				self.settings
-					.set("tarball-ttl", "0")
-					.map_err(|e| e.to_string())?;
+				// `nix`'s `--refresh` handling in `main.cc`.
+				for name in [
+					"tarball-ttl",
+					"narinfo-cache-negative-ttl",
+					"narinfo-cache-positive-ttl",
+					"narinfo-cache-meta-ttl",
+				] {
+					self.settings.set(name, "0").map_err(|e| e.to_string())?;
+				}
 			}
 			_ => apply_setting_flag(&mut self.settings, flag, values.clone())?,
 		}
@@ -707,6 +713,8 @@ pub fn main(mut settings: Settings, args: Vec<String>) -> Result<ExitCode, Failu
 		sequence: level.handler.sequence,
 		operands: level.handler.operands,
 	};
+	// The narinfo disk cache reads its lifetimes from the global settings.
+	noxi_store::narinfo_disk_cache::configure(&parsed.settings);
 	if parsed.command.starts_with("hash ") {
 		return hash::run(parsed);
 	}
