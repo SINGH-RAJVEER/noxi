@@ -56,13 +56,32 @@ impl LocalStore {
 	/// `_NIX_TEST_FREE_SPACE_FILE` when that is set.
 	fn available_space(&self) -> Result<u64> {
 		if let Some(file) = std::env::var_os("_NIX_TEST_FREE_SPACE_FILE") {
-			let text = std::fs::read_to_string(&file).map_err(|e| {
+			// `readFile`'s messages, then `std::stoll`'s exception.
+			let path = std::path::Path::new(&file);
+			let strerror = |e: std::io::Error| {
+				let text = e.to_string();
+				match text.find(" (os error") {
+					Some(end) => text[..end].to_owned(),
+					None => text,
+				}
+			};
+			let mut handle = std::fs::File::open(path).map_err(|e| {
 				Error::Other(format!(
-					"reading file '{}': {e}",
-					std::path::Path::new(&file).display()
+					"opening file \"{}\": {}",
+					path.display(),
+					strerror(e)
 				))
 			})?;
-			return stoll(&text).ok_or_else(|| Error::Other("stoll".to_owned()));
+			let mut text = Vec::new();
+			std::io::Read::read_to_end(&mut handle, &mut text).map_err(|e| {
+				Error::Other(format!(
+					"reading file \"{}\": {}",
+					path.display(),
+					strerror(e)
+				))
+			})?;
+			return stoll(&String::from_utf8_lossy(&text))
+				.ok_or_else(|| Error::Other("stoll".to_owned()));
 		}
 		let dir = &self.config().real_store_dir;
 		let path = std::ffi::CString::new(dir.as_os_str().as_encoded_bytes())

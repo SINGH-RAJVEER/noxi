@@ -103,6 +103,9 @@ pub struct LocalBuilder<'a> {
 	hooks: Option<Arc<Hooks>>,
 	/// The turn of the goal this builder realises; see [`Hooks`].
 	turn: Arc<AtomicU64>,
+	/// The first error of an automatic collection, which stops every build
+	/// of the request as it ends CppNix's `Worker::run`.
+	auto_gc_error: Arc<Mutex<Option<String>>>,
 }
 
 /// An output a derivation declares, with the path it must produce.
@@ -161,6 +164,7 @@ impl<'a> LocalBuilder<'a> {
 			impure: Arc::default(),
 			hooks: Hooks::new(settings),
 			turn: Arc::new(AtomicU64::new(NO_TURN)),
+			auto_gc_error: Arc::default(),
 		}
 	}
 
@@ -190,15 +194,40 @@ impl<'a> LocalBuilder<'a> {
 	}
 
 	/// What CppNix's worker loop does each time it wakes while builds
-	/// run: collect garbage if `min-free` asks for it (`autoGC(false)`, whose
-	/// errors are not reported here), then report whether to stop.
+	/// run: collect garbage if `min-free` asks for it (`autoGC(false)`), then
+	/// report whether to stop. An error of the collection stops the builds;
+	/// [`LocalBuilder::auto_gc_error`] then reports it.
 	pub(crate) fn tick(&self) -> bool {
-		let _ = self.store.auto_gc(false);
+		if let Err(error) = self.store.auto_gc(false) {
+			self.auto_gc_error
+				.lock()
+				.unwrap_or_else(|e| e.into_inner())
+				.get_or_insert(error.to_string());
+		}
 		self.is_cancelled()
+	}
+
+	/// The error that stopped the builds through [`LocalBuilder::tick`], in
+	/// place of `error`, which reports that they were cancelled.
+	pub(crate) fn auto_gc_error(&self, error: BuildError) -> BuildError {
+		match (
+			&error,
+			&*self.auto_gc_error.lock().unwrap_or_else(|e| e.into_inner()),
+		) {
+			(BuildError::Cancelled, Some(message)) => {
+				BuildError::Store(noxi_store::Error::Other(message.clone()))
+			}
+			_ => error,
+		}
 	}
 
 	fn is_cancelled(&self) -> bool {
 		crate::interrupt::interrupted()
+			|| self
+				.auto_gc_error
+				.lock()
+				.unwrap_or_else(|e| e.into_inner())
+				.is_some()
 			|| self
 				.cancelled
 				.is_some_and(|flag| flag.load(Ordering::Relaxed))
@@ -1752,7 +1781,8 @@ impl LocalBuilder<'_> {
 			hook,
 			&|| self.tick(),
 			events,
-		)?;
+		)
+		.map_err(|e| self.auto_gc_error(e))?;
 		let outputs = self.known_outputs(drv_path, build_drv)?;
 		if !self.all_valid(&outputs)? {
 			return Err(BuildError::Other(
@@ -3526,6 +3556,7 @@ impl<'b> Build<'b> {
 			Some((listener, context)) => serve_recursive(listener, &context, run),
 			None => run(),
 		};
+		let status = status.map_err(|e| self.builder.auto_gc_error(e));
 		// `killSandbox`: nothing the builder started may outlive it.
 		if let Some(user) = &self.build_user {
 			user.kill()?;
