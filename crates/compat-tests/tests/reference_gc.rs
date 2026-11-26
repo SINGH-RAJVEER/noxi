@@ -611,9 +611,17 @@ fn collect_during_build(env: &Env, held: &str, jobs: u64, collector: &str) {
 				.map_err(|e| e.to_string())
 		}
 	});
+	// Release the builder however this case ends, so that a failed
+	// assertion does not leave it waiting.
+	let mut running = Held {
+		go: sync.join("go"),
+		builder: Some(builder),
+	};
 	let started = std::time::Instant::now();
 	while !sync.join("started").exists() {
-		assert!(!builder.is_finished(), "{case}: {:?}", builder.join());
+		if running.builder.as_ref().unwrap().is_finished() {
+			panic!("{case}: {:?}", running.finish());
+		}
 		assert!(
 			started.elapsed().as_secs() < 60,
 			"{case}: the build did not start"
@@ -640,8 +648,7 @@ fn collect_during_build(env: &Env, held: &str, jobs: u64, collector: &str) {
 			"{case}: {collector} collected {path} during the build"
 		);
 	}
-	fs::write(sync.join("go"), "").unwrap();
-	let outputs = builder.join().unwrap().unwrap();
+	let outputs = running.finish().unwrap();
 	assert_eq!(
 		fs::read_to_string(store.real_path(&outputs["out"])).unwrap(),
 		"deptop",
@@ -709,5 +716,30 @@ fn collection_honours_temporary_roots_of_live_processes() {
 		);
 		drop(holder);
 		env.verify(&name);
+	}
+}
+
+type Outputs = std::collections::BTreeMap<String, StorePath>;
+
+/// A builder held until `go` exists, which is released and waited for
+/// when this is dropped.
+struct Held {
+	go: PathBuf,
+	builder: Option<std::thread::JoinHandle<Result<Outputs, String>>>,
+}
+
+impl Held {
+	fn finish(&mut self) -> Result<Outputs, String> {
+		fs::write(&self.go, "").unwrap();
+		self.builder.take().unwrap().join().unwrap()
+	}
+}
+
+impl Drop for Held {
+	fn drop(&mut self) {
+		if let Some(builder) = self.builder.take() {
+			let _ = fs::write(&self.go, "");
+			let _ = builder.join();
+		}
 	}
 }
