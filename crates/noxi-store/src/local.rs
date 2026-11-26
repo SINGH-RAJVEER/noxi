@@ -33,6 +33,10 @@ use crate::path_info::ValidPathInfo;
 /// `Store::repairPath`.
 pub type RepairPath<'a> = dyn FnMut(&StorePath) -> Result<()> + 'a;
 
+/// Gives a NAR to the function it is called with, opening it then.
+pub type WithSource<'a> =
+	dyn FnMut(&mut dyn FnMut(&mut (dyn BufRead + Send)) -> Result<()>) -> Result<()> + 'a;
+
 /// How file system data is serialised or hashed.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum FileIngestionMethod {
@@ -1030,6 +1034,44 @@ impl LocalStore {
 		repair: bool,
 		check_sigs: bool,
 	) -> Result<()> {
+		// The NAR must be consumed by the caller's protocol even when it is
+		// not needed.
+		self.add_to_store_with(info, repair, check_sigs, true, &mut |use_source| {
+			use_source(source)
+		})
+	}
+
+	/// [`LocalStore::add_to_store`] with a NAR that `with_source` opens
+	/// only when the path is not valid once its lock is held, as CppNix's
+	/// substituters' sources are pulled only then: another process that
+	/// substituted the same path meanwhile makes the transfer unnecessary.
+	pub fn add_to_store_lazily(
+		&self,
+		info: &ValidPathInfo,
+		repair: bool,
+		check_sigs: bool,
+		with_source: &mut WithSource<'_>,
+	) -> Result<()> {
+		self.add_to_store_with(info, repair, check_sigs, false, with_source)
+	}
+
+	fn add_to_store_with(
+		&self,
+		info: &ValidPathInfo,
+		repair: bool,
+		check_sigs: bool,
+		drain: bool,
+		with_source: &mut WithSource<'_>,
+	) -> Result<()> {
+		let drain = |with_source: &mut WithSource<'_>| -> Result<()> {
+			if drain {
+				with_source(&mut |source| {
+					io::copy(source, &mut io::sink())?;
+					Ok(())
+				})?;
+			}
+			Ok(())
+		};
 		if check_sigs && self.path_info_is_untrusted(info) {
 			return Err(Error::Other(format!(
 				"cannot add path '{}' because it lacks a signature by a trusted key",
@@ -1038,8 +1080,7 @@ impl LocalStore {
 		}
 		self.add_temp_root(&info.path)?;
 		if !repair && self.is_valid_path(&info.path)? {
-			// The NAR must still be consumed by the caller's protocol.
-			io::copy(source, &mut io::sink())?;
+			drain(with_source)?;
 			return Ok(());
 		}
 
@@ -1052,10 +1093,15 @@ impl LocalStore {
 		let mut lock = PathLocks::lock((!held).then(|| real.clone()))?;
 		if repair || !self.is_valid_path(&info.path)? {
 			delete_path(&real)?;
-			let mut reader = HashingReader::new(source);
-			nar::restore_path(&real, &mut reader)
-				.context(|| format!("restoring '{}'", print(&info.path)))?;
-			let (digest, size) = reader.finish();
+			let mut read = None;
+			with_source(&mut |source| {
+				let mut reader = HashingReader::new(source);
+				nar::restore_path(&real, &mut reader)
+					.context(|| format!("restoring '{}'", print(&info.path)))?;
+				read = Some(reader.finish());
+				Ok(())
+			})?;
+			let (digest, size) = read.expect("restored");
 			if digest != info.nar_hash {
 				return Err(Error::Other(format!(
 					"hash mismatch importing path '{}';\n  specified: {}\n  got:       {}",
@@ -1087,7 +1133,7 @@ impl LocalStore {
 			self.optimise_path(&real, repair)?;
 			self.register_valid_path(info)?;
 		} else {
-			io::copy(source, &mut io::sink())?;
+			drain(with_source)?;
 		}
 		lock.set_deletion(true);
 		Ok(())

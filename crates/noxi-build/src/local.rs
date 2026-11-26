@@ -358,6 +358,9 @@ impl<'a> LocalBuilder<'a> {
 				}
 				Ok(true)
 			}
+			// No substituter could provide it after all, without failing
+			// (a collected NAR, say): the derivation is built instead.
+			Err(noxi_store::Error::NoSubstituters(_)) => Ok(false),
 			Err(error) => Err(error),
 		})
 	}

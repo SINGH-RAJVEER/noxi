@@ -958,6 +958,10 @@ impl BinaryCache {
 	fn open_file(&self, name: &str) -> Result<Option<Box<dyn Read + Send>>> {
 		match &self.transport {
 			Transport::File(dir) => match fs::File::open(local_cache_path(dir, name)?) {
+				Ok(file) if force_http() => Ok(Some(Box::new(TransferReader {
+					inner: Box::new(file),
+					_activity: transfer_activity(&format!("{}/{name}", self.uri)),
+				}))),
 				Ok(file) => Ok(Some(Box::new(file))),
 				Err(e) if e.kind() == io::ErrorKind::NotFound => Ok(None),
 				Err(e) => Err(Error::io(
@@ -1201,11 +1205,19 @@ impl BinaryCache {
 				failure,
 			})));
 		}
+		// `NoSuchBinaryCacheFile`, which `narFromPath` turns into
+		// `SubstituteGone`. `LocalBinaryCacheStore` does not name the cache.
 		let file = self.open_file(&cached.url)?.ok_or_else(|| {
-			Error::Other(format!(
-				"file '{}' does not exist in binary cache '{}'",
-				cached.url, self.uri
-			))
+			Error::SubstituteGone(match self.transport {
+				Transport::File(_) if !force_http() => format!(
+					"file '{}' does not exist in binary cache",
+					cached.url
+				),
+				_ => format!(
+					"file '{}' does not exist in binary cache '{}'",
+					cached.url, self.uri
+				),
+			})
 		})?;
 		decompress(
 			cached.compression.as_deref(),
@@ -1307,6 +1319,40 @@ impl BufRead for ProgressReader<'_> {
 	}
 }
 
+/// `_NIX_FORCE_HTTP=1`: CppNix's test switch that serves `file://` caches
+/// through `HttpBinaryCacheStore` and its file transfers.
+fn force_http() -> bool {
+	std::env::var_os("_NIX_FORCE_HTTP").is_some_and(|value| value == "1")
+}
+
+/// `TransferItem::act`: the `downloading 'URL'` activity of a transfer,
+/// after the `starting download of 'URL'` debug message.
+fn transfer_activity(url: &str) -> nix_compat::log::logger::Activity {
+	nix_compat::log::logger::log(
+		nix_compat::log::VerbosityLevel::Debug,
+		&format!("starting download of '{url}'"),
+	);
+	nix_compat::log::logger::Activity::new(
+		nix_compat::log::VerbosityLevel::Talkative,
+		nix_compat::log::ActivityType::FileTransfer,
+		format!("downloading '{url}'"),
+		vec![url.to_owned().into()],
+		0,
+	)
+}
+
+/// A transfer's body, which keeps its activity open while it is read.
+struct TransferReader {
+	inner: Box<dyn Read + Send>,
+	_activity: nix_compat::log::logger::Activity,
+}
+
+impl Read for TransferReader {
+	fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
+		self.inner.read(buf)
+	}
+}
+
 /// `GET url` from the server of `base`, or `None` if the server has no such
 /// file.
 fn http_get(
@@ -1337,6 +1383,7 @@ fn http_get(
 					.then(|| Duration::from_secs(transfer.connect_timeout)),
 			)
 			.build();
+		let activity = transfer_activity(url);
 		let started = Instant::now();
 		// `TransferItem::finish`'s classification: whether to retry,
 		// the message, and the server's `Retry-After`.
@@ -1369,7 +1416,10 @@ fn http_get(
 				let status = response.status().as_u16();
 				match status {
 					200..=299 => {
-						return Ok(Some(Box::new(response.into_body().into_reader())));
+						return Ok(Some(Box::new(TransferReader {
+							inner: Box::new(response.into_body().into_reader()),
+							_activity: activity,
+						})));
 					}
 					// S3 answers 403 for files that do not exist.
 					404 | 403 | 410 => return Ok(None),
@@ -1834,6 +1884,8 @@ impl LocalStore {
 			)));
 		}
 		let mut last_error = None;
+		// `substituterFailed`.
+		let mut failed = false;
 		for cache in caches {
 			let cached = match cache.query_path_info(path) {
 				Ok(Some(cached)) => cached,
@@ -1869,10 +1921,15 @@ impl LocalStore {
 					&& let Err(e) = self.substitute_inner(caches, reference, false, done)
 				{
 					tracing::error!("{e}");
-					return Err(Error::Other(format!(
+					let message = format!(
 						"some references of path '{}' could not be realised",
 						print(path)
-					)));
+					);
+					// `nrNoSubstituters > 0 ? ecNoSubstituters : ecFailed`.
+					return Err(match e {
+						Error::NoSubstituters(_) => Error::NoSubstituters(message),
+						_ => Error::Other(message),
+					});
 				}
 			}
 			for reference in &cached.info.references {
@@ -1934,24 +1991,37 @@ impl LocalStore {
 				);
 				(substitute, copy)
 			});
-			let result = cache.nar(&cached).and_then(|nar| {
-				let mut nar = ProgressReader {
-					inner: nar,
-					act: acts.as_ref().map(|(_, copy)| copy),
-					total: 0,
-					reported: 0,
-					size: nar_size,
-				};
-				let result = self.add_to_store(&cached.info, &mut nar, repair, !cache.trusted);
-				nar.report();
-				result
-			});
+			// `copyStorePath`'s test delay, so that concurrent substitutions
+			// of one path overlap.
+			if std::env::var_os("_NIX_TEST_CONCURRENT_SUBSTITUTION").is_some() {
+				std::thread::sleep(Duration::from_secs(1));
+			}
+			// The NAR is fetched only if the path is still missing once it
+			// is locked.
+			let result = self.add_to_store_lazily(
+				&cached.info,
+				repair,
+				!cache.trusted,
+				&mut |use_source| {
+					let mut nar = ProgressReader {
+						inner: cache.nar(&cached)?,
+						act: acts.as_ref().map(|(_, copy)| copy),
+						total: 0,
+						reported: 0,
+						size: nar_size,
+					};
+					let result = use_source(&mut nar);
+					nar.report();
+					result
+				},
+			);
 			// The copy activity stops before its parent.
 			if let Some((substitute, copy)) = acts {
 				drop(copy);
 				drop(substitute);
 			}
 			let succeeded = result.is_ok();
+			let gone = matches!(result, Err(Error::SubstituteGone(_)));
 			worker_update(|c| {
 				c.running_substitutions = c.running_substitutions.saturating_sub(1);
 				c.expected_substitutions = c.expected_substitutions.saturating_sub(1);
@@ -1961,7 +2031,7 @@ impl LocalStore {
 					c.done_substitutions += 1;
 					c.done_nar_size += nar_size;
 					c.done_download_size += file_size;
-				} else {
+				} else if !gone {
 					c.failed_substitutions += 1;
 				}
 			});
@@ -1970,18 +2040,31 @@ impl LocalStore {
 					done.insert(path.clone());
 					return Ok(());
 				}
+				// A missing NAR is expected once a cache collected it: a
+				// warning, and not a failure of the substituter.
+				Err(Error::SubstituteGone(message)) => nix_compat::log::logger::warn(&message),
 				// `PathSubstitutionGoal` prints the error and tries the
 				// next substituter.
-				Err(e) => log_substitution_error(&e.to_string()),
+				Err(e) => {
+					log_substitution_error(&e.to_string());
+					failed = true;
+				}
 			}
 		}
 		if let Some(e) = last_error {
 			return Err(e);
 		}
-		Err(Error::Other(format!(
+		let message = format!(
 			"path '{}' is required, but there is no substituter that can build it",
 			print(path)
-		)))
+		);
+		// "Don't indicate failure if there were no substituters": the
+		// caller builds instead.
+		Err(if failed {
+			Error::Other(message)
+		} else {
+			Error::NoSubstituters(message)
+		})
 	}
 }
 
