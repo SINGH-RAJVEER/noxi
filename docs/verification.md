@@ -1569,3 +1569,7 @@ Derivation discovery now checks `max-call-depth` when descending through lists a
 The unchanged upstream `fetchGitVerification.sh`, `fetchGit.sh`, `simple.sh` and `short-path-literals.sh` pass under both noxi and CppNix 2.35.2. The scripts cover SSH signer checks, unlocked-input warnings and remote default-branch refresh, printing pre-forced nested values at the configured call-depth limit, and precedence between the deprecated Boolean short-path setting and the explicit lint policy. A local probe compared the locked input JSON for a signed commit whose key list omits the default key type. Both engines also refused the same unsigned revision with explicit verification.
 
 Legacy `nix-env -f` and `nix-build` accept local `file://` archives. An offline comparison of `nix-env -qa --out-path` returned the same output under both engines. The upstream `tarball.sh` advances through the legacy query, direct build and lookup-path build to line 28. The remaining failure is fixed-output store reuse when the tarball is already present and its URL is unavailable.
+
+### Dependency graphs and flake suggestions
+
+The pinned upstream `dependencies.sh` and `suggestions.sh` pass on both engines in private stores. The graph commands traverse registered references, skip self edges and retain the reference's edge directions for DOT and GraphML. Flake lookup merges suggestions at the first missing component of each candidate path and applies the reference's distance cutoff after merging.

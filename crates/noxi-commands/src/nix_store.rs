@@ -343,6 +343,77 @@ impl NixStore<'_> {
 	/// CppNix's `printTree`: each reference below its referrer, dependencies
 	/// first, with paths already printed marked `[...]`. References are read
 	/// once into `references`, since sorting each level queries them again.
+	fn print_graph(
+		&self,
+		mut pending: BTreeSet<StorePath>,
+		graphml: bool,
+		out: &mut dyn Write,
+	) -> Result<(), Failure> {
+		const GRAPHML_HEADER: &str = concat!(
+			"<?xml version='1.0' encoding='utf-8'?>\n",
+			"<graphml xmlns='http://graphml.graphdrawing.org/xmlns'\n",
+			"    xmlns:xsi='http://www.w3.org/2001/XMLSchema-instance'\n",
+			"    xsi:schemaLocation='http://graphml.graphdrawing.org/xmlns/1.0/graphml.xsd'>\n",
+			"<key id='narSize' for='node' attr.name='narSize' attr.type='long'/>",
+			"<key id='name' for='node' attr.name='name' attr.type='string'/>",
+			"<key id='type' for='node' attr.name='type' attr.type='string'/>",
+			"<graph id='G' edgedefault='directed'>\n",
+		);
+		let mut colours = ["black", "red", "green", "blue", "magenta", "burlywood"]
+			.into_iter()
+			.cycle();
+		let mut visited = BTreeSet::new();
+		if graphml {
+			out.write_all(GRAPHML_HEADER.as_bytes())?;
+		} else {
+			writeln!(out, "digraph G {{")?;
+		}
+		while let Some(path) = pending.pop_first() {
+			if !visited.insert(path.clone()) {
+				continue;
+			}
+			let name = path.name();
+			if !graphml {
+				writeln!(
+					out,
+					"\"{path}\" [label = \"{name}\", shape = box, style = filled, fillcolor = #ff0000];"
+				)?;
+			}
+			let info = self.info(&path)?;
+			if graphml {
+				let symbolic_name = name.find('-').map_or("", |index| &name[..=index]);
+				let kind = if name.ends_with(".drv") {
+					"derivation"
+				} else {
+					"output-path"
+				};
+				writeln!(
+					out,
+					"  <node id=\"{path}\">\n    <data key=\"narSize\">{}</data>\n    <data key=\"name\">{symbolic_name}</data>\n    <data key=\"type\">{kind}</data>\n  </node>",
+					info.nar_size,
+				)?;
+			}
+			for reference in info.references {
+				if reference == path {
+					continue;
+				}
+				if graphml {
+					writeln!(out, "  <edge source=\"{path}\" target=\"{reference}\"/>")?;
+				} else {
+					let colour = colours.next().expect("nonempty colour cycle");
+					writeln!(out, "\"{reference}\" -> \"{path}\" [color = {colour}];")?;
+				}
+				pending.insert(reference);
+			}
+		}
+		if graphml {
+			writeln!(out, "</graph>\n</graphml>")?;
+		} else {
+			writeln!(out, "}}")?;
+		}
+		Ok(())
+	}
+
 	fn print_tree(
 		&self,
 		path: &StorePath,
@@ -581,6 +652,8 @@ impl NixStore<'_> {
 			Size,
 			Roots,
 			Tree,
+			Graph,
+			GraphMl,
 			Resolve,
 		}
 		let mut query = None;
@@ -612,11 +685,8 @@ impl NixStore<'_> {
 				"--roots" => query = Some(Query::Roots),
 				"--tree" => query = Some(Query::Tree),
 				"--resolve" => query = Some(Query::Resolve),
-				"--graph" | "--graphml" => {
-					return Err(Failure::Error(format!(
-						"nix-store --query {flag} is not supported by noxi yet"
-					)));
-				}
+				"--graph" => query = Some(Query::Graph),
+				"--graphml" => query = Some(Query::GraphMl),
 				"--use-output" | "-u" => use_output = true,
 				"--force-realise" | "--force-realize" | "-f" => force_realise = true,
 				"--include-outputs" => include_outputs = true,
@@ -669,6 +739,14 @@ impl NixStore<'_> {
 					}
 				}
 				print_sorted(paths, out)?;
+			}
+			query @ (Query::Graph | Query::GraphMl) => {
+				let mut roots = BTreeSet::new();
+				for arg in &args {
+					let path = self.follow_links(arg)?;
+					roots.extend(self.maybe_use_outputs(path, use_output, force_realise)?);
+				}
+				self.print_graph(roots, query == Query::GraphMl, out)?;
 			}
 			Query::Tree => {
 				let mut references = BTreeMap::new();

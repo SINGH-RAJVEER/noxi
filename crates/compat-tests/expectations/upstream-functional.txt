@@ -209,7 +209,7 @@ tests/functional/db-migration.sh anomaly skip skip # reference skip: not using t
 tests/functional/delete-no-keep.sh pass pass pass
 tests/functional/dependencies.builder0.sh support
 tests/functional/dependencies.nix support
-tests/functional/dependencies.sh gap fail pass # main in dependencies.sh:12: error: nix-store --query --graph is not supported by noxi yet
+tests/functional/dependencies.sh pass pass pass
 tests/functional/dependencies2.nix support
 tests/functional/derivation-advanced-attributes.sh pass pass pass
 tests/functional/derivation-json.sh pass pass pass
@@ -548,7 +548,7 @@ tests/functional/structured-attrs-shell.nix support
 tests/functional/structured-attrs.nix support
 tests/functional/structured-attrs.sh anomaly fail fail # reference fail: main in structured-attrs.sh:27: error (ignored): cannot find flake 'flake:nixpkgs' in the flake registries
 tests/functional/substitute-with-invalid-ca.sh pass pass pass
-tests/functional/suggestions.sh gap fail pass # : test failed: The nix build stderr should suggest the three closest possibilities
+tests/functional/suggestions.sh pass pass pass
 tests/functional/supplementary-groups.sh gap fail pass # : Expected exit code '1' but got '0' from command 'nix-build' './hermetic.nix' '--arg' 'busybox' '/nix/store/HASH-busybox-static-x86_64-unknown-linux-musl-1.37.0/bin/busybox' '--arg' 'seed' '1' '--no-
 tests/functional/symlink-derivation.nix support
 tests/functional/symlinks.sh pass pass pass
