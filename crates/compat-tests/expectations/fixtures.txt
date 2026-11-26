@@ -114,7 +114,7 @@ pass:upstream_functional tests/functional/absolute-path-literals.sh
 pass:upstream_functional tests/functional/add.sh
 anomaly tests/functional/bash-profile.sh # reference fail: main in bash-profile.sh:5: bash-profile.sh: line 5: ../../scripts/nix-profile.sh.in: No such file or directory
 pass:upstream_functional tests/functional/binary-cache-build-remote.sh
-gap tests/functional/binary-cache-compression.sh # main in binary-cache-compression.sh:75: cache upload compression 'compress' is unsupported
+pass:upstream_functional tests/functional/binary-cache-compression.sh
 gap tests/functional/binary-cache.sh # main in binary-cache.sh:165: noxi has no narinfo disk cache, so a .narinfo deleted from the cache is not reused
 pass:upstream_functional tests/functional/build-cores.sh
 pass:upstream_functional tests/functional/build-delete.sh

@@ -636,19 +636,34 @@ impl BinaryCache {
 		Ok(())
 	}
 
+	/// Whether uploads can be compressed with the cache's `compression`: the
+	/// setup `makeCompressionSink` does before a NAR is read, with its
+	/// error, such as `couldn't initialize compression (Using external lz4
+	/// program)`.
+	pub fn check_compression(&self) -> Result<()> {
+		let method = self.upload.compression.as_str();
+		if method == "gzip" || crate::archive::handles(method) {
+			let level = self.upload.compression_level;
+			let parallel = self.upload.parallel_compression.unwrap_or(false);
+			return crate::archive::check_method(method, (level != -1).then_some(level), parallel)
+				.map_err(|e| Error::Other(e.to_string()));
+		}
+		if !matches!(
+			method,
+			"none" | "xz" | "lzma" | "gzip" | "bzip2" | "zstd" | "br"
+		) {
+			return Err(Error::Other(format!(
+				"unsupported cache upload compression '{method}'"
+			)));
+		}
+		Ok(())
+	}
+
 	fn check_upload<S>(&self, source: &LocalStore, signing_keys: &[SigningKey<S>]) -> Result<()>
 	where
 		S: ed25519::signature::Signer<ed25519::Signature>,
 	{
-		if !matches!(
-			self.upload.compression.as_str(),
-			"none" | "xz" | "lzma" | "gzip" | "bzip2" | "zstd"
-		) {
-			return Err(Error::Other(format!(
-				"unsupported cache upload compression '{}'",
-				self.upload.compression
-			)));
-		}
+		self.check_compression()?;
 		if !matches!(self.transport, Transport::File(_)) {
 			return Err(Error::Other(
 				"binary cache uploads require a file:// cache".into(),
@@ -1688,7 +1703,8 @@ fn listing_json(listing: &Listing, out: &mut String) {
 
 /// `makeCompressionSink` with the reference's encoders and settings: xz and
 /// lzma through liblzma and bzip2 at libarchive's default level 9, which
-/// reproduce its bytes, and zstd in independent 16 MiB frames.
+/// reproduce its bytes, zstd in independent 16 MiB frames, brotli through
+/// libbrotlienc, and the other methods, gzip among them, through libarchive.
 fn compress_nar(
 	settings: &UploadSettings,
 	reader: &mut dyn Read,
@@ -1701,23 +1717,6 @@ fn compress_nar(
 	match settings.compression.as_str() {
 		"xz" => crate::xz::compress(crate::xz::Format::Xz, level, parallel, reader, writer)?,
 		"lzma" => crate::xz::compress(crate::xz::Format::Lzma, level, parallel, reader, writer)?,
-		"gzip" => {
-			// libarchive's header records the time and a Unix origin.
-			let now = std::time::SystemTime::now()
-				.duration_since(std::time::UNIX_EPOCH)
-				.map_or(0, |d| d.as_secs() as u32);
-			let level = if (0..=9).contains(&level) {
-				level as u32
-			} else {
-				6
-			};
-			let mut encoder = flate2::GzBuilder::new()
-				.mtime(now)
-				.operating_system(3)
-				.write(writer, flate2::Compression::new(level));
-			io::copy(reader, &mut encoder)?;
-			encoder.finish()?;
-		}
 		"bzip2" => {
 			let level = if (1..=9).contains(&level) {
 				level as u32
@@ -1729,6 +1728,14 @@ fn compress_nar(
 			encoder.finish()?;
 		}
 		"zstd" => compress_zstd(level, parallel, reader, writer)?,
+		"br" => crate::archive::compress_brotli(reader, writer)?,
+		method if method == "gzip" || crate::archive::handles(method) => crate::archive::compress(
+			method,
+			(level != -1).then_some(level),
+			parallel,
+			reader,
+			writer,
+		)?,
 		_ => return Err(io::Error::other("unsupported cache upload compression")),
 	}
 	Ok(())
@@ -1827,6 +1834,10 @@ pub fn decompress(
 		),
 		Some("gzip") => Box::new(flate2::bufread::MultiGzDecoder::new(reader)),
 		Some("br") => Box::new(brotli_decompressor::Decompressor::new(reader, 65536)),
+		Some(method) if crate::archive::handles(method) => Box::new(
+			crate::archive::Decompressor::new(method, reader)
+				.map_err(|e| Error::Other(e.to_string()))?,
+		),
 		Some(other) => {
 			return Err(Error::Other(format!(
 				"unknown compression method '{other}'"

@@ -41,6 +41,8 @@ in
 		pkgs.gzip
 		pkgs.bzip2
 		pkgs.xz
+		pkgs.libarchive
+		pkgs.brotli
 		pkgs.curl
 		pkgs.git
 		pkgs.mercurial

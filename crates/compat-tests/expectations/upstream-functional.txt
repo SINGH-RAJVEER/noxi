@@ -10,7 +10,7 @@ tests/functional/add.sh pass pass pass
 tests/functional/bash-profile.sh anomaly fail fail # reference fail: main in bash-profile.sh:5: bash-profile.sh: line 5: ../../scripts/nix-profile.sh.in: No such file or directory
 tests/functional/big-derivation-attr.nix support
 tests/functional/binary-cache-build-remote.sh pass pass pass
-tests/functional/binary-cache-compression.sh gap fail pass # main in binary-cache-compression.sh:75: cache upload compression 'compress' is unsupported
+tests/functional/binary-cache-compression.sh pass pass pass
 tests/functional/binary-cache.sh gap fail pass # main in binary-cache.sh:165: noxi has no narinfo disk cache, so a .narinfo deleted from the cache is not reused
 tests/functional/build-cores.nix support
 tests/functional/build-cores.sh pass pass pass

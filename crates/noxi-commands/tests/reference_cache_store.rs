@@ -270,3 +270,44 @@ fn substitute_status_matches_the_reference() {
 		"echo 'WantMassQuery: 1' >> cache/nix-cache-info; rm -rf home; nix-env --substituters file://$PWD/cache -f y.nix -qas '*'; nix-env --substituters file://$PWD/cache -f y.nix -qas '*' --prebuilt-only",
 	]);
 }
+
+/// Uploads with each compression method CppNix 2.35.2 accepts give the
+/// reference's files, which each engine reads back from the other's cache;
+/// the methods its libarchive needs an external program for fail before
+/// any path is copied, with libarchive's message. A gzip file records the
+/// time of its upload, which is left out of the comparison.
+#[test]
+fn compressed_uploads_match_the_reference() {
+	let Some(reference) = reference_dir() else {
+		return;
+	};
+	let reference = reference.display().to_string();
+	// One path: with several, the reference uploads them in parallel, so the
+	// order of its messages varies.
+	let mut steps = vec![
+		"mkdir d; seq 1 30000 > d/data; ln -s data d/link; cp x.nix d; chmod +x d/x.nix; nix-store --add d > out; cat out"
+			.to_owned(),
+	];
+	for method in [
+		"none", "br", "bzip2", "compress", "grzip", "gzip", "lrzip", "lz4", "lzip", "lzma", "lzop",
+		"xz", "zstd",
+	] {
+		// A gzip file's hash, and so its name, depends on the time.
+		let fields = if method == "gzip" {
+			"Compression\\|FileSize"
+		} else {
+			"URL\\|Compression\\|FileHash\\|FileSize"
+		};
+		steps.push(format!(
+			"{reference}/nix copy --to \"file://$ROOT/r-{method}?compression={method}\" $(cat out) 2> /dev/null; nix copy --to \"file://$ROOT/c-{method}?compression={method}\" $(cat out); grep -h '^\\({fields}\\)' c-{method}/*.narinfo"
+		));
+		steps.push(format!(
+			"if ls c-{method}/nar/* > /dev/null 2>&1; then cmp <(tail -c +9 c-{method}/nar/*) <(tail -c +9 r-{method}/nar/*) && echo same; fi; nix store cat --store file://$ROOT/r-{method} $(cat out)/data | cksum; {reference}/nix store cat --store file://$ROOT/c-{method} $(cat out)/data | cksum"
+		));
+	}
+	steps.push(
+		"nix-store --delete $(cat out) > /dev/null 2>&1; nix copy --no-check-sigs --from file://$ROOT/r-compress $(cat out); tail -1 $(cat out)/data; nix-store --verify-path $(cat out) && echo valid".to_owned(),
+	);
+	let steps: Vec<&str> = steps.iter().map(String::as_str).collect();
+	same(&steps);
+}

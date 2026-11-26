@@ -118,6 +118,11 @@ pub fn copy(parsed: Parsed) -> Result<ExitCode, Failure> {
 		by_size.push((std::cmp::Reverse(info.nar_size), path));
 	}
 	by_size.sort();
+	// The compressor is set up before the first NAR is read, which is when
+	// its copy is reported.
+	if !missing.is_empty() {
+		destination.check_compression()?;
+	}
 	for (_, path) in by_size {
 		log(&format!(
 			"copying path '{}' to '{}'...",
