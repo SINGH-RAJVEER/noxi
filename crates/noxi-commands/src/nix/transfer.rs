@@ -6,6 +6,7 @@ use noxi_store::Store;
 use noxi_store::binary_cache::BinaryCache;
 use std::collections::BTreeSet;
 use std::fs;
+use std::path::Path;
 use std::process::ExitCode;
 
 pub fn copy(parsed: Parsed) -> Result<ExitCode, Failure> {
@@ -289,7 +290,8 @@ fn copy_from_cache(mut parsed: Parsed, uri: &str) -> Result<ExitCode, Failure> {
 				"'--profile' is not supported for this Nix store".into(),
 			));
 		}
-		let profile = std::env::current_dir()?.join(profile);
+		let profile =
+			crate::instantiate::absolute_path(&std::env::current_dir()?, Path::new(profile));
 		let path = link_outputs
 			.iter()
 			.flat_map(|outputs| outputs.values())
@@ -305,17 +307,18 @@ fn copy_from_cache(mut parsed: Parsed, uri: &str) -> Result<ExitCode, Failure> {
 				"'--out-link' is not supported for this Nix store".into(),
 			));
 		}
-		let link = std::env::current_dir()?.join(link);
+		let cwd = std::env::current_dir()?;
 		for (index, outputs) in link_outputs.into_iter().enumerate() {
 			for (name, path) in outputs {
-				let mut output_link = link.clone().into_os_string();
+				let mut output_link = std::ffi::OsString::from(link);
 				if index != 0 {
 					output_link.push(format!("-{index}"));
 				}
 				if !name.is_empty() && name != "out" {
 					output_link.push(format!("-{name}"));
 				}
-				destination.add_perm_root(&path, std::path::Path::new(&output_link))?;
+				let output_link = crate::instantiate::absolute_path(&cwd, Path::new(&output_link));
+				destination.add_perm_root(&path, &output_link)?;
 			}
 		}
 	}

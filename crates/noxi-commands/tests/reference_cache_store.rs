@@ -194,6 +194,7 @@ fn copy_all_links_and_profiles_match_the_reference() {
 		"nix path-info --store file://$PWD/cache --all | sort",
 		"chmod -R u+w store; rm -rf store var; nix copy --from file://$PWD/cache --no-check-sigs --out-link result --profile profile \"$(cat tree-path)\" 2>/dev/null && readlink result profile profile-1-link",
 		"nix copy --from file://$PWD/cache --no-check-sigs --out-link result --profile profile \"$(cat tree-path)\" && readlink result profile profile-1-link",
+		"nix copy --from file://$PWD/cache --no-check-sigs --out-link scratch/../store/prohibited \"$(cat tree-path)\"",
 	]);
 }
 
