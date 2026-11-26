@@ -157,7 +157,7 @@ pass:upstream_functional tests/functional/characterisation-test-infra.sh
 pass:upstream_functional tests/functional/check-refs.sh
 pass:upstream_functional tests/functional/check-reqs.sh
 pass:upstream_functional tests/functional/check.sh
-gap tests/functional/chroot-store.sh # main in chroot-store.sh:94: thread '<unnamed>' panicked at crates/noxi/eval/src/compiler/mod.rs:1878:22: __curPos canonicalizes the logical store path of a flake source in a chroot store
+pass:upstream_functional tests/functional/chroot-store.sh
 gap tests/functional/cli-characterisation.sh # : error:
 gap tests/functional/completions.sh # main in completions.sh:65: --log-format flag completion is missing
 pass:upstream_functional tests/functional/compression-levels.sh

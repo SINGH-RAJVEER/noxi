@@ -540,6 +540,19 @@ fn named_sources_resolve_relative_paths_without_host_files() {
 }
 
 #[test]
+fn current_position_uses_the_logical_source_path() {
+	let location = "/nonexistent/noxi-virtual-source/source.nix";
+	let result = Evaluation::builder_pure()
+		.build()
+		.evaluate("\n  __curPos", Some(location.into()));
+	assert!(result.errors.is_empty(), "{:?}", result.errors);
+	assert_eq!(
+		result.value.unwrap().to_string(),
+		format!(r#"{{ column = 3; file = "{location}"; line = 2; }}"#)
+	);
+}
+
+#[test]
 #[cfg(feature = "impure")]
 fn ordinary_imports_reuse_resolution_after_the_file_is_removed() {
 	let dir = tempfile::tempdir().unwrap();

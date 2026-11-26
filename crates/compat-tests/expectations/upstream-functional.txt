@@ -77,7 +77,7 @@ tests/functional/check-reqs.nix support
 tests/functional/check-reqs.sh pass pass pass
 tests/functional/check.nix support
 tests/functional/check.sh pass pass pass
-tests/functional/chroot-store.sh gap fail pass # main in chroot-store.sh:94: thread '<unnamed>' panicked at crates/noxi/eval/src/compiler/mod.rs:1878:22: __curPos canonicalizes the logical store path of a flake source in a chroot store
+tests/functional/chroot-store.sh pass pass pass
 tests/functional/cli-characterisation.sh gap fail pass # : error:
 tests/functional/cli-characterisation/assert-fail.nix support
 tests/functional/cli-characterisation/bad-drvpath.nix support

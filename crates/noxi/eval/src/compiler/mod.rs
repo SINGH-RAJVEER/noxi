@@ -26,7 +26,7 @@ use scope::ScopeGuard;
 use smol_str::SmolStr;
 
 use std::collections::BTreeMap;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::rc::{Rc, Weak};
 
 use crate::SourceCode;
@@ -1874,14 +1874,22 @@ impl Compiler<'_, '_> {
 			_ => {
 				let span = self.span_for(node);
 				let pos = self.file.find_line_col(span.low());
-				let abs_path = std::fs::canonicalize(self.file.name())
-					.unwrap()
-					.to_string_lossy()
-					.to_string();
+				// Imported sources already have a logical name, which may
+				// refer to a diverted store or a virtual filesystem.
+				let path = Path::new(self.file.name());
+				let path = match path.file_name() {
+					Some(name) if path.is_relative() => {
+						crate::value::canon_path(self.root_dir.join(name))
+					}
+					_ => path.to_owned(),
+				};
 				let attrs = NixAttrs::from_iter([
 					("line", Value::Integer((pos.line + 1) as i64)),
 					("column", Value::Integer((pos.column + 1) as i64)),
-					("file", Value::String(NixString::from(abs_path))),
+					(
+						"file",
+						Value::String(NixString::from(path.to_string_lossy().as_ref())),
+					),
 				]);
 				Value::Attrs(attrs)
 			}

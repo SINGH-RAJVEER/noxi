@@ -40,6 +40,8 @@ The command follow-up starts at integrated source `e3698faa`. The cancelled `t3-
 
 ## Reference evidence
 
+`__curPos.file` uses the evaluator's source path. Sources in diverted stores and virtual filesystems need no corresponding host file, and source paths through symlinked directories keep their logical spelling.
+
 The copied CppNix 2.35.2 tests under [tests/nix/](../tests/nix/) are the initial test oracle. The snapshot contains language fixtures, shell tests, NixOS integration definitions, C++ unit test sources, and golden data. It matches tag `2.35.2` (commit `2c73b59`) object for object, and `just nix-snapshot-verify` checks that it stays unchanged. Preserve the copied data and record the upstream revision on each refresh. [Test snapshot](#test-snapshot)
 
 The reference is the newest numbered CppNix release, 2.35.2, as of 2026-09-28. The previous snapshot came from an unreleased 2.36.0 development commit; [the test snapshot notes](#test-snapshot) records the change. Reference executables for fixture comparisons must be the 2.35.2 release.
