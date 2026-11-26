@@ -441,7 +441,17 @@ pub(crate) fn mount_input(
 	original: &Input,
 	mount: &Mount,
 ) -> Result<StorePath> {
-	let (path, nar_hash) = add_tree(store, input, mount)?;
+	let worktree = if original.scheme == Some(Scheme::Git)
+		&& original.get_ref()?.is_none()
+		&& original.get_rev()?.is_none()
+	{
+		original
+			.get_source_path()
+			.filter(|path| path.join(".git").exists())
+	} else {
+		None
+	};
+	let (path, nar_hash) = add_tree(store, input, mount, worktree.as_deref())?;
 	store.allow_store_path(&path);
 	input
 		.attrs
@@ -463,7 +473,12 @@ pub(crate) fn mount_input(
 /// Hash `mount` as a NAR and make it available at the resulting store
 /// path: copied into a writable store, or served from its root. A locked
 /// input already valid in the store keeps its NAR hash unhashed.
-fn add_tree(store: &EvaluatorStore, input: &Input, mount: &Mount) -> Result<(StorePath, NixHash)> {
+fn add_tree(
+	store: &EvaluatorStore,
+	input: &Input,
+	mount: &Mount,
+	worktree: Option<&Path>,
+) -> Result<(StorePath, NixHash)> {
 	let name = input.get_name();
 	if let Some((_, _, path, hash)) = store
 		.fetch_state
@@ -477,7 +492,7 @@ fn add_tree(store: &EvaluatorStore, input: &Input, mount: &Mount) -> Result<(Sto
 	let (path, hash) = match locked_store_tree(store, input, mount)? {
 		Some(known) => known,
 		None => store
-			.add_tree(&name, mount)
+			.add_tree(&name, mount, worktree)
 			.map_err(|e| Error::new(e.to_string()))?,
 	};
 	let entries: Vec<_> = store

@@ -62,7 +62,7 @@ tests/functional/ca/nondeterministic.nix support
 tests/functional/ca/post-hook.sh pass pass pass
 tests/functional/ca/racy.nix support
 tests/functional/ca/recursive.sh gap fail pass # source in ./recursive.sh:13: error: Cannot build '$ROOT/tmp/nix-test/ca/recursive/store/HASH-recursive.drv'.
-tests/functional/ca/repl.sh gap fail pass # : error: the noxi repl does not support ':log' yet
+tests/functional/ca/repl.sh gap fail pass # source in repl.sh:229: REPL :edit does not open the derivation builtin source
 tests/functional/ca/selfref-gc.sh pass pass pass
 tests/functional/ca/signatures.sh pass pass pass
 tests/functional/ca/substitute.sh gap fail pass # main in substitute.sh:27: error: nix store build-trace info --file is not supported by noxi yet
@@ -195,7 +195,7 @@ tests/functional/common/paths.sh support
 tests/functional/common/subst-vars.sh.in support
 tests/functional/common/test-root.sh support
 tests/functional/common/vars.sh support
-tests/functional/completions.sh gap fail pass # main in completions.sh:39: error: 'buil' is not a recognised command
+tests/functional/completions.sh gap fail pass # main in completions.sh:65: --log-format flag completion is missing
 tests/functional/compression-levels.sh pass pass pass
 tests/functional/compute-levels.sh support
 tests/functional/config.nix support
@@ -255,7 +255,7 @@ tests/functional/extra-sandbox-profile.nix support
 tests/functional/extra-sandbox-profile.sh anomaly skip skip # reference skip: Need Darwin, skipping this test...
 tests/functional/failing.nix support
 tests/functional/fetchClosure.sh gap fail pass # main in fetchClosure.sh:32: error: attribute 'fetchClosure' missing
-tests/functional/fetchGit.sh gap fail pass # main in fetchGit.sh:34: false
+tests/functional/fetchGit.sh gap fail pass # main in fetchGit.sh:151: unlocked input warning is missing
 tests/functional/fetchGitRefs.sh pass pass pass
 tests/functional/fetchGitShallow.sh pass pass pass
 tests/functional/fetchGitSubmodules.sh pass pass pass
@@ -276,7 +276,7 @@ tests/functional/flakes/absolute-attr-paths.sh pass pass pass
 tests/functional/flakes/absolute-paths.sh pass pass pass
 tests/functional/flakes/build-paths.sh pass pass pass
 tests/functional/flakes/bundle.sh pass pass pass
-tests/functional/flakes/check.sh gap fail pass # main in check.sh:157: missing flake check build progress
+tests/functional/flakes/check.sh pass pass pass
 tests/functional/flakes/circular.sh pass pass pass
 tests/functional/flakes/commit-lock-file-summary.sh pass pass pass
 tests/functional/flakes/common.sh support
@@ -378,7 +378,7 @@ tests/functional/local-overlay-store/stale-file-handle-inner.sh support
 tests/functional/local-overlay-store/stale-file-handle.sh anomaly skip skip # reference skip: Couldn't trigger the error, skipping this test...
 tests/functional/local-overlay-store/verify-inner.sh support
 tests/functional/local-overlay-store/verify.sh pass pass pass
-tests/functional/logging.sh gap fail pass # main in logging.sh:32: error: build log of derivation '$ROOT/tmp/nix-test/main/logging/store/HASH-dependencies-top' is not available
+tests/functional/logging.sh gap fail pass # main in logging.sh:32: malformed builder JSON does not produce the reference warning
 tests/functional/logging/unusual-logging.nix support
 tests/functional/make-content-addressed.nix support
 tests/functional/make-content-addressed.sh pass pass pass
@@ -403,7 +403,7 @@ tests/functional/nix-copy-ssh-ng.sh pass pass pass
 tests/functional/nix-copy-ssh.sh pass pass pass
 tests/functional/nix-daemon-untrusting.sh support # daemon wrapper used by remote-store tests
 tests/functional/nix-meson-build-support support
-tests/functional/nix-profile.sh gap fail pass # main in nix-profile.sh:76: profile removal completion is missing
+tests/functional/nix-profile.sh pass pass pass
 tests/functional/nix-shell.sh pass pass pass
 tests/functional/nix_path.sh pass pass pass
 tests/functional/no-url-literals.sh pass pass pass
@@ -435,7 +435,7 @@ tests/functional/recursive.sh gap fail pass # main in recursive.sh:13: error: Ca
 tests/functional/referrers.sh pass pass pass
 tests/functional/remote-store.sh pass pass pass
 tests/functional/repair.sh pass pass pass
-tests/functional/repl.sh gap fail pass # : error: the noxi repl does not support ':log' yet
+tests/functional/repl.sh gap fail pass # main in repl.sh:229: REPL :edit does not open the derivation builtin source
 tests/functional/repl/add-lots-of-variables.expected support
 tests/functional/repl/add-lots-of-variables.in support
 tests/functional/repl/add-overwritten-symbol-env.expected support

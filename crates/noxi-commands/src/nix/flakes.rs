@@ -20,7 +20,6 @@ pub struct Request {
 	pub no_update: bool,
 	pub all_systems: bool,
 	pub legacy: bool,
-	pub no_build: bool,
 	pub keep_going: bool,
 	pub json: bool,
 	pub system: String,
@@ -161,6 +160,20 @@ mod operations {
 			return Ok(Value::from(
 				noxi_flake::prefetch(store, &reference)?.to_string(),
 			));
+		}
+		if request.operation == "complete-inputs" {
+			use noxi_flakeref::registry::UseRegistries;
+			use noxi_glue::fetch::flake::{fetch_source, parse_reference};
+			let reference = parse_reference(store, &reference)?;
+			let source = fetch_source(store, &reference, UseRegistries::All)?;
+			let import = noxi_eval::generators::request_builtin(&co, "import").await;
+			let value = noxi_eval::generators::request_call_with(
+				&co,
+				import,
+				[Value::Path(Box::new(source.out_path.join("flake.nix")))],
+			)
+			.await;
+			return Ok(value);
 		}
 		let mut flake = if request.operation == "update" {
 			noxi_flake::update(store, &co, &reference, &request.locks).await?
@@ -404,7 +417,7 @@ mod operations {
 					&noxi_flake::CheckOptions {
 						system: request.system.clone(),
 						all_systems: request.all_systems,
-						build: !request.no_build,
+						build: false,
 						keep_going: request.keep_going,
 					},
 				)
@@ -415,7 +428,18 @@ mod operations {
 				for error in &report.errors {
 					eprintln!("error: {error}");
 				}
-				return Ok(Value::Bool(report.errors.is_empty()));
+				if !report.errors.is_empty() {
+					return Ok(Value::Bool(false));
+				}
+				let prefix = format!("checks.{}.", request.system);
+				let checks: std::collections::BTreeMap<_, _> = report
+					.derivations
+					.into_iter()
+					.filter(|(attr, _)| attr.starts_with(&prefix))
+					.collect();
+				return Ok(Value::from(
+					serde_json::to_string(&checks).expect("serializable checks"),
+				));
 			}
 			_ => return Err(ErrorKind::EvalError("unsupported flake operation".into())),
 		};
@@ -424,6 +448,64 @@ mod operations {
 }
 pub fn builtins(request: Request, store: Rc<EvaluatorStore>) -> Vec<(&'static str, Value)> {
 	operations::builtins(Rc::new(State { request, store }))
+}
+
+pub(super) fn complete_inputs(
+	parsed: &Parsed,
+	prefix: &str,
+) -> Result<Vec<(String, String)>, Failure> {
+	let default = [parsed.value("flake").unwrap_or(".").to_owned()];
+	let refs = if parsed.command == "flake update" || parsed.operands.is_empty() {
+		&default[..]
+	} else {
+		&parsed.operands
+	};
+	let mut options = Options {
+		eval: true,
+		strict: true,
+		from_args: true,
+		store: parsed.value("store").map(str::to_owned),
+		settings: parsed.settings.clone(),
+		flake: Some(Request {
+			operation: "complete-inputs".into(),
+			..Default::default()
+		}),
+		..Default::default()
+	};
+	options
+		.settings
+		.set("pure-eval", "false")
+		.map_err(|e| e.to_string())?;
+	let cwd = std::env::current_dir()?;
+	let mut result = Vec::new();
+	for reference in refs {
+		let reference = reference.split(['#', '^']).next().unwrap_or(reference);
+		let reference = reference
+			.strip_prefix("~/")
+			.and_then(|suffix| {
+				std::env::var_os("HOME").map(|home| PathBuf::from(home).join(suffix))
+			})
+			.map_or_else(
+				|| reference.to_owned(),
+				|path| path.to_string_lossy().into_owned(),
+			);
+		let reference = instantiate::nix_string_literal(&reference);
+		options.inputs = vec![format!(
+			"let f = __noxi_flake {reference}; in builtins.filter (n: n != \"self\") (builtins.attrNames ((builtins.functionArgs f.outputs) // (f.inputs or {{}})))"
+		)];
+		if let Ok(evaluated) = instantiate::evaluate(&options, &cwd)
+			&& let Some(Value::List(names)) = evaluated.results.first()
+		{
+			for name in names.iter() {
+				let name = name.to_str().map_err(|e| e.to_string())?;
+				let name = name.to_str_lossy();
+				if name.starts_with(prefix) {
+					result.push((name.into_owned(), String::new()));
+				}
+			}
+		}
+	}
+	Ok(result)
 }
 
 fn render_text(operation: &str, value: &serde_json::Value) -> Result<(), Failure> {
@@ -569,7 +651,6 @@ pub(super) fn request(parsed: &Parsed, operation: &str) -> Result<Request, Failu
 		no_update: parsed.has("no-update-lock-file"),
 		all_systems: parsed.has("all-systems"),
 		legacy: parsed.has("legacy"),
-		no_build: parsed.has("no-build"),
 		keep_going: parsed.settings.get_bool("keep-going", false) || parsed.has("keep-going"),
 		json: parsed.has("json"),
 		system: parsed
@@ -609,7 +690,7 @@ pub(super) fn run(mut parsed: Parsed) -> Result<std::process::ExitCode, Failure>
 	) {
 		return Err(unsupported(parsed.command));
 	}
-	if operation != "prefetch" {
+	if !matches!(operation, "prefetch" | "check") {
 		parsed.unsupported(&["out-link"])?;
 	}
 	if operation != "update" && parsed.operands.len() > 1 {
@@ -680,6 +761,9 @@ pub(super) fn run(mut parsed: Parsed) -> Result<std::process::ExitCode, Failure>
 			}
 			if let Some(Value::String(text)) = result.results.first() {
 				let text = text.to_str().map_err(|e| e.to_string())?;
+				if operation == "check" {
+					return finish_checks(&parsed, result.store.as_deref(), text);
+				}
 				if operation == "prefetch" {
 					if let Some(link) = parsed.value("out-link") {
 						let json: serde_json::Value =
@@ -739,6 +823,110 @@ pub(super) fn run(mut parsed: Parsed) -> Result<std::process::ExitCode, Failure>
 		}
 		Err(code) => Ok(code),
 	}
+}
+
+fn finish_checks(
+	parsed: &Parsed,
+	store: Option<&dyn noxi_store::Store>,
+	checks: &str,
+) -> Result<std::process::ExitCode, Failure> {
+	use nix_compat::log::{VerbosityLevel, logger};
+	use nix_compat::store_path::StorePath;
+	use noxi_store::{BuildMode, DerivedPath};
+	use std::collections::{BTreeMap, BTreeSet};
+	use std::process::ExitCode;
+
+	if parsed.has("no-build") {
+		return Ok(ExitCode::SUCCESS);
+	}
+	let checks: BTreeMap<String, String> =
+		serde_json::from_str(checks).map_err(|e| e.to_string())?;
+	let mut derivations = BTreeMap::<_, Vec<_>>::new();
+	for (attr, drv) in checks {
+		let drv = StorePath::from_absolute_path(drv.as_bytes()).map_err(|e| e.to_string())?;
+		derivations.entry(drv).or_default().push(attr);
+	}
+	if derivations.is_empty() {
+		logger::log(VerbosityLevel::Info, "all checks passed!");
+		return Ok(ExitCode::SUCCESS);
+	}
+	let store = store
+		.ok_or_else(|| Failure::Error("flake check builds require a writable store".into()))?;
+	let targets = derivations
+		.keys()
+		.map(|drv| DerivedPath::Built {
+			drv: drv.clone(),
+			outputs: BTreeSet::new(),
+		})
+		.collect::<Vec<_>>();
+	let missing = store.query_missing(&targets)?;
+	let print_paths = parsed.has("print-out-paths");
+	let out_link = parsed.value("out-link");
+	let keep_going = parsed.settings.get_bool("keep-going", false) || parsed.has("keep-going");
+	let mut failed = false;
+	let mut all_outputs = Vec::new();
+	{
+		let _activity = logger::Activity::new(
+			VerbosityLevel::Info,
+			nix_compat::log::ActivityType::Unknown,
+			format!("running {} flake checks", missing.will_build.len()),
+			Vec::new(),
+			0,
+		);
+		for (drv, target) in derivations.keys().zip(&targets) {
+			if out_link.is_none() && !print_paths && !missing.will_build.contains(drv) {
+				continue;
+			}
+			match store.build_paths_with_results(std::slice::from_ref(target), BuildMode::Normal) {
+				Ok(resolved) => {
+					if print_paths || out_link.is_some() {
+						all_outputs
+							.push(super::expression::built_outputs(store, target, &resolved)?);
+					}
+				}
+				Err(error) => {
+					for attr in &derivations[drv] {
+						let message = format!(
+							"failed to build attribute '{attr}', build of '{}^*' failed: {error}",
+							drv.to_absolute_path()
+						);
+						if !keep_going {
+							return Err(Failure::Error(message));
+						}
+						crate::cli::print_error(&message);
+					}
+					failed = true;
+				}
+			}
+		}
+	}
+	if failed {
+		return Err(Failure::Error(
+			"some errors were encountered during the evaluation".into(),
+		));
+	}
+	logger::log(VerbosityLevel::Info, "all checks passed!");
+	if print_paths {
+		for path in all_outputs.iter().flat_map(|outputs| outputs.values()) {
+			logger::write_stdout(&path.to_absolute_path());
+		}
+	}
+	if let Some(link) = out_link {
+		let cwd = std::env::current_dir()?;
+		for (index, outputs) in all_outputs.into_iter().enumerate() {
+			for (name, path) in outputs {
+				let mut link = link.to_owned();
+				if index > 0 {
+					link.push_str(&format!("-{index}"));
+				}
+				if name != "out" {
+					link.push_str(&format!("-{name}"));
+				}
+				store.add_perm_root(&path, &cwd.join(link))?;
+			}
+		}
+	}
+	Ok(ExitCode::SUCCESS)
 }
 
 fn print_inputs(

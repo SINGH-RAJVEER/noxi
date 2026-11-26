@@ -455,7 +455,12 @@ impl EvaluatorStore {
 
 	/// Hash a fetched tree as a NAR and make it available at its store
 	/// path: copied into a writable store, otherwise served from `mount`.
-	pub(crate) fn add_tree(&self, name: &str, mount: &Mount) -> io::Result<(StorePath, NixHash)> {
+	pub(crate) fn add_tree(
+		&self,
+		name: &str,
+		mount: &Mount,
+		worktree: Option<&Path>,
+	) -> io::Result<(StorePath, NixHash)> {
 		let mut keep = |p: &Path, _| Ok(mount.allows_physical(p));
 		let filter: Option<&mut Filter<'_>> = if mount.filter.is_some() {
 			Some(&mut keep)
@@ -469,6 +474,15 @@ impl EvaluatorStore {
 			let hash = NixHash::Sha256(captured.sha256());
 			let path = ca_path(name, true, &hash, &mount.root)?;
 			if !store.is_valid_path(&path).map_err(io::Error::other)? {
+				let _activity = worktree.map(|path| {
+					nix_compat::log::logger::Activity::new(
+						nix_compat::log::VerbosityLevel::Chatty,
+						nix_compat::log::ActivityType::Unknown,
+						format!("copying '{}' to the store", path.display()),
+						Vec::new(),
+						0,
+					)
+				});
 				store
 					.add_to_store_from_capture(
 						captured,

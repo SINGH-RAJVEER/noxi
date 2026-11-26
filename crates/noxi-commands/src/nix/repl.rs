@@ -510,6 +510,11 @@ impl Session {
 			return Ok(false);
 		};
 		let names: Vec<String> = names.iter().map(Self::text).collect();
+		self.bind_attrs(code, names);
+		Ok(true)
+	}
+
+	fn bind_attrs(&mut self, code: &str, names: Vec<String>) {
 		let index = self.layers.len();
 		let mut layer = format!("let __noxi_repl_{index} = ({code}); in let");
 		let mut bound = false;
@@ -534,7 +539,6 @@ impl Session {
 			notice(&format!("... and {} more; view with :ll", names.len() - 20));
 		}
 		self.last_loaded = Some(names);
-		Ok(true)
 	}
 
 	fn load_file(&mut self, path: &str) -> Result<bool, Failure> {
@@ -560,7 +564,7 @@ impl Session {
 	}
 
 	/// `loadFiles` and `loadFlakes` after `initEnv`.
-	fn reload(&mut self, startup: bool) -> Result<(), Failure> {
+	fn reload(&mut self, startup: bool) -> Result<bool, Failure> {
 		self.layers.clear();
 		self.options.fragments.truncate(self.base_fragments);
 		for file in std::mem::take(&mut self.files) {
@@ -572,8 +576,22 @@ impl Session {
 			self.files.push(file);
 		}
 		for (code, what) in self.installables.clone() {
+			let Outcome::Value(value) = self.evaluate(&code)? else {
+				if startup {
+					return Ok(false);
+				}
+				continue;
+			};
 			notice(&format!("Loading installable '{what}'..."));
-			self.add_attrs(&code)?;
+			if let Value::Attrs(attrs) = value {
+				let names = attrs
+					.iter_sorted()
+					.map(|(name, _)| name.to_str_lossy().into_owned())
+					.collect();
+				self.bind_attrs(&code, names);
+			} else {
+				self.add_attrs(&code)?;
+			}
 		}
 		if !startup {
 			for flake in std::mem::take(&mut self.flakes) {
@@ -582,7 +600,7 @@ impl Session {
 				self.flakes.push(flake);
 			}
 		}
-		Ok(())
+		Ok(true)
 	}
 }
 
@@ -684,7 +702,9 @@ fn process(session: &mut Session, input: &str) -> Result<Line, Failure> {
 			}
 			None => print_error("nothing has been loaded yet"),
 		},
-		":r" | ":reload" => session.reload(false)?,
+		":r" | ":reload" => {
+			session.reload(false)?;
+		}
 		":t" => {
 			let fragment = session.fragment(arg);
 			if let Outcome::Value(value) =
@@ -870,7 +890,9 @@ pub(super) fn run(mut parsed: Parsed) -> Result<ExitCode, Failure> {
 	}
 	session.base_fragments = session.options.fragments.len();
 	notice("Nix 2.35.2\nType :? for help.");
-	session.reload(true)?;
+	if !session.reload(true)? {
+		return Ok(ExitCode::FAILURE);
+	}
 	let interactive = std::io::stdin().is_terminal();
 	let echo = std::env::var("_NIX_TEST_REPL_ECHO").is_ok_and(|v| v == "1");
 	let mut stdin = std::io::stdin().lock();

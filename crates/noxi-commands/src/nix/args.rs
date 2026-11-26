@@ -426,6 +426,9 @@ impl<H> Parser<H> {
 		let name = if parent == "store" && name == "ping" {
 			program.warn("'ping' is a deprecated alias for 'info'");
 			"info"
+		} else if parent == "profile" && name == "install" {
+			program.warn("'install' is a deprecated alias for 'add'");
+			"add"
 		} else {
 			name
 		};

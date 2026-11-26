@@ -55,6 +55,27 @@ fn same(args: &[&str], input: &[u8]) -> Output {
 	assert_eq!(actual.stderr, expected.stderr, "{args:?}");
 	actual
 }
+
+#[test]
+fn repl_rejects_a_non_flake_startup_installable() {
+	let root = noxi_test_support::tempdir().unwrap();
+	let file = root.path().join("simple.nix");
+	fs::write(&file, "{ answer = 42; }").unwrap();
+	let args = ["repl", "--offline", file.to_str().unwrap()];
+	let expected = run(&reference(), root.path(), &args, b"");
+	let actual = run(
+		Path::new(env!("CARGO_BIN_EXE_nix")),
+		root.path(),
+		&args,
+		b"",
+	);
+	assert_eq!(expected.status.code(), Some(1));
+	assert!(String::from_utf8_lossy(&expected.stderr).contains("is not a flake"));
+	assert_eq!(actual.status.code(), expected.status.code());
+	assert_eq!(actual.stdout, expected.stdout);
+	assert_eq!(actual.stderr, expected.stderr);
+}
+
 #[test]
 fn nar_pack_list_cat_and_key_conversion() {
 	let d = noxi_test_support::tempdir().unwrap();
