@@ -544,6 +544,11 @@ fn driver_expression(
 	// `nix-shell`, those taking `inNixShell` also get it as `true`.
 	driver.push_str("};\n");
 	let _ = writeln!(driver, "__noxi_inNixShell = {};", options.in_nix_shell);
+	let _ = writeln!(
+		driver,
+		"__noxi_maxDiscoveryDepth = {};",
+		options.settings.get_int("max-call-depth", 10_000).max(0),
+	);
 	// `DrvInfo::queryOutputs` for the outputs to install, or for a flake
 	// installable only those the derivation names.
 	let _ = writeln!(
@@ -599,17 +604,19 @@ __noxi_stringPath = s:
 __noxi_installable = v:
 	let path = __noxi_path (__noxi_autoCall v); in
 	if path != null then path else __noxi_getDerivations v;
-__noxi_getDerivations = v:
+__noxi_getDerivations = __noxi_discover 0;
+__noxi_discover = depth: v:
+	if depth >= __noxi_maxDiscoveryDepth then throw \"stack overflow; max-call-depth exceeded\" else
 	let v' = __noxi_autoCall v; in
 	if __noxi_isDerivation v' then [ (__noxi_pair v') ]
 	else if builtins.isAttrs v' then builtins.concatMap (name:
 		let x = v'.${name}; in
 		if builtins.match \"[A-Za-z_][A-Za-z0-9_+-]*\" name == null then [ ]
 		else if __noxi_isDerivation x then [ (__noxi_pair x) ]
-		else if builtins.isAttrs x && x ? recurseForDerivations && x.recurseForDerivations then __noxi_getDerivations x
+		else if builtins.isAttrs x && x ? recurseForDerivations && x.recurseForDerivations then __noxi_discover (depth + 1) x
 		else [ ]) (builtins.attrNames v')
 	else if builtins.isList v' then builtins.concatMap (x:
-		if __noxi_isDerivation x then [ (__noxi_pair x) ] else __noxi_getDerivations x) v'
+		if __noxi_isDerivation x then [ (__noxi_pair x) ] else __noxi_discover (depth + 1) x) v'
 	else throw \"expression does not evaluate to a derivation (or a set or list of those)\";
 __noxi_select = v: name:
 	let v' = __noxi_autoCall v; in

@@ -540,7 +540,7 @@ tests/functional/signing.sh gap fail pass # main in signing.sh:103: error: unsup
 tests/functional/simple-failing.nix support
 tests/functional/simple.builder.sh support
 tests/functional/simple.nix support
-tests/functional/simple.sh gap fail pass # main in simple.sh:42: recursive recurseForDerivations does not reach the max-call-depth error
+tests/functional/simple.sh gap fail pass # main in simple.sh:58: printing a pre-forced deep value exits successfully instead of reporting max-call-depth
 tests/functional/ssh-relay.sh pass pass pass
 tests/functional/store-info.sh pass pass pass
 tests/functional/store-print-env.sh pass pass pass

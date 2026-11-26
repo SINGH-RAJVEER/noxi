@@ -307,7 +307,7 @@ pass:upstream_functional tests/functional/selfref-gc.sh
 pass:upstream_functional tests/functional/shell.sh
 gap tests/functional/short-path-literals.sh # : foo/bar
 gap tests/functional/signing.sh # main in signing.sh:103: error: unsupported store parameter 'require-sigs=false' in '$ROOT/tmp/nix-test/main/signing/store0?require-sigs=false'
-gap tests/functional/simple.sh # main in simple.sh:42: recursive recurseForDerivations does not reach the max-call-depth error
+gap tests/functional/simple.sh # main in simple.sh:58: printing a pre-forced deep value exits successfully instead of reporting max-call-depth
 pass:upstream_functional tests/functional/ssh-relay.sh
 pass:upstream_functional tests/functional/store-info.sh
 pass:upstream_functional tests/functional/store-print-env.sh
