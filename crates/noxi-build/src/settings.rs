@@ -290,6 +290,19 @@ impl BuildSettings {
 		if let Some(value) = settings.get("build-dir") {
 			self.build_dir = (!value.is_empty()).then(|| PathBuf::from(value));
 		}
+		// `Setting<StringMap>`: `name=value` words, the first of a name
+		// winning; words without `=` are ignored.
+		let impure_env = settings.get_list("impure-env", &[]);
+		if settings.get("impure-env").is_some() || !impure_env.is_empty() {
+			self.impure_env.clear();
+			for word in impure_env {
+				if let Some((name, value)) = word.split_once('=')
+					&& !self.impure_env.iter().any(|(n, _)| n == name)
+				{
+					self.impure_env.push((name.to_owned(), value.to_owned()));
+				}
+			}
+		}
 		self.run_diff_hook = settings.get_bool("run-diff-hook", self.run_diff_hook);
 		if let Some(value) = settings.get("post-build-hook") {
 			self.post_build_hook = value.to_owned();

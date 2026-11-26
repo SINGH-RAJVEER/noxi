@@ -24,6 +24,9 @@ pub struct DaemonSettings {
 	pub allowed_users: Vec<String>,
 	/// `build-users-group`, whose members may not connect.
 	pub build_users_group: Option<String>,
+	/// The experimental features the daemon enables, which decide whether
+	/// a client may set a setting that one of them gates.
+	pub experimental_features: Vec<String>,
 	/// `keep-outputs`.
 	pub gc_keep_outputs: bool,
 	/// `keep-derivations`.
@@ -80,6 +83,11 @@ impl DaemonSettings {
 			.get("build-users-group")
 			.filter(|group| !group.is_empty())
 			.map(str::to_owned);
+		result.experimental_features = settings
+			.experimental_features()
+			.into_iter()
+			.map(str::to_owned)
+			.collect();
 		result.gc_keep_outputs = settings.get_bool("keep-outputs", result.gc_keep_outputs);
 		result.gc_keep_derivations =
 			settings.get_bool("keep-derivations", result.gc_keep_derivations);
@@ -103,6 +111,7 @@ impl DaemonSettings {
 			trusted_users: vec!["root".to_owned()],
 			allowed_users: vec!["*".to_owned()],
 			build_users_group: None,
+			experimental_features: Vec::new(),
 			gc_keep_outputs: false,
 			gc_keep_derivations: true,
 			daemon_version: "2.35.2".to_owned(),

@@ -1947,6 +1947,16 @@ impl<R: Read + Send, W: Write + Send + 'static> Connection<'_, R, W> {
 			.map_err(|_| Error::Protocol("build cores exceed unsigned integer range".into()))?;
 		self.settings.build.use_substitutes = use_substitutes;
 		let mut accepted = nix_compat::nixcpp::settings::Settings::default();
+		// A setting an experimental feature gates is accepted when the
+		// daemon enables that feature, as CppNix checks its own settings.
+		if !self.settings.experimental_features.is_empty() {
+			accepted
+				.set(
+					"experimental-features",
+					&self.settings.experimental_features.join(" "),
+				)
+				.map_err(|error| Error::Nix(error.to_string()))?;
+		}
 		for (name, value) in &overrides {
 			// The reference compares the names, not their aliases, so
 			// `build-timeout` and `build-max-silent-time` stay restricted.

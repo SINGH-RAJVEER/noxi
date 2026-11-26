@@ -6,6 +6,7 @@ Changes that have not reached a version yet go under an `Unreleased` heading for
 
 ## Repository - Unreleased
 
+- The `impure-env` setting passes its variables to fixed-output builders, locally and, when a trusted client sets it, through a daemon that enables `configurable-impure-env`, as in CppNix 2.35.2 (2026-11-26).
 - Builds collect garbage when the free space of the store falls below `min-free`, as CppNix 2.35.2's `autoGC` does, until `max-free` bytes are free; `min-free-check-interval`, `keep-outputs` and `keep-derivations` apply (2026-11-26).
 - A daemon client whose greeting cannot be written because the daemon already closed the connection reports `write of 16 bytes: Broken pipe`, as CppNix 2.35.2 does, instead of `read of 32768 bytes: Broken pipe`. Two reference comparisons retry, at most twice, a step whose output shows a race of the reference's own transport: a refused remote upload whose client error is printed before the server's, and a refused daemon connection that fails on its write instead of its read (2026-11-26).
 - Binary cache transfers report a `downloading 'URL'` activity at the talkative level, as CppNix 2.35.2 does, and `file://` caches do so under `_NIX_FORCE_HTTP=1`. A substituter fetches a NAR only when the path is still missing once it holds the path's lock, so concurrent substitutions of one path transfer it once. A NAR that a cache no longer has is a warning and the derivation is built, without `--fallback`, as with `SubstituteGone` (2026-11-26).

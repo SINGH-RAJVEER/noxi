@@ -344,7 +344,7 @@ tests/functional/import-from-derivation.sh gap fail pass # main in import-from-d
 tests/functional/impure-derivations.nix support
 tests/functional/impure-derivations.sh pass pass pass
 tests/functional/impure-env.nix support
-tests/functional/impure-env.sh gap fail pass # : error: hash mismatch in fixed-output derivation '$ROOT/tmp/nix-test/main/impure-env/store/HASH-test.drv':
+tests/functional/impure-env.sh pass pass pass
 tests/functional/impure-eval.sh pass pass pass
 tests/functional/install-darwin.sh support # Darwin installer helper, not a registered test
 tests/functional/json.sh pass pass pass

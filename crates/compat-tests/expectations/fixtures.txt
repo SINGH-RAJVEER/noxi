@@ -249,7 +249,7 @@ pass:upstream_functional tests/functional/hash-path.sh
 anomaly tests/functional/help.sh # reference skip: we don't know whether we built the manpages, so we can't reliably test them here., skipping this test...
 gap tests/functional/import-from-derivation.sh # main in import-from-derivation.sh:34: the copied IFD result is missing both registered references
 pass:upstream_functional tests/functional/impure-derivations.sh
-gap tests/functional/impure-env.sh # : error: hash mismatch in fixed-output derivation '$ROOT/tmp/nix-test/main/impure-env/store/HASH-test.drv':
+pass:upstream_functional tests/functional/impure-env.sh
 pass:upstream_functional tests/functional/impure-eval.sh
 pass:upstream_functional tests/functional/json.sh
 anomaly tests/functional/lang-gc.sh # reference skip: Too memory intensive for CI. Attempt to reduce memory usage was unsuccessful, because it made detection of the bug unreliable., skipping this test...
