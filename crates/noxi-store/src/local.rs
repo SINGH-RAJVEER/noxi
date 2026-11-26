@@ -1493,7 +1493,10 @@ impl LocalStore {
 	/// Unregister `path`, failing if another valid path refers to it.
 	pub fn invalidate_path_checked(&self, path: &StorePath) -> Result<()> {
 		let mut db = self.db();
-		let tx = db.transaction()?;
+		// Reserve the write lock before checking referrers. A concurrent build
+		// can otherwise commit between the first read and the delete, leaving
+		// a WAL snapshot that SQLite cannot upgrade to a write transaction.
+		let tx = db.transaction_with_behavior(TransactionBehavior::Immediate)?;
 		if query_id(&tx, path)?.is_some() {
 			let mut referrers = query_referrers(&tx, path)?;
 			referrers.remove(path);
