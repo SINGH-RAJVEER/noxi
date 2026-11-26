@@ -2239,6 +2239,7 @@ fn client_setting_overrides_match_the_reference() {
 			("ssl-cert-file", "/etc/shadow"),
 			("hashed-mirrors", "http://localhost:1/"),
 			("run-diff-hook", "true"),
+			("require-drop-supplementary-groups", "false"),
 		];
 		for value in &substituters {
 			overrides.push(("substituters", value));

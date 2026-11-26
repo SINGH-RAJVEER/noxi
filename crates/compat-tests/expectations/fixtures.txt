@@ -129,10 +129,10 @@ pass:upstream_functional tests/functional/build-remote-trustless-should-pass-2.s
 pass:upstream_functional tests/functional/build-remote-trustless-should-pass-3.sh
 gap tests/functional/build-remote-with-mounted-ssh-ng.sh # main in build-remote-with-mounted-ssh-ng.sh:10: error: don't know how to open Nix store with scheme 'mounted-ssh-ng://localhost'
 gap tests/functional/build.sh # main in build.sh:148: error: nix --relaxed-sandbox is not supported by noxi yet
-gap tests/functional/ca/build-cache.sh # build-cache.sh:17: dependentCA substitution requests a local build with max-jobs = 0
+pass:upstream_functional tests/functional/ca/build-cache.sh
 pass:upstream_functional tests/functional/ca/build-delete.sh
 pass:upstream_functional tests/functional/ca/build-with-garbage-path.sh
-gap tests/functional/ca/build.sh # : error: Cannot build '$ROOT/tmp/nix-test/ca/build/store/HASH-rootCA.drv'.
+pass:upstream_functional tests/functional/ca/build.sh
 pass:upstream_functional tests/functional/ca/concurrent-builds.sh
 pass:upstream_functional tests/functional/ca/derivation-advanced-attributes.sh
 pass:upstream_functional tests/functional/ca/derivation-json.sh
@@ -140,7 +140,7 @@ anomaly tests/functional/ca/duplicate-realisation-in-closure.sh # reference skip
 gap tests/functional/ca/eval-store.sh # source in eval-store.sh:14: error: nix build --eval-store is not supported by noxi yet
 pass:upstream_functional tests/functional/ca/gc.sh
 pass:upstream_functional tests/functional/ca/import-from-derivation.sh
-gap tests/functional/ca/issue-13247.sh # main in issue-13247.sh:49: copying path '$ROOT/tmp/nix-test/ca/issue-13247/store/HASH-use-a-more-outputs-second' from 'file://$ROOT/tmp/nix-test/ca/issue-13247/cache'...
+pass:upstream_functional tests/functional/ca/issue-13247.sh
 pass:upstream_functional tests/functional/ca/multiple-outputs.sh
 gap tests/functional/ca/new-build-cmd.sh # source in ./build.sh:148: error: nix --relaxed-sandbox is not supported by noxi yet
 pass:upstream_functional tests/functional/ca/nix-copy.sh
@@ -157,7 +157,7 @@ pass:upstream_functional tests/functional/characterisation-test-infra.sh
 pass:upstream_functional tests/functional/check-refs.sh
 pass:upstream_functional tests/functional/check-reqs.sh
 pass:upstream_functional tests/functional/check.sh
-gap tests/functional/chroot-store.sh # main in chroot-store.sh:48: error: don't know how to open Nix store with scheme 'local://$ROOT/tmp/nix-test/main/chroot-store/x+chroot'
+gap tests/functional/chroot-store.sh # main in chroot-store.sh:94: thread '<unnamed>' panicked at crates/noxi/eval/src/compiler/mod.rs:1878:22: __curPos canonicalizes the logical store path of a flake source in a chroot store
 gap tests/functional/cli-characterisation.sh # : error:
 gap tests/functional/completions.sh # main in completions.sh:65: --log-format flag completion is missing
 pass:upstream_functional tests/functional/compression-levels.sh
@@ -270,7 +270,7 @@ pass:upstream_functional tests/functional/local-overlay-store/verify.sh
 gap tests/functional/logging.sh # main in logging.sh:32: malformed builder JSON does not produce the reference warning
 pass:upstream_functional tests/functional/make-content-addressed.sh
 pass:upstream_functional tests/functional/misc.sh
-gap tests/functional/multiple-outputs-substitute-failure.sh # main in multiple-outputs-substitute-failure.sh:28: clearing store...
+pass:upstream_functional tests/functional/multiple-outputs-substitute-failure.sh
 pass:upstream_functional tests/functional/multiple-outputs.sh
 pass:upstream_functional tests/functional/nar-access.sh
 gap tests/functional/nars.sh # main in nars.sh:6:
@@ -306,7 +306,7 @@ pass:upstream_functional tests/functional/secure-drv-outputs.sh
 pass:upstream_functional tests/functional/selfref-gc.sh
 pass:upstream_functional tests/functional/shell.sh
 gap tests/functional/short-path-literals.sh # : foo/bar
-gap tests/functional/signing.sh # main in signing.sh:103: error: unsupported store parameter 'require-sigs=false' in '$ROOT/tmp/nix-test/main/signing/store0?require-sigs=false'
+pass:upstream_functional tests/functional/signing.sh
 gap tests/functional/simple.sh # main in simple.sh:27: error: --readonly-mode is not supported by noxi yet
 pass:upstream_functional tests/functional/ssh-relay.sh
 pass:upstream_functional tests/functional/store-info.sh
@@ -314,7 +314,7 @@ pass:upstream_functional tests/functional/store-print-env.sh
 anomaly tests/functional/structured-attrs.sh # reference fail: main in structured-attrs.sh:27: error (ignored): cannot find flake 'flake:nixpkgs' in the flake registries
 pass:upstream_functional tests/functional/substitute-with-invalid-ca.sh
 gap tests/functional/suggestions.sh # : test failed: The nix build stderr should suggest the three closest possibilities
-gap tests/functional/supplementary-groups.sh # : Expected exit code '1' but got '0' from command 'nix-build' './hermetic.nix' '--arg' 'busybox' '/nix/store/HASH-busybox-static-x86_64-unknown-linux-musl-1.37.0/bin/busybox' '--arg' 'seed' '1' '--no-
+pass:upstream_functional tests/functional/supplementary-groups.sh
 pass:upstream_functional tests/functional/symlinks.sh
 gap tests/functional/tarball.sh # : error: path 'file:$ROOT/tmp/nix-test/main/tarball/tarball.tar' does not exist
 pass:upstream_functional tests/functional/test-infra.sh

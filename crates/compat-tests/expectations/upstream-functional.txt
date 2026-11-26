@@ -34,11 +34,11 @@ tests/functional/build-remote-with-mounted-ssh-ng.sh gap fail pass # main in bui
 tests/functional/build-remote.sh support
 tests/functional/build.sh gap fail pass # main in build.sh:148: error: nix --relaxed-sandbox is not supported by noxi yet
 tests/functional/ca-shell.nix support
-tests/functional/ca/build-cache.sh gap fail pass # build-cache.sh:17: dependentCA substitution requests a local build with max-jobs = 0
+tests/functional/ca/build-cache.sh pass pass pass
 tests/functional/ca/build-delete.sh pass pass pass
 tests/functional/ca/build-dry.sh support # test script not registered in ca/meson.build; upstream does not run it
 tests/functional/ca/build-with-garbage-path.sh pass pass pass
-tests/functional/ca/build.sh gap fail pass # : error: Cannot build '$ROOT/tmp/nix-test/ca/build/store/HASH-rootCA.drv'.
+tests/functional/ca/build.sh pass pass pass
 tests/functional/ca/common.sh support
 tests/functional/ca/concurrent-builds.sh pass pass pass
 tests/functional/ca/config.nix support
@@ -51,7 +51,7 @@ tests/functional/ca/flake.nix support
 tests/functional/ca/gc.sh pass pass pass
 tests/functional/ca/import-from-derivation.sh pass pass pass
 tests/functional/ca/issue-13247.nix support
-tests/functional/ca/issue-13247.sh gap fail pass # main in issue-13247.sh:49: copying path '$ROOT/tmp/nix-test/ca/issue-13247/store/HASH-use-a-more-outputs-second' from 'file://$ROOT/tmp/nix-test/ca/issue-13247/cache'...
+tests/functional/ca/issue-13247.sh pass pass pass
 tests/functional/ca/meson.build support
 tests/functional/ca/multiple-outputs.sh pass pass pass
 tests/functional/ca/new-build-cmd.sh gap fail pass # source in ./build.sh:148: error: nix --relaxed-sandbox is not supported by noxi yet
@@ -77,7 +77,7 @@ tests/functional/check-reqs.nix support
 tests/functional/check-reqs.sh pass pass pass
 tests/functional/check.nix support
 tests/functional/check.sh pass pass pass
-tests/functional/chroot-store.sh gap fail pass # main in chroot-store.sh:48: error: don't know how to open Nix store with scheme 'local://$ROOT/tmp/nix-test/main/chroot-store/x+chroot'
+tests/functional/chroot-store.sh gap fail pass # main in chroot-store.sh:94: thread '<unnamed>' panicked at crates/noxi/eval/src/compiler/mod.rs:1878:22: __curPos canonicalizes the logical store path of a flake source in a chroot store
 tests/functional/cli-characterisation.sh gap fail pass # : error:
 tests/functional/cli-characterisation/assert-fail.nix support
 tests/functional/cli-characterisation/bad-drvpath.nix support
@@ -385,7 +385,7 @@ tests/functional/make-content-addressed.sh pass pass pass
 tests/functional/meson.build support
 tests/functional/meson.options support
 tests/functional/misc.sh pass pass pass
-tests/functional/multiple-outputs-substitute-failure.sh gap fail pass # main in multiple-outputs-substitute-failure.sh:28: clearing store...
+tests/functional/multiple-outputs-substitute-failure.sh pass pass pass
 tests/functional/multiple-outputs.nix support
 tests/functional/multiple-outputs.sh pass pass pass
 tests/functional/nar-access.nix support
@@ -536,7 +536,7 @@ tests/functional/shell.shebang.nix support
 tests/functional/shell.shebang.rb support
 tests/functional/shell.shebang.sh support
 tests/functional/short-path-literals.sh gap fail pass # : foo/bar
-tests/functional/signing.sh gap fail pass # main in signing.sh:103: error: unsupported store parameter 'require-sigs=false' in '$ROOT/tmp/nix-test/main/signing/store0?require-sigs=false'
+tests/functional/signing.sh pass pass pass
 tests/functional/simple-failing.nix support
 tests/functional/simple.builder.sh support
 tests/functional/simple.nix support
@@ -549,7 +549,7 @@ tests/functional/structured-attrs.nix support
 tests/functional/structured-attrs.sh anomaly fail fail # reference fail: main in structured-attrs.sh:27: error (ignored): cannot find flake 'flake:nixpkgs' in the flake registries
 tests/functional/substitute-with-invalid-ca.sh pass pass pass
 tests/functional/suggestions.sh gap fail pass # : test failed: The nix build stderr should suggest the three closest possibilities
-tests/functional/supplementary-groups.sh gap fail pass # : Expected exit code '1' but got '0' from command 'nix-build' './hermetic.nix' '--arg' 'busybox' '/nix/store/HASH-busybox-static-x86_64-unknown-linux-musl-1.37.0/bin/busybox' '--arg' 'seed' '1' '--no-
+tests/functional/supplementary-groups.sh pass pass pass
 tests/functional/symlink-derivation.nix support
 tests/functional/symlinks.sh pass pass pass
 tests/functional/tarball.sh gap fail pass # : error: path 'file:$ROOT/tmp/nix-test/main/tarball/tarball.tar' does not exist

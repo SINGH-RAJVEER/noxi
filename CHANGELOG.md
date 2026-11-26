@@ -6,6 +6,7 @@ Changes that have not reached a version yet go under an `Unreleased` heading for
 
 ## Repository - Unreleased
 
+- Sandboxed builds honour `require-drop-supplementary-groups` and fail when the caller's supplementary groups cannot be dropped and the setting is on (the default for root), as CppNix 2.35.2 does; unsandboxed builds as a build user run with that user's supplementary groups. Local store URLs accept `require-sigs` and `local://PATH`. Missing derivations are realised for the outputs that are wanted of them, so resolved content-addressed derivations are substituted output by output, and failed output substitutions are reported with the reference's messages and `--fallback` hint (2026-11-26).
 - `nix copy --all` uploads valid local store paths to a file cache. Copying from a file cache to a local store supports `--out-link` and `--profile`.
 - `nix store build-trace info --file` reports traces for realised derivation outputs. `nix log` can look up an output's deriver in a file cache.
 - `nix build --stdin` reads installables from a pipe. Explicit sandbox flags select strict, disabled or relaxed mode, and `nix config show sandbox` reports the selected mode.
