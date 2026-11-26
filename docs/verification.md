@@ -1553,3 +1553,9 @@ Remaining differences:
 - A `file://` store builds its derivations through the hook one at a time.
 - How much builder output appears before `max-build-log-size` stops a local build depends on how the output is read, in both engines.
 - Real `ssh` to another host, an `ssh` master connection (`max-connections` above 1) and the 15-minute upload lock timeout were not exercised. A root daemon whose builds use build users on machines needs a VM.
+
+## Flake run and eval output, 2026-11-26
+
+The copied `flakes/run.sh` and `pure-eval.sh` scripts passed against both noxi and CppNix 2.35.2 in isolated stores. Flake run checks the selected output's type, including when an app is exposed under both `apps` and `packages`. Eval file output works with `dummy://` and rejects an existing destination and unsafe attribute paths. The upstream script covers nested attributes and the invalid name `.`. Exact diagnostics outside those assertions remain to be compared.
+
+`flakes/non-flake-inputs.sh` now gets past `nix build --commit-lock-file` and stops at line 135, where `outPath` retains an extra `/./` segment that `sourceInfo.outPath` omits. In the same paired runs, both engines printed the offline warning. The next failing assertions were the absent dirty Git fingerprint in `flakes/flakes.sh`, different lock graph in `flakes/relative-paths.sh`, stale nested input in `flakes/relative-paths-lockfile.sh`, and missing verbose configuration paths in `config.sh`.

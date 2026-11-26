@@ -41,6 +41,7 @@ pub enum AutoArg {
 #[derive(Debug, Default, Clone)]
 pub struct Options {
 	pub flake: Option<crate::nix::flakes::Request>,
+	pub write_to: Option<PathBuf>,
 	/// Apply the modern command's pure builtins and explicit filesystem limit.
 	pub modern_pure: bool,
 	pub eval: bool,
@@ -692,6 +693,88 @@ in __noxi_forceEach [\n",
 	Ok((code, fragments))
 }
 
+#[builtins(state = "PathBuf")]
+mod eval_writer {
+	use std::path::PathBuf;
+
+	use noxi_eval::generators::{Gen, GenCo};
+	use noxi_eval::{ErrorKind, Value};
+
+	#[builtin("write_eval")]
+	async fn builtin_write_eval(
+		state: PathBuf,
+		co: GenCo,
+		#[lazy] value: Value,
+	) -> Result<Value, ErrorKind> {
+		let path = state;
+		if path.symlink_metadata().is_ok() {
+			return Err(ErrorKind::EvalError(format!(
+				"path '{}' already exists",
+				path.display()
+			)));
+		}
+		write_eval_tree(&co, &path, value).await
+	}
+
+	async fn write_eval_tree(
+		co: &GenCo,
+		path: &std::path::Path,
+		value: Value,
+	) -> Result<Value, ErrorKind> {
+		use noxi_eval::{AddContext, generators};
+		use std::io::Write;
+		use std::os::unix::ffi::OsStrExt;
+		use std::path::{Component, Path};
+
+		let io_error = |operation, error: std::io::Error| {
+			ErrorKind::EvalError(format!(
+				"{operation} \"{}\": {}",
+				path.display(),
+				crate::nix::hash::strerror(&error)
+			))
+		};
+		match generators::request_force(co, value).await {
+			Value::String(text) => {
+				let mut file = std::fs::OpenOptions::new()
+					.write(true)
+					.create_new(true)
+					.open(path)
+					.map_err(|error| io_error("opening file", error))?;
+				file.write_all(text.as_bytes())
+					.map_err(|error| io_error("writing file", error))?;
+			}
+			Value::Attrs(attrs) => {
+				std::fs::create_dir(path).map_err(|error| io_error("creating directory", error))?;
+				for (name, child) in attrs.iter_sorted() {
+					let relative = Path::new(std::ffi::OsStr::from_bytes(name.as_bytes()));
+					let label = relative.to_string_lossy();
+					let span = attrs.get_attr_pos(name);
+					let result = if relative.as_os_str().is_empty()
+						|| relative
+							.components()
+							.any(|part| !matches!(part, Component::Normal(_)))
+					{
+						Err(ErrorKind::EvalError(format!("invalid file name '{label}'")))
+					} else {
+						Box::pin(write_eval_tree(co, &path.join(relative), child.clone())).await
+					}
+					.trace(span, format!("while evaluating the attribute '{label}'"))?;
+					if result.is_catchable() {
+						return Ok(result);
+					}
+				}
+			}
+			thrown if thrown.is_catchable() => return Ok(thrown),
+			_ => {
+				return Err(ErrorKind::EvalError(
+					"value at '«none»:0' is not a string or an attribute set".into(),
+				));
+			}
+		}
+		Ok(Value::Null)
+	}
+}
+
 #[builtins]
 mod driver_builtins {
 	use noxi_eval::generators::{Gen, GenCo};
@@ -927,6 +1010,13 @@ pub fn evaluate(options: &Options, cwd: &Path) -> Result<Evaluated, ExitCode> {
 		.into_iter()
 		.map(|(name, value)| (SmolStr::new(format!("__noxi_{name}")), value))
 		.collect();
+	if let Some(path) = &options.write_to {
+		env.extend(
+			eval_writer::builtins(path.clone())
+				.into_iter()
+				.map(|(name, value)| (SmolStr::new(format!("__noxi_{name}")), value)),
+		);
+	}
 	if let Some(request) = &options.flake {
 		env.extend(
 			crate::nix::flakes::builtins(request.clone(), evaluator_store.clone())

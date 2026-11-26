@@ -456,8 +456,10 @@ fn supported_flags(command: &str) -> &'static [&'static str] {
 			"pretty",
 			"no-pretty",
 			"read-only",
+			"write-to",
 		],
 		"build" => &[
+			"commit-lock-file",
 			"stdin",
 			"arg",
 			"argstr",
