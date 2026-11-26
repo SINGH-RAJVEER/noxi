@@ -102,6 +102,7 @@ pub fn main(
 ) -> ExitCode {
 	#[cfg(feature = "eval-allocation-diagnostics")]
 	let _allocation_diagnostics = crate::allocation_diagnostics::ReportGuard::new();
+	noxi_build::interrupt::install();
 	let code = std::thread::Builder::new()
 		.stack_size(STACK_SIZE)
 		.spawn(move || {
@@ -118,6 +119,13 @@ pub fn main(
 			if result.is_err() {
 				nix_compat::log::logger::stop();
 			}
+			// What an interrupted command was doing ends with this.
+			let result = match result {
+				Err(_) if noxi_build::interrupt::interrupted() => {
+					Err(Failure::Error(noxi_build::interrupt::MESSAGE.to_owned()))
+				}
+				result => result,
+			};
 			let code = match result {
 				Ok(code) => code,
 				Err(Failure::Usage(message)) => {

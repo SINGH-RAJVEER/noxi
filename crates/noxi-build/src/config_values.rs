@@ -142,6 +142,20 @@ fn extra_platforms() -> Value {
 	json!(platforms)
 }
 
+/// The default `build-hook`'s program: `nix` next to this one, as CppNix's
+/// is in its compiled `nixBinDir`, or in `NIX_BIN_DIR`.
+pub fn default_build_hook() -> std::path::PathBuf {
+	std::env::var_os("NIX_BIN_DIR")
+		.map(std::path::PathBuf::from)
+		.or_else(|| {
+			std::env::current_exe()
+				.ok()
+				.and_then(|p| p.parent().map(Path::to_path_buf))
+		})
+		.unwrap_or_default()
+		.join("nix")
+}
+
 /// The settings of `GlobalConfig::toJSON` by name, with `overrides` applied.
 /// An unusable value is a usage error.
 pub fn values(overrides: &Settings, pure_eval: bool) -> Result<Value, String> {
@@ -215,18 +229,8 @@ pub fn values(overrides: &Settings, pure_eval: bool) -> Result<Value, String> {
 		settings["sandbox-paths"]["value"] =
 			json!({"/bin/sh": {"source": shell, "optional": false}});
 	}
-	// The hook is package-relative, just as CppNix's compiled nixBinDir is.
-	let bin = std::env::var_os("NIX_BIN_DIR")
-		.map(std::path::PathBuf::from)
-		.or_else(|| {
-			std::env::current_exe()
-				.ok()
-				.and_then(|p| p.parent().map(Path::to_path_buf))
-		});
-	if let Some(bin) = bin {
-		settings["build-hook"]["value"] =
-			json!([bin.join("nix").to_string_lossy(), "__build-remote"]);
-	}
+	settings["build-hook"]["value"] =
+		json!([default_build_hook().to_string_lossy(), "__build-remote"]);
 	for (name, value, replaces) in overrides.overridden() {
 		let entry = &mut settings[name];
 		let mut input = String::new();

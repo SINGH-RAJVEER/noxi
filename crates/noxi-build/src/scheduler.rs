@@ -185,7 +185,8 @@ impl LocalBuilder<'_> {
 		let stop = AtomicBool::new(false);
 		// With a build hook, builds here take one of `max-jobs` slots and
 		// builds on other machines as many as the machines accept.
-		let limit = match self.hooks {
+		let hooks = self.hooks().filter(|hooks| hooks.may_accept);
+		let limit = match hooks {
 			Some(_) => 256,
 			None => usize::try_from(self.settings.max_build_jobs.max(1)).unwrap_or(usize::MAX),
 		};
@@ -228,15 +229,19 @@ impl LocalBuilder<'_> {
 					let tx = tx.clone();
 					let worker_path = path.clone();
 					let stop = &stop;
+					// The goals reach the hook in the order they are taken.
+					let turn = self.hooks().map(|hooks| hooks.issue());
 					let handle = scope.spawn(move || {
-						let builder =
-							self.clone()
-								.with_cancellation(stop)
-								.with_mode(if node.target {
-									self.mode
-								} else {
-									self.for_inputs().mode
-								});
+						let _turn =
+							turn.and_then(|turn| self.hooks().map(|hooks| hooks.turn(Some(turn))));
+						let builder = turn
+							.map_or_else(|| self.clone(), |turn| self.clone().with_turn(turn))
+							.with_cancellation(stop)
+							.with_mode(if node.target {
+								self.mode
+							} else {
+								self.for_inputs().mode
+							});
 						let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
 							let mut current = worker_path.clone();
 							builder.realise_inner(

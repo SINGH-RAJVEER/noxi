@@ -58,7 +58,7 @@ in rec {
 	local = mk { name = "local"; script = "echo local > $out"; preferLocalBuild = true; };
 	other = mk { name = "other"; system = "riscv64-linux"; script = "echo other > $out"; };
 	fail = mk { name = "fail"; script = "echo about to fail; echo kept > kept; exit 7"; };
-	silent = mk { name = "silent"; script = "echo before; sleep 60"; };
+	silent = mk { name = "silent"; script = "echo before; while :; do :; done"; };
 	noisy = mk { name = "noisy"; script = "i=0; while [ $i -lt 200 ]; do echo 0123456789; i=$((i+1)); done; echo > $out"; };
 	phases = mk { name = "phases"; script = "echo '@nix { \"action\": \"setPhase\", \"phase\": \"buildPhase\" }'; echo in phase; echo > $out"; };
 	fixed = mk { name = "fixed"; script = "echo fixed > $out"; outputHashMode = "recursive"; outputHashAlgo = "sha256"; outputHash = "sha256-nvVUUt4LlZ5PmxSMzsxG1CY6JtRJ+D0NIWZ6ObFrpdU="; };
@@ -66,7 +66,13 @@ in rec {
 	caOne = mk ({ name = "ca-one"; script = "echo one > $out"; } // ca);
 	caTwo = mk ({ name = "ca-two"; script = "read x < ${caOne}; echo $x two > $out"; } // ca);
 	structured = mk { name = "structured"; script = "${busybox} grep -o '\"outputs\":{[^}]*}' $NIX_ATTRS_JSON_FILE; exit 3"; __structuredAttrs = true; nested = { a = [ 1 "x\ny" ]; }; };
-	odd = mk { name = "odd"; script = "printf %s \"$quote\" > $out"; quote = "' \" \\ $(touch /pwned) `id` ; \n\t é"; };
+	odd = mk { name = "odd"; script = "printf %s \"$quote\" > $out"; quote = "' \" \\ $(touch $ROOT/pwned) `touch $ROOT/pwned` ; touch $ROOT/pwned; \n\t é"; };
+	leafE = mk { name = "leaf-e"; script = "echo e > $out"; };
+	leafC = mk { name = "leaf-c"; script = "echo c > $out"; };
+	leafA = mk { name = "leaf-a"; script = "echo a > $out"; };
+	leafD = mk { name = "leaf-d"; script = "echo d > $out"; };
+	leafB = mk { name = "leaf-b"; script = "echo b > $out"; };
+	leaves = mk { name = "leaves"; script = "cat ${leafE} ${leafC} ${leafA} ${leafD} ${leafB} > $out"; };
 }
 "#;
 
@@ -84,7 +90,8 @@ shift
 NIX_REMOTE="local?root=$ROOT/machine-$host"
 NIX_CONFIG="$(cat "$ROOT/machine.conf" 2> /dev/null)"
 export NIX_REMOTE NIX_CONFIG
-exec "$@"
+# As sshd does, the words are joined and given to the user's shell.
+exec sh -c "$*"
 "#;
 
 fn script(path: &Path, text: &str) {
@@ -117,6 +124,7 @@ fn session(bin: &Path, root: &Path, features: &str, steps: &[&str]) -> Vec<Strin
 				.env("TMPDIR", root.join("tmp"))
 				.env("ROOT", root)
 				.env("BIN", bin)
+				.env("REF", reference_dir().unwrap_or_default())
 				.env("BUSYBOX", busybox().unwrap())
 				.env("DISPLAY", ":0")
 				.env(
@@ -179,7 +187,7 @@ fn local_machines_build_for_a_local_store() {
 		"nix-build x.nix -A one --no-out-link --store $ROOT/m0 -j0 --builders $ROOT/m1",
 		"nix-build x.nix -A phases --no-out-link --store $ROOT/m0 -j0 --builders $ROOT/m1",
 		"nix log --store $ROOT/m0 -f x.nix phases",
-		"nix-build x.nix -A odd --no-out-link --store $ROOT/m0 -j0 --builders $ROOT/m1 2> /dev/null; od -c $ROOT/m0/nix/store/*-odd; ls /pwned",
+		"nix-build x.nix -A odd --no-out-link --store $ROOT/m0 -j0 --builders $ROOT/m1 2> /dev/null; od -c $ROOT/m0/nix/store/*-odd; ls $ROOT/pwned",
 		"nix-build x.nix -A structured --no-out-link --store $ROOT/m0 -j0 --builders $ROOT/m1",
 		"nix-build x.nix -A two --no-out-link --store $ROOT/n0 -j0 --builders $ROOT/n1 2> /dev/null; cat $ROOT/n0/nix/store/*-two",
 	]);
@@ -299,7 +307,7 @@ fn legacy_ssh_machines_build() {
 		"rm ssh.log; NIX_SSHOPTS=\"-o 'Foo=a b' -v\" nix-build x.nix -A one --no-out-link --store $ROOT/n0 -j0 --builders 'ssh://user@host:2222?compress=true - '$ROOT'/key 1 1 - - c3NoLWVkMjU1MTkgQUFBQUMz' 2>&1 | grep -v '^copying path.*busybox'; sed -E \"s|$ROOT/tmp/[^|]*/host-key|HOSTKEY|\" ssh.log | sort",
 		"nix-build x.nix -A one --no-out-link --store $ROOT/o0 -j0 --builders 'ssh://host?remote-program=nix-store%20-v'",
 		"nix-build x.nix -A outputs --no-out-link --store $ROOT/m0 -j0 --builders ssh://host",
-		"nix-build x.nix -A odd --no-out-link --store $ROOT/m0 -j0 --builders ssh://host 2> /dev/null; od -c $ROOT/m0/nix/store/*-odd; ls /pwned",
+		"nix-build x.nix -A odd --no-out-link --store $ROOT/m0 -j0 --builders ssh://host 2> /dev/null; od -c $ROOT/m0/nix/store/*-odd; ls $ROOT/pwned",
 		"nix-build x.nix -A phases --no-out-link --store $ROOT/m0 -j0 --builders ssh://host; nix log --store $ROOT/m0 -f x.nix phases",
 		"nix-build x.nix -A fixed --no-out-link --store $ROOT/m0 -j0 --builders ssh://host",
 	]);
@@ -330,7 +338,7 @@ fn ssh_ng_machines_build() {
 		"nix-build x.nix -A two --no-out-link --store $ROOT/m0 -j0 --builders ssh-ng://host 2> /dev/null; cat $ROOT/m0/nix/store/*-two; sort ssh.log",
 		"nix path-info --store $ROOT/machine-host --all | sort; nix log --store $ROOT/m0 -f x.nix two",
 		"nix-build x.nix -A one --no-out-link --store $ROOT/n0 -j0 --builders ssh-ng://host",
-		"nix-build x.nix -A odd --no-out-link --store $ROOT/m0 -j0 --builders ssh-ng://host 2> /dev/null; od -c $ROOT/m0/nix/store/*-odd; ls /pwned",
+		"nix-build x.nix -A odd --no-out-link --store $ROOT/m0 -j0 --builders ssh-ng://host 2> /dev/null; od -c $ROOT/m0/nix/store/*-odd; ls $ROOT/pwned",
 		"nix-build x.nix -A fail --no-out-link --store $ROOT/m0 -j0 --builders ssh-ng://host",
 		"nix-build x.nix -A wrong --no-out-link --store $ROOT/m0 -j0 --builders ssh-ng://host",
 		"touch ssh.broken; nix-build x.nix -A fixed --no-out-link --store $ROOT/m0 -j0 --builders ssh-ng://host",
@@ -343,7 +351,7 @@ fn ssh_ng_machines_build() {
 fn machines_substitute_if_asked_to() {
 	same(&[
 		"nix-build x.nix -A one --no-out-link --store $ROOT/c0 2> /dev/null | xargs nix copy --to file://$ROOT/cache --from $ROOT/c0 2> /dev/null",
-		"printf 'substituters = file://%s/cache\nrequire-sigs = false\n' $ROOT > machine.conf; nix-build x.nix -A two --no-out-link --store $ROOT/m0 --option substituters file://$ROOT/cache --option require-sigs false -j0 --builders ssh://host --builders-use-substitutes 2>&1 | grep -v '^downloading\\|^querying'",
+		"printf 'substituters = file://%s/cache\nrequire-sigs = false\n' $ROOT > machine.conf; nix-build x.nix -A two --no-out-link --store $ROOT/m0 --option substituters file://$ROOT/cache --option require-sigs false -j0 --builders ssh://host --builders-use-substitutes 2>&1 | grep -v '^downloading\\|^querying' | sort",
 		"nix-build x.nix -A two --no-out-link --store $ROOT/n0 --option substituters file://$ROOT/cache --option require-sigs false -j0 --builders ssh-ng://host2 --builders-use-substitutes 2>&1 | grep '^copying'",
 		"nix-build x.nix -A two --no-out-link --store $ROOT/o0 --option substituters file://$ROOT/cache --option require-sigs false -j0 --builders ssh://host3 2>&1 | grep '^copying'",
 	]);
@@ -562,4 +570,78 @@ fn serve_and_daemon_machines_are_interchangeable() {
 		}
 	}
 	noxi_test_support::remove_tree(&root).unwrap();
+}
+
+/// Without machines, goals still build here in the reference's order.
+#[test]
+fn local_builds_start_in_the_reference_order() {
+	same(&[
+		"nix-build x.nix -A leaves --no-out-link --store $ROOT/m0 -j1 --builders \"$ROOT/m1 riscv64-linux\" 2>&1 | grep '^building'",
+		"nix-build x.nix -A leaves --no-out-link --store $ROOT/n0 -j1 --builders '' 2>&1 | grep '^building'",
+	]);
+}
+
+/// With no machine, the default hook is started and declines.
+#[test]
+fn the_default_hook_declines_without_machines() {
+	same(&[
+		"nix-build x.nix -A one --no-out-link --store $ROOT/m0 -vvvvv 2>&1 | grep -E \"^(starting build hook|cannot find machines file|got [0-9]+ remote builders|hook reply is)\" | sed \"s|'[^ ]*/nix __build-remote'|NIX|\"",
+		"echo > etc/machines; nix-build x.nix -A two --no-out-link --store $ROOT/n0 -vvvvv 2>&1 | grep -cE '^(starting build hook|got 0 remote builders)'",
+	]);
+}
+
+/// `nix-store --serve` and `nix-daemon --stdio` of both engines answer the
+/// reference's client alike.
+#[test]
+fn servers_answer_the_reference_client() {
+	let serve = "ssh://host?remote-program=$BIN/nix-store";
+	let daemon = "ssh-ng://host?remote-program=$BIN/nix-daemon";
+	let mut steps = vec![
+		"nix-build x.nix -A two --no-out-link --store $ROOT/m0 2> /dev/null; nix-instantiate x.nix -A outputs --store $ROOT/m0 > drv 2> /dev/null".to_owned(),
+		"printf '#!/bin/sh\\nexec %s/nix-store --serve\\n' \"$BIN\" > bin/ro; chmod +x bin/ro".to_owned(),
+	];
+	for store in [serve, daemon] {
+		let q = |s: &str| s.replace("STORE", store);
+		steps.extend([
+			q("$REF/nix copy --store $ROOT/m0 --to \"STORE\" $(echo $ROOT/m0/nix/store/*-two | sed 's|.*/nix|/nix|')"),
+			q("$REF/nix path-info --store \"STORE\" --json $(echo $ROOT/m0/nix/store/*-two | sed 's|.*/nix|/nix|') | sed 's|\"registrationTime\":[0-9]*|T|g'"),
+			q("$REF/nix-store --store \"STORE\" -qR $(echo $ROOT/m0/nix/store/*-two | sed 's|.*/nix|/nix|')"),
+			q("$REF/nix copy --store $ROOT/m0 --to \"STORE\" $(cat drv); $REF/nix-store --store \"STORE\" -qR --include-outputs $(cat drv)"),
+			q("$REF/nix-store --store \"STORE\" -r $(cat drv); $REF/nix-store --store \"STORE\" -qR --include-outputs $(cat drv)"),
+			q("$REF/nix copy --from \"STORE\" --to $ROOT/c1 $(echo $ROOT/m0/nix/store/*-two | sed 's|.*/nix|/nix|'); ls $ROOT/c1/nix/store | sort"),
+			q("$REF/nix store cat --store \"STORE\" /nix/store/00000000000000000000000000000000-missing/x"),
+			"rm -rf machine-host c1".to_owned(),
+		]);
+	}
+	steps.extend([
+		"$REF/nix copy --store $ROOT/m0 --to 'ssh://host?remote-program=ro' $(echo $ROOT/m0/nix/store/*-two | sed 's|.*/nix|/nix|')".to_owned(),
+		"$REF/nix-store --store \"$serve\" -r /nix/store/00000000000000000000000000000000-missing.drv".replace("$serve", serve),
+		// The reference's transport is a pair of pipes, noxi's a socket, so
+		// the client's error about the refused upload differs; see
+		// docs/verification.md.
+		"nix-build x.nix -A one --no-out-link --store $ROOT/n0 -j0 --builders 'ssh://host?remote-program=ro' 2>&1 | grep -m1 '^error'".to_owned(),
+	]);
+	let steps: Vec<&str> = steps.iter().map(String::as_str).collect();
+	same(&steps);
+}
+
+/// Interrupting a build leaves nothing running.
+#[test]
+fn interrupted_remote_builds_stop() {
+	// What is left is reported and then killed, so that a failure cannot leave
+	// a builder running.
+	let left = "for e in /proc/[0-9]*/environ; do p=${e#/proc/}; p=${p%/environ}; [ $p = $$ ] && continue; grep -qz \"^ROOT=$ROOT\\$\" $e 2> /dev/null && { cat /proc/$p/comm 2> /dev/null; kill -9 $p 2> /dev/null; }; done | sort";
+	let steps = [
+		format!(
+			"nix-build x.nix -A silent --no-out-link --store $ROOT/m0 -j0 --builders ssh://host > out 2>&1 & p=$!; sleep 3; kill -INT $p; timeout 30 tail --pid=$p -f /dev/null; kill -9 $p 2> /dev/null; wait $p; echo $?; sleep 2; {left}"
+		),
+		format!(
+			"nix-build x.nix -A silent --no-out-link --store $ROOT/m0 -j0 --builders ssh-ng://host2 > out 2>&1 & p=$!; sleep 3; kill -INT $p; timeout 30 tail --pid=$p -f /dev/null; kill -9 $p 2> /dev/null; wait $p; echo $?; sleep 2; {left}"
+		),
+		format!(
+			"nix-build x.nix -A silent --no-out-link --store $ROOT/m0 -j0 --builders $ROOT/m1 > out 2>&1 & p=$!; sleep 3; kill -INT $p; timeout 30 tail --pid=$p -f /dev/null; kill -9 $p 2> /dev/null; wait $p; echo $?; sleep 2; {left}"
+		),
+	];
+	let steps: Vec<&str> = steps.iter().map(String::as_str).collect();
+	same(&steps);
 }

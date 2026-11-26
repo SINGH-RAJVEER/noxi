@@ -38,10 +38,61 @@ pub enum Reply {
 
 /// The build hook of one worker: `Worker::hook`, `Worker::tryBuildHook` and
 /// the count of running local builds the hook is told about.
+///
+/// The worker's goals run on threads. So that they reach the hook and the
+/// local build slots in the order CppNix's goals do, each thread is given a
+/// turn when it starts, in the order the ready goals are taken, and waits
+/// for it before offering its derivation or taking a slot. A goal waiting
+/// for a slot gets a new turn when one is free, in the order of its goal
+/// key, as `wakeSlotWaiters` wakes goals.
 pub struct Hooks {
 	state: Mutex<State>,
-	local_builds: Mutex<u64>,
-	slot_freed: Condvar,
+	/// Whether a machine may accept a build: a custom hook, or machines are
+	/// configured. Otherwise the hook declines everything.
+	pub may_accept: bool,
+	max_jobs: u64,
+	order: Mutex<Order>,
+	changed: Condvar,
+}
+
+#[derive(Default)]
+struct Order {
+	/// Local builds running.
+	running: u64,
+	/// The next turn to give out, and the earliest not yet taken.
+	next: u64,
+	serving: u64,
+	released: BTreeSet<u64>,
+	/// Goals waiting for a slot, by goal key, with the turn each is given
+	/// when a slot is free.
+	slot_waiters: BTreeMap<(String, StorePath), Option<u64>>,
+}
+
+impl Order {
+	fn issue(&mut self) -> u64 {
+		self.next += 1;
+		self.next - 1
+	}
+
+	/// Give waiting goals turns for the free slots.
+	fn wake(&mut self, max_jobs: u64) {
+		let given = self.slot_waiters.values().filter(|t| t.is_some()).count() as u64;
+		let mut free = max_jobs.saturating_sub(self.running + given);
+		let mut turns = Vec::new();
+		for (key, turn) in &self.slot_waiters {
+			if free == 0 {
+				break;
+			}
+			if turn.is_none() {
+				turns.push(key.clone());
+				free -= 1;
+			}
+		}
+		for key in turns {
+			let turn = self.issue();
+			self.slot_waiters.insert(key, Some(turn));
+		}
+	}
 }
 
 impl std::fmt::Debug for Hooks {
@@ -62,13 +113,56 @@ pub struct Slot(Arc<Hooks>);
 
 impl Drop for Slot {
 	fn drop(&mut self) {
-		let mut running = self
-			.0
-			.local_builds
-			.lock()
-			.unwrap_or_else(|e| e.into_inner());
-		*running -= 1;
-		self.0.slot_freed.notify_all();
+		let mut order = self.0.order();
+		order.running -= 1;
+		order.wake(self.0.max_jobs);
+		self.0.changed.notify_all();
+	}
+}
+
+/// A goal's turn, given up when dropped.
+pub struct Turn<'h> {
+	hooks: &'h Hooks,
+	turn: Option<u64>,
+}
+
+impl Turn<'_> {
+	/// Wait for the turn, if the goal has one.
+	pub fn wait(&self, cancelled: &dyn Fn() -> bool) -> Result<()> {
+		let Some(turn) = self.turn else {
+			return Ok(());
+		};
+		let mut order = self.hooks.order();
+		while order.serving < turn {
+			if cancelled() {
+				return Err(BuildError::Cancelled);
+			}
+			order = self
+				.hooks
+				.changed
+				.wait_timeout(order, Duration::from_millis(100))
+				.unwrap_or_else(|e| e.into_inner())
+				.0;
+		}
+		Ok(())
+	}
+
+	/// Whether the goal holds a turn.
+	pub fn held(&self) -> bool {
+		self.turn.is_some()
+	}
+
+	/// Let the next goal go.
+	pub fn release(&mut self) {
+		if let Some(turn) = self.turn.take() {
+			self.hooks.release(turn);
+		}
+	}
+}
+
+impl Drop for Turn<'_> {
+	fn drop(&mut self) {
+		self.release();
 	}
 }
 
@@ -97,49 +191,111 @@ impl Hooks {
 		if !settings.remote_builds {
 			return None;
 		}
-		match settings.config.get("build-hook") {
+		let may_accept = match settings.config.get("build-hook") {
 			Some(hook) if hook.trim().is_empty() => return None,
-			Some(_) => {}
+			Some(_) => true,
 			None => {
 				let systems = BTreeSet::from([settings.system.clone()]);
 				let cwd = std::env::current_dir().unwrap_or_default();
 				// A malformed specification is the hook's error to report.
-				if let Ok(machines) =
-					Machine::parse_config(&systems, &builders(settings), &cwd, &mut Vec::new())
-					&& machines.is_empty()
-				{
+				let may_accept = Machine::parse_config_quietly(
+					&systems,
+					&builders(settings),
+					&cwd,
+					&mut Vec::new(),
+				)
+				.map_or(true, |machines| !machines.is_empty());
+				// The default hook only declines then. If it is not
+				// installed next to this program, it is not started.
+				if !may_accept && !crate::config_values::default_build_hook().is_file() {
 					return None;
 				}
+				may_accept
 			}
-		}
+		};
 		Some(Arc::new(Self {
 			state: Mutex::default(),
-			local_builds: Mutex::new(0),
-			slot_freed: Condvar::new(),
+			may_accept,
+			max_jobs: settings.max_build_jobs,
+			order: Mutex::default(),
+			changed: Condvar::new(),
 		}))
+	}
+
+	fn order(&self) -> std::sync::MutexGuard<'_, Order> {
+		self.order.lock().unwrap_or_else(|e| e.into_inner())
+	}
+
+	/// A turn for a goal that starts now.
+	pub fn issue(&self) -> u64 {
+		self.order().issue()
+	}
+
+	/// The turn `turn` of a goal, or no turn.
+	pub fn turn(&self, turn: Option<u64>) -> Turn<'_> {
+		Turn { hooks: self, turn }
+	}
+
+	/// Give up `turn`. Giving up a turn twice does nothing.
+	pub fn release(&self, turn: u64) {
+		let mut order = self.order();
+		if turn < order.serving {
+			return;
+		}
+		order.released.insert(turn);
+		loop {
+			let serving = order.serving;
+			if !order.released.remove(&serving) {
+				break;
+			}
+			order.serving += 1;
+		}
+		order.wake(self.max_jobs);
+		self.changed.notify_all();
 	}
 
 	/// `getNrLocalBuilds() < maxBuildJobs`.
 	fn slot_free(&self, settings: &BuildSettings) -> bool {
-		*self.local_builds.lock().unwrap_or_else(|e| e.into_inner()) < settings.max_build_jobs
+		self.order().running < settings.max_build_jobs
 	}
 
-	/// Take a slot for a local build, if one is free.
-	pub fn acquire_slot(self: &Arc<Self>, settings: &BuildSettings) -> Option<Slot> {
-		let mut running = self.local_builds.lock().unwrap_or_else(|e| e.into_inner());
-		if *running >= settings.max_build_jobs {
+	/// Take a slot for a local build, or wait for one with `key`.
+	pub fn acquire_slot(self: &Arc<Self>, key: &(String, StorePath)) -> Option<Slot> {
+		let mut order = self.order();
+		if order.running >= self.max_jobs {
+			order.slot_waiters.insert(key.clone(), None);
 			return None;
 		}
-		*running += 1;
+		order.running += 1;
 		Some(Slot(self.clone()))
 	}
 
-	/// Wait until a local build ends, or a short while.
-	pub fn wait_for_slot(&self) {
-		let running = self.local_builds.lock().unwrap_or_else(|e| e.into_inner());
-		let _ = self
-			.slot_freed
-			.wait_timeout(running, Duration::from_millis(100));
+	/// Wait until the goal with `key` gets a turn for a free slot.
+	pub fn wait_for_slot(
+		&self,
+		key: &(String, StorePath),
+		cancelled: &dyn Fn() -> bool,
+	) -> Result<Turn<'_>> {
+		let mut order = self.order();
+		loop {
+			if let Some(Some(turn)) = order.slot_waiters.get(key) {
+				let turn = *turn;
+				order.slot_waiters.remove(key);
+				return Ok(self.turn(Some(turn)));
+			}
+			if cancelled() {
+				if let Some(Some(turn)) = order.slot_waiters.remove(key) {
+					drop(order);
+					self.release(turn);
+				}
+				return Err(BuildError::Cancelled);
+			}
+			order = self
+				.changed
+				.wait_timeout(order, Duration::from_millis(100))
+				.unwrap_or_else(|e| e.into_inner())
+				.0;
+		}
 	}
 
 	/// `tryBuildHook`: offer the derivation to the hook.
@@ -324,6 +480,7 @@ impl HookInstance {
 			builder_write.as_raw_fd(),
 			builder_out.as_raw_fd(),
 		)?;
+		crate::interrupt::register(pid);
 		// The hook has its own copies of the far ends.
 		drop((from_write, to_read, builder_write));
 		let mut out = Vec::new();
@@ -333,10 +490,13 @@ impl HookInstance {
 			put_string(&mut out, value.as_bytes());
 		}
 		put_u64(&mut out, 0);
+		// Sent at once, as the reference's constructor sends them.
+		let mut to = File::from(to);
+		let _ = to.write_all(&out);
 		Ok(Self {
 			pid,
-			to: Some(to.into()),
-			out,
+			to: Some(to),
+			out: Vec::new(),
 			from: from.into(),
 			pending: Vec::new(),
 			builder_out: builder_out.into(),
@@ -579,6 +739,7 @@ impl HookInstance {
 		if pid == -1 {
 			return status;
 		}
+		crate::interrupt::unregister(pid);
 		// SAFETY: the hook leads its own process group; signalling it and
 		// reaping our own child.
 		unsafe {

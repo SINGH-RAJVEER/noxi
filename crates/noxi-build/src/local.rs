@@ -99,8 +99,10 @@ pub struct LocalBuilder<'a> {
 	/// The outputs of the impure derivations built by this request, which the
 	/// store does not record. Each is built once per request.
 	impure: Arc<Mutex<BTreeMap<StorePath, BTreeMap<String, StorePath>>>>,
-	/// The build hook, if it can accept builds.
+	/// The build hook, if there is one to offer builds to.
 	hooks: Option<Arc<Hooks>>,
+	/// The turn of the goal this builder realises; see [`Hooks`].
+	turn: Arc<AtomicU64>,
 }
 
 /// An output a derivation declares, with the path it must produce.
@@ -158,6 +160,7 @@ impl<'a> LocalBuilder<'a> {
 			checked: Arc::default(),
 			impure: Arc::default(),
 			hooks: Hooks::new(settings),
+			turn: Arc::new(AtomicU64::new(NO_TURN)),
 		}
 	}
 
@@ -168,6 +171,17 @@ impl<'a> LocalBuilder<'a> {
 		self
 	}
 
+	/// Realise a goal that has `turn`.
+	pub(crate) fn with_turn(mut self, turn: u64) -> Self {
+		self.turn = Arc::new(AtomicU64::new(turn));
+		self
+	}
+
+	/// The build hook, if builds can be offered to one.
+	pub(crate) fn hooks(&self) -> Option<&Arc<Hooks>> {
+		self.hooks.as_ref()
+	}
+
 	/// Cancel this request when the flag becomes true. Running sandbox
 	/// builders are killed and reaped before the request returns.
 	pub fn with_cancellation(mut self, cancelled: &'a AtomicBool) -> Self {
@@ -176,8 +190,10 @@ impl<'a> LocalBuilder<'a> {
 	}
 
 	fn is_cancelled(&self) -> bool {
-		self.cancelled
-			.is_some_and(|flag| flag.load(Ordering::Relaxed))
+		crate::interrupt::interrupted()
+			|| self
+				.cancelled
+				.is_some_and(|flag| flag.load(Ordering::Relaxed))
 	}
 
 	/// `startBuild`'s build user: lock a free member of
@@ -1334,7 +1350,9 @@ impl LocalBuilder<'_> {
 	/// Whether derivations that do not depend on each other are built at
 	/// once. Builds on other machines need no local build slot.
 	pub(crate) fn builds_in_parallel(&self) -> bool {
-		self.settings.max_build_jobs > 1 || self.settings.keep_going || self.hooks.is_some()
+		self.settings.max_build_jobs > 1
+			|| self.settings.keep_going
+			|| self.hooks.as_ref().is_some_and(|hooks| hooks.may_accept)
 	}
 
 	/// The store's `system-features`: `getDefaultSystemFeatures`, unless the
@@ -1476,10 +1494,29 @@ impl LocalBuilder<'_> {
 		// Offer the build to the hook, lock the outputs and take a local
 		// build slot, trying again after each wait.
 		let mut waiting = None;
+		let key = (drv_path.name().to_owned(), drv_path.clone());
+		let turn = self.turn.swap(NO_TURN, Ordering::Relaxed);
+		let mut turn = self
+			.hooks
+			.as_deref()
+			.map(|hooks| hooks.turn((turn != NO_TURN).then_some(turn)));
 		loop {
-			let mut locks = match self.prepare(drv_path, build_drv, outputs)? {
+			let cancelled = || self.is_cancelled();
+			if let Some(turn) = &turn {
+				turn.wait(&cancelled)?;
+			}
+			// A goal waiting for a lock another process holds lets the
+			// others go first.
+			let held = turn.as_ref().is_some_and(|turn| turn.held());
+			let mut locks = match self.prepare(drv_path, build_drv, outputs, !held)? {
 				Prepared::Valid(paths) => return Ok(paths),
 				Prepared::Locked(locks) => locks,
+				Prepared::Busy => {
+					if let Some(turn) = &mut turn {
+						turn.release();
+					}
+					continue;
+				}
 			};
 			if let Some(hooks) = hooks
 				&& (!prefer_local || rejection.is_some())
@@ -1489,6 +1526,7 @@ impl LocalBuilder<'_> {
 				})? {
 					Reply::Accept(hook) => {
 						drop(waiting);
+						drop(turn);
 						return self.build_with_hook(
 							drv_path,
 							build_drv,
@@ -1502,6 +1540,9 @@ impl LocalBuilder<'_> {
 					Reply::Postpone => {
 						use nix_compat::log::{ActivityType, VerbosityLevel, logger};
 						locks.unlock();
+						if let Some(turn) = &mut turn {
+							turn.release();
+						}
 						waiting.get_or_insert_with(|| {
 							logger::Activity::new(
 								VerbosityLevel::Warn,
@@ -1527,17 +1568,18 @@ impl LocalBuilder<'_> {
 				return Err(error);
 			}
 			let slot = match &self.hooks {
-				Some(hooks) => match hooks.acquire_slot(self.settings) {
+				Some(hooks) => match hooks.acquire_slot(&key) {
 					Some(slot) => Some(slot),
 					None => {
 						locks.unlock();
-						hooks.wait_for_slot();
-						self.check_cancelled()?;
+						drop(turn.take());
+						turn = Some(hooks.wait_for_slot(&key, &cancelled)?);
 						continue;
 					}
 				},
 				None => None,
 			};
+			drop(turn);
 			let result = self.build_locally(
 				drv_path,
 				build_drv,
@@ -1562,6 +1604,7 @@ impl LocalBuilder<'_> {
 		drv_path: &StorePath,
 		build_drv: &BuildDerivation,
 		outputs: &BTreeMap<String, KnownOutput>,
+		wait: bool,
 	) -> Result<Prepared> {
 		let paths = |outputs: &BTreeMap<String, KnownOutput>| {
 			outputs
@@ -1573,7 +1616,14 @@ impl LocalBuilder<'_> {
 			.values()
 			.map(|o| self.store.real_path(&o.path))
 			.collect();
-		let mut locks = self.lock_outputs(real_outputs.clone())?;
+		let mut locks = if wait {
+			self.lock_outputs(real_outputs.clone())?
+		} else {
+			match PathLocks::try_lock(real_outputs.clone())? {
+				Some(locks) => locks,
+				None => return Ok(Prepared::Busy),
+			}
+		};
 		for output in outputs.values() {
 			self.store.add_temp_root(&output.path)?;
 		}
@@ -2578,7 +2628,12 @@ fn create_temp_dir(root: &Path, prefix: &str) -> io::Result<PathBuf> {
 enum Prepared {
 	Valid(BTreeMap<String, StorePath>),
 	Locked(PathLocks),
+	/// Another process holds a lock, and the caller did not want to wait.
+	Busy,
 }
+
+/// No turn; see [`Hooks`].
+const NO_TURN: u64 = u64::MAX;
 
 /// `doneFailureLogTooLong`.
 fn log_too_long(drv_path: &StorePath, max_log_size: u64) -> BuildError {
