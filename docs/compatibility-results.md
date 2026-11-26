@@ -21,6 +21,8 @@ The CLI and daemon accept `local-overlay://` store URLs. The store tier also run
 
 `reference_cache_store` compares copying all valid paths to file caches, creating output and profile links on import, querying realised build traces from a file, and retrieving a build log for a substituted output. `reference_modern_extra` covers pipe-fed build installables and sandbox flag precedence, including the strict default before and after explicit overrides.
 
+At code revision `eb703fd1`, the fast tier passed 2,122 tests and the store tier passed 1,106 tests, with 20 skipped. The evaluation comparison matched 10/10 cases. Of the 214 upstream functional scripts, 131 passed under both engines, 71 remained gaps, 10 were reference anomalies, and 2 were unrun.
+
 `just test` and `just ci` are unchanged and still run the whole workspace. `.github/workflows/compat.yml` runs `just compat-evidence-check` and the fast tier on every push and pull request, and the store and daemon tiers only on manual dispatch. The system tier needs KVM and is not in CI.
 
 In a disposable VM, `nix/harness-tiers.nix` (imported by `nix/qualification-module.nix`, off by default) installs `noxi-harness TIER [DIR]`. It runs the same nextest profile from an archive built on the host with `just harness-archive`, through the same `scripts/compat-results.py run` wrapper, and writes records to `/var/lib/noxi-harness/TIER`. The module copies the source tree, writable, to the absolute path the archive was built in, because the test binaries read fixtures through compile-time paths, and records the revision from `noxi.qualification.harness.revision` because the copy has no Git metadata. No qualification scenario enables it yet, and no tier has been run inside a VM.

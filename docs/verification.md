@@ -518,6 +518,8 @@ The focused `reference_cache_store` comparisons cover copying all valid local pa
 
 The upstream compression script reached its unsupported-algorithm checks after the copy links were added and stopped at `compress`. `ca/build-cache` copied all paths and then requested a local build at `max-jobs = 0` while substituting `dependentCA`. `ca/substitute` passed both build-trace queries and failed at line 50, after deleting the remote trace files to test disk-cache reuse. The binary-cache script passed its log retrieval checks and reached the concurrent NAR download count at line 99.
 
+`build.sh` and `ca/new-build-cmd.sh` passed the sandbox alias and stdin checks. Both stopped at the final `--keep-going` assertion in `build.sh:207`: the diagnostic for `x4` counted one failed dependency, and the reference counted two.
+
 ### Sandbox path targets, 2026-11-25
 
 `sandbox-paths` targets could reach the host. At `da3e6d7c` the sandbox setup created mount points by path before `pivot_root`, following symlinks. With `/a=LINK` and `/a/new=FILE`, where `LINK` is a symlink to a host directory, it created `new` in that directory on the host; a directory source created a directory there and a symlink source a symlink. A symlink inside a bound directory had the same effect, so somebody who may write to a bound directory could redirect a configured target below it. The process that creates them has the host identity of the building process, root in a daemon run as root, and the mounts themselves stay in the build's private mount namespace. Existing host files were not overwritten (`O_EXCL`), and `..` was already refused. Only trusted users can set `sandbox-paths`, so an untrusted client needs such a configuration to exist.
