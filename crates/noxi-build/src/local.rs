@@ -189,6 +189,14 @@ impl<'a> LocalBuilder<'a> {
 		self
 	}
 
+	/// What CppNix's worker loop does each time it wakes while builds
+	/// run: collect garbage if `min-free` asks for it (`autoGC(false)`, whose
+	/// errors are not reported here), then report whether to stop.
+	pub(crate) fn tick(&self) -> bool {
+		let _ = self.store.auto_gc(false);
+		self.is_cancelled()
+	}
+
 	fn is_cancelled(&self) -> bool {
 		crate::interrupt::interrupted()
 			|| self
@@ -1742,7 +1750,7 @@ impl LocalBuilder<'_> {
 			input_paths,
 			&missing,
 			hook,
-			&|| self.is_cancelled(),
+			&|| self.tick(),
 			events,
 		)?;
 		let outputs = self.known_outputs(drv_path, build_drv)?;
@@ -3511,7 +3519,7 @@ impl<'b> Build<'b> {
 					}
 					events(BuildEvent::Output(data));
 				},
-				&|| too_long() || self.builder.is_cancelled(),
+				&|| too_long() || self.builder.tick(),
 			)
 		};
 		let status = match recursive {

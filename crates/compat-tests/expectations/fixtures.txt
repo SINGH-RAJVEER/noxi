@@ -233,7 +233,7 @@ pass:upstream_functional tests/functional/flakes/unlocked-override.sh
 gap tests/functional/flamegraph-profiler.sh # main in flamegraph-profiler.sh:35: error: expression does not evaluate to a derivation (or a set or list of those)
 gap tests/functional/formatter.sh # main in formatter.sh:11: error: nix --help is not supported by noxi yet
 gap tests/functional/function-trace.sh # main in function-trace.sh:34: <
-gap tests/functional/gc-auto.sh # main in gc-auto.sh:83: error: Cannot build '$ROOT/tmp/nix-test/main/gc-auto/store/HASH-gc-A.drv'.
+pass:upstream_functional tests/functional/gc-auto.sh
 pass:upstream_functional tests/functional/gc-closure.sh
 pass:upstream_functional tests/functional/gc-concurrent.sh
 pass:upstream_functional tests/functional/gc-non-blocking.sh

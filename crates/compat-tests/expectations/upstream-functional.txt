@@ -314,7 +314,7 @@ tests/functional/fod-failing.nix support
 tests/functional/formatter.sh gap fail pass # main in formatter.sh:11: error: nix --help is not supported by noxi yet
 tests/functional/formatter.simple.sh support
 tests/functional/function-trace.sh gap fail pass # main in function-trace.sh:34: <
-tests/functional/gc-auto.sh gap fail pass # main in gc-auto.sh:83: error: Cannot build '$ROOT/tmp/nix-test/main/gc-auto/store/HASH-gc-A.drv'.
+tests/functional/gc-auto.sh pass pass pass
 tests/functional/gc-closure.sh pass pass pass
 tests/functional/gc-concurrent.builder.sh support
 tests/functional/gc-concurrent.nix support

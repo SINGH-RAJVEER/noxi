@@ -98,6 +98,11 @@ pub struct LocalStore {
 	public_keys: Vec<VerifyingKey>,
 	/// `locksHeld`: paths a parent process has locked for this one.
 	locks_held: Mutex<BTreeSet<StorePath>>,
+	/// `min-free` collections: when free space was last checked and how
+	/// much there was after the last collection.
+	pub(crate) auto_gc: Mutex<crate::auto_gc::AutoGcState>,
+	/// Held while a `min-free` collection runs.
+	pub(crate) auto_gc_running: Mutex<()>,
 }
 
 /// Each store's open `temproots/<pid>` file, by path.
@@ -331,6 +336,8 @@ impl LocalStore {
 			roots_socket: Mutex::new(None),
 			public_keys,
 			locks_held: Mutex::default(),
+			auto_gc: Mutex::default(),
+			auto_gc_running: Mutex::new(()),
 		})
 	}
 
@@ -1129,6 +1136,7 @@ impl LocalStore {
 					)));
 				}
 			}
+			self.auto_gc(true)?;
 			canonicalise_path_metadata(&real, None)?;
 			self.optimise_path(&real, repair)?;
 			self.register_valid_path(info)?;
@@ -1291,6 +1299,7 @@ impl LocalStore {
 			}
 			if repair || !self.is_valid_path(&dst)? {
 				delete_path(&real)?;
+				self.auto_gc(true)?;
 				fs::rename(&temp_path, &real)
 					.context(|| format!("moving into '{}'", real.display()))?;
 				let (nar_hash, nar_size) = match captured_nar {
