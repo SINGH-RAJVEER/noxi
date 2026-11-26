@@ -11,6 +11,7 @@ pub mod connection;
 pub mod error;
 pub mod legacy_ssh;
 pub mod nar_stream;
+pub mod nix_daemon;
 pub mod peer;
 pub mod serve_protocol;
 pub mod server;

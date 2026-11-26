@@ -322,7 +322,10 @@ impl Hooks {
 		put_string(&mut request, drv_path.to_absolute_path().as_bytes());
 		put_strings(&mut request, features.iter().map(String::as_bytes));
 		hook.out.extend(request);
-		if let Err(error) = hook.flush() {
+		let flushed = hook.flush();
+		// From now on a hook that has gone shows as a broken pipe.
+		hook.stdin_read = None;
+		if let Err(error) = flushed {
 			if error.kind() != io::ErrorKind::BrokenPipe {
 				return Err(error.into());
 			}
@@ -410,6 +413,12 @@ pub struct HookInstance {
 	/// Bytes read from `from` and not consumed.
 	pending: Vec<u8>,
 	builder_out: File,
+	/// This process's copy of the read end of the hook's standard input,
+	/// kept until the first request is written. A hook that exits at once,
+	/// as one that cannot be executed does, then shows as the end of its
+	/// output while the reply is read, as in CppNix, which writes its first
+	/// request before the hook can have exited.
+	stdin_read: Option<OwnedFd>,
 	activities: BTreeMap<u64, Activity>,
 }
 
@@ -482,7 +491,7 @@ impl HookInstance {
 		)?;
 		crate::interrupt::register(pid);
 		// The hook has its own copies of the far ends.
-		drop((from_write, to_read, builder_write));
+		drop((from_write, builder_write));
 		let mut out = Vec::new();
 		for (name, value) in &table {
 			put_u64(&mut out, 1);
@@ -500,6 +509,7 @@ impl HookInstance {
 			from: from.into(),
 			pending: Vec::new(),
 			builder_out: builder_out.into(),
+			stdin_read: Some(to_read),
 			activities: BTreeMap::new(),
 		})
 	}

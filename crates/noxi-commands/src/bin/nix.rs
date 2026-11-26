@@ -36,7 +36,8 @@ fn main() -> ExitCode {
 		"build-remote" => cli::main("build-remote", build_remote::main),
 		"nix-copy-closure" => cli::main("nix-copy-closure", legacy_environment::copy_closure),
 		// The other legacy commands the reference registers.
-		"nix-channel" | "nix-prefetch-url" | "nix-daemon" => {
+		"nix-daemon" => noxi_daemon::nix_daemon::main(),
+		"nix-channel" | "nix-prefetch-url" => {
 			cli::print_error(&format!("{name} is not supported by noxi yet"));
 			ExitCode::FAILURE
 		}

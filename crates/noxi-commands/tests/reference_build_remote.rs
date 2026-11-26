@@ -37,8 +37,43 @@ fn busybox() -> Option<PathBuf> {
 	file
 }
 
-fn candidate_dir() -> &'static Path {
-	Path::new(env!("CARGO_BIN_EXE_nix")).parent().unwrap()
+/// The commands the reference installs, as `nix` and links to it.
+const COMMANDS: &[&str] = &[
+	"nix",
+	"nix-build",
+	"nix-channel",
+	"nix-collect-garbage",
+	"nix-copy-closure",
+	"nix-daemon",
+	"nix-env",
+	"nix-hash",
+	"nix-instantiate",
+	"nix-prefetch-url",
+	"nix-shell",
+	"nix-store",
+];
+
+/// noxi's commands in a directory of `scratch`: each command's own
+/// executable from this package's build, or `nix`, which runs as the
+/// command it is called as. `nix-daemon` is always `nix`, so the test does
+/// not use a `nix-daemon` this package did not build.
+fn candidate_dir(scratch: &Path) -> PathBuf {
+	let built = Path::new(env!("CARGO_BIN_EXE_nix")).parent().unwrap();
+	let dir = scratch.join("noxi-bin");
+	fs::create_dir_all(&dir).unwrap();
+	for command in COMMANDS {
+		let own = built.join(command);
+		let target = if own.is_file() && *command != "nix-daemon" {
+			own
+		} else {
+			built.join("nix")
+		};
+		let link = dir.join(command);
+		if !link.exists() {
+			std::os::unix::fs::symlink(target, link).unwrap();
+		}
+	}
+	dir
 }
 
 const EXPR: &str = r#"
@@ -160,7 +195,8 @@ fn same_with(features: &str, steps: &[&str]) {
 	let scratch = noxi_test_support::tempdir().unwrap();
 	let root = scratch.path().join("s");
 	let expected = session(&reference, &root, features, steps);
-	let actual = session(candidate_dir(), &root, features, steps);
+	let candidate = candidate_dir(scratch.path());
+	let actual = session(&candidate, &root, features, steps);
 	noxi_test_support::remove_tree(&root).unwrap();
 	let mut differences = String::new();
 	for (expected, actual) in expected.iter().zip(&actual) {
@@ -522,9 +558,10 @@ fn hooks_are_interchangeable() {
 	};
 	let scratch = noxi_test_support::tempdir().unwrap();
 	let root = scratch.path().join("s");
+	let candidate = candidate_dir(scratch.path());
 	for (worker, hook) in [
-		(reference.as_path(), candidate_dir()),
-		(candidate_dir(), reference.as_path()),
+		(reference.as_path(), candidate.as_path()),
+		(candidate.as_path(), reference.as_path()),
 	] {
 		for builder in ["$ROOT/m1", "ssh://host", "ssh-ng://host"] {
 			let step = format!(
@@ -547,9 +584,10 @@ fn serve_and_daemon_machines_are_interchangeable() {
 	};
 	let scratch = noxi_test_support::tempdir().unwrap();
 	let root = scratch.path().join("s");
+	let candidate = candidate_dir(scratch.path());
 	for (client, server) in [
-		(reference.as_path(), candidate_dir()),
-		(candidate_dir(), reference.as_path()),
+		(reference.as_path(), candidate.as_path()),
+		(candidate.as_path(), reference.as_path()),
 	] {
 		for (scheme, program) in [("ssh", "nix-store"), ("ssh-ng", "nix-daemon")] {
 			for attr in ["two", "odd", "fixed", "caTwo"] {
@@ -572,12 +610,22 @@ fn serve_and_daemon_machines_are_interchangeable() {
 	noxi_test_support::remove_tree(&root).unwrap();
 }
 
-/// Without machines, goals still build here in the reference's order.
+/// Without machines, goals still build here, starting with the one the
+/// reference starts first.
+///
+/// The reference's later order is not defined by the derivations: goals
+/// waiting for a build slot are kept in `Worker::wantingToBuild`, a
+/// `WeakGoals` set ordered by `std::owner_less`, that is by the addresses
+/// of the goals' control blocks (`build/goal.hh`, `build/worker.cc`). With
+/// `-j1` and five independent leaves, 2.35.2 started them a, b, c, d, e in
+/// this test's environment, a, c, b, e, d in a shell with the same
+/// variables, and a, e, d, c, b in another checkout. So only the first
+/// build and the set of builds are compared.
 #[test]
 fn local_builds_start_in_the_reference_order() {
 	same(&[
-		"nix-build x.nix -A leaves --no-out-link --store $ROOT/m0 -j1 --builders \"$ROOT/m1 riscv64-linux\" 2>&1 | grep '^building'",
-		"nix-build x.nix -A leaves --no-out-link --store $ROOT/n0 -j1 --builders '' 2>&1 | grep '^building'",
+		"nix-build x.nix -A leaves --no-out-link --store $ROOT/m0 -j1 --builders \"$ROOT/m1 riscv64-linux\" 2>&1 | grep '^building' > order; head -1 order; sort order",
+		"nix-build x.nix -A leaves --no-out-link --store $ROOT/n0 -j1 --builders '' 2>&1 | grep '^building' > order; head -1 order; sort order",
 	]);
 }
 
@@ -629,8 +677,10 @@ fn servers_answer_the_reference_client() {
 #[test]
 fn interrupted_remote_builds_stop() {
 	// What is left is reported and then killed, so that a failure cannot leave
-	// a builder running.
-	let left = "for e in /proc/[0-9]*/environ; do p=${e#/proc/}; p=${p%/environ}; [ $p = $$ ] && continue; grep -qz \"^ROOT=$ROOT\\$\" $e 2> /dev/null && { cat /proc/$p/comm 2> /dev/null; kill -9 $p 2> /dev/null; }; done | sort";
+	// a builder running: processes with this directory in their environment,
+	// and sandboxed ones, whose environment is the builder's, by the mounts
+	// of their chroot below it.
+	let left = "for e in /proc/[0-9]*/environ; do p=${e#/proc/}; p=${p%/environ}; [ $p = $$ ] && continue; { grep -qz \"^ROOT=$ROOT\\$\" $e || grep -qs \" $ROOT/\" /proc/$p/mountinfo; } 2> /dev/null && { cat /proc/$p/comm 2> /dev/null; kill -9 $p 2> /dev/null; }; done | sort";
 	let steps = [
 		format!(
 			"nix-build x.nix -A silent --no-out-link --store $ROOT/m0 -j0 --builders ssh://host > out 2>&1 & p=$!; sleep 3; kill -INT $p; timeout 30 tail --pid=$p -f /dev/null; kill -9 $p 2> /dev/null; wait $p; echo $?; sleep 2; {left}"
