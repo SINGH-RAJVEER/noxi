@@ -53,9 +53,15 @@ pub struct SandboxSpec<'a> {
 	/// `None` maps it to the calling user, as CppNix does without build
 	/// users.
 	pub build_user: Option<(u32, u32)>,
+	/// The build user's supplementary groups, which an unsandboxed
+	/// builder runs with.
+	pub build_user_groups: Vec<u32>,
 	pub kvm: bool,
 	pub shm_size: String,
 	pub allow_new_privileges: bool,
+	/// Fail when the helper cannot drop supplementary groups
+	/// (`require-drop-supplementary-groups`).
+	pub require_drop_supplementary_groups: bool,
 	pub filter_syscalls: bool,
 	pub build_dir_in_sandbox: PathBuf,
 	/// Run instead of `builder`.
@@ -760,11 +766,19 @@ fn helper_main(
 ) -> i32 {
 	let result = (|| -> io::Result<libc::pid_t> {
 		open_slave(slave)?;
-		// SAFETY: dropping supplementary groups; EPERM is tolerated.
-		if unsafe { libc::setgroups(0, std::ptr::null()) } == -1
-			&& io::Error::last_os_error().raw_os_error() != Some(libc::EPERM)
-		{
-			return Err(io::Error::last_os_error());
+		// Drop the caller's supplementary groups before the new user
+		// namespace makes it impossible, as CppNix's sandbox helper does.
+		// SAFETY: setgroups with an empty list reads no memory.
+		if spec.chroot && unsafe { libc::setgroups(0, std::ptr::null()) } == -1 {
+			let error = io::Error::last_os_error();
+			if error.raw_os_error() != Some(libc::EPERM) {
+				return Err(io::Error::other(format!("setgroups failed: {error}")));
+			}
+			if spec.require_drop_supplementary_groups {
+				return Err(io::Error::other(
+					"setgroups failed. Set the require-drop-supplementary-groups option to false to skip this step.",
+				));
+			}
 		}
 		let mut flags = libc::CLONE_NEWPID
 			| libc::CLONE_NEWNS
@@ -933,6 +947,13 @@ fn child_setup(sync_read: RawFd, spec: &SandboxSpec<'_>, plan: &ChildPlan) -> io
 			check(libc::setgid(SANDBOX_GID), || "setgid failed".to_owned())?;
 			check(libc::setuid(SANDBOX_UID), || "setuid failed".to_owned())?;
 		} else if let Some((uid, gid)) = spec.build_user {
+			check(
+				libc::setgroups(
+					spec.build_user_groups.len(),
+					spec.build_user_groups.as_ptr(),
+				),
+				|| "cannot set supplementary groups of build user".to_owned(),
+			)?;
 			check(libc::setgid(gid), || "setgid failed".to_owned())?;
 			check(libc::setuid(uid), || "setuid failed".to_owned())?;
 		}

@@ -548,7 +548,7 @@ impl<'a> LocalBuilder<'a> {
 				}
 			}
 			stack.push(drv_path.clone());
-			let result = self.resolve_inputs(drv_path, &build_drv, done, stack, events);
+			let result = self.resolve_inputs(drv_path, &build_drv, wanted, done, stack, events);
 			stack.pop();
 			return result;
 		}
@@ -743,10 +743,14 @@ impl<'a> LocalBuilder<'a> {
 		Ok(())
 	}
 
+	/// `DerivationGoal` after `DerivationResolutionGoal`: realise the
+	/// inputs, resolve the derivation and realise the `wanted` outputs of
+	/// the resolved one, which may then be substituted output by output.
 	fn resolve_inputs(
 		&self,
 		drv_path: &StorePath,
 		drv: &BuildDerivation,
+		wanted: Option<&BTreeSet<String>>,
 		done: &mut BTreeMap<StorePath, BTreeSet<String>>,
 		stack: &mut Vec<StorePath>,
 		events: &mut dyn FnMut(BuildEvent<'_>),
@@ -775,7 +779,7 @@ impl<'a> LocalBuilder<'a> {
 		);
 		let impure = resolved.is_impure();
 		let resolved = (!self.store.is_valid_path(&path)?).then_some(resolved);
-		let outputs = match self.realise_drv(&path, resolved, None, done, stack, events) {
+		let outputs = match self.realise_drv(&path, resolved, wanted, done, stack, events) {
 			Err(BuildError::Failed { status, message }) => {
 				crate::backend::log_error(&message);
 				return Err(BuildError::failed(
@@ -3395,9 +3399,15 @@ impl<'b> Build<'b> {
 			binds,
 			sandboxed: self.sandboxed,
 			build_user: self.build_user.as_ref().map(|u| (u.uid, u.gid)),
+			build_user_groups: self
+				.build_user
+				.as_ref()
+				.map(|u| u.supplementary_gids.clone())
+				.unwrap_or_default(),
 			kvm: settings.system_features.contains("kvm"),
 			shm_size: settings.sandbox_shm_size.clone(),
 			allow_new_privileges: settings.allow_new_privileges,
+			require_drop_supplementary_groups: settings.require_drop_supplementary_groups,
 			filter_syscalls: settings.filter_syscalls,
 			build_dir_in_sandbox: self.build_top(),
 			builder: drv.command().to_vec(),

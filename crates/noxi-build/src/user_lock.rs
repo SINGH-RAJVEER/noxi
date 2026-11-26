@@ -21,6 +21,9 @@ pub struct BuildUser {
 	pub uid: u32,
 	/// The gid of `build-users-group`.
 	pub gid: u32,
+	/// The user's other groups, which an unsandboxed builder keeps, as
+	/// CppNix's `getSupplementaryGIDs` does (for groups such as `kvm`).
+	pub supplementary_gids: Vec<u32>,
 	_lock: File,
 }
 
@@ -47,7 +50,7 @@ pub fn acquire(state_dir: &Path, group: &str) -> Result<Option<BuildUser>> {
 		)));
 	}
 	for member in &members {
-		let uid = user_uid(member)?.ok_or_else(|| {
+		let (uid, primary_gid) = user_ids(member)?.ok_or_else(|| {
 			BuildError::Other(format!(
 				"the user '{member}' in the group '{group}' does not exist"
 			))
@@ -65,9 +68,14 @@ pub fn acquire(state_dir: &Path, group: &str) -> Result<Option<BuildUser>> {
 					"the Nix user should not be a member of '{group}'"
 				)));
 			}
+			let supplementary_gids = group_list(member, primary_gid)?
+				.into_iter()
+				.filter(|&g| g != gid)
+				.collect();
 			return Ok(Some(BuildUser {
 				uid,
 				gid,
+				supplementary_gids,
 				_lock: file,
 			}));
 		}
@@ -179,8 +187,8 @@ fn group_members(group: &str) -> Result<Option<(u32, Vec<String>)>> {
 	}
 }
 
-/// The uid of user `name`, or `None` if it does not exist.
-fn user_uid(name: &str) -> Result<Option<u32>> {
+/// The uid and primary gid of user `name`, or `None` if it does not exist.
+fn user_ids(name: &str) -> Result<Option<(u32, u32)>> {
 	let cname = CString::new(name).map_err(|e| BuildError::Other(e.to_string()))?;
 	let mut buf = vec![0u8; 4096];
 	loop {
@@ -204,8 +212,29 @@ fn user_uid(name: &str) -> Result<Option<u32>> {
 		if rc != 0 {
 			return Err(io::Error::from_raw_os_error(rc).into());
 		}
-		return Ok((!result.is_null()).then_some(pwd.pw_uid));
+		return Ok((!result.is_null()).then_some((pwd.pw_uid, pwd.pw_gid)));
 	}
+}
+
+/// `get_group_list`: the groups `name` belongs to, `getgrouplist(3)`.
+fn group_list(name: &str, primary_gid: u32) -> Result<Vec<u32>> {
+	let cname = CString::new(name).map_err(|e| BuildError::Other(e.to_string()))?;
+	let mut gids = vec![0 as libc::gid_t; 32];
+	for _ in 0..2 {
+		let mut count = gids.len() as libc::c_int;
+		// SAFETY: `gids` holds `count` entries.
+		let rc = unsafe {
+			libc::getgrouplist(cname.as_ptr(), primary_gid, gids.as_mut_ptr(), &mut count)
+		};
+		gids.resize(count.max(0) as usize, 0);
+		if rc != -1 {
+			return Ok(gids);
+		}
+	}
+	Err(BuildError::Other(format!(
+		"failed to get list of supplementary groups for '{name}': {}",
+		io::Error::last_os_error()
+	)))
 }
 
 #[cfg(test)]

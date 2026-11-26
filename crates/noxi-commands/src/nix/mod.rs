@@ -858,8 +858,11 @@ fn ensure_diverted_root(parsed: &Parsed) -> Result<(), Failure> {
 	if root.is_empty() {
 		return Ok(());
 	}
+	// Store parameters are percent-encoded.
+	let root = nix_compat::nixcpp::url::percent_decode(root)
+		.map_err(|error| Failure::Error(error.to_string()))?;
 	let root =
-		crate::instantiate::absolute_path(&std::env::current_dir()?, std::path::Path::new(root));
+		crate::instantiate::absolute_path(&std::env::current_dir()?, std::path::Path::new(&root));
 	if root.exists() {
 		return Ok(());
 	}

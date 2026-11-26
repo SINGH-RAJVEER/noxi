@@ -61,6 +61,10 @@ pub struct BuildSettings {
 	pub build_cores: u32,
 	pub keep_failed: bool,
 	pub allow_new_privileges: bool,
+	/// `require-drop-supplementary-groups`: fail a sandboxed build when its
+	/// helper cannot drop the caller's supplementary groups. CppNix
+	/// defaults it to whether the caller is root.
+	pub require_drop_supplementary_groups: bool,
 	pub filter_syscalls: bool,
 	pub impure_env: Vec<(String, String)>,
 	pub allowed_impure_host_prefixes: Vec<String>,
@@ -157,6 +161,8 @@ impl Default for BuildSettings {
 			build_cores: 0,
 			keep_failed: false,
 			allow_new_privileges: false,
+			// SAFETY: getuid cannot fail.
+			require_drop_supplementary_groups: unsafe { libc::getuid() } == 0,
 			filter_syscalls: true,
 			impure_env: Vec::new(),
 			allowed_impure_host_prefixes: Vec::new(),
@@ -232,6 +238,10 @@ impl BuildSettings {
 		self.sandbox_fallback = settings.get_bool("sandbox-fallback", self.sandbox_fallback);
 		self.allow_new_privileges =
 			settings.get_bool("allow-new-privileges", self.allow_new_privileges);
+		self.require_drop_supplementary_groups = settings.get_bool(
+			"require-drop-supplementary-groups",
+			self.require_drop_supplementary_groups,
+		);
 		self.filter_syscalls = settings.get_bool("filter-syscalls", self.filter_syscalls);
 		self.always_allow_substitutes =
 			settings.get_bool("always-allow-substitutes", self.always_allow_substitutes);
