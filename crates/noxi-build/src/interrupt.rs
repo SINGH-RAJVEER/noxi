@@ -14,6 +14,9 @@ use std::time::Duration;
 static INTERRUPTED: AtomicBool = AtomicBool::new(false);
 /// The write end of the pipe the handler wakes the watcher with.
 static WAKE: AtomicI32 = AtomicI32::new(-1);
+/// The read end of a pipe whose write end is closed once the command is
+/// interrupted, so a loop waiting in `poll` wakes up.
+static NOTIFY: AtomicI32 = AtomicI32::new(-1);
 /// The process groups of the running build hooks.
 static GROUPS: Mutex<Vec<libc::pid_t>> = Mutex::new(Vec::new());
 
@@ -23,6 +26,13 @@ pub const MESSAGE: &str = "interrupted by the user";
 /// Whether the command was interrupted.
 pub fn interrupted() -> bool {
 	INTERRUPTED.load(Ordering::Relaxed)
+}
+
+/// A descriptor that becomes readable (at end of file) when the command is
+/// interrupted, for a loop that waits in `poll`, as CppNix's accept loop is
+/// woken to call `checkInterrupt`. `None` before `install`.
+pub fn descriptor() -> Option<std::os::fd::RawFd> {
+	Some(NOTIFY.load(Ordering::Relaxed)).filter(|fd| *fd != -1)
 }
 
 extern "C" fn handle(_signal: libc::c_int) {
@@ -46,12 +56,24 @@ pub fn install() {
 	}
 	WAKE.store(fds[1], Ordering::Relaxed);
 	let read = fds[0];
+	let mut notify = [0; 2];
+	// SAFETY: `notify` has room for both descriptors.
+	if unsafe { libc::pipe2(notify.as_mut_ptr(), libc::O_CLOEXEC) } == -1 {
+		return;
+	}
+	NOTIFY.store(notify[0], Ordering::Relaxed);
 	let spawned = std::thread::Builder::new()
 		.name("interrupt".into())
 		.spawn(move || {
 			let mut byte = [0u8];
 			// SAFETY: reading the pipe this thread owns.
 			while unsafe { libc::read(read, byte.as_mut_ptr().cast(), 1) } == -1 {}
+			// `triggerInterrupt` runs the interrupt callbacks: the progress
+			// bar shows that the command is shutting down, and waiting loops
+			// wake up.
+			nix_compat::log::logger::interrupted();
+			// SAFETY: closing the write end this thread owns.
+			unsafe { libc::close(notify[1]) };
 			signal_hooks(libc::SIGTERM);
 			std::thread::sleep(Duration::from_secs(5));
 			// The command did not end by itself.

@@ -566,6 +566,31 @@ pub fn stop() {
 	}
 }
 
+/// The progress bar's interrupt callback: pause the bar and show that the
+/// command is shutting down. Other loggers print nothing.
+pub fn interrupted() {
+	if !matches!(log_format(), LogFormat::Bar | LogFormat::BarWithLogs) {
+		return;
+	}
+	let bar = bar();
+	let mut state = bar.state.lock().unwrap();
+	if !state.paused {
+		state.paused = true;
+		if state.active {
+			state.last_output.clear();
+			write_stderr(b"\r\x1b[K");
+			if bar.tty {
+				write_stderr(b"\x1b[?25h");
+			}
+		}
+	}
+	let output = "\rshutting down\x1b[K";
+	if state.last_output != output {
+		write_stderr(output.as_bytes());
+		state.last_output = output.to_owned();
+	}
+}
+
 /// A builder's `@nix` line, as `handleJSONLogMessage` handles it for the
 /// build activity `act`: `setPhase` becomes a phase result and `msg` a
 /// message. Returns whether the line was a JSON message.
@@ -974,6 +999,8 @@ struct BarState {
 	corrupted_paths: u64,
 	untrusted_paths: u64,
 	active: bool,
+	/// `ProgressBar::pause` was called: nothing is drawn any more.
+	paused: bool,
 	have_update: bool,
 	last_output: String,
 	thread: Option<std::thread::JoinHandle<()>>,
@@ -998,6 +1025,7 @@ fn bar() -> &'static Bar {
 			corrupted_paths: 0,
 			untrusted_paths: 0,
 			active: false,
+			paused: false,
 			have_update: true,
 			last_output: String::new(),
 			thread: None,
@@ -1017,6 +1045,7 @@ fn bar_start() {
 	state.by_type.clear();
 	state.have_update = true;
 	state.last_output.clear();
+	state.paused = false;
 	if !bar.tty {
 		state.active = false;
 		return;
@@ -1295,7 +1324,7 @@ fn window_width() -> usize {
 fn draw(state: &mut BarState) -> Option<Duration> {
 	let mut next_wakeup: Option<Duration> = None;
 	state.have_update = false;
-	if !state.active {
+	if state.paused || !state.active {
 		return next_wakeup;
 	}
 	let mut line = String::new();
