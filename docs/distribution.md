@@ -66,7 +66,7 @@ The crates below are intended for publication on crates.io under the SINGH-RAJVE
 |---|---|---|---|
 | [`noxi-eval-builtin-macros`](https://crates.io/crates/noxi-eval-builtin-macros) | 0.0.4 | GPL-3.0-only | Procedural macros for defining builtins, derived from `snix-eval-builtin-macros` |
 | [`noxi-eval`](https://crates.io/crates/noxi-eval) | 0.0.5 | GPL-3.0-only | Nix language evaluator, derived from `snix-eval` |
-| [`noxi-cli`](https://crates.io/crates/noxi-cli) | 0.0.5 | Apache-2.0 | The `noxi` preview command |
+| [`noxi-cli`](https://crates.io/crates/noxi-cli) | 0.0.5 | Apache-2.0 (GPL-3.0-only from the next version) | The `noxi` preview command |
 | [`noxi-hash`](https://crates.io/crates/noxi-hash) | 0.0.3 | GPL-3.0-only | Hash and Nix base32 formats |
 | [`noxi-flakeref`](https://crates.io/crates/noxi-flakeref) | 0.0.3 | GPL-3.0-only | Flake reference parser and formatter |
 | [`noxi-compat`](https://crates.io/crates/noxi-compat) | 0.0.5 | GPL-3.0-only | Nix formats and protocol values |

@@ -174,9 +174,19 @@ pub async fn realise_value_to_path(
 	co: &GenCo,
 	value: Value,
 ) -> Result<Result<PathBuf, CatchableErrorKind>, ErrorKind> {
+	Ok(realise_value_to_path_with_context(co, value)
+		.await?
+		.map(|(path, _)| path))
+}
+
+/// Realise a path and report whether its source value had string context.
+pub async fn realise_value_to_path_with_context(
+	co: &GenCo,
+	value: Value,
+) -> Result<Result<(PathBuf, bool), CatchableErrorKind>, ErrorKind> {
 	let value = generators::request_force(co, value).await;
 	if let Value::Path(path) = value {
-		return Ok(Ok(*path));
+		return Ok(Ok((*path, false)));
 	}
 	let string = try_cek!(
 		generators::request_string_coerce(
@@ -197,7 +207,11 @@ pub async fn realise_value_to_path(
 	// Coercion hints describe argument conversion. Context realisation adds
 	// its own path-specific frame after conversion has succeeded.
 	generators::request_builtin_context(co, Vec::new()).await;
-	Ok(Ok(generators::request_realise_path(co, string).await))
+	let has_context = string.has_context();
+	Ok(Ok((
+		generators::request_realise_path(co, string).await,
+		has_context,
+	)))
 }
 
 /// CppNix's `coerceToPath` canonicalizes a string lexically before any file

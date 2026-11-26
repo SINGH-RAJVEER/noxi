@@ -915,6 +915,26 @@ impl EvaluatorStore {
 		captured: CapturedImport,
 		expected: Option<&NixHash>,
 	) -> io::Result<StorePath> {
+		self.import_captured_with_references(captured, expected, &BTreeSet::new())
+	}
+
+	pub(crate) fn contextual_path_references(&self, path: &Path) -> BTreeSet<StorePath> {
+		let Ok((path, _)) = StorePath::from_absolute_path_full(path) else {
+			return BTreeSet::new();
+		};
+		self.access_store()
+			.ok()
+			.flatten()
+			.and_then(|store| store.query_path_info(&path).ok().flatten())
+			.map_or_else(BTreeSet::new, |info| info.references)
+	}
+
+	pub(crate) fn import_captured_with_references(
+		&self,
+		captured: CapturedImport,
+		expected: Option<&NixHash>,
+		references: &BTreeSet<StorePath>,
+	) -> io::Result<StorePath> {
 		// Both hashing and ingestion use these bytes. No source filesystem
 		// reads, or store writes, occur between verification and ingestion.
 		if expected.is_some_and(|hash| hash != &captured.hash) {
@@ -929,10 +949,26 @@ impl EvaluatorStore {
 				FileIngestionMethod::Flat
 			};
 			return store
-				.add_to_store_from_capture(captured.bytes, &captured.name, method, &BTreeSet::new())
+				.add_to_store_from_capture(captured.bytes, &captured.name, method, references)
 				.map_err(io::Error::other);
 		}
-		Ok(captured.path)
+		if references.is_empty() {
+			return Ok(captured.path);
+		}
+		if !captured.recursive {
+			return Err(io::Error::other(
+				"flat file ingestion does not support references",
+			));
+		}
+		store_path::build_ca_path(
+			&captured.name,
+			true,
+			&captured.hash,
+			references.iter().map(StorePath::as_ref),
+			false,
+		)
+		.map(|path| path.to_owned())
+		.map_err(io::Error::other)
 	}
 
 	pub fn known_paths(&self) -> RefMut<'_, KnownPaths> {

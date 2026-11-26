@@ -21,7 +21,7 @@ tests/functional/build-hook-ca-floating.nix support
 tests/functional/build-hook-list-paths.sh support
 tests/functional/build-hook.nix support
 tests/functional/build-remote-content-addressed-fixed.sh pass pass pass
-tests/functional/build-remote-content-addressed-floating.sh gap fail pass # source in build-remote.sh:74: error: build log of 'passthru.input3' is not available
+tests/functional/build-remote-content-addressed-floating.sh pass pass pass
 tests/functional/build-remote-input-addressed.sh pass pass pass
 tests/functional/build-remote-trustless-after.sh support
 tests/functional/build-remote-trustless-should-fail-0.sh pass pass pass
@@ -32,7 +32,7 @@ tests/functional/build-remote-trustless-should-pass-3.sh pass pass pass
 tests/functional/build-remote-trustless.sh support
 tests/functional/build-remote-with-mounted-ssh-ng.sh pass pass pass
 tests/functional/build-remote.sh support
-tests/functional/build.sh gap fail pass # main in build.sh:148: error: nix --relaxed-sandbox is not supported by noxi yet
+tests/functional/build.sh gap fail pass # main in build.sh:241: nix flake check --impure is unsupported
 tests/functional/ca-shell.nix support
 tests/functional/ca/build-cache.sh pass pass pass
 tests/functional/ca/build-delete.sh pass pass pass
@@ -54,7 +54,7 @@ tests/functional/ca/issue-13247.nix support
 tests/functional/ca/issue-13247.sh pass pass pass
 tests/functional/ca/meson.build support
 tests/functional/ca/multiple-outputs.sh pass pass pass
-tests/functional/ca/new-build-cmd.sh gap fail pass # source in ./build.sh:148: error: nix --relaxed-sandbox is not supported by noxi yet
+tests/functional/ca/new-build-cmd.sh gap fail pass # source in ./build.sh:241: nix flake check --impure is unsupported
 tests/functional/ca/nix-copy.sh pass pass pass
 tests/functional/ca/nix-run.sh pass pass pass
 tests/functional/ca/nix-shell.sh pass pass pass
@@ -209,7 +209,7 @@ tests/functional/db-migration.sh anomaly skip skip # reference skip: not using t
 tests/functional/delete-no-keep.sh pass pass pass
 tests/functional/dependencies.builder0.sh support
 tests/functional/dependencies.nix support
-tests/functional/dependencies.sh gap fail pass # main in dependencies.sh:12: error: nix-store --query --graph is not supported by noxi yet
+tests/functional/dependencies.sh pass pass pass
 tests/functional/dependencies2.nix support
 tests/functional/derivation-advanced-attributes.sh pass pass pass
 tests/functional/derivation-json.sh pass pass pass
@@ -246,7 +246,7 @@ tests/functional/dyn-drv/text-hashed-output.sh pass pass pass
 tests/functional/eval-store.sh gap fail pass # main in eval-store.sh:14: error: nix build --eval-store is not supported by noxi yet
 tests/functional/eval.nix support
 tests/functional/eval.sh pass pass pass
-tests/functional/experimental-features.sh gap fail pass # main in experimental-features.sh:36:
+tests/functional/experimental-features.sh gap fail pass # main in experimental-features.sh:78: nix --help is unsupported
 tests/functional/export-graph.nix support
 tests/functional/export-graph.sh pass pass pass
 tests/functional/export.sh pass pass pass
@@ -340,7 +340,7 @@ tests/functional/help.sh anomaly fail skip # reference skip: we don't know wheth
 tests/functional/hermetic.nix support
 tests/functional/ifd.nix support
 tests/functional/import-from-derivation.nix support
-tests/functional/import-from-derivation.sh gap fail pass # main in import-from-derivation.sh:34: the copied IFD result is missing both registered references
+tests/functional/import-from-derivation.sh pass pass pass
 tests/functional/impure-derivations.nix support
 tests/functional/impure-derivations.sh pass pass pass
 tests/functional/impure-env.nix support
@@ -390,7 +390,7 @@ tests/functional/multiple-outputs.nix support
 tests/functional/multiple-outputs.sh pass pass pass
 tests/functional/nar-access.nix support
 tests/functional/nar-access.sh pass pass pass
-tests/functional/nars.sh gap fail pass # main in nars.sh:6:
+tests/functional/nars.sh gap fail pass # main in nars.sh:99: --restore does not apply use-case-hack
 tests/functional/nested-sandboxing.sh gap fail pass # main in nested-sandboxing.sh:24:
 tests/functional/nested-sandboxing/command.sh support
 tests/functional/nested-sandboxing/runner.nix support
@@ -548,11 +548,11 @@ tests/functional/structured-attrs-shell.nix support
 tests/functional/structured-attrs.nix support
 tests/functional/structured-attrs.sh anomaly fail fail # reference fail: main in structured-attrs.sh:27: error (ignored): cannot find flake 'flake:nixpkgs' in the flake registries
 tests/functional/substitute-with-invalid-ca.sh pass pass pass
-tests/functional/suggestions.sh gap fail pass # : test failed: The nix build stderr should suggest the three closest possibilities
+tests/functional/suggestions.sh pass pass pass
 tests/functional/supplementary-groups.sh pass pass pass
 tests/functional/symlink-derivation.nix support
 tests/functional/symlinks.sh pass pass pass
-tests/functional/tarball.sh gap fail pass # main in tarball.sh:28: fetchTarball tries to download a missing URL despite the requested fixed-output path already existing in the store
+tests/functional/tarball.sh gap fail pass # main in tarball.sh:125: concurrent prefetch produces no download diagnostic
 tests/functional/test-infra.sh pass pass pass
 tests/functional/test-libstoreconsumer.sh unrun not-run not-run # needs the C++ libstore consumer built against the engine's libraries (TODO section 6)
 tests/functional/test-libstoreconsumer/README.md support

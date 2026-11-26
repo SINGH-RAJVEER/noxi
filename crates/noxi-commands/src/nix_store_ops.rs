@@ -368,7 +368,34 @@ pub fn run(
 		if args.len() != 1 {
 			return Err(usage("only one argument allowed"));
 		}
-		let dest = crate::instantiate::absolute_path(cwd, Path::new(&args[0]));
+		let output = &args[0];
+		if output.is_empty() {
+			return Err(Failure::Error("restore destination path is empty".into()));
+		}
+		let basename = output.rsplit('/').next().unwrap_or("");
+		if basename.is_empty() {
+			let parent = cwd.join(output);
+			let directory = fs::metadata(parent).and_then(|metadata| {
+				if metadata.is_dir() {
+					Ok(())
+				} else {
+					Err(io::Error::from_raw_os_error(libc::ENOTDIR))
+				}
+			});
+			if let Err(error) = directory {
+				return Err(Failure::Error(format!(
+					"opening parent directory of {output:?}: {}",
+					crate::nix::hash::strerror(&error)
+				)));
+			}
+			return Err(Failure::Error("invalid filename ''".into()));
+		}
+		if matches!(basename, "." | "..") {
+			return Err(Failure::Error(format!(
+				"restore destination '{output}' ends in '{basename}', which is not a valid filename"
+			)));
+		}
+		let dest = crate::instantiate::absolute_path(cwd, Path::new(output));
 		let mut input = io::stdin();
 		let prefix;
 		// Inspect the root node while retaining every buffered byte for the
@@ -388,7 +415,10 @@ pub fn run(
 		};
 		let mut reader = BufReader::new(prefix.as_slice().chain(input));
 		noxi_store::nar::restore_path(&dest, &mut reader).map_err(|error| {
-			if directory && error.kind() == io::ErrorKind::AlreadyExists && dest.exists() {
+			if directory
+				&& error.kind() == io::ErrorKind::AlreadyExists
+				&& dest.symlink_metadata().is_ok()
+			{
 				Failure::Error(format!("creating directory {:?}: File exists", args[0]))
 			} else {
 				Failure::from(error)

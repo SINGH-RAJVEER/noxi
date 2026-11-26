@@ -497,6 +497,7 @@ fn why_depends_trees() {
 fn prefetch_file_outputs_and_errors() {
 	let Some(pair) = Pair::new() else { return };
 	pair.file("hello", b"hello\n");
+	pair.file("empty", b"");
 	let mut paths = Vec::new();
 	for engine in 0..2 {
 		paths.push(pair.dir(engine).join("hello"));
@@ -555,6 +556,7 @@ fn prefetch_file_outputs_and_errors() {
 		(vec!["store", "prefetch-file", "--name", "x@y"], "hello"),
 		(vec!["store", "prefetch-file"], "a%20b"),
 		(vec!["store", "prefetch-file"], "missing"),
+		(vec!["store", "prefetch-file", "--unpack"], "empty"),
 		(
 			vec![
 				"store",
@@ -578,6 +580,20 @@ fn prefetch_file_outputs_and_errors() {
 		check(&args, name);
 	}
 	pair.same_state(&["path-info", "--all", "--json", "--json-format", "2"]);
+}
+
+#[test]
+fn fixed_output_fetch_reuses_valid_store_paths() {
+	let Some(pair) = Pair::new() else { return };
+	pair.file("tree/file", b"hello\n");
+	let hash = pair.seed(&["hash", "path", "tree"]);
+	let path = pair.seed(&["store", "add-path", "--name", "source", "tree"]);
+	let expression = format!(
+		r#"fetchTarball {{ url = "file:///dev/null/unavailable.tar"; sha256 = "{hash}"; }}"#,
+	);
+	let output = pair.same(&["eval", "--raw", "--expr", &expression]);
+	assert!(output.status.success());
+	assert_eq!(output.stdout, path.as_bytes());
 }
 
 #[test]

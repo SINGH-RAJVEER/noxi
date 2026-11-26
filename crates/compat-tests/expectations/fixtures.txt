@@ -120,7 +120,7 @@ pass:upstream_functional tests/functional/build-cores.sh
 pass:upstream_functional tests/functional/build-delete.sh
 pass:upstream_functional tests/functional/build-dry.sh
 pass:upstream_functional tests/functional/build-remote-content-addressed-fixed.sh
-gap tests/functional/build-remote-content-addressed-floating.sh # source in build-remote.sh:74: error: build log of 'passthru.input3' is not available
+pass:upstream_functional tests/functional/build-remote-content-addressed-floating.sh
 pass:upstream_functional tests/functional/build-remote-input-addressed.sh
 pass:upstream_functional tests/functional/build-remote-trustless-should-fail-0.sh
 pass:upstream_functional tests/functional/build-remote-trustless-should-pass-0.sh
@@ -128,7 +128,7 @@ pass:upstream_functional tests/functional/build-remote-trustless-should-pass-1.s
 pass:upstream_functional tests/functional/build-remote-trustless-should-pass-2.sh
 pass:upstream_functional tests/functional/build-remote-trustless-should-pass-3.sh
 pass:upstream_functional tests/functional/build-remote-with-mounted-ssh-ng.sh
-gap tests/functional/build.sh # main in build.sh:148: error: nix --relaxed-sandbox is not supported by noxi yet
+gap tests/functional/build.sh # main in build.sh:241: nix flake check --impure is unsupported
 pass:upstream_functional tests/functional/ca/build-cache.sh
 pass:upstream_functional tests/functional/ca/build-delete.sh
 pass:upstream_functional tests/functional/ca/build-with-garbage-path.sh
@@ -142,7 +142,7 @@ pass:upstream_functional tests/functional/ca/gc.sh
 pass:upstream_functional tests/functional/ca/import-from-derivation.sh
 pass:upstream_functional tests/functional/ca/issue-13247.sh
 pass:upstream_functional tests/functional/ca/multiple-outputs.sh
-gap tests/functional/ca/new-build-cmd.sh # source in ./build.sh:148: error: nix --relaxed-sandbox is not supported by noxi yet
+gap tests/functional/ca/new-build-cmd.sh # source in ./build.sh:241: nix flake check --impure is unsupported
 pass:upstream_functional tests/functional/ca/nix-copy.sh
 pass:upstream_functional tests/functional/ca/nix-run.sh
 pass:upstream_functional tests/functional/ca/nix-shell.sh
@@ -164,7 +164,7 @@ pass:upstream_functional tests/functional/compression-levels.sh
 pass:upstream_functional tests/functional/config.sh
 anomaly tests/functional/db-migration.sh # reference skip: not using the Nix daemon, skipping this test...
 pass:upstream_functional tests/functional/delete-no-keep.sh
-gap tests/functional/dependencies.sh # main in dependencies.sh:12: error: nix-store --query --graph is not supported by noxi yet
+pass:upstream_functional tests/functional/dependencies.sh
 pass:upstream_functional tests/functional/derivation-advanced-attributes.sh
 pass:upstream_functional tests/functional/derivation-json.sh
 pass:upstream_functional tests/functional/dump-db.sh
@@ -178,7 +178,7 @@ pass:upstream_functional tests/functional/dyn-drv/recursive-mod-json.sh
 pass:upstream_functional tests/functional/dyn-drv/text-hashed-output.sh
 gap tests/functional/eval-store.sh # main in eval-store.sh:14: error: nix build --eval-store is not supported by noxi yet
 pass:upstream_functional tests/functional/eval.sh
-gap tests/functional/experimental-features.sh # main in experimental-features.sh:36:
+gap tests/functional/experimental-features.sh # main in experimental-features.sh:78: nix --help is unsupported
 pass:upstream_functional tests/functional/export-graph.sh
 pass:upstream_functional tests/functional/export.sh
 pass:upstream_functional tests/functional/external-builders.sh
@@ -247,7 +247,7 @@ pass:upstream_functional tests/functional/git/symlinked-repo.sh
 pass:upstream_functional tests/functional/hash-convert.sh
 pass:upstream_functional tests/functional/hash-path.sh
 anomaly tests/functional/help.sh # reference skip: we don't know whether we built the manpages, so we can't reliably test them here., skipping this test...
-gap tests/functional/import-from-derivation.sh # main in import-from-derivation.sh:34: the copied IFD result is missing both registered references
+pass:upstream_functional tests/functional/import-from-derivation.sh
 pass:upstream_functional tests/functional/impure-derivations.sh
 pass:upstream_functional tests/functional/impure-env.sh
 pass:upstream_functional tests/functional/impure-eval.sh
@@ -273,7 +273,7 @@ pass:upstream_functional tests/functional/misc.sh
 pass:upstream_functional tests/functional/multiple-outputs-substitute-failure.sh
 pass:upstream_functional tests/functional/multiple-outputs.sh
 pass:upstream_functional tests/functional/nar-access.sh
-gap tests/functional/nars.sh # main in nars.sh:6:
+gap tests/functional/nars.sh # main in nars.sh:99: --restore does not apply use-case-hack
 gap tests/functional/nested-sandboxing.sh # main in nested-sandboxing.sh:24:
 pass:upstream_functional tests/functional/nix-build.sh
 pass:upstream_functional tests/functional/nix-channel.sh
@@ -313,10 +313,10 @@ pass:upstream_functional tests/functional/store-info.sh
 pass:upstream_functional tests/functional/store-print-env.sh
 anomaly tests/functional/structured-attrs.sh # reference fail: main in structured-attrs.sh:27: error (ignored): cannot find flake 'flake:nixpkgs' in the flake registries
 pass:upstream_functional tests/functional/substitute-with-invalid-ca.sh
-gap tests/functional/suggestions.sh # : test failed: The nix build stderr should suggest the three closest possibilities
+pass:upstream_functional tests/functional/suggestions.sh
 pass:upstream_functional tests/functional/supplementary-groups.sh
 pass:upstream_functional tests/functional/symlinks.sh
-gap tests/functional/tarball.sh # main in tarball.sh:28: fetchTarball tries to download a missing URL despite the requested fixed-output path already existing in the store
+gap tests/functional/tarball.sh # main in tarball.sh:125: concurrent prefetch produces no download diagnostic
 pass:upstream_functional tests/functional/test-infra.sh
 unrun tests/functional/test-libstoreconsumer.sh # needs the C++ libstore consumer built against the engine's libraries (TODO section 6)
 pass:upstream_functional tests/functional/timeout.sh

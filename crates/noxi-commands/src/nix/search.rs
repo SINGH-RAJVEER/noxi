@@ -21,6 +21,7 @@ use regex::{Regex, RegexBuilder};
 use super::Parsed;
 use super::flakes::State;
 use crate::cli::Failure;
+use crate::suggestions::Suggestions;
 use crate::instantiate::{self, nix_string_literal};
 
 /// The options the search builtin reads from the command request.
@@ -263,6 +264,7 @@ async fn cursors(
 	co: &GenCo,
 	root: Value,
 	candidates: &[String],
+	suggestions: &mut Suggestions,
 ) -> Result<Result<Vec<(Vec<String>, Value)>, Value>, ErrorKind> {
 	let mut found = Vec::new();
 	'candidates: for candidate in candidates {
@@ -272,7 +274,13 @@ async fn cursors(
 			match caught!(attrs(co, value).await?) {
 				Some(fields) => match fields.select(name.as_str()) {
 					Some(child) => value = child.clone(),
-					None => continue 'candidates,
+					None => {
+						suggestions.extend(Suggestions::best_matches(
+							fields.iter().filter_map(|(key, _)| key.to_str().ok()),
+							name,
+						));
+						continue 'candidates;
+					}
 				},
 				// CppNix continues after a type error on the path.
 				None => continue 'candidates,
@@ -318,12 +326,13 @@ pub async fn builtin(
 		names.push(candidate.to_contextful_str()?.to_str()?.to_owned());
 	}
 	let label = label.to_contextful_str()?.to_str()?.to_owned();
-	let found = match cursors(&co, root, &names).await? {
+	let mut suggestions = Suggestions::default();
+	let found = match cursors(&co, root, &names, &mut suggestions).await? {
 		Ok(found) => found,
 		Err(thrown) => return Ok(thrown),
 	};
 	if found.is_empty() {
-		return Err(missing(&label, &names));
+		return Err(missing(&label, &names, &suggestions));
 	}
 	for (path, value) in found {
 		if let Err(thrown) = visit(&co, &mut walk, value, path, true).await? {
@@ -452,15 +461,15 @@ pub(super) fn run(mut parsed: Parsed) -> Result<ExitCode, Failure> {
 }
 
 /// `InstallableFlake::getCursors` when no candidate exists.
-fn missing(label: &str, names: &[String]) -> ErrorKind {
+fn missing(label: &str, names: &[String], suggestions: &Suggestions) -> ErrorKind {
 	let shown: Vec<String> = names.iter().map(|n| format!("'{n}'")).collect();
 	let shown = match shown.split_last() {
 		Some((last, rest)) if !rest.is_empty() => format!("{} or {last}", rest.join(", ")),
 		_ => shown.join(""),
 	};
-	ErrorKind::EvalError(format!(
+	ErrorKind::EvalError(suggestions.append_to(format!(
 		"flake '{label}' does not provide attribute {shown}"
-	))
+	)))
 }
 
 /// The first existing candidate attribute path of a flake's outputs, selected
@@ -478,7 +487,8 @@ pub async fn select_builtin(
 		names.push(candidate.to_contextful_str()?.to_str()?.to_owned());
 	}
 	let label = label.to_contextful_str()?.to_str()?.to_owned();
-	match cursors(&co, root, &names).await? {
+	let mut suggestions = Suggestions::default();
+	match cursors(&co, root, &names, &mut suggestions).await? {
 		Err(thrown) => Ok(thrown),
 		Ok(found) => match found.into_iter().next() {
 			Some((path, value)) => {
@@ -511,7 +521,7 @@ pub async fn select_builtin(
 					path.join(".")
 				)))
 			}
-			None => Err(missing(&label, &names)),
+			None => Err(missing(&label, &names, &suggestions)),
 		},
 	}
 }

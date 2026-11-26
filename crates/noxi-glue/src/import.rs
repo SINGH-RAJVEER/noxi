@@ -115,6 +115,7 @@ async fn add_path(
 	co: &GenCo,
 	name: &str,
 	path: &Path,
+	has_context: bool,
 	filter: Option<Value>,
 	recursive: bool,
 	expected: Option<NixHash>,
@@ -132,6 +133,11 @@ async fn add_path(
 	state
 		.check_visible(path)
 		.map_err(|error| io_error(path, error))?;
+	let references = if has_context {
+		state.contextual_path_references(path)
+	} else {
+		BTreeSet::new()
+	};
 	// `addPath` follows every symlink in the path, including the last.
 	let resolved = fs::canonicalize(state.physical_path(path)).map_err(|e| io_error(path, e))?;
 	let included = match &filter {
@@ -145,11 +151,11 @@ async fn add_path(
 	let mut keep = |p: &Path, _| {
 		Ok(included.as_ref().is_none_or(|set| set.contains(p)) && state.walk_visible(p))
 	};
-	let store_path = if expected.is_some() {
+	let store_path = if expected.is_some() || !references.is_empty() {
 		let captured = state
 			.capture_import(&resolved, name, recursive, Some(&mut keep))
 			.map_err(|e| io_error(path, e))?;
-		state.import_captured(captured, expected.as_ref())
+		state.import_captured_with_references(captured, expected.as_ref(), &references)
 	} else if recursive {
 		state.import_nar(&resolved, name, Some(&mut keep))
 	} else {
@@ -189,7 +195,9 @@ pub(crate) mod import_builtins {
 			)],
 		)
 		.await;
-		let path = try_cek_to_value!(noxi_eval::builtins::realise_value_to_path(&co, path).await?);
+		let (path, has_context) = try_cek_to_value!(
+			noxi_eval::builtins::realise_value_to_path_with_context(&co, path).await?
+		);
 		generators::request_builtin_context(
 			&co,
 			vec![noxi_eval::Trace::new(
@@ -223,7 +231,17 @@ pub(crate) mod import_builtins {
 		let name = import_name(&path)
 			.map_err(|e| io_error(&path, e))?
 			.to_owned();
-		add_path(&state, &co, &name, &path, Some(filter), true, None).await
+		add_path(
+			&state,
+			&co,
+			&name,
+			&path,
+			has_context,
+			Some(filter),
+			true,
+			None,
+		)
+		.await
 	}
 
 	#[builtin("path")]
@@ -243,7 +261,8 @@ pub(crate) mod import_builtins {
 			match key.to_str()? {
 				"path" => {
 					path = Some(try_cek_to_value!(
-						noxi_eval::builtins::realise_value_to_path(&co, value.clone()).await?
+						noxi_eval::builtins::realise_value_to_path_with_context(&co, value.clone())
+							.await?
 					));
 				}
 				"name" => {
@@ -290,7 +309,7 @@ pub(crate) mod import_builtins {
 			}
 		}
 
-		let Some(path) = path else {
+		let Some((path, has_context)) = path else {
 			return Err(ErrorKind::EvalError(
 				"missing required 'path' attribute in the first argument to 'builtins.path'".into(),
 			));
@@ -301,7 +320,17 @@ pub(crate) mod import_builtins {
 				.map_err(|e| io_error(&path, e))?
 				.to_owned(),
 		};
-		add_path(&state, &co, &name, &path, filter, recursive, expected).await
+		add_path(
+			&state,
+			&co,
+			&name,
+			&path,
+			has_context,
+			filter,
+			recursive,
+			expected,
+		)
+		.await
 	}
 
 	#[builtin("toFile")]

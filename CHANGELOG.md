@@ -5,6 +5,11 @@ Changes to each crate in this workspace, grouped by crate and version, newest fi
 Changes that have not reached a version yet go under an `Unreleased` heading for that crate.
 
 ## Repository - Unreleased
+- `nix log` finds local logs for resolved content-addressed derivations. Parallel keep-going builds count failed dependencies. `nix-store --restore` reports unordered NAR entries and rejects empty destinations and destinations ending in `/.` or `/..`.
+- `noxi-cli` is licensed GPL-3.0-only, the license of every crate it links, and the repository has a root `LICENSE` with the GPLv3 text. Published `noxi-cli` versions keep their Apache-2.0 metadata (2026-11-26).
+- The deliberate differences from CppNix 2.35.2 that are kept, because matching would expose a secret, weaken isolation or damage the store, are listed in `docs/compatibility-matrix.md` (2026-11-26).
+- `builtins.path` and `builtins.filterSource` preserve the registered references of a store source selected with string context. Fixed-output fetches reuse valid store paths, and `nix store prefetch-file --unpack` rejects an empty download.
+- `nix-store --query` exports reference graphs as Graphviz DOT or GraphML. Flake installables suggest nearby attribute names when none of the candidate paths exists.
 
 - HTTP binary caches, and `file://` caches under `_NIX_FORCE_HTTP=1`, keep their answers in the per-user narinfo disk cache `binary-cache-v8.sqlite`, with CppNix 2.35.2's schema, lifetimes (`narinfo-cache-positive-ttl`, `narinfo-cache-negative-ttl`, `narinfo-cache-meta-ttl`) and build trace entries, shared with CppNix; `--refresh` expires them (2026-11-26).
 - `external-builders` works as in CppNix 2.35.2: a program configured for a derivation's system builds it outside the sandbox, with the caller's environment and a `build.json` description, before the platform is checked; it requires the `external-builders` experimental feature. Local builds are reported started only once their environment is set up, and a builder that ends before then is reported with the reference's message (2026-11-26).

@@ -106,6 +106,12 @@ pub fn prefetch_file(parsed: &Parsed) -> Result<ExitCode, Failure> {
 	let size = bytes.len() as u64;
 	transfer.progress(size, size, 0, 0);
 	drop(transfer);
+	if unpack && bytes.is_empty() {
+		return Err(Failure::Error(format!(
+			"archive '{}' is empty",
+			operands[0]
+		)));
+	}
 	let temporary = tempfile::Builder::new()
 		.prefix(&format!("nix-{}-", std::process::id()))
 		.tempdir()?;

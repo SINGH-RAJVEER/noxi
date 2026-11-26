@@ -458,6 +458,23 @@ async fn fetch_url(
 			"in pure evaluation mode, '{who}' requires a 'sha256' argument"
 		)));
 	}
+	// Fetch only when the promised fixed-output path cannot be realised
+	// from the evaluation store. URL restrictions still apply to hits.
+	if let Some(hash) = &expected
+		&& hash.algo() == HashAlgo::Sha256
+		&& let Ok(path) =
+			nix_compat::store_path::build_ca_path(&name, unpack, hash, std::iter::empty(), false)
+	{
+		let path = path.to_owned();
+		if store.valid_store_path(&path).is_some()
+			|| store
+				.store()
+				.is_some_and(|backend| backend.ensure_path(&path).is_ok())
+		{
+			store.allow_store_path(&path);
+			return Ok(path_value(&path));
+		}
+	}
 	let settings = store.fetch_settings();
 	let mut attrs: Attrs = [
 		(
