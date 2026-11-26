@@ -9,7 +9,7 @@ tests/functional/absolute-path-literals.sh pass pass pass
 tests/functional/add.sh pass pass pass
 tests/functional/bash-profile.sh anomaly fail fail # reference fail: main in bash-profile.sh:5: bash-profile.sh: line 5: ../../scripts/nix-profile.sh.in: No such file or directory
 tests/functional/big-derivation-attr.nix support
-tests/functional/binary-cache-build-remote.sh gap fail pass # main in binary-cache-build-remote.sh:11: error: Unable to build with a primary store that isn't a local store; either pass a different '--store' or enable remote builds.
+tests/functional/binary-cache-build-remote.sh pass pass pass
 tests/functional/binary-cache-compression.sh gap fail pass # main in binary-cache-compression.sh:75: cache upload compression 'compress' is unsupported
 tests/functional/binary-cache.sh gap fail pass # main in binary-cache.sh:99: no verbose NAR download message in the concurrent substitution logs
 tests/functional/build-cores.nix support
@@ -20,15 +20,15 @@ tests/functional/build-hook-ca-fixed.nix support
 tests/functional/build-hook-ca-floating.nix support
 tests/functional/build-hook-list-paths.sh support
 tests/functional/build-hook.nix support
-tests/functional/build-remote-content-addressed-fixed.sh gap fail pass # source in build-remote.sh:34: error: Cannot build '/nix/store/HASH-build-remote.drv'.
-tests/functional/build-remote-content-addressed-floating.sh gap fail pass # source in build-remote.sh:34: error: Cannot build '/nix/store/HASH-build-remote.drv'.
-tests/functional/build-remote-input-addressed.sh gap fail pass # source in build-remote.sh:34: error: Cannot build '/nix/store/HASH-build-remote.drv'.
+tests/functional/build-remote-content-addressed-fixed.sh pass pass pass
+tests/functional/build-remote-content-addressed-floating.sh gap fail pass # source in build-remote.sh:74: error: build log of 'passthru.input3' is not available
+tests/functional/build-remote-input-addressed.sh pass pass pass
 tests/functional/build-remote-trustless-after.sh support
-tests/functional/build-remote-trustless-should-fail-0.sh gap fail pass # main in build-remote-trustless-should-fail-0.sh:37: Expected exit code '1' but got '100' from command 'source' 'build-remote-trustless.sh'
-tests/functional/build-remote-trustless-should-pass-0.sh gap fail pass # source in build-remote-trustless.sh:17: error: Cannot build '/nix/store/HASH-build-remote.drv'.
-tests/functional/build-remote-trustless-should-pass-1.sh gap fail pass # source in build-remote-trustless.sh:17: error: Cannot build '/nix/store/HASH-build-remote.drv'.
-tests/functional/build-remote-trustless-should-pass-2.sh gap fail pass # source in build-remote-trustless.sh:17: error: Cannot build '/nix/store/HASH-build-remote.drv'.
-tests/functional/build-remote-trustless-should-pass-3.sh gap fail pass # source in build-remote-trustless.sh:17: error: Cannot build '/nix/store/HASH-build-remote.drv'.
+tests/functional/build-remote-trustless-should-fail-0.sh pass pass pass
+tests/functional/build-remote-trustless-should-pass-0.sh pass pass pass
+tests/functional/build-remote-trustless-should-pass-1.sh pass pass pass
+tests/functional/build-remote-trustless-should-pass-2.sh pass pass pass
+tests/functional/build-remote-trustless-should-pass-3.sh pass pass pass
 tests/functional/build-remote-trustless.sh support
 tests/functional/build-remote-with-mounted-ssh-ng.sh gap fail pass # main in build-remote-with-mounted-ssh-ng.sh:10: error: don't know how to open Nix store with scheme 'mounted-ssh-ng://localhost'
 tests/functional/build-remote.sh support

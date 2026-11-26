@@ -125,7 +125,11 @@ pub fn main(mut settings: Settings, args: Vec<String>) -> Result<ExitCode, Failu
 		}
 	}
 	print_setting_warnings(&mut settings);
-	if read_stdin && !matches!(op, Some(Operation::Other(other)) if !other.reads_stdin_words()) {
+	let stdin_is_input = op == Some(Operation::Serve);
+	if read_stdin
+		&& !stdin_is_input
+		&& !matches!(op, Some(Operation::Other(other)) if !other.reads_stdin_words())
+	{
 		for line in io::stdin().lock().lines() {
 			op_args.extend(line?.split_whitespace().map(str::to_owned));
 		}
@@ -137,19 +141,7 @@ pub fn main(mut settings: Settings, args: Vec<String>) -> Result<ExitCode, Failu
 		return Err(Failure::Usage("no arguments expected".into()));
 	}
 	if op == Operation::Serve {
-		let write = op_flags.iter().any(|flag| flag == "--write");
-		if !op_args.is_empty() || op_flags.iter().any(|flag| flag != "--write") {
-			return Err(Failure::Usage("unsupported argument for --serve".into()));
-		}
-		let opened = store::open(&uri, &settings)?
-			.ok_or_else(|| Failure::Error(format!("store '{uri}' cannot hold store paths")))?;
-		noxi_daemon::serve::run(
-			opened.store.as_ref(),
-			io::stdin(),
-			io::stdout().lock(),
-			write,
-		)
-		.map_err(|error| Failure::Error(error.to_string()))?;
+		crate::serve::run(&op_flags, &op_args, &uri, &settings)?;
 		return Ok(ExitCode::SUCCESS);
 	}
 	if let Operation::Other(other) = op {

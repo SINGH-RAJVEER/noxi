@@ -113,20 +113,20 @@ table:upstream_lang tests/functional/lang/**/*
 pass:upstream_functional tests/functional/absolute-path-literals.sh
 pass:upstream_functional tests/functional/add.sh
 anomaly tests/functional/bash-profile.sh # reference fail: main in bash-profile.sh:5: bash-profile.sh: line 5: ../../scripts/nix-profile.sh.in: No such file or directory
-gap tests/functional/binary-cache-build-remote.sh # main in binary-cache-build-remote.sh:11: error: Unable to build with a primary store that isn't a local store; either pass a different '--store' or enable remote builds.
+pass:upstream_functional tests/functional/binary-cache-build-remote.sh
 gap tests/functional/binary-cache-compression.sh # main in binary-cache-compression.sh:75: cache upload compression 'compress' is unsupported
 gap tests/functional/binary-cache.sh # main in binary-cache.sh:99: no verbose NAR download message in the concurrent substitution logs
 pass:upstream_functional tests/functional/build-cores.sh
 pass:upstream_functional tests/functional/build-delete.sh
 pass:upstream_functional tests/functional/build-dry.sh
-gap tests/functional/build-remote-content-addressed-fixed.sh # source in build-remote.sh:34: error: Cannot build '/nix/store/HASH-build-remote.drv'.
-gap tests/functional/build-remote-content-addressed-floating.sh # source in build-remote.sh:34: error: Cannot build '/nix/store/HASH-build-remote.drv'.
-gap tests/functional/build-remote-input-addressed.sh # source in build-remote.sh:34: error: Cannot build '/nix/store/HASH-build-remote.drv'.
-gap tests/functional/build-remote-trustless-should-fail-0.sh # main in build-remote-trustless-should-fail-0.sh:37: Expected exit code '1' but got '100' from command 'source' 'build-remote-trustless.sh'
-gap tests/functional/build-remote-trustless-should-pass-0.sh # source in build-remote-trustless.sh:17: error: Cannot build '/nix/store/HASH-build-remote.drv'.
-gap tests/functional/build-remote-trustless-should-pass-1.sh # source in build-remote-trustless.sh:17: error: Cannot build '/nix/store/HASH-build-remote.drv'.
-gap tests/functional/build-remote-trustless-should-pass-2.sh # source in build-remote-trustless.sh:17: error: Cannot build '/nix/store/HASH-build-remote.drv'.
-gap tests/functional/build-remote-trustless-should-pass-3.sh # source in build-remote-trustless.sh:17: error: Cannot build '/nix/store/HASH-build-remote.drv'.
+pass:upstream_functional tests/functional/build-remote-content-addressed-fixed.sh
+gap tests/functional/build-remote-content-addressed-floating.sh # source in build-remote.sh:74: error: build log of 'passthru.input3' is not available
+pass:upstream_functional tests/functional/build-remote-input-addressed.sh
+pass:upstream_functional tests/functional/build-remote-trustless-should-fail-0.sh
+pass:upstream_functional tests/functional/build-remote-trustless-should-pass-0.sh
+pass:upstream_functional tests/functional/build-remote-trustless-should-pass-1.sh
+pass:upstream_functional tests/functional/build-remote-trustless-should-pass-2.sh
+pass:upstream_functional tests/functional/build-remote-trustless-should-pass-3.sh
 gap tests/functional/build-remote-with-mounted-ssh-ng.sh # main in build-remote-with-mounted-ssh-ng.sh:10: error: don't know how to open Nix store with scheme 'mounted-ssh-ng://localhost'
 gap tests/functional/build.sh # main in build.sh:148: error: nix --relaxed-sandbox is not supported by noxi yet
 gap tests/functional/ca/build-cache.sh # build-cache.sh:17: dependentCA substitution requests a local build with max-jobs = 0

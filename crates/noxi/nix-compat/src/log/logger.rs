@@ -464,6 +464,16 @@ impl Drop for WorkerGuard {
 	}
 }
 
+/// The running worker's `realise` activity, or 0: `worker.act`, the parent
+/// of the activities a build hook reports.
+pub fn worker_activity() -> u64 {
+	WORKER
+		.lock()
+		.unwrap()
+		.as_ref()
+		.map_or(0, |worker| worker.realise.id())
+}
+
 /// Change the running worker's counters and report them, as the goals do
 /// before calling `updateProgress`. Without a worker this does nothing.
 pub fn worker_update(change: impl FnOnce(&mut WorkerCounters)) {

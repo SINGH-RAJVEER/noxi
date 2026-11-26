@@ -1204,6 +1204,7 @@ fn parallel_builds_bound_jobs_share_dependencies_and_preserve_logs() {
 				BuildEvent::PathChecked { .. } => {
 					panic!("ordinary builds must not report repair checks")
 				}
+				BuildEvent::StartedRemotely { .. } => panic!("no build hook is configured"),
 				BuildEvent::Started { drv_path, .. } => {
 					assert_eq!(identity, drv_path);
 					assert!(active.insert(identity.clone()));

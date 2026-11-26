@@ -1,8 +1,8 @@
 use std::process::ExitCode;
 
 use noxi_commands::{
-	cli, collect_garbage, instantiate, legacy_environment, nix, nix_build, nix_env, nix_shell,
-	nix_store,
+	build_remote, cli, collect_garbage, instantiate, legacy_environment, nix, nix_build, nix_env,
+	nix_shell, nix_store,
 };
 
 fn main() -> ExitCode {
@@ -33,9 +33,11 @@ fn main() -> ExitCode {
 		"nix-collect-garbage" => cli::main("nix-collect-garbage", collect_garbage::main),
 		"nix-shell" => cli::main("nix-shell", nix_shell::main),
 		"nix-instantiate" => cli::main("nix-instantiate", instantiate::main),
+		"build-remote" => cli::main("build-remote", build_remote::main),
 		"nix-copy-closure" => cli::main("nix-copy-closure", legacy_environment::copy_closure),
 		// The other legacy commands the reference registers.
-		"nix-channel" | "nix-prefetch-url" | "nix-daemon" | "build-remote" => {
+		"nix-daemon" => noxi_daemon::nix_daemon::main(),
+		"nix-channel" | "nix-prefetch-url" => {
 			cli::print_error(&format!("{name} is not supported by noxi yet"));
 			ExitCode::FAILURE
 		}

@@ -55,6 +55,10 @@ struct Goal {
 enum Message {
 	PathChecked(StorePath, StorePath, bool),
 	Started(StorePath, BuildMode),
+	/// The sender waits for the build's activity to start before the hook
+	/// reports anything, as the reference starts it before it lets the hook
+	/// go on.
+	StartedRemotely(StorePath, BuildMode, String, mpsc::Sender<()>),
 	Output(StorePath, Vec<u8>),
 	Finished(StorePath, Option<BuildError>),
 	Done(StorePath, Result<BTreeMap<String, StorePath>>),
@@ -182,7 +186,13 @@ impl LocalBuilder<'_> {
 			}
 		}
 		let stop = AtomicBool::new(false);
-		let limit = usize::try_from(self.settings.max_build_jobs.max(1)).unwrap_or(usize::MAX);
+		// With a build hook, builds here take one of `max-jobs` slots and
+		// builds on other machines as many as the machines accept.
+		let hooks = self.hooks().filter(|hooks| hooks.may_accept);
+		let limit = match hooks {
+			Some(_) => 256,
+			None => usize::try_from(self.settings.max_build_jobs.max(1)).unwrap_or(usize::MAX),
+		};
 		std::thread::scope(|scope| {
 			let _stop_on_drop = StopOnDrop(&stop);
 			let (tx, rx) = mpsc::sync_channel(64);
@@ -222,15 +232,19 @@ impl LocalBuilder<'_> {
 					let tx = tx.clone();
 					let worker_path = path.clone();
 					let stop = &stop;
+					// The goals reach the hook in the order they are taken.
+					let turn = self.hooks().map(|hooks| hooks.issue());
 					let handle = scope.spawn(move || {
-						let builder =
-							self.clone()
-								.with_cancellation(stop)
-								.with_mode(if node.target {
-									self.mode
-								} else {
-									self.for_inputs().mode
-								});
+						let _turn =
+							turn.and_then(|turn| self.hooks().map(|hooks| hooks.turn(Some(turn))));
+						let builder = turn
+							.map_or_else(|| self.clone(), |turn| self.clone().with_turn(turn))
+							.with_cancellation(stop)
+							.with_mode(if node.target {
+								self.mode
+							} else {
+								self.for_inputs().mode
+							});
 						let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
 							let mut current = worker_path.clone();
 							builder.realise_inner(
@@ -250,6 +264,22 @@ impl LocalBuilder<'_> {
 										BuildEvent::Started { drv_path, mode } => {
 											current = drv_path.clone();
 											Message::Started(drv_path.clone(), mode)
+										}
+										BuildEvent::StartedRemotely {
+											drv_path,
+											mode,
+											machine,
+										} => {
+											current = drv_path.clone();
+											let (shown, wait) = mpsc::channel();
+											let _ = tx.send(Message::StartedRemotely(
+												drv_path.clone(),
+												mode,
+												machine.to_owned(),
+												shown,
+											));
+											let _ = wait.recv();
+											return;
 										}
 										BuildEvent::Output(data) => {
 											Message::Output(current.clone(), data.to_vec())
@@ -292,6 +322,17 @@ impl LocalBuilder<'_> {
 							mode,
 						},
 					),
+					Ok(Message::StartedRemotely(path, mode, machine, shown)) => {
+						events(
+							&path,
+							BuildEvent::StartedRemotely {
+								drv_path: &path,
+								mode,
+								machine: &machine,
+							},
+						);
+						let _ = shown.send(());
+					}
 					Ok(Message::Output(path, data)) => events(&path, BuildEvent::Output(&data)),
 					Ok(Message::Finished(path, error)) => events(
 						&path,

@@ -49,7 +49,11 @@ fn tokenize<'a>(s: &'a str, separators: &'a [char]) -> impl Iterator<Item = &'a 
 
 /// Splits lines and `;`-separated entries, drops comments, and reads
 /// `@file` references. A missing file is skipped.
-fn expand_builder_lines(builders: &str, result: &mut Vec<String>) -> Result<(), Error> {
+fn expand_builder_lines(
+	builders: &str,
+	result: &mut Vec<String>,
+	report_missing: bool,
+) -> Result<(), Error> {
 	for line in tokenize(builders, &['\n']) {
 		let line = line.split('#').next().unwrap_or("");
 		for entry in tokenize(line, &[';']) {
@@ -60,8 +64,15 @@ fn expand_builder_lines(builders: &str, result: &mut Vec<String>) -> Result<(), 
 			if let Some(path) = entry.strip_prefix('@') {
 				let path = path.trim_matches(WHITESPACE);
 				match std::fs::read_to_string(path) {
-					Ok(text) => expand_builder_lines(&text, result)?,
-					Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+					Ok(text) => expand_builder_lines(&text, result, report_missing)?,
+					Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+						if report_missing {
+							crate::log::logger::log(
+								crate::log::VerbosityLevel::Debug,
+								&format!("cannot find machines file '{path}'"),
+							);
+						}
+					}
 					Err(source) => {
 						return Err(Error::Io {
 							path: path.into(),
@@ -146,12 +157,14 @@ fn parse_builder_line(
 		// CppNix only checks the characters it decodes: those before the
 		// first `=`, skipping newlines.
 		let data: String = key.split('=').next().unwrap_or("").replace('\n', "");
-		if let Some(c) = data
+		if data
 			.chars()
-			.find(|c| !(c.is_ascii_alphanumeric() || *c == '+' || *c == '/'))
+			.any(|c| !(c.is_ascii_alphanumeric() || c == '+' || c == '/'))
 		{
+			// The reference highlights the character, and prints only the
+			// first byte of the result, the escape.
 			return Err(Error::Format(format!(
-				"invalid character in Base64 string: '{c}'"
+				"\n… while parsing machine specification at a column #7 in a row: '{line}'\n\nerror: invalid character in Base64 string: '\x1b'"
 			)));
 		}
 		key.to_owned()
@@ -195,7 +208,23 @@ impl Machine {
 		warnings: &mut Vec<String>,
 	) -> Result<Vec<Machine>, Error> {
 		let mut lines = Vec::new();
-		expand_builder_lines(s, &mut lines)?;
+		expand_builder_lines(s, &mut lines, true)?;
+		lines
+			.iter()
+			.map(|line| parse_builder_line(default_systems, line, cwd, warnings))
+			.collect()
+	}
+
+	/// [`Machine::parse_config`] without the debug message for a missing
+	/// machines file, for a caller that only asks whether machines exist.
+	pub fn parse_config_quietly(
+		default_systems: &BTreeSet<String>,
+		s: &str,
+		cwd: &Path,
+		warnings: &mut Vec<String>,
+	) -> Result<Vec<Machine>, Error> {
+		let mut lines = Vec::new();
+		expand_builder_lines(s, &mut lines, false)?;
 		lines
 			.iter()
 			.map(|line| parse_builder_line(default_systems, line, cwd, warnings))

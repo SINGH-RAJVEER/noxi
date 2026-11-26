@@ -9,7 +9,8 @@
 //! are canonicalised, scanned for references, checked and registered with
 //! the derivation as their deriver.
 //!
-//! Not supported yet: remote builders.
+//! A derivation is offered to the build hook before it is built here, unless
+//! it prefers a local build; see [`crate::hook`].
 
 use std::cell::Cell;
 use std::collections::{BTreeMap, BTreeSet};
@@ -40,6 +41,7 @@ use serde_json::{Map, Value};
 use sha2::{Digest, Sha256};
 
 use crate::error::{BuildError, FailureStatus, Result};
+use crate::hook::{HookEvent, HookInstance, Hooks, Reply};
 use crate::options::{self, DerivationOptions, DrvRef, OutputChecks, OutputChecksSpec};
 use crate::refscan::scan_for_references;
 use crate::sandbox::{self, Bind, ChrootBinds, SandboxSpec};
@@ -69,6 +71,12 @@ pub enum BuildEvent<'a> {
 		drv_path: &'a StorePath,
 		mode: BuildMode,
 	},
+	/// The build hook builds a derivation on `machine`.
+	StartedRemotely {
+		drv_path: &'a StorePath,
+		mode: BuildMode,
+		machine: &'a str,
+	},
 	/// Output from the builder.
 	Output(&'a [u8]),
 	/// The build ended, successfully or with `error`.
@@ -91,6 +99,10 @@ pub struct LocalBuilder<'a> {
 	/// The outputs of the impure derivations built by this request, which the
 	/// store does not record. Each is built once per request.
 	impure: Arc<Mutex<BTreeMap<StorePath, BTreeMap<String, StorePath>>>>,
+	/// The build hook, if there is one to offer builds to.
+	hooks: Option<Arc<Hooks>>,
+	/// The turn of the goal this builder realises; see [`Hooks`].
+	turn: Arc<AtomicU64>,
 }
 
 /// An output a derivation declares, with the path it must produce.
@@ -147,6 +159,8 @@ impl<'a> LocalBuilder<'a> {
 			mode: BuildMode::Normal,
 			checked: Arc::default(),
 			impure: Arc::default(),
+			hooks: Hooks::new(settings),
+			turn: Arc::new(AtomicU64::new(NO_TURN)),
 		}
 	}
 
@@ -157,6 +171,17 @@ impl<'a> LocalBuilder<'a> {
 		self
 	}
 
+	/// Realise a goal that has `turn`.
+	pub(crate) fn with_turn(mut self, turn: u64) -> Self {
+		self.turn = Arc::new(AtomicU64::new(turn));
+		self
+	}
+
+	/// The build hook, if builds can be offered to one.
+	pub(crate) fn hooks(&self) -> Option<&Arc<Hooks>> {
+		self.hooks.as_ref()
+	}
+
 	/// Cancel this request when the flag becomes true. Running sandbox
 	/// builders are killed and reaped before the request returns.
 	pub fn with_cancellation(mut self, cancelled: &'a AtomicBool) -> Self {
@@ -165,8 +190,10 @@ impl<'a> LocalBuilder<'a> {
 	}
 
 	fn is_cancelled(&self) -> bool {
-		self.cancelled
-			.is_some_and(|flag| flag.load(Ordering::Relaxed))
+		crate::interrupt::interrupted()
+			|| self
+				.cancelled
+				.is_some_and(|flag| flag.load(Ordering::Relaxed))
 	}
 
 	/// `startBuild`'s build user: lock a free member of
@@ -249,24 +276,32 @@ impl<'a> LocalBuilder<'a> {
 			experimental: BTreeMap::new(),
 			dynamic: BTreeMap::new(),
 		};
-		let outputs = self.known_outputs(drv_path, &build_drv)?;
+		self.build_supplied_derivation(drv_path, &build_drv, events)
+	}
+
+	/// [`LocalBuilder::build_derivation`] for any kind of outputs, whose
+	/// realisations are registered.
+	pub fn build_supplied_derivation(
+		&self,
+		drv_path: &StorePath,
+		build_drv: &BuildDerivation,
+		events: &mut dyn FnMut(BuildEvent<'_>),
+	) -> Result<BTreeMap<String, StorePath>> {
+		let outputs = self.known_outputs(drv_path, build_drv)?;
 		self.report_checks(&outputs, events)?;
 		let valid = self.all_valid(&outputs)?;
 		if self.mode == BuildMode::Check && !valid {
 			return Err(self.cannot_check(drv_path));
 		}
 		if self.mode == BuildMode::Check || !valid {
-			events(BuildEvent::Started {
-				drv_path,
-				mode: self.mode,
-			});
-			let kind = BuildKind::of(&build_drv);
-			let result = self.build(drv_path, drv, kind, &outputs, events);
+			let result = self.build(drv_path, build_drv, &outputs, events);
 			events(BuildEvent::Finished {
 				drv_path,
 				error: result.as_ref().err(),
 			});
-			result?;
+			let built = result?;
+			self.register_realisations(drv_path, &built)?;
+			return Ok(built);
 		}
 		Ok(outputs
 			.into_iter()
@@ -373,7 +408,7 @@ impl<'a> LocalBuilder<'a> {
 		events: &mut dyn FnMut(BuildEvent<'_>),
 	) -> Result<BTreeMap<String, StorePath>> {
 		self.check_cancelled()?;
-		if self.settings.max_build_jobs > 1 || self.settings.keep_going {
+		if self.builds_in_parallel() {
 			let mut batch = self.realise_many_with_events(
 				&[(drv_path.clone(), wanted.cloned())],
 				&mut |_, event| events(event),
@@ -582,24 +617,10 @@ impl<'a> LocalBuilder<'a> {
 			stack.pop();
 
 			if check || !self.all_valid(&wanted_outputs)? {
-				if self.settings.max_build_jobs == 0 {
-					return Err(BuildError::failed(
-						FailureStatus::InputRejected,
-						format!(
-							"Cannot build '{}'.\nReason: local builds are disabled (max-jobs = 0)\nHint: set 'max-jobs' to a non-zero value to enable local builds, or configure remote builders via 'builders'",
-							print(drv_path)
-						),
-					));
-				}
 				if supplied && !self.store.is_valid_path(drv_path)? {
 					self.write_resolved(drv_path, &build_drv)?;
 				}
-				events(BuildEvent::Started {
-					drv_path,
-					mode: self.mode,
-				});
-				let kind = BuildKind::of(&build_drv);
-				let result = self.build(drv_path, drv, kind, &outputs, events);
+				let result = self.build(drv_path, &build_drv, &outputs, events);
 				events(BuildEvent::Finished {
 					drv_path,
 					error: result.as_ref().err(),
@@ -1326,7 +1347,40 @@ impl LocalBuilder<'_> {
 		Ok(())
 	}
 
-	/// Check that this machine can build `drv` (`checkCanBuildLocally`).
+	/// Whether derivations that do not depend on each other are built at
+	/// once. Builds on other machines need no local build slot.
+	pub(crate) fn builds_in_parallel(&self) -> bool {
+		self.settings.max_build_jobs > 1
+			|| self.settings.keep_going
+			|| self.hooks.as_ref().is_some_and(|hooks| hooks.may_accept)
+	}
+
+	/// The store's `system-features`: `getDefaultSystemFeatures`, unless the
+	/// store was opened with some of its own.
+	fn available_features(&self) -> BTreeSet<&str> {
+		let mut features: BTreeSet<&str> = self
+			.settings
+			.system_features
+			.iter()
+			.map(String::as_str)
+			.collect();
+		if !self.settings.exact_system_features {
+			if self.store.config().ca_derivations {
+				features.insert("ca-derivations");
+			}
+			if self
+				.settings
+				.config
+				.experimental_features()
+				.contains("recursive-nix")
+			{
+				features.insert("recursive-nix");
+			}
+		}
+		features
+	}
+
+	/// Check that this machine can build `drv`: `LocalBuildRejection`.
 	fn check_platform(
 		&self,
 		drv_path: &StorePath,
@@ -1338,15 +1392,20 @@ impl LocalBuilder<'_> {
 		let bad_platform = !builtin
 			&& system != self.settings.system
 			&& !self.settings.extra_platforms.contains(system.as_ref());
+		let available = self.available_features();
 		let missing: Vec<&str> = features
 			.iter()
-			.filter(|f| !self.settings.system_features.contains(*f))
+			.filter(|f| !available.contains(f.as_str()))
 			.map(String::as_str)
 			.collect();
-		if !bad_platform && missing.is_empty() {
+		let max_jobs_zero = self.settings.max_build_jobs == 0;
+		if !max_jobs_zero && !bad_platform && missing.is_empty() {
 			return Ok(());
 		}
 		let mut msg = format!("Cannot build '{}'.", print(drv_path));
+		if max_jobs_zero {
+			msg += "\nReason: local builds are disabled (max-jobs = 0)\nHint: set 'max-jobs' to a non-zero value to enable local builds, or configure remote builders via 'builders'";
+		}
 		if bad_platform {
 			msg += &format!(
 				"\nReason: platform mismatch\nRequired system: '{system}'\nCurrent system: '{}'",
@@ -1361,12 +1420,7 @@ impl LocalBuilder<'_> {
 					.map(String::as_str)
 					.collect::<Vec<_>>()
 					.join(", "),
-				self.settings
-					.system_features
-					.iter()
-					.map(String::as_str)
-					.collect::<Vec<_>>()
-					.join(", ")
+				available.into_iter().collect::<Vec<_>>().join(", ")
 			);
 		}
 		Err(BuildError::failed(FailureStatus::InputRejected, msg))
@@ -1375,22 +1429,12 @@ impl LocalBuilder<'_> {
 	fn build(
 		&self,
 		drv_path: &StorePath,
-		drv: &UnverifiedDerivation,
-		kind: BuildKind,
+		build_drv: &BuildDerivation,
 		outputs: &BTreeMap<String, KnownOutput>,
 		events: &mut dyn FnMut(BuildEvent<'_>),
 	) -> Result<BTreeMap<String, StorePath>> {
-		let output_paths = |outputs: &BTreeMap<String, KnownOutput>| {
-			outputs
-				.iter()
-				.map(|(name, output)| (name.clone(), output.path.clone()))
-				.collect::<BTreeMap<_, _>>()
-		};
-		let drv_name = drv_path
-			.name()
-			.strip_suffix(".drv")
-			.unwrap_or(drv_path.name());
-
+		let drv = &build_drv.basic;
+		let kind = BuildKind::of(build_drv);
 		let parsed = options::structured_attrs(drv.environment())?;
 		let env: BTreeMap<BString, BString> = drv
 			.environment()
@@ -1412,23 +1456,17 @@ impl LocalBuilder<'_> {
 			tracing::warn!("{warning}");
 		}
 
-		let features = drv_options.get_required_system_features(true);
-		self.check_platform(drv_path, drv, &features)?;
-		let builtin = drv.command().strip_prefix(b"builtin:");
-		if let Some(name) = builtin
-			.filter(|name| !matches!(&name[..], b"buildenv" | b"unpack-channel" | b"fetchurl"))
-		{
-			return Err(BuildError::Other(format!(
-				"unsupported builtin builder '{}'",
-				name.to_str_lossy()
-			)));
-		}
-		if drv_options.use_uid_range(true) {
-			return Err(BuildError::Other(
-				"feature 'uid-range' requires the setting 'auto-allocate-uids' to be enabled"
-					.to_owned(),
-			));
-		}
+		let features = drv_options.get_required_system_features(has_known_output_paths(build_drv));
+		let mut rejection = self.check_platform(drv_path, drv, &features).err();
+		// Only an untouched store's derivations can be built elsewhere:
+		// checks and repairs are about this store.
+		let hooks = match &self.hooks {
+			Some(hooks) if self.mode == BuildMode::Normal => {
+				self.store.is_valid_path(drv_path)?.then_some(hooks)
+			}
+			_ => None,
+		};
+		let prefer_local = drv_options.prefer_local_build;
 
 		// The closure of the input sources and of the input derivations'
 		// requested outputs.
@@ -1453,28 +1491,154 @@ impl LocalBuilder<'_> {
 			self.closure(src, &mut input_paths)?;
 		}
 
-		// Lock the outputs, then check again whether another process built
-		// them while we waited.
+		// Offer the build to the hook, lock the outputs and take a local
+		// build slot, trying again after each wait.
+		let mut waiting = None;
+		let key = (drv_path.name().to_owned(), drv_path.clone());
+		let turn = self.turn.swap(NO_TURN, Ordering::Relaxed);
+		let mut turn = self
+			.hooks
+			.as_deref()
+			.map(|hooks| hooks.turn((turn != NO_TURN).then_some(turn)));
+		loop {
+			let cancelled = || self.is_cancelled();
+			if let Some(turn) = &turn {
+				turn.wait(&cancelled)?;
+			}
+			// A goal waiting for a lock another process holds lets the
+			// others go first.
+			let held = turn.as_ref().is_some_and(|turn| turn.held());
+			let mut locks = match self.prepare(drv_path, build_drv, outputs, !held)? {
+				Prepared::Valid(paths) => return Ok(paths),
+				Prepared::Locked(locks) => locks,
+				Prepared::Busy => {
+					if let Some(turn) = &mut turn {
+						turn.release();
+					}
+					continue;
+				}
+			};
+			if let Some(hooks) = hooks
+				&& (!prefer_local || rejection.is_some())
+			{
+				match hooks.offer(self.settings, drv.system(), drv_path, &features, &|| {
+					self.is_cancelled()
+				})? {
+					Reply::Accept(hook) => {
+						drop(waiting);
+						drop(turn);
+						return self.build_with_hook(
+							drv_path,
+							build_drv,
+							outputs,
+							&input_paths,
+							*hook,
+							locks,
+							events,
+						);
+					}
+					Reply::Postpone => {
+						use nix_compat::log::{ActivityType, VerbosityLevel, logger};
+						locks.unlock();
+						if let Some(turn) = &mut turn {
+							turn.release();
+						}
+						waiting.get_or_insert_with(|| {
+							logger::Activity::new(
+								VerbosityLevel::Warn,
+								ActivityType::BuildWaiting,
+								format!(
+									"waiting for a machine to build '{}{}{}'",
+									logger::ANSI_MAGENTA,
+									print(drv_path),
+									logger::ANSI_NORMAL
+								),
+								vec![],
+								0,
+							)
+						});
+						self.wait_for_a_while()?;
+						continue;
+					}
+					Reply::Decline => {}
+				}
+			}
+			waiting = None;
+			if let Some(error) = rejection.take() {
+				return Err(error);
+			}
+			let slot = match &self.hooks {
+				Some(hooks) => match hooks.acquire_slot(&key) {
+					Some(slot) => Some(slot),
+					None => {
+						locks.unlock();
+						drop(turn.take());
+						turn = Some(hooks.wait_for_slot(&key, &cancelled)?);
+						continue;
+					}
+				},
+				None => None,
+			};
+			drop(turn);
+			let result = self.build_locally(
+				drv_path,
+				build_drv,
+				outputs,
+				&drv_options,
+				parsed,
+				&env,
+				kind,
+				&input_paths,
+				locks,
+				events,
+			);
+			drop(slot);
+			return result;
+		}
+	}
+
+	/// Lock the outputs, then check again whether another process built them
+	/// while we waited. Paths that are present but not valid are deleted.
+	fn prepare(
+		&self,
+		drv_path: &StorePath,
+		build_drv: &BuildDerivation,
+		outputs: &BTreeMap<String, KnownOutput>,
+		wait: bool,
+	) -> Result<Prepared> {
+		let paths = |outputs: &BTreeMap<String, KnownOutput>| {
+			outputs
+				.iter()
+				.map(|(name, output)| (name.clone(), output.path.clone()))
+				.collect::<BTreeMap<_, _>>()
+		};
 		let real_outputs: Vec<PathBuf> = outputs
 			.values()
 			.map(|o| self.store.real_path(&o.path))
 			.collect();
-		let mut locks = self.lock_outputs(real_outputs.clone())?;
+		let mut locks = if wait {
+			self.lock_outputs(real_outputs.clone())?
+		} else {
+			match PathLocks::try_lock(real_outputs.clone())? {
+				Some(locks) => locks,
+				None => return Ok(Prepared::Busy),
+			}
+		};
 		for output in outputs.values() {
 			self.store.add_temp_root(&output.path)?;
 		}
 		let check = self.mode == BuildMode::Check;
 		if !check && self.all_valid(outputs)? {
 			locks.set_deletion(true);
-			return Ok(output_paths(outputs));
+			return Ok(Prepared::Valid(paths(outputs)));
 		}
 		let current;
 		let mut outputs = outputs;
 		if outputs.values().any(|o| o.floating.is_some() && !o.impure) {
-			current = self.known_outputs(drv_path, &self.store.read_build_derivation(drv_path)?)?;
+			current = self.known_outputs(drv_path, build_drv)?;
 			if !check && self.all_valid(&current)? {
 				locks.set_deletion(true);
-				return Ok(output_paths(&current));
+				return Ok(Prepared::Valid(paths(&current)));
 			}
 			outputs = &current;
 		}
@@ -1484,7 +1648,117 @@ impl LocalBuilder<'_> {
 				delete_path(real)?;
 			}
 		}
+		Ok(Prepared::Locked(locks))
+	}
 
+	/// `waitForAWhile`: until the next `build-poll-interval`.
+	fn wait_for_a_while(&self) -> Result<()> {
+		let seconds = self
+			.settings
+			.config
+			.get_int("build-poll-interval", 5)
+			.max(1) as u64;
+		let deadline = std::time::Instant::now() + std::time::Duration::from_secs(seconds);
+		while std::time::Instant::now() < deadline {
+			self.check_cancelled()?;
+			std::thread::sleep(std::time::Duration::from_millis(50));
+		}
+		Ok(())
+	}
+
+	/// `DerivationBuildingGoal::buildWithHook`: the hook accepted the build.
+	/// It copies the outputs into the store, so nothing is registered here
+	/// and nothing is believed but the store.
+	#[allow(clippy::too_many_arguments)]
+	fn build_with_hook(
+		&self,
+		drv_path: &StorePath,
+		build_drv: &BuildDerivation,
+		outputs: &BTreeMap<String, KnownOutput>,
+		input_paths: &BTreeSet<StorePath>,
+		hook: HookInstance,
+		mut locks: PathLocks,
+		events: &mut dyn FnMut(BuildEvent<'_>),
+	) -> Result<BTreeMap<String, StorePath>> {
+		let mut missing = BTreeSet::new();
+		for (name, output) in outputs {
+			if !self.path_valid(&output.path)? {
+				missing.insert(name.clone());
+			}
+		}
+		let known = outputs
+			.values()
+			.filter(|output| output.floating.is_none())
+			.map(|output| output.path.clone())
+			.collect::<Vec<_>>();
+		build_with_hook(
+			self.settings,
+			&self.store.config().log_dir,
+			drv_path,
+			&known,
+			input_paths,
+			&missing,
+			hook,
+			&|| self.is_cancelled(),
+			events,
+		)?;
+		let outputs = self.known_outputs(drv_path, build_drv)?;
+		if !self.all_valid(&outputs)? {
+			return Err(BuildError::Other(
+				"some outputs are unexpectedly invalid".to_owned(),
+			));
+		}
+		let built = outputs
+			.into_iter()
+			.map(|(name, output)| (name, output.path))
+			.collect();
+		self.run_post_build_hook(drv_path, &built)?;
+		locks.set_deletion(true);
+		Ok(built)
+	}
+
+	/// `DerivationBuildingGoal::buildLocally`.
+	#[allow(clippy::too_many_arguments)]
+	fn build_locally(
+		&self,
+		drv_path: &StorePath,
+		build_drv: &BuildDerivation,
+		outputs: &BTreeMap<String, KnownOutput>,
+		drv_options: &DerivationOptions<StorePath>,
+		parsed: Option<Map<String, Value>>,
+		env: &BTreeMap<BString, BString>,
+		kind: BuildKind,
+		input_paths: &BTreeSet<StorePath>,
+		mut locks: PathLocks,
+		events: &mut dyn FnMut(BuildEvent<'_>),
+	) -> Result<BTreeMap<String, StorePath>> {
+		let drv = &build_drv.basic;
+		let drv_name = drv_path
+			.name()
+			.strip_suffix(".drv")
+			.unwrap_or(drv_path.name());
+		let builtin = drv.command().strip_prefix(b"builtin:");
+		if let Some(name) = builtin
+			.filter(|name| !matches!(&name[..], b"buildenv" | b"unpack-channel" | b"fetchurl"))
+		{
+			return Err(BuildError::Other(format!(
+				"unsupported builtin builder '{}'",
+				name.to_str_lossy()
+			)));
+		}
+		if drv_options.use_uid_range(true) {
+			return Err(BuildError::Other(
+				"feature 'uid-range' requires the setting 'auto-allocate-uids' to be enabled"
+					.to_owned(),
+			));
+		}
+		// Another process may have realised a floating output since.
+		let current;
+		let mut outputs = outputs;
+		if outputs.values().any(|o| o.floating.is_some() && !o.impure) {
+			current = self.known_outputs(drv_path, build_drv)?;
+			outputs = &current;
+		}
 		let diverted = self.store.config().real_store_dir != Path::new(store_dir());
 		let use_sandbox = diverted
 			|| match self.settings.sandbox {
@@ -1506,24 +1780,28 @@ impl LocalBuilder<'_> {
 			self,
 			drv_path,
 			outputs,
-			&drv_options,
+			drv_options,
 			parsed,
 			kind,
 			build_user,
 			!use_sandbox,
 		)?;
+		events(BuildEvent::Started {
+			drv_path,
+			mode: self.mode,
+		});
 		// A builtin builder's directory may hold credentials.
 		build.keep_failed = self.settings.keep_failed && builtin.is_none();
 		let result = build
-			.run(drv, &env, kind, outputs, &input_paths, events)
+			.run(drv, env, kind, outputs, input_paths, events)
 			.and_then(|()| {
 				self.check_cancelled()?;
 				self.register_outputs(
 					drv_path,
 					drv_name,
 					outputs,
-					&drv_options,
-					&input_paths,
+					drv_options,
+					input_paths,
 					&build,
 				)
 			});
@@ -1806,59 +2084,7 @@ impl LocalBuilder<'_> {
 		drv_path: &StorePath,
 		outputs: &BTreeMap<String, StorePath>,
 	) -> Result<()> {
-		use nix_compat::log::{ActivityType, VerbosityLevel, logger};
-		let hook = &self.settings.post_build_hook;
-		if hook.is_empty() {
-			return Ok(());
-		}
-		let mut log = logger::BuildLog::new(logger::Activity::new(
-			VerbosityLevel::Talkative,
-			ActivityType::PostBuildHook,
-			format!("running post-build-hook '{hook}'"),
-			vec![print(drv_path).into()],
-			0,
-		))
-		.post_build();
-		let (reader, writer) = io::pipe()?;
-		let config: String = self
-			.settings
-			.hook_config
-			.iter()
-			.map(|(name, value)| format!("{name} = {value}\n"))
-			.collect();
-		let outputs: BTreeSet<&StorePath> = outputs.values().collect();
-		let paths: Vec<String> = outputs.into_iter().map(print).collect();
-		let child = std::process::Command::new(hook)
-			.env("DRV_PATH", print(drv_path))
-			.env("OUT_PATHS", paths.join(" "))
-			.env("NIX_CONFIG", config)
-			.stdin(std::process::Stdio::null())
-			.stdout(writer.try_clone()?)
-			.stderr(writer)
-			.spawn();
-		let mut child =
-			child.map_err(|e| BuildError::Other(format!("executing \"{hook}\": {}", e)))?;
-		let mut reader = io::BufReader::new(reader);
-		loop {
-			use io::BufRead;
-			let data = reader.fill_buf()?;
-			if data.is_empty() {
-				break;
-			}
-			log.push(data);
-			let len = data.len();
-			reader.consume(len);
-		}
-		log.flush();
-		let status = child.wait()?;
-		if !status.success() {
-			return Err(BuildError::Other(format!(
-				"program \"{hook}\" {}",
-				sandbox::ExitStatus(std::os::unix::process::ExitStatusExt::into_raw(status))
-					.describe()
-			)));
-		}
-		Ok(())
+		run_post_build_hook(self.settings, drv_path, outputs)
 	}
 
 	/// Compare a rebuilt output with the registered one.
@@ -2398,6 +2624,147 @@ fn create_temp_dir(root: &Path, prefix: &str) -> io::Result<PathBuf> {
 	}
 }
 
+/// Whether a build can go ahead once its outputs are locked.
+enum Prepared {
+	Valid(BTreeMap<String, StorePath>),
+	Locked(PathLocks),
+	/// Another process holds a lock, and the caller did not want to wait.
+	Busy,
+}
+
+/// No turn; see [`Hooks`].
+const NO_TURN: u64 = u64::MAX;
+
+/// `doneFailureLogTooLong`.
+fn log_too_long(drv_path: &StorePath, max_log_size: u64) -> BuildError {
+	BuildError::failed(
+		FailureStatus::LogLimitExceeded,
+		format!(
+			"building derivation '{}' killed after writing more than {max_log_size} bytes of log output",
+			print(drv_path)
+		),
+	)
+}
+
+/// `DerivationType::hasKnownOutputPaths`.
+pub fn has_known_output_paths(drv: &BuildDerivation) -> bool {
+	drv.is_fixed() || !(drv.has_floating_outputs() || drv.is_impure() || drv.is_deferred())
+}
+
+/// `runPostBuildHook`.
+pub(crate) fn run_post_build_hook(
+	settings: &BuildSettings,
+	drv_path: &StorePath,
+	outputs: &BTreeMap<String, StorePath>,
+) -> Result<()> {
+	use nix_compat::log::{ActivityType, VerbosityLevel, logger};
+	let hook = &settings.post_build_hook;
+	if hook.is_empty() {
+		return Ok(());
+	}
+	let mut log = logger::BuildLog::new(logger::Activity::new(
+		VerbosityLevel::Talkative,
+		ActivityType::PostBuildHook,
+		format!("running post-build-hook '{hook}'"),
+		vec![print(drv_path).into()],
+		0,
+	))
+	.post_build();
+	let (reader, writer) = io::pipe()?;
+	let config: String = settings
+		.hook_config
+		.iter()
+		.map(|(name, value)| format!("{name} = {value}\n"))
+		.collect();
+	let outputs: BTreeSet<&StorePath> = outputs.values().collect();
+	let paths: Vec<String> = outputs.into_iter().map(print).collect();
+	let child = std::process::Command::new(hook)
+		.env("DRV_PATH", print(drv_path))
+		.env("OUT_PATHS", paths.join(" "))
+		.env("NIX_CONFIG", config)
+		.stdin(std::process::Stdio::null())
+		.stdout(writer.try_clone()?)
+		.stderr(writer)
+		.spawn();
+	let mut child = child.map_err(|e| BuildError::Other(format!("executing \"{hook}\": {}", e)))?;
+	let mut reader = io::BufReader::new(reader);
+	loop {
+		use io::BufRead;
+		let data = reader.fill_buf()?;
+		if data.is_empty() {
+			break;
+		}
+		log.push(data);
+		let len = data.len();
+		reader.consume(len);
+	}
+	log.flush();
+	let status = child.wait()?;
+	if !status.success() {
+		return Err(BuildError::Other(format!(
+			"program \"{hook}\" {}",
+			sandbox::ExitStatus(std::os::unix::process::ExitStatusExt::into_raw(status)).describe()
+		)));
+	}
+	Ok(())
+}
+
+/// Have an accepted build done by the hook, logging its output. The outputs
+/// are the hook's to copy into the store.
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn build_with_hook(
+	settings: &BuildSettings,
+	log_dir: &Path,
+	drv_path: &StorePath,
+	outputs: &[StorePath],
+	input_paths: &BTreeSet<StorePath>,
+	missing_outputs: &BTreeSet<String>,
+	mut hook: HookInstance,
+	cancelled: &dyn Fn() -> bool,
+	events: &mut dyn FnMut(BuildEvent<'_>),
+) -> Result<()> {
+	let machine = hook.read_machine_name(cancelled)?;
+	events(BuildEvent::StartedRemotely {
+		drv_path,
+		mode: BuildMode::Normal,
+		machine: &machine,
+	});
+	hook.send_paths(input_paths, missing_outputs)?;
+	let mut log_file = open_log_file(settings, log_dir, drv_path)?;
+	let max_log_size = settings.max_log_size();
+	let mut tail = LogTail::new(settings.log_lines);
+	let mut log_size = 0u64;
+	let status = hook.run(cancelled, &mut |event| {
+		let data = match event {
+			HookEvent::Output(data) => {
+				log_size += data.len() as u64;
+				if max_log_size != 0 && log_size > max_log_size {
+					return Err(log_too_long(drv_path, max_log_size));
+				}
+				tail.feed(data);
+				events(BuildEvent::Output(data));
+				data
+			}
+			HookEvent::LogLine(data) => data,
+		};
+		if let Some(file) = &mut log_file {
+			file.write_all(data)?;
+		}
+		Ok(())
+	})?;
+	tail.flush();
+	if let Some(file) = log_file {
+		file.finish()?;
+	}
+	if !status.success() {
+		return Err(BuildError::failed(
+			FailureStatus::MiscFailure,
+			builder_failure(settings, drv_path, outputs, &status, &tail),
+		));
+	}
+	Ok(())
+}
+
 /// A build's log file.
 enum LogFile {
 	Plain(fs::File),
@@ -2477,6 +2844,73 @@ impl LogTail {
 			}
 		}
 	}
+}
+
+/// `fixupBuilderFailureErrorMessage`.
+fn builder_failure(
+	settings: &BuildSettings,
+	drv_path: &StorePath,
+	outputs: &[StorePath],
+	status: &sandbox::ExitStatus,
+	tail: &LogTail,
+) -> String {
+	let mut msg = format!(
+		"Cannot build '{}'.\nReason: builder {}.",
+		print(drv_path),
+		status.describe()
+	);
+	let mut outputs = outputs.to_vec();
+	outputs.sort();
+	if !outputs.is_empty() {
+		msg += "\nOutput paths:";
+	}
+	for output in &outputs {
+		msg += &format!("\n  {}", print(output));
+	}
+	if settings.show_log_tail && !tail.lines.is_empty() {
+		msg += &format!("\nLast {} log lines:\n", tail.lines.len());
+		for line in &tail.lines {
+			msg += "> ";
+			msg += &String::from_utf8_lossy(line);
+			msg.push('\n');
+		}
+		msg += &format!(
+			"For full logs, run:\n  {} {}",
+			if settings.nix_command {
+				"nix log"
+			} else {
+				"nix-store -l"
+			},
+			print(drv_path)
+		);
+	}
+	msg
+}
+
+fn open_log_file(
+	settings: &BuildSettings,
+	log_dir: &Path,
+	drv_path: &StorePath,
+) -> Result<Option<LogFile>> {
+	if !settings.keep_build_log {
+		return Ok(None);
+	}
+	let base = drv_path.to_string();
+	let dir = log_dir.join("drvs").join(&base[..2]);
+	fs::create_dir_all(&dir)?;
+	let mut name = base[2..].to_owned();
+	if settings.compress_build_log {
+		name += ".bz2";
+	}
+	let file = fs::File::create(dir.join(name))?;
+	Ok(Some(if settings.compress_build_log {
+		LogFile::Bzip2(bzip2::write::BzEncoder::new(
+			file,
+			bzip2::Compression::best(),
+		))
+	} else {
+		LogFile::Plain(file)
+	}))
 }
 
 /// The directories of one build attempt, removed by [`Build::cleanup`].
@@ -2987,9 +3421,16 @@ impl<'b> Build<'b> {
 		let mut log_file = self.open_log_file()?;
 		let mut tail = LogTail::new(settings.log_lines);
 		let mut write_error = None;
+		let max_log_size = settings.max_log_size();
+		let log_size = Cell::new(0u64);
+		let too_long = || max_log_size != 0 && log_size.get() > max_log_size;
 		let status = sandbox::run_cancellable(
 			&spec,
 			&mut |data: &[u8]| {
+				log_size.set(log_size.get() + data.len() as u64);
+				if too_long() {
+					return;
+				}
 				tail.feed(data);
 				if let Some(file) = &mut log_file
 					&& let Err(e) = file.write_all(data)
@@ -2998,7 +3439,7 @@ impl<'b> Build<'b> {
 				}
 				events(BuildEvent::Output(data));
 			},
-			&|| self.builder.is_cancelled(),
+			&|| too_long() || self.builder.is_cancelled(),
 		);
 		// `killSandbox`: nothing the builder started may outlive it.
 		if let Some(user) = &self.build_user {
@@ -3010,6 +3451,9 @@ impl<'b> Build<'b> {
 		}
 		if let Some(e) = write_error {
 			return Err(e.into());
+		}
+		if too_long() {
+			return Err(log_too_long(&self.drv_path, max_log_size));
 		}
 		let status = status?;
 		if !status.success() {
@@ -3138,37 +3582,13 @@ impl<'b> Build<'b> {
 	/// The failure of a builder that exited with `status`, with the log
 	/// tail CppNix shows.
 	fn failure(&self, status: &sandbox::ExitStatus, tail: &LogTail) -> BuildError {
-		let settings = self.builder.settings;
-		let mut msg = format!(
-			"Cannot build '{}'.\nReason: builder {}.",
-			print(&self.drv_path),
-			status.describe()
+		let msg = builder_failure(
+			self.builder.settings,
+			&self.drv_path,
+			&self.outputs,
+			status,
+			tail,
 		);
-		let mut outputs = self.outputs.clone();
-		outputs.sort();
-		if !outputs.is_empty() {
-			msg += "\nOutput paths:";
-		}
-		for output in &outputs {
-			msg += &format!("\n  {}", print(output));
-		}
-		if settings.show_log_tail && !tail.lines.is_empty() {
-			msg += &format!("\nLast {} log lines:\n", tail.lines.len());
-			for line in &tail.lines {
-				msg += "> ";
-				msg += &String::from_utf8_lossy(line);
-				msg.push('\n');
-			}
-			msg += &format!(
-				"For full logs, run:\n  {} {}",
-				if settings.nix_command {
-					"nix log"
-				} else {
-					"nix-store -l"
-				},
-				print(&self.drv_path)
-			);
-		}
 		BuildError::failed(
 			if self.sandboxed {
 				FailureStatus::PermanentFailure
@@ -3182,32 +3602,11 @@ impl<'b> Build<'b> {
 	/// `LogFile`: `LOGDIR/drvs/XX/REST`, compressed with bzip2 unless
 	/// `compress-build-log` is off.
 	fn open_log_file(&self) -> Result<Option<LogFile>> {
-		let settings = self.builder.settings;
-		if !settings.keep_build_log {
-			return Ok(None);
-		}
-		let base = self.drv_path.to_string();
-		let dir = self
-			.builder
-			.store
-			.config()
-			.log_dir
-			.join("drvs")
-			.join(&base[..2]);
-		fs::create_dir_all(&dir)?;
-		let mut name = base[2..].to_owned();
-		if settings.compress_build_log {
-			name += ".bz2";
-		}
-		let file = fs::File::create(dir.join(name))?;
-		Ok(Some(if settings.compress_build_log {
-			LogFile::Bzip2(bzip2::write::BzEncoder::new(
-				file,
-				bzip2::Compression::best(),
-			))
-		} else {
-			LogFile::Plain(file)
-		}))
+		open_log_file(
+			self.builder.settings,
+			&self.builder.store.config().log_dir,
+			&self.drv_path,
+		)
 	}
 
 	fn cleanup(&self) {

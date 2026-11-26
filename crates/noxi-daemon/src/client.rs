@@ -28,6 +28,7 @@ use crate::connection::{
 	WORKER_MAGIC_1, WORKER_MAGIC_2, op, read_path_info,
 };
 use crate::error::{Error, Result};
+use crate::peer::BuildResult;
 use crate::wire::{Reader, Version, Writer, version};
 
 /// The features this client offers: `WorkerProto::latest.features`, and
@@ -81,36 +82,8 @@ pub struct ConnectionInfo {
 
 enum Transport {
 	Socket(PathBuf),
-	Command { program: PathBuf, args: Vec<String> },
-}
-
-/// Reap our stdio worker even when a handshake or request fails.
-pub(crate) struct Worker(std::process::Child);
-
-impl Worker {
-	pub(crate) fn start(program: &Path, args: &[String]) -> noxi_store::Result<(UnixStream, Self)> {
-		use std::os::fd::OwnedFd;
-		use std::process::{Command, Stdio};
-		let (client, server) = UnixStream::pair()?;
-		let stdin = OwnedFd::from(server.try_clone()?);
-		let stdout = OwnedFd::from(server);
-		let child = Command::new(program)
-			.args(args)
-			.stdin(Stdio::from(stdin))
-			.stdout(Stdio::from(stdout))
-			.spawn()
-			.map_err(|error| {
-				noxi_store::Error::Other(format!("starting '{}': {error}", program.display()))
-			})?;
-		Ok((client, Self(child)))
-	}
-}
-
-impl Drop for Worker {
-	fn drop(&mut self) {
-		let _ = self.0.kill();
-		let _ = self.0.wait();
-	}
+	/// A daemon started with a command over `ssh`, for `ssh-ng`.
+	Ssh(crate::ssh::SshMaster, Vec<std::ffi::OsString>),
 }
 
 struct Connection {
@@ -119,8 +92,10 @@ struct Connection {
 	to: Writer<UnixStream>,
 	version: Version,
 	features: BTreeSet<String>,
+	/// Whether the daemon trusts this client and its version, if it says.
 	info: ConnectionInfo,
-	_worker: Option<Worker>,
+	/// The `ssh` process the connection goes through.
+	_process: Option<crate::ssh::Process>,
 }
 
 /// How many path infos a [`DaemonStore`] remembers.
@@ -322,20 +297,6 @@ impl DaemonStore {
 		)
 	}
 
-	pub fn from_ssh_command(
-		program: PathBuf,
-		args: Vec<String>,
-		uri: String,
-		options: &ClientOptions,
-	) -> Self {
-		Self::with_transport(
-			Transport::Command { program, args },
-			uri,
-			options,
-			PathBuf::from(store_dir()),
-		)
-	}
-
 	fn with_transport(
 		transport: Transport,
 		uri: String,
@@ -353,9 +314,23 @@ impl DaemonStore {
 		}
 	}
 
+	/// `SSHStore`: a daemon started with `command` over `ssh`.
+	pub fn over_ssh(
+		master: crate::ssh::SshMaster,
+		command: Vec<std::ffi::OsString>,
+		uri: String,
+	) -> Self {
+		Self::with_transport(
+			Transport::Ssh(master, command),
+			uri,
+			&ClientOptions::default(),
+			PathBuf::from(store_dir()),
+		)
+	}
+
 	/// `UDSRemoteStore::openConnection` and `initConnection`.
 	fn open(&self) -> noxi_store::Result<Connection> {
-		let (stream, worker) = match &self.transport {
+		let (stream, process) = match &self.transport {
 			Transport::Socket(socket) => (
 				noxi_store::unix_socket::connect(socket).map_err(|e| {
 					noxi_store::Error::Other(format!(
@@ -366,9 +341,9 @@ impl DaemonStore {
 				})?,
 				None,
 			),
-			Transport::Command { program, args } => {
-				let (stream, worker) = Worker::start(program, args)?;
-				(stream, Some(worker))
+			Transport::Ssh(master, command) => {
+				let (stream, process) = master.start_command(command)?;
+				(stream, Some(process))
 			}
 		};
 		let read = stream.try_clone().map_err(|e| store_error(e.into()))?;
@@ -378,7 +353,7 @@ impl DaemonStore {
 			version: PROTOCOL_VERSION,
 			features: BTreeSet::new(),
 			info: ConnectionInfo::default(),
-			_worker: worker,
+			_process: process,
 		};
 		let features = handshake(&mut conn).map_err(|e| {
 			// CppNix nests the cause's full message, `error: ` included; a
@@ -393,7 +368,8 @@ impl DaemonStore {
 				self.uri
 			))
 		})?;
-		// SSHStore::setOptions leaves the remote program's settings intact.
+		// `SSHStore::setOptions` sends nothing: a remote machine's settings
+		// are its own.
 		if matches!(self.transport, Transport::Socket(_))
 			&& !features.contains("disable-set-options")
 		{
@@ -646,13 +622,25 @@ fn mode_number(mode: BuildMode) -> u64 {
 fn read_build_result(
 	conn: &mut Connection,
 ) -> Result<std::result::Result<BTreeMap<String, StorePath>, String>> {
-	let status = conn.from.read_u64()?;
-	let message = conn.from.read_string()?;
+	let result = read_full_build_result(conn)?;
+	Ok(if result.success() {
+		Ok(result.outputs)
+	} else {
+		Err(result.message)
+	})
+}
+
+fn read_full_build_result(conn: &mut Connection) -> Result<BuildResult> {
+	let mut result = BuildResult {
+		status: conn.from.read_u64()?,
+		message: conn.from.read_string()?,
+		..BuildResult::default()
+	};
 	if conn.version >= version(1, 29) {
-		// How often it was built, whether the results differed, and when.
-		for _ in 0..4 {
-			conn.from.read_u64()?;
-		}
+		result.times_built = conn.from.read_u64()?;
+		result.non_deterministic = conn.from.read_bool()?;
+		result.start = conn.from.read_u64()?;
+		result.stop = conn.from.read_u64()?;
 	}
 	if conn.version >= version(1, 37) {
 		// The optional user and system CPU times.
@@ -662,14 +650,8 @@ fn read_build_result(
 			}
 		}
 	}
-	let mut outputs = BTreeMap::new();
 	if conn.features.contains("realisation-with-path-not-hash") {
-		for _ in 0..conn.from.read_u64()? {
-			let name = conn.from.read_string()?;
-			let path = conn.from.read_store_path()?;
-			conn.from.read_strings()?;
-			outputs.insert(name, path);
-		}
+		result.outputs = crate::peer::read_outputs(&mut conn.from)?;
 	} else if conn.version >= version(1, 28) {
 		for _ in 0..conn.from.read_u64()? {
 			let id = conn.from.read_string()?;
@@ -682,15 +664,85 @@ fn read_build_result(
 				.ok()
 				.and_then(|json| StorePath::from_bytes(json["outPath"].as_str()?.as_bytes()).ok())
 				.ok_or_else(|| Error::Nix(format!("invalid realisation '{realisation}'")))?;
-			outputs.insert(name.to_owned(), path);
+			result.outputs.insert(name.to_owned(), path);
 		}
 	}
-	// `Built`, `Substituted`, `AlreadyValid` and `ResolvesToAlreadyValid`.
-	Ok(if matches!(status, 0 | 1 | 2 | 13) {
-		Ok(outputs)
-	} else {
-		Err(message)
-	})
+	Ok(result)
+}
+
+impl crate::peer::Peer for DaemonStore {
+	fn connect(&self) -> noxi_store::Result<()> {
+		self.with_conn(|_| Ok(()))
+	}
+
+	fn trusted(&self) -> noxi_store::Result<Option<bool>> {
+		self.with_conn(|conn| Ok(conn.info.trusted))
+	}
+
+	fn valid_paths(
+		&self,
+		paths: &BTreeSet<StorePath>,
+		substitute: bool,
+	) -> noxi_store::Result<BTreeSet<StorePath>> {
+		self.with_conn(|conn| {
+			conn.to.u64(op::QUERY_VALID_PATHS).store_paths(paths.iter());
+			if conn.version >= version(1, 27) {
+				conn.to.bool(substitute);
+			}
+			conn.process_stderr()?;
+			conn.from.read_store_paths()
+		})
+	}
+
+	fn path_info(&self, path: &StorePath) -> noxi_store::Result<Option<ValidPathInfo>> {
+		self.query_path_info(path)
+	}
+
+	fn nar(&self, path: &StorePath, sink: &mut dyn Write) -> noxi_store::Result<()> {
+		self.path_op(op::NAR_FROM_PATH, path, |conn| {
+			crate::nar_stream::copy_nar(conn.from.get_mut(), sink)
+		})
+	}
+
+	fn add_paths(
+		&self,
+		infos: &[ValidPathInfo],
+		nar: &mut crate::peer::NarSource<'_>,
+	) -> noxi_store::Result<()> {
+		self.add_multiple_to_store(infos, nar, false, false)
+	}
+
+	fn build_derivation(
+		&self,
+		drv_path: &StorePath,
+		drv: &noxi_store::build_derivation::BuildDerivation,
+	) -> noxi_store::Result<BuildResult> {
+		self.with_conn(|conn| {
+			conn.to.u64(op::BUILD_DERIVATION).store_path(drv_path);
+			crate::peer::write_basic_derivation(&mut conn.to, drv, drv.basic.input_sources());
+			conn.to.u64(mode_number(BuildMode::Normal));
+			conn.process_stderr()?;
+			read_full_build_result(conn)
+		})
+	}
+
+	fn build_registered(&self, drv_path: &StorePath) -> noxi_store::Result<BuildResult> {
+		self.with_conn(|conn| {
+			let target = format!("{}!*", drv_path.to_absolute_path());
+			conn.to
+				.u64(op::BUILD_PATHS_WITH_RESULTS)
+				.strings(std::iter::once(target.as_str()))
+				.u64(mode_number(BuildMode::Normal));
+			conn.process_stderr()?;
+			if conn.from.read_u64()? != 1 {
+				return Err(Error::Protocol(
+					"one path to build should produce one build result".into(),
+				));
+			}
+			conn.from.read_string()?;
+			read_full_build_result(conn)
+		})
+	}
 }
 
 impl Store for DaemonStore {
@@ -1152,7 +1204,7 @@ mod tests {
 			to: Writer::new(client),
 			version: version(1, 38),
 			info: ConnectionInfo::default(),
-			_worker: None,
+			_process: None,
 			features: features
 				.iter()
 				.map(|feature| (*feature).to_owned())

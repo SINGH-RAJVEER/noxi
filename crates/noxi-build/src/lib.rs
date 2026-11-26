@@ -9,8 +9,11 @@
 pub mod backend;
 pub mod buildenv;
 pub mod cache_store;
+pub mod config_values;
 pub mod error;
 mod fetchurl;
+pub mod hook;
+pub mod interrupt;
 pub mod local;
 pub mod missing;
 pub mod options;
