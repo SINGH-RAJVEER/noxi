@@ -3,6 +3,7 @@ use std::{
 	fs,
 	path::{Path, PathBuf},
 	process::Command,
+	time::{Duration, UNIX_EPOCH},
 };
 
 #[test]
@@ -14,6 +15,7 @@ fn profile_upgrade_realizes_content_addressed_outputs() {
 	let busybox = fs::canonicalize(busybox.join("bin/busybox")).unwrap();
 	let flake = fixture.path().join("flake");
 	fs::create_dir(&flake).unwrap();
+	let flake_file = flake.join("flake.nix");
 	let url = format!("path:{}", flake.display());
 	let root = fixture.path().join("state");
 	let results = [&reference, candidate].map(|bin| {
@@ -38,7 +40,7 @@ fn profile_upgrade_realizes_content_addressed_outputs() {
 			output.stdout
 		};
 		for (version, ca) in [(1, false), (2, true)] {
-			fs::write(flake.join("flake.nix"), format!(r#"{{
+			fs::write(&flake_file, format!(r#"{{
 				outputs = {{ self }}: {{
 					packages.x86_64-linux.default = (derivation {{
 						name = "demo-{version}";
@@ -50,6 +52,16 @@ fn profile_upgrade_realizes_content_addressed_outputs() {
 					}}) // {{ meta.outputsToInstall = [ "out" "man" ]; }};
 				}};
 			}}"#, busybox.display())).unwrap();
+			// The locked URL records the source modification time.
+			let modified = UNIX_EPOCH + Duration::from_secs(1_700_000_000 + version);
+			fs::File::open(&flake_file)
+				.unwrap()
+				.set_modified(modified)
+				.unwrap();
+			fs::File::open(&flake)
+				.unwrap()
+				.set_modified(modified)
+				.unwrap();
 			if ca {
 				run(&["profile", "upgrade", "flake"]);
 			} else {
