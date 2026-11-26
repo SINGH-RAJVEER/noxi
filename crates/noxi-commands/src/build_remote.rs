@@ -137,7 +137,13 @@ pub fn main(mut settings: Settings, args: Vec<String>) -> Result<ExitCode, Failu
 	let uri = crate::store::store_uri(None, &settings);
 	let cwd = std::env::current_dir()?;
 	let reference = parse_reference(&uri, &cwd)?;
-	let (store, state_dir) = match machine::local(&reference, &settings)? {
+	// The store is opened as the commands open it, so any local store type
+	// works, as CppNix's `openStore` does.
+	let local = match crate::store::resolves_to_local(&uri) {
+		Ok(true) => Some(machine::backend(&uri, &reference, &settings)?),
+		_ => machine::local(&reference, &settings).ok().flatten(),
+	};
+	let (store, state_dir) = match local {
 		Some(store) => {
 			let state_dir = store.store.config().state_dir.clone();
 			(Primary::Local(Box::new(store)), state_dir)

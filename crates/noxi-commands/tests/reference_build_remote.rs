@@ -353,7 +353,7 @@ fn machines_substitute_if_asked_to() {
 		"nix-build x.nix -A one --no-out-link --store $ROOT/c0 2> /dev/null | xargs nix copy --to file://$ROOT/cache --from $ROOT/c0 2> /dev/null",
 		"printf 'substituters = file://%s/cache\nrequire-sigs = false\n' $ROOT > machine.conf; nix-build x.nix -A two --no-out-link --store $ROOT/m0 --option substituters file://$ROOT/cache --option require-sigs false -j0 --builders ssh://host --builders-use-substitutes 2>&1 | grep -v '^downloading\\|^querying' | sort",
 		"nix-build x.nix -A two --no-out-link --store $ROOT/n0 --option substituters file://$ROOT/cache --option require-sigs false -j0 --builders ssh-ng://host2 --builders-use-substitutes 2>&1 | grep '^copying'",
-		"nix-build x.nix -A two --no-out-link --store $ROOT/o0 --option substituters file://$ROOT/cache --option require-sigs false -j0 --builders ssh://host3 2>&1 | grep '^copying'",
+		"nix-build x.nix -A two --no-out-link --store $ROOT/o0 --option substituters file://$ROOT/cache --option require-sigs false -j0 --builders ssh://host3 2>&1 | grep '^copying' | sort",
 	]);
 }
 
