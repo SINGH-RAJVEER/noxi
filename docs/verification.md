@@ -394,6 +394,12 @@ Smaller groups:
 
 ### Functional gaps by root cause, 2026-11-25
 
+#### Store and build flags follow-up
+
+The focused `reference_cache_store` comparisons cover copying all valid local paths to a file cache, copying paths back with output and profile links, reading a realised build trace selected with `--file`, and looking up a substituted path's build log by the deriver recorded in the cache. `reference_modern_extra` also covers sandbox mode flags, the strict default, and build installables read through standard input.
+
+The upstream compression script reached its unsupported-algorithm checks after the copy links were added. `ca/build-cache` reached a substitution attempt that requested a local build at `max-jobs = 0`. `ca/substitute` also hit a local-build refusal at `max-jobs = 0` in the focused run. The binary-cache script reached its concurrent NAR download count at line 99.
+
 `nix-channel.sh` passes against noxi and CppNix 2.35.2. It covers a `file://` channel directory with a bzip2 archive, alongside direct archive subscriptions, profile generations, and package lookup and installation from the channel.
 
 The table groups the 137 gap scripts of the store-tier records at `84aec12` (`tests/compat-results/2026-11-25-84aec12-store` in Git at `528b7aa`) by the cause of the first failure in noxi's recorded log. Every gap script is in exactly one row. The last two columns show how much a first failure can hide: how many scripts stopped in the first half of the script file running at the time, and how many lines of those files follow the failing line. Blank lines and comments count. Helper scripts that a script sources before the failure are not counted, and neither are the bodies of scripts that run untraced in a namespace, such as the overlay `*-inner.sh` files.

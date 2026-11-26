@@ -6,6 +6,9 @@ Changes that have not reached a version yet go under an `Unreleased` heading for
 
 ## Repository - Unreleased
 
+- `nix copy --all` uploads valid local store paths to a file cache. Copying from a file cache to a local store supports `--out-link` and `--profile`.
+- `nix store build-trace info --file` reports traces for realised derivation outputs. `nix log` can look up an output's deriver in a file cache.
+- `nix build --stdin` reads installables from a pipe. Explicit sandbox flags select strict, disabled or relaxed mode, and `nix config show sandbox` reports the selected mode.
 - `nix flake check` reports the checks it runs and identifies failing attributes. It supports `--print-out-paths` and `--out-link`.
 - `nix repl` exits when a startup installable fails to evaluate. Shell completion suggests local flake inputs for `--override-input` and `nix flake update`.
 - Profile upgrades build content-addressed outputs before recording their paths. `nix profile install` warns and runs `nix profile add`. Verbose Git fetches identify the worktree being copied into the store.

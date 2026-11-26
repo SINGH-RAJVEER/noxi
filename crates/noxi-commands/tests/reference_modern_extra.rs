@@ -57,6 +57,47 @@ fn same(args: &[&str], input: &[u8]) -> Output {
 }
 
 #[test]
+fn sandbox_flags_match_reference_and_preserve_the_default() {
+	for (flags, expected) in [
+		(&[][..], "true"),
+		(&["--relaxed-sandbox"][..], "relaxed"),
+		(&["--build-use-sandbox"][..], "relaxed"),
+		(&["--relaxed-sandbox", "--sandbox"][..], "true"),
+		(&["--no-sandbox"][..], "false"),
+		(&[][..], "true"),
+	] {
+		let mut args = vec!["config", "show", "sandbox"];
+		args.extend(flags);
+		let result = same(&args, b"");
+		assert_eq!(String::from_utf8(result.stdout).unwrap().trim(), expected);
+	}
+}
+
+#[test]
+fn build_reads_stdin_and_skips_the_default_installable() {
+	same(&["build", "--stdin", "--json", "--no-link"], b" \n\t");
+	let dir = noxi_test_support::tempdir().unwrap();
+	let source = dir.path().join("targets.nix");
+	fs::write(
+		&source,
+		r#"{ a = derivation { name = "a"; system = "x86_64-linux"; builder = "/bin/sh"; }; }"#,
+	)
+	.unwrap();
+	same(
+		&[
+			"build",
+			"--stdin",
+			"--dry-run",
+			"--json",
+			"--no-link",
+			"--file",
+			source.to_str().unwrap(),
+		],
+		b" \na\t",
+	);
+}
+
+#[test]
 fn repl_rejects_a_non_flake_startup_installable() {
 	let root = noxi_test_support::tempdir().unwrap();
 	let file = root.path().join("simple.nix");

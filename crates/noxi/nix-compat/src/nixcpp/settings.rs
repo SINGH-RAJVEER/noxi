@@ -289,6 +289,18 @@ impl Settings {
 			})());
 		}
 		let name = flag.strip_prefix("--")?;
+		if let Some(value) = match name {
+			"sandbox" => Some("true"),
+			"no-sandbox" => Some("false"),
+			"relaxed-sandbox" => Some("relaxed"),
+			_ => None,
+		} {
+			return Some(
+				self.set("sandbox", value)
+					.map(|_| ())
+					.map_err(FlagError::from),
+			);
+		}
 		if let Some(info) = SettingInfo::find(name).filter(|info| info.name == name) {
 			return Some((|| {
 				if info.kind == Kind::Bool {

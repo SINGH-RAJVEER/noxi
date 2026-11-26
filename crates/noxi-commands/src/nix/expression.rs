@@ -1,6 +1,6 @@
 //! Expression installables share the legacy evaluator and store owner.
 use std::collections::BTreeMap;
-use std::io::{self, Write};
+use std::io::{self, IsTerminal, Write};
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
@@ -351,7 +351,22 @@ pub fn built_outputs(
 	})
 }
 
-pub fn build(parsed: Parsed) -> Result<ExitCode, Failure> {
+pub fn build(mut parsed: Parsed) -> Result<ExitCode, Failure> {
+	if parsed.has("stdin") && !io::stdin().is_terminal() {
+		let input = io::read_to_string(io::stdin())?;
+		parsed
+			.operands
+			.extend(input.split_ascii_whitespace().map(str::to_owned));
+		if parsed.operands.is_empty() {
+			if parsed.has("json") {
+				nix_compat::log::logger::write_stdout("[]");
+			}
+			if parsed.has("profile") && !parsed.has("dry-run") {
+				return Err(Failure::Usage("'--profile' requires that the arguments produce a single store path, but there are 0".into()));
+			}
+			return Ok(ExitCode::SUCCESS);
+		}
+	}
 	// `MixRepair` and `--rebuild`; a repair takes precedence.
 	let mode = if parsed.has("repair") {
 		BuildMode::Repair

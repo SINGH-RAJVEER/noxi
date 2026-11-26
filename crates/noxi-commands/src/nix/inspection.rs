@@ -144,15 +144,23 @@ pub(super) fn write_build_log(
 	}
 	let mut unread = false;
 	for uri in settings.get_list("substituters", &["https://cache.nixos.org/"]) {
-		match (crate::store::cache(uri), &drv) {
-			(Ok(Some(cache)), Some(drv)) => {
-				if let Some(log) = cache.build_log(drv)? {
+		match crate::store::cache(uri) {
+			Ok(Some(cache)) => {
+				let deriver = if path.name().ends_with(".drv") {
+					Some(path.clone())
+				} else {
+					cache
+						.query_path_info(path)?
+						.and_then(|info| info.info.deriver)
+				};
+				if let Some(deriver) = deriver
+					&& let Some(log) = cache.build_log(&deriver)?
+				{
 					found(cache.uri());
 					io::Write::write_all(&mut io::stdout().lock(), &log)?;
 					return Ok(());
 				}
 			}
-			(Ok(Some(_)), None) => {}
 			_ => unread = true,
 		}
 	}

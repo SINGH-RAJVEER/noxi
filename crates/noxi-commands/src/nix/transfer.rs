@@ -9,14 +9,21 @@ use std::fs;
 use std::process::ExitCode;
 
 pub fn copy(parsed: Parsed) -> Result<ExitCode, Failure> {
-	parsed.unsupported(&["out-link", "profile"])?;
+	if !parsed
+		.value("from")
+		.is_some_and(|uri| uri.starts_with("file://"))
+	{
+		parsed.unsupported(&["out-link", "profile"])?;
+	}
 	let from = parsed.value("from").map(str::to_owned);
 	let to = parsed.value("to").map(str::to_owned);
 	let is_store = |uri: &Option<String>| uri.as_deref().is_none_or(|u| !u.starts_with("file://"));
 	if (from.is_some() || to.is_some()) && is_store(&from) && is_store(&to) {
+		parsed.unsupported(&["all"])?;
 		return copy_between_stores(&parsed, from, to);
 	}
 	if let Some(uri) = parsed.value("from").map(str::to_owned) {
+		parsed.unsupported(&["all"])?;
 		return copy_from_cache(parsed, &uri);
 	}
 	let uri = parsed
@@ -52,32 +59,40 @@ pub fn copy(parsed: Parsed) -> Result<ExitCode, Failure> {
 		})
 		.collect::<Result<Vec<_>, _>>()?;
 	destination.init_for_upload()?;
-	let target = match expression::targets(&parsed)? {
-		Ok(target) => target,
-		Err(code) => return Ok(code),
-	};
-	// `BuiltPathsCommand` realises derivation outputs before copying them.
-	let built: Vec<noxi_store::DerivedPath> = target
-		.paths
-		.iter()
-		.filter(|path| matches!(path, noxi_store::DerivedPath::Built { .. }))
-		.cloned()
-		.collect();
-	if !built.is_empty() {
-		let missing = target.store.query_missing(&built)?;
-		crate::paths::print_missing(target.store.as_ref(), &missing)?;
-		target
-			.store
-			.build_paths_with_results(&built, noxi_store::BuildMode::Normal)?;
-	}
 	let source_uri = crate::store::store_uri(parsed.value("store"), &parsed.settings);
 	let (source, _) = crate::store::open_local(&source_uri, &parsed.settings)?
 		.ok_or_else(|| unsupported("copy from this store"))?;
-	let mut roots = BTreeSet::new();
 	let mut realisations = Realisations::new();
-	for path in target.paths {
-		roots.extend(realised_paths(&source, &path, &mut realisations)?);
-	}
+	let roots = if parsed.has("all") {
+		if !parsed.operands.is_empty() {
+			return Err(Failure::Usage("'--all' does not expect arguments".into()));
+		}
+		source.query_all_valid_paths()?
+	} else {
+		let target = match expression::targets(&parsed)? {
+			Ok(target) => target,
+			Err(code) => return Ok(code),
+		};
+		// Realise derivation outputs before copying them.
+		let built: Vec<_> = target
+			.paths
+			.iter()
+			.filter(|path| matches!(path, noxi_store::DerivedPath::Built { .. }))
+			.cloned()
+			.collect();
+		if !built.is_empty() {
+			let missing = target.store.query_missing(&built)?;
+			crate::paths::print_missing(target.store.as_ref(), &missing)?;
+			target
+				.store
+				.build_paths_with_results(&built, noxi_store::BuildMode::Normal)?;
+		}
+		let mut roots = BTreeSet::new();
+		for path in target.paths {
+			roots.extend(realised_paths(&source, &path, &mut realisations)?);
+		}
+		roots
+	};
 	let closure = source.compute_closure(&roots)?;
 	let mut missing = BTreeSet::new();
 	for path in &closure {
@@ -124,14 +139,14 @@ pub fn copy(parsed: Parsed) -> Result<ExitCode, Failure> {
 	Ok(ExitCode::SUCCESS)
 }
 
-type Realisations = std::collections::BTreeMap<
+pub(super) type Realisations = std::collections::BTreeMap<
 	(nix_compat::store_path::StorePath, String),
 	noxi_store::Realisation,
 >;
 
 /// `toRealisedPaths`: the store paths of an installable's outputs. The
 /// realisations of content-addressed outputs are copied with the outputs.
-fn realised_paths(
+pub(super) fn realised_paths(
 	source: &dyn Store,
 	path: &noxi_store::DerivedPath,
 	realisations: &mut Realisations,
@@ -203,8 +218,12 @@ fn copy_from_cache(mut parsed: Parsed, uri: &str) -> Result<ExitCode, Failure> {
 	}
 	let mut roots = BTreeSet::new();
 	let mut realisations = Realisations::new();
+	let mut link_outputs = Vec::new();
 	for path in &target.paths {
 		roots.extend(realised_paths(source.as_ref(), path, &mut realisations)?);
+		if parsed.has("profile") || parsed.has("out-link") {
+			link_outputs.push(expression::outputs(source.as_ref(), path)?);
+		}
 	}
 	let destination = crate::store::open(&destination_uri, &parsed.settings)?
 		.ok_or_else(|| unsupported("copy into this store"))?
@@ -253,6 +272,51 @@ fn copy_from_cache(mut parsed: Parsed, uri: &str) -> Result<ExitCode, Failure> {
 			destination.register_checked_drv_output(drv, name, realisation)?;
 		} else {
 			destination.register_drv_output(drv, name, realisation)?;
+		}
+	}
+	if let Some(profile) = parsed.value("profile") {
+		let count = link_outputs
+			.iter()
+			.map(|outputs| outputs.len())
+			.sum::<usize>();
+		if count != 1 {
+			return Err(Failure::Usage(format!(
+				"'--profile' requires that the arguments produce a single store path, but there are {count}"
+			)));
+		}
+		if !crate::store::resolves_to_local(&destination_uri).map_err(Failure::Error)? {
+			return Err(Failure::Error(
+				"'--profile' is not supported for this Nix store".into(),
+			));
+		}
+		let profile = std::env::current_dir()?.join(profile);
+		let path = link_outputs
+			.iter()
+			.flat_map(|outputs| outputs.values())
+			.next()
+			.unwrap();
+		let generation =
+			noxi_store::profiles::create_generation(destination.as_ref(), &profile, path)?;
+		noxi_store::profiles::switch_link(&profile, &generation)?;
+	}
+	if let Some(link) = parsed.value("out-link") {
+		if !crate::store::resolves_to_local(&destination_uri).map_err(Failure::Error)? {
+			return Err(Failure::Error(
+				"'--out-link' is not supported for this Nix store".into(),
+			));
+		}
+		let link = std::env::current_dir()?.join(link);
+		for (index, outputs) in link_outputs.into_iter().enumerate() {
+			for (name, path) in outputs {
+				let mut output_link = link.clone().into_os_string();
+				if index != 0 {
+					output_link.push(format!("-{index}"));
+				}
+				if !name.is_empty() && name != "out" {
+					output_link.push(format!("-{name}"));
+				}
+				destination.add_perm_root(&path, std::path::Path::new(&output_link))?;
+			}
 		}
 	}
 	Ok(ExitCode::SUCCESS)

@@ -348,6 +348,12 @@ fn supported_flags(command: &str) -> &'static [&'static str] {
 			"derivation",
 		],
 		"store build-trace info" => &[
+			"arg",
+			"argstr",
+			"expr",
+			"file",
+			"include",
+			"impure",
 			"json",
 			"pretty",
 			"no-pretty",
@@ -406,6 +412,9 @@ fn supported_flags(command: &str) -> &'static [&'static str] {
 		],
 		"log" => &["arg", "argstr", "expr", "file", "include", "impure"],
 		"copy" => &[
+			"all",
+			"out-link",
+			"profile",
 			"substitute-on-destination",
 			"to",
 			"from",
@@ -449,6 +458,7 @@ fn supported_flags(command: &str) -> &'static [&'static str] {
 			"read-only",
 		],
 		"build" => &[
+			"stdin",
 			"arg",
 			"argstr",
 			"expr",

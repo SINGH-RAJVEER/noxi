@@ -154,6 +154,26 @@ fn cache_logs_match_the_reference() {
 		"rm -rf log; nix log $(ls -d $PWD/store/*-tree)",
 		"nix log --substituters file://$PWD/cache $(ls -d $PWD/store/*-tree)",
 		"nix store copy-log --from file://$PWD/cache $(ls $PWD/store/*-tree.drv)^'*'; nix log $(ls -d $PWD/store/*-tree)",
+		"printf '%s\\n' \"$(ls -d \"$PWD\"/store/*-tree)\" > tree-path; chmod -R u+w store; rm -rf store var log; nix-store -r \"$(cat tree-path)\" --substituters file://$PWD/cache --no-require-sigs >/dev/null 2>&1 && nix log --substituters file://$PWD/cache \"$(cat tree-path)\"",
+	]);
+}
+
+#[test]
+fn copy_all_links_and_profiles_match_the_reference() {
+	same(&[
+		"nix-build x.nix -A tree --no-out-link >tree-path 2>/dev/null && nix copy --to file://$PWD/cache --all 2>/dev/null",
+		"nix path-info --store file://$PWD/cache --all | sort",
+		"chmod -R u+w store; rm -rf store var; nix copy --from file://$PWD/cache --no-check-sigs --out-link result --profile profile \"$(cat tree-path)\" 2>/dev/null && readlink result profile profile-1-link",
+		"nix copy --from file://$PWD/cache --no-check-sigs --out-link result --profile profile \"$(cat tree-path)\" && readlink result profile profile-1-link",
+	]);
+}
+
+#[test]
+fn build_trace_file_outputs_match_the_reference() {
+	same(&[
+		"nix-build x.nix -A leafCa --no-out-link >/dev/null 2>&1",
+		"nix store build-trace info --file x.nix leafCa",
+		"nix store build-trace info --json --file x.nix leafCa",
 	]);
 }
 

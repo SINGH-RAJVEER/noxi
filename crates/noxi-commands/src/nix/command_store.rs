@@ -716,7 +716,7 @@ fn remote_listing(store: &dyn Store, operand: &str, deep: bool) -> Result<Value,
 	Ok(super::archive::list_json(node, deep))
 }
 
-fn print_json(parsed: &Parsed, value: &Value) -> Result<(), Failure> {
+pub(super) fn print_json(parsed: &Parsed, value: &Value) -> Result<(), Failure> {
 	if parsed.has("pretty") || (!parsed.has("no-pretty") && io::stdout().is_terminal()) {
 		println!(
 			"{}",

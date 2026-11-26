@@ -632,28 +632,74 @@ fn roots_daemon(parsed: &Parsed) -> Result<ExitCode, Failure> {
 
 fn build_trace_info(parsed: &Parsed) -> Result<ExitCode, Failure> {
 	super::gate(&parsed.settings, "ca-derivations")?;
-	let opened = super::command_store::open(parsed)?;
-	let store = opened.store.as_ref();
-	if parsed.operands.is_empty() {
-		return Err(unsupported(
-			"implicit flake installables; provide store paths",
-		));
-	}
-	let mut paths = BTreeSet::new();
-	for operand in &parsed.operands {
-		let path = store_path_installable(store, operand)?;
-		if path.name().ends_with(".drv") || operand.contains('^') {
-			return Err(unsupported("store build-trace info of derivation outputs"));
-		}
-		paths.insert(path);
-	}
-	if parsed.has("json") {
-		let value: Vec<_> = paths
-			.iter()
-			.map(|path| json!({ "opaquePath": path.to_absolute_path() }))
-			.collect();
-		println!("{}", serde_json::Value::Array(value));
+	let mut realisations = super::transfer::Realisations::new();
+	let paths = if parsed.has("all") {
+		let opened = super::command_store::open(parsed)?;
+		paths(parsed, opened.store.as_ref())?
 	} else {
+		let target = match super::expression::targets(parsed)? {
+			Ok(target) => target,
+			Err(code) => return Ok(code),
+		};
+		let store = target.store.as_ref();
+		let mut roots = BTreeSet::new();
+		for path in &target.paths {
+			if parsed.has("derivation") {
+				let drv = match path {
+					noxi_store::DerivedPath::Built { drv, .. } => drv.clone(),
+					noxi_store::DerivedPath::Opaque(path) if path.name().ends_with(".drv") => {
+						path.clone()
+					}
+					noxi_store::DerivedPath::Opaque(path) => store
+						.query_valid_derivers(path)?
+						.into_iter()
+						.next()
+						.ok_or_else(|| {
+							Failure::Error(format!(
+								"'{}' does not have a known deriver",
+								path.to_absolute_path()
+							))
+						})?,
+				};
+				roots.insert(drv);
+			} else {
+				roots.extend(super::transfer::realised_paths(
+					store,
+					path,
+					&mut realisations,
+				)?);
+			}
+		}
+		if parsed.has("recursive") {
+			store.compute_closure(&roots)?
+		} else {
+			roots
+		}
+	};
+	let mut realisations: Vec<_> = realisations.into_iter().collect();
+	realisations.sort_by(|(a, x), (b, y)| {
+		(&x.out_path, &x.signatures, a).cmp(&(&y.out_path, &y.signatures, b))
+	});
+	if parsed.has("json") {
+		let value = realisations
+			.iter()
+			.map(|((drv, name), realisation)| {
+				json!({
+					"key": {"drvPath": drv.to_string(), "outputName": name},
+					"value": {"outPath": realisation.out_path.to_string(), "signatures": realisation.signatures}
+				})
+			})
+			.chain(
+				paths
+					.iter()
+					.map(|path| json!({"opaquePath": path.to_absolute_path()})),
+			)
+			.collect();
+		super::command_store::print_json(parsed, &serde_json::Value::Array(value))?;
+	} else {
+		for ((drv, name), realisation) in realisations {
+			println!("{drv}^{name} {}", realisation.out_path.to_absolute_path());
+		}
 		for path in paths {
 			println!("{}", path.to_absolute_path());
 		}

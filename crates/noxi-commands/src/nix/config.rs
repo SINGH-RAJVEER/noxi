@@ -48,6 +48,7 @@ fn text(value: &Value, name: &str) -> String {
 
 fn parse(name: &str, input: &str, default: &Value) -> Result<Value, Failure> {
 	Ok(match default {
+		Value::Bool(_) if name == "sandbox" && input == "relaxed" => json!("relaxed"),
 		Value::Bool(_) => json!(input == "true"),
 		Value::Number(_) => {
 			if name == "max-jobs" && input == "auto" {
