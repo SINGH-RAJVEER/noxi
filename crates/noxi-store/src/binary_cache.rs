@@ -83,6 +83,8 @@ impl TransferSettings {
 
 	/// Replace the fields `settings` sets.
 	pub fn apply(&mut self, settings: &nix_compat::nixcpp::settings::Settings) {
+		// The narinfo disk cache shares the settings the transfers come from.
+		crate::narinfo_disk_cache::configure(settings);
 		let number = |names: &[&str], current: u32| {
 			names
 				.iter()
@@ -181,6 +183,8 @@ pub struct BinaryCache {
 	announced: Arc<Mutex<BTreeSet<StorePath>>>,
 	/// `local-nar-cache`: where the cache as a store keeps NARs it has read.
 	local_nar_cache: Option<PathBuf>,
+	/// The narinfo disk cache, for an `HttpBinaryCacheStore`.
+	disk_cache: Option<Arc<crate::narinfo_disk_cache::DiskCache>>,
 }
 
 impl BinaryCache {
@@ -320,23 +324,58 @@ impl BinaryCache {
 			},
 			trusted,
 			path_info_cache: Arc::default(),
-			positive_ttl: Duration::from_secs(30 * 24 * 60 * 60),
-			negative_ttl: Duration::from_secs(60 * 60),
+			// The configured lifetimes, until the store's are given.
+			positive_ttl: Duration::from_secs(
+				crate::narinfo_disk_cache::Ttls::configured().positive as u64,
+			),
+			negative_ttl: Duration::from_secs(
+				crate::narinfo_disk_cache::Ttls::configured().negative as u64,
+			),
 			http10_close: Arc::default(),
 			transfer,
 			announced: Arc::default(),
 			local_nar_cache,
+			disk_cache: None,
 		};
-		let cache_info = cache.get_file("nix-cache-info")?;
-		// `HttpBinaryCacheStore::init`: a cache without `nix-cache-info` gets one
-		// uploaded, which noxi does not do; the reference fails the same way
-		// when the server refuses the upload.
-		if cache_info.is_none() && http {
-			return Err(Error::Other(format!(
-				"'{}' does not appear to be a binary cache",
-				cache.uri
-			)));
+		// `HttpBinaryCacheStore` keeps what caches answered in the user's
+		// narinfo disk cache; it is opened with the store, which fails if
+		// it cannot be. `LocalBinaryCacheStore` has none.
+		let http_store = http || (matches!(cache.transport, Transport::File(_)) && force_http());
+		if http_store {
+			cache.disk_cache = Some(crate::narinfo_disk_cache::get()?);
 		}
+		// `HttpBinaryCacheStore::init`: `nix-cache-info` is read only when
+		// the disk cache has no unexpired record of it.
+		let known = match &cache.disk_cache {
+			Some(disk) => disk.up_to_date_cache_exists(&cache.uri)?,
+			None => None,
+		};
+		let cache_info = match known {
+			Some(known) => {
+				cache.info.want_mass_query = known.want_mass_query;
+				cache.info.priority = known.priority.clamp(0, u32::MAX as i64) as u32;
+				None
+			}
+			None => {
+				let cache_info = cache.get_file("nix-cache-info")?;
+				// A cache without `nix-cache-info` gets one uploaded, which
+				// fails over HTTP: the server refuses it, or file transfers
+				// cannot upload to `file://` URLs.
+				if cache_info.is_none() && http {
+					return Err(Error::Other(format!(
+						"'{}' does not appear to be a binary cache",
+						cache.uri
+					)));
+				}
+				if cache_info.is_none() && http_store {
+					return Err(Error::Other(format!(
+						"uploading to '{}/nix-cache-info' is not supported",
+						cache.uri
+					)));
+				}
+				cache_info
+			}
+		};
 		if let Some(text) = cache_info {
 			let text = String::from_utf8_lossy(&text).into_owned();
 			for line in text.split('\n') {
@@ -367,6 +406,19 @@ impl BinaryCache {
 		if let Some(value) = priority {
 			cache.info.priority = value;
 		}
+		// `createCache` records the settings in effect.
+		if known.is_none()
+			&& let Some(disk) = &cache.disk_cache
+		{
+			disk.create_cache(
+				&cache.uri,
+				store_dir(),
+				crate::narinfo_disk_cache::CacheInfo {
+					want_mass_query: cache.info.want_mass_query,
+					priority: cache.info.priority.into(),
+				},
+			)?;
+		}
 		Ok(cache)
 	}
 
@@ -383,6 +435,12 @@ impl BinaryCache {
 				"binary cache uploads require a file:// cache".into(),
 			));
 		};
+		// Under `_NIX_FORCE_HTTP=1` the cache is an `HttpBinaryCacheStore`,
+		// whose opening already read or refused `nix-cache-info` and which
+		// creates nothing.
+		if self.disk_cache.is_some() {
+			return Ok(());
+		}
 		let mut subdirs = vec!["nar", "build-trace-v2"];
 		if self.upload.write_debug_info {
 			subdirs.push("debuginfo");
@@ -408,6 +466,15 @@ impl BinaryCache {
 	/// The transfer and retry settings this cache's requests use.
 	pub fn transfer(&self) -> TransferSettings {
 		self.transfer
+	}
+
+	/// The lifetimes of the narinfo disk cache's answers, which are those of
+	/// the answers kept in memory.
+	fn ttls(&self) -> crate::narinfo_disk_cache::Ttls {
+		crate::narinfo_disk_cache::Ttls {
+			positive: self.positive_ttl.as_secs().min(i64::MAX as u64) as i64,
+			negative: self.negative_ttl.as_secs().min(i64::MAX as u64) as i64,
+		}
 	}
 
 	pub fn info(&self) -> &CacheInfo {
@@ -1030,6 +1097,89 @@ impl BinaryCache {
 		if let Transport::Store(store) = &self.transport {
 			return store.query_build_trace(drv_path, output);
 		}
+		// `Store::queryRealisation` with the disk cache: an unexpired entry,
+		// present or absent, is used, and a new answer is recorded.
+		let Some(disk) = &self.disk_cache else {
+			return self.query_realisation_uncached(drv_path, output);
+		};
+		use crate::narinfo_disk_cache::{Outcome, RealisationRow};
+		let key = drv_path.to_string();
+		match disk.lookup_realisation(&self.uri, &key, output, self.ttls())? {
+			Outcome::Valid(row) => {
+				let context =
+					|| "\n… reading build trace key-value from the local disk cache".to_owned();
+				let out_path = StorePath::from_bytes(row.out_path.as_bytes())
+					.map_err(|e| Error::Other(format!("{e}{}", context())))?;
+				let signatures: Vec<nix_compat::cppnix_json::Signature> =
+					serde_json::from_str::<serde_json::Value>(&row.sigs)
+						.ok()
+						.and_then(|value| {
+							value
+								.as_array()?
+								.iter()
+								.map(|sig| {
+									Some(nix_compat::cppnix_json::Signature {
+										key_name: sig.get("keyName")?.as_str()?.to_owned(),
+										sig: BASE64
+											.decode(sig.get("sig")?.as_str()?.as_bytes())
+											.ok()?,
+									})
+								})
+								.collect()
+						})
+						.ok_or_else(|| {
+							Error::Other(format!("invalid signatures '{}'{}", row.sigs, context()))
+						})?;
+				return Ok(Some(crate::local::Realisation {
+					out_path,
+					signatures: signatures
+						.iter()
+						.map(|s| format!("{}:{}", s.key_name, BASE64.encode(&s.sig)))
+						.collect(),
+				}));
+			}
+			Outcome::Invalid => return Ok(None),
+			Outcome::Unknown => {}
+		}
+		let realisation = self.query_realisation_uncached(drv_path, output)?;
+		let row = match &realisation {
+			Some(realisation) => {
+				// `nlohmann::json(realisation.signatures).dump()`.
+				let mut signatures = realisation
+					.signatures
+					.iter()
+					.map(|s| {
+						nix_compat::cppnix_json::Signature::parse(s)
+							.map_err(|e| Error::Other(e.to_string()))
+					})
+					.collect::<Result<Vec<_>>>()?;
+				signatures.sort();
+				let sigs = serde_json::Value::Array(
+					signatures
+						.iter()
+						.map(
+							|s| serde_json::json!({"keyName": s.key_name, "sig": BASE64.encode(&s.sig)}),
+						)
+						.collect(),
+				)
+				.to_string();
+				Some(RealisationRow {
+					out_path: realisation.out_path.to_string(),
+					sigs,
+				})
+			}
+			None => None,
+		};
+		disk.upsert_realisation(&self.uri, &key, output, row.as_ref())?;
+		Ok(realisation)
+	}
+
+	/// `BinaryCacheStore::queryRealisationUncached`.
+	fn query_realisation_uncached(
+		&self,
+		drv_path: &StorePath,
+		output: &str,
+	) -> Result<Option<crate::local::Realisation>> {
 		let name = Self::realisation_file(drv_path, output);
 		let Some(bytes) = self.get_file(&name)? else {
 			return Ok(None);
@@ -1090,12 +1240,15 @@ impl BinaryCache {
 	}
 
 	/// The metadata the cache records for `path`, read as the reference
-	/// reads it, with its errors for malformed files.
+	/// reads it, with its errors for malformed files. An HTTP cache keeps
+	/// answers in memory and, as `Store::queryPathInfo` does, in the narinfo
+	/// disk cache.
 	pub fn query_path_info(&self, path: &StorePath) -> Result<Option<CachedPath>> {
-		if !matches!(self.transport, Transport::Http(..)) {
+		let memory = matches!(self.transport, Transport::Http(..));
+		if !memory && self.disk_cache.is_none() {
 			return self.query_path_info_uncached(path);
 		}
-		{
+		if memory {
 			let mut cache = self.path_info_cache.lock().unwrap();
 			if let Some((when, value)) = cache.get(path) {
 				let ttl = if value.is_some() {
@@ -1111,19 +1264,46 @@ impl BinaryCache {
 		}
 		// Download outside the mutex so independent requests can overlap.
 		// Transport and parse errors are retried by the next caller.
-		let result = self.query_path_info_uncached(path)?;
+		let result = match &self.disk_cache {
+			Some(disk) => self.query_path_info_disk(disk, path)?,
+			None => self.query_path_info_uncached(path)?,
+		};
 		let ttl = if result.is_some() {
 			self.positive_ttl
 		} else {
 			self.negative_ttl
 		};
-		if !ttl.is_zero() {
+		if memory && !ttl.is_zero() {
 			self.path_info_cache
 				.lock()
 				.unwrap()
 				.insert(path.clone(), (Instant::now(), result.clone()));
 		}
 		Ok(result)
+	}
+
+	/// `Store::queryPathInfoFromClientCache` and `queryPathInfo` with the
+	/// narinfo disk cache: an unexpired answer is used, and a new one is
+	/// recorded, the path's absence included.
+	fn query_path_info_disk(
+		&self,
+		disk: &crate::narinfo_disk_cache::DiskCache,
+		path: &StorePath,
+	) -> Result<Option<CachedPath>> {
+		use crate::narinfo_disk_cache::Outcome;
+		let hash_part = nix_compat::nixbase32::encode(path.digest());
+		match disk.lookup_narinfo(&self.uri, &hash_part, self.ttls())? {
+			// `goodStorePath`: a path of another name is not this one.
+			Outcome::Valid(row) if row.name_part != path.name() => return Ok(None),
+			Outcome::Valid(row) => return cached_path_from_row(&hash_part, row).map(Some),
+			Outcome::Invalid => return Ok(None),
+			Outcome::Unknown => {}
+		}
+		let fetched = self.fetch_narinfo(path)?;
+		disk.upsert_narinfo(&self.uri, &hash_part, fetched.as_ref().map(|(_, row)| row))?;
+		Ok(fetched
+			.map(|(cached, _)| cached)
+			.filter(|cached| cached.info.path.name() == path.name()))
 	}
 
 	fn query_path_info_uncached(&self, path: &StorePath) -> Result<Option<CachedPath>> {
@@ -1140,6 +1320,15 @@ impl BinaryCache {
 				}
 			}));
 		}
+		Ok(self.fetch_narinfo(path)?.map(|(cached, _)| cached))
+	}
+
+	/// `BinaryCacheStore::queryPathInfoUncached`: read `HASH.narinfo`, and
+	/// the row the narinfo disk cache keeps for it.
+	fn fetch_narinfo(
+		&self,
+		path: &StorePath,
+	) -> Result<Option<(CachedPath, crate::narinfo_disk_cache::NarRow)>> {
 		// `queryPathInfoUncached`'s activity. CppNix keeps answers in
 		// memory, so a path is only announced the first time it is asked
 		// for.
@@ -1170,6 +1359,31 @@ impl BinaryCache {
 				narinfo.nar_hash.algo()
 			)));
 		};
+		// `NarInfoDiskCacheImpl::upsertNarInfo`'s columns.
+		let mut refs: Vec<String> = narinfo.references.iter().map(|r| r.to_string()).collect();
+		refs.sort();
+		let row = crate::narinfo_disk_cache::NarRow {
+			name_part: narinfo.path.name().to_string(),
+			url: Some(narinfo.url.clone()),
+			compression: Some(narinfo.compression.clone()),
+			file_hash: narinfo.file_hash.as_ref().map(NixHash::to_nix_nixbase32),
+			file_size: (narinfo.file_size != 0).then_some(narinfo.file_size),
+			nar_hash: narinfo.nar_hash.to_nix_nixbase32(),
+			nar_size: narinfo.nar_size,
+			refs: refs.join(" "),
+			deriver: narinfo.deriver.as_ref().map(|d| d.to_string()),
+			sigs: narinfo
+				.sigs
+				.iter()
+				.map(|sig| format!("{}:{}", sig.key_name, BASE64.encode(&sig.sig)))
+				.collect::<Vec<_>>()
+				.join(" "),
+			ca: narinfo
+				.ca
+				.as_ref()
+				.map(|ca| ca.to_string())
+				.unwrap_or_default(),
+		};
 		let mut info = ValidPathInfo::new(narinfo.path, nar_hash);
 		info.nar_size = narinfo.nar_size;
 		info.references = narinfo.references;
@@ -1180,12 +1394,15 @@ impl BinaryCache {
 			.collect();
 		info.ca = narinfo.ca;
 		info.deriver = narinfo.deriver;
-		Ok(Some(CachedPath {
-			info,
-			url: narinfo.url,
-			compression: (narinfo.compression != "none").then_some(narinfo.compression),
-			file_size: (narinfo.file_size != 0).then_some(narinfo.file_size),
-		}))
+		Ok(Some((
+			CachedPath {
+				info,
+				url: narinfo.url,
+				compression: (narinfo.compression != "none").then_some(narinfo.compression),
+				file_size: (narinfo.file_size != 0).then_some(narinfo.file_size),
+			},
+			row,
+		)))
 	}
 
 	/// The decompressed NAR of a cached path.
@@ -1224,10 +1441,9 @@ impl BinaryCache {
 		// `SubstituteGone`. `LocalBinaryCacheStore` does not name the cache.
 		let file = self.open_file(&cached.url)?.ok_or_else(|| {
 			Error::SubstituteGone(match self.transport {
-				Transport::File(_) if !force_http() => format!(
-					"file '{}' does not exist in binary cache",
-					cached.url
-				),
+				Transport::File(_) if !force_http() => {
+					format!("file '{}' does not exist in binary cache", cached.url)
+				}
 				_ => format!(
 					"file '{}' does not exist in binary cache '{}'",
 					cached.url, self.uri
@@ -1332,6 +1548,47 @@ impl BufRead for ProgressReader<'_> {
 		self.inner.consume(amt);
 		self.advance(amt);
 	}
+}
+
+/// `NarInfoDiskCacheImpl::lookupNarInfo`: the path a row of the narinfo
+/// disk cache describes.
+fn cached_path_from_row(
+	hash_part: &str,
+	row: crate::narinfo_disk_cache::NarRow,
+) -> Result<CachedPath> {
+	let invalid = |what: &str| Error::Other(format!("invalid {what} in the NAR info disk cache"));
+	let store_path = |name: &str| {
+		StorePath::from_bytes(name.as_bytes()).map_err(|_| invalid(&format!("store path '{name}'")))
+	};
+	let path = store_path(&format!("{hash_part}-{}", row.name_part))?;
+	let nar_hash = match NixHash::from_str(&row.nar_hash, None) {
+		Ok(NixHash::Sha256(digest)) => digest,
+		_ => return Err(invalid(&format!("NAR hash '{}'", row.nar_hash))),
+	};
+	let mut info = ValidPathInfo::new(path, nar_hash);
+	info.nar_size = row.nar_size;
+	for reference in row.refs.split(' ').filter(|r| !r.is_empty()) {
+		info.references.insert(store_path(reference)?);
+	}
+	if let Some(deriver) = &row.deriver {
+		info.deriver = Some(store_path(deriver)?);
+	}
+	info.sigs = row
+		.sigs
+		.split(' ')
+		.filter(|s| !s.is_empty())
+		.map(str::to_owned)
+		.collect();
+	if !row.ca.is_empty() {
+		info.ca = Some(cppnix::parse_content_address(&row.ca).map_err(|e| Error::Other(e))?);
+	}
+	let compression = row.compression.unwrap_or_default();
+	Ok(CachedPath {
+		info,
+		url: row.url.unwrap_or_default(),
+		compression: (compression != "none").then_some(compression),
+		file_size: row.file_size.filter(|size| *size != 0),
+	})
 }
 
 /// `_NIX_FORCE_HTTP=1`: CppNix's test switch that serves `file://` caches
@@ -2009,11 +2266,8 @@ impl LocalStore {
 			}
 			// The NAR is fetched only if the path is still missing once it
 			// is locked.
-			let result = self.add_to_store_lazily(
-				&cached.info,
-				repair,
-				!cache.trusted,
-				&mut |use_source| {
+			let result =
+				self.add_to_store_lazily(&cached.info, repair, !cache.trusted, &mut |use_source| {
 					let mut nar = ProgressReader {
 						inner: cache.nar(&cached)?,
 						act: acts.as_ref().map(|(_, copy)| copy),
@@ -2024,8 +2278,7 @@ impl LocalStore {
 					let result = use_source(&mut nar);
 					nar.report();
 					result
-				},
-			);
+				});
 			// The copy activity stops before its parent.
 			if let Some((substitute, copy)) = acts {
 				drop(copy);
@@ -2186,13 +2439,15 @@ mod tests {
 			}
 			assert!(cache.query_path_info(&path).unwrap().is_some());
 			assert!(cache.query_path_info(&absent).unwrap().is_none());
-			assert_eq!(requests.load(Ordering::Relaxed), 5);
+			// The narinfo disk cache, whose entries have not aged, still has
+			// both answers.
+			assert_eq!(requests.load(Ordering::Relaxed), 3);
 			let uncached = cache.with_narinfo_cache_ttls(0, 0);
 			for _ in 0..2 {
 				assert!(uncached.query_path_info(&path).unwrap().is_some());
 				assert!(uncached.query_path_info(&absent).unwrap().is_none());
 			}
-			assert_eq!(requests.load(Ordering::Relaxed), 9);
+			assert_eq!(requests.load(Ordering::Relaxed), 7);
 			let cached = uncached.query_path_info(&path).unwrap().unwrap();
 			let mut bytes = Vec::new();
 			uncached
@@ -2201,7 +2456,7 @@ mod tests {
 				.read_to_end(&mut bytes)
 				.unwrap();
 			assert_eq!(bytes, b"archive bytes");
-			assert_eq!(requests.load(Ordering::Relaxed), 11);
+			assert_eq!(requests.load(Ordering::Relaxed), 9);
 		});
 	}
 

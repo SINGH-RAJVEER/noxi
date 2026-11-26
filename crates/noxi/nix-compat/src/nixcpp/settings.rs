@@ -84,6 +84,11 @@ pub enum Error {
 	InvalidSandbox {
 		value: String,
 	},
+	/// A value `BaseSetting<T>::parse` rejects: `parsing setting 'NAME': ...`.
+	Parse {
+		name: String,
+		message: String,
+	},
 	MissingInclude {
 		file: PathBuf,
 		from: String,
@@ -119,6 +124,9 @@ impl fmt::Display for Error {
 			),
 			Error::InvalidSandbox { value } => {
 				write!(f, "option 'sandbox' has invalid value '{value}'")
+			}
+			Error::Parse { name, message } => {
+				write!(f, "parsing setting '{name}': {message}")
 			}
 			Error::MissingInclude { file, from } => write!(
 				f,
@@ -665,9 +673,94 @@ fn parse_value(info: &SettingInfo, value: &str) -> Result<String, Error> {
 				});
 			}
 		},
+		Kind::String if info.name == "external-builders" => {
+			parse_external_builders(value).map_err(|message| Error::Parse {
+				name: info.name.to_owned(),
+				message,
+			})?;
+			value.to_owned()
+		}
 		Kind::String => value.to_owned(),
 		Kind::List | Kind::Map => value.split_whitespace().collect::<Vec<_>>().join(" "),
 	})
+}
+
+/// One entry of `external-builders`, CppNix's `ExternalBuilder`: a program
+/// that builds the derivations for `systems`, run with `args` and the path
+/// of a JSON description of the build.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ExternalBuilder {
+	pub systems: BTreeSet<String>,
+	pub program: PathBuf,
+	pub args: Vec<String>,
+}
+
+/// `BaseSetting<ExternalBuilders>::parse`: a JSON array of objects with
+/// `systems`, `program` and `args`, failing with the messages of
+/// `json-utils.cc` and nlohmann's conversions. A JSON syntax error is
+/// reported in serde_json's words, not nlohmann's.
+pub fn parse_external_builders(value: &str) -> Result<Vec<ExternalBuilder>, String> {
+	use serde_json::Value;
+	let type_name = |value: &Value| match value {
+		Value::Null => "null",
+		Value::Bool(_) => "boolean",
+		Value::Number(_) => "number",
+		Value::String(_) => "string",
+		Value::Array(_) => "array",
+		Value::Object(_) => "object",
+	};
+	// nlohmann's `get<T>` of a value of another type.
+	let must_be = |expected: &str, value: &Value| {
+		format!(
+			"[json.exception.type_error.302] type must be {expected}, but is {}",
+			type_name(value)
+		)
+	};
+	let strings = |value: &Value| -> Result<Vec<String>, String> {
+		let Value::Array(items) = value else {
+			return Err(must_be("array", value));
+		};
+		items
+			.iter()
+			.map(|item| match item {
+				Value::String(s) => Ok(s.clone()),
+				other => Err(must_be("string", other)),
+			})
+			.collect()
+	};
+	let json: Value = serde_json::from_str(value).map_err(|e| e.to_string())?;
+	let Value::Array(entries) = &json else {
+		return Err(must_be("array", &json));
+	};
+	entries
+		.iter()
+		.map(|entry| {
+			let Value::Object(object) = entry else {
+				return Err(format!(
+					"error: Expected JSON value to be of type 'object' but it is of type '{}': {entry}",
+					type_name(entry)
+				));
+			};
+			let at = |key: &str| {
+				object.get(key).ok_or_else(|| {
+					format!(
+						"error: Expected JSON object to contain key '{key}' but it doesn't: {entry}"
+					)
+				})
+			};
+			let systems = strings(at("systems")?)?.into_iter().collect();
+			let program = match at("program")? {
+				Value::String(s) => PathBuf::from(s),
+				other => return Err(must_be("string", other)),
+			};
+			let args = strings(at("args")?)?;
+			Ok(ExternalBuilder {
+				systems,
+				program,
+				args,
+			})
+		})
+		.collect()
 }
 
 /// CppNix 2.35.2's defaults of the settings that need an experimental

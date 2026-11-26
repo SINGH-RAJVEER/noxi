@@ -33,6 +33,8 @@ TYPES = {
 
 # Settings that accept a word besides their JSON type.
 SPECIAL = {
+	# A JSON value, which is neither split into words nor appendable.
+	"external-builders": "String",
 	"max-jobs": "MaxJobs",
 	"sandbox": "Sandbox",
 }

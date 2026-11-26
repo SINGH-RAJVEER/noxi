@@ -17,7 +17,8 @@ pub fn text(value: &Value, name: &str) -> String {
 	match value {
 		Value::Null => String::new(),
 		Value::String(s) => s.clone(),
-		Value::Array(a) if a.is_empty() && name == "external-builders" => "[]".to_owned(),
+		// `BaseSetting<ExternalBuilders>::to_string`: the JSON dump.
+		Value::Array(_) if name == "external-builders" => value.to_string(),
 		Value::Array(a) => a
 			.iter()
 			.map(|v| text(v, name))
@@ -58,6 +59,22 @@ fn parse(name: &str, input: &str, default: &Value) -> Result<Value, String> {
 				serde_json::from_str(input)
 					.map_err(|_| format!("setting '{name}' has invalid value '{input}'"))?
 			}
+		}
+		Value::Array(_) if name == "external-builders" => {
+			let builders = nix_compat::nixcpp::settings::parse_external_builders(input)
+				.map_err(|message| format!("parsing setting '{name}': {message}"))?;
+			Value::Array(
+				builders
+					.into_iter()
+					.map(|builder| {
+						json!({
+							"args": builder.args,
+							"program": builder.program.to_string_lossy(),
+							"systems": builder.systems,
+						})
+					})
+					.collect(),
+			)
 		}
 		Value::Array(_) => {
 			let mut words: Vec<_> = input.split_whitespace().map(str::to_owned).collect();

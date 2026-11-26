@@ -230,6 +230,9 @@ pub fn serve(listener: UnixListener, settings: &DaemonSettings) -> Result<()> {
 ///
 /// With `settings.idle_timeout` and socket-activated listeners, return once
 /// no connection has arrived for that long and no worker is still running.
+/// Return when the process is interrupted (SIGINT, SIGTERM or SIGHUP once
+/// [`noxi_build::interrupt::install`] has run), as `daemonLoop` does when
+/// `checkInterrupt` throws; the workers carry on in their own sessions.
 pub fn serve_listeners(listeners: Vec<UnixListener>, settings: &DaemonSettings) -> Result<()> {
 	let idle_timeout = match settings.idle_timeout {
 		Some(timeout) if std::env::var_os("LISTEN_FDS").is_some() => Some(timeout),
@@ -248,9 +251,20 @@ pub fn serve_listeners(listeners: Vec<UnixListener>, settings: &DaemonSettings) 
 			revents: 0,
 		})
 		.collect();
+	let listening = fds.len();
+	if let Some(fd) = noxi_build::interrupt::descriptor() {
+		fds.push(libc::pollfd {
+			fd,
+			events: libc::POLLIN,
+			revents: 0,
+		});
+	}
 	let mut workers = 0usize;
 	let mut last_activity = std::time::Instant::now();
 	loop {
+		if noxi_build::interrupt::interrupted() {
+			return Ok(());
+		}
 		// Reap finished children so they don't become zombies.
 		// SAFETY: waiting for our own children without blocking.
 		while unsafe { libc::waitpid(-1, std::ptr::null_mut(), libc::WNOHANG) } > 0 {
@@ -278,7 +292,7 @@ pub fn serve_listeners(listeners: Vec<UnixListener>, settings: &DaemonSettings) 
 			}
 			return Err(error.into());
 		}
-		let Some(index) = fds.iter().position(|fd| fd.revents != 0) else {
+		let Some(index) = fds[..listening].iter().position(|fd| fd.revents != 0) else {
 			continue;
 		};
 		let (stream, _) = match listeners[index].accept() {
@@ -286,6 +300,9 @@ pub fn serve_listeners(listeners: Vec<UnixListener>, settings: &DaemonSettings) 
 			Err(e) if e.kind() == std::io::ErrorKind::Interrupted => continue,
 			Err(e) => return Err(e.into()),
 		};
+		if noxi_build::interrupt::interrupted() {
+			return Ok(());
+		}
 		last_activity = std::time::Instant::now();
 		// As in the reference, a forced trust skips the peer credentials,
 		// and a connection that cannot be authorised is dropped without

@@ -115,7 +115,7 @@ pass:upstream_functional tests/functional/add.sh
 anomaly tests/functional/bash-profile.sh # reference fail: main in bash-profile.sh:5: bash-profile.sh: line 5: ../../scripts/nix-profile.sh.in: No such file or directory
 pass:upstream_functional tests/functional/binary-cache-build-remote.sh
 pass:upstream_functional tests/functional/binary-cache-compression.sh
-gap tests/functional/binary-cache.sh # main in binary-cache.sh:165: noxi has no narinfo disk cache, so a .narinfo deleted from the cache is not reused
+pass:upstream_functional tests/functional/binary-cache.sh
 pass:upstream_functional tests/functional/build-cores.sh
 pass:upstream_functional tests/functional/build-delete.sh
 pass:upstream_functional tests/functional/build-dry.sh
@@ -151,7 +151,7 @@ pass:upstream_functional tests/functional/ca/recursive.sh
 gap tests/functional/ca/repl.sh # source in repl.sh:229: REPL :edit does not open the derivation builtin source
 pass:upstream_functional tests/functional/ca/selfref-gc.sh
 pass:upstream_functional tests/functional/ca/signatures.sh
-gap tests/functional/ca/substitute.sh # substitute.sh:50: substitution cannot reuse the cached realisation after the remote build trace is removed
+pass:upstream_functional tests/functional/ca/substitute.sh
 pass:upstream_functional tests/functional/ca/why-depends.sh
 pass:upstream_functional tests/functional/characterisation-test-infra.sh
 pass:upstream_functional tests/functional/check-refs.sh
@@ -181,7 +181,7 @@ pass:upstream_functional tests/functional/eval.sh
 gap tests/functional/experimental-features.sh # main in experimental-features.sh:78: nix --help is unsupported
 pass:upstream_functional tests/functional/export-graph.sh
 pass:upstream_functional tests/functional/export.sh
-gap tests/functional/external-builders.sh # main in external-builders.sh:46: error: Cannot build '$ROOT/tmp/nix-test/main/external-builders/store/HASH-external.drv'.
+pass:upstream_functional tests/functional/external-builders.sh
 anomaly tests/functional/extra-sandbox-profile.sh # reference skip: Need Darwin, skipping this test...
 gap tests/functional/fetchClosure.sh # main in fetchClosure.sh:32: error: attribute 'fetchClosure' missing
 pass:upstream_functional tests/functional/fetchGit.sh

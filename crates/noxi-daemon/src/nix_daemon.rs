@@ -95,10 +95,11 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
 				features.split_whitespace().map(str::to_owned).collect();
 		}
 	}
+	// As `initNix` does, SIGINT, SIGTERM and SIGHUP interrupt the command:
+	// a worker for one client stops its builds, as when the client's build
+	// hook ends, and the accept loop returns at once.
+	noxi_build::interrupt::install();
 	if stdio {
-		// A worker for one client stops its builds when it is interrupted,
-		// as when the client's build hook ends.
-		noxi_build::interrupt::install();
 		let store = settings.open_store()?;
 		process_monitored_connection(
 			std::io::stdin(),

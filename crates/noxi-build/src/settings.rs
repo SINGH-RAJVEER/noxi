@@ -67,6 +67,9 @@ pub struct BuildSettings {
 	pub require_drop_supplementary_groups: bool,
 	pub filter_syscalls: bool,
 	pub impure_env: Vec<(String, String)>,
+	/// `external-builders`: programs that build the derivations of their
+	/// systems instead of a local or sandboxed builder.
+	pub external_builders: Vec<nix_compat::nixcpp::settings::ExternalBuilder>,
 	pub allowed_impure_host_prefixes: Vec<String>,
 	/// Seconds of silence or total time after which a build is killed; 0 disables.
 	pub max_silent_time: u64,
@@ -165,6 +168,7 @@ impl Default for BuildSettings {
 			require_drop_supplementary_groups: unsafe { libc::getuid() } == 0,
 			filter_syscalls: true,
 			impure_env: Vec::new(),
+			external_builders: Vec::new(),
 			allowed_impure_host_prefixes: Vec::new(),
 			max_silent_time: 0,
 			timeout: 0,
@@ -289,6 +293,11 @@ impl BuildSettings {
 		}
 		if let Some(value) = settings.get("build-dir") {
 			self.build_dir = (!value.is_empty()).then(|| PathBuf::from(value));
+		}
+		// Validated when it was set.
+		if let Some(value) = settings.get("external-builders") {
+			self.external_builders =
+				nix_compat::nixcpp::settings::parse_external_builders(value).unwrap_or_default();
 		}
 		// `Setting<StringMap>`: `name=value` words, the first of a name
 		// winning; words without `=` are ignored.
