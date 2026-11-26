@@ -8,8 +8,12 @@ Reference scopes include `src/libstore/build` and `src/libstore/unix/build`, esp
 
 The package depends on the separate `noxi-store` and Snix-derived `noxi-compat` packages. Their own source scopes and license notices remain applicable; this archive does not include an imported Snix source tree or the repository-root copied CppNix fixture suite.
 
+`src/config-settings.json` holds the setting names, aliases, defaults and descriptions that the reference's `GlobalConfig::toJSON` prints. The descriptions are CppNix documentation text (LGPL-2.1-or-later). It moved here from `noxi-commands` so that the daemon and the commands send a build hook the same settings.
+
+The build hook (`src/hook.rs`) follows `HookInstance` and the hook parts of `DerivationBuildingGoal` in `src/libstore/build/derivation-building-goal.cc` and `src/libstore/unix/build/hook-instance.cc`.
+
 ## Local changes and limits
 
 Release `0.1.0` connects the local store to sandbox execution, cache substitution, output registration, structured-attribute generation, and persistent build logs. It includes fixes for PID-pipe lifetime, child cleanup, seccomp rule fallthrough, and reference scanning across short writes. Its public dependencies require store `0.1.0` and compatibility `0.1.1`.
 
-Selected local builds and format cases are compared with the pinned reference in repository-owned tests. The current development target is x86_64-linux; other architectures, remote scheduling, full substitution/fallback behavior, complete build/store recovery, and sandbox security are not qualified. Publication does not establish drop-in package-manager or OS compatibility.
+Selected local builds and format cases are compared with the pinned reference in repository-owned tests. The current development target is x86_64-linux; other architectures, remote builds against real hosts, full substitution/fallback behavior, complete build/store recovery, and sandbox security are not qualified. Publication does not establish drop-in package-manager or OS compatibility.

@@ -9,7 +9,7 @@ tests/functional/absolute-path-literals.sh pass pass pass
 tests/functional/add.sh pass pass pass
 tests/functional/bash-profile.sh anomaly fail fail # reference fail: main in bash-profile.sh:5: bash-profile.sh: line 5: ../../scripts/nix-profile.sh.in: No such file or directory
 tests/functional/big-derivation-attr.nix support
-tests/functional/binary-cache-build-remote.sh gap fail pass # main in binary-cache-build-remote.sh:11: error: Unable to build with a primary store that isn't a local store; either pass a different '--store' or enable remote builds.
+tests/functional/binary-cache-build-remote.sh pass pass pass
 tests/functional/binary-cache-compression.sh gap fail pass # main in binary-cache-compression.sh:57: error: nix copy --out-link is not supported by noxi yet
 tests/functional/binary-cache.sh gap fail pass # main in binary-cache.sh:99: error: build log of '$ROOT/tmp/nix-test/main/binary-cache/store/HASH-dependencies-top' is not available
 tests/functional/build-cores.nix support

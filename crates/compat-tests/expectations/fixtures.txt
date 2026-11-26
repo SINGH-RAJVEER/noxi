@@ -113,7 +113,7 @@ table:upstream_lang tests/functional/lang/**/*
 pass:upstream_functional tests/functional/absolute-path-literals.sh
 pass:upstream_functional tests/functional/add.sh
 anomaly tests/functional/bash-profile.sh # reference fail: main in bash-profile.sh:5: bash-profile.sh: line 5: ../../scripts/nix-profile.sh.in: No such file or directory
-gap tests/functional/binary-cache-build-remote.sh # main in binary-cache-build-remote.sh:11: error: Unable to build with a primary store that isn't a local store; either pass a different '--store' or enable remote builds.
+pass:upstream_functional tests/functional/binary-cache-build-remote.sh
 gap tests/functional/binary-cache-compression.sh # main in binary-cache-compression.sh:57: error: nix copy --out-link is not supported by noxi yet
 gap tests/functional/binary-cache.sh # main in binary-cache.sh:99: error: build log of '$ROOT/tmp/nix-test/main/binary-cache/store/HASH-dependencies-top' is not available
 pass:upstream_functional tests/functional/build-cores.sh

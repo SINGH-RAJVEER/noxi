@@ -1469,3 +1469,33 @@ Validation used debug builds under the shared heavy-build lock:
 - `cargo nextest run -p noxi-eval -p noxi-glue -p noxi-flake -p noxi-flakeref -p noxi-system -p noxi-commands`: 900 passed, 10 failed, 10 skipped. The host had an empty `/tmp/.git` directory, which makes flake discovery treat `/tmp` as a Git repository. With `TMPDIR` outside `/tmp`, those ten tests and the six above passed (16 passed).
 - `upstream_lang` and `differential_eval`: 10 passed, with no expectation changed by the added `findFile` frame.
 - The fast tier ran 2,122 tests at `656ed54`, all passing. Its record is kept in `tests/compat-results/2026-11-24-656ed54-fast`. The store and daemon tiers were not run as tiers.
+
+## Remote builders, 2026-11-26
+
+noxi builds on other machines as CppNix 2.35.2 does. The worker offers each derivation to the `build-hook` before building it locally, unless the derivation prefers a local build; checks and repairs stay local. `nix __build-remote` is the default hook. The hook is started directly with an argument vector, in its own session, with the reference's descriptors 4 and 5, and is sent every setting whose experimental feature is enabled, as `GlobalConfig::getSettings` gives them. When no machine is configured, the default hook would decline permanently, so it is not started. A custom hook always is. Machines can be local stores, `unix://` daemons, `ssh://` stores (`nix-store --serve --write`) and `ssh-ng://` daemons.
+
+`crates/noxi-commands/tests/reference_build_remote.rs` (store tier) runs each case with both engines in one directory, one after the other, and compares exit status, standard output and standard error. No host is contacted: `ssh` is a script on `PATH` that records its arguments and runs the command on a chroot store of this machine. Its 21 tests cover:
+
+- Machine choice: system types, supported and mandatory features, `preferLocalBuild`, `-j0` and `-j1`, `--builders ''`, `--build-hook ''`, machines files, `@file`, `NIX_REMOTE_SYSTEMS`, malformed specifications, slots locked by another process (both engines name the lock files the same way), load relative to speed factor, and postponing while a machine is busy.
+- Building: local machines, `ssh://` and `ssh-ng://`; multiple outputs, structured attributes, fixed outputs, quoting in derivation fields, phases, `nix log`, `post-build-hook`, `builders-use-substitutes`, content-addressed outputs with their realisations, and a daemon building its client's derivations on its own machines.
+- Failures: builder failures with `--keep-failed`, wrong fixed-output hashes, `max-silent-time`, `timeout` and `max-build-log-size` on the machine and locally, unreachable hosts (the machine is disabled and the build falls back or is rejected), and a host that prints a banner instead of `started`.
+- The hook protocol: the settings stream and the `try` request byte for byte, the arguments and working directory, JSON messages, and custom hooks that reply nonsense, die, accept without a machine name, or do not exist.
+- Interchangeability: each engine's worker with the other's hook, and each engine's `nix __build-remote` with the other's `nix-store --serve` and `nix-daemon --stdio`.
+
+Security-relevant cases:
+
+- Option injection: users and hosts that start with `-`, including percent-encoded ones, are refused before `ssh` runs, as `checkValidAuthority` does. `NIX_SSHOPTS` is split as `shellSplitString` splits it, with nothing expanded. Store paths, host keys and derivation fields never pass through a shell. A derivation field holding shell syntax is built and returned unchanged, and nothing runs it.
+- Tampered outputs: an output changed on the machine after it was built, with the same and with a different size, is refused with the reference's hash or size mismatch, through local, `ssh://` and `ssh-ng://` machines, and nothing is registered.
+- Trust: a machine that does not trust its client (`nix-daemon --force-untrusted`) builds content-addressed derivations, but refuses input-addressed outputs it is sent without a signature by a trusted key, with the reference's message.
+- Signatures: outputs that come back are checked against the NAR hash, size and content address the machine reports. Like the reference, the copy back does not check signatures (`NoCheckSigs` in `build-remote.cc`), so a machine is trusted for what it builds. Requiring signatures would refuse every unsigned machine that the reference accepts, so this was not changed.
+- Settings: the hook is sent what the reference sends it, including `access-tokens` and `secret-key-files`, and nothing more. `ssh` and machines get no settings: `SSHStore::setOptions` sends none.
+
+Functional scripts at the final commit: `binary-cache-build-remote` passes under both engines and moved from gap to pass. The other eight still stop where recorded. Their machines are `ssh://localhost?remote-store=PATH?system-features=...` and `ssh-ng://localhost?remote-store=...`, and on the remote side `nix-daemon --store PATH?system-features=...`. The `remote-store=` parameter and the daemon's store opening belong to the store-opening work of another branch and were not duplicated here. With an uncommitted local change that forwarded `remote-store=` and let `nix-daemon` open a path store with `system-features`, seven of them passed under both engines (`build-remote-input-addressed`, `build-remote-content-addressed-fixed` and all five `build-remote-trustless-*`). `build-remote-content-addressed-floating` then stopped at `nix log` of a resolved content-addressed derivation, which fails in noxi for local builds too (`nix log from substituters ... is not supported`). `build-remote-with-mounted-ssh-ng` needs the `mounted-ssh-ng://` store type.
+
+Remaining differences:
+
+- A malformed JSON message from a hook is reported with serde's wording, not nlohmann's.
+- Builds on machines start in the order their threads reach the hook, which may differ from the reference's goal order when several start at once. Output and results are the same.
+- A `file://` store builds its derivations through the hook one at a time.
+- How much builder output appears before `max-build-log-size` stops a local build depends on how the output is read, in both engines.
+- Real `ssh` to another host, an `ssh` master connection (`max-connections` above 1) and the 15-minute upload lock timeout were not exercised. A root daemon whose builds use build users on machines needs a VM.

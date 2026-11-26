@@ -15,4 +15,4 @@ Release `0.1.1` corrects relative-path handling for callers that supply an evalu
 Two files in this package are copied from CppNix 2.35.2, revision `2c73b59da29606068c0c98db015dd3a66955525d`, and are compiled into the `nix` executables through `include_str!`. They keep LGPL-2.1-or-later and the Nix authors' authorship; [COPYING](COPYING) reproduces the LGPL 2.1 text from that revision.
 
 - `src/nix/get-env.sh` is a byte-for-byte copy of `src/nix/get-env.sh`. It carries no notice of its own because `nix develop` adds its exact text to the store, and any change would change the resulting store paths.
-- `src/nix/config-settings.json` holds the setting names, aliases, defaults and descriptions that the reference's `GlobalConfig::toJSON` prints. The descriptions are CppNix documentation text.
+- The setting metadata that `nix config show` prints is in `noxi-build` (`src/config-settings.json`); see its `PROVENANCE.md`.

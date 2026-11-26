@@ -9,7 +9,7 @@ The executables are distributed under GPL-3.0-only. They link crates licensed GP
 | Upstream | Revision | License | What is compiled in |
 |---|---|---|---|
 | Snix, https://git.snix.dev/snix/snix | `22ca63bdb71c221001526304eca934385fb47c26` (2026-09-24) | GPL-3.0-only | `noxi-eval`, `noxi-eval-builtin-macros`, `noxi-hash`, `noxi-flakeref`, `noxi-compat` and parts of `noxi-glue`; see `crates/noxi/PROVENANCE.md` |
-| CppNix 2.35.2, https://github.com/NixOS/nix | `2c73b59da29606068c0c98db015dd3a66955525d` (tag `2.35.2`) | LGPL-2.1-or-later | `src/libexpr/imported-drv-to-derivation.nix` in `noxi-eval`; `src/libexpr/primops/derivation.nix`, `src/libexpr/fetchurl.nix` and `src/libflake/call-flake.nix` in `noxi-glue`; `src/libstore/schema.sql` and `ca-specific-schema.sql` in `noxi-store`; `src/nix/get-env.sh` and the setting descriptions in `config-settings.json` in `noxi-commands` |
+| CppNix 2.35.2, https://github.com/NixOS/nix | `2c73b59da29606068c0c98db015dd3a66955525d` (tag `2.35.2`) | LGPL-2.1-or-later | `src/libexpr/imported-drv-to-derivation.nix` in `noxi-eval`; `src/libexpr/primops/derivation.nix`, `src/libexpr/fetchurl.nix` and `src/libflake/call-flake.nix` in `noxi-glue`; `src/libstore/schema.sql` and `ca-specific-schema.sql` in `noxi-store`; `src/nix/get-env.sh` in `noxi-commands`, and the setting descriptions in `config-settings.json` in `noxi-build` |
 
 These files are embedded as text with `include_str!`. Each keeps its original authors' notices, and the owning crate's `PROVENANCE.md` and `COPYING` record it. The copied CppNix test suite in `tests/nix/` and the Nix language cases in `crates/noxi/eval/src/tests/` are not compiled into any executable; [docs/licensing.md](docs/licensing.md#copied-tests) records them.
 
