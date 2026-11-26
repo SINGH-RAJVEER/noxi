@@ -235,8 +235,8 @@ gap tests/functional/formatter.sh # main in formatter.sh:11: error: nix --help i
 gap tests/functional/function-trace.sh # main in function-trace.sh:34: <
 gap tests/functional/gc-auto.sh # main in gc-auto.sh:83: error: Cannot build '$ROOT/tmp/nix-test/main/gc-auto/store/HASH-gc-A.drv'.
 pass:upstream_functional tests/functional/gc-closure.sh
-gap tests/functional/gc-concurrent.sh # main in gc-concurrent.sh:40: error: path '$ROOT/tmp/nix-test/main/gc-concurrent/store/HASH-gc-concurrent.drv' is not valid
-gap tests/functional/gc-non-blocking.sh # main in gc-non-blocking.sh:43: error: Cannot build '$ROOT/tmp/nix-test/main/gc-non-blocking/store/HASH-non-blocking.drv'.
+pass:upstream_functional tests/functional/gc-concurrent.sh
+pass:upstream_functional tests/functional/gc-non-blocking.sh
 pass:upstream_functional tests/functional/gc-runtime.sh
 pass:upstream_functional tests/functional/gc.sh
 pass:upstream_functional tests/functional/git/packed-refs-no-cache.sh

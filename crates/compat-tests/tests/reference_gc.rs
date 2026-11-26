@@ -505,3 +505,125 @@ fn collection_honours_roots_from_the_gc_socket() {
 	);
 	assert!(store.is_valid_path(&target).unwrap());
 }
+
+/// A derivation being built, its input sources and the outputs of its
+/// input derivations are temporary roots of the building process, which
+/// neither collector may delete while the build runs, whatever else roots
+/// them. The derivation and its inputs are unrooted otherwise.
+#[test]
+fn collection_spares_a_running_build_and_its_inputs() {
+	let (env, _) = Env::new();
+	for collector in ["noxi", "reference"] {
+		let name = format!("build-{collector}");
+		env.copy(&name);
+		let sync = env.root(&format!("sync-{collector}"));
+		fs::create_dir(&sync).unwrap();
+		let expr = env.dir.path().join(format!("{name}.nix"));
+		fs::write(
+			&expr,
+			format!(
+				r#"let
+					bb = builtins.storePath {busybox};
+					mk = name: script: derivation {{
+						inherit name;
+						system = "x86_64-linux";
+						builder = "${{bb}}/bin/sh";
+						args = [ "-c" script ];
+					}};
+					dep = mk "running-dep" "echo dep > $out";
+					src = builtins.toFile "running-source" "source";
+				in mk "running" ''
+					${{bb}}/bin/cat ${{dep}} ${{src}} > $out
+					${{bb}}/bin/touch {sync}/started
+					while [ ! -e {sync}/go ]; do ${{bb}}/bin/sleep 0.05; done
+				''"#,
+				busybox = env.busybox,
+				sync = sync.display(),
+			),
+		)
+		.unwrap();
+		let store_arg = env.store_arg(&name);
+		let drv = env
+			.reference_ok(
+				"nix-instantiate",
+				&["--store", &store_arg, expr.to_str().unwrap()],
+			)
+			.trim()
+			.to_owned();
+		let drv = StorePath::from_absolute_path(drv.as_bytes()).unwrap();
+		let store = env.open(&name);
+		// The busybox, the source and the input derivation.
+		let inputs: Vec<StorePath> = store
+			.query_path_info(&drv)
+			.unwrap()
+			.unwrap()
+			.references
+			.into_iter()
+			.collect();
+		assert_eq!(inputs.len(), 3, "{inputs:?}");
+		let dep_drv = inputs
+			.iter()
+			.find(|p| p.name().ends_with(".drv"))
+			.unwrap()
+			.clone();
+
+		let root = env.root(&name);
+		let builder = std::thread::spawn({
+			let drv = drv.clone();
+			let sync = sync.clone();
+			move || {
+				let mut config = LocalStoreConfig::with_root(&root);
+				config.require_sigs = false;
+				let store = LocalStore::open(config).unwrap();
+				let settings = noxi_build::settings::BuildSettings {
+					// A diverted store builds in the sandbox; the builder
+					// signals through a bound directory.
+					sandbox_paths: vec![noxi_build::settings::SandboxPath::parse(
+						&sync.display().to_string(),
+					)],
+					build_cores: 1,
+					..noxi_build::settings::BuildSettings::default()
+				};
+				noxi_build::local::LocalBuilder::new(&store, &settings)
+					.realise(&drv, &mut |_| {})
+					.map_err(|e| e.to_string())
+			}
+		});
+		let started = std::time::Instant::now();
+		while !sync.join("started").exists() {
+			assert!(!builder.is_finished(), "{:?}", builder.join());
+			assert!(started.elapsed().as_secs() < 60, "the build did not start");
+			std::thread::sleep(std::time::Duration::from_millis(20));
+		}
+		let dep_out = store
+			.query_derivation_outputs(&dep_drv)
+			.unwrap()
+			.into_values()
+			.next()
+			.unwrap();
+		match collector {
+			"noxi" => {
+				store
+					.collect_garbage(&GcOptions::new(GcAction::DeleteDead), &mut |_| {})
+					.unwrap();
+			}
+			_ => {
+				env.reference_ok("nix-store", &["--store", &store_arg, "--gc"]);
+			}
+		}
+		for path in [&drv, &dep_out].into_iter().chain(&inputs) {
+			assert!(
+				store.is_valid_path(path).unwrap() && store.real_path(path).exists(),
+				"{collector} collected {path} during the build"
+			);
+		}
+		fs::write(sync.join("go"), "").unwrap();
+		let outputs = builder.join().unwrap().unwrap();
+		let out = &outputs["out"];
+		assert_eq!(
+			fs::read_to_string(store.real_path(out)).unwrap(),
+			"dep\nsource"
+		);
+		env.verify(&name);
+	}
+}

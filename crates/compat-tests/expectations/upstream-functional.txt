@@ -318,9 +318,9 @@ tests/functional/gc-auto.sh gap fail pass # main in gc-auto.sh:83: error: Cannot
 tests/functional/gc-closure.sh pass pass pass
 tests/functional/gc-concurrent.builder.sh support
 tests/functional/gc-concurrent.nix support
-tests/functional/gc-concurrent.sh gap fail pass # main in gc-concurrent.sh:40: error: path '$ROOT/tmp/nix-test/main/gc-concurrent/store/HASH-gc-concurrent.drv' is not valid
+tests/functional/gc-concurrent.sh pass pass pass
 tests/functional/gc-concurrent2.builder.sh support
-tests/functional/gc-non-blocking.sh gap fail pass # main in gc-non-blocking.sh:43: error: Cannot build '$ROOT/tmp/nix-test/main/gc-non-blocking/store/HASH-non-blocking.drv'.
+tests/functional/gc-non-blocking.sh pass pass pass
 tests/functional/gc-runtime.nix support
 tests/functional/gc-runtime.sh pass pass pass
 tests/functional/gc.sh pass pass pass

@@ -488,6 +488,9 @@ impl<'a> LocalBuilder<'a> {
 				print(drv_path)
 			)));
 		}
+		// `DerivationBuildingGoal`: the derivation stays alive while it is
+		// built, even when nothing else roots it.
+		self.store.add_temp_root(drv_path)?;
 		let supplied = resolved.is_some();
 		let build_drv = match resolved {
 			Some(drv) => drv,
