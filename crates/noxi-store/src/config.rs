@@ -51,6 +51,8 @@ pub struct LocalStoreConfig {
 	/// `local?root=ROOT` is. CppNix then calls it `local://`, and `local`
 	/// otherwise ([`LocalStoreConfig::human_uri`]).
 	pub has_params: bool,
+	/// `auto-optimise-store`: deduplicate the files of each path added.
+	pub auto_optimise_store: bool,
 }
 
 impl LocalStoreConfig {
@@ -104,6 +106,8 @@ impl LocalStoreConfig {
 		self.reserved_size =
 			settings.get_int("gc-reserved-space", self.reserved_size as i64) as u64;
 		self.fsync_metadata = settings.get_bool("fsync-metadata", self.fsync_metadata);
+		self.auto_optimise_store =
+			settings.get_bool("auto-optimise-store", self.auto_optimise_store);
 		self.use_sqlite_wal = settings.get_bool("use-sqlite-wal", self.use_sqlite_wal);
 		self.require_sigs = settings.get_bool("require-sigs", self.require_sigs);
 		self.narinfo_cache_positive_ttl = settings
@@ -197,6 +201,7 @@ impl LocalStoreConfig {
 			dynamic_derivations: false,
 			secret_key_files: Vec::new(),
 			git_hashing: false,
+			auto_optimise_store: false,
 			has_params: false,
 			narinfo_cache_positive_ttl: 30 * 24 * 60 * 60,
 			narinfo_cache_negative_ttl: 60 * 60,

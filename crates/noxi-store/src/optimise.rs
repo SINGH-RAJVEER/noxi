@@ -1,9 +1,13 @@
-//! Store deduplication using the reference's SHA-256 NAR inode names.
+//! Store deduplication using the reference's SHA-256 NAR inode names,
+//! following CppNix 2.35.2's `optimise-store.cc`.
 
 use std::fs;
+use std::io;
 use std::os::unix::fs::{MetadataExt, PermissionsExt};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicU64, Ordering};
 
+use crate::canonicalise::canonicalise_timestamp_and_permissions;
 use crate::{LocalStore, Result, nar};
 use nix_compat::nixbase32;
 
@@ -13,11 +17,15 @@ pub struct OptimiseStats {
 	pub bytes_freed: u64,
 }
 
-struct DirectoryMode(PathBuf, fs::Permissions);
+/// `MakeReadOnly`: canonicalises a directory's mode and timestamp again
+/// when dropped.
+struct MakeReadOnly(Option<PathBuf>);
 
-impl Drop for DirectoryMode {
+impl Drop for MakeReadOnly {
 	fn drop(&mut self) {
-		let _ = fs::set_permissions(&self.0, self.1.clone());
+		if let Some(path) = &self.0 {
+			let _ = canonicalise_timestamp_and_permissions(path);
+		}
 	}
 }
 
@@ -43,60 +51,114 @@ impl LocalStore {
 			overlay.remount(&self.config().real_store_dir, &mut warn)?;
 			return Ok(stats);
 		}
-		let links = self.config().real_store_dir.join(".links");
-		fs::create_dir_all(&links)?;
 		let mut stats = OptimiseStats::default();
 		for path in self.query_all_valid_paths()? {
 			self.add_temp_root(&path)?;
 			if !self.is_valid_path(&path)? {
 				continue;
 			}
-			let mut todo = vec![self.real_path(&path)];
-			while let Some(path) = todo.pop() {
-				let metadata = fs::symlink_metadata(&path)?;
-				if metadata.is_dir() {
-					todo.extend(
-						fs::read_dir(&path)?
-							.map(|entry| entry.map(|entry| entry.path()))
-							.collect::<std::io::Result<Vec<_>>>()?,
-					);
-					continue;
-				}
-				if !(metadata.is_file() || metadata.file_type().is_symlink())
-					|| (metadata.is_file() && metadata.mode() & 0o200 != 0)
-				{
-					continue;
-				}
-				let hash = nar::hash_path(&path)?.0;
-				let link = links.join(nixbase32::encode(&hash));
-				if let Ok(existing) = fs::symlink_metadata(&link) {
-					if existing.ino() == metadata.ino() && existing.dev() == metadata.dev() {
-						continue;
-					}
-					if nar::hash_path(&link)?.0 != hash {
-						fs::remove_file(&link)?;
-					}
-				}
-				match fs::hard_link(&path, &link) {
-					Ok(()) => continue,
-					Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => {}
-					Err(error) => return Err(error.into()),
-				}
-				let parent = path.parent().expect("store file parent");
-				let permissions = fs::metadata(parent)?.permissions();
-				let _restore = DirectoryMode(parent.to_owned(), permissions.clone());
-				fs::set_permissions(
-					parent,
-					fs::Permissions::from_mode(permissions.mode() | 0o200),
-				)?;
-				let temporary = tempfile::NamedTempFile::new_in(parent)?.into_temp_path();
-				fs::remove_file(&temporary)?;
-				fs::hard_link(&link, &temporary)?;
-				fs::rename(&temporary, &path)?;
-				stats.files_linked += 1;
-				stats.bytes_freed += metadata.len();
-			}
+			self.optimise_path_into(&self.real_path(&path), &mut stats, false)?;
 		}
 		Ok(stats)
+	}
+
+	/// `LocalStore::optimisePath`: deduplicate the files of the store
+	/// path at `real` when `auto-optimise-store` is set.
+	pub fn optimise_path(&self, real: &Path, repair: bool) -> Result<()> {
+		if self.config().auto_optimise_store && self.overlay.is_none() {
+			self.optimise_path_into(real, &mut OptimiseStats::default(), repair)?;
+		}
+		Ok(())
+	}
+
+	/// `optimisePath_`.
+	fn optimise_path_into(&self, path: &Path, stats: &mut OptimiseStats, repair: bool) -> Result<()> {
+		let real_store = &self.config().real_store_dir;
+		let links = real_store.join(".links");
+		fs::create_dir_all(&links)?;
+		let metadata = fs::symlink_metadata(path)?;
+		if metadata.is_dir() {
+			for entry in fs::read_dir(path)? {
+				self.optimise_path_into(&entry?.path(), stats, repair)?;
+			}
+			return Ok(());
+		}
+		if !(metadata.is_file() || metadata.file_type().is_symlink()) {
+			return Ok(());
+		}
+		if metadata.is_file() && metadata.mode() & 0o200 != 0 {
+			if nix_compat::log::log_enabled(nix_compat::log::VerbosityLevel::Warn) {
+				eprintln!(
+					"warning: skipping suspicious writable file '{}'",
+					path.display()
+				);
+			}
+			return Ok(());
+		}
+		let hash = nar::hash_path(path)?.0;
+		let link = links.join(nixbase32::encode(&hash));
+		if let Ok(existing) = fs::symlink_metadata(&link)
+			&& (existing.len() != metadata.len() || (repair && nar::hash_path(&link)?.0 != hash))
+		{
+			if nix_compat::log::log_enabled(nix_compat::log::VerbosityLevel::Warn) {
+				eprintln!("warning: removing corrupted link '{}'", link.display());
+				eprintln!(
+					"warning: There may be more corrupted paths.\nYou should run `nix-store --verify --check-contents --repair` to fix them all"
+				);
+			}
+			match fs::remove_file(&link) {
+				Err(e) if e.kind() != io::ErrorKind::NotFound => return Err(e.into()),
+				_ => {}
+			}
+		}
+		if fs::symlink_metadata(&link).is_err() {
+			match fs::hard_link(path, &link) {
+				Ok(()) => return Ok(()),
+				Err(e) if e.kind() == io::ErrorKind::AlreadyExists => {}
+				// A full directory index or too many links disable
+				// deduplication of this file.
+				Err(e) if matches!(e.raw_os_error(), Some(libc::ENOSPC | libc::EMLINK)) => {
+					return Ok(());
+				}
+				Err(e) => return Err(e.into()),
+			}
+		}
+		// A concurrent collection may have removed the link.
+		let Ok(existing) = fs::symlink_metadata(&link) else {
+			return Ok(());
+		};
+		if existing.ino() == metadata.ino() && existing.dev() == metadata.dev() {
+			return Ok(());
+		}
+		let parent = path.parent().expect("store file parent");
+		let toggle = parent != real_store.as_path();
+		if toggle {
+			let mode = fs::metadata(parent)?.permissions().mode();
+			fs::set_permissions(parent, fs::Permissions::from_mode(mode | 0o200))?;
+		}
+		let _read_only = MakeReadOnly(toggle.then(|| parent.to_owned()));
+		static COUNTER: AtomicU64 = AtomicU64::new(0);
+		let temporary = real_store.join(format!(
+			".tmp-link-{}-{}",
+			std::process::id(),
+			COUNTER.fetch_add(1, Ordering::Relaxed)
+		));
+		match fs::hard_link(&link, &temporary) {
+			Ok(()) => {}
+			Err(e) if matches!(e.raw_os_error(), Some(libc::EMLINK | libc::ENOENT)) => {
+				return Ok(());
+			}
+			Err(e) => return Err(e.into()),
+		}
+		if let Err(e) = fs::rename(&temporary, path) {
+			let _ = fs::remove_file(&temporary);
+			if e.raw_os_error() == Some(libc::EMLINK) {
+				return Ok(());
+			}
+			return Err(e.into());
+		}
+		stats.files_linked += 1;
+		stats.bytes_freed += metadata.len();
+		Ok(())
 	}
 }

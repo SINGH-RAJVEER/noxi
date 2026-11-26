@@ -6,6 +6,7 @@ Changes that have not reached a version yet go under an `Unreleased` heading for
 
 ## Repository - Unreleased
 
+- `nix store delete` accepts `--skip-alive` (`--skip-live`) and `--also-referrers`. `auto-optimise-store` hard-links the files of added paths and build outputs, and `nix-store --optimise` follows `optimisePath_` (temporary links in the store directory, directories made read-only again). Commands accept `mounted-ssh-ng://` stores with the `mounted-ssh-store` feature: an `ssh-ng://` daemon started with `--process-ops` that makes permanent roots itself (2026-11-26).
 - Recursive Nix: builds that require `recursive-nix` get a socket served from a restricted view of the store, as in CppNix 2.35.2. A builder that closes its log is killed with its process group, as the reference does, instead of being waited for (2026-11-26).
 - Sandboxed builds honour `require-drop-supplementary-groups` and fail when the caller's supplementary groups cannot be dropped and the setting is on (the default for root), as CppNix 2.35.2 does; unsandboxed builds as a build user run with that user's supplementary groups. Local store URLs accept `require-sigs` and `local://PATH`. Missing derivations are realised for the outputs that are wanted of them, so resolved content-addressed derivations are substituted output by output, and failed output substitutions are reported with the reference's messages and `--fallback` hint (2026-11-26).
 - Git fetches refresh a remote default branch when its cache expires. Pure evaluation warns when a Git input relies on its NAR hash alone.

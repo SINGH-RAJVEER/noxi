@@ -1084,6 +1084,7 @@ impl LocalStore {
 				}
 			}
 			canonicalise_path_metadata(&real, None)?;
+			self.optimise_path(&real, repair)?;
 			self.register_valid_path(info)?;
 		} else {
 			io::copy(source, &mut io::sink())?;
@@ -1251,6 +1252,7 @@ impl LocalStore {
 					None => nar::hash_path(&real)?,
 				};
 				canonicalise_path_metadata(&real, None)?;
+				self.optimise_path(&real, repair)?;
 				info.nar_hash = nar_hash;
 				info.nar_size = nar_size;
 				self.register_valid_path(&info)?;

@@ -127,7 +127,7 @@ pass:upstream_functional tests/functional/build-remote-trustless-should-pass-0.s
 pass:upstream_functional tests/functional/build-remote-trustless-should-pass-1.sh
 pass:upstream_functional tests/functional/build-remote-trustless-should-pass-2.sh
 pass:upstream_functional tests/functional/build-remote-trustless-should-pass-3.sh
-gap tests/functional/build-remote-with-mounted-ssh-ng.sh # main in build-remote-with-mounted-ssh-ng.sh:10: error: don't know how to open Nix store with scheme 'mounted-ssh-ng://localhost'
+pass:upstream_functional tests/functional/build-remote-with-mounted-ssh-ng.sh
 gap tests/functional/build.sh # main in build.sh:148: error: nix --relaxed-sandbox is not supported by noxi yet
 pass:upstream_functional tests/functional/ca/build-cache.sh
 pass:upstream_functional tests/functional/ca/build-delete.sh
@@ -234,7 +234,7 @@ gap tests/functional/flamegraph-profiler.sh # main in flamegraph-profiler.sh:35:
 gap tests/functional/formatter.sh # main in formatter.sh:11: error: nix --help is not supported by noxi yet
 gap tests/functional/function-trace.sh # main in function-trace.sh:34: <
 gap tests/functional/gc-auto.sh # main in gc-auto.sh:83: error: Cannot build '$ROOT/tmp/nix-test/main/gc-auto/store/HASH-gc-A.drv'.
-gap tests/functional/gc-closure.sh # : error: nix store delete --skip-alive is not supported by noxi yet
+pass:upstream_functional tests/functional/gc-closure.sh
 gap tests/functional/gc-concurrent.sh # main in gc-concurrent.sh:40: error: path '$ROOT/tmp/nix-test/main/gc-concurrent/store/HASH-gc-concurrent.drv' is not valid
 gap tests/functional/gc-non-blocking.sh # main in gc-non-blocking.sh:43: error: Cannot build '$ROOT/tmp/nix-test/main/gc-non-blocking/store/HASH-non-blocking.drv'.
 pass:upstream_functional tests/functional/gc-runtime.sh
@@ -284,7 +284,7 @@ pass:upstream_functional tests/functional/nix-profile.sh
 pass:upstream_functional tests/functional/nix-shell.sh
 pass:upstream_functional tests/functional/nix_path.sh
 pass:upstream_functional tests/functional/no-url-literals.sh
-gap tests/functional/optimise-store.sh # : inodes do not match
+pass:upstream_functional tests/functional/optimise-store.sh
 pass:upstream_functional tests/functional/output-normalization.sh
 pass:upstream_functional tests/functional/pass-as-file.sh
 pass:upstream_functional tests/functional/path-from-hash-part.sh

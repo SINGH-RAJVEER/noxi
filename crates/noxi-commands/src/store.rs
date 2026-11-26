@@ -199,7 +199,10 @@ fn resolve(uri: &str) -> Result<Target, String> {
 		return Ok(Target::Cache);
 	}
 	let (scheme, query) = uri.split_once('?').unwrap_or((uri, ""));
-	if matches!(scheme, "ssh-ng://localhost" | "ssh://localhost") {
+	if matches!(
+		scheme,
+		"ssh-ng://localhost" | "ssh://localhost" | "mounted-ssh-ng://localhost"
+	) {
 		let reference = parse_reference(uri)?;
 		if let Some(dir) = reference.params.get("store") {
 			nix_compat::store_path::configure_store_dir(dir)?;

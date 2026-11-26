@@ -30,7 +30,7 @@ tests/functional/build-remote-trustless-should-pass-1.sh pass pass pass
 tests/functional/build-remote-trustless-should-pass-2.sh pass pass pass
 tests/functional/build-remote-trustless-should-pass-3.sh pass pass pass
 tests/functional/build-remote-trustless.sh support
-tests/functional/build-remote-with-mounted-ssh-ng.sh gap fail pass # main in build-remote-with-mounted-ssh-ng.sh:10: error: don't know how to open Nix store with scheme 'mounted-ssh-ng://localhost'
+tests/functional/build-remote-with-mounted-ssh-ng.sh pass pass pass
 tests/functional/build-remote.sh support
 tests/functional/build.sh gap fail pass # main in build.sh:148: error: nix --relaxed-sandbox is not supported by noxi yet
 tests/functional/ca-shell.nix support
@@ -315,7 +315,7 @@ tests/functional/formatter.sh gap fail pass # main in formatter.sh:11: error: ni
 tests/functional/formatter.simple.sh support
 tests/functional/function-trace.sh gap fail pass # main in function-trace.sh:34: <
 tests/functional/gc-auto.sh gap fail pass # main in gc-auto.sh:83: error: Cannot build '$ROOT/tmp/nix-test/main/gc-auto/store/HASH-gc-A.drv'.
-tests/functional/gc-closure.sh gap fail pass # : error: nix store delete --skip-alive is not supported by noxi yet
+tests/functional/gc-closure.sh pass pass pass
 tests/functional/gc-concurrent.builder.sh support
 tests/functional/gc-concurrent.nix support
 tests/functional/gc-concurrent.sh gap fail pass # main in gc-concurrent.sh:40: error: path '$ROOT/tmp/nix-test/main/gc-concurrent/store/HASH-gc-concurrent.drv' is not valid
@@ -407,7 +407,7 @@ tests/functional/nix-profile.sh pass pass pass
 tests/functional/nix-shell.sh pass pass pass
 tests/functional/nix_path.sh pass pass pass
 tests/functional/no-url-literals.sh pass pass pass
-tests/functional/optimise-store.sh gap fail pass # : inodes do not match
+tests/functional/optimise-store.sh pass pass pass
 tests/functional/output-normalization.sh pass pass pass
 tests/functional/package.nix support
 tests/functional/parallel.builder.sh support

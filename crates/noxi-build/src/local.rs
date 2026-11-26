@@ -2060,6 +2060,9 @@ impl LocalBuilder<'_> {
 
 			let mut info = info;
 			if !check {
+				if !self.store.is_valid_path(&info.path)? {
+					self.store.optimise_path(&real, false)?;
+				}
 				info.deriver = Some(drv_path.clone());
 				info.ultimate = true;
 				self.store.sign_path_info(&mut info)?;

@@ -654,8 +654,12 @@ pub fn run(parsed: Parsed) -> Result<ExitCode, Failure> {
 			}
 		}
 		"store gc" | "store delete" => {
-			parsed.unsupported(&["also-referrers", "skip-alive", "skip-live"])?;
-			let mut options = GcOptions::new(if parsed.command == "store delete" {
+			// `--skip-alive` (alias `--skip-live`) makes `store delete` a
+			// `gcDeleteDead` over the given paths, as in 2.35.2.
+			let skip_alive = parsed.has("skip-alive") || parsed.has("skip-live");
+			let mut options = GcOptions::new(if parsed.command == "store delete" && skip_alive {
+				GcAction::DeleteDead
+			} else if parsed.command == "store delete" {
 				GcAction::DeleteSpecific
 			} else if parsed.has("dry-run") {
 				GcAction::ReturnDead
@@ -677,6 +681,7 @@ pub fn run(parsed: Parsed) -> Result<ExitCode, Failure> {
 			}
 			if parsed.command == "store delete" {
 				options.paths = Some(paths(&parsed, store)?);
+				options.delete_referrers = parsed.has("also-referrers");
 			}
 			let result = store.collect_garbage(&options, &mut log);
 			let summary = result.as_ref().ok().cloned().unwrap_or_default();

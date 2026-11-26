@@ -493,7 +493,13 @@ fn supported_flags(command: &str) -> &'static [&'static str] {
 			&["name", "mode", "hash-algo", "dry-run"]
 		}
 		"store ls" => &["recursive", "long", "directory", "json"],
-		"store delete" => &["recursive", "ignore-liveness"],
+		"store delete" => &[
+			"recursive",
+			"ignore-liveness",
+			"skip-alive",
+			"skip-live",
+			"also-referrers",
+		],
 		"store gc" => &["dry-run", "max"],
 		"store verify" => &["all", "recursive", "no-contents", "no-trust", "sigs-needed"],
 		"store info" => &["json", "pretty", "no-pretty"],

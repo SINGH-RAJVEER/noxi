@@ -117,6 +117,9 @@ pub struct DaemonStore {
 	real_store_dir: PathBuf,
 	/// Ask the daemon to write added paths again even when they are valid.
 	repair_additions: std::cell::Cell<bool>,
+	/// `MountedSSHStore`: the remote store is mounted here, so the remote
+	/// side makes permanent roots (`AddPermRoot`).
+	mounted: bool,
 }
 
 pub(crate) fn store_error(e: Error) -> noxi_store::Error {
@@ -311,6 +314,7 @@ impl DaemonStore {
 			path_infos: RefCell::default(),
 			real_store_dir,
 			repair_additions: std::cell::Cell::new(false),
+			mounted: false,
 		}
 	}
 
@@ -326,6 +330,13 @@ impl DaemonStore {
 			&ClientOptions::default(),
 			PathBuf::from(store_dir()),
 		)
+	}
+
+	/// `MountedSSHStore`: the same store, with its files mounted at the
+	/// same place here, so permanent roots are made by the remote side.
+	pub fn mounted(mut self) -> Self {
+		self.mounted = true;
+		self
 	}
 
 	/// `UDSRemoteStore::openConnection` and `initConnection`.
@@ -930,6 +941,18 @@ impl Store for DaemonStore {
 	/// `IndirectRootStore::addPermRoot`: the link is made here, and the
 	/// daemon is told about it.
 	fn add_perm_root(&self, path: &StorePath, gc_root: &Path) -> noxi_store::Result<PathBuf> {
+		if self.mounted {
+			// `MountedSSHStore::addPermRoot`: the remote side makes both
+			// the link and the indirect root.
+			return self.with_conn(|conn| {
+				conn.to
+					.u64(op::ADD_PERM_ROOT)
+					.store_path(path)
+					.string(&gc_root.to_string_lossy());
+				conn.process_stderr()?;
+				conn.from.read_string().map(PathBuf::from)
+			});
+		}
 		if gc_root.starts_with(store_dir()) {
 			return Err(noxi_store::Error::Other(format!(
 				"creating a garbage collector root (\"{}\") in the Nix store is forbidden (are you running nix-build inside the store?)",
