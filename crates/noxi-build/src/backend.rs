@@ -163,9 +163,14 @@ impl Worker<'_> {
 	}
 
 	/// CppNix's failure of a derivation goal whose input failed to build.
-	fn dependency_failed(&self, drv: &StorePath) -> Result<String> {
+	fn dependency_failed(&self, drv: &StorePath, count: usize) -> Result<String> {
+		let reason = if count == 1 {
+			"dependency"
+		} else {
+			"dependencies"
+		};
 		let mut message = format!(
-			"Cannot build '{}'.\nReason: 1 dependency failed.",
+			"Cannot build '{}'.\nReason: {count} {reason} failed.",
 			drv.to_absolute_path()
 		);
 		// Floating outputs have no paths to list.
@@ -650,9 +655,18 @@ impl Worker<'_> {
 			})?;
 			let exit_status = batch.exit_status();
 			let mut waited_on = BTreeSet::new();
+			let mut failed_inputs = BTreeMap::new();
 			for drv in batch.failures.keys() {
 				let derivation = self.store.read_build_derivation(drv)?;
-				waited_on.extend(derivation.basic.input_derivations().keys().cloned());
+				let inputs = derivation.basic.input_derivations();
+				waited_on.extend(inputs.keys().cloned());
+				failed_inputs.insert(
+					drv.clone(),
+					inputs
+						.keys()
+						.filter(|input| batch.failures.contains_key(*input))
+						.count(),
+				);
 			}
 			let mut failed_targets = Vec::new();
 			for (path, _) in &targets {
@@ -661,7 +675,14 @@ impl Worker<'_> {
 						log_error(&error.to_string());
 					}
 					let message = if error.status() == crate::FailureStatus::DependencyFailed {
-						self.dependency_failed(path)?
+						self.dependency_failed(
+							path,
+							if self.settings.keep_going {
+								failed_inputs[path].max(1)
+							} else {
+								1
+							},
+						)?
 					} else {
 						error.to_string()
 					};
@@ -763,7 +784,7 @@ impl Worker<'_> {
 				nix_compat::log::logger::worker_update(|c| {
 					c.expected_builds = c.expected_builds.saturating_sub(1)
 				});
-				self.dependency_failed(drv)?
+				self.dependency_failed(drv, 1)?
 			} else {
 				continue;
 			};

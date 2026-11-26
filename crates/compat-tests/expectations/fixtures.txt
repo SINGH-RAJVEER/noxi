@@ -120,7 +120,7 @@ pass:upstream_functional tests/functional/build-cores.sh
 pass:upstream_functional tests/functional/build-delete.sh
 pass:upstream_functional tests/functional/build-dry.sh
 pass:upstream_functional tests/functional/build-remote-content-addressed-fixed.sh
-gap tests/functional/build-remote-content-addressed-floating.sh # source in build-remote.sh:74: error: build log of 'passthru.input3' is not available
+pass tests/functional/build-remote-content-addressed-floating.sh
 pass:upstream_functional tests/functional/build-remote-input-addressed.sh
 pass:upstream_functional tests/functional/build-remote-trustless-should-fail-0.sh
 pass:upstream_functional tests/functional/build-remote-trustless-should-pass-0.sh
@@ -128,7 +128,7 @@ pass:upstream_functional tests/functional/build-remote-trustless-should-pass-1.s
 pass:upstream_functional tests/functional/build-remote-trustless-should-pass-2.sh
 pass:upstream_functional tests/functional/build-remote-trustless-should-pass-3.sh
 pass:upstream_functional tests/functional/build-remote-with-mounted-ssh-ng.sh
-gap tests/functional/build.sh # main in build.sh:148: error: nix --relaxed-sandbox is not supported by noxi yet
+gap tests/functional/build.sh # main in build.sh:241: nix flake check --impure is unsupported
 pass:upstream_functional tests/functional/ca/build-cache.sh
 pass:upstream_functional tests/functional/ca/build-delete.sh
 pass:upstream_functional tests/functional/ca/build-with-garbage-path.sh
@@ -142,7 +142,7 @@ pass:upstream_functional tests/functional/ca/gc.sh
 pass:upstream_functional tests/functional/ca/import-from-derivation.sh
 pass:upstream_functional tests/functional/ca/issue-13247.sh
 pass:upstream_functional tests/functional/ca/multiple-outputs.sh
-gap tests/functional/ca/new-build-cmd.sh # source in ./build.sh:148: error: nix --relaxed-sandbox is not supported by noxi yet
+gap tests/functional/ca/new-build-cmd.sh # source in ./build.sh:241: nix flake check --impure is unsupported
 pass:upstream_functional tests/functional/ca/nix-copy.sh
 pass:upstream_functional tests/functional/ca/nix-run.sh
 pass:upstream_functional tests/functional/ca/nix-shell.sh
@@ -178,7 +178,7 @@ pass:upstream_functional tests/functional/dyn-drv/recursive-mod-json.sh
 pass:upstream_functional tests/functional/dyn-drv/text-hashed-output.sh
 gap tests/functional/eval-store.sh # main in eval-store.sh:14: error: nix build --eval-store is not supported by noxi yet
 pass:upstream_functional tests/functional/eval.sh
-gap tests/functional/experimental-features.sh # main in experimental-features.sh:36:
+gap tests/functional/experimental-features.sh # main in experimental-features.sh:78: nix --help is unsupported
 pass:upstream_functional tests/functional/export-graph.sh
 pass:upstream_functional tests/functional/export.sh
 gap tests/functional/external-builders.sh # main in external-builders.sh:46: error: Cannot build '$ROOT/tmp/nix-test/main/external-builders/store/HASH-external.drv'.
@@ -273,7 +273,7 @@ pass:upstream_functional tests/functional/misc.sh
 pass:upstream_functional tests/functional/multiple-outputs-substitute-failure.sh
 pass:upstream_functional tests/functional/multiple-outputs.sh
 pass:upstream_functional tests/functional/nar-access.sh
-gap tests/functional/nars.sh # main in nars.sh:6:
+gap tests/functional/nars.sh # main in nars.sh:99: --restore does not apply use-case-hack
 gap tests/functional/nested-sandboxing.sh # main in nested-sandboxing.sh:24:
 pass:upstream_functional tests/functional/nix-build.sh
 pass:upstream_functional tests/functional/nix-channel.sh

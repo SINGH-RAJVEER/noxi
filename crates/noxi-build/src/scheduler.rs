@@ -210,13 +210,23 @@ impl LocalBuilder<'_> {
 						break;
 					};
 					let node = &goals[&path];
-					if node.inputs.iter().any(|p| batch.failures.contains_key(p)) {
+					let failed = node
+						.inputs
+						.iter()
+						.filter(|input| batch.failures.contains_key(*input))
+						.count();
+					if failed > 0 {
+						let reason = if failed == 1 {
+							"dependency"
+						} else {
+							"dependencies"
+						};
 						batch.failures.insert(
 							path.clone(),
 							BuildError::failed(
 								FailureStatus::DependencyFailed,
 								format!(
-									"Cannot build '{}'.\nReason: 1 dependency failed.",
+									"Cannot build '{}'.\nReason: {failed} {reason} failed.",
 									print(&path)
 								),
 							),

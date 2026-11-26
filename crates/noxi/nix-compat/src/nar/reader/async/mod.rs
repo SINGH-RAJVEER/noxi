@@ -195,7 +195,7 @@ impl<'a, 'r> DirReader<'a, 'r> {
 
 		// Enforce strict monotonicity of directory entry names.
 		if &self.prev_name[..] >= name {
-			return Err(InvalidData.into());
+			return Err(io::Error::new(InvalidData, "NAR directory is not sorted"));
 		}
 
 		self.prev_name.clear();

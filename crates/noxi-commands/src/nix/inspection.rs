@@ -113,32 +113,37 @@ pub(super) fn write_build_log(
 		let Some((local, _)) = crate::store::open_local(uri, settings)? else {
 			return Err(unsupported("log for this store"));
 		};
-		let name = drv.to_string();
-		let base = local
-			.config()
-			.log_dir
-			.join("drvs")
-			.join(&name[..2])
-			.join(&name[2..]);
-		for (path, compression) in [
-			(base.clone(), None),
-			(
-				base.with_file_name(format!("{}.bz2", &name[2..])),
-				Some("bzip2"),
-			),
-		] {
-			match fs::File::open(&path) {
-				Ok(file) => {
-					found(local.config().human_uri());
-					let mut reader = noxi_store::binary_cache::decompress(
-						compression,
-						Box::new(BufReader::new(file)),
-					)?;
-					io::copy(&mut reader, &mut io::stdout().lock())?;
-					return Ok(());
-				}
-				Err(error) if error.kind() == io::ErrorKind::NotFound => {}
-				Err(error) => return Err(error.into()),
+		if write_local_build_log(&local, drv, &found)? {
+			return Ok(());
+		}
+		if store.ca_derivations() && store.is_valid_path(drv)? {
+			let derivation = store.read_build_derivation(drv)?;
+			let resolved =
+				noxi_build::local::resolve_derivation(drv, &derivation, |input, wanted| {
+					if !store.is_valid_path(input)? {
+						return Ok(None);
+					}
+					let mut outputs = BTreeMap::new();
+					for name in wanted {
+						let Some(path) = noxi_build::local::deep_query_output(
+							store,
+							input,
+							name,
+							&mut |_, _, _| {},
+						)?
+						else {
+							return Ok(None);
+						};
+						outputs.insert(name.clone(), path);
+					}
+					Ok(Some(outputs))
+				})
+				.map_err(|error| Failure::Error(error.to_string()))?;
+			if let Some((resolved, _)) = resolved
+				&& &resolved != drv
+				&& write_local_build_log(&local, &resolved, &found)?
+			{
+				return Ok(());
 			}
 		}
 	}
@@ -172,6 +177,42 @@ pub(super) fn write_build_log(
 	Err(Failure::Error(format!(
 		"build log of '{what}' is not available"
 	)))
+}
+
+fn write_local_build_log(
+	local: &noxi_store::LocalStore,
+	drv: &nix_compat::store_path::StorePath,
+	found: &impl Fn(&str),
+) -> Result<bool, Failure> {
+	let name = drv.to_string();
+	let base = local
+		.config()
+		.log_dir
+		.join("drvs")
+		.join(&name[..2])
+		.join(&name[2..]);
+	for (path, compression) in [
+		(base.clone(), None),
+		(
+			base.with_file_name(format!("{}.bz2", &name[2..])),
+			Some("bzip2"),
+		),
+	] {
+		match fs::File::open(&path) {
+			Ok(file) => {
+				found(local.config().human_uri());
+				let mut reader = noxi_store::binary_cache::decompress(
+					compression,
+					Box::new(BufReader::new(file)),
+				)?;
+				io::copy(&mut reader, &mut io::stdout().lock())?;
+				return Ok(true);
+			}
+			Err(error) if error.kind() == io::ErrorKind::NotFound => {}
+			Err(error) => return Err(error.into()),
+		}
+	}
+	Ok(false)
 }
 
 /// The derivation at `path` in CppNix's JSON model, which `derivation show`

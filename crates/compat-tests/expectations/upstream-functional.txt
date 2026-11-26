@@ -21,7 +21,7 @@ tests/functional/build-hook-ca-floating.nix support
 tests/functional/build-hook-list-paths.sh support
 tests/functional/build-hook.nix support
 tests/functional/build-remote-content-addressed-fixed.sh pass pass pass
-tests/functional/build-remote-content-addressed-floating.sh gap fail pass # source in build-remote.sh:74: error: build log of 'passthru.input3' is not available
+tests/functional/build-remote-content-addressed-floating.sh pass pass pass
 tests/functional/build-remote-input-addressed.sh pass pass pass
 tests/functional/build-remote-trustless-after.sh support
 tests/functional/build-remote-trustless-should-fail-0.sh pass pass pass
@@ -32,7 +32,7 @@ tests/functional/build-remote-trustless-should-pass-3.sh pass pass pass
 tests/functional/build-remote-trustless.sh support
 tests/functional/build-remote-with-mounted-ssh-ng.sh pass pass pass
 tests/functional/build-remote.sh support
-tests/functional/build.sh gap fail pass # main in build.sh:148: error: nix --relaxed-sandbox is not supported by noxi yet
+tests/functional/build.sh gap fail pass # main in build.sh:241: nix flake check --impure is unsupported
 tests/functional/ca-shell.nix support
 tests/functional/ca/build-cache.sh pass pass pass
 tests/functional/ca/build-delete.sh pass pass pass
@@ -54,7 +54,7 @@ tests/functional/ca/issue-13247.nix support
 tests/functional/ca/issue-13247.sh pass pass pass
 tests/functional/ca/meson.build support
 tests/functional/ca/multiple-outputs.sh pass pass pass
-tests/functional/ca/new-build-cmd.sh gap fail pass # source in ./build.sh:148: error: nix --relaxed-sandbox is not supported by noxi yet
+tests/functional/ca/new-build-cmd.sh gap fail pass # source in ./build.sh:241: nix flake check --impure is unsupported
 tests/functional/ca/nix-copy.sh pass pass pass
 tests/functional/ca/nix-run.sh pass pass pass
 tests/functional/ca/nix-shell.sh pass pass pass
@@ -246,7 +246,7 @@ tests/functional/dyn-drv/text-hashed-output.sh pass pass pass
 tests/functional/eval-store.sh gap fail pass # main in eval-store.sh:14: error: nix build --eval-store is not supported by noxi yet
 tests/functional/eval.nix support
 tests/functional/eval.sh pass pass pass
-tests/functional/experimental-features.sh gap fail pass # main in experimental-features.sh:36:
+tests/functional/experimental-features.sh gap fail pass # main in experimental-features.sh:78: nix --help is unsupported
 tests/functional/export-graph.nix support
 tests/functional/export-graph.sh pass pass pass
 tests/functional/export.sh pass pass pass
@@ -390,7 +390,7 @@ tests/functional/multiple-outputs.nix support
 tests/functional/multiple-outputs.sh pass pass pass
 tests/functional/nar-access.nix support
 tests/functional/nar-access.sh pass pass pass
-tests/functional/nars.sh gap fail pass # main in nars.sh:6:
+tests/functional/nars.sh gap fail pass # main in nars.sh:99: --restore does not apply use-case-hack
 tests/functional/nested-sandboxing.sh gap fail pass # main in nested-sandboxing.sh:24:
 tests/functional/nested-sandboxing/command.sh support
 tests/functional/nested-sandboxing/runner.nix support
