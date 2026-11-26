@@ -6,6 +6,9 @@ Changes that have not reached a version yet go under an `Unreleased` heading for
 
 ## Repository - Unreleased
 
+- Git fetches refresh a remote default branch when its cache expires. Pure evaluation warns when a Git input relies on its NAR hash alone.
+- Legacy file arguments open local `file://` archives in the selected store. `nix-instantiate --eval` applies `max-call-depth` while printing pre-forced values. The deprecated short path warning setting works unless an explicit lint policy overrides it.
+
 - Git fetches support SSH commit verification with explicit public keys in builtins and flake inputs.
 
 - `nix eval --write-to` writes string values and nested attribute sets to a new filesystem path. `nix run` checks the type of a flake output against the resolved attribute path. `nix build --commit-lock-file` uses the existing flake lock commit logic.

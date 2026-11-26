@@ -43,11 +43,10 @@ fn boolean(input: &Input, name: &str) -> Result<bool> {
 }
 
 pub(super) fn requires_verification(input: &Input) -> Result<bool> {
-	Ok(
-		maybe_get_bool_attr(&input.attrs, "verifyCommit")?.unwrap_or_else(|| {
-			input.attrs.contains_key("publicKey") || input.attrs.contains_key("publicKeys")
-		}),
-	)
+	match maybe_get_bool_attr(&input.attrs, "verifyCommit")? {
+		Some(verify) => Ok(verify),
+		None => Ok(!get_public_keys(&input.attrs)?.is_empty()),
+	}
 }
 
 fn verify_commit(repo: &Path, input: &Input, commit: &str) -> Result<()> {
@@ -137,18 +136,27 @@ fn remote_repo(
 		return Ok(repo);
 	}
 	if reference == "HEAD" && revision.is_none() {
-		if let Ok(head) = text(&repo, &["symbolic-ref", "HEAD"])
-			&& run(&repo, &["rev-parse", "--verify", "HEAD"]).is_ok()
-		{
-			reference = head;
-		} else if !offline {
-			let head = text(&repo, &["ls-remote", "--symref", "--", url, "HEAD"])?;
-			if let Some(target) = head.lines().find_map(|line| {
-				line.strip_prefix("ref: ")
-					.and_then(|line| line.split_whitespace().next())
-			}) {
-				reference = target.into();
-				run(&repo, &["symbolic-ref", "HEAD", target])?;
+		let cached_head = text(&repo, &["symbolic-ref", "HEAD"])
+			.ok()
+			.filter(|head| run(&repo, &["rev-parse", "--verify", head]).is_ok());
+		if let Some(head) = &cached_head {
+			reference = head.clone();
+		}
+		if !offline && !ref_fresh(&repo.join(&reference), ttl) {
+			match text(&repo, &["ls-remote", "--symref", "--", url, "HEAD"]) {
+				Ok(head) => {
+					if let Some(target) = head.lines().find_map(|line| {
+						line.strip_prefix("ref: ")
+							.and_then(|line| line.split_whitespace().next())
+					}) {
+						reference = target.into();
+						run(&repo, &["symbolic-ref", "HEAD", target])?;
+					} else {
+						reference = "HEAD".into();
+					}
+				}
+				Err(error) if cached_head.is_none() => return Err(error),
+				Err(_) => {} // A fetch failure below can fall back to the cached branch.
 			}
 		}
 	}
@@ -158,11 +166,7 @@ fn remote_repo(
 		repo.join("refs/heads").join(&reference)
 	};
 	let valid = run(&repo, &["rev-parse", "--verify", &reference]).is_ok();
-	let fresh = fs::metadata(&ref_file)
-		.and_then(|m| m.modified())
-		.ok()
-		.and_then(|m| m.elapsed().ok())
-		.is_some_and(|age| age.as_secs() < ttl);
+	let fresh = ref_fresh(&ref_file, ttl);
 	if revision.is_none() && valid && (offline || fresh && !boolean(input, "allRefs")?) {
 		return Ok(repo);
 	}
@@ -213,6 +217,14 @@ fn remote_repo(
 		file.set_modified(std::time::SystemTime::now())?;
 	}
 	Ok(repo)
+}
+
+fn ref_fresh(path: &Path, ttl: u64) -> bool {
+	fs::metadata(path)
+		.and_then(|m| m.modified())
+		.ok()
+		.and_then(|m| m.elapsed().ok())
+		.is_some_and(|age| age.as_secs() < ttl)
 }
 
 fn ignored(repo: &Path, paths: &BTreeSet<PathBuf>) -> Result<BTreeSet<PathBuf>> {

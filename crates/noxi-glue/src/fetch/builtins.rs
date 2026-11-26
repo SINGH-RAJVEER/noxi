@@ -170,25 +170,9 @@ pub(crate) fn tree_attrs(
 }
 
 pub(super) async fn public_keys_attr(co: &GenCo, value: Value) -> Result<Attr, ErrorKind> {
-	let Value::List(list) = value else {
-		return Err(error("'publicKeys' must be a list"));
-	};
-	let mut keys = Vec::with_capacity(list.len());
-	for value in list.iter() {
-		let attrs = generators::request_force(co, value.clone())
-			.await
-			.to_attrs()?;
-		let key = generators::request_force(co, attrs.select_required("key")?.clone()).await;
-		let key = key.to_str()?;
-		let key_type = match attrs.select("type") {
-			Some(value) => generators::request_force(co, value.clone())
-				.await
-				.to_str()?,
-			None => NixString::from("ssh-ed25519"),
-		};
-		keys.push(serde_json::json!({ "key": key.to_str()?, "type": key_type.to_str()? }));
-	}
-	Ok(Attr::String(serde_json::Value::Array(keys).to_string()))
+	let to_json = generators::request_builtin(co, "toJSON").await;
+	let json = generators::request_call_with(co, to_json, [value]).await;
+	Ok(Attr::String(json.to_str()?.to_str()?.to_owned()))
 }
 
 async fn fetch_tree(
@@ -316,14 +300,18 @@ async fn fetch_tree(
 		.map_err(error)?
 		.0;
 	}
-	if store.pure_eval()
-		&& !input.is_locked(&settings)
-		&& input.get_nar_hash().map_err(error)?.is_none()
-	{
-		return Err(error(format!(
-			"in pure evaluation mode, '{who}' doesn't fetch unlocked input '{}'",
-			input.display()
-		)));
+	if store.pure_eval() && !input.is_locked(&settings) {
+		if input.get_nar_hash().map_err(error)?.is_some() {
+			let mut unlocked = input.clone();
+			unlocked.attrs.remove("narHash");
+			noxi_flakeref::input::warn_unlocked_with_nar_hash("Input", &unlocked.display());
+		} else {
+			return Err(error(format!(
+				"in pure evaluation mode, '{}' doesn't fetch unlocked input '{}'",
+				who,
+				input.display()
+			)));
+		}
 	}
 	if store.fetch_config.borrow().restrict_eval {
 		store

@@ -255,7 +255,7 @@ tests/functional/extra-sandbox-profile.nix support
 tests/functional/extra-sandbox-profile.sh anomaly skip skip # reference skip: Need Darwin, skipping this test...
 tests/functional/failing.nix support
 tests/functional/fetchClosure.sh gap fail pass # main in fetchClosure.sh:32: error: attribute 'fetchClosure' missing
-tests/functional/fetchGit.sh gap fail pass # main in fetchGit.sh:151: unlocked input warning is missing
+tests/functional/fetchGit.sh pass pass pass
 tests/functional/fetchGitRefs.sh pass pass pass
 tests/functional/fetchGitShallow.sh pass pass pass
 tests/functional/fetchGitSubmodules.sh pass pass pass
@@ -535,12 +535,12 @@ tests/functional/shell.shebang.legacy.expr support
 tests/functional/shell.shebang.nix support
 tests/functional/shell.shebang.rb support
 tests/functional/shell.shebang.sh support
-tests/functional/short-path-literals.sh gap fail pass # : foo/bar
+tests/functional/short-path-literals.sh pass pass pass
 tests/functional/signing.sh gap fail pass # main in signing.sh:103: error: unsupported store parameter 'require-sigs=false' in '$ROOT/tmp/nix-test/main/signing/store0?require-sigs=false'
 tests/functional/simple-failing.nix support
 tests/functional/simple.builder.sh support
 tests/functional/simple.nix support
-tests/functional/simple.sh gap fail pass # main in simple.sh:58: printing a pre-forced deep value exits successfully instead of reporting max-call-depth
+tests/functional/simple.sh pass pass pass
 tests/functional/ssh-relay.sh pass pass pass
 tests/functional/store-info.sh pass pass pass
 tests/functional/store-print-env.sh pass pass pass
@@ -552,7 +552,7 @@ tests/functional/suggestions.sh gap fail pass # : test failed: The nix build std
 tests/functional/supplementary-groups.sh gap fail pass # : Expected exit code '1' but got '0' from command 'nix-build' './hermetic.nix' '--arg' 'busybox' '/nix/store/HASH-busybox-static-x86_64-unknown-linux-musl-1.37.0/bin/busybox' '--arg' 'seed' '1' '--no-
 tests/functional/symlink-derivation.nix support
 tests/functional/symlinks.sh pass pass pass
-tests/functional/tarball.sh gap fail pass # : error: path 'file:$ROOT/tmp/nix-test/main/tarball/tarball.tar' does not exist
+tests/functional/tarball.sh gap fail pass # main in tarball.sh:28: fetchTarball tries to download a missing URL despite the requested fixed-output path already existing in the store
 tests/functional/test-infra.sh pass pass pass
 tests/functional/test-libstoreconsumer.sh unrun not-run not-run # needs the C++ libstore consumer built against the engine's libraries (TODO section 6)
 tests/functional/test-libstoreconsumer/README.md support

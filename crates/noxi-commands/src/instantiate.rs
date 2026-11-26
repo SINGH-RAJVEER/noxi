@@ -440,6 +440,26 @@ pub(crate) fn is_lookup_path(s: &str) -> bool {
 			.all(|c| c.is_ascii_alphanumeric() || "._-+/".contains(c))
 }
 
+/// Legacy file arguments download file URLs as source archives before import.
+pub(crate) fn import_file_url(
+	options: &Options,
+	cwd: &Path,
+	input: &str,
+) -> io::Result<Option<String>> {
+	if !input.starts_with("file://") {
+		return Ok(None);
+	}
+	// The archive must be in the selected store even for a read-only query.
+	let (store, _) = evaluator_store(options, cwd, true).map_err(io::Error::other)?;
+	let io = noxi_glue::StoreIO::new(store);
+	let source = noxi_eval::EvalIO::resolve_lookup_path(&io, input)?
+		.ok_or_else(|| io::Error::other(format!("could not resolve archive URL {input}")))?;
+	Ok(Some(format!(
+		"(import {})",
+		nix_string(&source.to_string_lossy())
+	)))
+}
+
 /// The Nix expression one input evaluates to before attribute selection.
 fn root_expression(
 	options: &Options,
@@ -500,6 +520,9 @@ fn root_expression(
 	if is_lookup_path(input) {
 		// Resolve before `import`, whose frame a failed lookup lacks.
 		return Ok(format!("(builtins.seq {input} (import {input}))"));
+	}
+	if let Some(import) = import_file_url(options, cwd, input)? {
+		return Ok(import);
 	}
 	let path = cwd.join(input);
 	let source_path = if path.is_dir() {
@@ -1500,9 +1523,18 @@ pub fn run(options: &Options, cwd: &Path, stdout: &mut dyn Write) -> ExitCode {
 				.and_then(|()| stdout.write_all(b"\n")),
 			// CppNix prints raw output without a newline.
 			Value::String(s) if options.raw => stdout.write_all(s.as_bytes()),
-			value => stdout
-				.write_all(&Ambiguous(value).to_bytes())
-				.and_then(|()| stdout.write_all(b"\n")),
+			value => {
+				let max_depth = options.settings.get_int("max-call-depth", 10000).max(0) as usize;
+				let (bytes, complete) = Ambiguous(value).to_bytes_with_depth_limit(max_depth);
+				if !complete {
+					let _ = stdout.write_all(&bytes);
+					eprintln!("error: stack overflow; max-call-depth exceeded");
+					return ExitCode::FAILURE;
+				}
+				stdout
+					.write_all(&bytes)
+					.and_then(|()| stdout.write_all(b"\n"))
+			}
 		};
 		if written.is_err() {
 			return ExitCode::FAILURE;
