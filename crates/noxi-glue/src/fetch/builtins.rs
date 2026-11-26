@@ -169,6 +169,12 @@ pub(crate) fn tree_attrs(
 	Ok(Value::attrs(NixAttrs::from_iter(attrs)))
 }
 
+pub(super) async fn public_keys_attr(co: &GenCo, value: Value) -> Result<Attr, ErrorKind> {
+	let to_json = generators::request_builtin(co, "toJSON").await;
+	let json = generators::request_call_with(co, to_json, [value]).await;
+	Ok(Attr::String(json.to_str()?.to_str()?.to_owned()))
+}
+
 async fn fetch_tree(
 	store: &EvaluatorStore,
 	co: &GenCo,
@@ -194,6 +200,7 @@ async fn fetch_tree(
 					return Ok(value);
 				}
 				let value = match value {
+					Value::List(_) if key == "publicKeys" => public_keys_attr(co, value).await?,
 					Value::String(_) | Value::Path(_) => {
 						let mut s = string(co, value).await?;
 						if git && key == "url" {
@@ -293,14 +300,18 @@ async fn fetch_tree(
 		.map_err(error)?
 		.0;
 	}
-	if store.pure_eval()
-		&& !input.is_locked(&settings)
-		&& input.get_nar_hash().map_err(error)?.is_none()
-	{
-		return Err(error(format!(
-			"in pure evaluation mode, '{who}' doesn't fetch unlocked input '{}'",
-			input.display()
-		)));
+	if store.pure_eval() && !input.is_locked(&settings) {
+		if input.get_nar_hash().map_err(error)?.is_some() {
+			let mut unlocked = input.clone();
+			unlocked.attrs.remove("narHash");
+			noxi_flakeref::input::warn_unlocked_with_nar_hash("Input", &unlocked.display());
+		} else {
+			return Err(error(format!(
+				"in pure evaluation mode, '{}' doesn't fetch unlocked input '{}'",
+				who,
+				input.display()
+			)));
+		}
 	}
 	if store.fetch_config.borrow().restrict_eval {
 		store

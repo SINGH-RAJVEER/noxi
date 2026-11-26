@@ -29,7 +29,7 @@ pub fn options(parsed: &Parsed, eval: bool) -> Result<Options, Failure> {
 			.set("use-registries", "false")
 			.map_err(|e| e.to_string())?;
 	}
-	parsed.unsupported(&["eval-store", "write-to", "debugger", "inputs-from"])?;
+	parsed.unsupported(&["eval-store", "debugger", "inputs-from"])?;
 	let mut options = Options {
 		modern_pure: pure,
 		generated: true,
@@ -132,9 +132,14 @@ pub fn options(parsed: &Parsed, eval: bool) -> Result<Options, Failure> {
 				.map(|c| nix_string_literal(c))
 				.collect();
 			let reference = nix_string_literal(reference);
+			let select = if parsed.command == "run" {
+				"__noxi_flake_select_app"
+			} else {
+				"__noxi_flake_select"
+			};
 			(
 				format!(
-					"__noxi_flake_select (__noxi_flake {reference}) [ {} ] (__noxi_flake_label {reference})",
+					"{select} (__noxi_flake {reference}) [ {} ] (__noxi_flake_label {reference})",
 					candidates.join(" ")
 				),
 				String::new(),
@@ -156,12 +161,12 @@ pub fn options(parsed: &Parsed, eval: bool) -> Result<Options, Failure> {
 			let apply = format!("@@noxi-frag-{}@@", options.fragments.len() - 1);
 			expression = format!("({apply}\n) ({expression})");
 		}
-		if eval && parsed.has("raw") {
+		if eval && parsed.has("raw") && !parsed.has("write-to") {
 			expression = format!("(__noxi_raw_output \"eval\" ({expression}\n))");
 		}
 		options.inputs.push(expression);
 	}
-	options.json = eval && parsed.has("json");
+	options.json = eval && parsed.has("json") && !parsed.has("write-to");
 	Ok(options)
 }
 
@@ -172,8 +177,15 @@ pub fn eval(parsed: Parsed) -> Result<ExitCode, Failure> {
 		));
 	}
 	let mut options = options(&parsed, true)?;
-	let plain = !parsed.has("raw") && !parsed.has("json");
-	if plain {
+	if let Some(path) = parsed.value("write-to") {
+		options.write_to = Some(instantiate::absolute_path(
+			&std::env::current_dir()?,
+			Path::new(path),
+		));
+		for input in &mut options.inputs {
+			*input = format!("__noxi_write_eval ({input}\n)");
+		}
+	} else if !parsed.has("raw") && !parsed.has("json") {
 		// CppNix's `ValuePrinter` forces the value as it prints it, showing
 		// derivations by path and thrown errors as `«error: ...»`.
 		options.strict = false;
@@ -190,6 +202,9 @@ pub fn eval(parsed: Parsed) -> Result<ExitCode, Failure> {
 	};
 	// `eval` stops the progress bar before printing, as `eval.cc` does.
 	nix_compat::log::logger::stop();
+	if parsed.has("write-to") {
+		return Ok(ExitCode::SUCCESS);
+	}
 	let mut stdout = io::stdout().lock();
 	for value in evaluated.results {
 		if parsed.has("raw") || parsed.has("json") {

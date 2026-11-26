@@ -470,6 +470,7 @@ pub async fn select_builtin(
 	root: Value,
 	candidates: Value,
 	label: Value,
+	app: bool,
 ) -> Result<Value, ErrorKind> {
 	let mut names = Vec::new();
 	for candidate in candidates.to_list()?.iter() {
@@ -480,7 +481,36 @@ pub async fn select_builtin(
 	match cursors(&co, root, &names).await? {
 		Err(thrown) => Ok(thrown),
 		Ok(found) => match found.into_iter().next() {
-			Some((_, value)) => Ok(generators::request_force(&co, value).await),
+			Some((path, value)) => {
+				let value = generators::request_force(&co, value).await;
+				if !app || value.is_catchable() {
+					return Ok(value);
+				}
+				let expected = if matches!(
+					path.first().map(String::as_str),
+					Some("apps" | "defaultApp")
+				) {
+					"app"
+				} else {
+					"derivation"
+				};
+				if let Value::Attrs(attrs) = &value
+					&& let Some(kind) = attrs.select("type")
+				{
+					let kind = generators::request_force(&co, kind.clone()).await;
+					if kind.is_catchable() {
+						return Ok(kind);
+					}
+					if matches!(kind, Value::String(kind) if kind.as_bytes() == expected.as_bytes())
+					{
+						return Ok(value);
+					}
+				}
+				Err(ErrorKind::EvalError(format!(
+					"attribute '{}' should have type '{expected}'",
+					path.join(".")
+				)))
+			}
 			None => Err(missing(&label, &names)),
 		},
 	}

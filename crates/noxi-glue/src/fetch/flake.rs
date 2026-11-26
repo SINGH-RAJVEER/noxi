@@ -19,7 +19,7 @@ use noxi_flakeref::lockfile::{
 };
 use noxi_flakeref::registry::UseRegistries;
 
-use super::builtins::{error, string, tree_attrs};
+use super::builtins::{error, public_keys_attr, string, tree_attrs};
 use crate::store::EvaluatorStore;
 
 #[derive(Clone, Debug, Default)]
@@ -184,6 +184,9 @@ fn parse_inputs<'a>(
 					}
 					key => {
 						let attr = match value {
+							Value::List(_) if key == "publicKeys" => {
+								public_keys_attr(co, value).await?
+							}
 							Value::String(value) => Attr::String(value.to_str()?.to_owned()),
 							Value::Bool(value) => Attr::Bool(value),
 							Value::Integer(value) if value >= 0 => Attr::Int(value as u64),
@@ -241,10 +244,14 @@ fn relative_path(base: &Path, path: &Path) -> String {
 		root = parent;
 		prefix.push_str("../");
 	}
-	if prefix.is_empty() {
-		prefix.push_str("./");
+	let tail = path.strip_prefix(root).unwrap();
+	if tail.as_os_str().is_empty() {
+		if prefix.is_empty() {
+			return ".".to_owned();
+		}
+		prefix.pop();
 	}
-	format!("{prefix}{}", path.strip_prefix(root).unwrap().display())
+	format!("{prefix}{}", tail.display())
 }
 
 /// Resolve `.` and `..` lexically, as `CanonPath` does for relative inputs.
@@ -597,7 +604,8 @@ impl Resolver<'_> {
 						_ => None,
 					};
 					let old_locked = old_child.and_then(|child| old.nodes[child].locked.clone());
-					let reuse = !self.options.recreate
+					// Recreating the root lock does not discard a dependency's own lock.
+					let reuse = (!self.options.recreate || !old_prefix.is_empty())
 						&& cli_override.is_none()
 						&& !self.options.update_inputs.contains(&path)
 						&& old_locked.as_ref().is_some_and(|l| {

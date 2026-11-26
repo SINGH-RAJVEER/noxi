@@ -1307,16 +1307,21 @@ pub fn get_public_keys(attrs: &Attrs) -> Result<Vec<(String, String)>> {
 	if let Some(json) = maybe_get_str_attr(attrs, "publicKeys")? {
 		let parsed: serde_json::Value = serde_json::from_str(&json)
 			.map_err(|e| Error::new(format!("parsing publicKeys: {e}")))?;
-		for key in parsed.as_array().into_iter().flatten() {
-			let r#type = key
-				.get("type")
-				.and_then(|t| t.as_str())
-				.unwrap_or("ssh-ed25519");
+		let items = parsed
+			.as_array()
+			.ok_or_else(|| Error::new("publicKeys must be a JSON array"))?;
+		for key in items {
+			let key_type = match key.get("type") {
+				Some(value) => value
+					.as_str()
+					.ok_or_else(|| Error::new("public key type must be a string"))?,
+				None => "ssh-ed25519",
+			};
 			let value = key
 				.get("key")
 				.and_then(|k| k.as_str())
-				.ok_or_else(|| Error::new("public key lacks 'key'"))?;
-			keys.push((r#type.to_owned(), value.to_owned()));
+				.ok_or_else(|| Error::new("public key must contain a string key"))?;
+			keys.push((key_type.to_owned(), value.to_owned()));
 		}
 	}
 	if let Some(key) = maybe_get_str_attr(attrs, "publicKey")? {

@@ -59,7 +59,18 @@ mod operations {
 		label: Value,
 	) -> Result<Value, ErrorKind> {
 		let _ = &state;
-		super::super::search::select_builtin(co, root, candidates, label).await
+		super::super::search::select_builtin(co, root, candidates, label, false).await
+	}
+	#[builtin("flake_select_app")]
+	async fn builtin_select_app(
+		state: Rc<State>,
+		co: GenCo,
+		root: Value,
+		candidates: Value,
+		label: Value,
+	) -> Result<Value, ErrorKind> {
+		let _ = &state;
+		super::super::search::select_builtin(co, root, candidates, label, true).await
 	}
 	#[builtin("repl_print")]
 	async fn builtin_repl_print(

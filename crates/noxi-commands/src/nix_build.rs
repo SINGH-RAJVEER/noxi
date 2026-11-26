@@ -34,6 +34,33 @@ pub fn main(settings: Settings, args: Vec<String>) -> Result<ExitCode, Failure> 
 		Some(match flag {
 			"--version" => {
 				println!("nix-build (Nix) 2.35.2");
+				if nix_compat::log::verbosity() > nix_compat::log::VerbosityLevel::Info as u64 {
+					let env = |name: &str| std::env::var(name).ok();
+					let conf = env("NIX_CONF_DIR").unwrap_or_else(|| "/etc/nix".to_owned());
+					let state = env("NIX_STATE_DIR").unwrap_or_else(|| "/nix/var/nix".to_owned());
+					let settings = Settings::load(env).unwrap_or_default();
+					let values =
+						noxi_build::config_values::values(&settings, true).unwrap_or_default();
+					println!(
+						"System type: {}",
+						noxi_build::config_values::text(&values["system"]["value"], "system")
+					);
+					let platforms = values["extra-platforms"]["value"]
+						.as_array()
+						.into_iter()
+						.flatten()
+						.filter_map(serde_json::Value::as_str)
+						.collect::<Vec<_>>();
+					println!("Additional system types: {}", platforms.join(", "));
+					println!("Features: gc, signed-caches");
+					println!("System configuration file: {conf}/nix.conf");
+					println!(
+						"User configuration files: {}",
+						nix_compat::nixcpp::settings::user_config_files(&env).join(":")
+					);
+					println!("Store directory: {}", nix_compat::store_path::store_dir());
+					println!("State directory: {state}");
+				}
 				nix_compat::log::logger::stop();
 				std::process::exit(0);
 			}

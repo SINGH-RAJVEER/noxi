@@ -8,7 +8,8 @@ use std::rc::Rc;
 
 use noxi_flakeref::error::{Error, Result, warn};
 use noxi_flakeref::input::{
-	Attr, FetchSettings, Input, LazyAttr, get_str_attr, git_rev, maybe_get_bool_attr,
+	Attr, FetchSettings, Input, LazyAttr, get_public_keys, get_str_attr, git_rev,
+	maybe_get_bool_attr,
 };
 use noxi_flakeref::url::{fix_git_url, url_path_to_path};
 
@@ -21,6 +22,7 @@ fn run(repo: &Path, args: &[&str]) -> Result<Vec<u8>> {
 		.arg(repo)
 		.args(args)
 		.env("GIT_TERMINAL_PROMPT", "0")
+		.env("GIT_NO_REPLACE_OBJECTS", "1")
 		// Reading a work tree must not refresh its index, which libgit2 leaves alone.
 		.env("GIT_OPTIONAL_LOCKS", "0")
 		.output()?;
@@ -38,6 +40,64 @@ fn text(repo: &Path, args: &[&str]) -> Result<String> {
 
 fn boolean(input: &Input, name: &str) -> Result<bool> {
 	Ok(maybe_get_bool_attr(&input.attrs, name)?.unwrap_or(false))
+}
+
+pub(super) fn requires_verification(input: &Input) -> Result<bool> {
+	match maybe_get_bool_attr(&input.attrs, "verifyCommit")? {
+		Some(verify) => Ok(verify),
+		None => Ok(!get_public_keys(&input.attrs)?.is_empty()),
+	}
+}
+
+fn verify_commit(repo: &Path, input: &Input, commit: &str) -> Result<()> {
+	use std::io::Write;
+
+	let mut signers = tempfile::NamedTempFile::new()?;
+	for (key_type, key) in get_public_keys(&input.attrs)? {
+		// Keep input fields from adding options or another signer to the file.
+		if key_type.is_empty()
+			|| !key_type
+				.bytes()
+				.all(|b| b.is_ascii_alphanumeric() || b"-@._".contains(&b))
+			|| key.is_empty()
+			|| !key
+				.bytes()
+				.all(|b| b.is_ascii_alphanumeric() || b"+/=".contains(&b))
+		{
+			return Err(Error::new("invalid SSH public key"));
+		}
+		writeln!(signers, "nix {key_type} {key}")?;
+	}
+	let path = format!("gpg.ssh.allowedSignersFile={}", signers.path().display());
+	let revocation = tempfile::NamedTempFile::new()?;
+	let revocation = format!("gpg.ssh.revocationFile={}", revocation.path().display());
+	run(
+		repo,
+		&[
+			"-c",
+			&path,
+			"-c",
+			"gpg.ssh.program=ssh-keygen",
+			"-c",
+			&revocation,
+			"-c",
+			"gpg.openpgp.program=false",
+			"-c",
+			"gpg.x509.program=false",
+			"-c",
+			"gpg.minTrustLevel=fully",
+			"verify-commit",
+			"--",
+			commit,
+		],
+	)
+	.map_err(|err| {
+		Error::new(format!(
+			"Commit signature verification on commit {commit} failed: {}",
+			err.message
+		))
+	})?;
+	Ok(())
 }
 
 /// Fetch into a bare repository in the persistent Git cache.
@@ -75,19 +135,36 @@ fn remote_repo(
 	{
 		return Ok(repo);
 	}
+	let mut refreshing_head = false;
 	if reference == "HEAD" && revision.is_none() {
-		if let Ok(head) = text(&repo, &["symbolic-ref", "HEAD"])
-			&& run(&repo, &["rev-parse", "--verify", "HEAD"]).is_ok()
+		let cached_head = text(&repo, &["symbolic-ref", "HEAD"])
+			.ok()
+			.filter(|head| run(&repo, &["rev-parse", "--verify", head]).is_ok());
+		if let Some(head) = &cached_head {
+			reference = head.clone();
+		}
+		if !offline
+			&& !cached_head
+				.as_ref()
+				.is_some_and(|head| ref_fresh(&repo.join(head), ttl))
 		{
-			reference = head;
-		} else if !offline {
-			let head = text(&repo, &["ls-remote", "--symref", "--", url, "HEAD"])?;
-			if let Some(target) = head.lines().find_map(|line| {
-				line.strip_prefix("ref: ")
-					.and_then(|line| line.split_whitespace().next())
-			}) {
-				reference = target.into();
-				run(&repo, &["symbolic-ref", "HEAD", target])?;
+			refreshing_head = true;
+			match text(&repo, &["ls-remote", "--symref", "--", url, "HEAD"]) {
+				Ok(head) => {
+					if let Some(target) = head.lines().find_map(|line| {
+						line.strip_prefix("ref: ")
+							.and_then(|line| line.split_whitespace().next())
+					}) {
+						reference = target.into();
+						if cached_head.as_deref() != Some(target) {
+							run(&repo, &["symbolic-ref", "HEAD", target])?;
+						}
+					} else {
+						reference = "HEAD".into();
+					}
+				}
+				Err(error) if cached_head.is_none() => return Err(error),
+				Err(_) => {} // A fetch failure below can fall back to the cached branch.
 			}
 		}
 	}
@@ -97,12 +174,11 @@ fn remote_repo(
 		repo.join("refs/heads").join(&reference)
 	};
 	let valid = run(&repo, &["rev-parse", "--verify", &reference]).is_ok();
-	let fresh = fs::metadata(&ref_file)
-		.and_then(|m| m.modified())
-		.ok()
-		.and_then(|m| m.elapsed().ok())
-		.is_some_and(|age| age.as_secs() < ttl);
-	if revision.is_none() && valid && (offline || fresh && !boolean(input, "allRefs")?) {
+	let fresh = ref_fresh(&ref_file, ttl);
+	if revision.is_none()
+		&& valid
+		&& (offline || fresh && !refreshing_head && !boolean(input, "allRefs")?)
+	{
 		return Ok(repo);
 	}
 	if offline {
@@ -152,6 +228,14 @@ fn remote_repo(
 		file.set_modified(std::time::SystemTime::now())?;
 	}
 	Ok(repo)
+}
+
+fn ref_fresh(path: &Path, ttl: u64) -> bool {
+	fs::metadata(path)
+		.and_then(|m| m.modified())
+		.ok()
+		.and_then(|m| m.elapsed().ok())
+		.is_some_and(|age| age.as_secs() < ttl)
 }
 
 fn ignored(repo: &Path, paths: &BTreeSet<PathBuf>) -> Result<BTreeSet<PathBuf>> {
@@ -255,6 +339,7 @@ fn read_blobs(repo: &Path, blobs: &[(String, bool, bool, PathBuf)]) -> Result<()
 		.arg(repo)
 		.args(["cat-file", "--batch"])
 		.env("GIT_TERMINAL_PROMPT", "0")
+		.env("GIT_NO_REPLACE_OBJECTS", "1")
 		.stdin(Stdio::piped())
 		.stdout(Stdio::piped())
 		.stderr(Stdio::piped())
@@ -507,12 +592,7 @@ fn get_local_accessor(
 			error.into()
 		}
 	})?;
-	if boolean(input, "verifyCommit")?
-		|| input.attrs.contains_key("publicKey")
-		|| input.attrs.contains_key("publicKeys")
-	{
-		return Err(Error::new("verified fetches are not implemented"));
-	}
+	let verify = requires_verification(input)?;
 	let submodules = boolean(input, "submodules")?;
 	let export_ignore = boolean(input, "exportIgnore")?;
 	if submodules && export_ignore {
@@ -523,6 +603,31 @@ fn get_local_accessor(
 	let shallow = boolean(input, "shallow")?;
 	let worktree =
 		input.get_ref()?.is_none() && input.get_rev()?.is_none() && repo.join(".git").exists();
+	// Export the authenticated commit by ID, independent of mutable worktree files.
+	if worktree && verify {
+		let dirty = !run(
+			&repo,
+			&[
+				"status",
+				"--porcelain",
+				"--untracked-files=no",
+				"--ignore-submodules=none",
+			],
+		)?
+		.is_empty();
+		if dirty {
+			return Err(Error::new(format!(
+				"Git tree '{}' is dirty",
+				repo.display()
+			)));
+		}
+		let mut locked = input.clone();
+		locked.attrs.insert(
+			"rev".into(),
+			text(&repo, &["rev-parse", "--verify", "HEAD"])?.into(),
+		);
+		return get_local_accessor(store, settings, &locked, &repo);
+	}
 	let mut result = input.clone();
 	let rev;
 	let mount;
@@ -673,6 +778,9 @@ fn get_local_accessor(
 			&repo,
 			&["rev-parse", "--verify", &format!("{requested}^{{commit}}")],
 		)?;
+		if verify {
+			verify_commit(&repo, input, &commit)?;
+		}
 		result.attrs.insert("rev".into(), commit.clone().into());
 		if result.get_ref()?.is_none() {
 			let default_ref = text(&repo, &["symbolic-ref", "--quiet", "HEAD"])
@@ -680,8 +788,9 @@ fn get_local_accessor(
 			result.attrs.insert("ref".into(), default_ref.into());
 		}
 		let lfs = boolean(input, "lfs")?;
-		// Exports with submodules or LFS content always take the full path below.
-		let source = (!submodules && !lfs)
+		// A verified export must be rebuilt from signed objects. The shared
+		// revision cache can also contain snapshots of local worktrees.
+		let source = (!verify && !submodules && !lfs)
 			.then(|| super::source_hash_entry(fingerprint(&commit, export_ignore)));
 		let stored = match &source {
 			Some(entry) => {
@@ -754,6 +863,50 @@ fn get_local_accessor(
 #[cfg(test)]
 mod tests {
 	use super::*;
+	#[test]
+	fn verification_rejects_an_unsigned_commit() {
+		let source = tempfile::tempdir().unwrap();
+		run(source.path(), &["init", "--quiet"]).unwrap();
+		run(
+			source.path(),
+			&[
+				"-c",
+				"user.name=Fetcher test",
+				"-c",
+				"user.email=fetcher@example.invalid",
+				"commit",
+				"--no-gpg-sign",
+				"--allow-empty",
+				"--quiet",
+				"-m",
+				"unsigned",
+			],
+		)
+		.unwrap();
+		let revision = text(source.path(), &["rev-parse", "HEAD"]).unwrap();
+		let input = Input::from_attrs(
+			&FetchSettings {
+				verified_fetches: true,
+				..Default::default()
+			},
+			[
+				("type".into(), "git".into()),
+				(
+					"url".into(),
+					format!("file://{}", source.path().display()).into(),
+				),
+				("verifyCommit".into(), Attr::Bool(true)),
+			]
+			.into(),
+		)
+		.unwrap();
+		assert!(requires_verification(&input).unwrap());
+		let error = verify_commit(source.path(), &input, &revision).unwrap_err();
+		assert!(error.message.starts_with(&format!(
+			"Commit signature verification on commit {revision} failed:"
+		)));
+	}
+
 	#[test]
 	fn remote_transport_fetches_refs_and_shallow_revisions_offline() {
 		let source = tempfile::tempdir().unwrap();

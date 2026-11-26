@@ -514,6 +514,18 @@ fn source_root(globals: &Globals) -> Result<String, Failure> {
 	if crate::instantiate::is_lookup_path(&path.to_string_lossy()) {
 		return Ok(format!("import {}", path.display()));
 	}
+	if path.to_string_lossy().starts_with("file://") {
+		let options = crate::instantiate::Options {
+			settings: globals.settings.clone(),
+			store: globals.store.clone(),
+			..Default::default()
+		};
+		if let Some(import) =
+			crate::instantiate::import_file_url(&options, &globals.cwd, &path.to_string_lossy())?
+		{
+			return Ok(import);
+		}
+	}
 	let path = absolute_path(&globals.cwd, &path);
 	if path.is_dir() && !path.join("default.nix").exists() {
 		fn expressions(

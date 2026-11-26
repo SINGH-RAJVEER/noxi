@@ -26,9 +26,20 @@ pub struct Ambiguous<'a>(pub &'a Value);
 impl Ambiguous<'_> {
 	/// Render Nix strings and attribute names without replacing non-UTF-8 bytes.
 	pub fn to_bytes(&self) -> Vec<u8> {
+		self.to_bytes_with_depth_limit(usize::MAX).0
+	}
+
+	/// Return the rendered prefix and whether traversal finished within the depth limit.
+	pub fn to_bytes_with_depth_limit(&self, max_depth: usize) -> (Vec<u8>, bool) {
 		let mut out = Vec::new();
-		print(self.0, None, &mut out, &mut Some(FxHashSet::default()));
-		out
+		let complete = print(
+			self.0,
+			None,
+			&mut out,
+			&mut Some(FxHashSet::default()),
+			max_depth,
+		);
+		(out, complete)
 	}
 }
 
@@ -45,7 +56,7 @@ pub struct AmbiguousUnshared<'a>(pub &'a Value);
 impl Display for AmbiguousUnshared<'_> {
 	fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
 		let mut out = Vec::new();
-		print(self.0, None, &mut out, &mut None);
+		print(self.0, None, &mut out, &mut None, usize::MAX);
 		f.write_str(&String::from_utf8_lossy(&out))
 	}
 }
@@ -55,7 +66,8 @@ fn print(
 	cell: Option<*const ()>,
 	out: &mut Vec<u8>,
 	seen: &mut Option<FxHashSet<*const ()>>,
-) {
+	remaining: usize,
+) -> bool {
 	match value {
 		Value::Attrs(attrs) => {
 			if !attrs.is_empty()
@@ -64,13 +76,15 @@ fn print(
 					.is_some_and(|seen| !seen.insert(attrs.as_ptr()))
 			{
 				out.extend_from_slice("«repeated»".as_bytes());
-				return;
+				return true;
 			}
 			out.extend_from_slice(b"{ ");
 			for (name, value) in attrs.iter_sorted() {
 				attribute_name(out, name.as_bytes());
 				out.extend_from_slice(b" = ");
-				print(value, None, out, seen);
+				if remaining == 0 || !print(value, None, out, seen, remaining - 1) {
+					return false;
+				}
 				out.extend_from_slice(b"; ");
 			}
 			out.push(b'}');
@@ -81,17 +95,21 @@ fn print(
 				&& !seen.insert(cell)
 			{
 				out.extend_from_slice("«repeated»".as_bytes());
-				return;
+				return true;
 			}
 			out.extend_from_slice(b"[ ");
 			for value in list {
-				print(value, None, out, seen);
+				if remaining == 0 || !print(value, None, out, seen, remaining - 1) {
+					return false;
+				}
 				out.push(b' ');
 			}
 			out.push(b']');
 		}
 		Value::Thunk(thunk) => match &*thunk.0.borrow() {
-			ThunkRepr::Evaluated(value) => print(value, Some(thunk.as_ptr()), out, seen),
+			ThunkRepr::Evaluated(value) => {
+				return print(value, Some(thunk.as_ptr()), out, seen, remaining);
+			}
 			ThunkRepr::Blackhole { .. } => {
 				out.extend_from_slice("«potential infinite recursion»".as_bytes())
 			}
@@ -103,6 +121,7 @@ fn print(
 		Value::Path(path) => out.extend_from_slice(path.as_os_str().as_encoded_bytes()),
 		value => out.extend_from_slice(format!("{value}").as_bytes()),
 	}
+	true
 }
 
 /// The limits of CppNix's `PrintOptions` that this printer supports.

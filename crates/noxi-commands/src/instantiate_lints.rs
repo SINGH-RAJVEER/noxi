@@ -15,10 +15,15 @@ pub(crate) struct Lints {
 impl Lints {
 	pub(crate) fn new(settings: &nix_compat::nixcpp::settings::Settings) -> Rc<Self> {
 		let severity = |name| Severity::from_setting(settings.get(name).unwrap_or("ignore"));
+		let short_paths = match settings.get("lint-short-path-literals") {
+			Some(setting) => Severity::from_setting(setting),
+			None if settings.get_bool("warn-short-path-literals", false) => Severity::Warn,
+			None => Severity::Ignore,
+		};
 		Rc::new(Self {
 			settings: Settings {
 				absolute_paths: severity("lint-absolute-path-literals"),
-				short_paths: severity("lint-short-path-literals"),
+				short_paths,
 				urls: severity("lint-url-literals"),
 			},
 			failed: Cell::new(false),

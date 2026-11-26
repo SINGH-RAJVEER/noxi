@@ -337,6 +337,7 @@ fn get_accessor_unchecked(store: &EvaluatorStore, input: &Input) -> Result<(Moun
 	};
 	// A final input with a NAR hash may already be in the store.
 	if input.is_final()
+		&& (scheme != Scheme::Git || !git::requires_verification(input)?)
 		&& let Some(nar_hash) = input.get_nar_hash()?
 		&& let Ok(path) = nix_compat::store_path::build_ca_path(
 			&input.get_name(),

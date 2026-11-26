@@ -41,6 +41,7 @@ pub enum AutoArg {
 #[derive(Debug, Default, Clone)]
 pub struct Options {
 	pub flake: Option<crate::nix::flakes::Request>,
+	pub write_to: Option<PathBuf>,
 	/// Apply the modern command's pure builtins and explicit filesystem limit.
 	pub modern_pure: bool,
 	pub eval: bool,
@@ -143,15 +144,15 @@ pub fn parse_args_with(
 			.ok_or_else(|| format!("flag '{flag}' requires 1 argument"))
 	};
 	while let Some(arg) = args.next_arg() {
-		if let Some(result) = crate::cli::apply_common_flag(&arg, &mut args, &mut options.settings)
-		{
-			result.map_err(failure_message)?;
-			continue;
-		}
 		if arg.starts_with('-')
 			&& let Some(result) = extra(&arg, &mut args)
 		{
 			result?;
+			continue;
+		}
+		if let Some(result) = crate::cli::apply_common_flag(&arg, &mut args, &mut options.settings)
+		{
+			result.map_err(failure_message)?;
 			continue;
 		}
 		match arg.as_str() {
@@ -439,6 +440,26 @@ pub(crate) fn is_lookup_path(s: &str) -> bool {
 			.all(|c| c.is_ascii_alphanumeric() || "._-+/".contains(c))
 }
 
+/// Legacy file arguments download file URLs as source archives before import.
+pub(crate) fn import_file_url(
+	options: &Options,
+	cwd: &Path,
+	input: &str,
+) -> io::Result<Option<String>> {
+	if !input.starts_with("file://") {
+		return Ok(None);
+	}
+	// The archive must be in the selected store even for a read-only query.
+	let (store, _) = evaluator_store(options, cwd, true).map_err(io::Error::other)?;
+	let io = noxi_glue::StoreIO::new(store);
+	let source = noxi_eval::EvalIO::resolve_lookup_path(&io, input)?
+		.ok_or_else(|| io::Error::other(format!("could not resolve archive URL {input}")))?;
+	Ok(Some(format!(
+		"(import {})",
+		nix_string(&source.to_string_lossy())
+	)))
+}
+
 /// The Nix expression one input evaluates to before attribute selection.
 fn root_expression(
 	options: &Options,
@@ -500,6 +521,9 @@ fn root_expression(
 		// Resolve before `import`, whose frame a failed lookup lacks.
 		return Ok(format!("(builtins.seq {input} (import {input}))"));
 	}
+	if let Some(import) = import_file_url(options, cwd, input)? {
+		return Ok(import);
+	}
 	let path = cwd.join(input);
 	let source_path = if path.is_dir() {
 		path.join("default.nix")
@@ -543,6 +567,11 @@ fn driver_expression(
 	// `nix-shell`, those taking `inNixShell` also get it as `true`.
 	driver.push_str("};\n");
 	let _ = writeln!(driver, "__noxi_inNixShell = {};", options.in_nix_shell);
+	let _ = writeln!(
+		driver,
+		"__noxi_maxDiscoveryDepth = {};",
+		options.settings.get_int("max-call-depth", 10_000).max(0),
+	);
 	// `DrvInfo::queryOutputs` for the outputs to install, or for a flake
 	// installable only those the derivation names.
 	let _ = writeln!(
@@ -598,17 +627,19 @@ __noxi_stringPath = s:
 __noxi_installable = v:
 	let path = __noxi_path (__noxi_autoCall v); in
 	if path != null then path else __noxi_getDerivations v;
-__noxi_getDerivations = v:
+__noxi_getDerivations = __noxi_discover 0;
+__noxi_discover = depth: v:
+	if depth >= __noxi_maxDiscoveryDepth then throw \"stack overflow; max-call-depth exceeded\" else
 	let v' = __noxi_autoCall v; in
 	if __noxi_isDerivation v' then [ (__noxi_pair v') ]
 	else if builtins.isAttrs v' then builtins.concatMap (name:
 		let x = v'.${name}; in
 		if builtins.match \"[A-Za-z_][A-Za-z0-9_+-]*\" name == null then [ ]
 		else if __noxi_isDerivation x then [ (__noxi_pair x) ]
-		else if builtins.isAttrs x && x ? recurseForDerivations && x.recurseForDerivations then __noxi_getDerivations x
+		else if builtins.isAttrs x && x ? recurseForDerivations && x.recurseForDerivations then __noxi_discover (depth + 1) x
 		else [ ]) (builtins.attrNames v')
 	else if builtins.isList v' then builtins.concatMap (x:
-		if __noxi_isDerivation x then [ (__noxi_pair x) ] else __noxi_getDerivations x) v'
+		if __noxi_isDerivation x then [ (__noxi_pair x) ] else __noxi_discover (depth + 1) x) v'
 	else throw \"expression does not evaluate to a derivation (or a set or list of those)\";
 __noxi_select = v: name:
 	let v' = __noxi_autoCall v; in
@@ -690,6 +721,88 @@ in __noxi_forceEach [\n",
 	}
 	code.push_str(remaining);
 	Ok((code, fragments))
+}
+
+#[builtins(state = "PathBuf")]
+mod eval_writer {
+	use std::path::PathBuf;
+
+	use noxi_eval::generators::{Gen, GenCo};
+	use noxi_eval::{ErrorKind, Value};
+
+	#[builtin("write_eval")]
+	async fn builtin_write_eval(
+		state: PathBuf,
+		co: GenCo,
+		#[lazy] value: Value,
+	) -> Result<Value, ErrorKind> {
+		let path = state;
+		if path.symlink_metadata().is_ok() {
+			return Err(ErrorKind::EvalError(format!(
+				"path '{}' already exists",
+				path.display()
+			)));
+		}
+		write_eval_tree(&co, &path, value).await
+	}
+
+	async fn write_eval_tree(
+		co: &GenCo,
+		path: &std::path::Path,
+		value: Value,
+	) -> Result<Value, ErrorKind> {
+		use noxi_eval::{AddContext, generators};
+		use std::io::Write;
+		use std::os::unix::ffi::OsStrExt;
+		use std::path::{Component, Path};
+
+		let io_error = |operation, error: std::io::Error| {
+			ErrorKind::EvalError(format!(
+				"{operation} \"{}\": {}",
+				path.display(),
+				crate::nix::hash::strerror(&error)
+			))
+		};
+		match generators::request_force(co, value).await {
+			Value::String(text) => {
+				let mut file = std::fs::OpenOptions::new()
+					.write(true)
+					.create_new(true)
+					.open(path)
+					.map_err(|error| io_error("opening file", error))?;
+				file.write_all(text.as_bytes())
+					.map_err(|error| io_error("writing file", error))?;
+			}
+			Value::Attrs(attrs) => {
+				std::fs::create_dir(path).map_err(|error| io_error("creating directory", error))?;
+				for (name, child) in attrs.iter_sorted() {
+					let relative = Path::new(std::ffi::OsStr::from_bytes(name.as_bytes()));
+					let label = relative.to_string_lossy();
+					let span = attrs.get_attr_pos(name);
+					let result = if relative.as_os_str().is_empty()
+						|| relative
+							.components()
+							.any(|part| !matches!(part, Component::Normal(_)))
+					{
+						Err(ErrorKind::EvalError(format!("invalid file name '{label}'")))
+					} else {
+						Box::pin(write_eval_tree(co, &path.join(relative), child.clone())).await
+					}
+					.trace(span, format!("while evaluating the attribute '{label}'"))?;
+					if result.is_catchable() {
+						return Ok(result);
+					}
+				}
+			}
+			thrown if thrown.is_catchable() => return Ok(thrown),
+			_ => {
+				return Err(ErrorKind::EvalError(
+					"value at '«none»:0' is not a string or an attribute set".into(),
+				));
+			}
+		}
+		Ok(Value::Null)
+	}
 }
 
 #[builtins]
@@ -927,6 +1040,13 @@ pub fn evaluate(options: &Options, cwd: &Path) -> Result<Evaluated, ExitCode> {
 		.into_iter()
 		.map(|(name, value)| (SmolStr::new(format!("__noxi_{name}")), value))
 		.collect();
+	if let Some(path) = &options.write_to {
+		env.extend(
+			eval_writer::builtins(path.clone())
+				.into_iter()
+				.map(|(name, value)| (SmolStr::new(format!("__noxi_{name}")), value)),
+		);
+	}
 	if let Some(request) = &options.flake {
 		env.extend(
 			crate::nix::flakes::builtins(request.clone(), evaluator_store.clone())
@@ -1403,9 +1523,18 @@ pub fn run(options: &Options, cwd: &Path, stdout: &mut dyn Write) -> ExitCode {
 				.and_then(|()| stdout.write_all(b"\n")),
 			// CppNix prints raw output without a newline.
 			Value::String(s) if options.raw => stdout.write_all(s.as_bytes()),
-			value => stdout
-				.write_all(&Ambiguous(value).to_bytes())
-				.and_then(|()| stdout.write_all(b"\n")),
+			value => {
+				let max_depth = options.settings.get_int("max-call-depth", 10000).max(0) as usize;
+				let (bytes, complete) = Ambiguous(value).to_bytes_with_depth_limit(max_depth);
+				if !complete {
+					let _ = stdout.write_all(&bytes);
+					eprintln!("error: stack overflow; max-call-depth exceeded");
+					return ExitCode::FAILURE;
+				}
+				stdout
+					.write_all(&bytes)
+					.and_then(|()| stdout.write_all(b"\n"))
+			}
 		};
 		if written.is_err() {
 			return ExitCode::FAILURE;
@@ -1497,7 +1626,7 @@ pub fn main(settings: Settings, args: Vec<String>) -> Result<ExitCode, crate::cl
 			std::process::exit(0)
 		}
 		"--help" => crate::cli::show_man_page_or_exit("nix-instantiate"),
-		"--dry-run" => {
+		"--dry-run" | "--readonly-mode" => {
 			dry_run = true;
 			Some(Ok(()))
 		}

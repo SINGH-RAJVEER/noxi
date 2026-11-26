@@ -200,7 +200,7 @@ tests/functional/compression-levels.sh pass pass pass
 tests/functional/compute-levels.sh support
 tests/functional/config.nix support
 tests/functional/config.nix.in support
-tests/functional/config.sh gap fail pass # main in config.sh:32: warning: you don't have Internet access; disabling some network-dependent features
+tests/functional/config.sh pass pass pass
 tests/functional/config/extra-config.conf support
 tests/functional/config/nix-with-bang-include.conf support
 tests/functional/config/nix-with-include.conf support
@@ -255,11 +255,11 @@ tests/functional/extra-sandbox-profile.nix support
 tests/functional/extra-sandbox-profile.sh anomaly skip skip # reference skip: Need Darwin, skipping this test...
 tests/functional/failing.nix support
 tests/functional/fetchClosure.sh gap fail pass # main in fetchClosure.sh:32: error: attribute 'fetchClosure' missing
-tests/functional/fetchGit.sh gap fail pass # main in fetchGit.sh:151: unlocked input warning is missing
+tests/functional/fetchGit.sh pass pass pass
 tests/functional/fetchGitRefs.sh pass pass pass
 tests/functional/fetchGitShallow.sh pass pass pass
 tests/functional/fetchGitSubmodules.sh pass pass pass
-tests/functional/fetchGitVerification.sh gap fail pass # main in fetchGitVerification.sh:31: error: verified fetches are not implemented == *No principal matched\.* ]]
+tests/functional/fetchGitVerification.sh pass pass pass
 tests/functional/fetchMercurial.sh pass pass pass
 tests/functional/fetchPath.sh pass pass pass
 tests/functional/fetchTree-file.sh pass pass pass
@@ -287,19 +287,19 @@ tests/functional/flakes/dubious-query.sh pass pass pass
 tests/functional/flakes/edit.sh pass pass pass
 tests/functional/flakes/eval-cache.sh pass pass pass
 tests/functional/flakes/flake-in-submodule.sh gap fail pass # main in flake-in-submodule.sh:108: Initialized empty Git repository in $ROOT/tmp/nix-test/flakes/flake-in-submodule/otherRepo/.git/
-tests/functional/flakes/flakes.sh gap fail pass # main in flakes.sh:76: warning: you don't have Internet access; disabling some network-dependent features
+tests/functional/flakes/flakes.sh gap fail pass # main in flakes.sh:76: dirty Git metadata is missing its fingerprint
 tests/functional/flakes/follow-paths.sh gap fail pass # main in follow-paths.sh:133: foobar
 tests/functional/flakes/get-flake.sh pass pass pass
 tests/functional/flakes/init.sh pass pass pass
 tests/functional/flakes/inputs.sh pass pass pass
 tests/functional/flakes/mercurial.sh pass pass pass
 tests/functional/flakes/meson.build support
-tests/functional/flakes/non-flake-inputs.sh gap fail pass # main in non-flake-inputs.sh:80: error: nix build --commit-lock-file is not supported by noxi yet
+tests/functional/flakes/non-flake-inputs.sh pass pass pass
 tests/functional/flakes/old-lockfiles.sh pass pass pass
 tests/functional/flakes/prefetch.sh gap fail pass # main in prefetch.sh:6: error: failed to read entire block
-tests/functional/flakes/relative-paths-lockfile.sh gap fail pass # main in relative-paths-lockfile.sh:75: warning: you don't have Internet access; disabling some network-dependent features
-tests/functional/flakes/relative-paths.sh gap fail pass # main in relative-paths.sh:71: warning: you don't have Internet access; disabling some network-dependent features
-tests/functional/flakes/run.sh gap fail pass # : test failed: 'nix run' shouldn’t accept an 'app' defined under 'packages'
+tests/functional/flakes/relative-paths-lockfile.sh pass pass pass
+tests/functional/flakes/relative-paths.sh pass pass pass
+tests/functional/flakes/run.sh pass pass pass
 tests/functional/flakes/search-root.sh pass pass pass
 tests/functional/flakes/shebang.sh gap fail pass # main in shebang.sh:103: error: '$ROOT/tmp/nix-test/flakes/shebang/nonFlake/shebang.sh' is not a recognised command
 tests/functional/flakes/show.sh gap fail pass # main in show.sh:102: error: cannot build '$ROOT/tmp/nix-test/flakes/show/store/HASH-foo.drv^out' during evaluation because the option 'allow-import-from-derivation' is disabled
@@ -340,7 +340,7 @@ tests/functional/help.sh anomaly fail skip # reference skip: we don't know wheth
 tests/functional/hermetic.nix support
 tests/functional/ifd.nix support
 tests/functional/import-from-derivation.nix support
-tests/functional/import-from-derivation.sh gap fail pass # main in import-from-derivation.sh:34: error: --readonly-mode is not supported by noxi yet
+tests/functional/import-from-derivation.sh gap fail pass # main in import-from-derivation.sh:34: the copied IFD result is missing both registered references
 tests/functional/impure-derivations.nix support
 tests/functional/impure-derivations.sh pass pass pass
 tests/functional/impure-env.nix support
@@ -424,7 +424,7 @@ tests/functional/plugins/plugintest.cc support
 tests/functional/plugins/plugintest_dlsym.cc support
 tests/functional/post-hook.sh pass pass pass
 tests/functional/pure-eval.nix support
-tests/functional/pure-eval.sh gap fail pass # main in pure-eval.sh:28: error: nix eval --write-to is not supported by noxi yet
+tests/functional/pure-eval.sh pass pass pass
 tests/functional/push-to-store-old.sh support
 tests/functional/push-to-store.sh support
 tests/functional/read-only-store.sh pass pass pass
@@ -535,12 +535,12 @@ tests/functional/shell.shebang.legacy.expr support
 tests/functional/shell.shebang.nix support
 tests/functional/shell.shebang.rb support
 tests/functional/shell.shebang.sh support
-tests/functional/short-path-literals.sh gap fail pass # : foo/bar
+tests/functional/short-path-literals.sh pass pass pass
 tests/functional/signing.sh pass pass pass
 tests/functional/simple-failing.nix support
 tests/functional/simple.builder.sh support
 tests/functional/simple.nix support
-tests/functional/simple.sh gap fail pass # main in simple.sh:27: error: --readonly-mode is not supported by noxi yet
+tests/functional/simple.sh pass pass pass
 tests/functional/ssh-relay.sh pass pass pass
 tests/functional/store-info.sh pass pass pass
 tests/functional/store-print-env.sh pass pass pass
@@ -552,7 +552,7 @@ tests/functional/suggestions.sh gap fail pass # : test failed: The nix build std
 tests/functional/supplementary-groups.sh pass pass pass
 tests/functional/symlink-derivation.nix support
 tests/functional/symlinks.sh pass pass pass
-tests/functional/tarball.sh gap fail pass # : error: path 'file:$ROOT/tmp/nix-test/main/tarball/tarball.tar' does not exist
+tests/functional/tarball.sh gap fail pass # main in tarball.sh:28: fetchTarball tries to download a missing URL despite the requested fixed-output path already existing in the store
 tests/functional/test-infra.sh pass pass pass
 tests/functional/test-libstoreconsumer.sh unrun not-run not-run # needs the C++ libstore consumer built against the engine's libraries (TODO section 6)
 tests/functional/test-libstoreconsumer/README.md support

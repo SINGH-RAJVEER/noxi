@@ -8,6 +8,14 @@ Changes that have not reached a version yet go under an `Unreleased` heading for
 
 - Recursive Nix: builds that require `recursive-nix` get a socket served from a restricted view of the store, as in CppNix 2.35.2. A builder that closes its log is killed with its process group, as the reference does, instead of being waited for (2026-11-26).
 - Sandboxed builds honour `require-drop-supplementary-groups` and fail when the caller's supplementary groups cannot be dropped and the setting is on (the default for root), as CppNix 2.35.2 does; unsandboxed builds as a build user run with that user's supplementary groups. Local store URLs accept `require-sigs` and `local://PATH`. Missing derivations are realised for the outputs that are wanted of them, so resolved content-addressed derivations are substituted output by output, and failed output substitutions are reported with the reference's messages and `--fallback` hint (2026-11-26).
+- Git fetches refresh a remote default branch when its cache expires. Pure evaluation warns when a Git input relies on its NAR hash alone.
+- Legacy file arguments open local `file://` archives in the selected store. `nix-instantiate --eval` applies `max-call-depth` while printing pre-forced values. The deprecated short path warning setting works unless an explicit lint policy overrides it.
+
+- Git fetches support SSH commit verification with explicit public keys in builtins and flake inputs.
+
+- `nix eval --write-to` writes string values and nested attribute sets to a new filesystem path. `nix run` checks the type of a flake output against the resolved attribute path. `nix build --commit-lock-file` uses the existing flake lock commit logic.
+- Flake input path literals are stored relative to the declaring flake, with no redundant `./` segment. Recreating the root lock reads a dependency's own lock file.
+- `nix-instantiate --readonly-mode` evaluates without writing derivations. `nix-build --verbose --version` prints the configuration paths and runtime settings.
 - `nix copy --all` uploads valid local store paths to a file cache. Copying from a file cache to a local store supports `--out-link` and `--profile`.
 - `nix store build-trace info --file` reports traces for realised derivation outputs. `nix log` can look up an output's deriver in a file cache.
 - `nix build --stdin` reads installables from a pipe. Explicit sandbox flags select strict, disabled or relaxed mode, and `nix config show sandbox` reports the selected mode.
