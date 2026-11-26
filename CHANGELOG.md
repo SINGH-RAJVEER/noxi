@@ -6,6 +6,7 @@ Changes that have not reached a version yet go under an `Unreleased` heading for
 
 ## Repository - Unreleased
 
+- `external-builders` works as in CppNix 2.35.2: a program configured for a derivation's system builds it outside the sandbox, with the caller's environment and a `build.json` description, before the platform is checked; it requires the `external-builders` experimental feature. Local builds are reported started only once their environment is set up, and a builder that ends before then is reported with the reference's message (2026-11-26).
 - `nix daemon` and `nix-daemon` exit at once with status 0 on SIGINT, SIGTERM or SIGHUP, as CppNix 2.35.2 does, instead of after five seconds with an error or by the signal; an interrupted `nix` command using the progress bar prints `shutting down` (2026-11-26).
 - Binary cache uploads and downloads support every compression method CppNix 2.35.2 does through the same libraries: `br` through libbrotlienc, and `compress`, `gzip`, `lzip` (and, where libarchive was built with them, `grzip`, `lrzip`, `lz4` and `lzop`) through libarchive, which `noxi-store` now links. A method libarchive cannot initialize is reported with its message before any path is copied (2026-11-26).
 - The `impure-env` setting passes its variables to fixed-output builders, locally and, when a trusted client sets it, through a daemon that enables `configurable-impure-env`, as in CppNix 2.35.2 (2026-11-26).

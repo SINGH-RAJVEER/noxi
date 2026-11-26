@@ -25,6 +25,7 @@ use bstr::{BString, ByteSlice};
 use nix_compat::cppnix_json::derivation::InputNode;
 use nix_compat::derivation::{OutputHashMode, OutputName, UnverifiedDerivation, lookup_fn};
 use nix_compat::nixbase32;
+use nix_compat::nixcpp::settings::ExternalBuilder;
 use nix_compat::nixhash::{CAHash, HashAlgo, NixHash};
 use nix_compat::store_path::{
 	self, StorePath, downstream_placeholder, hash_placeholder, store_dir,
@@ -1537,7 +1538,19 @@ impl LocalBuilder<'_> {
 		}
 
 		let features = drv_options.get_required_system_features(has_known_output_paths(build_drv));
-		let mut rejection = self.check_platform(drv_path, drv, &features).err();
+		// `findExternalDerivationBuilderIfSupported`: an external builder for
+		// the derivation's system is preferred to a local build, and the
+		// platform, features and `max-jobs` are not checked for it.
+		let system = drv.system().to_str_lossy();
+		let external = self
+			.settings
+			.external_builders
+			.iter()
+			.find(|builder| builder.systems.contains(system.as_ref()));
+		let mut rejection = match external {
+			Some(_) => None,
+			None => self.check_platform(drv_path, drv, &features).err(),
+		};
 		// Only an untouched store's derivations can be built elsewhere:
 		// checks and repairs are about this store.
 		let hooks = match &self.hooks {
@@ -1669,6 +1682,7 @@ impl LocalBuilder<'_> {
 				&env,
 				kind,
 				&input_paths,
+				external,
 				locks,
 				events,
 			);
@@ -1810,6 +1824,7 @@ impl LocalBuilder<'_> {
 		env: &BTreeMap<BString, BString>,
 		kind: BuildKind,
 		input_paths: &BTreeSet<StorePath>,
+		external: Option<&ExternalBuilder>,
 		mut locks: PathLocks,
 		events: &mut dyn FnMut(BuildEvent<'_>),
 	) -> Result<BTreeMap<String, StorePath>> {
@@ -1818,7 +1833,24 @@ impl LocalBuilder<'_> {
 			.name()
 			.strip_suffix(".drv")
 			.unwrap_or(drv_path.name());
-		let builtin = drv.command().strip_prefix(b"builtin:");
+		// `ExternalDerivationBuilder`'s constructor requires the feature
+		// before the build starts.
+		if external.is_some()
+			&& !self
+				.settings
+				.config
+				.experimental_features()
+				.contains("external-builders")
+		{
+			return Err(BuildError::Other(
+				"experimental Nix feature 'external-builders' is disabled; add '--extra-experimental-features external-builders' to enable it".to_owned(),
+			));
+		}
+		// An external builder is given even a builtin builder's name.
+		let builtin = drv
+			.command()
+			.strip_prefix(b"builtin:")
+			.filter(|_| external.is_none());
 		if let Some(name) = builtin
 			.filter(|name| !matches!(&name[..], b"buildenv" | b"unpack-channel" | b"fetchurl"))
 		{
@@ -1841,20 +1873,23 @@ impl LocalBuilder<'_> {
 			outputs = &current;
 		}
 		let diverted = self.store.config().real_store_dir != Path::new(store_dir());
-		let use_sandbox = diverted
-			|| match self.settings.sandbox {
-				SandboxMode::Enabled => {
-					if drv_options.no_chroot {
-						return Err(BuildError::Other(format!(
-							"derivation '{}' has '__noChroot' set, but that's not allowed when 'sandbox' is 'true'",
-							print(drv_path)
-						)));
+		// An external builder is a `DerivationBuilderImpl`, not a chroot
+		// builder: it runs outside the sandbox whatever `sandbox` says.
+		let use_sandbox = external.is_none()
+			&& (diverted
+				|| match self.settings.sandbox {
+					SandboxMode::Enabled => {
+						if drv_options.no_chroot {
+							return Err(BuildError::Other(format!(
+								"derivation '{}' has '__noChroot' set, but that's not allowed when 'sandbox' is 'true'",
+								print(drv_path)
+							)));
+						}
+						true
 					}
-					true
-				}
-				SandboxMode::Disabled => false,
-				SandboxMode::Relaxed => kind.sandboxed() && !drv_options.no_chroot,
-			};
+					SandboxMode::Disabled => false,
+					SandboxMode::Relaxed => kind.sandboxed() && !drv_options.no_chroot,
+				});
 		let build_user = self.acquire_build_user(drv_path)?;
 		// Without the sandbox the builder writes its outputs in place.
 		let mut build = Build::start(
@@ -1866,11 +1901,8 @@ impl LocalBuilder<'_> {
 			kind,
 			build_user,
 			!use_sandbox,
+			external.cloned(),
 		)?;
-		events(BuildEvent::Started {
-			drv_path,
-			mode: self.mode,
-		});
 		// A builtin builder's directory may hold credentials.
 		build.keep_failed = self.settings.keep_failed && builtin.is_none();
 		let result = build
@@ -3041,6 +3073,8 @@ struct Build<'b> {
 	recursive: bool,
 	/// The paths a recursive build may see; set while it runs.
 	restriction: std::cell::RefCell<Option<std::sync::Arc<crate::recursive::Restriction>>>,
+	/// The program that builds the derivation instead of its builder.
+	external: Option<ExternalBuilder>,
 }
 
 impl<'b> Build<'b> {
@@ -3054,6 +3088,7 @@ impl<'b> Build<'b> {
 		kind: BuildKind,
 		build_user: Option<BuildUser>,
 		direct: bool,
+		external: Option<ExternalBuilder>,
 	) -> Result<Self> {
 		// `prepareUser`: no process may still run as the build user.
 		if let Some(user) = &build_user {
@@ -3139,6 +3174,7 @@ impl<'b> Build<'b> {
 				.required_system_features
 				.contains("recursive-nix"),
 			restriction: std::cell::RefCell::new(None),
+			external,
 		})
 	}
 
@@ -3150,6 +3186,10 @@ impl<'b> Build<'b> {
 	/// The build directory as the builder sees it: `sandbox-build-dir` in
 	/// the sandbox, the temporary directory itself without one.
 	fn build_top(&self) -> PathBuf {
+		// `ExternalDerivationBuilder::tmpDirInSandbox`, for determinism.
+		if self.external.is_some() {
+			return PathBuf::from("/build");
+		}
 		if self.direct {
 			self.tmp_dir.clone()
 		} else {
@@ -3480,7 +3520,38 @@ impl<'b> Build<'b> {
 		let rewrites = &self.input_rewrites;
 		let mut env = self.environment(drv, env, input_paths, rewrites)?;
 
-		let binds = self.chroot_binds(input_paths)?;
+		// `ExternalDerivationBuilder::startChild`: the program is told about
+		// the build in `TOP/build.json` and runs outside the sandbox.
+		let external = match &self.external {
+			Some(_) if self.recursive => {
+				return Err(BuildError::Other(
+					"'recursive-nix' is not supported yet by external derivation builders"
+						.to_owned(),
+				));
+			}
+			Some(external) => {
+				let json = self.external_description(drv, &env, input_paths)?;
+				let file = self.top_tmp_dir.join("build.json");
+				fs::write(&file, json)?;
+				if let Some(user) = &self.build_user {
+					user.chown(&self.top_tmp_dir)?;
+				}
+				let mut args: Vec<std::ffi::OsString> =
+					external.args.iter().map(Into::into).collect();
+				args.push(file.into_os_string());
+				Some(sandbox::External {
+					program: external.program.clone(),
+					args,
+				})
+			}
+			None => None,
+		};
+
+		let binds = if external.is_some() {
+			Vec::new()
+		} else {
+			self.chroot_binds(input_paths)?
+		};
 
 		// `startDaemon`: a socket for recursive Nix calls.
 		let recursive = if self.recursive {
@@ -3489,8 +3560,13 @@ impl<'b> Build<'b> {
 			None
 		};
 
-		let builtin = self.builtin(drv, kind, outputs)?;
+		let builtin = match external {
+			Some(_) => None,
+			None => self.builtin(drv, kind, outputs)?,
+		};
 		let spec = SandboxSpec {
+			external,
+			drv_path: print(&self.drv_path),
 			builtin: builtin.as_deref(),
 			chroot_root: self.chroot_root.clone(),
 			chroot: !self.direct,
@@ -3508,7 +3584,11 @@ impl<'b> Build<'b> {
 			allow_new_privileges: settings.allow_new_privileges,
 			require_drop_supplementary_groups: settings.require_drop_supplementary_groups,
 			filter_syscalls: settings.filter_syscalls,
-			build_dir_in_sandbox: self.build_top(),
+			// An external builder starts in the build directory on the host.
+			build_dir_in_sandbox: match &self.external {
+				Some(_) => self.tmp_dir.clone(),
+				None => self.build_top(),
+			},
 			builder: drv.command().to_vec(),
 			args: drv
 				.arguments()
@@ -3533,9 +3613,18 @@ impl<'b> Build<'b> {
 		let max_log_size = settings.max_log_size();
 		let log_size = Cell::new(0u64);
 		let too_long = || max_log_size != 0 && log_size.get() > max_log_size;
+		// The build is reported started once its environment is set up, as
+		// `DerivationBuildingGoal` starts its activity after `startBuild`.
+		let events = std::cell::RefCell::new(events);
 		let mut run = || {
 			sandbox::run_cancellable(
 				&spec,
+				&mut || {
+					(events.borrow_mut())(BuildEvent::Started {
+						drv_path: &self.drv_path,
+						mode: self.builder.mode,
+					})
+				},
 				&mut |data: &[u8]| {
 					log_size.set(log_size.get() + data.len() as u64);
 					if too_long() {
@@ -3547,7 +3636,7 @@ impl<'b> Build<'b> {
 					{
 						write_error.get_or_insert(e);
 					}
-					events(BuildEvent::Output(data));
+					(events.borrow_mut())(BuildEvent::Output(data));
 				},
 				&|| too_long() || self.builder.tick(),
 			)
@@ -3576,6 +3665,73 @@ impl<'b> Build<'b> {
 			return Err(self.failure(&status, &tail));
 		}
 		Ok(())
+	}
+
+	/// The JSON document `ExternalDerivationBuilder::startChild` writes to
+	/// `build.json`, as nlohmann dumps it: compact, with sorted keys. The
+	/// arguments and environment have the input rewrites applied, the
+	/// builder does not, and the outputs are the scratch paths.
+	fn external_description(
+		&self,
+		drv: &UnverifiedDerivation,
+		env: &BTreeMap<BString, BString>,
+		input_paths: &BTreeSet<StorePath>,
+	) -> Result<String> {
+		// nlohmann refuses to dump a string that is not UTF-8.
+		let text = |bytes: &[u8]| -> Result<Value> {
+			match std::str::from_utf8(bytes) {
+				Ok(s) => Ok(Value::String(s.to_owned())),
+				Err(error) => {
+					let index = error.valid_up_to();
+					Err(BuildError::Other(format!(
+						"[json.exception.type_error.316] invalid UTF-8 byte at index {index}: 0x{:02X}",
+						bytes[index]
+					)))
+				}
+			}
+		};
+		let path = |path: &Path| text(path.as_os_str().as_encoded_bytes());
+		let rewrites = &self.input_rewrites;
+		let args = drv
+			.arguments()
+			.iter()
+			.map(|arg| text(&rewrite_strings(arg.to_vec(), rewrites)))
+			.collect::<Result<Vec<_>>>()?;
+		let mut environment = Map::new();
+		for (name, value) in env {
+			let Value::String(name) = text(name)? else {
+				unreachable!()
+			};
+			environment.insert(name, text(&rewrite_strings(value.to_vec(), rewrites))?);
+		}
+		// `StorePathSet` is ordered by the paths' base names.
+		let mut inputs: Vec<String> = input_paths.iter().map(print).collect();
+		inputs.sort();
+		let outputs: Map<String, Value> = self
+			.scratch
+			.iter()
+			.map(|(name, path)| (name.clone(), Value::String(print(path))))
+			.collect();
+		let mut json = Map::new();
+		json.insert("version".to_owned(), Value::from(1));
+		json.insert("builder".to_owned(), text(drv.command())?);
+		json.insert("args".to_owned(), Value::Array(args));
+		json.insert("env".to_owned(), Value::Object(environment));
+		json.insert("topTmpDir".to_owned(), path(&self.top_tmp_dir)?);
+		json.insert("tmpDir".to_owned(), path(&self.tmp_dir)?);
+		json.insert("tmpDirInSandbox".to_owned(), path(&self.build_top())?);
+		json.insert("storeDir".to_owned(), Value::String(store_dir().to_owned()));
+		json.insert(
+			"realStoreDir".to_owned(),
+			path(&self.builder.store.config().real_store_dir)?,
+		);
+		json.insert("system".to_owned(), text(drv.system())?);
+		json.insert(
+			"inputPaths".to_owned(),
+			Value::Array(inputs.into_iter().map(Value::String).collect()),
+		);
+		json.insert("outputs".to_owned(), Value::Object(outputs));
+		Ok(Value::Object(json).to_string())
 	}
 
 	/// `startDaemon`: create the recursive Nix socket in the build directory,

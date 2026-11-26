@@ -37,6 +37,16 @@ pub struct Bind {
 /// logger.
 pub type Builtin<'a> = &'a dyn Fn(&mut dyn FnMut(&str)) -> std::result::Result<(), String>;
 
+/// A program that builds the derivation in place of its builder, as
+/// CppNix's `ExternalDerivationBuilder` runs one: outside the sandbox,
+/// with this process's environment, `program` as its own `argv[0]`, and
+/// reporting itself that it started (`\2`) as the sandbox helper would.
+#[derive(Clone, Debug)]
+pub struct External {
+	pub program: PathBuf,
+	pub args: Vec<std::ffi::OsString>,
+}
+
 /// Everything the sandboxed child needs, prepared before forking.
 pub struct SandboxSpec<'a> {
 	pub chroot_root: PathBuf,
@@ -66,6 +76,11 @@ pub struct SandboxSpec<'a> {
 	pub build_dir_in_sandbox: PathBuf,
 	/// Run instead of `builder`.
 	pub builtin: Option<Builtin<'a>>,
+	/// Run instead of `builder`, without a chroot (`chroot` is false), in
+	/// `build_dir_in_sandbox`.
+	pub external: Option<External>,
+	/// The derivation, as its path is printed in errors.
+	pub drv_path: String,
 	pub builder: Vec<u8>,
 	pub args: Vec<Vec<u8>>,
 	pub env: Vec<Vec<u8>>,
@@ -182,13 +197,16 @@ pub fn setup_chroot(
 /// Run the builder described by `spec`, passing its output to `log`.
 /// Returns how it exited.
 pub fn run(spec: &SandboxSpec<'_>, log: &mut dyn FnMut(&[u8])) -> Result<ExitStatus> {
-	run_cancellable(spec, log, &|| false)
+	run_cancellable(spec, &mut || {}, log, &|| false)
 }
 
 /// Run a builder with cooperative cancellation in the parent. Killing the
 /// PID-namespace init also kills its descendants; `Builder` reaps it.
+/// `started` is called once the builder reports that its environment is
+/// set up, before any of its output.
 pub fn run_cancellable(
 	spec: &SandboxSpec<'_>,
+	started: &mut dyn FnMut(),
 	log: &mut dyn FnMut(&[u8]),
 	cancelled: &dyn Fn() -> bool,
 ) -> Result<ExitStatus> {
@@ -306,6 +324,7 @@ pub fn run_cancellable(
 
 	// Read setup messages until the child reports it is ready.
 	let mut reader = PtyReader::new(master);
+	let mut messages = Vec::new();
 	loop {
 		match reader.read_line()? {
 			Some(line) if line.first() == Some(&2) => break,
@@ -322,12 +341,20 @@ pub fn run_cancellable(
 					}
 				)));
 			}
-			Some(line) => tracing::debug!("sandbox setup: {}", String::from_utf8_lossy(&line)),
+			Some(line) => {
+				let line = String::from_utf8_lossy(&line).into_owned();
+				tracing::debug!("sandbox setup: {line}");
+				messages.push(line);
+			}
+			// `processSandboxSetupMessages`: `readLine` fails at the end of
+			// the output, and the error names the messages read so far.
 			None => {
 				let status = builder.wait()?;
 				return Err(BuildError::Other(format!(
-					"while waiting for the build environment to initialize ({})",
-					ExitStatus(status).describe()
+					"\n… while waiting for the build environment for '{}' to initialize ({}, previous messages: {})\n\nerror: unexpected EOF reading a line",
+					spec.drv_path,
+					ExitStatus(status).describe(),
+					messages.join("|")
 				)));
 			}
 		}
@@ -335,6 +362,7 @@ pub fn run_cancellable(
 
 	// Forward the builder's output until it closes the terminal.
 	drop(startup);
+	started();
 	let start = Instant::now();
 	let mut last_output = Instant::now();
 	let mut timed_out = None;
@@ -535,13 +563,9 @@ impl PtyReader {
 					pending.extend_from_slice(&data);
 					self.pending = pending;
 				}
-				Poll::Eof | Poll::Timeout => {
-					return Ok(if pending.is_empty() {
-						None
-					} else {
-						Some(pending)
-					});
-				}
+				// As `readLine` does, a line the output ends in the middle
+				// of is lost.
+				Poll::Eof | Poll::Timeout => return Ok(None),
 			}
 		}
 	}
@@ -581,11 +605,19 @@ impl ChildPlan {
 		for arg in &spec.args {
 			argv.push(cstring(arg)?);
 		}
+		let mut builder = cstring(&spec.builder)?;
+		if let Some(external) = &spec.external {
+			builder = cpath(&external.program)?;
+			argv = vec![builder.clone()];
+			for arg in &external.args {
+				argv.push(cstring(arg.as_bytes())?);
+			}
+		}
 		Ok(Self {
 			root: cpath(&spec.chroot_root)?,
 			store_in_root: cpath(&spec.chroot_root.join(store_rel))?,
 			build_dir: cpath(&spec.build_dir_in_sandbox)?,
-			builder: cstring(&spec.builder)?,
+			builder,
 			argv,
 			envp: spec
 				.env
@@ -820,6 +852,24 @@ fn child_main(sync_read: RawFd, spec: &SandboxSpec<'_>, plan: &ChildPlan) -> i32
 			if let Some(builtin) = spec.builtin {
 				return run_builtin(builtin);
 			}
+			if spec.external.is_some() {
+				// SAFETY: the argument array is a NUL-terminated pointer
+				// list that outlives the call; the environment is ours.
+				unsafe {
+					let mut argv: Vec<*const libc::c_char> =
+						plan.argv.iter().map(|a| a.as_ptr()).collect();
+					argv.push(std::ptr::null());
+					libc::execv(plan.builder.as_ptr(), argv.as_ptr());
+				}
+				// Before the program could report that it started, so this
+				// is a setup error, as `SysError("executing %s")` is.
+				let error = sys_error(
+					&format!("executing \"{}\"", plan.builder.to_string_lossy()),
+					&io::Error::last_os_error(),
+				);
+				report_child_error(&error.to_string());
+				return 1;
+			}
 			// SAFETY: the argument and environment arrays are NUL-terminated
 			// pointer lists that outlive the call.
 			unsafe {
@@ -905,7 +955,10 @@ fn child_setup(sync_read: RawFd, spec: &SandboxSpec<'_>, plan: &ChildPlan) -> io
 	if spec.builtin.is_some() {
 		shed_parent(plan)?;
 	}
-	write_stderr(b"\x02\n");
+	// An external builder reports that it started itself.
+	if spec.external.is_none() {
+		write_stderr(b"\x02\n");
+	}
 	Ok(())
 }
 

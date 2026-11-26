@@ -181,7 +181,7 @@ pass:upstream_functional tests/functional/eval.sh
 gap tests/functional/experimental-features.sh # main in experimental-features.sh:36:
 pass:upstream_functional tests/functional/export-graph.sh
 pass:upstream_functional tests/functional/export.sh
-gap tests/functional/external-builders.sh # main in external-builders.sh:46: error: Cannot build '$ROOT/tmp/nix-test/main/external-builders/store/HASH-external.drv'.
+pass:upstream_functional tests/functional/external-builders.sh
 anomaly tests/functional/extra-sandbox-profile.sh # reference skip: Need Darwin, skipping this test...
 gap tests/functional/fetchClosure.sh # main in fetchClosure.sh:32: error: attribute 'fetchClosure' missing
 pass:upstream_functional tests/functional/fetchGit.sh

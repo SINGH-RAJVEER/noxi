@@ -250,7 +250,7 @@ tests/functional/experimental-features.sh gap fail pass # main in experimental-f
 tests/functional/export-graph.nix support
 tests/functional/export-graph.sh pass pass pass
 tests/functional/export.sh pass pass pass
-tests/functional/external-builders.sh gap fail pass # main in external-builders.sh:46: error: Cannot build '$ROOT/tmp/nix-test/main/external-builders/store/HASH-external.drv'.
+tests/functional/external-builders.sh pass pass pass
 tests/functional/extra-sandbox-profile.nix support
 tests/functional/extra-sandbox-profile.sh anomaly skip skip # reference skip: Need Darwin, skipping this test...
 tests/functional/failing.nix support

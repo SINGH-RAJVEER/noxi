@@ -247,7 +247,7 @@ pub(super) const SETTINGS: &[SettingInfo] = &[
 	SettingInfo {
 		name: "external-builders",
 		aliases: &[],
-		kind: Kind::List,
+		kind: Kind::String,
 		experimental_feature: None,
 	},
 	SettingInfo {

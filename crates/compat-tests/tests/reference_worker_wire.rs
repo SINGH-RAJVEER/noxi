@@ -2240,6 +2240,11 @@ fn client_setting_overrides_match_the_reference() {
 			("hashed-mirrors", "http://localhost:1/"),
 			("run-diff-hook", "true"),
 			("require-drop-supplementary-groups", "false"),
+			// A program run with the daemon's privileges: only trusted clients.
+			(
+				"external-builders",
+				r#"[{"systems": ["x86_64-linux"], "program": "/nonexistent/eb", "args": []}]"#,
+			),
 		];
 		for value in &substituters {
 			overrides.push(("substituters", value));

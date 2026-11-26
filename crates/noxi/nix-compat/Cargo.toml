@@ -22,7 +22,7 @@ flakeref = ["dep:noxi-flakeref"]
 # nix-daemon protocol handling
 daemon = ["tokio", "nix-compat-derive", "futures", "serde"]
 # serde support on types
-serde = ["dep:serde", "dep:serde_json", "dep:serde_with", "dep:cfg_eval", "noxi-hash/serde"]
+serde = ["dep:serde", "dep:serde_with", "dep:cfg_eval", "noxi-hash/serde"]
 test = []
 
 default = ["async", "hashbrown", "wire"]
@@ -39,7 +39,7 @@ futures = { workspace = true, optional = true }
 hashbrown = { workspace = true, optional = true }
 nom.workspace = true
 serde = { workspace = true, features = ["derive"], optional = true }
-serde_json = { workspace = true, optional = true }
+serde_json.workspace = true
 serde_with = { workspace = true, optional = true }
 smol_str.workspace = true
 thiserror.workspace = true
