@@ -10,8 +10,8 @@ tests/functional/add.sh pass pass pass
 tests/functional/bash-profile.sh anomaly fail fail # reference fail: main in bash-profile.sh:5: bash-profile.sh: line 5: ../../scripts/nix-profile.sh.in: No such file or directory
 tests/functional/big-derivation-attr.nix support
 tests/functional/binary-cache-build-remote.sh gap fail pass # main in binary-cache-build-remote.sh:11: error: Unable to build with a primary store that isn't a local store; either pass a different '--store' or enable remote builds.
-tests/functional/binary-cache-compression.sh gap fail pass # main in binary-cache-compression.sh:57: error: nix copy --out-link is not supported by noxi yet
-tests/functional/binary-cache.sh gap fail pass # main in binary-cache.sh:99: error: build log of '$ROOT/tmp/nix-test/main/binary-cache/store/HASH-dependencies-top' is not available
+tests/functional/binary-cache-compression.sh gap fail pass # main in binary-cache-compression.sh:75: cache upload compression 'compress' is unsupported
+tests/functional/binary-cache.sh gap fail pass # main in binary-cache.sh:99: no verbose NAR download message in the concurrent substitution logs
 tests/functional/build-cores.nix support
 tests/functional/build-cores.sh pass pass pass
 tests/functional/build-delete.sh pass pass pass
@@ -34,7 +34,7 @@ tests/functional/build-remote-with-mounted-ssh-ng.sh gap fail pass # main in bui
 tests/functional/build-remote.sh support
 tests/functional/build.sh gap fail pass # main in build.sh:148: error: nix --relaxed-sandbox is not supported by noxi yet
 tests/functional/ca-shell.nix support
-tests/functional/ca/build-cache.sh gap fail pass # : error: nix copy --all is not supported by noxi yet
+tests/functional/ca/build-cache.sh gap fail pass # build-cache.sh:17: dependentCA substitution requests a local build with max-jobs = 0
 tests/functional/ca/build-delete.sh pass pass pass
 tests/functional/ca/build-dry.sh support # test script not registered in ca/meson.build; upstream does not run it
 tests/functional/ca/build-with-garbage-path.sh pass pass pass
@@ -65,7 +65,7 @@ tests/functional/ca/recursive.sh gap fail pass # source in ./recursive.sh:13: er
 tests/functional/ca/repl.sh gap fail pass # source in repl.sh:229: REPL :edit does not open the derivation builtin source
 tests/functional/ca/selfref-gc.sh pass pass pass
 tests/functional/ca/signatures.sh pass pass pass
-tests/functional/ca/substitute.sh gap fail pass # main in substitute.sh:27: error: nix store build-trace info --file is not supported by noxi yet
+tests/functional/ca/substitute.sh gap fail pass # substitute.sh:50: substitution cannot reuse the cached realisation after the remote build trace is removed
 tests/functional/ca/why-depends.sh pass pass pass
 tests/functional/cancelled-builds/flake.nix support
 tests/functional/case-collision.nar support

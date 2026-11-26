@@ -114,8 +114,8 @@ pass:upstream_functional tests/functional/absolute-path-literals.sh
 pass:upstream_functional tests/functional/add.sh
 anomaly tests/functional/bash-profile.sh # reference fail: main in bash-profile.sh:5: bash-profile.sh: line 5: ../../scripts/nix-profile.sh.in: No such file or directory
 gap tests/functional/binary-cache-build-remote.sh # main in binary-cache-build-remote.sh:11: error: Unable to build with a primary store that isn't a local store; either pass a different '--store' or enable remote builds.
-gap tests/functional/binary-cache-compression.sh # main in binary-cache-compression.sh:57: error: nix copy --out-link is not supported by noxi yet
-gap tests/functional/binary-cache.sh # main in binary-cache.sh:99: error: build log of '$ROOT/tmp/nix-test/main/binary-cache/store/HASH-dependencies-top' is not available
+gap tests/functional/binary-cache-compression.sh # main in binary-cache-compression.sh:75: cache upload compression 'compress' is unsupported
+gap tests/functional/binary-cache.sh # main in binary-cache.sh:99: no verbose NAR download message in the concurrent substitution logs
 pass:upstream_functional tests/functional/build-cores.sh
 pass:upstream_functional tests/functional/build-delete.sh
 pass:upstream_functional tests/functional/build-dry.sh
@@ -129,7 +129,7 @@ gap tests/functional/build-remote-trustless-should-pass-2.sh # source in build-r
 gap tests/functional/build-remote-trustless-should-pass-3.sh # source in build-remote-trustless.sh:17: error: Cannot build '/nix/store/HASH-build-remote.drv'.
 gap tests/functional/build-remote-with-mounted-ssh-ng.sh # main in build-remote-with-mounted-ssh-ng.sh:10: error: don't know how to open Nix store with scheme 'mounted-ssh-ng://localhost'
 gap tests/functional/build.sh # main in build.sh:148: error: nix --relaxed-sandbox is not supported by noxi yet
-gap tests/functional/ca/build-cache.sh # : error: nix copy --all is not supported by noxi yet
+gap tests/functional/ca/build-cache.sh # build-cache.sh:17: dependentCA substitution requests a local build with max-jobs = 0
 pass:upstream_functional tests/functional/ca/build-delete.sh
 pass:upstream_functional tests/functional/ca/build-with-garbage-path.sh
 gap tests/functional/ca/build.sh # : error: Cannot build '$ROOT/tmp/nix-test/ca/build/store/HASH-rootCA.drv'.
@@ -151,7 +151,7 @@ gap tests/functional/ca/recursive.sh # source in ./recursive.sh:13: error: Canno
 gap tests/functional/ca/repl.sh # source in repl.sh:229: REPL :edit does not open the derivation builtin source
 pass:upstream_functional tests/functional/ca/selfref-gc.sh
 pass:upstream_functional tests/functional/ca/signatures.sh
-gap tests/functional/ca/substitute.sh # main in substitute.sh:27: error: nix store build-trace info --file is not supported by noxi yet
+gap tests/functional/ca/substitute.sh # substitute.sh:50: substitution cannot reuse the cached realisation after the remote build trace is removed
 pass:upstream_functional tests/functional/ca/why-depends.sh
 pass:upstream_functional tests/functional/characterisation-test-infra.sh
 pass:upstream_functional tests/functional/check-refs.sh

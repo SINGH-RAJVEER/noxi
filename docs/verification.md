@@ -398,7 +398,7 @@ Smaller groups:
 
 The focused `reference_cache_store` comparisons cover copying all valid local paths to a file cache, copying paths back with output and profile links, reading a realised build trace selected with `--file`, and looking up a substituted path's build log by the deriver recorded in the cache. `reference_modern_extra` also covers sandbox mode flags, the strict default, and build installables read through standard input.
 
-The upstream compression script reached its unsupported-algorithm checks after the copy links were added. `ca/build-cache` reached a substitution attempt that requested a local build at `max-jobs = 0`. `ca/substitute` also hit a local-build refusal at `max-jobs = 0` in the focused run. The binary-cache script reached its concurrent NAR download count at line 99.
+The upstream compression script reached its unsupported-algorithm checks after the copy links were added and stopped at `compress`. `ca/build-cache` copied all paths and then requested a local build at `max-jobs = 0` while substituting `dependentCA`. `ca/substitute` passed both build-trace queries and failed at line 50, after deleting the remote trace files to test disk-cache reuse. The binary-cache script passed its log retrieval checks and reached the concurrent NAR download count at line 99.
 
 `nix-channel.sh` passes against noxi and CppNix 2.35.2. It covers a `file://` channel directory with a bzip2 archive, alongside direct archive subscriptions, profile generations, and package lookup and installation from the channel.
 
