@@ -89,7 +89,7 @@ impl LocalStore {
 		if metadata.is_file() && metadata.mode() & 0o200 != 0 {
 			if nix_compat::log::log_enabled(nix_compat::log::VerbosityLevel::Warn) {
 				eprintln!(
-					"warning: skipping suspicious writable file '{}'",
+					"warning: skipping suspicious writable file '\"{}\"'",
 					path.display()
 				);
 			}
@@ -101,7 +101,7 @@ impl LocalStore {
 			&& (existing.len() != metadata.len() || (repair && nar::hash_path(&link)?.0 != hash))
 		{
 			if nix_compat::log::log_enabled(nix_compat::log::VerbosityLevel::Warn) {
-				eprintln!("warning: removing corrupted link '{}'", link.display());
+				eprintln!("warning: removing corrupted link \"{}\"", link.display());
 				eprintln!(
 					"warning: There may be more corrupted paths.\nYou should run `nix-store --verify --check-contents --repair` to fix them all"
 				);

@@ -431,7 +431,14 @@ pub fn run(parsed: Parsed) -> Result<ExitCode, Failure> {
 			}
 			if let Some(remote) = crate::store::open_remote(&uri, &parsed.settings)? {
 				let info = remote.connection_info()?;
-				let url = if uri.starts_with("ssh") {
+				// `SSHStoreConfig::getReference` names a mounted store
+				// `ssh-ng` too.
+				let mounted = uri
+					.strip_prefix("mounted-ssh-ng")
+					.map(|rest| format!("ssh-ng{rest}"));
+				let url = if let Some(url) = &mounted {
+					url
+				} else if uri.starts_with("ssh") {
 					&uri
 				} else {
 					remote.uri()

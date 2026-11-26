@@ -506,101 +506,181 @@ fn collection_honours_roots_from_the_gc_socket() {
 	assert!(store.is_valid_path(&target).unwrap());
 }
 
-/// A derivation being built, its input sources and the outputs of its
-/// input derivations are temporary roots of the building process, which
-/// neither collector may delete while the build runs, whatever else roots
-/// them. The derivation and its inputs are unrooted otherwise.
+/// A derivation being built, the derivations waiting for it, their input
+/// sources and the outputs of built inputs are temporary roots of the
+/// building process, which neither collector may delete while the build
+/// runs; nothing else roots them. The builder is held either in the input
+/// derivation or in the derivation that uses it, with one job (the
+/// sequential builder) and two (the scheduler).
 #[test]
 fn collection_spares_a_running_build_and_its_inputs() {
 	let (env, _) = Env::new();
-	for collector in ["noxi", "reference"] {
-		let name = format!("build-{collector}");
-		env.copy(&name);
-		let sync = env.root(&format!("sync-{collector}"));
-		fs::create_dir(&sync).unwrap();
-		let expr = env.dir.path().join(format!("{name}.nix"));
-		fs::write(
-			&expr,
-			format!(
-				r#"let
-					bb = builtins.storePath {busybox};
-					mk = name: script: derivation {{
-						inherit name;
-						system = "x86_64-linux";
-						builder = "${{bb}}/bin/sh";
-						args = [ "-c" script ];
-					}};
-					dep = mk "running-dep" "echo dep > $out";
-					src = builtins.toFile "running-source" "source";
-				in mk "running" ''
-					${{bb}}/bin/cat ${{dep}} ${{src}} > $out
-					${{bb}}/bin/touch {sync}/started
-					while [ ! -e {sync}/go ]; do ${{bb}}/bin/sleep 0.05; done
-				''"#,
-				busybox = env.busybox,
-				sync = sync.display(),
-			),
+	for held in ["top", "dep"] {
+		for jobs in [1, 2] {
+			for collector in ["noxi", "reference"] {
+				collect_during_build(&env, held, jobs, collector);
+			}
+		}
+	}
+}
+
+fn collect_during_build(env: &Env, held: &str, jobs: u64, collector: &str) {
+	let case = format!("{held}-{jobs}-{collector}");
+	let name = format!("build-{case}");
+	env.copy(&name);
+	let sync = env.root(&format!("sync-{case}"));
+	fs::create_dir(&sync).unwrap();
+	let wait = format!(
+		"; ${{bb}}/bin/touch {sync}/started; while [ ! -e {sync}/go ]; do ${{bb}}/bin/sleep 0.05; done",
+		sync = sync.display()
+	);
+	let (wait_dep, wait_top) = if held == "dep" {
+		(wait.as_str(), "")
+	} else {
+		("", wait.as_str())
+	};
+	let expr = env.dir.path().join(format!("{name}.nix"));
+	fs::write(
+		&expr,
+		format!(
+			r#"let
+				bb = builtins.storePath {busybox};
+				mk = name: script: derivation {{
+					inherit name;
+					system = "x86_64-linux";
+					builder = "${{bb}}/bin/sh";
+					args = [ "-c" script ];
+				}};
+				dep = mk "running-dep" "${{bb}}/bin/cat ${{builtins.toFile "dep-source" "dep"}} > $out{wait_dep}";
+			in mk "running" "${{bb}}/bin/cat ${{dep}} ${{builtins.toFile "running-source" "top"}} > $out{wait_top}""#,
+			busybox = env.busybox,
+		),
+	)
+	.unwrap();
+	let store_arg = env.store_arg(&name);
+	let drv = env
+		.reference_ok(
+			"nix-instantiate",
+			&["--store", &store_arg, expr.to_str().unwrap()],
 		)
-		.unwrap();
-		let store_arg = env.store_arg(&name);
-		let drv = env
-			.reference_ok(
-				"nix-instantiate",
-				&["--store", &store_arg, expr.to_str().unwrap()],
-			)
-			.trim()
-			.to_owned();
-		let drv = StorePath::from_absolute_path(drv.as_bytes()).unwrap();
-		let store = env.open(&name);
-		// The busybox, the source and the input derivation.
-		let inputs: Vec<StorePath> = store
-			.query_path_info(&drv)
+		.trim()
+		.to_owned();
+	let drv = StorePath::from_absolute_path(drv.as_bytes()).unwrap();
+	let store = env.open(&name);
+	let references = |path: &StorePath| -> Vec<StorePath> {
+		store
+			.query_path_info(path)
 			.unwrap()
 			.unwrap()
 			.references
 			.into_iter()
-			.collect();
-		assert_eq!(inputs.len(), 3, "{inputs:?}");
-		let dep_drv = inputs
-			.iter()
-			.find(|p| p.name().ends_with(".drv"))
-			.unwrap()
-			.clone();
+			.collect()
+	};
+	// The busybox, the source and the input derivation.
+	let inputs = references(&drv);
+	assert_eq!(inputs.len(), 3, "{inputs:?}");
+	let dep_drv = inputs
+		.iter()
+		.find(|p| p.name().ends_with(".drv"))
+		.unwrap()
+		.clone();
+	let mut alive = vec![drv.clone()];
+	alive.extend(inputs.iter().cloned());
+	alive.extend(references(&dep_drv));
 
-		let root = env.root(&name);
-		let builder = std::thread::spawn({
-			let drv = drv.clone();
-			let sync = sync.clone();
-			move || {
-				let mut config = LocalStoreConfig::with_root(&root);
-				config.require_sigs = false;
-				let store = LocalStore::open(config).unwrap();
-				let settings = noxi_build::settings::BuildSettings {
-					// A diverted store builds in the sandbox; the builder
-					// signals through a bound directory.
-					sandbox_paths: vec![noxi_build::settings::SandboxPath::parse(
-						&sync.display().to_string(),
-					)],
-					build_cores: 1,
-					..noxi_build::settings::BuildSettings::default()
-				};
-				noxi_build::local::LocalBuilder::new(&store, &settings)
-					.realise(&drv, &mut |_| {})
-					.map_err(|e| e.to_string())
-			}
-		});
-		let started = std::time::Instant::now();
-		while !sync.join("started").exists() {
-			assert!(!builder.is_finished(), "{:?}", builder.join());
-			assert!(started.elapsed().as_secs() < 60, "the build did not start");
-			std::thread::sleep(std::time::Duration::from_millis(20));
+	let root = env.root(&name);
+	let builder = std::thread::spawn({
+		let drv = drv.clone();
+		let sync = sync.clone();
+		move || {
+			let mut config = LocalStoreConfig::with_root(&root);
+			config.require_sigs = false;
+			let store = LocalStore::open(config).unwrap();
+			let settings = noxi_build::settings::BuildSettings {
+				// A diverted store builds in the sandbox; the builder
+				// signals through a bound directory.
+				sandbox_paths: vec![noxi_build::settings::SandboxPath::parse(
+					&sync.display().to_string(),
+				)],
+				build_cores: 1,
+				max_build_jobs: jobs,
+				..noxi_build::settings::BuildSettings::default()
+			};
+			noxi_build::local::LocalBuilder::new(&store, &settings)
+				.realise(&drv, &mut |_| {})
+				.map_err(|e| e.to_string())
 		}
-		let dep_out = store
-			.query_derivation_outputs(&dep_drv)
+	});
+	let started = std::time::Instant::now();
+	while !sync.join("started").exists() {
+		assert!(!builder.is_finished(), "{case}: {:?}", builder.join());
+		assert!(
+			started.elapsed().as_secs() < 60,
+			"{case}: the build did not start"
+		);
+		std::thread::sleep(std::time::Duration::from_millis(20));
+	}
+	if held == "top" {
+		// The input was built before the held build started.
+		alive.extend(store.query_derivation_outputs(&dep_drv).unwrap().into_values());
+	}
+	match collector {
+		"noxi" => {
+			store
+				.collect_garbage(&GcOptions::new(GcAction::DeleteDead), &mut |_| {})
+				.unwrap();
+		}
+		_ => {
+			env.reference_ok("nix-store", &["--store", &store_arg, "--gc"]);
+		}
+	}
+	for path in &alive {
+		assert!(
+			store.is_valid_path(path).unwrap() && store.real_path(path).exists(),
+			"{case}: {collector} collected {path} during the build"
+		);
+	}
+	fs::write(sync.join("go"), "").unwrap();
+	let outputs = builder.join().unwrap().unwrap();
+	assert_eq!(
+		fs::read_to_string(store.real_path(&outputs["out"])).unwrap(),
+		"deptop",
+		"{case}"
+	);
+	env.verify(&name);
+}
+
+/// A temporary root that a live noxi process recorded before the
+/// collection started keeps an otherwise dead path, and what it refers to,
+/// from either collector.
+#[test]
+fn collection_honours_temporary_roots_of_live_processes() {
+	let (env, graph) = Env::new();
+	for collector in ["noxi", "reference"] {
+		let name = format!("temp-{collector}");
+		env.copy(&name);
+		let store = env.open(&name);
+		let dead = store
+			.collect_garbage(&GcOptions::new(GcAction::ReturnDead), &mut |_| {})
 			.unwrap()
-			.into_values()
-			.next()
+			.paths;
+		// The unbuilt derivation refers to a source only it keeps alive.
+		let target = graph.unbuilt.clone();
+		let source = store
+			.query_path_info(&target)
+			.unwrap()
+			.unwrap()
+			.references
+			.into_iter()
+			.find(|p| p.name() == "unbuilt-source")
 			.unwrap();
+		for path in [&target, &source] {
+			assert!(dead.contains(&path.to_absolute_path()), "{dead:?}");
+		}
+		// Another handle, as another client would, records the root and
+		// stays open.
+		let holder = env.open(&name);
+		holder.add_temp_root(&target).unwrap();
 		match collector {
 			"noxi" => {
 				store
@@ -608,22 +688,26 @@ fn collection_spares_a_running_build_and_its_inputs() {
 					.unwrap();
 			}
 			_ => {
-				env.reference_ok("nix-store", &["--store", &store_arg, "--gc"]);
+				env.reference_ok("nix-store", &["--store", &env.store_arg(&name), "--gc"]);
 			}
 		}
-		for path in [&drv, &dep_out].into_iter().chain(&inputs) {
+		for path in [&target, &source] {
 			assert!(
 				store.is_valid_path(path).unwrap() && store.real_path(path).exists(),
-				"{collector} collected {path} during the build"
+				"{collector} collected {path} although it is a temporary root"
 			);
 		}
-		fs::write(sync.join("go"), "").unwrap();
-		let outputs = builder.join().unwrap().unwrap();
-		let out = &outputs["out"];
-		assert_eq!(
-			fs::read_to_string(store.real_path(out)).unwrap(),
-			"dep\nsource"
+		// Other dead paths went.
+		assert!(
+			dead.iter()
+				.filter(|p| p.ends_with("-extra-file"))
+				.all(|p| !Path::new(&env.root(&name).join(&p[1..])).exists()
+					&& !store
+						.is_valid_path(&StorePath::from_absolute_path(p.as_bytes()).unwrap())
+						.unwrap()),
+			"{collector}: {dead:?}"
 		);
+		drop(holder);
 		env.verify(&name);
 	}
 }

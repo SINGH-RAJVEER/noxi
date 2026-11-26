@@ -202,10 +202,9 @@ pub fn ssh_store(reference: &StoreReference, settings: &Settings) -> Result<SshS
 		return Err(format!("'{}' is not an SSH store", reference.render(true)));
 	};
 	let legacy = scheme == "ssh";
+	// `MountedSSHStore`. Its remote daemon, not the client, requires the
+	// `mounted-ssh-store` feature (for `--process-ops`).
 	let mounted = scheme == "mounted-ssh-ng";
-	if mounted && !settings.experimental_features().contains("mounted-ssh-store") {
-		return Err("experimental Nix feature 'mounted-ssh-store' is disabled; add '--extra-experimental-features mounted-ssh-store' to enable it".to_owned());
-	}
 	let program = if legacy { "nix-store" } else { "nix-daemon" };
 	let master = SshConfig::new(authority, &reference.params, program)
 		.and_then(SshMaster::new)
@@ -227,7 +226,13 @@ pub fn ssh_store(reference: &StoreReference, settings: &Settings) -> Result<SshS
 			// `MountedSSHStore`'s `extraRemoteProgramArgs`.
 			command.push("--process-ops".into());
 		}
-		let store = DaemonStore::over_ssh(master, command, reference.render(false));
+		// `SSHStoreConfig::getReference` names a mounted store `ssh-ng` too.
+		let mut named = reference.clone();
+		named.variant = Variant::Specified {
+			scheme: "ssh-ng".to_owned(),
+			authority: authority.clone(),
+		};
+		let store = DaemonStore::over_ssh(master, command, named.render(false));
 		SshStore::Ng(if mounted { store.mounted() } else { store })
 	})
 }
