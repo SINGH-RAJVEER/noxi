@@ -1515,6 +1515,8 @@ Functional scripts after merging the overlay and SSH store work (`mvp/combined` 
 
 The merge keeps one implementation of each part. `ssh://` and `ssh-ng://` stores, for building and as the store of a command, are opened by one function (`noxi_commands::machine::ssh_store`): `ssh` is run through `noxi_daemon::ssh::SshMaster` with the authority checks above, and `remote-program` and `remote-store` give the remote command. `LegacySshStore` is the only serve protocol client and implements the store operations `nix copy` needs, which the overlay branch's `ServeStore` had. `noxi_daemon::serve_protocol` is the only server: a local store or a daemon builds there, and any other store, such as an `ssh://` one in `ssh-relay`, is served without builds of supplied derivations. A noxi `nix-daemon --store PATH?system-features=...` now builds with those features, as the trustless scripts need.
 
+Tiers at `9a1e5294`, the merge's final code commit: fast 2,122 tests passed; daemon 76 passed; store 1,121 passed, including `reference_build_remote` and the functional scripts under both engines. The store recipe's last step looks for `target/debug/differential-eval`, which a build into another `CARGO_TARGET_DIR` does not produce; run from that directory, it matched 10 of 10 cases.
+
 Remaining differences:
 
 - A malformed JSON message from a hook is reported with serde's wording, not nlohmann's.
