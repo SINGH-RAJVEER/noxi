@@ -135,6 +135,7 @@ fn remote_repo(
 	{
 		return Ok(repo);
 	}
+	let mut refreshing_head = false;
 	if reference == "HEAD" && revision.is_none() {
 		let cached_head = text(&repo, &["symbolic-ref", "HEAD"])
 			.ok()
@@ -142,7 +143,12 @@ fn remote_repo(
 		if let Some(head) = &cached_head {
 			reference = head.clone();
 		}
-		if !offline && !ref_fresh(&repo.join(&reference), ttl) {
+		if !offline
+			&& !cached_head
+				.as_ref()
+				.is_some_and(|head| ref_fresh(&repo.join(head), ttl))
+		{
+			refreshing_head = true;
 			match text(&repo, &["ls-remote", "--symref", "--", url, "HEAD"]) {
 				Ok(head) => {
 					if let Some(target) = head.lines().find_map(|line| {
@@ -150,7 +156,9 @@ fn remote_repo(
 							.and_then(|line| line.split_whitespace().next())
 					}) {
 						reference = target.into();
-						run(&repo, &["symbolic-ref", "HEAD", target])?;
+						if cached_head.as_deref() != Some(target) {
+							run(&repo, &["symbolic-ref", "HEAD", target])?;
+						}
 					} else {
 						reference = "HEAD".into();
 					}
@@ -167,7 +175,10 @@ fn remote_repo(
 	};
 	let valid = run(&repo, &["rev-parse", "--verify", &reference]).is_ok();
 	let fresh = ref_fresh(&ref_file, ttl);
-	if revision.is_none() && valid && (offline || fresh && !boolean(input, "allRefs")?) {
+	if revision.is_none()
+		&& valid
+		&& (offline || fresh && !refreshing_head && !boolean(input, "allRefs")?)
+	{
 		return Ok(repo);
 	}
 	if offline {
