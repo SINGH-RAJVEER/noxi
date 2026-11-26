@@ -777,8 +777,9 @@ fn get_local_accessor(
 			result.attrs.insert("ref".into(), default_ref.into());
 		}
 		let lfs = boolean(input, "lfs")?;
-		// Exports with submodules or LFS content always take the full path below.
-		let source = (!submodules && !lfs)
+		// A verified export must be rebuilt from signed objects. The shared
+		// revision cache can also contain snapshots of local worktrees.
+		let source = (!verify && !submodules && !lfs)
 			.then(|| super::source_hash_entry(fingerprint(&commit, export_ignore)));
 		let stored = match &source {
 			Some(entry) => {

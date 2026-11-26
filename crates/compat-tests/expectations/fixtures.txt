@@ -184,11 +184,11 @@ pass:upstream_functional tests/functional/export.sh
 gap tests/functional/external-builders.sh # main in external-builders.sh:46: error: Cannot build '$ROOT/tmp/nix-test/main/external-builders/store/HASH-external.drv'.
 anomaly tests/functional/extra-sandbox-profile.sh # reference skip: Need Darwin, skipping this test...
 gap tests/functional/fetchClosure.sh # main in fetchClosure.sh:32: error: attribute 'fetchClosure' missing
-pass tests/functional/fetchGit.sh
+pass:upstream_functional tests/functional/fetchGit.sh
 pass:upstream_functional tests/functional/fetchGitRefs.sh
 pass:upstream_functional tests/functional/fetchGitShallow.sh
 pass:upstream_functional tests/functional/fetchGitSubmodules.sh
-pass tests/functional/fetchGitVerification.sh
+pass:upstream_functional tests/functional/fetchGitVerification.sh
 pass:upstream_functional tests/functional/fetchMercurial.sh
 pass:upstream_functional tests/functional/fetchPath.sh
 pass:upstream_functional tests/functional/fetchTree-file.sh
@@ -305,9 +305,9 @@ pass:upstream_functional tests/functional/search.sh
 pass:upstream_functional tests/functional/secure-drv-outputs.sh
 pass:upstream_functional tests/functional/selfref-gc.sh
 pass:upstream_functional tests/functional/shell.sh
-pass tests/functional/short-path-literals.sh
+pass:upstream_functional tests/functional/short-path-literals.sh
 gap tests/functional/signing.sh # main in signing.sh:103: error: unsupported store parameter 'require-sigs=false' in '$ROOT/tmp/nix-test/main/signing/store0?require-sigs=false'
-pass tests/functional/simple.sh
+pass:upstream_functional tests/functional/simple.sh
 pass:upstream_functional tests/functional/ssh-relay.sh
 pass:upstream_functional tests/functional/store-info.sh
 pass:upstream_functional tests/functional/store-print-env.sh

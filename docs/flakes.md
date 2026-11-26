@@ -193,6 +193,6 @@ Still open: the JSON parser's wording for malformed lock files (nlohmann `parse_
 
 ## SSH commit verification
 
-With `verified-fetches` enabled, Git inputs accept `verifyCommit`, `publicKey` with optional `keytype`, and `publicKeys` lists. Providing keys enables verification by default. Verification uses Git and `ssh-keygen` and checks the selected commit against the supplied keys before exporting its tree or reusing a cached store path. Unpinned local worktrees must be clean.
+With `verified-fetches` enabled, Git inputs accept `verifyCommit`, `publicKey` with optional `keytype`, and `publicKeys` lists. Providing keys enables verification by default. Verification uses Git and `ssh-keygen` and checks the selected commit against the supplied keys and exports the verified commit directly. Unpinned local worktrees must be clean. A cached NAR does not satisfy signature verification. In a local offline test, noxi refused the wrong signer even with that NAR already in the store, while CppNix 2.35.2 reused it.
 
 The upstream `fetchGitVerification.sh` passes under CppNix 2.35.2 and noxi. It exercises Ed25519 and RSA signatures, incorrect keys, dirty worktrees, key lists, and flake inputs. An unsigned commit with explicit verification enabled was also refused by both engines.
