@@ -34,6 +34,17 @@ pub enum Error {
 	#[error("{message}")]
 	Build { exit_status: u8, message: String },
 
+	/// `SubstituteGone`: a substituter lost a file it advertised, such as a
+	/// collected NAR. Substitution goes on as if it never had the path.
+	#[error("{0}")]
+	SubstituteGone(String),
+
+	/// No substituter could provide the path, without any of them failing
+	/// (`ecNoSubstituters`): the caller builds instead, even without
+	/// `fallback`.
+	#[error("{0}")]
+	NoSubstituters(String),
+
 	/// Any other failure, with CppNix's message.
 	#[error("{0}")]
 	Other(String),

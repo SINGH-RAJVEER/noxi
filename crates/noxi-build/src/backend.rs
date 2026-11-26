@@ -712,6 +712,32 @@ impl Worker<'_> {
 				return Err(error.into());
 			}
 		}
+		// CppNix's goals are per output: each derivation is realised for the
+		// outputs requested of it and the outputs the derivations waiting on
+		// it use, so a substitutable output is not held up by another one
+		// nothing wants. `None` stands for all outputs.
+		let mut wanted: BTreeMap<&StorePath, Option<BTreeSet<String>>> = BTreeMap::new();
+		for path in paths {
+			if let DerivedPath::Built { drv, outputs } = path {
+				let entry = wanted.entry(drv).or_insert_with(|| Some(BTreeSet::new()));
+				match entry {
+					Some(names) if !outputs.is_empty() => names.extend(outputs.iter().cloned()),
+					_ => *entry = None,
+				}
+			}
+		}
+		for (drv, _) in order.iter().rev() {
+			let derivation = self.store.read_build_derivation(drv)?;
+			for (input, names) in derivation.basic.input_derivations() {
+				let Some((input, _)) = order.iter().find(|(other, _)| other == input) else {
+					continue;
+				};
+				let entry = wanted.entry(input).or_insert_with(|| Some(BTreeSet::new()));
+				if let Some(set) = entry {
+					set.extend(names.iter().map(ToString::to_string));
+				}
+			}
+		}
 		let has_waiters = |drv: &StorePath| order.iter().any(|(_, inputs)| inputs.contains(drv));
 		let mut built: BTreeSet<&StorePath> = BTreeSet::new();
 		let mut failed: BTreeSet<&StorePath> = BTreeSet::new();
@@ -719,7 +745,8 @@ impl Worker<'_> {
 		let mut failure = None;
 		for (drv, inputs) in &order {
 			let message = if failed.is_empty() {
-				match builder.realise_with_events(drv, None, &mut events) {
+				let outputs = wanted.get(drv).cloned().flatten();
+				match builder.realise_with_events(drv, outputs.as_ref(), &mut events) {
 					Ok(_) => {
 						built.insert(drv);
 						continue;

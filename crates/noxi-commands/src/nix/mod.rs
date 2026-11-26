@@ -493,7 +493,13 @@ fn supported_flags(command: &str) -> &'static [&'static str] {
 			&["name", "mode", "hash-algo", "dry-run"]
 		}
 		"store ls" => &["recursive", "long", "directory", "json"],
-		"store delete" => &["recursive", "ignore-liveness"],
+		"store delete" => &[
+			"recursive",
+			"ignore-liveness",
+			"skip-alive",
+			"skip-live",
+			"also-referrers",
+		],
 		"store gc" => &["dry-run", "max"],
 		"store verify" => &["all", "recursive", "no-contents", "no-trust", "sigs-needed"],
 		"store info" => &["json", "pretty", "no-pretty"],
@@ -860,8 +866,11 @@ fn ensure_diverted_root(parsed: &Parsed) -> Result<(), Failure> {
 	if root.is_empty() {
 		return Ok(());
 	}
+	// Store parameters are percent-encoded.
+	let root = nix_compat::nixcpp::url::percent_decode(root)
+		.map_err(|error| Failure::Error(error.to_string()))?;
 	let root =
-		crate::instantiate::absolute_path(&std::env::current_dir()?, std::path::Path::new(root));
+		crate::instantiate::absolute_path(&std::env::current_dir()?, std::path::Path::new(&root));
 	if root.exists() {
 		return Ok(());
 	}

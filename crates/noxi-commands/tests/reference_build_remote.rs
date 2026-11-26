@@ -137,6 +137,18 @@ fn script(path: &Path, text: &str) {
 /// Run the shell commands `steps` with one engine in a fresh directory,
 /// returning each step's exit status, standard output and error.
 fn session(bin: &Path, root: &Path, features: &str, steps: &[&str]) -> Vec<String> {
+	session_retrying(bin, root, features, steps, None)
+}
+
+/// As [`session`], running a step again from a copy of the directory made
+/// before it, at most twice, while `race` holds for its report.
+fn session_retrying(
+	bin: &Path,
+	root: &Path,
+	features: &str,
+	steps: &[&str],
+	race: Option<fn(&str) -> bool>,
+) -> Vec<String> {
 	noxi_test_support::remove_tree(root).unwrap();
 	for dir in ["etc", "bin", "tmp", "home"] {
 		fs::create_dir_all(root.join(dir)).unwrap();
@@ -148,53 +160,92 @@ fn session(bin: &Path, root: &Path, features: &str, steps: &[&str]) -> Vec<Strin
 	.unwrap();
 	fs::write(root.join("x.nix"), EXPR).unwrap();
 	script(&root.join("bin/ssh"), SSH);
+	let run = |step: &str| {
+		let output = Command::new("bash")
+			.args(["-c", step])
+			.current_dir(root)
+			.env_clear()
+			.env("HOME", root.join("home"))
+			.env("TMPDIR", root.join("tmp"))
+			.env("ROOT", root)
+			.env("BIN", bin)
+			.env("REF", reference_dir().unwrap_or_default())
+			.env("BUSYBOX", busybox().unwrap())
+			.env("DISPLAY", ":0")
+			.env(
+				"PATH",
+				format!(
+					"{}:{}:/run/current-system/sw/bin:/usr/bin:/bin",
+					root.join("bin").display(),
+					bin.display()
+				),
+			)
+			.env("NIX_CONF_DIR", root.join("etc"))
+			.env("NIX_STATE_DIR", root.join("state"))
+			.output()
+			.unwrap();
+		let errors: String = String::from_utf8_lossy(&output.stderr)
+			.lines()
+			.filter(|line| !line.starts_with("warning: you don't have Internet access"))
+			.map(|line| format!("{line}\n"))
+			.collect();
+		format!(
+			"$ {step}\n{:?}\n{}{errors}",
+			output.status.code(),
+			String::from_utf8_lossy(&output.stdout)
+		)
+	};
+	let checkpoint = noxi_test_support::tempdir().unwrap();
+	let backup = checkpoint.path().join("s");
+	let copy_tree = |source: &Path, destination: &Path| {
+		let output = Command::new("cp")
+			.arg("-a")
+			.arg(source)
+			.arg(destination)
+			.output()
+			.unwrap();
+		assert!(
+			output.status.success(),
+			"{}",
+			String::from_utf8_lossy(&output.stderr)
+		);
+	};
 	steps
 		.iter()
 		.map(|step| {
-			let output = Command::new("bash")
-				.args(["-c", step])
-				.current_dir(root)
-				.env_clear()
-				.env("HOME", root.join("home"))
-				.env("TMPDIR", root.join("tmp"))
-				.env("ROOT", root)
-				.env("BIN", bin)
-				.env("REF", reference_dir().unwrap_or_default())
-				.env("BUSYBOX", busybox().unwrap())
-				.env("DISPLAY", ":0")
-				.env(
-					"PATH",
-					format!(
-						"{}:{}:/run/current-system/sw/bin:/usr/bin:/bin",
-						root.join("bin").display(),
-						bin.display()
-					),
-				)
-				.env("NIX_CONF_DIR", root.join("etc"))
-				.env("NIX_STATE_DIR", root.join("state"))
-				.output()
-				.unwrap();
-			let errors: String = String::from_utf8_lossy(&output.stderr)
-				.lines()
-				.filter(|line| !line.starts_with("warning: you don't have Internet access"))
-				.map(|line| format!("{line}\n"))
-				.collect();
-			format!(
-				"$ {step}\n{:?}\n{}{errors}",
-				output.status.code(),
-				String::from_utf8_lossy(&output.stdout)
-			)
+			let Some(race) = race else {
+				return run(step);
+			};
+			noxi_test_support::remove_tree(&backup).unwrap();
+			copy_tree(root, &backup);
+			let mut report = run(step);
+			for _ in 0..2 {
+				if !race(&report) {
+					break;
+				}
+				eprintln!("retrying the reference step after its race: {step}");
+				noxi_test_support::remove_tree(root).unwrap();
+				copy_tree(&backup, root);
+				report = run(step);
+			}
+			report
 		})
 		.collect()
 }
 
 fn same_with(features: &str, steps: &[&str]) {
+	same_retrying(features, steps, None)
+}
+
+/// As [`same_with`], retrying the reference's steps as [`session_retrying`]
+/// does.
+fn same_retrying(features: &str, steps: &[&str], race: Option<fn(&str) -> bool>) {
 	let (Some(reference), Some(_)) = (reference_dir(), busybox()) else {
 		return;
 	};
 	let scratch = noxi_test_support::tempdir().unwrap();
 	let root = scratch.path().join("s");
-	let expected = session(&reference, &root, features, steps);
+	let expected = session_retrying(&reference, &root, features, steps, race);
 	let candidate = candidate_dir(scratch.path());
 	let actual = session(&candidate, &root, features, steps);
 	noxi_test_support::remove_tree(&root).unwrap();
@@ -666,11 +717,28 @@ fn servers_answer_the_reference_client() {
 		"$REF/nix-store --store \"$serve\" -r /nix/store/00000000000000000000000000000000-missing.drv".replace("$serve", serve),
 		// The reference's transport is a pair of pipes, noxi's a socket, so
 		// the client's error about the refused upload differs; see
-		// docs/verification.md.
+		// docs/verification.md. Only the first error, the server's, is kept.
 		"nix-build x.nix -A one --no-out-link --store $ROOT/n0 -j0 --builders 'ssh://host?remote-program=ro' 2>&1 | grep -m1 '^error'".to_owned(),
 	]);
 	let steps: Vec<&str> = steps.iter().map(String::as_str).collect();
-	same(&steps);
+	same_retrying("nix-command", &steps, Some(upload_race));
+}
+
+/// Whether the reference's report of a refused upload starts with its
+/// client's error instead of the server's.
+///
+/// The remote side's standard error goes to the build hook's fd 4, the
+/// builder output pipe (`log-fd` in `machines.cc`), and the hook's own
+/// errors to its standard error, another pipe. The server refuses the
+/// upload and exits, so the client's next write fails with `EPIPE`; the
+/// parent prints whichever pipe it reads first, and under load that is
+/// sometimes the client's `write of 4096 bytes: Broken pipe`.
+fn upload_race(report: &str) -> bool {
+	report.lines().any(|line| {
+		line.strip_prefix("error: write of ")
+			.and_then(|rest| rest.strip_suffix(" bytes: Broken pipe"))
+			.is_some_and(|size| !size.is_empty() && size.bytes().all(|b| b.is_ascii_digit()))
+	})
 }
 
 /// Interrupting a build leaves nothing running.

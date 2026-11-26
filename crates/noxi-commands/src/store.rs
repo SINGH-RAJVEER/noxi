@@ -170,6 +170,8 @@ enum Target {
 		root: Option<PathBuf>,
 		real: Option<PathBuf>,
 		read_only: bool,
+		/// The `require-sigs` store parameter, which overrides the setting.
+		require_sigs: Option<bool>,
 	},
 	Daemon {
 		socket: PathBuf,
@@ -197,7 +199,10 @@ fn resolve(uri: &str) -> Result<Target, String> {
 		return Ok(Target::Cache);
 	}
 	let (scheme, query) = uri.split_once('?').unwrap_or((uri, ""));
-	if matches!(scheme, "ssh-ng://localhost" | "ssh://localhost") {
+	if matches!(
+		scheme,
+		"ssh-ng://localhost" | "ssh://localhost" | "mounted-ssh-ng://localhost"
+	) {
 		let reference = parse_reference(uri)?;
 		if let Some(dir) = reference.params.get("store") {
 			nix_compat::store_path::configure_store_dir(dir)?;
@@ -208,10 +213,26 @@ fn resolve(uri: &str) -> Result<Target, String> {
 	let mut root = None;
 	let mut real = None;
 	let mut read_only = false;
+	let mut require_sigs = None;
 	for param in query.split('&').filter(|p| !p.is_empty()) {
 		match param.split_once('=') {
-			Some(("root", value)) if !value.is_empty() => root = Some(PathBuf::from(value)),
+			Some(("root", value)) if !value.is_empty() => {
+				root = Some(PathBuf::from(
+					nix_compat::nixcpp::url::percent_decode(value).map_err(|e| e.to_string())?,
+				))
+			}
 			Some(("read-only", value)) => read_only = value == "true",
+			Some(("require-sigs", value)) => {
+				require_sigs = Some(match value {
+					"true" => true,
+					"false" => false,
+					_ => {
+						return Err(format!(
+							"Boolean setting 'require-sigs' has invalid value '{value}'"
+						));
+					}
+				})
+			}
 			Some(("store", value)) => set_store_dir(value)?,
 			Some(("real", value)) if !value.is_empty() => real = Some(absolute_parameter(value)?),
 			// The dummy store has no other settings; CppNix warns about them.
@@ -245,11 +266,13 @@ fn resolve(uri: &str) -> Result<Target, String> {
 			root,
 			real,
 			read_only,
+			require_sigs,
 		},
 		"auto" if root.is_some() => Target::Local {
 			root,
 			real,
 			read_only,
+			require_sigs,
 		},
 		"auto" => {
 			let state_dir = LocalStoreConfig::system().state_dir;
@@ -258,6 +281,7 @@ fn resolve(uri: &str) -> Result<Target, String> {
 					root,
 					real,
 					read_only,
+					require_sigs,
 				}
 			} else if daemon_socket().exists() {
 				Target::Daemon {
@@ -269,6 +293,7 @@ fn resolve(uri: &str) -> Result<Target, String> {
 					root: chroot_store_fallback(&state_dir, query.is_empty()),
 					real,
 					read_only,
+					require_sigs,
 				}
 			}
 		}
@@ -280,6 +305,17 @@ fn resolve(uri: &str) -> Result<Target, String> {
 			socket: PathBuf::from(&scheme["unix://".len()..]),
 			root,
 		},
+		// `local://PATH`: a local store rooted at the decoded PATH, unless
+		// `root` is given (`LocalFSStoreConfig`).
+		_ if scheme.starts_with("local://") => Target::Local {
+			root: match root {
+				Some(root) => Some(root),
+				None => Some(absolute_parameter(&scheme["local://".len()..])?),
+			},
+			real,
+			read_only,
+			require_sigs,
+		},
 		// `StoreReference::parse`: a plain path is a local store rooted there.
 		_ if !scheme.contains("://") && scheme.contains('/') => Target::Local {
 			root: Some(crate::instantiate::absolute_path(
@@ -288,6 +324,7 @@ fn resolve(uri: &str) -> Result<Target, String> {
 			)),
 			real,
 			read_only,
+			require_sigs,
 		},
 		_ => {
 			return Err(format!(
@@ -475,7 +512,7 @@ pub fn open_local(
 	uri: &str,
 	settings: &Settings,
 ) -> Result<Option<(LocalStore, Option<PathBuf>)>, String> {
-	let (root, real, read_only) = match resolve(uri)? {
+	let (root, real, read_only, require_sigs) = match resolve(uri)? {
 		Target::Overlay => {
 			return noxi_store::local_overlay::open(uri, settings)
 				.map(|store| {
@@ -491,7 +528,8 @@ pub fn open_local(
 			root,
 			real,
 			read_only,
-		} => (root, real, read_only),
+			require_sigs,
+		} => (root, real, read_only, require_sigs),
 		Target::Cache => {
 			return Err(format!(
 				"operations that need a local store are not supported by store '{uri}'"
@@ -515,6 +553,9 @@ pub fn open_local(
 		.split_once('?')
 		.is_some_and(|(_, query)| !query.is_empty());
 	config.require_sigs = settings.get_bool("require-sigs", config.require_sigs);
+	if let Some(require_sigs) = require_sigs {
+		config.require_sigs = require_sigs;
+	}
 	let default_keys: Vec<&str> = config
 		.trusted_public_keys
 		.iter()

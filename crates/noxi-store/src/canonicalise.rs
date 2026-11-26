@@ -86,6 +86,25 @@ fn canonicalise(
 	Ok(())
 }
 
+/// `canonicaliseTimestampAndPermissions` for `path` alone: mode 0444 or
+/// 0555 and modification time [MTIME_STORE].
+pub(crate) fn canonicalise_timestamp_and_permissions(path: &Path) -> io::Result<()> {
+	let metadata = fs::symlink_metadata(path)?;
+	if !metadata.file_type().is_symlink() {
+		let mode = metadata.permissions().mode() & 0o7777;
+		let is_dir = metadata.is_dir();
+		if (mode != 0o444 || is_dir) && mode != 0o555 {
+			let executable = mode & 0o100 != 0 || is_dir;
+			let mode = 0o444 | if executable { 0o111 } else { 0 };
+			fs::set_permissions(path, fs::Permissions::from_mode(mode))?;
+		}
+	}
+	if metadata.mtime() != MTIME_STORE {
+		set_mtime(path, &metadata)?;
+	}
+	Ok(())
+}
+
 /// Set the modification time to [MTIME_STORE], keeping the access time and
 /// not following symlinks.
 fn set_mtime(path: &Path, metadata: &fs::Metadata) -> io::Result<()> {

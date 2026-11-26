@@ -6,6 +6,8 @@
 //! `src/libstore/local-store.cc` and its helpers in the pinned reference.
 
 pub mod api;
+mod archive;
+mod auto_gc;
 pub mod binary_cache;
 pub mod build_derivation;
 pub mod ca;

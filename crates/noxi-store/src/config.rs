@@ -51,6 +51,17 @@ pub struct LocalStoreConfig {
 	/// `local?root=ROOT` is. CppNix then calls it `local://`, and `local`
 	/// otherwise ([`LocalStoreConfig::human_uri`]).
 	pub has_params: bool,
+	/// `auto-optimise-store`: deduplicate the files of each path added.
+	pub auto_optimise_store: bool,
+	/// `min-free`, `max-free` and `min-free-check-interval`: collect garbage
+	/// during builds and additions when the free space falls below
+	/// `min_free`, until `max_free` bytes are free.
+	pub min_free: u64,
+	pub max_free: u64,
+	pub min_free_check_interval: u64,
+	/// `keep-outputs` and `keep-derivations`, for those collections.
+	pub gc_keep_outputs: bool,
+	pub gc_keep_derivations: bool,
 }
 
 impl LocalStoreConfig {
@@ -104,7 +115,21 @@ impl LocalStoreConfig {
 		self.reserved_size =
 			settings.get_int("gc-reserved-space", self.reserved_size as i64) as u64;
 		self.fsync_metadata = settings.get_bool("fsync-metadata", self.fsync_metadata);
+		self.auto_optimise_store =
+			settings.get_bool("auto-optimise-store", self.auto_optimise_store);
 		self.use_sqlite_wal = settings.get_bool("use-sqlite-wal", self.use_sqlite_wal);
+		let get_u64 = |name: &str, default: u64| {
+			settings
+				.get(name)
+				.and_then(|value| value.parse().ok())
+				.unwrap_or(default)
+		};
+		self.min_free = get_u64("min-free", self.min_free);
+		self.max_free = get_u64("max-free", self.max_free);
+		self.min_free_check_interval =
+			get_u64("min-free-check-interval", self.min_free_check_interval);
+		self.gc_keep_outputs = settings.get_bool("keep-outputs", self.gc_keep_outputs);
+		self.gc_keep_derivations = settings.get_bool("keep-derivations", self.gc_keep_derivations);
 		self.require_sigs = settings.get_bool("require-sigs", self.require_sigs);
 		self.narinfo_cache_positive_ttl = settings
 			.get_int(
@@ -197,6 +222,12 @@ impl LocalStoreConfig {
 			dynamic_derivations: false,
 			secret_key_files: Vec::new(),
 			git_hashing: false,
+			auto_optimise_store: false,
+			min_free: 0,
+			max_free: i64::MAX as u64,
+			min_free_check_interval: 5,
+			gc_keep_outputs: false,
+			gc_keep_derivations: true,
 			has_params: false,
 			narinfo_cache_positive_ttl: 30 * 24 * 60 * 60,
 			narinfo_cache_negative_ttl: 60 * 60,

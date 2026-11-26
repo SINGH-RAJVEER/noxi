@@ -84,6 +84,16 @@ pub type Roots = BTreeMap<StorePath, BTreeSet<String>>;
 
 const CENSORED: &str = "{censored}";
 
+/// A synchronisation point of the reference's functional tests: when the
+/// variable names a file (a FIFO in the tests), read it whole.
+fn test_sync_point(var: &str) -> Result<()> {
+	if let Some(path) = std::env::var_os(var) {
+		fs::read(&path)
+			.map_err(|e| Error::io(format!("reading file '{}'", Path::new(&path).display()), e))?;
+	}
+	Ok(())
+}
+
 /// CppNix's `StoreDirConfig::toStorePath`: the store path a path inside
 /// the store belongs to.
 fn to_store_path(target: &str) -> Option<StorePath> {
@@ -615,6 +625,9 @@ impl LocalStore {
 			log("waiting for the big garbage collector lock...");
 			lock_file(&gc_lock, LockType::Write, true)?;
 		}
+		// Synchronisation point to test ENOENT handling in `add_temp_root`,
+		// see tests/functional/gc-non-blocking.sh.
+		test_sync_point("_NIX_TEST_GC_SYNC_1")?;
 
 		let shared = Arc::new((Mutex::new(Shared::default()), Condvar::new()));
 		let _server = RootsServer::start(state_dir.join("gc-socket/socket"), shared.clone())?;
@@ -633,6 +646,9 @@ impl LocalStore {
 				.insert(nixbase32::encode(path.digest()));
 			roots.insert(path);
 		}
+		// Synchronisation point for testing, see
+		// tests/functional/gc-non-blocking.sh.
+		test_sync_point("_NIX_TEST_GC_SYNC_2")?;
 
 		let mut alive: BTreeSet<StorePath> = BTreeSet::new();
 		let mut dead: BTreeSet<StorePath> = BTreeSet::new();

@@ -152,3 +152,181 @@ fn collects_garbage_like_cppnix() {
 		assert_eq!(actual, expected, "nix-collect-garbage {args:?}");
 	}
 }
+
+/// The test busybox, which builders run from outside the diverted store.
+fn busybox() -> PathBuf {
+	let dir = std::env::var_os("NOXI_TEST_BUSYBOX")
+		.map(PathBuf::from)
+		.unwrap_or_else(|| Path::new(env!("CARGO_MANIFEST_DIR")).join("../../target/test-busybox"));
+	dir.join("bin/busybox").canonicalize().unwrap()
+}
+
+/// Build with `min-free` in a store whose free space a file reports, as
+/// `gc-auto.sh` does, and return the valid paths left and the build's
+/// report.
+fn auto_collect(dir: &Path, nix_build: &Path) -> (Vec<String>, String) {
+	let _ = fs::remove_dir_all(dir);
+	for sub in ["home", "etc", "state", "links"] {
+		fs::create_dir_all(dir.join(sub)).unwrap();
+	}
+	fs::write(
+		dir.join("etc/nix.conf"),
+		"experimental-features = nix-command\nsandbox = false\nbuild-users-group =\nsubstituters =\n",
+	)
+	.unwrap();
+	let reference = reference_bin();
+	let store = dir.join("store");
+	let diverted = |program: &Path| {
+		let mut command = command(dir, program);
+		command
+			.env("NIX_STORE_DIR", &store)
+			.env("NIX_LOG_DIR", dir.join("log"))
+			.env("_NIX_TEST_FREE_SPACE_FILE", dir.join("free"));
+		command
+	};
+	fs::write(dir.join("free"), "1100\n").unwrap();
+	let add = |name: &str| {
+		let source = dir.join(name);
+		fs::write(&source, name).unwrap();
+		let output = diverted(&reference.join("nix-store"))
+			.arg("--add")
+			.arg(&source)
+			.output()
+			.unwrap();
+		assert!(
+			output.status.success(),
+			"{}",
+			String::from_utf8_lossy(&output.stderr)
+		);
+		String::from_utf8(output.stdout).unwrap().trim().to_owned()
+	};
+	let garbage: Vec<String> = ["garbage1", "garbage2", "garbage3"]
+		.into_iter()
+		.map(add)
+		.collect();
+	// Rooted by a profile and by an indirect root.
+	let profiled = add("profiled");
+	let status = diverted(&reference.join("nix-env"))
+		.arg("-p")
+		.arg(dir.join("state/profiles/test"))
+		.args(["--set", &profiled])
+		.status()
+		.unwrap();
+	assert!(status.success());
+	let linked = add("linked");
+	let status = diverted(&reference.join("nix-store"))
+		.arg("--add-root")
+		.arg(dir.join("links/linked"))
+		.args(["--realise", &linked])
+		.output()
+		.unwrap()
+		.status;
+	assert!(status.success());
+	// The build's own inputs, an input derivation built first and a
+	// source, are rooted only by the building process. The builder
+	// reports little free space, waits for the garbage to go and then
+	// reads its inputs.
+	fs::write(
+		dir.join("auto.nix"),
+		format!(
+			r#"let
+				sh = "{busybox}";
+				mk = name: script: derivation {{
+					inherit name;
+					system = "x86_64-linux";
+					builder = sh;
+					PATH = "{bin}";
+					args = [ "sh" "-e" "-c" script ];
+				}};
+				dep = mk "auto-dep" "echo dep > $out";
+			in mk "auto" ''
+				cat ${{dep}} ${{builtins.toFile "auto-source" "source"}} > $out
+				echo 100 > {free}.tmp
+				mv {free}.tmp {free}
+				i=0
+				while ls {store} | grep -q garbage; do
+					i=$((i + 1))
+					[ $i -lt 300 ] || exit 1
+					sleep 0.1
+				done
+				cat ${{dep}} ${{builtins.toFile "auto-source" "source"}} >> $out
+			''"#,
+			busybox = busybox().display(),
+			bin = busybox().parent().unwrap().display(),
+			free = dir.join("free").display(),
+			store = store.display(),
+		),
+	)
+	.unwrap();
+	let output = diverted(nix_build)
+		.arg(dir.join("auto.nix"))
+		.arg("-o")
+		.arg(dir.join("links/result"))
+		.args(["--min-free", "1K", "--min-free-check-interval", "1"])
+		.output()
+		.unwrap();
+	let report = format!(
+		"{:?}\n{}",
+		output.status.code(),
+		String::from_utf8_lossy(&output.stdout).replace(&store.display().to_string(), "STORE")
+	);
+	assert_eq!(
+		output.status.code(),
+		Some(0),
+		"{report}{}",
+		String::from_utf8_lossy(&output.stderr)
+	);
+	assert_eq!(
+		fs::read_to_string(dir.join("links/result")).unwrap(),
+		"dep\nsourcedep\nsource"
+	);
+	for path in &garbage {
+		assert!(!Path::new(path).exists(), "{path} was not collected");
+	}
+	for path in [&profiled, &linked] {
+		assert!(Path::new(path).exists(), "{path} was collected");
+	}
+	let output = diverted(&reference.join("nix-store"))
+		.args(["--verify", "--check-contents"])
+		.output()
+		.unwrap();
+	assert!(
+		output.status.success()
+			&& ["error", "warning", "modified", "disappeared"]
+				.iter()
+				.all(|bad| !String::from_utf8_lossy(&output.stderr).contains(bad)),
+		"{}",
+		String::from_utf8_lossy(&output.stderr)
+	);
+	let output = diverted(&reference.join("nix"))
+		.args(["path-info", "--all"])
+		.output()
+		.unwrap();
+	assert!(output.status.success());
+	let mut valid: Vec<String> = String::from_utf8(output.stdout)
+		.unwrap()
+		.lines()
+		.map(|line| line.replace(&store.display().to_string(), "STORE"))
+		.collect();
+	valid.sort();
+	(valid, report)
+}
+
+/// When a build reports less free space than `min-free`, the building
+/// process collects garbage while the build runs, as CppNix's `autoGC`
+/// does: the unrooted sources go, while paths a profile or an indirect
+/// root keeps, the build's input derivation, input source and the output
+/// of its input derivation, which only the building process roots, stay.
+#[test]
+fn builds_collect_garbage_below_min_free_like_cppnix() {
+	let base = noxi_test_support::tempdir().unwrap();
+	let dir = base.path().join("auto");
+	let expected = auto_collect(&dir, &reference_bin().join("nix-build"));
+	let actual = auto_collect(&dir, Path::new(env!("CARGO_BIN_EXE_nix-build")));
+	assert_eq!(actual, expected);
+	assert!(
+		expected.0.iter().any(|path| path.ends_with("-auto-dep"))
+			&& expected.0.iter().any(|path| path.ends_with("-auto-source")),
+		"{expected:?}"
+	);
+}

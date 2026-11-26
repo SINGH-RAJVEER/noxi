@@ -86,6 +86,9 @@ impl LocalBuilder<'_> {
 				print(path)
 			)));
 		}
+		// `DerivationTrampolineGoal::init`: the derivation stays alive while
+		// it is built, even when nothing else roots it.
+		self.store.add_temp_root(path)?;
 		let drv = self.store.read_build_derivation(path)?;
 		let all: BTreeSet<String> = drv
 			.basic

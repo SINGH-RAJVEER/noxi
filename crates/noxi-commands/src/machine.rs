@@ -79,7 +79,7 @@ fn kind(reference: &StoreReference) -> Result<Kind, String> {
 		_ => "",
 	};
 	let known: &[&str] = match scheme {
-		"ssh" | "ssh-ng" => &[
+		"ssh" | "ssh-ng" | "mounted-ssh-ng" => &[
 			"base64-ssh-public-host-key",
 			"compress",
 			"log-fd",
@@ -123,7 +123,7 @@ fn kind(reference: &StoreReference) -> Result<Kind, String> {
 				root,
 			),
 			"ssh" => Kind::Ssh,
-			"ssh-ng" => Kind::SshNg,
+			"ssh-ng" | "mounted-ssh-ng" => Kind::SshNg,
 			scheme => {
 				return Err(format!(
 					"don't know how to open Nix store with scheme '{scheme}'"
@@ -202,6 +202,9 @@ pub fn ssh_store(reference: &StoreReference, settings: &Settings) -> Result<SshS
 		return Err(format!("'{}' is not an SSH store", reference.render(true)));
 	};
 	let legacy = scheme == "ssh";
+	// `MountedSSHStore`. Its remote daemon, not the client, requires the
+	// `mounted-ssh-store` feature (for `--process-ops`).
+	let mounted = scheme == "mounted-ssh-ng";
 	let program = if legacy { "nix-store" } else { "nix-daemon" };
 	let master = SshConfig::new(authority, &reference.params, program)
 		.and_then(SshMaster::new)
@@ -218,12 +221,19 @@ pub fn ssh_store(reference: &StoreReference, settings: &Settings) -> Result<SshS
 			},
 		))
 	} else {
-		let command = master.config().remote_command(false);
-		SshStore::Ng(DaemonStore::over_ssh(
-			master,
-			command,
-			reference.render(false),
-		))
+		let mut command = master.config().remote_command(false);
+		if mounted {
+			// `MountedSSHStore`'s `extraRemoteProgramArgs`.
+			command.push("--process-ops".into());
+		}
+		// `SSHStoreConfig::getReference` names a mounted store `ssh-ng` too.
+		let mut named = reference.clone();
+		named.variant = Variant::Specified {
+			scheme: "ssh-ng".to_owned(),
+			authority: authority.clone(),
+		};
+		let store = DaemonStore::over_ssh(master, command, named.render(false));
+		SshStore::Ng(if mounted { store.mounted() } else { store })
 	})
 }
 

@@ -103,6 +103,9 @@ pub struct LocalBuilder<'a> {
 	hooks: Option<Arc<Hooks>>,
 	/// The turn of the goal this builder realises; see [`Hooks`].
 	turn: Arc<AtomicU64>,
+	/// The first error of an automatic collection, which stops every build
+	/// of the request as it ends CppNix's `Worker::run`.
+	auto_gc_error: Arc<Mutex<Option<String>>>,
 }
 
 /// An output a derivation declares, with the path it must produce.
@@ -161,6 +164,7 @@ impl<'a> LocalBuilder<'a> {
 			impure: Arc::default(),
 			hooks: Hooks::new(settings),
 			turn: Arc::new(AtomicU64::new(NO_TURN)),
+			auto_gc_error: Arc::default(),
 		}
 	}
 
@@ -189,8 +193,41 @@ impl<'a> LocalBuilder<'a> {
 		self
 	}
 
+	/// What CppNix's worker loop does each time it wakes while builds
+	/// run: collect garbage if `min-free` asks for it (`autoGC(false)`), then
+	/// report whether to stop. An error of the collection stops the builds;
+	/// [`LocalBuilder::auto_gc_error`] then reports it.
+	pub(crate) fn tick(&self) -> bool {
+		if let Err(error) = self.store.auto_gc(false) {
+			self.auto_gc_error
+				.lock()
+				.unwrap_or_else(|e| e.into_inner())
+				.get_or_insert(error.to_string());
+		}
+		self.is_cancelled()
+	}
+
+	/// The error that stopped the builds through [`LocalBuilder::tick`], in
+	/// place of `error`, which reports that they were cancelled.
+	pub(crate) fn auto_gc_error(&self, error: BuildError) -> BuildError {
+		match (
+			&error,
+			&*self.auto_gc_error.lock().unwrap_or_else(|e| e.into_inner()),
+		) {
+			(BuildError::Cancelled, Some(message)) => {
+				BuildError::Store(noxi_store::Error::Other(message.clone()))
+			}
+			_ => error,
+		}
+	}
+
 	fn is_cancelled(&self) -> bool {
 		crate::interrupt::interrupted()
+			|| self
+				.auto_gc_error
+				.lock()
+				.unwrap_or_else(|e| e.into_inner())
+				.is_some()
 			|| self
 				.cancelled
 				.is_some_and(|flag| flag.load(Ordering::Relaxed))
@@ -311,8 +348,25 @@ impl<'a> LocalBuilder<'a> {
 
 	/// Try to substitute `path`; a failure is logged, not returned.
 	fn try_substitute(&self, path: &StorePath) -> Result<bool> {
+		match self.substitute_attempt(path)? {
+			Ok(substituted) => Ok(substituted),
+			Err(error) if !self.settings.try_fallback => Err(error.into()),
+			Err(e) => {
+				tracing::debug!("cannot substitute '{}': {e}", print(path));
+				Ok(false)
+			}
+		}
+	}
+
+	/// Substitute `path` if a substituter has it. The inner error is a
+	/// failed substitution, which `PathSubstitutionGoal` reports as
+	/// `ecFailed`; the outer one any other failure.
+	fn substitute_attempt(
+		&self,
+		path: &StorePath,
+	) -> Result<std::result::Result<bool, noxi_store::Error>> {
 		if !self.settings.use_substitutes || self.substituters.is_empty() {
-			return Ok(false);
+			return Ok(Ok(false));
 		}
 		let mut available = false;
 		for cache in self.substituters {
@@ -327,26 +381,25 @@ impl<'a> LocalBuilder<'a> {
 			}
 		}
 		if !available {
-			return Ok(false);
+			return Ok(Ok(false));
 		}
 		let substituted = if self.repair() {
 			self.store.substitute_repair(self.substituters, path)
 		} else {
 			self.store.substitute(self.substituters, path)
 		};
-		match substituted {
+		Ok(match substituted {
 			Ok(()) => {
 				if self.repair() {
 					self.checked().insert(path.clone(), true);
 				}
 				Ok(true)
 			}
-			Err(error) if !self.settings.try_fallback => Err(error.into()),
-			Err(e) => {
-				tracing::debug!("cannot substitute '{}': {e}", print(path));
-				Ok(false)
-			}
-		}
+			// No substituter could provide it after all, without failing
+			// (a collected NAR, say): the derivation is built instead.
+			Err(noxi_store::Error::NoSubstituters(_)) => Ok(false),
+			Err(error) => Err(error),
+		})
 	}
 
 	/// Whether the derivation's options allow substituting its outputs.
@@ -475,6 +528,9 @@ impl<'a> LocalBuilder<'a> {
 				print(drv_path)
 			)));
 		}
+		// `DerivationBuildingGoal`: the derivation stays alive while it is
+		// built, even when nothing else roots it.
+		self.store.add_temp_root(drv_path)?;
 		let supplied = resolved.is_some();
 		let build_drv = match resolved {
 			Some(drv) => drv,
@@ -538,7 +594,9 @@ impl<'a> LocalBuilder<'a> {
 			// A fixed output that is valid needs none of its inputs.
 			if build_drv.is_fixed() && self.mode == BuildMode::Normal {
 				let outputs = self.known_outputs(drv_path, &build_drv)?;
-				if self.all_valid(&outputs)? || self.substitute_known(&build_drv, &outputs)? {
+				if self.all_valid(&outputs)?
+					|| self.substitute_known(drv_path, &build_drv, &outputs)?
+				{
 					let paths = outputs
 						.into_iter()
 						.map(|(name, o)| (name, o.path))
@@ -548,7 +606,7 @@ impl<'a> LocalBuilder<'a> {
 				}
 			}
 			stack.push(drv_path.clone());
-			let result = self.resolve_inputs(drv_path, &build_drv, done, stack, events);
+			let result = self.resolve_inputs(drv_path, &build_drv, wanted, done, stack, events);
 			stack.pop();
 			return result;
 		}
@@ -586,7 +644,7 @@ impl<'a> LocalBuilder<'a> {
 		// Like `DerivationGoal`, substitute missing outputs before
 		// realising any inputs, which then may not be needed at all.
 		self.report_checks(&wanted_outputs, events)?;
-		self.substitute_known(&build_drv, &wanted_outputs)?;
+		self.substitute_known(drv_path, &build_drv, &wanted_outputs)?;
 		// An impure derivation is always built, and never checked.
 		let check = self.mode == BuildMode::Check && !impure;
 		let valid = self.all_valid(&wanted_outputs)?;
@@ -696,13 +754,18 @@ impl<'a> LocalBuilder<'a> {
 			.into_iter()
 			.filter(|(name, _)| names.contains(name))
 			.collect();
-		self.substitute_known(drv, &outputs)
+		self.substitute_known(drv_path, drv, &outputs)
 	}
 
 	/// Substitute the outputs with known paths, if they may be and are not
 	/// valid yet. Returns whether all outputs are valid afterwards.
+	///
+	/// As in `DerivationGoal::haveDerivation`, a failed substitution is
+	/// logged as its `PathSubstitutionGoal` logs it, and unless `fallback`
+	/// is set the derivation then fails instead of being built.
 	fn substitute_known(
 		&self,
+		drv_path: &StorePath,
 		drv: &BuildDerivation,
 		outputs: &BTreeMap<String, KnownOutput>,
 	) -> Result<bool> {
@@ -711,11 +774,24 @@ impl<'a> LocalBuilder<'a> {
 			&& (self.repair() || !self.all_valid(outputs)?)
 			&& self.substitutes_allowed(&drv.basic)?
 		{
+			let mut failed = false;
 			// Floating outputs were looked up by their realisations.
 			for output in outputs.values().filter(|o| o.floating.is_none()) {
-				if self.repair() || !self.store.is_valid_path(&output.path)? {
-					self.try_substitute(&output.path)?;
+				if (self.repair() || !self.store.is_valid_path(&output.path)?)
+					&& let Err(error) = self.substitute_attempt(&output.path)?
+				{
+					crate::backend::log_error(&error.to_string());
+					failed = true;
 				}
+			}
+			if failed && !self.settings.try_fallback {
+				return Err(BuildError::failed(
+					FailureStatus::TransientFailure,
+					format!(
+						"some substitutes for the outputs of derivation '{}' failed (usually happens due to networking issues); try '--fallback' to build derivation from source ",
+						print(drv_path)
+					),
+				));
 			}
 		}
 		self.all_valid(outputs)
@@ -743,10 +819,14 @@ impl<'a> LocalBuilder<'a> {
 		Ok(())
 	}
 
+	/// `DerivationGoal` after `DerivationResolutionGoal`: realise the
+	/// inputs, resolve the derivation and realise the `wanted` outputs of
+	/// the resolved one, which may then be substituted output by output.
 	fn resolve_inputs(
 		&self,
 		drv_path: &StorePath,
 		drv: &BuildDerivation,
+		wanted: Option<&BTreeSet<String>>,
 		done: &mut BTreeMap<StorePath, BTreeSet<String>>,
 		stack: &mut Vec<StorePath>,
 		events: &mut dyn FnMut(BuildEvent<'_>),
@@ -775,7 +855,7 @@ impl<'a> LocalBuilder<'a> {
 		);
 		let impure = resolved.is_impure();
 		let resolved = (!self.store.is_valid_path(&path)?).then_some(resolved);
-		let outputs = match self.realise_drv(&path, resolved, None, done, stack, events) {
+		let outputs = match self.realise_drv(&path, resolved, wanted, done, stack, events) {
 			Err(BuildError::Failed { status, message }) => {
 				crate::backend::log_error(&message);
 				return Err(BuildError::failed(
@@ -1699,9 +1779,10 @@ impl LocalBuilder<'_> {
 			input_paths,
 			&missing,
 			hook,
-			&|| self.is_cancelled(),
+			&|| self.tick(),
 			events,
-		)?;
+		)
+		.map_err(|e| self.auto_gc_error(e))?;
 		let outputs = self.known_outputs(drv_path, build_drv)?;
 		if !self.all_valid(&outputs)? {
 			return Err(BuildError::Other(
@@ -1828,6 +1909,10 @@ impl LocalBuilder<'_> {
 		let check = self.mode == BuildMode::Check;
 		let mut referenceable = input_paths.clone();
 		referenceable.extend(build.scratch.values().cloned());
+		// And any paths that were added or built through recursive Nix.
+		if let Some(restriction) = &*build.restriction.borrow() {
+			referenceable.extend(restriction.added_paths());
+		}
 
 		// Rewrite rules from the hash parts outputs were built with to those
 		// of their final paths, for the outputs that refer to them.
@@ -2019,6 +2104,9 @@ impl LocalBuilder<'_> {
 
 			let mut info = info;
 			if !check {
+				if !self.store.is_valid_path(&info.path)? {
+					self.store.optimise_path(&real, false)?;
+				}
 				info.deriver = Some(drv_path.clone());
 				info.ultimate = true;
 				self.store.sign_path_info(&mut info)?;
@@ -2949,6 +3037,10 @@ struct Build<'b> {
 	structured: Option<Map<String, Value>>,
 	/// The build user the builder runs as, when the daemon runs as root.
 	build_user: Option<BuildUser>,
+	/// Whether the derivation requires `recursive-nix`.
+	recursive: bool,
+	/// The paths a recursive build may see; set while it runs.
+	restriction: std::cell::RefCell<Option<std::sync::Arc<crate::recursive::Restriction>>>,
 }
 
 impl<'b> Build<'b> {
@@ -3043,6 +3135,10 @@ impl<'b> Build<'b> {
 			export_references_graph: drv_options.export_references_graph.clone(),
 			structured,
 			build_user,
+			recursive: drv_options
+				.required_system_features
+				.contains("recursive-nix"),
+			restriction: std::cell::RefCell::new(None),
 		})
 	}
 
@@ -3382,9 +3478,16 @@ impl<'b> Build<'b> {
 		let settings = self.builder.settings;
 
 		let rewrites = &self.input_rewrites;
-		let env = self.environment(drv, env, input_paths, rewrites)?;
+		let mut env = self.environment(drv, env, input_paths, rewrites)?;
 
 		let binds = self.chroot_binds(input_paths)?;
+
+		// `startDaemon`: a socket for recursive Nix calls.
+		let recursive = if self.recursive {
+			Some(self.start_daemon(input_paths, &mut env)?)
+		} else {
+			None
+		};
 
 		let builtin = self.builtin(drv, kind, outputs)?;
 		let spec = SandboxSpec {
@@ -3395,9 +3498,15 @@ impl<'b> Build<'b> {
 			binds,
 			sandboxed: self.sandboxed,
 			build_user: self.build_user.as_ref().map(|u| (u.uid, u.gid)),
+			build_user_groups: self
+				.build_user
+				.as_ref()
+				.map(|u| u.supplementary_gids.clone())
+				.unwrap_or_default(),
 			kvm: settings.system_features.contains("kvm"),
 			shm_size: settings.sandbox_shm_size.clone(),
 			allow_new_privileges: settings.allow_new_privileges,
+			require_drop_supplementary_groups: settings.require_drop_supplementary_groups,
 			filter_syscalls: settings.filter_syscalls,
 			build_dir_in_sandbox: self.build_top(),
 			builder: drv.command().to_vec(),
@@ -3424,23 +3533,30 @@ impl<'b> Build<'b> {
 		let max_log_size = settings.max_log_size();
 		let log_size = Cell::new(0u64);
 		let too_long = || max_log_size != 0 && log_size.get() > max_log_size;
-		let status = sandbox::run_cancellable(
-			&spec,
-			&mut |data: &[u8]| {
-				log_size.set(log_size.get() + data.len() as u64);
-				if too_long() {
-					return;
-				}
-				tail.feed(data);
-				if let Some(file) = &mut log_file
-					&& let Err(e) = file.write_all(data)
-				{
-					write_error.get_or_insert(e);
-				}
-				events(BuildEvent::Output(data));
-			},
-			&|| too_long() || self.builder.is_cancelled(),
-		);
+		let mut run = || {
+			sandbox::run_cancellable(
+				&spec,
+				&mut |data: &[u8]| {
+					log_size.set(log_size.get() + data.len() as u64);
+					if too_long() {
+						return;
+					}
+					tail.feed(data);
+					if let Some(file) = &mut log_file
+						&& let Err(e) = file.write_all(data)
+					{
+						write_error.get_or_insert(e);
+					}
+					events(BuildEvent::Output(data));
+				},
+				&|| too_long() || self.builder.tick(),
+			)
+		};
+		let status = match recursive {
+			Some((listener, context)) => serve_recursive(listener, &context, run),
+			None => run(),
+		};
+		let status = status.map_err(|e| self.builder.auto_gc_error(e));
 		// `killSandbox`: nothing the builder started may outlive it.
 		if let Some(user) = &self.build_user {
 			user.kill()?;
@@ -3460,6 +3576,72 @@ impl<'b> Build<'b> {
 			return Err(self.failure(&status, &tail));
 		}
 		Ok(())
+	}
+
+	/// `startDaemon`: create the recursive Nix socket in the build directory,
+	/// readable and writable only by the builder, and name it in
+	/// `NIX_REMOTE`.
+	fn start_daemon(
+		&self,
+		input_paths: &BTreeSet<StorePath>,
+		env: &mut BTreeMap<BString, BString>,
+	) -> Result<(
+		std::os::unix::net::UnixListener,
+		crate::recursive::Context<'b>,
+	)> {
+		use crate::recursive::{Context, Restriction, SOCKET_NAME};
+		use std::os::unix::fs::PermissionsExt;
+		let settings = self.builder.settings;
+		if !settings
+			.config
+			.experimental_features()
+			.contains("recursive-nix")
+		{
+			return Err(BuildError::Other("experimental Nix feature 'recursive-nix' is disabled; add '--extra-experimental-features recursive-nix' to enable it".to_owned()));
+		}
+		if crate::recursive::server().is_none() {
+			return Err(BuildError::Other(
+				"this program cannot serve recursive Nix calls".to_owned(),
+			));
+		}
+		// Sandboxed builders see only the paths bound into their chroot;
+		// paths added while they run are not bound in yet.
+		let add_to_sandbox: Option<crate::recursive::AddToSandbox> = if self.direct {
+			None
+		} else {
+			Some(Box::new(|path: &StorePath| {
+				Err(format!(
+					"adding store path '{}' to the sandbox is not implemented (recursive-nix)",
+					print(path)
+				))
+			}))
+		};
+		let restriction = Arc::new(Restriction::new(input_paths.clone(), add_to_sandbox));
+		*self.restriction.borrow_mut() = Some(restriction.clone());
+		let socket = self.tmp_dir.join(SOCKET_NAME);
+		let listener = noxi_store::unix_socket::bind(&socket).map_err(|e| {
+			BuildError::Other(format!("cannot bind to socket '{}': {e}", socket.display()))
+		})?;
+		fs::set_permissions(&socket, fs::Permissions::from_mode(0o600))?;
+		if let Some(user) = &self.build_user {
+			user.chown(&socket)?;
+		}
+		env.insert(
+			"NIX_REMOTE".into(),
+			format!("unix://{}/{SOCKET_NAME}", self.build_top().display()).into(),
+		);
+		let context = Context {
+			store: self.builder.store,
+			settings,
+			substituters: self
+				.builder
+				.substituters
+				.iter()
+				.map(|cache| cache.uri().to_owned())
+				.collect(),
+			restriction,
+		};
+		Ok((listener, context))
 	}
 
 	/// A builtin builder, with what it needs of this process. It runs in the
@@ -3657,4 +3839,66 @@ mod tests {
 		assert_eq!(output_path_name("hello", "out"), "hello");
 		assert_eq!(output_path_name("hello", "dev"), "hello-dev");
 	}
+}
+
+/// Run the builder with `run` while serving its recursive Nix socket, as
+/// `startDaemon`'s thread does: one thread accepts connections and each
+/// connection is served by its own thread. When the builder is done the
+/// socket is closed and every connection shut down, as `stopDaemon` does,
+/// so a process the builder left behind cannot keep a worker alive.
+fn serve_recursive<T>(
+	listener: std::os::unix::net::UnixListener,
+	context: &crate::recursive::Context<'_>,
+	run: impl FnOnce() -> T,
+) -> T {
+	use std::sync::atomic::{AtomicBool, Ordering};
+	let server = crate::recursive::server().expect("checked by start_daemon");
+	let stop = AtomicBool::new(false);
+	let connections: Mutex<Vec<std::os::unix::net::UnixStream>> = Mutex::new(Vec::new());
+	std::thread::scope(|scope| {
+		let (stop, connections) = (&stop, &connections);
+		scope.spawn(move || {
+			if listener.set_nonblocking(true).is_err() {
+				return;
+			}
+			while !stop.load(Ordering::Relaxed) {
+				match listener.accept() {
+					Ok((stream, _)) => {
+						if stream.set_nonblocking(false).is_err() {
+							continue;
+						}
+						// Under the lock, so that a connection accepted as the
+						// builder finishes is shut down too.
+						let mut open = connections.lock().unwrap_or_else(|e| e.into_inner());
+						if stop.load(Ordering::Relaxed) {
+							let _ = stream.shutdown(std::net::Shutdown::Both);
+							break;
+						}
+						match stream.try_clone() {
+							Ok(copy) => open.push(copy),
+							Err(_) => continue,
+						}
+						drop(open);
+						tracing::debug!("received daemon connection");
+						scope.spawn(move || server(stream, context));
+					}
+					Err(e) if e.kind() == std::io::ErrorKind::WouldBlock => {
+						std::thread::sleep(std::time::Duration::from_millis(20));
+					}
+					Err(e) if e.kind() == std::io::ErrorKind::Interrupted => {}
+					Err(e) => {
+						tracing::debug!("accepting connection: {e}");
+						break;
+					}
+				}
+			}
+		});
+		let result = run();
+		let mut open = connections.lock().unwrap_or_else(|e| e.into_inner());
+		stop.store(true, Ordering::Relaxed);
+		for stream in open.drain(..) {
+			let _ = stream.shutdown(std::net::Shutdown::Both);
+		}
+		result
+	})
 }

@@ -10,8 +10,8 @@ tests/functional/add.sh pass pass pass
 tests/functional/bash-profile.sh anomaly fail fail # reference fail: main in bash-profile.sh:5: bash-profile.sh: line 5: ../../scripts/nix-profile.sh.in: No such file or directory
 tests/functional/big-derivation-attr.nix support
 tests/functional/binary-cache-build-remote.sh pass pass pass
-tests/functional/binary-cache-compression.sh gap fail pass # main in binary-cache-compression.sh:75: cache upload compression 'compress' is unsupported
-tests/functional/binary-cache.sh gap fail pass # main in binary-cache.sh:99: no verbose NAR download message in the concurrent substitution logs
+tests/functional/binary-cache-compression.sh pass pass pass
+tests/functional/binary-cache.sh gap fail pass # main in binary-cache.sh:165: noxi has no narinfo disk cache, so a .narinfo deleted from the cache is not reused
 tests/functional/build-cores.nix support
 tests/functional/build-cores.sh pass pass pass
 tests/functional/build-delete.sh pass pass pass
@@ -30,15 +30,15 @@ tests/functional/build-remote-trustless-should-pass-1.sh pass pass pass
 tests/functional/build-remote-trustless-should-pass-2.sh pass pass pass
 tests/functional/build-remote-trustless-should-pass-3.sh pass pass pass
 tests/functional/build-remote-trustless.sh support
-tests/functional/build-remote-with-mounted-ssh-ng.sh gap fail pass # main in build-remote-with-mounted-ssh-ng.sh:10: error: don't know how to open Nix store with scheme 'mounted-ssh-ng://localhost'
+tests/functional/build-remote-with-mounted-ssh-ng.sh pass pass pass
 tests/functional/build-remote.sh support
 tests/functional/build.sh gap fail pass # main in build.sh:148: error: nix --relaxed-sandbox is not supported by noxi yet
 tests/functional/ca-shell.nix support
-tests/functional/ca/build-cache.sh gap fail pass # build-cache.sh:17: dependentCA substitution requests a local build with max-jobs = 0
+tests/functional/ca/build-cache.sh pass pass pass
 tests/functional/ca/build-delete.sh pass pass pass
 tests/functional/ca/build-dry.sh support # test script not registered in ca/meson.build; upstream does not run it
 tests/functional/ca/build-with-garbage-path.sh pass pass pass
-tests/functional/ca/build.sh gap fail pass # : error: Cannot build '$ROOT/tmp/nix-test/ca/build/store/HASH-rootCA.drv'.
+tests/functional/ca/build.sh pass pass pass
 tests/functional/ca/common.sh support
 tests/functional/ca/concurrent-builds.sh pass pass pass
 tests/functional/ca/config.nix support
@@ -51,7 +51,7 @@ tests/functional/ca/flake.nix support
 tests/functional/ca/gc.sh pass pass pass
 tests/functional/ca/import-from-derivation.sh pass pass pass
 tests/functional/ca/issue-13247.nix support
-tests/functional/ca/issue-13247.sh gap fail pass # main in issue-13247.sh:49: copying path '$ROOT/tmp/nix-test/ca/issue-13247/store/HASH-use-a-more-outputs-second' from 'file://$ROOT/tmp/nix-test/ca/issue-13247/cache'...
+tests/functional/ca/issue-13247.sh pass pass pass
 tests/functional/ca/meson.build support
 tests/functional/ca/multiple-outputs.sh pass pass pass
 tests/functional/ca/new-build-cmd.sh gap fail pass # source in ./build.sh:148: error: nix --relaxed-sandbox is not supported by noxi yet
@@ -61,7 +61,7 @@ tests/functional/ca/nix-shell.sh pass pass pass
 tests/functional/ca/nondeterministic.nix support
 tests/functional/ca/post-hook.sh pass pass pass
 tests/functional/ca/racy.nix support
-tests/functional/ca/recursive.sh gap fail pass # source in ./recursive.sh:13: error: Cannot build '$ROOT/tmp/nix-test/ca/recursive/store/HASH-recursive.drv'.
+tests/functional/ca/recursive.sh pass pass pass
 tests/functional/ca/repl.sh gap fail pass # source in repl.sh:229: REPL :edit does not open the derivation builtin source
 tests/functional/ca/selfref-gc.sh pass pass pass
 tests/functional/ca/signatures.sh pass pass pass
@@ -77,7 +77,7 @@ tests/functional/check-reqs.nix support
 tests/functional/check-reqs.sh pass pass pass
 tests/functional/check.nix support
 tests/functional/check.sh pass pass pass
-tests/functional/chroot-store.sh gap fail pass # main in chroot-store.sh:48: error: don't know how to open Nix store with scheme 'local://$ROOT/tmp/nix-test/main/chroot-store/x+chroot'
+tests/functional/chroot-store.sh gap fail pass # main in chroot-store.sh:94: thread '<unnamed>' panicked at crates/noxi/eval/src/compiler/mod.rs:1878:22: __curPos canonicalizes the logical store path of a flake source in a chroot store
 tests/functional/cli-characterisation.sh gap fail pass # : error:
 tests/functional/cli-characterisation/assert-fail.nix support
 tests/functional/cli-characterisation/bad-drvpath.nix support
@@ -231,7 +231,7 @@ tests/functional/duplicate.nar support
 tests/functional/dyn-drv/build-built-drv.sh pass pass pass
 tests/functional/dyn-drv/common.sh support
 tests/functional/dyn-drv/config.nix support
-tests/functional/dyn-drv/dep-built-drv-2.sh gap fail pass # main in dep-built-drv-2.sh:16: error: failed to obtain derivation of '$ROOT/tmp/nix-test/dyn-drv/dep-built-drv-2/store/HASH-make-derivations.drv.drv^out'
+tests/functional/dyn-drv/dep-built-drv-2.sh pass pass pass
 tests/functional/dyn-drv/dep-built-drv.sh pass pass pass
 tests/functional/dyn-drv/eval-outputOf.sh pass pass pass
 tests/functional/dyn-drv/failing-outer.sh pass pass pass
@@ -240,7 +240,7 @@ tests/functional/dyn-drv/non-trivial.nix support
 tests/functional/dyn-drv/old-daemon-error-hack.nix support
 tests/functional/dyn-drv/old-daemon-error-hack.sh anomaly skip skip # reference skip: Daemon is too new, skipping this test...
 tests/functional/dyn-drv/recursive-mod-json.nix support
-tests/functional/dyn-drv/recursive-mod-json.sh gap fail pass # main in recursive-mod-json.sh:19: error: Cannot build '$ROOT/tmp/nix-test/dyn-drv/recursive-mod-json/store/HASH-foo.drv.drv'.
+tests/functional/dyn-drv/recursive-mod-json.sh pass pass pass
 tests/functional/dyn-drv/text-hashed-output.nix support
 tests/functional/dyn-drv/text-hashed-output.sh pass pass pass
 tests/functional/eval-store.sh gap fail pass # main in eval-store.sh:14: error: nix build --eval-store is not supported by noxi yet
@@ -314,13 +314,13 @@ tests/functional/fod-failing.nix support
 tests/functional/formatter.sh gap fail pass # main in formatter.sh:11: error: nix --help is not supported by noxi yet
 tests/functional/formatter.simple.sh support
 tests/functional/function-trace.sh gap fail pass # main in function-trace.sh:34: <
-tests/functional/gc-auto.sh gap fail pass # main in gc-auto.sh:83: error: Cannot build '$ROOT/tmp/nix-test/main/gc-auto/store/HASH-gc-A.drv'.
-tests/functional/gc-closure.sh gap fail pass # : error: nix store delete --skip-alive is not supported by noxi yet
+tests/functional/gc-auto.sh pass pass pass
+tests/functional/gc-closure.sh pass pass pass
 tests/functional/gc-concurrent.builder.sh support
 tests/functional/gc-concurrent.nix support
-tests/functional/gc-concurrent.sh gap fail pass # main in gc-concurrent.sh:40: error: path '$ROOT/tmp/nix-test/main/gc-concurrent/store/HASH-gc-concurrent.drv' is not valid
+tests/functional/gc-concurrent.sh pass pass pass
 tests/functional/gc-concurrent2.builder.sh support
-tests/functional/gc-non-blocking.sh gap fail pass # main in gc-non-blocking.sh:43: error: Cannot build '$ROOT/tmp/nix-test/main/gc-non-blocking/store/HASH-non-blocking.drv'.
+tests/functional/gc-non-blocking.sh pass pass pass
 tests/functional/gc-runtime.nix support
 tests/functional/gc-runtime.sh pass pass pass
 tests/functional/gc.sh pass pass pass
@@ -344,7 +344,7 @@ tests/functional/import-from-derivation.sh pass pass pass
 tests/functional/impure-derivations.nix support
 tests/functional/impure-derivations.sh pass pass pass
 tests/functional/impure-env.nix support
-tests/functional/impure-env.sh gap fail pass # : error: hash mismatch in fixed-output derivation '$ROOT/tmp/nix-test/main/impure-env/store/HASH-test.drv':
+tests/functional/impure-env.sh pass pass pass
 tests/functional/impure-eval.sh pass pass pass
 tests/functional/install-darwin.sh support # Darwin installer helper, not a registered test
 tests/functional/json.sh pass pass pass
@@ -385,7 +385,7 @@ tests/functional/make-content-addressed.sh pass pass pass
 tests/functional/meson.build support
 tests/functional/meson.options support
 tests/functional/misc.sh pass pass pass
-tests/functional/multiple-outputs-substitute-failure.sh gap fail pass # main in multiple-outputs-substitute-failure.sh:28: clearing store...
+tests/functional/multiple-outputs-substitute-failure.sh pass pass pass
 tests/functional/multiple-outputs.nix support
 tests/functional/multiple-outputs.sh pass pass pass
 tests/functional/nar-access.nix support
@@ -407,7 +407,7 @@ tests/functional/nix-profile.sh pass pass pass
 tests/functional/nix-shell.sh pass pass pass
 tests/functional/nix_path.sh pass pass pass
 tests/functional/no-url-literals.sh pass pass pass
-tests/functional/optimise-store.sh gap fail pass # : inodes do not match
+tests/functional/optimise-store.sh pass pass pass
 tests/functional/output-normalization.sh pass pass pass
 tests/functional/package.nix support
 tests/functional/parallel.builder.sh support
@@ -431,7 +431,7 @@ tests/functional/read-only-store.sh pass pass pass
 tests/functional/readfile-context.nix support
 tests/functional/readfile-context.sh pass pass pass
 tests/functional/recursive.nix support
-tests/functional/recursive.sh gap fail pass # main in recursive.sh:13: error: Cannot build '$ROOT/tmp/nix-test/main/recursive/store/HASH-recursive.drv'.
+tests/functional/recursive.sh pass pass pass
 tests/functional/referrers.sh pass pass pass
 tests/functional/remote-store.sh pass pass pass
 tests/functional/repair.sh pass pass pass
@@ -536,7 +536,7 @@ tests/functional/shell.shebang.nix support
 tests/functional/shell.shebang.rb support
 tests/functional/shell.shebang.sh support
 tests/functional/short-path-literals.sh pass pass pass
-tests/functional/signing.sh gap fail pass # main in signing.sh:103: error: unsupported store parameter 'require-sigs=false' in '$ROOT/tmp/nix-test/main/signing/store0?require-sigs=false'
+tests/functional/signing.sh pass pass pass
 tests/functional/simple-failing.nix support
 tests/functional/simple.builder.sh support
 tests/functional/simple.nix support
@@ -549,7 +549,7 @@ tests/functional/structured-attrs.nix support
 tests/functional/structured-attrs.sh anomaly fail fail # reference fail: main in structured-attrs.sh:27: error (ignored): cannot find flake 'flake:nixpkgs' in the flake registries
 tests/functional/substitute-with-invalid-ca.sh pass pass pass
 tests/functional/suggestions.sh pass pass pass
-tests/functional/supplementary-groups.sh gap fail pass # : Expected exit code '1' but got '0' from command 'nix-build' './hermetic.nix' '--arg' 'busybox' '/nix/store/HASH-busybox-static-x86_64-unknown-linux-musl-1.37.0/bin/busybox' '--arg' 'seed' '1' '--no-
+tests/functional/supplementary-groups.sh pass pass pass
 tests/functional/symlink-derivation.nix support
 tests/functional/symlinks.sh pass pass pass
 tests/functional/tarball.sh gap fail pass # main in tarball.sh:125: concurrent prefetch produces no download diagnostic
@@ -560,7 +560,7 @@ tests/functional/test-libstoreconsumer/main.cc support
 tests/functional/test-libstoreconsumer/meson.build support
 tests/functional/test-libstoreconsumer/nix-meson-build-support support
 tests/functional/timeout.nix support
-tests/functional/timeout.sh gap timeout pass # timed out at +(common/functions.sh:331) command grep 'killed after writing more than 100 bytes of log output'
+tests/functional/timeout.sh pass pass pass
 tests/functional/toString-path.sh pass pass pass
 tests/functional/tree.tar.gz support
 tests/functional/undefined-variable.nix support

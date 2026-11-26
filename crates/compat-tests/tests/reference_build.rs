@@ -1595,7 +1595,7 @@ fn parallel_cancellation_reaps_builders_preserves_logs_and_allows_retry() {
 }
 
 #[test]
-fn cancellation_interrupts_output_lock_waits_and_closed_log_builders() {
+fn cancellation_interrupts_output_lock_waits_and_closed_log_builders_are_killed() {
 	use std::sync::atomic::{AtomicBool, Ordering};
 	use std::sync::mpsc;
 	let env = Env::new_isolated_builder();
@@ -1646,29 +1646,24 @@ fn cancellation_interrupts_output_lock_waits_and_closed_log_builders() {
 		release_tx.send(()).unwrap();
 	});
 	cancelled.store(false, Ordering::Relaxed);
-	std::thread::scope(|scope| {
-		let (ready_tx, ready_rx) = mpsc::channel();
-		let flag = &cancelled;
-		scope.spawn(move || {
-			ready_rx
-				.recv_timeout(std::time::Duration::from_secs(5))
-				.unwrap();
-			// Let the builder close stdout/stderr before cancellation. This
-			// exercises cancellable waitpid after the terminal reaches EOF.
-			std::thread::sleep(std::time::Duration::from_millis(100));
-			flag.store(true, Ordering::Relaxed);
-		});
-		let mut sent = false;
-		let result = LocalBuilder::new(&store, &settings)
-			.with_cancellation(&cancelled)
-			.realise(&drv, &mut |data| {
-				if !sent && String::from_utf8_lossy(data).contains("ready") {
-					sent = true;
-					ready_tx.send(()).unwrap();
-				}
-			});
-		assert!(matches!(result, Err(noxi_build::BuildError::Cancelled)));
-	});
+	// A builder that closes its log is presumed done and killed, as
+	// CppNix's `unprepareBuild` kills it after an EOF on the log, so the
+	// build fails at once instead of waiting to be cancelled.
+	let started = std::time::Instant::now();
+	let result = LocalBuilder::new(&store, &settings)
+		.with_cancellation(&cancelled)
+		.realise(&drv, &mut |_| {});
+	assert!(
+		started.elapsed() < std::time::Duration::from_secs(60),
+		"the build waited for the builder that closed its log"
+	);
+	match result {
+		Err(noxi_build::BuildError::Failed { message, .. }) => assert!(
+			message.contains("builder failed due to signal 9"),
+			"{message}"
+		),
+		other => panic!("{other:?}"),
+	}
 	assert!(!store.is_valid_path(&output).unwrap());
 	assert!(sandbox_children().is_empty());
 	drop(store);
