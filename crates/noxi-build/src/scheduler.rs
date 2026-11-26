@@ -55,7 +55,10 @@ struct Goal {
 enum Message {
 	PathChecked(StorePath, StorePath, bool),
 	Started(StorePath, BuildMode),
-	StartedRemotely(StorePath, BuildMode, String),
+	/// The sender waits for the build's activity to start before the hook
+	/// reports anything, as the reference starts it before it lets the hook
+	/// go on.
+	StartedRemotely(StorePath, BuildMode, String, mpsc::Sender<()>),
 	Output(StorePath, Vec<u8>),
 	Finished(StorePath, Option<BuildError>),
 	Done(StorePath, Result<BTreeMap<String, StorePath>>),
@@ -268,11 +271,15 @@ impl LocalBuilder<'_> {
 											machine,
 										} => {
 											current = drv_path.clone();
-											Message::StartedRemotely(
+											let (shown, wait) = mpsc::channel();
+											let _ = tx.send(Message::StartedRemotely(
 												drv_path.clone(),
 												mode,
 												machine.to_owned(),
-											)
+												shown,
+											));
+											let _ = wait.recv();
+											return;
 										}
 										BuildEvent::Output(data) => {
 											Message::Output(current.clone(), data.to_vec())
@@ -315,14 +322,17 @@ impl LocalBuilder<'_> {
 							mode,
 						},
 					),
-					Ok(Message::StartedRemotely(path, mode, machine)) => events(
-						&path,
-						BuildEvent::StartedRemotely {
-							drv_path: &path,
-							mode,
-							machine: &machine,
-						},
-					),
+					Ok(Message::StartedRemotely(path, mode, machine, shown)) => {
+						events(
+							&path,
+							BuildEvent::StartedRemotely {
+								drv_path: &path,
+								mode,
+								machine: &machine,
+							},
+						);
+						let _ = shown.send(());
+					}
 					Ok(Message::Output(path, data)) => events(&path, BuildEvent::Output(&data)),
 					Ok(Message::Finished(path, error)) => events(
 						&path,
